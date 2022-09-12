@@ -1,0 +1,231 @@
+
+#include <lib/ParseTree.hpp>
+
+#include <utl/vector.hpp>
+#include <utl/utility.hpp>
+#include <memory>
+#include <array>
+#include <iostream>
+
+struct Program;
+struct CPU;
+
+using Word = std::int64_t;
+using InstructionPtr = void(*)(CPU&, Word, Word);
+enum class Instruction {
+	PushV,
+	PushM,
+	Pop,
+	
+	MovSV,
+	MovSS,
+	MovSM,
+	
+	IncS,
+	DecS,
+	
+	Jmp,
+	JmpIfS,
+	JmpIfNS,
+	
+	Call,
+	Ret,
+	
+	AddSV,
+	AddSS,
+	AddSM,
+	AddMV,
+	AddMS,
+	AddMM,
+	
+	MulSV,
+	MulSS,
+	MulSM,
+	MulMV,
+	MulMS,
+	MulMM,
+	
+	CmpLSS,
+	
+	PrintS,
+	PrintIntS,
+	
+	COUNT
+};
+
+struct Statement {
+	Statement() = default;
+	Statement(Instruction i):
+		instruction(i), a(0), b(0)
+	{}
+	Statement(Instruction i, Word a):
+		instruction(i), a(a), b(0)
+	{}
+	Statement(Instruction i, Word a, Word b):
+		instruction(i), a(a), b(b)
+	{}
+	
+	Instruction instruction;
+	Word a, b;
+};
+
+
+struct CPU {
+public:
+	CPU();
+	void execute(Program const&);
+	
+private:
+	std::int64_t stackPtr = 0, iPtr = 0;
+	utl::vector<std::byte> stack{ 1 << 20, std::byte{ 0 } };
+	utl::vector<std::byte> memory{ 1 << 20 };
+	
+	
+	utl::vector<InstructionPtr> iTable;
+};
+
+CPU::CPU(): iTable((std::size_t)Instruction::COUNT) {
+	auto i = [&](Instruction x) ->auto& { return iTable[(std::size_t)x]; };
+	
+#define STACK(x) ((Word&)cpu.stack[cpu.stackPtr - x])
+#define MEMORY(x) (Word&)cpu.memory[x]
+	using enum Instruction;
+	
+	/// MARK: Push
+	i(PushV) = [](CPU& cpu, Word a, Word) { STACK(0) = a;         cpu.stackPtr += sizeof(Word); };
+	i(PushM) = [](CPU& cpu, Word a, Word) { STACK(0) = MEMORY(a); cpu.stackPtr += sizeof(Word); };
+	/// MARK: Pop
+	i(Pop) = [](CPU& cpu, Word a, Word) { cpu.stackPtr -= sizeof(Word); };
+		
+	/// MARK: Mov
+	i(MovSV) = [](CPU& cpu, Word a, Word b) { STACK(a) = b; };
+	i(MovSS) = [](CPU& cpu, Word a, Word b) { STACK(a) = STACK(b); };
+	i(MovSM) = [](CPU& cpu, Word a, Word b) { STACK(a) = MEMORY(b); };
+	
+	/// MARK: Jmp
+	i(Jmp)     = [](CPU& cpu, Word a, Word)   {                 cpu.iPtr += a;   },
+	i(JmpIfS)  = [](CPU& cpu, Word a, Word b) { if ( STACK(b)) { cpu.iPtr += a; } },
+	i(JmpIfNS) = [](CPU& cpu, Word a, Word b) { if (!STACK(b)) { cpu.iPtr += a; } },
+	
+	/// MARK: Call
+	i(Call) = [](CPU& cpu, Word a, Word) { STACK(0) = cpu.iPtr; cpu.stackPtr += sizeof(Word); cpu.iPtr += a; },
+	
+	/// MARK: Ret
+	i(Ret) = [](CPU& cpu, Word a, Word) { cpu.stackPtr -= a; cpu.iPtr = STACK(8); cpu.stackPtr -= sizeof(Word); },
+	
+	/// MARK: Inc
+	i(IncS) = [](CPU& cpu, Word a, Word) { ++STACK(a); };
+	
+	/// MARK: Dec
+	i(DecS) = [](CPU& cpu, Word a, Word) { --STACK(a); };
+	
+	/// MARK: Add
+	i(AddSV) = [](CPU& cpu, Word a, Word b) { STACK(a)  += b; };
+	i(AddSS) = [](CPU& cpu, Word a, Word b) { STACK(a)  += STACK(b); };
+	i(AddSM) = [](CPU& cpu, Word a, Word b) { STACK(a)  += MEMORY(b); };
+	i(AddMV) = [](CPU& cpu, Word a, Word b) { MEMORY(a) += b; };
+	i(AddMS) = [](CPU& cpu, Word a, Word b) { MEMORY(a) += STACK(b); };
+	i(AddMM) = [](CPU& cpu, Word a, Word b) { MEMORY(a) += MEMORY(b); };
+	
+	/// MARK: Mul
+	i(MulSV) = [](CPU& cpu, Word a, Word b) { STACK(a)  *= b; };
+	i(MulSS) = [](CPU& cpu, Word a, Word b) { STACK(a)  *= STACK(b); };
+	i(MulSM) = [](CPU& cpu, Word a, Word b) { STACK(a)  *= MEMORY(b); };
+	i(MulMV) = [](CPU& cpu, Word a, Word b) { MEMORY(a) *= b; };
+	i(MulMS) = [](CPU& cpu, Word a, Word b) { MEMORY(a) *= STACK(b); };
+	i(MulMM) = [](CPU& cpu, Word a, Word b) { MEMORY(a) *= MEMORY(b); };
+
+	
+	/// MARK: CmpLSS
+	i(CmpLSS) = [](CPU& cpu, Word a, Word b) { STACK(a) = STACK(a) < STACK(b); },
+	
+	/// MARK: Print
+	i(PrintS) = [](CPU& cpu, Word a, Word) {
+		std::cout << (char const*)&MEMORY(STACK(a));
+	};
+	i(PrintIntS) = [](CPU& cpu, Word a, Word) {
+		std::cout << STACK(a) << std::endl;
+	};
+	
+#undef STACK
+#undef MEMORY
+
+	
+}
+
+struct Program {
+	utl::vector<Statement> statements;
+	utl::vector<std::byte> data;
+};
+
+void CPU::execute(Program const& p) {
+	memory.resize(p.data.size());
+	std::memcpy(memory.data(), p.data.data(), p.data.size());
+	
+	std::size_t totalInsCnt = 0;
+	
+	for (iPtr = 0; iPtr < p.statements.size(); ++iPtr, ++totalInsCnt) {
+		auto [i, a, b] = p.statements[iPtr];
+		iTable[(std::size_t)i](*this, a, b);
+		if (totalInsCnt > 2000) {
+			__utl_debugbreak("");
+		}
+	}
+	std::cout << "(" << totalInsCnt << " Instructions executed)\n";
+}
+
+int main() {
+
+	
+	CPU cpu;
+	
+	using enum Instruction;
+	
+	Program p;
+	
+	p.data.resize(128);
+	std::memcpy(p.data.data(), "Hello World\n", 13);
+	std::memcpy(p.data.data() + 13, "Bye\n", 5);
+	
+	p.statements = {
+		// Begin Function Main
+		{ PushV, 10 },
+		{ Call, 3 }, // call count_to(int)
+		{ Pop },
+		{ Call, 11 },  // call say_goodbye()
+		{ Jmp, 13 },
+		// End Function Main
+		
+		// Begin function 'count_to(int)'
+		{ PushV, 0 },
+		
+		// Begin Loop Body
+		{ PushV, 0 },
+		{ MovSS, 8, 16 },
+		{ CmpLSS, 8, 32 },
+		
+		{ JmpIfNS, 4, 8 },
+		
+		{ Pop },
+		
+		{ PrintIntS, 8 },
+		{ IncS, 8 },
+		
+		{ Jmp, -8 },
+		// End Loop Body
+		
+		{ Ret, 16 },
+		// End function 'count_to(int)'
+		
+		// Begin function 'say_goodbye()'
+		{ PushV, 13 },
+		{ PrintS, 8 },
+		{ Ret, 8 }
+		// End function 'say_goodbye()'
+	};
+	
+	
+	cpu.execute(p);
+	
+	
+}

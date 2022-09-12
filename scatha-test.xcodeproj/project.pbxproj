@@ -1,0 +1,322 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		16CBBEE65ADF90184EB11526 /* Allocator.t.cc in Sources */ = {isa = PBXBuildFile; fileRef = BFA3732E30C61420E68CC16E /* Allocator.t.cc */; };
+		29FB511214E777045CCD3F52 /* main.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9B44B51A3F9752CC51CF9B5A /* main.cc */; };
+		54E7ABCE28CF3518001F87A1 /* ParseTree.t.cc in Sources */ = {isa = PBXBuildFile; fileRef = 54E7ABCD28CF3518001F87A1 /* ParseTree.t.cc */; };
+		6B3D66F7C2A2D9E974B0F537 /* LexerUtil.t.cc in Sources */ = {isa = PBXBuildFile; fileRef = 23CB359F55C48051CFA3BBDF /* LexerUtil.t.cc */; };
+		A91D6DFB1A400EEDD006BC3B /* Lexer.t.cc in Sources */ = {isa = PBXBuildFile; fileRef = 629372638ACE2B157269B8A3 /* Lexer.t.cc */; };
+		CDA706B7BE9E74A92AA1F4F7 /* libscatha.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = D16B803F69B865F197FF667F /* libscatha.dylib */; };
+		E3A0C232C7E7CA644BD4F872 /* Keyword.t.cc in Sources */ = {isa = PBXBuildFile; fileRef = BC7BBBFAED5FB3EC0077EA3A /* Keyword.t.cc */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AC13B776F4849BA839236DB6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EA90C7E837F3BE1AAE12BE28 /* scatha.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 120B09D6383139889F383016;
+			remoteInfo = libscatha.dylib;
+		};
+		FE4E2A0F46BF0E418B5DE04F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EA90C7E837F3BE1AAE12BE28 /* scatha.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 960DFEFC8F74006E830F5D3C;
+			remoteInfo = libscatha.dylib;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		270711662A77E398ABE487A6 /* Embed Libraries */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Libraries";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		23CB359F55C48051CFA3BBDF /* LexerUtil.t.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = LexerUtil.t.cc; path = test/Lexer/LexerUtil.t.cc; sourceTree = "<group>"; };
+		54E7ABCD28CF3518001F87A1 /* ParseTree.t.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ParseTree.t.cc; path = test/Parser/ParseTree.t.cc; sourceTree = "<group>"; };
+		629372638ACE2B157269B8A3 /* Lexer.t.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Lexer.t.cc; path = test/Lexer/Lexer.t.cc; sourceTree = "<group>"; };
+		7920BA0A1C0EE0BCAB34C04A /* scatha-test */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "scatha-test"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9B44B51A3F9752CC51CF9B5A /* main.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = main.cc; path = test/main.cc; sourceTree = "<group>"; };
+		BC7BBBFAED5FB3EC0077EA3A /* Keyword.t.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Keyword.t.cc; path = test/Parser/Keyword.t.cc; sourceTree = "<group>"; };
+		BFA3732E30C61420E68CC16E /* Allocator.t.cc */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Allocator.t.cc; path = test/Common/Allocator.t.cc; sourceTree = "<group>"; };
+		EA90C7E837F3BE1AAE12BE28 /* scatha.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = scatha.xcodeproj; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		63833A7A07D5D82C1A0E20BA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CDA706B7BE9E74A92AA1F4F7 /* libscatha.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0B50A721756329130E8E1561 /* scatha-test */ = {
+			isa = PBXGroup;
+			children = (
+				9028495A3373D28C4E449F9A /* Common */,
+				6E07FB88BE1B903A4099C1C8 /* Lexer */,
+				969ED0E239EA5A1454BB2722 /* Parser */,
+				9B44B51A3F9752CC51CF9B5A /* main.cc */,
+				A6C936B49B3FADE6EA134CF4 /* Products */,
+				9D968EAA920D05DCE0E0A4EA /* Projects */,
+			);
+			name = "scatha-test";
+			sourceTree = "<group>";
+		};
+		6E07FB88BE1B903A4099C1C8 /* Lexer */ = {
+			isa = PBXGroup;
+			children = (
+				629372638ACE2B157269B8A3 /* Lexer.t.cc */,
+				23CB359F55C48051CFA3BBDF /* LexerUtil.t.cc */,
+			);
+			name = Lexer;
+			sourceTree = "<group>";
+		};
+		9028495A3373D28C4E449F9A /* Common */ = {
+			isa = PBXGroup;
+			children = (
+				BFA3732E30C61420E68CC16E /* Allocator.t.cc */,
+			);
+			name = Common;
+			sourceTree = "<group>";
+		};
+		969ED0E239EA5A1454BB2722 /* Parser */ = {
+			isa = PBXGroup;
+			children = (
+				BC7BBBFAED5FB3EC0077EA3A /* Keyword.t.cc */,
+				54E7ABCD28CF3518001F87A1 /* ParseTree.t.cc */,
+			);
+			name = Parser;
+			sourceTree = "<group>";
+		};
+		9D968EAA920D05DCE0E0A4EA /* Projects */ = {
+			isa = PBXGroup;
+			children = (
+				EA90C7E837F3BE1AAE12BE28 /* scatha.xcodeproj */,
+			);
+			name = Projects;
+			sourceTree = "<group>";
+		};
+		A6C936B49B3FADE6EA134CF4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7920BA0A1C0EE0BCAB34C04A /* scatha-test */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C4AF2DF6AF9B53E8F7811C36 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D16B803F69B865F197FF667F /* libscatha.dylib */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		345478B0A5DF912254E0B6F0 /* scatha-test */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 51BE82D9F611208B08496919 /* Build configuration list for PBXNativeTarget "scatha-test" */;
+			buildPhases = (
+				D36ABB1A77BD58CC89F5A15A /* Resources */,
+				3D17D471E16A7223F3A2BAB1 /* Sources */,
+				63833A7A07D5D82C1A0E20BA /* Frameworks */,
+				270711662A77E398ABE487A6 /* Embed Libraries */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B2676AFF9D5390F1E539593F /* PBXTargetDependency */,
+			);
+			name = "scatha-test";
+			productInstallPath = "$(HOME)/bin";
+			productName = "scatha-test";
+			productReference = 7920BA0A1C0EE0BCAB34C04A /* scatha-test */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		08FB7793FE84155DC02AAC07 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+			};
+			buildConfigurationList = 1DEB928908733DD80010E9CD /* Build configuration list for PBXProject "scatha-test" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 1;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 0B50A721756329130E8E1561 /* scatha-test */;
+			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = C4AF2DF6AF9B53E8F7811C36 /* Products */;
+					ProjectRef = EA90C7E837F3BE1AAE12BE28 /* scatha.xcodeproj */;
+				},
+			);
+			projectRoot = "";
+			targets = (
+				345478B0A5DF912254E0B6F0 /* scatha-test */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		D16B803F69B865F197FF667F /* libscatha.dylib */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.dylib";
+			path = libscatha.dylib;
+			remoteRef = AC13B776F4849BA839236DB6 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D36ABB1A77BD58CC89F5A15A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3D17D471E16A7223F3A2BAB1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				16CBBEE65ADF90184EB11526 /* Allocator.t.cc in Sources */,
+				A91D6DFB1A400EEDD006BC3B /* Lexer.t.cc in Sources */,
+				6B3D66F7C2A2D9E974B0F537 /* LexerUtil.t.cc in Sources */,
+				E3A0C232C7E7CA644BD4F872 /* Keyword.t.cc in Sources */,
+				29FB511214E777045CCD3F52 /* main.cc in Sources */,
+				54E7ABCE28CF3518001F87A1 /* ParseTree.t.cc in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B2676AFF9D5390F1E539593F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = libscatha.dylib;
+			targetProxy = FE4E2A0F46BF0E418B5DE04F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		7604CCF079759F22FAE24330 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++2a";
+				CONFIGURATION_BUILD_DIR = "$(SYMROOT)";
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)";
+				COPY_PHASE_STRIP = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "@loader_path/.";
+				OBJROOT = "build/obj/debug/debug/scatha-test";
+				ONLY_ACTIVE_ARCH = YES;
+				SYMROOT = build/bin/debug;
+				SYSTEM_HEADER_SEARCH_PATHS = ". include external/utility external/Catch lib $(inherited)";
+			};
+			name = debug;
+		};
+		CC316D3FF46C25F1DC07B37F /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CONFIGURATION_BUILD_DIR = build/bin/debug;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_DYNAMIC_NO_PIC = NO;
+				INSTALL_PATH = /usr/local/bin;
+				PRODUCT_NAME = "scatha-test";
+			};
+			name = debug;
+		};
+		E504D3F906D0812B4385AA39 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CONFIGURATION_BUILD_DIR = build/bin/release;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_DYNAMIC_NO_PIC = NO;
+				INSTALL_PATH = /usr/local/bin;
+				PRODUCT_NAME = "scatha-test";
+			};
+			name = release;
+		};
+		FED3A32AA1C1C9DC30E7A96A /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				CLANG_CXX_LANGUAGE_STANDARD = "c++2a";
+				CONFIGURATION_BUILD_DIR = "$(SYMROOT)";
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)";
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = NDEBUG;
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LD_RUNPATH_SEARCH_PATHS = "@loader_path/.";
+				OBJROOT = "build/obj/release/release/scatha-test";
+				ONLY_ACTIVE_ARCH = NO;
+				SYMROOT = build/bin/release;
+				SYSTEM_HEADER_SEARCH_PATHS = ". include external/utility external/Catch lib $(inherited)";
+			};
+			name = release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DEB928908733DD80010E9CD /* Build configuration list for PBXProject "scatha-test" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7604CCF079759F22FAE24330 /* debug */,
+				FED3A32AA1C1C9DC30E7A96A /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		51BE82D9F611208B08496919 /* Build configuration list for PBXNativeTarget "scatha-test" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC316D3FF46C25F1DC07B37F /* debug */,
+				E504D3F906D0812B4385AA39 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 08FB7793FE84155DC02AAC07 /* Project object */;
+}

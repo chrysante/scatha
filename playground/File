@@ -1,0 +1,157 @@
+
+
+#include <lib/ParseTree.hpp>
+
+#include <utl/vector.hpp>
+#include <utl/utility.hpp>
+#include <memory>
+#include <array>
+#include <iostream>
+
+struct Program;
+struct CPU;
+
+using Word = std::uint64_t;
+using InstructionPtr = void(*)(CPU&, Word, Word);
+enum class Instruction {
+	Push,
+	Pop,
+	
+	MovRV,
+	MovRS,
+	MovRM,
+	
+	AddRV,
+	AddRR,
+	AddRM,
+	AddMV,
+	AddMR,
+	AddMM,
+	
+	PrintR,
+	PrintIntR,
+};
+
+struct Statement {
+	Statement() = default;
+	Statement(Instruction i, Word a):
+		instruction(i), a(a)
+	{}
+	Statement(Instruction i, Word a, Word b):
+		instruction(i), a(a), b(b)
+	{}
+	
+	Instruction instruction;
+	Word a, b;
+};
+
+
+struct CPU {
+public:
+	void execute(Program const&);
+	
+private:
+	std::array<Word, 16> registers{};
+	std::int64_t stackPtr = 0;
+	utl::vector<std::byte> stack{ 1 << 20 };
+	utl::vector<std::byte> memory{ 1 << 20 };
+	
+	utl::vector<InstructionPtr> iTable = {
+		/// MARK: Push
+		/// Push
+		[](CPU& cpu, Word a, Word) {
+			(Word&)cpu.stack[cpu.stackPtr] = cpu.registers[a];
+			cpu.stackPtr += sizeof(Word);
+		},
+		/// MARK: Pop
+		/// Pop
+		[](CPU& cpu, Word a, Word) {
+			cpu.registers[a] = (Word&)cpu.stack[cpu.stackPtr];
+			cpu.stackPtr -= sizeof(Word);
+		},
+		
+		/// MARK: Mov
+		/// MovRV
+		[](CPU& cpu, Word a, Word b) {
+			cpu.registers[a] = b;
+		},
+		/// MovRS
+		[](CPU& cpu, Word a, Word b) {
+			cpu.registers[a] = (Word&)cpu.stack[cpu.stackPtr - b];
+		},
+		/// MovRM
+		[](CPU& cpu, Word a, Word b) {
+			cpu.registers[a] = (Word&)cpu.memory[b];
+		},
+		
+		/// MARK: Add
+		/// AddRV
+		[](CPU& cpu, Word a, Word b) {
+			cpu.registers[a] += b;
+		},
+		/// AddRR
+		[](CPU& cpu, Word a, Word b) {
+			cpu.registers[a] += cpu.registers[b];
+		},
+		/// AddRM
+		[](CPU& cpu, Word a, Word b) {
+			cpu.registers[a] += (Word&)cpu.memory[b];
+		},
+		/// AddMV
+		[](CPU& cpu, Word a, Word b) {
+			(Word&)cpu.memory[a] += b;
+		},
+		/// AddMR
+		[](CPU& cpu, Word a, Word b) {
+			(Word&)cpu.memory[a] += cpu.registers[b];
+		},
+		/// AddMM
+		[](CPU& cpu, Word a, Word b) {
+			(Word&)cpu.memory[a] += (Word&)cpu.memory[b];
+		},
+	
+		/// MARK: Print
+		// PrintR
+		[](CPU& cpu, Word a, Word) {
+			std::cout << (char const*)cpu.registers[a];
+		},
+		// PrintIntR
+		[](CPU& cpu, Word a, Word) {
+			std::cout << (std::int64_t)cpu.registers[a] << std::endl;
+		},
+	};
+};
+
+struct Program {
+	utl::vector<Statement> statements;
+};
+
+void CPU::execute(Program const& p) {
+	for (auto [i, a, b]: p.statements) {
+		iTable[(std::size_t)i](*this, a, b);
+	}
+}
+
+int main() {
+
+	
+	CPU cpu;
+	
+	using enum Instruction;
+	
+	Program const p{
+		.statements = {
+			{ MovRV, 0, 4 },
+			{ AddRV, 0, 1 },
+			{ PrintIntR, 0 },
+			
+			{ AddRV, 0, 4 },
+			{ PrintIntR, 0 }
+		}
+	};
+	
+	
+	cpu.execute(p);
+	
+	
+}
