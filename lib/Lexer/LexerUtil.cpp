@@ -16,17 +16,24 @@ namespace scatha::lex {
 	}
 	
 	SCATHA(PURE) bool isOperatorLetter(char c) {
-		return isAnyOf(c, "+-*/%&|^.=><?");
+		return isAnyOf(c, "+-*/%&|^.=><?!~");
 	}
 	
 	SCATHA(PURE) bool isOperator(std::string_view id) {
 		std::string_view constexpr operators[] {
 			"+", "-", "*", "/", "%", "&", "|", "^",
+			"!", "~",
+			"<<", ">>",
 			"&&", "||",
+			
 			"=",
-			"+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=",
+			"+=", "-=", "*=", "/=", "%=",
+			"<<=", ">>=",
+			"&=", "|=", "^=",
+			
 			"==", "!=", "<", "<=", ">", ">=",
-			".", "->", "?"
+			
+			".", "->"
 			/// TODO: Add other operators
 		};
 		for (auto o: operators) {

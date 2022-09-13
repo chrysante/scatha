@@ -5,13 +5,13 @@
 namespace scatha::parse {
 
 	
-	Expression* ExpressionParser::parseExpression() {
-		return parseE();
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseExpression() {
+		return parseComma();
 	}
 	
 	template <typename... T>
-	Expression* ExpressionParser::parseET_impl(auto&& parseOperand, auto&&... id) {
-		Expression* left = parseOperand();
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorLTR(auto&& operand) {
+		ast::UniquePtr<ast::Expression> left = operand();
 		while (true) {
 			/* Expands into:
 			 if (token.id == id[0]) {
@@ -30,10 +30,10 @@ namespace scatha::parse {
 			 */
 			TokenEx const& token = tokens.peek();
 			if (([&]{
-				if (token.id != id) { return false; }
+				if (token.id != T::operatorString()) { return false; }
 				tokens.eat();
-				Expression* const right = parseOperand();
-				left = allocate<T>(alloc, left, right);
+				ast::UniquePtr<ast::Expression> right = operand();
+				left = ast::allocate<T>(std::move(left), std::move(right));
 				return true;
 			}() || ...)) {
 				continue;
@@ -43,86 +43,211 @@ namespace scatha::parse {
 		}
 	}
 	
-	Expression* ExpressionParser::parseE() {
-		return parseET_impl<Addition, Subtraction>([this]{ return parseT(); }, "+", "-");
+	template <typename... T>
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorRTL(auto&& parseOperand) {
+		auto left = parseOperand();
+		TokenEx const& nextToken = tokens.peek();
+		
+		if (ast::UniquePtr<ast::Expression> result = nullptr; ((nextToken.id == T::operatorString() && (result = [&]{
+			tokens.eat();
+			ast::UniquePtr<ast::Expression> right = parseBinaryOperatorRTL<T...>(parseOperand);
+			return ast::allocate<T>(std::move(left), std::move(right));
+		}(), true)) || ...)) {
+			return result;
+		}
+		else {
+			return left;
+		}
 	}
 	
-	Expression* ExpressionParser::parseT() {
-		return parseET_impl<Multiplication, Division, Modulo>([this]{ return parseF(); }, "*", "/", "%");
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseComma() {
+		return parseBinaryOperatorLTR<ast::Comma>([this]{ return parseAssignment(); });
 	}
 	
-	Expression* ExpressionParser::parseF() {
-		TokenEx const& token = tokens.peek();
-		switch (token.type) {
-			case TokenType::Identifier: {
-				tokens.eat();
-				auto* const identifier = allocate<Identifier>(alloc, token.id);
-				if (tokens.peek().id == "(") { // We have an ID function call expression.
-					tokens.eat();
-					FunctionCall* result = allocate<FunctionCall>(alloc);
-					result->object = identifier;
-					
-					if (tokens.peek().id == ")") { // function with no arguments
-						tokens.eat();
-						return result;
-					}
-					
-					utl::small_vector<Expression*> arguments;
-					while (true) {
-						arguments.push_back(parseE());
-						TokenEx const& next = tokens.eat();
-						if (next.id == ")") {
-							break;
-						}
-						if (next.id != ",") {
-							throw ParserError(next, "Unqualified ID");
-						}
-					}
-					result->arguments = allocateArray<Expression*>(alloc, arguments.begin(), arguments.end());
-					return result;
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseAssignment() {
+		return parseBinaryOperatorRTL<
+			ast::Assignment, ast::AddAssignment, ast::SubAssignment, ast::MulAssignment, ast::DivAssignment, ast::RemAssignment,
+			ast::LSAssignment, ast::RSAssignment, ast::AndAssignment, ast::OrAssignment
+		>([this]{ return parseConditional(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseConditional() {
+		auto logicalOr = parseLogicalOr();
+		
+		if (auto const& token = tokens.peek();
+			token.id == "?")
+		{
+			tokens.eat();
+			auto lhs = parseComma();
+			if (auto const& token = tokens.eat(); token.id != ":") {
+				throw ParserError(token, "Unqualified ID");
+			}
+			auto rhs = parseConditional();
+			return allocate<ast::Conditional>(std::move(logicalOr), std::move(lhs), std::move(rhs));
+		}
+		
+		return logicalOr;
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseLogicalOr() {
+		return parseBinaryOperatorLTR<ast::LogicalOr>([this] { return parseLogicalAnd(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseLogicalAnd() {
+		return parseBinaryOperatorLTR<ast::LogicalAnd>([this] { return parseInclusiveOr(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseInclusiveOr() {
+		return parseBinaryOperatorLTR<ast::BitwiseOr>([this] { return parseExclusiveOr(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseExclusiveOr() {
+		return parseBinaryOperatorLTR<ast::BitwiseXOr>([this] { return parseAnd(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseAnd() {
+		return parseBinaryOperatorLTR<ast::BitwiseAnd>([this] { return parseEquality(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseEquality() {
+		return parseBinaryOperatorLTR<ast::Equals, ast::NotEquals>([this] { return parseRelational(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseRelational() {
+		return parseBinaryOperatorLTR<ast::Less, ast::LessEq, ast::Greater, ast::GreaterEq>([this] { return parseShift(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseShift() {
+		return parseBinaryOperatorLTR<ast::LeftShift, ast::RightShift>([this] { return parseAdditive(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseAdditive() {
+		return parseBinaryOperatorLTR<ast::Addition, ast::Subtraction>([this] { return parseMultiplicative(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseMultiplicative() {
+		return parseBinaryOperatorLTR<ast::Multiplication, ast::Division, ast::Remainder>([this] { return parseUnary(); });
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseUnary() {
+		if (auto postfix = parsePostfix()) {
+			return postfix;
+		}
+		TokenEx const& token = tokens.eat();
+		
+		if (token.id == "&") {
+			assert(false && "Do we really want to support addressof operator?");
+		}
+		else if (token.id == "+") {
+			return ast::allocate<ast::Promotion>(parseUnary());
+		}
+		else if (token.id == "-") {
+			return ast::allocate<ast::Negation>(parseUnary());
+		}
+		else if (token.id == "~") {
+			return ast::allocate<ast::BitwiseNot>(parseUnary());
+		}
+		else if (token.id == "!") {
+			return ast::allocate<ast::LogicalNot>(parseUnary());
+		}
+		else {
+			throw ParserError(token, "Unqualified ID");
+		}
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parsePostfix() {
+		auto primary = parsePrimary();
+		if (!primary) { return nullptr; }
+		auto const& token = tokens.peek();
+		if (token.id == "[") {
+			tokens.eat();
+			auto subscript = ast::allocate<ast::Subscript>(std::move(primary));
+			
+			if (tokens.peek().id == "]") { // subscript with no arguments - forbidden!
+				throw ParserError(tokens.peek(), "Subscript with no arguments is not allowed");
+			}
+			while (true) {
+				subscript->arguments.push_back(parseAssignment());
+				TokenEx const& next = tokens.eat();
+				if (next.id == "]") {
+					break;
 				}
-				else {
-					return identifier;
+				if (next.id != ",") {
+					throw ParserError(next, "Unqualified ID");
 				}
 			}
-		
-			case TokenType::NumericLiteral:
+			return subscript;
+		}
+		if (token.id == "(") {
+			tokens.eat();
+			auto functionCall = ast::allocate<ast::FunctionCall>(std::move(primary));
+			
+			if (tokens.peek().id == ")") { // function with no arguments
 				tokens.eat();
-				return allocate<NumericLiteral>(alloc, token.id);
-				
+				return functionCall;
+			}
+			while (true) {
+				functionCall->arguments.push_back(parseAssignment());
+				TokenEx const& next = tokens.eat();
+				if (next.id == ")") {
+					break;
+				}
+				if (next.id != ",") {
+					throw ParserError(next, "Unqualified ID");
+				}
+			}
+			return functionCall;
+		}
+		if (token.id == ".") {
+			tokens.eat();
+			auto const& id = tokens.eat();
+			if (id.type != TokenType::Identifier) {
+				throw ParserError(id, "Expected Identifier");
+			}
+			return ast::allocate<ast::MemberAccess>(std::move(primary), id.id);
+		}
+		return primary;
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parsePrimary() {
+		TokenEx const& token = tokens.peek();
+		switch (token.type) {
+				// Identifier
+			case TokenType::Identifier: {
+				tokens.eat();
+				return ast::allocate<ast::Identifier>(token.id);
+			}
+				// Numeric literal
+			case TokenType::NumericLiteral: {
+				tokens.eat();
+				return ast::allocate<ast::NumericLiteral>(token.id);
+			}
+				// String literal
+			case TokenType::StringLiteral: {
+				tokens.eat();
+				return ast::allocate<ast::StringLiteral>(token.id);
+			}
+				// Parenthesized comma expression
 			case TokenType::Punctuation: {
 				if (token.id == "(") {
 					tokens.eat();
-					Expression* const e = parseE();
+					ast::UniquePtr<ast::Expression> e = parseComma();
 					
 					TokenEx const& next = tokens.eat();
-					if (next.id == ")") {
-						return e;
-					}
-					else {
+					if (next.id != ")") {
 						throw ParserError(next, "Unqualified ID");
 					}
+					
+					return e;
 				}
 				break;
-			}
-			case TokenType::Operator: {
-				if (token.id == "+") {
-					tokens.eat();
-					return allocate<Promotion>(alloc, parseF());
-				}
-				else if (token.id == "-") {
-					tokens.eat();
-					return allocate<Negation>(alloc, parseF());
-				}
-				else {
-					throw ParserError(token, "Unqualified ID");
-				}
 			}
 				
 			default:
 				break;
 		}
-		throw ParserError(token, "Unqualified ID");
+		return nullptr;
 	}
+	
 	
 }

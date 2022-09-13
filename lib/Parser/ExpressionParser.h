@@ -1,41 +1,43 @@
 #ifndef SCATHA_PARSER_EXPRESSIONPARSER_H_
 #define SCATHA_PARSER_EXPRESSIONPARSER_H_
 
+#include "AST/Expression.h"
 #include "Common/Allocator.h"
-
-#include "Parser/ParseTree.h"
 #include "Parser/TokenStream.h"
 
 namespace scatha::parse {
 
 	/*
 	 
-	 Operator		| Description					| Associativity
-	 ---------------+-------------------------------+-------------------
-	 () 			| Function call					| Left to right ->
-	 [] 			| Subscript						|
-	 . 				| Member access					|
-	 ---------------+-------------------------------+-------------------
-	 +, -			| Unary plus and minus			| Right to left <-
-	 !, ~			| Logical and bitwise NOT		|
-	 ---------------+-------------------------------+-------------------
-	 *, /, %		| Multiplication, division and	| Left to right ->
-					| remainder						|
-	 +, -			| Addition and subtraction		|
-	 <<, >>			| Bitwise left and right shift	|
-	 <, <=, >, >=	| Relational operators			|
-	 ==, !=			| Equality operators			|
-	 &				| Bitwise AND					|
-	 ^				| Bitwise XOR					|
-	 |				| Bitwise OR					|
-	 &&				| Logical AND					|
-	 ||				| Logical OR					|
-	 ---------------+-------------------------------+-------------------
-	 =				| Assignment					| Right to left <-
-	 +=, -=			| 								|
-	 *=, /=, %=		| 								|
-	 <<=, >>=, 		| 								|
-	 &=, |=, 		| 								|
+	 Precedence	| Operator			| Description					| Associativity
+	 -----------+-------------------+-------------------------------+-------------------
+		 1		| () 				| Function call					| Left to right ->
+				| [] 				| Subscript						|
+				| . 				| Member access					|
+	 -----------+-------------------+-------------------------------+-------------------
+		 2		| +, -				| Unary plus and minus			| Right to left <-
+				| !, ~				| Logical and bitwise NOT		|
+			    | &					| 								|
+	 -----------+-------------------+-------------------------------+-------------------
+		 3		| *, /, %			| Multiplication, division and	| Left to right ->
+				|					| remainder						|
+		 4		| +, -				| Addition and subtraction		|
+		 5		| <<, >>			| Bitwise left and right shift	|
+		 6		| <, <=, >, >=		| Relational operators			|
+		 7		| ==, !=			| Equality operators			|
+		 8		| &					| Bitwise AND					|
+		 9		| ^					| Bitwise XOR					|
+		10		| |					| Bitwise OR					|
+		11		| &&				| Logical AND					|
+		12		| ||				| Logical OR					|
+	 -----------+-------------------+-------------------------------+-------------------
+		13		| ?:				| Conditional					| Right to left <-
+				| =, +=, -=			| Assignment					| Right to left <-
+				| *=, /=, %=		| 								|
+				| <<=, >>=, 		| 								|
+				| &=, |=, 			| 								|
+	 -----------+-------------------+-------------------------------+-------------------
+		14		| ,					| Comma operator				| Left to right ->
 	 
 	
 	*/
@@ -43,47 +45,93 @@ namespace scatha::parse {
 	/*
 	 
 	 /// MARK: Grammar
+	
+	 <comma-expression>				-->> <assignment-expression>
+									   | <comma-expression> "," <assignment-expression>
+	 <assignment-expression>		-->> <conditional-expression>
+							    	   | <conditional-expression> "=, *=, ..." <assignment-expression>
+	 <conditional-expression>		-->> <logical-or-expression>
+									   | <logical-or-expression> "?" <comma-expression> ":" <conditional-expression>
+	 <logical-or-expression>		-->> <logical-and-expression>
+									   | <logical-or-expression> "||" <logical-and-expression>
+	 <logical-and-expression>		-->> <inclusive-or-expression>
+									   | <logical-and-expression> "&&" <inclusive-or-expression>
+	 <inclusive-or-expression>		-->> <exclusive-or-expression>
+							    	   | <inclusive-or-expression> "|" <exclusive-or-expression>
+	 <exclusive-or-expression>		-->> <and-expression>
+									   | <exclusive-or-expression> "^" <and-expression>
+	 <and-expression> 		    	-->> <equality-expression>
+									   | <and-expression> "&" <equality-expression>
+	 <equality-expression> 			-->> <relational-expression>
+									   | <equality-expression> "==" <relational-expression>
+									   | <equality-expression> "!=" <relational-expression>
+	 <relational-expression>		-->> <shift-expression>
+									   | <relational-expression> "<"  <shift-expression>
+									   | <relational-expression> ">"  <shift-expression>
+									   | <relational-expression> "<=" <shift-expression>
+									   | <relational-expression> ">=" <shift-expression>
+	 <shift-expression>				-->> <additive-expression>
+									   | <shift-expression> "<<" <additive-expression>
+									   | <shift-expression> ">>" <additive-expression>
+	 <additive-expression>			-->> <multiplicative-expression>
+									   | <additive-expression> "+" <multiplicative-expression>
+									   | <additive-expression> "-" <multiplicative-expression>
+
+	 <multiplicative-expression>	-->> <unary-expression>
+									   | <multiplicative-expression> "*" <unary-expression>
+									   | <multiplicative-expression> "/" <unary-expression>
+									   | <multiplicative-expression> "%" <unary-expression>
+	 <unary-expression>				-->> <postfix-expression>
+									   | "&" <unary-expression>
+									   | "+" <unary-expression>
+									   | "-" <unary-expression>
+									   | "~" <unary-expression>
+									   | "!" <unary-expression>
+	 <postfix-expression>			-->> <primary-expression>
+									   | <postfix-expression> "[" {<assignment-expression>}+ "]"
+									   | <postfix-expression> "(" {<assignment-expression>}* ")"
+									   | <postfix-expression> "." <identifier>
+	 <primary-expression> 			-->> <identifier>
+									   | <numeric-literal>
+									   | <string-literal>
+									   | "(" <comma-expression> ")"
 	 
-	 Non-Terminals:
-		E (Expression)
-		T (Term, operand of addition and subtraction)
-		F (Factor, operand of multiplication and division)
 	 
-	 1.
-	 E -> T{ +|- T }
-	 
-	 2.
-	 T -> F{ *|/|% F }
-	 
-	 3.
-	 F -> ID(E...)           // Function call
-	 F -> ID
-	 F -> NumericLiteral
-	 F -> (E) 
-	 F -> +F
-	 F -> -F
 	 
 	 */
 	
-	using Allocator = MonotonicBufferAllocator;
-	
 	class ExpressionParser {
 	public:
-		explicit ExpressionParser(TokenStream& tokens, Allocator& alloc): tokens(tokens), alloc(alloc) {}
+		explicit ExpressionParser(TokenStream& tokens): tokens(tokens) {}
 		
-		Expression* parseExpression();
+		ast::UniquePtr<ast::Expression> parseExpression();
 		
 	private:
-		/// Parse Factor
-		Expression* parseE();
-		Expression* parseT();
-		Expression* parseF();
+		ast::UniquePtr<ast::Expression> parseComma();
+		ast::UniquePtr<ast::Expression> parseAssignment();
+		ast::UniquePtr<ast::Expression> parseConditional();
+		ast::UniquePtr<ast::Expression> parseLogicalOr();
+		ast::UniquePtr<ast::Expression> parseLogicalAnd();
+		ast::UniquePtr<ast::Expression> parseInclusiveOr();
+		ast::UniquePtr<ast::Expression> parseExclusiveOr();
+		ast::UniquePtr<ast::Expression> parseAnd();
+		ast::UniquePtr<ast::Expression> parseEquality();
+		ast::UniquePtr<ast::Expression> parseRelational();
+		ast::UniquePtr<ast::Expression> parseShift();
+		ast::UniquePtr<ast::Expression> parseAdditive();
+		ast::UniquePtr<ast::Expression> parseMultiplicative();
+		ast::UniquePtr<ast::Expression> parseUnary();
+		ast::UniquePtr<ast::Expression> parsePostfix();
+		ast::UniquePtr<ast::Expression> parsePrimary();
+		
 		
 		template <typename...>
-		Expression* parseET_impl(auto&& parseOperand, auto&&...);
+		ast::UniquePtr<ast::Expression> parseBinaryOperatorLTR(auto&& operand);
+
+		template <typename...>
+		ast::UniquePtr<ast::Expression> parseBinaryOperatorRTL(auto&& parseOperand);
 		
 	private:
-		Allocator& alloc;
 		TokenStream& tokens;
 	};
 

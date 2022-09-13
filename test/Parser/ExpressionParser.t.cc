@@ -8,6 +8,7 @@
 
 using namespace scatha;
 using namespace parse;
+using namespace ast;
 
 static TokenStream makeTokenStream(std::string text) {
 	lex::Lexer l(text);
@@ -26,16 +27,15 @@ TEST_CASE("ExpressionParser") {
 		 
 		 */
 		
-		Allocator alloc;
-		ExpressionParser parser(tokens, alloc);
-		Expression* expr = parser.parseExpression();
+		ExpressionParser parser(tokens);
+		auto expr = parser.parseExpression();
 		
-		auto* add = dynamic_cast<Addition*>(expr);
+		auto* add = dynamic_cast<Addition*>(expr.get());
 		REQUIRE(add != nullptr);
-		auto* left = dynamic_cast<Identifier*>(add->left);
+		auto* left = dynamic_cast<Identifier*>(add->left.get());
 		REQUIRE(left != nullptr);
 		CHECK(left->name == "a");
-		auto* right = dynamic_cast<Identifier*>(add->right);
+		auto* right = dynamic_cast<Identifier*>(add->right.get());
 		REQUIRE(right != nullptr);
 		CHECK(right->name == "b");
 	}
@@ -50,16 +50,15 @@ TEST_CASE("ExpressionParser") {
 		 
 		 */
 		
-		Allocator alloc;
-		ExpressionParser parser(tokens, alloc);
-		Expression* expr = parser.parseExpression();
+		ExpressionParser parser(tokens);
+		auto expr = parser.parseExpression();
 		
-		auto* mul = dynamic_cast<Multiplication*>(expr);
+		auto* mul = dynamic_cast<Multiplication*>(expr.get());
 		REQUIRE(mul != nullptr);
-		auto* left = dynamic_cast<NumericLiteral*>(mul->left);
+		auto* left = dynamic_cast<NumericLiteral*>(mul->left.get());
 		REQUIRE(left != nullptr);
 		CHECK(left->value == "3");
-		auto* right = dynamic_cast<Identifier*>(mul->right);
+		auto* right = dynamic_cast<Identifier*>(mul->right.get());
 		REQUIRE(right != nullptr);
 		CHECK(right->name == "x");
 	}
@@ -76,25 +75,24 @@ TEST_CASE("ExpressionParser") {
 		 
 		 */
 		
-		Allocator alloc;
-		ExpressionParser parser(tokens, alloc);
-		Expression* expr = parser.parseExpression();
+		ExpressionParser parser(tokens);
+		auto expr = parser.parseExpression();
 		
-		auto* add = dynamic_cast<Addition*>(expr);
+		auto* add = dynamic_cast<Addition*>(expr.get());
 		REQUIRE(add != nullptr);
 		
-		auto* a = dynamic_cast<Identifier*>(add->left);
+		auto* a = dynamic_cast<Identifier*>(add->left.get());
 		REQUIRE(a != nullptr);
 		CHECK(a->name == "a");
 		
-		auto* mul = dynamic_cast<Multiplication*>(add->right);
+		auto* mul = dynamic_cast<Multiplication*>(add->right.get());
 		REQUIRE(mul != nullptr);
 		
-		auto* b = dynamic_cast<Identifier*>(mul->left);
+		auto* b = dynamic_cast<Identifier*>(mul->left.get());
 		REQUIRE(b != nullptr);
 		CHECK(b->name == "b");
 		
-		auto* c = dynamic_cast<Identifier*>(mul->right);
+		auto* c = dynamic_cast<Identifier*>(mul->right.get());
 		REQUIRE(c != nullptr);
 		CHECK(c->name == "c");
 	}
@@ -111,25 +109,24 @@ TEST_CASE("ExpressionParser") {
 		 
 		 */
 		
-		Allocator alloc;
-		ExpressionParser parser(tokens, alloc);
-		Expression* expr = parser.parseExpression();
+		ExpressionParser parser(tokens);
+		auto expr = parser.parseExpression();
 		
-		auto* mul = dynamic_cast<Multiplication*>(expr);
+		auto* mul = dynamic_cast<Multiplication*>(expr.get());
 		REQUIRE(mul != nullptr);
 		
-		auto* add = dynamic_cast<Addition*>(mul->left);
+		auto* add = dynamic_cast<Addition*>(mul->left.get());
 		REQUIRE(add != nullptr);
 		
-		auto* a = dynamic_cast<Identifier*>(add->left);
+		auto* a = dynamic_cast<Identifier*>(add->left.get());
 		REQUIRE(a != nullptr);
 		CHECK(a->name == "a");
 		
-		auto* b = dynamic_cast<Identifier*>(add->right);
+		auto* b = dynamic_cast<Identifier*>(add->right.get());
 		REQUIRE(b != nullptr);
 		CHECK(b->name == "b");
 		
-		auto* c = dynamic_cast<Identifier*>(mul->right);
+		auto* c = dynamic_cast<Identifier*>(mul->right.get());
 		REQUIRE(c != nullptr);
 		CHECK(c->name == "c");
 	}

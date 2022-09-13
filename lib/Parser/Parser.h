@@ -8,38 +8,36 @@
 
 #include <utl/vector.hpp>
 
+#include "AST/AST.h"
 #include "Basic/Basic.h"
 #include "Common/Allocator.h"
 #include "Common/Token.h"
 #include "Common/TypeTable.h"
 #include "Common/FunctionTable.h"
-#include "Parser/ParseTree.h"
 #include "Parser/TokenStream.h"
 
 namespace scatha::parse {
 	
-	using Allocator = MonotonicBufferAllocator;
-	
 	class Parser {
 	public:
-		explicit Parser(std::span<Token const>, Allocator&);
+		explicit Parser(std::span<Token const>);
 		
-		[[nodiscard]] ParseTreeNode* parse();
+		[[nodiscard]] ast::UniquePtr<ast::AbstractSyntaxTree> parse();
 		
 	private:		
-		ParseTreeNode* parseRootLevel();
+		ast::UniquePtr<ast::AbstractSyntaxTree> parseRootLevel();
 		
-		FunctionDeclaration* parseFunction();
-		FunctionDeclaration* parseFunctionDecl();
-		void parseFunctionParameters(FunctionDeclaration*);
+		ast::UniquePtr<ast::FunctionDeclaration> parseFunction();
+		ast::UniquePtr<ast::FunctionDeclaration> parseFunctionDecl();
+		void parseFunctionParameters(ast::FunctionDeclaration*);
 		
-		Block* parseBlock();
+		ast::UniquePtr<ast::Block> parseBlock();
 		
-		Statement* parseStatement();
-		VariableDeclaration* parseVariableDeclaration(TokenEx const& declarator);
-		ReturnStatement* parseReturnStatement();
+		ast::UniquePtr<ast::Statement> parseStatement();
+		ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(TokenEx const& declarator);
+		ast::UniquePtr<ast::ReturnStatement> parseReturnStatement();
 		
-		Expression* parseExpression();
+		ast::UniquePtr<ast::Expression> parseExpression();
 		
 		static void expectIdentifier(TokenEx const&);
 		static void expectKeyword(TokenEx const&);
@@ -48,7 +46,6 @@ namespace scatha::parse {
 		static void expectID(TokenEx const&, std::string_view);
 		
 	private:
-		Allocator& alloc;
 		TokenStream tokens;
 	};
 	

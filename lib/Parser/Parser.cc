@@ -7,30 +7,28 @@
 namespace scatha::parse {
 
 	/// MARK: Public
-	Parser::Parser(std::span<Token const> tokens, Allocator& alloc):
-		alloc(alloc),
+	Parser::Parser(std::span<Token const> tokens):
 		tokens(tokens)
 	{
 		
 	}
 	
-	ParseTreeNode* Parser::parse() {
-		utl::small_vector<ParseTreeNode*> nodes;
+	ast::UniquePtr<ast::AbstractSyntaxTree> Parser::parse() {
+		ast::UniquePtr<ast::TranslationUnit> result = ast::allocate<ast::TranslationUnit>();
+		
 		while (true) {
-			auto* const node = parseRootLevel();
+			auto node = parseRootLevel();
 			if (node == nullptr) {
 				break;
 			}
-			nodes.push_back(node);
+			result->nodes.push_back(std::move(node));
 		}
 		
-		RootNode* result = allocate<RootNode>(alloc);
-		result->nodes = allocateArray<ParseTreeNode*>(alloc, nodes.begin(), nodes.end());
 		return result;
 	}
 	
 	/// MARK: Private
-	ParseTreeNode* Parser::parseRootLevel() {
+	ast::UniquePtr<ast::AbstractSyntaxTree> Parser::parseRootLevel() {
 		TokenEx const& token = tokens.eat();
 		
 		if (token.type == TokenType::EndOfFile) {
@@ -52,8 +50,8 @@ namespace scatha::parse {
 		
 	}
 	
-	FunctionDeclaration* Parser::parseFunction() {
-		FunctionDeclaration* const decl = parseFunctionDecl();
+	ast::UniquePtr<ast::FunctionDeclaration> Parser::parseFunction() {
+		auto decl = parseFunctionDecl();
 	
 		TokenEx const& token = tokens.peek();
 		if (token.isSeparator) {
@@ -61,22 +59,20 @@ namespace scatha::parse {
 			return decl;
 		}
 		if (token.id == "{") {
-			FunctionDefiniton* def = allocate<FunctionDefiniton>(alloc, *decl);
+			ast::UniquePtr<ast::FunctionDefiniton> def = ast::allocate<ast::FunctionDefiniton>(*decl);
 			def->body = parseBlock();
 			return def;
 		}
 		throw ParserError(token, "Unexpected ID");
 	}
 	
-	FunctionDeclaration* Parser::parseFunctionDecl() {
+	ast::UniquePtr<ast::FunctionDeclaration> Parser::parseFunctionDecl() {
 		TokenEx const& name = tokens.eat();
 		expectIdentifier(name);
 		
-		auto* result = allocate<FunctionDeclaration>(alloc);
-		result->name = name.id;
+		auto result = ast::allocate<ast::FunctionDeclaration>(name.id);
 		
-		parseFunctionParameters(result);
-		
+		parseFunctionParameters(result.get());
 		
 		if (TokenEx const& token = tokens.peek(); token.id == "->") {
 			tokens.eat();
@@ -92,7 +88,7 @@ namespace scatha::parse {
 
 	}
 
-	void Parser::parseFunctionParameters(FunctionDeclaration* fn) {
+	void Parser::parseFunctionParameters(ast::FunctionDeclaration* fn) {
 		TokenEx const& openParan = tokens.eat();
 		
 		expectID(openParan, "(");
@@ -101,8 +97,6 @@ namespace scatha::parse {
 			tokens.eat();
 			return;
 		}
-		
-		utl::small_vector<FunctionParameterDecl, 8> params;
 		
 		while (true) {
 			TokenEx const& name = tokens.eat();
@@ -113,40 +107,37 @@ namespace scatha::parse {
 			TokenEx const& type = tokens.eat();
 			expectIdentifier(type);
 			
-			params.push_back({ name.id, type.id });
+			fn->params.push_back({ name.id, type.id });
 			
 			if (TokenEx const& next = tokens.eat(); next.id != ",") {
 				expectID(next, ")");
 				break;
 			}
 		}
-		
-		fn->params = allocateArray<FunctionParameterDecl>(alloc, params.begin(), params.end());
 	}
 	
-	Block* Parser::parseBlock() {
+	ast::UniquePtr<ast::Block> Parser::parseBlock() {
 		expectID(tokens.eat(), "{");
 		
-		utl::small_vector<Statement*> statements;
+		auto result = ast::allocate<ast::Block>();
 		
 		while (true) {
 			if (tokens.peek().id == "}") {
 				tokens.eat();
 				break;
 			}
-			statements.push_back(parseStatement());
+			result->statements.push_back(parseStatement());
 		}
 		
-		Block* const result = allocate<Block>(alloc);
-		result->statements = allocateArray<Statement*>(alloc, statements.begin(), statements.end());
 		return result;
 	}
 	
-	Statement* Parser::parseStatement() {
-		TokenEx const& token = tokens.eat();
-		Statement* result = nullptr;
+	ast::UniquePtr<ast::Statement> Parser::parseStatement() {
+		TokenEx const& token = tokens.peek();
+		ast::UniquePtr<ast::Statement> result = nullptr;
 		if (token.isKeyword) {
 			using enum Keyword;
+			tokens.eat();
 			switch (token.keyword) {
 				case Var: [[fallthrough]];
 				case Let:
@@ -161,6 +152,10 @@ namespace scatha::parse {
 					throw ParserError(token, "Unexpected ID");
 			}
 		}
+		else {
+			// We have not eaten the first token yet. Parsing the expression should be fine.
+			result = ast::allocate<ast::ExpressionStatement>(parseExpression());
+		}
 		if (result == nullptr) {
 			throw ParserError(token, "Can't handle this statement.");
 		}
@@ -169,15 +164,15 @@ namespace scatha::parse {
 		return result;
 	}
 	
-	VariableDeclaration* Parser::parseVariableDeclaration(TokenEx const& declarator) {
+	ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(TokenEx const& declarator) {
 		assert(declarator.isKeyword && (declarator.keyword == Keyword::Var || declarator.keyword == Keyword::Let));
 		
-		VariableDeclaration* result = allocate<VariableDeclaration>(alloc);
+		
 		
 		TokenEx const& name = tokens.eat();
 		expectIdentifier(name);
 		
-		result->name = name.id;
+		auto result = ast::allocate<ast::VariableDeclaration>(name.id);
 		result->isConstant = declarator.keyword == Keyword::Let;
 		
 		if (tokens.peek().id == ":") {
@@ -195,24 +190,13 @@ namespace scatha::parse {
 		return result;
 	}
 	
-	ReturnStatement* Parser::parseReturnStatement() {
-		ReturnStatement* result = allocate<ReturnStatement>(alloc);
-		result->expression = parseExpression();
-		return result;
+	ast::UniquePtr<ast::ReturnStatement> Parser::parseReturnStatement() {
+		return ast::allocate<ast::ReturnStatement>(parseExpression());
 	}
 	
-	Expression* Parser::parseExpression() {
-		ExpressionParser parser(tokens, alloc);
+	ast::UniquePtr<ast::Expression> Parser::parseExpression() {
+		ExpressionParser parser(tokens);
 		return parser.parseExpression();
-//#warning right now we expect an expression to be exactly one identifier or literal
-//		TokenEx const& token = tokens.eat();
-//		if (token.type == TokenType::Identifier ||
-//			token.type == TokenType::NumericLiteral ||
-//			token.type == TokenType::StringLiteral)
-//		{
-//			return allocate<Expression>(alloc);
-//		}
-//		throw ParserError(token, "Can't parse this expression yet");
 	}
 	
 	void Parser::expectIdentifier(TokenEx const& token) {

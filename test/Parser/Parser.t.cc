@@ -2,11 +2,14 @@
 
 #include <iostream>
 
+#include "AST/AST.h"
+#include "AST/Expression.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 
 using namespace scatha;
 using namespace parse;
+using namespace ast;
 
 TEST_CASE("Parse simple function") {
 	std::string const text = R"(
@@ -22,15 +25,14 @@ fn mul(a: int, b: int) -> int {
 		lex::Lexer l(text);
 		auto tokens = l.lex();
 		
-		Allocator alloc;
-		Parser p(tokens, alloc);
-		auto* const ast = p.parse();
+		Parser p(tokens);
+		auto ast = p.parse();
 		
-		auto* const root = dynamic_cast<RootNode*>(ast);
-		REQUIRE(root != nullptr);
-		REQUIRE(root->nodes.size() == 1);
+		auto* const tu = dynamic_cast<TranslationUnit*>(ast.get());
+		REQUIRE(tu != nullptr);
+		REQUIRE(tu->nodes.size() == 1);
 		
-		auto* const function = dynamic_cast<FunctionDefiniton*>(root->nodes[0]);
+		auto* const function = dynamic_cast<FunctionDefiniton*>(tu->nodes[0].get());
 		REQUIRE(function != nullptr);
 		CHECK(function->name == "mul");
 		
@@ -42,20 +44,20 @@ fn mul(a: int, b: int) -> int {
 		
 		CHECK(function->returnType == "int");
 		
-		Block* const body = function->body;
+		Block* const body = function->body.get();
 		REQUIRE(body->statements.size() == 2);
 		
-		auto* const resultDecl = dynamic_cast<VariableDeclaration*>(body->statements[0]);
+		auto* const resultDecl = dynamic_cast<VariableDeclaration*>(body->statements[0].get());
 		REQUIRE(resultDecl != nullptr);
 		CHECK(resultDecl->name == "result");
 		CHECK(resultDecl->type.empty());
 		CHECK(!resultDecl->isConstant);
-		CHECK(dynamic_cast<Identifier*>(resultDecl->initExpression));
+		CHECK(dynamic_cast<Identifier*>(resultDecl->initExpression.get()));
 		
-		auto* const returnStatement = dynamic_cast<ReturnStatement*>(body->statements[1]);
+		auto* const returnStatement = dynamic_cast<ReturnStatement*>(body->statements[1].get());
 		REQUIRE(returnStatement != nullptr);
 		
-		CHECK(dynamic_cast<Identifier*>(returnStatement->expression) != nullptr);
+		CHECK(dynamic_cast<Identifier*>(returnStatement->expression.get()) != nullptr);
 	}());
 	
 }
