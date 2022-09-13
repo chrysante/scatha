@@ -9,7 +9,11 @@ namespace scatha {
 		
 		if (token.type == TokenType::Punctuation) {
 			result.isPunctuation = true;
-			if (token.id == ";" || token.id == "EOL") {
+			if (token.id == "EOL") {
+				result.isEOL       = true;
+				result.isSeparator = true;
+			}
+			else if (token.id == ";") {
 				result.isSeparator = true;
 			}
 		}

@@ -7,21 +7,18 @@
 
 namespace scatha::parse {
 
+	/// MARK: Public
 	Parser::Parser(std::span<Token const> tokens, Allocator& alloc):
 		alloc(alloc),
-		inTokens(tokens),
-		typeTable(std::make_shared<TypeTable>()),
-		functionTable(std::make_shared<FunctionTable>(typeTable))
+		tokens(tokens)
 	{
 		
 	}
 	
 	ParseTreeNode* Parser::parse() {
-		prepass();
-		
 		utl::small_vector<ParseTreeNode*> nodes;
 		while (true) {
-			auto* const node = parseLevelOne();
+			auto* const node = parseRootLevel();
 			if (node == nullptr) {
 				break;
 			}
@@ -33,84 +30,60 @@ namespace scatha::parse {
 		return result;
 	}
 	
-	ParseTreeNode* Parser::parseLevelOne() {
-		TokenEx const* token = eatToken();
+	/// MARK: Private
+	ParseTreeNode* Parser::parseRootLevel() {
+		TokenEx const& token = tokens.eat();
 		
-		if (token->type == TokenType::EndOfFile) {
+		if (token.type == TokenType::EndOfFile) {
 			return nullptr;
 		}
 		
-		expectKeyword(*token);
+		expectKeyword(token);
 		
-		switch (token->keyword) {
+		switch (token.keyword) {
 				using enum Keyword;
 			case Function:
 				return parseFunction();
 				break;
 				
 			default:
-				throw ParserError(*token, "Expected Declarator");
+				throw ParserError(token, "Expected Declarator");
 				break;
 		}
 		
 	}
 	
-	TokenEx const* Parser::_getTokenImpl(bool ignoreSeparators, size_t* i) {
-		if (ignoreSeparators) {
-			this->ignoreSeparators(i);
-		}
-		if (*i == exTokens.size()) { return nullptr; }
-		return &exTokens[(*i)++];
-	}
-	
-	TokenEx const* Parser::eatToken(bool ignoreSeparators) {
-		return _getTokenImpl(ignoreSeparators, &index);
-	}
-	
-	TokenEx const* Parser::peekToken(bool ignoreSeparators) {
-		size_t i = index;
-		return _getTokenImpl(ignoreSeparators, &i);
-	}
-	
 	FunctionDeclaration* Parser::parseFunction() {
 		FunctionDeclaration* const decl = parseFunctionDecl();
-		TokenEx const* token = nullptr;
-		while (true) {
-			token = peekToken(false);
-			if (token->id == ";") {
-				eatToken();
-				return decl;
-			}
-			if (token->id == "EOL") {
-				eatToken(false);
-				continue;
-			}
-			if (token->id == "{") {
-				FunctionDefiniton* def = allocate<FunctionDefiniton>(alloc, *decl);
-				def->body = parseBlock();
-				return def;
-			}
-			throw ParserError(*token, "Unexpected ID");
-		};
+	
+		TokenEx const& token = tokens.peek();
+		if (token.isSeparator) {
+			tokens.eat();
+			return decl;
+		}
+		if (token.id == "{") {
+			FunctionDefiniton* def = allocate<FunctionDefiniton>(alloc, *decl);
+			def->body = parseBlock();
+			return def;
+		}
+		throw ParserError(token, "Unexpected ID");
 	}
 	
 	FunctionDeclaration* Parser::parseFunctionDecl() {
-		state = State::ParsingFunctionDecl;
-		
-		auto const* name = eatToken();
-		expectIdentifier(*name);
+		TokenEx const& name = tokens.eat();
+		expectIdentifier(name);
 		
 		auto* result = allocate<FunctionDeclaration>(alloc);
-		result->name = name->id;
+		result->name = name.id;
 		
 		parseFunctionParameters(result);
 		
-		auto const* token = peekToken();
-		if (token->id == "->") {
-			eatToken();
-			token = eatToken();
-			expectIdentifier(*token);
-			result->returnType = token->id;
+		
+		if (TokenEx const& token = tokens.peek(); token.id == "->") {
+			tokens.eat();
+			TokenEx const& type = tokens.eat();
+			expectIdentifier(type);
+			result->returnType = type.id;
 		}
 		else {
 			result->returnType = "void";
@@ -121,37 +94,30 @@ namespace scatha::parse {
 	}
 
 	void Parser::parseFunctionParameters(FunctionDeclaration* fn) {
-		auto next = [this]() -> auto* { return eatToken(false); };
-		auto const* token = next();
+		TokenEx const& openParan = tokens.eat();
 		
-		expectID(*token, "(");
+		expectID(openParan, "(");
 		
-		if (auto const* const token = peekToken(); token && token->id == ")") {
-			eatToken();
+		if (tokens.peek().id == ")") {
+			tokens.eat();
 			return;
 		}
 		
 		utl::small_vector<FunctionParameterDecl, 8> params;
 		
 		while (true) {
-			token = next();
-			while (token->id == "EOL") {
-				token = next();
-			}
+			TokenEx const& name = tokens.eat();
+			expectIdentifier(name);
 			
-			expectIdentifier(*token);
-			std::string name = token->id;
-			token = next();
-			expectID(*token, ":");
-			token = next();
-			expectIdentifier(*token);
-			std::string type = token->id;
+			expectID(tokens.eat(), ":");
 			
-			params.push_back({ std::move(name), std::move(type) });
+			TokenEx const& type = tokens.eat();
+			expectIdentifier(type);
 			
-			token = next();
-			if (token->id != ",") {
-				expectID(*token, ")");
+			params.push_back({ name.id, type.id });
+			
+			if (TokenEx const& next = tokens.eat(); next.id != ",") {
+				expectID(next, ")");
 				break;
 			}
 		}
@@ -160,16 +126,13 @@ namespace scatha::parse {
 	}
 	
 	Block* Parser::parseBlock() {
-		TokenEx const* token = eatToken();
-		
-		expectID(*token, "{");
+		expectID(tokens.eat(), "{");
 		
 		utl::small_vector<Statement*> statements;
 		
 		while (true) {
-			token = peekToken();
-			if (token->id == "}") {
-				eatToken();
+			if (tokens.peek().id == "}") {
+				tokens.eat();
 				break;
 			}
 			statements.push_back(parseStatement());
@@ -181,22 +144,30 @@ namespace scatha::parse {
 	}
 	
 	Statement* Parser::parseStatement() {
-		TokenEx const* token = eatToken();
-		if (token->isKeyword) {
+		TokenEx const& token = tokens.eat();
+		Statement* result = nullptr;
+		if (token.isKeyword) {
 			using enum Keyword;
-			switch (token->keyword) {
+			switch (token.keyword) {
 				case Var: [[fallthrough]];
 				case Let:
-					return parseVariableDeclaration(*token);
+					result = parseVariableDeclaration(token);
+					break;
 					
 				case Return:
-					return parseReturnStatement();
+					result = parseReturnStatement();
+					break;
 					
 				default:
-					throw ParserError(*token, "Unexpected ID");
+					throw ParserError(token, "Unexpected ID");
 			}
 		}
-		return nullptr;
+		if (result == nullptr) {
+			throw ParserError(token, "Can't handle this statement.");
+		}
+		TokenEx const& next = tokens.eat(false);
+		expectSeparator(next);
+		return result;
 	}
 	
 	VariableDeclaration* Parser::parseVariableDeclaration(TokenEx const& declarator) {
@@ -204,24 +175,22 @@ namespace scatha::parse {
 		
 		VariableDeclaration* result = allocate<VariableDeclaration>(alloc);
 		
-		TokenEx const* token = eatToken();
-		expectIdentifier(*token);
+		TokenEx const& name = tokens.eat();
+		expectIdentifier(name);
 		
-		result->name = token->id;
+		result->name = name.id;
 		result->isConstant = declarator.keyword == Keyword::Let;
 		
-		token = eatToken();
-		
-		if (token->id == ":") {
-			token = eatToken();
-			expectIdentifier(*token);
-			result->type = token->id;
-			token = eatToken();
+		if (tokens.peek().id == ":") {
+			tokens.eat();
+			TokenEx const& type = tokens.eat();
+			expectIdentifier(type);
+			result->type = type.id;
 		}
 		
-		if (token->id == "=") {
+		if (tokens.peek().id == "=") {
+			tokens.eat();
 			result->initExpression = parseExpression();
-			token = eatToken(false);
 		}
 		
 		return result;
@@ -229,25 +198,20 @@ namespace scatha::parse {
 	
 	ReturnStatement* Parser::parseReturnStatement() {
 		ReturnStatement* result = allocate<ReturnStatement>(alloc);
-		
-		TokenEx const* token = eatToken();
-#warning Parse the expression instead of doing this
-		expectIdentifier(*token); // for now
-		
-		result->expression = allocate<Expression>(alloc);
-		
+		result->expression = parseExpression();
 		return result;
 	}
 	
 	Expression* Parser::parseExpression() {
-		return allocate<Expression>(alloc);
-	}
-	
-	void Parser::prepass() {
-		exTokens.reserve(inTokens.size());
-		for (auto& token: inTokens) {
-			exTokens.push_back(expand(token));
+#warning right now we expect an expression to be exactly one identifier or literal
+		TokenEx const& token = tokens.eat();
+		if (token.type == TokenType::Identifier ||
+			token.type == TokenType::NumericLiteral ||
+			token.type == TokenType::StringLiteral)
+		{
+			return allocate<Expression>(alloc);
 		}
+		throw ParserError(token, "Can't parse this expression yet");
 	}
 	
 	void Parser::expectIdentifier(TokenEx const& token) {
@@ -278,10 +242,6 @@ namespace scatha::parse {
 		if (token.id != id) {
 			throw ParserError(token, "Expected '" + std::string(id) + "'");
 		}
-	}
-		
-	void Parser::ignoreSeparators(size_t* i) const {
-		while (*i < exTokens.size() && exTokens[*i].isSeparator) { ++*i; }
 	}
 	
 }

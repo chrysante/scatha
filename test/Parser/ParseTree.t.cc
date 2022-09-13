@@ -8,47 +8,51 @@
 using namespace scatha;
 using namespace parse;
 
-TEST_CASE() {
+TEST_CASE("Parse simple function") {
 	std::string const text = R"(
-fn
 
- mul(a:int,b:int)->
-
-
-int{
-			var result = a
-return
-
-result
-
-}
-
-fn mul(a:int,b:int)->int{
-	let result:int=a;
-	let somethingElse: string="Hello World";
+fn mul(a: int, b: int) -> int {
+	var result = a
 	return result
 }
 
 )";
-	try {
-	
+
+	CHECK_NOTHROW([&]{
 		lex::Lexer l(text);
-		
 		auto tokens = l.lex();
-		
-		
 		
 		Allocator alloc;
 		Parser p(tokens, alloc);
-
-		auto* parseTree = p.parse();
-	
+		auto* ast = p.parse();
 		
-		std::cout << *parseTree << std::endl;
+		auto* const root = dynamic_cast<RootNode*>(ast);
+		REQUIRE(root != nullptr);
+		REQUIRE(root->nodes.size() == 1);
 		
-	}
-	catch (std::exception const& e) {
-		std::cout << e.what() << std::endl;
-	}
+		auto* const function = dynamic_cast<FunctionDefiniton*>(root->nodes[0]);
+		REQUIRE(function != nullptr);
+		CHECK(function->name == "mul");
+		
+		REQUIRE(function->params.size() == 2);
+		CHECK(function->params[0].name == "a");
+		CHECK(function->params[0].type == "int");
+		CHECK(function->params[1].name == "b");
+		CHECK(function->params[1].type == "int");
+		
+		CHECK(function->returnType == "int");
+		
+		Block* const body = function->body;
+		REQUIRE(body->statements.size() == 2);
+		
+		auto* const resultDecl = dynamic_cast<VariableDeclaration*>(body->statements[0]);
+		REQUIRE(resultDecl != nullptr);
+		CHECK(resultDecl->name == "result");
+//		CHECK(resultDecl->type == "__auto__");
+		CHECK(!resultDecl->isConstant);
+		
+		auto* const returnStatement = dynamic_cast<ReturnStatement*>(body->statements[1]);
+		REQUIRE(returnStatement != nullptr);
+	}());
 	
 }

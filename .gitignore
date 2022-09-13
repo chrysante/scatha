@@ -3,7 +3,8 @@ Build/
 
 **.xcworkspace
 **.xcodeproj
-**.DS_Store
+.DS_Store
+**/.DS_Store
 
 **.vcxproj
 **.vcxproj.user

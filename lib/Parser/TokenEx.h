@@ -17,6 +17,7 @@ namespace scatha {
 	struct TokenEx: Token {
 		
 		bool isSeparator   : 1 = false;
+		bool isEOL         : 1 = false;
 		bool isIdentifier  : 1 = false;
 		bool isKeyword     : 1 = false;
 		bool isPunctuation : 1 = false;
