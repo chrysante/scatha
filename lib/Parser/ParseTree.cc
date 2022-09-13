@@ -125,4 +125,8 @@ namespace scatha::parse {
 		printImpl(str, indent, " / ");
 	}
 	
+	void Modulo::print(std::ostream& str, Indenter& indent) const {
+		printImpl(str, indent, " % ");
+	}
+	
 }

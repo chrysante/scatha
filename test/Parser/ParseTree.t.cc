@@ -48,11 +48,14 @@ fn mul(a: int, b: int) -> int {
 		auto* const resultDecl = dynamic_cast<VariableDeclaration*>(body->statements[0]);
 		REQUIRE(resultDecl != nullptr);
 		CHECK(resultDecl->name == "result");
-//		CHECK(resultDecl->type == "__auto__");
+		CHECK(resultDecl->type.empty());
 		CHECK(!resultDecl->isConstant);
+		CHECK(dynamic_cast<Identifier*>(resultDecl->initExpression));
 		
 		auto* const returnStatement = dynamic_cast<ReturnStatement*>(body->statements[1]);
 		REQUIRE(returnStatement != nullptr);
+		
+		CHECK(dynamic_cast<Identifier*>(returnStatement->expression) != nullptr);
 	}());
 	
 }
@@ -61,8 +64,9 @@ TEST_CASE() {
 	std::string const text = R"(
 
 fn mul(a: int, b: int) -> int {
-	var result = a * b * c + d / 3
-	let x = a + b
+	var result = a * b  + -c
+	var result = a + b % c
+	let x = a * (b + c)
 	let x: int = -y
 	let x
 	return result

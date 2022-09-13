@@ -19,7 +19,7 @@ namespace scatha::parse {
 	 
 	 E -> T{ +|- T }
 	 
-	 T -> F{ *|/ T }
+	 T -> F{ *|/|% F }
 	 
 	 F -> Identifier
 	 F -> NumericLiteral
@@ -42,6 +42,9 @@ namespace scatha::parse {
 		Expression* parseE();
 		Expression* parseT();
 		Expression* parseF();
+		
+		template <typename...>
+		Expression* parseET_impl(auto&& parseOperand, auto&&...);
 		
 	private:
 		Allocator& alloc;

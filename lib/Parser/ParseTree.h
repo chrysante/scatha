@@ -105,7 +105,7 @@ namespace scatha::parse {
 	};
 	
 	struct BinaryExpression: Expression {
-		explicit BinaryExpression(Expression* right, Expression* left): right(right), left(left) {}
+		explicit BinaryExpression(Expression* left, Expression* right): left(left), right(right) {}
 		
 		Expression* left;
 		Expression* right;
@@ -153,6 +153,11 @@ namespace scatha::parse {
 	};
 	
 	struct Division: BinaryExpression {
+		using BinaryExpression::BinaryExpression;
+		void print(std::ostream&, Indenter&) const override;
+	};
+	
+	struct Modulo: BinaryExpression {
 		using BinaryExpression::BinaryExpression;
 		void print(std::ostream&, Indenter&) const override;
 	};

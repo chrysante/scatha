@@ -9,44 +9,46 @@ namespace scatha::parse {
 		return parseE();
 	}
 	
-	Expression* ExpressionParser::parseE() {
-		Expression* left = parseT();
+	template <typename... T>
+	Expression* ExpressionParser::parseET_impl(auto&& parseOperand, auto&&... id) {
+		Expression* left = parseOperand();
 		while (true) {
-			TokenEx const& token = tokens.peek();
-			if (token.id == "+") {
-				tokens.eat();
-				Expression* const right = parseT();
-				left = allocate<Addition>(alloc, left, right);
-			}
-			else if (token.id == "-") {
-				tokens.eat();
-				Expression* const right = parseT();
-				left = allocate<Subtraction>(alloc, left, right);
-			}
-			else {
+			/* Expands into:
+			 if (token.id == id[0]) {
+				...
+			 }
+			 else if (token.id == id[1]) {
+				...
+			 }
+			 ...
+			 else if (token.id == id[last]) {
+				...
+			 }
+			 else {
 				return left;
+			 }
+			 */
+			TokenEx const& token = tokens.peek();
+			if (([&]{
+				if (token.id != id) { return false; }
+				tokens.eat();
+				Expression* const right = parseOperand();
+				left = allocate<T>(alloc, left, right);
+				return true;
+			}() || ...)) {
+				continue;
 			}
+			
+			return left;
 		}
 	}
 	
+	Expression* ExpressionParser::parseE() {
+		return parseET_impl<Addition, Subtraction>([this]{ return parseT(); }, "+", "-");
+	}
+	
 	Expression* ExpressionParser::parseT() {
-		Expression* left = parseF();
-		while (true) {
-			TokenEx const& token = tokens.peek();
-			if (token.id == "*") {
-				tokens.eat();
-				Expression* const right = parseT();
-				left = allocate<Multiplication>(alloc, left, right);
-			}
-			else if (token.id == "/") {
-				tokens.eat();
-				Expression* const right = parseT();
-				left = allocate<Division>(alloc, left, right);
-			}
-			else {
-				return left;
-			}
-		}
+		return parseET_impl<Multiplication, Division, Modulo>([this]{ return parseF(); }, "*", "/", "%");
 	}
 	
 	Expression* ExpressionParser::parseF() {
@@ -65,7 +67,7 @@ namespace scatha::parse {
 					tokens.eat();
 					Expression* const e = parseE();
 					
-					TokenEx const& next = tokens.peek();
+					TokenEx const& next = tokens.eat();
 					if (next.id == ")") {
 						return e;
 					}
