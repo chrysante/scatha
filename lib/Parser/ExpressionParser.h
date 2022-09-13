@@ -7,6 +7,38 @@
 #include "Parser/TokenStream.h"
 
 namespace scatha::parse {
+
+	/*
+	 
+	 Operator		| Description					| Associativity
+	 ---------------+-------------------------------+-------------------
+	 () 			| Function call					| Left to right ->
+	 [] 			| Subscript						|
+	 . 				| Member access					|
+	 ---------------+-------------------------------+-------------------
+	 +, -			| Unary plus and minus			| Right to left <-
+	 !, ~			| Logical and bitwise NOT		|
+	 ---------------+-------------------------------+-------------------
+	 *, /, %		| Multiplication, division and	| Left to right ->
+					| remainder						|
+	 +, -			| Addition and subtraction		|
+	 <<, >>			| Bitwise left and right shift	|
+	 <, <=, >, >=	| Relational operators			|
+	 ==, !=			| Equality operators			|
+	 &				| Bitwise AND					|
+	 ^				| Bitwise XOR					|
+	 |				| Bitwise OR					|
+	 &&				| Logical AND					|
+	 ||				| Logical OR					|
+	 ---------------+-------------------------------+-------------------
+	 =				| Assignment					| Right to left <-
+	 +=, -=			| 								|
+	 *=, /=, %=		| 								|
+	 <<=, >>=, 		| 								|
+	 &=, |=, 		| 								|
+	 
+	
+	*/
 	
 	/*
 	 
@@ -17,11 +49,15 @@ namespace scatha::parse {
 		T (Term, operand of addition and subtraction)
 		F (Factor, operand of multiplication and division)
 	 
+	 1.
 	 E -> T{ +|- T }
 	 
+	 2.
 	 T -> F{ *|/|% F }
 	 
-	 F -> Identifier
+	 3.
+	 F -> ID(E...)           // Function call
+	 F -> ID
 	 F -> NumericLiteral
 	 F -> (E) 
 	 F -> +F

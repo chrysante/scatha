@@ -54,9 +54,37 @@ namespace scatha::parse {
 	Expression* ExpressionParser::parseF() {
 		TokenEx const& token = tokens.peek();
 		switch (token.type) {
-			case TokenType::Identifier:
+			case TokenType::Identifier: {
 				tokens.eat();
-				return allocate<Identifier>(alloc, token.id);
+				auto* const identifier = allocate<Identifier>(alloc, token.id);
+				if (tokens.peek().id == "(") { // We have an ID function call expression.
+					tokens.eat();
+					FunctionCall* result = allocate<FunctionCall>(alloc);
+					result->object = identifier;
+					
+					if (tokens.peek().id == ")") { // function with no arguments
+						tokens.eat();
+						return result;
+					}
+					
+					utl::small_vector<Expression*> arguments;
+					while (true) {
+						arguments.push_back(parseE());
+						TokenEx const& next = tokens.eat();
+						if (next.id == ")") {
+							break;
+						}
+						if (next.id != ",") {
+							throw ParserError(next, "Unqualified ID");
+						}
+					}
+					result->arguments = allocateArray<Expression*>(alloc, arguments.begin(), arguments.end());
+					return result;
+				}
+				else {
+					return identifier;
+				}
+			}
 		
 			case TokenType::NumericLiteral:
 				tokens.eat();
@@ -78,11 +106,17 @@ namespace scatha::parse {
 				break;
 			}
 			case TokenType::Operator: {
-				if (token.id == "-") {
+				if (token.id == "+") {
+					tokens.eat();
+					return allocate<Promotion>(alloc, parseF());
+				}
+				else if (token.id == "-") {
 					tokens.eat();
 					return allocate<Negation>(alloc, parseF());
 				}
-				break;
+				else {
+					throw ParserError(token, "Unqualified ID");
+				}
 			}
 				
 			default:

@@ -96,12 +96,19 @@ namespace scatha::parse {
 	
 	/// MARK: Expression
 	struct Expression: ParseTreeNode {
-//		void print(std::ostream&, Indenter&) const override;
+
 	};
 	
 	struct UnaryExpression: Expression {
 		explicit UnaryExpression(Expression* operand): operand(operand) {}
 		Expression* operand;
+	};
+	
+	struct UnaryPrefixExpression: UnaryExpression {
+		using UnaryExpression::UnaryExpression;
+		
+	protected:
+		void printImpl(std::ostream&, Indenter&, std::string_view op) const;
 	};
 	
 	struct BinaryExpression: Expression {
@@ -142,8 +149,13 @@ namespace scatha::parse {
 		void print(std::ostream&, Indenter&) const override;
 	};
 	
-	struct Negation: UnaryExpression {
-		using UnaryExpression::UnaryExpression;
+	struct Promotion: UnaryPrefixExpression {
+		using UnaryPrefixExpression::UnaryPrefixExpression;
+		void print(std::ostream&, Indenter&) const override;
+	};
+	
+	struct Negation: UnaryPrefixExpression {
+		using UnaryPrefixExpression::UnaryPrefixExpression;
 		void print(std::ostream&, Indenter&) const override;
 	};
 	
@@ -160,6 +172,13 @@ namespace scatha::parse {
 	struct Modulo: BinaryExpression {
 		using BinaryExpression::BinaryExpression;
 		void print(std::ostream&, Indenter&) const override;
+	};
+	
+	struct FunctionCall: Expression {
+		void print(std::ostream&, Indenter&) const override;
+		
+		Expression* object;
+		std::span<Expression*> arguments;
 	};
 	
 }

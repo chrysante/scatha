@@ -52,7 +52,11 @@ project "playground"
 
 kind "ConsoleApp"
 sysincludedirs { ".", "include", "external/utility" }
+
+sysincludedirs { "lib" }
+
 addCppFiles "playground"
 links { "scatha", "utility" }
 
+------------------------------------------
 include "external/utility"

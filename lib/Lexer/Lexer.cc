@@ -68,7 +68,7 @@ namespace scatha::lex {
 			
 		}
 		
-		assert(!lexingToken);
+		submitCurrentToken();
 		beginToken(TokenType::EndOfFile);
 		submitCurrentToken();
 		return std::move(result);

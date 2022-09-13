@@ -83,7 +83,13 @@ namespace scatha::parse {
 		str << "return " << *expression;
 	}
 	
-	/// MARK: Expression
+	/// MARK: Expressions
+	void UnaryPrefixExpression::printImpl(std::ostream& str, Indenter& indent, std::string_view op) const {
+		str << op << "(";
+		operand->print(str, indent);
+		str << ")";
+	}
+	
 	void BinaryExpression::printImpl(std::ostream& str, Indenter& indent, std::string_view op) const {
 		str << '(';
 		left->print(str, indent);
@@ -112,9 +118,12 @@ namespace scatha::parse {
 		printImpl(str, indent, " - ");
 	}
 	
+	void Promotion::print(std::ostream& str, Indenter& indent) const {
+		printImpl(str, indent, "+");
+	}
+	
 	void Negation::print(std::ostream& str, Indenter& indent) const {
-		str << '-';
-		operand->print(str, indent);
+		printImpl(str, indent, "-");
 	}
 	
 	void Multiplication::print(std::ostream& str, Indenter& indent) const {
@@ -127,6 +136,16 @@ namespace scatha::parse {
 	
 	void Modulo::print(std::ostream& str, Indenter& indent) const {
 		printImpl(str, indent, " % ");
+	}
+	
+	void FunctionCall::print(std::ostream& str, Indenter& indent) const {
+		object->print(str, indent);
+		str << "(";
+		for (bool first = true; auto* arg: arguments) {
+			if (!first) { str << ", "; } else { first = false; }
+			arg->print(str, indent);
+		}
+		str << ")";
 	}
 	
 }
