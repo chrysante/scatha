@@ -96,6 +96,64 @@ namespace scatha::parse {
 	
 	/// MARK: Expression
 	struct Expression: ParseTreeNode {
+//		void print(std::ostream&, Indenter&) const override;
+	};
+	
+	struct UnaryExpression: Expression {
+		explicit UnaryExpression(Expression* operand): operand(operand) {}
+		Expression* operand;
+	};
+	
+	struct BinaryExpression: Expression {
+		explicit BinaryExpression(Expression* right, Expression* left): right(right), left(left) {}
+		
+		Expression* left;
+		Expression* right;
+		
+	protected:
+		void printImpl(std::ostream&, Indenter&, std::string_view op) const;
+	};
+	
+	struct Identifier: Expression {
+		explicit Identifier(std::string name): name(std::move(name)) {}
+		void print(std::ostream&, Indenter&) const override;
+		std::string name;
+	};
+	
+	struct NumericLiteral: Expression {
+		explicit NumericLiteral(std::string value): value(std::move(value)) {}
+		void print(std::ostream&, Indenter&) const override;
+		std::string value;
+	};
+	
+	struct StringLiteral: Expression {
+		explicit StringLiteral(std::string value): value(std::move(value)) {}
+		void print(std::ostream&, Indenter&) const override;
+		std::string value;
+	};
+	
+	struct Addition: BinaryExpression {
+		using BinaryExpression::BinaryExpression;
+		void print(std::ostream&, Indenter&) const override;
+	};
+	
+	struct Subtraction: BinaryExpression {
+		using BinaryExpression::BinaryExpression;
+		void print(std::ostream&, Indenter&) const override;
+	};
+	
+	struct Negation: UnaryExpression {
+		using UnaryExpression::UnaryExpression;
+		void print(std::ostream&, Indenter&) const override;
+	};
+	
+	struct Multiplication: BinaryExpression {
+		using BinaryExpression::BinaryExpression;
+		void print(std::ostream&, Indenter&) const override;
+	};
+	
+	struct Division: BinaryExpression {
+		using BinaryExpression::BinaryExpression;
 		void print(std::ostream&, Indenter&) const override;
 	};
 	

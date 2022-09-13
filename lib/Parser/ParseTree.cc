@@ -73,7 +73,9 @@ namespace scatha::parse {
 	void VariableDeclaration::print(std::ostream& str, Indenter& indent) const {
 		str << (isConstant ? "let" : "var") << " " << name << ": ";
 		str << (type.empty() ? "<deduce type>" : type);
-		str << " = " << *initExpression;
+		if (initExpression) {
+			str << " = " << *initExpression;
+		}
 	}
 
 	/// MARK: ReturnStatement
@@ -82,8 +84,45 @@ namespace scatha::parse {
 	}
 	
 	/// MARK: Expression
-	void Expression::print(std::ostream& str, Indenter& indent) const {
-		str << "<empty expression>";
+	void BinaryExpression::printImpl(std::ostream& str, Indenter& indent, std::string_view op) const {
+		str << '(';
+		left->print(str, indent);
+		str << op;
+		right->print(str, indent);
+		str << ')';
+	}
+	
+	void Identifier::print(std::ostream& str, Indenter& indent) const {
+		str << name;
+	}
+	
+	void NumericLiteral::print(std::ostream& str, Indenter& indent) const {
+		str << value;
+	}
+	
+	void StringLiteral::print(std::ostream& str, Indenter& indent) const {
+		str << '"' << value << '"';
+	}
+	
+	void Addition::print(std::ostream& str, Indenter& indent) const {
+		printImpl(str, indent, " + ");
+	}
+	
+	void Subtraction::print(std::ostream& str, Indenter& indent) const {
+		printImpl(str, indent, " - ");
+	}
+	
+	void Negation::print(std::ostream& str, Indenter& indent) const {
+		str << '-';
+		operand->print(str, indent);
+	}
+	
+	void Multiplication::print(std::ostream& str, Indenter& indent) const {
+		printImpl(str, indent, " * ");
+	}
+	
+	void Division::print(std::ostream& str, Indenter& indent) const {
+		printImpl(str, indent, " / ");
 	}
 	
 }

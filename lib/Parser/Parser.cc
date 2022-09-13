@@ -1,9 +1,8 @@
 #include "Parser/Parser.h"
 
+#include "Parser/ExpressionParser.h"
 #include "Parser/Keyword.h"
 #include "Parser/ParserError.h"
-
-#define with(...) if (__VA_ARGS__; true)
 
 namespace scatha::parse {
 
@@ -203,15 +202,17 @@ namespace scatha::parse {
 	}
 	
 	Expression* Parser::parseExpression() {
-#warning right now we expect an expression to be exactly one identifier or literal
-		TokenEx const& token = tokens.eat();
-		if (token.type == TokenType::Identifier ||
-			token.type == TokenType::NumericLiteral ||
-			token.type == TokenType::StringLiteral)
-		{
-			return allocate<Expression>(alloc);
-		}
-		throw ParserError(token, "Can't parse this expression yet");
+		ExpressionParser parser(tokens, alloc);
+		return parser.parseExpression();
+//#warning right now we expect an expression to be exactly one identifier or literal
+//		TokenEx const& token = tokens.eat();
+//		if (token.type == TokenType::Identifier ||
+//			token.type == TokenType::NumericLiteral ||
+//			token.type == TokenType::StringLiteral)
+//		{
+//			return allocate<Expression>(alloc);
+//		}
+//		throw ParserError(token, "Can't parse this expression yet");
 	}
 	
 	void Parser::expectIdentifier(TokenEx const& token) {

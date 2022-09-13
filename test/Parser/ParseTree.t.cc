@@ -24,7 +24,7 @@ fn mul(a: int, b: int) -> int {
 		
 		Allocator alloc;
 		Parser p(tokens, alloc);
-		auto* ast = p.parse();
+		auto* const ast = p.parse();
 		
 		auto* const root = dynamic_cast<RootNode*>(ast);
 		REQUIRE(root != nullptr);
@@ -54,5 +54,32 @@ fn mul(a: int, b: int) -> int {
 		auto* const returnStatement = dynamic_cast<ReturnStatement*>(body->statements[1]);
 		REQUIRE(returnStatement != nullptr);
 	}());
+	
+}
+
+TEST_CASE() {
+	std::string const text = R"(
+
+fn mul(a: int, b: int) -> int {
+	var result = a * b * c + d / 3
+	let x = a + b
+	let x: int = -y
+	let x
+	return result
+}
+
+)";
+
+//	CHECK_NOTHROW([&]{
+	lex::Lexer l(text);
+	auto tokens = l.lex();
+	
+	Allocator alloc;
+	Parser p(tokens, alloc);
+	auto const* const ast = p.parse();
+
+	std::cout << *ast << std::endl;
+	
+//	}());
 	
 }
