@@ -25,6 +25,8 @@ namespace scatha::lex {
 		bool lexOperator(char);
 		bool lexStringLiteral(char c);
 		
+		bool lexOneLineComment(char c);
+		
 	private:
 		std::string_view text;
 		

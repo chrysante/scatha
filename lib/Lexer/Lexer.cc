@@ -19,6 +19,10 @@ namespace scatha::lex {
 		for (sc.index = 0; sc.index < length; ++sc.index, ++sc.column) {
 			char const c = text[sc.index];
 			
+			if (lexOneLineComment(c)) {
+				continue;
+			}
+			
 			if (isDelimiter(c)) {
 				submitCurrentToken();
 			}
@@ -137,8 +141,31 @@ namespace scatha::lex {
 		currentToken.id = text.substr(sc.index, length);
 		submitCurrentToken();
 		sc.index += length;
-		sc.line += length;
+		sc.column += length;
 		return true;
+	}
+	
+	bool Lexer::lexOneLineComment(char c) {
+		if (c != '/') {
+			return false;
+		}
+		std::size_t index = sc.index + 1;
+		if (index >= text.size()) {
+			return false;
+		}
+		if (text[index] != '/') {
+			return false;
+		}
+		submitCurrentToken();
+		sc.index += 1;
+		while (true) {
+			if (sc.index == text.size() || text[sc.index] == '\n') {
+				sc.line += 1;
+				sc.column = 0;
+				return true;
+			}
+			++sc.index;
+		}
 	}
 	
 }
