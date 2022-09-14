@@ -148,9 +148,20 @@ namespace scatha::parse {
 					result = parseReturnStatement();
 					break;
 					
+				case If:
+					result = parseIfStatement();
+					break;
+					
+				case While:
+					result = parseWhileStatement();
+					break;
+					
 				default:
 					throw ParserError(token, "Unexpected ID");
 			}
+		}
+		else if (token.id == "{") {
+			result = parseBlock();
 		}
 		else {
 			// We have not eaten the first token yet. Parsing the expression should be fine.
@@ -166,8 +177,6 @@ namespace scatha::parse {
 	
 	ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(TokenEx const& declarator) {
 		assert(declarator.isKeyword && (declarator.keyword == Keyword::Var || declarator.keyword == Keyword::Let));
-		
-		
 		
 		TokenEx const& name = tokens.eat();
 		expectIdentifier(name);
@@ -194,39 +203,36 @@ namespace scatha::parse {
 		return ast::allocate<ast::ReturnStatement>(parseExpression());
 	}
 	
+	ast::UniquePtr<ast::IfStatement> Parser::parseIfStatement() {
+		auto const& keyword = tokens.current();
+		assert(keyword.isKeyword);
+		assert(keyword.keyword == Keyword::If);
+		
+		auto condition = parseExpression();
+		auto ifBlock = parseBlock();
+		auto result = ast::allocate<ast::IfStatement>(std::move(condition), std::move(ifBlock));
+		auto const& next = tokens.peek();
+		if (!next.isKeyword || next.keyword != Keyword::Else) {
+			return result;
+		}
+		tokens.eat();
+		result->elseBlock = parseBlock();
+		return result;
+	}
+	
+	ast::UniquePtr<ast::WhileStatement> Parser::parseWhileStatement() {
+		auto const& keyword = tokens.current();
+		assert(keyword.isKeyword);
+		assert(keyword.keyword == Keyword::While);
+		
+		auto condition = parseExpression();
+		auto block = parseBlock();
+		return ast::allocate<ast::WhileStatement>(std::move(condition), std::move(block));
+	}
+	
 	ast::UniquePtr<ast::Expression> Parser::parseExpression() {
 		ExpressionParser parser(tokens);
 		return parser.parseExpression();
-	}
-	
-	void Parser::expectIdentifier(TokenEx const& token) {
-		if (!token.isIdentifier) {
-			throw ParserError(token, "Expected Identifier");
-		}
-	}
-	
-	void Parser::expectKeyword(TokenEx const& token) {
-		if (!token.isKeyword) {
-			throw ParserError(token, "Expected Keyword");
-		}
-	}
-	
-	void Parser::expectDeclarator(TokenEx const& token) {
-		if (!token.isKeyword || token.keywordCategory != KeywordCategory::Declarators) {
-			throw ParserError(token, "Expected Declarator");
-		}
-	}
-	
-	void Parser::expectSeparator(TokenEx const& token) {
-		if (!token.isSeparator) {
-			throw ParserError(token, "Unqualified ID");
-		}
-	}
-	
-	void Parser::expectID(TokenEx const& token, std::string_view id) {
-		if (token.id != id) {
-			throw ParserError(token, "Expected '" + std::string(id) + "'");
-		}
 	}
 	
 }

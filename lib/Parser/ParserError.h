@@ -17,6 +17,12 @@ namespace scatha::parse {
 		TokenEx token;
 	};
 	
+	void expectIdentifier(TokenEx const&, std::string_view message = {});
+	void expectKeyword(TokenEx const&, std::string_view message = {});
+	void expectDeclarator(TokenEx const&, std::string_view message = {});
+	void expectSeparator(TokenEx const&, std::string_view message = {});
+	void expectID(TokenEx const&, std::string_view, std::string_view message = {});
+	
 }
 	
 #endif // SCATHA_PARSER_PARSERERROR_H_
