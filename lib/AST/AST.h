@@ -136,6 +136,30 @@ namespace scatha::ast {
 		UniquePtr<Expression> expression;
 	};
 	
+	/// MARK: IfStatement
+	struct IfStatement: ControlFlowStatement {
+		explicit IfStatement(UniquePtr<Expression> condition,
+							 UniquePtr<Block> ifBlock,
+							 UniquePtr<Block> elseBlock = nullptr);
+		
+		void print(std::ostream&, Indenter&) const override;
+		
+		UniquePtr<Expression> condition;
+		UniquePtr<Block> ifBlock;
+		UniquePtr<Block> elseBlock;
+	};
+	
+	/// MARK: WhileStatement
+	struct WhileStatement: ControlFlowStatement {
+		explicit WhileStatement(UniquePtr<Expression> condition,
+									UniquePtr<Block> block);
+		
+		void print(std::ostream&, Indenter&) const override;
+		
+		UniquePtr<Expression> condition;
+		UniquePtr<Block> block;
+	};
+	
 }
 
 #endif // SCATHA_AST_AST_H_

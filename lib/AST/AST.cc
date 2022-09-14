@@ -33,6 +33,7 @@ namespace scatha::ast {
 	void TranslationUnit::print(std::ostream& str, Indenter& indent) const {
 		for (auto& n: nodes) {
 			n->print(str, indent);
+			str << indent << indent;
 		}
 	}
 	
@@ -44,13 +45,18 @@ namespace scatha::ast {
 	
 	/// MARK: Block
 	void Block::print(std::ostream& str, Indenter& indent) const {
-		str << "{" << indent.increase();
-		for (auto [i, s]: utl::enumerate(statements)) {
-			s->print(str, indent);
-			if (i == statements.size() - 1) { indent.decrease(); }
+		str << "{";
+		if (statements.empty()) {
 			str << indent;
 		}
-		str << "}" << indent;
+		for (auto [i, s]: utl::enumerate(statements)) {
+			if (i == 0) { indent.increase(); }
+			str << indent;
+			
+			s->print(str, indent);
+			if (i == statements.size() - 1) { indent.decrease(); }
+		}
+		str << indent << "}";
 	}
 	
 	/// MARK: Function
@@ -100,6 +106,37 @@ namespace scatha::ast {
 	
 	void ReturnStatement::print(std::ostream& str, Indenter& indent) const {
 		str << "return " << *expression;
+	}
+	
+	/// MARK: IfStatement
+	IfStatement::IfStatement(UniquePtr<Expression> condition, UniquePtr<Block> ifBlock, UniquePtr<Block> elseBlock):
+		condition(std::move(condition)),
+		ifBlock(std::move(ifBlock)),
+		elseBlock(std::move(elseBlock))
+	{}
+	
+	void IfStatement::print(std::ostream& str, Indenter& indent) const {
+		str << "if ";
+		condition->print(str, indent);
+		str << " ";
+		ifBlock->print(str, indent);
+		
+		if (elseBlock) {
+			str << indent << "else ";
+			elseBlock->print(str, indent);
+		}
+	}
+	
+	WhileStatement::WhileStatement(UniquePtr<Expression> condition, UniquePtr<Block> block):
+		condition(std::move(condition)),
+		block(std::move(block))
+	{}
+	
+	void WhileStatement::print(std::ostream& str, Indenter& indent) const {
+		str << "while ";
+		condition->print(str, indent);
+		str << " ";
+		block->print(str, indent);
 	}
 	
 }

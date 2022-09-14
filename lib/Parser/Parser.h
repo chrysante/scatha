@@ -36,14 +36,10 @@ namespace scatha::parse {
 		ast::UniquePtr<ast::Statement> parseStatement();
 		ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(TokenEx const& declarator);
 		ast::UniquePtr<ast::ReturnStatement> parseReturnStatement();
+		ast::UniquePtr<ast::IfStatement> parseIfStatement();
+		ast::UniquePtr<ast::WhileStatement> parseWhileStatement();
 		
 		ast::UniquePtr<ast::Expression> parseExpression();
-		
-		static void expectIdentifier(TokenEx const&);
-		static void expectKeyword(TokenEx const&);
-		static void expectDeclarator(TokenEx const&);
-		static void expectSeparator(TokenEx const&);
-		static void expectID(TokenEx const&, std::string_view);
 		
 	private:
 		TokenStream tokens;
