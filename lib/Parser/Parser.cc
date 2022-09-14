@@ -77,10 +77,10 @@ namespace scatha::parse {
 			tokens.eat();
 			TokenEx const& type = tokens.eat();
 			expectIdentifier(type);
-			result->returnType = type.id;
+			result->returnTypename = type.id;
 		}
 		else {
-			result->returnType = "void";
+			result->returnTypename = "void";
 		}
 		
 		return result;

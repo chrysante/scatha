@@ -20,9 +20,11 @@ namespace scatha {
 	public:
 		Type() = default;
 		size_t size() const { return _size; }
+		size_t align() const { return _align; }
 		
 	private:
 		u16 _size = 0;
+		u16 _align = 0;
 	};
 	
 	struct TypeEx: Type {

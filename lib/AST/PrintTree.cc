@@ -68,7 +68,7 @@ namespace scatha::ast {
 					str << (first ? (void(first = false), "") : ", ");
 					str << p.name << ": " << p.type;
 				}
-				str << ") -> " << node->returnType << endl;
+				str << ") -> " << node->returnTypename << endl;
 				break;
 			}
 			case NodeType::FunctionDefinition: {

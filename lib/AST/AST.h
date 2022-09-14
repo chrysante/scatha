@@ -11,6 +11,7 @@
 #include <utl/vector.hpp>
 
 #include "AST/NodeType.h"
+#include "Common/Type.h"
 
 namespace scatha::ast {
 	
@@ -91,14 +92,14 @@ namespace scatha::ast {
 	/// MARK: FunctionDeclaration
 	struct FunctionDeclaration: Declaration {
 		explicit FunctionDeclaration(std::string name,
-									 std::string returnType = {},
+									 std::string returnTypename = {},
 									 utl::vector<FunctionParameterDecl> params = {}):
 			Declaration(NodeType::FunctionDeclaration, std::move(name)),
-			returnType(std::move(returnType)),
+			returnTypename(std::move(returnTypename)),
 			params(std::move(params))
 		{}
 		
-		std::string returnType;
+		std::string returnTypename;
 		utl::small_vector<FunctionParameterDecl> params;
 	};
 	

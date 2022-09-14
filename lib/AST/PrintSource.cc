@@ -77,7 +77,7 @@ namespace scatha::ast {
 				for (bool first = true; auto const& param: fn->params) {
 					str << (first ? ((void)(first = false), "") : ", ") << param.name << ": " << param.type;
 				}
-				str << ") -> " << fn->returnType;
+				str << ") -> " << fn->returnTypename;
 				str << ";";
 				break;
 			}
