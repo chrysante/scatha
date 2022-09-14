@@ -47,7 +47,6 @@ namespace scatha::parse {
 				throw ParserError(token, "Expected Declarator");
 				break;
 		}
-		
 	}
 	
 	ast::UniquePtr<ast::FunctionDeclaration> Parser::parseFunction() {
@@ -134,45 +133,37 @@ namespace scatha::parse {
 	
 	ast::UniquePtr<ast::Statement> Parser::parseStatement() {
 		TokenEx const& token = tokens.peek();
-		ast::UniquePtr<ast::Statement> result = nullptr;
 		if (token.isKeyword) {
 			using enum Keyword;
 			tokens.eat();
 			switch (token.keyword) {
 				case Var: [[fallthrough]];
 				case Let:
-					result = parseVariableDeclaration(token);
-					break;
+					return parseVariableDeclaration(token);
 					
 				case Return:
-					result = parseReturnStatement();
-					break;
+					return parseReturnStatement();
 					
 				case If:
-					result = parseIfStatement();
-					break;
+					return parseIfStatement();
 					
 				case While:
-					result = parseWhileStatement();
-					break;
+					return parseWhileStatement();
 					
 				default:
 					throw ParserError(token, "Unexpected ID");
 			}
 		}
 		else if (token.id == "{") {
-			result = parseBlock();
+			return parseBlock();
 		}
 		else {
-			// We have not eaten the first token yet. Parsing the expression should be fine.
-			result = ast::allocate<ast::ExpressionStatement>(parseExpression());
+			// We have not eaten the first token yet. Parsing an expression should be fine.
+			auto result = ast::allocate<ast::ExpressionStatement>(parseExpression());
+			TokenEx const& next = tokens.eat(false);
+			expectSeparator(next);
+			return result;
 		}
-		if (result == nullptr) {
-			throw ParserError(token, "Can't handle this statement.");
-		}
-		TokenEx const& next = tokens.eat(false);
-		expectSeparator(next);
-		return result;
 	}
 	
 	ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(TokenEx const& declarator) {
@@ -196,11 +187,17 @@ namespace scatha::parse {
 			result->initExpression = parseExpression();
 		}
 		
+		TokenEx const& next = tokens.eat(false);
+		expectSeparator(next);
+		
 		return result;
 	}
 	
 	ast::UniquePtr<ast::ReturnStatement> Parser::parseReturnStatement() {
-		return ast::allocate<ast::ReturnStatement>(parseExpression());
+		auto result = ast::allocate<ast::ReturnStatement>(parseExpression());
+		TokenEx const& next = tokens.eat(false);
+		expectSeparator(next);
+		return result;
 	}
 	
 	ast::UniquePtr<ast::IfStatement> Parser::parseIfStatement() {
