@@ -6,7 +6,6 @@
 #include <setjmp.h>
 
 namespace scatha::execution {
-
 	
 	struct JumpBuffer {
 		bool set() {

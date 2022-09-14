@@ -45,6 +45,7 @@ sysincludedirs {
 sysincludedirs { "lib" }
 
 addCppFiles "test"
+files "test/**.sc"
 links { "scatha" }
 
 ------------------------------------------
@@ -57,6 +58,10 @@ sysincludedirs { "lib" }
 
 addCppFiles "playground"
 links { "scatha", "utility" }
+
+filter { "system:macosx"} 
+    defines { "PROJECT_LOCATION=\"../../..\"" } -- use different (maybe less fragile) solution for windows
+filter {}
 
 ------------------------------------------
 include "external/utility"
