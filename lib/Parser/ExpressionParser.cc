@@ -79,9 +79,7 @@ namespace scatha::parse {
 		{
 			tokens.eat();
 			auto lhs = parseComma();
-			if (auto const& token = tokens.eat(); token.id != ":") {
-				throw ParserError(token, "Unqualified ID");
-			}
+			expectID(tokens.eat(), ":");
 			auto rhs = parseConditional();
 			return allocate<ast::Conditional>(std::move(logicalOr), std::move(lhs), std::move(rhs));
 		}
@@ -158,54 +156,23 @@ namespace scatha::parse {
 	ast::UniquePtr<ast::Expression> ExpressionParser::parsePostfix() {
 		auto primary = parsePrimary();
 		if (!primary) { return nullptr; }
-		auto const& token = tokens.peek();
-		if (token.id == "[") {
-			tokens.eat();
-			auto subscript = ast::allocate<ast::Subscript>(std::move(primary));
-			
-			if (tokens.peek().id == "]") { // subscript with no arguments - forbidden!
-				throw ParserError(tokens.peek(), "Subscript with no arguments is not allowed");
+		
+		while (true) {
+			auto const& token = tokens.peek(false);
+			if (token.id == "[") {
+				primary = parseSubscript(std::move(primary));
 			}
-			while (true) {
-				subscript->arguments.push_back(parseAssignment());
-				TokenEx const& next = tokens.eat();
-				if (next.id == "]") {
-					break;
-				}
-				if (next.id != ",") {
-					throw ParserError(next, "Unqualified ID");
-				}
+			else if (token.id == "(") {
+				primary = parseFunctionCall(std::move(primary));
 			}
-			return subscript;
+			else if (token.id == ".") {
+				primary = parseMemberAccess(std::move(primary));
+			}
+			else {
+				break;
+			}
 		}
-		if (token.id == "(") {
-			tokens.eat();
-			auto functionCall = ast::allocate<ast::FunctionCall>(std::move(primary));
-			
-			if (tokens.peek().id == ")") { // function with no arguments
-				tokens.eat();
-				return functionCall;
-			}
-			while (true) {
-				functionCall->arguments.push_back(parseAssignment());
-				TokenEx const& next = tokens.eat();
-				if (next.id == ")") {
-					break;
-				}
-				if (next.id != ",") {
-					throw ParserError(next, "Unqualified ID");
-				}
-			}
-			return functionCall;
-		}
-		if (token.id == ".") {
-			tokens.eat();
-			auto const& id = tokens.eat();
-			if (id.type != TokenType::Identifier) {
-				throw ParserError(id, "Expected Identifier");
-			}
-			return ast::allocate<ast::MemberAccess>(std::move(primary), id.id);
-		}
+		
 		return primary;
 	}
 	
@@ -234,9 +201,7 @@ namespace scatha::parse {
 					ast::UniquePtr<ast::Expression> e = parseComma();
 					
 					TokenEx const& next = tokens.eat();
-					if (next.id != ")") {
-						throw ParserError(next, "Unqualified ID");
-					}
+					expectID(next, ")");
 					
 					return e;
 				}
@@ -249,5 +214,51 @@ namespace scatha::parse {
 		return nullptr;
 	}
 	
+	template <typename FC>
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
+																			std::string_view open, std::string_view close)
+	{
+		auto const& openToken = tokens.eat();
+		assert(openToken.id == open);
+		auto result = ast::allocate<FC>(std::move(primary));
+		
+		if (tokens.peek().id == close) { // no arguments
+			tokens.eat();
+			return result;
+		}
+		
+		while (true) {
+			result->arguments.push_back(parseAssignment());
+			TokenEx const& next = tokens.eat();
+			if (next.id == close) {
+				break;
+			}
+			expectID(next, ",");
+		}
+		return result;
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseSubscript(ast::UniquePtr<ast::Expression> primary) {
+		auto result = parseFunctionCallLike<ast::Subscript>(std::move(primary), "[", "]");
+		// dynamic_cast is not really necessary but just to be safe...
+		if (auto* ptr = dynamic_cast<ast::Subscript*>(result.get());
+			ptr && ptr->arguments.empty())
+		{
+			throw ParserError(tokens.current(), "Subscript with no arguments is not allowed");
+		}
+		return result;
+	}
+	
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseFunctionCall(ast::UniquePtr<ast::Expression> primary) {
+		return parseFunctionCallLike<ast::FunctionCall>(std::move(primary), "(", ")");
+	}
+
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseMemberAccess(ast::UniquePtr<ast::Expression> primary) {
+		auto const& dot = tokens.eat();
+		assert(dot.id == ".");
+		auto const& id = tokens.eat();
+		expectIdentifier(id);
+		return ast::allocate<ast::MemberAccess>(std::move(primary), id.id);
+	}
 	
 }

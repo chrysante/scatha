@@ -124,6 +124,12 @@ namespace scatha::parse {
 		ast::UniquePtr<ast::Expression> parsePostfix();
 		ast::UniquePtr<ast::Expression> parsePrimary();
 		
+		template <typename>
+		ast::UniquePtr<ast::Expression> parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
+															  std::string_view open, std::string_view close);
+		ast::UniquePtr<ast::Expression> parseSubscript(ast::UniquePtr<ast::Expression> primary);
+		ast::UniquePtr<ast::Expression> parseFunctionCall(ast::UniquePtr<ast::Expression> primary);
+		ast::UniquePtr<ast::Expression> parseMemberAccess(ast::UniquePtr<ast::Expression> primary);
 		
 		template <typename...>
 		ast::UniquePtr<ast::Expression> parseBinaryOperatorLTR(auto&& operand);
