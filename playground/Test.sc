@@ -8,6 +8,7 @@ fn add() -> int {
 
 
 fn mul(a: int, b: int) -> int {
+	let x;
 	let result = a * b;
 	return result;
 }

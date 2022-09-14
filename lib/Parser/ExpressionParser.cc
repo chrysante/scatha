@@ -9,7 +9,7 @@ namespace scatha::parse {
 		return parseComma();
 	}
 	
-	template <typename... T>
+	template <ast::BinaryOperator... Op>
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorLTR(auto&& operand) {
 		ast::UniquePtr<ast::Expression> left = operand();
 		while (true) {
@@ -30,10 +30,10 @@ namespace scatha::parse {
 			 */
 			TokenEx const& token = tokens.peek();
 			if (([&]{
-				if (token.id != T::operatorString()) { return false; }
+				if (token.id != toString(Op)) { return false; }
 				tokens.eat();
 				ast::UniquePtr<ast::Expression> right = operand();
-				left = ast::allocate<T>(std::move(left), std::move(right));
+				left = ast::allocate<ast::BinaryExpression>(Op, std::move(left), std::move(right));
 				return true;
 			}() || ...)) {
 				continue;
@@ -43,15 +43,15 @@ namespace scatha::parse {
 		}
 	}
 	
-	template <typename... T>
+	template <ast::BinaryOperator... Op>
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorRTL(auto&& parseOperand) {
 		auto left = parseOperand();
 		TokenEx const& nextToken = tokens.peek();
 		
-		if (ast::UniquePtr<ast::Expression> result = nullptr; ((nextToken.id == T::operatorString() && (result = [&]{
+		if (ast::UniquePtr<ast::Expression> result = nullptr; ((nextToken.id == toString(Op) && (result = [&]{
 			tokens.eat();
-			ast::UniquePtr<ast::Expression> right = parseBinaryOperatorRTL<T...>(parseOperand);
-			return ast::allocate<T>(std::move(left), std::move(right));
+			ast::UniquePtr<ast::Expression> right = parseBinaryOperatorRTL<Op...>(parseOperand);
+			return ast::allocate<ast::BinaryExpression>(Op, std::move(left), std::move(right));
 		}(), true)) || ...)) {
 			return result;
 		}
@@ -61,13 +61,14 @@ namespace scatha::parse {
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseComma() {
-		return parseBinaryOperatorLTR<ast::Comma>([this]{ return parseAssignment(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::Comma>([this]{ return parseAssignment(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseAssignment() {
+		using enum ast::BinaryOperator;
 		return parseBinaryOperatorRTL<
-			ast::Assignment, ast::AddAssignment, ast::SubAssignment, ast::MulAssignment, ast::DivAssignment, ast::RemAssignment,
-			ast::LSAssignment, ast::RSAssignment, ast::AndAssignment, ast::OrAssignment
+			Assignment, AddAssignment, SubAssignment, MulAssignment, DivAssignment, RemAssignment,
+			LSAssignment, RSAssignment, AndAssignment, OrAssignment
 		>([this]{ return parseConditional(); });
 	}
 	
@@ -88,43 +89,46 @@ namespace scatha::parse {
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseLogicalOr() {
-		return parseBinaryOperatorLTR<ast::LogicalOr>([this] { return parseLogicalAnd(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::LogicalOr>([this] { return parseLogicalAnd(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseLogicalAnd() {
-		return parseBinaryOperatorLTR<ast::LogicalAnd>([this] { return parseInclusiveOr(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::LogicalAnd>([this] { return parseInclusiveOr(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseInclusiveOr() {
-		return parseBinaryOperatorLTR<ast::BitwiseOr>([this] { return parseExclusiveOr(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::BitwiseOr>([this] { return parseExclusiveOr(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseExclusiveOr() {
-		return parseBinaryOperatorLTR<ast::BitwiseXOr>([this] { return parseAnd(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::BitwiseXOr>([this] { return parseAnd(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseAnd() {
-		return parseBinaryOperatorLTR<ast::BitwiseAnd>([this] { return parseEquality(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::BitwiseAnd>([this] { return parseEquality(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseEquality() {
-		return parseBinaryOperatorLTR<ast::Equals, ast::NotEquals>([this] { return parseRelational(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::Equals, ast::BinaryOperator::NotEquals>([this] { return parseRelational(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseRelational() {
-		return parseBinaryOperatorLTR<ast::Less, ast::LessEq, ast::Greater, ast::GreaterEq>([this] { return parseShift(); });
+		return parseBinaryOperatorLTR<
+			ast::BinaryOperator::Less,    ast::BinaryOperator::LessEq,
+			ast::BinaryOperator::Greater, ast::BinaryOperator::GreaterEq
+		>([this] { return parseShift(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseShift() {
-		return parseBinaryOperatorLTR<ast::LeftShift, ast::RightShift>([this] { return parseAdditive(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::LeftShift, ast::BinaryOperator::RightShift>([this] { return parseAdditive(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseAdditive() {
-		return parseBinaryOperatorLTR<ast::Addition, ast::Subtraction>([this] { return parseMultiplicative(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::Addition, ast::BinaryOperator::Subtraction>([this] { return parseMultiplicative(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseMultiplicative() {
-		return parseBinaryOperatorLTR<ast::Multiplication, ast::Division, ast::Remainder>([this] { return parseUnary(); });
+		return parseBinaryOperatorLTR<ast::BinaryOperator::Multiplication, ast::BinaryOperator::Division, ast::BinaryOperator::Remainder>([this] { return parseUnary(); });
 	}
 	
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseUnary() {
@@ -137,16 +141,16 @@ namespace scatha::parse {
 			assert(false && "Do we really want to support addressof operator?");
 		}
 		else if (token.id == "+") {
-			return ast::allocate<ast::Promotion>(parseUnary());
+			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Promotion, parseUnary());
 		}
 		else if (token.id == "-") {
-			return ast::allocate<ast::Negation>(parseUnary());
+			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Negation, parseUnary());
 		}
 		else if (token.id == "~") {
-			return ast::allocate<ast::BitwiseNot>(parseUnary());
+			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::BitwiseNot, parseUnary());
 		}
 		else if (token.id == "!") {
-			return ast::allocate<ast::LogicalNot>(parseUnary());
+			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::LogicalNot, parseUnary());
 		}
 		else {
 			throw ParserError(token, "Unqualified ID");

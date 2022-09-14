@@ -1,12 +1,14 @@
-#ifndef SCATHA_AST_TYPE_H_
-#define SCATHA_AST_TYPE_H_
+#ifndef SCATHA_AST_NODETYPE_H_
+#define SCATHA_AST_NODETYPE_H_
+
+#include <string_view>
 
 namespace scatha::ast {
 	
 	/**
 	 * List of all concrete AST node types
 	 */
-	enum class Type {
+	enum class NodeType {
 		TranslationUnit,
 		
 		// Statements
@@ -27,6 +29,7 @@ namespace scatha::ast {
 		StringLiteral,
 		
 		// Unary Expressions
+		UnaryPrefixExpression,
 		
 		// Binary Expressions
 		BinaryExpression,
@@ -38,9 +41,13 @@ namespace scatha::ast {
 		// More Complex Expressions
 		FunctionCall,
 		Subscript,
+		
+		_count
 	};
+	
+	std::string_view toString(NodeType);
 	
 }
 
-#endif // SCATHA_AST_TYPE_H_
+#endif // SCATHA_AST_NODETYPE_H_
 

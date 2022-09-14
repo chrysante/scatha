@@ -2,6 +2,7 @@
 #define SCATHA_PARSER_EXPRESSIONPARSER_H_
 
 #include "AST/Expression.h"
+#include "AST/Operator.h"
 #include "Common/Allocator.h"
 #include "Parser/TokenStream.h"
 
@@ -131,10 +132,10 @@ namespace scatha::parse {
 		ast::UniquePtr<ast::Expression> parseFunctionCall(ast::UniquePtr<ast::Expression> primary);
 		ast::UniquePtr<ast::Expression> parseMemberAccess(ast::UniquePtr<ast::Expression> primary);
 		
-		template <typename...>
+		template <ast::BinaryOperator...>
 		ast::UniquePtr<ast::Expression> parseBinaryOperatorLTR(auto&& operand);
 
-		template <typename...>
+		template <ast::BinaryOperator...>
 		ast::UniquePtr<ast::Expression> parseBinaryOperatorRTL(auto&& parseOperand);
 		
 	private:

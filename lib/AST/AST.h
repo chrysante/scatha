@@ -10,6 +10,8 @@
 
 #include <utl/vector.hpp>
 
+#include "AST/NodeType.h"
+
 namespace scatha::ast {
 	
 	template <typename T>
@@ -22,13 +24,18 @@ namespace scatha::ast {
 	
 	/// MARK: ParseTreeNode
 	struct AbstractSyntaxTree {
-	protected:
-		AbstractSyntaxTree() = default;
-		
 	public:
-		struct Indenter;
 		virtual ~AbstractSyntaxTree() = default;
-		virtual void print(std::ostream&, Indenter&) const = 0;
+		NodeType nodeType() const { return _type; }
+	
+	protected:
+		explicit AbstractSyntaxTree(NodeType type):
+			_type(type)
+		{}
+		
+	private:
+		friend class FunctionDefinition;
+		NodeType _type;
 	};
 
 	std::ostream& operator<<(std::ostream&, AbstractSyntaxTree const&);
@@ -37,21 +44,23 @@ namespace scatha::ast {
 	
 	/// MARK: TranslationUnit
 	struct TranslationUnit final: AbstractSyntaxTree {
-		void print(std::ostream&, Indenter&) const override;
+		TranslationUnit(): AbstractSyntaxTree(NodeType::TranslationUnit) {}
 		
 		utl::small_vector<UniquePtr<AbstractSyntaxTree>> nodes;
 	};
 	
 	/// MARK: Statement
 	struct Statement: AbstractSyntaxTree {
-	protected:
-		Statement() = default;
+		using AbstractSyntaxTree::AbstractSyntaxTree;
 	};
 	
 	/// MARK: Declaration
 	struct Declaration: Statement {
 	protected:
-		explicit Declaration(std::string name): name(std::move(name)) {}
+		explicit Declaration(NodeType type, std::string name):
+			Statement(type),
+			name(std::move(name))
+		{}
 		
 	public:
 		std::string name;
@@ -63,13 +72,12 @@ namespace scatha::ast {
 	};
 	
 	/// MARK: Block
-	struct Block final: Statement {
-		Block() = default;
+	struct Block: Statement {
+		Block(): Statement(NodeType::Block) {}
 		explicit Block(utl::vector<UniquePtr<Statement>> statements):
+			Statement(NodeType::Block),
 			statements(std::move(statements))
 		{}
-			
-		void print(std::ostream&, Indenter&) const override;
 		
 		utl::small_vector<UniquePtr<Statement>> statements;
 	};
@@ -85,25 +93,21 @@ namespace scatha::ast {
 		explicit FunctionDeclaration(std::string name,
 									 std::string returnType = {},
 									 utl::vector<FunctionParameterDecl> params = {}):
-			Declaration(std::move(name)),
+			Declaration(NodeType::FunctionDeclaration, std::move(name)),
 			returnType(std::move(returnType)),
 			params(std::move(params))
 		{}
-		
-		void print(std::ostream&, Indenter&) const override;
 		
 		std::string returnType;
 		utl::small_vector<FunctionParameterDecl> params;
 	};
 	
-	/// MARK: FunctionDefiniton
-	struct FunctionDefiniton: FunctionDeclaration {
-		explicit FunctionDefiniton(FunctionDeclaration const& decl, UniquePtr<Block> body = nullptr):
+	/// MARK: FunctionDefinition
+	struct FunctionDefinition: FunctionDeclaration {
+		explicit FunctionDefinition(FunctionDeclaration const& decl, UniquePtr<Block> body = nullptr):
 			FunctionDeclaration(decl),
 			body(std::move(body))
-		{}
-		
-		void print(std::ostream&, Indenter&) const override;
+		{ _type = NodeType::FunctionDefinition; }
 			
 		UniquePtr<Block> body;
 	};
@@ -111,8 +115,6 @@ namespace scatha::ast {
 	/// MARK: Variable
 	struct VariableDeclaration: Declaration {
 		explicit VariableDeclaration(std::string name);
-		
-		void print(std::ostream&, Indenter&) const override;
 		
 		bool isConstant = false;
 		std::string type;
@@ -125,22 +127,18 @@ namespace scatha::ast {
 		
 		~ExpressionStatement();
 		
-		void print(std::ostream&, Indenter&) const override;
-		
 		UniquePtr<Expression> expression;
 	};
 	
 	/// MARK: ControlFlow
 	struct ControlFlowStatement: Statement {
 	protected:
-		ControlFlowStatement() = default;
+		using Statement::Statement;
 	};
 	
 	/// MARK: ReturnStatement
 	struct ReturnStatement: ControlFlowStatement {
 		explicit ReturnStatement(UniquePtr<Expression>);
-		
-		void print(std::ostream&, Indenter&) const override;
 		
 		UniquePtr<Expression> expression;
 	};
@@ -151,8 +149,6 @@ namespace scatha::ast {
 							 UniquePtr<Block> ifBlock,
 							 UniquePtr<Block> elseBlock = nullptr);
 		
-		void print(std::ostream&, Indenter&) const override;
-		
 		UniquePtr<Expression> condition;
 		UniquePtr<Block> ifBlock;
 		UniquePtr<Block> elseBlock;
@@ -162,8 +158,6 @@ namespace scatha::ast {
 	struct WhileStatement: ControlFlowStatement {
 		explicit WhileStatement(UniquePtr<Expression> condition,
 									UniquePtr<Block> block);
-		
-		void print(std::ostream&, Indenter&) const override;
 		
 		UniquePtr<Expression> condition;
 		UniquePtr<Block> block;

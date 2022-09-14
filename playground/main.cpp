@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <sstream>
 
+#include "AST/PrintSource.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 
@@ -25,16 +26,10 @@ int main() {
 		lex::Lexer l(text);
 		auto tokens = l.lex();
 		
-//		std::cout << "--- Tokens: \n";
-//		for (auto& t: tokens) {
-//			std::cout << t << std::endl;
-//		}
-//		std::cout << "\n\n\n--- AST: \n";
-		
 		Parser p(tokens);
 		auto ast = p.parse();
 		
-		std::cout << *ast << std::endl;
+		ast::printSource(ast.get());
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;

@@ -33,7 +33,7 @@ fn mul(a: int, b: int) -> int {
 		REQUIRE(tu != nullptr);
 		REQUIRE(tu->nodes.size() == 1);
 		
-		auto* const function = dynamic_cast<FunctionDefiniton*>(tu->nodes[0].get());
+		auto* const function = dynamic_cast<FunctionDefinition*>(tu->nodes[0].get());
 		REQUIRE(function != nullptr);
 		CHECK(function->name == "mul");
 		

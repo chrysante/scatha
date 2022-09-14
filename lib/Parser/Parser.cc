@@ -58,7 +58,7 @@ namespace scatha::parse {
 			return decl;
 		}
 		if (token.id == "{") {
-			ast::UniquePtr<ast::FunctionDefiniton> def = ast::allocate<ast::FunctionDefiniton>(*decl);
+			ast::UniquePtr<ast::FunctionDefinition> def = ast::allocate<ast::FunctionDefinition>(*decl);
 			def->body = parseBlock();
 			return def;
 		}
