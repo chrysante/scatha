@@ -6,6 +6,7 @@
 
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
+#include "AST/TypeChecker.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 
@@ -30,9 +31,10 @@ int main() {
 		Parser p(tokens);
 		auto ast = p.parse();
 		
-		ast::printTree(ast.get());
+		ast::TypeChecker typechecker;
+		typechecker.run(ast.get());
 		
-//		ast::printSource(ast.get());
+		ast::printTree(ast.get());
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;

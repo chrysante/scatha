@@ -1,5 +1,7 @@
 #include "Parser/Parser.h"
 
+#include "Basic/Basic.h"
+
 #include "Parser/ExpressionParser.h"
 #include "Parser/Keyword.h"
 #include "Parser/ParserError.h"
@@ -58,7 +60,7 @@ namespace scatha::parse {
 			return decl;
 		}
 		if (token.id == "{") {
-			ast::UniquePtr<ast::FunctionDefinition> def = ast::allocate<ast::FunctionDefinition>(*decl);
+			ast::UniquePtr<ast::FunctionDefinition> def = ast::allocate<ast::FunctionDefinition>(std::move(*decl));
 			def->body = parseBlock();
 			return def;
 		}
@@ -69,7 +71,7 @@ namespace scatha::parse {
 		TokenEx const& name = tokens.eat();
 		expectIdentifier(name);
 		
-		auto result = ast::allocate<ast::FunctionDeclaration>(name.id);
+		auto result = ast::allocate<ast::FunctionDeclaration>(name);
 		
 		parseFunctionParameters(result.get());
 		
@@ -77,10 +79,13 @@ namespace scatha::parse {
 			tokens.eat();
 			TokenEx const& type = tokens.eat();
 			expectIdentifier(type);
-			result->returnTypename = type.id;
+			result->declReturnTypename = type;
 		}
 		else {
-			result->returnTypename = "void";
+			auto copy = token;
+			copy.id = "void";
+			copy.type = TokenType::Identifier;
+			result->declReturnTypename = copy;
 		}
 		
 		return result;
@@ -98,15 +103,7 @@ namespace scatha::parse {
 		}
 		
 		while (true) {
-			TokenEx const& name = tokens.eat();
-			expectIdentifier(name);
-			
-			expectID(tokens.eat(), ":");
-			
-			TokenEx const& type = tokens.eat();
-			expectIdentifier(type);
-			
-			fn->params.push_back({ name.id, type.id });
+			fn->params.push_back(parseVariableDeclaration(/* requireTypename = */ true));
 			
 			if (TokenEx const& next = tokens.eat(); next.id != ",") {
 				expectID(next, ")");
@@ -116,9 +113,10 @@ namespace scatha::parse {
 	}
 	
 	ast::UniquePtr<ast::Block> Parser::parseBlock() {
-		expectID(tokens.eat(), "{");
+		auto const& openBrace = tokens.eat();
+		expectID(openBrace, "{");
 		
-		auto result = ast::allocate<ast::Block>();
+		auto result = ast::allocate<ast::Block>(openBrace);
 		
 		while (true) {
 			if (tokens.peek().id == "}") {
@@ -139,7 +137,7 @@ namespace scatha::parse {
 			switch (token.keyword) {
 				case Var: [[fallthrough]];
 				case Let:
-					return parseVariableDeclaration(token);
+					return parseVariableDeclaration();
 					
 				case Return:
 					return parseReturnStatement();
@@ -159,42 +157,55 @@ namespace scatha::parse {
 		}
 		else {
 			// We have not eaten the first token yet. Parsing an expression should be fine.
-			auto result = ast::allocate<ast::ExpressionStatement>(parseExpression());
+			auto result = ast::allocate<ast::ExpressionStatement>(parseExpression(), token);
 			TokenEx const& next = tokens.eat(false);
 			expectSeparator(next);
 			return result;
 		}
 	}
 	
-	ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(TokenEx const& declarator) {
-		assert(declarator.isKeyword && (declarator.keyword == Keyword::Var || declarator.keyword == Keyword::Let));
+	ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(bool isFunctionParameter) {
+		bool isConst = false;
+		if (!isFunctionParameter) {
+			auto const& decl = tokens.current();
+			SC_ASSERT_AUDIT(decl.isKeyword, "We should have checked this outside of this function");
+			SC_ASSERT_AUDIT(decl.keyword == Keyword::Var || decl.keyword == Keyword::Let, "Same here");
+			isConst = decl.keyword == Keyword::Let;
+		}
 		
 		TokenEx const& name = tokens.eat();
 		expectIdentifier(name);
 		
-		auto result = ast::allocate<ast::VariableDeclaration>(name.id);
-		result->isConstant = declarator.keyword == Keyword::Let;
+		auto result = ast::allocate<ast::VariableDeclaration>(name);
+		result->isConstant = isConst;
 		
 		if (tokens.peek().id == ":") {
 			tokens.eat();
 			TokenEx const& type = tokens.eat();
 			expectIdentifier(type);
-			result->type = type.id;
+			result->declTypename = type.id;
+		}
+		else if (isFunctionParameter) {
+			expectID(tokens.peek(), ":");
 		}
 		
 		if (tokens.peek().id == "=") {
+			if (isFunctionParameter) { throw ParserError(tokens.peek(), "Unqualified ID"); }
 			tokens.eat();
 			result->initExpression = parseExpression();
 		}
 		
-		TokenEx const& next = tokens.eat(false);
-		expectSeparator(next);
+		if (!isFunctionParameter) {
+			TokenEx const& next = tokens.eat(false);
+			expectSeparator(next);
+		}
 		
 		return result;
 	}
 	
 	ast::UniquePtr<ast::ReturnStatement> Parser::parseReturnStatement() {
-		auto result = ast::allocate<ast::ReturnStatement>(parseExpression());
+		SC_ASSERT_AUDIT(tokens.current().id == "return", "");
+		auto result = ast::allocate<ast::ReturnStatement>(parseExpression(), tokens.current());
 		TokenEx const& next = tokens.eat(false);
 		expectSeparator(next);
 		return result;
@@ -202,12 +213,13 @@ namespace scatha::parse {
 	
 	ast::UniquePtr<ast::IfStatement> Parser::parseIfStatement() {
 		auto const& keyword = tokens.current();
-		assert(keyword.isKeyword);
-		assert(keyword.keyword == Keyword::If);
+		SC_ASSERT_AUDIT(keyword.isKeyword, "");
+		SC_ASSERT_AUDIT(keyword.keyword == Keyword::If, "");
 		
 		auto condition = parseExpression();
-		auto ifBlock = parseBlock();
-		auto result = ast::allocate<ast::IfStatement>(std::move(condition), std::move(ifBlock));
+		auto result = ast::allocate<ast::IfStatement>(std::move(condition), keyword);
+		
+		result->ifBlock = parseBlock();
 		auto const& next = tokens.peek();
 		if (!next.isKeyword || next.keyword != Keyword::Else) {
 			return result;
@@ -219,12 +231,13 @@ namespace scatha::parse {
 	
 	ast::UniquePtr<ast::WhileStatement> Parser::parseWhileStatement() {
 		auto const& keyword = tokens.current();
-		assert(keyword.isKeyword);
-		assert(keyword.keyword == Keyword::While);
+		SC_ASSERT(keyword.isKeyword, "");
+		SC_ASSERT(keyword.keyword == Keyword::While, "");
 		
 		auto condition = parseExpression();
-		auto block = parseBlock();
-		return ast::allocate<ast::WhileStatement>(std::move(condition), std::move(block));
+		auto result = ast::allocate<ast::WhileStatement>(std::move(condition), keyword);
+		result->block = parseBlock();
+		return result;
 	}
 	
 	ast::UniquePtr<ast::Expression> Parser::parseExpression() {

@@ -1,14 +1,20 @@
 #include "Common/TypeTable.h"
 
+#include <string>
+
 #include <utl/strcat.hpp>
+#include <utl/utility.hpp>
+
+#include "Basic/Basic.h"
 
 namespace scatha {
 	
 	TypeTable::TypeTable() {
-		add("void", 0);
-		add("bool", 1);
-		add("int", 8);
-		add("float", 8);
+		_void   = add("void", 0);
+		_bool   = add("bool", 1);
+		_int    = add("int", 8);
+		_float  = add("float", 8);
+		_string = add("string", sizeof(std::string));
 	}
 	
 	static TypeEx const& findImpl(auto const& map, auto& types, auto value, auto _throw) {
@@ -24,25 +30,31 @@ namespace scatha {
 						[&]{ throw std::runtime_error("Can't find type \"" + std::string(name) + "\""); });
 	}
 	
-	TypeEx const& TypeTable::findByID(u32 id) const {
+	TypeEx const& TypeTable::findByID(TypeID id) const {
+		SC_EXPECT(id != TypeID::Invalid, "Invalid TypeID");
 		return findImpl(_idMap, _types, id,
-						[&]{ throw std::runtime_error("Can't find type with ID " + std::to_string(id)); });
+						[&]{ throw std::runtime_error("Can't find type with ID " + std::to_string(utl::to_underlying(id))); });
 	}
 	
-	void TypeTable::add(std::string name, size_t size) {
+	TypeID TypeTable::add(std::string name, size_t size) {
 		size_t const index = _types.size();
-		u32 const id = _currentID++;
+		auto const id = TypeID(++_currentID);
+		
 		_nameMap.insert({ name, index });
 		_idMap.insert({ id, index });
 		_types.push_back(TypeEx(std::move(name), id, size));
+		
+		return id;
 	}
 
-	void TypeTable::addFunctionType(u32 returnType, std::span<u32 const> argumentTypes) {
+	TypeID TypeTable::addFunctionType(TypeID returnType, std::span<TypeID const> argumentTypes) {
 		size_t const index = _types.size();
-		u32 const id = _currentID++;
+		auto const id = TypeID(++_currentID);
 		
 		_idMap.insert({ id, index });
 		_types.push_back(TypeEx(returnType, argumentTypes, id));
+		
+		return id;
 	}
 	
 }

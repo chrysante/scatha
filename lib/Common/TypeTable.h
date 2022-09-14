@@ -23,20 +23,28 @@ namespace scatha {
 		}
 		TypeEx const& findByName(std::string_view name) const;
 		
-		TypeEx& findByID(u32 id) {
+		TypeEx& findByID(TypeID id) {
 			return utl::as_mutable(utl::as_const(*this).findByID(id));
 		}
-		TypeEx const& findByID(u32 id) const;
+		TypeEx const& findByID(TypeID id) const;
 		
-		void add(std::string name, size_t size);
-		void addFunctionType(u32 returnType, std::span<u32 const> argumentTypes);
+		TypeID add(std::string name, size_t size);
+		TypeID addFunctionType(TypeID returnType, std::span<TypeID const> argumentTypes);
+		
+		TypeID Void() const  { return _void; }
+		TypeID Bool() const  { return _bool; }
+		TypeID Int() const   { return _int; }
+		TypeID Float() const { return _float; }
+		TypeID String() const { return _string; }
 		
 	private:
 		utl::hashmap<std::string, size_t> _nameMap;
-		utl::hashmap<u32, size_t> _idMap;
+		utl::hashmap<TypeID, size_t> _idMap;
 		utl::vector<TypeEx> _types;
 		
-		u32 _currentID = 0;
+		std::underlying_type_t<TypeID> _currentID = 0;
+		
+		TypeID _void{}, _bool{}, _int{}, _float, _string{};
 	};
 	
 }

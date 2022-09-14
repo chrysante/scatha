@@ -10,42 +10,16 @@
 
 #include <utl/vector.hpp>
 
+#include "AST/ASTBase.h"
+#include "AST/Expression.h"
 #include "AST/NodeType.h"
 #include "Common/Type.h"
 
 namespace scatha::ast {
 	
-	template <typename T>
-	using UniquePtr = std::unique_ptr<T>;
-	
-	template <typename T, typename... Args> requires std::constructible_from<T, Args...>
-	UniquePtr<T> allocate(Args&&... args) {
-		return std::make_unique<T>(std::forward<Args>(args)...);
-	}
-	
-	/// MARK: ParseTreeNode
-	struct AbstractSyntaxTree {
-	public:
-		virtual ~AbstractSyntaxTree() = default;
-		NodeType nodeType() const { return _type; }
-	
-	protected:
-		explicit AbstractSyntaxTree(NodeType type):
-			_type(type)
-		{}
-		
-	private:
-		friend class FunctionDefinition;
-		NodeType _type;
-	};
-
-	std::ostream& operator<<(std::ostream&, AbstractSyntaxTree const&);
-	
-	struct Expression;
-	
 	/// MARK: TranslationUnit
 	struct TranslationUnit final: AbstractSyntaxTree {
-		TranslationUnit(): AbstractSyntaxTree(NodeType::TranslationUnit) {}
+		TranslationUnit(): AbstractSyntaxTree(NodeType::TranslationUnit, Token{}) {}
 		
 		utl::small_vector<UniquePtr<AbstractSyntaxTree>> nodes;
 	};
@@ -58,75 +32,74 @@ namespace scatha::ast {
 	/// MARK: Declaration
 	struct Declaration: Statement {
 	protected:
-		explicit Declaration(NodeType type, std::string name):
-			Statement(type),
-			name(std::move(name))
+		explicit Declaration(NodeType type, Token const& token):
+			Statement(type, token),
+			name(allocate<Identifier>(token))
 		{}
 		
 	public:
-		std::string name;
+		UniquePtr<Identifier> name;
+	};
+	
+	/// MARK: Variable
+	struct VariableDeclaration: Declaration {
+		explicit VariableDeclaration(Token const& name):
+			Declaration(NodeType::VariableDeclaration, name)
+		{}
+		
+		bool isConstant = false;
+		
+		// Declared typename in the source code
+		std::string declTypename;
+		
+		TypeID typeID{};
+		UniquePtr<Expression> initExpression;
 	};
 	
 	/// MARK: Module
 	struct ModuleDeclaration: Declaration {
-		
+		ModuleDeclaration() = delete;
 	};
 	
 	/// MARK: Block
 	struct Block: Statement {
-		Block(): Statement(NodeType::Block) {}
-		explicit Block(utl::vector<UniquePtr<Statement>> statements):
-			Statement(NodeType::Block),
-			statements(std::move(statements))
-		{}
+		explicit Block(Token const& token): Statement(NodeType::Block, token) {}
 		
 		utl::small_vector<UniquePtr<Statement>> statements;
 	};
 	
-	/// MARK: Function
-	struct FunctionParameterDecl {
-		std::string name;
-		std::string type;
-	};
-	
 	/// MARK: FunctionDeclaration
 	struct FunctionDeclaration: Declaration {
-		explicit FunctionDeclaration(std::string name,
-									 std::string returnTypename = {},
-									 utl::vector<FunctionParameterDecl> params = {}):
+		explicit FunctionDeclaration(Token const& name,
+									 Token const& declReturnTypename = {},
+									 utl::vector<UniquePtr<VariableDeclaration>> params = {}):
 			Declaration(NodeType::FunctionDeclaration, std::move(name)),
-			returnTypename(std::move(returnTypename)),
+			declReturnTypename(std::move(declReturnTypename)),
 			params(std::move(params))
 		{}
 		
-		std::string returnTypename;
-		utl::small_vector<FunctionParameterDecl> params;
+		// Declared typename in the source code
+		Token declReturnTypename;
+		TypeID returnTypeID{};
+		utl::small_vector<UniquePtr<VariableDeclaration>> params;
 	};
 	
 	/// MARK: FunctionDefinition
 	struct FunctionDefinition: FunctionDeclaration {
-		explicit FunctionDefinition(FunctionDeclaration const& decl, UniquePtr<Block> body = nullptr):
-			FunctionDeclaration(decl),
+		explicit FunctionDefinition(FunctionDeclaration&& decl, UniquePtr<Block> body = nullptr):
+			FunctionDeclaration(std::move(decl)),
 			body(std::move(body))
 		{ _type = NodeType::FunctionDefinition; }
 			
 		UniquePtr<Block> body;
 	};
 	
-	/// MARK: Variable
-	struct VariableDeclaration: Declaration {
-		explicit VariableDeclaration(std::string name);
-		
-		bool isConstant = false;
-		std::string type;
-		UniquePtr<Expression> initExpression;
-	};
-	
 	/// MARK: ExpressionStatement
 	struct ExpressionStatement: Statement {
-		explicit ExpressionStatement(UniquePtr<Expression>);
-		
-		~ExpressionStatement();
+		explicit ExpressionStatement(UniquePtr<Expression> expression, Token const& token):
+			Statement(NodeType::ExpressionStatement, token),
+			expression(std::move(expression))
+		{}
 		
 		UniquePtr<Expression> expression;
 	};
@@ -139,16 +112,20 @@ namespace scatha::ast {
 	
 	/// MARK: ReturnStatement
 	struct ReturnStatement: ControlFlowStatement {
-		explicit ReturnStatement(UniquePtr<Expression>);
+		explicit ReturnStatement(UniquePtr<Expression> expression, Token const& token):
+			ControlFlowStatement(NodeType::ReturnStatement, token),
+			expression(std::move(expression))
+		{}
 		
 		UniquePtr<Expression> expression;
 	};
 	
 	/// MARK: IfStatement
 	struct IfStatement: ControlFlowStatement {
-		explicit IfStatement(UniquePtr<Expression> condition,
-							 UniquePtr<Block> ifBlock,
-							 UniquePtr<Block> elseBlock = nullptr);
+		explicit IfStatement(UniquePtr<Expression> condition, Token const& token):
+			ControlFlowStatement(NodeType::IfStatement, token),
+			condition(std::move(condition))
+		{}
 		
 		UniquePtr<Expression> condition;
 		UniquePtr<Block> ifBlock;
@@ -157,8 +134,10 @@ namespace scatha::ast {
 	
 	/// MARK: WhileStatement
 	struct WhileStatement: ControlFlowStatement {
-		explicit WhileStatement(UniquePtr<Expression> condition,
-									UniquePtr<Block> block);
+		explicit WhileStatement(UniquePtr<Expression> condition, Token const& token):
+			ControlFlowStatement(NodeType::WhileStatement, token),
+			condition(std::move(condition))
+		{}
 		
 		UniquePtr<Expression> condition;
 		UniquePtr<Block> block;

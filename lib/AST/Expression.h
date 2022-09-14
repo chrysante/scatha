@@ -6,38 +6,41 @@
 
 #include <utl/static_string.hpp>
 
-#include "AST/AST.h"
+#include "AST/ASTBase.h"
 #include "AST/Operator.h"
+
+#include "Common/Type.h"
 
 namespace scatha::ast {
 
 	struct Expression: AbstractSyntaxTree {
 		using AbstractSyntaxTree::AbstractSyntaxTree;
+		TypeID typeID{};
 	};
 	
 	/// MARK: Nullary Expressions
 	struct Identifier: Expression {
-		explicit Identifier(std::string name):
-			Expression(NodeType::Identifier),
-			name(std::move(name))
+		explicit Identifier(Token const& token):
+			Expression(NodeType::Identifier, token),
+			value(token.id)
 		{}
 		
-		std::string name;
+		std::string value;
 	};
 	
 	struct NumericLiteral: Expression {
-		explicit NumericLiteral(std::string value):
-			Expression(NodeType::NumericLiteral),
-			value(std::move(value))
+		explicit NumericLiteral(Token const& token):
+			Expression(NodeType::NumericLiteral, token),
+			value(token.id)
 		{}
 		
 		std::string value;
 	};
 	
 	struct StringLiteral: Expression {
-		explicit StringLiteral(std::string value):
-			Expression(NodeType::StringLiteral),
-			value(std::move(value))
+		explicit StringLiteral(Token const& token):
+			Expression(NodeType::StringLiteral, token),
+			value(token.id)
 		{}
 		
 		std::string value;
@@ -45,8 +48,8 @@ namespace scatha::ast {
 	
 	/// MARK: Unary Expressions
 	struct UnaryPrefixExpression: Expression {
-		explicit UnaryPrefixExpression(UnaryPrefixOperator op, UniquePtr<Expression> operand):
-			Expression(NodeType::UnaryPrefixExpression),
+		explicit UnaryPrefixExpression(UnaryPrefixOperator op, UniquePtr<Expression> operand, Token const& token):
+			Expression(NodeType::UnaryPrefixExpression, token),
 			op(op),
 			operand(std::move(operand))
 		{}
@@ -57,8 +60,8 @@ namespace scatha::ast {
 	
 	/// MARK: Binary Expressions
 	struct BinaryExpression: Expression {
-		explicit BinaryExpression(BinaryOperator op, UniquePtr<Expression> lhs, UniquePtr<Expression> rhs):
-			Expression(NodeType::BinaryExpression),
+		explicit BinaryExpression(BinaryOperator op, UniquePtr<Expression> lhs, UniquePtr<Expression> rhs, Token const& token):
+			Expression(NodeType::BinaryExpression, token),
 			op(op),
 			lhs(std::move(lhs)),
 			rhs(std::move(rhs))
@@ -71,20 +74,21 @@ namespace scatha::ast {
 	};
 	
 	struct MemberAccess: Expression {
-		explicit MemberAccess(UniquePtr<Expression> object, std::string memberID):
-			Expression(NodeType::MemberAccess),
+		explicit MemberAccess(UniquePtr<Expression> object, UniquePtr<Identifier> member, Token const& token):
+			Expression(NodeType::MemberAccess, token),
 			object(std::move(object)),
-			memberID(std::move(memberID))
+			member(std::move(member))
 		{}
 		
 		UniquePtr<Expression> object;
-		std::string memberID;
+		UniquePtr<Identifier> member;
 	};
 	
 	/// MARK: Ternary Expressions
 	struct Conditional: Expression {
-		explicit Conditional(UniquePtr<Expression> condition, UniquePtr<Expression> ifExpr, UniquePtr<Expression> elseExpr):
-			Expression(NodeType::Conditional),
+		explicit Conditional(UniquePtr<Expression> condition, UniquePtr<Expression> ifExpr, UniquePtr<Expression> elseExpr,
+							 Token const& token):
+			Expression(NodeType::Conditional, token),
 			condition(std::move(condition)),
 			ifExpr(std::move(ifExpr)),
 			elseExpr(std::move(elseExpr))
@@ -97,10 +101,9 @@ namespace scatha::ast {
 	
 	/// MARK: More Complex Expressions
 	struct FunctionCall: Expression {
-		explicit FunctionCall(UniquePtr<Expression> object, utl::vector<UniquePtr<Expression>> arguments = {}):
-			Expression(NodeType::FunctionCall),
-			object(std::move(object)),
-			arguments(std::move(arguments))
+		explicit FunctionCall(UniquePtr<Expression> object, Token const& token):
+			Expression(NodeType::FunctionCall, token),
+			object(std::move(object))
 		{}
 		
 		UniquePtr<Expression> object;
@@ -108,10 +111,9 @@ namespace scatha::ast {
 	};
 	
 	struct Subscript: Expression {
-		explicit Subscript(UniquePtr<Expression> object, utl::vector<UniquePtr<Expression>> arguments = {}):
-			Expression(NodeType::Subscript),
-			object(std::move(object)),
-			arguments(std::move(arguments))
+		explicit Subscript(UniquePtr<Expression> object, Token const& token):
+			Expression(NodeType::Subscript, token),
+			object(std::move(object))
 		{}
 		
 		UniquePtr<Expression> object;

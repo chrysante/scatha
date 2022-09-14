@@ -63,12 +63,15 @@ namespace scatha::ast {
 			}
 			case NodeType::FunctionDeclaration: {
 				auto const* const node = static_cast<FunctionDeclaration const*>(inNode);
-				str << indent(ind) << "<function-declaration>" << " (";
-				for (bool first = true; auto& p: node->params) {
-					str << (first ? (void(first = false), "") : ", ");
-					str << p.name << ": " << p.type;
+				str << indent(ind) << "<function-declaration>" << endl;
+				for (auto& p: node->params) {
+					printTreeImpl(p.get(), str, ind + 1);
 				}
-				str << ") -> " << node->returnTypename << endl;
+//				for (bool first = true; auto& p: node->params) {
+//					str << (first ? (void(first = false), "") : ", ");
+//					str << p.name << ": " << p.declTypename;
+//				}
+//				str << ") -> " << node->declReturnTypename << endl;
 				break;
 			}
 			case NodeType::FunctionDefinition: {
@@ -80,7 +83,7 @@ namespace scatha::ast {
 			}
 			case NodeType::VariableDeclaration: {
 				auto const* const node = static_cast<VariableDeclaration const*>(inNode);
-				str << indent(ind) << "<variable-declaration> " << node->name << ": " << (node->type.empty() ? "<deduce-type>" : node->type);
+				str << indent(ind) << "<variable-declaration> " << node->name << ": " << (node->declTypename.empty() ? "<deduce-type>" : node->declTypename);
 				str << " [" << (node->isConstant ? "const" : "mutable") << "]" << endl;
 				if (node->initExpression.get()) {
 					printTreeImpl(node->initExpression.get(), str, ind + 1);
@@ -121,7 +124,7 @@ namespace scatha::ast {
 				
 			case NodeType::Identifier: {
 				auto const* const node = static_cast<Identifier const*>(inNode);
-				str << indent(ind) << "<identifier>: " << node->name << endl;
+				str << indent(ind) << "<identifier>: " << node->value << endl;
 				break;
 			}
 			case NodeType::NumericLiteral: {
@@ -153,7 +156,7 @@ namespace scatha::ast {
 				auto const* const node = static_cast<MemberAccess const*>(inNode);
 				str << indent(ind) << "<member-access> : " << endl;
 				printTreeImpl(node->object.get(), str, ind + 1);
-				str << indent(ind + 1) << "<identifier>: " << node->memberID << endl;
+				str << indent(ind + 1) << "<identifier>: " << node->member->value << endl;
 				break;
 			}
 				

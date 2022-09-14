@@ -34,7 +34,7 @@ namespace scatha::parse {
 		ast::UniquePtr<ast::Block> parseBlock();
 		
 		ast::UniquePtr<ast::Statement> parseStatement();
-		ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(TokenEx const& declarator);
+		ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(bool isFunctionParameter = false);
 		ast::UniquePtr<ast::ReturnStatement> parseReturnStatement();
 		ast::UniquePtr<ast::IfStatement> parseIfStatement();
 		ast::UniquePtr<ast::WhileStatement> parseWhileStatement();

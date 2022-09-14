@@ -29,7 +29,6 @@ namespace scatha::parse {
 			while (*i < tokens.size() && tokens[*i].isEOL) { ++*i; }
 		}
 		assert(*i != tokens.size());
-		if (*i == tokens.size()) { throw; }
 		return tokens[(*i)++];
 	}
 	

@@ -33,7 +33,7 @@ namespace scatha::parse {
 				if (token.id != toString(Op)) { return false; }
 				tokens.eat();
 				ast::UniquePtr<ast::Expression> right = operand();
-				left = ast::allocate<ast::BinaryExpression>(Op, std::move(left), std::move(right));
+				left = ast::allocate<ast::BinaryExpression>(Op, std::move(left), std::move(right), token);
 				return true;
 			}() || ...)) {
 				continue;
@@ -46,12 +46,12 @@ namespace scatha::parse {
 	template <ast::BinaryOperator... Op>
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorRTL(auto&& parseOperand) {
 		auto left = parseOperand();
-		TokenEx const& nextToken = tokens.peek();
+		TokenEx const& token = tokens.peek();
 		
-		if (ast::UniquePtr<ast::Expression> result = nullptr; ((nextToken.id == toString(Op) && (result = [&]{
+		if (ast::UniquePtr<ast::Expression> result = nullptr; ((token.id == toString(Op) && (result = [&]{
 			tokens.eat();
 			ast::UniquePtr<ast::Expression> right = parseBinaryOperatorRTL<Op...>(parseOperand);
-			return ast::allocate<ast::BinaryExpression>(Op, std::move(left), std::move(right));
+			return ast::allocate<ast::BinaryExpression>(Op, std::move(left), std::move(right), token);
 		}(), true)) || ...)) {
 			return result;
 		}
@@ -82,7 +82,7 @@ namespace scatha::parse {
 			auto lhs = parseComma();
 			expectID(tokens.eat(), ":");
 			auto rhs = parseConditional();
-			return allocate<ast::Conditional>(std::move(logicalOr), std::move(lhs), std::move(rhs));
+			return allocate<ast::Conditional>(std::move(logicalOr), std::move(lhs), std::move(rhs), token);
 		}
 		
 		return logicalOr;
@@ -141,16 +141,16 @@ namespace scatha::parse {
 			assert(false && "Do we really want to support addressof operator?");
 		}
 		else if (token.id == "+") {
-			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Promotion, parseUnary());
+			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Promotion, parseUnary(), token);
 		}
 		else if (token.id == "-") {
-			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Negation, parseUnary());
+			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Negation, parseUnary(), token);
 		}
 		else if (token.id == "~") {
-			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::BitwiseNot, parseUnary());
+			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::BitwiseNot, parseUnary(), token);
 		}
 		else if (token.id == "!") {
-			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::LogicalNot, parseUnary());
+			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::LogicalNot, parseUnary(), token);
 		}
 		else {
 			throw ParserError(token, "Unqualified ID");
@@ -186,17 +186,17 @@ namespace scatha::parse {
 				// Identifier
 			case TokenType::Identifier: {
 				tokens.eat();
-				return ast::allocate<ast::Identifier>(token.id);
+				return ast::allocate<ast::Identifier>(token);
 			}
 				// Numeric literal
 			case TokenType::NumericLiteral: {
 				tokens.eat();
-				return ast::allocate<ast::NumericLiteral>(token.id);
+				return ast::allocate<ast::NumericLiteral>(token);
 			}
 				// String literal
 			case TokenType::StringLiteral: {
 				tokens.eat();
-				return ast::allocate<ast::StringLiteral>(token.id);
+				return ast::allocate<ast::StringLiteral>(token);
 			}
 				// Parenthesized comma expression
 			case TokenType::Punctuation: {
@@ -224,7 +224,7 @@ namespace scatha::parse {
 	{
 		auto const& openToken = tokens.eat();
 		assert(openToken.id == open);
-		auto result = ast::allocate<FC>(std::move(primary));
+		auto result = ast::allocate<FC>(std::move(primary), openToken);
 		
 		if (tokens.peek().id == close) { // no arguments
 			tokens.eat();
@@ -262,7 +262,9 @@ namespace scatha::parse {
 		assert(dot.id == ".");
 		auto const& id = tokens.eat();
 		expectIdentifier(id);
-		return ast::allocate<ast::MemberAccess>(std::move(primary), id.id);
+		return ast::allocate<ast::MemberAccess>(std::move(primary),
+												ast::allocate<ast::Identifier>(id),
+												dot);
 	}
 	
 }

@@ -4,14 +4,14 @@
 
 namespace scatha {
 	
-	TypeEx::TypeEx(std::string name, u32 id, size_t size):
+	TypeEx::TypeEx(std::string name, TypeID id, size_t size):
 		Type(size),
 		_id(id),
 		_isFunctionType{ false },
 		_name(std::move(name))
 	{}
 	
-	TypeEx::TypeEx(u32 returnType, std::span<u32 const> argumentTypes, u32 id):
+	TypeEx::TypeEx(TypeID returnType, std::span<TypeID const> argumentTypes, TypeID id):
 		Type(0),
 		_id(id),
 		_isFunctionType{ true },

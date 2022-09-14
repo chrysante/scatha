@@ -22,7 +22,11 @@
 
 #define SC_ASSERT(COND, MSG) ((COND) ? (void)0 : SC_DEBUGFAIL())
 
+#define SC_ASSERT_AUDIT(COND, MSG) SC_ASSERT(COND, MSG)
+
 #define SC_EXPECT(COND, MSG) SC_ASSERT(COND, MSG)
+
+#define SC_EXPECT_AUDIT(COND, MSG) SC_ASSERT(COND, MSG)
 
 namespace scatha {
 	

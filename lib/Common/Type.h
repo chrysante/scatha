@@ -11,6 +11,8 @@
 #include "Basic/Basic.h"
 
 namespace scatha {
+
+	enum class TypeID: u32 { Invalid = 0 };
 	
 	struct Type {
 	protected:
@@ -31,8 +33,8 @@ namespace scatha {
 	protected:
 		friend struct TypeTable;
 		
-		explicit TypeEx(std::string name, u32 id, size_t size);
-		explicit TypeEx(u32 returnType, std::span<u32 const> argumentTypes, u32 id);
+		explicit TypeEx(std::string name, TypeID id, size_t size);
+		explicit TypeEx(TypeID returnType, std::span<TypeID const> argumentTypes, TypeID id);
 		
 	private:
 		struct PrivateCtorTag{};
@@ -45,24 +47,24 @@ namespace scatha {
 		TypeEx& operator=(TypeEx const&);
 		
 	public:
-		u32 id() const { return _id; }
+		TypeID id() const { return _id; }
 		std::string_view name() const { return _name; }
 		
 		bool isFunctionType() const { return _isFunctionType; }
-		u32 returnType() const { return _returnType; }
-		std::span<u32 const> argumentTypes() const { return _argumentTypes; }
+		TypeID returnType() const { return _returnType; }
+		std::span<TypeID const> argumentTypes() const { return _argumentTypes; }
 		
 		friend bool operator==(TypeEx const&, TypeEx const&);
 		
 	private:
-		u32 _id: 31;
+		TypeID _id: 31;
 		bool _isFunctionType: 1 = false;
 		
 		union {
 			std::string _name;
 			struct {
-				u32 _returnType;
-				utl::small_vector<u32, 6> _argumentTypes;
+				TypeID _returnType;
+				utl::small_vector<TypeID, 6> _argumentTypes;
 			};
 		};
 	};

@@ -35,23 +35,23 @@ fn mul(a: int, b: int) -> int {
 		
 		auto* const function = dynamic_cast<FunctionDefinition*>(tu->nodes[0].get());
 		REQUIRE(function != nullptr);
-		CHECK(function->name == "mul");
+		CHECK(function->name->value == "mul");
 		
 		REQUIRE(function->params.size() == 2);
-		CHECK(function->params[0].name == "a");
-		CHECK(function->params[0].type == "int");
-		CHECK(function->params[1].name == "b");
-		CHECK(function->params[1].type == "int");
+		CHECK(function->params[0]->name->value == "a");
+		CHECK(function->params[0]->declTypename == "int");
+		CHECK(function->params[1]->name->value == "b");
+		CHECK(function->params[1]->declTypename == "int");
 		
-		CHECK(function->returnType == "int");
+		CHECK(function->declReturnTypename.id == "int");
 		
 		Block* const body = function->body.get();
 		REQUIRE(body->statements.size() == 2);
 		
 		auto* const resultDecl = dynamic_cast<VariableDeclaration*>(body->statements[0].get());
 		REQUIRE(resultDecl != nullptr);
-		CHECK(resultDecl->name == "result");
-		CHECK(resultDecl->type.empty());
+		CHECK(resultDecl->name->value == "result");
+		CHECK(resultDecl->declTypename.empty());
 		CHECK(!resultDecl->isConstant);
 		CHECK(dynamic_cast<Identifier*>(resultDecl->initExpression.get()));
 		
