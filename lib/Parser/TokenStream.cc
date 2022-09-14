@@ -18,6 +18,12 @@ namespace scatha::parse {
 		return eatImpl(ignoreEOL, &i);
 	}
 	
+	TokenEx const& TokenStream::current() {
+		assert(index > 0);
+		assert(index < tokens.size() - 1);
+		return tokens[index - 1];
+	}
+	
 	TokenEx const& TokenStream::eatImpl(bool ignoreEOL, size_t* i) {
 		if (ignoreEOL) {
 			while (*i < tokens.size() && tokens[*i].isEOL) { ++*i; }

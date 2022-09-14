@@ -57,6 +57,15 @@ namespace scatha::parse {
 		 */
 		TokenEx const& peek(bool ignoreEOL = true);
 		
+		/**
+		 - returns: A reference to the current token in the stream aka the token returned by the last call to \p eat().
+		 
+		 # Notes: #
+		 1.  Always returns a valid reference.
+		 2. Always returns the same token when called in a loop.
+		 */
+		TokenEx const& current();
+		
 	private:
 		TokenEx const& eatImpl(bool ignoreEOL, size_t*);
 		
