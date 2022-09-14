@@ -1,16 +1,13 @@
-fn add() -> int {
+fn neq(i: int, j: int) -> bool { return i != j; }
+
+fn maybeGreet(i: int) -> int {
 	
-	if 1 < 2 {
-		print("A");
+	if i < 2 {
+		print("Hello");
+	}
+	else {
+		print("bye");
 	}
 	
+	
 }
-
-
-fn mul(a: int, b: int) -> int {
-	let x;
-	let result = a * b;
-	return result;
-}
-
-

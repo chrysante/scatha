@@ -5,6 +5,7 @@
 #include <utl/utility.hpp>
 
 #include "AST/Expression.h"
+#include "Basic/Basic.h"
 
 namespace scatha::ast {
 
@@ -213,9 +214,9 @@ namespace scatha::ast {
 				str << ")";
 				break;
 			}
-				
-			default:
-				break;
+			
+			case _count:
+				SC_DEBUGFAIL();
 		}
 	}
 	

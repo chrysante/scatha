@@ -16,6 +16,14 @@
 #	define _SCATHA_PD_DISABLE_UBSAN() 
 #endif
 
+/// MARK: Assertions
+#define SC_DEBUGFAIL() __builtin_trap()
+#define SC_DEBUGBREAK() __builtin_debugtrap()
+
+#define SC_ASSERT(COND, MSG) ((COND) ? (void)0 : SC_DEBUGFAIL())
+
+#define SC_EXPECT(COND, MSG) SC_ASSERT(COND, MSG)
+
 namespace scatha {
 	
 	using i8  = std::int8_t;
