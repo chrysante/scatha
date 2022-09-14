@@ -12,11 +12,12 @@ using namespace parse;
 using namespace ast;
 
 TEST_CASE("Parse simple function") {
+	
 	std::string const text = R"(
 
 fn mul(a: int, b: int) -> int {
-	var result = a
-	return result
+	var result = a;
+	return result;
 }
 
 )";

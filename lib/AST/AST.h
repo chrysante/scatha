@@ -22,6 +22,10 @@ namespace scatha::ast {
 	
 	/// MARK: ParseTreeNode
 	struct AbstractSyntaxTree {
+	protected:
+		AbstractSyntaxTree() = default;
+		
+	public:
 		struct Indenter;
 		virtual ~AbstractSyntaxTree() = default;
 		virtual void print(std::ostream&, Indenter&) const = 0;
@@ -32,7 +36,7 @@ namespace scatha::ast {
 	struct Expression;
 	
 	/// MARK: TranslationUnit
-	struct TranslationUnit: AbstractSyntaxTree {
+	struct TranslationUnit final: AbstractSyntaxTree {
 		void print(std::ostream&, Indenter&) const override;
 		
 		utl::small_vector<UniquePtr<AbstractSyntaxTree>> nodes;
@@ -40,13 +44,16 @@ namespace scatha::ast {
 	
 	/// MARK: Statement
 	struct Statement: AbstractSyntaxTree {
-		
+	protected:
+		Statement() = default;
 	};
 	
 	/// MARK: Declaration
 	struct Declaration: Statement {
+	protected:
 		explicit Declaration(std::string name): name(std::move(name)) {}
 		
+	public:
 		std::string name;
 	};
 	
@@ -56,7 +63,7 @@ namespace scatha::ast {
 	};
 	
 	/// MARK: Block
-	struct Block: Statement {
+	struct Block final: Statement {
 		Block() = default;
 		explicit Block(utl::vector<UniquePtr<Statement>> statements):
 			statements(std::move(statements))
@@ -103,7 +110,8 @@ namespace scatha::ast {
 	
 	/// MARK: Variable
 	struct VariableDeclaration: Declaration {
-		using Declaration::Declaration;
+		explicit VariableDeclaration(std::string name);
+		
 		void print(std::ostream&, Indenter&) const override;
 		
 		bool isConstant = false;
@@ -124,7 +132,8 @@ namespace scatha::ast {
 	
 	/// MARK: ControlFlow
 	struct ControlFlowStatement: Statement {
-		
+	protected:
+		ControlFlowStatement() = default;
 	};
 	
 	/// MARK: ReturnStatement

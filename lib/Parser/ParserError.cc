@@ -38,7 +38,7 @@ namespace scatha::parse {
 	
 	void expectSeparator(TokenEx const& token, std::string_view message) {
 		if (!token.isSeparator) {
-			throw ParserError(token, "Unqualified ID");
+			throw ParserError(token, "Unqualified ID. Expected ';'");
 		}
 	}
 	

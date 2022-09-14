@@ -1,14 +1,9 @@
 fn add() -> int {
-	{{{{{}}}}}
+	
 	if 1 < 2 {
-		std.print("math works");
-	} else {
-		std.print("something is wrong");
-	} while i < 10 {
-		i += 1;
+		print("A");
 	}
 	
-	return 1;
 }
 
 

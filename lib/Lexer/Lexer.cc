@@ -13,10 +13,11 @@ namespace scatha::lex {
 	
 	utl::vector<Token> Lexer::lex() {
 		assert(result.empty() && "Lexer has been run before");
+		assert(sc.index == 0 && "Lexer has been run before");
 		
 		size_t const length = text.size();
 		
-		for (sc.index = 0; sc.index < length; ++sc.index, ++sc.column) {
+		for (sc.index = 0, sc.line = 1; sc.index < length; ++sc.index, ++sc.column) {
 			char const c = text[sc.index];
 			
 			if (lexOneLineComment(c)) {
@@ -29,12 +30,12 @@ namespace scatha::lex {
 
 			if (isSpace(c)) {
 				if (isNewline(c)) {
-					beginToken(TokenType::Punctuation);
-					currentToken.id += "EOL";
-					submitCurrentToken();
+//					beginToken(TokenType::Punctuation);
+//					currentToken.id += "EOL";
+//					submitCurrentToken();
 					
 					++sc.line;
-					sc.column = -1;
+					sc.column = 0;
 				}
 				continue;
 			}

@@ -78,6 +78,8 @@ namespace scatha::ast {
 	}
 	
 	/// MARK: VariableDeclaration
+	VariableDeclaration::VariableDeclaration(std::string name): Declaration(std::move(name)) {}
+	
 	void VariableDeclaration::print(std::ostream& str, Indenter& indent) const {
 		str << (isConstant ? "let" : "var") << " " << name << ": ";
 		str << (type.empty() ? "<deduce type>" : type);
