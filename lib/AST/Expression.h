@@ -15,6 +15,7 @@ namespace scatha::ast {
 
 	struct Expression: AbstractSyntaxTree {
 		using AbstractSyntaxTree::AbstractSyntaxTree;
+		// The type of the expression
 		TypeID typeID{};
 	};
 	
