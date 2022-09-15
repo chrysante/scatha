@@ -1,7 +1,16 @@
+
+
+fn varName() { }
+
 fn mul(i: float, j: float) -> float {
-	var result: float = i;
-	result *= j;
-	return result;
+	let varName: float;
+	
+	return varName + i * j;
 }
 
 
+fn mul1() -> void {
+
+	let i = 0;
+
+}

@@ -61,21 +61,24 @@ namespace scatha::ast {
 				}
 				break;
 			}
+				
 			case NodeType::FunctionDeclaration: {
 				auto const* const node = static_cast<FunctionDeclaration const*>(inNode);
-				str << indent(ind) << "<function-declaration>" << endl;
+				str << indent(ind) << "<function-declaration> : " << node->name->value << " -> " << node->declReturnTypename.id << endl;
 				for (auto& p: node->params) {
 					printTreeImpl(p.get(), str, ind + 1);
 				}
 				break;
 			}
+				
 			case NodeType::FunctionDefinition: {
 				auto const* const node = static_cast<FunctionDefinition const*>(inNode);
-				str << indent(ind) << "<function-definition>" << endl;
+				str << indent(ind) << "<function-definition>: " << node->name->value << " -> " << node->declReturnTypename.id << endl;
 				printTreeImpl(node, str, ind + 1, NodeType::FunctionDeclaration);
 				printTreeImpl(node->body.get(), str, ind + 1);
 				break;
 			}
+				
 			case NodeType::VariableDeclaration: {
 				auto const* const node = static_cast<VariableDeclaration const*>(inNode);
 				str << indent(ind) << "<variable-declaration> " << node->name->value << ": " << (node->declTypename.empty() ? "<deduce-type>" : node->declTypename);
@@ -85,6 +88,7 @@ namespace scatha::ast {
 				}
 				break;
 			}
+				
 			case NodeType::ExpressionStatement: {
 				auto const* const node = static_cast<ExpressionStatement const*>(inNode);
 				str << indent(ind) << "<expression-statement>" << endl;
@@ -99,6 +103,7 @@ namespace scatha::ast {
 				}
 				break;
 			}
+				
 			case NodeType::IfStatement: {
 				auto const* const node = static_cast<IfStatement const*>(inNode);
 				str << indent(ind) << "<if-statement>" << endl;
@@ -109,6 +114,7 @@ namespace scatha::ast {
 				}
 				break;
 			}
+				
 			case NodeType::WhileStatement: {
 				auto const* const node = static_cast<WhileStatement const*>(inNode);
 				str << indent(ind) << "<while-statement>" << endl;
@@ -122,11 +128,13 @@ namespace scatha::ast {
 				str << indent(ind) << "<identifier>: " << node->value << endl;
 				break;
 			}
+				
 			case NodeType::NumericLiteral: {
 				auto const* const node = static_cast<NumericLiteral const*>(inNode);
 				str << indent(ind) << "<numeric-literal>: " << node->value << endl;
 				break;
 			}
+				
 			case NodeType::StringLiteral: {
 				auto const* const node = static_cast<StringLiteral const*>(inNode);
 				str << indent(ind) << "<string-literal>: " << '"' << node->value << '"' << endl;
@@ -147,6 +155,7 @@ namespace scatha::ast {
 				printTreeImpl(node->rhs.get(), str, ind + 1);
 				break;
 			}
+				
 			case NodeType::MemberAccess: {
 				auto const* const node = static_cast<MemberAccess const*>(inNode);
 				str << indent(ind) << "<member-access> : " << endl;
@@ -173,6 +182,7 @@ namespace scatha::ast {
 				}
 				break;
 			}
+				
 			case NodeType::Subscript: {
 				auto const* const node = static_cast<Subscript const*>(inNode);
 				str << indent(ind) << "<subscript>" << endl;

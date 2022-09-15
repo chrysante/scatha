@@ -14,7 +14,7 @@
 namespace scatha {
 	
 	/// MARK: ScopeError
-	class ScopeError: std::runtime_error {
+	class ScopeError: public std::runtime_error {
 	public:
 		enum Issue {
 			NameAlreadyExists, NameNotFound, IDNotFound, NameCategoryConflict

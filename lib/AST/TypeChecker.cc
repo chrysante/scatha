@@ -63,7 +63,7 @@ namespace scatha::ast {
 				node->returnTypeID = returnType.id();
 				
 				auto [func, newlyAdded] = identifiers.declareFunction(node->name->value);
-				SC_ASSERT(newlyAdded, "we dont support forward declarations just yet");
+				SC_ASSERT(newlyAdded, "we dont support forward declarations or overloading just yet");
 				
 				identifiers.pushScope(node->name->value);
 				utl_defer { identifiers.popScope(); };
@@ -117,7 +117,7 @@ namespace scatha::ast {
 					}
 				}
 				auto [var, newlyAdded] = identifiers.declareVariable(node->name->value, node->typeID, node->isConstant);
-				SC_ASSERT(newlyAdded, "we dont support forward declarations just yet");
+				SC_ASSERT(newlyAdded, "we dont support forward declarations just yet"); // TODO: This should throw obviously
 				break;
 			}
 				

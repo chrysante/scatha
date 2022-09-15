@@ -33,34 +33,30 @@ namespace scatha {
 	{
 		std::stringstream sstr;
 		
-		auto printFullName = [&](Scope const* sc) {
+		auto fullName = [](Scope const* sc) -> std::string {
+			std::string result(sc->name());
 			while (true) {
-				sstr << sc->name();
-				if (sc->parentScope() == nullptr) { break; }
-				sstr << '.';
 				sc = sc->parentScope();
+				if (sc == nullptr) { return result; }
+				result = std::string(sc->name()) + "." + result;
 			}
 		};
 		
 		switch (issue) {
 			case NameAlreadyExists:
-				sstr << "Name \"" << name << "\" already exists in scope: ";
-				printFullName(scope);
+				sstr << "Identifier \"" << name << "\" already exists in scope: " << fullName(scope);
 				break;
 				
 			case NameNotFound:
-				sstr << "Name \"" << name << "\" not found in scope: ";
-				printFullName(scope);
+				sstr << "Identifier \"" << name << "\" not found in scope: " << fullName(scope);
 				break;
 				
 			case IDNotFound:
-				sstr << "ID \"" << id.id() << "\" not found in scope: ";
-				printFullName(scope);
+				sstr << "ID \"" << id.id() << "\" not found in scope: " << fullName(scope);
 				break;
 				
 			case NameCategoryConflict:
-				sstr << "Name \"" << name << "\" of category " << toString(newCat) << " was already declared as category " << toString(oldCat) << " in scope: ";
-				printFullName(scope);
+				sstr << "Identifier \"" << name << "\" of category " << toString(newCat) << " was already declared as category " << toString(oldCat) << " in scope: " << fullName(scope);
 				break;
 				
 			default:
