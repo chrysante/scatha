@@ -9,10 +9,11 @@
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
+#include "Common/Name.h"
 
 namespace scatha {
 
-	enum class TypeID: u32 { Invalid = 0 };
+	enum class TypeID: u64 { Invalid = 0 };
 	
 	struct Type {
 	protected:
@@ -30,9 +31,11 @@ namespace scatha {
 	};
 	
 	struct TypeEx: Type {
+		static constexpr std::string_view elementName() { return "Type"; }
 	protected:
 		friend struct TypeTable;
 		
+	public:
 		explicit TypeEx(std::string name, TypeID id, size_t size);
 		explicit TypeEx(TypeID returnType, std::span<TypeID const> argumentTypes, TypeID id);
 		
@@ -57,7 +60,7 @@ namespace scatha {
 		friend bool operator==(TypeEx const&, TypeEx const&);
 		
 	private:
-		TypeID _id: 31;
+		TypeID _id: sizeof(TypeID) * CHAR_BIT - 1;
 		bool _isFunctionType: 1 = false;
 		
 		union {

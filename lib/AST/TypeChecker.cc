@@ -21,9 +21,9 @@ namespace scatha::ast {
 	
 	ImplicitConversionError::ImplicitConversionError(TypeTable const& tbl, TypeID from, TypeID to, Token const& token):
 		TypeError(utl::strcat("Cannot convert from ",
-							  tbl.findByID(from).name(),
+							  tbl.findTypeByID(from).name(),
 							  " to ",
-							  tbl.findByID(to).name()),
+							  tbl.findTypeByID(to).name()),
 				  token)
 	{
 		
@@ -60,7 +60,7 @@ namespace scatha::ast {
 			}
 			case NodeType::FunctionDeclaration: {
 				auto* const node = static_cast<FunctionDeclaration*>(inNode);
-				auto const& returnType = typeTable.findByName(node->declReturnTypename.id);
+				auto const& returnType = typeTable.findTypeByName(node->declReturnTypename.id);
 				doRun(node->name.get());
 				
 				
@@ -88,7 +88,7 @@ namespace scatha::ast {
 				}
 				doRun(node->initExpression.get());
 				if (!node->declTypename.empty()) {
-					node->typeID = typeTable.findByName(node->declTypename).id();
+					node->typeID = typeTable.findTypeByName(node->declTypename).id();
 					verifyConversion(node->initExpression.get(), node->typeID);
 				}
 				else {

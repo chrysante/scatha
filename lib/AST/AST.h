@@ -18,7 +18,7 @@
 namespace scatha::ast {
 	
 	/// MARK: TranslationUnit
-	struct TranslationUnit final: AbstractSyntaxTree {
+	struct TranslationUnit: AbstractSyntaxTree {
 		TranslationUnit(): AbstractSyntaxTree(NodeType::TranslationUnit, Token{}) {}
 		
 		utl::small_vector<UniquePtr<AbstractSyntaxTree>> nodes;
