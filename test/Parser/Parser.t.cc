@@ -37,11 +37,11 @@ fn mul(a: int, b: int) -> int {
 		REQUIRE(function != nullptr);
 		CHECK(function->name() == "mul");
 		
-		REQUIRE(function->params.size() == 2);
-		CHECK(function->params[0]->name() == "a");
-		CHECK(function->params[0]->declTypename == "int");
-		CHECK(function->params[1]->name() == "b");
-		CHECK(function->params[1]->declTypename == "int");
+		REQUIRE(function->parameters.size() == 2);
+		CHECK(function->parameters[0]->name() == "a");
+		CHECK(function->parameters[0]->declTypename == "int");
+		CHECK(function->parameters[1]->name() == "b");
+		CHECK(function->parameters[1]->declTypename == "int");
 		
 		CHECK(function->declReturnTypename.id == "int");
 		
