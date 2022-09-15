@@ -43,6 +43,7 @@ namespace scatha::sem {
 		 - warning: \p name must be a child scope of the current scope.
 		 */
 		void pushScope(std::string_view name);
+		void pushScope(NameID name);
 		
 		/**
 		 Make current the parent scope of the current scope.
@@ -83,6 +84,8 @@ namespace scatha::sem {
 		 Declare a function in the current scope.
 		 
 		 - parameter \p name: Name of the function.
+		 - parameter \p returnType: TypeID of the returned type.
+		 - parameter \p argumentTypes: TypeIDs of the arguments.
 		 
 		 - returns: Pair of pointer to the added or existing function and boolean wether the name already existed.
 		 
@@ -90,7 +93,7 @@ namespace scatha::sem {
 		 1. \p name may already exist, however must be of category function.
 		 So this function may be called multiple times with the same name, however the signature must match.
 		 */
-		std::pair<Function*, bool> declareFunction(std::string_view name);
+		std::pair<Function*, bool> declareFunction(std::string_view name, TypeID returnType, std::span<TypeID const> argumentTypes);
 		
 		/**
 		 Declare a variable in the current scope.
@@ -121,6 +124,9 @@ namespace scatha::sem {
 		 */
 		NameID lookupName(std::string_view name, NameCategory category = NameCategory::None) const;
 		
+		Scope const* currentScope() const { return _currentScope; }
+		Scope const* globalScope() const { return _globalScope.get(); }
+		
 		TypeEx& findTypeByName(std::string_view name) {
 			return utl::as_mutable(utl::as_const(*this).findTypeByName(name));
 		}
@@ -132,7 +138,7 @@ namespace scatha::sem {
 		TypeEx& getType(NameID id) { return getType(TypeID(id.id())); }
 		TypeEx const& getType(NameID id) const { return getType(TypeID(id.id())); }
 		
-		Function& getFunction(NameID id);
+		Function& getFunction(NameID id) { return utl::as_mutable(utl::as_const(*this).getFunction(id)); }
 		Function const& getFunction(NameID) const;
 		
 		Variable& getVariable(NameID id) { return utl::as_mutable(utl::as_const(*this).getVariable(id)); }
@@ -148,8 +154,8 @@ namespace scatha::sem {
 		
 		
 	private:
-		Scope* currentScope = nullptr;
-		std::unique_ptr<Scope> globalScope;
+		Scope* _currentScope = nullptr;
+		std::unique_ptr<Scope> _globalScope;
 		ElementTable<TypeEx> types;
 		ElementTable<Function> funcs;
 		ElementTable<Variable> vars;

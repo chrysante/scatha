@@ -5,13 +5,18 @@ namespace scatha::sem {
 	/// MARK: NameID
 	std::string_view toString(NameCategory c) {
 		using enum NameCategory;
-		return UTL_SERIALIZE_ENUM(c, {
-			{ None,      "None" },
-			{ Type,      "Type" },
-			{ Function,  "Function" },
-			{ Variable,  "Variable" },
-			{ Namespace, "Namespace" }
-		});
+		switch (c) {
+			case None:
+				return "None";
+			case Type:
+				return "Type";
+			case Function:
+				return "Function";
+			case Variable:
+				return "Variable";
+			case Namespace:
+				return "Namespace";
+		}
 	}
 	
 	/// MARK: computeFunctionTypeID
@@ -29,40 +34,51 @@ namespace scatha::sem {
 		return TypeID(utl::hash_combine_range(r.begin(), r.end()));
 	}
 	
-	// seems useful but where do we need it?
-	static void functionTypeVerifyEqual(TypeEx const& type, TypeID returnType, std::span<TypeID const> argumentTypes) {
-		SC_ASSERT(type.isFunctionType(), "");
-		SC_ASSERT(type.returnType() == returnType, "");
-		SC_ASSERT(type.argumentTypes().size() == argumentTypes.size(), "");
-		for (size_t i = 0; i < argumentTypes.size(); ++i) {
-			auto const lhs = type.argumentTypes();
-			auto const rhs = argumentTypes;
-			SC_ASSERT(lhs[i] == rhs[i], "");
-		}
-	}
-	
 	TypeID computeFunctionTypeID(TypeID returnType, std::span<TypeID const> argumentTypes) {
 		TypeID arr[2]{ returnType, typeHash(argumentTypes) };
 		return typeHash(arr);
 	}
 	
+	/// MARK: functionTypeVerifyEqual
+	void functionTypeVerifyEqual(TypeEx const& type, TypeID returnType, std::span<TypeID const> argumentTypes) {
+		SC_ASSERT(type.isFunctionType(), "Passed type is not even a function type");
+		// We could probably also assert here
+		if (type.returnType() != returnType) {
+			throw; // what?
+		}
+		if (type.argumentTypes().size() != argumentTypes.size()) {
+			throw;
+		}
+		for (size_t i = 0; i < argumentTypes.size(); ++i) {
+			auto const lhs = type.argumentTypes();
+			auto const rhs = argumentTypes;
+			if (lhs[i] != rhs[i]) {
+				throw;
+			}
+		}
+	}
 	
-	/// MARK: Type
+	/// MARK: TypeEx
 	TypeEx::TypeEx(std::string name, TypeID id, size_t size, size_t align):
 		_id(id),
-		_isFunctionType{ false },
 		_size(size),
 		_align(align),
+		_isFunctionType{ false },
 		_name(std::move(name))
 	{}
 	
 	TypeEx::TypeEx(TypeID returnType, std::span<TypeID const> argumentTypes, TypeID id):
-		_size(0),
 		_id(id),
 		_isFunctionType{ true },
 		_returnType { returnType },
 		_argumentTypes{}
 	{
+		if (_id == TypeID::Invalid) {
+			_id = computeFunctionTypeID(returnType, argumentTypes);
+		}
+		else {
+			SC_ASSERT(_id == computeFunctionTypeID(returnType, argumentTypes), "Invalid TypeID passed here");
+		}
 		_argumentTypes.reserve(argumentTypes.size());
 		for (auto a: argumentTypes) {
 			_argumentTypes.push_back(a);

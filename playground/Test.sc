@@ -1,6 +1,8 @@
 
 
-fn varName() { }
+
+
+fn mul(i: float, j: float) -> float;
 
 fn mul(i: float, j: float) -> float {
 	let varName: float;

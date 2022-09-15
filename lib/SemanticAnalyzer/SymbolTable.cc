@@ -3,8 +3,8 @@
 namespace scatha::sem {
 	
 	SymbolTable::SymbolTable() {
-		globalScope = std::make_unique<Scope>(std::string{}, nullptr);
-		currentScope = globalScope.get();
+		_globalScope = std::make_unique<Scope>(std::string{}, nullptr);
+		_currentScope = _globalScope.get();
 		
 		_void   = defineType("void",    0, 0).id();
 		_bool   = defineType("bool",    1, 1).id();
@@ -14,21 +14,25 @@ namespace scatha::sem {
 	}
 	
 	std::pair<NameID, bool> SymbolTable::addName(std::string_view name, NameCategory cat) {
-		auto const [nameID, newlyAdded] = currentScope->addName(name, cat);
+		auto const [nameID, newlyAdded] = _currentScope->addName(name, cat);
 		if (!newlyAdded && nameID.category() != cat) {
-			throw ScopeError(currentScope, name, cat, nameID.category(), ScopeError::NameCategoryConflict);
+			throw ScopeError(_currentScope, name, cat, nameID.category(), ScopeError::NameCategoryConflict);
 		}
 		return { nameID, newlyAdded };
 	}
 	
 	void SymbolTable::pushScope(std::string_view name) {
-		auto const id = currentScope->findIDByName(name);
-		currentScope = currentScope->childScope(id);
+		auto const id = _currentScope->findIDByName(name);
+		pushScope(id);
+	}
+	
+	void SymbolTable::pushScope(NameID id) {
+		_currentScope = _currentScope->childScope(id);
 	}
 	
 	void SymbolTable::popScope() {
-		currentScope = currentScope->parentScope();
-		SC_ASSERT(currentScope != nullptr, "Already in global scope");
+		_currentScope = _currentScope->parentScope();
+		SC_ASSERT(_currentScope != nullptr, "Already in global scope");
 	}
 	
 	NameID SymbolTable::declareType(std::string_view name) {
@@ -41,15 +45,40 @@ namespace scatha::sem {
 		
 		auto [type, success] = types.emplace(id.id(), std::string(name), TypeID(id.id()), size, align);
 		if (!success) {
-			throw ScopeError(currentScope, name, ScopeError::NameAlreadyExists);
+			throw ScopeError(_currentScope, name, ScopeError::NameAlreadyExists);
 		}
 		SC_ASSERT_AUDIT(type != nullptr, "");
 		return *type;
 	}
 	
-	std::pair<Function*, bool> SymbolTable::declareFunction(std::string_view name) {
+	std::pair<Function*, bool> SymbolTable::declareFunction(std::string_view name, TypeID returnType, std::span<TypeID const> argumentTypes) {
 		auto const [nameID, newlyAdded] = addName(name, NameCategory::Function);
-		return funcs.emplace(nameID.id(), nameID);
+		
+		auto const computedFunctionTypeID = computeFunctionTypeID(returnType, argumentTypes);
+		
+		if (newlyAdded) {
+			// Since function types are not named, we use the TypeID as the key here. This should be fine, since function types cannot be found by name anyhow. So wen can just find them by their hashed signature aka their TypeID.
+			[[maybe_unused]] auto [functionType, _] = types.emplace((u64)computedFunctionTypeID, returnType, argumentTypes, computedFunctionTypeID);
+			auto const result = funcs.emplace(nameID.id(), nameID, computedFunctionTypeID);
+			SC_ASSERT(result.second, "Function already exists");
+			return result;
+		}
+		
+		// Now the function has already been declared. Verify that the type matches.
+		
+		if (nameID.category() != NameCategory::Function) {
+			throw;
+		}
+		auto& function = funcs.get(nameID.id());
+		
+		if (function.typeID() != computedFunctionTypeID) {
+			throw;
+		}
+		
+		auto const& functionType = types.get((u64)computedFunctionTypeID);
+		functionTypeVerifyEqual(functionType, returnType, argumentTypes);
+		
+		return { &function, false };
 	}
 	
 	
@@ -60,18 +89,19 @@ namespace scatha::sem {
 
 	NameID SymbolTable::lookupName(std::string_view name, NameCategory category) const {
 		std::optional<NameID> result;
-		Scope const* sc = currentScope;
+		Scope const* sc = _currentScope;
 		while (true) {
 			result = sc->tryFindIDByName(name);
 			if (result) {
-				if (category != NameCategory::None && category != result->category()) {
+				if (category != NameCategory::None && !test(category & result->category())) {
+					/// TODO: Throw something else here
 					throw ScopeError(sc, name, category, result->category(), ScopeError::NameCategoryConflict);
 				}
 				return *result;
 			}
 			sc = sc->parentScope();
 			if (sc == nullptr) {
-				throw ScopeError(currentScope, name, ScopeError::NameNotFound);
+				throw ScopeError(_currentScope, name, ScopeError::NameNotFound);
 			}
 		}
 	}

@@ -48,7 +48,7 @@ namespace scatha::sem {
 				for (auto& decl: tu->declarations) {
 					doRun(decl.get());
 				}
-				break;
+				return;
 			}
 				
 			case NodeType::Block: {
@@ -56,28 +56,28 @@ namespace scatha::sem {
 				for (auto& statement: node->statements) {
 					doRun(statement.get());
 				}
-				break;
+				return;
 			}
-				
+			
 			case NodeType::FunctionDeclaration: {
-				auto* const node = static_cast<FunctionDeclaration*>(inNode);
-				auto const& returnType = symbols.findTypeByName(node->declReturnTypename.id);
-				node->returnTypeID = returnType.id();
+				auto* const fnDecl = static_cast<FunctionDeclaration*>(inNode);
+				auto const& returnType = symbols.findTypeByName(fnDecl->declReturnTypename.id);
+				fnDecl->returnTypeID = returnType.id();
 				
-				auto [func, newlyAdded] = symbols.declareFunction(node->name());
-				SC_ASSERT(newlyAdded, "we dont support forward declarations or overloading just yet");
-				
-				symbols.pushScope(node->name());
-				utl_defer { symbols.popScope(); };
+				/*
+				 * No need to push the scope here, since function parameter declarations don't declare variables
+				 * in the current scope. This will be done be in the function definition case.
+				 */
 				utl::small_vector<TypeID> argTypes;
-				for (auto& param: node->params) {
+				for (auto& param: fnDecl->parameters) {
 					doRun(param.get());
 					argTypes.push_back(param->typeID);
 				}
 				
-				// TODO: somehow add the type of the function
+				auto [func, newlyAdded] = symbols.declareFunction(fnDecl->name(), returnType.id(), argTypes);
+				fnDecl->nameID = func->nameID();
 				
-				break;
+				return;
 			}
 				
 			case NodeType::FunctionDefinition: {
@@ -86,13 +86,19 @@ namespace scatha::sem {
 				utl_defer { currentFunction = nullptr; };
 				
 				doRun(node, NodeType::FunctionDeclaration);
-				
-				symbols.pushScope(node->name());
+
+				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->nameID, "Just to be sure");
+				symbols.pushScope(node->nameID);
 				utl_defer { symbols.popScope(); };
+				
+				// Now we begin declaring to the function scope
+				for (auto& param: node->parameters) {
+					symbols.declareVariable(param->name(), param->typeID, true);
+				}
 				
 				doRun(node->body.get());
 				
-				break;
+				return;
 			}
 				
 			case NodeType::VariableDeclaration: {
@@ -118,15 +124,19 @@ namespace scatha::sem {
 						node->typeID = node->initExpression->typeID;
 					}
 				}
-				auto [var, newlyAdded] = symbols.declareVariable(node->name(), node->typeID, node->isConstant);
-				SC_ASSERT(newlyAdded, "we dont support forward declarations just yet"); // TODO: This should throw obviously
-				break;
+				if (!node->isFunctionParameter) /* Function parameters will be declared by the FunctionDefinition case */ {
+					auto [var, newlyAdded] = symbols.declareVariable(node->name(), node->typeID, node->isConstant);
+					
+					SC_ASSERT(newlyAdded, "we dont support multiple declarations just yet"); // TODO: This should throw obviously
+					node->nameID = var->nameID();
+				}
+				return;
 			}
 				
 			case NodeType::ExpressionStatement: {
 				auto* const node = static_cast<ExpressionStatement*>(inNode);
 				doRun(node->expression.get());
-				break;
+				return;
 			}
 				
 			case NodeType::ReturnStatement: {
@@ -134,7 +144,7 @@ namespace scatha::sem {
 				doRun(node->expression.get());
 				SC_ASSERT(currentFunction != nullptr, "This should have been set by case FunctionDefinition");
 				verifyConversion(node->expression.get(), currentFunction->returnTypeID);
-				break;
+				return;
 			}
 				
 			case NodeType::IfStatement: {
@@ -143,14 +153,14 @@ namespace scatha::sem {
 				verifyConversion(node->condition.get(), symbols.Bool());
 				doRun(node->ifBlock.get());
 				doRun(node->elseBlock.get());
-				break;
+				return;
 			}
 			case NodeType::WhileStatement: {
 				auto* const node = static_cast<WhileStatement*>(inNode);
 				doRun(node->condition.get());
 				verifyConversion(node->condition.get(), symbols.Bool());
 				doRun(node->block.get());
-				break;
+				return;
 			}
 				
 			case NodeType::Identifier: {
@@ -158,30 +168,39 @@ namespace scatha::sem {
 				
 				// TODO: Right now symbols can only refer to values.
 				// This is because Identifier inherits Expression which is a value. If Identifier where to inherit AST and we have an additional class IDExpression which inherits Expression and Identifier, we would have a diamond hierarchy. Do we want that??
-				auto const nameID = symbols.lookupName(node->value, NameCategory::Variable);
-				auto const& var = symbols.getVariable(nameID);
-				node->typeID = var.typeID();
 				
-				break;
+				
+				auto const nameID = symbols.lookupName(node->value, NameCategory::Variable | NameCategory::Function);
+				if (nameID.category() == NameCategory::Variable) {
+					auto const& var = symbols.getVariable(nameID);
+					node->typeID = var.typeID();
+				}
+				else if (nameID.category() == NameCategory::Function) {
+					auto const& fn = symbols.getFunction(nameID);
+					node->typeID = fn.typeID();
+				}
+				
+				
+				return;
 			}
 				
 			case NodeType::IntegerLiteral: {
 				auto* const node = static_cast<IntegerLiteral*>(inNode);
 				node->typeID = symbols.Int();
-				break;
+				return;
 			}
 				
 			case NodeType::StringLiteral: {
 				auto* const node = static_cast<StringLiteral*>(inNode);
 				node->typeID = symbols.String();
-				break;
+				return;
 			}
 				
 				/// TODO: A lot of work still need to be done here
 			case NodeType::UnaryPrefixExpression: {
 				auto* const node = static_cast<UnaryPrefixExpression*>(inNode);
 				doRun(node->operand.get());
-				break;
+				return;
 			}
 				
 			case NodeType::BinaryExpression: {
@@ -189,13 +208,13 @@ namespace scatha::sem {
 				doRun(node->lhs.get());
 				doRun(node->rhs.get());
 				node->typeID = verifyBinaryOperation(node);
-				break;
+				return;
 			}
 				
 			case NodeType::MemberAccess: {
 				auto* const node = static_cast<MemberAccess*>(inNode);
 				doRun(node->object.get());
-				break;
+				return;
 			}
 				
 			case NodeType::Conditional: {
@@ -205,7 +224,7 @@ namespace scatha::sem {
 				doRun(node->ifExpr.get());
 				doRun(node->elseExpr.get());
 				
-				break;
+				return;
 			}
 				
 			case NodeType::FunctionCall: {
@@ -214,7 +233,7 @@ namespace scatha::sem {
 				for (auto& arg: node->arguments) {
 					doRun(arg.get());
 				}
-				break;
+				return;
 			}
 			case NodeType::Subscript: {
 				auto* const node = static_cast<Subscript*>(inNode);
@@ -222,7 +241,7 @@ namespace scatha::sem {
 				for (auto& arg: node->arguments) {
 					doRun(arg.get());
 				}
-				break;
+				return;
 			}
 				
 			case NodeType::_count:

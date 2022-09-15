@@ -29,6 +29,9 @@ namespace scatha::sem {
 		
 		void run(ast::AbstractSyntaxTree*);
 		
+		SymbolTable const& symbolTable() const { return symbols; }
+		SymbolTable takeSymbolTable() { return std::move(symbols); }
+		
 	private:
 		void doRun(ast::AbstractSyntaxTree*);
 		void doRun(ast::AbstractSyntaxTree*, ast::NodeType);

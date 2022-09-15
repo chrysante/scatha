@@ -7,6 +7,7 @@
 #include <string>
 #include <span>
 
+#include <utl/common.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
@@ -18,10 +19,15 @@ namespace scatha::sem {
 	/**
 	 * Category of a name. A name cannot refer to more than one category.
 	 */
-	enum class NameCategory {
-		None = 0, Type, Function, Variable, Namespace,
-		_count
+	enum class NameCategory: u32 {
+		None      = 0,
+		Type      = 1 << 0,
+		Function  = 1 << 1,
+		Variable  = 1 << 2,
+		Namespace = 1 << 3
 	};
+	
+	UTL_ENUM_OPERATORS(NameCategory);
 	
 	std::string_view toString(NameCategory);
 	
@@ -49,6 +55,7 @@ namespace scatha::sem {
 		NameCategory _category{};
 	};
 	
+	// This could be marked 'gnu::pure' (not 'gnu::const' though)
 	/**
 	 Computes \p TypeID of a function type.
 	 
@@ -61,6 +68,13 @@ namespace scatha::sem {
 	 */
 	TypeID computeFunctionTypeID(TypeID returnType, std::span<TypeID const> argumentTypes);
 	
+	/**
+	 Verifies that \p functionType matches the signature described by \p returnType and \p argumentTypes
+	 Throws if the signatures don't match.
+	 */
+	void functionTypeVerifyEqual(struct TypeEx const& functionType,
+								 TypeID returnType,
+								 std::span<TypeID const> argumentTypes);
 	
 	// Not sure if we need this
 //	class QualifiedName {
@@ -113,6 +127,7 @@ namespace scatha::sem {
 		bool isFunctionType() const { return _isFunctionType; }
 		TypeID returnType() const { return _returnType; }
 		std::span<TypeID const> argumentTypes() const { return _argumentTypes; }
+		TypeID argumentType(size_t index) const { return _argumentTypes[index]; }
 		
 		friend bool operator==(TypeEx const&, TypeEx const&);
 		
@@ -121,11 +136,12 @@ namespace scatha::sem {
 		explicit TypeEx(PrivateCtorTag, auto&&);
 		
 	private:
-		TypeID _id: sizeof(TypeID) * CHAR_BIT - 1;
-		bool _isFunctionType: 1 = false;
+		TypeID _id;
 		
 		u16 _size = 0;
 		u16 _align = 0;
+		
+		bool _isFunctionType: 1 = false;
 		
 		// Function types are not named so it is fine to put this in a union
 		union {
@@ -145,10 +161,7 @@ namespace scatha::sem {
 	struct Function {
 		static constexpr std::string_view elementName() { return "Function"; }
 		
-		explicit Function(NameID name): _nameID(name) {}
-		
-		// a bit quirky but we need this 2 step initialization in the semantic analysis. can hopefully be changed one day.
-		void setTypeID(TypeID id) { _typeID = id; }
+		explicit Function(NameID nameID, TypeID typeID): _nameID(nameID), _typeID(typeID) {}
 		
 		NameID nameID() const { return _nameID; }
 		TypeID typeID() const { return _typeID; }
