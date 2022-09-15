@@ -1,5 +1,7 @@
 #include "ExecutionTree/Expression.h"
 
+#include <cstring>
+
 #include "ExecutionTree/Variable.h"
 
 namespace scatha::execution {

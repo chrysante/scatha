@@ -6,7 +6,7 @@
 #include <alloca.h>
 
 #include "Basic/Basic.h"
-#include "Common/Type.h"
+#include "ExecutionTree/Type.h"
 
 namespace scatha::execution {
 
@@ -18,7 +18,7 @@ namespace scatha::execution {
 		void eval(void* out);
 		
 		i8 numArgs = 0;
-		scatha::Type type;
+		Type type;
 		union {
 			ExpressionNode* children[3];
 			void* dataPtr;

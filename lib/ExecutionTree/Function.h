@@ -7,6 +7,7 @@
 
 #include "ExecutionTree/Statement.h"
 #include "ExecutionTree/JumpBuffer.h"
+#include "ExecutionTree/Type.h"
 #include "ExecutionTree/Variable.h"
 
 namespace scatha::execution {
@@ -14,7 +15,7 @@ namespace scatha::execution {
 	struct Function {
 		void invoke(void* out);
 		
-		scatha::Type returnType;
+		Type returnType;
 		void* out;
 		utl::small_vector<Variable> arguments;
 		StatementBlock statements;

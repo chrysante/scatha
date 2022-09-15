@@ -4,17 +4,16 @@
 #define SCATHA_EXECUTIONTREE_VARIABLE_H_
 
 #include "Basic/Basic.h"
-
-#include "Common/Type.h"
+#include "ExecutionTree/Type.h"
 
 namespace scatha::execution {
 
 	struct Variable {
 		static constexpr size_t localBufferSize = 8;
 		
-		explicit Variable(scatha::Type const&);
+		explicit Variable(Type const&);
 		
-		scatha::Type type;
+		Type type;
 		void* bufferPtr;
 		u8 localBuffer[localBufferSize];
 	};
