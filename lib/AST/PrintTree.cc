@@ -131,7 +131,7 @@ namespace scatha::ast {
 				
 			case NodeType::IntegerLiteral: {
 				auto const* const node = static_cast<IntegerLiteral const*>(inNode);
-				str << indent(ind) << "<numeric-literal>: " << node->value << endl;
+				str << indent(ind) << "<integer-literal>: " << node->value << endl;
 				break;
 			}
 				

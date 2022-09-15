@@ -93,7 +93,7 @@ namespace scatha::parse {
 									   | <postfix-expression> "(" {<assignment-expression>}* ")"
 									   | <postfix-expression> "." <identifier>
 	 <primary-expression> 			-->> <identifier>
-									   | <numeric-literal>
+									   | <integer-literal>
 									   | <string-literal>
 									   | "(" <comma-expression> ")"
 	 
