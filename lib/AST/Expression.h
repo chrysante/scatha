@@ -24,7 +24,7 @@ namespace scatha::ast {
 	
 	/// MARK: Nullary Expressions
 	
-	/// Abstract node representing an identifier in an expression.
+	/// Concrete node representing an identifier in an expression.
 	/// Identifier must refer to a value meaning a variable or a function.
 	struct Identifier: Expression {
 		explicit Identifier(Token const& token):
