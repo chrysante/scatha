@@ -1,12 +1,14 @@
+#define UTL_DEFER_MACROS
+
 #include "TypeChecker.h"
 
 #include <sstream>
 #include <utl/strcat.hpp>
+#include <utl/scope_guard.hpp>
 
 #include "AST/Expression.h"
 #include "Basic/Basic.h"
 #include "Common/Type.h"
-#include "Common/TypeTable.h"
 
 namespace scatha::ast {
 
@@ -19,12 +21,8 @@ namespace scatha::ast {
 		return sstr.str();
 	}
 	
-	ImplicitConversionError::ImplicitConversionError(TypeTable const& tbl, TypeID from, TypeID to, Token const& token):
-		TypeError(utl::strcat("Cannot convert from ",
-							  tbl.findTypeByID(from).name(),
-							  " to ",
-							  tbl.findTypeByID(to).name()),
-				  token)
+	ImplicitConversionError::ImplicitConversionError(IdentifierTable const& tbl, TypeID from, TypeID to, Token const& token):
+		TypeError(utl::strcat("Cannot convert from ", tbl.getType(from).name(), " to ", tbl.getType(to).name()), token)
 	{
 		
 	}
@@ -58,50 +56,77 @@ namespace scatha::ast {
 				}
 				break;
 			}
+				
 			case NodeType::FunctionDeclaration: {
 				auto* const node = static_cast<FunctionDeclaration*>(inNode);
-				auto const& returnType = typeTable.findTypeByName(node->declReturnTypename.id);
-				doRun(node->name.get());
-				
-				
+				auto const& returnType = identifiers.findTypeByName(node->declReturnTypename.id);
 				node->returnTypeID = returnType.id();
+				
+				auto [func, newlyAdded] = identifiers.declareFunction(node->name->value);
+				SC_ASSERT(newlyAdded, "we dont support forward declarations just yet");
+				
+				identifiers.pushScope(node->name->value);
+				utl_defer { identifiers.popScope(); };
+				utl::small_vector<TypeID> argTypes;
 				for (auto& param: node->params) {
 					doRun(param.get());
+					argTypes.push_back(param->typeID);
 				}
+				
+				// TODO: somehow add the type of the function
+				
 				break;
 			}
+				
 			case NodeType::FunctionDefinition: {
 				auto* const node = static_cast<FunctionDefinition*>(inNode);
 				currentFunction = node;
+				utl_defer { currentFunction = nullptr; };
+				
 				doRun(node, NodeType::FunctionDeclaration);
+				
+				identifiers.pushScope(node->name->value);
+				utl_defer { identifiers.popScope(); };
+				
 				doRun(node->body.get());
-				currentFunction = nullptr;
+				
 				break;
 			}
+				
 			case NodeType::VariableDeclaration: {
 				auto* const node = static_cast<VariableDeclaration*>(inNode);
 				if (node->initExpression == nullptr) {
 					if (node->declTypename.empty()) {
 						throw TypeError("Expected typename for variable declaration", node->token());
 					}
-					break;
-				}
-				doRun(node->initExpression.get());
-				if (!node->declTypename.empty()) {
-					node->typeID = typeTable.findTypeByName(node->declTypename).id();
-					verifyConversion(node->initExpression.get(), node->typeID);
+					else {
+						auto const typeID = identifiers.lookupName(node->declTypename);
+						SC_ASSERT(typeID.category() == NameCategory::Type, "TODO: make this an exception");
+						auto& type = identifiers.getType(typeID);
+						node->typeID = type.id();
+					}
 				}
 				else {
-					node->typeID = node->initExpression->typeID;
+					doRun(node->initExpression.get());
+					if (!node->declTypename.empty()) {
+						node->typeID = identifiers.findTypeByName(node->declTypename).id();
+						verifyConversion(node->initExpression.get(), node->typeID);
+					}
+					else {
+						node->typeID = node->initExpression->typeID;
+					}
 				}
-				
+				auto [var, newlyAdded] = identifiers.declareVariable(node->name->value, node->typeID, node->isConstant);
+				SC_ASSERT(newlyAdded, "we dont support forward declarations just yet");
 				break;
 			}
+				
 			case NodeType::ExpressionStatement: {
 				auto* const node = static_cast<ExpressionStatement*>(inNode);
 				doRun(node->expression.get());
 				break;
 			}
+				
 			case NodeType::ReturnStatement: {
 				auto* const node = static_cast<ReturnStatement*>(inNode);
 				doRun(node->expression.get());
@@ -109,10 +134,11 @@ namespace scatha::ast {
 				verifyConversion(node->expression.get(), currentFunction->returnTypeID);
 				break;
 			}
+				
 			case NodeType::IfStatement: {
 				auto* const node = static_cast<IfStatement*>(inNode);
 				doRun(node->condition.get());
-				verifyConversion(node->condition.get(), typeTable.Bool());
+				verifyConversion(node->condition.get(), identifiers.Bool());
 				doRun(node->ifBlock.get());
 				doRun(node->elseBlock.get());
 				break;
@@ -120,24 +146,32 @@ namespace scatha::ast {
 			case NodeType::WhileStatement: {
 				auto* const node = static_cast<WhileStatement*>(inNode);
 				doRun(node->condition.get());
-				verifyConversion(node->condition.get(), typeTable.Bool());
+				verifyConversion(node->condition.get(), identifiers.Bool());
 				doRun(node->block.get());
 				break;
 			}
 				
 			case NodeType::Identifier: {
 				auto* const node = static_cast<Identifier*>(inNode);
-				/// TODO: Make a hierarchical table of all identifiers and classify them
+				
+				// TODO: Right now identifiers can only refer to values.
+				// This is because Identifier inherits Expression which is a value. If Identifier where to inherit AST and we have an additional class IDExpression which inherits Expression and Identifier, we would have a diamond hierarchy. Do we want that??
+				auto const nameID = identifiers.lookupName(node->value, NameCategory::Value);
+				auto const& var = identifiers.getVariable(nameID);
+				node->typeID = var.typeID();
+				
 				break;
 			}
+				
 			case NodeType::NumericLiteral: {
 				auto* const node = static_cast<NumericLiteral*>(inNode);
-				node->typeID = typeTable.Int();
+				node->typeID = identifiers.Int();
 				break;
 			}
+				
 			case NodeType::StringLiteral: {
 				auto* const node = static_cast<StringLiteral*>(inNode);
-				node->typeID = typeTable.String();
+				node->typeID = identifiers.String();
 				break;
 			}
 				
@@ -155,6 +189,7 @@ namespace scatha::ast {
 				node->typeID = verifyBinaryOperation(node);
 				break;
 			}
+				
 			case NodeType::MemberAccess: {
 				auto* const node = static_cast<MemberAccess*>(inNode);
 				doRun(node->object.get());
@@ -164,7 +199,7 @@ namespace scatha::ast {
 			case NodeType::Conditional: {
 				auto* const node = static_cast<Conditional*>(inNode);
 				doRun(node->condition.get());
-				verifyConversion(node->condition.get(), typeTable.Bool());
+				verifyConversion(node->condition.get(), identifiers.Bool());
 				doRun(node->ifExpr.get());
 				doRun(node->elseExpr.get());
 				
@@ -195,7 +230,7 @@ namespace scatha::ast {
 
 	void TypeChecker::verifyConversion(Expression const* from, TypeID to) {
 		if (from->typeID != to) {
-			throw ImplicitConversionError(typeTable, from->typeID, to, from->token());
+			throw ImplicitConversionError(identifiers, from->typeID, to, from->token());
 		}
 	}
 	
@@ -225,10 +260,10 @@ namespace scatha::ast {
 				
 			case LeftShift:      [[fallthrough]];
 			case RightShift:
-				if (expr->lhs->typeID != typeTable.Int()) {
+				if (expr->lhs->typeID != identifiers.Int()) {
 					doThrow();
 				}
-				if (expr->rhs->typeID != typeTable.Int()) {
+				if (expr->rhs->typeID != identifiers.Int()) {
 					doThrow();
 				}
 				return expr->lhs->typeID;
@@ -240,17 +275,17 @@ namespace scatha::ast {
 			case Equals:         [[fallthrough]];
 			case NotEquals:
 				verifySame();
-				return typeTable.Bool();
+				return identifiers.Bool();
 				
 			case LogicalAnd:     [[fallthrough]];
 			case LogicalOr:
-				if (expr->lhs->typeID != typeTable.Bool()) {
+				if (expr->lhs->typeID != identifiers.Bool()) {
 					doThrow();
 				}
-				if (expr->rhs->typeID != typeTable.Bool()) {
+				if (expr->rhs->typeID != identifiers.Bool()) {
 					doThrow();
 				}
-				return typeTable.Bool();
+				return identifiers.Bool();
 				
 			case Assignment:     [[fallthrough]];
 			case AddAssignment:  [[fallthrough]];
@@ -263,7 +298,7 @@ namespace scatha::ast {
 			case AndAssignment:  [[fallthrough]];
 			case OrAssignment:
 				verifySame();
-				return typeTable.Void();
+				return identifiers.Void();
 				
 			case Comma:
 				return expr->rhs->typeID;

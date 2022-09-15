@@ -5,7 +5,7 @@
 
 #include "AST/AST.h"
 #include "AST/Operator.h"
-#include "Common/TypeTable.h"
+#include "Common/IdentifierTable.h"
 
 namespace scatha::ast {
 	
@@ -20,7 +20,7 @@ namespace scatha::ast {
 	};
 	
 	struct ImplicitConversionError: TypeError {
-		ImplicitConversionError(TypeTable const&, TypeID from, TypeID to, Token const& token);
+		ImplicitConversionError(IdentifierTable const&, TypeID from, TypeID to, Token const& token);
 	};
 	
 	class TypeChecker {
@@ -40,7 +40,7 @@ namespace scatha::ast {
 		
 		bool used = false;
 		FunctionDefinition* currentFunction = nullptr;
-		TypeTable typeTable;
+		IdentifierTable identifiers;
 	};
 	
 }
