@@ -7,6 +7,31 @@ namespace scatha {
 	IdentifierTable::IdentifierTable() {
 		globalScope = std::make_unique<Scope>(std::string{}, nullptr);
 		currentScope = globalScope.get();
+		
+		auto& _void_t   = defineType("void");
+		_void_t._size = 0;
+		auto& _bool_t   = defineType("bool");
+		_bool_t._size = 1;
+		auto& _int_t    = defineType("int");
+		_int_t._size = 8;
+		auto& _float_t  = defineType("float");
+		_float_t._size = 8;
+		auto& _string_t = defineType("string");
+		_string_t._size = sizeof(std::string);
+		
+		_void   = _void_t.id();
+		_bool   = _bool_t.id();
+		_int    = _int_t.id();
+		_float  = _float_t.id();
+		_string = _string_t.id();
+	}
+	
+	std::pair<NameID, bool> IdentifierTable::addName(std::string const& name, NameCategory cat) {
+		auto const [nameID, newlyAdded] = currentScope->addName(name, cat);
+		if (!newlyAdded && nameID.category() != cat) {
+			throw ScopeError(currentScope, name, cat, nameID.category(), ScopeError::NameCategoryConflict);
+		}
+		return { nameID, newlyAdded };
 	}
 	
 	void IdentifierTable::pushScope(std::string name) {
@@ -19,32 +44,44 @@ namespace scatha {
 		SC_ASSERT(currentScope != nullptr, "Already in global scope");
 	}
 	
-	TypeEx& IdentifierTable::addType(std::string const& name) {
-		auto const id = addName(name, NameCategory::Type);
-		return types.emplace(id.id(), name, TypeID(id.id()), 0);
+	NameID IdentifierTable::declareType(std::string const& name) {
+		auto const [id, _] = addName(name, NameCategory::Type);
+		return id;
+	}
+
+	TypeEx& IdentifierTable::defineType(std::string const& name) {
+		auto const [id, newlyAdded] = addName(name, NameCategory::Type);
+		
+		auto [type, success] = types.emplace(id.id(), name, TypeID(id.id()), 0);
+		if (!success) {
+			throw ScopeError(currentScope, name, ScopeError::NameAlreadyExists);
+		}
+		SC_ASSERT_AUDIT(type != nullptr, "");
+		return *type;
 	}
 	
-	Function& IdentifierTable::addFunction(std::string const& name,
-										   TypeID returnType,
-										   std::span<TypeID const> argumentTypes)
-	{
-		auto const nameID = addName(name, NameCategory::Function);
-		auto const typeID = computeFunctionTypeID(returnType, argumentTypes);
-		types.emplace((u64)typeID, returnType, argumentTypes, typeID);
-		return funcs.emplace(nameID.id(), typeID);
+	std::pair<Function*, bool> IdentifierTable::declareFunction(std::string const& name) {
+		auto const [nameID, newlyAdded] = addName(name, NameCategory::Function);
+		return funcs.emplace(nameID.id(), nameID);
 	}
 	
-	Variable& IdentifierTable::addVariable(std::string const& name, TypeID typeID) {
-		auto const nameID = addName(name, NameCategory::Value);
-		return vars.emplace(nameID.id(), typeID);
-	}
 	
-	NameID IdentifierTable::lookupName(std::string const& name) const {
+	std::pair<Variable*, bool> IdentifierTable::declareVariable(std::string const& name, TypeID typeID, bool isConstant) {
+		auto const [nameID, newlyAdded] = addName(name, NameCategory::Value);
+		return vars.emplace(nameID.id(), nameID, typeID);
+	}
+
+	NameID IdentifierTable::lookupName(std::string const& name, NameCategory category) const {
 		std::optional<NameID> result;
 		Scope const* sc = currentScope;
 		while (true) {
 			result = sc->tryFindIDByName(name);
-			if (result) { return *result; }
+			if (result) {
+				if (category != NameCategory::None && category != result->category()) {
+					throw ScopeError(sc, name, category, result->category(), ScopeError::NameCategoryConflict);
+				}
+				return *result;
+			}
 			sc = sc->parentScope();
 			if (sc == nullptr) {
 				throw ScopeError(currentScope, name, ScopeError::NameNotFound);
@@ -52,8 +89,16 @@ namespace scatha {
 		}
 	}
 	
-	TypeEx const& IdentifierTable::getType(NameID id) const {
-		return types.get(id.id());
+	TypeEx const& IdentifierTable::findTypeByName(std::string const& name) const {
+		NameID const id = lookupName(name);
+		if (id.category() != NameCategory::Type) {
+			throw; // throw some proper exception here
+		}
+		return getType(id);
+	}
+	
+	TypeEx const& IdentifierTable::getType(TypeID id) const {
+		return types.get((u64)id);
 	}
 	
 	Function const& IdentifierTable::getFunction(NameID id) const {
@@ -64,9 +109,7 @@ namespace scatha {
 		return vars.get(id.id());
 	}
 	
-	NameID IdentifierTable::addName(std::string const& name, NameCategory cat) {
-		return currentScope->addName(name, cat);
-	}
+	
 	
 	
 	

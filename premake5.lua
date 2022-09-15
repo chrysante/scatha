@@ -45,8 +45,7 @@ sysincludedirs {
 sysincludedirs { "lib" }
 
 addCppFiles "test"
-files "test/**.sc"
-links { "scatha" }
+links { "scatha" } 
 
 ------------------------------------------
 project "playground"
@@ -57,6 +56,7 @@ sysincludedirs { ".", "include", "external/utility" }
 sysincludedirs { "lib" }
 
 addCppFiles "playground"
+files "playground/**.sc"
 links { "scatha", "utility" }
 
 filter { "system:macosx"} 

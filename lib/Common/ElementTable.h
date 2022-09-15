@@ -29,9 +29,9 @@ namespace scatha {
 		}
 		
 		template <typename... Args>
-		T& emplace(u64 id, Args&&... args) {
+		std::pair<T*, bool> emplace(u64 id, Args&&... args) {
 			auto [itr, success] = _elements.insert({ id, std::make_unique<T>(std::forward<Args>(args)...) });
-			return *itr->second;
+			return { itr->second.get(), success };
 		}
 		
 	private:

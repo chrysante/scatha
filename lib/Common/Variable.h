@@ -3,17 +3,20 @@
 
 #include "Basic/Basic.h"
 #include "Common/Type.h"
+#include "Common/Name.h"
 
 namespace scatha {
 	
 	struct Variable {
 		static constexpr std::string_view elementName() { return "Variable"; }
 		
-		explicit Variable(TypeID type): _type(type) {}
-		TypeID type() const { return _type; }
+		explicit Variable(NameID nameID, TypeID typeID): _nameID(nameID), _typeID(typeID) {}
+		NameID nameID() const { return _nameID; }
+		TypeID typeID() const { return _typeID; }
 		
 	private:
-		TypeID _type;
+		NameID _nameID;
+		TypeID _typeID;
 	};
 	
 }

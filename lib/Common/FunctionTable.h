@@ -11,23 +11,23 @@
 
 namespace scatha {
 	
-	class TypeTable;
-	
-	struct Function {
-		TypeEx type;
-		std::string name;
-	};
-	
-	class FunctionTable {
-	public:
-		explicit FunctionTable(std::shared_ptr<TypeTable> typeTable);
-		void add(TypeEx const& type, std::string const& name);
-		utl::small_vector<Function> getFunction(std::string const& name) const;
-		
-	private:
-		std::shared_ptr<TypeTable> typeTable;
-		utl::hashmap<std::string, utl::small_vector<Function>> mutable functions;
-	};
+//	class TypeTable;
+//	
+//	struct Function {
+//		TypeEx type;
+//		std::string name;
+//	};
+//	
+//	class FunctionTable {
+//	public:
+//		explicit FunctionTable(std::shared_ptr<TypeTable> typeTable);
+//		void add(TypeEx const& type, std::string const& name);
+//		utl::small_vector<Function> getFunction(std::string const& name) const;
+//		
+//	private:
+//		std::shared_ptr<TypeTable> typeTable;
+//		utl::hashmap<std::string, utl::small_vector<Function>> mutable functions;
+//	};
 	
 }
 

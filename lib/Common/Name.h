@@ -10,8 +10,13 @@
 namespace scatha {
 	
 	enum class NameCategory {
-		None = 0, Type, Value, Namespace, Function
+		None = 0, Type, Value, Namespace, Function,
+		_count
 	};
+	
+	std::string_view toString(NameCategory);
+	
+	enum class TypeID: u64 { Invalid = 0 };
 	
 	class NameID {
 	public:
@@ -22,6 +27,7 @@ namespace scatha {
 		{}
 		
 		u64 id() const { return _id; }
+		TypeID toTypeID() const { return TypeID(_id);  }
 		NameCategory category() const { return _category; }
 	
 		bool operator==(NameID const& rhs) const { return id() == rhs.id(); }

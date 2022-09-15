@@ -12,12 +12,11 @@
 #include "Common/Name.h"
 
 namespace scatha {
-
-	enum class TypeID: u64 { Invalid = 0 };
 	
 	struct Type {
 	protected:
 		friend struct TypeTable;
+		friend struct IdentifierTable;
 		explicit Type(size_t size): _size(size) {}
 		
 	public:

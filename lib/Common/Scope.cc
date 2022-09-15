@@ -8,14 +8,29 @@ namespace scatha {
 	ScopeError::ScopeError(Scope const* scope, std::string_view name, Issue issue):
 		std::runtime_error(makeMessage(scope, issue, name, NameID{})),
 		_issue(issue)
-	{}
+	{
+		SC_ASSERT(issue == NameAlreadyExists || issue == NameNotFound, "incompatible otherwise");
+	}
 	
 	ScopeError::ScopeError(Scope const* scope, NameID id, Issue issue):
 		std::runtime_error(makeMessage(scope, issue, {}, id)),
 		_issue(issue)
-	{}
+	{
+		SC_ASSERT(issue == IDNotFound, "incompatible otherwise");
+	}
 	
-	std::string ScopeError::makeMessage(Scope const* scope, Issue issue, std::string_view name, NameID id) {
+	ScopeError::ScopeError(Scope const* scope, std::string_view name, NameCategory newCat, NameCategory oldCat, Issue issue):
+		std::runtime_error(makeMessage(scope, issue, name, {}, newCat, oldCat)),
+		_issue(issue)
+	{
+		SC_ASSERT(issue == NameCategoryConflict, "incompatible otherwise");
+	}
+	
+	std::string ScopeError::makeMessage(Scope const* scope, Issue issue,
+										std::string_view name,
+										NameID id,
+										NameCategory newCat, NameCategory oldCat)
+	{
 		std::stringstream sstr;
 		
 		auto printFullName = [&](Scope const* sc) {
@@ -43,6 +58,11 @@ namespace scatha {
 				printFullName(scope);
 				break;
 				
+			case NameCategoryConflict:
+				sstr << "Name \"" << name << "\" of category " << toString(newCat) << " was already declared as category " << toString(oldCat) << " in scope: ";
+				printFullName(scope);
+				break;
+				
 			default:
 				break;
 		}
@@ -63,9 +83,13 @@ namespace scatha {
 		}
 	}
 	
-	NameID Scope::addName(std::string const& name, NameCategory category) {
-		if (_nameToID.contains(name)) {
-			throw ScopeError(this, name, ScopeError::NameAlreadyExists);
+	std::pair<NameID, bool> Scope::addName(std::string const& name, NameCategory category) {
+		if (auto itr = _nameToID.find(name); itr != _nameToID.end()) {
+			auto const id = itr->second;
+			SC_ASSERT(_idToName.contains(id),
+					  "if it exists in the other map it also must exists in this map.\n"
+					  "maybe create a bimap type to abstract this behaviour");
+			return { id, false };
 		}
 		auto const id = generateID(category);
 		bool const ntiInsert = _nameToID.insert({ name, id }).second;
@@ -86,7 +110,7 @@ namespace scatha {
 				break;
 		}
 		
-		return id;
+		return { id, true };
 	}
 	
 	std::string Scope::findNameByID(NameID id) const {

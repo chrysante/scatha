@@ -17,17 +17,21 @@ namespace scatha {
 	class ScopeError: std::runtime_error {
 	public:
 		enum Issue {
-			NameAlreadyExists, NameNotFound, IDNotFound
+			NameAlreadyExists, NameNotFound, IDNotFound, NameCategoryConflict
 		};
 		
 	public:
 		ScopeError(class Scope const*, std::string_view name, Issue);
-		ScopeError(class Scope const*, NameID, Issue);
+		ScopeError(class Scope const*, NameID nameID, Issue);
+		ScopeError(class Scope const*, std::string_view name, NameCategory newCat, NameCategory oldCat, Issue);
 		
 		Issue issue() const { return _issue; }
 		
 	private:
-		static std::string makeMessage(Scope const*, Issue, std::string_view name, NameID);
+		static std::string makeMessage(Scope const*, Issue,
+									   std::string_view name,
+									   NameID,
+									   NameCategory newCat = {}, NameCategory oldCat = {});
 		
 	private:
 		Issue _issue{};
@@ -41,7 +45,8 @@ namespace scatha {
 		
 		std::string_view name() const { return _name; }
 		
-		NameID addName(std::string const&, NameCategory);
+		// returns NameID and boolean == true iff name was just added / == false iff name already existed.
+		std::pair<NameID, bool> addName(std::string const&, NameCategory);
 		
 		NameID findIDByName(std::string const&) const;
 		std::optional<NameID> tryFindIDByName(std::string const&) const;
