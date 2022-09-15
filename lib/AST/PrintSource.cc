@@ -73,12 +73,11 @@ namespace scatha::ast {
 			}
 			case FunctionDeclaration: {
 				auto const* const fn = static_cast<struct FunctionDeclaration const*>(node);
-				str << "fn " << fn->name << "(";
+				str << "fn " << fn->name->value << "(";
 				for (bool first = true; auto const& param: fn->params) {
-					str << (first ? ((void)(first = false), "") : ", ") << param->name << ": " << param->declTypename;
+					str << (first ? ((void)(first = false), "") : ", ") << param->name->value << ": " << param->declTypename;
 				}
-				str << ") -> " << fn->declReturnTypename;
-				str << ";";
+				str << ") -> " << fn->declReturnTypename.id;
 				break;
 			}
 			case FunctionDefinition: {
@@ -90,7 +89,7 @@ namespace scatha::ast {
 			}
 			case VariableDeclaration: {
 				auto const* const var = static_cast<struct VariableDeclaration const*>(node);
-				str << (var->isConstant ? "let" : "var") << " " << var->name << ": ";
+				str << (var->isConstant ? "let" : "var") << " " << var->name->value << ": ";
 				str << (var->declTypename.empty() ? "<deduce type>" : var->declTypename);
 				if (var->initExpression) {
 					str << " = ";

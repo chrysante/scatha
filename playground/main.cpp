@@ -34,9 +34,9 @@ int main() {
 		ast::TypeChecker typechecker;
 		typechecker.run(ast.get());
 		
-		ast::printTree(ast.get());
+//		ast::printTree(ast.get());
 		
-//		ast::printSource(ast.get());
+		ast::printSource(ast.get());
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;
