@@ -106,6 +106,10 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	
 	auto* varDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[0].get());
 	CHECK(varDecl->typeID == sym.Int());
+	
+	auto* varDeclInit = dynamic_cast<Identifier*>(varDecl->initExpression.get());
+	CHECK(varDeclInit->typeID == sym.Int());
+	
 	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[1].get());
 	auto* retIdentifier = dynamic_cast<Identifier*>(ret->expression.get());
 	CHECK(retIdentifier->typeID == sym.Int());
