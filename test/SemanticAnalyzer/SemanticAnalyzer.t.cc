@@ -65,7 +65,6 @@ fn mul(a: int, b: int, c: float) -> int {
 	auto const& c = sym.getVariable(cID);
 	CHECK(c.typeID() == sym.Float());
 	
-	
 	auto const resultID = mulScope->findIDByName("result");
 	auto const& result = sym.getVariable(resultID);
 	CHECK(result.typeID() == sym.Int());
