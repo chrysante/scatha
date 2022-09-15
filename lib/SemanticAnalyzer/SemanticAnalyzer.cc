@@ -165,11 +165,7 @@ namespace scatha::sem {
 				
 			case NodeType::Identifier: {
 				auto* const node = static_cast<Identifier*>(inNode);
-				
-				// TODO: Right now symbols can only refer to values.
-				// This is because Identifier inherits Expression which is a value. If Identifier where to inherit AST and we have an additional class IDExpression which inherits Expression and Identifier, we would have a diamond hierarchy. Do we want that??
-				
-				
+			
 				auto const nameID = symbols.lookupName(node->value, NameCategory::Variable | NameCategory::Function);
 				if (nameID.category() == NameCategory::Variable) {
 					auto const& var = symbols.getVariable(nameID);
@@ -179,7 +175,6 @@ namespace scatha::sem {
 					auto const& fn = symbols.getFunction(nameID);
 					node->typeID = fn.typeID();
 				}
-				
 				
 				return;
 			}
@@ -233,6 +228,24 @@ namespace scatha::sem {
 				for (auto& arg: node->arguments) {
 					doRun(arg.get());
 				}
+				
+				{
+					// Temporary fix to allow function calls.
+					// This must be changed to allow for overloading of operator() and function objects.
+					// Getting the type of the expression is not enough (if it's a function) as we won't know which function to call.
+					
+					auto* const identifier = dynamic_cast<Identifier*>(node->object.get());
+					SC_ASSERT(identifier != nullptr, "Called object must be an identifier. We do not yet support calling arbitrary expressions.");
+				
+					auto const functionNameID = symbols.lookupName(identifier->value);
+					if (functionNameID.category() != NameCategory::Function) {
+						throw;
+					}
+					auto const& function = symbols.getFunction(functionNameID);
+					auto const& functionType = symbols.getType(function.typeID());
+					node->typeID = functionType.returnType();
+				}
+				
 				return;
 			}
 			case NodeType::Subscript: {

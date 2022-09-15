@@ -23,10 +23,10 @@ static auto produceDecoratedASTAndSymTable(std::string text) {
 	SemanticAnalyzer s;
 	s.run(ast.get());
 	
-	return std::tuple<UniquePtr<AbstractSyntaxTree>, SymbolTable>(std::move(ast), s.takeSymbolTable());
+	return std::tuple(std::move(ast), s.takeSymbolTable());
 }
 
-TEST_CASE("Registration in SymbolTable") {
+TEST_CASE("Registration in SymbolTable", "[sem]") {
 	std::string const text = R"(
 
 fn mul(a: int, b: int, c: float) -> int {
@@ -71,13 +71,13 @@ fn mul(a: int, b: int, c: float) -> int {
 	CHECK(result.typeID() == sym.Int());
 }
 
-TEST_CASE("Decoration of the AST") {
+TEST_CASE("Decoration of the AST with function call expression", "[sem]") {
 	std::string const text = R"(
 
-fn mul(a: int, b: int, c: float, d: string) -> int;
+fn callee(a: string, b: int) -> float;
 
-fn mul(a: int, b: int, c: float, d: string) -> int {
-	let result = a;
+fn caller() -> float {
+	let result = callee("Hello world", 0);
 	return result;
 }
 
@@ -87,31 +87,16 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	
 	auto* tu = dynamic_cast<TranslationUnit*>(ast.get());
 	REQUIRE(tu);
-	auto* fnDecl = dynamic_cast<FunctionDeclaration*>(tu->declarations[0].get());
-	REQUIRE(fnDecl);
-	CHECK(fnDecl->returnTypeID == sym.Int());
-	CHECK(fnDecl->parameters[0]->typeID == sym.Int());
-	CHECK(fnDecl->parameters[1]->typeID == sym.Int());
-	CHECK(fnDecl->parameters[2]->typeID == sym.Float());
-	CHECK(fnDecl->parameters[3]->typeID == sym.String());
+	auto* calleeDecl = dynamic_cast<FunctionDeclaration*>(tu->declarations[0].get());
+	REQUIRE(calleeDecl);
+	CHECK(calleeDecl->returnTypeID == sym.Float());
+	CHECK(calleeDecl->parameters[0]->typeID == sym.String());
+	CHECK(calleeDecl->parameters[1]->typeID == sym.Int());
 	
-	auto* fn = dynamic_cast<FunctionDefinition*>(tu->declarations[1].get());
-	REQUIRE(fn);
+	auto* caller = dynamic_cast<FunctionDefinition*>(tu->declarations[1].get());
+	REQUIRE(caller);
 	
-	CHECK(fn->returnTypeID == sym.Int());
-	CHECK(fn->parameters[0]->typeID == sym.Int());
-	CHECK(fn->parameters[1]->typeID == sym.Int());
-	CHECK(fn->parameters[2]->typeID == sym.Float());
-	CHECK(fn->parameters[3]->typeID == sym.String());
-	
-	auto* varDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[0].get());
-	CHECK(varDecl->typeID == sym.Int());
-	
-	auto* varDeclInit = dynamic_cast<Identifier*>(varDecl->initExpression.get());
-	CHECK(varDeclInit->typeID == sym.Int());
-	
-	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[1].get());
-	auto* retIdentifier = dynamic_cast<Identifier*>(ret->expression.get());
-	CHECK(retIdentifier->typeID == sym.Int());
-	
+	auto* resultDecl = dynamic_cast<VariableDeclaration*>(caller->body->statements[0].get());
+	CHECK(resultDecl->initExpression->typeID == sym.Float());
 }
+
