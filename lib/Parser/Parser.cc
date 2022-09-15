@@ -30,7 +30,7 @@ namespace scatha::parse {
 	}
 	
 	/// MARK: Private
-	ast::UniquePtr<ast::AbstractSyntaxTree> Parser::parseRootLevelDeclaration() {
+	ast::UniquePtr<ast::Declaration> Parser::parseRootLevelDeclaration() {
 		TokenEx const& token = tokens.eat();
 		
 		if (token.type == TokenType::EndOfFile) {

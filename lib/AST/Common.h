@@ -25,7 +25,7 @@ namespace scatha::ast {
 		
 		// Nullary Expressions
 		Identifier,
-		NumericLiteral,
+		IntegerLiteral,
 		StringLiteral,
 		
 		// Unary Expressions

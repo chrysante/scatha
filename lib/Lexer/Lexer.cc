@@ -48,11 +48,11 @@ namespace scatha::lex {
 			}
 			
 			if (!lexingToken && isDigitDec(c)) {
-				beginToken(TokenType::NumericLiteral);
+				beginToken(TokenType::IntegerLiteral);
 			}
 			
 			if (isLetterEx(c) && lexingToken) {
-				if (currentToken.type != TokenType::Identifier && currentToken.type != TokenType::NumericLiteral) {
+				if (currentToken.type != TokenType::Identifier && currentToken.type != TokenType::IntegerLiteral) {
 					throw LexerError(sc, "Unexpected ID");
 				}
 				currentToken.id += c;

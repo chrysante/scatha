@@ -10,10 +10,7 @@
 
 #include "AST/AST.h"
 #include "Basic/Basic.h"
-#include "Common/Allocator.h"
 #include "Common/Token.h"
-#include "Common/TypeTable.h"
-#include "Common/FunctionTable.h"
 #include "Parser/TokenStream.h"
 
 namespace scatha::parse {
@@ -25,7 +22,7 @@ namespace scatha::parse {
 		[[nodiscard]] ast::UniquePtr<ast::AbstractSyntaxTree> parse();
 		
 	private:		
-		ast::UniquePtr<ast::AbstractSyntaxTree> parseRootLevelDeclaration();
+		ast::UniquePtr<ast::Declaration> parseRootLevelDeclaration();
 		
 		ast::UniquePtr<ast::FunctionDeclaration> parseFunction();
 		ast::UniquePtr<ast::FunctionDeclaration> parseFunctionDecl();

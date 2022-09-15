@@ -36,9 +36,15 @@ namespace scatha::ast {
 	struct AbstractSyntaxTree {
 	public:
 		virtual ~AbstractSyntaxTree() = default;
+		
+		/// Runtime type of this node
 		NodeType nodeType() const { return _type; }
-		SourceLocation sourceLocation() const { return _token.sourceLocation; }
+		
+		/// Token associated with this node
 		Token const& token() const { return _token; }
+		
+		/// Source location object associated with this node. Same as token().sourceLocation
+		SourceLocation sourceLocation() const { return token().sourceLocation; }
 		
 	protected:
 		explicit AbstractSyntaxTree(NodeType type, Token const& token):

@@ -19,7 +19,7 @@ namespace scatha::ast {
 			{ WhileStatement,        "WhileStatement" },
 			
 			{ Identifier,            "Identifier" },
-			{ NumericLiteral,        "NumericLiteral" },
+			{ IntegerLiteral,        "IntegerLiteral" },
 			{ StringLiteral,         "StringLiteral" },
 			
 			{ UnaryPrefixExpression, "UnaryPrefixExpression" },

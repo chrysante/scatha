@@ -12,7 +12,7 @@ namespace scatha {
 	
 		return str << UTL_SERIALIZE_ENUM(t, {
 			{ Identifier,     "Identifier" },
-			{ NumericLiteral, "NumericLiteral" },
+			{ IntegerLiteral, "IntegerLiteral" },
 			{ StringLiteral,  "StringLiteral" },
 			{ Punctuation,    "Punctuation" },
 			{ Operator,       "Operator" },
@@ -29,5 +29,10 @@ namespace scatha {
 		return str;
 	}
 	
+	u64 Token::toInteger() const {
+		SC_ASSERT(type == TokenType::IntegerLiteral,
+				  "Token is not an integer literal");
+		return std::stol(id);
+	}
 	
 }

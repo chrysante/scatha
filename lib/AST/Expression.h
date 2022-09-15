@@ -8,18 +8,24 @@
 
 #include "AST/Base.h"
 #include "AST/Common.h"
-
-#include "Common/Type.h"
+#include "SemanticAnalyzer/SemanticElements.h"
 
 namespace scatha::ast {
 
+	/// Abstract node representing any declaration.
 	struct Expression: AbstractSyntaxTree {
 		using AbstractSyntaxTree::AbstractSyntaxTree;
-		// The type of the expression
-		TypeID typeID{};
+		
+		/** Decoration provided by semantic analysis. */
+		
+		/// The type of the expression.
+		sem::TypeID typeID{};
 	};
 	
 	/// MARK: Nullary Expressions
+	
+	/// Abstract node representing an identifier in an expression.
+	/// Identifier must refer to a value meaning a variable or a function.
 	struct Identifier: Expression {
 		explicit Identifier(Token const& token):
 			Expression(NodeType::Identifier, token),
@@ -29,13 +35,13 @@ namespace scatha::ast {
 		std::string value;
 	};
 	
-	struct NumericLiteral: Expression {
-		explicit NumericLiteral(Token const& token):
-			Expression(NodeType::NumericLiteral, token),
-			value(token.id)
+	struct IntegerLiteral: Expression {
+		explicit IntegerLiteral(Token const& token):
+			Expression(NodeType::IntegerLiteral, token),
+			value(token.toInteger())
 		{}
 		
-		std::string value;
+		u64 value;
 	};
 	
 	struct StringLiteral: Expression {
@@ -75,14 +81,19 @@ namespace scatha::ast {
 	};
 	
 	struct MemberAccess: Expression {
-		explicit MemberAccess(UniquePtr<Expression> object, UniquePtr<Identifier> member, Token const& token):
-			Expression(NodeType::MemberAccess, token),
+		explicit MemberAccess(UniquePtr<Expression> object, Token const& memberToken, Token const& dotToken):
+			Expression(NodeType::MemberAccess, dotToken),
 			object(std::move(object)),
-			member(std::move(member))
+			_member(memberToken)
 		{}
 		
+		Token const& member() const { return _member; }
+		std::string_view memberName() const { return _member.id; }
+		
 		UniquePtr<Expression> object;
-		UniquePtr<Identifier> member;
+		
+	private:
+		Token _member;
 	};
 	
 	/// MARK: Ternary Expressions

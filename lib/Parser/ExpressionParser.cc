@@ -189,9 +189,9 @@ namespace scatha::parse {
 				return ast::allocate<ast::Identifier>(token);
 			}
 				// Numeric literal
-			case TokenType::NumericLiteral: {
+			case TokenType::IntegerLiteral: {
 				tokens.eat();
-				return ast::allocate<ast::NumericLiteral>(token);
+				return ast::allocate<ast::IntegerLiteral>(token);
 			}
 				// String literal
 			case TokenType::StringLiteral: {
@@ -262,9 +262,7 @@ namespace scatha::parse {
 		assert(dot.id == ".");
 		auto const& id = tokens.eat();
 		expectIdentifier(id);
-		return ast::allocate<ast::MemberAccess>(std::move(primary),
-												ast::allocate<ast::Identifier>(id),
-												dot);
+		return ast::allocate<ast::MemberAccess>(std::move(primary), id, dot);
 	}
 	
 }

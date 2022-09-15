@@ -13,7 +13,7 @@ namespace scatha {
 	
 	enum class TokenType {
 		Identifier,
-		NumericLiteral,
+		IntegerLiteral,
 		StringLiteral,
 		Punctuation,
 		Operator,
@@ -27,9 +27,13 @@ namespace scatha {
 		SourceLocation sourceLocation;
 		TokenType type;
 		std::string id;
+		
+		u64 toInteger() const;
 	};
 	
 	std::ostream& operator<<(std::ostream&, Token const&);
+	
+	
 	
 }
 
