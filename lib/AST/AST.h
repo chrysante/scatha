@@ -10,9 +10,9 @@
 
 #include <utl/vector.hpp>
 
-#include "AST/ASTBase.h"
+#include "AST/Base.h"
+#include "AST/Common.h"
 #include "AST/Expression.h"
-#include "AST/NodeType.h"
 #include "Common/Type.h"
 
 namespace scatha::ast {
@@ -21,7 +21,7 @@ namespace scatha::ast {
 	struct TranslationUnit: AbstractSyntaxTree {
 		TranslationUnit(): AbstractSyntaxTree(NodeType::TranslationUnit, Token{}) {}
 		
-		utl::small_vector<UniquePtr<AbstractSyntaxTree>> nodes;
+		utl::small_vector<UniquePtr<AbstractSyntaxTree>> declarations;
 	};
 	
 	/// MARK: Statement

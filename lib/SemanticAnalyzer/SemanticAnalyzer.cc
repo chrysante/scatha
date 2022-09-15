@@ -1,6 +1,6 @@
 #define UTL_DEFER_MACROS
 
-#include "TypeChecker.h"
+#include "SemanticAnalyzer.h"
 
 #include <sstream>
 #include <utl/strcat.hpp>
@@ -10,8 +10,10 @@
 #include "Basic/Basic.h"
 #include "Common/Type.h"
 
-namespace scatha::ast {
+namespace scatha::sem {
 
+	using namespace ast;
+	
 	std::string TypeError::makeString(std::string_view brief, Token const& token, std::string_view message) {
 		std::stringstream sstr;
 		sstr << brief << " at Line: " << token.sourceLocation.line << " Col: " << token.sourceLocation.column;
@@ -27,23 +29,23 @@ namespace scatha::ast {
 		
 	}
 	
-	TypeChecker::TypeChecker() = default;
+	SemanticAnalyzer::SemanticAnalyzer() = default;
 	
-	void TypeChecker::run(AbstractSyntaxTree* node) {
-		SC_ASSERT(!used, "TypeChecker has been used before");
+	void SemanticAnalyzer::run(AbstractSyntaxTree* node) {
+		SC_ASSERT(!used, "SemanticAnalyzer has been used before");
 		used = true;
 		doRun(node);
 	}
 	
-	void TypeChecker::doRun(AbstractSyntaxTree* node) {
+	void SemanticAnalyzer::doRun(AbstractSyntaxTree* node) {
 		doRun(node, node->nodeType());
 	}
 	
-	void TypeChecker::doRun(AbstractSyntaxTree* inNode, NodeType type) {
+	void SemanticAnalyzer::doRun(AbstractSyntaxTree* inNode, NodeType type) {
 		switch (type) {
 			case NodeType::TranslationUnit: {
-				auto* const node = static_cast<TranslationUnit*>(inNode);
-				for (auto& decl: node->nodes) {
+				auto* const tu = static_cast<TranslationUnit*>(inNode);
+				for (auto& decl: tu->declarations) {
 					doRun(decl.get());
 				}
 				break;
@@ -228,13 +230,13 @@ namespace scatha::ast {
 		}
 	}
 
-	void TypeChecker::verifyConversion(Expression const* from, TypeID to) {
+	void SemanticAnalyzer::verifyConversion(Expression const* from, TypeID to) {
 		if (from->typeID != to) {
 			throw ImplicitConversionError(identifiers, from->typeID, to, from->token());
 		}
 	}
 	
-	TypeID TypeChecker::verifyBinaryOperation(BinaryExpression const* expr) {
+	TypeID SemanticAnalyzer::verifyBinaryOperation(BinaryExpression const* expr) {
 		auto doThrow = [&]{
 			throw TypeError("Invalid types for operator " + std::string(toString(expr->op)),
 							expr->token());
@@ -309,3 +311,4 @@ namespace scatha::ast {
 	}
 	
 }
+

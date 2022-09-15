@@ -48,7 +48,7 @@ namespace scatha::ast {
 				using enum NodeType;
 			case TranslationUnit: {
 				auto const* const tu = static_cast<struct TranslationUnit const*>(node);
-				for (auto& n: tu->nodes) {
+				for (auto& n: tu->declarations) {
 					printSource_impl(n.get(), str, endl);
 					str << endl << endl;
 				}

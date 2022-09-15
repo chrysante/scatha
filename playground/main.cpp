@@ -6,12 +6,15 @@
 
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
-#include "AST/TypeChecker.h"
+
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
+#include "SemanticAnalyzer/SemanticAnalyzer.h"
 
 using namespace scatha;
+using namespace scatha::lex;
 using namespace scatha::parse;
+using namespace scatha::sem;
 
 int main() {
 	auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
@@ -25,18 +28,18 @@ int main() {
 	std::string const text = sstr.str();
 	
 	try {
-		lex::Lexer l(text);
+		Lexer l(text);
 		auto tokens = l.lex();
 		
 		Parser p(tokens);
 		auto ast = p.parse();
 		
-		ast::TypeChecker typechecker;
-		typechecker.run(ast.get());
+		SemanticAnalyzer s;
+		s.run(ast.get());
 		
-//		ast::printTree(ast.get());
+		ast::printTree(ast.get());
 		
-		ast::printSource(ast.get());
+//		ast::printSource(ast.get());
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;

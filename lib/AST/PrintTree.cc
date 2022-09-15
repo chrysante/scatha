@@ -45,10 +45,10 @@ namespace scatha::ast {
 	static void printTreeImpl(AbstractSyntaxTree const* inNode, std::ostream& str, int ind, NodeType type) {
 		switch (type) {
 			case NodeType::TranslationUnit: {
-				auto const* const node = static_cast<TranslationUnit const*>(inNode);
+				auto const* const tu = static_cast<TranslationUnit const*>(inNode);
 				str << indent(ind) << "<translation-unit>" << endl;
-				for (auto& n: node->nodes) {
-					printTreeImpl(n.get(), str, ind + 1);
+				for (auto& decl: tu->declarations) {
+					printTreeImpl(decl.get(), str, ind + 1);
 				}
 				break;
 			}

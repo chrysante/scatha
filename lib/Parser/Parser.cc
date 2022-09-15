@@ -19,18 +19,18 @@ namespace scatha::parse {
 		ast::UniquePtr<ast::TranslationUnit> result = ast::allocate<ast::TranslationUnit>();
 		
 		while (true) {
-			auto node = parseRootLevel();
-			if (node == nullptr) {
+			auto decl = parseRootLevelDeclaration();
+			if (decl == nullptr) {
 				break;
 			}
-			result->nodes.push_back(std::move(node));
+			result->declarations.push_back(std::move(decl));
 		}
 		
 		return result;
 	}
 	
 	/// MARK: Private
-	ast::UniquePtr<ast::AbstractSyntaxTree> Parser::parseRootLevel() {
+	ast::UniquePtr<ast::AbstractSyntaxTree> Parser::parseRootLevelDeclaration() {
 		TokenEx const& token = tokens.eat();
 		
 		if (token.type == TokenType::EndOfFile) {

@@ -1,8 +1,8 @@
 #ifndef SCATHA_PARSER_EXPRESSIONPARSER_H_
 #define SCATHA_PARSER_EXPRESSIONPARSER_H_
 
+#include "AST/Common.h"
 #include "AST/Expression.h"
-#include "AST/Operator.h"
 #include "Common/Allocator.h"
 #include "Parser/TokenStream.h"
 

@@ -1,13 +1,13 @@
-#ifndef SCATHA_AST_TYPECHECKER_H_
-#define SCATHA_AST_TYPECHECKER_H_
+#ifndef SCATHA_SEMANTICANALYZER_SEMANTICANALYZER_H_
+#define SCATHA_SEMANTICANALYZER_SEMANTICANALYZER_H_
 
 #include <stdexcept>
 
 #include "AST/AST.h"
-#include "AST/Operator.h"
+#include "AST/Common.h"
 #include "Common/IdentifierTable.h"
 
-namespace scatha::ast {
+namespace scatha::sem {
 	
 	struct TypeError: std::runtime_error {
 		explicit TypeError(std::string_view brief, Token const& token, std::string_view message = {}):
@@ -23,27 +23,27 @@ namespace scatha::ast {
 		ImplicitConversionError(IdentifierTable const&, TypeID from, TypeID to, Token const& token);
 	};
 	
-	class TypeChecker {
+	class SemanticAnalyzer {
 	public:
-		TypeChecker();
+		SemanticAnalyzer();
 		
-		void run(AbstractSyntaxTree*);
+		void run(ast::AbstractSyntaxTree*);
 		
 	private:
-		void doRun(AbstractSyntaxTree*);
-		void doRun(AbstractSyntaxTree*, NodeType);
+		void doRun(ast::AbstractSyntaxTree*);
+		void doRun(ast::AbstractSyntaxTree*, ast::NodeType);
 	
-		void verifyConversion(Expression const* from, TypeID to);
+		void verifyConversion(ast::Expression const* from, TypeID to);
 		
 		
-		TypeID verifyBinaryOperation(BinaryExpression const*);
+		TypeID verifyBinaryOperation(ast::BinaryExpression const*);
 		
 		bool used = false;
-		FunctionDefinition* currentFunction = nullptr;
+		ast::FunctionDefinition* currentFunction = nullptr;
 		IdentifierTable identifiers;
 	};
 	
 }
 
-#endif // SCATHA_AST_TYPECHECKER_H_
+#endif // SCATHA_SEMANTICANALYZER_SEMANTICANALYZER_H_
 

@@ -6,8 +6,8 @@
 
 #include <utl/static_string.hpp>
 
-#include "AST/ASTBase.h"
-#include "AST/Operator.h"
+#include "AST/Base.h"
+#include "AST/Common.h"
 
 #include "Common/Type.h"
 

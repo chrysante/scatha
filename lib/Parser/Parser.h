@@ -25,7 +25,7 @@ namespace scatha::parse {
 		[[nodiscard]] ast::UniquePtr<ast::AbstractSyntaxTree> parse();
 		
 	private:		
-		ast::UniquePtr<ast::AbstractSyntaxTree> parseRootLevel();
+		ast::UniquePtr<ast::AbstractSyntaxTree> parseRootLevelDeclaration();
 		
 		ast::UniquePtr<ast::FunctionDeclaration> parseFunction();
 		ast::UniquePtr<ast::FunctionDeclaration> parseFunctionDecl();
