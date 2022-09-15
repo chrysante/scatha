@@ -74,7 +74,7 @@ namespace scatha::ast {
 			case FunctionDeclaration: {
 				auto const* const fn = static_cast<struct FunctionDeclaration const*>(node);
 				str << "fn " << fn->name() << "(";
-				for (bool first = true; auto const& param: fn->params) {
+				for (bool first = true; auto const& param: fn->parameters) {
 					str << (first ? ((void)(first = false), "") : ", ") << param->name() << ": " << param->declTypename;
 				}
 				str << ") -> " << fn->declReturnTypename.id;

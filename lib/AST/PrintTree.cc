@@ -65,7 +65,7 @@ namespace scatha::ast {
 			case NodeType::FunctionDeclaration: {
 				auto const* const node = static_cast<FunctionDeclaration const*>(inNode);
 				str << indent(ind) << "<function-declaration> : " << node->name() << " -> " << node->declReturnTypename.id << endl;
-				for (auto& p: node->params) {
+				for (auto& p: node->parameters) {
 					printTreeImpl(p.get(), str, ind + 1);
 				}
 				break;

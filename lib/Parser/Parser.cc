@@ -103,7 +103,7 @@ namespace scatha::parse {
 		}
 		
 		while (true) {
-			fn->params.push_back(parseVariableDeclaration(/* requireTypename = */ true));
+			fn->parameters.push_back(parseVariableDeclaration(/* isFunctionParameter = */ true));
 			
 			if (TokenEx const& next = tokens.eat(); next.id != ",") {
 				expectID(next, ")");
@@ -178,6 +178,7 @@ namespace scatha::parse {
 		
 		auto result = ast::allocate<ast::VariableDeclaration>(name);
 		result->isConstant = isConst;
+		result->isFunctionParameter = isFunctionParameter;
 		
 		if (tokens.peek().id == ":") {
 			tokens.eat();

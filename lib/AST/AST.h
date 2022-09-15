@@ -32,7 +32,12 @@ namespace scatha::ast {
 		
 		/// Token object of the name in the source code.
 		Token const& token() const { return _token; }
-	
+
+		/** Decoration provided by semantic analysis. */
+		
+		/// NameID of this declaration in the symbol table
+		sem::NameID nameID;
+		
 	protected:
 		explicit Declaration(NodeType type, Token const& token):
 			Statement(type, token),
@@ -52,14 +57,16 @@ namespace scatha::ast {
 		utl::small_vector<UniquePtr<Declaration>> declarations;
 	};
 	
-	/// MARK: Variable
+	/// MARK: VariableDeclaration
 	/// Concrete node representing a variable declaration.
 	struct VariableDeclaration: Declaration {
 		explicit VariableDeclaration(Token const& name):
 			Declaration(NodeType::VariableDeclaration, name)
 		{}
 		
-		bool isConstant = false;
+		bool isConstant              : 1 = false; // Will be set by the parser
+		bool isFunctionParameter     : 1 = false; // Will be set by the parser
+		bool isFunctionParameterDef  : 1 = false; // Will be set by the constructor of FunctionDefinition during parsing
 		
 		/// Typename declared in the source code.
 		std::string declTypename;
@@ -98,7 +105,7 @@ namespace scatha::ast {
 									 utl::vector<UniquePtr<VariableDeclaration>> params = {}):
 			Declaration(NodeType::FunctionDeclaration, std::move(name)),
 			declReturnTypename(std::move(declReturnTypename)),
-			params(std::move(params))
+			parameters(std::move(params))
 		{}
 		
 		/// Typename of the return type as declared in the source code.
@@ -106,7 +113,7 @@ namespace scatha::ast {
 		Token declReturnTypename;
 		
 		/// List of parameter declarations.
-		utl::small_vector<UniquePtr<VariableDeclaration>> params;
+		utl::small_vector<UniquePtr<VariableDeclaration>> parameters;
 		
 		/** Decoration provided by semantic analysis. */
 		
@@ -120,7 +127,12 @@ namespace scatha::ast {
 		explicit FunctionDefinition(FunctionDeclaration&& decl, UniquePtr<Block> body = nullptr):
 			FunctionDeclaration(std::move(decl)),
 			body(std::move(body))
-		{ _type = NodeType::FunctionDefinition; }
+		{
+			_type = NodeType::FunctionDefinition;
+			for (auto& param: parameters) {
+				param->isFunctionParameterDef = true;
+			}
+		}
 			
 		/// Body of the function.
 		UniquePtr<Block> body;
