@@ -16,7 +16,7 @@ static TokenStream makeTokenStream(std::string text) {
 	return TokenStream(tokens);
 }
 
-TEST_CASE("ExpressionParser") {
+TEST_CASE("ExpressionParser", "[parse]") {
 	SECTION("Simple Addition") {
 		auto tokens = makeTokenStream("a + b");
 		/* Expecting:

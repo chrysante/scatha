@@ -55,7 +55,7 @@ fn main() -> void {
 	}
 }
 
-TEST_CASE("Lexer [no source location]") {
+TEST_CASE("Lexer (not checking source location)", "[lex]") {
 	
 	SECTION("1") {
 		TestCase test;

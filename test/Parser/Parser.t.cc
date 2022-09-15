@@ -11,7 +11,7 @@ using namespace scatha;
 using namespace parse;
 using namespace ast;
 
-TEST_CASE("Parse simple function") {
+TEST_CASE("Parse simple function", "[parse]") {
 	
 	std::string const text = R"(
 

@@ -6,7 +6,7 @@
 using namespace scatha;
 using namespace parse;
 
-TEST_CASE() {
+TEST_CASE("Convert token to enum class keyword", "[parse]") {
 	using enum Keyword;
 	
 	CHECK(toKeyword(Token{ .id = "void" }).value() == Void);
@@ -19,7 +19,7 @@ TEST_CASE() {
 	
 }
 
-TEST_CASE("Keyword Categories") {
+TEST_CASE("Keyword Categories", "[parse]") {
 	
 	using enum Keyword;
 	

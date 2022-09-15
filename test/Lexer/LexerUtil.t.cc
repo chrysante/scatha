@@ -4,7 +4,7 @@
 
 using namespace scatha::lex;
 
-TEST_CASE("isLetter") {
+TEST_CASE("isLetter", "[lex]") {
 	CHECK( isLetter('a'));
 	CHECK( isLetter('t'));
 	CHECK( isLetter('z'));
@@ -21,7 +21,7 @@ TEST_CASE("isLetter") {
 	CHECK(!isLetterEx(0));
 }
 
-TEST_CASE("isDigit") {
+TEST_CASE("isDigit", "[lex]") {
 	CHECK( isDigitDec('0'));
 	CHECK( isDigitDec('9'));
 	CHECK(!isDigitDec(0));
