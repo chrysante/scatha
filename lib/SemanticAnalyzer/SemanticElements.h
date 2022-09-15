@@ -1,0 +1,218 @@
+#ifndef SCATHA_SEMANTICANALYZER_SEMANTICELEMENTS_H_
+#define SCATHA_SEMANTICANALYZER_SEMANTICELEMENTS_H_
+
+#include <algorithm>
+#include <functional> // for std::hash
+#include <utility>
+#include <string>
+#include <span>
+
+#include <utl/hashmap.hpp>
+#include <utl/strcat.hpp>
+#include <utl/vector.hpp>
+
+#include "Basic/Basic.h"
+
+namespace scatha::sem {
+
+	/**
+	 * Category of a name. A name cannot refer to more than one category.
+	 */
+	enum class NameCategory {
+		None = 0, Type, Function, Variable, Namespace,
+		_count
+	};
+	
+	std::string_view toString(NameCategory);
+	
+	enum class TypeID: u64 { Invalid = 0 };
+	
+	/**
+	 * ID of a name in the program. Used to quickly lookup named elements such as types, functions or variables
+	 */
+	class NameID {
+	public:
+		NameID() = default;
+		explicit NameID(u64 id, NameCategory category):
+			_id(id),
+			_category(category)
+		{}
+		
+		u64 id() const { return _id; }
+		TypeID toTypeID() const { return TypeID(_id);  }
+		NameCategory category() const { return _category; }
+	
+		bool operator==(NameID const& rhs) const { return id() == rhs.id(); }
+		
+	private:
+		u64 _id{};
+		NameCategory _category{};
+	};
+	
+	/**
+	 Computes \p TypeID of a function type.
+	 
+	 - parameter \p returnType: TypeID of the return type.
+	 - parameter \p argumentTypes: TypeIDs of the arguments.
+	 - returns: TypeID of the function type.
+	 
+	 # Notes: #
+	 1. Computes a hash of the argument TypeIDs and the return TypeID. 64 bits should hopefully be enugh to not have any collisions in the program. Collisions would be detected by the symbol table, they would however stop the compilation of a valid program.
+	 */
+	TypeID computeFunctionTypeID(TypeID returnType, std::span<TypeID const> argumentTypes);
+	
+	
+	// Not sure if we need this
+//	class QualifiedName {
+//		explicit QualifiedName(std::string v): value(std::move(v)) {
+//			SC_ASSERT(std::find(value.begin(), value.end(), '.') == value.end(), "value must be an unqualified identifier");
+//		}
+//
+//		QualifiedName& operator+=(QualifiedName const& rhs)& {
+//			*this += rhs.value;
+//			levels += rhs.levels;
+//			return *this;
+//		}
+//
+//		QualifiedName& operator+=(std::string_view rhs)& {
+//			value.reserve(value.size() + 1 + rhs.size());
+//			value += '.';
+//			value += rhs;
+//			levels += 1;
+//			return *this;
+//		}
+//
+//	private:
+//		int levels = 0; // aka number of dots in the string
+//		std::string value;
+//	};
+	
+	/**
+	 * class \p TypeEx
+	 * Represents a type in the language. Types can be user defined.
+	 * Extends \p Type with additional information.
+	 */
+	struct TypeEx {
+	public:
+		static constexpr std::string_view elementName() { return "Type"; }
+		
+	public:
+		explicit TypeEx(std::string name, TypeID id, size_t size, size_t align);
+		explicit TypeEx(TypeID returnType, std::span<TypeID const> argumentTypes, TypeID id);
+		TypeEx(TypeEx const&);
+		~TypeEx();
+		
+		TypeEx& operator=(TypeEx const&);
+	
+		size_t size() const { return _size; }
+		size_t align() const { return _align; }
+	
+		TypeID id() const { return _id; }
+		std::string_view name() const { return _name; }
+		
+		bool isFunctionType() const { return _isFunctionType; }
+		TypeID returnType() const { return _returnType; }
+		std::span<TypeID const> argumentTypes() const { return _argumentTypes; }
+		
+		friend bool operator==(TypeEx const&, TypeEx const&);
+		
+	private:
+		struct PrivateCtorTag{};
+		explicit TypeEx(PrivateCtorTag, auto&&);
+		
+	private:
+		TypeID _id: sizeof(TypeID) * CHAR_BIT - 1;
+		bool _isFunctionType: 1 = false;
+		
+		u16 _size = 0;
+		u16 _align = 0;
+		
+		// Function types are not named so it is fine to put this in a union
+		union {
+			std::string _name;
+			struct {
+				TypeID _returnType;
+				utl::small_vector<TypeID, 6> _argumentTypes;
+			};
+		};
+	};
+	
+	/**
+	 * class \p Function
+	 * Represents a function in the language. Functions can be user defined.
+	 * Functions have a name and a type.
+	 */
+	struct Function {
+		static constexpr std::string_view elementName() { return "Function"; }
+		
+		explicit Function(NameID name): _nameID(name) {}
+		
+		// a bit quirky but we need this 2 step initialization in the semantic analysis. can hopefully be changed one day.
+		void setTypeID(TypeID id) { _typeID = id; }
+		
+		NameID nameID() const { return _nameID; }
+		TypeID typeID() const { return _typeID; }
+		
+	private:
+		NameID _nameID;
+		TypeID _typeID = TypeID::Invalid;
+	};
+	
+	/**
+	 * class \p Variable
+	 * Represents a variable in the language.
+	 * Variables have a name and a type.
+	 */
+	struct Variable {
+		static constexpr std::string_view elementName() { return "Variable"; }
+		
+		explicit Variable(NameID nameID, TypeID typeID): _nameID(nameID), _typeID(typeID) {}
+		
+		NameID nameID() const { return _nameID; }
+		TypeID typeID() const { return _typeID; }
+		
+	private:
+		NameID _nameID;
+		TypeID _typeID;
+	};
+	
+	/**
+	 * class template \p ElementTable
+	 * Thin wrapper around a hashmap mapping \p NameID to \p Type \p Function or \p Variable
+	 */
+	template <typename T>
+	class ElementTable {
+	public:
+		T& get(u64 id) {
+			return utl::as_mutable(utl::as_const(*this).get(id));
+		}
+		
+		T const& get(u64 id) const {
+			SC_EXPECT(id != 0, "Invalid TypeID");
+			
+			auto const itr = _elements.find(id);
+			if (itr == _elements.end()) {
+				throw std::runtime_error(utl::strcat("Can't find ", T::elementName(), " with ID ", id));
+			}
+			return *itr->second;
+		}
+		
+		template <typename... Args>
+		std::pair<T*, bool> emplace(u64 id, Args&&... args) {
+			auto [itr, success] = _elements.insert({ id, std::make_unique<T>(std::forward<Args>(args)...) });
+			return { itr->second.get(), success };
+		}
+		
+	private:
+		utl::hashmap<u64, std::unique_ptr<T>> _elements;
+	};
+	
+}
+
+template <>
+struct std::hash<scatha::sem::NameID> {
+	std::size_t operator()(scatha::sem::NameID id) const { return std::hash<scatha::u64>{}(id.id()); }
+};
+
+#endif // SCATHA_SEMANTICANALYZER_SEMANTICELEMENTS_H_
+

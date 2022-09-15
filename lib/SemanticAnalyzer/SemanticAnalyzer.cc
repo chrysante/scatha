@@ -8,7 +8,7 @@
 
 #include "AST/Expression.h"
 #include "Basic/Basic.h"
-#include "Common/Type.h"
+#include "SemanticAnalyzer/SemanticElements.h"
 
 namespace scatha::sem {
 
@@ -23,7 +23,7 @@ namespace scatha::sem {
 		return sstr.str();
 	}
 	
-	ImplicitConversionError::ImplicitConversionError(IdentifierTable const& tbl, TypeID from, TypeID to, Token const& token):
+	ImplicitConversionError::ImplicitConversionError(SymbolTable const& tbl, TypeID from, TypeID to, Token const& token):
 		TypeError(utl::strcat("Cannot convert from ", tbl.getType(from).name(), " to ", tbl.getType(to).name()), token)
 	{
 		
@@ -61,14 +61,14 @@ namespace scatha::sem {
 				
 			case NodeType::FunctionDeclaration: {
 				auto* const node = static_cast<FunctionDeclaration*>(inNode);
-				auto const& returnType = identifiers.findTypeByName(node->declReturnTypename.id);
+				auto const& returnType = symbols.findTypeByName(node->declReturnTypename.id);
 				node->returnTypeID = returnType.id();
 				
-				auto [func, newlyAdded] = identifiers.declareFunction(node->name->value);
+				auto [func, newlyAdded] = symbols.declareFunction(node->name());
 				SC_ASSERT(newlyAdded, "we dont support forward declarations or overloading just yet");
 				
-				identifiers.pushScope(node->name->value);
-				utl_defer { identifiers.popScope(); };
+				symbols.pushScope(node->name());
+				utl_defer { symbols.popScope(); };
 				utl::small_vector<TypeID> argTypes;
 				for (auto& param: node->params) {
 					doRun(param.get());
@@ -87,8 +87,8 @@ namespace scatha::sem {
 				
 				doRun(node, NodeType::FunctionDeclaration);
 				
-				identifiers.pushScope(node->name->value);
-				utl_defer { identifiers.popScope(); };
+				symbols.pushScope(node->name());
+				utl_defer { symbols.popScope(); };
 				
 				doRun(node->body.get());
 				
@@ -102,23 +102,23 @@ namespace scatha::sem {
 						throw TypeError("Expected typename for variable declaration", node->token());
 					}
 					else {
-						auto const typeID = identifiers.lookupName(node->declTypename);
+						auto const typeID = symbols.lookupName(node->declTypename);
 						SC_ASSERT(typeID.category() == NameCategory::Type, "TODO: make this an exception");
-						auto& type = identifiers.getType(typeID);
+						auto& type = symbols.getType(typeID);
 						node->typeID = type.id();
 					}
 				}
 				else {
 					doRun(node->initExpression.get());
 					if (!node->declTypename.empty()) {
-						node->typeID = identifiers.findTypeByName(node->declTypename).id();
+						node->typeID = symbols.findTypeByName(node->declTypename).id();
 						verifyConversion(node->initExpression.get(), node->typeID);
 					}
 					else {
 						node->typeID = node->initExpression->typeID;
 					}
 				}
-				auto [var, newlyAdded] = identifiers.declareVariable(node->name->value, node->typeID, node->isConstant);
+				auto [var, newlyAdded] = symbols.declareVariable(node->name(), node->typeID, node->isConstant);
 				SC_ASSERT(newlyAdded, "we dont support forward declarations just yet"); // TODO: This should throw obviously
 				break;
 			}
@@ -140,7 +140,7 @@ namespace scatha::sem {
 			case NodeType::IfStatement: {
 				auto* const node = static_cast<IfStatement*>(inNode);
 				doRun(node->condition.get());
-				verifyConversion(node->condition.get(), identifiers.Bool());
+				verifyConversion(node->condition.get(), symbols.Bool());
 				doRun(node->ifBlock.get());
 				doRun(node->elseBlock.get());
 				break;
@@ -148,7 +148,7 @@ namespace scatha::sem {
 			case NodeType::WhileStatement: {
 				auto* const node = static_cast<WhileStatement*>(inNode);
 				doRun(node->condition.get());
-				verifyConversion(node->condition.get(), identifiers.Bool());
+				verifyConversion(node->condition.get(), symbols.Bool());
 				doRun(node->block.get());
 				break;
 			}
@@ -156,24 +156,24 @@ namespace scatha::sem {
 			case NodeType::Identifier: {
 				auto* const node = static_cast<Identifier*>(inNode);
 				
-				// TODO: Right now identifiers can only refer to values.
+				// TODO: Right now symbols can only refer to values.
 				// This is because Identifier inherits Expression which is a value. If Identifier where to inherit AST and we have an additional class IDExpression which inherits Expression and Identifier, we would have a diamond hierarchy. Do we want that??
-				auto const nameID = identifiers.lookupName(node->value, NameCategory::Value);
-				auto const& var = identifiers.getVariable(nameID);
+				auto const nameID = symbols.lookupName(node->value, NameCategory::Variable);
+				auto const& var = symbols.getVariable(nameID);
 				node->typeID = var.typeID();
 				
 				break;
 			}
 				
-			case NodeType::NumericLiteral: {
-				auto* const node = static_cast<NumericLiteral*>(inNode);
-				node->typeID = identifiers.Int();
+			case NodeType::IntegerLiteral: {
+				auto* const node = static_cast<IntegerLiteral*>(inNode);
+				node->typeID = symbols.Int();
 				break;
 			}
 				
 			case NodeType::StringLiteral: {
 				auto* const node = static_cast<StringLiteral*>(inNode);
-				node->typeID = identifiers.String();
+				node->typeID = symbols.String();
 				break;
 			}
 				
@@ -201,7 +201,7 @@ namespace scatha::sem {
 			case NodeType::Conditional: {
 				auto* const node = static_cast<Conditional*>(inNode);
 				doRun(node->condition.get());
-				verifyConversion(node->condition.get(), identifiers.Bool());
+				verifyConversion(node->condition.get(), symbols.Bool());
 				doRun(node->ifExpr.get());
 				doRun(node->elseExpr.get());
 				
@@ -232,7 +232,7 @@ namespace scatha::sem {
 
 	void SemanticAnalyzer::verifyConversion(Expression const* from, TypeID to) {
 		if (from->typeID != to) {
-			throw ImplicitConversionError(identifiers, from->typeID, to, from->token());
+			throw ImplicitConversionError(symbols, from->typeID, to, from->token());
 		}
 	}
 	
@@ -262,10 +262,10 @@ namespace scatha::sem {
 				
 			case LeftShift:      [[fallthrough]];
 			case RightShift:
-				if (expr->lhs->typeID != identifiers.Int()) {
+				if (expr->lhs->typeID != symbols.Int()) {
 					doThrow();
 				}
-				if (expr->rhs->typeID != identifiers.Int()) {
+				if (expr->rhs->typeID != symbols.Int()) {
 					doThrow();
 				}
 				return expr->lhs->typeID;
@@ -277,17 +277,17 @@ namespace scatha::sem {
 			case Equals:         [[fallthrough]];
 			case NotEquals:
 				verifySame();
-				return identifiers.Bool();
+				return symbols.Bool();
 				
 			case LogicalAnd:     [[fallthrough]];
 			case LogicalOr:
-				if (expr->lhs->typeID != identifiers.Bool()) {
+				if (expr->lhs->typeID != symbols.Bool()) {
 					doThrow();
 				}
-				if (expr->rhs->typeID != identifiers.Bool()) {
+				if (expr->rhs->typeID != symbols.Bool()) {
 					doThrow();
 				}
-				return identifiers.Bool();
+				return symbols.Bool();
 				
 			case Assignment:     [[fallthrough]];
 			case AddAssignment:  [[fallthrough]];
@@ -300,7 +300,7 @@ namespace scatha::sem {
 			case AndAssignment:  [[fallthrough]];
 			case OrAssignment:
 				verifySame();
-				return identifiers.Void();
+				return symbols.Void();
 				
 			case Comma:
 				return expr->rhs->typeID;

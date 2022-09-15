@@ -16,7 +16,11 @@ using namespace scatha::lex;
 using namespace scatha::parse;
 using namespace scatha::sem;
 
+
 int main() {
+	
+	
+
 	auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
 	std::fstream file(filepath);
 	if (!file) {

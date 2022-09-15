@@ -5,7 +5,7 @@
 
 #include "AST/AST.h"
 #include "AST/Common.h"
-#include "Common/IdentifierTable.h"
+#include "SemanticAnalyzer/SymbolTable.h"
 
 namespace scatha::sem {
 	
@@ -20,7 +20,7 @@ namespace scatha::sem {
 	};
 	
 	struct ImplicitConversionError: TypeError {
-		ImplicitConversionError(IdentifierTable const&, TypeID from, TypeID to, Token const& token);
+		ImplicitConversionError(SymbolTable const&, TypeID from, TypeID to, Token const& token);
 	};
 	
 	class SemanticAnalyzer {
@@ -40,7 +40,7 @@ namespace scatha::sem {
 		
 		bool used = false;
 		ast::FunctionDefinition* currentFunction = nullptr;
-		IdentifierTable identifiers;
+		SymbolTable symbols;
 	};
 	
 }

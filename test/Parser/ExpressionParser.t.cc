@@ -57,9 +57,9 @@ TEST_CASE("ExpressionParser") {
 		auto* mul = dynamic_cast<BinaryExpression*>(expr.get());
 		REQUIRE(mul != nullptr);
 		REQUIRE(mul->op == BinaryOperator::Multiplication);
-		auto* lhs = dynamic_cast<NumericLiteral*>(mul->lhs.get());
+		auto* lhs = dynamic_cast<IntegerLiteral*>(mul->lhs.get());
 		REQUIRE(lhs != nullptr);
-		CHECK(lhs->value == "3");
+		CHECK(lhs->value == 3);
 		auto* rhs = dynamic_cast<Identifier*>(mul->rhs.get());
 		REQUIRE(rhs != nullptr);
 		CHECK(rhs->value == "x");
