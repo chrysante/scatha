@@ -23,11 +23,11 @@ namespace scatha {
 		bool isPunctuation : 1 = false;
 		
 		// Keyword related fields
-		parse::Keyword keyword;
-		parse::KeywordCategory keywordCategory;
+		parse::Keyword keyword{};
+		parse::KeywordCategory keywordCategory{};
 		
 		// Identifier related fields
-		IdentifierCategory identifierCategory;
+		IdentifierCategory identifierCategory{};
 		
 	};
 

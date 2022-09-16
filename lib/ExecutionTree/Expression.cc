@@ -10,7 +10,7 @@ namespace scatha::execution {
 		ExpressionNode result;
 		result.type = var.type;
 		result.dataPtr = var.bufferPtr;
-		result.function = [](ExpressionNode& self, void* out, void const* in) {
+		result.function = [](ExpressionNode& self, void* out, [[maybe_unused]] void const* in) {
 			std::memcpy(out, self.dataPtr, self.type.size());
 		};
 		return result;

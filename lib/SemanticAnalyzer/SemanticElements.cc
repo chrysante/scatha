@@ -88,9 +88,9 @@ namespace scatha::sem {
 	}
 	
 	TypeEx::TypeEx(TypeEx const& rhs):
+		_id(rhs._id),
 		_size(rhs._size),
 		_align(rhs._align),
-		_id(rhs._id),
 		_isFunctionType(rhs._isFunctionType)
 	{
 		if (rhs.isFunctionType()) {

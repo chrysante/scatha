@@ -15,7 +15,7 @@ namespace scatha::codegen {
 		execution::Program generate();
 		
 	private:
-		ast::AbstractSyntaxTree* ast;
+		[[maybe_unused]] ast::AbstractSyntaxTree* ast;
 	};
 	
 }

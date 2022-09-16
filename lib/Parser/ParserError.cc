@@ -18,25 +18,25 @@ namespace scatha::parse {
 		return _what.data();
 	}
 	
-	void expectIdentifier(TokenEx const& token, std::string_view message) {
+	void expectIdentifier(TokenEx const& token, [[maybe_unused]] std::string_view message) {
 		if (!token.isIdentifier) {
 			throw ParserError(token, "Expected Identifier");
 		}
 	}
 	
-	void expectKeyword(TokenEx const& token, std::string_view message) {
+	void expectKeyword(TokenEx const& token, [[maybe_unused]] std::string_view message) {
 		if (!token.isKeyword) {
 			throw ParserError(token, "Expected Keyword");
 		}
 	}
 	
-	void expectDeclarator(TokenEx const& token, std::string_view message) {
+	void expectDeclarator(TokenEx const& token, [[maybe_unused]] std::string_view message) {
 		if (!token.isKeyword || token.keywordCategory != KeywordCategory::Declarators) {
 			throw ParserError(token, "Expected Declarator");
 		}
 	}
 	
-	void expectSeparator(TokenEx const& token, std::string_view message) {
+	void expectSeparator(TokenEx const& token, [[maybe_unused]] std::string_view message) {
 		if (!token.isSeparator) {
 			throw ParserError(token, "Unqualified ID. Expected ';'");
 		}

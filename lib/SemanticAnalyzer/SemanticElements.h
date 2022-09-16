@@ -192,14 +192,20 @@ namespace scatha::sem {
 	struct Variable {
 		static constexpr std::string_view elementName() { return "Variable"; }
 		
-		explicit Variable(NameID nameID, TypeID typeID): _nameID(nameID), _typeID(typeID) {}
+		explicit Variable(NameID nameID, TypeID typeID, bool isConstant):
+			_nameID(nameID),
+			_typeID(typeID),
+			_isConstant(isConstant)
+		{}
 		
 		NameID nameID() const { return _nameID; }
 		TypeID typeID() const { return _typeID; }
+		bool isConstant() const { return _isConstant; }
 		
 	private:
 		NameID _nameID;
 		TypeID _typeID;
+		bool _isConstant: 1;
 	};
 	
 	/**

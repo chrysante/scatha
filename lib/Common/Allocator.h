@@ -19,7 +19,7 @@ namespace scatha {
 		~MonotonicBufferAllocator();
 		MonotonicBufferAllocator& operator=(MonotonicBufferAllocator&&) noexcept;
 		void* allocate(size_t size, size_t align);
-		void deallocate(void*, size_t size, size_t align) { /* no-op */ }
+		void deallocate(void*, size_t, size_t) { /* no-op */ }
 		
 		void release();
 		
