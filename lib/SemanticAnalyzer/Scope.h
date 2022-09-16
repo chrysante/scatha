@@ -13,30 +13,6 @@
 
 namespace scatha::sem {
 	
-	/// MARK: ScopeError
-	class ScopeError: public std::runtime_error {
-	public:
-		enum Issue {
-			NameAlreadyExists, NameNotFound, IDNotFound, NameCategoryConflict
-		};
-		
-	public:
-		ScopeError(class Scope const*, std::string_view name, Issue);
-		ScopeError(class Scope const*, NameID nameID, Issue);
-		ScopeError(class Scope const*, std::string_view name, NameCategory newCat, NameCategory oldCat, Issue);
-		
-		Issue issue() const { return _issue; }
-		
-	private:
-		static std::string makeMessage(Scope const*, Issue,
-									   std::string_view name,
-									   NameID,
-									   NameCategory newCat = {}, NameCategory oldCat = {});
-		
-	private:
-		Issue _issue{};
-	};
-	
 	/**
 	 * class \p Scope
 	 * Represents a scope like classes, namespaces and functions in the symbol table.
@@ -54,8 +30,7 @@ namespace scatha::sem {
 		// returns NameID and boolean == true iff name was just added / == false iff name already existed.
 		std::pair<NameID, bool> addName(std::string_view, NameCategory);
 		
-		NameID findIDByName(std::string_view) const;
-		std::optional<NameID> tryFindIDByName(std::string_view) const;
+		std::optional<NameID> findIDByName(std::string_view) const;
 		std::string findNameByID(NameID) const;
 		
 		Scope* parentScope() { return _parent; }

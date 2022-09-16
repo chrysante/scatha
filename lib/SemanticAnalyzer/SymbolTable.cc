@@ -1,29 +1,34 @@
 #include "SymbolTable.h"
 
+#include "SemanticAnalyzer/SemanticError.h"
+
 namespace scatha::sem {
 	
 	SymbolTable::SymbolTable() {
 		_globalScope = std::make_unique<Scope>(std::string{}, nullptr);
 		_currentScope = _globalScope.get();
 		
-		_void   = defineType("void",    0, 0).id();
-		_bool   = defineType("bool",    1, 1).id();
-		_int    = defineType("int",     8, 8).id();
-		_float  = defineType("float",   8, 8).id();
-		_string = defineType("string", 24, 8).id();
+		// TODO: Find a better solution for this
+		_void   = defineType(Token("void"),    0, 0).id();
+		_bool   = defineType(Token("bool"),    1, 1).id();
+		_int    = defineType(Token("int"),     8, 8).id();
+		_float  = defineType(Token("float"),   8, 8).id();
+		_string = defineType(Token("string"), 24, 8).id();
 	}
 	
-	std::pair<NameID, bool> SymbolTable::addName(std::string_view name, NameCategory cat) {
-		auto const [nameID, newlyAdded] = _currentScope->addName(name, cat);
+	std::pair<NameID, bool> SymbolTable::addName(Token const& name, NameCategory cat) {
+		auto const [nameID, newlyAdded] = _currentScope->addName(name.id, cat);
 		if (!newlyAdded && nameID.category() != cat) {
-			throw ScopeError(_currentScope, name, cat, nameID.category(), ScopeError::NameCategoryConflict);
+			// TODO: Add test case for this, not possible yet though
+			throw InvalidRedeclaration(name, currentScope(), nameID.category());
 		}
 		return { nameID, newlyAdded };
 	}
 	
 	void SymbolTable::pushScope(std::string_view name) {
 		auto const id = _currentScope->findIDByName(name);
-		pushScope(id);
+		SC_ASSERT(id, "Probably use of undeclared identifier, should have been handled before");
+		pushScope(*id);
 	}
 	
 	void SymbolTable::pushScope(NameID id) {
@@ -32,26 +37,27 @@ namespace scatha::sem {
 	
 	void SymbolTable::popScope() {
 		_currentScope = _currentScope->parentScope();
-		SC_ASSERT(_currentScope != nullptr, "Already in global scope");
+		SC_ASSERT(_currentScope != nullptr, "Can't pop anymore as we are already in global scope");
 	}
 	
-	NameID SymbolTable::declareType(std::string_view name) {
+	NameID SymbolTable::declareType(Token const& name) {
 		auto const [id, _] = addName(name, NameCategory::Type);
 		return id;
 	}
 
-	TypeEx& SymbolTable::defineType(std::string_view name, size_t size, size_t align) {
+	TypeEx& SymbolTable::defineType(Token const& name, size_t size, size_t align) {
 		auto const [id, newlyAdded] = addName(name, NameCategory::Type);
 		
-		auto [type, success] = types.emplace(id.id(), std::string(name), TypeID(id.id()), size, align);
+		auto [type, success] = types.emplace(id.id(), name.id, TypeID(id.id()), size, align);
 		if (!success) {
-			throw ScopeError(_currentScope, name, ScopeError::NameAlreadyExists);
+/// MARK: Can't test this yet
+			throw InvalidRedeclaration(name, currentScope());
 		}
-		SC_ASSERT_AUDIT(type != nullptr, "");
+		SC_ASSERT_AUDIT(type != nullptr, "If the type has been added before it'd better not be null");
 		return *type;
 	}
 	
-	std::pair<Function*, bool> SymbolTable::declareFunction(std::string_view name, TypeID returnType, std::span<TypeID const> argumentTypes) {
+	std::pair<Function*, bool> SymbolTable::declareFunction(Token const& name, TypeID returnType, std::span<TypeID const> argumentTypes) {
 		auto const [nameID, newlyAdded] = addName(name, NameCategory::Function);
 		
 		auto const computedFunctionTypeID = computeFunctionTypeID(returnType, argumentTypes);
@@ -65,51 +71,42 @@ namespace scatha::sem {
 		}
 		
 		// Now the function has already been declared. Verify that the type matches.
-		
 		if (nameID.category() != NameCategory::Function) {
-			throw;
+/// MARK: Can't test this yet
+			throw InvalidRedeclaration(name, currentScope(), NameCategory::Function);
 		}
 		auto& function = funcs.get(nameID.id());
-		
-		if (function.typeID() != computedFunctionTypeID) {
-			throw;
-		}
-		
-		auto const& functionType = types.get((u64)computedFunctionTypeID);
-		functionTypeVerifyEqual(functionType, returnType, argumentTypes);
+		auto const& functionType = types.get((u64)function.typeID());
+		functionTypeVerifyEqual(name, functionType, returnType, argumentTypes);
 		
 		return { &function, false };
 	}
 	
 	
-	std::pair<Variable*, bool> SymbolTable::declareVariable(std::string_view name, TypeID typeID, bool isConstant) {
+	std::pair<Variable*, bool> SymbolTable::declareVariable(Token const& name, TypeID typeID, bool isConstant) {
 		auto const [nameID, newlyAdded] = addName(name, NameCategory::Variable);
 		return vars.emplace(nameID.id(), nameID, typeID);
 	}
 
-	NameID SymbolTable::lookupName(std::string_view name, NameCategory category) const {
+	NameID SymbolTable::lookupName(Token const& name) const {
 		std::optional<NameID> result;
 		Scope const* sc = _currentScope;
 		while (true) {
-			result = sc->tryFindIDByName(name);
+			result = sc->findIDByName(name.id);
 			if (result) {
-				if (category != NameCategory::None && !test(category & result->category())) {
-					/// TODO: Throw something else here
-					throw ScopeError(sc, name, category, result->category(), ScopeError::NameCategoryConflict);
-				}
 				return *result;
 			}
 			sc = sc->parentScope();
 			if (sc == nullptr) {
-				throw ScopeError(_currentScope, name, ScopeError::NameNotFound);
+				return invalidNameID;
 			}
 		}
 	}
 	
-	TypeEx const& SymbolTable::findTypeByName(std::string_view name) const {
+	TypeEx const& SymbolTable::findTypeByName(Token const& name) const {
 		NameID const id = lookupName(name);
 		if (id.category() != NameCategory::Type) {
-			throw; // throw some proper exception here
+			throw InvalidSymbolReference(name, id.category());
 		}
 		return getType(id);
 	}

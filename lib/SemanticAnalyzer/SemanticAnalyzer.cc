@@ -9,26 +9,12 @@
 #include "AST/Expression.h"
 #include "Basic/Basic.h"
 #include "SemanticAnalyzer/SemanticElements.h"
+#include "SemanticAnalyzer/SemanticError.h"
 
 namespace scatha::sem {
 
 	using namespace ast;
-	
-	std::string TypeError::makeString(std::string_view brief, Token const& token, std::string_view message) {
-		std::stringstream sstr;
-		sstr << brief << " at Line: " << token.sourceLocation.line << " Col: " << token.sourceLocation.column;
-		if (!message.empty()) {
-			sstr << ": \n" << message;
-		}
-		return sstr.str();
-	}
-	
-	ImplicitConversionError::ImplicitConversionError(SymbolTable const& tbl, TypeID from, TypeID to, Token const& token):
-		TypeError(utl::strcat("Cannot convert from ", tbl.getType(from).name(), " to ", tbl.getType(to).name()), token)
-	{
-		
-	}
-	
+
 	SemanticAnalyzer::SemanticAnalyzer() = default;
 	
 	void SemanticAnalyzer::run(AbstractSyntaxTree* node) {
@@ -61,7 +47,7 @@ namespace scatha::sem {
 			
 			case NodeType::FunctionDeclaration: {
 				auto* const fnDecl = static_cast<FunctionDeclaration*>(inNode);
-				auto const& returnType = symbols.findTypeByName(fnDecl->declReturnTypename.id);
+				auto const& returnType = symbols.findTypeByName(fnDecl->declReturnTypename);
 				fnDecl->returnTypeID = returnType.id();
 				
 				/*
@@ -74,7 +60,7 @@ namespace scatha::sem {
 					argTypes.push_back(param->typeID);
 				}
 				
-				auto [func, newlyAdded] = symbols.declareFunction(fnDecl->name(), returnType.id(), argTypes);
+				auto [func, newlyAdded] = symbols.declareFunction(fnDecl->token(), returnType.id(), argTypes);
 				fnDecl->nameID = func->nameID();
 				
 				return;
@@ -93,7 +79,7 @@ namespace scatha::sem {
 				
 				// Now we begin declaring to the function scope
 				for (auto& param: node->parameters) {
-					symbols.declareVariable(param->name(), param->typeID, true);
+					symbols.declareVariable(param->token(), param->typeID, true);
 				}
 				
 				doRun(node->body.get());
@@ -105,12 +91,18 @@ namespace scatha::sem {
 				auto* const node = static_cast<VariableDeclaration*>(inNode);
 				if (node->initExpression == nullptr) {
 					if (node->declTypename.empty()) {
-						throw TypeError("Expected typename for variable declaration", node->token());
+						throw InvalidStatement(node->token(), "Expected initializing expression of explicit typename specifier in variable declaration");
 					}
 					else {
-						auto const typeID = symbols.lookupName(node->declTypename);
-						SC_ASSERT(typeID.category() == NameCategory::Type, "TODO: make this an exception");
-						auto& type = symbols.getType(typeID);
+						auto const typeNameID = symbols.lookupName(node->declTypename);
+						if (!typeNameID) {
+							throw UseOfUndeclaredIdentifier(node->declTypename);
+						}
+						if (typeNameID.category() != NameCategory::Type) {
+							throw InvalidStatement(node->declTypename,
+												   utl::strcat("\"", node->declTypename, "\" does not name a type"));
+						}
+						auto& type = symbols.getType(typeNameID);
 						node->typeID = type.id();
 					}
 				}
@@ -125,7 +117,7 @@ namespace scatha::sem {
 					}
 				}
 				if (!node->isFunctionParameter) /* Function parameters will be declared by the FunctionDefinition case */ {
-					auto [var, newlyAdded] = symbols.declareVariable(node->name(), node->typeID, node->isConstant);
+					auto [var, newlyAdded] = symbols.declareVariable(node->token(), node->typeID, node->isConstant);
 					
 					SC_ASSERT(newlyAdded, "we dont support multiple declarations just yet"); // TODO: This should throw obviously
 					node->nameID = var->nameID();
@@ -165,8 +157,17 @@ namespace scatha::sem {
 				
 			case NodeType::Identifier: {
 				auto* const node = static_cast<Identifier*>(inNode);
-			
-				auto const nameID = symbols.lookupName(node->value, NameCategory::Variable | NameCategory::Function);
+				auto const nameID = symbols.lookupName(node->token());
+				
+				if (!nameID) {
+					throw UseOfUndeclaredIdentifier(node->token());
+				}
+				
+				if (!(nameID.category() & (NameCategory::Variable | NameCategory::Function))) {
+					/// TODO: Throw something better here
+					throw SemanticError(node->token(), "Invalid use of identifier");
+				}
+				
 				if (nameID.category() == NameCategory::Variable) {
 					auto const& var = symbols.getVariable(nameID);
 					node->typeID = var.typeID();
@@ -175,7 +176,7 @@ namespace scatha::sem {
 					auto const& fn = symbols.getFunction(nameID);
 					node->typeID = fn.typeID();
 				}
-				
+					
 				return;
 			}
 				
@@ -237,12 +238,15 @@ namespace scatha::sem {
 					auto* const identifier = dynamic_cast<Identifier*>(node->object.get());
 					SC_ASSERT(identifier != nullptr, "Called object must be an identifier. We do not yet support calling arbitrary expressions.");
 				
-					auto const functionNameID = symbols.lookupName(identifier->value);
+					auto const functionNameID = symbols.lookupName(identifier->token());
 					if (functionNameID.category() != NameCategory::Function) {
-						throw;
+						throw; // Look at the assertion above
 					}
 					auto const& function = symbols.getFunction(functionNameID);
 					auto const& functionType = symbols.getType(function.typeID());
+					
+					verifyFunctionCallExpression(node, functionType, node->arguments);
+					
 					node->typeID = functionType.returnType();
 				}
 				
@@ -262,17 +266,19 @@ namespace scatha::sem {
 		}
 	}
 
-	void SemanticAnalyzer::verifyConversion(Expression const* from, TypeID to) {
+	void SemanticAnalyzer::verifyConversion(Expression const* from, TypeID to) const {
 		if (from->typeID != to) {
-			throw ImplicitConversionError(symbols, from->typeID, to, from->token());
+			throwBadTypeConversion(from->token(), from->typeID, to);
 		}
 	}
 	
-	TypeID SemanticAnalyzer::verifyBinaryOperation(BinaryExpression const* expr) {
+	TypeID SemanticAnalyzer::verifyBinaryOperation(BinaryExpression const* expr) const {
 		auto doThrow = [&]{
-			throw TypeError("Invalid types for operator " + std::string(toString(expr->op)),
-							expr->token());
+			/// TODO: Think of somethin better here
+			/// probably think of some way of how to lookup and define operators
+			throw SemanticError(expr->token(), "Invalid types for operator " + std::string(toString(expr->op)));
 		};
+		
 		auto verifySame = [&]{
 			if (expr->lhs->typeID != expr->rhs->typeID) {
 				doThrow();
@@ -340,6 +346,20 @@ namespace scatha::sem {
 			case _count:
 				SC_DEBUGFAIL();
 		}
+	}
+	
+	void SemanticAnalyzer::verifyFunctionCallExpression(FunctionCall const* expr, TypeEx const& fnType, std::span<UniquePtr<Expression> const> arguments) const {
+		SC_ASSERT(fnType.isFunctionType(), "fnType is not a function type");
+		if (fnType.argumentCount() != arguments.size()) {
+			throw BadFunctionCall(expr->object->token(), BadFunctionCall::WrongArgumentCount);
+		}
+		for (size_t i = 0; i < arguments.size(); ++i) {
+			verifyConversion(arguments[i].get(), fnType.argumentType(i));
+		}
+	}
+	
+	void SemanticAnalyzer::throwBadTypeConversion(Token const& token, TypeID from, TypeID to) const {
+		throw BadTypeConversion(token, symbols.getType(from), symbols.getType(to));
 	}
 	
 }

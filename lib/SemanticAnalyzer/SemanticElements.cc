@@ -1,5 +1,7 @@
 #include "SemanticElements.h"
 
+#include "SemanticAnalyzer/SemanticError.h"
+
 namespace scatha::sem {
 
 	/// MARK: NameID
@@ -40,20 +42,20 @@ namespace scatha::sem {
 	}
 	
 	/// MARK: functionTypeVerifyEqual
-	void functionTypeVerifyEqual(TypeEx const& type, TypeID returnType, std::span<TypeID const> argumentTypes) {
+	void functionTypeVerifyEqual(Token const& functionName, TypeEx const& type, TypeID returnType, std::span<TypeID const> argumentTypes) {
 		SC_ASSERT(type.isFunctionType(), "Passed type is not even a function type");
-		// We could probably also assert here
+		
 		if (type.returnType() != returnType) {
-			throw; // what?
+			throw InvalidRedeclaration(functionName, type);
 		}
 		if (type.argumentTypes().size() != argumentTypes.size()) {
-			throw;
+			throw InvalidRedeclaration(functionName, type);
 		}
 		for (size_t i = 0; i < argumentTypes.size(); ++i) {
 			auto const lhs = type.argumentTypes();
 			auto const rhs = argumentTypes;
 			if (lhs[i] != rhs[i]) {
-				throw;
+				throw InvalidRedeclaration(functionName, type);
 			}
 		}
 	}

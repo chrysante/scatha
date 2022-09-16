@@ -6,6 +6,7 @@
 #include <utility>
 #include <string>
 #include <span>
+#include <iosfwd>
 
 #include <utl/common.hpp>
 #include <utl/hashmap.hpp>
@@ -13,6 +14,7 @@
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
+#include "Common/Token.h"
 
 namespace scatha::sem {
 
@@ -39,7 +41,7 @@ namespace scatha::sem {
 	class NameID {
 	public:
 		NameID() = default;
-		explicit NameID(u64 id, NameCategory category):
+		constexpr explicit NameID(u64 id, NameCategory category):
 			_id(id),
 			_category(category)
 		{}
@@ -50,10 +52,14 @@ namespace scatha::sem {
 	
 		bool operator==(NameID const& rhs) const { return id() == rhs.id(); }
 		
+		explicit operator bool() const { return id() != 0; }
+		
 	private:
 		u64 _id{};
 		NameCategory _category{};
 	};
+	
+	inline constexpr auto invalidNameID = NameID{};
 	
 	// This could be marked 'gnu::pure' (not 'gnu::const' though)
 	/**
@@ -72,7 +78,8 @@ namespace scatha::sem {
 	 Verifies that \p functionType matches the signature described by \p returnType and \p argumentTypes
 	 Throws if the signatures don't match.
 	 */
-	void functionTypeVerifyEqual(struct TypeEx const& functionType,
+	void functionTypeVerifyEqual(Token const&,
+								 struct TypeEx const& functionType,
 								 TypeID returnType,
 								 std::span<TypeID const> argumentTypes);
 	
@@ -117,17 +124,23 @@ namespace scatha::sem {
 		~TypeEx();
 		
 		TypeEx& operator=(TypeEx const&);
-	
+		
 		size_t size() const { return _size; }
 		size_t align() const { return _align; }
 	
 		TypeID id() const { return _id; }
 		std::string_view name() const { return _name; }
 		
+		
 		bool isFunctionType() const { return _isFunctionType; }
+		
+		/// These may only be called if \p isFunctionType() returns true
 		TypeID returnType() const { return _returnType; }
+		size_t argumentCount() const { return _argumentTypes.size(); }
 		std::span<TypeID const> argumentTypes() const { return _argumentTypes; }
 		TypeID argumentType(size_t index) const { return _argumentTypes[index]; }
+		
+		
 		
 		friend bool operator==(TypeEx const&, TypeEx const&);
 		
@@ -201,13 +214,16 @@ namespace scatha::sem {
 		}
 		
 		T const& get(u64 id) const {
+			auto* result = tryGet(id);
+			SC_ASSERT(result, "Probably a bug");
+			return *result;
+		}
+		
+		T const* tryGet(u64 id) const {
 			SC_EXPECT(id != 0, "Invalid TypeID");
-			
 			auto const itr = _elements.find(id);
-			if (itr == _elements.end()) {
-				throw std::runtime_error(utl::strcat("Can't find ", T::elementName(), " with ID ", id));
-			}
-			return *itr->second;
+			if (itr == _elements.end()) { return nullptr; }
+			return itr->second.get();
 		}
 		
 		template <typename... Args>

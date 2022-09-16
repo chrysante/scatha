@@ -7,6 +7,7 @@
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "SemanticAnalyzer/SemanticAnalyzer.h"
+#include "SemanticAnalyzer/SemanticError.h"
 
 using namespace scatha;
 using namespace lex;
@@ -38,7 +39,7 @@ fn mul(a: int, b: int, c: float) -> int {
 
 	auto [ast, sym] = produceDecoratedASTAndSymTable(text);
 	
-	auto const& symMul = sym.lookupName("mul");
+	auto const& symMul = sym.lookupName(Token("mul"));
 	CHECK(symMul.category() == NameCategory::Function);
 	
 	auto const& fnMul = sym.getFunction(symMul);
@@ -51,21 +52,21 @@ fn mul(a: int, b: int, c: float) -> int {
 	CHECK(fnType.argumentType(2) == sym.Float());
 	
 	auto const  mulScopeID = sym.globalScope()->findIDByName("mul");
-	auto const* mulScope   = sym.globalScope()->childScope(mulScopeID);
+	auto const* mulScope   = sym.globalScope()->childScope(mulScopeID.value());
 	
-	auto const aID      = mulScope->findIDByName("a");
+	auto const aID = mulScope->findIDByName("a").value();
 	auto const& a = sym.getVariable(aID);
 	CHECK(a.typeID() == sym.Int());
 	
-	auto const bID      = mulScope->findIDByName("b");
+	auto const bID = mulScope->findIDByName("b").value();
 	auto const& b = sym.getVariable(bID);
 	CHECK(b.typeID() == sym.Int());
 	
-	auto const cID      = mulScope->findIDByName("c");
+	auto const cID = mulScope->findIDByName("c").value();
 	auto const& c = sym.getVariable(cID);
 	CHECK(c.typeID() == sym.Float());
 	
-	auto const resultID = mulScope->findIDByName("result");
+	auto const resultID = mulScope->findIDByName("result").value();
 	auto const& result = sym.getVariable(resultID);
 	CHECK(result.typeID() == sym.Int());
 }
@@ -97,5 +98,64 @@ fn caller() -> float {
 	
 	auto* resultDecl = dynamic_cast<VariableDeclaration*>(caller->body->statements[0].get());
 	CHECK(resultDecl->initExpression->typeID == sym.Float());
+}
+
+TEST_CASE("Semantic analysis failures", "[sem]") {
+	SECTION("Use of undeclared identifier") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() -> int { return x; }"), UseOfUndeclaredIdentifier);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let v: UnknownType; }"), UseOfUndeclaredIdentifier);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { 1 + x; }"), UseOfUndeclaredIdentifier);
+	}
+	
+	SECTION("Invalid type conversion") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() -> int { return \"a string\"; }"), BadTypeConversion);
+	}
+	
+	SECTION("Invalid function call expression") {
+		std::string const a = R"(
+fn callee(a: string);
+fn caller() { callee(); }
+)";
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), BadFunctionCall);
+	
+		std::string const b = R"(
+fn callee(a: string);
+fn caller() { callee(0); }
+)";
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), BadTypeConversion);
+	}
+	
+	SECTION("Invalid function redeclaration") {
+		std::string const a = R"(
+fn f();
+fn f() -> int;
+)";
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), InvalidRedeclaration);
+// MARK: These tests will fail when we have function overloading
+		std::string const b = R"(
+fn f();
+fn f(x: int);
+)";
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), InvalidRedeclaration);
+		std::string const c = R"(
+fn f(x: string);
+fn f(x: int);
+)";
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), InvalidRedeclaration);
+	}
+	
+	SECTION("Invalid symbol reference") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() -> UnknownID;"), InvalidSymbolReference);
+	}
+	
+	SECTION("Invalid variable declaration") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let v; }"), InvalidStatement);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let x = 0; let y: x; }"), InvalidStatement);
+	}
+	
+	SECTION("Other semantic errors") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let x = int; }"), SemanticError);
+	}
+	
 }
 

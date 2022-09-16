@@ -5,6 +5,7 @@
 #include <string>
 #include <span>
 
+#include "Common/Token.h"
 #include "SemanticAnalyzer/SemanticElements.h"
 #include "SemanticAnalyzer/Scope.h"
 
@@ -33,7 +34,7 @@ namespace scatha::sem {
 		 1. \p name may already exist in the current scope. Then it is verified that \p category is the same as for the last call to this function.
 		 2. This function will also be called internally by \p declare*define-Type*Function*Variable()
 		 */
-		std::pair<NameID, bool> addName(std::string_view name, NameCategory category);
+		std::pair<NameID, bool> addName(Token const& name, NameCategory category);
 		
 		/**
 		 Make current one of the child scopes of the current scope.
@@ -63,7 +64,7 @@ namespace scatha::sem {
 		 1. \p name may already exist, however must be of category type.
 		 So this function may be called multiple times with the same name.
 		 */
-		NameID declareType(std::string_view name);
+		NameID declareType(Token const& name);
 		
 		/**
 		 Define a type in the current scope.
@@ -78,7 +79,7 @@ namespace scatha::sem {
 		 1. \p name may already exist, however must not yet be defined and must be of category type.
 		 So this function must not be called multiple times with the same name.
 		 */
-		TypeEx& defineType(std::string_view name, size_t size, size_t align);
+		TypeEx& defineType(Token const& name, size_t size, size_t align);
 		
 		/**
 		 Declare a function in the current scope.
@@ -93,7 +94,7 @@ namespace scatha::sem {
 		 1. \p name may already exist, however must be of category function.
 		 So this function may be called multiple times with the same name, however the signature must match.
 		 */
-		std::pair<Function*, bool> declareFunction(std::string_view name, TypeID returnType, std::span<TypeID const> argumentTypes);
+		std::pair<Function*, bool> declareFunction(Token const& name, TypeID returnType, std::span<TypeID const> argumentTypes);
 		
 		/**
 		 Declare a variable in the current scope.
@@ -108,30 +109,25 @@ namespace scatha::sem {
 		 1. \p name may already exist, however must be of category variable.
 		 So this function may be called multiple times with the same name, however the type must match.
 		 */
-		std::pair<Variable*, bool> declareVariable(std::string_view name, TypeID typeID, bool isConstant);
+		std::pair<Variable*, bool> declareVariable(Token const& name, TypeID typeID, bool isConstant);
 		
 		/**
 		 Performs scoped name lookup. Looks for the name in the current scope and walks up the scope tree until it finds the name or reaches the global scope.
 		 
 		 - parameter \p name: Name to look for.
-		 - parameter \p category: If \p category != \p None it verifies that the name is of the specified category.
 		 
-		 - returns: ID of the found name.
-		 
-		 # Notes: #
-		 1. Throws \p ScopeError exception if the name cannot be found.
-		 2. Throws \p ScopeError exception if the name is of the wring category.
+		 - returns: ID of the found name or invalidNameID if not found.
 		 */
-		NameID lookupName(std::string_view name, NameCategory category = NameCategory::None) const;
+		NameID lookupName(Token const& name) const;
 		
 		Scope const* currentScope() const { return _currentScope; }
 		Scope const* globalScope() const { return _globalScope.get(); }
 		
-		TypeEx& findTypeByName(std::string_view name) {
+		TypeEx& findTypeByName(Token const& name) {
 			return utl::as_mutable(utl::as_const(*this).findTypeByName(name));
 		}
 		
-		TypeEx const& findTypeByName(std::string_view name) const;
+		TypeEx const& findTypeByName(Token const& name) const;
 		
 		TypeEx& getType(TypeID id) { return utl::as_mutable(utl::as_const(*this).getType(id)); }
 		TypeEx const& getType(TypeID) const;

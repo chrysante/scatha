@@ -5,23 +5,10 @@
 
 #include "AST/AST.h"
 #include "AST/Common.h"
+#include "AST/Expression.h"
 #include "SemanticAnalyzer/SymbolTable.h"
 
 namespace scatha::sem {
-	
-	struct TypeError: std::runtime_error {
-		explicit TypeError(std::string_view brief, Token const& token, std::string_view message = {}):
-			std::runtime_error(makeString(brief, token, message))
-		
-		{}
-
-	private:
-		static std::string makeString(std::string_view brief, Token const& token, std::string_view message);
-	};
-	
-	struct ImplicitConversionError: TypeError {
-		ImplicitConversionError(SymbolTable const&, TypeID from, TypeID to, Token const& token);
-	};
 	
 	class SemanticAnalyzer {
 	public:
@@ -36,11 +23,15 @@ namespace scatha::sem {
 		void doRun(ast::AbstractSyntaxTree*);
 		void doRun(ast::AbstractSyntaxTree*, ast::NodeType);
 	
-		void verifyConversion(ast::Expression const* from, TypeID to);
+		void verifyConversion(ast::Expression const* from, TypeID to) const;
 		
+		TypeID verifyBinaryOperation(ast::BinaryExpression const*) const;
 		
-		TypeID verifyBinaryOperation(ast::BinaryExpression const*);
+		void verifyFunctionCallExpression(ast::FunctionCall const*, TypeEx const& fnType, std::span<ast::UniquePtr<ast::Expression> const> arguments) const;
 		
+		[[noreturn]] void throwBadTypeConversion(Token const&, TypeID from, TypeID to) const;
+		
+	private:
 		bool used = false;
 		ast::FunctionDefinition* currentFunction = nullptr;
 		SymbolTable symbols;
