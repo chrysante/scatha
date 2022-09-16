@@ -10,6 +10,7 @@
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "SemanticAnalyzer/SemanticAnalyzer.h"
+#include "SemanticAnalyzer/PrintSymbolTable.h"
 
 using namespace scatha;
 using namespace scatha::lex;
@@ -41,7 +42,9 @@ int main() {
 		SemanticAnalyzer s;
 		s.run(ast.get());
 		
-		ast::printTree(ast.get());
+		printSymbolTable(s.symbolTable());
+		
+//		ast::printTree(ast.get());
 		
 //		ast::printSource(ast.get());
 	}

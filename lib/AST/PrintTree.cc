@@ -4,27 +4,14 @@
 
 #include "AST/Expression.h"
 #include "Basic/Basic.h"
+#include "Basic/PrintUtil.h"
 
 namespace scatha::ast {
 
 	static constexpr char endl = '\n';
 	
-	namespace {
-	
-		struct Indenter {
-			friend std::ostream& operator<<(std::ostream& str, Indenter const& ind) {
-				for (int i = 0; i < ind.level; ++i) {
-					str << "  ";
-				}
-				return str;
-			}
-			int level;
-		};
-		
-		static auto indent(int level) {
-			return Indenter{ level };
-		}
-		
+	static Indenter indent(int level) {
+		return Indenter(level, 2);
 	}
 		
 	void printTree(AbstractSyntaxTree const* root) {

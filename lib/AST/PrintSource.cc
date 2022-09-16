@@ -6,6 +6,7 @@
 
 #include "AST/Expression.h"
 #include "Basic/Basic.h"
+#include "Basic/PrintUtil.h"
 
 namespace scatha::ast {
 
@@ -13,37 +14,19 @@ namespace scatha::ast {
 		printSource(root, std::cout);
 	}
 	
-	namespace {
-		struct EndlIndent {
-			EndlIndent& increase()& { ++level; return *this; }
-			EndlIndent& decrease()& { --level; return *this; }
-			
-			friend std::ostream& operator<<(std::ostream& str, EndlIndent const& endl) {
-				str << '\n';
-				for (int i = 0; i < endl.level; ++i) {
-					str << '\t';
-				}
-				return str;
-			}
-			
-		private:
-			int level = 0;
-		};
-	}
-	
-	static void printSource_impl(AbstractSyntaxTree const*, std::ostream&, EndlIndent&);
-	static void printSource_impl(AbstractSyntaxTree const*, std::ostream&, EndlIndent&, NodeType);
+	static void printSource_impl(AbstractSyntaxTree const*, std::ostream&, EndlIndenter&);
+	static void printSource_impl(AbstractSyntaxTree const*, std::ostream&, EndlIndenter&, NodeType);
 	
 	void printSource(AbstractSyntaxTree const* root, std::ostream& str) {
-		EndlIndent endl;
+		EndlIndenter endl;
 		printSource_impl(root, str, endl);
 	}
 	
-	static void printSource_impl(AbstractSyntaxTree const* node, std::ostream& str, EndlIndent& endl) {
+	static void printSource_impl(AbstractSyntaxTree const* node, std::ostream& str, EndlIndenter& endl) {
 		printSource_impl(node, str, endl, node->nodeType());
 	}
 	
-	static void printSource_impl(AbstractSyntaxTree const* node, std::ostream& str, EndlIndent& endl, NodeType type) {
+	static void printSource_impl(AbstractSyntaxTree const* node, std::ostream& str, EndlIndenter& endl, NodeType type) {
 		switch (type) {
 				using enum NodeType;
 			case TranslationUnit: {
