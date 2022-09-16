@@ -28,11 +28,10 @@ namespace scatha::ast {
 	/// Identifier must refer to a value meaning a variable or a function.
 	struct Identifier: Expression {
 		explicit Identifier(Token const& token):
-			Expression(NodeType::Identifier, token),
-			value(token.id)
+			Expression(NodeType::Identifier, token)
 		{}
 		
-		std::string value;
+		std::string_view value() const { return token().id; }
 	};
 	
 	struct IntegerLiteral: Expression {

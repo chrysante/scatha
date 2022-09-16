@@ -45,6 +45,8 @@ namespace scatha::parse {
 				return parseFunction();
 				break;
 				
+				
+				
 			default:
 				throw ParserError(token, "Expected Declarator");
 				break;
@@ -184,7 +186,7 @@ namespace scatha::parse {
 			tokens.eat();
 			TokenEx const& type = tokens.eat();
 			expectIdentifier(type);
-			result->declTypename = type.id;
+			result->declTypename = type;
 		}
 		else if (isFunctionParameter) {
 			expectID(tokens.peek(), ":");

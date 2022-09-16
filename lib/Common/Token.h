@@ -24,6 +24,11 @@ namespace scatha {
 	std::ostream& operator<<(std::ostream&, TokenType);
 	
 	struct Token {
+		Token() = default;
+		explicit Token(std::string id): id(id) {}
+		
+		bool empty() const { return id.empty(); }
+		
 		SourceLocation sourceLocation;
 		TokenType type;
 		std::string id;

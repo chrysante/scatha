@@ -39,9 +39,9 @@ fn mul(a: int, b: int) -> int {
 		
 		REQUIRE(function->parameters.size() == 2);
 		CHECK(function->parameters[0]->name() == "a");
-		CHECK(function->parameters[0]->declTypename == "int");
+		CHECK(function->parameters[0]->declTypename.id == "int");
 		CHECK(function->parameters[1]->name() == "b");
-		CHECK(function->parameters[1]->declTypename == "int");
+		CHECK(function->parameters[1]->declTypename.id == "int");
 		
 		CHECK(function->declReturnTypename.id == "int");
 		

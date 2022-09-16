@@ -69,7 +69,7 @@ namespace scatha::ast {
 		bool isFunctionParameterDef  : 1 = false; // Will be set by the constructor of FunctionDefinition during parsing
 		
 		/// Typename declared in the source code.
-		std::string declTypename;
+		Token declTypename;
 		
 		/// Expression to initialize this variable.
 		UniquePtr<Expression> initExpression;

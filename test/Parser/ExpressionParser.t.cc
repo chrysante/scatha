@@ -35,10 +35,10 @@ TEST_CASE("ExpressionParser", "[parse]") {
 		REQUIRE(add->op == BinaryOperator::Addition);
 		auto* lhs = dynamic_cast<Identifier*>(add->lhs.get());
 		REQUIRE(lhs != nullptr);
-		CHECK(lhs->value == "a");
+		CHECK(lhs->value() == "a");
 		auto* rhs = dynamic_cast<Identifier*>(add->rhs.get());
 		REQUIRE(rhs != nullptr);
-		CHECK(rhs->value == "b");
+		CHECK(rhs->value() == "b");
 	}
 	
 	SECTION("Simple Multiplication") {
@@ -62,7 +62,7 @@ TEST_CASE("ExpressionParser", "[parse]") {
 		CHECK(lhs->value == 3);
 		auto* rhs = dynamic_cast<Identifier*>(mul->rhs.get());
 		REQUIRE(rhs != nullptr);
-		CHECK(rhs->value == "x");
+		CHECK(rhs->value() == "x");
 	}
 	
 	SECTION("Associativity") {
@@ -86,7 +86,7 @@ TEST_CASE("ExpressionParser", "[parse]") {
 		
 		auto* a = dynamic_cast<Identifier*>(add->lhs.get());
 		REQUIRE(a != nullptr);
-		CHECK(a->value == "a");
+		CHECK(a->value() == "a");
 		
 		auto* mul = dynamic_cast<BinaryExpression*>(add->rhs.get());
 		REQUIRE(mul != nullptr);
@@ -94,11 +94,11 @@ TEST_CASE("ExpressionParser", "[parse]") {
 		
 		auto* b = dynamic_cast<Identifier*>(mul->lhs.get());
 		REQUIRE(b != nullptr);
-		CHECK(b->value == "b");
+		CHECK(b->value() == "b");
 		
 		auto* c = dynamic_cast<Identifier*>(mul->rhs.get());
 		REQUIRE(c != nullptr);
-		CHECK(c->value == "c");
+		CHECK(c->value() == "c");
 	}
 	
 	SECTION("Parentheses") {
@@ -126,15 +126,15 @@ TEST_CASE("ExpressionParser", "[parse]") {
 		
 		auto* a = dynamic_cast<Identifier*>(add->lhs.get());
 		REQUIRE(a != nullptr);
-		CHECK(a->value == "a");
+		CHECK(a->value() == "a");
 		
 		auto* b = dynamic_cast<Identifier*>(add->rhs.get());
 		REQUIRE(b != nullptr);
-		CHECK(b->value == "b");
+		CHECK(b->value() == "b");
 		
 		auto* c = dynamic_cast<Identifier*>(mul->rhs.get());
 		REQUIRE(c != nullptr);
-		CHECK(c->value == "c");
+		CHECK(c->value() == "c");
 	}
 	
 }

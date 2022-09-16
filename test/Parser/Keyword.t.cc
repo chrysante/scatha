@@ -9,13 +9,13 @@ using namespace parse;
 TEST_CASE("Convert token to enum class keyword", "[parse]") {
 	using enum Keyword;
 	
-	CHECK(toKeyword(Token{ .id = "void" }).value() == Void);
-	CHECK(toKeyword(Token{ .id = "fn" }).value() == Function);
-	CHECK(toKeyword(Token{ .id = "while" }).value() == While);
-	CHECK(toKeyword(Token{ .id = "false" }).value() == False);
+	CHECK(toKeyword(Token{ "void" }).value() == Void);
+	CHECK(toKeyword(Token{ "fn" }).value() == Function);
+	CHECK(toKeyword(Token{ "while" }).value() == While);
+	CHECK(toKeyword(Token{ "false" }).value() == False);
 	
-	CHECK(!toKeyword(Token{ .id = "foo" }).has_value());
-	CHECK(!toKeyword(Token{ .id = "bar" }).has_value());
+	CHECK(!toKeyword(Token{ "foo" }).has_value());
+	CHECK(!toKeyword(Token{ "bar" }).has_value());
 	
 }
 

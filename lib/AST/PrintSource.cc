@@ -75,7 +75,7 @@ namespace scatha::ast {
 				auto const* const fn = static_cast<struct FunctionDeclaration const*>(node);
 				str << "fn " << fn->name() << "(";
 				for (bool first = true; auto const& param: fn->parameters) {
-					str << (first ? ((void)(first = false), "") : ", ") << param->name() << ": " << param->declTypename;
+					str << (first ? ((void)(first = false), "") : ", ") << param->name() << ": " << param->declTypename.id;
 				}
 				str << ") -> " << fn->declReturnTypename.id;
 				break;
@@ -90,7 +90,7 @@ namespace scatha::ast {
 			case VariableDeclaration: {
 				auto const* const var = static_cast<struct VariableDeclaration const*>(node);
 				str << (var->isConstant ? "let" : "var") << " " << var->name() << ": ";
-				str << (var->declTypename.empty() ? "<deduce type>" : var->declTypename);
+				str << (var->declTypename.empty() ? "<deduce type>" : var->declTypename.id);
 				if (var->initExpression) {
 					str << " = ";
 					printSource_impl(var->initExpression.get(), str, endl);
@@ -135,7 +135,7 @@ namespace scatha::ast {
 				
 			case Identifier: {
 				auto const* const i = static_cast<struct Identifier const*>(node);
-				str << i->value;
+				str << i->value();
 				break;
 			}
 			case IntegerLiteral: {

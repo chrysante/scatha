@@ -81,7 +81,7 @@ namespace scatha::ast {
 				
 			case NodeType::VariableDeclaration: {
 				auto const* const node = static_cast<VariableDeclaration const*>(inNode);
-				str << indent(ind) << "<variable-declaration> " << node->name() << ": " << (node->declTypename.empty() ? "<deduce-type>" : node->declTypename);
+				str << indent(ind) << "<variable-declaration> " << node->name() << ": " << (node->declTypename.empty() ? "<deduce-type>" : node->declTypename.id);
 				str << " [" << (node->isConstant ? "const" : "mutable") << "]" << endl;
 				if (node->initExpression.get()) {
 					printTreeImpl(node->initExpression.get(), str, ind + 1);
@@ -125,7 +125,7 @@ namespace scatha::ast {
 				
 			case NodeType::Identifier: {
 				auto const* const node = static_cast<Identifier const*>(inNode);
-				str << indent(ind) << "<identifier>: " << node->value << endl;
+				str << indent(ind) << "<identifier>: " << node->value() << endl;
 				break;
 			}
 				
