@@ -1,7 +1,5 @@
 #include <Catch/Catch2.hpp>
 
-#include <iostream>
-
 #include "AST/AST.h"
 #include "AST/Expression.h"
 #include "Lexer/Lexer.h"
@@ -18,6 +16,7 @@ using namespace ast;
 static auto produceDecoratedASTAndSymTable(std::string text) {
 	Lexer l(text);
 	auto tokens = l.lex();
+	
 	Parser p(tokens);
 	auto ast = p.parse();
 
@@ -69,6 +68,46 @@ fn mul(a: int, b: int, c: float) -> int {
 	auto const resultID = mulScope->findIDByName("result").value();
 	auto const& result = sym.getVariable(resultID);
 	CHECK(result.typeID() == sym.Int());
+}
+
+TEST_CASE("Decoration of the AST") {
+	std::string const text = R"(
+fn mul(a: int, b: int, c: float, d: string) -> int;
+fn mul(a: int, b: int, c: float, d: string) -> int {
+	let result = a;
+	return result;
+}
+)";
+	auto [ast, sym] = produceDecoratedASTAndSymTable(text);
+	
+	auto* tu = dynamic_cast<TranslationUnit*>(ast.get());
+	REQUIRE(tu);
+	auto* fnDecl = dynamic_cast<FunctionDeclaration*>(tu->declarations[0].get());
+	REQUIRE(fnDecl);
+	CHECK(fnDecl->returnTypeID == sym.Int());
+	CHECK(fnDecl->parameters[0]->typeID == sym.Int());
+	CHECK(fnDecl->parameters[1]->typeID == sym.Int());
+	CHECK(fnDecl->parameters[2]->typeID == sym.Float());
+	CHECK(fnDecl->parameters[3]->typeID == sym.String());
+	
+	auto* fn = dynamic_cast<FunctionDefinition*>(tu->declarations[1].get());
+	REQUIRE(fn);
+	
+	CHECK(fn->returnTypeID == sym.Int());
+	CHECK(fn->parameters[0]->typeID == sym.Int());
+	CHECK(fn->parameters[1]->typeID == sym.Int());
+	CHECK(fn->parameters[2]->typeID == sym.Float());
+	CHECK(fn->parameters[3]->typeID == sym.String());
+
+	auto* varDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[0].get());
+	CHECK(varDecl->typeID == sym.Int());
+
+	auto* varDeclInit = dynamic_cast<Identifier*>(varDecl->initExpression.get());
+	CHECK(varDeclInit->typeID == sym.Int());
+
+	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[1].get());
+	auto* retIdentifier = dynamic_cast<Identifier*>(ret->expression.get());
+	CHECK(retIdentifier->typeID == sym.Int());
 }
 
 TEST_CASE("Decoration of the AST with function call expression", "[sem]") {
@@ -131,6 +170,7 @@ fn f();
 fn f() -> int;
 )";
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), InvalidRedeclaration);
+		
 // MARK: These tests will fail when we have function overloading
 		std::string const b = R"(
 fn f();
@@ -141,7 +181,16 @@ fn f(x: int);
 fn f(x: string);
 fn f(x: int);
 )";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), InvalidRedeclaration);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(c), InvalidRedeclaration);
+	}
+	
+	SECTION("Invalid variable redeclaration") {
+		std::string const text = R"(
+fn f(x: int) {
+	let x: float;
+}
+)";
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(text), InvalidRedeclaration);
 	}
 	
 	SECTION("Invalid symbol reference") {
