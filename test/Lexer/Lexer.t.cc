@@ -95,7 +95,7 @@ TEST_CASE("Lexer (not checking source location)", "[lex]") {
 			{ TokenType::Identifier,  "result" },
 			{ TokenType::Punctuation, ";" },
 			{ TokenType::Punctuation, "}" },
-			{ TokenType::EndOfFile }
+			{ TokenType::EndOfFile,   "" }
 		};
 		
 		runTest("1", test);
@@ -141,7 +141,7 @@ fn main() {
 			{ TokenType::Punctuation, ")" },
 			{ TokenType::Punctuation, ";" },
 			{ TokenType::Punctuation, "}" },
-			{ TokenType::EndOfFile }
+			{ TokenType::EndOfFile, "" }
 		};
 		
 		runTest("2", test);
@@ -191,7 +191,7 @@ while (x >= 0) {
 			{ TokenType::IntegerLiteral, "2" },
 			{ TokenType::Punctuation, ";" },
 			{ TokenType::Punctuation, "}" },
-			{ TokenType::EndOfFile }
+			{ TokenType::EndOfFile, "" }
 		};
 		runTest("3", test);
 	}
