@@ -14,6 +14,7 @@
 #include "AST/Common.h"
 #include "AST/Expression.h"
 #include "SemanticAnalyzer/SemanticElements.h"
+#include "SemanticAnalyzer/Scope.h"
 
 /*
  AbstractSyntaxTree
@@ -124,6 +125,14 @@ namespace scatha::ast {
 		
 		/// Statements in the block.
 		utl::small_vector<UniquePtr<Statement>> statements;
+		
+		/** Decoration provided by semantic analysis. */
+		
+		/// Kind of this block scope
+		sem::Scope::Kind scopeKind = sem::Scope::Anonymous;
+		
+		/// NameID of this block scope
+		sem::NameID scopeNameID{};
 	};
 	
 	/// MARK: FunctionDeclaration

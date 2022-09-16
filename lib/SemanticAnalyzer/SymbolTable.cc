@@ -16,36 +16,40 @@ namespace scatha::sem {
 		_string = defineType(Token("string"), 24, 8).id();
 	}
 	
-	std::pair<NameID, bool> SymbolTable::addName(Token const& name, NameCategory cat) {
-		auto const [nameID, newlyAdded] = _currentScope->addName(name.id, cat);
+	std::pair<NameID, bool> SymbolTable::addSymbol(Token const& name, NameCategory cat) {
+		auto const [nameID, newlyAdded] = currentScope()->addSymbol(name.id, cat);
 		if (!newlyAdded && nameID.category() != cat) {
 			throw InvalidRedeclaration(name, currentScope(), nameID.category());
 		}
 		return { nameID, newlyAdded };
 	}
 	
+	NameID SymbolTable::addAnonymousSymbol(NameCategory category) {
+		return currentScope()->addAnonymousSymbol(category);
+	}
+	
 	void SymbolTable::pushScope(std::string_view name) {
-		auto const id = _currentScope->findIDByName(name);
+		auto const id = currentScope()->findIDByName(name);
 		SC_ASSERT(id, "Probably use of undeclared identifier, should have been handled before");
 		pushScope(*id);
 	}
 	
 	void SymbolTable::pushScope(NameID id) {
-		_currentScope = _currentScope->childScope(id);
+		_currentScope = currentScope()->childScope(id);
 	}
 	
 	void SymbolTable::popScope() {
-		_currentScope = _currentScope->parentScope();
-		SC_ASSERT(_currentScope != nullptr, "Can't pop anymore as we are already in global scope");
+		_currentScope = currentScope()->parentScope();
+		SC_ASSERT(currentScope() != nullptr, "Can't pop anymore as we are already in global scope");
 	}
 	
 	NameID SymbolTable::declareType(Token const& name) {
-		auto const [id, _] = addName(name, NameCategory::Type);
+		auto const [id, _] = addSymbol(name, NameCategory::Type);
 		return id;
 	}
 
 	TypeEx& SymbolTable::defineType(Token const& name, size_t size, size_t align) {
-		auto const [id, newlyAdded] = addName(name, NameCategory::Type);
+		auto const [id, newlyAdded] = addSymbol(name, NameCategory::Type);
 		
 		auto [type, success] = types.emplace(id.id(), name.id, TypeID(id.id()), size, align);
 		if (!success) {
@@ -57,7 +61,7 @@ namespace scatha::sem {
 	}
 	
 	std::pair<Function*, bool> SymbolTable::declareFunction(Token const& name, TypeID returnType, std::span<TypeID const> argumentTypes) {
-		auto const [nameID, newlyAdded] = addName(name, NameCategory::Function);
+		auto const [nameID, newlyAdded] = addSymbol(name, NameCategory::Function);
 		
 		auto const computedFunctionTypeID = computeFunctionTypeID(returnType, argumentTypes);
 		
@@ -83,13 +87,13 @@ namespace scatha::sem {
 	
 	
 	std::pair<Variable*, bool> SymbolTable::declareVariable(Token const& name, TypeID typeID, bool isConstant) {
-		auto const [nameID, newlyAdded] = addName(name, NameCategory::Variable);
+		auto const [nameID, newlyAdded] = addSymbol(name, NameCategory::Variable);
 		return vars.emplace(nameID.id(), nameID, typeID, isConstant);
 	}
 
 	NameID SymbolTable::lookupName(Token const& name) const {
 		std::optional<NameID> result;
-		Scope const* sc = _currentScope;
+		Scope const* sc = currentScope();
 		while (true) {
 			result = sc->findIDByName(name.id);
 			if (result) {

@@ -39,6 +39,17 @@ namespace scatha::sem {
 				
 			case NodeType::Block: {
 				auto* const node = static_cast<Block*>(inNode);
+				
+				if (node->scopeKind == Scope::Anonymous) {
+					if (currentFunction == nullptr) {
+						throw InvalidStatement(node->token(), "Anonymous blocks can only appear at function scope");
+					}
+					
+					node->scopeNameID = symbols.addAnonymousSymbol(NameCategory::Function);
+				}
+				
+				symbols.pushScope(node->scopeNameID);
+				utl_defer { symbols.popScope(); };
 				for (auto& statement: node->statements) {
 					doRun(statement.get());
 				}
@@ -79,14 +90,17 @@ namespace scatha::sem {
 				doRun(node, NodeType::FunctionDeclaration);
 
 				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->nameID, "Just to be sure");
-				symbols.pushScope(node->nameID);
-				utl_defer { symbols.popScope(); };
 				
-				// Now we begin declaring to the function scope
-				for (auto& param: node->parameters) {
-					symbols.declareVariable(param->token(), param->typeID, true);
+				/* Declare parameters to the function scope */ {
+					symbols.pushScope(node->nameID);
+					utl_defer { symbols.popScope(); };
+					for (auto& param: node->parameters) {
+						symbols.declareVariable(param->token(), param->typeID, true);
+					}
 				}
 				
+				node->body->scopeKind = Scope::Function;
+				node->body->scopeNameID = node->nameID;
 				doRun(node->body.get());
 				
 				return;
@@ -109,9 +123,9 @@ namespace scatha::sem {
 				doRun(node, NodeType::StructDeclaration);
 
 				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->nameID, "Just to be sure");
-				symbols.pushScope(node->nameID);
-				utl_defer { symbols.popScope(); };
 				
+				node->body->scopeKind = Scope::Struct;
+				node->body->scopeNameID = node->nameID;
 				doRun(node->body.get());
 				
 				return;

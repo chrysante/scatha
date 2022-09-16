@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <stdexcept>
+#include <iosfwd>
 
 #include <utl/hashmap.hpp>
 #include <utl/common.hpp>
@@ -12,6 +13,8 @@
 #include "SemanticAnalyzer/SemanticElements.h"
 
 namespace scatha::sem {
+	
+	namespace internal { class ScopePrinter; }
 	
 	/**
 	 * class \p Scope
@@ -22,7 +25,7 @@ namespace scatha::sem {
 	class Scope {
 	public:
 		enum Kind {
-			Global, Function, Struct, Namespace, _count
+			Global, Function, Struct, Namespace, Anonymous, _count
 		};
 		
 	public:
@@ -35,7 +38,8 @@ namespace scatha::sem {
 		std::string_view name() const { return _name; }
 		
 		// returns NameID and boolean == true iff name was just added / == false iff name already existed.
-		std::pair<NameID, bool> addName(std::string_view, NameCategory);
+		std::pair<NameID, bool> addSymbol(std::string_view, NameCategory);
+		NameID addAnonymousSymbol(NameCategory);
 		
 		std::optional<NameID> findIDByName(std::string_view) const;
 		std::string findNameByID(NameID) const;
@@ -46,14 +50,17 @@ namespace scatha::sem {
 		Scope const* childScope(NameID id) const;
 		
 	private:
+		friend class internal::ScopePrinter;
+		
 		auto generateID(NameCategory cat) { return NameID(++(_root->_nameIDCounter), cat); }
+		std::pair<NameID, bool> addSymbolImpl(std::optional<std::string_view>, NameCategory);
 		
 	private:
 		Scope* _parent = nullptr;
 		Scope* _root = nullptr;
 		Kind _kind;
 		
-		u64 _nameIDCounter = 0;
+		u64 _nameIDCounter = 0; // must only be accessed via the _root pointer so we don't generate the same ID twice
 		
 		std::string _name;
 		utl::hashmap<std::string, NameID> _nameToID;

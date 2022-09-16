@@ -75,6 +75,9 @@ TEST_CASE("Decoration of the AST") {
 fn mul(a: int, b: int, c: float, d: string) -> int;
 fn mul(a: int, b: int, c: float, d: string) -> int {
 	let result = a;
+	{ // declaration of variable of the same name in a nested scope
+		var result = "some string";
+	}
 	return result;
 }
 )";
@@ -105,7 +108,11 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	auto* varDeclInit = dynamic_cast<Identifier*>(varDecl->initExpression.get());
 	CHECK(varDeclInit->typeID == sym.Int());
 
-	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[1].get());
+	auto* nestedScope = dynamic_cast<Block*>(fn->body->statements[1].get());
+	auto* nestedVarDecl = dynamic_cast<VariableDeclaration*>(nestedScope->statements[0].get());
+	CHECK(nestedVarDecl->typeID == sym.String());
+	
+	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[2].get());
 	auto* retIdentifier = dynamic_cast<Identifier*>(ret->expression.get());
 	CHECK(retIdentifier->typeID == sym.Int());
 }
@@ -264,6 +271,14 @@ fn f(x: int) {
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { if (1 > 0) {} }"), InvalidStatement);
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { while (1 > 0) {} }"), InvalidStatement);
 		CHECK_NOTHROW(produceDecoratedASTAndSymTable("struct X { var i: int; }"));
+	}
+	
+	SECTION("Invalid local scope in struct") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { {} }"), InvalidStatement);
+	}
+	
+	SECTION("Valid local scope in function") {
+		CHECK_NOTHROW(produceDecoratedASTAndSymTable("fn f() { {} }"));
 	}
 	
 	SECTION("Other semantic errors") {

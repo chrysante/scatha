@@ -16,17 +16,17 @@ namespace scatha::sem {
 	 Tree of all scopes and names in a translation unit
 	 
 	 # Notes: #
-	 1. call addName() to add a new name to the current scope. Must be called before using pushScope with that name
+	 1. call addSymbol() to add a new name to the current scope. Must be called before using pushScope with that name
 	 */
 	class SymbolTable {
 	public:
 		SymbolTable();
 	
 		/**
-		 Add a name to the current scope.
+		 Add a symbol to the current scope.
 		 
-		 - parameter \p name: Name to add to the current scope.
-		 - parameter \p category: Category of the name.
+		 - parameter \p name: Name of the symbol to add to the current scope.
+		 - parameter \p category: Category of the symbol.
 		 
 		 - returns: Pair of ID of the added or existing name and boolean wether the name already existed.
 		 
@@ -34,7 +34,20 @@ namespace scatha::sem {
 		 1. \p name may already exist in the current scope. Then it is verified that \p category is the same as for the last call to this function.
 		 2. This function will also be called internally by \p declare*define-Type*Function*Variable()
 		 */
-		std::pair<NameID, bool> addName(Token const& name, NameCategory category);
+		std::pair<NameID, bool> addSymbol(Token const& name, NameCategory category);
+		
+		/**
+		 Add an anonymous symbol to the current scope.
+		 
+		 - parameter \p category: Category of the symbol.
+		 
+		 - returns: Pair of ID of the added or existing name and boolean wether the name already existed.
+		 
+		 # Notes: #
+		 1. \p name may already exist in the current scope. Then it is verified that \p category is the same as for the last call to this function.
+		 2. This function will also be called internally by \p declare*define-Type*Function*Variable()
+		 */
+		NameID addAnonymousSymbol(NameCategory category);
 		
 		/**
 		 Make current one of the child scopes of the current scope.
@@ -120,7 +133,9 @@ namespace scatha::sem {
 		 */
 		NameID lookupName(Token const& name) const;
 		
+		Scope* currentScope() { return _currentScope; }
 		Scope const* currentScope() const { return _currentScope; }
+		Scope* globalScope() { return _currentScope; }
 		Scope const* globalScope() const { return _globalScope.get(); }
 		
 		TypeEx& findTypeByName(Token const& name) {
