@@ -2,18 +2,39 @@
 
 #include <sstream>
 
+#include <utl/utility.hpp>
+
 namespace scatha::sem {
 	
 	/// MARK: Scope
-	Scope::Scope(std::string name, Scope* parent):
+	Scope::Scope(std::string name, Kind kind, Scope* parent):
 		_parent(parent),
+		_kind(kind),
 		_name(std::move(name))
 	{
-		if (this->parentScope() == nullptr) { // meaning we are the root
+		if (this->parentScope() == nullptr) { // meaning we are the root / global scope
+			SC_ASSERT(this->kind() == Global, "We must be root");
 			_root = this;
 		}
 		else {
+			SC_ASSERT(this->kind() != Global, "We must not be root");
 			_root = this->parentScope()->_root;
+		}
+	}
+	
+	static Scope::Kind catToKind(NameCategory cat) {
+		using enum NameCategory;
+		SC_ASSERT(cat == Function || cat == Type || cat == Namespace, "Only these declare scopes");
+		switch (cat) {
+			case Function:
+				return Scope::Function;
+			case Type:
+				return Scope::Struct;
+			case Namespace:
+				return Scope::Namespace;
+				
+			default:
+				SC_UNREACHABLE();
 		}
 	}
 	
@@ -33,10 +54,10 @@ namespace scatha::sem {
 		
 		switch (category) {
 				using enum NameCategory;
-			case NameCategory::Function: [[fallthrough]];
-			case NameCategory::Type:     [[fallthrough]];
+			case NameCategory::Function:  [[fallthrough]];
+			case NameCategory::Type:      [[fallthrough]];
 			case NameCategory::Namespace: {
-				bool const success = _childScopes.insert({ id, std::make_unique<Scope>(name, this) }).second;
+				bool const success = _childScopes.insert({ id, std::make_unique<Scope>(name, catToKind(category), this) }).second;
 				SC_ASSERT(success, "Name should be available");
 				break;
 			}
@@ -66,6 +87,15 @@ namespace scatha::sem {
 		auto itr = _childScopes.find(id);
 		SC_ASSERT(itr != _childScopes.end(), "ID not found");
 		return itr->second.get();
+	}
+
+	std::string_view toString(Scope::Kind kind) {
+		return UTL_SERIALIZE_ENUM(kind, {
+			{ Scope::Global,    "Global" },
+			{ Scope::Function,  "Function" },
+			{ Scope::Struct,    "Struct" },
+			{ Scope::Namespace, "Namespace" },
+		});
 	}
 	
 }

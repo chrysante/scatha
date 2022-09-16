@@ -79,6 +79,20 @@ namespace scatha::ast {
 				break;
 			}
 				
+			case NodeType::StructDeclaration: {
+				auto const* const node = static_cast<StructDeclaration const*>(inNode);
+				str << indent(ind) << "<struct-declaration> : " << node->name() << endl;
+				break;
+			}
+			
+			case NodeType::StructDefinition: {
+				auto const* const node = static_cast<StructDefinition const*>(inNode);
+				str << indent(ind) << "<struct-definition>: " << endl;
+				printTreeImpl(node, str, ind + 1, NodeType::StructDeclaration);
+				printTreeImpl(node->body.get(), str, ind + 1);
+				break;
+			}
+				
 			case NodeType::VariableDeclaration: {
 				auto const* const node = static_cast<VariableDeclaration const*>(inNode);
 				str << indent(ind) << "<variable-declaration> " << node->name() << ": " << (node->declTypename.empty() ? "<deduce-type>" : node->declTypename.id);

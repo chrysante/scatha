@@ -55,6 +55,18 @@ namespace scatha::sem {
 		SemanticError(token, message)
 	{}
 	
+	InvalidDeclaration::InvalidDeclaration(Token const& token, Scope const* scope, std::string_view element):
+		InvalidStatement(token, utl::strcat("Invalid declaration of ", element, " at ", toString(scope->kind())))
+	{}
+	
+	InvalidFunctionDeclaration::InvalidFunctionDeclaration(Token const& token, Scope const* scope):
+		InvalidDeclaration(token, scope, " function ")
+	{}
+	
+	InvalidStructDeclaration::InvalidStructDeclaration(Token const& token, Scope const* scope):
+		InvalidDeclaration(token, scope, " function ")
+	{}
+	
 	InvalidRedeclaration::InvalidRedeclaration(Token const& token, Scope const* scope):
 		InvalidStatement(token, utl::strcat("Identifier \"", token.id, "\" already declared in scope ", fullName(scope)))
 	{}

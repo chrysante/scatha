@@ -16,12 +16,17 @@ namespace scatha::parse {
 	}
 	
 	ast::UniquePtr<ast::AbstractSyntaxTree> Parser::parse() {
+		return parseTranslationUnit();
+	}
+	
+	ast::UniquePtr<ast::TranslationUnit> Parser::parseTranslationUnit() {
 		ast::UniquePtr<ast::TranslationUnit> result = ast::allocate<ast::TranslationUnit>();
 		
 		while (true) {
-			auto decl = parseRootLevelDeclaration();
+			if (tokens.peek().type == TokenType::EndOfFile) { break; }
+			auto decl = parseDeclaration();
 			if (decl == nullptr) {
-				break;
+				throw ParserError(tokens.peek(), "Expected Declarator");
 			}
 			result->declarations.push_back(std::move(decl));
 		}
@@ -30,146 +35,35 @@ namespace scatha::parse {
 	}
 	
 	/// MARK: Private
-	ast::UniquePtr<ast::Declaration> Parser::parseRootLevelDeclaration() {
-		TokenEx const& token = tokens.eat();
+	ast::UniquePtr<ast::Declaration> Parser::parseDeclaration() {
+		TokenEx const& token = tokens.peek();
 		
-		if (token.type == TokenType::EndOfFile) {
-			return nullptr;
-		}
+		SC_ASSERT(token.type != TokenType::EndOfFile, "Not our job");
 		
-		expectKeyword(token);
+		if (!token.isKeyword) { return nullptr; }
 		
 		switch (token.keyword) {
 				using enum Keyword;
+			case Var: [[fallthrough]];
+			case Let:
+				return parseVariableDeclaration();
+				
 			case Function:
-				return parseFunction();
-				break;
+				return parseFunctionDeclaration();
 				
-				
+			case Struct:
+				return parseStructDeclaration();
 				
 			default:
-				throw ParserError(token, "Expected Declarator");
 				break;
 		}
-	}
-	
-	ast::UniquePtr<ast::FunctionDeclaration> Parser::parseFunction() {
-		auto decl = parseFunctionDecl();
-	
-		TokenEx const& token = tokens.peek();
-		if (token.isSeparator) {
-			tokens.eat();
-			return decl;
-		}
-		if (token.id == "{") {
-			ast::UniquePtr<ast::FunctionDefinition> def = ast::allocate<ast::FunctionDefinition>(std::move(*decl));
-			def->body = parseBlock();
-			return def;
-		}
-		throw ParserError(token, "Unexpected ID");
-	}
-	
-	ast::UniquePtr<ast::FunctionDeclaration> Parser::parseFunctionDecl() {
-		TokenEx const& name = tokens.eat();
-		expectIdentifier(name);
-		
-		auto result = ast::allocate<ast::FunctionDeclaration>(name);
-		
-		parseFunctionParameters(result.get());
-		
-		if (TokenEx const& token = tokens.peek(); token.id == "->") {
-			tokens.eat();
-			TokenEx const& type = tokens.eat();
-			expectIdentifier(type);
-			result->declReturnTypename = type;
-		}
-		else {
-			auto copy = token;
-			copy.id = "void";
-			copy.type = TokenType::Identifier;
-			result->declReturnTypename = copy;
-		}
-		
-		return result;
-
-	}
-
-	void Parser::parseFunctionParameters(ast::FunctionDeclaration* fn) {
-		TokenEx const& openParan = tokens.eat();
-		
-		expectID(openParan, "(");
-		
-		if (tokens.peek().id == ")") {
-			tokens.eat();
-			return;
-		}
-		
-		while (true) {
-			fn->parameters.push_back(parseVariableDeclaration(/* isFunctionParameter = */ true));
-			
-			if (TokenEx const& next = tokens.eat(); next.id != ",") {
-				expectID(next, ")");
-				break;
-			}
-		}
-	}
-	
-	ast::UniquePtr<ast::Block> Parser::parseBlock() {
-		auto const& openBrace = tokens.eat();
-		expectID(openBrace, "{");
-		
-		auto result = ast::allocate<ast::Block>(openBrace);
-		
-		while (true) {
-			if (tokens.peek().id == "}") {
-				tokens.eat();
-				break;
-			}
-			result->statements.push_back(parseStatement());
-		}
-		
-		return result;
-	}
-	
-	ast::UniquePtr<ast::Statement> Parser::parseStatement() {
-		TokenEx const& token = tokens.peek();
-		if (token.isKeyword) {
-			using enum Keyword;
-			tokens.eat();
-			switch (token.keyword) {
-				case Var: [[fallthrough]];
-				case Let:
-					return parseVariableDeclaration();
-					
-				case Return:
-					return parseReturnStatement();
-					
-				case If:
-					return parseIfStatement();
-					
-				case While:
-					return parseWhileStatement();
-					
-				default:
-					throw ParserError(token, "Unexpected ID");
-			}
-		}
-		else if (token.id == "{") {
-			return parseBlock();
-		}
-		else {
-			// We have not eaten the first token yet. Parsing an expression should be fine.
-			auto result = ast::allocate<ast::ExpressionStatement>(parseExpression(), token);
-			TokenEx const& next = tokens.eat(false);
-			expectSeparator(next);
-			return result;
-		}
+		return nullptr;
 	}
 	
 	ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(bool isFunctionParameter) {
 		bool isConst = false;
 		if (!isFunctionParameter) {
-			auto const& decl = tokens.current();
+			auto const& decl = tokens.eat();
 			SC_ASSERT_AUDIT(decl.isKeyword, "We should have checked this outside of this function");
 			SC_ASSERT_AUDIT(decl.keyword == Keyword::Var || decl.keyword == Keyword::Let, "Same here");
 			isConst = decl.keyword == Keyword::Let;
@@ -204,6 +98,144 @@ namespace scatha::parse {
 		}
 		
 		return result;
+	}
+	
+	ast::UniquePtr<ast::FunctionDeclaration> Parser::parseFunctionDeclaration() {
+		TokenEx const& declarator = tokens.eat();
+		SC_EXPECT(declarator.isKeyword && declarator.keyword == Keyword::Function, "Should have checked this before");
+		
+		TokenEx const& name = tokens.eat();
+		expectIdentifier(name);
+		
+		auto result = ast::allocate<ast::FunctionDeclaration>(name);
+		
+		parseFunctionParameters(result.get());
+		
+		if (TokenEx const& token = tokens.peek(); token.id == "->") {
+			tokens.eat();
+			TokenEx const& type = tokens.eat();
+			expectIdentifier(type);
+			result->declReturnTypename = type;
+		}
+		else {
+			auto copy = token;
+			copy.id = "void";
+			copy.type = TokenType::Identifier;
+			result->declReturnTypename = copy;
+		}
+		
+		if (tokens.peek().id == "{") {
+			return parseFunctionDefinition(std::move(result));
+		}
+		expectSeparator(tokens.eat());
+		return result;
+	}
+
+	ast::UniquePtr<ast::FunctionDefinition> Parser::parseFunctionDefinition(ast::UniquePtr<ast::FunctionDeclaration> decl) {
+		SC_ASSERT(tokens.peek().id == "{", "Not a definition");
+		auto result = ast::allocate<ast::FunctionDefinition>(std::move(*decl));
+		result->body = parseBlock();
+		return result;
+	}
+	
+	void Parser::parseFunctionParameters(ast::FunctionDeclaration* fn) {
+		TokenEx const& openParan = tokens.eat();
+		
+		expectID(openParan, "(");
+		
+		if (tokens.peek().id == ")") {
+			tokens.eat();
+			return;
+		}
+		
+		while (true) {
+			fn->parameters.push_back(parseVariableDeclaration(/* isFunctionParameter = */ true));
+			
+			if (TokenEx const& next = tokens.eat(); next.id != ",") {
+				expectID(next, ")");
+				break;
+			}
+		}
+	}
+	
+	ast::UniquePtr<ast::StructDeclaration> Parser::parseStructDeclaration() {
+		TokenEx const& declarator = tokens.eat();
+		SC_EXPECT(declarator.isKeyword && declarator.keyword == Keyword::Struct, "Should have checked this before");
+		
+		TokenEx const& name = tokens.eat();
+		expectIdentifier(name);
+		
+		auto result = ast::allocate<ast::StructDeclaration>(name);
+		
+		if (tokens.peek().id == "{") {
+			return parseStructDefinition(std::move(result));
+		}
+		
+		expectSeparator(tokens.eat());
+		
+		return result;
+	}
+	
+	ast::UniquePtr<ast::StructDefinition> Parser::parseStructDefinition(ast::UniquePtr<ast::StructDeclaration> decl) {
+		SC_ASSERT(tokens.peek().id == "{", "Not a definition");
+		auto result = ast::allocate<ast::StructDefinition>(std::move(*decl));
+		result->body = parseBlock();
+		return result;
+	}
+	
+	ast::UniquePtr<ast::Block> Parser::parseBlock() {
+		auto const& openBrace = tokens.eat();
+		expectID(openBrace, "{");
+		
+		auto result = ast::allocate<ast::Block>(openBrace);
+		
+		while (true) {
+			if (tokens.peek().id == "}") {
+				tokens.eat();
+				break;
+			}
+			result->statements.push_back(parseStatement());
+		}
+		
+		return result;
+	}
+	
+	ast::UniquePtr<ast::Statement> Parser::parseStatement() {
+		if (ast::UniquePtr<ast::Statement> result = parseDeclaration();
+			result != nullptr)
+		{
+			return result;
+		}
+		
+		TokenEx const& token = tokens.peek();
+		if (token.isKeyword) {
+			using enum Keyword;
+			tokens.eat();
+			switch (token.keyword) {
+				case Return:
+					return parseReturnStatement();
+					
+				case If:
+					return parseIfStatement();
+					
+				case While:
+					return parseWhileStatement();
+					
+				default:
+					// Var / Let should have been handled above
+					throw ParserError(token, "Unexpected ID");
+			}
+		}
+		else if (token.id == "{") {
+			return parseBlock();
+		}
+		else {
+			// We have not eaten the first token yet. Parsing an expression should be fine.
+			auto result = ast::allocate<ast::ExpressionStatement>(parseExpression(), token);
+			TokenEx const& next = tokens.eat(false);
+			expectSeparator(next);
+			return result;
+		}
 	}
 	
 	ast::UniquePtr<ast::ReturnStatement> Parser::parseReturnStatement() {

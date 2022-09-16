@@ -9,7 +9,7 @@
 
 namespace scatha::sem {
 
-	struct Scope;
+	class Scope;
 	
 	/// MARK: SemanticError
 	/// Base class of all semantic errors
@@ -67,6 +67,21 @@ namespace scatha::sem {
 		InvalidStatement(Token const&, std::string_view message);
 	};
 
+	class InvalidDeclaration: public InvalidStatement {
+	protected:
+		InvalidDeclaration(Token const& token, Scope const* scope, std::string_view element);
+	};
+	
+	class InvalidFunctionDeclaration: public InvalidDeclaration {
+	public:
+		InvalidFunctionDeclaration(Token const& token, Scope const* scope);
+	};
+	
+	class InvalidStructDeclaration: public InvalidDeclaration {
+	public:
+		InvalidStructDeclaration(Token const& token, Scope const* scope);
+	};
+	
 	class InvalidRedeclaration: public InvalidStatement {
 	public:
 		InvalidRedeclaration(Token const& token, Scope const* scope);

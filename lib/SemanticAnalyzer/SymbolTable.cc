@@ -5,7 +5,7 @@
 namespace scatha::sem {
 	
 	SymbolTable::SymbolTable() {
-		_globalScope = std::make_unique<Scope>(std::string{}, nullptr);
+		_globalScope = std::make_unique<Scope>(std::string{}, Scope::Global, nullptr);
 		_currentScope = _globalScope.get();
 		
 		// TODO: Find a better solution for this
@@ -19,7 +19,6 @@ namespace scatha::sem {
 	std::pair<NameID, bool> SymbolTable::addName(Token const& name, NameCategory cat) {
 		auto const [nameID, newlyAdded] = _currentScope->addName(name.id, cat);
 		if (!newlyAdded && nameID.category() != cat) {
-			// TODO: Add test case for this, not possible yet though
 			throw InvalidRedeclaration(name, currentScope(), nameID.category());
 		}
 		return { nameID, newlyAdded };
@@ -85,7 +84,7 @@ namespace scatha::sem {
 	
 	std::pair<Variable*, bool> SymbolTable::declareVariable(Token const& name, TypeID typeID, bool isConstant) {
 		auto const [nameID, newlyAdded] = addName(name, NameCategory::Variable);
-		return vars.emplace(nameID.id(), nameID, typeID);
+		return vars.emplace(nameID.id(), nameID, typeID, isConstant);
 	}
 
 	NameID SymbolTable::lookupName(Token const& name) const {

@@ -47,6 +47,11 @@ namespace scatha::sem {
 			
 			case NodeType::FunctionDeclaration: {
 				auto* const fnDecl = static_cast<FunctionDeclaration*>(inNode);
+				if (auto const sk = symbols.currentScope()->kind();
+					sk != Scope::Global && sk != Scope::Namespace && sk != Scope::Struct)
+				{
+					throw InvalidFunctionDeclaration(fnDecl->token(), symbols.currentScope());
+				}
 				auto const& returnType = symbols.findTypeByName(fnDecl->declReturnTypename);
 				fnDecl->returnTypeID = returnType.id();
 				
@@ -62,7 +67,7 @@ namespace scatha::sem {
 				
 				auto [func, newlyAdded] = symbols.declareFunction(fnDecl->token(), returnType.id(), argTypes);
 				fnDecl->nameID = func->nameID();
-				
+				fnDecl->functionTypeID = func->typeID();
 				return;
 			}
 				
@@ -81,6 +86,31 @@ namespace scatha::sem {
 				for (auto& param: node->parameters) {
 					symbols.declareVariable(param->token(), param->typeID, true);
 				}
+				
+				doRun(node->body.get());
+				
+				return;
+			}
+				
+			case NodeType::StructDeclaration: {
+				auto* const sDecl = static_cast<StructDeclaration*>(inNode);
+				if (auto const sk = symbols.currentScope()->kind();
+					sk != Scope::Global && sk != Scope::Namespace && sk != Scope::Struct)
+				{
+					throw InvalidStructDeclaration(sDecl->token(), symbols.currentScope());
+				}
+				sDecl->nameID = symbols.declareType(sDecl->token());
+				return;
+			}
+			
+			case NodeType::StructDefinition: {
+				auto* const node = static_cast<StructDefinition*>(inNode);
+				
+				doRun(node, NodeType::StructDeclaration);
+
+				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->nameID, "Just to be sure");
+				symbols.pushScope(node->nameID);
+				utl_defer { symbols.popScope(); };
 				
 				doRun(node->body.get());
 				
@@ -128,12 +158,18 @@ namespace scatha::sem {
 				
 			case NodeType::ExpressionStatement: {
 				auto* const node = static_cast<ExpressionStatement*>(inNode);
+				if (symbols.currentScope()->kind() != Scope::Function) {
+					throw InvalidStatement(node->token(), "Expression statements can only appear at function scope.");
+				}
 				doRun(node->expression.get());
 				return;
 			}
 				
 			case NodeType::ReturnStatement: {
 				auto* const node = static_cast<ReturnStatement*>(inNode);
+				if (symbols.currentScope()->kind() != Scope::Function) {
+					throw InvalidStatement(node->token(), "Return statements can only appear at function scope.");
+				}
 				doRun(node->expression.get());
 				SC_ASSERT(currentFunction != nullptr, "This should have been set by case FunctionDefinition");
 				verifyConversion(node->expression.get(), currentFunction->returnTypeID);
@@ -142,6 +178,9 @@ namespace scatha::sem {
 				
 			case NodeType::IfStatement: {
 				auto* const node = static_cast<IfStatement*>(inNode);
+				if (symbols.currentScope()->kind() != Scope::Function) {
+					throw InvalidStatement(node->token(), "If statements can only appear at function scope.");
+				}
 				doRun(node->condition.get());
 				verifyConversion(node->condition.get(), symbols.Bool());
 				doRun(node->ifBlock.get());
@@ -150,6 +189,9 @@ namespace scatha::sem {
 			}
 			case NodeType::WhileStatement: {
 				auto* const node = static_cast<WhileStatement*>(inNode);
+				if (symbols.currentScope()->kind() != Scope::Function) {
+					throw InvalidStatement(node->token(), "While statements can only appear at function scope.");
+				}
 				doRun(node->condition.get());
 				verifyConversion(node->condition.get(), symbols.Bool());
 				doRun(node->block.get());
@@ -193,7 +235,8 @@ namespace scatha::sem {
 				return;
 			}
 				
-				/// TODO: A lot of work still need to be done here
+				/// TODO: A lot of work still needs to be done here
+				/// add a way to define and to lookup operators
 			case NodeType::UnaryPrefixExpression: {
 				auto* const node = static_cast<UnaryPrefixExpression*>(inNode);
 				doRun(node->operand.get());

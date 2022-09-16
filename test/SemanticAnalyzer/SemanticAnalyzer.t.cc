@@ -129,6 +129,9 @@ fn caller() -> float {
 	auto* calleeDecl = dynamic_cast<FunctionDeclaration*>(tu->declarations[0].get());
 	REQUIRE(calleeDecl);
 	CHECK(calleeDecl->returnTypeID == sym.Float());
+	auto calleeArgTypes = { sym.String(), sym.Int() };
+	auto const& functionType = sym.getType(computeFunctionTypeID(sym.Float(), calleeArgTypes));
+	CHECK(calleeDecl->functionTypeID == functionType.id());
 	CHECK(calleeDecl->parameters[0]->typeID == sym.String());
 	CHECK(calleeDecl->parameters[1]->typeID == sym.Int());
 	
@@ -138,6 +141,40 @@ fn caller() -> float {
 	auto* resultDecl = dynamic_cast<VariableDeclaration*>(caller->body->statements[0].get());
 	CHECK(resultDecl->initExpression->typeID == sym.Float());
 }
+
+TEST_CASE("Decoration of the AST with struct definition", "[sem]") {
+	std::string const text = R"(
+
+struct X {
+	var i: float;
+	var j: int = 0;
+	fn f(x: int, y: int) -> string {}
+}
+
+)";
+
+	auto [ast, sym] = produceDecoratedASTAndSymTable(text);
+	
+	auto* tu = dynamic_cast<TranslationUnit*>(ast.get());
+	REQUIRE(tu);
+	auto* xDef = dynamic_cast<StructDefinition*>(tu->declarations[0].get());
+	REQUIRE(xDef);
+	CHECK(xDef->name() == "X");
+	auto* iDecl = dynamic_cast<VariableDeclaration*>(xDef->body->statements[0].get());
+	REQUIRE(iDecl);
+	CHECK(iDecl->name() == "i");
+	CHECK(iDecl->typeID == sym.Float());
+	auto* jDecl = dynamic_cast<VariableDeclaration*>(xDef->body->statements[1].get());
+	REQUIRE(jDecl);
+	CHECK(jDecl->name() == "j");
+	CHECK(jDecl->typeID == sym.Int());
+	auto* fDef = dynamic_cast<FunctionDefinition*>(xDef->body->statements[2].get());
+	REQUIRE(fDef);
+	CHECK(fDef->name() == "f");
+	// TODO: Test argument types when we properly recognize member functions as having an implicit 'this' argument
+	CHECK(fDef->returnTypeID == sym.String());
+}
+
 
 TEST_CASE("Semantic analysis failures", "[sem]") {
 	SECTION("Use of undeclared identifier") {
@@ -193,6 +230,16 @@ fn f(x: int) {
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(text), InvalidRedeclaration);
 	}
 	
+	SECTION("Invalid redeclaration category") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct f;"
+													   "fn f();"), InvalidRedeclaration);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f();"
+													   "struct f;"), InvalidRedeclaration);
+		CHECK_NOTHROW(produceDecoratedASTAndSymTable("struct f;"
+													 "struct f;"
+													 "struct f {}"));
+	}
+	
 	SECTION("Invalid symbol reference") {
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() -> UnknownID;"), InvalidSymbolReference);
 	}
@@ -200,6 +247,23 @@ fn f(x: int) {
 	SECTION("Invalid variable declaration") {
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let v; }"), InvalidStatement);
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let x = 0; let y: x; }"), InvalidStatement);
+	}
+	
+	SECTION("Invalid function declaration") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { fn g(); }"), InvalidFunctionDeclaration);
+	}
+	
+	SECTION("Invalid struct declaration") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { struct X; }"), InvalidStructDeclaration);
+	}
+	
+	SECTION("Invalid statement at struct scope") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { return 0; }"), InvalidStatement);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { 1; }"), InvalidStatement);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { 1 + 2; }"), InvalidStatement);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { if (1 > 0) {} }"), InvalidStatement);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { while (1 > 0) {} }"), InvalidStatement);
+		CHECK_NOTHROW(produceDecoratedASTAndSymTable("struct X { var i: int; }"));
 	}
 	
 	SECTION("Other semantic errors") {

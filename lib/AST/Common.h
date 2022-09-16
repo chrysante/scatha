@@ -15,6 +15,8 @@ namespace scatha::ast {
 		Block,
 		FunctionDeclaration,
 		FunctionDefinition,
+		StructDeclaration,
+		StructDefinition,
 		VariableDeclaration,
 		ExpressionStatement,
 		ReturnStatement,

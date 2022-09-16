@@ -52,8 +52,7 @@ namespace scatha::ast {
 			_token(token)
 		{}
 		
-	private:
-		friend class FunctionDefinition;
+	protected:
 		NodeType _type;
 		Token _token;
 	};

@@ -87,6 +87,18 @@ namespace scatha::ast {
 				printSource_impl(fn->body.get(), str, endl);
 				break;
 			}
+			case StructDeclaration: {
+				auto const* const s = static_cast<struct StructDeclaration const*>(node);
+				str << "struct " << s->name();
+				break;
+			}
+			case StructDefinition: {
+				auto const* const s = static_cast<ast::StructDefinition const*>(node);
+				printSource_impl(s, str, endl, NodeType::StructDeclaration);
+				str << " ";
+				printSource_impl(s->body.get(), str, endl);
+				break;
+			}
 			case VariableDeclaration: {
 				auto const* const var = static_cast<struct VariableDeclaration const*>(node);
 				str << (var->isConstant ? "let" : "var") << " " << var->name() << ": ";

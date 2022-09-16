@@ -21,9 +21,16 @@ namespace scatha::sem {
 	 */
 	class Scope {
 	public:
-		explicit Scope(std::string name, Scope* parent);
-		explicit Scope(std::string_view name, Scope* parent): Scope(std::string(name), parent) {}
+		enum Kind {
+			Global, Function, Struct, Namespace, _count
+		};
+		
+	public:
+		explicit Scope(std::string name, Kind kind, Scope* parent);
+		explicit Scope(std::string_view name, Kind kind, Scope* parent): Scope(std::string(name), kind, parent) {}
 		~Scope() = default;
+		
+		Kind kind() const { return _kind; }
 		
 		std::string_view name() const { return _name; }
 		
@@ -44,6 +51,8 @@ namespace scatha::sem {
 	private:
 		Scope* _parent = nullptr;
 		Scope* _root = nullptr;
+		Kind _kind;
+		
 		u64 _nameIDCounter = 0;
 		
 		std::string _name;
@@ -52,6 +61,8 @@ namespace scatha::sem {
 		
 		utl::hashmap<NameID, std::unique_ptr<Scope>> _childScopes;
 	};
+	
+	std::string_view toString(Scope::Kind);
 	
 }
 

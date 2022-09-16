@@ -15,6 +15,35 @@
 #include "AST/Expression.h"
 #include "SemanticAnalyzer/SemanticElements.h"
 
+/*
+ AbstractSyntaxTree
+ +- TranslationUnit
+ +- Statement
+ |  +- Declaration
+ |  |  +- VariableDeclaration
+ |  |  +- ModuleDeclaration
+ |  |  +- FunctionDeclaration
+ |  |     +- FunctionDefinition
+ |  |  +- StructDeclaration
+ |  |     +- StructDefinition
+ |  +- Block
+ |  +- ExpressionStatement
+ |  +- ControlFlowStatement
+ |     +- ReturnStatement
+ |     +- IfStatement
+ |     +- WhileStatement
+ +- Expression
+    +- Identifier
+    +- IntegerLiteral
+    +- StringLiteral
+    +- UnaryPrefixExpression
+    +- BinaryExpression
+    +- MemberAccess
+    +- Conditional
+    +- FunctionCall
+    +- Subscript
+ */
+
 namespace scatha::ast {
 	
 	/// MARK: Statement
@@ -119,6 +148,9 @@ namespace scatha::ast {
 		
 		/// Return type of the function.
 		sem::TypeID returnTypeID = sem::TypeID::Invalid;
+		
+		/// Type of the function.
+		sem::TypeID functionTypeID = sem::TypeID::Invalid;
 	};
 	
 	/// MARK: FunctionDefinition
@@ -135,6 +167,33 @@ namespace scatha::ast {
 		}
 			
 		/// Body of the function.
+		UniquePtr<Block> body;
+	};
+	
+	/// MARK: StructDeclaration
+	/// Concrete node representing the declaration of a struct.
+	struct StructDeclaration: Declaration {
+		explicit StructDeclaration(Token const& name):
+			Declaration(NodeType::StructDeclaration, std::move(name))
+		{}
+		
+		/** Decoration provided by semantic analysis. */
+		
+		/// Type of this type.
+		sem::TypeID typeID = sem::TypeID::Invalid;
+	};
+	
+	/// MARK: StructDefinition
+	/// Concrete node representing the definition of a struct.
+	struct StructDefinition: StructDeclaration {
+		explicit StructDefinition(StructDeclaration&& decl, UniquePtr<Block> body = nullptr):
+			StructDeclaration(std::move(decl)),
+			body(std::move(body))
+		{
+			_type = NodeType::StructDefinition;
+		}
+			
+		/// Body of the definition.
 		UniquePtr<Block> body;
 	};
 	
