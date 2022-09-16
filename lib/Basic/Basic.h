@@ -20,6 +20,9 @@
 #define SC_DEBUGFAIL() __builtin_trap()
 #define SC_DEBUGBREAK() __builtin_debugtrap()
 
+// make this compiler intrinsic unreachable
+#define SC_UNREACHABLE() SC_DEBUGFAIL()
+
 #define SC_ASSERT(COND, MSG) ((COND) ? (void)0 : SC_DEBUGFAIL())
 
 #define SC_ASSERT_AUDIT(COND, MSG) SC_ASSERT(COND, MSG)
