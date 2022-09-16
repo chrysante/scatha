@@ -118,8 +118,9 @@ namespace scatha::sem {
 				}
 				if (!node->isFunctionParameter) /* Function parameters will be declared by the FunctionDefinition case */ {
 					auto [var, newlyAdded] = symbols.declareVariable(node->token(), node->typeID, node->isConstant);
-					
-					SC_ASSERT(newlyAdded, "we dont support multiple declarations just yet"); // TODO: This should throw obviously
+					if (!newlyAdded) {
+						throw InvalidRedeclaration(node->token(), symbols.currentScope());
+					}
 					node->nameID = var->nameID();
 				}
 				return;
