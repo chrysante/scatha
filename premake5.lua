@@ -18,6 +18,8 @@ filter "configurations:release"
     defines "NDEBUG"
 filter {}
 
+flags { "ExtraWarnings" }
+
 targetdir("build/bin/%{cfg.longname}")
 objdir("build/obj/%{cfg.longname}")
 
