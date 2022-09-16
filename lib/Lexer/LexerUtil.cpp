@@ -34,7 +34,6 @@ namespace scatha::lex {
 			"==", "!=", "<", "<=", ">", ">=",
 			
 			".", "->"
-			/// TODO: Add other operators
 		};
 		for (auto o: operators) {
 			if (id == o) {
