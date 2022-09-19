@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include <utl/hashset.hpp>
+
 #include "Basic/PrintUtil.h"
 
 namespace scatha::sem {
@@ -21,19 +23,33 @@ namespace scatha::sem {
 	static Indenter indent(int level) { return Indenter(level, 2); }
 	
 	void printSymbolTable(SymbolTable const& sym, std::ostream& str) {
-		str << "Global Scope" << endl;
 		internal::ScopePrinter p{ sym };
-		p.printScope(sym.globalScope(), str, 2);
+		p.printScope(sym.globalScope(), str, 0);
 	}
 	
 	void internal::ScopePrinter::printScope(Scope const* scope, std::ostream& str, int ind) {
-		str << indent(ind - 1) << "Symbols:" << endl;
-		for (auto&& [name, id]: scope->_nameToID) {
-			str << indent(ind) << name << endl;
+		utl::hashset<NameID> printedScopes;
+		if (!scope->_nameToID.empty()) {
+			for (auto&& [name, id]: scope->_nameToID) {
+				
+				str << indent(ind) << toString(id.category()) << " " << name << endl;
+				auto const itr = scope->_childScopes.find(id);
+				if (itr == scope->_childScopes.end()) {
+					continue;
+				}
+				auto const [_, insertSuccess] = printedScopes.insert(id);
+				SC_ASSERT(insertSuccess, "");
+				auto const& childScope = itr->second;
+				printScope(childScope.get(), str, ind+1);
+			}
 		}
-		str << indent(ind - 1) << "Child scopes:" << endl;
-		for (auto&& [id, child]: scope->_childScopes) {
-			printScope(child.get(), str, ind + 2);
+		
+		for (auto&& [id, childScope]: scope->_childScopes) {
+			if (printedScopes.contains(id)) {
+				continue;
+			}
+			str << indent(ind) << "<anonymous-scope>" << endl;
+			printScope(childScope.get(), str, ind+1);
 		}
 	}
 	

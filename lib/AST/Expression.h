@@ -32,6 +32,10 @@ namespace scatha::ast {
 		{}
 		
 		std::string_view value() const { return token().id; }
+		
+		/** Decoration provided by semantic analysis. */
+		
+		sem::NameID symbolID;
 	};
 	
 	struct IntegerLiteral: Expression {

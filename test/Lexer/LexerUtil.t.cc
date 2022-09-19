@@ -11,6 +11,7 @@ TEST_CASE("isLetter", "[lex]") {
 	CHECK( isLetter('A'));
 	CHECK( isLetter('W'));
 	CHECK( isLetter('Z'));
+	CHECK( isLetter('_'));
 	
 	CHECK(!isLetter('0'));
 	CHECK(!isLetter('9'));
@@ -25,5 +26,8 @@ TEST_CASE("isDigit", "[lex]") {
 	CHECK( isDigitDec('0'));
 	CHECK( isDigitDec('9'));
 	CHECK(!isDigitDec(0));
+	CHECK(!isDigitDec('A'));
+	CHECK(!isDigitDec('g'));
+	CHECK(!isDigitDec('_'));
 }
 

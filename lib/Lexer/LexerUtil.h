@@ -11,7 +11,7 @@
 namespace scatha::lex {
 	
 	inline bool isLetter(char c) {
-		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 	}
 	
 	inline bool isDigitDec(char c) {
