@@ -229,12 +229,14 @@ fn f(x: int);
 	}
 	
 	SECTION("Invalid variable redeclaration") {
-		std::string const text = R"(
+		std::string const a = R"(
 fn f(x: int) {
 	let x: float;
 }
 )";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(text), InvalidRedeclaration);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), InvalidRedeclaration);
+
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f(x: int, x: int) {}"), InvalidRedeclaration);
 	}
 	
 	SECTION("Invalid redeclaration category") {

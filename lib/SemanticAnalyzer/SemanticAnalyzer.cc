@@ -95,7 +95,11 @@ namespace scatha::sem {
 					symbols.pushScope(node->nameID);
 					utl_defer { symbols.popScope(); };
 					for (auto& param: node->parameters) {
-						symbols.declareVariable(param->token(), param->typeID, true);
+						auto [var, newlyAdded] = symbols.declareVariable(param->token(), param->typeID, true);
+						if (!newlyAdded) {
+							throw InvalidRedeclaration(param->token(), symbols.currentScope());
+						}
+						param->nameID = var->nameID();
 					}
 				}
 				
@@ -220,6 +224,8 @@ namespace scatha::sem {
 					throw UseOfUndeclaredIdentifier(node->token());
 				}
 				
+				node->symbolID = nameID;
+				
 				if (!(nameID.category() & (NameCategory::Variable | NameCategory::Function))) {
 					/// TODO: Throw something better here
 					throw SemanticError(node->token(), "Invalid use of identifier");
@@ -254,6 +260,7 @@ namespace scatha::sem {
 			case NodeType::UnaryPrefixExpression: {
 				auto* const node = static_cast<UnaryPrefixExpression*>(inNode);
 				doRun(node->operand.get());
+				node->typeID = node->operand->typeID;
 				return;
 			}
 				
@@ -334,7 +341,9 @@ namespace scatha::sem {
 		auto doThrow = [&]{
 			/// TODO: Think of somethin better here
 			/// probably think of some way of how to lookup and define operators
-			throw SemanticError(expr->token(), "Invalid types for operator " + std::string(toString(expr->op)));
+			throw SemanticError(expr->token(), utl::strcat("Invalid types for operator ", toString(expr->op), ": \"",
+														   symbols.getType(expr->lhs->typeID).name(), "\" and \"",
+														   symbols.getType(expr->rhs->typeID).name(), "\""));
 		};
 		
 		auto verifySame = [&]{
