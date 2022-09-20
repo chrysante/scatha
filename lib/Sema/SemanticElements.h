@@ -82,38 +82,15 @@ namespace scatha::sema {
 								 struct TypeEx const& functionType,
 								 TypeID returnType,
 								 std::span<TypeID const> argumentTypes);
-	
-	// Not sure if we need this
-//	class QualifiedName {
-//		explicit QualifiedName(std::string v): value(std::move(v)) {
-//			SC_ASSERT(std::find(value.begin(), value.end(), '.') == value.end(), "value must be an unqualified identifier");
-//		}
-//
-//		QualifiedName& operator+=(QualifiedName const& rhs)& {
-//			*this += rhs.value;
-//			levels += rhs.levels;
-//			return *this;
-//		}
-//
-//		QualifiedName& operator+=(std::string_view rhs)& {
-//			value.reserve(value.size() + 1 + rhs.size());
-//			value += '.';
-//			value += rhs;
-//			levels += 1;
-//			return *this;
-//		}
-//
-//	private:
-//		int levels = 0; // aka number of dots in the string
-//		std::string value;
-//	};
-	
+		
 	/**
 	 * class \p TypeEx
 	 * Represents a type in the language. Types can be user defined.
 	 * Extends \p Type with additional information.
 	 */
 	struct TypeEx {
+		friend class SymbolTable;
+		
 	public:
 		static constexpr std::string_view elementName() { return "Type"; }
 		
@@ -133,14 +110,13 @@ namespace scatha::sema {
 		
 		
 		bool isFunctionType() const { return _isFunctionType; }
+		bool isBuiltin() const { return _isBuiltin; }
 		
 		/// These may only be called if \p isFunctionType() returns true
 		TypeID returnType() const { return _returnType; }
 		size_t argumentCount() const { return _argumentTypes.size(); }
 		std::span<TypeID const> argumentTypes() const { return _argumentTypes; }
 		TypeID argumentType(size_t index) const { return _argumentTypes[index]; }
-		
-		
 		
 		friend bool operator==(TypeEx const&, TypeEx const&);
 		
@@ -154,7 +130,8 @@ namespace scatha::sema {
 		u16 _size = 0;
 		u16 _align = 0;
 		
-		bool _isFunctionType: 1 = false;
+		bool _isFunctionType : 1 = false;
+		bool _isBuiltin      : 1 = false;
 		
 		// Function types are not named so it is fine to put this in a union
 		union {

@@ -9,11 +9,11 @@ namespace scatha::sema {
 		_currentScope = _globalScope.get();
 		
 		// TODO: Find a better solution for this
-		_void   = defineType(Token("void"),    0, 0).id();
-		_bool   = defineType(Token("bool"),    1, 1).id();
-		_int    = defineType(Token("int"),     8, 8).id();
-		_float  = defineType(Token("float"),   8, 8).id();
-		_string = defineType(Token("string"), 24, 8).id();
+		_void   = defineBuiltinType(Token("void"),    0, 0).id();
+		_bool   = defineBuiltinType(Token("bool"),    1, 1).id();
+		_int    = defineBuiltinType(Token("int"),     8, 8).id();
+		_float  = defineBuiltinType(Token("float"),   8, 8).id();
+		_string = defineBuiltinType(Token("string"), 24, 8).id();
 	}
 	
 	std::pair<SymbolID, bool> SymbolTable::addSymbol(Token const& name, SymbolCategory cat) {
@@ -58,6 +58,12 @@ namespace scatha::sema {
 		}
 		SC_ASSERT_AUDIT(type != nullptr, "If the type has been added before it'd better not be null");
 		return *type;
+	}
+	
+	TypeEx& SymbolTable::defineBuiltinType(Token const& name, size_t size, size_t align) {
+		auto& type = defineType(name, size, align);
+		type._isBuiltin = true;
+		return type;
 	}
 	
 	std::pair<Function*, bool> SymbolTable::declareFunction(Token const& name, TypeID returnType, std::span<TypeID const> argumentTypes) {

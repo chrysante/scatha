@@ -94,6 +94,8 @@ namespace scatha::sema {
 		 */
 		TypeEx& defineType(Token const& name, size_t size, size_t align);
 		
+		TypeEx& defineBuiltinType(Token const& name, size_t size, size_t align);
+		
 		/**
 		 Declare a function in the current scope.
 		 
