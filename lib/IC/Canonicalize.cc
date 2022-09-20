@@ -3,7 +3,7 @@
 #include "AST/Traversal.h"
 #include "Basic/Basic.h"
 
-namespace scatha::sema {
+namespace scatha::ic {
 	
 	namespace {
 		struct Traverser {
