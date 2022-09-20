@@ -24,6 +24,7 @@ namespace scatha::lex {
 		std::optional<Token> getToken();
 		
 		std::optional<Token> getOneLineComment();
+		std::optional<Token> getMultiLineComment();
 		std::optional<Token> getSpaces();
 		std::optional<Token> getPunctuation();
 		std::optional<Token> getIdentifier();
@@ -40,7 +41,7 @@ namespace scatha::lex {
 		
 	private:
 		std::string_view text;
-		SourceLocation currentLocation;
+		SourceLocation currentLocation{ 0, 1, 1 };
 	};
 	
 	

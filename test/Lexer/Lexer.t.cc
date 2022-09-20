@@ -28,8 +28,9 @@ namespace {
 		Lexer l(test.text);
 		auto const tokens = l.lex();
 		
-		REQUIRE(tokens.size() == test.reference.size());
-		for (std::size_t i = 0; i < tokens.size(); ++i) {
+		CHECK(tokens.size() == test.reference.size());
+		
+		for (std::size_t i = 0; i < std::min(tokens.size(), test.reference.size()); ++i) {
 			INFO(name << ":\nLHS: " << test.reference[i] << "\nRHS: " << tokens[i]);
 			CHECK(test.reference[i].type == tokens[i].type);
 			CHECK(test.reference[i].id == tokens[i].id);
@@ -207,6 +208,9 @@ import std;
 import myLib;
 
 fn main() -> void {
+/*
+an ignored multi line comment
+*/
 	var text_: string = "Hello World!";
 	std.print(_text);
 	1.0;

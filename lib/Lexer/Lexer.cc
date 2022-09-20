@@ -36,6 +36,9 @@ namespace scatha::lex {
 		if (auto comment = getOneLineComment()) {
 			return getToken();
 		}
+		if (auto comment = getMultiLineComment()) {
+			return getToken();
+		}
 		if (auto spaces = getSpaces()) {
 			return getToken();
 		}
@@ -76,6 +79,34 @@ namespace scatha::lex {
 		while (true) {
 			result.id += current();
 			if (current() == '\n' || !advance()) {
+				return result;
+			}
+		}
+	}
+	
+	std::optional<Token> Lexer::getMultiLineComment() {
+		if (current() != '/') {
+			return std::nullopt;
+		}
+		if (auto const next = this->next();
+			!next || *next != '*')
+		{
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::Other);
+		result.id += current();
+		advance();
+		// now we are at the next character after "/*"
+		while (true) {
+			result.id += current();
+			
+			if (!advance()) {
+				throw UnterminatedMultiLineComment(result);
+			}
+			
+			if (result.id.back() == '*' && current() == '/') {
+				result.id += current();
+				advance();
 				return result;
 			}
 		}
@@ -208,14 +239,14 @@ namespace scatha::lex {
 	}
 	
 	bool Lexer::advance() {
+		if (text[currentLocation.index] == '\n') {
+			currentLocation.column = 0;
+			++currentLocation.line;
+		}
 		++currentLocation.index;
 		++currentLocation.column;
 		if (currentLocation.index == text.size()) {
 			return false;
-		}
-		if (text[currentLocation.index] == '\n') {
-			currentLocation.column = 1;
-			++currentLocation.line;
 		}
 		return true;
 	}

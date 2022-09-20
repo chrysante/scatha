@@ -14,6 +14,10 @@ namespace scatha::lex {
 		LexicalIssue(token, "Invalid numeric literal")
 	{}
 	
+	UnterminatedMultiLineComment::UnterminatedMultiLineComment(Token const& token):
+		LexicalIssue(token, "Unterminated multi line comment")
+	{}
+	
 	UnterminatedStringLiteral::UnterminatedStringLiteral(Token const& token):
 		LexicalIssue(token, "Unterminated string literal")
 	{}

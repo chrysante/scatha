@@ -25,6 +25,11 @@ namespace scatha::lex {
 		explicit InvalidNumericLiteral(Token const&);
 	};
 	
+	class UnterminatedMultiLineComment: public LexicalIssue {
+	public:
+		explicit UnterminatedMultiLineComment(Token const&);
+	};
+	
 	class UnterminatedStringLiteral: public LexicalIssue {
 	public:
 		explicit UnterminatedStringLiteral(Token const&);
