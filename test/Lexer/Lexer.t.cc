@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "Lexer/Lexer.h"
+#include "Lexer/LexicalIssue.h"
 
 using namespace scatha;
 using namespace lex;
@@ -13,7 +14,11 @@ namespace {
 		TokenType type;
 		std::string id;
 	};
-
+	
+	std::ostream& operator<<(std::ostream& str, ReferenceToken const& t) {
+		return str << "{ .type = " << t.type << ", .id = " << t.id << " }";
+	}
+	
 	struct TestCase {
 		std::string text;
 		std::vector<ReferenceToken> reference;
@@ -23,10 +28,9 @@ namespace {
 		Lexer l(test.text);
 		auto const tokens = l.lex();
 		
-		INFO(name);
-		
 		REQUIRE(tokens.size() == test.reference.size());
 		for (std::size_t i = 0; i < tokens.size(); ++i) {
+			INFO(name << ":\nLHS: " << test.reference[i] << "\nRHS: " << tokens[i]);
 			CHECK(test.reference[i].type == tokens[i].type);
 			CHECK(test.reference[i].id == tokens[i].id);
 		}
@@ -55,9 +59,9 @@ fn main() -> void {
 	}
 }
 
-TEST_CASE("Lexer (not checking source location)", "[lex]") {
+TEST_CASE("Lexer positive", "[lex]") {
 	
-	SECTION("1") {
+	SECTION("Section 1") {
 		TestCase test;
 		test.text = R"(
  fn mul(a: int, b: int) -> int {
@@ -98,10 +102,10 @@ TEST_CASE("Lexer (not checking source location)", "[lex]") {
 			{ TokenType::EndOfFile,   "" }
 		};
 		
-		runTest("1", test);
+		runTest("Section 1", test);
 	}
 	
-	SECTION("2") {
+	SECTION("Section 2") {
 		TestCase test;
 		test.text = R"(
 import std;
@@ -144,10 +148,10 @@ fn main() {
 			{ TokenType::EndOfFile, "" }
 		};
 		
-		runTest("2", test);
+		runTest("Section 2", test);
 	}
 
-	SECTION("3") {
+	SECTION("Section 3") {
 		TestCase test;
 		test.text = R"(
 a*=b;x+=1;fn(true&&false)+=NULL;
@@ -193,18 +197,19 @@ while (x >= 0) {
 			{ TokenType::Punctuation, "}" },
 			{ TokenType::EndOfFile, "" }
 		};
-		runTest("3", test);
+		runTest("Section 3", test);
 	}
 	
-	SECTION("4") {
+	SECTION("Section 4") {
 		TestCase test;
 		test.text = R"(
 import std;
 import myLib;
 
 fn main() -> void {
-	var text: string = "Hello World!";
-	std.print(text);
+	var text_: string = "Hello World!";
+	std.print(_text);
+	1.0;
 }
 )";
 		test.reference = {
@@ -222,7 +227,7 @@ fn main() -> void {
 			{ TokenType::Identifier, "void" },
 			{ TokenType::Punctuation, "{" },
 			{ TokenType::Identifier, "var" },
-			{ TokenType::Identifier, "text" },
+			{ TokenType::Identifier, "text_" },
 			{ TokenType::Punctuation, ":" },
 			{ TokenType::Identifier, "string" },
 			{ TokenType::Operator, "=" },
@@ -232,13 +237,27 @@ fn main() -> void {
 			{ TokenType::Operator, "." },
 			{ TokenType::Identifier, "print" },
 			{ TokenType::Punctuation, "(" },
-			{ TokenType::Identifier, "text" },
+			{ TokenType::Identifier, "_text" },
 			{ TokenType::Punctuation, ")" },
+			{ TokenType::Punctuation, ";" },
+			{ TokenType::FloatingPointLiteral, "1.0" },
 			{ TokenType::Punctuation, ";" },
 			{ TokenType::Punctuation, "}" },
 			{ TokenType::EndOfFile, "" }
 		};
-		runTest("4", test);
+		runTest("Section 4", test);
 	}
 	
+}
+
+static void lexString(std::string_view text) {
+	Lexer l(text);
+	(void)l.lex();
+}
+
+TEST_CASE("Lexer negative", "[lex]") {
+	CHECK_THROWS_AS(lexString("123someID"), InvalidNumericLiteral);
+	CHECK_THROWS_AS(lexString("123.23someID"), InvalidNumericLiteral);
+	CHECK_THROWS_AS(lexString(R"("begin string
+ and end on next, line"))"), UnterminatedStringLiteral);
 }

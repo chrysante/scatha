@@ -4,6 +4,8 @@
 #define SCATHA_LEXER_LEXER_H_
 
 #include <string>
+#include <optional>
+
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
@@ -19,23 +21,26 @@ namespace scatha::lex {
 		[[nodiscard]] utl::vector<Token> lex();
 		
 	private:
-		void beginToken(TokenType type);
-		void submitCurrentToken();
+		std::optional<Token> getToken();
 		
-		bool lexOperator(char);
-		bool lexStringLiteral(char c);
+		std::optional<Token> getOneLineComment();
+		std::optional<Token> getSpaces();
+		std::optional<Token> getPunctuation();
+		std::optional<Token> getIdentifier();
+		std::optional<Token> getIntegerLiteral();
+		std::optional<Token> getFloatingPointLiteral();
+		std::optional<Token> getStringLiteral();
+		std::optional<Token> getOperator();
 		
-		bool lexOneLineComment(char c);
+		bool advance();
+		
+		Token beginToken2(TokenType type) const;
+		char current() const;
+		std::optional<char> next(size_t offset = 1) const;
 		
 	private:
 		std::string_view text;
-		
-		utl::vector<Token> result;
-		
-		SourceLocation sc;
-		
-		bool lexingToken = false;
-		Token currentToken;
+		SourceLocation currentLocation;
 	};
 	
 	

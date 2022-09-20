@@ -14,10 +14,12 @@ namespace scatha {
 	enum class TokenType {
 		Identifier,
 		IntegerLiteral,
+		FloatingPointLiteral,
 		StringLiteral,
 		Punctuation,
 		Operator,
 		EndOfFile,
+		Other,
 		_count
 	};
 	

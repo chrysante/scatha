@@ -33,7 +33,8 @@ namespace scatha::lex {
 			
 			"==", "!=", "<", "<=", ">", ">=",
 			
-			".", "->"
+			".", "->",
+			"?"
 		};
 		for (auto o: operators) {
 			if (id == o) {

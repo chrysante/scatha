@@ -18,6 +18,10 @@ namespace scatha::lex {
 		return c >= '0' && c <= '9';
 	}
 	
+	inline bool isFloatDigitDec(char c) {
+		return isDigitDec(c) || c == '.';
+	}
+	
 	inline bool isLetterEx(char c) {
 		return isLetter(c) || isDigitDec(c);
 	}

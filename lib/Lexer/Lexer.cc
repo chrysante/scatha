@@ -1,7 +1,7 @@
 #include "Lexer/Lexer.h"
 
 #include "Lexer/LexerUtil.h"
-#include "Lexer/LexerError.h"
+#include "Lexer/LexicalIssue.h"
 
 namespace scatha::lex {
 
@@ -12,157 +12,230 @@ namespace scatha::lex {
 	}
 	
 	utl::vector<Token> Lexer::lex() {
-		assert(result.empty() && "Lexer has been run before");
-		assert(sc.index == 0 && "Lexer has been run before");
+		SC_ASSERT(currentLocation.index == 0, "Lexer has been run before");
 		
-		size_t const length = text.size();
+		utl::vector<Token> result;
 		
-		for (sc.index = 0, sc.line = 1, sc.column = 1; sc.index < length; ++sc.index, ++sc.column) {
-			char const c = text[sc.index];
-			
-			if (lexOneLineComment(c)) {
-				continue;
-			}
-			
-			if (isDelimiter(c)) {
-				submitCurrentToken();
-			}
-
-			if (isSpace(c)) {
-				if (isNewline(c)) {
-					++sc.line;
-					sc.column = 0;
-				}
-				continue;
-			}
-			
-			if (isPunctuation(c)) {
-				beginToken(TokenType::Punctuation);
-				currentToken.id += c;
-				submitCurrentToken();
-				continue;
-			}
-			
-			if (!lexingToken && isLetter(c)) {
-				beginToken(TokenType::Identifier);
-			}
-			
-			if (!lexingToken && isDigitDec(c)) {
-				beginToken(TokenType::IntegerLiteral);
-			}
-			
-			if (isLetterEx(c) && lexingToken) {
-				if (currentToken.type != TokenType::Identifier && currentToken.type != TokenType::IntegerLiteral) {
-					throw LexerError(sc, "Unexpected ID");
-				}
-				currentToken.id += c;
-				continue;
-			}
-			
-			if (lexOperator(c)) {
-				continue;
-			}
-			
-			if (lexStringLiteral(c)) {
-				continue;
-			}
-			
-		}
-		
-		submitCurrentToken();
-		beginToken(TokenType::EndOfFile);
-		submitCurrentToken();
-		return std::move(result);
-	}
-	
-	void Lexer::beginToken(TokenType type) {
-		assert(!lexingToken);
-		currentToken.sourceLocation = sc;
-		currentToken.type = type;
-		lexingToken = true;
-	}
-	
-	void Lexer::submitCurrentToken() {
-		if (!lexingToken) {
-			return;
-		}
-		result.push_back(currentToken);
-		currentToken = {};
-		lexingToken = false;
-	}
-
-	bool Lexer::lexOperator(char c) {
-		if (!isOperatorLetter(c)) {
-			return false;
-		}
-		
-		if ((lexingToken && currentToken.type != TokenType::Operator) || !lexingToken) {
-			submitCurrentToken();
-			beginToken(TokenType::Operator);
-		}
-		
-		currentToken.id += c;
-		
-		bool const isOp = isOperator(currentToken.id);
-		bool const nextIsOp = sc.index + 1 < text.size() && isOperator(currentToken.id + text[sc.index + 1]);
-		
-		if (isOp && !nextIsOp) {
-			submitCurrentToken();
-		}
-		
-		return true;
-	}
-
-	bool Lexer::lexStringLiteral(char c) {
-		if (c != '"') {
-			return false;
-		}
-		submitCurrentToken();
-		sc.index += 1;
-		size_t index = sc.index;
 		while (true) {
-			if (index == text.size() || text[index] == '\n') {
-				throw LexerError(sc, "Unterminated String Literal");
+			if (auto token = getToken()) {
+				result.push_back(std::move(*token));
+				continue;
 			}
-			if (text[index] == '"') {
+			if (currentLocation.index >= text.size()) {
+				SC_ASSERT(currentLocation.index == text.size(), "How is this possible?");
+				
+				Token eof = beginToken2(TokenType::EndOfFile);
+				result.push_back(eof);
+				return result;
+			}
+			throw UnexpectedID(beginToken2(TokenType::Other));
+		}
+	}
+	
+	std::optional<Token> Lexer::getToken() {
+		if (auto comment = getOneLineComment()) {
+			return getToken();
+		}
+		if (auto spaces = getSpaces()) {
+			return getToken();
+		}
+		if (auto punctuation = getPunctuation()) {
+			return *punctuation;
+		}
+		if (auto identifier = getIdentifier()) {
+			return *identifier;
+		}
+		if (auto integerLiteral = getIntegerLiteral()) {
+			return *integerLiteral;
+		}
+		if (auto floatingPointLiteral = getFloatingPointLiteral()) {
+			return *floatingPointLiteral;
+		}
+		if (auto stringLiteral = getStringLiteral()) {
+			return *stringLiteral;
+		}
+		if (auto op = getOperator()) {
+			return *op;
+		}
+		
+		return std::nullopt;
+	}
+	
+	std::optional<Token> Lexer::getOneLineComment() {
+		if (current() != '/') {
+			return std::nullopt;
+		}
+		if (auto const next = this->next();
+			!next || *next != '/')
+		{
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::Other);
+		result.id += current();
+		advance();
+		while (true) {
+			result.id += current();
+			if (current() == '\n' || !advance()) {
+				return result;
+			}
+		}
+	}
+	
+	std::optional<Token> Lexer::getSpaces() {
+		if (!isSpace(current())) {
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::Other);
+		while (isSpace(current())) {
+			result.id += current();
+			if (!advance()) {
 				break;
 			}
-			
-			++index;
 		}
-		assert(text[index] == '"');
+		return result;
+	}
+	
+	std::optional<Token> Lexer::getPunctuation() {
+		if (!isPunctuation(current())) {
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::Punctuation);
+		result.id += current();
+		advance();
+		return result;
+	}
+	
+	std::optional<Token> Lexer::getIdentifier() {
+		if (!isLetter(current())) {
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::Identifier);
+		result.id += current();
+		while (advance() && isLetterEx(current())) {
+			result.id += current();
+		}
+		return result;
+	}
+	
+	std::optional<Token> Lexer::getIntegerLiteral() {
+		if (!isDigitDec(current())) {
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::IntegerLiteral);
+		result.id += current();
+		size_t offset = 1;
+		std::optional next = this->next(offset);
+		while (next && isDigitDec(*next)) {
+			result.id = *next;
+			++offset;
+			next = this->next(offset);
+		}
+		if (!next || isDelimiter(*next)) {
+			while (offset-- > 0) {
+				advance();
+			}
+			return result;
+		}
+		if (*next == '.') {
+			// we are a floating point literal
+			return std::nullopt;
+		}
+		throw InvalidNumericLiteral(result);
+	}
+	
+	std::optional<Token> Lexer::getFloatingPointLiteral() {
+		if (!isFloatDigitDec(current())) {
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::FloatingPointLiteral);
+		result.id += current();
+		size_t offset = 1;
+		std::optional next = this->next(offset);
+		while (next && isFloatDigitDec(*next)) {
+			result.id += *next;
+			next = this->next(++offset);
+		}
+		if (result.id == ".") { // this is not a floating point literal
+			return std::nullopt;
+		}
+		if (!next || isDelimiter(*next)) {
+			while (offset-- > 0) {
+				advance();
+			}
+			return result;
+		}
+		throw InvalidNumericLiteral(result);
+	}
+	
+	std::optional<Token> Lexer::getStringLiteral() {
+		if (current() != '"') {
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::StringLiteral);
+		if (!advance()) {
+			throw UnterminatedStringLiteral(result);
+		}
+		while (true) {
+			result.id += current();
+			if (!advance() || current() == '\n') {
+				throw UnterminatedStringLiteral(result);
+			}
+			if (current() == '"') {
+				advance();
+				return result;
+			}
+		}
+	}
+	
+	std::optional<Token> Lexer::getOperator() {
+		Token result = beginToken2(TokenType::Operator);
+		result.id += current();
 		
-		size_t const length = index - sc.index;
+		if (!isOperator(result.id)) {
+			return std::nullopt;
+		}
 		
-		beginToken(TokenType::StringLiteral);
-		currentToken.id = text.substr(sc.index, length);
-		submitCurrentToken();
-		sc.index += length;
-		sc.column += length;
+		while (true) {
+			if (!advance()) {
+				return result;
+			}
+			result.id += current();
+			if (!isOperator(result.id)) {
+				result.id.pop_back();
+				return result;
+			}
+		}
+	}
+	
+	bool Lexer::advance() {
+		++currentLocation.index;
+		++currentLocation.column;
+		if (currentLocation.index == text.size()) {
+			return false;
+		}
+		if (text[currentLocation.index] == '\n') {
+			currentLocation.column = 1;
+			++currentLocation.line;
+		}
 		return true;
 	}
 	
-	bool Lexer::lexOneLineComment(char c) {
-		if (c != '/') {
-			return false;
+	Token Lexer::beginToken2(TokenType type) const {
+		Token result;
+		result.sourceLocation = currentLocation;
+		result.type = type;
+		return result;
+	}
+	
+	char Lexer::current() const {
+		return text[currentLocation.index];
+	}
+	
+	std::optional<char> Lexer::next(size_t offset) const {
+		if (currentLocation.index + offset >= text.size()) {
+			return std::nullopt;
 		}
-		std::size_t index = sc.index + 1;
-		if (index >= text.size()) {
-			return false;
-		}
-		if (text[index] != '/') {
-			return false;
-		}
-		submitCurrentToken();
-		sc.index += 1;
-		while (true) {
-			if (sc.index == text.size() || text[sc.index] == '\n') {
-				sc.line += 1;
-				sc.column = 0;
-				return true;
-			}
-			++sc.index;
-		}
+		return text[currentLocation.index + offset];
 	}
 	
 }

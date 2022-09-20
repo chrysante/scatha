@@ -11,12 +11,14 @@ namespace scatha {
 		using enum TokenType;
 	
 		return str << UTL_SERIALIZE_ENUM(t, {
-			{ Identifier,     "Identifier" },
-			{ IntegerLiteral, "IntegerLiteral" },
-			{ StringLiteral,  "StringLiteral" },
-			{ Punctuation,    "Punctuation" },
-			{ Operator,       "Operator" },
-			{ EndOfFile,      "EndOfFile" }
+			{ Identifier,           "Identifier" },
+			{ IntegerLiteral,       "IntegerLiteral" },
+			{ FloatingPointLiteral, "FloatingPointLiteral" },
+			{ StringLiteral,        "StringLiteral" },
+			{ Punctuation,          "Punctuation" },
+			{ Operator,             "Operator" },
+			{ EndOfFile,            "EndOfFile" },
+			{ Other,                "Other" },
 		});
 	}
 	
