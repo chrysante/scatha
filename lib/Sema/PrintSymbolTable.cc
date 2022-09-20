@@ -6,7 +6,7 @@
 
 #include "Basic/PrintUtil.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 	
 	void printSymbolTable(SymbolTable const& sym) {
 		printSymbolTable(sym, std::cout);
@@ -28,9 +28,9 @@ namespace scatha::sem {
 	}
 	
 	void internal::ScopePrinter::printScope(Scope const* scope, std::ostream& str, int ind) {
-		utl::hashset<NameID> printedScopes;
-		if (!scope->_nameToID.empty()) {
-			for (auto&& [name, id]: scope->_nameToID) {
+		utl::hashset<SymbolID> printedScopes;
+		if (!scope->_nameIDMap.empty()) {
+			for (auto&& [name, id]: scope->_nameIDMap) {
 				
 				str << indent(ind) << toString(id.category()) << " " << name << endl;
 				auto const itr = scope->_childScopes.find(id);

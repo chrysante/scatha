@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMANTICANALYZER_SEMANTICELEMENTS_H_
-#define SCATHA_SEMANTICANALYZER_SEMANTICELEMENTS_H_
+#ifndef SCATHA_SEMA_SEMANTICELEMENTS_H_
+#define SCATHA_SEMA_SEMANTICELEMENTS_H_
 
 #include <algorithm>
 #include <functional> // for std::hash
@@ -16,12 +16,12 @@
 #include "Basic/Basic.h"
 #include "Common/Token.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 
 	/**
 	 * Category of a name. A name cannot refer to more than one category.
 	 */
-	enum class NameCategory: u32 {
+	enum class SymbolCategory: u32 {
 		None      = 0,
 		Type      = 1 << 0,
 		Function  = 1 << 1,
@@ -29,37 +29,37 @@ namespace scatha::sem {
 		Namespace = 1 << 3
 	};
 	
-	UTL_ENUM_OPERATORS(NameCategory);
+	UTL_ENUM_OPERATORS(SymbolCategory);
 	
-	std::string_view toString(NameCategory);
+	std::string_view toString(SymbolCategory);
 	
 	enum class TypeID: u64 { Invalid = 0 };
 	
 	/**
 	 * ID of a name in the program. Used to quickly lookup named elements such as types, functions or variables
 	 */
-	class NameID {
+	class SymbolID {
 	public:
-		NameID() = default;
-		constexpr explicit NameID(u64 id, NameCategory category):
+		SymbolID() = default;
+		constexpr explicit SymbolID(u64 id, SymbolCategory category):
 			_id(id),
 			_category(category)
 		{}
 		
 		u64 id() const { return _id; }
 		TypeID toTypeID() const { return TypeID(_id);  }
-		NameCategory category() const { return _category; }
+		SymbolCategory category() const { return _category; }
 	
-		bool operator==(NameID const& rhs) const { return id() == rhs.id(); }
+		bool operator==(SymbolID const& rhs) const { return id() == rhs.id(); }
 		
 		explicit operator bool() const { return id() != 0; }
 		
 	private:
 		u64 _id{};
-		NameCategory _category{};
+		SymbolCategory _category{};
 	};
 	
-	inline constexpr auto invalidNameID = NameID{};
+	inline constexpr auto invalidSymbolID = SymbolID{};
 	
 	// This could be marked 'gnu::pure' (not 'gnu::const' though)
 	/**
@@ -174,13 +174,13 @@ namespace scatha::sem {
 	struct Function {
 		static constexpr std::string_view elementName() { return "Function"; }
 		
-		explicit Function(NameID nameID, TypeID typeID): _nameID(nameID), _typeID(typeID) {}
+		explicit Function(SymbolID symbolID, TypeID typeID): _symbolID(symbolID), _typeID(typeID) {}
 		
-		NameID nameID() const { return _nameID; }
+		SymbolID symbolID() const { return _symbolID; }
 		TypeID typeID() const { return _typeID; }
 		
 	private:
-		NameID _nameID;
+		SymbolID _symbolID;
 		TypeID _typeID = TypeID::Invalid;
 	};
 	
@@ -192,28 +192,28 @@ namespace scatha::sem {
 	struct Variable {
 		static constexpr std::string_view elementName() { return "Variable"; }
 		
-		explicit Variable(std::string name, NameID nameID, TypeID typeID, bool isConstant):
+		explicit Variable(std::string name, SymbolID symbolID, TypeID typeID, bool isConstant):
 			_name(std::move(name)),
-			_nameID(nameID),
+			_symbolID(symbolID),
 			_typeID(typeID),
 			_isConstant(isConstant)
 		{}
 		
 		std::string_view name() const { return _name; }
-		NameID nameID() const { return _nameID; }
+		SymbolID symbolID() const { return _symbolID; }
 		TypeID typeID() const { return _typeID; }
 		bool isConstant() const { return _isConstant; }
 		
 	private:
 		std::string _name;
-		NameID _nameID;
+		SymbolID _symbolID;
 		TypeID _typeID;
 		bool _isConstant: 1;
 	};
 	
 	/**
 	 * class template \p ElementTable
-	 * Thin wrapper around a hashmap mapping \p NameID to \p Type \p Function or \p Variable
+	 * Thin wrapper around a hashmap mapping \p SymbolID to \p Type \p Function or \p Variable
 	 */
 	template <typename T>
 	class ElementTable {
@@ -248,9 +248,9 @@ namespace scatha::sem {
 }
 
 template <>
-struct std::hash<scatha::sem::NameID> {
-	std::size_t operator()(scatha::sem::NameID id) const { return std::hash<scatha::u64>{}(id.id()); }
+struct std::hash<scatha::sema::SymbolID> {
+	std::size_t operator()(scatha::sema::SymbolID id) const { return std::hash<scatha::u64>{}(id.id()); }
 };
 
-#endif // SCATHA_SEMANTICANALYZER_SEMANTICELEMENTS_H_
+#endif // SCATHA_SEMA_SEMANTICELEMENTS_H_
 

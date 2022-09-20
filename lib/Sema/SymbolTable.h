@@ -1,15 +1,15 @@
-#ifndef SCATHA_SEMANTICANALYZER_SYMBOLTABLE_H_
-#define SCATHA_SEMANTICANALYZER_SYMBOLTABLE_H_
+#ifndef SCATHA_SEMA_SYMBOLTABLE_H_
+#define SCATHA_SEMA_SYMBOLTABLE_H_
 
 #include <memory>
 #include <string>
 #include <span>
 
 #include "Common/Token.h"
-#include "SemanticAnalyzer/SemanticElements.h"
-#include "SemanticAnalyzer/Scope.h"
+#include "Sema/SemanticElements.h"
+#include "Sema/Scope.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 	
 	/**
 	 SymbolTable:
@@ -32,9 +32,9 @@ namespace scatha::sem {
 		 
 		 # Notes: #
 		 1. \p name may already exist in the current scope. Then it is verified that \p category is the same as for the last call to this function.
-		 2. This function will also be called internally by \p declare*define-Type*Function*Variable()
+		 2. This function will also be called internally by \p declare:define-Type:Function:Variable()
 		 */
-		std::pair<NameID, bool> addSymbol(Token const& name, NameCategory category);
+		std::pair<SymbolID, bool> addSymbol(Token const& name, SymbolCategory category);
 		
 		/**
 		 Add an anonymous symbol to the current scope.
@@ -47,7 +47,7 @@ namespace scatha::sem {
 		 1. \p name may already exist in the current scope. Then it is verified that \p category is the same as for the last call to this function.
 		 2. This function will also be called internally by \p declare*define-Type*Function*Variable()
 		 */
-		NameID addAnonymousSymbol(NameCategory category);
+		SymbolID addAnonymousSymbol(SymbolCategory category);
 		
 		/**
 		 Make current one of the child scopes of the current scope.
@@ -57,7 +57,7 @@ namespace scatha::sem {
 		 - warning: \p name must be a child scope of the current scope.
 		 */
 		void pushScope(std::string_view name);
-		void pushScope(NameID name);
+		void pushScope(SymbolID name);
 		
 		/**
 		 Make current the parent scope of the current scope.
@@ -77,7 +77,7 @@ namespace scatha::sem {
 		 1. \p name may already exist, however must be of category type.
 		 So this function may be called multiple times with the same name.
 		 */
-		NameID declareType(Token const& name);
+		SymbolID declareType(Token const& name);
 		
 		/**
 		 Define a type in the current scope.
@@ -129,9 +129,9 @@ namespace scatha::sem {
 		 
 		 - parameter \p name: Name to look for.
 		 
-		 - returns: ID of the found name or invalidNameID if not found.
+		 - returns: ID of the found symbol or invalidSymbolID if not found.
 		 */
-		NameID lookupName(Token const& name) const;
+		SymbolID lookupName(Token const& name) const;
 		
 		Scope* currentScope() { return _currentScope; }
 		Scope const* currentScope() const { return _currentScope; }
@@ -146,14 +146,14 @@ namespace scatha::sem {
 		
 		TypeEx& getType(TypeID id) { return utl::as_mutable(utl::as_const(*this).getType(id)); }
 		TypeEx const& getType(TypeID) const;
-		TypeEx& getType(NameID id) { return getType(TypeID(id.id())); }
-		TypeEx const& getType(NameID id) const { return getType(TypeID(id.id())); }
+		TypeEx& getType(SymbolID id) { return getType(TypeID(id.id())); }
+		TypeEx const& getType(SymbolID id) const { return getType(TypeID(id.id())); }
 		
-		Function& getFunction(NameID id) { return utl::as_mutable(utl::as_const(*this).getFunction(id)); }
-		Function const& getFunction(NameID) const;
+		Function& getFunction(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getFunction(id)); }
+		Function const& getFunction(SymbolID) const;
 		
-		Variable& getVariable(NameID id) { return utl::as_mutable(utl::as_const(*this).getVariable(id)); }
-		Variable const& getVariable(NameID) const;
+		Variable& getVariable(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getVariable(id)); }
+		Variable const& getVariable(SymbolID) const;
 		
 		TypeID Void() const  { return _void; }
 		TypeID Bool() const  { return _bool; }
@@ -177,5 +177,5 @@ namespace scatha::sem {
 	
 }
 
-#endif // SCATHA_SEMANTICANALYZER_SYMBOLTABLE_H_
+#endif // SCATHA_SEMA_SYMBOLTABLE_H_
 

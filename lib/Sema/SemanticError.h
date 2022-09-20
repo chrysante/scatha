@@ -1,13 +1,13 @@
-#ifndef SCATHA_SEMANTICANALYZER_SEMANTICERROR_H_
-#define SCATHA_SEMANTICANALYZER_SEMANTICERROR_H_
+#ifndef SCATHA_SEMA_SEMANTICERROR_H_
+#define SCATHA_SEMA_SEMANTICERROR_H_
 
 #include <stdexcept>
 #include <string>
 
 #include "Common/Token.h"
-#include "SemanticAnalyzer/SemanticElements.h"
+#include "Sema/SemanticElements.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 
 	class Scope;
 	
@@ -57,7 +57,7 @@ namespace scatha::sem {
 	
 	class InvalidSymbolReference: public SymbolError {
 	public:
-		InvalidSymbolReference(Token const& token, NameCategory actually);
+		InvalidSymbolReference(Token const& token, SymbolCategory actually);
 	};
 
 	/// MARK: StatementError
@@ -87,11 +87,11 @@ namespace scatha::sem {
 		InvalidRedeclaration(Token const& token, Scope const* scope);
 		InvalidRedeclaration(Token const& token, TypeEx const& oldType);
 		InvalidRedeclaration(Token const& token, Scope const* scope,
-							 NameCategory existing);
+							 SymbolCategory existing);
 	};
 	
 }
 
-#endif // SCATHA_SEMANTICANALYZER_SEMANTICERROR_H_
+#endif // SCATHA_SEMA_SEMANTICERROR_H_
 
 

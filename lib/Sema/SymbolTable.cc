@@ -1,8 +1,8 @@
 #include "SymbolTable.h"
 
-#include "SemanticAnalyzer/SemanticError.h"
+#include "Sema/SemanticError.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 	
 	SymbolTable::SymbolTable() {
 		_globalScope = std::make_unique<Scope>(std::string{}, Scope::Global, nullptr);
@@ -16,15 +16,15 @@ namespace scatha::sem {
 		_string = defineType(Token("string"), 24, 8).id();
 	}
 	
-	std::pair<NameID, bool> SymbolTable::addSymbol(Token const& name, NameCategory cat) {
-		auto const [nameID, newlyAdded] = currentScope()->addSymbol(name.id, cat);
-		if (!newlyAdded && nameID.category() != cat) {
-			throw InvalidRedeclaration(name, currentScope(), nameID.category());
+	std::pair<SymbolID, bool> SymbolTable::addSymbol(Token const& name, SymbolCategory cat) {
+		auto const [symbolID, newlyAdded] = currentScope()->addSymbol(name.id, cat);
+		if (!newlyAdded && symbolID.category() != cat) {
+			throw InvalidRedeclaration(name, currentScope(), symbolID.category());
 		}
-		return { nameID, newlyAdded };
+		return { symbolID, newlyAdded };
 	}
 	
-	NameID SymbolTable::addAnonymousSymbol(NameCategory category) {
+	SymbolID SymbolTable::addAnonymousSymbol(SymbolCategory category) {
 		return currentScope()->addAnonymousSymbol(category);
 	}
 	
@@ -34,7 +34,7 @@ namespace scatha::sem {
 		pushScope(*id);
 	}
 	
-	void SymbolTable::pushScope(NameID id) {
+	void SymbolTable::pushScope(SymbolID id) {
 		_currentScope = currentScope()->childScope(id);
 	}
 	
@@ -43,13 +43,13 @@ namespace scatha::sem {
 		SC_ASSERT(currentScope() != nullptr, "Can't pop anymore as we are already in global scope");
 	}
 	
-	NameID SymbolTable::declareType(Token const& name) {
-		auto const [id, _] = addSymbol(name, NameCategory::Type);
+	SymbolID SymbolTable::declareType(Token const& name) {
+		auto const [id, _] = addSymbol(name, SymbolCategory::Type);
 		return id;
 	}
 
 	TypeEx& SymbolTable::defineType(Token const& name, size_t size, size_t align) {
-		auto const [id, newlyAdded] = addSymbol(name, NameCategory::Type);
+		auto const [id, newlyAdded] = addSymbol(name, SymbolCategory::Type);
 		
 		auto [type, success] = types.emplace(id.id(), name.id, TypeID(id.id()), size, align);
 		if (!success) {
@@ -61,24 +61,24 @@ namespace scatha::sem {
 	}
 	
 	std::pair<Function*, bool> SymbolTable::declareFunction(Token const& name, TypeID returnType, std::span<TypeID const> argumentTypes) {
-		auto const [nameID, newlyAdded] = addSymbol(name, NameCategory::Function);
+		auto const [symbolID, newlyAdded] = addSymbol(name, SymbolCategory::Function);
 		
 		auto const computedFunctionTypeID = computeFunctionTypeID(returnType, argumentTypes);
 		
 		if (newlyAdded) {
 			// Since function types are not named, we use the TypeID as the key here. This should be fine, since function types cannot be found by name anyhow. So wen can just find them by their hashed signature aka their TypeID.
 			[[maybe_unused]] auto [functionType, _] = types.emplace((u64)computedFunctionTypeID, returnType, argumentTypes, computedFunctionTypeID);
-			auto const result = funcs.emplace(nameID.id(), nameID, computedFunctionTypeID);
+			auto const result = funcs.emplace(symbolID.id(), symbolID, computedFunctionTypeID);
 			SC_ASSERT(result.second, "Function already exists");
 			return result;
 		}
 		
 		// Now the function has already been declared. Verify that the type matches.
-		if (nameID.category() != NameCategory::Function) {
+		if (symbolID.category() != SymbolCategory::Function) {
 /// MARK: Can't test this yet
-			throw InvalidRedeclaration(name, currentScope(), NameCategory::Function);
+			throw InvalidRedeclaration(name, currentScope(), SymbolCategory::Function);
 		}
-		auto& function = funcs.get(nameID.id());
+		auto& function = funcs.get(symbolID.id());
 		auto const& functionType = types.get((u64)function.typeID());
 		functionTypeVerifyEqual(name, functionType, returnType, argumentTypes);
 		
@@ -87,12 +87,12 @@ namespace scatha::sem {
 	
 	
 	std::pair<Variable*, bool> SymbolTable::declareVariable(Token const& name, TypeID typeID, bool isConstant) {
-		auto const [nameID, newlyAdded] = addSymbol(name, NameCategory::Variable);
-		return vars.emplace(nameID.id(), name.id, nameID, typeID, isConstant);
+		auto const [symbolID, newlyAdded] = addSymbol(name, SymbolCategory::Variable);
+		return vars.emplace(symbolID.id(), name.id, symbolID, typeID, isConstant);
 	}
 
-	NameID SymbolTable::lookupName(Token const& name) const {
-		std::optional<NameID> result;
+	SymbolID SymbolTable::lookupName(Token const& name) const {
+		std::optional<SymbolID> result;
 		Scope const* sc = currentScope();
 		while (true) {
 			result = sc->findIDByName(name.id);
@@ -101,14 +101,14 @@ namespace scatha::sem {
 			}
 			sc = sc->parentScope();
 			if (sc == nullptr) {
-				return invalidNameID;
+				return invalidSymbolID;
 			}
 		}
 	}
 	
 	TypeEx const& SymbolTable::findTypeByName(Token const& name) const {
-		NameID const id = lookupName(name);
-		if (id.category() != NameCategory::Type) {
+		SymbolID const id = lookupName(name);
+		if (id.category() != SymbolCategory::Type) {
 			throw InvalidSymbolReference(name, id.category());
 		}
 		return getType(id);
@@ -118,11 +118,11 @@ namespace scatha::sem {
 		return types.get((u64)id);
 	}
 	
-	Function const& SymbolTable::getFunction(NameID id) const {
+	Function const& SymbolTable::getFunction(SymbolID id) const {
 		return funcs.get(id.id());
 	}
 	
-	Variable const& SymbolTable::getVariable(NameID id) const {
+	Variable const& SymbolTable::getVariable(SymbolID id) const {
 		return vars.get(id.id());
 	}
 	

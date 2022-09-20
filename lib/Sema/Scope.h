@@ -10,16 +10,17 @@
 #include <utl/hashmap.hpp>
 #include <utl/common.hpp>
 
-#include "SemanticAnalyzer/SemanticElements.h"
+#include "Basic/Bimap.h"
+#include "Sema/SemanticElements.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 	
 	namespace internal { class ScopePrinter; }
 	
 	/**
 	 * class \p Scope
 	 * Represents a scope like classes, namespaces and functions in the symbol table.
-	 * Maintains a table mapping all names in a scope to NameIDs.
+	 * Maintains a table mapping all names in a scope to SymbolIDs.
 	 * Scopes are arranged in a tree structure where the global scope is the root.
 	 */
 	class Scope {
@@ -37,36 +38,35 @@ namespace scatha::sem {
 		
 		std::string_view name() const { return _name; }
 		
-		// returns NameID and boolean == true iff name was just added / == false iff name already existed.
-		std::pair<NameID, bool> addSymbol(std::string_view, NameCategory);
-		NameID addAnonymousSymbol(NameCategory);
+		// returns SymbolID and boolean == true iff name was just added / == false iff name already existed.
+		std::pair<SymbolID, bool> addSymbol(std::string_view, SymbolCategory);
+		SymbolID addAnonymousSymbol(SymbolCategory);
 		
-		std::optional<NameID> findIDByName(std::string_view) const;
-		std::string findNameByID(NameID) const;
+		std::optional<SymbolID> findIDByName(std::string_view) const;
+		std::string findNameByID(SymbolID) const;
 		
 		Scope* parentScope() { return _parent; }
 		Scope const* parentScope() const { return _parent; }
-		Scope* childScope(NameID id) { return &utl::as_mutable(*utl::as_const(*this).childScope(id)); }
-		Scope const* childScope(NameID id) const;
+		Scope* childScope(SymbolID id) { return &utl::as_mutable(*utl::as_const(*this).childScope(id)); }
+		Scope const* childScope(SymbolID id) const;
 		
 	private:
 		friend class internal::ScopePrinter;
 		
-		auto generateID(NameCategory cat) { return NameID(++(_root->_nameIDCounter), cat); }
-		std::pair<NameID, bool> addSymbolImpl(std::optional<std::string_view>, NameCategory);
+		auto generateID(SymbolCategory cat) { return SymbolID(++(_root->_symbolIDCounter), cat); }
+		std::pair<SymbolID, bool> addSymbolImpl(std::optional<std::string_view>, SymbolCategory);
 		
 	private:
 		Scope* _parent = nullptr;
 		Scope* _root = nullptr;
 		Kind _kind;
 		
-		u64 _nameIDCounter = 0; // must only be accessed via the _root pointer so we don't generate the same ID twice
+		u64 _symbolIDCounter = 0; // must only be accessed via the _root pointer so we don't generate the same ID twice
 		
 		std::string _name;
-		utl::hashmap<std::string, NameID> _nameToID;
-		utl::hashmap<NameID, std::string> _idToName;
+		Bimap<std::string, SymbolID> _nameIDMap;
 		
-		utl::hashmap<NameID, std::unique_ptr<Scope>> _childScopes;
+		utl::hashmap<SymbolID, std::unique_ptr<Scope>> _childScopes;
 	};
 	
 	std::string_view toString(Scope::Kind);

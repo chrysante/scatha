@@ -1,14 +1,14 @@
-#ifndef SCATHA_SEMANTICANALYZER_SEMANTICANALYZER_H_
-#define SCATHA_SEMANTICANALYZER_SEMANTICANALYZER_H_
+#ifndef SCATHA_SEMA_SEMANTICANALYZER_H_
+#define SCATHA_SEMA_SEMANTICANALYZER_H_
 
 #include <stdexcept>
 
 #include "AST/AST.h"
 #include "AST/Common.h"
 #include "AST/Expression.h"
-#include "SemanticAnalyzer/SymbolTable.h"
+#include "Sema/SymbolTable.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 	
 	class SemanticAnalyzer {
 	public:
@@ -39,5 +39,5 @@ namespace scatha::sem {
 	
 }
 
-#endif // SCATHA_SEMANTICANALYZER_SEMANTICANALYZER_H_
+#endif // SCATHA_SEMA_SEMANTICANALYZER_H_
 

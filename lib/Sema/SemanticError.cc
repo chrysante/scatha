@@ -4,9 +4,9 @@
 
 #include <utl/strcat.hpp>
 
-#include "SemanticAnalyzer/Scope.h"
+#include "Sema/Scope.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 
 	static std::string fullName(Scope const* sc) {
 		std::string result(sc->name());
@@ -47,7 +47,7 @@ namespace scatha::sem {
 		SymbolError(token, utl::strcat("Use of undeclared Identifier \"", token.id, "\""))
 	{}
 	
-	InvalidSymbolReference::InvalidSymbolReference(Token const& token, NameCategory actually):
+	InvalidSymbolReference::InvalidSymbolReference(Token const& token, SymbolCategory actually):
 		SymbolError(token, utl::strcat("Identifier \"", token.id, "\" is a ", toString(actually)))
 	{}
 	
@@ -76,7 +76,7 @@ namespace scatha::sem {
 	{}
 	
 	InvalidRedeclaration::InvalidRedeclaration(Token const& token, Scope const* scope,
-											   NameCategory existing):
+											   SymbolCategory existing):
 		InvalidStatement(token, utl::strcat("Identifier \"", token.id, "\" already declared in scope ", fullName(scope),
 											" as ", toString(existing)))
 	{}

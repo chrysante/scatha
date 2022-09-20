@@ -1,12 +1,12 @@
 #include "SemanticElements.h"
 
-#include "SemanticAnalyzer/SemanticError.h"
+#include "Sema/SemanticError.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 
-	/// MARK: NameID
-	std::string_view toString(NameCategory c) {
-		using enum NameCategory;
+	/// MARK: SymbolID
+	std::string_view toString(SymbolCategory c) {
+		using enum SymbolCategory;
 		switch (c) {
 			case None:
 				return "None";

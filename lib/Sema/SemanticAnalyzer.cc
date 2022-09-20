@@ -8,10 +8,10 @@
 
 #include "AST/Expression.h"
 #include "Basic/Basic.h"
-#include "SemanticAnalyzer/SemanticElements.h"
-#include "SemanticAnalyzer/SemanticError.h"
+#include "Sema/SemanticElements.h"
+#include "Sema/SemanticError.h"
 
-namespace scatha::sem {
+namespace scatha::sema {
 
 	using namespace ast;
 
@@ -25,6 +25,11 @@ namespace scatha::sem {
 	
 	void SemanticAnalyzer::doRun(AbstractSyntaxTree* node) {
 		doRun(node, node->nodeType());
+	}
+	
+	static SymbolID extracted(scatha::ast::Identifier *identifier, const scatha::sema::SymbolTable &symbols) {
+		auto const functionSymbolID = symbols.lookupName(identifier->token());
+		return functionSymbolID;
 	}
 	
 	void SemanticAnalyzer::doRun(AbstractSyntaxTree* inNode, NodeType type) {
@@ -45,10 +50,10 @@ namespace scatha::sem {
 						throw InvalidStatement(node->token(), "Anonymous blocks can only appear at function scope");
 					}
 					
-					node->scopeNameID = symbols.addAnonymousSymbol(NameCategory::Function);
+					node->scopeSymbolID = symbols.addAnonymousSymbol(SymbolCategory::Function);
 				}
 				
-				symbols.pushScope(node->scopeNameID);
+				symbols.pushScope(node->scopeSymbolID);
 				utl_defer { symbols.popScope(); };
 				for (auto& statement: node->statements) {
 					doRun(statement.get());
@@ -77,7 +82,7 @@ namespace scatha::sem {
 				}
 				
 				auto [func, newlyAdded] = symbols.declareFunction(fnDecl->token(), returnType.id(), argTypes);
-				fnDecl->nameID = func->nameID();
+				fnDecl->symbolID = func->symbolID();
 				fnDecl->functionTypeID = func->typeID();
 				return;
 			}
@@ -89,22 +94,22 @@ namespace scatha::sem {
 				
 				doRun(node, NodeType::FunctionDeclaration);
 
-				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->nameID, "Just to be sure");
+				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->symbolID, "Just to be sure");
 				
 				/* Declare parameters to the function scope */ {
-					symbols.pushScope(node->nameID);
+					symbols.pushScope(node->symbolID);
 					utl_defer { symbols.popScope(); };
 					for (auto& param: node->parameters) {
 						auto [var, newlyAdded] = symbols.declareVariable(param->token(), param->typeID, true);
 						if (!newlyAdded) {
 							throw InvalidRedeclaration(param->token(), symbols.currentScope());
 						}
-						param->nameID = var->nameID();
+						param->symbolID = var->symbolID();
 					}
 				}
 				
 				node->body->scopeKind = Scope::Function;
-				node->body->scopeNameID = node->nameID;
+				node->body->scopeSymbolID = node->symbolID;
 				doRun(node->body.get());
 				
 				return;
@@ -117,7 +122,7 @@ namespace scatha::sem {
 				{
 					throw InvalidStructDeclaration(sDecl->token(), symbols.currentScope());
 				}
-				sDecl->nameID = symbols.declareType(sDecl->token());
+				sDecl->symbolID = symbols.declareType(sDecl->token());
 				return;
 			}
 			
@@ -126,10 +131,10 @@ namespace scatha::sem {
 				
 				doRun(node, NodeType::StructDeclaration);
 
-				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->nameID, "Just to be sure");
+				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->symbolID, "Just to be sure");
 				
 				node->body->scopeKind = Scope::Struct;
-				node->body->scopeNameID = node->nameID;
+				node->body->scopeSymbolID = node->symbolID;
 				doRun(node->body.get());
 				
 				return;
@@ -142,15 +147,15 @@ namespace scatha::sem {
 						throw InvalidStatement(node->token(), "Expected initializing expression of explicit typename specifier in variable declaration");
 					}
 					else {
-						auto const typeNameID = symbols.lookupName(node->declTypename);
-						if (!typeNameID) {
+						auto const typeSymbolID = symbols.lookupName(node->declTypename);
+						if (!typeSymbolID) {
 							throw UseOfUndeclaredIdentifier(node->declTypename);
 						}
-						if (typeNameID.category() != NameCategory::Type) {
+						if (typeSymbolID.category() != SymbolCategory::Type) {
 							throw InvalidStatement(node->declTypename,
 												   utl::strcat("\"", node->declTypename, "\" does not name a type"));
 						}
-						auto& type = symbols.getType(typeNameID);
+						auto& type = symbols.getType(typeSymbolID);
 						node->typeID = type.id();
 					}
 				}
@@ -169,7 +174,7 @@ namespace scatha::sem {
 					if (!newlyAdded) {
 						throw InvalidRedeclaration(node->token(), symbols.currentScope());
 					}
-					node->nameID = var->nameID();
+					node->symbolID = var->symbolID();
 				}
 				return;
 			}
@@ -218,25 +223,25 @@ namespace scatha::sem {
 				
 			case NodeType::Identifier: {
 				auto* const node = static_cast<Identifier*>(inNode);
-				auto const nameID = symbols.lookupName(node->token());
+				auto const symbolID = symbols.lookupName(node->token());
 				
-				if (!nameID) {
+				if (!symbolID) {
 					throw UseOfUndeclaredIdentifier(node->token());
 				}
 				
-				node->symbolID = nameID;
+				node->symbolID = symbolID;
 				
-				if (!(nameID.category() & (NameCategory::Variable | NameCategory::Function))) {
+				if (!(symbolID.category() & (SymbolCategory::Variable | SymbolCategory::Function))) {
 					/// TODO: Throw something better here
 					throw SemanticError(node->token(), "Invalid use of identifier");
 				}
 				
-				if (nameID.category() == NameCategory::Variable) {
-					auto const& var = symbols.getVariable(nameID);
+				if (symbolID.category() == SymbolCategory::Variable) {
+					auto const& var = symbols.getVariable(symbolID);
 					node->typeID = var.typeID();
 				}
-				else if (nameID.category() == NameCategory::Function) {
-					auto const& fn = symbols.getFunction(nameID);
+				else if (symbolID.category() == SymbolCategory::Function) {
+					auto const& fn = symbols.getFunction(symbolID);
 					node->typeID = fn.typeID();
 				}
 					
@@ -303,11 +308,11 @@ namespace scatha::sem {
 					auto* const identifier = dynamic_cast<Identifier*>(node->object.get());
 					SC_ASSERT(identifier != nullptr, "Called object must be an identifier. We do not yet support calling arbitrary expressions.");
 				
-					auto const functionNameID = symbols.lookupName(identifier->token());
-					if (functionNameID.category() != NameCategory::Function) {
+					const scatha::sema::SymbolID functionSymbolID = extracted(identifier, symbols);
+					if (functionSymbolID.category() != SymbolCategory::Function) {
 						throw; // Look at the assertion above
 					}
-					auto const& function = symbols.getFunction(functionNameID);
+					auto const& function = symbols.getFunction(functionSymbolID);
 					auto const& functionType = symbols.getType(function.typeID());
 					
 					verifyFunctionCallExpression(node, functionType, node->arguments);

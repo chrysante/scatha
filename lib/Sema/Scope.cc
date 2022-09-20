@@ -5,7 +5,7 @@
 
 #include <utl/utility.hpp>
 
-namespace scatha::sem {
+namespace scatha::sema {
 	
 	/// MARK: Scope
 	Scope::Scope(std::string name, Kind kind, Scope* parent):
@@ -23,8 +23,8 @@ namespace scatha::sem {
 		}
 	}
 	
-	static Scope::Kind catToKind(NameCategory cat) {
-		using enum NameCategory;
+	static Scope::Kind catToKind(SymbolCategory cat) {
+		using enum SymbolCategory;
 		SC_ASSERT(cat == Function || cat == Type || cat == Namespace, "Only these declare scopes");
 		switch (cat) {
 			case Function:
@@ -39,63 +39,56 @@ namespace scatha::sem {
 		}
 	}
 	
-	std::pair<NameID, bool> Scope::addSymbol(std::string_view name, NameCategory category) {
+	std::pair<SymbolID, bool> Scope::addSymbol(std::string_view name, SymbolCategory category) {
 		return addSymbolImpl(name, category);
 	}
 	
-	NameID Scope::addAnonymousSymbol(NameCategory category) {
+	SymbolID Scope::addAnonymousSymbol(SymbolCategory category) {
 		auto [result, success] = addSymbolImpl(std::nullopt, category);
 		SC_ASSERT(success, "Anonymous symbols should always succeed");
 		return result;
 	}
 	
-	std::string Scope::findNameByID(NameID id) const {
-		auto itr = _idToName.find(id);
+	std::string Scope::findNameByID(SymbolID id) const {
+		auto result = _nameIDMap.lookup(id);
 		// Assert because this would be a bug and not caused by bad user code
-		SC_ASSERT(itr != _idToName.end(), "ID not found");
-		return itr->second;
+		SC_ASSERT(result, "ID not found");
+		return result.from();
 	}
 	
-	std::optional<NameID> Scope::findIDByName(std::string_view name) const {
-		auto itr = _nameToID.find(std::string(name));
-		if (itr == _nameToID.end()) {
+	std::optional<SymbolID> Scope::findIDByName(std::string_view name) const {
+		auto result = _nameIDMap.lookup(std::string(name));
+		if (!result) {
 			return std::nullopt;
 		}
-		return itr->second;
+		return result.to();
 	}
 	
-	Scope const* Scope::childScope(NameID id) const {
+	Scope const* Scope::childScope(SymbolID id) const {
 		auto itr = _childScopes.find(id);
 		SC_ASSERT(itr != _childScopes.end(), "ID not found");
 		return itr->second.get();
 	}
 	
-	std::pair<NameID, bool> Scope::addSymbolImpl(std::optional<std::string_view> name, NameCategory category) {
+	std::pair<SymbolID, bool> Scope::addSymbolImpl(std::optional<std::string_view> name, SymbolCategory category) {
 		if (name) {
-			if (auto itr = _nameToID.find(std::string(*name)); itr != _nameToID.end()) {
-				auto const id = itr->second;
-				SC_ASSERT(_idToName.contains(id),
-						  "if it exists in the other map it also must exists in this map.\n"
-						  "maybe create a bimap type to abstract this behaviour");
-				return { id, false };
+			if (auto const result = _nameIDMap.lookup(std::string(*name))) {
+				return { result.to(), false };
 			}
 		}
 		
 		auto const id = generateID(category);
 		
 		if (name) {
-			bool const ntiInsert = _nameToID.insert({ *name, id }).second;
-			SC_ASSERT(ntiInsert, "Name should be available");
-			bool const itnInsert = _idToName.insert({ id, *name }).second;
-			SC_ASSERT(itnInsert, "ID should be available");
+			auto insertResult = _nameIDMap.insert(std::string(*name), id);
+			SC_ASSERT(insertResult, "Name should be available");
 		}
 		
-		
 		switch (category) {
-				using enum NameCategory;
-			case NameCategory::Function:  [[fallthrough]];
-			case NameCategory::Type:      [[fallthrough]];
-			case NameCategory::Namespace: {
+				using enum SymbolCategory;
+			case SymbolCategory::Function:  [[fallthrough]];
+			case SymbolCategory::Type:      [[fallthrough]];
+			case SymbolCategory::Namespace: {
 				bool const success = _childScopes.insert({
 					id,
 					std::make_unique<Scope>(name ? *name : "__anonymous__", catToKind(category), this)
