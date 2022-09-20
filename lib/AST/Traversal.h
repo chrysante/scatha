@@ -135,7 +135,9 @@ namespace scatha::ast::internal {
 					pre(node);
 					traverse(node->condition.get());
 					traverse(node->ifBlock.get());
-					traverse(node->elseBlock.get());
+					if (node->elseBlock != nullptr) {
+						traverse(node->elseBlock.get());
+					}
 					post(node);
 					break;
 				}

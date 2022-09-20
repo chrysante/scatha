@@ -207,7 +207,9 @@ namespace scatha::sema {
 				doRun(node->condition.get());
 				verifyConversion(node->condition.get(), symbols.Bool());
 				doRun(node->ifBlock.get());
-				doRun(node->elseBlock.get());
+				if (node->elseBlock != nullptr) {
+					doRun(node->elseBlock.get());
+				}
 				return;
 			}
 			case NodeType::WhileStatement: {
