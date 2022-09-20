@@ -250,8 +250,8 @@ namespace scatha::ast {
 		/// Condition to branch on.
 		/// Must not be null after parsing and must be of type bool (or maybe later convertible to bool).
 		UniquePtr<Expression> condition;
-		UniquePtr<Block> ifBlock;
-		UniquePtr<Block> elseBlock;
+		UniquePtr<Statement> ifBlock;
+		UniquePtr<Statement> elseBlock;
 	};
 	
 	/// MARK: WhileStatement
