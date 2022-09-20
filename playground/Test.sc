@@ -1,11 +1,12 @@
+fn print(i: int) -> void;
 
-fn caller() {
+fn myFunction(i: int, j: int) {
+	var k: float = 2.0;
 	
-	var x: int;
-	
-	{
-		var x: float;
+	if (k > 0.0) {
+		k += 1.;
 	}
+	
 }
 
 

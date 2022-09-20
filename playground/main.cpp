@@ -6,16 +6,20 @@
 
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
+#include "AST/Traversal.h"
 
+#include "IC/TACGenerator.h"
+#include "IC/Canonicalize.h"
+#include "IC/PrintTAC.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
-#include "SemanticAnalyzer/SemanticAnalyzer.h"
-#include "SemanticAnalyzer/PrintSymbolTable.h"
+#include "Parser/ExpressionParser.h"
+#include "Sema/SemanticAnalyzer.h"
+#include "Sema/PrintSymbolTable.h"
 
 using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
-using namespace scatha::sem;
 
 
 int main() {
@@ -39,14 +43,18 @@ int main() {
 		Parser p(tokens);
 		auto ast = p.parse();
 		
-		SemanticAnalyzer s;
+		sema::SemanticAnalyzer s;
 		s.run(ast.get());
 		
-		printSymbolTable(s.symbolTable());
+		ic::canonicalize(ast.get());
 		
-//		ast::printTree(ast.get());
+		auto const* const tu = dynamic_cast<ast::TranslationUnit const*>(ast.get());
+		auto const* const callerDef = dynamic_cast<ast::FunctionDefinition const*>(tu->declarations[1].get());
 		
-//		ast::printSource(ast.get());
+		ic::TACGenerator t(s.symbolTable());
+		auto const tac = t.run(callerDef);
+		
+		ic::printTAC(tac, s.symbolTable());
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;
