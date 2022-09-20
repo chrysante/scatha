@@ -88,7 +88,7 @@ namespace scatha::sem {
 	
 	std::pair<Variable*, bool> SymbolTable::declareVariable(Token const& name, TypeID typeID, bool isConstant) {
 		auto const [nameID, newlyAdded] = addSymbol(name, NameCategory::Variable);
-		return vars.emplace(nameID.id(), nameID, typeID, isConstant);
+		return vars.emplace(nameID.id(), name.id, nameID, typeID, isConstant);
 	}
 
 	NameID SymbolTable::lookupName(Token const& name) const {
