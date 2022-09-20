@@ -188,10 +188,15 @@ namespace scatha::parse {
 				tokens.eat();
 				return ast::allocate<ast::Identifier>(token);
 			}
-				// Numeric literal
+				// Integer literal
 			case TokenType::IntegerLiteral: {
 				tokens.eat();
 				return ast::allocate<ast::IntegerLiteral>(token);
+			}
+				// Floating point literal
+			case TokenType::FloatingPointLiteral: {
+				tokens.eat();
+				return ast::allocate<ast::FloatingPointLiteral>(token);
 			}
 				// String literal
 			case TokenType::StringLiteral: {

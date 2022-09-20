@@ -161,6 +161,12 @@ namespace scatha::ast::internal {
 					post(node);
 					break;
 				}
+				case NodeType::FloatingPointLiteral: {
+					auto const* const node = static_cast<FloatingPointLiteral const*>(inNode);
+					pre(node);
+					post(node);
+					break;
+				}
 				case NodeType::StringLiteral: {
 					auto const* const node = static_cast<StringLiteral const*>(inNode);
 					pre(node);

@@ -256,6 +256,12 @@ namespace scatha::sema {
 				return;
 			}
 				
+			case NodeType::FloatingPointLiteral: {
+				auto* const node = static_cast<FloatingPointLiteral*>(inNode);
+				node->typeID = symbols.Float();
+				return;
+			}
+				
 			case NodeType::StringLiteral: {
 				auto* const node = static_cast<StringLiteral*>(inNode);
 				node->typeID = symbols.String();
@@ -267,6 +273,38 @@ namespace scatha::sema {
 			case NodeType::UnaryPrefixExpression: {
 				auto* const node = static_cast<UnaryPrefixExpression*>(inNode);
 				doRun(node->operand.get());
+				auto const& operandType = symbols.getType(node->operand->typeID);
+				auto doThrow = [&]{
+					throw SemanticError(node->token(),
+										utl::strcat("Operator \"", toString(node->op), "\" not defined for ", operandType.name()));
+				};
+				if (!operandType.isBuiltin() || operandType.id() == symbols.String()) {
+					doThrow();
+				}
+				switch (node->op) {
+					case ast::UnaryPrefixOperator::Promotion: [[fallthrough]];
+					case ast::UnaryPrefixOperator::Negation:
+						if (operandType.id() != symbols.Int() ||
+							operandType.id() != symbols.Float())
+						{
+							doThrow();
+						}
+						break;
+					
+					case ast::UnaryPrefixOperator::BitwiseNot:
+						if (operandType.id() != symbols.Int()) {
+							doThrow();
+						}
+						break;
+					
+					case ast::UnaryPrefixOperator::LogicalNot:
+						if (operandType.id() != symbols.Bool()) {
+							doThrow();
+						}
+						break;
+					
+					SC_NO_DEFAULT_CASE();
+				}
 				node->typeID = node->operand->typeID;
 				return;
 			}
@@ -358,18 +396,37 @@ namespace scatha::sema {
 				doThrow();
 			}
 		};
+
+		auto verifyAnyOf = [&](TypeID toCheck, std::initializer_list<TypeID> ids) {
+			bool result = false;
+			for (auto id: ids) {
+				if (toCheck == id) { result = true; }
+			}
+			if (!result) {
+				doThrow();
+			}
+		};
 		
 		switch (expr->op) {
 				using enum BinaryOperator;
 			case Multiplication: [[fallthrough]];
 			case Division:       [[fallthrough]];
-			case Remainder:      [[fallthrough]];
 			case Addition:       [[fallthrough]];
-			case Subtraction:    [[fallthrough]];
+			case Subtraction:
+				verifySame();
+				verifyAnyOf(expr->lhs->typeID, { symbols.Int(), symbols.Float() });
+				return expr->lhs->typeID;
+				
+			case Remainder:
+				verifySame();
+				verifyAnyOf(expr->lhs->typeID, { symbols.Int() });
+				return expr->lhs->typeID;
+				
 			case BitwiseAnd:     [[fallthrough]];
 			case BitwiseXOr:     [[fallthrough]];
 			case BitwiseOr:
 				verifySame();
+				verifyAnyOf(expr->lhs->typeID, { symbols.Int() });
 				return expr->lhs->typeID;
 				
 			case LeftShift:      [[fallthrough]];
@@ -389,16 +446,13 @@ namespace scatha::sema {
 			case Equals:         [[fallthrough]];
 			case NotEquals:
 				verifySame();
+				verifyAnyOf(expr->lhs->typeID, { symbols.Int(), symbols.Float() });
 				return symbols.Bool();
 				
 			case LogicalAnd:     [[fallthrough]];
 			case LogicalOr:
-				if (expr->lhs->typeID != symbols.Bool()) {
-					doThrow();
-				}
-				if (expr->rhs->typeID != symbols.Bool()) {
-					doThrow();
-				}
+				verifySame();
+				verifyAnyOf(expr->lhs->typeID, { symbols.Bool() });
 				return symbols.Bool();
 				
 			case Assignment:     [[fallthrough]];

@@ -22,6 +22,7 @@ namespace scatha::ast {
 			
 			{ Identifier,            "Identifier" },
 			{ IntegerLiteral,        "IntegerLiteral" },
+			{ FloatingPointLiteral,  "FloatingPointLiteral" },
 			{ StringLiteral,         "StringLiteral" },
 			
 			{ UnaryPrefixExpression, "UnaryPrefixExpression" },

@@ -36,6 +36,7 @@ namespace scatha {
 		std::string id;
 		
 		u64 toInteger() const;
+		f64 toFloat() const;
 	};
 	
 	std::ostream& operator<<(std::ostream&, Token const&);

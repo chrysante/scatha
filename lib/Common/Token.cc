@@ -37,4 +37,10 @@ namespace scatha {
 		return std::stol(id);
 	}
 	
+	f64 Token::toFloat() const {
+		SC_ASSERT(type == TokenType::FloatingPointLiteral,
+				  "Token is not a floating point literal");
+		return std::stod(id);
+	}
+	
 }

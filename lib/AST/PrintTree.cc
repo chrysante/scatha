@@ -136,6 +136,12 @@ namespace scatha::ast {
 				break;
 			}
 				
+			case NodeType::FloatingPointLiteral: {
+				auto const* const node = static_cast<FloatingPointLiteral const*>(inNode);
+				str << indent(ind) << "<float-literal>: " << node->value << endl;
+				break;
+			}
+				
 			case NodeType::StringLiteral: {
 				auto const* const node = static_cast<StringLiteral const*>(inNode);
 				str << indent(ind) << "<string-literal>: " << '"' << node->value << '"' << endl;

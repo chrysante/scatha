@@ -78,6 +78,8 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	{ // declaration of variable of the same name in a nested scope
 		var result = "some string";
 	}
+	// declaration of float variable
+	let x = 1.2;
 	return result;
 }
 )";
@@ -112,7 +114,12 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	auto* nestedVarDecl = dynamic_cast<VariableDeclaration*>(nestedScope->statements[0].get());
 	CHECK(nestedVarDecl->typeID == sym.String());
 	
-	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[2].get());
+	auto* xDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[2].get());
+	CHECK(xDecl->typeID == sym.Float());
+	auto* floatLit = dynamic_cast<FloatingPointLiteral*>(xDecl->initExpression.get());
+	CHECK(floatLit->value == 1.2);
+	
+	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[3].get());
 	auto* retIdentifier = dynamic_cast<Identifier*>(ret->expression.get());
 	CHECK(retIdentifier->typeID == sym.Int());
 }
@@ -206,6 +213,8 @@ fn callee(a: string);
 fn caller() { callee(0); }
 )";
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), BadTypeConversion);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let x: float = 1; }"), BadTypeConversion);
+		CHECK_NOTHROW(produceDecoratedASTAndSymTable("fn f() { let x: float = 1.; }"));
 	}
 	
 	SECTION("Invalid function redeclaration") {
