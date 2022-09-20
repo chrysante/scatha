@@ -29,7 +29,7 @@ project "scatha"
 kind "SharedLib"
 addCppFiles "lib"
 addCppFiles "include/scatha"
-sysincludedirs { "include", "external", "external/utility" }
+sysincludedirs { "external/utility" }
 includedirs "lib"
 links "utility"
 
@@ -53,8 +53,7 @@ links { "scatha" }
 project "playground"
 
 kind "ConsoleApp"
-sysincludedirs { ".", "include", "external/utility" }
-
+sysincludedirs { "external/utility" }
 sysincludedirs { "lib" }
 
 addCppFiles "playground"
