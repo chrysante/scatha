@@ -8,7 +8,7 @@
 
 #include "AST/Base.h"
 #include "AST/Common.h"
-#include "SemanticAnalyzer/SemanticElements.h"
+#include "Sema/SemanticElements.h"
 
 namespace scatha::ast {
 
@@ -19,7 +19,7 @@ namespace scatha::ast {
 		/** Decoration provided by semantic analysis. */
 		
 		/// The type of the expression.
-		sem::TypeID typeID{};
+		sema::TypeID typeID{};
 	};
 	
 	/// MARK: Nullary Expressions
@@ -35,7 +35,7 @@ namespace scatha::ast {
 		
 		/** Decoration provided by semantic analysis. */
 		
-		sem::NameID symbolID;
+		sema::SymbolID symbolID;
 	};
 	
 	struct IntegerLiteral: Expression {

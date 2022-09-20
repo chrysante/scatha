@@ -4,13 +4,13 @@
 #include "AST/Expression.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
-#include "SemanticAnalyzer/SemanticAnalyzer.h"
-#include "SemanticAnalyzer/SemanticError.h"
+#include "Sema/SemanticAnalyzer.h"
+#include "Sema/SemanticError.h"
 
 using namespace scatha;
 using namespace lex;
 using namespace parse;
-using namespace sem;
+using namespace sema;
 using namespace ast;
 
 static auto produceDecoratedASTAndSymTable(std::string text) {
@@ -26,7 +26,7 @@ static auto produceDecoratedASTAndSymTable(std::string text) {
 	return std::tuple(std::move(ast), s.takeSymbolTable());
 }
 
-TEST_CASE("Registration in SymbolTable", "[sem]") {
+TEST_CASE("Registration in SymbolTable", "[sema]") {
 	std::string const text = R"(
 
 fn mul(a: int, b: int, c: float) -> int {
@@ -39,7 +39,7 @@ fn mul(a: int, b: int, c: float) -> int {
 	auto [ast, sym] = produceDecoratedASTAndSymTable(text);
 	
 	auto const& symMul = sym.lookupName(Token("mul"));
-	CHECK(symMul.category() == NameCategory::Function);
+	CHECK(symMul.category() == SymbolCategory::Function);
 	
 	auto const& fnMul = sym.getFunction(symMul);
 	auto const& fnType = sym.getType(fnMul.typeID());
@@ -117,7 +117,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	CHECK(retIdentifier->typeID == sym.Int());
 }
 
-TEST_CASE("Decoration of the AST with function call expression", "[sem]") {
+TEST_CASE("Decoration of the AST with function call expression", "[sema]") {
 	std::string const text = R"(
 
 fn callee(a: string, b: int) -> float;
@@ -149,7 +149,7 @@ fn caller() -> float {
 	CHECK(resultDecl->initExpression->typeID == sym.Float());
 }
 
-TEST_CASE("Decoration of the AST with struct definition", "[sem]") {
+TEST_CASE("Decoration of the AST with struct definition", "[sema]") {
 	std::string const text = R"(
 
 struct X {
@@ -183,7 +183,7 @@ struct X {
 }
 
 
-TEST_CASE("Semantic analysis failures", "[sem]") {
+TEST_CASE("Semantic analysis failures", "[sema]") {
 	SECTION("Use of undeclared identifier") {
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() -> int { return x; }"), UseOfUndeclaredIdentifier);
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let v: UnknownType; }"), UseOfUndeclaredIdentifier);

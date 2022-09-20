@@ -13,8 +13,8 @@
 #include "AST/Base.h"
 #include "AST/Common.h"
 #include "AST/Expression.h"
-#include "SemanticAnalyzer/SemanticElements.h"
-#include "SemanticAnalyzer/Scope.h"
+#include "Sema/SemanticElements.h"
+#include "Sema/Scope.h"
 
 /*
  AbstractSyntaxTree
@@ -57,7 +57,7 @@ namespace scatha::ast {
 	/// Abstract node representing any declaration.
 	struct Declaration: Statement {
 	public:
-		/// Name of the declaration as written in the source code.
+		/// Name of the declared symbol as written in the source code.
 		std::string_view name() const { return _token.id; }
 		
 		/// Token object of the name in the source code.
@@ -65,8 +65,8 @@ namespace scatha::ast {
 
 		/** Decoration provided by semantic analysis. */
 		
-		/// NameID of this declaration in the symbol table
-		sem::NameID nameID;
+		/// SymbolID of this declaration in the symbol table
+		sema::SymbolID symbolID;
 		
 	protected:
 		explicit Declaration(NodeType type, Token const& token):
@@ -109,7 +109,7 @@ namespace scatha::ast {
 		
 		/// Type of the variable.
 		/// Either deduced by the type of \p initExpression or by \p declTypename and then checked against the type of \p initExpression
-		sem::TypeID typeID = sem::TypeID::Invalid;
+		sema::TypeID typeID = sema::TypeID::Invalid;
 	};
 	
 	/// MARK: Module
@@ -129,10 +129,10 @@ namespace scatha::ast {
 		/** Decoration provided by semantic analysis. */
 		
 		/// Kind of this block scope
-		sem::Scope::Kind scopeKind = sem::Scope::Anonymous;
+		sema::Scope::Kind scopeKind = sema::Scope::Anonymous;
 		
-		/// NameID of this block scope
-		sem::NameID scopeNameID{};
+		/// SymbolID of this block scope
+		sema::SymbolID scopeSymbolID{};
 	};
 	
 	/// MARK: FunctionDeclaration
@@ -156,10 +156,10 @@ namespace scatha::ast {
 		/** Decoration provided by semantic analysis. */
 		
 		/// Return type of the function.
-		sem::TypeID returnTypeID = sem::TypeID::Invalid;
+		sema::TypeID returnTypeID = sema::TypeID::Invalid;
 		
 		/// Type of the function.
-		sem::TypeID functionTypeID = sem::TypeID::Invalid;
+		sema::TypeID functionTypeID = sema::TypeID::Invalid;
 	};
 	
 	/// MARK: FunctionDefinition
@@ -189,7 +189,7 @@ namespace scatha::ast {
 		/** Decoration provided by semantic analysis. */
 		
 		/// Type of this type.
-		sem::TypeID typeID = sem::TypeID::Invalid;
+		sema::TypeID typeID = sema::TypeID::Invalid;
 	};
 	
 	/// MARK: StructDefinition
