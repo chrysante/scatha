@@ -1,6 +1,6 @@
 #include "ExpressionParser.h"
 
-#include "Parser/ParserError.h"
+#include "Parser/ParsingIssue.h"
 
 namespace scatha::parse {
 
@@ -153,7 +153,7 @@ namespace scatha::parse {
 			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::LogicalNot, parseUnary(), token);
 		}
 		else {
-			throw ParserError(token, "Unqualified ID");
+			throw ParsingIssue(token, "Unqualified ID");
 		}
 	}
 	
@@ -248,7 +248,7 @@ namespace scatha::parse {
 		if (auto* ptr = dynamic_cast<ast::Subscript*>(result.get());
 			ptr && ptr->arguments.empty())
 		{
-			throw ParserError(tokens.current(), "Subscript with no arguments is not allowed");
+			throw ParsingIssue(tokens.current(), "Subscript with no arguments is not allowed");
 		}
 		return result;
 	}

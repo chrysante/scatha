@@ -4,7 +4,7 @@
 
 #include "Parser/ExpressionParser.h"
 #include "Parser/Keyword.h"
-#include "Parser/ParserError.h"
+#include "Parser/ParsingIssue.h"
 
 namespace scatha::parse {
 
@@ -26,7 +26,7 @@ namespace scatha::parse {
 			if (tokens.peek().type == TokenType::EndOfFile) { break; }
 			auto decl = parseDeclaration();
 			if (decl == nullptr) {
-				throw ParserError(tokens.peek(), "Expected Declarator");
+				throw ParsingIssue(tokens.peek(), "Expected Declarator");
 			}
 			result->declarations.push_back(std::move(decl));
 		}
@@ -87,7 +87,7 @@ namespace scatha::parse {
 		}
 		
 		if (tokens.peek().id == "=") {
-			if (isFunctionParameter) { throw ParserError(tokens.peek(), "Unqualified ID"); }
+			if (isFunctionParameter) { throw ParsingIssue(tokens.peek(), "Unqualified ID"); }
 			tokens.eat();
 			result->initExpression = parseExpression();
 		}
@@ -223,7 +223,7 @@ namespace scatha::parse {
 					
 				default:
 					// Var / Let should have been handled above
-					throw ParserError(token, "Unexpected ID");
+					throw ParsingIssue(token, "Unexpected ID");
 			}
 		}
 		else if (token.id == "{") {

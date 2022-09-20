@@ -5,16 +5,13 @@
 #include <string>
 
 #include "Basic/Basic.h"
+#include "Common/ProgramIssue.h"
 #include "Parser/TokenEx.h"
 
 namespace scatha::parse {
 	
-	struct ParserError: std::runtime_error {
-		explicit ParserError(TokenEx const&, std::string const& what);
-		const char* what() const noexcept override;
-		
-		std::string _what;
-		TokenEx token;
+	struct ParsingIssue: ProgramIssue {
+		explicit ParsingIssue(TokenEx const&, std::string const& message);
 	};
 	
 	void expectIdentifier(TokenEx const&, std::string_view message = {});
