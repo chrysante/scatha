@@ -260,7 +260,16 @@ namespace scatha::parse {
 			return result;
 		}
 		tokens.eat();
-		result->elseBlock = parseBlock();
+		
+		auto const& elseBlockBegin = tokens.peek();
+		if (elseBlockBegin.id == "if") {
+			tokens.eat();
+			result->elseBlock = parseIfStatement();
+		}
+		else {
+			result->elseBlock = parseBlock();
+		}
+		
 		return result;
 	}
 	
