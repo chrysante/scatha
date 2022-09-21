@@ -1,20 +1,20 @@
-#include "Assembler.h"
+#include "CodeGen/Assembler.h"
 
 #include <array>
 #include <iostream>
-#include <iomanip>
 #include <span>
 
 #include <utl/bit.hpp>
 #include <utl/hashmap.hpp>
 
 #include "Basic/Memory.h"
+#include "CodeGen/Print.h"
 
-namespace scatha::vm {
+namespace scatha::codegen {
+	
+	using namespace vm;
 
-	Program Assembler::assemble() {
-		utl::hashmap<LabelType, size_t> labelPositions;
-		
+	vm::Program Assembler::assemble() {
 		Program program;
 		
 		auto push = [&](size_t iptr, size_t N) {
@@ -24,6 +24,7 @@ namespace scatha::vm {
 		};
 		
 		// Identify all the labels in the copy pass
+		utl::hashmap<LabelType, size_t> labelPositions;
 		for (size_t iptr = 0; iptr < instructions.size(); ) {
 			auto const marker = (Marker)instructions[iptr];
 			if (marker != Marker::OpCode && marker != Marker::Label) {
@@ -74,84 +75,12 @@ namespace scatha::vm {
 		return program;
 	}
 	
-	template <typename T>
-	static auto printAs(std::span<u8 const> data, size_t offset) {
-		return +read<T>(&data[offset]);
+	void print(Assembler const& a) {
+		print(a, std::cout);
 	}
 	
-	static void printInstructions(std::span<u8 const> data, std::ostream& str, bool hasMarkers) {
-		auto printMemoryAcccess = [&](size_t i) {
-			str << "memory[R[" << printAs<u8>(data, i) << "] + " << printAs<u8>(data, i + 1) << " * " << (1 << printAs<u8>(data, i + 2)) << "]";
-		};
-		
-		for (size_t i = 0; i < data.size(); ) {
-			if (hasMarkers) {
-				auto const marker = (Marker)data[i];
-				SC_ASSERT(marker == Marker::OpCode || marker == Marker::Label, "");
-				++i;
-				if (marker == Marker::Label) {
-					str << ".L" << printAs<LabelType>(data, i) << '\n';
-					i += sizeof(LabelType);
-					continue;
-				}
-			}
-			SC_ASSERT(i < data.size(), "");
-			OpCode const opcode = (OpCode)data[i];
-			str << std::setw(3) << i << ": " << opcode << " ";
-			
-			auto const opcodeClass = classify(opcode);
-			switch (opcodeClass) {
-				using enum OpCodeClass;
-				case RR:
-					str << "R[" << printAs<u8>(data, i + 1) << "], R[" << printAs<u8>(data, i + 2) << "]";
-					break;
-				case RV:
-					str << "R[" << printAs<u8>(data, i + 1) << "], " << printAs<u64>(data, i + 2);
-					break;
-				case RM:
-					str << "R[" << printAs<u8>(data, i + 1) << "], "; printMemoryAcccess(i + 2);
-					break;
-				case MR:
-					printMemoryAcccess(i + 1);
-					str << ", R[" << printAs<u8>(data, i + 4) << "]";
-					break;
-				case Jump:
-					str << printAs<i32>(data, i + 1);
-					break;
-				case Other:
-					switch (opcode) {
-						case OpCode::allocReg:
-							str << printAs<u8>(data, i + 1);
-							break;
-						case OpCode::call:
-							str << printAs<i32>(data, i + 1) << ", " << printAs<u8>(data, i + 5);
-							break;
-						case OpCode::ret:
-							break;
-						case OpCode::terminate:
-							break;
-						case OpCode::callExt:
-							str << printAs<u8>(data, i + 1) << ", " << printAs<u8>(data, i + 2) << ", " << printAs<u16>(data, i + 3);
-							break;
-						SC_NO_DEFAULT_CASE();
-					}
-					break;
-				case _count:
-					SC_DEBUGFAIL();
-			}
-			
-			
-			str << '\n';
-			i += ijmp(opcode);
-		}
-	}
-	
-	void printProgram(Program const& p) {
-		printInstructions(p.instructions, std::cout, false);
-	}
-	
-	void Assembler::print() const {
-		printInstructions(instructions, std::cout, true);
+	void print(Assembler const& a, std::ostream& str) {
+		printInstructions(a.instructions, str, { .codeHasMarkers = true });
 	}
 	
 	Assembler& operator<<(Assembler& p, OpCode x) {
