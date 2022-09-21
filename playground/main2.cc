@@ -4,14 +4,14 @@
 
 #include "Basic/Basic.h"
 #include "AST/AST.h"
-
+#include "CodeGen/Assembler.h"
 #include "VM/OpCode.h"
 #include "VM/Program.h"
-#include "VM/Assembler.h"
 #include "VM/VirtualMachine.h"
 
 using namespace scatha;
 using namespace vm;
+using namespace codegen;
 
 /*
 for (int i = 0; i < N; ++i) {
@@ -70,16 +70,16 @@ int main() {
 	
 	Assembler a;
 												// ; Main function
-	a << allocReg << u8(6);                     // ; allocate 10 registers
-	a << movRV    << RV(2, 1570795);            // ; a = 30
-	a << movRV    << RV(3, 553805);             // ; b = 20
+	a << allocReg << u8(4);                     // ; allocate 10 registers
+	a << movRV    << RV(2, i64(151575450795));  // ; a = ...
+	a << movRV    << RV(3, i64(55747384505));   // ; b = ...
 	a << call     << makeLabel("gcd") << u8(2);
 	a << callExt  << u8(4) << u8(0) << u16(1);
 	
 	a << terminate;
 	
 	a << Label("gcd");                          // ; gcd(i64 a, i64 b):
-	a << allocReg << u8(1);
+	a << allocReg << u8(3);
 	a << icmpRV   << RV(1, i64(0));             // ; b == 0
 	a << jne      << makeLabel("gcd-else");
 	a << movRR    << RR(2, 0);                  // ; retval = a
@@ -93,13 +93,13 @@ int main() {
 	
 	a << jmp      << makeLabel("gcd");          // tail call
 	
-//	a.print();
+	print(a);
 	
-//	std::cout << "\n\n-----------------------\n\n\n";
+	std::cout << "\n\n-----------------------\n\n\n";
 	
 	Program p = a.assemble();
 	
-//	printProgram(p);
+	print(p);
 	
 	VirtualMachine vm;
 	
