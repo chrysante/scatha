@@ -1,6 +1,6 @@
-#include "SymbolTable.h"
+#include "Sema/SymbolTable.h"
 
-#include "Sema/SemanticError.h"
+#include "Sema/SemanticIssue.h"
 
 namespace scatha::sema {
 	

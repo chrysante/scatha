@@ -1,4 +1,4 @@
-#include "PrintSymbolTable.h"
+#include "Sema/PrintSymbolTable.h"
 
 #include <iostream>
 

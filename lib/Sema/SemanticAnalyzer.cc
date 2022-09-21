@@ -1,6 +1,6 @@
 #define UTL_DEFER_MACROS
 
-#include "SemanticAnalyzer.h"
+#include "Sema/SemanticAnalyzer.h"
 
 #include <sstream>
 #include <utl/strcat.hpp>
@@ -9,7 +9,7 @@
 #include "AST/Expression.h"
 #include "Basic/Basic.h"
 #include "Sema/SemanticElements.h"
-#include "Sema/SemanticError.h"
+#include "Sema/SemanticIssue.h"
 
 namespace scatha::sema {
 
@@ -235,7 +235,7 @@ namespace scatha::sema {
 				
 				if (!(symbolID.category() & (SymbolCategory::Variable | SymbolCategory::Function))) {
 					/// TODO: Throw something better here
-					throw SemanticError(node->token(), "Invalid use of identifier");
+					throw SemanticIssue(node->token(), "Invalid use of identifier");
 				}
 				
 				if (symbolID.category() == SymbolCategory::Variable) {
@@ -275,7 +275,7 @@ namespace scatha::sema {
 				doRun(node->operand.get());
 				auto const& operandType = symbols.getType(node->operand->typeID);
 				auto doThrow = [&]{
-					throw SemanticError(node->token(),
+					throw SemanticIssue(node->token(),
 										utl::strcat("Operator \"", toString(node->op), "\" not defined for ", operandType.name()));
 				};
 				if (!operandType.isBuiltin() || operandType.id() == symbols.String()) {
@@ -386,7 +386,7 @@ namespace scatha::sema {
 		auto doThrow = [&]{
 			/// TODO: Think of somethin better here
 			/// probably think of some way of how to lookup and define operators
-			throw SemanticError(expr->token(), utl::strcat("Invalid types for operator ", toString(expr->op), ": \"",
+			throw SemanticIssue(expr->token(), utl::strcat("Invalid types for operator ", toString(expr->op), ": \"",
 														   symbols.getType(expr->lhs->typeID).name(), "\" and \"",
 														   symbols.getType(expr->rhs->typeID).name(), "\""));
 		};

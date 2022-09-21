@@ -1,4 +1,4 @@
-#include "Scope.h"
+#include "Sema/Scope.h"
 
 #include <sstream>
 #include <ostream>

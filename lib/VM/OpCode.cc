@@ -1,4 +1,4 @@
-#include "OpCode.h"
+#include "VM/OpCode.h"
 
 #include <ostream>
 

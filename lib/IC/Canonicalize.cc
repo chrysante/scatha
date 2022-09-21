@@ -1,4 +1,4 @@
-#include "Canonicalize.h"
+#include "IC/Canonicalize.h"
 
 #include "AST/Traversal.h"
 #include "Basic/Basic.h"

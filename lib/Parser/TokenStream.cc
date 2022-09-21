@@ -1,4 +1,4 @@
-#include "TokenStream.h"
+#include "Parser/TokenStream.h"
 
 namespace scatha::parse {
 	
