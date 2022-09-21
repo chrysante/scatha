@@ -26,6 +26,10 @@ namespace scatha::vm {
 		/// MARK: Register allocation
 		allocReg,   // (u8 numRegisters)
 		
+		/// MARK: Memory allocation
+		// places a pointer to beginning of memory section in the argument register
+		setBrk,     // (u8 sizeRegIdx)
+		
 		/// MARK: Function call and return
 		// regPtr += regOffset
 		// regPtr[-2] = regOffset
@@ -40,7 +44,7 @@ namespace scatha::vm {
 		// terminates the program
 		terminate,  // ()
 		
-		/// MARK: loads and stores
+		/// MARK: Loads and stores
 		movRR,      // (u8 toRegIdx, u8 fromRegIdx)
 		movRV,      // (u8 toRegIdx, u64 value)
 		movMR,      // (MEMORY_POINTER, u8 ptrRegIdx)
@@ -152,6 +156,7 @@ namespace scatha::vm {
 		using enum OpCodeClass;
 		return UTL_MAP_ENUM(c, OpCodeClass, {
 			{ OpCode::allocReg,  Other },
+			{ OpCode::setBrk,    Other },
 			{ OpCode::call,      Other },
 			{ OpCode::ret,       Other },
 			{ OpCode::terminate, Other },
@@ -209,6 +214,8 @@ namespace scatha::vm {
 		if (opCodeClass == Other) {
 			switch (c) {
 				case OpCode::allocReg:
+					return 2;
+				case OpCode::setBrk:
 					return 2;
 				case OpCode::call:
 					return 6;

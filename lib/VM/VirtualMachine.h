@@ -10,31 +10,56 @@
 
 namespace scatha::vm {
 	
-	class VirtualMachine {
+	struct VMFlags {
+		bool less     : 1;
+		bool equal    : 1;
+	};
+	
+	using ExternalFunction = void(*)(u64, class VirtualMachine*);
+	
+	struct VMState {
+		u8 const* iptr = nullptr;
+		u64* regPtr = nullptr;
+		VMFlags flags{};
+		
+		utl::vector<u64> registers;
+		utl::vector<u8> memory;
+		
+		u8 const* programBreak = nullptr;
+		u8* memoryPtr = nullptr;
+		u8 const* memoryBreak = nullptr;
+		
+		size_t instructionCount = 0;
+	};
+	
+	struct VMStats {
+		size_t executedInstructions;
+	};
+	
+	class VirtualMachine: VMState {
 	public:
 		VirtualMachine();
 		void load(Program const&);
 		void execute();
 		
-//	private:
-		struct Flags {
-			bool less     : 1;
-			bool equal    : 1;
-		};
+		void addExternalFunction(size_t slot, ExternalFunction);
 		
-		using ExternalFunction = void(*)(u64, VirtualMachine*);
+		SC_TEST_SECTION(
 		
-//	private:
-		u64 iptr = 0;
-		u64* regPtr = nullptr;
-		Flags flags{};
+		VMState& getState() { return *this; }
+		VMStats& getStats() { return stats; }
 		
+		)
+		
+		friend struct OpCodeImpl;
+		
+	private:
+		void resizeMemory(size_t newSize);
+		
+	private:
 		utl::vector<Instruction> instructionTable;
 		utl::vector<utl::vector<ExternalFunction>> extFunctionTable;
-		utl::vector<u8> program;
-		
-		utl::vector<u64> registers;
-		utl::vector<u8> memory;
+		VMStats stats;
 	};
 	
 }

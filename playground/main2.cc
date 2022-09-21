@@ -103,13 +103,9 @@ int main() {
 	
 	VirtualMachine vm;
 	
-	vm.extFunctionTable.push_back(utl::vector<VirtualMachine::ExternalFunction>{
-		[](u64 value, VirtualMachine*){ std::cout << value << std::endl; },
-		[](u64 value, VirtualMachine*){ std::cout << utl::bit_cast<i64>(value) << std::endl; },
-		[](u64 value, VirtualMachine*){ std::cout << utl::bit_cast<f64>(value) << std::endl; },
-	});
-	
-	vm.memory.resize(128);
+	vm.addExternalFunction(0, [](u64 value, VirtualMachine*){ std::cout << value << std::endl; });
+	vm.addExternalFunction(0, [](u64 value, VirtualMachine*){ std::cout << utl::bit_cast<i64>(value) << std::endl; });
+	vm.addExternalFunction(0, [](u64 value, VirtualMachine*){ std::cout << utl::bit_cast<f64>(value) << std::endl; });
 	
 	vm.load(p);
 	
