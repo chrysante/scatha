@@ -5,148 +5,116 @@
 #include "Basic/Basic.h"
 #include "AST/AST.h"
 
-
-namespace scatha::vm {
-
-
-	struct RegisterScope {
-		
-		
-		i64* i64Ptr;
-		f64* f64Ptr;
-	};
-
-	enum class Instruction: u32 {
-		allocScope, // (i64 register count, f64 register count)
-		movRR, // (index of register to move to, index of register to move)
-		movRV, // (index of register to move to, value to move)
-		movMR, // (index of register holding memory pointer to move to, index of register to move)
-		addRR, // (registerIndex, registerIndex)
-		addRM, // (registerIndex, ptr)
-		// faddRR,
-		// faddRM,
-		mulRR, // (registerIndex, registerIndex)
-		mulRM, // (registerIndex, ptr)
-		callExt, // registerIndex holding call target
-		_count
-	};
-	
-	
-	
-	struct Program {
-		utl::vector<u32> instructions;
-		
-		void add(Instruction i, u32 a) {
-			instructions.push_back((u32)i);
-			instructions.push_back((u32)a);
-		}
-		void add(Instruction i, u32 a, u32 b) {
-			add(i, a);
-			instructions.push_back((u32)b);
-		}
-	};
-	
-	struct Machine {
-		
-		Machine():
-			instructionTable((size_t)vm::Instruction::_count)
-		{
-			using enum vm::Instruction;
-			auto at = [&](vm::Instruction i) -> auto& { return instructionTable[(size_t)i]; };
-			
-			at(allocScope) = [](Machine& m, u32 a, u32 b) {
-				m.crs = { (i64*)malloc(8 * a), (f64*)malloc(8 * b) };
-				m.iptr += 3;
-			};
-			
-			at(movRR) = [](Machine& m, u32 a, u32 b) {
-				m.crs.i64Ptr[a] = m.crs.i64Ptr[b];
-				m.iptr += 3;
-			};
-			at(movRV) = [](Machine& m, u32 a, u32 b) {
-				m.crs.i64Ptr[a] = b;
-				m.iptr += 3;
-			};
-			at(movMR) = [](Machine& m, u32 a, u32 b) {
-				(i64&)m.memory[m.crs.i64Ptr[a]] = m.crs.i64Ptr[b];
-				m.iptr += 3;
-			};
-			
-			at(addRR) = [](Machine& m, u32 a, u32 b) {
-				m.crs.i64Ptr[a] += m.crs.i64Ptr[b];
-				m.iptr += 3;
-			};
-			at(addRM) = [](Machine& m, u32 a, u32 b) {
-				m.crs.i64Ptr[a] += (i64 const&)m.memory[m.crs.i64Ptr[b]];
-				m.iptr += 3;
-			};
-			
-			at(mulRR) = [](Machine& m, u32 a, u32 b) {
-				m.crs.i64Ptr[a] *= m.crs.i64Ptr[b];
-				m.iptr += 3;
-			};
-			at(mulRM) = [](Machine& m, u32 a, u32 b) {
-				m.crs.i64Ptr[a] *= (i64 const&)m.memory[m.crs.i64Ptr[b]];
-				m.iptr += 3;
-			};
-			
-			at(callExt) = [](Machine& m, u32 a, u32) {
-				m.extFunctionTable[a](m);
-				m.iptr += 2;
-			};
-			
-			extFunctionTable.push_back([](Machine& m) { std::cout << (i64&)m.memory[m.crs.i64Ptr[0]]; });
-			
-			memory.resize(128);
-		}
-		
-		void execute(Program const& program) {
-			size_t const icount = program.instructions.size() - 1;
-			while (iptr < icount) {
-				u32 const instruction = program.instructions[iptr];
-				instructionTable[instruction](*this, program.instructions[iptr + 1], program.instructions[iptr + 2]);
-			}
-		}
-		
-		
-	private:
-		template <typename T>
-		static T as(u64 x) { return static_cast<T>(x); }
-	
-	private:
-		u64 iptr = 0;
-		RegisterScope crs{};
-		using Instruction = void(*)(Machine&, u32, u32);
-		utl::vector<Instruction> instructionTable;
-		using ExtFunction = void(*)(Machine&);
-		utl::vector<ExtFunction> extFunctionTable;
-		utl::vector<u8> memory;
-	};
-
-	
-}
+#include "VM/OpCode.h"
+#include "VM/Program.h"
+#include "VM/Assembler.h"
+#include "VM/VirtualMachine.h"
 
 using namespace scatha;
-ast::UniquePtr<ast::AbstractSyntaxTree> makeAST();
+using namespace vm;
 
-int _main() {
+/*
+for (int i = 0; i < N; ++i) {
+	<statements>;
+}
+
+--->>
+
+int i = 0;
+loop_begin:
+if (!(i < 10)) {
+	goto loop_end;
+}
+<statements>;
+++i;
+goto loop_begin;
+loop_end:
+*/
+
+/*
+                                             // ; Main function
+ a << allocReg << u8(6);                     // ; allocate 10 registers
+ a << movRV    << RV(0, 0);                  // ; i = 0
+ a << movRV    << RV(1, 128.0);              // ; x = 8.0
+ a << movMR    << MR(0, 0, 0, 1);            // ; memory[i + (0 << 0)] = x
+ a << movRM    << RM(1, 0, 0, 0);            // ; x = memory[i + (0 << 0)]
+ a << Label("loopBegin");                    // ; loop_begin:
+ a << icmpRV   << RV(0, 16);                 // ; cmp(i, 100)
+ a << jge      << makeLabel("loopEnd");      // ; if (i < 10) goto loop_end;
+
+ // Loop body
+ a << movRR    << RR(4, 1);
+ a << movRV    << RV(5, f64(2));
+ a << call     << makeLabel("f") << u8(4);
+ a << movRR    << RR(1, 6);
+ 
+ a << addRV    << RV(0, 1);                  // ; i += 1
+ a << jmp      << makeLabel("loopBegin");    // ; goto loop_begin;
+ 
+ a << Label("loopEnd");                      // ; loop_end:
+ a << terminate;
+ 
+ a << Label("f");                            // ; f(f64 a, f64 b):
+ a << allocReg << u8(1);
+ a << fdivRR   << RR(0, 1);                  // ; a /= b
+ a << movRR    << RR(2, 0);                  // ; retval = a
+ a << callExt  << u8(2) << u8(0) << u16(2);  // ; fprint(x)
+ a << ret;
+ */
+
+int main() {
 	
 	
-	using namespace scatha::vm;
-	using enum Instruction;
-	Program p;
 	
-	p.add(allocScope, 6, 0);
-	p.add(movRV, 0, 0);
-	p.add(movRV, 1, 5);
-	p.add(movRV, 2, 4);
-	p.add(mulRR, 1, 2);
-	p.add(movMR, 0, 1);
-	p.add(callExt, 0);
-	p.instructions.push_back(0);
-	Machine m;
+	using enum OpCode;
 	
-	m.execute(p);
+	Assembler a;
+												// ; Main function
+	a << allocReg << u8(6);                     // ; allocate 10 registers
+	a << movRV    << RV(2, 1570795);            // ; a = 30
+	a << movRV    << RV(3, 553805);             // ; b = 20
+	a << call     << makeLabel("gcd") << u8(2);
+	a << callExt  << u8(4) << u8(0) << u16(1);
+	
+	a << terminate;
+	
+	a << Label("gcd");                          // ; gcd(i64 a, i64 b):
+	a << allocReg << u8(1);
+	a << icmpRV   << RV(1, i64(0));             // ; b == 0
+	a << jne      << makeLabel("gcd-else");
+	a << movRR    << RR(2, 0);                  // ; retval = a
+	a << ret;
+	a << Label("gcd-else");
+	// swap a and b
+	a << movRR    << RR(2, 1);                  // c = b
+	a << movRR    << RR(1, 0);                  // b = a
+	a << movRR    << RR(0, 2);                  // a = c
+	a << remRR    << RR(1, 0);
+	
+	a << jmp      << makeLabel("gcd");          // tail call
+	
+//	a.print();
+	
+//	std::cout << "\n\n-----------------------\n\n\n";
+	
+	Program p = a.assemble();
+	
+//	printProgram(p);
+	
+	VirtualMachine vm;
+	
+	vm.extFunctionTable.push_back(utl::vector<VirtualMachine::ExternalFunction>{
+		[](u64 value, VirtualMachine*){ std::cout << value << std::endl; },
+		[](u64 value, VirtualMachine*){ std::cout << utl::bit_cast<i64>(value) << std::endl; },
+		[](u64 value, VirtualMachine*){ std::cout << utl::bit_cast<f64>(value) << std::endl; },
+	});
+	
+	vm.memory.resize(128);
+	
+	vm.load(p);
+	
+	vm.execute();
 	
 	std::cout << std::endl;
+	
 }
