@@ -1,9 +1,10 @@
-#ifndef SCATHA_SEMA_SEMANTICERROR_H_
-#define SCATHA_SEMA_SEMANTICERROR_H_
+#ifndef SCATHA_SEMA_SEMANTICISSUE_H_
+#define SCATHA_SEMA_SEMANTICISSUE_H_
 
 #include <stdexcept>
 #include <string>
 
+#include "Common/ProgramIssue.h"
 #include "Common/Token.h"
 #include "Sema/SemanticElements.h"
 
@@ -11,32 +12,26 @@ namespace scatha::sema {
 
 	class Scope;
 	
-	/// MARK: SemanticError
+	/// MARK: SemanticIssue
 	/// Base class of all semantic errors
-	class SemanticError: public std::runtime_error {
+	class SemanticIssue: public ProgramIssue {
 	public:
-		SemanticError(Token const& token, std::string_view brief, std::string_view message = {});
-		
-	private:
-		static std::string makeString(std::string_view, Token const&, std::string_view);
+		SemanticIssue(Token const& token, std::string_view brief, std::string_view message = {});
 	};
 	
-	/// MARK: TypeError
+	/// MARK: TypeIssue
 	/// Base class of all type related errors
-	class TypeError: public SemanticError {
+	class TypeIssue: public SemanticIssue {
 	public:
-		using SemanticError::SemanticError;
-
-	private:
-		
+		using SemanticIssue::SemanticIssue;
 	};
 	
-	class BadTypeConversion: public TypeError {
+	class BadTypeConversion: public TypeIssue {
 	public:
 		explicit BadTypeConversion(Token const& token, TypeEx const& from, TypeEx const& to);
 	};
 	
-	class BadFunctionCall: public SemanticError {
+	class BadFunctionCall: public SemanticIssue {
 	public:
 		enum Reason {
 			WrongArgumentCount
@@ -45,9 +40,9 @@ namespace scatha::sema {
 	};
 	
 	/// MARK: SymbolError
-	class SymbolError: public SemanticError {
+	class SymbolError: public SemanticIssue {
 	protected:
-		using SemanticError::SemanticError;
+		using SemanticIssue::SemanticIssue;
 	};
 	
 	class UseOfUndeclaredIdentifier: public SymbolError {
@@ -61,9 +56,9 @@ namespace scatha::sema {
 	};
 
 	/// MARK: StatementError
-	class InvalidStatement: public SemanticError {
+	class InvalidStatement: public SemanticIssue {
 	public:
-		using SemanticError::SemanticError;
+		using SemanticIssue::SemanticIssue;
 		InvalidStatement(Token const&, std::string_view message);
 	};
 
@@ -92,6 +87,6 @@ namespace scatha::sema {
 	
 }
 
-#endif // SCATHA_SEMA_SEMANTICERROR_H_
+#endif // SCATHA_SEMA_SEMANTICISSUE_H_
 
 

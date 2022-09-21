@@ -5,7 +5,7 @@
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/SemanticAnalyzer.h"
-#include "Sema/SemanticError.h"
+#include "Sema/SemanticIssue.h"
 
 using namespace scatha;
 using namespace lex;
@@ -293,7 +293,7 @@ fn f(x: int) {
 	}
 	
 	SECTION("Other semantic errors") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let x = int; }"), SemanticError);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let x = int; }"), SemanticIssue);
 	}
 	
 }

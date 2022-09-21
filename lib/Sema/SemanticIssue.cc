@@ -1,4 +1,4 @@
-#include "SemanticError.h"
+#include "Sema/SemanticIssue.h"
 
 #include <sstream>
 
@@ -17,28 +17,19 @@ namespace scatha::sema {
 		}
 	};
 	
-	SemanticError::SemanticError(Token const& token, std::string_view brief, std::string_view message):
-		std::runtime_error(makeString(brief, token, message))
+	SemanticIssue::SemanticIssue(Token const& token, std::string_view brief, std::string_view message):
+		ProgramIssue(token, brief, message)
 	{}
 	
-	std::string SemanticError::makeString(std::string_view brief, Token const& token, std::string_view message) {
-		std::stringstream sstr;
-		sstr << brief << " at Line: " << token.sourceLocation.line << " Col: " << token.sourceLocation.column;
-		if (!message.empty()) {
-			sstr << ": \n\t" << message;
-		}
-		return sstr.str();
-	}
-	
 	BadTypeConversion::BadTypeConversion(Token const& token, TypeEx const& from, TypeEx const& to):
-		TypeError(token, utl::strcat("Cannot convert from ", from.name(), " to ", to.name()),
+		TypeIssue(token, utl::strcat("Cannot convert from ", from.name(), " to ", to.name()),
 				  "Note: For now we don't allow any implicit conversions")
 	{
 		
 	}
 	
 	BadFunctionCall::BadFunctionCall(Token const& token, Reason):
-		SemanticError(token, utl::strcat("No matching function to call for \"", token.id, "\""))
+		SemanticIssue(token, utl::strcat("No matching function to call for \"", token.id, "\""))
 	{
 		
 	}
@@ -52,7 +43,7 @@ namespace scatha::sema {
 	{}
 	
 	InvalidStatement::InvalidStatement(Token const& token, std::string_view message):
-		SemanticError(token, message)
+		SemanticIssue(token, message)
 	{}
 	
 	InvalidDeclaration::InvalidDeclaration(Token const& token, Scope const* scope, std::string_view element):
