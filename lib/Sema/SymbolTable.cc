@@ -74,7 +74,7 @@ namespace scatha::sema {
 		if (newlyAdded) {
 			// Since function types are not named, we use the TypeID as the key here. This should be fine, since function types cannot be found by name anyhow. So wen can just find them by their hashed signature aka their TypeID.
 			[[maybe_unused]] auto [functionType, _] = types.emplace((u64)computedFunctionTypeID, returnType, argumentTypes, computedFunctionTypeID);
-			auto const result = funcs.emplace(symbolID.id(), symbolID, computedFunctionTypeID);
+			auto const result = funcs.emplace(symbolID.id(), name.id, symbolID, computedFunctionTypeID);
 			SC_ASSERT(result.second, "Function already exists");
 			return result;
 		}

@@ -151,12 +151,18 @@ namespace scatha::sema {
 	struct Function {
 		static constexpr std::string_view elementName() { return "Function"; }
 		
-		explicit Function(SymbolID symbolID, TypeID typeID): _symbolID(symbolID), _typeID(typeID) {}
+		explicit Function(std::string name, SymbolID symbolID, TypeID typeID):
+			_name(name),
+			_symbolID(symbolID),
+			_typeID(typeID)
+		{}
 		
+		std::string_view name() const { return _name; }
 		SymbolID symbolID() const { return _symbolID; }
 		TypeID typeID() const { return _typeID; }
 		
 	private:
+		std::string _name;
 		SymbolID _symbolID;
 		TypeID _typeID = TypeID::Invalid;
 	};
