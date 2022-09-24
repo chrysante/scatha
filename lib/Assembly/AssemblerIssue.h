@@ -24,9 +24,9 @@ namespace scatha::assembly {
 		explicit UnexpectedElement(Element const&, size_t line);
 	};
 	
-	class InvalidArgument: public UnexpectedElement {
+	class InvalidArguments: public UnexpectedElement {
 	public:
-		explicit InvalidArgument(Element const&, size_t line);
+		explicit InvalidArguments(Instruction, Element const& a, Element const& b, size_t line);
 	};
 	
 	class InvalidMarker: public AssemblerIssue {

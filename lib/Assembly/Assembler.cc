@@ -12,6 +12,7 @@
 
 #include "Basic/Memory.h"
 #include "Assembly/AssemblerIssue.h"
+#include "Assembly/AssemblyUtil.h"
 
 #include "VM/OpCode.h"
 
@@ -54,221 +55,87 @@ namespace scatha::assembly {
 	void Assembler::processInstruction(Instruction i) {
 		switch (i) {
 				using enum Instruction;
-			case allocReg: {
+			case allocReg:
 				put(OpCode::allocReg);
 				put(eatAs<Value8>());
 				return;
-			}
-			case setBrk: {
+			
+			case setBrk:
 				put(OpCode::setBrk);
-				put(eatAs<Value8>());
+				put(eatAs<RegisterIndex>());
 				return;
-			}
-			case call: {
+			
+			case call:
 				registerJumpsite();
 				put(OpCode::call);
 				put(LabelPlaceholder{});
 				put(eatAs<Value8>());
 				return;
-			}
-			case ret: {
+			
+			case ret:
 				put(OpCode::ret);
 				return;
-			}
-			case terminate: {
+			
+			case terminate:
 				put(OpCode::terminate);
 				return;
-			}
-			case mov: {
-				Element arg0 = eat();
-				Element arg1 = eat();
-				switch (arg0.marker()) {
-					case Marker::RegisterIndex:
-						switch (arg1.marker()) {
-							case Marker::RegisterIndex:
-								put(OpCode::movRR);
-								put(arg0.get<RegisterIndex>());
-								put(arg1.get<RegisterIndex>());
-								break;
-							case Marker::Value64:
-								put(OpCode::movRV);
-								put(arg0.get<RegisterIndex>());
-								put(arg1.get<Value64>());
-								break;
-							case Marker::MemoryAddress:
-								put(OpCode::movRM);
-								put(arg0.get<RegisterIndex>());
-								put(arg1.get<MemoryAddress>());
-								break;
-							default:
-								throw UnexpectedElement(arg1, line);
-						}
-						break;
-					case Marker::MemoryAddress:
-						if (arg1.marker() != Marker::RegisterIndex) {
-							throw UnexpectedElement(arg1, line);
-						}
-						put(OpCode::movMR);
-						put(arg0.get<MemoryAddress>());
-						put(arg1.get<RegisterIndex>());
-						break;
-					default:
-						throw UnexpectedElement(arg0, line);
-				}
-				return;
-			}
-			case jmp:
-				registerJumpsite();
-				put(OpCode::jmp);
-				put(LabelPlaceholder{});
-				return;
-			case je:
-				registerJumpsite();
-				put(OpCode::je);
-				put(LabelPlaceholder{});
-				return;
-			case jne:
-				registerJumpsite();
-				put(OpCode::jne);
-				put(LabelPlaceholder{});
-				return;
-			case jl:
-				registerJumpsite();
-				put(OpCode::jl);
-				put(LabelPlaceholder{});
-				return;
-			case jle:
-				registerJumpsite();
-				put(OpCode::jle);
-				put(LabelPlaceholder{});
-				return;
-			case jg:
-				registerJumpsite();
-				put(OpCode::jg);
-				put(LabelPlaceholder{});
-				return;
-			case jge: {
-				registerJumpsite();
-				put(OpCode::jge);
-				put(LabelPlaceholder{});
-				return;
-			}
-			case ucmp: {
-				process_RR_RV(OpCode::ucmpRR, OpCode::ucmpRV);
-				return;
-			}
-			case icmp: {
-				process_RR_RV(OpCode::icmpRR, OpCode::icmpRV);
-				return;
-			}
-			case fcmp: {
-				process_RR_RV(OpCode::fcmpRR, OpCode::fcmpRV);
-				return;
-			}
-			case add: {
-				process_RR_RV_RM(OpCode::addRR, OpCode::addRV, OpCode::addRM);
-				return;
-			}
-			case sub: {
-				process_RR_RV_RM(OpCode::subRR, OpCode::subRV, OpCode::subRM);
-				return;
-			}
-			case mul: {
-				process_RR_RV_RM(OpCode::mulRR, OpCode::mulRV, OpCode::mulRM);
-				return;
-			}
-			case div: {
-				process_RR_RV_RM(OpCode::divRR, OpCode::divRV, OpCode::divRM);
-				return;
-			}
-			case rem: {
-				process_RR_RV_RM(OpCode::remRR, OpCode::remRV, OpCode::remRM);
-				return;
-			}
-			case fadd: {
-				process_RR_RV_RM(OpCode::faddRR, OpCode::faddRV, OpCode::faddRM);
-				return;
-			}
-			case fsub: {
-				process_RR_RV_RM(OpCode::fsubRR, OpCode::fsubRV, OpCode::fsubRM);
-				return;
-			}
-			case fmul: {
-				process_RR_RV_RM(OpCode::fmulRR, OpCode::fmulRV, OpCode::fmulRM);
-				return;
-			}
-			case fdiv: {
-				process_RR_RV_RM(OpCode::fdivRR, OpCode::fdivRV, OpCode::fdivRM);
-				return;
-			}
-			case callExt: {
+			
+			case callExt:
 				put(OpCode::callExt);
 				put(eatAs<Value8>());
 				put(eatAs<Value8>());
 				put(eatAs<Value16>());
 				return;
-			}
+				
+			case mov:  [[fallthrough]];
+			case ucmp: [[fallthrough]];
+			case icmp: [[fallthrough]];
+			case fcmp: [[fallthrough]];
+			case add:  [[fallthrough]];
+			case sub:  [[fallthrough]];
+			case mul:  [[fallthrough]];
+			case div:  [[fallthrough]];
+			case idiv: [[fallthrough]];
+			case rem:  [[fallthrough]];
+			case irem: [[fallthrough]];
+			case fadd: [[fallthrough]];
+			case fsub: [[fallthrough]];
+			case fmul: [[fallthrough]];
+			case fdiv:
+				processBinaryInstruction(i);
+				return;
+					
+			case jmp: [[fallthrough]];
+			case je:  [[fallthrough]];
+			case jne: [[fallthrough]];
+			case jl:  [[fallthrough]];
+			case jle: [[fallthrough]];
+			case jg:  [[fallthrough]];
+			case jge:
+				processJump(i);
+				return;
+				
 			SC_NO_DEFAULT_CASE();
 		}
 	}
 	
-	void Assembler::process_RR_RV(vm::OpCode RR, vm::OpCode RV) {
-		Element arg0 = eat();
-		Element arg1 = eat();
-		
-		if (arg0.marker() != Marker::RegisterIndex) {
-			throw UnexpectedElement(arg0, line);
+	void Assembler::processBinaryInstruction(Instruction i) {
+		auto const arg1 = eat();
+		auto const arg2 = eat();
+		auto const opcode = mapInstruction(i, arg1, arg2);
+		if (opcode == OpCode::_count) {
+			throw InvalidArguments(i, arg1, arg2, line);
 		}
-		
-		auto const r = arg0.get<RegisterIndex>();
-
-		switch (arg1.marker()) {
-			case Marker::RegisterIndex:
-				put(RR);
-				put(r);
-				put(arg1.get<RegisterIndex>());
-				return;
-			case Marker::Value64:
-				put(RV);
-				put(r);
-				put(arg1.get<Value64>());
-				return;
-			
-			default:
-				throw UnexpectedElement(arg1, line);
-		}
+		put(opcode);
+		put(arg1);
+		put(arg2);
 	}
 	
-	void Assembler::process_RR_RV_RM(vm::OpCode RR, vm::OpCode RV, vm::OpCode RM) {
-		Element arg0 = eat();
-		Element arg1 = eat();
-		
-		if (arg0.marker() != Marker::RegisterIndex) {
-			throw UnexpectedElement(arg0, line);
-		}
-		
-		auto const r = arg0.get<RegisterIndex>();
-
-		switch (arg1.marker()) {
-			case Marker::RegisterIndex:
-				put(RR);
-				put(r);
-				put(arg1.get<RegisterIndex>());
-				return;
-			case Marker::Value64:
-				put(RV);
-				put(r);
-				put(arg1.get<Value64>());
-				return;
-			case Marker::MemoryAddress:
-				put(RM);
-				put(r);
-				put(arg1.get<MemoryAddress>());
-				return;
-			
-			default:
-				throw UnexpectedElement(arg1, line);
-		}
+	void Assembler::processJump(Instruction i) {
+		registerJumpsite();
+		put(mapInstruction(i));
+		put(LabelPlaceholder{});
+		return;
 	}
 	
 	void Assembler::registerLabel(Label label) {
@@ -355,6 +222,10 @@ namespace scatha::assembly {
 		for (int i = 0; i < 4; ++i) {
 			program->instructions.push_back(0);
 		}
+	}
+	
+	void Assembler::put(Element const& elem) {
+		std::visit([this](auto const& x) { put(x); }, elem);
 	}
 	
 	void Assembler::put(RegisterIndex r) {

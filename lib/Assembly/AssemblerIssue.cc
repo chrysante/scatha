@@ -17,8 +17,9 @@ namespace scatha::assembly {
 		
 	}
 	
-	InvalidArgument::InvalidArgument(Element const& elem, size_t line):
-		UnexpectedElement(utl::strcat("Invalid argument: ", elem.marker(), "."), line)
+	InvalidArguments::InvalidArguments(Instruction i, Element const& a, Element const& b, size_t line):
+		UnexpectedElement(utl::strcat("Invalid arguments for ", i, ": ",
+									  a.marker(), ", ", b.marker(), "."), line)
 	{
 		
 	}

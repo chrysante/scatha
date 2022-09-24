@@ -51,9 +51,10 @@ namespace scatha::assembly {
 		struct LabelPlaceholder{};
 		
 		void processInstruction(Instruction);
+		void processBinaryInstruction(Instruction);
+		void processJump(Instruction);
 		void processLabel(Label);
-		void process_RR_RV(vm::OpCode RR, vm::OpCode RV);
-		void process_RR_RV_RM(vm::OpCode RR, vm::OpCode RV, vm::OpCode RM);
+		
 		void registerLabel(Label);
 		void registerJumpsite();
 		
@@ -62,7 +63,6 @@ namespace scatha::assembly {
 		Element eat();
 		template <typename T>
 		T eatAs();
-		
 		template <typename T>
 		T eat();
 		
@@ -71,6 +71,7 @@ namespace scatha::assembly {
 		 */
 		void put(vm::OpCode);
 		void put(LabelPlaceholder);
+		void put(Element const&);
 		void put(RegisterIndex);
 		void put(MemoryAddress);
 		void put(Value8);

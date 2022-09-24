@@ -32,7 +32,9 @@ namespace scatha::assembly {
 			{ sub,       "sub" },
 			{ mul,       "mul" },
 			{ div,       "div" },
+			{ idiv,      "idiv" },
 			{ rem,       "rem" },
+			{ irem,      "irem" },
 			{ fadd,      "fadd" },
 			{ fsub,      "fsub" },
 			{ fmul,      "fmul" },
@@ -106,6 +108,8 @@ namespace scatha::assembly {
 				return str << "Value64";
 			case Marker::EndOfProgram:
 				return str << "EndOfProgram";
+			case Marker::none:
+				SC_DEBUGFAIL();
 		}
 	}
 	

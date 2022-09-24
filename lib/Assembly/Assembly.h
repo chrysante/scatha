@@ -26,7 +26,7 @@ namespace scatha::assembly {
 		mov,
 		jmp, je, jne, jl, jle, jg, jge,
 		ucmp, icmp, fcmp,
-		add, sub, mul, div, rem,
+		add, sub, mul, div, idiv, rem, irem,
 		fadd, fsub, fmul, fdiv,
 		callExt,
 		
@@ -117,6 +117,8 @@ namespace scatha::assembly {
 	struct EndOfProgram {};
 	
 	enum class Marker: u16 {
+		none          = 0,
+		
 		// enum class Instruction
 		Instruction   = 1 << 0,
 		
@@ -174,7 +176,10 @@ namespace scatha::assembly {
 		T get() const { return std::get<T>(*this); }
 	};
 	
+	
+	
 }
+
 template <>
 struct std::hash<scatha::assembly::Label> {
 	std::size_t operator()(scatha::assembly::Label l) const {
