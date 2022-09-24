@@ -3,8 +3,12 @@
 #ifndef SCATHA_BASIC_COMMON_H_
 #define SCATHA_BASIC_COMMON_H_
 
+#include <array>
 #include <cstdint>
 #include <cstddef>
+#include <type_traits>
+
+#include <utl/bit.hpp>
 
 #define SCATHA(Name, ...) _SCATHA_PD_##Name(__VA_ARGS__)
 
@@ -54,6 +58,11 @@ namespace scatha {
 	
 	using f32 = float;
 	using f64 = double;
+	
+	template <typename T> requires std::is_standard_layout_v<T>
+	std::array<u8, sizeof(T)> decompose(T const& t) {
+		return utl::bit_cast<std::array<u8, sizeof(T)>>(t);
+	}
 	
 }
 
