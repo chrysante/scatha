@@ -99,12 +99,24 @@ namespace scatha::vm {
 		divRV,      // (u8 regIdx, u64 value)
 		// reg[regIdxA] /= memory[eval(MEMORY_POINTER)]
 		divRM,      // (u8 regIdxA, MEMORY_POINTER)
+		// reg[regIdxA] /= reg[regIdxA]
+		idivRR,      // (u8 regIdxA, u8 regIdxA)
+		// reg[regIdx] /= value (signed arithmetic)
+		idivRV,      // (u8 regIdx, u64 value) (signed arithmetic)
+		// reg[regIdxA] /= memory[eval(MEMORY_POINTER)]
+		idivRM,      // (u8 regIdxA, MEMORY_POINTER) (signed arithmetic)
 		// reg[regIdxA] %= reg[regIdxA]
 		remRR,      // (u8 regIdxA, u8 regIdxA)
 		// reg[regIdx] %= value
 		remRV,      // (u8 regIdx, u64 value)
 		// reg[regIdxA] %= memory[eval(MEMORY_POINTER)]
 		remRM,      // (u8 regIdxA, MEMORY_POINTER)
+		// reg[regIdxA] %= reg[regIdxA]
+		iremRR,      // (u8 regIdxA, u8 regIdxA) (signed arithmetic)
+		// reg[regIdx] %= value
+		iremRV,      // (u8 regIdx, u64 value) (signed arithmetic)
+		// reg[regIdxA] %= memory[eval(MEMORY_POINTER)]
+		iremRM,      // (u8 regIdxA, MEMORY_POINTER) (signed arithmetic)
 		
 		/// MARK: Floating point arithmetic
 		// reg[regIdxA] += reg[regIdxA]
@@ -189,9 +201,15 @@ namespace scatha::vm {
 			{ OpCode::divRR,     RR },
 			{ OpCode::divRV,     RV },
 			{ OpCode::divRM,     RM },
+			{ OpCode::idivRR,    RR },
+			{ OpCode::idivRV,    RV },
+			{ OpCode::idivRM,    RM },
 			{ OpCode::remRR,     RR },
 			{ OpCode::remRV,     RV },
 			{ OpCode::remRM,     RM },
+			{ OpCode::iremRR,    RR },
+			{ OpCode::iremRV,    RV },
+			{ OpCode::iremRM,    RM },
 			{ OpCode::faddRR,    RR },
 			{ OpCode::faddRV,    RV },
 			{ OpCode::faddRM,    RM },

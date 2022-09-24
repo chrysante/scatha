@@ -51,9 +51,15 @@ namespace scatha::vm {
 			{ divRR,     "divRR" },
 			{ divRV,     "divRV" },
 			{ divRM,     "divRM" },
+			{ idivRR,    "idivRR" },
+			{ idivRV,    "idivRV" },
+			{ idivRM,    "idivRM" },
 			{ remRR,     "remRR" },
 			{ remRV,     "remRV" },
 			{ remRM,     "remRM" },
+			{ iremRR,    "iremRR" },
+			{ iremRV,    "iremRV" },
+			{ iremRM,    "iremRM" },
 			{ faddRR,    "faddRR" },
 			{ faddRV,    "faddRV" },
 			{ faddRM,    "faddRM" },
@@ -257,21 +263,27 @@ namespace scatha::vm {
 			at(fcmpRV) = compareRV<fcmpRV, f64>();
 			
 			/// MARK: Integer arithmetic
-			at(addRR) = arithmeticRR<addRR, u64>(utl::plus);
-			at(addRV) = arithmeticRV<addRV, u64>(utl::plus);
-			at(addRM) = arithmeticRM<addRM, u64>(utl::plus);
-			at(subRR) = arithmeticRR<subRR, u64>(utl::minus);
-			at(subRV) = arithmeticRV<subRV, u64>(utl::minus);
-			at(subRM) = arithmeticRM<subRM, u64>(utl::minus);
-			at(mulRR) = arithmeticRR<mulRR, u64>(utl::multiplies);
-			at(mulRV) = arithmeticRV<mulRV, u64>(utl::multiplies);
-			at(mulRM) = arithmeticRM<mulRM, u64>(utl::multiplies);
-			at(divRR) = arithmeticRR<divRR, u64>(utl::divides);
-			at(divRV) = arithmeticRV<divRV, u64>(utl::divides);
-			at(divRM) = arithmeticRM<divRM, u64>(utl::divides);
-			at(remRR) = arithmeticRR<remRR, u64>(utl::modulo);
-			at(remRV) = arithmeticRV<remRV, u64>(utl::modulo);
-			at(remRM) = arithmeticRM<remRM, u64>(utl::modulo);
+			at(addRR)  = arithmeticRR<addRR,  u64>(utl::plus);
+			at(addRV)  = arithmeticRV<addRV,  u64>(utl::plus);
+			at(addRM)  = arithmeticRM<addRM,  u64>(utl::plus);
+			at(subRR)  = arithmeticRR<subRR,  u64>(utl::minus);
+			at(subRV)  = arithmeticRV<subRV,  u64>(utl::minus);
+			at(subRM)  = arithmeticRM<subRM,  u64>(utl::minus);
+			at(mulRR)  = arithmeticRR<mulRR,  u64>(utl::multiplies);
+			at(mulRV)  = arithmeticRV<mulRV,  u64>(utl::multiplies);
+			at(mulRM)  = arithmeticRM<mulRM,  u64>(utl::multiplies);
+			at(divRR)  = arithmeticRR<divRR,  u64>(utl::divides);
+			at(divRV)  = arithmeticRV<divRV,  u64>(utl::divides);
+			at(divRM)  = arithmeticRM<divRM,  u64>(utl::divides);
+			at(idivRR) = arithmeticRR<idivRR, i64>(utl::divides);
+			at(idivRV) = arithmeticRV<idivRV, i64>(utl::divides);
+			at(idivRM) = arithmeticRM<idivRM, i64>(utl::divides);
+			at(remRR)  = arithmeticRR<remRR,  u64>(utl::modulo);
+			at(remRV)  = arithmeticRV<remRV,  u64>(utl::modulo);
+			at(remRM)  = arithmeticRM<remRM,  u64>(utl::modulo);
+			at(iremRR) = arithmeticRR<iremRR, i64>(utl::modulo);
+			at(iremRV) = arithmeticRV<iremRV, i64>(utl::modulo);
+			at(iremRM) = arithmeticRM<iremRM, i64>(utl::modulo);
 			
 			
 			/// MARK: Floating point arithmetic
