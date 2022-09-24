@@ -10,7 +10,6 @@
 
 namespace scatha::vm {
 	
-	
 	/*
 	 
 	 A program looks like this:
@@ -22,48 +21,69 @@ namespace scatha::vm {
 	 sizeof(MEMORY_POINTER)   ==   3
 	 
 	 */
+	
+	/** MARK: Calling convention
+	 * All register indices are from the position of the callee.
+	 *
+	 *  Arguments are passed in consecutive registers starting with index 0.
+	 *  Return value is passed in consecutive registers starting with index 0.
+	 *  All registers with positive indices may be used and modified by the callee.
+	 *  Registers to hold the arguments are allocated by the caller, all further registers must be allocted by the callee (using \p allocReg).
+	 *  The register pointer offset is placed in \p R[-2] and added to the register pointer by the \p call instruction.
+	 *  The register pointer offset is subtracted from the register pointer by the the \p ret instruction.
+	 *  The return address is placed in \p R[-1] by the \p call instruction.
+	 */
+	
 	enum class OpCode: u8 {
 		/// MARK: Register allocation
+		/// After executing \p allocReg all registers with index less than \p numRegisters will be available.
+		/// This means for a called function, the amount of available registers will include the argument registers set by the caller.
 		allocReg,   // (u8 numRegisters)
 		
 		/// MARK: Memory allocation
-		// places a pointer to beginning of memory section in the argument register
+		/// Places a pointer to beginning of memory section in the argument register.
 		setBrk,     // (u8 sizeRegIdx)
 		
 		/// MARK: Function call and return
+		/// Performs the following operations:
 		// regPtr += regOffset
 		// regPtr[-2] = regOffset
 		// regPtr[-1] = iptr
 		// jmp offset
 		call,       // (i32 offset, u8 regOffset)
 		
+		/// Performs the following operations:
 		// iptr = regPtr[-1]
 		// regPtr -= regPtr[-2]
 		ret,        // ()
 		
-		// terminates the program
+		/// Immediately terminates the program.
 		terminate,  // ()
 		
 		/// MARK: Loads and stores
+		/// Copies the value from the source operand (right) into the destination operand (right).
 		movRR,      // (u8 toRegIdx, u8 fromRegIdx)
 		movRV,      // (u8 toRegIdx, u64 value)
 		movMR,      // (MEMORY_POINTER, u8 ptrRegIdx)
 		movRM,      // (u8 ptrRegIdx, MEMORY_POINTER)
 		
 		/// MARK: Jumps
-		// Jump to the specified offset
+		/// Jumps are performed by adding the \p offset argument the the instruction pointer.
+		/// This means a jump with \p offset 0 will jump to itself and thus enter an infinite loop.
+		
+		/// Jump to the specified offset.
 		jmp,        // (i32 offset)
-		// Jump to the specified offset if equal flag is set
+		/// Jump to the specified offset if equal flag is set.
 		je,         // (i32 offset)
-		// Jump to the specified offset if equal flag is not set
+		/// Jump to the specified offset if equal flag is not set.
 		jne,        // (i32 offset)
-		// Jump to the specified offset if less flag is set
+		/// Jump to the specified offset if less flag is set.
 		jl,         // (i32 offset)
-		// Jump to the specified offset if less flag or equal flag is set
+		/// Jump to the specified offset if less flag or equal flag is set.
 		jle,        // (i32 offset)
-		// Jump to the specified offset if less flag and equal flag are not set
+		/// Jump to the specified offset if less flag and equal flag are not set.
 		jg,         // (i32 offset)
-		// Jump to the specified offset if less flag is not set
+		/// Jump to the specified offset if less flag is not set.
 		jge,        // (i32 offset)
 		
 		/// MARK: Comparison
