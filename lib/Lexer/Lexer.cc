@@ -157,7 +157,7 @@ namespace scatha::lex {
 		size_t offset = 1;
 		std::optional next = this->next(offset);
 		while (next && isDigitDec(*next)) {
-			result.id = *next;
+			result.id += *next;
 			++offset;
 			next = this->next(offset);
 		}

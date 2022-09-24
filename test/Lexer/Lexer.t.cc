@@ -41,7 +41,8 @@ namespace {
 	
 }
 
-TEST_CASE() { return;
+TEST_CASE() {
+	return;
 	
  std::string const text = R"(
 import std;
@@ -254,9 +255,33 @@ an ignored multi line comment
 	
 }
 
-static void lexString(std::string_view text) {
+static auto lexString(std::string_view text) {
 	Lexer l(text);
-	(void)l.lex();
+	return l.lex();
+}
+
+TEST_CASE("Lexer literals", "[lex]") {
+	TestCase test;
+	test.text = R"(
+39;
+x = 39;
+f(39);
+)";
+	test.reference = {
+		{ TokenType::IntegerLiteral, "39" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::Identifier, "x" },
+		{ TokenType::Operator, "=" },
+		{ TokenType::IntegerLiteral, "39" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::Identifier, "f" },
+		{ TokenType::Punctuation, "(" },
+		{ TokenType::IntegerLiteral, "39" },
+		{ TokenType::Punctuation, ")" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::EndOfFile, "" }
+	};
+	runTest("Section 4", test);
 }
 
 TEST_CASE("Lexer negative", "[lex]") {
