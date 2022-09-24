@@ -46,11 +46,8 @@ __attribute__((weak)) int main() {
 		
 		ic::canonicalize(ast.get());
 		
-		auto const* const tu = dynamic_cast<ast::TranslationUnit const*>(ast.get());
-		auto const* const callerDef = dynamic_cast<ast::FunctionDefinition const*>(tu->declarations[1].get());
-		
 		ic::TACGenerator t(s.symbolTable());
-		auto const tac = t.run(callerDef);
+		auto const tac = t.run(ast.get());
 		
 		ic::printTAC(tac, s.symbolTable());
 	}

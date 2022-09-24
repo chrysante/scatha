@@ -11,14 +11,31 @@ namespace scatha::ic {
 		
 	}
 	
-	[[nodiscard]] TAC TACGenerator::run(ast::FunctionDefinition const* fn) {
+	[[nodiscard]] TAC TACGenerator::run(ast::AbstractSyntaxTree const* root) {
 		SC_ASSERT(tmpIndex == 0, "Don't reuse this");
-		doRun(fn->body.get());
+		
+		doRun(root);
+		
 		return TAC{ std::move(code) };
 	}
 
 	TASElement TACGenerator::doRun(ast::AbstractSyntaxTree const* node) {
 		switch (node->nodeType()) {
+			case ast::NodeType::TranslationUnit: {
+				auto const* const tu = static_cast<ast::TranslationUnit const*>(node);
+				for (auto& decl: tu->declarations) {
+					doRun(decl.get());
+				}
+				return {};
+			}
+			case ast::NodeType::FunctionDefinition: {
+				auto const* const fnDef = static_cast<ast::FunctionDefinition const*>(node);
+				currentFunctionID = fnDef->symbolID;
+				labelIndex = 0;
+				submitLabel();
+				doRun(fnDef->body.get());
+				return {};
+			}
 			case ast::NodeType::Block: {
 				auto const* const block = static_cast<ast::Block const*>(node);
 				for (auto& statement: block->statements) {
@@ -26,6 +43,7 @@ namespace scatha::ic {
 				}
 				return {};
 			}
+			
 			case ast::NodeType::VariableDeclaration: {
 				auto const* const varDecl = static_cast<ast::VariableDeclaration const*>(node);
 				SC_ASSERT(varDecl->initExpression != nullptr, "how do we handle this?");
@@ -38,7 +56,8 @@ namespace scatha::ic {
 						break;
 						
 					default:
-						submit(TAS::makeVariable(varDecl->symbolID.id(), mapFundType(varDecl->typeID)), Operation::mov, initResult);
+						submitVarAssignUnary(TAS::makeVariable(varDecl->symbolID.id(), mapFundType(varDecl->typeID)),
+											 Operation::mov, initResult);
 						break;
 				}
 				return {};
@@ -56,12 +75,12 @@ namespace scatha::ic {
 				
 				if (ifStatement->elseBlock != nullptr) {
 					size_t const jmpIndex = submitJump();
-					code[cjmpIndex].b = submitLabel();
+					code[cjmpIndex].labelIndex = submitLabel();
 					doRun(ifStatement->elseBlock.get());
-					code[jmpIndex].a = submitLabel();
+					code[jmpIndex].labelIndex = submitLabel();
 				}
 				else {
-					code[cjmpIndex].b = submitLabel();
+					code[cjmpIndex].labelIndex = submitLabel();
 				}
 				
 				return {};
@@ -97,7 +116,7 @@ namespace scatha::ic {
 					case ast::BinaryOperator::LessEq:         [[fallthrough]];
 					case ast::BinaryOperator::Equals:         [[fallthrough]];
 					case ast::BinaryOperator::NotEquals:
-						return submit(selectOperation(expr->lhs->typeID, expr->op), lhs, rhs);
+						return submitTempBinary(selectOperation(expr->lhs->typeID, expr->op), lhs, rhs);
 					
 					case ast::BinaryOperator::Assignment: {
 						auto const* lhsId = dynamic_cast<ast::Identifier const*>(expr->lhs.get());
@@ -110,7 +129,8 @@ namespace scatha::ic {
 								break;
 								
 							default:
-								submit(TAS::makeVariable(lhsId->symbolID.id(), mapFundType(lhsId->typeID)), Operation::mov, rhs);
+								submitVarAssignUnary(TAS::makeVariable(lhsId->symbolID.id(), mapFundType(lhsId->typeID)),
+													 Operation::mov, rhs);
 								break;
 						}
 						
@@ -127,88 +147,141 @@ namespace scatha::ic {
 						return result;
 						
 					case ast::UnaryPrefixOperator::Negation:
-						return submit(selectOperation(expr->operand->typeID, ast::BinaryOperator::Subtraction), TAS::makeLiteralValue(0, mapFundType(expr->operand->typeID)), result);
+						return submitTempBinary(selectOperation(expr->operand->typeID, ast::BinaryOperator::Subtraction), TAS::makeLiteralValue(0, mapFundType(expr->operand->typeID)), result);
 						
 					case ast::UnaryPrefixOperator::LogicalNot:
 						SC_ASSERT(expr->operand->typeID == sym.Int(), "Only int supported for now");
-						return submit(Operation::lnt, result);
+						return submitTempUnary(Operation::lnt, result);
 						
 					case ast::UnaryPrefixOperator::BitwiseNot:
 						SC_ASSERT(expr->operand->typeID == sym.Bool(), "Only bool supported");
-						return submit(Operation::bnt, result);
+						return submitTempUnary(Operation::bnt, result);
 						
 					SC_NO_DEFAULT_CASE();
 				}
 			}
 			case ast::NodeType::FunctionCall: {
-				SC_DEBUGFAIL(); // Implement this
+				auto const* expr = static_cast<ast::FunctionCall const*>(node);
+				for (auto& arg: expr->arguments) {
+					submitVoid(Operation::pushParam, doRun(arg.get()));
+				}
+				{	// our little hack to call functions for now
+					auto const* const functionId = dynamic_cast<ast::Identifier const*>(expr->object.get());
+					submitCall(functionId->symbolID);
+					return submitTempNullary(Operation::getResult, mapFundType(expr->typeID));
+				}
 			}
 			SC_NO_DEFAULT_CASE();
 		}
 	}
 	
-	TASElement TACGenerator::submit(TASElement result, Operation op, TASElement a, TASElement b) {
-		SC_ASSERT(result.kind == TASElement::Variable, "This overload must assign to variables");
+	static TASElement::Type determineResultType(Operation op, TASElement arg1) {
+		switch (op) {
+			case Operation::add:
+			case Operation::sub:
+			case Operation::mul:
+			case Operation::div:
+			case Operation::idiv:
+			case Operation::rem:
+			case Operation::irem:
+			case Operation::fadd:
+			case Operation::fsub:
+			case Operation::fmul:
+			case Operation::fdiv:
+			case Operation::lnt:
+			case Operation::bnt:
+				return arg1.type;
+				
+			case Operation::eq:
+			case Operation::neq:
+			case Operation::ls:
+			case Operation::leq:
+			case Operation::feq:
+			case Operation::fneq:
+			case Operation::fls:
+			case Operation::fleq:
+				return TASElement::Bool;
+				
+			case Operation::mov:
+			case Operation::jmp:
+			case Operation::cjmp:
+			case Operation::pushParam:
+			case Operation::getResult:
+			case Operation::call:
+			case Operation::ret:
+				return TASElement::Void;
+				
+			case Operation::_count:
+				SC_DEBUGFAIL();
+		}
+	}
+
+	TASElement TACGenerator::submitVarAssignUnary(TASElement result, Operation op, TASElement a) {
+		SC_ASSERT(result.kind == TASElement::Variable, "This overload must assign to a variable");
 		code.push_back(TAS{
-			.isLabel    = false,
+			.resultKind = result.kind,
+			.resultType = result.type,
+			.aKind      = a.kind,
+			.aType      = a.type,
+			.op         = op,
+			.result     = result.value,
+			.a          = a.value
+		});
+		return result;
+	}
+	
+	TASElement TACGenerator::submitVarAssignBinary(TASElement result, Operation op, TASElement a, TASElement b) {
+		SC_ASSERT(result.kind == TASElement::Variable, "This overload must assign to a variable");
+		code.push_back(TAS{
 			.resultKind = result.kind,
 			.resultType = result.type,
 			.aKind      = a.kind,
 			.aType      = a.type,
 			.bKind      = b.kind,
 			.bType      = b.type,
-			.op = op,
-			.result = result.value,
-			.a = a.value,
-			.b = b.value
+			.op         = op,
+			.result     = result.value,
+			.a          = a.value,
+			.b          = b.value
 		});
 		return result;
 	}
-	
-	TASElement TACGenerator::submit(Operation op, TASElement a, TASElement b) {
-		SC_ASSERT(a.type == b.type, "Types must match");
+
+	TASElement TACGenerator::submitTempNullary(Operation op, TASElement::Type type) {
 		size_t const result = tmpIndex++;
-		
-		TASElement::Type const resultType = [&]{
-			switch (op) {
-				case Operation::add:
-				case Operation::sub:
-				case Operation::mul:
-				case Operation::div:
-				case Operation::idiv:
-				case Operation::rem:
-				case Operation::irem:
-				case Operation::fadd:
-				case Operation::fsub:
-				case Operation::fmul:
-				case Operation::fdiv:
-				case Operation::lnt:
-				case Operation::bnt:
-					return a.type;
-					
-				case Operation::eq:
-				case Operation::neq:
-				case Operation::ls:
-				case Operation::leq:
-				case Operation::feq:
-				case Operation::fneq:
-				case Operation::fls:
-				case Operation::fleq:
-					return TASElement::Bool;
-					
-				case Operation::mov:
-				case Operation::load:
-				case Operation::jmp:
-				case Operation::cjmp:
-				default:
-					SC_DEBUGFAIL();
-			}
-		}();
+		code.push_back(TAS{
+			.isLabel    = false,
+			.resultKind = TASElement::Temporary,
+			.resultType = type,
+			.op         = op,
+			.result     = result
+		});
+		return TAS::makeTemporary(result, code.back().resultType);
+	}
+	
+	TASElement TACGenerator::submitTempUnary(Operation op, TASElement a) {
+		size_t const result = tmpIndex++;
 		
 		code.push_back(TAS{
 			.isLabel    = false,
 			.resultKind = TASElement::Temporary,
-			.resultType = resultType,
+			.resultType = determineResultType(op, a),
+			.aKind      = a.kind,
+			.aType      = a.type,
+			.op         = op,
+			.result     = result,
+			.a          = a.value
+		});
+		return TAS::makeTemporary(result, code.back().resultType);
+	}
+	
+	TASElement TACGenerator::submitTempBinary(Operation op, TASElement a, TASElement b) {
+		size_t const result = tmpIndex++;
+		
+		code.push_back(TAS{
+			.isLabel    = false,
+			.resultKind = TASElement::Temporary,
+			.resultType = determineResultType(op, a),
 			.aKind      = a.kind,
 			.aType      = a.type,
 			.bKind      = b.kind,
@@ -221,14 +294,22 @@ namespace scatha::ic {
 		return TAS::makeTemporary(result, code.back().resultType);
 	}
 	
-	size_t TACGenerator::submitJump() {
-#warning
+	void TACGenerator::submitVoid(Operation op, TASElement a) {
 		code.push_back(TAS{
 			.isLabel    = false,
-			.op = Operation::jmp,
-			.result = (u64)-1,
-			.a      = (u64)-1,
-			.b      = (u64)-1
+			.resultKind = TASElement::Temporary,
+			.resultType = TASElement::Void,
+			.aKind      = a.kind,
+			.aType      = a.type,
+			.op         = op,
+			.a          = a.value
+		});
+	}
+	
+	size_t TACGenerator::submitJump() {
+		code.push_back(TAS{
+			.op         = Operation::jmp,
+			.functionID = currentFunctionID.id()
 		});
 		return code.size() - 1;
 	}
@@ -236,22 +317,29 @@ namespace scatha::ic {
 	size_t TACGenerator::submitCJump(TASElement cond) {
 		SC_ASSERT(cond.type == TASElement::Bool, "Condition must be boolean");
 		code.push_back(TAS{
-			.isLabel = false,
-			.aKind = cond.kind,
-			.aType = TASElement::Bool,
-			.op = Operation::cjmp,
-			.result = (u64)-1,
-			.a = cond.value,
-			.b = (u64)-1
+			.op         = Operation::cjmp,
+			.functionID = currentFunctionID.id(),
+			.bKind = cond.kind,
+			.bType = cond.type,
+			.b = cond.value
 		});
 		return code.size() - 1;
 	}
 	
+	void TACGenerator::submitCall(sema::SymbolID functionID) {
+		code.push_back(TAS{
+			.op         = Operation::call,
+			.functionID = functionID.id(),
+			.labelIndex = 0
+		});
+	}
+	
 	size_t TACGenerator::submitLabel() {
-		u64 const result = labelIndex++;
+		size_t const result = labelIndex++;
 		code.push_back(TAS{
 			.isLabel = true,
-			.label = static_cast<u16>(result)
+			.functionID = currentFunctionID.id(),
+			.labelIndex = result
 		});
 		return result;
 	}

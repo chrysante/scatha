@@ -11,7 +11,11 @@ namespace scatha::ic {
 		using enum Operation;
 		return UTL_SERIALIZE_ENUM(op, {
 			{ mov,  "mov" },
-			{ load, "load" },
+			
+			{ pushParam, "pushParam" },
+			{ getResult, "getResult" },
+			{ call,      "call" },
+			{ ret,       "ret" },
 			
 			{ add,  "add" },
 			{ sub,  "sub" },
@@ -48,7 +52,11 @@ namespace scatha::ic {
 		using enum Operation;
 		return UTL_MAP_ENUM(op, int, {
 			{ mov, 1 },
-			{ load, 1 },
+			
+			{ pushParam, 1 },
+			{ getResult, 0 },
+			{ call, 1 },
+			{ ret, 0 },
 			
 			{ add,  2 },
 			{ sub,  2 },
@@ -102,6 +110,14 @@ namespace scatha::ic {
 		result.kind = TASElement::LiteralValue;
 		result.type = type;
 		result.value = value;
+		return result;
+	}
+	
+	TASElement TAS::makeLabel(u64 id) {
+		TASElement result;
+		result.kind = TASElement::Label;
+		result.type = TASElement::Void;
+		result.value = id;
 		return result;
 	}
 	

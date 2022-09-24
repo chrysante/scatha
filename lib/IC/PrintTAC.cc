@@ -27,6 +27,9 @@ namespace scatha::ic {
 						break;
 					case TASElement::LiteralValue:
 						switch (e.type) {
+							case TASElement::Void:
+								SC_DEBUGBREAK(); // do we get here?
+								break;
 							case TASElement::Bool:
 								str << bool(e.value);
 								break;
@@ -41,6 +44,7 @@ namespace scatha::ic {
 								break;
 						}
 						break;
+					SC_NO_DEFAULT_CASE();
 				}
 			}
 			
@@ -55,26 +59,44 @@ namespace scatha::ic {
 	void printTAC(TAC const& tac, sema::SymbolTable const& sym, std::ostream& str) {
 		for (auto const tas: tac.statements) {
 			if (tas.isLabel) {
-				str << ".L" << tas.label << '\n';
-				continue;
-			}
-			if (tas.op == Operation::jmp) {
-				str << "jmp .L" << tas.a << '\n';
-				continue;
-			}
-			if (tas.op == Operation::cjmp) {
-				str << "cjmp " << print(tas.getA(), sym) << " .L" << tas.b << '\n';
+				auto const& function = sym.getFunction(sema::SymbolID(tas.functionID, sema::SymbolCategory::Function));
+				u64 const index = tas.labelIndex;
+				str << function.name() << ".L" << index << ":\n";
 				continue;
 			}
 			
-			int const argCount = argumentCount(tas.op);
-			SC_ASSERT(argCount == 1 || argCount == 2, "");
-			str << print(tas.getResult(), sym) << " = ";
-			if (argCount == 1) {
-				str << toString(tas.op) << " " << print(tas.getA(), sym) << '\n';
+			str << "    ";
+			
+			if (isJump(tas.op)) {
+				str << toString(tas.op) << " ";
+				if (tas.op == Operation::cjmp) {
+					str << print(tas.getB(), sym) << ", ";
+				}
+				auto const& function = sym.getFunction(sema::SymbolID(tas.functionID,
+																	  sema::SymbolCategory::Function));
+				str << function.name() << ".L" << tas.labelIndex << '\n';
 				continue;
 			}
-			str << toString(tas.op) << " " << print(tas.getA(), sym) << ", " << print(tas.getB(), sym) << '\n';
+			
+			if (auto const resultElem = tas.getResult(); resultElem.type != TASElement::Void) {
+				str << print(resultElem, sym) << " = ";
+			}
+			
+			int const argCount = argumentCount(tas.op);
+			switch (argCount) {
+				case 0:
+					str << toString(tas.op) << '\n';
+					break;
+				case 1:
+					SC_ASSERT(tas.aKind != TASElement::Label, "");
+					str << toString(tas.op) << " " << print(tas.getA(), sym) << '\n';
+					break;
+				case 2:
+					str << toString(tas.op) << " " << print(tas.getA(), sym) << ", " << print(tas.getB(), sym) << '\n';
+					break;
+				
+				SC_NO_DEFAULT_CASE();
+			}
 		}
 	}
 	

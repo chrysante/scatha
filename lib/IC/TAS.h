@@ -10,7 +10,12 @@
 namespace scatha::ic {
 	
 	enum class Operation: u8 {
-		mov, load,
+		mov,
+		
+		pushParam,
+		getResult,
+		call,
+		ret,
 		
 		add, sub, mul, div, idiv, rem, irem,
 		fadd, fsub, fmul, fdiv,
@@ -30,13 +35,17 @@ namespace scatha::ic {
 	
 	int argumentCount(Operation);
 	
+	inline bool isJump(Operation op) { return op == Operation::jmp || op == Operation::cjmp || op == Operation::call; }
+	
 	struct TASElement {
 		enum Kind: u8 {
-			Variable, Temporary, LiteralValue
+			Variable, Temporary, LiteralValue, Label
 		};
+		
 		enum Type: u8 {
-			Bool, Signed, Unsigned, Float
+			Void, Bool, Signed, Unsigned, Float
 		};
+		
 		Kind kind;
 		Type type;
 		u64 value;
@@ -50,12 +59,13 @@ namespace scatha::ic {
 		static TASElement makeVariable(u64, TASElement::Type);
 		static TASElement makeTemporary(u64, TASElement::Type);
 		static TASElement makeLiteralValue(u64, TASElement::Type);
+		static TASElement makeLabel(u64);
 		
 		TASElement getResult() const;
 		TASElement getA() const;
 		TASElement getB() const;
 		
-		bool isLabel;                // 1 byte
+		bool isLabel = false;        // 1 byte
 		TASElement::Kind resultKind; // 1 byte
 		TASElement::Type resultType; // 1 byte
 		TASElement::Kind aKind;      // 1 byte
@@ -68,9 +78,12 @@ namespace scatha::ic {
 									 // 8 bytes in total
 		union {
 			u64 result;
-			u64 label;
+			u64 functionID;
 		};
-		u64 a;
+		union {
+			u64 a;
+			u64 labelIndex;
+		};
 		u64 b;
 	};
 	

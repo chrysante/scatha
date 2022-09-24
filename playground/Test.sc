@@ -9,9 +9,9 @@ fn gcd(a: int, b: int) -> int {
 }
 
 fn main() {
-	let a = 39;
+	let a = 37;
 	let b = 13;
 	
-	let result = gcd(a, b);
+	let result = gcd(a + 2, b);
 	
 }
