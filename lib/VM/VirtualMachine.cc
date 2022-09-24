@@ -24,6 +24,8 @@ namespace scatha::vm {
 	}
 	
 	void VirtualMachine::execute() {
+		SC_ASSERT(iptr == memory.data(), "");
+		SC_ASSERT(regPtr == (regPtr ? registers.data() : nullptr), "");
 		while (iptr < programBreak) {
 			u8 const opCode = *iptr;
 			SC_ASSERT(opCode < (u8)OpCode::_count, "Invalid op-code");
@@ -34,6 +36,7 @@ namespace scatha::vm {
 			++stats.executedInstructions;
 		}
 		SC_ASSERT(iptr == programBreak, "");
+		cleanup();
 	}
 	
 	void VirtualMachine::addExternalFunction(size_t slot, ExternalFunction f) {
@@ -55,6 +58,11 @@ namespace scatha::vm {
 		programBreak = iptr + programBreakOffset;
 		memoryPtr = memory.data() + paddedInstructionCount;
 		memoryBreak = memoryPtr + memoryBreakOffset;
+	}
+	
+	void VirtualMachine::cleanup() {
+		iptr = memory.data();
+		regPtr = registers.data();
 	}
 	
 }

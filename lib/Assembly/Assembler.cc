@@ -160,37 +160,38 @@ namespace scatha::assembly {
 		}
 	}
 
+	/// MARK: eat()
 	Element Assembler::eat() {
 		using namespace assembly;
 		if (index == data.size()) {
 			return EndOfProgram{};
 		}
-		Marker const marker = static_cast<Marker>(eat<std::underlying_type_t<Marker>>());
+		Marker const marker = static_cast<Marker>(eatImpl<std::underlying_type_t<Marker>>());
 		validate(marker, line);
 		switch (marker) {
 			case Marker::Instruction:
-				return Instruction(eat<u8>());
+				return Instruction(eatImpl<u8>());
 				
 			case Marker::Label:
-				return Label(eat<u64>());
+				return Label(eatImpl<u64>());
 				
 			case Marker::RegisterIndex:
-				return RegisterIndex(eat<u8>());
+				return RegisterIndex(eatImpl<u8>());
 				
 			case Marker::MemoryAddress:
-				return MemoryAddress(eat<u8>(), eat<u8>(), eat<u8>());
+				return MemoryAddress(eatImpl<u8>(), eatImpl<u8>(), eatImpl<u8>());
 			
 			case Marker::Value8:
-				return Value8(eat<u8>());
+				return Value8(eatImpl<u8>());
 				
 			case Marker::Value16:
-				return Value16(eat<u16>());
+				return Value16(eatImpl<u16>());
 				
 			case Marker::Value32:
-				return Value32(eat<u32>());
+				return Value32(eatImpl<u32>());
 				
 			case Marker::Value64:
-				return Value64(eat<u64>());
+				return Value64(eatImpl<u64>());
 				
 			SC_NO_DEFAULT_CASE();
 		}
@@ -206,7 +207,7 @@ namespace scatha::assembly {
 	}
 	
 	template <typename T>
-	T Assembler::eat() {
+	T Assembler::eatImpl() {
 		SC_ASSERT(index + sizeof(T) <= data.size(), "Out of range");
 		T result;
 		std::memcpy(&result, &data[index], sizeof(T));
@@ -214,6 +215,7 @@ namespace scatha::assembly {
 		return result;
 	}
 	
+	/// MARK: put()
 	void Assembler::put(vm::OpCode o) {
 		program->instructions.push_back(utl::to_underlying(o));
 	}
@@ -260,6 +262,22 @@ namespace scatha::assembly {
 		for (auto byte: decompose(v.value)) {
 			program->instructions.push_back(byte);
 		}
+	}
+	
+	/// MARK: insert()
+	void Assembler::insert(u8 value) {
+		data.push_back(value);
+	}
+	
+	template <size_t N>
+	void Assembler::insert(std::array<u8, N> value) {
+		for (auto byte: value) {
+			insert(byte);
+		}
+	}
+	
+	void Assembler::insert(assembly::Marker m) {
+		insert(decompose(m));
 	}
 	
 	// Input stream operators

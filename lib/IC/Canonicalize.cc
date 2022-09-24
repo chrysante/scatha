@@ -11,7 +11,7 @@ namespace scatha::ic {
 				/*
 				 * If we have a statement of type if (!<boolean-expr>) {} else {}
 				 * convert the expression to <boolean-expr> and swap the if and else block.
-				 * These kind if if statements will appear quite often after canonicalizing the
+				 * These kind of if statements will appear quite often after canonicalizing the
 				 * condition expressions.
 				 */
 				if (node->condition->nodeType() != ast::NodeType::UnaryPrefixExpression) {

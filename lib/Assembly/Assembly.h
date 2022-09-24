@@ -103,10 +103,12 @@ namespace scatha::assembly {
 			value(value)
 		{}
 		
+		// Only used for debugging and testing
 		Type type;
 		u64 value;
 	};
 	
+	// Only used for hand-written assembly, e.g. for testing purposes.
 	inline Value64 Unsigned64(u64 value) { return Value64(static_cast<u64>(value), Value64::UnsignedIntegral); }
 	inline Value64 Signed64(i64 value)   { return Value64(static_cast<u64>(value), Value64::SignedIntegral); }
 	inline Value64 Float64(f64 value)    { return Value64(utl::bit_cast<u64>(value), Value64::FloatingPoint); }

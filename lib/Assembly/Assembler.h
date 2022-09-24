@@ -60,11 +60,14 @@ namespace scatha::assembly {
 		
 		void postProcess();
 		
+		/** MARK: eat
+		 * Family of functions for extracting data out of the assembly stream
+		 */
 		Element eat();
 		template <typename T>
 		T eatAs();
 		template <typename T>
-		T eat();
+		T eatImpl();
 		
 		/** MARK: put
 		 * Family of functions for inserting data into the program during assembly
@@ -82,12 +85,10 @@ namespace scatha::assembly {
 		/** MARK: insert
 		 * Family of functions for inserting data into the assembler
 		 */
-		void insert(u8 value) { data.push_back(value); }
+		void insert(u8);
 		template <size_t N>
-		void insert(std::array<u8, N> value) {
-			for (auto byte: value) { insert(byte); }
-		}
-		void insert(assembly::Marker m) { insert(decompose(m)); }
+		void insert(std::array<u8, N>);
+		void insert(assembly::Marker);
 		
 	private:
 		vm::Program* program = nullptr;

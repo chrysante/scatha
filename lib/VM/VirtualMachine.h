@@ -55,6 +55,7 @@ namespace scatha::vm {
 		
 	private:
 		void resizeMemory(size_t newSize);
+		void cleanup();
 		
 	private:
 		utl::vector<Instruction> instructionTable;
