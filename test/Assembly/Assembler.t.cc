@@ -53,7 +53,7 @@ TEST_CASE("Euclidean algorithm", "[vm][codegen]") {
 
 	a << terminate;
 
-	a << Label(GCD);                                     // gcd(i64 a, i64 b):
+	a << Label(GCD);
 	a << allocReg << Value8(3);
 	a << icmp << RegisterIndex(1) << Signed64(0);        // b == 0
 	a << jne << Label(GCD_ELSE);
@@ -85,33 +85,34 @@ TEST_CASE("Euclidean algorithm no tail call", "[vm][codegen]") {
 	Assembler a;
 	
 	// Should hold the result in R[2]
-														 // Main function
-	a << allocReg << Value8(4);                          // allocate 4 registers
-	a << mov    << RegisterIndex(2) << Signed64(1023534);
-	a << mov    << RegisterIndex(3) << Signed64(213588);
+														  // Main function
+	a << allocReg << Value8(4);                           // allocate 4 registers
+														  // R[0] and R[1] are for the instruction pointer and register pointer offset
+	a << mov    << RegisterIndex(2) << Signed64(1023534); // R[2] = arg0
+	a << mov    << RegisterIndex(3) << Signed64(213588);  // R[2] = arg1
 	a << call   << Label(GCD) << Value8(2);
 
 	a << terminate;
 
-	a << Label(GCD);                                     // gcd(i64 a, i64 b):
-	a << icmp << RegisterIndex(1) << Signed64(0);        // b == 0
+	a << Label(GCD);                                      // gcd(i64 a, i64 b):
+	a << icmp << RegisterIndex(1) << Signed64(0);         // b == 0
 	a << jne << Label(GCD_ELSE);
 	a << ret;
 	
 	a << Label(GCD_ELSE);
-	a << allocReg << Value8(6);                          // Allocate 6 registers:
-														 // R[0] = a
-														 // R[1] = b
-														 // R[2] = rpOffset
-														 // R[3] = iptr
-														 // R[4] = b
-														 // R[5] = a % b
-														 // R[0] = a and R[1] = b have been placed by the caller.
-	a << mov << RegisterIndex(5) << RegisterIndex(0);    // R[5] = a
-	a << irem << RegisterIndex(5) << RegisterIndex(1);   // R[5] %= b
-	a << mov << RegisterIndex(4) << RegisterIndex(1);    // R[4] = b
-	a << call << Label(GCD) << Value8(4);                // Deliberately no tail call
-	a << mov << RegisterIndex(0) << RegisterIndex(4);    // R[0] = R[4] to move the result to the expected register
+	a << allocReg << Value8(6);                           // Allocate 6 registers:
+														  // R[0]: a
+														  // R[1]: b
+														  // R[2]: rpOffset
+														  // R[3]: iptr
+														  // R[4]: b
+														  // R[5]: a % b
+														  // R[0] = a and R[1] = b have been placed by the caller.
+	a << mov << RegisterIndex(5) << RegisterIndex(0);     // R[5] = a
+	a << irem << RegisterIndex(5) << RegisterIndex(1);    // R[5] %= b
+	a << mov << RegisterIndex(4) << RegisterIndex(1);     // R[4] = b
+	a << call << Label(GCD) << Value8(4);                 // Deliberately no tail call
+	a << mov << RegisterIndex(0) << RegisterIndex(4);     // R[0] = R[4] to move the result to the expected register
 	a << ret;
 
 	vm::Program p = a.assemble();
