@@ -13,7 +13,7 @@
 using namespace scatha;
 using namespace assembly;
 
-int main() {
+int main_() {
 	
 	using enum Instruction;
 	
