@@ -40,32 +40,32 @@ TEST_CASE("Memory read write", "[assembly][vm]") {
 TEST_CASE("Euclidean algorithm", "[vm][codegen]") {
 	using enum Instruction;
 	
+	enum { GCD, GCD_ELSE };
+	
 	Assembler a;
-	/*
-	 should hold the result in the 4th register
-	 */
-												         // Main function
+	
+	// Should hold the result in R[2]
+														 // Main function
 	a << allocReg << Value8(4);                          // allocate 4 registers
 	a << mov    << RegisterIndex(2) << Signed64(54);     // a = 54
 	a << mov    << RegisterIndex(3) << Signed64(24);     // b = 24
-	a << call   << Label(0) << Value8(2);                // Label 0 == <gcd>
+	a << call   << Label(GCD) << Value8(2);              // Label 0 == <gcd>
 
 	a << terminate;
 
-	a << Label(0);                                       // gcd(i64 a, i64 b):
+	a << Label(GCD);                                     // gcd(i64 a, i64 b):
 	a << allocReg << Value8(3);
 	a << icmp << RegisterIndex(1) << Signed64(0);        // b == 0
-	a << jne << Label(1);
-	a << mov << RegisterIndex(2) << RegisterIndex(0);    // retval = a
-	a << ret;
-	a << Label(1);                                       //abel 1 == <gcd-else>
+	a << jne << Label(GCD_ELSE);
+	a << ret;                                            // return a; (as it already is in R[0])
+	a << Label(GCD_ELSE);                                       //abel 1 == <gcd-else>
 	// swap a and b
 	a << mov << RegisterIndex(2) << RegisterIndex(1);    // c = b
 	a << mov << RegisterIndex(1) << RegisterIndex(0);    // b = a
 	a << mov << RegisterIndex(0) << RegisterIndex(2);    // a = c
-	a << rem << RegisterIndex(1) << RegisterIndex(0);
+	a << irem << RegisterIndex(1) << RegisterIndex(0);
 
-	a << jmp      << Label(0);                           // tail call
+	a << jmp      << Label(GCD);                         // tail call
 
 	vm::Program p = a.assemble();
 	vm::VirtualMachine vm;
@@ -74,9 +74,56 @@ TEST_CASE("Euclidean algorithm", "[vm][codegen]") {
 	auto const& state = vm.getState();
 
 	// gcd(54, 24) == 6
-	CHECK(state.registers[4] == 6);
-
+	CHECK(state.registers[2] == 6);
 }
+
+TEST_CASE("Euclidean algorithm no tail call", "[vm][codegen]") {
+	using enum Instruction;
+
+	enum { GCD, GCD_ELSE };
+	
+	Assembler a;
+	
+	// Should hold the result in R[2]
+														 // Main function
+	a << allocReg << Value8(4);                          // allocate 4 registers
+	a << mov    << RegisterIndex(2) << Signed64(1023534);
+	a << mov    << RegisterIndex(3) << Signed64(213588);
+	a << call   << Label(GCD) << Value8(2);
+
+	a << terminate;
+
+	a << Label(GCD);                                     // gcd(i64 a, i64 b):
+	a << icmp << RegisterIndex(1) << Signed64(0);        // b == 0
+	a << jne << Label(GCD_ELSE);
+	a << ret;
+	
+	a << Label(GCD_ELSE);
+	a << allocReg << Value8(6);                          // Allocate 6 registers:
+														 // R[0] = a
+														 // R[1] = b
+														 // R[2] = rpOffset
+														 // R[3] = iptr
+														 // R[4] = b
+														 // R[5] = a % b
+														 // R[0] = a and R[1] = b have been placed by the caller.
+	a << mov << RegisterIndex(5) << RegisterIndex(0);    // R[5] = a
+	a << irem << RegisterIndex(5) << RegisterIndex(1);   // R[5] %= b
+	a << mov << RegisterIndex(4) << RegisterIndex(1);    // R[4] = b
+	a << call << Label(GCD) << Value8(4);                // Deliberately no tail call
+	a << mov << RegisterIndex(0) << RegisterIndex(4);    // R[0] = R[4] to move the result to the expected register
+	a << ret;
+
+	vm::Program p = a.assemble();
+	vm::VirtualMachine vm;
+	vm.load(p);
+	vm.execute();
+	auto const& state = vm.getState();
+
+	// gcd(1023534,213588) == 18
+	CHECK(state.registers[2] == 18);
+}
+
 
 static void testArithmeticRR(Instruction i, auto arg1, auto arg2, auto reference, Value64::Type type) {
 	using enum Instruction;
@@ -189,3 +236,73 @@ TEST_CASE("Arithmetic", "[assembly][vm]") {
 		testArithmetic(fdiv, f64(6.3), f64(3.0), f64(2.1), Value64::FloatingPoint);
 	}
 }
+
+TEST_CASE("Unconditional jump", "[assembly][vm]") {
+	using enum Instruction;
+
+	Assembler a;
+
+	u64 const value = GENERATE(0, 1, 2, 3);
+	
+	a << allocReg << Value8(1);                          // allocate 1 register
+	a << jmp << Label(value);
+	a << Label(0);
+	a << mov << RegisterIndex(0) << Signed64(0);
+	a << terminate;
+	a << Label(1);
+	a << mov << RegisterIndex(0) << Signed64(1);
+	a << terminate;
+	a << Label(2);
+	a << mov << RegisterIndex(0) << Signed64(2);
+	a << terminate;
+	a << Label(3);
+	a << mov << RegisterIndex(0) << Signed64(3);
+	a << terminate;
+	
+	vm::Program p = a.assemble();
+	vm::VirtualMachine vm;
+	vm.load(p);
+	vm.execute();
+	auto const& state = vm.getState();
+
+	CHECK(read<u64>(state.regPtr) == value);
+}
+
+TEST_CASE("Conditional jump", "[assembly][vm]") {
+	using enum Instruction;
+
+	Assembler a;
+
+	u64 const value = GENERATE(0, 1, 2, 3);
+	
+	i64 const arg1 = GENERATE(-2, 0, 5, 100);
+	i64 const arg2 = GENERATE(-100, -3, 0, 7);
+	
+	a << allocReg << Value8(2);
+	a << mov << RegisterIndex(0) << Signed64(arg1);
+	a << icmp << RegisterIndex(0) << Signed64(arg2);
+	a << jle << Label(value);
+	a << mov << RegisterIndex(1) << Signed64(-1);
+	a << terminate;
+	a << Label(0);
+	a << mov << RegisterIndex(1) << Signed64(0);
+	a << terminate;
+	a << Label(1);
+	a << mov << RegisterIndex(1) << Signed64(1);
+	a << terminate;
+	a << Label(2);
+	a << mov << RegisterIndex(1) << Signed64(2);
+	a << terminate;
+	a << Label(3);
+	a << mov << RegisterIndex(1) << Signed64(3);
+	a << terminate;
+	
+	vm::Program p = a.assemble();
+	vm::VirtualMachine vm;
+	vm.load(p);
+	vm.execute();
+	auto const& state = vm.getState();
+	
+	CHECK(read<u64>(state.regPtr + 1) == (arg1 <= arg2 ? value : -1));
+}
+

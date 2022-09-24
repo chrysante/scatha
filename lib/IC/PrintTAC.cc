@@ -10,7 +10,7 @@ namespace scatha::ic {
 	
 	namespace {
 		struct ElementPrinter {
-			ElementPrinter(TAS::Element const& e, sema::SymbolTable const& sym): e(e), sym(sym) {}
+			ElementPrinter(TASElement const& e, sema::SymbolTable const& sym): e(e), sym(sym) {}
 			
 			friend std::ostream& operator<<(std::ostream& str, ElementPrinter const& ep) {
 				ep.print(str);
@@ -18,23 +18,36 @@ namespace scatha::ic {
 			}
 			
 			void print(std::ostream& str) const {
-				if (e.isVariable) {
-					if (e.isTemporary) {
-						str << "t[" << e.value << "]";
-					}
-					else {
+				switch (e.kind) {
+					case TASElement::Variable:
 						str << "$" << sym.getVariable(sema::SymbolID(e.value, sema::SymbolCategory::Variable)).name();
-					}
-				}
-				else {
-					str << e.value;
+						break;
+					case TASElement::Temporary:
+						str << "T[" << e.value << "]";
+						break;
+					case TASElement::LiteralValue:
+						switch (e.type) {
+							case TASElement::Bool:
+								str << bool(e.value);
+								break;
+							case TASElement::Unsigned:
+								str << e.value;
+								break;
+							case TASElement::Signed:
+								str << static_cast<i64>(e.value);
+								break;
+							case TASElement::Float:
+								str << utl::bit_cast<f64>(e.value);
+								break;
+						}
+						break;
 				}
 			}
 			
-			TAS::Element e;
+			TASElement e;
 			sema::SymbolTable const& sym;
 		};
-		ElementPrinter print(TAS::Element const& e, sema::SymbolTable const& sym) {
+		ElementPrinter print(TASElement const& e, sema::SymbolTable const& sym) {
 			return ElementPrinter(e, sym);
 		}
 	}

@@ -15,15 +15,16 @@ namespace scatha::ic {
 		[[nodiscard]] TAC run(ast::FunctionDefinition const*);
 		
 	private:
-		TAS::Element doRun(ast::AbstractSyntaxTree const*);
+		TASElement doRun(ast::AbstractSyntaxTree const*);
 		
-		TAS::Element submit(TAS::Element result, Operation, TAS::Element a, TAS::Element b = {});
-		TAS::Element submit(Operation, TAS::Element a, TAS::Element b = {});
+		TASElement submit(TASElement result, Operation, TASElement a, TASElement b = {});
+		TASElement submit(Operation, TASElement a, TASElement b = {});
 		[[nodiscard]] size_t submitJump();
-		[[nodiscard]] size_t submitCJump(TAS::Element cond);
+		[[nodiscard]] size_t submitCJump(TASElement cond);
 		size_t submitLabel();
 		
 		Operation selectOperation(sema::TypeID, ast::BinaryOperator) const;
+		TASElement::Type mapFundType(sema::TypeID) const;
 		
 	private:
 		sema::SymbolTable const& sym;

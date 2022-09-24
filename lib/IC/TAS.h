@@ -9,10 +9,10 @@
 
 namespace scatha::ic {
 	
-	enum class Operation: u16 {
+	enum class Operation: u8 {
 		mov, load,
 		
-		add, sub, mul, div, rem,
+		add, sub, mul, div, idiv, rem, irem,
 		fadd, fsub, fmul, fdiv,
 		
 		eq, neq, ls, leq,
@@ -30,32 +30,46 @@ namespace scatha::ic {
 	
 	int argumentCount(Operation);
 	
-	struct TAS {
-		struct Element {
-			bool isVariable;
-			bool isTemporary;
-			u64 value;
+	struct TASElement {
+		enum Kind: u8 {
+			Variable, Temporary, LiteralValue
 		};
+		enum Type: u8 {
+			Bool, Signed, Unsigned, Float
+		};
+		Kind kind;
+		Type type;
+		u64 value;
+	};
 	
-		static TAS::Element makeVariable(u64);
-		static TAS::Element makeTemporary(u64);
-		static TAS::Element makeValue(u64);
+	/**
+	 * Three address statement
+	 * Encodes
+	 */
+	struct TAS {
+		static TASElement makeVariable(u64, TASElement::Type);
+		static TASElement makeTemporary(u64, TASElement::Type);
+		static TASElement makeLiteralValue(u64, TASElement::Type);
 		
-		Element getResult() const;
-		Element getA() const;
-		Element getB() const;
+		TASElement getResult() const;
+		TASElement getA() const;
+		TASElement getB() const;
 		
-		bool isLabel      : 1;
-		bool resultIsTemp : 1;
-		bool aIsVar       : 1;
-		bool aIsTemp      : 1;
-		bool bIsVar       : 1;
-		bool bIsTemp      : 1;
+		bool isLabel;                // 1 byte
+		TASElement::Kind resultKind; // 1 byte
+		TASElement::Type resultType; // 1 byte
+		TASElement::Kind aKind;      // 1 byte
+		TASElement::Type aType;      // 1 byte
+		TASElement::Kind bKind;      // 1 byte
+		TASElement::Type bType;      // 1 byte
+		
+		Operation op;                // 1 byte
+									 // ----------------
+									 // 8 bytes in total
 		union {
-			Operation op;
-			u16 label;
+			u64 result;
+			u64 label;
 		};
-		u64 result;
 		u64 a;
 		u64 b;
 	};

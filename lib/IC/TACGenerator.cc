@@ -17,7 +17,7 @@ namespace scatha::ic {
 		return TAC{ std::move(code) };
 	}
 
-	TAS::Element TACGenerator::doRun(ast::AbstractSyntaxTree const* node) {
+	TASElement TACGenerator::doRun(ast::AbstractSyntaxTree const* node) {
 		switch (node->nodeType()) {
 			case ast::NodeType::Block: {
 				auto const* const block = static_cast<ast::Block const*>(node);
@@ -30,13 +30,16 @@ namespace scatha::ic {
 				auto const* const varDecl = static_cast<ast::VariableDeclaration const*>(node);
 				SC_ASSERT(varDecl->initExpression != nullptr, "how do we handle this?");
 				auto const initResult = doRun(varDecl->initExpression.get());
-				if (initResult.isTemporary) {
-					code.back().resultIsTemp = false;
-					code.back().result = varDecl->symbolID.id();
-					--tmpIndex;
-				}
-				else {
-					submit(TAS::makeVariable(varDecl->symbolID.id()), Operation::mov, initResult);
+				switch (initResult.kind) {
+					case TASElement::Temporary:
+						code.back().resultKind = TASElement::Variable;
+						code.back().result = varDecl->symbolID.id();
+						--tmpIndex;
+						break;
+						
+					default:
+						submit(TAS::makeVariable(varDecl->symbolID.id(), mapFundType(varDecl->typeID)), Operation::mov, initResult);
+						break;
 				}
 				return {};
 			}
@@ -68,6 +71,18 @@ namespace scatha::ic {
 				doRun(ret->expression.get());
 				return {};
 			}
+			case ast::NodeType::Identifier: {
+				auto const* id = static_cast<ast::Identifier const*>(node);
+				return TAS::makeVariable(id->symbolID.id(), mapFundType(id->typeID));
+			}
+			case ast::NodeType::IntegerLiteral: {
+				auto const* lit = static_cast<ast::IntegerLiteral const*>(node);
+				return TAS::makeLiteralValue(lit->value, mapFundType(lit->typeID));
+			}
+			case ast::NodeType::FloatingPointLiteral: {
+				auto const* lit = static_cast<ast::FloatingPointLiteral const*>(node);
+				return TAS::makeLiteralValue(utl::bit_cast<u64>(lit->value), mapFundType(lit->typeID));
+			}
 			case ast::NodeType::BinaryExpression: {
 				auto const* expr = static_cast<ast::BinaryExpression const*>(node);
 				auto const lhs = doRun(expr->lhs.get());
@@ -87,16 +102,19 @@ namespace scatha::ic {
 					case ast::BinaryOperator::Assignment: {
 						auto const* lhsId = dynamic_cast<ast::Identifier const*>(expr->lhs.get());
 						SC_ASSERT(lhsId != nullptr, "We don't support assigning to arbitrary expressions yet");
-						if (rhs.isTemporary) {
-							code.back().resultIsTemp = false;
-							code.back().result = lhsId->symbolID.id();
-							--tmpIndex;
-						}
-						else {
-							submit(TAS::makeVariable(lhsId->symbolID.id()), Operation::mov, rhs);
+						switch (rhs.kind) {
+							case TASElement::Temporary:
+								code.back().resultKind = TASElement::Variable;
+								code.back().result = lhsId->symbolID.id();
+								--tmpIndex;
+								break;
+								
+							default:
+								submit(TAS::makeVariable(lhsId->symbolID.id(), mapFundType(lhsId->typeID)), Operation::mov, rhs);
+								break;
 						}
 						
-						return TAS::makeVariable(lhsId->symbolID.id());
+						return TAS::makeVariable(lhsId->symbolID.id(), mapFundType(lhsId->typeID));
 					}
 					SC_NO_DEFAULT_CASE();
 				}
@@ -109,7 +127,7 @@ namespace scatha::ic {
 						return result;
 						
 					case ast::UnaryPrefixOperator::Negation:
-						return submit(selectOperation(expr->operand->typeID, ast::BinaryOperator::Subtraction), TAS::makeValue(0), result);
+						return submit(selectOperation(expr->operand->typeID, ast::BinaryOperator::Subtraction), TAS::makeLiteralValue(0, mapFundType(expr->operand->typeID)), result);
 						
 					case ast::UnaryPrefixOperator::LogicalNot:
 						SC_ASSERT(expr->operand->typeID == sym.Int(), "Only int supported for now");
@@ -122,31 +140,23 @@ namespace scatha::ic {
 					SC_NO_DEFAULT_CASE();
 				}
 			}
-			case ast::NodeType::Identifier: {
-				auto const* id = static_cast<ast::Identifier const*>(node);
-				return TAS::makeVariable(id->symbolID.id());
-			}
-			case ast::NodeType::IntegerLiteral: {
-				auto const* lit = static_cast<ast::IntegerLiteral const*>(node);
-				return TAS::makeValue(lit->value);
-			}
-			case ast::NodeType::FloatingPointLiteral: {
-				auto const* lit = static_cast<ast::FloatingPointLiteral const*>(node);
-				return TAS::makeValue(utl::bit_cast<u64>(lit->value));
+			case ast::NodeType::FunctionCall: {
+				SC_DEBUGFAIL(); // Implement this
 			}
 			SC_NO_DEFAULT_CASE();
 		}
 	}
 	
-	TAS::Element TACGenerator::submit(TAS::Element result, Operation op, TAS::Element a, TAS::Element b) {
-		SC_ASSERT(!result.isTemporary, "");
+	TASElement TACGenerator::submit(TASElement result, Operation op, TASElement a, TASElement b) {
+		SC_ASSERT(result.kind == TASElement::Variable, "This overload must assign to variables");
 		code.push_back(TAS{
-			.isLabel = false,
-			.resultIsTemp = false,
-			.aIsVar  = a.isVariable,
-			.aIsTemp = a.isTemporary,
-			.bIsVar  = b.isVariable,
-			.bIsTemp = b.isTemporary,
+			.isLabel    = false,
+			.resultKind = result.kind,
+			.resultType = result.type,
+			.aKind      = a.kind,
+			.aType      = a.type,
+			.bKind      = b.kind,
+			.bType      = b.type,
 			.op = op,
 			.result = result.value,
 			.a = a.value,
@@ -155,49 +165,80 @@ namespace scatha::ic {
 		return result;
 	}
 	
-	TAS::Element TACGenerator::submit(Operation op, TAS::Element a, TAS::Element b) {
+	TASElement TACGenerator::submit(Operation op, TASElement a, TASElement b) {
+		SC_ASSERT(a.type == b.type, "Types must match");
 		size_t const result = tmpIndex++;
+		
+		TASElement::Type const resultType = [&]{
+			switch (op) {
+				case Operation::add:
+				case Operation::sub:
+				case Operation::mul:
+				case Operation::div:
+				case Operation::idiv:
+				case Operation::rem:
+				case Operation::irem:
+				case Operation::fadd:
+				case Operation::fsub:
+				case Operation::fmul:
+				case Operation::fdiv:
+				case Operation::lnt:
+				case Operation::bnt:
+					return a.type;
+					
+				case Operation::eq:
+				case Operation::neq:
+				case Operation::ls:
+				case Operation::leq:
+				case Operation::feq:
+				case Operation::fneq:
+				case Operation::fls:
+				case Operation::fleq:
+					return TASElement::Bool;
+					
+				case Operation::mov:
+				case Operation::load:
+				case Operation::jmp:
+				case Operation::cjmp:
+				default:
+					SC_DEBUGFAIL();
+			}
+		}();
+		
 		code.push_back(TAS{
-			.isLabel = false,
-			.resultIsTemp = true,
-			.aIsVar = a.isVariable,
-			.aIsTemp = a.isTemporary,
-			.bIsVar = b.isVariable,
-			.bIsTemp = b.isTemporary,
-			.op = op,
-			.result = result,
-			.a = a.value,
-			.b = b.value
+			.isLabel    = false,
+			.resultKind = TASElement::Temporary,
+			.resultType = resultType,
+			.aKind      = a.kind,
+			.aType      = a.type,
+			.bKind      = b.kind,
+			.bType      = b.type,
+			.op         = op,
+			.result     = result,
+			.a          = a.value,
+			.b          = b.value
 		});
-		return TAS::makeTemporary(result);
+		return TAS::makeTemporary(result, code.back().resultType);
 	}
 	
-	
-	
 	size_t TACGenerator::submitJump() {
+#warning
 		code.push_back(TAS{
-			.isLabel = false,
-			.resultIsTemp = false,
-			.aIsVar = false,
-			.aIsTemp = false,
-			.bIsVar = false,
-			.bIsTemp = false,
+			.isLabel    = false,
 			.op = Operation::jmp,
 			.result = (u64)-1,
-			.a = (u64)-1,
-			.b = (u64)-1
+			.a      = (u64)-1,
+			.b      = (u64)-1
 		});
 		return code.size() - 1;
 	}
 	
-	size_t TACGenerator::submitCJump(TAS::Element cond) {
+	size_t TACGenerator::submitCJump(TASElement cond) {
+		SC_ASSERT(cond.type == TASElement::Bool, "Condition must be boolean");
 		code.push_back(TAS{
 			.isLabel = false,
-			.resultIsTemp = false,
-			.aIsVar = cond.isVariable,
-			.aIsTemp = cond.isTemporary,
-			.bIsVar = false,
-			.bIsTemp = false,
+			.aKind = cond.kind,
+			.aType = TASElement::Bool,
 			.op = Operation::cjmp,
 			.result = (u64)-1,
 			.a = cond.value,
@@ -230,8 +271,8 @@ namespace scatha::ic {
 			result(sym.Int(), Addition)       = Operation::add;
 			result(sym.Int(), Subtraction)    = Operation::sub;
 			result(sym.Int(), Multiplication) = Operation::mul;
-			result(sym.Int(), Division)       = Operation::div;
-			result(sym.Int(), Remainder)      = Operation::rem;
+			result(sym.Int(), Division)       = Operation::idiv;
+			result(sym.Int(), Remainder)      = Operation::irem;
 			
 			result(sym.Int(), Equals)    = Operation::eq;
 			result(sym.Int(), NotEquals) = Operation::neq;
@@ -252,8 +293,21 @@ namespace scatha::ic {
 		}();
 		
 		auto result = table(typeID, op);
-		SC_ASSERT((size_t)result != 0, "");
+		SC_ASSERT(static_cast<size_t>(result) != 0, "");
 		return result;
+	}
+	
+	TASElement::Type TACGenerator::mapFundType(sema::TypeID id) const {
+		if (id == sym.Bool()) {
+			return TASElement::Bool;
+		}
+		if (id == sym.Int()) {
+			return TASElement::Signed;
+		}
+		if (id == sym.Float()) {
+			return TASElement::Float;
+		}
+		SC_DEBUGFAIL();
 	}
 	
 }

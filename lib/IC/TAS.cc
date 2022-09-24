@@ -13,11 +13,13 @@ namespace scatha::ic {
 			{ mov,  "mov" },
 			{ load, "load" },
 			
-			{ add, "add" },
-			{ sub, "sub" },
-			{ mul, "mul" },
-			{ div, "div" },
-			{ rem, "rem" },
+			{ add,  "add" },
+			{ sub,  "sub" },
+			{ mul,  "mul" },
+			{ div,  "div" },
+			{ idiv, "idiv" },
+			{ rem,  "rem" },
+			{ irem, "irem" },
 			
 			{ fadd, "fadd" },
 			{ fsub, "fsub" },
@@ -48,11 +50,13 @@ namespace scatha::ic {
 			{ mov, 1 },
 			{ load, 1 },
 			
-			{ add, 2 },
-			{ sub, 2 },
-			{ mul, 2 },
-			{ div, 2 },
-			{ rem, 2 },
+			{ add,  2 },
+			{ sub,  2 },
+			{ mul,  2 },
+			{ div,  2 },
+			{ idiv, 2 },
+			{ rem,  2 },
+			{ irem, 2 },
 			
 			{ fadd, 2 },
 			{ fsub, 2 },
@@ -77,48 +81,48 @@ namespace scatha::ic {
 		});
 	}
 	
-	TAS::Element TAS::makeVariable(u64 id) {
-		TAS::Element result;
-		result.isVariable = true;
-		result.isTemporary = false;
-		result.value = id;
+	TASElement TAS::makeVariable(u64 x, TASElement::Type type) {
+		TASElement result;
+		result.kind = TASElement::Variable;
+		result.type = type;
+		result.value = x;
 		return result;
 	}
 	
-	TAS::Element TAS::makeTemporary(u64 id) {
-		TAS::Element result;
-		result.isVariable = true;
-		result.isTemporary = true;
-		result.value = id;
+	TASElement TAS::makeTemporary(u64 x, TASElement::Type type) {
+		TASElement result;
+		result.kind = TASElement::Temporary;
+		result.type = type;
+		result.value = x;
 		return result;
 	}
 	
-	TAS::Element TAS::makeValue(u64 value) {
-		TAS::Element result;
-		result.isVariable = false;
-		result.isTemporary = false;
+	TASElement TAS::makeLiteralValue(u64 value, TASElement::Type type) {
+		TASElement result;
+		result.kind = TASElement::LiteralValue;
+		result.type = type;
 		result.value = value;
 		return result;
 	}
 	
-	TAS::Element TAS::getResult() const {
-		Element e;
-		e.isVariable = true;
-		e.isTemporary = resultIsTemp;
+	TASElement TAS::getResult() const {
+		TASElement e;
+		e.kind = resultKind;
+		e.type = resultType;
 		e.value = result;
 		return e;
 	}
-	TAS::Element TAS::getA() const {
-		Element e;
-		e.isVariable = aIsVar;
-		e.isTemporary = aIsTemp;
+	TASElement TAS::getA() const {
+		TASElement e;
+		e.kind = aKind;
+		e.type = aType;
 		e.value = a;
 		return e;
 	}
-	TAS::Element TAS::getB() const {
-		Element e;
-		e.isVariable = bIsVar;
-		e.isTemporary = bIsTemp;
+	TASElement TAS::getB() const {
+		TASElement e;
+		e.kind = bKind;
+		e.type = bType;
 		e.value = b;
 		return e;
 	}
