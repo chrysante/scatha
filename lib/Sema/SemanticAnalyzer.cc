@@ -350,7 +350,7 @@ namespace scatha::sema {
 				
 					const scatha::sema::SymbolID functionSymbolID = extracted(identifier, symbols);
 					if (functionSymbolID.category() != SymbolCategory::Function) {
-						throw; // Look at the assertion above
+						SC_ASSERT(false, "Look at the assertion above");
 					}
 					auto const& function = symbols.getFunction(functionSymbolID);
 					auto const& functionType = symbols.getType(function.typeID());
