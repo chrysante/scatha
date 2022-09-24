@@ -208,7 +208,7 @@ namespace scatha::vm {
 		});
 	}
 	
-	constexpr size_t ijmp(OpCode c) {
+	constexpr size_t codeSize(OpCode c) {
 		using enum OpCodeClass;
 		auto const opCodeClass = classify(c);
 		if (opCodeClass == Other) {
@@ -234,7 +234,7 @@ namespace scatha::vm {
 			{ RM,    5 },
 			{ MR,    5 },
 			{ Jump,  5 },
-			{ Other, 0xFFffFFffFFffFFff }
+			{ Other, (size_t)-1 }
 		});
 	}
 	

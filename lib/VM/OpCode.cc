@@ -88,7 +88,7 @@ namespace scatha::vm {
 					vm->iptr += offset;
 					return 0;
 				}
-				return ijmp(C);
+				return codeSize(C);
 			};
 		}
 		
@@ -101,7 +101,7 @@ namespace scatha::vm {
 				auto const b = read<T>(&reg[regIdxB]);
 				vm->flags.less     = a <  b;
 				vm->flags.equal    = a == b;
-				return ijmp(C);
+				return codeSize(C);
 			};
 		}
 		
@@ -113,7 +113,7 @@ namespace scatha::vm {
 				auto const b = read<T>(i + 1);
 				vm->flags.less     = a <  b;
 				vm->flags.equal    = a == b;
-				return ijmp(C);
+				return codeSize(C);
 			};
 		}
 		
@@ -126,7 +126,7 @@ namespace scatha::vm {
 				auto const a = read<T>(&reg[regIdxA]);
 				auto const b = read<T>(&reg[regIdxB]);
 				store(&reg[regIdxA], decltype(operation)()(a, b));
-				return ijmp(C);
+				return codeSize(C);
 			};
 		}
 		
@@ -137,7 +137,7 @@ namespace scatha::vm {
 				auto const a = read<T>(&reg[regIdx]);
 				auto const b = read<T>(i + 1);
 				store(&reg[regIdx], decltype(operation)()(a, b));
-				return ijmp(C);
+				return codeSize(C);
 			};
 		}
 		
@@ -150,7 +150,7 @@ namespace scatha::vm {
 				auto const a = read<T>(&reg[regIdxA]);
 				auto const b = read<T>(&vm->memory[ptr]);
 				store(&reg[regIdxA], decltype(operation)()(a, b));
-				return ijmp(C);
+				return codeSize(C);
 			};
 		}
 		
@@ -171,7 +171,7 @@ namespace scatha::vm {
 				vm->registers.resize(std::max(vm->registers.size(),
 											  currentRegOffset + numRegs));
 				vm->regPtr = vm->registers.data() + currentRegOffset;
-				return ijmp(allocReg);
+				return codeSize(allocReg);
 			};
 			
 			/// MARK: Memory allocation
@@ -180,7 +180,7 @@ namespace scatha::vm {
 				u64 const size = reg[sizeRegIdx];
 				vm->resizeMemory(size);
 				reg[sizeRegIdx] = vm->memoryPtr - vm->memory.data();
-				return ijmp(setBrk);
+				return codeSize(setBrk);
 			};
 			
 			/// MARK: Function call and return
@@ -189,7 +189,7 @@ namespace scatha::vm {
 				size_t const regOffset = i[4];
 				vm->regPtr += regOffset;
 				vm->regPtr[-2] = regOffset;
-				vm->regPtr[-1] = utl::bit_cast<u64>(vm->iptr + ijmp(call));
+				vm->regPtr[-1] = utl::bit_cast<u64>(vm->iptr + codeSize(call));
 				vm->iptr += offset;
 				return 0;
 			};
@@ -210,12 +210,12 @@ namespace scatha::vm {
 				size_t const toRegIdx = i[0];
 				size_t const fromRegIdx = i[1];
 				reg[toRegIdx] = reg[fromRegIdx];
-				return ijmp(movRR);
+				return codeSize(movRR);
 			};
 			at(movRV) = [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
 				size_t const toRegIdx = i[0];
 				reg[toRegIdx] = read<u64>(i + 1);
-				return ijmp(movRV);
+				return codeSize(movRV);
 			};
 			at(movMR) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
 				size_t const ptr = getPointer(reg, i);
@@ -226,7 +226,7 @@ namespace scatha::vm {
 				VM_ASSERT(vm->memory.data() + ptr >= vm->programBreak && "Trying to write to the instruction set");
 				
 				std::memcpy(&vm->memory[ptr], &reg[fromRegIdx], 8);
-				return ijmp(movMR);
+				return codeSize(movMR);
 			};
 			at(movRM) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
 				size_t const toRegIdx = i[0];
@@ -236,7 +236,7 @@ namespace scatha::vm {
 				VM_WARNING(vm->memory.data() + ptr >= vm->programBreak, "Reading memory from the instruction set");
 				
 				std::memcpy(&reg[toRegIdx], &vm->memory[ptr], 8);
-				return ijmp(movRM);
+				return codeSize(movRM);
 			};
 			
 			/// MARK: Jumps
@@ -295,7 +295,7 @@ namespace scatha::vm {
 				size_t const idxIntoTable = read<u16>(&i[2]);
 				
 				vm->extFunctionTable[tableIdx][idxIntoTable](reg[regIdx], vm);
-				return ijmp(callExt);
+				return codeSize(callExt);
 			};
 			
 			return result;
