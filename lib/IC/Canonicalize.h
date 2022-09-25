@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_CANONICALIZE_H_
-#define SCATHA_SEMA_CANONICALIZE_H_
+#ifndef SCATHA_IC_CANONICALIZE_H_
+#define SCATHA_IC_CANONICALIZE_H_
 
 #include "AST/AST.h"
 
@@ -9,5 +9,5 @@ namespace scatha::ic {
 	
 }
 
-#endif // SCATHA_SEMA_CANONICALIZE_H_
+#endif // SCATHA_IC_CANONICALIZE_H_
 
