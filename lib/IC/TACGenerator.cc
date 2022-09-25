@@ -1,4 +1,4 @@
-#include "IC/TACGenerator.h"
+#include "IC/TacGenerator.h"
 
 #include <array>
 
@@ -7,344 +7,230 @@
 
 namespace scatha::ic {
 
-	TACGenerator::TACGenerator(sema::SymbolTable const& sym): sym(sym) {
+	TacGenerator::TacGenerator(sema::SymbolTable const& sym): sym(sym) {
 		
 	}
 	
-	[[nodiscard]] TAC TACGenerator::run(ast::AbstractSyntaxTree const* root) {
+	ThreeAddressCode TacGenerator::run(ast::AbstractSyntaxTree const* root) {
 		SC_ASSERT(tmpIndex == 0, "Don't reuse this");
 		
-		doRun(root);
+		auto const* const tu = dynamic_cast<ast::TranslationUnit const*>(root);
 		
-		return TAC{ std::move(code) };
+		for (auto& decl: tu->declarations) {
+			doRun(decl.get());
+		}
+		
+		return ThreeAddressCode{ std::move(code) };
 	}
 
-	TASElement TACGenerator::doRun(ast::AbstractSyntaxTree const* node) {
+	void TacGenerator::doRun(ast::Statement const* node) {
 		switch (node->nodeType()) {
-			case ast::NodeType::TranslationUnit: {
-				auto const* const tu = static_cast<ast::TranslationUnit const*>(node);
-				for (auto& decl: tu->declarations) {
-					doRun(decl.get());
-				}
-				return {};
-			}
 			case ast::NodeType::FunctionDefinition: {
 				auto const* const fnDef = static_cast<ast::FunctionDefinition const*>(node);
 				currentFunctionID = fnDef->symbolID;
+				tmpIndex = 0;
 				labelIndex = 0;
-				submitLabel();
+				submitFunctionLabel(*fnDef);
 				doRun(fnDef->body.get());
-				return {};
+				return;
 			}
 			case ast::NodeType::Block: {
 				auto const* const block = static_cast<ast::Block const*>(node);
 				for (auto& statement: block->statements) {
 					doRun(statement.get());
 				}
-				return {};
+				return;
 			}
-			
 			case ast::NodeType::VariableDeclaration: {
 				auto const* const varDecl = static_cast<ast::VariableDeclaration const*>(node);
 				SC_ASSERT(varDecl->initExpression != nullptr, "how do we handle this?");
-				auto const initResult = doRun(varDecl->initExpression.get());
-				switch (initResult.kind) {
-					case TASElement::Temporary:
-						code.back().resultKind = TASElement::Variable;
-						code.back().result = varDecl->symbolID.id();
-						--tmpIndex;
-						break;
-						
-					default:
-						submitVarAssignUnary(TAS::makeVariable(varDecl->symbolID.id(), mapFundType(varDecl->typeID)),
-											 Operation::mov, initResult);
-						break;
+				TasArgument const initResult = doRun(varDecl->initExpression.get());
+				
+				Variable const var{ varDecl->symbolID };
+				
+				if (initResult.is(TasArgument::temporary)) {
+					// use assignment to the last temporary to directly assign to the variable
+					code.back().asTas().result = var;
+					--tmpIndex;
 				}
-				return {};
+				else {
+					submit(var, Operation::mov, initResult);
+				}
+				return;
 			}
 			case ast::NodeType::ExpressionStatement: {
 				auto const* const statement = static_cast<ast::ExpressionStatement const*>(node);
 				doRun(statement->expression.get());
-				return {};
+				return;
 			}
 			case ast::NodeType::IfStatement: {
 				auto const* const ifStatement = static_cast<ast::IfStatement const*>(node);
 				auto const cond = doRun(ifStatement->condition.get());
-				size_t const cjmpIndex = submitCJump(cond);
-				doRun(ifStatement->ifBlock.get());
+				size_t const cjmpIndex = submitJump(Operation::cjmp, cond);
 				
+				doRun(ifStatement->ifBlock.get());
 				if (ifStatement->elseBlock != nullptr) {
-					size_t const jmpIndex = submitJump();
-					code[cjmpIndex].labelIndex = submitLabel();
+					size_t const jmpIndex = submitJump(Operation::jmp);
+					code[cjmpIndex].asTas().arg2 = submitLabel();
 					doRun(ifStatement->elseBlock.get());
-					code[jmpIndex].labelIndex = submitLabel();
+					code[jmpIndex].asTas().arg2 = submitLabel();
 				}
 				else {
-					code[cjmpIndex].labelIndex = submitLabel();
+					code[cjmpIndex].asTas().arg2 = submitLabel();
 				}
-				
-				return {};
+				return;
 			}
 			case ast::NodeType::ReturnStatement: {
 				auto const* const ret = static_cast<ast::ReturnStatement const*>(node);
-				doRun(ret->expression.get());
-				return {};
+				TasArgument const retValue = doRun(ret->expression.get());
+				submit(Operation::ret, retValue);
+				return;
 			}
+				
+			SC_NO_DEFAULT_CASE();
+		}
+	}
+
+	TasArgument TacGenerator::doRun(ast::Expression const* node) {
+		switch (node->nodeType()) {
 			case ast::NodeType::Identifier: {
 				auto const* id = static_cast<ast::Identifier const*>(node);
-				return TAS::makeVariable(id->symbolID.id(), mapFundType(id->typeID));
+				return Variable{ id->symbolID };
 			}
 			case ast::NodeType::IntegerLiteral: {
 				auto const* lit = static_cast<ast::IntegerLiteral const*>(node);
-				return TAS::makeLiteralValue(lit->value, mapFundType(lit->typeID));
+				return LiteralValue{ *lit };
 			}
 			case ast::NodeType::FloatingPointLiteral: {
 				auto const* lit = static_cast<ast::FloatingPointLiteral const*>(node);
-				return TAS::makeLiteralValue(utl::bit_cast<u64>(lit->value), mapFundType(lit->typeID));
+				return LiteralValue{ *lit };
 			}
 			case ast::NodeType::BinaryExpression: {
 				auto const* expr = static_cast<ast::BinaryExpression const*>(node);
-				auto const lhs = doRun(expr->lhs.get());
-				auto const rhs = doRun(expr->rhs.get());
+				TasArgument const lhs = doRun(expr->lhs.get());
+				TasArgument const rhs = doRun(expr->rhs.get());
 				switch (expr->op) {
 					case ast::BinaryOperator::Addition:       [[fallthrough]];
 					case ast::BinaryOperator::Subtraction:    [[fallthrough]];
 					case ast::BinaryOperator::Multiplication: [[fallthrough]];
 					case ast::BinaryOperator::Division:       [[fallthrough]];
-					case ast::BinaryOperator::Remainder:      [[fallthrough]];
+					case ast::BinaryOperator::Remainder:
+						return submit(makeTemporary(expr->lhs->typeID),
+									  selectOperation(expr->lhs->typeID, expr->op),
+									  lhs, rhs);
 					case ast::BinaryOperator::Less:           [[fallthrough]];
 					case ast::BinaryOperator::LessEq:         [[fallthrough]];
 					case ast::BinaryOperator::Equals:         [[fallthrough]];
 					case ast::BinaryOperator::NotEquals:
-						return submitTempBinary(selectOperation(expr->lhs->typeID, expr->op), lhs, rhs);
-					
+						return submit(makeTemporary(sym.Bool()),
+									  selectOperation(expr->lhs->typeID, expr->op),
+									  lhs, rhs);
+
 					case ast::BinaryOperator::Assignment: {
 						auto const* lhsId = dynamic_cast<ast::Identifier const*>(expr->lhs.get());
 						SC_ASSERT(lhsId != nullptr, "We don't support assigning to arbitrary expressions yet");
-						switch (rhs.kind) {
-							case TASElement::Temporary:
-								code.back().resultKind = TASElement::Variable;
-								code.back().result = lhsId->symbolID.id();
-								--tmpIndex;
-								break;
-								
-							default:
-								submitVarAssignUnary(TAS::makeVariable(lhsId->symbolID.id(), mapFundType(lhsId->typeID)),
-													 Operation::mov, rhs);
-								break;
+						auto const var = Variable{ lhsId->symbolID };
+						if (lhs.is(TasArgument::temporary)) {
+							code.back().asTas().result = var;
+							--tmpIndex;
 						}
-						
-						return TAS::makeVariable(lhsId->symbolID.id(), mapFundType(lhsId->typeID));
+						else {
+							submit(var, Operation::mov, rhs);
+						}
+						return var;
 					}
 					SC_NO_DEFAULT_CASE();
 				}
 			}
 			case ast::NodeType::UnaryPrefixExpression: {
 				auto const* expr = static_cast<ast::UnaryPrefixExpression const*>(node);
-				auto const result = doRun(expr->operand.get());
+				TasArgument const arg = doRun(expr->operand.get());
+				sema::TypeID const type = expr->operand->typeID;
 				switch (expr->op) {
 					case ast::UnaryPrefixOperator::Promotion:
-						return result;
-						
+						return arg;
+
 					case ast::UnaryPrefixOperator::Negation:
-						return submitTempBinary(selectOperation(expr->operand->typeID, ast::BinaryOperator::Subtraction), TAS::makeLiteralValue(0, mapFundType(expr->operand->typeID)), result);
-						
-					case ast::UnaryPrefixOperator::LogicalNot:
-						SC_ASSERT(expr->operand->typeID == sym.Int(), "Only int supported for now");
-						return submitTempUnary(Operation::lnt, result);
-						
+						return submit(makeTemporary(type), selectOperation(type, ast::BinaryOperator::Subtraction),
+									  LiteralValue(0, type), arg);
+
 					case ast::UnaryPrefixOperator::BitwiseNot:
-						SC_ASSERT(expr->operand->typeID == sym.Bool(), "Only bool supported");
-						return submitTempUnary(Operation::bnt, result);
-						
+						SC_ASSERT(type == sym.Int(), "Only int supported for now");
+						return submit(makeTemporary(type), Operation::bnt, arg);
+
+					case ast::UnaryPrefixOperator::LogicalNot:
+						SC_ASSERT(type == sym.Bool(), "Only bool supported");
+						return submit(makeTemporary(type), Operation::lnt, arg);
+
 					SC_NO_DEFAULT_CASE();
 				}
 			}
 			case ast::NodeType::FunctionCall: {
 				auto const* expr = static_cast<ast::FunctionCall const*>(node);
 				for (auto& arg: expr->arguments) {
-					submitVoid(Operation::pushParam, doRun(arg.get()));
+					submit(Operation::pushParam, doRun(arg.get()));
 				}
 				{	// our little hack to call functions for now
 					auto const* const functionId = dynamic_cast<ast::Identifier const*>(expr->object.get());
-					submitCall(functionId->symbolID);
-					return submitTempNullary(Operation::getResult, mapFundType(expr->typeID));
+					SC_ASSERT(functionId != nullptr, "Called object must be an identifier");
+					submitJump(Operation::call, {}, Label(functionId->symbolID, 0));
+					return submit(makeTemporary(expr->typeID), Operation::getResult);
 				}
 			}
+				
+				
 			SC_NO_DEFAULT_CASE();
 		}
 	}
 	
-	static TASElement::Type determineResultType(Operation op, TASElement arg1) {
-		switch (op) {
-			case Operation::add:
-			case Operation::sub:
-			case Operation::mul:
-			case Operation::div:
-			case Operation::idiv:
-			case Operation::rem:
-			case Operation::irem:
-			case Operation::fadd:
-			case Operation::fsub:
-			case Operation::fmul:
-			case Operation::fdiv:
-			case Operation::lnt:
-			case Operation::bnt:
-				return arg1.type;
-				
-			case Operation::eq:
-			case Operation::neq:
-			case Operation::ls:
-			case Operation::leq:
-			case Operation::feq:
-			case Operation::fneq:
-			case Operation::fls:
-			case Operation::fleq:
-				return TASElement::Bool;
-				
-			case Operation::mov:
-			case Operation::jmp:
-			case Operation::cjmp:
-			case Operation::pushParam:
-			case Operation::getResult:
-			case Operation::call:
-			case Operation::ret:
-				return TASElement::Void;
-				
-			case Operation::_count:
-				SC_DEBUGFAIL();
-		}
+	void TacGenerator::submit(Operation op, TasArgument a, TasArgument b) {
+		code.push_back(ThreeAddressStatement{
+			.operation = op,
+			.arg1      = a,
+			.arg2      = b
+		});
 	}
-
-	TASElement TACGenerator::submitVarAssignUnary(TASElement result, Operation op, TASElement a) {
-		SC_ASSERT(result.kind == TASElement::Variable, "This overload must assign to a variable");
-		code.push_back(TAS{
-			.resultKind = result.kind,
-			.resultType = result.type,
-			.aKind      = a.kind,
-			.aType      = a.type,
-			.op         = op,
-			.result     = result.value,
-			.a          = a.value
+	
+	TasArgument TacGenerator::submit(TasArgument result, Operation op, TasArgument a, TasArgument b) {
+		SC_ASSERT(result.is(TasArgument::variable) || result.is(TasArgument::temporary),
+				  "This overload must assign to a variable");
+		code.push_back(ThreeAddressStatement{
+			.operation = op,
+			.result    = result,
+			.arg1      = a,
+			.arg2      = b
 		});
 		return result;
 	}
 	
-	TASElement TACGenerator::submitVarAssignBinary(TASElement result, Operation op, TASElement a, TASElement b) {
-		SC_ASSERT(result.kind == TASElement::Variable, "This overload must assign to a variable");
-		code.push_back(TAS{
-			.resultKind = result.kind,
-			.resultType = result.type,
-			.aKind      = a.kind,
-			.aType      = a.type,
-			.bKind      = b.kind,
-			.bType      = b.type,
-			.op         = op,
-			.result     = result.value,
-			.a          = a.value,
-			.b          = b.value
-		});
-		return result;
-	}
-
-	TASElement TACGenerator::submitTempNullary(Operation op, TASElement::Type type) {
-		size_t const result = tmpIndex++;
-		code.push_back(TAS{
-			.isLabel    = false,
-			.resultKind = TASElement::Temporary,
-			.resultType = type,
-			.op         = op,
-			.result     = result
-		});
-		return TAS::makeTemporary(result, code.back().resultType);
-	}
-	
-	TASElement TACGenerator::submitTempUnary(Operation op, TASElement a) {
-		size_t const result = tmpIndex++;
-		
-		code.push_back(TAS{
-			.isLabel    = false,
-			.resultKind = TASElement::Temporary,
-			.resultType = determineResultType(op, a),
-			.aKind      = a.kind,
-			.aType      = a.type,
-			.op         = op,
-			.result     = result,
-			.a          = a.value
-		});
-		return TAS::makeTemporary(result, code.back().resultType);
-	}
-	
-	TASElement TACGenerator::submitTempBinary(Operation op, TASElement a, TASElement b) {
-		size_t const result = tmpIndex++;
-		
-		code.push_back(TAS{
-			.isLabel    = false,
-			.resultKind = TASElement::Temporary,
-			.resultType = determineResultType(op, a),
-			.aKind      = a.kind,
-			.aType      = a.type,
-			.bKind      = b.kind,
-			.bType      = b.type,
-			.op         = op,
-			.result     = result,
-			.a          = a.value,
-			.b          = b.value
-		});
-		return TAS::makeTemporary(result, code.back().resultType);
-	}
-	
-	void TACGenerator::submitVoid(Operation op, TASElement a) {
-		code.push_back(TAS{
-			.isLabel    = false,
-			.resultKind = TASElement::Temporary,
-			.resultType = TASElement::Void,
-			.aKind      = a.kind,
-			.aType      = a.type,
-			.op         = op,
-			.a          = a.value
-		});
-	}
-	
-	size_t TACGenerator::submitJump() {
-		code.push_back(TAS{
-			.op         = Operation::jmp,
-			.functionID = currentFunctionID.id()
+	size_t TacGenerator::submitJump(Operation jmp, TasArgument cond, Label label) {
+		SC_ASSERT(isJump(jmp), "Operation must be a jump");
+		code.push_back(ThreeAddressStatement{
+			.operation = jmp,
+			.arg1      = cond,
+			.arg2      = label
 		});
 		return code.size() - 1;
 	}
 	
-	size_t TACGenerator::submitCJump(TASElement cond) {
-		SC_ASSERT(cond.type == TASElement::Bool, "Condition must be boolean");
-		code.push_back(TAS{
-			.op         = Operation::cjmp,
-			.functionID = currentFunctionID.id(),
-			.bKind = cond.kind,
-			.bType = cond.type,
-			.b = cond.value
-		});
-		return code.size() - 1;
-	}
-	
-	void TACGenerator::submitCall(sema::SymbolID functionID) {
-		code.push_back(TAS{
-			.op         = Operation::call,
-			.functionID = functionID.id(),
-			.labelIndex = 0
-		});
-	}
-	
-	size_t TACGenerator::submitLabel() {
-		size_t const result = labelIndex++;
-		code.push_back(TAS{
-			.isLabel = true,
-			.functionID = currentFunctionID.id(),
-			.labelIndex = result
-		});
+	Label TacGenerator::submitLabel() {
+		auto const result = Label(currentFunctionID,
+								  labelIndex++);
+		code.push_back(result);
 		return result;
 	}
 	
-	Operation TACGenerator::selectOperation(sema::TypeID typeID, ast::BinaryOperator op) const {
+	FunctionLabel TacGenerator::submitFunctionLabel(ast::FunctionDefinition const& fnDef) {
+		FunctionLabel const result(fnDef);
+		code.push_back(result);
+		return result;
+	}
+	
+	TasArgument TacGenerator::makeTemporary(sema::TypeID type) {
+		return Temporary{ tmpIndex++, type };
+	}
+	
+	Operation TacGenerator::selectOperation(sema::TypeID typeID, ast::BinaryOperator op) const {
 		struct OpTable {
 			Operation& operator()(sema::TypeID typeID, ast::BinaryOperator op) {
 				return table[typeID][(size_t)op];
@@ -385,17 +271,5 @@ namespace scatha::ic {
 		return result;
 	}
 	
-	TASElement::Type TACGenerator::mapFundType(sema::TypeID id) const {
-		if (id == sym.Bool()) {
-			return TASElement::Bool;
-		}
-		if (id == sym.Int()) {
-			return TASElement::Signed;
-		}
-		if (id == sym.Float()) {
-			return TASElement::Float;
-		}
-		SC_DEBUGFAIL();
-	}
 	
 }

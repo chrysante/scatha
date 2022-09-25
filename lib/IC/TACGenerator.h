@@ -3,39 +3,43 @@
 
 #include "AST/AST.h"
 #include "AST/Common.h"
-#include "IC/TAS.h"
+#include "IC/ThreeAddressCode.h"
+#include "IC/ThreeAddressStatement.h"
 #include "Sema/SemanticElements.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::ic {
 	
-	class TACGenerator {
+	class TacGenerator {
 	public:
-		explicit TACGenerator(sema::SymbolTable const&);
-		[[nodiscard]] TAC run(ast::AbstractSyntaxTree const*);
+		explicit TacGenerator(sema::SymbolTable const&);
+		[[nodiscard]] ThreeAddressCode run(ast::AbstractSyntaxTree const*);
 		
 	private:
-		TASElement doRun(ast::AbstractSyntaxTree const*);
+		void doRun(ast::Statement const*);
+		TasArgument doRun(ast::Expression const*);
 		
-		TASElement submitVarAssignUnary(TASElement result, Operation, TASElement a);
-		TASElement submitVarAssignBinary(TASElement result, Operation, TASElement a, TASElement b);
-		TASElement submitTempNullary(Operation, TASElement::Type type);
-		TASElement submitTempUnary(Operation, TASElement a);
-		TASElement submitTempBinary(Operation, TASElement a, TASElement b);
-		void submitVoid(Operation, TASElement a);
-		[[nodiscard]] size_t submitJump();
-		[[nodiscard]] size_t submitCJump(TASElement cond);
-		void submitCall(sema::SymbolID functionID);
-		size_t submitLabel();
+		void submit(Operation, TasArgument a = {}, TasArgument b = {});
+		TasArgument submit(TasArgument result, Operation,
+						   TasArgument a = {}, TasArgument b = {});
+				
+		// Returns the code position of the submitted jump,
+		// so the label can be updated later
+		size_t submitJump(Operation, TasArgument cond = {}, Label label = {});
 		
+		// Returns the label
+		Label submitLabel();
+		
+		FunctionLabel submitFunctionLabel(ast::FunctionDefinition const&);
+		
+		TasArgument makeTemporary(sema::TypeID type);
+
 		Operation selectOperation(sema::TypeID, ast::BinaryOperator) const;
-		TASElement::Type mapFundType(sema::TypeID) const;
 		
 	private:
 		sema::SymbolTable const& sym;
+		utl::vector<TacLine> code;
 		
-		
-		utl::vector<TAS> code;
 		size_t tmpIndex = 0;
 		
 		// Will be set by the FunctionDefinition case

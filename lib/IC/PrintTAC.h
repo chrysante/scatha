@@ -3,13 +3,13 @@
 
 #include <iosfwd>
 
-#include "IC/TAS.h"
+#include "IC/ThreeAddressCode.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::ic {
 	
-	void printTAC(TAC const&, sema::SymbolTable const&);
-	void printTAC(TAC const&, sema::SymbolTable const&, std::ostream&);
+	void printTac(ThreeAddressCode const&, sema::SymbolTable const&);
+	void printTac(ThreeAddressCode const&, sema::SymbolTable const&, std::ostream&);
 	
 }
 
