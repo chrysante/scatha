@@ -45,7 +45,11 @@ namespace scatha::ic {
 						}
 					},
 					[&](Label const& label) -> auto& {
-						return str << sym.getFunction(label.functionID).name() << ".L" << label.index;
+						str << sym.getFunction(label.functionID).name();
+						if (label.index >= 0) {
+							str << ".L" << label.index;
+						}
+						return str;
 					},
 					[&](FunctionLabel const& label) -> auto& {
 						return str << sym.getFunction(label.functionID()).name();
@@ -76,15 +80,6 @@ namespace scatha::ic {
 				},
 				[&](ThreeAddressStatement const& s) {
 					str << "    ";
-					if (isJump(s.operation)) {
-						str << s.operation << " ";
-						if (s.operation == Operation::cjmp) {
-							str << print(s.arg1, sym) << ", ";
-						}
-						
-						str << print(s.arg2, sym);
-						return;
-					}
 					
 					if (!s.result.is(TasArgument::empty)) {
 						str << print(s.result, sym) << " = ";
