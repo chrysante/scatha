@@ -6,6 +6,7 @@
 #include <variant>
 
 #include <utl/bit.hpp>
+#include <utl/hash.hpp>
 
 #include "Basic/Basic.h"
 
@@ -36,11 +37,15 @@ namespace scatha::assembly {
 	std::ostream& operator<<(std::ostream&, Instruction);
 	
 	struct Label {
-		explicit Label(u64 id): id(id) {}
+		explicit Label(u64 functionID, u64 index):
+			functionID(functionID),
+			index(index)
+		{}
 		
 		bool operator==(Label const&) const = default;
 		
-		u64 id;
+		u64 functionID;
+		u64 index;
 	};
 	
 	std::ostream& operator<<(std::ostream&, Label);
@@ -185,7 +190,7 @@ namespace scatha::assembly {
 template <>
 struct std::hash<scatha::assembly::Label> {
 	std::size_t operator()(scatha::assembly::Label l) const {
-		return std::hash<scatha::u64>{}(l.id);
+		return utl::hash_combine(l.functionID, l.index);
 	}
 };
 

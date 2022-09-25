@@ -1,4 +1,4 @@
-#include "Assembly.h"
+#include "Assembly/Assembly.h"
 
 #include <ostream>
 #include <bit>
@@ -54,7 +54,7 @@ namespace scatha::assembly {
 	}
 	
 	std::ostream& operator<<(std::ostream& str, Label l) {
-		return str << "LABEL: " << l.id << std::endl;
+		return str << "LABEL: " << l.index << std::endl;
 	}
 	
 	std::ostream& operator<<(std::ostream& str, RegisterIndex r) {
