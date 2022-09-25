@@ -1,45 +1,14 @@
-#define SC_TEST
-
 #include <Catch/Catch2.hpp>
 
 #include <string>
 
-#include "Assembly/Assembler.h"
-#include "Basic/Memory.h"
-#include "CodeGen/CodeGenerator.h"
-#include "IC/TacGenerator.h"
-#include "IC/Canonicalize.h"
-#include "Lexer/Lexer.h"
-#include "Parser/Parser.h"
-#include "Sema/SemanticAnalyzer.h"
+#include <utl/bit.hpp>
+
+#include "test/CodeGen/BasicCompiler.h"
 #include "VM/Program.h"
 #include "VM/VirtualMachine.h"
 
 using namespace scatha;
-
-static vm::Program compile(std::string_view text) {
-	lex::Lexer l(text);
-	auto tokens = l.lex();
-	parse::Parser p(tokens);
-	auto ast = p.parse();
-	sema::SemanticAnalyzer s;
-	s.run(ast.get());
-	ic::canonicalize(ast.get());
-	ic::TacGenerator t(s.symbolTable());
-	auto const tac = t.run(ast.get());
-	codegen::CodeGenerator cg(tac);
-	auto const str = cg.run();
-	assembly::Assembler a(str);
-	return a.assemble();
-}
-
-static vm::VirtualMachine compileAndExecute(std::string_view text) {
-	vm::Program const p = compile(text);
-	vm::VirtualMachine vm;
-	vm.load(p);
-	vm.execute();
-	return vm;
-}
 
 TEST_CASE("First entire compilation and execution", "[codegen]") {
 	std::string const text = R"(
@@ -50,19 +19,19 @@ fn main() -> int {
 }
 )";
 	
-	auto const vm = compileAndExecute(text);
+	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
 	CHECK(state.registers[0] == 3);
 }
 
-TEST_CASE("Simplest possible non-trivial program", "[codegen]") {
+TEST_CASE("Simplest non-trivial program", "[codegen]") {
 	std::string const text = R"(
-fn main() -> int {
-	return 1;
-}
-)";
+	fn main() -> int {
+		return 1;
+	}
+	)";
 	
-	auto const vm = compileAndExecute(text);
+	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
 	CHECK(state.registers[0] == 1);
 }
@@ -120,6 +89,46 @@ TEST_CASE("Simple arithmetic", "[codegen]") {
 	)";
 		expectation = 15;
 	}
+	SECTION("Float Addition") {
+		text = R"(
+	fn test() -> float {
+		let a = 1.3;
+		let b = 2.3;
+		return a + b;
+	}
+	)";
+		expectation = utl::bit_cast<u64>(1.3 + 2.3);
+	}
+	SECTION("Float Mutliplication") {
+		text = R"(
+	fn test() -> float {
+		let a = 1.3;
+		let b = 2.3;
+		return a * b;
+	}
+	)";
+		expectation = utl::bit_cast<u64>(1.3 * 2.3);
+	}
+	SECTION("Float Subtraction") {
+		text = R"(
+	fn test() -> float {
+		let a = 1.4;
+		let b = 2.3;
+		return a - b;
+	}
+	)";
+		expectation = utl::bit_cast<u64>(1.4 - 2.3);
+	}
+	SECTION("Float Division") {
+		text = R"(
+	fn test() -> float {
+		let a = 1.4;
+		let b = 2.3;
+		return a / b;
+	}
+	)";
+		expectation = utl::bit_cast<u64>(1.4 / 2.3);
+	}
 	
 	SECTION("More complex expressions") {
 		text = R"(
@@ -146,9 +155,8 @@ TEST_CASE("Simple arithmetic", "[codegen]") {
 		expectation = 10;
 	}
 	
-	auto const vm = compileAndExecute(text);
+	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
 	CHECK(state.registers[0] == expectation);
 }
-
 
