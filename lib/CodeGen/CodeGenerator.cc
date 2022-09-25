@@ -24,7 +24,10 @@ namespace scatha::codegen {
 	assembly::AssemblyStream CodeGenerator::run() {
 		using namespace assembly;
 		AssemblyStream a;
-		for (auto const& line: tac.statements) {
+		for (auto const& [_index, _line]: utl::enumerate(tac.statements)) {
+			// annoying workaround for lambdas not capturing structured bindings
+			auto const index = _index;
+			auto const& line = _line;
 			std::visit(utl::visitor{
 				[&](ic::Label const& label) {
 					a << toAsm(label);
@@ -33,8 +36,8 @@ namespace scatha::codegen {
 					a << toAsm(label);
 					rd.clear();
 					rd.declareParameters(label);
-					size_t const numRequiredRegisters = countRegisters(&line - tac.statements.data()); // stupid hack to get the current index
-					a << Instruction::allocReg << Value8(numRequiredRegisters);
+					requiredRegisters = countRequiredRegistersForFunction(index);
+					a << Instruction::allocReg << Value8(requiredRegisters.total());
 				},
 				[&](ic::ThreeAddressStatement const& s) {
 					switch (s.operation) {
@@ -43,17 +46,18 @@ namespace scatha::codegen {
 							break;
 						}
 						case ic::Operation::pushParam: {
-							a << Instruction::mov << RegisterIndex(rd.currentIndex() + 2 + paramIndex) << resolve(s.arg1);
+							a << Instruction::mov << RegisterIndex(requiredRegisters.local + 2 + paramIndex) << resolve(s.arg1);
 							++paramIndex;
 							break;
 						}
 						case ic::Operation::getResult: {
 							a << Instruction::mov << resolve(s.result);
-							a << RegisterIndex(rd.currentIndex() + 2);
+							a << RegisterIndex(requiredRegisters.local + 2);
 							break;
 						}
 						case ic::Operation::call: {
-							
+							a << Instruction::call << toAsm(s.getLabel()) << Value8(requiredRegisters.local + 2);
+							paramIndex = 0;
 							break;
 						}
 						case ic::Operation::ret: {
@@ -66,63 +70,31 @@ namespace scatha::codegen {
 							a << Instruction::ret;
 							break;
 						}
-						case ic::Operation::add:  [[fallthrough]];
-						case ic::Operation::sub:  [[fallthrough]];
-						case ic::Operation::mul:  [[fallthrough]];
-						case ic::Operation::div:  [[fallthrough]];
-						case ic::Operation::idiv: [[fallthrough]];
-						case ic::Operation::rem:  [[fallthrough]];
+						case ic::Operation::add:
+						case ic::Operation::sub:
+						case ic::Operation::mul:
+						case ic::Operation::div:
+						case ic::Operation::idiv:
+						case ic::Operation::rem:
 						case ic::Operation::irem:
-							generateBinaryExpression(a, s);
+						case ic::Operation::fadd:
+						case ic::Operation::fsub:
+						case ic::Operation::fmul:
+						case ic::Operation::fdiv:
+							generateBinaryArithmetic(a, s);
 							break;
-						case ic::Operation::fadd: {
-		
+						case ic::Operation::eq:
+						case ic::Operation::neq:
+						case ic::Operation::ils:
+						case ic::Operation::ileq:
+						case ic::Operation::uls:
+						case ic::Operation::uleq:
+						case ic::Operation::feq:
+						case ic::Operation::fneq:
+						case ic::Operation::fls:
+						case ic::Operation::fleq:
+							generateComparison(a, s);
 							break;
-						}
-						case ic::Operation::fsub: {
-		
-							break;
-						}
-						case ic::Operation::fmul: {
-		
-							break;
-						}
-						case ic::Operation::fdiv: {
-		
-							break;
-						}
-						case ic::Operation::eq: {
-		
-							break;
-						}
-						case ic::Operation::neq: {
-		
-							break;
-						}
-						case ic::Operation::ls: {
-		
-							break;
-						}
-						case ic::Operation::leq: {
-		
-							break;
-						}
-						case ic::Operation::feq: {
-		
-							break;
-						}
-						case ic::Operation::fneq: {
-		
-							break;
-						}
-						case ic::Operation::fls: {
-		
-							break;
-						}
-						case ic::Operation::fleq: {
-		
-							break;
-						}
 						case ic::Operation::lnt: {
 		
 							break;
@@ -131,28 +103,27 @@ namespace scatha::codegen {
 		
 							break;
 						}
-						case ic::Operation::jmp: {
-		
+						case ic::Operation::jmp:
+						case ic::Operation::je:
+						case ic::Operation::jne:
+						case ic::Operation::jl:
+						case ic::Operation::jle:
+						case ic::Operation::jg:
+						case ic::Operation::jge:
+							generateJump(a, s);
 							break;
-						}
-						case ic::Operation::cjmp: {
-		
-							break;
-						}
+							
 						case ic::Operation::_count:
 							SC_DEBUGFAIL();
 					}
 				}
 			}, line);
-			
-
-
 		}
 		
 		return a;
 	}
 	
-	void CodeGenerator::generateBinaryExpression(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
+	void CodeGenerator::generateBinaryArithmetic(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
 		using namespace assembly;
 		Instruction const mappedInstruction = [&]{
 			switch (s.operation) {
@@ -163,12 +134,59 @@ namespace scatha::codegen {
 				case ic::Operation::idiv: return Instruction::idiv;
 				case ic::Operation::rem:  return Instruction::rem;
 				case ic::Operation::irem: return Instruction::irem;
-					
+				case ic::Operation::fadd: return Instruction::fadd;
+				case ic::Operation::fsub: return Instruction::fsub;
+				case ic::Operation::fmul: return Instruction::fmul;
+				case ic::Operation::fdiv: return Instruction::fdiv;
 				SC_NO_DEFAULT_CASE();
 			}
 		}();
 		a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
 		a << mappedInstruction << resolve(s.result) << resolve(s.arg2);
+	}
+	
+	void CodeGenerator::generateComparison(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
+		using namespace assembly;
+		
+		Instruction const cmp = [&]{
+			switch (s.operation) {
+				case ic::Operation::eq:
+				case ic::Operation::neq:
+				case ic::Operation::ils:
+				case ic::Operation::ileq:
+					return Instruction::icmp;
+				case ic::Operation::uls:
+				case ic::Operation::uleq:
+					return Instruction::ucmp;
+				case ic::Operation::feq:
+				case ic::Operation::fneq:
+				case ic::Operation::fls:
+				case ic::Operation::fleq:
+					return Instruction::fcmp;
+				SC_NO_DEFAULT_CASE();
+			}
+		}();
+		
+		a << cmp << resolve(s.arg1) << resolve(s.arg2);
+	}
+	
+	void CodeGenerator::generateJump(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
+		using namespace assembly;
+		
+		Instruction const jmpInstruction = [&]{
+			switch (s.operation) {
+				case ic::Operation::jmp: return Instruction::jmp;
+				case ic::Operation::je:  return Instruction::je;
+				case ic::Operation::jne: return Instruction::jne;
+				case ic::Operation::jl:  return Instruction::jl;
+				case ic::Operation::jle: return Instruction::jle;
+				case ic::Operation::jg:  return Instruction::jg;
+				case ic::Operation::jge: return Instruction::jge;
+				SC_NO_DEFAULT_CASE();
+			}
+		}();
+		
+		a << jmpInstruction << toAsm(s.getLabel());
 	}
 	
 	void CodeGenerator::ResolvedArg::streamInsert(assembly::AssemblyStream& str) const {
@@ -200,12 +218,16 @@ namespace scatha::codegen {
 		return { *this, arg };
 	}
 
-	size_t CodeGenerator::countRegisters(size_t index) const {
+	CodeGenerator::FunctionRegisterCount CodeGenerator::countRequiredRegistersForFunction(size_t index) const {
 		++index;
-		size_t result = 0;
+		FunctionRegisterCount result{};
 		utl::hashset<sema::SymbolID> variables;
 		utl::hashset<size_t> temporaries;
-		for (; index < tac.statements.size() && tac.statements[index].index() != 2; ++index) {
+		
+		size_t currentParamCount = 0;
+		size_t maxParamCount = 0;
+		
+		for (; index < tac.statements.size() && tac.statements[index].index() != ic::TacLineCase::FunctionLabel; ++index) {
 			auto& s = tac.statements[index];
 			std::visit(utl::visitor{
 				[&](ic::ThreeAddressStatement const& s) {
@@ -214,13 +236,13 @@ namespace scatha::codegen {
 							[&](ic::Variable const& var) {
 								if (!variables.contains(var.id())) {
 									variables.insert(var.id());
-									++result;
+									result.local += 1;
 								}
 							},
 							[&](ic::Temporary const& tmp) {
 								if (!temporaries.contains(tmp.index)) {
 									temporaries.insert(tmp.index);
-									++result;
+									result.local += 1;
 								}
 							},
 							[](auto&&) {}
@@ -229,15 +251,23 @@ namespace scatha::codegen {
 					count(s.result);
 					count(s.arg1);
 					count(s.arg2);
+					if (s.operation == ic::Operation::pushParam) {
+						++currentParamCount;
+						maxParamCount = std::max(currentParamCount, maxParamCount);
+					}
+					else if (s.operation == ic::Operation::call) {
+						currentParamCount = 0;
+					}
+					
 					if (s.operation == ic::Operation::ret && s.arg1.is(ic::TasArgument::literalValue)) {
-						result = std::max(result, size_t{ 1 });
+						result.local = std::max(result.local, size_t{ 1 });
 					}
 				},
 				[](auto&&) {}
 			}, s);
 		}
 		
-		
+		result.maxFcParams = maxParamCount;
 		
 		return result;
 	}
