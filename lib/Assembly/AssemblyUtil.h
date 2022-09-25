@@ -4,7 +4,7 @@
 #include <iosfwd>
 #include <optional>
 
-#include "Assembly/Assembly.h"
+#include "Assembly/AssemblyStream.h"
 #include "Sema/SymbolTable.h"
 #include "VM/OpCode.h"
 
@@ -13,10 +13,10 @@ namespace scatha::assembly {
 	vm::OpCode mapInstruction(Instruction);
 	vm::OpCode mapInstruction(Instruction, Element const&, Element const&);
 	
-	class Assembler;
-	
-	void print(Assembler const&, sema::SymbolTable const&);
-	void print(Assembler const&, sema::SymbolTable const&, std::ostream&);
+	void print(AssemblyStream const&);
+	void print(AssemblyStream const&, std::ostream&);
+	void print(AssemblyStream const&, sema::SymbolTable const&);
+	void print(AssemblyStream const&, sema::SymbolTable const&, std::ostream&);
 	
 }
 

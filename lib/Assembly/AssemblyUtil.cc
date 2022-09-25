@@ -63,7 +63,7 @@ namespace scatha::assembly {
 			case Instruction::jge:       return vm::OpCode::jge;
 				
 			case Instruction::callExt:   return vm::OpCode::callExt;
-		
+			
 			SC_NO_DEFAULT_CASE();
 		}
 	}
@@ -207,126 +207,159 @@ namespace scatha::assembly {
 			SC_NO_DEFAULT_CASE();
 		}
 	}
-
+	
 	using namespace vm;
 	
-	struct internal::Printer {
-		static void print(class Assembler const& a, sema::SymbolTable const& sym, std::ostream& str) {
-			StreamIterator itr(a.stream);
-			for (Element elem = itr.next(); elem.marker() != Marker::EndOfProgram; elem = itr.next()) {
-				switch (elem.marker()) {
-					case Marker::Instruction: {
-						auto const instruction = elem.get<Instruction>();
-						printInstruction(instruction, sym, str, itr);
-						break;
-					}
-					case Marker::Label: {
-						auto const label = elem.get<Label>();
-						if (label.index >= 0) {
-							str << "  ";
+	namespace {
+		
+		struct Printer {
+			std::ostream& str;
+			StreamIterator itr;
+			sema::SymbolTable const* sym;
+			
+			Printer(AssemblyStream const& a, std::ostream& str, sema::SymbolTable const* sym = nullptr):
+				str(str),
+				itr(a),
+				sym(sym)
+			{}
+			
+			void print() {
+				for (Element elem = itr.next(); elem.marker() != Marker::EndOfProgram; elem = itr.next()) {
+					switch (elem.marker()) {
+						case Marker::Instruction: {
+							auto const instruction = elem.get<Instruction>();
+							printInstruction(instruction);
+							break;
 						}
-						printLabel(label, sym, str);
-						break;
+						case Marker::Label: {
+							auto const label = elem.get<Label>();
+							if (label.index >= 0) {
+								str << "  ";
+							}
+							printLabel(label);
+							str << ":";
+							break;
+						}
+						default:
+							throw UnexpectedElement(elem, itr.currentLine());
 					}
-					default:
-						throw UnexpectedElement(elem, itr.currentLine());
+					str << "\n";
 				}
-				str << "\n";
 			}
-		}
-		
-		static void printInstruction(Instruction i, sema::SymbolTable const& sym, std::ostream& str, StreamIterator& itr) {
-			str << "    ";
-			switch (i) {
-					using enum Instruction;
-				case allocReg:
-					str << OpCode::allocReg << " " << itr.nextAs<Value8>();
-					return;
-				
-				case setBrk:
-					str << OpCode::setBrk << " " << itr.nextAs<RegisterIndex>();
-					return;
-				
-				case call:
-					str << OpCode::call << " " << itr.nextAs<Label>() << ", " << itr.nextAs<Value8>();
-					return;
-				
-				case ret:
-					str << OpCode::ret;
-					return;
-				
-				case terminate:
-					str << OpCode::terminate;
-					return;
-				
-				case callExt:
-					str << OpCode::callExt << " " << itr.nextAs<Value8>() <<
-						", " << itr.nextAs<Value8>() << ", " << itr.nextAs<Value16>();
-					return;
-					
-				case mov:  [[fallthrough]];
-				case ucmp: [[fallthrough]];
-				case icmp: [[fallthrough]];
-				case fcmp: [[fallthrough]];
-				case add:  [[fallthrough]];
-				case sub:  [[fallthrough]];
-				case mul:  [[fallthrough]];
-				case div:  [[fallthrough]];
-				case idiv: [[fallthrough]];
-				case rem:  [[fallthrough]];
-				case irem: [[fallthrough]];
-				case fadd: [[fallthrough]];
-				case fsub: [[fallthrough]];
-				case fmul: [[fallthrough]];
-				case fdiv:
-					printBinaryInstruction(i, sym, str, itr);
-					return;
+			
+			void printInstruction(Instruction i) {
+				str << "    ";
+				switch (i) {
+						using enum Instruction;
+					case allocReg:
+						str << OpCode::allocReg << " " << itr.nextAs<Value8>();
+						return;
 						
-				case jmp: [[fallthrough]];
-				case je:  [[fallthrough]];
-				case jne: [[fallthrough]];
-				case jl:  [[fallthrough]];
-				case jle: [[fallthrough]];
-				case jg:  [[fallthrough]];
-				case jge:
-					printJump(i, sym, str, itr);
-					return;
-					
-				SC_NO_DEFAULT_CASE();
+					case setBrk:
+						str << OpCode::setBrk << " " << itr.nextAs<RegisterIndex>();
+						return;
+						
+					case call:
+						str << OpCode::call << " ";
+						printLabel(itr.nextAs<Label>());
+						str << ", " << itr.nextAs<Value8>();
+						return;
+						
+					case ret:
+						str << OpCode::ret;
+						return;
+						
+					case terminate:
+						str << OpCode::terminate;
+						return;
+						
+					case callExt:
+						str << OpCode::callExt << " " << itr.nextAs<Value8>() <<
+						", " << itr.nextAs<Value8>() << ", " << itr.nextAs<Value16>();
+						return;
+						
+					case mov:  [[fallthrough]];
+					case ucmp: [[fallthrough]];
+					case icmp: [[fallthrough]];
+					case fcmp: [[fallthrough]];
+					case add:  [[fallthrough]];
+					case sub:  [[fallthrough]];
+					case mul:  [[fallthrough]];
+					case div:  [[fallthrough]];
+					case idiv: [[fallthrough]];
+					case rem:  [[fallthrough]];
+					case irem: [[fallthrough]];
+					case fadd: [[fallthrough]];
+					case fsub: [[fallthrough]];
+					case fmul: [[fallthrough]];
+					case fdiv:
+						printBinaryInstruction(i);
+						return;
+						
+					case jmp: [[fallthrough]];
+					case je:  [[fallthrough]];
+					case jne: [[fallthrough]];
+					case jl:  [[fallthrough]];
+					case jle: [[fallthrough]];
+					case jg:  [[fallthrough]];
+					case jge:
+						printJump(i);
+						return;
+						
+						SC_NO_DEFAULT_CASE();
+				}
 			}
-		}
-		
-		static void printBinaryInstruction(Instruction i, sema::SymbolTable const&, std::ostream& str, StreamIterator& itr) {
-			auto const arg1 = itr.next();
-			auto const arg2 = itr.next();
-			auto const opcode = mapInstruction(i, arg1, arg2);
-			if (opcode == OpCode::_count) {
-				throw InvalidArguments(i, arg1, arg2, itr.currentLine());
+			
+			void printBinaryInstruction(Instruction i) {
+				auto const arg1 = itr.next();
+				auto const arg2 = itr.next();
+				auto const opcode = mapInstruction(i, arg1, arg2);
+				if (opcode == OpCode::_count) {
+					throw InvalidArguments(i, arg1, arg2, itr.currentLine());
+				}
+				str << opcode << " " << arg1 << ", " << arg2;
 			}
-			str << opcode << " " << arg1 << ", " << arg2;
-		}
-		
-		static void printJump(Instruction i, sema::SymbolTable const& sym, std::ostream& str, StreamIterator& itr) {
-			auto const label = itr.nextAs<Label>();
-			str << mapInstruction(i) << " ";
-			printLabel(label, sym, str);
-		}
-		
-		static void printLabel(Label label, sema::SymbolTable const& sym, std::ostream& str) {
-			str << sym.getFunction(sema::SymbolID(label.functionID, sema::SymbolCategory::Function)).name();
-			if (label.index >= 0) {
-				str << ".L" << label.index;
+			
+			void printJump(Instruction i) {
+				auto const label = itr.nextAs<Label>();
+				str << mapInstruction(i) << " ";
+				printLabel(label);
 			}
-			str << ":";
-		}
-	};
+			
+			void printLabel(Label label) {
+				if (sym != nullptr) {
+					str << sym->getFunction(sema::SymbolID(label.functionID, sema::SymbolCategory::Function)).name();
+					if (label.index >= 0) {
+						str << ".L" << label.index;
+					}
+				}
+				else {
+					str << ".L" << label.functionID;
+					if (label.index >= 0) {
+						str << ":" << label.index;
+					}
+				}
+			}
+		};
+		
+	} // namespace
+		
+	void print(AssemblyStream const& a) {
+		print(a, std::cout);
+	}
 	
-	void print(Assembler const& a, sema::SymbolTable const& sym) {
+	void print(AssemblyStream const& a, std::ostream& str) {
+		Printer p(a, str);
+		p.print();
+	}
+	
+	void print(AssemblyStream const& a, sema::SymbolTable const& sym) {
 		print(a, sym, std::cout);
 	}
 	
-	void print(Assembler const& a, sema::SymbolTable const& sym, std::ostream& str) {
-		internal::Printer::print(a, sym, str);
+	void print(AssemblyStream const& a, sema::SymbolTable const& sym, std::ostream& str) {
+		Printer p(a, str, &sym);
+		p.print();
 	}
 	
 }
