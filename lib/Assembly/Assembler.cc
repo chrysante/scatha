@@ -20,6 +20,12 @@ namespace scatha::assembly {
 	
 	using namespace vm;
 	
+	Assembler::Assembler(AssemblyStream const& str):
+		stream(str)
+	{
+		
+	}
+	
 	Program Assembler::assemble() {
 		program = nullptr;
 		index = 0;
@@ -163,7 +169,7 @@ namespace scatha::assembly {
 	/// MARK: eat()
 	Element Assembler::eat() {
 		using namespace assembly;
-		if (index == data.size()) {
+		if (index == stream.data.size()) {
 			return EndOfProgram{};
 		}
 		Marker const marker = static_cast<Marker>(eatImpl<std::underlying_type_t<Marker>>());
@@ -173,7 +179,7 @@ namespace scatha::assembly {
 				return Instruction(eatImpl<u8>());
 				
 			case Marker::Label:
-				return Label(eatImpl<u64>());
+				return Label(eatImpl<u64>(), eatImpl<u64>());
 				
 			case Marker::RegisterIndex:
 				return RegisterIndex(eatImpl<u8>());
@@ -208,9 +214,8 @@ namespace scatha::assembly {
 	
 	template <typename T>
 	T Assembler::eatImpl() {
-		SC_ASSERT(index + sizeof(T) <= data.size(), "Out of range");
-		T result;
-		std::memcpy(&result, &data[index], sizeof(T));
+		SC_ASSERT(index + sizeof(T) <= stream.data.size(), "Out of range");
+		auto const result = read<T>(&stream.data[index]);
 		index += sizeof(T);
 		return result;
 	}
@@ -262,73 +267,6 @@ namespace scatha::assembly {
 		for (auto byte: decompose(v.value)) {
 			program->instructions.push_back(byte);
 		}
-	}
-	
-	/// MARK: insert()
-	void Assembler::insert(u8 value) {
-		data.push_back(value);
-	}
-	
-	template <size_t N>
-	void Assembler::insert(std::array<u8, N> value) {
-		for (auto byte: value) {
-			insert(byte);
-		}
-	}
-	
-	void Assembler::insert(assembly::Marker m) {
-		insert(decompose(m));
-	}
-	
-	// Input stream operators
-	Assembler& operator<<(Assembler& a, Instruction i) {
-		a.insert(Marker::Instruction);
-		a.insert(utl::to_underlying(i));
-		return a;
-	}
-	
-	Assembler& operator<<(Assembler& a, Value8 v) {
-		a.insert(Marker::Value8);
-		a.insert(decompose(v.value));
-		return a;
-	}
-	
-	Assembler& operator<<(Assembler& a, Value16 v) {
-		a.insert(Marker::Value16);
-		a.insert(decompose(v.value));
-		return a;
-	}
-	
-	Assembler& operator<<(Assembler& a, Value32 v) {
-		a.insert(Marker::Value32);
-		a.insert(decompose(v.value));
-		return a;
-	}
-	
-	Assembler& operator<<(Assembler& a, Value64 v) {
-		a.insert(Marker::Value64);
-		a.insert(decompose(v.value));
-		return a;
-	}
-	
-	Assembler& operator<<(Assembler& a, RegisterIndex r) {
-		a.insert(Marker::RegisterIndex);
-		a.insert(r.index);
-		return a;
-	}
-	
-	Assembler& operator<<(Assembler& a, MemoryAddress address) {
-		a.insert(Marker::MemoryAddress);
-		a.insert(address.ptrRegIdx);
-		a.insert(address.offset);
-		a.insert(address.offsetShift);
-		return a;
-	}
-	
-	Assembler& operator<<(Assembler& a, Label l) {
-		a.insert(Marker::Label);
-		a.insert(decompose(l.id));
-		return a;
 	}
 	
 }

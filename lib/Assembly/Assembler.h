@@ -9,6 +9,7 @@
 #include <utl/vector.hpp>
 
 #include "Assembly/Assembly.h"
+#include "Assembly/AssemblyStream.h"
 #include "Basic/Basic.h"
 #include "VM/Program.h"
 #include "VM/OpCode.h"
@@ -35,17 +36,8 @@ namespace scatha::assembly {
 	
 	class Assembler {
 	public:
+		explicit Assembler(AssemblyStream const&);
 		vm::Program assemble();
-		
-	public:
-		friend Assembler& operator<<(Assembler&, Instruction);
-		friend Assembler& operator<<(Assembler&, Value8);
-		friend Assembler& operator<<(Assembler&, Value16);
-		friend Assembler& operator<<(Assembler&, Value32);
-		friend Assembler& operator<<(Assembler&, Value64);
-		friend Assembler& operator<<(Assembler&, RegisterIndex);
-		friend Assembler& operator<<(Assembler&, MemoryAddress);
-		friend Assembler& operator<<(Assembler&, Label);
 		
 	private:
 		struct LabelPlaceholder{};
@@ -82,30 +74,28 @@ namespace scatha::assembly {
 		void put(Value32);
 		void put(Value64);
 		
-		/** MARK: insert
-		 * Family of functions for inserting data into the assembler
-		 */
-		void insert(u8);
-		template <size_t N>
-		void insert(std::array<u8, N>);
-		void insert(assembly::Marker);
-		
 	private:
-		vm::Program* program = nullptr;
-		size_t index = 0;
-		size_t line = 1;
-		Instruction currentInstruction;
-		// Mapping Label ID -> Code position.
-		utl::hashmap<Label, size_t> labels;
-		// List of all code position with a jump target.
 		struct Jumpsite {
 			size_t index;
 			size_t line;
 			Label label;
 		};
-		utl::vector<Jumpsite> jumpsites;
 		
-		utl::vector<u8> data;
+		// The AssemblyStream we are processing
+		AssemblyStream const& stream;
+		// Pointer to the program we are assembling, so we don't have to pass
+		// it around the call tree
+		vm::Program* program = nullptr;
+		// Index into the AssemblyStream
+		size_t index = 0;
+		// Current line of the AssemblyStream
+		size_t line = 1;
+		// Instruction currently being processed
+		Instruction currentInstruction;
+		// Mapping Label ID -> Code position
+		utl::hashmap<Label, size_t> labels;
+		// List of all code position with a jump site
+		utl::vector<Jumpsite> jumpsites;
 	};
 	
 }
