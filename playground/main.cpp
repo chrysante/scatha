@@ -62,7 +62,7 @@ __attribute__((weak)) int main() {
 		
 		ic::printTac(tac, s.symbolTable());
 		std::cout << "\n==================================================\n\n";
-		print(a, s.symbolTable());
+		print(str, s.symbolTable());
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;

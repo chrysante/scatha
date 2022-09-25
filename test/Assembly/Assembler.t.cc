@@ -5,6 +5,7 @@
 #include "Basic/Memory.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
+#include "Assembly/AssemblyUtil.h"
 #include "VM/VirtualMachine.h"
 
 using namespace scatha;
@@ -84,26 +85,26 @@ TEST_CASE("Euclidean algorithm", "[vm][codegen]") {
 TEST_CASE("Euclidean algorithm no tail call", "[vm][codegen]") {
 	using enum Instruction;
 
-	enum { GCD };
+	enum { MAIN, GCD };
 	
 	AssemblyStream a;
 	
 	// Should hold the result in R[2]
-														  // Main function
+	a << Label(MAIN);									  // Main function
 	a << allocReg << Value8(4);                           // allocate 4 registers
 														  // R[0] and R[1] are for the instruction pointer and register pointer offset
 	a << mov    << RegisterIndex(2) << Signed64(1023534); // R[2] = arg0
 	a << mov    << RegisterIndex(3) << Signed64(213588);  // R[2] = arg1
-	a << call   << Label(GCD, 0) << Value8(2);
+	a << call   << Label(GCD) << Value8(2);
 
 	a << terminate;
 
-	a << Label(GCD, 0);                                   // gcd(i64 a, i64 b):
+	a << Label(GCD);                                      // gcd(i64 a, i64 b):
 	a << icmp << RegisterIndex(1) << Signed64(0);         // b == 0
-	a << jne << Label(GCD, 1);
+	a << jne << Label(GCD, 0);
 	a << ret;
 	
-	a << Label(GCD, 1);
+	a << Label(GCD, 0);
 	a << allocReg << Value8(6);                           // Allocate 6 registers:
 														  // R[0]: a
 														  // R[1]: b
@@ -115,10 +116,10 @@ TEST_CASE("Euclidean algorithm no tail call", "[vm][codegen]") {
 	a << mov << RegisterIndex(5) << RegisterIndex(0);     // R[5] = a
 	a << irem << RegisterIndex(5) << RegisterIndex(1);    // R[5] %= b
 	a << mov << RegisterIndex(4) << RegisterIndex(1);     // R[4] = b
-	a << call << Label(GCD, 0) << Value8(4);              // Deliberately no tail call
+	a << call << Label(GCD) << Value8(4);                 // Deliberately no tail call
 	a << mov << RegisterIndex(0) << RegisterIndex(4);     // R[0] = R[4] to move the result to the expected register
 	a << ret;
-
+	
 	auto const vm = assembleAndExecute(a);
 	auto const& state = vm.getState();
 	

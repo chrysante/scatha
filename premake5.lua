@@ -54,7 +54,7 @@ project "playground"
 
 kind "ConsoleApp"
 sysincludedirs { "external/utility" }
-sysincludedirs { "lib" }
+includedirs { ".", "lib" }
 
 addCppFiles "playground"
 files "playground/**.sc"
