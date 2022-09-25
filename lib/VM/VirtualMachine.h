@@ -48,12 +48,8 @@ namespace scatha::vm {
 		
 		void addExternalFunction(size_t slot, ExternalFunction);
 		
-		SC_TEST_SECTION(
-		
-		VMState const& getState() const { return *this; }
+		VMState const& getState() const { return static_cast<VMState const&>(*this); }
 		VMStats const& getStats() const { return stats; }
-		
-		)
 		
 		friend struct OpCodeImpl;
 		

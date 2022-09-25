@@ -37,13 +37,6 @@
 
 #define SC_NO_DEFAULT_CASE() default: SC_DEBUGFAIL()
 
-/// MARK: Test
-#ifdef SC_TEST
-#	define SC_TEST_SECTION(...) __VA_ARGS__
-#else
-#	define SC_TEST_SECTION(...)
-#endif
-
 namespace scatha {
 	
 	using i8  = std::int8_t;
