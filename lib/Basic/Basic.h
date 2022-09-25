@@ -59,6 +59,7 @@ namespace scatha {
 	using f32 = float;
 	using f64 = double;
 	
+	// Reinterpret the bytes of t as a std::array of bytes
 	template <typename T> requires std::is_standard_layout_v<T>
 	std::array<u8, sizeof(T)> decompose(T const& t) {
 		return utl::bit_cast<std::array<u8, sizeof(T)>>(t);
