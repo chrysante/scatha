@@ -8,6 +8,7 @@
 #include "AST/PrintTree.h"
 #include "AST/Traversal.h"
 #include "Assembly/Assembler.h"
+#include "Assembly/AssemblyUtil.h"
 #include "CodeGen/CodeGenerator.h"
 #include "IC/TacGenerator.h"
 #include "IC/Canonicalize.h"
@@ -50,7 +51,6 @@ __attribute__((weak)) int main() {
 		ic::TacGenerator t(s.symbolTable());
 		auto const tac = t.run(ast.get());
 		
-		ic::printTac(tac, s.symbolTable());
 		
 		codegen::CodeGenerator cg(tac);
 		auto const str = cg.run();
@@ -58,7 +58,11 @@ __attribute__((weak)) int main() {
 		assembly::Assembler a(str);
 		
 		auto const program = a.assemble();
-		print(program);
+		
+		
+		ic::printTac(tac, s.symbolTable());
+		std::cout << "\n==================================================\n\n";
+		print(a, s.symbolTable());
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;
