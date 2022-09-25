@@ -28,20 +28,18 @@ namespace scatha::assembly {
 	
 	Program Assembler::assemble() {
 		program = nullptr;
-		index = 0;
 		labels.clear();
 		jumpsites.clear();
-		line = 1;
 		
 		Program result;
 		program = &result;
 		
-		for (Element elem = eat(); elem.marker() != Marker::EndOfProgram; ++line, elem = eat()) {
+		StreamIterator itr(stream);
+		for (Element elem = itr.next(); elem.marker() != Marker::EndOfProgram; elem = itr.next()) {
 			switch (elem.marker()) {
 				case Marker::Instruction: {
 					auto const instruction = elem.get<Instruction>();
-					currentInstruction = instruction;
-					processInstruction(instruction);
+					processInstruction(instruction, itr);
 					break;
 				}
 				case Marker::Label:
@@ -49,7 +47,7 @@ namespace scatha::assembly {
 					break;
 					
 				default:
-					throw UnexpectedElement(elem, line);
+					throw UnexpectedElement(elem, itr.currentLine());
 			}
 		}
 		
@@ -58,24 +56,24 @@ namespace scatha::assembly {
 		return result;
 	}
 	
-	void Assembler::processInstruction(Instruction i) {
+	void Assembler::processInstruction(Instruction i, StreamIterator& itr) {
 		switch (i) {
 				using enum Instruction;
 			case allocReg:
 				put(OpCode::allocReg);
-				put(eatAs<Value8>());
+				put(itr.nextAs<Value8>());
 				return;
 			
 			case setBrk:
 				put(OpCode::setBrk);
-				put(eatAs<RegisterIndex>());
+				put(itr.nextAs<RegisterIndex>());
 				return;
 			
 			case call:
-				registerJumpsite();
+				registerJumpsite(itr);
 				put(OpCode::call);
 				put(LabelPlaceholder{});
-				put(eatAs<Value8>());
+				put(itr.nextAs<Value8>());
 				return;
 			
 			case ret:
@@ -88,9 +86,9 @@ namespace scatha::assembly {
 			
 			case callExt:
 				put(OpCode::callExt);
-				put(eatAs<Value8>());
-				put(eatAs<Value8>());
-				put(eatAs<Value16>());
+				put(itr.nextAs<Value8>());
+				put(itr.nextAs<Value8>());
+				put(itr.nextAs<Value16>());
 				return;
 				
 			case mov:  [[fallthrough]];
@@ -108,7 +106,7 @@ namespace scatha::assembly {
 			case fsub: [[fallthrough]];
 			case fmul: [[fallthrough]];
 			case fdiv:
-				processBinaryInstruction(i);
+				processBinaryInstruction(i, itr);
 				return;
 					
 			case jmp: [[fallthrough]];
@@ -118,27 +116,27 @@ namespace scatha::assembly {
 			case jle: [[fallthrough]];
 			case jg:  [[fallthrough]];
 			case jge:
-				processJump(i);
+				processJump(i, itr);
 				return;
 				
 			SC_NO_DEFAULT_CASE();
 		}
 	}
 	
-	void Assembler::processBinaryInstruction(Instruction i) {
-		auto const arg1 = eat();
-		auto const arg2 = eat();
+	void Assembler::processBinaryInstruction(Instruction i, StreamIterator& itr) {
+		auto const arg1 = itr.next();
+		auto const arg2 = itr.next();
 		auto const opcode = mapInstruction(i, arg1, arg2);
 		if (opcode == OpCode::_count) {
-			throw InvalidArguments(i, arg1, arg2, line);
+			throw InvalidArguments(i, arg1, arg2, itr.currentLine());
 		}
 		put(opcode);
 		put(arg1);
 		put(arg2);
 	}
 	
-	void Assembler::processJump(Instruction i) {
-		registerJumpsite();
+	void Assembler::processJump(Instruction i, StreamIterator& itr) {
+		registerJumpsite(itr);
 		put(mapInstruction(i));
 		put(LabelPlaceholder{});
 		return;
@@ -148,8 +146,8 @@ namespace scatha::assembly {
 		labels.insert({ label, program->instructions.size() });
 	}
 	
-	void Assembler::registerJumpsite() {
-		jumpsites.push_back({ program->instructions.size(), line, eatAs<Label>() });
+	void Assembler::registerJumpsite(StreamIterator& itr) {
+		jumpsites.push_back({ program->instructions.size(), itr.currentLine(), itr.nextAs<Label>() });
 	}
 	
 	void Assembler::postProcess() {
@@ -164,60 +162,6 @@ namespace scatha::assembly {
 			SC_ASSERT(isJump(instruction), "Before a label should be a jump or call statement at this stage.");
 			store(&program->instructions[position + 1], i32(i64(target) - i64(position)));
 		}
-	}
-
-	/// MARK: eat()
-	Element Assembler::eat() {
-		using namespace assembly;
-		if (index == stream.data.size()) {
-			return EndOfProgram{};
-		}
-		Marker const marker = static_cast<Marker>(eatImpl<std::underlying_type_t<Marker>>());
-		validate(marker, line);
-		switch (marker) {
-			case Marker::Instruction:
-				return Instruction(eatImpl<u8>());
-				
-			case Marker::Label:
-				return Label(eatImpl<u64>(), eatImpl<u64>());
-				
-			case Marker::RegisterIndex:
-				return RegisterIndex(eatImpl<u8>());
-				
-			case Marker::MemoryAddress:
-				return MemoryAddress(eatImpl<u8>(), eatImpl<u8>(), eatImpl<u8>());
-			
-			case Marker::Value8:
-				return Value8(eatImpl<u8>());
-				
-			case Marker::Value16:
-				return Value16(eatImpl<u16>());
-				
-			case Marker::Value32:
-				return Value32(eatImpl<u32>());
-				
-			case Marker::Value64:
-				return Value64(eatImpl<u64>());
-				
-			SC_NO_DEFAULT_CASE();
-		}
-	}
-	
-	template <typename T>
-	T Assembler::eatAs() {
-		Element const elem = eat();
-		if (elem.marker() != ToMarker<T>::value) {
-			throw InvalidMarker(elem.marker(), line);
-		}
-		return elem.get<T>();
-	}
-	
-	template <typename T>
-	T Assembler::eatImpl() {
-		SC_ASSERT(index + sizeof(T) <= stream.data.size(), "Out of range");
-		auto const result = read<T>(&stream.data[index]);
-		index += sizeof(T);
-		return result;
 	}
 	
 	/// MARK: put()

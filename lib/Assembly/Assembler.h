@@ -14,6 +14,8 @@
 #include "VM/Program.h"
 #include "VM/OpCode.h"
 
+namespace scatha::assembly::internal { struct Printer; }
+
 namespace scatha::assembly {
 	
 	/*
@@ -42,24 +44,14 @@ namespace scatha::assembly {
 	private:
 		struct LabelPlaceholder{};
 		
-		void processInstruction(Instruction);
-		void processBinaryInstruction(Instruction);
-		void processJump(Instruction);
-		void processLabel(Label);
+		void processInstruction(Instruction, StreamIterator&);
+		void processBinaryInstruction(Instruction, StreamIterator&);
+		void processJump(Instruction, StreamIterator&);
 		
 		void registerLabel(Label);
-		void registerJumpsite();
+		void registerJumpsite(StreamIterator&);
 		
 		void postProcess();
-		
-		/** MARK: eat
-		 * Family of functions for extracting data out of the assembly stream
-		 */
-		Element eat();
-		template <typename T>
-		T eatAs();
-		template <typename T>
-		T eatImpl();
 		
 		/** MARK: put
 		 * Family of functions for inserting data into the program during assembly
@@ -75,6 +67,9 @@ namespace scatha::assembly {
 		void put(Value64);
 		
 	private:
+		friend struct internal::Printer;
+		
+	private:
 		struct Jumpsite {
 			size_t index;
 			size_t line;
@@ -86,12 +81,6 @@ namespace scatha::assembly {
 		// Pointer to the program we are assembling, so we don't have to pass
 		// it around the call tree
 		vm::Program* program = nullptr;
-		// Index into the AssemblyStream
-		size_t index = 0;
-		// Current line of the AssemblyStream
-		size_t line = 1;
-		// Instruction currently being processed
-		Instruction currentInstruction;
 		// Mapping Label ID -> Code position
 		utl::hashmap<Label, size_t> labels;
 		// List of all code position with a jump site

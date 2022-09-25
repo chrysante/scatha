@@ -9,9 +9,9 @@
 #include "Basic/Basic.h"
 
 namespace scatha::assembly {
-	
+		
 	class AssemblyStream {
-		friend class Assembler;
+		friend class StreamIterator;
 		
 	public:
 		/** MARK: operator<<
@@ -36,6 +36,34 @@ namespace scatha::assembly {
 	private:
 		utl::vector<u8> data;
 	};
+	
+	class StreamIterator {
+	public:
+		explicit StreamIterator(AssemblyStream const& stream): stream(stream) {}
+		
+		Element next();
+		template <typename T>
+		T nextAs();
+		
+		size_t currentLine() const { return line; }
+		
+	private:
+		void verify(Element const&, Marker) const;
+		template <typename T>
+		T get();
+		
+	private:
+		AssemblyStream const& stream;
+		size_t line = 1;
+		size_t index = 0;
+	};
+
+	template <typename T>
+	T StreamIterator::nextAs() {
+		Element const elem = next();
+		verify(elem, ToMarker<T>::value);
+		return elem.get<T>();
+	}
 	
 }
 

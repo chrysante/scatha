@@ -37,7 +37,7 @@ namespace scatha::assembly {
 	std::ostream& operator<<(std::ostream&, Instruction);
 	
 	struct Label {
-		explicit Label(u64 functionID, u64 index):
+		explicit Label(u64 functionID, i64 index = -1):
 			functionID(functionID),
 			index(index)
 		{}
@@ -45,13 +45,16 @@ namespace scatha::assembly {
 		bool operator==(Label const&) const = default;
 		
 		u64 functionID;
-		u64 index;
+		i64 index;
 	};
 	
 	std::ostream& operator<<(std::ostream&, Label);
 
 	struct RegisterIndex {
 		explicit RegisterIndex(u8 index): index(index) {}
+		
+		bool operator==(RegisterIndex const&) const = default;
+		
 		u8 index;
 	};
 	
@@ -183,7 +186,7 @@ namespace scatha::assembly {
 		T get() const { return std::get<T>(*this); }
 	};
 	
-	
+	std::ostream& operator<<(std::ostream&, Element const&);
 	
 }
 

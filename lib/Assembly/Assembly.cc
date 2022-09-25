@@ -113,4 +113,11 @@ namespace scatha::assembly {
 		}
 	}
 	
+	std::ostream& operator<<(std::ostream& str, Element const& e) {
+		return std::visit([&](auto const& x) -> decltype(auto) {
+			return str << x;
+		}, e);
+	}
+
+	
 }
