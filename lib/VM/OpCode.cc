@@ -201,6 +201,10 @@ namespace scatha::vm {
 			};
 			
 			at(ret) = [](u8 const*, u64* regPtr, VirtualMachine* vm) -> u64 {
+				if (vm->registers.data() == regPtr) /* meaning we are the root of the call tree */ {
+					vm->iptr = vm->programBreak;
+					return 0;
+				}
 				vm->iptr = utl::bit_cast<u8 const*>(regPtr[-1]);
 				vm->regPtr -= regPtr[-2];
 				return 0;
