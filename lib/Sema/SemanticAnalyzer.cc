@@ -284,7 +284,7 @@ namespace scatha::sema {
 				switch (node->op) {
 					case ast::UnaryPrefixOperator::Promotion: [[fallthrough]];
 					case ast::UnaryPrefixOperator::Negation:
-						if (operandType.id() != symbols.Int() ||
+						if (operandType.id() != symbols.Int() &&
 							operandType.id() != symbols.Float())
 						{
 							doThrow();
