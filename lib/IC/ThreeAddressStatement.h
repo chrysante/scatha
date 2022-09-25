@@ -129,13 +129,21 @@ namespace scatha::ic {
 		fmul,       // result <- arg1, arg2
 		fdiv,       // result <- arg1, arg2
 		
-		eq, neq, ls, leq,
-		feq, fneq, fls, fleq,
+		eq,
+		neq,
+		ils,
+		ileq,
+		uls,
+		uleq,
+		feq,
+		fneq,
+		fls,
+		fleq,
 		
 		lnt, // logical not
 		bnt, // bitwise not
 		
-		jmp, cjmp,
+		jmp, je, jne, jl, jle, jg, jge,
 		
 		_count
 	};
@@ -153,6 +161,9 @@ namespace scatha::ic {
 		TasArgument result;
 		TasArgument arg1;
 		TasArgument arg2;
+
+		// For jumps and calls the label is in arg1 by convention
+		Label getLabel() const { return arg1.as<Label>(); }
 	};
 	
 }

@@ -39,10 +39,12 @@ namespace scatha::ic {
 			{ fmul, "fmul" },
 			{ fdiv, "fdiv" },
 			
-			{ eq,  "eq" },
-			{ neq, "neq" },
-			{ ls,  "ls" },
-			{ leq, "leq" },
+			{ eq,   "eq" },
+			{ neq,  "neq" },
+			{ ils,  "ils" },
+			{ ileq, "ileq" },
+			{ uls,  "uls" },
+			{ uleq, "uleq" },
 			
 			{ feq,  "feq" },
 			{ fneq, "fneq" },
@@ -52,8 +54,13 @@ namespace scatha::ic {
 			{ lnt, "lnt" },
 			{ bnt, "bnt" },
 			
-			{ jmp,  "jmp" },
-			{ cjmp, "cjmp" },
+			{ jmp, "jmp" },
+			{ je,  "je" },
+			{ jne, "jne" },
+			{ jl,  "jl" },
+			{ jle, "jle" },
+			{ jg,  "jg" },
+			{ jge, "jge" },
 		});
 	}
 	
@@ -84,10 +91,12 @@ namespace scatha::ic {
 			{ fmul, 2 },
 			{ fdiv, 2 },
 			
-			{ eq,  2 },
-			{ neq, 2 },
-			{ ls,  2 },
-			{ leq, 2 },
+			{ eq,   2 },
+			{ neq,  2 },
+			{ ils,  2 },
+			{ ileq, 2 },
+			{ uls,  2 },
+			{ uleq, 2 },
 			
 			{ feq,  2 },
 			{ fneq, 2 },
@@ -98,12 +107,18 @@ namespace scatha::ic {
 			{ bnt, 1 },
 			
 			{ jmp, 1 },
-			{ cjmp, 2 },
+			{ je,  1 },
+			{ jne, 1 },
+			{ jl,  1 },
+			{ jle, 1 },
+			{ jg,  1 },
+			{ jge, 1 },
 		});
 	}
 	
 	bool isJump(Operation op) {
-		return op == Operation::jmp || op == Operation::cjmp || op == Operation::call;
+		using enum Operation;
+		return op == call || (utl::to_underlying(op) >= utl::to_underlying(jmp) && utl::to_underlying(op) <= utl::to_underlying(jge));
 	}
 	
 }

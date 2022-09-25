@@ -25,7 +25,7 @@ namespace scatha::ic {
 				
 		// Returns the code position of the submitted jump,
 		// so the label can be updated later
-		size_t submitJump(Operation, TasArgument cond = {}, Label label = {});
+		size_t submitJump(Operation, Label label);
 		
 		// Returns the label
 		Label submitLabel();

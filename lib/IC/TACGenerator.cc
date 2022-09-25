@@ -65,18 +65,48 @@ namespace scatha::ic {
 			}
 			case ast::NodeType::IfStatement: {
 				auto const* const ifStatement = static_cast<ast::IfStatement const*>(node);
-				auto const cond = doRun(ifStatement->condition.get());
-				size_t const cjmpIndex = submitJump(Operation::cjmp, cond);
+				doRun(ifStatement->condition.get());
+				
+				Operation const jmpOp = [&]{
+					auto const& condStatements = code.back();
+					SC_ASSERT(condStatements.isTas(), "");
+					using enum Operation;
+					switch (condStatements.asTas().operation) {
+							/*
+							 Here we return the jump instruction opposite to the comparison,
+							 because we want to jump over the if-block if the condition is not met.
+							 */
+						case eq: [[fallthrough]];
+						case feq:
+							return jne;
+						case neq: [[fallthrough]];
+						case fneq:
+							return je;
+						case ils: [[fallthrough]];
+						case uls: [[fallthrough]];
+						case fls:
+							return jge;
+						case ileq: [[fallthrough]];
+						case uleq: [[fallthrough]];
+						case fleq:
+							return jg;
+						default:
+							SC_DEBUGBREAK();
+							return _count;
+					}
+				}();
+				
+				size_t const cjmpIndex = submitJump(jmpOp, Label{});
 				
 				doRun(ifStatement->ifBlock.get());
 				if (ifStatement->elseBlock != nullptr) {
-					size_t const jmpIndex = submitJump(Operation::jmp);
-					code[cjmpIndex].asTas().arg2 = submitLabel();
+					size_t const jmpIndex = submitJump(Operation::jmp, Label{});
+					code[cjmpIndex].asTas().arg1 = submitLabel();
 					doRun(ifStatement->elseBlock.get());
-					code[jmpIndex].asTas().arg2 = submitLabel();
+					code[jmpIndex].asTas().arg1 = submitLabel();
 				}
 				else {
-					code[cjmpIndex].asTas().arg2 = submitLabel();
+					code[cjmpIndex].asTas().arg1 = submitLabel();
 				}
 				return;
 			}
@@ -173,7 +203,7 @@ namespace scatha::ic {
 				{	// our little hack to call functions for now
 					auto const* const functionId = dynamic_cast<ast::Identifier const*>(expr->object.get());
 					SC_ASSERT(functionId != nullptr, "Called object must be an identifier");
-					submitJump(Operation::call, {}, Label(functionId->symbolID, 0));
+					submitJump(Operation::call, Label(functionId->symbolID));
 					return submit(makeTemporary(expr->typeID), Operation::getResult);
 				}
 			}
@@ -203,12 +233,11 @@ namespace scatha::ic {
 		return result;
 	}
 	
-	size_t TacGenerator::submitJump(Operation jmp, TasArgument cond, Label label) {
+	size_t TacGenerator::submitJump(Operation jmp, Label label) {
 		SC_ASSERT(isJump(jmp), "Operation must be a jump");
 		code.push_back(ThreeAddressStatement{
 			.operation = jmp,
-			.arg1      = cond,
-			.arg2      = label
+			.arg1      = label
 		});
 		return code.size() - 1;
 	}
@@ -250,8 +279,8 @@ namespace scatha::ic {
 			
 			result(sym.Int(), Equals)    = Operation::eq;
 			result(sym.Int(), NotEquals) = Operation::neq;
-			result(sym.Int(), Less)      = Operation::ls;
-			result(sym.Int(), LessEq)    = Operation::leq;
+			result(sym.Int(), Less)      = Operation::ils;
+			result(sym.Int(), LessEq)    = Operation::ileq;
 			
 			result(sym.Float(), Addition)       = Operation::fadd;
 			result(sym.Float(), Subtraction)    = Operation::fsub;
