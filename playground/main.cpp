@@ -7,8 +7,9 @@
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
 #include "AST/Traversal.h"
-
-#include "IC/TACGenerator.h"
+#include "Assembly/Assembler.h"
+#include "CodeGen/CodeGenerator.h"
+#include "IC/TacGenerator.h"
 #include "IC/Canonicalize.h"
 #include "IC/PrintTAC.h"
 #include "Lexer/Lexer.h"
@@ -46,10 +47,18 @@ __attribute__((weak)) int main() {
 		
 		ic::canonicalize(ast.get());
 		
-		ic::TACGenerator t(s.symbolTable());
+		ic::TacGenerator t(s.symbolTable());
 		auto const tac = t.run(ast.get());
 		
-		ic::printTAC(tac, s.symbolTable());
+		ic::printTac(tac, s.symbolTable());
+		
+		codegen::CodeGenerator cg(tac);
+		auto const str = cg.run();
+		
+		assembly::Assembler a(str);
+		
+		auto const program = a.assemble();
+		print(program);
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;
