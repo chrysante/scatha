@@ -14,8 +14,6 @@
 #include "VM/Program.h"
 #include "VM/OpCode.h"
 
-namespace scatha::assembly::internal { struct Printer; }
-
 namespace scatha::assembly {
 	
 	/*
@@ -36,10 +34,16 @@ namespace scatha::assembly {
 	 ---------------------------------------------------
 	 */
 	
+	struct AssemblerOptions {
+		u64 mainID = u64(-1);
+	};
+	
 	class Assembler {
 	public:
 		explicit Assembler(AssemblyStream const&);
-		vm::Program assemble();
+		vm::Program assemble(AssemblerOptions = {});
+		
+		
 		
 	private:
 		struct LabelPlaceholder{};
@@ -53,6 +57,8 @@ namespace scatha::assembly {
 		
 		void postProcess();
 		
+		size_t currentPosition() const { return program->instructions.size(); }
+		
 		/** MARK: put
 		 * Family of functions for inserting data into the program during assembly
 		 */
@@ -65,9 +71,6 @@ namespace scatha::assembly {
 		void put(Value16);
 		void put(Value32);
 		void put(Value64);
-		
-	private:
-		friend struct internal::Printer;
 		
 	private:
 		struct Jumpsite {

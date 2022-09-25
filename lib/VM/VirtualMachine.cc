@@ -17,14 +17,16 @@ namespace scatha::vm {
 		memory.resize(instructionCount);
 		std::memcpy(memory.data(), program.instructions.data(), instructionCount);
 		
-		iptr = memory.data();
-		programBreak = iptr + instructionCount;
+		iptr = memory.data() + program.start;
+		programBreak = memory.data() + instructionCount;
+		
 		memoryPtr = nullptr;
 		memoryBreak = nullptr;
 	}
 	
 	void VirtualMachine::execute() {
-		SC_ASSERT(iptr == memory.data(), "");
+		SC_ASSERT(iptr >= memory.data(), "");
+		SC_ASSERT(iptr < programBreak, "");
 		SC_ASSERT(regPtr == (regPtr ? registers.data() : nullptr), "");
 		while (iptr < programBreak) {
 			u8 const opCode = *iptr;

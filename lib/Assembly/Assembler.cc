@@ -26,7 +26,7 @@ namespace scatha::assembly {
 		
 	}
 	
-	Program Assembler::assemble() {
+	Program Assembler::assemble(AssemblerOptions opt) {
 		program = nullptr;
 		labels.clear();
 		jumpsites.clear();
@@ -42,10 +42,14 @@ namespace scatha::assembly {
 					processInstruction(instruction, itr);
 					break;
 				}
-				case Marker::Label:
-					registerLabel(elem.get<Label>());
+				case Marker::Label: {
+					auto const label = elem.get<Label>();
+					registerLabel(label);
+					if (label.functionID == opt.mainID) {
+						result.start = currentPosition();
+					}
 					break;
-					
+				}
 				default:
 					throw UnexpectedElement(elem, itr.currentLine());
 			}
@@ -143,7 +147,7 @@ namespace scatha::assembly {
 	}
 	
 	void Assembler::registerLabel(Label label) {
-		labels.insert({ label, program->instructions.size() });
+		labels.insert({ label, currentPosition() });
 	}
 	
 	void Assembler::registerJumpsite(StreamIterator& itr) {
