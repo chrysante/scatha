@@ -9,10 +9,21 @@
 
 namespace scatha::ic {
 	
+	// TODO: Remove this
+	struct TacLineCase {
+		static constexpr size_t ThreeAddressStatement = 0;
+		static constexpr size_t Label = 1;
+		static constexpr size_t FunctionLabel = 2;
+	};
+	
 	using TacLineVariant = std::variant<ThreeAddressStatement, Label, FunctionLabel>;
 	
 	struct TacLine: TacLineVariant {
 		using TacLineVariant::TacLineVariant;
+		
+		bool isTas() const { return index() == 0; }
+		bool isLabel() const { return index() == 1; }
+		bool isFunctionLabel() const { return index() == 2; }
 		
 		ThreeAddressStatement& asTas() { return utl::as_mutable(utl::as_const(*this).asTas()); }
 		ThreeAddressStatement const& asTas() const { return std::get<ThreeAddressStatement>(*this); }
