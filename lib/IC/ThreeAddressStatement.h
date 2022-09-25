@@ -53,13 +53,13 @@ namespace scatha::ic {
 	
 	struct Label {
 		Label() = default;
-		explicit Label(sema::SymbolID functionID, size_t index = 0):
+		explicit Label(sema::SymbolID functionID, i64 index = -1):
 			functionID(functionID),
 			index(index)
 		{}
 		
 		sema::SymbolID functionID;
-		size_t index = static_cast<size_t>(-1);
+		i64 index = -1;
 	};
 	
 	struct FunctionLabel {
@@ -101,6 +101,11 @@ namespace scatha::ic {
 		};
 		
 		bool is(Kind kind) const { return index() == kind; }
+		
+		template <typename T>
+		T& as() { return std::get<T>(*this); }
+		template <typename T>
+		T const& as() const { return std::get<T>(*this); }
 	};
 	
 	enum class Operation: u8 {

@@ -34,6 +34,15 @@ namespace scatha::codegen {
 		return assembly::RegisterIndex(itr->second);
 	}
 	
+	std::optional<assembly::RegisterIndex> RegisterDescriptor::resolve(ic::TasArgument const& arg) {
+		using R = std::optional<assembly::RegisterIndex>;
+		return arg.visit(utl::visitor{
+			[&](ic::Variable const& var) -> R { return resolve(var); },
+			[&](ic::Temporary const& tmp) -> R { return resolve(tmp); },
+			[&](auto const&) -> R { return std::nullopt; }
+		});
+	}
+	
 	void RegisterDescriptor::clear() {
 		index = 0;
 		variables.clear();

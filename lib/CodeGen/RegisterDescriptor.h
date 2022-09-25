@@ -1,6 +1,8 @@
 #ifndef SCATHA_CODEGEN_REGISTERDESCRIPTOR_H_
 #define SCATHA_CODEGEN_REGISTERDESCRIPTOR_H_
 
+#include <optional>
+
 #include <utl/hashmap.hpp>
 
 #include "Assembly/Assembly.h"
@@ -17,7 +19,11 @@ namespace scatha::codegen {
 		assembly::RegisterIndex resolve(ic::Variable const&);
 		assembly::RegisterIndex resolve(ic::Temporary const&);
 		
+		std::optional<assembly::RegisterIndex> resolve(ic::TasArgument const&);
+		
 		void clear();
+		
+		size_t currentIndex() const { return index; }
 		
 	private:
 		size_t index = 0;

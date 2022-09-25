@@ -15,9 +15,21 @@ namespace scatha::codegen {
 		assembly::AssemblyStream run();
 		
 	private:
-		void submit(assembly::AssemblyStream&, ic::TasArgument const&);
+		void generateBinaryExpression(assembly::AssemblyStream&, ic::ThreeAddressStatement const&);
+		
+		struct ResolvedArg {
+			CodeGenerator& self;
+			ic::TasArgument const& arg;
+			void streamInsert(assembly::AssemblyStream&) const;
+		};
+		friend struct ResolvedArg;
+		friend assembly::AssemblyStream& operator<<(assembly::AssemblyStream&, ResolvedArg);
+		
+		ResolvedArg resolve(ic::TasArgument const&);
+		size_t countRegisters(size_t index) const;
 		
 	private:
+		size_t paramIndex = 0;
 		ic::ThreeAddressCode const& tac;
 		RegisterDescriptor rd;
 	};
