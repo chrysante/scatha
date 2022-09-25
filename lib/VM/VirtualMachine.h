@@ -18,6 +18,10 @@ namespace scatha::vm {
 	using ExternalFunction = void(*)(u64, class VirtualMachine*);
 	
 	struct VMState {
+		VMState() = default;
+		VMState(VMState const&) = delete;
+		VMState(VMState&&) = default;
+		
 		u8 const* iptr = nullptr;
 		u64* regPtr = nullptr;
 		VMFlags flags{};
@@ -46,8 +50,8 @@ namespace scatha::vm {
 		
 		SC_TEST_SECTION(
 		
-		VMState& getState() { return *this; }
-		VMStats& getStats() { return stats; }
+		VMState const& getState() const { return *this; }
+		VMStats const& getStats() const { return stats; }
 		
 		)
 		
