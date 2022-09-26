@@ -51,13 +51,13 @@ __attribute__((weak)) int main() {
 		ic::TacGenerator t(s.symbolTable());
 		auto const tac = t.run(ast.get());
 		
+		ic::printTac(tac, s.symbolTable());
 		
 		codegen::CodeGenerator cg(tac);
 		auto const str = cg.run();
 		
 		assembly::Assembler a(str);
 		
-		ic::printTac(tac, s.symbolTable());
 		auto const program = a.assemble();
 		
 		

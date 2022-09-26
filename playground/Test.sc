@@ -1,12 +1,19 @@
 
-
+fn greaterZero(a: int) -> bool {
+	return a > 0;
+	
+}
 
 fn main() -> int {
-	var i = 0;
-	var result = 1;
-	while i < 10 {
-		i += 1;
-		result *= 2;
+	let x = 0;
+	let y = 1;
+	if greaterZero(x) {
+		return 2;
 	}
-	return result;
+	else if greaterZero(y) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
 }
