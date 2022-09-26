@@ -42,4 +42,9 @@ namespace scatha::test {
 		return vm;
 	}
 	
+	utl::vector<u64> getRegisters(std::string_view text) {
+		auto vm = test::compileAndExecute(text);
+		return vm.getState().registers;
+	}
+	
 }
