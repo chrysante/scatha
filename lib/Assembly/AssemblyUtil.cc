@@ -46,7 +46,7 @@ namespace scatha::assembly {
 		
 	}
 	
-	vm::OpCode mapInstruction(Instruction i) {
+	vm::OpCode mapUnaryInstruction(Instruction i) {
 		switch (i) {
 			case Instruction::allocReg:  return vm::OpCode::allocReg;
 			case Instruction::setBrk:    return vm::OpCode::setBrk;
@@ -62,13 +62,26 @@ namespace scatha::assembly {
 			case Instruction::jg:        return vm::OpCode::jg;
 			case Instruction::jge:       return vm::OpCode::jge;
 				
+			case Instruction::itest:     return vm::OpCode::itest;
+			case Instruction::utest:     return vm::OpCode::utest;
+				
+			case Instruction::sete:      return vm::OpCode::sete;
+			case Instruction::setne:     return vm::OpCode::setne;
+			case Instruction::setl:      return vm::OpCode::setl;
+			case Instruction::setle:     return vm::OpCode::setle;
+			case Instruction::setg:      return vm::OpCode::setg;
+			case Instruction::setge:     return vm::OpCode::setge;
+				
+			case Instruction::lnt:     return vm::OpCode::lnt;
+			case Instruction::bnt:     return vm::OpCode::bnt;
+				
 			case Instruction::callExt:   return vm::OpCode::callExt;
 			
 			SC_NO_DEFAULT_CASE();
 		}
 	}
 	
-	vm::OpCode mapInstruction(Instruction i, Element const& arg1, Element const& arg2) {
+	vm::OpCode mapBinaryInstruction(Instruction i, Element const& arg1, Element const& arg2) {
 		switch (i) {
 			case Instruction::mov: {
 				constexpr OpCodeTable table = {
@@ -104,6 +117,10 @@ namespace scatha::assembly {
 				};
 				return table(arg1, arg2);
 			}
+			case Instruction::lnt:
+				return vm::OpCode::lnt;
+			case Instruction::bnt:
+				return vm::OpCode::bnt;
 			case Instruction::add: {
 				constexpr OpCodeTable table = {
 					Instruction::add,
@@ -278,6 +295,19 @@ namespace scatha::assembly {
 						", " << itr.nextAs<Value8>() << ", " << itr.nextAs<Value16>();
 						return;
 						
+					case itest: [[fallthrough]];
+					case utest: [[fallthrough]];
+					case sete:  [[fallthrough]];
+					case setne: [[fallthrough]];
+					case setl:  [[fallthrough]];
+					case setle: [[fallthrough]];
+					case setg:  [[fallthrough]];
+					case setge: [[fallthrough]];
+					case lnt:   [[fallthrough]];
+					case bnt:
+						printUnaryInstruction(i);
+						return;
+						
 					case mov:  [[fallthrough]];
 					case ucmp: [[fallthrough]];
 					case icmp: [[fallthrough]];
@@ -306,8 +336,14 @@ namespace scatha::assembly {
 						printJump(i);
 						return;
 						
-						SC_NO_DEFAULT_CASE();
+					case _count:
+						SC_DEBUGFAIL();
 				}
+			}
+			
+			void printUnaryInstruction(Instruction i) {
+				auto const arg1 = itr.next();
+				str << i << " " << arg1;
 			}
 			
 			void printBinaryInstruction(Instruction i) {

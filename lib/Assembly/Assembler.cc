@@ -95,6 +95,19 @@ namespace scatha::assembly {
 				put(itr.nextAs<Value16>());
 				return;
 				
+			case itest: [[fallthrough]];
+			case utest: [[fallthrough]];
+			case sete:  [[fallthrough]];
+			case setne: [[fallthrough]];
+			case setl:  [[fallthrough]];
+			case setle: [[fallthrough]];
+			case setg:  [[fallthrough]];
+			case setge: [[fallthrough]];
+			case lnt:   [[fallthrough]];
+			case bnt:
+				processUnaryInstruction(i, itr);
+				return;
+				
 			case mov:  [[fallthrough]];
 			case ucmp: [[fallthrough]];
 			case icmp: [[fallthrough]];
@@ -123,14 +136,25 @@ namespace scatha::assembly {
 				processJump(i, itr);
 				return;
 				
-			SC_NO_DEFAULT_CASE();
+			case _count:
+				SC_DEBUGFAIL();
 		}
+	}
+	
+	void Assembler::processUnaryInstruction(Instruction i, StreamIterator& itr) {
+		auto const arg1 = itr.next();
+		auto const opcode = mapUnaryInstruction(i);
+		if (opcode == OpCode::_count) {
+			throw InvalidArguments(i, arg1, {}, itr.currentLine());
+		}
+		put(opcode);
+		put(arg1);
 	}
 	
 	void Assembler::processBinaryInstruction(Instruction i, StreamIterator& itr) {
 		auto const arg1 = itr.next();
 		auto const arg2 = itr.next();
-		auto const opcode = mapInstruction(i, arg1, arg2);
+		auto const opcode = mapBinaryInstruction(i, arg1, arg2);
 		if (opcode == OpCode::_count) {
 			throw InvalidArguments(i, arg1, arg2, itr.currentLine());
 		}
@@ -141,7 +165,7 @@ namespace scatha::assembly {
 	
 	void Assembler::processJump(Instruction i, StreamIterator& itr) {
 		registerJumpsite(itr);
-		put(mapInstruction(i));
+		put(mapUnaryInstruction(i));
 		put(LabelPlaceholder{});
 		return;
 	}
@@ -180,7 +204,18 @@ namespace scatha::assembly {
 	}
 	
 	void Assembler::put(Element const& elem) {
-		std::visit([this](auto const& x) { put(x); }, elem);
+		std::visit(utl::visitor{
+			[this](auto const& x) {
+				put(x);
+			},
+			[](Instruction) {
+				SC_DEBUGFAIL(); // Probably a bug because we should not put an assembly::Instruction
+								// into the program, only vm::OpCode.
+			},
+			[](Label) {
+				SC_DEBUGFAIL(); // Same here, labels do not exist in an assembled program.
+			},
+		}, elem);
 	}
 	
 	void Assembler::put(RegisterIndex r) {

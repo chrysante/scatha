@@ -53,7 +53,11 @@ namespace scatha::codegen {
 	private:
 		void generateBinaryArithmetic(assembly::AssemblyStream&, ic::ThreeAddressStatement const&);
 		void generateComparison(assembly::AssemblyStream&, ic::ThreeAddressStatement const&);
+		void generateComparisonStore(assembly::AssemblyStream&, ic::ThreeAddressStatement const&);
 		void generateJump(assembly::AssemblyStream&, ic::ThreeAddressStatement const&);
+		void generateConditionalJump(assembly::AssemblyStream&,
+									 ic::ThreeAddressStatement const&,
+									 ic::ThreeAddressStatement const&);
 		
 		struct ResolvedArg {
 			CodeGenerator& self;

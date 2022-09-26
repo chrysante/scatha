@@ -8,12 +8,8 @@
 
 using namespace scatha;
 
-TEST_CASE("Conditions") {
-	
-	std::string text;
-	
-	SECTION("fcmp greater var-lit") {
-		text = R"(
+TEST_CASE("fcmp greater var-lit") {
+	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
 	if a > 12.2 {
@@ -23,9 +19,11 @@ fn main() -> int {
 		return 2;
 	}
 })";
-	}
-	SECTION("fcmp greater lit-var") {
-		text = R"(
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+TEST_CASE("fcmp greater lit-var") {
+	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
 	if 100.0 > a {
@@ -35,9 +33,11 @@ fn main() -> int {
 		return 2;
 	}
 })";
-	}
-	SECTION("fcmp less var-lit") {
-		text = R"(
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+TEST_CASE("fcmp less var-lit") {
+	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
 	if a < 112.2 {
@@ -47,9 +47,11 @@ fn main() -> int {
 		return 2;
 	}
 })";
-	}
-	SECTION("fcmp less lit-var") {
-		text = R"(
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+TEST_CASE("fcmp less lit-var") {
+	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
 	if -1002.0 < a {
@@ -59,9 +61,11 @@ fn main() -> int {
 		return 2;
 	}
 })";
-	}
-	SECTION("fcmp less lit-lit") {
-		text = R"(
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+TEST_CASE("fcmp less lit-lit") {
+	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
 	if -1002.0 < 0.0 {
@@ -71,9 +75,11 @@ fn main() -> int {
 		return 2;
 	}
 })";
-	}
-	SECTION("nested if-else-if") {
-		text = R"(
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+TEST_CASE("nested if-else-if") {
+	std::string const text = R"(
 fn main() -> int {
 	let x = 0;
 	if -1002.0 > 0.0 {
@@ -89,9 +95,11 @@ fn main() -> int {
 		return 2;
 	}
 })";
-	}
-	SECTION("") {
-		text = R"(
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+TEST_CASE("more nested if else") {
+	std::string const text = R"(
 fn main() -> int {
 	let x = 0;
 	if -1002.0 > 0.0 {
@@ -100,6 +108,7 @@ fn main() -> int {
 	else {
 		x = 1;
 	}
+	// just to throw some more complexity at the compiler
 	let y = 1 + 2 * 3 / 4 % 5 / 6;
 	if x == 1 {
 		return x;
@@ -108,9 +117,54 @@ fn main() -> int {
 		return x + 100;
 	}
 })";
-	}
-	
-	auto vm = test::compileAndExecute(text);
-	auto const& state = vm.getState();
-	CHECK(state.registers[0] == 1);
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
 }
+
+TEST_CASE("") {
+	std::string const text = R"(
+fn main() -> bool {
+	return !false;
+})";
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+
+TEST_CASE("Branch based on literals") {
+	std::string const text = R"(
+fn main() -> int {
+	if true {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+})";
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+	
+TEST_CASE("Branch based on result of function calls") {
+	std::string const text = R"(
+fn greaterZero(a: int) -> bool {
+	return a > 0;
+	return !(a <= 0);
+}
+
+fn main() -> int {
+	let x = 0;
+	let y = 1;
+	if greaterZero(x) {
+		return 2;
+	}
+	else if greaterZero(y) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+})";
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+

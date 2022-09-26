@@ -87,12 +87,33 @@ namespace scatha::vm {
 		jge,        // (i32 offset)
 		
 		/// MARK: Comparison
-		ucmpRR,        //  (u8 regIdxA, u8 regIdxB)
-		icmpRR,        //  (u8 regIdxA, u8 regIdxB)
-		ucmpRV,        //  (u8 regIdxA, u8 MEMORY_POINTER)
-		icmpRV,        //  (u8 regIdxA, u8 MEMORY_POINTER)
-		fcmpRR,        //  (u8 regIdxA, u8 regIdxB)
-		fcmpRV,        //  (u8 regIdxA, u8 MEMORY_POINTER)
+		/// Compare the operands and set flags accordingly
+		ucmpRR,     //  (u8 regIdxA, u8 regIdxB)
+		icmpRR,     //  (u8 regIdxA, u8 regIdxB)
+		ucmpRV,     //  (u8 regIdxA, u8 MEMORY_POINTER)
+		icmpRV,     //  (u8 regIdxA, u8 MEMORY_POINTER)
+		fcmpRR,     //  (u8 regIdxA, u8 regIdxB)
+		fcmpRV,     //  (u8 regIdxA, u8 MEMORY_POINTER)
+		
+		/// Compare the operand to 0 and set flags accordingly
+		itest,       //  (u8 regIdx)
+		utest,       //  (u8 regIdx)
+		
+		/// MARK: Read comparison results
+		/// Set register to 0 or 1 based of the flags set by the *cmp* or *test instructions
+		sete,       //  (u8 regIdx)
+		setne,      //  (u8 regIdx)
+		setl,       //  (u8 regIdx)
+		setle,      //  (u8 regIdx)
+		setg,       //  (u8 regIdx)
+		setge,      //  (u8 regIdx)
+		
+		
+		/// MARK: Unary operations
+		// reg[regIdx] = !reg[regIdx]
+		lnt,        // (u8 regIdx)
+		// reg[regIdx] = ~reg[regIdx]
+		bnt,        // (u8 regIdx)
 		
 		/// MARK: Integer arithmetic
 		// reg[regIdxA] += reg[regIdxA]
@@ -174,7 +195,7 @@ namespace scatha::vm {
 	std::ostream& operator<<(std::ostream&, OpCode);
 	
 	enum class OpCodeClass {
-		RR, RV, RM, MR,
+		RR, RV, RM, MR, R,
 		Jump, Other,
 		_count
 	};
@@ -209,6 +230,16 @@ namespace scatha::vm {
 			{ OpCode::icmpRV,    RV },
 			{ OpCode::fcmpRR,    RR },
 			{ OpCode::fcmpRV,    RV },
+			{ OpCode::itest,     R  },
+			{ OpCode::utest,     R  },
+			{ OpCode::sete,      R  },
+			{ OpCode::setne,     R  },
+			{ OpCode::setl,      R  },
+			{ OpCode::setle,     R  },
+			{ OpCode::setg,      R  },
+			{ OpCode::setge,     R  },
+			{ OpCode::lnt,       R  },
+			{ OpCode::bnt,       R  },
 			{ OpCode::addRR,     RR },
 			{ OpCode::addRV,     RV },
 			{ OpCode::addRM,     RM },
@@ -271,13 +302,11 @@ namespace scatha::vm {
 			{ RV,   10 },
 			{ RM,    5 },
 			{ MR,    5 },
+			{ R,     2 },
 			{ Jump,  5 },
 			{ Other, (size_t)-1 }
 		});
 	}
-	
-	static_assert((size_t)OpCode::_count < 255,
-				  "We reserve this code for something");
 	
 	using Instruction = u64(*)(u8 const*, u64*, class VirtualMachine*);
 

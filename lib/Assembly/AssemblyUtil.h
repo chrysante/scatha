@@ -10,8 +10,8 @@
 
 namespace scatha::assembly {
 
-	vm::OpCode mapInstruction(Instruction);
-	vm::OpCode mapInstruction(Instruction, Element const&, Element const&);
+	vm::OpCode mapUnaryInstruction(Instruction);
+	vm::OpCode mapBinaryInstruction(Instruction, Element const&, Element const&);
 	
 	void print(AssemblyStream const&);
 	void print(AssemblyStream const&, std::ostream&);

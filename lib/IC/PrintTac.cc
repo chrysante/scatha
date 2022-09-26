@@ -57,6 +57,10 @@ namespace scatha::ic {
 					},
 					[&](FunctionLabel const& label) -> auto& {
 						return str << sym.getFunction(label.functionID()).name();
+					},
+					[&](If) -> auto& {
+						SC_DEBUGFAIL();
+						return str;
 					}
 				});
 			}
@@ -76,23 +80,35 @@ namespace scatha::ic {
 			std::visit(utl::visitor{
 				[&](Label const& label) {
 					printLabel(str, label, sym);
-					str << ":";
+					str << ":\n";
 				},
 				[&](FunctionLabel const& label) {
 					auto const& function = sym.getFunction(label.functionID());
-					str << function.name() << ":";
+					str << function.name() << ":\n";
 				},
 				[&](FunctionEndLabel) {
-					str << "FUNCTION_END";
+					str << "FUNCTION_END\n";
 				},
 				[&](ThreeAddressStatement const& s) {
 					str << "    ";
 					
-					if (!s.result.is(TasArgument::empty)) {
-						str << print(s.result, sym) << " = ";
+					if (s.result.is(TasArgument::conditional)) {
+						if (s.operation == Operation::ifPlaceholder) {
+							str << "if " << print(s.arg1, sym) << "\n";
+						}
+						else {
+							SC_ASSERT(isRelop(s.operation), "Must be relop");
+							str << "if " << s.operation << " " << print(s.arg1, sym) << ", " << print(s.arg2, sym) << "\n"; 
+						}
+						return;
+					}
+					else {
+						if (!s.result.is(TasArgument::empty)) {
+							str << print(s.result, sym) << " = ";
+						}
+						str << s.operation;
 					}
 					
-					str << s.operation;
 					int const argCount = argumentCount(s.operation);
 					switch (argCount) {
 						case 0:
@@ -106,9 +122,9 @@ namespace scatha::ic {
 						
 						SC_NO_DEFAULT_CASE();
 					}
+					str << "\n";
 				}
 			}, line);
-			str << "\n";
 		}
 	}
 	

@@ -43,24 +43,26 @@ namespace scatha::ic {
 			{ neq,  "neq" },
 			{ ils,  "ils" },
 			{ ileq, "ileq" },
+			{ ig,   "ig" },
+			{ igeq, "igeq" },
 			{ uls,  "uls" },
 			{ uleq, "uleq" },
+			{ ug,   "ug" },
+			{ ugeq, "ugeq" },
 			
 			{ feq,  "feq" },
 			{ fneq, "fneq" },
 			{ fls,  "fls" },
 			{ fleq, "fleq" },
+			{ fg,   "fg" },
+			{ fgeq, "fgeq" },
 			
 			{ lnt, "lnt" },
 			{ bnt, "bnt" },
 			
 			{ jmp, "jmp" },
-			{ je,  "je" },
-			{ jne, "jne" },
-			{ jl,  "jl" },
-			{ jle, "jle" },
-			{ jg,  "jg" },
-			{ jge, "jge" },
+			
+			{ ifPlaceholder, "ifPlaceholder(this should not be printed)" }
 		});
 	}
 	
@@ -95,30 +97,54 @@ namespace scatha::ic {
 			{ neq,  2 },
 			{ ils,  2 },
 			{ ileq, 2 },
+			{ ig,   2 },
+			{ igeq, 2 },
 			{ uls,  2 },
 			{ uleq, 2 },
+			{ ug,   2 },
+			{ ugeq, 2 },
 			
 			{ feq,  2 },
 			{ fneq, 2 },
 			{ fls,  2 },
 			{ fleq, 2 },
+			{ fg,   2 },
+			{ fgeq, 2 },
 			
 			{ lnt, 1 },
 			{ bnt, 1 },
 			
 			{ jmp, 1 },
-			{ je,  1 },
-			{ jne, 1 },
-			{ jl,  1 },
-			{ jle, 1 },
-			{ jg,  1 },
-			{ jge, 1 },
+			
+			{ ifPlaceholder, 1 }
 		});
 	}
 	
 	bool isJump(Operation op) {
 		using enum Operation;
-		return op == call || (utl::to_underlying(op) >= utl::to_underlying(jmp) && utl::to_underlying(op) <= utl::to_underlying(jge));
+		return op == call || op == jmp;
+	}
+
+	bool isRelop(Operation op) {
+		using enum Operation;
+		return (utl::to_underlying(op) >= utl::to_underlying(eq) && utl::to_underlying(op) <= utl::to_underlying(fgeq));
+	}
+	
+	Operation reverseRelop(Operation op) {
+		using enum Operation;
+		switch (op) {
+			case eq: return neq;
+			case neq: return eq;
+			case ils: return igeq;
+			case ileq: return ig;
+			case uls: return ugeq;
+			case uleq: return ug;
+			case feq: return fneq;
+			case fneq: return feq;
+			case fls: return fgeq;
+			case fleq: return fg;
+			SC_NO_DEFAULT_CASE();
+		}
 	}
 	
 }

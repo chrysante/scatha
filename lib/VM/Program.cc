@@ -46,6 +46,9 @@ namespace scatha::vm {
 					printMemoryAcccess(i + 1);
 					str << ", R[" << printAs<u8>(data, i + 4) << "]";
 					break;
+				case R:
+					str << "R[" << printAs<u8>(data, i + 1) << "]";
+					break;
 				case Jump:
 					str << printAs<i32>(data, i + 1);
 					break;

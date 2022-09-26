@@ -45,7 +45,7 @@ TEST_CASE("Memory read write", "[assembly][vm]") {
 	CHECK(read<u64>(state.memoryPtr + 16) == 13);
 }
 
-TEST_CASE("Euclidean algorithm", "[vm][codegen]") {
+TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
 	using enum Instruction;
 	
 	enum { GCD };
@@ -82,7 +82,7 @@ TEST_CASE("Euclidean algorithm", "[vm][codegen]") {
 	CHECK(state.registers[2] == 6);
 }
 
-TEST_CASE("Euclidean algorithm no tail call", "[vm][codegen]") {
+TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
 	using enum Instruction;
 
 	enum { MAIN, GCD };
@@ -260,14 +260,13 @@ TEST_CASE("Unconditional jump", "[assembly][vm]") {
 }
 
 TEST_CASE("Conditional jump", "[assembly][vm]") {
-	using enum Instruction;
-
 	u64 const value = GENERATE(0, 1, 2, 3);
 	i64 const arg1 = GENERATE(-2, 0, 5, 100);
 	i64 const arg2 = GENERATE(-100, -3, 0, 7);
 
 	AssemblyStream a;
 	
+	using enum Instruction;
 	a << allocReg << Value8(2);
 	a << mov << RegisterIndex(0) << Signed64(arg1);
 	a << icmp << RegisterIndex(0) << Signed64(arg2);
@@ -293,3 +292,28 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
 	CHECK(read<u64>(state.regPtr + 1) == (arg1 <= arg2 ? value : -1));
 }
 
+TEST_CASE("itest, set*") {
+	AssemblyStream a;
+	
+	using enum Instruction;
+	a << allocReg << Value8(6);
+	a << mov << RegisterIndex(0) << Signed64(-1);
+	a << itest << RegisterIndex(0);
+	a << sete << RegisterIndex(0);
+	a << setne << RegisterIndex(1);
+	a << setl << RegisterIndex(2);
+	a << setle << RegisterIndex(3);
+	a << setg << RegisterIndex(4);
+	a << setge << RegisterIndex(5);
+	a << terminate;
+	
+	auto const vm = assembleAndExecute(a);
+	auto const& state = vm.getState();
+	
+	CHECK(state.registers[0] == 0);
+	CHECK(state.registers[1] == 1);
+	CHECK(state.registers[2] == 1);
+	CHECK(state.registers[3] == 1);
+	CHECK(state.registers[4] == 0);
+	CHECK(state.registers[5] == 0);
+}

@@ -99,7 +99,6 @@ namespace scatha::ic {
 				submit(Operation::ret, retValue);
 				return;
 			}
-				
 			SC_NO_DEFAULT_CASE();
 		}
 	}
@@ -112,6 +111,10 @@ namespace scatha::ic {
 			}
 			case ast::NodeType::IntegerLiteral: {
 				auto const* lit = static_cast<ast::IntegerLiteral const*>(node);
+				return LiteralValue{ *lit };
+			}
+			case ast::NodeType::BooleanLiteral: {
+				auto const* lit = static_cast<ast::BooleanLiteral const*>(node);
 				return LiteralValue{ *lit };
 			}
 			case ast::NodeType::FloatingPointLiteral: {
@@ -138,7 +141,6 @@ namespace scatha::ic {
 						return submit(makeTemporary(sym.Bool()),
 									  selectOperation(expr->lhs->typeID, expr->op),
 									  lhs, rhs);
-
 					case ast::BinaryOperator::Assignment: {
 						auto const* lhsId = dynamic_cast<ast::Identifier const*>(expr->lhs.get());
 						SC_ASSERT(lhsId != nullptr, "We don't support assigning to arbitrary expressions yet");
@@ -190,8 +192,6 @@ namespace scatha::ic {
 					return submit(makeTemporary(expr->typeID), Operation::getResult);
 				}
 			}
-				
-				
 			SC_NO_DEFAULT_CASE();
 		}
 	}
@@ -205,7 +205,9 @@ namespace scatha::ic {
 	}
 	
 	TasArgument TacGenerator::submit(TasArgument result, Operation op, TasArgument a, TasArgument b) {
-		SC_ASSERT(result.is(TasArgument::variable) || result.is(TasArgument::temporary),
+		SC_ASSERT(result.is(TasArgument::variable) ||
+				  result.is(TasArgument::temporary) ||
+				  result.is(TasArgument::conditional),
 				  "This overload must assign to a variable");
 		code.push_back(ThreeAddressStatement{
 			.operation = op,
@@ -243,34 +245,32 @@ namespace scatha::ic {
 	}
 	
 	Operation TacGenerator::processIfCondition(ast::Expression const* condition) {
-		doRun(condition);
-		auto const& condStatements = code.back();
-		SC_ASSERT(condStatements.isTas(), "");
-		using enum Operation;
-		switch (condStatements.asTas().operation) {
-			/*
-			 Here we return the jump instruction opposite to the comparison,
-			 because we want to jump over the if-block if the condition is not met.
-			 */
-			case eq: [[fallthrough]];
-			case feq:
-				return jne;
-			case neq: [[fallthrough]];
-			case fneq:
-				return je;
-			case ils: [[fallthrough]];
-			case uls: [[fallthrough]];
-			case fls:
-				return jge;
-			case ileq: [[fallthrough]];
-			case uleq: [[fallthrough]];
-			case fleq:
-				return jg;
-			default:
-				SC_DEBUGBREAK();
-				return _count;
+		TasArgument const condResult = doRun(condition);
+		auto& condStatement = [&]() -> auto&{
+			if (code.back().isTas()) {
+				// The condition generated a TAS
+				return code.back().asTas();
+			}
+			if (condResult.is(TasArgument::literalValue)) {
+				// The condition is a literal
+				submit(makeTemporary(sym.Bool()), Operation::mov, condResult);
+				return code.back().asTas();
+			}
+			// What is the condition?
+			SC_DEBUGFAIL();
+		}();
+		
+		// Make the condition a tas conditional statement
+		if (isRelop(condStatement.operation)) {
+			condStatement.result = If{};
+			condStatement.operation = reverseRelop(condStatement.operation);
 		}
-	
+		else {
+			auto const& condition = condStatement.result;
+			submit(If{}, Operation::ifPlaceholder, condition);
+		}
+		
+		return Operation::jmp;
 	}
 	
 	TasArgument TacGenerator::makeTemporary(sema::TypeID type) {

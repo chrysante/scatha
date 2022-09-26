@@ -43,6 +43,10 @@ namespace scatha::ic {
 			LiteralValue(lit.value, lit.typeID)
 		{}
 		
+		explicit LiteralValue(ast::BooleanLiteral const& lit):
+			LiteralValue(lit.value, lit.typeID)
+		{}
+		
 		explicit LiteralValue(ast::FloatingPointLiteral const& lit):
 			LiteralValue(utl::bit_cast<u64>(lit.value), lit.typeID)
 		{}
@@ -84,7 +88,9 @@ namespace scatha::ic {
 	
 	struct FunctionEndLabel {};
 	
-	using TasArgumentTypeVariant = std::variant<EmptyArgument, Variable, Temporary, LiteralValue, Label>;
+	struct If {};
+	
+	using TasArgumentTypeVariant = std::variant<EmptyArgument, Variable, Temporary, LiteralValue, Label, If>;
 	
 	struct TasArgument: TasArgumentTypeVariant {
 		using TasArgumentTypeVariant::TasArgumentTypeVariant;
@@ -101,7 +107,7 @@ namespace scatha::ic {
 		}
 		
 		enum Kind {
-			empty, variable, temporary, literalValue, label
+			empty, variable, temporary, literalValue, label, conditional
 		};
 		
 		bool is(Kind kind) const { return index() == kind; }
@@ -137,17 +143,25 @@ namespace scatha::ic {
 		neq,
 		ils,
 		ileq,
+		ig,
+		igeq,
 		uls,
 		uleq,
+		ug,
+		ugeq,
 		feq,
 		fneq,
 		fls,
 		fleq,
+		fg,
+		fgeq,
 		
 		lnt, // logical not
 		bnt, // bitwise not
 		
-		jmp, je, jne, jl, jle, jg, jge,
+		jmp, // Here we only have unconditional jumps and use conditional statements to represent conditional jumps
+		
+		ifPlaceholder,
 		
 		_count
 	};
@@ -159,6 +173,8 @@ namespace scatha::ic {
 	int argumentCount(Operation);
 	
 	bool isJump(Operation);
+	bool isRelop(Operation);
+	Operation reverseRelop(Operation);
 	
 	struct ThreeAddressStatement {
 		Operation operation;

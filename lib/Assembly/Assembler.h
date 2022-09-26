@@ -49,6 +49,7 @@ namespace scatha::assembly {
 		struct LabelPlaceholder{};
 		
 		void processInstruction(Instruction, StreamIterator&);
+		void processUnaryInstruction(Instruction, StreamIterator&);
 		void processBinaryInstruction(Instruction, StreamIterator&);
 		void processJump(Instruction, StreamIterator&);
 		
@@ -65,6 +66,12 @@ namespace scatha::assembly {
 		void put(vm::OpCode);
 		void put(LabelPlaceholder);
 		void put(Element const&);
+		// delete these overloads to prevent infinite recursion when calling
+		// put(Element const&), because when the Element variant holds the Instruction
+		// or Label alternative, we would implicitly construct an Element from it and
+		// call put(Element const&) again.
+		void put(Instruction) = delete;
+		void put(Label) = delete;
 		void put(RegisterIndex);
 		void put(MemoryAddress);
 		void put(Value8);

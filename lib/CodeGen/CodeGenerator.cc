@@ -24,10 +24,8 @@ namespace scatha::codegen {
 	assembly::AssemblyStream CodeGenerator::run() {
 		using namespace assembly;
 		AssemblyStream a;
-		for (auto const& [_index, _line]: utl::enumerate(tac.statements)) {
-			// annoying workaround for lambdas not capturing structured bindings
-			[[maybe_unused]] auto const index = _index;
-			auto const& line = _line;
+		for (size_t index = 0; index < tac.statements.size(); ++index) {
+			auto const& line = tac.statements[index];
 			std::visit(utl::visitor{
 				[&](ic::Label const& label) {
 					a << toAsm(label);
@@ -49,6 +47,14 @@ namespace scatha::codegen {
 					currentFunction = {};
 				},
 				[&](ic::ThreeAddressStatement const& s) {
+					if (s.result.is(ic::TasArgument::conditional)) {
+						// handle conditional statements separately
+						SC_ASSERT(index + 1 < tac.statements.size(), "we must have another statement");
+						ic::ThreeAddressStatement const& jumpStatement = tac.statements[++index].asTas();
+						generateConditionalJump(a, s, jumpStatement);
+						return;
+					}
+					
 					switch (s.operation) {
 						case ic::Operation::mov: {
 							a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
@@ -102,32 +108,34 @@ namespace scatha::codegen {
 						case ic::Operation::neq:
 						case ic::Operation::ils:
 						case ic::Operation::ileq:
+						case ic::Operation::ig:
+						case ic::Operation::igeq:
 						case ic::Operation::uls:
 						case ic::Operation::uleq:
+						case ic::Operation::ug:
+						case ic::Operation::ugeq:
 						case ic::Operation::feq:
 						case ic::Operation::fneq:
 						case ic::Operation::fls:
 						case ic::Operation::fleq:
-							generateComparison(a, s);
+						case ic::Operation::fg:
+						case ic::Operation::fgeq:
+							generateComparisonStore(a, s);
 							break;
 						case ic::Operation::lnt: {
-		
+							a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
+							a << Instruction::lnt << resolve(s.arg1);
 							break;
 						}
 						case ic::Operation::bnt: {
-		
+							SC_DEBUGBREAK();
 							break;
 						}
 						case ic::Operation::jmp:
-						case ic::Operation::je:
-						case ic::Operation::jne:
-						case ic::Operation::jl:
-						case ic::Operation::jle:
-						case ic::Operation::jg:
-						case ic::Operation::jge:
 							generateJump(a, s);
 							break;
 							
+						case ic::Operation::ifPlaceholder:
 						case ic::Operation::_count:
 							SC_DEBUGFAIL();
 					}
@@ -169,14 +177,20 @@ namespace scatha::codegen {
 				case ic::Operation::neq:
 				case ic::Operation::ils:
 				case ic::Operation::ileq:
+				case ic::Operation::ig:
+				case ic::Operation::igeq:
 					return Instruction::icmp;
 				case ic::Operation::uls:
 				case ic::Operation::uleq:
+				case ic::Operation::ug:
+				case ic::Operation::ugeq:
 					return Instruction::ucmp;
 				case ic::Operation::feq:
 				case ic::Operation::fneq:
 				case ic::Operation::fls:
 				case ic::Operation::fleq:
+				case ic::Operation::fg:
+				case ic::Operation::fgeq:
 					return Instruction::fcmp;
 				SC_NO_DEFAULT_CASE();
 			}
@@ -192,23 +206,96 @@ namespace scatha::codegen {
 		}
 	}
 	
-	void CodeGenerator::generateJump(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
+	void CodeGenerator::generateComparisonStore(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
 		using namespace assembly;
+		generateComparison(a, s);
 		
-		Instruction const jmpInstruction = [&]{
+		Instruction const setInstruction = [&]{
 			switch (s.operation) {
-				case ic::Operation::jmp: return Instruction::jmp;
-				case ic::Operation::je:  return Instruction::je;
-				case ic::Operation::jne: return Instruction::jne;
-				case ic::Operation::jl:  return Instruction::jl;
-				case ic::Operation::jle: return Instruction::jle;
-				case ic::Operation::jg:  return Instruction::jg;
-				case ic::Operation::jge: return Instruction::jge;
+				case ic::Operation::eq:
+				case ic::Operation::feq:
+					return Instruction::sete;
+				case ic::Operation::neq:
+				case ic::Operation::fneq:
+					return Instruction::setne;
+				case ic::Operation::ils:
+				case ic::Operation::uls:
+				case ic::Operation::fls:
+					return Instruction::setl;
+				case ic::Operation::ileq:
+				case ic::Operation::uleq:
+				case ic::Operation::fleq:
+					return Instruction::setle;
+				case ic::Operation::ig:
+				case ic::Operation::ug:
+				case ic::Operation::fg:
+					return Instruction::setg;
+				case ic::Operation::igeq:
+				case ic::Operation::ugeq:
+				case ic::Operation::fgeq:
+					return Instruction::setge;
+					
 				SC_NO_DEFAULT_CASE();
 			}
 		}();
 		
-		a << jmpInstruction << toAsm(s.getLabel());
+		a << setInstruction << resolve(s.result);
+	}
+	
+	void CodeGenerator::generateJump(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
+		using namespace assembly;
+		a << Instruction::jmp << toAsm(s.getLabel());
+	}
+	
+	void CodeGenerator::generateConditionalJump(assembly::AssemblyStream& a,
+												ic::ThreeAddressStatement const& ifStatement,
+												ic::ThreeAddressStatement const& jumpStatement)
+	{
+		SC_ASSERT(isJump(jumpStatement.operation), "which must be a jump");
+		
+		using namespace assembly;
+		
+		if (ifStatement.operation == ic::Operation::ifPlaceholder) {
+			a << Instruction::utest << resolve(ifStatement.arg1);
+		}
+		else {
+			SC_ASSERT(ic::isRelop(ifStatement.operation), "operation must be if placeholder or a relop");
+			generateComparison(a, ifStatement);
+		}
+		
+		Instruction const jmpInstruction = [&]{
+			switch (ifStatement.operation) {
+				case ic::Operation::eq:
+				case ic::Operation::feq:
+					return Instruction::je;
+				case ic::Operation::neq:
+				case ic::Operation::fneq:
+					return Instruction::jne;
+				case ic::Operation::ils:
+				case ic::Operation::uls:
+				case ic::Operation::fls:
+					return Instruction::jl;
+				case ic::Operation::ileq:
+				case ic::Operation::uleq:
+				case ic::Operation::fleq:
+					return Instruction::jle;
+				case ic::Operation::ig:
+				case ic::Operation::ug:
+				case ic::Operation::fg:
+					return Instruction::jg;
+				case ic::Operation::igeq:
+				case ic::Operation::ugeq:
+				case ic::Operation::fgeq:
+					return Instruction::jge;
+					
+				case ic::Operation::ifPlaceholder:
+					return Instruction::je;
+					
+				SC_NO_DEFAULT_CASE();
+			}
+		}();
+		
+		a << jmpInstruction << toAsm(jumpStatement.getLabel());
 	}
 	
 	void CodeGenerator::ResolvedArg::streamInsert(assembly::AssemblyStream& str) const {
@@ -227,7 +314,8 @@ namespace scatha::codegen {
 			},
 			[&](ic::Label const& label) {
 				str << toAsm(label);
-			}
+			},
+			[&](ic::If) { SC_DEBUGFAIL(); }
 		});
 	}
 	

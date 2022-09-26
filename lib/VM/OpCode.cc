@@ -39,6 +39,16 @@ namespace scatha::vm {
 			{ icmpRV,    "icmpRV" },
 			{ fcmpRR,    "fcmpRR" },
 			{ fcmpRV,    "fcmpRV" },
+			{ itest,     "itest" },
+			{ utest,     "utest" },
+			{ sete,      "sete" },
+			{ setne,     "setne" },
+			{ setl,      "setl" },
+			{ setle,     "setle" },
+			{ setg,      "setg" },
+			{ setge,     "setge" },
+			{ lnt,       "lnt" },
+			{ bnt,       "bnt" },
 			{ addRR,     "addRR" },
 			{ addRV,     "addRV" },
 			{ addRM,     "addRM" },
@@ -119,6 +129,36 @@ namespace scatha::vm {
 				auto const b = read<T>(i + 1);
 				vm->flags.less     = a <  b;
 				vm->flags.equal    = a == b;
+				return codeSize(C);
+			};
+		}
+		
+		template <OpCode C, typename T>
+		static auto testR() {
+			return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+				size_t const regIdx = i[0];
+				auto const a = read<T>(&reg[regIdx]);
+				vm->flags.less     = a <  0;
+				vm->flags.equal    = a == 0;
+				return codeSize(C);
+			};
+		}
+		
+		template <OpCode C>
+		static auto set(auto setter) {
+			return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+				size_t const regIdx = i[0];
+				store(&reg[regIdx], static_cast<u64>(decltype(setter)()(vm->flags)));
+				return codeSize(C);
+			};
+		}
+		
+		template <OpCode C, typename T>
+		static auto unaryR(auto operation) {
+			return [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
+				size_t const regIdx = i[0];
+				auto const a = read<T>(&reg[regIdx]);
+				store(&reg[regIdx], decltype(operation)()(a));
 				return codeSize(C);
 			};
 		}
@@ -265,6 +305,20 @@ namespace scatha::vm {
 			at(icmpRV) = compareRV<icmpRV, i64>();
 			at(fcmpRR) = compareRR<fcmpRR, f64>();
 			at(fcmpRV) = compareRV<fcmpRV, f64>();
+			at(itest)  = testR<itest, i64>();
+			at(utest)  = testR<utest, u64>();
+			
+			/// MARK: Read comparison results
+			at(sete)  = set<sete> ([](VMFlags f) { return f.equal; });
+			at(setne) = set<setne>([](VMFlags f) { return !f.equal; });
+			at(setl)  = set<setl> ([](VMFlags f) { return f.less; });
+			at(setle) = set<setle>([](VMFlags f) { return f.less || f.equal; });
+			at(setg)  = set<setg> ([](VMFlags f) { return !f.less && !f.equal; });
+			at(setge) = set<setge>([](VMFlags f) { return !f.less; });
+			
+			/// MARK: Unary operations
+			at(lnt)    = unaryR<lnt, u64>(utl::logical_not);
+			at(bnt)    = unaryR<bnt, u64>(utl::bitwise_not);
 			
 			/// MARK: Integer arithmetic
 			at(addRR)  = arithmeticRR<addRR,  u64>(utl::plus);
