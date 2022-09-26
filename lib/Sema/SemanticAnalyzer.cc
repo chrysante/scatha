@@ -41,7 +41,6 @@ namespace scatha::sema {
 				}
 				return;
 			}
-				
 			case NodeType::Block: {
 				auto* const node = static_cast<Block*>(inNode);
 				
@@ -60,7 +59,6 @@ namespace scatha::sema {
 				}
 				return;
 			}
-			
 			case NodeType::FunctionDeclaration: {
 				auto* const fnDecl = static_cast<FunctionDeclaration*>(inNode);
 				if (auto const sk = symbols.currentScope()->kind();
@@ -86,7 +84,6 @@ namespace scatha::sema {
 				fnDecl->functionTypeID = func->typeID();
 				return;
 			}
-				
 			case NodeType::FunctionDefinition: {
 				auto* const node = static_cast<FunctionDefinition*>(inNode);
 				currentFunction = node;
@@ -114,7 +111,6 @@ namespace scatha::sema {
 				
 				return;
 			}
-				
 			case NodeType::StructDeclaration: {
 				auto* const sDecl = static_cast<StructDeclaration*>(inNode);
 				if (auto const sk = symbols.currentScope()->kind();
@@ -125,7 +121,6 @@ namespace scatha::sema {
 				sDecl->symbolID = symbols.declareType(sDecl->token());
 				return;
 			}
-			
 			case NodeType::StructDefinition: {
 				auto* const node = static_cast<StructDefinition*>(inNode);
 				
@@ -139,7 +134,6 @@ namespace scatha::sema {
 				
 				return;
 			}
-				
 			case NodeType::VariableDeclaration: {
 				auto* const node = static_cast<VariableDeclaration*>(inNode);
 				if (node->initExpression == nullptr) {
@@ -178,7 +172,6 @@ namespace scatha::sema {
 				}
 				return;
 			}
-				
 			case NodeType::ExpressionStatement: {
 				auto* const node = static_cast<ExpressionStatement*>(inNode);
 				if (symbols.currentScope()->kind() != Scope::Function) {
@@ -187,7 +180,6 @@ namespace scatha::sema {
 				doRun(node->expression.get());
 				return;
 			}
-				
 			case NodeType::ReturnStatement: {
 				auto* const node = static_cast<ReturnStatement*>(inNode);
 				if (symbols.currentScope()->kind() != Scope::Function) {
@@ -198,7 +190,6 @@ namespace scatha::sema {
 				verifyConversion(node->expression.get(), currentFunction->returnTypeID);
 				return;
 			}
-				
 			case NodeType::IfStatement: {
 				auto* const node = static_cast<IfStatement*>(inNode);
 				if (symbols.currentScope()->kind() != Scope::Function) {
@@ -222,7 +213,6 @@ namespace scatha::sema {
 				doRun(node->block.get());
 				return;
 			}
-				
 			case NodeType::Identifier: {
 				auto* const node = static_cast<Identifier*>(inNode);
 				auto const symbolID = symbols.lookupName(node->token());
@@ -249,13 +239,16 @@ namespace scatha::sema {
 					
 				return;
 			}
-				
 			case NodeType::IntegerLiteral: {
 				auto* const node = static_cast<IntegerLiteral*>(inNode);
 				node->typeID = symbols.Int();
 				return;
 			}
-				
+			case NodeType::BooleanLiteral: {
+				auto* const node = static_cast<BooleanLiteral*>(inNode);
+				node->typeID = symbols.Bool();
+				return;
+			}
 			case NodeType::FloatingPointLiteral: {
 				auto* const node = static_cast<FloatingPointLiteral*>(inNode);
 				node->typeID = symbols.Float();
@@ -308,7 +301,6 @@ namespace scatha::sema {
 				node->typeID = node->operand->typeID;
 				return;
 			}
-				
 			case NodeType::BinaryExpression: {
 				auto* const node = static_cast<BinaryExpression*>(inNode);
 				doRun(node->lhs.get());
@@ -316,13 +308,11 @@ namespace scatha::sema {
 				node->typeID = verifyBinaryOperation(node);
 				return;
 			}
-				
 			case NodeType::MemberAccess: {
 				auto* const node = static_cast<MemberAccess*>(inNode);
 				doRun(node->object.get());
 				return;
 			}
-				
 			case NodeType::Conditional: {
 				auto* const node = static_cast<Conditional*>(inNode);
 				doRun(node->condition.get());
@@ -332,7 +322,6 @@ namespace scatha::sema {
 				
 				return;
 			}
-				
 			case NodeType::FunctionCall: {
 				auto* const node = static_cast<FunctionCall*>(inNode);
 				doRun(node->object.get());
@@ -369,8 +358,7 @@ namespace scatha::sema {
 					doRun(arg.get());
 				}
 				return;
-			}
-				
+			}	
 			case NodeType::_count:
 				SC_DEBUGFAIL();
 		}

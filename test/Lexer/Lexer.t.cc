@@ -172,9 +172,9 @@ while (x >= 0) {
 			{ TokenType::Punctuation, ";" },
 			{ TokenType::Identifier, "fn" },
 			{ TokenType::Punctuation, "(" },
-			{ TokenType::Identifier, "true" },
+			{ TokenType::BooleanLiteral, "true" },
 			{ TokenType::Operator, "&&" },
-			{ TokenType::Identifier, "false" },
+			{ TokenType::BooleanLiteral, "false" },
 			{ TokenType::Punctuation, ")" },
 			{ TokenType::Operator, "+=" },
 			{ TokenType::Identifier, "NULL" },
@@ -266,6 +266,10 @@ TEST_CASE("Lexer literals", "[lex]") {
 39;
 x = 39;
 f(39);
+f(39.0);
+f(true);
+false;
+true
 )";
 	test.reference = {
 		{ TokenType::IntegerLiteral, "39" },
@@ -279,6 +283,19 @@ f(39);
 		{ TokenType::IntegerLiteral, "39" },
 		{ TokenType::Punctuation, ")" },
 		{ TokenType::Punctuation, ";" },
+		{ TokenType::Identifier, "f" },
+		{ TokenType::Punctuation, "(" },
+		{ TokenType::FloatingPointLiteral, "39.0" },
+		{ TokenType::Punctuation, ")" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::Identifier, "f" },
+		{ TokenType::Punctuation, "(" },
+		{ TokenType::BooleanLiteral, "true" },
+		{ TokenType::Punctuation, ")" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::BooleanLiteral, "false" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::BooleanLiteral, "true" },
 		{ TokenType::EndOfFile, "" }
 	};
 	runTest("Section 4", test);

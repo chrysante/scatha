@@ -14,6 +14,7 @@ namespace scatha {
 	enum class TokenType {
 		Identifier,
 		IntegerLiteral,
+		BooleanLiteral,
 		FloatingPointLiteral,
 		StringLiteral,
 		Punctuation,
@@ -36,6 +37,7 @@ namespace scatha {
 		std::string id;
 		
 		u64 toInteger() const;
+		bool toBool() const;
 		f64 toFloat() const;
 	};
 	

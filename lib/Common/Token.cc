@@ -13,6 +13,7 @@ namespace scatha {
 		return str << UTL_SERIALIZE_ENUM(t, {
 			{ Identifier,           "Identifier" },
 			{ IntegerLiteral,       "IntegerLiteral" },
+			{ BooleanLiteral,       "BooleanLiteral" },
 			{ FloatingPointLiteral, "FloatingPointLiteral" },
 			{ StringLiteral,        "StringLiteral" },
 			{ Punctuation,          "Punctuation" },
@@ -35,6 +36,13 @@ namespace scatha {
 		SC_ASSERT(type == TokenType::IntegerLiteral,
 				  "Token is not an integer literal");
 		return std::stol(id);
+	}
+	
+	bool Token::toBool() const {
+		SC_ASSERT(type == TokenType::BooleanLiteral,
+				  "Token is not an bool literal");
+		SC_ASSERT(id == "true" || id == "false", "Must be either true or false");
+		return id == "true" ? true : false;
 	}
 	
 	f64 Token::toFloat() const {

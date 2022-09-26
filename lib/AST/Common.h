@@ -28,6 +28,7 @@ namespace scatha::ast {
 		// Nullary Expressions
 		Identifier,
 		IntegerLiteral,
+		BooleanLiteral,
 		FloatingPointLiteral,
 		StringLiteral,
 		

@@ -183,27 +183,32 @@ namespace scatha::parse {
 	ast::UniquePtr<ast::Expression> ExpressionParser::parsePrimary() {
 		TokenEx const& token = tokens.peek();
 		switch (token.type) {
-				// Identifier
+			// Identifier
 			case TokenType::Identifier: {
 				tokens.eat();
 				return ast::allocate<ast::Identifier>(token);
 			}
-				// Integer literal
+			// Integer literal
 			case TokenType::IntegerLiteral: {
 				tokens.eat();
 				return ast::allocate<ast::IntegerLiteral>(token);
 			}
-				// Floating point literal
+			// Boolean literal
+			case TokenType::BooleanLiteral: {
+				tokens.eat();
+				return ast::allocate<ast::BooleanLiteral>(token);
+			}
+			// Floating point literal
 			case TokenType::FloatingPointLiteral: {
 				tokens.eat();
 				return ast::allocate<ast::FloatingPointLiteral>(token);
 			}
-				// String literal
+			// String literal
 			case TokenType::StringLiteral: {
 				tokens.eat();
 				return ast::allocate<ast::StringLiteral>(token);
 			}
-				// Parenthesized comma expression
+			// Parenthesized comma expression
 			case TokenType::Punctuation: {
 				if (token.id == "(") {
 					tokens.eat();

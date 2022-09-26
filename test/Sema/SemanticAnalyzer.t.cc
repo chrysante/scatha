@@ -133,10 +133,10 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 TEST_CASE("Decoration of the AST with function call expression", "[sema]") {
 	std::string const text = R"(
 
-fn callee(a: string, b: int) -> float;
+fn callee(a: string, b: int, c: bool) -> float;
 
 fn caller() -> float {
-	let result = callee("Hello world", 0);
+	let result = callee("Hello world", 0, true);
 	return result;
 }
 
@@ -149,11 +149,12 @@ fn caller() -> float {
 	auto* calleeDecl = dynamic_cast<FunctionDeclaration*>(tu->declarations[0].get());
 	REQUIRE(calleeDecl);
 	CHECK(calleeDecl->returnTypeID == sym.Float());
-	auto calleeArgTypes = { sym.String(), sym.Int() };
+	auto calleeArgTypes = { sym.String(), sym.Int(), sym.Bool() };
 	auto const& functionType = sym.getType(computeFunctionTypeID(sym.Float(), calleeArgTypes));
 	CHECK(calleeDecl->functionTypeID == functionType.id());
 	CHECK(calleeDecl->parameters[0]->typeID == sym.String());
 	CHECK(calleeDecl->parameters[1]->typeID == sym.Int());
+	CHECK(calleeDecl->parameters[2]->typeID == sym.Bool());
 	
 	auto* caller = dynamic_cast<FunctionDefinition*>(tu->declarations[1].get());
 	REQUIRE(caller);

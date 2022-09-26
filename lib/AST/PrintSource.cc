@@ -138,6 +138,11 @@ namespace scatha::ast {
 				str << nl->value;
 				break;
 			}
+			case BooleanLiteral: {
+				auto const* const nl = static_cast<struct BooleanLiteral const*>(node);
+				str << (nl->value ? "true" : "false");
+				break;
+			}
 			case FloatingPointLiteral: {
 				auto const* const nl = static_cast<struct FloatingPointLiteral const*>(node);
 				str << nl->value;

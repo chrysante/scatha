@@ -136,6 +136,12 @@ namespace scatha::ast {
 				break;
 			}
 				
+			case NodeType::BooleanLiteral: {
+				auto const* const node = static_cast<BooleanLiteral const*>(inNode);
+				str << indent(ind) << "<boolean-literal>: " << (node->value ? "true" : "false") << endl;
+				break;
+			}
+				
 			case NodeType::FloatingPointLiteral: {
 				auto const* const node = static_cast<FloatingPointLiteral const*>(inNode);
 				str << indent(ind) << "<float-literal>: " << node->value << endl;

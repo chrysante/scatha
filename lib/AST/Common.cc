@@ -22,6 +22,7 @@ namespace scatha::ast {
 			
 			{ Identifier,            "Identifier" },
 			{ IntegerLiteral,        "IntegerLiteral" },
+			{ BooleanLiteral,        "BooleanLiteral" },
 			{ FloatingPointLiteral,  "FloatingPointLiteral" },
 			{ StringLiteral,         "StringLiteral" },
 			

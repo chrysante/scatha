@@ -47,6 +47,15 @@ namespace scatha::ast {
 		u64 value;
 	};
 	
+	struct BooleanLiteral: Expression {
+		explicit BooleanLiteral(Token const& token):
+			Expression(NodeType::BooleanLiteral, token),
+			value(token.toBool())
+		{}
+		
+		bool value;
+	};
+	
 	struct FloatingPointLiteral: Expression {
 		explicit FloatingPointLiteral(Token const& token):
 			Expression(NodeType::FloatingPointLiteral, token),

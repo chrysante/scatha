@@ -27,13 +27,15 @@ namespace scatha::lex {
 		std::optional<Token> getMultiLineComment();
 		std::optional<Token> getSpaces();
 		std::optional<Token> getPunctuation();
-		std::optional<Token> getIdentifier();
 		std::optional<Token> getIntegerLiteral();
+		std::optional<Token> getBooleanLiteral();
 		std::optional<Token> getFloatingPointLiteral();
 		std::optional<Token> getStringLiteral();
 		std::optional<Token> getOperator();
+		std::optional<Token> getIdentifier();
 		
 		bool advance();
+		bool advance(size_t count);
 		
 		Token beginToken2(TokenType type) const;
 		char current() const;

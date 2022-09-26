@@ -45,8 +45,8 @@ namespace scatha::lex {
 		if (auto punctuation = getPunctuation()) {
 			return *punctuation;
 		}
-		if (auto identifier = getIdentifier()) {
-			return *identifier;
+		if (auto booleanLiteral = getBooleanLiteral()) {
+			return *booleanLiteral;
 		}
 		if (auto integerLiteral = getIntegerLiteral()) {
 			return *integerLiteral;
@@ -59,6 +59,9 @@ namespace scatha::lex {
 		}
 		if (auto op = getOperator()) {
 			return *op;
+		}
+		if (auto identifier = getIdentifier()) {
+			return *identifier;
 		}
 		
 		return std::nullopt;
@@ -136,18 +139,6 @@ namespace scatha::lex {
 		return result;
 	}
 	
-	std::optional<Token> Lexer::getIdentifier() {
-		if (!isLetter(current())) {
-			return std::nullopt;
-		}
-		Token result = beginToken2(TokenType::Identifier);
-		result.id += current();
-		while (advance() && isLetterEx(current())) {
-			result.id += current();
-		}
-		return result;
-	}
-	
 	std::optional<Token> Lexer::getIntegerLiteral() {
 		if (!isDigitDec(current())) {
 			return std::nullopt;
@@ -174,6 +165,32 @@ namespace scatha::lex {
 		throw InvalidNumericLiteral(result);
 	}
 	
+	std::optional<Token> Lexer::getBooleanLiteral() {
+		if (currentLocation.index + 3 < text.size() &&
+			text.substr(currentLocation.index, 4) == "true")
+		{
+			if (auto const n = next(4); n && isLetterEx(*n)) {
+				return std::nullopt;
+			}
+			Token result = beginToken2(TokenType::BooleanLiteral);
+			result.id = "true";
+			advance(4);
+			return result;
+		}
+		if (currentLocation.index + 4 < text.size() &&
+			text.substr(currentLocation.index, 5) == "false")
+		{
+			if (auto const n = next(5); n && isLetterEx(*n)) {
+				return std::nullopt;
+			}
+			Token result = beginToken2(TokenType::BooleanLiteral);
+			result.id = "false";
+			advance(5);
+			return result;
+		}
+		return std::nullopt;
+	}
+	
 	std::optional<Token> Lexer::getFloatingPointLiteral() {
 		if (!isFloatDigitDec(current())) {
 			return std::nullopt;
@@ -197,7 +214,6 @@ namespace scatha::lex {
 		}
 		throw InvalidNumericLiteral(result);
 	}
-	
 	std::optional<Token> Lexer::getStringLiteral() {
 		if (current() != '"') {
 			return std::nullopt;
@@ -238,6 +254,18 @@ namespace scatha::lex {
 		}
 	}
 	
+	std::optional<Token> Lexer::getIdentifier() {
+		if (!isLetter(current())) {
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::Identifier);
+		result.id += current();
+		while (advance() && isLetterEx(current())) {
+			result.id += current();
+		}
+		return result;
+	}
+	
 	bool Lexer::advance() {
 		if (text[currentLocation.index] == '\n') {
 			currentLocation.column = 0;
@@ -247,6 +275,15 @@ namespace scatha::lex {
 		++currentLocation.column;
 		if (currentLocation.index == text.size()) {
 			return false;
+		}
+		return true;
+	}
+	
+	bool Lexer::advance(size_t count) {
+		while (count-- > 0) {
+			if (!advance()) {
+				return false;
+			}
 		}
 		return true;
 	}
