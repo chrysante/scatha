@@ -252,29 +252,29 @@ namespace scatha::assembly {
 				switch (i) {
 						using enum Instruction;
 					case allocReg:
-						str << OpCode::allocReg << " " << itr.nextAs<Value8>();
+						str << allocReg << " " << itr.nextAs<Value8>();
 						return;
 						
 					case setBrk:
-						str << OpCode::setBrk << " " << itr.nextAs<RegisterIndex>();
+						str << setBrk << " " << itr.nextAs<RegisterIndex>();
 						return;
 						
 					case call:
-						str << OpCode::call << " ";
+						str << call << " ";
 						printLabel(itr.nextAs<Label>());
 						str << ", " << itr.nextAs<Value8>();
 						return;
 						
 					case ret:
-						str << OpCode::ret;
+						str << ret;
 						return;
 						
 					case terminate:
-						str << OpCode::terminate;
+						str << terminate;
 						return;
 						
 					case callExt:
-						str << OpCode::callExt << " " << itr.nextAs<Value8>() <<
+						str << callExt << " " << itr.nextAs<Value8>() <<
 						", " << itr.nextAs<Value8>() << ", " << itr.nextAs<Value16>();
 						return;
 						
@@ -313,16 +313,12 @@ namespace scatha::assembly {
 			void printBinaryInstruction(Instruction i) {
 				auto const arg1 = itr.next();
 				auto const arg2 = itr.next();
-				auto const opcode = mapInstruction(i, arg1, arg2);
-				if (opcode == OpCode::_count) {
-					throw InvalidArguments(i, arg1, arg2, itr.currentLine());
-				}
-				str << opcode << " " << arg1 << ", " << arg2;
+				str << i << " " << arg1 << ", " << arg2;
 			}
 			
 			void printJump(Instruction i) {
 				auto const label = itr.nextAs<Label>();
-				str << mapInstruction(i) << " ";
+				str << i << " ";
 				printLabel(label);
 			}
 			
