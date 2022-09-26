@@ -55,6 +55,8 @@ namespace scatha::assembly {
 		
 		bool operator==(RegisterIndex const&) const = default;
 		
+		constexpr static size_t size() { return sizeof index; }
+		
 		u8 index;
 	};
 	
@@ -78,6 +80,8 @@ namespace scatha::assembly {
 			value(value)
 		{}
 		
+		static constexpr size_t size() { return sizeof value; }
+
 		u8 value;
 	};
 	
