@@ -11,6 +11,13 @@ namespace scatha::ic {
 	
 	namespace {
 		
+		void printLabel(std::ostream& str, Label const& label, sema::SymbolTable const& sym) {
+			str << sym.getFunction(label.functionID).name();
+			if (label.index >= 0) {
+				str << ".L" << label.index;
+			}
+		}
+		
 		struct ArgumentPrinter {
 			ArgumentPrinter(TasArgument const& arg, sema::SymbolTable const& sym): arg(arg), sym(sym) {}
 			
@@ -45,10 +52,7 @@ namespace scatha::ic {
 						}
 					},
 					[&](Label const& label) -> auto& {
-						str << sym.getFunction(label.functionID).name();
-						if (label.index >= 0) {
-							str << ".L" << label.index;
-						}
+						printLabel(str, label, sym);
 						return str;
 					},
 					[&](FunctionLabel const& label) -> auto& {
@@ -71,12 +75,15 @@ namespace scatha::ic {
 		for (auto const& line: tac.statements) {
 			std::visit(utl::visitor{
 				[&](Label const& label) {
-					auto const& function = sym.getFunction(label.functionID);
-					str << "  " << function.name() << ".L" << label.index << ":";
+					printLabel(str, label, sym);
+					str << ":";
 				},
 				[&](FunctionLabel const& label) {
 					auto const& function = sym.getFunction(label.functionID());
 					str << function.name() << ":";
+				},
+				[&](FunctionEndLabel) {
+					str << "FUNCTION_END";
 				},
 				[&](ThreeAddressStatement const& s) {
 					str << "    ";

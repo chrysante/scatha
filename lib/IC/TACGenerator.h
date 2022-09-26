@@ -32,6 +32,8 @@ namespace scatha::ic {
 		
 		FunctionLabel submitFunctionLabel(ast::FunctionDefinition const&);
 		
+		void submitFunctionEndLabel();
+		
 		TasArgument makeTemporary(sema::TypeID type);
 
 		Operation selectOperation(sema::TypeID, ast::BinaryOperator) const;

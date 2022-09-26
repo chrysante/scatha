@@ -32,6 +32,7 @@ namespace scatha::ic {
 				labelIndex = 0;
 				submitFunctionLabel(*fnDef);
 				doRun(fnDef->body.get());
+				submitFunctionEndLabel();
 				return;
 			}
 			case ast::NodeType::Block: {
@@ -253,6 +254,10 @@ namespace scatha::ic {
 		FunctionLabel const result(fnDef);
 		code.push_back(result);
 		return result;
+	}
+	
+	void TacGenerator::submitFunctionEndLabel() {
+		code.push_back(FunctionEndLabel{});
 	}
 	
 	TasArgument TacGenerator::makeTemporary(sema::TypeID type) {
