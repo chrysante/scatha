@@ -332,6 +332,9 @@ namespace scatha::assembly {
 					if (label.index >= 0) {
 						str << ".L" << label.index;
 					}
+					else if (label.index == -2) {
+						str << ".END";
+					}
 				}
 				else {
 					str << ".L" << label.functionID;

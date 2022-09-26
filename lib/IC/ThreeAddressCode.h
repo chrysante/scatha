@@ -14,9 +14,10 @@ namespace scatha::ic {
 		static constexpr size_t ThreeAddressStatement = 0;
 		static constexpr size_t Label = 1;
 		static constexpr size_t FunctionLabel = 2;
+		static constexpr size_t FunctionEndLabel = 3;
 	};
 	
-	using TacLineVariant = std::variant<ThreeAddressStatement, Label, FunctionLabel>;
+	using TacLineVariant = std::variant<ThreeAddressStatement, Label, FunctionLabel, FunctionEndLabel>;
 	
 	struct TacLine: TacLineVariant {
 		using TacLineVariant::TacLineVariant;
@@ -24,6 +25,7 @@ namespace scatha::ic {
 		bool isTas() const { return index() == 0; }
 		bool isLabel() const { return index() == 1; }
 		bool isFunctionLabel() const { return index() == 2; }
+		bool isFunctionEndLabel() const { return index() == 3; }
 		
 		ThreeAddressStatement& asTas() { return utl::as_mutable(utl::as_const(*this).asTas()); }
 		ThreeAddressStatement const& asTas() const { return std::get<ThreeAddressStatement>(*this); }

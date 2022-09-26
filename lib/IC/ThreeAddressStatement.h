@@ -52,14 +52,16 @@ namespace scatha::ic {
 	};
 	
 	struct Label {
+		static constexpr i64 functionBeginIndex = -1;
+		
 		Label() = default;
-		explicit Label(sema::SymbolID functionID, i64 index = -1):
+		explicit Label(sema::SymbolID functionID, i64 index = functionBeginIndex):
 			functionID(functionID),
 			index(index)
 		{}
 		
 		sema::SymbolID functionID;
-		i64 index = -1;
+		i64 index = functionBeginIndex;
 	};
 	
 	struct FunctionLabel {
@@ -79,6 +81,8 @@ namespace scatha::ic {
 		utl::small_vector<Parameter> _parameters;
 		sema::SymbolID _functionID;
 	};
+	
+	struct FunctionEndLabel {};
 	
 	using TasArgumentTypeVariant = std::variant<EmptyArgument, Variable, Temporary, LiteralValue, Label>;
 	
