@@ -26,6 +26,11 @@ namespace scatha::assembly {
 		friend AssemblyStream& operator<<(AssemblyStream&, MemoryAddress);
 		friend AssemblyStream& operator<<(AssemblyStream&, Label);
 		
+		u8& operator[](size_t index) { return data[index]; }
+		u8 const& operator[](size_t index) const { return data[index]; }
+		
+		size_t size() const { return data.size(); }
+		
 	private:
 		/// Data insertion helpers
 		void insert(u8);
