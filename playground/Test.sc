@@ -1,10 +1,15 @@
 
 
 
-fn test() -> float {
-	let a = 3.9;
-	let b = 1.3;
-	
-
+fn add(a: int, b: int) -> int {
 	return a + b;
+}
+
+
+fn main() -> int {
+	let a = 2;
+	let b = 3;
+	add(a, b);
+	
+	return add(a, b);
 }

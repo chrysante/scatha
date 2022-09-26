@@ -57,10 +57,10 @@ __attribute__((weak)) int main() {
 		
 		assembly::Assembler a(str);
 		
+		ic::printTac(tac, s.symbolTable());
 		auto const program = a.assemble();
 		
 		
-		ic::printTac(tac, s.symbolTable());
 		std::cout << "\n==================================================\n\n";
 		print(str, s.symbolTable());
 	}
