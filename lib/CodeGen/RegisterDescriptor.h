@@ -18,12 +18,17 @@ namespace scatha::codegen {
 		
 		assembly::RegisterIndex resolve(ic::Variable const&);
 		assembly::RegisterIndex resolve(ic::Temporary const&);
-		
 		std::optional<assembly::RegisterIndex> resolve(ic::TasArgument const&);
 		
-		void clear();
+		assembly::RegisterIndex makeTemporary();
 		
-		size_t currentIndex() const { return index; }
+		void markUsed(size_t count);
+
+		void clear();
+
+		size_t numUsedRegisters() const { return index; }
+
+		bool empty() const;
 		
 	private:
 		size_t index = 0;

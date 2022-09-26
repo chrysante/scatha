@@ -26,7 +26,7 @@ namespace scatha::codegen {
 		AssemblyStream a;
 		for (auto const& [_index, _line]: utl::enumerate(tac.statements)) {
 			// annoying workaround for lambdas not capturing structured bindings
-			auto const index = _index;
+			[[maybe_unused]] auto const index = _index;
 			auto const& line = _line;
 			std::visit(utl::visitor{
 				[&](ic::Label const& label) {
@@ -34,10 +34,19 @@ namespace scatha::codegen {
 				},
 				[&](ic::FunctionLabel const& label) {
 					a << toAsm(label);
-					rd.clear();
+					SC_ASSERT(rd.empty(), "rd has not been cleared");
 					rd.declareParameters(label);
-					requiredRegisters = countRequiredRegistersForFunction(index);
-					a << Instruction::allocReg << Value8(requiredRegisters.total());
+					a << Instruction::allocReg;
+					a << Value8(-1);
+					currentFunction.allocRegArgIndex = a.size() - Value8::size();
+				},
+				[&](ic::FunctionEndLabel) {
+					a[currentFunction.allocRegArgIndex] = rd.numUsedRegisters();
+					if (currentFunction.calledAnyFunction()) {
+						a[currentFunction.allocRegArgIndex] += 2 + currentFunction.maxParamCount();
+					}
+					rd.clear();
+					currentFunction = {};
 				},
 				[&](ic::ThreeAddressStatement const& s) {
 					switch (s.operation) {
@@ -46,24 +55,30 @@ namespace scatha::codegen {
 							break;
 						}
 						case ic::Operation::pushParam: {
-							a << Instruction::mov << RegisterIndex(requiredRegisters.local + 2 + paramIndex) << resolve(s.arg1);
-							++paramIndex;
+							a << Instruction::mov << RegisterIndex(-1);
+							currentFunction.addParam(a.size() - RegisterIndex::size(), currentFunction.paramCount());
+							a << resolve(s.arg1);
 							break;
 						}
 						case ic::Operation::getResult: {
+							size_t const resultLocation = rd.numUsedRegisters() + 2;
 							a << Instruction::mov << resolve(s.result);
-							a << RegisterIndex(requiredRegisters.local + 2);
+							a << RegisterIndex(resultLocation);
 							break;
 						}
 						case ic::Operation::call: {
-							a << Instruction::call << toAsm(s.getLabel()) << Value8(requiredRegisters.local + 2);
-							paramIndex = 0;
+							a << Instruction::call << toAsm(s.getLabel()) << Value8(rd.numUsedRegisters() + 2);
+							for (auto const& [index, offset]: currentFunction.parameterRegisterLocations()) {
+								a[index] = rd.numUsedRegisters() + 2 + offset;
+							}
+							currentFunction.resetParams();
 							break;
 						}
 						case ic::Operation::ret: {
 							if (!s.arg1.is(ic::TasArgument::empty)) /* if it is not a void return statement */ {
 								auto const argRegister = rd.resolve(s.arg1);
 								if (!argRegister || *argRegister != RegisterIndex(0)) {
+									rd.markUsed(1);
 									a << Instruction::mov << RegisterIndex(0) << resolve(s.arg1);
 								}
 							}
@@ -167,7 +182,14 @@ namespace scatha::codegen {
 			}
 		}();
 		
-		a << cmp << resolve(s.arg1) << resolve(s.arg2);
+		if (s.arg1.is(ic::TasArgument::literalValue)) {
+			RegisterIndex const tmp = rd.makeTemporary();
+			a << Instruction::mov << tmp << resolve(s.arg1);
+			a << cmp << tmp << resolve(s.arg2);
+		}
+		else {
+			a << cmp << resolve(s.arg1) << resolve(s.arg2);
+		}
 	}
 	
 	void CodeGenerator::generateJump(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
@@ -216,60 +238,6 @@ namespace scatha::codegen {
 
 	CodeGenerator::ResolvedArg CodeGenerator::resolve(ic::TasArgument const& arg) {
 		return { *this, arg };
-	}
-
-	CodeGenerator::FunctionRegisterCount CodeGenerator::countRequiredRegistersForFunction(size_t index) const {
-		++index;
-		FunctionRegisterCount result{};
-		utl::hashset<sema::SymbolID> variables;
-		utl::hashset<size_t> temporaries;
-		
-		size_t currentParamCount = 0;
-		size_t maxParamCount = 0;
-		
-		for (; index < tac.statements.size() && tac.statements[index].index() != ic::TacLineCase::FunctionLabel; ++index) {
-			auto& s = tac.statements[index];
-			std::visit(utl::visitor{
-				[&](ic::ThreeAddressStatement const& s) {
-					auto count = [&](ic::TasArgument const& arg) {
-						arg.visit(utl::visitor{
-							[&](ic::Variable const& var) {
-								if (!variables.contains(var.id())) {
-									variables.insert(var.id());
-									result.local += 1;
-								}
-							},
-							[&](ic::Temporary const& tmp) {
-								if (!temporaries.contains(tmp.index)) {
-									temporaries.insert(tmp.index);
-									result.local += 1;
-								}
-							},
-							[](auto&&) {}
-						});
-					};
-					count(s.result);
-					count(s.arg1);
-					count(s.arg2);
-					if (s.operation == ic::Operation::pushParam) {
-						++currentParamCount;
-						maxParamCount = std::max(currentParamCount, maxParamCount);
-					}
-					else if (s.operation == ic::Operation::call) {
-						currentParamCount = 0;
-					}
-					
-					if (s.operation == ic::Operation::ret && s.arg1.is(ic::TasArgument::literalValue)) {
-						result.local = std::max(result.local, size_t{ 1 });
-					}
-				},
-				[](auto&&) {}
-			}, s);
-		}
-		
-		result.maxFcParams = maxParamCount;
-		
-		return result;
 	}
 	
 }

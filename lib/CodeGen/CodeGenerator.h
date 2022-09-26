@@ -1,12 +1,48 @@
 #ifndef SCATHA_CODEGEN_CODEGENERATOR_H_
 #define SCATHA_CODEGEN_CODEGENERATOR_H_
 
+#include <tuple>
+#include <variant>
+
+#include <utl/vector.hpp>
+
 #include "Assembly/AssemblyStream.h"
 #include "Basic/Basic.h"
 #include "IC/ThreeAddressCode.h"
 #include "CodeGen/RegisterDescriptor.h"
 
 namespace scatha::codegen {
+	
+	struct CurrentFunctionData {
+		void addParam(size_t location, u8 registerIndex) {
+			++_paramCount;
+			_maxParamCount = std::max(_maxParamCount, _paramCount);
+			_parameterRegisterLocations.push_back({ location, registerIndex });
+		}
+		
+		void resetParams() {
+			_paramCount = 0;
+			_calledAnyFunction = true;
+			_parameterRegisterLocations.clear();
+		}
+		
+		size_t paramCount() const { return _paramCount; }
+		size_t maxParamCount() const { return _maxParamCount; }
+		
+		bool calledAnyFunction() const { return _calledAnyFunction; }
+		
+		std::span<std::tuple<size_t, u8> const> parameterRegisterLocations() const {
+			return _parameterRegisterLocations;
+		};
+		
+		size_t allocRegArgIndex = -1;
+		
+	private:
+		bool _calledAnyFunction = false;
+		size_t _paramCount = 0;
+		size_t _maxParamCount = 0;
+		utl::vector<std::tuple<size_t, u8>> _parameterRegisterLocations;
+	};
 	
 	class CodeGenerator {
 	public:
@@ -36,18 +72,11 @@ namespace scatha::codegen {
 			size_t total() const { return local + 2 + maxFcParams; }
 		};
 		
-		FunctionRegisterCount countRequiredRegistersForFunction(size_t index) const;
-		
 	private:
 		ic::ThreeAddressCode const& tac;
 		RegisterDescriptor rd;
-		// Index of the current function parameter.
-		// Will be reset to 0 when a call instruction is encountered.
-		size_t paramIndex = 0;
 		
-		// Number of required registers for the current function.
-		// Will be set when a function label is encountered.
-		FunctionRegisterCount requiredRegisters;
+		CurrentFunctionData currentFunction;
 	};
 	
 }

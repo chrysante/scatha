@@ -43,10 +43,27 @@ namespace scatha::codegen {
 		});
 	}
 	
+	assembly::RegisterIndex RegisterDescriptor::makeTemporary() {
+		size_t i = 0;
+		while (temporaries.contains(i)) { ++i; }
+		
+		return resolve(ic::Temporary{ .index = i, .type = sema::TypeID::Invalid });
+	}
+	
 	void RegisterDescriptor::clear() {
 		index = 0;
 		variables.clear();
 		temporaries.clear();
+	}
+	
+	void RegisterDescriptor::markUsed(size_t count) {
+		index = std::max(index, count);
+	}
+	
+	bool RegisterDescriptor::empty() const {
+		return index == 0 &&
+			   variables.empty() &&
+			   temporaries.empty();
 	}
 	
 }
