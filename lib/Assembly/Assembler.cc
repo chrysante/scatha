@@ -45,7 +45,7 @@ namespace scatha::assembly {
 				case Marker::Label: {
 					auto const label = elem.get<Label>();
 					registerLabel(label);
-					if (label.functionID == opt.mainID) {
+					if (label.functionID == opt.mainID && label.index == -1) {
 						result.start = currentPosition();
 					}
 					break;
