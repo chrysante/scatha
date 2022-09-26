@@ -23,6 +23,12 @@ flags { "ExtraWarnings" }
 targetdir("build/bin/%{cfg.longname}")
 objdir("build/obj/%{cfg.longname}")
 
+filter "system:macosx"
+    xcodebuildsettings { 
+        ["INSTALL_PATH"]            = "@executable_path",
+        ["LD_RUNPATH_SEARCH_PATHS"] = "@loader_path"
+    }
+filter {}
 ------------------------------------------
 project "scatha"
 
