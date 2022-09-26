@@ -26,7 +26,6 @@ namespace scatha::vm {
 	
 	void VirtualMachine::execute() {
 		SC_ASSERT(iptr >= memory.data(), "");
-		SC_ASSERT(iptr < programBreak, "");
 		SC_ASSERT(regPtr == (regPtr ? registers.data() : nullptr), "");
 		while (iptr < programBreak) {
 			u8 const opCode = *iptr;
