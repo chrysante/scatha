@@ -12,7 +12,7 @@
 #include "CodeGen/CodeGenerator.h"
 #include "IC/TacGenerator.h"
 #include "IC/Canonicalize.h"
-#include "IC/PrintTAC.h"
+#include "IC/PrintTac.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "Parser/ExpressionParser.h"
