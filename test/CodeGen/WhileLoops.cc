@@ -11,20 +11,24 @@ using namespace scatha;
 TEST_CASE("while loops") {
 	
 	std::string const text = R"(
+fn fact(n: int) -> int {
+  var i = 0;
+  var result = 1;
+  while i < n {
+	  i += 1;
+	  result *= i;
+  }
+  return result;
+}
+
 fn main() -> int {
-	var i = 0;
-	var result = 1;
-	while i < 10 {
-		i += 1;
-		result *= 2;
-	}
-	return result;
+	return fact(4);
 }
 )";
 	
 	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
-	CHECK(state.registers[0] == 1024);
+	CHECK(state.registers[0] == 24);
 }
 
 TEST_CASE("iterative gcd") {
@@ -46,7 +50,7 @@ fn gcd(a: int, b: int) -> int {
 fn main() -> int {
 	let a = 756476;
 	let b = 1253;
-  
+	
 	return gcd(a, b);
 }
 )";
