@@ -4,6 +4,7 @@
 #include <utl/utility.hpp>
 
 #include "Assembly/Assembly.h"
+#include "CodeGen/CodeGenUtil.h"
 
 namespace scatha::codegen {
 	
@@ -147,58 +148,15 @@ namespace scatha::codegen {
 	}
 	
 	void CodeGenerator::generateBinaryArithmetic(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
-		using namespace assembly;
-		Instruction const mappedInstruction = [&]{
-			switch (s.operation) {
-				case ic::Operation::add:  return Instruction::add;
-				case ic::Operation::sub:  return Instruction::sub;
-				case ic::Operation::mul:  return Instruction::mul;
-				case ic::Operation::div:  return Instruction::div;
-				case ic::Operation::idiv: return Instruction::idiv;
-				case ic::Operation::rem:  return Instruction::rem;
-				case ic::Operation::irem: return Instruction::irem;
-				case ic::Operation::fadd: return Instruction::fadd;
-				case ic::Operation::fsub: return Instruction::fsub;
-				case ic::Operation::fmul: return Instruction::fmul;
-				case ic::Operation::fdiv: return Instruction::fdiv;
-				SC_NO_DEFAULT_CASE();
-			}
-		}();
-		a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
-		a << mappedInstruction << resolve(s.result) << resolve(s.arg2);
+		a << assembly::Instruction::mov << resolve(s.result) << resolve(s.arg1);
+		a << mapOperation(s.operation) << resolve(s.result) << resolve(s.arg2);
 	}
 	
 	void CodeGenerator::generateComparison(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
-		using namespace assembly;
-		
-		Instruction const cmp = [&]{
-			switch (s.operation) {
-				case ic::Operation::eq:
-				case ic::Operation::neq:
-				case ic::Operation::ils:
-				case ic::Operation::ileq:
-				case ic::Operation::ig:
-				case ic::Operation::igeq:
-					return Instruction::icmp;
-				case ic::Operation::uls:
-				case ic::Operation::uleq:
-				case ic::Operation::ug:
-				case ic::Operation::ugeq:
-					return Instruction::ucmp;
-				case ic::Operation::feq:
-				case ic::Operation::fneq:
-				case ic::Operation::fls:
-				case ic::Operation::fleq:
-				case ic::Operation::fg:
-				case ic::Operation::fgeq:
-					return Instruction::fcmp;
-				SC_NO_DEFAULT_CASE();
-			}
-		}();
-		
+		auto const cmp = mapComparison(s.operation);
 		if (s.arg1.is(ic::TasArgument::literalValue)) {
-			RegisterIndex const tmp = rd.makeTemporary();
-			a << Instruction::mov << tmp << resolve(s.arg1);
+			assembly::RegisterIndex const tmp = rd.makeTemporary();
+			a << assembly::Instruction::mov << tmp << resolve(s.arg1);
 			a << cmp << tmp << resolve(s.arg2);
 		}
 		else {
@@ -207,39 +165,8 @@ namespace scatha::codegen {
 	}
 	
 	void CodeGenerator::generateComparisonStore(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
-		using namespace assembly;
 		generateComparison(a, s);
-		
-		Instruction const setInstruction = [&]{
-			switch (s.operation) {
-				case ic::Operation::eq:
-				case ic::Operation::feq:
-					return Instruction::sete;
-				case ic::Operation::neq:
-				case ic::Operation::fneq:
-					return Instruction::setne;
-				case ic::Operation::ils:
-				case ic::Operation::uls:
-				case ic::Operation::fls:
-					return Instruction::setl;
-				case ic::Operation::ileq:
-				case ic::Operation::uleq:
-				case ic::Operation::fleq:
-					return Instruction::setle;
-				case ic::Operation::ig:
-				case ic::Operation::ug:
-				case ic::Operation::fg:
-					return Instruction::setg;
-				case ic::Operation::igeq:
-				case ic::Operation::ugeq:
-				case ic::Operation::fgeq:
-					return Instruction::setge;
-					
-				SC_NO_DEFAULT_CASE();
-			}
-		}();
-		
-		a << setInstruction << resolve(s.result);
+		a << mapComparisonStore(s.operation) << resolve(s.result);
 	}
 	
 	void CodeGenerator::generateJump(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
@@ -252,50 +179,14 @@ namespace scatha::codegen {
 												ic::ThreeAddressStatement const& jumpStatement)
 	{
 		SC_ASSERT(isJump(jumpStatement.operation), "which must be a jump");
-		
-		using namespace assembly;
-		
 		if (ifStatement.operation == ic::Operation::ifPlaceholder) {
-			a << Instruction::utest << resolve(ifStatement.arg1);
+			a << assembly::Instruction::utest << resolve(ifStatement.arg1);
 		}
 		else {
 			SC_ASSERT(ic::isRelop(ifStatement.operation), "operation must be if placeholder or a relop");
 			generateComparison(a, ifStatement);
 		}
-		
-		Instruction const jmpInstruction = [&]{
-			switch (ifStatement.operation) {
-				case ic::Operation::eq:
-				case ic::Operation::feq:
-					return Instruction::je;
-				case ic::Operation::neq:
-				case ic::Operation::fneq:
-					return Instruction::jne;
-				case ic::Operation::ils:
-				case ic::Operation::uls:
-				case ic::Operation::fls:
-					return Instruction::jl;
-				case ic::Operation::ileq:
-				case ic::Operation::uleq:
-				case ic::Operation::fleq:
-					return Instruction::jle;
-				case ic::Operation::ig:
-				case ic::Operation::ug:
-				case ic::Operation::fg:
-					return Instruction::jg;
-				case ic::Operation::igeq:
-				case ic::Operation::ugeq:
-				case ic::Operation::fgeq:
-					return Instruction::jge;
-					
-				case ic::Operation::ifPlaceholder:
-					return Instruction::je;
-					
-				SC_NO_DEFAULT_CASE();
-			}
-		}();
-		
-		a << jmpInstruction << toAsm(jumpStatement.getLabel());
+		a << mapConditionalJump(ifStatement.operation) << toAsm(jumpStatement.getLabel());
 	}
 	
 	void CodeGenerator::ResolvedArg::streamInsert(assembly::AssemblyStream& str) const {
