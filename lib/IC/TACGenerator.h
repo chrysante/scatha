@@ -2,6 +2,7 @@
 #define SCATHA_IC_TACGENERATOR_H_
 
 #include "AST/AST.h"
+#include "AST/Expression.h"
 #include "AST/Common.h"
 #include "IC/ThreeAddressCode.h"
 #include "IC/ThreeAddressStatement.h"
@@ -33,6 +34,9 @@ namespace scatha::ic {
 		FunctionLabel submitFunctionLabel(ast::FunctionDefinition const&);
 		
 		void submitFunctionEndLabel();
+		
+		// return the appropriate jump instruction to jump over the then block
+		Operation processIfCondition(ast::Expression const* condition);
 		
 		TasArgument makeTemporary(sema::TypeID type);
 

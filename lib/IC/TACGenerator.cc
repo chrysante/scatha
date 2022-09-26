@@ -66,38 +66,9 @@ namespace scatha::ic {
 			}
 			case ast::NodeType::IfStatement: {
 				auto const* const ifStatement = static_cast<ast::IfStatement const*>(node);
-				doRun(ifStatement->condition.get());
 				
-				Operation const jmpOp = [&]{
-					auto const& condStatements = code.back();
-					SC_ASSERT(condStatements.isTas(), "");
-					using enum Operation;
-					switch (condStatements.asTas().operation) {
-							/*
-							 Here we return the jump instruction opposite to the comparison,
-							 because we want to jump over the if-block if the condition is not met.
-							 */
-						case eq: [[fallthrough]];
-						case feq:
-							return jne;
-						case neq: [[fallthrough]];
-						case fneq:
-							return je;
-						case ils: [[fallthrough]];
-						case uls: [[fallthrough]];
-						case fls:
-							return jge;
-						case ileq: [[fallthrough]];
-						case uleq: [[fallthrough]];
-						case fleq:
-							return jg;
-						default:
-							SC_DEBUGBREAK();
-							return _count;
-					}
-				}();
-				
-				size_t const cjmpIndex = submitJump(jmpOp, Label{});
+				Operation const cjmpOp = processIfCondition(ifStatement->condition.get());
+				size_t const cjmpIndex = submitJump(cjmpOp, Label{});
 				
 				doRun(ifStatement->ifBlock.get());
 				if (ifStatement->elseBlock != nullptr) {
@@ -109,6 +80,17 @@ namespace scatha::ic {
 				else {
 					code[cjmpIndex].asTas().arg1 = submitLabel();
 				}
+				return;
+			}
+			case ast::NodeType::WhileStatement: {
+				auto const* const whileStatement = static_cast<ast::WhileStatement const*>(node);
+				
+				Label const loopBeginLabel = submitLabel();
+				Operation const cjmpOp = processIfCondition(whileStatement->condition.get());
+				size_t const cjmpIndex = submitJump(cjmpOp, Label{});
+				doRun(whileStatement->block.get());
+				submitJump(Operation::jmp, loopBeginLabel);
+				code[cjmpIndex].asTas().arg1 = submitLabel();
 				return;
 			}
 			case ast::NodeType::ReturnStatement: {
@@ -258,6 +240,37 @@ namespace scatha::ic {
 	
 	void TacGenerator::submitFunctionEndLabel() {
 		code.push_back(FunctionEndLabel{});
+	}
+	
+	Operation TacGenerator::processIfCondition(ast::Expression const* condition) {
+		doRun(condition);
+		auto const& condStatements = code.back();
+		SC_ASSERT(condStatements.isTas(), "");
+		using enum Operation;
+		switch (condStatements.asTas().operation) {
+			/*
+			 Here we return the jump instruction opposite to the comparison,
+			 because we want to jump over the if-block if the condition is not met.
+			 */
+			case eq: [[fallthrough]];
+			case feq:
+				return jne;
+			case neq: [[fallthrough]];
+			case fneq:
+				return je;
+			case ils: [[fallthrough]];
+			case uls: [[fallthrough]];
+			case fls:
+				return jge;
+			case ileq: [[fallthrough]];
+			case uleq: [[fallthrough]];
+			case fleq:
+				return jg;
+			default:
+				SC_DEBUGBREAK();
+				return _count;
+		}
+	
 	}
 	
 	TasArgument TacGenerator::makeTemporary(sema::TypeID type) {
