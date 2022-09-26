@@ -250,7 +250,7 @@ namespace scatha::vm {
 			};
 			
 			/// MARK: Jumps
-			at(jmp) = jump<jmp>([](VMFlags f) { (void)f; return true; });
+			at(jmp) = jump<jmp>([](VMFlags)   { return true; });
 			at(je)  = jump<je> ([](VMFlags f) { return f.equal; });
 			at(jne) = jump<jne>([](VMFlags f) { return !f.equal; });
 			at(jl)  = jump<jl> ([](VMFlags f) { return f.less; });
