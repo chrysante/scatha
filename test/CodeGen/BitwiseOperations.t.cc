@@ -26,7 +26,7 @@ fn main() -> int {
 	CHECK(registers[0] == 296320);
 }
 
-TEST_CASE("Bitwise and") {
+TEST_CASE("Bitwise AND") {
 	std::string const text = R"(
 fn main() -> int {
 	return 29 & 23;
@@ -35,7 +35,7 @@ fn main() -> int {
 	CHECK(registers[0] == 21);
 }
 
-TEST_CASE("Bitwise and 2") {
+TEST_CASE("Bitwise AND 2") {
 	std::string const text = R"(
 fn main() -> int {
 	return (128 -  1) &
@@ -50,7 +50,7 @@ fn main() -> int {
 	CHECK(registers[0] == 64);
 }
 
-TEST_CASE("Bitwise or") {
+TEST_CASE("Bitwise OR") {
 	std::string const text = R"(
 fn main() -> int {
 	return 29 | 23;
@@ -59,7 +59,7 @@ fn main() -> int {
 	CHECK(registers[0] == 31);
 }
 
-TEST_CASE("Bitwise or 2") {
+TEST_CASE("Bitwise OR 2") {
 	std::string const text = R"(
 fn main() -> int {
 	return 0x01 |
@@ -75,7 +75,7 @@ fn main() -> int {
 	CHECK(registers[0] == 0xFF);
 }
 
-TEST_CASE("Bitwise or 3") {
+TEST_CASE("Bitwise OR 3") {
 	std::string const text = R"(
 fn main() -> int {
 	return (1 << 0) |
@@ -90,7 +90,7 @@ fn main() -> int {
 	CHECK(registers[0] == 127);
 }
 
-TEST_CASE("Bitwise xor") {
+TEST_CASE("Bitwise XOR") {
 	std::string const text = R"(
 fn main() -> int {
 	return 29 ^ 23;
@@ -99,7 +99,7 @@ fn main() -> int {
 	CHECK(registers[0] == 10);
 }
 
-TEST_CASE("Bitwise xor 2") {
+TEST_CASE("Bitwise XOR 2") {
 	std::string const text = R"(
 fn main() -> int {
 	return 0xFF00FF00FF00 ^ 0xFFffFFffFFff;
@@ -108,11 +108,20 @@ fn main() -> int {
 	CHECK(registers[0] == 0x00FF00FF00FF);
 }
 
-TEST_CASE("Bitwise not") {
+TEST_CASE("Bitwise NOT") {
 	std::string const text = R"(
 fn main() -> int {
 	return ~23;
 })";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == ~u64(23));
+}
+
+TEST_CASE("Bitwise NOT 2") {
+	std::string const text = R"(
+fn main() -> int {
+	return ~0xFF00FF00;
+})";
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 0xFFffFFff00FF00FF);
 }
