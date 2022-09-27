@@ -51,8 +51,8 @@ namespace scatha::lex {
 		if (auto integerLiteral = getIntegerLiteral()) {
 			return *integerLiteral;
 		}
-		if (auto integerLiteral = getIntegerLiteralHex()) {
-			return *integerLiteral;
+		if (auto integerLiteralHex = getIntegerLiteralHex()) {
+			return *integerLiteralHex;
 		}
 		if (auto floatingPointLiteral = getFloatingPointLiteral()) {
 			return *floatingPointLiteral;
