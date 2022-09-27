@@ -20,7 +20,7 @@ fn main() -> int {
 TEST_CASE("Bitwise right shift") {
 	std::string const text = R"(
 fn main() -> int {
- return 18964514 >> 6;
+	return 18964514 >> 6;
 })";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 296320);
