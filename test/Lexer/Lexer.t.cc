@@ -263,8 +263,13 @@ static auto lexString(std::string_view text) {
 TEST_CASE("Lexer literals", "[lex]") {
 	TestCase test;
 	test.text = R"(
+0.0
 39;
 x = 39;
+0x39;
+x = 0x39;
+0x39e;
+x = 0x39e;
 f(39);
 f(39.0);
 f(true);
@@ -272,11 +277,24 @@ false;
 true
 )";
 	test.reference = {
+		{ TokenType::FloatingPointLiteral, "0.0" },
 		{ TokenType::IntegerLiteral, "39" },
 		{ TokenType::Punctuation, ";" },
 		{ TokenType::Identifier, "x" },
 		{ TokenType::Operator, "=" },
 		{ TokenType::IntegerLiteral, "39" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::IntegerLiteral, "0x39" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::Identifier, "x" },
+		{ TokenType::Operator, "=" },
+		{ TokenType::IntegerLiteral, "0x39" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::IntegerLiteral, "0x39e" },
+		{ TokenType::Punctuation, ";" },
+		{ TokenType::Identifier, "x" },
+		{ TokenType::Operator, "=" },
+		{ TokenType::IntegerLiteral, "0x39e" },
 		{ TokenType::Punctuation, ";" },
 		{ TokenType::Identifier, "f" },
 		{ TokenType::Punctuation, "(" },

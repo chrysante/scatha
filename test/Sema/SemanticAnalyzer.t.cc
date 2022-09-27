@@ -80,6 +80,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	}
 	// declaration of float variable
 	let y = 39;
+	let z = 0x39E;
 	let x = 1.2;
 	return result;
 }
@@ -120,12 +121,17 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	auto* intLit = dynamic_cast<IntegerLiteral*>(xDecl->initExpression.get());
 	CHECK(intLit->value == 39);
 	
-	auto* yDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[3].get());
+	auto* zDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[3].get());
+	CHECK(zDecl->typeID == sym.Int());
+	auto* intHexLit = dynamic_cast<IntegerLiteral*>(zDecl->initExpression.get());
+	CHECK(intHexLit->value == 0x39E);
+	
+	auto* yDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[4].get());
 	CHECK(yDecl->typeID == sym.Float());
 	auto* floatLit = dynamic_cast<FloatingPointLiteral*>(yDecl->initExpression.get());
 	CHECK(floatLit->value == 1.2);
 	
-	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[4].get());
+	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[5].get());
 	auto* retIdentifier = dynamic_cast<Identifier*>(ret->expression.get());
 	CHECK(retIdentifier->typeID == sym.Int());
 }

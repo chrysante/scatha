@@ -62,16 +62,17 @@ fn main() -> int {
 TEST_CASE("Bitwise or2") {
 	std::string const text = R"(
 fn main() -> int {
-	return 1 |
-           2 |
-           4 |
-           8 |
-		  16 |
-		  32 |
-		  64;
+	return 0x01 |
+           0x02 |
+           0x04 |
+           0x08 |
+		   0x10 |
+		   0x20 |
+		   0x40 |
+		   0x80;
 })";
 	auto const registers = test::getRegisters(text);
-	CHECK(registers[0] == 127);
+	CHECK(registers[0] == 0xFF);
 }
 
 TEST_CASE("Bitwise or3") {

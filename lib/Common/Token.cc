@@ -35,7 +35,7 @@ namespace scatha {
 	u64 Token::toInteger() const {
 		SC_ASSERT(type == TokenType::IntegerLiteral,
 				  "Token is not an integer literal");
-		return std::stol(id);
+		return std::stol(id, nullptr, 0);
 	}
 	
 	bool Token::toBool() const {

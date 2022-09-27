@@ -51,6 +51,9 @@ namespace scatha::lex {
 		if (auto integerLiteral = getIntegerLiteral()) {
 			return *integerLiteral;
 		}
+		if (auto integerLiteral = getIntegerLiteralHex()) {
+			return *integerLiteral;
+		}
 		if (auto floatingPointLiteral = getFloatingPointLiteral()) {
 			return *floatingPointLiteral;
 		}
@@ -163,6 +166,9 @@ namespace scatha::lex {
 		if (!isDigitDec(current())) {
 			return std::nullopt;
 		}
+		if (current() == '0' && next() && *next() == 'x') {
+			return std::nullopt; // We are a hex literal, not our job
+		}
 		Token result = beginToken2(TokenType::IntegerLiteral);
 		result.id += current();
 		size_t offset = 1;
@@ -181,6 +187,24 @@ namespace scatha::lex {
 		if (*next == '.') {
 			// we are a floating point literal
 			return std::nullopt;
+		}
+		throw InvalidNumericLiteral(result);
+	}
+	
+	std::optional<Token> Lexer::getIntegerLiteralHex() {
+		if (current() != '0' || !next() || *next() != 'x') {
+			return std::nullopt;
+		}
+		Token result = beginToken2(TokenType::IntegerLiteral);
+		result.id += current();
+		advance();
+		result.id += current();
+		// Now result.id == "0x"
+		while (advance() && isDigitHex(current())) {
+			result.id += current();
+		}
+		if (next() && !isLetter(*next())) {
+			return result;
 		}
 		throw InvalidNumericLiteral(result);
 	}

@@ -29,6 +29,7 @@ namespace scatha::lex {
 		std::optional<Token> getPunctuation();
 		std::optional<Token> getOperator();
 		std::optional<Token> getIntegerLiteral();
+		std::optional<Token> getIntegerLiteralHex();
 		std::optional<Token> getFloatingPointLiteral();
 		std::optional<Token> getStringLiteral();
 		std::optional<Token> getBooleanLiteral();
