@@ -11,8 +11,8 @@ namespace scatha::vm {
 	
 	class Program {
 	public:
-		friend void print(Program const&);
-		friend void print(Program const&, std::ostream&);
+		SCATHA(API) friend void print(Program const&);
+		SCATHA(API) friend void print(Program const&, std::ostream&);
 		
 		utl::vector<u8> instructions;
 		utl::vector<u8> data;

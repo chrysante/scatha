@@ -37,33 +37,37 @@ int main() {
 	try {
 		Lexer l(text);
 		auto tokens = l.lex();
-		
 		Parser p(tokens);
 		auto ast = p.parse();
-		
 		sema::SemanticAnalyzer s;
 		s.run(ast.get());
-		
 		ic::canonicalize(ast.get());
-		
 		ic::TacGenerator t(s.symbolTable());
 		auto const tac = t.run(ast.get());
+		
+		std::cout << "\n==================================================\n";
+		std::cout <<   "=== Generated Three Address Code =================\n";
+		std::cout <<   "==================================================\n\n";
 		
 		ic::printTac(tac, s.symbolTable());
 		
 		codegen::CodeGenerator cg(tac);
 		auto const str = cg.run();
 		
-		std::cout << "\n==================================================\n\n";
+		std::cout << "\n==================================================\n";
+		std::cout <<   "=== Generated Assembly ===========================\n";
+		std::cout <<   "==================================================\n\n";
 		print(str, s.symbolTable());
 
 		assembly::Assembler a(str);
 	
 
 		auto const program = a.assemble();
-		std::cout << "\n==================================================\n\n";
+		std::cout << "\n==================================================\n";
+		std::cout <<   "=== Assembled Program ============================\n";
+		std::cout <<   "==================================================\n\n";
 		print(program);
-		
+		std::cout << "\n==================================================\n\n";
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;
