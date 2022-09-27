@@ -49,13 +49,13 @@ namespace scatha::ast {
 	
 	/// MARK: Statement
 	/// Abstract node representing any statement.
-	struct Statement: AbstractSyntaxTree {
+	struct SCATHA(API) Statement: AbstractSyntaxTree {
 		using AbstractSyntaxTree::AbstractSyntaxTree;
 	};
 	
 	/// MARK: Declaration
 	/// Abstract node representing any declaration.
-	struct Declaration: Statement {
+	struct SCATHA(API) Declaration: Statement {
 	public:
 		/// Name of the declared symbol as written in the source code.
 		std::string_view name() const { return _token.id; }
@@ -80,7 +80,7 @@ namespace scatha::ast {
 	
 	/// MARK: TranslationUnit
 	/// Concrete node representing a translation unit.
-	struct TranslationUnit: AbstractSyntaxTree {
+	struct SCATHA(API) TranslationUnit: AbstractSyntaxTree {
 		TranslationUnit(): AbstractSyntaxTree(NodeType::TranslationUnit, Token{}) {}
 		
 		/// List of declarations in the translation unit.
@@ -89,7 +89,7 @@ namespace scatha::ast {
 	
 	/// MARK: VariableDeclaration
 	/// Concrete node representing a variable declaration.
-	struct VariableDeclaration: Declaration {
+	struct SCATHA(API) VariableDeclaration: Declaration {
 		explicit VariableDeclaration(Token const& name):
 			Declaration(NodeType::VariableDeclaration, name)
 		{}
@@ -114,13 +114,13 @@ namespace scatha::ast {
 	
 	/// MARK: Module
 	/// Nothing to see here yet...
-	struct ModuleDeclaration: Declaration {
+	struct SCATHA(API) ModuleDeclaration: Declaration {
 		ModuleDeclaration() = delete;
 	};
 	
 	/// MARK: Block
 	/// Concrete node representing any block like a function or loop body. Declares its own (maybe anonymous) scope.
-	struct Block: Statement {
+	struct SCATHA(API) Block: Statement {
 		explicit Block(Token const& token): Statement(NodeType::Block, token) {}
 		
 		/// Statements in the block.
@@ -137,7 +137,7 @@ namespace scatha::ast {
 	
 	/// MARK: FunctionDeclaration
 	/// Concrete node representing the declaration of a function.
-	struct FunctionDeclaration: Declaration {
+	struct SCATHA(API) FunctionDeclaration: Declaration {
 		explicit FunctionDeclaration(Token const& name,
 									 Token const& declReturnTypename = {},
 									 utl::vector<UniquePtr<VariableDeclaration>> params = {}):
@@ -164,7 +164,7 @@ namespace scatha::ast {
 	
 	/// MARK: FunctionDefinition
 	/// Concrete node representing the definition of a function.
-	struct FunctionDefinition: FunctionDeclaration {
+	struct SCATHA(API) FunctionDefinition: FunctionDeclaration {
 		explicit FunctionDefinition(FunctionDeclaration&& decl, UniquePtr<Block> body = nullptr):
 			FunctionDeclaration(std::move(decl)),
 			body(std::move(body))
@@ -181,7 +181,7 @@ namespace scatha::ast {
 	
 	/// MARK: StructDeclaration
 	/// Concrete node representing the declaration of a struct.
-	struct StructDeclaration: Declaration {
+	struct SCATHA(API) StructDeclaration: Declaration {
 		explicit StructDeclaration(Token const& name):
 			Declaration(NodeType::StructDeclaration, std::move(name))
 		{}
@@ -194,7 +194,7 @@ namespace scatha::ast {
 	
 	/// MARK: StructDefinition
 	/// Concrete node representing the definition of a struct.
-	struct StructDefinition: StructDeclaration {
+	struct SCATHA(API) StructDefinition: StructDeclaration {
 		explicit StructDefinition(StructDeclaration&& decl, UniquePtr<Block> body = nullptr):
 			StructDeclaration(std::move(decl)),
 			body(std::move(body))
@@ -209,7 +209,7 @@ namespace scatha::ast {
 	/// MARK: ExpressionStatement
 	/// Concrete node representing a statement that consists of a single expression.
 	/// May only appear at function scope.
-	struct ExpressionStatement: Statement {
+	struct SCATHA(API) ExpressionStatement: Statement {
 		explicit ExpressionStatement(UniquePtr<Expression> expression, Token const& token):
 			Statement(NodeType::ExpressionStatement, token),
 			expression(std::move(expression))
@@ -222,14 +222,14 @@ namespace scatha::ast {
 	/// MARK: ControlFlow
 	/// Abstract node representing any control flow statement like if, while, for, return etc.
 	/// May only appear at function scope.
-	struct ControlFlowStatement: Statement {
+	struct SCATHA(API) ControlFlowStatement: Statement {
 	protected:
 		using Statement::Statement;
 	};
 	
 	/// MARK: ReturnStatement
 	/// Concrete node representing a return statement.
-	struct ReturnStatement: ControlFlowStatement {
+	struct SCATHA(API) ReturnStatement: ControlFlowStatement {
 		explicit ReturnStatement(UniquePtr<Expression> expression, Token const& token):
 			ControlFlowStatement(NodeType::ReturnStatement, token),
 			expression(std::move(expression))
@@ -241,7 +241,7 @@ namespace scatha::ast {
 	
 	/// MARK: IfStatement
 	/// Concrete node representing an if/else statement.
-	struct IfStatement: ControlFlowStatement {
+	struct SCATHA(API) IfStatement: ControlFlowStatement {
 		explicit IfStatement(UniquePtr<Expression> condition, Token const& token):
 			ControlFlowStatement(NodeType::IfStatement, token),
 			condition(std::move(condition))
@@ -256,7 +256,7 @@ namespace scatha::ast {
 	
 	/// MARK: WhileStatement
 	/// Concrete node representing a while statement.
-	struct WhileStatement: ControlFlowStatement {
+	struct SCATHA(API) WhileStatement: ControlFlowStatement {
 		explicit WhileStatement(UniquePtr<Expression> condition, Token const& token):
 			ControlFlowStatement(NodeType::WhileStatement, token),
 			condition(std::move(condition))

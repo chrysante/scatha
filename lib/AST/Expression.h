@@ -13,7 +13,7 @@
 namespace scatha::ast {
 
 	/// Abstract node representing any declaration.
-	struct Expression: AbstractSyntaxTree {
+	struct SCATHA(API) Expression: AbstractSyntaxTree {
 		using AbstractSyntaxTree::AbstractSyntaxTree;
 		
 		/** Decoration provided by semantic analysis. */
@@ -26,7 +26,7 @@ namespace scatha::ast {
 	
 	/// Concrete node representing an identifier in an expression.
 	/// Identifier must refer to a value meaning a variable or a function.
-	struct Identifier: Expression {
+	struct SCATHA(API) Identifier: Expression {
 		explicit Identifier(Token const& token):
 			Expression(NodeType::Identifier, token)
 		{}
@@ -38,7 +38,7 @@ namespace scatha::ast {
 		sema::SymbolID symbolID;
 	};
 	
-	struct IntegerLiteral: Expression {
+	struct SCATHA(API) IntegerLiteral: Expression {
 		explicit IntegerLiteral(Token const& token):
 			Expression(NodeType::IntegerLiteral, token),
 			value(token.toInteger())
@@ -47,7 +47,7 @@ namespace scatha::ast {
 		u64 value;
 	};
 	
-	struct BooleanLiteral: Expression {
+	struct SCATHA(API) BooleanLiteral: Expression {
 		explicit BooleanLiteral(Token const& token):
 			Expression(NodeType::BooleanLiteral, token),
 			value(token.toBool())
@@ -56,7 +56,7 @@ namespace scatha::ast {
 		bool value;
 	};
 	
-	struct FloatingPointLiteral: Expression {
+	struct SCATHA(API) FloatingPointLiteral: Expression {
 		explicit FloatingPointLiteral(Token const& token):
 			Expression(NodeType::FloatingPointLiteral, token),
 			value(token.toFloat())
@@ -65,7 +65,7 @@ namespace scatha::ast {
 		f64 value;
 	};
 	
-	struct StringLiteral: Expression {
+	struct SCATHA(API) StringLiteral: Expression {
 		explicit StringLiteral(Token const& token):
 			Expression(NodeType::StringLiteral, token),
 			value(token.id)
@@ -75,7 +75,7 @@ namespace scatha::ast {
 	};
 	
 	/// MARK: Unary Expressions
-	struct UnaryPrefixExpression: Expression {
+	struct SCATHA(API) UnaryPrefixExpression: Expression {
 		explicit UnaryPrefixExpression(UnaryPrefixOperator op, UniquePtr<Expression> operand, Token const& token):
 			Expression(NodeType::UnaryPrefixExpression, token),
 			op(op),
@@ -87,7 +87,7 @@ namespace scatha::ast {
 	};
 	
 	/// MARK: Binary Expressions
-	struct BinaryExpression: Expression {
+	struct SCATHA(API) BinaryExpression: Expression {
 		explicit BinaryExpression(BinaryOperator op, UniquePtr<Expression> lhs, UniquePtr<Expression> rhs, Token const& token):
 			Expression(NodeType::BinaryExpression, token),
 			op(op),
@@ -101,7 +101,7 @@ namespace scatha::ast {
 		UniquePtr<Expression> rhs;
 	};
 	
-	struct MemberAccess: Expression {
+	struct SCATHA(API) MemberAccess: Expression {
 		explicit MemberAccess(UniquePtr<Expression> object, Token const& memberToken, Token const& dotToken):
 			Expression(NodeType::MemberAccess, dotToken),
 			object(std::move(object)),
@@ -118,7 +118,7 @@ namespace scatha::ast {
 	};
 	
 	/// MARK: Ternary Expressions
-	struct Conditional: Expression {
+	struct SCATHA(API) Conditional: Expression {
 		explicit Conditional(UniquePtr<Expression> condition, UniquePtr<Expression> ifExpr, UniquePtr<Expression> elseExpr,
 							 Token const& token):
 			Expression(NodeType::Conditional, token),
@@ -133,7 +133,7 @@ namespace scatha::ast {
 	};
 	
 	/// MARK: More Complex Expressions
-	struct FunctionCall: Expression {
+	struct SCATHA(API) FunctionCall: Expression {
 		explicit FunctionCall(UniquePtr<Expression> object, Token const& token):
 			Expression(NodeType::FunctionCall, token),
 			object(std::move(object))
@@ -143,7 +143,7 @@ namespace scatha::ast {
 		utl::small_vector<UniquePtr<Expression>> arguments;
 	};
 	
-	struct Subscript: Expression {
+	struct SCATHA(API) Subscript: Expression {
 		explicit Subscript(UniquePtr<Expression> object, Token const& token):
 			Expression(NodeType::Subscript, token),
 			object(std::move(object))
