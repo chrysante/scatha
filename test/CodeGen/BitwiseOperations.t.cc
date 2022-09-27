@@ -38,16 +38,17 @@ fn main() -> int {
 TEST_CASE("Bitwise AND 2", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
-	return (128 -  1) &
-		   (128 -  2) &
-		   (128 -  4) &
-		   (128 -  8) &
-		   (128 - 16) &
-		   (128 - 32) &
-		   (128 - 64);
+	return (256 -   2) &
+		   (256 -   3) &
+		   (256 -   5) &
+		   (256 -   9) &
+		   (256 -  17) &
+		   (256 -  33) &
+		   (256 -  65) &
+		   (256 - 129);
 })";
 	auto const registers = test::getRegisters(text);
-	CHECK(registers[0] == 64);
+	CHECK(registers[0] == 0);
 }
 
 TEST_CASE("Bitwise OR", "[codegen]") {
