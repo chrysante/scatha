@@ -44,6 +44,10 @@ sysincludedirs { "external/utility" }
 includedirs "lib"
 links "utility"
 
+filter "system:macosx"
+buildoptions "-fvisibility=hidden"
+filter {}
+
 ------------------------------------------
 project "scatha-test"
 
