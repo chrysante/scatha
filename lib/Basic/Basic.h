@@ -12,7 +12,8 @@
 
 #define SCATHA(Name, ...) _SCATHA_PD_##Name(__VA_ARGS__)
 
-#define _SCATHA_PD_PURE() __attribute__((const))
+#define _SCATHA_PD_PURE() __attribute__((pure))
+#define _SCATHA_PD_CONST() __attribute__((const))
 
 #if defined(__clang__) && __clang_major__ >= 10
 #	define _SCATHA_PD_DISABLE_UBSAN() __attribute__((no_sanitize("undefined")))

@@ -32,7 +32,7 @@ namespace scatha::lex {
 		return isLetter(c) || isDigitDec(c);
 	}
 	
-	SCATHA(PURE) bool isPunctuation(char);
+	SCATHA(CONST) bool isPunctuation(char);
 	
 	inline bool isNewline(char c) {
 		return c == '\n';
@@ -46,7 +46,7 @@ namespace scatha::lex {
 		return isPunctuation(c) || isSpace(c);
 	}
 	
-	SCATHA(PURE) bool isOperatorLetter(char);
+	SCATHA(CONST) bool isOperatorLetter(char);
 	
 	SCATHA(PURE) bool isOperator(std::string_view);
 	
