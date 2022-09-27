@@ -23,15 +23,15 @@ namespace scatha::lex {
 	private:
 		std::optional<Token> getToken();
 		
+		std::optional<Token> getSpaces();
 		std::optional<Token> getOneLineComment();
 		std::optional<Token> getMultiLineComment();
-		std::optional<Token> getSpaces();
 		std::optional<Token> getPunctuation();
+		std::optional<Token> getOperator();
 		std::optional<Token> getIntegerLiteral();
-		std::optional<Token> getBooleanLiteral();
 		std::optional<Token> getFloatingPointLiteral();
 		std::optional<Token> getStringLiteral();
-		std::optional<Token> getOperator();
+		std::optional<Token> getBooleanLiteral();
 		std::optional<Token> getIdentifier();
 		
 		bool advance();
