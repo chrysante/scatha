@@ -12,13 +12,13 @@ TEST_CASE("while loops") {
 	std::string const text = R"(
 
 fn fact(n: int) -> int {
-  var i = 0;
-  var result = 1;
-  while i < n {
-	  i += 1;
-	  result *= i;
-  }
-  return result;
+	var i = 0;
+	var result = 1;
+	while i < n {
+		i += 1;
+		result *= i;
+	}
+	return result;
 }
 
 fn main() -> int {
