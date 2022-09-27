@@ -35,7 +35,7 @@ fn main() -> int {
 	CHECK(registers[0] == 21);
 }
 
-TEST_CASE("Bitwise and2") {
+TEST_CASE("Bitwise and 2") {
 	std::string const text = R"(
 fn main() -> int {
 	return (128 -  1) &
@@ -59,7 +59,7 @@ fn main() -> int {
 	CHECK(registers[0] == 31);
 }
 
-TEST_CASE("Bitwise or2") {
+TEST_CASE("Bitwise or 2") {
 	std::string const text = R"(
 fn main() -> int {
 	return 0x01 |
@@ -75,7 +75,7 @@ fn main() -> int {
 	CHECK(registers[0] == 0xFF);
 }
 
-TEST_CASE("Bitwise or3") {
+TEST_CASE("Bitwise or 3") {
 	std::string const text = R"(
 fn main() -> int {
 	return (1 << 0) |
@@ -97,6 +97,15 @@ fn main() -> int {
 })";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 10);
+}
+
+TEST_CASE("Bitwise xor 2") {
+	std::string const text = R"(
+fn main() -> int {
+	return 0xFF00FF00FF00 ^ 0xFFffFFffFFff;
+})";
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 0x00FF00FF00FF);
 }
 
 TEST_CASE("Bitwise not") {
