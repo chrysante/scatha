@@ -16,19 +16,44 @@
 
 #define SCATHA(Name, ...) _SCATHA_PD_##Name(__VA_ARGS__)
 
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+// POSIX Platform
+#	define _SCATHA_PD_POSIX()   1
+#	define _SCATHA_PD_WINDOWS() 0
+#elif defined(MSC_VER)
+// Windows Platform
+#	define _SCATHA_PD_POSIX()   0
+#	define _SCATHA_PD_WINDOWS() 1
+#endif
+
 #if defined(__GNUC__)
-#define _SCATHA_PD_PURE() __attribute__((pure))
-#define _SCATHA_PD_CONST() __attribute__((const))
+#	define _SCATHA_PD_GNU() 1
 #else
-#define _SCATHA_PD_PURE() 
-#define _SCATHA_PD_CONST() 
-#define _SCATHA_PD_API() __declspec(dllexport) 
+# 	define _SCATHA_PD_GNU() 0
+#endif
+
+#if SCATHA(GNU)
+#	define _SCATHA_PD_PURE() __attribute__((pure))
+#	define _SCATHA_PD_CONST() __attribute__((const))
+#else
+#	define _SCATHA_PD_PURE()
+#	define _SCATHA_PD_CONST()
+#endif
+
+// API Export
+#if SCATHA(GNU)
+#	define _SCATHA_PD_API() __attribute__((visibility("default")))
+#elif SCATHA(WINDOWS)
+#	define _SCATHA_PD_API() __declspec(dllexport)
+#endif
+
+// Shorthand to force types to be move-only.
 #define _SCATHA_PD_MOVE_ONLY(TYPE) \
 	TYPE() = default;              \
 	TYPE(TYPE&&) = default;        \
-	TYPE(TYPE const&) = delete 
-#endif
+	TYPE(TYPE const&) = delete
 
+// Disable UBSAN for certain integer shift operations. Maybe rethink this later.
 #if defined(__clang__) && __clang_major__ >= 10
 #	define _SCATHA_PD_DISABLE_UBSAN() __attribute__((no_sanitize("undefined")))
 #else
@@ -36,9 +61,12 @@
 #endif
 
 /// MARK: Assertions
-#if defined(__clang) || defined(__GNUC__)
-#	define SC_DEBUGFAIL() __builtin_trap()
+#if defined(__clang)
+#	define SC_DEBUGFAIL()  __builtin_trap()
 #	define SC_DEBUGBREAK() __builtin_debugtrap()
+#elif defined(__GNUC__)
+#	define SC_DEBUGFAIL()  __builtin_trap()
+#	define SC_DEBUGBREAK() __builtin_trap()
 #elif defined(_MSC_VER)
 #	define SC_DEBUGFAIL() (__debugbreak(), std::terminate())
 #	define SC_DEBUGBREAK() __debugbreak()
