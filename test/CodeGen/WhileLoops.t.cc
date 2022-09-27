@@ -10,6 +10,7 @@ using namespace scatha;
 
 TEST_CASE("while loops") {
 	std::string const text = R"(
+
 fn fact(n: int) -> int {
   var i = 0;
   var result = 1;
@@ -60,6 +61,7 @@ fn main() -> int {
 
 TEST_CASE("float pow") {
 std::string const text = R"(
+
 fn pow(base: float, exp: int) -> float {
 	var result: float = 1.0;
 	var i = 0;
@@ -77,6 +79,7 @@ fn main() -> int {
 	}
 	return 0;
 }
+
 )";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 1);
