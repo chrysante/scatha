@@ -430,12 +430,16 @@ namespace scatha::sema {
 			case Less:           [[fallthrough]];
 			case LessEq:         [[fallthrough]];
 			case Greater:        [[fallthrough]];
-			case GreaterEq:      [[fallthrough]];
-			case Equals:         [[fallthrough]];
-			case NotEquals:
+			case GreaterEq:
 				verifySame();
 				verifyAnyOf(expr->lhs->typeID, { symbols.Int(), symbols.Float() });
 				return symbols.Bool();
+			case Equals:         [[fallthrough]];
+			case NotEquals:
+				verifySame();
+				verifyAnyOf(expr->lhs->typeID, { symbols.Int(), symbols.Float(), symbols.Bool() });
+				return symbols.Bool();
+				
 				
 			case LogicalAnd:     [[fallthrough]];
 			case LogicalOr:

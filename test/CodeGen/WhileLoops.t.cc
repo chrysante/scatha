@@ -74,12 +74,14 @@ fn pow(base: float, exp: int) -> float {
 	return result;
 }
 
-fn main() -> int {
-	let base = 1.5;
-	if pow(base, 3) == 2.25 * 1.5 { 
-		return 1; 
-	}
-	return 0;
+fn main() -> bool {
+	var result = true;
+	result &= pow(0.5, 3) == 0.125;
+	result &= pow(1.5, 3) == 1.5 * 2.25;
+	result &= pow(1.0, 10) == 1.0;
+	result &= pow(2.0, 10) == 1024.0;
+	result &= pow(-2.0, 9) == -512.0;
+	return result == true;
 }
 
 )";

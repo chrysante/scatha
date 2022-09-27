@@ -312,6 +312,12 @@ namespace scatha::ic {
 			result(sym.Int(), BitwiseOr)  = Operation::Or;
 			result(sym.Int(), BitwiseXOr) = Operation::XOr;
 			
+			result(sym.Bool(), Equals)    = Operation::eq;
+			result(sym.Bool(), NotEquals) = Operation::neq;
+			result(sym.Bool(), BitwiseAnd) = Operation::And;
+			result(sym.Bool(), BitwiseOr)  = Operation::Or;
+			result(sym.Bool(), BitwiseXOr) = Operation::XOr;
+			
 			result(sym.Float(), Addition)       = Operation::fadd;
 			result(sym.Float(), Subtraction)    = Operation::fsub;
 			result(sym.Float(), Multiplication) = Operation::fmul;
