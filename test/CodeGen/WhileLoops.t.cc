@@ -24,6 +24,7 @@ fn fact(n: int) -> int {
 fn main() -> int {
 	return fact(4);
 }
+
 )";
 	
 	auto const vm = test::compileAndExecute(text);
@@ -52,6 +53,7 @@ fn main() -> int {
 	
 	return gcd(a, b);
 }
+
 )";
 	
 	auto const vm = test::compileAndExecute(text);
