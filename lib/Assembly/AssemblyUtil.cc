@@ -72,8 +72,8 @@ namespace scatha::assembly {
 			case Instruction::setg:      return vm::OpCode::setg;
 			case Instruction::setge:     return vm::OpCode::setge;
 				
-			case Instruction::lnt:     return vm::OpCode::lnt;
-			case Instruction::bnt:     return vm::OpCode::bnt;
+			case Instruction::lnt:       return vm::OpCode::lnt;
+			case Instruction::bnt:       return vm::OpCode::bnt;
 				
 			case Instruction::callExt:   return vm::OpCode::callExt;
 			
@@ -236,6 +236,30 @@ namespace scatha::assembly {
 				};
 				return table(arg1, arg2);
 			}
+			case Instruction::And: {
+				constexpr OpCodeTable table = {
+					Instruction::And,
+					std::tuple{ Marker::RegisterIndex, Marker::RegisterIndex, vm::OpCode::andRR },
+					std::tuple{ Marker::RegisterIndex, Marker::Value64,       vm::OpCode::andRV }
+				};
+				return table(arg1, arg2);
+			}
+			case Instruction::Or: {
+				constexpr OpCodeTable table = {
+					Instruction::Or,
+					std::tuple{ Marker::RegisterIndex, Marker::RegisterIndex, vm::OpCode::orRR },
+					std::tuple{ Marker::RegisterIndex, Marker::Value64,       vm::OpCode::orRV }
+				};
+				return table(arg1, arg2);
+			}
+			case Instruction::XOr: {
+				constexpr OpCodeTable table = {
+					Instruction::XOr,
+					std::tuple{ Marker::RegisterIndex, Marker::RegisterIndex, vm::OpCode::xorRR },
+					std::tuple{ Marker::RegisterIndex, Marker::Value64,       vm::OpCode::xorRV }
+				};
+				return table(arg1, arg2);
+			}
 				
 			SC_NO_DEFAULT_CASE();
 		}
@@ -341,6 +365,9 @@ namespace scatha::assembly {
 					case fdiv:
 					case sl:
 					case sr:
+					case And:
+					case Or:
+					case XOr:
 						printBinaryInstruction(i);
 						return;
 						

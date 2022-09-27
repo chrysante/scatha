@@ -125,6 +125,9 @@ namespace scatha::assembly {
 			case fdiv:
 			case sl:
 			case sr:
+			case And:
+			case Or:
+			case XOr:
 				processBinaryInstruction(i, itr);
 				return;
 					

@@ -141,6 +141,9 @@ namespace scatha::ic {
 		fdiv,       // result <- arg1, arg2
 		sl,         // result <- arg1, arg2
 		sr,         // result <- arg1, arg2
+		And,        // result <- arg1, arg2
+		Or,         // result <- arg1, arg2
+		XOr,        // result <- arg1, arg2
 		
 		/// Relational operations
 		eq,

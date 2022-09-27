@@ -305,8 +305,12 @@ namespace scatha::ic {
 			result(sym.Int(), Less)      = Operation::ils;
 			result(sym.Int(), LessEq)    = Operation::ileq;
 			
-			result(sym.Int(), LeftShift) = Operation::sl;
+			result(sym.Int(), LeftShift)  = Operation::sl;
 			result(sym.Int(), RightShift) = Operation::sr;
+			
+			result(sym.Int(), BitwiseAnd) = Operation::And;
+			result(sym.Int(), BitwiseOr)  = Operation::Or;
+			result(sym.Int(), BitwiseXOr) = Operation::XOr;
 			
 			result(sym.Float(), Addition)       = Operation::fadd;
 			result(sym.Float(), Subtraction)    = Operation::fsub;

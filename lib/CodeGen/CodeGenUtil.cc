@@ -18,6 +18,10 @@ namespace scatha::codegen {
 			case ic::Operation::fdiv: return Instruction::fdiv;
 			case ic::Operation::sl:   return Instruction::sl;
 			case ic::Operation::sr:   return Instruction::sr;
+			case ic::Operation::And:  return Instruction::And;
+			case ic::Operation::Or:   return Instruction::Or;
+			case ic::Operation::XOr:  return Instruction::XOr;
+				
 			SC_NO_DEFAULT_CASE();
 		}
 	}

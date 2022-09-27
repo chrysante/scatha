@@ -39,6 +39,9 @@ namespace scatha::ic {
 			{ fdiv, "fdiv" },
 			{ sl,   "sl" },
 			{ sr,   "sr" },
+			{ And,  "and" },
+			{ Or,   "or" },
+			{ XOr,  "xor" },
 			
 			{ eq,   "eq" },
 			{ neq,  "neq" },
@@ -87,14 +90,15 @@ namespace scatha::ic {
 			{ idiv, 2 },
 			{ rem,  2 },
 			{ irem, 2 },
-			
 			{ fadd, 2 },
 			{ fsub, 2 },
 			{ fmul, 2 },
 			{ fdiv, 2 },
-			
 			{ sl,   2 },
 			{ sr,   2 },
+			{ And,  2 },
+			{ Or,   2 },
+			{ XOr,  2 },
 			
 			{ eq,   2 },
 			{ neq,  2 },

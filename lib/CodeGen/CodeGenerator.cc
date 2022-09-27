@@ -105,6 +105,9 @@ namespace scatha::codegen {
 						case ic::Operation::fdiv:
 						case ic::Operation::sl:
 						case ic::Operation::sr:
+						case ic::Operation::And:
+						case ic::Operation::Or:
+						case ic::Operation::XOr:
 							generateBinaryArithmetic(a, s);
 							break;
 						case ic::Operation::eq:
@@ -127,11 +130,12 @@ namespace scatha::codegen {
 							break;
 						case ic::Operation::lnt: {
 							a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
-							a << Instruction::lnt << resolve(s.arg1);
+							a << Instruction::lnt << resolve(s.result);
 							break;
 						}
 						case ic::Operation::bnt: {
-							SC_DEBUGBREAK();
+							a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
+							a << Instruction::bnt << resolve(s.result);
 							break;
 						}
 						case ic::Operation::jmp:

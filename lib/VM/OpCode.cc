@@ -86,6 +86,12 @@ namespace scatha::vm {
 			{ slRV,      "slRV"   },
 			{ srRR,      "srRR"   },
 			{ srRV,      "srRV"   },
+			{ andRR,     "andRR"  },
+			{ andRV,     "andRV"  },
+			{ orRR,      "orRR"   },
+			{ orRV,      "orRV"   },
+			{ xorRR,     "xorRR"  },
+			{ xorRV,     "xorRV"  },
 			{ callExt,   "callExt" },
 		});
 	}
@@ -366,6 +372,13 @@ namespace scatha::vm {
 			at(slRV) = arithmeticRV<slRV, u64>(utl::leftshift);
 			at(srRR) = arithmeticRR<srRR, u64>(utl::rightshift);
 			at(srRV) = arithmeticRV<srRV, u64>(utl::rightshift);
+			
+			at(andRR) = arithmeticRR<andRR, u64>(utl::bitwise_and);
+			at(andRV) = arithmeticRV<andRV, u64>(utl::bitwise_and);
+			at(orRR)  = arithmeticRR<orRR,  u64>(utl::bitwise_or);
+			at(orRV)  = arithmeticRV<orRV,  u64>(utl::bitwise_or);
+			at(xorRR)  = arithmeticRR<orRR, u64>(utl::bitwise_xor);
+			at(xorRV)  = arithmeticRV<orRV, u64>(utl::bitwise_xor);
 			
 			/// MARK: Misc
 			at(callExt) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {

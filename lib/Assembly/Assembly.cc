@@ -51,6 +51,9 @@ namespace scatha::assembly {
 			{ fdiv,      "fdiv" },
 			{ sl,        "sl" },
 			{ sr,        "sr" },
+			{ And,       "and" },
+			{ Or,        "or" },
+			{ XOr,       "xor" },
 			{ callExt,   "callExt" },
 		});
 	}

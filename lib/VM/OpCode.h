@@ -191,6 +191,14 @@ namespace scatha::vm {
 		srRR,        //  (u8 regIdxA, u8 regIdxB)
 		srRV,        //  (u8 regIdxA, u64 value)
 
+		/// MARK: Bitwise AND/OR
+		andRR,       //  (u8 regIdxA, u8 regIdxB)
+		andRV,       //  (u8 regIdxA, u64 value)
+		orRR,        //  (u8 regIdxA, u8 regIdxB)
+		orRV,        //  (u8 regIdxA, u64 value)
+		xorRR,       //  (u8 regIdxA, u8 regIdxB)
+		xorRV,       //  (u8 regIdxA, u64 value)
+		
 		/// MARK: Misc
 		// extFunctionTable[tableIdx][idxIntoTable](reg[regIdx], this)
 		callExt,    // (u8 regIdx, u8 tableIdx, u16 idxIntoTable)
@@ -283,6 +291,12 @@ namespace scatha::vm {
 			{ OpCode::slRV,      RV },
 			{ OpCode::srRR,      RR },
 			{ OpCode::srRV,      RV },
+			{ OpCode::andRR,     RR },
+			{ OpCode::andRV,     RV },
+			{ OpCode::orRR,      RR },
+			{ OpCode::orRV,      RV },
+			{ OpCode::xorRR,     RR },
+			{ OpCode::xorRV,     RV },
 			{ OpCode::callExt,   Other },
 		});
 	}
