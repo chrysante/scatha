@@ -1,10 +1,14 @@
 Build/
 .vs/
 
-**.xcworkspace
-**.xcodeproj
 .DS_Store
 **/.DS_Store
+
+Makefile
+**.make
+
+**.xcworkspace
+**.xcodeproj
 
 **.vcxproj
 **.vcxproj.user
