@@ -71,24 +71,15 @@ namespace scatha::sema {
 		
 		auto const computedFunctionTypeID = computeFunctionTypeID(returnType, argumentTypes);
 		
-		if (newlyAdded) {
-			// Since function types are not named, we use the TypeID as the key here. This should be fine, since function types cannot be found by name anyhow. So wen can just find them by their hashed signature aka their TypeID.
-			[[maybe_unused]] auto [functionType, _] = types.emplace((u64)computedFunctionTypeID, returnType, argumentTypes, computedFunctionTypeID);
-			auto const result = funcs.emplace(symbolID.id(), name.id, symbolID, computedFunctionTypeID);
-			SC_ASSERT(result.second, "Function already exists");
-			return result;
+		if (!newlyAdded) {
+			throw InvalidFunctionDeclaration(name, currentScope());
 		}
-		
-		// Now the function has already been declared. Verify that the type matches.
-		if (symbolID.category() != SymbolCategory::Function) {
-/// MARK: Can't test this yet
-			throw InvalidRedeclaration(name, currentScope(), SymbolCategory::Function);
-		}
-		auto& function = funcs.get(symbolID.id());
-		auto const& functionType = types.get((u64)function.typeID());
-		functionTypeVerifyEqual(name, functionType, returnType, argumentTypes);
-		
-		return { &function, false };
+			
+		// Since function types are not named, we use the TypeID as the key here. This should be fine, since function types cannot be found by name anyhow. So wen can just find them by their hashed signature aka their TypeID.
+		[[maybe_unused]] auto [functionType, _] = types.emplace((u64)computedFunctionTypeID, returnType, argumentTypes, computedFunctionTypeID);
+		auto const result = funcs.emplace(symbolID.id(), name.id, symbolID, computedFunctionTypeID);
+		SC_ASSERT(result.second, "Function already exists");
+		return result;
 	}
 	
 	

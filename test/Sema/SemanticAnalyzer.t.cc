@@ -4,6 +4,7 @@
 #include "AST/Expression.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
+#include "Parser/ParsingIssue.h"
 #include "Sema/SemanticAnalyzer.h"
 #include "Sema/SemanticIssue.h"
 
@@ -72,7 +73,6 @@ fn mul(a: int, b: int, c: float) -> int {
 
 TEST_CASE("Decoration of the AST") {
 	std::string const text = R"(
-fn mul(a: int, b: int, c: float, d: string) -> int;
 fn mul(a: int, b: int, c: float, d: string) -> int {
 	let result = a;
 	{ // declaration of variable of the same name in a nested scope
@@ -97,7 +97,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	CHECK(fnDecl->parameters[2]->typeID == sym.Float());
 	CHECK(fnDecl->parameters[3]->typeID == sym.String());
 	
-	auto* fn = dynamic_cast<FunctionDefinition*>(tu->declarations[1].get());
+	auto* fn = dynamic_cast<FunctionDefinition*>(tu->declarations[0].get());
 	REQUIRE(fn);
 	
 	CHECK(fn->returnTypeID == sym.Int());
@@ -139,7 +139,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 TEST_CASE("Decoration of the AST with function call expression", "[sema]") {
 	std::string const text = R"(
 
-fn callee(a: string, b: int, c: bool) -> float;
+fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
 
 fn caller() -> float {
 	let result = callee("Hello world", 0, true);
@@ -216,13 +216,13 @@ TEST_CASE("Semantic analysis failures", "[sema]") {
 	
 	SECTION("Invalid function call expression") {
 		std::string const a = R"(
-fn callee(a: string);
+fn callee(a: string) {}
 fn caller() { callee(); }
 )";
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), BadFunctionCall);
 	
 		std::string const b = R"(
-fn callee(a: string);
+fn callee(a: string) {}
 fn caller() { callee(0); }
 )";
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), BadTypeConversion);
@@ -232,22 +232,28 @@ fn caller() { callee(0); }
 	
 	SECTION("Invalid function redeclaration") {
 		std::string const a = R"(
-fn f();
-fn f() -> int;
+fn f() {}
+fn f() -> int {}
 )";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), InvalidRedeclaration);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), InvalidFunctionDeclaration);
+		
+		std::string const a1 = R"(
+fn f() {}
+fn f() {}
+)";
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a1), InvalidFunctionDeclaration);
 		
 // MARK: These tests will fail when we have function overloading
-		std::string const b = R"(
-fn f();
-fn f(x: int);
-)";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), InvalidRedeclaration);
-		std::string const c = R"(
-fn f(x: string);
-fn f(x: int);
-)";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(c), InvalidRedeclaration);
+//		std::string const b = R"(
+//fn f();
+//fn f(x: int);
+//)";
+//		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), InvalidFunctionDeclaration);
+//		std::string const c = R"(
+//fn f(x: string);
+//fn f(x: int);
+//)";
+//		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(c), InvalidFunctionDeclaration);
 	}
 	
 	SECTION("Invalid variable redeclaration") {
@@ -262,17 +268,20 @@ fn f(x: int) {
 	}
 	
 	SECTION("Invalid redeclaration category") {
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct f{}"
+													   "fn f(){}"),
+						InvalidRedeclaration);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f(){}"
+													   "struct f{}"),
+						InvalidRedeclaration);
 		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct f;"
-													   "fn f();"), InvalidRedeclaration);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f();"
-													   "struct f;"), InvalidRedeclaration);
-		CHECK_NOTHROW(produceDecoratedASTAndSymTable("struct f;"
-													 "struct f;"
-													 "struct f {}"));
+													   "struct f;"
+													   "struct f {}"),
+						parse::ParsingIssue);
 	}
 	
 	SECTION("Invalid symbol reference") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() -> UnknownID;"), InvalidSymbolReference);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f(param: UnknownID) {}"), UseOfUndeclaredIdentifier);
 	}
 	
 	SECTION("Invalid variable declaration") {
@@ -281,11 +290,11 @@ fn f(x: int) {
 	}
 	
 	SECTION("Invalid function declaration") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { fn g(); }"), InvalidFunctionDeclaration);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { fn g(); }"), parse::ParsingIssue);
 	}
 	
 	SECTION("Invalid struct declaration") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { struct X; }"), InvalidStructDeclaration);
+		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { struct X; }"), parse::ParsingIssue);
 	}
 	
 	SECTION("Invalid statement at struct scope") {

@@ -62,8 +62,13 @@ namespace scatha::sema {
 			case NodeType::FunctionDeclaration: {
 				auto* const fnDecl = static_cast<FunctionDeclaration*>(inNode);
 				if (auto const sk = symbols.currentScope()->kind();
-					sk != Scope::Global && sk != Scope::Namespace && sk != Scope::Struct)
+					sk != Scope::Global &&
+					sk != Scope::Namespace &&
+					sk != Scope::Struct)
 				{
+					/*
+					 * Function declaration is only allowed in the global scope, at namespace scope and structure scope
+					 */
 					throw InvalidFunctionDeclaration(fnDecl->token(), symbols.currentScope());
 				}
 				auto const& returnType = symbols.findTypeByName(fnDecl->declReturnTypename);
@@ -141,6 +146,7 @@ namespace scatha::sema {
 						throw InvalidStatement(node->token(), "Expected initializing expression of explicit typename specifier in variable declaration");
 					}
 					else {
+						// Get TtypeID from declared typename
 						auto const typeSymbolID = symbols.lookupName(node->declTypename);
 						if (!typeSymbolID) {
 							throw UseOfUndeclaredIdentifier(node->declTypename);
@@ -163,13 +169,19 @@ namespace scatha::sema {
 						node->typeID = node->initExpression->typeID;
 					}
 				}
-				if (!node->isFunctionParameter) /* Function parameters will be declared by the FunctionDefinition case */ {
-					auto [var, newlyAdded] = symbols.declareVariable(node->token(), node->typeID, node->isConstant);
-					if (!newlyAdded) {
-						throw InvalidRedeclaration(node->token(), symbols.currentScope());
-					}
-					node->symbolID = var->symbolID();
+				if (node->isFunctionParameter) {
+					// Function parameters will be declared by the FunctionDefinition case
+					break;
 				}
+				/*
+				 * Declare the variable.
+				 */
+				auto [var, newlyAdded] = symbols.declareVariable(node->token(), node->typeID, node->isConstant);
+				if (!newlyAdded) {
+					throw InvalidRedeclaration(node->token(), symbols.currentScope());
+				}
+				node->symbolID = var->symbolID();
+			
 				return;
 			}
 			case NodeType::ExpressionStatement: {

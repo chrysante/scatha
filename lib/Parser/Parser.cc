@@ -127,8 +127,8 @@ namespace scatha::parse {
 		if (tokens.peek().id == "{") {
 			return parseFunctionDefinition(std::move(result));
 		}
-		expectSeparator(tokens.eat());
-		return result;
+		
+		throw ParsingIssue(tokens.peek(), "Expected '{' after function declaration");
 	}
 
 	ast::UniquePtr<ast::FunctionDefinition> Parser::parseFunctionDefinition(ast::UniquePtr<ast::FunctionDeclaration> decl) {
@@ -171,9 +171,7 @@ namespace scatha::parse {
 			return parseStructDefinition(std::move(result));
 		}
 		
-		expectSeparator(tokens.eat());
-		
-		return result;
+		throw ParsingIssue(tokens.peek(), "Expected '{' after struct declaration");
 	}
 	
 	ast::UniquePtr<ast::StructDefinition> Parser::parseStructDefinition(ast::UniquePtr<ast::StructDeclaration> decl) {
