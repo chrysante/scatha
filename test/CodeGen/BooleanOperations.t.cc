@@ -18,6 +18,16 @@ fn main() -> bool {
 	CHECK(registers[0] == 1);
 }
 
+TEST_CASE("Logical not") {
+	std::string const text = R"(
+fn main() -> bool {
+	let i = 0;
+	return !(i == 1);
+})";
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
+}
+
 TEST_CASE("Logical or") {
 	std::string const text = R"(
 /// This fails to compile because we don't have an implementation for operator|| and operator&& yet,
