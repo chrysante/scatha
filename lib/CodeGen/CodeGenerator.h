@@ -44,7 +44,7 @@ namespace scatha::codegen {
 		utl::vector<std::tuple<size_t, u8>> _parameterRegisterLocations;
 	};
 	
-	class CodeGenerator {
+	class SCATHA(API) CodeGenerator {
 	public:
 		explicit CodeGenerator(ic::ThreeAddressCode const&);
 		

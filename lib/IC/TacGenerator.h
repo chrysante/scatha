@@ -11,7 +11,7 @@
 
 namespace scatha::ic {
 	
-	class TacGenerator {
+	class SCATHA(API) TacGenerator {
 	public:
 		explicit TacGenerator(sema::SymbolTable const&);
 		[[nodiscard]] ThreeAddressCode run(ast::AbstractSyntaxTree const*);

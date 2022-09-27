@@ -101,7 +101,7 @@ namespace scatha::parse {
 	 
 	 */
 	
-	class ExpressionParser {
+	class SCATHA(API) ExpressionParser {
 	public:
 		explicit ExpressionParser(TokenStream& tokens): tokens(tokens) {}
 		

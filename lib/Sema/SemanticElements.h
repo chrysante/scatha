@@ -38,7 +38,7 @@ namespace scatha::sema {
 	/**
 	 * ID of a name in the program. Used to quickly lookup named elements such as types, functions or variables
 	 */
-	class SymbolID {
+	class SCATHA(API) SymbolID {
 	public:
 		SymbolID() = default;
 		constexpr explicit SymbolID(u64 id, SymbolCategory category):
@@ -72,7 +72,7 @@ namespace scatha::sema {
 	 # Notes: #
 	 1. Computes a hash of the argument TypeIDs and the return TypeID. 64 bits should hopefully be enugh to not have any collisions in the program. Collisions would be detected by the symbol table, they would however stop the compilation of a valid program.
 	 */
-	TypeID computeFunctionTypeID(TypeID returnType, std::span<TypeID const> argumentTypes);
+	SCATHA(API) TypeID computeFunctionTypeID(TypeID returnType, std::span<TypeID const> argumentTypes);
 	
 	/**
 	 Verifies that \p functionType matches the signature described by \p returnType and \p argumentTypes
@@ -88,7 +88,7 @@ namespace scatha::sema {
 	 * Represents a type in the language. Types can be user defined.
 	 * Extends \p Type with additional information.
 	 */
-	struct TypeEx {
+	struct SCATHA(API) TypeEx {
 		friend class SymbolTable;
 		
 	public:

@@ -23,9 +23,7 @@ using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
 
-
-__attribute__((weak)) int main() {
-	
+int main() {
 	auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
 	std::fstream file(filepath);
 	if (!file) {
@@ -56,17 +54,18 @@ __attribute__((weak)) int main() {
 		codegen::CodeGenerator cg(tac);
 		auto const str = cg.run();
 		
-		assembly::Assembler a(str);
-		
-		auto const program = a.assemble();
-		
-		
 		std::cout << "\n==================================================\n\n";
 		print(str, s.symbolTable());
+
+		assembly::Assembler a(str);
+	
+
+		auto const program = a.assemble();
+		std::cout << "\n==================================================\n\n";
+		print(program);
+		
 	}
 	catch (std::exception const& e) {
 		std::cout << e.what() << std::endl;
 	}
-	
 }
-

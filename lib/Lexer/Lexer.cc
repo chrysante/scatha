@@ -33,6 +33,10 @@ namespace scatha::lex {
 	}
 	
 	std::optional<Token> Lexer::getToken() {
+#pragma message("Do we really need this check?")
+		if (currentLocation.index == text.size()) {
+			return std::nullopt;
+		}
 		if (auto spaces = getSpaces()) {
 			return getToken();
 		}
@@ -320,6 +324,7 @@ namespace scatha::lex {
 	}
 	
 	char Lexer::current() const {
+		SC_ASSERT(currentLocation.index < text.size(), "");
 		return text[currentLocation.index];
 	}
 	

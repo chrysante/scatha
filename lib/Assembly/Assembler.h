@@ -38,7 +38,7 @@ namespace scatha::assembly {
 		u64 mainID = u64(-1);
 	};
 	
-	class Assembler {
+	class SCATHA(API) Assembler {
 	public:
 		explicit Assembler(AssemblyStream const&);
 		vm::Program assemble(AssemblerOptions = {});

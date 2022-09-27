@@ -10,21 +10,21 @@
 
 namespace scatha::assembly {
 		
-	class AssemblyStream {
+	class SCATHA(API) AssemblyStream {
 		friend class StreamIterator;
 		
 	public:
 		/** MARK: operator<<
 		 * Family of functions for inserting data into the stream
 		 */
-		friend AssemblyStream& operator<<(AssemblyStream&, Instruction);
-		friend AssemblyStream& operator<<(AssemblyStream&, Value8);
-		friend AssemblyStream& operator<<(AssemblyStream&, Value16);
-		friend AssemblyStream& operator<<(AssemblyStream&, Value32);
-		friend AssemblyStream& operator<<(AssemblyStream&, Value64);
-		friend AssemblyStream& operator<<(AssemblyStream&, RegisterIndex);
-		friend AssemblyStream& operator<<(AssemblyStream&, MemoryAddress);
-		friend AssemblyStream& operator<<(AssemblyStream&, Label);
+		SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Instruction);
+		SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Value8);
+		SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Value16);
+		SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Value32);
+		SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Value64);
+		SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, RegisterIndex);
+		SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, MemoryAddress);
+		SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Label);
 		
 		u8& operator[](size_t index) { return data[index]; }
 		u8 const& operator[](size_t index) const { return data[index]; }

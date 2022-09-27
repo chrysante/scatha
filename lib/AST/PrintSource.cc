@@ -95,7 +95,7 @@ namespace scatha::ast {
 			}
 			case ExpressionStatement: {
 				auto const* const es = static_cast<struct ExpressionStatement const*>(node);
-				assert(es->expression);
+				SC_ASSERT(es->expression != nullptr, "");
 				printSource_impl(es->expression.get(), str, endl);
 				str << ";";
 				break;

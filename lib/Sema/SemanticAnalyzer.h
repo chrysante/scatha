@@ -10,7 +10,7 @@
 
 namespace scatha::sema {
 	
-	class SemanticAnalyzer {
+	class SCATHA(API) SemanticAnalyzer {
 	public:
 		SemanticAnalyzer();
 		

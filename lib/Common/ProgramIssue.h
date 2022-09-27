@@ -8,7 +8,7 @@
 
 namespace scatha {
 	
-	class ProgramIssue: public std::runtime_error {
+	class SCATHA(API) ProgramIssue: public std::runtime_error {
 	protected:
 		explicit ProgramIssue(Token const&, std::string_view brief, std::string_view message = {});
 		

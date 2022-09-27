@@ -133,7 +133,7 @@ namespace scatha::parse {
 			return KeywordCategory::Placeholder;
 		}
 		
-		assert(false);
+		SC_DEBUGFAIL();
 	}
 	
 }

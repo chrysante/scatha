@@ -14,24 +14,24 @@ namespace scatha::sema {
 	
 	/// MARK: SemanticIssue
 	/// Base class of all semantic errors
-	class SemanticIssue: public ProgramIssue {
+	class SCATHA(API) SemanticIssue: public ProgramIssue {
 	public:
 		SemanticIssue(Token const& token, std::string_view brief, std::string_view message = {});
 	};
 	
 	/// MARK: TypeIssue
 	/// Base class of all type related errors
-	class TypeIssue: public SemanticIssue {
+	class SCATHA(API) TypeIssue: public SemanticIssue {
 	public:
 		using SemanticIssue::SemanticIssue;
 	};
 	
-	class BadTypeConversion: public TypeIssue {
+	class SCATHA(API) BadTypeConversion: public TypeIssue {
 	public:
 		explicit BadTypeConversion(Token const& token, TypeEx const& from, TypeEx const& to);
 	};
 	
-	class BadFunctionCall: public SemanticIssue {
+	class SCATHA(API) BadFunctionCall: public SemanticIssue {
 	public:
 		enum Reason {
 			WrongArgumentCount
@@ -40,44 +40,44 @@ namespace scatha::sema {
 	};
 	
 	/// MARK: SymbolError
-	class SymbolError: public SemanticIssue {
+	class SCATHA(API) SymbolError: public SemanticIssue {
 	protected:
 		using SemanticIssue::SemanticIssue;
 	};
 	
-	class UseOfUndeclaredIdentifier: public SymbolError {
+	class SCATHA(API) UseOfUndeclaredIdentifier: public SymbolError {
 	public:
 		UseOfUndeclaredIdentifier(Token const& token);
 	};
 	
-	class InvalidSymbolReference: public SymbolError {
+	class SCATHA(API) InvalidSymbolReference: public SymbolError {
 	public:
 		InvalidSymbolReference(Token const& token, SymbolCategory actually);
 	};
 
 	/// MARK: StatementError
-	class InvalidStatement: public SemanticIssue {
+	class SCATHA(API) InvalidStatement: public SemanticIssue {
 	public:
 		using SemanticIssue::SemanticIssue;
 		InvalidStatement(Token const&, std::string_view message);
 	};
 
-	class InvalidDeclaration: public InvalidStatement {
+	class SCATHA(API) InvalidDeclaration: public InvalidStatement {
 	protected:
 		InvalidDeclaration(Token const& token, Scope const* scope, std::string_view element);
 	};
 	
-	class InvalidFunctionDeclaration: public InvalidDeclaration {
+	class SCATHA(API) InvalidFunctionDeclaration: public InvalidDeclaration {
 	public:
 		InvalidFunctionDeclaration(Token const& token, Scope const* scope);
 	};
 	
-	class InvalidStructDeclaration: public InvalidDeclaration {
+	class SCATHA(API) InvalidStructDeclaration: public InvalidDeclaration {
 	public:
 		InvalidStructDeclaration(Token const& token, Scope const* scope);
 	};
 	
-	class InvalidRedeclaration: public InvalidStatement {
+	class SCATHA(API) InvalidRedeclaration: public InvalidStatement {
 	public:
 		InvalidRedeclaration(Token const& token, Scope const* scope);
 		InvalidRedeclaration(Token const& token, TypeEx const& oldType);

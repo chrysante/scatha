@@ -79,20 +79,28 @@ namespace scatha::assembly {
 		Marker const marker = static_cast<Marker>(get<std::underlying_type_t<Marker>>());
 		validate(marker, line);
 		switch (marker) {
+			// -- WARNING: --
+			// The parameters must be extracted to local variables before being used as function arguments, since the order of evaluation of function arguments is unspecified.
+			// This is a real problem, as it caused a suble bug where the id and index where swapped when compiled by msvc.
 			case Marker::Instruction:
 				++line;
 				return Instruction(get<u8>());
 				
-			case Marker::Label:
+			case Marker::Label: {
 				++line;
-				return Label(get<u64>(), get<u64>());
-				
+				auto const id = get<u64>();
+				auto const index = get<u64>();
+				return Label(id, index);
+			}
 			case Marker::RegisterIndex:
 				return RegisterIndex(get<u8>());
 				
-			case Marker::MemoryAddress:
-				return MemoryAddress(get<u8>(), get<u8>(), get<u8>());
-			
+			case Marker::MemoryAddress: {
+				auto const regIdx = get<u8>();
+				auto const offset = get<u8>();
+				auto const offsetShift = get<u8>();
+				return MemoryAddress(regIdx, offset, offsetShift);
+			}
 			case Marker::Value8:
 				return Value8(get<u8>());
 				

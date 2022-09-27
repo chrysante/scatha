@@ -14,7 +14,7 @@
 using namespace scatha;
 using namespace assembly;
 
-int main_() {
+int unused_main() {
 	
 	using enum Instruction;
 	
@@ -60,5 +60,6 @@ int main_() {
 	vm.execute();
 	
 	std::cout << std::endl;
-	
+
+	return 0;
 }

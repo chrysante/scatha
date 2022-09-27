@@ -40,7 +40,7 @@ namespace scatha::vm {
 		size_t executedInstructions;
 	};
 	
-	class VirtualMachine: VMState {
+	class SCATHA(API) VirtualMachine: VMState {
 	public:
 		VirtualMachine();
 		void load(Program const&);

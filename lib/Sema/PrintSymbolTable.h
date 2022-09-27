@@ -7,9 +7,9 @@
 
 namespace scatha::sema {
 	
-	void printSymbolTable(SymbolTable const&);
+	void SCATHA(API) printSymbolTable(SymbolTable const&);
 	
-	void printSymbolTable(SymbolTable const&, std::ostream&);
+	void SCATHA(API) printSymbolTable(SymbolTable const&, std::ostream&);
 	
 }
 

@@ -69,9 +69,9 @@ namespace scatha::assembly {
 	
 	struct MemoryAddress {
 		explicit MemoryAddress(u8 ptrRegIdx, u8 offset, u8 offsetShift):
-		ptrRegIdx(ptrRegIdx),
-		offset(offset),
-		offsetShift(offsetShift)
+			ptrRegIdx(ptrRegIdx),
+			offset(offset),
+			offsetShift(offsetShift)
 		{}
 		u8 ptrRegIdx;
 		u8 offset;

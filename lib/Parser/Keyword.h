@@ -5,6 +5,8 @@
 
 #include <optional>
 
+#include "Basic/Basic.h"
+
 namespace scatha {
 	
 	struct Token;
@@ -41,9 +43,9 @@ namespace scatha::parse {
 		Placeholder
 	};
 	
-	std::optional<Keyword> toKeyword(Token const&);
+	SCATHA(API) std::optional<Keyword> toKeyword(Token const&);
 	
-	KeywordCategory categorize(Keyword);
+	SCATHA(API) KeywordCategory categorize(Keyword);
 	
 }
 

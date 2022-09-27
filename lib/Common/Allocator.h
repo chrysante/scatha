@@ -9,7 +9,7 @@
 
 namespace scatha {
 	
-	class MonotonicBufferAllocator {
+	class SCATHA(API) MonotonicBufferAllocator {
 	public:
 		static constexpr size_t inititalSize = 128;
 	public:
@@ -67,7 +67,7 @@ inline void* operator new(size_t size, scatha::MonotonicBufferAllocator& alloc) 
 
 namespace scatha::internal {
 	// expose it to the header to be able to test it
-	u8* alignPointer(u8* ptr, size_t alignment);
+	SCATHA(API) u8* alignPointer(u8* ptr, size_t alignment);
 }
 
 #endif // SCATHA_COMMON_ALLOCATOR_H_

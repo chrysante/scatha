@@ -24,9 +24,9 @@ namespace scatha {
 		_count
 	};
 	
-	std::ostream& operator<<(std::ostream&, TokenType);
+	SCATHA(API) std::ostream& operator<<(std::ostream&, TokenType);
 	
-	struct Token {
+	struct SCATHA(API) Token {
 		Token() = default;
 		explicit Token(std::string id): id(id) {}
 		
@@ -41,7 +41,7 @@ namespace scatha {
 		f64 toFloat() const;
 	};
 	
-	std::ostream& operator<<(std::ostream&, Token const&);
+	SCATHA(API) std::ostream& operator<<(std::ostream&, Token const&);
 	
 	
 	

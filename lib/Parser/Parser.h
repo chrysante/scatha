@@ -15,7 +15,7 @@
 
 namespace scatha::parse {
 	
-	class Parser {
+	class SCATHA(API) Parser {
 	public:
 		explicit Parser(std::span<Token const>);
 		

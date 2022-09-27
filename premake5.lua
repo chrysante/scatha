@@ -23,6 +23,10 @@ flags { "ExtraWarnings" }
 targetdir("build/bin/%{cfg.longname}")
 objdir("build/obj/%{cfg.longname}")
 
+architecture "x86_64"
+
+flags { "MultiProcessorCompile" }
+
 filter "system:macosx"
     xcodebuildsettings { 
         ["INSTALL_PATH"]            = "@executable_path",
@@ -33,6 +37,7 @@ filter {}
 project "scatha"
 
 kind "SharedLib"
+
 addCppFiles "lib"
 addCppFiles "include/scatha"
 sysincludedirs { "external/utility" }
@@ -68,7 +73,8 @@ links { "scatha", "utility" }
 
 filter { "system:macosx"} 
     defines { "PROJECT_LOCATION=\"../../..\"" } -- use different (maybe less fragile) solution for windows
-filter {}
+filter { "system:windows" }
+    defines { "PROJECT_LOCATION=R\"($(ProjectDir))\"" }
 
 ------------------------------------------
 include "external/utility"

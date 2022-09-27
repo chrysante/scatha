@@ -14,7 +14,7 @@
 
 namespace scatha::lex {
 	
-	class Lexer {
+	class SCATHA(API) Lexer {
 	public:
 		explicit Lexer(std::string_view text);
 		

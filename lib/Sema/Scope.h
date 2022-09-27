@@ -23,16 +23,21 @@ namespace scatha::sema {
 	 * Maintains a table mapping all names in a scope to SymbolIDs.
 	 * Scopes are arranged in a tree structure where the global scope is the root.
 	 */
-	class Scope {
+	class SCATHA(API) Scope {
 	public:
 		enum Kind {
 			Global, Function, Struct, Namespace, Anonymous, _count
 		};
 		
 	public:
+		// Because of a bug in msvc we need to explicitly declare this class move-only.
+		// It is implicitly move-only because of a nested unique_ptr member, but when we 
+		// dll-export this class, mscv will try to generate a copy constructor and fail compilation.
+		SCATHA(MOVE_ONLY, Scope);
+		
 		explicit Scope(std::string name, Kind kind, Scope* parent);
 		explicit Scope(std::string_view name, Kind kind, Scope* parent): Scope(std::string(name), kind, parent) {}
-		~Scope() = default;
+		
 		
 		Kind kind() const { return _kind; }
 		

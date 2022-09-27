@@ -12,10 +12,13 @@
 
 namespace scatha::ast {
 	
+	// Forward declaration for definition of UniquePtr
+	struct SCATHA(API) AbstractSyntaxTree;
+
 	/**
 	 Used to have a common interface for allocating nodes in the AST. Should not be used to allocate other things so we can grep for this and perhaps switch to some more efficient allocation strategy in the future.
 	 */
-	template <std::derived_from<struct AbstractSyntaxTree> T>
+	template <std::derived_from<AbstractSyntaxTree> T>
 	class UniquePtr: public std::unique_ptr<T> {
 		using Base = std::unique_ptr<T>;
 	public:
@@ -33,7 +36,7 @@ namespace scatha::ast {
 	 
 	 Every derived class must specify its runtime type in the constructor via the \p NodeType enum.
 	 */
-	struct AbstractSyntaxTree {
+	struct SCATHA(API) AbstractSyntaxTree {
 	public:
 		virtual ~AbstractSyntaxTree() = default;
 		

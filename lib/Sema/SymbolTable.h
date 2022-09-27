@@ -18,7 +18,7 @@ namespace scatha::sema {
 	 # Notes: #
 	 1. call addSymbol() to add a new name to the current scope. Must be called before using pushScope with that name
 	 */
-	class SymbolTable {
+	class SCATHA(API) SymbolTable {
 	public:
 		SymbolTable();
 	

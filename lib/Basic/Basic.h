@@ -8,12 +8,26 @@
 #include <cstddef>
 #include <type_traits>
 
+#ifdef _MSC_VER
+#include <exception>
+#endif
+
 #include <utl/bit.hpp>
 
 #define SCATHA(Name, ...) _SCATHA_PD_##Name(__VA_ARGS__)
 
+#if defined(__GNUC__)
 #define _SCATHA_PD_PURE() __attribute__((pure))
 #define _SCATHA_PD_CONST() __attribute__((const))
+#else
+#define _SCATHA_PD_PURE() 
+#define _SCATHA_PD_CONST() 
+#define _SCATHA_PD_API() __declspec(dllexport) 
+#define _SCATHA_PD_MOVE_ONLY(TYPE) \
+	TYPE() = default;              \
+	TYPE(TYPE&&) = default;        \
+	TYPE(TYPE const&) = delete 
+#endif
 
 #if defined(__clang__) && __clang_major__ >= 10
 #	define _SCATHA_PD_DISABLE_UBSAN() __attribute__((no_sanitize("undefined")))
@@ -22,10 +36,17 @@
 #endif
 
 /// MARK: Assertions
-#define SC_DEBUGFAIL() __builtin_trap()
-#define SC_DEBUGBREAK() __builtin_debugtrap()
+#if defined(__clang) || defined(__GNUC__)
+#	define SC_DEBUGFAIL() __builtin_trap()
+#	define SC_DEBUGBREAK() __builtin_debugtrap()
+#elif defined(_MSC_VER)
+#	define SC_DEBUGFAIL() (__debugbreak(), std::terminate())
+#	define SC_DEBUGBREAK() __debugbreak()
+#else
+#	error Unsupported Compiler
+#endif
 
-// make this compiler intrinsic unreachable
+// TODO: Make this compiler intrinsic unreachable
 #define SC_UNREACHABLE() SC_DEBUGFAIL()
 
 #define SC_ASSERT(COND, MSG) ((COND) ? (void)0 : SC_DEBUGFAIL())
@@ -53,6 +74,9 @@ namespace scatha {
 	using f32 = float;
 	using f64 = double;
 	
+	static_assert(sizeof(f32) == 4);
+	static_assert(sizeof(f64) == 8);
+
 	// Reinterpret the bytes of t as a std::array of bytes
 	template <typename T> requires std::is_standard_layout_v<T>
 	std::array<u8, sizeof(T)> decompose(T const& t) {

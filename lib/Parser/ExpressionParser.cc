@@ -138,7 +138,7 @@ namespace scatha::parse {
 		TokenEx const& token = tokens.eat();
 		
 		if (token.id == "&") {
-			assert(false && "Do we really want to support addressof operator?");
+			SC_DEBUGFAIL(); // Do we really want to support addressof operator?
 		}
 		else if (token.id == "+") {
 			return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Promotion, parseUnary(), token);
@@ -233,7 +233,7 @@ namespace scatha::parse {
 																			std::string_view open, std::string_view close)
 	{
 		auto const& openToken = tokens.eat();
-		assert(openToken.id == open);
+		SC_ASSERT(openToken.id == open, "");
 		auto result = ast::allocate<FC>(std::move(primary), openToken);
 		
 		if (tokens.peek().id == close) { // no arguments
@@ -269,7 +269,7 @@ namespace scatha::parse {
 
 	ast::UniquePtr<ast::Expression> ExpressionParser::parseMemberAccess(ast::UniquePtr<ast::Expression> primary) {
 		auto const& dot = tokens.eat();
-		assert(dot.id == ".");
+		SC_ASSERT(dot.id == ".", "");
 		auto const& id = tokens.eat();
 		expectIdentifier(id);
 		return ast::allocate<ast::MemberAccess>(std::move(primary), id, dot);

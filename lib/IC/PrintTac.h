@@ -8,8 +8,8 @@
 
 namespace scatha::ic {
 	
-	void printTac(ThreeAddressCode const&, sema::SymbolTable const&);
-	void printTac(ThreeAddressCode const&, sema::SymbolTable const&, std::ostream&);
+	void SCATHA(API) printTac(ThreeAddressCode const&, sema::SymbolTable const&);
+	void SCATHA(API) printTac(ThreeAddressCode const&, sema::SymbolTable const&, std::ostream&);
 	
 }
 

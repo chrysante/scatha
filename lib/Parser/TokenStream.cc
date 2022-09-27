@@ -19,8 +19,8 @@ namespace scatha::parse {
 	}
 	
 	TokenEx const& TokenStream::current() {
-		assert(index > 0);
-		assert(index < tokens.size() - 1);
+		SC_ASSERT(index > 0, "");
+		SC_ASSERT(index < tokens.size() - 1, "");
 		return tokens[index - 1];
 	}
 	
@@ -28,7 +28,7 @@ namespace scatha::parse {
 		if (ignoreEOL) {
 			while (*i < tokens.size() && tokens[*i].isEOL) { ++*i; }
 		}
-		assert(*i != tokens.size());
+		SC_ASSERT(*i != tokens.size(), "");
 		return tokens[(*i)++];
 	}
 	
