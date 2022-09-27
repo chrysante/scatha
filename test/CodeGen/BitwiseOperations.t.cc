@@ -74,6 +74,21 @@ fn main() -> int {
 	CHECK(registers[0] == 127);
 }
 
+TEST_CASE("Bitwise or3") {
+	std::string const text = R"(
+fn main() -> int {
+	return (1 << 0) |
+		   (1 << 1) |
+		   (1 << 2) |
+		   (1 << 3) |
+		   (1 << 4) |
+		   (1 << 5) |
+		   (1 << 6);
+})";
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 127);
+}
+
 TEST_CASE("Bitwise xor") {
 	std::string const text = R"(
 fn main() -> int {
