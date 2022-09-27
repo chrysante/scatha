@@ -9,7 +9,6 @@
 using namespace scatha;
 
 TEST_CASE("while loops") {
-	
 	std::string const text = R"(
 fn fact(n: int) -> int {
   var i = 0;
@@ -32,7 +31,6 @@ fn main() -> int {
 }
 
 TEST_CASE("iterative gcd") {
-	
 	std::string const text = R"(
 
 fn gcd(a: int, b: int) -> int {
@@ -58,4 +56,28 @@ fn main() -> int {
 	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
 	CHECK(state.registers[0] == 7);
+}
+
+TEST_CASE("float pow") {
+std::string const text = R"(
+fn pow(base: float, exp: int) -> float {
+	var result: float = 1.0;
+	var i = 0;
+	while (i < exp) {
+		result *= base;
+		i += 1;
+	}
+	return result;
+}
+
+fn main() -> int {
+	let base = 1.5;
+	if pow(base, 3) == 2.25 * 1.5 { 
+		return 1; 
+	}
+	return 0;
+}
+)";
+	auto const registers = test::getRegisters(text);
+	CHECK(registers[0] == 1);
 }
