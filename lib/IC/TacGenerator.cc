@@ -131,6 +131,11 @@ namespace scatha::ic {
 					case ast::BinaryOperator::Multiplication: [[fallthrough]];
 					case ast::BinaryOperator::Division:       [[fallthrough]];
 					case ast::BinaryOperator::Remainder:
+					case ast::BinaryOperator::LeftShift:
+					case ast::BinaryOperator::RightShift:
+					case ast::BinaryOperator::BitwiseOr:
+					case ast::BinaryOperator::BitwiseXOr:
+					case ast::BinaryOperator::BitwiseAnd:
 						return submit(makeTemporary(expr->lhs->typeID),
 									  selectOperation(expr->lhs->typeID, expr->op),
 									  lhs, rhs);
@@ -183,7 +188,7 @@ namespace scatha::ic {
 			case ast::NodeType::FunctionCall: {
 				auto const* expr = static_cast<ast::FunctionCall const*>(node);
 				for (auto& arg: expr->arguments) {
-					submit(Operation::pushParam, doRun(arg.get()));
+					submit(Operation::param, doRun(arg.get()));
 				}
 				{	// our little hack to call functions for now
 					auto const* const functionId = dynamic_cast<ast::Identifier const*>(expr->object.get());
@@ -299,6 +304,9 @@ namespace scatha::ic {
 			result(sym.Int(), NotEquals) = Operation::neq;
 			result(sym.Int(), Less)      = Operation::ils;
 			result(sym.Int(), LessEq)    = Operation::ileq;
+			
+			result(sym.Int(), LeftShift) = Operation::sl;
+			result(sym.Int(), RightShift) = Operation::sr;
 			
 			result(sym.Float(), Addition)       = Operation::fadd;
 			result(sym.Float(), Subtraction)    = Operation::fsub;

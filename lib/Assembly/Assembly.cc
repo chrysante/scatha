@@ -49,6 +49,8 @@ namespace scatha::assembly {
 			{ fsub,      "fsub" },
 			{ fmul,      "fmul" },
 			{ fdiv,      "fdiv" },
+			{ sl,        "sl" },
+			{ sr,        "sr" },
 			{ callExt,   "callExt" },
 		});
 	}

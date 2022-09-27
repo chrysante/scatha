@@ -16,6 +16,8 @@ namespace scatha::codegen {
 			case ic::Operation::fsub: return Instruction::fsub;
 			case ic::Operation::fmul: return Instruction::fmul;
 			case ic::Operation::fdiv: return Instruction::fdiv;
+			case ic::Operation::sl:   return Instruction::sl;
+			case ic::Operation::sr:   return Instruction::sr;
 			SC_NO_DEFAULT_CASE();
 		}
 	}

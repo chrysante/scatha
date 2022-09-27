@@ -82,6 +82,10 @@ namespace scatha::vm {
 			{ fdivRR,    "fdivRR" },
 			{ fdivRV,    "fdivRV" },
 			{ fdivRM,    "fdivRM" },
+			{ slRR,      "slRR"   },
+			{ slRV,      "slRV"   },
+			{ srRR,      "srRR"   },
+			{ srRV,      "srRV"   },
 			{ callExt,   "callExt" },
 		});
 	}
@@ -358,6 +362,11 @@ namespace scatha::vm {
 			at(fdivRV) = arithmeticRV<fdivRV, f64>(utl::divides);
 			at(fdivRM) = arithmeticRM<fdivRM, f64>(utl::divides);
 			
+			at(slRR) = arithmeticRR<slRR, u64>(utl::leftshift);
+			at(slRV) = arithmeticRV<slRV, u64>(utl::leftshift);
+			at(srRR) = arithmeticRR<srRR, u64>(utl::rightshift);
+			at(srRV) = arithmeticRV<srRV, u64>(utl::rightshift);
+			
 			/// MARK: Misc
 			at(callExt) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
 				size_t const regIdx       = i[0];
@@ -369,7 +378,6 @@ namespace scatha::vm {
 			};
 			
 			return result;
-			
 		}
 		
 	};

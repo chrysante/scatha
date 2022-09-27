@@ -90,10 +90,10 @@ namespace scatha::vm {
 		/// Compare the operands and set flags accordingly
 		ucmpRR,     //  (u8 regIdxA, u8 regIdxB)
 		icmpRR,     //  (u8 regIdxA, u8 regIdxB)
-		ucmpRV,     //  (u8 regIdxA, u8 MEMORY_POINTER)
-		icmpRV,     //  (u8 regIdxA, u8 MEMORY_POINTER)
+		ucmpRV,     //  (u8 regIdxA, u64 value)
+		icmpRV,     //  (u8 regIdxA, u64 value)
 		fcmpRR,     //  (u8 regIdxA, u8 regIdxB)
-		fcmpRV,     //  (u8 regIdxA, u8 MEMORY_POINTER)
+		fcmpRV,     //  (u8 regIdxA, u64 value)
 		
 		/// Compare the operand to 0 and set flags accordingly
 		itest,       //  (u8 regIdx)
@@ -185,6 +185,12 @@ namespace scatha::vm {
 		// reg[regIdxA] /= memory[eval(MEMORY_POINTER)]
 		fdivRM,      // (u8 regIdxA, MEMORY_POINTER)
 		
+		/// MARK: Bitshift
+		slRR,        //  (u8 regIdxA, u8 regIdxB)
+		slRV,        //  (u8 regIdxA, u64 value)
+		srRR,        //  (u8 regIdxA, u8 regIdxB)
+		srRV,        //  (u8 regIdxA, u64 value)
+
 		/// MARK: Misc
 		// extFunctionTable[tableIdx][idxIntoTable](reg[regIdx], this)
 		callExt,    // (u8 regIdx, u8 tableIdx, u16 idxIntoTable)
@@ -273,6 +279,10 @@ namespace scatha::vm {
 			{ OpCode::fdivRR,    RR },
 			{ OpCode::fdivRV,    RV },
 			{ OpCode::fdivRM,    RM },
+			{ OpCode::slRR,      RR },
+			{ OpCode::slRV,      RV },
+			{ OpCode::srRR,      RR },
+			{ OpCode::srRV,      RV },
 			{ OpCode::callExt,   Other },
 		});
 	}

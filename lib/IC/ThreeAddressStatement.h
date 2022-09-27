@@ -121,12 +121,13 @@ namespace scatha::ic {
 	enum class Operation: u8 {
 		mov,        // result <- arg
 		
-		pushParam,  // void   <- arg
-		
+		/// Function call operations
+		param,      // void   <- arg
 		getResult,  // result <- void
 		call,       // void   <- Label
 		ret,        // void   <- void
 		
+		/// Arithmetic
 		add,        // result <- arg1, arg2
 		sub,        // result <- arg1, arg2
 		mul,        // result <- arg1, arg2
@@ -138,7 +139,10 @@ namespace scatha::ic {
 		fsub,       // result <- arg1, arg2
 		fmul,       // result <- arg1, arg2
 		fdiv,       // result <- arg1, arg2
+		sl,         // result <- arg1, arg2
+		sr,         // result <- arg1, arg2
 		
+		/// Relational operations
 		eq,
 		neq,
 		ils,

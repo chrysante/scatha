@@ -21,7 +21,7 @@ namespace scatha::ic {
 		return UTL_SERIALIZE_ENUM(op, {
 			{ mov,  "mov" },
 			
-			{ pushParam, "pushParam" },
+			{ param, "param" },
 			{ getResult, "getResult" },
 			{ call,      "call" },
 			{ ret,       "ret" },
@@ -33,11 +33,12 @@ namespace scatha::ic {
 			{ idiv, "idiv" },
 			{ rem,  "rem" },
 			{ irem, "irem" },
-			
 			{ fadd, "fadd" },
 			{ fsub, "fsub" },
 			{ fmul, "fmul" },
 			{ fdiv, "fdiv" },
+			{ sl,   "sl" },
+			{ sr,   "sr" },
 			
 			{ eq,   "eq" },
 			{ neq,  "neq" },
@@ -49,7 +50,6 @@ namespace scatha::ic {
 			{ uleq, "uleq" },
 			{ ug,   "ug" },
 			{ ugeq, "ugeq" },
-			
 			{ feq,  "feq" },
 			{ fneq, "fneq" },
 			{ fls,  "fls" },
@@ -75,7 +75,7 @@ namespace scatha::ic {
 		return UTL_MAP_ENUM(op, int, {
 			{ mov, 1 },
 			
-			{ pushParam, 1 },
+			{ param, 1 },
 			{ getResult, 0 },
 			{ call, 1 },
 			{ ret, 1 },
@@ -92,6 +92,9 @@ namespace scatha::ic {
 			{ fsub, 2 },
 			{ fmul, 2 },
 			{ fdiv, 2 },
+			
+			{ sl,   2 },
+			{ sr,   2 },
 			
 			{ eq,   2 },
 			{ neq,  2 },

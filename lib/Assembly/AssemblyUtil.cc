@@ -220,6 +220,22 @@ namespace scatha::assembly {
 				};
 				return table(arg1, arg2);
 			}
+			case Instruction::sl: {
+				constexpr OpCodeTable table = {
+					Instruction::sl,
+					std::tuple{ Marker::RegisterIndex, Marker::RegisterIndex, vm::OpCode::slRR },
+					std::tuple{ Marker::RegisterIndex, Marker::Value64,       vm::OpCode::slRV }
+				};
+				return table(arg1, arg2);
+			}
+			case Instruction::sr: {
+				constexpr OpCodeTable table = {
+					Instruction::sr,
+					std::tuple{ Marker::RegisterIndex, Marker::RegisterIndex, vm::OpCode::srRR },
+					std::tuple{ Marker::RegisterIndex, Marker::Value64,       vm::OpCode::srRV }
+				};
+				return table(arg1, arg2);
+			}
 				
 			SC_NO_DEFAULT_CASE();
 		}
@@ -323,6 +339,8 @@ namespace scatha::assembly {
 					case fsub: [[fallthrough]];
 					case fmul: [[fallthrough]];
 					case fdiv:
+					case sl:
+					case sr:
 						printBinaryInstruction(i);
 						return;
 						

@@ -123,6 +123,8 @@ namespace scatha::assembly {
 			case fsub: [[fallthrough]];
 			case fmul: [[fallthrough]];
 			case fdiv:
+			case sl:
+			case sr:
 				processBinaryInstruction(i, itr);
 				return;
 					

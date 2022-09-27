@@ -32,6 +32,7 @@ namespace scatha::assembly {
 		lnt, bnt,
 		add, sub, mul, div, idiv, rem, irem,
 		fadd, fsub, fmul, fdiv,
+		sl, sr,
 		callExt,
 		
 		_count

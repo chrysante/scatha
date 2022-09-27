@@ -61,7 +61,7 @@ namespace scatha::codegen {
 							a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
 							break;
 						}
-						case ic::Operation::pushParam: {
+						case ic::Operation::param: {
 							a << Instruction::mov << RegisterIndex(-1);
 							currentFunction.addParam(a.size() - RegisterIndex::size(), currentFunction.paramCount());
 							a << resolve(s.arg1);
@@ -103,6 +103,8 @@ namespace scatha::codegen {
 						case ic::Operation::fsub:
 						case ic::Operation::fmul:
 						case ic::Operation::fdiv:
+						case ic::Operation::sl:
+						case ic::Operation::sr:
 							generateBinaryArithmetic(a, s);
 							break;
 						case ic::Operation::eq:
