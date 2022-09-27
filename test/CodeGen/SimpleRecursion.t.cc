@@ -61,7 +61,7 @@ TEST_CASE("Recursive factorial", "[codegen]") {
 	std::string const text = R"(
 	
  fn fact(n: int) -> int {
-	if (n <= 1) {
+	if n <= 1 {
 		return 1;
 	}
 	return n * fact(n - 1);
@@ -76,4 +76,31 @@ TEST_CASE("Recursive factorial", "[codegen]") {
 	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
 	CHECK(state.registers[0] == 3628800);
+}
+
+TEST_CASE("Recursive pow", "[codegen]") {
+	std::string const text = R"(
+	
+ fn pow(base: int, exponent: int) -> int {
+	if exponent == 0 {
+		return 1;
+	}
+	if exponent == 1 {
+		return base;
+	}
+	if exponent % 2 == 0 {
+		return pow(base *  base, exponent / 2);
+	}
+	return base * pow(base *  base, exponent / 2);
+ }
+
+ fn main() -> int {
+	return pow(3, 5);
+ }
+
+	)";
+	
+	auto const vm = test::compileAndExecute(text);
+	auto const& state = vm.getState();
+	CHECK(state.registers[0] == 243);
 }
