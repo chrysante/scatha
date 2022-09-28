@@ -14,6 +14,8 @@ namespace scatha::sema {
 				return "Type";
 			case Function:
 				return "Function";
+			case OverloadSet:
+				return "OverloadSet";
 			case Variable:
 				return "Variable";
 			case Namespace:

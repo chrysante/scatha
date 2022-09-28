@@ -22,11 +22,12 @@ namespace scatha::sema {
 	 * Category of a name. A name cannot refer to more than one category.
 	 */
 	enum class SymbolCategory: u32 {
-		None      = 0,
-		Type      = 1 << 0,
-		Function  = 1 << 1,
-		Variable  = 1 << 2,
-		Namespace = 1 << 3
+		None        = 0,
+		Type        = 1 << 0,
+		Function    = 1 << 1,
+		OverloadSet = 1 << 2,
+		Variable    = 1 << 3,
+		Namespace   = 1 << 4
 	};
 	
 	UTL_ENUM_OPERATORS(SymbolCategory);
@@ -141,6 +142,27 @@ namespace scatha::sema {
 				utl::small_vector<TypeID, 6> _argumentTypes;
 			};
 		};
+	};
+	
+	/**
+	 * class \p OverloadSet
+	 * Represents an overload set in the language.
+	 * Overload sets have a name and a list of functions
+	 */
+	struct OverloadSet {
+		static constexpr std::string_view elementName() { return "OverloadSet"; }
+		
+		explicit OverloadSet(std::string name, SymbolID symbolID):
+			_name(name),
+			_symbolID(symbolID)
+		{}
+		
+		std::string_view name() const { return _name; }
+		SymbolID symbolID() const { return _symbolID; }
+		
+	private:
+		std::string _name;
+		SymbolID _symbolID;
 	};
 	
 	/**
