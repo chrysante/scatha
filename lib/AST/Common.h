@@ -18,9 +18,7 @@ namespace scatha::ast {
 		
 		// Statements
 		Block,
-		FunctionDeclaration,
 		FunctionDefinition,
-		StructDeclaration,
 		StructDefinition,
 		VariableDeclaration,
 		ExpressionStatement,
@@ -62,9 +60,7 @@ namespace scatha::ast {
 		template <typename> struct ToEnumNodeTypeImpl;
 		template <> struct ToEnumNodeTypeImpl<TranslationUnit>:       std::integral_constant<NodeType, NodeType::TranslationUnit> {};
 		template <> struct ToEnumNodeTypeImpl<Block>:                 std::integral_constant<NodeType, NodeType::Block> {};
-		template <> struct ToEnumNodeTypeImpl<FunctionDeclaration>:   std::integral_constant<NodeType, NodeType::FunctionDeclaration> {};
 		template <> struct ToEnumNodeTypeImpl<FunctionDefinition>:    std::integral_constant<NodeType, NodeType::FunctionDefinition> {};
-		template <> struct ToEnumNodeTypeImpl<StructDeclaration>:     std::integral_constant<NodeType, NodeType::StructDeclaration> {};
 		template <> struct ToEnumNodeTypeImpl<StructDefinition>:      std::integral_constant<NodeType, NodeType::StructDefinition> {};
 		template <> struct ToEnumNodeTypeImpl<VariableDeclaration>:   std::integral_constant<NodeType, NodeType::VariableDeclaration> {};
 		template <> struct ToEnumNodeTypeImpl<ExpressionStatement>:   std::integral_constant<NodeType, NodeType::ExpressionStatement> {};
@@ -86,9 +82,7 @@ namespace scatha::ast {
 		template <NodeType> struct ToNodeTypeImpl;
 		template <> struct ToNodeTypeImpl<NodeType::TranslationUnit>       { using type = TranslationUnit; };
 		template <> struct ToNodeTypeImpl<NodeType::Block>                 { using type = Block; };
-		template <> struct ToNodeTypeImpl<NodeType::FunctionDeclaration>   { using type = FunctionDeclaration; };
 		template <> struct ToNodeTypeImpl<NodeType::FunctionDefinition>    { using type = FunctionDefinition; };
-		template <> struct ToNodeTypeImpl<NodeType::StructDeclaration>     { using type = StructDeclaration; };
 		template <> struct ToNodeTypeImpl<NodeType::StructDefinition>      { using type = StructDefinition; };
 		template <> struct ToNodeTypeImpl<NodeType::VariableDeclaration>   { using type = VariableDeclaration; };
 		template <> struct ToNodeTypeImpl<NodeType::ExpressionStatement>   { using type = ExpressionStatement; };

@@ -49,10 +49,10 @@ namespace scatha::parse {
 				return parseVariableDeclaration();
 				
 			case Function:
-				return parseFunctionDeclaration();
+				return parseFunctionDefinition();
 				
 			case Struct:
-				return parseStructDeclaration();
+				return parseStructDefinition();
 				
 			default:
 				break;
@@ -100,17 +100,13 @@ namespace scatha::parse {
 		return result;
 	}
 	
-	ast::UniquePtr<ast::FunctionDeclaration> Parser::parseFunctionDeclaration() {
+	ast::UniquePtr<ast::FunctionDefinition> Parser::parseFunctionDefinition() {
 		TokenEx const& declarator = tokens.eat();
 		SC_EXPECT(declarator.isKeyword && declarator.keyword == Keyword::Function, "Should have checked this before");
-		
 		TokenEx const& name = tokens.eat();
 		expectIdentifier(name);
-		
-		auto result = ast::allocate<ast::FunctionDeclaration>(name);
-		
+		auto result = ast::allocate<ast::FunctionDefinition>(name);
 		parseFunctionParameters(result.get());
-		
 		if (TokenEx const& token = tokens.peek(); token.id == "->") {
 			tokens.eat();
 			TokenEx const& type = tokens.eat();
@@ -123,34 +119,22 @@ namespace scatha::parse {
 			copy.type = TokenType::Identifier;
 			result->declReturnTypename = copy;
 		}
-		
-		if (tokens.peek().id == "{") {
-			return parseFunctionDefinition(std::move(result));
+		if (tokens.peek().id != "{") {
+			throw ParsingIssue(tokens.peek(), "Expected '{' after function declaration");
 		}
-		
-		throw ParsingIssue(tokens.peek(), "Expected '{' after function declaration");
-	}
-
-	ast::UniquePtr<ast::FunctionDefinition> Parser::parseFunctionDefinition(ast::UniquePtr<ast::FunctionDeclaration> decl) {
-		SC_ASSERT(tokens.peek().id == "{", "Not a definition");
-		auto result = ast::allocate<ast::FunctionDefinition>(std::move(*decl));
 		result->body = parseBlock();
 		return result;
 	}
 	
-	void Parser::parseFunctionParameters(ast::FunctionDeclaration* fn) {
+	void Parser::parseFunctionParameters(ast::FunctionDefinition* fn) {
 		TokenEx const& openParan = tokens.eat();
-		
 		expectID(openParan, "(");
-		
 		if (tokens.peek().id == ")") {
 			tokens.eat();
 			return;
 		}
-		
 		while (true) {
 			fn->parameters.push_back(parseVariableDeclaration(/* isFunctionParameter = */ true));
-			
 			if (TokenEx const& next = tokens.eat(); next.id != ",") {
 				expectID(next, ")");
 				break;
@@ -158,25 +142,15 @@ namespace scatha::parse {
 		}
 	}
 	
-	ast::UniquePtr<ast::StructDeclaration> Parser::parseStructDeclaration() {
+	ast::UniquePtr<ast::StructDefinition> Parser::parseStructDefinition() {
 		TokenEx const& declarator = tokens.eat();
 		SC_EXPECT(declarator.isKeyword && declarator.keyword == Keyword::Struct, "Should have checked this before");
-		
 		TokenEx const& name = tokens.eat();
 		expectIdentifier(name);
-		
-		auto result = ast::allocate<ast::StructDeclaration>(name);
-		
-		if (tokens.peek().id == "{") {
-			return parseStructDefinition(std::move(result));
+		auto result = ast::allocate<ast::StructDefinition>(name);
+		if (tokens.peek().id != "{") {
+			throw ParsingIssue(tokens.peek(), "Expected '{' after struct declaration");
 		}
-		
-		throw ParsingIssue(tokens.peek(), "Expected '{' after struct declaration");
-	}
-	
-	ast::UniquePtr<ast::StructDefinition> Parser::parseStructDefinition(ast::UniquePtr<ast::StructDeclaration> decl) {
-		SC_ASSERT(tokens.peek().id == "{", "Not a definition");
-		auto result = ast::allocate<ast::StructDefinition>(std::move(*decl));
 		result->body = parseBlock();
 		return result;
 	}

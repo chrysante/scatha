@@ -71,9 +71,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	auto [ast, sym] = test::produceDecoratedASTAndSymTable(text);
 	
 	auto* tu = downCast<TranslationUnit>(ast.get());
-	
-	REQUIRE(tu->declarations[0]->nodeType() == scatha::ast::NodeType::FunctionDefinition);
-	auto* fnDecl = static_cast<FunctionDeclaration*>(tu->declarations[0].get());
+	auto* fnDecl = downCast<FunctionDefinition>(tu->declarations[0].get());
 	CHECK(fnDecl->returnTypeID == sym.Int());
 	CHECK(fnDecl->parameters[0]->typeID == sym.Int());
 	CHECK(fnDecl->parameters[1]->typeID == sym.Int());
@@ -81,7 +79,6 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	CHECK(fnDecl->parameters[3]->typeID == sym.String());
 	
 	auto* fn = downCast<FunctionDefinition>(tu->declarations[0].get());
-	
 	CHECK(fn->returnTypeID == sym.Int());
 	CHECK(fn->parameters[0]->typeID == sym.Int());
 	CHECK(fn->parameters[1]->typeID == sym.Int());
@@ -94,7 +91,6 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	auto* varDeclInit = downCast<Identifier>(varDecl->initExpression.get());
 	CHECK(varDeclInit->typeID == sym.Int());
 
-	
 	auto* nestedScope = downCast<Block>(fn->body->statements[1].get());
 	
 	auto* nestedVarDecl = downCast<VariableDeclaration>(nestedScope->statements[0].get());

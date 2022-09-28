@@ -6,7 +6,6 @@
 
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
-#include "AST/Traversal.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyUtil.h"
 #include "CodeGen/CodeGenerator.h"
@@ -23,6 +22,9 @@ using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
 
+#ifdef __GNUC__
+__attribute__((weak))
+#endif
 int main() {
 	auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
 	std::fstream file(filepath);
@@ -39,6 +41,12 @@ int main() {
 		auto tokens = l.lex();
 		Parser p(tokens);
 		auto ast = p.parse();
+		
+		std::cout << "\n==================================================\n";
+		std::cout <<   "=== Regenerated Source Code ======================\n";
+		std::cout <<   "==================================================\n\n";
+		ast::printSource(ast.get());
+		
 		sema::SemanticAnalyzer s;
 		s.run(ast.get());
 		ic::canonicalize(ast.get());

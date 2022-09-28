@@ -23,10 +23,8 @@
  |  +- Declaration
  |  |  +- VariableDeclaration
  |  |  +- ModuleDeclaration
- |  |  +- FunctionDeclaration
- |  |     +- FunctionDefinition
- |  |  +- StructDeclaration
- |  |     +- StructDefinition
+ |  |  +- FunctionDefinition
+ |  |  +- StructDefinition
  |  +- Block
  |  +- ExpressionStatement
  |  +- ControlFlowStatement
@@ -135,13 +133,13 @@ namespace scatha::ast {
 		sema::SymbolID scopeSymbolID{};
 	};
 	
-	/// MARK: FunctionDeclaration
-	/// Concrete node representing the declaration of a function.
-	struct SCATHA(API) FunctionDeclaration: Declaration {
-		explicit FunctionDeclaration(Token const& name,
-									 Token const& declReturnTypename = {},
-									 utl::vector<UniquePtr<VariableDeclaration>> params = {}):
-			Declaration(NodeType::FunctionDeclaration, std::move(name)),
+	/// MARK: FunctionDefinition
+	/// Concrete node representing the definition of a function.
+	struct SCATHA(API) FunctionDefinition: Declaration {
+		explicit FunctionDefinition(Token const& name,
+								   Token const& declReturnTypename = {},
+								   utl::vector<UniquePtr<VariableDeclaration>> params = {}):
+			Declaration(NodeType::FunctionDefinition, std::move(name)),
 			declReturnTypename(std::move(declReturnTypename)),
 			parameters(std::move(params))
 		{}
@@ -153,6 +151,9 @@ namespace scatha::ast {
 		/// List of parameter declarations.
 		utl::small_vector<UniquePtr<VariableDeclaration>> parameters;
 		
+		/// Body of the function.
+		UniquePtr<Block> body;
+		
 		/** Decoration provided by semantic analysis. */
 		
 		/// Return type of the function.
@@ -162,48 +163,20 @@ namespace scatha::ast {
 		sema::TypeID functionTypeID = sema::TypeID::Invalid;
 	};
 	
-	/// MARK: FunctionDefinition
-	/// Concrete node representing the definition of a function.
-	struct SCATHA(API) FunctionDefinition: FunctionDeclaration {
-		explicit FunctionDefinition(FunctionDeclaration&& decl, UniquePtr<Block> body = nullptr):
-			FunctionDeclaration(std::move(decl)),
-			body(std::move(body))
-		{
-			_type = NodeType::FunctionDefinition;
-			for (auto& param: parameters) {
-				param->isFunctionParameterDef = true;
-			}
-		}
-			
-		/// Body of the function.
-		UniquePtr<Block> body;
-	};
-	
-	/// MARK: StructDeclaration
-	/// Concrete node representing the declaration of a struct.
-	struct SCATHA(API) StructDeclaration: Declaration {
-		explicit StructDeclaration(Token const& name):
-			Declaration(NodeType::StructDeclaration, std::move(name))
+	/// MARK: StructDefinition
+	/// Concrete node representing the definition of a struct.
+	struct SCATHA(API) StructDefinition: Declaration {
+		explicit StructDefinition(Token const& name):
+			Declaration(NodeType::StructDefinition, std::move(name))
 		{}
+		
+		/// Body of the struct.
+		UniquePtr<Block> body;
 		
 		/** Decoration provided by semantic analysis. */
 		
 		/// Type of this type.
 		sema::TypeID typeID = sema::TypeID::Invalid;
-	};
-	
-	/// MARK: StructDefinition
-	/// Concrete node representing the definition of a struct.
-	struct SCATHA(API) StructDefinition: StructDeclaration {
-		explicit StructDefinition(StructDeclaration&& decl, UniquePtr<Block> body = nullptr):
-			StructDeclaration(std::move(decl)),
-			body(std::move(body))
-		{
-			_type = NodeType::StructDefinition;
-		}
-			
-		/// Body of the definition.
-		UniquePtr<Block> body;
 	};
 	
 	/// MARK: ExpressionStatement

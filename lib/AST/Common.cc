@@ -10,9 +10,7 @@ namespace scatha::ast {
 		return UTL_SERIALIZE_ENUM(t, {
 			{ NodeType::TranslationUnit,       "TranslationUnit" },
 			{ NodeType::Block,                 "Block" },
-			{ NodeType::FunctionDeclaration,   "FunctionDeclaration" },
 			{ NodeType::FunctionDefinition,    "FunctionDefinition" },
-			{ NodeType::StructDeclaration,     "StructDeclaration" },
 			{ NodeType::StructDefinition,      "StructDefinition" },
 			{ NodeType::VariableDeclaration,   "VariableDeclaration" },
 			{ NodeType::ExpressionStatement,   "ExpressionStatement" },

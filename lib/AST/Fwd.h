@@ -8,9 +8,7 @@ namespace scatha::ast {
 	struct AbstractSyntaxTree;
 	struct TranslationUnit;
 	struct Block;
-	struct FunctionDeclaration;
 	struct FunctionDefinition;
-	struct StructDeclaration;
 	struct StructDefinition;
 	struct VariableDeclaration;
 	struct ExpressionStatement;

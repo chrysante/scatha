@@ -26,13 +26,11 @@ namespace scatha::parse {
 		ast::UniquePtr<ast::Declaration> parseDeclaration();
 
 		ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(bool isFunctionParameter = false);
-		ast::UniquePtr<ast::FunctionDeclaration> parseFunctionDeclaration();
-		ast::UniquePtr<ast::FunctionDefinition> parseFunctionDefinition(ast::UniquePtr<ast::FunctionDeclaration>);
+		ast::UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
 		
-		ast::UniquePtr<ast::StructDeclaration> parseStructDeclaration();
-		ast::UniquePtr<ast::StructDefinition> parseStructDefinition(ast::UniquePtr<ast::StructDeclaration>);
+		ast::UniquePtr<ast::StructDefinition> parseStructDefinition();
 
-		void parseFunctionParameters(ast::FunctionDeclaration*);
+		void parseFunctionParameters(ast::FunctionDefinition*);
 		
 		ast::UniquePtr<ast::Block> parseBlock();
 		

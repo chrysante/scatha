@@ -65,7 +65,7 @@ namespace scatha::sema {
 					analyze(*statement);
 				}
 			},
-			[&](FunctionDeclaration& fn) {
+			[&](FunctionDefinition& fn) {
 				if (auto const sk = sym.currentScope()->kind();
 					sk != Scope::Global &&
 					sk != Scope::Namespace &&
@@ -92,12 +92,9 @@ namespace scatha::sema {
 				auto [func, newlyAdded] = sym.declareFunction(fn.token(), returnType.id(), argTypes);
 				fn.symbolID = func->symbolID();
 				fn.functionTypeID = func->typeID();
-			},
-			[&](FunctionDefinition& fn) {
+				
 				currentFunction = &fn;
 				utl_defer { currentFunction = nullptr; };
-				analyze(fn, NodeType::FunctionDeclaration);
-				SC_ASSERT_AUDIT(sym.currentScope()->findIDByName(fn.name()) == fn.symbolID, "Just to be sure");
 				
 				/* Declare parameters to the function scope */ {
 					sym.pushScope(fn.symbolID);
@@ -115,17 +112,13 @@ namespace scatha::sema {
 				fn.body->scopeSymbolID = fn.symbolID;
 				analyze(*fn.body);
 			},
-			[&](StructDeclaration& sDecl) {
+			[&](StructDefinition& s) {
 				if (auto const sk = sym.currentScope()->kind();
 					sk != Scope::Global && sk != Scope::Namespace && sk != Scope::Struct)
 				{
-					throw InvalidStructDeclaration(sDecl.token(), sym.currentScope());
+					throw InvalidStructDeclaration(s.token(), sym.currentScope());
 				}
-				sDecl.symbolID = sym.declareType(sDecl.token());
-			},
-			[&](StructDefinition& s) {
-				analyze(s, NodeType::StructDeclaration);
-				SC_ASSERT_AUDIT(sym.currentScope()->findIDByName(s.name()) == s.symbolID, "Just to be sure");
+				s.symbolID = sym.declareType(s.token());
 				
 				s.body->scopeKind = Scope::Struct;
 				s.body->scopeSymbolID = s.symbolID;

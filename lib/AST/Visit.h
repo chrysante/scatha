@@ -46,17 +46,11 @@ namespace scatha::ast {
 					callback(*s);
 				}
 			},
-			[&](AlmostSameAs<FunctionDeclaration> auto&& fn) {
+			[&](AlmostSameAs<FunctionDefinition> auto&& fn) {
 				for (auto& param: fn.parameters) {
 					callback(*param);
 				}
-			},
-			[&](AlmostSameAs<FunctionDefinition> auto&& fn) {
-				callback(fn, NodeType::FunctionDeclaration);
 				callback(*fn.body);
-			},
-			[&](AlmostSameAs<StructDeclaration> auto&&) {
-				
 			},
 			[&](AlmostSameAs<StructDefinition> auto&& s) {
 				callback(*s.body);
@@ -140,9 +134,7 @@ namespace scatha::ast::internal {
 		switch (type) {
 			case NodeType::TranslationUnit:       return f(static_cast<utl::copy_cvref_t<decltype(node), TranslationUnit>>(node));
 			case NodeType::Block:                 return f(static_cast<utl::copy_cvref_t<decltype(node), Block>>(node));
-			case NodeType::FunctionDeclaration:   return f(static_cast<utl::copy_cvref_t<decltype(node), FunctionDeclaration>>(node));
 			case NodeType::FunctionDefinition:    return f(static_cast<utl::copy_cvref_t<decltype(node), FunctionDefinition>>(node));
-			case NodeType::StructDeclaration:     return f(static_cast<utl::copy_cvref_t<decltype(node), StructDeclaration>>(node));
 			case NodeType::StructDefinition:      return f(static_cast<utl::copy_cvref_t<decltype(node), StructDefinition>>(node));
 			case NodeType::VariableDeclaration:   return f(static_cast<utl::copy_cvref_t<decltype(node), VariableDeclaration>>(node));
 			case NodeType::ExpressionStatement:   return f(static_cast<utl::copy_cvref_t<decltype(node), ExpressionStatement>>(node));

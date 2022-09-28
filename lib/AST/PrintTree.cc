@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "AST/AST.h"
 #include "AST/Expression.h"
 #include "Basic/Basic.h"
 #include "Basic/PrintUtil.h"
@@ -48,34 +49,20 @@ namespace scatha::ast {
 				}
 				break;
 			}
-				
-			case NodeType::FunctionDeclaration: {
-				auto const* const node = static_cast<FunctionDeclaration const*>(inNode);
-				str << indent(ind) << "<function-declaration> : " << node->name() << " -> " << node->declReturnTypename.id << endl;
-				for (auto& p: node->parameters) {
-					printTreeImpl(p.get(), str, ind + 1);
-				}
-				break;
-			}
-				
+			
 			case NodeType::FunctionDefinition: {
 				auto const* const node = static_cast<FunctionDefinition const*>(inNode);
 				str << indent(ind) << "<function-definition>: " << node->name() << " -> " << node->declReturnTypename.id << endl;
-				printTreeImpl(node, str, ind + 1, NodeType::FunctionDeclaration);
+				for (auto& p: node->parameters) {
+					printTreeImpl(p.get(), str, ind + 1);
+				}
 				printTreeImpl(node->body.get(), str, ind + 1);
-				break;
-			}
-				
-			case NodeType::StructDeclaration: {
-				auto const* const node = static_cast<StructDeclaration const*>(inNode);
-				str << indent(ind) << "<struct-declaration> : " << node->name() << endl;
 				break;
 			}
 			
 			case NodeType::StructDefinition: {
 				auto const* const node = static_cast<StructDefinition const*>(inNode);
 				str << indent(ind) << "<struct-definition>: " << endl;
-				printTreeImpl(node, str, ind + 1, NodeType::StructDeclaration);
 				printTreeImpl(node->body.get(), str, ind + 1);
 				break;
 			}

@@ -4,6 +4,7 @@
 
 #include <utl/utility.hpp>
 
+#include "AST/AST.h"
 #include "AST/Expression.h"
 #include "AST/Visit.h"
 #include "Basic/Basic.h"
@@ -42,9 +43,6 @@ namespace scatha::ast {
 						}
 						str << endl << "}";
 					},
-					[&](FunctionDeclaration const&) {
-						SC_DEBUGFAIL();
-					},
 					[&](FunctionDefinition const& fn) {
 						str << "fn " << fn.name() << "(";
 						for (bool first = true; auto const& param: fn.parameters) {
@@ -52,9 +50,6 @@ namespace scatha::ast {
 						}
 						str << ") -> " << fn.declReturnTypename.id << " ";
 						print(*fn.body);
-					},
-					[&](StructDeclaration const&) {
-						SC_DEBUGFAIL();
 					},
 					[&](StructDefinition const& s) {
 						str << "struct " << s.name() << " ";
