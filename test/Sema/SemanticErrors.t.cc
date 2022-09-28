@@ -4,6 +4,9 @@
 #include "Sema/SemanticIssue.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
+using namespace scatha;
+using namespace sema;
+
 TEST_CASE("Use of undeclared identifier") {
 	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() -> int { return x; }"), UseOfUndeclaredIdentifier);
 	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let v: UnknownType; }"), UseOfUndeclaredIdentifier);
