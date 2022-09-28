@@ -178,120 +178,102 @@ struct X {
 }
 
 
-TEST_CASE("Semantic analysis failures", "[sema]") {
-	SECTION("Use of undeclared identifier") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() -> int { return x; }"), UseOfUndeclaredIdentifier);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let v: UnknownType; }"), UseOfUndeclaredIdentifier);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { 1 + x; }"), UseOfUndeclaredIdentifier);
-	}
+/// MARK: Expected failures
+TEST_CASE("Use of undeclared identifier") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() -> int { return x; }"), UseOfUndeclaredIdentifier);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let v: UnknownType; }"), UseOfUndeclaredIdentifier);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { 1 + x; }"), UseOfUndeclaredIdentifier);
+}
+
+TEST_CASE("Invalid type conversion") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() -> int { return \"a string\"; }"), BadTypeConversion);
+}
+
+TEST_CASE("Invalid function call expression") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(R"(
+ fn callee(a: string) {}
+ fn caller() { callee(); }
+)"), BadFunctionCall);
 	
-	SECTION("Invalid type conversion") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() -> int { return \"a string\"; }"), BadTypeConversion);
-	}
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(R"(
+ fn callee(a: string) {}
+ fn caller() { callee(0); }
+)"), BadTypeConversion);
 	
-	SECTION("Invalid function call expression") {
-		std::string const a = R"(
-fn callee(a: string) {}
-fn caller() { callee(); }
-)";
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(a), BadFunctionCall);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x: float = 1; }"), BadTypeConversion);
 	
-		std::string const b = R"(
-fn callee(a: string) {}
-fn caller() { callee(0); }
-)";
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(b), BadTypeConversion);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x: float = 1; }"), BadTypeConversion);
-		CHECK_NOTHROW(test::produceDecoratedASTAndSymTable("fn f() { let x: float = 1.; }"));
-	}
-	
-	SECTION("Invalid function redeclaration") {
-		std::string const a = R"(
+	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable("fn f() { let x: float = 1.; }"));
+}
+
+TEST_CASE("Invalid function redeclaration") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(R"(
 fn f() {}
 fn f() -> int {}
-)";
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(a), InvalidFunctionDeclaration);
-		
-		std::string const a1 = R"(
-fn f() {}
-fn f() {}
-)";
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(a1), InvalidFunctionDeclaration);
-		
-// MARK: These tests will fail when we have function overloading
-//		std::string const b = R"(
-//fn f();
-//fn f(x: int);
-//)";
-//		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(b), InvalidFunctionDeclaration);
-//		std::string const c = R"(
-//fn f(x: string);
-//fn f(x: int);
-//)";
-//		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(c), InvalidFunctionDeclaration);
-	}
+)"), InvalidFunctionDeclaration);
 	
-	SECTION("Invalid variable redeclaration") {
-		std::string const a = R"(
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(R"(
+fn f() {}
+fn f() {}
+)"), InvalidFunctionDeclaration);
+}
+
+TEST_CASE("Invalid variable redeclaration") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(R"(
 fn f(x: int) {
 	let x: float;
 }
-)";
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(a), InvalidRedeclaration);
-
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f(x: int, x: int) {}"), InvalidRedeclaration);
-	}
+)"), InvalidRedeclaration);
 	
-	SECTION("Invalid redeclaration category") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct f{}"
-													   "fn f(){}"),
-						InvalidRedeclaration);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f(){}"
-													   "struct f{}"),
-						InvalidRedeclaration);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct f;"
-													   "struct f;"
-													   "struct f {}"),
-						parse::ParsingIssue);
-	}
-	
-	SECTION("Invalid symbol reference") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f(param: UnknownID) {}"), UseOfUndeclaredIdentifier);
-	}
-	
-	SECTION("Invalid variable declaration") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let v; }"), InvalidStatement);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x = 0; let y: x; }"), InvalidStatement);
-	}
-	
-	SECTION("Invalid function declaration") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { fn g(); }"), parse::ParsingIssue);
-	}
-	
-	SECTION("Invalid struct declaration") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { struct X; }"), parse::ParsingIssue);
-	}
-	
-	SECTION("Invalid statement at struct scope") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { return 0; }"), InvalidStatement);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { 1; }"), InvalidStatement);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { 1 + 2; }"), InvalidStatement);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { if (1 > 0) {} }"), InvalidStatement);
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { while (1 > 0) {} }"), InvalidStatement);
-		CHECK_NOTHROW(test::produceDecoratedASTAndSymTable("struct X { var i: int; }"));
-	}
-	
-	SECTION("Invalid local scope in struct") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { {} }"), InvalidStatement);
-	}
-	
-	SECTION("Valid local scope in function") {
-		CHECK_NOTHROW(test::produceDecoratedASTAndSymTable("fn f() { {} }"));
-	}
-	
-	SECTION("Other semantic errors") {
-		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x = int; }"), SemanticIssue);
-	}
-	
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f(x: int, x: int) {}"), InvalidRedeclaration);
 }
 
+TEST_CASE("Invalid redeclaration category") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct f{}"
+														 "fn f(){}"),
+					InvalidRedeclaration);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f(){}"
+														 "struct f{}"),
+					InvalidRedeclaration);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct f;"
+														 "struct f;"
+														 "struct f {}"),
+					parse::ParsingIssue);
+}
+	
+TEST_CASE("Invalid symbol reference") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f(param: UnknownID) {}"), UseOfUndeclaredIdentifier);
+}
+		
+TEST_CASE("Invalid variable declaration") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let v; }"), InvalidStatement);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x = 0; let y: x; }"), InvalidStatement);
+}
+
+TEST_CASE("Invalid function declaration") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { fn g(); }"), parse::ParsingIssue);
+}
+
+TEST_CASE("Invalid struct declaration") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { struct X; }"), parse::ParsingIssue);
+}
+
+TEST_CASE("Invalid statement at struct scope") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { return 0; }"), InvalidStatement);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { 1; }"), InvalidStatement);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { 1 + 2; }"), InvalidStatement);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { if (1 > 0) {} }"), InvalidStatement);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { while (1 > 0) {} }"), InvalidStatement);
+	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable("struct X { var i: int; }"));
+}
+
+TEST_CASE("Invalid local scope in struct") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { {} }"), InvalidStatement);
+}
+
+TEST_CASE("Valid local scope in function") {
+	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable("fn f() { {} }"));
+}
+
+TEST_CASE("Other semantic errors") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x = int; }"), SemanticIssue);
+}
