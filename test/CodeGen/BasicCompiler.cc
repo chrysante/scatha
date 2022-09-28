@@ -7,7 +7,7 @@
 #include "IC/Canonicalize.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
-#include "Sema/SemanticAnalyzer.h"
+#include "Sema/Analyze.h"
 #include "VM/Program.h"
 #include "VM/VirtualMachine.h"
 
@@ -18,17 +18,16 @@ namespace scatha::test {
 		auto tokens = l.lex();
 		parse::Parser p(tokens);
 		auto ast = p.parse();
-		sema::SemanticAnalyzer s;
-		s.run(ast.get());
+		auto sym = sema::analyze(ast.get());
 		ic::canonicalize(ast.get());
-		ic::TacGenerator t(s.symbolTable());
+		ic::TacGenerator t(sym);
 		auto const tac = t.run(ast.get());
 		codegen::CodeGenerator cg(tac);
 		auto const str = cg.run();
 		assembly::Assembler a(str);
 		
 		// start execution with main if it exists
-		auto const mainID = s.symbolTable().lookupName(Token("main"));
+		auto const mainID = sym.lookupName(Token("main"));
 		return a.assemble({
 			.mainID = mainID.id()
 		});

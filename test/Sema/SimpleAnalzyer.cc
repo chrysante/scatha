@@ -5,7 +5,7 @@
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "Parser/ParsingIssue.h"
-#include "Sema/SemanticAnalyzer.h"
+#include "Sema/Analyze.h"
 #include "Sema/SemanticIssue.h"
 
 
@@ -21,10 +21,9 @@ namespace scatha::test {
 		parse::Parser p(tokens);
 		auto ast = p.parse();
 
-		sema::SemanticAnalyzer s;
-		s.run(ast.get());
+		auto sym = sema::analyze(ast.get());
 		
-		return { std::move(ast), s.takeSymbolTable() };
+		return { std::move(ast), std::move(sym) };
 	}
 	
 }

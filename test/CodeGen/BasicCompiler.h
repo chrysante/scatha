@@ -3,17 +3,9 @@
 
 #include <string_view>
 
-#include "VM/Program.h"
-#include "VM/VirtualMachine.h"
+#include <utl/vector.hpp>
 
-#include "Assembly/Assembler.h"
-#include "Basic/Memory.h"
-#include "CodeGen/CodeGenerator.h"
-#include "IC/TacGenerator.h"
-#include "IC/Canonicalize.h"
-#include "Lexer/Lexer.h"
-#include "Parser/Parser.h"
-#include "Sema/SemanticAnalyzer.h"
+#include "Basic/Basic.h"
 #include "VM/Program.h"
 #include "VM/VirtualMachine.h"
 

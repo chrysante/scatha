@@ -1,11 +1,14 @@
 #define UTL_DEFER_MACROS
 
-#include "Sema/SemanticAnalyzer.h"
+#include "Sema/Analyze.h"
 
 #include <sstream>
 #include <utl/strcat.hpp>
 #include <utl/scope_guard.hpp>
 
+
+#include "AST/AST.h"
+#include "AST/Common.h"
 #include "AST/Expression.h"
 #include "AST/Visit.h"
 #include "Basic/Basic.h"
@@ -15,11 +18,8 @@
 namespace scatha::sema {
 
 	using namespace ast;
-
-	SemanticAnalyzer::SemanticAnalyzer() = default;
 	
 	namespace {
-		
 		struct Context {
 			void analyze(AbstractSyntaxTree& node) { analyze(node, node.nodeType()); }
 			void analyze(AbstractSyntaxTree&, NodeType);
@@ -29,15 +29,16 @@ namespace scatha::sema {
 			void verifyFunctionCallExpression(ast::FunctionCall const&, TypeEx const& fnType, std::span<ast::UniquePtr<ast::Expression> const> arguments) const;
 			[[noreturn]] void throwBadTypeConversion(Token const&, TypeID from, TypeID to) const;
 			
+			SymbolTable& sym;
 			ast::FunctionDefinition* currentFunction = nullptr;
-			SymbolTable sym;
 		};
 	} // namespace
 	
-	void SemanticAnalyzer::run(AbstractSyntaxTree* node) {
-		Context ctx;
-		ctx.analyze(*node);
-		sym = std::move(ctx.sym);
+	SymbolTable analyze(AbstractSyntaxTree* root) {
+		SymbolTable sym;
+		Context ctx{ sym };
+		ctx.analyze(*root);
+		return sym;
 	}
 	
 	static SymbolID extracted(scatha::ast::Identifier& identifier, const scatha::sema::SymbolTable &sym) {
