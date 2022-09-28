@@ -32,12 +32,10 @@ fn mul(a: int, b: int) -> int {
 
 	auto const ast = makeAST(text);
 	
-	auto* const tu = dynamic_cast<TranslationUnit*>(ast.get());
-	REQUIRE(tu != nullptr);
+	auto* const tu = downCast<TranslationUnit>(ast.get());
 	REQUIRE(tu->declarations.size() == 1);
 	
-	auto* const function = dynamic_cast<FunctionDefinition*>(tu->declarations[0].get());
-	REQUIRE(function != nullptr);
+	auto* const function = downCast<FunctionDefinition>(tu->declarations[0].get());
 	CHECK(function->name() == "mul");
 	
 	REQUIRE(function->parameters.size() == 2);
@@ -51,17 +49,16 @@ fn mul(a: int, b: int) -> int {
 	Block* const body = function->body.get();
 	REQUIRE(body->statements.size() == 2);
 	
-	auto* const resultDecl = dynamic_cast<VariableDeclaration*>(body->statements[0].get());
-	REQUIRE(resultDecl != nullptr);
+	auto* const resultDecl = downCast<VariableDeclaration>(body->statements[0].get());
 	CHECK(resultDecl->name() == "result");
 	CHECK(resultDecl->declTypename.empty());
 	CHECK(!resultDecl->isConstant);
-	CHECK(dynamic_cast<Identifier*>(resultDecl->initExpression.get()));
 	
-	auto* const returnStatement = dynamic_cast<ReturnStatement*>(body->statements[1].get());
-	REQUIRE(returnStatement != nullptr);
+	CHECK(resultDecl->initExpression->nodeType() == scatha::ast::NodeType::Identifier);
 	
-	CHECK(dynamic_cast<Identifier*>(returnStatement->expression.get()) != nullptr);
+	auto* const returnStatement = downCast<ReturnStatement>(body->statements[1].get());
+	
+	CHECK(returnStatement->expression->nodeType() == scatha::ast::NodeType::Identifier);
 }
 
 TEST_CASE("Parse literals", "[parse]") {
@@ -76,21 +73,19 @@ fn main() -> void {
 
 	auto const ast = makeAST(text);
 	
-	auto* const tu = dynamic_cast<TranslationUnit*>(ast.get());
-	REQUIRE(tu != nullptr);
+	auto* const tu = downCast<TranslationUnit>(ast.get());
 	REQUIRE(tu->declarations.size() == 1);
 	
-	auto* const function = dynamic_cast<FunctionDefinition*>(tu->declarations[0].get());
-	REQUIRE(function != nullptr);
+	auto* const function = downCast<FunctionDefinition>(tu->declarations[0].get());
 	CHECK(function->name() == "main");
 	
-	auto* const aDecl = dynamic_cast<VariableDeclaration*>(function->body->statements[0].get());
-	auto* const intLit = dynamic_cast<IntegerLiteral*>(aDecl->initExpression.get());
+	auto* const aDecl = downCast<VariableDeclaration>(function->body->statements[0].get());
+	auto* const intLit = downCast<IntegerLiteral>(aDecl->initExpression.get());
 	CHECK(intLit->token().id == "39");
 	CHECK(intLit->value == 39);
 	
-	auto* const bDecl = dynamic_cast<VariableDeclaration*>(function->body->statements[1].get());
-	auto* const floatLit = dynamic_cast<FloatingPointLiteral*>(bDecl->initExpression.get());
+	auto* const bDecl = downCast<VariableDeclaration>(function->body->statements[1].get());
+	auto* const floatLit = downCast<FloatingPointLiteral>(bDecl->initExpression.get());
 	CHECK(floatLit->token().id == "1.2");
 	CHECK(floatLit->value == 1.2);
 }

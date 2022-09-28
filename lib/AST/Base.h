@@ -60,7 +60,6 @@ namespace scatha::ast {
 		Token _token;
 	};
 
-
 }
 
 #endif // SCATHA_AST_BASE_H_

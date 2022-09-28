@@ -13,10 +13,11 @@ namespace scatha::ic {
 	
 	ThreeAddressCode TacGenerator::run(ast::AbstractSyntaxTree const* root) {
 		SC_ASSERT(tmpIndex == 0, "Don't reuse this");
+		SC_ASSERT(root->nodeType() == ast::NodeType::TranslationUnit,
+				  "TacGenerator must be run on a translation unit");
+		auto const& tu = static_cast<ast::TranslationUnit const&>(*root);
 		
-		auto const* const tu = dynamic_cast<ast::TranslationUnit const*>(root);
-		
-		for (auto& decl: tu->declarations) {
+		for (auto& decl: tu.declarations) {
 			doRun(decl.get());
 		}
 		
@@ -147,9 +148,10 @@ namespace scatha::ic {
 									  selectOperation(expr->lhs->typeID, expr->op),
 									  lhs, rhs);
 					case ast::BinaryOperator::Assignment: {
-						auto const* lhsId = dynamic_cast<ast::Identifier const*>(expr->lhs.get());
-						SC_ASSERT(lhsId != nullptr, "We don't support assigning to arbitrary expressions yet");
-						auto const var = Variable{ lhsId->symbolID };
+						SC_ASSERT(expr->lhs->nodeType() == ast::NodeType::Identifier,
+								  "We don't support assigning to arbitrary expressions yet");
+						auto const& lhsId = static_cast<ast::Identifier const&>(*expr->lhs);
+						auto const var = Variable{ lhsId.symbolID };
 						if (lhs.is(TasArgument::temporary)) {
 							code.back().asTas().result = var;
 							--tmpIndex;
@@ -190,12 +192,12 @@ namespace scatha::ic {
 				for (auto& arg: expr->arguments) {
 					submit(Operation::param, doRun(arg.get()));
 				}
-				{	// our little hack to call functions for now
-					auto const* const functionId = dynamic_cast<ast::Identifier const*>(expr->object.get());
-					SC_ASSERT(functionId != nullptr, "Called object must be an identifier");
-					submitJump(Operation::call, Label(functionId->symbolID));
-					return submit(makeTemporary(expr->typeID), Operation::getResult);
-				}
+				// our little hack to call functions for now
+				SC_ASSERT(expr->object->nodeType() == ast::NodeType::Identifier,
+						  "Called object must be an identifier");
+				auto const& function = static_cast<ast::Identifier const&>(*expr->object);
+				submitJump(Operation::call, Label(function.symbolID));
+				return submit(makeTemporary(expr->typeID), Operation::getResult);
 			}
 			SC_NO_DEFAULT_CASE();
 		}

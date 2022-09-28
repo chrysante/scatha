@@ -228,13 +228,13 @@ namespace scatha::parse {
 		return nullptr;
 	}
 	
-	template <typename FC>
-	ast::UniquePtr<ast::Expression> ExpressionParser::parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
-																			std::string_view open, std::string_view close)
+	template <typename FunctionCallLike>
+	ast::UniquePtr<FunctionCallLike> ExpressionParser::parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
+																			 std::string_view open, std::string_view close)
 	{
 		auto const& openToken = tokens.eat();
 		SC_ASSERT(openToken.id == open, "");
-		auto result = ast::allocate<FC>(std::move(primary), openToken);
+		auto result = ast::allocate<FunctionCallLike>(std::move(primary), openToken);
 		
 		if (tokens.peek().id == close) { // no arguments
 			tokens.eat();
@@ -252,22 +252,21 @@ namespace scatha::parse {
 		return result;
 	}
 	
-	ast::UniquePtr<ast::Expression> ExpressionParser::parseSubscript(ast::UniquePtr<ast::Expression> primary) {
+	ast::UniquePtr<ast::Subscript> ExpressionParser::parseSubscript(ast::UniquePtr<ast::Expression> primary) {
 		auto result = parseFunctionCallLike<ast::Subscript>(std::move(primary), "[", "]");
-		// dynamic_cast is not really necessary but just to be safe...
-		if (auto* ptr = dynamic_cast<ast::Subscript*>(result.get());
-			ptr && ptr->arguments.empty())
-		{
+		
+		if (result->arguments.empty()) {
 			throw ParsingIssue(tokens.current(), "Subscript with no arguments is not allowed");
 		}
+		
 		return result;
 	}
 	
-	ast::UniquePtr<ast::Expression> ExpressionParser::parseFunctionCall(ast::UniquePtr<ast::Expression> primary) {
+	ast::UniquePtr<ast::FunctionCall> ExpressionParser::parseFunctionCall(ast::UniquePtr<ast::Expression> primary) {
 		return parseFunctionCallLike<ast::FunctionCall>(std::move(primary), "(", ")");
 	}
 
-	ast::UniquePtr<ast::Expression> ExpressionParser::parseMemberAccess(ast::UniquePtr<ast::Expression> primary) {
+	ast::UniquePtr<ast::MemberAccess> ExpressionParser::parseMemberAccess(ast::UniquePtr<ast::Expression> primary) {
 		auto const& dot = tokens.eat();
 		SC_ASSERT(dot.id == ".", "");
 		auto const& id = tokens.eat();

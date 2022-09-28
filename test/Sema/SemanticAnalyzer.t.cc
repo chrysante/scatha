@@ -2,30 +2,13 @@
 
 #include "AST/AST.h"
 #include "AST/Expression.h"
-#include "Lexer/Lexer.h"
-#include "Parser/Parser.h"
 #include "Parser/ParsingIssue.h"
-#include "Sema/SemanticAnalyzer.h"
 #include "Sema/SemanticIssue.h"
+#include "test/Sema/SimpleAnalzyer.h"
 
 using namespace scatha;
-using namespace lex;
-using namespace parse;
 using namespace sema;
 using namespace ast;
-
-static auto produceDecoratedASTAndSymTable(std::string text) {
-	Lexer l(text);
-	auto tokens = l.lex();
-	
-	Parser p(tokens);
-	auto ast = p.parse();
-
-	SemanticAnalyzer s;
-	s.run(ast.get());
-	
-	return std::tuple(std::move(ast), s.takeSymbolTable());
-}
 
 TEST_CASE("Registration in SymbolTable", "[sema]") {
 	std::string const text = R"(
@@ -37,7 +20,7 @@ fn mul(a: int, b: int, c: float) -> int {
 
 )";
 
-	auto [ast, sym] = produceDecoratedASTAndSymTable(text);
+	auto [ast, sym] = test::produceDecoratedASTAndSymTable(text);
 	
 	auto const& symMul = sym.lookupName(Token("mul"));
 	CHECK(symMul.category() == SymbolCategory::Function);
@@ -85,20 +68,19 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	return result;
 }
 )";
-	auto [ast, sym] = produceDecoratedASTAndSymTable(text);
+	auto [ast, sym] = test::produceDecoratedASTAndSymTable(text);
 	
-	auto* tu = dynamic_cast<TranslationUnit*>(ast.get());
-	REQUIRE(tu);
-	auto* fnDecl = dynamic_cast<FunctionDeclaration*>(tu->declarations[0].get());
-	REQUIRE(fnDecl);
+	auto* tu = downCast<TranslationUnit>(ast.get());
+	
+	REQUIRE(tu->declarations[0]->nodeType() == scatha::ast::NodeType::FunctionDefinition);
+	auto* fnDecl = static_cast<FunctionDeclaration*>(tu->declarations[0].get());
 	CHECK(fnDecl->returnTypeID == sym.Int());
 	CHECK(fnDecl->parameters[0]->typeID == sym.Int());
 	CHECK(fnDecl->parameters[1]->typeID == sym.Int());
 	CHECK(fnDecl->parameters[2]->typeID == sym.Float());
 	CHECK(fnDecl->parameters[3]->typeID == sym.String());
 	
-	auto* fn = dynamic_cast<FunctionDefinition*>(tu->declarations[0].get());
-	REQUIRE(fn);
+	auto* fn = downCast<FunctionDefinition>(tu->declarations[0].get());
 	
 	CHECK(fn->returnTypeID == sym.Int());
 	CHECK(fn->parameters[0]->typeID == sym.Int());
@@ -106,33 +88,35 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	CHECK(fn->parameters[2]->typeID == sym.Float());
 	CHECK(fn->parameters[3]->typeID == sym.String());
 
-	auto* varDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[0].get());
+	auto* varDecl = downCast<VariableDeclaration>(fn->body->statements[0].get());
 	CHECK(varDecl->typeID == sym.Int());
-
-	auto* varDeclInit = dynamic_cast<Identifier*>(varDecl->initExpression.get());
+	
+	auto* varDeclInit = downCast<Identifier>(varDecl->initExpression.get());
 	CHECK(varDeclInit->typeID == sym.Int());
 
-	auto* nestedScope = dynamic_cast<Block*>(fn->body->statements[1].get());
-	auto* nestedVarDecl = dynamic_cast<VariableDeclaration*>(nestedScope->statements[0].get());
+	
+	auto* nestedScope = downCast<Block>(fn->body->statements[1].get());
+	
+	auto* nestedVarDecl = downCast<VariableDeclaration>(nestedScope->statements[0].get());
 	CHECK(nestedVarDecl->typeID == sym.String());
 	
-	auto* xDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[2].get());
+	auto* xDecl = downCast<VariableDeclaration>(fn->body->statements[2].get());
 	CHECK(xDecl->typeID == sym.Int());
-	auto* intLit = dynamic_cast<IntegerLiteral*>(xDecl->initExpression.get());
+	auto* intLit = downCast<IntegerLiteral>(xDecl->initExpression.get());
 	CHECK(intLit->value == 39);
 	
-	auto* zDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[3].get());
+	auto* zDecl = downCast<VariableDeclaration>(fn->body->statements[3].get());
 	CHECK(zDecl->typeID == sym.Int());
-	auto* intHexLit = dynamic_cast<IntegerLiteral*>(zDecl->initExpression.get());
+	auto* intHexLit = downCast<IntegerLiteral>(zDecl->initExpression.get());
 	CHECK(intHexLit->value == 0x39E);
 	
-	auto* yDecl = dynamic_cast<VariableDeclaration*>(fn->body->statements[4].get());
+	auto* yDecl = downCast<VariableDeclaration>(fn->body->statements[4].get());
 	CHECK(yDecl->typeID == sym.Float());
-	auto* floatLit = dynamic_cast<FloatingPointLiteral*>(yDecl->initExpression.get());
+	auto* floatLit = downCast<FloatingPointLiteral>(yDecl->initExpression.get());
 	CHECK(floatLit->value == 1.2);
 	
-	auto* ret = dynamic_cast<ReturnStatement*>(fn->body->statements[5].get());
-	auto* retIdentifier = dynamic_cast<Identifier*>(ret->expression.get());
+	auto* ret = downCast<ReturnStatement>(fn->body->statements[5].get());
+	auto* retIdentifier = downCast<Identifier>(ret->expression.get());
 	CHECK(retIdentifier->typeID == sym.Int());
 }
 
@@ -148,11 +132,11 @@ fn caller() -> float {
 
 )";
 
-	auto [ast, sym] = produceDecoratedASTAndSymTable(text);
+	auto [ast, sym] = test::produceDecoratedASTAndSymTable(text);
 	
-	auto* tu = dynamic_cast<TranslationUnit*>(ast.get());
+	auto* tu = downCast<TranslationUnit>(ast.get());
 	REQUIRE(tu);
-	auto* calleeDecl = dynamic_cast<FunctionDeclaration*>(tu->declarations[0].get());
+	auto* calleeDecl = downCast<FunctionDefinition>(tu->declarations[0].get());
 	REQUIRE(calleeDecl);
 	CHECK(calleeDecl->returnTypeID == sym.Float());
 	auto calleeArgTypes = { sym.String(), sym.Int(), sym.Bool() };
@@ -162,10 +146,10 @@ fn caller() -> float {
 	CHECK(calleeDecl->parameters[1]->typeID == sym.Int());
 	CHECK(calleeDecl->parameters[2]->typeID == sym.Bool());
 	
-	auto* caller = dynamic_cast<FunctionDefinition*>(tu->declarations[1].get());
+	auto* caller = downCast<FunctionDefinition>(tu->declarations[1].get());
 	REQUIRE(caller);
 	
-	auto* resultDecl = dynamic_cast<VariableDeclaration*>(caller->body->statements[0].get());
+	auto* resultDecl = downCast<VariableDeclaration>(caller->body->statements[0].get());
 	CHECK(resultDecl->initExpression->typeID == sym.Float());
 }
 
@@ -180,23 +164,18 @@ struct X {
 
 )";
 
-	auto [ast, sym] = produceDecoratedASTAndSymTable(text);
+	auto [ast, sym] = test::produceDecoratedASTAndSymTable(text);
 	
-	auto* tu = dynamic_cast<TranslationUnit*>(ast.get());
-	REQUIRE(tu);
-	auto* xDef = dynamic_cast<StructDefinition*>(tu->declarations[0].get());
-	REQUIRE(xDef);
+	auto* tu = downCast<TranslationUnit>(ast.get());
+	auto* xDef = downCast<StructDefinition>(tu->declarations[0].get());
 	CHECK(xDef->name() == "X");
-	auto* iDecl = dynamic_cast<VariableDeclaration*>(xDef->body->statements[0].get());
-	REQUIRE(iDecl);
+	auto* iDecl = downCast<VariableDeclaration>(xDef->body->statements[0].get());
 	CHECK(iDecl->name() == "i");
 	CHECK(iDecl->typeID == sym.Float());
-	auto* jDecl = dynamic_cast<VariableDeclaration*>(xDef->body->statements[1].get());
-	REQUIRE(jDecl);
+	auto* jDecl = downCast<VariableDeclaration>(xDef->body->statements[1].get());
 	CHECK(jDecl->name() == "j");
 	CHECK(jDecl->typeID == sym.Int());
-	auto* fDef = dynamic_cast<FunctionDefinition*>(xDef->body->statements[2].get());
-	REQUIRE(fDef);
+	auto* fDef = downCast<FunctionDefinition>(xDef->body->statements[2].get());
 	CHECK(fDef->name() == "f");
 	// TODO: Test argument types when we properly recognize member functions as having an implicit 'this' argument
 	CHECK(fDef->returnTypeID == sym.String());
@@ -205,13 +184,13 @@ struct X {
 
 TEST_CASE("Semantic analysis failures", "[sema]") {
 	SECTION("Use of undeclared identifier") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() -> int { return x; }"), UseOfUndeclaredIdentifier);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let v: UnknownType; }"), UseOfUndeclaredIdentifier);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { 1 + x; }"), UseOfUndeclaredIdentifier);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() -> int { return x; }"), UseOfUndeclaredIdentifier);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let v: UnknownType; }"), UseOfUndeclaredIdentifier);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { 1 + x; }"), UseOfUndeclaredIdentifier);
 	}
 	
 	SECTION("Invalid type conversion") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() -> int { return \"a string\"; }"), BadTypeConversion);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() -> int { return \"a string\"; }"), BadTypeConversion);
 	}
 	
 	SECTION("Invalid function call expression") {
@@ -219,15 +198,15 @@ TEST_CASE("Semantic analysis failures", "[sema]") {
 fn callee(a: string) {}
 fn caller() { callee(); }
 )";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), BadFunctionCall);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(a), BadFunctionCall);
 	
 		std::string const b = R"(
 fn callee(a: string) {}
 fn caller() { callee(0); }
 )";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), BadTypeConversion);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let x: float = 1; }"), BadTypeConversion);
-		CHECK_NOTHROW(produceDecoratedASTAndSymTable("fn f() { let x: float = 1.; }"));
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(b), BadTypeConversion);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x: float = 1; }"), BadTypeConversion);
+		CHECK_NOTHROW(test::produceDecoratedASTAndSymTable("fn f() { let x: float = 1.; }"));
 	}
 	
 	SECTION("Invalid function redeclaration") {
@@ -235,25 +214,25 @@ fn caller() { callee(0); }
 fn f() {}
 fn f() -> int {}
 )";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), InvalidFunctionDeclaration);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(a), InvalidFunctionDeclaration);
 		
 		std::string const a1 = R"(
 fn f() {}
 fn f() {}
 )";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a1), InvalidFunctionDeclaration);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(a1), InvalidFunctionDeclaration);
 		
 // MARK: These tests will fail when we have function overloading
 //		std::string const b = R"(
 //fn f();
 //fn f(x: int);
 //)";
-//		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(b), InvalidFunctionDeclaration);
+//		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(b), InvalidFunctionDeclaration);
 //		std::string const c = R"(
 //fn f(x: string);
 //fn f(x: int);
 //)";
-//		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(c), InvalidFunctionDeclaration);
+//		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(c), InvalidFunctionDeclaration);
 	}
 	
 	SECTION("Invalid variable redeclaration") {
@@ -262,60 +241,60 @@ fn f(x: int) {
 	let x: float;
 }
 )";
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable(a), InvalidRedeclaration);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(a), InvalidRedeclaration);
 
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f(x: int, x: int) {}"), InvalidRedeclaration);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f(x: int, x: int) {}"), InvalidRedeclaration);
 	}
 	
 	SECTION("Invalid redeclaration category") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct f{}"
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct f{}"
 													   "fn f(){}"),
 						InvalidRedeclaration);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f(){}"
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f(){}"
 													   "struct f{}"),
 						InvalidRedeclaration);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct f;"
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct f;"
 													   "struct f;"
 													   "struct f {}"),
 						parse::ParsingIssue);
 	}
 	
 	SECTION("Invalid symbol reference") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f(param: UnknownID) {}"), UseOfUndeclaredIdentifier);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f(param: UnknownID) {}"), UseOfUndeclaredIdentifier);
 	}
 	
 	SECTION("Invalid variable declaration") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let v; }"), InvalidStatement);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let x = 0; let y: x; }"), InvalidStatement);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let v; }"), InvalidStatement);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x = 0; let y: x; }"), InvalidStatement);
 	}
 	
 	SECTION("Invalid function declaration") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { fn g(); }"), parse::ParsingIssue);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { fn g(); }"), parse::ParsingIssue);
 	}
 	
 	SECTION("Invalid struct declaration") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { struct X; }"), parse::ParsingIssue);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { struct X; }"), parse::ParsingIssue);
 	}
 	
 	SECTION("Invalid statement at struct scope") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { return 0; }"), InvalidStatement);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { 1; }"), InvalidStatement);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { 1 + 2; }"), InvalidStatement);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { if (1 > 0) {} }"), InvalidStatement);
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { while (1 > 0) {} }"), InvalidStatement);
-		CHECK_NOTHROW(produceDecoratedASTAndSymTable("struct X { var i: int; }"));
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { return 0; }"), InvalidStatement);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { 1; }"), InvalidStatement);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { 1 + 2; }"), InvalidStatement);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { if (1 > 0) {} }"), InvalidStatement);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { while (1 > 0) {} }"), InvalidStatement);
+		CHECK_NOTHROW(test::produceDecoratedASTAndSymTable("struct X { var i: int; }"));
 	}
 	
 	SECTION("Invalid local scope in struct") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("struct X { {} }"), InvalidStatement);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("struct X { {} }"), InvalidStatement);
 	}
 	
 	SECTION("Valid local scope in function") {
-		CHECK_NOTHROW(produceDecoratedASTAndSymTable("fn f() { {} }"));
+		CHECK_NOTHROW(test::produceDecoratedASTAndSymTable("fn f() { {} }"));
 	}
 	
 	SECTION("Other semantic errors") {
-		CHECK_THROWS_AS(produceDecoratedASTAndSymTable("fn f() { let x = int; }"), SemanticIssue);
+		CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x = int; }"), SemanticIssue);
 	}
 	
 }

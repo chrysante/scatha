@@ -30,14 +30,11 @@ TEST_CASE("ExpressionParser", "[parse]") {
 		ExpressionParser parser(tokens);
 		auto expr = parser.parseExpression();
 		
-		auto* add = dynamic_cast<BinaryExpression*>(expr.get());
-		REQUIRE(add != nullptr);
+		auto* add = downCast<BinaryExpression>(expr.get());
 		REQUIRE(add->op == BinaryOperator::Addition);
-		auto* lhs = dynamic_cast<Identifier*>(add->lhs.get());
-		REQUIRE(lhs != nullptr);
+		auto* lhs = downCast<Identifier>(add->lhs.get());
 		CHECK(lhs->value() == "a");
-		auto* rhs = dynamic_cast<Identifier*>(add->rhs.get());
-		REQUIRE(rhs != nullptr);
+		auto* rhs = downCast<Identifier>(add->rhs.get());
 		CHECK(rhs->value() == "b");
 	}
 	
@@ -54,14 +51,11 @@ TEST_CASE("ExpressionParser", "[parse]") {
 		ExpressionParser parser(tokens);
 		auto expr = parser.parseExpression();
 		
-		auto* mul = dynamic_cast<BinaryExpression*>(expr.get());
-		REQUIRE(mul != nullptr);
+		auto* mul = downCast<BinaryExpression>(expr.get());
 		REQUIRE(mul->op == BinaryOperator::Multiplication);
-		auto* lhs = dynamic_cast<IntegerLiteral*>(mul->lhs.get());
-		REQUIRE(lhs != nullptr);
+		auto* lhs = downCast<IntegerLiteral>(mul->lhs.get());
 		CHECK(lhs->value == 3);
-		auto* rhs = dynamic_cast<Identifier*>(mul->rhs.get());
-		REQUIRE(rhs != nullptr);
+		auto* rhs = downCast<Identifier>(mul->rhs.get());
 		CHECK(rhs->value() == "x");
 	}
 	
@@ -80,24 +74,19 @@ TEST_CASE("ExpressionParser", "[parse]") {
 		ExpressionParser parser(tokens);
 		auto expr = parser.parseExpression();
 		
-		auto* add = dynamic_cast<BinaryExpression*>(expr.get());
-		REQUIRE(add != nullptr);
+		auto* add = downCast<BinaryExpression>(expr.get());
 		REQUIRE(add->op == BinaryOperator::Addition);
 		
-		auto* a = dynamic_cast<Identifier*>(add->lhs.get());
-		REQUIRE(a != nullptr);
+		auto* a = downCast<Identifier>(add->lhs.get());
 		CHECK(a->value() == "a");
 		
-		auto* mul = dynamic_cast<BinaryExpression*>(add->rhs.get());
-		REQUIRE(mul != nullptr);
+		auto* mul = downCast<BinaryExpression>(add->rhs.get());
 		REQUIRE(mul->op == BinaryOperator::Multiplication);
 		
-		auto* b = dynamic_cast<Identifier*>(mul->lhs.get());
-		REQUIRE(b != nullptr);
+		auto* b = downCast<Identifier>(mul->lhs.get());
 		CHECK(b->value() == "b");
 		
-		auto* c = dynamic_cast<Identifier*>(mul->rhs.get());
-		REQUIRE(c != nullptr);
+		auto* c = downCast<Identifier>(mul->rhs.get());
 		CHECK(c->value() == "c");
 	}
 	
@@ -116,24 +105,19 @@ TEST_CASE("ExpressionParser", "[parse]") {
 		ExpressionParser parser(tokens);
 		auto expr = parser.parseExpression();
 		
-		auto* mul = dynamic_cast<BinaryExpression*>(expr.get());
-		REQUIRE(mul != nullptr);
+		auto* mul = downCast<BinaryExpression>(expr.get());
 		REQUIRE(mul->op == BinaryOperator::Multiplication);
 		
-		auto* add = dynamic_cast<BinaryExpression*>(mul->lhs.get());
-		REQUIRE(add != nullptr);
+		auto* add = downCast<BinaryExpression>(mul->lhs.get());
 		REQUIRE(add->op == BinaryOperator::Addition);
 		
-		auto* a = dynamic_cast<Identifier*>(add->lhs.get());
-		REQUIRE(a != nullptr);
+		auto* a = downCast<Identifier>(add->lhs.get());
 		CHECK(a->value() == "a");
 		
-		auto* b = dynamic_cast<Identifier*>(add->rhs.get());
-		REQUIRE(b != nullptr);
+		auto* b = downCast<Identifier>(add->rhs.get());
 		CHECK(b->value() == "b");
 		
-		auto* c = dynamic_cast<Identifier*>(mul->rhs.get());
-		REQUIRE(c != nullptr);
+		auto* c = downCast<Identifier>(mul->rhs.get());
 		CHECK(c->value() == "c");
 	}
 	

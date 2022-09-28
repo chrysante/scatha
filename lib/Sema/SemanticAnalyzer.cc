@@ -7,6 +7,7 @@
 #include <utl/scope_guard.hpp>
 
 #include "AST/Expression.h"
+#include "AST/Visit.h"
 #include "Basic/Basic.h"
 #include "Sema/SemanticElements.h"
 #include "Sema/SemanticIssue.h"
@@ -17,382 +18,330 @@ namespace scatha::sema {
 
 	SemanticAnalyzer::SemanticAnalyzer() = default;
 	
+	namespace {
+		
+		struct Context {
+			void analyze(AbstractSyntaxTree& node) { analyze(node, node.nodeType()); }
+			void analyze(AbstractSyntaxTree&, NodeType);
+			
+			void verifyConversion(ast::Expression const& from, TypeID to) const;
+			TypeID verifyBinaryOperation(ast::BinaryExpression const&) const;
+			void verifyFunctionCallExpression(ast::FunctionCall const&, TypeEx const& fnType, std::span<ast::UniquePtr<ast::Expression> const> arguments) const;
+			[[noreturn]] void throwBadTypeConversion(Token const&, TypeID from, TypeID to) const;
+			
+			ast::FunctionDefinition* currentFunction = nullptr;
+			SymbolTable sym;
+		};
+	} // namespace
+	
 	void SemanticAnalyzer::run(AbstractSyntaxTree* node) {
-		SC_ASSERT(!used, "SemanticAnalyzer has been used before");
-		used = true;
-		doRun(node);
+		Context ctx;
+		ctx.analyze(*node);
+		sym = std::move(ctx.sym);
 	}
 	
-	void SemanticAnalyzer::doRun(AbstractSyntaxTree* node) {
-		doRun(node, node->nodeType());
-	}
-	
-	static SymbolID extracted(scatha::ast::Identifier *identifier, const scatha::sema::SymbolTable &symbols) {
-		auto const functionSymbolID = symbols.lookupName(identifier->token());
+	static SymbolID extracted(scatha::ast::Identifier& identifier, const scatha::sema::SymbolTable &sym) {
+		auto const functionSymbolID = sym.lookupName(identifier.token());
 		return functionSymbolID;
 	}
 	
-	void SemanticAnalyzer::doRun(AbstractSyntaxTree* inNode, NodeType type) {
-		switch (type) {
-			case NodeType::TranslationUnit: {
-				auto* const tu = static_cast<TranslationUnit*>(inNode);
-				for (auto& decl: tu->declarations) {
-					doRun(decl.get());
+	void Context::analyze(AbstractSyntaxTree& node, NodeType type) {
+		visit(node, type, utl::visitor{
+			[&](TranslationUnit& tu) {
+				for (auto& decl: tu.declarations) {
+					analyze(*decl);
 				}
-				return;
-			}
-			case NodeType::Block: {
-				auto* const node = static_cast<Block*>(inNode);
-				
-				if (node->scopeKind == Scope::Anonymous) {
+			},
+			[&](Block& block) {
+				if (block.scopeKind == Scope::Anonymous) {
 					if (currentFunction == nullptr) {
-						throw InvalidStatement(node->token(), "Anonymous blocks can only appear at function scope");
+						throw InvalidStatement(block.token(), "Anonymous blocks can only appear at function scope");
 					}
-					
-					node->scopeSymbolID = symbols.addAnonymousSymbol(SymbolCategory::Function);
+					block.scopeSymbolID = sym.addAnonymousSymbol(SymbolCategory::Function);
 				}
-				
-				symbols.pushScope(node->scopeSymbolID);
-				utl_defer { symbols.popScope(); };
-				for (auto& statement: node->statements) {
-					doRun(statement.get());
+				sym.pushScope(block.scopeSymbolID);
+				utl_defer { sym.popScope(); };
+				for (auto& statement: block.statements) {
+					analyze(*statement);
 				}
-				return;
-			}
-			case NodeType::FunctionDeclaration: {
-				auto* const fnDecl = static_cast<FunctionDeclaration*>(inNode);
-				if (auto const sk = symbols.currentScope()->kind();
+			},
+			[&](FunctionDeclaration& fn) {
+				if (auto const sk = sym.currentScope()->kind();
 					sk != Scope::Global &&
 					sk != Scope::Namespace &&
 					sk != Scope::Struct)
 				{
 					/*
-					 * Function declaration is only allowed in the global scope, at namespace scope and structure scope
+					 * Function defintion is only allowed in the global scope, at namespace scope and structure scope
 					 */
-					throw InvalidFunctionDeclaration(fnDecl->token(), symbols.currentScope());
+					throw InvalidFunctionDeclaration(fn.token(), sym.currentScope());
 				}
-				auto const& returnType = symbols.findTypeByName(fnDecl->declReturnTypename);
-				fnDecl->returnTypeID = returnType.id();
+				auto const& returnType = sym.findTypeByName(fn.declReturnTypename);
+				fn.returnTypeID = returnType.id();
 				
 				/*
 				 * No need to push the scope here, since function parameter declarations don't declare variables
 				 * in the current scope. This will be done be in the function definition case.
 				 */
 				utl::small_vector<TypeID> argTypes;
-				for (auto& param: fnDecl->parameters) {
-					doRun(param.get());
+				for (auto& param: fn.parameters) {
+					analyze(*param);
 					argTypes.push_back(param->typeID);
 				}
 				
-				auto [func, newlyAdded] = symbols.declareFunction(fnDecl->token(), returnType.id(), argTypes);
-				fnDecl->symbolID = func->symbolID();
-				fnDecl->functionTypeID = func->typeID();
-				return;
-			}
-			case NodeType::FunctionDefinition: {
-				auto* const node = static_cast<FunctionDefinition*>(inNode);
-				currentFunction = node;
+				auto [func, newlyAdded] = sym.declareFunction(fn.token(), returnType.id(), argTypes);
+				fn.symbolID = func->symbolID();
+				fn.functionTypeID = func->typeID();
+			},
+			[&](FunctionDefinition& fn) {
+				currentFunction = &fn;
 				utl_defer { currentFunction = nullptr; };
-				
-				doRun(node, NodeType::FunctionDeclaration);
-
-				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->symbolID, "Just to be sure");
+				analyze(fn, NodeType::FunctionDeclaration);
+				SC_ASSERT_AUDIT(sym.currentScope()->findIDByName(fn.name()) == fn.symbolID, "Just to be sure");
 				
 				/* Declare parameters to the function scope */ {
-					symbols.pushScope(node->symbolID);
-					utl_defer { symbols.popScope(); };
-					for (auto& param: node->parameters) {
-						auto [var, newlyAdded] = symbols.declareVariable(param->token(), param->typeID, true);
+					sym.pushScope(fn.symbolID);
+					utl_defer { sym.popScope(); };
+					for (auto& param: fn.parameters) {
+						auto [var, newlyAdded] = sym.declareVariable(param->token(), param->typeID, true);
 						if (!newlyAdded) {
-							throw InvalidRedeclaration(param->token(), symbols.currentScope());
+							throw InvalidRedeclaration(param->token(), sym.currentScope());
 						}
 						param->symbolID = var->symbolID();
 					}
 				}
 				
-				node->body->scopeKind = Scope::Function;
-				node->body->scopeSymbolID = node->symbolID;
-				doRun(node->body.get());
-				
-				return;
-			}
-			case NodeType::StructDeclaration: {
-				auto* const sDecl = static_cast<StructDeclaration*>(inNode);
-				if (auto const sk = symbols.currentScope()->kind();
+				fn.body->scopeKind = Scope::Function;
+				fn.body->scopeSymbolID = fn.symbolID;
+				analyze(*fn.body);
+			},
+			[&](StructDeclaration& sDecl) {
+				if (auto const sk = sym.currentScope()->kind();
 					sk != Scope::Global && sk != Scope::Namespace && sk != Scope::Struct)
 				{
-					throw InvalidStructDeclaration(sDecl->token(), symbols.currentScope());
+					throw InvalidStructDeclaration(sDecl.token(), sym.currentScope());
 				}
-				sDecl->symbolID = symbols.declareType(sDecl->token());
-				return;
-			}
-			case NodeType::StructDefinition: {
-				auto* const node = static_cast<StructDefinition*>(inNode);
+				sDecl.symbolID = sym.declareType(sDecl.token());
+			},
+			[&](StructDefinition& s) {
+				analyze(s, NodeType::StructDeclaration);
+				SC_ASSERT_AUDIT(sym.currentScope()->findIDByName(s.name()) == s.symbolID, "Just to be sure");
 				
-				doRun(node, NodeType::StructDeclaration);
-
-				SC_ASSERT_AUDIT(symbols.currentScope()->findIDByName(node->name()) == node->symbolID, "Just to be sure");
-				
-				node->body->scopeKind = Scope::Struct;
-				node->body->scopeSymbolID = node->symbolID;
-				doRun(node->body.get());
-				
-				return;
-			}
-			case NodeType::VariableDeclaration: {
-				auto* const node = static_cast<VariableDeclaration*>(inNode);
-				if (node->initExpression == nullptr) {
-					if (node->declTypename.empty()) {
-						throw InvalidStatement(node->token(), "Expected initializing expression of explicit typename specifier in variable declaration");
+				s.body->scopeKind = Scope::Struct;
+				s.body->scopeSymbolID = s.symbolID;
+				analyze(*s.body);
+			},
+			[&](VariableDeclaration& var) {
+				if (var.initExpression == nullptr) {
+					if (var.declTypename.empty()) {
+						throw InvalidStatement(var.token(), "Expected initializing expression of explicit typename specifier in variable declaration");
 					}
 					else {
 						// Get TtypeID from declared typename
-						auto const typeSymbolID = symbols.lookupName(node->declTypename);
+						auto const typeSymbolID = sym.lookupName(var.declTypename);
 						if (!typeSymbolID) {
-							throw UseOfUndeclaredIdentifier(node->declTypename);
+							throw UseOfUndeclaredIdentifier(var.declTypename);
 						}
 						if (typeSymbolID.category() != SymbolCategory::Type) {
-							throw InvalidStatement(node->declTypename,
-												   utl::strcat("\"", node->declTypename, "\" does not name a type"));
+							throw InvalidStatement(var.declTypename,
+												   utl::strcat("\"", var.declTypename, "\" does not name a type"));
 						}
-						auto& type = symbols.getType(typeSymbolID);
-						node->typeID = type.id();
+						auto& type = sym.getType(typeSymbolID);
+						var.typeID = type.id();
 					}
 				}
 				else {
-					doRun(node->initExpression.get());
-					if (!node->declTypename.empty()) {
-						node->typeID = symbols.findTypeByName(node->declTypename).id();
-						verifyConversion(node->initExpression.get(), node->typeID);
+					analyze(*var.initExpression);
+					if (!var.declTypename.empty()) {
+						var.typeID = sym.findTypeByName(var.declTypename).id();
+						verifyConversion(*var.initExpression, var.typeID);
 					}
 					else {
-						node->typeID = node->initExpression->typeID;
+						var.typeID = var.initExpression->typeID;
 					}
 				}
-				if (node->isFunctionParameter) {
+				if (var.isFunctionParameter) {
 					// Function parameters will be declared by the FunctionDefinition case
-					break;
+					return;
 				}
 				/*
 				 * Declare the variable.
 				 */
-				auto [var, newlyAdded] = symbols.declareVariable(node->token(), node->typeID, node->isConstant);
+				auto [varObj, newlyAdded] = sym.declareVariable(var.token(), var.typeID, var.isConstant);
 				if (!newlyAdded) {
-					throw InvalidRedeclaration(node->token(), symbols.currentScope());
+					throw InvalidRedeclaration(var.token(), sym.currentScope());
 				}
-				node->symbolID = var->symbolID();
-			
-				return;
-			}
-			case NodeType::ExpressionStatement: {
-				auto* const node = static_cast<ExpressionStatement*>(inNode);
-				if (symbols.currentScope()->kind() != Scope::Function) {
-					throw InvalidStatement(node->token(), "Expression statements can only appear at function scope.");
+				var.symbolID = varObj->symbolID();
+			},
+			[&](ExpressionStatement& es) {
+				if (sym.currentScope()->kind() != Scope::Function) {
+					throw InvalidStatement(es.token(), "Expression statements can only appear at function scope.");
 				}
-				doRun(node->expression.get());
-				return;
-			}
-			case NodeType::ReturnStatement: {
-				auto* const node = static_cast<ReturnStatement*>(inNode);
-				if (symbols.currentScope()->kind() != Scope::Function) {
-					throw InvalidStatement(node->token(), "Return statements can only appear at function scope.");
+				analyze(*es.expression);
+			},
+			[&](ReturnStatement& rs) {
+				if (sym.currentScope()->kind() != Scope::Function) {
+					throw InvalidStatement(rs.token(), "Return statements can only appear at function scope.");
 				}
-				doRun(node->expression.get());
+				analyze(*rs.expression);
 				SC_ASSERT(currentFunction != nullptr, "This should have been set by case FunctionDefinition");
-				verifyConversion(node->expression.get(), currentFunction->returnTypeID);
-				return;
-			}
-			case NodeType::IfStatement: {
-				auto* const node = static_cast<IfStatement*>(inNode);
-				if (symbols.currentScope()->kind() != Scope::Function) {
-					throw InvalidStatement(node->token(), "If statements can only appear at function scope.");
+				verifyConversion(*rs.expression, currentFunction->returnTypeID);
+			},
+			[&](IfStatement& is) {
+				if (sym.currentScope()->kind() != Scope::Function) {
+					throw InvalidStatement(is.token(), "If statements can only appear at function scope.");
 				}
-				doRun(node->condition.get());
-				verifyConversion(node->condition.get(), symbols.Bool());
-				doRun(node->ifBlock.get());
-				if (node->elseBlock != nullptr) {
-					doRun(node->elseBlock.get());
+				analyze(*is.condition);
+				verifyConversion(*is.condition, sym.Bool());
+				analyze(*is.ifBlock);
+				if (is.elseBlock != nullptr) {
+					analyze(*is.elseBlock);
 				}
-				return;
-			}
-			case NodeType::WhileStatement: {
-				auto* const node = static_cast<WhileStatement*>(inNode);
-				if (symbols.currentScope()->kind() != Scope::Function) {
-					throw InvalidStatement(node->token(), "While statements can only appear at function scope.");
+			},
+			[&](WhileStatement& ws) {
+				if (sym.currentScope()->kind() != Scope::Function) {
+					throw InvalidStatement(ws.token(), "While statements can only appear at function scope.");
 				}
-				doRun(node->condition.get());
-				verifyConversion(node->condition.get(), symbols.Bool());
-				doRun(node->block.get());
-				return;
-			}
-			case NodeType::Identifier: {
-				auto* const node = static_cast<Identifier*>(inNode);
-				auto const symbolID = symbols.lookupName(node->token());
+				analyze(*ws.condition);
+				verifyConversion(*ws.condition, sym.Bool());
+				analyze(*ws.block);
+			},
+			[&](Identifier& i) {
+				auto const symbolID = sym.lookupName(i.token());
 				
 				if (!symbolID) {
-					throw UseOfUndeclaredIdentifier(node->token());
+					throw UseOfUndeclaredIdentifier(i.token());
 				}
 				
-				node->symbolID = symbolID;
+				i.symbolID = symbolID;
 				
 				if (!(symbolID.category() & (SymbolCategory::Variable | SymbolCategory::Function))) {
 					/// TODO: Throw something better here
-					throw SemanticIssue(node->token(), "Invalid use of identifier");
+					throw SemanticIssue(i.token(), "Invalid use of identifier");
 				}
 				
 				if (symbolID.category() == SymbolCategory::Variable) {
-					auto const& var = symbols.getVariable(symbolID);
-					node->typeID = var.typeID();
+					auto const& var = sym.getVariable(symbolID);
+					i.typeID = var.typeID();
 				}
 				else if (symbolID.category() == SymbolCategory::Function) {
-					auto const& fn = symbols.getFunction(symbolID);
-					node->typeID = fn.typeID();
+					auto const& fn = sym.getFunction(symbolID);
+					i.typeID = fn.typeID();
 				}
-					
-				return;
-			}
-			case NodeType::IntegerLiteral: {
-				auto* const node = static_cast<IntegerLiteral*>(inNode);
-				node->typeID = symbols.Int();
-				return;
-			}
-			case NodeType::BooleanLiteral: {
-				auto* const node = static_cast<BooleanLiteral*>(inNode);
-				node->typeID = symbols.Bool();
-				return;
-			}
-			case NodeType::FloatingPointLiteral: {
-				auto* const node = static_cast<FloatingPointLiteral*>(inNode);
-				node->typeID = symbols.Float();
-				return;
-			}
-				
-			case NodeType::StringLiteral: {
-				auto* const node = static_cast<StringLiteral*>(inNode);
-				node->typeID = symbols.String();
-				return;
-			}
-				
-				/// TODO: A lot of work still needs to be done here
-				/// add a way to define and to lookup operators
-			case NodeType::UnaryPrefixExpression: {
-				auto* const node = static_cast<UnaryPrefixExpression*>(inNode);
-				doRun(node->operand.get());
-				auto const& operandType = symbols.getType(node->operand->typeID);
+			},
+			[&](IntegerLiteral& l) {
+				l.typeID = sym.Int();
+			},
+			[&](BooleanLiteral& l) {
+				l.typeID = sym.Bool();
+			},
+			[&](FloatingPointLiteral& l) {
+				l.typeID = sym.Float();
+			},
+			[&](StringLiteral& l) {
+				l.typeID = sym.String();
+			},
+			[&](UnaryPrefixExpression& u) {
+				analyze(*u.operand);
+				auto const& operandType = sym.getType(u.operand->typeID);
 				auto doThrow = [&]{
-					throw SemanticIssue(node->token(),
-										utl::strcat("Operator \"", toString(node->op), "\" not defined for ", operandType.name()));
+					throw SemanticIssue(u.token(),
+										utl::strcat("Operator \"", toString(u.op), "\" not defined for ", operandType.name()));
 				};
-				if (!operandType.isBuiltin() || operandType.id() == symbols.String()) {
+				if (!operandType.isBuiltin() || operandType.id() == sym.String()) {
 					doThrow();
 				}
-				switch (node->op) {
+				switch (u.op) {
 					case ast::UnaryPrefixOperator::Promotion: [[fallthrough]];
 					case ast::UnaryPrefixOperator::Negation:
-						if (operandType.id() != symbols.Int() &&
-							operandType.id() != symbols.Float())
+						if (operandType.id() != sym.Int() &&
+							operandType.id() != sym.Float())
 						{
 							doThrow();
 						}
 						break;
 					
 					case ast::UnaryPrefixOperator::BitwiseNot:
-						if (operandType.id() != symbols.Int()) {
+						if (operandType.id() != sym.Int()) {
 							doThrow();
 						}
 						break;
 					
 					case ast::UnaryPrefixOperator::LogicalNot:
-						if (operandType.id() != symbols.Bool()) {
+						if (operandType.id() != sym.Bool()) {
 							doThrow();
 						}
 						break;
 					
 					SC_NO_DEFAULT_CASE();
 				}
-				node->typeID = node->operand->typeID;
-				return;
-			}
-			case NodeType::BinaryExpression: {
-				auto* const node = static_cast<BinaryExpression*>(inNode);
-				doRun(node->lhs.get());
-				doRun(node->rhs.get());
-				node->typeID = verifyBinaryOperation(node);
-				return;
-			}
-			case NodeType::MemberAccess: {
-				auto* const node = static_cast<MemberAccess*>(inNode);
-				doRun(node->object.get());
-				return;
-			}
-			case NodeType::Conditional: {
-				auto* const node = static_cast<Conditional*>(inNode);
-				doRun(node->condition.get());
-				verifyConversion(node->condition.get(), symbols.Bool());
-				doRun(node->ifExpr.get());
-				doRun(node->elseExpr.get());
-				
-				return;
-			}
-			case NodeType::FunctionCall: {
-				auto* const node = static_cast<FunctionCall*>(inNode);
-				doRun(node->object.get());
-				for (auto& arg: node->arguments) {
-					doRun(arg.get());
+				u.typeID = u.operand->typeID;
+			},
+			[&](BinaryExpression& b) {
+				analyze(*b.lhs);
+				analyze(*b.rhs);
+				b.typeID = verifyBinaryOperation(b);
+			},
+			[&](MemberAccess& ma) {
+				analyze(*ma.object);
+			},
+			[&](Conditional& c) {
+				analyze(*c.condition);
+				verifyConversion(*c.condition, sym.Bool());
+				analyze(*c.ifExpr);
+				analyze(*c.elseExpr);
+			},
+			[&](FunctionCall& fc) {
+				analyze(*fc.object);
+				for (auto& arg: fc.arguments) {
+					analyze(*arg);
 				}
-				
-				{
-					// Temporary fix to allow function calls.
-					// This must be changed to allow for overloading of operator() and function objects.
-					// Getting the type of the expression is not enough (if it's a function) as we won't know which function to call.
 					
-					auto* const identifier = dynamic_cast<Identifier*>(node->object.get());
-					SC_ASSERT(identifier != nullptr, "Called object must be an identifier. We do not yet support calling arbitrary expressions.");
-				
-					const scatha::sema::SymbolID functionSymbolID = extracted(identifier, symbols);
-					if (functionSymbolID.category() != SymbolCategory::Function) {
-						SC_ASSERT(false, "Look at the assertion above");
-					}
-					auto const& function = symbols.getFunction(functionSymbolID);
-					auto const& functionType = symbols.getType(function.typeID());
-					
-					verifyFunctionCallExpression(node, functionType, node->arguments);
-					
-					node->typeID = functionType.returnType();
+				// Temporary fix to allow function calls.
+				// This must be changed to allow for overloading of operator() and function objects.
+				// Getting the type of the expression is not enough (if it's a function) as we won't know which function to call.
+				SC_ASSERT(fc.object->nodeType() == ast::NodeType::Identifier,
+						  "Called object must be an identifier. We do not yet support calling arbitrary expressions.");
+				auto& identifier = static_cast<Identifier&>(*fc.object);
+			
+				const scatha::sema::SymbolID functionSymbolID = extracted(identifier, sym);
+				if (functionSymbolID.category() != SymbolCategory::Function) {
+					SC_ASSERT(false, "Look at the assertion above");
 				}
+				auto const& function = sym.getFunction(functionSymbolID);
+				auto const& functionType = sym.getType(function.typeID());
 				
-				return;
-			}
-			case NodeType::Subscript: {
-				auto* const node = static_cast<Subscript*>(inNode);
-				doRun(node->object.get());
-				for (auto& arg: node->arguments) {
-					doRun(arg.get());
+				verifyFunctionCallExpression(fc, functionType, fc.arguments);
+				
+				fc.typeID = functionType.returnType();
+			},
+			[&](Subscript& s) {
+				analyze(*s.object);
+				for (auto& arg: s.arguments) {
+					analyze(*arg);
 				}
-				return;
-			}	
-			case NodeType::_count:
-				SC_DEBUGFAIL();
-		}
+			},
+			
+		});
 	}
-
-	void SemanticAnalyzer::verifyConversion(Expression const* from, TypeID to) const {
-		if (from->typeID != to) {
-			throwBadTypeConversion(from->token(), from->typeID, to);
+	
+	void Context::verifyConversion(Expression const& from, TypeID to) const {
+		if (from.typeID != to) {
+			throwBadTypeConversion(from.token(), from.typeID, to);
 		}
 	}
 	
-	TypeID SemanticAnalyzer::verifyBinaryOperation(BinaryExpression const* expr) const {
+	TypeID Context::verifyBinaryOperation(BinaryExpression const& expr) const {
 		auto doThrow = [&]{
 			/// TODO: Think of somethin better here
 			/// probably think of some way of how to lookup and define operators
-			throw SemanticIssue(expr->token(), utl::strcat("Invalid types for operator ", toString(expr->op), ": \"",
-														   symbols.getType(expr->lhs->typeID).name(), "\" and \"",
-														   symbols.getType(expr->rhs->typeID).name(), "\""));
+			throw SemanticIssue(expr.token(), utl::strcat("Invalid types for operator ", toString(expr.op), ": \"",
+														   sym.getType(expr.lhs->typeID).name(), "\" and \"",
+														   sym.getType(expr.rhs->typeID).name(), "\""));
 		};
 		
 		auto verifySame = [&]{
-			if (expr->lhs->typeID != expr->rhs->typeID) {
+			if (expr.lhs->typeID != expr.rhs->typeID) {
 				doThrow();
 			}
 		};
@@ -407,57 +356,57 @@ namespace scatha::sema {
 			}
 		};
 		
-		switch (expr->op) {
+		switch (expr.op) {
 				using enum BinaryOperator;
 			case Multiplication: [[fallthrough]];
 			case Division:       [[fallthrough]];
 			case Addition:       [[fallthrough]];
 			case Subtraction:
 				verifySame();
-				verifyAnyOf(expr->lhs->typeID, { symbols.Int(), symbols.Float() });
-				return expr->lhs->typeID;
+				verifyAnyOf(expr.lhs->typeID, { sym.Int(), sym.Float() });
+				return expr.lhs->typeID;
 				
 			case Remainder:
 				verifySame();
-				verifyAnyOf(expr->lhs->typeID, { symbols.Int() });
-				return expr->lhs->typeID;
+				verifyAnyOf(expr.lhs->typeID, { sym.Int() });
+				return expr.lhs->typeID;
 				
 			case BitwiseAnd:     [[fallthrough]];
 			case BitwiseXOr:     [[fallthrough]];
 			case BitwiseOr:
 				verifySame();
-				verifyAnyOf(expr->lhs->typeID, { symbols.Int() });
-				return expr->lhs->typeID;
+				verifyAnyOf(expr.lhs->typeID, { sym.Int() });
+				return expr.lhs->typeID;
 				
 			case LeftShift:      [[fallthrough]];
 			case RightShift:
-				if (expr->lhs->typeID != symbols.Int()) {
+				if (expr.lhs->typeID != sym.Int()) {
 					doThrow();
 				}
-				if (expr->rhs->typeID != symbols.Int()) {
+				if (expr.rhs->typeID != sym.Int()) {
 					doThrow();
 				}
-				return expr->lhs->typeID;
+				return expr.lhs->typeID;
 				
 			case Less:           [[fallthrough]];
 			case LessEq:         [[fallthrough]];
 			case Greater:        [[fallthrough]];
 			case GreaterEq:
 				verifySame();
-				verifyAnyOf(expr->lhs->typeID, { symbols.Int(), symbols.Float() });
-				return symbols.Bool();
+				verifyAnyOf(expr.lhs->typeID, { sym.Int(), sym.Float() });
+				return sym.Bool();
 			case Equals:         [[fallthrough]];
 			case NotEquals:
 				verifySame();
-				verifyAnyOf(expr->lhs->typeID, { symbols.Int(), symbols.Float(), symbols.Bool() });
-				return symbols.Bool();
+				verifyAnyOf(expr.lhs->typeID, { sym.Int(), sym.Float(), sym.Bool() });
+				return sym.Bool();
 				
 				
 			case LogicalAnd:     [[fallthrough]];
 			case LogicalOr:
 				verifySame();
-				verifyAnyOf(expr->lhs->typeID, { symbols.Bool() });
-				return symbols.Bool();
+				verifyAnyOf(expr.lhs->typeID, { sym.Bool() });
+				return sym.Bool();
 				
 			case Assignment:     [[fallthrough]];
 			case AddAssignment:  [[fallthrough]];
@@ -470,28 +419,28 @@ namespace scatha::sema {
 			case AndAssignment:  [[fallthrough]];
 			case OrAssignment:
 				verifySame();
-				return symbols.Void();
+				return sym.Void();
 				
 			case Comma:
-				return expr->rhs->typeID;
+				return expr.rhs->typeID;
 				
 			case _count:
 				SC_DEBUGFAIL();
 		}
 	}
 	
-	void SemanticAnalyzer::verifyFunctionCallExpression(FunctionCall const* expr, TypeEx const& fnType, std::span<UniquePtr<Expression> const> arguments) const {
+	void Context::verifyFunctionCallExpression(FunctionCall const& expr, TypeEx const& fnType, std::span<UniquePtr<Expression> const> arguments) const {
 		SC_ASSERT(fnType.isFunctionType(), "fnType is not a function type");
 		if (fnType.argumentCount() != arguments.size()) {
-			throw BadFunctionCall(expr->object->token(), BadFunctionCall::WrongArgumentCount);
+			throw BadFunctionCall(expr.object->token(), BadFunctionCall::WrongArgumentCount);
 		}
 		for (size_t i = 0; i < arguments.size(); ++i) {
-			verifyConversion(arguments[i].get(), fnType.argumentType(i));
+			verifyConversion(*arguments[i], fnType.argumentType(i));
 		}
 	}
 	
-	void SemanticAnalyzer::throwBadTypeConversion(Token const& token, TypeID from, TypeID to) const {
-		throw BadTypeConversion(token, symbols.getType(from), symbols.getType(to));
+	void Context::throwBadTypeConversion(Token const& token, TypeID from, TypeID to) const {
+		throw BadTypeConversion(token, sym.getType(from), sym.getType(to));
 	}
 	
 }

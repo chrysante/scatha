@@ -4,11 +4,12 @@
 #include <iosfwd>
 
 #include "AST/AST.h"
+#include "Basic/Basic.h"
 
 namespace scatha::ast {
 	
-	void printSource(AbstractSyntaxTree const*);
-	void printSource(AbstractSyntaxTree const*, std::ostream&);
+	SCATHA(API) void printSource(AbstractSyntaxTree const*);
+	SCATHA(API) void printSource(AbstractSyntaxTree const*, std::ostream&);
 	
 }
 

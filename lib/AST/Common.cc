@@ -1,11 +1,12 @@
 #include "AST/Common.h"
 
+#include <ostream>
+
 #include <utl/utility.hpp>
 
 namespace scatha::ast {
 	
 	std::string_view toString(NodeType t) {
-		using enum NodeType;
 		return UTL_SERIALIZE_ENUM(t, {
 			{ NodeType::TranslationUnit,       "TranslationUnit" },
 			{ NodeType::Block,                 "Block" },
@@ -32,8 +33,11 @@ namespace scatha::ast {
 		});
 	}
 	
+	std::ostream& operator<<(std::ostream& str, NodeType t) {
+		return str << toString(t);
+	}
+	
 	std::string_view toString(UnaryPrefixOperator op) {
-		using enum UnaryPrefixOperator;
 		return UTL_SERIALIZE_ENUM(op, {
 			{ UnaryPrefixOperator::Promotion,  "+" },
 			{ UnaryPrefixOperator::Negation,   "-" },
@@ -42,8 +46,11 @@ namespace scatha::ast {
 		});
 	}
 	
+	std::ostream& operator<<(std::ostream& str, UnaryPrefixOperator op) {
+		return str << toString(op);
+	}
+	
 	std::string_view toString(BinaryOperator op) {
-		using enum BinaryOperator;
 		return UTL_SERIALIZE_ENUM(op, {
 			{ BinaryOperator::Multiplication, "*" },
 			{ BinaryOperator::Division,       "/" },
@@ -75,7 +82,10 @@ namespace scatha::ast {
 			{ BinaryOperator::OrAssignment,   "|=" },
 			{ BinaryOperator::Comma,          "," },
 		});
-		
+	}
+	
+	std::ostream& operator<<(std::ostream& str, BinaryOperator op) {
+		return str << toString(op);
 	}
 	
 }
