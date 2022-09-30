@@ -6,7 +6,7 @@
 #include "AST/Common.h"
 #include "IC/ThreeAddressCode.h"
 #include "IC/ThreeAddressStatement.h"
-#include "Sema/SemanticElements.h"
+#include "Sema/SymbolID.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::ic {

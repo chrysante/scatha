@@ -15,11 +15,11 @@ namespace scatha::codegen {
 	}
 
 	static assembly::Label toAsm(ic::Label const& l) {
-		return assembly::Label(l.functionID.id(), l.index);
+		return assembly::Label(l.functionID.rawValue(), l.index);
 	}
 	
 	static assembly::Label toAsm(ic::FunctionLabel const& l) {
-		return assembly::Label(l.functionID().id());
+		return assembly::Label(l.functionID().rawValue());
 	}
 	
 	assembly::AssemblyStream CodeGenerator::run() {

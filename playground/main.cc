@@ -15,17 +15,15 @@
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "Parser/ExpressionParser.h"
-#include "Sema/SemanticAnalyzer.h"
+#include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
 
 using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
 
-#ifdef __GNUC__
-__attribute__((weak))
-#endif
-int main() {
+
+[[gnu::weak]] int main() {
 	auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
 	std::fstream file(filepath);
 	if (!file) {
@@ -47,17 +45,16 @@ int main() {
 		std::cout <<   "==================================================\n\n";
 		ast::printSource(ast.get());
 		
-		sema::SemanticAnalyzer s;
-		s.run(ast.get());
+		auto const sym = sema::analyze(ast.get());
 		ic::canonicalize(ast.get());
-		ic::TacGenerator t(s.symbolTable());
+		ic::TacGenerator t(sym);
 		auto const tac = t.run(ast.get());
 		
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Generated Three Address Code =================\n";
 		std::cout <<   "==================================================\n\n";
 		
-		ic::printTac(tac, s.symbolTable());
+		ic::printTac(tac, sym);
 		
 		codegen::CodeGenerator cg(tac);
 		auto const str = cg.run();
@@ -65,7 +62,7 @@ int main() {
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Generated Assembly ===========================\n";
 		std::cout <<   "==================================================\n\n";
-		print(str, s.symbolTable());
+		print(str, sym);
 
 		assembly::Assembler a(str);
 	

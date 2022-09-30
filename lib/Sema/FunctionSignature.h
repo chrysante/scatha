@@ -5,11 +5,11 @@
 
 #include <utl/vector.hpp>
 
-#include "Sema/Exp/EntityBase.h"
-#include "Sema/Exp/SymbolID.h"
-#include "Sema/Exp/Scope.h"
+#include "Sema/EntityBase.h"
+#include "Sema/SymbolID.h"
+#include "Sema/Scope.h"
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 	
 	class SCATHA(API) FunctionSignature {
 	public:
@@ -19,7 +19,7 @@ namespace scatha::sema::exp {
 			_argHash(hashArguments(argumentTypeIDs())),
 			_typeHash(computeTypeHash(returnType, _argHash))
 		{
-//			SC_ASSERT(std::find(argumentTypeIDs().begin(), argumentTypeIDs.end(), ))
+
 		}
 		
 		TypeID typeID() const { return TypeID(_typeHash); }
@@ -28,6 +28,8 @@ namespace scatha::sema::exp {
 		std::span<TypeID const> argumentTypeIDs() const { return _argumentTypeIDs; }
 		
 		TypeID argumentTypeID(size_t index) const { return _argumentTypeIDs[index]; }
+
+		size_t argumentCount() const { return _argumentTypeIDs.size(); }
 		
 		/// TypeID of the return type
 		TypeID returnTypeID() const { return _returnTypeID; }

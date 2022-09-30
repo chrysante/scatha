@@ -5,11 +5,11 @@
 
 #include <utl/hashset.hpp>
 
-#include "Sema/Exp/EntityBase.h"
-#include "Sema/Exp/Function.h"
-#include "Sema/Exp/SymbolID.h"
+#include "Sema/EntityBase.h"
+#include "Sema/Function.h"
+#include "Sema/SymbolID.h"
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 	
 	class SCATHA(API) OverloadSet: public EntityBase {
 	public:

@@ -10,7 +10,8 @@
 
 namespace scatha::parse {
 	
-	struct SCATHA(API) ParsingIssue: ProgramIssue {
+	class SCATHA(API) ParsingIssue: public ProgramIssue {
+	public:
 		explicit ParsingIssue(TokenEx const&, std::string const& message);
 	};
 	

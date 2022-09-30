@@ -22,11 +22,11 @@ fn g(x: int) -> int {
 	
 	auto const [ast, sym] = test::produceDecoratedASTAndSymTable(text);
 	
-	auto f = sym.lookupName(Token("f"));
-	CHECK(f.category() == SymbolCategory::Function);
-	CHECK(sym.getFunction(f).name() == "f");
+	auto f = sym.lookup("f");
+	CHECK(sym.is(f, SymbolCategory::OverloadSet));
+	CHECK(sym.getOverloadSet(f).name() == "f");
 	
-	auto g = sym.lookupName(Token("g"));
-	CHECK(g.category() == SymbolCategory::Function);
-	CHECK(sym.getFunction(g).name() == "g");
+	auto g = sym.lookup("g");
+	CHECK(sym.is(g, SymbolCategory::OverloadSet));
+	CHECK(sym.getOverloadSet(g).name() == "g");
 }

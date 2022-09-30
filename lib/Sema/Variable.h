@@ -1,9 +1,9 @@
 #ifndef SCATHA_SEMA_VARIABLE_H_
 #define SCATHA_SEMA_VARIABLE_H_
 
-#include "Sema/Exp/EntityBase.h"
+#include "Sema/EntityBase.h"
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 	
 	class Variable: public EntityBase {
 	public:

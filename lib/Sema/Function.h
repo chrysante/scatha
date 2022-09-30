@@ -1,10 +1,10 @@
 #ifndef SCATHA_SEMA_FUNCTION_H_
 #define SCATHA_SEMA_FUNCTION_H_
 
-#include "Sema/Exp/EntityBase.h"
-#include "Sema/Exp/FunctionSignature.h"
+#include "Sema/EntityBase.h"
+#include "Sema/FunctionSignature.h"
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 	
 	class SCATHA(API) Function: public Scope {
 	public:

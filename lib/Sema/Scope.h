@@ -1,82 +1,51 @@
-#ifndef SCATHA_COMMON_SCOPED_H_
-#define SCATHA_COMMON_SCOPED_H_
+#ifndef SCATHA_SEMA_SCOPE_H_
+#define SCATHA_SEMA_SCOPE_H_
 
 #include <memory>
-#include <optional>
-#include <string>
-#include <stdexcept>
-#include <iosfwd>
 
 #include <utl/hashmap.hpp>
-#include <utl/common.hpp>
 
-#include "Basic/Bimap.h"
-#include "Sema/SemanticElements.h"
+#include "Sema/EntityBase.h"
+#include "Sema/ScopeKind.h"
 
 namespace scatha::sema {
 	
 	namespace internal { class ScopePrinter; }
 	
-	/**
-	 * class \p Scope
-	 * Represents a scope like classes, namespaces and functions in the symbol table.
-	 * Maintains a table mapping all names in a scope to SymbolIDs.
-	 * Scopes are arranged in a tree structure where the global scope is the root.
-	 */
-	class SCATHA(API) Scope {
+	class SCATHA(API) Scope: public EntityBase {
 	public:
-		enum Kind {
-			Global, Function, Struct, Namespace, Anonymous, _count
-		};
+		ScopeKind kind() const { return _kind; }
+		explicit Scope(ScopeKind, SymbolID symbolID, Scope* parent);
 		
+		Scope const* parent() const { return _parent; }
+		
+	protected:
 	public:
-		// Because of a bug in msvc we need to explicitly declare this class move-only.
-		// It is implicitly move-only because of a nested unique_ptr member, but when we 
-		// dll-export this class, mscv will try to generate a copy constructor and fail compilation.
-		SCATHA(MOVE_ONLY, Scope);
+		explicit Scope(ScopeKind, std::string name, SymbolID symbolID, Scope* parent);
 		
-		explicit Scope(std::string name, Kind kind, Scope* parent);
-		explicit Scope(std::string_view name, Kind kind, Scope* parent): Scope(std::string(name), kind, parent) {}
-		
-		
-		Kind kind() const { return _kind; }
-		
-		std::string_view name() const { return _name; }
-		
-		// returns SymbolID and boolean == true iff name was just added / == false iff name already existed.
-		std::pair<SymbolID, bool> addSymbol(std::string_view, SymbolCategory);
-		SymbolID addAnonymousSymbol(SymbolCategory);
-		
-		std::optional<SymbolID> findIDByName(std::string_view) const;
-		std::string findNameByID(SymbolID) const;
-		
-		Scope* parentScope() { return _parent; }
-		Scope const* parentScope() const { return _parent; }
-		Scope* childScope(SymbolID id) { return &utl::as_mutable(*utl::as_const(*this).childScope(id)); }
-		Scope const* childScope(SymbolID id) const;
+		// Until we have heterogenous lookup
+		SymbolID findID(std::string_view name) const;
 		
 	private:
 		friend class internal::ScopePrinter;
-		
-		auto generateID(SymbolCategory cat) { return SymbolID(++(_root->_symbolIDCounter), cat); }
-		std::pair<SymbolID, bool> addSymbolImpl(std::optional<std::string_view>, SymbolCategory);
+		friend class SymbolTable;
+		void add(EntityBase const& entity);
+		void add(Scope& scopingEntity);
 		
 	private:
+		// Scopes don't own their childscopes. These objects are owned by the symbol table.
+		utl::hashmap<SymbolID, Scope*> _children;
+		utl::hashmap<std::string, SymbolID> _symbols;
+		ScopeKind _kind;
 		Scope* _parent = nullptr;
-		Scope* _root = nullptr;
-		Kind _kind;
-		
-		u64 _symbolIDCounter = 0; // must only be accessed via the _root pointer so we don't generate the same ID twice
-		
-		std::string _name;
-		Bimap<std::string, SymbolID> _nameIDMap;
-		
-		utl::hashmap<SymbolID, std::unique_ptr<Scope>> _childScopes;
 	};
 	
-	std::string_view toString(Scope::Kind);
+	class GlobalScope: public Scope {
+	public:
+		GlobalScope();
+	};
 	
 }
 
-#endif // SCATHA_COMMON_SCOPED_H_
+#endif // SCATHA_SEMA_SCOPE_H_
 

@@ -147,7 +147,6 @@ fn main() -> int {
 TEST_CASE("Branch based on result of function calls") {
 	std::string const text = R"(
 fn greaterZero(a: int) -> bool {
-	return a > 0;
 	return !(a <= 0);
 }
 
@@ -155,16 +154,16 @@ fn main() -> int {
 	let x = 0;
 	let y = 1;
 	if greaterZero(x) {
-		return 2;
-	}
-	else if greaterZero(y) {
 		return 1;
 	}
+	else if greaterZero(y) {
+		return 2;
+	}
 	else {
-		return 0;
+		return 3;
 	}
 })";
 	auto const registers = test::getRegisters(text);
-	CHECK(registers[0] == 1);
+	CHECK(registers[0] == 2);
 }
 

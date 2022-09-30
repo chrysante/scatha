@@ -1,6 +1,6 @@
-#include "Sema/Exp/OverloadSet.h"
+#include "Sema/OverloadSet.h"
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 
 	Function const* OverloadSet::find(std::span<TypeID const> argumentTypes) const {
 		auto const itr = functions.find(argumentTypes);

@@ -1,13 +1,19 @@
-fn fact(n: int) -> int {
-	var i = 0;
-	var result = 1;
-	while i < n {
-		i += 1;
-		result *= i;
-	}
-	return result;
+
+
+fn greaterZero(a: int) -> bool {
+	return !(a <= 0);
 }
 
 fn main() -> int {
-	return fact(4);
+	let x = 0;
+	let y = 1;
+	if greaterZero(x) {
+		return 1;
+	}
+	else if greaterZero(y) {
+		return 2;
+	}
+	else {
+		return 3;
+	}
 }

@@ -8,7 +8,7 @@
 #include "Assembly/Assembly.h"
 #include "Basic/Basic.h"
 #include "IC/ThreeAddressCode.h"
-#include "Sema/SemanticElements.h"
+#include "Sema/SymbolID.h"
 
 namespace scatha::codegen {
 	

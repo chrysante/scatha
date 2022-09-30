@@ -11,7 +11,7 @@ namespace scatha::sema {
 	static std::string fullName(Scope const* sc) {
 		std::string result(sc->name());
 		while (true) {
-			sc = sc->parentScope();
+			sc = sc->parent();
 			if (sc == nullptr) { return result; }
 			result = std::string(sc->name()) + "." + result;
 		}
@@ -21,7 +21,7 @@ namespace scatha::sema {
 		ProgramIssue(token, brief, message)
 	{}
 	
-	BadTypeConversion::BadTypeConversion(Token const& token, TypeEx const& from, TypeEx const& to):
+	BadTypeConversion::BadTypeConversion(Token const& token, ObjectType const& from, ObjectType const& to):
 		TypeIssue(token, utl::strcat("Cannot convert from ", from.name(), " to ", to.name()),
 				  "Note: For now we don't allow any implicit conversions")
 	{
@@ -39,36 +39,40 @@ namespace scatha::sema {
 	{}
 	
 	InvalidSymbolReference::InvalidSymbolReference(Token const& token, SymbolCategory actually):
-		SymbolError(token, utl::strcat("Identifier \"", token.id, "\" is a ", toString(actually)))
+		SymbolError(token, utl::strcat("Identifier \"", token.id, "\" is a ", actually))
 	{}
 	
 	InvalidStatement::InvalidStatement(Token const& token, std::string_view message):
 		SemanticIssue(token, message)
 	{}
 	
-	InvalidDeclaration::InvalidDeclaration(Token const& token, Scope const* scope, std::string_view element):
-		InvalidStatement(token, utl::strcat("Invalid declaration of ", element, " at ", toString(scope->kind())))
+	InvalidDeclaration::InvalidDeclaration(Token const& token, Scope const& scope, std::string_view element):
+		InvalidStatement(token, utl::strcat("Invalid declaration of ", element, " at ", scope.kind(), " scope"))
 	{}
 	
-	InvalidFunctionDeclaration::InvalidFunctionDeclaration(Token const& token, Scope const* scope):
-		InvalidDeclaration(token, scope, " function ")
+	InvalidFunctionDeclaration::InvalidFunctionDeclaration(Token const& token, Scope const& scope):
+		InvalidDeclaration(token, scope, "function")
 	{}
 	
-	InvalidStructDeclaration::InvalidStructDeclaration(Token const& token, Scope const* scope):
-		InvalidDeclaration(token, scope, " function ")
+	InvalidOverload::InvalidOverload(Token const& token, Scope const& scope):
+		InvalidFunctionDeclaration(token, scope)
 	{}
 	
-	InvalidRedeclaration::InvalidRedeclaration(Token const& token, Scope const* scope):
-		InvalidStatement(token, utl::strcat("Identifier \"", token.id, "\" already declared in scope ", fullName(scope)))
+	InvalidStructDeclaration::InvalidStructDeclaration(Token const& token, Scope const& scope):
+		InvalidDeclaration(token, scope, " struct ")
 	{}
 	
-	InvalidRedeclaration::InvalidRedeclaration(Token const& token, TypeEx const& oldType):
-		InvalidStatement(token, utl::strcat("Identifier \"", token.id, "\" has previously been declared to be of type \"", oldType.isFunctionType() ? "<function-type>" : oldType.name(), "\""))
+	InvalidRedeclaration::InvalidRedeclaration(Token const& token, Scope const& scope):
+		InvalidStatement(token, utl::strcat("Identifier \"", token.id, "\" already declared in scope ", fullName(&scope)))
 	{}
 	
-	InvalidRedeclaration::InvalidRedeclaration(Token const& token, Scope const* scope,
+	InvalidRedeclaration::InvalidRedeclaration(Token const& token, ObjectType const& oldType):
+		InvalidStatement(token, utl::strcat("Identifier \"", token.id, "\" has previously been declared to be of type \"",  oldType.name(), "\""))
+	{}
+	
+	InvalidRedeclaration::InvalidRedeclaration(Token const& token, Scope const& scope,
 											   SymbolCategory existing):
-		InvalidStatement(token, utl::strcat("Identifier \"", token.id, "\" already declared in scope ", fullName(scope),
+		InvalidStatement(token, utl::strcat("Identifier \"", token.id, "\" already declared in scope ", fullName(&scope),
 											" as ", toString(existing)))
 	{}
 	

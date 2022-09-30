@@ -2,6 +2,7 @@
 #define SCATHA_IC_THREEADDRESSSTATEMENT_H_
 
 #include <iosfwd>
+#include <span>
 #include <variant>
 
 #include <utl/utility.hpp>
@@ -9,7 +10,7 @@
 
 #include "AST/AST.h"
 #include "AST/Expression.h"
-#include "Sema/SemanticElements.h"
+#include "Sema/SymbolID.h"
 
 namespace scatha::ic {
 	

@@ -4,12 +4,12 @@
 #include <string_view>
 
 #include "Common/Token.h"
-#include "Sema/Exp/SymbolID.h"
-#include "Sema/Exp/ScopeKind.h"
+#include "Sema/SymbolID.h"
+#include "Sema/ScopeKind.h"
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 	
-	class SymbolIssue {
+	class SCATHA(API) SymbolIssue {
 	public:
 		virtual ~SymbolIssue() = default;
 		
@@ -22,12 +22,12 @@ namespace scatha::sema::exp {
 		Token _token;
 	};
 	
-	class DefinitionIssue: public SymbolIssue {
+	class SCATHA(API) DefinitionIssue: public SymbolIssue {
 	public:
 		using SymbolIssue::SymbolIssue;
 	};
 	
-	class InvalidScopeIssue: public DefinitionIssue {
+	class SCATHA(API) InvalidScopeIssue: public DefinitionIssue {
 	public:
 		InvalidScopeIssue(std::string_view symbolName, ScopeKind kind);
 		
@@ -37,7 +37,7 @@ namespace scatha::sema::exp {
 		ScopeKind _kind;
 	};
 	
-	class SymbolCollisionIssue: public DefinitionIssue {
+	class SCATHA(API) SymbolCollisionIssue: public DefinitionIssue {
 	public:
 		explicit SymbolCollisionIssue(std::string_view symbolName, SymbolID existing);
 		
@@ -47,7 +47,7 @@ namespace scatha::sema::exp {
 		SymbolID _existing;
 	};
 	
-	class OverloadIssue: public SymbolCollisionIssue {
+	class SCATHA(API) OverloadIssue: public SymbolCollisionIssue {
 	public:
 		enum Reason { CantOverloadOnReturnType, Redefinition };
 		

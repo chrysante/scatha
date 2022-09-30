@@ -5,9 +5,9 @@
 #include <string_view>
 
 #include "Basic/Basic.h"
-#include "Sema/Exp/SymbolID.h"
+#include "Sema/SymbolID.h"
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 	
 	/**
 	 * Base class for all entities in the language.
@@ -22,6 +22,7 @@ namespace scatha::sema::exp {
 				return std::hash<SymbolID>{}(e.symbolID());
 			}
 		};
+		
 		struct MapEqual {
 			struct is_transparent;
 			bool operator()(EntityBase const& a, EntityBase const& b) const {

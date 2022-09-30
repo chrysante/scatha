@@ -6,7 +6,7 @@
 
 #include "Common/ProgramIssue.h"
 #include "Common/Token.h"
-#include "Sema/SemanticElements.h"
+#include "Sema/ObjectType.h"
 
 namespace scatha::sema {
 
@@ -28,13 +28,13 @@ namespace scatha::sema {
 	
 	class SCATHA(API) BadTypeConversion: public TypeIssue {
 	public:
-		explicit BadTypeConversion(Token const& token, TypeEx const& from, TypeEx const& to);
+		explicit BadTypeConversion(Token const& token, ObjectType const& from, ObjectType const& to);
 	};
 	
 	class SCATHA(API) BadFunctionCall: public SemanticIssue {
 	public:
 		enum Reason {
-			WrongArgumentCount
+			WrongArgumentCount, NoMatchingFunction
 		};
 		explicit BadFunctionCall(Token const& token, Reason);
 	};
@@ -64,24 +64,29 @@ namespace scatha::sema {
 
 	class SCATHA(API) InvalidDeclaration: public InvalidStatement {
 	protected:
-		InvalidDeclaration(Token const& token, Scope const* scope, std::string_view element);
+		InvalidDeclaration(Token const& token, Scope const& scope, std::string_view element);
 	};
 	
 	class SCATHA(API) InvalidFunctionDeclaration: public InvalidDeclaration {
 	public:
-		InvalidFunctionDeclaration(Token const& token, Scope const* scope);
+		InvalidFunctionDeclaration(Token const& token, Scope const& scope);
+	};
+	
+	class SCATHA(API) InvalidOverload: public InvalidFunctionDeclaration {
+	public:
+		InvalidOverload(Token const& token, Scope const& scope);
 	};
 	
 	class SCATHA(API) InvalidStructDeclaration: public InvalidDeclaration {
 	public:
-		InvalidStructDeclaration(Token const& token, Scope const* scope);
+		InvalidStructDeclaration(Token const& token, Scope const& scope);
 	};
 	
 	class SCATHA(API) InvalidRedeclaration: public InvalidStatement {
 	public:
-		InvalidRedeclaration(Token const& token, Scope const* scope);
-		InvalidRedeclaration(Token const& token, TypeEx const& oldType);
-		InvalidRedeclaration(Token const& token, Scope const* scope,
+		InvalidRedeclaration(Token const& token, Scope const& scope);
+		InvalidRedeclaration(Token const& token, ObjectType const& oldType);
+		InvalidRedeclaration(Token const& token, Scope const& scope,
 							 SymbolCategory existing);
 	};
 	

@@ -3,10 +3,13 @@
 
 #include <functional>
 #include <iosfwd>
+#include <string_view>
+
+#include <utl/common.hpp>
 
 #include "Basic/Basic.h"
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 	
 	class SymbolID {
 	public:
@@ -20,6 +23,8 @@ namespace scatha::sema::exp {
 		constexpr bool operator==(SymbolID const&) const = default;
 		
 		u64 hash() const;
+		
+		explicit operator bool() const { return *this != Invalid; }
 		
 	private:
 		u64 _value;
@@ -39,16 +44,31 @@ namespace scatha::sema::exp {
 	
 	inline TypeID const TypeID::Invalid = TypeID(SymbolID::Invalid);
 	
+	enum class SymbolCategory {
+		Variable    = 1 << 0,
+		Namespace   = 1 << 1,
+		OverloadSet = 1 << 2,
+		Function    = 1 << 3,
+		ObjectType  = 1 << 4,
+		_count
+	};
+	
+	UTL_ENUM_OPERATORS(SymbolCategory);
+	
+	SCATHA(API) std::string_view toString(SymbolCategory);
+	
+	SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolCategory);
+	
 }
 
 template <>
-struct std::hash<scatha::sema::exp::SymbolID> {
-	std::size_t operator()(scatha::sema::exp::SymbolID id) const { return std::hash<scatha::u64>{}(id.rawValue()); }
+struct std::hash<scatha::sema::SymbolID> {
+	std::size_t operator()(scatha::sema::SymbolID id) const { return std::hash<scatha::u64>{}(id.rawValue()); }
 };
 
 template <>
-struct std::hash<scatha::sema::exp::TypeID> {
-	std::size_t operator()(scatha::sema::exp::TypeID id) const { return std::hash<scatha::sema::exp::SymbolID>{}(id); }
+struct std::hash<scatha::sema::TypeID> {
+	std::size_t operator()(scatha::sema::TypeID id) const { return std::hash<scatha::sema::SymbolID>{}(id); }
 };
 
 

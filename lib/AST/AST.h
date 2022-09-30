@@ -13,7 +13,8 @@
 #include "AST/Base.h"
 #include "AST/Common.h"
 #include "AST/Expression.h"
-#include "Sema/SemanticElements.h"
+#include "Sema/SymbolID.h"
+#include "Sema/ScopeKind.h"
 #include "Sema/Scope.h"
 
 /*
@@ -127,7 +128,7 @@ namespace scatha::ast {
 		/** Decoration provided by semantic analysis. */
 		
 		/// Kind of this block scope
-		sema::Scope::Kind scopeKind = sema::Scope::Anonymous;
+		sema::ScopeKind scopeKind = sema::ScopeKind::Anonymous;
 		
 		/// SymbolID of this block scope
 		sema::SymbolID scopeSymbolID{};

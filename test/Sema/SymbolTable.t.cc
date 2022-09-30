@@ -2,25 +2,25 @@
 
 #include <array>
 
-#include "Sema/Exp/OverloadSet.h"
-#include "Sema/Exp/SymbolTable.h"
+#include "Sema/OverloadSet.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 
 TEST_CASE("SymbolTable lookup", "[sema]") {
-	sema::exp::SymbolTable sym;
+	sema::SymbolTable sym;
 	
-	auto const var = sym.addVariable("x", sym.Int());
+	auto const var = sym.addVariable("x", sym.Int(), false);
 	REQUIRE(var.hasValue());
 	auto const xID = sym.lookup("x");
 	CHECK(var.value().symbolID() == xID);
 }
 
 TEST_CASE("SymbolTable define custom type", "[sema]") {
-	sema::exp::SymbolTable sym;
+	sema::SymbolTable sym;
 	
 	// define function f in the global scope
-	auto const fnI = sym.addFunction("i", sema::exp::FunctionSignature({ sym.Int() }, sym.Int()));
+	auto const fnI = sym.addFunction("i", sema::FunctionSignature({ sym.Int() }, sym.Int()));
 	CHECK(fnI.hasValue());
 	
 	auto& type = sym.addObjectType("X").value();
@@ -29,10 +29,7 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
 	sym.pushScope(type.symbolID());
 	
 	// Add member variable 'i' to
-	auto const memberI = sym.addVariable("i", sym.Int());
-	
-	
-//	sym.addFunction("f", <#FunctionSignature#>)
+	auto const memberI = sym.addVariable("i", sym.Int(), false);
 	
 	sym.popScope();
 	// --- ---

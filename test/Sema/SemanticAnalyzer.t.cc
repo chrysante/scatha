@@ -1,5 +1,7 @@
 #include <Catch/Catch2.hpp>
 
+#include <array>
+
 #include "AST/AST.h"
 #include "AST/Expression.h"
 #include "Parser/ParsingIssue.h"
@@ -20,34 +22,34 @@ fn mul(a: int, b: int, c: float) -> int {
 
 	auto [ast, sym] = test::produceDecoratedASTAndSymTable(text);
 	
-	auto const& symMul = sym.lookupName(Token("mul"));
-	CHECK(symMul.category() == SymbolCategory::Function);
+	auto const& mulID = sym.lookup("mul");
+	CHECK(sym.is(mulID, SymbolCategory::OverloadSet));
+	auto const& mul = sym.getOverloadSet(mulID);
 	
-	auto const& fnMul = sym.getFunction(symMul);
-	auto const& fnType = sym.getType(fnMul.typeID());
+	auto const* mulFnPtr = mul.find(std::array{ sym.Int(), sym.Int(), sym.Float() });
+	REQUIRE(mulFnPtr != nullptr);
+	auto const& mulFn = *mulFnPtr;
+	auto const& fnType = mulFn.signature();
 	
-	CHECK(fnType.returnType() == sym.Int());
-	REQUIRE(fnType.argumentTypes().size() == 3);
-	CHECK(fnType.argumentType(0) == sym.Int());
-	CHECK(fnType.argumentType(1) == sym.Int());
-	CHECK(fnType.argumentType(2) == sym.Float());
+	CHECK(fnType.returnTypeID() == sym.Int());
+	REQUIRE(fnType.argumentCount() == 3);
+	CHECK(fnType.argumentTypeID(0) == sym.Int());
+	CHECK(fnType.argumentTypeID(1) == sym.Int());
+	CHECK(fnType.argumentTypeID(2) == sym.Float());
 	
-	auto const  mulScopeID = sym.globalScope()->findIDByName("mul");
-	auto const* mulScope   = sym.globalScope()->childScope(mulScopeID.value());
-	
-	auto const aID = mulScope->findIDByName("a").value();
+	auto const aID = mulFn.findID("a");
 	auto const& a = sym.getVariable(aID);
 	CHECK(a.typeID() == sym.Int());
 	
-	auto const bID = mulScope->findIDByName("b").value();
+	auto const bID = mulFn.findID("b");
 	auto const& b = sym.getVariable(bID);
 	CHECK(b.typeID() == sym.Int());
 	
-	auto const cID = mulScope->findIDByName("c").value();
+	auto const cID = mulFn.findID("c");
 	auto const& c = sym.getVariable(cID);
 	CHECK(c.typeID() == sym.Float());
 	
-	auto const resultID = mulScope->findIDByName("result").value();
+	auto const resultID = mulFn.findID("result");
 	auto const& result = sym.getVariable(resultID);
 	CHECK(result.typeID() == sym.Int());
 }
@@ -132,17 +134,24 @@ fn caller() -> float {
 	REQUIRE(calleeDecl);
 	CHECK(calleeDecl->returnTypeID == sym.Float());
 	auto calleeArgTypes = { sym.String(), sym.Int(), sym.Bool() };
-	auto const& functionType = sym.getType(computeFunctionTypeID(sym.Float(), calleeArgTypes));
-	CHECK(calleeDecl->functionTypeID == functionType.id());
+//	auto const& functionType = sym.getType(computeFunctionTypeID(sym.Float(), calleeArgTypes));
+//	CHECK(calleeDecl->functionTypeID == functionType.id());
 	CHECK(calleeDecl->parameters[0]->typeID == sym.String());
 	CHECK(calleeDecl->parameters[1]->typeID == sym.Int());
 	CHECK(calleeDecl->parameters[2]->typeID == sym.Bool());
 	
 	auto* caller = downCast<FunctionDefinition>(tu->declarations[1].get());
-	REQUIRE(caller);
-	
 	auto* resultDecl = downCast<VariableDeclaration>(caller->body->statements[0].get());
 	CHECK(resultDecl->initExpression->typeID == sym.Float());
+	auto* fnCallExpr = downCast<FunctionCall>(resultDecl->initExpression.get());
+	auto* calleeIdentifier = downCast<Identifier>(fnCallExpr->object.get());
+	
+	auto const& calleeOverloadSet = sym.lookupOverloadSet("callee");
+	REQUIRE(calleeOverloadSet != nullptr);
+	auto* calleeFunction = calleeOverloadSet->find(std::array{ sym.String(), sym.Int(), sym.Bool() });
+	REQUIRE(calleeFunction != nullptr);
+	
+	CHECK(calleeIdentifier->symbolID == calleeFunction->symbolID());
 }
 
 TEST_CASE("Decoration of the AST with struct definition", "[sema]") {

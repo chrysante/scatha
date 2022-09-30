@@ -1,4 +1,4 @@
-#include "Sema/Exp/EntityBase.h"
+#include "Sema/EntityBase.h"
 
 namespace scatha::sema {
 	

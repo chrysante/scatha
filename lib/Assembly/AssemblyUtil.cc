@@ -405,7 +405,7 @@ namespace scatha::assembly {
 			
 			void printLabel(Label label) {
 				if (sym != nullptr) {
-					str << sym->getFunction(sema::SymbolID(label.functionID, sema::SymbolCategory::Function)).name();
+					str << sym->getFunction(sema::SymbolID(label.functionID)).name();
 					if (label.index >= 0) {
 						str << ".L" << label.index;
 					}

@@ -1,196 +1,119 @@
-#ifndef SCATHA_SEMA_SYMBOLTABLE_H_
-#define SCATHA_SEMA_SYMBOLTABLE_H_
+#ifndef SCATHA_SEMA_SYMBOLTABLE2_H_
+#define SCATHA_SEMA_SYMBOLTABLE2_H_
 
+#include <atomic>
 #include <memory>
 #include <string>
-#include <span>
 
+#include <utl/hashmap.hpp>
+
+#include "Basic/Basic.h"
+#include "Common/Expected.h"
 #include "Common/Token.h"
-#include "Sema/SemanticElements.h"
+#include "Sema/OverloadSet.h"
 #include "Sema/Scope.h"
+#include "Sema/Variable.h"
+#include "Sema/ObjectType.h"
+#include "Sema/SymbolIssue.h"
+//#include "SymbolCategory.h"
 
 namespace scatha::sema {
 	
-	/**
-	 SymbolTable:
-	 Tree of all scopes and names in a translation unit
-	 
-	 # Notes: #
-	 1. call \p addSymbol() to add a new name to the current scope. Must be called before using \p pushScope with that name
-	 */
 	class SCATHA(API) SymbolTable {
 	public:
 		SymbolTable();
-	
-		/**
-		 Add a symbol to the current scope.
-		 
-		 - parameter name Name of the symbol to add to the current scope.
-		 - parameter category Category of the symbol.
-		 
-		 - returns Pair of ID of the added or existing name and boolean wether the name already existed.
-		 
-		 # Notes: #
-		 1. \p name may already exist in the current scope. Then it is verified that \p category is the same as for the last call to this function.
-		 2. This function will also be called internally by \p declare:define-Type:Function:Variable()
-		 */
-		std::pair<SymbolID, bool> addSymbol(Token const& name, SymbolCategory category);
 		
-		/**
-		 Add an anonymous symbol to the current scope.
-		 
-		 - parameter category Category of the symbol.
-		 
-		 - returns Pair of ID of the added or existing name and boolean wether the name already existed.
-		 
-		 # Notes: #
-		 1. \p name may already exist in the current scope. Then it is verified that \p category is the same as for the last call to this function.
-		 2. This function will also be called internally by \p declare*define-Type*Function*Variable()
-		 */
-		SymbolID addAnonymousSymbol(SymbolCategory category);
+		// Modifiers
+		Expected<Function const&, SymbolIssue> addFunction(std::string name,
+														   FunctionSignature);
+		Expected<Function const&, SymbolIssue> addFunction(Token token,
+														   FunctionSignature sig)
+		{ return addFunction(std::move(token.id), std::move(sig)); }
 		
-		/**
-		 Make current one of the child scopes of the current scope.
-		 
-		 - parameter name Name of the scope to make current.
-		 
-		 - warning \p name must be a child scope of the current scope.
-		 */
-		void pushScope(std::string_view name);
-		void pushScope(SymbolID name);
+		Expected<Variable const&, SymbolCollisionIssue> addVariable(std::string name,
+																	TypeID,
+																	bool isConstant);
+		Expected<Variable const&, SymbolCollisionIssue> addVariable(Token token,
+																	TypeID typeID,
+																	bool isConstant)
+		{ return addVariable(std::move(token.id), typeID, isConstant); }
 		
-		/**
-		 Make current the parent scope of the current scope.
-		 
-		 - warning Current scope must not be the global scope.
-		 */
+		Expected<ObjectType&, SymbolCollisionIssue> addObjectType(std::string name,
+																  size_t size = -1,
+																  size_t align = -1,
+																  bool isBuiltin = false);
+		Expected<ObjectType&, SymbolCollisionIssue> addObjectType(Token token,
+																  size_t size = -1,
+																  size_t align = -1,
+																  bool isBuiltin = false)
+		{ return addObjectType(std::move(token.id), size, align, isBuiltin); }
+		
+		Scope const& addAnonymousScope();
+		
+		void pushScope(SymbolID id);
+		
 		void popScope();
 		
-		/**
-		 Declare a type in the current scope.
-		 
-		 - parameter name Name of the type.
-		 
-		 - returns ID of the added or existing name.
-		 
-		 # Notes: #
-		 1. \p name may already exist, however must be of category type.
-		 So this function may be called multiple times with the same name.
-		 */
-		SymbolID declareType(Token const& name);
-		
-		/**
-		 Define a type in the current scope.
-		 
-		 - parameter name Name of the type.
-		 - parameter size Size of the type in bytes.
-		 - parameter align Alignment of the type in bytes.
-		 
-		 - returns Reference to the added type object.
-		 
-		 # Notes: #
-		 1. \p name may already exist, however must not yet be defined and must be of category type.
-		 So this function must not be called multiple times with the same name.
-		 */
-		TypeEx& defineType(Token const& name, size_t size, size_t align);
-		
-		TypeEx& defineBuiltinType(Token const& name, size_t size, size_t align);
-		
-		/**
-		 Declare an overload set in the current scope.
-		 
-		 - parameter name Name of the overload set.
-		 
-		 - returns Pair of pointer to the added or existing overload set and boolean wether the name already existed.
-		 
-		 # Notes: #
-		 1. \p name may already exist, however must be of category OverloadSet.
-		 So this function may be called multiple times with the same name, however the signature must match.
-		 */
-		std::pair<Function*, bool> declareOverloadSet(Token const& name, TypeID returnType, std::span<TypeID const> argumentTypes);
-		
-		/**
-		 Declare a function in the current scope.
-		 
-		 - parameter name Name of the function.
-		 - parameter returnType TypeID of the returned type.
-		 - parameter argumentTypes TypeIDs of the arguments.
-		 
-		 - returns Pair of pointer to the added or existing function and boolean wether the name already existed.
-		 
-		 # Notes: #
-		 1. \p name may already exist, however must be of category function.
-		 So this function may be called multiple times with the same name, however the signature must match.
-		 */
-		std::pair<Function*, bool> declareFunction(Token const& name, TypeID returnType, std::span<TypeID const> argumentTypes);
-		
-		/**
-		 Declare a variable in the current scope.
-		 
-		 - parameter name Name of the variable.
-		 - parameter typeID TypeID of the variable.
-		 - parameter isConstant boolean indicating constness.
-		 
-		 - returns Pair of pointer to the added or existing variable and boolean wether the name already existed.
-		 
-		 # Notes: #
-		 1. \p name may already exist, however must be of category variable.
-		 So this function may be called multiple times with the same name, however the type must match.
-		 */
-		std::pair<Variable*, bool> declareVariable(Token const& name, TypeID typeID, bool isConstant);
-		
-		/**
-		 Performs scoped name lookup. Looks for the name in the current scope and walks up the scope tree until it finds the name or reaches the global scope.
-		 
-		 - parameter name Name to look for.
-		 
-		 - returns ID of the found symbol or invalidSymbolID if not found.
-		 */
-		SymbolID lookupName(Token const& name) const;
-		
-		Scope* currentScope() { return _currentScope; }
-		Scope const* currentScope() const { return _currentScope; }
-		Scope* globalScope() { return _currentScope; }
-		Scope const* globalScope() const { return _globalScope.get(); }
-		
-		TypeEx& findTypeByName(Token const& name) {
-			return utl::as_mutable(utl::as_const(*this).findTypeByName(name));
-		}
-		
-		TypeEx const& findTypeByName(Token const& name) const;
-		
-		TypeEx& getType(TypeID id) { return utl::as_mutable(utl::as_const(*this).getType(id)); }
-		TypeEx const& getType(TypeID) const;
-		TypeEx& getType(SymbolID id) { return getType(TypeID(id.id())); }
-		TypeEx const& getType(SymbolID id) const { return getType(TypeID(id.id())); }
-		
-		Function& getFunction(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getFunction(id)); }
+		// Queries
+		OverloadSet const& getOverloadSet(SymbolID) const;
+		OverloadSet const* tryGetOverloadSet(SymbolID) const;
 		Function const& getFunction(SymbolID) const;
-		
-		Variable& getVariable(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getVariable(id)); }
+		Function const* tryGetFunction(SymbolID) const;
 		Variable const& getVariable(SymbolID) const;
+		Variable const* tryGetVariable(SymbolID) const;
+		ObjectType const& getObjectType(SymbolID) const;
+		ObjectType const* tryGetObjectType(SymbolID) const;
 		
-		TypeID Void() const  { return _void; }
-		TypeID Bool() const  { return _bool; }
-		TypeID Int() const   { return _int; }
-		TypeID Float() const { return _float; }
+		SymbolID lookup(std::string_view name) const;
+		SymbolID lookup(Token const& token) const { return lookup(token.id); }
+		
+		OverloadSet const* lookupOverloadSet(std::string_view name) const;
+		OverloadSet const* lookupOverloadSet(Token const& token) const { return lookupOverloadSet(token.id); }
+		Variable const* lookupVariable(std::string_view name) const;
+		Variable const* lookupVariable(Token const& token) const { return lookupVariable(token.id); }
+		ObjectType const* lookupObjectType(std::string_view name) const;
+		ObjectType const* lookupObjectType(Token const& token) const { return lookupObjectType(token.id); }
+		
+		bool is(SymbolID, SymbolCategory) const;
+		
+		Scope& currentScope() { return *_currentScope; }
+		Scope const& currentScope() const { return *_currentScope; }
+		
+		Scope& globalScope() { return *_globalScope; }
+		Scope const& globalScope() const { return *_globalScope; }
+		
+		/// Getters for builtin types
+		TypeID Void()   const { return _void; }
+		TypeID Bool()   const { return _bool; }
+		TypeID Int()    const { return _int; }
+		TypeID Float()  const { return _float; }
 		TypeID String() const { return _string; }
 		
 	private:
-		
+		SymbolID generateID();
 		
 	private:
+		std::unique_ptr<GlobalScope> _globalScope;
 		Scope* _currentScope = nullptr;
-		std::unique_ptr<Scope> _globalScope;
-		ElementTable<TypeEx> types;
-		ElementTable<Function> funcs;
-		ElementTable<Variable> vars;
 		
-		/// Keyword types and values
-		TypeID _void{}, _bool{}, _int{}, _float, _string{};
+		u64 _idCounter = 1;
+		
+		// Must be node_hashset! references to the elements are stored by the surrounding scopes.
+		template <typename T>
+		using EntitySet = utl::node_hashset<T, EntityBase::MapHash, EntityBase::MapEqual>;
+		
+		EntitySet<OverloadSet> _overloadSets;
+		EntitySet<Variable> _variables;
+		EntitySet<ObjectType> _objectTypes;
+		EntitySet<FunctionSignature> _signatures;
+		EntitySet<Scope> _anonymousScopes;
+		utl::hashmap<SymbolID, Function*> _functions;
+		
+		/// Builtin types
+		TypeID _void, _bool, _int, _float, _string;
 	};
 	
 }
 
-#endif // SCATHA_SEMA_SYMBOLTABLE_H_
+#endif // SCATHA_SEMA_SYMBOLTABLE2_H_
 

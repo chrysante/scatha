@@ -1,6 +1,6 @@
 #include "SymbolIssue.h"
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 	
 	void SymbolIssue::setToken(Token tok) {
 		SC_ASSERT(_token.id == tok.id, "ID mismatch");

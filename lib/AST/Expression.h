@@ -5,10 +5,11 @@
 #include <string>
 
 #include <utl/static_string.hpp>
+#include <utl/vector.hpp>
 
 #include "AST/Base.h"
 #include "AST/Common.h"
-#include "Sema/SemanticElements.h"
+#include "Sema/SymbolID.h"
 
 namespace scatha::ast {
 

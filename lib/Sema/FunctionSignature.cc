@@ -1,9 +1,9 @@
-#include "Sema/Exp/FunctionSignature.h"
+#include "Sema/FunctionSignature.h"
 
 #include <utl/hash.hpp>
 #include <utl/utility.hpp>
 
-namespace scatha::sema::exp {
+namespace scatha::sema {
 	
 	u64 FunctionSignature::hashArguments(std::span<TypeID const> types) {
 		auto r = utl::transform_range(types.begin(), types.end(), [](TypeID x) {
