@@ -28,29 +28,64 @@ namespace scatha::sema {
 	}
 	
 	void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, int ind) {
+		struct PrintData {
+			std::string_view name;
+			SymbolID id;
+			SymbolCategory cat;
+		};
 		utl::hashset<SymbolID> printedScopes;
-		SC_DEBUGFAIL();
-//		if (!scope._symbols.empty()) {
-//			for (auto&& [name, id]: scope._symbols) {
-//				str << indent(ind) << id.kind() << " " << name << endl;
-//				auto const itr = scope->_childScopes.find(id);
-//				if (itr == scope->_childScopes.end()) {
-//					continue;
-//				}
-//				auto const [_, insertSuccess] = printedScopes.insert(id);
-//				SC_ASSERT(insertSuccess, "");
-//				auto const& childScope = itr->second;
-//				printScope(childScope.get(), str, ind+1);
-//			}
-//		}
-//
-//		for (auto&& [id, childScope]: scope->_childScopes) {
-//			if (printedScopes.contains(id)) {
-//				continue;
-//			}
-//			str << indent(ind) << "<anonymous-scope>" << endl;
-//			printScope(childScope.get(), str, ind+1);
-//		}
+		
+		utl::vector<PrintData> data;
+		for (auto&& [name, id]: scope._symbols) {
+			if (sym.is(id, SymbolCategory::Variable)) {
+				data.push_back({ name, id, SymbolCategory::Variable });
+				continue;
+			}
+			if (sym.is(id, SymbolCategory::ObjectType)) {
+				if (sym.getObjectType(id).isBuiltin()) { printedScopes.insert(id); continue; }
+				data.push_back({ name, id, SymbolCategory::ObjectType });
+				continue;
+			}
+			SC_ASSERT(sym.is(id, SymbolCategory::OverloadSet), "what else?");
+			for (auto const& function: sym.getOverloadSet(id)) {
+				data.push_back({ name, function.symbolID(), SymbolCategory::Function });
+			}
+		}
+		
+		for (auto [name, id, cat]: data) {
+			str << indent(ind) << cat << " " << name;
+			if (cat == SymbolCategory::Function) {
+				auto& fn = sym.getFunction(id);
+				str << "(";
+				for (bool first = true; auto id: fn.signature().argumentTypeIDs()) {
+					if (!first) { str << ", "; }
+					first = false;
+					str << sym.getObjectType(id).name();
+				}
+				str << ") -> " << sym.getObjectType(fn.signature().returnTypeID()).name();
+			}
+			else if (cat == SymbolCategory::ObjectType) {
+				auto& type = sym.getObjectType(id);
+				size_t const invalidSize = -1;
+				str << " [size: " << (type.size() == invalidSize ? "unknown" : std::to_string(type.size())) << "]";
+			}
+			str << endl;
+			auto const itr = scope._children.find(id);
+			if (itr == scope._children.end()) {
+				continue;
+			}
+			auto const [_, insertSuccess] = printedScopes.insert(id);
+			SC_ASSERT(insertSuccess, "");
+			auto const& childScope = itr->second;
+			printScope(*childScope, str, ind+1);
+		}
+		for (auto&& [id, childScope]: scope._children) {
+			if (printedScopes.contains(id)) {
+				continue;
+			}
+			str << indent(ind) << "<anonymous-scope>" << endl;
+			printScope(*childScope, str, ind+1);
+		}
 	}
 	
 }
