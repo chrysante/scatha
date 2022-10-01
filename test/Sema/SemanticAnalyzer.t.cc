@@ -133,9 +133,6 @@ fn caller() -> float {
 	auto* calleeDecl = downCast<FunctionDefinition>(tu->declarations[0].get());
 	REQUIRE(calleeDecl);
 	CHECK(calleeDecl->returnTypeID == sym.Float());
-	auto calleeArgTypes = { sym.String(), sym.Int(), sym.Bool() };
-//	auto const& functionType = sym.getType(computeFunctionTypeID(sym.Float(), calleeArgTypes));
-//	CHECK(calleeDecl->functionTypeID == functionType.id());
 	CHECK(calleeDecl->parameters[0]->typeID == sym.String());
 	CHECK(calleeDecl->parameters[1]->typeID == sym.Int());
 	CHECK(calleeDecl->parameters[2]->typeID == sym.Bool());
