@@ -22,6 +22,9 @@ namespace scatha::sema {
 		
 		std::pair<Function*, bool> add(Function);
 		
+		auto begin() const { return functions.begin(); }
+		auto end() const { return functions.end(); }
+		
 	private:
 		using SetType = utl::node_hashset<
 			Function,
