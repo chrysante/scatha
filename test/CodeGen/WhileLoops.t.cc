@@ -8,7 +8,7 @@
 
 using namespace scatha;
 
-TEST_CASE("while loops") {
+TEST_CASE("while loops", "[codegen]") {
 	std::string const text = R"(
 
 fn fact(n: int) -> int {
@@ -32,7 +32,7 @@ fn main() -> int {
 	CHECK(state.registers[0] == 24);
 }
 
-TEST_CASE("iterative gcd") {
+TEST_CASE("iterative gcd", "[codegen]") {
 	std::string const text = R"(
 
 fn gcd(a: int, b: int) -> int {
@@ -61,7 +61,7 @@ fn main() -> int {
 	CHECK(state.registers[0] == 7);
 }
 
-TEST_CASE("float pow") {
+TEST_CASE("float pow", "[codegen]") {
 std::string const text = R"(
 
 fn pow(base: float, exp: int) -> float {

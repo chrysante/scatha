@@ -9,9 +9,9 @@
 using namespace scatha;
 
 
-TEST_CASE("Local scopes") {
-	
+TEST_CASE("Local scopes", "[codegen]") {
 	std::string const text = R"(
+
 fn main() -> int {
 	let x = 0;
 	{
@@ -20,6 +20,7 @@ fn main() -> int {
 		return x;
 	}
 }
+
 )";
 	
 	auto const vm = test::compileAndExecute(text);
@@ -28,9 +29,9 @@ fn main() -> int {
 	CHECK(state.registers[0] == 1);
 }
 
-TEST_CASE() {
-	
+TEST_CASE("Local scopes 2", "[codegen]") {
 	std::string const text = R"(
+
 fn main() -> int {
 	let x = 0;
 	{
@@ -38,11 +39,12 @@ fn main() -> int {
 		let x = 1;
 	}
 	{
-		// and again
+		/* and again */
 		let x = 2;
 		return x;
 	}
 }
+
 )";
 	
 	auto const vm = test::compileAndExecute(text);
