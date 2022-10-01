@@ -161,6 +161,10 @@ namespace scatha::ic {
 						}
 						return var;
 					}
+					case ast::BinaryOperator::Comma: {
+						doRun(expr->lhs.get());
+						return doRun(expr->rhs.get());
+					}
 					SC_NO_DEFAULT_CASE();
 				}
 			}
