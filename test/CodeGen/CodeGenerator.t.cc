@@ -164,7 +164,7 @@ fn main() -> int {
 	var b = 0;
 	let c = 4;
 	b += 2;
-	return (a + b * c) / 2;
+	return 0, (a + b * c) / 2;
 }
 )";
 	auto const registers = test::getRegisters(text);
