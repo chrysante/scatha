@@ -18,6 +18,8 @@
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
 
+#include "Sema/Prepass.h"
+
 using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
@@ -35,43 +37,47 @@ using namespace scatha::parse;
 	std::string const text = sstr.str();
 	
 	try {
+		std::cout << "\n==================================================\n";
+		std::cout <<   "=== Regenerated Source Code ======================\n";
+		std::cout <<   "==================================================\n\n";
 		Lexer l(text);
 		auto tokens = l.lex();
 		Parser p(tokens);
 		auto ast = p.parse();
-		
-		std::cout << "\n==================================================\n";
-		std::cout <<   "=== Regenerated Source Code ======================\n";
-		std::cout <<   "==================================================\n\n";
 		ast::printSource(ast.get());
 		
-		auto const sym = sema::analyze(ast.get());
-		ic::canonicalize(ast.get());
-		ic::TacGenerator t(sym);
-		auto const tac = t.run(ast.get());
+		std::cout << "\n==================================================\n";
+		std::cout <<   "=== Symbol Tabele ================================\n";
+		std::cout <<   "==================================================\n\n";
+//		auto const sym = sema::analyze(ast.get());
+		sema::SymbolTable sym;
+		sema::prepass(*ast, sym);
+		sema::printSymbolTable(sym);
+		return 0;
+		
 		
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Generated Three Address Code =================\n";
 		std::cout <<   "==================================================\n\n";
-		
+		ic::canonicalize(ast.get());
+		ic::TacGenerator t(sym);
+		auto const tac = t.run(ast.get());
 		ic::printTac(tac, sym);
-		
-		codegen::CodeGenerator cg(tac);
-		auto const str = cg.run();
 		
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Generated Assembly ===========================\n";
 		std::cout <<   "==================================================\n\n";
+		codegen::CodeGenerator cg(tac);
+		auto const str = cg.run();
 		print(str, sym);
-
-		assembly::Assembler a(str);
-	
-
-		auto const program = a.assemble();
+		
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Assembled Program ============================\n";
 		std::cout <<   "==================================================\n\n";
+		assembly::Assembler a(str);
+		auto const program = a.assemble();
 		print(program);
+
 		std::cout << "\n==================================================\n\n";
 	}
 	catch (std::exception const& e) {
