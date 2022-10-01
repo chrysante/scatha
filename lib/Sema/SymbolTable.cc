@@ -57,7 +57,7 @@ namespace scatha::sema {
 		if (symbolID != SymbolID::Invalid) {
 			return SymbolCollisionIssue(name, symbolID);
 		}
-		auto [itr, success] = _variables.insert(Variable(name, generateID(), typeID));
+		auto [itr, success] = _variables.insert(Variable(name, generateID(), typeID, isConstant));
 		SC_ASSERT(success, "");
 		currentScope().add(*itr);
 		return *itr;
@@ -89,6 +89,10 @@ namespace scatha::sema {
 	
 	void SymbolTable::popScope() {
 		_currentScope = currentScope()._parent;
+	}
+	
+	void SymbolTable::makeScopeCurrent(Scope* scope) {
+		_currentScope = scope ? scope : &globalScope();
 	}
 	
 	OverloadSet const& SymbolTable::getOverloadSet(SymbolID id) const {

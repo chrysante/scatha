@@ -5,7 +5,9 @@
 #include <memory>
 #include <string>
 
+#include <utl/common.hpp>
 #include <utl/hashmap.hpp>
+#include <utl/scope_guard.hpp>
 
 #include "Basic/Basic.h"
 #include "Common/Expected.h"
@@ -15,7 +17,6 @@
 #include "Sema/Variable.h"
 #include "Sema/ObjectType.h"
 #include "Sema/SymbolIssue.h"
-//#include "SymbolCategory.h"
 
 namespace scatha::sema {
 	
@@ -54,15 +55,41 @@ namespace scatha::sema {
 		
 		void popScope();
 		
+		// scope == nullptr -> global scope will be current
+		void makeScopeCurrent(Scope*);
+		
+		decltype(auto) withScopePushed(SymbolID scopeID, std::invocable auto&& f) const {
+			utl::scope_guard pop = [this]{ utl::as_mutable(*this).popScope(); };
+			utl::as_mutable(*this).pushScope(scopeID);
+			return f();
+		}
+		
+		decltype(auto) withScopeCurrent(Scope* scope, std::invocable auto&& f) const {
+			SC_ASSERT(scope != nullptr, "");
+			utl::scope_guard pop = [this, old = &utl::as_mutable(currentScope())]{
+				utl::as_mutable(*this).makeScopeCurrent(old);
+			};
+			utl::as_mutable(*this).makeScopeCurrent(scope);
+			return f();
+		}
+		
 		// Queries
 		OverloadSet const& getOverloadSet(SymbolID) const;
+		OverloadSet& getOverloadSet(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getOverloadSet(id));  }
 		OverloadSet const* tryGetOverloadSet(SymbolID) const;
+		OverloadSet* tryGetOverloadSet(SymbolID id) { return const_cast<OverloadSet*>(utl::as_const(*this).tryGetOverloadSet(id));  }
 		Function const& getFunction(SymbolID) const;
+		Function& getFunction(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getFunction(id));  }
 		Function const* tryGetFunction(SymbolID) const;
+		Function* tryGetFunction(SymbolID id) { return const_cast<Function*>(utl::as_const(*this).tryGetFunction(id));  }
 		Variable const& getVariable(SymbolID) const;
+		Variable& getVariable(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getVariable(id));  }
 		Variable const* tryGetVariable(SymbolID) const;
+		Variable* tryGetVariable(SymbolID id) { return const_cast<Variable*>(utl::as_const(*this).tryGetVariable(id));  }
 		ObjectType const& getObjectType(SymbolID) const;
+		ObjectType& getObjectType(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getObjectType(id));  }
 		ObjectType const* tryGetObjectType(SymbolID) const;
+		ObjectType* tryGetObjectType(SymbolID id) { return const_cast<ObjectType*>(utl::as_const(*this).tryGetObjectType(id));  }
 		
 		SymbolID lookup(std::string_view name) const;
 		SymbolID lookup(Token const& token) const { return lookup(token.id); }
