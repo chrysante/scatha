@@ -78,7 +78,7 @@ TEST_CASE("Invalid variable declaration", "[sema]") {
 }
 
 TEST_CASE("Invalid function declaration", "[sema]") {
-	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { fn g(); }"), parse::ParsingIssue);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { fn g() {} }"), InvalidFunctionDeclaration);
 }
 
 TEST_CASE("Invalid struct declaration", "[sema]") {
