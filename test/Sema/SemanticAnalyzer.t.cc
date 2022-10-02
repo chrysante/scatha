@@ -176,3 +176,11 @@ struct X {
 	// TODO: Test argument types when we properly recognize member functions as having an implicit 'this' argument
 	CHECK(fDef->returnTypeID == sym.String());
 }
+
+TEST_CASE("Member access into undeclared struct", "[sema]") {
+	auto const text = R"(
+fn f(x: X) -> int { return x.data; }
+struct X { var data: int; }
+)";
+	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(text));
+}
