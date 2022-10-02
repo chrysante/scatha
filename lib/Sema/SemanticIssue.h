@@ -60,6 +60,10 @@ namespace scatha::sema {
 	public:
 		InvalidSymbolReference(Token const& token, SymbolCategory actually);
 		InvalidSymbolReference(Token const& token, ast::ExpressionKind actually);
+		InvalidSymbolReference(ast::Expression const&, ast::ExpressionKind expected);
+		
+	private:
+		static std::string makeMessage(std::string_view, ast::ExpressionKind);
 	};
 
 	/// MARK: StatementError
