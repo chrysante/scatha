@@ -11,6 +11,7 @@
 #include "AST/Expression.h"
 #include "AST/Visit.h"
 #include "Basic/Basic.h"
+#include "Sema/Prepass.h"
 #include "Sema/SemanticIssue.h"
 
 namespace scatha::sema {
@@ -19,14 +20,19 @@ namespace scatha::sema {
 	
 	namespace {
 		struct Context {
-			void prepass(AbstractSyntaxTree&);
-			
 			void analyze(AbstractSyntaxTree&);
 			
 			void verifyConversion(ast::Expression const& from, TypeID to) const;
 			TypeID verifyBinaryOperation(ast::BinaryExpression const&) const;
 			void verifyFunctionCallExpression(ast::FunctionCall const&, FunctionSignature const& fnType, std::span<ast::UniquePtr<ast::Expression> const> arguments) const;
 			[[noreturn]] void throwBadTypeConversion(Token const&, TypeID from, TypeID to) const;
+			
+			decltype(auto) withCurrentFunction(FunctionDefinition& fn, std::invocable auto&& f) const {
+				auto _this = const_cast<Context*>(this);
+				_this->currentFunction = &fn;
+				utl::scope_guard pop = [&]{ _this->currentFunction = nullptr; };
+				return f();
+			}
 			
 			SymbolTable& sym;
 			ast::FunctionDefinition* currentFunction = nullptr;
@@ -35,6 +41,7 @@ namespace scatha::sema {
 	
 	SymbolTable analyze(AbstractSyntaxTree* root) {
 		SymbolTable sym;
+		prepass(*root, sym);
 		Context ctx{ sym };
 		ctx.analyze(*root);
 		return sym;
@@ -54,11 +61,11 @@ namespace scatha::sema {
 					}
 					block.scopeSymbolID = sym.addAnonymousScope().symbolID();
 				}
-				sym.pushScope(block.scopeSymbolID);
-				utl_defer { sym.popScope(); };
-				for (auto& statement: block.statements) {
-					analyze(*statement);
-				}
+				sym.withScopePushed(block.scopeSymbolID, [&]{
+					for (auto& statement: block.statements) {
+						analyze(*statement);
+					}
+				});
 			},
 			[&](FunctionDefinition& fn) {
 				if (auto const sk = sym.currentScope().kind();
@@ -71,45 +78,16 @@ namespace scatha::sema {
 					 */
 					throw InvalidFunctionDeclaration(fn.token(), sym.currentScope());
 				}
-				auto const& returnType = *sym.lookupObjectType(fn.declReturnTypename);
-				fn.returnTypeID = returnType.symbolID();
 				
-				/*
-				 * No need to push the scope here, since function parameter declarations don't declare variables
-				 * in the current scope. This will be done be in the function definition case.
-				 */
-				utl::small_vector<TypeID> argTypes;
-				for (auto& param: fn.parameters) {
-					analyze(*param);
-					argTypes.push_back(param->typeID);
-				}
-				
-				Expected const func = sym.addFunction(fn.token(), FunctionSignature(argTypes, returnType.symbolID()));
-				if (!func.hasValue()) {
-					throw InvalidRedeclaration(fn.token(), sym.currentScope());
-				}
-				fn.symbolID = func->symbolID();
-				fn.functionTypeID = func->typeID();
-				
-				currentFunction = &fn;
-				utl_defer { currentFunction = nullptr; };
-				
-				/* Declare parameters to the function scope */ {
-					sym.pushScope(fn.symbolID);
-					utl_defer { sym.popScope(); };
-					for (auto& param: fn.parameters) {
-						auto const var = sym.addVariable(param->token(), param->typeID, true);
-						if (!var) {
-#warning maybe rethrow?
-							throw InvalidRedeclaration(param->token(), sym.currentScope());
+				withCurrentFunction(fn, [&]{
+					sym.withScopePushed(fn.symbolID, [&]{
+						for (auto& param: fn.parameters) {
+							analyze(*param);
 						}
-						param->symbolID = var->symbolID();
-					}
-				}
-				
-				fn.body->scopeKind = ScopeKind::Function;
-				fn.body->scopeSymbolID = fn.symbolID;
-				analyze(*fn.body);
+					});
+					// The body will push the scope itself again
+					analyze(*fn.body);
+				});
 			},
 			[&](StructDefinition& s) {
 				if (auto const sk = sym.currentScope().kind();
@@ -117,13 +95,6 @@ namespace scatha::sema {
 				{
 					throw InvalidStructDeclaration(s.token(), sym.currentScope());
 				}
-				auto const obj = sym.addObjectType(s.token());
-				if (!obj) {
-					throw InvalidRedeclaration(s.token(), sym.currentScope());
-				}
-				s.symbolID = obj->symbolID();
-				s.body->scopeKind = ScopeKind::Object;
-				s.body->scopeSymbolID = s.symbolID;
 				analyze(*s.body);
 			},
 			[&](VariableDeclaration& var) {
@@ -156,13 +127,7 @@ namespace scatha::sema {
 						var.typeID = var.initExpression->typeID;
 					}
 				}
-				if (var.isFunctionParameter) {
-					// Function parameters will be declared by the FunctionDefinition case
-					return;
-				}
-				/*
-				 * Declare the variable.
-				 */
+				// Declare the variable.
 				auto varObj = sym.addVariable(var.token(), var.typeID, var.isConstant);
 				if (!varObj) {
 					throw InvalidRedeclaration(var.token(), sym.currentScope());
