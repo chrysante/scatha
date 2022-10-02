@@ -49,9 +49,7 @@ using namespace scatha::parse;
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Symbol Tabele ================================\n";
 		std::cout <<   "==================================================\n\n";
-//		auto const sym = sema::analyze(ast.get());
-		sema::SymbolTable sym;
-		sema::prepass(*ast, sym);
+		auto const sym = sema::analyze(ast.get());
 		sema::printSymbolTable(sym);
 		return 0;
 		
