@@ -161,39 +161,34 @@ namespace scatha::sema {
 				size_t objectSize = 0;
 				size_t objectAlign = 1;
 				bool success = true;
-				{
-					sym.pushScope(obj.symbolID());
-					utl_defer{ sym.popScope(); };
+				sym.withScopePushed(obj.symbolID(), [&]{
 					for (auto& statement: s.body->statements) {
-						switch (statement->nodeType()) {
-							case NodeType::FunctionDefinition:
-							case NodeType::StructDefinition:
-								if (!firstPass) { break; }
-								prepass(*statement);
-								break;
-							case NodeType::VariableDeclaration: {
-								auto const& varDecl = static_cast<VariableDeclaration&>(*statement);
-								if (!success) {
+						if (!firstPass && statement->nodeType() == ast::NodeType::StructDefinition) { continue; }
+						if (!firstPass && statement->nodeType() == ast::NodeType::FunctionDefinition) { continue; }
+						if (!isDeclaration(statement->nodeType())) {
+							throw InvalidStatement(statement->token(), "Expected declaration");
+						}
+						prepass(*statement);
+						if (statement->nodeType() == ast::NodeType::VariableDeclaration) {
+							auto const& varDecl = static_cast<VariableDeclaration&>(*statement);
+							auto const* type = sym.lookupObjectType(varDecl.declTypename);
+							if (!type || !type->isComplete()) {
+								success = false;
+								if (lastPass) {
+									throw UseOfUndeclaredIdentifier(varDecl.declTypename);
+								}
+								if (firstPass) {
+									continue;
+								}
+								else {
 									break;
 								}
-								auto const* type = sym.lookupObjectType(varDecl.declTypename);
-								if (!type || !type->isComplete()) {
-									success = false;
-									if (lastPass) {
-										throw UseOfUndeclaredIdentifier(varDecl.declTypename);
-									}
-									break;
-								}
-								objectAlign = std::max(objectAlign, type->align());
-								objectSize = utl::round_up_pow_two(objectSize + type->size(), type->align());
-								break;
 							}
-							default:
-								break;
+							objectAlign = std::max(objectAlign, type->align());
+							objectSize = utl::round_up_pow_two(objectSize + type->size(), type->align());
 						}
 					}
-				}
-				objectSize = utl::round_up_pow_two(objectSize, objectAlign);
+				});
 				if (!success) {
 					if (firstPass) {
 						markUnhandled(&s);						
@@ -202,9 +197,30 @@ namespace scatha::sema {
 				}
 				s.body->scopeKind = ScopeKind::Object;
 				s.body->scopeSymbolID = s.symbolID;
-				obj.setSize(objectSize);
+				obj.setSize(utl::round_up_pow_two(objectSize, objectAlign));
 				obj.setAlign(objectAlign);
 				return true;
+			},
+			[&](VariableDeclaration& decl) {
+				SC_ASSERT(sym.currentScope().kind() == ScopeKind::Object, "We only want to prepass struct definitions. What are we doing here?");
+				SC_ASSERT(!decl.declTypename.empty(), "In structs variables need explicit type specifiers. Make this a program issue.");
+				auto const* typePtr = sym.lookupObjectType(decl.declTypename);
+				TypeID const typeID = typePtr ? typePtr->symbolID() : TypeID::Invalid;
+				auto& var = [&]() -> auto& {
+					if (firstPass) {
+						auto var = sym.addVariable(decl.token(), typeID, bool{});
+						if (!var) {
+							throw InvalidRedeclaration(decl.token(), sym.currentScope());
+						}
+						decl.symbolID = var->symbolID();
+						return var.value();
+					}
+					else {
+						return sym.getVariable(decl.symbolID);
+					}
+				}();
+				var.setTypeID(typeID);
+				return typeID != TypeID::Invalid;
 			},
 			[&](auto&&) { return true; }
 		};

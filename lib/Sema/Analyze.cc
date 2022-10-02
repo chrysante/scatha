@@ -99,6 +99,11 @@ namespace scatha::sema {
 				analyze(*s.body);
 			},
 			[&](VariableDeclaration& var) {
+				if (var.symbolID) {
+					// We already handled this variable in prepass
+					var.typeID = sym.getVariable(var.symbolID).typeID();
+					return;
+				}
 				if (var.initExpression == nullptr) {
 					if (var.declTypename.empty()) {
 						throw InvalidStatement(var.token(), "Expected initializing expression of explicit typename specifier in variable declaration");
@@ -170,25 +175,20 @@ namespace scatha::sema {
 			},
 			[&](Identifier& i) {
 				auto const symbolID = sym.lookup(i.token());
-				
 				if (!symbolID) {
 					throw UseOfUndeclaredIdentifier(i.token());
 				}
-				
 				i.symbolID = symbolID;
-				
-				if (!sym.is(symbolID, SymbolCategory::Variable | SymbolCategory::OverloadSet)) {
-					/// TODO: Throw something better here
-					throw SemanticIssue(i.token(), "Invalid use of identifier");
-				}
-				
 				if (sym.is(symbolID, SymbolCategory::Variable)) {
 					auto const& var = sym.getVariable(symbolID);
 					i.typeID = var.typeID();
 				}
-				else if (sym.is(symbolID, SymbolCategory::Function)) {
-					auto const& fn = sym.getFunction(symbolID);
-					i.typeID = fn.typeID();
+				else if (sym.is(symbolID, SymbolCategory::OverloadSet)) {
+					i.typeID = TypeID::Invalid;
+				}
+				else {
+					/// TODO: Throw something better here
+					throw SemanticIssue(i.token(), "Invalid use of identifier");
 				}
 			},
 			[&](IntegerLiteral& l) {
@@ -246,6 +246,17 @@ namespace scatha::sema {
 			},
 			[&](MemberAccess& ma) {
 				analyze(*ma.object);
+				auto const& objType = sym.getObjectType(ma.object->typeID);
+				auto const memberID = objType.findID(ma.memberName());
+				if (!memberID) {
+					throw UseOfUndeclaredIdentifier(ma.member());
+				}
+				if (!sym.is(memberID, SymbolCategory::Variable)) {
+					// We don't allow non-variable member accesses yet
+					throw;
+				}
+				auto const& memberVar = sym.getVariable(memberID);
+				ma.typeID = memberVar.typeID();
 			},
 			[&](Conditional& c) {
 				analyze(*c.condition);
