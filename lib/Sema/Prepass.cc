@@ -33,6 +33,7 @@ namespace scatha::sema {
 			std::vector<StatementContext> unhandledStatements;
 			ast::FunctionDefinition* currentFunction;
 			bool firstPass = true;
+			bool lastPass = false;
 		};
 		
 	}
@@ -42,6 +43,7 @@ namespace scatha::sema {
 		ctx.prepass(root);
 		ctx.firstPass = false;
 		while (!ctx.unhandledStatements.empty()) {
+			auto const beginSize = ctx.unhandledStatements.size();
 			for (size_t i = 0; i < ctx.unhandledStatements.size(); ) {
 				auto const x = ctx.unhandledStatements[i];
 				bool const success = sym.withScopeCurrent(x.enclosingScope, [&]{
@@ -52,6 +54,9 @@ namespace scatha::sema {
 					continue;
 				}
 				++i;
+			}
+			if (ctx.unhandledStatements.size() == beginSize) { // did not decrease in size
+				ctx.lastPass = true;
 			}
 		}
 	}
@@ -96,6 +101,9 @@ namespace scatha::sema {
 					if (firstPass) {
 						markUnhandled(&fn);
 					}
+					if (lastPass) {
+						throw UseOfUndeclaredIdentifier(fn.declReturnTypename);
+					}
 					return false;
 				}
 				auto const& returnType = *returnTypePtr;
@@ -106,6 +114,9 @@ namespace scatha::sema {
 					if (!typePtr) {
 						if (firstPass) {
 							markUnhandled(&fn);
+						}
+						if (lastPass) {
+							throw UseOfUndeclaredIdentifier(fn.declReturnTypename);
 						}
 						return false;
 					}
@@ -160,12 +171,16 @@ namespace scatha::sema {
 								prepass(*statement);
 								break;
 							case NodeType::VariableDeclaration: {
+								auto const& varDecl = static_cast<VariableDeclaration&>(*statement);
 								if (!success) {
 									break;
 								}
-								auto const* type = sym.lookupObjectType(static_cast<VariableDeclaration&>(*statement).declTypename);
+								auto const* type = sym.lookupObjectType(varDecl.declTypename);
 								if (!type) {
 									success = false;
+									if (lastPass) {
+										throw UseOfUndeclaredIdentifier(varDecl.declTypename);
+									}
 									break;
 								}
 								objectSize += type->size();
