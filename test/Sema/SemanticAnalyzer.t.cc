@@ -118,26 +118,26 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 
 TEST_CASE("Decoration of the AST with function call expression", "[sema]") {
 	auto const text = R"(
-fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
-
 fn caller() -> float {
 	let result = callee("Hello world", 0, true);
 	return result;
 }
+
+fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
 )";
 
 	auto [ast, sym] = test::produceDecoratedASTAndSymTable(text);
 	
 	auto* tu = downCast<TranslationUnit>(ast.get());
 	REQUIRE(tu);
-	auto* calleeDecl = downCast<FunctionDefinition>(tu->declarations[0].get());
+	auto* calleeDecl = downCast<FunctionDefinition>(tu->declarations[1].get());
 	REQUIRE(calleeDecl);
 	CHECK(calleeDecl->returnTypeID == sym.Float());
 	CHECK(calleeDecl->parameters[0]->typeID == sym.String());
 	CHECK(calleeDecl->parameters[1]->typeID == sym.Int());
 	CHECK(calleeDecl->parameters[2]->typeID == sym.Bool());
 	
-	auto* caller = downCast<FunctionDefinition>(tu->declarations[1].get());
+	auto* caller = downCast<FunctionDefinition>(tu->declarations[0].get());
 	auto* resultDecl = downCast<VariableDeclaration>(caller->body->statements[0].get());
 	CHECK(resultDecl->initExpression->typeID == sym.Float());
 	auto* fnCallExpr = downCast<FunctionCall>(resultDecl->initExpression.get());
