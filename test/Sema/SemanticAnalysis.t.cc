@@ -230,3 +230,18 @@ struct Y { struct Z {} }
 })";
 	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(text));
 }
+
+TEST_CASE("Nested member access into undeclared struct", "[sema]") {
+	auto const text = R"(
+fn f(x: X) -> int {
+	let result = x.y.data;
+	return result;
+}
+struct Y {
+	var data: int;
+}
+struct X {
+	var y: Y;
+})";
+	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(text));
+}

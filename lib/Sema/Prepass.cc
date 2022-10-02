@@ -241,54 +241,6 @@ namespace scatha::sema {
 		});
 	}
 	
-	bool tryAnalyzeIdentifier(ast::Identifier& i, SymbolTable& sym,
-							  bool allowFailure, bool lookupStrict)
-	{
-		if (i.symbolID) { return true; /* we have already analyzed this */ }
-		auto const symbolID = lookupStrict ? sym.currentScope().findID(i.token().id) : sym.lookup(i.token());
-		if (!symbolID) {
-			if (allowFailure) { return false; }
-			throw UseOfUndeclaredIdentifier(i.token());
-		}
-		i.symbolID = symbolID;
-		if (sym.is(symbolID, SymbolCategory::Variable)) {
-			auto const& var = sym.getVariable(symbolID);
-			i.typeID = var.typeID();
-			return true;
-		}
-		else if (sym.is(symbolID, SymbolCategory::OverloadSet)) {
-			i.typeID = TypeID::Invalid;
-			return true;
-		}
-		else if (sym.is(symbolID, SymbolCategory::ObjectType)) {
-			i.kind = ExpressionKind::Type;
-			return true;
-		}
-		else {
-			/// TODO: Throw something better here
-			throw SemanticIssue(i.token(), "Invalid use of identifier");
-		}
-	}
-	
-	static SymbolID getScopeID(Expression const& expr) {
-		if (expr.isType()) {
-			return ast::visit(expr, utl::visitor{
-				[](Identifier const& id){
-					return id.symbolID;
-				},
-				[](MemberAccess const& ma) {
-					return ma.symbolID;
-				},
-				[](auto const&) {
-					return SymbolID::Invalid;
-				}
-			});
-		}
-		else {
-			return expr.typeID;
-		}
-	}
-	
 	bool tryAnalyzeMemberAccess(ast::MemberAccess& ma, SymbolTable& sym,
 								bool allowFailure, bool lookupStrict)
 	{

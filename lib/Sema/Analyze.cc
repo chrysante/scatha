@@ -178,8 +178,9 @@ namespace scatha::sema {
 				verifyConversion(*ws.condition, sym.Bool());
 				analyze(*ws.block);
 			},
-			[&](Identifier& i) {
-				tryAnalyzeIdentifier(i, sym, false, false);
+			[&](Identifier& id) {
+				LookupHelper lh{ .sym = sym, .allowFailure = false };
+				lh.analyze(id);
 			},
 			[&](IntegerLiteral& l) {
 				l.typeID = sym.Int();
@@ -235,7 +236,8 @@ namespace scatha::sema {
 				b.typeID = verifyBinaryOperation(b);
 			},
 			[&](MemberAccess& ma) {
-				tryAnalyzeMemberAccess(ma, sym, false, false);
+				LookupHelper lh{ .sym = sym, .allowFailure = false };
+				lh.analyze(ma);
 			},
 			[&](Conditional& c) {
 				analyze(*c.condition);
