@@ -31,12 +31,12 @@ namespace scatha::sema {
 														   FunctionSignature sig)
 		{ return addFunction(std::move(token.id), std::move(sig)); }
 		
-		Expected<Variable const&, SymbolCollisionIssue> addVariable(std::string name,
-																	TypeID,
-																	bool isConstant);
-		Expected<Variable const&, SymbolCollisionIssue> addVariable(Token token,
-																	TypeID typeID,
-																	bool isConstant)
+		Expected<Variable&, SymbolCollisionIssue> addVariable(std::string name,
+															  TypeID,
+															  bool isConstant);
+		Expected<Variable&, SymbolCollisionIssue> addVariable(Token token,
+															  TypeID typeID,
+															  bool isConstant)
 		{ return addVariable(std::move(token.id), typeID, isConstant); }
 		
 		Expected<ObjectType&, SymbolCollisionIssue> addObjectType(std::string name,
