@@ -24,6 +24,8 @@ namespace scatha::sema {
 		// Until we have heterogenous lookup
 		SymbolID findID(std::string_view name) const;
 		
+		bool isChildScope(SymbolID id) const { return _children.contains(id); }
+		
 	private:
 		friend class internal::ScopePrinter;
 		friend class SymbolTable;

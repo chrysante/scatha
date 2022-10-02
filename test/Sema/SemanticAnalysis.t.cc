@@ -184,3 +184,49 @@ struct X { var data: int; }
 )";
 	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(text));
 }
+
+TEST_CASE("Type reference access into undeclared struct", "[sema]") {
+	auto const text = R"(
+fn f() {
+	let y: X.Y;
+}
+struct X { struct Y {} }
+
+)";
+	auto const [ast, sym] = test::produceDecoratedASTAndSymTable(text);
+	auto const* tu = downCast<TranslationUnit>(ast.get());
+	auto const* f = downCast<FunctionDefinition>(tu->declarations[0].get());
+	auto const* y = downCast<VariableDeclaration>(f->body->statements[0].get());
+	auto const& YType = sym.getObjectType(y->typeID);
+	CHECK(YType.name() == "Y");
+	CHECK(YType.parent()->name() == "X");
+	
+	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(R"(
+fn f() -> X.Y {}
+struct X { struct Y {} }
+)"));
+	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(R"(
+fn f(y: X.Y) {}
+struct X { struct Y {} }
+)"));
+	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(R"(
+fn f(x: X, y: X.Y) -> X.Y.Z {}
+struct X { struct Y { struct Z{} } }
+)"));
+}
+
+TEST_CASE("Type reference access into never declared struct", "[sema]") {
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(R"(
+fn f() { let y: X.Z; }
+struct X { struct Y {} }
+)"), UseOfUndeclaredIdentifier);
+}
+
+TEST_CASE("Explicit type reference to member of same scope", "[sema]") {
+	auto const text = R"(
+struct X {
+fn f() { let y: X.Y.Z; }
+struct Y { struct Z {} }
+})";
+	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(text));
+}

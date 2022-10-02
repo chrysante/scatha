@@ -22,6 +22,7 @@ namespace scatha::sema {
 	}
 	
 	SCATHA(API) std::string_view toString(SymbolCategory cat) {
+		SC_ASSERT(std::has_single_bit(static_cast<uintmax_t>(cat)), "not a valid category");
 		using enum SymbolCategory;
 		switch (cat) {
 			case Variable:    return "Variable";

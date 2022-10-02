@@ -17,9 +17,15 @@ namespace scatha::ast {
 	struct SCATHA(API) Expression: AbstractSyntaxTree {
 		using AbstractSyntaxTree::AbstractSyntaxTree;
 		
+		bool isValue() const { return kind == ExpressionKind::Value; }
+		bool isType() const { return kind == ExpressionKind::Type; }
+		
 		/** Decoration provided by semantic analysis. */
 		
-		/// The type of the expression.
+		/// Kind of the expression. Either ::Value or ::Type. ::Value by default.
+		ExpressionKind kind = ExpressionKind::Value;
+		
+		/// The type of the expression. Only valid if kind == ::Value
 		sema::TypeID typeID{};
 	};
 	

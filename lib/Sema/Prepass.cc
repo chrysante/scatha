@@ -29,6 +29,8 @@ namespace scatha::sema {
 			
 			void markUnhandled(ast::Statement*);
 			
+			void markOrThrowUndeclared(ast::Statement*, Token const&);
+			
 			SymbolTable& sym;
 			std::vector<StatementContext> unhandledStatements;
 			ast::FunctionDefinition* currentFunction;
@@ -93,37 +95,26 @@ namespace scatha::sema {
 					sk != ScopeKind::Namespace &&
 					sk != ScopeKind::Object)
 				{
-					/*
-					 * Function defintion is only allowed in the global scope, at namespace scope and structure scope
-					 */
+					// Function defintion is only allowed in the global scope, at namespace scope and structure scope
 					throw InvalidFunctionDeclaration(fn.token(), sym.currentScope());
 				}
-				auto const* typenameIdentifier = downCast<Identifier>(fn.returnTypeExpr.get());
-				SC_ASSERT(typenameIdentifier, "must be identifier for now");
-				auto const* returnTypePtr = sym.lookupObjectType(typenameIdentifier->value());
-				if (!returnTypePtr) {
-					if (firstPass) {
-						markUnhandled(&fn);
-					}
-					if (lastPass) {
-						throw UseOfUndeclaredIdentifier(typenameIdentifier->token());
-					}
+				if (!prepass(*fn.returnTypeExpr)) {
+					markOrThrowUndeclared(&fn, fn.returnTypeExpr->token());
 					return false;
 				}
+				auto const* returnTypePtr = lookupType(*fn.returnTypeExpr, sym);
+				SC_ASSERT(returnTypePtr != nullptr, "prepass(...) above should not return true if this fails");
 				auto const& returnType = *returnTypePtr;
 				fn.returnTypeID = returnType.symbolID();
 				utl::small_vector<TypeID> argTypes;
 				for (auto& param: fn.parameters) {
-					auto const* typenameIdentifier = downCast<Identifier>(param->typeExpr.get());
-					SC_ASSERT(typenameIdentifier, "must be identifier for now");
-					auto const* typePtr = sym.lookupObjectType(typenameIdentifier->value());
+					if (!prepass(*param->typeExpr)) {
+						markOrThrowUndeclared(&fn, fn.returnTypeExpr->token());
+						return false;
+					}
+					auto const* typePtr = lookupType(*param->typeExpr, sym);
 					if (!typePtr) {
-						if (firstPass) {
-							markUnhandled(&fn);
-						}
-						if (lastPass) {
-							throw UseOfUndeclaredIdentifier(typenameIdentifier->token());
-						}
+						markOrThrowUndeclared(&fn, param->typeExpr->token());
 						return false;
 					}
 					argTypes.push_back(typePtr->symbolID());
@@ -231,13 +222,142 @@ namespace scatha::sema {
 				var.setTypeID(typeID);
 				return typeID != TypeID::Invalid;
 			},
+			[&](Identifier& id) {
+				return tryAnalyzeIdentifier(id, sym, true, false);
+			},
+			[&](MemberAccess& ma) {
+				return tryAnalyzeMemberAccess(ma, sym, true, false);
+			},
 			[&](auto&&) { return true; }
 		};
 		return visit(node, vis);
 	}
 	
+	ObjectType* lookupType(ast::AbstractSyntaxTree const& node, SymbolTable& sym) {
+		return ast::visit(node, utl::visitor{
+			[&](ast::MemberAccess const& ma)    -> ObjectType* { return sym.tryGetObjectType(ma.symbolID); },
+			[&](ast::Identifier const& id)      -> ObjectType* { return sym.tryGetObjectType(id.symbolID); },
+			[&](ast::AbstractSyntaxTree const&) -> ObjectType* { return nullptr; }
+		});
+	}
+	
+	bool tryAnalyzeIdentifier(ast::Identifier& i, SymbolTable& sym,
+							  bool allowFailure, bool lookupStrict)
+	{
+		if (i.symbolID) { return true; /* we have already analyzed this */ }
+		auto const symbolID = lookupStrict ? sym.currentScope().findID(i.token().id) : sym.lookup(i.token());
+		if (!symbolID) {
+			if (allowFailure) { return false; }
+			throw UseOfUndeclaredIdentifier(i.token());
+		}
+		i.symbolID = symbolID;
+		if (sym.is(symbolID, SymbolCategory::Variable)) {
+			auto const& var = sym.getVariable(symbolID);
+			i.typeID = var.typeID();
+			return true;
+		}
+		else if (sym.is(symbolID, SymbolCategory::OverloadSet)) {
+			i.typeID = TypeID::Invalid;
+			return true;
+		}
+		else if (sym.is(symbolID, SymbolCategory::ObjectType)) {
+			i.kind = ExpressionKind::Type;
+			return true;
+		}
+		else {
+			/// TODO: Throw something better here
+			throw SemanticIssue(i.token(), "Invalid use of identifier");
+		}
+	}
+	
+	static SymbolID getScopeID(Expression const& expr) {
+		if (expr.isType()) {
+			return ast::visit(expr, utl::visitor{
+				[](Identifier const& id){
+					return id.symbolID;
+				},
+				[](MemberAccess const& ma) {
+					return ma.symbolID;
+				},
+				[](auto const&) {
+					return SymbolID::Invalid;
+				}
+			});
+		}
+		else {
+			return expr.typeID;
+		}
+	}
+	
+	bool tryAnalyzeMemberAccess(ast::MemberAccess& ma, SymbolTable& sym,
+								bool allowFailure, bool lookupStrict)
+	{
+		if (ma.symbolID) { return true; /* we have already analyzed this */ }
+		SC_ASSERT(ma.object->nodeType() == ast::NodeType::Identifier, "Better throw here");
+		ast::Identifier& objectIdentifier = downCast<Identifier>(*ma.object);
+		bool const success = tryAnalyzeIdentifier(objectIdentifier, sym, allowFailure, lookupStrict);
+		if (!success) {
+			SC_ASSERT(allowFailure, "");
+			return false;
+		}
+		
+		SymbolID const objectScopeID = getScopeID(objectIdentifier);
+		
+		sym.withScopeCurrent(lookupStrict ?
+							 &sym.currentScope() :
+							 sym.getObjectType(objectScopeID).parent(),
+							 [&]{
+			if (!sym.currentScope().isChildScope(objectScopeID)) {
+				return;
+			}
+			sym.withScopePushed(objectScopeID, [&]{
+				ma.symbolID = ast::visit(*ma.member, utl::visitor{
+					[&](ast::Identifier& id) {
+						bool const success = tryAnalyzeIdentifier(id, sym, allowFailure, true);
+						if (!success) {
+							SC_ASSERT(allowFailure, "");
+							return SymbolID::Invalid;
+						}
+						return id.symbolID;
+					},
+					[&](ast::MemberAccess& ma) {
+						tryAnalyzeMemberAccess(ma, sym, allowFailure, true);
+						return ma.symbolID;
+					},
+					[](ast::AbstractSyntaxTree const&) -> SymbolID {
+						SC_DEBUGFAIL(); /* rather throw here */
+					}
+				});
+			});
+		});
+		
+		if (!ma.symbolID) {
+			if (allowFailure) {
+				return false;
+			}
+			throw UseOfUndeclaredIdentifier(ma.token());
+		}
+		if (sym.is(ma.symbolID, SymbolCategory::Variable)) {
+			auto const& memberVar = sym.getVariable(ma.symbolID);
+			ma.typeID = memberVar.typeID();
+		}
+		else if (sym.is(ma.symbolID, SymbolCategory::ObjectType)) {
+			ma.kind = ast::ExpressionKind::Type;
+		}
+		return true;
+	}
+	
 	void PrepassContext::markUnhandled(ast::Statement* statement) {
 		unhandledStatements.push_back({ statement, &sym.currentScope() });
+	}
+	
+	void PrepassContext::markOrThrowUndeclared(ast::Statement* s, Token const& token) {
+		if (firstPass) {
+			markUnhandled(s);
+		}
+		if (lastPass) {
+			throw UseOfUndeclaredIdentifier(token);
+		}
 	}
 	
 }

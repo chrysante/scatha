@@ -26,11 +26,13 @@ namespace scatha::ast::internal {
 namespace scatha::ast {
 	
 	decltype(auto) visit(internal::DerivedFrom<AbstractSyntaxTree> auto&& node, auto const& visitor) {
-		return internal::visitImpl(UTL_FORWARD(node), node.nodeType(), visitor);
+		using AstBaseType = utl::copy_cvref_t<decltype(node)&&, AbstractSyntaxTree>;
+		return internal::visitImpl(static_cast<AstBaseType>(node), node.nodeType(), visitor);
 	}
 	
 	decltype(auto) visit(internal::DerivedFrom<AbstractSyntaxTree> auto&& node, NodeType type, auto const& visitor) {
-		return internal::visitImpl(UTL_FORWARD(node), type, visitor);
+		using AstBaseType = utl::copy_cvref_t<decltype(node)&&, AbstractSyntaxTree>;
+		return internal::visitImpl(static_cast<AstBaseType>(node), type, visitor);
 	}
 	
 	auto constexpr DefaultCase(auto&& callback) {

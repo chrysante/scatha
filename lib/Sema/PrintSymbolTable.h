@@ -10,6 +10,8 @@ namespace scatha::sema {
 	void SCATHA(API) printSymbolTable(SymbolTable const&);
 	
 	void SCATHA(API) printSymbolTable(SymbolTable const&, std::ostream&);
+
+	std::string makeQualName(EntityBase const&);
 	
 }
 

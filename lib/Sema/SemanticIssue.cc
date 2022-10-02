@@ -42,6 +42,10 @@ namespace scatha::sema {
 		SymbolError(token, utl::strcat("Identifier \"", token.id, "\" is a ", actually))
 	{}
 	
+	InvalidSymbolReference::InvalidSymbolReference(Token const& token, ast::ExpressionKind actually):
+		SymbolError(token, utl::strcat("Identifier \"", token.id, "\" is a ", actually))
+	{}
+	
 	InvalidStatement::InvalidStatement(Token const& token, std::string_view message):
 		SemanticIssue(token, message)
 	{}

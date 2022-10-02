@@ -54,27 +54,16 @@ namespace scatha::sema {
 		}
 		
 		for (auto [name, entity, id, cat]: data) {
-			
-			auto qualName = [&](EntityBase const& ent) {
-				std::string result = std::string(ent.name());
-				Scope const* s = ent.parent();
-				while (s->kind() != ScopeKind::Global) {
-					result = std::string(s->name()) + "." + result;
-					s = s->parent();
-				}
-				return result;
-			};
-			
-			str << indent(ind) << cat << " " << qualName(*entity);
+			str << indent(ind) << cat << " " << makeQualName(*entity);
 			if (cat == SymbolCategory::Function) {
 				auto& fn = sym.getFunction(id);
 				str << "(";
 				for (bool first = true; auto id: fn.signature().argumentTypeIDs()) {
 					if (!first) { str << ", "; }
 					first = false;
-					str << qualName(sym.getObjectType(id));
+					str << makeQualName(sym.getObjectType(id));
 				}
-				str << ") -> " << qualName(sym.getObjectType(fn.signature().returnTypeID()));
+				str << ") -> " << makeQualName(sym.getObjectType(fn.signature().returnTypeID()));
 			}
 			else if (cat == SymbolCategory::ObjectType) {
 				auto& type = sym.getObjectType(id);
@@ -85,7 +74,7 @@ namespace scatha::sema {
 			}
 			else if (cat == SymbolCategory::Variable) {
 				auto& var = sym.getVariable(id);
-				str << ": " << qualName(sym.getObjectType(var.typeID()));
+				str << ": " << makeQualName(sym.getObjectType(var.typeID()));
 			}
 			str << endl;
 			auto const itr = scope._children.find(id);
@@ -104,6 +93,16 @@ namespace scatha::sema {
 			str << indent(ind) << "<anonymous-scope>" << endl;
 			printScope(*childScope, str, ind+1);
 		}
+	}
+	
+	std::string makeQualName(EntityBase const& ent) {
+		std::string result = std::string(ent.name());
+		Scope const* s = ent.parent();
+		while (s->kind() != ScopeKind::Global) {
+			result = std::string(s->name()) + "." + result;
+			s = s->parent();
+		}
+		return result;
 	}
 	
 }

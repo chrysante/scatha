@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "AST/Common.h"
 #include "Common/ProgramIssue.h"
 #include "Common/Token.h"
 #include "Sema/ObjectType.h"
@@ -53,6 +54,7 @@ namespace scatha::sema {
 	class SCATHA(API) InvalidSymbolReference: public SymbolError {
 	public:
 		InvalidSymbolReference(Token const& token, SymbolCategory actually);
+		InvalidSymbolReference(Token const& token, ast::ExpressionKind actually);
 	};
 
 	/// MARK: StatementError

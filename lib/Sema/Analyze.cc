@@ -109,23 +109,23 @@ namespace scatha::sema {
 						throw InvalidStatement(var.token(), "Expected initializing expression of explicit typename specifier in variable declaration");
 					}
 					else {
-						// Get TypeID from declared typename
-						auto const* typenameIdentifier = downCast<Identifier>(var.typeExpr.get());
-						SC_ASSERT(typenameIdentifier, "must be identifier for now");
-						auto const typeSymbolID = sym.lookup(typenameIdentifier->value());
-						if (!typeSymbolID) {
-							throw UseOfUndeclaredIdentifier(typenameIdentifier->token());
+						analyze(*var.typeExpr);
+						if (!var.typeExpr->isType()) {
+							throw InvalidSymbolReference(var.typeExpr->token(), ExpressionKind::Value);
 						}
-						if (!sym.is(typeSymbolID, SymbolCategory::ObjectType)) {
-							throw InvalidStatement(typenameIdentifier->token(),
-												   utl::strcat("\"", typenameIdentifier->value(), "\" does not name a type"));
+						auto const* objTypePtr = lookupType(*var.typeExpr, sym);
+						if (!objTypePtr) {
+							throw InvalidStatement(var.typeExpr->token(),
+												   utl::strcat("\"", var.typeExpr->token().id, "\" does not name a type"));
 						}
-						auto& type = sym.getObjectType(typeSymbolID);
-						var.typeID = type.symbolID();
+						var.typeID = objTypePtr->symbolID();
 					}
 				}
 				else {
 					analyze(*var.initExpression);
+					if (!var.initExpression->isValue()) {
+						throw InvalidSymbolReference(var.initExpression->token(), ExpressionKind::Type);
+					}
 					if (var.typeExpr) {
 						auto const* typenameIdentifier = downCast<Identifier>(var.typeExpr.get());
 						SC_ASSERT(typenameIdentifier, "must be identifier for now");
@@ -179,22 +179,7 @@ namespace scatha::sema {
 				analyze(*ws.block);
 			},
 			[&](Identifier& i) {
-				auto const symbolID = sym.lookup(i.token());
-				if (!symbolID) {
-					throw UseOfUndeclaredIdentifier(i.token());
-				}
-				i.symbolID = symbolID;
-				if (sym.is(symbolID, SymbolCategory::Variable)) {
-					auto const& var = sym.getVariable(symbolID);
-					i.typeID = var.typeID();
-				}
-				else if (sym.is(symbolID, SymbolCategory::OverloadSet)) {
-					i.typeID = TypeID::Invalid;
-				}
-				else {
-					/// TODO: Throw something better here
-					throw SemanticIssue(i.token(), "Invalid use of identifier");
-				}
+				tryAnalyzeIdentifier(i, sym, false, false);
 			},
 			[&](IntegerLiteral& l) {
 				l.typeID = sym.Int();
@@ -250,30 +235,7 @@ namespace scatha::sema {
 				b.typeID = verifyBinaryOperation(b);
 			},
 			[&](MemberAccess& ma) {
-				analyze(*ma.object);
-				auto const& objType = sym.getObjectType(ma.object->typeID);
-				ma.symbolID = ast::visit(static_cast<ast::AbstractSyntaxTree&>(*ma.member), utl::visitor{
-					[&](ast::Identifier const& id) {
-						auto const memberID = objType.findID(id.value());
-						return memberID;
-					},
-					[&](ast::MemberAccess& ma) {
-						analyze(ma);
-						return ma.symbolID;
-					},
-					[](ast::AbstractSyntaxTree const&) -> SymbolID {
-						SC_DEBUGFAIL(); /* rather throw here */
-					}
-				});
-				if (!ma.symbolID) {
-					throw UseOfUndeclaredIdentifier(ma.token());
-				}
-				if (!sym.is(ma.symbolID, SymbolCategory::Variable)) {
-					// We don't allow non-variable member accesses yet (kinda arbitrary)
-					throw;
-				}
-				auto const& memberVar = sym.getVariable(ma.symbolID);
-				ma.typeID = memberVar.typeID();
+				tryAnalyzeMemberAccess(ma, sym, false, false);
 			},
 			[&](Conditional& c) {
 				analyze(*c.condition);

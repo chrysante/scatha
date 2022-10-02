@@ -74,7 +74,7 @@ TEST_CASE("Invalid symbol reference", "[sema]") {
 		
 TEST_CASE("Invalid variable declaration", "[sema]") {
 	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let v; }"), InvalidStatement);
-	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x = 0; let y: x; }"), InvalidStatement);
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x = 0; let y: x; }"), InvalidSymbolReference);
 }
 
 TEST_CASE("Invalid function declaration", "[sema]") {

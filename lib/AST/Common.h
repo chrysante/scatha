@@ -188,6 +188,14 @@ namespace scatha::ast {
 	SCATHA(API) std::string_view toString(BinaryOperator);
 
 	SCATHA(API) std::ostream& operator<<(std::ostream&, BinaryOperator);
+
+	enum class ExpressionKind {
+		Value,
+		Type,
+		_count
+	};
+	
+	SCATHA(API) std::ostream& operator<<(std::ostream&, ExpressionKind);
 	
 }
 
