@@ -103,6 +103,8 @@ namespace scatha::sema {
 		
 		bool is(SymbolID, SymbolCategory) const;
 		
+		SymbolCategory categorize(SymbolID) const;
+		
 		Scope& currentScope() { return *_currentScope; }
 		Scope const& currentScope() const { return *_currentScope; }
 		

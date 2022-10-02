@@ -195,6 +195,22 @@ namespace scatha::sema {
 		}
 	}
 	
+	SymbolCategory SymbolTable::categorize(SymbolID id) const {
+		if (_variables.contains(id)) {
+			return SymbolCategory::Variable;
+		}
+		if (_objectTypes.contains(id)) {
+			return SymbolCategory::ObjectType;
+		}
+		if (_overloadSets.contains(id)) {
+			return SymbolCategory::OverloadSet;
+		}
+		if (_functions.contains(id)) {
+			return SymbolCategory::Function;
+		}
+		SC_DEBUGFAIL(); // What is this ID?
+	}
+	
 	SymbolID SymbolTable::generateID() {
 		return SymbolID(_idCounter++);
 	}
