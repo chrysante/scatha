@@ -29,7 +29,7 @@ namespace scatha::sema {
 			
 			void markUnhandled(ast::Statement*);
 			
-			void markOrThrowUndeclared(ast::Statement*, Token const&);
+			void lastPassThrowUndeclared(ast::Statement*, Token const&);
 			
 			SymbolTable& sym;
 			std::vector<StatementContext> unhandledStatements;
@@ -73,23 +73,11 @@ namespace scatha::sema {
 				}
 				return true;
 			},
-			[&](Block& block) {
-				SC_DEBUGFAIL();
-				if (block.scopeKind != ScopeKind::Global &&
-					block.scopeKind != ScopeKind::Namespace &&
-					block.scopeKind != ScopeKind::Object)
-				{
-					// Don't care about these blocks in prepass
-					return true;
-				}
-				sym.pushScope(block.scopeSymbolID);
-				utl_defer { sym.popScope(); };
-				for (auto& statement: block.statements) {
-					prepass(*statement);
-				}
-				return true;
-			},
 			[&](FunctionDefinition& fn) {
+				if (firstPass) {
+					markUnhandled(&fn);
+					return false;
+				}
 				if (auto const sk = sym.currentScope().kind();
 					sk != ScopeKind::Global &&
 					sk != ScopeKind::Namespace &&
@@ -99,7 +87,7 @@ namespace scatha::sema {
 					throw InvalidFunctionDeclaration(fn.token(), sym.currentScope());
 				}
 				if (!prepass(*fn.returnTypeExpr)) {
-					markOrThrowUndeclared(&fn, fn.returnTypeExpr->token());
+					lastPassThrowUndeclared(&fn, fn.returnTypeExpr->token());
 					return false;
 				}
 				auto const* returnTypePtr = lookupType(*fn.returnTypeExpr, sym);
@@ -109,12 +97,12 @@ namespace scatha::sema {
 				utl::small_vector<TypeID> argTypes;
 				for (auto& param: fn.parameters) {
 					if (!prepass(*param->typeExpr)) {
-						markOrThrowUndeclared(&fn, fn.returnTypeExpr->token());
+						lastPassThrowUndeclared(&fn, fn.returnTypeExpr->token());
 						return false;
 					}
 					auto const* typePtr = lookupType(*param->typeExpr, sym);
 					if (!typePtr) {
-						markOrThrowUndeclared(&fn, param->typeExpr->token());
+						lastPassThrowUndeclared(&fn, param->typeExpr->token());
 						return false;
 					}
 					argTypes.push_back(typePtr->symbolID());
@@ -230,7 +218,9 @@ namespace scatha::sema {
 				LookupHelper lh{ .sym = sym, .allowFailure = true };
 				return lh.analyze(ma);
 			},
-			[&](auto&&) { return true; }
+			[&](auto&&) -> bool {
+				SC_DEBUGFAIL(); // No default case
+			}
 		};
 		return visit(node, vis);
 	}
@@ -359,10 +349,7 @@ namespace scatha::sema {
 		unhandledStatements.push_back({ statement, &sym.currentScope() });
 	}
 	
-	void PrepassContext::markOrThrowUndeclared(ast::Statement* s, Token const& token) {
-		if (firstPass) {
-			markUnhandled(s);
-		}
+	void PrepassContext::lastPassThrowUndeclared(ast::Statement* s, Token const& token) {
 		if (lastPass) {
 			throw UseOfUndeclaredIdentifier(token);
 		}
