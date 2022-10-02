@@ -47,7 +47,7 @@ using namespace scatha::parse;
 		ast::printSource(ast.get());
 		
 		std::cout << "\n==================================================\n";
-		std::cout <<   "=== Symbol Tabele ================================\n";
+		std::cout <<   "=== Symbol Table =================================\n";
 		std::cout <<   "==================================================\n\n";
 		auto const sym = sema::analyze(ast.get());
 //		auto const sym = sema::prepass(*ast);
@@ -80,6 +80,6 @@ using namespace scatha::parse;
 		std::cout << "\n==================================================\n\n";
 	}
 	catch (std::exception const& e) {
-		std::cout << e.what() << std::endl;
+		std::cout << "Compilation failed:\n" << e.what() << std::endl;
 	}
 }
