@@ -4,6 +4,7 @@
 
 #include <utl/strcat.hpp>
 
+#include "AST/PrintTree.h"
 #include "Sema/Scope.h"
 
 namespace scatha::sema {
@@ -35,8 +36,21 @@ namespace scatha::sema {
 	}
 	
 	UseOfUndeclaredIdentifier::UseOfUndeclaredIdentifier(Token const& token):
-		SymbolError(token, utl::strcat("Use of undeclared Identifier \"", token.id, "\""))
+		SymbolError(token, makeMessage(token.id, nullptr))
 	{}
+	
+	UseOfUndeclaredIdentifier::UseOfUndeclaredIdentifier(ast::Expression const& expr, Scope const& scope):
+		SymbolError(expr.token(), makeMessage(ast::toString(expr), &scope))
+	{}
+	
+	std::string UseOfUndeclaredIdentifier::makeMessage(std::string_view name, Scope const* scope) {
+		std::stringstream sstr;
+		sstr << "Use of undeclared Identifier \"" << name << "\"";
+		if (scope) {
+			sstr << " in scope: " << scope->name();
+		}
+		return sstr.str();
+	}
 	
 	InvalidSymbolReference::InvalidSymbolReference(Token const& token, SymbolCategory actually):
 		SymbolError(token, utl::strcat("Identifier \"", token.id, "\" is a ", actually))

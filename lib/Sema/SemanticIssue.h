@@ -5,6 +5,7 @@
 #include <string>
 
 #include "AST/Common.h"
+#include "AST/Expression.h"
 #include "Common/ProgramIssue.h"
 #include "Common/Token.h"
 #include "Sema/ObjectType.h"
@@ -49,6 +50,10 @@ namespace scatha::sema {
 	class SCATHA(API) UseOfUndeclaredIdentifier: public SymbolError {
 	public:
 		UseOfUndeclaredIdentifier(Token const& token);
+		UseOfUndeclaredIdentifier(ast::Expression const& expr, Scope const& scope);
+		
+	private:
+		static std::string makeMessage(std::string_view, Scope const*);
 	};
 	
 	class SCATHA(API) InvalidSymbolReference: public SymbolError {
