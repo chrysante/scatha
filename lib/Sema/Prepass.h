@@ -22,7 +22,6 @@ namespace scatha::sema {
 	bool tryAnalyzeMemberAccess(ast::MemberAccess&, SymbolTable&,
 								bool allowFailure, bool lookupStrict);
 	
-	
 	struct LookupHelper {
 		bool analyze(ast::Expression&);
 		
@@ -32,7 +31,6 @@ namespace scatha::sema {
 		SymbolTable& sym;
 		bool allowFailure;
 		bool first = true;
-		ast::ExpressionKind kind = ast::ExpressionKind::Type;
 	};
 	
 }
