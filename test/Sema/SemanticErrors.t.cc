@@ -105,3 +105,12 @@ TEST_CASE("Valid local scope in function", "[sema]") {
 TEST_CASE("Other semantic errors", "[sema]") {
 	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable("fn f() { let x = int; }"), SemanticIssue);
 }
+
+TEST_CASE("Mutual reference in struct definition", "[sema]") {
+	auto const text = R"(
+struct X { var y: Y; }
+struct Y { var x: X; }
+)";
+	// TODO: Check specific exception
+	CHECK_THROWS(test::produceDecoratedASTAndSymTable(text));
+}
