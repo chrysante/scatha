@@ -2,7 +2,7 @@
 
 #include "Sema/Prepass.h"
 
-#include <vector>
+#include <utl/vector.hpp>
 
 #include <utl/scope_guard.hpp>
 
@@ -12,6 +12,13 @@
 #include "Sema/SemanticIssue.h"
 
 namespace scatha::sema {
+	
+	/**
+	 * In prepass we declare all type including nested types in a first pass and try to figure out their sizes and alignments.
+	 * All functions and types of which we can't determine the size because it has members of incomplete or undeclared type will be pushed into a list.
+	 * Then that list is repeatedly traversed and successfully registered declarations will be removed from the list until it is empty or its size does not change anymore.
+	 * Then a last pass over the list is run and we collect the appropriate errors.
+	 */
 	
 	using namespace ast;
 	
@@ -29,7 +36,7 @@ namespace scatha::sema {
 			
 			void markUnhandled(ast::Statement*);
 			
-			void lastPassThrowUndeclared(ast::Statement*, Token const&);
+			void lastPassThrowUndeclared(ast::Expression const&);
 			
 			SymbolTable& sym;
 			utl::vector<StatementContext> unhandledStatements;
@@ -38,7 +45,7 @@ namespace scatha::sema {
 			bool lastPass = false;
 		};
 		
-	}
+	} // namespace
 		
 	SymbolTable prepass(ast::AbstractSyntaxTree& root) {
 		SymbolTable sym;
@@ -87,7 +94,7 @@ namespace scatha::sema {
 					throw InvalidFunctionDeclaration(fn.token(), sym.currentScope());
 				}
 				if (!prepass(*fn.returnTypeExpr)) {
-					lastPassThrowUndeclared(&fn, fn.returnTypeExpr->token());
+					lastPassThrowUndeclared(*fn.returnTypeExpr);
 					return false;
 				}
 				auto const* returnTypePtr = lookupType(*fn.returnTypeExpr, sym);
@@ -97,14 +104,17 @@ namespace scatha::sema {
 				utl::small_vector<TypeID> argTypes;
 				for (auto& param: fn.parameters) {
 					if (!prepass(*param->typeExpr)) {
-						lastPassThrowUndeclared(&fn, fn.returnTypeExpr->token());
+						lastPassThrowUndeclared(*param->typeExpr);
+						return false;
+					}
+					if (param->typeExpr->kind != ast::ExpressionKind::Type) {
+						if (lastPass) {
+							throw InvalidSymbolReference(*param->typeExpr, ExpressionKind::Type);
+						}
 						return false;
 					}
 					auto const* typePtr = lookupType(*param->typeExpr, sym);
-					if (!typePtr) {
-						lastPassThrowUndeclared(&fn, param->typeExpr->token());
-						return false;
-					}
+					SC_ASSERT(typePtr, "");
 					argTypes.push_back(typePtr->symbolID());
 				}
 				Expected const func = sym.addFunction(fn.token(), FunctionSignature(argTypes, returnType.symbolID()));
@@ -316,14 +326,10 @@ namespace scatha::sema {
 				return &sym.getObjectType(var.typeID());
 			}
 		}();
-		
-		
 		auto* const oldScope = &sym.currentScope();
 		sym.makeScopeCurrent(lookupTargetScope);
 		utl::armed_scope_guard popScope = [&]{ sym.makeScopeCurrent(oldScope); };
-		
 		SC_ASSERT(ma.member->nodeType() == ast::NodeType::Identifier, "Right hand side of member access must be identifier (for now)");
-		
 		auto& memberIdentifier = downCast<Identifier>(*ma.member);
 		std::optional const memberKind = doAnalyze(memberIdentifier);
 		popScope.execute();
