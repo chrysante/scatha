@@ -8,7 +8,7 @@
 
 using namespace scatha;
 
-TEST_CASE("fcmp greater var-lit") {
+TEST_CASE("fcmp greater var-lit", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
@@ -22,7 +22,7 @@ fn main() -> int {
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 1);
 }
-TEST_CASE("fcmp greater lit-var") {
+TEST_CASE("fcmp greater lit-var", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
@@ -36,7 +36,7 @@ fn main() -> int {
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 1);
 }
-TEST_CASE("fcmp less var-lit") {
+TEST_CASE("fcmp less var-lit", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
@@ -50,7 +50,7 @@ fn main() -> int {
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 1);
 }
-TEST_CASE("fcmp less lit-var") {
+TEST_CASE("fcmp less lit-var", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
@@ -64,7 +64,7 @@ fn main() -> int {
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 1);
 }
-TEST_CASE("fcmp less lit-lit") {
+TEST_CASE("fcmp less lit-lit", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
 	let a = 32.1;
@@ -78,7 +78,7 @@ fn main() -> int {
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 1);
 }
-TEST_CASE("nested if-else-if") {
+TEST_CASE("nested if-else-if", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
 	let x = 0;
@@ -98,7 +98,7 @@ fn main() -> int {
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 1);
 }
-TEST_CASE("more nested if else") {
+TEST_CASE("more nested if else", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
 	let x = 0;
@@ -121,7 +121,7 @@ fn main() -> int {
 	CHECK(registers[0] == 1);
 }
 
-TEST_CASE("") {
+TEST_CASE("logical not", "[codegen]") {
 	std::string const text = R"(
 fn main() -> bool {
 	return !false;
@@ -130,7 +130,7 @@ fn main() -> bool {
 	CHECK(registers[0] == 1);
 }
 
-TEST_CASE("Branch based on literals") {
+TEST_CASE("Branch based on literals", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
 	if true {
@@ -144,7 +144,7 @@ fn main() -> int {
 	CHECK(registers[0] == 1);
 }
 	
-TEST_CASE("Branch based on result of function calls") {
+TEST_CASE("Branch based on result of function calls", "[codegen]") {
 	std::string const text = R"(
 fn greaterZero(a: int) -> bool {
 	return !(a <= 0);
