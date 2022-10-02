@@ -223,10 +223,12 @@ namespace scatha::sema {
 				return typeID != TypeID::Invalid;
 			},
 			[&](Identifier& id) {
-				return tryAnalyzeIdentifier(id, sym, true, false);
+				LookupHelper lh{ .sym = sym, .allowFailure = true };
+				return lh.analyze(id);
 			},
 			[&](MemberAccess& ma) {
-				return tryAnalyzeMemberAccess(ma, sym, true, false);
+				LookupHelper lh{ .sym = sym, .allowFailure = true };
+				return lh.analyze(ma);
 			},
 			[&](auto&&) { return true; }
 		};
@@ -241,62 +243,116 @@ namespace scatha::sema {
 		});
 	}
 	
-	bool tryAnalyzeMemberAccess(ast::MemberAccess& ma, SymbolTable& sym,
-								bool allowFailure, bool lookupStrict)
-	{
-		if (ma.symbolID) { return true; /* we have already analyzed this */ }
-		SC_ASSERT(ma.object->nodeType() == ast::NodeType::Identifier, "Better throw here");
-		ast::Identifier& objectIdentifier = downCast<Identifier>(*ma.object);
-		bool const success = tryAnalyzeIdentifier(objectIdentifier, sym, allowFailure, lookupStrict);
+	bool LookupHelper::analyze(ast::Expression& e) {
+		bool success = false;
+		
+		switch (e.nodeType()) {
+			case ast::NodeType::Identifier:
+				success = doAnalyze(downCast<Identifier>(e)).has_value();
+				break;
+			case ast::NodeType::MemberAccess:
+				success = doAnalyze(downCast<MemberAccess>(e)).has_value();
+				break;
+			default:
+				SC_DEBUGFAIL();
+		}
+		if (allowFailure) {
+			return success;
+		}
 		if (!success) {
-			SC_ASSERT(allowFailure, "");
-			return false;
-		}
-		
-		SymbolID const objectScopeID = getScopeID(objectIdentifier);
-		
-		sym.withScopeCurrent(lookupStrict ?
-							 &sym.currentScope() :
-							 sym.getObjectType(objectScopeID).parent(),
-							 [&]{
-			if (!sym.currentScope().isChildScope(objectScopeID)) {
-				return;
-			}
-			sym.withScopePushed(objectScopeID, [&]{
-				ma.symbolID = ast::visit(*ma.member, utl::visitor{
-					[&](ast::Identifier& id) {
-						bool const success = tryAnalyzeIdentifier(id, sym, allowFailure, true);
-						if (!success) {
-							SC_ASSERT(allowFailure, "");
-							return SymbolID::Invalid;
-						}
-						return id.symbolID;
-					},
-					[&](ast::MemberAccess& ma) {
-						tryAnalyzeMemberAccess(ma, sym, allowFailure, true);
-						return ma.symbolID;
-					},
-					[](ast::AbstractSyntaxTree const&) -> SymbolID {
-						SC_DEBUGFAIL(); /* rather throw here */
-					}
-				});
-			});
-		});
-		
-		if (!ma.symbolID) {
-			if (allowFailure) {
-				return false;
-			}
-			throw UseOfUndeclaredIdentifier(ma.token());
-		}
-		if (sym.is(ma.symbolID, SymbolCategory::Variable)) {
-			auto const& memberVar = sym.getVariable(ma.symbolID);
-			ma.typeID = memberVar.typeID();
-		}
-		else if (sym.is(ma.symbolID, SymbolCategory::ObjectType)) {
-			ma.kind = ast::ExpressionKind::Type;
+			throw UseOfUndeclaredIdentifier(e, sym.currentScope());
 		}
 		return true;
+	}
+	
+	std::optional<ast::ExpressionKind> LookupHelper::doAnalyze(ast::Identifier& id) {
+		SymbolID const symbolID = [&]{
+			if (first) return sym.lookup(id.token());
+			else return sym.currentScope().findID(id.value());
+		}();
+		// Once we have looked for a single identifier we are not first anymore meaning we don't perform unqualified lookup anymore
+		first = false;
+		if (!symbolID) {
+			return std::nullopt;
+		}
+		id.symbolID = symbolID;
+		SymbolCategory const category = sym.categorize(symbolID);
+		switch (category) {
+			case SymbolCategory::Variable: {
+				auto const& var = sym.getVariable(symbolID);
+				id.typeID = var.typeID();
+				return ast::ExpressionKind::Value;
+			}
+			case SymbolCategory::ObjectType: {
+				id.kind = ExpressionKind::Type;
+				return ast::ExpressionKind::Type;
+			}
+			case SymbolCategory::OverloadSet: {
+				id.kind = ExpressionKind::Value;
+				return ast::ExpressionKind::Value;
+			}
+			default:
+				SC_DEBUGFAIL(); // Maybe throw something here?
+		}
+	}
+	
+	std::optional<ast::ExpressionKind> LookupHelper::doAnalyze(ast::MemberAccess& ma) {
+		auto const [symbolID, objectKind] = ast::visit(*ma.object, utl::visitor{
+			[&](ast::Identifier& id) {
+				auto const result = doAnalyze(id);
+				return std::pair{ id.symbolID, result };
+			},
+			[&](ast::MemberAccess& ma) {
+				auto const result = doAnalyze(ma);
+				return std::pair{ ma.symbolID, result };
+			},
+			[](ast::AbstractSyntaxTree const&) {
+				SC_DEBUGFAIL(); /* rather throw here */
+				return std::pair{ SymbolID::Invalid, std::optional<ast::ExpressionKind>{} };
+			}
+		});
+		if (!objectKind) {
+			return std::nullopt;
+		}
+		Scope* const lookupTargetScope = [&, objectKind = *objectKind, symbolID = symbolID]{
+			if (objectKind == ast::ExpressionKind::Type) {
+				// now search in that type
+				return &sym.getObjectType(symbolID);
+			}
+			else {
+				SC_ASSERT(objectKind == ast::ExpressionKind::Value, "are we looking for a function? cant do right now");
+				// now search in the type of the value
+				auto const& var = sym.getVariable(symbolID);
+				return &sym.getObjectType(var.typeID());
+			}
+		}();
+		
+		
+		auto* const oldScope = &sym.currentScope();
+		sym.makeScopeCurrent(lookupTargetScope);
+		utl::armed_scope_guard popScope = [&]{ sym.makeScopeCurrent(oldScope); };
+		
+		SC_ASSERT(ma.member->nodeType() == ast::NodeType::Identifier, "Right hand side of member access must be identifier (for now)");
+		
+		auto& memberIdentifier = downCast<Identifier>(*ma.member);
+		std::optional const memberKind = doAnalyze(memberIdentifier);
+		popScope.execute();
+		if (!memberKind) {
+			SC_ASSERT(!memberIdentifier.symbolID, "Maybe we can use this to simplify the lambda");
+			return std::nullopt;
+		}
+		if (*objectKind == ast::ExpressionKind::Value &&
+			*memberKind != ast::ExpressionKind::Value)
+		{
+			SC_DEBUGFAIL(); // can't look in a value an then in a type
+		}
+		
+		ma.kind = *memberKind;
+		ma.symbolID = memberIdentifier.symbolID;
+		if (ma.kind == ast::ExpressionKind::Value) {
+			ma.typeID = sym.getVariable(ma.symbolID).typeID();
+		}
+		return ma.kind;
 	}
 	
 	void PrepassContext::markUnhandled(ast::Statement* statement) {
