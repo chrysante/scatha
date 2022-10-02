@@ -30,6 +30,7 @@ namespace scatha::sema {
 	void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, int ind) {
 		struct PrintData {
 			std::string_view name;
+			EntityBase const* entity;
 			SymbolID id;
 			SymbolCategory cat;
 		};
@@ -38,31 +39,42 @@ namespace scatha::sema {
 		utl::vector<PrintData> data;
 		for (auto&& [name, id]: scope._symbols) {
 			if (sym.is(id, SymbolCategory::Variable)) {
-				data.push_back({ name, id, SymbolCategory::Variable });
+				data.push_back({ name, &sym.getVariable(id), id, SymbolCategory::Variable });
 				continue;
 			}
 			if (sym.is(id, SymbolCategory::ObjectType)) {
 				if (sym.getObjectType(id).isBuiltin()) { printedScopes.insert(id); continue; }
-				data.push_back({ name, id, SymbolCategory::ObjectType });
+				data.push_back({ name, &sym.getObjectType(id), id, SymbolCategory::ObjectType });
 				continue;
 			}
 			SC_ASSERT(sym.is(id, SymbolCategory::OverloadSet), "what else?");
 			for (auto const& function: sym.getOverloadSet(id)) {
-				data.push_back({ name, function.symbolID(), SymbolCategory::Function });
+				data.push_back({ name, &sym.getFunction(function.symbolID()), function.symbolID(), SymbolCategory::Function });
 			}
 		}
 		
-		for (auto [name, id, cat]: data) {
-			str << indent(ind) << cat << " " << name;
+		for (auto [name, entity, id, cat]: data) {
+			
+			auto qualName = [&](EntityBase const& ent) {
+				std::string result = std::string(ent.name());
+				Scope const* s = ent.parent();
+				while (s->kind() != ScopeKind::Global) {
+					result = std::string(s->name()) + "." + result;
+					s = s->parent();
+				}
+				return result;
+			};
+			
+			str << indent(ind) << cat << " " << qualName(*entity);
 			if (cat == SymbolCategory::Function) {
 				auto& fn = sym.getFunction(id);
 				str << "(";
 				for (bool first = true; auto id: fn.signature().argumentTypeIDs()) {
 					if (!first) { str << ", "; }
 					first = false;
-					str << sym.getObjectType(id).name();
+					str << qualName(sym.getObjectType(id));
 				}
-				str << ") -> " << sym.getObjectType(fn.signature().returnTypeID()).name();
+				str << ") -> " << qualName(sym.getObjectType(fn.signature().returnTypeID()));
 			}
 			else if (cat == SymbolCategory::ObjectType) {
 				auto& type = sym.getObjectType(id);
@@ -73,7 +85,7 @@ namespace scatha::sema {
 			}
 			else if (cat == SymbolCategory::Variable) {
 				auto& var = sym.getVariable(id);
-				str << ": " << sym.getObjectType(var.typeID()).name();
+				str << ": " << qualName(sym.getObjectType(var.typeID()));
 			}
 			str << endl;
 			auto const itr = scope._children.find(id);
