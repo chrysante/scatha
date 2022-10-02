@@ -6,6 +6,11 @@
 
 namespace scatha::ast {
 	
+	bool isDeclaration(NodeType t) {
+		using enum NodeType;
+		return t == FunctionDefinition || t == StructDefinition || t ==  VariableDeclaration;
+	}
+	
 	std::string_view toString(NodeType t) {
 		return UTL_SERIALIZE_ENUM(t, {
 			{ NodeType::TranslationUnit,       "TranslationUnit" },

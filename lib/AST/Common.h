@@ -52,6 +52,8 @@ namespace scatha::ast {
 		_count
 	};
 	
+	bool isDeclaration(NodeType);
+	
 	SCATHA(API) std::string_view toString(NodeType);
 	
 	SCATHA(API) std::ostream& operator<<(std::ostream&, NodeType);
