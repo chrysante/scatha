@@ -27,7 +27,7 @@ namespace scatha::sema {
 		explicit operator bool() const { return *this != Invalid; }
 		
 	private:
-		u64 _value;
+		u64 _value = 0;
 	};
 	
 	inline SymbolID const SymbolID::Invalid = SymbolID(0);
