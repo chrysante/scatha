@@ -66,8 +66,14 @@ namespace scatha::sema {
 			}
 			else if (cat == SymbolCategory::ObjectType) {
 				auto& type = sym.getObjectType(id);
-				size_t const invalidSize = -1;
-				str << " [size: " << (type.size() == invalidSize ? "unknown" : std::to_string(type.size())) << "]";
+				auto printSize = [&str](size_t s) { if (s == invalidSize) str << "invalid"; else str << s; };
+				str << " [size: "; printSize(type.size());
+				str << ", align: "; printSize(type.align());
+				str << "]";
+			}
+			else if (cat == SymbolCategory::Variable) {
+				auto& var = sym.getVariable(id);
+				str << ": " << sym.getObjectType(var.typeID()).name();
 			}
 			str << endl;
 			auto const itr = scope._children.find(id);

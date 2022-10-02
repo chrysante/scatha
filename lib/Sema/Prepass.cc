@@ -158,9 +158,8 @@ namespace scatha::sema {
 						return sym.getObjectType(s.symbolID);
 					}
 				}();
-				
-#warning Handle alignment
 				size_t objectSize = 0;
+				size_t objectAlign = 1;
 				bool success = true;
 				{
 					sym.pushScope(obj.symbolID());
@@ -178,14 +177,15 @@ namespace scatha::sema {
 									break;
 								}
 								auto const* type = sym.lookupObjectType(varDecl.declTypename);
-								if (!type) {
+								if (!type || !type->isComplete()) {
 									success = false;
 									if (lastPass) {
 										throw UseOfUndeclaredIdentifier(varDecl.declTypename);
 									}
 									break;
 								}
-								objectSize += type->size();
+								objectAlign = std::max(objectAlign, type->align());
+								objectSize = utl::round_up_pow_two(objectSize + type->size(), type->align());
 								break;
 							}
 							default:
@@ -193,16 +193,17 @@ namespace scatha::sema {
 						}
 					}
 				}
+				objectSize = utl::round_up_pow_two(objectSize, objectAlign);
 				if (!success) {
 					if (firstPass) {
 						markUnhandled(&s);						
 					}
 					return false;
 				}
-				
 				s.body->scopeKind = ScopeKind::Object;
 				s.body->scopeSymbolID = s.symbolID;
 				obj.setSize(objectSize);
+				obj.setAlign(objectAlign);
 				return true;
 			},
 			[&](auto&&) { return true; }

@@ -9,9 +9,16 @@
 
 namespace scatha::sema {
 	
+	size_t constexpr invalidSize = static_cast<size_t>(-1);
+	
 	class ObjectType: public Scope {
 	public:
-		explicit ObjectType(std::string name, SymbolID typeID, Scope* parentScope, size_t size = -1, size_t align = -1, bool isBuiltin = false):
+		explicit ObjectType(std::string name,
+							SymbolID typeID,
+							Scope* parentScope,
+							size_t size = invalidSize,
+							size_t align = invalidSize,
+							bool isBuiltin = false):
 			Scope(ScopeKind::Object, std::move(name), typeID, parentScope),
 			_size(size),
 			_align(align),
@@ -23,6 +30,8 @@ namespace scatha::sema {
 		size_t size() const { return _size; }
 		size_t align() const { return _align; }
 		bool isBuiltin() const { return _isBuiltin; }
+		
+		bool isComplete() const;
 		
 		void setSize(size_t value) { _size = value; }
 		void setAlign(size_t value) { _align = value; }
