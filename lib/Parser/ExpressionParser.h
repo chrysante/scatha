@@ -131,7 +131,7 @@ namespace scatha::parse {
 												   std::string_view close);
 		ast::UniquePtr<ast::Subscript> parseSubscript(ast::UniquePtr<ast::Expression> primary);
 		ast::UniquePtr<ast::FunctionCall> parseFunctionCall(ast::UniquePtr<ast::Expression> primary);
-		ast::UniquePtr<ast::MemberAccess> parseMemberAccess(ast::UniquePtr<ast::Expression> primary);
+		ast::UniquePtr<ast::Expression> parseMemberAccess(ast::UniquePtr<ast::Expression> primary);
 		
 		template <ast::BinaryOperator...>
 		ast::UniquePtr<ast::Expression> parseBinaryOperatorLTR(auto&& operand);

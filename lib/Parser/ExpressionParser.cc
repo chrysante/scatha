@@ -266,11 +266,18 @@ namespace scatha::parse {
 		return parseFunctionCallLike<ast::FunctionCall>(std::move(primary), "(", ")");
 	}
 
-	ast::UniquePtr<ast::MemberAccess> ExpressionParser::parseMemberAccess(ast::UniquePtr<ast::Expression> primary) {
-		auto const& dot = tokens.eat();
-		SC_ASSERT(dot.id == ".", "");
-		auto member = parsePostfix();
-		return ast::allocate<ast::MemberAccess>(std::move(primary), std::move(member), dot);
+	ast::UniquePtr<ast::Expression> ExpressionParser::parseMemberAccess(ast::UniquePtr<ast::Expression> left) {
+		SC_ASSERT(tokens.peek().id == ".", "");
+		while (true) {
+			auto const& token = tokens.peek();
+			if (token.id != ".") {
+				 return left;
+			}
+			tokens.eat();
+			ast::UniquePtr<ast::Expression> right = parsePrimary();
+			left = ast::allocate<ast::MemberAccess>(std::move(left), std::move(right), token);
+			continue;
+		}
 	}
 	
 }
