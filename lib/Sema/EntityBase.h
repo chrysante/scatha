@@ -9,6 +9,8 @@
 
 namespace scatha::sema {
 	
+	class Scope;
+	
 	/**
 	 * Base class for all entities in the language.
 	 *
@@ -42,16 +44,21 @@ namespace scatha::sema {
 		
 		bool isAnonymous() const { return _name.empty(); }
 		
+		Scope* parent() { return _parent; }
+		Scope const* parent() const { return _parent; }
+		
 	protected:
-		explicit EntityBase(std::string name, SymbolID symbolID):
+		explicit EntityBase(std::string name, SymbolID symbolID, Scope* parent):
 			_name(name),
-			_symbolID(symbolID)
+			_symbolID(symbolID),
+			_parent(parent)
 		{}
 		~EntityBase() = default;
 		
 	private:
 		std::string _name;
 		SymbolID _symbolID;
+		Scope* _parent = nullptr;
 	};
 	
 }

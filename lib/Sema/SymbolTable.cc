@@ -25,7 +25,7 @@ namespace scatha::sema {
 			}
 			// Create a new overload set
 			auto [itr, success] = _overloadSets.insert(OverloadSet{
-				name, generateID()
+				name, generateID(), &currentScope()
 			});
 			SC_ASSERT(success, "");
 			currentScope().add(*itr);
@@ -52,12 +52,12 @@ namespace scatha::sema {
 		return function;
 	}
 
-	Expected<Variable const&, SymbolCollisionIssue> SymbolTable::addVariable(std::string name, TypeID typeID, bool isConstant) {
+	Expected<Variable&, SymbolCollisionIssue> SymbolTable::addVariable(std::string name, TypeID typeID, bool isConstant) {
 		SymbolID const symbolID = currentScope().findID(name);
 		if (symbolID != SymbolID::Invalid) {
 			return SymbolCollisionIssue(name, symbolID);
 		}
-		auto [itr, success] = _variables.insert(Variable(name, generateID(), typeID, isConstant));
+		auto [itr, success] = _variables.insert(Variable(name, generateID(), &currentScope(), typeID, isConstant));
 		SC_ASSERT(success, "");
 		currentScope().add(*itr);
 		return *itr;
@@ -88,7 +88,7 @@ namespace scatha::sema {
 	}
 	
 	void SymbolTable::popScope() {
-		_currentScope = currentScope()._parent;
+		_currentScope = currentScope().parent();
 	}
 	
 	void SymbolTable::makeScopeCurrent(Scope* scope) {
@@ -150,7 +150,7 @@ namespace scatha::sema {
 			if (id != SymbolID::Invalid) {
 				return id;
 			}
-			scope = scope->_parent;
+			scope = scope->parent();
 		}
 		return SymbolID::Invalid;
 	}

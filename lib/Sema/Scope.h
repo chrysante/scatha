@@ -17,8 +17,6 @@ namespace scatha::sema {
 		ScopeKind kind() const { return _kind; }
 		explicit Scope(ScopeKind, SymbolID symbolID, Scope* parent);
 		
-		Scope const* parent() const { return _parent; }
-		
 	protected:
 	public:
 		explicit Scope(ScopeKind, std::string name, SymbolID symbolID, Scope* parent);
@@ -37,7 +35,6 @@ namespace scatha::sema {
 		utl::hashmap<SymbolID, Scope*> _children;
 		utl::hashmap<std::string, SymbolID> _symbols;
 		ScopeKind _kind;
-		Scope* _parent = nullptr;
 	};
 	
 	class GlobalScope: public Scope {

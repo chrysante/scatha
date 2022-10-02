@@ -13,8 +13,8 @@ namespace scatha::sema {
 	
 	class SCATHA(API) OverloadSet: public EntityBase {
 	public:
-		explicit OverloadSet(std::string name, SymbolID id):
-			EntityBase(std::move(name), id)
+		explicit OverloadSet(std::string name, SymbolID id, Scope* parentScope):
+			EntityBase(std::move(name), id, parentScope)
 		{}
 		
 		///

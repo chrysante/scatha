@@ -9,9 +9,8 @@ namespace scatha::sema {
 	}
 	
 	Scope::Scope(ScopeKind kind, std::string name, SymbolID symbolID, Scope* parent):
-		EntityBase(std::move(name), symbolID),
-		_kind(kind),
-		_parent(parent)
+		EntityBase(std::move(name), symbolID, parent),
+		_kind(kind)
 	{
 		
 	}
