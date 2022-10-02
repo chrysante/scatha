@@ -41,6 +41,7 @@ namespace scatha::parse {
 		ast::UniquePtr<ast::WhileStatement> parseWhileStatement();
 		
 		ast::UniquePtr<ast::Expression> parseExpression();
+		ast::UniquePtr<ast::Expression> parsePostfixExpression();
 		
 	private:
 		TokenStream tokens;

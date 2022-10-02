@@ -97,8 +97,8 @@ namespace scatha::ast {
 		bool isFunctionParameter     : 1 = false; // Will be set by the parser
 		bool isFunctionParameterDef  : 1 = false; // Will be set by the constructor of FunctionDefinition during parsing
 		
-		/// Typename declared in the source code.
-		Token declTypename;
+		/// Typename declared in the source code. Null if no typename was declared.
+		UniquePtr<Expression> typeExpr;
 		
 		/// Expression to initialize this variable.
 		UniquePtr<Expression> initExpression;
@@ -137,17 +137,13 @@ namespace scatha::ast {
 	/// MARK: FunctionDefinition
 	/// Concrete node representing the definition of a function.
 	struct SCATHA(API) FunctionDefinition: Declaration {
-		explicit FunctionDefinition(Token const& name,
-								   Token const& declReturnTypename = {},
-								   utl::vector<UniquePtr<VariableDeclaration>> params = {}):
-			Declaration(NodeType::FunctionDefinition, std::move(name)),
-			declReturnTypename(std::move(declReturnTypename)),
-			parameters(std::move(params))
+		explicit FunctionDefinition(Token const& name):
+			Declaration(NodeType::FunctionDefinition, std::move(name))
 		{}
 		
 		/// Typename of the return type as declared in the source code.
-		/// Will be implicitly "void" if no return type was declared.
-		Token declReturnTypename;
+		/// Will be implicitly Identifier("void") if no return type was declared.
+		UniquePtr<Expression> returnTypeExpr;
 		
 		/// List of parameter declarations.
 		utl::small_vector<UniquePtr<VariableDeclaration>> parameters;

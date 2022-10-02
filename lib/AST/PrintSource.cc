@@ -46,9 +46,12 @@ namespace scatha::ast {
 					[&](FunctionDefinition const& fn) {
 						str << "fn " << fn.name() << "(";
 						for (bool first = true; auto const& param: fn.parameters) {
-							str << (first ? ((void)(first = false), "") : ", ") << param->name() << ": " << param->declTypename.id;
+							str << (first ? ((void)(first = false), "") : ", ") << param->name() << ": ";
+							print(*param->typeExpr);
 						}
-						str << ") -> " << fn.declReturnTypename.id << " ";
+						str << ") -> ";
+						print(*fn.returnTypeExpr);
+						str << " ";
 						print(*fn.body);
 					},
 					[&](StructDefinition const& s) {
@@ -57,7 +60,8 @@ namespace scatha::ast {
 					},
 					[&](VariableDeclaration const& var) {
 						str << (var.isConstant ? "let" : "var") << " " << var.name() << ": ";
-						str << (var.declTypename.empty() ? "<deduce type>" : var.declTypename.id);
+						if (var.typeExpr) { print(*var.typeExpr); }
+						else { str << "<deduce-type>"; }
 						if (var.initExpression) {
 							str << " = ";
 							print(*var.initExpression);

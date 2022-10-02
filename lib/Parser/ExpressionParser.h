@@ -107,7 +107,6 @@ namespace scatha::parse {
 		
 		ast::UniquePtr<ast::Expression> parseExpression();
 		
-	private:
 		ast::UniquePtr<ast::Expression> parseComma();
 		ast::UniquePtr<ast::Expression> parseAssignment();
 		ast::UniquePtr<ast::Expression> parseConditional();
@@ -125,6 +124,7 @@ namespace scatha::parse {
 		ast::UniquePtr<ast::Expression> parsePostfix();
 		ast::UniquePtr<ast::Expression> parsePrimary();
 		
+	private:
 		template <typename Expr>
 		ast::UniquePtr<Expr> parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
 												   std::string_view open,

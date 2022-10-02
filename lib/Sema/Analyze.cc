@@ -105,18 +105,20 @@ namespace scatha::sema {
 					return;
 				}
 				if (var.initExpression == nullptr) {
-					if (var.declTypename.empty()) {
+					if (!var.typeExpr) {
 						throw InvalidStatement(var.token(), "Expected initializing expression of explicit typename specifier in variable declaration");
 					}
 					else {
-						// Get TtypeID from declared typename
-						auto const typeSymbolID = sym.lookup(var.declTypename);
+						// Get TypeID from declared typename
+						auto const* typenameIdentifier = downCast<Identifier>(var.typeExpr.get());
+						SC_ASSERT(typenameIdentifier, "must be identifier for now");
+						auto const typeSymbolID = sym.lookup(typenameIdentifier->value());
 						if (!typeSymbolID) {
-							throw UseOfUndeclaredIdentifier(var.declTypename);
+							throw UseOfUndeclaredIdentifier(typenameIdentifier->token());
 						}
 						if (!sym.is(typeSymbolID, SymbolCategory::ObjectType)) {
-							throw InvalidStatement(var.declTypename,
-												   utl::strcat("\"", var.declTypename, "\" does not name a type"));
+							throw InvalidStatement(typenameIdentifier->token(),
+												   utl::strcat("\"", typenameIdentifier->value(), "\" does not name a type"));
 						}
 						auto& type = sym.getObjectType(typeSymbolID);
 						var.typeID = type.symbolID();
@@ -124,12 +126,15 @@ namespace scatha::sema {
 				}
 				else {
 					analyze(*var.initExpression);
-					if (!var.declTypename.empty()) {
-						auto const* type = sym.lookupObjectType(var.declTypename);
+					if (var.typeExpr) {
+						auto const* typenameIdentifier = downCast<Identifier>(var.typeExpr.get());
+						SC_ASSERT(typenameIdentifier, "must be identifier for now");
+						auto const* type = sym.lookupObjectType(typenameIdentifier->value());
 						var.typeID = type->symbolID();
 						verifyConversion(*var.initExpression, var.typeID);
 					}
 					else {
+						// Deduce variable type from init expression
 						var.typeID = var.initExpression->typeID;
 					}
 				}

@@ -98,13 +98,15 @@ namespace scatha::sema {
 					 */
 					throw InvalidFunctionDeclaration(fn.token(), sym.currentScope());
 				}
-				auto const* returnTypePtr = sym.lookupObjectType(fn.declReturnTypename);
+				auto const* typenameIdentifier = downCast<Identifier>(fn.returnTypeExpr.get());
+				SC_ASSERT(typenameIdentifier, "must be identifier for now");
+				auto const* returnTypePtr = sym.lookupObjectType(typenameIdentifier->value());
 				if (!returnTypePtr) {
 					if (firstPass) {
 						markUnhandled(&fn);
 					}
 					if (lastPass) {
-						throw UseOfUndeclaredIdentifier(fn.declReturnTypename);
+						throw UseOfUndeclaredIdentifier(typenameIdentifier->token());
 					}
 					return false;
 				}
@@ -112,13 +114,15 @@ namespace scatha::sema {
 				fn.returnTypeID = returnType.symbolID();
 				utl::small_vector<TypeID> argTypes;
 				for (auto& param: fn.parameters) {
-					auto const* typePtr = sym.lookupObjectType(param->declTypename);
+					auto const* typenameIdentifier = downCast<Identifier>(param->typeExpr.get());
+					SC_ASSERT(typenameIdentifier, "must be identifier for now");
+					auto const* typePtr = sym.lookupObjectType(typenameIdentifier->value());
 					if (!typePtr) {
 						if (firstPass) {
 							markUnhandled(&fn);
 						}
 						if (lastPass) {
-							throw UseOfUndeclaredIdentifier(fn.declReturnTypename);
+							throw UseOfUndeclaredIdentifier(typenameIdentifier->token());
 						}
 						return false;
 					}
@@ -171,11 +175,13 @@ namespace scatha::sema {
 						prepass(*statement);
 						if (statement->nodeType() == ast::NodeType::VariableDeclaration) {
 							auto const& varDecl = static_cast<VariableDeclaration&>(*statement);
-							auto const* type = sym.lookupObjectType(varDecl.declTypename);
+							auto const* typenameIdentifier = downCast<Identifier>(varDecl.typeExpr.get());
+							SC_ASSERT(typenameIdentifier, "must be identifier for now");
+							auto const* type = sym.lookupObjectType(typenameIdentifier->value());
 							if (!type || !type->isComplete()) {
 								success = false;
 								if (lastPass) {
-									throw UseOfUndeclaredIdentifier(varDecl.declTypename);
+									throw UseOfUndeclaredIdentifier(typenameIdentifier->token());
 								}
 								if (firstPass) {
 									continue;
@@ -202,9 +208,12 @@ namespace scatha::sema {
 				return true;
 			},
 			[&](VariableDeclaration& decl) {
-				SC_ASSERT(sym.currentScope().kind() == ScopeKind::Object, "We only want to prepass struct definitions. What are we doing here?");
-				SC_ASSERT(!decl.declTypename.empty(), "In structs variables need explicit type specifiers. Make this a program issue.");
-				auto const* typePtr = sym.lookupObjectType(decl.declTypename);
+				SC_ASSERT(sym.currentScope().kind() == ScopeKind::Object,
+						  "We only want to prepass struct definitions. What are we doing here?");
+				SC_ASSERT(decl.typeExpr, "In structs variables need explicit type specifiers. Make this a program issue.");
+				auto const* typenameIdentifier = downCast<Identifier>(decl.typeExpr.get());
+				SC_ASSERT(typenameIdentifier, "must be identifier for now");
+				auto const* typePtr = sym.lookupObjectType(typenameIdentifier->value());
 				TypeID const typeID = typePtr ? typePtr->symbolID() : TypeID::Invalid;
 				auto& var = [&]() -> auto& {
 					if (firstPass) {

@@ -52,7 +52,9 @@ namespace scatha::ast {
 			
 			case NodeType::FunctionDefinition: {
 				auto const* const node = static_cast<FunctionDefinition const*>(inNode);
-				str << indent(ind) << "<function-definition>: " << node->name() << " -> " << node->declReturnTypename.id << endl;
+				str << indent(ind) << "<function-definition>: " << node->name() << " -> ";
+				printTreeImpl(node->returnTypeExpr.get(), str, ind);
+				str << endl;
 				for (auto& p: node->parameters) {
 					printTreeImpl(p.get(), str, ind + 1);
 				}
@@ -69,7 +71,8 @@ namespace scatha::ast {
 				
 			case NodeType::VariableDeclaration: {
 				auto const* const node = static_cast<VariableDeclaration const*>(inNode);
-				str << indent(ind) << "<variable-declaration> " << node->name() << ": " << (node->declTypename.empty() ? "<deduce-type>" : node->declTypename.id);
+				str << indent(ind) << "<variable-declaration> " << node->name() << ": ";
+				printTreeImpl(node->typeExpr.get(), str, ind);
 				str << " [" << (node->isConstant ? "const" : "mutable") << "]" << endl;
 				if (node->initExpression.get()) {
 					printTreeImpl(node->initExpression.get(), str, ind + 1);

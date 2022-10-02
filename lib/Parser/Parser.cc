@@ -78,11 +78,10 @@ namespace scatha::parse {
 		
 		if (tokens.peek().id == ":") {
 			tokens.eat();
-			TokenEx const& type = tokens.eat();
-			expectIdentifier(type);
-			result->declTypename = type;
+			result->typeExpr = parsePostfixExpression();
 		}
 		else if (isFunctionParameter) {
+			// guaranteed to throw
 			expectID(tokens.peek(), ":");
 		}
 		
@@ -109,15 +108,14 @@ namespace scatha::parse {
 		parseFunctionParameters(result.get());
 		if (TokenEx const& token = tokens.peek(); token.id == "->") {
 			tokens.eat();
-			TokenEx const& type = tokens.eat();
-			expectIdentifier(type);
-			result->declReturnTypename = type;
+			result->returnTypeExpr = parsePostfixExpression();
 		}
 		else {
+			
 			auto copy = token;
 			copy.id = "void";
 			copy.type = TokenType::Identifier;
-			result->declReturnTypename = copy;
+			result->returnTypeExpr = ast::allocate<ast::Identifier>(copy);
 		}
 		if (tokens.peek().id != "{") {
 			throw ParsingIssue(tokens.peek(), "Expected '{' after function declaration");
@@ -259,6 +257,11 @@ namespace scatha::parse {
 	ast::UniquePtr<ast::Expression> Parser::parseExpression() {
 		ExpressionParser parser(tokens);
 		return parser.parseExpression();
+	}
+	
+	ast::UniquePtr<ast::Expression> Parser::parsePostfixExpression() {
+		ExpressionParser parser(tokens);
+		return parser.parsePostfix();
 	}
 	
 }
