@@ -22,7 +22,7 @@ static auto makeAST(std::string text) {
 
 TEST_CASE("Parse simple function", "[parse]") {
 	std::string const text = R"(
-fn mul(a: int, b: X.Y) -> int {
+fn mul(a: int, b: X.Y.Z) -> int {
 	var result = a;
 	return result;
 })";
@@ -37,9 +37,14 @@ fn mul(a: int, b: X.Y) -> int {
 	CHECK(aTypeExpr->token().id == "int");
 	CHECK(function->parameters[1]->name() == "b");
 	auto const* bTypeExpr = downCast<MemberAccess>(function->parameters[1]->typeExpr.get());
-	CHECK(bTypeExpr->object->token().id == "X");
 	CHECK(bTypeExpr->object->nodeType() == NodeType::Identifier);
-	CHECK(bTypeExpr->memberName() == "Y");
+	CHECK(bTypeExpr->object->token().id == "X");
+	CHECK(bTypeExpr->member->nodeType() == NodeType::MemberAccess);
+	auto const* bTypeExpr2 = downCast<MemberAccess>(bTypeExpr->member.get());
+	CHECK(bTypeExpr2->object->nodeType() == NodeType::Identifier);
+	CHECK(bTypeExpr2->object->token().id == "Y");
+	CHECK(bTypeExpr2->member->nodeType() == NodeType::Identifier);
+	CHECK(bTypeExpr2->member->token().id == "Z");
 	auto const* returnTypeExpr = downCast<Identifier>(function->returnTypeExpr.get());
 	CHECK(returnTypeExpr->token().id == "int");
 	Block* const body = function->body.get();

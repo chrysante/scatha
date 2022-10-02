@@ -103,19 +103,15 @@ namespace scatha::ast {
 	};
 	
 	struct SCATHA(API) MemberAccess: Expression {
-		explicit MemberAccess(UniquePtr<Expression> object, Token const& memberToken, Token const& dotToken):
+		explicit MemberAccess(UniquePtr<Expression> object, UniquePtr<Expression> member, Token const& dotToken):
 			Expression(NodeType::MemberAccess, dotToken),
 			object(std::move(object)),
-			_member(memberToken)
+			member(std::move(member))
 		{}
 		
-		Token const& member() const { return _member; }
-		std::string_view memberName() const { return _member.id; }
-		
 		UniquePtr<Expression> object;
-		
-	private:
-		Token _member;
+		UniquePtr<Expression> member;
+		sema::SymbolID symbolID;
 	};
 	
 	/// MARK: Ternary Expressions

@@ -269,9 +269,8 @@ namespace scatha::parse {
 	ast::UniquePtr<ast::MemberAccess> ExpressionParser::parseMemberAccess(ast::UniquePtr<ast::Expression> primary) {
 		auto const& dot = tokens.eat();
 		SC_ASSERT(dot.id == ".", "");
-		auto const& id = tokens.eat();
-		expectIdentifier(id);
-		return ast::allocate<ast::MemberAccess>(std::move(primary), id, dot);
+		auto member = parsePostfix();
+		return ast::allocate<ast::MemberAccess>(std::move(primary), std::move(member), dot);
 	}
 	
 }

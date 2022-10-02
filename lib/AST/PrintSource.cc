@@ -128,7 +128,8 @@ namespace scatha::ast {
 					},
 					[&](MemberAccess const& ma) {
 						print(*ma.object);
-						str << "." << ma.memberName();
+						str << ".";
+						print(*ma.member);
 					},
 					[&](Conditional const& c) {
 						str << "((";

@@ -252,15 +252,27 @@ namespace scatha::sema {
 			[&](MemberAccess& ma) {
 				analyze(*ma.object);
 				auto const& objType = sym.getObjectType(ma.object->typeID);
-				auto const memberID = objType.findID(ma.memberName());
-				if (!memberID) {
-					throw UseOfUndeclaredIdentifier(ma.member());
+				ma.symbolID = ast::visit(static_cast<ast::AbstractSyntaxTree&>(*ma.member), utl::visitor{
+					[&](ast::Identifier const& id) {
+						auto const memberID = objType.findID(id.value());
+						return memberID;
+					},
+					[&](ast::MemberAccess& ma) {
+						analyze(ma);
+						return ma.symbolID;
+					},
+					[](ast::AbstractSyntaxTree const&) -> SymbolID {
+						SC_DEBUGFAIL(); /* rather throw here */
+					}
+				});
+				if (!ma.symbolID) {
+					throw UseOfUndeclaredIdentifier(ma.token());
 				}
-				if (!sym.is(memberID, SymbolCategory::Variable)) {
-					// We don't allow non-variable member accesses yet
+				if (!sym.is(ma.symbolID, SymbolCategory::Variable)) {
+					// We don't allow non-variable member accesses yet (kinda arbitrary)
 					throw;
 				}
-				auto const& memberVar = sym.getVariable(memberID);
+				auto const& memberVar = sym.getVariable(ma.symbolID);
 				ma.typeID = memberVar.typeID();
 			},
 			[&](Conditional& c) {

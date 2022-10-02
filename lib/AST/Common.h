@@ -110,10 +110,10 @@ namespace scatha::ast {
 	
 	template <std::derived_from<AbstractSyntaxTree> ConcreteNode>
 	constexpr ConcreteNode& downCast(std::derived_from<AbstractSyntaxTree> auto& node)
-	{ return downCast<ConcreteNode>(&node); }
+	{ return *downCast<ConcreteNode>(&node); }
 	template <std::derived_from<AbstractSyntaxTree> ConcreteNode>
 	constexpr ConcreteNode const& downCast(std::derived_from<AbstractSyntaxTree> auto const& node)
-	{ return downCast<ConcreteNode>(&node); }
+	{ return *downCast<ConcreteNode>(&node); }
 	
 	template <std::derived_from<AbstractSyntaxTree> ConcreteNode>
 	constexpr ConcreteNode* downCast(std::derived_from<AbstractSyntaxTree> auto* node)

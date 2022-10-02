@@ -163,7 +163,8 @@ namespace scatha::ast {
 				auto const* const node = static_cast<MemberAccess const*>(inNode);
 				str << indent(ind) << "<member-access> : " << endl;
 				printTreeImpl(node->object.get(), str, ind + 1);
-				str << indent(ind + 1) << "<identifier>: " << node->memberName() << endl;
+				str << ": ";
+				printTreeImpl(node->member.get(), str, ind + 1);
 				break;
 			}
 				
