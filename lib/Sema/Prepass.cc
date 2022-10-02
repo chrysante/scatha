@@ -32,7 +32,7 @@ namespace scatha::sema {
 			void lastPassThrowUndeclared(ast::Statement*, Token const&);
 			
 			SymbolTable& sym;
-			std::vector<StatementContext> unhandledStatements;
+			utl::vector<StatementContext> unhandledStatements;
 			ast::FunctionDefinition* currentFunction;
 			bool firstPass = true;
 			bool lastPass = false;
@@ -336,7 +336,6 @@ namespace scatha::sema {
 		{
 			SC_DEBUGFAIL(); // can't look in a value an then in a type
 		}
-		
 		ma.kind = *memberKind;
 		ma.symbolID = memberIdentifier.symbolID;
 		if (ma.kind == ast::ExpressionKind::Value) {
@@ -349,9 +348,9 @@ namespace scatha::sema {
 		unhandledStatements.push_back({ statement, &sym.currentScope() });
 	}
 	
-	void PrepassContext::lastPassThrowUndeclared(ast::Statement* s, Token const& token) {
+	void PrepassContext::lastPassThrowUndeclared(ast::Expression const& e) {
 		if (lastPass) {
-			throw UseOfUndeclaredIdentifier(token);
+			throw UseOfUndeclaredIdentifier(e, sym.currentScope());
 		}
 	}
 	
