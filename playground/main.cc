@@ -24,7 +24,6 @@ using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
 
-
 [[gnu::weak]] int main() {
 	auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
 	std::fstream file(filepath);
@@ -38,13 +37,13 @@ using namespace scatha::parse;
 	
 	try {
 		std::cout << "\n==================================================\n";
-		std::cout <<   "=== Regenerated Source Code ======================\n";
+		std::cout <<   "=== AST ==========================================\n";
 		std::cout <<   "==================================================\n\n";
 		Lexer l(text);
 		auto tokens = l.lex();
 		Parser p(tokens);
 		auto ast = p.parse();
-		ast::printSource(ast.get());
+		ast::printTree(ast.get());
 		
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Symbol Table =================================\n";

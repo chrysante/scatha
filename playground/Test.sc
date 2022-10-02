@@ -1,7 +1,10 @@
+
+struct Y {}
+
 struct X {
-	var y: Y;
+	fn f(y: Y) {}
+	struct Y{}
 }
 
-struct Y {
-	var x: X;
-}
+
+
