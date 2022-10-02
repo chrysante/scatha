@@ -38,7 +38,8 @@ namespace scatha::sema {
 		
 	}
 		
-	void prepass(ast::AbstractSyntaxTree& root, SymbolTable& sym) {
+	SymbolTable prepass(ast::AbstractSyntaxTree& root) {
+		SymbolTable sym;
 		PrepassContext ctx{ sym };
 		ctx.prepass(root);
 		ctx.firstPass = false;
@@ -59,6 +60,7 @@ namespace scatha::sema {
 				ctx.lastPass = true;
 			}
 		}
+		return sym;
 	}
 	
 	bool PrepassContext::prepass(AbstractSyntaxTree& node) {

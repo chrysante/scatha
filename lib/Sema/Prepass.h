@@ -9,7 +9,7 @@
 
 namespace scatha::sema {
 	
-	SCATHA(API) void prepass(ast::AbstractSyntaxTree&, SymbolTable&);
+	SCATHA(API) SymbolTable prepass(ast::AbstractSyntaxTree&);
 	
 }
 

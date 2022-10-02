@@ -24,7 +24,9 @@ namespace scatha::sema {
 			
 			void verifyConversion(ast::Expression const& from, TypeID to) const;
 			TypeID verifyBinaryOperation(ast::BinaryExpression const&) const;
-			void verifyFunctionCallExpression(ast::FunctionCall const&, FunctionSignature const& fnType, std::span<ast::UniquePtr<ast::Expression> const> arguments) const;
+			void verifyFunctionCallExpression(ast::FunctionCall const&,
+											  FunctionSignature const& fnType,
+											  std::span<ast::UniquePtr<ast::Expression> const> arguments) const;
 			[[noreturn]] void throwBadTypeConversion(Token const&, TypeID from, TypeID to) const;
 			
 			decltype(auto) withCurrentFunction(FunctionDefinition& fn, std::invocable auto&& f) const {
@@ -40,8 +42,7 @@ namespace scatha::sema {
 	} // namespace
 	
 	SymbolTable analyze(AbstractSyntaxTree* root) {
-		SymbolTable sym;
-		prepass(*root, sym);
+		SymbolTable sym = prepass(*root);
 		Context ctx{ sym };
 		ctx.analyze(*root);
 		return sym;

@@ -11,9 +11,7 @@ static sema::SymbolTable doPrepass(std::string_view text) {
 	auto tokens = l.lex();
 	parse::Parser p(tokens);
 	auto ast = p.parse();
-	sema::SymbolTable sym;
-	sema::prepass(*ast, sym);
-	return sym;
+	return sema::prepass(*ast);
 }
 
 TEST_CASE("Prepass", "[sema]") {
