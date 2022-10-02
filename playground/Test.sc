@@ -1,10 +1,6 @@
 
-struct Y {}
+struct Y { var i: int; }
 
-struct X {
-	fn f(y: Y) {}
-	struct Y{}
+fn f(x: int, y: Y) -> int {
+	return 2 * x * y.i;
 }
-
-
-
