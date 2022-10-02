@@ -115,25 +115,15 @@ struct Y { var x: X; }
 	CHECK_THROWS(test::produceDecoratedASTAndSymTable(text));
 }
 
-TEST_CASE("Possible ambiguity with later declared local struct", "[sema]") {
+TEST_CASE("Reference to variable where type is expected", "[sema]") {
 	auto const text = R"(
-struct Y {}
-struct X {
-	fn f(y: Y) {}
-	struct Y{}
-})";
-	auto [ast, sym] = test::produceDecoratedASTAndSymTable(text);
-	auto const xID = sym.lookup("X");
-	sym.pushScope(xID);
-	auto const fID = sym.lookup("f");
-	auto const& fOS = sym.getOverloadSet(fID);
-	auto const x_yID = sym.lookup("Y");
-	auto const* fFn = fOS.find(std::array{ TypeID(x_yID) });
-	// finding f in the overload set with X.Y as argument shall succeed
-	CHECK(fFn != nullptr);
-	sym.popScope();
-	auto const yID = sym.lookup("Y");
-	auto const* undeclaredfFn = fOS.find(std::array{ TypeID(yID) });
-	// finding f with Y (global) as argument shall fail
-	CHECK(undeclaredfFn == nullptr);
+struct Y { var data: int; }
+fn f(y: Y.data) {}
+)";
+	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(text), InvalidSymbolReference);
 }
+
+
+
+
+
