@@ -1,6 +1,7 @@
-struct X { var y: Y; }
-struct Y { var x: X; }
-
+struct X{}
+fn main() {
+	X.0;
+}
 
 /*
 

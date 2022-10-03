@@ -42,11 +42,13 @@ fn f(x: float) -> int { return "a string"; }
 	CHECK(line4->to() == issues.sym.Int());
 }
 
-TEST_CASE("Invalid function call expression", "[sema]") {
+TEST_CASE("Bad function call expression", "[sema]") {
 	auto const issues = test::getIssues(R"(
-fn f() { callee(); }
-fn g() { callee(0); }
-fn callee(a: string) {}
+fn f() { X.callee(); }
+fn g() { X.callee(0); }
+struct X {
+	fn callee(a: string) {}
+}
 )");
 	auto const line2 = issues.findOnLine<BadFunctionCall>(2);
 	REQUIRE(line2);
@@ -54,6 +56,22 @@ fn callee(a: string) {}
 	auto const line3 = issues.findOnLine<BadFunctionCall>(3);
 	REQUIRE(line3);
 	CHECK(line3->reason() == BadFunctionCall::Reason::NoMatchingFunction);
+}
+
+TEST_CASE("Bad member access expression", "[sema]") {
+	auto const issues = test::getIssues(R"(
+fn main() {
+	X.0;
+	X."0";
+	X.0.0;
+	X.data;
+}
+struct X{ let data: float; }
+)");
+	CHECK(issues.findOnLine<BadMemberAccess>(3));
+	CHECK(issues.findOnLine<BadMemberAccess>(4));
+	CHECK(issues.findOnLine<BadMemberAccess>(5));
+	CHECK(issues.noneOnLine(6));
 }
 
 TEST_CASE("Invalid function redefinition", "[sema]") {
