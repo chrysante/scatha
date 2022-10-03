@@ -215,13 +215,6 @@ struct X { struct Y { struct Z{} } }
 )"));
 }
 
-TEST_CASE("Type reference access into never declared struct", "[sema]") {
-//	CHECK_THROWS_AS(test::produceDecoratedASTAndSymTable(R"(
-//fn f() { let y: X.Z; }
-//struct X { struct Y {} }
-//)"), UseOfUndeclaredIdentifier);
-}
-
 TEST_CASE("Explicit type reference to member of same scope", "[sema]") {
 	auto const text = R"(
 struct X {

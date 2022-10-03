@@ -78,9 +78,7 @@ namespace scatha::sema {
 		utl::armed_scope_guard popScope = [&]{ sym.popScope(); };
 		for (auto& statement: block.statements) {
 			dispatch(*statement);
-			if (iss.fatal()) {
-				return;
-			}
+			if (iss.fatal()) { return; }
 		}
 		popScope.execute();
 	}

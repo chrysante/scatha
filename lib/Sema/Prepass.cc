@@ -40,7 +40,9 @@ namespace scatha::sema {
 			bool prepass(ast::FunctionDefinition&);
 			bool prepass(ast::StructDefinition&);
 			bool prepass(ast::VariableDeclaration&);
-			bool prepass(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); } // No default case to avoid infinite recursion
+			/// Disable default case to avoid infinite recursion
+			bool prepass(ast::AbstractSyntaxTree&) { return true; }
+			bool prepass(ast::Expression&) { SC_DEBUGFAIL(); }
 			
 			ExpressionAnalysisResult dispatchExpression(ast::Expression&);
 			
@@ -136,32 +138,29 @@ namespace scatha::sema {
 			auto const& type = sym.getObjectType(typeExprRes.typeID());
 			argTypes.push_back(type.symbolID());
 		}
-		
 		/// Analyze the return type expression
 		auto const returnTypeExprRes = dispatchExpression(*fn.returnTypeExpr);
 		if (iss.fatal()) { return false; }
-		
 		if (!returnTypeExprRes && !lastPass) {
 			return false;
 		}
-		
-		TypeID const returnTypeID = [&]{
-			if (!returnTypeExprRes) { return TypeID::Invalid; }
-			if (lastPass && returnTypeExprRes.category() != ast::EntityCategory::Type) {
-				iss.push(BadSymbolReference(*fn.returnTypeExpr, fn.returnTypeExpr->category, ast::EntityCategory::Type));
+		TypeID returnTypeID;
+		if (returnTypeExprRes) {
+			if (returnTypeExprRes.category() != ast::EntityCategory::Type) {
+				if (lastPass) {
+					iss.push(BadSymbolReference(*fn.returnTypeExpr, fn.returnTypeExpr->category, ast::EntityCategory::Type));
+				}
 			}
-			return returnTypeExprRes.typeID();
-		}();
-		
-		/// Declare the function. If we get here before the last bailout pass, our types better be valid.
+			returnTypeID = returnTypeExprRes.typeID();
+		}
+		/// Declare the function. If we get here before the last bailout pass, check that our types are valid
 		if (!lastPass) {
-			SC_ASSERT(returnTypeExprRes && returnTypeExprRes.typeID(), "");
+			if (!returnTypeID) { return false; }
 			for (auto id: argTypes) {
-				SC_ASSERT(id, "");
+				if(!id) { return false; }
 			}
 		}
-		
-		/// May be TypeID::Invalid but we still declare the function and go on
+		/// Might be TypeID::Invalid if we are in the last pass but we still declare the function and go on
 		fn.returnTypeID = returnTypeID;
 		Expected func = sym.addFunction(fn.token(), FunctionSignature(argTypes, returnTypeID));
 		if (!func.hasValue()) {
@@ -207,46 +206,37 @@ namespace scatha::sema {
 		
 		size_t objectSize = 0;
 		size_t objectAlign = 1;
-		bool success = true;
+		bool successfullyGatheredVarDecls = true;
 		sym.pushScope(obj->symbolID());
 		utl::armed_scope_guard popScope = [&]{ sym.popScope(); };
 		for (auto& statement: s.body->statements) {
-			if (!firstPass && statement->nodeType() == ast::NodeType::StructDefinition) { continue; }
-			if (!firstPass && statement->nodeType() == ast::NodeType::FunctionDefinition) { continue; }
-			if (!isDeclaration(statement->nodeType())) {
-				iss.push(InvalidStatement(statement.get(), InvalidStatement::Reason::ExpectedDeclaration, sym.currentScope()));
-				return false;
+			if (firstPass || statement->nodeType() == ast::NodeType::VariableDeclaration) {
+				dispatch(*statement);
+				if (iss.fatal()) { return false; }
 			}
-			dispatch(*statement);
-			if (iss.fatal()) {
-				return false;
+			if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
+				continue;
 			}
-			if (statement->nodeType() == ast::NodeType::VariableDeclaration) {
-				auto const& varDecl = static_cast<ast::VariableDeclaration&>(*statement);
-				auto const* typenameIdentifier = downCast<ast::Identifier>(varDecl.typeExpr.get());
-				SC_ASSERT(typenameIdentifier, "must be identifier for now");
-				auto const* type = sym.lookupObjectType(typenameIdentifier->value());
-				if (!type || !type->isComplete()) {
-					success = false;
-					if (lastPass) {
-						iss.push(UseOfUndeclaredIdentifier(*typenameIdentifier, sym.currentScope()));
-						return false;
-					}
-					if (firstPass) {
-						continue;
-					}
-					break;
+			auto const& varDecl = static_cast<ast::VariableDeclaration&>(*statement);
+			auto const* typenameIdentifier = downCast<ast::Identifier>(varDecl.typeExpr.get());
+			SC_ASSERT(typenameIdentifier, "must be identifier for now");
+			auto const* type = sym.lookupObjectType(typenameIdentifier->value());
+			if (!type || !type->isComplete()) {
+				successfullyGatheredVarDecls = false;
+				if (lastPass) {
+					iss.push(UseOfUndeclaredIdentifier(*typenameIdentifier, sym.currentScope()));
 				}
-				objectAlign = std::max(objectAlign, type->align());
-				objectSize = utl::round_up_pow_two(objectSize + type->size(), type->align());
+				if (firstPass) {
+					continue;
+				}
+				break;
 			}
+			objectAlign = std::max(objectAlign, type->align());
+			objectSize = utl::round_up_pow_two(objectSize + type->size(), type->align());
 		}
 		popScope.execute();
-		
-		if (!success) {
-			if (firstPass) {
-				markUnhandled(&s);
-			}
+		if (!successfullyGatheredVarDecls) {
+			if (firstPass) { markUnhandled(&s); }
 			return false;
 		}
 		s.body->scopeKind = ScopeKind::Object;

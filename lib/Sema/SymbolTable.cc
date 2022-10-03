@@ -35,8 +35,8 @@ namespace scatha::sema {
 		auto* const overloadSetPtr = const_cast<OverloadSet*>(tryGetOverloadSet(overloadSetID));
 		if (!overloadSetPtr) {
 			return SemanticIssue{
-				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redeclaration,
-								   currentScope(), SymbolCategory::Function)
+				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redefinition,
+								   currentScope(), SymbolCategory::Function, categorize(overloadSetID))
 			};
 		}
 		auto& overloadSet = *overloadSetPtr;
@@ -45,7 +45,7 @@ namespace scatha::sema {
 		if (!success) {
 			// 'function' references the existing function
 			InvalidDeclaration::Reason const reason = function.signature().returnTypeID() == sig.returnTypeID() ?
-				InvalidDeclaration::Reason::Redeclaration :
+				InvalidDeclaration::Reason::Redefinition :
 				InvalidDeclaration::Reason::CantOverloadOnReturnType;
 			return SemanticIssue{
 				InvalidDeclaration(nullptr, reason,
@@ -62,8 +62,8 @@ namespace scatha::sema {
 		SymbolID const symbolID = currentScope().findID(name);
 		if (symbolID != SymbolID::Invalid) {
 			return SemanticIssue{
-				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redeclaration,
-								   currentScope(), SymbolCategory::Variable)
+				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redefinition,
+								   currentScope(), SymbolCategory::Variable, categorize(symbolID))
 			};
 		}
 		auto [itr, success] = _variables.insert(Variable(name, generateID(), &currentScope(), typeID, isConstant));
@@ -76,8 +76,8 @@ namespace scatha::sema {
 		SymbolID const symbolID = currentScope().findID(name);
 		if (symbolID != SymbolID::Invalid) {
 			return SemanticIssue{
-				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redeclaration,
-								   currentScope(), SymbolCategory::ObjectType)
+				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redefinition,
+								   currentScope(), SymbolCategory::ObjectType, categorize(symbolID))
 			};
 		}
 		auto [itr, success] = _objectTypes.insert(ObjectType(name, generateID(), &currentScope(), size, align, isBuiltin));

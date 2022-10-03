@@ -26,5 +26,5 @@ TEST_CASE("OverloadSet") {
 	auto f_float3 = sym.addFunction("f", sema::FunctionSignature({ sym.Float() }, sym.Float()));
 	REQUIRE(!f_float3.hasValue());
 	auto const f3error = f_float3.error().get<sema::InvalidDeclaration>();
-	CHECK(f3error.reason() == sema::InvalidDeclaration::Reason::Redeclaration);
+	CHECK(f3error.reason() == sema::InvalidDeclaration::Reason::Redefinition);
 }

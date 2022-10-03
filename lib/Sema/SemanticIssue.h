@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string>
 #include <span>
+#include <optional>
 #include <variant>
 
 #include <utl/utility.hpp>
@@ -94,7 +95,7 @@ namespace scatha::sema {
 	class SCATHA(API) BadFunctionCall: public BadExpression {
 	public:
 		enum class Reason {
-			WrongArgumentCount, NoMatchingFunction, ObjectNotCallable,
+			NoMatchingFunction, ObjectNotCallable,
 			_count
 		};
 		
@@ -186,23 +187,23 @@ namespace scatha::sema {
 	class SCATHA(API) InvalidDeclaration: public InvalidStatement {
 	public:
 		enum class Reason {
-			InvalidInCurrentScope, Redeclaration, CantOverloadOnReturnType, CantInferType,
+			InvalidInCurrentScope, Redefinition, CantOverloadOnReturnType, CantInferType,
 			_count
 		};
 		
 	public:
 		explicit InvalidDeclaration(ast::Statement const* statement, Reason reason,
-									Scope const& currentScope, SymbolCategory symbolCategory, SymbolCategory existingSymbolCategory = {}):
+									Scope const& currentScope, SymbolCategory symbolCategory, std::optional<SymbolCategory> existingSymbolCategory = std::nullopt):
 			InvalidStatement(statement, InvalidStatement::Reason::InvalidDeclaration, currentScope),
 			_reason(reason),
 			_category(symbolCategory),
-			_existingCategory(existingSymbolCategory)
+			_existingCategory(existingSymbolCategory.value_or(symbolCategory))
 		{}
 		
 		Reason reason() const { return _reason; }
 		SymbolCategory symbolCategory() const { return _category; }
 		
-		/// Only valid when reason() == Redeclaration
+		/// Only valid when reason() == Redefinition
 		SymbolCategory existingSymbolCategory() const { return _existingCategory; }
 		
 	private:
@@ -234,23 +235,23 @@ namespace scatha::sema {
 		
 	public:
 		using internal::SemaIssueVariant::SemaIssueVariant;
-		
 		decltype(auto) visit(auto&& f) {
-			std::visit(utl::visitor{ f, [](...){} }, asBase());
+			return std::visit(utl::visitor{ f, [](...){} }, asBase());
 		}
-		
 		decltype(auto) visit(auto&& f) const {
-			std::visit(utl::visitor{ f, [](issue::internal::ProgramIssueBaseBase const&){} }, asBase());
+			return std::visit(utl::visitor{ f, [](issue::internal::ProgramIssueBaseBase const&){} }, asBase());
 		}
-
-		void setStatement(ast::Statement const& statement) {
-			visit([&](InvalidStatement& e){ e.setStatement(statement); });
-		}
-		
 		template <typename T>
 		auto& get() { return std::get<T>(asBase()); }
 		template <typename T>
 		auto const& get() const { return std::get<T>(asBase()); }
+		template <typename T>
+		bool is() const { return std::holds_alternative<T>(asBase()); }
+
+		void setStatement(ast::Statement const& statement) {
+			visit([&](InvalidStatement& e){ e.setStatement(statement); });
+		}
+		Token const& token() const { return visit([](issue::ProgramIssueBase const& base) -> auto& { return base.token(); }); }
 		
 //		void setToken(Token token) {
 //			visit([&](IssueBase& e){ e.setToken(std::move(token)); });
