@@ -212,6 +212,7 @@ fn main() -> void {
 an ignored multi line comment
 */
 	var text_: string = "Hello World!";
+	""
 	std.print(_text);
 	1.0;
 }
@@ -237,6 +238,7 @@ an ignored multi line comment
 			{ TokenType::Operator, "=" },
 			{ TokenType::StringLiteral, "Hello World!" },
 			{ TokenType::Punctuation, ";" },
+			{ TokenType::StringLiteral, "" },
 			{ TokenType::Identifier, "std" },
 			{ TokenType::Operator, "." },
 			{ TokenType::Identifier, "print" },
