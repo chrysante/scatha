@@ -195,12 +195,8 @@ namespace scatha::ic {
 				auto const* expr = static_cast<ast::FunctionCall const*>(node);
 				for (auto& arg: expr->arguments) {
 					submit(Operation::param, doRun(arg.get()));
-				}
-				// our little hack to call functions for now
-				SC_ASSERT(expr->object->nodeType() == ast::NodeType::Identifier,
-						  "Called object must be an identifier");
-				auto const& function = static_cast<ast::Identifier const&>(*expr->object);
-				submitJump(Operation::call, Label(function.symbolID));
+				}				
+				submitJump(Operation::call, Label(expr->functionID));
 				return submit(makeTemporary(expr->typeID), Operation::getResult);
 			}
 			SC_NO_DEFAULT_CASE();
