@@ -7,12 +7,14 @@
 
 using namespace scatha;
 
-static sema::SymbolTable doPrepass(std::string_view text) {
+static std::tuple<sema::SymbolTable, issue::IssueHandler> doPrepass(std::string_view text) {
 	lex::Lexer l(text);
 	auto tokens = l.lex();
 	parse::Parser p(tokens);
 	auto ast = p.parse();
-	return sema::prepass(*ast);
+	issue::IssueHandler iss;
+	auto sym = sema::prepass(*ast, iss);
+	return { std::move(sym), std::move(iss) };
 }
 
 TEST_CASE("Prepass", "[sema]") {
@@ -29,7 +31,7 @@ struct Y {
 }
 )";
 	
-	auto const sym = doPrepass(text);
+	auto const [sym, iss] = doPrepass(text);
 	auto const* X = sym.lookupObjectType("X");
 	REQUIRE(X);
 	CHECK(X->size() == 16);
@@ -50,17 +52,17 @@ struct X {
 }
 )";
 	
-	auto const sym = doPrepass(text);
+	auto [sym, iss] = doPrepass(text);
 	auto const* X = sym.lookupObjectType("X");
 	REQUIRE(X);
-	sym.withScopePushed(X->symbolID(), [&]{
-		auto const* Y = sym.lookupObjectType("Y");
-		REQUIRE(Y);
-		auto const* fOS = sym.lookupOverloadSet("f");
-		REQUIRE(fOS);
-		auto const* f = fOS->find(std::array{ Y->symbolID() });
-		REQUIRE(f);
-	});
+	sym.pushScope(X->symbolID());
+	auto const* Y = sym.lookupObjectType("Y");
+	REQUIRE(Y);
+	auto const* fOS = sym.lookupOverloadSet("f");
+	REQUIRE(fOS);
+	auto const* f = fOS->find(std::array{ Y->symbolID() });
+	REQUIRE(f);
+	sym.popScope();
 }
 
 TEST_CASE("Struct size and align", "[sema]") {
@@ -76,7 +78,7 @@ TEST_CASE("Struct size and align", "[sema]") {
 	struct Y { var i: int; }
 )";
 
-	auto const [ast, sym] = test::produceDecoratedASTAndSymTable(text);
+	auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
 	auto const* X = sym.lookupObjectType("X");
 	REQUIRE(X);
 	CHECK(X->size() == 32);

@@ -17,7 +17,7 @@ namespace scatha::sema {
 		_string = addObjectType("string", sizeof(std::string), alignof(std::string), true)->symbolID();
 	}
 	
-	Expected<Function const&, SymbolIssue> SymbolTable::addFunction(std::string name, FunctionSignature sig) {
+	Expected<Function const&, SemanticIssue> SymbolTable::addFunction(std::string name, FunctionSignature sig) {
 		SymbolID const overloadSetID = [&]{
 			auto const id = currentScope().findID(name);
 			if (id != SymbolID::Invalid) {
@@ -34,17 +34,23 @@ namespace scatha::sema {
 		// Const cast here because we don't have a mutable getter
 		auto* const overloadSetPtr = const_cast<OverloadSet*>(tryGetOverloadSet(overloadSetID));
 		if (!overloadSetPtr) {
-			return SymbolCollisionIssue(name, overloadSetID);
+			return SemanticIssue{
+				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redeclaration,
+								   currentScope(), SymbolCategory::Function)
+			};
 		}
 		auto& overloadSet = *overloadSetPtr;
 		auto const [itr, success] = overloadSet.add(Function(name, std::move(sig), generateID(), &currentScope()));
 		auto& function = *itr;
 		if (!success) {
 			// 'function' references the existing function
-			OverloadIssue::Reason const reason = function.signature().returnTypeID() == sig.returnTypeID() ?
-				OverloadIssue::Redefinition :
-				OverloadIssue::CantOverloadOnReturnType;
-			return OverloadIssue(name, function.symbolID(), reason);
+			InvalidDeclaration::Reason const reason = function.signature().returnTypeID() == sig.returnTypeID() ?
+				InvalidDeclaration::Reason::Redeclaration :
+				InvalidDeclaration::Reason::CantOverloadOnReturnType;
+			return SemanticIssue{
+				InvalidDeclaration(nullptr, reason,
+								   currentScope(), SymbolCategory::Function)
+			};
 		}
 		auto const [_, fnPtrInsertSuccess] = _functions.insert({ function.symbolID(), &function });
 		SC_ASSERT(fnPtrInsertSuccess, "");
@@ -52,10 +58,13 @@ namespace scatha::sema {
 		return function;
 	}
 
-	Expected<Variable&, SymbolCollisionIssue> SymbolTable::addVariable(std::string name, TypeID typeID, bool isConstant) {
+	Expected<Variable&, SemanticIssue> SymbolTable::addVariable(std::string name, TypeID typeID, bool isConstant) {
 		SymbolID const symbolID = currentScope().findID(name);
 		if (symbolID != SymbolID::Invalid) {
-			return SymbolCollisionIssue(name, symbolID);
+			return SemanticIssue{
+				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redeclaration,
+								   currentScope(), SymbolCategory::Variable)
+			};
 		}
 		auto [itr, success] = _variables.insert(Variable(name, generateID(), &currentScope(), typeID, isConstant));
 		SC_ASSERT(success, "");
@@ -63,10 +72,13 @@ namespace scatha::sema {
 		return *itr;
 	}
 	
-	Expected<ObjectType&, SymbolCollisionIssue> SymbolTable::addObjectType(std::string name, size_t size, size_t align, bool isBuiltin) {
+	Expected<ObjectType&, SemanticIssue> SymbolTable::addObjectType(std::string name, size_t size, size_t align, bool isBuiltin) {
 		SymbolID const symbolID = currentScope().findID(name);
 		if (symbolID != SymbolID::Invalid) {
-			return SymbolCollisionIssue(name, symbolID);
+			return SemanticIssue{
+				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redeclaration,
+								   currentScope(), SymbolCategory::ObjectType)
+			};
 		}
 		auto [itr, success] = _objectTypes.insert(ObjectType(name, generateID(), &currentScope(), size, align, isBuiltin));
 		SC_ASSERT(success, "");

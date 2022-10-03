@@ -5,13 +5,15 @@
 #include <tuple>
 
 #include "AST/AST.h"
+#include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::test {
 	
 	std::tuple<
 		ast::UniquePtr<ast::AbstractSyntaxTree>,
-		sema::SymbolTable
+		sema::SymbolTable,
+		issue::IssueHandler
 	> produceDecoratedASTAndSymTable(std::string_view text);
 	
 }

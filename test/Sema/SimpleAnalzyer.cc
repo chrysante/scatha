@@ -8,12 +8,12 @@
 #include "Sema/Analyze.h"
 #include "Sema/SemanticIssue.h"
 
-
 namespace scatha::test {
 
 	std::tuple<
 		ast::UniquePtr<ast::AbstractSyntaxTree>,
-		sema::SymbolTable
+		sema::SymbolTable,
+		issue::IssueHandler
 	> produceDecoratedASTAndSymTable(std::string_view text) {
 		lex::Lexer l(text);
 		auto tokens = l.lex();
@@ -21,9 +21,11 @@ namespace scatha::test {
 		parse::Parser p(tokens);
 		auto ast = p.parse();
 
-		auto sym = sema::analyze(ast.get());
+		issue::IssueHandler iss;
 		
-		return { std::move(ast), std::move(sym) };
+		auto sym = sema::analyze(ast.get(), iss);
+		
+		return { std::move(ast), std::move(sym), std::move(iss) };
 	}
 	
 }

@@ -48,8 +48,38 @@ using namespace scatha::parse;
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Symbol Table =================================\n";
 		std::cout <<   "==================================================\n\n";
-		auto const sym = sema::analyze(ast.get());
-		sema::printSymbolTable(sym);
+		issue::IssueHandler iss;
+		auto const sym = sema::analyze(ast.get(), iss);
+//		auto const sym = sema::prepass(*ast, iss);
+//		sema::printSymbolTable(sym);
+		std::cout << "\nEncoutered " << iss.semaIssues().size() << " issues\n";
+		for (auto const& issue: iss.semaIssues()) {
+			issue.visit([](issue::ProgramIssueBase const& issue) {
+				auto const loc = issue.token().sourceLocation;
+				std::cout << "Line: " << loc.line << " Col: " << loc.column << " ";
+			});
+			issue.visit(utl::visitor{
+				[&](sema::InvalidDeclaration const& e) {
+					std::cout << "Invalid declaration (" << e.reason() << "): ";
+					std::cout << std::endl;
+				},
+				[&](sema::BadTypeConversion const& e) {
+					std::cout << "Bad type conversion: ";
+					ast::printExpression(e.expression());
+					std::cout << std::endl;
+				},
+				[&](sema::BadFunctionCall const& e) {
+					std::cout << "Bad function call: " << e.reason() << ": ";
+					ast::printExpression(e.expression());
+					std::cout << std::endl;
+				},
+				[&](sema::UseOfUndeclaredIdentifier const& e) {
+					std::cout << "Use of undeclared identifier ";
+					ast::printExpression(e.expression());
+					std::cout << " in scope: " << e.currentScope().name() << std::endl;
+				},
+			});
+		}
 		
 		return 0;
 		

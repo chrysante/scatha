@@ -5,6 +5,7 @@
 #include "CodeGen/CodeGenerator.h"
 #include "IC/TacGenerator.h"
 #include "IC/Canonicalize.h"
+#include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
@@ -18,7 +19,8 @@ namespace scatha::test {
 		auto tokens = l.lex();
 		parse::Parser p(tokens);
 		auto ast = p.parse();
-		auto sym = sema::analyze(ast.get());
+		issue::IssueHandler iss;
+		auto sym = sema::analyze(ast.get(), iss);
 		ic::canonicalize(ast.get());
 		ic::TacGenerator t(sym);
 		auto const tac = t.run(ast.get());

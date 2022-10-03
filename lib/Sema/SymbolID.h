@@ -36,7 +36,7 @@ namespace scatha::sema {
 	
 	// Special kind of SymbolID
 	struct TypeID: SymbolID {
-		explicit TypeID(SymbolID id): SymbolID(id) {}
+		constexpr explicit TypeID(SymbolID id): SymbolID(id) {}
 		using SymbolID::SymbolID;
 		
 		static TypeID const Invalid;

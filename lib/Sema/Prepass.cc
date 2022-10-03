@@ -10,6 +10,7 @@
 #include "AST/Expression.h"
 #include "AST/Visit.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/ExpressionAnalysis.h"
 
 namespace scatha::sema {
 	
@@ -20,25 +21,33 @@ namespace scatha::sema {
 	 * Then a last pass over the list is run and we collect the appropriate errors.
 	 */
 	
-	using namespace ast;
-	
 	namespace {
 		
 		struct StatementContext {
-			Statement* statement;
+			ast::Statement* statement;
 			Scope* enclosingScope;
 		};
 		
 		struct PrepassContext {
-			explicit PrepassContext(SymbolTable& sym): sym(sym) {}
+			explicit PrepassContext(SymbolTable& sym, issue::IssueHandler& iss):
+				sym(sym),
+			iss(iss)
+			{}
 			
-			bool prepass(ast::AbstractSyntaxTree&);
+			bool dispatch(ast::AbstractSyntaxTree&);
+			
+			bool prepass(ast::TranslationUnit&);
+			bool prepass(ast::FunctionDefinition&);
+			bool prepass(ast::StructDefinition&);
+			bool prepass(ast::VariableDeclaration&);
+			bool prepass(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); } // No default case to avoid infinite recursion
+			
+			ExpressionAnalysisResult dispatchExpression(ast::Expression&);
 			
 			void markUnhandled(ast::Statement*);
 			
-			void lastPassThrowUndeclared(ast::Expression const&);
-			
 			SymbolTable& sym;
+			issue::IssueHandler& iss;
 			utl::vector<StatementContext> unhandledStatements;
 			ast::FunctionDefinition* currentFunction;
 			bool firstPass = true;
@@ -47,21 +56,27 @@ namespace scatha::sema {
 		
 	} // namespace
 		
-	SymbolTable prepass(ast::AbstractSyntaxTree& root) {
+	SymbolTable prepass(ast::AbstractSyntaxTree& root, issue::IssueHandler& iss) {
 		SymbolTable sym;
-		PrepassContext ctx{ sym };
-		ctx.prepass(root);
+		PrepassContext ctx{ sym, iss };
+		ctx.dispatch(root);
+		if (iss.fatal()) {
+			return sym;
+		}
 		ctx.firstPass = false;
 		while (!ctx.unhandledStatements.empty()) {
 			auto const beginSize = ctx.unhandledStatements.size();
 			for (size_t i = 0; i < ctx.unhandledStatements.size(); ) {
 				auto const x = ctx.unhandledStatements[i];
 				bool const success = sym.withScopeCurrent(x.enclosingScope, [&]{
-					return ctx.prepass(*x.statement);
+					return ctx.dispatch(*x.statement);
 				});
-				if (success) {
+				if (success || ctx.lastPass) {
 					ctx.unhandledStatements.erase(ctx.unhandledStatements.begin() + i);
 					continue;
+				}
+				else if (iss.fatal()) {
+					return sym;
 				}
 				++i;
 			}
@@ -72,292 +87,207 @@ namespace scatha::sema {
 		return sym;
 	}
 	
-	bool PrepassContext::prepass(AbstractSyntaxTree& node) {
-		auto const vis = utl::visitor{
-			[&](TranslationUnit& tu) {
-				for (auto& decl: tu.declarations) {
-					prepass(*decl);
-				}
-				return true;
-			},
-			[&](FunctionDefinition& fn) {
-				if (firstPass) {
-					markUnhandled(&fn);
-					return false;
-				}
-				if (auto const sk = sym.currentScope().kind();
-					sk != ScopeKind::Global &&
-					sk != ScopeKind::Namespace &&
-					sk != ScopeKind::Object)
-				{
-					// Function defintion is only allowed in the global scope, at namespace scope and structure scope
-					throw InvalidFunctionDeclaration(fn.token(), sym.currentScope());
-				}
-				if (!prepass(*fn.returnTypeExpr)) {
-					lastPassThrowUndeclared(*fn.returnTypeExpr);
-					return false;
-				}
-				auto const* returnTypePtr = lookupType(*fn.returnTypeExpr, sym);
-				SC_ASSERT(returnTypePtr != nullptr, "prepass(...) above should not return true if this fails");
-				auto const& returnType = *returnTypePtr;
-				fn.returnTypeID = returnType.symbolID();
-				utl::small_vector<TypeID> argTypes;
-				for (auto& param: fn.parameters) {
-					if (!prepass(*param->typeExpr)) {
-						lastPassThrowUndeclared(*param->typeExpr);
-						return false;
-					}
-					if (param->typeExpr->kind != ast::ExpressionKind::Type) {
-						if (lastPass) {
-							throw InvalidSymbolReference(*param->typeExpr, ExpressionKind::Type);
-						}
-						return false;
-					}
-					auto const* typePtr = lookupType(*param->typeExpr, sym);
-					SC_ASSERT(typePtr, "");
-					argTypes.push_back(typePtr->symbolID());
-				}
-				Expected const func = sym.addFunction(fn.token(), FunctionSignature(argTypes, returnType.symbolID()));
-				if (!func.hasValue()) {
-					throw InvalidRedeclaration(fn.token(), sym.currentScope());
-				}
-				fn.symbolID = func->symbolID();
-				fn.functionTypeID = func->typeID();
-				fn.body->scopeKind = ScopeKind::Function;
-				fn.body->scopeSymbolID = fn.symbolID;
-				return true;
-			},
-			[&](StructDefinition& s) {
-				if (auto const sk = sym.currentScope().kind();
-					sk != ScopeKind::Global &&
-					sk != ScopeKind::Namespace &&
-					sk != ScopeKind::Object)
-				{
-					/*
-					 * Struct defintion is only allowed in the global scope, at namespace scope and structure scope
-					 */
-					throw InvalidStructDeclaration(s.token(), sym.currentScope());
-				}
-				auto& obj = [&]() -> auto& {
-					if (firstPass) {
-						auto obj = sym.addObjectType(s.token());
-						if (!obj) {
-							throw InvalidRedeclaration(s.token(), sym.currentScope());
-						}
-						s.symbolID = obj->symbolID();
-						return obj.value();
-					}
-					else {
-						return sym.getObjectType(s.symbolID);
-					}
-				}();
-				size_t objectSize = 0;
-				size_t objectAlign = 1;
-				bool success = true;
-				sym.withScopePushed(obj.symbolID(), [&]{
-					for (auto& statement: s.body->statements) {
-						if (!firstPass && statement->nodeType() == ast::NodeType::StructDefinition) { continue; }
-						if (!firstPass && statement->nodeType() == ast::NodeType::FunctionDefinition) { continue; }
-						if (!isDeclaration(statement->nodeType())) {
-							throw InvalidStatement(statement->token(), "Expected declaration");
-						}
-						prepass(*statement);
-						if (statement->nodeType() == ast::NodeType::VariableDeclaration) {
-							auto const& varDecl = static_cast<VariableDeclaration&>(*statement);
-							auto const* typenameIdentifier = downCast<Identifier>(varDecl.typeExpr.get());
-							SC_ASSERT(typenameIdentifier, "must be identifier for now");
-							auto const* type = sym.lookupObjectType(typenameIdentifier->value());
-							if (!type || !type->isComplete()) {
-								success = false;
-								if (lastPass) {
-									throw UseOfUndeclaredIdentifier(typenameIdentifier->token());
-								}
-								if (firstPass) {
-									continue;
-								}
-								else {
-									break;
-								}
-							}
-							objectAlign = std::max(objectAlign, type->align());
-							objectSize = utl::round_up_pow_two(objectSize + type->size(), type->align());
-						}
-					}
-				});
-				if (!success) {
-					if (firstPass) {
-						markUnhandled(&s);						
-					}
-					return false;
-				}
-				s.body->scopeKind = ScopeKind::Object;
-				s.body->scopeSymbolID = s.symbolID;
-				obj.setSize(utl::round_up_pow_two(objectSize, objectAlign));
-				obj.setAlign(objectAlign);
-				return true;
-			},
-			[&](VariableDeclaration& decl) {
-				SC_ASSERT(sym.currentScope().kind() == ScopeKind::Object,
-						  "We only want to prepass struct definitions. What are we doing here?");
-				SC_ASSERT(decl.typeExpr, "In structs variables need explicit type specifiers. Make this a program issue.");
-				auto const* typenameIdentifier = downCast<Identifier>(decl.typeExpr.get());
-				SC_ASSERT(typenameIdentifier, "must be identifier for now");
-				auto const* typePtr = sym.lookupObjectType(typenameIdentifier->value());
-				TypeID const typeID = typePtr ? typePtr->symbolID() : TypeID::Invalid;
-				auto& var = [&]() -> auto& {
-					if (firstPass) {
-						auto var = sym.addVariable(decl.token(), typeID, bool{});
-						if (!var) {
-							throw InvalidRedeclaration(decl.token(), sym.currentScope());
-						}
-						decl.symbolID = var->symbolID();
-						return var.value();
-					}
-					else {
-						return sym.getVariable(decl.symbolID);
-					}
-				}();
-				var.setTypeID(typeID);
-				return typeID != TypeID::Invalid;
-			},
-			[&](Identifier& id) {
-				LookupHelper lh{ .sym = sym, .allowFailure = true };
-				return lh.analyze(id);
-			},
-			[&](MemberAccess& ma) {
-				LookupHelper lh{ .sym = sym, .allowFailure = true };
-				return lh.analyze(ma);
-			},
-			[&](auto&&) -> bool {
-				SC_DEBUGFAIL(); // No default case
+	bool PrepassContext::dispatch(ast::AbstractSyntaxTree& node) {
+		return visit(node, [this](auto& node) { return this->prepass(node); });
+	}
+	
+	bool PrepassContext::prepass(ast::TranslationUnit& tu) {
+		for (auto& decl: tu.declarations) {
+			dispatch(*decl);
+			if (iss.fatal()) {
+				return false;
 			}
-		};
-		return visit(node, vis);
-	}
-	
-	ObjectType* lookupType(ast::AbstractSyntaxTree const& node, SymbolTable& sym) {
-		return ast::visit(node, utl::visitor{
-			[&](ast::MemberAccess const& ma)    -> ObjectType* { return sym.tryGetObjectType(ma.symbolID); },
-			[&](ast::Identifier const& id)      -> ObjectType* { return sym.tryGetObjectType(id.symbolID); },
-			[&](ast::AbstractSyntaxTree const&) -> ObjectType* { return nullptr; }
-		});
-	}
-	
-	bool LookupHelper::analyze(ast::Expression& e) {
-		bool success = false;
-		
-		switch (e.nodeType()) {
-			case ast::NodeType::Identifier:
-				success = doAnalyze(downCast<Identifier>(e)).has_value();
-				break;
-			case ast::NodeType::MemberAccess:
-				success = doAnalyze(downCast<MemberAccess>(e)).has_value();
-				break;
-			default:
-				SC_DEBUGFAIL();
-		}
-		if (allowFailure) {
-			return success;
-		}
-		if (!success) {
-			throw UseOfUndeclaredIdentifier(e, sym.currentScope());
 		}
 		return true;
 	}
 	
-	std::optional<ast::ExpressionKind> LookupHelper::doAnalyze(ast::Identifier& id) {
-		SymbolID const symbolID = [&]{
-			if (first) return sym.lookup(id.token());
-			else return sym.currentScope().findID(id.value());
+	bool PrepassContext::prepass(ast::FunctionDefinition& fn) {
+		if (firstPass) {
+			markUnhandled(&fn);
+			return false;
+		}
+		if (auto const sk = sym.currentScope().kind();
+			sk != ScopeKind::Global &&
+			sk != ScopeKind::Namespace &&
+			sk != ScopeKind::Object)
+		{
+			/// Function defintion is only allowed in the global scope, at namespace scope and structure scope
+			iss.push(InvalidDeclaration(&fn, InvalidDeclaration::Reason::InvalidInCurrentScope,
+										sym.currentScope(), SymbolCategory::Function));
+			return false;
+		}
+		
+		/// Analyze the return argument expressions
+		utl::small_vector<TypeID> argTypes;
+		for (auto& param: fn.parameters) {
+			auto const typeExprRes = dispatchExpression(*param->typeExpr);
+			if (!typeExprRes) {
+				if (!lastPass) { return false; }
+				argTypes.push_back(TypeID::Invalid);
+				continue;
+			}
+			if (typeExprRes.category() != ast::EntityCategory::Type) {
+				if (lastPass) {
+					iss.push(BadSymbolReference(*param->typeExpr, param->typeExpr->category, ast::EntityCategory::Type));
+				}
+				argTypes.push_back(TypeID::Invalid);
+				continue;
+			}
+			auto const& type = sym.getObjectType(typeExprRes.typeID());
+			argTypes.push_back(type.symbolID());
+		}
+		
+		/// Analyze the return type expression
+		auto const returnTypeExprRes = dispatchExpression(*fn.returnTypeExpr);
+		if (iss.fatal()) { return false; }
+		
+		if (!returnTypeExprRes && !lastPass) {
+			return false;
+		}
+		
+		TypeID const returnTypeID = [&]{
+			if (!returnTypeExprRes) { return TypeID::Invalid; }
+			if (lastPass && returnTypeExprRes.category() != ast::EntityCategory::Type) {
+				iss.push(BadSymbolReference(*fn.returnTypeExpr, fn.returnTypeExpr->category, ast::EntityCategory::Type));
+			}
+			return returnTypeExprRes.typeID();
 		}();
-		// Once we have looked for a single identifier we are not first anymore meaning we don't perform unqualified lookup anymore
-		first = false;
-		if (!symbolID) {
-			return std::nullopt;
+		
+		/// Declare the function. If we get here before the last bailout pass, our types better be valid.
+		if (!lastPass) {
+			SC_ASSERT(returnTypeExprRes && returnTypeExprRes.typeID(), "");
+			for (auto id: argTypes) {
+				SC_ASSERT(id, "");
+			}
 		}
-		id.symbolID = symbolID;
-		SymbolCategory const category = sym.categorize(symbolID);
-		switch (category) {
-			case SymbolCategory::Variable: {
-				auto const& var = sym.getVariable(symbolID);
-				id.typeID = var.typeID();
-				return ast::ExpressionKind::Value;
+		
+		/// May be TypeID::Invalid but we still declare the function and go on
+		fn.returnTypeID = returnTypeID;
+		Expected func = sym.addFunction(fn.token(), FunctionSignature(argTypes, returnTypeID));
+		if (!func.hasValue()) {
+			if (lastPass) {
+				func.error().setStatement(fn);
+				iss.push(func.error());
 			}
-			case SymbolCategory::ObjectType: {
-				id.kind = ExpressionKind::Type;
-				return ast::ExpressionKind::Type;
-			}
-			case SymbolCategory::OverloadSet: {
-				id.kind = ExpressionKind::Value;
-				return ast::ExpressionKind::Value;
-			}
-			default:
-				SC_DEBUGFAIL(); // Maybe throw something here?
+			return false;
 		}
+		fn.symbolID = func->symbolID();
+		fn.functionTypeID = func->typeID();
+		fn.body->scopeKind = ScopeKind::Function;
+		fn.body->scopeSymbolID = fn.symbolID;
+		return true;
 	}
 	
-	std::optional<ast::ExpressionKind> LookupHelper::doAnalyze(ast::MemberAccess& ma) {
-		auto const [symbolID, objectKind] = ast::visit(*ma.object, utl::visitor{
-			[&](ast::Identifier& id) {
-				auto const result = doAnalyze(id);
-				return std::pair{ id.symbolID, result };
-			},
-			[&](ast::MemberAccess& ma) {
-				auto const result = doAnalyze(ma);
-				return std::pair{ ma.symbolID, result };
-			},
-			[](ast::AbstractSyntaxTree const&) {
-				SC_DEBUGFAIL(); /* rather throw here */
-				return std::pair{ SymbolID::Invalid, std::optional<ast::ExpressionKind>{} };
-			}
-		});
-		if (!objectKind) {
-			return std::nullopt;
+	bool PrepassContext::prepass(ast::StructDefinition& s) {
+		if (auto const sk = sym.currentScope().kind();
+			sk != ScopeKind::Global &&
+			sk != ScopeKind::Namespace &&
+			sk != ScopeKind::Object)
+		{
+			/// Struct defintion is only allowed in the global scope, at namespace scope and structure scope
+			iss.push(InvalidDeclaration(&s, InvalidDeclaration::Reason::InvalidInCurrentScope,
+										sym.currentScope(), SymbolCategory::ObjectType));
+			return false;
 		}
-		Scope* const lookupTargetScope = [&, objectKind = *objectKind, symbolID = symbolID]{
-			if (objectKind == ast::ExpressionKind::Type) {
-				// now search in that type
-				return &sym.getObjectType(symbolID);
+		auto obj = [&]() -> Expected<ObjectType&, SemanticIssue> {
+			if (firstPass) {
+				return sym.addObjectType(s.token());
 			}
 			else {
-				SC_ASSERT(objectKind == ast::ExpressionKind::Value, "are we looking for a function? cant do right now");
-				// now search in the type of the value
-				auto const& var = sym.getVariable(symbolID);
-				return &sym.getObjectType(var.typeID());
+				return sym.getObjectType(s.symbolID);
 			}
 		}();
-		auto* const oldScope = &sym.currentScope();
-		sym.makeScopeCurrent(lookupTargetScope);
-		utl::armed_scope_guard popScope = [&]{ sym.makeScopeCurrent(oldScope); };
-		SC_ASSERT(ma.member->nodeType() == ast::NodeType::Identifier, "Right hand side of member access must be identifier (for now)");
-		auto& memberIdentifier = downCast<Identifier>(*ma.member);
-		std::optional const memberKind = doAnalyze(memberIdentifier);
+		if (!obj) {
+			obj.error().setStatement(s);
+			iss.push(obj.error());
+			return false;
+		}
+		
+		s.symbolID = obj->symbolID();
+		
+		size_t objectSize = 0;
+		size_t objectAlign = 1;
+		bool success = true;
+		sym.pushScope(obj->symbolID());
+		utl::armed_scope_guard popScope = [&]{ sym.popScope(); };
+		for (auto& statement: s.body->statements) {
+			if (!firstPass && statement->nodeType() == ast::NodeType::StructDefinition) { continue; }
+			if (!firstPass && statement->nodeType() == ast::NodeType::FunctionDefinition) { continue; }
+			if (!isDeclaration(statement->nodeType())) {
+				iss.push(InvalidStatement(statement.get(), InvalidStatement::Reason::ExpectedDeclaration, sym.currentScope()));
+				return false;
+			}
+			dispatch(*statement);
+			if (iss.fatal()) {
+				return false;
+			}
+			if (statement->nodeType() == ast::NodeType::VariableDeclaration) {
+				auto const& varDecl = static_cast<ast::VariableDeclaration&>(*statement);
+				auto const* typenameIdentifier = downCast<ast::Identifier>(varDecl.typeExpr.get());
+				SC_ASSERT(typenameIdentifier, "must be identifier for now");
+				auto const* type = sym.lookupObjectType(typenameIdentifier->value());
+				if (!type || !type->isComplete()) {
+					success = false;
+					if (lastPass) {
+						iss.push(UseOfUndeclaredIdentifier(*typenameIdentifier, sym.currentScope()));
+						return false;
+					}
+					if (firstPass) {
+						continue;
+					}
+					break;
+				}
+				objectAlign = std::max(objectAlign, type->align());
+				objectSize = utl::round_up_pow_two(objectSize + type->size(), type->align());
+			}
+		}
 		popScope.execute();
-		if (!memberKind) {
-			SC_ASSERT(!memberIdentifier.symbolID, "Maybe we can use this to simplify the lambda");
-			return std::nullopt;
+		
+		if (!success) {
+			if (firstPass) {
+				markUnhandled(&s);
+			}
+			return false;
 		}
-		if (*objectKind == ast::ExpressionKind::Value &&
-			*memberKind != ast::ExpressionKind::Value)
-		{
-			SC_DEBUGFAIL(); // can't look in a value an then in a type
+		s.body->scopeKind = ScopeKind::Object;
+		s.body->scopeSymbolID = s.symbolID;
+		obj->setSize(utl::round_up_pow_two(objectSize, objectAlign));
+		obj->setAlign(objectAlign);
+		return true;
+	}
+	
+	bool PrepassContext::prepass(ast::VariableDeclaration& decl) {
+		SC_ASSERT(sym.currentScope().kind() == ScopeKind::Object,
+				  "We only want to prepass struct definitions. What are we doing here?");
+		SC_ASSERT(decl.typeExpr, "In structs variables need explicit type specifiers. Make this a program issue.");
+		auto const* typenameIdentifier = downCast<ast::Identifier>(decl.typeExpr.get());
+		SC_ASSERT(typenameIdentifier, "must be identifier for now");
+		auto const* typePtr = sym.lookupObjectType(typenameIdentifier->value());
+		TypeID const typeID = typePtr ? typePtr->symbolID() : TypeID::Invalid;
+		auto var = [&]() -> Expected<Variable&, SemanticIssue> {
+			if (firstPass) {
+				return sym.addVariable(decl.token(), typeID, bool{});
+			}
+			else {
+				return sym.getVariable(decl.symbolID);
+			}
+		}();
+		if (!var) {
+			var.error().setStatement(decl);
+			iss.push(var.error());
+			return false;
 		}
-		ma.kind = *memberKind;
-		ma.symbolID = memberIdentifier.symbolID;
-		if (ma.kind == ast::ExpressionKind::Value) {
-			ma.typeID = sym.getVariable(ma.symbolID).typeID();
-		}
-		return ma.kind;
+		decl.symbolID = var->symbolID();
+		var->setTypeID(typeID);
+		return typeID != TypeID::Invalid;
+	}
+
+	ExpressionAnalysisResult PrepassContext::dispatchExpression(ast::Expression& expr) {
+		return analyzeExpression(expr, sym, lastPass ? &iss : nullptr);
 	}
 	
 	void PrepassContext::markUnhandled(ast::Statement* statement) {
 		unhandledStatements.push_back({ statement, &sym.currentScope() });
-	}
-	
-	void PrepassContext::lastPassThrowUndeclared(ast::Expression const& e) {
-		if (lastPass) {
-			throw UseOfUndeclaredIdentifier(e, sym.currentScope());
-		}
 	}
 	
 }

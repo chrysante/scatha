@@ -16,7 +16,7 @@
 #include "Sema/Scope.h"
 #include "Sema/Variable.h"
 #include "Sema/ObjectType.h"
-#include "Sema/SymbolIssue.h"
+#include "Sema/SemanticIssue.h"
 
 namespace scatha::sema {
 	
@@ -25,28 +25,28 @@ namespace scatha::sema {
 		SymbolTable();
 		
 		// Modifiers
-		Expected<Function const&, SymbolIssue> addFunction(std::string name,
-														   FunctionSignature);
-		Expected<Function const&, SymbolIssue> addFunction(Token token,
-														   FunctionSignature sig)
+		Expected<Function const&, SemanticIssue> addFunction(std::string name,
+															 FunctionSignature);
+		Expected<Function const&, SemanticIssue> addFunction(Token token,
+															 FunctionSignature sig)
 		{ return addFunction(std::move(token.id), std::move(sig)); }
 		
-		Expected<Variable&, SymbolCollisionIssue> addVariable(std::string name,
-															  TypeID,
-															  bool isConstant);
-		Expected<Variable&, SymbolCollisionIssue> addVariable(Token token,
-															  TypeID typeID,
-															  bool isConstant)
+		Expected<Variable&, SemanticIssue> addVariable(std::string name,
+													   TypeID,
+													   bool isConstant);
+		Expected<Variable&, SemanticIssue> addVariable(Token token,
+													   TypeID typeID,
+													   bool isConstant)
 		{ return addVariable(std::move(token.id), typeID, isConstant); }
 		
-		Expected<ObjectType&, SymbolCollisionIssue> addObjectType(std::string name,
-																  size_t size = -1,
-																  size_t align = -1,
-																  bool isBuiltin = false);
-		Expected<ObjectType&, SymbolCollisionIssue> addObjectType(Token token,
-																  size_t size = -1,
-																  size_t align = -1,
-																  bool isBuiltin = false)
+		Expected<ObjectType&, SemanticIssue> addObjectType(std::string name,
+														   size_t size = -1,
+														   size_t align = -1,
+														   bool isBuiltin = false);
+		Expected<ObjectType&, SemanticIssue> addObjectType(Token token,
+														   size_t size = -1,
+														   size_t align = -1,
+														   bool isBuiltin = false)
 		{ return addObjectType(std::move(token.id), size, align, isBuiltin); }
 		
 		Scope const& addAnonymousScope();

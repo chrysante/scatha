@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "AST/Base.h"
+#include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
@@ -19,7 +20,7 @@ namespace scatha::sema {
 	 
 	 # Notes: #
 	 */
-	SCATHA(API) SymbolTable analyze(ast::AbstractSyntaxTree* root);
+	SCATHA(API) SymbolTable analyze(ast::AbstractSyntaxTree* root, issue::IssueHandler&);
 	
 }
 

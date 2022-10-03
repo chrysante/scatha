@@ -12,10 +12,10 @@ namespace scatha::ast {
 	SCATHA(API) void printTree(AbstractSyntaxTree const*);
 	SCATHA(API) void printTree(AbstractSyntaxTree const*, std::ostream&);
 	
-	std::string toString(Expression const&);
+	SCATHA(API) std::string toString(Expression const&);
 
-	void printExpression(Expression const&);
-	void printExpression(Expression const&, std::ostream&);
+	SCATHA(API) void printExpression(Expression const&);
+	SCATHA(API) void printExpression(Expression const&, std::ostream&);
 	
 	
 }

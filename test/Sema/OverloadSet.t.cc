@@ -18,11 +18,13 @@ TEST_CASE("OverloadSet") {
 	// Declare a function f: (float) -> int
 	auto f_float2 = sym.addFunction("f", sema::FunctionSignature({ sym.Float() }, sym.Int()));
 	REQUIRE(!f_float2.hasValue());
-	CHECK(dynamic_cast<sema::OverloadIssue const&>(f_float2.error()).reason() == sema::OverloadIssue::CantOverloadOnReturnType);
+	
+	auto const f2error = f_float2.error().get<sema::InvalidDeclaration>();
+	CHECK(f2error.reason() == sema::InvalidDeclaration::Reason::CantOverloadOnReturnType);
 	
 	// Declare a function f: (float) -> float
 	auto f_float3 = sym.addFunction("f", sema::FunctionSignature({ sym.Float() }, sym.Float()));
 	REQUIRE(!f_float3.hasValue());
-	CHECK(dynamic_cast<sema::OverloadIssue const&>(f_float3.error()).reason() == sema::OverloadIssue::Redefinition);
-	
+	auto const f3error = f_float3.error().get<sema::InvalidDeclaration>();
+	CHECK(f3error.reason() == sema::InvalidDeclaration::Reason::Redeclaration);
 }

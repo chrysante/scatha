@@ -17,13 +17,13 @@ namespace scatha::ast {
 	struct SCATHA(API) Expression: AbstractSyntaxTree {
 		using AbstractSyntaxTree::AbstractSyntaxTree;
 		
-		bool isValue() const { return kind == ExpressionKind::Value; }
-		bool isType() const { return kind == ExpressionKind::Type; }
+		bool isValue() const { return category == EntityCategory::Value; }
+		bool isType() const { return category == EntityCategory::Type; }
 		
 		/** Decoration provided by semantic analysis. */
 		
-		/// Kind of the expression. Either ::Value or ::Type. ::Value by default.
-		ExpressionKind kind = ExpressionKind::Value;
+		/// Wether the expression refers to a value or a type.
+		EntityCategory category = EntityCategory::Value;
 		
 		/// The type of the expression. Only valid if kind == ::Value
 		sema::TypeID typeID{};
@@ -144,6 +144,12 @@ namespace scatha::ast {
 		
 		UniquePtr<Expression> object;
 		utl::small_vector<UniquePtr<Expression>> arguments;
+		
+		/** Decoration provided by semantic analysis. */
+		
+		/// The SymbolID of the resolved function.
+		/// Differs from the SymbolID of the object because the latter refers to an overload set or an object and this ID is resolved by overload resolution.
+		sema::SymbolID functionID;
 	};
 	
 	struct SCATHA(API) Subscript: Expression {

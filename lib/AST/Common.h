@@ -189,13 +189,13 @@ namespace scatha::ast {
 
 	SCATHA(API) std::ostream& operator<<(std::ostream&, BinaryOperator);
 
-	enum class ExpressionKind {
+	enum class EntityCategory {
 		Value,
 		Type,
 		_count
 	};
 	
-	SCATHA(API) std::ostream& operator<<(std::ostream&, ExpressionKind);
+	SCATHA(API) std::ostream& operator<<(std::ostream&, EntityCategory);
 	
 }
 

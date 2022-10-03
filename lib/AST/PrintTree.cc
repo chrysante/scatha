@@ -218,16 +218,16 @@ namespace scatha::ast {
 				str << id.value();
 			},
 			[&](IntegerLiteral const& l) {
-				str << l.value;
+				str << l.token().id;
 			},
 			[&](BooleanLiteral const& l) {
-				str << (l.value ? "true" : "false");
+				str << l.token().id;
 			},
 			[&](FloatingPointLiteral const& l) {
-				str << l.value;
+				str << l.token().id;
 			},
 			[&](StringLiteral const& l) {
-				str << l.value;
+				str << '"' << l.token().id << '"';
 			},
 			[&](UnaryPrefixExpression const& e) {
 				str << e.op;

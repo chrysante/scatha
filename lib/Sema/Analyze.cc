@@ -13,6 +13,7 @@
 #include "Basic/Basic.h"
 #include "Sema/Prepass.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/ExpressionAnalysis.h"
 
 namespace scatha::sema {
 
@@ -20,388 +21,227 @@ namespace scatha::sema {
 	
 	namespace {
 		struct Context {
-			void analyze(AbstractSyntaxTree&);
+			void dispatch(AbstractSyntaxTree&);
 			
-			void verifyConversion(ast::Expression const& from, TypeID to) const;
-			TypeID verifyBinaryOperation(ast::BinaryExpression const&) const;
-			void verifyFunctionCallExpression(ast::FunctionCall const&,
-											  FunctionSignature const& fnType,
-											  std::span<ast::UniquePtr<ast::Expression> const> arguments) const;
-			[[noreturn]] void throwBadTypeConversion(Token const&, TypeID from, TypeID to) const;
+			void analyze(TranslationUnit& tu);
+			void analyze(Block&);
+			void analyze(FunctionDefinition&);
+			void analyze(StructDefinition&);
+			void analyze(VariableDeclaration&);
+			void analyze(ExpressionStatement&);
+			void analyze(ReturnStatement&);
+			void analyze(IfStatement&);
+			void analyze(WhileStatement&);
+			void analyze(AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
 			
-			decltype(auto) withCurrentFunction(FunctionDefinition& fn, std::invocable auto&& f) const {
-				auto _this = const_cast<Context*>(this);
-				_this->currentFunction = &fn;
-				utl::scope_guard pop = [&]{ _this->currentFunction = nullptr; };
-				return f();
-			}
+			ExpressionAnalysisResult dispatchExpression(Expression&);
+			
+			void verifyConversion(Expression const& from, TypeID to) const;
 			
 			SymbolTable& sym;
+			issue::IssueHandler& iss;
 			ast::FunctionDefinition* currentFunction = nullptr;
 		};
 	} // namespace
 	
-	SymbolTable analyze(AbstractSyntaxTree* root) {
-		SymbolTable sym = prepass(*root);
-		Context ctx{ sym };
-		ctx.analyze(*root);
+	SymbolTable analyze(AbstractSyntaxTree* root, issue::IssueHandler& iss) {
+		SymbolTable sym = prepass(*root, iss);
+		Context ctx{ sym, iss };
+		ctx.dispatch(*root);
 		return sym;
 	}
 	
-	void Context::analyze(AbstractSyntaxTree& node) {
-		visit(node, utl::visitor{
-			[&](TranslationUnit& tu) {
-				for (auto& decl: tu.declarations) {
-					analyze(*decl);
-				}
-			},
-			[&](Block& block) {
-				if (block.scopeKind == ScopeKind::Anonymous) {
-					if (currentFunction == nullptr) {
-						throw InvalidStatement(block.token(), "Anonymous blocks can only appear at function scope");
-					}
-					block.scopeSymbolID = sym.addAnonymousScope().symbolID();
-				}
-				sym.withScopePushed(block.scopeSymbolID, [&]{
-					for (auto& statement: block.statements) {
-						analyze(*statement);
-					}
-				});
-			},
-			[&](FunctionDefinition& fn) {
-				if (auto const sk = sym.currentScope().kind();
-					sk != ScopeKind::Global &&
-					sk != ScopeKind::Namespace &&
-					sk != ScopeKind::Object)
-				{
-					/*
-					 * Function defintion is only allowed in the global scope, at namespace scope and structure scope
-					 */
-					throw InvalidFunctionDeclaration(fn.token(), sym.currentScope());
-				}
-				
-				withCurrentFunction(fn, [&]{
-					sym.withScopePushed(fn.symbolID, [&]{
-						for (auto& param: fn.parameters) {
-							analyze(*param);
-						}
-					});
-					// The body will push the scope itself again
-					analyze(*fn.body);
-				});
-			},
-			[&](StructDefinition& s) {
-				if (auto const sk = sym.currentScope().kind();
-					sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object)
-				{
-					throw InvalidStructDeclaration(s.token(), sym.currentScope());
-				}
-				analyze(*s.body);
-			},
-			[&](VariableDeclaration& var) {
-				if (var.symbolID) {
-					// We already handled this variable in prepass
-					var.typeID = sym.getVariable(var.symbolID).typeID();
-					return;
-				}
-				if (var.initExpression == nullptr) {
-					if (!var.typeExpr) {
-						throw InvalidStatement(var.token(), "Expected initializing expression of explicit typename specifier in variable declaration");
-					}
-					else {
-						analyze(*var.typeExpr);
-						if (!var.typeExpr->isType()) {
-							throw InvalidSymbolReference(var.typeExpr->token(), ExpressionKind::Value);
-						}
-						auto const* objTypePtr = lookupType(*var.typeExpr, sym);
-						if (!objTypePtr) {
-							throw InvalidStatement(var.typeExpr->token(),
-												   utl::strcat("\"", var.typeExpr->token().id, "\" does not name a type"));
-						}
-						var.typeID = objTypePtr->symbolID();
-					}
-				}
-				else {
-					analyze(*var.initExpression);
-					if (!var.initExpression->isValue()) {
-						throw InvalidSymbolReference(var.initExpression->token(), ExpressionKind::Type);
-					}
-					if (var.typeExpr) {
-						auto const* typenameIdentifier = downCast<Identifier>(var.typeExpr.get());
-						SC_ASSERT(typenameIdentifier, "must be identifier for now");
-						auto const* type = sym.lookupObjectType(typenameIdentifier->value());
-						var.typeID = type->symbolID();
-						verifyConversion(*var.initExpression, var.typeID);
-					}
-					else {
-						// Deduce variable type from init expression
-						var.typeID = var.initExpression->typeID;
-					}
-				}
-				// Declare the variable.
-				auto varObj = sym.addVariable(var.token(), var.typeID, var.isConstant);
-				if (!varObj) {
-					throw InvalidRedeclaration(var.token(), sym.currentScope());
-				}
-				var.symbolID = varObj->symbolID();
-			},
-			[&](ExpressionStatement& es) {
-				if (sym.currentScope().kind() != ScopeKind::Function) {
-					throw InvalidStatement(es.token(), "Expression statements can only appear at function scope.");
-				}
-				analyze(*es.expression);
-			},
-			[&](ReturnStatement& rs) {
-				if (sym.currentScope().kind() != ScopeKind::Function) {
-					throw InvalidStatement(rs.token(), "Return statements can only appear at function scope.");
-				}
-				analyze(*rs.expression);
-				SC_ASSERT(currentFunction != nullptr, "This should have been set by case FunctionDefinition");
-				verifyConversion(*rs.expression, currentFunction->returnTypeID);
-			},
-			[&](IfStatement& is) {
-				if (sym.currentScope().kind() != ScopeKind::Function) {
-					throw InvalidStatement(is.token(), "If statements can only appear at function scope.");
-				}
-				analyze(*is.condition);
-				verifyConversion(*is.condition, sym.Bool());
-				analyze(*is.ifBlock);
-				if (is.elseBlock != nullptr) {
-					analyze(*is.elseBlock);
-				}
-			},
-			[&](WhileStatement& ws) {
-				if (sym.currentScope().kind() != ScopeKind::Function) {
-					throw InvalidStatement(ws.token(), "While statements can only appear at function scope.");
-				}
-				analyze(*ws.condition);
-				verifyConversion(*ws.condition, sym.Bool());
-				analyze(*ws.block);
-			},
-			[&](Identifier& id) {
-				LookupHelper lh{ .sym = sym, .allowFailure = false };
-				lh.analyze(id);
-			},
-			[&](IntegerLiteral& l) {
-				l.typeID = sym.Int();
-			},
-			[&](BooleanLiteral& l) {
-				l.typeID = sym.Bool();
-			},
-			[&](FloatingPointLiteral& l) {
-				l.typeID = sym.Float();
-			},
-			[&](StringLiteral& l) {
-				l.typeID = sym.String();
-			},
-			[&](UnaryPrefixExpression& u) {
-				analyze(*u.operand);
-				auto const& operandType = sym.getObjectType(u.operand->typeID);
-				auto doThrow = [&]{
-					throw SemanticIssue(u.token(),
-										utl::strcat("Operator \"", toString(u.op), "\" not defined for ", operandType.name()));
-				};
-				if (!operandType.isBuiltin() || operandType.symbolID() == sym.String()) {
-					doThrow();
-				}
-				switch (u.op) {
-					case ast::UnaryPrefixOperator::Promotion: [[fallthrough]];
-					case ast::UnaryPrefixOperator::Negation:
-						if (operandType.symbolID() != sym.Int() &&
-							operandType.symbolID() != sym.Float())
-						{
-							doThrow();
-						}
-						break;
-					
-					case ast::UnaryPrefixOperator::BitwiseNot:
-						if (operandType.symbolID() != sym.Int()) {
-							doThrow();
-						}
-						break;
-					
-					case ast::UnaryPrefixOperator::LogicalNot:
-						if (operandType.symbolID() != sym.Bool()) {
-							doThrow();
-						}
-						break;
-					
-					SC_NO_DEFAULT_CASE();
-				}
-				u.typeID = u.operand->typeID;
-			},
-			[&](BinaryExpression& b) {
-				analyze(*b.lhs);
-				analyze(*b.rhs);
-				b.typeID = verifyBinaryOperation(b);
-			},
-			[&](MemberAccess& ma) {
-				LookupHelper lh{ .sym = sym, .allowFailure = false };
-				lh.analyze(ma);
-			},
-			[&](Conditional& c) {
-				analyze(*c.condition);
-				verifyConversion(*c.condition, sym.Bool());
-				analyze(*c.ifExpr);
-				analyze(*c.elseExpr);
-			},
-			[&](FunctionCall& fc) {
-				analyze(*fc.object);
-				utl::small_vector<TypeID> argTypes;
-				argTypes.reserve(fc.arguments.size());
-				for (auto& arg: fc.arguments) {
-					analyze(*arg);
-					argTypes.push_back(arg->typeID);
-				}
-					
-				// Temporary fix to allow function calls.
-				// This must be changed to allow for overloading of operator() and function objects.
-				// Getting the type of the expression is not enough (if it's a function) as we won't know which function to call.
-				SC_ASSERT(fc.object->nodeType() == ast::NodeType::Identifier,
-						  "Called object must be an identifier. We do not yet support calling arbitrary expressions.");
-				auto& identifier = static_cast<Identifier&>(*fc.object);
-				
-				scatha::sema::SymbolID const overloadSetSymbolID = sym.lookup(identifier.token());
-				if (!sym.is(overloadSetSymbolID, SymbolCategory::OverloadSet)) {
-					SC_ASSERT(false, "Look at the assertion above");
-				}
-				auto const& overloadSet = sym.getOverloadSet(overloadSetSymbolID);
-				
-				auto const* functionPtr = overloadSet.find(argTypes);
-				if (!functionPtr) {
-					throw BadFunctionCall(fc.token(), BadFunctionCall::NoMatchingFunction);
-				}
-				auto const& function = *functionPtr;
-				verifyFunctionCallExpression(fc, function.signature(), fc.arguments);
-				identifier.symbolID = function.symbolID();
-				identifier.typeID = function.typeID();
-				fc.typeID = function.signature().returnTypeID();
-			},
-			[&](Subscript& s) {
-				analyze(*s.object);
-				for (auto& arg: s.arguments) {
-					analyze(*arg);
-				}
-			},
-			
-		});
+	void Context::dispatch(AbstractSyntaxTree& node) {
+		ast::visit(node, [this](auto& node) { this->analyze(node); });
+	}
+	
+	void Context::analyze(TranslationUnit& tu) {
+		for (auto& decl: tu.declarations) {
+			dispatch(*decl);
+			if (iss.fatal()) {
+				return;
+			}
+		}
+	}
+	
+	void Context::analyze(Block& block) {
+		if (block.scopeKind == ScopeKind::Anonymous) {
+			if (currentFunction == nullptr) {
+				/// Anonymous blocks may only appear at function scope.
+				iss.push(InvalidStatement(&block, InvalidStatement::Reason::InvalidScopeForStatement,
+										  sym.currentScope()));
+				return;
+			}
+			block.scopeSymbolID = sym.addAnonymousScope().symbolID();
+		}
+		sym.pushScope(block.scopeSymbolID);
+		utl::armed_scope_guard popScope = [&]{ sym.popScope(); };
+		for (auto& statement: block.statements) {
+			dispatch(*statement);
+			if (iss.fatal()) {
+				return;
+			}
+		}
+		popScope.execute();
+	}
+	
+	void Context::analyze(FunctionDefinition& fn) {
+		if (auto const sk = sym.currentScope().kind();
+			sk != ScopeKind::Global &&
+			sk != ScopeKind::Namespace &&
+			sk != ScopeKind::Object)
+		{
+			/// Function defintion is only allowed in the global scope, at namespace scope and structure scope.
+			iss.push(InvalidDeclaration(&fn, InvalidDeclaration::Reason::InvalidInCurrentScope,
+										sym.currentScope(), SymbolCategory::Function));
+			return;
+		}
+		if (fn.symbolID == SymbolID::Invalid) {
+			/// Can't analyze the body if wen don't have a symbol to push this functions scope.
+			return;
+		}
+		currentFunction = &fn;
+		utl::armed_scope_guard popFunction = [&]{ currentFunction = nullptr; };
+		sym.pushScope(fn.symbolID);
+		utl::armed_scope_guard popScope = [&]{ sym.popScope(); };
+		for (auto& param: fn.parameters) {
+			dispatch(*param);
+			if (iss.fatal()) {
+				return;
+			}
+		}
+		/// The body will push the scope itself again.
+		popScope.execute();
+		dispatch(*fn.body);
+	}
+	
+	void Context::analyze(StructDefinition& s) {
+		if (auto const sk = sym.currentScope().kind();
+			sk != ScopeKind::Global &&
+			sk != ScopeKind::Namespace &&
+			sk != ScopeKind::Object)
+		{
+			iss.push(InvalidDeclaration(&s, InvalidDeclaration::Reason::InvalidInCurrentScope,
+										sym.currentScope(), SymbolCategory::ObjectType));
+			return;
+		}
+		dispatch(*s.body);
+	}
+	
+	void Context::analyze(VariableDeclaration& var) {
+		if (var.symbolID) {
+			/// We already handled this variable in prepass.
+			var.typeID = sym.getVariable(var.symbolID).typeID();
+			return;
+		}
+		if (!var.typeExpr && !var.initExpression) {
+			iss.push(InvalidDeclaration(&var, InvalidDeclaration::Reason::CantInferType,
+										sym.currentScope(), SymbolCategory::Variable));
+			return;
+		}
+		if (var.typeExpr) {
+			auto const varTypeRes = dispatchExpression(*var.typeExpr);
+			if (iss.fatal()) {
+				return;
+			}
+			if (!varTypeRes) {
+				goto expression;
+			}
+			if (varTypeRes.category() != EntityCategory::Type) {
+				iss.push(BadSymbolReference(*var.typeExpr, varTypeRes.category(), EntityCategory::Type));
+				goto expression;
+			}
+			auto const& objType = sym.getObjectType(varTypeRes.typeID());
+			var.typeID = objType.symbolID();
+		
+		}
+	expression:
+		if (var.initExpression) {
+			auto const initExprRes = dispatchExpression(*var.initExpression);
+			if (!initExprRes) {
+				goto declaration;
+			}
+			if (initExprRes.category() != ast::EntityCategory::Value) {
+				iss.push(BadSymbolReference(*var.initExpression, initExprRes.category(), ast::EntityCategory::Value));
+				goto declaration;
+			}
+			if (!var.typeID) {
+				/// Deduce variable type from init expression.
+				var.typeID = var.initExpression->typeID;
+				goto declaration;
+			}
+			/// We already have the type from the explicit type specifier.
+			verifyConversion(*var.initExpression, var.typeID);
+		}
+	declaration:
+		auto varObj = sym.addVariable(var.token(), var.typeID, var.isConstant);
+		if (!varObj) {
+			varObj.error().setStatement(var);
+			iss.push(varObj.error());
+			return;
+		}
+		var.symbolID = varObj->symbolID();
+	}
+	
+	void Context::analyze(ExpressionStatement& es) {
+		if (sym.currentScope().kind() != ScopeKind::Function) {
+			iss.push(InvalidStatement(&es, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+			return;
+		}
+		dispatchExpression(*es.expression);
+	}
+	
+	void Context::analyze(ReturnStatement& rs) {
+		if (sym.currentScope().kind() != ScopeKind::Function) {
+			iss.push(InvalidStatement(&rs, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+			return;
+		}
+		auto const exprRes = dispatchExpression(*rs.expression);
+		if (!exprRes) {
+			return;
+		}
+		SC_ASSERT(currentFunction != nullptr, "This should have been set by case FunctionDefinition");
+		verifyConversion(*rs.expression, currentFunction->returnTypeID);
+	}
+	
+	void Context::analyze(IfStatement& is) {
+		if (sym.currentScope().kind() != ScopeKind::Function) {
+			iss.push(InvalidStatement(&is, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+			return;
+		}
+		if (dispatchExpression(*is.condition)) {
+			verifyConversion(*is.condition, sym.Bool());
+		}
+		if (iss.fatal()) { return; }
+		
+		dispatch(*is.ifBlock);
+		if (iss.fatal()) { return; }
+		
+		if (is.elseBlock != nullptr) {
+			dispatch(*is.elseBlock);
+		}
+	}
+	
+	void Context::analyze(WhileStatement& ws) {
+		if (sym.currentScope().kind() != ScopeKind::Function) {
+			iss.push(InvalidStatement(&ws, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+			return;
+		}
+		if (dispatchExpression(*ws.condition)) {
+			verifyConversion(*ws.condition, sym.Bool());
+		}
+		if (iss.fatal()) { return; }
+		dispatch(*ws.block);
+	}
+	
+	ExpressionAnalysisResult Context::dispatchExpression(Expression& expr) {
+		return analyzeExpression(expr, sym, &iss);
 	}
 	
 	void Context::verifyConversion(Expression const& from, TypeID to) const {
 		if (from.typeID != to) {
-			throwBadTypeConversion(from.token(), from.typeID, to);
+			iss.push(BadTypeConversion(from, to));
 		}
-	}
-	
-	TypeID Context::verifyBinaryOperation(BinaryExpression const& expr) const {
-		auto doThrow = [&]{
-			/// TODO: Think of somethin better here
-			/// probably think of some way of how to lookup and define operators
-			throw SemanticIssue(expr.token(), utl::strcat("Invalid types for operator ", expr.op, ": \"",
-														  sym.getObjectType(expr.lhs->typeID).name(), "\" and \"",
-														  sym.getObjectType(expr.rhs->typeID).name(), "\""));
-		};
-		
-		auto verifySame = [&]{
-			if (expr.lhs->typeID != expr.rhs->typeID) {
-				doThrow();
-			}
-		};
-
-		auto verifyAnyOf = [&](TypeID toCheck, std::initializer_list<TypeID> ids) {
-			bool result = false;
-			for (auto id: ids) {
-				if (toCheck == id) { result = true; }
-			}
-			if (!result) {
-				doThrow();
-			}
-		};
-		
-		switch (expr.op) {
-				using enum BinaryOperator;
-			case Multiplication: [[fallthrough]];
-			case Division:       [[fallthrough]];
-			case Addition:       [[fallthrough]];
-			case Subtraction:
-				verifySame();
-				verifyAnyOf(expr.lhs->typeID, { sym.Int(), sym.Float() });
-				return expr.lhs->typeID;
-				
-			case Remainder:
-				verifySame();
-				verifyAnyOf(expr.lhs->typeID, { sym.Int() });
-				return expr.lhs->typeID;
-				
-			case BitwiseAnd:     [[fallthrough]];
-			case BitwiseXOr:     [[fallthrough]];
-			case BitwiseOr:
-				verifySame();
-				verifyAnyOf(expr.lhs->typeID, { sym.Int() });
-				return expr.lhs->typeID;
-				
-			case LeftShift:      [[fallthrough]];
-			case RightShift:
-				if (expr.lhs->typeID != sym.Int()) {
-					doThrow();
-				}
-				if (expr.rhs->typeID != sym.Int()) {
-					doThrow();
-				}
-				return expr.lhs->typeID;
-				
-			case Less:           [[fallthrough]];
-			case LessEq:         [[fallthrough]];
-			case Greater:        [[fallthrough]];
-			case GreaterEq:
-				verifySame();
-				verifyAnyOf(expr.lhs->typeID, { sym.Int(), sym.Float() });
-				return sym.Bool();
-			case Equals:         [[fallthrough]];
-			case NotEquals:
-				verifySame();
-				verifyAnyOf(expr.lhs->typeID, { sym.Int(), sym.Float(), sym.Bool() });
-				return sym.Bool();
-				
-				
-			case LogicalAnd:     [[fallthrough]];
-			case LogicalOr:
-				verifySame();
-				verifyAnyOf(expr.lhs->typeID, { sym.Bool() });
-				return sym.Bool();
-				
-			case Assignment:     [[fallthrough]];
-			case AddAssignment:  [[fallthrough]];
-			case SubAssignment:  [[fallthrough]];
-			case MulAssignment:  [[fallthrough]];
-			case DivAssignment:  [[fallthrough]];
-			case RemAssignment:  [[fallthrough]];
-			case LSAssignment:   [[fallthrough]];
-			case RSAssignment:   [[fallthrough]];
-			case AndAssignment:  [[fallthrough]];
-			case OrAssignment:
-				verifySame();
-				return sym.Void();
-				
-			case Comma:
-				return expr.rhs->typeID;
-				
-			case _count:
-				SC_DEBUGFAIL();
-		}
-	}
-	
-	void Context::verifyFunctionCallExpression(FunctionCall const& expr, FunctionSignature const& fnType, std::span<UniquePtr<Expression> const> arguments) const {
-		if (fnType.argumentCount() != arguments.size()) {
-			throw BadFunctionCall(expr.object->token(), BadFunctionCall::WrongArgumentCount);
-		}
-		for (size_t i = 0; i < arguments.size(); ++i) {
-			verifyConversion(*arguments[i], fnType.argumentTypeID(i));
-		}
-	}
-	
-	void Context::throwBadTypeConversion(Token const& token, TypeID from, TypeID to) const {
-		throw BadTypeConversion(token, sym.getObjectType(from), sym.getObjectType(to));
 	}
 	
 }

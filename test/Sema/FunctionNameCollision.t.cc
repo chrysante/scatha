@@ -20,7 +20,7 @@ fn g(x: int) -> int {
 }
 )";
 	
-	auto const [ast, sym] = test::produceDecoratedASTAndSymTable(text);
+	auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
 	
 	auto f = sym.lookup("f");
 	CHECK(sym.is(f, SymbolCategory::OverloadSet));

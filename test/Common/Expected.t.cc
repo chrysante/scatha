@@ -3,18 +3,20 @@
 #include "Common/Expected.h"
 
 namespace {
-	struct ErrorBase {
-		virtual ~ErrorBase() = default;
-		virtual int value() const = 0;
-	};
-	struct MyError: ErrorBase {
+//	struct ErrorBase {
+//		virtual ~ErrorBase() = default;
+//		virtual int value() const = 0;
+//	};
+	struct MyError
+//	: ErrorBase
+	{
 		explicit MyError(int i): i(i) {}
-		int value() const override { return i; }
-		
+		int value() const { return i; }
+		MyError(MyError&&) noexcept = default;
 		~MyError() { dtorRun = true; }
-		
+
 		static bool dtorRun;
-		
+
 	private:
 		int i;
 	};
@@ -22,7 +24,7 @@ namespace {
 }
 
 TEST_CASE("Expected", "[common]") {
-	auto f = [](bool b) -> scatha::Expected<int, ErrorBase> {
+	auto f = [](bool b) -> scatha::Expected<int, MyError> {
 		if (b) {
 			return 0;
 		}
@@ -43,7 +45,7 @@ TEST_CASE("Expected", "[common]") {
 }
 
 TEST_CASE("Expected Reference", "[common]") {
-	auto f = [](bool b, int& x) -> scatha::Expected<int&, ErrorBase> {
+	auto f = [](bool b, int& x) -> scatha::Expected<int&, MyError> {
 		if (b) {
 			return x;
 		}
@@ -72,7 +74,7 @@ TEST_CASE("Expected Reference", "[common]") {
 }
 
 TEST_CASE("Expected Const Reference", "[common]") {
-	auto f = [](bool b, int& x) -> scatha::Expected<int const&, ErrorBase> {
+	auto f = [](bool b, int& x) -> scatha::Expected<int const&, MyError> {
 		if (b) {
 			return x;
 		}

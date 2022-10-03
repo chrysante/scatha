@@ -7,6 +7,7 @@
 #include <utl/type_traits.hpp>
 #include <utl/utility.hpp>
 
+#include "AST/AST.h"
 #include "AST/Common.h"
 #include "AST/Base.h"
 #include "AST/Fwd.h"
@@ -133,6 +134,8 @@ namespace scatha::ast {
 
 namespace scatha::ast::internal {
 	decltype(auto) visitImpl(auto&& node, auto type, auto const& f) {
+		/// ---- NOTE: Confusing errors of references not being able to bind to unrelated types are usually caused by missing include of either  "AST/AST.h" or "AST/Expression.h". Neither are included by this file but required to be used with this file.
+		static_assert(std::is_same_v<std::decay_t<decltype(node)>, AbstractSyntaxTree>);
 		switch (type) {
 			case NodeType::TranslationUnit:       return f(static_cast<utl::copy_cvref_t<decltype(node), TranslationUnit>>(node));
 			case NodeType::Block:                 return f(static_cast<utl::copy_cvref_t<decltype(node), Block>>(node));

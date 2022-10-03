@@ -91,10 +91,10 @@ namespace scatha::ast {
 		return str << toString(op);
 	}
 	
-	std::ostream& operator<<(std::ostream& str, ExpressionKind k) {
+	std::ostream& operator<<(std::ostream& str, EntityCategory k) {
 		return str << UTL_SERIALIZE_ENUM(k, {
-			{ ExpressionKind::Value, "Value" },
-			{ ExpressionKind::Type, "Type" },
+			{ EntityCategory::Value, "Value" },
+			{ EntityCategory::Type, "Type" },
 		});
 	}
 	

@@ -1,104 +1,259 @@
 #ifndef SCATHA_SEMA_SEMANTICISSUE_H_
 #define SCATHA_SEMA_SEMANTICISSUE_H_
 
+#include <iosfwd>
 #include <stdexcept>
 #include <string>
+#include <span>
+#include <variant>
+
+#include <utl/utility.hpp>
 
 #include "AST/Common.h"
+#include "AST/AST.h"
 #include "AST/Expression.h"
-#include "Common/ProgramIssue.h"
+#include "Basic/Basic.h"
 #include "Common/Token.h"
-#include "Sema/ObjectType.h"
+#include "Issue/ProgramIssue.h"
+#include "Sema/SymbolID.h"
 
 namespace scatha::sema {
 
 	class Scope;
 	
-	/// MARK: SemanticIssue
-	/// Base class of all semantic errors
-	class SCATHA(API) SemanticIssue: public ProgramIssue {
+	class SCATHA(API) IssueBase: public issue::ProgramIssueBase {
 	public:
-		SemanticIssue(Token const& token, std::string_view brief, std::string_view message = {});
+		using issue::ProgramIssueBase::ProgramIssueBase;
+	};
+
+	/// MARK: Expression Issues
+	class SCATHA(API) BadExpression: public IssueBase {
+	public:
+		explicit BadExpression(ast::Expression const& expr):
+			IssueBase(expr.token()),
+			_expr(&expr) {}
+		
+		ast::Expression const& expression() const { return *_expr; }
+		
+	private:
+		ast::Expression const* _expr;
 	};
 	
-	/// MARK: TypeIssue
-	/// Base class of all type related errors
-	class SCATHA(API) TypeIssue: public SemanticIssue {
+	class SCATHA(API) BadTypeConversion: public BadExpression {
 	public:
-		using SemanticIssue::SemanticIssue;
+		explicit BadTypeConversion(ast::Expression const& expression, TypeID to):
+			BadExpression(expression),
+			_from(expression.typeID),
+			_to(to)
+		{}
+		
+		TypeID from() const { return _from; }
+		TypeID to() const { return _to; }
+
+	private:
+		TypeID _from;
+		TypeID _to;
 	};
 	
-	class SCATHA(API) BadTypeConversion: public TypeIssue {
+	class SCATHA(API) BadOperandForUnaryExpression: public BadExpression {
 	public:
-		explicit BadTypeConversion(Token const& token, ObjectType const& from, ObjectType const& to);
+		explicit BadOperandForUnaryExpression(ast::Expression const& expression,
+											  TypeID operand):
+			BadExpression(expression),
+			_operand(operand)
+		{}
+		
+		TypeID operand() const { return _operand; }
+		
+	private:
+		TypeID _operand;
 	};
 	
-	class SCATHA(API) BadFunctionCall: public SemanticIssue {
+	class SCATHA(API) BadOperandsForBinaryExpression: public BadExpression {
 	public:
-		enum Reason {
-			WrongArgumentCount, NoMatchingFunction
+		explicit BadOperandsForBinaryExpression(ast::Expression const& expression,
+												TypeID lhs, TypeID rhs):
+			BadExpression(expression),
+			_lhs(lhs),
+			_rhs(rhs)
+		{}
+		
+		TypeID lhs() const { return _lhs; }
+		TypeID rhs() const { return _rhs; }
+		
+	private:
+		TypeID _lhs;
+		TypeID _rhs;
+	};
+	
+	class SCATHA(API) BadFunctionCall: public BadExpression {
+	public:
+		enum class Reason {
+			WrongArgumentCount, NoMatchingFunction, ObjectNotCallable,
+			_count
 		};
-		explicit BadFunctionCall(Token const& token, Reason);
-	};
-	
-	/// MARK: SymbolError
-	class SCATHA(API) SymbolError: public SemanticIssue {
-	protected:
-		using SemanticIssue::SemanticIssue;
-	};
-	
-	class SCATHA(API) UseOfUndeclaredIdentifier: public SymbolError {
+		
 	public:
-		UseOfUndeclaredIdentifier(Token const& token);
-		UseOfUndeclaredIdentifier(ast::Expression const& expr, Scope const& scope);
+		explicit BadFunctionCall(ast::Expression const& expression,
+								 SymbolID overloadSetID, utl::small_vector<TypeID> argTypeIDs, Reason reason):
+			BadExpression(expression),
+			_reason(reason),
+			_argTypeIDs(std::move(argTypeIDs)),
+			_overloadSetID(overloadSetID)
+		{}
+		
+		Reason reason() const { return _reason; }
+		std::span<TypeID const> argumentTypeIDs() const { return _argTypeIDs; }
+		SymbolID overloadSetID() const { return _overloadSetID; }
 		
 	private:
-		static std::string makeMessage(std::string_view, Scope const*);
+		Reason _reason;
+		utl::small_vector<TypeID> _argTypeIDs;
+		SymbolID _overloadSetID;
 	};
 	
-	class SCATHA(API) InvalidSymbolReference: public SymbolError {
+	SCATHA(API) std::ostream& operator<<(std::ostream&, BadFunctionCall::Reason);
+	
+	class SCATHA(API) UseOfUndeclaredIdentifier: public BadExpression {
 	public:
-		InvalidSymbolReference(Token const& token, SymbolCategory actually);
-		InvalidSymbolReference(Token const& token, ast::ExpressionKind actually);
-		InvalidSymbolReference(ast::Expression const&, ast::ExpressionKind expected);
+		explicit UseOfUndeclaredIdentifier(ast::Expression const& expression, Scope const& inScope):
+			BadExpression(expression),
+			_scope(&inScope)
+		{}
+		
+		Scope const& currentScope() const { return *_scope; }
 		
 	private:
-		static std::string makeMessage(std::string_view, ast::ExpressionKind);
+		Scope const* _scope;
 	};
-
-	/// MARK: StatementError
-	class SCATHA(API) InvalidStatement: public SemanticIssue {
+	
+	class SCATHA(API) BadSymbolReference: public BadExpression {
 	public:
-		using SemanticIssue::SemanticIssue;
-		InvalidStatement(Token const&, std::string_view message);
+		explicit BadSymbolReference(ast::Expression const& expression,
+									ast::EntityCategory have, ast::EntityCategory expected):
+			BadExpression(expression),
+			_have(have),
+			_expected(expected)
+		{}
+		
+		ast::EntityCategory have() const { return _have; }
+		ast::EntityCategory expected() const { return _expected; }
+		
+	private:
+		ast::EntityCategory _have;
+		ast::EntityCategory _expected;
 	};
-
+	
+	/// MARK: Statement Issues
+	class SCATHA(API) InvalidStatement: public IssueBase {
+	public:
+		enum class Reason {
+			ExpectedDeclaration, InvalidDeclaration, InvalidScopeForStatement,
+			_count
+		};
+		
+	public:
+		explicit InvalidStatement(ast::Statement const* statement, Reason reason, Scope const& inScope):
+			IssueBase(statement ? statement->token() : Token{}),
+			_statement(statement),
+			_reason(reason),
+			_scope(&inScope)
+		{}
+		
+		ast::Statement const& statement() const { return *_statement; }
+		void setStatement(ast::Statement const& statement) {
+			_statement = &statement;
+			setToken(statement.token());
+		}
+		
+		Reason reason() const { return _reason; }
+		
+		Scope const& currentScope() const { return *_scope; }
+		
+	private:
+		ast::Statement const* _statement;
+		Reason _reason;
+		Scope const* _scope;
+	};
+	
+	SCATHA(API) std::ostream& operator<<(std::ostream&, InvalidStatement::Reason);
+	
 	class SCATHA(API) InvalidDeclaration: public InvalidStatement {
-	protected:
-		InvalidDeclaration(Token const& token, Scope const& scope, std::string_view element);
+	public:
+		enum class Reason {
+			InvalidInCurrentScope, Redeclaration, CantOverloadOnReturnType, CantInferType,
+			_count
+		};
+		
+	public:
+		explicit InvalidDeclaration(ast::Statement const* statement, Reason reason,
+									Scope const& currentScope, SymbolCategory symbolCategory, SymbolCategory existingSymbolCategory = {}):
+			InvalidStatement(statement, InvalidStatement::Reason::InvalidDeclaration, currentScope),
+			_reason(reason),
+			_category(symbolCategory),
+			_existingCategory(existingSymbolCategory)
+		{}
+		
+		Reason reason() const { return _reason; }
+		SymbolCategory symbolCategory() const { return _category; }
+		
+		/// Only valid when reason() == Redeclaration
+		SymbolCategory existingSymbolCategory() const { return _existingCategory; }
+		
+	private:
+		Reason _reason;
+		SymbolCategory _category;
+		SymbolCategory _existingCategory;
 	};
 	
-	class SCATHA(API) InvalidFunctionDeclaration: public InvalidDeclaration {
-	public:
-		InvalidFunctionDeclaration(Token const& token, Scope const& scope);
-	};
+	SCATHA(API) std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
 	
-	class SCATHA(API) InvalidOverload: public InvalidFunctionDeclaration {
-	public:
-		InvalidOverload(Token const& token, Scope const& scope);
-	};
+	/// MARK: Common class SemanticIssue
+	namespace internal {
+		using SemaIssueVariant = std::variant<
+			BadTypeConversion,
+			BadOperandForUnaryExpression,
+			BadOperandsForBinaryExpression,
+			BadFunctionCall,
+			UseOfUndeclaredIdentifier,
+			BadSymbolReference,
+			InvalidStatement,
+			InvalidDeclaration
+		>;
+	}
 	
-	class SCATHA(API) InvalidStructDeclaration: public InvalidDeclaration {
+	class SCATHA(API) SemanticIssue: private internal::SemaIssueVariant {
 	public:
-		InvalidStructDeclaration(Token const& token, Scope const& scope);
-	};
-	
-	class SCATHA(API) InvalidRedeclaration: public InvalidStatement {
+		
+		
 	public:
-		InvalidRedeclaration(Token const& token, Scope const& scope);
-		InvalidRedeclaration(Token const& token, ObjectType const& oldType);
-		InvalidRedeclaration(Token const& token, Scope const& scope,
-							 SymbolCategory existing);
+		using internal::SemaIssueVariant::SemaIssueVariant;
+		
+		decltype(auto) visit(auto&& f) {
+			std::visit(utl::visitor{ f, [](...){} }, asBase());
+		}
+		
+		decltype(auto) visit(auto&& f) const {
+			std::visit(utl::visitor{ f, [](issue::internal::ProgramIssueBaseBase const&){} }, asBase());
+		}
+
+		void setStatement(ast::Statement const& statement) {
+			visit([&](InvalidStatement& e){ e.setStatement(statement); });
+		}
+		
+		template <typename T>
+		auto& get() { return std::get<T>(asBase()); }
+		template <typename T>
+		auto const& get() const { return std::get<T>(asBase()); }
+		
+//		void setToken(Token token) {
+//			visit([&](IssueBase& e){ e.setToken(std::move(token)); });
+//		}
+		
+		
+	private:
+		internal::SemaIssueVariant& asBase() { return static_cast<internal::SemaIssueVariant&>(*this); }
+		internal::SemaIssueVariant const& asBase() const { return static_cast<internal::SemaIssueVariant const&>(*this); }
 	};
 	
 }
