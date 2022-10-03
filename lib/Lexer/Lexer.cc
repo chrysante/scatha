@@ -245,14 +245,15 @@ namespace scatha::lex {
 			throw UnterminatedStringLiteral(result);
 		}
 		while (true) {
-			result.id += current();
-			if (!advance() || current() == '\n') {
-				throw UnterminatedStringLiteral(result);
-			}
 			if (current() == '"') {
 				advance();
 				return result;
 			}
+			result.id += current();
+			if (!advance() || current() == '\n') {
+				throw UnterminatedStringLiteral(result);
+			}
+			
 		}
 	}
 	
