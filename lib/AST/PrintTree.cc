@@ -74,7 +74,9 @@ namespace scatha::ast {
 			case NodeType::VariableDeclaration: {
 				auto const* const node = static_cast<VariableDeclaration const*>(inNode);
 				str << indent(ind) << "<variable-declaration> " << node->name() << " " << endl;
-				printTreeImpl(node->typeExpr.get(), str, ind + 1);
+				if (node->typeExpr) {
+					printTreeImpl(node->typeExpr.get(), str, ind + 1);					
+				}
 				if (node->initExpression.get()) {
 					printTreeImpl(node->initExpression.get(), str, ind + 1);
 				}
