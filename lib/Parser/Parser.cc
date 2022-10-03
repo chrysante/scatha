@@ -209,8 +209,9 @@ namespace scatha::parse {
 	}
 	
 	ast::UniquePtr<ast::ReturnStatement> Parser::parseReturnStatement() {
-		SC_ASSERT_AUDIT(tokens.current().id == "return", "");
-		auto result = ast::allocate<ast::ReturnStatement>(parseExpression(), tokens.current());
+		auto const& token = tokens.current();
+		SC_ASSERT_AUDIT(token.id == "return", "");
+		auto result = ast::allocate<ast::ReturnStatement>(parseExpression(), token);
 		TokenEx const& next = tokens.eat(false);
 		expectSeparator(next);
 		return result;
