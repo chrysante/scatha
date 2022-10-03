@@ -32,11 +32,10 @@ namespace scatha::sema {
 			
 			TypeID verifyBinaryOperation(ast::BinaryExpression const&) const;
 			
-			void beginNameLookup() { first = true; }
-			
 			SymbolTable& sym;
 			issue::IssueHandler* iss;
-			bool first = true;
+			/// Will be set by MemberAccess when right hand side is an identifier and unset by Identifier
+			bool performRestrictedNameLookup = false;
 		};
 	}
 	
@@ -128,12 +127,15 @@ namespace scatha::sema {
 	
 	ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
 		SymbolID const symbolID = [&]{
-			if (first) return sym.lookup(id.token());
-			else return sym.currentScope().findID(id.value());
+			if (performRestrictedNameLookup) {
+				/// When we are on the right hand side of a member access expression we restrict lookup to the scope of the object of the left hand side.
+				performRestrictedNameLookup = false;
+				return sym.currentScope().findID(id.value());
+			}
+			else {
+				return sym.lookup(id.token());
+			}
 		}();
-		// Once we have looked for a single identifier we are not first anymore meaning we don't perform unqualified lookup anymore
-#warning fix this 'first' thing
-		first = false;
 		if (!symbolID) {
 			if (iss) {
 				iss->push(UseOfUndeclaredIdentifier(id, sym.currentScope()));
@@ -173,6 +175,15 @@ namespace scatha::sema {
 		auto* const oldScope = &sym.currentScope();
 		sym.makeScopeCurrent(lookupTargetScope);
 		utl::armed_scope_guard popScope = [&]{ sym.makeScopeCurrent(oldScope); };
+		if (ma.member->nodeType() == ast::NodeType::Identifier) {
+			/// When our member is an identifier we restrict name lookup to the current scope.
+			/// This flag will be unset by the identifier case.
+			performRestrictedNameLookup = true;
+		}
+		else {
+			if (iss) iss->push(BadMemberAccess(ma));
+			return ExpressionAnalysisResult::fail();
+		}
 		auto const memRes = dispatch(*ma.member);
 		popScope.execute();
 		if (!memRes.success()) {

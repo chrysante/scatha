@@ -86,6 +86,11 @@ namespace scatha::sema {
 		TypeID _rhs;
 	};
 	
+	class SCATHA(API) BadMemberAccess: public BadExpression {
+	public:
+		using BadExpression::BadExpression;
+	};
+	
 	class SCATHA(API) BadFunctionCall: public BadExpression {
 	public:
 		enum class Reason {
@@ -214,6 +219,7 @@ namespace scatha::sema {
 			BadTypeConversion,
 			BadOperandForUnaryExpression,
 			BadOperandsForBinaryExpression,
+			BadMemberAccess,
 			BadFunctionCall,
 			UseOfUndeclaredIdentifier,
 			BadSymbolReference,
