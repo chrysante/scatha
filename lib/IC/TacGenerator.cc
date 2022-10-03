@@ -290,8 +290,26 @@ namespace scatha::ic {
 	
 	Operation TacGenerator::selectOperation(sema::TypeID typeID, ast::BinaryOperator op) const {
 		struct OpTable {
-			Operation& operator()(sema::TypeID typeID, ast::BinaryOperator op) {
-				return table[typeID][(size_t)op];
+			Operation& set(sema::TypeID typeID, ast::BinaryOperator op) {
+				auto const [itr, success] = table.insert({
+					typeID, std::array<Operation, (size_t)ast::BinaryOperator::_count>{}
+				});
+				if (success) {
+					std::fill(itr->second.begin(), itr->second.end(), Operation::_count);
+				}
+				auto& result = itr->second[(size_t)op];
+				SC_ASSERT(result == Operation::_count, "");
+				return result;
+			}
+			
+			Operation get(sema::TypeID typeID, ast::BinaryOperator op) const {
+				auto const itr = table.find(typeID);
+				if (itr == table.end()) {
+					SC_DEBUGFAIL();
+				}
+				auto const result = itr->second[(size_t)op];
+				SC_ASSERT(result != Operation::_count, "");
+				return result;
 			}
 			
 			utl::hashmap<sema::TypeID, std::array<Operation, (size_t)ast::BinaryOperator::_count>> table;
@@ -300,46 +318,44 @@ namespace scatha::ic {
 		static OpTable table = [this]{
 			OpTable result;
 			using enum ast::BinaryOperator;
-			result(sym.Int(), Addition)       = Operation::add;
-			result(sym.Int(), Subtraction)    = Operation::sub;
-			result(sym.Int(), Multiplication) = Operation::mul;
-			result(sym.Int(), Division)       = Operation::idiv;
-			result(sym.Int(), Remainder)      = Operation::irem;
+			result.set(sym.Int(), Addition)       = Operation::add;
+			result.set(sym.Int(), Subtraction)    = Operation::sub;
+			result.set(sym.Int(), Multiplication) = Operation::mul;
+			result.set(sym.Int(), Division)       = Operation::idiv;
+			result.set(sym.Int(), Remainder)      = Operation::irem;
 			
-			result(sym.Int(), Equals)    = Operation::eq;
-			result(sym.Int(), NotEquals) = Operation::neq;
-			result(sym.Int(), Less)      = Operation::ils;
-			result(sym.Int(), LessEq)    = Operation::ileq;
+			result.set(sym.Int(), Equals)    = Operation::eq;
+			result.set(sym.Int(), NotEquals) = Operation::neq;
+			result.set(sym.Int(), Less)      = Operation::ils;
+			result.set(sym.Int(), LessEq)    = Operation::ileq;
 			
-			result(sym.Int(), LeftShift)  = Operation::sl;
-			result(sym.Int(), RightShift) = Operation::sr;
+			result.set(sym.Int(), LeftShift)  = Operation::sl;
+			result.set(sym.Int(), RightShift) = Operation::sr;
 			
-			result(sym.Int(), BitwiseAnd) = Operation::And;
-			result(sym.Int(), BitwiseOr)  = Operation::Or;
-			result(sym.Int(), BitwiseXOr) = Operation::XOr;
+			result.set(sym.Int(), BitwiseAnd) = Operation::And;
+			result.set(sym.Int(), BitwiseOr)  = Operation::Or;
+			result.set(sym.Int(), BitwiseXOr) = Operation::XOr;
 			
-			result(sym.Bool(), Equals)    = Operation::eq;
-			result(sym.Bool(), NotEquals) = Operation::neq;
-			result(sym.Bool(), BitwiseAnd) = Operation::And;
-			result(sym.Bool(), BitwiseOr)  = Operation::Or;
-			result(sym.Bool(), BitwiseXOr) = Operation::XOr;
+			result.set(sym.Bool(), Equals)    = Operation::eq;
+			result.set(sym.Bool(), NotEquals) = Operation::neq;
+			result.set(sym.Bool(), BitwiseAnd) = Operation::And;
+			result.set(sym.Bool(), BitwiseOr)  = Operation::Or;
+			result.set(sym.Bool(), BitwiseXOr) = Operation::XOr;
 			
-			result(sym.Float(), Addition)       = Operation::fadd;
-			result(sym.Float(), Subtraction)    = Operation::fsub;
-			result(sym.Float(), Multiplication) = Operation::fmul;
-			result(sym.Float(), Division)       = Operation::fdiv;
+			result.set(sym.Float(), Addition)       = Operation::fadd;
+			result.set(sym.Float(), Subtraction)    = Operation::fsub;
+			result.set(sym.Float(), Multiplication) = Operation::fmul;
+			result.set(sym.Float(), Division)       = Operation::fdiv;
 			
-			result(sym.Float(), Equals)    = Operation::feq;
-			result(sym.Float(), NotEquals) = Operation::fneq;
-			result(sym.Float(), Less)      = Operation::fls;
-			result(sym.Float(), LessEq)    = Operation::fleq;
+			result.set(sym.Float(), Equals)    = Operation::feq;
+			result.set(sym.Float(), NotEquals) = Operation::fneq;
+			result.set(sym.Float(), Less)      = Operation::fls;
+			result.set(sym.Float(), LessEq)    = Operation::fleq;
 			
 			return result;
 		}();
 		
-		auto result = table(typeID, op);
-		SC_ASSERT(static_cast<size_t>(result) != 0, "");
-		return result;
+		return table.get(typeID, op);
 	}
 	
 	
