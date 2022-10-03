@@ -4,6 +4,8 @@
 #include <filesystem>
 #include <sstream>
 
+#include <utl/typeinfo.hpp>
+
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
 #include "Assembly/Assembler.h"
@@ -53,10 +55,12 @@ using namespace scatha::parse;
 //		auto const sym = sema::prepass(*ast, iss);
 //		sema::printSymbolTable(sym);
 		std::cout << "\nEncoutered " << iss.semaIssues().size() << " issues\n";
+		std::cout <<   "==================================================\n";
 		for (auto const& issue: iss.semaIssues()) {
-			issue.visit([](issue::ProgramIssueBase const& issue) {
+			issue.visit([](auto const& issue) {
 				auto const loc = issue.token().sourceLocation;
-				std::cout << "Line: " << loc.line << " Col: " << loc.column << " ";
+				std::cout << "Line " << loc.line << " Col " << loc.column << ": ";
+				std::cout << utl::nameof<std::decay_t<decltype(issue)>> << "\n\t";
 			});
 			issue.visit(utl::visitor{
 				[&](sema::InvalidDeclaration const& e) {
@@ -78,9 +82,11 @@ using namespace scatha::parse;
 					ast::printExpression(e.expression());
 					std::cout << " in scope: " << e.currentScope().name() << std::endl;
 				},
+				[](issue::ProgramIssueBase const&) { std::cout << std::endl; }
 			});
+			std::cout << std::endl;
 		}
-		
+		std::cout << "==================================================\n";
 		return 0;
 		
 		std::cout << "\n==================================================\n";

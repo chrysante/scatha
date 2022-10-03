@@ -1,26 +1,5 @@
-
-fn add(f: float) -> int { return 1; }
-
-fn add(x: int) -> int {
-	return x;
-}
-
-fn add(x: int, y: int) -> int {
-	return x + y;
-}
-
-fn add(x: int, y: int, z: int) -> int {
-	return x + y + z;
-}
-
-fn main() -> int {
-	return add(1.0) * add(1) + add(2, 3) + add(4, 5, 6);
-}
-
-
-
-
-
+struct X { var y: Y; }
+struct Y { var x: X; }
 
 
 /*
