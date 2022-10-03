@@ -24,11 +24,11 @@ namespace scatha::lex {
 			if (currentLocation.index >= text.size()) {
 				SC_ASSERT(currentLocation.index == text.size(), "How is this possible?");
 				
-				Token eof = beginToken2(TokenType::EndOfFile);
+				Token eof = beginToken(TokenType::EndOfFile);
 				result.push_back(eof);
 				return result;
 			}
-			throw UnexpectedID(beginToken2(TokenType::Other));
+			throw UnexpectedID(beginToken(TokenType::Other));
 		}
 	}
 	
@@ -78,7 +78,7 @@ namespace scatha::lex {
 		if (!isSpace(current())) {
 			return std::nullopt;
 		}
-		Token result = beginToken2(TokenType::Other);
+		Token result = beginToken(TokenType::Other);
 		while (isSpace(current())) {
 			result.id += current();
 			if (!advance()) {
@@ -97,7 +97,7 @@ namespace scatha::lex {
 		{
 			return std::nullopt;
 		}
-		Token result = beginToken2(TokenType::Other);
+		Token result = beginToken(TokenType::Other);
 		result.id += current();
 		advance();
 		while (true) {
@@ -117,7 +117,7 @@ namespace scatha::lex {
 		{
 			return std::nullopt;
 		}
-		Token result = beginToken2(TokenType::Other);
+		Token result = beginToken(TokenType::Other);
 		result.id += current();
 		advance();
 		// now we are at the next character after "/*"
@@ -140,14 +140,14 @@ namespace scatha::lex {
 		if (!isPunctuation(current())) {
 			return std::nullopt;
 		}
-		Token result = beginToken2(TokenType::Punctuation);
+		Token result = beginToken(TokenType::Punctuation);
 		result.id += current();
 		advance();
 		return result;
 	}
 	
 	std::optional<Token> Lexer::getOperator() {
-		Token result = beginToken2(TokenType::Operator);
+		Token result = beginToken(TokenType::Operator);
 		result.id += current();
 		
 		if (!isOperator(result.id)) {
@@ -173,7 +173,7 @@ namespace scatha::lex {
 		if (current() == '0' && next() && *next() == 'x') {
 			return std::nullopt; // We are a hex literal, not our job
 		}
-		Token result = beginToken2(TokenType::IntegerLiteral);
+		Token result = beginToken(TokenType::IntegerLiteral);
 		result.id += current();
 		size_t offset = 1;
 		std::optional next = this->next(offset);
@@ -199,7 +199,7 @@ namespace scatha::lex {
 		if (current() != '0' || !next() || *next() != 'x') {
 			return std::nullopt;
 		}
-		Token result = beginToken2(TokenType::IntegerLiteral);
+		Token result = beginToken(TokenType::IntegerLiteral);
 		result.id += current();
 		advance();
 		result.id += current();
@@ -217,7 +217,7 @@ namespace scatha::lex {
 		if (!isFloatDigitDec(current())) {
 			return std::nullopt;
 		}
-		Token result = beginToken2(TokenType::FloatingPointLiteral);
+		Token result = beginToken(TokenType::FloatingPointLiteral);
 		result.id += current();
 		size_t offset = 1;
 		std::optional next = this->next(offset);
@@ -240,7 +240,7 @@ namespace scatha::lex {
 		if (current() != '"') {
 			return std::nullopt;
 		}
-		Token result = beginToken2(TokenType::StringLiteral);
+		Token result = beginToken(TokenType::StringLiteral);
 		if (!advance()) {
 			throw UnterminatedStringLiteral(result);
 		}
@@ -263,7 +263,7 @@ namespace scatha::lex {
 			if (auto const n = next(4); n && isLetterEx(*n)) {
 				return std::nullopt;
 			}
-			Token result = beginToken2(TokenType::BooleanLiteral);
+			Token result = beginToken(TokenType::BooleanLiteral);
 			result.id = "true";
 			advance(4);
 			return result;
@@ -274,7 +274,7 @@ namespace scatha::lex {
 			if (auto const n = next(5); n && isLetterEx(*n)) {
 				return std::nullopt;
 			}
-			Token result = beginToken2(TokenType::BooleanLiteral);
+			Token result = beginToken(TokenType::BooleanLiteral);
 			result.id = "false";
 			advance(5);
 			return result;
@@ -286,7 +286,7 @@ namespace scatha::lex {
 		if (!isLetter(current())) {
 			return std::nullopt;
 		}
-		Token result = beginToken2(TokenType::Identifier);
+		Token result = beginToken(TokenType::Identifier);
 		result.id += current();
 		while (advance() && isLetterEx(current())) {
 			result.id += current();
@@ -316,7 +316,7 @@ namespace scatha::lex {
 		return true;
 	}
 	
-	Token Lexer::beginToken2(TokenType type) const {
+	Token Lexer::beginToken(TokenType type) const {
 		Token result;
 		result.sourceLocation = currentLocation;
 		result.type = type;

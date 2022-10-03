@@ -38,7 +38,7 @@ namespace scatha::lex {
 		bool advance();
 		bool advance(size_t count);
 		
-		Token beginToken2(TokenType type) const;
+		Token beginToken(TokenType type) const;
 		char current() const;
 		std::optional<char> next(size_t offset = 1) const;
 		
