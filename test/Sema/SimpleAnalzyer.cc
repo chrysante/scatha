@@ -17,14 +17,10 @@ namespace scatha::test {
 	> produceDecoratedASTAndSymTable(std::string_view text) {
 		lex::Lexer l(text);
 		auto tokens = l.lex();
-		
 		parse::Parser p(tokens);
 		auto ast = p.parse();
-
 		issue::IssueHandler iss;
-		
 		auto sym = sema::analyze(ast.get(), iss);
-		
 		return { std::move(ast), std::move(sym), std::move(iss) };
 	}
 	
