@@ -8,7 +8,6 @@
 
 using namespace scatha;
 
-
 TEST_CASE("Return boolean literal") {
 	std::string const text = R"(
 fn main() -> bool {

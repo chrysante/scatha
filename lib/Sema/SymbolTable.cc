@@ -27,7 +27,7 @@ namespace scatha::sema {
 			if (id != SymbolID::Invalid) {
 				return id;
 			}
-			// Create a new overload set
+			/// Create a new overload set
 			auto [itr, success] = _overloadSets.insert(OverloadSet{
 				name.id, generateID(), &currentScope()
 			});
