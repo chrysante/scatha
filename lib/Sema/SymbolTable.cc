@@ -44,7 +44,8 @@ namespace scatha::sema {
 			};
 		}
 		auto& overloadSet = *overloadSetPtr;
-		auto const [itr, success] = overloadSet.add(Function(name.id, std::move(sig), generateID(), &currentScope()));
+		/// Don't move \p sig as it may be used below to construct the issue if we fail to add this function.
+		auto const [itr, success] = overloadSet.add(Function(name.id, sig, generateID(), &currentScope()));
 		auto& function = *itr;
 		if (!success) {
 			// 'function' references the existing function
