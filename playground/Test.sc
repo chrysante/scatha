@@ -1,49 +1,17 @@
-struct X{}
-fn main() {
-	X.0;
-}
-
-/*
-
-fn main() -> Y {
-	let x: int = "hello";
-	let x: int = "hello";
-	let y: X = 0;
-	return "1";
-}
-
-struct Y{
-	
-}
-
-*/
-
-/*
-
-struct X {
-	fn f(x: int) -> int { return x; }
-}
-
-
-fn main(x: X) -> int {
-	let x = 0;
-	let y: int = "hello world";
-	return x.f(o);
-}
-
-*/
-
-/*
-
-struct Y { var data: int; }
-
-fn f() -> Y {
-	let y: Y;
-	return y;
+fn greaterZero(a: int) -> bool {
+	return !(a <= 0);
 }
 
 fn main() -> int {
-	return f().data;
+	let x = 0;
+	let y = 1;
+	if greaterZero(x) {
+		return 1;
+	}
+	else if greaterZero(y) {
+		return 2;
+	}
+	else {
+		return 3;
+	}
 }
-
-*/

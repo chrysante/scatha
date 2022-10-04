@@ -53,7 +53,7 @@ using namespace scatha::parse;
 		issue::IssueHandler iss;
 		auto const sym = sema::analyze(ast.get(), iss);
 //		auto const sym = sema::prepass(*ast, iss);
-//		sema::printSymbolTable(sym);
+		sema::printSymbolTable(sym);
 		std::cout << "\nEncoutered " << iss.semaIssues().size() << " issues\n";
 		std::cout <<   "==================================================\n";
 		for (auto const& issue: iss.semaIssues()) {
