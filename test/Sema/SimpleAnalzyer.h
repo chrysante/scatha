@@ -18,12 +18,14 @@ namespace scatha::test {
 
 	struct IssueHelper {
 		template <typename T>
-		std::optional<T> findOnLine(size_t line) const {
+		std::optional<T> findOnLine(size_t line, size_t col = -1) const {
 			for (auto&& issue: iss.semaIssues()) {
 				if (issue.is<T>()) {
 					T const& t = issue.get<T>();
 					Token const& token = t.token();
-					if (token.sourceLocation.line == line) {
+					if (token.sourceLocation.line == line &&
+						(token.sourceLocation.column == col || col == (size_t)-1))
+					{
 						return t;
 					}
 				}

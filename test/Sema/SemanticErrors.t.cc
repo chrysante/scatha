@@ -23,6 +23,24 @@ struct X { struct Y {} }
 	CHECK(issues.findOnLine<UseOfUndeclaredIdentifier>(6));
 }
 
+TEST_CASE("Bad symbol reference", "[sema]") {
+	auto const issues = test::getIssues(R"(
+fn main() -> int {
+	let i = int;
+	let j: 0 = int;
+	return int;
+}
+fn f() -> 0 {}
+fn f(i: 0) {}
+)");
+	CHECK(issues.findOnLine<BadSymbolReference>(3));
+	CHECK(issues.findOnLine<BadSymbolReference>(4, 9));
+	CHECK(issues.findOnLine<BadSymbolReference>(4, 13));
+	CHECK(issues.findOnLine<BadSymbolReference>(5));
+	CHECK(issues.findOnLine<BadSymbolReference>(7));
+	CHECK(issues.findOnLine<BadSymbolReference>(8));
+}
+
 TEST_CASE("Bad type conversion", "[sema]") {
 	auto const issues = test::getIssues(R"(
 fn f() { let x: float = 1; }

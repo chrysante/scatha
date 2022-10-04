@@ -198,6 +198,10 @@ namespace scatha::sema {
 		if (!exprRes) {
 			return;
 		}
+		if (exprRes.category() != ast::EntityCategory::Value) {
+			iss.push(BadSymbolReference(*rs.expression, exprRes.category(), ast::EntityCategory::Value));
+			return;
+		}
 		SC_ASSERT(currentFunction != nullptr, "This should have been set by case FunctionDefinition");
 		verifyConversion(*rs.expression, currentFunction->returnTypeID);
 	}

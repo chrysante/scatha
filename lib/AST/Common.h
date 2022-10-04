@@ -179,6 +179,7 @@ namespace scatha::ast {
 		RSAssignment,
 		AndAssignment,
 		OrAssignment,
+		XOrAssignment,
 		
 		Comma,
 		

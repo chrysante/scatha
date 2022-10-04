@@ -17,10 +17,9 @@ TEST_CASE("Registration in SymbolTable", "[sema]") {
 fn mul(a: int, b: int, c: float) -> int {
 	let result = a;
 	return result;
-}
-)";
-
+})";
 	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+	REQUIRE(iss.empty());
 	
 	auto const& mulID = sym.lookup("mul");
 	CHECK(sym.is(mulID, SymbolCategory::OverloadSet));
@@ -66,9 +65,9 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	let z = 0x39E;
 	let x = 1.2;
 	return result;
-}
-)";
+})";
 	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+	REQUIRE(iss.empty());
 	
 	auto* tu = downCast<TranslationUnit>(ast.get());
 	auto* fnDecl = downCast<FunctionDefinition>(tu->declarations[0].get());
@@ -125,8 +124,8 @@ fn caller() -> float {
 
 fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
 )";
-
 	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+	REQUIRE(iss.empty());
 	
 	auto* tu = downCast<TranslationUnit>(ast.get());
 	REQUIRE(tu);
@@ -159,11 +158,9 @@ struct X {
 	var b1: bool = true;
 	var b2: bool = true;
 	fn f(x: int, y: int) -> string {}
-}
-)";
-
+})";
 	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-	CHECK(iss.empty());
+	REQUIRE(iss.empty());
 	
 	auto* tu = downCast<TranslationUnit>(ast.get());
 	auto* xDef = downCast<StructDefinition>(tu->declarations[0].get());
@@ -191,7 +188,8 @@ TEST_CASE("Member access into undeclared struct", "[sema]") {
 fn f(x: X) -> int { return x.data; }
 struct X { var data: int; }
 )";
-	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(text));
+	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+	REQUIRE(iss.empty());
 }
 
 TEST_CASE("Type reference access into undeclared struct", "[sema]") {
@@ -203,6 +201,7 @@ struct X { struct Y {} }
 
 )";
 	auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+	REQUIRE(iss.empty());
 	auto const* tu = downCast<TranslationUnit>(ast.get());
 	auto const* f = downCast<FunctionDefinition>(tu->declarations[0].get());
 	auto const* y = downCast<VariableDeclaration>(f->body->statements[0].get());
@@ -210,31 +209,52 @@ struct X { struct Y {} }
 	CHECK(YType.name() == "Y");
 	CHECK(YType.parent()->name() == "X");
 	
-	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(R"(
+	{
+		auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 fn f() -> X.Y {}
 struct X { struct Y {} }
-)"));
-	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(R"(
+)");
+		REQUIRE(iss.empty());
+	}
+	{
+		auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 fn f(y: X.Y) {}
 struct X { struct Y {} }
-)"));
-	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(R"(
+)");
+		REQUIRE(iss.empty());
+	}
+	{
+		auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 fn f(x: X, y: X.Y) -> X.Y.Z {}
 struct X { struct Y { struct Z{} } }
-)"));
+)");
+		REQUIRE(iss.empty());
+	}
+}
+
+TEST_CASE("Member access into rvalue", "[sema]") {
+	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+fn main() -> int { return f().data; }
+fn f() -> X {
+	var x: X;
+	return x;
+}
+struct X { var data: int = 0; }
+)");
+	REQUIRE(iss.empty());
 }
 
 TEST_CASE("Explicit type reference to member of same scope", "[sema]") {
-	auto const text = R"(
+	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 struct X {
-fn f() { let y: X.Y.Z; }
-struct Y { struct Z {} }
-})";
-	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(text));
+	fn f() { let y: X.Y.Z; }
+	struct Y { struct Z {} }
+})");
+	REQUIRE(iss.empty());
 }
 
 TEST_CASE("Nested member access into undeclared struct", "[sema]") {
-	auto const text = R"(
+	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 fn f(x: X) -> int {
 	let result = x.y.data;
 	return result;
@@ -244,8 +264,42 @@ struct Y {
 }
 struct X {
 	var y: Y;
-})";
-	CHECK_NOTHROW(test::produceDecoratedASTAndSymTable(text));
+})");
+	REQUIRE(iss.empty());
+}
+
+TEST_CASE("Operators on int", "[sema]") {
+	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+fn main() {
+	var i = 0;
+	let j = 1;
+	i  =  4; i  =  j;
+	i +=  4; i +=  j; i = i  + 4; i = i  + j;
+	i -=  4; i -=  j; i = i  - 4; i = i  - j;
+	i *=  4; i *=  j; i = i  * 4; i = i  * j;
+	i /=  4; i /=  j; i = i  / 4; i = i  / j;
+	i %=  4; i %=  j; i = i  % 4; i = i  % j;
+	i <<= 4; i <<= j; i = i << 4; i = i << j;
+	i >>= 4; i >>= j; i = i >> 4; i = i >> j;
+	i &=  4; i &=  j; i = i  & 4; i = i  & j;
+	i ^=  4; i ^=  j; i = i  ^ 4; i = i  ^ j;
+	i |=  4; i |=  j; i = i  | 4; i = i  | j;
+})");
+	REQUIRE(iss.empty());
+}
+
+TEST_CASE("Operators on float", "[sema]") {
+	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+fn main() {
+	var i = 0.0;
+	let j = 1.0;
+	i  =  4.0; i  =  j;
+	i +=  4.0; i +=  j; i = i  + 4.0; i = i  + j;
+	i -=  4.0; i -=  j; i = i  - 4.0; i = i  - j;
+	i *=  4.0; i *=  j; i = i  * 4.0; i = i  * j;
+	i /=  4.0; i /=  j; i = i  / 4.0; i = i  / j;
+})");
+	REQUIRE(iss.empty());
 }
 
 TEST_CASE("Possible ambiguity with later declared local struct", "[sema]") {
@@ -256,6 +310,7 @@ struct X {
 	struct Y{}
 })";
 	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+	REQUIRE(iss.empty());
 	auto const xID = sym.lookup("X");
 	sym.pushScope(xID);
 	auto const fID = sym.lookup("f");
@@ -269,4 +324,14 @@ struct X {
 	auto const* undeclaredfFn = fOS.find(std::array{ TypeID(yID) });
 	// finding f with Y (global) as argument shall fail
 	CHECK(undeclaredfFn == nullptr);
+}
+
+TEST_CASE("Conditional operator", "[sema]") {
+	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+fn main(i: int) -> int {
+	let cond = i == 0;
+	let a = cond ? i : 1;
+	let b = cond, 0.0, i;
+})");
+	REQUIRE(iss.empty());
 }

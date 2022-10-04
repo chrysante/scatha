@@ -97,6 +97,34 @@ namespace scatha::parse {
 		return result;
 	}();
 	
+	bool isDeclarator(Keyword k) {
+		switch (k) {
+			case Keyword::Module:
+			case Keyword::Class:
+			case Keyword::Struct:
+			case Keyword::Function:
+			case Keyword::Var:
+			case Keyword::Let:
+				return true;
+			default:
+				return false;
+		}
+	}
+	
+	bool isControlFlow(Keyword k) {
+		switch (k) {
+			case Keyword::Return:
+			case Keyword::If:
+			case Keyword::Else:
+			case Keyword::For:
+			case Keyword::While:
+			case Keyword::Do:
+				return true;
+			default:
+				return false;
+		}
+	}
+	
 	std::optional<Keyword> toKeyword(Token const& token) {
 		for (size_t i = 0; i < keywords.size(); ++i) {
 			if (token.id == keywords[i]) {

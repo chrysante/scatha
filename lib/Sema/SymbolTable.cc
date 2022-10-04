@@ -155,6 +155,34 @@ namespace scatha::sema {
 		return &*itr;
 	}
 	
+	std::string SymbolTable::getName(SymbolID id) const {
+		if (!id) { return "<invalid-id>"; }
+		auto const cat = categorize(id);
+		switch (cat) {
+			case SymbolCategory::Variable: {
+				auto const* ptr = tryGetVariable(id);
+				return ptr ? std::string(ptr->name()) : "<invalid-variable>";
+			}
+			case SymbolCategory::Namespace: {
+				SC_DEBUGFAIL();
+			}
+			case SymbolCategory::OverloadSet: {
+				auto const* ptr = tryGetOverloadSet(id);
+				return ptr ? std::string(ptr->name()) : "<invalid-overloadset>";
+			}
+			case SymbolCategory::Function: {
+				auto const* ptr = tryGetFunction(id);
+				return ptr ? std::string(ptr->name()) : "<invalid-function>";
+			}
+			case SymbolCategory::ObjectType: {
+				auto const* ptr = tryGetObjectType(id);
+				return ptr ? std::string(ptr->name()) : "<invalid-type>";
+			}
+			default:
+				SC_DEBUGFAIL();
+		}
+	}
+	
 	SymbolID SymbolTable::lookup(std::string_view name) const {
 		Scope const* scope = &currentScope();
 		while (scope != nullptr) {

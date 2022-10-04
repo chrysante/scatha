@@ -20,6 +20,8 @@ namespace scatha {
 		bool isEOL         : 1 = false;
 		bool isIdentifier  : 1 = false;
 		bool isKeyword     : 1 = false;
+		bool isDeclarator  : 1 = false;
+		bool isControlFlow : 1 = false;
 		bool isPunctuation : 1 = false;
 		
 		// Keyword related fields

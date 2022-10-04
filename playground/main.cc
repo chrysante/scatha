@@ -71,6 +71,7 @@ using namespace scatha::parse;
 					std::cout << "Bad type conversion: ";
 					ast::printExpression(e.expression());
 					std::cout << std::endl;
+					std::cout << "\tFrom " << sym.getName(e.from()) << " to " << sym.getName(e.to()) << "\n";
 				},
 				[&](sema::BadFunctionCall const& e) {
 					std::cout << "Bad function call: " << e.reason() << ": ";

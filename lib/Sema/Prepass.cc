@@ -150,6 +150,9 @@ namespace scatha::sema {
 				if (lastPass) {
 					iss.push(BadSymbolReference(*fn.returnTypeExpr, fn.returnTypeExpr->category, ast::EntityCategory::Type));
 				}
+				else {
+					return false;
+				}
 			}
 			returnTypeID = returnTypeExprRes.typeID();
 		}

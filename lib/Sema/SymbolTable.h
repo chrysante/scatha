@@ -91,6 +91,8 @@ namespace scatha::sema {
 		ObjectType const* tryGetObjectType(SymbolID) const;
 		ObjectType* tryGetObjectType(SymbolID id) { return const_cast<ObjectType*>(utl::as_const(*this).tryGetObjectType(id));  }
 		
+		std::string getName(SymbolID id) const;
+		
 		SymbolID lookup(std::string_view name) const;
 		SymbolID lookup(Token const& token) const { return lookup(token.id); }
 		

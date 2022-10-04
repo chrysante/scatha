@@ -83,6 +83,7 @@ namespace scatha::ast {
 			{ BinaryOperator::RSAssignment,   ">>=" },
 			{ BinaryOperator::AndAssignment,  "&=" },
 			{ BinaryOperator::OrAssignment,   "|=" },
+			{ BinaryOperator::XOrAssignment,  "^=" },
 			{ BinaryOperator::Comma,          "," },
 		});
 	}

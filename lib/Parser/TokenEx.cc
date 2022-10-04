@@ -22,6 +22,8 @@ namespace scatha {
 			result.isKeyword = true;
 			result.keyword = *keyword;
 			result.keywordCategory = categorize(*keyword);
+			result.isDeclarator = isDeclarator(*keyword);
+			result.isControlFlow = isControlFlow(*keyword);
 		}
 		
 		if (token.type == TokenType::Identifier) {

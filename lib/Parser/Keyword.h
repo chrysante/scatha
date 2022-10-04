@@ -43,6 +43,10 @@ namespace scatha::parse {
 		Placeholder
 	};
 	
+	SCATHA(API) bool isDeclarator(Keyword);
+	
+	SCATHA(API) bool isControlFlow(Keyword);
+	
 	SCATHA(API) std::optional<Keyword> toKeyword(Token const&);
 	
 	SCATHA(API) KeywordCategory categorize(Keyword);

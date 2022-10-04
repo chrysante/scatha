@@ -1,4 +1,1 @@
-fn main() -> bool {
-	let i = 0;
-	return !(i == 1.0);
-}
+fn main() -> 0 {}

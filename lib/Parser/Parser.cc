@@ -176,21 +176,17 @@ namespace scatha::parse {
 		{
 			return result;
 		}
-		
 		TokenEx const& token = tokens.peek();
-		if (token.isKeyword) {
+		if (token.isControlFlow) {
 			using enum Keyword;
 			tokens.eat();
 			switch (token.keyword) {
 				case Return:
 					return parseReturnStatement();
-					
 				case If:
 					return parseIfStatement();
-					
 				case While:
 					return parseWhileStatement();
-					
 				default:
 					// Var / Let should have been handled above
 					throw ParsingIssue(token, "Unexpected ID");

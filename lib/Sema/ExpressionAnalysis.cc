@@ -234,7 +234,8 @@ namespace scatha::sema {
 			if (iss) { iss->push(BadOperandsForBinaryExpression(c, ifRes.typeID(), elseRes.typeID())); }
 			return ExpressionAnalysisResult::fail();
 		}
-		return ExpressionAnalysisResult::type(ifRes.typeID());
+		c.typeID = ifRes.typeID();
+		return ExpressionAnalysisResult::rvalue(ifRes.typeID());
 	}
 	
 	ExpressionAnalysisResult Context::analyze(ast::Subscript&) {
@@ -387,7 +388,8 @@ namespace scatha::sema {
 			case LSAssignment:   [[fallthrough]];
 			case RSAssignment:   [[fallthrough]];
 			case AndAssignment:  [[fallthrough]];
-			case OrAssignment:
+			case OrAssignment:   [[fallthrough]];
+			case XOrAssignment:
 				if (!verifySame()) { return TypeID::Invalid; }
 				return sym.Void();
 				

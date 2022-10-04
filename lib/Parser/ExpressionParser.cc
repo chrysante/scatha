@@ -68,7 +68,7 @@ namespace scatha::parse {
 		using enum ast::BinaryOperator;
 		return parseBinaryOperatorRTL<
 			Assignment, AddAssignment, SubAssignment, MulAssignment, DivAssignment, RemAssignment,
-			LSAssignment, RSAssignment, AndAssignment, OrAssignment
+			LSAssignment, RSAssignment, AndAssignment, OrAssignment, XOrAssignment
 		>([this]{ return parseConditional(); });
 	}
 	
@@ -275,6 +275,9 @@ namespace scatha::parse {
 			}
 			tokens.eat();
 			ast::UniquePtr<ast::Expression> right = parsePrimary();
+			if (!right) {
+				throw ParsingIssue(tokens.peek(), "Expected expression");
+			}
 			left = ast::allocate<ast::MemberAccess>(std::move(left), std::move(right), token);
 			continue;
 		}
