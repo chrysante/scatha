@@ -35,8 +35,7 @@ namespace scatha::sema {
 			currentScope().add(*itr);
 			return itr->symbolID();
 		}();
-		// Const cast here because we don't have a mutable getter
-		auto* const overloadSetPtr = const_cast<OverloadSet*>(tryGetOverloadSet(overloadSetID));
+		auto* const overloadSetPtr = tryGetOverloadSet(overloadSetID);
 		if (!overloadSetPtr) {
 			return SemanticIssue{
 				InvalidDeclaration(nullptr, InvalidDeclaration::Reason::Redefinition,
@@ -48,7 +47,7 @@ namespace scatha::sema {
 		auto const [itr, success] = overloadSet.add(Function(name.id, sig, generateID(), &currentScope()));
 		auto& function = *itr;
 		if (!success) {
-			// 'function' references the existing function
+			/// \p function references the existing function.
 			InvalidDeclaration::Reason const reason = function.signature().returnTypeID() == sig.returnTypeID() ?
 				Redefinition : CantOverloadOnReturnType;
 			return SemanticIssue{ InvalidDeclaration(nullptr, reason, currentScope(), SymbolCategory::Function) };
