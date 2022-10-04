@@ -107,8 +107,11 @@ namespace scatha::ast {
 		/** Decoration provided by semantic analysis. */
 		
 		/// Type of the variable.
-		/// Either deduced by the type of \p initExpression or by \p declTypename and then checked against the type of \p initExpression
+		/// Either deduced by the type of initExpression or by declTypename and then checked against the type of  initExpression
 		sema::TypeID typeID = sema::TypeID::Invalid;
+		
+		/// Offset of the variable if this is a struct member
+		size_t offset = 0;
 	};
 	
 	/// MARK: Module

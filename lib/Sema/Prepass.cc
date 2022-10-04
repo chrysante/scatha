@@ -217,7 +217,7 @@ namespace scatha::sema {
 			if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
 				continue;
 			}
-			auto const& varDecl = static_cast<ast::VariableDeclaration&>(*statement);
+			auto& varDecl = static_cast<ast::VariableDeclaration&>(*statement);
 			auto const* typenameIdentifier = downCast<ast::Identifier>(varDecl.typeExpr.get());
 			SC_ASSERT(typenameIdentifier, "must be identifier for now");
 			auto const* type = sym.lookupObjectType(typenameIdentifier->value());
@@ -232,7 +232,10 @@ namespace scatha::sema {
 				break;
 			}
 			objectAlign = std::max(objectAlign, type->align());
-			objectSize = utl::round_up_pow_two(objectSize + type->size(), type->align());
+			SC_ASSERT(type->size() % type->align() == 0, "size must be a multiple of align");
+			objectSize = utl::round_up_pow_two(objectSize, type->align());
+			varDecl.offset = objectSize;
+			objectSize += type->size();
 		}
 		popScope.execute();
 		if (!successfullyGatheredVarDecls) {

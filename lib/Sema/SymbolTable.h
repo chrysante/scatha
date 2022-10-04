@@ -33,11 +33,11 @@ namespace scatha::sema {
 		
 		Expected<Variable&, SemanticIssue> addVariable(std::string name,
 													   TypeID,
-													   bool isConstant);
+													   size_t offset = 0);
 		Expected<Variable&, SemanticIssue> addVariable(Token token,
 													   TypeID typeID,
-													   bool isConstant)
-		{ return addVariable(std::move(token.id), typeID, isConstant); }
+													   bool offset = 0)
+		{ return addVariable(std::move(token.id), typeID, offset); }
 		
 		Expected<ObjectType&, SemanticIssue> addObjectType(std::string name,
 														   size_t size = -1,

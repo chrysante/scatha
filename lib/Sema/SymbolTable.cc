@@ -58,7 +58,7 @@ namespace scatha::sema {
 		return function;
 	}
 
-	Expected<Variable&, SemanticIssue> SymbolTable::addVariable(std::string name, TypeID typeID, bool isConstant) {
+	Expected<Variable&, SemanticIssue> SymbolTable::addVariable(std::string name, TypeID typeID, size_t offset) {
 		SymbolID const symbolID = currentScope().findID(name);
 		if (symbolID != SymbolID::Invalid) {
 			return SemanticIssue{
@@ -66,7 +66,7 @@ namespace scatha::sema {
 								   currentScope(), SymbolCategory::Variable, categorize(symbolID))
 			};
 		}
-		auto [itr, success] = _variables.insert(Variable(name, generateID(), &currentScope(), typeID, isConstant));
+		auto [itr, success] = _variables.insert(Variable(name, generateID(), &currentScope(), typeID, offset));
 		SC_ASSERT(success, "");
 		currentScope().add(*itr);
 		return *itr;

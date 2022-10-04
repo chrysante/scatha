@@ -156,11 +156,14 @@ TEST_CASE("Decoration of the AST with struct definition", "[sema]") {
 struct X {
 	var i: float;
 	var j: int = 0;
+	var b1: bool = true;
+	var b2: bool = true;
 	fn f(x: int, y: int) -> string {}
 }
 )";
 
 	auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+	CHECK(iss.empty());
 	
 	auto* tu = downCast<TranslationUnit>(ast.get());
 	auto* xDef = downCast<StructDefinition>(tu->declarations[0].get());
@@ -168,10 +171,16 @@ struct X {
 	auto* iDecl = downCast<VariableDeclaration>(xDef->body->statements[0].get());
 	CHECK(iDecl->name() == "i");
 	CHECK(iDecl->typeID == sym.Float());
+	CHECK(iDecl->offset == 0);
 	auto* jDecl = downCast<VariableDeclaration>(xDef->body->statements[1].get());
 	CHECK(jDecl->name() == "j");
 	CHECK(jDecl->typeID == sym.Int());
-	auto* fDef = downCast<FunctionDefinition>(xDef->body->statements[2].get());
+	CHECK(jDecl->offset == 8);
+	auto* b2Decl = downCast<VariableDeclaration>(xDef->body->statements[3].get());
+	CHECK(b2Decl->name() == "b2");
+	CHECK(b2Decl->typeID == sym.Bool());
+	CHECK(b2Decl->offset == 17);
+	auto* fDef = downCast<FunctionDefinition>(xDef->body->statements[4].get());
 	CHECK(fDef->name() == "f");
 	// TODO: Test argument types when we properly recognize member functions as having an implicit 'this' argument
 	CHECK(fDef->returnTypeID == sym.String());
