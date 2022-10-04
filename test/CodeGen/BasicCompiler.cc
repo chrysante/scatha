@@ -1,5 +1,7 @@
 #include "BasicCompiler.h"
 
+#include <stdexcept>
+
 #include "Assembly/Assembler.h"
 #include "Basic/Memory.h"
 #include "CodeGen/CodeGenerator.h"
@@ -21,6 +23,9 @@ namespace scatha::test {
 		auto ast = p.parse();
 		issue::IssueHandler iss;
 		auto sym = sema::analyze(ast.get(), iss);
+		if (!iss.empty()) {
+			throw std::runtime_error("Compilation failed");
+		}
 		ic::canonicalize(ast.get());
 		ic::TacGenerator t(sym);
 		auto const tac = t.run(ast.get());
