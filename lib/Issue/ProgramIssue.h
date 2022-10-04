@@ -5,12 +5,13 @@
 #include "Common/Token.h"
 
 namespace scatha::issue::internal {
-	class SCATHA(API) ProgramIssueBaseBase{};
+	/// So we can accept this as a parameter for default case in visitors.
+	class SCATHA(API) ProgramIssuePrivateBase{};
 }
 
 namespace scatha::issue {
 	
-	class SCATHA(API) ProgramIssueBase: public internal::ProgramIssueBaseBase {
+	class SCATHA(API) ProgramIssueBase: public internal::ProgramIssuePrivateBase {
 	public:
 		explicit ProgramIssueBase(Token token): _tok(std::move(token)) {}
 		

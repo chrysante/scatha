@@ -230,32 +230,49 @@ namespace scatha::sema {
 	}
 	
 	class SCATHA(API) SemanticIssue: private internal::SemaIssueVariant {
-	public:
-		
+	private:
+		template <typename T>
+		static decltype(auto) visitImpl(auto&& f, auto&& v) {
+			return std::visit(utl::visitor{
+				f, [](issue::internal::ProgramIssuePrivateBase&) -> T {
+					if constexpr (!std::is_same_v<T, void>) { SC_DEBUGFAIL(); }
+				}
+			}, v);
+		}
 		
 	public:
 		using internal::SemaIssueVariant::SemaIssueVariant;
-		decltype(auto) visit(auto&& f) {
-			return std::visit(utl::visitor{ f, [](...){} }, asBase());
-		}
-		decltype(auto) visit(auto&& f) const {
-			return std::visit(utl::visitor{ f, [](issue::internal::ProgramIssueBaseBase const&){} }, asBase());
-		}
+		
+		template <typename T = void>
+		decltype(auto) visit(auto&& f) { return visitImpl<T>(f, asBase()); }
+		
+		template <typename T = void>
+		decltype(auto) visit(auto&& f) const { return visitImpl<T>(f, asBase()); }
+		
 		template <typename T>
 		auto& get() { return std::get<T>(asBase()); }
+		
 		template <typename T>
 		auto const& get() const { return std::get<T>(asBase()); }
+		
 		template <typename T>
 		bool is() const { return std::holds_alternative<T>(asBase()); }
 
+//		ast::Statement const& statement() const {
+//			return visit<ast::Statement const&>([&](InvalidStatement const& e) -> auto& { return e.statement(); });
+//		}
+		
 		void setStatement(ast::Statement const& statement) {
 			visit([&](InvalidStatement& e){ e.setStatement(statement); });
 		}
-		Token const& token() const { return visit([](issue::ProgramIssueBase const& base) -> auto& { return base.token(); }); }
 		
-//		void setToken(Token token) {
-//			visit([&](IssueBase& e){ e.setToken(std::move(token)); });
-//		}
+		Token const& token() const {
+			return visit([](issue::ProgramIssueBase const& base) -> auto& { return base.token(); });
+		}
+		
+		void setToken(Token token) {
+			visit([&](IssueBase& e){ e.setToken(std::move(token)); });
+		}
 		
 		
 	private:
