@@ -15,7 +15,7 @@
 namespace scatha::sema {
 	
 	/**
-	 * In prepass we declare all type including nested types in a first pass and try to figure out their sizes and alignments.
+	 * In prepass we declare all types including nested types in a first pass and try to figure out their sizes and alignments.
 	 * All functions and types of which we can't determine the size because it has members of incomplete or undeclared type will be pushed into a list.
 	 * Then that list is repeatedly traversed and successfully registered declarations will be removed from the list until it is empty or its size does not change anymore.
 	 * Then a last pass over the list is run and we collect the appropriate errors.
@@ -263,8 +263,10 @@ namespace scatha::sema {
 			}
 		}();
 		if (!var) {
-			var.error().setStatement(decl);
-			iss.push(var.error());
+			if (lastPass) {
+				var.error().setStatement(decl);
+				iss.push(var.error());
+			}
 			return false;
 		}
 		decl.symbolID = var->symbolID();

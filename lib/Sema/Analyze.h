@@ -14,7 +14,7 @@ namespace scatha::sema {
 	 Semantically analyzes and decorates the abstract syntax tree.
 	 
 	 - parameter root: Root of the tree to analyze.
-	 - returns: The generated symbol table
+	 - returns: The generated symbol table.
 	 
 	 -
 	 
