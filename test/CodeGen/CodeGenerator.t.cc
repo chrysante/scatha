@@ -16,8 +16,7 @@ fn main() -> int {
 	let a = 1;
 	let b = 2;
 	return a + b;
-}
-)";
+})";
 	
 	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
@@ -28,8 +27,7 @@ TEST_CASE("Simplest non-trivial program", "[codegen]") {
 	std::string const text = R"(
 fn main() -> int {
 	return 1;
-}
-	)";
+})";
 	
 	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
@@ -42,8 +40,7 @@ fn main() -> int {
 	let a = 1;
 	let b = 2;
 	return a + b;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 3);
 }
@@ -54,8 +51,7 @@ fn main() -> int {
 	let a = 1;
 	let b = 2;
 	return a - b;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == static_cast<u64>(-1));
 }
@@ -66,8 +62,7 @@ fn main() -> int {
 	let a = 4;
 	let b = -23;
 	return a * b;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == static_cast<u64>(-92));
 }
@@ -78,8 +73,7 @@ fn main() -> int {
 	let a = 100;
 	let b = 4;
 	return a / b;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 25);
 }
@@ -90,8 +84,7 @@ fn main() -> int {
 	let a = 100;
 	let b = 17;
 	return a % b;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 15);
 }
@@ -102,8 +95,7 @@ fn test() -> float {
 	let a = 1.3;
 	let b = 2.3;
 	return a + b;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == utl::bit_cast<u64>(1.3 + 2.3));
 }
@@ -114,8 +106,7 @@ fn test() -> float {
 	let a = 1.3;
 	let b = 2.3;
 	return a * b;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == utl::bit_cast<u64>(1.3 * 2.3));
 }
@@ -126,8 +117,7 @@ fn test() -> float {
 	let a = 1.4;
 	let b = 2.3;
 	return a - b;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == utl::bit_cast<u64>(1.4 - 2.3));
 }
@@ -138,8 +128,7 @@ fn test() -> float {
 	let a = 1.4;
 	let b = 2.3;
 	return a / b;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == utl::bit_cast<u64>(1.4 / 2.3));
 }
@@ -151,8 +140,7 @@ fn main() -> int {
 	let b = 2;
 	let c = 4;
 	return (a + b * c) / 2;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 10);
 }
@@ -165,8 +153,7 @@ fn main() -> int {
 	let c = 4;
 	b += 2;
 	return 0, (a + b * c) / 2;
-}
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 10);
 }

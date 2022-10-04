@@ -10,7 +10,6 @@ using namespace scatha;
 
 TEST_CASE("while loops", "[codegen]") {
 	std::string const text = R"(
-
 fn fact(n: int) -> int {
 	var i = 0;
 	var result = 1;
@@ -20,12 +19,9 @@ fn fact(n: int) -> int {
 	}
 	return result;
 }
-
 fn main() -> int {
 	return fact(4);
-}
-
-)";
+})";
 	
 	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
@@ -34,7 +30,6 @@ fn main() -> int {
 
 TEST_CASE("iterative gcd", "[codegen]") {
 	std::string const text = R"(
-
 fn gcd(a: int, b: int) -> int {
 	while a != b {
 		if a > b {
@@ -46,15 +41,12 @@ fn gcd(a: int, b: int) -> int {
 	}
 	return a;
 }
-
 fn main() -> int {
 	let a = 756476;
 	let b = 1253;
 	
 	return gcd(a, b);
-}
-
-)";
+})";
 	
 	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
@@ -63,7 +55,6 @@ fn main() -> int {
 
 TEST_CASE("float pow", "[codegen]") {
 std::string const text = R"(
-
 fn pow(base: float, exp: int) -> float {
 	var result: float = 1.0;
 	var i = 0;
@@ -77,7 +68,6 @@ fn pow(base: float, exp: int) -> float {
 	}
 	return result;
 }
-
 fn main() -> bool {
 	var result = true;
 	result &= pow( 0.5,  3) == 0.125;
@@ -87,9 +77,7 @@ fn main() -> bool {
 	result &= pow( 2.0, -3) == 0.125;
 	result &= pow(-2.0,  9) == -512.0;
 	return result == true;
-}
-
-)";
+})";
 	auto const registers = test::getRegisters(text);
 	CHECK(registers[0] == 1);
 }
