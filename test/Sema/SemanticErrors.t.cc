@@ -23,7 +23,7 @@ struct X { struct Y {} }
 	CHECK(issues.findOnLine<UseOfUndeclaredIdentifier>(6));
 }
 
-TEST_CASE("Invalid type conversion", "[sema]") {
+TEST_CASE("Bad type conversion", "[sema]") {
 	auto const issues = test::getIssues(R"(
 fn f() { let x: float = 1; }
 fn f(x: int) { let y: float = 1.; }
@@ -40,6 +40,32 @@ fn f(x: float) -> int { return "a string"; }
 	REQUIRE(line4);
 	CHECK(line4->from() == issues.sym.String());
 	CHECK(line4->to() == issues.sym.Int());
+}
+
+
+TEST_CASE("Bad operands for expression", "[sema]") {
+	auto const issues = test::getIssues(R"(
+fn main(i: int) -> bool {
+	let a = !(i == 1.0);
+	let b = !(i + 1.0);
+	let c = !i;
+	let d = ~i;
+})");
+	auto const line3 = issues.findOnLine<BadOperandsForBinaryExpression>(3);
+	REQUIRE(line3);
+	CHECK(line3->lhs() == issues.sym.Int());
+	CHECK(line3->rhs() == issues.sym.Float());
+	
+	auto const line4 = issues.findOnLine<BadOperandsForBinaryExpression>(4);
+	REQUIRE(line4);
+	CHECK(line4->lhs() == issues.sym.Int());
+	CHECK(line4->rhs() == issues.sym.Float());
+	
+	auto const line5 = issues.findOnLine<BadOperandForUnaryExpression>(5);
+	REQUIRE(line5);
+	CHECK(line5->operand() == issues.sym.Int());
+	
+	CHECK(issues.noneOnLine(6));
 }
 
 TEST_CASE("Bad function call expression", "[sema]") {

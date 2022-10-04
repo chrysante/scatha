@@ -121,7 +121,11 @@ namespace scatha::sema {
 		if (!lhsRes || !rhsRes) {
 			return ExpressionAnalysisResult::fail();
 		}
-		b.typeID = verifyBinaryOperation(b);
+		TypeID const resultType = verifyBinaryOperation(b);
+		if (!resultType) {
+			return ExpressionAnalysisResult::fail();
+		}
+		b.typeID = resultType;
 		return ExpressionAnalysisResult::rvalue(b.typeID);
 	}
 	
