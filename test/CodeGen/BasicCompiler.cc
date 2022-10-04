@@ -27,8 +27,7 @@ namespace scatha::test {
 			throw std::runtime_error("Compilation failed");
 		}
 		ic::canonicalize(ast.get());
-		ic::TacGenerator t(sym);
-		auto const tac = t.run(ast.get());
+		auto const tac = ic::generateTac(*ast, sym);
 		codegen::CodeGenerator cg(tac);
 		auto const str = cg.run();
 		assembly::Assembler a(str);
