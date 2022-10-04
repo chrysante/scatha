@@ -41,6 +41,17 @@ fn f(i: 0) {}
 	CHECK(issues.findOnLine<BadSymbolReference>(8));
 }
 
+TEST_CASE("Invalid redefinition of builtin types", "[sema]") {
+	auto const issues = test::getIssues(R"(
+struct X {
+	fn int() {}
+	struct float {}
+})");
+	CHECK(issues.findOnLine<InvalidDeclaration>(3).has_value());
+	CHECK(issues.findOnLine<InvalidDeclaration>(4).has_value());
+}
+
+
 TEST_CASE("Bad type conversion", "[sema]") {
 	auto const issues = test::getIssues(R"(
 fn f() { let x: float = 1; }

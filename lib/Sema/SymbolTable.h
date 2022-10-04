@@ -25,29 +25,17 @@ namespace scatha::sema {
 		SymbolTable();
 		
 		// Modifiers
-		Expected<Function const&, SemanticIssue> addFunction(std::string name,
+		Expected<Function const&, SemanticIssue> addFunction(Token name,
 															 FunctionSignature);
-		Expected<Function const&, SemanticIssue> addFunction(Token token,
-															 FunctionSignature sig)
-		{ return addFunction(std::move(token.id), std::move(sig)); }
 		
-		Expected<Variable&, SemanticIssue> addVariable(std::string name,
+		Expected<Variable&, SemanticIssue> addVariable(Token name,
 													   TypeID,
 													   size_t offset = 0);
-		Expected<Variable&, SemanticIssue> addVariable(Token token,
-													   TypeID typeID,
-													   bool offset = 0)
-		{ return addVariable(std::move(token.id), typeID, offset); }
 		
-		Expected<ObjectType&, SemanticIssue> addObjectType(std::string name,
+		Expected<ObjectType&, SemanticIssue> addObjectType(Token name,
 														   size_t size = -1,
 														   size_t align = -1,
 														   bool isBuiltin = false);
-		Expected<ObjectType&, SemanticIssue> addObjectType(Token token,
-														   size_t size = -1,
-														   size_t align = -1,
-														   bool isBuiltin = false)
-		{ return addObjectType(std::move(token.id), size, align, isBuiltin); }
 		
 		Scope const& addAnonymousScope();
 		

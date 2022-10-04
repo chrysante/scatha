@@ -5,7 +5,8 @@ namespace scatha::parse {
 	TokenStream::TokenStream(std::span<Token const> tokens) {
 		this->tokens.reserve(tokens.size());
 		for (auto const& t: tokens) {
-			this->tokens.push_back(expand(t));
+#warning Change this
+			this->tokens.push_back(t);
 		}
 	}
 	

@@ -56,5 +56,30 @@ namespace scatha {
 		static_assert(sizeof(double) == 8);
 		return std::stod(id);
 	}
+
+	void finalize(Token& token) {
+		if (token.type == TokenType::Punctuation) {
+			token.isPunctuation = true;
+			if (token.id == "EOL") {
+				token.isEOL       = true;
+				token.isSeparator = true;
+			}
+			else if (token.id == ";") {
+				token.isSeparator = true;
+			}
+		}
+		
+		if (std::optional<Keyword> const keyword = toKeyword(token.id)) {
+			token.isKeyword = true;
+			token.keyword = *keyword;
+			token.keywordCategory = categorize(*keyword);
+			token.isDeclarator = isDeclarator(*keyword);
+			token.isControlFlow = isControlFlow(*keyword);
+		}
+		
+		if (token.type == TokenType::Identifier) {
+			token.isIdentifier = true;
+		}
+	}
 	
 }

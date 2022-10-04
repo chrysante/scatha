@@ -1,11 +1,12 @@
-#include "Parser/Keyword.h"
+#include "Common/Keyword.h"
+
+#include <string>
 
 #include <utl/vector.hpp>
 #include <utl/common.hpp>
 
-#include "Common/Token.h"
-
-namespace scatha::parse {
+namespace scatha {
+	
 	static utl::vector<std::string> const keywords = []{
 		utl::vector<std::string> result{ size_t(Keyword::_count) };
 		auto at = [&](Keyword k) -> auto& { return result[size_t(k)]; };
@@ -97,6 +98,15 @@ namespace scatha::parse {
 		return result;
 	}();
 	
+	std::optional<Keyword> toKeyword(std::string_view id) {
+		for (size_t i = 0; i < keywords.size(); ++i) {
+			if (id == keywords[i]) {
+				return Keyword(i);
+			}
+		}
+		return std::nullopt;
+	}
+	
 	bool isDeclarator(Keyword k) {
 		switch (k) {
 			case Keyword::Module:
@@ -123,15 +133,6 @@ namespace scatha::parse {
 			default:
 				return false;
 		}
-	}
-	
-	std::optional<Keyword> toKeyword(Token const& token) {
-		for (size_t i = 0; i < keywords.size(); ++i) {
-			if (token.id == keywords[i]) {
-				return Keyword(i);
-			}
-		}
-		return std::nullopt;
 	}
 	
 	KeywordCategory categorize(Keyword _k) {

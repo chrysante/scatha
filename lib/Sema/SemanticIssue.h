@@ -187,7 +187,7 @@ namespace scatha::sema {
 	class SCATHA(API) InvalidDeclaration: public InvalidStatement {
 	public:
 		enum class Reason {
-			InvalidInCurrentScope, Redefinition, CantOverloadOnReturnType, CantInferType,
+			InvalidInCurrentScope, Redefinition, CantOverloadOnReturnType, CantInferType, ReservedIdentifier,
 			_count
 		};
 		

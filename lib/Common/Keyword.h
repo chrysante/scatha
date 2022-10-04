@@ -1,21 +1,16 @@
 #pragma once
 
-#ifndef SCATHA_PARSER_KEYWORD_H_
-#define SCATHA_PARSER_KEYWORD_H_
+#ifndef SCATHA_COMMON_KEYWORD_H_
+#define SCATHA_COMMON_KEYWORD_H_
 
 #include <optional>
+#include <string_view>
 
 #include "Basic/Basic.h"
 
 namespace scatha {
 	
-	struct Token;
-
-}
-
-namespace scatha::parse {
-	
-	enum class Keyword {
+	enum class Keyword: u8 {
 		Void, Bool, Int, Float, String,
 		
 		Import, Export,
@@ -33,7 +28,7 @@ namespace scatha::parse {
 		_count
 	};
 	
-	enum class KeywordCategory {
+	enum class KeywordCategory: u8 {
 		Types,
 		Modules,
 		Declarators,
@@ -43,14 +38,14 @@ namespace scatha::parse {
 		Placeholder
 	};
 	
+	SCATHA(API) std::optional<Keyword> toKeyword(std::string_view);
+	
 	SCATHA(API) bool isDeclarator(Keyword);
 	
 	SCATHA(API) bool isControlFlow(Keyword);
-	
-	SCATHA(API) std::optional<Keyword> toKeyword(Token const&);
 	
 	SCATHA(API) KeywordCategory categorize(Keyword);
 	
 }
 
-#endif // SCATHA_LEXER_KEYWORD_H_
+#endif // SCATHA_LEXER_COMMON_H_

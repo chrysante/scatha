@@ -27,7 +27,7 @@ namespace scatha::sema {
 			{ InvalidDeclaration::Reason::Redefinition,            "Redefinition" },
 			{ InvalidDeclaration::Reason::CantOverloadOnReturnType, "Cant overload on ReturnType" },
 			{ InvalidDeclaration::Reason::CantInferType,            "Cant infer type" },
-			
+			{ InvalidDeclaration::Reason::ReservedIdentifier,       "Reserved identifier" },
 		});
 	}
 	

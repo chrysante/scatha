@@ -1,1 +1,4 @@
-fn main() -> 0 {}
+struct X {
+	fn int() {}
+	struct float {}
+}

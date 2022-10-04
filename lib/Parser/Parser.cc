@@ -1,9 +1,8 @@
 #include "Parser/Parser.h"
 
 #include "Basic/Basic.h"
-
+#include "Common/Keyword.h"
 #include "Parser/ExpressionParser.h"
-#include "Parser/Keyword.h"
 #include "Parser/ParsingIssue.h"
 
 namespace scatha::parse {

@@ -27,11 +27,11 @@ TEST_CASE("Function Type", "[sema]") {
 	
 	CHECK(fSig.argumentHash() == gSig.argumentHash());
 	
-	auto const fnF = sym.addFunction("f", fSig);
+	auto const fnF = sym.addFunction(Token("f"), fSig);
 	REQUIRE(fnF.hasValue());
 	CHECK(fnF.value().signature().argumentTypeID(0) == sym.Int());
 	CHECK(fnF.value().signature().returnTypeID() == sym.Int());
-	auto const fnG = sym.addFunction("g", gSig);
+	auto const fnG = sym.addFunction(Token("g"), gSig);
 	REQUIRE(fnG.hasValue());
 	CHECK(fnG.value().signature().argumentTypeID(0) == sym.Int());
 	CHECK(fnG.value().signature().returnTypeID() == sym.Void());

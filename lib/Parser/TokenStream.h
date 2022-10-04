@@ -7,7 +7,6 @@
 
 #include "Basic/Basic.h"
 #include "Common/Token.h"
-#include "Parser/TokenEx.h"
 
 namespace scatha::parse {
 	

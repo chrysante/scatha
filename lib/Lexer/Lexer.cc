@@ -26,6 +26,7 @@ namespace scatha::lex {
 				
 				Token eof = beginToken(TokenType::EndOfFile);
 				result.push_back(eof);
+				for (auto& token: result) { finalize(token); }
 				return result;
 			}
 			throw UnexpectedID(beginToken(TokenType::Other));
