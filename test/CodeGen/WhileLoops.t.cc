@@ -22,7 +22,6 @@ fn fact(n: int) -> int {
 fn main() -> int {
 	return fact(4);
 })";
-	
 	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
 	CHECK(state.registers[0] == 24);
@@ -44,10 +43,8 @@ fn gcd(a: int, b: int) -> int {
 fn main() -> int {
 	let a = 756476;
 	let b = 1253;
-	
 	return gcd(a, b);
 })";
-	
 	auto const vm = test::compileAndExecute(text);
 	auto const& state = vm.getState();
 	CHECK(state.registers[0] == 7);
