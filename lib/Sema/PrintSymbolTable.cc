@@ -61,7 +61,7 @@ namespace scatha::sema {
 				for (bool first = true; auto id: fn.signature().argumentTypeIDs()) {
 					if (!first) { str << ", "; }
 					first = false;
-					str << makeQualName(sym.getObjectType(id));
+					str << (id ? makeQualName(sym.getObjectType(id)) : "<invalid-type>");
 				}
 				str << ") -> " << makeQualName(sym.getObjectType(fn.signature().returnTypeID()));
 			}
@@ -74,7 +74,7 @@ namespace scatha::sema {
 			}
 			else if (cat == SymbolCategory::Variable) {
 				auto& var = sym.getVariable(id);
-				str << ": " << makeQualName(sym.getObjectType(var.typeID()));
+				str << ": " << (var.typeID() ? makeQualName(sym.getObjectType(var.typeID())) : "<invalid-type>");
 			}
 			str << endl;
 			auto const itr = scope._children.find(id);
