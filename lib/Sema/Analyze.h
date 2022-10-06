@@ -9,20 +9,20 @@
 
 namespace scatha::sema {
 
-	/**
-	 Function \p sema::analzye()
-	 Semantically analyzes and decorates the abstract syntax tree.
-	 
-	 - parameter root: Root of the tree to analyze.
-	 - returns: The generated symbol table.
-	 
-	 -
-	 
-	 # Notes: #
-	 */
-	SCATHA(API) SymbolTable analyze(ast::AbstractSyntaxTree* root, issue::IssueHandler&);
-	
-}
+/**
+ Function \p sema::analzye()
+ Semantically analyzes and decorates the abstract syntax tree.
+
+ - parameter root: Root of the tree to analyze.
+ - returns: The generated symbol table.
+
+ -
+
+ # Notes: #
+ */
+SCATHA(API)
+SymbolTable analyze(ast::AbstractSyntaxTree *root, issue::IssueHandler &);
+
+} // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ANALYZE_H_
-

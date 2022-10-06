@@ -26,7 +26,7 @@ namespace {
 
 struct StatementContext {
     ast::Statement *statement;
-    Scope *enclosingScope;
+    Scope          *enclosingScope;
 };
 
 struct PrepassContext {
@@ -39,25 +39,25 @@ struct PrepassContext {
     bool prepass(ast::StructDefinition &);
     bool prepass(ast::VariableDeclaration &);
     /// Disable default case to avoid infinite recursion
-    bool prepass(ast::AbstractSyntaxTree &) { return true; }
-    bool prepass(ast::Expression &) { SC_DEBUGFAIL(); }
+    bool                          prepass(ast::AbstractSyntaxTree &) { return true; }
+    bool                          prepass(ast::Expression &) { SC_DEBUGFAIL(); }
 
-    ExpressionAnalysisResult dispatchExpression(ast::Expression &);
+    ExpressionAnalysisResult      dispatchExpression(ast::Expression &);
 
-    void markUnhandled(ast::Statement *);
+    void                          markUnhandled(ast::Statement *);
 
-    SymbolTable &sym;
-    issue::IssueHandler &iss;
+    SymbolTable                  &sym;
+    issue::IssueHandler          &iss;
     utl::vector<StatementContext> unhandledStatements;
-    ast::FunctionDefinition *currentFunction;
-    bool firstPass = true;
-    bool lastPass = false;
+    ast::FunctionDefinition      *currentFunction;
+    bool                          firstPass = true;
+    bool                          lastPass  = false;
 };
 
 } // namespace
 
 SymbolTable prepass(ast::AbstractSyntaxTree &root, issue::IssueHandler &iss) {
-    SymbolTable sym;
+    SymbolTable    sym;
     PrepassContext ctx{sym, iss};
     ctx.dispatch(root);
     if (iss.fatal()) {
@@ -67,9 +67,8 @@ SymbolTable prepass(ast::AbstractSyntaxTree &root, issue::IssueHandler &iss) {
     while (!ctx.unhandledStatements.empty()) {
         auto const beginSize = ctx.unhandledStatements.size();
         for (size_t i = 0; i < ctx.unhandledStatements.size();) {
-            auto const x = ctx.unhandledStatements[i];
-            bool const success =
-                sym.withScopeCurrent(x.enclosingScope, [&] { return ctx.dispatch(*x.statement); });
+            auto const x       = ctx.unhandledStatements[i];
+            bool const success = sym.withScopeCurrent(x.enclosingScope, [&] { return ctx.dispatch(*x.statement); });
             if (success || ctx.lastPass) {
                 ctx.unhandledStatements.erase(ctx.unhandledStatements.begin() + i);
                 continue;
@@ -108,8 +107,8 @@ bool PrepassContext::prepass(ast::FunctionDefinition &fn) {
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(&fn, InvalidDeclaration::Reason::InvalidInCurrentScope,
-                                    sym.currentScope(), SymbolCategory::Function));
+        iss.push(InvalidDeclaration(&fn, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(),
+                                    SymbolCategory::Function));
         return false;
     }
 
@@ -126,8 +125,7 @@ bool PrepassContext::prepass(ast::FunctionDefinition &fn) {
         }
         if (typeExprRes.category() != ast::EntityCategory::Type) {
             if (lastPass) {
-                iss.push(BadSymbolReference(*param->typeExpr, param->typeExpr->category,
-                                            ast::EntityCategory::Type));
+                iss.push(BadSymbolReference(*param->typeExpr, param->typeExpr->category, ast::EntityCategory::Type));
             }
             argTypes.push_back(TypeID::Invalid);
             continue;
@@ -147,8 +145,8 @@ bool PrepassContext::prepass(ast::FunctionDefinition &fn) {
     if (returnTypeExprRes) {
         if (returnTypeExprRes.category() != ast::EntityCategory::Type) {
             if (lastPass) {
-                iss.push(BadSymbolReference(*fn.returnTypeExpr, fn.returnTypeExpr->category,
-                                            ast::EntityCategory::Type));
+                iss.push(
+                    BadSymbolReference(*fn.returnTypeExpr, fn.returnTypeExpr->category, ast::EntityCategory::Type));
             } else {
                 return false;
             }
@@ -170,7 +168,7 @@ bool PrepassContext::prepass(ast::FunctionDefinition &fn) {
     /// Might be TypeID::Invalid if we are in the last pass but we still declare
     /// the function and go on
     fn.returnTypeID = returnTypeID;
-    Expected func = sym.addFunction(fn.token(), FunctionSignature(argTypes, returnTypeID));
+    Expected func   = sym.addFunction(fn.token(), FunctionSignature(argTypes, returnTypeID));
     if (!func.hasValue()) {
         if (lastPass) {
             func.error().setStatement(fn);
@@ -178,9 +176,9 @@ bool PrepassContext::prepass(ast::FunctionDefinition &fn) {
         }
         return false;
     }
-    fn.symbolID = func->symbolID();
-    fn.functionTypeID = func->typeID();
-    fn.body->scopeKind = ScopeKind::Function;
+    fn.symbolID            = func->symbolID();
+    fn.functionTypeID      = func->typeID();
+    fn.body->scopeKind     = ScopeKind::Function;
     fn.body->scopeSymbolID = fn.symbolID;
     return true;
 }
@@ -190,8 +188,8 @@ bool PrepassContext::prepass(ast::StructDefinition &s) {
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
         /// Struct defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(&s, InvalidDeclaration::Reason::InvalidInCurrentScope,
-                                    sym.currentScope(), SymbolCategory::ObjectType));
+        iss.push(InvalidDeclaration(&s, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(),
+                                    SymbolCategory::ObjectType));
         return false;
     }
     auto obj = [&]() -> Expected<ObjectType &, SemanticIssue> {
@@ -207,11 +205,11 @@ bool PrepassContext::prepass(ast::StructDefinition &s) {
         return false;
     }
 
-    s.symbolID = obj->symbolID();
+    s.symbolID                          = obj->symbolID();
 
-    size_t objectSize = 0;
-    size_t objectAlign = 1;
-    bool successfullyGatheredVarDecls = true;
+    size_t objectSize                   = 0;
+    size_t objectAlign                  = 1;
+    bool   successfullyGatheredVarDecls = true;
     sym.pushScope(obj->symbolID());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto &statement : s.body->statements) {
@@ -224,7 +222,7 @@ bool PrepassContext::prepass(ast::StructDefinition &s) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }
-        auto &varDecl = static_cast<ast::VariableDeclaration &>(*statement);
+        auto       &varDecl            = static_cast<ast::VariableDeclaration &>(*statement);
         auto const *typenameIdentifier = downCast<ast::Identifier>(varDecl.typeExpr.get());
         SC_ASSERT(typenameIdentifier, "must be identifier for now");
         auto const *type = sym.lookupObjectType(typenameIdentifier->value());
@@ -240,7 +238,7 @@ bool PrepassContext::prepass(ast::StructDefinition &s) {
         }
         objectAlign = std::max(objectAlign, type->align());
         SC_ASSERT(type->size() % type->align() == 0, "size must be a multiple of align");
-        objectSize = utl::round_up_pow_two(objectSize, type->align());
+        objectSize     = utl::round_up_pow_two(objectSize, type->align());
         varDecl.offset = objectSize;
         objectSize += type->size();
     }
@@ -251,7 +249,7 @@ bool PrepassContext::prepass(ast::StructDefinition &s) {
         }
         return false;
     }
-    s.body->scopeKind = ScopeKind::Object;
+    s.body->scopeKind     = ScopeKind::Object;
     s.body->scopeSymbolID = s.symbolID;
     obj->setSize(utl::round_up_pow_two(objectSize, objectAlign));
     obj->setAlign(objectAlign);
@@ -265,9 +263,9 @@ bool PrepassContext::prepass(ast::VariableDeclaration &decl) {
                              "specifiers. Make this a program issue.");
     auto const *typenameIdentifier = downCast<ast::Identifier>(decl.typeExpr.get());
     SC_ASSERT(typenameIdentifier, "must be identifier for now");
-    auto const *typePtr = sym.lookupObjectType(typenameIdentifier->value());
-    TypeID const typeID = typePtr ? typePtr->symbolID() : TypeID::Invalid;
-    auto var = [&]() -> Expected<Variable &, SemanticIssue> {
+    auto const  *typePtr = sym.lookupObjectType(typenameIdentifier->value());
+    TypeID const typeID  = typePtr ? typePtr->symbolID() : TypeID::Invalid;
+    auto         var     = [&]() -> Expected<Variable &, SemanticIssue> {
         if (firstPass) {
             return sym.addVariable(decl.token(), typeID, bool{});
         } else {

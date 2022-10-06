@@ -6,6 +6,4 @@
 #include "AST/Expression.h"
 #include "AST/Visit.h"
 
-namespace scatha::ast {
-	
-}
+namespace scatha::ast {}

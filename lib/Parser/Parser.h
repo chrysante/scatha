@@ -14,39 +14,39 @@
 #include "Parser/TokenStream.h"
 
 namespace scatha::parse {
-	
-	class SCATHA(API) Parser {
-	public:
-		explicit Parser(std::span<Token const>);
-		
-		[[nodiscard]] ast::UniquePtr<ast::AbstractSyntaxTree> parse();
-		
-	private:
-		ast::UniquePtr<ast::TranslationUnit> parseTranslationUnit();
-		ast::UniquePtr<ast::Declaration> parseDeclaration();
 
-		ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(bool isFunctionParameter = false);
-		ast::UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
-		
-		ast::UniquePtr<ast::StructDefinition> parseStructDefinition();
+class SCATHA(API) Parser {
+  public:
+    explicit Parser(std::span<Token const>);
 
-		void parseFunctionParameters(ast::FunctionDefinition*);
-		
-		ast::UniquePtr<ast::Block> parseBlock();
-		
-		ast::UniquePtr<ast::Statement> parseStatement();
-		
-		ast::UniquePtr<ast::ReturnStatement> parseReturnStatement();
-		ast::UniquePtr<ast::IfStatement> parseIfStatement();
-		ast::UniquePtr<ast::WhileStatement> parseWhileStatement();
-		
-		ast::UniquePtr<ast::Expression> parseExpression();
-		ast::UniquePtr<ast::Expression> parsePostfixExpression();
-		
-	private:
-		TokenStream tokens;
-	};
-	
-}
+    [[nodiscard]] ast::UniquePtr<ast::AbstractSyntaxTree> parse();
+
+  private:
+    ast::UniquePtr<ast::TranslationUnit>     parseTranslationUnit();
+    ast::UniquePtr<ast::Declaration>         parseDeclaration();
+
+    ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(bool isFunctionParameter = false);
+    ast::UniquePtr<ast::FunctionDefinition>  parseFunctionDefinition();
+
+    ast::UniquePtr<ast::StructDefinition>    parseStructDefinition();
+
+    void                                     parseFunctionParameters(ast::FunctionDefinition *);
+
+    ast::UniquePtr<ast::Block>               parseBlock();
+
+    ast::UniquePtr<ast::Statement>           parseStatement();
+
+    ast::UniquePtr<ast::ReturnStatement>     parseReturnStatement();
+    ast::UniquePtr<ast::IfStatement>         parseIfStatement();
+    ast::UniquePtr<ast::WhileStatement>      parseWhileStatement();
+
+    ast::UniquePtr<ast::Expression>          parseExpression();
+    ast::UniquePtr<ast::Expression>          parsePostfixExpression();
+
+  private:
+    TokenStream tokens;
+};
+
+} // namespace scatha::parse
 
 #endif // SCATHA_LEXER_LEXER_H_

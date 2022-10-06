@@ -2,6 +2,4 @@
 
 #include <ostream>
 
-namespace scatha::ast {
-
-}
+namespace scatha::ast {}

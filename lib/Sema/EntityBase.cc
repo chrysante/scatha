@@ -1,7 +1,3 @@
 #include "Sema/EntityBase.h"
 
-namespace scatha::sema {
-	
-	
-	
-}
+namespace scatha::sema {}

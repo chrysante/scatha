@@ -7,11 +7,10 @@
 #include "Sema/SymbolTable.h"
 
 namespace scatha::ic {
-	
-	void SCATHA(API) printTac(ThreeAddressCode const&, sema::SymbolTable const&);
-	void SCATHA(API) printTac(ThreeAddressCode const&, sema::SymbolTable const&, std::ostream&);
-	
-}
+
+void SCATHA(API) printTac(ThreeAddressCode const &, sema::SymbolTable const &);
+void SCATHA(API) printTac(ThreeAddressCode const &, sema::SymbolTable const &, std::ostream &);
+
+} // namespace scatha::ic
 
 #endif // SCATHA_IC_PRINTTAC_H_
-

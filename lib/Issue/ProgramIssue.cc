@@ -1,5 +1,3 @@
 #include "ProgramIssue.h"
 
-namespace scatha::issue {
-	
-}
+namespace scatha::issue {}

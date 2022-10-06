@@ -8,14 +8,14 @@
 #include "Basic/Basic.h"
 
 namespace scatha {
-	
-	struct SourceLocation {
-		u64 index = 0;
-		u32 line = 0, column = 0;
-	};
 
-	SCATHA(API) std::ostream& operator<<(std::ostream&, SourceLocation const&);
-	
-}
+struct SourceLocation {
+    u64 index = 0;
+    u32 line = 0, column = 0;
+};
+
+SCATHA(API) std::ostream &operator<<(std::ostream &, SourceLocation const &);
+
+} // namespace scatha
 
 #endif // SCATHA_COMMON_SOURCELOCATION_H_

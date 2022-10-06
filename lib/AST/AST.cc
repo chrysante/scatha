@@ -6,7 +6,4 @@
 
 #include "AST/Expression.h"
 
-namespace scatha::ast {
-
-	
-}
+namespace scatha::ast {}

@@ -6,14 +6,13 @@
 #include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
-	
-	void SCATHA(API) printSymbolTable(SymbolTable const&);
-	
-	void SCATHA(API) printSymbolTable(SymbolTable const&, std::ostream&);
 
-	std::string makeQualName(EntityBase const&);
-	
-}
+void        SCATHA(API) printSymbolTable(SymbolTable const &);
+
+void        SCATHA(API) printSymbolTable(SymbolTable const &, std::ostream &);
+
+std::string makeQualName(EntityBase const &);
+
+} // namespace scatha::sema
 
 #endif // SCATHA_SEMA_PRINTSYMBOLTABLE_H_
-

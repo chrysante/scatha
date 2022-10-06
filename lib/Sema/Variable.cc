@@ -1,5 +1,3 @@
 #include "Sema/Variable.h"
 
-namespace scatha::sema {
-	
-}
+namespace scatha::sema {}

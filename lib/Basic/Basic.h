@@ -48,9 +48,9 @@
 #endif
 
 // Shorthand to force types to be move-only.
-#define _SCATHA_PD_MOVE_ONLY(TYPE)                                             \
-    TYPE()             = default;                                              \
-    TYPE(TYPE &&)      = default;                                              \
+#define _SCATHA_PD_MOVE_ONLY(TYPE)                                                                                     \
+    TYPE()             = default;                                                                                      \
+    TYPE(TYPE &&)      = default;                                                                                      \
     TYPE(TYPE const &) = delete
 
 // Disable UBSAN for certain integer shift operations. Maybe rethink this later.
@@ -85,8 +85,8 @@
 
 #define SC_EXPECT_AUDIT(COND, MSG) SC_ASSERT(COND, MSG)
 
-#define SC_NO_DEFAULT_CASE()                                                   \
-    default:                                                                   \
+#define SC_NO_DEFAULT_CASE()                                                                                           \
+    default:                                                                                                           \
         SC_DEBUGFAIL()
 
 namespace scatha {
@@ -109,9 +109,8 @@ static_assert(sizeof(f64) == 8);
 
 // Reinterpret the bytes of t as a std::array of bytes
 template <typename T>
-requires std::is_standard_layout_v<T> std::array<u8, sizeof(T)>
-                                      decompose(T const &t) {
-                                          return utl::bit_cast<std::array<u8, sizeof(T)>>(t);
+requires std::is_standard_layout_v<T> std::array<u8, sizeof(T)> decompose(T const &t) {
+    return utl::bit_cast<std::array<u8, sizeof(T)>>(t);
 }
 
 } // namespace scatha

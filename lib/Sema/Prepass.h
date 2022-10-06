@@ -14,8 +14,9 @@
 
 namespace scatha::sema {
 
-SCATHA(API) SymbolTable prepass(ast::AbstractSyntaxTree &, issue::IssueHandler &);
+SCATHA(API)
+SymbolTable prepass(ast::AbstractSyntaxTree &, issue::IssueHandler &);
 
-}
+} // namespace scatha::sema
 
 #endif // SCATHA_SEMA_PREPASS_H_

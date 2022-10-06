@@ -1,5 +1,3 @@
 #include "Visit.h"
 
-namespace scatha::ast {
-	
-}
+namespace scatha::ast {}

@@ -2,14 +2,14 @@
 
 #include <string>
 
-#include "test/CodeGen/BasicCompiler.h"
 #include "VM/Program.h"
 #include "VM/VirtualMachine.h"
+#include "test/CodeGen/BasicCompiler.h"
 
 using namespace scatha;
 
 TEST_CASE("while loops", "[codegen]") {
-	std::string const text = R"(
+    std::string const text  = R"(
 fn fact(n: int) -> int {
 	var i = 0;
 	var result = 1;
@@ -22,13 +22,13 @@ fn fact(n: int) -> int {
 fn main() -> int {
 	return fact(4);
 })";
-	auto const vm = test::compileAndExecute(text);
-	auto const& state = vm.getState();
-	CHECK(state.registers[0] == 24);
+    auto const        vm    = test::compileAndExecute(text);
+    auto const       &state = vm.getState();
+    CHECK(state.registers[0] == 24);
 }
 
 TEST_CASE("iterative gcd", "[codegen]") {
-	std::string const text = R"(
+    std::string const text  = R"(
 fn gcd(a: int, b: int) -> int {
 	while a != b {
 		if a > b {
@@ -45,13 +45,13 @@ fn main() -> int {
 	let b = 1253;
 	return gcd(a, b);
 })";
-	auto const vm = test::compileAndExecute(text);
-	auto const& state = vm.getState();
-	CHECK(state.registers[0] == 7);
+    auto const        vm    = test::compileAndExecute(text);
+    auto const       &state = vm.getState();
+    CHECK(state.registers[0] == 7);
 }
 
 TEST_CASE("float pow", "[codegen]") {
-std::string const text = R"(
+    std::string const text      = R"(
 fn pow(base: float, exp: int) -> float {
 	var result: float = 1.0;
 	var i = 0;
@@ -75,6 +75,6 @@ fn main() -> bool {
 	result &= pow(-2.0,  9) == -512.0;
 	return result == true;
 })";
-	auto const registers = test::getRegisters(text);
-	CHECK(registers[0] == 1);
+    auto const        registers = test::getRegisters(text);
+    CHECK(registers[0] == 1);
 }

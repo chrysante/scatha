@@ -10,14 +10,13 @@
 #include "VM/VirtualMachine.h"
 
 namespace scatha::test {
-	
-	vm::Program compile(std::string_view text);
 
-	vm::VirtualMachine compileAndExecute(std::string_view text);
-	
-	utl::vector<u64> getRegisters(std::string_view text);
-	
-}
+vm::Program        compile(std::string_view text);
+
+vm::VirtualMachine compileAndExecute(std::string_view text);
+
+utl::vector<u64>   getRegisters(std::string_view text);
+
+} // namespace scatha::test
 
 #endif // SCATHA_TEST_CODEGEN_BASICCOMPILER_H_
-
