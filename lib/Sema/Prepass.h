@@ -9,13 +9,13 @@
 #include "AST/Expression.h"
 #include "Basic/Basic.h"
 #include "Issue/IssueHandler.h"
-#include "Sema/SymbolTable.h"
 #include "Sema/ObjectType.h"
+#include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
-	
-	SCATHA(API) SymbolTable prepass(ast::AbstractSyntaxTree&, issue::IssueHandler&);
-	
+
+SCATHA(API) SymbolTable prepass(ast::AbstractSyntaxTree &, issue::IssueHandler &);
+
 }
 
 #endif // SCATHA_SEMA_PREPASS_H_
