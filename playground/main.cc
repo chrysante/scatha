@@ -19,6 +19,7 @@
 #include "Parser/ExpressionParser.h"
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
+#include "VM/VirtualMachine.h"
 
 #include "Sema/Prepass.h"
 
@@ -52,7 +53,6 @@ using namespace scatha::parse;
 		std::cout <<   "==================================================\n\n";
 		issue::IssueHandler iss;
 		auto const sym = sema::analyze(ast.get(), iss);
-//		auto const sym = sema::prepass(*ast, iss);
 		sema::printSymbolTable(sym);
 		std::cout << "\nEncoutered " << iss.semaIssues().size() << " issues\n";
 		std::cout <<   "==================================================\n";
@@ -87,16 +87,16 @@ using namespace scatha::parse;
 			});
 			std::cout << std::endl;
 		}
-		std::cout << "==================================================\n";
+		std::cout <<   "==================================================\n";
 		return 0;
-		
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Generated Three Address Code =================\n";
 		std::cout <<   "==================================================\n\n";
 		ic::canonicalize(ast.get());
-		ic::TacGenerator t(sym);
-		auto const tac = t.run(ast.get());
+		auto const tac = ic::generateTac(*ast, sym);
 		ic::printTac(tac, sym);
+		
+		
 		
 		std::cout << "\n==================================================\n";
 		std::cout <<   "=== Generated Assembly ===========================\n";
@@ -112,6 +112,14 @@ using namespace scatha::parse;
 		auto const program = a.assemble();
 		print(program);
 
+		std::cout << "\n==================================================\n\n";
+		
+		vm::VirtualMachine vm;
+		vm.load(program);
+		vm.execute();
+		u64 const exitCode = vm.getState().registers[0];
+		std::cout << "VM: Program ended with exit code: " << exitCode << std::endl;
+		
 		std::cout << "\n==================================================\n\n";
 	}
 	catch (std::exception const& e) {

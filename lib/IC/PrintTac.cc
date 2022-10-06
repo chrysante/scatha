@@ -28,11 +28,14 @@ namespace scatha::ic {
 			std::ostream& print(std::ostream& str) const {
 				return arg.visit(utl::visitor{
 					[&](EmptyArgument const&) -> auto& {
-						SC_DEBUGBREAK();
-						return str;
+						return str << "<empty-argument>";
 					},
 					[&](Variable const& var) -> auto& {
-						return str << "$" << sym.getVariable(var.id()).name();
+						for (bool first = true; auto id: var) {
+							str << (first ? ((void)(first = false), "$") : ".") << sym.getName(id);
+						}
+						return str;
+//						return str << "$" << sym.getVariable(var.id()).name();
 					},
 					[&](Temporary const& tmp) -> auto& {
 						return str << "T[" << tmp.index << "]";
@@ -48,7 +51,7 @@ namespace scatha::ic {
 							return str << utl::bit_cast<f64>(lit.value);
 						}
 						else {
-							SC_DEBUGFAIL();
+							return str << lit.value << " [Type = " << sym.getName(lit.type) << "]";
 						}
 					},
 					[&](Label const& label) -> auto& {

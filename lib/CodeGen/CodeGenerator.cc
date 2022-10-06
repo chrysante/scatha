@@ -58,6 +58,7 @@ namespace scatha::codegen {
 					
 					switch (s.operation) {
 						case ic::Operation::mov: {
+							if (s.arg1.is(ic::TasArgument::empty)) { break; }
 							a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
 							break;
 						}

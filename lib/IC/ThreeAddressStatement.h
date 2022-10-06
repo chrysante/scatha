@@ -1,6 +1,7 @@
 #ifndef SCATHA_IC_THREEADDRESSSTATEMENT_H_
 #define SCATHA_IC_THREEADDRESSSTATEMENT_H_
 
+#include <algorithm>
 #include <iosfwd>
 #include <span>
 #include <variant>
@@ -20,13 +21,24 @@ namespace scatha::ic {
 	
 	struct Variable {
 		explicit Variable(sema::SymbolID id):
-			_id(id)
+			_idChain{ id }
+		{}
+		explicit Variable(std::span<sema::SymbolID> ids):
+			_idChain(ids.begin(), ids.end())
 		{}
 
-		sema::SymbolID id() const { return _id; }
+		sema::SymbolID id() const { return _idChain.back(); }
 
+		void append(Variable const& rhs) {
+			_idChain.reserve(_idChain.size() + rhs._idChain.size());
+			std::copy(rhs._idChain.begin(), rhs._idChain.end(), std::back_inserter(_idChain));
+		}
+		
+		auto begin() const { return _idChain.begin(); }
+		auto end() const { return _idChain.end(); }
+		
 	private:
-		sema::SymbolID _id;
+		utl::small_vector<sema::SymbolID> _idChain;
 	};
 	
 	struct Temporary {
