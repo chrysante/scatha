@@ -32,7 +32,7 @@ ast::UniquePtr<ast::TranslationUnit> Parser::parseTranslationUnit() {
 
 /// MARK: Private
 ast::UniquePtr<ast::Declaration> Parser::parseDeclaration() {
-    TokenEx const& token = tokens.peek();
+    Token const& token = tokens.peek();
     SC_ASSERT(token.type != TokenType::EndOfFile, "Not our job");
     if (!token.isKeyword) {
         return nullptr;
@@ -56,7 +56,7 @@ ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(bool i
         SC_ASSERT_AUDIT(decl.keyword == Keyword::Var || decl.keyword == Keyword::Let, "Same here");
         isConst = decl.keyword == Keyword::Let;
     }
-    TokenEx const& name = tokens.eat();
+    Token const& name = tokens.eat();
     expectIdentifier(name);
     auto result                 = ast::allocate<ast::VariableDeclaration>(name);
     result->isConstant          = isConst;
@@ -76,20 +76,20 @@ ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(bool i
         result->initExpression = parseExpression();
     }
     if (!isFunctionParameter) {
-        TokenEx const& next = tokens.eat();
+        Token const& next = tokens.eat();
         expectSeparator(next);
     }
     return result;
 }
 
 ast::UniquePtr<ast::FunctionDefinition> Parser::parseFunctionDefinition() {
-    TokenEx const& declarator = tokens.eat();
+    Token const& declarator = tokens.eat();
     SC_EXPECT(declarator.isKeyword && declarator.keyword == Keyword::Function, "Should have checked this before");
-    TokenEx const& name = tokens.eat();
+    Token const& name = tokens.eat();
     expectIdentifier(name);
     auto result = ast::allocate<ast::FunctionDefinition>(name);
     parseFunctionParameters(result.get());
-    if (TokenEx const& token = tokens.peek(); token.id == "->") {
+    if (Token const& token = tokens.peek(); token.id == "->") {
         tokens.eat();
         result->returnTypeExpr = parsePostfixExpression();
     } else {
@@ -106,7 +106,7 @@ ast::UniquePtr<ast::FunctionDefinition> Parser::parseFunctionDefinition() {
 }
 
 void Parser::parseFunctionParameters(ast::FunctionDefinition* fn) {
-    TokenEx const& openParan = tokens.eat();
+    Token const& openParan = tokens.eat();
     expectID(openParan, "(");
     if (tokens.peek().id == ")") {
         tokens.eat();
@@ -114,7 +114,7 @@ void Parser::parseFunctionParameters(ast::FunctionDefinition* fn) {
     }
     while (true) {
         fn->parameters.push_back(parseVariableDeclaration(/* isFunctionParameter = */ true));
-        if (TokenEx const& next = tokens.eat(); next.id != ",") {
+        if (Token const& next = tokens.eat(); next.id != ",") {
             expectID(next, ")");
             break;
         }
@@ -122,9 +122,9 @@ void Parser::parseFunctionParameters(ast::FunctionDefinition* fn) {
 }
 
 ast::UniquePtr<ast::StructDefinition> Parser::parseStructDefinition() {
-    TokenEx const& declarator = tokens.eat();
+    Token const& declarator = tokens.eat();
     SC_EXPECT(declarator.isKeyword && declarator.keyword == Keyword::Struct, "Should have checked this before");
-    TokenEx const& name = tokens.eat();
+    Token const& name = tokens.eat();
     expectIdentifier(name);
     auto result = ast::allocate<ast::StructDefinition>(name);
     if (tokens.peek().id != "{") {
@@ -152,7 +152,7 @@ ast::UniquePtr<ast::Statement> Parser::parseStatement() {
     if (ast::UniquePtr<ast::Statement> result = parseDeclaration(); result != nullptr) {
         return result;
     }
-    TokenEx const& token = tokens.peek();
+    Token const& token = tokens.peek();
     if (token.isControlFlow) {
         using enum Keyword;
         tokens.eat();
@@ -169,8 +169,8 @@ ast::UniquePtr<ast::Statement> Parser::parseStatement() {
     } else {
         // We have not eaten the first token yet. Parsing an expression should
         // be fine.
-        auto result         = ast::allocate<ast::ExpressionStatement>(parseExpression(), token);
-        TokenEx const& next = tokens.eat();
+        auto result       = ast::allocate<ast::ExpressionStatement>(parseExpression(), token);
+        Token const& next = tokens.eat();
         expectSeparator(next);
         return result;
     }
@@ -179,8 +179,8 @@ ast::UniquePtr<ast::Statement> Parser::parseStatement() {
 ast::UniquePtr<ast::ReturnStatement> Parser::parseReturnStatement() {
     auto const& token = tokens.current();
     SC_ASSERT_AUDIT(token.id == "return", "");
-    auto result         = ast::allocate<ast::ReturnStatement>(parseExpression(), token);
-    TokenEx const& next = tokens.eat();
+    auto result       = ast::allocate<ast::ReturnStatement>(parseExpression(), token);
+    Token const& next = tokens.eat();
     expectSeparator(next);
     return result;
 }

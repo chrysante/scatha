@@ -59,8 +59,6 @@ struct SCATHA(API) Token {
     IdentifierCategory identifierCategory{};
 };
 
-using TokenEx = Token;
-
 SCATHA(API) std::ostream& operator<<(std::ostream&, Token const&);
 
 /// Populates all the fields after \p id in token structure.

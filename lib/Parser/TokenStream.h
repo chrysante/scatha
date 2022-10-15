@@ -40,7 +40,7 @@ public:
      end of file has been returned.
      2. When called in a loop, the stream will be iterated.
      */
-    TokenEx const& eat();
+    Token const& eat();
     /**
      Look ahead one token into the stream.
 
@@ -52,7 +52,7 @@ public:
      end of file has been returned by \p eatToken.
      2. Always returns the same token when called in a loop.
      */
-    TokenEx const& peek();
+    Token const& peek();
 
     /**
      - returns: A reference to the current token in the stream aka the token
@@ -62,13 +62,13 @@ public:
      1.  Always returns a valid reference.
      2. Always returns the same token when called in a loop.
      */
-    TokenEx const& current();
+    Token const& current();
 
 private:
-    TokenEx const& eatImpl(size_t*);
+    Token const& eatImpl(size_t*);
 
 private:
-    utl::vector<TokenEx> tokens;
+    utl::vector<Token> tokens;
     size_t index = 0;
 };
 

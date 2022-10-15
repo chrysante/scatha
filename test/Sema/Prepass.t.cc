@@ -18,7 +18,7 @@ static std::tuple<sema::SymbolTable, issue::IssueHandler> doPrepass(std::string_
 }
 
 TEST_CASE("Prepass", "[sema]") {
-    auto const text       = R"(
+    auto const text = R"(
 fn f(x: X) -> int { return 0; }
 
 struct X {
@@ -66,7 +66,7 @@ struct X {
 }
 
 TEST_CASE("Struct size and align", "[sema]") {
-    auto const text            = R"(
+    auto const text = R"(
 	struct X {
 		var y: Y;
 		var a: bool;

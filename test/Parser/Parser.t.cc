@@ -94,4 +94,6 @@ fn main() {
     CHECK_THROWS_AS(makeAST(text), ParsingIssue);
 };
 
-TEST_CASE("Parse conditional", "[parse]") { CHECK_NOTHROW(makeAST("fn main() { true ? 1 : 4; }")); }
+TEST_CASE("Parse conditional", "[parse]") {
+    CHECK_NOTHROW(makeAST("fn main() { true ? 1 : 4; }"));
+}

@@ -62,6 +62,8 @@ sysincludedirs {
 
 sysincludedirs { "lib" }
 
+prebuildcommands { "./format-all.sh test/" }
+
 addCppFiles "test"
 links { "scatha" } 
 

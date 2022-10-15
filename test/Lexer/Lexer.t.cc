@@ -67,39 +67,22 @@ import std;
 import myLib;
 
 fn main() {
-	var text: string = generateText();
+	var text: string = f();
 	std.print(text);
 }
 )";
-    test.reference = { { TokenType::Identifier, "import" },
-                       { TokenType::Identifier, "std" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "import" },
-                       { TokenType::Identifier, "myLib" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "fn" },
-                       { TokenType::Identifier, "main" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, "{" },
-                       { TokenType::Identifier, "var" },
-                       { TokenType::Identifier, "text" },
-                       { TokenType::Punctuation, ":" },
-                       { TokenType::Identifier, "string" },
-                       { TokenType::Operator, "=" },
-                       { TokenType::Identifier, "generateText" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "std" },
-                       { TokenType::Operator, "." },
-                       { TokenType::Identifier, "print" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Identifier, "text" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Punctuation, "}" },
-                       { TokenType::EndOfFile, "" } };
+    test.reference = {
+        { TokenType::Identifier, "import" }, { TokenType::Identifier, "std" },   { TokenType::Punctuation, ";" },
+        { TokenType::Identifier, "import" }, { TokenType::Identifier, "myLib" }, { TokenType::Punctuation, ";" },
+        { TokenType::Identifier, "fn" },     { TokenType::Identifier, "main" },  { TokenType::Punctuation, "(" },
+        { TokenType::Punctuation, ")" },     { TokenType::Punctuation, "{" },    { TokenType::Identifier, "var" },
+        { TokenType::Identifier, "text" },   { TokenType::Punctuation, ":" },    { TokenType::Identifier, "string" },
+        { TokenType::Operator, "=" },        { TokenType::Identifier, "f" },     { TokenType::Punctuation, "(" },
+        { TokenType::Punctuation, ")" },     { TokenType::Punctuation, ";" },    { TokenType::Identifier, "std" },
+        { TokenType::Operator, "." },        { TokenType::Identifier, "print" }, { TokenType::Punctuation, "(" },
+        { TokenType::Identifier, "text" },   { TokenType::Punctuation, ")" },    { TokenType::Punctuation, ";" },
+        { TokenType::Punctuation, "}" },     { TokenType::EndOfFile, "" }
+    };
     test.run();
 }
 

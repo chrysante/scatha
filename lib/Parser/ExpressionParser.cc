@@ -11,33 +11,18 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseExpression() {
 template <ast::BinaryOperator... Op>
 ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorLTR(auto&& operand) {
     ast::UniquePtr<ast::Expression> left = operand();
+    auto tryParse                        = [&](Token const& token, ast::BinaryOperator op) {
+        if (token.id != toString(op)) {
+            return false;
+        }
+        tokens.eat();
+        ast::UniquePtr<ast::Expression> right = operand();
+        left = ast::allocate<ast::BinaryExpression>(op, std::move(left), std::move(right), token);
+        return true;
+    };
     while (true) {
-        /* Expands into:
-         if (token.id == id[0]) {
-                ...
-         }
-         else if (token.id == id[1]) {
-                ...
-         }
-         ...
-         else if (token.id == id[last]) {
-                ...
-         }
-         else {
-                return left;
-         }
-         */
-        TokenEx const& token = tokens.peek();
-        if (([&] {
-                if (token.id != toString(Op)) {
-                    return false;
-                }
-                tokens.eat();
-                ast::UniquePtr<ast::Expression> right = operand();
-                left = ast::allocate<ast::BinaryExpression>(Op, std::move(left), std::move(right), token);
-                return true;
-            }() ||
-             ...)) {
+        Token const& token = tokens.peek();
+        if ((tryParse(token, Op) || ...)) {
             continue;
         }
 
@@ -47,18 +32,17 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorLTR(auto&& 
 
 template <ast::BinaryOperator... Op>
 ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorRTL(auto&& parseOperand) {
-    auto left            = parseOperand();
-    TokenEx const& token = tokens.peek();
-    // clang-format off
-    if (ast::UniquePtr<ast::Expression> result = nullptr; ((token.id == toString(Op) && (result = [&]{
+    auto left          = parseOperand();
+    Token const& token = tokens.peek();
+    auto parse         = [&](ast::BinaryOperator op) {
         tokens.eat();
         ast::UniquePtr<ast::Expression> right = parseBinaryOperatorRTL<Op...>(parseOperand);
-        return ast::allocate<ast::BinaryExpression>(Op, std::move(left), std::move(right), token);
-    }(), true)) || ...)) {
+        return ast::allocate<ast::BinaryExpression>(op, std::move(left), std::move(right), token);
+    };
+    if (ast::UniquePtr<ast::Expression> result = nullptr; ((token.id == toString(Op) && (result = parse(Op))) || ...)) {
         return result;
     }
     return left;
-    // clang-format on
 }
 
 ast::UniquePtr<ast::Expression> ExpressionParser::parseComma() {
@@ -82,7 +66,6 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseAssignment() {
 
 ast::UniquePtr<ast::Expression> ExpressionParser::parseConditional() {
     auto logicalOr = parseLogicalOr();
-
     if (auto const& token = tokens.peek(); token.id == "?") {
         tokens.eat();
         auto lhs = parseComma();
@@ -146,7 +129,7 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseUnary() {
     if (auto postfix = parsePostfix()) {
         return postfix;
     }
-    TokenEx const& token = tokens.eat();
+    Token const& token = tokens.eat();
 
     if (token.id == "&") {
         SC_DEBUGFAIL(); // Do we really want to support addressof operator?
@@ -204,7 +187,7 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parsePrimary() {
     if (token.id == "(") {
         tokens.eat();
         ast::UniquePtr<ast::Expression> e = parseComma();
-        TokenEx const& next               = tokens.eat();
+        Token const& next                 = tokens.eat();
         expectID(next, ")");
         return e;
     }
@@ -253,15 +236,13 @@ ast::UniquePtr<FunctionCallLike> ExpressionParser::parseFunctionCallLike(ast::Un
     auto const& openToken = tokens.eat();
     SC_ASSERT(openToken.id == open, "");
     auto result = ast::allocate<FunctionCallLike>(std::move(primary), openToken);
-
     if (tokens.peek().id == close) { // no arguments
         tokens.eat();
         return result;
     }
-
     while (true) {
         result->arguments.push_back(parseAssignment());
-        TokenEx const& next = tokens.eat();
+        Token const& next = tokens.eat();
         if (next.id == close) {
             break;
         }
@@ -272,11 +253,9 @@ ast::UniquePtr<FunctionCallLike> ExpressionParser::parseFunctionCallLike(ast::Un
 
 ast::UniquePtr<ast::Subscript> ExpressionParser::parseSubscript(ast::UniquePtr<ast::Expression> primary) {
     auto result = parseFunctionCallLike<ast::Subscript>(std::move(primary), "[", "]");
-
     if (result->arguments.empty()) {
         throw ParsingIssue(tokens.current(), "Subscript with no arguments is not allowed");
     }
-
     return result;
 }
 

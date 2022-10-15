@@ -21,15 +21,22 @@ if [ -z "$FMT" ]; then
 fi
 
 function format() {
-    for f in $(find $@ -name '*.h' -or -name '*.hpp' -or -name '*.c' -or -name '*.cc' -or -name '*.cpp' -or -name '*.cpp'); do
-        echo "format ${f}";
-        ${FMT} -i ${f};
+    for file in $(git status --porcelain | awk 'match($1, "M"){print $2}'); do
+        if [[ $file != *.h ]] && [[ $file != *.cc ]]; then
+                continue
+        fi
+        echo "format ${file}";
+        ${FMT} -i ${file};
     done
-
-    echo "~~~ $@ Done ~~~";
 }
 
 # Check all of the arguments first to make sure they're all directories
+if [ $# -eq 0 ]; then
+    format "./";
+    exit 0
+fi
+
+
 for dir in "$@"; do
     if [ ! -d "${dir}" ]; then
         echo "${dir} is not a directory";

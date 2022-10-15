@@ -217,10 +217,18 @@ TEST_CASE("Arithmetic", "[assembly][vm]") {
         testArithmetic(irem, i64(100), i64(-3), i64(1), Value64::SignedIntegral);
         testArithmetic(irem, i64(-100), i64(3), i64(-1), Value64::SignedIntegral);
     }
-    SECTION("fadd") { testArithmetic(fadd, f64(6.4), f64(-2.2), f64(4.2), Value64::FloatingPoint); }
-    SECTION("fsub") { testArithmetic(fsub, f64(6), f64(2.3), f64(3.7), Value64::FloatingPoint); }
-    SECTION("fmul") { testArithmetic(fmul, f64(2.4), f64(2.5), f64(6.0), Value64::FloatingPoint); }
-    SECTION("fdiv") { testArithmetic(fdiv, f64(6.3), f64(3.0), f64(2.1), Value64::FloatingPoint); }
+    SECTION("fadd") {
+        testArithmetic(fadd, f64(6.4), f64(-2.2), f64(4.2), Value64::FloatingPoint);
+    }
+    SECTION("fsub") {
+        testArithmetic(fsub, f64(6), f64(2.3), f64(3.7), Value64::FloatingPoint);
+    }
+    SECTION("fmul") {
+        testArithmetic(fmul, f64(2.4), f64(2.5), f64(6.0), Value64::FloatingPoint);
+    }
+    SECTION("fdiv") {
+        testArithmetic(fdiv, f64(6.3), f64(3.0), f64(2.1), Value64::FloatingPoint);
+    }
 }
 
 TEST_CASE("Unconditional jump", "[assembly][vm]") {

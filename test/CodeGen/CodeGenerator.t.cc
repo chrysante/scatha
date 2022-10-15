@@ -18,8 +18,8 @@ fn main() -> int {
 	return a + b;
 })";
 
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
+    auto const vm     = test::compileAndExecute(text);
+    auto const& state = vm.getState();
     CHECK(state.registers[0] == 3);
 }
 
@@ -29,8 +29,8 @@ fn main() -> int {
 	return 1;
 })";
 
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
+    auto const vm     = test::compileAndExecute(text);
+    auto const& state = vm.getState();
     CHECK(state.registers[0] == 1);
 }
 

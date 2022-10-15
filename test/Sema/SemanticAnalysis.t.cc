@@ -22,7 +22,7 @@ fn mul(a: int, b: int, c: float) -> int {
 
     auto const& mulID = sym.lookup("mul");
     CHECK(sym.is(mulID, SymbolCategory::OverloadSet));
-    auto const& mul      = sym.getOverloadSet(mulID);
+    auto const& mul = sym.getOverloadSet(mulID);
 
     auto const* mulFnPtr = mul.find(std::array{ sym.Int(), sym.Int(), sym.Float() });
     REQUIRE(mulFnPtr != nullptr);
@@ -89,7 +89,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     auto* varDeclInit = downCast<Identifier>(varDecl->initExpression.get());
     CHECK(varDeclInit->typeID == sym.Int());
 
-    auto* nestedScope   = downCast<Block>(fn->body->statements[1].get());
+    auto* nestedScope = downCast<Block>(fn->body->statements[1].get());
 
     auto* nestedVarDecl = downCast<VariableDeclaration>(nestedScope->statements[0].get());
     CHECK(nestedVarDecl->typeID == sym.String());

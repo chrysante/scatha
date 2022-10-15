@@ -25,6 +25,7 @@ public:
     std::span<sema::SemanticIssue const> semaIssues() const;
 
     bool fatal() const { return _fatal; }
+
     void setFatal() { _fatal = true; }
 
     bool empty() const;
