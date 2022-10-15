@@ -9,7 +9,7 @@ namespace scatha::vm {
 
 VirtualMachine::VirtualMachine(): instructionTable(makeInstructionTable()) {}
 
-void VirtualMachine::load(Program const &program) {
+void VirtualMachine::load(Program const& program) {
     instructionCount = program.instructions.size();
     // Load the program into memory
     memory.resize(instructionCount);
@@ -18,8 +18,8 @@ void VirtualMachine::load(Program const &program) {
     iptr         = memory.data() + program.start;
     programBreak = memory.data() + instructionCount;
 
-    memoryPtr    = nullptr;
-    memoryBreak  = nullptr;
+    memoryPtr   = nullptr;
+    memoryBreak = nullptr;
 }
 
 void VirtualMachine::execute() {
@@ -29,7 +29,7 @@ void VirtualMachine::execute() {
         u8 const opCode = *iptr;
         SC_ASSERT(opCode < (u8)OpCode::_count, "Invalid op-code");
         auto const instruction = instructionTable[opCode];
-        u64 const  offset      = instruction(iptr + 1, regPtr, this);
+        u64 const offset       = instruction(iptr + 1, regPtr, this);
         iptr += offset;
 
         ++stats.executedInstructions;
@@ -48,8 +48,8 @@ void VirtualMachine::addExternalFunction(size_t slot, ExternalFunction f) {
 void VirtualMachine::resizeMemory(size_t newSize) {
     size_t const iptrOffset = memory.empty() ? 0 : iptr - memory.data();
     ;
-    size_t const programBreakOffset     = programBreak - iptr;
-    size_t const memoryBreakOffset      = memoryBreak - memoryPtr;
+    size_t const programBreakOffset = programBreak - iptr;
+    size_t const memoryBreakOffset  = memoryBreak - memoryPtr;
 
     size_t const paddedInstructionCount = utl::round_up_pow_two(instructionCount, 16);
 

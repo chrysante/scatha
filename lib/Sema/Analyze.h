@@ -3,7 +3,7 @@
 
 #include <stdexcept>
 
-#include "AST/Base.h"
+#include "AST/AST.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
 
@@ -20,8 +20,7 @@ namespace scatha::sema {
 
  # Notes: #
  */
-SCATHA(API)
-SymbolTable analyze(ast::AbstractSyntaxTree *root, issue::IssueHandler &);
+SCATHA(API) SymbolTable analyze(ast::AbstractSyntaxTree* root, issue::IssueHandler&);
 
 } // namespace scatha::sema
 

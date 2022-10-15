@@ -10,15 +10,15 @@
 namespace scatha::parse {
 
 class SCATHA(API) ParsingIssue: public ProgramIssue {
-  public:
-    explicit ParsingIssue(TokenEx const &, std::string const &message);
+public:
+    explicit ParsingIssue(TokenEx const&, std::string const& message);
 };
 
-void expectIdentifier(TokenEx const &, std::string_view message = {});
-void expectKeyword(TokenEx const &, std::string_view message = {});
-void expectDeclarator(TokenEx const &, std::string_view message = {});
-void expectSeparator(TokenEx const &, std::string_view message = {});
-void expectID(TokenEx const &, std::string_view, std::string_view message = {});
+void expectIdentifier(TokenEx const&, std::string_view message = {});
+void expectKeyword(TokenEx const&, std::string_view message = {});
+void expectDeclarator(TokenEx const&, std::string_view message = {});
+void expectSeparator(TokenEx const&, std::string_view message = {});
+void expectID(TokenEx const&, std::string_view, std::string_view message = {});
 
 } // namespace scatha::parse
 

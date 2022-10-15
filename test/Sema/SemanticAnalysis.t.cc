@@ -3,7 +3,6 @@
 #include <array>
 
 #include "AST/AST.h"
-#include "AST/Expression.h"
 #include "Parser/ParsingIssue.h"
 #include "Sema/SemanticIssue.h"
 #include "test/Sema/SimpleAnalzyer.h"
@@ -21,14 +20,14 @@ fn mul(a: int, b: int, c: float) -> int {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
 
-    auto const &mulID = sym.lookup("mul");
+    auto const& mulID = sym.lookup("mul");
     CHECK(sym.is(mulID, SymbolCategory::OverloadSet));
-    auto const &mul      = sym.getOverloadSet(mulID);
+    auto const& mul      = sym.getOverloadSet(mulID);
 
-    auto const *mulFnPtr = mul.find(std::array{sym.Int(), sym.Int(), sym.Float()});
+    auto const* mulFnPtr = mul.find(std::array{ sym.Int(), sym.Int(), sym.Float() });
     REQUIRE(mulFnPtr != nullptr);
-    auto const &mulFn  = *mulFnPtr;
-    auto const &fnType = mulFn.signature();
+    auto const& mulFn  = *mulFnPtr;
+    auto const& fnType = mulFn.signature();
 
     CHECK(fnType.returnTypeID() == sym.Int());
     REQUIRE(fnType.argumentCount() == 3);
@@ -36,20 +35,20 @@ fn mul(a: int, b: int, c: float) -> int {
     CHECK(fnType.argumentTypeID(1) == sym.Int());
     CHECK(fnType.argumentTypeID(2) == sym.Float());
 
-    auto const  aID = mulFn.findID("a");
-    auto const &a   = sym.getVariable(aID);
+    auto const aID = mulFn.findID("a");
+    auto const& a  = sym.getVariable(aID);
     CHECK(a.typeID() == sym.Int());
 
-    auto const  bID = mulFn.findID("b");
-    auto const &b   = sym.getVariable(bID);
+    auto const bID = mulFn.findID("b");
+    auto const& b  = sym.getVariable(bID);
     CHECK(b.typeID() == sym.Int());
 
-    auto const  cID = mulFn.findID("c");
-    auto const &c   = sym.getVariable(cID);
+    auto const cID = mulFn.findID("c");
+    auto const& c  = sym.getVariable(cID);
     CHECK(c.typeID() == sym.Float());
 
-    auto const  resultID = mulFn.findID("result");
-    auto const &result   = sym.getVariable(resultID);
+    auto const resultID = mulFn.findID("result");
+    auto const& result  = sym.getVariable(resultID);
     CHECK(result.typeID() == sym.Int());
 }
 
@@ -69,49 +68,49 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
 
-    auto *tu     = downCast<TranslationUnit>(ast.get());
-    auto *fnDecl = downCast<FunctionDefinition>(tu->declarations[0].get());
+    auto* tu     = downCast<TranslationUnit>(ast.get());
+    auto* fnDecl = downCast<FunctionDefinition>(tu->declarations[0].get());
     CHECK(fnDecl->returnTypeID == sym.Int());
     CHECK(fnDecl->parameters[0]->typeID == sym.Int());
     CHECK(fnDecl->parameters[1]->typeID == sym.Int());
     CHECK(fnDecl->parameters[2]->typeID == sym.Float());
     CHECK(fnDecl->parameters[3]->typeID == sym.String());
 
-    auto *fn = downCast<FunctionDefinition>(tu->declarations[0].get());
+    auto* fn = downCast<FunctionDefinition>(tu->declarations[0].get());
     CHECK(fn->returnTypeID == sym.Int());
     CHECK(fn->parameters[0]->typeID == sym.Int());
     CHECK(fn->parameters[1]->typeID == sym.Int());
     CHECK(fn->parameters[2]->typeID == sym.Float());
     CHECK(fn->parameters[3]->typeID == sym.String());
 
-    auto *varDecl = downCast<VariableDeclaration>(fn->body->statements[0].get());
+    auto* varDecl = downCast<VariableDeclaration>(fn->body->statements[0].get());
     CHECK(varDecl->typeID == sym.Int());
 
-    auto *varDeclInit = downCast<Identifier>(varDecl->initExpression.get());
+    auto* varDeclInit = downCast<Identifier>(varDecl->initExpression.get());
     CHECK(varDeclInit->typeID == sym.Int());
 
-    auto *nestedScope   = downCast<Block>(fn->body->statements[1].get());
+    auto* nestedScope   = downCast<Block>(fn->body->statements[1].get());
 
-    auto *nestedVarDecl = downCast<VariableDeclaration>(nestedScope->statements[0].get());
+    auto* nestedVarDecl = downCast<VariableDeclaration>(nestedScope->statements[0].get());
     CHECK(nestedVarDecl->typeID == sym.String());
 
-    auto *xDecl = downCast<VariableDeclaration>(fn->body->statements[2].get());
+    auto* xDecl = downCast<VariableDeclaration>(fn->body->statements[2].get());
     CHECK(xDecl->typeID == sym.Int());
-    auto *intLit = downCast<IntegerLiteral>(xDecl->initExpression.get());
+    auto* intLit = downCast<IntegerLiteral>(xDecl->initExpression.get());
     CHECK(intLit->value == 39);
 
-    auto *zDecl = downCast<VariableDeclaration>(fn->body->statements[3].get());
+    auto* zDecl = downCast<VariableDeclaration>(fn->body->statements[3].get());
     CHECK(zDecl->typeID == sym.Int());
-    auto *intHexLit = downCast<IntegerLiteral>(zDecl->initExpression.get());
+    auto* intHexLit = downCast<IntegerLiteral>(zDecl->initExpression.get());
     CHECK(intHexLit->value == 0x39E);
 
-    auto *yDecl = downCast<VariableDeclaration>(fn->body->statements[4].get());
+    auto* yDecl = downCast<VariableDeclaration>(fn->body->statements[4].get());
     CHECK(yDecl->typeID == sym.Float());
-    auto *floatLit = downCast<FloatingPointLiteral>(yDecl->initExpression.get());
+    auto* floatLit = downCast<FloatingPointLiteral>(yDecl->initExpression.get());
     CHECK(floatLit->value == 1.2);
 
-    auto *ret           = downCast<ReturnStatement>(fn->body->statements[5].get());
-    auto *retIdentifier = downCast<Identifier>(ret->expression.get());
+    auto* ret           = downCast<ReturnStatement>(fn->body->statements[5].get());
+    auto* retIdentifier = downCast<Identifier>(ret->expression.get());
     CHECK(retIdentifier->typeID == sym.Int());
 }
 
@@ -127,24 +126,24 @@ fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
 
-    auto *tu = downCast<TranslationUnit>(ast.get());
+    auto* tu = downCast<TranslationUnit>(ast.get());
     REQUIRE(tu);
-    auto *calleeDecl = downCast<FunctionDefinition>(tu->declarations[1].get());
+    auto* calleeDecl = downCast<FunctionDefinition>(tu->declarations[1].get());
     REQUIRE(calleeDecl);
     CHECK(calleeDecl->returnTypeID == sym.Float());
     CHECK(calleeDecl->parameters[0]->typeID == sym.String());
     CHECK(calleeDecl->parameters[1]->typeID == sym.Int());
     CHECK(calleeDecl->parameters[2]->typeID == sym.Bool());
 
-    auto *caller     = downCast<FunctionDefinition>(tu->declarations[0].get());
-    auto *resultDecl = downCast<VariableDeclaration>(caller->body->statements[0].get());
+    auto* caller     = downCast<FunctionDefinition>(tu->declarations[0].get());
+    auto* resultDecl = downCast<VariableDeclaration>(caller->body->statements[0].get());
     CHECK(resultDecl->initExpression->typeID == sym.Float());
-    auto *fnCallExpr = downCast<FunctionCall>(resultDecl->initExpression.get());
+    auto* fnCallExpr = downCast<FunctionCall>(resultDecl->initExpression.get());
     //	auto* calleeIdentifier = downCast<Identifier>(fnCallExpr->object.get());
 
-    auto const &calleeOverloadSet = sym.lookupOverloadSet("callee");
+    auto const& calleeOverloadSet = sym.lookupOverloadSet("callee");
     REQUIRE(calleeOverloadSet != nullptr);
-    auto *calleeFunction = calleeOverloadSet->find(std::array{sym.String(), sym.Int(), sym.Bool()});
+    auto* calleeFunction = calleeOverloadSet->find(std::array{ sym.String(), sym.Int(), sym.Bool() });
     REQUIRE(calleeFunction != nullptr);
 
     CHECK(fnCallExpr->functionID == calleeFunction->symbolID());
@@ -162,22 +161,22 @@ struct X {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
 
-    auto *tu   = downCast<TranslationUnit>(ast.get());
-    auto *xDef = downCast<StructDefinition>(tu->declarations[0].get());
+    auto* tu   = downCast<TranslationUnit>(ast.get());
+    auto* xDef = downCast<StructDefinition>(tu->declarations[0].get());
     CHECK(xDef->name() == "X");
-    auto *iDecl = downCast<VariableDeclaration>(xDef->body->statements[0].get());
+    auto* iDecl = downCast<VariableDeclaration>(xDef->body->statements[0].get());
     CHECK(iDecl->name() == "i");
     CHECK(iDecl->typeID == sym.Float());
     CHECK(iDecl->offset == 0);
-    auto *jDecl = downCast<VariableDeclaration>(xDef->body->statements[1].get());
+    auto* jDecl = downCast<VariableDeclaration>(xDef->body->statements[1].get());
     CHECK(jDecl->name() == "j");
     CHECK(jDecl->typeID == sym.Int());
     CHECK(jDecl->offset == 8);
-    auto *b2Decl = downCast<VariableDeclaration>(xDef->body->statements[3].get());
+    auto* b2Decl = downCast<VariableDeclaration>(xDef->body->statements[3].get());
     CHECK(b2Decl->name() == "b2");
     CHECK(b2Decl->typeID == sym.Bool());
     CHECK(b2Decl->offset == 17);
-    auto *fDef = downCast<FunctionDefinition>(xDef->body->statements[4].get());
+    auto* fDef = downCast<FunctionDefinition>(xDef->body->statements[4].get());
     CHECK(fDef->name() == "f");
     // TODO: Test argument types when we properly recognize member functions as
     // having an implicit 'this' argument
@@ -203,10 +202,10 @@ struct X { struct Y {} }
 )";
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto const *tu    = downCast<TranslationUnit>(ast.get());
-    auto const *f     = downCast<FunctionDefinition>(tu->declarations[0].get());
-    auto const *y     = downCast<VariableDeclaration>(f->body->statements[0].get());
-    auto const &YType = sym.getObjectType(y->typeID);
+    auto const* tu    = downCast<TranslationUnit>(ast.get());
+    auto const* f     = downCast<FunctionDefinition>(tu->declarations[0].get());
+    auto const* y     = downCast<VariableDeclaration>(f->body->statements[0].get());
+    auto const& YType = sym.getObjectType(y->typeID);
     CHECK(YType.name() == "Y");
     CHECK(YType.parent()->name() == "X");
 
@@ -314,15 +313,15 @@ struct X {
     REQUIRE(iss.empty());
     auto const xID = sym.lookup("X");
     sym.pushScope(xID);
-    auto const  fID   = sym.lookup("f");
-    auto const &fOS   = sym.getOverloadSet(fID);
-    auto const  x_yID = sym.lookup("Y");
-    auto const *fFn   = fOS.find(std::array{TypeID(x_yID)});
+    auto const fID   = sym.lookup("f");
+    auto const& fOS  = sym.getOverloadSet(fID);
+    auto const x_yID = sym.lookup("Y");
+    auto const* fFn  = fOS.find(std::array{ TypeID(x_yID) });
     // finding f in the overload set with X.Y as argument shall succeed
     CHECK(fFn != nullptr);
     sym.popScope();
-    auto const  yID           = sym.lookup("Y");
-    auto const *undeclaredfFn = fOS.find(std::array{TypeID(yID)});
+    auto const yID            = sym.lookup("Y");
+    auto const* undeclaredfFn = fOS.find(std::array{ TypeID(yID) });
     // finding f with Y (global) as argument shall fail
     CHECK(undeclaredfFn == nullptr);
 }

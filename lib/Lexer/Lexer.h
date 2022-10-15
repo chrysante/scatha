@@ -15,12 +15,12 @@
 namespace scatha::lex {
 
 class SCATHA(API) Lexer {
-  public:
+public:
     explicit Lexer(std::string_view text);
 
     [[nodiscard]] utl::vector<Token> lex();
 
-  private:
+private:
     std::optional<Token> getToken();
 
     std::optional<Token> getSpaces();
@@ -35,16 +35,16 @@ class SCATHA(API) Lexer {
     std::optional<Token> getBooleanLiteral();
     std::optional<Token> getIdentifier();
 
-    bool                 advance();
-    bool                 advance(size_t count);
+    bool advance();
+    bool advance(size_t count);
 
-    Token                beginToken(TokenType type) const;
-    char                 current() const;
-    std::optional<char>  next(size_t offset = 1) const;
+    Token beginToken(TokenType type) const;
+    char current() const;
+    std::optional<char> next(size_t offset = 1) const;
 
-  private:
+private:
     std::string_view text;
-    SourceLocation   currentLocation{0, 1, 1};
+    SourceLocation currentLocation{ 0, 1, 1 };
 };
 
 } // namespace scatha::lex

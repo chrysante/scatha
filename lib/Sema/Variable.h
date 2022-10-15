@@ -6,8 +6,8 @@
 namespace scatha::sema {
 
 class Variable: public EntityBase {
-  public:
-    explicit Variable(std::string name, SymbolID symbolID, Scope *parentScope, TypeID typeID, size_t offset = 0):
+public:
+    explicit Variable(std::string name, SymbolID symbolID, Scope* parentScope, TypeID typeID, size_t offset = 0):
         EntityBase(std::move(name), symbolID, parentScope), _typeID(typeID), _offset(offset) {}
 
     /// Set the type of this variable.
@@ -20,9 +20,9 @@ class Variable: public EntityBase {
     /// member variable then offset() == 0.
     size_t offset() const { return _offset; }
 
-  private:
+private:
     TypeID _typeID;
-    bool   _offset;
+    bool _offset;
 };
 
 } // namespace scatha::sema

@@ -12,27 +12,24 @@
 namespace scatha::sema {
 
 class SymbolID {
-  public:
-    constexpr SymbolID() = default;
-    constexpr explicit SymbolID(u64 rawValue): _value(rawValue) {}
-
+public:
     static SymbolID const Invalid;
 
-    constexpr u64         rawValue() const { return _value; }
+public:
+    constexpr SymbolID() = default;
+    constexpr explicit SymbolID(u64 rawValue): _value(rawValue) {}
+    constexpr u64 rawValue() const { return _value; }
+    constexpr bool operator==(SymbolID const&) const = default;
+    u64 hash() const;
+    explicit operator bool() const { return *this != Invalid; }
 
-    constexpr bool        operator==(SymbolID const &) const = default;
-
-    u64                   hash() const;
-
-    explicit              operator bool() const { return *this != Invalid; }
-
-  private:
+private:
     u64 _value = 0;
 };
 
-inline SymbolID const     SymbolID::Invalid = SymbolID(0);
+inline SymbolID const SymbolID::Invalid = SymbolID(0);
 
-SCATHA(API) std::ostream &operator<<(std::ostream &, SymbolID);
+SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolID);
 
 // Special kind of SymbolID
 struct TypeID: SymbolID {
@@ -57,15 +54,17 @@ UTL_ENUM_OPERATORS(SymbolCategory);
 
 SCATHA(API) std::string_view toString(SymbolCategory);
 
-SCATHA(API) std::ostream &operator<<(std::ostream &, SymbolCategory);
+SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolCategory);
 
 } // namespace scatha::sema
 
-template <> struct std::hash<scatha::sema::SymbolID> {
+template <>
+struct std::hash<scatha::sema::SymbolID> {
     std::size_t operator()(scatha::sema::SymbolID id) const { return std::hash<scatha::u64>{}(id.rawValue()); }
 };
 
-template <> struct std::hash<scatha::sema::TypeID> {
+template <>
+struct std::hash<scatha::sema::TypeID> {
     std::size_t operator()(scatha::sema::TypeID id) const { return std::hash<scatha::sema::SymbolID>{}(id); }
 };
 

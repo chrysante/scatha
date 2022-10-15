@@ -11,28 +11,28 @@
 namespace scatha::lex {
 
 class SCATHA(API) LexicalIssue: public ProgramIssue {
-  protected:
-    LexicalIssue(Token const &, std::string const &message);
+protected:
+    LexicalIssue(Token const&, std::string const& message);
 };
 
 class SCATHA(API) UnexpectedID: public LexicalIssue {
-  public:
-    explicit UnexpectedID(Token const &);
+public:
+    explicit UnexpectedID(Token const&);
 };
 
 class SCATHA(API) InvalidNumericLiteral: public LexicalIssue {
-  public:
-    explicit InvalidNumericLiteral(Token const &);
+public:
+    explicit InvalidNumericLiteral(Token const&);
 };
 
 class SCATHA(API) UnterminatedMultiLineComment: public LexicalIssue {
-  public:
-    explicit UnterminatedMultiLineComment(Token const &);
+public:
+    explicit UnterminatedMultiLineComment(Token const&);
 };
 
 class SCATHA(API) UnterminatedStringLiteral: public LexicalIssue {
-  public:
-    explicit UnterminatedStringLiteral(Token const &);
+public:
+    explicit UnterminatedStringLiteral(Token const&);
 };
 
 } // namespace scatha::lex

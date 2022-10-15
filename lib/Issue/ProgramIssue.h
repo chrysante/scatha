@@ -12,14 +12,14 @@ class SCATHA(API) ProgramIssuePrivateBase {};
 namespace scatha::issue {
 
 class SCATHA(API) ProgramIssueBase: public internal::ProgramIssuePrivateBase {
-  public:
+public:
     explicit ProgramIssueBase(Token token): _tok(std::move(token)) {}
 
-    Token const &token() const { return _tok; }
+    Token const& token() const { return _tok; }
 
-    void         setToken(Token token) { _tok = std::move(token); }
+    void setToken(Token token) { _tok = std::move(token); }
 
-  private:
+private:
     Token _tok;
 };
 

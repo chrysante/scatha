@@ -9,16 +9,16 @@
 namespace scatha {
 
 class SCATHA(API) ProgramIssue: public std::runtime_error {
-  protected:
-    explicit ProgramIssue(Token const &, std::string_view brief, std::string_view message = {});
+protected:
+    explicit ProgramIssue(Token const&, std::string_view brief, std::string_view message = {});
 
-    Token const          &token() const { return _token; }
-    SourceLocation const &sourceLocation() const { return token().sourceLocation; }
+    Token const& token() const { return _token; }
+    SourceLocation const& sourceLocation() const { return token().sourceLocation; }
 
-  private:
-    static std::string makeWhatArg(Token const &, std::string_view, std::string_view);
+private:
+    static std::string makeWhatArg(Token const&, std::string_view, std::string_view);
 
-  private:
+private:
     Token _token;
 };
 

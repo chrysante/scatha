@@ -114,16 +114,17 @@ struct X {
 TEST_CASE("Bad member access expression", "[sema]") {
     auto const issues = test::getIssues(R"(
 fn main() {
-	X.0;
-	X."0";
-	X.0.0;
+    // these aren't actually semantic issues but parsing issues. although we might consider allowing X.<0, 1...> in the future
+	// X.0;
+	// X."0";
+	// X.0.0;
 	X.data;
 }
 struct X{ let data: float; }
 )");
-    CHECK(issues.findOnLine<BadMemberAccess>(3));
-    CHECK(issues.findOnLine<BadMemberAccess>(4));
-    CHECK(issues.findOnLine<BadMemberAccess>(5));
+//    CHECK(issues.findOnLine<BadMemberAccess>(3));
+//    CHECK(issues.findOnLine<BadMemberAccess>(4));
+//    CHECK(issues.findOnLine<BadMemberAccess>(5));
     CHECK(issues.noneOnLine(6));
 }
 
@@ -231,15 +232,15 @@ struct Y { var data: int; }
 }
 
 TEST_CASE("Invalid declaration", "[sema]") {
-    auto const     issues = test::getIssues(R"(
+    auto const issues  = test::getIssues(R"(
 fn f() {
 	fn g() {}
 	struct X {}
 }
 )");
-    SymbolID const fID    = issues.sym.lookupOverloadSet("f")->find(std::array<TypeID, 0>{})->symbolID();
+    SymbolID const fID = issues.sym.lookupOverloadSet("f")->find(std::array<TypeID, 0>{})->symbolID();
 
-    auto const     line3  = issues.findOnLine<InvalidDeclaration>(3);
+    auto const line3   = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
     CHECK(line3->reason() == InvalidDeclaration::Reason::InvalidInCurrentScope);
     CHECK(line3->currentScope().symbolID() == fID);
@@ -251,7 +252,7 @@ fn f() {
 }
 
 TEST_CASE("Invalid statement at struct scope", "[sema]") {
-    auto const     issues    = test::getIssues(R"(
+    auto const issues  = test::getIssues(R"(
 struct X {
 	return 0;
 	1;
@@ -261,8 +262,8 @@ struct X {
 	{}
 	fn f() { {} }
 })");
-    SymbolID const xID       = issues.sym.lookupObjectType("X")->symbolID();
-    auto           checkLine = [&](size_t n) {
+    SymbolID const xID = issues.sym.lookupObjectType("X")->symbolID();
+    auto checkLine     = [&](size_t n) {
         auto const line = issues.findOnLine<InvalidStatement>(n);
         REQUIRE(line);
         CHECK(line->reason() == InvalidStatement::Reason::InvalidScopeForStatement);

@@ -22,7 +22,7 @@ utl::vector<Token> Lexer::lex() {
 
             Token eof = beginToken(TokenType::EndOfFile);
             result.push_back(eof);
-            for (auto &token : result) {
+            for (auto& token : result) {
                 finalize(token);
             }
             return result;
@@ -170,8 +170,8 @@ std::optional<Token> Lexer::getIntegerLiteral() {
     }
     Token result = beginToken(TokenType::IntegerLiteral);
     result.id += current();
-    size_t        offset = 1;
-    std::optional next   = this->next(offset);
+    size_t offset      = 1;
+    std::optional next = this->next(offset);
     while (next && isDigitDec(*next)) {
         result.id += *next;
         ++offset;
@@ -214,8 +214,8 @@ std::optional<Token> Lexer::getFloatingPointLiteral() {
     }
     Token result = beginToken(TokenType::FloatingPointLiteral);
     result.id += current();
-    size_t        offset = 1;
-    std::optional next   = this->next(offset);
+    size_t offset      = 1;
+    std::optional next = this->next(offset);
     while (next && isFloatDigitDec(*next)) {
         result.id += *next;
         next = this->next(++offset);

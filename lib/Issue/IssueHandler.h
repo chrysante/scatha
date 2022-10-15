@@ -13,28 +13,28 @@ class SemanticIssue;
 namespace scatha::issue {
 
 class SCATHA(API) IssueHandler {
-  public:
+public:
     IssueHandler();
-    IssueHandler(IssueHandler &&) noexcept;
+    IssueHandler(IssueHandler&&) noexcept;
     ~IssueHandler();
 
-    IssueHandler                        &operator=(IssueHandler &&) noexcept;
+    IssueHandler& operator=(IssueHandler&&) noexcept;
 
-    void                                 push(sema::SemanticIssue);
+    void push(sema::SemanticIssue);
 
     std::span<sema::SemanticIssue const> semaIssues() const;
 
-    bool                                 fatal() const { return _fatal; }
-    void                                 setFatal() { _fatal = true; }
+    bool fatal() const { return _fatal; }
+    void setFatal() { _fatal = true; }
 
-    bool                                 empty() const;
+    bool empty() const;
 
-  private:
+private:
     struct Impl;
 
-  private:
+private:
     std::unique_ptr<Impl> impl;
-    bool                  _fatal = false;
+    bool _fatal = false;
 };
 
 } // namespace scatha::issue

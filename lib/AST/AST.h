@@ -12,7 +12,6 @@
 
 #include "AST/Base.h"
 #include "AST/Common.h"
-#include "AST/Expression.h"
 #include "Sema/Scope.h"
 #include "Sema/ScopeKind.h"
 #include "Sema/SymbolID.h"
@@ -46,35 +45,48 @@
 
 namespace scatha::ast {
 
-/// MARK: Statement
 /// Abstract node representing any statement.
 struct SCATHA(API) Statement: AbstractSyntaxTree {
     using AbstractSyntaxTree::AbstractSyntaxTree;
 };
 
-/// MARK: Declaration
+/// Abstract node representing any declaration.
+struct SCATHA(API) Expression: AbstractSyntaxTree {
+    using AbstractSyntaxTree::AbstractSyntaxTree;
+
+    bool isValue() const { return category == EntityCategory::Value; }
+    bool isType() const { return category == EntityCategory::Type; }
+
+    /** Decoration provided by semantic analysis. */
+
+    /// Wether the expression refers to a value or a type.
+    EntityCategory category = EntityCategory::Value;
+
+    /// The type of the expression. Only valid if kind == ::Value
+    sema::TypeID typeID{};
+};
+
 /// Abstract node representing any declaration.
 struct SCATHA(API) Declaration: Statement {
-  public:
+public:
     /// Name of the declared symbol as written in the source code.
     std::string_view name() const { return _token.id; }
 
     /// Token object of the name in the source code.
-    Token const &token() const { return _token; }
+    Token const& token() const { return _token; }
 
     /** Decoration provided by semantic analysis. */
 
     /// SymbolID of this declaration in the symbol table
     sema::SymbolID symbolID;
 
-  protected:
-    explicit Declaration(NodeType type, Token const &token): Statement(type, token), _token(token) {}
+protected:
+    explicit Declaration(NodeType type, Token const& token): Statement(type, token), _token(token) {}
 
-  private:
+private:
     Token _token;
 };
 
-/// MARK: TranslationUnit
 /// Concrete node representing a translation unit.
 struct SCATHA(API) TranslationUnit: AbstractSyntaxTree {
     TranslationUnit(): AbstractSyntaxTree(NodeType::TranslationUnit, Token{}) {}
@@ -83,10 +95,9 @@ struct SCATHA(API) TranslationUnit: AbstractSyntaxTree {
     utl::small_vector<UniquePtr<Declaration>> declarations;
 };
 
-/// MARK: VariableDeclaration
 /// Concrete node representing a variable declaration.
 struct SCATHA(API) VariableDeclaration: Declaration {
-    explicit VariableDeclaration(Token const &name): Declaration(NodeType::VariableDeclaration, name) {}
+    explicit VariableDeclaration(Token const& name): Declaration(NodeType::VariableDeclaration, name) {}
 
     bool isConstant             : 1 = false; // Will be set by the parser
     bool isFunctionParameter    : 1 = false; // Will be set by the parser
@@ -110,17 +121,15 @@ struct SCATHA(API) VariableDeclaration: Declaration {
     size_t offset = 0;
 };
 
-/// MARK: Module
 /// Nothing to see here yet...
 struct SCATHA(API) ModuleDeclaration: Declaration {
     ModuleDeclaration() = delete;
 };
 
-/// MARK: Block
 /// Concrete node representing any block like a function or loop body. Declares
 /// its own (maybe anonymous) scope.
 struct SCATHA(API) Block: Statement {
-    explicit Block(Token const &token): Statement(NodeType::Block, token) {}
+    explicit Block(Token const& token): Statement(NodeType::Block, token) {}
 
     /// Statements in the block.
     utl::small_vector<UniquePtr<Statement>> statements;
@@ -134,10 +143,9 @@ struct SCATHA(API) Block: Statement {
     sema::SymbolID scopeSymbolID{};
 };
 
-/// MARK: FunctionDefinition
 /// Concrete node representing the definition of a function.
 struct SCATHA(API) FunctionDefinition: Declaration {
-    explicit FunctionDefinition(Token const &name): Declaration(NodeType::FunctionDefinition, std::move(name)) {}
+    explicit FunctionDefinition(Token const& name): Declaration(NodeType::FunctionDefinition, std::move(name)) {}
 
     /// Typename of the return type as declared in the source code.
     /// Will be implicitly Identifier("void") if no return type was declared.
@@ -158,10 +166,9 @@ struct SCATHA(API) FunctionDefinition: Declaration {
     sema::TypeID functionTypeID = sema::TypeID::Invalid;
 };
 
-/// MARK: StructDefinition
 /// Concrete node representing the definition of a struct.
 struct SCATHA(API) StructDefinition: Declaration {
-    explicit StructDefinition(Token const &name): Declaration(NodeType::StructDefinition, std::move(name)) {}
+    explicit StructDefinition(Token const& name): Declaration(NodeType::StructDefinition, std::move(name)) {}
 
     /// Body of the struct.
     UniquePtr<Block> body;
@@ -172,60 +179,166 @@ struct SCATHA(API) StructDefinition: Declaration {
     sema::TypeID typeID = sema::TypeID::Invalid;
 };
 
-/// MARK: ExpressionStatement
 /// Concrete node representing a statement that consists of a single expression.
 /// May only appear at function scope.
 struct SCATHA(API) ExpressionStatement: Statement {
-    explicit ExpressionStatement(UniquePtr<Expression> expression, Token const &token):
+    explicit ExpressionStatement(UniquePtr<Expression> expression, Token const& token):
         Statement(NodeType::ExpressionStatement, token), expression(std::move(expression)) {}
 
     /// The expression
     UniquePtr<Expression> expression;
 };
 
-/// MARK: ControlFlow
 /// Abstract node representing any control flow statement like if, while, for,
 /// return etc. May only appear at function scope.
 struct SCATHA(API) ControlFlowStatement: Statement {
-  protected:
+protected:
     using Statement::Statement;
 };
 
-/// MARK: ReturnStatement
 /// Concrete node representing a return statement.
 struct SCATHA(API) ReturnStatement: ControlFlowStatement {
-    explicit ReturnStatement(UniquePtr<Expression> expression, Token const &token):
+    explicit ReturnStatement(UniquePtr<Expression> expression, Token const& token):
         ControlFlowStatement(NodeType::ReturnStatement, token), expression(std::move(expression)) {}
 
     /// The returned expression. May be null in case of a void function.
     UniquePtr<Expression> expression;
 };
 
-/// MARK: IfStatement
 /// Concrete node representing an if/else statement.
 struct SCATHA(API) IfStatement: ControlFlowStatement {
-    explicit IfStatement(UniquePtr<Expression> condition, Token const &token):
+    explicit IfStatement(UniquePtr<Expression> condition, Token const& token):
         ControlFlowStatement(NodeType::IfStatement, token), condition(std::move(condition)) {}
 
     /// Condition to branch on.
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
     UniquePtr<Expression> condition;
-    UniquePtr<Statement>  ifBlock;
-    UniquePtr<Statement>  elseBlock;
+    UniquePtr<Statement> ifBlock;
+    UniquePtr<Statement> elseBlock;
 };
 
-/// MARK: WhileStatement
 /// Concrete node representing a while statement.
 struct SCATHA(API) WhileStatement: ControlFlowStatement {
-    explicit WhileStatement(UniquePtr<Expression> condition, Token const &token):
+    explicit WhileStatement(UniquePtr<Expression> condition, Token const& token):
         ControlFlowStatement(NodeType::WhileStatement, token), condition(std::move(condition)) {}
 
     /// Condition to loop on.
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
     UniquePtr<Expression> condition;
-    UniquePtr<Block>      block;
+    UniquePtr<Block> block;
+};
+
+/// MARK: Expressions
+
+/// Concrete node representing an identifier in an expression.
+/// Identifier must refer to a value meaning a variable or a function.
+struct SCATHA(API) Identifier: Expression {
+    explicit Identifier(Token const& token): Expression(NodeType::Identifier, token) {}
+
+    std::string_view value() const { return token().id; }
+
+    /** Decoration provided by semantic analysis. */
+    sema::SymbolID symbolID;
+};
+
+struct SCATHA(API) IntegerLiteral: Expression {
+    explicit IntegerLiteral(Token const& token):
+        Expression(NodeType::IntegerLiteral, token), value(token.toInteger()) {}
+
+    u64 value;
+};
+
+struct SCATHA(API) BooleanLiteral: Expression {
+    explicit BooleanLiteral(Token const& token): Expression(NodeType::BooleanLiteral, token), value(token.toBool()) {}
+
+    bool value;
+};
+
+struct SCATHA(API) FloatingPointLiteral: Expression {
+    explicit FloatingPointLiteral(Token const& token):
+        Expression(NodeType::FloatingPointLiteral, token), value(token.toFloat()) {}
+
+    f64 value;
+};
+
+struct SCATHA(API) StringLiteral: Expression {
+    explicit StringLiteral(Token const& token): Expression(NodeType::StringLiteral, token), value(token.id) {}
+
+    std::string value;
+};
+
+/// MARK: Unary Expressions
+struct SCATHA(API) UnaryPrefixExpression: Expression {
+    explicit UnaryPrefixExpression(UnaryPrefixOperator op, UniquePtr<Expression> operand, Token const& token):
+        Expression(NodeType::UnaryPrefixExpression, token), op(op), operand(std::move(operand)) {}
+
+    UnaryPrefixOperator op;
+    UniquePtr<Expression> operand;
+};
+
+/// MARK: Binary Expressions
+struct SCATHA(API) BinaryExpression: Expression {
+    explicit BinaryExpression(BinaryOperator op,
+                              UniquePtr<Expression> lhs,
+                              UniquePtr<Expression> rhs,
+                              Token const& token):
+        Expression(NodeType::BinaryExpression, token), op(op), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+
+    BinaryOperator op;
+    UniquePtr<Expression> lhs;
+    UniquePtr<Expression> rhs;
+};
+
+struct SCATHA(API) MemberAccess: Expression {
+    explicit MemberAccess(UniquePtr<Expression> object, UniquePtr<Expression> member, Token const& dotToken):
+        Expression(NodeType::MemberAccess, dotToken), object(std::move(object)), member(std::move(member)) {}
+
+    UniquePtr<Expression> object;
+    UniquePtr<Expression> member;
+    sema::SymbolID symbolID;
+};
+
+/// MARK: Ternary Expressions
+struct SCATHA(API) Conditional: Expression {
+    explicit Conditional(UniquePtr<Expression> condition,
+                         UniquePtr<Expression> ifExpr,
+                         UniquePtr<Expression> elseExpr,
+                         Token const& token):
+        Expression(NodeType::Conditional, token),
+        condition(std::move(condition)),
+        ifExpr(std::move(ifExpr)),
+        elseExpr(std::move(elseExpr)) {}
+
+    UniquePtr<Expression> condition;
+    UniquePtr<Expression> ifExpr;
+    UniquePtr<Expression> elseExpr;
+};
+
+/// MARK: More Complex Expressions
+struct SCATHA(API) FunctionCall: Expression {
+    explicit FunctionCall(UniquePtr<Expression> object, Token const& token):
+        Expression(NodeType::FunctionCall, token), object(std::move(object)) {}
+
+    UniquePtr<Expression> object;
+    utl::small_vector<UniquePtr<Expression>> arguments;
+
+    /** Decoration provided by semantic analysis. */
+
+    /// The SymbolID of the resolved function.
+    /// Differs from the SymbolID of the object because the latter refers to an
+    /// overload set or an object and this ID is resolved by overload
+    /// resolution.
+    sema::SymbolID functionID;
+};
+
+struct SCATHA(API) Subscript: Expression {
+    explicit Subscript(UniquePtr<Expression> object, Token const& token):
+        Expression(NodeType::Subscript, token), object(std::move(object)) {}
+
+    UniquePtr<Expression> object;
+    utl::small_vector<UniquePtr<Expression>> arguments;
 };
 
 } // namespace scatha::ast

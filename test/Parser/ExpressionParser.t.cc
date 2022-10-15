@@ -12,7 +12,7 @@ using namespace ast;
 
 static TokenStream makeTokenStream(std::string text) {
     lex::Lexer l(text);
-    auto       tokens = l.lex();
+    auto tokens = l.lex();
     return TokenStream(tokens);
 }
 
@@ -28,13 +28,13 @@ TEST_CASE("ExpressionParser", "[parse]") {
          */
 
         ExpressionParser parser(tokens);
-        auto             expr = parser.parseExpression();
+        auto expr = parser.parseExpression();
 
-        auto            *add  = downCast<BinaryExpression>(expr.get());
+        auto* add = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
-        auto *lhs = downCast<Identifier>(add->lhs.get());
+        auto* lhs = downCast<Identifier>(add->lhs.get());
         CHECK(lhs->value() == "a");
-        auto *rhs = downCast<Identifier>(add->rhs.get());
+        auto* rhs = downCast<Identifier>(add->rhs.get());
         CHECK(rhs->value() == "b");
     }
 
@@ -49,13 +49,13 @@ TEST_CASE("ExpressionParser", "[parse]") {
          */
 
         ExpressionParser parser(tokens);
-        auto             expr = parser.parseExpression();
+        auto expr = parser.parseExpression();
 
-        auto            *mul  = downCast<BinaryExpression>(expr.get());
+        auto* mul = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
-        auto *lhs = downCast<IntegerLiteral>(mul->lhs.get());
+        auto* lhs = downCast<IntegerLiteral>(mul->lhs.get());
         CHECK(lhs->value == 3);
-        auto *rhs = downCast<Identifier>(mul->rhs.get());
+        auto* rhs = downCast<Identifier>(mul->rhs.get());
         CHECK(rhs->value() == "x");
     }
 
@@ -72,21 +72,21 @@ TEST_CASE("ExpressionParser", "[parse]") {
          */
 
         ExpressionParser parser(tokens);
-        auto             expr = parser.parseExpression();
+        auto expr = parser.parseExpression();
 
-        auto            *add  = downCast<BinaryExpression>(expr.get());
+        auto* add = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
 
-        auto *a = downCast<Identifier>(add->lhs.get());
+        auto* a = downCast<Identifier>(add->lhs.get());
         CHECK(a->value() == "a");
 
-        auto *mul = downCast<BinaryExpression>(add->rhs.get());
+        auto* mul = downCast<BinaryExpression>(add->rhs.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
 
-        auto *b = downCast<Identifier>(mul->lhs.get());
+        auto* b = downCast<Identifier>(mul->lhs.get());
         CHECK(b->value() == "b");
 
-        auto *c = downCast<Identifier>(mul->rhs.get());
+        auto* c = downCast<Identifier>(mul->rhs.get());
         CHECK(c->value() == "c");
     }
 
@@ -103,21 +103,21 @@ TEST_CASE("ExpressionParser", "[parse]") {
          */
 
         ExpressionParser parser(tokens);
-        auto             expr = parser.parseExpression();
+        auto expr = parser.parseExpression();
 
-        auto            *mul  = downCast<BinaryExpression>(expr.get());
+        auto* mul = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
 
-        auto *add = downCast<BinaryExpression>(mul->lhs.get());
+        auto* add = downCast<BinaryExpression>(mul->lhs.get());
         REQUIRE(add->op == BinaryOperator::Addition);
 
-        auto *a = downCast<Identifier>(add->lhs.get());
+        auto* a = downCast<Identifier>(add->lhs.get());
         CHECK(a->value() == "a");
 
-        auto *b = downCast<Identifier>(add->rhs.get());
+        auto* b = downCast<Identifier>(add->rhs.get());
         CHECK(b->value() == "b");
 
-        auto *c = downCast<Identifier>(mul->rhs.get());
+        auto* c = downCast<Identifier>(mul->rhs.get());
         CHECK(c->value() == "c");
     }
 }

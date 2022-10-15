@@ -5,7 +5,7 @@
 
 namespace scatha::ic {
 
-void SCATHA(API) canonicalize(ast::AbstractSyntaxTree *);
+void SCATHA(API) canonicalize(ast::AbstractSyntaxTree*);
 
 }
 

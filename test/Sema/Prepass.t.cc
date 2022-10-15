@@ -8,13 +8,13 @@
 using namespace scatha;
 
 static std::tuple<sema::SymbolTable, issue::IssueHandler> doPrepass(std::string_view text) {
-    lex::Lexer          l(text);
-    auto                tokens = l.lex();
-    parse::Parser       p(tokens);
-    auto                ast = p.parse();
+    lex::Lexer l(text);
+    auto tokens = l.lex();
+    parse::Parser p(tokens);
+    auto ast = p.parse();
     issue::IssueHandler iss;
-    auto                sym = sema::prepass(*ast, iss);
-    return {std::move(sym), std::move(iss)};
+    auto sym = sema::prepass(*ast, iss);
+    return { std::move(sym), std::move(iss) };
 }
 
 TEST_CASE("Prepass", "[sema]") {
@@ -32,15 +32,15 @@ struct Y {
 )";
 
     auto const [sym, iss] = doPrepass(text);
-    auto const *X         = sym.lookupObjectType("X");
+    auto const* X         = sym.lookupObjectType("X");
     REQUIRE(X);
     CHECK(X->size() == 16);
-    auto const *Y = sym.lookupObjectType("Y");
+    auto const* Y = sym.lookupObjectType("Y");
     REQUIRE(Y);
     CHECK(Y->size() == 8);
-    auto const *fOS = sym.lookupOverloadSet("f");
+    auto const* fOS = sym.lookupOverloadSet("f");
     REQUIRE(fOS);
-    auto const *f = fOS->find(std::array{X->symbolID()});
+    auto const* f = fOS->find(std::array{ X->symbolID() });
     REQUIRE(f);
 }
 
@@ -53,14 +53,14 @@ struct X {
 )";
 
     auto [sym, iss] = doPrepass(text);
-    auto const *X   = sym.lookupObjectType("X");
+    auto const* X   = sym.lookupObjectType("X");
     REQUIRE(X);
     sym.pushScope(X->symbolID());
-    auto const *Y = sym.lookupObjectType("Y");
+    auto const* Y = sym.lookupObjectType("Y");
     REQUIRE(Y);
-    auto const *fOS = sym.lookupOverloadSet("f");
+    auto const* fOS = sym.lookupOverloadSet("f");
     REQUIRE(fOS);
-    auto const *f = fOS->find(std::array{Y->symbolID()});
+    auto const* f = fOS->find(std::array{ Y->symbolID() });
     REQUIRE(f);
     sym.popScope();
 }
@@ -79,11 +79,11 @@ TEST_CASE("Struct size and align", "[sema]") {
 )";
 
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    auto const *X              = sym.lookupObjectType("X");
+    auto const* X              = sym.lookupObjectType("X");
     REQUIRE(X);
     CHECK(X->size() == 32);
     CHECK(X->align() == 8);
-    auto const *Y = sym.lookupObjectType("Y");
+    auto const* Y = sym.lookupObjectType("Y");
     CHECK(Y->size() == 8);
     CHECK(Y->align() == 8);
 }

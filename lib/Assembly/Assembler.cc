@@ -20,7 +20,7 @@ namespace scatha::assembly {
 
 using namespace vm;
 
-Assembler::Assembler(AssemblyStream const &str): stream(str) {}
+Assembler::Assembler(AssemblyStream const& str): stream(str) {}
 
 Program Assembler::assemble(AssemblerOptions opt) {
     program = nullptr;
@@ -46,8 +46,7 @@ Program Assembler::assemble(AssemblerOptions opt) {
             }
             break;
         }
-        default:
-            throw UnexpectedElement(elem, itr.currentLine());
+        default: throw UnexpectedElement(elem, itr.currentLine());
         }
     }
 
@@ -56,7 +55,7 @@ Program Assembler::assemble(AssemblerOptions opt) {
     return result;
 }
 
-void Assembler::processInstruction(Instruction i, StreamIterator &itr) {
+void Assembler::processInstruction(Instruction i, StreamIterator& itr) {
     switch (i) {
         using enum Instruction;
     case allocReg:
@@ -76,13 +75,9 @@ void Assembler::processInstruction(Instruction i, StreamIterator &itr) {
         put(itr.nextAs<Value8>());
         return;
 
-    case ret:
-        put(OpCode::ret);
-        return;
+    case ret: put(OpCode::ret); return;
 
-    case terminate:
-        put(OpCode::terminate);
-        return;
+    case terminate: put(OpCode::terminate); return;
 
     case callExt:
         put(OpCode::callExt);
@@ -91,87 +86,51 @@ void Assembler::processInstruction(Instruction i, StreamIterator &itr) {
         put(itr.nextAs<Value16>());
         return;
 
-    case itest:
-        [[fallthrough]];
-    case utest:
-        [[fallthrough]];
-    case sete:
-        [[fallthrough]];
-    case setne:
-        [[fallthrough]];
-    case setl:
-        [[fallthrough]];
-    case setle:
-        [[fallthrough]];
-    case setg:
-        [[fallthrough]];
-    case setge:
-        [[fallthrough]];
-    case lnt:
-        [[fallthrough]];
-    case bnt:
-        processUnaryInstruction(i, itr);
-        return;
+    case itest: [[fallthrough]];
+    case utest: [[fallthrough]];
+    case sete: [[fallthrough]];
+    case setne: [[fallthrough]];
+    case setl: [[fallthrough]];
+    case setle: [[fallthrough]];
+    case setg: [[fallthrough]];
+    case setge: [[fallthrough]];
+    case lnt: [[fallthrough]];
+    case bnt: processUnaryInstruction(i, itr); return;
 
-    case mov:
-        [[fallthrough]];
-    case ucmp:
-        [[fallthrough]];
-    case icmp:
-        [[fallthrough]];
-    case fcmp:
-        [[fallthrough]];
-    case add:
-        [[fallthrough]];
-    case sub:
-        [[fallthrough]];
-    case mul:
-        [[fallthrough]];
-    case div:
-        [[fallthrough]];
-    case idiv:
-        [[fallthrough]];
-    case rem:
-        [[fallthrough]];
-    case irem:
-        [[fallthrough]];
-    case fadd:
-        [[fallthrough]];
-    case fsub:
-        [[fallthrough]];
-    case fmul:
-        [[fallthrough]];
+    case mov: [[fallthrough]];
+    case ucmp: [[fallthrough]];
+    case icmp: [[fallthrough]];
+    case fcmp: [[fallthrough]];
+    case add: [[fallthrough]];
+    case sub: [[fallthrough]];
+    case mul: [[fallthrough]];
+    case div: [[fallthrough]];
+    case idiv: [[fallthrough]];
+    case rem: [[fallthrough]];
+    case irem: [[fallthrough]];
+    case fadd: [[fallthrough]];
+    case fsub: [[fallthrough]];
+    case fmul: [[fallthrough]];
     case fdiv:
     case sl:
     case sr:
     case And:
     case Or:
-    case XOr:
-        processBinaryInstruction(i, itr);
-        return;
+    case XOr: processBinaryInstruction(i, itr); return;
 
-    case jmp:
-        [[fallthrough]];
-    case je:
-        [[fallthrough]];
-    case jne:
-        [[fallthrough]];
-    case jl:
-        [[fallthrough]];
-    case jle:
-        [[fallthrough]];
-    case jg:
-        [[fallthrough]];
-    case jge:
-        processJump(i, itr);
-        return;
+    case jmp: [[fallthrough]];
+    case je: [[fallthrough]];
+    case jne: [[fallthrough]];
+    case jl: [[fallthrough]];
+    case jle: [[fallthrough]];
+    case jg: [[fallthrough]];
+    case jge: processJump(i, itr); return;
 
-    case _count:
-        SC_DEBUGFAIL();
+    case _count: SC_DEBUGFAIL();
     }
 }
 
-void Assembler::processUnaryInstruction(Instruction i, StreamIterator &itr) {
+void Assembler::processUnaryInstruction(Instruction i, StreamIterator& itr) {
     auto const arg1   = itr.next();
     auto const opcode = mapUnaryInstruction(i);
     if (opcode == OpCode::_count) {
@@ -181,7 +140,7 @@ void Assembler::processUnaryInstruction(Instruction i, StreamIterator &itr) {
     put(arg1);
 }
 
-void Assembler::processBinaryInstruction(Instruction i, StreamIterator &itr) {
+void Assembler::processBinaryInstruction(Instruction i, StreamIterator& itr) {
     auto const arg1   = itr.next();
     auto const arg2   = itr.next();
     auto const opcode = mapBinaryInstruction(i, arg1, arg2);
@@ -193,21 +152,23 @@ void Assembler::processBinaryInstruction(Instruction i, StreamIterator &itr) {
     put(arg2);
 }
 
-void Assembler::processJump(Instruction i, StreamIterator &itr) {
+void Assembler::processJump(Instruction i, StreamIterator& itr) {
     registerJumpsite(itr);
     put(mapUnaryInstruction(i));
     put(LabelPlaceholder{});
     return;
 }
 
-void Assembler::registerLabel(Label label) { labels.insert({label, currentPosition()}); }
+void Assembler::registerLabel(Label label) {
+    labels.insert({ label, currentPosition() });
+}
 
-void Assembler::registerJumpsite(StreamIterator &itr) {
-    jumpsites.push_back({program->instructions.size(), itr.currentLine(), itr.nextAs<Label>()});
+void Assembler::registerJumpsite(StreamIterator& itr) {
+    jumpsites.push_back({ program->instructions.size(), itr.currentLine(), itr.nextAs<Label>() });
 }
 
 void Assembler::postProcess() {
-    for (auto const &[position, line, label] : jumpsites) {
+    for (auto const& [position, line, label] : jumpsites) {
         auto const itr = labels.find(label);
         if (itr == labels.end()) {
             throw UseOfUndeclaredLabel(label, line);
@@ -221,7 +182,9 @@ void Assembler::postProcess() {
 }
 
 /// MARK: put()
-void Assembler::put(vm::OpCode o) { program->instructions.push_back(utl::to_underlying(o)); }
+void Assembler::put(vm::OpCode o) {
+    program->instructions.push_back(utl::to_underlying(o));
+}
 
 void Assembler::put(LabelPlaceholder) {
     for (int i = 0; i < 4; ++i) {
@@ -229,23 +192,25 @@ void Assembler::put(LabelPlaceholder) {
     }
 }
 
-void Assembler::put(Element const &elem) {
+void Assembler::put(Element const& elem) {
     std::visit(utl::visitor{
-                   [this](auto const &x) { put(x); },
+                   [this](auto const& x) { put(x); },
                    [](Instruction) {
-                       SC_DEBUGFAIL(); // Probably a bug because we should not
-                                       // put an assembly::Instruction into the
-                                       // program, only vm::OpCode.
+        SC_DEBUGFAIL(); // Probably a bug because we should not
+                        // put an assembly::Instruction into the
+                        // program, only vm::OpCode.
                    },
                    [](Label) {
-                       SC_DEBUGFAIL(); // Same here, labels do not exist in an
-                                       // assembled program.
-                   },
-               },
-               elem);
+        SC_DEBUGFAIL(); // Same here, labels do not exist in an
+                        // assembled program.
+    },
+    },
+        elem);
 }
 
-void Assembler::put(RegisterIndex r) { program->instructions.push_back(r.index); }
+void Assembler::put(RegisterIndex r) {
+    program->instructions.push_back(r.index);
+}
 
 void Assembler::put(MemoryAddress m) {
     program->instructions.push_back(m.ptrRegIdx);

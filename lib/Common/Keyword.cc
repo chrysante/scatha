@@ -8,8 +8,10 @@
 namespace scatha {
 
 static utl::vector<std::string> const keywords = [] {
-    utl::vector<std::string> result{size_t(Keyword::_count)};
-    auto                     at = [&](Keyword k) -> auto                     &{ return result[size_t(k)]; };
+    utl::vector<std::string> result{ size_t(Keyword::_count) };
+    auto at = [&](Keyword k) -> auto& {
+        return result[size_t(k)];
+    };
     using enum Keyword;
 
     // MARK: Types
@@ -75,7 +77,7 @@ static utl::vector<std::string> const keywords = [] {
     at(If)   = "if";
     at(Else) = "else";
 
-    at(For)  = "for";
+    at(For) = "for";
     // While:
     // while (<cond>) <statement>
     at(While) = "while";
@@ -114,10 +116,8 @@ bool isDeclarator(Keyword k) {
     case Keyword::Struct:
     case Keyword::Function:
     case Keyword::Var:
-    case Keyword::Let:
-        return true;
-    default:
-        return false;
+    case Keyword::Let: return true;
+    default: return false;
     }
 }
 
@@ -128,10 +128,8 @@ bool isControlFlow(Keyword k) {
     case Keyword::Else:
     case Keyword::For:
     case Keyword::While:
-    case Keyword::Do:
-        return true;
-    default:
-        return false;
+    case Keyword::Do: return true;
+    default: return false;
     }
 }
 

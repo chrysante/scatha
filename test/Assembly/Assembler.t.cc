@@ -12,8 +12,8 @@ using namespace scatha;
 using namespace scatha::assembly;
 
 static vm::VirtualMachine assembleAndExecute(AssemblyStream str) {
-    Assembler          a(str);
-    vm::Program        p = a.assemble();
+    Assembler a(str);
+    vm::Program p = a.assemble();
     vm::VirtualMachine vm;
     vm.load(p);
     vm.execute();
@@ -37,8 +37,8 @@ TEST_CASE("Memory read write", "[assembly][vm]") {
 
     a << terminate;
 
-    auto const  vm    = assembleAndExecute(a);
-    auto const &state = vm.getState();
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
 
     CHECK(read<i64>(state.memoryPtr) == -1);
     CHECK(read<f64>(state.memoryPtr + 8) == 1.5);
@@ -75,8 +75,8 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
 
     a << jmp << Label(GCD, 0); // tail call
 
-    auto const  vm    = assembleAndExecute(a);
-    auto const &state = vm.getState();
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
 
     // gcd(54, 24) == 6
     CHECK(state.registers[2] == 6);
@@ -121,8 +121,8 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
     a << mov << RegisterIndex(0) << RegisterIndex(4);  // R[0] = R[4] to move the result to the expected register
     a << ret;
 
-    auto const  vm    = assembleAndExecute(a);
-    auto const &state = vm.getState();
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
 
     // gcd(1023534,213588) == 18
     CHECK(state.registers[2] == 18);
@@ -138,8 +138,8 @@ static void testArithmeticRR(Instruction i, auto arg1, auto arg2, auto reference
     a << i << RegisterIndex(0) << RegisterIndex(1);
     a << terminate;
 
-    auto const  vm    = assembleAndExecute(a);
-    auto const &state = vm.getState();
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
 
     CHECK(read<decltype(reference)>(state.regPtr) == reference);
 }
@@ -153,8 +153,8 @@ static void testArithmeticRV(Instruction i, auto arg1, auto arg2, auto reference
     a << i << RegisterIndex(0) << Value64(utl::bit_cast<u64>(arg2), type);
     a << terminate;
 
-    auto const  vm    = assembleAndExecute(a);
-    auto const &state = vm.getState();
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
 
     CHECK(read<decltype(reference)>(state.regPtr) == reference);
 }
@@ -173,8 +173,8 @@ static void testArithmeticRM(Instruction i, auto arg1, auto arg2, auto reference
     a << i << RegisterIndex(0) << MemoryAddress(1, 0, 0);
     a << terminate;
 
-    auto const  vm    = assembleAndExecute(a);
-    auto const &state = vm.getState();
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
 
     CHECK(read<decltype(reference)>(state.regPtr) == reference);
 }
@@ -226,7 +226,7 @@ TEST_CASE("Arithmetic", "[assembly][vm]") {
 TEST_CASE("Unconditional jump", "[assembly][vm]") {
     using enum Instruction;
 
-    u64 const      value = GENERATE(0, 1, 2, 3);
+    u64 const value = GENERATE(0, 1, 2, 3);
 
     AssemblyStream a;
 
@@ -245,16 +245,16 @@ TEST_CASE("Unconditional jump", "[assembly][vm]") {
     a << mov << RegisterIndex(0) << Signed64(3);
     a << terminate;
 
-    auto const  vm    = assembleAndExecute(a);
-    auto const &state = vm.getState();
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
 
     CHECK(read<u64>(state.regPtr) == value);
 }
 
 TEST_CASE("Conditional jump", "[assembly][vm]") {
-    u64 const      value = GENERATE(0, 1, 2, 3);
-    i64 const      arg1  = GENERATE(-2, 0, 5, 100);
-    i64 const      arg2  = GENERATE(-100, -3, 0, 7);
+    u64 const value = GENERATE(0, 1, 2, 3);
+    i64 const arg1  = GENERATE(-2, 0, 5, 100);
+    i64 const arg2  = GENERATE(-100, -3, 0, 7);
 
     AssemblyStream a;
 
@@ -278,8 +278,8 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
     a << mov << RegisterIndex(1) << Signed64(3);
     a << terminate;
 
-    auto const  vm    = assembleAndExecute(a);
-    auto const &state = vm.getState();
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
 
     CHECK(read<u64>(state.regPtr + 1) == (arg1 <= arg2 ? value : -1));
 }
@@ -299,8 +299,8 @@ TEST_CASE("itest, set*") {
     a << setge << RegisterIndex(5);
     a << terminate;
 
-    auto const  vm    = assembleAndExecute(a);
-    auto const &state = vm.getState();
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
 
     CHECK(state.registers[0] == 0);
     CHECK(state.registers[1] == 1);

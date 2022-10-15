@@ -39,22 +39,22 @@ struct AssemblerOptions {
 };
 
 class SCATHA(API) Assembler {
-  public:
-    explicit Assembler(AssemblyStream const &);
+public:
+    explicit Assembler(AssemblyStream const&);
     vm::Program assemble(AssemblerOptions = {});
 
-  private:
+private:
     struct LabelPlaceholder {};
 
-    void   processInstruction(Instruction, StreamIterator &);
-    void   processUnaryInstruction(Instruction, StreamIterator &);
-    void   processBinaryInstruction(Instruction, StreamIterator &);
-    void   processJump(Instruction, StreamIterator &);
+    void processInstruction(Instruction, StreamIterator&);
+    void processUnaryInstruction(Instruction, StreamIterator&);
+    void processBinaryInstruction(Instruction, StreamIterator&);
+    void processJump(Instruction, StreamIterator&);
 
-    void   registerLabel(Label);
-    void   registerJumpsite(StreamIterator &);
+    void registerLabel(Label);
+    void registerJumpsite(StreamIterator&);
 
-    void   postProcess();
+    void postProcess();
 
     size_t currentPosition() const { return program->instructions.size(); }
 
@@ -63,7 +63,7 @@ class SCATHA(API) Assembler {
      */
     void put(vm::OpCode);
     void put(LabelPlaceholder);
-    void put(Element const &);
+    void put(Element const&);
     // delete these overloads to prevent infinite recursion when calling
     // put(Element const&), because when the Element variant holds the
     // Instruction or Label alternative, we would implicitly construct an
@@ -77,18 +77,18 @@ class SCATHA(API) Assembler {
     void put(Value32);
     void put(Value64);
 
-  private:
+private:
     struct Jumpsite {
         size_t index;
         size_t line;
-        Label  label;
+        Label label;
     };
 
     // The AssemblyStream we are processing
-    AssemblyStream const &stream;
+    AssemblyStream const& stream;
     // Pointer to the program we are assembling, so we don't have to pass
     // it around the call tree
-    vm::Program *program = nullptr;
+    vm::Program* program = nullptr;
     // Mapping Label ID -> Code position
     utl::hashmap<Label, size_t> labels;
     // List of all code position with a jump site

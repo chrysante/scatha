@@ -12,16 +12,22 @@ struct IssueHandler::Impl {
 
 IssueHandler::IssueHandler(): impl(std::make_unique<Impl>()) {}
 
-IssueHandler::IssueHandler(IssueHandler &&) noexcept            = default;
+IssueHandler::IssueHandler(IssueHandler&&) noexcept = default;
 
-IssueHandler::~IssueHandler()                                   = default;
+IssueHandler::~IssueHandler() = default;
 
-IssueHandler &IssueHandler::operator=(IssueHandler &&) noexcept = default;
+IssueHandler& IssueHandler::operator=(IssueHandler&&) noexcept = default;
 
-void IssueHandler::push(sema::SemanticIssue issue) { impl->semaIssues.push_back(std::move(issue)); }
+void IssueHandler::push(sema::SemanticIssue issue) {
+    impl->semaIssues.push_back(std::move(issue));
+}
 
-std::span<sema::SemanticIssue const> IssueHandler::semaIssues() const { return impl->semaIssues; }
+std::span<sema::SemanticIssue const> IssueHandler::semaIssues() const {
+    return impl->semaIssues;
+}
 
-bool                                 IssueHandler::empty() const { return impl->semaIssues.empty(); }
+bool IssueHandler::empty() const {
+    return impl->semaIssues.empty();
+}
 
 } // namespace scatha::issue

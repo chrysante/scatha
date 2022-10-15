@@ -12,19 +12,19 @@
 namespace scatha::sema {
 
 class SCATHA(API) OverloadSet: public EntityBase {
-  public:
-    explicit OverloadSet(std::string name, SymbolID id, Scope *parentScope):
+public:
+    explicit OverloadSet(std::string name, SymbolID id, Scope* parentScope):
         EntityBase(std::move(name), id, parentScope) {}
 
     ///
-    Function const             *find(std::span<TypeID const> argumentTypes) const;
+    Function const* find(std::span<TypeID const> argumentTypes) const;
 
-    std::pair<Function *, bool> add(Function);
+    std::pair<Function*, bool> add(Function);
 
-    auto                        begin() const { return functions.begin(); }
-    auto                        end() const { return functions.end(); }
+    auto begin() const { return functions.begin(); }
+    auto end() const { return functions.end(); }
 
-  private:
+private:
     using SetType = utl::node_hashset<Function, Function::ArgumentHash, Function::ArgumentEqual>;
     SetType functions;
 };

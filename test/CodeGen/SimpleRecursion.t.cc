@@ -9,7 +9,7 @@
 using namespace scatha;
 
 TEST_CASE("Recursive euclidean algorithm", "[codegen]") {
-    std::string const text  = R"(
+    std::string const text = R"(
 fn main() -> int {
 	let a = 756476;
 	let b = 1253;
@@ -21,13 +21,13 @@ fn gcd(a: int, b: int) -> int {
 	}
 	return gcd(b, a % b);
 })";
-    auto const        vm    = test::compileAndExecute(text);
-    auto const       &state = vm.getState();
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
     CHECK(state.registers[0] == 7);
 }
 
 TEST_CASE("Recursive fibonacci", "[codegen]") {
-    std::string const text  = R"(
+    std::string const text = R"(
 fn main() -> int {
 	let n = 10;
 	return fib(n);
@@ -41,13 +41,13 @@ fn fib(n: int) -> int {
 	}
 	return fib(n - 1) + fib(n - 2);
 })";
-    auto const        vm    = test::compileAndExecute(text);
-    auto const       &state = vm.getState();
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
     CHECK(state.registers[0] == 55);
 }
 
 TEST_CASE("Recursive factorial", "[codegen]") {
-    std::string const text  = R"(
+    std::string const text = R"(
 fn main() -> int {
 	return fact(10);
 }
@@ -57,13 +57,13 @@ fn fact(n: int) -> int {
 	}
 	return n * fact(n - 1);
 })";
-    auto const        vm    = test::compileAndExecute(text);
-    auto const       &state = vm.getState();
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
     CHECK(state.registers[0] == 3628800);
 }
 
 TEST_CASE("Recursive pow", "[codegen]") {
-    std::string const text  = R"(
+    std::string const text = R"(
 fn main() -> int {
 	 return pow(3, 5);
 }
@@ -79,7 +79,7 @@ fn pow(base: int, exponent: int) -> int {
 	}
 	return base * pow(base *  base, exponent / 2);
 })";
-    auto const        vm    = test::compileAndExecute(text);
-    auto const       &state = vm.getState();
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
     CHECK(state.registers[0] == 243);
 }

@@ -9,38 +9,38 @@
 namespace scatha::assembly {
 
 class SCATHA(API) AssemblerIssue: public std::runtime_error {
-  public:
-    explicit AssemblerIssue(std::string const &, size_t line);
+public:
+    explicit AssemblerIssue(std::string const&, size_t line);
 
     size_t line() const { return _line; }
 
-  private:
+private:
     size_t _line;
 };
 
 class SCATHA(API) UnexpectedElement: public AssemblerIssue {
-  public:
+public:
     using AssemblerIssue::AssemblerIssue;
-    explicit UnexpectedElement(Element const &, size_t line);
+    explicit UnexpectedElement(Element const&, size_t line);
 };
 
 class SCATHA(API) InvalidArguments: public UnexpectedElement {
-  public:
-    explicit InvalidArguments(Instruction, Element const &a, Element const &b, size_t line);
+public:
+    explicit InvalidArguments(Instruction, Element const& a, Element const& b, size_t line);
 };
 
 class SCATHA(API) InvalidMarker: public AssemblerIssue {
-  public:
+public:
     explicit InvalidMarker(Marker, size_t line);
 };
 
 class SCATHA(API) UseOfUndeclaredLabel: public AssemblerIssue {
-  public:
+public:
     explicit UseOfUndeclaredLabel(Label, size_t line);
 
     Label label() const { return _label; }
 
-  private:
+private:
     Label _label;
 };
 

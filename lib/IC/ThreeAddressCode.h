@@ -22,19 +22,19 @@ using TacLineVariant = std::variant<ThreeAddressStatement, Label, FunctionLabel,
 struct TacLine: TacLineVariant {
     using TacLineVariant::TacLineVariant;
 
-    bool                         isTas() const { return index() == 0; }
-    bool                         isLabel() const { return index() == 1; }
-    bool                         isFunctionLabel() const { return index() == 2; }
-    bool                         isFunctionEndLabel() const { return index() == 3; }
+    bool isTas() const { return index() == 0; }
+    bool isLabel() const { return index() == 1; }
+    bool isFunctionLabel() const { return index() == 2; }
+    bool isFunctionEndLabel() const { return index() == 3; }
 
-    ThreeAddressStatement       &asTas() { return utl::as_mutable(utl::as_const(*this).asTas()); }
-    ThreeAddressStatement const &asTas() const { return std::get<ThreeAddressStatement>(*this); }
+    ThreeAddressStatement& asTas() { return utl::as_mutable(utl::as_const(*this).asTas()); }
+    ThreeAddressStatement const& asTas() const { return std::get<ThreeAddressStatement>(*this); }
 
-    Label                       &asLabel() { return utl::as_mutable(utl::as_const(*this).asLabel()); }
-    Label const                 &asLabel() const { return std::get<Label>(*this); }
+    Label& asLabel() { return utl::as_mutable(utl::as_const(*this).asLabel()); }
+    Label const& asLabel() const { return std::get<Label>(*this); }
 
-    FunctionLabel               &asFunctionLabel() { return utl::as_mutable(utl::as_const(*this).asFunctionLabel()); }
-    FunctionLabel const         &asFunctionLabel() const { return std::get<FunctionLabel>(*this); }
+    FunctionLabel& asFunctionLabel() { return utl::as_mutable(utl::as_const(*this).asFunctionLabel()); }
+    FunctionLabel const& asFunctionLabel() const { return std::get<FunctionLabel>(*this); }
 };
 
 struct ThreeAddressCode {

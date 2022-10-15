@@ -10,53 +10,53 @@
 namespace scatha::sema {
 
 class SCATHA(API) SymbolIssue {
-  public:
+public:
     virtual ~SymbolIssue() = default;
 
     explicit SymbolIssue(Token t): _token(std::move(t)) {}
-    Token const &token() const { return _token; }
+    Token const& token() const { return _token; }
 
-    void         setToken(Token);
+    void setToken(Token);
 
-  private:
+private:
     Token _token;
 };
 
 class SCATHA(API) DefinitionIssue: public SymbolIssue {
-  public:
+public:
     using SymbolIssue::SymbolIssue;
 };
 
 class SCATHA(API) InvalidScopeIssue: public DefinitionIssue {
-  public:
+public:
     InvalidScopeIssue(std::string_view symbolName, ScopeKind kind);
 
     ScopeKind kind() const { return _kind; }
 
-  private:
+private:
     ScopeKind _kind;
 };
 
 class SCATHA(API) SymbolCollisionIssue: public DefinitionIssue {
-  public:
+public:
     explicit SymbolCollisionIssue(std::string_view symbolName, SymbolID existing);
 
     SymbolID existing() const { return _existing; }
 
-  private:
+private:
     SymbolID _existing;
 };
 
 class SCATHA(API) OverloadIssue: public SymbolCollisionIssue {
-  public:
+public:
     enum Reason { CantOverloadOnReturnType, Redefinition };
 
-  public:
+public:
     explicit OverloadIssue(std::string_view symbolName, SymbolID existing, Reason);
 
     Reason reason() const { return _reason; }
 
-  private:
+private:
     Reason _reason;
 };
 

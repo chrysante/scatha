@@ -12,7 +12,7 @@ enum class ScopeKind { Global, Namespace, Variable, Function, Object, Anonymous,
 
 SCATHA(API) std::string_view toString(ScopeKind);
 
-SCATHA(API) std::ostream &operator<<(std::ostream &, ScopeKind);
+SCATHA(API) std::ostream& operator<<(std::ostream&, ScopeKind);
 
 } // namespace scatha::sema
 

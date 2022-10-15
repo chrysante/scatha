@@ -9,9 +9,9 @@ using namespace scatha;
 
 TEST_CASE("FunctionSignature hash", "[sema]") {
     sema::SymbolTable sym;
-    auto const        i_i   = sema::FunctionSignature({sym.Int()}, sym.Int());
-    auto const        f_f_i = sema::FunctionSignature({sym.Float(), sym.Float()}, sym.Int());
-    auto const        v_i   = sema::FunctionSignature({}, sym.Int());
+    auto const i_i   = sema::FunctionSignature({ sym.Int() }, sym.Int());
+    auto const f_f_i = sema::FunctionSignature({ sym.Float(), sym.Float() }, sym.Int());
+    auto const v_i   = sema::FunctionSignature({}, sym.Int());
 
     CHECK(i_i.argumentHash() != f_f_i.argumentHash());
     CHECK(i_i.argumentHash() != v_i.argumentHash());
@@ -20,8 +20,8 @@ TEST_CASE("FunctionSignature hash", "[sema]") {
 
 TEST_CASE("Function Type", "[sema]") {
     sema::SymbolTable sym;
-    auto const        fSig = sema::FunctionSignature({sym.Int()}, sym.Int());
-    auto const        gSig = sema::FunctionSignature({sym.Int()}, sym.Void());
+    auto const fSig = sema::FunctionSignature({ sym.Int() }, sym.Int());
+    auto const gSig = sema::FunctionSignature({ sym.Int() }, sym.Void());
 
     CHECK(fSig.argumentHash() == gSig.argumentHash());
 

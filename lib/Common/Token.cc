@@ -7,21 +7,22 @@
 
 namespace scatha {
 
-std::ostream &operator<<(std::ostream &str, TokenType t) {
-    return str << UTL_SERIALIZE_ENUM(t, {
-                                            {TokenType::Identifier, "Identifier"},
-                                            {TokenType::IntegerLiteral, "IntegerLiteral"},
-                                            {TokenType::BooleanLiteral, "BooleanLiteral"},
-                                            {TokenType::FloatingPointLiteral, "FloatingPointLiteral"},
-                                            {TokenType::StringLiteral, "StringLiteral"},
-                                            {TokenType::Punctuation, "Punctuation"},
-                                            {TokenType::Operator, "Operator"},
-                                            {TokenType::EndOfFile, "EndOfFile"},
-                                            {TokenType::Other, "Other"},
-                                        });
+std::ostream& operator<<(std::ostream& str, TokenType t) {
+    return str << UTL_SERIALIZE_ENUM(t,
+                                     {
+                                         { TokenType::Identifier, "Identifier" },
+                                         { TokenType::IntegerLiteral, "IntegerLiteral" },
+                                         { TokenType::BooleanLiteral, "BooleanLiteral" },
+                                         { TokenType::FloatingPointLiteral, "FloatingPointLiteral" },
+                                         { TokenType::StringLiteral, "StringLiteral" },
+                                         { TokenType::Punctuation, "Punctuation" },
+                                         { TokenType::Operator, "Operator" },
+                                         { TokenType::EndOfFile, "EndOfFile" },
+                                         { TokenType::Other, "Other" },
+                                     });
 }
 
-std::ostream &operator<<(std::ostream &str, Token const &t) {
+std::ostream& operator<<(std::ostream& str, Token const& t) {
     str << "{ ";
     str << t.sourceLocation.line << ", " << t.sourceLocation.column;
     str << ", "
@@ -55,13 +56,10 @@ f64 Token::toFloat() const {
     return std::stod(id);
 }
 
-void finalize(Token &token) {
+void finalize(Token& token) {
     if (token.type == TokenType::Punctuation) {
         token.isPunctuation = true;
-        if (token.id == "EOL") {
-            token.isEOL       = true;
-            token.isSeparator = true;
-        } else if (token.id == ";") {
+        if (token.id == ";") {
             token.isSeparator = true;
         }
     }

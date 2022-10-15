@@ -5,7 +5,6 @@
 #include <utl/scope_guard.hpp>
 
 #include "AST/AST.h"
-#include "AST/Expression.h"
 #include "AST/Visit.h"
 #include "Sema/ExpressionAnalysis.h"
 #include "Sema/SemanticIssue.h"
@@ -25,40 +24,40 @@ namespace scatha::sema {
 namespace {
 
 struct StatementContext {
-    ast::Statement *statement;
-    Scope          *enclosingScope;
+    ast::Statement* statement;
+    Scope* enclosingScope;
 };
 
 struct PrepassContext {
-    explicit PrepassContext(SymbolTable &sym, issue::IssueHandler &iss): sym(sym), iss(iss) {}
+    explicit PrepassContext(SymbolTable& sym, issue::IssueHandler& iss): sym(sym), iss(iss) {}
 
-    bool dispatch(ast::AbstractSyntaxTree &);
+    bool dispatch(ast::AbstractSyntaxTree&);
 
-    bool prepass(ast::TranslationUnit &);
-    bool prepass(ast::FunctionDefinition &);
-    bool prepass(ast::StructDefinition &);
-    bool prepass(ast::VariableDeclaration &);
+    bool prepass(ast::TranslationUnit&);
+    bool prepass(ast::FunctionDefinition&);
+    bool prepass(ast::StructDefinition&);
+    bool prepass(ast::VariableDeclaration&);
     /// Disable default case to avoid infinite recursion
-    bool                          prepass(ast::AbstractSyntaxTree &) { return true; }
-    bool                          prepass(ast::Expression &) { SC_DEBUGFAIL(); }
+    bool prepass(ast::AbstractSyntaxTree&) { return true; }
+    bool prepass(ast::Expression&) { SC_DEBUGFAIL(); }
 
-    ExpressionAnalysisResult      dispatchExpression(ast::Expression &);
+    ExpressionAnalysisResult dispatchExpression(ast::Expression&);
 
-    void                          markUnhandled(ast::Statement *);
+    void markUnhandled(ast::Statement*);
 
-    SymbolTable                  &sym;
-    issue::IssueHandler          &iss;
+    SymbolTable& sym;
+    issue::IssueHandler& iss;
     utl::vector<StatementContext> unhandledStatements;
-    ast::FunctionDefinition      *currentFunction;
-    bool                          firstPass = true;
-    bool                          lastPass  = false;
+    ast::FunctionDefinition* currentFunction;
+    bool firstPass = true;
+    bool lastPass  = false;
 };
 
 } // namespace
 
-SymbolTable prepass(ast::AbstractSyntaxTree &root, issue::IssueHandler &iss) {
-    SymbolTable    sym;
-    PrepassContext ctx{sym, iss};
+SymbolTable prepass(ast::AbstractSyntaxTree& root, issue::IssueHandler& iss) {
+    SymbolTable sym;
+    PrepassContext ctx{ sym, iss };
     ctx.dispatch(root);
     if (iss.fatal()) {
         return sym;
@@ -84,12 +83,12 @@ SymbolTable prepass(ast::AbstractSyntaxTree &root, issue::IssueHandler &iss) {
     return sym;
 }
 
-bool PrepassContext::dispatch(ast::AbstractSyntaxTree &node) {
-    return visit(node, [this](auto &node) { return this->prepass(node); });
+bool PrepassContext::dispatch(ast::AbstractSyntaxTree& node) {
+    return visit(node, [this](auto& node) { return this->prepass(node); });
 }
 
-bool PrepassContext::prepass(ast::TranslationUnit &tu) {
-    for (auto &decl : tu.declarations) {
+bool PrepassContext::prepass(ast::TranslationUnit& tu) {
+    for (auto& decl : tu.declarations) {
         dispatch(*decl);
         if (iss.fatal()) {
             return false;
@@ -98,7 +97,7 @@ bool PrepassContext::prepass(ast::TranslationUnit &tu) {
     return true;
 }
 
-bool PrepassContext::prepass(ast::FunctionDefinition &fn) {
+bool PrepassContext::prepass(ast::FunctionDefinition& fn) {
     if (firstPass) {
         markUnhandled(&fn);
         return false;
@@ -107,14 +106,14 @@ bool PrepassContext::prepass(ast::FunctionDefinition &fn) {
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(&fn, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(),
-                                    SymbolCategory::Function));
+        iss.push(InvalidDeclaration(
+            &fn, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(), SymbolCategory::Function));
         return false;
     }
 
     /// Analyze the return argument expressions
     utl::small_vector<TypeID> argTypes;
-    for (auto &param : fn.parameters) {
+    for (auto& param : fn.parameters) {
         auto const typeExprRes = dispatchExpression(*param->typeExpr);
         if (!typeExprRes) {
             if (!lastPass) {
@@ -130,7 +129,7 @@ bool PrepassContext::prepass(ast::FunctionDefinition &fn) {
             argTypes.push_back(TypeID::Invalid);
             continue;
         }
-        auto const &type = sym.getObjectType(typeExprRes.typeID());
+        auto const& type = sym.getObjectType(typeExprRes.typeID());
         argTypes.push_back(type.symbolID());
     }
     /// Analyze the return type expression
@@ -183,16 +182,16 @@ bool PrepassContext::prepass(ast::FunctionDefinition &fn) {
     return true;
 }
 
-bool PrepassContext::prepass(ast::StructDefinition &s) {
+bool PrepassContext::prepass(ast::StructDefinition& s) {
     if (auto const sk = sym.currentScope().kind();
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
         /// Struct defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(&s, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(),
-                                    SymbolCategory::ObjectType));
+        iss.push(InvalidDeclaration(
+            &s, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(), SymbolCategory::ObjectType));
         return false;
     }
-    auto obj = [&]() -> Expected<ObjectType &, SemanticIssue> {
+    auto obj = [&]() -> Expected<ObjectType&, SemanticIssue> {
         if (firstPass) {
             return sym.addObjectType(s.token());
         } else {
@@ -204,15 +203,14 @@ bool PrepassContext::prepass(ast::StructDefinition &s) {
         iss.push(obj.error());
         return false;
     }
+    s.symbolID = obj->symbolID();
 
-    s.symbolID                          = obj->symbolID();
-
-    size_t objectSize                   = 0;
-    size_t objectAlign                  = 1;
-    bool   successfullyGatheredVarDecls = true;
+    size_t objectSize                 = 0;
+    size_t objectAlign                = 1;
+    bool successfullyGatheredVarDecls = true;
     sym.pushScope(obj->symbolID());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto &statement : s.body->statements) {
+    for (auto& statement : s.body->statements) {
         if (firstPass || statement->nodeType() == ast::NodeType::VariableDeclaration) {
             dispatch(*statement);
             if (iss.fatal()) {
@@ -222,10 +220,10 @@ bool PrepassContext::prepass(ast::StructDefinition &s) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }
-        auto       &varDecl            = static_cast<ast::VariableDeclaration &>(*statement);
-        auto const *typenameIdentifier = downCast<ast::Identifier>(varDecl.typeExpr.get());
+        auto& varDecl                  = static_cast<ast::VariableDeclaration&>(*statement);
+        auto const* typenameIdentifier = downCast<ast::Identifier>(varDecl.typeExpr.get());
         SC_ASSERT(typenameIdentifier, "must be identifier for now");
-        auto const *type = sym.lookupObjectType(typenameIdentifier->value());
+        auto const* type = sym.lookupObjectType(typenameIdentifier->value());
         if (!type || !type->isComplete()) {
             successfullyGatheredVarDecls = false;
             if (lastPass) {
@@ -256,16 +254,17 @@ bool PrepassContext::prepass(ast::StructDefinition &s) {
     return true;
 }
 
-bool PrepassContext::prepass(ast::VariableDeclaration &decl) {
+bool PrepassContext::prepass(ast::VariableDeclaration& decl) {
     SC_ASSERT(sym.currentScope().kind() == ScopeKind::Object,
               "We only want to prepass struct definitions. What are we doing here?");
-    SC_ASSERT(decl.typeExpr, "In structs variables need explicit type "
-                             "specifiers. Make this a program issue.");
-    auto const *typenameIdentifier = downCast<ast::Identifier>(decl.typeExpr.get());
+    SC_ASSERT(decl.typeExpr,
+              "In structs variables need explicit type "
+              "specifiers. Make this a program issue.");
+    auto const* typenameIdentifier = downCast<ast::Identifier>(decl.typeExpr.get());
     SC_ASSERT(typenameIdentifier, "must be identifier for now");
-    auto const  *typePtr = sym.lookupObjectType(typenameIdentifier->value());
-    TypeID const typeID  = typePtr ? typePtr->symbolID() : TypeID::Invalid;
-    auto         var     = [&]() -> Expected<Variable &, SemanticIssue> {
+    auto const* typePtr = sym.lookupObjectType(typenameIdentifier->value());
+    TypeID const typeID = typePtr ? typePtr->symbolID() : TypeID::Invalid;
+    auto var            = [&]() -> Expected<Variable&, SemanticIssue> {
         if (firstPass) {
             return sym.addVariable(decl.token(), typeID, bool{});
         } else {
@@ -284,12 +283,12 @@ bool PrepassContext::prepass(ast::VariableDeclaration &decl) {
     return typeID != TypeID::Invalid;
 }
 
-ExpressionAnalysisResult PrepassContext::dispatchExpression(ast::Expression &expr) {
+ExpressionAnalysisResult PrepassContext::dispatchExpression(ast::Expression& expr) {
     return analyzeExpression(expr, sym, lastPass ? &iss : nullptr);
 }
 
-void PrepassContext::markUnhandled(ast::Statement *statement) {
-    unhandledStatements.push_back({statement, &sym.currentScope()});
+void PrepassContext::markUnhandled(ast::Statement* statement) {
+    unhandledStatements.push_back({ statement, &sym.currentScope() });
 }
 
 } // namespace scatha::sema

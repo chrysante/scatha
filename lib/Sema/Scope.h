@@ -15,38 +15,38 @@ class ScopePrinter;
 }
 
 class SCATHA(API) Scope: public EntityBase {
-  public:
+public:
     ScopeKind kind() const { return _kind; }
-    explicit Scope(ScopeKind, SymbolID symbolID, Scope *parent);
+    explicit Scope(ScopeKind, SymbolID symbolID, Scope* parent);
 
-  protected:
-  public:
-    explicit Scope(ScopeKind, std::string name, SymbolID symbolID, Scope *parent);
+protected:
+public:
+    explicit Scope(ScopeKind, std::string name, SymbolID symbolID, Scope* parent);
 
     // Until we have heterogenous lookup
     SymbolID findID(std::string_view name) const;
 
-    bool     isChildScope(SymbolID id) const { return _children.contains(id); }
+    bool isChildScope(SymbolID id) const { return _children.contains(id); }
 
-    auto     children() const;
-    auto     symbols() const;
+    auto children() const;
+    auto symbols() const;
 
-  private:
+private:
     friend class internal::ScopePrinter;
     friend class SymbolTable;
-    void add(EntityBase const &entity);
-    void add(Scope &scopingEntity);
+    void add(EntityBase const& entity);
+    void add(Scope& scopingEntity);
 
-  private:
+private:
     // Scopes don't own their childscopes. These objects are owned by the symbol
     // table.
-    utl::hashmap<SymbolID, Scope *>     _children;
+    utl::hashmap<SymbolID, Scope*> _children;
     utl::hashmap<std::string, SymbolID> _symbols;
-    ScopeKind                           _kind;
+    ScopeKind _kind;
 };
 
 class GlobalScope: public Scope {
-  public:
+public:
     GlobalScope();
 };
 
@@ -63,18 +63,18 @@ inline auto Scope::children() const {
             return result;
         }
 
-        Scope const &operator*() const { return *_itr->second; }
-        Iterator    &operator++() {
-               ++_itr;
-               return *this;
+        Scope const& operator*() const { return *_itr->second; }
+        Iterator& operator++() {
+            ++_itr;
+            return *this;
         }
-        bool operator==(Iterator const &rhs) const { return _itr == rhs._itr; }
+        bool operator==(Iterator const& rhs) const { return _itr == rhs._itr; }
 
-        using Map = utl::hashmap<SymbolID, Scope *>;
-        Map const          &_map;
+        using Map = utl::hashmap<SymbolID, Scope*>;
+        Map const& _map;
         Map::const_iterator _itr;
     };
-    return Iterator{_children, {}};
+    return Iterator{ _children, {} };
 }
 
 inline auto Scope::symbols() const {
@@ -90,18 +90,18 @@ inline auto Scope::symbols() const {
             return result;
         }
 
-        SymbolID  operator*() const { return _itr->second; }
-        Iterator &operator++() {
+        SymbolID operator*() const { return _itr->second; }
+        Iterator& operator++() {
             ++_itr;
             return *this;
         }
-        bool operator==(Iterator const &rhs) const { return _itr == rhs._itr; }
+        bool operator==(Iterator const& rhs) const { return _itr == rhs._itr; }
 
         using Map = utl::hashmap<std::string, SymbolID>;
-        Map const          &_map;
+        Map const& _map;
         Map::const_iterator _itr;
     };
-    return Iterator{_symbols, {}};
+    return Iterator{ _symbols, {} };
 }
 
 } // namespace scatha::sema

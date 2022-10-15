@@ -1,8 +1,6 @@
 #ifndef SCATHA_PARSER_TOKENSTREAM_H_
 #define SCATHA_PARSER_TOKENSTREAM_H_
 
-#include <span>
-
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
@@ -18,7 +16,7 @@ namespace scatha::parse {
  1. Expects the last token in the stream to be of type EndOfFile.
  */
 class SCATHA(API) TokenStream {
-  public:
+public:
     /**
      Constructs an empty TokenStream.
      */
@@ -26,13 +24,10 @@ class SCATHA(API) TokenStream {
     /**
      Constructs a TokenStream from the given Range of Token's.
 
-     - parameter tokens: Range of tokens.
+     - parameter tokens: Vector of tokens.
 
-     # Notes: #
-     1. Expands the Token's into TokenEx's. Copies the Range into a buffer. The
-     given range can be freed after constructing the TokenStream.
      */
-    explicit TokenStream(std::span<Token const> tokens);
+    explicit TokenStream(utl::vector<Token> tokens);
 
     /**
      Extract one token from the stream.
@@ -45,7 +40,7 @@ class SCATHA(API) TokenStream {
      end of file has been returned.
      2. When called in a loop, the stream will be iterated.
      */
-    TokenEx const &eat(bool ignoreEOL = true);
+    TokenEx const& eat();
     /**
      Look ahead one token into the stream.
 
@@ -57,7 +52,7 @@ class SCATHA(API) TokenStream {
      end of file has been returned by \p eatToken.
      2. Always returns the same token when called in a loop.
      */
-    TokenEx const &peek(bool ignoreEOL = true);
+    TokenEx const& peek();
 
     /**
      - returns: A reference to the current token in the stream aka the token
@@ -67,14 +62,14 @@ class SCATHA(API) TokenStream {
      1.  Always returns a valid reference.
      2. Always returns the same token when called in a loop.
      */
-    TokenEx const &current();
+    TokenEx const& current();
 
-  private:
-    TokenEx const &eatImpl(bool ignoreEOL, size_t *);
+private:
+    TokenEx const& eatImpl(size_t*);
 
-  private:
+private:
     utl::vector<TokenEx> tokens;
-    size_t               index = 0;
+    size_t index = 0;
 };
 
 } // namespace scatha::parse

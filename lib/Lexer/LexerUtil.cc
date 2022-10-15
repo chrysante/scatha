@@ -2,8 +2,8 @@
 
 namespace scatha::lex {
 
-static bool isAnyOf(char c, char const *data) {
-    for (char const *i = data; *i; ++i) {
+static bool isAnyOf(char c, char const* data) {
+    for (char const* i = data; *i; ++i) {
         if (c == *i) {
             return true;
         }
@@ -11,19 +11,23 @@ static bool isAnyOf(char c, char const *data) {
     return false;
 }
 
-SCATHA(PURE) bool isPunctuation(char c) { return isAnyOf(c, "{}()[],;:"); }
+SCATHA(PURE) bool isPunctuation(char c) {
+    return isAnyOf(c, "{}()[],;:");
+}
 
-SCATHA(PURE) bool isOperatorLetter(char c) { return isAnyOf(c, "+-*/%&|^.=><?!~"); }
+SCATHA(PURE) bool isOperatorLetter(char c) {
+    return isAnyOf(c, "+-*/%&|^.=><?!~");
+}
 
 SCATHA(PURE) bool isOperator(std::string_view id) {
-    std::string_view constexpr operators[]{"+",  "-",  "*",  "/",  "%",  "&",  "|",   "^",   "!",  "~",  "<<",
-                                           ">>", "&&", "||",
+    std::string_view constexpr operators[]{ "+",  "-",  "*",  "/",  "%",  "&",  "|",   "^",   "!",  "~",  "<<",
+                                            ">>", "&&", "||",
 
-                                           "=",  "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "&=", "|=", "^=",
+                                            "=",  "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "&=", "|=", "^=",
 
-                                           "==", "!=", "<",  "<=", ">",  ">=",
+                                            "==", "!=", "<",  "<=", ">",  ">=",
 
-                                           ".",  "->", "?"};
+                                            ".",  "->", "?" };
     for (auto o : operators) {
         if (id == o) {
             return true;

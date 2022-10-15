@@ -1,16 +1,16 @@
 #ifndef SCATHA_SEMA_EXPRESSIONANALYSIS_H_
 #define SCATHA_SEMA_EXPRESSIONANALYSIS_H_
 
-#include "AST/Expression.h"
+#include "AST/AST.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
 
 class ExpressionAnalysisResult {
-  public:
-    bool     isLValue() const { return !!symbolID(); }
-    bool     isRValue() const { return !isLValue(); }
+public:
+    bool isLValue() const { return !!symbolID(); }
+    bool isRValue() const { return !isLValue(); }
 
     explicit operator bool() const { return success(); }
 
@@ -27,23 +27,23 @@ class ExpressionAnalysisResult {
     /// type of the value that expression yields.
     TypeID typeID() const { return _typeID; }
 
-  private:
-    bool                _success;
+private:
+    bool _success;
     ast::EntityCategory _category{};
-    SymbolID            _symbolID;
-    TypeID              _typeID;
+    SymbolID _symbolID;
+    TypeID _typeID;
 
-  public:
+public:
     /// TODO: Make these private somehow
     static constexpr ExpressionAnalysisResult lvalue(SymbolID symbolID, TypeID typeID) {
-        return {ast::EntityCategory::Value, symbolID, typeID};
+        return { ast::EntityCategory::Value, symbolID, typeID };
     }
-    static constexpr ExpressionAnalysisResult rvalue(TypeID typeID) { return {ast::EntityCategory::Value, typeID}; }
-    static constexpr ExpressionAnalysisResult type(TypeID id) { return {ast::EntityCategory::Type, id}; }
+    static constexpr ExpressionAnalysisResult rvalue(TypeID typeID) { return { ast::EntityCategory::Value, typeID }; }
+    static constexpr ExpressionAnalysisResult type(TypeID id) { return { ast::EntityCategory::Type, id }; }
     static constexpr ExpressionAnalysisResult type(SymbolID id) { return type(TypeID(id)); }
-    static constexpr ExpressionAnalysisResult fail() { return {false}; }
+    static constexpr ExpressionAnalysisResult fail() { return { false }; }
 
-  private:
+private:
     constexpr ExpressionAnalysisResult(ast::EntityCategory category, SymbolID symbolID, TypeID typeID):
         _success(true), _category(category), _symbolID(symbolID), _typeID(typeID) {}
     constexpr ExpressionAnalysisResult(ast::EntityCategory kind, TypeID typeID):
@@ -59,8 +59,8 @@ class ExpressionAnalysisResult {
  - returns: Returns an ExpressionAnalysisResult.
 
  */
-ExpressionAnalysisResult analyzeExpression(ast::Expression &expression, SymbolTable &symbolTable,
-                                           issue::IssueHandler *issueHandler);
+ExpressionAnalysisResult
+analyzeExpression(ast::Expression& expression, SymbolTable& symbolTable, issue::IssueHandler* issueHandler);
 
 } // namespace scatha::sema
 

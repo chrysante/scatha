@@ -7,8 +7,6 @@
 #include <utl/strcat.hpp>
 
 #include "AST/AST.h"
-#include "AST/Common.h"
-#include "AST/Expression.h"
 #include "AST/Visit.h"
 #include "Basic/Basic.h"
 #include "Sema/ExpressionAnalysis.h"
@@ -21,42 +19,42 @@ using namespace ast;
 
 namespace {
 struct Context {
-    void                     dispatch(AbstractSyntaxTree &);
+    void dispatch(AbstractSyntaxTree&);
 
-    void                     analyze(TranslationUnit &tu);
-    void                     analyze(Block &);
-    void                     analyze(FunctionDefinition &);
-    void                     analyze(StructDefinition &);
-    void                     analyze(VariableDeclaration &);
-    void                     analyze(ExpressionStatement &);
-    void                     analyze(ReturnStatement &);
-    void                     analyze(IfStatement &);
-    void                     analyze(WhileStatement &);
-    void                     analyze(AbstractSyntaxTree &) { SC_DEBUGFAIL(); }
+    void analyze(TranslationUnit& tu);
+    void analyze(Block&);
+    void analyze(FunctionDefinition&);
+    void analyze(StructDefinition&);
+    void analyze(VariableDeclaration&);
+    void analyze(ExpressionStatement&);
+    void analyze(ReturnStatement&);
+    void analyze(IfStatement&);
+    void analyze(WhileStatement&);
+    void analyze(AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
 
-    ExpressionAnalysisResult dispatchExpression(Expression &);
+    ExpressionAnalysisResult dispatchExpression(Expression&);
 
-    void                     verifyConversion(Expression const &from, TypeID to) const;
+    void verifyConversion(Expression const& from, TypeID to) const;
 
-    SymbolTable             &sym;
-    issue::IssueHandler     &iss;
-    ast::FunctionDefinition *currentFunction = nullptr;
+    SymbolTable& sym;
+    issue::IssueHandler& iss;
+    ast::FunctionDefinition* currentFunction = nullptr;
 };
 } // namespace
 
-SymbolTable analyze(AbstractSyntaxTree *root, issue::IssueHandler &iss) {
+SymbolTable analyze(AbstractSyntaxTree* root, issue::IssueHandler& iss) {
     SymbolTable sym = prepass(*root, iss);
-    Context     ctx{sym, iss};
+    Context ctx{ sym, iss };
     ctx.dispatch(*root);
     return sym;
 }
 
-void Context::dispatch(AbstractSyntaxTree &node) {
-    ast::visit(node, [this](auto &node) { this->analyze(node); });
+void Context::dispatch(AbstractSyntaxTree& node) {
+    ast::visit(node, [this](auto& node) { this->analyze(node); });
 }
 
-void Context::analyze(TranslationUnit &tu) {
-    for (auto &decl : tu.declarations) {
+void Context::analyze(TranslationUnit& tu) {
+    for (auto& decl : tu.declarations) {
         dispatch(*decl);
         if (iss.fatal()) {
             return;
@@ -64,7 +62,7 @@ void Context::analyze(TranslationUnit &tu) {
     }
 }
 
-void Context::analyze(Block &block) {
+void Context::analyze(Block& block) {
     if (block.scopeKind == ScopeKind::Anonymous) {
         if (currentFunction == nullptr) {
             /// Anonymous blocks may only appear at function scope.
@@ -75,7 +73,7 @@ void Context::analyze(Block &block) {
     }
     sym.pushScope(block.scopeSymbolID);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto &statement : block.statements) {
+    for (auto& statement : block.statements) {
         dispatch(*statement);
         if (iss.fatal()) {
             return;
@@ -84,13 +82,13 @@ void Context::analyze(Block &block) {
     popScope.execute();
 }
 
-void Context::analyze(FunctionDefinition &fn) {
+void Context::analyze(FunctionDefinition& fn) {
     if (auto const sk = sym.currentScope().kind();
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        iss.push(InvalidDeclaration(&fn, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(),
-                                    SymbolCategory::Function));
+        iss.push(InvalidDeclaration(
+            &fn, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(), SymbolCategory::Function));
         return;
     }
     if (fn.symbolID == SymbolID::Invalid) {
@@ -102,7 +100,7 @@ void Context::analyze(FunctionDefinition &fn) {
     utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };
     sym.pushScope(fn.symbolID);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto &param : fn.parameters) {
+    for (auto& param : fn.parameters) {
         dispatch(*param);
         if (iss.fatal()) {
             return;
@@ -113,25 +111,25 @@ void Context::analyze(FunctionDefinition &fn) {
     dispatch(*fn.body);
 }
 
-void Context::analyze(StructDefinition &s) {
+void Context::analyze(StructDefinition& s) {
     if (auto const sk = sym.currentScope().kind();
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
-        iss.push(InvalidDeclaration(&s, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(),
-                                    SymbolCategory::ObjectType));
+        iss.push(InvalidDeclaration(
+            &s, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(), SymbolCategory::ObjectType));
         return;
     }
     dispatch(*s.body);
 }
 
-void Context::analyze(VariableDeclaration &var) {
+void Context::analyze(VariableDeclaration& var) {
     if (var.symbolID) {
         /// We already handled this variable in prepass.
         var.typeID = sym.getVariable(var.symbolID).typeID();
         return;
     }
     if (!var.typeExpr && !var.initExpression) {
-        iss.push(InvalidDeclaration(&var, InvalidDeclaration::Reason::CantInferType, sym.currentScope(),
-                                    SymbolCategory::Variable));
+        iss.push(InvalidDeclaration(
+            &var, InvalidDeclaration::Reason::CantInferType, sym.currentScope(), SymbolCategory::Variable));
         return;
     }
     if (var.typeExpr) {
@@ -146,7 +144,7 @@ void Context::analyze(VariableDeclaration &var) {
             iss.push(BadSymbolReference(*var.typeExpr, varTypeRes.category(), EntityCategory::Type));
             goto expression;
         }
-        auto const &objType = sym.getObjectType(varTypeRes.typeID());
+        auto const& objType = sym.getObjectType(varTypeRes.typeID());
         var.typeID          = objType.symbolID();
     }
 expression:
@@ -177,7 +175,7 @@ declaration:
     var.symbolID = varObj->symbolID();
 }
 
-void Context::analyze(ExpressionStatement &es) {
+void Context::analyze(ExpressionStatement& es) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push(InvalidStatement(&es, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
         return;
@@ -185,7 +183,7 @@ void Context::analyze(ExpressionStatement &es) {
     dispatchExpression(*es.expression);
 }
 
-void Context::analyze(ReturnStatement &rs) {
+void Context::analyze(ReturnStatement& rs) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push(InvalidStatement(&rs, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
         return;
@@ -202,7 +200,7 @@ void Context::analyze(ReturnStatement &rs) {
     verifyConversion(*rs.expression, currentFunction->returnTypeID);
 }
 
-void Context::analyze(IfStatement &is) {
+void Context::analyze(IfStatement& is) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push(InvalidStatement(&is, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
         return;
@@ -224,7 +222,7 @@ void Context::analyze(IfStatement &is) {
     }
 }
 
-void Context::analyze(WhileStatement &ws) {
+void Context::analyze(WhileStatement& ws) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push(InvalidStatement(&ws, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
         return;
@@ -238,11 +236,13 @@ void Context::analyze(WhileStatement &ws) {
     dispatch(*ws.block);
 }
 
-ExpressionAnalysisResult Context::dispatchExpression(Expression &expr) { return analyzeExpression(expr, sym, &iss); }
+ExpressionAnalysisResult Context::dispatchExpression(Expression& expr) {
+    return analyzeExpression(expr, sym, &iss);
+}
 
-void                     Context::verifyConversion(Expression const &from, TypeID to) const {
-                        if (from.typeID != to) {
-                            iss.push(BadTypeConversion(from, to));
+void Context::verifyConversion(Expression const& from, TypeID to) const {
+    if (from.typeID != to) {
+        iss.push(BadTypeConversion(from, to));
     }
 }
 

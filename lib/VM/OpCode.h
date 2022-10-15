@@ -214,7 +214,7 @@ enum class OpCode : u8 {
     _count
 };
 
-std::ostream &operator<<(std::ostream &, OpCode);
+std::ostream& operator<<(std::ostream&, OpCode);
 
 enum class OpCodeClass { RR, RV, RM, MR, R, Jump, Other, _count };
 
@@ -224,46 +224,47 @@ constexpr bool isJump(OpCode c) {
 }
 
 constexpr OpCodeClass classify(OpCode c) {
-    return UTL_MAP_ENUM(c, OpCodeClass,
+    return UTL_MAP_ENUM(c,
+                        OpCodeClass,
                         {
-                            {OpCode::allocReg, OpCodeClass::Other},  {OpCode::setBrk, OpCodeClass::Other},
-                            {OpCode::call, OpCodeClass::Other},      {OpCode::ret, OpCodeClass::Other},
-                            {OpCode::terminate, OpCodeClass::Other}, {OpCode::movRR, OpCodeClass::RR},
-                            {OpCode::movRV, OpCodeClass::RV},        {OpCode::movMR, OpCodeClass::MR},
-                            {OpCode::movRM, OpCodeClass::RM},        {OpCode::jmp, OpCodeClass::Jump},
-                            {OpCode::je, OpCodeClass::Jump},         {OpCode::jne, OpCodeClass::Jump},
-                            {OpCode::jl, OpCodeClass::Jump},         {OpCode::jle, OpCodeClass::Jump},
-                            {OpCode::jg, OpCodeClass::Jump},         {OpCode::jge, OpCodeClass::Jump},
-                            {OpCode::ucmpRR, OpCodeClass::RR},       {OpCode::icmpRR, OpCodeClass::RR},
-                            {OpCode::ucmpRV, OpCodeClass::RV},       {OpCode::icmpRV, OpCodeClass::RV},
-                            {OpCode::fcmpRR, OpCodeClass::RR},       {OpCode::fcmpRV, OpCodeClass::RV},
-                            {OpCode::itest, OpCodeClass::R},         {OpCode::utest, OpCodeClass::R},
-                            {OpCode::sete, OpCodeClass::R},          {OpCode::setne, OpCodeClass::R},
-                            {OpCode::setl, OpCodeClass::R},          {OpCode::setle, OpCodeClass::R},
-                            {OpCode::setg, OpCodeClass::R},          {OpCode::setge, OpCodeClass::R},
-                            {OpCode::lnt, OpCodeClass::R},           {OpCode::bnt, OpCodeClass::R},
-                            {OpCode::addRR, OpCodeClass::RR},        {OpCode::addRV, OpCodeClass::RV},
-                            {OpCode::addRM, OpCodeClass::RM},        {OpCode::subRR, OpCodeClass::RR},
-                            {OpCode::subRV, OpCodeClass::RV},        {OpCode::subRM, OpCodeClass::RM},
-                            {OpCode::mulRR, OpCodeClass::RR},        {OpCode::mulRV, OpCodeClass::RV},
-                            {OpCode::mulRM, OpCodeClass::RM},        {OpCode::divRR, OpCodeClass::RR},
-                            {OpCode::divRV, OpCodeClass::RV},        {OpCode::divRM, OpCodeClass::RM},
-                            {OpCode::idivRR, OpCodeClass::RR},       {OpCode::idivRV, OpCodeClass::RV},
-                            {OpCode::idivRM, OpCodeClass::RM},       {OpCode::remRR, OpCodeClass::RR},
-                            {OpCode::remRV, OpCodeClass::RV},        {OpCode::remRM, OpCodeClass::RM},
-                            {OpCode::iremRR, OpCodeClass::RR},       {OpCode::iremRV, OpCodeClass::RV},
-                            {OpCode::iremRM, OpCodeClass::RM},       {OpCode::faddRR, OpCodeClass::RR},
-                            {OpCode::faddRV, OpCodeClass::RV},       {OpCode::faddRM, OpCodeClass::RM},
-                            {OpCode::fsubRR, OpCodeClass::RR},       {OpCode::fsubRV, OpCodeClass::RV},
-                            {OpCode::fsubRM, OpCodeClass::RM},       {OpCode::fmulRR, OpCodeClass::RR},
-                            {OpCode::fmulRV, OpCodeClass::RV},       {OpCode::fmulRM, OpCodeClass::RM},
-                            {OpCode::fdivRR, OpCodeClass::RR},       {OpCode::fdivRV, OpCodeClass::RV},
-                            {OpCode::fdivRM, OpCodeClass::RM},       {OpCode::slRR, OpCodeClass::RR},
-                            {OpCode::slRV, OpCodeClass::RV},         {OpCode::srRR, OpCodeClass::RR},
-                            {OpCode::srRV, OpCodeClass::RV},         {OpCode::andRR, OpCodeClass::RR},
-                            {OpCode::andRV, OpCodeClass::RV},        {OpCode::orRR, OpCodeClass::RR},
-                            {OpCode::orRV, OpCodeClass::RV},         {OpCode::xorRR, OpCodeClass::RR},
-                            {OpCode::xorRV, OpCodeClass::RV},        {OpCode::callExt, OpCodeClass::Other},
+                            { OpCode::allocReg, OpCodeClass::Other },  { OpCode::setBrk, OpCodeClass::Other },
+                            { OpCode::call, OpCodeClass::Other },      { OpCode::ret, OpCodeClass::Other },
+                            { OpCode::terminate, OpCodeClass::Other }, { OpCode::movRR, OpCodeClass::RR },
+                            { OpCode::movRV, OpCodeClass::RV },        { OpCode::movMR, OpCodeClass::MR },
+                            { OpCode::movRM, OpCodeClass::RM },        { OpCode::jmp, OpCodeClass::Jump },
+                            { OpCode::je, OpCodeClass::Jump },         { OpCode::jne, OpCodeClass::Jump },
+                            { OpCode::jl, OpCodeClass::Jump },         { OpCode::jle, OpCodeClass::Jump },
+                            { OpCode::jg, OpCodeClass::Jump },         { OpCode::jge, OpCodeClass::Jump },
+                            { OpCode::ucmpRR, OpCodeClass::RR },       { OpCode::icmpRR, OpCodeClass::RR },
+                            { OpCode::ucmpRV, OpCodeClass::RV },       { OpCode::icmpRV, OpCodeClass::RV },
+                            { OpCode::fcmpRR, OpCodeClass::RR },       { OpCode::fcmpRV, OpCodeClass::RV },
+                            { OpCode::itest, OpCodeClass::R },         { OpCode::utest, OpCodeClass::R },
+                            { OpCode::sete, OpCodeClass::R },          { OpCode::setne, OpCodeClass::R },
+                            { OpCode::setl, OpCodeClass::R },          { OpCode::setle, OpCodeClass::R },
+                            { OpCode::setg, OpCodeClass::R },          { OpCode::setge, OpCodeClass::R },
+                            { OpCode::lnt, OpCodeClass::R },           { OpCode::bnt, OpCodeClass::R },
+                            { OpCode::addRR, OpCodeClass::RR },        { OpCode::addRV, OpCodeClass::RV },
+                            { OpCode::addRM, OpCodeClass::RM },        { OpCode::subRR, OpCodeClass::RR },
+                            { OpCode::subRV, OpCodeClass::RV },        { OpCode::subRM, OpCodeClass::RM },
+                            { OpCode::mulRR, OpCodeClass::RR },        { OpCode::mulRV, OpCodeClass::RV },
+                            { OpCode::mulRM, OpCodeClass::RM },        { OpCode::divRR, OpCodeClass::RR },
+                            { OpCode::divRV, OpCodeClass::RV },        { OpCode::divRM, OpCodeClass::RM },
+                            { OpCode::idivRR, OpCodeClass::RR },       { OpCode::idivRV, OpCodeClass::RV },
+                            { OpCode::idivRM, OpCodeClass::RM },       { OpCode::remRR, OpCodeClass::RR },
+                            { OpCode::remRV, OpCodeClass::RV },        { OpCode::remRM, OpCodeClass::RM },
+                            { OpCode::iremRR, OpCodeClass::RR },       { OpCode::iremRV, OpCodeClass::RV },
+                            { OpCode::iremRM, OpCodeClass::RM },       { OpCode::faddRR, OpCodeClass::RR },
+                            { OpCode::faddRV, OpCodeClass::RV },       { OpCode::faddRM, OpCodeClass::RM },
+                            { OpCode::fsubRR, OpCodeClass::RR },       { OpCode::fsubRV, OpCodeClass::RV },
+                            { OpCode::fsubRM, OpCodeClass::RM },       { OpCode::fmulRR, OpCodeClass::RR },
+                            { OpCode::fmulRV, OpCodeClass::RV },       { OpCode::fmulRM, OpCodeClass::RM },
+                            { OpCode::fdivRR, OpCodeClass::RR },       { OpCode::fdivRV, OpCodeClass::RV },
+                            { OpCode::fdivRM, OpCodeClass::RM },       { OpCode::slRR, OpCodeClass::RR },
+                            { OpCode::slRV, OpCodeClass::RV },         { OpCode::srRR, OpCodeClass::RR },
+                            { OpCode::srRV, OpCodeClass::RV },         { OpCode::andRR, OpCodeClass::RR },
+                            { OpCode::andRV, OpCodeClass::RV },        { OpCode::orRR, OpCodeClass::RR },
+                            { OpCode::orRV, OpCodeClass::RV },         { OpCode::xorRR, OpCodeClass::RR },
+                            { OpCode::xorRV, OpCodeClass::RV },        { OpCode::callExt, OpCodeClass::Other },
                         });
 }
 
@@ -272,32 +273,26 @@ constexpr size_t codeSize(OpCode c) {
     auto const opCodeClass = classify(c);
     if (opCodeClass == Other) {
         switch (c) {
-        case OpCode::allocReg:
-            return 2;
-        case OpCode::setBrk:
-            return 2;
-        case OpCode::call:
-            return 6;
-        case OpCode::ret:
-            return 1;
-        case OpCode::terminate:
-            return 1;
-        case OpCode::callExt:
-            return 5;
-            SC_NO_DEFAULT_CASE();
+        case OpCode::allocReg: return 2;
+        case OpCode::setBrk: return 2;
+        case OpCode::call: return 6;
+        case OpCode::ret: return 1;
+        case OpCode::terminate: return 1;
+        case OpCode::callExt: return 5; SC_NO_DEFAULT_CASE();
         }
     }
-    return UTL_MAP_ENUM(opCodeClass, size_t,
-                        {{OpCodeClass::RR, 3},
-                         {OpCodeClass::RV, 10},
-                         {OpCodeClass::RM, 5},
-                         {OpCodeClass::MR, 5},
-                         {OpCodeClass::R, 2},
-                         {OpCodeClass::Jump, 5},
-                         {OpCodeClass::Other, (size_t)-1}});
+    return UTL_MAP_ENUM(opCodeClass,
+                        size_t,
+                        { { OpCodeClass::RR, 3 },
+                          { OpCodeClass::RV, 10 },
+                          { OpCodeClass::RM, 5 },
+                          { OpCodeClass::MR, 5 },
+                          { OpCodeClass::R, 2 },
+                          { OpCodeClass::Jump, 5 },
+                          { OpCodeClass::Other, (size_t)-1 } });
 }
 
-using Instruction = u64 (*)(u8 const *, u64 *, class VirtualMachine *);
+using Instruction = u64 (*)(u8 const*, u64*, class VirtualMachine*);
 
 utl::vector<Instruction> makeInstructionTable();
 

@@ -8,7 +8,7 @@
 
 namespace scatha {
 
-u8 *internal::alignPointer(u8 *ptr, size_t alignment) {
+u8* internal::alignPointer(u8* ptr, size_t alignment) {
     size_t const r = utl::fast_mod_pow_two((size_t)ptr, alignment);
     ptr += alignment * !!r - r;
     return ptr;
@@ -16,18 +16,22 @@ u8 *internal::alignPointer(u8 *ptr, size_t alignment) {
 
 MonotonicBufferAllocator::MonotonicBufferAllocator() {}
 
-MonotonicBufferAllocator::MonotonicBufferAllocator(size_t initSize) { addChunk(initSize); }
+MonotonicBufferAllocator::MonotonicBufferAllocator(size_t initSize) {
+    addChunk(initSize);
+}
 
-MonotonicBufferAllocator::MonotonicBufferAllocator(MonotonicBufferAllocator &&rhs) noexcept:
+MonotonicBufferAllocator::MonotonicBufferAllocator(MonotonicBufferAllocator&& rhs) noexcept:
     buffer(rhs.buffer), current(rhs.current), end(rhs.end) {
     rhs.buffer  = nullptr;
     rhs.current = nullptr;
     rhs.end     = nullptr;
 }
 
-MonotonicBufferAllocator::~MonotonicBufferAllocator() { release(); }
+MonotonicBufferAllocator::~MonotonicBufferAllocator() {
+    release();
+}
 
-MonotonicBufferAllocator &MonotonicBufferAllocator::operator=(MonotonicBufferAllocator &&rhs) noexcept {
+MonotonicBufferAllocator& MonotonicBufferAllocator::operator=(MonotonicBufferAllocator&& rhs) noexcept {
     release();
     buffer      = rhs.buffer;
     current     = rhs.current;
@@ -41,10 +45,10 @@ MonotonicBufferAllocator &MonotonicBufferAllocator::operator=(MonotonicBufferAll
 SCATHA(DISABLE_UBSAN) /// Disable UBSan for method \p allocate  as it may
                       /// perform pointer arithmetic on \p nullptr. This pointer
                       /// will be never dereferenced though, so its all fine.
-void *MonotonicBufferAllocator::allocate(size_t size, size_t align) {
+void* MonotonicBufferAllocator::allocate(size_t size, size_t align) {
     using namespace internal;
-    u8 *const result = alignPointer(current, align);
-    u8 *const next   = result + size;
+    u8* const result = alignPointer(current, align);
+    u8* const next   = result + size;
     if (next > end) {
         addChunk(buffer ? buffer->size * 2 : inititalSize);
         return allocate(size, align);
@@ -54,10 +58,10 @@ void *MonotonicBufferAllocator::allocate(size_t size, size_t align) {
 }
 
 void MonotonicBufferAllocator::release() {
-    InternalBufferHeader *buf = buffer;
+    InternalBufferHeader* buf = buffer;
     while (buf) {
-        size_t const                size = buf->size;
-        InternalBufferHeader *const prev = buf->prev;
+        size_t const size                = buf->size;
+        InternalBufferHeader* const prev = buf->prev;
         std::free(buf);
         (void)size;
         buf = prev;
@@ -68,13 +72,13 @@ void MonotonicBufferAllocator::release() {
 }
 
 void MonotonicBufferAllocator::addChunk(size_t size) {
-    InternalBufferHeader *const newBuffer = (InternalBufferHeader *)std::malloc(size + sizeof(InternalBufferHeader));
+    InternalBufferHeader* const newBuffer = (InternalBufferHeader*)std::malloc(size + sizeof(InternalBufferHeader));
     newBuffer->prev                       = buffer;
     newBuffer->size                       = size;
 
-    buffer                                = newBuffer;
-    current                               = (u8 *)newBuffer + sizeof(InternalBufferHeader);
-    end                                   = current + size;
+    buffer  = newBuffer;
+    current = (u8*)newBuffer + sizeof(InternalBufferHeader);
+    end     = current + size;
 }
 
 } // namespace scatha
