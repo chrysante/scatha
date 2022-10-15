@@ -126,7 +126,7 @@ void Context::generate(ast::Block const& block) {
 }
 
 void Context::generate(ast::VariableDeclaration const& decl) {
-    TasArgument const initResult = decl.initExpression ? dispatchExpression(*decl.initExpression) : EmptyArgument();
+    const TasArgument initResult = decl.initExpression ? dispatchExpression(*decl.initExpression) : EmptyArgument();
     //		Variable const var{ decl.symbolID };
     //		if (initResult.is(TasArgument::temporary)) {
     //			/// **Optimization:
@@ -249,8 +249,10 @@ TasArgument Context::generateExpression(ast::UnaryPrefixExpression const& expr) 
     switch (expr.op) {
     case ast::UnaryPrefixOperator::Promotion: return arg;
     case ast::UnaryPrefixOperator::Negation:
-        return submit(
-            makeTemporary(type), selectOperation(type, ast::BinaryOperator::Subtraction), LiteralValue(0, type), arg);
+        return submit(makeTemporary(type),
+                      selectOperation(type, ast::BinaryOperator::Subtraction),
+                      LiteralValue(0, type),
+                      arg);
     case ast::UnaryPrefixOperator::BitwiseNot:
         SC_ASSERT(type == sym.Int(), "Only int supported for now");
         return submit(makeTemporary(type), Operation::bnt, arg);

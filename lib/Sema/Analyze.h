@@ -16,9 +16,6 @@ namespace scatha::sema {
  - parameter root: Root of the tree to analyze.
  - returns: The generated symbol table.
 
- -
-
- # Notes: #
  */
 SCATHA(API) SymbolTable analyze(ast::AbstractSyntaxTree* root, issue::IssueHandler&);
 

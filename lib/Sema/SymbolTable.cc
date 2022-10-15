@@ -17,8 +17,9 @@ SymbolTable::SymbolTable(): _globalScope(std::make_unique<GlobalScope>()), _curr
 Expected<Function const&, SemanticIssue> SymbolTable::addFunction(Token name, FunctionSignature sig) {
     using enum InvalidDeclaration::Reason;
     if (name.isKeyword) {
-        return SemanticIssue{ InvalidDeclaration(
-            nullptr, ReservedIdentifier, currentScope(), SymbolCategory::Function) };
+        return SemanticIssue{
+            InvalidDeclaration(nullptr, ReservedIdentifier, currentScope(), SymbolCategory::Function)
+        };
     }
     SymbolID const overloadSetID = [&] {
         auto const id = currentScope().findID(name.id);
@@ -59,13 +60,15 @@ Expected<Function const&, SemanticIssue> SymbolTable::addFunction(Token name, Fu
 Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name, TypeID typeID, size_t offset) {
     using enum InvalidDeclaration::Reason;
     if (name.isKeyword) {
-        return SemanticIssue{ InvalidDeclaration(
-            nullptr, ReservedIdentifier, currentScope(), SymbolCategory::Variable) };
+        return SemanticIssue{
+            InvalidDeclaration(nullptr, ReservedIdentifier, currentScope(), SymbolCategory::Variable)
+        };
     }
-    SymbolID const symbolID = currentScope().findID(name.id);
+    const SymbolID symbolID = currentScope().findID(name.id);
     if (symbolID != SymbolID::Invalid) {
-        return SemanticIssue{ InvalidDeclaration(
-            nullptr, Redefinition, currentScope(), SymbolCategory::Variable, categorize(symbolID)) };
+        return SemanticIssue{
+            InvalidDeclaration(nullptr, Redefinition, currentScope(), SymbolCategory::Variable, categorize(symbolID))
+        };
     }
     auto [itr, success] = _variables.insert(Variable(name.id, generateID(), &currentScope(), typeID, offset));
     SC_ASSERT(success, "");
@@ -76,13 +79,15 @@ Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name, TypeID t
 Expected<ObjectType&, SemanticIssue> SymbolTable::addObjectType(Token name, size_t size, size_t align, bool isBuiltin) {
     using enum InvalidDeclaration::Reason;
     if (name.isKeyword) {
-        return SemanticIssue{ InvalidDeclaration(
-            nullptr, ReservedIdentifier, currentScope(), SymbolCategory::ObjectType) };
+        return SemanticIssue{
+            InvalidDeclaration(nullptr, ReservedIdentifier, currentScope(), SymbolCategory::ObjectType)
+        };
     }
-    SymbolID const symbolID = currentScope().findID(name.id);
+    const SymbolID symbolID = currentScope().findID(name.id);
     if (symbolID != SymbolID::Invalid) {
-        return SemanticIssue{ InvalidDeclaration(
-            nullptr, Redefinition, currentScope(), SymbolCategory::ObjectType, categorize(symbolID)) };
+        return SemanticIssue{
+            InvalidDeclaration(nullptr, Redefinition, currentScope(), SymbolCategory::ObjectType, categorize(symbolID))
+        };
     }
     auto [itr, success] =
         _objectTypes.insert(ObjectType(name.id, generateID(), &currentScope(), size, align, isBuiltin));

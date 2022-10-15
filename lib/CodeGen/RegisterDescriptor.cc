@@ -42,7 +42,6 @@ assembly::RegisterIndex RegisterDescriptor::makeTemporary() {
     while (temporaries.contains(i)) {
         ++i;
     }
-
     return resolve(ic::Temporary{ .index = i, .type = sema::TypeID::Invalid });
 }
 

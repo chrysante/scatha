@@ -87,8 +87,10 @@ void Context::analyze(FunctionDefinition& fn) {
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        iss.push(InvalidDeclaration(
-            &fn, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(), SymbolCategory::Function));
+        iss.push(InvalidDeclaration(&fn,
+                                    InvalidDeclaration::Reason::InvalidInCurrentScope,
+                                    sym.currentScope(),
+                                    SymbolCategory::Function));
         return;
     }
     if (fn.symbolID == SymbolID::Invalid) {
@@ -114,8 +116,10 @@ void Context::analyze(FunctionDefinition& fn) {
 void Context::analyze(StructDefinition& s) {
     if (auto const sk = sym.currentScope().kind();
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
-        iss.push(InvalidDeclaration(
-            &s, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(), SymbolCategory::ObjectType));
+        iss.push(InvalidDeclaration(&s,
+                                    InvalidDeclaration::Reason::InvalidInCurrentScope,
+                                    sym.currentScope(),
+                                    SymbolCategory::ObjectType));
         return;
     }
     dispatch(*s.body);
@@ -128,8 +132,10 @@ void Context::analyze(VariableDeclaration& var) {
         return;
     }
     if (!var.typeExpr && !var.initExpression) {
-        iss.push(InvalidDeclaration(
-            &var, InvalidDeclaration::Reason::CantInferType, sym.currentScope(), SymbolCategory::Variable));
+        iss.push(InvalidDeclaration(&var,
+                                    InvalidDeclaration::Reason::CantInferType,
+                                    sym.currentScope(),
+                                    SymbolCategory::Variable));
         return;
     }
     if (var.typeExpr) {

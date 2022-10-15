@@ -106,8 +106,10 @@ bool PrepassContext::prepass(ast::FunctionDefinition& fn) {
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(
-            &fn, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(), SymbolCategory::Function));
+        iss.push(InvalidDeclaration(&fn,
+                                    InvalidDeclaration::Reason::InvalidInCurrentScope,
+                                    sym.currentScope(),
+                                    SymbolCategory::Function));
         return false;
     }
 
@@ -187,8 +189,10 @@ bool PrepassContext::prepass(ast::StructDefinition& s) {
         sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
         /// Struct defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(
-            &s, InvalidDeclaration::Reason::InvalidInCurrentScope, sym.currentScope(), SymbolCategory::ObjectType));
+        iss.push(InvalidDeclaration(&s,
+                                    InvalidDeclaration::Reason::InvalidInCurrentScope,
+                                    sym.currentScope(),
+                                    SymbolCategory::ObjectType));
         return false;
     }
     auto obj = [&]() -> Expected<ObjectType&, SemanticIssue> {
@@ -263,7 +267,7 @@ bool PrepassContext::prepass(ast::VariableDeclaration& decl) {
     auto const* typenameIdentifier = downCast<ast::Identifier>(decl.typeExpr.get());
     SC_ASSERT(typenameIdentifier, "must be identifier for now");
     auto const* typePtr = sym.lookupObjectType(typenameIdentifier->value());
-    TypeID const typeID = typePtr ? typePtr->symbolID() : TypeID::Invalid;
+    const TypeID typeID = typePtr ? typePtr->symbolID() : TypeID::Invalid;
     auto var            = [&]() -> Expected<Variable&, SemanticIssue> {
         if (firstPass) {
             return sym.addVariable(decl.token(), typeID, bool{});

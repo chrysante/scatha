@@ -43,6 +43,8 @@ sysincludedirs { "external/utility" }
 includedirs "lib"
 links "utility"
 
+prebuildcommands { "./format-all.sh lib/" }
+
 filter "system:macosx"
 buildoptions "-fvisibility=hidden"
 filter {}

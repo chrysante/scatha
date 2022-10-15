@@ -8,18 +8,19 @@
 namespace scatha {
 
 std::ostream& operator<<(std::ostream& str, TokenType t) {
-    return str << UTL_SERIALIZE_ENUM(t,
-                                     {
-                                         { TokenType::Identifier, "Identifier" },
-                                         { TokenType::IntegerLiteral, "IntegerLiteral" },
-                                         { TokenType::BooleanLiteral, "BooleanLiteral" },
-                                         { TokenType::FloatingPointLiteral, "FloatingPointLiteral" },
-                                         { TokenType::StringLiteral, "StringLiteral" },
-                                         { TokenType::Punctuation, "Punctuation" },
-                                         { TokenType::Operator, "Operator" },
-                                         { TokenType::EndOfFile, "EndOfFile" },
-                                         { TokenType::Other, "Other" },
-                                     });
+    // clang-format off
+    return str << UTL_SERIALIZE_ENUM(t, {
+        { TokenType::Identifier,           "Identifier" },
+        { TokenType::IntegerLiteral,       "IntegerLiteral" },
+        { TokenType::BooleanLiteral,       "BooleanLiteral" },
+        { TokenType::FloatingPointLiteral, "FloatingPointLiteral" },
+        { TokenType::StringLiteral,        "StringLiteral" },
+        { TokenType::Punctuation,          "Punctuation" },
+        { TokenType::Operator,             "Operator" },
+        { TokenType::EndOfFile,            "EndOfFile" },
+        { TokenType::Other,                "Other" },
+    });
+    // clang-format on
 }
 
 std::ostream& operator<<(std::ostream& str, Token const& t) {
