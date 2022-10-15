@@ -18,6 +18,7 @@ std::ostream& operator<<(std::ostream& str, TokenType t) {
         { TokenType::Punctuation,          "Punctuation" },
         { TokenType::Operator,             "Operator" },
         { TokenType::EndOfFile,            "EndOfFile" },
+        { TokenType::Whitespace,           "Whitespace" },
         { TokenType::Other,                "Other" },
     });
     // clang-format on

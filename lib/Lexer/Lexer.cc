@@ -9,41 +9,35 @@ Lexer::Lexer(std::string_view text): text(std::move(text)) {}
 
 utl::vector<Token> Lexer::lex() {
     SC_ASSERT(currentLocation.index == 0, "Lexer has been run before");
-
     utl::vector<Token> result;
-
-    while (true) {
+    while (currentLocation.index < text.size()) {
         if (auto token = getToken()) {
-            result.push_back(std::move(*token));
-            continue;
-        }
-        if (currentLocation.index >= text.size()) {
-            SC_ASSERT(currentLocation.index == text.size(), "How is this possible?");
-
-            Token eof = beginToken(TokenType::EndOfFile);
-            result.push_back(eof);
-            for (auto& token : result) {
-                finalize(token);
+            if (token->type != TokenType::Whitespace) {
+                result.push_back(std::move(*token));
             }
-            return result;
+            continue;
         }
         throw UnexpectedID(beginToken(TokenType::Other));
     }
+    SC_ASSERT(currentLocation.index == text.size(), "How is this possible?");
+    Token eof = beginToken(TokenType::EndOfFile);
+    result.push_back(eof);
+    for (auto& token : result) {
+        finalize(token);
+    }
+    return result;
 }
 
 std::optional<Token> Lexer::getToken() {
-#pragma message("Do we really need this check?")
-    if (currentLocation.index == text.size()) {
-        return std::nullopt;
-    }
+    SC_ASSERT_AUDIT(currentLocation.index != text.size(), "");
     if (auto spaces = getSpaces()) {
-        return getToken();
+        return *spaces;
     }
     if (auto comment = getOneLineComment()) {
-        return getToken();
+        return *comment;
     }
     if (auto comment = getMultiLineComment()) {
-        return getToken();
+        return *comment;
     }
     if (auto punctuation = getPunctuation()) {
         return *punctuation;
@@ -77,7 +71,7 @@ std::optional<Token> Lexer::getSpaces() {
     if (!isSpace(current())) {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::Other);
+    Token result = beginToken(TokenType::Whitespace);
     while (isSpace(current())) {
         result.id += current();
         if (!advance()) {
@@ -94,7 +88,7 @@ std::optional<Token> Lexer::getOneLineComment() {
     if (auto const next = this->next(); !next || *next != '/') {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::Other);
+    Token result = beginToken(TokenType::Whitespace);
     result.id += current();
     advance();
     while (true) {
@@ -112,7 +106,7 @@ std::optional<Token> Lexer::getMultiLineComment() {
     if (auto const next = this->next(); !next || *next != '*') {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::Other);
+    Token result = beginToken(TokenType::Whitespace);
     result.id += current();
     advance();
     // now we are at the next character after "/*"

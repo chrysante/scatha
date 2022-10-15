@@ -21,6 +21,7 @@ enum class TokenType {
     Punctuation,
     Operator,
     EndOfFile,
+    Whitespace,
     Other,
     _count
 };

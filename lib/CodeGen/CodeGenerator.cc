@@ -91,37 +91,37 @@ assembly::AssemblyStream CodeGenerator::run() {
                 a << Instruction::ret;
                 break;
             }
-            case ic::Operation::add:
-            case ic::Operation::sub:
-            case ic::Operation::mul:
-            case ic::Operation::div:
-            case ic::Operation::idiv:
-            case ic::Operation::rem:
-            case ic::Operation::irem:
-            case ic::Operation::fadd:
-            case ic::Operation::fsub:
-            case ic::Operation::fmul:
-            case ic::Operation::fdiv:
-            case ic::Operation::sl:
-            case ic::Operation::sr:
-            case ic::Operation::And:
-            case ic::Operation::Or:
+            case ic::Operation::add: [[fallthrough]];
+            case ic::Operation::sub: [[fallthrough]];
+            case ic::Operation::mul: [[fallthrough]];
+            case ic::Operation::div: [[fallthrough]];
+            case ic::Operation::idiv: [[fallthrough]];
+            case ic::Operation::rem: [[fallthrough]];
+            case ic::Operation::irem: [[fallthrough]];
+            case ic::Operation::fadd: [[fallthrough]];
+            case ic::Operation::fsub: [[fallthrough]];
+            case ic::Operation::fmul: [[fallthrough]];
+            case ic::Operation::fdiv: [[fallthrough]];
+            case ic::Operation::sl: [[fallthrough]];
+            case ic::Operation::sr: [[fallthrough]];
+            case ic::Operation::And: [[fallthrough]];
+            case ic::Operation::Or: [[fallthrough]];
             case ic::Operation::XOr: generateBinaryArithmetic(a, s); break;
-            case ic::Operation::eq:
-            case ic::Operation::neq:
-            case ic::Operation::ils:
-            case ic::Operation::ileq:
-            case ic::Operation::ig:
-            case ic::Operation::igeq:
-            case ic::Operation::uls:
-            case ic::Operation::uleq:
-            case ic::Operation::ug:
-            case ic::Operation::ugeq:
-            case ic::Operation::feq:
-            case ic::Operation::fneq:
-            case ic::Operation::fls:
-            case ic::Operation::fleq:
-            case ic::Operation::fg:
+            case ic::Operation::eq: [[fallthrough]];
+            case ic::Operation::neq: [[fallthrough]];
+            case ic::Operation::ils: [[fallthrough]];
+            case ic::Operation::ileq: [[fallthrough]];
+            case ic::Operation::ig: [[fallthrough]];
+            case ic::Operation::igeq: [[fallthrough]];
+            case ic::Operation::uls: [[fallthrough]];
+            case ic::Operation::uleq: [[fallthrough]];
+            case ic::Operation::ug: [[fallthrough]];
+            case ic::Operation::ugeq: [[fallthrough]];
+            case ic::Operation::feq: [[fallthrough]];
+            case ic::Operation::fneq: [[fallthrough]];
+            case ic::Operation::fls: [[fallthrough]];
+            case ic::Operation::fleq: [[fallthrough]];
+            case ic::Operation::fg: [[fallthrough]];
             case ic::Operation::fgeq: generateComparisonStore(a, s); break;
             case ic::Operation::lnt: {
                 a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
@@ -135,8 +135,8 @@ assembly::AssemblyStream CodeGenerator::run() {
             }
             case ic::Operation::jmp: generateJump(a, s); break;
 
-            case ic::Operation::ifPlaceholder:
-            case ic::Operation::_count: SC_DEBUGFAIL();
+            case ic::Operation::ifPlaceholder: [[fallthrough]];
+            case ic::Operation::_count: SC_UNREACHABLE();
             }
             } },
             line);

@@ -49,20 +49,16 @@ template <ast::BinaryOperator... Op>
 ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorRTL(auto&& parseOperand) {
     auto left            = parseOperand();
     TokenEx const& token = tokens.peek();
-
-    if (ast::UniquePtr<ast::Expression> result = nullptr; ((token.id == toString(Op) && (
-                                                                                            result =
-                                                                                                [&] {
+    // clang-format off
+    if (ast::UniquePtr<ast::Expression> result = nullptr; ((token.id == toString(Op) && (result = [&]{
         tokens.eat();
         ast::UniquePtr<ast::Expression> right = parseBinaryOperatorRTL<Op...>(parseOperand);
         return ast::allocate<ast::BinaryExpression>(Op, std::move(left), std::move(right), token);
-                                                                                            }(),
-                                                                                            true)) ||
-                                                           ...)) {
+    }(), true)) || ...)) {
         return result;
-    } else {
-        return left;
     }
+    return left;
+    // clang-format on
 }
 
 ast::UniquePtr<ast::Expression> ExpressionParser::parseComma() {

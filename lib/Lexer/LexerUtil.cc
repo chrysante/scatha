@@ -1,10 +1,12 @@
 #include "Lexer/LexerUtil.h"
 
+#include <string_view>
+
 namespace scatha::lex {
 
-static bool isAnyOf(char c, char const* data) {
-    for (char const* i = data; *i; ++i) {
-        if (c == *i) {
+static bool isAnyOf(char c, std::string_view data) {
+    for (auto i : data) {
+        if (c == i) {
             return true;
         }
     }
@@ -20,14 +22,14 @@ SCATHA(PURE) bool isOperatorLetter(char c) {
 }
 
 SCATHA(PURE) bool isOperator(std::string_view id) {
-    std::string_view constexpr operators[]{ "+",  "-",  "*",  "/",  "%",  "&",  "|",   "^",   "!",  "~",  "<<",
-                                            ">>", "&&", "||",
-
-                                            "=",  "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "&=", "|=", "^=",
-
-                                            "==", "!=", "<",  "<=", ">",  ">=",
-
-                                            ".",  "->", "?" };
+    // clang-format off
+    std::string_view constexpr operators[]{
+        "+",  "-",  "*",  "/",  "%",  "&",  "|",   "^",   "!",  "~",  "<<", ">>", "&&", "||",
+        "=",  "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "&=", "|=", "^=",
+        "==", "!=", "<",  "<=", ">",  ">=",
+        ".",  "->", "?"
+    };
+    // clang-format on
     for (auto o : operators) {
         if (id == o) {
             return true;

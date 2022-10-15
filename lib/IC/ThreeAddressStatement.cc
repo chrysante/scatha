@@ -136,7 +136,8 @@ Operation reverseRelop(Operation op) {
     case feq: return fneq;
     case fneq: return feq;
     case fls: return fgeq;
-    case fleq: return fg; SC_NO_DEFAULT_CASE();
+    case fleq: return fg;
+    default: SC_UNREACHABLE();
     }
 }
 
