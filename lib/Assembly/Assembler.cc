@@ -193,19 +193,20 @@ void Assembler::put(LabelPlaceholder) {
 }
 
 void Assembler::put(Element const& elem) {
+    // clang-format off
     std::visit(utl::visitor{
                    [this](auto const& x) { put(x); },
                    [](Instruction) {
-        SC_DEBUGFAIL(); // Probably a bug because we should not
-                        // put an assembly::Instruction into the
-                        // program, only vm::OpCode.
+                       SC_DEBUGFAIL(); // Probably a bug because we should not
+                                       // put an assembly::Instruction into the
+                                       // program, only vm::OpCode.
                    },
                    [](Label) {
-        SC_DEBUGFAIL(); // Same here, labels do not exist in an
-                        // assembled program.
-    },
-    },
-        elem);
+                       SC_DEBUGFAIL(); // Same here, labels do not exist in an
+                                       // assembled program.
+                   },
+               }, elem);
+    // clang-format on
 }
 
 void Assembler::put(RegisterIndex r) {
