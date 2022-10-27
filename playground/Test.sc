@@ -1,5 +1,15 @@
 
+fn main()->int {
+    let b = 1 > 2;
+    if (b) {
+        return 1 + 2;
+    }
+    else {
+        return 3 * 5;
+    }
+}
 
+/*
 fn main() -> int {
 	var x: X;
 	let result = f(x.y);
@@ -22,3 +32,4 @@ struct Y {
 }
 
 
+*/
