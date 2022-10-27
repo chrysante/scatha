@@ -30,13 +30,12 @@ function format() {
     done
 }
 
-# Check all of the arguments first to make sure they're all directories
 if [ $# -eq 0 ]; then
     format "./";
     exit 0
 fi
 
-
+# Check all of the arguments first to make sure they're all directories
 for dir in "$@"; do
     if [ ! -d "${dir}" ]; then
         echo "${dir} is not a directory";
