@@ -58,6 +58,14 @@ struct DefaultCase {
         callback(*fn.body);
     }
     void operator()(AlmostSameAs<StructDefinition> auto&& s) const { callback(*s.body); }
+    void operator()(AlmostSameAs<VariableDeclaration> auto&& s) const {
+        if (s.typeExpr) {
+            callback(*s.typeExpr);
+        }
+        if (s.initExpression) {
+            callback(*s.initExpression);
+        }
+    }
     void operator()(AlmostSameAs<ExpressionStatement> auto&& s) const {
         SC_ASSERT(s.expression != nullptr, "");
         callback(*s.expression);
