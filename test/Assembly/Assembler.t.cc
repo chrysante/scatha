@@ -234,7 +234,7 @@ TEST_CASE("Arithmetic", "[assembly][vm]") {
 TEST_CASE("Unconditional jump", "[assembly][vm]") {
     using enum Instruction;
 
-    u64 const value = GENERATE(0, 1, 2, 3);
+    u64 const value = GENERATE(0u, 1u, 2u, 3u);
 
     AssemblyStream a;
 
@@ -260,7 +260,7 @@ TEST_CASE("Unconditional jump", "[assembly][vm]") {
 }
 
 TEST_CASE("Conditional jump", "[assembly][vm]") {
-    u64 const value = GENERATE(0, 1, 2, 3);
+    u64 const value = GENERATE(0u, 1u, 2u, 3u);
     i64 const arg1  = GENERATE(-2, 0, 5, 100);
     i64 const arg2  = GENERATE(-100, -3, 0, 7);
 
@@ -289,7 +289,7 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
 
-    CHECK(read<u64>(state.regPtr + 1) == (arg1 <= arg2 ? value : -1));
+    CHECK(read<u64>(state.regPtr + 1) == (arg1 <= arg2 ? value : static_cast<u64>(-1)));
 }
 
 TEST_CASE("itest, set*") {

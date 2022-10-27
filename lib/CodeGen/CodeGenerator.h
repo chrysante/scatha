@@ -33,7 +33,7 @@ struct CurrentFunctionData {
 
     std::span<std::tuple<size_t, u8> const> parameterRegisterLocations() const { return _parameterRegisterLocations; };
 
-    size_t allocRegArgIndex = -1;
+    size_t allocRegArgIndex = static_cast<size_t>(-1);
 
 private:
     bool _calledAnyFunction = false;

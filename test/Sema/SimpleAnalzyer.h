@@ -15,7 +15,7 @@ produceDecoratedASTAndSymTable(std::string_view text);
 
 struct IssueHelper {
     template <typename T>
-    std::optional<T> findOnLine(size_t line, size_t col = -1) const {
+    std::optional<T> findOnLine(size_t line, size_t col = static_cast<size_t>(-1)) const {
         for (auto&& issue : iss.semaIssues()) {
             if (issue.is<T>()) {
                 T const& t         = issue.get<T>();

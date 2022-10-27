@@ -49,9 +49,9 @@ void VirtualMachine::addExternalFunction(size_t slot, ExternalFunction f) {
 }
 
 void VirtualMachine::resizeMemory(size_t newSize) {
-    size_t const iptrOffset             = memory.empty() ? 0 : iptr - memory.data();
-    size_t const programBreakOffset     = programBreak - iptr;
-    size_t const memoryBreakOffset      = memoryBreak - memoryPtr;
+    size_t const iptrOffset             = memory.empty() ? 0 : utl::narrow_cast<size_t>(iptr - memory.data());
+    size_t const programBreakOffset     = utl::narrow_cast<size_t>(programBreak - iptr);
+    size_t const memoryBreakOffset      = utl::narrow_cast<size_t>(memoryBreak - memoryPtr);
     size_t const paddedInstructionCount = utl::round_up_pow_two(instructionCount, 16);
     memory.resize(paddedInstructionCount + newSize);
     iptr         = memory.data() + iptrOffset;
