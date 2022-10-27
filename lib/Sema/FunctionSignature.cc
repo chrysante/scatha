@@ -2,11 +2,12 @@
 
 #include <utl/hash.hpp>
 #include <utl/utility.hpp>
+#include <utl/ranges.hpp>
 
 namespace scatha::sema {
 
 u64 FunctionSignature::hashArguments(std::span<TypeID const> types) {
-    auto r = utl::transform_range(types.begin(), types.end(), [](TypeID x) { return x.hash(); });
+    auto r = utl::transform(types, [](TypeID x) { return x.hash(); });
     return utl::hash_combine_range(r.begin(), r.end());
 }
 
