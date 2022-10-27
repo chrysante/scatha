@@ -14,20 +14,20 @@ void RegisterDescriptor::declareParameters(ic::FunctionLabel const& fn) {
 
 assembly::RegisterIndex RegisterDescriptor::resolve(ic::Variable const& var) {
     if (auto const itr = variables.find(var.id()); itr != variables.end()) {
-        return assembly::RegisterIndex(itr->second);
+        return assembly::RegisterIndex(utl::narrow_cast<u8>(itr->second));
     }
     auto const [itr, success] = variables.insert({ var.id(), index });
     index += 1;
-    return assembly::RegisterIndex(itr->second);
+    return assembly::RegisterIndex(utl::narrow_cast<u8>(itr->second));
 }
 
 assembly::RegisterIndex RegisterDescriptor::resolve(ic::Temporary const& tmp) {
     if (auto const itr = temporaries.find(tmp.index); itr != temporaries.end()) {
-        return assembly::RegisterIndex(itr->second);
+        return assembly::RegisterIndex(utl::narrow_cast<u8>(itr->second));
     }
     auto const [itr, success] = temporaries.insert({ tmp.index, index });
     index += 1;
-    return assembly::RegisterIndex(itr->second);
+    return assembly::RegisterIndex(utl::narrow_cast<u8>(itr->second));
 }
 
 std::optional<assembly::RegisterIndex> RegisterDescriptor::resolve(ic::TasArgument const& arg) {

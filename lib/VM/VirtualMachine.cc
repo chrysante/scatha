@@ -2,6 +2,9 @@
 
 #include <iostream>
 
+#include <utl/utility.hpp>
+#include <utl/math.hpp>
+
 #include "Basic/Memory.h"
 #include "VM/OpCode.h"
 

@@ -228,7 +228,7 @@ struct OpCodeImpl {
         /// MARK: Register allocation
         at(allocReg) = [](u8 const* i, u64* regPtr, VirtualMachine* vm) -> u64 {
             size_t const numRegs          = i[0];
-            size_t const currentRegOffset = regPtr - vm->registers.data();
+            size_t const currentRegOffset = static_cast<u64>(regPtr - vm->registers.data());
             size_t const newRegCount      = std::max(vm->registers.size(), currentRegOffset + numRegs);
             VM_ASSERT(newRegCount < (1 << 20) && "Stack overflow");
             vm->registers.resize(newRegCount);
@@ -241,7 +241,7 @@ struct OpCodeImpl {
             size_t const sizeRegIdx = i[0];
             u64 const size          = reg[sizeRegIdx];
             vm->resizeMemory(size);
-            reg[sizeRegIdx] = vm->memoryPtr - vm->memory.data();
+            reg[sizeRegIdx] = static_cast<u64>(vm->memoryPtr - vm->memory.data());
             return codeSize(setBrk);
         };
 

@@ -22,6 +22,9 @@ namespace scatha::sema {
 
 class SCATHA(API) SymbolTable {
 public:
+    static constexpr size_t invalidSize = static_cast<size_t>(-1);
+
+public:
     SymbolTable();
 
     // Modifiers
@@ -30,7 +33,7 @@ public:
     Expected<Variable&, SemanticIssue> addVariable(Token name, TypeID, size_t offset = 0);
 
     Expected<ObjectType&, SemanticIssue>
-    addObjectType(Token name, size_t size = -1, size_t align = -1, bool isBuiltin = false);
+    addObjectType(Token name, size_t size = invalidSize, size_t align = invalidSize, bool isBuiltin = false);
 
     Scope const& addAnonymousScope();
 

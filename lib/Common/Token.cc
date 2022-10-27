@@ -37,12 +37,13 @@ std::ostream& operator<<(std::ostream& str, Token const& t) {
 u64 Token::toInteger() const {
     SC_ASSERT(type == TokenType::IntegerLiteral, "Token is not an integer literal");
     if constexpr (sizeof(long) == 8) {
-        return std::stol(id, nullptr, 0);
-    } else {
+        return std::stoul(id, nullptr, 0);
+    }
+    else {
         // Unlike on unix based systems, long is 4 bit on 64 bit Windows, so we
         // use long long here.
         static_assert(sizeof(long long) == 8);
-        return std::stoll(id, nullptr, 0);
+        return std::stoull(id, nullptr, 0);
     }
 }
 

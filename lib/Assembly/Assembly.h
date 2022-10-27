@@ -70,12 +70,14 @@ enum class Instruction : u8 {
 std::ostream& operator<<(std::ostream&, Instruction);
 
 struct Label {
-    explicit Label(u64 functionID, i64 index = -1): functionID(functionID), index(index) {}
+    static constexpr u64 functionBeginIndex = static_cast<u64>(-1);
+
+    explicit Label(u64 functionID, u64 index = functionBeginIndex): functionID(functionID), index(index) {}
 
     bool operator==(Label const&) const = default;
 
     u64 functionID;
-    i64 index;
+    u64 index;
 };
 
 std::ostream& operator<<(std::ostream&, Label);

@@ -30,11 +30,11 @@ assembly::AssemblyStream CodeGenerator::run() {
             SC_ASSERT(rd.empty(), "rd has not been cleared");
             rd.declareParameters(label);
             a << Instruction::allocReg;
-            a << Value8(-1);
+            a << Value8(0xFF); // 0xFF is a placeholder
             currentFunction.allocRegArgIndex = a.size() - Value8::size();
                          },
                           [&](ic::FunctionEndLabel) {
-            a[currentFunction.allocRegArgIndex] = rd.numUsedRegisters();
+            a[currentFunction.allocRegArgIndex] = utl::narrow_cast<u8>(rd.numUsedRegisters());
             if (currentFunction.calledAnyFunction()) {
                 a[currentFunction.allocRegArgIndex] += 2 + currentFunction.maxParamCount();
             }
@@ -59,21 +59,23 @@ assembly::AssemblyStream CodeGenerator::run() {
                 break;
             }
             case ic::Operation::param: {
-                a << Instruction::mov << RegisterIndex(-1);
-                currentFunction.addParam(a.size() - RegisterIndex::size(), currentFunction.paramCount());
+                a << Instruction::mov << RegisterIndex(0xFF); // 0xFF is a placeholder
+                currentFunction.addParam(a.size() - RegisterIndex::size(),
+                                         utl::narrow_cast<u8>(currentFunction.paramCount()));
                 a << resolve(s.arg1);
                 break;
             }
             case ic::Operation::getResult: {
                 size_t const resultLocation = rd.numUsedRegisters() + 2;
                 a << Instruction::mov << resolve(s.result);
-                a << RegisterIndex(resultLocation);
+                a << RegisterIndex(utl::narrow_cast<u8>(resultLocation));
                 break;
             }
             case ic::Operation::call: {
-                a << Instruction::call << toAsm(s.getLabel()) << Value8(rd.numUsedRegisters() + 2);
+                a << Instruction::call << toAsm(s.getLabel())
+                  << Value8(utl::narrow_cast<u8>(rd.numUsedRegisters() + 2));
                 for (auto const& [index, offset] : currentFunction.parameterRegisterLocations()) {
-                    a[index] = rd.numUsedRegisters() + 2 + offset;
+                    a[index] = utl::narrow_cast<u8>(rd.numUsedRegisters() + 2 + offset);
                 }
                 currentFunction.resetParams();
                 break;
@@ -156,7 +158,8 @@ void CodeGenerator::generateComparison(assembly::AssemblyStream& a, ic::ThreeAdd
         assembly::RegisterIndex const tmp = rd.makeTemporary();
         a << assembly::Instruction::mov << tmp << resolve(s.arg1);
         a << cmp << tmp << resolve(s.arg2);
-    } else {
+    }
+    else {
         a << cmp << resolve(s.arg1) << resolve(s.arg2);
     }
 }
@@ -177,7 +180,8 @@ void CodeGenerator::generateConditionalJump(assembly::AssemblyStream& a,
     SC_ASSERT(isJump(jumpStatement.operation), "which must be a jump");
     if (ifStatement.operation == ic::Operation::ifPlaceholder) {
         a << assembly::Instruction::utest << resolve(ifStatement.arg1);
-    } else {
+    }
+    else {
         SC_ASSERT(ic::isRelop(ifStatement.operation), "operation must be if placeholder or a relop");
         generateComparison(a, ifStatement);
     }

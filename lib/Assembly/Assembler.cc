@@ -41,7 +41,7 @@ Program Assembler::assemble(AssemblerOptions opt) {
         case Marker::Label: {
             auto const label = elem.get<Label>();
             registerLabel(label);
-            if (label.functionID == opt.mainID && label.index == -1) {
+            if (label.functionID == opt.mainID && label.index == Label::functionBeginIndex) {
                 result.start = currentPosition();
             }
             break;

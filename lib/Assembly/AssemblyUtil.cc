@@ -23,16 +23,16 @@ struct OpCodeTable {
         }
         (
             [&](auto&& e) {
-            size_t const i             = utl::log2(utl::to_underlying(std::get<0>(e)));
-            size_t const j             = utl::log2(utl::to_underlying(std::get<1>(e)));
+            size_t const i             = (size_t)utl::log2(utl::to_underlying(std::get<0>(e)));
+            size_t const j             = (size_t)utl::log2(utl::to_underlying(std::get<1>(e)));
             data[i * matrixHeight + j] = std::get<2>(e);
             }(elems),
             ...);
     }
 
     constexpr vm::OpCode operator()(Element const& a, Element const& b) const {
-        size_t const i    = utl::log2(utl::to_underlying(a.marker()));
-        size_t const j    = utl::log2(utl::to_underlying(b.marker()));
+        size_t const i    = (size_t)utl::log2(utl::to_underlying(a.marker()));
+        size_t const j    = (size_t)utl::log2(utl::to_underlying(b.marker()));
         auto const result = data[i * matrixHeight + j];
         return result;
     }
@@ -372,12 +372,11 @@ struct Printer {
     void printLabel(Label label) {
         if (sym != nullptr) {
             str << sym->getFunction(sema::SymbolID(label.functionID)).name();
-            if (label.index >= 0) {
+            if (label.index != Label::functionBeginIndex) {
                 str << ".L" << label.index;
-            } else if (label.index == -2) {
-                str << ".END";
             }
-        } else {
+        }
+        else {
             str << ".L" << label.functionID;
             if (label.index >= 0) {
                 str << ":" << label.index;

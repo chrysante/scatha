@@ -53,13 +53,13 @@ struct LiteralValue {
 };
 
 struct Label {
-    static constexpr i64 functionBeginIndex = -1;
+    static constexpr u64 functionBeginIndex = static_cast<u64>(-1);
 
     Label() = default;
-    explicit Label(sema::SymbolID functionID, i64 index = functionBeginIndex): functionID(functionID), index(index) {}
+    explicit Label(sema::SymbolID functionID, u64 index = functionBeginIndex): functionID(functionID), index(index) {}
 
     sema::SymbolID functionID;
-    i64 index = functionBeginIndex;
+    u64 index = functionBeginIndex;
 };
 
 struct FunctionLabel {
