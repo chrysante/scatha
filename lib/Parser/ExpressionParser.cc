@@ -11,7 +11,8 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseExpression() {
 template <ast::BinaryOperator... Op>
 ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorLTR(auto&& operand) {
     ast::UniquePtr<ast::Expression> left = operand();
-    auto tryParse                        = [&](Token const& token, ast::BinaryOperator op) {
+    // -
+    auto tryParse = [&](Token const& token, ast::BinaryOperator op) {
         if (token.id != toString(op)) {
             return false;
         }
@@ -73,7 +74,6 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseConditional() {
         auto rhs = parseConditional();
         return allocate<ast::Conditional>(std::move(logicalOr), std::move(lhs), std::move(rhs), token);
     }
-
     return logicalOr;
 }
 
@@ -130,18 +130,22 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseUnary() {
         return postfix;
     }
     Token const& token = tokens.eat();
-
     if (token.id == "&") {
         SC_DEBUGFAIL(); // Do we really want to support addressof operator?
-    } else if (token.id == "+") {
+    }
+    else if (token.id == "+") {
         return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Promotion, parseUnary(), token);
-    } else if (token.id == "-") {
+    }
+    else if (token.id == "-") {
         return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Negation, parseUnary(), token);
-    } else if (token.id == "~") {
+    }
+    else if (token.id == "~") {
         return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::BitwiseNot, parseUnary(), token);
-    } else if (token.id == "!") {
+    }
+    else if (token.id == "!") {
         return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::LogicalNot, parseUnary(), token);
-    } else {
+    }
+    else {
         throw ParsingIssue(token, "Unqualified ID");
     }
 }
@@ -155,11 +159,14 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parsePostfix() {
         auto const& token = tokens.peek();
         if (token.id == "[") {
             primary = parseSubscript(std::move(primary));
-        } else if (token.id == "(") {
+        }
+        else if (token.id == "(") {
             primary = parseFunctionCall(std::move(primary));
-        } else if (token.id == ".") {
+        }
+        else if (token.id == ".") {
             primary = parseMemberAccess(std::move(primary));
-        } else {
+        }
+        else {
             break;
         }
     }
@@ -182,7 +189,6 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parsePrimary() {
     if (auto result = parseStringLiteral()) {
         return result;
     }
-
     auto const& token = tokens.peek();
     if (token.id == "(") {
         tokens.eat();

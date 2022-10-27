@@ -79,7 +79,7 @@ Element StreamIterator::next() {
     Marker const marker = static_cast<Marker>(get<std::underlying_type_t<Marker>>());
     validate(marker, line);
     switch (marker) {
-    /// **WARNING:
+    /// **WARNING:**
     /// The parameters must be extracted to local variables before being used as
     /// function arguments, since the order of evaluation of function arguments
     /// is unspecified. This is a real problem, as it caused a suble bug where
