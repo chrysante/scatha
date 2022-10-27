@@ -26,7 +26,7 @@ objdir("build/obj/%{cfg.longname}")
 architecture "x86_64"
 
 filter "system:macosx"
-    --buildoptions { "-Wconversion" } -- turn this on later
+    buildoptions { "-Wconversion" }
     xcodebuildsettings { 
         ["INSTALL_PATH"]            = "@executable_path",
         ["LD_RUNPATH_SEARCH_PATHS"] = "@loader_path"
@@ -43,7 +43,7 @@ sysincludedirs { "external/utility" }
 includedirs "lib"
 links "utility"
 
-prebuildcommands { "./format-all.sh lib/" }
+--prebuildcommands { "./format-all.sh lib/" }
 
 filter "system:macosx"
 buildoptions "-fvisibility=hidden"
@@ -62,7 +62,7 @@ sysincludedirs {
 
 sysincludedirs { "lib" }
 
-prebuildcommands { "./format-all.sh test/" }
+--prebuildcommands { "./format-all.sh test/" }
 
 addCppFiles "test"
 links { "scatha" } 
