@@ -72,19 +72,13 @@ public:
     /// Name of the declared symbol as written in the source code.
     std::string_view name() const { return _token.id; }
 
-    /// Token object of the name in the source code.
-    Token const& token() const { return _token; }
-
-    /** Decoration provided by semantic analysis. */
+    /// ** Decoration provided by semantic analysis **
 
     /// SymbolID of this declaration in the symbol table
     sema::SymbolID symbolID;
 
 protected:
-    explicit Declaration(NodeType type, Token const& token): Statement(type, token), _token(token) {}
-
-private:
-    Token _token;
+    explicit Declaration(NodeType type, Token const& token): Statement(type, token) {}
 };
 
 /// Concrete node representing a translation unit.
@@ -136,7 +130,7 @@ struct SCATHA(API) Block: Statement {
 
     /** Decoration provided by semantic analysis. */
 
-    /// Kind of this block scope
+    /// Kind of this block scope. Default is 'Anonymous', make sure to set this to Function or ObjectType in other cases.
     sema::ScopeKind scopeKind = sema::ScopeKind::Anonymous;
 
     /// SymbolID of this block scope
@@ -158,7 +152,7 @@ struct SCATHA(API) FunctionDefinition: Declaration {
     UniquePtr<Block> body;
 
     /** Decoration provided by semantic analysis. */
-
+    
     /// Return type of the function.
     sema::TypeID returnTypeID = sema::TypeID::Invalid;
 
@@ -172,11 +166,6 @@ struct SCATHA(API) StructDefinition: Declaration {
 
     /// Body of the struct.
     UniquePtr<Block> body;
-
-    /** Decoration provided by semantic analysis. */
-
-    /// Type of this type.
-    sema::TypeID typeID = sema::TypeID::Invalid;
 };
 
 /// Concrete node representing a statement that consists of a single expression.
