@@ -9,6 +9,7 @@ namespace scatha::sema {
 std::string_view toString(ScopeKind k) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(k, {
+        { ScopeKind::Invalid,   "Invalid" },
         { ScopeKind::Global,    "Global" },
         { ScopeKind::Namespace, "Namespace" },
         { ScopeKind::Variable,  "Variable" },

@@ -16,17 +16,16 @@ public:
     explicit OverloadSet(std::string name, SymbolID id, Scope* parentScope):
         EntityBase(std::move(name), id, parentScope) {}
 
-    ///
+    /// Here overload resolution is happening
     Function const* find(std::span<TypeID const> argumentTypes) const;
 
-    std::pair<Function*, bool> add(Function);
+    std::pair<Function*, bool> add(Function*);
 
     auto begin() const { return functions.begin(); }
     auto end() const { return functions.end(); }
 
 private:
-    using SetType = utl::node_hashset<Function, Function::ArgumentHash, Function::ArgumentEqual>;
-    SetType functions;
+    utl::hashset<Function*, Function::ArgumentsHash, Function::ArgumentsEqual> functions;
 };
 
 } // namespace scatha::sema

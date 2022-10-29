@@ -120,7 +120,9 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
         objectAlign = std::max(objectAlign, type.align());
         SC_ASSERT(type.size() % type.align() == 0, "size must be a multiple of align");
         objectSize     = utl::round_up_pow_two(objectSize, type.align());
-        varDecl.offset = objectSize;
+        size_t const currentOffset = objectSize;
+        varDecl.offset = currentOffset;
+        sym.getVariable(varDecl.symbolID).setOffset(currentOffset);
         objectSize += type.size();
     }
     auto& objectType = sym.getObjectType(structDef.symbolID);

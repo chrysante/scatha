@@ -13,6 +13,7 @@ namespace scatha::sema {
 
 class SCATHA(API) FunctionSignature {
 public:
+    FunctionSignature() = default;
     explicit FunctionSignature(utl::vector<TypeID> argumentTypes, TypeID returnType):
         _argumentTypeIDs(std::move(argumentTypes)),
         _returnTypeID(returnType),

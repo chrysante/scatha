@@ -7,11 +7,17 @@ namespace scatha::sema {
 
 class Variable: public EntityBase {
 public:
-    explicit Variable(std::string name, SymbolID symbolID, Scope* parentScope, TypeID typeID, size_t offset = 0):
-        EntityBase(std::move(name), symbolID, parentScope), _typeID(typeID), _offset(offset) {}
+    explicit Variable(std::string name,
+                      SymbolID symbolID,
+                      Scope* parentScope,
+                      TypeID typeID = TypeID::Invalid,
+                      size_t offset = 0);
 
     /// Set the type of this variable.
     void setTypeID(TypeID id) { _typeID = id; }
+    
+    /// Set the offset of this variable.
+    void setOffset(size_t offset) { _offset = offset; }
 
     /// Type of this variable.
     TypeID typeID() const { return _typeID; }
@@ -20,9 +26,12 @@ public:
     /// member variable then offset() == 0.
     size_t offset() const { return _offset; }
 
+    /// Wether this variable is local to a function or potentially globally visible.
+    bool isLocal() const;
+    
 private:
     TypeID _typeID;
-    bool _offset;
+    size_t _offset;
 };
 
 } // namespace scatha::sema

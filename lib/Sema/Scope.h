@@ -34,7 +34,7 @@ public:
 private:
     friend class internal::ScopePrinter;
     friend class SymbolTable;
-    void add(EntityBase const& entity);
+    void add(EntityBase& entity);
     void add(Scope& scopingEntity);
 
 private:

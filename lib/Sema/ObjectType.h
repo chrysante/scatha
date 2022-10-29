@@ -34,6 +34,7 @@ public:
 
     void setSize(size_t value) { _size = value; }
     void setAlign(size_t value) { _align = value; }
+    void setIsBuiltin(bool value) { _isBuiltin = value; }
 
 public:
     size_t _size;

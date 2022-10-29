@@ -12,7 +12,7 @@ SymbolID Scope::findID(std::string_view name) const {
     return itr == _symbols.end() ? SymbolID::Invalid : itr->second;
 }
 
-void Scope::add(EntityBase const& entity) {
+void Scope::add(EntityBase& entity) {
     auto const [itr, success] = _symbols.insert({ std::string(entity.name()), entity.symbolID() });
     SC_ASSERT(success, "");
 }
@@ -21,7 +21,7 @@ void Scope::add(Scope& scopingEntity) {
     if (!scopingEntity.isAnonymous() &&
         scopingEntity.kind() !=
             ScopeKind::Function /* can't add functions here because of name collisions due to overloading */) {
-        add(static_cast<EntityBase const&>(scopingEntity));
+        add(static_cast<EntityBase&>(scopingEntity));
     }
     auto const [itr, success] = _children.insert({ scopingEntity.symbolID(), &scopingEntity });
     SC_ASSERT(success, "");
