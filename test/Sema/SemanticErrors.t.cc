@@ -2,13 +2,15 @@
 
 #include "Parser/ParsingIssue.h"
 #include "Sema/SemanticIssue.h"
+#include "test/IssueHelper.h"
 #include "test/Sema/SimpleAnalzyer.h"
+
 
 using namespace scatha;
 using namespace sema;
 
 TEST_CASE("Use of undeclared identifier", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 fn f() -> int { return x; }
 fn f(param: UnknownID) {}
 fn g() { let v: UnknownType; }
@@ -24,7 +26,7 @@ struct X { struct Y {} }
 }
 
 TEST_CASE("Bad symbol reference", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 fn main() -> int {
 	let i = int;
 	let j: 0 = int;
@@ -42,7 +44,7 @@ fn f(i: 0) {}
 }
 
 TEST_CASE("Invalid redefinition of builtin types", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 struct X {
 	fn int() {}
 	struct float {}
@@ -52,7 +54,7 @@ struct X {
 }
 
 TEST_CASE("Bad type conversion", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 fn f() { let x: float = 1; }
 fn f(x: int) { let y: float = 1.; }
 fn f(x: float) -> int { return "a string"; }
@@ -71,7 +73,7 @@ fn f(x: float) -> int { return "a string"; }
 }
 
 TEST_CASE("Bad operands for expression", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 fn main(i: int) -> bool {
 	let a = !(i == 1.0);
 	let b = !(i + 1.0);
@@ -96,7 +98,7 @@ fn main(i: int) -> bool {
 }
 
 TEST_CASE("Bad function call expression", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 fn f() { X.callee(); }
 fn g() { X.callee(0); }
 struct X {
@@ -112,7 +114,7 @@ struct X {
 }
 
 TEST_CASE("Bad member access expression", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 fn main() {
 //  These aren't actually semantic issues but parsing issues.
 //  Although we might consider allowing X.<0, 1...> in the future.
@@ -130,7 +132,7 @@ struct X{ let data: float; }
 }
 
 TEST_CASE("Invalid function redefinition", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 fn f() {}
 fn f() -> int {}
 fn g() {}
@@ -147,7 +149,7 @@ fn g() {}
 }
 
 TEST_CASE("Invalid variable redefinition", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 fn f(x: int) {
 	{ let x: float; }
 	let x: float;
@@ -168,7 +170,7 @@ fn f(x: int, x: int) {}
 }
 
 TEST_CASE("Invalid redefinition category", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 struct f{}
 fn f(){}
 fn g(){}
@@ -187,7 +189,7 @@ struct g{}
 }
 
 TEST_CASE("Invalid variable declaration", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 fn f() {
 	let v;
 	let x = 0;
@@ -221,7 +223,7 @@ struct Y { var data: int; }
 }
 
 TEST_CASE("Invalid declaration", "[sema]") {
-    auto const issues  = test::getIssues(R"(
+    auto const issues  = test::getSemaIssues(R"(
 fn f() {
 	fn g() {}
 	struct X {}
@@ -239,7 +241,7 @@ fn f() {
 }
 
 TEST_CASE("Invalid statement at struct scope", "[sema]") {
-    auto const issues  = test::getIssues(R"(
+    auto const issues  = test::getSemaIssues(R"(
 struct X {
 	return 0;
 	1;
@@ -266,7 +268,7 @@ struct X {
 }
 
 TEST_CASE("Cyclic dependency in struct definition", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 struct X { var y: Y; }
 struct Y { var x: X; }
 )");
@@ -274,7 +276,7 @@ struct Y { var x: X; }
 }
 
 TEST_CASE("Cyclic dependency in struct definition - 2", "[sema]") {
-    auto const issues = test::getIssues(R"(
+    auto const issues = test::getSemaIssues(R"(
 struct X {
     var y: Y;
 }

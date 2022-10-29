@@ -1,4 +1,5 @@
 
 
-fn main() -> void {
+fn main() -> 0a "hello
+  "bla bla bla
 	

@@ -5,10 +5,12 @@
 #include <sstream>
 
 #include <utl/graph.hpp>
+#include <utl/typeinfo.hpp>
 #include <utl/ranges.hpp>
 #include <utl/vector.hpp>
 
 #include "Lexer/Lexer.h"
+#include "Lexer/LexicalIssue.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
@@ -26,10 +28,23 @@ int main() {
     sstr << file.rdbuf();
     std::string const text = sstr.str();
     
+    issue::IssueHandler iss;
+    auto tokens = lex::lex(text, iss);
+    
+    if (!iss.lexicalIssues().empty()) {
+        for (auto& issue: iss.lexicalIssues()) {
+            auto const token = issue.token();
+            auto const l = token.sourceLocation;
+            std::cout << "Issue at " << token.id << " [L:" << l.line << " C:" << l.column << "] : ";
+            issue.visit([]<typename T>(T const&) {
+                std::cout << utl::nameof<T> << std::endl;
+            });
+        }
+        return 0;
+    }
+    
     auto ast = [&]{
         try {
-            lex::Lexer l(text);
-            auto tokens = l.lex();
             parse::Parser p(tokens);
             return p.parse();
         }
@@ -39,11 +54,10 @@ int main() {
         }
     }();
     
-    issue::IssueHandler iss;
     auto sym = sema::analyze(*ast, iss);
     sema::printSymbolTable(sym);
     
-    if (!iss.empty()) {
+    if (!iss.semaIssues().empty()) {
         for (auto& issue: iss.semaIssues()) {
             auto const token = issue.token();
             auto const l = token.sourceLocation;

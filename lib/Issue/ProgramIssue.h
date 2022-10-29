@@ -5,8 +5,10 @@
 #include "Common/Token.h"
 
 namespace scatha::issue::internal {
+
 /// So we can accept this as a parameter for default case in visitors.
 class SCATHA(API) ProgramIssuePrivateBase {};
+
 } // namespace scatha::issue::internal
 
 namespace scatha::issue {

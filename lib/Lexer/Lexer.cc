@@ -1,23 +1,73 @@
 #include "Lexer/Lexer.h"
 
+#include <optional>
+
+#include "Common/Expected.h"
+#include "Common/SourceLocation.h"
 #include "Lexer/LexerUtil.h"
 #include "Lexer/LexicalIssue.h"
 
-namespace scatha::lex {
+using namespace scatha;
+using namespace lex;
 
-Lexer::Lexer(std::string_view text): text(std::move(text)) {}
+namespace {
 
-utl::vector<Token> Lexer::lex() {
-    SC_ASSERT(currentLocation.index == 0, "Lexer has been run before");
+struct Context {
+    utl::vector<Token> run();
+    
+    std::optional<Expected<Token, LexicalIssue>> getToken();
+    
+    std::optional<Expected<Token, LexicalIssue>> getSpaces();
+    std::optional<Expected<Token, LexicalIssue>> getOneLineComment();
+    std::optional<Expected<Token, LexicalIssue>> getMultiLineComment();
+    std::optional<Expected<Token, LexicalIssue>> getPunctuation();
+    std::optional<Expected<Token, LexicalIssue>> getOperator();
+    std::optional<Expected<Token, LexicalIssue>> getIntegerLiteral();
+    std::optional<Expected<Token, LexicalIssue>> getIntegerLiteralHex();
+    std::optional<Expected<Token, LexicalIssue>> getFloatingPointLiteral();
+    std::optional<Expected<Token, LexicalIssue>> getStringLiteral();
+    std::optional<Expected<Token, LexicalIssue>> getBooleanLiteral();
+    std::optional<Expected<Token, LexicalIssue>> getIdentifier();
+    
+    bool advance();
+    bool advance(size_t count);
+    
+    void advanceToNextWhitespace();
+    
+    Token beginToken(TokenType type) const;
+    char current() const;
+    std::optional<char> next(size_t offset = 1) const;
+    
+    std::string_view text;
+    issue::IssueHandler& iss;
+    SourceLocation currentLocation{ 0, 1, 1 };
+};
+
+} // namespace
+
+utl::vector<Token> lex::lex(std::string_view text, issue::IssueHandler& iss) {
+    Context ctx{ text, iss };
+    return ctx.run();
+}
+
+utl::vector<Token> Context::run() {
     utl::vector<Token> result;
     while (currentLocation.index < text.size()) {
-        if (auto token = getToken()) {
-            if (token->type != TokenType::Whitespace) {
-                result.push_back(std::move(*token));
+        if (auto optToken = getToken()) {
+            auto& expToken = *optToken;
+            if (!expToken) {
+                iss.push(expToken.error());
+                advanceToNextWhitespace();
+                continue;
+            }
+            auto& token = *expToken;
+            if (token.type != TokenType::Whitespace) {
+                result.push_back(std::move(token));
             }
             continue;
         }
-        throw UnexpectedID(beginToken(TokenType::Other));
+        iss.push(UnexpectedID(beginToken(TokenType::Other)));
+        advanceToNextWhitespace();
     }
     SC_ASSERT(currentLocation.index == text.size(), "How is this possible?");
     Token eof = beginToken(TokenType::EndOfFile);
@@ -28,7 +78,7 @@ utl::vector<Token> Lexer::lex() {
     return result;
 }
 
-std::optional<Token> Lexer::getToken() {
+std::optional<Expected<Token, LexicalIssue>> Context::getToken() {
     SC_ASSERT_AUDIT(currentLocation.index != text.size(), "");
     if (auto spaces = getSpaces()) {
         return *spaces;
@@ -63,11 +113,10 @@ std::optional<Token> Lexer::getToken() {
     if (auto identifier = getIdentifier()) {
         return *identifier;
     }
-
     return std::nullopt;
 }
 
-std::optional<Token> Lexer::getSpaces() {
+std::optional<Expected<Token, LexicalIssue>> Context::getSpaces() {
     if (!isSpace(current())) {
         return std::nullopt;
     }
@@ -81,7 +130,7 @@ std::optional<Token> Lexer::getSpaces() {
     return result;
 }
 
-std::optional<Token> Lexer::getOneLineComment() {
+std::optional<Expected<Token, LexicalIssue>> Context::getOneLineComment() {
     if (current() != '/') {
         return std::nullopt;
     }
@@ -99,7 +148,7 @@ std::optional<Token> Lexer::getOneLineComment() {
     }
 }
 
-std::optional<Token> Lexer::getMultiLineComment() {
+std::optional<Expected<Token, LexicalIssue>> Context::getMultiLineComment() {
     if (current() != '/') {
         return std::nullopt;
     }
@@ -114,7 +163,7 @@ std::optional<Token> Lexer::getMultiLineComment() {
         result.id += current();
 
         if (!advance()) {
-            throw UnterminatedMultiLineComment(result);
+            return UnterminatedMultiLineComment(result);
         }
 
         if (result.id.back() == '*' && current() == '/') {
@@ -125,7 +174,7 @@ std::optional<Token> Lexer::getMultiLineComment() {
     }
 }
 
-std::optional<Token> Lexer::getPunctuation() {
+std::optional<Expected<Token, LexicalIssue>> Context::getPunctuation() {
     if (!isPunctuation(current())) {
         return std::nullopt;
     }
@@ -135,7 +184,7 @@ std::optional<Token> Lexer::getPunctuation() {
     return result;
 }
 
-std::optional<Token> Lexer::getOperator() {
+std::optional<Expected<Token, LexicalIssue>> Context::getOperator() {
     Token result = beginToken(TokenType::Operator);
     result.id += current();
 
@@ -155,7 +204,7 @@ std::optional<Token> Lexer::getOperator() {
     }
 }
 
-std::optional<Token> Lexer::getIntegerLiteral() {
+std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteral() {
     if (!isDigitDec(current())) {
         return std::nullopt;
     }
@@ -181,10 +230,10 @@ std::optional<Token> Lexer::getIntegerLiteral() {
         // we are a floating point literal
         return std::nullopt;
     }
-    throw InvalidNumericLiteral(result);
+    return InvalidNumericLiteral(result, InvalidNumericLiteral::Kind::Integer);
 }
 
-std::optional<Token> Lexer::getIntegerLiteralHex() {
+std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteralHex() {
     if (current() != '0' || !next() || *next() != 'x') {
         return std::nullopt;
     }
@@ -199,10 +248,10 @@ std::optional<Token> Lexer::getIntegerLiteralHex() {
     if (next() && !isLetter(*next())) {
         return result;
     }
-    throw InvalidNumericLiteral(result);
+    return InvalidNumericLiteral(result, InvalidNumericLiteral::Kind::Integer);
 }
 
-std::optional<Token> Lexer::getFloatingPointLiteral() {
+std::optional<Expected<Token, LexicalIssue>> Context::getFloatingPointLiteral() {
     if (!isFloatDigitDec(current())) {
         return std::nullopt;
     }
@@ -214,7 +263,7 @@ std::optional<Token> Lexer::getFloatingPointLiteral() {
         result.id += *next;
         next = this->next(++offset);
     }
-    if (result.id == ".") { // this is not a floating point literal
+    if (result.id == ".") { // This is not a floating point literal
         return std::nullopt;
     }
     if (!next || isDelimiter(*next)) {
@@ -223,15 +272,16 @@ std::optional<Token> Lexer::getFloatingPointLiteral() {
         }
         return result;
     }
-    throw InvalidNumericLiteral(result);
+    return InvalidNumericLiteral(result, InvalidNumericLiteral::Kind::FloatingPoint);
 }
-std::optional<Token> Lexer::getStringLiteral() {
+
+std::optional<Expected<Token, LexicalIssue>> Context::getStringLiteral() {
     if (current() != '"') {
         return std::nullopt;
     }
     Token result = beginToken(TokenType::StringLiteral);
     if (!advance()) {
-        throw UnterminatedStringLiteral(result);
+        return UnterminatedStringLiteral(result);
     }
     while (true) {
         if (current() == '"') {
@@ -240,12 +290,12 @@ std::optional<Token> Lexer::getStringLiteral() {
         }
         result.id += current();
         if (!advance() || current() == '\n') {
-            throw UnterminatedStringLiteral(result);
+            return UnterminatedStringLiteral(result);
         }
     }
 }
 
-std::optional<Token> Lexer::getBooleanLiteral() {
+std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
     if (currentLocation.index + 3 < text.size() && text.substr(currentLocation.index, 4) == "true") {
         if (auto const n = next(4); n && isLetterEx(*n)) {
             return std::nullopt;
@@ -267,7 +317,7 @@ std::optional<Token> Lexer::getBooleanLiteral() {
     return std::nullopt;
 }
 
-std::optional<Token> Lexer::getIdentifier() {
+std::optional<Expected<Token, LexicalIssue>> Context::getIdentifier() {
     if (!isLetter(current())) {
         return std::nullopt;
     }
@@ -279,7 +329,7 @@ std::optional<Token> Lexer::getIdentifier() {
     return result;
 }
 
-bool Lexer::advance() {
+bool Context::advance() {
     if (text[currentLocation.index] == '\n') {
         currentLocation.column = 0;
         ++currentLocation.line;
@@ -292,7 +342,7 @@ bool Lexer::advance() {
     return true;
 }
 
-bool Lexer::advance(size_t count) {
+bool Context::advance(size_t count) {
     while (count-- > 0) {
         if (!advance()) {
             return false;
@@ -301,23 +351,34 @@ bool Lexer::advance(size_t count) {
     return true;
 }
 
-Token Lexer::beginToken(TokenType type) const {
+void Context::advanceToNextWhitespace() {
+    SC_ASSERT(currentLocation.index <= text.size(), "");
+    if (currentLocation.index == text.size()) {
+        return;
+    }
+    while (true) {
+        if (!advance()) { return; }
+        if (isSpace(current())) { return; }
+    }
+}
+
+Token Context::beginToken(TokenType type) const {
     Token result;
     result.sourceLocation = currentLocation;
     result.type           = type;
     return result;
 }
 
-char Lexer::current() const {
+char Context::current() const {
     SC_ASSERT(currentLocation.index < text.size(), "");
     return text[currentLocation.index];
 }
 
-std::optional<char> Lexer::next(size_t offset) const {
+std::optional<char> Context::next(size_t offset) const {
     if (currentLocation.index + offset >= text.size()) {
         return std::nullopt;
     }
     return text[currentLocation.index + offset];
 }
 
-} // namespace scatha::lex
+

@@ -17,13 +17,12 @@
 namespace scatha::test {
 
 vm::Program compile(std::string_view text) {
-    lex::Lexer l(text);
-    auto tokens = l.lex();
+    issue::IssueHandler iss;
+    auto tokens = lex::lex(text, iss);;
     parse::Parser p(tokens);
     auto ast = p.parse();
-    issue::IssueHandler iss;
     auto sym = sema::analyze(*ast, iss);
-    if (!iss.empty()) {
+    if (!iss.semaIssues().empty()) {
         throw std::runtime_error("Compilation failed");
     }
     ic::canonicalize(ast.get());

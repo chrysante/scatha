@@ -6,6 +6,10 @@
 
 #include "Basic/Basic.h"
 
+namespace scatha::lex {
+class LexicalIssue;
+}
+
 namespace scatha::sema {
 class SemanticIssue;
 }
@@ -23,18 +27,20 @@ public:
 
     IssueHandler& operator=(IssueHandler&&) noexcept;
 
+    void push(lex::LexicalIssue);
+    void push(lex::LexicalIssue, Fatal);
+    
     void push(sema::SemanticIssue);
     void push(sema::SemanticIssue, Fatal);
 
+    std::span<lex::LexicalIssue const> lexicalIssues() const;
+    
     std::span<sema::SemanticIssue const> semaIssues() const;
 
     bool fatal() const { return _fatal; }
 
-    void setFatal() { _fatal = true; }
-
-    bool empty() const;
-
 private:
+    void setFatal() { _fatal = true; }
     struct Impl;
 
 private:

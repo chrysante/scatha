@@ -11,8 +11,8 @@ using namespace parse;
 using namespace ast;
 
 static TokenStream makeTokenStream(std::string text) {
-    lex::Lexer l(text);
-    auto tokens = l.lex();
+    issue::IssueHandler iss;
+    auto tokens = lex::lex(text, iss);
     return TokenStream(tokens);
 }
 

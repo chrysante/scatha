@@ -4,6 +4,7 @@
 
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
+#include "test/IssueHelper.h"
 
 using namespace scatha;
 using namespace lex;
@@ -21,13 +22,11 @@ std::ostream& operator<<(std::ostream& str, ReferenceToken const& t) {
 struct TestCase {
     std::string text;
     std::vector<ReferenceToken> reference;
-
     void run() const {
-        Lexer l(text);
-        auto const tokens = l.lex();
-
+        issue::IssueHandler iss;
+        auto const tokens = lex::lex(text, iss);
+        REQUIRE(iss.lexicalIssues().empty());
         REQUIRE(tokens.size() == reference.size());
-
         for (std::size_t i = 0; i < std::min(tokens.size(), reference.size()); ++i) {
             INFO("LHS: " << reference[i] << "\nRHS: " << tokens[i]);
             CHECK(reference[i].type == tokens[i].type);
@@ -224,15 +223,14 @@ true
     test.run();
 }
 
-static auto lexString(std::string_view text) {
-    Lexer l(text);
-    return l.lex();
-}
-
 TEST_CASE("Lexer negative", "[lex]") {
-    CHECK_THROWS_AS(lexString("123someID"), InvalidNumericLiteral);
-    CHECK_THROWS_AS(lexString("123.23someID"), InvalidNumericLiteral);
-    CHECK_THROWS_AS(lexString(R"("begin string
- and end on next, line"))"),
-                    UnterminatedStringLiteral);
+    auto issues = test::getLexicalIssues(R"(
+123someID
+123.23someID
+"begin string
+and end on next, line"
+)");
+    issues.findOnLine<InvalidNumericLiteral>(2);
+    issues.findOnLine<InvalidNumericLiteral>(3);
+    issues.findOnLine<UnterminatedStringLiteral>(4);
 }

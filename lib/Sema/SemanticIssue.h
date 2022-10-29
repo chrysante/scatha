@@ -264,10 +264,12 @@ public:
         return std::holds_alternative<T>(asBase());
     }
 
-    //		ast::Statement const& statement() const {
-    //			return visit<ast::Statement const&>([&](InvalidStatement const& e)
-    //-> auto& { return e.statement(); });
-    //		}
+    /// Weirdly enough this won't compile. We also don't really need the function though.
+//  ast::Statement const& statement() const {
+//      return visit<ast::Statement const&>([&](InvalidStatement const& e) -> auto& {
+//          return e.statement();
+//      });
+//  }
 
     void setStatement(ast::Statement const& statement) {
         visit([&](InvalidStatement& e) { e.setStatement(statement); });
@@ -282,8 +284,8 @@ public:
     }
 
 private:
-    internal::SemaIssueVariant& asBase() { return static_cast<internal::SemaIssueVariant&>(*this); }
-    internal::SemaIssueVariant const& asBase() const { return static_cast<internal::SemaIssueVariant const&>(*this); }
+    internal::SemaIssueVariant& asBase() { return *this; }
+    internal::SemaIssueVariant const& asBase() const { return *this; }
 };
 
 } // namespace scatha::sema

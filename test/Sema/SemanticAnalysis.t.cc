@@ -18,7 +18,7 @@ fn mul(a: int, b: int, c: float) -> int {
 	return result;
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 
     auto const& mulID = sym.lookup("mul");
     CHECK(mulID.category() == SymbolCategory::OverloadSet);
@@ -66,7 +66,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
 	return result;
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 
     auto* tu     = downCast<TranslationUnit>(ast.get());
     auto* fnDecl = downCast<FunctionDefinition>(tu->declarations[0].get());
@@ -124,7 +124,7 @@ fn caller() -> float {
 fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
 )";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 
     auto* tu = downCast<TranslationUnit>(ast.get());
     REQUIRE(tu);
@@ -159,7 +159,7 @@ struct X {
 	fn f(x: int, y: int) -> string {}
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 
     auto* tu   = downCast<TranslationUnit>(ast.get());
     auto* xDef = downCast<StructDefinition>(tu->declarations[0].get());
@@ -189,7 +189,7 @@ fn f(x: X) -> int { return x.data; }
 struct X { var data: int; }
 )";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 }
 
 TEST_CASE("Type reference access into undeclared struct", "[sema]") {
@@ -201,7 +201,7 @@ struct X { struct Y {} }
 
 )";
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
     auto const* tu    = downCast<TranslationUnit>(ast.get());
     auto const* f     = downCast<FunctionDefinition>(tu->declarations[0].get());
     auto const* y     = downCast<VariableDeclaration>(f->body->statements[0].get());
@@ -214,21 +214,21 @@ struct X { struct Y {} }
 fn f() -> X.Y {}
 struct X { struct Y {} }
 )");
-        REQUIRE(iss.empty());
+        REQUIRE(iss.semaIssues().empty());
     }
     {
         auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 fn f(y: X.Y) {}
 struct X { struct Y {} }
 )");
-        REQUIRE(iss.empty());
+        REQUIRE(iss.semaIssues().empty());
     }
     {
         auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 fn f(x: X, y: X.Y) -> X.Y.Z {}
 struct X { struct Y { struct Z{} } }
 )");
-        REQUIRE(iss.empty());
+        REQUIRE(iss.semaIssues().empty());
     }
 }
 
@@ -241,7 +241,7 @@ fn f() -> X {
 }
 struct X { var data: int = 0; }
 )");
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 }
 
 TEST_CASE("Explicit type reference to member of same scope", "[sema]") {
@@ -250,7 +250,7 @@ struct X {
 	fn f() { let y: X.Y.Z; }
 	struct Y { struct Z {} }
 })");
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 }
 
 TEST_CASE("Nested member access into undeclared struct", "[sema]") {
@@ -265,7 +265,7 @@ struct Y {
 struct X {
 	var y: Y;
 })");
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 }
 
 TEST_CASE("Operators on int", "[sema]") {
@@ -285,7 +285,7 @@ fn main() {
 	i ^=  4; i ^=  j; i = i  ^ 4; i = i  ^ j;
 	i |=  4; i |=  j; i = i  | 4; i = i  | j;
 })");
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 }
 
 TEST_CASE("Operators on float", "[sema]") {
@@ -299,7 +299,7 @@ fn main() {
 	i *=  4.0; i *=  j; i = i  * 4.0; i = i  * j;
 	i /=  4.0; i /=  j; i = i  / 4.0; i = i  / j;
 })");
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 }
 
 TEST_CASE("Possible ambiguity with later declared local struct", "[sema]") {
@@ -310,7 +310,7 @@ struct X {
 	struct Y{}
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
     auto const xID = sym.lookup("X");
     sym.pushScope(xID);
     auto const fID   = sym.lookup("f");
@@ -333,5 +333,5 @@ fn main(i: int) -> int {
 	let a = cond ? i : 1;
 	let b = cond, 0.0, i;
 })");
-    REQUIRE(iss.empty());
+    REQUIRE(iss.semaIssues().empty());
 }

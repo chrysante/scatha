@@ -12,9 +12,8 @@ using namespace parse;
 using namespace ast;
 
 static auto makeAST(std::string text) {
-    lex::Lexer l(text);
-    auto tokens = l.lex();
-
+    issue::IssueHandler iss;
+    auto tokens = lex::lex(text, iss);
     Parser p(tokens);
     return p.parse();
 }
