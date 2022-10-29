@@ -30,8 +30,8 @@ std::ostream& operator<<(std::ostream& str, InvalidDeclaration::Reason r) {
     return str << UTL_SERIALIZE_ENUM(r, {
         { InvalidDeclaration::Reason::InvalidInCurrentScope,    "Invalid in currentScope" },
         { InvalidDeclaration::Reason::Redefinition,             "Redefinition" },
-        { InvalidDeclaration::Reason::CantOverloadOnReturnType, "Cant overload on ReturnType" },
-        { InvalidDeclaration::Reason::CantInferType,            "Cant infer type" },
+        { InvalidDeclaration::Reason::CantOverloadOnReturnType, "Can't overload on ReturnType" },
+        { InvalidDeclaration::Reason::CantInferType,            "Can't infer type" },
         { InvalidDeclaration::Reason::ReservedIdentifier,       "Reserved identifier" },
     });
     // clang-format on
