@@ -9,6 +9,15 @@
 
 namespace scatha {
 
+namespace internal {
+
+/// Concept to restrict error construction from arbitrary arguments. To allow error construction from arbitrary
+/// arguments, the expected type must not be constructible from those arguments to avoid ambiguities.
+template <typename T, typename E, typename... Args>
+concept ErrorConstructibleFrom = std::constructible_from<E, Args...> && !std::constructible_from<T, Args...>;
+
+}
+
 template <typename T, typename E>
 class Expected {
 public:
@@ -16,7 +25,9 @@ public:
     Expected(T&& value): _e(std::move(value)) {}
     Expected(E const& error): _e(utl::unexpected(error)) {}
     Expected(E&& error): _e(utl::unexpected(std::move(error))) {}
-
+    template <typename... Args> requires internal::ErrorConstructibleFrom<T, E, Args...>
+    Expected(Args&&... args): _e(utl::unexpected(std::forward<Args>(args)...)) {}
+    
     bool hasValue() const { return _e.has_value(); }
     explicit operator bool() const { return hasValue(); }
 
@@ -43,7 +54,9 @@ public:
 
     Expected(E const& error): _e(utl::unexpected(error)) {}
     Expected(E&& error): _e(utl::unexpected(std::move(error))) {}
-
+    template <typename... Args> requires internal::ErrorConstructibleFrom<void, E, Args...>
+    Expected(Args&&... args): _e(utl::unexpected(std::forward<Args>(args)...)) {}
+    
     bool hasValue() const { return _e.has_value(); }
     explicit operator bool() const { return hasValue(); }
 
@@ -63,7 +76,9 @@ public:
 
     Expected(E const& error): _e(utl::unexpected(error)) {}
     Expected(E&& error): _e(utl::unexpected(std::move(error))) {}
-
+    template <typename... Args> requires internal::ErrorConstructibleFrom<T, E, Args...>
+    Expected(Args&&... args): _e(utl::unexpected(std::forward<Args>(args)...)) {}
+    
     bool hasValue() const { return _e.has_value(); }
     explicit operator bool() const { return hasValue(); }
 
