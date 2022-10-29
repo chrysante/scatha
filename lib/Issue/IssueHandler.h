@@ -12,6 +12,9 @@ class SemanticIssue;
 
 namespace scatha::issue {
 
+enum class Fatal;
+inline constexpr Fatal fatal{};
+
 class SCATHA(API) IssueHandler {
 public:
     IssueHandler();
@@ -21,6 +24,7 @@ public:
     IssueHandler& operator=(IssueHandler&&) noexcept;
 
     void push(sema::SemanticIssue);
+    void push(sema::SemanticIssue, Fatal);
 
     std::span<sema::SemanticIssue const> semaIssues() const;
 

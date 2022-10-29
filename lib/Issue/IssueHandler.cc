@@ -22,6 +22,11 @@ void IssueHandler::push(sema::SemanticIssue issue) {
     impl->semaIssues.push_back(std::move(issue));
 }
 
+void IssueHandler::push(sema::SemanticIssue issue, Fatal) {
+    push(std::move(issue));
+    setFatal();
+}
+
 std::span<sema::SemanticIssue const> IssueHandler::semaIssues() const {
     return impl->semaIssues;
 }
