@@ -8,32 +8,6 @@ namespace scatha::sema {
 
 class SCATHA(API) Function: public Scope {
 public:
-    struct ArgumentsHash {
-        struct is_transparent;
-        size_t operator()(Function const* f) const { return f->signature().argumentHash(); }
-        size_t operator()(std::span<TypeID const> const& args) const { return FunctionSignature::hashArguments(args); }
-    };
-
-    struct ArgumentsEqual {
-        struct is_transparent;
-
-        using Args = std::span<TypeID const>;
-
-        bool operator()(Function const* a, Function const* b) const {
-            return a->signature().argumentHash() == b->signature().argumentHash();
-        }
-        bool operator()(Function const* a, Args b) const {
-            return a->signature().argumentHash() == FunctionSignature::hashArguments(b);
-        }
-        bool operator()(Args a, Function const* b) const {
-            return (*this)(b, a);
-        }
-        bool operator()(Args a, Args b) const {
-            return FunctionSignature::hashArguments(a) == FunctionSignature::hashArguments(b);
-        }
-    };
-
-public:
     explicit Function(std::string name, SymbolID functionID, SymbolID overloadSetID, Scope* parentScope):
         Scope(ScopeKind::Function,
               std::move(name),
@@ -52,6 +26,35 @@ private:
     FunctionSignature _sig;
     SymbolID _overloadSetID;
 };
+
+namespace internal {
+
+struct FunctionArgumentsHash {
+    struct is_transparent;
+    size_t operator()(Function const* f) const { return f->signature().argumentHash(); }
+    size_t operator()(std::span<TypeID const> const& args) const { return FunctionSignature::hashArguments(args); }
+};
+
+struct FunctionArgumentsEqual {
+    struct is_transparent;
+    
+    using Args = std::span<TypeID const>;
+    
+    bool operator()(Function const* a, Function const* b) const {
+        return a->signature().argumentHash() == b->signature().argumentHash();
+    }
+    bool operator()(Function const* a, Args b) const {
+        return a->signature().argumentHash() == FunctionSignature::hashArguments(b);
+    }
+    bool operator()(Args a, Function const* b) const {
+        return (*this)(b, a);
+    }
+    bool operator()(Args a, Args b) const {
+        return FunctionSignature::hashArguments(a) == FunctionSignature::hashArguments(b);
+    }
+};
+
+} // namespace internal
 
 } // namespace scatha::sema
 
