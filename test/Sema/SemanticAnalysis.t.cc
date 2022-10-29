@@ -12,7 +12,7 @@ using namespace sema;
 using namespace ast;
 
 TEST_CASE("Registration in SymbolTable", "[sema]") {
-    auto const text      = R"(
+    auto const text = R"(
 fn mul(a: int, b: int, c: float) -> int {
 	let result = a;
 	return result;

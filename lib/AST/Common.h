@@ -9,9 +9,10 @@
 
 namespace scatha::ast {
 
-/**
- * Forward Declaration of all AST nodes
- */
+///
+/// Forward Declaration of all AST nodes
+///
+
 struct AbstractSyntaxTree;
 struct TranslationUnit;
 struct Block;
@@ -34,9 +35,7 @@ struct Conditional;
 struct FunctionCall;
 struct Subscript;
 
-/**
- * List of all concrete AST node types
- */
+/// List of all concrete AST node types
 enum class NodeType {
     TranslationUnit,
     Block,
@@ -220,9 +219,7 @@ constexpr ConcreteNode const* downCast(std::derived_from<AbstractSyntaxTree> aut
     return static_cast<ConcreteNode const*>(node);
 }
 
-/**
- * List of all unary operators in prefix notation
- */
+/// List of all unary operators in prefix notation
 enum class UnaryPrefixOperator {
     Promotion,
     Negation,
@@ -236,9 +233,7 @@ SCATHA(API) std::string_view toString(UnaryPrefixOperator);
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, UnaryPrefixOperator);
 
-/**
- * List of all binary operators in infix notation
- */
+/// List of all binary operators in infix notation
 enum class BinaryOperator {
     Multiplication,
     Division,
