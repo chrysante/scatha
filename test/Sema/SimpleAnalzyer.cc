@@ -16,7 +16,7 @@ produceDecoratedASTAndSymTable(std::string_view text) {
     parse::Parser p(tokens);
     auto ast = p.parse();
     issue::IssueHandler iss;
-    auto sym = sema::analyze(ast.get(), iss);
+    auto sym = sema::analyze(*ast, iss);
     return { std::move(ast), std::move(sym), std::move(iss) };
 }
 

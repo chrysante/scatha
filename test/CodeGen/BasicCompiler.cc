@@ -22,7 +22,7 @@ vm::Program compile(std::string_view text) {
     parse::Parser p(tokens);
     auto ast = p.parse();
     issue::IssueHandler iss;
-    auto sym = sema::analyze(ast.get(), iss);
+    auto sym = sema::analyze(*ast, iss);
     if (!iss.empty()) {
         throw std::runtime_error("Compilation failed");
     }
