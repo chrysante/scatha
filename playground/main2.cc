@@ -40,7 +40,7 @@ int main() {
     }();
     
     issue::IssueHandler iss;
-    auto sym = sema::analyze(ast.get(), iss);
+    auto sym = sema::analyze(*ast, iss);
     sema::printSymbolTable(sym);
     
     if (!iss.empty()) {
@@ -62,7 +62,7 @@ int main() {
                     << uoad.token().id << "\"\n";
                 },
                 [&](sema::StrongReferenceCycle const& c) {
-                    std::cout << "Strong reference cyclic: ";
+                    std::cout << "Strong reference cycle: ";
                     for (auto node: c.cycle()) {
                         std::cout << "\"" << node.astNode->token().id << "\" -> ";
                     }

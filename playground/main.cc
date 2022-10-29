@@ -50,7 +50,7 @@ using namespace scatha::parse;
         std::cout << "=== Symbol Table =================================\n";
         std::cout << "==================================================\n\n";
         issue::IssueHandler iss;
-        auto const sym = sema::analyze(ast.get(), iss);
+        auto const sym = sema::analyze(*ast, iss);
         sema::printSymbolTable(sym);
         std::cout << "\nEncoutered " << iss.semaIssues().size() << " issues\n";
         std::cout << "==================================================\n";
