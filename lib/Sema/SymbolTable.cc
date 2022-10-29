@@ -4,79 +4,29 @@
 
 #include "Sema/SemanticIssue.h"
 
-namespace scatha::sema {
+using namespace scatha;
+using namespace sema;
 
-SymbolTable::SymbolTable(): _globalScope(std::make_unique<GlobalScope>()), _currentScope(_globalScope.get()) {
-    _void   = addObjectType(Token("void"), 0, 0, true)->symbolID();
-    _bool   = addObjectType(Token("bool"), 1, 1, true)->symbolID();
-    _int    = addObjectType(Token("int"), 8, 8, true)->symbolID();
-    _float  = addObjectType(Token("float"), 8, 8, true)->symbolID();
-    _string = addObjectType(Token("string"), sizeof(std::string), alignof(std::string), true)->symbolID();
+SymbolTable::SymbolTable():
+    _globalScope(std::make_unique<GlobalScope>()),
+    _currentScope(_globalScope.get())
+{
+    _void   = declareBuiltinType("void", 0, 0);
+    _bool   = declareBuiltinType("bool", 1, 1);
+    _int    = declareBuiltinType("int", 8, 8);
+    _float  = declareBuiltinType("float", 8, 8);
+    _string = declareBuiltinType("string", sizeof(std::string), alignof(std::string));
 }
 
-Expected<Function const&, SemanticIssue> SymbolTable::addFunction(Token name, FunctionSignature sig) {
-    using enum InvalidDeclaration::Reason;
-    if (name.isKeyword) {
-        return SemanticIssue{
-            InvalidDeclaration(nullptr, ReservedIdentifier, currentScope(), SymbolCategory::Function)
-        };
+Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(ast::StructDefinition const& structDef) {
+    auto result = declareObjectType(structDef.token());
+    if (!result) {
+        result.error().setStatement(structDef);
     }
-    SymbolID const overloadSetID = [&] {
-        auto const id = currentScope().findID(name.id);
-        if (id != SymbolID::Invalid) {
-            return id;
-        }
-        /// Create a new overload set
-        auto [itr, success] = _overloadSets.insert(OverloadSet{ name.id, generateID(), &currentScope() });
-        SC_ASSERT(success, "");
-        currentScope().add(*itr);
-        return itr->symbolID();
-    }();
-    auto* const overloadSetPtr = tryGetOverloadSet(overloadSetID);
-    if (!overloadSetPtr) {
-        return SemanticIssue{ InvalidDeclaration(nullptr,
-                                                 InvalidDeclaration::Reason::Redefinition,
-                                                 currentScope(),
-                                                 SymbolCategory::Function,
-                                                 categorize(overloadSetID)) };
-    }
-    auto& overloadSet = *overloadSetPtr;
-    /// Don't move \p sig as it may be used below to construct the issue if we
-    /// fail to add this function.
-    auto const [itr, success] = overloadSet.add(Function(name.id, sig, generateID(), &currentScope()));
-    auto& function            = *itr;
-    if (!success) {
-        /// \p function references the existing function.
-        InvalidDeclaration::Reason const reason =
-            function.signature().returnTypeID() == sig.returnTypeID() ? Redefinition : CantOverloadOnReturnType;
-        return SemanticIssue{ InvalidDeclaration(nullptr, reason, currentScope(), SymbolCategory::Function) };
-    }
-    auto const [_, fnPtrInsertSuccess] = _functions.insert({ function.symbolID(), &function });
-    SC_ASSERT(fnPtrInsertSuccess, "");
-    currentScope().add(function);
-    return function;
+    return result;
 }
 
-Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name, TypeID typeID, size_t offset) {
-    using enum InvalidDeclaration::Reason;
-    if (name.isKeyword) {
-        return SemanticIssue{
-            InvalidDeclaration(nullptr, ReservedIdentifier, currentScope(), SymbolCategory::Variable)
-        };
-    }
-    const SymbolID symbolID = currentScope().findID(name.id);
-    if (symbolID != SymbolID::Invalid) {
-        return SemanticIssue{
-            InvalidDeclaration(nullptr, Redefinition, currentScope(), SymbolCategory::Variable, categorize(symbolID))
-        };
-    }
-    auto [itr, success] = _variables.insert(Variable(name.id, generateID(), &currentScope(), typeID, offset));
-    SC_ASSERT(success, "");
-    currentScope().add(*itr);
-    return *itr;
-}
-
-Expected<ObjectType&, SemanticIssue> SymbolTable::addObjectType(Token name, size_t size, size_t align, bool isBuiltin) {
+Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(Token name) {
     using enum InvalidDeclaration::Reason;
     if (name.isKeyword) {
         return SemanticIssue{
@@ -89,11 +39,136 @@ Expected<ObjectType&, SemanticIssue> SymbolTable::addObjectType(Token name, size
             InvalidDeclaration(nullptr, Redefinition, currentScope(), SymbolCategory::ObjectType, categorize(symbolID))
         };
     }
-    auto [itr, success] =
-        _objectTypes.insert(ObjectType(name.id, generateID(), &currentScope(), size, align, isBuiltin));
+    auto [itr, success] = _objectTypes.insert(ObjectType(name.id,
+                                                         generateID(),
+                                                         &currentScope()));
     SC_ASSERT(success, "");
     currentScope().add(*itr);
     return *itr;
+}
+
+TypeID SymbolTable::declareBuiltinType(std::string name, size_t size, size_t align) {
+    auto result = declareObjectType(Token(name));
+    SC_ASSERT(result, "How could this fail?");
+    result->setSize(size);
+    result->setAlign(align);
+    result->setIsBuiltin(true);
+    return result->symbolID();
+}
+
+Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(ast::FunctionDefinition const& functionDef) {
+    auto result = declareFunction(functionDef.token());
+    if (!result) {
+        result.error().setStatement(functionDef);
+    }
+    return result;
+}
+
+Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(Token name) {
+    using enum InvalidDeclaration::Reason;
+    if (name.isKeyword) {
+        return SemanticIssue{ InvalidDeclaration(nullptr,
+                                                 ReservedIdentifier,
+                                                 currentScope(),
+                                                 SymbolCategory::Function) };
+    }
+    SymbolID const overloadSetID = [&] {
+        auto const id = currentScope().findID(name.id);
+        if (id != SymbolID::Invalid) {
+            return id;
+        }
+        /// Create a new overload set
+        auto [itr, success] = _overloadSets.insert(OverloadSet(name.id, generateID(), &currentScope()));
+        SC_ASSERT(success, "");
+        currentScope().add(*itr);
+        return itr->symbolID();
+    }();
+    /// Even if we get a valid ID from the lambda, we don't know yet if it's really an overload set.
+    auto* const overloadSetPtr = tryGetOverloadSet(overloadSetID);
+    if (!overloadSetPtr) {
+        return SemanticIssue{ InvalidDeclaration(nullptr,
+                                                 InvalidDeclaration::Reason::Redefinition,
+                                                 currentScope(),
+                                                 SymbolCategory::Function,
+                                                 categorize(overloadSetID)) };
+    }
+    auto const [itr, success] = _functions.insert(Function(name.id,
+                                                           /* functionID = */ generateID(),
+                                                           /* overloadSetID = */ overloadSetID,
+                                                           &currentScope()));
+    SC_ASSERT(success, "?");
+    Function& function = *itr;
+    currentScope().add(function);
+    return *itr;
+}
+
+Expected<void, SemanticIssue> SymbolTable::setSignature(SymbolID functionID, FunctionSignature sig) {
+    auto& function = getFunction(functionID);
+    auto const overloadSetID = function.overloadSetID();
+    auto osItr = _overloadSets.find(overloadSetID);
+    SC_EXPECT(osItr != _overloadSets.end(), "");
+    auto& overloadSet = *osItr;
+    function._sig = std::move(sig);
+    auto const [otherFunction, success] = overloadSet.add(&function);
+    if (!success) {
+        using enum InvalidDeclaration::Reason;
+        InvalidDeclaration::Reason const reason =
+            otherFunction->signature().returnTypeID() == function.signature().returnTypeID() ? Redefinition : CantOverloadOnReturnType;
+        return SemanticIssue{ InvalidDeclaration(nullptr, reason, currentScope(), SymbolCategory::Function) };
+    }
+    return {};
+}
+
+Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(ast::VariableDeclaration const& varDecl) {
+    auto result = declareVariable(varDecl.token());
+    if (!result) {
+        result.error().setStatement(varDecl);
+    }
+    return result;
+}
+
+Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(Token name) {
+    using enum InvalidDeclaration::Reason;
+    if (name.isKeyword) {
+        return SemanticIssue{
+            InvalidDeclaration(nullptr, ReservedIdentifier, currentScope(), SymbolCategory::Variable)
+        };
+    }
+    const SymbolID symbolID = currentScope().findID(name.id);
+    if (symbolID != SymbolID::Invalid) {
+        return SemanticIssue{
+            InvalidDeclaration(nullptr, Redefinition, currentScope(), SymbolCategory::Variable, categorize(symbolID))
+        };
+    }
+    auto [itr, success] = _variables.insert(Variable(name.id, generateID(), &currentScope()));
+    SC_ASSERT(success, "");
+    currentScope().add(*itr);
+    return *itr;
+}
+
+Expected<Variable&, SemanticIssue> SymbolTable::addVariable(ast::VariableDeclaration const& varDecl,
+                                                            TypeID typeID,
+                                                            size_t offset)
+{
+    auto result = addVariable(varDecl.token(), typeID, offset);
+    if (!result) {
+        result.error().setStatement(varDecl);
+    }
+    return result;
+}
+
+Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name,
+                                                            TypeID typeID,
+                                                            size_t offset)
+{
+    auto declResult = declareVariable(std::move(name));
+    if (!declResult) {
+        return declResult.error();
+    }
+    auto& var = *declResult;
+    var.setTypeID(typeID);
+    SC_ASSERT(offset == 0, "Temporary measure. Should remove parameter offset");
+    return var;
 }
 
 Scope const& SymbolTable::addAnonymousScope() {
@@ -142,7 +217,7 @@ Function const* SymbolTable::tryGetFunction(SymbolID id) const {
     if (itr == _functions.end()) {
         return nullptr;
     }
-    return itr->second;
+    return &*itr;
 }
 
 Variable const& SymbolTable::getVariable(SymbolID id) const {
@@ -279,5 +354,3 @@ SymbolCategory SymbolTable::categorize(SymbolID id) const {
 SymbolID SymbolTable::generateID() {
     return SymbolID(_idCounter++);
 }
-
-} // namespace scatha::sema

@@ -65,18 +65,17 @@ size_t Context::gather(ast::FunctionDefinition& fn) {
                                     SymbolCategory::Function));
         return (size_t)-1;
     }
-    Expected const func = sym.declareFunction(fn.token());
-    if (!func.hasValue()) {
-        auto error = func.error();
-        error.setStatement(fn);
-        iss.push(error);
+    Expected const declResult = sym.declareFunction(fn);
+    if (!declResult.hasValue()) {
+        iss.push(declResult.error());
         return invalidIndex;
     }
-    fn.symbolID = func->symbolID();
+    auto& func = *declResult;
+    fn.symbolID = func.symbolID();
     fn.body->scopeKind = ScopeKind::Function;
     /// Now add this function definition to the dependency graph
     return dependencyGraph.add({
-        .symbolID = func->symbolID(),
+        .symbolID = func.symbolID(),
         .category = SymbolCategory::Function,
         .astNode = &fn,
         .scope = &sym.currentScope()
@@ -94,24 +93,23 @@ size_t Context::gather(ast::StructDefinition& s) {
                                     SymbolCategory::ObjectType));
         return invalidIndex;
     }
-    Expected const objType = sym.declareObjectType(s.token());
-    if (!objType) {
-        auto error = objType.error();
-        error.setStatement(s);
-        iss.push(error);
+    Expected const declResult = sym.declareObjectType(s);
+    if (!declResult) {
+        iss.push(declResult.error());
         return invalidIndex;
     }
-    s.symbolID = objType->symbolID();
+    auto& objType = *declResult;
+    s.symbolID = objType.symbolID();
     s.body->scopeKind = ScopeKind::Object;
     SC_ASSERT(s.symbolID != SymbolID::Invalid, "");
     size_t const index = dependencyGraph.add({
-        .symbolID = objType->symbolID(),
+        .symbolID = objType.symbolID(),
         .category = SymbolCategory::ObjectType,
         .astNode = &s,
         .scope = &sym.currentScope()
     });
     /// After we declared this type we gather all its members
-    sym.pushScope(objType->symbolID());
+    sym.pushScope(objType.symbolID());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto& statement: s.body->statements) {
         size_t const dependency = dispatch(*statement);

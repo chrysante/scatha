@@ -167,9 +167,8 @@ expression:
         verifyConversion(*var.initExpression, var.typeID);
     }
 declaration:
-    auto varObj = sym.addVariable(var.token(), var.typeID, var.offset);
+    auto varObj = sym.addVariable(var, var.typeID, var.offset);
     if (!varObj) {
-        varObj.error().setStatement(var);
         iss.push(varObj.error());
         return;
     }

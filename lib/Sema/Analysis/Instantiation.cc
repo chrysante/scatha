@@ -148,9 +148,8 @@ void Context::instantiateFunction(DependencyGraphNode const& node) {
     auto signature = analyzeSignature(fnDecl);
     auto result = sym.setSignature(node.symbolID, std::move(signature));
     if (!result) {
-        auto error = result.error();
-        error.setStatement(fnDecl);
-        iss.push(error);
+        result.error().setStatement(fnDecl);
+        iss.push(result.error());
         return;
     }
 }
