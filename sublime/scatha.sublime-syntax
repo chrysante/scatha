@@ -1,0 +1,70 @@
+%YAML 1.2
+---
+# See http://www.sublimetext.com/docs/syntax.html
+name:
+  - scatha
+file_extensions:
+  - sc
+version:
+  - 2
+scope: source.example-c
+variables:
+  ident: '[A-Za-z_][A-Za-z_0-9]*'
+
+contexts:
+  main:
+    # Comments begin with a '//' and finish at the end of the line
+    - match: '//'
+      scope: punctuation.definition.comment.example-c
+      push: line_comment
+
+  # Keywords are if, else for and while.
+    # Note that blackslashes don't need to be escaped within single quoted
+    # strings in YAML. When using single quoted strings, only single quotes
+    # need to be escaped: this is done by using two single quotes next to each
+    # other.
+    - match: \b(if|else|for|while|return)\b
+      scope: keyword.control
+
+    - match: \b(fn|var|let|struct)\b
+      scope: punctuation.definition.keyword
+
+    - match: \b(void|bool|int|float|string)\b
+      scope: punctuation.definition.keyword
+
+    - match: '(=|\+=|-=|\*=|\/=|%=|>>=|<<=|&=|\|=|\^=)'
+      scope: keyword.operator.assignment
+    - match: '(\+|-|\*|\/|%)'
+      scope: keyword.operator.arithmetic
+    - match: '(<<|>>|&|\||\^)'
+      scope: keyword.operator.bitwise
+    - match: '(&&|\|\|)'
+      scope: keyword.operator.logical
+    - match: '(==|!=|<|<=|>|>=|\?|:)'
+      scope: keyword.operator
+
+    # Strings begin and end with quotes, and use backslashes as an escape
+    # character
+    - match: '"'
+      scope: punctuation.definition.string.begin.example-c
+      push: double_quoted_string
+    
+    - match: '\b{{ident}}\b'
+      scope: variable.other
+
+    # Numbers
+    - match: '\b(-)?[0-9.]+\b'
+      scope: constant.numeric.example-c
+
+  double_quoted_string:
+    - meta_scope: string.quoted.double.example-c
+    - match: '\\.'
+      scope: constant.character.escape.example-c
+    - match: '"'
+      scope: punctuation.definition.string.end.example-c
+      pop: true
+
+  line_comment:
+    - meta_scope: comment.line.example-c
+    - match: $
+      pop: true
