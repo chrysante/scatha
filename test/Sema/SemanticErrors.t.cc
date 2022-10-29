@@ -265,10 +265,28 @@ struct X {
     CHECK(issues.noneOnLine(9)); // fn f() { {} }
 }
 
-TEST_CASE("Cyclic reference in struct definition", "[sema]") {
+TEST_CASE("Cyclic dependency in struct definition", "[sema]") {
     auto const issues = test::getIssues(R"(
 struct X { var y: Y; }
 struct Y { var x: X; }
 )");
     CHECK(issues.findOnLine<StrongReferenceCycle>(2));
 }
+
+TEST_CASE("Cyclic dependency in struct definition - 2", "[sema]") {
+    auto const issues = test::getIssues(R"(
+struct X {
+    var y: Y;
+}
+struct Y {
+    var z: Z;
+}
+struct Z {
+    var w: W;
+}
+struct W {
+    var x: X;
+})");
+    CHECK(issues.findOnLine<StrongReferenceCycle>(2));
+}
+
