@@ -19,8 +19,9 @@ void Scope::add(EntityBase& entity) {
 
 void Scope::add(Scope& scopingEntity) {
     if (!scopingEntity.isAnonymous() &&
-        scopingEntity.kind() !=
-            ScopeKind::Function /* can't add functions here because of name collisions due to overloading */) {
+        /// Can't add functions here because of name collisions due to overloading.
+        scopingEntity.kind() != ScopeKind::Function)
+    {
         add(static_cast<EntityBase&>(scopingEntity));
     }
     auto const [itr, success] = _children.insert({ scopingEntity.symbolID(), &scopingEntity });

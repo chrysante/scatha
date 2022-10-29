@@ -13,19 +13,26 @@ namespace scatha::sema {
 
 class SCATHA(API) OverloadSet: public EntityBase {
 public:
+    /// Construct an empty overload set.
     explicit OverloadSet(std::string name, SymbolID id, Scope* parentScope):
         EntityBase(std::move(name), id, parentScope) {}
 
-    /// Here overload resolution is happening
+    /// Resolve best matching function from this overload set for \p argumentTypes
+    /// Returns NULL if no matching function exists in the overload set.
     Function const* find(std::span<TypeID const> argumentTypes) const;
 
-    std::pair<Function*, bool> add(Function*);
+    /// \brief Add a function to this overload set.
+    /// \returns Pair of \p function and \p true if \p function is a legal overload.
+    /// Pair of pointer to existing function that prevents \p from being a legal overload and \p false otherwise.
+    std::pair<Function const*, bool> add(Function* function);
 
+    /// Begin iterator to set of \p Function 's
     auto begin() const { return functions.begin(); }
+    /// End iterator to set of \p Function 's
     auto end() const { return functions.end(); }
 
 private:
-    utl::hashset<Function*, Function::ArgumentsHash, Function::ArgumentsEqual> functions;
+    utl::hashset<Function*, internal::FunctionArgumentsHash, internal::FunctionArgumentsEqual> functions;
 };
 
 } // namespace scatha::sema

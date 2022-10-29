@@ -11,7 +11,8 @@ SymbolTable::SymbolTable():
     _globalScope(std::make_unique<GlobalScope>()),
     _currentScope(_globalScope.get())
 {
-    _void   = declareBuiltinType("void", 0, 0);
+    /// Declare \p void with \p invalidSize  to make it an incomplete type.
+    _void   = declareBuiltinType("void", invalidSize, invalidSize);
     _bool   = declareBuiltinType("bool", 1, 1);
     _int    = declareBuiltinType("int", 8, 8);
     _float  = declareBuiltinType("float", 8, 8);
