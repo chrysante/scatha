@@ -30,7 +30,6 @@ public:
 public:
     std::string_view name() const { return _name; }
     SymbolID symbolID() const { return _symbolID; }
-
     bool isAnonymous() const { return _name.empty(); }
 
     Scope* parent() { return _parent; }
