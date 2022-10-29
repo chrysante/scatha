@@ -168,10 +168,6 @@ public:
     ObjectType const* lookupObjectType(std::string_view name) const;
     ObjectType const* lookupObjectType(Token const& token) const { return lookupObjectType(token.id); }
 
-    bool is(SymbolID, SymbolCategory) const;
-
-    SymbolCategory categorize(SymbolID) const;
-
     Scope& currentScope() { return *_currentScope; }
     Scope const& currentScope() const { return *_currentScope; }
 
@@ -186,7 +182,7 @@ public:
     TypeID String() const { return _string; }
 
 private:
-    SymbolID generateID();
+    SymbolID generateID(SymbolCategory category);
 
 private:
     std::unique_ptr<GlobalScope> _globalScope;

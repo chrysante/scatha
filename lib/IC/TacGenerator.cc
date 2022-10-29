@@ -300,7 +300,7 @@ void Context::submitDeclaration(utl::small_vector<sema::SymbolID> lhsId, TasArgu
     SC_ASSERT(arg.is(TasArgument::empty), "");
     lhsId.emplace_back();
     for (auto const& childID : type.symbols()) {
-        if (!sym.is(childID, sema::SymbolCategory::Variable)) {
+        if (childID.category() != sema::SymbolCategory::Variable) {
             continue;
         }
         lhsId.back() = childID;

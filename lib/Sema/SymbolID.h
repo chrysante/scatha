@@ -11,50 +11,66 @@
 
 namespace scatha::sema {
 
+enum class SymbolCategory {
+    Invalid,
+    Variable,
+    Namespace,
+    OverloadSet,
+    Function,
+    ObjectType,
+    Anonymous,
+    _count
+};
+
+static_assert((int)SymbolCategory::_count <= 1 << 4);
+
+SCATHA(API) std::string_view toString(SymbolCategory);
+
+SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolCategory);
+
 class SymbolID {
 public:
     static SymbolID const Invalid;
 
 public:
     constexpr SymbolID() = default;
-    constexpr explicit SymbolID(u64 rawValue): _value(rawValue) {}
+    constexpr explicit SymbolID(u64 rawValue, SymbolCategory category):
+        _value(rawValue), _cat(category)
+    { SC_EXPECT(rawValue < u64(1) << 60, "Too big"); }
+
     constexpr u64 rawValue() const { return _value; }
-    constexpr bool operator==(SymbolID const&) const = default;
+
+    constexpr bool operator==(SymbolID const& rhs) const {
+        bool result = _value == rhs._value;
+        SC_ASSERT(!result || _cat == rhs._cat, "If values are equal then categories must alos be equal.");
+        return result;
+    }
+
     u64 hash() const;
+
     explicit operator bool() const { return *this != Invalid; }
 
+    SymbolCategory category() const { return _cat; }
+    
 private:
-    u64 _value = 0;
+    u64 _value: 60 = 0;
+    SymbolCategory _cat: 4 = SymbolCategory::Invalid;
 };
 
-inline SymbolID const SymbolID::Invalid = SymbolID(0);
+inline SymbolID const SymbolID::Invalid = SymbolID(0, SymbolCategory::Invalid);
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolID);
 
 // Special kind of SymbolID
 struct TypeID: SymbolID {
+    TypeID() = default;
+    constexpr explicit TypeID(u64 rawValue): SymbolID(rawValue, SymbolCategory::ObjectType) {}
     constexpr explicit TypeID(SymbolID id): SymbolID(id) {}
-    using SymbolID::SymbolID;
-
+    
     static TypeID const Invalid;
 };
 
 inline TypeID const TypeID::Invalid = TypeID(SymbolID::Invalid);
-
-enum class SymbolCategory {
-    Variable    = 1 << 0,
-    Namespace   = 1 << 1,
-    OverloadSet = 1 << 2,
-    Function    = 1 << 3,
-    ObjectType  = 1 << 4,
-    _count
-};
-
-UTL_ENUM_OPERATORS(SymbolCategory);
-
-SCATHA(API) std::string_view toString(SymbolCategory);
-
-SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolCategory);
 
 } // namespace scatha::sema
 

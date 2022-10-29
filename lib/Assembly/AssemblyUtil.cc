@@ -371,7 +371,7 @@ struct Printer {
 
     void printLabel(Label label) {
         if (sym != nullptr) {
-            str << sym->getFunction(sema::SymbolID(label.functionID)).name();
+            str << sym->getFunction(sema::SymbolID(label.functionID, sema::SymbolCategory::Function)).name();
             if (label.index != Label::functionBeginIndex) {
                 str << ".L" << label.index;
             }

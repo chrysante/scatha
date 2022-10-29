@@ -6,6 +6,24 @@
 
 namespace scatha::sema {
 
+std::string_view toString(SymbolCategory cat) {
+    // clang-format off
+    return UTL_SERIALIZE_ENUM(cat, {
+        { SymbolCategory::Invalid,     "Invalid" },
+        { SymbolCategory::Variable,    "Variable" },
+        { SymbolCategory::Namespace,   "Namespace" },
+        { SymbolCategory::OverloadSet, "OverloadSet" },
+        { SymbolCategory::Function,    "Function" },
+        { SymbolCategory::ObjectType,  "ObjectType" },
+        { SymbolCategory::Anonymous,   "Anonymous" }
+    });
+    // clang-format on
+}
+
+std::ostream& operator<<(std::ostream& str, SymbolCategory cat) {
+    return str << toString(cat);
+}
+
 u64 SymbolID::hash() const {
     u64 x = rawValue();
     x     = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
@@ -19,23 +37,6 @@ std::ostream& operator<<(std::ostream& str, SymbolID id) {
     str << std::hex << id.rawValue();
     str.flags(flags);
     return str;
-}
-
-SCATHA(API) std::string_view toString(SymbolCategory cat) {
-    SC_ASSERT(std::has_single_bit(static_cast<uintmax_t>(cat)), "not a valid category");
-    using enum SymbolCategory;
-    switch (cat) {
-    case Variable: return "Variable";
-    case Namespace: return "Namespace";
-    case OverloadSet: return "OverloadSet";
-    case Function: return "Function";
-    case ObjectType: return "ObjectType";
-    case _count: SC_DEBUGFAIL();
-    }
-}
-
-SCATHA(API) std::ostream& operator<<(std::ostream& str, SymbolCategory cat) {
-    return str << toString(cat);
 }
 
 } // namespace scatha::sema

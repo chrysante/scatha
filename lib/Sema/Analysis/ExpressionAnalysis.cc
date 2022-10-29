@@ -140,8 +140,7 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
         return ExpressionAnalysisResult::fail();
     }
     id.symbolID                   = symbolID;
-    SymbolCategory const category = sym.categorize(symbolID);
-    switch (category) {
+    switch (symbolID.category()) {
     case SymbolCategory::Variable: {
         auto const& var = sym.getVariable(symbolID);
         id.typeID       = var.typeID();
@@ -274,7 +273,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
         iss.push(BadFunctionCall(fc, SymbolID::Invalid, argTypes, BadFunctionCall::Reason::ObjectNotCallable));
         return ExpressionAnalysisResult::fail();
     }
-    if (!sym.is(objRes.symbolID(), SymbolCategory::OverloadSet)) {
+    if (objRes.symbolID().category() != SymbolCategory::OverloadSet) {
         iss.push(BadFunctionCall(fc, SymbolID::Invalid, argTypes, BadFunctionCall::Reason::ObjectNotCallable));
         return ExpressionAnalysisResult::fail();
     }

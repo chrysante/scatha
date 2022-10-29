@@ -37,14 +37,13 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
         SymbolCategory cat;
     };
     utl::hashset<SymbolID> printedScopes;
-
     utl::vector<PrintData> data;
     for (auto&& [name, id] : scope._symbols) {
-        if (sym.is(id, SymbolCategory::Variable)) {
+        if (id.category() == SymbolCategory::Variable) {
             data.push_back({ name, &sym.getVariable(id), id, SymbolCategory::Variable });
             continue;
         }
-        if (sym.is(id, SymbolCategory::ObjectType)) {
+        if (id.category() == SymbolCategory::ObjectType) {
             if (sym.getObjectType(id).isBuiltin()) {
                 printedScopes.insert(id);
                 continue;
@@ -52,10 +51,16 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
             data.push_back({ name, &sym.getObjectType(id), id, SymbolCategory::ObjectType });
             continue;
         }
-        SC_ASSERT(sym.is(id, SymbolCategory::OverloadSet), "what else?");
+        SC_ASSERT(id.category() == SymbolCategory::OverloadSet, "What else?");
         for (auto const& function : sym.getOverloadSet(id)) {
-            data.push_back(
-                { name, &sym.getFunction(function->symbolID()), function->symbolID(), SymbolCategory::Function });
+            // clang-format off
+            data.push_back({
+                name,
+                &sym.getFunction(function->symbolID()),
+                function->symbolID(),
+                SymbolCategory::Function
+            });
+            // clang-format on
         }
     }
 
