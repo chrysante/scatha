@@ -103,6 +103,8 @@ using u64 = std::uint64_t;
 using f32 = float;
 using f64 = double;
 
+using std::size_t;
+
 static_assert(sizeof(f32) == 4);
 static_assert(sizeof(f64) == 8);
 
@@ -111,6 +113,8 @@ template <typename T>
 requires std::is_standard_layout_v<T> std::array<u8, sizeof(T)> decompose(T const& t) {
     return utl::bit_cast<std::array<u8, sizeof(T)>>(t);
 }
+
+inline constexpr size_t invalidIndex = static_cast<size_t>(-1);
 
 } // namespace scatha
 
