@@ -33,7 +33,9 @@ ast::UniquePtr<ast::TranslationUnit> Parser::parseTranslationUnit() {
 /// MARK: Private
 ast::UniquePtr<ast::Declaration> Parser::parseDeclaration() {
     Token const& token = tokens.peek();
-    SC_ASSERT(token.type != TokenType::EndOfFile, "Not our job");
+    if (token.type == TokenType::EndOfFile) {
+        return nullptr;
+    }
     if (!token.isKeyword) {
         return nullptr;
     }
@@ -145,7 +147,11 @@ ast::UniquePtr<ast::Block> Parser::parseBlock() {
             tokens.eat();
             break;
         }
-        result->statements.push_back(parseStatement());
+        auto statement = parseStatement();
+        if (statement == nullptr) {
+            throw ParsingIssue(tokens.current(), "Expected statement or '}'");
+        }
+        result->statements.push_back(std::move(statement));
     }
     return result;
 }
