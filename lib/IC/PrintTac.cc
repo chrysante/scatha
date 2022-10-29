@@ -33,8 +33,6 @@ struct ArgumentPrinter {
             str << (first ? ((void)(first = false), "$") : ".") << sym.getName(id);
         }
         return str;
-        //						return str << "$" <<
-        // sym.getVariable(var.id()).name();
     }
     , [&](Temporary const& tmp) -> auto& { return str << "T[" << tmp.index << "]"; }
     , [&](LiteralValue const& lit) -> auto& {
