@@ -130,7 +130,8 @@ struct SCATHA(API) Block: Statement {
 
     /** Decoration provided by semantic analysis. */
 
-    /// Kind of this block scope. Default is 'Anonymous', make sure to set this to Function or ObjectType in other cases.
+    /// Kind of this block scope. Default is 'Anonymous', make sure to set this to Function or ObjectType in other
+    /// cases.
     sema::ScopeKind scopeKind = sema::ScopeKind::Anonymous;
 
     /// SymbolID of this block scope
@@ -152,7 +153,7 @@ struct SCATHA(API) FunctionDefinition: Declaration {
     UniquePtr<Block> body;
 
     /** Decoration provided by semantic analysis. */
-    
+
     /// Return type of the function.
     sema::TypeID returnTypeID = sema::TypeID::Invalid;
 

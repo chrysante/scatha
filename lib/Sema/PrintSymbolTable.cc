@@ -54,12 +54,8 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
         }
         SC_ASSERT(sym.is(id, SymbolCategory::OverloadSet), "what else?");
         for (auto const& function : sym.getOverloadSet(id)) {
-            data.push_back({
-                name,
-                &sym.getFunction(function->symbolID()),
-                function->symbolID(),
-                SymbolCategory::Function
-            });
+            data.push_back(
+                { name, &sym.getFunction(function->symbolID()), function->symbolID(), SymbolCategory::Function });
         }
     }
 
@@ -76,7 +72,8 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
                 str << (id ? makeQualName(sym.getObjectType(id)) : "<invalid-type>");
             }
             str << ") -> " << makeQualName(sym.getObjectType(fn.signature().returnTypeID()));
-        } else if (cat == SymbolCategory::ObjectType) {
+        }
+        else if (cat == SymbolCategory::ObjectType) {
             auto& type     = sym.getObjectType(id);
             auto printSize = [&str](size_t s) {
                 if (s == invalidSize)
@@ -89,7 +86,8 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
             str << ", align: ";
             printSize(type.align());
             str << "]";
-        } else if (cat == SymbolCategory::Variable) {
+        }
+        else if (cat == SymbolCategory::Variable) {
             auto& var = sym.getVariable(id);
             str << ": " << (var.typeID() ? makeQualName(sym.getObjectType(var.typeID())) : "<invalid-type>");
         }

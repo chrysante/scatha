@@ -1,7 +1,7 @@
 #include "Sema/Analysis/FunctionAnalysis.h"
 
-#include <utl/scope_guard.hpp>
 #include <utl/ranges.hpp>
+#include <utl/scope_guard.hpp>
 
 #include "AST/AST.h"
 #include "AST/Visit.h"
@@ -28,7 +28,7 @@ struct Context {
     void analyze(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
 
     ExpressionAnalysisResult dispatchExpression(ast::Expression&);
-    
+
     void verifyConversion(ast::Expression const& from, TypeID to) const;
 
     SymbolTable& sym;
@@ -40,10 +40,9 @@ struct Context {
 
 void sema::analyzeFunctions(SymbolTable& sym,
                             issue::IssueHandler& iss,
-                            std::span<DependencyGraphNode const> functions)
-{
+                            std::span<DependencyGraphNode const> functions) {
     Context ctx{ sym, iss };
-    for (auto const& node: functions) {
+    for (auto const& node : functions) {
         SC_ASSERT(node.category == SymbolCategory::Function, "We only accept functions here");
         sym.makeScopeCurrent(node.scope);
         ctx.analyze(utl::down_cast<ast::FunctionDefinition&>(*node.astNode));
@@ -57,7 +56,8 @@ void Context::dispatch(ast::AbstractSyntaxTree& node) {
 
 void Context::analyze(ast::FunctionDefinition& fn) {
     if (auto const sk = sym.currentScope().kind();
-        sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
+        sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object)
+    {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
         iss.push(InvalidDeclaration(&fn,
@@ -68,9 +68,9 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     }
     SC_ASSERT(fn.symbolID != SymbolID::Invalid,
               "Can't analyze the body if wen don't have a symbol to push this functions scope.");
-    auto const& function = sym.getFunction(fn.symbolID);
-    fn.returnTypeID = function.signature().returnTypeID();
-    fn.body->scopeSymbolID = function.symbolID();
+    auto const& function               = sym.getFunction(fn.symbolID);
+    fn.returnTypeID                    = function.signature().returnTypeID();
+    fn.body->scopeSymbolID             = function.symbolID();
     currentFunction                    = &fn;
     utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };
     sym.pushScope(fn.symbolID);
@@ -88,10 +88,7 @@ void Context::analyze(ast::FunctionDefinition& fn) {
 
 void Context::analyze(ast::StructDefinition& s) {
     auto const sk = sym.currentScope().kind();
-    if (sk != ScopeKind::Global &&
-        sk != ScopeKind::Namespace &&
-        sk != ScopeKind::Object)
-    {
+    if (sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
         iss.push(InvalidDeclaration(&s,
@@ -209,12 +206,11 @@ void Context::analyze(ast::IfStatement& is) {
     if (iss.fatal()) {
         return;
     }
-    
     dispatch(*is.ifBlock);
     if (iss.fatal()) {
         return;
     }
-    
+
     if (is.elseBlock != nullptr) {
         dispatch(*is.elseBlock);
     }

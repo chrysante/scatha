@@ -247,7 +247,8 @@ void printExpression(Expression const& expr, std::ostream& str) {
         for (bool first = true; auto& arg : fc.arguments) {
             if (!first) {
                 str << ", ";
-            } else {
+            }
+            else {
                 first = false;
             }
             printExpression(*arg, str);
@@ -260,7 +261,8 @@ void printExpression(Expression const& expr, std::ostream& str) {
         for (bool first = true; auto& arg : fc.arguments) {
             if (!first) {
                 str << ", ";
-            } else {
+            }
+            else {
                 first = false;
             }
             printExpression(*arg, str);

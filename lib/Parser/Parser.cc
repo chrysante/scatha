@@ -64,7 +64,8 @@ ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(bool i
     if (tokens.peek().id == ":") {
         tokens.eat();
         result->typeExpr = parsePostfixExpression();
-    } else if (isFunctionParameter) {
+    }
+    else if (isFunctionParameter) {
         // guaranteed to throw
         expectID(tokens.peek(), ":");
     }
@@ -92,7 +93,8 @@ ast::UniquePtr<ast::FunctionDefinition> Parser::parseFunctionDefinition() {
     if (Token const& token = tokens.peek(); token.id == "->") {
         tokens.eat();
         result->returnTypeExpr = parsePostfixExpression();
-    } else {
+    }
+    else {
         auto copy              = token;
         copy.id                = "void";
         copy.type              = TokenType::Identifier;
@@ -164,9 +166,11 @@ ast::UniquePtr<ast::Statement> Parser::parseStatement() {
             // Var / Let should have been handled above
             throw ParsingIssue(token, "Unexpected ID");
         }
-    } else if (token.id == "{") {
+    }
+    else if (token.id == "{") {
         return parseBlock();
-    } else {
+    }
+    else {
         // We have not eaten the first token yet. Parsing an expression should
         // be fine.
         auto result       = ast::allocate<ast::ExpressionStatement>(parseExpression(), token);
@@ -201,7 +205,8 @@ ast::UniquePtr<ast::IfStatement> Parser::parseIfStatement() {
     if (elseBlockBegin.id == "if") {
         tokens.eat();
         result->elseBlock = parseIfStatement();
-    } else {
+    }
+    else {
         result->elseBlock = parseBlock();
     }
     return result;

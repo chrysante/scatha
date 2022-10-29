@@ -37,8 +37,7 @@ void Context::canonicalize(ast::IfStatement& statement) {
         dispatch(*statement.elseBlock);
     }
     /// If we have a statement of type \code if (!<boolean-expr>) {} else {} \endcode
-    /// convert the expression to \p <boolean-expr> and swap the if
-    /// and else block. 
+    /// convert the expression to \p <boolean-expr> and swap the if and else block.
     ///
     if (statement.condition->nodeType() != ast::NodeType::UnaryPrefixExpression) {
         return;

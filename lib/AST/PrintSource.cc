@@ -67,7 +67,8 @@ struct Context {
             str << (var.isConstant ? "let" : "var") << " " << var.name() << ": ";
             if (var.typeExpr) {
                 print(*var.typeExpr);
-            } else {
+            }
+            else {
                 str << "<deduce-type>";
             }
             if (var.initExpression) {
@@ -143,7 +144,8 @@ struct Context {
             for (bool first = true; auto& arg : f.arguments) {
                 if (!first) {
                     str << ", ";
-                } else {
+                }
+                else {
                     first = false;
                 }
                 print(*arg);
@@ -156,7 +158,8 @@ struct Context {
             for (bool first = true; auto& arg : f.arguments) {
                 if (!first) {
                     str << ", ";
-                } else {
+                }
+                else {
                     first = false;
                 }
                 print(*arg);

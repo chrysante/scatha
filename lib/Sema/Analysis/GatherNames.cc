@@ -14,7 +14,8 @@ using namespace scatha::sema;
 
 namespace {
 
-/// Gathers all declarations and declares them in the symbol table. Also analyzes the dependencies of structs because they are trivial.
+/// Gathers all declarations and declares them in the symbol table. Also analyzes the dependencies of structs because
+/// they are trivial.
 struct Context {
     /// Dispatches to the appropriate one of the \p gather() overloads below based on the runtime type of \p node
     size_t dispatch(ast::AbstractSyntaxTree& node);
@@ -33,10 +34,7 @@ struct Context {
 
 } // namespace
 
-DependencyGraph scatha::sema::gatherNames(SymbolTable& sym,
-                                          ast::AbstractSyntaxTree& root,
-                                          issue::IssueHandler& iss)
-{
+DependencyGraph scatha::sema::gatherNames(SymbolTable& sym, ast::AbstractSyntaxTree& root, issue::IssueHandler& iss) {
     DependencyGraph dependencyGraph;
     Context ctx{ sym, iss, dependencyGraph };
     ctx.dispatch(root);
@@ -56,7 +54,8 @@ size_t Context::gather(ast::TranslationUnit& tu) {
 
 size_t Context::gather(ast::FunctionDefinition& fn) {
     if (auto const sk = sym.currentScope().kind();
-        sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
+        sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object)
+    {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
         iss.push(InvalidDeclaration(&fn,
@@ -70,21 +69,20 @@ size_t Context::gather(ast::FunctionDefinition& fn) {
         iss.push(declResult.error());
         return invalidIndex;
     }
-    auto& func = *declResult;
-    fn.symbolID = func.symbolID();
+    auto& func         = *declResult;
+    fn.symbolID        = func.symbolID();
     fn.body->scopeKind = ScopeKind::Function;
     /// Now add this function definition to the dependency graph
-    return dependencyGraph.add({
-        .symbolID = func.symbolID(),
-        .category = SymbolCategory::Function,
-        .astNode = &fn,
-        .scope = &sym.currentScope()
-    });
+    return dependencyGraph.add({ .symbolID = func.symbolID(),
+                                 .category = SymbolCategory::Function,
+                                 .astNode  = &fn,
+                                 .scope    = &sym.currentScope() });
 }
 
 size_t Context::gather(ast::StructDefinition& s) {
     if (auto const sk = sym.currentScope().kind();
-        sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
+        sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object)
+    {
         /// Struct defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
         iss.push(InvalidDeclaration(&s,
@@ -98,23 +96,21 @@ size_t Context::gather(ast::StructDefinition& s) {
         iss.push(declResult.error());
         return invalidIndex;
     }
-    auto& objType = *declResult;
-    s.symbolID = objType.symbolID();
+    auto& objType     = *declResult;
+    s.symbolID        = objType.symbolID();
     s.body->scopeKind = ScopeKind::Object;
     SC_ASSERT(s.symbolID != SymbolID::Invalid, "");
-    size_t const index = dependencyGraph.add({
-        .symbolID = objType.symbolID(),
-        .category = SymbolCategory::ObjectType,
-        .astNode = &s,
-        .scope = &sym.currentScope()
-    });
+    size_t const index = dependencyGraph.add({ .symbolID = objType.symbolID(),
+                                               .category = SymbolCategory::ObjectType,
+                                               .astNode  = &s,
+                                               .scope    = &sym.currentScope() });
     /// After we declared this type we gather all its members
     sym.pushScope(objType.symbolID());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto& statement: s.body->statements) {
+    for (auto& statement : s.body->statements) {
         size_t const dependency = dispatch(*statement);
         if (dependency != invalidIndex) {
-            dependencyGraph[index].dependencies.push_back(utl::narrow_cast<u16>(dependency));            
+            dependencyGraph[index].dependencies.push_back(utl::narrow_cast<u16>(dependency));
         }
     }
     popScope.execute();
@@ -136,18 +132,14 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
         return invalidIndex;
     }
     auto const& var = *declResult;
-    return dependencyGraph.add({
-        .symbolID = var.symbolID(),
-        .category = SymbolCategory::Variable,
-        .astNode = &varDecl,
-        .scope = &sym.currentScope()
-    });
+    return dependencyGraph.add({ .symbolID = var.symbolID(),
+                                 .category = SymbolCategory::Variable,
+                                 .astNode  = &varDecl,
+                                 .scope    = &sym.currentScope() });
 }
 
 size_t Context::gather(ast::Statement& statement) {
     using enum InvalidStatement::Reason;
-    iss.push(SemanticIssue{
-        InvalidStatement(&statement, InvalidScopeForStatement, sym.currentScope())
-    });
+    iss.push(SemanticIssue{ InvalidStatement(&statement, InvalidScopeForStatement, sym.currentScope()) });
     return invalidIndex;
 }

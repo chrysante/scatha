@@ -8,10 +8,12 @@
 #include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
-	
-SCATHA(API) void instantiateEntities(SymbolTable& symbolTable, issue::IssueHandler& issueHandler, DependencyGraph& typeDependencies);
-	
-}
+
+SCATHA(API)
+void instantiateEntities(SymbolTable& symbolTable,
+                         issue::IssueHandler& issueHandler,
+                         DependencyGraph& typeDependencies);
+
+} // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ANALYSIS_TYPEINSTANTIATION_H_
-

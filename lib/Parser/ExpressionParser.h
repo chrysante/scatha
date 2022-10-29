@@ -129,8 +129,9 @@ public:
 
 private:
     template <typename Expr>
-    ast::UniquePtr<Expr>
-    parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary, std::string_view open, std::string_view close);
+    ast::UniquePtr<Expr> parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
+                                               std::string_view open,
+                                               std::string_view close);
     ast::UniquePtr<ast::Subscript> parseSubscript(ast::UniquePtr<ast::Expression> primary);
     ast::UniquePtr<ast::FunctionCall> parseFunctionCall(ast::UniquePtr<ast::Expression> primary);
     ast::UniquePtr<ast::Expression> parseMemberAccess(ast::UniquePtr<ast::Expression> primary);

@@ -110,7 +110,8 @@ void Context::generate(ast::FunctionDefinition const& def) {
 void Context::generate(ast::StructDefinition const& def) {
     for (auto& statement : def.body->statements) {
         if (statement->nodeType() == ast::NodeType::FunctionDefinition ||
-            statement->nodeType() == ast::NodeType::StructDefinition) {
+            statement->nodeType() == ast::NodeType::StructDefinition)
+        {
             dispatch(*statement);
         }
     }
@@ -152,7 +153,8 @@ void Context::generate(ast::IfStatement const& ifStatement) {
         code[cjmpIndex].asTas().arg1 = submitLabel();
         dispatch(*ifStatement.elseBlock);
         code[jmpIndex].asTas().arg1 = submitLabel();
-    } else {
+    }
+    else {
         code[cjmpIndex].asTas().arg1 = submitLabel();
     }
 }
@@ -230,7 +232,8 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
         if (lhs.is(TasArgument::temporary)) {
             code.back().asTas().result = var;
             --tmpIndex;
-        } else {
+        }
+        else {
             submit(var, Operation::mov, rhs);
         }
         return var;
@@ -239,8 +242,8 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
         dispatchExpression(*expr.lhs);
         return dispatchExpression(*expr.rhs);
     }
-        /// Compound assignment operations like AddAssign, MulAssign etc. must not be here, they should have been transformed by the canonicalizer.
-        ///
+        /// Compound assignment operations like AddAssign, MulAssign etc. must not be here, they should have been
+        /// transformed by the canonicalizer.
         SC_NO_DEFAULT_CASE();
     }
 }
@@ -348,7 +351,8 @@ Operation Context::processIfCondition(ast::Expression const& condition) {
     if (isRelop(condStatement.operation)) {
         condStatement.result    = If{};
         condStatement.operation = reverseRelop(condStatement.operation);
-    } else {
+    }
+    else {
         auto const& condition = condStatement.result;
         submit(If{}, Operation::ifPlaceholder, condition);
     }

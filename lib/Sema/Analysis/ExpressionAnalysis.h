@@ -51,7 +51,6 @@ private:
     constexpr ExpressionAnalysisResult(bool success): _success(success) {}
 };
 
-
 /// \param expression The expression to be analyzed.
 /// \param symbolTable The symbol table to be read from and written to.
 /// \param issueHandler The issue handler to submit issues to. May be null.

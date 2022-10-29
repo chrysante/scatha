@@ -1,8 +1,8 @@
 #include "Sema/FunctionSignature.h"
 
 #include <utl/hash.hpp>
-#include <utl/utility.hpp>
 #include <utl/ranges.hpp>
+#include <utl/utility.hpp>
 
 namespace scatha::sema {
 

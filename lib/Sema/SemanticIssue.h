@@ -198,16 +198,14 @@ public:
         ast::AbstractSyntaxTree const* astNode;
         SymbolID symbolID;
     };
-    
+
     explicit StrongReferenceCycle(utl::vector<Node> cycle):
-    IssueBase(cycle.front().astNode->token()),
-    _cycle(std::move(cycle))
-    {}
-    
+        IssueBase(cycle.front().astNode->token()), _cycle(std::move(cycle)) {}
+
     void setStatement(ast::Statement const&) {}
-    
+
     std::span<Node const> cycle() const { return _cycle; }
-    
+
 private:
     utl::vector<Node> _cycle;
 };

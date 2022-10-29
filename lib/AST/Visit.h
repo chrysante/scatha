@@ -43,80 +43,85 @@ struct DefaultCase {
     void operator()(AbstractSyntaxTree const&) const {}
     void operator()(AlmostSameAs<TranslationUnit> auto&& tu) const {
         for (auto&& decl : tu.declarations) {
-            callback(*decl);
+            std::invoke(callback, *decl);
         }
     }
     void operator()(AlmostSameAs<Block> auto&& b) const {
         for (auto& s : b.statements) {
-            callback(*s);
+            std::invoke(callback, *s);
         }
     }
     void operator()(AlmostSameAs<FunctionDefinition> auto&& fn) const {
         for (auto& param : fn.parameters) {
-            callback(*param);
+            std::invoke(callback, *param);
         }
-        callback(*fn.body);
+        std::invoke(callback, *fn.body);
     }
-    void operator()(AlmostSameAs<StructDefinition> auto&& s) const { callback(*s.body); }
+    void operator()(AlmostSameAs<StructDefinition> auto&& s) const { std::invoke(callback, *s.body); }
     void operator()(AlmostSameAs<VariableDeclaration> auto&& s) const {
         if (s.typeExpr) {
-            callback(*s.typeExpr);
+            std::invoke(callback, *s.typeExpr);
         }
         if (s.initExpression) {
-            callback(*s.initExpression);
+            std::invoke(callback, *s.initExpression);
         }
     }
     void operator()(AlmostSameAs<ExpressionStatement> auto&& s) const {
         SC_ASSERT(s.expression != nullptr, "");
-        callback(*s.expression);
+        std::invoke(callback, *s.expression);
     }
     void operator()(AlmostSameAs<ReturnStatement> auto&& s) const {
         if (s.expression) {
-            callback(*s.expression);            
+            std::invoke(callback, *s.expression);
         }
     }
     void operator()(AlmostSameAs<IfStatement> auto&& s) const {
-        callback(*s.condition);
-        callback(*s.ifBlock);
+        std::invoke(callback, *s.condition);
+        std::invoke(callback, *s.ifBlock);
         if (s.elseBlock != nullptr) {
-            callback(*s.elseBlock);
+            std::invoke(callback, *s.elseBlock);
         }
     }
     void operator()(AlmostSameAs<WhileStatement> auto&& s) const {
-        callback(*s.condition);
-        callback(*s.block);
+        std::invoke(callback, *s.condition);
+        std::invoke(callback, *s.block);
     }
     void operator()(AlmostSameAs<IntegerLiteral> auto&&) const {}
     void operator()(AlmostSameAs<BooleanLiteral> auto&&) const {}
     void operator()(AlmostSameAs<FloatingPointLiteral> auto&&) const {}
     void operator()(AlmostSameAs<StringLiteral> auto&&) const {}
-    void operator()(AlmostSameAs<UnaryPrefixExpression> auto&& e) const { callback(*e.operand); }
+    void operator()(AlmostSameAs<UnaryPrefixExpression> auto&& e) const { std::invoke(callback, *e.operand); }
     void operator()(AlmostSameAs<BinaryExpression> auto&& e) const {
-        callback(*e.lhs);
-        callback(*e.rhs);
+        std::invoke(callback, *e.lhs);
+        std::invoke(callback, *e.rhs);
     }
     void operator()(AlmostSameAs<MemberAccess> auto&& m) const { callback(*m.object); }
     void operator()(AlmostSameAs<Conditional> auto&& c) const {
-        callback(*c.condition);
-        callback(*c.ifExpr);
-        callback(*c.elseExpr);
+        std::invoke(callback, *c.condition);
+        std::invoke(callback, *c.ifExpr);
+        std::invoke(callback, *c.elseExpr);
     }
     void operator()(AlmostSameAs<FunctionCall> auto&& f) const {
-        callback(*f.object);
+        std::invoke(callback, *f.object);
         for (auto& arg : f.arguments) {
-            callback(*arg);
+            std::invoke(callback, *arg);
         }
     }
     void operator()(AlmostSameAs<Subscript> auto&& s) const {
-        callback(*s.object);
+        std::invoke(callback, *s.object);
         for (auto& arg : s.arguments) {
-            callback(*arg);
+            std::invoke(callback, *arg);
         }
     }
 };
 } // namespace internal
 
 using internal::DefaultCase;
+
+void visitDefault(auto&& node, auto&& callback) {
+    DefaultCase dc(callback);
+    dc(node);
+}
 
 } // namespace scatha::ast
 

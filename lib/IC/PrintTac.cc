@@ -40,11 +40,14 @@ struct ArgumentPrinter {
     , [&](LiteralValue const& lit) -> auto& {
         if (lit.type == sym.Bool()) {
             return str << (bool(lit.value) ? "true" : "false");
-        } else if (lit.type == sym.Int()) {
+        }
+        else if (lit.type == sym.Int()) {
             return str << static_cast<i64>(lit.value);
-        } else if (lit.type == sym.Float()) {
+        }
+        else if (lit.type == sym.Float()) {
             return str << utl::bit_cast<f64>(lit.value);
-        } else {
+        }
+        else {
             return str << lit.value << " [Type = " << sym.getName(lit.type) << "]";
         }
     }
@@ -70,8 +73,9 @@ struct ArgumentPrinter {
 
                                 } // namespace
 
-                                void
-                                printTac(ThreeAddressCode const& tac, sema::SymbolTable const& sym, std::ostream& str) {
+                                void printTac(ThreeAddressCode const& tac,
+                                              sema::SymbolTable const& sym,
+                                              std::ostream& str) {
                                     for (auto const& line : tac.statements) {
                                         std::visit(utl::visitor{ [&](Label const& label) {
                                                                     printLabel(str, label, sym);
@@ -88,14 +92,16 @@ struct ArgumentPrinter {
             if (s.result.is(TasArgument::conditional)) {
                 if (s.operation == Operation::ifPlaceholder) {
                     str << "if " << print(s.arg1, sym) << "\n";
-                } else {
+                }
+                else {
                     SC_ASSERT(isRelop(s.operation),
                               "Must be "
                               "relop");
                     str << "if " << s.operation << " " << print(s.arg1, sym) << ", " << print(s.arg2, sym) << "\n";
                 }
                 return;
-            } else {
+            }
+            else {
                 if (!s.result.is(TasArgument::empty)) {
                     str << print(s.result, sym) << " = ";
                 }

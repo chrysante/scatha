@@ -74,9 +74,7 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
         return ExpressionAnalysisResult::fail();
     }
     auto const& operandType = sym.getObjectType(u.operand->typeID);
-    auto submitIssue        = [&] {
-        iss.push(BadOperandForUnaryExpression(u, operandType.symbolID()));
-    };
+    auto submitIssue        = [&] { iss.push(BadOperandForUnaryExpression(u, operandType.symbolID())); };
     if (!operandType.isBuiltin() || operandType.symbolID() == sym.String()) {
         submitIssue();
         return ExpressionAnalysisResult::fail();
@@ -132,7 +130,8 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
             /// side.
             performRestrictedNameLookup = false;
             return sym.currentScope().findID(id.value());
-        } else {
+        }
+        else {
             return sym.lookup(id.token());
         }
     }();
@@ -176,7 +175,8 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
         /// When our member is an identifier we restrict name lookup to the
         /// current scope. This flag will be unset by the identifier case.
         performRestrictedNameLookup = true;
-    } else {
+    }
+    else {
         iss.push(BadMemberAccess(ma));
         return ExpressionAnalysisResult::fail();
     }
@@ -300,10 +300,8 @@ bool Context::verifyConversion(ast::Expression const& from, TypeID to) const {
 }
 
 TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
-    auto submitIssue = [&] {
-        iss.push(BadOperandsForBinaryExpression(expr, expr.lhs->typeID, expr.rhs->typeID));
-    };
-    auto verifySame = [&] {
+    auto submitIssue = [&] { iss.push(BadOperandsForBinaryExpression(expr, expr.lhs->typeID, expr.rhs->typeID)); };
+    auto verifySame  = [&] {
         if (expr.lhs->typeID != expr.rhs->typeID) {
             submitIssue();
             return false;
