@@ -21,8 +21,6 @@
 #include "Sema/PrintSymbolTable.h"
 #include "VM/VirtualMachine.h"
 
-#include "Sema/Prepass.h"
-
 using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
