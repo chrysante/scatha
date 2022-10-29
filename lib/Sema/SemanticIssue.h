@@ -191,6 +191,27 @@ private:
 SCATHA(API)
 std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
 
+/// MARK: Cycles
+class SCATHA(API) StrongReferenceCycle: public IssueBase {
+public:
+    struct Node {
+        ast::AbstractSyntaxTree const* astNode;
+        SymbolID symbolID;
+    };
+    
+    explicit StrongReferenceCycle(utl::vector<Node> cycle):
+    IssueBase(cycle.front().astNode->token()),
+    _cycle(std::move(cycle))
+    {}
+    
+    void setStatement(ast::Statement const&) {}
+    
+    std::span<Node const> cycle() const { return _cycle; }
+    
+private:
+    utl::vector<Node> _cycle;
+};
+
 /// MARK: Common class SemanticIssue
 namespace internal {
 using SemaIssueVariant = std::variant<BadTypeConversion,
@@ -201,7 +222,8 @@ using SemaIssueVariant = std::variant<BadTypeConversion,
                                       UseOfUndeclaredIdentifier,
                                       BadSymbolReference,
                                       InvalidStatement,
-                                      InvalidDeclaration>;
+                                      InvalidDeclaration,
+                                      StrongReferenceCycle>;
 }
 
 class SCATHA(API) SemanticIssue: private internal::SemaIssueVariant {
