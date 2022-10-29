@@ -36,6 +36,26 @@ private:
     utl::expected<T, E> _e;
 };
 
+template <typename E>
+class Expected<void, E> {
+public:
+    Expected() = default;
+    
+    Expected(E const& error): _e(utl::unexpected(error)) {}
+    Expected(E&& error): _e(utl::unexpected(std::move(error))) {}
+    
+    bool hasValue() const { return _e.has_value(); }
+    explicit operator bool() const { return hasValue(); }
+    
+    void value() const {}
+    
+    E& error() { return _e.error(); }
+    E const& error() const { return _e.error(); }
+    
+private:
+    utl::expected<void, E> _e;
+};
+
 template <typename T, typename E>
 class Expected<T&, E> {
 public:
