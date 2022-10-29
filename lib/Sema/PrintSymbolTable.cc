@@ -54,8 +54,12 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
         }
         SC_ASSERT(sym.is(id, SymbolCategory::OverloadSet), "what else?");
         for (auto const& function : sym.getOverloadSet(id)) {
-            data.push_back(
-                { name, &sym.getFunction(function.symbolID()), function.symbolID(), SymbolCategory::Function });
+            data.push_back({
+                name,
+                &sym.getFunction(function->symbolID()),
+                function->symbolID(),
+                SymbolCategory::Function
+            });
         }
     }
 
@@ -103,7 +107,7 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
         if (printedScopes.contains(id)) {
             continue;
         }
-        str << indent(ind) << "<anonymous-scope>" << endl;
+        str << indent(ind) << "<anonymous-scope-" << id.rawValue() << ">" << endl;
         printScope(*childScope, str, ind + 1);
     }
 }
