@@ -21,7 +21,7 @@ fn mul(a: int, b: int, c: float) -> int {
     REQUIRE(iss.empty());
 
     auto const& mulID = sym.lookup("mul");
-    CHECK(sym.is(mulID, SymbolCategory::OverloadSet));
+    CHECK(mulID.category() == SymbolCategory::OverloadSet);
     auto const& mul = sym.getOverloadSet(mulID);
 
     auto const* mulFnPtr = mul.find(std::array{ sym.Int(), sym.Int(), sym.Float() });
