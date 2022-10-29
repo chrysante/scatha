@@ -1,6 +1,8 @@
 #ifndef SCATHA_SEMA_ANALYSIS_FUNCTIONINSTANTIATION_H_
 #define SCATHA_SEMA_ANALYSIS_FUNCTIONINSTANTIATION_H_
-	
+
+#include <span>
+
 #include "AST/AST.h"
 #include "Basic/Basic.h"
 #include "Issue/IssueHandler.h"
@@ -12,10 +14,9 @@ namespace scatha::sema {
 /// Instantiate all functions in the program.
 /// Here we don't need the dependency graph anymore, as functions don't strongly depend on each other at compile time.
 /// This may change if we introduce compile time evaluation of functions.
-/// Even though we don't really need the dependency graph we still take it here because it neatly lists all function declarations.
 SCATHA(API) void analyzeFunctions(SymbolTable& symbolTable,
                                   issue::IssueHandler& issueHandler,
-                                  DependencyGraph const&);
+                                  std::span<DependencyGraphNode const> functions);
 	
 }
 

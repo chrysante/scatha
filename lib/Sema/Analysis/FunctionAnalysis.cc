@@ -40,13 +40,11 @@ struct Context {
 
 void sema::analyzeFunctions(SymbolTable& sym,
                             issue::IssueHandler& iss,
-                            DependencyGraph const& dependencyGraph)
+                            std::span<DependencyGraphNode const> functions)
 {
     Context ctx{ sym, iss };
-    for (auto const& node: dependencyGraph) {
-        if (node.category != SymbolCategory::Function) {
-            continue;
-        }
+    for (auto const& node: functions) {
+        SC_ASSERT(node.category == SymbolCategory::Function, "We only accept functions here");
         sym.makeScopeCurrent(node.scope);
         ctx.analyze(utl::down_cast<ast::FunctionDefinition&>(*node.astNode));
         sym.makeScopeCurrent(nullptr);
@@ -237,7 +235,7 @@ void Context::analyze(ast::WhileStatement& ws) {
 }
 
 ExpressionAnalysisResult Context::dispatchExpression(ast::Expression& expr) {
-    return analyzeExpression(expr, sym, &iss);
+    return analyzeExpression(expr, sym, iss);
 }
 
 void Context::verifyConversion(ast::Expression const& from, TypeID to) const {
