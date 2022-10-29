@@ -32,14 +32,14 @@ struct Context {
     TypeID verifyBinaryOperation(ast::BinaryExpression const&) const;
 
     SymbolTable& sym;
-    issue::IssueHandler* iss;
+    issue::IssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
     /// unset by Identifier
     bool performRestrictedNameLookup = false;
 };
 } // namespace
 
-ExpressionAnalysisResult analyzeExpression(ast::Expression& expr, SymbolTable& sym, issue::IssueHandler* iss) {
+ExpressionAnalysisResult analyzeExpression(ast::Expression& expr, SymbolTable& sym, issue::IssueHandler& iss) {
     Context ctx{ .sym = sym, .iss = iss };
     return ctx.dispatch(expr);
 }
@@ -75,9 +75,7 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
     }
     auto const& operandType = sym.getObjectType(u.operand->typeID);
     auto submitIssue        = [&] {
-        if (iss) {
-            iss->push(BadOperandForUnaryExpression(u, operandType.symbolID()));
-        }
+        iss.push(BadOperandForUnaryExpression(u, operandType.symbolID()));
     };
     if (!operandType.isBuiltin() || operandType.symbolID() == sym.String()) {
         submitIssue();
@@ -139,9 +137,7 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
         }
     }();
     if (!symbolID) {
-        if (iss) {
-            iss->push(UseOfUndeclaredIdentifier(id, sym.currentScope()));
-        }
+        iss.push(UseOfUndeclaredIdentifier(id, sym.currentScope()));
         return ExpressionAnalysisResult::fail();
     }
     id.symbolID                   = symbolID;
@@ -181,8 +177,7 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
         /// current scope. This flag will be unset by the identifier case.
         performRestrictedNameLookup = true;
     } else {
-        if (iss)
-            iss->push(BadMemberAccess(ma));
+        iss.push(BadMemberAccess(ma));
         return ExpressionAnalysisResult::fail();
     }
     auto const memRes = dispatch(*ma.member);
@@ -208,40 +203,34 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
 
 ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
     dispatch(*c.condition);
-    if (iss && iss->fatal()) {
+    if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
     verifyConversion(*c.condition, sym.Bool());
-    if (iss && iss->fatal()) {
+    if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
     auto const ifRes = dispatch(*c.ifExpr);
-    if (iss && iss->fatal()) {
+    if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
     auto const elseRes = dispatch(*c.elseExpr);
-    if (iss && iss->fatal()) {
+    if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
     if (!ifRes || !elseRes) {
         return ExpressionAnalysisResult::fail();
     }
     if (ifRes.category() != ast::EntityCategory::Value) {
-        if (iss) {
-            iss->push(BadSymbolReference(*c.ifExpr, ifRes.category(), ast::EntityCategory::Value));
-        }
+        iss.push(BadSymbolReference(*c.ifExpr, ifRes.category(), ast::EntityCategory::Value));
         return ExpressionAnalysisResult::fail();
     }
     if (elseRes.category() != ast::EntityCategory::Value) {
-        if (iss) {
-            iss->push(BadSymbolReference(*c.elseExpr, elseRes.category(), ast::EntityCategory::Value));
-        }
+        iss.push(BadSymbolReference(*c.elseExpr, elseRes.category(), ast::EntityCategory::Value));
         return ExpressionAnalysisResult::fail();
     }
     if (ifRes.typeID() != elseRes.typeID()) {
-        if (iss) {
-            iss->push(BadOperandsForBinaryExpression(c, ifRes.typeID(), elseRes.typeID()));
-        }
+        iss.push(BadOperandsForBinaryExpression(c, ifRes.typeID(), elseRes.typeID()));
         return ExpressionAnalysisResult::fail();
     }
     c.typeID = ifRes.typeID();
@@ -258,7 +247,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     argTypes.reserve(fc.arguments.size());
     for (auto& arg : fc.arguments) {
         auto const argRes = dispatch(*arg);
-        if (iss && iss->fatal()) {
+        if (iss.fatal()) {
             return ExpressionAnalysisResult::fail();
         }
         success &= argRes.success();
@@ -266,7 +255,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
         argTypes.push_back(arg->typeID);
     }
     auto const objRes = dispatch(*fc.object);
-    if (iss && iss->fatal()) {
+    if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
     success &= objRes.success();
@@ -282,24 +271,18 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     /// in the scope for operator() It might be an idea to make all functions
     /// class types with defined operator()
     if (!objRes.isLValue()) {
-        if (iss) {
-            iss->push(BadFunctionCall(fc, SymbolID::Invalid, argTypes, BadFunctionCall::Reason::ObjectNotCallable));
-        }
+        iss.push(BadFunctionCall(fc, SymbolID::Invalid, argTypes, BadFunctionCall::Reason::ObjectNotCallable));
         return ExpressionAnalysisResult::fail();
     }
     if (!sym.is(objRes.symbolID(), SymbolCategory::OverloadSet)) {
-        if (iss) {
-            iss->push(BadFunctionCall(fc, SymbolID::Invalid, argTypes, BadFunctionCall::Reason::ObjectNotCallable));
-        }
+        iss.push(BadFunctionCall(fc, SymbolID::Invalid, argTypes, BadFunctionCall::Reason::ObjectNotCallable));
         return ExpressionAnalysisResult::fail();
     }
     auto const& overloadSet = sym.getOverloadSet(objRes.symbolID());
 
     auto const* functionPtr = overloadSet.find(argTypes);
     if (!functionPtr) {
-        if (iss) {
-            iss->push(BadFunctionCall(fc, objRes.symbolID(), argTypes, BadFunctionCall::Reason::NoMatchingFunction));
-        }
+        iss.push(BadFunctionCall(fc, objRes.symbolID(), argTypes, BadFunctionCall::Reason::NoMatchingFunction));
         return ExpressionAnalysisResult::fail();
     }
     auto const& function = *functionPtr;
@@ -310,9 +293,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
 
 bool Context::verifyConversion(ast::Expression const& from, TypeID to) const {
     if (from.typeID != to) {
-        if (iss) {
-            iss->push(BadTypeConversion(from, to));
-        }
+        iss.push(BadTypeConversion(from, to));
         return false;
     }
     return true;
@@ -320,9 +301,7 @@ bool Context::verifyConversion(ast::Expression const& from, TypeID to) const {
 
 TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
     auto submitIssue = [&] {
-        if (iss) {
-            iss->push(BadOperandsForBinaryExpression(expr, expr.lhs->typeID, expr.rhs->typeID));
-        }
+        iss.push(BadOperandsForBinaryExpression(expr, expr.lhs->typeID, expr.rhs->typeID));
     };
     auto verifySame = [&] {
         if (expr.lhs->typeID != expr.rhs->typeID) {

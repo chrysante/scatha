@@ -179,5 +179,5 @@ TypeID Context::analyzeTypeExpression(ast::Expression& expr) const {
 }
 
 ExpressionAnalysisResult Context::analyzeExpression(ast::Expression& expr) const {
-    return sema::analyzeExpression(expr, sym, &iss);
+    return sema::analyzeExpression(expr, sym, iss);
 }
