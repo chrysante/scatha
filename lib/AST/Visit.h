@@ -70,7 +70,11 @@ struct DefaultCase {
         SC_ASSERT(s.expression != nullptr, "");
         callback(*s.expression);
     }
-    void operator()(AlmostSameAs<ReturnStatement> auto&& s) const { callback(*s.expression); }
+    void operator()(AlmostSameAs<ReturnStatement> auto&& s) const {
+        if (s.expression) {
+            callback(*s.expression);            
+        }
+    }
     void operator()(AlmostSameAs<IfStatement> auto&& s) const {
         callback(*s.condition);
         callback(*s.ifBlock);
