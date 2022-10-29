@@ -35,11 +35,10 @@ requires std::constructible_from<T, Args...> UniquePtr<T> allocate(Args&&... arg
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
-/**
- ***Base class for all nodes in the AST
-
- Every derived class must specify its runtime type in the constructor via the \p NodeType enum.
- */
+/// ** Base class for all nodes in the AST **
+///
+/// Every derived class must specify its runtime type in the constructor via the \p NodeType enum.
+///
 struct SCATHA(API) AbstractSyntaxTree {
 public:
     virtual ~AbstractSyntaxTree() = default;
