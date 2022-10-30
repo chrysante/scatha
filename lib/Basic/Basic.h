@@ -104,6 +104,7 @@ using f32 = float;
 using f64 = double;
 
 using std::size_t;
+using ssize_t = std::ptrdiff_t;
 
 static_assert(sizeof(f32) == 4);
 static_assert(sizeof(f64) == 8);

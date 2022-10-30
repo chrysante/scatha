@@ -40,20 +40,21 @@ using namespace scatha::parse;
         std::cout << "\n==================================================\n";
         std::cout << "=== AST ==========================================\n";
         std::cout << "==================================================\n\n";
-        issue::IssueHandler iss;
-        auto tokens = lex::lex(text, iss);
-        Parser p(tokens);
-        auto ast = p.parse();
+        issue::LexicalIssueHandler lexIss;
+        auto tokens = lex::lex(text, lexIss);
+        issue::ParsingIssueHandler parseIss;
+        auto ast = parse::parse(tokens, parseIss);
         ast::printTree(ast.get());
 
         std::cout << "\n==================================================\n";
         std::cout << "=== Symbol Table =================================\n";
         std::cout << "==================================================\n\n";
-        auto const sym = sema::analyze(*ast, iss);
+        issue::SemaIssueHandler semaIss;
+        auto const sym = sema::analyze(*ast, semaIss);
         sema::printSymbolTable(sym);
-        std::cout << "\nEncoutered " << iss.semaIssues().size() << " issues\n";
+        std::cout << "\nEncoutered " << semaIss.issues().size() << " issues\n";
         std::cout << "==================================================\n";
-        for (auto const& issue : iss.semaIssues()) {
+        for (auto const& issue : semaIss.issues()) {
             issue.visit([](auto const& issue) {
                 auto const loc = issue.token().sourceLocation;
                 std::cout << "Line " << loc.line << " Col " << loc.column << ": ";

@@ -9,9 +9,11 @@
 #include <utl/ranges.hpp>
 #include <utl/vector.hpp>
 
+#include "AST/PrintTree.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
-#include "Parser/Parser.h"
+#include "Parser/Parser2.h"
+#include "Parser/ParsingIssue.h"
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
 
@@ -28,11 +30,12 @@ int main() {
     sstr << file.rdbuf();
     std::string const text = sstr.str();
     
-    issue::IssueHandler iss;
-    auto tokens = lex::lex(text, iss);
+    issue::LexicalIssueHandler lexIss;
+    auto tokens = lex::lex(text, lexIss);
     
-    if (!iss.lexicalIssues().empty()) {
-        for (auto& issue: iss.lexicalIssues()) {
+    if (!lexIss.empty()) {
+        std::cout << "Encountered lexical issues:\n";
+        for (auto& issue: lexIss.issues()) {
             auto const token = issue.token();
             auto const l = token.sourceLocation;
             std::cout << "Issue at " << token.id << " [L:" << l.line << " C:" << l.column << "] : ";
@@ -40,25 +43,39 @@ int main() {
                 std::cout << utl::nameof<T> << std::endl;
             });
         }
-        return 0;
+        return 1;
+    }
+    else {
+        std::cout << "No lexical issues.\n";
     }
     
-    auto ast = [&]{
-        try {
-            parse::Parser p(tokens);
-            return p.parse();
-        }
-        catch (std::exception const& e) {
-            std::cout << e.what() << std::endl;
-            std::exit(0);
-        }
-    }();
+    issue::ParsingIssueHandler parseIss;
+    auto ast = parse::parse2(tokens, parseIss);
     
-    auto sym = sema::analyze(*ast, iss);
+    if (!parseIss.empty()) {
+        std::cout << "Encountered syntax issues:\n";
+        
+        for (auto& issue: parseIss.issues()) {
+            std::cout << "L:" << issue.token().sourceLocation.line << " C:" << issue.token().sourceLocation.column << " : "
+                      << issue.reason() << std::endl;
+        }
+        ast::printTree(ast.get());
+        return 2;
+    }
+    else {
+        std::cout << "No syntax issues.\n";
+        ast::printTree(ast.get());
+    }
+    
+    return 0;
+    
+    issue::SemaIssueHandler semaIss;
+    auto sym = sema::analyze(*ast, semaIss);
     sema::printSymbolTable(sym);
     
-    if (!iss.semaIssues().empty()) {
-        for (auto& issue: iss.semaIssues()) {
+    if (!semaIss.empty()) {
+        std::cout << "Encountered semantic issues:\n";
+        for (auto& issue: semaIss.issues()) {
             auto const token = issue.token();
             auto const l = token.sourceLocation;
             std::cout << "Issue at " << token.id << " [L:" << l.line << " C:" << l.column << "] : ";
@@ -82,10 +99,13 @@ int main() {
                     }
                     std::cout << "\"" << c.cycle().front().astNode->token().id << "\"\n";
                 },
-                [](auto&) { std::cout << std::endl; }
+                []<typename T>(T const&) { std::cout << utl::nameof<T> << std::endl; }
             });
         }
-        return 0;
+        return 3;
+    }
+    else {
+        std::cout << "No semantic issues.\n";
     }
     
 }

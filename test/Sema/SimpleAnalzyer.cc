@@ -9,14 +9,15 @@
 
 namespace scatha::test {
 
-std::tuple<ast::UniquePtr<ast::AbstractSyntaxTree>, sema::SymbolTable, issue::IssueHandler>
+std::tuple<ast::UniquePtr<ast::AbstractSyntaxTree>, sema::SymbolTable, issue::SemaIssueHandler>
 produceDecoratedASTAndSymTable(std::string_view text) {
-    issue::IssueHandler iss;
-    auto tokens = lex::lex(text, iss);
-    parse::Parser p(tokens);
-    auto ast = p.parse();
-    auto sym = sema::analyze(*ast, iss);
-    return { std::move(ast), std::move(sym), std::move(iss) };
+    issue::LexicalIssueHandler lexIss;
+    auto tokens = lex::lex(text, lexIss);
+    issue::ParsingIssueHandler parseIss;
+    auto ast = parse::parse(tokens, parseIss);
+    issue::SemaIssueHandler semaIss;
+    auto sym = sema::analyze(*ast, semaIss);
+    return { std::move(ast), std::move(sym), std::move(semaIss) };
 }
 
 } // namespace scatha::test

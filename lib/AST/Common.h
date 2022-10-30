@@ -19,6 +19,7 @@ struct Block;
 struct FunctionDefinition;
 struct StructDefinition;
 struct VariableDeclaration;
+struct ParameterDeclaration;
 struct ExpressionStatement;
 struct ReturnStatement;
 struct IfStatement;
@@ -42,6 +43,7 @@ enum class NodeType {
     FunctionDefinition,
     StructDefinition,
     VariableDeclaration,
+    ParameterDeclaration,
     ExpressionStatement,
     ReturnStatement,
     IfStatement,
@@ -80,6 +82,8 @@ template <>
 struct ToEnumNodeTypeImpl<StructDefinition>: std::integral_constant<NodeType, NodeType::StructDefinition> {};
 template <>
 struct ToEnumNodeTypeImpl<VariableDeclaration>: std::integral_constant<NodeType, NodeType::VariableDeclaration> {};
+template <>
+struct ToEnumNodeTypeImpl<ParameterDeclaration>: std::integral_constant<NodeType, NodeType::ParameterDeclaration> {};
 template <>
 struct ToEnumNodeTypeImpl<ExpressionStatement>: std::integral_constant<NodeType, NodeType::ExpressionStatement> {};
 template <>
@@ -132,6 +136,10 @@ struct ToNodeTypeImpl<NodeType::StructDefinition> {
 template <>
 struct ToNodeTypeImpl<NodeType::VariableDeclaration> {
     using type = VariableDeclaration;
+};
+template <>
+struct ToNodeTypeImpl<NodeType::ParameterDeclaration> {
+    using type = ParameterDeclaration;
 };
 template <>
 struct ToNodeTypeImpl<NodeType::ExpressionStatement> {

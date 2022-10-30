@@ -25,7 +25,7 @@ namespace scatha::sema {
 ///
 /// \returns (Incomplete) dependency graph
 SCATHA(API)
-DependencyGraph gatherNames(SymbolTable& sym, ast::AbstractSyntaxTree& astRoot, issue::IssueHandler& issueHandler);
+DependencyGraph gatherNames(SymbolTable& sym, ast::AbstractSyntaxTree& astRoot, issue::SemaIssueHandler& issueHandler);
 
 } // namespace scatha::sema
 

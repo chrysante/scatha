@@ -10,6 +10,10 @@ namespace scatha::lex {
 class LexicalIssue;
 }
 
+namespace scatha::parse {
+class ParsingIssue;
+}
+
 namespace scatha::sema {
 class SemanticIssue;
 }
@@ -19,33 +23,51 @@ namespace scatha::issue {
 enum class Fatal;
 inline constexpr Fatal fatal{};
 
-class SCATHA(API) IssueHandler {
+namespace internal {
+
+template <typename T>
+class SCATHA(API) IssueHandlerBase {
 public:
-    IssueHandler();
-    IssueHandler(IssueHandler&&) noexcept;
-    ~IssueHandler();
-
-    IssueHandler& operator=(IssueHandler&&) noexcept;
-
-    void push(lex::LexicalIssue);
-    void push(lex::LexicalIssue, Fatal);
+    IssueHandlerBase();
+    IssueHandlerBase(IssueHandlerBase&&) noexcept;
+    ~IssueHandlerBase();
     
-    void push(sema::SemanticIssue);
-    void push(sema::SemanticIssue, Fatal);
-
-    std::span<lex::LexicalIssue const> lexicalIssues() const;
+    IssueHandlerBase& operator=(IssueHandlerBase&&) noexcept;
     
-    std::span<sema::SemanticIssue const> semaIssues() const;
-
-    bool fatal() const { return _fatal; }
-
+    void push(T const&);
+    void push(T&&);
+    void push(T const&, Fatal);
+    void push(T&&, Fatal);
+    
+    std::span<T const> issues() const;
+    
+    bool empty() const;
+    
+    bool fatal() const;
+    
 private:
-    void setFatal() { _fatal = true; }
+    void setFatal();
     struct Impl;
-
+    
 private:
     std::unique_ptr<Impl> impl;
-    bool _fatal = false;
+};
+
+}
+
+class LexicalIssueHandler: public internal::IssueHandlerBase<lex::LexicalIssue> {
+public:
+    using internal::IssueHandlerBase<lex::LexicalIssue>::IssueHandlerBase;
+};
+
+class ParsingIssueHandler: public internal::IssueHandlerBase<parse::ParsingIssue> {
+public:
+    using internal::IssueHandlerBase<parse::ParsingIssue>::IssueHandlerBase;
+};
+
+class SemaIssueHandler: public internal::IssueHandlerBase<sema::SemanticIssue> {
+public:
+    using internal::IssueHandlerBase<sema::SemanticIssue>::IssueHandlerBase;
 };
 
 } // namespace scatha::issue

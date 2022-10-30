@@ -21,18 +21,17 @@ void printTree(AbstractSyntaxTree const* root) {
 }
 
 static void printTreeImpl(AbstractSyntaxTree const* node, std::ostream& str, int indent);
-static void printTreeImpl(AbstractSyntaxTree const* node, std::ostream& str, int indent, NodeType type);
 
 void printTree(AbstractSyntaxTree const* root, std::ostream& str) {
     printTreeImpl(root, str, 0);
 }
 
-static void printTreeImpl(AbstractSyntaxTree const* node, std::ostream& str, int indent) {
-    printTreeImpl(node, str, indent, node->nodeType());
-}
-
-static void printTreeImpl(AbstractSyntaxTree const* inNode, std::ostream& str, int ind, NodeType type) {
-    switch (type) {
+static void printTreeImpl(AbstractSyntaxTree const* inNode, std::ostream& str, int ind) {
+    if (!inNode) {
+        str << indent(ind) << "<invalid-node>" << endl;
+        return;
+    }
+    switch (inNode->nodeType()) {
     case NodeType::TranslationUnit: {
         auto const* const tu = static_cast<TranslationUnit const*>(inNode);
         str << indent(ind) << "<translation-unit>" << endl;
@@ -53,8 +52,12 @@ static void printTreeImpl(AbstractSyntaxTree const* inNode, std::ostream& str, i
 
     case NodeType::FunctionDefinition: {
         auto const* const node = static_cast<FunctionDefinition const*>(inNode);
-        str << indent(ind) << "<function-definition> " << node->name() << " -> ";
-        printExpression(*node->returnTypeExpr, str);
+        str << indent(ind) << "<function-definition> ";
+        printExpression(*node->name, str);
+        if (node->returnTypeExpr) {
+            str << " -> ";
+            printExpression(*node->returnTypeExpr, str);            
+        }
         str << endl;
         for (auto& p : node->parameters) {
             printTreeImpl(p.get(), str, ind + 1);
@@ -65,20 +68,28 @@ static void printTreeImpl(AbstractSyntaxTree const* inNode, std::ostream& str, i
 
     case NodeType::StructDefinition: {
         auto const* const node = static_cast<StructDefinition const*>(inNode);
-        str << indent(ind) << "<struct-definition> " << node->name() << endl;
+        str << indent(ind) << "<struct-definition> ";
+        printExpression(*node->name);
+        str << endl;
         printTreeImpl(node->body.get(), str, ind + 1);
         break;
     }
 
     case NodeType::VariableDeclaration: {
         auto const* const node = static_cast<VariableDeclaration const*>(inNode);
-        str << indent(ind) << "<variable-declaration> " << node->name() << " " << endl;
-        if (node->typeExpr) {
-            printTreeImpl(node->typeExpr.get(), str, ind + 1);
-        }
-        if (node->initExpression.get()) {
-            printTreeImpl(node->initExpression.get(), str, ind + 1);
-        }
+        str << indent(ind) << "<variable-declaration> ";
+        printExpression(*node->name);
+        str << " " << endl;
+        printTreeImpl(node->typeExpr.get(), str, ind + 1);
+        printTreeImpl(node->initExpression.get(), str, ind + 1);
+        break;
+    }
+    case NodeType::ParameterDeclaration: {
+        auto const* const node = static_cast<ParameterDeclaration const*>(inNode);
+        str << indent(ind) << "<parameter-declaration> ";
+        printExpression(*node->name);
+        str << " " << endl;
+        printTreeImpl(node->typeExpr.get(), str, ind + 1);
         break;
     }
 

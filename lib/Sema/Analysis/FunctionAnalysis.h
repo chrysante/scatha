@@ -16,7 +16,7 @@ namespace scatha::sema {
 /// This may change if we introduce compile time evaluation of functions.
 SCATHA(API)
 void analyzeFunctions(SymbolTable& symbolTable,
-                      issue::IssueHandler& issueHandler,
+                      issue::SemaIssueHandler& issueHandler,
                       std::span<DependencyGraphNode const> functions);
 
 } // namespace scatha::sema

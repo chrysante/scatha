@@ -39,13 +39,13 @@ struct Context {
     std::optional<char> next(size_t offset = 1) const;
     
     std::string_view text;
-    issue::IssueHandler& iss;
+    issue::LexicalIssueHandler& iss;
     SourceLocation currentLocation{ 0, 1, 1 };
 };
 
 } // namespace
 
-utl::vector<Token> lex::lex(std::string_view text, issue::IssueHandler& iss) {
+utl::vector<Token> lex::lex(std::string_view text, issue::LexicalIssueHandler& iss) {
     Context ctx{ text, iss };
     return ctx.run();
 }

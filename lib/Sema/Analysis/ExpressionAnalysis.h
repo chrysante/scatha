@@ -58,7 +58,7 @@ private:
 ///
 ExpressionAnalysisResult analyzeExpression(ast::Expression& expression,
                                            SymbolTable& symbolTable,
-                                           issue::IssueHandler& issueHandler);
+                                           issue::SemaIssueHandler& issueHandler);
 
 } // namespace scatha::sema
 

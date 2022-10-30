@@ -11,7 +11,7 @@ namespace scatha::sema {
 
 SCATHA(API)
 void instantiateEntities(SymbolTable& symbolTable,
-                         issue::IssueHandler& issueHandler,
+                         issue::SemaIssueHandler& issueHandler,
                          DependencyGraph& typeDependencies);
 
 } // namespace scatha::sema

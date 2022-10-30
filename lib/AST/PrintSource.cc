@@ -49,9 +49,13 @@ struct Context {
             str << endl << "}";
             },
             [&](FunctionDefinition const& fn) {
-            str << "fn " << fn.name() << "(";
+                str << "fn ";
+                print(*fn.name);
+                str << "(";
             for (bool first = true; auto const& param : fn.parameters) {
-                str << (first ? ((void)(first = false), "") : ", ") << param->name() << ": ";
+                str << (first ? ((void)(first = false), "") : ", ");
+                print(*param->name);
+                str << ": ";
                 print(*param->typeExpr);
             }
             str << ") -> ";
@@ -60,11 +64,15 @@ struct Context {
             print(*fn.body);
             },
             [&](StructDefinition const& s) {
-            str << "struct " << s.name() << " ";
+                str << "struct ";
+                print(*s.name);
+                str << " ";
             print(*s.body);
         },
             [&](VariableDeclaration const& var) {
-            str << (var.isConstant ? "let" : "var") << " " << var.name() << ": ";
+                str << (var.isConstant ? "let" : "var");
+                print(*var.name);
+                str << ": ";
             if (var.typeExpr) {
                 print(*var.typeExpr);
             }

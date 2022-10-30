@@ -66,7 +66,11 @@ void finalize(Token& token) {
             token.isSeparator = true;
         }
     }
-
+    if (token.type == TokenType::EndOfFile) {
+        token.isPunctuation = true;
+        token.isSeparator = true;
+    }
+    
     if (std::optional<Keyword> const keyword = toKeyword(token.id)) {
         token.isKeyword       = true;
         token.keyword         = *keyword;

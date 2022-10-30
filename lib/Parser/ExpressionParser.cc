@@ -4,6 +4,8 @@
 
 namespace scatha::parse {
 
+using enum ParsingIssue::Reason;
+
 ast::UniquePtr<ast::Expression> ExpressionParser::parseExpression() {
     return parseComma();
 }
@@ -11,6 +13,9 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseExpression() {
 template <ast::BinaryOperator... Op>
 ast::UniquePtr<ast::Expression> ExpressionParser::parseBinaryOperatorLTR(auto&& operand) {
     ast::UniquePtr<ast::Expression> left = operand();
+//    if (!left) {
+//        return nullptr;
+//    }
     // -
     auto tryParse = [&](Token const& token, ast::BinaryOperator op) {
         if (token.id != toString(op)) {
@@ -70,7 +75,7 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseConditional() {
     if (auto const& token = tokens.peek(); token.id == "?") {
         tokens.eat();
         auto lhs = parseComma();
-        expectID(tokens.eat(), ":");
+        expectID(iss, tokens.eat(), ":");
         auto rhs = parseConditional();
         return allocate<ast::Conditional>(std::move(logicalOr), std::move(lhs), std::move(rhs), token);
     }
@@ -129,24 +134,29 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseUnary() {
     if (auto postfix = parsePostfix()) {
         return postfix;
     }
-    Token const& token = tokens.eat();
+    Token const& token = tokens.peek();
     if (token.id == "&") {
         SC_DEBUGFAIL(); // Do we really want to support addressof operator?
     }
     else if (token.id == "+") {
+        tokens.eat();
         return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Promotion, parseUnary(), token);
     }
     else if (token.id == "-") {
+        tokens.eat();
         return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::Negation, parseUnary(), token);
     }
     else if (token.id == "~") {
+        tokens.eat();
         return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::BitwiseNot, parseUnary(), token);
     }
     else if (token.id == "!") {
+        tokens.eat();
         return ast::allocate<ast::UnaryPrefixExpression>(ast::UnaryPrefixOperator::LogicalNot, parseUnary(), token);
     }
     else {
-        throw ParsingIssue(token, "Unqualified ID");
+        iss.push(ParsingIssue(token, ExpectedExpression));
+        return nullptr;
     }
 }
 
@@ -194,14 +204,15 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parsePrimary() {
         tokens.eat();
         ast::UniquePtr<ast::Expression> e = parseComma();
         Token const& next                 = tokens.eat();
-        expectID(next, ")");
+        expectID(iss, next, ")");
         return e;
     }
     return nullptr;
 }
 
 ast::UniquePtr<ast::Identifier> ExpressionParser::parseIdentifier() {
-    if (tokens.peek().type != TokenType::Identifier) {
+    Token const& next = tokens.peek();
+    if (next.type != TokenType::Identifier || next.isDeclarator) {
         return nullptr;
     }
     return ast::allocate<ast::Identifier>(tokens.eat());
@@ -252,16 +263,17 @@ ast::UniquePtr<FunctionCallLike> ExpressionParser::parseFunctionCallLike(ast::Un
         if (next.id == close) {
             break;
         }
-        expectID(next, ",");
+        expectID(iss, next, ",");
     }
     return result;
 }
 
 ast::UniquePtr<ast::Subscript> ExpressionParser::parseSubscript(ast::UniquePtr<ast::Expression> primary) {
     auto result = parseFunctionCallLike<ast::Subscript>(std::move(primary), "[", "]");
-    if (result->arguments.empty()) {
-        throw ParsingIssue(tokens.current(), "Subscript with no arguments is not allowed");
-    }
+    // This is a semantic error 
+//    if (result->arguments.empty()) {
+//        throw ParsingIssue(tokens.current(), "Subscript with no arguments is not allowed");
+//    }
     return result;
 }
 
@@ -279,7 +291,7 @@ ast::UniquePtr<ast::Expression> ExpressionParser::parseMemberAccess(ast::UniqueP
         tokens.eat();
         ast::UniquePtr<ast::Expression> right = parseIdentifier();
         if (!right) {
-            throw ParsingIssue(tokens.peek(), "Expected expression");
+            iss.push(ParsingIssue(tokens.peek(), ExpectedExpression));
         }
         left = ast::allocate<ast::MemberAccess>(std::move(left), std::move(right), token);
         continue;

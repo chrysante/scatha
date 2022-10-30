@@ -19,6 +19,7 @@ std::string_view toString(NodeType t) {
         { NodeType::FunctionDefinition,    "FunctionDefinition" },
         { NodeType::StructDefinition,      "StructDefinition" },
         { NodeType::VariableDeclaration,   "VariableDeclaration" },
+        { NodeType::ParameterDeclaration,  "ParameterDeclaration" },
         { NodeType::ExpressionStatement,   "ExpressionStatement" },
         { NodeType::ReturnStatement,       "ReturnStatement" },
         { NodeType::IfStatement,           "IfStatement" },

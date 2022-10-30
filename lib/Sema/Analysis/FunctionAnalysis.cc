@@ -32,14 +32,14 @@ struct Context {
     void verifyConversion(ast::Expression const& from, TypeID to) const;
 
     SymbolTable& sym;
-    issue::IssueHandler& iss;
+    issue::SemaIssueHandler& iss;
     ast::FunctionDefinition* currentFunction = nullptr;
 };
 
 } // namespace
 
 void sema::analyzeFunctions(SymbolTable& sym,
-                            issue::IssueHandler& iss,
+                            issue::SemaIssueHandler& iss,
                             std::span<DependencyGraphNode const> functions) {
     Context ctx{ sym, iss };
     for (auto const& node : functions) {

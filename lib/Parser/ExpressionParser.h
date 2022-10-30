@@ -4,13 +4,16 @@
 #include "AST/AST.h"
 #include "Common/Allocator.h"
 #include "Parser/TokenStream.h"
+#include "Issue/IssueHandler.h"
 
 namespace scatha::parse {
 
-/*
+/**
  clang-format off
  
- /// MARK: Operator precedence
+ MARK: Operator precedence
+ \code
+ 
  +-----------+-------------------+-------------------------------+-------------------+
  |Precedence | Operator          | Description                   | Associativity     |
  +-----------+-------------------+-------------------------------+-------------------+
@@ -43,8 +46,11 @@ namespace scatha::parse {
  |  14       | ,                 | Comma operator                | Left to right ->  |
  +-----------+-------------------+-------------------------------+-------------------+
 
- /// MARK: Grammar
-
+ \endcode
+ 
+ MARK: Grammar
+ \code
+ 
  <comma-expression>              ::= <assignment-expression>
                                    | <comma-expression> "," <assignment-expression>
  <assignment-expression>         ::= <conditional-expression>
@@ -96,12 +102,14 @@ namespace scatha::parse {
                                    | <string-literal>
                                    | "(" <comma-expression> ")"
  
+ \endcode
+ 
  clang-format on
  */
 
 class SCATHA(API) ExpressionParser {
 public:
-    explicit ExpressionParser(TokenStream& tokens): tokens(tokens) {}
+    explicit ExpressionParser(TokenStream& tokens, issue::ParsingIssueHandler& iss): tokens(tokens), iss(iss) {}
 
     ast::UniquePtr<ast::Expression> parseExpression();
 
@@ -144,6 +152,7 @@ private:
 
 private:
     TokenStream& tokens;
+    issue::ParsingIssueHandler& iss;
 };
 
 } // namespace scatha::parse

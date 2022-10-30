@@ -28,13 +28,13 @@ struct Context {
     size_t gather(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
 
     SymbolTable& sym;
-    issue::IssueHandler& iss;
+    issue::SemaIssueHandler& iss;
     DependencyGraph& dependencyGraph;
 };
 
 } // namespace
 
-DependencyGraph scatha::sema::gatherNames(SymbolTable& sym, ast::AbstractSyntaxTree& root, issue::IssueHandler& iss) {
+DependencyGraph scatha::sema::gatherNames(SymbolTable& sym, ast::AbstractSyntaxTree& root, issue::SemaIssueHandler& iss) {
     DependencyGraph dependencyGraph;
     Context ctx{ sym, iss, dependencyGraph };
     ctx.dispatch(root);

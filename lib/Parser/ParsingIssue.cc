@@ -1,45 +1,58 @@
 #include "Parser/ParsingIssue.h"
 
-#include <sstream>
+#include <utl/utility.hpp>
 
-namespace scatha::parse {
+#include "Issue/IssueHandler.h"
 
-ParsingIssue::ParsingIssue(Token const& token, std::string const& message):
-    ProgramIssue(token, "Parsing Issue: " + message) {}
+using namespace scatha;
 
-void expectIdentifier(Token const& token, [[maybe_unused]] std::string_view message) {
+using enum parse::ParsingIssue::Reason;
+
+SCATHA(API) std::string_view parse::toString(ParsingIssue::Reason reason) {
+    return UTL_SERIALIZE_ENUM(reason, {
+        { ExpectedIdentifier, "Expected Identifier" },
+        { ExpectedDeclarator, "Expected Declarator" },
+        { ExpectedSeparator,  "Expected Separator" },
+        { ExpectedExpression, "Expected Expression" },
+        { ExpectedSpecificID, "Expected SpecificID" },
+        { UnqualifiedID,      "Unqualified ID" }
+    });
+}
+
+SCATHA(API) std::ostream& parse::operator<<(std::ostream& str, ParsingIssue::Reason reason) {
+    return str << toString(reason);
+}
+
+bool parse::expectIdentifier(issue::ParsingIssueHandler& iss, Token const& token) {
     if (!token.isIdentifier) {
-        throw ParsingIssue(token, "Expected Identifier");
+        iss.push(ParsingIssue(token, ExpectedIdentifier));
+        return false;
     }
+    return true;
 }
 
-void expectKeyword(Token const& token, [[maybe_unused]] std::string_view message) {
-    if (!token.isKeyword) {
-        throw ParsingIssue(token, "Expected Keyword");
+bool parse::expectDeclarator(issue::ParsingIssueHandler& iss, Token const& token) {
+    if (!token.isDeclarator) {
+        iss.push(ParsingIssue(token, ExpectedDeclarator));
+        return false;
     }
+    return true;
 }
 
-void expectDeclarator(Token const& token, [[maybe_unused]] std::string_view message) {
-    if (!token.isKeyword || token.keywordCategory != KeywordCategory::Declarators) {
-        throw ParsingIssue(token, "Expected Declarator");
-    }
-}
-
-void expectSeparator(Token const& token, [[maybe_unused]] std::string_view message) {
+bool parse::expectSeparator(issue::ParsingIssueHandler& iss, Token const& token) {
     if (!token.isSeparator) {
-        throw ParsingIssue(token, "Unqualified ID. Expected ';'");
+        iss.push(ParsingIssue(token, ExpectedSeparator));
+        return false;
     }
+    return true;
 }
 
-void expectID(Token const& token, std::string_view id, std::string_view message) {
+bool parse::expectID(issue::ParsingIssueHandler& iss, Token const& token, std::string id) {
     if (token.id != id) {
-        std::stringstream sstr;
-        sstr << "Unqualified ID. Expected '" << id << "'";
-        if (!message.empty()) {
-            sstr << "\n" << message;
-        }
-        throw ParsingIssue(token, sstr.str());
+        iss.push(ParsingIssue::expectedID(token, std::move(id)));
+        return false;
     }
+    return true;
 }
 
-} // namespace scatha::parse
+

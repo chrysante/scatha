@@ -2,41 +2,76 @@
 
 #include "Basic/Basic.h"
 #include "Common/Keyword.h"
+#include "Common/Expected.h"
 #include "Parser/ExpressionParser.h"
 #include "Parser/ParsingIssue.h"
+#include "Parser/TokenStream.h"
 
-namespace scatha::parse {
+using namespace scatha;
+using namespace parse;
 
-/// MARK: Public
-Parser::Parser(utl::vector<Token> tokens): tokens(std::move(tokens)) {}
+using enum ParsingIssue::Reason;
 
-ast::UniquePtr<ast::AbstractSyntaxTree> Parser::parse() {
+namespace {
+
+struct Context {
+    ast::UniquePtr<ast::AbstractSyntaxTree> run();
+
+    ast::UniquePtr<ast::TranslationUnit> parseTranslationUnit();
+    ast::UniquePtr<ast::Declaration> parseDeclaration();
+    ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration(bool isFunctionParameter = false);
+    ast::UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
+    ast::UniquePtr<ast::StructDefinition> parseStructDefinition();
+    ast::UniquePtr<ast::Block> parseBlock();
+    ast::UniquePtr<ast::Statement> parseStatement();
+    ast::UniquePtr<ast::ReturnStatement> parseReturnStatement();
+    ast::UniquePtr<ast::IfStatement> parseIfStatement();
+    ast::UniquePtr<ast::WhileStatement> parseWhileStatement();
+    
+    ast::UniquePtr<ast::Expression> parseExpression();
+    ast::UniquePtr<ast::Expression> parsePostfixExpression();
+    ast::UniquePtr<ast::Expression> parseConditionalExpression();
+
+    /// Helpers
+    
+    void parseFunctionParameters(ast::FunctionDefinition*);
+    
+    TokenStream tokens;
+    issue::ParsingIssueHandler& iss;
+};
+
+}
+
+ast::UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens,
+                                                     issue::ParsingIssueHandler& iss)
+{
+    Context ctx{ .tokens{ std::move(tokens) }, .iss = iss };
+    return ctx.run();
+}
+
+ast::UniquePtr<ast::AbstractSyntaxTree> Context::run() {
     return parseTranslationUnit();
 }
 
-ast::UniquePtr<ast::TranslationUnit> Parser::parseTranslationUnit() {
+ast::UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
     ast::UniquePtr<ast::TranslationUnit> result = ast::allocate<ast::TranslationUnit>();
     while (true) {
-        if (tokens.peek().type == TokenType::EndOfFile) {
+        Token const& token = tokens.peek();
+        if (token.type == TokenType::EndOfFile) {
             break;
         }
         auto decl = parseDeclaration();
-        if (decl == nullptr) {
-            throw ParsingIssue(tokens.peek(), "Expected Declarator");
+        if (decl != nullptr) {
+            result->declarations.push_back(std::move(decl));
         }
-        result->declarations.push_back(std::move(decl));
     }
-
     return result;
 }
 
-/// MARK: Private
-ast::UniquePtr<ast::Declaration> Parser::parseDeclaration() {
+ast::UniquePtr<ast::Declaration> Context::parseDeclaration() {
     Token const& token = tokens.peek();
-    if (token.type == TokenType::EndOfFile) {
-        return nullptr;
-    }
-    if (!token.isKeyword) {
+    SC_ASSERT(token.type != TokenType::EndOfFile, "This should be handled by parseTranslationUnit()");
+    if (!token.isDeclarator) {
         return nullptr;
     }
     switch (token.keyword) {
@@ -47,10 +82,12 @@ ast::UniquePtr<ast::Declaration> Parser::parseDeclaration() {
     case Struct: return parseStructDefinition();
     default: break;
     }
-    return nullptr;
+    SC_UNREACHABLE();
+//    iss.push(ParsingIssue(token, ExpectedDeclarator));
+//    return nullptr;
 }
 
-ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(bool isFunctionParameter) {
+ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration(bool isFunctionParameter) {
     bool isConst = false;
     if (!isFunctionParameter) {
         auto const& decl = tokens.eat();
@@ -59,37 +96,45 @@ ast::UniquePtr<ast::VariableDeclaration> Parser::parseVariableDeclaration(bool i
         isConst = decl.keyword == Keyword::Let;
     }
     Token const& name = tokens.eat();
-    expectIdentifier(name);
+    expectIdentifier(iss, name);
     auto result                 = ast::allocate<ast::VariableDeclaration>(name);
     result->isConstant          = isConst;
     result->isFunctionParameter = isFunctionParameter;
     if (tokens.peek().id == ":") {
         tokens.eat();
-        result->typeExpr = parsePostfixExpression();
+        result->typeExpr = parseConditionalExpression();
     }
     else if (isFunctionParameter) {
-        // guaranteed to throw
-        expectID(tokens.peek(), ":");
+        iss.push(ParsingIssue::expectedID(tokens.peek(), ":"));
+        return result;
     }
     if (tokens.peek().id == "=") {
         if (isFunctionParameter) {
-            throw ParsingIssue(tokens.peek(), "Unqualified ID");
+            iss.push(ParsingIssue(tokens.peek(), UnqualifiedID));
+            return result;
         }
         tokens.eat();
         result->initExpression = parseExpression();
+//        if (!result->initExpression) {
+//        }
     }
     if (!isFunctionParameter) {
-        Token const& next = tokens.eat();
-        expectSeparator(next);
+        Token const& next = tokens.peek();
+        if (expectSeparator(iss, next)) {
+            tokens.eat();
+        }
+        else {
+            tokens.advanceUntilStable();
+        }
     }
     return result;
 }
 
-ast::UniquePtr<ast::FunctionDefinition> Parser::parseFunctionDefinition() {
+ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     Token const& declarator = tokens.eat();
     SC_EXPECT(declarator.isKeyword && declarator.keyword == Keyword::Function, "Should have checked this before");
     Token const& name = tokens.eat();
-    expectIdentifier(name);
+    expectIdentifier(iss, name);
     auto result = ast::allocate<ast::FunctionDefinition>(name);
     parseFunctionParameters(result.get());
     if (Token const& token = tokens.peek(); token.id == "->") {
@@ -102,16 +147,18 @@ ast::UniquePtr<ast::FunctionDefinition> Parser::parseFunctionDefinition() {
         copy.type              = TokenType::Identifier;
         result->returnTypeExpr = ast::allocate<ast::Identifier>(copy);
     }
-    if (tokens.peek().id != "{") {
-        throw ParsingIssue(tokens.peek(), "Expected '{' after function declaration");
+    if (!expectID(iss, tokens.peek(), "{")) {
+        if (!tokens.advanceTo("{")) {
+            return nullptr;
+        }
     }
     result->body = parseBlock();
     return result;
 }
 
-void Parser::parseFunctionParameters(ast::FunctionDefinition* fn) {
+void Context::parseFunctionParameters(ast::FunctionDefinition* fn) {
     Token const& openParan = tokens.eat();
-    expectID(openParan, "(");
+    expectID(iss, openParan, "(");
     if (tokens.peek().id == ")") {
         tokens.eat();
         return;
@@ -119,44 +166,47 @@ void Parser::parseFunctionParameters(ast::FunctionDefinition* fn) {
     while (true) {
         fn->parameters.push_back(parseVariableDeclaration(/* isFunctionParameter = */ true));
         if (Token const& next = tokens.eat(); next.id != ",") {
-            expectID(next, ")");
+            expectID(iss, next, ")");
             break;
         }
     }
 }
 
-ast::UniquePtr<ast::StructDefinition> Parser::parseStructDefinition() {
+ast::UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
     Token const& declarator = tokens.eat();
     SC_EXPECT(declarator.isKeyword && declarator.keyword == Keyword::Struct, "Should have checked this before");
     Token const& name = tokens.eat();
-    expectIdentifier(name);
+    expectIdentifier(iss, name);
     auto result = ast::allocate<ast::StructDefinition>(name);
-    if (tokens.peek().id != "{") {
-        throw ParsingIssue(tokens.peek(), "Expected '{' after struct declaration");
+    if (!expectID(iss, tokens.peek(), "{")) {
+        if (!tokens.advanceTo("{")) {
+            return nullptr;
+        }
     }
     result->body = parseBlock();
     return result;
 }
 
-ast::UniquePtr<ast::Block> Parser::parseBlock() {
+ast::UniquePtr<ast::Block> Context::parseBlock() {
     auto const& openBrace = tokens.eat();
-    expectID(openBrace, "{");
+    expectID(iss, openBrace, "{");
     auto result = ast::allocate<ast::Block>(openBrace);
     while (true) {
-        if (tokens.peek().id == "}") {
+        Token const& next = tokens.peek();
+        if (next.id == "}") {
             tokens.eat();
             break;
         }
         auto statement = parseStatement();
-        if (statement == nullptr) {
-            throw ParsingIssue(tokens.current(), "Expected statement or '}'");
+        if (statement != nullptr) {
+            result->statements.push_back(std::move(statement));
         }
-        result->statements.push_back(std::move(statement));
+//        tokens.advancePastSeparator();
     }
     return result;
 }
 
-ast::UniquePtr<ast::Statement> Parser::parseStatement() {
+ast::UniquePtr<ast::Statement> Context::parseStatement() {
     if (ast::UniquePtr<ast::Statement> result = parseDeclaration(); result != nullptr) {
         return result;
     }
@@ -168,9 +218,10 @@ ast::UniquePtr<ast::Statement> Parser::parseStatement() {
         case Return: return parseReturnStatement();
         case If: return parseIfStatement();
         case While: return parseWhileStatement();
-        default:
-            // Var / Let should have been handled above
-            throw ParsingIssue(token, "Unexpected ID");
+        default: {
+            iss.push(ParsingIssue(token, UnqualifiedID));
+            return nullptr;
+        }
         }
     }
     else if (token.id == "{") {
@@ -181,21 +232,21 @@ ast::UniquePtr<ast::Statement> Parser::parseStatement() {
         // be fine.
         auto result       = ast::allocate<ast::ExpressionStatement>(parseExpression(), token);
         Token const& next = tokens.eat();
-        expectSeparator(next);
+        expectSeparator(iss, next);
         return result;
     }
 }
 
-ast::UniquePtr<ast::ReturnStatement> Parser::parseReturnStatement() {
+ast::UniquePtr<ast::ReturnStatement> Context::parseReturnStatement() {
     auto const& token = tokens.current();
     SC_ASSERT_AUDIT(token.id == "return", "");
     auto result       = ast::allocate<ast::ReturnStatement>(parseExpression(), token);
     Token const& next = tokens.eat();
-    expectSeparator(next);
+    expectSeparator(iss, next);
     return result;
 }
 
-ast::UniquePtr<ast::IfStatement> Parser::parseIfStatement() {
+ast::UniquePtr<ast::IfStatement> Context::parseIfStatement() {
     auto const& keyword = tokens.current();
     SC_ASSERT_AUDIT(keyword.isKeyword, "");
     SC_ASSERT_AUDIT(keyword.keyword == Keyword::If, "");
@@ -218,7 +269,7 @@ ast::UniquePtr<ast::IfStatement> Parser::parseIfStatement() {
     return result;
 }
 
-ast::UniquePtr<ast::WhileStatement> Parser::parseWhileStatement() {
+ast::UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
     auto const& keyword = tokens.current();
     SC_ASSERT(keyword.isKeyword, "");
     SC_ASSERT(keyword.keyword == Keyword::While, "");
@@ -228,14 +279,17 @@ ast::UniquePtr<ast::WhileStatement> Parser::parseWhileStatement() {
     return result;
 }
 
-ast::UniquePtr<ast::Expression> Parser::parseExpression() {
-    ExpressionParser parser(tokens);
+ast::UniquePtr<ast::Expression> Context::parseExpression() {
+    ExpressionParser parser(tokens, iss);
     return parser.parseExpression();
 }
 
-ast::UniquePtr<ast::Expression> Parser::parsePostfixExpression() {
-    ExpressionParser parser(tokens);
+ast::UniquePtr<ast::Expression> Context::parsePostfixExpression() {
+    ExpressionParser parser(tokens, iss);
     return parser.parsePostfix();
 }
 
-} // namespace scatha::parse
+ast::UniquePtr<ast::Expression> Context::parseConditionalExpression() {
+    ExpressionParser parser(tokens, iss);
+    return parser.parseConditional();
+}

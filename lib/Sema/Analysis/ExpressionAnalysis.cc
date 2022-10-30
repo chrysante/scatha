@@ -32,14 +32,14 @@ struct Context {
     TypeID verifyBinaryOperation(ast::BinaryExpression const&) const;
 
     SymbolTable& sym;
-    issue::IssueHandler& iss;
+    issue::SemaIssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
     /// unset by Identifier
     bool performRestrictedNameLookup = false;
 };
 } // namespace
 
-ExpressionAnalysisResult analyzeExpression(ast::Expression& expr, SymbolTable& sym, issue::IssueHandler& iss) {
+ExpressionAnalysisResult analyzeExpression(ast::Expression& expr, SymbolTable& sym, issue::SemaIssueHandler& iss) {
     Context ctx{ .sym = sym, .iss = iss };
     return ctx.dispatch(expr);
 }

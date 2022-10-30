@@ -1,21 +1,29 @@
 #include <Catch/Catch2.hpp>
 
-#include <iostream>
-
 #include "AST/AST.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "Parser/ParsingIssue.h"
+#include "test/Parser/SimpleParser.h"
 
 using namespace scatha;
 using namespace parse;
 using namespace ast;
 
+// TODO: Replace these with test::parse()
 static auto makeAST(std::string text) {
-    issue::IssueHandler iss;
-    auto tokens = lex::lex(text, iss);
-    Parser p(tokens);
-    return p.parse();
+    issue::LexicalIssueHandler lexIss;
+    auto tokens = lex::lex(text, lexIss);
+    issue::ParsingIssueHandler parseIss;
+    return parse::parse(tokens, parseIss);
+}
+
+static auto testParse(std::string text) {
+    issue::LexicalIssueHandler lexIss;
+    auto tokens = lex::lex(text, lexIss);
+    issue::ParsingIssueHandler parseIss;
+    auto ast = parse::parse(tokens, parseIss);
+    return std::pair{ std::move(ast), std::move(parseIss) };
 }
 
 TEST_CASE("Parse simple function", "[parse]") {
@@ -24,8 +32,8 @@ fn mul(a: int, b: X.Y.Z) -> int {
 	var result = a;
 	return result;
 })";
-    auto const ast         = makeAST(text);
-    auto* const tu         = downCast<TranslationUnit>(ast.get());
+    auto const ast = makeAST(text);
+    auto* const tu = downCast<TranslationUnit>(ast.get());
     REQUIRE(tu->declarations.size() == 1);
     auto* const function = downCast<FunctionDefinition>(tu->declarations[0].get());
     CHECK(function->name() == "mul");
@@ -77,15 +85,25 @@ fn main() -> void {
     CHECK(floatLit->value == 1.2);
 }
 
-TEST_CASE("Parse invalid variable decl", "[parse]") {
+TEST_CASE("Parse last statement ending with '}'", "[parse]") {
     std::string const text = R"(
 fn main() {
-	var result: int * float = a;
+    {}
 })";
-    CHECK_THROWS_AS(makeAST(text), ParsingIssue);
-};
+    auto const [ast, iss] = testParse(text);
+    CHECK(iss.empty());
+}
 
-TEST_CASE("Parse invalid member access", "[parse]") {
+// Not a parsing but a semantic issue!
+//TEST_CASE("Parse invalid variable decl", "[parse][issue]") {
+//    std::string const text = R"(
+//fn main() {
+//	var result: int * float = a;
+//})";
+//    CHECK_THROWS_AS(makeAST(text), ParsingIssue);
+//};
+
+TEST_CASE("Parse invalid member access", "[parse][issue]") {
     std::string const text = R"(
 fn main() {
 	j.;
@@ -93,6 +111,6 @@ fn main() {
     CHECK_THROWS_AS(makeAST(text), ParsingIssue);
 };
 
-TEST_CASE("Parse conditional", "[parse]") {
+TEST_CASE("Parse conditional", "[parse][issue]") {
     CHECK_NOTHROW(makeAST("fn main() { true ? 1 : 4; }"));
 }

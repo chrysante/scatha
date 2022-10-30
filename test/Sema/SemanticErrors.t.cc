@@ -9,7 +9,7 @@
 using namespace scatha;
 using namespace sema;
 
-TEST_CASE("Use of undeclared identifier", "[sema]") {
+TEST_CASE("Use of undeclared identifier", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f() -> int { return x; }
 fn f(param: UnknownID) {}
@@ -25,7 +25,7 @@ struct X { struct Y {} }
     CHECK(issues.findOnLine<UseOfUndeclaredIdentifier>(6));
 }
 
-TEST_CASE("Bad symbol reference", "[sema]") {
+TEST_CASE("Bad symbol reference", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main() -> int {
 	let i = int;
@@ -43,7 +43,7 @@ fn f(i: 0) {}
     CHECK(issues.findOnLine<BadSymbolReference>(8));
 }
 
-TEST_CASE("Invalid redefinition of builtin types", "[sema]") {
+TEST_CASE("Invalid redefinition of builtin types", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 struct X {
 	fn int() {}
@@ -53,7 +53,7 @@ struct X {
     CHECK(issues.findOnLine<InvalidDeclaration>(4).has_value());
 }
 
-TEST_CASE("Bad type conversion", "[sema]") {
+TEST_CASE("Bad type conversion", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f() { let x: float = 1; }
 fn f(x: int) { let y: float = 1.; }
@@ -72,7 +72,7 @@ fn f(x: float) -> int { return "a string"; }
     CHECK(line4->to() == issues.sym.Int());
 }
 
-TEST_CASE("Bad operands for expression", "[sema]") {
+TEST_CASE("Bad operands for expression", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main(i: int) -> bool {
 	let a = !(i == 1.0);
@@ -97,7 +97,7 @@ fn main(i: int) -> bool {
     CHECK(issues.noneOnLine(6));
 }
 
-TEST_CASE("Bad function call expression", "[sema]") {
+TEST_CASE("Bad function call expression", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f() { X.callee(); }
 fn g() { X.callee(0); }
@@ -113,7 +113,7 @@ struct X {
     CHECK(line3->reason() == BadFunctionCall::Reason::NoMatchingFunction);
 }
 
-TEST_CASE("Bad member access expression", "[sema]") {
+TEST_CASE("Bad member access expression", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn main() {
 //  These aren't actually semantic issues but parsing issues.
@@ -131,7 +131,7 @@ struct X{ let data: float; }
     CHECK(issues.noneOnLine(6));
 }
 
-TEST_CASE("Invalid function redefinition", "[sema]") {
+TEST_CASE("Invalid function redefinition", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f() {}
 fn f() -> int {}
@@ -148,7 +148,7 @@ fn g() {}
     CHECK(line5->symbolCategory() == SymbolCategory::Function);
 }
 
-TEST_CASE("Invalid variable redefinition", "[sema]") {
+TEST_CASE("Invalid variable redefinition", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f(x: int) {
 	{ let x: float; }
@@ -169,7 +169,7 @@ fn f(x: int, x: int) {}
     CHECK(line6->existingSymbolCategory() == SymbolCategory::Variable);
 }
 
-TEST_CASE("Invalid redefinition category", "[sema]") {
+TEST_CASE("Invalid redefinition category", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 struct f{}
 fn f(){}
@@ -188,7 +188,7 @@ struct g{}
     CHECK(line5->existingSymbolCategory() == SymbolCategory::OverloadSet);
 }
 
-TEST_CASE("Invalid variable declaration", "[sema]") {
+TEST_CASE("Invalid variable declaration", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f() {
 	let v;
@@ -222,7 +222,7 @@ struct Y { var data: int; }
     CHECK(line8->expected() == ast::EntityCategory::Type);
 }
 
-TEST_CASE("Invalid declaration", "[sema]") {
+TEST_CASE("Invalid declaration", "[sema][issue]") {
     auto const issues  = test::getSemaIssues(R"(
 fn f() {
 	fn g() {}
@@ -240,7 +240,7 @@ fn f() {
     CHECK(line4->currentScope().symbolID() == fID);
 }
 
-TEST_CASE("Invalid statement at struct scope", "[sema]") {
+TEST_CASE("Invalid statement at struct scope", "[sema][issue]") {
     auto const issues  = test::getSemaIssues(R"(
 struct X {
 	return 0;
@@ -267,7 +267,7 @@ struct X {
     CHECK(issues.noneOnLine(9)); // fn f() { {} }
 }
 
-TEST_CASE("Cyclic dependency in struct definition", "[sema]") {
+TEST_CASE("Cyclic dependency in struct definition", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 struct X { var y: Y; }
 struct Y { var x: X; }
@@ -275,7 +275,7 @@ struct Y { var x: X; }
     CHECK(issues.findOnLine<StrongReferenceCycle>(2));
 }
 
-TEST_CASE("Cyclic dependency in struct definition - 2", "[sema]") {
+TEST_CASE("Cyclic dependency in struct definition - 2", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 struct X {
     var y: Y;

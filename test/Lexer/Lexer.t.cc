@@ -23,9 +23,9 @@ struct TestCase {
     std::string text;
     std::vector<ReferenceToken> reference;
     void run() const {
-        issue::IssueHandler iss;
+        issue::LexicalIssueHandler iss;
         auto const tokens = lex::lex(text, iss);
-        REQUIRE(iss.lexicalIssues().empty());
+        REQUIRE(iss.empty());
         REQUIRE(tokens.size() == reference.size());
         for (std::size_t i = 0; i < std::min(tokens.size(), reference.size()); ++i) {
             INFO("LHS: " << reference[i] << "\nRHS: " << tokens[i]);
@@ -223,7 +223,7 @@ true
     test.run();
 }
 
-TEST_CASE("Lexer negative", "[lex]") {
+TEST_CASE("Lexer negative", "[lex][issue]") {
     auto issues = test::getLexicalIssues(R"(
 123someID
 123.23someID

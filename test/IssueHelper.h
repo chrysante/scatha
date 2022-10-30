@@ -7,30 +7,27 @@
 #include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
 
+namespace scatha::lex { class LexicalIssue; }
+namespace scatha::parse { class ParsingIssue; }
+namespace scatha::sema { class SemaIssue; }
+
 namespace scatha::test {
 
 namespace internal {
 
-template <typename T>
-constexpr auto issueGetterImpl() {
-    if constexpr (std::convertible_to<T, lex::LexicalIssue>) {
-        return &issue::IssueHandler::lexicalIssues;
-    }
-    else if constexpr (std::convertible_to<T, sema::SemanticIssue>) {
-        return &issue::IssueHandler::semaIssues;
-    }
-}
-
-template <typename T>
-inline constexpr auto IssueGetter = issueGetterImpl<T>();
+template <typename IssueBaseType>
+struct ToIssueHandler;
+template <> struct ToIssueHandler<lex::LexicalIssue> { using type = issue::LexicalIssueHandler; };
+template <> struct ToIssueHandler<parse::ParsingIssue> { using type = issue::ParsingIssueHandler; };
+template <> struct ToIssueHandler<sema::SemanticIssue> { using type = issue::SemaIssueHandler; };
 
 }
 
+template <typename IssueBaseType>
 struct IssueHelper {
     template <typename T>
     std::optional<T> findOnLine(size_t line, size_t col = static_cast<size_t>(-1)) const {
-        constexpr auto getter = internal::IssueGetter<T>;
-        for (auto&& issue: std::invoke(getter, iss)) {
+        for (auto&& issue: iss.issues()) {
             if (issue.template is<T>()) {
                 T const& t         = issue.template get<T>();
                 Token const& token = t.token();
@@ -43,7 +40,7 @@ struct IssueHelper {
     }
     
     bool noneOnLine(size_t line) const {
-        for (auto&& issue : iss.semaIssues()) {
+        for (auto&& issue : iss.issues()) {
             if (issue.token().sourceLocation.line == line) {
                 return false;
             }
@@ -52,12 +49,13 @@ struct IssueHelper {
     }
     
     sema::SymbolTable sym;
-    issue::IssueHandler iss;
+    using HandlerType = typename internal::ToIssueHandler<IssueBaseType>::type;
+    HandlerType iss;
 };
 
-IssueHelper getLexicalIssues(std::string_view text);
+IssueHelper<lex::LexicalIssue> getLexicalIssues(std::string_view text);
 
-IssueHelper getSemaIssues(std::string_view text);
+IssueHelper<sema::SemanticIssue> getSemaIssues(std::string_view text);
 
 }
 

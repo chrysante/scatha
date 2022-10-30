@@ -5,30 +5,28 @@
 #include "Lexer/Lexer.h"
 #include "Parser/ExpressionParser.h"
 #include "Parser/TokenStream.h"
+#include "test/Parser/SimpleParser.h"
 
 using namespace scatha;
 using namespace parse;
 using namespace ast;
 
-static TokenStream makeTokenStream(std::string text) {
-    issue::IssueHandler iss;
-    auto tokens = lex::lex(text, iss);
-    return TokenStream(tokens);
-}
-
 TEST_CASE("ExpressionParser", "[parse]") {
     SECTION("Simple Addition") {
-        auto tokens = makeTokenStream("a + b");
-        /* Expecting:
-
+        auto tokens = test::makeTokenStream("a + b");
+        /* clang-format off
+         
+         Expecting:
               add
              /   \
            "a"   "b"
 
-         */
+         clang-format on */
 
-        ExpressionParser parser(tokens);
+        issue::ParsingIssueHandler iss;
+        ExpressionParser parser(tokens, iss);
         auto expr = parser.parseExpression();
+        REQUIRE(iss.empty());
 
         auto* add = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
@@ -39,17 +37,20 @@ TEST_CASE("ExpressionParser", "[parse]") {
     }
 
     SECTION("Simple Multiplication") {
-        auto tokens = makeTokenStream("3 * x");
-        /* Expecting:
+        auto tokens = test::makeTokenStream("3 * x");
+        /* clang-format off
+          
+         Expecting:
+             mul
+            /   \
+          "3"   "x"
+         
+         clang-format on */
 
-                  mul
-                 /   \
-           "3"   "x"
-
-         */
-
-        ExpressionParser parser(tokens);
+        issue::ParsingIssueHandler iss;
+        ExpressionParser parser(tokens, iss);
         auto expr = parser.parseExpression();
+        REQUIRE(iss.empty());
 
         auto* mul = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
@@ -60,19 +61,22 @@ TEST_CASE("ExpressionParser", "[parse]") {
     }
 
     SECTION("Associativity") {
-        auto tokens = makeTokenStream("a + b * c");
-        /* Expecting:
-
-                  add
-                 /   \
+        auto tokens = test::makeTokenStream("a + b * c");
+        /* clang-format off
+         
+         Expecting:
+              add
+             /   \
            "a"   mul
                 /   \
-                  "b"   "c"
+              "b"   "c"
 
-         */
+         clang-format on */
 
-        ExpressionParser parser(tokens);
+        issue::ParsingIssueHandler iss;
+        ExpressionParser parser(tokens, iss);
         auto expr = parser.parseExpression();
+        REQUIRE(iss.empty());
 
         auto* add = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
@@ -91,19 +95,22 @@ TEST_CASE("ExpressionParser", "[parse]") {
     }
 
     SECTION("Parentheses") {
-        auto tokens = makeTokenStream("(a + b) * c");
-        /* Expecting:
-
-                    mul
-                   /   \
+        auto tokens = test::makeTokenStream("(a + b) * c");
+        /* clang-format off
+         
+         Expecting:
+                mul
+               /   \
              add   "c"
             /   \
           "a"   "b"
 
-         */
+         clang-format on */
 
-        ExpressionParser parser(tokens);
+        issue::ParsingIssueHandler iss;
+        ExpressionParser parser(tokens, iss);
         auto expr = parser.parseExpression();
+        REQUIRE(iss.empty());
 
         auto* mul = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);

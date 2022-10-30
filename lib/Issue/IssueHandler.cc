@@ -3,47 +3,66 @@
 #include <utl/vector.hpp>
 
 #include "Lexer/LexicalIssue.h"
+#include "Parser/ParsingIssue.h"
 #include "Sema/SemanticIssue.h"
 
-namespace scatha::issue {
+using namespace scatha;
+using namespace issue;
 
-struct IssueHandler::Impl {
-    utl::vector<lex::LexicalIssue> lexicalIssues;
-    utl::vector<sema::SemanticIssue> semaIssues;
+template <typename T>
+struct internal::IssueHandlerBase<T>::Impl {
+    utl::vector<T> issues;
+    bool fatal;
 };
 
-IssueHandler::IssueHandler(): impl(std::make_unique<Impl>()) {}
+template <typename T>
+internal::IssueHandlerBase<T>::IssueHandlerBase(): impl(std::make_unique<Impl>()) {}
 
-IssueHandler::IssueHandler(IssueHandler&&) noexcept = default;
+template <typename T>
+internal::IssueHandlerBase<T>::IssueHandlerBase(IssueHandlerBase&&) noexcept = default;
 
-IssueHandler::~IssueHandler() = default;
+template <typename T>
+internal::IssueHandlerBase<T>::~IssueHandlerBase() = default;
 
-IssueHandler& IssueHandler::operator=(IssueHandler&&) noexcept = default;
+template <typename T>
+internal::IssueHandlerBase<T>& internal::IssueHandlerBase<T>::operator=(IssueHandlerBase&&) noexcept = default;
 
-void IssueHandler::push(lex::LexicalIssue issue) {
-    impl->lexicalIssues.push_back(std::move(issue));
+template <typename T>
+void internal::IssueHandlerBase<T>::push(T const& issue) {
+    impl->issues.push_back(issue);
 }
 
-void IssueHandler::push(lex::LexicalIssue issue, Fatal) {
+template <typename T>
+void internal::IssueHandlerBase<T>::push(T&& issue) {
+    impl->issues.push_back(std::move(issue));
+}
+
+template <typename T>
+void internal::IssueHandlerBase<T>::push(T const& issue, Fatal) {
+    push(issue);
+    setFatal();
+}
+
+template <typename T>
+void internal::IssueHandlerBase<T>::push(T&& issue, Fatal) {
     push(std::move(issue));
     setFatal();
 }
 
-void IssueHandler::push(sema::SemanticIssue issue) {
-    impl->semaIssues.push_back(std::move(issue));
+template <typename T>
+std::span<T const> internal::IssueHandlerBase<T>::issues() const {
+    return impl->issues;
 }
 
-void IssueHandler::push(sema::SemanticIssue issue, Fatal) {
-    push(std::move(issue));
-    setFatal();
-}
+template <typename T>
+bool internal::IssueHandlerBase<T>::empty() const { return impl->issues.empty(); }
 
-std::span<lex::LexicalIssue const> IssueHandler::lexicalIssues() const {
-    return impl->lexicalIssues;
-}
+template <typename T>
+bool internal::IssueHandlerBase<T>::fatal() const { return impl->fatal; }
 
-std::span<sema::SemanticIssue const> IssueHandler::semaIssues() const {
-    return impl->semaIssues;
-}
+template <typename T>
+void internal::IssueHandlerBase<T>::setFatal() { impl->fatal = true; }
 
-} // namespace scatha::issue
+template class internal::IssueHandlerBase<lex::LexicalIssue>;
+template class internal::IssueHandlerBase<parse::ParsingIssue>;
+template class internal::IssueHandlerBase<sema::SemanticIssue>;

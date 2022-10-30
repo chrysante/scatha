@@ -7,7 +7,7 @@
 using namespace scatha;
 using namespace sema;
 
-SymbolTable sema::analyze(ast::AbstractSyntaxTree& root, issue::IssueHandler& iss) {
+SymbolTable sema::analyze(ast::AbstractSyntaxTree& root, issue::SemaIssueHandler& iss) {
     SymbolTable sym;
     auto dependencyGraph = gatherNames(sym, root, iss);
     if (iss.fatal()) {

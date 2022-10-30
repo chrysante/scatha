@@ -13,7 +13,7 @@
 
 namespace scatha::lex {
 
-SCATHA(API) utl::vector<Token> lex(std::string_view text, issue::IssueHandler& issueHandler);
+[[nodiscard]] SCATHA(API) utl::vector<Token> lex(std::string_view text, issue::LexicalIssueHandler& issueHandler);
 
 } // namespace scatha::lex
 

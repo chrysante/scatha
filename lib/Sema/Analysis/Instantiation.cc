@@ -28,14 +28,14 @@ struct Context {
     ExpressionAnalysisResult analyzeExpression(ast::Expression&) const;
 
     SymbolTable& sym;
-    issue::IssueHandler& iss;
+    issue::SemaIssueHandler& iss;
     DependencyGraph& dependencyGraph;
     DependencyGraphNode const* currentNode = nullptr;
 };
 
 } // namespace
 
-void sema::instantiateEntities(SymbolTable& sym, issue::IssueHandler& iss, DependencyGraph& typeDependencies) {
+void sema::instantiateEntities(SymbolTable& sym, issue::SemaIssueHandler& iss, DependencyGraph& typeDependencies) {
     Context ctx{ .sym = sym, .iss = iss, .dependencyGraph = typeDependencies };
     ctx.run();
 }

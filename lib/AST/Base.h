@@ -15,12 +15,10 @@ namespace scatha::ast {
 // Forward declaration for definition of UniquePtr
 struct SCATHA(API) AbstractSyntaxTree;
 
-/**
- ***Smart pointer for allocating AST nodes
-
- Used to have a common interface for allocating nodes in the AST. Should not be  used to allocate other things so we can
- grep for this and perhaps switch to some more efficient allocation strategy in the future.
- */
+/// ** Smart pointer for allocating AST nodes **
+///
+/// Used to have a common interface for allocating nodes in the AST. Should not be  used to allocate other things so we can
+/// grep for this and perhaps switch to some more efficient allocation strategy in the future.
 template <std::derived_from<AbstractSyntaxTree> T>
 class UniquePtr: public std::unique_ptr<T> {
     using Base = std::unique_ptr<T>;
@@ -33,6 +31,12 @@ public:
 template <typename T, typename... Args>
 requires std::constructible_from<T, Args...> UniquePtr<T> allocate(Args&&... args) {
     return std::make_unique<T>(std::forward<Args>(args)...);
+}
+
+template <typename Derived, typename Base> requires std::derived_from<Derived, Base>
+ast::UniquePtr<Derived> staticCast(ast::UniquePtr<Base>&& p) {
+    auto d = static_cast<Derived*>(p.release());
+    return ast::UniquePtr<Derived>(d);
 }
 
 /// ** Base class for all nodes in the AST **
