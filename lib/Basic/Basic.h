@@ -74,19 +74,25 @@
 #error Unsupported Compiler
 #endif
 
-// TODO: Make this compiler intrinsic unreachable
-#define SC_UNREACHABLE() SC_DEBUGFAIL()
+// SC_UNREACHABLE
+#if defined(__GNUC__)
+#define _SC_UNREACHABLE_IMPL() __builtin_unreachable()
+#else
+#define _SC_UNREACHABLE_IMPL() ((void)0)
+#endif
+#define SC_UNREACHABLE() (_SC_UNREACHABLE_IMPL(), SC_DEBUGFAIL())
 
+// SC_ASSERT
 #define SC_ASSERT(COND, MSG) ((COND) ? (void)0 : SC_DEBUGFAIL())
 
+// SC_ASSERT_AUDIT
 #define SC_ASSERT_AUDIT(COND, MSG) SC_ASSERT(COND, MSG)
 
+// SC_EXPECT
 #define SC_EXPECT(COND, MSG) SC_ASSERT(COND, MSG)
 
+// SC_EXPECT_AUDIT
 #define SC_EXPECT_AUDIT(COND, MSG) SC_ASSERT(COND, MSG)
-
-#define SC_NO_DEFAULT_CASE()                                                                                           \
-    default: SC_DEBUGFAIL()
 
 namespace scatha {
 

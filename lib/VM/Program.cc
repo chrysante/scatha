@@ -57,7 +57,7 @@ void print(Program const& p, std::ostream& str) {
                 str << printAs<u8>(data, i + 1) << ", " << printAs<u8>(data, i + 2) << ", "
                     << printAs<u16>(data, i + 3);
                 break;
-                SC_NO_DEFAULT_CASE();
+            default: SC_UNREACHABLE();
             }
             break;
         case _count: SC_DEBUGFAIL();

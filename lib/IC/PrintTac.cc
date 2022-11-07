@@ -113,8 +113,7 @@ struct ArgumentPrinter {
             case 2:
                 str << " " << print(s.arg1, sym) << ", " << print(s.arg2, sym);
                 break;
-
-                SC_NO_DEFAULT_CASE();
+            default: SC_UNREACHABLE();
             }
             str << "\n";
                                         } },

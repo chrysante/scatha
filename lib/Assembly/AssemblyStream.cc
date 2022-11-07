@@ -85,7 +85,6 @@ Element StreamIterator::next() {
     /// is unspecified. This is a real problem, as it caused a suble bug where
     /// the id and index where swapped when compiled by msvc.
     case Marker::Instruction: ++line; return Instruction(get<u8>());
-
     case Marker::Label: {
         ++line;
         auto const id    = get<u64>();
@@ -93,7 +92,6 @@ Element StreamIterator::next() {
         return Label(id, index);
     }
     case Marker::RegisterIndex: return RegisterIndex(get<u8>());
-
     case Marker::MemoryAddress: {
         auto const regIdx      = get<u8>();
         auto const offset      = get<u8>();
@@ -101,12 +99,10 @@ Element StreamIterator::next() {
         return MemoryAddress(regIdx, offset, offsetShift);
     }
     case Marker::Value8: return Value8(get<u8>());
-
     case Marker::Value16: return Value16(get<u16>());
-
     case Marker::Value32: return Value32(get<u32>());
-
-    case Marker::Value64: return Value64(get<u64>()); SC_NO_DEFAULT_CASE();
+    case Marker::Value64: return Value64(get<u64>());
+    default: SC_UNREACHABLE();
     }
 }
 

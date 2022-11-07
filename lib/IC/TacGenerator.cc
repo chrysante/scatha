@@ -244,7 +244,7 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
     }
         /// Compound assignment operations like AddAssign, MulAssign etc. must not be here, they should have been
         /// transformed by the canonicalizer.
-        SC_NO_DEFAULT_CASE();
+    default: SC_UNREACHABLE();
     }
 }
 
@@ -264,7 +264,7 @@ TasArgument Context::generateExpression(ast::UnaryPrefixExpression const& expr) 
     case ast::UnaryPrefixOperator::LogicalNot:
         SC_ASSERT(type == sym.Bool(), "Only bool supported");
         return submit(makeTemporary(type), Operation::lnt, arg);
-        SC_NO_DEFAULT_CASE();
+    default: SC_UNREACHABLE();
     }
 }
 

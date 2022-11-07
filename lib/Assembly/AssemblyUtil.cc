@@ -74,7 +74,8 @@ vm::OpCode mapUnaryInstruction(Instruction i) {
     case Instruction::lnt: return vm::OpCode::lnt;
     case Instruction::bnt: return vm::OpCode::bnt;
 
-    case Instruction::callExt: return vm::OpCode::callExt; SC_NO_DEFAULT_CASE();
+    case Instruction::callExt: return vm::OpCode::callExt;
+    default: SC_UNREACHABLE();
     }
 }
 
@@ -245,8 +246,7 @@ vm::OpCode mapBinaryInstruction(Instruction i, Element const& arg1, Element cons
                                         std::tuple{ Marker::RegisterIndex, Marker::Value64, vm::OpCode::xorRV } };
         return table(arg1, arg2);
     }
-
-        SC_NO_DEFAULT_CASE();
+    default: SC_UNREACHABLE();
     }
 }
 

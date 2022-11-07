@@ -278,7 +278,8 @@ constexpr size_t codeSize(OpCode c) {
         case OpCode::call: return 6;
         case OpCode::ret: return 1;
         case OpCode::terminate: return 1;
-        case OpCode::callExt: return 5; SC_NO_DEFAULT_CASE();
+        case OpCode::callExt: return 5;
+        default: SC_UNREACHABLE();
         }
     }
     return UTL_MAP_ENUM(opCodeClass,
