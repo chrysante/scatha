@@ -247,11 +247,11 @@ struct X {
 	fn f() { {} }
 })");
     SymbolID const xID = issues.sym.lookupObjectType("X")->symbolID();
-    auto checkLine     = [&](size_t n) {
-        auto const line = issues.findOnLine<InvalidStatement>(n);
-        REQUIRE(line);
-        CHECK(line->reason() == InvalidStatement::Reason::InvalidScopeForStatement);
-        CHECK(line->currentScope().symbolID() == xID);
+    auto checkLine     = [&](int line) {
+        auto const issue = issues.findOnLine<InvalidStatement>(line);
+        REQUIRE(issue);
+        CHECK(issue->reason() == InvalidStatement::Reason::InvalidScopeForStatement);
+        CHECK(issue->currentScope().symbolID() == xID);
     };
     checkLine(3);                // return 0;
     checkLine(4);                // 1;
@@ -262,7 +262,7 @@ struct X {
     CHECK(issues.noneOnLine(9)); // fn f() { {} }
 }
 
-TEST_CASE("Cyclic dependency in struct definition", "[sema][issue]") {
+TEST_CASE("Cyclic dependency in struct definition - 1", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 struct X { var y: Y; }
 struct Y { var x: X; }
