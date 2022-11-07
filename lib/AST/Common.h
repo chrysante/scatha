@@ -21,6 +21,7 @@ struct StructDefinition;
 struct VariableDeclaration;
 struct ParameterDeclaration;
 struct ExpressionStatement;
+struct EmptyStatement;
 struct ReturnStatement;
 struct IfStatement;
 struct WhileStatement;
@@ -45,6 +46,7 @@ enum class NodeType {
     VariableDeclaration,
     ParameterDeclaration,
     ExpressionStatement,
+    EmptyStatement,
     ReturnStatement,
     IfStatement,
     WhileStatement,
@@ -86,6 +88,8 @@ template <>
 struct ToEnumNodeTypeImpl<ParameterDeclaration>: std::integral_constant<NodeType, NodeType::ParameterDeclaration> {};
 template <>
 struct ToEnumNodeTypeImpl<ExpressionStatement>: std::integral_constant<NodeType, NodeType::ExpressionStatement> {};
+template <>
+struct ToEnumNodeTypeImpl<EmptyStatement>: std::integral_constant<NodeType, NodeType::EmptyStatement> {};
 template <>
 struct ToEnumNodeTypeImpl<ReturnStatement>: std::integral_constant<NodeType, NodeType::ReturnStatement> {};
 template <>
@@ -144,6 +148,10 @@ struct ToNodeTypeImpl<NodeType::ParameterDeclaration> {
 template <>
 struct ToNodeTypeImpl<NodeType::ExpressionStatement> {
     using type = ExpressionStatement;
+};
+template <>
+struct ToNodeTypeImpl<NodeType::EmptyStatement> {
+    using type = EmptyStatement;
 };
 template <>
 struct ToNodeTypeImpl<NodeType::ReturnStatement> {

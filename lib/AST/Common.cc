@@ -21,6 +21,7 @@ std::string_view toString(NodeType t) {
         { NodeType::VariableDeclaration,   "VariableDeclaration" },
         { NodeType::ParameterDeclaration,  "ParameterDeclaration" },
         { NodeType::ExpressionStatement,   "ExpressionStatement" },
+        { NodeType::EmptyStatement,        "EmptyStatement" },
         { NodeType::ReturnStatement,       "ReturnStatement" },
         { NodeType::IfStatement,           "IfStatement" },
         { NodeType::WhileStatement,        "WhileStatement" },
