@@ -50,11 +50,11 @@ struct Context {
             },
             [&](FunctionDefinition const& fn) {
                 str << "fn ";
-                print(*fn.name);
+                print(*fn.nameIdentifier);
                 str << "(";
             for (bool first = true; auto const& param : fn.parameters) {
                 str << (first ? ((void)(first = false), "") : ", ");
-                print(*param->name);
+                print(*param->nameIdentifier);
                 str << ": ";
                 print(*param->typeExpr);
             }
@@ -65,13 +65,13 @@ struct Context {
             },
             [&](StructDefinition const& s) {
                 str << "struct ";
-                print(*s.name);
+                print(*s.nameIdentifier);
                 str << " ";
             print(*s.body);
         },
             [&](VariableDeclaration const& var) {
                 str << (var.isConstant ? "let" : "var");
-                print(*var.name);
+                print(*var.nameIdentifier);
                 str << ": ";
             if (var.typeExpr) {
                 print(*var.typeExpr);
@@ -85,12 +85,28 @@ struct Context {
             }
             str << ";";
             },
+            [&](ParameterDeclaration const& param) {
+                str << "param";
+                print(*param.nameIdentifier);
+                str << ": ";
+                if (param.typeExpr) {
+                    print(*param.typeExpr);
+                }
+                else {
+                    str << "<invalid-type>";
+                }
+            },
             [&](ExpressionStatement const& es) {
-            SC_ASSERT(es.expression != nullptr,
-                      "Expression statement without an expression is "
-                      "invalid");
-            print(*es.expression);
+            if (es.expression) {
+                print(*es.expression);
+            }
+            else {
+                str << "<invalid-expression>";
+            }
             str << ";";
+            },
+            [&](EmptyStatement const& es) {
+                str << ";";
             },
             [&](ReturnStatement const& rs) {
             str << "return";
