@@ -10,8 +10,8 @@
 namespace scatha {
 
 struct SourceLocation {
-    u64 index = 0;
-    u32 line = 0, column = 0;
+    i64 index = 0;
+    i32 line = 0, column = 0;
 };
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, SourceLocation const&);

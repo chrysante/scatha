@@ -34,9 +34,11 @@ struct Context {
     
     void advanceToNextWhitespace();
     
+    ssize_t textSize() const { return (ssize_t)text.size(); }
+    
     Token beginToken(TokenType type) const;
     char current() const;
-    std::optional<char> next(size_t offset = 1) const;
+    std::optional<char> next(ssize_t offset = 1) const;
     
     std::string_view text;
     issue::LexicalIssueHandler& iss;
@@ -52,7 +54,7 @@ utl::vector<Token> lex::lex(std::string_view text, issue::LexicalIssueHandler& i
 
 utl::vector<Token> Context::run() {
     utl::vector<Token> result;
-    while (currentLocation.index < text.size()) {
+    while (currentLocation.index < textSize()) {
         if (auto optToken = getToken()) {
             auto& expToken = *optToken;
             if (!expToken) {
@@ -69,7 +71,7 @@ utl::vector<Token> Context::run() {
         iss.push(UnexpectedID(beginToken(TokenType::Other)));
         advanceToNextWhitespace();
     }
-    SC_ASSERT(currentLocation.index == text.size(), "How is this possible?");
+    SC_ASSERT(currentLocation.index == textSize(), "How is this possible?");
     Token eof = beginToken(TokenType::EndOfFile);
     result.push_back(eof);
     for (auto& token : result) {
@@ -79,7 +81,7 @@ utl::vector<Token> Context::run() {
 }
 
 std::optional<Expected<Token, LexicalIssue>> Context::getToken() {
-    SC_ASSERT_AUDIT(currentLocation.index != text.size(), "");
+    SC_ASSERT_AUDIT(currentLocation.index != textSize(), "");
     if (auto spaces = getSpaces()) {
         return *spaces;
     }
@@ -213,7 +215,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteral() {
     }
     Token result = beginToken(TokenType::IntegerLiteral);
     result.id += current();
-    size_t offset      = 1;
+    ssize_t offset      = 1;
     std::optional next = this->next(offset);
     while (next && isDigitDec(*next)) {
         result.id += *next;
@@ -257,7 +259,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getFloatingPointLiteral() 
     }
     Token result = beginToken(TokenType::FloatingPointLiteral);
     result.id += current();
-    size_t offset      = 1;
+    ssize_t offset      = 1;
     std::optional next = this->next(offset);
     while (next && isFloatDigitDec(*next)) {
         result.id += *next;
@@ -296,7 +298,9 @@ std::optional<Expected<Token, LexicalIssue>> Context::getStringLiteral() {
 }
 
 std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
-    if (currentLocation.index + 3 < text.size() && text.substr(currentLocation.index, 4) == "true") {
+    if (currentLocation.index + 3 < textSize() &&
+        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 4) == "true")
+    {
         if (auto const n = next(4); n && isLetterEx(*n)) {
             return std::nullopt;
         }
@@ -305,7 +309,9 @@ std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
         advance(4);
         return result;
     }
-    if (currentLocation.index + 4 < text.size() && text.substr(currentLocation.index, 5) == "false") {
+    if (currentLocation.index + 4 < textSize() &&
+        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 5) == "false")
+    {
         if (auto const n = next(5); n && isLetterEx(*n)) {
             return std::nullopt;
         }
@@ -330,13 +336,13 @@ std::optional<Expected<Token, LexicalIssue>> Context::getIdentifier() {
 }
 
 bool Context::advance() {
-    if (text[currentLocation.index] == '\n') {
+    if (text[utl::narrow_cast<size_t>(currentLocation.index)] == '\n') {
         currentLocation.column = 0;
         ++currentLocation.line;
     }
     ++currentLocation.index;
     ++currentLocation.column;
-    if (currentLocation.index == text.size()) {
+    if (currentLocation.index == textSize()) {
         return false;
     }
     return true;
@@ -352,8 +358,8 @@ bool Context::advance(size_t count) {
 }
 
 void Context::advanceToNextWhitespace() {
-    SC_ASSERT(currentLocation.index <= text.size(), "");
-    if (currentLocation.index == text.size()) {
+    SC_ASSERT(currentLocation.index <= textSize(), "");
+    if (currentLocation.index == textSize()) {
         return;
     }
     while (true) {
@@ -370,15 +376,15 @@ Token Context::beginToken(TokenType type) const {
 }
 
 char Context::current() const {
-    SC_ASSERT(currentLocation.index < text.size(), "");
-    return text[currentLocation.index];
+    SC_ASSERT(currentLocation.index < textSize(), "");
+    return text[utl::narrow_cast<size_t>(currentLocation.index)];
 }
 
-std::optional<char> Context::next(size_t offset) const {
-    if (currentLocation.index + offset >= text.size()) {
+std::optional<char> Context::next(ssize_t offset) const {
+    if (currentLocation.index + offset >= textSize()) {
         return std::nullopt;
     }
-    return text[currentLocation.index + offset];
+    return text[utl::narrow_cast<size_t>(currentLocation.index + offset)];
 }
 
 
