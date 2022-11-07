@@ -3,7 +3,7 @@
 #include <utl/vector.hpp>
 
 #include "Lexer/LexicalIssue.h"
-#include "Parser/ParsingIssue.h"
+#include "Parser/SyntaxIssue.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;
@@ -64,5 +64,5 @@ template <typename T>
 void internal::IssueHandlerBase<T>::setFatal() { impl->fatal = true; }
 
 template class internal::IssueHandlerBase<lex::LexicalIssue>;
-template class internal::IssueHandlerBase<parse::ParsingIssue>;
+template class internal::IssueHandlerBase<parse::SyntaxIssue>;
 template class internal::IssueHandlerBase<sema::SemanticIssue>;

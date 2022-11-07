@@ -15,14 +15,18 @@ namespace scatha::issue {
 
 class SCATHA(API) ProgramIssueBase: public internal::ProgramIssuePrivateBase {
 public:
-    explicit ProgramIssueBase(Token token): _tok(std::move(token)) {}
+    explicit ProgramIssueBase(Token token): _token(std::move(token)) {}
+    explicit ProgramIssueBase(SourceLocation location) {
+        _token.sourceLocation = location;
+    }
 
-    Token const& token() const { return _tok; }
+    Token const& token() const { return _token; }
+    SourceLocation sourceLocation() const { return _token.sourceLocation; }
 
-    void setToken(Token token) { _tok = std::move(token); }
+    void setToken(Token token) { _token = std::move(token); }
 
 private:
-    Token _tok;
+    Token _token;
 };
 
 } // namespace scatha::issue
