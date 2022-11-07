@@ -567,9 +567,7 @@ ast::UniquePtr<ast::Expression> Context::parsePrimary() {
         if (!comma) {
             pushExpectedExpression(commaToken);
         }
-//        Token const next = tokens.eat();
         expectDelimiter(")");
-//        expectID(iss, next, ")");
         return comma;
     }
     return nullptr;
@@ -645,11 +643,14 @@ std::optional<List> Context::parseList(std::string_view open,
         }
         first = false;
         auto elem = parseCallback();
-        if (!elem) {
-            iss.push(SyntaxIssue(tokens.peek(), ExpectedExpression));
-            tokens.eat();
+        if (elem) {
+            result.push_back(std::move(elem));
         }
-        result.push_back(std::move(elem));
+        else {
+            iss.push(SyntaxIssue(tokens.peek(), ExpectedExpression));
+            /// Without eating a token we may get stuck in an infinite loop, otherwise we may miss delimiters in case of syntax errors (especcially missing ')').
+//          tokens.eat();
+        }
     }
     return result;
 }
@@ -678,13 +679,6 @@ ast::UniquePtr<ast::Expression> Context::parseMemberAccess(ast::UniquePtr<ast::E
         continue;
     }
 }
-
-//void Context::pushExpectedExpression(SourceLocation sl, int offset) {
-//    offset = sl.column <= 1 ? 0 : offset;
-//    sl.index += offset;
-//    sl.column += offset;
-//    iss.push(sl, ExpectedExpression);
-//}
 
 void Context::pushExpectedExpression(Token const& token) {
     iss.push(token, ExpectedExpression);
