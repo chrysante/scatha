@@ -16,34 +16,34 @@
 #include "Sema/ScopeKind.h"
 #include "Sema/SymbolID.h"
 
-/*
- AbstractSyntaxTree
- +- ErrorNode
- +- TranslationUnit
- +- Statement
- |  +- Declaration
- |  |  +- VariableDeclaration
- |  |  +- ParameterDeclaration
- |  |  +- ModuleDeclaration
- |  |  +- FunctionDefinition
- |  |  +- StructDefinition
- |  +- Block
- |  +- ExpressionStatement
- |  +- ControlFlowStatement
- |     +- ReturnStatement
- |     +- IfStatement
- |     +- WhileStatement
- +- Expression
-    +- Identifier
-    +- IntegerLiteral
-    +- StringLiteral
-    +- UnaryPrefixExpression
-    +- BinaryExpression
-    +- MemberAccess
-    +- Conditional
-    +- FunctionCall
-    +- Subscript
- */
+/// \code
+/// AbstractSyntaxTree
+/// +- ErrorNode
+/// +- TranslationUnit
+/// +- Statement
+/// |  +- Declaration
+/// |  |  +- VariableDeclaration
+/// |  |  +- ParameterDeclaration
+/// |  |  +- ModuleDeclaration
+/// |  |  +- FunctionDefinition
+/// |  |  +- StructDefinition
+/// |  +- Block
+/// |  +- ExpressionStatement
+/// |  +- ControlFlowStatement
+/// |     +- ReturnStatement
+/// |     +- IfStatement
+/// |     +- WhileStatement
+/// +- Expression
+///    +- Identifier
+///    +- IntegerLiteral
+///    +- StringLiteral
+///    +- UnaryPrefixExpression
+///    +- BinaryExpression
+///    +- MemberAccess
+///    +- Conditional
+///    +- FunctionCall
+///    +- Subscript
+/// \endcode
 
 namespace scatha::ast {
 
@@ -183,9 +183,9 @@ struct SCATHA(API) Statement: AbstractSyntaxTree {
 struct SCATHA(API) Declaration: Statement {
 public:
     /// Name of the declared symbol as written in the source code.
-    //    std::string_view name() const { return _token.id; }
+    std::string_view name() const { return nameIdentifier ? std::string_view(nameIdentifier->token().id) : ""; }
     
-    UniquePtr<Identifier> name;
+    UniquePtr<Identifier> nameIdentifier;
     
     /// ** Decoration provided by semantic analysis **
     
@@ -194,7 +194,7 @@ public:
     
 protected:
     explicit Declaration(NodeType type, Token const& declarator, UniquePtr<Identifier> name):
-        Statement(type, declarator), name(std::move(name)) {}
+        Statement(type, declarator), nameIdentifier(std::move(name)) {}
 };
 
 /// Concrete node representing a translation unit.
@@ -238,7 +238,7 @@ struct SCATHA(API) ParameterDeclaration: Declaration {
         Declaration(NodeType::ParameterDeclaration, Token{}, std::move(name)),
         typeExpr(std::move(typeExpr))
     {
-        _token = this->name->token();
+        _token = this->nameIdentifier->token();
     }
     
     /// Typename declared in the source code. Null if no typename was declared.
@@ -273,6 +273,13 @@ struct SCATHA(API) Block: Statement {
     
     /// SymbolID of this block scope
     sema::SymbolID scopeSymbolID{};
+};
+
+/// Concrete node representing an empty statement (";").
+/// Note: This class exists so we don't have to ignore empty statements while parsing but can potentially handle them in some way in semantic analysis.
+struct SCATHA(API) EmptyStatement: Statement {
+    explicit EmptyStatement(Token const& token):
+    Statement(NodeType::EmptyStatement, token) {}
 };
 
 /// Concrete node representing the definition of a function.
@@ -312,7 +319,9 @@ struct SCATHA(API) StructDefinition: Declaration {
 /// May only appear at function scope.
 struct SCATHA(API) ExpressionStatement: Statement {
     explicit ExpressionStatement(UniquePtr<Expression> expression):
-        Statement(NodeType::ExpressionStatement, expression->token()), expression(std::move(expression))
+        Statement(NodeType::ExpressionStatement,
+                  expression ? expression->token() : Token{}),
+        expression(std::move(expression))
     {}
     
     /// The expression
@@ -329,7 +338,7 @@ protected:
 /// Concrete node representing a return statement.
 struct SCATHA(API) ReturnStatement: ControlFlowStatement {
     explicit ReturnStatement(Token const& returnToken, UniquePtr<Expression> expression):
-    ControlFlowStatement(NodeType::ReturnStatement, returnToken), expression(std::move(expression)) {}
+        ControlFlowStatement(NodeType::ReturnStatement, returnToken), expression(std::move(expression)) {}
     
     /// The returned expression. May be null in case of a void function.
     UniquePtr<Expression> expression;
@@ -337,8 +346,8 @@ struct SCATHA(API) ReturnStatement: ControlFlowStatement {
 
 /// Concrete node representing an if/else statement.
 struct SCATHA(API) IfStatement: ControlFlowStatement {
-    explicit IfStatement(UniquePtr<Expression> condition, Token const& token):
-    ControlFlowStatement(NodeType::IfStatement, token), condition(std::move(condition)) {}
+    explicit IfStatement(Token const& token, UniquePtr<Expression> condition, UniquePtr<Statement> ifBlock, UniquePtr<Statement> elseBlock):
+        ControlFlowStatement(NodeType::IfStatement, token), condition(std::move(condition)), ifBlock(std::move(ifBlock)), elseBlock(std::move(elseBlock)) {}
     
     /// Condition to branch on.
     /// Must not be null after parsing and must be of type bool (or maybe later
