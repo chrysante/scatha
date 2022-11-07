@@ -25,7 +25,6 @@ struct Context {
     FunctionSignature analyzeSignature(ast::FunctionDefinition const&) const;
 
     TypeID analyzeTypeExpression(ast::Expression&) const;
-    ExpressionAnalysisResult analyzeExpression(ast::Expression&) const;
 
     SymbolTable& sym;
     issue::SemaIssueHandler& iss;
@@ -148,12 +147,15 @@ FunctionSignature Context::analyzeSignature(ast::FunctionDefinition const& decl)
     for (auto& param : decl.parameters) {
         argumentTypes.push_back(analyzeTypeExpression(*param->typeExpr));
     }
-    TypeID const returnTypeID = analyzeTypeExpression(*decl.returnTypeExpr);
-    return FunctionSignature(std::move(argumentTypes), returnTypeID);
+    /// For functions with unspecified return type we assume void until we implement return type deduction.
+    TypeID const returnTypeID = decl.returnTypeExpr ?
+        analyzeTypeExpression(*decl.returnTypeExpr) :
+        sym.Void();
+    return FunctionSignature(std::move(argumentTypes), returnTypeID);    
 }
 
 TypeID Context::analyzeTypeExpression(ast::Expression& expr) const {
-    auto const typeExprResult = analyzeExpression(expr);
+    auto const typeExprResult = sema::analyzeExpression(expr, sym, iss);
     if (!typeExprResult) {
         return TypeID::Invalid;
     }
@@ -163,8 +165,4 @@ TypeID Context::analyzeTypeExpression(ast::Expression& expr) const {
     }
     auto const& type = sym.getObjectType(typeExprResult.typeID());
     return type.symbolID();
-}
-
-ExpressionAnalysisResult Context::analyzeExpression(ast::Expression& expr) const {
-    return sema::analyzeExpression(expr, sym, iss);
 }

@@ -17,7 +17,7 @@ SymbolTable::SymbolTable(): _globalScope(std::make_unique<GlobalScope>()), _curr
 }
 
 Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(ast::StructDefinition const& structDef) {
-    auto result = declareObjectType(structDef.token());
+    auto result = declareObjectType(structDef.nameIdentifier->token());
     if (!result) {
         result.error().setStatement(structDef);
     }
@@ -49,7 +49,7 @@ TypeID SymbolTable::declareBuiltinType(std::string name, size_t size, size_t ali
 }
 
 Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(ast::FunctionDefinition const& functionDef) {
-    auto result = declareFunction(functionDef.token());
+    auto result = declareFunction(functionDef.nameIdentifier->token());
     if (!result) {
         result.error().setStatement(functionDef);
     }
@@ -135,7 +135,7 @@ Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(Token name) {
 Expected<Variable&, SemanticIssue> SymbolTable::addVariable(ast::VariableDeclaration const& varDecl,
                                                             TypeID typeID,
                                                             size_t offset) {
-    auto result = addVariable(varDecl.token(), typeID, offset);
+    auto result = addVariable(varDecl.nameIdentifier->token(), typeID, offset);
     if (!result) {
         result.error().setStatement(varDecl);
     }

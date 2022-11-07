@@ -21,6 +21,7 @@ struct Context {
     void analyze(ast::StructDefinition&);
     void analyze(ast::Block&);
     void analyze(ast::VariableDeclaration&);
+    void analyze(ast::ParameterDeclaration&);
     void analyze(ast::ExpressionStatement&);
     void analyze(ast::ReturnStatement&);
     void analyze(ast::IfStatement&);
@@ -164,6 +165,40 @@ expression:
 declaration:
     auto varObj = sym.addVariable(var, var.typeID, var.offset);
     if (!varObj) {
+        iss.push(varObj.error());
+        return;
+    }
+    var.symbolID = varObj->symbolID();
+}
+
+void Context::analyze(ast::ParameterDeclaration& var) {
+    SC_ASSERT(!var.symbolID, "We should not handle local variables in prepass.");
+    if (!var.typeExpr) {
+        iss.push(InvalidDeclaration(&var,
+                                    InvalidDeclaration::Reason::CantInferType,
+                                    sym.currentScope(),
+                                    SymbolCategory::Variable));
+        return;
+    }
+    auto const varTypeRes = dispatchExpression(*var.typeExpr);
+    if (iss.fatal()) {
+        return;
+    }
+    if (!varTypeRes) {
+        goto declaration;
+    }
+    if (varTypeRes.category() != ast::EntityCategory::Type) {
+        iss.push(BadSymbolReference(*var.typeExpr, varTypeRes.category(), ast::EntityCategory::Type));
+        goto declaration;
+    }
+    {
+        auto const& objType = sym.getObjectType(varTypeRes.typeID());
+        var.typeID          = objType.symbolID();
+    }
+declaration:
+    Expected varObj = sym.addVariable(var.nameIdentifier->token(), var.typeID);
+    if (!varObj) {
+        varObj.error().setStatement(var);
         iss.push(varObj.error());
         return;
     }

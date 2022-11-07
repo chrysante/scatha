@@ -124,7 +124,7 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(varDecl.typeExpr,
               "In structs variables need explicit type "
               "specifiers. Make this a program issue.");
-    auto declResult = sym.declareVariable(varDecl.token());
+    auto declResult = sym.declareVariable(varDecl.nameIdentifier->token());
     if (!declResult) {
         auto error = declResult.error();
         error.setStatement(varDecl);
