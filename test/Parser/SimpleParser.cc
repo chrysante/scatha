@@ -5,10 +5,10 @@
 
 using namespace scatha;
 
-std::pair<ast::UniquePtr<ast::AbstractSyntaxTree>, issue::ParsingIssueHandler> test::parse(std::string_view text) {
+std::pair<ast::UniquePtr<ast::AbstractSyntaxTree>, issue::SyntaxIssueHandler> test::parse(std::string_view text) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
-    issue::ParsingIssueHandler syntaxIss;
+    issue::SyntaxIssueHandler syntaxIss;
     auto ast = ::parse::parse(std::move(tokens), syntaxIss);
     return { std::move(ast), std::move(syntaxIss) };
 }

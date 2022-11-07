@@ -22,7 +22,7 @@ vm::Program compile(std::string_view text) {
     if (!lexIss.empty()) {
         throw std::runtime_error("Compilation failed");
     }
-    issue::ParsingIssueHandler parseIss;
+    issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     if (!parseIss.empty()) {
         throw std::runtime_error("Compilation failed");

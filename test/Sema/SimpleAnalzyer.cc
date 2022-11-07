@@ -3,7 +3,7 @@
 #include "AST/AST.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
-#include "Parser/ParsingIssue.h"
+#include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
 #include "Sema/SemanticIssue.h"
 
@@ -13,7 +13,7 @@ std::tuple<ast::UniquePtr<ast::AbstractSyntaxTree>, sema::SymbolTable, issue::Se
 produceDecoratedASTAndSymTable(std::string_view text) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
-    issue::ParsingIssueHandler parseIss;
+    issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     issue::SemaIssueHandler semaIss;
     auto sym = sema::analyze(*ast, semaIss);
