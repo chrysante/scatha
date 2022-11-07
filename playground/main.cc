@@ -8,6 +8,7 @@
 
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
+#include "AST/PrintExpression.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyUtil.h"
 #include "CodeGen/CodeGenerator.h"
@@ -15,7 +16,6 @@
 #include "IC/PrintTac.h"
 #include "IC/TacGenerator.h"
 #include "Lexer/Lexer.h"
-#include "Parser/ExpressionParser.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
@@ -42,9 +42,9 @@ using namespace scatha::parse;
         std::cout << "==================================================\n\n";
         issue::LexicalIssueHandler lexIss;
         auto tokens = lex::lex(text, lexIss);
-        issue::ParsingIssueHandler parseIss;
+        issue::SyntaxIssueHandler parseIss;
         auto ast = parse::parse(tokens, parseIss);
-        ast::printTree(ast.get());
+        ast::printTree(*ast);
 
         std::cout << "\n==================================================\n";
         std::cout << "=== Symbol Table =================================\n";
@@ -89,7 +89,7 @@ using namespace scatha::parse;
         std::cout << "=== Generated Three Address Code =================\n";
         std::cout << "==================================================\n\n";
         ic::canonicalize(ast.get());
-        ast::printTree(ast.get());
+        ast::printTree(*ast);
         auto const tac = ic::generateTac(*ast, sym);
         ic::printTac(tac, sym);
 

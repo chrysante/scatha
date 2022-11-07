@@ -12,8 +12,8 @@
 #include "AST/PrintTree.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
-#include "Parser/Parser2.h"
-#include "Parser/ParsingIssue.h"
+#include "Parser/Parser.h"
+#include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
 
@@ -49,8 +49,8 @@ int main() {
         std::cout << "No lexical issues.\n";
     }
     
-    issue::ParsingIssueHandler parseIss;
-    auto ast = parse::parse2(tokens, parseIss);
+    issue::SyntaxIssueHandler parseIss;
+    auto ast = parse::parse(tokens, parseIss);
     
     if (!parseIss.empty()) {
         std::cout << "Encountered syntax issues:\n";
@@ -59,12 +59,12 @@ int main() {
             std::cout << "L:" << issue.token().sourceLocation.line << " C:" << issue.token().sourceLocation.column << " : "
                       << issue.reason() << std::endl;
         }
-        ast::printTree(ast.get());
+        ast::printTree(*ast);
         return 2;
     }
     else {
         std::cout << "No syntax issues.\n";
-        ast::printTree(ast.get());
+        ast::printTree(*ast);
     }
     
     return 0;
