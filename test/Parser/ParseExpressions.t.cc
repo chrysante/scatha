@@ -2,18 +2,23 @@
 
 #include <string>
 
-#include "Lexer/Lexer.h"
-#include "Parser/ExpressionParser.h"
-#include "Parser/TokenStream.h"
 #include "test/Parser/SimpleParser.h"
 
 using namespace scatha;
 using namespace parse;
 using namespace ast;
 
-TEST_CASE("ExpressionParser", "[parse]") {
+static ast::UniquePtr<ast::Expression> parseExpression(std::string expression) {
+    auto [ast, iss] = test::parse("fn testFn() { " + expression + "; }");
+    assert(iss.empty());
+    auto* const tu = utl::down_cast<ast::TranslationUnit*>(ast.get());
+    auto* const testFn = utl::down_cast<ast::FunctionDefinition*>(tu->declarations[0].get());
+    auto* exprStatement = utl::down_cast<ast::ExpressionStatement*>(testFn->body->statements[0].get());
+    return std::move(exprStatement->expression);
+}
+
+TEST_CASE("Parsing expressions", "[parse]") {
     SECTION("Simple Addition") {
-        auto tokens = test::makeTokenStream("a + b");
         /* clang-format off
          
          Expecting:
@@ -23,11 +28,7 @@ TEST_CASE("ExpressionParser", "[parse]") {
 
          clang-format on */
 
-        issue::ParsingIssueHandler iss;
-        ExpressionParser parser(tokens, iss);
-        auto expr = parser.parseExpression();
-        REQUIRE(iss.empty());
-
+        ast::UniquePtr const expr = parseExpression("a + b");
         auto* add = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
         auto* lhs = downCast<Identifier>(add->lhs.get());
@@ -37,21 +38,16 @@ TEST_CASE("ExpressionParser", "[parse]") {
     }
 
     SECTION("Simple Multiplication") {
-        auto tokens = test::makeTokenStream("3 * x");
         /* clang-format off
           
          Expecting:
              mul
             /   \
           "3"   "x"
-         
+        
          clang-format on */
-
-        issue::ParsingIssueHandler iss;
-        ExpressionParser parser(tokens, iss);
-        auto expr = parser.parseExpression();
-        REQUIRE(iss.empty());
-
+        
+        ast::UniquePtr const expr = parseExpression("3 * x");
         auto* mul = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
         auto* lhs = downCast<IntegerLiteral>(mul->lhs.get());
@@ -61,7 +57,6 @@ TEST_CASE("ExpressionParser", "[parse]") {
     }
 
     SECTION("Associativity") {
-        auto tokens = test::makeTokenStream("a + b * c");
         /* clang-format off
          
          Expecting:
@@ -73,29 +68,20 @@ TEST_CASE("ExpressionParser", "[parse]") {
 
          clang-format on */
 
-        issue::ParsingIssueHandler iss;
-        ExpressionParser parser(tokens, iss);
-        auto expr = parser.parseExpression();
-        REQUIRE(iss.empty());
-
+        ast::UniquePtr const expr = parseExpression("a + b * c");
         auto* add = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
-
         auto* a = downCast<Identifier>(add->lhs.get());
         CHECK(a->value() == "a");
-
         auto* mul = downCast<BinaryExpression>(add->rhs.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
-
         auto* b = downCast<Identifier>(mul->lhs.get());
         CHECK(b->value() == "b");
-
         auto* c = downCast<Identifier>(mul->rhs.get());
         CHECK(c->value() == "c");
     }
 
     SECTION("Parentheses") {
-        auto tokens = test::makeTokenStream("(a + b) * c");
         /* clang-format off
          
          Expecting:
@@ -107,23 +93,15 @@ TEST_CASE("ExpressionParser", "[parse]") {
 
          clang-format on */
 
-        issue::ParsingIssueHandler iss;
-        ExpressionParser parser(tokens, iss);
-        auto expr = parser.parseExpression();
-        REQUIRE(iss.empty());
-
+        ast::UniquePtr const expr = parseExpression("(a + b) * c");
         auto* mul = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
-
         auto* add = downCast<BinaryExpression>(mul->lhs.get());
         REQUIRE(add->op == BinaryOperator::Addition);
-
         auto* a = downCast<Identifier>(add->lhs.get());
         CHECK(a->value() == "a");
-
         auto* b = downCast<Identifier>(add->rhs.get());
         CHECK(b->value() == "b");
-
         auto* c = downCast<Identifier>(mul->rhs.get());
         CHECK(c->value() == "c");
     }

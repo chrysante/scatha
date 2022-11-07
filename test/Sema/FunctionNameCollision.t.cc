@@ -1,7 +1,7 @@
 #include <Catch/Catch2.hpp>
 
 #include "AST/AST.h"
-#include "Parser/ParsingIssue.h"
+#include "Parser/SyntaxIssue.h"
 #include "Sema/SemanticIssue.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
@@ -18,13 +18,10 @@ fn g(x: int) -> int {
 	return 1;
 }
 )";
-
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-
     auto f = sym.lookup("f");
     CHECK(f.category() == SymbolCategory::OverloadSet);
     CHECK(sym.getOverloadSet(f).name() == "f");
-
     auto g = sym.lookup("g");
     CHECK(g.category() == SymbolCategory::OverloadSet);
     CHECK(sym.getOverloadSet(g).name() == "g");

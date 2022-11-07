@@ -1,6 +1,6 @@
 #include <Catch/Catch2.hpp>
 
-#include "Parser/ParsingIssue.h"
+#include "Parser/SyntaxIssue.h"
 #include "Sema/SemanticIssue.h"
 #include "test/IssueHelper.h"
 #include "test/Sema/SimpleAnalzyer.h"
@@ -63,9 +63,7 @@ fn f(x: float) -> int { return "a string"; }
     REQUIRE(line2);
     CHECK(line2->from() == issues.sym.Int());
     CHECK(line2->to() == issues.sym.Float());
-
     CHECK(issues.noneOnLine(3));
-
     auto const line4 = issues.findOnLine<BadTypeConversion>(4);
     REQUIRE(line4);
     CHECK(line4->from() == issues.sym.String());
@@ -84,16 +82,13 @@ fn main(i: int) -> bool {
     REQUIRE(line3);
     CHECK(line3->lhs() == issues.sym.Int());
     CHECK(line3->rhs() == issues.sym.Float());
-
     auto const line4 = issues.findOnLine<BadOperandsForBinaryExpression>(4);
     REQUIRE(line4);
     CHECK(line4->lhs() == issues.sym.Int());
     CHECK(line4->rhs() == issues.sym.Float());
-
     auto const line5 = issues.findOnLine<BadOperandForUnaryExpression>(5);
     REQUIRE(line5);
     CHECK(line5->operand() == issues.sym.Int());
-
     CHECK(issues.noneOnLine(6));
 }
 
