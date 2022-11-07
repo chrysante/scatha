@@ -16,7 +16,7 @@ struct Context {
     void dispatch(AbstractSyntaxTree const*, int ind);
     
     void print(TranslationUnit const&, int ind);
-    void print(Block const&, int ind);
+    void print(CompoundStatement const&, int ind);
     void print(FunctionDefinition const&, int ind);
     void print(StructDefinition const&, int ind);
     void print(VariableDeclaration const&, int ind);
@@ -74,7 +74,7 @@ void Context::print(TranslationUnit const& tu, int ind) {
     }
 }
 
-void Context::print(Block const& block, int ind) {
+void Context::print(CompoundStatement const& block, int ind) {
     str << indent(ind) << "<block>" << endl;
     for (auto& node : block.statements) {
         dispatch(node.get(), ind + 1);

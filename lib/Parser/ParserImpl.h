@@ -30,8 +30,7 @@ struct Context {
     ast::UniquePtr<ast::Statement> parseStatement();
     ast::UniquePtr<ast::ExpressionStatement> parseExpressionStatement();
     ast::UniquePtr<ast::EmptyStatement> parseEmptyStatement();
-    // TODO: Rename 'Block' to 'CompoundStatement'
-    ast::UniquePtr<ast::Block> parseBlock();
+    ast::UniquePtr<ast::CompoundStatement> parseCompoundStatement();
     ast::UniquePtr<ast::ControlFlowStatement> parseControlFlowStatement();
     ast::UniquePtr<ast::ReturnStatement> parseReturnStatement();
     ast::UniquePtr<ast::IfStatement> parseIfStatement();

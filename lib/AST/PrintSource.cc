@@ -31,7 +31,7 @@ struct Context {
                 str << endl << endl;
             }
                 },
-                [&](Block const& block) {
+                [&](CompoundStatement const& block) {
             str << "{";
             if (block.statements.empty()) {
                 str << endl;

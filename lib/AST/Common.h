@@ -15,7 +15,7 @@ namespace scatha::ast {
 
 struct AbstractSyntaxTree;
 struct TranslationUnit;
-struct Block;
+struct CompoundStatement;
 struct FunctionDefinition;
 struct StructDefinition;
 struct VariableDeclaration;
@@ -40,7 +40,7 @@ struct Subscript;
 /// List of all concrete AST node types
 enum class NodeType {
     TranslationUnit,
-    Block,
+    CompoundStatement,
     FunctionDefinition,
     StructDefinition,
     VariableDeclaration,
@@ -77,7 +77,7 @@ struct ToEnumNodeTypeImpl;
 template <>
 struct ToEnumNodeTypeImpl<TranslationUnit>: std::integral_constant<NodeType, NodeType::TranslationUnit> {};
 template <>
-struct ToEnumNodeTypeImpl<Block>: std::integral_constant<NodeType, NodeType::Block> {};
+struct ToEnumNodeTypeImpl<CompoundStatement>: std::integral_constant<NodeType, NodeType::CompoundStatement> {};
 template <>
 struct ToEnumNodeTypeImpl<FunctionDefinition>: std::integral_constant<NodeType, NodeType::FunctionDefinition> {};
 template <>
@@ -126,8 +126,8 @@ struct ToNodeTypeImpl<NodeType::TranslationUnit> {
     using type = TranslationUnit;
 };
 template <>
-struct ToNodeTypeImpl<NodeType::Block> {
-    using type = Block;
+struct ToNodeTypeImpl<NodeType::CompoundStatement> {
+    using type = CompoundStatement;
 };
 template <>
 struct ToNodeTypeImpl<NodeType::FunctionDefinition> {

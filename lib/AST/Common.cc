@@ -15,7 +15,7 @@ std::string_view toString(NodeType t) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(t, {
         { NodeType::TranslationUnit,       "TranslationUnit" },
-        { NodeType::Block,                 "Block" },
+        { NodeType::CompoundStatement,     "CompoundStatement" },
         { NodeType::FunctionDefinition,    "FunctionDefinition" },
         { NodeType::StructDefinition,      "StructDefinition" },
         { NodeType::VariableDeclaration,   "VariableDeclaration" },

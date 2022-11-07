@@ -27,7 +27,7 @@
 /// |  |  +- ModuleDeclaration
 /// |  |  +- FunctionDefinition
 /// |  |  +- StructDefinition
-/// |  +- Block
+/// |  +- CompoundStatement
 /// |  +- ExpressionStatement
 /// |  +- ControlFlowStatement
 /// |     +- ReturnStatement
@@ -259,8 +259,8 @@ struct SCATHA(API) ModuleDeclaration: Declaration {
 
 /// Concrete node representing any block like a function or loop body. Declares
 /// its own (maybe anonymous) scope.
-struct SCATHA(API) Block: Statement {
-    explicit Block(Token const& token): Statement(NodeType::Block, token) {}
+struct SCATHA(API) CompoundStatement: Statement {
+    explicit CompoundStatement(Token const& token): Statement(NodeType::CompoundStatement, token) {}
     
     /// Statements in the block.
     utl::small_vector<UniquePtr<Statement>> statements;
@@ -295,7 +295,7 @@ struct SCATHA(API) FunctionDefinition: Declaration {
     utl::small_vector<UniquePtr<ParameterDeclaration>> parameters;
     
     /// Body of the function.
-    UniquePtr<Block> body;
+    UniquePtr<CompoundStatement> body;
     
     /** Decoration provided by semantic analysis. */
     
@@ -308,11 +308,11 @@ struct SCATHA(API) FunctionDefinition: Declaration {
 
 /// Concrete node representing the definition of a struct.
 struct SCATHA(API) StructDefinition: Declaration {
-    explicit StructDefinition(Token const& declarator, UniquePtr<Identifier> name, UniquePtr<Block> body):
+    explicit StructDefinition(Token const& declarator, UniquePtr<Identifier> name, UniquePtr<CompoundStatement> body):
         Declaration(NodeType::StructDefinition, std::move(declarator), std::move(name)), body(std::move(body)) {}
     
     /// Body of the struct.
-    UniquePtr<Block> body;
+    UniquePtr<CompoundStatement> body;
 };
 
 /// Concrete node representing a statement that consists of a single expression.
@@ -359,14 +359,14 @@ struct SCATHA(API) IfStatement: ControlFlowStatement {
 
 /// Concrete node representing a while statement.
 struct SCATHA(API) WhileStatement: ControlFlowStatement {
-    explicit WhileStatement(Token const& token, UniquePtr<Expression> condition, UniquePtr<Block> block):
+    explicit WhileStatement(Token const& token, UniquePtr<Expression> condition, UniquePtr<CompoundStatement> block):
         ControlFlowStatement(NodeType::WhileStatement, token), condition(std::move(condition)), block(std::move(block)) {}
     
     /// Condition to loop on.
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
     UniquePtr<Expression> condition;
-    UniquePtr<Block> block;
+    UniquePtr<CompoundStatement> block;
 };
 
 } // namespace scatha::ast

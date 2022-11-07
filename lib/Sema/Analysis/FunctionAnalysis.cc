@@ -19,7 +19,7 @@ struct Context {
 
     void analyze(ast::FunctionDefinition&);
     void analyze(ast::StructDefinition&);
-    void analyze(ast::Block&);
+    void analyze(ast::CompoundStatement&);
     void analyze(ast::VariableDeclaration&);
     void analyze(ast::ParameterDeclaration&);
     void analyze(ast::ExpressionStatement&);
@@ -99,7 +99,7 @@ void Context::analyze(ast::StructDefinition& s) {
     }
 }
 
-void Context::analyze(ast::Block& block) {
+void Context::analyze(ast::CompoundStatement& block) {
     if (block.scopeKind == ScopeKind::Anonymous) {
         if (currentFunction == nullptr) {
             SC_DEBUGFAIL(); /// Can this case still happen when the current design?

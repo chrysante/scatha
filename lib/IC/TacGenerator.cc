@@ -23,7 +23,7 @@ struct Context {
     void generate(ast::TranslationUnit const&);
     void generate(ast::FunctionDefinition const&);
     void generate(ast::StructDefinition const&);
-    void generate(ast::Block const&);
+    void generate(ast::CompoundStatement const&);
     void generate(ast::VariableDeclaration const&);
     void generate(ast::ExpressionStatement const&);
     void generate(ast::IfStatement const&);
@@ -117,7 +117,7 @@ void Context::generate(ast::StructDefinition const& def) {
     }
 }
 
-void Context::generate(ast::Block const& block) {
+void Context::generate(ast::CompoundStatement const& block) {
     SC_ASSERT(block.scopeKind == sema::ScopeKind::Function || block.scopeKind == sema::ScopeKind::Anonymous,
               "Handle structs entirely in the struct case");
     for (auto& statement : block.statements) {

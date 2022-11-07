@@ -36,7 +36,7 @@ fn mul(a: int, b: X.Y.Z) -> int {
     CHECK(bTypeExpr->member->token().id == "Z");
     auto const* returnTypeExpr = downCast<Identifier>(function->returnTypeExpr.get());
     CHECK(returnTypeExpr->token().id == "int");
-    Block* const body = function->body.get();
+    CompoundStatement* const body = function->body.get();
     REQUIRE(body->statements.size() == 2);
     auto* const resultDecl = downCast<VariableDeclaration>(body->statements[0].get());
     CHECK(resultDecl->name() == "result");

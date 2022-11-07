@@ -128,7 +128,7 @@ recovered:
             SC_DEBUGBREAK(); // Handle issue
         }
     }
-    auto body = parseBlock();
+    auto body = parseCompoundStatement();
     if (!body) {
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
         /// Eat a few tokens and see if we can find a compound statement.
@@ -137,7 +137,7 @@ recovered:
         for (int i = 0; i < maxDiscardedTokens; ++i) {
             Token const& next = tokens.peek();
             if (next.id == ";") { break; }
-            if (next.id == "{" && (body = parseBlock())) {
+            if (next.id == "{" && (body = parseCompoundStatement())) {
                 goto end;
             }
             tokens.eat();
@@ -185,7 +185,7 @@ ast::UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
         Token const next = tokens.peek();
         SC_DEBUGBREAK(); // Handle issue
     }
-    auto body = parseBlock();
+    auto body = parseCompoundStatement();
     if (!body) {
         Token const curr = tokens.current();
         Token const next = tokens.peek();
@@ -250,7 +250,7 @@ ast::UniquePtr<ast::Statement> Context::parseStatement() {
     if (auto controlFlowStatement = parseControlFlowStatement()) {
         return controlFlowStatement;
     }
-    if (auto block = parseBlock()) {
+    if (auto block = parseCompoundStatement()) {
         return block;
     }
     if (auto expressionStatement = parseExpressionStatement()) {
@@ -271,13 +271,13 @@ ast::UniquePtr<ast::ExpressionStatement> Context::parseExpressionStatement() {
     return ast::allocate<ast::ExpressionStatement>(std::move(expression));
 }
 
-ast::UniquePtr<ast::Block> Context::parseBlock() {
+ast::UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
     Token const openBrace = tokens.peek();
     if (openBrace.id != "{") {
         return nullptr;
     }
     tokens.eat();
-    auto result = ast::allocate<ast::Block>(openBrace);
+    auto result = ast::allocate<ast::CompoundStatement>(openBrace);
     while (true) {
         /// This mechanism checks wether a failed statement parse has eaten any tokens. If it hasn't we eat one ourselves and try again.
         auto const lastIndex = tokens.index();
@@ -336,7 +336,7 @@ ast::UniquePtr<ast::IfStatement> Context::parseIfStatement() {
         Token const next = tokens.peek();
         SC_DEBUGBREAK(); // Handle issue
     }
-    auto ifBlock = parseBlock();
+    auto ifBlock = parseCompoundStatement();
     if (!ifBlock) {
         Token const curr = tokens.current();
         Token const next = tokens.peek();
@@ -347,7 +347,7 @@ ast::UniquePtr<ast::IfStatement> Context::parseIfStatement() {
         if (elseToken.id != "else") { return nullptr; }
         tokens.eat();
         if (auto elseBlock = parseIfStatement()) { return elseBlock; }
-        if (auto elseBlock = parseBlock()) { return elseBlock; }
+        if (auto elseBlock = parseCompoundStatement()) { return elseBlock; }
         Token const curr = tokens.current();
         Token const next = tokens.peek();
         SC_DEBUGBREAK(); // Handle issue
@@ -368,7 +368,7 @@ ast::UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
         Token const next = tokens.peek();
         SC_DEBUGBREAK(); // Handle issue
     }
-    auto block = parseBlock();
+    auto block = parseCompoundStatement();
     if (!block) {
         Token const curr = tokens.current();
         Token const next = tokens.peek();

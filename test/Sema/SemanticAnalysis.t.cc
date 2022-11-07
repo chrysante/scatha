@@ -77,7 +77,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     CHECK(varDecl->typeID == sym.Int());
     auto* varDeclInit = downCast<Identifier>(varDecl->initExpression.get());
     CHECK(varDeclInit->typeID == sym.Int());
-    auto* nestedScope = downCast<Block>(fn->body->statements[1].get());
+    auto* nestedScope = downCast<CompoundStatement>(fn->body->statements[1].get());
     auto* nestedVarDecl = downCast<VariableDeclaration>(nestedScope->statements[0].get());
     CHECK(nestedVarDecl->typeID == sym.String());
     auto* xDecl = downCast<VariableDeclaration>(fn->body->statements[2].get());

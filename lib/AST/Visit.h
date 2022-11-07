@@ -46,7 +46,7 @@ struct DefaultCase {
             std::invoke(callback, *decl);
         }
     }
-    void operator()(WeakSameAs<Block> auto&& b) const {
+    void operator()(WeakSameAs<CompoundStatement> auto&& b) const {
         for (auto& s : b.statements) {
             std::invoke(callback, *s);
         }
@@ -131,7 +131,7 @@ decltype(auto) visitImpl(auto&& node, auto type, auto const& f) {
     static_assert(std::is_same_v<std::decay_t<decltype(node)>, AbstractSyntaxTree>);
     switch (type) {
     case NodeType::TranslationUnit: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), TranslationUnit>>(node));
-    case NodeType::Block: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), Block>>(node));
+    case NodeType::CompoundStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), CompoundStatement>>(node));
     case NodeType::FunctionDefinition:
         return f(utl::down_cast<utl::copy_cvref_t<decltype(node), FunctionDefinition>>(node));
     case NodeType::StructDefinition: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), StructDefinition>>(node));
