@@ -1,7 +1,3 @@
 #include "ParanCounter.h"
 
-namespace scatha::parse {
-	
-
-
-}
+namespace scatha::parse {}

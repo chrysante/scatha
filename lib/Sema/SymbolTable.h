@@ -111,7 +111,7 @@ public:
     void popScope();
 
     /// \brief Makes \p scope the current scope.
-    /// 
+    ///
     /// \details If \p scope is NULL the global scope will be current after the call.
     void makeScopeCurrent(Scope* scope);
 

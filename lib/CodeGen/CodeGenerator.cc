@@ -74,7 +74,7 @@ assembly::AssemblyStream CodeGenerator::run() {
             case ic::Operation::call: {
                 a << Instruction::call << toAsm(s.getLabel())
                   << Value8(utl::narrow_cast<u8>(rd.numUsedRegisters() + 2));
-                for (auto const& [index, offset] : currentFunction.parameterRegisterLocations()) {
+                for (auto const& [index, offset]: currentFunction.parameterRegisterLocations()) {
                     a[index] = utl::narrow_cast<u8>(rd.numUsedRegisters() + 2 + offset);
                 }
                 currentFunction.resetParams();

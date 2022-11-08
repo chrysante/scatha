@@ -93,7 +93,7 @@ TasArgument Context::dispatchExpression(ast::Expression const& node) {
 }
 
 void Context::generate(ast::TranslationUnit const& tu) {
-    for (auto& decl : tu.declarations) {
+    for (auto& decl: tu.declarations) {
         dispatch(*decl);
     }
 }
@@ -108,7 +108,7 @@ void Context::generate(ast::FunctionDefinition const& def) {
 }
 
 void Context::generate(ast::StructDefinition const& def) {
-    for (auto& statement : def.body->statements) {
+    for (auto& statement: def.body->statements) {
         if (statement->nodeType() == ast::NodeType::FunctionDefinition ||
             statement->nodeType() == ast::NodeType::StructDefinition)
         {
@@ -120,7 +120,7 @@ void Context::generate(ast::StructDefinition const& def) {
 void Context::generate(ast::CompoundStatement const& block) {
     SC_ASSERT(block.scopeKind == sema::ScopeKind::Function || block.scopeKind == sema::ScopeKind::Anonymous,
               "Handle structs entirely in the struct case");
-    for (auto& statement : block.statements) {
+    for (auto& statement: block.statements) {
         dispatch(*statement);
     }
     return;
@@ -269,7 +269,7 @@ TasArgument Context::generateExpression(ast::UnaryPrefixExpression const& expr) 
 }
 
 TasArgument Context::generateExpression(ast::FunctionCall const& expr) {
-    for (auto& arg : expr.arguments) {
+    for (auto& arg: expr.arguments) {
         submit(Operation::param, dispatchExpression(*arg));
     }
     submitJump(Operation::call, Label(expr.functionID));
@@ -299,7 +299,7 @@ void Context::submitDeclaration(utl::small_vector<sema::SymbolID> lhsId, TasArgu
     }
     SC_ASSERT(arg.is(TasArgument::empty), "");
     lhsId.emplace_back();
-    for (auto const& childID : type.symbols()) {
+    for (auto const& childID: type.symbols()) {
         if (childID.category() != sema::SymbolCategory::Variable) {
             continue;
         }

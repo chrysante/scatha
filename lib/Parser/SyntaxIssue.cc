@@ -9,6 +9,7 @@ using namespace scatha;
 using enum parse::SyntaxIssue::Reason;
 
 SCATHA(API) std::string_view parse::toString(SyntaxIssue::Reason reason) {
+    // clang-format off
     return UTL_SERIALIZE_ENUM(reason, {
         { ExpectedIdentifier, "Expected Identifier" },
         { ExpectedDeclarator, "Expected Declarator" },
@@ -16,6 +17,7 @@ SCATHA(API) std::string_view parse::toString(SyntaxIssue::Reason reason) {
         { ExpectedExpression, "Expected Expression" },
         { UnqualifiedID,      "Unqualified ID" }
     });
+    // clang-format on
 }
 
 SCATHA(API) std::ostream& parse::operator<<(std::ostream& str, SyntaxIssue::Reason reason) {
@@ -53,5 +55,3 @@ bool parse::expectID(issue::SyntaxIssueHandler& iss, Token const& token, std::st
     }
     return true;
 }
-
-

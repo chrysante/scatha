@@ -43,7 +43,7 @@ void sema::analyzeFunctions(SymbolTable& sym,
                             issue::SemaIssueHandler& iss,
                             std::span<DependencyGraphNode const> functions) {
     Context ctx{ sym, iss };
-    for (auto const& node : functions) {
+    for (auto const& node: functions) {
         SC_ASSERT(node.category == SymbolCategory::Function, "We only accept functions here");
         sym.makeScopeCurrent(node.scope);
         ctx.analyze(utl::down_cast<ast::FunctionDefinition&>(*node.astNode));
@@ -111,7 +111,7 @@ void Context::analyze(ast::CompoundStatement& block) {
     }
     sym.pushScope(block.scopeSymbolID);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto& statement : block.statements) {
+    for (auto& statement: block.statements) {
         dispatch(*statement);
         if (iss.fatal()) {
             return;

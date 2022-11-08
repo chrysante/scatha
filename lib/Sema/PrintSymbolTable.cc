@@ -38,7 +38,7 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
     };
     utl::hashset<SymbolID> printedScopes;
     utl::vector<PrintData> data;
-    for (auto&& [name, id] : scope._symbols) {
+    for (auto&& [name, id]: scope._symbols) {
         if (id.category() == SymbolCategory::Variable) {
             data.push_back({ name, &sym.getVariable(id), id, SymbolCategory::Variable });
             continue;
@@ -52,7 +52,7 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
             continue;
         }
         SC_ASSERT(id.category() == SymbolCategory::OverloadSet, "What else?");
-        for (auto const& function : sym.getOverloadSet(id)) {
+        for (auto const& function: sym.getOverloadSet(id)) {
             // clang-format off
             data.push_back({
                 name,
@@ -64,12 +64,12 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
         }
     }
 
-    for (auto [name, entity, id, cat] : data) {
+    for (auto [name, entity, id, cat]: data) {
         str << indent(ind) << cat << " " << makeQualName(*entity);
         if (cat == SymbolCategory::Function) {
             auto& fn = sym.getFunction(id);
             str << "(";
-            for (bool first = true; auto id : fn.signature().argumentTypeIDs()) {
+            for (bool first = true; auto id: fn.signature().argumentTypeIDs()) {
                 if (!first) {
                     str << ", ";
                 }
@@ -106,7 +106,7 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
         auto const& childScope = itr->second;
         printScope(*childScope, str, ind + 1);
     }
-    for (auto&& [id, childScope] : scope._children) {
+    for (auto&& [id, childScope]: scope._children) {
         if (printedScopes.contains(id)) {
             continue;
         }

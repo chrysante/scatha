@@ -17,7 +17,7 @@ SymbolTable sema::analyze(ast::AbstractSyntaxTree& root, issue::SemaIssueHandler
     if (iss.fatal()) {
         return sym;
     }
-    utl::small_vector<DependencyGraphNode> functions;
+    utl::vector<DependencyGraphNode> functions;
     std::copy_if(dependencyGraph.begin(),
                  dependencyGraph.end(),
                  std::back_inserter(functions),

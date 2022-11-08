@@ -5,7 +5,7 @@ namespace scatha::codegen {
 void RegisterDescriptor::declareParameters(ic::FunctionLabel const& fn) {
     SC_ASSERT(variables.empty(), "Should have been cleared");
     SC_ASSERT(index == 0, "");
-    for (auto const& [id, type] : fn.parameters()) {
+    for (auto const& [id, type]: fn.parameters()) {
         auto const [itr, success] = variables.insert({ id, index });
         SC_ASSERT(success, "");
         index += 1;

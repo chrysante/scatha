@@ -18,16 +18,16 @@ namespace {
 struct OpCodeTable {
     template <std::same_as<vm::OpCode>... Codes>
     constexpr OpCodeTable(Instruction i, std::tuple<Marker, Marker, Codes>... elems): instruction(i), data{} {
-        for (auto& x : data) {
+        for (auto& x: data) {
             x = vm::OpCode::_count;
         }
-        (
-            [&](auto&& e) {
-            size_t const i             = (size_t)utl::log2(utl::to_underlying(std::get<0>(e)));
-            size_t const j             = (size_t)utl::log2(utl::to_underlying(std::get<1>(e)));
+        // clang-format off
+        ([&](auto&& e) {
+            size_t const i = (size_t)utl::log2(utl::to_underlying(std::get<0>(e)));
+            size_t const j = (size_t)utl::log2(utl::to_underlying(std::get<1>(e)));
             data[i * matrixHeight + j] = std::get<2>(e);
-            }(elems),
-            ...);
+        }(elems), ...);
+        // clang-format on
     }
 
     constexpr vm::OpCode operator()(Element const& a, Element const& b) const {
@@ -47,34 +47,34 @@ struct OpCodeTable {
 
 vm::OpCode mapUnaryInstruction(Instruction i) {
     switch (i) {
-    case Instruction::allocReg: return vm::OpCode::allocReg;
-    case Instruction::setBrk: return vm::OpCode::setBrk;
-    case Instruction::call: return vm::OpCode::call;
-    case Instruction::ret: return vm::OpCode::ret;
+    case Instruction::allocReg:  return vm::OpCode::allocReg;
+    case Instruction::setBrk:    return vm::OpCode::setBrk;
+    case Instruction::call:      return vm::OpCode::call;
+    case Instruction::ret:       return vm::OpCode::ret;
     case Instruction::terminate: return vm::OpCode::terminate;
 
-    case Instruction::jmp: return vm::OpCode::jmp;
-    case Instruction::je: return vm::OpCode::je;
-    case Instruction::jne: return vm::OpCode::jne;
-    case Instruction::jl: return vm::OpCode::jl;
-    case Instruction::jle: return vm::OpCode::jle;
-    case Instruction::jg: return vm::OpCode::jg;
-    case Instruction::jge: return vm::OpCode::jge;
+    case Instruction::jmp:       return vm::OpCode::jmp;
+    case Instruction::je:        return vm::OpCode::je;
+    case Instruction::jne:       return vm::OpCode::jne;
+    case Instruction::jl:        return vm::OpCode::jl;
+    case Instruction::jle:       return vm::OpCode::jle;
+    case Instruction::jg:        return vm::OpCode::jg;
+    case Instruction::jge:       return vm::OpCode::jge;
 
-    case Instruction::itest: return vm::OpCode::itest;
-    case Instruction::utest: return vm::OpCode::utest;
+    case Instruction::itest:     return vm::OpCode::itest;
+    case Instruction::utest:     return vm::OpCode::utest;
 
-    case Instruction::sete: return vm::OpCode::sete;
-    case Instruction::setne: return vm::OpCode::setne;
-    case Instruction::setl: return vm::OpCode::setl;
-    case Instruction::setle: return vm::OpCode::setle;
-    case Instruction::setg: return vm::OpCode::setg;
-    case Instruction::setge: return vm::OpCode::setge;
+    case Instruction::sete:      return vm::OpCode::sete;
+    case Instruction::setne:     return vm::OpCode::setne;
+    case Instruction::setl:      return vm::OpCode::setl;
+    case Instruction::setle:     return vm::OpCode::setle;
+    case Instruction::setg:      return vm::OpCode::setg;
+    case Instruction::setge:     return vm::OpCode::setge;
 
-    case Instruction::lnt: return vm::OpCode::lnt;
-    case Instruction::bnt: return vm::OpCode::bnt;
+    case Instruction::lnt:       return vm::OpCode::lnt;
+    case Instruction::bnt:       return vm::OpCode::bnt;
 
-    case Instruction::callExt: return vm::OpCode::callExt;
+    case Instruction::callExt:   return vm::OpCode::callExt;
     default: SC_UNREACHABLE();
     }
 }

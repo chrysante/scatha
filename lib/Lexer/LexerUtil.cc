@@ -5,7 +5,7 @@
 namespace scatha::lex {
 
 static bool isAnyOf(char c, std::string_view data) {
-    for (auto i : data) {
+    for (auto i: data) {
         if (c == i) {
             return true;
         }
@@ -30,7 +30,7 @@ SCATHA(PURE) bool isOperator(std::string_view id) {
         ".",  "->", "?"
     };
     // clang-format on
-    for (auto o : operators) {
+    for (auto o: operators) {
         if (id == o) {
             return true;
         }

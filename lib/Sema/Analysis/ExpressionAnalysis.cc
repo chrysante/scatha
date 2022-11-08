@@ -139,7 +139,7 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
         iss.push(UseOfUndeclaredIdentifier(id, sym.currentScope()));
         return ExpressionAnalysisResult::fail();
     }
-    id.symbolID                   = symbolID;
+    id.symbolID = symbolID;
     switch (symbolID.category()) {
     case SymbolCategory::Variable: {
         auto const& var = sym.getVariable(symbolID);
@@ -244,7 +244,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     bool success = true;
     utl::small_vector<TypeID> argTypes;
     argTypes.reserve(fc.arguments.size());
-    for (auto& arg : fc.arguments) {
+    for (auto& arg: fc.arguments) {
         auto const argRes = dispatch(*arg);
         if (iss.fatal()) {
             return ExpressionAnalysisResult::fail();
@@ -309,7 +309,7 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
     };
     auto verifyAnyOf = [&](TypeID toCheck, std::initializer_list<TypeID> ids) {
         bool result = false;
-        for (auto id : ids) {
+        for (auto id: ids) {
             if (toCheck == id) {
                 result = true;
             }

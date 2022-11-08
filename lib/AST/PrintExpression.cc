@@ -15,7 +15,7 @@ namespace {
 
 struct Context {
     void dispatchExpression(Expression const&);
-    
+
     void printExpression(Identifier const&);
     void printExpression(IntegerLiteral const&);
     void printExpression(BooleanLiteral const&);
@@ -28,7 +28,7 @@ struct Context {
     void printExpression(FunctionCall const&);
     void printExpression(Subscript const&);
     void printExpression(AbstractSyntaxTree const&) { SC_UNREACHABLE(); }
-    
+
     std::ostream& str;
 };
 

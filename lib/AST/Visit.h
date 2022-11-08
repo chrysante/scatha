@@ -42,17 +42,17 @@ struct DefaultCase {
 
     void operator()(AbstractSyntaxTree const&) const {}
     void operator()(WeakSameAs<TranslationUnit> auto&& tu) const {
-        for (auto&& decl : tu.declarations) {
+        for (auto&& decl: tu.declarations) {
             std::invoke(callback, *decl);
         }
     }
     void operator()(WeakSameAs<CompoundStatement> auto&& b) const {
-        for (auto& s : b.statements) {
+        for (auto& s: b.statements) {
             std::invoke(callback, *s);
         }
     }
     void operator()(WeakSameAs<FunctionDefinition> auto&& fn) const {
-        for (auto& param : fn.parameters) {
+        for (auto& param: fn.parameters) {
             std::invoke(callback, *param);
         }
         std::invoke(callback, *fn.body);
@@ -103,13 +103,13 @@ struct DefaultCase {
     }
     void operator()(WeakSameAs<FunctionCall> auto&& f) const {
         std::invoke(callback, *f.object);
-        for (auto& arg : f.arguments) {
+        for (auto& arg: f.arguments) {
             std::invoke(callback, *arg);
         }
     }
     void operator()(WeakSameAs<Subscript> auto&& s) const {
         std::invoke(callback, *s.object);
-        for (auto& arg : s.arguments) {
+        for (auto& arg: s.arguments) {
             std::invoke(callback, *arg);
         }
     }
@@ -131,18 +131,19 @@ decltype(auto) visitImpl(auto&& node, auto type, auto const& f) {
     static_assert(std::is_same_v<std::decay_t<decltype(node)>, AbstractSyntaxTree>);
     switch (type) {
     case NodeType::TranslationUnit: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), TranslationUnit>>(node));
-    case NodeType::CompoundStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), CompoundStatement>>(node));
+    case NodeType::CompoundStatement:
+        return f(utl::down_cast<utl::copy_cvref_t<decltype(node), CompoundStatement>>(node));
     case NodeType::FunctionDefinition:
         return f(utl::down_cast<utl::copy_cvref_t<decltype(node), FunctionDefinition>>(node));
-    case NodeType::StructDefinition: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), StructDefinition>>(node));
+    case NodeType::StructDefinition:
+        return f(utl::down_cast<utl::copy_cvref_t<decltype(node), StructDefinition>>(node));
     case NodeType::VariableDeclaration:
         return f(utl::down_cast<utl::copy_cvref_t<decltype(node), VariableDeclaration>>(node));
     case NodeType::ParameterDeclaration:
         return f(utl::down_cast<utl::copy_cvref_t<decltype(node), ParameterDeclaration>>(node));
     case NodeType::ExpressionStatement:
         return f(utl::down_cast<utl::copy_cvref_t<decltype(node), ExpressionStatement>>(node));
-    case NodeType::EmptyStatement:
-        return f(utl::down_cast<utl::copy_cvref_t<decltype(node), EmptyStatement>>(node));
+    case NodeType::EmptyStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), EmptyStatement>>(node));
     case NodeType::ReturnStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), ReturnStatement>>(node));
     case NodeType::IfStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), IfStatement>>(node));
     case NodeType::WhileStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), WhileStatement>>(node));
@@ -154,7 +155,8 @@ decltype(auto) visitImpl(auto&& node, auto type, auto const& f) {
     case NodeType::StringLiteral: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), StringLiteral>>(node));
     case NodeType::UnaryPrefixExpression:
         return f(utl::down_cast<utl::copy_cvref_t<decltype(node), UnaryPrefixExpression>>(node));
-    case NodeType::BinaryExpression: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), BinaryExpression>>(node));
+    case NodeType::BinaryExpression:
+        return f(utl::down_cast<utl::copy_cvref_t<decltype(node), BinaryExpression>>(node));
     case NodeType::MemberAccess: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), MemberAccess>>(node));
     case NodeType::Conditional: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), Conditional>>(node));
     case NodeType::FunctionCall: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), FunctionCall>>(node));

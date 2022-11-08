@@ -26,28 +26,24 @@ public:
         UnqualifiedID,
         _count
     };
-    
-    explicit SyntaxIssue(Token const& token, Reason reason):
-        issue::ProgramIssueBase(token), _reason(reason) {}
-    
-    explicit SyntaxIssue(SourceLocation location, Reason reason):
-        issue::ProgramIssueBase(location), _reason(reason) {}
-    
-    SyntaxIssue static expectedID(Token const& token, std::string id) {
-        return SyntaxIssue(token, std::move(id));
-    }
-    
+
+    explicit SyntaxIssue(Token const& token, Reason reason): issue::ProgramIssueBase(token), _reason(reason) {}
+
+    explicit SyntaxIssue(SourceLocation location, Reason reason): issue::ProgramIssueBase(location), _reason(reason) {}
+
+    SyntaxIssue static expectedID(Token const& token, std::string id) { return SyntaxIssue(token, std::move(id)); }
+
     Reason reason() const { return _reason; }
-    
+
     std::string_view expectedID() const {
         SC_EXPECT(_reason == Reason::UnqualifiedID, "Invalid");
         return _expectedID;
     }
-    
+
 private:
     SyntaxIssue(Token const& token, std::string id):
         issue::ProgramIssueBase(token), _reason(Reason::UnqualifiedID), _expectedID(std::move(id)) {}
-    
+
 private:
     Reason _reason;
     std::string _expectedID;

@@ -62,7 +62,7 @@ void AssemblyStream::insert(u8 value) {
 
 template <size_t N>
 void AssemblyStream::insert(std::array<u8, N> value) {
-    for (auto byte : value) {
+    for (auto byte: value) {
         insert(byte);
     }
 }

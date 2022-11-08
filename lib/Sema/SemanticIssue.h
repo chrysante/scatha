@@ -265,11 +265,13 @@ public:
     }
 
     /// Weirdly enough this won't compile. We also don't really need the function though.
-//  ast::Statement const& statement() const {
-//      return visit<ast::Statement const&>([&](InvalidStatement const& e) -> auto& {
-//          return e.statement();
-//      });
-//  }
+#if 0
+    ast::Statement const& statement() const {
+        return visit<ast::Statement const&>([&](InvalidStatement const& e) -> auto& {
+            return e.statement();
+        });
+    }
+#endif
 
     void setStatement(ast::Statement const& statement) {
         visit([&](InvalidStatement& e) { e.setStatement(statement); });

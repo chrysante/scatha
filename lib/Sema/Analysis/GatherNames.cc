@@ -34,7 +34,9 @@ struct Context {
 
 } // namespace
 
-DependencyGraph scatha::sema::gatherNames(SymbolTable& sym, ast::AbstractSyntaxTree& root, issue::SemaIssueHandler& iss) {
+DependencyGraph scatha::sema::gatherNames(SymbolTable& sym,
+                                          ast::AbstractSyntaxTree& root,
+                                          issue::SemaIssueHandler& iss) {
     DependencyGraph dependencyGraph;
     Context ctx{ sym, iss, dependencyGraph };
     ctx.dispatch(root);
@@ -46,7 +48,7 @@ size_t Context::dispatch(ast::AbstractSyntaxTree& node) {
 }
 
 size_t Context::gather(ast::TranslationUnit& tu) {
-    for (auto& decl : tu.declarations) {
+    for (auto& decl: tu.declarations) {
         dispatch(*decl);
     }
     return invalidIndex;
@@ -107,7 +109,7 @@ size_t Context::gather(ast::StructDefinition& s) {
     /// After we declared this type we gather all its members
     sym.pushScope(objType.symbolID());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto& statement : s.body->statements) {
+    for (auto& statement: s.body->statements) {
         size_t const dependency = dispatch(*statement);
         if (dependency != invalidIndex) {
             dependencyGraph[index].dependencies.push_back(utl::narrow_cast<u16>(dependency));

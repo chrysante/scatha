@@ -7,7 +7,7 @@
 #include "Common/Token.h"
 
 namespace scatha::parse {
-	
+
 class ParanCounter {
 public:
     void count(Token const& token) {
@@ -18,7 +18,7 @@ public:
     ssize_t parans() const { return _parans; }
     ssize_t brackets() const { return _brackets; }
     ssize_t braces() const { return _braces; }
-    
+
 private:
     void countImpl(std::string_view id, ssize_t& counter, std::string_view open, std::string_view close) {
         if (id == open) {
@@ -28,14 +28,13 @@ private:
             --counter;
         }
     }
-    
+
 private:
-    ssize_t _parans = 0;
+    ssize_t _parans   = 0;
     ssize_t _brackets = 0;
-    ssize_t _braces = 0;
+    ssize_t _braces   = 0;
 };
-	
-}
+
+} // namespace scatha::parse
 
 #endif // SCATHA_PARSE_PARANCOUNTER_H_
-

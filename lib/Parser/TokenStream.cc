@@ -13,8 +13,13 @@ Token const& TokenStream::eat() {
 bool TokenStream::advanceTo(std::string_view id) {
     while (true) {
         Token const& next = peek();
-        if (next.isSeparator) { eat(); return false; }
-        if (next.id == id) { return true; }
+        if (next.isSeparator) {
+            eat();
+            return false;
+        }
+        if (next.id == id) {
+            return true;
+        }
         eat();
     }
 }
@@ -36,8 +41,8 @@ Token const& TokenStream::eatImpl(ssize_t* i) {
         _index = (ssize_t)tokens.size();
         return tokens.back();
     }
-//    SC_ASSERT(*i < (ssize_t)tokens.size() - 1, "");
-    return tokens[(size_t)++*i];
+    //    SC_ASSERT(*i < (ssize_t)tokens.size() - 1, "");
+    return tokens[(size_t)++ * i];
 }
 
 } // namespace scatha::parse

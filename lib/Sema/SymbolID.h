@@ -11,16 +11,7 @@
 
 namespace scatha::sema {
 
-enum class SymbolCategory {
-    Invalid,
-    Variable,
-    Namespace,
-    OverloadSet,
-    Function,
-    ObjectType,
-    Anonymous,
-    _count
-};
+enum class SymbolCategory { Invalid, Variable, Namespace, OverloadSet, Function, ObjectType, Anonymous, _count };
 
 static_assert((int)SymbolCategory::_count <= 1 << 4);
 
@@ -34,15 +25,15 @@ public:
 
 public:
     constexpr SymbolID() = default;
-    constexpr explicit SymbolID(u64 rawValue, SymbolCategory category):
-        _value(rawValue), _cat(category)
-    { SC_EXPECT(rawValue < u64(1) << 60, "Too big"); }
+    constexpr explicit SymbolID(u64 rawValue, SymbolCategory category): _value(rawValue), _cat(category) {
+        SC_EXPECT(rawValue < u64(1) << 60, "Too big");
+    }
 
     constexpr u64 rawValue() const { return _value; }
 
     constexpr bool operator==(SymbolID const& rhs) const {
         bool result = _value == rhs._value;
-        SC_ASSERT(!result || _cat == rhs._cat, "If values are equal then categories must alos be equal.");
+        SC_ASSERT(!result || _cat == rhs._cat, "If values are equal then categories must also be equal.");
         return result;
     }
 
@@ -51,10 +42,10 @@ public:
     explicit operator bool() const { return *this != Invalid; }
 
     SymbolCategory category() const { return _cat; }
-    
+
 private:
-    u64 _value: 60 = 0;
-    SymbolCategory _cat: 4 = SymbolCategory::Invalid;
+    u64 _value          : 60 = 0;
+    SymbolCategory _cat : 4  = SymbolCategory::Invalid;
 };
 
 inline SymbolID const SymbolID::Invalid = SymbolID(0, SymbolCategory::Invalid);
@@ -66,7 +57,7 @@ struct TypeID: SymbolID {
     TypeID() = default;
     constexpr explicit TypeID(u64 rawValue): SymbolID(rawValue, SymbolCategory::ObjectType) {}
     constexpr explicit TypeID(SymbolID id): SymbolID(id) {}
-    
+
     static TypeID const Invalid;
 };
 

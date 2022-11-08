@@ -8,8 +8,8 @@
 
 #include "AST/AST.h"
 #include "Basic/Basic.h"
-#include "Common/Keyword.h"
 #include "Common/Expected.h"
+#include "Common/Keyword.h"
 #include "Parser/SyntaxIssue.h"
 #include "Parser/TokenStream.h"
 
@@ -20,7 +20,7 @@ namespace {
 
 struct Context {
     ast::UniquePtr<ast::AbstractSyntaxTree> run();
-    
+
     ast::UniquePtr<ast::TranslationUnit> parseTranslationUnit();
     ast::UniquePtr<ast::Declaration> parseExternalDeclaration();
     ast::UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
@@ -35,9 +35,9 @@ struct Context {
     ast::UniquePtr<ast::ReturnStatement> parseReturnStatement();
     ast::UniquePtr<ast::IfStatement> parseIfStatement();
     ast::UniquePtr<ast::WhileStatement> parseWhileStatement();
-    
+
     // Expressions
-    
+
     ast::UniquePtr<ast::Expression> parseComma();
     ast::UniquePtr<ast::Expression> parseAssignment();
     ast::UniquePtr<ast::Expression> parseTypeExpression() { return parseConditional(); } // Convenience wrapper
@@ -60,44 +60,41 @@ struct Context {
     ast::UniquePtr<ast::BooleanLiteral> parseBooleanLiteral();
     ast::UniquePtr<ast::FloatingPointLiteral> parseFloatingPointLiteral();
     ast::UniquePtr<ast::StringLiteral> parseStringLiteral();
-    
+
     // Helpers
-//    void pushExpectedExpressionBefore(SourceLocation);
-//    void pushExpectedExpressionAfter(SourceLocation);
+    //    void pushExpectedExpressionBefore(SourceLocation);
+    //    void pushExpectedExpressionAfter(SourceLocation);
     void pushExpectedExpression(Token const&);
     ///
-//    void panic();
-    
+    //    void panic();
+
     template <typename Expr>
     ast::UniquePtr<Expr> parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
                                                std::string_view open,
                                                std::string_view close);
-    
-    
+
     template <typename List, typename DList = std::decay_t<List>>
     std::optional<DList> parseList(std::string_view open,
                                    std::string_view close,
                                    std::string_view delimiter,
                                    auto parseCallback);
-    
+
     ast::UniquePtr<ast::Subscript> parseSubscript(ast::UniquePtr<ast::Expression> primary);
     ast::UniquePtr<ast::FunctionCall> parseFunctionCall(ast::UniquePtr<ast::Expression> primary);
     ast::UniquePtr<ast::Expression> parseMemberAccess(ast::UniquePtr<ast::Expression> primary);
-    
+
     template <ast::BinaryOperator...>
     ast::UniquePtr<ast::Expression> parseBinaryOperatorLTR(auto&& operand);
-    
+
     template <ast::BinaryOperator...>
     ast::UniquePtr<ast::Expression> parseBinaryOperatorRTL(auto&& parseOperand);
-    
+
     void expectDelimiter(std::string_view delimiter);
 
-    
-    
     // Data
-    
+
     TokenStream tokens;
     issue::SyntaxIssueHandler& iss;
 };
 
-}
+} // namespace

@@ -14,7 +14,7 @@ namespace {
 
 struct Context {
     void dispatch(AbstractSyntaxTree const*, int ind);
-    
+
     void print(TranslationUnit const&, int ind);
     void print(CompoundStatement const&, int ind);
     void print(FunctionDefinition const&, int ind);
@@ -38,7 +38,7 @@ struct Context {
     void print(FunctionCall const&, int ind);
     void print(Subscript const&, int ind);
     void print(AbstractSyntaxTree const&, int) { SC_UNREACHABLE(); }
-    
+
     std::ostream& str;
 };
 
@@ -69,14 +69,14 @@ void Context::dispatch(AbstractSyntaxTree const* node, int ind) {
 
 void Context::print(TranslationUnit const& tu, int ind) {
     str << indent(ind) << "<translation-unit>" << endl;
-    for (auto& decl : tu.declarations) {
+    for (auto& decl: tu.declarations) {
         dispatch(decl.get(), ind + 1);
     }
 }
 
 void Context::print(CompoundStatement const& block, int ind) {
     str << indent(ind) << "<block>" << endl;
-    for (auto& node : block.statements) {
+    for (auto& node: block.statements) {
         dispatch(node.get(), ind + 1);
     }
 }
@@ -84,7 +84,7 @@ void Context::print(CompoundStatement const& block, int ind) {
 void Context::print(FunctionDefinition const& fnDef, int ind) {
     str << indent(ind) << "<function-definition> " << fnDef.name() << endl;
     dispatch(fnDef.returnTypeExpr.get(), ind + 1);
-    for (auto& param : fnDef.parameters) {
+    for (auto& param: fnDef.parameters) {
         dispatch(param.get(), ind + 1);
     }
     dispatch(fnDef.body.get(), ind + 1);

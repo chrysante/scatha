@@ -42,7 +42,7 @@ void sema::instantiateEntities(SymbolTable& sym, issue::SemaIssueHandler& iss, D
 void Context::run() {
     /// After gather name phase we have the names of all types in the symbol table and we gather
     /// the dependencies of variable declarations in structs. This must be done before sorting the dependency graph.
-    for (auto& node : dependencyGraph) {
+    for (auto& node: dependencyGraph) {
         if (node.category != SymbolCategory::Variable) {
             continue;
         }
@@ -76,7 +76,7 @@ void Context::run() {
         dependencyTraversalOrder.end(),
         [&](size_t index) -> auto const& { return dependencyGraph[index].dependencies; });
     /// Instantiate all types and member variables.
-    for (size_t const index : dependencyTraversalOrder) {
+    for (size_t const index: dependencyTraversalOrder) {
         auto const& node = dependencyGraph[index];
         switch (node.category) {
         case SymbolCategory::Variable: instantiateVariable(node); break;
@@ -93,7 +93,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     size_t objectSize               = 0;
     size_t objectAlign              = 0;
-    for (auto& statement : structDef.body->statements) {
+    for (auto& statement: structDef.body->statements) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }
@@ -144,14 +144,12 @@ void Context::instantiateFunction(DependencyGraphNode const& node) {
 
 FunctionSignature Context::analyzeSignature(ast::FunctionDefinition const& decl) const {
     utl::small_vector<TypeID> argumentTypes;
-    for (auto& param : decl.parameters) {
+    for (auto& param: decl.parameters) {
         argumentTypes.push_back(analyzeTypeExpression(*param->typeExpr));
     }
     /// For functions with unspecified return type we assume void until we implement return type deduction.
-    TypeID const returnTypeID = decl.returnTypeExpr ?
-        analyzeTypeExpression(*decl.returnTypeExpr) :
-        sym.Void();
-    return FunctionSignature(std::move(argumentTypes), returnTypeID);    
+    TypeID const returnTypeID = decl.returnTypeExpr ? analyzeTypeExpression(*decl.returnTypeExpr) : sym.Void();
+    return FunctionSignature(std::move(argumentTypes), returnTypeID);
 }
 
 TypeID Context::analyzeTypeExpression(ast::Expression& expr) const {

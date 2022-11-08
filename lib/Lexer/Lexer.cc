@@ -14,9 +14,9 @@ namespace {
 
 struct Context {
     utl::vector<Token> run();
-    
+
     std::optional<Expected<Token, LexicalIssue>> getToken();
-    
+
     std::optional<Expected<Token, LexicalIssue>> getSpaces();
     std::optional<Expected<Token, LexicalIssue>> getOneLineComment();
     std::optional<Expected<Token, LexicalIssue>> getMultiLineComment();
@@ -28,18 +28,18 @@ struct Context {
     std::optional<Expected<Token, LexicalIssue>> getStringLiteral();
     std::optional<Expected<Token, LexicalIssue>> getBooleanLiteral();
     std::optional<Expected<Token, LexicalIssue>> getIdentifier();
-    
+
     bool advance();
     bool advance(size_t count);
-    
+
     void advanceToNextWhitespace();
-    
+
     ssize_t textSize() const { return (ssize_t)text.size(); }
-    
+
     Token beginToken(TokenType type) const;
     char current() const;
     std::optional<char> next(ssize_t offset = 1) const;
-    
+
     std::string_view text;
     issue::LexicalIssueHandler& iss;
     SourceLocation currentLocation{ 0, 1, 1 };
@@ -74,7 +74,7 @@ utl::vector<Token> Context::run() {
     SC_ASSERT(currentLocation.index == textSize(), "How is this possible?");
     Token eof = beginToken(TokenType::EndOfFile);
     result.push_back(eof);
-    for (auto& token : result) {
+    for (auto& token: result) {
         finalize(token);
     }
     return result;
@@ -215,7 +215,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteral() {
     }
     Token result = beginToken(TokenType::IntegerLiteral);
     result.id += current();
-    ssize_t offset      = 1;
+    ssize_t offset     = 1;
     std::optional next = this->next(offset);
     while (next && isDigitDec(*next)) {
         result.id += *next;
@@ -259,7 +259,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getFloatingPointLiteral() 
     }
     Token result = beginToken(TokenType::FloatingPointLiteral);
     result.id += current();
-    ssize_t offset      = 1;
+    ssize_t offset     = 1;
     std::optional next = this->next(offset);
     while (next && isFloatDigitDec(*next)) {
         result.id += *next;
@@ -299,8 +299,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getStringLiteral() {
 
 std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
     if (currentLocation.index + 3 < textSize() &&
-        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 4) == "true")
-    {
+        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 4) == "true") {
         if (auto const n = next(4); n && isLetterEx(*n)) {
             return std::nullopt;
         }
@@ -363,8 +362,12 @@ void Context::advanceToNextWhitespace() {
         return;
     }
     while (true) {
-        if (!advance()) { return; }
-        if (isSpace(current())) { return; }
+        if (!advance()) {
+            return;
+        }
+        if (isSpace(current())) {
+            return;
+        }
     }
 }
 
@@ -386,5 +389,3 @@ std::optional<char> Context::next(ssize_t offset) const {
     }
     return text[utl::narrow_cast<size_t>(currentLocation.index + offset)];
 }
-
-

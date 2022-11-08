@@ -55,13 +55,19 @@ std::span<T const> internal::IssueHandlerBase<T>::issues() const {
 }
 
 template <typename T>
-bool internal::IssueHandlerBase<T>::empty() const { return impl->issues.empty(); }
+bool internal::IssueHandlerBase<T>::empty() const {
+    return impl->issues.empty();
+}
 
 template <typename T>
-bool internal::IssueHandlerBase<T>::fatal() const { return impl->fatal; }
+bool internal::IssueHandlerBase<T>::fatal() const {
+    return impl->fatal;
+}
 
 template <typename T>
-void internal::IssueHandlerBase<T>::setFatal() { impl->fatal = true; }
+void internal::IssueHandlerBase<T>::setFatal() {
+    impl->fatal = true;
+}
 
 template class internal::IssueHandlerBase<lex::LexicalIssue>;
 template class internal::IssueHandlerBase<parse::SyntaxIssue>;

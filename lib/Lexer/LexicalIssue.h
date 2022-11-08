@@ -26,9 +26,9 @@ class SCATHA(API) InvalidNumericLiteral: public IssueBase {
 public:
     enum class Kind { Integer, FloatingPoint };
     explicit InvalidNumericLiteral(Token const& token, Kind kind): IssueBase(token), _kind(kind) {}
-    
+
     Kind kind() const { return _kind; }
-    
+
 private:
     Kind _kind;
 };
@@ -45,10 +45,8 @@ public:
 
 /// MARK: Common class LexicalIssue
 namespace internal {
-using LexIssueVariant = std::variant<UnexpectedID,
-                                     InvalidNumericLiteral,
-                                     UnterminatedStringLiteral,
-                                     UnterminatedMultiLineComment>;
+using LexIssueVariant =
+    std::variant<UnexpectedID, InvalidNumericLiteral, UnterminatedStringLiteral, UnterminatedMultiLineComment>;
 }
 
 class SCATHA(API) LexicalIssue: private internal::LexIssueVariant {
@@ -56,45 +54,45 @@ private:
     template <typename T>
     static decltype(auto) visitImpl(auto&& f, auto&& v) {
         auto const vis = utl::visitor{ f, [](issue::internal::ProgramIssuePrivateBase&) -> T {
-            if constexpr (!std::is_same_v<T, void>) {
-                SC_DEBUGFAIL();
-            }
-        } };
+                                          if constexpr (!std::is_same_v<T, void>) {
+                                              SC_DEBUGFAIL();
+                                          }
+                                      } };
         return std::visit(vis, v);
     }
-    
+
 public:
     using internal::LexIssueVariant::LexIssueVariant;
-    
+
     template <typename T = void>
     decltype(auto) visit(auto&& f) {
         return visitImpl<T>(f, asBase());
     }
-    
+
     template <typename T = void>
     decltype(auto) visit(auto&& f) const {
         return visitImpl<T>(f, asBase());
     }
-    
+
     template <typename T>
     auto& get() {
         return std::get<T>(asBase());
     }
-    
+
     template <typename T>
     auto const& get() const {
         return std::get<T>(asBase());
     }
-    
+
     template <typename T>
     bool is() const {
         return std::holds_alternative<T>(asBase());
     }
-    
+
     Token const& token() const {
         return visit([](issue::ProgramIssueBase const& base) -> auto& { return base.token(); });
     }
-    
+
 private:
     internal::LexIssueVariant& asBase() { return *this; }
     internal::LexIssueVariant const& asBase() const { return *this; }

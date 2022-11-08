@@ -31,9 +31,14 @@ Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(Token name) 
     }
     const SymbolID symbolID = currentScope().findID(name.id);
     if (symbolID != SymbolID::Invalid) {
-        return InvalidDeclaration(nullptr, Redefinition, currentScope(), SymbolCategory::ObjectType, symbolID.category());
+        return InvalidDeclaration(nullptr,
+                                  Redefinition,
+                                  currentScope(),
+                                  SymbolCategory::ObjectType,
+                                  symbolID.category());
     }
-    auto [itr, success] = _objectTypes.insert(ObjectType(name.id, generateID(SymbolCategory::ObjectType), &currentScope()));
+    auto [itr, success] =
+        _objectTypes.insert(ObjectType(name.id, generateID(SymbolCategory::ObjectType), &currentScope()));
     SC_ASSERT(success, "");
     currentScope().add(*itr);
     return *itr;
@@ -67,7 +72,8 @@ Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(Token name
             return id;
         }
         /// Create a new overload set
-        auto [itr, success] = _overloadSets.insert(OverloadSet(name.id, generateID(SymbolCategory::OverloadSet), &currentScope()));
+        auto [itr, success] =
+            _overloadSets.insert(OverloadSet(name.id, generateID(SymbolCategory::OverloadSet), &currentScope()));
         SC_ASSERT(success, "");
         currentScope().add(*itr);
         return itr->symbolID();
@@ -154,7 +160,8 @@ Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name, TypeID t
 }
 
 Scope const& SymbolTable::addAnonymousScope() {
-    auto [itr, success] = _anonymousScopes.insert(Scope(ScopeKind::Function, generateID(SymbolCategory::Anonymous), &currentScope()));
+    auto [itr, success] =
+        _anonymousScopes.insert(Scope(ScopeKind::Function, generateID(SymbolCategory::Anonymous), &currentScope()));
     SC_ASSERT(success, "");
     currentScope().add(*itr);
     return *itr;

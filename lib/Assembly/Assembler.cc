@@ -168,7 +168,7 @@ void Assembler::registerJumpsite(StreamIterator& itr) {
 }
 
 void Assembler::postProcess() {
-    for (auto const& [position, line, label] : jumpsites) {
+    for (auto const& [position, line, label]: jumpsites) {
         auto const itr = labels.find(label);
         if (itr == labels.end()) {
             throw UseOfUndeclaredLabel(label, line);
@@ -220,25 +220,25 @@ void Assembler::put(MemoryAddress m) {
 }
 
 void Assembler::put(Value8 v) {
-    for (auto byte : decompose(v.value)) {
+    for (auto byte: decompose(v.value)) {
         program->instructions.push_back(byte);
     }
 }
 
 void Assembler::put(Value16 v) {
-    for (auto byte : decompose(v.value)) {
+    for (auto byte: decompose(v.value)) {
         program->instructions.push_back(byte);
     }
 }
 
 void Assembler::put(Value32 v) {
-    for (auto byte : decompose(v.value)) {
+    for (auto byte: decompose(v.value)) {
         program->instructions.push_back(byte);
     }
 }
 
 void Assembler::put(Value64 v) {
-    for (auto byte : decompose(v.value)) {
+    for (auto byte: decompose(v.value)) {
         program->instructions.push_back(byte);
     }
 }
