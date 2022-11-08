@@ -327,7 +327,9 @@ class SCATHA(API) ParameterDeclaration: public Declaration {
 public:
     explicit ParameterDeclaration(UniquePtr<Identifier> name, UniquePtr<Expression> typeExpr):
         Declaration(NodeType::ParameterDeclaration, Token{}, std::move(name)), typeExpr(std::move(typeExpr)) {
-        _token = this->nameIdentifier->token();
+        if (nameIdentifier) {
+            _token = nameIdentifier->token();
+        }
     }
 
     /// Typename declared in the source code. Null if no typename was declared.
