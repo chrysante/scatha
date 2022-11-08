@@ -26,10 +26,18 @@
 #define _SCATHA_PD_WINDOWS() 1
 #endif
 
+#define _SCATHA_PD_DEBUG() 1
+
 #if defined(__GNUC__)
 #define _SCATHA_PD_GNU() 1
 #else
 #define _SCATHA_PD_GNU() 0
+#endif
+
+#if defined(__clang__)
+#define _SCATHA_PD_CLANG() 1
+#else
+#define _SCATHA_PD_CLANG() 0
 #endif
 
 #if SCATHA(GNU)
@@ -75,15 +83,26 @@
 #endif
 
 // SC_UNREACHABLE
-#if defined(__GNUC__)
+#if SCATHA(GNU)
 #define _SC_UNREACHABLE_IMPL() __builtin_unreachable()
 #else
 #define _SC_UNREACHABLE_IMPL() ((void)0)
 #endif
 #define SC_UNREACHABLE() (_SC_UNREACHABLE_IMPL(), SC_DEBUGFAIL())
 
+// SC_ASSUME
+#if SCATHA(CLANG)
+#define SC_ASSUME(COND) __builtin_assume(COND)
+#else
+#define SC_ASSUME(COND) ((void)0)
+#endif
+
 // SC_ASSERT
+#if SCATHA(DEBUG)
 #define SC_ASSERT(COND, MSG) ((COND) ? (void)0 : SC_DEBUGFAIL())
+#else
+#define SC_ASSERT(COND, MSG) SC_ASSUME(COND)
+#endif
 
 // SC_ASSERT_AUDIT
 #define SC_ASSERT_AUDIT(COND, MSG) SC_ASSERT(COND, MSG)
@@ -115,7 +134,7 @@ using ssize_t = std::ptrdiff_t;
 static_assert(sizeof(f32) == 4);
 static_assert(sizeof(f64) == 8);
 
-// Reinterpret the bytes of t as a std::array of bytes
+/// Reinterpret the bytes of t as a \p std::array of bytes
 template <typename T>
 requires std::is_standard_layout_v<T> std::array<u8, sizeof(T)> decompose(T const& t) {
     return utl::bit_cast<std::array<u8, sizeof(T)>>(t);
