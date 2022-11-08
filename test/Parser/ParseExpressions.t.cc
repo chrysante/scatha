@@ -11,8 +11,8 @@ using namespace ast;
 static ast::UniquePtr<ast::Expression> parseExpression(std::string expression) {
     auto [ast, iss] = test::parse("fn testFn() { " + expression + "; }");
     assert(iss.empty());
-    auto* const tu = utl::down_cast<ast::TranslationUnit*>(ast.get());
-    auto* const testFn = utl::down_cast<ast::FunctionDefinition*>(tu->declarations[0].get());
+    auto* const tu      = utl::down_cast<ast::TranslationUnit*>(ast.get());
+    auto* const testFn  = utl::down_cast<ast::FunctionDefinition*>(tu->declarations[0].get());
     auto* exprStatement = utl::down_cast<ast::ExpressionStatement*>(testFn->body->statements[0].get());
     return std::move(exprStatement->expression);
 }
@@ -29,7 +29,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
          clang-format on */
 
         ast::UniquePtr const expr = parseExpression("a + b");
-        auto* add = downCast<BinaryExpression>(expr.get());
+        auto* add                 = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
         auto* lhs = downCast<Identifier>(add->lhs.get());
         CHECK(lhs->value() == "a");
@@ -46,9 +46,9 @@ TEST_CASE("Parsing expressions", "[parse]") {
           "3"   "x"
         
          clang-format on */
-        
+
         ast::UniquePtr const expr = parseExpression("3 * x");
-        auto* mul = downCast<BinaryExpression>(expr.get());
+        auto* mul                 = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
         auto* lhs = downCast<IntegerLiteral>(mul->lhs.get());
         CHECK(lhs->value == 3);
@@ -69,7 +69,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
          clang-format on */
 
         ast::UniquePtr const expr = parseExpression("a + b * c");
-        auto* add = downCast<BinaryExpression>(expr.get());
+        auto* add                 = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
         auto* a = downCast<Identifier>(add->lhs.get());
         CHECK(a->value() == "a");
@@ -94,7 +94,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
          clang-format on */
 
         ast::UniquePtr const expr = parseExpression("(a + b) * c");
-        auto* mul = downCast<BinaryExpression>(expr.get());
+        auto* mul                 = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
         auto* add = downCast<BinaryExpression>(mul->lhs.get());
         REQUIRE(add->op == BinaryOperator::Addition);

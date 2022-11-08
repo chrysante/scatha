@@ -2,16 +2,22 @@
 #define TEST_ISSUEHELPER_H_
 
 #include <concepts>
-#include <string_view>
 #include <optional>
+#include <string_view>
 
 #include "Common/Token.h"
-#include "Sema/SymbolTable.h"
 #include "Issue/IssueHandler.h"
+#include "Sema/SymbolTable.h"
 
-namespace scatha::lex { class LexicalIssue; }
-namespace scatha::parse { class SyntaxIssue; }
-namespace scatha::sema { class SemaIssue; }
+namespace scatha::lex {
+class LexicalIssue;
+}
+namespace scatha::parse {
+class SyntaxIssue;
+}
+namespace scatha::sema {
+class SemaIssue;
+}
 
 namespace scatha::test {
 
@@ -19,11 +25,20 @@ namespace internal {
 
 template <typename IssueBaseType>
 struct ToIssueHandler;
-template <> struct ToIssueHandler<lex::LexicalIssue> { using type = issue::LexicalIssueHandler; };
-template <> struct ToIssueHandler<parse::SyntaxIssue> { using type = issue::SyntaxIssueHandler; };
-template <> struct ToIssueHandler<sema::SemanticIssue> { using type = issue::SemaIssueHandler; };
+template <>
+struct ToIssueHandler<lex::LexicalIssue> {
+    using type = issue::LexicalIssueHandler;
+};
+template <>
+struct ToIssueHandler<parse::SyntaxIssue> {
+    using type = issue::SyntaxIssueHandler;
+};
+template <>
+struct ToIssueHandler<sema::SemanticIssue> {
+    using type = issue::SemaIssueHandler;
+};
 
-}
+} // namespace internal
 
 template <typename IssueBaseType>
 struct IssueHelper {
@@ -43,7 +58,8 @@ struct IssueHelper {
                 if (issue.template is<T>()) {
                     T const& t         = issue.template get<T>();
                     Token const& token = t.token();
-                    if (token.sourceLocation.line == line && (token.sourceLocation.column == col || col == (size_t)-1)) {
+                    if (token.sourceLocation.line == line && (token.sourceLocation.column == col || col == (size_t)-1))
+                    {
                         return t;
                     }
                 }
@@ -51,16 +67,16 @@ struct IssueHelper {
         }
         return std::nullopt;
     }
-    
+
     bool noneOnLine(size_t line) const {
-        for (auto&& issue : iss.issues()) {
+        for (auto&& issue: iss.issues()) {
             if (issue.token().sourceLocation.line == line) {
                 return false;
             }
         }
         return true;
     }
-    
+
     using HandlerType = typename internal::ToIssueHandler<IssueBaseType>::type;
     HandlerType iss;
     ast::UniquePtr<ast::AbstractSyntaxTree> ast = nullptr;
@@ -71,7 +87,6 @@ IssueHelper<lex::LexicalIssue> getLexicalIssues(std::string_view text);
 IssueHelper<parse::SyntaxIssue> getSyntaxIssues(std::string_view text);
 IssueHelper<sema::SemanticIssue> getSemaIssues(std::string_view text);
 
-}
-
+} // namespace scatha::test
 
 #endif // TEST_ISSUEHELPER_H_

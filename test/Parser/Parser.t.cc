@@ -2,8 +2,8 @@
 
 #include "AST/AST.h"
 #include "Parser/SyntaxIssue.h"
-#include "test/Parser/SimpleParser.h"
 #include "test/IssueHelper.h"
+#include "test/Parser/SimpleParser.h"
 
 using namespace scatha;
 using namespace ast;
@@ -14,7 +14,7 @@ fn mul(a: int, b: X.Y.Z) -> int {
 	var result = a;
 	return result;
 })";
-    auto const [ast, iss] = test::parse(text);
+    auto const [ast, iss]  = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = downCast<TranslationUnit>(ast.get());
     REQUIRE(tu->declarations.size() == 1);
@@ -53,9 +53,9 @@ fn main() -> void {
 	let a: int = 39;
 	let b = 1.2;
 })";
-    auto const [ast, iss] = test::parse(text);
+    auto const [ast, iss]  = test::parse(text);
     REQUIRE(iss.empty());
-    auto* const tu         = downCast<TranslationUnit>(ast.get());
+    auto* const tu = downCast<TranslationUnit>(ast.get());
     REQUIRE(tu->declarations.size() == 1);
     auto* const function = downCast<FunctionDefinition>(tu->declarations[0].get());
     CHECK(function->name() == "main");
@@ -74,7 +74,7 @@ TEST_CASE("Parse last statement ending with '}'", "[parse]") {
 fn main() {
     {}
 })";
-    auto const [ast, iss] = test::parse(text);
+    auto const [ast, iss]  = test::parse(text);
     CHECK(iss.empty());
 }
 
@@ -84,22 +84,22 @@ TEST_CASE("Parse conditional", "[parse]") {
 }
 
 // Not a parsing but a semantic issue!
-//TEST_CASE("Parse invalid variable decl", "[parse][issue]") {
+// TEST_CASE("Parse invalid variable decl", "[parse][issue]") {
 //    std::string const text = R"(
-//fn main() {
+// fn main() {
 //    var result: int * float = a;
 //})";
 //    CHECK_THROWS_AS(makeAST(text), SyntaxIssue);
 //};
 
-//TEST_CASE("Parse invalid member access", "[parse][issue]") {
-//    std::string const text = R"(
-//fn main() {
-//    j.;
-//})";
-//    auto issues = test::getSemaIssues(text);
-//    CHECK(issues.findOnLine<>(<#size_t line#>)
+// TEST_CASE("Parse invalid member access", "[parse][issue]") {
+//     std::string const text = R"(
+// fn main() {
+//     j.;
+// })";
+//     auto issues = test::getSemaIssues(text);
+//     CHECK(issues.findOnLine<>(<#size_t line#>)
 //
-//    CHECK_THROWS_AS(makeAST(text), SyntaxIssue);
-//};
+//     CHECK_THROWS_AS(makeAST(text), SyntaxIssue);
+// };
 //

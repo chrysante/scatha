@@ -4,15 +4,14 @@
 
 namespace {
 
-struct MyError
-{
+struct MyError {
     explicit MyError(int i): i(i) {}
     int value() const { return i; }
     MyError(MyError&&) noexcept = default;
     ~MyError() { dtorRun = true; }
-    
+
     static bool dtorRun;
-    
+
 private:
     int i;
 };

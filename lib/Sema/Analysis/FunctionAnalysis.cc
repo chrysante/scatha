@@ -76,7 +76,7 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };
     sym.pushScope(fn.symbolID);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto& param : fn.parameters) {
+    for (auto& param: fn.parameters) {
         dispatch(*param);
         if (iss.fatal()) {
             return;

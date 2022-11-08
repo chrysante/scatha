@@ -18,7 +18,7 @@ namespace scatha::test {
 
 vm::Program compile(std::string_view text) {
     issue::LexicalIssueHandler lexIss;
-    auto tokens = lex::lex(text, lexIss);;
+    auto tokens = lex::lex(text, lexIss);
     if (!lexIss.empty()) {
         throw std::runtime_error("Compilation failed");
     }

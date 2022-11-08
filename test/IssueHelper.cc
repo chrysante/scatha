@@ -24,4 +24,3 @@ test::IssueHelper<sema::SemanticIssue> test::getSemaIssues(std::string_view text
     auto [ast, sym, iss] = produceDecoratedASTAndSymTable(text);
     return { std::move(iss), std::move(ast), std::move(sym) };
 }
-

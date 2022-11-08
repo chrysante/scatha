@@ -286,8 +286,12 @@ public:
     }
 
 private:
-    internal::SemaIssueVariant& asBase() { return *this; }
-    internal::SemaIssueVariant const& asBase() const { return *this; }
+    internal::SemaIssueVariant& asBase() {
+        return *this;
+    }
+    internal::SemaIssueVariant const& asBase() const {
+        return *this;
+    }
 };
 
 } // namespace scatha::sema

@@ -12,7 +12,7 @@ using namespace sema;
 using namespace ast;
 
 TEST_CASE("Registration in SymbolTable", "[sema]") {
-    auto const text = R"(
+    auto const text      = R"(
 fn mul(a: int, b: int, c: float) -> int {
 	let result = a;
 	return result;
@@ -21,7 +21,7 @@ fn mul(a: int, b: int, c: float) -> int {
     REQUIRE(iss.empty());
     auto const& mulID = sym.lookup("mul");
     CHECK(mulID.category() == SymbolCategory::OverloadSet);
-    auto const& mul = sym.getOverloadSet(mulID);
+    auto const& mul      = sym.getOverloadSet(mulID);
     auto const* mulFnPtr = mul.find(std::array{ sym.Int(), sym.Int(), sym.Float() });
     REQUIRE(mulFnPtr != nullptr);
     auto const& mulFn  = *mulFnPtr;
@@ -77,7 +77,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     CHECK(varDecl->typeID == sym.Int());
     auto* varDeclInit = downCast<Identifier>(varDecl->initExpression.get());
     CHECK(varDeclInit->typeID == sym.Int());
-    auto* nestedScope = downCast<CompoundStatement>(fn->body->statements[1].get());
+    auto* nestedScope   = downCast<CompoundStatement>(fn->body->statements[1].get());
     auto* nestedVarDecl = downCast<VariableDeclaration>(nestedScope->statements[0].get());
     CHECK(nestedVarDecl->typeID == sym.String());
     auto* xDecl = downCast<VariableDeclaration>(fn->body->statements[2].get());
@@ -118,7 +118,7 @@ fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
     auto* caller     = downCast<FunctionDefinition>(tu->declarations[0].get());
     auto* resultDecl = downCast<VariableDeclaration>(caller->body->statements[0].get());
     CHECK(resultDecl->initExpression->typeID == sym.Float());
-    auto* fnCallExpr = downCast<FunctionCall>(resultDecl->initExpression.get());
+    auto* fnCallExpr              = downCast<FunctionCall>(resultDecl->initExpression.get());
     auto const& calleeOverloadSet = sym.lookupOverloadSet("callee");
     REQUIRE(calleeOverloadSet != nullptr);
     auto* calleeFunction = calleeOverloadSet->find(std::array{ sym.String(), sym.Int(), sym.Bool() });
@@ -295,7 +295,7 @@ struct X {
     CHECK(fFn != nullptr);
     sym.popScope();
     auto const yID            = sym.lookup("Y");
-    auto const* undeclaredfFn = fOS.find({{ TypeID(yID) }});
+    auto const* undeclaredfFn = fOS.find({ { TypeID(yID) } });
     /// Finding f with Y (global) as argument shall fail.
     CHECK(undeclaredfFn == nullptr);
 }

@@ -5,7 +5,6 @@
 #include "test/IssueHelper.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
-
 using namespace scatha;
 using namespace sema;
 
@@ -120,9 +119,9 @@ fn main() {
 }
 struct X{ let data: float; }
 )");
-//  CHECK(issues.findOnLine<BadMemberAccess>(3));
-//  CHECK(issues.findOnLine<BadMemberAccess>(4));
-//  CHECK(issues.findOnLine<BadMemberAccess>(5));
+    //  CHECK(issues.findOnLine<BadMemberAccess>(3));
+    //  CHECK(issues.findOnLine<BadMemberAccess>(4));
+    //  CHECK(issues.findOnLine<BadMemberAccess>(5));
     CHECK(issues.noneOnLine(6));
 }
 
@@ -133,7 +132,7 @@ fn f() -> int {}
 fn g() {}
 fn g() {}
 )");
-    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
+    auto const line3  = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
     CHECK(line3->reason() == InvalidDeclaration::Reason::CantOverloadOnReturnType);
     CHECK(line3->symbolCategory() == SymbolCategory::Function);
@@ -225,7 +224,7 @@ fn f() {
 }
 )");
     SymbolID const fID = issues.sym.lookupOverloadSet("f")->find(std::array<TypeID, 0>{})->symbolID();
-    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
+    auto const line3   = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
     CHECK(line3->reason() == InvalidDeclaration::Reason::InvalidInCurrentScope);
     CHECK(line3->currentScope().symbolID() == fID);
@@ -286,4 +285,3 @@ struct W {
 })");
     CHECK(issues.findOnLine<StrongReferenceCycle>(2));
 }
-

@@ -9,7 +9,7 @@ using namespace parse;
 using enum SyntaxIssue::Reason;
 
 static void expectFooParse(ast::AbstractSyntaxTree const& ast) {
-    auto const& tu = utl::down_cast<ast::TranslationUnit const&>(ast);
+    auto const& tu      = utl::down_cast<ast::TranslationUnit const&>(ast);
     auto const& fooDecl = utl::down_cast<ast::FunctionDefinition const&>(*tu.declarations[0]);
     CHECK(fooDecl.name() == "foo");
     CHECK(fooDecl.parameters.size() == 0);
@@ -17,7 +17,7 @@ static void expectFooParse(ast::AbstractSyntaxTree const& ast) {
 }
 
 TEST_CASE("UnqualifiedID - 1", "[parse][issue]") {
-    auto iss = test::getSyntaxIssues(R"(
+    auto iss   = test::getSyntaxIssues(R"(
 fn foo . () {}
 )");
     auto issue = iss.findOnLine<SyntaxIssue>(2);
@@ -30,7 +30,7 @@ fn foo . () {}
 }
 
 TEST_CASE("UnqualifiedID - 2", "[parse][issue]") {
-    auto iss = test::getSyntaxIssues(R"(
+    auto iss   = test::getSyntaxIssues(R"(
 fn foo() . {}
 )");
     auto issue = iss.findOnLine<SyntaxIssue>(2);
@@ -43,7 +43,7 @@ fn foo() . {}
 }
 
 TEST_CASE("ExpectedIdentifier - 1", "[parse][issue]") {
-    auto iss = test::getSyntaxIssues(R"(
+    auto iss   = test::getSyntaxIssues(R"(
 fn . foo() {}
 )");
     auto issue = iss.findOnLine<SyntaxIssue>(2);
@@ -56,7 +56,7 @@ fn . foo() {}
 }
 
 TEST_CASE("ExpectedDeclarator - 1", "[parse][issue]") {
-    auto iss = test::getSyntaxIssues("foo");
+    auto iss   = test::getSyntaxIssues("foo");
     auto issue = iss.findOnLine<SyntaxIssue>(1);
     REQUIRE(issue);
     CHECK(issue->reason() == ExpectedDeclarator);
@@ -65,7 +65,7 @@ TEST_CASE("ExpectedDeclarator - 1", "[parse][issue]") {
 }
 
 TEST_CASE("ExpectedDeclarator - 2", "[parse][issue]") {
-    auto iss = test::getSyntaxIssues(R"(
+    auto iss   = test::getSyntaxIssues(R"(
 fn foo() {} foo;
 )");
     auto issue = iss.findOnLine<SyntaxIssue>(2);
@@ -77,7 +77,7 @@ fn foo() {} foo;
 }
 
 TEST_CASE("ExpectedDeclarator - 3", "[parse][issue]") {
-    auto iss = test::getSyntaxIssues(R"(
+    auto iss   = test::getSyntaxIssues(R"(
 lit i = j;
 fn foo() {}
 )");
@@ -159,7 +159,7 @@ true? a : ;
 })");
     for (int i = 0; i < 63; ++i) {
         int const line = i + 3;
-        auto issue = iss.findOnLine<SyntaxIssue>(line);
+        auto issue     = iss.findOnLine<SyntaxIssue>(line);
         REQUIRE(issue);
         CHECK(issue->reason() == ExpectedExpression);
         CHECK(issue->sourceLocation().line == line);
@@ -168,7 +168,7 @@ true? a : ;
 }
 
 TEST_CASE("ExpectedExpression - 2", "[parse][issue]") {
-    auto iss = test::getSyntaxIssues(R"(
+    auto iss   = test::getSyntaxIssues(R"(
 fn foo() {
     (;
 })");

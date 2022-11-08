@@ -47,6 +47,7 @@ struct OpCodeTable {
 
 vm::OpCode mapUnaryInstruction(Instruction i) {
     switch (i) {
+    // clang-format off
     case Instruction::allocReg:  return vm::OpCode::allocReg;
     case Instruction::setBrk:    return vm::OpCode::setBrk;
     case Instruction::call:      return vm::OpCode::call;
@@ -76,6 +77,7 @@ vm::OpCode mapUnaryInstruction(Instruction i) {
 
     case Instruction::callExt:   return vm::OpCode::callExt;
     default: SC_UNREACHABLE();
+    // clang-format on
     }
 }
 
