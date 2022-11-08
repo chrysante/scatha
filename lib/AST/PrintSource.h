@@ -8,8 +8,8 @@
 
 namespace scatha::ast {
 
-SCATHA(API) void printSource(AbstractSyntaxTree const*);
-SCATHA(API) void printSource(AbstractSyntaxTree const*, std::ostream&);
+SCATHA(API) void printSource(AbstractSyntaxTree const&);
+SCATHA(API) void printSource(AbstractSyntaxTree const&, std::ostream&);
 
 } // namespace scatha::ast
 

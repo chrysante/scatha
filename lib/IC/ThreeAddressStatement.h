@@ -90,15 +90,9 @@ struct TasArgument: TasArgumentTypeVariant {
     using TasArgumentTypeVariant::TasArgumentTypeVariant;
     TasArgument(): TasArgumentTypeVariant(EmptyArgument{}) {}
 
-    template <typename... F>
-    decltype(auto) visit(utl::visitor<F...> const& visitor) {
-        return std::visit(visitor, *this);
-    }
+    decltype(auto) visit(auto&& visitor) { return std::visit(UTL_FORWARD(visitor), *this); }
 
-    template <typename... F>
-    decltype(auto) visit(utl::visitor<F...> const& visitor) const {
-        return std::visit(visitor, *this);
-    }
+    decltype(auto) visit(auto&& visitor) const { return std::visit(UTL_FORWARD(visitor), *this); }
 
     enum Kind { empty, variable, temporary, literalValue, label, conditional };
 
