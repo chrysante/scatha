@@ -54,7 +54,35 @@ ast::UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
     return nullptr;
 }
 
-// void recover(auto&& condition)
+template <utl::invocable_r<bool, Token const&>... Cond, std::predicate... F>
+bool Context::recover(std::pair<Cond, F>... retry) {
+    /// Eat a few tokens and see if we can find a list.
+    /// 5 is pretty arbitrary here.
+    int const maxDiscardedTokens = 5;
+    for (int i = 0; i < maxDiscardedTokens; ++i) {
+        Token const& next = tokens.peek();
+        bool success = false;
+        ([&](auto const& cond, auto const& callback) {
+            if (std::invoke(cond, next)) {
+                success = std::invoke(callback);
+                return true;
+            }
+            return false;
+        }(retry.first, retry.second) || ...);
+        if (success) {
+            return true;
+        }
+        tokens.eat();
+    }
+    /// Here we assume that \p panic() gets us past the function body.
+    panic(tokens);
+    return false;
+}
+
+template <std::predicate... F>
+bool Context::recover(std::pair<std::string_view, F>... retry) {
+    return recover(std::pair{ [&](Token const& token){ return token.id == retry.first; }, retry.second }...);
+}
 
 ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     Token const declarator = tokens.peek();
@@ -66,19 +94,14 @@ ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     auto identifier = parseIdentifier();
     if (!identifier) {
         iss.push(SyntaxIssue(tokens.peek(), ExpectedIdentifier));
-        /// Eat a few tokens and see if we can find an identifier.
-        /// 5 is pretty arbitrary here.
-        int const maxDiscardedTokens = 5;
-        for (int i = 0; i < maxDiscardedTokens; ++i) {
-            tokens.eat();
-            if ((identifier = parseIdentifier())) {
-                goto success;
-            }
+        bool const recovered = recover(std::pair{
+            [&](Token const&) { return true; },
+            [&]{ return bool(identifier = parseIdentifier()); }
+        });
+        if (!recovered) {
+            return nullptr;
         }
-        panic(tokens);
-        return nullptr;
     }
-success:
     auto result = ast::allocate<ast::FunctionDefinition>(declarator, std::move(identifier));
     /// Parse parameters
     using ParamListType = decltype(result->parameters);
@@ -88,43 +111,28 @@ success:
     auto params = parseList();
     if (!params) {
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "("));
-        /// Eat a few tokens and see if we can find a list.
-        /// 5 is pretty arbitrary here.
-        int const maxDiscardedTokens = 5;
-        for (int i = 0; i < maxDiscardedTokens; ++i) {
-            Token const& next = tokens.peek();
-            if (next.id == "{") {
-                /// User forgot to specify parameter list?
-                /// Go on with parsing the body.
-                params = ParamListType{};
-                goto recovered;
-            }
-            if (next.id == "(") {
-                /// Try parsing parameter list again.
-                if ((params = parseList())) {
-                    goto recovered;
-                }
-                else {
-                    /// Failed to recover, now we panic.
-                    break;
-                }
-            }
-            tokens.eat();
+        bool const recovered = recover(std::pair(std::string_view("{"),
+                                                 [&]{
+                                                     /// User forgot to specify parameter list?
+                                                     /// Go on with parsing the body.
+                                                     params = ParamListType{};
+                                                     return true;
+                                                 }),
+                                       std::pair(std::string_view("("),
+                                                 [&]{
+                                                     /// Try parsing parameter list again.
+                                                     return bool(params = parseList());
+                                                 }));
+        if (!recovered) {
+            return nullptr;
         }
-        /// Here we assume that \p advanceUntilStable gets us past the function body.
-        panic(tokens);
-        return nullptr;
     }
-recovered:
     result->parameters = std::move(*params);
-
     if (Token const arrow = tokens.peek(); arrow.id == "->") {
         tokens.eat();
         result->returnTypeExpr = parseTypeExpression();
         if (!result->returnTypeExpr) {
-            Token const curr = tokens.current();
-            Token const next = tokens.peek();
-            SC_DEBUGBREAK(); // Handle issue
+            pushExpectedExpression(tokens.peek());
         }
     }
     auto body = parseCompoundStatement();
@@ -132,45 +140,70 @@ recovered:
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
         /// Eat a few tokens and see if we can find a compound statement.
         /// 5 is pretty arbitrary here.
-        int const maxDiscardedTokens = 5;
-        for (int i = 0; i < maxDiscardedTokens; ++i) {
-            Token const& next = tokens.peek();
-            if (next.id == ";") {
-                break;
-            }
-            if (next.id == "{" && (body = parseCompoundStatement())) {
-                goto end;
-            }
-            tokens.eat();
+        bool recovered = recover(std::pair(std::string_view(";"),
+                                           [&] { return true; }),
+                                 std::pair(std::string_view("{"),
+                                           [&] { return bool(body = parseCompoundStatement()); }));
+        if (!recovered) {
+            return nullptr;
         }
-        /// Here we assume that \p advanceUntilStable gets us past the function body.
-        panic(tokens);
-        return nullptr;
     }
-end:
     result->body = std::move(body);
     return result;
 }
 
 ast::UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
+    Token const& idToken = tokens.peek();
     auto identifier = parseIdentifier();
     if (!identifier) {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        iss.push(SyntaxIssue(idToken, ExpectedIdentifier));
+        /// Custom recovery mechanism
+        while (true) {
+            Token const& next = tokens.peek();
+            if (next.id == ":") {
+                break;
+            }
+            if (next.id == "," || next.id == ")") {
+                return nullptr;
+            }
+            if (next.type == TokenType::EndOfFile) {
+                return nullptr;
+            }
+            tokens.eat();
+        }
     }
     Token const colon = tokens.peek();
     if (colon.id != ":") {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        iss.push(SyntaxIssue::expectedID(colon, ":"));
+        /// Custom recovery mechanism
+        while (true) {
+            Token const& next = tokens.peek();
+            if (next.id == "," || next.id == ")") {
+                return nullptr;
+            }
+            if (next.type == TokenType::EndOfFile) {
+                return nullptr;
+            }
+            tokens.eat();
+        }
     }
-    tokens.eat();
+    else {
+        tokens.eat();
+    }
     auto typeExpr = parseTypeExpression();
     if (!typeExpr) {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        pushExpectedExpression(tokens.peek());
+        /// Custom recovery mechanism
+        while (true) {
+            Token const& next = tokens.peek();
+            if (next.id == "," || next.id == ")") {
+                return nullptr;
+            }
+            if (next.type == TokenType::EndOfFile) {
+                return nullptr;
+            }
+            tokens.eat();
+        }
     }
     return ast::allocate<ast::ParameterDeclaration>(std::move(identifier), std::move(typeExpr));
 }
@@ -181,18 +214,19 @@ ast::UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
         return nullptr;
     }
     tokens.eat();
-
     auto identifier = parseIdentifier();
     if (!identifier) {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        iss.push(SyntaxIssue(tokens.peek(), ExpectedIdentifier));
+        bool const recovered = recover(std::pair(std::string_view("{"), []{ return true; }));
+        if (!recovered) {
+            return nullptr;
+        }
     }
     auto body = parseCompoundStatement();
     if (!body) {
         Token const curr = tokens.current();
         Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        SC_DEBUGFAIL(); // Handle issue
     }
     return ast::allocate<ast::StructDefinition>(declarator, std::move(identifier), std::move(body));
 }
@@ -208,7 +242,7 @@ ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
     if (!identifier) {
         Token const curr = tokens.current();
         Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        SC_DEBUGFAIL(); // Handle issue
     }
     auto result = ast::allocate<ast::VariableDeclaration>(declarator, std::move(identifier));
     if (Token const colon = tokens.peek(); colon.id == ":") {
@@ -217,7 +251,7 @@ ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
         if (!typeExpr) {
             Token const curr = tokens.current();
             Token const next = tokens.peek();
-            SC_DEBUGBREAK(); // Handle issue
+            SC_DEBUGFAIL(); // Handle issue
         }
         result->typeExpr = std::move(typeExpr);
     }
@@ -227,7 +261,7 @@ ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
         if (!initExpr) {
             Token const curr = tokens.current();
             Token const next = tokens.peek();
-            SC_DEBUGBREAK(); // Handle issue
+            SC_DEBUGFAIL(); // Handle issue
         }
         result->initExpression = std::move(initExpr);
     }
@@ -235,7 +269,7 @@ ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
     if (Token const semicolon = tokens.peek(); semicolon.id != ";") {
         Token const curr = tokens.current();
         Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        SC_DEBUGFAIL(); // Handle issue
     }
     else {
         tokens.eat();
@@ -336,15 +370,12 @@ ast::UniquePtr<ast::IfStatement> Context::parseIfStatement() {
     tokens.eat();
     auto cond = parseComma();
     if (!cond) {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        pushExpectedExpression(tokens.peek());
     }
     auto ifBlock = parseCompoundStatement();
     if (!ifBlock) {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
+        SC_DEBUGFAIL();
     }
     auto elseBlock = [&]() -> ast::UniquePtr<ast::Statement> {
         Token const elseToken = tokens.peek();
@@ -360,7 +391,7 @@ ast::UniquePtr<ast::IfStatement> Context::parseIfStatement() {
         }
         Token const curr = tokens.current();
         Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        SC_DEBUGFAIL(); // Handle issue
         return nullptr;
     }();
     return ast::allocate<ast::IfStatement>(ifToken, std::move(cond), std::move(ifBlock), std::move(elseBlock));
@@ -374,15 +405,11 @@ ast::UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
     tokens.eat();
     auto cond = parseComma();
     if (!cond) {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        pushExpectedExpression(tokens.peek());
     }
     auto block = parseCompoundStatement();
     if (!block) {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGBREAK(); // Handle issue
+        iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
     }
     return ast::allocate<ast::WhileStatement>(whileToken, std::move(cond), std::move(block));
 }
@@ -659,6 +686,7 @@ std::optional<List> Context::parseList(std::string_view open,
             result.push_back(std::move(elem));
         }
         else {
+#warning Maybe delegate error handling to the parse callback to avoid duplicate errors in some cases
             iss.push(SyntaxIssue(tokens.peek(), ExpectedExpression));
             /// Without eating a token we may get stuck in an infinite loop, otherwise we may miss delimiters in case of
             /// syntax errors (especcially missing ')').

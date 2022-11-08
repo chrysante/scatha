@@ -12,7 +12,6 @@ static void expectFooParse(ast::AbstractSyntaxTree const& ast) {
     auto const& tu      = utl::down_cast<ast::TranslationUnit const&>(ast);
     auto const& fooDecl = utl::down_cast<ast::FunctionDefinition const&>(*tu.declarations[0]);
     CHECK(fooDecl.name() == "foo");
-    CHECK(fooDecl.parameters.size() == 0);
     CHECK(fooDecl.returnTypeExpr == nullptr);
 }
 
@@ -179,3 +178,34 @@ fn foo() {
     CHECK(issue->sourceLocation().column == 6);
     expectFooParse(*iss.ast);
 }
+
+TEST_CASE("ExpectedExpression - Parameter type", "[parse][issue]") {
+    auto iss   = test::getSyntaxIssues("fn foo(x:) {}");
+    auto issue = iss.findOnLine<SyntaxIssue>(1);
+    REQUIRE(issue);
+    CHECK(issue->reason() == ExpectedExpression);
+    CHECK(issue->sourceLocation().line == 1);
+    CHECK(issue->sourceLocation().column == 10);
+    expectFooParse(*iss.ast);
+}
+
+
+
+TEST_CASE("Missing parameter name") {
+    auto iss = test::getSyntaxIssues("fn foo(:x) {}");
+    auto issue = iss.findOnLine<SyntaxIssue>(1);
+    REQUIRE(issue);
+    CHECK(issue->reason() == ExpectedIdentifier);
+    CHECK(issue->sourceLocation().line == 1);
+    CHECK(issue->sourceLocation().column == 8);
+}
+
+TEST_CASE("Missing struct name") {
+    auto iss = test::getSyntaxIssues("struct {}");
+    auto issue = iss.findOnLine<SyntaxIssue>(1);
+    REQUIRE(issue);
+    CHECK(issue->reason() == ExpectedIdentifier);
+    CHECK(issue->sourceLocation().line == 1);
+    CHECK(issue->sourceLocation().column == 8);
+}
+

@@ -6,6 +6,10 @@
 #endif // SCATHA_PARSE_PARSERIMPL_H_
 #define SCATHA_PARSE_PARSERIMPL_H_
 
+#include <concepts>
+
+#include <utl/concepts.hpp>
+
 #include "AST/AST.h"
 #include "Basic/Basic.h"
 #include "Common/Expected.h"
@@ -68,6 +72,12 @@ struct Context {
     ///
     //    void panic();
 
+    template <utl::invocable_r<bool, Token const&>... Cond, std::predicate... F>
+    bool recover(std::pair<Cond, F>... retry);
+
+    template <std::predicate... F>
+    bool recover(std::pair<std::string_view, F>... retry);
+    
     template <typename Expr>
     ast::UniquePtr<Expr> parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
                                                std::string_view open,
