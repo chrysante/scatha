@@ -10,6 +10,7 @@
 #include <utl/vector.hpp>
 
 #include "AST/PrintTree.h"
+#include "AST/PrintSource.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
 #include "Parser/Parser.h"
@@ -66,6 +67,8 @@ int main() {
         std::cout << "No syntax issues.\n";
         ast::printTree(*ast);
     }
+    
+    ast::printSource(*ast);
     
     return 0;
     
