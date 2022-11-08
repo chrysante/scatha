@@ -1,5 +1,3 @@
 
-fn foo() {
-    callee();
-    
-}
+
+fn foo(:) {}
