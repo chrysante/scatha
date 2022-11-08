@@ -8,7 +8,7 @@
 
 namespace scatha::ast {
 
-struct Expression;
+class Expression;
 
 SCATHA(API) std::string toString(Expression const&);
 

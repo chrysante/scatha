@@ -141,19 +141,19 @@ void Context::print(Identifier const& identifier, int ind) {
 }
 
 void Context::print(IntegerLiteral const& intLiteral, int ind) {
-    str << indent(ind) << "<integer-literal> " << intLiteral.value << endl;
+    str << indent(ind) << "<integer-literal> " << intLiteral.value() << endl;
 }
 
 void Context::print(BooleanLiteral const& boolLiteral, int ind) {
-    str << indent(ind) << "<boolean-literal> " << (boolLiteral.value ? "true" : "false") << endl;
+    str << indent(ind) << "<boolean-literal> " << (boolLiteral.value() ? "true" : "false") << endl;
 }
 
 void Context::print(FloatingPointLiteral const& floatLiteral, int ind) {
-    str << indent(ind) << "<float-literal> " << floatLiteral.value << endl;
+    str << indent(ind) << "<float-literal> " << floatLiteral.value() << endl;
 }
 
 void Context::print(StringLiteral const& stringLiteral, int ind) {
-    str << indent(ind) << "<string-literal> " << '"' << stringLiteral.value << '"' << endl;
+    str << indent(ind) << "<string-literal> " << '"' << stringLiteral.value() << '"' << endl;
 }
 
 void Context::print(UnaryPrefixExpression const& unaryPrefExpr, int ind) {

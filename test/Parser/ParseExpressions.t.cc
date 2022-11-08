@@ -51,7 +51,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
         auto* mul                 = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
         auto* lhs = downCast<IntegerLiteral>(mul->lhs.get());
-        CHECK(lhs->value == 3);
+        CHECK(lhs->value() == 3);
         auto* rhs = downCast<Identifier>(mul->rhs.get());
         CHECK(rhs->value() == "x");
     }

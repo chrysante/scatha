@@ -10,32 +10,32 @@
 namespace scatha::ast {
 
 ///
-/// Forward Declaration of all AST nodes
+/// **Forward Declaration of all AST nodes**
 ///
 
-struct AbstractSyntaxTree;
-struct TranslationUnit;
-struct CompoundStatement;
-struct FunctionDefinition;
-struct StructDefinition;
-struct VariableDeclaration;
-struct ParameterDeclaration;
-struct ExpressionStatement;
-struct EmptyStatement;
-struct ReturnStatement;
-struct IfStatement;
-struct WhileStatement;
-struct Identifier;
-struct IntegerLiteral;
-struct BooleanLiteral;
-struct FloatingPointLiteral;
-struct StringLiteral;
-struct UnaryPrefixExpression;
-struct BinaryExpression;
-struct MemberAccess;
-struct Conditional;
-struct FunctionCall;
-struct Subscript;
+class AbstractSyntaxTree;
+class TranslationUnit;
+class CompoundStatement;
+class FunctionDefinition;
+class StructDefinition;
+class VariableDeclaration;
+class ParameterDeclaration;
+class ExpressionStatement;
+class EmptyStatement;
+class ReturnStatement;
+class IfStatement;
+class WhileStatement;
+class Identifier;
+class IntegerLiteral;
+class BooleanLiteral;
+class FloatingPointLiteral;
+class StringLiteral;
+class UnaryPrefixExpression;
+class BinaryExpression;
+class MemberAccess;
+class Conditional;
+class FunctionCall;
+class Subscript;
 
 /// List of all concrete AST node types
 enum class NodeType {

@@ -62,11 +62,11 @@ fn main() -> void {
     auto* const aDecl  = downCast<VariableDeclaration>(function->body->statements[0].get());
     auto* const intLit = downCast<IntegerLiteral>(aDecl->initExpression.get());
     CHECK(intLit->token().id == "39");
-    CHECK(intLit->value == 39);
+    CHECK(intLit->value() == 39);
     auto* const bDecl    = downCast<VariableDeclaration>(function->body->statements[1].get());
     auto* const floatLit = downCast<FloatingPointLiteral>(bDecl->initExpression.get());
     CHECK(floatLit->token().id == "1.2");
-    CHECK(floatLit->value == 1.2);
+    CHECK(floatLit->value() == 1.2);
 }
 
 TEST_CASE("Parse last statement ending with '}'", "[parse]") {

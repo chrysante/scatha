@@ -7,10 +7,10 @@
 
 namespace scatha::ic {
 
-FunctionLabel::FunctionLabel(ast::FunctionDefinition const& def): _functionID(def.symbolID) {
+FunctionLabel::FunctionLabel(ast::FunctionDefinition const& def): _functionID(def.symbolID()) {
     _parameters.reserve(def.parameters.size());
     for (auto& p: def.parameters) {
-        _parameters.push_back({ p->symbolID, p->typeID });
+        _parameters.push_back({ p->symbolID(), p->typeID() });
     }
 }
 

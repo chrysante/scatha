@@ -98,20 +98,20 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
             continue;
         }
         auto& varDecl = utl::down_cast<ast::VariableDeclaration&>(*statement);
-        if (varDecl.typeID == TypeID::Invalid) {
+        if (varDecl.typeID() == TypeID::Invalid) {
             break;
         }
-        auto const& type = sym.getObjectType(varDecl.typeID);
+        auto const& type = sym.getObjectType(varDecl.typeID());
         SC_ASSERT(type.isComplete(), "Type should be complete at this stage");
         objectAlign = std::max(objectAlign, type.align());
         SC_ASSERT(type.size() % type.align() == 0, "size must be a multiple of align");
         objectSize                 = utl::round_up_pow_two(objectSize, type.align());
         size_t const currentOffset = objectSize;
-        varDecl.offset             = currentOffset;
-        sym.getVariable(varDecl.symbolID).setOffset(currentOffset);
+        varDecl.setOffset(currentOffset);
+        sym.getVariable(varDecl.symbolID()).setOffset(currentOffset);
         objectSize += type.size();
     }
-    auto& objectType = sym.getObjectType(structDef.symbolID);
+    auto& objectType = sym.getObjectType(structDef.symbolID());
     objectType.setSize(objectSize);
     objectType.setAlign(objectAlign);
 }
@@ -121,10 +121,9 @@ void Context::instantiateVariable(DependencyGraphNode const& node) {
     sym.makeScopeCurrent(node.scope);
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     TypeID const typeID             = analyzeTypeExpression(*varDecl.typeExpr);
-    varDecl.typeID                  = typeID;
-    varDecl.symbolID                = node.symbolID;
+    varDecl.decorate(node.symbolID, typeID);
     /// Here we set the TypeID of the variable in the symbol table.
-    auto& var = sym.getVariable(varDecl.symbolID);
+    auto& var = sym.getVariable(varDecl.symbolID());
     var.setTypeID(typeID);
 }
 
@@ -158,7 +157,7 @@ TypeID Context::analyzeTypeExpression(ast::Expression& expr) const {
         return TypeID::Invalid;
     }
     if (typeExprResult.category() != ast::EntityCategory::Type) {
-        iss.push(BadSymbolReference(expr, expr.category, ast::EntityCategory::Type));
+        iss.push(BadSymbolReference(expr, expr.category(), ast::EntityCategory::Type));
         return TypeID::Invalid;
     }
     auto const& type = sym.getObjectType(typeExprResult.typeID());

@@ -54,30 +54,30 @@ size_t Context::gather(ast::TranslationUnit& tu) {
     return invalidIndex;
 }
 
-size_t Context::gather(ast::FunctionDefinition& fn) {
-    if (auto const sk = sym.currentScope().kind();
-        sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object)
+size_t Context::gather(ast::FunctionDefinition& funcDef) {
+    if (auto const scopeKind = sym.currentScope().kind();
+        scopeKind != ScopeKind::Global && scopeKind != ScopeKind::Namespace && scopeKind != ScopeKind::Object)
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(&fn,
+        iss.push(InvalidDeclaration(&funcDef,
                                     InvalidDeclaration::Reason::InvalidInCurrentScope,
                                     sym.currentScope(),
                                     SymbolCategory::Function));
         return (size_t)-1;
     }
-    Expected const declResult = sym.declareFunction(fn);
+    Expected const declResult = sym.declareFunction(funcDef);
     if (!declResult.hasValue()) {
         iss.push(declResult.error());
         return invalidIndex;
     }
-    auto& func         = *declResult;
-    fn.symbolID        = func.symbolID();
-    fn.body->scopeKind = ScopeKind::Function;
+    auto& funcObj         = *declResult;
+    funcDef.Declaration::decorate(funcObj.symbolID());
+    funcDef.body->decorate(ScopeKind::Function, funcObj.symbolID());
     /// Now add this function definition to the dependency graph
-    return dependencyGraph.add({ .symbolID = func.symbolID(),
+    return dependencyGraph.add({ .symbolID = funcObj.symbolID(),
                                  .category = SymbolCategory::Function,
-                                 .astNode  = &fn,
+                                 .astNode  = &funcDef,
                                  .scope    = &sym.currentScope() });
 }
 
@@ -99,9 +99,9 @@ size_t Context::gather(ast::StructDefinition& s) {
         return invalidIndex;
     }
     auto& objType     = *declResult;
-    s.symbolID        = objType.symbolID();
-    s.body->scopeKind = ScopeKind::Object;
-    SC_ASSERT(s.symbolID != SymbolID::Invalid, "");
+    s.decorate(objType.symbolID());
+    s.body->decorate(ScopeKind::Object, objType.symbolID());
+    SC_ASSERT(s.symbolID() != SymbolID::Invalid, "");
     size_t const index = dependencyGraph.add({ .symbolID = objType.symbolID(),
                                                .category = SymbolCategory::ObjectType,
                                                .astNode  = &s,

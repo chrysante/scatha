@@ -186,19 +186,19 @@ void Context::print(Identifier const& i) {
 }
 
 void Context::print(IntegerLiteral const& l) {
-    str << l.value;
+    str << l.value();
 }
 
 void Context::print(BooleanLiteral const& l) {
-    str << l.value;
+    str << l.value();
 }
 
 void Context::print(FloatingPointLiteral const& l) {
-    str << l.value;
+    str << l.value();
 }
 
 void Context::print(StringLiteral const& l) {
-    str << '"' << l.value << '"';
+    str << '"' << l.value() << '"';
 }
 
 void Context::print(UnaryPrefixExpression const& u) {

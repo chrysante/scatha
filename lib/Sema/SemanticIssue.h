@@ -39,7 +39,7 @@ private:
 class SCATHA(API) BadTypeConversion: public BadExpression {
 public:
     explicit BadTypeConversion(ast::Expression const& expression, TypeID to):
-        BadExpression(expression), _from(expression.typeID), _to(to) {}
+        BadExpression(expression), _from(expression.typeID()), _to(to) {}
 
     TypeID from() const { return _from; }
     TypeID to() const { return _to; }

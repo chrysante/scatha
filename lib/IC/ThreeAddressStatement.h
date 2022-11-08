@@ -43,10 +43,10 @@ struct Temporary {
 
 struct LiteralValue {
     LiteralValue(u64 value, sema::TypeID type): value(value), type(type) {}
-    explicit LiteralValue(ast::IntegerLiteral const& lit): LiteralValue(lit.value, lit.typeID) {}
-    explicit LiteralValue(ast::BooleanLiteral const& lit): LiteralValue(lit.value, lit.typeID) {}
+    explicit LiteralValue(ast::IntegerLiteral const& lit): LiteralValue(lit.value(), lit.typeID()) {}
+    explicit LiteralValue(ast::BooleanLiteral const& lit): LiteralValue(lit.value(), lit.typeID()) {}
     explicit LiteralValue(ast::FloatingPointLiteral const& lit):
-        LiteralValue(utl::bit_cast<u64>(lit.value), lit.typeID) {}
+        LiteralValue(utl::bit_cast<u64>(lit.value()), lit.typeID()) {}
 
     u64 value;
     sema::TypeID type;

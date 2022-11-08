@@ -99,7 +99,7 @@ void Context::generate(ast::TranslationUnit const& tu) {
 }
 
 void Context::generate(ast::FunctionDefinition const& def) {
-    currentFunctionID = def.symbolID;
+    currentFunctionID = def.symbolID();
     tmpIndex          = 0;
     labelIndex        = 0;
     submitFunctionLabel(def);
@@ -118,8 +118,8 @@ void Context::generate(ast::StructDefinition const& def) {
 }
 
 void Context::generate(ast::CompoundStatement const& block) {
-    SC_ASSERT(block.scopeKind == sema::ScopeKind::Function || block.scopeKind == sema::ScopeKind::Anonymous,
-              "Handle structs entirely in the struct case");
+    SC_ASSERT(block.scopeKind() == sema::ScopeKind::Function || block.scopeKind() == sema::ScopeKind::Anonymous,
+              "Handle structs only in the struct case");
     for (auto& statement: block.statements) {
         dispatch(*statement);
     }
@@ -136,7 +136,7 @@ void Context::generate(ast::VariableDeclaration const& decl) {
     //			--tmpIndex;
     //			return;
     //		}
-    submitDeclaration({ decl.symbolID }, initResult);
+    submitDeclaration({ decl.symbolID() }, initResult);
     //		submit(var, Operation::mov, initResult);
 }
 
@@ -174,7 +174,7 @@ void Context::generate(ast::ReturnStatement const& ret) {
 }
 
 TasArgument Context::generateExpression(ast::Identifier const& id) {
-    return Variable(id.symbolID);
+    return Variable(id.symbolID());
 }
 
 TasArgument Context::generateExpression(ast::MemberAccess const& ma) {
@@ -200,8 +200,8 @@ TasArgument Context::generateExpression(ast::FloatingPointLiteral const& lit) {
 
 static sema::SymbolID getSymbolID(ast::Expression const& expr) {
     return ast::visit(expr,
-                      utl::visitor{ [](ast::Identifier const& id) { return id.symbolID; },
-                                    [](ast::MemberAccess const& ma) { return ma.symbolID; },
+                      utl::visitor{ [](ast::Identifier const& id) { return id.symbolID(); },
+                                    [](ast::MemberAccess const& ma) { return ma.symbolID(); },
                                     [](ast::AbstractSyntaxTree const&) -> sema::SymbolID { SC_DEBUGFAIL(); } });
 }
 
@@ -219,12 +219,12 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
     case ast::BinaryOperator::BitwiseOr: [[fallthrough]];
     case ast::BinaryOperator::BitwiseXOr: [[fallthrough]];
     case ast::BinaryOperator::BitwiseAnd:
-        return submit(makeTemporary(expr.lhs->typeID), selectOperation(expr.lhs->typeID, expr.op), lhs, rhs);
+        return submit(makeTemporary(expr.lhs->typeID()), selectOperation(expr.lhs->typeID(), expr.op), lhs, rhs);
     case ast::BinaryOperator::Less: [[fallthrough]];
     case ast::BinaryOperator::LessEq: [[fallthrough]];
     case ast::BinaryOperator::Equals: [[fallthrough]];
     case ast::BinaryOperator::NotEquals:
-        return submit(makeTemporary(sym.Bool()), selectOperation(expr.lhs->typeID, expr.op), lhs, rhs);
+        return submit(makeTemporary(sym.Bool()), selectOperation(expr.lhs->typeID(), expr.op), lhs, rhs);
     case ast::BinaryOperator::Assignment: {
         /// **WARNING: We don't support assigning to arbitrary expressions yet
         auto const lhsSymId = getSymbolID(*expr.lhs);
@@ -250,7 +250,7 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
 
 TasArgument Context::generateExpression(ast::UnaryPrefixExpression const& expr) {
     TasArgument const arg   = dispatchExpression(*expr.operand);
-    sema::TypeID const type = expr.typeID;
+    sema::TypeID const type = expr.typeID();
     switch (expr.op) {
     case ast::UnaryPrefixOperator::Promotion: return arg;
     case ast::UnaryPrefixOperator::Negation:
@@ -272,8 +272,8 @@ TasArgument Context::generateExpression(ast::FunctionCall const& expr) {
     for (auto& arg: expr.arguments) {
         submit(Operation::param, dispatchExpression(*arg));
     }
-    submitJump(Operation::call, Label(expr.functionID));
-    return submit(makeTemporary(expr.typeID), Operation::getResult);
+    submitJump(Operation::call, Label(expr.functionID()));
+    return submit(makeTemporary(expr.typeID()), Operation::getResult);
 }
 
 void Context::submit(Operation op, TasArgument a, TasArgument b) {
