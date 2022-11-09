@@ -77,7 +77,7 @@ vm::OpCode mapUnaryInstruction(Instruction i) {
 
     case Instruction::callExt:   return vm::OpCode::callExt;
     default: SC_UNREACHABLE();
-    // clang-format on
+        // clang-format on
     }
 }
 

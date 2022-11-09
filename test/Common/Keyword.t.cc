@@ -7,19 +7,16 @@ using namespace scatha;
 
 TEST_CASE("Convert token to enum class keyword", "[parse]") {
     using enum Keyword;
-
     CHECK(toKeyword("void").value() == Void);
     CHECK(toKeyword("fn").value() == Function);
     CHECK(toKeyword("while").value() == While);
     CHECK(toKeyword("false").value() == False);
-
     CHECK(!toKeyword("foo").has_value());
     CHECK(!toKeyword("bar").has_value());
 }
 
 TEST_CASE("Keyword Categories", "[parse]") {
     using enum Keyword;
-
     CHECK(categorize(Void) == KeywordCategory::Types);
     CHECK(categorize(Bool) == KeywordCategory::Types);
     CHECK(categorize(Int) == KeywordCategory::Types);

@@ -97,8 +97,7 @@ fn f() { X.callee(); }
 fn g() { X.callee(0); }
 struct X {
 	fn callee(a: string) {}
-}
-)");
+})");
     auto const line2  = issues.findOnLine<BadFunctionCall>(2);
     REQUIRE(line2);
     CHECK(line2->reason() == BadFunctionCall::Reason::NoMatchingFunction);
@@ -117,7 +116,7 @@ fn main() {
 //  X.0.0;
 	X.data;
 }
-struct X{ let data: float; }
+struct X { let data: float; }
 )");
     //  CHECK(issues.findOnLine<BadMemberAccess>(3));
     //  CHECK(issues.findOnLine<BadMemberAccess>(4));
@@ -221,8 +220,7 @@ TEST_CASE("Invalid declaration", "[sema][issue]") {
 fn f() {
 	fn g() {}
 	struct X {}
-}
-)");
+})");
     SymbolID const fID = issues.sym.lookupOverloadSet("f")->find(std::array<TypeID, 0>{})->symbolID();
     auto const line3   = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);

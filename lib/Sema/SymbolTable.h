@@ -94,7 +94,7 @@ public:
 
     /// \overload
     Expected<Variable&, SemanticIssue> addVariable(Token name, TypeID, size_t offset = 0);
-    
+
     /// \brief Declares an anonymous scope within the current scope.
     ///
     /// \returns Reference to the new scope.

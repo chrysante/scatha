@@ -59,6 +59,7 @@ fn mul(a: int, b: int) -> int {
     };
     test.run();
 }
+
 TEST_CASE("Lexer positive 2", "[lex]") {
     TestCase test;
     test.text      = R"(

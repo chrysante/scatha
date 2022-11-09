@@ -71,7 +71,7 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
         iss.push(declResult.error());
         return invalidIndex;
     }
-    auto& funcObj         = *declResult;
+    auto& funcObj = *declResult;
     funcDef.Declaration::decorate(funcObj.symbolID());
     funcDef.body->decorate(ScopeKind::Function, funcObj.symbolID());
     /// Now add this function definition to the dependency graph
@@ -98,7 +98,7 @@ size_t Context::gather(ast::StructDefinition& s) {
         iss.push(declResult.error());
         return invalidIndex;
     }
-    auto& objType     = *declResult;
+    auto& objType = *declResult;
     s.decorate(objType.symbolID());
     s.body->decorate(ScopeKind::Object, objType.symbolID());
     SC_ASSERT(s.symbolID() != SymbolID::Invalid, "");

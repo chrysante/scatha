@@ -69,9 +69,10 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     }
     SC_ASSERT(fn.symbolID() != SymbolID::Invalid,
               "Can't analyze the body if wen don't have a symbol to push this functions scope.");
-    /// Here the AST node is partially decorated: symbolID() is already set by gatherNames() phase, now we complete the decoration.
+    /// Here the AST node is partially decorated: symbolID() is already set by gatherNames() phase, now we complete the
+    /// decoration.
     SymbolID const fnSymID = fn.symbolID();
-    auto const& function               = sym.getFunction(fnSymID);
+    auto const& function   = sym.getFunction(fnSymID);
 #warning Why is functionTypeID ::Invalid here?
     fn.decorate(fnSymID, function.signature().returnTypeID(), sema::TypeID::Invalid);
     fn.body->decorate(ScopeKind::Function, function.symbolID());
@@ -132,7 +133,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
                                     SymbolCategory::Variable));
         return;
     }
-    
+
     TypeID const declaredTypeID = [&] {
         if (var.typeExpr == nullptr) {
             return TypeID::Invalid;
@@ -148,8 +149,10 @@ void Context::analyze(ast::VariableDeclaration& var) {
         auto const& objType = sym.getObjectType(varTypeRes.typeID());
         return objType.symbolID();
     }();
-    if (iss.fatal()) { return; }
-    TypeID const deducedTypeID = [&]{
+    if (iss.fatal()) {
+        return;
+    }
+    TypeID const deducedTypeID = [&] {
         if (var.initExpression == nullptr) {
             return TypeID::Invalid;
         }
@@ -163,7 +166,9 @@ void Context::analyze(ast::VariableDeclaration& var) {
         }
         return var.initExpression->typeID();
     }();
-    if (iss.fatal()) { return; }
+    if (iss.fatal()) {
+        return;
+    }
     if (!declaredTypeID && !deducedTypeID) {
         return;
     }
@@ -171,7 +176,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
         verifyConversion(*var.initExpression, declaredTypeID);
     }
     TypeID const finalTypeID = declaredTypeID ? declaredTypeID : deducedTypeID;
-    auto varObj = sym.addVariable(var, finalTypeID);
+    auto varObj              = sym.addVariable(var, finalTypeID);
     if (!varObj) {
         iss.push(varObj.error());
         return;
@@ -197,7 +202,9 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
         auto const& objType = sym.getObjectType(declTypeRes.typeID());
         return objType.symbolID();
     }();
-    if (iss.fatal()) { return; }
+    if (iss.fatal()) {
+        return;
+    }
     auto paramObj = sym.addVariable(paramDecl.token(), declaredTypeID);
     if (!paramObj) {
         paramObj.error().setStatement(paramDecl);

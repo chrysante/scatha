@@ -61,7 +61,7 @@ bool Context::recover(std::pair<Cond, F>... retry) {
     int const maxDiscardedTokens = 5;
     for (int i = 0; i < maxDiscardedTokens; ++i) {
         Token const& next = tokens.peek();
-        bool success = false;
+        bool success      = false;
         ([&](auto const& cond, auto const& callback) {
             if (std::invoke(cond, next)) {
                 success = std::invoke(callback);
@@ -81,7 +81,7 @@ bool Context::recover(std::pair<Cond, F>... retry) {
 
 template <std::predicate... F>
 bool Context::recover(std::pair<std::string_view, F>... retry) {
-    return recover(std::pair{ [&](Token const& token){ return token.id == retry.first; }, retry.second }...);
+    return recover(std::pair{ [&](Token const& token) { return token.id == retry.first; }, retry.second }...);
 }
 
 ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
@@ -94,10 +94,8 @@ ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     auto identifier = parseIdentifier();
     if (!identifier) {
         iss.push(SyntaxIssue(tokens.peek(), ExpectedIdentifier));
-        bool const recovered = recover(std::pair{
-            [&](Token const&) { return true; },
-            [&]{ return bool(identifier = parseIdentifier()); }
-        });
+        bool const recovered = recover(
+            std::pair{ [&](Token const&) { return true; }, [&] { return bool(identifier = parseIdentifier()); } });
         if (!recovered) {
             return nullptr;
         }
@@ -111,18 +109,17 @@ ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     auto params = parseList();
     if (!params) {
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "("));
-        bool const recovered = recover(std::pair(std::string_view("{"),
-                                                 [&]{
-                                                     /// User forgot to specify parameter list?
-                                                     /// Go on with parsing the body.
-                                                     params = ParamListType{};
-                                                     return true;
-                                                 }),
-                                       std::pair(std::string_view("("),
-                                                 [&]{
-                                                     /// Try parsing parameter list again.
-                                                     return bool(params = parseList());
-                                                 }));
+        // clang-format off
+        bool const recovered = recover(std::pair{ std::string_view("{"), [&] {
+            /// User forgot to specify parameter list?
+            /// Go on with parsing the body.
+            params = ParamListType{};
+            return true;
+        } }, std::pair{ std::string_view("("), [&] {
+            /// Try parsing parameter list again.
+            return bool(params = parseList());
+        }});
+        // clang-format on
         if (!recovered) {
             return nullptr;
         }
@@ -140,10 +137,9 @@ ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
         /// Eat a few tokens and see if we can find a compound statement.
         /// 5 is pretty arbitrary here.
-        bool recovered = recover(std::pair(std::string_view(";"),
-                                           [&] { return true; }),
-                                 std::pair(std::string_view("{"),
-                                           [&] { return bool(body = parseCompoundStatement()); }));
+        bool recovered =
+            recover(std::pair(std::string_view(";"), [&] { return true; }),
+                    std::pair(std::string_view("{"), [&] { return bool(body = parseCompoundStatement()); }));
         if (!recovered) {
             return nullptr;
         }
@@ -154,7 +150,7 @@ ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
 
 ast::UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     Token const& idToken = tokens.peek();
-    auto identifier = parseIdentifier();
+    auto identifier      = parseIdentifier();
     if (!identifier) {
         iss.push(SyntaxIssue(idToken, ExpectedIdentifier));
         /// Custom recovery mechanism
@@ -217,7 +213,7 @@ ast::UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
     auto identifier = parseIdentifier();
     if (!identifier) {
         iss.push(SyntaxIssue(tokens.peek(), ExpectedIdentifier));
-        bool const recovered = recover(std::pair(std::string_view("{"), []{ return true; }));
+        bool const recovered = recover(std::pair(std::string_view("{"), [] { return true; }));
         if (!recovered) {
             return nullptr;
         }
@@ -237,7 +233,6 @@ ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
         return nullptr;
     }
     tokens.eat();
-
     auto identifier = parseIdentifier();
     if (!identifier) {
         Token const curr = tokens.current();
@@ -265,7 +260,6 @@ ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
         }
         result->initExpression = std::move(initExpr);
     }
-
     if (Token const semicolon = tokens.peek(); semicolon.id != ";") {
         Token const curr = tokens.current();
         Token const next = tokens.peek();
@@ -345,7 +339,6 @@ ast::UniquePtr<ast::ControlFlowStatement> Context::parseControlFlowStatement() {
     if (auto whileStatement = parseWhileStatement()) {
         return whileStatement;
     }
-    // not necessarily an error
     return nullptr;
 }
 
@@ -355,9 +348,8 @@ ast::UniquePtr<ast::ReturnStatement> Context::parseReturnStatement() {
         return nullptr;
     }
     tokens.eat();
-    // May be null in case of void return statement
+    /// May be null in case of void return statement.
     auto expression = parseComma();
-
     expectDelimiter(";");
     return ast::allocate<ast::ReturnStatement>(returnToken, std::move(expression));
 }

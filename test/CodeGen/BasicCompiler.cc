@@ -37,21 +37,19 @@ vm::Program compile(std::string_view text) {
     codegen::CodeGenerator cg(tac);
     auto const str = cg.run();
     assembly::Assembler a(str);
-
-    // start execution with main if it exists
+    /// Start execution with main if it exists.
     auto const mainID = [&sym] {
         auto const id  = sym.lookup("main");
         auto const* os = sym.tryGetOverloadSet(id);
         if (!os) {
             return sema::SymbolID::Invalid;
         }
-        auto const* mainFn = os->find(std::array<sema::TypeID, 0>{});
+        auto const* mainFn = os->find({});
         if (!mainFn) {
             return sema::SymbolID::Invalid;
         }
         return mainFn->symbolID();
     }();
-
     return a.assemble({ .mainID = mainID.rawValue() });
 }
 

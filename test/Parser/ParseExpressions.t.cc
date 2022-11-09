@@ -19,15 +19,14 @@ static ast::UniquePtr<ast::Expression> parseExpression(std::string expression) {
 
 TEST_CASE("Parsing expressions", "[parse]") {
     SECTION("Simple Addition") {
-        /* clang-format off
-         
-         Expecting:
-              add
-             /   \
-           "a"   "b"
-
-         clang-format on */
-
+        // clang-format off
+        //
+        // Expecting:
+        //      add
+        //     /   \
+        //   "a"   "b"
+        //
+        // clang-format on
         ast::UniquePtr const expr = parseExpression("a + b");
         auto* add                 = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
@@ -38,15 +37,14 @@ TEST_CASE("Parsing expressions", "[parse]") {
     }
 
     SECTION("Simple Multiplication") {
-        /* clang-format off
-          
-         Expecting:
-             mul
-            /   \
-          "3"   "x"
-        
-         clang-format on */
-
+        // clang-format off
+        //
+        // Expecting:
+        //     mul
+        //    /   \
+        //  "3"   "x"
+        //
+        // clang-format on
         ast::UniquePtr const expr = parseExpression("3 * x");
         auto* mul                 = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);
@@ -57,17 +55,16 @@ TEST_CASE("Parsing expressions", "[parse]") {
     }
 
     SECTION("Associativity") {
-        /* clang-format off
-         
-         Expecting:
-              add
-             /   \
-           "a"   mul
-                /   \
-              "b"   "c"
-
-         clang-format on */
-
+        // clang-format off
+        //
+        // Expecting:
+        //      add
+        //     /   \
+        //   "a"   mul
+        //        /   \
+        //      "b"   "c"
+        //
+        // clang-format on
         ast::UniquePtr const expr = parseExpression("a + b * c");
         auto* add                 = downCast<BinaryExpression>(expr.get());
         REQUIRE(add->op == BinaryOperator::Addition);
@@ -82,17 +79,16 @@ TEST_CASE("Parsing expressions", "[parse]") {
     }
 
     SECTION("Parentheses") {
-        /* clang-format off
-         
-         Expecting:
-                mul
-               /   \
-             add   "c"
-            /   \
-          "a"   "b"
-
-         clang-format on */
-
+        // clang-format off
+        //
+        // Expecting:
+        //        mul
+        //       /   \
+        //     add   "c"
+        //    /   \
+        //  "a"   "b"
+        //
+        // clang-format on
         ast::UniquePtr const expr = parseExpression("(a + b) * c");
         auto* mul                 = downCast<BinaryExpression>(expr.get());
         REQUIRE(mul->op == BinaryOperator::Multiplication);

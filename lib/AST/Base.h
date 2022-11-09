@@ -43,7 +43,7 @@ namespace internal {
 class Decoratable {
 public:
     bool isDecorated() const { return decorated; }
-    
+
 protected:
     void expectDecorated() const { SC_EXPECT(isDecorated(), "Requested decoration on undecorated node."); }
     void markDecorated() { decorated = true; }
@@ -52,9 +52,9 @@ private:
     bool decorated = false;
 };
 
-}
+} // namespace internal
 
-/// ** Base class for all nodes in the AST **
+/// **Base class for all nodes in the AST**
 /// Every derived class must specify its runtime type in the constructor via the \p NodeType enum.
 class SCATHA(API) AbstractSyntaxTree: public internal::Decoratable {
 public:

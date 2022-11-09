@@ -52,24 +52,30 @@ public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
 
     /// **Decoration provided by semantic analysis**
-        
+
     /// Wether the expression refers to a value or a type.
-    EntityCategory category() const { expectDecorated(); return _category; }
-    
+    EntityCategory category() const {
+        expectDecorated();
+        return _category;
+    }
+
     /// The type of the expression. Only valid if \code kind == ::Value \endcode
-    sema::TypeID typeID() const { expectDecorated(); return _typeID; }
-    
+    sema::TypeID typeID() const {
+        expectDecorated();
+        return _typeID;
+    }
+
     bool isValue() const { return category() == EntityCategory::Value; }
-    
+
     bool isType() const { return category() == EntityCategory::Type; }
-    
+
     /// Decorate this node.
     void decorate(sema::TypeID typeID, EntityCategory category = EntityCategory::Value) {
         _category = category;
-        _typeID = typeID;
+        _typeID   = typeID;
         markDecorated();
     }
-    
+
 private:
     EntityCategory _category = EntityCategory::Value;
     sema::TypeID _typeID{};
@@ -86,13 +92,16 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// ID of the resolved symbol
-    sema::SymbolID symbolID() const { expectDecorated(); return _symbolID; }
-    
+    sema::SymbolID symbolID() const {
+        expectDecorated();
+        return _symbolID;
+    }
+
     void decorate(sema::SymbolID symbolID, sema::TypeID typeID, EntityCategory category = EntityCategory::Value) {
         _symbolID = symbolID;
         Expression::decorate(typeID, category);
     }
-    
+
 private:
     sema::SymbolID _symbolID;
 };
@@ -103,7 +112,7 @@ public:
         Expression(NodeType::IntegerLiteral, token), _value(token.toInteger()) {}
 
     u64 value() const { return _value; };
-    
+
 private:
     u64 _value;
 };
@@ -113,7 +122,7 @@ public:
     explicit BooleanLiteral(Token const& token): Expression(NodeType::BooleanLiteral, token), _value(token.toBool()) {}
 
     bool value() const { return _value; }
-    
+
 private:
     bool _value;
 };
@@ -124,7 +133,7 @@ public:
         Expression(NodeType::FloatingPointLiteral, token), _value(token.toFloat()) {}
 
     f64 value() const { return _value; }
-    
+
 private:
     f64 _value;
 };
@@ -134,7 +143,7 @@ public:
     explicit StringLiteral(Token const& token): Expression(NodeType::StringLiteral, token), _value(token.id) {}
 
     std::string value() const { return _value; }
-    
+
 private:
     std::string _value;
 };
@@ -172,10 +181,13 @@ public:
     UniquePtr<Expression> member;
 
     /// **Decoration provided by semantic analysis**
-    
+
     /// ID of the resolved symbol
-    sema::SymbolID symbolID() const { expectDecorated(); return _symbolID; }
-    
+    sema::SymbolID symbolID() const {
+        expectDecorated();
+        return _symbolID;
+    }
+
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID, sema::TypeID typeID, EntityCategory category = EntityCategory::Value) {
         _symbolID = symbolID;
@@ -218,14 +230,17 @@ public:
     /// Differs from the SymbolID of the object because the latter refers to an
     /// overload set or an object and this ID is resolved by overload
     /// resolution.
-    sema::SymbolID functionID() const { expectDecorated(); return _functionID; }
-    
+    sema::SymbolID functionID() const {
+        expectDecorated();
+        return _functionID;
+    }
+
     /// Decorate this node.
     void decorate(sema::SymbolID functionID, sema::TypeID typeID, EntityCategory category = EntityCategory::Value) {
         _functionID = functionID;
         Expression::decorate(typeID, category);
     }
-    
+
 private:
     sema::SymbolID _functionID;
 };
@@ -256,8 +271,11 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// SymbolID of this declaration in the symbol table
-    sema::SymbolID symbolID() const { expectDecorated(); return _symbolID; }
-    
+    sema::SymbolID symbolID() const {
+        expectDecorated();
+        return _symbolID;
+    }
+
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID) {
         _symbolID = symbolID;
@@ -266,7 +284,7 @@ public:
 
 protected:
     explicit Declaration(NodeType type, Token const& declarator, UniquePtr<Identifier> name):
-    Statement(type, declarator), nameIdentifier(std::move(name)) {}
+        Statement(type, declarator), nameIdentifier(std::move(name)) {}
 
 private:
     sema::SymbolID _symbolID;
@@ -303,18 +321,24 @@ public:
     /// Type of the variable.
     /// Either deduced by the type of initExpression or by declTypename and then
     /// checked against the type of  initExpression
-    sema::TypeID typeID() const { expectDecorated(); return _typeID; }
-    
+    sema::TypeID typeID() const {
+        expectDecorated();
+        return _typeID;
+    }
+
     /// Offset of the variable if this is a struct member
-    size_t offset() const { expectDecorated(); return _offset; }
-        
+    size_t offset() const {
+        expectDecorated();
+        return _offset;
+    }
+
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID, sema::TypeID typeID, size_t offset = 0) {
         _typeID = typeID;
         _offset = offset;
         Declaration::decorate(symbolID);
     }
-    
+
     void setOffset(size_t offset) { _offset = offset; }
 
 private:
@@ -338,14 +362,17 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Type of the parameter.
-    sema::TypeID typeID() const { expectDecorated(); return _typeID; }
-    
+    sema::TypeID typeID() const {
+        expectDecorated();
+        return _typeID;
+    }
+
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID, sema::TypeID typeID) {
         _typeID = typeID;
         Declaration::decorate(symbolID);
     }
-    
+
 private:
     sema::TypeID _typeID = sema::TypeID::Invalid;
 };
@@ -369,18 +396,24 @@ public:
 
     /// Kind of this block scope. Default is 'Anonymous', make sure to set this to Function or ObjectType in other
     /// cases.
-    sema::ScopeKind scopeKind() const { expectDecorated(); return _scopeKind; }
-    
+    sema::ScopeKind scopeKind() const {
+        expectDecorated();
+        return _scopeKind;
+    }
+
     /// SymbolID of this declaration in the symbol table
-    sema::SymbolID symbolID() const { expectDecorated(); return _symbolID; }
+    sema::SymbolID symbolID() const {
+        expectDecorated();
+        return _symbolID;
+    }
 
     /// Decorate this node.
     void decorate(sema::ScopeKind scopeKind, sema::SymbolID symbolID) {
         _scopeKind = scopeKind;
-        _symbolID = symbolID;
+        _symbolID  = symbolID;
         markDecorated();
     }
-    
+
 private:
     sema::ScopeKind _scopeKind = sema::ScopeKind::Anonymous;
     sema::SymbolID _symbolID;
@@ -413,18 +446,24 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Return type of the function.
-    sema::TypeID returnTypeID() const { expectDecorated(); return _returnTypeID; }
-    
+    sema::TypeID returnTypeID() const {
+        expectDecorated();
+        return _returnTypeID;
+    }
+
     /// Type of the function.
-    sema::TypeID functionTypeID() const { expectDecorated(); return _functionTypeID; }
-    
+    sema::TypeID functionTypeID() const {
+        expectDecorated();
+        return _functionTypeID;
+    }
+
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID, sema::TypeID returnTypeID, sema::TypeID functionTypeID) {
-        _returnTypeID = returnTypeID;
+        _returnTypeID   = returnTypeID;
         _functionTypeID = functionTypeID;
         Declaration::decorate(symbolID);
     }
-    
+
 private:
     sema::TypeID _returnTypeID   = sema::TypeID::Invalid;
     sema::TypeID _functionTypeID = sema::TypeID::Invalid;
@@ -438,13 +477,11 @@ public:
 
     /// Body of the struct.
     UniquePtr<CompoundStatement> body;
-    
+
     /// **Decoration provided by semantic analysis**
-    
+
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID) {
-        Declaration::decorate(symbolID);
-    }
+    void decorate(sema::SymbolID symbolID) { Declaration::decorate(symbolID); }
 };
 
 /// Concrete node representing a statement that consists of a single expression.

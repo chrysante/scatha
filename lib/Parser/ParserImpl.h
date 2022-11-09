@@ -77,7 +77,7 @@ struct Context {
 
     template <std::predicate... F>
     bool recover(std::pair<std::string_view, F>... retry);
-    
+
     template <typename Expr>
     ast::UniquePtr<Expr> parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
                                                std::string_view open,

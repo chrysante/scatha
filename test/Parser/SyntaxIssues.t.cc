@@ -85,7 +85,6 @@ fn foo() {}
     CHECK(issue->reason() == ExpectedDeclarator);
     CHECK(issue->sourceLocation().line == 2);
     CHECK(issue->sourceLocation().column == 1);
-    /// Expect recovery from the syntax issue.
     expectFooParse(*iss.ast);
 }
 
@@ -189,10 +188,8 @@ TEST_CASE("ExpectedExpression - Parameter type", "[parse][issue]") {
     expectFooParse(*iss.ast);
 }
 
-
-
 TEST_CASE("Missing parameter name") {
-    auto iss = test::getSyntaxIssues("fn foo(:x) {}");
+    auto iss   = test::getSyntaxIssues("fn foo(:x) {}");
     auto issue = iss.findOnLine<SyntaxIssue>(1);
     REQUIRE(issue);
     CHECK(issue->reason() == ExpectedIdentifier);
@@ -201,11 +198,10 @@ TEST_CASE("Missing parameter name") {
 }
 
 TEST_CASE("Missing struct name") {
-    auto iss = test::getSyntaxIssues("struct {}");
+    auto iss   = test::getSyntaxIssues("struct {}");
     auto issue = iss.findOnLine<SyntaxIssue>(1);
     REQUIRE(issue);
     CHECK(issue->reason() == ExpectedIdentifier);
     CHECK(issue->sourceLocation().line == 1);
     CHECK(issue->sourceLocation().column == 8);
 }
-
