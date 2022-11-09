@@ -38,6 +38,7 @@ struct Context {
     TasArgument generateExpression(ast::FloatingPointLiteral const&);
     TasArgument generateExpression(ast::BinaryExpression const&);
     TasArgument generateExpression(ast::UnaryPrefixExpression const&);
+    TasArgument generateExpression(ast::Conditional const&);
     TasArgument generateExpression(ast::FunctionCall const&);
     TasArgument generateExpression(ast::AbstractSyntaxTree const&) { SC_DEBUGFAIL(); }
 
@@ -46,8 +47,8 @@ struct Context {
 
     void submitDeclaration(utl::small_vector<sema::SymbolID>, TasArgument);
 
-    // Returns the code position of the submitted jump,
-    // so the label can be updated later
+    /// Returns the code position of the submitted jump,
+    /// so the label can be updated later.
     size_t submitJump(Operation, Label label);
 
     // Returns the label
@@ -57,7 +58,7 @@ struct Context {
 
     void submitFunctionEndLabel();
 
-    // return the appropriate jump instruction to jump over the then block
+    /// Returns the appropriate jump instruction to jump over the then block.
     Operation processIfCondition(ast::Expression const& condition);
 
     TasArgument makeTemporary(sema::TypeID type);
@@ -68,9 +69,9 @@ struct Context {
     utl::vector<TacLine>& code;
 
     size_t tmpIndex = 0;
-    // Will be set by the FunctionDefinition case
+    /// Will be set by the FunctionDefinition case.
     sema::SymbolID currentFunctionID = sema::SymbolID::Invalid;
-    // Will be reset to 0 by the FunctionDefinition case
+    /// Will be reset to 0 by the FunctionDefinition case.
     size_t labelIndex = 0;
 };
 
@@ -128,16 +129,7 @@ void Context::generate(ast::CompoundStatement const& block) {
 
 void Context::generate(ast::VariableDeclaration const& decl) {
     const TasArgument initResult = decl.initExpression ? dispatchExpression(*decl.initExpression) : EmptyArgument();
-    //		Variable const var{ decl.symbolID };
-    //		if (initResult.is(TasArgument::temporary)) {
-    //			/// **Optimization:
-    //			/// Use assignment to the last temporary to directly assign to the
-    // variable. 			code.back().asTas().result = var;
-    //			--tmpIndex;
-    //			return;
-    //		}
     submitDeclaration({ decl.symbolID() }, initResult);
-    //		submit(var, Operation::mov, initResult);
 }
 
 void Context::generate(ast::ExpressionStatement const& statement) {
@@ -242,8 +234,8 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
         dispatchExpression(*expr.lhs);
         return dispatchExpression(*expr.rhs);
     }
-        /// Compound assignment operations like AddAssign, MulAssign etc. must not be here, they should have been
-        /// transformed by the canonicalizer.
+    /// Compound assignment operations like AddAssign, MulAssign etc. must not be here, they should have been
+    /// transformed by the canonicalizer.
     default: SC_UNREACHABLE();
     }
 }
@@ -266,6 +258,21 @@ TasArgument Context::generateExpression(ast::UnaryPrefixExpression const& expr) 
         return submit(makeTemporary(type), Operation::lnt, arg);
     default: SC_UNREACHABLE();
     }
+}
+
+TasArgument Context::generateExpression(ast::Conditional const& expr) {
+    SC_ASSERT(expr.condition != nullptr, "Invalid argument.");
+    SC_ASSERT(expr.ifExpr    != nullptr, "Invalid argument.");
+    SC_ASSERT(expr.elseExpr  != nullptr, "Invalid argument.");
+    Operation const cjmpOp = processIfCondition(*expr.condition);
+    size_t const cjmpIndex = submitJump(cjmpOp, Label{});
+    TasArgument const result = makeTemporary(expr.typeID());
+    submit(result, Operation::mov, dispatchExpression(*expr.ifExpr));
+    size_t const jmpIndex        = submitJump(Operation::jmp, Label{});
+    code[cjmpIndex].asTas().arg1 = submitLabel();
+    submit(result, Operation::mov, dispatchExpression(*expr.elseExpr));
+    code[jmpIndex].asTas().arg1 = submitLabel();
+    return result;
 }
 
 TasArgument Context::generateExpression(ast::FunctionCall const& expr) {
@@ -332,20 +339,21 @@ void Context::submitFunctionEndLabel() {
 
 Operation Context::processIfCondition(ast::Expression const& condition) {
     TasArgument const condResult = dispatchExpression(condition);
-    auto& condStatement          = [&]() -> auto& {
-                 if (code.back().isTas()) {
-                     /// The condition generated a TAS.
+    // clang-format off
+    auto& condStatement = [&]() -> auto& {
+        if (code.back().isTas()) {
+            /// The condition generated a TAS.
             return code.back().asTas();
         }
-                 if (condResult.is(TasArgument::literalValue)) {
-                     /// The condition is a literal.
+        if (condResult.is(TasArgument::literalValue)) {
+            /// The condition is a literal.
             submit(makeTemporary(sym.Bool()), Operation::mov, condResult);
             return code.back().asTas();
         }
-                 /// What is the condition?
-                 SC_DEBUGFAIL();
-    }
-    ();
+        /// What is the condition?
+        SC_DEBUGFAIL();
+    }();
+    // clang-format on
 
     /// Make the condition a tas conditional statement.
     if (isRelop(condStatement.operation)) {
