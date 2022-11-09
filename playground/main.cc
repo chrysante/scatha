@@ -89,7 +89,6 @@ using namespace scatha::parse;
         std::cout << "=== Generated Three Address Code =================\n";
         std::cout << "==================================================\n\n";
         ic::canonicalize(ast.get());
-        ast::printTree(*ast);
         auto const tac = ic::generateTac(*ast, sym);
         ic::printTac(tac, sym);
 
