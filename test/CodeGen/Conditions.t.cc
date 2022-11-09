@@ -146,22 +146,35 @@ fn main() -> int {
 
 TEST_CASE("Branch based on result of function calls", "[codegen]") {
     std::string const text = R"(
+fn main() -> int {
+    let x = 0;
+    let y = 1;
+    if greaterZero(x) {
+        return 1;
+    }
+    else if greaterZero(y) {
+        return 2;
+    }
+    else {
+        return 3;
+    }
+}
 fn greaterZero(a: int) -> bool {
-	return !(a <= 0);
+    return !(a <= 0);
+})";
+    auto const registers   = test::getRegisters(text);
+    CHECK(registers[0] == 2);
 }
 
+TEST_CASE("Conditional", "[codegen]") {
+    std::string const text = R"(
 fn main() -> int {
-	let x = 0;
-	let y = 1;
-	if greaterZero(x) {
-		return 1;
-	}
-	else if greaterZero(y) {
-		return 2;
-	}
-	else {
-		return 3;
-	}
+    let x = 0;
+    let y = 1;
+    return greaterZero(x) ? 1 : greaterZero(y) ? 2 : 3;
+}
+fn greaterZero(a: int) -> bool {
+    return !(a <= 0);
 })";
     auto const registers   = test::getRegisters(text);
     CHECK(registers[0] == 2);
