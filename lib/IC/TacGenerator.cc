@@ -16,10 +16,72 @@ namespace scatha::ic {
 
 namespace {
 
+struct OpTable {
+    OpTable(sema::SymbolTable const& sym) {
+        using enum ast::BinaryOperator;
+        set(sym.Int(), Addition)       = Operation::add;
+        set(sym.Int(), Subtraction)    = Operation::sub;
+        set(sym.Int(), Multiplication) = Operation::mul;
+        set(sym.Int(), Division)       = Operation::idiv;
+        set(sym.Int(), Remainder)      = Operation::irem;
+        
+        set(sym.Int(), Equals)    = Operation::eq;
+        set(sym.Int(), NotEquals) = Operation::neq;
+        set(sym.Int(), Less)      = Operation::ils;
+        set(sym.Int(), LessEq)    = Operation::ileq;
+        
+        set(sym.Int(), LeftShift)  = Operation::sl;
+        set(sym.Int(), RightShift) = Operation::sr;
+        
+        set(sym.Int(), BitwiseAnd) = Operation::And;
+        set(sym.Int(), BitwiseOr)  = Operation::Or;
+        set(sym.Int(), BitwiseXOr) = Operation::XOr;
+        
+        set(sym.Bool(), Equals)     = Operation::eq;
+        set(sym.Bool(), NotEquals)  = Operation::neq;
+        set(sym.Bool(), BitwiseAnd) = Operation::And;
+        set(sym.Bool(), BitwiseOr)  = Operation::Or;
+        set(sym.Bool(), BitwiseXOr) = Operation::XOr;
+        
+        set(sym.Float(), Addition)       = Operation::fadd;
+        set(sym.Float(), Subtraction)    = Operation::fsub;
+        set(sym.Float(), Multiplication) = Operation::fmul;
+        set(sym.Float(), Division)       = Operation::fdiv;
+        
+        set(sym.Float(), Equals)    = Operation::feq;
+        set(sym.Float(), NotEquals) = Operation::fneq;
+        set(sym.Float(), Less)      = Operation::fls;
+        set(sym.Float(), LessEq)    = Operation::fleq;
+    }
+    
+    Operation& set(sema::TypeID typeID, ast::BinaryOperator op) {
+        auto const [itr, success] =
+        table.insert({ typeID, std::array<Operation, (size_t)ast::BinaryOperator::_count>{} });
+        if (success) {
+            std::fill(itr->second.begin(), itr->second.end(), Operation::_count);
+        }
+        auto& result = itr->second[(size_t)op];
+        SC_ASSERT(result == Operation::_count, "");
+        return result;
+    }
+    
+    Operation get(sema::TypeID typeID, ast::BinaryOperator op) const {
+        auto const itr = table.find(typeID);
+        if (itr == table.end()) {
+            SC_DEBUGFAIL();
+        }
+        auto const result = itr->second[(size_t)op];
+        SC_ASSERT(result != Operation::_count, "");
+        return result;
+    }
+    
+    utl::hashmap<sema::TypeID, std::array<Operation, (size_t)ast::BinaryOperator::_count>> table;
+};
+
 struct Context {
     void dispatch(ast::AbstractSyntaxTree const&);
     TasArgument dispatchExpression(ast::Expression const&);
-
+    
     void generate(ast::TranslationUnit const&);
     void generate(ast::FunctionDefinition const&);
     void generate(ast::StructDefinition const&);
@@ -30,7 +92,7 @@ struct Context {
     void generate(ast::WhileStatement const&);
     void generate(ast::ReturnStatement const&);
     void generate(ast::AbstractSyntaxTree const&) { SC_DEBUGFAIL(); }
-
+    
     TasArgument generateExpression(ast::Identifier const&);
     TasArgument generateExpression(ast::MemberAccess const&);
     TasArgument generateExpression(ast::IntegerLiteral const&);
@@ -41,38 +103,40 @@ struct Context {
     TasArgument generateExpression(ast::Conditional const&);
     TasArgument generateExpression(ast::FunctionCall const&);
     TasArgument generateExpression(ast::AbstractSyntaxTree const&) { SC_DEBUGFAIL(); }
-
+    
     void submit(Operation, TasArgument a = {}, TasArgument b = {});
     TasArgument submit(TasArgument result, Operation, TasArgument a = {}, TasArgument b = {});
-
+    
     void submitDeclaration(utl::small_vector<sema::SymbolID>, TasArgument);
-
+    
     /// Returns the code position of the submitted jump,
     /// so the label can be updated later.
     size_t submitJump(Operation, Label label);
-
+    
     // Returns the label
     Label submitLabel();
-
+    
     FunctionLabel submitFunctionLabel(ast::FunctionDefinition const&);
-
+    
     void submitFunctionEndLabel();
-
+    
     /// Returns the appropriate jump instruction to jump over the then block.
     Operation processIfCondition(ast::Expression const& condition);
-
+    
     TasArgument makeTemporary(sema::TypeID type);
-
+    
     Operation selectOperation(sema::TypeID, ast::BinaryOperator) const;
-
+    
     sema::SymbolTable const& sym;
     utl::vector<TacLine>& code;
-
+    
     size_t tmpIndex = 0;
     /// Will be set by the FunctionDefinition case.
     sema::SymbolID currentFunctionID = sema::SymbolID::Invalid;
     /// Will be reset to 0 by the FunctionDefinition case.
     size_t labelIndex = 0;
+    
+    OpTable opTable{ sym };
 };
 
 } // namespace
@@ -193,8 +257,8 @@ TasArgument Context::generateExpression(ast::FloatingPointLiteral const& lit) {
 static sema::SymbolID getSymbolID(ast::Expression const& expr) {
     return ast::visit(expr,
                       utl::visitor{ [](ast::Identifier const& id) { return id.symbolID(); },
-                                    [](ast::MemberAccess const& ma) { return ma.symbolID(); },
-                                    [](ast::AbstractSyntaxTree const&) -> sema::SymbolID { SC_DEBUGFAIL(); } });
+        [](ast::MemberAccess const& ma) { return ma.symbolID(); },
+        [](ast::AbstractSyntaxTree const&) -> sema::SymbolID { SC_DEBUGFAIL(); } });
 }
 
 TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
@@ -234,8 +298,8 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
         dispatchExpression(*expr.lhs);
         return dispatchExpression(*expr.rhs);
     }
-    /// Compound assignment operations like AddAssign, MulAssign etc. must not be here, they should have been
-    /// transformed by the canonicalizer.
+        /// Compound assignment operations like AddAssign, MulAssign etc. must not be here, they should have been
+        /// transformed by the canonicalizer.
     default: SC_UNREACHABLE();
     }
 }
@@ -288,9 +352,9 @@ void Context::submit(Operation op, TasArgument a, TasArgument b) {
 }
 
 TasArgument Context::submit(TasArgument result, Operation op, TasArgument a, TasArgument b) {
-    SC_ASSERT(result.is(TasArgument::variable) || result.is(TasArgument::temporary) ||
-                  result.is(TasArgument::conditional),
-              "");
+    SC_ASSERT(result.is(TasArgument::variable)  ||
+              result.is(TasArgument::temporary) ||
+              result.is(TasArgument::conditional), "");
     code.push_back(ThreeAddressStatement{ .operation = op, .result = result, .arg1 = a, .arg2 = b });
     return result;
 }
@@ -299,7 +363,7 @@ void Context::submitDeclaration(utl::small_vector<sema::SymbolID> lhsId, TasArgu
     SC_ASSERT(!lhsId.empty(), "");
     auto const& var  = sym.getVariable(lhsId.back());
     auto const& type = sym.getObjectType(var.typeID());
-
+    
     if (type.isBuiltin()) {
         code.push_back(ThreeAddressStatement{ .operation = Operation::mov, .result = Variable(lhsId), .arg1 = arg });
         return;
@@ -354,7 +418,7 @@ Operation Context::processIfCondition(ast::Expression const& condition) {
         SC_DEBUGFAIL();
     }();
     // clang-format on
-
+    
     /// Make the condition a tas conditional statement.
     if (isRelop(condStatement.operation)) {
         condStatement.result    = If{};
@@ -364,7 +428,6 @@ Operation Context::processIfCondition(ast::Expression const& condition) {
         auto const& condition = condStatement.result;
         submit(If{}, Operation::ifPlaceholder, condition);
     }
-
     return Operation::jmp;
 }
 
@@ -373,72 +436,7 @@ TasArgument Context::makeTemporary(sema::TypeID type) {
 }
 
 Operation Context::selectOperation(sema::TypeID typeID, ast::BinaryOperator op) const {
-    struct OpTable {
-        Operation& set(sema::TypeID typeID, ast::BinaryOperator op) {
-            auto const [itr, success] =
-                table.insert({ typeID, std::array<Operation, (size_t)ast::BinaryOperator::_count>{} });
-            if (success) {
-                std::fill(itr->second.begin(), itr->second.end(), Operation::_count);
-            }
-            auto& result = itr->second[(size_t)op];
-            SC_ASSERT(result == Operation::_count, "");
-            return result;
-        }
-
-        Operation get(sema::TypeID typeID, ast::BinaryOperator op) const {
-            auto const itr = table.find(typeID);
-            if (itr == table.end()) {
-                SC_DEBUGFAIL();
-            }
-            auto const result = itr->second[(size_t)op];
-            SC_ASSERT(result != Operation::_count, "");
-            return result;
-        }
-
-        utl::hashmap<sema::TypeID, std::array<Operation, (size_t)ast::BinaryOperator::_count>> table;
-    };
-
-    static OpTable table = [this] {
-        OpTable result;
-        using enum ast::BinaryOperator;
-        result.set(sym.Int(), Addition)       = Operation::add;
-        result.set(sym.Int(), Subtraction)    = Operation::sub;
-        result.set(sym.Int(), Multiplication) = Operation::mul;
-        result.set(sym.Int(), Division)       = Operation::idiv;
-        result.set(sym.Int(), Remainder)      = Operation::irem;
-
-        result.set(sym.Int(), Equals)    = Operation::eq;
-        result.set(sym.Int(), NotEquals) = Operation::neq;
-        result.set(sym.Int(), Less)      = Operation::ils;
-        result.set(sym.Int(), LessEq)    = Operation::ileq;
-
-        result.set(sym.Int(), LeftShift)  = Operation::sl;
-        result.set(sym.Int(), RightShift) = Operation::sr;
-
-        result.set(sym.Int(), BitwiseAnd) = Operation::And;
-        result.set(sym.Int(), BitwiseOr)  = Operation::Or;
-        result.set(sym.Int(), BitwiseXOr) = Operation::XOr;
-
-        result.set(sym.Bool(), Equals)     = Operation::eq;
-        result.set(sym.Bool(), NotEquals)  = Operation::neq;
-        result.set(sym.Bool(), BitwiseAnd) = Operation::And;
-        result.set(sym.Bool(), BitwiseOr)  = Operation::Or;
-        result.set(sym.Bool(), BitwiseXOr) = Operation::XOr;
-
-        result.set(sym.Float(), Addition)       = Operation::fadd;
-        result.set(sym.Float(), Subtraction)    = Operation::fsub;
-        result.set(sym.Float(), Multiplication) = Operation::fmul;
-        result.set(sym.Float(), Division)       = Operation::fdiv;
-
-        result.set(sym.Float(), Equals)    = Operation::feq;
-        result.set(sym.Float(), NotEquals) = Operation::fneq;
-        result.set(sym.Float(), Less)      = Operation::fls;
-        result.set(sym.Float(), LessEq)    = Operation::fleq;
-
-        return result;
-    }();
-
-    return table.get(typeID, op);
+    return opTable.get(typeID, op);
 }
 
 } // namespace scatha::ic
