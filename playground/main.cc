@@ -104,7 +104,24 @@ using namespace scatha::parse;
         std::cout << "=== Assembled Program ============================\n";
         std::cout << "==================================================\n\n";
         assembly::Assembler a(str);
-        auto const program = a.assemble();
+        /// Start execution with main if it exists.
+        auto const mainID = [&sym] {
+            auto const id  = sym.lookup("main");
+            auto const* os = sym.tryGetOverloadSet(id);
+            if (!os) {
+                return sema::SymbolID::Invalid;
+            }
+            auto const* mainFn = os->find({});
+            if (!mainFn) {
+                return sema::SymbolID::Invalid;
+            }
+            return mainFn->symbolID();
+        }();
+        if (!mainID) {
+            std::cout << "No main function defined!\n";
+            return -1;
+        }
+        auto const program = a.assemble({ .mainID = mainID.rawValue() });
         print(program);
 
         std::cout << "\n==================================================\n\n";
