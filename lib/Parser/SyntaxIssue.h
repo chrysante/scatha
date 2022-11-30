@@ -5,7 +5,6 @@
 #include <string>
 
 #include "Basic/Basic.h"
-#include "Common/ProgramIssue.h"
 #include "Issue/ProgramIssue.h"
 
 namespace scatha::issue {
