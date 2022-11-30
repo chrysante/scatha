@@ -130,8 +130,8 @@ struct OpCodeImpl {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdxA = i[0];
             size_t const regIdxB = i[1];
-            auto const a         = read<T>(&reg[regIdxA]);
-            auto const b         = read<T>(&reg[regIdxB]);
+            T const a            = read<T>(&reg[regIdxA]);
+            T const b            = read<T>(&reg[regIdxB]);
             vm->flags.less       = a < b;
             vm->flags.equal      = a == b;
             return codeSize(C);
@@ -142,8 +142,8 @@ struct OpCodeImpl {
     static auto compareRV() {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdxA = i[0];
-            auto const a         = read<T>(&reg[regIdxA]);
-            auto const b         = read<T>(i + 1);
+            T const a            = read<T>(&reg[regIdxA]);
+            T const b            = read<T>(i + 1);
             vm->flags.less       = a < b;
             vm->flags.equal      = a == b;
             return codeSize(C);
@@ -154,7 +154,7 @@ struct OpCodeImpl {
     static auto testR() {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdx = i[0];
-            auto const a        = read<T>(&reg[regIdx]);
+            T const a           = read<T>(&reg[regIdx]);
             vm->flags.less      = a < 0;
             vm->flags.equal     = a == 0;
             return codeSize(C);
@@ -185,7 +185,6 @@ struct OpCodeImpl {
         return [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
             size_t const regIdxA = i[0];
             size_t const regIdxB = i[1];
-
             auto const a = read<T>(&reg[regIdxA]);
             auto const b = read<T>(&reg[regIdxB]);
             store(&reg[regIdxA], decltype(operation)()(a, b));
@@ -286,21 +285,16 @@ struct OpCodeImpl {
         at(movMR) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const ptr        = getPointer(reg, i);
             size_t const fromRegIdx = i[3];
-
             VM_ASSERT(ptr % 8 == 0);
             VM_ASSERT(vm->memory.data() + ptr >= vm->programBreak && "Trying to write to the instruction set");
-            VM_ASSERT(vm->memory.data() + ptr >= vm->programBreak && "Trying to write to the instruction set");
-
             std::memcpy(&vm->memory[ptr], &reg[fromRegIdx], 8);
             return codeSize(movMR);
         };
         at(movRM) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const toRegIdx = i[0];
             size_t const ptr      = getPointer(reg, i + 1);
-
             VM_ASSERT(ptr % 8 == 0);
             VM_WARNING(vm->memory.data() + ptr >= vm->programBreak, "Reading memory from the instruction set");
-
             std::memcpy(&reg[toRegIdx], &vm->memory[ptr], 8);
             return codeSize(movRM);
         };
@@ -390,7 +384,6 @@ struct OpCodeImpl {
             size_t const regIdx       = i[0];
             size_t const tableIdx     = i[1];
             size_t const idxIntoTable = read<u16>(&i[2]);
-
             vm->extFunctionTable[tableIdx][idxIntoTable](reg[regIdx], vm);
             return codeSize(callExt);
         };

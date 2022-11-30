@@ -1,8 +1,6 @@
 
 fn main() -> int {
-    return fac(6);
+    if true { return 1; }
+    return 2;
 }
 
-fn fac(n: int) -> int {
-    return n == 0 ? 1 : n * fac(n - 1);
-}

@@ -298,8 +298,8 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
         dispatchExpression(*expr.lhs);
         return dispatchExpression(*expr.rhs);
     }
-        /// Compound assignment operations like AddAssign, MulAssign etc. must not be here, they should have been
-        /// transformed by the canonicalizer.
+    /// Compound assignment operations like AddAssign, MulAssign etc. must not be here, they should have been
+    /// transformed by the canonicalizer.
     default: SC_UNREACHABLE();
     }
 }
