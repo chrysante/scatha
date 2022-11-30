@@ -15,3 +15,7 @@ Makefile
 **.vcxproj.user
 **.vcxproj.filters
 **.sln
+
+cmake-build-debug
+CMakeLists.txt
+**.cmake

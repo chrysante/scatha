@@ -8,12 +8,12 @@ end
 
 workspace "scatha"
 
-configurations { "debug", "release" }
+configurations { "Debug", "Release" }
 cppdialect "C++20"
 
-filter "configurations:debug" 
+filter "configurations:Debug" 
     symbols "On"
-filter "configurations:release"
+filter "configurations:Release"
     optimize "Speed"
     defines "NDEBUG"
 filter {}
@@ -39,7 +39,7 @@ kind "SharedLib"
 
 addCppFiles "lib"
 addCppFiles "include/scatha"
-sysincludedirs { "external/utility" }
+externalincludedirs { "external/utility" }
 includedirs "lib"
 links "utility"
 
@@ -53,14 +53,14 @@ filter {}
 project "scatha-test"
 
 kind "ConsoleApp"
-sysincludedirs { 
+externalincludedirs { 
     ".", 
     "include", 
     "external/utility", 
     "external/Catch"
 }
 
-sysincludedirs { "lib" }
+externalincludedirs { "lib" }
 
 --prebuildcommands { "./format-all.sh test/" }
 
@@ -71,7 +71,7 @@ links { "scatha" }
 project "playground"
 
 kind "ConsoleApp"
-sysincludedirs { "external/utility" }
+externalincludedirs { "external/utility" }
 includedirs { ".", "lib" }
 
 addCppFiles "playground"
