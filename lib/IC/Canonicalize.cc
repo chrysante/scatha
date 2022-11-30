@@ -38,7 +38,6 @@ void Context::canonicalize(ast::IfStatement& statement) {
     }
     /// If we have a statement of type \code if (!<boolean-expr>) {} else {} \endcode
     /// convert the expression to \p <boolean-expr> and swap the if and else block.
-    ///
     if (statement.condition->nodeType() != ast::NodeType::UnaryPrefixExpression) {
         return;
     }
@@ -53,7 +52,6 @@ void Context::canonicalize(ast::IfStatement& statement) {
 void Context::canonicalize(ast::BinaryExpression& expr) {
     dispatch(*expr.lhs);
     dispatch(*expr.rhs);
-
     switch (expr.op) {
     case ast::BinaryOperator::Greater: {
         expr.op = ast::BinaryOperator::Less;
@@ -65,43 +63,17 @@ void Context::canonicalize(ast::BinaryExpression& expr) {
         std::swap(expr.lhs, expr.rhs);
         break;
     }
-    case ast::BinaryOperator::AddAssignment: {
-        doCompoundAssignment(expr, ast::BinaryOperator::Addition);
+    case ast::BinaryOperator::AddAssignment: [[fallthrough]];
+    case ast::BinaryOperator::SubAssignment: [[fallthrough]];
+    case ast::BinaryOperator::MulAssignment: [[fallthrough]];
+    case ast::BinaryOperator::DivAssignment: [[fallthrough]];
+    case ast::BinaryOperator::RemAssignment: [[fallthrough]];
+    case ast::BinaryOperator::LSAssignment: [[fallthrough]];
+    case ast::BinaryOperator::RSAssignment: [[fallthrough]];
+    case ast::BinaryOperator::AndAssignment: [[fallthrough]];
+    case ast::BinaryOperator::OrAssignment:
+        doCompoundAssignment(expr, toNonAssignment(expr.op));
         break;
-    }
-    case ast::BinaryOperator::SubAssignment: {
-        doCompoundAssignment(expr, ast::BinaryOperator::Subtraction);
-        break;
-    }
-    case ast::BinaryOperator::MulAssignment: {
-        doCompoundAssignment(expr, ast::BinaryOperator::Multiplication);
-        break;
-    }
-    case ast::BinaryOperator::DivAssignment: {
-        doCompoundAssignment(expr, ast::BinaryOperator::Division);
-        break;
-    }
-    case ast::BinaryOperator::RemAssignment: {
-        doCompoundAssignment(expr, ast::BinaryOperator::Remainder);
-        break;
-    }
-    case ast::BinaryOperator::LSAssignment: {
-        doCompoundAssignment(expr, ast::BinaryOperator::LeftShift);
-        break;
-    }
-    case ast::BinaryOperator::RSAssignment: {
-        doCompoundAssignment(expr, ast::BinaryOperator::RightShift);
-        break;
-    }
-    case ast::BinaryOperator::AndAssignment: {
-        doCompoundAssignment(expr, ast::BinaryOperator::BitwiseAnd);
-        break;
-    }
-    case ast::BinaryOperator::OrAssignment: {
-        doCompoundAssignment(expr, ast::BinaryOperator::BitwiseOr);
-        break;
-    }
-
     default: break;
     }
 }

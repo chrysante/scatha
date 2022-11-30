@@ -289,6 +289,8 @@ SCATHA(API) std::string_view toString(BinaryOperator);
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, BinaryOperator);
 
+BinaryOperator toNonAssignment(BinaryOperator);
+
 enum class EntityCategory { Value, Type, _count };
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, EntityCategory);
