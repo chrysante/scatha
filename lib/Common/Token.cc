@@ -10,6 +10,7 @@ namespace scatha {
 std::ostream& operator<<(std::ostream& str, TokenType t) {
     // clang-format off
     return str << UTL_SERIALIZE_ENUM(t, {
+        { TokenType::None,                 "None" },
         { TokenType::Identifier,           "Identifier" },
         { TokenType::IntegerLiteral,       "IntegerLiteral" },
         { TokenType::BooleanLiteral,       "BooleanLiteral" },
@@ -59,28 +60,28 @@ f64 Token::toFloat() const {
     return std::stod(id);
 }
 
-void finalize(Token& token) {
-    if (token.type == TokenType::Punctuation) {
-        token.isPunctuation = true;
-        if (token.id == ";") {
-            token.isSeparator = true;
+void Token::finalize() {
+    if (type == TokenType::Punctuation) {
+        isPunctuation = true;
+        if (id == ";") {
+            isSeparator = true;
         }
     }
-    if (token.type == TokenType::EndOfFile) {
-        token.isPunctuation = true;
-        token.isSeparator   = true;
+    if (type == TokenType::EndOfFile) {
+        isPunctuation = true;
+        isSeparator   = true;
     }
 
-    if (std::optional<Keyword> const keyword = toKeyword(token.id)) {
-        token.isKeyword       = true;
-        token.keyword         = *keyword;
-        token.keywordCategory = categorize(*keyword);
-        token.isDeclarator    = isDeclarator(*keyword);
-        token.isControlFlow   = isControlFlow(*keyword);
+    if (std::optional<Keyword> const kw = toKeyword(id)) {
+        isKeyword       = true;
+        keyword         = *kw;
+        keywordCategory = categorize(*kw);
+        isDeclarator    = scatha::isDeclarator(*kw);
+        isControlFlow   = scatha::isControlFlow(*kw);
     }
 
-    if (token.type == TokenType::Identifier) {
-        token.isIdentifier = true;
+    if (type == TokenType::Identifier) {
+        isIdentifier = true;
     }
 }
 

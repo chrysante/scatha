@@ -36,7 +36,7 @@ struct Context {
 
     ssize_t textSize() const { return (ssize_t)text.size(); }
 
-    Token beginToken(TokenType type) const;
+    TokenData beginToken(TokenType type) const;
     char current() const;
     std::optional<char> next(ssize_t offset = 1) const;
 
@@ -68,15 +68,12 @@ utl::vector<Token> Context::run() {
             }
             continue;
         }
-        iss.push(UnexpectedID(beginToken(TokenType::Other)));
+        iss.push(UnexpectedID(Token(beginToken(TokenType::Other))));
         advanceToNextWhitespace();
     }
     SC_ASSERT(currentLocation.index == textSize(), "How is this possible?");
-    Token eof = beginToken(TokenType::EndOfFile);
+    Token eof = Token(beginToken(TokenType::EndOfFile));
     result.push_back(eof);
-    for (auto& token: result) {
-        finalize(token);
-    }
     return result;
 }
 
@@ -122,7 +119,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getSpaces() {
     if (!isSpace(current())) {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::Whitespace);
+    TokenData result = beginToken(TokenType::Whitespace);
     while (isSpace(current())) {
         result.id += current();
         if (!advance()) {
@@ -139,7 +136,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getOneLineComment() {
     if (auto const next = this->next(); !next || *next != '/') {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::Whitespace);
+    TokenData result = beginToken(TokenType::Whitespace);
     result.id += current();
     advance();
     while (true) {
@@ -157,7 +154,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getMultiLineComment() {
     if (auto const next = this->next(); !next || *next != '*') {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::Whitespace);
+    TokenData result = beginToken(TokenType::Whitespace);
     result.id += current();
     advance();
     // now we are at the next character after "/*"
@@ -165,7 +162,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getMultiLineComment() {
         result.id += current();
 
         if (!advance()) {
-            return UnterminatedMultiLineComment(result);
+            return UnterminatedMultiLineComment(Token(result));
         }
 
         if (result.id.back() == '*' && current() == '/') {
@@ -180,14 +177,14 @@ std::optional<Expected<Token, LexicalIssue>> Context::getPunctuation() {
     if (!isPunctuation(current())) {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::Punctuation);
+    TokenData result = beginToken(TokenType::Punctuation);
     result.id += current();
     advance();
     return result;
 }
 
 std::optional<Expected<Token, LexicalIssue>> Context::getOperator() {
-    Token result = beginToken(TokenType::Operator);
+    TokenData result = beginToken(TokenType::Operator);
     result.id += current();
 
     if (!isOperator(result.id)) {
@@ -213,7 +210,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteral() {
     if (current() == '0' && next() && *next() == 'x') {
         return std::nullopt; // We are a hex literal, not our job
     }
-    Token result = beginToken(TokenType::IntegerLiteral);
+    TokenData result = beginToken(TokenType::IntegerLiteral);
     result.id += current();
     ssize_t offset     = 1;
     std::optional next = this->next(offset);
@@ -232,14 +229,14 @@ std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteral() {
         // we are a floating point literal
         return std::nullopt;
     }
-    return InvalidNumericLiteral(result, InvalidNumericLiteral::Kind::Integer);
+    return InvalidNumericLiteral(Token(result), InvalidNumericLiteral::Kind::Integer);
 }
 
 std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteralHex() {
     if (current() != '0' || !next() || *next() != 'x') {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::IntegerLiteral);
+    TokenData result = beginToken(TokenType::IntegerLiteral);
     result.id += current();
     advance();
     result.id += current();
@@ -250,14 +247,14 @@ std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteralHex() {
     if (next() && !isLetter(*next())) {
         return result;
     }
-    return InvalidNumericLiteral(result, InvalidNumericLiteral::Kind::Integer);
+    return InvalidNumericLiteral(Token(result), InvalidNumericLiteral::Kind::Integer);
 }
 
 std::optional<Expected<Token, LexicalIssue>> Context::getFloatingPointLiteral() {
     if (!isFloatDigitDec(current())) {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::FloatingPointLiteral);
+    TokenData result = beginToken(TokenType::FloatingPointLiteral);
     result.id += current();
     ssize_t offset     = 1;
     std::optional next = this->next(offset);
@@ -274,16 +271,16 @@ std::optional<Expected<Token, LexicalIssue>> Context::getFloatingPointLiteral() 
         }
         return result;
     }
-    return InvalidNumericLiteral(result, InvalidNumericLiteral::Kind::FloatingPoint);
+    return InvalidNumericLiteral(Token(result), InvalidNumericLiteral::Kind::FloatingPoint);
 }
 
 std::optional<Expected<Token, LexicalIssue>> Context::getStringLiteral() {
     if (current() != '"') {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::StringLiteral);
+    TokenData result = beginToken(TokenType::StringLiteral);
     if (!advance()) {
-        return UnterminatedStringLiteral(result);
+        return UnterminatedStringLiteral(Token(result));
     }
     while (true) {
         if (current() == '"') {
@@ -292,7 +289,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getStringLiteral() {
         }
         result.id += current();
         if (!advance() || current() == '\n') {
-            return UnterminatedStringLiteral(result);
+            return UnterminatedStringLiteral(Token(result));
         }
     }
 }
@@ -303,7 +300,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
         if (auto const n = next(4); n && isLetterEx(*n)) {
             return std::nullopt;
         }
-        Token result = beginToken(TokenType::BooleanLiteral);
+        TokenData result = beginToken(TokenType::BooleanLiteral);
         result.id    = "true";
         advance(4);
         return result;
@@ -314,7 +311,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
         if (auto const n = next(5); n && isLetterEx(*n)) {
             return std::nullopt;
         }
-        Token result = beginToken(TokenType::BooleanLiteral);
+        TokenData result = beginToken(TokenType::BooleanLiteral);
         result.id    = "false";
         advance(5);
         return result;
@@ -326,7 +323,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getIdentifier() {
     if (!isLetter(current())) {
         return std::nullopt;
     }
-    Token result = beginToken(TokenType::Identifier);
+    TokenData result = beginToken(TokenType::Identifier);
     result.id += current();
     while (advance() && isLetterEx(current())) {
         result.id += current();
@@ -371,11 +368,12 @@ void Context::advanceToNextWhitespace() {
     }
 }
 
-Token Context::beginToken(TokenType type) const {
-    Token result;
-    result.sourceLocation = currentLocation;
-    result.type           = type;
-    return result;
+TokenData Context::beginToken(TokenType type) const {
+    return TokenData{
+        .id = std::string{},
+        .type = type,
+        .sourceLocation = currentLocation
+    };
 }
 
 char Context::current() const {

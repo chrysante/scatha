@@ -13,6 +13,7 @@
 namespace scatha {
 
 enum class TokenType {
+    None,
     Identifier,
     IntegerLiteral,
     BooleanLiteral,
@@ -30,19 +31,24 @@ enum class IdentifierCategory : u8 { Type, Variable, Function };
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, TokenType);
 
-struct SCATHA(API) Token {
+struct TokenData {
+    std::string id;
+    TokenType type;
+    SourceLocation sourceLocation;
+};
+
+struct SCATHA(API) Token: public TokenData {
     Token() = default;
-    explicit Token(std::string id): id(std::move(id)) {}
+    explicit Token(std::string id, TokenType type, SourceLocation sourceLocation = {}): Token({ std::move(id), type, sourceLocation }) {}
+    explicit Token(TokenData data): TokenData(std::move(data)) {
+        finalize();
+    }
 
     bool empty() const { return id.empty(); }
 
     u64 toInteger() const;
     bool toBool() const;
     f64 toFloat() const;
-
-    SourceLocation sourceLocation;
-    TokenType type;
-    std::string id;
 
     bool isSeparator   : 1 = false;
     bool isIdentifier  : 1 = false;
@@ -57,12 +63,15 @@ struct SCATHA(API) Token {
 
     // Identifier related fields
     IdentifierCategory identifierCategory{};
+    
+private:
+    /// Populates all the fields after \p id in token structure.
+    /// 
+    void finalize();
 };
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, Token const&);
 
-/// Populates all the fields after \p id in token structure.
-void finalize(Token&);
 
 } // namespace scatha
 

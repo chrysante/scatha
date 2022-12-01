@@ -8,10 +8,10 @@ void SymbolIssue::setToken(Token tok) {
 }
 
 InvalidScopeIssue::InvalidScopeIssue(std::string_view symbolName, ScopeKind kind):
-    DefinitionIssue(Token(std::string(symbolName))), _kind(kind) {}
+    DefinitionIssue(Token(std::string(symbolName), TokenType::Identifier)), _kind(kind) {}
 
 SymbolCollisionIssue::SymbolCollisionIssue(std::string_view symbolName, SymbolID existing):
-    DefinitionIssue(Token(std::string(symbolName))), _existing(existing) {}
+    DefinitionIssue(Token(std::string(symbolName), TokenType::Identifier)), _existing(existing) {}
 
 OverloadIssue::OverloadIssue(std::string_view symbolName, SymbolID existing, Reason reason):
     SymbolCollisionIssue(symbolName, existing), _reason(reason) {}
