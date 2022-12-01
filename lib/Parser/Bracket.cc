@@ -19,5 +19,6 @@ parse::Bracket parse::toBracket(Token const& token) {
 
 std::string parse::toString(Bracket bracket) {
     size_t const index = (static_cast<size_t>(bracket.type) - 1) * 2 + static_cast<size_t>(bracket.side);
+    SC_ASSERT(index < std::size(brackets), "Out of bounds");
     return std::string(brackets[index]);
 }
