@@ -11,13 +11,13 @@
 
 namespace scatha::lex {
 class LexicalIssue;
-}
+} // namespace scatha::lex
 namespace scatha::parse {
 class SyntaxIssue;
-}
+} // namespace scatha::parse
 namespace scatha::sema {
 class SemaIssue;
-}
+} // namespace scatha::sema
 
 namespace scatha::test {
 
@@ -77,15 +77,22 @@ struct IssueHelper {
         return true;
     }
 
+    bool empty() const { return iss.empty(); }
+    
     using HandlerType = typename internal::ToIssueHandler<IssueBaseType>::type;
     HandlerType iss;
     ast::UniquePtr<ast::AbstractSyntaxTree> ast = nullptr;
     sema::SymbolTable sym{};
 };
 
-IssueHelper<lex::LexicalIssue> getLexicalIssues(std::string_view text);
-IssueHelper<parse::SyntaxIssue> getSyntaxIssues(std::string_view text);
-IssueHelper<sema::SemanticIssue> getSemaIssues(std::string_view text);
+using LexicalIssueHelper = IssueHelper<lex::LexicalIssue>;
+using SyntaxIssueHelper = IssueHelper<parse::SyntaxIssue>;
+using SemaIssueHelper = IssueHelper<sema::SemanticIssue>;
+
+
+LexicalIssueHelper getLexicalIssues(std::string_view text);
+SyntaxIssueHelper getSyntaxIssues(std::string_view text);
+SemaIssueHelper getSemaIssues(std::string_view text);
 
 } // namespace scatha::test
 
