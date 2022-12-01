@@ -6,6 +6,7 @@
 
 #include "Basic/Basic.h"
 #include "Issue/ProgramIssue.h"
+#include "Parser/Bracket.h"
 
 namespace scatha::issue {
 
@@ -22,6 +23,8 @@ public:
         ExpectedDeclarator,
         ExpectedSeparator,
         ExpectedExpression,
+        ExpectedClosingBracket,
+        UnexpectedClosingBracket,
         UnqualifiedID,
         _count
     };

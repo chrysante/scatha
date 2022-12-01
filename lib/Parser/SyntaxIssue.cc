@@ -11,11 +11,13 @@ using enum parse::SyntaxIssue::Reason;
 SCATHA(API) std::string_view parse::toString(SyntaxIssue::Reason reason) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(reason, {
-        { ExpectedIdentifier, "Expected Identifier" },
-        { ExpectedDeclarator, "Expected Declarator" },
-        { ExpectedSeparator,  "Expected Separator" },
-        { ExpectedExpression, "Expected Expression" },
-        { UnqualifiedID,      "Unqualified ID" }
+        { ExpectedIdentifier,       "Expected Identifier" },
+        { ExpectedDeclarator,       "Expected Declarator" },
+        { ExpectedSeparator,        "Expected Separator" },
+        { ExpectedExpression,       "Expected Expression" },
+        { ExpectedClosingBracket,   "Expected Closing Bracket" },
+        { UnexpectedClosingBracket, "Unexpected Closing Bracket" },
+        { UnqualifiedID,            "Unqualified ID" }
     });
     // clang-format on
 }
