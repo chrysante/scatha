@@ -35,6 +35,8 @@ struct TokenData {
     std::string id;
     TokenType type;
     SourceLocation sourceLocation;
+    
+    bool operator==(TokenData const&) const = default;
 };
 
 struct SCATHA(API) Token: public TokenData {
@@ -63,6 +65,8 @@ struct SCATHA(API) Token: public TokenData {
 
     // Identifier related fields
     IdentifierCategory identifierCategory{};
+    
+    bool operator==(Token const& rhs) const { return static_cast<TokenData const&>(*this) == static_cast<TokenData const&>(rhs); }
     
 private:
     /// Populates all the fields after \p id in token structure.

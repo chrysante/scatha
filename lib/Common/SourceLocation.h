@@ -12,6 +12,8 @@ namespace scatha {
 struct SourceLocation {
     i64 index = 0;
     i32 line = 0, column = 0;
+    
+    bool operator==(SourceLocation const&) const = default;
 };
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, SourceLocation const&);

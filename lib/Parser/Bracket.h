@@ -22,9 +22,13 @@ struct Bracket {
     
     Type type;
     Side side;
+    
+    bool operator==(Bracket const&) = default;
 };
 
 SCATHA(API) Bracket toBracket(Token const& token);
+
+std::string toString(Bracket bracket);
 	
 } // namespace scatha::parse
 
