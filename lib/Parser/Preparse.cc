@@ -6,6 +6,7 @@
 #include <utl/stack.hpp>
 
 #include "Parser/Bracket.h"
+#include "Parser/SyntaxIssue.h"
 
 using namespace scatha;
 using namespace parse;
@@ -38,67 +39,73 @@ void parse::preparse(utl::vector<Token>& tokens, issue::SyntaxIssueHandler& iss)
 }
 
 void Context::run() {
-    for (auto itr = tokens.begin(); itr != tokens.end(); ++itr) {
-        Bracket const bracket = toBracket(*itr);
+    for (auto tokenItr = tokens.begin(); tokenItr != tokens.end(); ++tokenItr) {
+        Bracket const bracket = toBracket(*tokenItr);
         if (bracket.type == Bracket::Type::None) {
             continue;
         }
-        Token const token = *itr;
         if (bracket.side == Bracket::Side::Open) {
             bracketStack.push(bracket);
             continue;
         }
         SC_ASSERT(bracket.side == Bracket::Side::Close, "From here on we only handle closing brackets.");
+        Token const token = *tokenItr;
         if (bracketStack.empty()) {
             /// We have a closing bracket with no matching open bracket. Remove it from the list of tokens.
-            // TODO: Raise issue here!
-            itr = erase(itr);
+            iss.push(SyntaxIssue(token, SyntaxIssue::Reason::UnexpectedClosingBracket));
+            tokenItr = erase(tokenItr);
             continue;
         }
         if (bracketStack.top().type != bracket.type) {
             /// Bracket type doesn't match the last open bracket.
             /// We search the open bracket stack for a match.
-            auto& container = bracketStack.container();
-            auto const stackItr = std::find_if(container.rbegin(), container.rend(), [&](Bracket b) {
+            auto& stackContainer = bracketStack.container();
+            auto const stackReverseItr = std::find_if(stackContainer.rbegin(), stackContainer.rend(), [&](Bracket b) {
                 return b.type == bracket.type;
             });
-            if (stackItr == container.rend()) {
+            if (stackReverseItr == stackContainer.rend()) {
                 /// If we can't find the matching open bracket, we just erase this one.
-                // TODO: Raise issue here!
-                itr = erase(itr);
-                continue;
+                iss.push(SyntaxIssue(token, SyntaxIssue::Reason::UnexpectedClosingBracket));
+                tokenItr = erase(tokenItr);
             }
             else {
+                auto const stackItr = stackReverseItr.base();
                 /// Insert all missing closing brackets, i.e. all brackets matchings the open ones past
-                auto i = container.rbegin();
-                ssize_t const count = i - container.rend();
-                itr = tokens.insert(itr, utl::narrow_cast<size_t>(count), [&]{
-                    return Token(toString(Bracket{ i++->type, Bracket::Side::Close }), TokenType::Punctuation, itr->sourceLocation);
+                ssize_t const count = stackContainer.end() - stackItr;
+                tokenItr = tokens.insert(tokenItr, utl::narrow_cast<size_t>(count), [&, itr = stackItr]() mutable {
+                    iss.push(SyntaxIssue(token, SyntaxIssue::Reason::ExpectedClosingBracket));
+                    SC_ASSERT(itr != stackContainer.end(), "Out of bounds");
+                    Bracket const newBracket = { itr->type, Bracket::Side::Close };
+                    ++itr;
+                    return Token(toString(newBracket), TokenType::Punctuation, tokenItr->sourceLocation);
                 });
-                itr += count;
-                SC_ASSERT(*itr == token, "'itr' must still point to the same token.");
+                tokenItr += count;
+                SC_ASSERT(*tokenItr == token, "'itr' must still point to the same token.");
                 /// Now erase the bracket stack until \p stackItr
-                container.erase(stackItr.base(), container.end());
+                stackContainer.erase(stackItr, stackContainer.end());
+                SC_ASSERT(bracketStack.top().type == bracket.type, "Make sure our types match before popping.");
+                bracketStack.pop();
             }
+            continue;
         }
-        
-        /// In the good case we assert the invariants. All errors must be caught before this stage.
+        /// Here we enter the good case. We assert the invariants. All errors must be caught before this stage.
         SC_ASSERT(bracketStack.top().side == Bracket::Side::Open, "Last bracket must be opening if we are closing here. "
                                                                   "Actually all brackets in the stack must be open.");
         SC_ASSERT(bracketStack.top().type == bracket.type, "Type must match");
         bracketStack.pop();
     
     }
-    auto endSourceLocation = [&]{
-        auto const& lastToken = tokens.back();
-        auto result = lastToken.sourceLocation;
-        result.index += lastToken.id.size();
-        result.column += lastToken.id.size();
-        return result;
-    }();
+    if (bracketStack.empty()) {
+        return;
+    }
+    Token const lastToken = tokens.back();
     while (!bracketStack.empty()) {
         Bracket const bracket = bracketStack.pop();
-        tokens.push_back(Token(toString(bracket), TokenType::Punctuation, endSourceLocation));
+        iss.push(SyntaxIssue(lastToken, SyntaxIssue::Reason::ExpectedClosingBracket));
+        Token newToken = Token(toString(Bracket{ bracket.type, Bracket::Side::Close }),
+                               TokenType::Punctuation,
+                               lastToken.sourceLocation);
+        tokens.insert(tokens.end() - 1, std::move(newToken));
     }
 }
 
