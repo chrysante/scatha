@@ -23,7 +23,7 @@ struct Bracket {
     Type type;
     Side side;
     
-    bool operator==(Bracket const&) = default;
+    bool operator==(Bracket const&) const = default;
 };
 
 SCATHA(API) Bracket toBracket(Token const& token);
