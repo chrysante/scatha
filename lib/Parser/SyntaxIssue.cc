@@ -1,5 +1,7 @@
 #include "Parser/SyntaxIssue.h"
 
+#include <ostream>
+
 #include <utl/utility.hpp>
 
 #include "Issue/IssueHandler.h"
