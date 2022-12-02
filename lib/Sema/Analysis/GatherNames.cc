@@ -64,7 +64,7 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
                                     InvalidDeclaration::Reason::InvalidInCurrentScope,
                                     sym.currentScope(),
                                     SymbolCategory::Function));
-        return (size_t)-1;
+        return static_cast<size_t>(-1);
     }
     Expected const declResult = sym.declareFunction(funcDef);
     if (!declResult.hasValue()) {
