@@ -1,9 +1,11 @@
 ## Incomplete Grammar in BNF
 
-|                               |                                                                                                                          |
-|   ---                         |               ---                                                                                                        |
-| \<translation-unit\>          |  ::= {\<external-declaration\>}\*                                                                                        |
-| \<external-declaration\>      |  ::= \<function-definition\> <br> \| \<struct-definition\>                                                               |
+|                               |             |                                                                                                                     |
+| ---                           | ---:        | ---                                                                                                                 |
+| \<translation-unit\>          | ::=         | {\<external-declaration\>}\*                                                                                        |
+| \<external-declaration\>      | ::= <br> \| | \<function-definition\> <br> \<struct-definition\>                                                                  |
+
+
 | \<function-definition\>       |  ::= ``fn`` \<identifier\> ``(`` {\<parameter-declaration\>}\* ``)`` [``->`` \<type-expression\>] \<compound-statement\> |
 | \<parameter-declaration\>     |  ::= \<identifier\> ``:`` \<type-expression\>                                                                            |
 | \<struct-definition\>         |  ::= ``struct`` \<identifier\> \<compound-statement\>                                                                    |
