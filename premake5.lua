@@ -18,7 +18,7 @@ filter "configurations:Release"
     defines "NDEBUG"
 filter {}
 
-flags { "ExtraWarnings", "MultiProcessorCompile" }
+flags { "MultiProcessorCompile" }
 
 targetdir("build/bin/%{cfg.longname}")
 objdir("build/obj/%{cfg.longname}")
@@ -26,7 +26,12 @@ objdir("build/obj/%{cfg.longname}")
 architecture "x86_64"
 
 filter "system:macosx"
-    buildoptions { "-Wconversion" }
+    buildoptions { 
+        "-Wconversion", 
+        "-Wall",
+        "-Wno-sign-compare", 
+        "-Wno-unused-parameter",
+    }
     xcodebuildsettings { 
         ["INSTALL_PATH"]            = "@executable_path",
         ["LD_RUNPATH_SEARCH_PATHS"] = "@loader_path"
