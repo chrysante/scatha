@@ -15,6 +15,6 @@
 | 10          | ``\|``                                                                                                    | Bitwise OR                                                       | Left to right &#8594; |
 | 11          | ``&&``                                                                                                    | Logical AND                                                      | Left to right &#8594; |
 | 12          | ``\|\|``                                                                                                  | Logical OR                                                       | Left to right &#8594; |
-| 13          | ``?:`` <br>``=``, ``+=``, ``-=``, <br> ``*=``, ``/=``, ``%=``, <br> ``<<=``, ``>>=``, <br>``&=``, ``\|=`` | Conditional <br> Assignment <br>-<br>-<br>-<br>                  | Right to left &#8592; |
+| 13          | ``?:`` <br>``=``, ``+=``, ``-=``, <br> ``*=``, ``/=``, ``%=``, <br> ``<<=``, ``>>=``, <br>``&=``, ``\|=`` | Conditional <br> Assignment <br><br><br><br>                     | Right to left &#8592; |
 | 14          | ``,``                                                                                                     | Comma operator                                                   | Left to right &#8594; |
 
