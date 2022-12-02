@@ -2,7 +2,7 @@
 
 Multi paradigm toy language with a (not yet) optimizing byte code compiler and a virtual machine.
 
-[Grammer](docs/Grammar.md)
+Take a look at the [Grammar](docs/Grammar.md).
 
 ## Examples
 ### Simple program to calculate the GCD of 27 and 9 using the euclidean algorithm. 
