@@ -9,8 +9,15 @@
 
 namespace scatha::parse {
 	
-/// \brief Bracket correcion is the first parsing step.
 /// \brief Handles bracket mismatches in the token stream \p tokens by erasing and inserting bracket tokens  and submitting errors to \p issueHandler
+///
+/// \details Bracket correcion is the first parsing step.
+/// \details Ignores all tokens but bracket tokens, i.e. \p "(" , \p "[" , \p "{" , \p ")" , \p "]" , \p "}" .
+/// \details Every matching pair of opening and closing brackets defines a syntactical scope. Every open scope must be closed before the parent scope has been closed.
+/// \details E.g. \code ( ... [ ... ] ... ) \endcode is valid, but  \code ( ... [ ... ) ... ] \endcode and  \code ( ... [ ... ) \endcode are not.
+/// \details If a closing bracket without a directly corresponding opening bracket is encountered, all currently open scopes are considered to close there.
+/// \details If that closing bracket closes a currently open scope, closing brackets for all currently open nested scopes are inserted. Otherwise the closing bracket is discarded.
+/// \details After traversing the token stream, closing brackets are inserted at the end for all unclosed scopes.
 ///
 /// \param tokens List of tokens to process.
 /// \param issueHandler Issue handler to submit errors to. 
