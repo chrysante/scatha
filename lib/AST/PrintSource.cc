@@ -1,7 +1,9 @@
 #include "AST/PrintSource.h"
 
 #include <iostream>
+#include <iomanip>
 
+#include <utl/common.hpp>
 #include <utl/ranges.hpp>
 
 #include "AST/AST.h"
@@ -41,7 +43,7 @@ struct Context {
     void print(Subscript const&);
 
     std::ostream& str;
-    EndlIndenter endl{ 4 };
+    EndlIndenter endl{};
 };
 
 } // namespace
@@ -51,7 +53,7 @@ void ast::printSource(AbstractSyntaxTree const& root) {
 }
 
 void ast::printSource(AbstractSyntaxTree const& root, std::ostream& str) {
-    Context ctx{ str, {} };
+    Context ctx{ .str = str, .endl = EndlIndenter(4) };
     ctx.dispatch(root);
 }
 
@@ -190,11 +192,13 @@ void Context::print(IntegerLiteral const& l) {
 }
 
 void Context::print(BooleanLiteral const& l) {
-    str << l.value();
+    UTL_STORE_STREAM_STATE(str);
+    str << std::boolalpha << l.value();
 }
 
 void Context::print(FloatingPointLiteral const& l) {
-    str << l.value();
+    UTL_STORE_STREAM_STATE(str);
+    str << std::fixed << l.value();
 }
 
 void Context::print(StringLiteral const& l) {
