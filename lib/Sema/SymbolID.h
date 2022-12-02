@@ -13,7 +13,7 @@ namespace scatha::sema {
 
 enum class SymbolCategory { Invalid, Variable, Namespace, OverloadSet, Function, ObjectType, Anonymous, _count };
 
-static_assert((int)SymbolCategory::_count <= 1 << 4);
+static_assert(static_cast<int>(SymbolCategory::_count) <= 1 << 4);
 
 SCATHA(API) std::string_view toString(SymbolCategory);
 

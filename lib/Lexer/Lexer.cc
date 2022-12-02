@@ -34,7 +34,7 @@ struct Context {
 
     void advanceToNextWhitespace();
 
-    ssize_t textSize() const { return (ssize_t)text.size(); }
+    ssize_t textSize() const { return utl::narrow_cast<ssize_t>(text.size()); }
 
     TokenData beginToken(TokenType type) const;
     char current() const;

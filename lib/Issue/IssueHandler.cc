@@ -22,7 +22,7 @@ template <typename T>
 internal::IssueHandlerBase<T>::IssueHandlerBase(IssueHandlerBase&&) noexcept = default;
 
 template <typename T>
-internal::IssueHandlerBase<T>::~IssueHandlerBase() = default;
+internal::IssueHandlerBase<T>::IssueHandlerBase::~IssueHandlerBase() = default;
 
 template <typename T>
 internal::IssueHandlerBase<T>& internal::IssueHandlerBase<T>::operator=(IssueHandlerBase&&) noexcept = default;

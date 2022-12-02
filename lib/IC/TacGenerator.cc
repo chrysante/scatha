@@ -56,11 +56,11 @@ struct OpTable {
     
     Operation& set(sema::TypeID typeID, ast::BinaryOperator op) {
         auto const [itr, success] =
-        table.insert({ typeID, std::array<Operation, (size_t)ast::BinaryOperator::_count>{} });
+        table.insert({ typeID, std::array<Operation, static_cast<size_t>(ast::BinaryOperator::_count)>{} });
         if (success) {
             std::fill(itr->second.begin(), itr->second.end(), Operation::_count);
         }
-        auto& result = itr->second[(size_t)op];
+        auto& result = itr->second[static_cast<size_t>(op)];
         SC_ASSERT(result == Operation::_count, "");
         return result;
     }
@@ -70,12 +70,12 @@ struct OpTable {
         if (itr == table.end()) {
             SC_DEBUGFAIL();
         }
-        auto const result = itr->second[(size_t)op];
+        auto const result = itr->second[static_cast<size_t>(op)];
         SC_ASSERT(result != Operation::_count, "");
         return result;
     }
     
-    utl::hashmap<sema::TypeID, std::array<Operation, (size_t)ast::BinaryOperator::_count>> table;
+    utl::hashmap<sema::TypeID, std::array<Operation, static_cast<size_t>(ast::BinaryOperator::_count)>> table;
 };
 
 struct Context {

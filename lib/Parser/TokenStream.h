@@ -62,7 +62,7 @@ public:
 
     ssize_t index() const { return _index; }
 
-    ssize_t size() const { return (ssize_t)tokens.size(); }
+    ssize_t size() const { return utl::narrow_cast<ssize_t>(tokens.size()); }
 
     using ParanCounter::braces;
     using ParanCounter::brackets;

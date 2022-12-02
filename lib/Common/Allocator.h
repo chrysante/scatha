@@ -2,7 +2,6 @@
 #define SCATHA_COMMON_ALLOCATOR_H_
 
 #include <memory>
-#include <new>
 #include <span>
 
 #include "Basic/Basic.h"
@@ -45,14 +44,14 @@ requires requires(Args&&... args) {
     T{ std::forward<Args>(args)... };
 }
 T* allocate(MonotonicBufferAllocator& alloc, Args&&... args) {
-    T* result = (T*)alloc.allocate(sizeof(T), alignof(T));
-    ::new ((void*)result) T{ std::forward<Args>(args)... };
+    T* result = static_cast<T*>(alloc.allocate(sizeof(T), alignof(T)));
+    std::construct_at(result, std::forward<Args>(args)...);
     return result;
 }
 
 template <typename T>
 T* allocateArrayUninit(MonotonicBufferAllocator& alloc, size_t count) {
-    T* result = (T*)alloc.allocate(count * sizeof(T), alignof(T));
+    T* result = static_cast<T*>(alloc.allocate(count * sizeof(T), alignof(T)));
     return result;
 }
 

@@ -23,16 +23,16 @@ struct OpCodeTable {
         }
         // clang-format off
         ([&](auto&& e) {
-            size_t const i = (size_t)utl::log2(utl::to_underlying(std::get<0>(e)));
-            size_t const j = (size_t)utl::log2(utl::to_underlying(std::get<1>(e)));
+            size_t const i = utl::narrow_cast<size_t>(utl::log2(utl::to_underlying(std::get<0>(e))));
+            size_t const j = utl::narrow_cast<size_t>(utl::log2(utl::to_underlying(std::get<1>(e))));
             data[i * matrixHeight + j] = std::get<2>(e);
         }(elems), ...);
         // clang-format on
     }
 
     constexpr vm::OpCode operator()(Element const& a, Element const& b) const {
-        size_t const i    = (size_t)utl::log2(utl::to_underlying(a.marker()));
-        size_t const j    = (size_t)utl::log2(utl::to_underlying(b.marker()));
+        size_t const i    = utl::narrow_cast<size_t>(utl::log2(utl::to_underlying(a.marker())));
+        size_t const j    = utl::narrow_cast<size_t>(utl::log2(utl::to_underlying(b.marker())));
         auto const result = data[i * matrixHeight + j];
         return result;
     }

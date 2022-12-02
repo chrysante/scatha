@@ -31,18 +31,18 @@ Token const& TokenStream::peek() {
 
 Token const& TokenStream::current() {
     SC_ASSERT(_index >= 0, "");
-    SC_ASSERT(_index < (ssize_t)tokens.size(), "");
-    return tokens[(size_t)_index];
+    SC_ASSERT(_index < utl::narrow_cast<ssize_t>(tokens.size()), "");
+    return tokens[utl::narrow_cast<size_t>(_index)];
 }
 
 Token const& TokenStream::eatImpl(ssize_t* i) {
     SC_ASSERT(*i >= -1, "");
-    if (*i >= (ssize_t)tokens.size() - 1) {
-        _index = (ssize_t)tokens.size();
+    if (*i >= utl::narrow_cast<ssize_t>(tokens.size()) - 1) {
+        _index = utl::narrow_cast<ssize_t>(tokens.size());
         return tokens.back();
     }
     //    SC_ASSERT(*i < (ssize_t)tokens.size() - 1, "");
-    return tokens[(size_t)++ * i];
+    return tokens[utl::narrow_cast<size_t>(++*i)];
 }
 
 } // namespace scatha::parse

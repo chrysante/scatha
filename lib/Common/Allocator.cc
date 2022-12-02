@@ -9,7 +9,8 @@
 namespace scatha {
 
 u8* internal::alignPointer(u8* ptr, size_t alignment) {
-    size_t const r = utl::fast_mod_pow_two((size_t)ptr, alignment);
+    static_assert(sizeof(size_t) == sizeof(ptr));
+    size_t const r = utl::fast_mod_pow_two(reinterpret_cast<size_t>(ptr), alignment);
     ptr += alignment * !!r - r;
     return ptr;
 }
@@ -72,12 +73,12 @@ void MonotonicBufferAllocator::release() {
 }
 
 void MonotonicBufferAllocator::addChunk(size_t size) {
-    InternalBufferHeader* const newBuffer = (InternalBufferHeader*)std::malloc(size + sizeof(InternalBufferHeader));
+    InternalBufferHeader* const newBuffer = static_cast<InternalBufferHeader*>(std::malloc(size + sizeof(InternalBufferHeader)));
     newBuffer->prev                       = buffer;
     newBuffer->size                       = size;
 
     buffer  = newBuffer;
-    current = (u8*)newBuffer + sizeof(InternalBufferHeader);
+    current = reinterpret_cast<u8*>(newBuffer) + sizeof(InternalBufferHeader);
     end     = current + size;
 }
 

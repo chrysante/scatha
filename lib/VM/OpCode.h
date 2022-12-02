@@ -220,7 +220,8 @@ enum class OpCodeClass { RR, RV, RM, MR, R, Jump, Other, _count };
 
 constexpr bool isJump(OpCode c) {
     using enum OpCode;
-    return ((u8)c >= (u8)jmp && (u8)c <= (u8)jge) || c == call;
+    u8 const cRawValue = static_cast<u8>(c);
+    return (cRawValue >= static_cast<u8>(jmp) && cRawValue <= static_cast<u8>(jge)) || c == call;
 }
 
 constexpr OpCodeClass classify(OpCode c) {
@@ -290,7 +291,7 @@ constexpr size_t codeSize(OpCode c) {
                           { OpCodeClass::MR, 5 },
                           { OpCodeClass::R, 2 },
                           { OpCodeClass::Jump, 5 },
-                          { OpCodeClass::Other, (size_t)-1 } });
+                          { OpCodeClass::Other, static_cast<size_t>(-1) } });
 }
 
 using Instruction = u64 (*)(u8 const*, u64*, class VirtualMachine*);

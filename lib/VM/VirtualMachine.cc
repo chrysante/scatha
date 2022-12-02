@@ -30,11 +30,10 @@ void VirtualMachine::execute() {
     SC_ASSERT(regPtr == (regPtr ? registers.data() : nullptr), "");
     while (iptr < programBreak) {
         u8 const opCode = *iptr;
-        SC_ASSERT(opCode < (u8)OpCode::_count, "Invalid op-code");
+        SC_ASSERT(opCode < static_cast<u8>(OpCode::_count), "Invalid op-code");
         auto const instruction = instructionTable[opCode];
         u64 const offset       = instruction(iptr + 1, regPtr, this);
         iptr += offset;
-
         ++stats.executedInstructions;
     }
     SC_ASSERT(iptr == programBreak, "");

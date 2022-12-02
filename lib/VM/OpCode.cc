@@ -217,10 +217,10 @@ struct OpCodeImpl {
     }
 
     static utl::vector<Instruction> makeInstructionTable() {
-        utl::vector<Instruction> result((size_t)OpCode::_count);
-        auto at = [&, idx = 0 ](OpCode i) mutable -> auto& {
-            SC_ASSERT((int)i == idx++, "Missing instruction");
-            return result[(u8)i];
+        utl::vector<Instruction> result(static_cast<size_t>(OpCode::_count));
+        auto at = [&, idx = 0](OpCode i) mutable -> auto& {
+            SC_ASSERT(static_cast<int>(i) == idx++, "Missing instruction");
+            return result[static_cast<u8>(i)];
         };
         using enum OpCode;
 

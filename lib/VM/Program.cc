@@ -28,7 +28,7 @@ void print(Program const& p, std::ostream& str) {
     };
 
     for (size_t i = 0; i < data.size();) {
-        OpCode const opcode = (OpCode)data[i];
+        OpCode const opcode = static_cast<OpCode>(data[i]);
         str << std::setw(3) << i << ": " << opcode << " ";
 
         auto const opcodeClass = classify(opcode);
