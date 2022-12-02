@@ -7,6 +7,7 @@
 #include "Parser/Panic.h"
 #include "Parser/SyntaxIssue.h"
 #include "Parser/TokenStream.h"
+#include "Parser/BracketCorrection.h"
 
 #include "Parser/ParserImpl.h"
 
@@ -16,6 +17,8 @@ using namespace parse;
 using enum SyntaxIssue::Reason;
 
 ast::UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens, issue::SyntaxIssueHandler& iss) {
+    bracketCorrection(tokens, iss);
+    if (iss.fatal()) { return nullptr; }
     Context ctx{ .tokens{ std::move(tokens) }, .iss = iss };
     return ctx.run();
 }
