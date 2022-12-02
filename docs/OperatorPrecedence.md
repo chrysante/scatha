@@ -5,7 +5,7 @@
 | ----------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------- |
 | 1           | ``()`` <br>``[]`` <br> ``.``                                                                              | Function call <br>Subscript<br> Member access                    | Left to right &#8594; |
 | 2           | ``+``, ``-`` <br>``!``, ``~`` <br>``&``                                                                   | Unary plus and minus <br>Logical and bitwise NOT <br> Address of | Right to left &#8592; |
-| 3           | ``*``, ``/``, ``%``                                                                                       | Multiplication, division, and remainder                          | Left to right &#8594; |
+| 3           | ``\*``, ``/``, ``%``                                                                                      | Multiplication, division and remainder                           | Left to right &#8594; |
 | 4           | ``+``, ``-``                                                                                              | Addition and subtraction                                         | Left to right &#8594; |
 | 5           | ``<<``, ``>>``                                                                                            | Bitwise left and right shift                                     | Left to right &#8594; |
 | 6           | ``<``, ``<=``, ``>``, ``>=``                                                                              | Relational operators                                             | Left to right &#8594; |
