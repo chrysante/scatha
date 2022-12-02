@@ -21,8 +21,15 @@ namespace {
 struct Context {
     explicit Context(utl::vector<Token>& tokens, issue::SyntaxIssueHandler& iss):
         tokens(tokens), iss(iss) {}
-    
+
     void run();
+    
+    [[nodiscard]] utl::vector<scatha::Token>::iterator popStackAndInsertMatchingBrackets(utl::vector<scatha::Token>::const_iterator tokenItr,
+                                                                                         utl::vector<Bracket>::iterator stackItr,
+                                                                                         Token const& positionIndicatorToken);
+    
+    [[nodiscard]] utl::vector<scatha::Token>::iterator handleOpeningBracket(utl::vector<Token>::iterator tokenItr, Bracket bracket);
+    [[nodiscard]] utl::vector<scatha::Token>::iterator handleClosingBracket(utl::vector<Token>::iterator tokenItr, Bracket bracket);
     
     [[nodiscard]] utl::vector<Token>::iterator erase(utl::vector<Token>::const_iterator);
     
@@ -44,69 +51,80 @@ void Context::run() {
         if (bracket.type == Bracket::Type::None) {
             continue;
         }
-        if (bracket.side == Bracket::Side::Open) {
-            bracketStack.push(bracket);
-            continue;
+        switch (bracket.side) {
+            case Bracket::Side::Open:
+                tokenItr = handleOpeningBracket(tokenItr, bracket);
+                break;
+                
+            case Bracket::Side::Close:
+                tokenItr = handleClosingBracket(tokenItr, bracket);
+                break;
         }
-        SC_ASSERT(bracket.side == Bracket::Side::Close, "From here on we only handle closing brackets.");
-        Token const token = *tokenItr;
-        if (bracketStack.empty()) {
-            /// We have a closing bracket with no matching open bracket. Remove it from the list of tokens.
+    }
+    /// After traversing the list of tokens handle all unmatched open brackets (if any).
+    (void)popStackAndInsertMatchingBrackets(tokens.end() - 1, bracketStack.container().begin(), tokens.back());
+}
+
+[[nodiscard]] utl::vector<scatha::Token>::iterator Context::handleOpeningBracket(utl::vector<Token>::iterator tokenItr, Bracket bracket) {
+    SC_ASSERT(bracket.side == Bracket::Side::Open, "Here on we only handle opening brackets.");
+    bracketStack.push(bracket);
+    return tokenItr;
+}
+
+[[nodiscard]] utl::vector<scatha::Token>::iterator Context::handleClosingBracket(utl::vector<Token>::iterator tokenItr, Bracket bracket) {
+    SC_ASSERT(bracket.side == Bracket::Side::Close, "Here on we only handle closing brackets.");
+    Token const token = *tokenItr;
+    if (bracketStack.empty()) {
+        /// We have a closing bracket with no matching open bracket. Remove it from the list of tokens.
+        iss.push(SyntaxIssue(token, SyntaxIssue::Reason::UnexpectedClosingBracket));
+        tokenItr = erase(tokenItr);
+        return tokenItr;
+    }
+    if (bracketStack.top().type != bracket.type) {
+        /// Bracket type doesn't match the last open bracket.
+        /// We search the open bracket stack for a match.
+        auto& stackContainer = bracketStack.container();
+        auto const stackReverseItr = std::find_if(stackContainer.rbegin(), stackContainer.rend(), [&](Bracket b) {
+            return b.type == bracket.type;
+        });
+        if (stackReverseItr == stackContainer.rend()) {
+            /// If we can't find the matching open bracket, we just erase this one.
             iss.push(SyntaxIssue(token, SyntaxIssue::Reason::UnexpectedClosingBracket));
             tokenItr = erase(tokenItr);
-            continue;
+            return tokenItr;
         }
-        if (bracketStack.top().type != bracket.type) {
-            /// Bracket type doesn't match the last open bracket.
-            /// We search the open bracket stack for a match.
-            auto& stackContainer = bracketStack.container();
-            auto const stackReverseItr = std::find_if(stackContainer.rbegin(), stackContainer.rend(), [&](Bracket b) {
-                return b.type == bracket.type;
-            });
-            if (stackReverseItr == stackContainer.rend()) {
-                /// If we can't find the matching open bracket, we just erase this one.
-                iss.push(SyntaxIssue(token, SyntaxIssue::Reason::UnexpectedClosingBracket));
-                tokenItr = erase(tokenItr);
-            }
-            else {
-                auto const stackItr = stackReverseItr.base();
-                /// Insert all missing closing brackets, i.e. all brackets matchings the open ones past
-                ssize_t const count = stackContainer.end() - stackItr;
-                tokenItr = tokens.insert(tokenItr, utl::narrow_cast<size_t>(count), [&, itr = stackItr]() mutable {
-                    iss.push(SyntaxIssue(token, SyntaxIssue::Reason::ExpectedClosingBracket));
-                    SC_ASSERT(itr != stackContainer.end(), "Out of bounds");
-                    Bracket const newBracket = { itr->type, Bracket::Side::Close };
-                    ++itr;
-                    return Token(toString(newBracket), TokenType::Punctuation, tokenItr->sourceLocation);
-                });
-                tokenItr += count;
-                SC_ASSERT(*tokenItr == token, "'itr' must still point to the same token.");
-                /// Now erase the bracket stack until \p stackItr
-                stackContainer.erase(stackItr, stackContainer.end());
-                SC_ASSERT(bracketStack.top().type == bracket.type, "Make sure our types match before popping.");
-                bracketStack.pop();
-            }
-            continue;
+        else {
+            auto const stackItr = stackReverseItr.base();
+            tokenItr = popStackAndInsertMatchingBrackets(tokenItr, stackItr, token);
+            SC_ASSERT(*tokenItr == token, "'itr' must still point to the same token.");
+            /// From this case we don't \p return; but flow into the good case section, since we have corrected all errors but still need to pop the last open bracket.
         }
-        /// Here we enter the good case. We assert the invariants. All errors must be caught before this stage.
-        SC_ASSERT(bracketStack.top().side == Bracket::Side::Open, "Last bracket must be opening if we are closing here. "
-                                                                  "Actually all brackets in the stack must be open.");
-        SC_ASSERT(bracketStack.top().type == bracket.type, "Type must match");
-        bracketStack.pop();
-    
     }
-    if (bracketStack.empty()) {
-        return;
-    }
-    Token const lastToken = tokens.back();
-    while (!bracketStack.empty()) {
-        Bracket const bracket = bracketStack.pop();
-        iss.push(SyntaxIssue(lastToken, SyntaxIssue::Reason::ExpectedClosingBracket));
-        Token newToken = Token(toString(Bracket{ bracket.type, Bracket::Side::Close }),
-                               TokenType::Punctuation,
-                               lastToken.sourceLocation);
-        tokens.insert(tokens.end() - 1, std::move(newToken));
-    }
+    /// Here we enter the good case. We assert the invariants. All errors must be caught before this stage.
+    SC_ASSERT(bracketStack.top().side == Bracket::Side::Open, "Last bracket must be opening if we are closing here. "
+              "Actually all brackets in the stack must be open.");
+    SC_ASSERT(bracketStack.top().type == bracket.type, "Type must match");
+    bracketStack.pop();
+    return tokenItr;
+}
+
+utl::vector<scatha::Token>::iterator Context::popStackAndInsertMatchingBrackets(utl::vector<scatha::Token>::const_iterator tokenItr,
+                                                                                utl::vector<Bracket>::iterator stackItr,
+                                                                                Token const& positionIndicatorToken)
+{
+    auto& stackContainer = bracketStack.container();
+    ssize_t const count = stackContainer.end() - stackItr;
+    /// Insert all missing closing brackets, i.e. all brackets matchings the open ones past and push errors
+    auto const resultItr = tokens.insert(tokenItr, utl::narrow_cast<size_t>(count), [&, itr = stackItr + count - 1]() mutable {
+        iss.push(SyntaxIssue(positionIndicatorToken, SyntaxIssue::Reason::ExpectedClosingBracket));
+        SC_ASSERT(itr >= stackContainer.begin(), "Out of bounds");
+        Bracket const newBracket = { itr->type, Bracket::Side::Close };
+        --itr;
+        return Token(toString(newBracket), TokenType::Punctuation, tokenItr->sourceLocation);
+    });
+    /// Now erase the bracket stack until \p stackItr
+    stackContainer.erase(stackItr, stackContainer.end());
+    return resultItr + count;
 }
 
 utl::vector<Token>::iterator Context::erase(utl::vector<Token>::const_iterator itr) {

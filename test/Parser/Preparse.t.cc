@@ -59,7 +59,7 @@ TEST_CASE("Preparse - Missing closing brackets at end of file", "[parse][prepars
             auto const curlyIssue = issues[0];
             CHECK(curlyIssue.reason() == SyntaxIssue::Reason::ExpectedClosingBracket);
             CHECK(curlyIssue.sourceLocation().column == 4);
-            
+
         } {
             auto const squareIssue = issues[1];
             CHECK(squareIssue.reason() == SyntaxIssue::Reason::ExpectedClosingBracket);
@@ -67,7 +67,7 @@ TEST_CASE("Preparse - Missing closing brackets at end of file", "[parse][prepars
             auto const paranIssue = issues[2];
             CHECK(paranIssue.reason() == SyntaxIssue::Reason::ExpectedClosingBracket);
         }
-        
+
         REQUIRE(tokens.size() == 7); /// Accounting for EOF token.
         CHECK(tokens[3].id == "}");
         CHECK(tokens[3].sourceLocation.index == 3);
@@ -140,7 +140,7 @@ TEST_CASE("Preparse - Unexpected closing brackets", "[parse][preparse]") {
         CHECK(tokens[3].id == ")");
     }
     SECTION("3.1") {
-        auto const [tokens, iss] = wrappedPreparse("({[{ __ )");
+        auto const [tokens, iss] = wrappedPreparse("({{[ __ )");
         auto const issues = iss.iss.issues();
         REQUIRE(issues.size() == 3);
         for (auto& issue: issues) {
@@ -150,13 +150,12 @@ TEST_CASE("Preparse - Unexpected closing brackets", "[parse][preparse]") {
         REQUIRE(tokens.size() == 10);
         CHECK(tokens[0].id == "(");
         CHECK(tokens[1].id == "{");
-        CHECK(tokens[2].id == "[");
-        CHECK(tokens[3].id == "{");
+        CHECK(tokens[2].id == "{");
+        CHECK(tokens[3].id == "[");
         CHECK(tokens[4].id == "__");
-        CHECK(tokens[5].id == "}");
-        CHECK(tokens[6].id == "]");
+        CHECK(tokens[5].id == "]");
+        CHECK(tokens[6].id == "}");
         CHECK(tokens[7].id == "}");
         CHECK(tokens[8].id == ")");
     }
 }
-
