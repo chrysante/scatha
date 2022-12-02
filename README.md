@@ -1,9 +1,9 @@
-# scatha compiler
+# Scatha compiler
 
 Multi paradigm toy language with a (not yet) optimizing byte code compiler and a virtual machine.
 
-## Simple program to calculate the GCD of 27 and 9 using the euclidean algorithm. 
-
+## Examples
+### Simple program to calculate the GCD of 27 and 9 using the euclidean algorithm. 
     fn main() -> int {
         return gcd(27, 9);
     }
