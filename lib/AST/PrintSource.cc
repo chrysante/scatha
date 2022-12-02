@@ -206,7 +206,7 @@ void Context::print(StringLiteral const& l) {
 }
 
 void Context::print(UnaryPrefixExpression const& u) {
-    str << u.op << '(';
+    str << u.operation() << '(';
     dispatch(*u.operand);
     str << ')';
 }
@@ -214,7 +214,7 @@ void Context::print(UnaryPrefixExpression const& u) {
 void Context::print(BinaryExpression const& b) {
     str << '(';
     dispatch(*b.lhs);
-    str << ' ' << b.op << ' ';
+    str << ' ' << b.operation() << ' ';
     dispatch(*b.rhs);
     str << ')';
 }

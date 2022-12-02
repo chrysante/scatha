@@ -16,31 +16,31 @@
 #include "Sema/ScopeKind.h"
 #include "Sema/SymbolID.h"
 
-/// AbstractSyntaxTree
-/// +- TranslationUnit
-/// +- Statement
-/// |  +- Declaration
-/// |  |  +- VariableDeclaration
-/// |  |  +- ParameterDeclaration
-/// |  |  +- ModuleDeclaration
-/// |  |  +- FunctionDefinition
-/// |  |  +- StructDefinition
-/// |  +- CompoundStatement
-/// |  +- ExpressionStatement
-/// |  +- ControlFlowStatement
-/// |     +- ReturnStatement
-/// |     +- IfStatement
-/// |     +- WhileStatement
-/// +- Expression
-///    +- Identifier
-///    +- IntegerLiteral
-///    +- StringLiteral
-///    +- UnaryPrefixExpression
-///    +- BinaryExpression
-///    +- MemberAccess
-///    +- Conditional
-///    +- FunctionCall
-///    +- Subscript
+// AbstractSyntaxTree
+// ├─ TranslationUnit
+// ├─ Statement
+// │  ├─ Declaration
+// │  │  ├─ VariableDeclaration
+// │  │  ├─ ParameterDeclaration
+// │  │  ├─ ModuleDeclaration
+// │  │  ├─ FunctionDefinition
+// │  │  └─ StructDefinition
+// │  ├─ CompoundStatement
+// │  ├─ ExpressionStatement
+// │  └─ ControlFlowStatement
+// │     ├─ ReturnStatement
+// │     ├─ IfStatement
+// │     └─ WhileStatement
+// └─ Expression
+//    ├─ Identifier
+//    ├─ IntegerLiteral
+//    ├─ StringLiteral
+//    ├─ UnaryPrefixExpression
+//    ├─ BinaryExpression
+//    ├─ MemberAccess
+//    ├─ Conditional
+//    ├─ FunctionCall
+//    └─ Subscript
 
 namespace scatha::ast {
 
@@ -59,14 +59,16 @@ public:
         return _category;
     }
 
-    /// The type of the expression. Only valid if \code kind == ::Value \endcode
+    /// The type of the expression. Only valid if: \code kind == ::Value \endcode
     sema::TypeID typeID() const {
         expectDecorated();
         return _typeID;
     }
 
+    /// Convenience wrapper for: \code category() == EntityCategory::Value \endcode
     bool isValue() const { return category() == EntityCategory::Value; }
 
+    /// Convenience wrapper for: \code category() == EntityCategory::Type \endcode
     bool isType() const { return category() == EntityCategory::Type; }
 
     /// Decorate this node.
@@ -81,22 +83,23 @@ private:
     sema::TypeID _typeID{};
 };
 
-/// Concrete node representing an identifier in an expression.
-/// Identifier must refer to a value meaning a variable or a function.
+/// Concrete node representing an identifier.
 class SCATHA(API) Identifier: public Expression {
 public:
     explicit Identifier(Token const& token): Expression(NodeType::Identifier, token) {}
 
+    /// Literal string value as declared in the source.
     std::string_view value() const { return token().id; }
 
     /// **Decoration provided by semantic analysis**
 
-    /// ID of the resolved symbol
+    /// ID of the resolved symbol.
     sema::SymbolID symbolID() const {
         expectDecorated();
         return _symbolID;
     }
 
+    /// Decorate this node.
     void decorate(sema::SymbolID symbolID, sema::TypeID typeID, EntityCategory category = EntityCategory::Value) {
         _symbolID = symbolID;
         Expression::decorate(typeID, category);
@@ -106,42 +109,50 @@ private:
     sema::SymbolID _symbolID;
 };
 
+/// Concrete node representing an integer literal.
 class SCATHA(API) IntegerLiteral: public Expression {
 public:
     explicit IntegerLiteral(Token const& token):
         Expression(NodeType::IntegerLiteral, token), _value(token.toInteger()) {}
 
+    /// Value as declared in the source code.
     u64 value() const { return _value; };
 
 private:
     u64 _value;
 };
 
+/// Concrete node representing a boolean literal.
 class SCATHA(API) BooleanLiteral: public Expression {
 public:
     explicit BooleanLiteral(Token const& token): Expression(NodeType::BooleanLiteral, token), _value(token.toBool()) {}
 
+    /// Value as declared in the source code.
     bool value() const { return _value; }
 
 private:
     bool _value;
 };
 
+/// Concrete node representing a floating point literal.
 class SCATHA(API) FloatingPointLiteral: public Expression {
 public:
     explicit FloatingPointLiteral(Token const& token):
         Expression(NodeType::FloatingPointLiteral, token), _value(token.toFloat()) {}
 
+    /// Value as declared in the source code.
     f64 value() const { return _value; }
 
 private:
     f64 _value;
 };
 
+/// Concrete node representing a string literal.
 class SCATHA(API) StringLiteral: public Expression {
 public:
     explicit StringLiteral(Token const& token): Expression(NodeType::StringLiteral, token), _value(token.id) {}
 
+    /// Value as declared in the source code.
     std::string value() const { return _value; }
 
 private:
@@ -149,35 +160,60 @@ private:
 };
 
 /// MARK: Unary Expressions
+
+/// Concrete node representing a unary prefix expression.
 class SCATHA(API) UnaryPrefixExpression: public Expression {
 public:
     explicit UnaryPrefixExpression(UnaryPrefixOperator op, UniquePtr<Expression> operand, Token const& token):
-        Expression(NodeType::UnaryPrefixExpression, token), op(op), operand(std::move(operand)) {}
+        Expression(NodeType::UnaryPrefixExpression, token), operand(std::move(operand)), op(op) {}
+    
+    /// The operator of this expression.
+    UnaryPrefixOperator operation() const { return op; }
 
-    UnaryPrefixOperator op;
+    /// The operand of this expression.
     UniquePtr<Expression> operand;
+    
+private:
+    UnaryPrefixOperator op;
 };
 
 /// MARK: Binary Expressions
+
+/// Concrete node representing a binary infix expression.
 class SCATHA(API) BinaryExpression: public Expression {
 public:
     explicit BinaryExpression(BinaryOperator op,
                               UniquePtr<Expression> lhs,
                               UniquePtr<Expression> rhs,
                               Token const& token):
-        Expression(NodeType::BinaryExpression, token), op(op), lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+        Expression(NodeType::BinaryExpression, token), lhs(std::move(lhs)), rhs(std::move(rhs)), op(op) {}
 
-    BinaryOperator op;
+    /// The operator of this expression.
+    BinaryOperator operation() const { return op; }
+    
+    /// Change the operator of this expression.
+    void setOperation(BinaryOperator newOp) { op = newOp; }
+    
+    /// The left hand side operand of this expression.
     UniquePtr<Expression> lhs;
+    
+    /// The right hand side operand of this expression.
     UniquePtr<Expression> rhs;
+
+private:
+    BinaryOperator op;
 };
 
+/// Concrete node representing a member access expression.
 class SCATHA(API) MemberAccess: public Expression {
 public:
     explicit MemberAccess(UniquePtr<Expression> object, UniquePtr<Expression> member, Token const& dotToken):
         Expression(NodeType::MemberAccess, dotToken), object(std::move(object)), member(std::move(member)) {}
 
+    /// The object being accessed.
     UniquePtr<Expression> object;
+    
+    /// The expression to access the object.
     UniquePtr<Expression> member;
 
     /// **Decoration provided by semantic analysis**
@@ -199,6 +235,8 @@ private:
 };
 
 /// MARK: Ternary Expressions
+
+/// Concrete node representing a conditional expression.
 class SCATHA(API) Conditional: public Expression {
 public:
     explicit Conditional(UniquePtr<Expression> condition,
@@ -210,18 +248,28 @@ public:
         ifExpr(std::move(ifExpr)),
         elseExpr(std::move(elseExpr)) {}
 
+    /// The condition to branch on.
     UniquePtr<Expression> condition;
+    
+    /// Expression to evaluate if condition is true.
     UniquePtr<Expression> ifExpr;
+    
+    /// Expression to evaluate if condition is false.
     UniquePtr<Expression> elseExpr;
 };
 
 /// MARK: More Complex Expressions
+
+/// Concrete node representing a function call expression.
 class SCATHA(API) FunctionCall: public Expression {
 public:
     explicit FunctionCall(UniquePtr<Expression> object, Token const& token):
         Expression(NodeType::FunctionCall, token), object(std::move(object)) {}
 
+    /// The object (function or rather overload set) being called.
     UniquePtr<Expression> object;
+    
+    /// List of arguments.
     utl::small_vector<UniquePtr<Expression>> arguments;
 
     /// **Decoration provided by semantic analysis**
@@ -245,12 +293,16 @@ private:
     sema::SymbolID _functionID;
 };
 
+/// Concrete node representing a subscript expression.
 class SCATHA(API) Subscript: public Expression {
 public:
     explicit Subscript(UniquePtr<Expression> object, Token const& token):
         Expression(NodeType::Subscript, token), object(std::move(object)) {}
 
+    /// The object being indexed.
     UniquePtr<Expression> object;
+    
+    /// List of index arguments.
     utl::small_vector<UniquePtr<Expression>> arguments;
 };
 
@@ -266,6 +318,7 @@ public:
     /// Name of the declared symbol as written in the source code.
     std::string_view name() const { return nameIdentifier ? std::string_view(nameIdentifier->token().id) : ""; }
 
+    /// Identifier expression representing the name of this declaration.
     UniquePtr<Identifier> nameIdentifier;
 
     /// **Decoration provided by semantic analysis**
@@ -306,14 +359,11 @@ public:
         Declaration(NodeType::VariableDeclaration, declarator, std::move(name)) {}
 
     bool isConstant             : 1 = false; // Will be set by the parser
-    bool isFunctionParameter    : 1 = false; // Will be set by the parser
-    bool isFunctionParameterDef : 1 = false; // Will be set by the constructor of
-                                             // FunctionDefinition during parsing
 
     /// Typename declared in the source code. Null if no typename was declared.
     UniquePtr<Expression> typeExpr;
 
-    /// Expression to initialize this variable.
+    /// Expression to initialize this variable. May be null.
     UniquePtr<Expression> initExpression;
 
     /// **Decoration provided by semantic analysis**
@@ -326,7 +376,7 @@ public:
         return _typeID;
     }
 
-    /// Offset of the variable if this is a struct member
+    /// Offset of the variable if this is a struct member. Always zero otherwise.
     size_t offset() const {
         expectDecorated();
         return _offset;
@@ -383,13 +433,12 @@ public:
     ModuleDeclaration() = delete;
 };
 
-/// Concrete node representing any block like a function or loop body. Declares
-/// its own (maybe anonymous) scope.
+/// Concrete node representing a compound statement. Declares its own (possibly anonymous) scope.
 class SCATHA(API) CompoundStatement: public Statement {
 public:
     explicit CompoundStatement(Token const& token): Statement(NodeType::CompoundStatement, token) {}
 
-    /// Statements in the block.
+    /// List of statements in the compound statement.
     utl::small_vector<UniquePtr<Statement>> statements;
 
     /// **Decoration provided by semantic analysis**
@@ -434,7 +483,7 @@ public:
         Declaration(NodeType::FunctionDefinition, std::move(declarator), std::move(name)) {}
 
     /// Typename of the return type as declared in the source code.
-    /// Will be NULL if no return type was declared.
+    /// Will be null if no return type was declared.
     UniquePtr<Expression> returnTypeExpr;
 
     /// List of parameter declarations.
@@ -529,7 +578,11 @@ public:
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
     UniquePtr<Expression> condition;
+    
+    /// Statement to execute if condition is true.
     UniquePtr<Statement> ifBlock;
+    
+    /// Statement to execute if condition is false.
     UniquePtr<Statement> elseBlock;
 };
 
@@ -545,6 +598,8 @@ public:
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
     UniquePtr<Expression> condition;
+    
+    /// Statement to execute repeatedly.
     UniquePtr<CompoundStatement> block;
 };
 

@@ -74,13 +74,13 @@ void Context::printExpression(StringLiteral const& l) {
 }
 
 void Context::printExpression(UnaryPrefixExpression const& expr) {
-    str << expr.op;
+    str << expr.operation();
     dispatchExpression(*expr.operand);
 }
 
 void Context::printExpression(BinaryExpression const& expr) {
     dispatchExpression(*expr.lhs);
-    str << expr.op;
+    str << expr.operation();
     dispatchExpression(*expr.rhs);
 }
 

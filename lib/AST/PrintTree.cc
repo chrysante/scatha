@@ -157,12 +157,12 @@ void Context::print(StringLiteral const& stringLiteral, int ind) {
 }
 
 void Context::print(UnaryPrefixExpression const& unaryPrefExpr, int ind) {
-    str << indent(ind) << "<unary-prefix-expression> : " << '"' << toString(unaryPrefExpr.op) << '"' << endl;
+    str << indent(ind) << "<unary-prefix-expression> : " << '"' << toString(unaryPrefExpr.operation()) << '"' << endl;
     dispatch(unaryPrefExpr.operand.get(), ind + 1);
 }
 
 void Context::print(BinaryExpression const& binExpr, int ind) {
-    str << indent(ind) << "<binary-expression> " << '"' << toString(binExpr.op) << '"' << endl;
+    str << indent(ind) << "<binary-expression> " << '"' << toString(binExpr.operation()) << '"' << endl;
     dispatch(binExpr.lhs.get(), ind + 1);
     dispatch(binExpr.rhs.get(), ind + 1);
 }

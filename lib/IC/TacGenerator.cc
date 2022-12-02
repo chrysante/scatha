@@ -264,7 +264,7 @@ static sema::SymbolID getSymbolID(ast::Expression const& expr) {
 TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
     TasArgument const lhs = dispatchExpression(*expr.lhs);
     TasArgument const rhs = dispatchExpression(*expr.rhs);
-    switch (expr.op) {
+    switch (expr.operation()) {
     case ast::BinaryOperator::Addition: [[fallthrough]];
     case ast::BinaryOperator::Subtraction: [[fallthrough]];
     case ast::BinaryOperator::Multiplication: [[fallthrough]];
@@ -275,12 +275,12 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
     case ast::BinaryOperator::BitwiseOr: [[fallthrough]];
     case ast::BinaryOperator::BitwiseXOr: [[fallthrough]];
     case ast::BinaryOperator::BitwiseAnd:
-        return submit(makeTemporary(expr.lhs->typeID()), selectOperation(expr.lhs->typeID(), expr.op), lhs, rhs);
+        return submit(makeTemporary(expr.lhs->typeID()), selectOperation(expr.lhs->typeID(), expr.operation()), lhs, rhs);
     case ast::BinaryOperator::Less: [[fallthrough]];
     case ast::BinaryOperator::LessEq: [[fallthrough]];
     case ast::BinaryOperator::Equals: [[fallthrough]];
     case ast::BinaryOperator::NotEquals:
-        return submit(makeTemporary(sym.Bool()), selectOperation(expr.lhs->typeID(), expr.op), lhs, rhs);
+        return submit(makeTemporary(sym.Bool()), selectOperation(expr.lhs->typeID(), expr.operation()), lhs, rhs);
     case ast::BinaryOperator::Assignment: {
         /// **WARNING: We don't support assigning to arbitrary expressions yet
         auto const lhsSymId = getSymbolID(*expr.lhs);
@@ -307,7 +307,7 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
 TasArgument Context::generateExpression(ast::UnaryPrefixExpression const& expr) {
     TasArgument const arg   = dispatchExpression(*expr.operand);
     sema::TypeID const type = expr.typeID();
-    switch (expr.op) {
+    switch (expr.operation()) {
     case ast::UnaryPrefixOperator::Promotion: return arg;
     case ast::UnaryPrefixOperator::Negation:
         return submit(makeTemporary(type),

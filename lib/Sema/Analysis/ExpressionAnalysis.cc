@@ -79,7 +79,7 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
         submitIssue();
         return ExpressionAnalysisResult::fail();
     }
-    switch (u.op) {
+    switch (u.operation()) {
     case ast::UnaryPrefixOperator::Promotion: [[fallthrough]];
     case ast::UnaryPrefixOperator::Negation:
         if (operandType.symbolID() != sym.Int() && operandType.symbolID() != sym.Float()) {
@@ -317,7 +317,7 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
         return true;
     };
 
-    switch (expr.op) {
+    switch (expr.operation()) {
         using enum ast::BinaryOperator;
     case Multiplication: [[fallthrough]];
     case Division: [[fallthrough]];

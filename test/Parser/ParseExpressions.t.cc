@@ -29,7 +29,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
         // clang-format on
         ast::UniquePtr const expr = parseExpression("a + b");
         auto* add                 = downCast<BinaryExpression>(expr.get());
-        REQUIRE(add->op == BinaryOperator::Addition);
+        REQUIRE(add->operation() == BinaryOperator::Addition);
         auto* lhs = downCast<Identifier>(add->lhs.get());
         CHECK(lhs->value() == "a");
         auto* rhs = downCast<Identifier>(add->rhs.get());
@@ -47,7 +47,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
         // clang-format on
         ast::UniquePtr const expr = parseExpression("3 * x");
         auto* mul                 = downCast<BinaryExpression>(expr.get());
-        REQUIRE(mul->op == BinaryOperator::Multiplication);
+        REQUIRE(mul->operation() == BinaryOperator::Multiplication);
         auto* lhs = downCast<IntegerLiteral>(mul->lhs.get());
         CHECK(lhs->value() == 3);
         auto* rhs = downCast<Identifier>(mul->rhs.get());
@@ -67,11 +67,11 @@ TEST_CASE("Parsing expressions", "[parse]") {
         // clang-format on
         ast::UniquePtr const expr = parseExpression("a + b * c");
         auto* add                 = downCast<BinaryExpression>(expr.get());
-        REQUIRE(add->op == BinaryOperator::Addition);
+        REQUIRE(add->operation() == BinaryOperator::Addition);
         auto* a = downCast<Identifier>(add->lhs.get());
         CHECK(a->value() == "a");
         auto* mul = downCast<BinaryExpression>(add->rhs.get());
-        REQUIRE(mul->op == BinaryOperator::Multiplication);
+        REQUIRE(mul->operation() == BinaryOperator::Multiplication);
         auto* b = downCast<Identifier>(mul->lhs.get());
         CHECK(b->value() == "b");
         auto* c = downCast<Identifier>(mul->rhs.get());
@@ -91,9 +91,9 @@ TEST_CASE("Parsing expressions", "[parse]") {
         // clang-format on
         ast::UniquePtr const expr = parseExpression("(a + b) * c");
         auto* mul                 = downCast<BinaryExpression>(expr.get());
-        REQUIRE(mul->op == BinaryOperator::Multiplication);
+        REQUIRE(mul->operation() == BinaryOperator::Multiplication);
         auto* add = downCast<BinaryExpression>(mul->lhs.get());
-        REQUIRE(add->op == BinaryOperator::Addition);
+        REQUIRE(add->operation() == BinaryOperator::Addition);
         auto* a = downCast<Identifier>(add->lhs.get());
         CHECK(a->value() == "a");
         auto* b = downCast<Identifier>(add->rhs.get());

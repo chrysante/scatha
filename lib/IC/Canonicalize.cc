@@ -8,9 +8,7 @@
 
 namespace scatha::ic {
 
-namespace {
-
-struct Context {
+struct Canonicalizer {
     void dispatch(ast::AbstractSyntaxTree&);
 
     void canonicalize(auto&);
@@ -20,17 +18,20 @@ struct Context {
     void doCompoundAssignment(ast::BinaryExpression& node, ast::BinaryOperator to) const;
 };
 
-} // namespace
+} // namespace scatha::ic
 
-void Context::dispatch(ast::AbstractSyntaxTree& node) {
+using namespace scatha;
+using namespace ic;
+
+void Canonicalizer::dispatch(ast::AbstractSyntaxTree& node) {
     return ast::visit(node, [this](auto& node) { canonicalize(node); });
 }
 
-void Context::canonicalize(auto& node) {
+void Canonicalizer::canonicalize(auto& node) {
     ast::DefaultCase([this](ast::AbstractSyntaxTree& node) { dispatch(node); })(node);
 }
 
-void Context::canonicalize(ast::IfStatement& statement) {
+void Canonicalizer::canonicalize(ast::IfStatement& statement) {
     dispatch(*statement.condition);
     dispatch(*statement.ifBlock);
     if (statement.elseBlock != nullptr) {
@@ -42,24 +43,24 @@ void Context::canonicalize(ast::IfStatement& statement) {
         return;
     }
     auto& un = *static_cast<ast::UnaryPrefixExpression*>(statement.condition.get());
-    if (un.op != ast::UnaryPrefixOperator::LogicalNot) {
+    if (un.operation() != ast::UnaryPrefixOperator::LogicalNot) {
         return;
     }
     statement.condition = std::move(un.operand);
     std::swap(statement.ifBlock, statement.elseBlock);
 }
 
-void Context::canonicalize(ast::BinaryExpression& expr) {
+void Canonicalizer::canonicalize(ast::BinaryExpression& expr) {
     dispatch(*expr.lhs);
     dispatch(*expr.rhs);
-    switch (expr.op) {
+    switch (expr.operation()) {
     case ast::BinaryOperator::Greater: {
-        expr.op = ast::BinaryOperator::Less;
+        expr.setOperation(ast::BinaryOperator::Less);
         std::swap(expr.lhs, expr.rhs);
         break;
     }
     case ast::BinaryOperator::GreaterEq: {
-        expr.op = ast::BinaryOperator::LessEq;
+        expr.setOperation(ast::BinaryOperator::LessEq);
         std::swap(expr.lhs, expr.rhs);
         break;
     }
@@ -72,25 +73,24 @@ void Context::canonicalize(ast::BinaryExpression& expr) {
     case ast::BinaryOperator::RSAssignment: [[fallthrough]];
     case ast::BinaryOperator::AndAssignment: [[fallthrough]];
     case ast::BinaryOperator::OrAssignment:
-        doCompoundAssignment(expr, toNonAssignment(expr.op));
+        doCompoundAssignment(expr, toNonAssignment(expr.operation()));
         break;
     default: break;
     }
 }
 
-void Context::doCompoundAssignment(ast::BinaryExpression& node, ast::BinaryOperator to) const {
+void Canonicalizer::doCompoundAssignment(ast::BinaryExpression& node, ast::BinaryOperator to) const {
     if (node.lhs->nodeType() != ast::NodeType::Identifier) {
         return;
     }
     auto& id = static_cast<ast::Identifier&>(*node.lhs);
-    node.op  = ast::BinaryOperator::Assignment;
+    node.setOperation(ast::BinaryOperator::Assignment);
     node.rhs =
         ast::allocate<ast::BinaryExpression>(to, ast::allocate<ast::Identifier>(id), std::move(node.rhs), Token{});
 }
 
-void canonicalize(ast::AbstractSyntaxTree* node) {
-    Context ctx;
+void ic::canonicalize(ast::AbstractSyntaxTree* node) {
+    Canonicalizer ctx;
     ctx.dispatch(*node);
 }
 
-} // namespace scatha::ic
