@@ -46,6 +46,7 @@ kind "SharedLib"
 
 addCppFiles "lib"
 addCppFiles "include/scatha"
+files "**.md"
 externalincludedirs { "external/utility" }
 includedirs "lib"
 links "utility"
