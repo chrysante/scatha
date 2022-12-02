@@ -9,7 +9,7 @@
 
 namespace scatha::parse {
 	
-/// \brief Handles bracket mismatches in the token stream \p tokens by erasing and inserting bracket tokens  and submitting errors to \p issueHandler
+/// \brief Handles bracket mismatches in the token stream \p tokens by erasing and inserting bracket tokens and submitting errors to \p issueHandler
 ///
 /// \details Bracket correcion is the first parsing step.
 /// \details Ignores all tokens but bracket tokens, i.e. \p "(" , \p "[" , \p "{" , \p ")" , \p "]" , \p "}" .
