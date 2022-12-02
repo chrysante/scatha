@@ -88,6 +88,41 @@
 //                                   | <string-literal>
 //                                   | "(" <comma-expression> ")"
 //
+//
+// MARK: Operator precedence
+// ┌───────────┬───────────────────┬───────────────────────────────┬───────────────────┐
+// │Precedence │ Operator          │ Description                   │ Associativity     │
+// ├───────────┼───────────────────┼───────────────────────────────┼───────────────────┤
+// │   1       │ ()                │ Function call                 │ Left to right ->  │
+// │           │ []                │ Subscript                     │                   │
+// │           │ .                 │ Member access                 │                   │
+// ├───────────┼───────────────────┼───────────────────────────────┼───────────────────┤
+// │   2       │ +, -              │ Unary plus and minus          │ Right to left <-  │
+// │           │ !, ~              │ Logical and bitwise NOT       │                   │
+// │           │ &                 │ Address of                    │                   │
+// ├───────────┼───────────────────┼───────────────────────────────┼───────────────────┤
+// │   3       │ *, /, %           │ Multiplication, division      │ Left to right ->  │
+// │           │                   │ and remainder                 │                   │
+// │   4       │ +, -              │ Addition and subtraction      │                   │
+// │   5       │ <<, >>            │ Bitwise left and right shift  │                   │
+// │   6       │ <, <=, >, >=      │ Relational operators          │                   │
+// │   7       │ ==, !=            │ Equality operators            │                   │
+// │   8       │ &                 │ Bitwise AND                   │                   │
+// │   9       │ ^                 │ Bitwise XOR                   │                   │
+// │  10       │ |                 │ Bitwise OR                    │                   │
+// │  11       │ &&                │ Logical AND                   │                   │
+// │  12       │ ||                │ Logical OR                    │                   │
+// ├───────────┼───────────────────┼───────────────────────────────┼───────────────────┤
+// │  13       │ ?:                │ Conditional                   │ Right to left <-  │
+// │           │ =, +=, -=         │ Assignment                    │ Right to left <-  │
+// │           │ *=, /=, %=        │                               │                   │
+// │           │ <<=, >>=,         │                               │                   │
+// │           │ &=, |=,           │                               │                   │
+// ├───────────┼───────────────────┼───────────────────────────────┼───────────────────┤
+// │  14       │ ,                 │ Comma operator                │ Left to right ->  │
+// └───────────┴───────────────────┴───────────────────────────────┴───────────────────┘
+//
+//
 // clang-format on
 
 namespace scatha::parse {
