@@ -8,6 +8,8 @@
 #include <utl/typeinfo.hpp>
 #include <utl/ranges.hpp>
 #include <utl/vector.hpp>
+#include <utl/stdio.hpp>
+#include <utl/format.hpp>
 
 #include "AST/PrintTree.h"
 #include "AST/PrintSource.h"
