@@ -1,8 +1,9 @@
-#ifndef SCATHA_PARSER_PARSERERROR_H_
-#define SCATHA_PARSER_PARSERERROR_H_
+#ifndef SCATHA_PARSER_SYNTAXISSUE_H_
+#define SCATHA_PARSER_SYNTAXISSUE_H_
 
 #include <iosfwd>
 #include <string>
+#include <string_view>
 
 #include "Basic/Basic.h"
 #include "Issue/ProgramIssue.h"
@@ -61,4 +62,4 @@ bool expectID(issue::SyntaxIssueHandler&, Token const&, std::string id);
 
 } // namespace scatha::parse
 
-#endif // SCATHA_PARSER_PARSERERROR_H_
+#endif // SCATHA_PARSER_SYNTAXISSUE_H_
