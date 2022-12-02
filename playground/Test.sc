@@ -1,6 +1,10 @@
 
 fn main() -> int {
-    if true { return 1; }
-    return 2;
+    if true { return (1; }
+    return 2;)[
 }
 
+fn f x: int) {}
+
+
+}
