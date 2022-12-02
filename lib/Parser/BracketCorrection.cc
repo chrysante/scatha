@@ -1,4 +1,4 @@
-#include "Parser/Preparse.h"
+#include "Parser/BracketCorrection.h"
 
 #include <algorithm>    // for std::find
 #include <string_view>
@@ -40,7 +40,7 @@ struct Context {
 
 } // namespace
 
-void parse::preparse(utl::vector<Token>& tokens, issue::SyntaxIssueHandler& iss) {
+void parse::bracketCorrection(utl::vector<Token>& tokens, issue::SyntaxIssueHandler& iss) {
     Context ctx(tokens, iss);
     ctx.run();
 }
