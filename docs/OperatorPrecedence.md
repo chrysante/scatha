@@ -1,15 +1,9 @@
 
  ## Operator precedence
 
-+-------------+-----------------+-----------------------------------------+-------------------+
-| Precedence  | Operator        | Description                             | Associativity     |
-+=============+=================+=========================================+===================+
-
 | Precedence  | Operator        | Description                             | Associativity     |
 | ----------- | --------------- | --------------------------------------- | ----------------- |
-| 1           | ()              | Function call                           | Left to right  -> |
-|             | \[\]            | Subscript                               |                   |
-|             | .               | Member access                           |                   |
+| 1           | () <br>\[\] <br> . | Function call <br>Subscript<br> Member access | Left to right  -> |
 |             |                 |                                         |                   |
 | 2           | +, -            | Unary plus and minus                    | Right to left <-  |
 |             | !, ~            | Logical and bitwise NOT                 |                   |
