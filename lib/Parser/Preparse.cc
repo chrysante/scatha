@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include <utl/stack.hpp>
+#include <utl/ranges.hpp>
 
 #include "Parser/Bracket.h"
 #include "Parser/SyntaxIssue.h"
@@ -12,9 +13,9 @@ using namespace scatha;
 using namespace parse;
 
 /// ** We need: **
-/// * Additional information to construct tokens i.e. source location of string end.
-/// * Even better a generic method for inserting tokens that deduces source location.
-/// * Better code representation for token attributes to reduce the need for string comparisons.
+/// - Additional information to construct tokens i.e. source location of string end.
+/// - Even better a generic method for inserting tokens that deduces source location.
+/// - Better code representation for token attributes to reduce the need for string comparisons.
 
 namespace {
 
@@ -25,8 +26,7 @@ struct Context {
     void run();
     
     [[nodiscard]] utl::vector<scatha::Token>::iterator popStackAndInsertMatchingBrackets(utl::vector<scatha::Token>::const_iterator tokenItr,
-                                                                                         utl::vector<Bracket>::iterator stackItr,
-                                                                                         Token const& positionIndicatorToken);
+                                                                                         utl::vector<Bracket>::iterator stackItr);
     
     [[nodiscard]] utl::vector<scatha::Token>::iterator handleOpeningBracket(utl::vector<Token>::iterator tokenItr, Bracket bracket);
     [[nodiscard]] utl::vector<scatha::Token>::iterator handleClosingBracket(utl::vector<Token>::iterator tokenItr, Bracket bracket);
@@ -62,7 +62,8 @@ void Context::run() {
         }
     }
     /// After traversing the list of tokens handle all unmatched open brackets (if any).
-    (void)popStackAndInsertMatchingBrackets(tokens.end() - 1, bracketStack.container().begin(), tokens.back());
+    (void)popStackAndInsertMatchingBrackets(tokens.end() - 1, bracketStack.container().begin());
+    SC_ASSERT(bracketStack.empty(), "Bracket stack must be empty in the end.");
 }
 
 [[nodiscard]] utl::vector<scatha::Token>::iterator Context::handleOpeningBracket(utl::vector<Token>::iterator tokenItr, Bracket bracket) {
@@ -95,7 +96,7 @@ void Context::run() {
         }
         else {
             auto const stackItr = stackReverseItr.base();
-            tokenItr = popStackAndInsertMatchingBrackets(tokenItr, stackItr, token);
+            tokenItr = popStackAndInsertMatchingBrackets(tokenItr, stackItr);
             SC_ASSERT(*tokenItr == token, "'itr' must still point to the same token.");
             /// From this case we don't \p return; but flow into the good case section, since we have corrected all errors but still need to pop the last open bracket.
         }
@@ -109,19 +110,17 @@ void Context::run() {
 }
 
 utl::vector<scatha::Token>::iterator Context::popStackAndInsertMatchingBrackets(utl::vector<scatha::Token>::const_iterator tokenItr,
-                                                                                utl::vector<Bracket>::iterator stackItr,
-                                                                                Token const& positionIndicatorToken)
+                                                                                utl::vector<Bracket>::iterator stackItr)
 {
     auto& stackContainer = bracketStack.container();
     ssize_t const count = stackContainer.end() - stackItr;
-    /// Insert all missing closing brackets, i.e. all brackets matchings the open ones past and push errors
-    auto const resultItr = tokens.insert(tokenItr, utl::narrow_cast<size_t>(count), [&, itr = stackItr + count - 1]() mutable {
-        iss.push(SyntaxIssue(positionIndicatorToken, SyntaxIssue::Reason::ExpectedClosingBracket));
-        SC_ASSERT(itr >= stackContainer.begin(), "Out of bounds");
-        Bracket const newBracket = { itr->type, Bracket::Side::Close };
-        --itr;
+    /// Insert all missing closing brackets, i.e. all brackets matchings the open ones past and push errors.
+    auto const insertIterator = utl::transform_iterator(std::reverse_iterator(stackItr + count), [&](Bracket bracket) {
+        iss.push(SyntaxIssue(*tokenItr, SyntaxIssue::Reason::ExpectedClosingBracket));
+        Bracket const newBracket = { bracket.type, Bracket::Side::Close };
         return Token(toString(newBracket), TokenType::Punctuation, tokenItr->sourceLocation);
     });
+    auto const resultItr = tokens.insert(tokenItr, insertIterator, insertIterator + count);
     /// Now erase the bracket stack until \p stackItr
     stackContainer.erase(stackItr, stackContainer.end());
     return resultItr + count;
