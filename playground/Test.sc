@@ -4,7 +4,10 @@ fn main() -> int {
     return 2;)[
 }
 
-fn f x: int) {}
+struct X {
+
+
+fn f very_long_parameter_name: int) {}
 
 
 }
