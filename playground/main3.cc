@@ -33,6 +33,7 @@ using namespace scatha::parse;
     issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     if (!parseIss.empty()) {
+        std::cout << "\n========================================\n\n";
         std::cout << "Encountered syntax issues:\n";
         
         for (auto& issue: parseIss.issues()) {
@@ -40,5 +41,6 @@ using namespace scatha::parse;
             << issue.reason() << std::endl;
         }
     }
+    std::cout << "\n========================================\n\n";
     ast::printSource(*ast);
 }

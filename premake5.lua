@@ -29,6 +29,8 @@ filter "system:macosx"
     buildoptions { 
         "-Wconversion", 
         "-Wall",
+        "-Wpedantic",
+        "-Wold-style-cast", 
         "-Wno-sign-compare", 
         "-Wno-unused-parameter",
     }
