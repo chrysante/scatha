@@ -14,6 +14,7 @@
 #include "Basic/Basic.h"
 #include "Common/Token.h"
 #include "Issue/ProgramIssue.h"
+#include "Issue/VariantIssueBase.h"
 #include "Sema/SymbolID.h"
 
 namespace scatha::sema {
@@ -212,58 +213,24 @@ private:
 
 /// MARK: Common class SemanticIssue
 namespace internal {
-using SemaIssueVariant = std::variant<BadTypeConversion,
-                                      BadOperandForUnaryExpression,
-                                      BadOperandsForBinaryExpression,
-                                      BadMemberAccess,
-                                      BadFunctionCall,
-                                      UseOfUndeclaredIdentifier,
-                                      BadSymbolReference,
-                                      InvalidStatement,
-                                      InvalidDeclaration,
-                                      StrongReferenceCycle>;
-}
 
-class SCATHA(API) SemanticIssue: private internal::SemaIssueVariant {
-private:
-    template <typename T>
-    static decltype(auto) visitImpl(auto&& f, auto&& v) {
-        auto const vis = utl::visitor{ f, [](issue::internal::ProgramIssuePrivateBase&) -> T {
-                                          if constexpr (!std::is_same_v<T, void>) {
-                                              SC_DEBUGFAIL();
-                                          }
-                                      } };
-        return std::visit(vis, v);
-    }
+using IssueVariant = std::variant<BadTypeConversion,
+                                  BadOperandForUnaryExpression,
+                                  BadOperandsForBinaryExpression,
+                                  BadMemberAccess,
+                                  BadFunctionCall,
+                                  UseOfUndeclaredIdentifier,
+                                  BadSymbolReference,
+                                  InvalidStatement,
+                                  InvalidDeclaration,
+                                  StrongReferenceCycle>;
 
+} // namespace internal
+
+class SCATHA(API) SemanticIssue: public issue::internal::VariantIssueBase<internal::IssueVariant> {
 public:
-    using internal::SemaIssueVariant::SemaIssueVariant;
-
-    template <typename T = void>
-    decltype(auto) visit(auto&& f) {
-        return visitImpl<T>(f, asBase());
-    }
-
-    template <typename T = void>
-    decltype(auto) visit(auto&& f) const {
-        return visitImpl<T>(f, asBase());
-    }
-
-    template <typename T>
-    auto& get() {
-        return std::get<T>(asBase());
-    }
-
-    template <typename T>
-    auto const& get() const {
-        return std::get<T>(asBase());
-    }
-
-    template <typename T>
-    bool is() const {
-        return std::holds_alternative<T>(asBase());
-    }
-
+    using issue::internal::VariantIssueBase<internal::IssueVariant>::VariantIssueBase;
+    
     /// Weirdly enough this won't compile. We also don't really need the function though.
 #if 0
     ast::Statement const& statement() const {
@@ -275,22 +242,6 @@ public:
 
     void setStatement(ast::Statement const& statement) {
         visit([&](InvalidStatement& e) { e.setStatement(statement); });
-    }
-
-    Token const& token() const {
-        return visit([](issue::ProgramIssueBase const& base) -> auto& { return base.token(); });
-    }
-
-    void setToken(Token token) {
-        visit([&](IssueBase& e) { e.setToken(std::move(token)); });
-    }
-
-private:
-    internal::SemaIssueVariant& asBase() {
-        return *this;
-    }
-    internal::SemaIssueVariant const& asBase() const {
-        return *this;
     }
 };
 
