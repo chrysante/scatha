@@ -42,9 +42,13 @@ public:
     Expected<ObjectType&, SemanticIssue> declareObjectType(ast::StructDefinition const& structDef);
 
     /// \overload
+    ///
+    /// Only exposed for testing purposes.
     Expected<ObjectType&, SemanticIssue> declareObjectType(Token name);
 
     /// Simpler interface to declare builtins. Internally calls \p declareObjectType()
+    ///
+    /// TODO: Only used internally. Make this private.
     TypeID declareBuiltinType(std::string name, size_t size, size_t align);
 
     /// \brief Declares a function to the current scope without signature.
@@ -58,6 +62,8 @@ public:
     Expected<Function const&, SemanticIssue> declareFunction(ast::FunctionDefinition const& functionDef);
 
     /// \overload
+    ///
+    /// Only exposed for testing purposes.
     Expected<Function const&, SemanticIssue> declareFunction(Token name);
 
     /// \brief Add signature to declared function.

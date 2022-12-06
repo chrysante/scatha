@@ -119,7 +119,7 @@ Expected<void, SemanticIssue> SymbolTable::setSignature(SymbolID functionID, Fun
 }
 
 Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(ast::VariableDeclaration const& varDecl) {
-    auto result = declareVariable(varDecl.token());
+    auto result = declareVariable(varDecl.nameIdentifier->token());
     if (!result) {
         result.error().setStatement(varDecl);
     }
