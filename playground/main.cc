@@ -25,7 +25,8 @@ using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
 
-[[gnu::weak]] int main() {
+//[[gnu::weak]]
+int main() {
     auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     std::fstream file(filepath);
     if (!file) {
