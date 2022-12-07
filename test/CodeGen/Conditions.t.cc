@@ -170,6 +170,19 @@ TEST_CASE("Conditional", "[codegen]") {
     std::string const text = R"(
 fn main() -> int {
     let x = 0;
+    return greaterZero(x) ? 1 : 2;
+}
+fn greaterZero(a: int) -> bool {
+    return !(a <= 0);
+})";
+    auto const registers   = test::getRegisters(text);
+    CHECK(registers[0] == 2);
+}
+
+TEST_CASE("Right-nested conditional", "[codegen]") {
+    std::string const text = R"(
+fn main() -> int {
+    let x = 0;
     let y = 1;
     return greaterZero(x) ? 1 : greaterZero(y) ? 2 : 3;
 }
@@ -179,3 +192,28 @@ fn greaterZero(a: int) -> bool {
     auto const registers   = test::getRegisters(text);
     CHECK(registers[0] == 2);
 }
+
+TEST_CASE("Left-nested conditional", "[codegen]") {
+    std::string const text = R"(
+fn main() -> int {
+    let x = 0;
+    let y = 1;
+    return greaterZero(x + 1) ? greaterZero(y) ? 1 : 2 : 3;
+}
+fn greaterZero(a: int) -> bool {
+    return !(a <= 0);
+})";
+    auto const registers   = test::getRegisters(text);
+    CHECK(registers[0] == 1);
+}
+
+TEST_CASE("Left-nested conditional with literals", "[codegen]") {
+    std::string const text = R"(
+fn main() -> int {
+    return true ? true ? 1 : 2 : 3;
+})";
+    auto const registers   = test::getRegisters(text);
+    CHECK(registers[0] == 1);
+}
+
+
