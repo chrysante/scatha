@@ -87,6 +87,8 @@ public:
     Expected<Variable&, SemanticIssue> declareVariable(ast::VariableDeclaration const& varDecl);
 
     /// \overload
+    ///
+    /// Only exposed for testing purposes but currently not tested.
     Expected<Variable&, SemanticIssue> declareVariable(Token name);
 
     /// \brief Declares a variable to the current scope.

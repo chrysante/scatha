@@ -13,7 +13,8 @@ namespace scatha::sema {
 
 enum class SymbolCategory { Invalid, Variable, Namespace, OverloadSet, Function, ObjectType, Anonymous, _count };
 
-static_assert(static_cast<int>(SymbolCategory::_count) <= 1 << 4);
+static_assert(static_cast<int>(SymbolCategory::_count) <= 1 << 4,
+              "SymbolCategory values shall fit into the last four bytes of the SymbolID structure.");
 
 SCATHA(API) std::string_view toString(SymbolCategory);
 
@@ -26,7 +27,7 @@ public:
 public:
     constexpr SymbolID() = default;
     constexpr explicit SymbolID(u64 rawValue, SymbolCategory category): _value(rawValue), _cat(category) {
-        SC_EXPECT(rawValue < u64(1) << 60, "Too big");
+        SC_EXPECT(rawValue < (u64(1) << 60), "The SymbolID index must fit into the first 60 bits of the structure.");
     }
 
     constexpr u64 rawValue() const { return _value; }

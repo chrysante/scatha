@@ -126,13 +126,13 @@ using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 
 using f32 = float;
+static_assert(sizeof(f32) == 4);
+
 using f64 = double;
+static_assert(sizeof(f64) == 8);
 
 using std::size_t;
 using ssize_t = std::ptrdiff_t;
-
-static_assert(sizeof(f32) == 4);
-static_assert(sizeof(f64) == 8);
 
 /// Reinterpret the bytes of t as a \p std::array of bytes
 template <typename T>

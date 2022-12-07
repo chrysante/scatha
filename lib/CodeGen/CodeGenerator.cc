@@ -189,12 +189,12 @@ void CodeGenerator::generateConditionalJump(assembly::AssemblyStream& a,
 }
 
 void CodeGenerator::ResolvedArg::streamInsert(assembly::AssemblyStream& str) const {
-    arg.visit(utl::visitor{ [&](ic::EmptyArgument const&) { SC_DEBUGBREAK(); },
+    arg.visit(utl::overload([&](ic::EmptyArgument const&) { SC_DEBUGBREAK(); },
                             [&](ic::Variable const& var) { str << self.rd.resolve(var); },
                             [&](ic::Temporary const& tmp) { str << self.rd.resolve(tmp); },
                             [&](ic::LiteralValue const& lit) { str << assembly::Value64(lit.value); },
                             [&](ic::Label const& label) { str << toAsm(label); },
-                            [&](ic::If) { SC_DEBUGFAIL(); } });
+                            [&](ic::If) { SC_DEBUGFAIL(); }));
 }
 
 assembly::AssemblyStream& operator<<(assembly::AssemblyStream& str, CodeGenerator::ResolvedArg a) {

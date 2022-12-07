@@ -14,7 +14,7 @@
 #define VM_WARNING(COND, MSG)                                                                                          \
     do {                                                                                                               \
         if (!(COND)) {                                                                                                 \
-            std::cout << MSG;                                                                                          \
+            std::cout << (MSG);                                                                                        \
         }                                                                                                              \
     } while (0)
 
@@ -256,7 +256,9 @@ struct OpCodeImpl {
         };
 
         at(ret) = [](u8 const*, u64* regPtr, VirtualMachine* vm) -> u64 {
-            if (vm->registers.data() == regPtr) /* meaning we are the root of the call tree */ {
+            if (vm->registers.data() == regPtr) {
+                /// Meaning we are the root of the call tree aka. the main function,
+                /// so we set the instruction pointer to the program break to terminate execution.
                 vm->iptr = vm->programBreak;
                 return 0;
             }

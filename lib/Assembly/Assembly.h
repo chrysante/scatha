@@ -97,6 +97,7 @@ std::ostream& operator<<(std::ostream&, RegisterIndex);
 struct MemoryAddress {
     explicit MemoryAddress(u8 ptrRegIdx, u8 offset, u8 offsetShift):
         ptrRegIdx(ptrRegIdx), offset(offset), offsetShift(offsetShift) {}
+    
     u8 ptrRegIdx;
     u8 offset;
     u8 offsetShift;
@@ -140,6 +141,8 @@ struct Value64 {
     u64 value;
 };
 
+std::ostream& operator<<(std::ostream&, Value64);
+
 // Only used for hand-written assembly, e.g. for testing purposes.
 inline Value64 Unsigned64(u64 value) {
     return Value64(static_cast<u64>(value), Value64::UnsignedIntegral);
@@ -150,8 +153,6 @@ inline Value64 Signed64(i64 value) {
 inline Value64 Float64(f64 value) {
     return Value64(utl::bit_cast<u64>(value), Value64::FloatingPoint);
 }
-
-std::ostream& operator<<(std::ostream&, Value64);
 
 // Only for internal use.
 struct EndOfProgram {};
