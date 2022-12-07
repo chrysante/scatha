@@ -1,13 +1,6 @@
 
 fn main() -> int {
-    if true { return (1; }
-    return 2;)[
-}
-
-struct X {
-
-
-fn f very_long_parameter_name: int) {}
-
-
+    /// FIXME: This fails in codegen. 
+    // return true ? true ? 1 : 2 : 3;
+    return true ? 1 : 2;
 }
