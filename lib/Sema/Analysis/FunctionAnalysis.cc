@@ -26,6 +26,7 @@ struct Context {
     void analyze(ast::ReturnStatement&);
     void analyze(ast::IfStatement&);
     void analyze(ast::WhileStatement&);
+    void analyze(ast::DoWhileStatement&);
     void analyze(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
 
     ExpressionAnalysisResult dispatchExpression(ast::Expression&);
@@ -264,6 +265,21 @@ void Context::analyze(ast::IfStatement& is) {
 }
 
 void Context::analyze(ast::WhileStatement& ws) {
+    if (sym.currentScope().kind() != ScopeKind::Function) {
+        iss.push(InvalidStatement(&ws, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+        return;
+    }
+    if (dispatchExpression(*ws.condition)) {
+        verifyConversion(*ws.condition, sym.Bool());
+    }
+    if (iss.fatal()) {
+        return;
+    }
+    dispatch(*ws.block);
+}
+
+void Context::analyze(ast::DoWhileStatement& ws) {
+    // TODO: This implementation is completely analogous to analyze(WhileStatement&). Try to merge them.
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push(InvalidStatement(&ws, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
         return;

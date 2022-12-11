@@ -26,6 +26,7 @@ struct Context {
     void print(ReturnStatement const&, int ind);
     void print(IfStatement const&, int ind);
     void print(WhileStatement const&, int ind);
+    void print(DoWhileStatement const&, int ind);
     void print(Identifier const&, int ind);
     void print(IntegerLiteral const&, int ind);
     void print(BooleanLiteral const&, int ind);
@@ -134,6 +135,12 @@ void Context::print(WhileStatement const& whileStatement, int ind) {
     str << indent(ind) << "<while-statement> " << endl;
     dispatch(whileStatement.condition.get(), ind + 1);
     dispatch(whileStatement.block.get(), ind + 1);
+}
+
+void Context::print(DoWhileStatement const& doWhileStatement, int ind) {
+    str << indent(ind) << "<do-while-statement> " << endl;
+    dispatch(doWhileStatement.condition.get(), ind + 1);
+    dispatch(doWhileStatement.block.get(), ind + 1);
 }
 
 void Context::print(Identifier const& identifier, int ind) {
