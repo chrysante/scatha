@@ -5,6 +5,7 @@
 #include <string>
 
 #include <utl/typeinfo.hpp>
+#include <utl/stdio.hpp>
 
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
@@ -16,6 +17,7 @@
 #include "IC/PrintTac.h"
 #include "IC/TacGenerator.h"
 #include "Lexer/Lexer.h"
+#include "Lexer/LexicalIssue.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
@@ -24,6 +26,18 @@
 using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
+
+static void header(std::string_view title) {
+    auto line = [](std::string_view m) {
+        int const width = 60;
+        utl::print("{:=^{}}\n", m, width);
+    };
+    utl::print("\n");
+    line("");
+    line(title);
+    line("");
+    utl::print("\n");
+}
 
 //[[gnu::weak]]
 int main() {
@@ -38,18 +52,28 @@ int main() {
     std::string const text = sstr.str();
 
     try {
-        std::cout << "\n==================================================\n";
-        std::cout << "=== AST ==========================================\n";
-        std::cout << "==================================================\n\n";
+        header("Tokens");
         issue::LexicalIssueHandler lexIss;
         auto tokens = lex::lex(text, lexIss);
+        if (!lexIss.empty()) {
+            utl::print("Lexical issues:\n");
+            for (auto& issue: lexIss.issues()) {
+                issue.visit([]<typename T>(T const& iss) {
+                    std::cout << iss.token().sourceLocation << " " << iss.token() << " : "
+                              << utl::nameof<T> << std::endl;
+                });
+            }
+        }
+        else {
+            utl::print("No lexical issues.\n");
+        }
+        
+        header("AST");
         issue::SyntaxIssueHandler parseIss;
         auto ast = parse::parse(tokens, parseIss);
         ast::printTree(*ast);
 
-        std::cout << "\n==================================================\n";
-        std::cout << "=== Symbol Table =================================\n";
-        std::cout << "==================================================\n\n";
+        header("Symbol Table");
         issue::SemaIssueHandler semaIss;
         auto const sym = sema::analyze(*ast, semaIss);
         sema::printSymbolTable(sym);
@@ -85,7 +109,7 @@ int main() {
             std::cout << std::endl;
         }
         std::cout << "==================================================\n";
-
+        return 0;
         std::cout << "\n==================================================\n";
         std::cout << "=== Generated Three Address Code =================\n";
         std::cout << "==================================================\n\n";
