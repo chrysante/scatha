@@ -73,8 +73,7 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     /// decoration.
     SymbolID const fnSymID = fn.symbolID();
     auto const& function   = sym.getFunction(fnSymID);
-#warning Why is functionTypeID ::Invalid here?
-    fn.decorate(fnSymID, function.signature().returnTypeID(), sema::TypeID::Invalid);
+    fn.decorate(fnSymID, function.signature().returnTypeID());
     fn.body->decorate(ScopeKind::Function, function.symbolID());
     currentFunction                    = &fn;
     utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };

@@ -500,22 +500,14 @@ public:
         return _returnTypeID;
     }
 
-    /// Type of the function.
-    sema::TypeID functionTypeID() const {
-        expectDecorated();
-        return _functionTypeID;
-    }
-
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::TypeID returnTypeID, sema::TypeID functionTypeID) {
+    void decorate(sema::SymbolID symbolID, sema::TypeID returnTypeID) {
         _returnTypeID   = returnTypeID;
-        _functionTypeID = functionTypeID;
         Declaration::decorate(symbolID);
     }
 
 private:
     sema::TypeID _returnTypeID   = sema::TypeID::Invalid;
-    sema::TypeID _functionTypeID = sema::TypeID::Invalid;
 };
 
 /// Concrete node representing the definition of a struct.
