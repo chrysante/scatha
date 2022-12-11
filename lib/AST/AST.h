@@ -603,6 +603,23 @@ public:
     UniquePtr<CompoundStatement> block;
 };
 
+/// Concrete node representing a do-while statement.
+class SCATHA(API) DoWhileStatement: public ControlFlowStatement {
+public:
+    explicit DoWhileStatement(Token const& token, UniquePtr<Expression> condition, UniquePtr<CompoundStatement> block):
+    ControlFlowStatement(NodeType::DoWhileStatement, token),
+    condition(std::move(condition)),
+    block(std::move(block)) {}
+    
+    /// Condition to loop on.
+    /// Must not be null after parsing and must be of type bool (or maybe later
+    /// convertible to bool).
+    UniquePtr<Expression> condition;
+    
+    /// Statement to execute repeatedly.
+    UniquePtr<CompoundStatement> block;
+};
+
 } // namespace scatha::ast
 
 #endif // SCATHA_AST_AST_H_

@@ -79,10 +79,10 @@ static utl::vector<std::string> const keywords = [] {
 
     at(For) = "for";
     // While:
-    // while (<cond>) <statement>
+    // "while" <cond> <compound-statement>
     at(While) = "while";
     // Do/While:
-    // do <statement> while (<cond>)
+    // "do" <compound-statement> "while" <cond>
     at(Do) = "do";
 
     // MARK: Boolean literals

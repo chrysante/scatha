@@ -30,6 +30,7 @@ struct Context {
     void print(ReturnStatement const&);
     void print(IfStatement const&);
     void print(WhileStatement const&);
+    void print(DoWhileStatement const&);
     void print(Identifier const&);
     void print(IntegerLiteral const&);
     void print(BooleanLiteral const&);
@@ -181,6 +182,14 @@ void Context::print(WhileStatement const& ws) {
     dispatch(*ws.condition);
     str << " ";
     dispatch(*ws.block);
+}
+
+void Context::print(DoWhileStatement const& ws) {
+    str << "do ";
+    dispatch(*ws.block);
+    str << " ";
+    dispatch(*ws.condition);
+    str << ";";
 }
 
 void Context::print(Identifier const& i) {

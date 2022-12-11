@@ -25,6 +25,7 @@ class EmptyStatement;
 class ReturnStatement;
 class IfStatement;
 class WhileStatement;
+class DoWhileStatement;
 class Identifier;
 class IntegerLiteral;
 class BooleanLiteral;
@@ -50,6 +51,7 @@ enum class NodeType {
     ReturnStatement,
     IfStatement,
     WhileStatement,
+    DoWhileStatement,
     Identifier,
     IntegerLiteral,
     BooleanLiteral,
@@ -96,6 +98,8 @@ template <>
 struct ToEnumNodeTypeImpl<IfStatement>: std::integral_constant<NodeType, NodeType::IfStatement> {};
 template <>
 struct ToEnumNodeTypeImpl<WhileStatement>: std::integral_constant<NodeType, NodeType::WhileStatement> {};
+template <>
+struct ToEnumNodeTypeImpl<DoWhileStatement>: std::integral_constant<NodeType, NodeType::DoWhileStatement> {};
 template <>
 struct ToEnumNodeTypeImpl<Identifier>: std::integral_constant<NodeType, NodeType::Identifier> {};
 template <>
@@ -164,6 +168,10 @@ struct ToNodeTypeImpl<NodeType::IfStatement> {
 template <>
 struct ToNodeTypeImpl<NodeType::WhileStatement> {
     using type = WhileStatement;
+};
+template <>
+struct ToNodeTypeImpl<NodeType::DoWhileStatement> {
+    using type = DoWhileStatement;
 };
 template <>
 struct ToNodeTypeImpl<NodeType::Identifier> {

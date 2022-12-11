@@ -103,3 +103,73 @@ TEST_CASE("Parse conditional", "[parse]") {
 //     CHECK_THROWS_AS(makeAST(text), SyntaxIssue);
 // };
 //
+
+TEST_CASE("Parse while statement", "[parse]") {
+    std::string const text = R"(
+fn test() {
+    while x > 0 {
+        x += 1;
+    }
+})";
+    auto const [ast, iss]  = test::parse(text);
+    REQUIRE(iss.empty());
+    auto* const tu = downCast<TranslationUnit>(ast.get());
+    REQUIRE(tu->declarations.size() == 1);
+    auto* const function = downCast<FunctionDefinition>(tu->declarations[0].get());
+    REQUIRE(function);
+    CHECK(function->name() == "test");
+    CompoundStatement* const body = function->body.get();
+    REQUIRE(body);
+    REQUIRE(body->statements.size() == 1);
+    auto* const whileStatement = downCast<WhileStatement>(body->statements[0].get());
+    REQUIRE(whileStatement);
+    auto* const condition = downCast<BinaryExpression>(whileStatement->condition.get());
+    REQUIRE(condition);
+    CHECK(condition->operation() == BinaryOperator::Greater);
+    auto* const exprStatement = downCast<ExpressionStatement>(whileStatement->block->statements[0].get());
+    REQUIRE(exprStatement);
+    auto* const expr = downCast<BinaryExpression>(exprStatement->expression.get());
+    REQUIRE(expr);
+    CHECK(expr->operation() == BinaryOperator::AddAssignment);
+    auto* const identifier = downCast<Identifier>(expr->lhs.get());
+    REQUIRE(identifier);
+    CHECK(identifier->value() == "x");
+    auto* const intLiteral = downCast<IntegerLiteral>(expr->rhs.get());
+    REQUIRE(intLiteral);
+    CHECK(intLiteral->value() == 1);
+}
+
+TEST_CASE("Parse do-while statement", "[parse]") {
+    std::string const text = R"(
+fn test() {
+    do {
+        x += 1;
+    } while x > 0;
+})";
+    auto const [ast, iss]  = test::parse(text);
+    REQUIRE(iss.empty());
+    auto* const tu = downCast<TranslationUnit>(ast.get());
+    REQUIRE(tu->declarations.size() == 1);
+    auto* const function = downCast<FunctionDefinition>(tu->declarations[0].get());
+    REQUIRE(function);
+    CHECK(function->name() == "test");
+    CompoundStatement* const body = function->body.get();
+    REQUIRE(body);
+    REQUIRE(body->statements.size() == 1);
+    auto* const doWhileStatement = downCast<DoWhileStatement>(body->statements[0].get());
+    REQUIRE(doWhileStatement);
+    auto* const condition = downCast<BinaryExpression>(doWhileStatement->condition.get());
+    REQUIRE(condition);
+    CHECK(condition->operation() == BinaryOperator::Greater);
+    auto* const exprStatement = downCast<ExpressionStatement>(doWhileStatement->block->statements[0].get());
+    REQUIRE(exprStatement);
+    auto* const expr = downCast<BinaryExpression>(exprStatement->expression.get());
+    REQUIRE(expr);
+    CHECK(expr->operation() == BinaryOperator::AddAssignment);
+    auto* const identifier = downCast<Identifier>(expr->lhs.get());
+    REQUIRE(identifier);
+    CHECK(identifier->value() == "x");
+    auto* const intLiteral = downCast<IntegerLiteral>(expr->rhs.get());
+    REQUIRE(intLiteral);
+    CHECK(intLiteral->value() == 1);
+}

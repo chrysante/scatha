@@ -147,6 +147,7 @@ decltype(auto) visitImpl(auto&& node, auto type, auto const& f) {
     case NodeType::ReturnStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), ReturnStatement>>(node));
     case NodeType::IfStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), IfStatement>>(node));
     case NodeType::WhileStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), WhileStatement>>(node));
+    case NodeType::DoWhileStatement: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), DoWhileStatement>>(node));
     case NodeType::Identifier: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), Identifier>>(node));
     case NodeType::IntegerLiteral: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), IntegerLiteral>>(node));
     case NodeType::BooleanLiteral: return f(utl::down_cast<utl::copy_cvref_t<decltype(node), BooleanLiteral>>(node));

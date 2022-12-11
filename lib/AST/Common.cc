@@ -25,6 +25,7 @@ std::string_view toString(NodeType t) {
         { NodeType::ReturnStatement,       "ReturnStatement" },
         { NodeType::IfStatement,           "IfStatement" },
         { NodeType::WhileStatement,        "WhileStatement" },
+        { NodeType::DoWhileStatement,      "DoWhileStatement" },
         { NodeType::Identifier,            "Identifier" },
         { NodeType::IntegerLiteral,        "IntegerLiteral" },
         { NodeType::BooleanLiteral,        "BooleanLiteral" },
