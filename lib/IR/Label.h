@@ -1,11 +1,11 @@
 #ifndef SCATHA_IR_LABEL_H_
 #define SCATHA_IR_LABEL_H_
 
-#include "IR/StatementBase.h"
+#include "IR/Value.h"
 
 namespace scatha::ir {
 	
-class Label: public StatementBase {
+class Label: public Value {
 public:
     
 private:

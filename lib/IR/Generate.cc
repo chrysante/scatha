@@ -1,10 +1,11 @@
-#include "Generate.h"
+#include "IR/Generate.h"
 
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
 #include "AST/AST.h"
 #include "Sema/SymbolTable.h"
+#include "IR/Struct.h"
 
 using namespace scatha;
 using namespace ir;
@@ -30,7 +31,7 @@ GeneratorResult ir::generate(ast::AbstractSyntaxTree const& ast, sema::SymbolTab
     Context ctx(symbolTable);
     ctx.dispatch(ast);
     return {
-        Program(std::move(ctx.structs), std::move(ctx.functions)),
+        Module(/*std::move(ctx.structs), */std::move(ctx.functions)),
         std::move(ctx.targetSymTable)
     };
 }

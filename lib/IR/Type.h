@@ -5,10 +5,12 @@
 
 namespace scatha::ir {
 
-enum class FundTypes {
-    i8, i16, i32, i64,
-    u8, u16, u32, u64,
-    f32, f64,
+/// Base class of all types in the IR
+class Type {
+public:
+    
+private:
+    
 };
 
 } // namespace scatha::ir

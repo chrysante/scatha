@@ -6,11 +6,11 @@
 #include "Basic/Basic.h"
 #include "IR/VariableDeclaration.h"
 #include "IR/Statement.h"
-#include "IR/Entity.h"
+#include "IR/Value.h"
 
 namespace scatha::ir {
 
-class Function: public Entity {
+class Function: public Value {
 public:
     explicit Function(utl::vector<VariableDeclaration> params, utl::vector<Statement> statements):
         params(std::move(params)), statements(std::move(statements))

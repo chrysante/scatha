@@ -6,7 +6,7 @@ namespace scatha::ir {
 class Entity;
 class Function;
 class Struct;
-class Program;
+class Module;
 class SymbolTable;
 	
 } // namespace scatha::ir

@@ -8,9 +8,9 @@
 
 namespace scatha::ir {
 
-SCATHA(API) void print(Program const& program, SymbolTable const& symbolTable);
+SCATHA(API) void print(Module const& program, SymbolTable const& symbolTable);
 
-SCATHA(API) void print(Program const& program, SymbolTable const& symbolTable, std::ostream& ostream);
+SCATHA(API) void print(Module const& program, SymbolTable const& symbolTable, std::ostream& ostream);
 	
 } // namespace scatha::ir 
 

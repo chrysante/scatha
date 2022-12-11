@@ -1,18 +1,18 @@
-#include "IRPrint.h"
+#include "IR/IRPrint.h"
 
 #include <iostream>
 
-#include "IR/Program.h"
+#include "IR/Module.h"
 
 using namespace scatha;
 using namespace ir;
 
-void ir::print(Program const& program, SymbolTable const& symbolTable) {
+void ir::print(Module const& program, SymbolTable const& symbolTable) {
     ir::print(program, symbolTable, std::cout);
 }
 
-void ir::print(Program const& program, SymbolTable const& symbolTable, std::ostream& str) {
-    for (auto& structure: program.structures()) {
+void ir::print(Module const& program, SymbolTable const& symbolTable, std::ostream& str) {
+//    for (auto& structure: program.structures()) {
 //        str << structure
-    }
+//    }
 }

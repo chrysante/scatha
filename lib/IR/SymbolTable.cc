@@ -1,4 +1,4 @@
-#include "SymbolTable.h"
+#include "IR/SymbolTable.h"
 
 using namespace scatha;
 using namespace ir;

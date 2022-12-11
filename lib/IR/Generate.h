@@ -2,7 +2,7 @@
 #define SCATHA_IR_GENERATE_H_
 
 #include "Basic/Basic.h"
-#include "IR/Program.h"
+#include "IR/Module.h"
 #include "IR/SymbolTable.h"
 
 namespace scatha::sema {
@@ -20,7 +20,7 @@ class AbstractSyntaxTree;
 namespace scatha::ir {
 
 struct GeneratorResult {
-    Program program;
+    Module program;
     SymbolTable symbolTable;
 };
 
