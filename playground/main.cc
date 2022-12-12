@@ -27,15 +27,25 @@ using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
 
-static void header(std::string_view title) {
-    auto line = [](std::string_view m) {
-        int const width = 60;
-        utl::print("{:=^{}}\n", m, width);
-    };
+namespace internal {
+
+static int const headerWidth = 60;
+
+void line(std::string_view m) { utl::print("{:=^{}}\n", m, headerWidth); };
+
+}
+
+static void header(std::string_view title = "") {
     utl::print("\n");
-    line("");
-    line(title);
-    line("");
+    ::internal::line("");
+    ::internal::line(title);
+    ::internal::line("");
+    utl::print("\n");
+}
+
+static void subHeader(std::string_view title = "") {
+    utl::print("\n");
+    ::internal::line(title);
     utl::print("\n");
 }
 
@@ -52,7 +62,7 @@ int main() {
     std::string const text = sstr.str();
 
     try {
-        header("Tokens");
+        header(" Tokens ");
         issue::LexicalIssueHandler lexIss;
         auto tokens = lex::lex(text, lexIss);
         if (!lexIss.empty()) {
@@ -68,17 +78,17 @@ int main() {
             utl::print("No lexical issues.\n");
         }
         
-        header("AST");
+        header(" AST ");
         issue::SyntaxIssueHandler parseIss;
         auto ast = parse::parse(tokens, parseIss);
         ast::printTree(*ast);
 
-        header("Symbol Table");
+        header(" Symbol Table ");
         issue::SemaIssueHandler semaIss;
         auto const sym = sema::analyze(*ast, semaIss);
         sema::printSymbolTable(sym);
         std::cout << "\nEncoutered " << semaIss.issues().size() << " issues\n";
-        std::cout << "==================================================\n";
+        subHeader();
         for (auto const& issue : semaIss.issues()) {
             issue.visit([](auto const& issue) {
                 auto const loc = issue.token().sourceLocation;
@@ -108,25 +118,19 @@ int main() {
                 [](issue::ProgramIssueBase const&) { std::cout << std::endl; } });
             std::cout << std::endl;
         }
-        std::cout << "==================================================\n";
-        return 0;
-        std::cout << "\n==================================================\n";
-        std::cout << "=== Generated Three Address Code =================\n";
-        std::cout << "==================================================\n\n";
+        subHeader();
+        header(" Generated Three Address Code ");
         ic::canonicalize(ast.get());
         auto const tac = ic::generateTac(*ast, sym);
         ic::printTac(tac, sym);
 
-        std::cout << "\n==================================================\n";
-        std::cout << "=== Generated Assembly ===========================\n";
-        std::cout << "==================================================\n\n";
+        header(" Generated Assembly ");
         codegen::CodeGenerator cg(tac);
         auto const str = cg.run();
         print(str, sym);
 
-        std::cout << "\n==================================================\n";
-        std::cout << "=== Assembled Program ============================\n";
-        std::cout << "==================================================\n\n";
+        
+        header(" Assembled Program ");
         assembly::Assembler a(str);
         /// Start execution with main if it exists.
         auto const mainID = [&sym] {
@@ -148,7 +152,7 @@ int main() {
         auto const program = a.assemble({ .mainID = mainID.rawValue() });
         print(program);
 
-        std::cout << "\n==================================================\n\n";
+        subHeader();
 
         vm::VirtualMachine vm;
         vm.load(program);
@@ -156,7 +160,7 @@ int main() {
         u64 const exitCode = vm.getState().registers[0];
         std::cout << "VM: Program ended with exit code: " << exitCode << std::endl;
 
-        std::cout << "\n==================================================\n\n";
+        subHeader();
     }
     catch (std::exception const& e) {
         std::cout << "Compilation failed:\n" << e.what() << std::endl;

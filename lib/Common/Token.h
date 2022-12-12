@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef SCATHA_COMMON_TOKEN_H_
 #define SCATHA_COMMON_TOKEN_H_
 
