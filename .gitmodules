@@ -1,3 +1,6 @@
 [submodule "external/utility"]
 	path = external/utility
 	url = https://github.com/chrysante/utility
+[submodule "external/gmp"]
+	path = external/gmp
+	url = https://github.com/chrysante/GMP
