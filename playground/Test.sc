@@ -1,6 +1,6 @@
 
 fn main() -> int {
-    return faculty(4);
+    return faculty(4.);
 }
 
 fn faculty(n: int) -> int {
