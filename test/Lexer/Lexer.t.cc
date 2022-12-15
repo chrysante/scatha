@@ -235,3 +235,22 @@ and end on next, line"
     issues.findOnLine<InvalidNumericLiteral>(3);
     issues.findOnLine<UnterminatedStringLiteral>(4);
 }
+
+template <typename T>
+static T lexTo(std::string_view text) {
+    issue::LexicalIssueHandler iss;
+    auto tokens = lex::lex(text, iss);
+    assert(iss.empty());
+    if constexpr (std::integral<T>) {
+        return tokens.front().toInteger();
+    }
+    else {
+        static_assert(std::floating_point<T>);
+        return tokens.front().toFloat();
+    }
+}
+
+TEST_CASE("Lexer float literals", "[lex]") {
+    CHECK(lexTo<double>("1.3") == 1.3);
+    CHECK(lexTo<double>("2.3") == 2.3);
+}
