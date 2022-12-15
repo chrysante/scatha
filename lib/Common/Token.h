@@ -7,6 +7,7 @@
 #include "Basic/Basic.h"
 #include "Common/Keyword.h"
 #include "Common/SourceLocation.h"
+#include "Common/BigNum.h"
 
 namespace scatha {
 
@@ -46,6 +47,7 @@ struct SCATHA(API) Token: public TokenData {
 
     bool empty() const { return id.empty(); }
 
+    std::optional<BigNum> toBigNum() const;
     u64 toInteger() const;
     bool toBool() const;
     f64 toFloat() const;
