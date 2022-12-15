@@ -92,6 +92,7 @@ TEST_CASE("BigNum fromString()", "[common][big-num]") {
     CHECK(BigNum::fromString("123").value() == 123);
     CHECK(BigNum::fromString("123", 16).value() == 0x123);
     CHECK(BigNum::fromString("0.5").value() == 0.5);
+    CHECK(BigNum::fromString("1.3").value() == 1.3);
 }
 
 TEST_CASE("BigNum arithmetic", "[common][big-num]") {

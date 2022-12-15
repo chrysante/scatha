@@ -39,14 +39,14 @@ filter "system:macosx"
         ["LD_RUNPATH_SEARCH_PATHS"] = "@loader_path"
     }
 filter {}
+
 ------------------------------------------
-project "scatha"
+project "scatha-lib"
 
 kind "SharedLib"
 
 addCppFiles "lib"
 addCppFiles "include/scatha"
-files "**.md"
 externalincludedirs { "external/utility", "external/gmp/build/include" }
 includedirs { "lib" }
 libdirs { "external/gmp/build/lib" }
@@ -58,6 +58,22 @@ links "gmp"
 filter "system:macosx"
 buildoptions "-fvisibility=hidden"
 filter {}
+
+------------------------------------------
+project "scatha"
+
+kind "ConsoleApp"
+
+addCppFiles "app"
+
+externalincludedirs {
+    "include",
+    "lib",
+    "external/utility",
+    "external/termfmt"
+}
+
+links { "scatha-lib", "utility", "termfmt" }
 
 ------------------------------------------
 project "scatha-test"
@@ -75,7 +91,7 @@ externalincludedirs { "lib" }
 --prebuildcommands { "./format-all.sh test/" }
 
 addCppFiles "test"
-links { "scatha" } 
+links { "scatha-lib" } 
 
 ------------------------------------------
 project "playground"
@@ -95,3 +111,4 @@ filter { "system:windows" }
 
 ------------------------------------------
 include "external/utility"
+include "external/termfmt"
