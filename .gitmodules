@@ -4,3 +4,6 @@
 [submodule "external/gmp"]
 	path = external/gmp
 	url = https://github.com/chrysante/GMP
+[submodule "external/termfmt"]
+	path = external/termfmt
+	url = https://github.com/chrysante/termfmt
