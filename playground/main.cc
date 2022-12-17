@@ -49,7 +49,7 @@ static void subHeader(std::string_view title = "") {
     utl::print("\n");
 }
 
-//[[gnu::weak]]
+[[gnu::weak]]
 int main() {
     auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     std::fstream file(filepath);

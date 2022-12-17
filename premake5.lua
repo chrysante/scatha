@@ -102,7 +102,7 @@ includedirs { ".", "lib" }
 
 addCppFiles "playground"
 files "playground/**.sc"
-links { "scatha", "utility" }
+links { "scatha-lib", "utility" }
 
 filter { "system:macosx"} 
     defines { "PROJECT_LOCATION=\"../../..\"" } -- use different (maybe less fragile) solution for windows
