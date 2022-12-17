@@ -7,9 +7,11 @@
 #include "Basic/Basic.h"
 #include "Common/Keyword.h"
 #include "Common/SourceLocation.h"
-#include "Common/BigNum.h"
 
 namespace scatha {
+
+class APInt;
+class APFloat;
 
 enum class TokenType {
     None,
@@ -47,7 +49,8 @@ struct SCATHA(API) Token: public TokenData {
 
     bool empty() const { return id.empty(); }
 
-    std::optional<BigNum> toBigNum() const;
+    std::optional<APInt> toAPInt() const;
+    std::optional<APFloat> toAPFloat() const;
     u64 toInteger() const;
     bool toBool() const;
     f64 toFloat() const;

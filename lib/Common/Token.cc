@@ -5,6 +5,9 @@
 
 #include <utl/utility.hpp>
 
+#include "Common/APInt.h"
+#include "Common/APFloat.h"
+
 namespace scatha {
 
 std::ostream& operator<<(std::ostream& str, TokenType t) {
@@ -35,13 +38,17 @@ std::ostream& operator<<(std::ostream& str, Token const& t) {
     return str;
 }
 
-std::optional<BigNum> Token::toBigNum() const {
-    return BigNum::fromString(id);
+std::optional<APInt> Token::toAPInt() const {
+    return APInt::fromString(id);
+}
+
+std::optional<APFloat> Token::toAPFloat() const {
+    return APFloat::parse(id);
 }
 
 u64 Token::toInteger() const {
     SC_ASSERT(type == TokenType::IntegerLiteral, "Token is not an integer literal");
-    auto const value = toBigNum();
+    auto const value = toAPInt();
     SC_ASSERT(value, "Invalid literal value");
     return static_cast<u64>(*value);
 }
@@ -54,7 +61,7 @@ bool Token::toBool() const {
 
 f64 Token::toFloat() const {
     SC_ASSERT(type == TokenType::FloatingPointLiteral, "Token is not a floating point literal");
-    auto const value = toBigNum();
+    auto const value = toAPFloat();
     SC_ASSERT(value, "Invalid literal value");
     return static_cast<f64>(*value);
 }
@@ -70,7 +77,6 @@ void Token::finalize() {
         isPunctuation = true;
         isSeparator   = true;
     }
-
     if (std::optional<Keyword> const kw = toKeyword(id)) {
         isKeyword       = true;
         keyword         = *kw;
@@ -78,7 +84,6 @@ void Token::finalize() {
         isDeclarator    = scatha::isDeclarator(*kw);
         isControlFlow   = scatha::isControlFlow(*kw);
     }
-
     if (type == TokenType::Identifier) {
         isIdentifier = true;
     }
