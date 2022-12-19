@@ -9,10 +9,10 @@
 
 #include "Basic/Basic.h"
 
-#define SC_DYNCAST_REGISTER_PAIR(type, enum) \
-template <> \
+#define SC_DYNCAST_REGISTER_PAIR(type, enum)                                                             \
+template <>                                                                                              \
 struct ::scatha::internal::DyncastTypeToEnumImpl<type>: std::integral_constant<decltype(enum), enum> {}; \
-template <> \
+template <>                                                                                              \
 struct ::scatha::internal::DyncastEnumToTypeImpl<enum>: std::type_identity<type> {}
 
 namespace scatha {
