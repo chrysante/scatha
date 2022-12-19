@@ -158,7 +158,7 @@ int main() {
         vm.load(program);
         vm.execute();
         u64 const exitCode = vm.getState().registers[0];
-        std::cout << "VM: Program ended with exit code: " << exitCode << std::endl;
+        std::cout << "VM: Program ended with exit code: " << static_cast<i64>(exitCode) << std::endl;
 
         subHeader();
     }

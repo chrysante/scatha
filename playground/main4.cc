@@ -1,39 +1,81 @@
 #include <iostream>
 
-#include "Common/APFloat.h"
+#include <utl/typeinfo.hpp>
+
+#include "IR/BasicBlock.h"
+#include "IR/Terminators.h"
+
+#include "Common/Dyncast.h"
 
 using namespace scatha;
 
-void printInfo(std::string_view name, APFloat const& f) {
-    std::cout << name << " = " << f << std::endl;
-    std::cout << "Exponent: " << f.exponent() << std::endl;
-    std::cout << "Mantissa limbs: " << f.mantissa().size() << ": " << std::endl;
-    for (auto i: f.mantissa()) {
-        std::cout << std::bitset<sizeof(i) * CHAR_BIT>(i) << "\n";
-    }
-}
+enum class Type {
+   Base, LDerivedA, LDerivedB, RDerived, _count
+};
 
-std::optional<long> stringToLong(std::string const& s) {
-    try {
-        return std::stol(s);
-    }
-    catch (std::out_of_range const&) {
-        return std::nullopt;
-    }
-}
+struct Base;
+struct LDerivedA;
+struct LDerivedB;
+struct RDerived;
+
+SC_DYNCAST_REGISTER_PAIR(Base, Type::Base);
+SC_DYNCAST_REGISTER_PAIR(LDerivedA, Type::LDerivedA);
+SC_DYNCAST_REGISTER_PAIR(LDerivedB, Type::LDerivedB);
+SC_DYNCAST_REGISTER_PAIR(RDerived, Type::RDerived);
+
+struct Base {
+protected:
+    explicit Base(Type type): _type(type) {}
+
+public:
+    Type type() const { return _type; }
+    
+private:
+    Type _type;
+};
+
+struct LDerivedA: Base {
+protected:
+    explicit LDerivedA(Type type): Base(type) {}
+    
+public:
+    LDerivedA(): Base(Type::LDerivedA) {}
+};
+
+struct LDerivedB: LDerivedA {
+    LDerivedB(): LDerivedA(Type::LDerivedB) {}
+};
+
+struct RDerived: Base {
+    RDerived(): Base(Type::RDerived) {}
+};
 
 int main() {
-
-    APFloat const f = APFloat::parse(".3").value();
-    APFloat const g =                 .3;
+ 
     
-    printInfo("f", f);
-    printInfo("g", g);
-
-    std::cout << "f " << (f == g ? "==" : "!=") << " g" << std::endl;
+    RDerived value;
+    
+    Base& base = value;
     
     
-    long x = stringToLong("1214543676875645342312456789865432567897768574325678").value_or(-1);
+    scatha::visit(base, []<typename T>(T&&) {
+        std::cout << utl::nameof<T> << std::endl;
+    });
     
-    std::cout << "x = " << x << std::endl;
+    std::cout << std::boolalpha;
+    
+    std::cout << DyncastTraits<Type>::is<Type::Base>(base) << std::endl << std::endl;
+    std::cout << DyncastTraits<Type>::is<Type::LDerivedA>(base) << std::endl << std::endl;
+    std::cout << DyncastTraits<Type>::is<Type::LDerivedB>(base) << std::endl << std::endl;
+    std::cout << DyncastTraits<Type>::is<Type::RDerived>(base) << std::endl << std::endl;
+    
+    return 0;
+    ir::Context theContext;
+    
+    auto* bb = new ir::BasicBlock(theContext, "block");
+    
+    std::cout << bb->type()->name() << std::endl;
+    
+    
+    
 }
