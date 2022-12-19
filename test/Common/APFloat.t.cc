@@ -19,7 +19,7 @@ TEST_CASE("APFloat comparison", "[common][big-num]") {
     CHECK(1000 > n);
 }
 
-TEST_CASE("APFloat floating point representable - 1", "[common][big-num]") {
+TEST_CASE("APFloat representable - 1", "[common][big-num]") {
     double const base = 1.3;
     APFloat const f = base;
     CHECK(static_cast<float>(f)       != base);
@@ -27,7 +27,7 @@ TEST_CASE("APFloat floating point representable - 1", "[common][big-num]") {
     CHECK(static_cast<long double>(f) == base);
 }
 
-TEST_CASE("APFloat floating point representable - 2", "[common][big-num]") {
+TEST_CASE("APFloat representable - 2", "[common][big-num]") {
     double const base = std::numeric_limits<double>::min();
     APFloat const f = base;
     CHECK(static_cast<float>(f)       != base);
@@ -35,8 +35,16 @@ TEST_CASE("APFloat floating point representable - 2", "[common][big-num]") {
     CHECK(static_cast<long double>(f) == base);
 }
 
-TEST_CASE("APFloat floating point representable - 3", "[common][big-num]") {
+TEST_CASE("APFloat representable - 3", "[common][big-num]") {
     double const base = std::numeric_limits<double>::max();
+    APFloat const f = base;
+    CHECK(static_cast<float>(f)       != base);
+    CHECK(static_cast<double>(f)      == base);
+    CHECK(static_cast<long double>(f) == base);
+}
+
+TEST_CASE("APFloat representable - 4", "[common][big-num]") {
+    double const base = std::numeric_limits<double>::min();
     APFloat const f = base;
     CHECK(static_cast<float>(f)       != base);
     CHECK(static_cast<double>(f)      == base);

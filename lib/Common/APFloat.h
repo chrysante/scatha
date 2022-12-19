@@ -16,6 +16,8 @@ namespace scatha {
 
 class APFloat;
 
+static auto* asImpl(APFloat const&);
+
 SCATHA(API) APFloat operator+(APFloat const& lhs, APFloat const& rhs);
 SCATHA(API) APFloat operator-(APFloat const& lhs, APFloat const& rhs);
 SCATHA(API) APFloat operator*(APFloat const& lhs, APFloat const& rhs);
@@ -104,6 +106,10 @@ public:
     
     // MARK: Queries
     
+    bool isInf() const;
+    
+    bool isNaN() const;
+    
     Precision precision() const;
     
     ssize_t exponent() const;
@@ -113,22 +119,21 @@ public:
     std::string toString() const;
 
     void* getImplementationPointer() { return &storage; }
+    
     void const* getImplementationPointer() const { return &storage; }
-    
-    friend std::strong_ordering operator<=>(APFloat const& lhs, APFloat const& rhs);
-    
-    friend std::ostream& operator<<(std::ostream& ostream, APFloat const& number);
-    
+        
 private:
-    template <typename T>
-    bool representableAsImpl() const;
-    
     long long toSigned() const;
     unsigned long long toUnsigned() const;
     double toDouble() const;
+
+    friend std::strong_ordering operator<=>(APFloat const& lhs, APFloat const& rhs);
+    friend std::ostream& operator<<(std::ostream& ostream, APFloat const& number);
+    friend auto* asImpl(APFloat const&);
     
 private:
     std::aligned_storage_t<4 * sizeof(void*), alignof(void*)> storage;
+    Precision prec;
 };
 
 } // namespace scatha

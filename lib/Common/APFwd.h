@@ -1,17 +1,42 @@
 #ifndef SCATHA_COMMON_APFWD_H_
 #define SCATHA_COMMON_APFWD_H_
 
+#include <iosfwd>
+
+#include "Basic/Basic.h"
+
 namespace scatha {
 
 class APInt;
 class APFloat;
-	
-enum class APFloatPrecision {
-    Single     = 24,  //  32-bit floating point types have  23 mantissa bits
-    Double     = 53,  //  64-bit floating point types have  64 mantissa bits
-    LongDouble = 113, // 128-bit floating point types have 112 mantissa bits
-    Default = Double
+
+class SCATHA(API) APFloatPrecision {
+public:
+    static const APFloatPrecision Single;
+    static const APFloatPrecision Double;
+    static const APFloatPrecision Quadruple;
+    static const APFloatPrecision Default;
+    
+    explicit APFloatPrecision(int mantissaBits,
+                              int exponentBits):
+        _mantissaBits(mantissaBits), _exponentBits(exponentBits){}
+    
+    int mantissaBits() const { return _mantissaBits; }
+    
+    int exponentBits() const { return _exponentBits; }
+    
+    int maxExponent() const { return (1 << (_exponentBits - 1)) - 1; }
+    
+    int minExponent() const { return zeroExponent() + 1; }
+    
+    int zeroExponent() const { return -maxExponent(); }
+    
+private:
+    int _mantissaBits;
+    int _exponentBits;
 };
+
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, APFloatPrecision precision);
 
 } // namespace scatha
 
