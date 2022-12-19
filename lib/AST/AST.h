@@ -402,7 +402,7 @@ public:
     explicit ParameterDeclaration(UniquePtr<Identifier> name, UniquePtr<Expression> typeExpr):
         Declaration(NodeType::ParameterDeclaration, Token{}, std::move(name)), typeExpr(std::move(typeExpr)) {
         if (nameIdentifier) {
-            _token = nameIdentifier->token();
+            setToken(nameIdentifier->token());
         }
     }
 

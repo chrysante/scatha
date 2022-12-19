@@ -74,7 +74,9 @@ public:
 protected:
     explicit AbstractSyntaxTree(NodeType type, Token const& token): _type(type), _token(token) {}
 
-protected:
+    void setToken(Token token) { _token = std::move(token); }
+    
+private:
     NodeType _type;
     Token _token;
 };
