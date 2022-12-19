@@ -4,21 +4,19 @@
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
-#include "IR/VariableDeclaration.h"
-#include "IR/Statement.h"
 #include "IR/Value.h"
+#include "IR/Type.h"
 
 namespace scatha::ir {
 
-class Function: public Value {
+class Function: public Constant {
 public:
-    explicit Function(utl::vector<VariableDeclaration> params, utl::vector<Statement> statements):
-        params(std::move(params)), statements(std::move(statements))
+    explicit Function(FunctionType* functionType, std::span<Type const*> parameterTypes):
+        Constant(functionType), _parameterTypes(std::move(parameterTypes))
     {}
     
 private:
-    utl::vector<VariableDeclaration> params;
-    utl::vector<Statement> statements;
+    utl::small_vector<Type const*> _parameterTypes;
 };
 	
 } // namespace scatha::ir

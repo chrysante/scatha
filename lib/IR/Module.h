@@ -6,10 +6,7 @@
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
-#include "IR/Label.h"
-#include "IR/VariableDeclaration.h"
 #include "IR/Function.h"
-#include "IR/BranchStatement.h"
 
 namespace scatha::ir {
 
