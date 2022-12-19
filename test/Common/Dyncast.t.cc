@@ -8,7 +8,7 @@ enum class Type {
     Base, LDerivedA, LDerivedB, RDerived, _count
 };
 
-struct Base {
+struct Base {        
 protected:
     explicit Base(Type type): _type(type) {}
     
@@ -49,35 +49,47 @@ static bool canDyncast(From&& from) {
     return requires { dyncast<To>(from); };
 }
 
-TEST_CASE("DyncastTraits::is", "[common][dyncast]") {
+TEST_CASE("Dyncast visit", "[common][dyncast]") {
+    LDerivedA a;
+    Base& base = a;
+    CHECK(visit(base, [](Base& base) { return base.type(); }) == Type::LDerivedA);
+}
+
+TEST_CASE("Dyncast visit subtree", "[common][dyncast]") {
+    LDerivedB b;
+    LDerivedA& base = b;
+    CHECK(visit(base, [](LDerivedA& a) { return a.type(); }) == Type::LDerivedB);
+}
+
+TEST_CASE("isa and dyncast", "[common][dyncast]") {
     LDerivedA la;
     
-    CHECK( DyncastTraits<Type>::is<Type::Base>(la));
-    CHECK( DyncastTraits<Type>::is<Type::LDerivedA>(la));
-    CHECK(!DyncastTraits<Type>::is<Type::LDerivedB>(la));
-    CHECK(!DyncastTraits<Type>::is<Type::RDerived>(la));
-    
-    CHECK( dyncast<Base*>(&la));
-    CHECK( dyncast<LDerivedA*>(&la));
-    CHECK(!dyncast<LDerivedB*>(&la));
+    CHECK( isa<Base>(la));
+    CHECK( isa<LDerivedA>(la));
+    CHECK(!isa<LDerivedB>(la));
+    CHECK(!isa<RDerived>(la));
+
+    CHECK(dyncast<Base*>(&la)      != nullptr);
+    CHECK(dyncast<LDerivedA*>(&la) != nullptr);
+    CHECK(dyncast<LDerivedB*>(&la) == nullptr);
     CHECK(!canDyncast<RDerived*>(&la));
-    
+
     CHECK_NOTHROW(dyncast<Base&>(la));
     CHECK_NOTHROW(dyncast<LDerivedA&>(la));
     CHECK_THROWS( dyncast<LDerivedB&>(la));
-    
+
     Base const* base = &la;
 
-    CHECK( DyncastTraits<Type>::is<Type::Base>(*base));
-    CHECK( DyncastTraits<Type>::is<Type::LDerivedA>(*base));
-    CHECK(!DyncastTraits<Type>::is<Type::LDerivedB>(*base));
-    CHECK(!DyncastTraits<Type>::is<Type::RDerived>(*base));
+    CHECK( isa<Base>(*base));
+    CHECK( isa<LDerivedA>(*base));
+    CHECK(!isa<LDerivedB>(*base));
+    CHECK(!isa<RDerived>(*base));
 
-    CHECK( dyncast<Base const*>(base));
-    CHECK( dyncast<LDerivedA const*>(base));
-    CHECK(!dyncast<LDerivedB const*>(base));
-    CHECK(!dyncast<RDerived const*>(base));
-    
+    CHECK(dyncast<Base const*>(base)      != nullptr);
+    CHECK(dyncast<LDerivedA const*>(base) != nullptr);
+    CHECK(dyncast<LDerivedB const*>(base) == nullptr);
+    CHECK(dyncast<RDerived const*>(base)  == nullptr);
+
     CHECK_NOTHROW(dyncast<Base const&>(*base));
     CHECK_NOTHROW(dyncast<LDerivedA const&>(*base));
     CHECK_THROWS( dyncast<LDerivedB const&>(*base));
@@ -85,32 +97,32 @@ TEST_CASE("DyncastTraits::is", "[common][dyncast]") {
 
     LDerivedB lb;
 
-    CHECK( DyncastTraits<Type>::is<Type::Base>(lb));
-    CHECK( DyncastTraits<Type>::is<Type::LDerivedA>(lb));
-    CHECK( DyncastTraits<Type>::is<Type::LDerivedB>(lb));
-    CHECK(!DyncastTraits<Type>::is<Type::RDerived>(lb));
+    CHECK( isa<Base>(lb));
+    CHECK( isa<LDerivedA>(lb));
+    CHECK( isa<LDerivedB>(lb));
+    CHECK(!isa<RDerived>(lb));
 
-    CHECK( dyncast<Base*>(&lb));
-    CHECK( dyncast<LDerivedA*>(&lb));
-    CHECK( dyncast<LDerivedB*>(&lb));
+    CHECK(dyncast<Base*>(&lb)      != nullptr);
+    CHECK(dyncast<LDerivedA*>(&lb) != nullptr);
+    CHECK(dyncast<LDerivedB*>(&lb) != nullptr);
     CHECK(!canDyncast<RDerived*>(&lb));
 
     CHECK_NOTHROW(dyncast<Base&>(lb));
     CHECK_NOTHROW(dyncast<LDerivedA&>(lb));
     CHECK_NOTHROW(dyncast<LDerivedB&>(lb));
-    
+
     base = &lb;
 
-    CHECK( DyncastTraits<Type>::is<Type::Base>(*base));
-    CHECK( DyncastTraits<Type>::is<Type::LDerivedA>(*base));
-    CHECK( DyncastTraits<Type>::is<Type::LDerivedB>(*base));
-    CHECK(!DyncastTraits<Type>::is<Type::RDerived>(*base));
+    CHECK( isa<Base>(*base));
+    CHECK( isa<LDerivedA>(*base));
+    CHECK( isa<LDerivedB>(*base));
+    CHECK(!isa<RDerived>(*base));
 
-    CHECK( dyncast<Base const*>(base));
-    CHECK( dyncast<LDerivedA const*>(base));
-    CHECK( dyncast<LDerivedB const*>(base));
-    CHECK(!dyncast<RDerived const*>(base));
-    
+    CHECK(dyncast<Base const*>(base)      != nullptr);
+    CHECK(dyncast<LDerivedA const*>(base) != nullptr);
+    CHECK(dyncast<LDerivedB const*>(base) != nullptr);
+    CHECK(dyncast<RDerived const*>(base)  == nullptr);
+
     CHECK_NOTHROW(dyncast<Base const&>(*base));
     CHECK_NOTHROW(dyncast<LDerivedA const&>(*base));
     CHECK_NOTHROW(dyncast<LDerivedB const&>(*base));
@@ -118,31 +130,31 @@ TEST_CASE("DyncastTraits::is", "[common][dyncast]") {
 
     RDerived r;
 
-    CHECK( DyncastTraits<Type>::is<Type::Base>(r));
-    CHECK(!DyncastTraits<Type>::is<Type::LDerivedA>(r));
-    CHECK(!DyncastTraits<Type>::is<Type::LDerivedB>(r));
-    CHECK( DyncastTraits<Type>::is<Type::RDerived>(r));
+    CHECK( isa<Base>(r));
+    CHECK(!isa<LDerivedA>(r));
+    CHECK(!isa<LDerivedB>(r));
+    CHECK( isa<RDerived>(r));
 
-    CHECK( dyncast<Base*>(&r));
+    CHECK(dyncast<Base*>(&r) != nullptr);
     CHECK(!canDyncast<LDerivedA*>(&r));
     CHECK(!canDyncast<LDerivedB*>(&r));
-    CHECK( dyncast<RDerived*>(&r));
-    
+    CHECK(dyncast<RDerived*>(&r) != nullptr);
+
     CHECK_NOTHROW(dyncast<Base&>(r));
     CHECK_NOTHROW(dyncast<RDerived&>(r));
 
     base = &r;
 
-    CHECK( DyncastTraits<Type>::is<Type::Base>(*base));
-    CHECK(!DyncastTraits<Type>::is<Type::LDerivedA>(*base));
-    CHECK(!DyncastTraits<Type>::is<Type::LDerivedB>(*base));
-    CHECK( DyncastTraits<Type>::is<Type::RDerived>(*base));
+    CHECK( isa<Base>(*base));
+    CHECK(!isa<LDerivedA>(*base));
+    CHECK(!isa<LDerivedB>(*base));
+    CHECK( isa<RDerived>(*base));
 
     CHECK( dyncast<Base const*>(base));
     CHECK(!dyncast<LDerivedA const*>(base));
     CHECK(!dyncast<LDerivedB const*>(base));
     CHECK( dyncast<RDerived const*>(base));
-    
+
     CHECK_NOTHROW(dyncast<Base const&>(*base));
     CHECK_THROWS (dyncast<LDerivedA const&>(*base));
     CHECK_THROWS (dyncast<LDerivedB const&>(*base));
