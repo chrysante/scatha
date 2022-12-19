@@ -1,80 +1,39 @@
 #include <iostream>
+#include <iomanip>
 
-#include <utl/typeinfo.hpp>
-
-#include "IR/BasicBlock.h"
-#include "IR/Terminators.h"
-
-#include "Common/Dyncast.h"
+#include "Common/APFloat.h"
 
 using namespace scatha;
 
-enum class Type {
-   Base, LDerivedA, LDerivedB, RDerived, _count
-};
-
-struct Base;
-struct LDerivedA;
-struct LDerivedB;
-struct RDerived;
-
-SC_DYNCAST_REGISTER_PAIR(Base, Type::Base);
-SC_DYNCAST_REGISTER_PAIR(LDerivedA, Type::LDerivedA);
-SC_DYNCAST_REGISTER_PAIR(LDerivedB, Type::LDerivedB);
-SC_DYNCAST_REGISTER_PAIR(RDerived, Type::RDerived);
-
-struct Base {
-protected:
-    explicit Base(Type type): _type(type) {}
-
-public:
-    Type type() const { return _type; }
-    
-private:
-    Type _type;
-};
-
-struct LDerivedA: Base {
-protected:
-    explicit LDerivedA(Type type): Base(type) {}
-    
-public:
-    LDerivedA(): Base(Type::LDerivedA) {}
-};
-
-struct LDerivedB: LDerivedA {
-    LDerivedB(): LDerivedA(Type::LDerivedB) {}
-};
-
-struct RDerived: Base {
-    RDerived(): Base(Type::RDerived) {}
-};
+static void printAPFloat(std::string_view name, APFloat const& f) {
+    std::cout << name << ":\n";
+    std::cout << "\tExponent:      " << f.exponent() << "\n";
+    std::cout << "\tPrecision:     " << static_cast<int>(f.precision()) << "\n";
+    std::cout << "\tMantissa size: " << f.mantissa().size() << "\n";
+    if (!f.mantissa().empty()) {
+        std::cout << "\tMantissa:      ";
+        for (bool first = true; auto i: f.mantissa()) {
+            if (!first) { std::cout << "\t               "; } else { first = false; }
+            std::cout << std::bitset<64>(i) << std::endl;
+        }
+    }
+    std::cout << "\tValue:         " << f << "\n";
+}
 
 int main() {
- 
     
-    RDerived value;
+    double const base = std::numeric_limits<double>::max();
     
-    Base& base = value;
+    std::cout << std::setprecision(100) << base << std::endl;
+    
+    APFloat f = APFloat::parse("10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                                "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                                "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                                "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").value();
     
     
-    scatha::visit(base, []<typename T>(T&&) {
-        std::cout << utl::nameof<T> << std::endl;
-    });
     
-    std::cout << std::boolalpha;
-    
-    std::cout << DyncastTraits<Type>::is<Type::Base>(base) << std::endl << std::endl;
-    std::cout << DyncastTraits<Type>::is<Type::LDerivedA>(base) << std::endl << std::endl;
-    std::cout << DyncastTraits<Type>::is<Type::LDerivedB>(base) << std::endl << std::endl;
-    std::cout << DyncastTraits<Type>::is<Type::RDerived>(base) << std::endl << std::endl;
-    
-    return 0;
-    ir::Context theContext;
-    
-    auto* bb = new ir::BasicBlock(theContext, "block");
-    
-    std::cout << bb->type()->name() << std::endl;
+    printAPFloat("f", f);
     
     
     

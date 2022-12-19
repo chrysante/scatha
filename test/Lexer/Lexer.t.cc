@@ -250,8 +250,7 @@ static T lexTo(std::string_view text) {
     }
 }
 
-#warning Known failure
-//TEST_CASE("Lexer float literals", "[lex]") {
-//    CHECK(lexTo<double>("1.3") == 1.3);
-//    CHECK(lexTo<double>("2.3") == 2.3);
-//}
+TEST_CASE("Lexer float literals", "[lex]") {
+    CHECK(lexTo<double>("1.3") == 1.3);
+    CHECK(lexTo<double>("2.3") == 2.3);
+}

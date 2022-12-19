@@ -42,8 +42,8 @@ std::optional<APInt> Token::toAPInt() const {
     return APInt::fromString(id);
 }
 
-std::optional<APFloat> Token::toAPFloat() const {
-    return APFloat::parse(id);
+std::optional<APFloat> Token::toAPFloat(APFloat::Precision precision) const {
+    return APFloat::parse(id, 0, precision);
 }
 
 u64 Token::toInteger() const {

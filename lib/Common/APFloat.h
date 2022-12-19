@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "Basic/Basic.h"
+#include "Common/APFwd.h"
 
 namespace scatha {
 
@@ -21,26 +22,31 @@ SCATHA(API) APFloat operator*(APFloat const& lhs, APFloat const& rhs);
 SCATHA(API) APFloat operator/(APFloat const& lhs, APFloat const& rhs);
 
 SCATHA(API) std::strong_ordering operator<=>(APFloat const& lhs, APFloat const& rhs);
-SCATHA(API) std::strong_ordering operator<=>(APFloat const& lhs, long long rhs);
-SCATHA(API) std::strong_ordering operator<=>(APFloat const& lhs, unsigned long long rhs);
-SCATHA(API) std::strong_ordering operator<=>(APFloat const& lhs, double rhs);
-SCATHA(API) std::strong_ordering operator<=>(APFloat const& lhs, std::signed_integral auto rhs);
-SCATHA(API) std::strong_ordering operator<=>(APFloat const& lhs, std::unsigned_integral auto rhs);
-SCATHA(API) std::strong_ordering operator<=>(APFloat const& lhs, std::floating_point auto rhs);
+SCATHA(API) inline bool operator==(APFloat const& lhs, APFloat const& rhs) {
+    return (lhs <=> rhs) == std::strong_ordering::equal;
+}
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, APFloat const& number);
 
 class SCATHA(API) APFloat {
 public:
+    
+    // MARK: Precision
+    
+    using Precision = APFloatPrecision;
+    
     // MARK: Construction & Lifetime
-    APFloat(size_t precisionBits = 64);
-    APFloat(std::signed_integral auto value):
-        APFloat(static_cast<long long>(value)) {}
-    APFloat(long long value);
-    APFloat(std::unsigned_integral auto value):
-        APFloat(static_cast<unsigned long long>(value)) {}
-    APFloat(unsigned long long value);
-    APFloat(double value, size_t precisionBits = 64);
+    
+    APFloat(Precision precision = Precision::Default);
+    APFloat(std::signed_integral auto value, Precision precision = Precision::Default):
+        APFloat(static_cast<long long>(value), precision) {}
+    APFloat(long long value, Precision precision = Precision::Default);
+    APFloat(std::unsigned_integral auto value, Precision precision = Precision::Default):
+        APFloat(static_cast<unsigned long long>(value), precision) {}
+    APFloat(unsigned long long value, Precision precision = Precision::Default);
+    APFloat(float value, Precision precision = Precision::Default): APFloat(static_cast<double>(value), precision) {}
+    APFloat(double value, Precision precision = Precision::Default);
+    APFloat(long double value, Precision precision = Precision::Default);
 
     APFloat(APFloat const& rhs);
     APFloat(APFloat&& rhs) noexcept;
@@ -63,7 +69,7 @@ public:
     ///
     /// \returns The converted value if the conversion was successful. Empty optional otherwise.
     ///
-    static std::optional<APFloat> parse(std::string_view value, int base = 0);
+    static std::optional<APFloat> parse(std::string_view value, int base = 0, Precision precision = Precision::Default);
     
     // MARK: Arithmetic
     
@@ -98,35 +104,18 @@ public:
     
     // MARK: Queries
     
-    /// Query this number for lossless convertability to C++ arithmetic types.
-    ///
-    /// \returns \p true iff \p *this is losslessly convertible to \p T
-    template <typename T> requires std::is_arithmetic_v<T>
-    bool representableAs() const { return representableAsImpl<T>(); }
+    Precision precision() const;
     
-    bool isIntegral() const;
-    
+    ssize_t exponent() const;
+
+    std::span<unsigned long> mantissa() const;
+
     std::string toString() const;
-    
+
     void* getImplementationPointer() { return &storage; }
     void const* getImplementationPointer() const { return &storage; }
     
-    ssize_t exponent() const;
-    std::span<unsigned long> mantissa() const;
-    
     friend std::strong_ordering operator<=>(APFloat const& lhs, APFloat const& rhs);
-    friend std::strong_ordering operator<=>(APFloat const& lhs, long long rhs);
-    friend std::strong_ordering operator<=>(APFloat const& lhs, unsigned long long rhs);
-    friend std::strong_ordering operator<=>(APFloat const& lhs, double rhs);
-    
-    friend bool operator==(APFloat const& lhs, APFloat const& rhs) {
-        return (lhs <=> rhs) == std::strong_ordering::equal;
-    }
-    
-    template <typename T> requires std::is_arithmetic_v<T>
-    friend bool operator==(APFloat const& lhs, T rhs) {
-        return (lhs <=> rhs) == std::strong_ordering::equal;
-    }
     
     friend std::ostream& operator<<(std::ostream& ostream, APFloat const& number);
     
@@ -139,7 +128,7 @@ private:
     double toDouble() const;
     
 private:
-    std::aligned_storage_t<3 * sizeof(void*), alignof(void*)> storage;
+    std::aligned_storage_t<4 * sizeof(void*), alignof(void*)> storage;
 };
 
 } // namespace scatha
@@ -158,18 +147,6 @@ inline scatha::APFloat::operator T() const {
         static_assert(std::floating_point<T>);
         return static_cast<T>(toDouble());
     }
-}
-
-std::strong_ordering scatha::operator<=>(APFloat const& lhs, std::signed_integral auto rhs) {
-    return operator<=>(lhs, static_cast<long long>(rhs));
-}
-
-std::strong_ordering scatha::operator<=>(APFloat const& lhs, std::unsigned_integral auto rhs) {
-    return operator<=>(lhs, static_cast<unsigned long long>(rhs));
-}
-
-std::strong_ordering scatha::operator<=>(APFloat const& lhs, std::floating_point auto rhs) {
-    return operator<=>(lhs, static_cast<double>(rhs));
 }
 
 #endif // SCATHA_COMMON_APFLOAT_H_

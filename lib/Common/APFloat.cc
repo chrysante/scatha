@@ -4,65 +4,69 @@
 #include <sstream>
 #include <string>
 
-#include <gmp.h>
+#include <mpfr.h>
 #include <utl/utility.hpp>
 #include <utl/scope_guard.hpp>
 
 template <typename T>
-static auto* as_mpf(T& value) {
-    static_assert(sizeof(T) >= sizeof(mpf_t));
+static auto* as_mpfr(T& value) {
+    static_assert(sizeof(T) >= sizeof(mpfr_t));
     if constexpr (std::is_const_v<T>) {
-        return reinterpret_cast<mpf_srcptr>(&value);
+        return reinterpret_cast<mpfr_srcptr>(&value);
     }
     else {
-        return reinterpret_cast<mpf_ptr>(&value);
+        return reinterpret_cast<mpfr_ptr>(&value);
     }
 }
 
 namespace scatha {
 
-APFloat::APFloat(size_t precisionBits) {
-    mpf_init2(as_mpf(storage), precisionBits);
+APFloat::APFloat(Precision precision) {
+    mpfr_init2(as_mpfr(storage), static_cast<mpfr_prec_t>(precision));
 }
 
-APFloat::APFloat(long long value) {
-    mpf_init_set_si(as_mpf(storage), value);
+APFloat::APFloat(long long value, Precision precision): APFloat(precision) {
+    mpfr_set_si(as_mpfr(storage), value, MPFR_RNDN);
 }
 
-APFloat::APFloat(unsigned long long value) {
-    mpf_init_set_ui(as_mpf(storage), value);
+APFloat::APFloat(unsigned long long value, Precision precision): APFloat(precision) {
+    mpfr_init_set_ui(as_mpfr(storage), value, MPFR_RNDN);
 }
 
-APFloat::APFloat(double value, size_t precisionBits): APFloat(precisionBits) {
-    mpf_set_d(as_mpf(storage), value);
+APFloat::APFloat(double value, Precision precision): APFloat(precision) {
+    mpfr_set_d(as_mpfr(storage), value, MPFR_RNDN);
+}
+
+APFloat::APFloat(long double value, Precision precision): APFloat(precision) {
+    mpfr_set_ld(as_mpfr(storage), value, MPFR_RNDN);
 }
 
 APFloat::APFloat(APFloat const& rhs) {
-    mpf_init_set(as_mpf(storage), as_mpf(rhs.storage));
+    mpfr_init_set(as_mpfr(storage), as_mpfr(rhs.storage), MPFR_RNDN);
 }
 
 APFloat::APFloat(APFloat&& rhs) noexcept: APFloat() {
-    mpf_swap(as_mpf(storage), as_mpf(rhs.storage));
+    mpfr_swap(as_mpfr(storage), as_mpfr(rhs.storage));
 }
 
 APFloat& APFloat::operator=(APFloat const& rhs) {
-    mpf_set(as_mpf(storage), as_mpf(rhs.storage));
+    mpfr_set(as_mpfr(storage), as_mpfr(rhs.storage), MPFR_RNDN);
     return *this;
 }
 
 APFloat& APFloat::operator=(APFloat&& rhs) noexcept {
-    mpf_swap(as_mpf(storage), as_mpf(rhs.storage));
+    mpfr_swap(as_mpfr(storage), as_mpfr(rhs.storage));
     return *this;
 }
 
 APFloat::~APFloat() {
-    mpf_clear(as_mpf(storage));
+    mpfr_clear(as_mpfr(storage));
 }
 
-std::optional<APFloat> APFloat::parse(std::string_view value, int base) {
-    APFloat result;
-    int status = mpf_set_str(as_mpf(result.storage), value.data(), base);
-    if (!status) {
+std::optional<APFloat> APFloat::parse(std::string_view value, int base, Precision precision) {
+    APFloat result(precision);
+    int status = mpfr_set_str(as_mpfr(result.storage), value.data(), base, MPFR_RNDN);
+    if (status == 0) {
         return std::move(result);
     }
     return std::nullopt;
@@ -70,22 +74,22 @@ std::optional<APFloat> APFloat::parse(std::string_view value, int base) {
 
 
 APFloat& APFloat::operator+=(APFloat const& rhs)& {
-    mpf_add(as_mpf(storage), as_mpf(storage), as_mpf(rhs.storage));
+    mpfr_add(as_mpfr(storage), as_mpfr(storage), as_mpfr(rhs.storage), MPFR_RNDN);
     return *this;
 }
 
 APFloat& APFloat::operator-=(APFloat const& rhs)& {
-    mpf_sub(as_mpf(storage), as_mpf(storage), as_mpf(rhs.storage));
+    mpfr_sub(as_mpfr(storage), as_mpfr(storage), as_mpfr(rhs.storage), MPFR_RNDN);
     return *this;
 }
 
 APFloat& APFloat::operator*=(APFloat const& rhs)& {
-    mpf_mul(as_mpf(storage), as_mpf(storage), as_mpf(rhs.storage));
+    mpfr_mul(as_mpfr(storage), as_mpfr(storage), as_mpfr(rhs.storage), MPFR_RNDN);
     return *this;
 }
 
 APFloat& APFloat::operator/=(APFloat const& rhs)& {
-    mpf_div(as_mpf(storage), as_mpf(storage), as_mpf(rhs.storage));
+    mpfr_div(as_mpfr(storage), as_mpfr(storage), as_mpfr(rhs.storage), MPFR_RNDN);
     return *this;
 }
 
@@ -113,63 +117,16 @@ APFloat operator/(APFloat const& lhs, APFloat const& rhs) {
     return result;
 }
 
-template <typename T>
-bool APFloat::representableAsImpl() const {
-    if constexpr (std::is_same_v<T, unsigned long>) {
-        return mpf_fits_ulong_p(as_mpf(storage)) && isIntegral();
-    }
-    else if constexpr (std::is_same_v<T, long>) {
-        return mpf_fits_slong_p(as_mpf(storage)) && isIntegral();
-    }
-    else if constexpr (std::is_same_v<T, unsigned int>) {
-        return mpf_fits_uint_p(as_mpf(storage)) && isIntegral();
-    }
-    else if constexpr (std::is_same_v<T, int>) {
-        return mpf_fits_sint_p(as_mpf(storage)) && isIntegral();
-    }
-    else if constexpr (std::is_same_v<T, unsigned short>) {
-        return mpf_fits_ushort_p(as_mpf(storage)) && isIntegral();
-    }
-    else if constexpr (std::is_same_v<T, short>) {
-        return mpf_fits_sshort_p(as_mpf(storage)) && isIntegral();
-    }
-    else {
-        return *this == static_cast<T>(*this);
-    }
-}
-
-template bool APFloat::representableAs<         char>() const;
-template bool APFloat::representableAs<  signed char>() const;
-template bool APFloat::representableAs<unsigned char>() const;
-template bool APFloat::representableAs<  signed short>() const;
-template bool APFloat::representableAs<unsigned short>() const;
-template bool APFloat::representableAs<  signed int>() const;
-template bool APFloat::representableAs<unsigned int>() const;
-template bool APFloat::representableAs<  signed long>() const;
-template bool APFloat::representableAs<unsigned long>() const;
-template bool APFloat::representableAs<  signed long long>() const;
-template bool APFloat::representableAs<unsigned long long>() const;
-template bool APFloat::representableAs<float>() const;
-template bool APFloat::representableAs<double>() const;
-template bool APFloat::representableAs<long double>() const;
-
-bool APFloat::isIntegral() const {
-    mpf_t floor;
-    mpf_init(floor);
-    mpf_floor(floor, as_mpf(storage));
-    return mpf_cmp(as_mpf(storage), floor) == 0;
-}
-
 long long APFloat::toSigned() const {
-    return mpf_get_si(as_mpf(storage));
+    return mpfr_get_si(as_mpfr(storage), MPFR_RNDN);
 }
 
 unsigned long long APFloat::toUnsigned() const {
-    return mpf_get_ui(as_mpf(storage));
+    return mpfr_get_ui(as_mpfr(storage), MPFR_RNDN);
 }
 
 double APFloat::toDouble() const {
-    return mpf_get_d(as_mpf(storage));
+    return mpfr_get_d(as_mpfr(storage), MPFR_RNDN);
 }
 
 static std::strong_ordering toStrongOrdering(int value) {
@@ -185,31 +142,22 @@ static std::strong_ordering toStrongOrdering(int value) {
 }
 
 std::strong_ordering operator<=>(APFloat const& lhs, APFloat const& rhs) {
-    int const result = mpf_cmp(as_mpf(lhs.storage), as_mpf(rhs.storage));
+    int const result = mpfr_cmp(as_mpfr(lhs.storage), as_mpfr(rhs.storage));
     return toStrongOrdering(result);
 }
 
-std::strong_ordering operator<=>(APFloat const& lhs, long long rhs) {
-    int const result = mpf_cmp_si(as_mpf(lhs.storage), rhs);
-    return toStrongOrdering(result);
-}
-
-std::strong_ordering operator<=>(APFloat const& lhs, unsigned long long rhs) {
-    int const result = mpf_cmp_ui(as_mpf(lhs.storage), rhs);
-    return toStrongOrdering(result);
-}
-
-std::strong_ordering operator<=>(APFloat const& lhs, double rhs) {
-    int const result = mpf_cmp_d(as_mpf(lhs.storage), rhs);
-    return toStrongOrdering(result);
+APFloat::Precision APFloat::precision() const {
+    return static_cast<Precision>(mpfr_get_prec(as_mpfr(storage)));
 }
 
 ssize_t APFloat::exponent() const {
-    return as_mpf(storage)->_mp_exp;
+    return as_mpfr(storage)->_mpfr_exp;
 };
 
 std::span<unsigned long> APFloat::mantissa() const {
-    return std::span(as_mpf(storage)->_mp_d, utl::narrow_cast<std::size_t>(as_mpf(storage)->_mp_size));
+    size_t const prec = utl::narrow_cast<size_t>((as_mpfr(storage)->_mpfr_prec));
+    size_t const size = prec / GMP_NUMB_BITS + !!(prec % GMP_NUMB_BITS);
+    return std::span(as_mpfr(storage)->_mpfr_d, size);
 }
 
 std::string APFloat::toString() const {
@@ -229,13 +177,12 @@ std::ostream& operator<<(std::ostream& ostream, APFloat const& number) {
                                         8);
     }();
     mp_exp_t exponent{};
-    char* const tmpString = mpf_get_str(nullptr, &exponent, base, 0, as_mpf(number.storage));
+    char* const tmpString = mpfr_get_str(nullptr, &exponent, base, 0, as_mpfr(number.storage), MPFR_RNDN);
     utl::scope_guard free = [&]{ std::free(tmpString); };
     std::string stringValue(tmpString);
     bool const negative = stringValue.front() == '-';
     std::size_t const beginPos = negative ? 1 : 0;
     std::size_t stringSize = stringValue.size() - negative;
-    
     if (exponent > 0) {
         while (stringSize < exponent) {
             stringValue.push_back('0');
@@ -248,6 +195,13 @@ std::ostream& operator<<(std::ostream& ostream, APFloat const& number) {
     else {
         stringValue.insert(beginPos, utl::narrow_cast<size_t>(-exponent), '0');
         stringValue.insert(beginPos, "0.");
+    }
+    /// Pop trailing zeros.
+    while (stringValue.size() > 2 &&
+           stringValue[stringValue.size() - 1] == '0' &&
+           stringValue[stringValue.size() - 2] != '.')
+    {
+        stringValue.pop_back();
     }
     return ostream << stringValue;
 }
