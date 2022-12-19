@@ -66,7 +66,7 @@ public:
 
     template <Enum TestType>
     static bool is(auto const& t) {
-        return isDispatchArray[static_cast<size_t>(TestType)][static_cast<size_t>(type(t))];
+        return ISADispatchArray[static_cast<size_t>(TestType)][static_cast<size_t>(type(t))];
     }
     
 private:
@@ -90,7 +90,8 @@ private:
         return walkTree<TargetTestType, ActualType>(std::make_index_sequence<numElements>{});
     }
     
-    static constexpr auto makeIsDispatchArray() {
+    /// Build a 2D boolean matrix at compile time indicating if a dynamic cast is possible for every origin-destination pair.
+    static constexpr auto makeISADispatchArray() {
         return []<size_t... I>(std::index_sequence<I...>) {
             return std::array{
                 []<Enum TestType, size_t... J>(std::index_sequence<J...>) {
@@ -102,7 +103,7 @@ private:
         }(std::make_index_sequence<numElements>{});
     }
     
-    static constexpr auto isDispatchArray = makeIsDispatchArray();
+    static constexpr auto ISADispatchArray = makeISADispatchArray();
 };
 
 namespace internal {
@@ -118,6 +119,7 @@ struct DispatchReturnType<Enum, GivenType, F, std::index_sequence<I...>> {
 } // namespace internal
 
 template <typename T, typename F>
+requires internal::isDynEnabled<std::remove_cvref_t<T>>
 decltype(auto) visit(T&& t, F&& fn) {
     using EnumType = decltype(DyncastTypeToEnum<std::remove_cvref_t<T>>);
     using Traits = DyncastTraits<EnumType>;
@@ -133,7 +135,7 @@ decltype(auto) visit(T&& t, F&& fn) {
                     return std::invoke(std::forward<F>(f), static_cast<TargetType>(t));
                 }
                 else {
-                    /// We need to use \p I in this path also, otherwise we can't fold over this expression later.
+                    /// We need to use \p I in this path also, otherwise we can't fold over this expression later. This might be a bug in clang.
                     (void)I;
                     SC_UNREACHABLE();
                 }
@@ -149,7 +151,6 @@ template <typename To, typename From>
 constexpr To dyncastImpl(From const* from) {
     using EnumType = decltype(DyncastTypeToEnum<From>);
     using ToStripped = std::remove_const_t<std::remove_pointer_t<To>>;
-    
     if (DyncastTraits<EnumType>::template is<DyncastTypeToEnum<ToStripped>>(*from)) {
         return static_cast<To>(from);
     }
