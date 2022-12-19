@@ -3,7 +3,6 @@
 #include <utl/utility.hpp>
 
 #include "AST/AST.h"
-#include "AST/Visit.h"
 #include "Basic/Basic.h"
 
 namespace scatha::ic {
@@ -24,11 +23,11 @@ using namespace scatha;
 using namespace ic;
 
 void Canonicalizer::dispatch(ast::AbstractSyntaxTree& node) {
-    return ast::visit(node, [this](auto& node) { canonicalize(node); });
+    return visit(node, [this](auto& node) { canonicalize(node); });
 }
 
 void Canonicalizer::canonicalize(auto& node) {
-    ast::DefaultCase([this](ast::AbstractSyntaxTree& node) { dispatch(node); })(node);
+    ast::DefaultVisitor([this](ast::AbstractSyntaxTree& node) { dispatch(node); })(node);
 }
 
 void Canonicalizer::canonicalize(ast::IfStatement& statement) {

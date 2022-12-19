@@ -7,7 +7,6 @@
 #include <utl/ranges.hpp>
 
 #include "AST/AST.h"
-#include "AST/Visit.h"
 #include "Basic/Basic.h"
 #include "Basic/PrintUtil.h"
 
@@ -42,6 +41,7 @@ struct Context {
     void print(Conditional const&);
     void print(FunctionCall const&);
     void print(Subscript const&);
+    void print(AbstractSyntaxTree const&) { SC_UNREACHABLE(); }
 
     std::ostream& str;
     EndlIndenter endl{};

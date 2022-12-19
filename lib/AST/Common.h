@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include "Basic/Basic.h"
+#include "Common/Dyncast.h"
 
 namespace scatha::ast {
 
@@ -16,16 +17,19 @@ namespace scatha::ast {
 class AbstractSyntaxTree;
 class TranslationUnit;
 class CompoundStatement;
+class Declaration;
 class FunctionDefinition;
 class StructDefinition;
 class VariableDeclaration;
 class ParameterDeclaration;
+class Statement;
 class ExpressionStatement;
 class EmptyStatement;
 class ReturnStatement;
 class IfStatement;
 class WhileStatement;
 class DoWhileStatement;
+class Expression;
 class Identifier;
 class IntegerLiteral;
 class BooleanLiteral;
@@ -38,20 +42,24 @@ class Conditional;
 class FunctionCall;
 class Subscript;
 
-/// List of all concrete AST node types
+/// List of all concrete AST node types.
 enum class NodeType {
+    AbstractSyntaxTree,
     TranslationUnit,
     CompoundStatement,
+    Declaration,
     FunctionDefinition,
     StructDefinition,
     VariableDeclaration,
     ParameterDeclaration,
+    Statement,
     ExpressionStatement,
     EmptyStatement,
     ReturnStatement,
     IfStatement,
     WhileStatement,
     DoWhileStatement,
+    Expression,
     Identifier,
     IntegerLiteral,
     BooleanLiteral,
@@ -73,175 +81,39 @@ SCATHA(API) std::string_view toString(NodeType);
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, NodeType);
 
-namespace internal {
-template <typename>
-struct ToEnumNodeTypeImpl;
-template <>
-struct ToEnumNodeTypeImpl<TranslationUnit>: std::integral_constant<NodeType, NodeType::TranslationUnit> {};
-template <>
-struct ToEnumNodeTypeImpl<CompoundStatement>: std::integral_constant<NodeType, NodeType::CompoundStatement> {};
-template <>
-struct ToEnumNodeTypeImpl<FunctionDefinition>: std::integral_constant<NodeType, NodeType::FunctionDefinition> {};
-template <>
-struct ToEnumNodeTypeImpl<StructDefinition>: std::integral_constant<NodeType, NodeType::StructDefinition> {};
-template <>
-struct ToEnumNodeTypeImpl<VariableDeclaration>: std::integral_constant<NodeType, NodeType::VariableDeclaration> {};
-template <>
-struct ToEnumNodeTypeImpl<ParameterDeclaration>: std::integral_constant<NodeType, NodeType::ParameterDeclaration> {};
-template <>
-struct ToEnumNodeTypeImpl<ExpressionStatement>: std::integral_constant<NodeType, NodeType::ExpressionStatement> {};
-template <>
-struct ToEnumNodeTypeImpl<EmptyStatement>: std::integral_constant<NodeType, NodeType::EmptyStatement> {};
-template <>
-struct ToEnumNodeTypeImpl<ReturnStatement>: std::integral_constant<NodeType, NodeType::ReturnStatement> {};
-template <>
-struct ToEnumNodeTypeImpl<IfStatement>: std::integral_constant<NodeType, NodeType::IfStatement> {};
-template <>
-struct ToEnumNodeTypeImpl<WhileStatement>: std::integral_constant<NodeType, NodeType::WhileStatement> {};
-template <>
-struct ToEnumNodeTypeImpl<DoWhileStatement>: std::integral_constant<NodeType, NodeType::DoWhileStatement> {};
-template <>
-struct ToEnumNodeTypeImpl<Identifier>: std::integral_constant<NodeType, NodeType::Identifier> {};
-template <>
-struct ToEnumNodeTypeImpl<IntegerLiteral>: std::integral_constant<NodeType, NodeType::IntegerLiteral> {};
-template <>
-struct ToEnumNodeTypeImpl<BooleanLiteral>: std::integral_constant<NodeType, NodeType::BooleanLiteral> {};
-template <>
-struct ToEnumNodeTypeImpl<FloatingPointLiteral>: std::integral_constant<NodeType, NodeType::FloatingPointLiteral> {};
-template <>
-struct ToEnumNodeTypeImpl<StringLiteral>: std::integral_constant<NodeType, NodeType::StringLiteral> {};
-template <>
-struct ToEnumNodeTypeImpl<UnaryPrefixExpression>: std::integral_constant<NodeType, NodeType::UnaryPrefixExpression> {};
-template <>
-struct ToEnumNodeTypeImpl<BinaryExpression>: std::integral_constant<NodeType, NodeType::BinaryExpression> {};
-template <>
-struct ToEnumNodeTypeImpl<MemberAccess>: std::integral_constant<NodeType, NodeType::MemberAccess> {};
-template <>
-struct ToEnumNodeTypeImpl<Conditional>: std::integral_constant<NodeType, NodeType::Conditional> {};
-template <>
-struct ToEnumNodeTypeImpl<FunctionCall>: std::integral_constant<NodeType, NodeType::FunctionCall> {};
-template <>
-struct ToEnumNodeTypeImpl<Subscript>: std::integral_constant<NodeType, NodeType::Subscript> {};
+} // namespace scatha::ast
 
-template <NodeType>
-struct ToNodeTypeImpl;
-template <>
-struct ToNodeTypeImpl<NodeType::TranslationUnit> {
-    using type = TranslationUnit;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::CompoundStatement> {
-    using type = CompoundStatement;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::FunctionDefinition> {
-    using type = FunctionDefinition;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::StructDefinition> {
-    using type = StructDefinition;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::VariableDeclaration> {
-    using type = VariableDeclaration;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::ParameterDeclaration> {
-    using type = ParameterDeclaration;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::ExpressionStatement> {
-    using type = ExpressionStatement;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::EmptyStatement> {
-    using type = EmptyStatement;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::ReturnStatement> {
-    using type = ReturnStatement;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::IfStatement> {
-    using type = IfStatement;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::WhileStatement> {
-    using type = WhileStatement;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::DoWhileStatement> {
-    using type = DoWhileStatement;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::Identifier> {
-    using type = Identifier;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::IntegerLiteral> {
-    using type = IntegerLiteral;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::BooleanLiteral> {
-    using type = BooleanLiteral;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::FloatingPointLiteral> {
-    using type = FloatingPointLiteral;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::StringLiteral> {
-    using type = StringLiteral;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::UnaryPrefixExpression> {
-    using type = UnaryPrefixExpression;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::BinaryExpression> {
-    using type = BinaryExpression;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::MemberAccess> {
-    using type = MemberAccess;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::Conditional> {
-    using type = Conditional;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::FunctionCall> {
-    using type = FunctionCall;
-};
-template <>
-struct ToNodeTypeImpl<NodeType::Subscript> {
-    using type = Subscript;
-};
-} // namespace internal
+// clang-format off
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::AbstractSyntaxTree,    scatha::ast::NodeType::AbstractSyntaxTree);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::TranslationUnit,       scatha::ast::NodeType::TranslationUnit);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::CompoundStatement,     scatha::ast::NodeType::CompoundStatement);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::Declaration,           scatha::ast::NodeType::Declaration);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::FunctionDefinition,    scatha::ast::NodeType::FunctionDefinition);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::StructDefinition,      scatha::ast::NodeType::StructDefinition);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::VariableDeclaration,   scatha::ast::NodeType::VariableDeclaration);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::ParameterDeclaration,  scatha::ast::NodeType::ParameterDeclaration);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::Statement,             scatha::ast::NodeType::Statement);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::ExpressionStatement,   scatha::ast::NodeType::ExpressionStatement);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::EmptyStatement,        scatha::ast::NodeType::EmptyStatement);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::ReturnStatement,       scatha::ast::NodeType::ReturnStatement);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::IfStatement,           scatha::ast::NodeType::IfStatement);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::WhileStatement,        scatha::ast::NodeType::WhileStatement);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::DoWhileStatement,      scatha::ast::NodeType::DoWhileStatement);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::Expression,            scatha::ast::NodeType::Expression);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::Identifier,            scatha::ast::NodeType::Identifier);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::IntegerLiteral,        scatha::ast::NodeType::IntegerLiteral);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::BooleanLiteral,        scatha::ast::NodeType::BooleanLiteral);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::FloatingPointLiteral,  scatha::ast::NodeType::FloatingPointLiteral);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::StringLiteral,         scatha::ast::NodeType::StringLiteral);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::UnaryPrefixExpression, scatha::ast::NodeType::UnaryPrefixExpression);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::BinaryExpression,      scatha::ast::NodeType::BinaryExpression);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::MemberAccess,          scatha::ast::NodeType::MemberAccess);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::Conditional,           scatha::ast::NodeType::Conditional);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::FunctionCall,          scatha::ast::NodeType::FunctionCall);
+SC_DYNCAST_REGISTER_PAIR(scatha::ast::Subscript,             scatha::ast::NodeType::Subscript);
+// clang-format on
 
-template <typename T>
-inline constexpr NodeType ToEnumNodeType = internal::ToEnumNodeTypeImpl<T>::value;
-template <NodeType E>
-using ToNodeType = typename internal::ToNodeTypeImpl<E>::type;
-
-template <std::derived_from<AbstractSyntaxTree> ConcreteNode>
-constexpr ConcreteNode& downCast(std::derived_from<AbstractSyntaxTree> auto& node) {
-    return *downCast<ConcreteNode>(&node);
-}
-template <std::derived_from<AbstractSyntaxTree> ConcreteNode>
-constexpr ConcreteNode const& downCast(std::derived_from<AbstractSyntaxTree> auto const& node) {
-    return *downCast<ConcreteNode>(&node);
-}
-
-template <std::derived_from<AbstractSyntaxTree> ConcreteNode>
-constexpr ConcreteNode* downCast(std::derived_from<AbstractSyntaxTree> auto* node) {
-    return const_cast<ConcreteNode*>(downCast<ConcreteNode>(&std::as_const(*node)));
-}
-template <std::derived_from<AbstractSyntaxTree> ConcreteNode>
-constexpr ConcreteNode const* downCast(std::derived_from<AbstractSyntaxTree> auto const* node) {
-    SC_ASSERT(node->nodeType() == ToEnumNodeType<ConcreteNode>, "Wrong type");
-    return static_cast<ConcreteNode const*>(node);
-}
+namespace scatha::ast {
 
 /// List of all unary operators in prefix notation
 enum class UnaryPrefixOperator {
@@ -302,6 +174,100 @@ BinaryOperator toNonAssignment(BinaryOperator);
 enum class EntityCategory { Value, Type, _count };
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, EntityCategory);
+
+/// MARK: DefaultVisitor
+
+namespace internal {
+
+template <typename Derived, typename Base>
+concept WeakDerivedFrom = std::derived_from<std::remove_cvref_t<Derived>, Base>;
+
+template <typename T, typename U>
+concept WeakSameAs = std::same_as<std::remove_cvref_t<T>, std::remove_cvref_t<U>>;
+
+} // namespace internal
+
+template <typename F>
+struct DefaultVisitor {
+    F callback;
+    
+    explicit DefaultVisitor(F callback): callback(callback) {}
+    
+    void operator()(AbstractSyntaxTree const&) const {}
+    void operator()(internal::WeakSameAs<TranslationUnit> auto&& tu) const {
+        for (auto&& decl: tu.declarations) {
+            std::invoke(callback, *decl);
+        }
+    }
+    void operator()(internal::WeakSameAs<CompoundStatement> auto&& b) const {
+        for (auto& s: b.statements) {
+            std::invoke(callback, *s);
+        }
+    }
+    void operator()(internal::WeakSameAs<FunctionDefinition> auto&& fn) const {
+        for (auto& param: fn.parameters) {
+            std::invoke(callback, *param);
+        }
+        std::invoke(callback, *fn.body);
+    }
+    void operator()(internal::WeakSameAs<StructDefinition> auto&& s) const { std::invoke(callback, *s.body); }
+    void operator()(internal::WeakSameAs<VariableDeclaration> auto&& s) const {
+        if (s.typeExpr) {
+            std::invoke(callback, *s.typeExpr);
+        }
+        if (s.initExpression) {
+            std::invoke(callback, *s.initExpression);
+        }
+    }
+    void operator()(internal::WeakSameAs<ExpressionStatement> auto&& s) const {
+        SC_ASSERT(s.expression != nullptr, "");
+        std::invoke(callback, *s.expression);
+    }
+    void operator()(internal::WeakSameAs<ReturnStatement> auto&& s) const {
+        if (s.expression) {
+            std::invoke(callback, *s.expression);
+        }
+    }
+    void operator()(internal::WeakSameAs<IfStatement> auto&& s) const {
+        std::invoke(callback, *s.condition);
+        std::invoke(callback, *s.ifBlock);
+        if (s.elseBlock != nullptr) {
+            std::invoke(callback, *s.elseBlock);
+        }
+    }
+    void operator()(internal::WeakSameAs<WhileStatement> auto&& s) const {
+        std::invoke(callback, *s.condition);
+        std::invoke(callback, *s.block);
+    }
+    void operator()(internal::WeakSameAs<IntegerLiteral> auto&&) const {}
+    void operator()(internal::WeakSameAs<BooleanLiteral> auto&&) const {}
+    void operator()(internal::WeakSameAs<FloatingPointLiteral> auto&&) const {}
+    void operator()(internal::WeakSameAs<StringLiteral> auto&&) const {}
+    void operator()(internal::WeakSameAs<UnaryPrefixExpression> auto&& e) const { std::invoke(callback, *e.operand); }
+    void operator()(internal::WeakSameAs<BinaryExpression> auto&& e) const {
+        std::invoke(callback, *e.lhs);
+        std::invoke(callback, *e.rhs);
+    }
+    void operator()(internal::WeakSameAs<MemberAccess> auto&& m) const { callback(*m.object); }
+    void operator()(internal::WeakSameAs<Conditional> auto&& c) const {
+        std::invoke(callback, *c.condition);
+        std::invoke(callback, *c.ifExpr);
+        std::invoke(callback, *c.elseExpr);
+    }
+    void operator()(internal::WeakSameAs<FunctionCall> auto&& f) const {
+        std::invoke(callback, *f.object);
+        for (auto& arg: f.arguments) {
+            std::invoke(callback, *arg);
+        }
+    }
+    void operator()(internal::WeakSameAs<Subscript> auto&& s) const {
+        std::invoke(callback, *s.object);
+        for (auto& arg: s.arguments) {
+            std::invoke(callback, *arg);
+        }
+    }
+};
+
 
 } // namespace scatha::ast
 

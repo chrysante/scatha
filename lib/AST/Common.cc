@@ -14,18 +14,22 @@ bool isDeclaration(NodeType t) {
 std::string_view toString(NodeType t) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(t, {
+        { NodeType::AbstractSyntaxTree,    "AbstractSyntaxTree" },
         { NodeType::TranslationUnit,       "TranslationUnit" },
         { NodeType::CompoundStatement,     "CompoundStatement" },
+        { NodeType::Declaration,           "Declaration" },
         { NodeType::FunctionDefinition,    "FunctionDefinition" },
         { NodeType::StructDefinition,      "StructDefinition" },
         { NodeType::VariableDeclaration,   "VariableDeclaration" },
         { NodeType::ParameterDeclaration,  "ParameterDeclaration" },
+        { NodeType::Statement,             "Statement" },
         { NodeType::ExpressionStatement,   "ExpressionStatement" },
         { NodeType::EmptyStatement,        "EmptyStatement" },
         { NodeType::ReturnStatement,       "ReturnStatement" },
         { NodeType::IfStatement,           "IfStatement" },
         { NodeType::WhileStatement,        "WhileStatement" },
         { NodeType::DoWhileStatement,      "DoWhileStatement" },
+        { NodeType::Expression,            "Expression" },
         { NodeType::Identifier,            "Identifier" },
         { NodeType::IntegerLiteral,        "IntegerLiteral" },
         { NodeType::BooleanLiteral,        "BooleanLiteral" },

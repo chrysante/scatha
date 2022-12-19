@@ -4,7 +4,6 @@
 #include <span>
 
 #include "AST/Common.h"
-#include "AST/Visit.h"
 
 namespace scatha::sema {
 
@@ -45,7 +44,7 @@ ExpressionAnalysisResult analyzeExpression(ast::Expression& expr, SymbolTable& s
 }
 
 ExpressionAnalysisResult Context::dispatch(ast::Expression& expr) {
-    return ast::visit(expr, [this](auto&& e) { return analyze(e); });
+    return visit(expr, [this](auto&& e) { return this->analyze(e); });
 }
 
 ExpressionAnalysisResult Context::analyze(ast::IntegerLiteral& l) {
@@ -189,7 +188,7 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
         return ExpressionAnalysisResult::fail();
     }
     // Right hand side of member access expressions must be identifiers?
-    auto const& memberIdentifier = downCast<ast::Identifier>(*ma.member);
+    auto const& memberIdentifier = cast<ast::Identifier&>(*ma.member);
     ma.decorate(memberIdentifier.symbolID(), memberIdentifier.typeID(), memRes.category());
     if (memRes.category() == ast::EntityCategory::Value) {
         SC_ASSERT(ma.typeID() == memRes.typeID(), "");

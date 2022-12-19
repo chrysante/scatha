@@ -4,7 +4,6 @@
 #include <utl/scope_guard.hpp>
 
 #include "AST/AST.h"
-#include "AST/Visit.h"
 #include "Basic/Basic.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/SemanticIssue.h"
@@ -53,7 +52,7 @@ void sema::analyzeFunctions(SymbolTable& sym,
 }
 
 void Context::dispatch(ast::AbstractSyntaxTree& node) {
-    ast::visit(node, [this](auto& node) { this->analyze(node); });
+    visit(node, [this](auto& node) { this->analyze(node); });
 }
 
 void Context::analyze(ast::FunctionDefinition& fn) {

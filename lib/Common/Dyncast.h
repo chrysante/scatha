@@ -7,6 +7,8 @@
 
 #include <utl/utility.hpp>
 
+#include "Basic/Basic.h"
+
 #define SC_DYNCAST_REGISTER_PAIR(type, enum) \
 template <> \
 struct ::scatha::internal::DyncastTypeToEnumImpl<type>: std::integral_constant<decltype(enum), enum> {}; \
@@ -45,8 +47,7 @@ using DyncastEnumToType = typename internal::DyncastEnumToTypeImpl<EnumValue>::t
 template <typename T, typename F>
 decltype(auto) visit(T&& t, F&& fn);
 
-template <typename T>
-auto dyncastGetType(T const& t) { return t.type(); }
+auto dyncastGetType(auto const& t) requires requires { t.type(); } { return t.type(); }
 
 template <typename Enum>
 struct DyncastTraitsBase {
@@ -106,12 +107,12 @@ private:
 
 namespace internal {
 
-template <typename Enum, typename F, typename I>
+template <typename Enum, typename GivenType, typename F, typename I>
 struct DispatchReturnType;
 
-template <typename Enum, typename F, size_t... I>
-struct DispatchReturnType<Enum, F, std::index_sequence<I...>> {
-    using type = std::common_type_t<std::invoke_result_t<F, DyncastEnumToType<Enum{ I }>>...>;
+template <typename Enum, typename GivenType, typename F, size_t... I>
+struct DispatchReturnType<Enum, GivenType, F, std::index_sequence<I...>> {
+    using type = std::common_type_t<std::invoke_result_t<F, utl::copy_cvref_t<GivenType, DyncastEnumToType<Enum{ I }>>>...>;
 };
 
 } // namespace internal
@@ -122,13 +123,20 @@ decltype(auto) visit(T&& t, F&& fn) {
     using Traits = DyncastTraits<EnumType>;
     static_assert(static_cast<size_t>(Traits::first) == 0, "For now, this simplifies the implementation.");
     static constexpr size_t numElems = Traits::numElements;
-    using ReturnType = typename internal::DispatchReturnType<EnumType, F, std::make_index_sequence<numElems>>::type;
+    using ReturnType = typename internal::DispatchReturnType<EnumType, T&&, F&&, std::make_index_sequence<numElems>>::type;
     using DispatchPtrType = ReturnType(*)(T&&, F&&);
     static constexpr std::array<DispatchPtrType, numElems> dispatchPtrs = [&]<size_t... I>(std::index_sequence<I...>) {
         return std::array<DispatchPtrType, numElems>{
             [](T&& t, F&& f) -> ReturnType {
-                return std::invoke(std::forward<F>(f),
-                                   static_cast<utl::copy_cvref_t<T&&, DyncastEnumToType<EnumType{ I }>>>(t));
+                using TargetType = utl::copy_cvref_t<T&&, DyncastEnumToType<EnumType{ I }>>;
+                if constexpr (requires{ static_cast<TargetType>(t); }) {
+                    return std::invoke(std::forward<F>(f), static_cast<TargetType>(t));
+                }
+                else {
+                    /// We need to use \p I in this path also, otherwise we can't fold over this expression later.
+                    (void)I;
+                    SC_UNREACHABLE();
+                }
             }...
         };
     }(std::make_index_sequence<numElems>{});
@@ -163,6 +171,18 @@ constexpr To dyncast(From& from) {
         return *result;
     }
     throw std::bad_cast();
+}
+
+template <typename To, typename From> requires internal::Dyncastable<To, From*> && std::is_pointer_v<To>
+constexpr To cast(From* from) {
+    SC_ASSERT(dyncast<To>(from) != nullptr, "Cast failed.");
+    return static_cast<To>(from);
+}
+
+template <typename To, typename From> requires internal::Dyncastable<To, From&> && std::is_lvalue_reference_v<To>
+constexpr To cast(From& from) {
+    using ToNoRef = std::remove_reference_t<To>;
+    return *cast<ToNoRef*>(&from);
 }
 
 } // namespace scatha

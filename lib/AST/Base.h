@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string>
+#include <concepts>
 
 #include "AST/Common.h"
 #include "Common/SourceLocation.h"
@@ -77,6 +78,9 @@ protected:
     NodeType _type;
     Token _token;
 };
+
+// For dyncast compatibilty
+NodeType dyncastGetType(std::derived_from<AbstractSyntaxTree> auto const& node) { return node.nodeType(); }
 
 } // namespace scatha::ast
 

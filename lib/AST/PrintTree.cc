@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "AST/AST.h"
-#include "AST/Visit.h"
 #include "Basic/Basic.h"
 #include "Basic/PrintUtil.h"
 
