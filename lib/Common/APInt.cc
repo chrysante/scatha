@@ -212,7 +212,6 @@ std::ostream& operator<<(std::ostream& ostream, APInt const& number) {
                                                   "Must be 'oct' here"),
                                         8);
     }();
-    mp_exp_t exponent;
     auto const size = mpz_sizeinbase(as_mpz(number.storage), base) + 2; // 2 extra chars for possible minus sign and null terminator.
     char* const buffer = static_cast<char*>(alloca(size));
     mpz_get_str(buffer, base, as_mpz(number.storage));
