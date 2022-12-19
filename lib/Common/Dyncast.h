@@ -9,6 +9,9 @@
 
 #include "Basic/Basic.h"
 
+/// Customization point for the \p dyncast facilities. Every object in the inheritance hierarchy must correspond to
+/// an integral (or \p enum ) value. Use this macro at file scope to identify types in the hierarchy with a unique
+/// integral value.
 #define SC_DYNCAST_REGISTER_PAIR(type, enum)                                                             \
 template <>                                                                                              \
 struct ::scatha::internal::DyncastTypeToEnumImpl<type>: std::integral_constant<decltype(enum), enum> {}; \
@@ -44,9 +47,10 @@ inline constexpr auto DyncastTypeToEnum = internal::DyncastTypeToEnumImpl<T>::va
 template <auto EnumValue>
 using DyncastEnumToType = typename internal::DyncastEnumToTypeImpl<EnumValue>::type;
 
-template <typename T, typename F>
-decltype(auto) visit(T&& t, F&& fn);
-
+/// Simple customization point for the \p dyncast facilities. If the types in the inheritance hierarchy expose their
+/// runtime type identifiers by a \p .type() method, this customiziation point need not be used.
+/// Otherwise define a function \p dyncastGetType with compatible signature for every type in the same namespace as the
+/// type.
 auto dyncastGetType(auto const& t) requires requires { t.type(); } { return t.type(); }
 
 template <typename Enum>
@@ -118,9 +122,15 @@ struct DispatchReturnType<Enum, GivenType, F, std::index_sequence<I...>> {
 
 } // namespace internal
 
+/// Visit the object \p obj as its most derived type.
+/// \param obj An object of type \p T which has support for the \p dyncast facilities.
+/// \param fn A callable which can be invoked with any of \p T 's derived types. The possible return types of \p fn
+///        must a a common type determined by \p std::common_type .
+/// \returns \p std::invoke(fn,static_cast<MOST_DERIVED_TYPE>(obj)) where \p MOST_DERIVED_TYPE is the most derived type
+///          of \p obj with the same cv-ref qualifications as \p obj .
 template <typename T, typename F>
 requires internal::isDynEnabled<std::remove_cvref_t<T>>
-decltype(auto) visit(T&& t, F&& fn) {
+decltype(auto) visit(T&& obj, F&& fn) {
     using EnumType = decltype(DyncastTypeToEnum<std::remove_cvref_t<T>>);
     using Traits = DyncastTraits<EnumType>;
     static_assert(static_cast<size_t>(Traits::first) == 0, "For now, this simplifies the implementation.");
@@ -142,13 +152,14 @@ decltype(auto) visit(T&& t, F&& fn) {
             }...
         };
     }(std::make_index_sequence<numElems>{});
-    return dispatchPtrs[static_cast<size_t>(DyncastTraits<EnumType>::type(t))](std::forward<T>(t), std::forward<F>(fn));
+    return dispatchPtrs[static_cast<size_t>(DyncastTraits<EnumType>::type(obj))](std::forward<T>(obj), std::forward<F>(fn));
 }
 
 namespace internal {
 
 template <typename To, typename From>
 constexpr To dyncastImpl(From const* from) {
+    SC_EXPECT(from != nullptr, "'from' must not be null.");
     using EnumType = decltype(DyncastTypeToEnum<From>);
     using ToStripped = std::remove_const_t<std::remove_pointer_t<To>>;
     if (DyncastTraits<EnumType>::template is<DyncastTypeToEnum<ToStripped>>(*from)) {
@@ -159,12 +170,19 @@ constexpr To dyncastImpl(From const* from) {
 
 } // namespace internal
 
+/// Downwards cast of \p from in its class hierarchy.
+/// \param from Pointer to an object of type \p From . Pointer must not be null.
+/// \returns A pointer of derived type \p To or null if \p *from is not of type \p To .
 template <typename To, typename From> requires internal::Dyncastable<To, From*> && std::is_pointer_v<To>
 constexpr To dyncast(From* from) {
     using ToStripped = std::remove_const_t<std::remove_pointer_t<To>>;
     return const_cast<To>(internal::dyncastImpl<ToStripped const*>(from));
 }
 
+/// Downwards cast of \p from in its class hierarchy.
+/// \param from Reference to an object of type \p From .
+/// \returns A Reference to the object of derived type \p To .
+/// \throws \p std::bad_cast if \p from is not of type \p To .
 template <typename To, typename From> requires internal::Dyncastable<To, From&> && std::is_lvalue_reference_v<To>
 constexpr To dyncast(From& from) {
     using ToNoRef = std::remove_reference_t<To>;
@@ -174,12 +192,20 @@ constexpr To dyncast(From& from) {
     throw std::bad_cast();
 }
 
+/// Downwards cast of \p from in its class hierarchy.
+/// \param from Pointer to an object of type \p From . Pointer must not be null.
+/// \returns A pointer of derived type \p To .
+/// \warning Traps if \p *from is not of type \p To .
 template <typename To, typename From> requires internal::Dyncastable<To, From*> && std::is_pointer_v<To>
 constexpr To cast(From* from) {
     SC_ASSERT(dyncast<To>(from) != nullptr, "Cast failed.");
     return static_cast<To>(from);
 }
 
+/// Downwards cast of \p from in its class hierarchy.
+/// \param from Reference to an object of type \p From .
+/// \returns A reference of derived type \p To .
+/// \warning Traps if \p from is not of type \p To .
 template <typename To, typename From> requires internal::Dyncastable<To, From&> && std::is_lvalue_reference_v<To>
 constexpr To cast(From& from) {
     using ToNoRef = std::remove_reference_t<To>;
