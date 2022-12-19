@@ -47,11 +47,10 @@ kind "SharedLib"
 
 addCppFiles "lib"
 addCppFiles "include/scatha"
-externalincludedirs { "external/utility", "external/gmp/build/include" }
+externalincludedirs { "external/utility", "external/gmp/build/include", "external/mpfr/build/include" }
 includedirs { "lib" }
-libdirs { "external/gmp/build/lib" }
-links "utility"
-links "gmp"
+libdirs { "external/gmp/build/lib", "external/mpfr/build/lib" }
+links { "utility", "gmp", "mpfr" }
 
 --prebuildcommands { "./format-all.sh lib/" }
 
