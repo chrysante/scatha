@@ -29,7 +29,7 @@ function format() {
             format $entry
             continue
         fi
-        if [[ $entry != *.h ]] && [[ $file != *.cc ]]; then
+        if [[ $entry != *.h ]] && [[ $entry != *.cc ]] && [[ $entry != *.hpp ]] && [[ $entry != *.cpp ]]; then
             continue
         fi
         echo "format ${entry}";
