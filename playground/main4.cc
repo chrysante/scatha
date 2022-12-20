@@ -3,6 +3,11 @@
 
 #include "Common/APFloat.h"
 
+#include "IR/Context.h"
+#include "IR/Module.h"
+#include "IR/Function.h"
+#include "IR/Instruction.h"
+
 using namespace scatha;
 
 static void printAPFloat(std::string_view name, APFloat const& f) {
@@ -22,21 +27,13 @@ static void printAPFloat(std::string_view name, APFloat const& f) {
 
 int main() {
     
-    double const base = std::numeric_limits<double>::max();
-    
-    std::cout << base << std::endl;
-    
-    APFloat f = APFloat::parse("0.0").value();
-
-    std::cout << f.isInf() << std::endl;
-    
-    std::cout << "Single::maxExponent(): " << APFloat::Precision::Single.maxExponent() << std::endl;
-    std::cout << "Single::minExponent(): " << APFloat::Precision::Single.minExponent() << std::endl;
-    
-    std::cout << "Double::maxExponent(): " << APFloat::Precision::Double.maxExponent() << std::endl;
-    std::cout << "Double::minExponent(): " << APFloat::Precision::Double.minExponent() << std::endl;
-    
-    
-    printAPFloat("f", f);
+//    ir::Context ctx;
+//
+//    auto* entry = new ir::BasicBlock(ctx, "entry");
+//    auto* loopHeader = new ir::BasicBlock(ctx, "loop_header");
+//
+//
+//
+//    auto* loopHeader = new ir::Branch(ctx, <#Value *condition#>, <#BasicBlock *ifTarget#>, <#BasicBlock *elseTarget#>)(ctx, "loop_header");
     
 }
