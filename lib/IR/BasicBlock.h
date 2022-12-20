@@ -4,7 +4,6 @@
 #include <string>
 
 #include "IR/Context.h"
-#include "IR/Instruction.h"
 #include "IR/List.h"
 #include "IR/Value.h"
 
@@ -13,11 +12,12 @@ namespace scatha::ir {
 class Function;
 class Instruction;
 
-class BasicBlock: public Value, public NodeWithParent<BasicBlock, Function> {
+class SCATHA(API) BasicBlock: public Value, public NodeWithParent<BasicBlock, Function> {
 public:
-    explicit BasicBlock(Context& context, std::string name) noexcept:
-        Value(NodeType::BasicBlock, std::move(name), context.voidType()) {}
+    explicit BasicBlock(Context& context, std::string name);
 
+    BasicBlock(BasicBlock const&) = delete;
+    
     ~BasicBlock();
 
     void addInstruction(Instruction* instruction);
