@@ -15,7 +15,7 @@ protected:
     explicit Value(NodeType nodeType, Type const* type):
         _nodeType(nodeType), _name(), _type(type) {}
     
-    explicit Value(NodeType nodeType, std::string name, Type const* type):
+    explicit Value(NodeType nodeType, std::string name, Type const* type) noexcept:
         _nodeType(nodeType), _name(std::move(name)), _type(type) {}
     
 public:
@@ -36,6 +36,9 @@ private:
     std::string _name;
     Type const* _type;
 };
+
+// For dyncast compatibilty
+NodeType dyncastGetType(std::derived_from<Value> auto const& value) { return value.nodeType(); }
 
 class Constant: public Value {
 public:
