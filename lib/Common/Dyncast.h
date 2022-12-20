@@ -35,16 +35,19 @@ concept DynCheckable = Dynamic<From> && Dynamic<To>; // TODO: Check that To and 
 template <typename To, typename From>
 concept DynCastable = DynCheckable<To, From> && requires(From from) { static_cast<To>(from); };
 
+template <typename T>
+using DCEnumType = decltype(DyncastTypeToEnumImpl<std::remove_cvref_t<T>>::value);
+
 } // namespace scatha::internal
 
 //---==========================================================================
 //---=== Public interface =====================================================
 //---==========================================================================
 
-/// Mandatory customization point for the \p dyncast facilities. Every object in the inheritance hierarchy must correspond to
-/// an enum or integral value. Using an enum is recommended. Use this macro at file scope to identify types in the hierarchy with a unique
-/// integral value.
-#define SC_DYNCAST_REGISTER_PAIR(type, enumValue)                                                                  \
+/// Mandatory customization point for the \p dyncast facilities. Every object in the inheritance hierarchy must be
+/// uniquely mapped to an enum or integral value. Using an enum is recommended. Use this macro at file scope to
+/// identify types in the hierarchy with a unique integral value.
+#define SC_DYNCAST_MAP(type, enumValue)                                                                            \
 template <>                                                                                                        \
 struct ::scatha::internal::DyncastTypeToEnumImpl<type>: std::integral_constant<decltype(enumValue), enumValue> {}; \
 template <>                                                                                                        \
@@ -56,7 +59,8 @@ namespace scatha {
 /// runtime type identifiers by a \p .type() method, this customiziation point is not needed.
 /// Otherwise define a function \p dyncastGetType() with compatible signature for every type in the same namespace as the
 /// type. This can of course be a (constrained) template.
-auto dyncastGetType(auto const& t) requires requires { t.type(); } { return t.type(); }
+template <typename T>
+auto dyncastGetType(T const& t) requires requires { { t.type() } -> std::convertible_to<internal::DCEnumType<T>>; } { return t.type(); }
 
 /// Optional second customization point. All fields below must be implemented. If a custom implementation for
 /// \p type(...) is given, the first customization point \p dyncastGetType() is not used.
@@ -231,7 +235,7 @@ template <typename T, typename F>
 requires scatha::internal::Dynamic<T>
 decltype(auto) scatha::visit(T&& obj, F&& fn) {
     using namespace internal;
-    using EnumType = decltype(DyncastTypeToEnum<std::remove_cvref_t<T>>);
+    using EnumType = DCEnumType<T>;
     using Traits = DyncastTraitsImpl<EnumType>;
     static_assert(static_cast<size_t>(Traits::first) == 0, "For now, this simplifies the implementation.");
     static constexpr size_t numElems = Traits::numElements;

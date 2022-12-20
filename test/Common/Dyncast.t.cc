@@ -37,10 +37,10 @@ struct RDerived: Base {
 
 } // namespace
 
-SC_DYNCAST_REGISTER_PAIR(Base, Type::Base);
-SC_DYNCAST_REGISTER_PAIR(LDerivedA, Type::LDerivedA);
-SC_DYNCAST_REGISTER_PAIR(LDerivedB, Type::LDerivedB);
-SC_DYNCAST_REGISTER_PAIR(RDerived, Type::RDerived);
+SC_DYNCAST_MAP(Base, Type::Base);
+SC_DYNCAST_MAP(LDerivedA, Type::LDerivedA);
+SC_DYNCAST_MAP(LDerivedB, Type::LDerivedB);
+SC_DYNCAST_MAP(RDerived, Type::RDerived);
 
 using namespace scatha;
 
