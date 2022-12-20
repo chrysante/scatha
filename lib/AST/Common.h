@@ -83,35 +83,38 @@ SCATHA(API) std::ostream& operator<<(std::ostream&, NodeType);
 
 } // namespace scatha::ast
 
-// clang-format off
-SC_DYNCAST_MAP(scatha::ast::AbstractSyntaxTree,    scatha::ast::NodeType::AbstractSyntaxTree);
-SC_DYNCAST_MAP(scatha::ast::TranslationUnit,       scatha::ast::NodeType::TranslationUnit);
-SC_DYNCAST_MAP(scatha::ast::CompoundStatement,     scatha::ast::NodeType::CompoundStatement);
-SC_DYNCAST_MAP(scatha::ast::Declaration,           scatha::ast::NodeType::Declaration);
-SC_DYNCAST_MAP(scatha::ast::FunctionDefinition,    scatha::ast::NodeType::FunctionDefinition);
-SC_DYNCAST_MAP(scatha::ast::StructDefinition,      scatha::ast::NodeType::StructDefinition);
-SC_DYNCAST_MAP(scatha::ast::VariableDeclaration,   scatha::ast::NodeType::VariableDeclaration);
-SC_DYNCAST_MAP(scatha::ast::ParameterDeclaration,  scatha::ast::NodeType::ParameterDeclaration);
-SC_DYNCAST_MAP(scatha::ast::Statement,             scatha::ast::NodeType::Statement);
-SC_DYNCAST_MAP(scatha::ast::ExpressionStatement,   scatha::ast::NodeType::ExpressionStatement);
-SC_DYNCAST_MAP(scatha::ast::EmptyStatement,        scatha::ast::NodeType::EmptyStatement);
-SC_DYNCAST_MAP(scatha::ast::ReturnStatement,       scatha::ast::NodeType::ReturnStatement);
-SC_DYNCAST_MAP(scatha::ast::IfStatement,           scatha::ast::NodeType::IfStatement);
-SC_DYNCAST_MAP(scatha::ast::WhileStatement,        scatha::ast::NodeType::WhileStatement);
-SC_DYNCAST_MAP(scatha::ast::DoWhileStatement,      scatha::ast::NodeType::DoWhileStatement);
-SC_DYNCAST_MAP(scatha::ast::Expression,            scatha::ast::NodeType::Expression);
-SC_DYNCAST_MAP(scatha::ast::Identifier,            scatha::ast::NodeType::Identifier);
-SC_DYNCAST_MAP(scatha::ast::IntegerLiteral,        scatha::ast::NodeType::IntegerLiteral);
-SC_DYNCAST_MAP(scatha::ast::BooleanLiteral,        scatha::ast::NodeType::BooleanLiteral);
-SC_DYNCAST_MAP(scatha::ast::FloatingPointLiteral,  scatha::ast::NodeType::FloatingPointLiteral);
-SC_DYNCAST_MAP(scatha::ast::StringLiteral,         scatha::ast::NodeType::StringLiteral);
-SC_DYNCAST_MAP(scatha::ast::UnaryPrefixExpression, scatha::ast::NodeType::UnaryPrefixExpression);
-SC_DYNCAST_MAP(scatha::ast::BinaryExpression,      scatha::ast::NodeType::BinaryExpression);
-SC_DYNCAST_MAP(scatha::ast::MemberAccess,          scatha::ast::NodeType::MemberAccess);
-SC_DYNCAST_MAP(scatha::ast::Conditional,           scatha::ast::NodeType::Conditional);
-SC_DYNCAST_MAP(scatha::ast::FunctionCall,          scatha::ast::NodeType::FunctionCall);
-SC_DYNCAST_MAP(scatha::ast::Subscript,             scatha::ast::NodeType::Subscript);
-// clang-format on
+#define SC_AST_ENABLE_DYNCAST(type) \
+    SC_DYNCAST_MAP(::scatha::ast::type, ::scatha::ast::NodeType::type)
+
+SC_AST_ENABLE_DYNCAST(AbstractSyntaxTree);
+SC_AST_ENABLE_DYNCAST(TranslationUnit);
+SC_AST_ENABLE_DYNCAST(CompoundStatement);
+SC_AST_ENABLE_DYNCAST(Declaration);
+SC_AST_ENABLE_DYNCAST(FunctionDefinition);
+SC_AST_ENABLE_DYNCAST(StructDefinition);
+SC_AST_ENABLE_DYNCAST(VariableDeclaration);
+SC_AST_ENABLE_DYNCAST(ParameterDeclaration);
+SC_AST_ENABLE_DYNCAST(Statement);
+SC_AST_ENABLE_DYNCAST(ExpressionStatement);
+SC_AST_ENABLE_DYNCAST(EmptyStatement);
+SC_AST_ENABLE_DYNCAST(ReturnStatement);
+SC_AST_ENABLE_DYNCAST(IfStatement);
+SC_AST_ENABLE_DYNCAST(WhileStatement);
+SC_AST_ENABLE_DYNCAST(DoWhileStatement);
+SC_AST_ENABLE_DYNCAST(Expression);
+SC_AST_ENABLE_DYNCAST(Identifier);
+SC_AST_ENABLE_DYNCAST(IntegerLiteral);
+SC_AST_ENABLE_DYNCAST(BooleanLiteral);
+SC_AST_ENABLE_DYNCAST(FloatingPointLiteral);
+SC_AST_ENABLE_DYNCAST(StringLiteral);
+SC_AST_ENABLE_DYNCAST(UnaryPrefixExpression);
+SC_AST_ENABLE_DYNCAST(BinaryExpression);
+SC_AST_ENABLE_DYNCAST(MemberAccess);
+SC_AST_ENABLE_DYNCAST(Conditional);
+SC_AST_ENABLE_DYNCAST(FunctionCall);
+SC_AST_ENABLE_DYNCAST(Subscript);
+
+#undef SC_AST_ENABLE_DYNCAST
 
 namespace scatha::ast {
 
