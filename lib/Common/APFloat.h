@@ -16,7 +16,11 @@ namespace scatha {
 
 class APFloat;
 
-static auto* asImpl(APFloat const&);
+namespace internal {
+
+auto* asImpl(APFloat const&);
+
+} // namespace internal
 
 SCATHA(API) APFloat operator+(APFloat const& lhs, APFloat const& rhs);
 SCATHA(API) APFloat operator-(APFloat const& lhs, APFloat const& rhs);
@@ -129,7 +133,7 @@ private:
 
     friend std::strong_ordering operator<=>(APFloat const& lhs, APFloat const& rhs);
     friend std::ostream& operator<<(std::ostream& ostream, APFloat const& number);
-    friend auto* asImpl(APFloat const&);
+    friend auto* internal::asImpl(APFloat const&);
     
 private:
     std::aligned_storage_t<4 * sizeof(void*), alignof(void*)> storage;

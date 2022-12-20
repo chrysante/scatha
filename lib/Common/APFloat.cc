@@ -10,16 +10,18 @@
 
 using namespace scatha;
 
-static auto* scatha::asImpl(APFloat const& f) {
+auto* internal::asImpl(APFloat const& f) {
     static_assert(sizeof(f.storage) >= sizeof(mpfr_t));
     return reinterpret_cast<mpfr_srcptr>(&f.storage);
 }
 
-namespace scatha {
+namespace scatha::internal {
 
 static auto* asImpl(APFloat& f) { return const_cast<mpfr_ptr>(asImpl(static_cast<APFloat const&>(f))); }
 
 } // namespace scatha
+
+using internal::asImpl;
 
 static constexpr auto roundingMode = MPFR_RNDN;
 
