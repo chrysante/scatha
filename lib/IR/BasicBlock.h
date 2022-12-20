@@ -3,25 +3,24 @@
 
 #include <string>
 
-#include <utl/vector.hpp>
-
 #include "IR/Value.h"
 #include "IR/Instruction.h"
 #include "IR/Context.h"
+#include "IR/List.h"
 
 namespace scatha::ir {
 
-class BasicBlock: public Value {
+class Function;
+
+class BasicBlock: public Value, public NodeWithParent<BasicBlock, Function> {
 public:
     explicit BasicBlock(Context& context, std::string name):
-        Value(std::move(name), context.voidType()) {}
+        Value(NodeType::BasicBlock, std::move(name), context.voidType()) {}
     
-    void addInstruction(Instruction* instruction) {
-        instructions.push_back(instruction);
-    }
+    void addInstruction(Instruction* instruction);
     
 private:
-    utl::small_vector<Instruction*> instructions;
+    List<Instruction> instructions;
 };
 	
 } // namespace scatha::ir

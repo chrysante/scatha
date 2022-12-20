@@ -11,9 +11,17 @@ namespace scatha::ir {
 
 class BasicBlock;
 
-class Goto: public Instruction {
+class TerminatorInst: public Instruction {
+protected:
+    explicit TerminatorInst(NodeType nodeType, Context& context):
+        Instruction(nodeType, context.voidType())
+    {}
+};
+
+class Goto: public TerminatorInst {
 public:
-    explicit Goto(Context& context, BasicBlock* target): Instruction(context.voidType()), _target(target) {}
+    explicit Goto(Context& context, BasicBlock* target):
+        TerminatorInst(NodeType::Goto, context), _target(target) {}
     
     BasicBlock* target() const { return _target; }
     
@@ -21,10 +29,10 @@ private:
     BasicBlock* _target;
 };
 
-class Branch: public Instruction {
+class Branch: public TerminatorInst {
 public:
     explicit Branch(Context& context, Value* condition, BasicBlock* ifTarget, BasicBlock* elseTarget):
-        Instruction(context.voidType()), _condition(condition), _if(ifTarget), _else(elseTarget)
+        TerminatorInst(NodeType::Branch, context), _condition(condition), _if(ifTarget), _else(elseTarget)
     {
         SC_ASSERT(condition->type()->category() == Type::Category::Integral &&
                   static_cast<Integral const*>(condition->type())->bitWidth() == 1,
@@ -41,22 +49,16 @@ private:
     BasicBlock* _else;
 };
 
-class Return: public Instruction {
+class Return: public TerminatorInst {
 public:
-    explicit Return(Context& context, Value* value): Instruction(context.voidType()), _value(value) {}
+    explicit Return(Context& context, Value* value):
+        TerminatorInst(NodeType::Return, context), _value(value) {}
     
     Value* value() { return _value; }
     
 private:
     Value* _value;
 };
-
-//class BranchStatement: public StatementBase {
-//public:
-//    
-//private:
-//    
-//};
 	
 } // namespace scatha::ir
 

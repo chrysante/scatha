@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "IR/CFGCommon.h"
 #include "IR/Type.h"
 
 namespace scatha::ir {
@@ -10,12 +11,15 @@ namespace scatha::ir {
 /// Represents a value in the program.
 /// Every value has a type. Types are not values.
 class Value {
-public:
-    explicit Value(Type const* type):
-        _name(), _type(type) {}
+protected:
+    explicit Value(NodeType nodeType, Type const* type):
+        _nodeType(nodeType), _name(), _type(type) {}
     
-    explicit Value(std::string name, Type const* type):
-        _name(std::move(name)), _type(type) {}
+    explicit Value(NodeType nodeType, std::string name, Type const* type):
+        _nodeType(nodeType), _name(std::move(name)), _type(type) {}
+    
+public:
+    NodeType nodeType() const { return _nodeType; }
     
     Type const* type() const { return _type; }
     
@@ -28,6 +32,7 @@ public:
     }
     
 private:
+    NodeType _nodeType;
     std::string _name;
     Type const* _type;
 };

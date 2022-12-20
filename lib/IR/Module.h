@@ -1,25 +1,21 @@
 #ifndef SCATHA_IR_MODULE_H_
 #define SCATHA_IR_MODULE_H_
 
-#include <span>
-
-#include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
 #include "IR/Function.h"
+#include "IR/List.h"
 
 namespace scatha::ir {
 
 class Module {
 public:
-    explicit Module(utl::vector<Function> funcs):
-        funcs(std::move(funcs))
-    {}
+    List<Function> const& functions() const { return funcs; }
     
-    std::span<Function const> functions() const { return funcs; }
+    void addFunction(Function* function);
     
 private:
-    utl::vector<Function> funcs;
+    List<Function> funcs;
 };
 
 } // namespace scatha::ir

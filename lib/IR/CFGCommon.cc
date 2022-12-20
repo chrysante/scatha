@@ -1,4 +1,4 @@
-#include "IR/Instruction.h"
+#include "Common.h"
 
 namespace scatha::ir {
 	

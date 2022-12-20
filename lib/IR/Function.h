@@ -6,17 +6,33 @@
 #include "Basic/Basic.h"
 #include "IR/Value.h"
 #include "IR/Type.h"
+#include "IR/Parameter.h"
+#include "IR/BasicBlock.h"
+#include "IR/List.h"
 
 namespace scatha::ir {
 
-class Function: public Constant {
+class Module;
+
+class Function: public Constant, public NodeWithParent<Function, Module> {
 public:
     explicit Function(FunctionType* functionType, std::span<Type const*> parameterTypes):
-        Constant(functionType), _parameterTypes(std::move(parameterTypes))
-    {}
+        Constant(NodeType::Function, functionType)
+    {
+        for (auto* type: parameterTypes) {
+            params.push_back(new Parameter(type, this));
+        }
+    }
+    
+    List<Parameter> const& parameters() const { return params; }
+    
+    List<BasicBlock> const& basicBlocks() const { return bbs; }
+    
+    void addBasicBlock(BasicBlock* bb) { bbs.push_back(bb); }
     
 private:
-    utl::small_vector<Type const*> _parameterTypes;
+    List<Parameter> params;
+    List<BasicBlock> bbs;
 };
 	
 } // namespace scatha::ir

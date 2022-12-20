@@ -3,7 +3,6 @@
 
 #include "Basic/Basic.h"
 #include "IR/Module.h"
-#include "IR/SymbolTable.h"
 
 namespace scatha::sema {
 
@@ -19,12 +18,7 @@ class AbstractSyntaxTree;
 
 namespace scatha::ir {
 
-struct GeneratorResult {
-    Module program;
-    SymbolTable symbolTable;
-};
-
-SCATHA(API) GeneratorResult generate(ast::AbstractSyntaxTree const& ast, sema::SymbolTable const& symbolTable);
+SCATHA(API) Module* generate(ast::AbstractSyntaxTree const& ast, sema::SymbolTable const& symbolTable);
 
 } // namespace scatha::ir
 
