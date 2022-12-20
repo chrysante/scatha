@@ -37,7 +37,6 @@ int main() {
     std::cout << "Double::minExponent(): " << APFloat::Precision::Double.minExponent() << std::endl;
     
     
-    
     printAPFloat("f", f);
     
 }
