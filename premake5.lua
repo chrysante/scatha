@@ -47,12 +47,10 @@ kind "SharedLib"
 
 addCppFiles "lib"
 addCppFiles "include/scatha"
-externalincludedirs { "external/utility", "external/gmp/build/include", "external/mpfr/build/include" }
+externalincludedirs { "external/utility/include", "external/gmp/build/include", "external/mpfr/build/include" }
 includedirs { "lib" }
 libdirs { "external/gmp/build/lib", "external/mpfr/build/lib" }
 links { "utility", "gmp", "mpfr" }
-
---prebuildcommands { "./format-all.sh lib/" }
 
 filter "system:macosx"
 buildoptions "-fvisibility=hidden"
@@ -81,7 +79,7 @@ kind "ConsoleApp"
 externalincludedirs { 
     ".", 
     "include", 
-    "external/utility", 
+    "external/utility/include", 
     "external/Catch"
 }
 
@@ -96,7 +94,7 @@ links { "scatha-lib" }
 project "playground"
 
 kind "ConsoleApp"
-externalincludedirs { "external/utility" }
+externalincludedirs { "external/utility/include" }
 includedirs { ".", "lib" }
 
 addCppFiles "playground"
@@ -109,5 +107,5 @@ filter { "system:windows" }
     defines { "PROJECT_LOCATION=R\"($(ProjectDir))\"" }
 
 ------------------------------------------
-include "external/utility"
+include "external/utility/lib.lua"
 include "external/termfmt"
