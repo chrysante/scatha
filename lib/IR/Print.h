@@ -12,8 +12,7 @@ class Module;
 SCATHA(API) void print(Module const& program);
 
 SCATHA(API) void print(Module const& program, std::ostream& ostream);
-	
-} // namespace scatha::ir 
+
+} // namespace scatha::ir
 
 #endif // SCATHA_IR_IRPRINT_H_
-

@@ -1,13 +1,13 @@
 #ifndef SCATHA_COMMON_APFLOAT_H_
 #define SCATHA_COMMON_APFLOAT_H_
 
-#include <iosfwd>
-#include <string_view>
-#include <span>
-#include <concepts>
 #include <compare>
-#include <type_traits>
+#include <concepts>
+#include <iosfwd>
 #include <optional>
+#include <span>
+#include <string_view>
+#include <type_traits>
 
 #include "Basic/Basic.h"
 #include "Common/APFwd.h"
@@ -36,13 +36,12 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, APFloat const& numbe
 
 class SCATHA(API) APFloat {
 public:
-    
     // MARK: Precision
-    
+
     using Precision = APFloatPrecision;
-    
+
     // MARK: Construction & Lifetime
-    
+
     APFloat(Precision precision = Precision::Default);
     APFloat(std::signed_integral auto value, Precision precision = Precision::Default):
         APFloat(static_cast<long long>(value), precision) {}
@@ -60,62 +59,56 @@ public:
     APFloat& operator=(APFloat&& rhs) noexcept;
     ~APFloat();
 
-    template <typename T> requires std::is_arithmetic_v<T>
+    template <typename T>
+    requires std::is_arithmetic_v<T>
     explicit operator T() const;
-    
+
     /// Convert a string to APFloat.
     ///
     /// \details Whitespaces are ignored.
     ///
     /// \param value String to convert.
-    /// If \p value contains a dot \p '.' it must not have  a base-specifier prefix and will be parsed as a floating point value.
+    /// If \p value contains a dot \p '.' it must not have  a base-specifier prefix and will be parsed as a floating
+    /// point value.
     ///
-    /// \param base Must be either 0 or between 2 and 16. If \p base is 0, the leading characters are used for disambiguation:
-    /// \p 0x or \p 0X for hex, \p 0b or \p 0B for binary, \p 0 for octal, or decimal otherwise.
+    /// \param base Must be either 0 or between 2 and 16. If \p base is 0, the leading characters are used for
+    /// disambiguation: \p 0x or \p 0X for hex, \p 0b or \p 0B for binary, \p 0 for octal, or decimal otherwise.
     ///
     /// \returns The converted value if the conversion was successful. Empty optional otherwise.
     ///
     static std::optional<APFloat> parse(std::string_view value, int base = 0, Precision precision = Precision::Default);
-    
+
     // MARK: Arithmetic
-    
-    APFloat& operator+=(APFloat const& rhs)&;
-    template <typename T> requires std::is_arithmetic_v<T>
-    APFloat& operator+=(T rhs)& {
-        return *this += APFloat(rhs);
-    }
-    
-    APFloat& operator-=(APFloat const& rhs)&;
-    template <typename T> requires std::is_arithmetic_v<T>
-    APFloat& operator-=(T rhs)& {
-        return *this -= APFloat(rhs);
-    }
-    
-    APFloat& operator*=(APFloat const& rhs)&;
-    template <typename T> requires std::is_arithmetic_v<T>
-    APFloat& operator*=(T rhs)& {
-        return *this *= APFloat(rhs);
-    }
-    
-    APFloat& operator/=(APFloat const& rhs)&;
-    template <typename T> requires std::is_arithmetic_v<T>
-    APFloat& operator/=(T rhs)& {
-        return *this /= APFloat(rhs);
-    }
-    
+
+    APFloat& operator+=(APFloat const& rhs) &;
+    template <typename T>
+    requires std::is_arithmetic_v<T> APFloat& operator+=(T rhs) & { return *this += APFloat(rhs); }
+
+    APFloat& operator-=(APFloat const& rhs) &;
+    template <typename T>
+    requires std::is_arithmetic_v<T> APFloat& operator-=(T rhs) & { return *this -= APFloat(rhs); }
+
+    APFloat& operator*=(APFloat const& rhs) &;
+    template <typename T>
+    requires std::is_arithmetic_v<T> APFloat& operator*=(T rhs) & { return *this *= APFloat(rhs); }
+
+    APFloat& operator/=(APFloat const& rhs) &;
+    template <typename T>
+    requires std::is_arithmetic_v<T> APFloat& operator/=(T rhs) & { return *this /= APFloat(rhs); }
+
     friend APFloat operator+(APFloat const& lhs, APFloat const& rhs);
     friend APFloat operator-(APFloat const& lhs, APFloat const& rhs);
     friend APFloat operator*(APFloat const& lhs, APFloat const& rhs);
     friend APFloat operator/(APFloat const& lhs, APFloat const& rhs);
-    
+
     // MARK: Queries
-    
+
     bool isInf() const;
-    
+
     bool isNaN() const;
-    
+
     Precision precision() const;
-    
+
     ssize_t exponent() const;
 
     std::span<unsigned long> mantissa() const;
@@ -123,9 +116,9 @@ public:
     std::string toString() const;
 
     void* getImplementationPointer() { return &storage; }
-    
+
     void const* getImplementationPointer() const { return &storage; }
-        
+
 private:
     long long toSigned() const;
     unsigned long long toUnsigned() const;
@@ -134,7 +127,7 @@ private:
     friend std::strong_ordering operator<=>(APFloat const& lhs, APFloat const& rhs);
     friend std::ostream& operator<<(std::ostream& ostream, APFloat const& number);
     friend auto* internal::asImpl(APFloat const&);
-    
+
 private:
     std::aligned_storage_t<4 * sizeof(void*), alignof(void*)> storage;
     Precision prec;
@@ -144,7 +137,8 @@ private:
 
 // MARK: Inline definitions
 
-template <typename T> requires std::is_arithmetic_v<T>
+template <typename T>
+requires std::is_arithmetic_v<T>
 inline scatha::APFloat::operator T() const {
     if constexpr (std::signed_integral<T>) {
         return static_cast<T>(toSigned());

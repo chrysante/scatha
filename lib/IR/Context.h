@@ -5,8 +5,8 @@
 
 #include <utl/hashset.hpp>
 
-#include "IR/Value.h"
 #include "IR/Type.h"
+#include "IR/Value.h"
 
 namespace scatha::ir {
 
@@ -15,13 +15,12 @@ public:
     Context();
     Type const* voidType();
     Integral const* integralType(std::size_t bitWidth);
-    
+
 private:
-//    utl::hashset<Value> values;
+    //    utl::hashset<Value> values;
     utl::hashset<Type*, Type::Hash, Type::Equals> types;
 };
 
 } // namespace scatha::ir
 
 #endif // SCATHA_IR_CONTEXT_H_
-

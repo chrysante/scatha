@@ -48,10 +48,8 @@ public:
 
 namespace internal {
 
-using IssueVariant = std::variant<UnexpectedID,
-                                  InvalidNumericLiteral,
-                                  UnterminatedStringLiteral,
-                                  UnterminatedMultiLineComment>;
+using IssueVariant =
+    std::variant<UnexpectedID, InvalidNumericLiteral, UnterminatedStringLiteral, UnterminatedMultiLineComment>;
 
 } // namespace internal
 

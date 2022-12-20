@@ -23,4 +23,3 @@ SCATHA(API) Module* generate(ast::AbstractSyntaxTree const& ast, sema::SymbolTab
 } // namespace scatha::ir
 
 #endif // SCATHA_IR_GENERATE_H_
-

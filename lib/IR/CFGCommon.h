@@ -42,14 +42,13 @@ enum class NodeType {
     Goto,
     Branch,
     Return,
-    
+
     _count
 };
 
 } // namespace scatha::ir
 
-#define SC_IR_ENABLE_DYNCAST(type) \
-    SC_DYNCAST_MAP(scatha::ir::type, scatha::ir::NodeType::type)
+#define SC_IR_ENABLE_DYNCAST(type) SC_DYNCAST_MAP(scatha::ir::type, scatha::ir::NodeType::type)
 
 SC_IR_ENABLE_DYNCAST(Value);
 SC_IR_ENABLE_DYNCAST(Parameter);
@@ -64,11 +63,6 @@ SC_IR_ENABLE_DYNCAST(Return);
 
 #undef SC_IR_ENABLE_DYNCAST
 
-namespace scatha::ir {
-
-
-
-} // namespace scatha::ir
+namespace scatha::ir {} // namespace scatha::ir
 
 #endif // SCATHA_IR_COMMON_H_
-

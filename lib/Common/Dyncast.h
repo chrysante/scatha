@@ -2,8 +2,8 @@
 #define SCATHA_COMMON_DYNCAST_H_
 
 #include <type_traits>
-#include <utility>
 #include <typeinfo>
+#include <utility>
 
 #include <utl/utility.hpp>
 
@@ -33,7 +33,9 @@ template <typename To, typename From>
 concept DynCheckable = Dynamic<From> && Dynamic<To>; // TODO: Check that To and From a part of the same hierarchy.
 
 template <typename To, typename From>
-concept DynCastable = DynCheckable<To, From> && requires(From from) { static_cast<To>(from); };
+concept DynCastable = DynCheckable<To, From> && requires(From from) {
+    static_cast<To>(from);
+};
 
 template <typename T>
 using DCEnumType = decltype(DyncastTypeToEnumImpl<std::remove_cvref_t<T>>::value);
@@ -47,20 +49,28 @@ using DCEnumType = decltype(DyncastTypeToEnumImpl<std::remove_cvref_t<T>>::value
 /// Mandatory customization point for the \p dyncast facilities. Every object in the inheritance hierarchy must be
 /// uniquely mapped to an enum or integral value. Using an enum is recommended. Use this macro at file scope to
 /// identify types in the hierarchy with a unique integral value.
-#define SC_DYNCAST_MAP(type, enumValue)                                                                            \
-template <>                                                                                                        \
-struct ::scatha::internal::DyncastTypeToEnumImpl<type>: std::integral_constant<decltype(enumValue), enumValue> {}; \
-template <>                                                                                                        \
-struct ::scatha::internal::DyncastEnumToTypeImpl<enumValue>: std::type_identity<type> {}
+#define SC_DYNCAST_MAP(type, enumValue)                                                                                \
+    template <>                                                                                                        \
+    struct ::scatha::internal::DyncastTypeToEnumImpl<type>: std::integral_constant<decltype(enumValue), enumValue> {}; \
+    template <>                                                                                                        \
+    struct ::scatha::internal::DyncastEnumToTypeImpl<enumValue>: std::type_identity<type> {}
 
 namespace scatha {
 
+// clang-format off
+
 /// Simple customization point for the \p dyncast facilities. If the types in the inheritance hierarchy expose their
 /// runtime type identifiers by a \p .type() method, this customiziation point is not needed.
-/// Otherwise define a function \p dyncastGetType() with compatible signature for every type in the same namespace as the
-/// type. This can of course be a (constrained) template.
+/// Otherwise define a function \p dyncastGetType() with compatible signature for every type in the same namespace as
+/// the type. This can of course be a (constrained) template.
 template <typename T>
-auto dyncastGetType(T const& t) requires requires { { t.type() } -> std::convertible_to<internal::DCEnumType<T>>; } { return t.type(); }
+auto dyncastGetType(T const& t)
+requires requires { { t.type() } -> std::convertible_to<internal::DCEnumType<T>>; }
+{
+    return t.type();
+}
+
+// clang-format on
 
 /// Optional second customization point. All fields below must be implemented. If a custom implementation for
 /// \p type(...) is given, the first customization point \p dyncastGetType() is not used.
@@ -68,7 +78,7 @@ template <typename Enum>
 struct DyncastTraits {
     static Enum type(auto const& t) { return dyncastGetType(t); }
     static constexpr Enum first = Enum{ 0 };
-    static constexpr Enum last = Enum::_count;
+    static constexpr Enum last  = Enum::_count;
 };
 
 /// Visit the object \p obj as its most derived type.
@@ -82,38 +92,44 @@ requires internal::Dynamic<T>
 decltype(auto) visit(T&& obj, F&& fn);
 
 /// Check if \p from 's dymamic type is \p To or derived from \p To.
-template <typename To, typename From> requires scatha::internal::DynCheckable<To, From>
+template <typename To, typename From>
+requires scatha::internal::DynCheckable<To, From>
 bool isa(From* from);
 
 /// Check if \p from 's dymamic type is \p To or derived from \p To.
-template <typename To, typename From> requires scatha::internal::DynCheckable<To, From>
+template <typename To, typename From>
+requires scatha::internal::DynCheckable<To, From>
 bool isa(From& from);
 
 /// Downwards cast of \p from in its class hierarchy.
 /// \param from Pointer to an object of type \p From. Pointer must not be null.
 /// \returns A pointer of derived type \p To or null if \p *from is not of type \p To.
-template <typename To, typename From> requires internal::DynCastable<To, From*> && std::is_pointer_v<To>
+template <typename To, typename From>
+requires internal::DynCastable<To, From*> && std::is_pointer_v<To>
 constexpr To dyncast(From* from);
 
 /// Downwards cast of \p from in its class hierarchy.
 /// \param from Reference to an object of type \p From.
 /// \returns A Reference to the object of derived type \p T.o
 /// \throws \p std::bad_cast if \p from is not of type \p To.
-template <typename To, typename From> requires internal::DynCastable<To, From&> && std::is_lvalue_reference_v<To>
+template <typename To, typename From>
+requires internal::DynCastable<To, From&> && std::is_lvalue_reference_v<To>
 constexpr To dyncast(From& from);
 
 /// Downwards cast of \p from in its class hierarchy.
 /// \param from Pointer to an object of type \p From. Pointer must not be null.
 /// \returns A pointer of derived type \p To.
 /// \warning Traps if \p *from is not of type \p To.
-template <typename To, typename From> requires internal::DynCastable<To, From*> && std::is_pointer_v<To>
+template <typename To, typename From>
+requires internal::DynCastable<To, From*> && std::is_pointer_v<To>
 constexpr To cast(From* from);
 
 /// Downwards cast of \p from in its class hierarchy.
 /// \param from Reference to an object of type \p From .
 /// \returns A reference of derived type \p To .
 /// \warning Traps if \p from is not of type \p To .
-template <typename To, typename From> requires internal::DynCastable<To, From&> && std::is_lvalue_reference_v<To>
+template <typename To, typename From>
+requires internal::DynCastable<To, From&> && std::is_lvalue_reference_v<To>
 constexpr To cast(From& from);
 
 } // namespace scatha
@@ -130,6 +146,7 @@ inline constexpr auto DyncastTypeToEnum = DyncastTypeToEnumImpl<T>::value;
 template <auto EnumValue>
 using DyncastEnumToType = typename DyncastEnumToTypeImpl<EnumValue>::type;
 
+// clang-format off
 template <typename Enum>
 struct DyncastTraitsImpl: DyncastTraits<Enum> {
 public:
@@ -142,43 +159,42 @@ public:
     static bool is(auto const& t) {
         return ISADispatchArray[static_cast<size_t>(TestType)][static_cast<size_t>(type(t))];
     }
-    
+
 private:
     template <Enum CurrentTestType, Enum TargetTestType, typename ActualType>
     requires std::is_convertible_v<ActualType, DyncastEnumToType<CurrentTestType>>
-    static constexpr bool isExactly() {
-        return CurrentTestType == TargetTestType;
-    }
-    
+    static constexpr bool isExactly() { return CurrentTestType == TargetTestType; }
+
     template <Enum CurrentTestType, Enum TargetTestType, typename ActualType>
-    static constexpr bool isExactly() { return false; }
-    
+    static constexpr bool isExactly() {
+        return false;
+    }
+
     template <Enum TargetTestType, typename ActualType, size_t... I>
     static constexpr bool walkTree(std::index_sequence<I...>) {
         constexpr bool result = (... || isExactly<Enum{ I }, TargetTestType, ActualType>());
         return result;
     }
-    
+
     template <Enum TargetTestType, typename ActualType>
     static constexpr bool isImpl() {
         return walkTree<TargetTestType, ActualType>(std::make_index_sequence<numElements>{});
     }
-    
-    /// Build a 2D boolean matrix at compile time indicating if a dynamic cast is possible for every origin-destination pair.
+
+    /// Build a 2D boolean matrix at compile time indicating if a dynamic cast is possible for every origin-destination
+    /// pair.
     static constexpr auto makeISADispatchArray() {
         return []<size_t... I>(std::index_sequence<I...>) {
             return std::array{
                 []<Enum TestType, size_t... J>(std::index_sequence<J...>) {
-                    return std::array{
-                        isImpl<TestType, DyncastEnumToType<Enum{ J }>>()...
-                    };
+                    return std::array{ isImpl<TestType, DyncastEnumToType<Enum{ J }>>()... };
                 }.template operator()<Enum{ I }>(std::make_index_sequence<numElements>{})...
             };
         }(std::make_index_sequence<numElements>{});
     }
-    
     static constexpr auto ISADispatchArray = makeISADispatchArray();
 };
+// clang-format on
 
 /// This machinery is needed to make visiting subtrees of the entire inheritance hierarchy possible. Without it,
 /// \p std::invoke_result would fail on code paths that are never executed.
@@ -221,12 +237,16 @@ struct CommonTypeWrapper<A> {
     using type = A;
 };
 
-template <typename Enum, typename GivenType, typename F, typename I = std::make_index_sequence<DyncastTraitsImpl<Enum>::numElements>>
+template <typename Enum,
+          typename GivenType,
+          typename F,
+          typename I = std::make_index_sequence<DyncastTraitsImpl<Enum>::numElements>>
 struct DispatchReturnType;
 
 template <typename Enum, typename GivenType, typename F, size_t... I>
 struct DispatchReturnType<Enum, GivenType, F, std::index_sequence<I...>> {
-    using type = typename CommonTypeWrapper<InvokeResult<F, utl::copy_cvref_t<GivenType, DyncastEnumToType<Enum{ I }>>>...>::type;
+    using type = typename CommonTypeWrapper<
+        InvokeResult<F, utl::copy_cvref_t<GivenType, DyncastEnumToType<Enum{ I }>>>...>::type;
 };
 
 } // namespace scatha::internal
@@ -236,52 +256,58 @@ requires scatha::internal::Dynamic<T>
 decltype(auto) scatha::visit(T&& obj, F&& fn) {
     using namespace internal;
     using EnumType = DCEnumType<T>;
-    using Traits = DyncastTraitsImpl<EnumType>;
+    using Traits   = DyncastTraitsImpl<EnumType>;
     static_assert(static_cast<size_t>(Traits::first) == 0, "For now, this simplifies the implementation.");
     static constexpr size_t numElems = Traits::numElements;
-    using ReturnType = typename DispatchReturnType<EnumType, T&&, F&&>::type;
-    using DispatchPtrType = ReturnType(*)(T&&, F&&);
+    using ReturnType                 = typename DispatchReturnType<EnumType, T&&, F&&>::type;
+    using DispatchPtrType            = ReturnType(*)(T&&, F&&);
     static constexpr std::array<DispatchPtrType, numElems> dispatchPtrs = [&]<size_t... I>(std::index_sequence<I...>) {
-        return std::array<DispatchPtrType, numElems>{
-            [](T&& t, F&& f) -> ReturnType {
-                using TargetType = utl::copy_cvref_t<T&&, DyncastEnumToType<EnumType{ I }>>;
-                constexpr bool staticallyCastable = requires{ static_cast<TargetType>(t); };
-                if constexpr (!staticallyCastable) {
-                    /// If we can't even \p static_cast there is no way this can be invoked.
-                    /// We need to use \p I in this path also, otherwise we can't fold over this expression later. This might be a bug in clang.
-                    (void)I;
-                    SC_UNREACHABLE();
-                }
-                else if constexpr (std::is_convertible_v<T&&, TargetType> && !std::is_same_v<T&&, TargetType>) {
-                    /// If can can cast implicitly but destination type is not the same, this means we go up the hierarchy.
-                    /// Since we are dispatching on the most derived type, this path should be unreachable.
-                    (void)I;
-                    SC_UNREACHABLE();
-                }
-                else {
-                    static_assert(staticallyCastable);
-                    return std::invoke(std::forward<F>(f), static_cast<TargetType>(t));
-                }
-            }...
-        };
-    }(std::make_index_sequence<numElems>{});
-    return dispatchPtrs[static_cast<size_t>(DyncastTraits<EnumType>::type(obj))](std::forward<T>(obj), std::forward<F>(fn));
+        return std::array<DispatchPtrType, numElems>{ [](T&& t, F&& f) -> ReturnType {
+            using TargetType                  = utl::copy_cvref_t<T&&, DyncastEnumToType<EnumType{ I }>>;
+            constexpr bool staticallyCastable = requires {
+                static_cast<TargetType>(t);
+            };
+            if constexpr (!staticallyCastable) {
+                /// If we can't even \p static_cast there is no way this can be invoked.
+                /// We need to use \p I in this path also, otherwise we can't fold over this expression later. This
+                /// might be a bug in clang.
+                (void)I;
+                SC_UNREACHABLE();
+            }
+            else if constexpr (std::is_convertible_v<T&&, TargetType> && !std::is_same_v<T&&, TargetType>) {
+                /// If can can cast implicitly but destination type is not the same, this means we go up the hierarchy.
+                /// Since we are dispatching on the most derived type, this path should be unreachable.
+                (void)I;
+                SC_UNREACHABLE();
+            }
+            else {
+                static_assert(staticallyCastable);
+                return std::invoke(std::forward<F>(f), static_cast<TargetType>(t));
+            }
+        }... };
+    }
+    (std::make_index_sequence<numElems>{});
+    return dispatchPtrs[static_cast<size_t>(DyncastTraits<EnumType>::type(obj))](std::forward<T>(obj),
+                                                                                 std::forward<F>(fn));
 }
 
-template <typename To, typename From> requires scatha::internal::DynCheckable<To, From>
+template <typename To, typename From>
+requires scatha::internal::DynCheckable<To, From>
 bool scatha::isa(From* from) {
     using namespace internal;
-    using EnumType = decltype(DyncastTypeToEnum<std::remove_const_t<From>>);
+    using EnumType   = decltype(DyncastTypeToEnum<std::remove_const_t<From>>);
     using ToStripped = std::remove_const_t<std::remove_pointer_t<To>>;
     return DyncastTraitsImpl<EnumType>::template is<DyncastTypeToEnum<ToStripped>>(*from);
 }
 
-template <typename To, typename From> requires scatha::internal::DynCheckable<To, From>
+template <typename To, typename From>
+requires scatha::internal::DynCheckable<To, From>
 bool scatha::isa(From& from) {
     return isa<To>(&from);
 }
 
-template <typename To, typename From> requires scatha::internal::DynCastable<To, From*> && std::is_pointer_v<To>
+template <typename To, typename From>
+requires scatha::internal::DynCastable<To, From*> && std::is_pointer_v<To>
 constexpr To scatha::dyncast(From* from) {
     if (isa<internal::DecayAll<To>>(from)) {
         return static_cast<To>(from);
@@ -289,7 +315,8 @@ constexpr To scatha::dyncast(From* from) {
     return nullptr;
 }
 
-template <typename To, typename From> requires scatha::internal::DynCastable<To, From&> && std::is_lvalue_reference_v<To>
+template <typename To, typename From>
+requires scatha::internal::DynCastable<To, From&> && std::is_lvalue_reference_v<To>
 constexpr To scatha::dyncast(From& from) {
     using ToNoRef = std::remove_reference_t<To>;
     if (auto* result = dyncast<ToNoRef*>(&from)) {
@@ -298,17 +325,18 @@ constexpr To scatha::dyncast(From& from) {
     throw std::bad_cast();
 }
 
-template <typename To, typename From> requires scatha::internal::DynCastable<To, From*> && std::is_pointer_v<To>
+template <typename To, typename From>
+requires scatha::internal::DynCastable<To, From*> && std::is_pointer_v<To>
 constexpr To scatha::cast(From* from) {
     SC_ASSERT(dyncast<To>(from) != nullptr, "Cast failed.");
     return static_cast<To>(from);
 }
 
-template <typename To, typename From> requires scatha::internal::DynCastable<To, From&> && std::is_lvalue_reference_v<To>
+template <typename To, typename From>
+requires scatha::internal::DynCastable<To, From&> && std::is_lvalue_reference_v<To>
 constexpr To scatha::cast(From& from) {
     using ToNoRef = std::remove_reference_t<To>;
     return *cast<ToNoRef*>(&from);
 }
 
 #endif // SCATHA_COMMON_DYNCAST_H_
-

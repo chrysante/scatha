@@ -83,8 +83,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream&, NodeType);
 
 } // namespace scatha::ast
 
-#define SC_AST_ENABLE_DYNCAST(type) \
-    SC_DYNCAST_MAP(::scatha::ast::type, ::scatha::ast::NodeType::type)
+#define SC_AST_ENABLE_DYNCAST(type) SC_DYNCAST_MAP(::scatha::ast::type, ::scatha::ast::NodeType::type)
 
 SC_AST_ENABLE_DYNCAST(AbstractSyntaxTree);
 SC_AST_ENABLE_DYNCAST(TranslationUnit);
@@ -193,9 +192,9 @@ concept WeakSameAs = std::same_as<std::remove_cvref_t<T>, std::remove_cvref_t<U>
 template <typename F>
 struct DefaultVisitor {
     F callback;
-    
+
     explicit DefaultVisitor(F callback): callback(callback) {}
-    
+
     void operator()(AbstractSyntaxTree const&) const {}
     void operator()(internal::WeakSameAs<TranslationUnit> auto&& tu) const {
         for (auto&& decl: tu.declarations) {
@@ -270,7 +269,6 @@ struct DefaultVisitor {
         }
     }
 };
-
 
 } // namespace scatha::ast
 

@@ -27,12 +27,12 @@ private:
 
 struct EndlIndenter: Indenter {
     using Indenter::Indenter;
-    
+
     EndlIndenter& increase() & {
         Indenter::increase();
         return *this;
     }
-    
+
     EndlIndenter& decrease() & {
         Indenter::decrease();
         return *this;

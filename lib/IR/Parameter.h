@@ -7,19 +7,16 @@
 namespace scatha::ir {
 
 class Function;
-	
+
 class Parameter: public Value, public NodeWithParent<Parameter, Function> {
     using NodeBase = NodeWithParent<Parameter, Function>;
+
 public:
-    explicit Parameter(Type const* type, Function* parent):
-        Value(NodeType::Parameter, type), NodeBase(parent)
-    {}
-    
+    explicit Parameter(Type const* type, Function* parent): Value(NodeType::Parameter, type), NodeBase(parent) {}
+
 private:
-    
 };
-	
+
 } // namespace scatha::ir
 
 #endif // SCATHA_IR_PARAMETER_H_
-

@@ -21,17 +21,25 @@ if [ -z "$FMT" ]; then
 fi
 
 function format() {
-    for file in $(git status --porcelain | awk 'match($1, "M"){print $2}'); do
-        if [[ $file != *.h ]] && [[ $file != *.cc ]]; then
-                continue
+#   This only formats edited files in version control.
+#    for file in $(git status --porcelain | awk 'match($1, "M"){print $2}'); do
+#   This formats all files in given directory
+    for entry in $1/*; do
+        if [[ -d $entry ]]; then
+            format $entry
+            continue
         fi
-        echo "format ${file}";
-        ${FMT} -i ${file};
+        if [[ $entry != *.h ]] && [[ $file != *.cc ]]; then
+            continue
+        fi
+        echo "format ${entry}";
+        ${FMT} -i ${entry};
     done
 }
 
 if [ $# -eq 0 ]; then
-    format "./";
+    echo "Usage: ./format-all.sh directory/to/format"
+    echo "Warning: Don't use '.' here, as it would take forever to recursively search all subdirs of the project."
     exit 0
 fi
 

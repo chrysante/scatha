@@ -166,13 +166,13 @@ class SCATHA(API) UnaryPrefixExpression: public Expression {
 public:
     explicit UnaryPrefixExpression(UnaryPrefixOperator op, UniquePtr<Expression> operand, Token const& token):
         Expression(NodeType::UnaryPrefixExpression, token), operand(std::move(operand)), op(op) {}
-    
+
     /// The operator of this expression.
     UnaryPrefixOperator operation() const { return op; }
 
     /// The operand of this expression.
     UniquePtr<Expression> operand;
-    
+
 private:
     UnaryPrefixOperator op;
 };
@@ -190,13 +190,13 @@ public:
 
     /// The operator of this expression.
     BinaryOperator operation() const { return op; }
-    
+
     /// Change the operator of this expression.
     void setOperation(BinaryOperator newOp) { op = newOp; }
-    
+
     /// The left hand side operand of this expression.
     UniquePtr<Expression> lhs;
-    
+
     /// The right hand side operand of this expression.
     UniquePtr<Expression> rhs;
 
@@ -212,7 +212,7 @@ public:
 
     /// The object being accessed.
     UniquePtr<Expression> object;
-    
+
     /// The expression to access the object.
     UniquePtr<Expression> member;
 
@@ -250,10 +250,10 @@ public:
 
     /// The condition to branch on.
     UniquePtr<Expression> condition;
-    
+
     /// Expression to evaluate if condition is true.
     UniquePtr<Expression> ifExpr;
-    
+
     /// Expression to evaluate if condition is false.
     UniquePtr<Expression> elseExpr;
 };
@@ -268,7 +268,7 @@ public:
 
     /// The object (function or rather overload set) being called.
     UniquePtr<Expression> object;
-    
+
     /// List of arguments.
     utl::small_vector<UniquePtr<Expression>> arguments;
 
@@ -301,7 +301,7 @@ public:
 
     /// The object being indexed.
     UniquePtr<Expression> object;
-    
+
     /// List of index arguments.
     utl::small_vector<UniquePtr<Expression>> arguments;
 };
@@ -358,7 +358,7 @@ public:
     explicit VariableDeclaration(Token const& declarator, UniquePtr<Identifier> name):
         Declaration(NodeType::VariableDeclaration, declarator, std::move(name)) {}
 
-    bool isConstant             : 1 = false; // Will be set by the parser
+    bool isConstant : 1 = false; // Will be set by the parser
 
     /// Typename declared in the source code. Null if no typename was declared.
     UniquePtr<Expression> typeExpr;
@@ -502,12 +502,12 @@ public:
 
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID, sema::TypeID returnTypeID) {
-        _returnTypeID   = returnTypeID;
+        _returnTypeID = returnTypeID;
         Declaration::decorate(symbolID);
     }
 
 private:
-    sema::TypeID _returnTypeID   = sema::TypeID::Invalid;
+    sema::TypeID _returnTypeID = sema::TypeID::Invalid;
 };
 
 /// Concrete node representing the definition of a struct.
@@ -570,10 +570,10 @@ public:
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
     UniquePtr<Expression> condition;
-    
+
     /// Statement to execute if condition is true.
     UniquePtr<Statement> ifBlock;
-    
+
     /// Statement to execute if condition is false.
     UniquePtr<Statement> elseBlock;
 };
@@ -590,7 +590,7 @@ public:
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
     UniquePtr<Expression> condition;
-    
+
     /// Statement to execute repeatedly.
     UniquePtr<CompoundStatement> block;
 };
@@ -599,15 +599,15 @@ public:
 class SCATHA(API) DoWhileStatement: public ControlFlowStatement {
 public:
     explicit DoWhileStatement(Token const& token, UniquePtr<Expression> condition, UniquePtr<CompoundStatement> block):
-    ControlFlowStatement(NodeType::DoWhileStatement, token),
-    condition(std::move(condition)),
-    block(std::move(block)) {}
-    
+        ControlFlowStatement(NodeType::DoWhileStatement, token),
+        condition(std::move(condition)),
+        block(std::move(block)) {}
+
     /// Condition to loop on.
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
     UniquePtr<Expression> condition;
-    
+
     /// Statement to execute repeatedly.
     UniquePtr<CompoundStatement> block;
 };
