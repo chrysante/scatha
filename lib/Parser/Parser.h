@@ -32,9 +32,11 @@
 // <control-flow-statement>        ::= <return statement>
 //                                   | <if-statement>
 //                                   | <while-statement>
+//                                   | <do-while-statement>
 // <return-statement>              ::= "return" [<comma-expression>] ";"
 // <if-statement>                  ::= "if" <comma-expression> <compound-statement> ["else" (<if-statement> | <compound-statement>)]
 // <while-statement>               ::= "while" <comma-expression> <compound-statement>
+// <do-while-statement>            ::= "do" <compound-statement> "while" <comma-expression> ";"
 //
 // <comma-expression>              ::= <assignment-expression>
 //                                   | <comma-expression> "," <assignment-expression>

@@ -342,6 +342,9 @@ ast::UniquePtr<ast::ControlFlowStatement> Context::parseControlFlowStatement() {
     if (auto whileStatement = parseWhileStatement()) {
         return whileStatement;
     }
+    if (auto doWhileStatement = parseDoWhileStatement()) {
+        return doWhileStatement;
+    }
     return nullptr;
 }
 
@@ -407,6 +410,40 @@ ast::UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
     }
     return ast::allocate<ast::WhileStatement>(whileToken, std::move(cond), std::move(block));
+}
+
+ast::UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
+    Token const doToken = tokens.peek();
+    if (doToken.id != "do") {
+        return nullptr;
+    }
+    tokens.eat();
+    auto block = parseCompoundStatement();
+    if (!block) {
+        // TODO: Push a better issue here
+        iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
+    }
+    Token const whileToken = tokens.peek();
+    if (whileToken.id != "while") {
+        iss.push(SyntaxIssue::expectedID(whileToken, "while"));
+        panic(tokens);
+    }
+    else {
+        tokens.eat();
+    }
+    auto cond = parseComma();
+    if (!cond) {
+        pushExpectedExpression(tokens.peek());
+    }
+    Token const delimToken = tokens.peek();
+    if (delimToken.id != ";") {
+        iss.push(SyntaxIssue::expectedID(whileToken, ";"));
+        panic(tokens);
+    }
+    else {
+        tokens.eat();
+    }
+    return ast::allocate<ast::DoWhileStatement>(doToken, std::move(cond), std::move(block));
 }
 
 ast::UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {

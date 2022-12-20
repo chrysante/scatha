@@ -5,6 +5,9 @@
 
 #include <utl/utility.hpp>
 
+#include "Common/APInt.h"
+#include "Common/APFloat.h"
+
 namespace scatha {
 
 std::ostream& operator<<(std::ostream& str, TokenType t) {
@@ -35,17 +38,19 @@ std::ostream& operator<<(std::ostream& str, Token const& t) {
     return str;
 }
 
+std::optional<APInt> Token::toAPInt() const {
+    return APInt::fromString(id);
+}
+
+std::optional<APFloat> Token::toAPFloat(APFloat::Precision precision) const {
+    return APFloat::parse(id, 0, precision);
+}
+
 u64 Token::toInteger() const {
     SC_ASSERT(type == TokenType::IntegerLiteral, "Token is not an integer literal");
-    if constexpr (sizeof(long) == 8) {
-        return std::stoul(id, nullptr, 0);
-    }
-    else {
-        // Unlike on unix based systems, long is 4 bit on 64 bit Windows, so we
-        // use long long here.
-        static_assert(sizeof(long long) == 8);
-        return std::stoull(id, nullptr, 0);
-    }
+    auto const value = toAPInt();
+    SC_ASSERT(value, "Invalid literal value");
+    return static_cast<u64>(*value);
 }
 
 bool Token::toBool() const {
@@ -56,8 +61,9 @@ bool Token::toBool() const {
 
 f64 Token::toFloat() const {
     SC_ASSERT(type == TokenType::FloatingPointLiteral, "Token is not a floating point literal");
-    static_assert(sizeof(double) == 8);
-    return std::stod(id);
+    auto const value = toAPFloat();
+    SC_ASSERT(value, "Invalid literal value");
+    return static_cast<f64>(*value);
 }
 
 void Token::finalize() {
@@ -71,7 +77,6 @@ void Token::finalize() {
         isPunctuation = true;
         isSeparator   = true;
     }
-
     if (std::optional<Keyword> const kw = toKeyword(id)) {
         isKeyword       = true;
         keyword         = *kw;
@@ -79,7 +84,6 @@ void Token::finalize() {
         isDeclarator    = scatha::isDeclarator(*kw);
         isControlFlow   = scatha::isControlFlow(*kw);
     }
-
     if (type == TokenType::Identifier) {
         isIdentifier = true;
     }

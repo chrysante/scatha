@@ -39,23 +39,38 @@ filter "system:macosx"
         ["LD_RUNPATH_SEARCH_PATHS"] = "@loader_path"
     }
 filter {}
+
 ------------------------------------------
-project "scatha"
+project "scatha-lib"
 
 kind "SharedLib"
 
 addCppFiles "lib"
 addCppFiles "include/scatha"
-files "**.md"
-externalincludedirs { "external/utility" }
-includedirs "lib"
-links "utility"
-
---prebuildcommands { "./format-all.sh lib/" }
+externalincludedirs { "external/utility/include", "external/gmp/build/include", "external/mpfr/build/include" }
+includedirs { "lib" }
+libdirs { "external/gmp/build/lib", "external/mpfr/build/lib" }
+links { "utility", "gmp", "mpfr" }
 
 filter "system:macosx"
 buildoptions "-fvisibility=hidden"
 filter {}
+
+------------------------------------------
+project "scatha"
+
+kind "ConsoleApp"
+
+addCppFiles "app"
+
+externalincludedirs {
+    "include",
+    "lib",
+    "external/utility",
+    "external/termfmt"
+}
+
+links { "scatha-lib", "utility", "termfmt" }
 
 ------------------------------------------
 project "scatha-test"
@@ -64,7 +79,7 @@ kind "ConsoleApp"
 externalincludedirs { 
     ".", 
     "include", 
-    "external/utility", 
+    "external/utility/include", 
     "external/Catch"
 }
 
@@ -73,18 +88,18 @@ externalincludedirs { "lib" }
 --prebuildcommands { "./format-all.sh test/" }
 
 addCppFiles "test"
-links { "scatha" } 
+links { "scatha-lib" } 
 
 ------------------------------------------
 project "playground"
 
 kind "ConsoleApp"
-externalincludedirs { "external/utility" }
+externalincludedirs { "external/utility/include" }
 includedirs { ".", "lib" }
 
 addCppFiles "playground"
 files "playground/**.sc"
-links { "scatha", "utility" }
+links { "scatha-lib", "utility" }
 
 filter { "system:macosx"} 
     defines { "PROJECT_LOCATION=\"../../..\"" } -- use different (maybe less fragile) solution for windows
@@ -92,4 +107,5 @@ filter { "system:windows" }
     defines { "PROJECT_LOCATION=R\"($(ProjectDir))\"" }
 
 ------------------------------------------
-include "external/utility"
+include "external/utility/lib.lua"
+include "external/termfmt"

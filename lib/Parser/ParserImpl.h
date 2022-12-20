@@ -39,6 +39,7 @@ struct Context {
     ast::UniquePtr<ast::ReturnStatement> parseReturnStatement();
     ast::UniquePtr<ast::IfStatement> parseIfStatement();
     ast::UniquePtr<ast::WhileStatement> parseWhileStatement();
+    ast::UniquePtr<ast::DoWhileStatement> parseDoWhileStatement();
 
     // Expressions
 

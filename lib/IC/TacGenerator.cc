@@ -7,7 +7,6 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
-#include "AST/Visit.h"
 #include "IC/ThreeAddressCode.h"
 #include "IC/ThreeAddressStatement.h"
 #include "Sema/SymbolID.h"
@@ -150,11 +149,11 @@ ThreeAddressCode generateTac(ast::AbstractSyntaxTree const& root, sema::SymbolTa
 }
 
 void Context::dispatch(ast::AbstractSyntaxTree const& node) {
-    ast::visit(node, [this](auto const& node) { this->generate(node); });
+    visit(node, [this](auto const& node) { this->generate(node); });
 }
 
 TasArgument Context::dispatchExpression(ast::Expression const& node) {
-    return ast::visit(node, [this](auto const& node) { return this->generateExpression(node); });
+    return visit(node, [this](auto const& node) { return this->generateExpression(node); });
 }
 
 void Context::generate(ast::TranslationUnit const& tu) {
@@ -255,10 +254,13 @@ TasArgument Context::generateExpression(ast::FloatingPointLiteral const& lit) {
 }
 
 static sema::SymbolID getSymbolID(ast::Expression const& expr) {
-    return ast::visit(expr,
-                      utl::visitor{ [](ast::Identifier const& id) { return id.symbolID(); },
+    // clang-format off
+    return visit(expr, utl::overload{
+        [](ast::Identifier const& id) { return id.symbolID(); },
         [](ast::MemberAccess const& ma) { return ma.symbolID(); },
-        [](ast::AbstractSyntaxTree const&) -> sema::SymbolID { SC_DEBUGFAIL(); } });
+        [](ast::AbstractSyntaxTree const&) -> sema::SymbolID { SC_DEBUGFAIL(); }
+    });
+    // clang-format on
 }
 
 TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {

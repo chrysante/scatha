@@ -1,5 +1,3 @@
-#pragma once
-
 #ifndef SCATHA_COMMON_TOKEN_H_
 #define SCATHA_COMMON_TOKEN_H_
 
@@ -7,6 +5,7 @@
 #include <string>
 
 #include "Basic/Basic.h"
+#include "Common/APFwd.h"
 #include "Common/Keyword.h"
 #include "Common/SourceLocation.h"
 
@@ -48,6 +47,8 @@ struct SCATHA(API) Token: public TokenData {
 
     bool empty() const { return id.empty(); }
 
+    std::optional<APInt> toAPInt() const;
+    std::optional<APFloat> toAPFloat(APFloatPrecision precision = APFloatPrecision::Double) const;
     u64 toInteger() const;
     bool toBool() const;
     f64 toFloat() const;

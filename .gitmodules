@@ -1,3 +1,12 @@
 [submodule "external/utility"]
 	path = external/utility
 	url = https://github.com/chrysante/utility
+[submodule "external/gmp"]
+	path = external/gmp
+	url = https://github.com/chrysante/GMP
+[submodule "external/termfmt"]
+	path = external/termfmt
+	url = https://github.com/chrysante/termfmt
+[submodule "external/mpfr"]
+	path = external/mpfr
+	url = https://github.com/chrysante/MPFR

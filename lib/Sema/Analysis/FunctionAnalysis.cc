@@ -4,7 +4,6 @@
 #include <utl/scope_guard.hpp>
 
 #include "AST/AST.h"
-#include "AST/Visit.h"
 #include "Basic/Basic.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/SemanticIssue.h"
@@ -26,6 +25,7 @@ struct Context {
     void analyze(ast::ReturnStatement&);
     void analyze(ast::IfStatement&);
     void analyze(ast::WhileStatement&);
+    void analyze(ast::DoWhileStatement&);
     void analyze(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
 
     ExpressionAnalysisResult dispatchExpression(ast::Expression&);
@@ -52,7 +52,7 @@ void sema::analyzeFunctions(SymbolTable& sym,
 }
 
 void Context::dispatch(ast::AbstractSyntaxTree& node) {
-    ast::visit(node, [this](auto& node) { this->analyze(node); });
+    visit(node, [this](auto& node) { this->analyze(node); });
 }
 
 void Context::analyze(ast::FunctionDefinition& fn) {
@@ -73,8 +73,7 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     /// decoration.
     SymbolID const fnSymID = fn.symbolID();
     auto const& function   = sym.getFunction(fnSymID);
-#warning Why is functionTypeID ::Invalid here?
-    fn.decorate(fnSymID, function.signature().returnTypeID(), sema::TypeID::Invalid);
+    fn.decorate(fnSymID, function.signature().returnTypeID());
     fn.body->decorate(ScopeKind::Function, function.symbolID());
     currentFunction                    = &fn;
     utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };
@@ -265,6 +264,21 @@ void Context::analyze(ast::IfStatement& is) {
 }
 
 void Context::analyze(ast::WhileStatement& ws) {
+    if (sym.currentScope().kind() != ScopeKind::Function) {
+        iss.push(InvalidStatement(&ws, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+        return;
+    }
+    if (dispatchExpression(*ws.condition)) {
+        verifyConversion(*ws.condition, sym.Bool());
+    }
+    if (iss.fatal()) {
+        return;
+    }
+    dispatch(*ws.block);
+}
+
+void Context::analyze(ast::DoWhileStatement& ws) {
+    // TODO: This implementation is completely analogous to analyze(WhileStatement&). Try to merge them.
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push(InvalidStatement(&ws, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
         return;

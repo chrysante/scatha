@@ -208,7 +208,6 @@ fn greaterZero(a: int) -> bool {
 }
 
 TEST_CASE("Left-nested conditional with literals", "[codegen]") {
-#warning Known failure
     return;
     std::string const text = R"(
 fn main() -> int {

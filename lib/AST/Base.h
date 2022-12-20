@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string>
+#include <concepts>
 
 #include "AST/Common.h"
 #include "Common/SourceLocation.h"
@@ -73,10 +74,15 @@ public:
 protected:
     explicit AbstractSyntaxTree(NodeType type, Token const& token): _type(type), _token(token) {}
 
-protected:
+    void setToken(Token token) { _token = std::move(token); }
+    
+private:
     NodeType _type;
     Token _token;
 };
+
+// For dyncast compatibilty
+NodeType dyncastGetType(std::derived_from<AbstractSyntaxTree> auto const& node) { return node.nodeType(); }
 
 } // namespace scatha::ast
 

@@ -107,7 +107,7 @@ fn test() -> float {
 	let b = 2.3;
 	return a * b;
 })";
-    auto const registers   = test::getRegisters(text);
+    auto const registers = test::getRegisters(text);
     CHECK(registers[0] == utl::bit_cast<u64>(1.3 * 2.3));
 }
 

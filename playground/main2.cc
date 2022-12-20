@@ -20,9 +20,18 @@
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
 
+#include "IC/Canonicalize.h"
+#include "IC/TacGenerator.h"
+#include "IC/PrintTac.h"
+
 using namespace scatha;
 
-[[gnu::weak]] int main() {
+static void sectionHeader(std::string_view header) {
+    utl::print("{:=^40}\n", header);
+}
+
+[[gnu::weak]]
+int main() {
     auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     std::fstream file(filepath);
     if (!file) {
@@ -37,7 +46,7 @@ using namespace scatha;
     auto tokens = lex::lex(text, lexIss);
     
     if (!lexIss.empty()) {
-        std::cout << "Encountered lexical issues:\n";
+        sectionHeader("Encountered lexical issues");
         for (auto& issue: lexIss.issues()) {
             auto const token = issue.token();
             auto const l = token.sourceLocation;
@@ -49,14 +58,14 @@ using namespace scatha;
         return 1;
     }
     else {
-        std::cout << "No lexical issues.\n";
+        sectionHeader("No lexical issues");
     }
     
     issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     
     if (!parseIss.empty()) {
-        std::cout << "Encountered syntax issues:\n";
+        sectionHeader("Encountered syntax issues");
         
         for (auto& issue: parseIss.issues()) {
             std::cout << "L:" << issue.token().sourceLocation.line << " C:" << issue.token().sourceLocation.column << " : "
@@ -66,20 +75,16 @@ using namespace scatha;
         return 2;
     }
     else {
-        std::cout << "No syntax issues.\n";
+        sectionHeader("No syntax issues");
         ast::printTree(*ast);
     }
-    
-    ast::printSource(*ast);
-    
-    return 0;
     
     issue::SemaIssueHandler semaIss;
     auto sym = sema::analyze(*ast, semaIss);
     sema::printSymbolTable(sym);
     
     if (!semaIss.empty()) {
-        std::cout << "Encountered semantic issues:\n";
+        sectionHeader("Encountered semantic issues");
         for (auto& issue: semaIss.issues()) {
             auto const token = issue.token();
             auto const l = token.sourceLocation;
@@ -110,7 +115,11 @@ using namespace scatha;
         return 3;
     }
     else {
-        std::cout << "No semantic issues.\n";
+        sectionHeader("No semantic issues");
+        ic::canonicalize(ast.get());
+        auto const tac = ic::generateTac(*ast, sym);
+        sectionHeader("Three Address Code");
+        ic::printTac(tac, sym);
     }
     
 }

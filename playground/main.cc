@@ -5,6 +5,7 @@
 #include <string>
 
 #include <utl/typeinfo.hpp>
+#include <utl/stdio.hpp>
 
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
@@ -16,6 +17,7 @@
 #include "IC/PrintTac.h"
 #include "IC/TacGenerator.h"
 #include "Lexer/Lexer.h"
+#include "Lexer/LexicalIssue.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
@@ -25,7 +27,30 @@ using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
 
-[[gnu::weak]] int main() {
+namespace internal {
+
+static int const headerWidth = 60;
+
+void line(std::string_view m) { utl::print("{:=^{}}\n", m, headerWidth); };
+
+}
+
+static void header(std::string_view title = "") {
+    utl::print("\n");
+    ::internal::line("");
+    ::internal::line(title);
+    ::internal::line("");
+    utl::print("\n");
+}
+
+static void subHeader(std::string_view title = "") {
+    utl::print("\n");
+    ::internal::line(title);
+    utl::print("\n");
+}
+
+[[gnu::weak]]
+int main() {
     auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     std::fstream file(filepath);
     if (!file) {
@@ -37,23 +62,33 @@ using namespace scatha::parse;
     std::string const text = sstr.str();
 
     try {
-        std::cout << "\n==================================================\n";
-        std::cout << "=== AST ==========================================\n";
-        std::cout << "==================================================\n\n";
+        header(" Tokens ");
         issue::LexicalIssueHandler lexIss;
         auto tokens = lex::lex(text, lexIss);
+        if (!lexIss.empty()) {
+            utl::print("Lexical issues:\n");
+            for (auto& issue: lexIss.issues()) {
+                issue.visit([]<typename T>(T const& iss) {
+                    std::cout << iss.token().sourceLocation << " " << iss.token() << " : "
+                              << utl::nameof<T> << std::endl;
+                });
+            }
+        }
+        else {
+            utl::print("No lexical issues.\n");
+        }
+        
+        header(" AST ");
         issue::SyntaxIssueHandler parseIss;
         auto ast = parse::parse(tokens, parseIss);
         ast::printTree(*ast);
 
-        std::cout << "\n==================================================\n";
-        std::cout << "=== Symbol Table =================================\n";
-        std::cout << "==================================================\n\n";
+        header(" Symbol Table ");
         issue::SemaIssueHandler semaIss;
         auto const sym = sema::analyze(*ast, semaIss);
         sema::printSymbolTable(sym);
         std::cout << "\nEncoutered " << semaIss.issues().size() << " issues\n";
-        std::cout << "==================================================\n";
+        subHeader();
         for (auto const& issue : semaIss.issues()) {
             issue.visit([](auto const& issue) {
                 auto const loc = issue.token().sourceLocation;
@@ -83,25 +118,19 @@ using namespace scatha::parse;
                 [](issue::ProgramIssueBase const&) { std::cout << std::endl; } });
             std::cout << std::endl;
         }
-        std::cout << "==================================================\n";
-
-        std::cout << "\n==================================================\n";
-        std::cout << "=== Generated Three Address Code =================\n";
-        std::cout << "==================================================\n\n";
+        subHeader();
+        header(" Generated Three Address Code ");
         ic::canonicalize(ast.get());
         auto const tac = ic::generateTac(*ast, sym);
         ic::printTac(tac, sym);
 
-        std::cout << "\n==================================================\n";
-        std::cout << "=== Generated Assembly ===========================\n";
-        std::cout << "==================================================\n\n";
+        header(" Generated Assembly ");
         codegen::CodeGenerator cg(tac);
         auto const str = cg.run();
         print(str, sym);
 
-        std::cout << "\n==================================================\n";
-        std::cout << "=== Assembled Program ============================\n";
-        std::cout << "==================================================\n\n";
+        
+        header(" Assembled Program ");
         assembly::Assembler a(str);
         /// Start execution with main if it exists.
         auto const mainID = [&sym] {
@@ -123,15 +152,15 @@ using namespace scatha::parse;
         auto const program = a.assemble({ .mainID = mainID.rawValue() });
         print(program);
 
-        std::cout << "\n==================================================\n\n";
+        subHeader();
 
         vm::VirtualMachine vm;
         vm.load(program);
         vm.execute();
         u64 const exitCode = vm.getState().registers[0];
-        std::cout << "VM: Program ended with exit code: " << exitCode << std::endl;
+        std::cout << "VM: Program ended with exit code: " << static_cast<i64>(exitCode) << std::endl;
 
-        std::cout << "\n==================================================\n\n";
+        subHeader();
     }
     catch (std::exception const& e) {
         std::cout << "Compilation failed:\n" << e.what() << std::endl;

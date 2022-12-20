@@ -36,7 +36,7 @@ static void printStrongSeparator(utl::format_codes::format_code color, int width
     str.put('\n');
 }
 
-int main() {
+[[gnu::weak]] int main() {
     auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     std::fstream file(filepath);
     if (!file) {

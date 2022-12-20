@@ -6,7 +6,6 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
-#include "AST/Visit.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/SemanticIssue.h"
 
