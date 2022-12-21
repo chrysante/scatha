@@ -230,7 +230,7 @@ using IssueVariant = std::variant<BadTypeConversion,
 class SCATHA(API) SemanticIssue: public issue::internal::VariantIssueBase<internal::IssueVariant> {
 public:
     using issue::internal::VariantIssueBase<internal::IssueVariant>::VariantIssueBase;
-    
+
     /// Weirdly enough this won't compile. We also don't really need the function though.
 #if 0
     ast::Statement const& statement() const {

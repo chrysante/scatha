@@ -9,10 +9,9 @@
 #include "Basic/Basic.h"
 
 namespace scatha::lex {
-	
+
 SCATHA(API) utl::vector<std::string> extractLines(std::string_view text);
-	
+
 }
 
 #endif // LEXER_EXTRACTLINES_H_
-

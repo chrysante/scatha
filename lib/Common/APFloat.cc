@@ -90,7 +90,6 @@ std::optional<APFloat> APFloat::parse(std::string_view value, int base, Precisio
     return std::nullopt;
 }
 
-
 APFloat& APFloat::operator+=(APFloat const& rhs)& {
     mpfr_add(asImpl(*this), asImpl(*this), asImpl(rhs), roundingMode);
     return *this;

@@ -97,7 +97,7 @@ std::ostream& operator<<(std::ostream&, RegisterIndex);
 struct MemoryAddress {
     explicit MemoryAddress(u8 ptrRegIdx, u8 offset, u8 offsetShift):
         ptrRegIdx(ptrRegIdx), offset(offset), offsetShift(offsetShift) {}
-    
+
     u8 ptrRegIdx;
     u8 offset;
     u8 offsetShift;
