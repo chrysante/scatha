@@ -60,9 +60,9 @@ namespace scatha {
 // clang-format off
 
 /// Simple customization point for the \p dyncast facilities. If the types in the inheritance hierarchy expose their
-/// runtime type identifiers by a \p .type() method, this customiziation point is not needed.
-/// Otherwise define a function \p dyncastGetType() with compatible signature for every type in the same namespace as
-/// the type. This can of course be a (constrained) template.
+/// runtime type identifiers by a \p .type() method, this customiziation point is not needed. Otherwise define a
+/// function \p dyncastGetType() with compatible signature for every type in the same namespace as the type. This can
+/// of course be a (constrained) template.
 template <typename T>
 auto dyncastGetType(T const& t)
 requires requires { { t.type() } -> std::convertible_to<internal::DCEnumType<T>>; }
@@ -84,9 +84,9 @@ struct DyncastTraits {
 /// Visit the object \p obj as its most derived type.
 /// \param obj An object of type \p T which has support for the \p dyncast facilities.
 /// \param fn A callable which can be invoked with any of \p T 's derived types. The possible return types of \p fn
-///        must a a common type determined by \p std::common_type .
+///        when invoked with \p T 's derived types must have a common type determined by \p std::common_type.
 /// \returns \p std::invoke(fn,static_cast<MOST_DERIVED_TYPE>(obj)) where \p MOST_DERIVED_TYPE is the most derived type
-///          of \p obj with the same cv-ref qualifications as \p obj .
+///          of \p obj with the same cv-ref qualifications as \p obj.
 template <typename T, typename F>
 requires internal::Dynamic<T>
 decltype(auto) visit(T&& obj, F&& fn);
@@ -251,6 +251,8 @@ struct DispatchReturnType<Enum, GivenType, F, std::index_sequence<I...>> {
 
 } // namespace scatha::internal
 
+// clang-format off
+
 template <typename T, typename F>
 requires scatha::internal::Dynamic<T>
 decltype(auto) scatha::visit(T&& obj, F&& fn) {
@@ -264,9 +266,8 @@ decltype(auto) scatha::visit(T&& obj, F&& fn) {
     static constexpr std::array<DispatchPtrType, numElems> dispatchPtrs = [&]<size_t... I>(std::index_sequence<I...>) {
         return std::array<DispatchPtrType, numElems>{ [](T&& t, F&& f) -> ReturnType {
             using TargetType                  = utl::copy_cvref_t<T&&, DyncastEnumToType<EnumType{ I }>>;
-            constexpr bool staticallyCastable = requires {
-                static_cast<TargetType>(t);
-            };
+            constexpr bool staticallyCastable = requires { static_cast<TargetType>(t); };
+            static_assert(std::is_reference_v<TargetType>, "To avoid copies when performing static_cast.");
             if constexpr (!staticallyCastable) {
                 /// If we can't even \p static_cast there is no way this can be invoked.
                 /// We need to use \p I in this path also, otherwise we can't fold over this expression later. This
@@ -275,21 +276,22 @@ decltype(auto) scatha::visit(T&& obj, F&& fn) {
                 SC_UNREACHABLE();
             }
             else if constexpr (std::is_convertible_v<T&&, TargetType> && !std::is_same_v<T&&, TargetType>) {
-                /// If can can cast implicitly but destination type is not the same, this means we go up the hierarchy.
+                /// If we can cast implicitly but destination type is not the same, this means we go up the hierarchy.
                 /// Since we are dispatching on the most derived type, this path should be unreachable.
                 (void)I;
                 SC_UNREACHABLE();
             }
             else {
-                static_assert(staticallyCastable);
                 return std::invoke(std::forward<F>(f), static_cast<TargetType>(t));
             }
         }... };
-    }
-    (std::make_index_sequence<numElems>{});
-    return dispatchPtrs[static_cast<size_t>(DyncastTraits<EnumType>::type(obj))](std::forward<T>(obj),
-                                                                                 std::forward<F>(fn));
+    }(std::make_index_sequence<numElems>{});
+    size_t const index = static_cast<size_t>(DyncastTraits<EnumType>::type(obj));
+    auto const dispatchFn = dispatchPtrs[index];
+    return dispatchFn(std::forward<T>(obj), std::forward<F>(fn));
 }
+
+// clang-format on
 
 template <typename To, typename From>
 requires scatha::internal::DynCheckable<To, From>
