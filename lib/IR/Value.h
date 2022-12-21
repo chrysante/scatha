@@ -12,10 +12,10 @@ namespace scatha::ir {
 /// Every value has a type. Types are not values.
 class Value {
 protected:
-    explicit Value(NodeType nodeType, Type const* type): _nodeType(nodeType), _name(), _type(type) {}
+    explicit Value(NodeType nodeType, Type const* type): _nodeType(nodeType), _type(type) {}
 
-    explicit Value(NodeType nodeType, std::string name, Type const* type) noexcept:
-        _nodeType(nodeType), _name(std::move(name)), _type(type) {}
+    explicit Value(NodeType nodeType, Type const* type, std::string name) noexcept:
+        _nodeType(nodeType), _type(type), _name(std::move(name)) {}
 
 public:
     NodeType nodeType() const { return _nodeType; }
@@ -30,8 +30,8 @@ public:
 
 private:
     NodeType _nodeType;
-    std::string _name;
     Type const* _type;
+    std::string _name;
 };
 
 // For dyncast compatibilty

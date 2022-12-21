@@ -15,6 +15,9 @@ namespace scatha::ir {
 // │  └─ Function
 // ├─ BasicBlock
 // └─ Instruction
+//    ├─ UnaryInstruction
+//    │  └─ Alloca
+//    ├─ CompareInst
 //    └─ TerminatorInst
 //       ├─ Goto
 //       ├─ Branch
@@ -26,6 +29,9 @@ class Constant;
 class Function;
 class BasicBlock;
 class Instruction;
+class UnaryInstruction;
+class Alloca;
+class CompareInst;
 class TerminatorInst;
 class Goto;
 class Branch;
@@ -38,6 +44,9 @@ enum class NodeType {
     Function,
     BasicBlock,
     Instruction,
+    UnaryInstruction,
+    Alloca,
+    CompareInst,
     TerminatorInst,
     Goto,
     Branch,
@@ -56,6 +65,9 @@ SC_IR_ENABLE_DYNCAST(Constant);
 SC_IR_ENABLE_DYNCAST(Function);
 SC_IR_ENABLE_DYNCAST(BasicBlock);
 SC_IR_ENABLE_DYNCAST(Instruction);
+SC_IR_ENABLE_DYNCAST(UnaryInstruction);
+SC_IR_ENABLE_DYNCAST(Alloca);
+SC_IR_ENABLE_DYNCAST(CompareInst);
 SC_IR_ENABLE_DYNCAST(TerminatorInst);
 SC_IR_ENABLE_DYNCAST(Goto);
 SC_IR_ENABLE_DYNCAST(Branch);

@@ -12,9 +12,63 @@ class Type;
 
 class Instruction: public Value, public NodeWithParent<Instruction, BasicBlock> {
 protected:
-    explicit Instruction(NodeType nodeType, Type const* type): Value(nodeType, type) {}
-
+    explicit Instruction(NodeType nodeType, Type const* type, std::string name = {}):
+        Value(nodeType, type, std::move(name)) {}
+    
 private:
+    
+};
+
+class UnaryInstruction: public Instruction {
+protected:
+    explicit UnaryInstruction(NodeType nodeType, Value* operand, Type const* type):
+        Instruction(nodeType, type), _operand(operand) {}
+    
+public:
+    Value* operand() { return _operand; }
+    
+private:
+    Value* _operand;
+};
+
+class Alloca: public UnaryInstruction {
+public:
+    explicit Alloca(Context& context, Value* sizeOp):
+        UnaryInstruction(NodeType::Alloca, sizeOp, context.voidType())
+    {
+        SC_ASSERT(sizeOp->type()->isIntegral(), "Size argument to Alloca must be integral");
+    }
+    
+private:
+    
+};
+
+enum class CompareOperation {
+    Less,
+    LessEq,
+    Greater,
+    GreaterEq,
+    Equal,
+    NotEqual,
+};
+
+class SCATHA(API) CompareInst: public Instruction {
+public:
+    explicit CompareInst(Context& context, Value* lhs, Value* rhs, CompareOperation op):
+        Instruction(NodeType::CompareInst, context.integralType(1)),
+        _lhs(lhs),
+        _rhs(rhs),
+        _op(op)
+    {}
+    
+    Value* lhs() const { return _lhs; }
+    Value* rhs() const { return _rhs; }
+    CompareOperation operation() const { return _op; }
+    
+private:
+    Value* _lhs;
+    Value* _rhs;
+    CompareOperation _op;
 };
 
 class TerminatorInst: public Instruction {

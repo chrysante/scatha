@@ -22,6 +22,12 @@ public:
 
     auto category() const { return _category; }
 
+    bool isVoid() const { return category() == Void; }
+    bool isIntegral() const { return category() == Integral; }
+    bool isFloat() const { return category() == FloatingPoint; }
+    bool isStruct() const { return category() == Structure; }
+    bool isFunction() const { return category() == Function; }
+    
     struct Hash {
         using is_transparent = void;
 

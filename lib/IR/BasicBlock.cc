@@ -6,7 +6,7 @@ using namespace scatha;
 using namespace ir;
 
 BasicBlock::BasicBlock(Context& context, std::string name):
-    Value(NodeType::BasicBlock, std::move(name), context.voidType()) {}
+    Value(NodeType::BasicBlock, context.voidType(), std::move(name)) {}
 
 BasicBlock::~BasicBlock() = default;
 
