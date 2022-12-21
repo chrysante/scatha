@@ -15,7 +15,8 @@ public:
     Context();
     Type const* voidType();
     Integral const* integralType(std::size_t bitWidth);
-
+    Type const* pointerType();
+    
 private:
     //    utl::hashset<Value> values;
     utl::hashset<Type*, Type::Hash, Type::Equals> types;

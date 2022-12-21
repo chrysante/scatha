@@ -8,10 +8,17 @@ using namespace ir;
 
 Context::Context() {
     types.insert(new Type("void", Type::Category::Void));
+    types.insert(new Type("ptr", Type::Category::Pointer));
 }
 
 Type const* Context::voidType() {
     auto itr = types.find("void");
+    SC_ASSERT(itr != types.end(), "");
+    return *itr;
+}
+
+Type const* Context::pointerType() {
+    auto itr = types.find("ptr");
     SC_ASSERT(itr != types.end(), "");
     return *itr;
 }

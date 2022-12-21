@@ -21,8 +21,8 @@ private:
 
 class UnaryInstruction: public Instruction {
 protected:
-    explicit UnaryInstruction(NodeType nodeType, Value* operand, Type const* type):
-        Instruction(nodeType, type), _operand(operand) {}
+    explicit UnaryInstruction(NodeType nodeType, Value* operand, Type const* type, std::string name):
+        Instruction(nodeType, type, std::move(name)), _operand(operand) {}
     
 public:
     Value* operand() { return _operand; }
@@ -33,10 +33,22 @@ private:
 
 class Alloca: public UnaryInstruction {
 public:
-    explicit Alloca(Context& context, Value* sizeOp):
-        UnaryInstruction(NodeType::Alloca, sizeOp, context.voidType())
+    explicit Alloca(Context& context, Value* sizeOp, std::string name):
+        UnaryInstruction(NodeType::Alloca, sizeOp, context.pointerType(), std::move(name))
     {
         SC_ASSERT(sizeOp->type()->isIntegral(), "Size argument to Alloca must be integral");
+    }
+    
+private:
+    
+};
+
+class Load: public UnaryInstruction {
+public:
+    explicit Load(Type const* type, Value* pointer, std::string name):
+        UnaryInstruction(NodeType::Load, pointer, type, std::move(name))
+    {
+        SC_ASSERT(pointer->type()->isPointer(), "Pointer argument to Load must be a pointer");
     }
     
 private:

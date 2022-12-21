@@ -14,7 +14,7 @@ namespace scatha::ir {
 /// Base class of all types in the IR
 class Type {
 public:
-    enum Category { Void, Integral, FloatingPoint, Structure, Function };
+    enum Category { Void, Pointer, Integral, FloatingPoint, Structure, Function };
 
     explicit Type(std::string name, Category category): _name(std::move(name)), _category(category) {}
 
@@ -23,6 +23,7 @@ public:
     auto category() const { return _category; }
 
     bool isVoid() const { return category() == Void; }
+    bool isPointer() const { return category() == Pointer; }
     bool isIntegral() const { return category() == Integral; }
     bool isFloat() const { return category() == FloatingPoint; }
     bool isStruct() const { return category() == Structure; }
