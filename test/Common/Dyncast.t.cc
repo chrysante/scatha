@@ -1,11 +1,13 @@
 #include <Catch/Catch2.hpp>
 
+#include <utl/utility.hpp>
+
 #include "Common/Dyncast.h"
 
 namespace {
 
 enum class Type {
-    Base, LDerivedA, LDerivedB, RDerived, _count
+    Base, LDerivedA, LDerivedB, LDerivedC, RDerived, _count
 };
 
 struct Base {        
@@ -28,7 +30,15 @@ public:
 };
 
 struct LDerivedB: LDerivedA {
+protected:
+    LDerivedB(Type type): LDerivedA(type) {}
+    
+public:
     LDerivedB(): LDerivedA(Type::LDerivedB) {}
+};
+
+struct LDerivedC: LDerivedB {
+    LDerivedC(): LDerivedB(Type::LDerivedC) {}
 };
 
 struct RDerived: Base {
@@ -40,6 +50,7 @@ struct RDerived: Base {
 SC_DYNCAST_MAP(Base, Type::Base);
 SC_DYNCAST_MAP(LDerivedA, Type::LDerivedA);
 SC_DYNCAST_MAP(LDerivedB, Type::LDerivedB);
+SC_DYNCAST_MAP(LDerivedC, Type::LDerivedC);
 SC_DYNCAST_MAP(RDerived, Type::RDerived);
 
 using namespace scatha;
@@ -56,9 +67,33 @@ TEST_CASE("Dyncast visit", "[common][dyncast]") {
 }
 
 TEST_CASE("Dyncast visit subtree", "[common][dyncast]") {
+    auto dispatcher = [](LDerivedA& x) {
+        return visit(x, utl::overload {
+            [](LDerivedA& a) { return 0; },
+            [](LDerivedC& c) { return 1; },
+        });
+    };
+    LDerivedA a;
     LDerivedB b;
-    LDerivedA& base = b;
-    CHECK(visit(base, [](LDerivedA& a) { return a.type(); }) == Type::LDerivedB);
+    LDerivedC c;
+    CHECK(dispatcher(a) == 0);
+    CHECK(dispatcher(b) == 0);
+    CHECK(dispatcher(c) == 1);
+}
+
+TEST_CASE("Dyncast visit subtree - 2", "[common][dyncast]") {
+    auto dispatcher = [](LDerivedA& x) {
+        return visit(x, utl::overload {
+            [](LDerivedA& a) { return 0; },
+            [](LDerivedB& b) { return 1; },
+        });
+    };
+    LDerivedA a;
+    LDerivedB b;
+    LDerivedC c;
+    CHECK(dispatcher(a) == 0);
+    CHECK(dispatcher(b) == 1);
+    CHECK(dispatcher(c) == 1);
 }
 
 TEST_CASE("isa and dyncast", "[common][dyncast]") {
