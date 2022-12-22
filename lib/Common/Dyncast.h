@@ -63,6 +63,11 @@ namespace scatha {
 /// runtime type identifiers by a \p .type() method, this customiziation point is not needed. Otherwise define a
 /// function \p dyncastGetType() with compatible signature for every type in the same namespace as the type. This can
 /// of course be a (constrained) template.
+/// Note that for a class hierarchy with root \p NS::Base defining a function \p dyncastGetType(Base \p const&) in
+/// namespace \p NS does not suffice in general: If a class derived from \p Base satisfies the requirements of the
+/// generic \p dyncastGetType() function defined here, it will be called instead. In practice this may not matter much,
+/// but to be safe and generic prefer defining the overload like so:
+/// \code auto NS::dyncastGetType(std::convertible_to<Base> auto const&); \endcode
 template <typename T>
 auto dyncastGetType(T const& t)
 requires requires { { t.type() } -> std::convertible_to<internal::DCEnumType<T>>; }
@@ -73,7 +78,8 @@ requires requires { { t.type() } -> std::convertible_to<internal::DCEnumType<T>>
 // clang-format on
 
 /// Optional second customization point. All fields below must be implemented. If a custom implementation for
-/// \p type(...) is given, the first customization point \p dyncastGetType() is not used.
+/// \p DyncastTraits<...>::type(...) which does not invoke \p dyncastGetType() is given, the first customization point
+/// \p dyncastGetType() is not used.
 template <typename Enum>
 struct DyncastTraits {
     static Enum type(auto const& t) { return dyncastGetType(t); }
@@ -162,7 +168,7 @@ public:
 
 private:
     template <Enum CurrentTestType, Enum TargetTestType, typename ActualType>
-    requires std::is_convertible_v<ActualType, DyncastEnumToType<CurrentTestType>>
+    requires std::is_convertible_v<ActualType*, DyncastEnumToType<CurrentTestType>*>
     static constexpr bool isExactly() { return CurrentTestType == TargetTestType; }
 
     template <Enum CurrentTestType, Enum TargetTestType, typename ActualType>
