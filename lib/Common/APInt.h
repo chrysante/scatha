@@ -114,6 +114,8 @@ public:
 
     friend std::ostream& operator<<(std::ostream& ostream, APInt const& number);
 
+    friend struct std::hash<APInt>;
+    
 private:
     template <typename T>
     bool representableAsImpl() const;
@@ -127,6 +129,11 @@ private:
 };
 
 } // namespace scatha
+
+template <>
+struct std::hash<scatha::APInt> {
+    std::size_t operator()(scatha::APInt const& value) const;
+};
 
 // MARK: Inline definitions
 

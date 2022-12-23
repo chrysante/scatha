@@ -19,7 +19,7 @@ static auto* as_mpz(T& value) {
     }
 }
 
-namespace scatha {
+using namespace scatha;
 
 APInt::APInt() {
     mpz_init(as_mpz(storage));
@@ -176,22 +176,22 @@ static std::strong_ordering toStrongOrdering(int value) {
     }
 }
 
-std::strong_ordering operator<=>(APInt const& lhs, APInt const& rhs) {
+std::strong_ordering scatha::operator<=>(APInt const& lhs, APInt const& rhs) {
     int const result = mpz_cmp(as_mpz(lhs.storage), as_mpz(rhs.storage));
     return toStrongOrdering(result);
 }
 
-std::strong_ordering operator<=>(APInt const& lhs, long long rhs) {
+std::strong_ordering scatha::operator<=>(APInt const& lhs, long long rhs) {
     int const result = mpz_cmp_si(as_mpz(lhs.storage), rhs);
     return toStrongOrdering(result);
 }
 
-std::strong_ordering operator<=>(APInt const& lhs, unsigned long long rhs) {
+std::strong_ordering scatha::operator<=>(APInt const& lhs, unsigned long long rhs) {
     int const result = mpz_cmp_ui(as_mpz(lhs.storage), rhs);
     return toStrongOrdering(result);
 }
 
-std::strong_ordering operator<=>(APInt const& lhs, double rhs) {
+std::strong_ordering scatha::operator<=>(APInt const& lhs, double rhs) {
     int const result = mpz_cmp_d(as_mpz(lhs.storage), rhs);
     return toStrongOrdering(result);
 }
@@ -203,7 +203,7 @@ std::string APInt::toString() const {
     return std::move(sstr).str();
 }
 
-std::ostream& operator<<(std::ostream& ostream, APInt const& number) {
+std::ostream& scatha::operator<<(std::ostream& ostream, APInt const& number) {
     int const base = [&] {
         auto const flags = ostream.flags();
         return flags & std::ios::dec ? 10 :
@@ -218,4 +218,13 @@ std::ostream& operator<<(std::ostream& ostream, APInt const& number) {
     return ostream << buffer;
 }
 
-} // namespace scatha
+std::size_t std::hash<scatha::APInt>::operator()(scatha::APInt const& value) const {
+    auto const* const data = mpz_limbs_read(as_mpz(value.storage));
+    size_t const size = mpz_size(as_mpz(value.storage));
+    static_assert(sizeof(*data) == 8);
+    uint64_t result = 0;
+    for (size_t i = 0; i < size; ++i) {
+        result ^= data[i];
+    }
+    return result;
+}
