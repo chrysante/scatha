@@ -116,7 +116,14 @@ void PrintCtx::print(Branch const& br) {
 }
 
 void PrintCtx::print(Return const& ret) {
-    str << "    " << "return " << ret.value()->type()->name() << " " << toString(*ret.value()) << "\n";
+    str << "    " << "return ";
+    
+    if (!ret.value()) {
+        str << "\n";
+    }
+    else {
+        str << ret.value()->type()->name() << " " << toString(*ret.value()) << "\n";
+    }
 }
 
 void PrintCtx::print(FunctionCall const& call) {

@@ -111,7 +111,7 @@ ir::Value* Context::generate(FunctionDefinition const& def) {
         return mapType(param->typeID());
     });
 // TODO: Also here worry about name mangling
-    auto* fn = cast<ir::Function*>(irCtx.getGlobal(def.name()));
+    auto* fn = cast<ir::Function*>(irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
     varIndex = def.parameters.size();
     auto* entry = new ir::BasicBlock(irCtx, localUniqueName());
     fn->addBasicBlock(entry);
@@ -260,24 +260,6 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
             currentBB->addInstruction(arithInst);
             return arithInst;
         }
-//        case BinaryOperator::LogicalAnd: {
-//            ir::Value* const lhs = dispatch(*exprDecl.lhs);
-//            auto* startBlock = currentBB;
-//            auto* rhsBlock = new ir::BasicBlock(irCtx, localUniqueName());
-//            auto* endBlock = new ir::BasicBlock(irCtx, localUniqueName());
-//            currentBB->addInstruction(new ir::Branch(irCtx, lhs, rhsBlock, endBlock));
-//            currentFunction->addBasicBlock(rhsBlock);
-//            setCurrentBB(rhsBlock);
-//            auto* rhs = dispatch(*exprDecl.rhs);
-//            currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
-//            currentFunction->addBasicBlock(endBlock);
-//            setCurrentBB(endBlock);
-//            auto* result = new ir::Phi(irCtx.integralType(1),
-//                                       { { startBlock, irCtx.getIntegralConstant(0, 1) }, { rhsBlock, rhs } },
-//                                       localUniqueName());
-//            currentBB->addInstruction(result);
-//            return result;
-//        }
         case BinaryOperator::LogicalAnd: [[fallthrough]];
         case BinaryOperator::LogicalOr: {
             ir::Value* const lhs = dispatch(*exprDecl.lhs);
@@ -377,7 +359,7 @@ ir::Value* Context::generate(Conditional const& condExpr) {
 
 ir::Value* Context::generate(FunctionCall const& functionCall) {
     // TODO: Perform actual name mangling
-    std::string_view const mangledName = cast<Identifier const*>(functionCall.object.get())->value();
+    std::string const mangledName = utl::strcat(cast<Identifier const*>(functionCall.object.get())->value(), functionCall.functionID());
     ir::Function* function = cast<ir::Function*>(irCtx.getGlobal(mangledName));
     utl::small_vector<ir::Value*> const args = utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* {
         return dispatch(*expr);
@@ -399,7 +381,10 @@ void Context::declareFunctions() {
         // TODO: Generate proper function type here
         ir::FunctionType const* const functionType = nullptr;
         // TODO: Worry about name mangling
-        auto* fn = new ir::Function(functionType, mapType(function.signature().returnTypeID()), paramTypes, function.name());
+        auto* fn = new ir::Function(functionType,
+                                    mapType(function.signature().returnTypeID()),
+                                    paramTypes,
+                                    utl::strcat(function.name(), function.symbolID()));
         irCtx.addGlobal(fn);
     }
 }
@@ -468,11 +453,11 @@ ir::CompareOperation Context::mapCompareOp(ast::BinaryOperator op) {
 
 ir::ArithmeticOperation Context::mapArithmeticOp(ast::BinaryOperator op) {
     switch (op) {
-        case BinaryOperator::Multiplication: return ir::ArithmeticOperation::Add;
-        case BinaryOperator::Division:       return ir::ArithmeticOperation::Sub;
-        case BinaryOperator::Remainder:      return ir::ArithmeticOperation::Mul;
-        case BinaryOperator::Addition:       return ir::ArithmeticOperation::Div;
-        case BinaryOperator::Subtraction:    return ir::ArithmeticOperation::Rem;
+        case BinaryOperator::Multiplication: return ir::ArithmeticOperation::Mul;
+        case BinaryOperator::Division:       return ir::ArithmeticOperation::Div;
+        case BinaryOperator::Remainder:      return ir::ArithmeticOperation::Rem;
+        case BinaryOperator::Addition:       return ir::ArithmeticOperation::Add;
+        case BinaryOperator::Subtraction:    return ir::ArithmeticOperation::Sub;
         case BinaryOperator::LeftShift:      return ir::ArithmeticOperation::ShiftL;
         case BinaryOperator::RightShift:     return ir::ArithmeticOperation::ShiftR;
         case BinaryOperator::BitwiseAnd:     return ir::ArithmeticOperation::And;
