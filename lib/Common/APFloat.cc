@@ -25,7 +25,7 @@ using internal::asImpl;
 
 static constexpr auto roundingMode = MPFR_RNDN;
 
-/// This unfortunately is global.
+/// This unfortunately is global. Luckily though it is implemented as a thread local variable.
 static void setExponentRange(APFloatPrecision prec) {
     /// Weirdly enough mpfr expects these values to be 1 less/greater than the actual values.
     mpfr_set_emin(prec.minExponent() - 1);
