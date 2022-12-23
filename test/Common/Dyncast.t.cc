@@ -33,6 +33,8 @@ struct LDerivedB: LDerivedA {
 protected:
     LDerivedB(Type type): LDerivedA(type) {}
     
+    LDerivedB(LDerivedB const&) = delete;
+    
 public:
     LDerivedB(): LDerivedA(Type::LDerivedB) {}
 };
