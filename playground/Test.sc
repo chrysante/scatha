@@ -13,7 +13,7 @@ fn faculty(n: int) -> int {
     return result;
 }
 
-fn fac(n: int) -> int
+fn fac(n: int) -> int {
     return n <= 1 ? 1 : fac(n - 1);
 }
 
