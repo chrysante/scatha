@@ -49,6 +49,8 @@ struct Context {
     ir::Value* generate(Subscript const&);
     
     void declareFunctions();
+    void setCurrentBB(ir::BasicBlock*);
+    void finishCurrentBB();
     
     void memorizeVariablePtr(sema::SymbolID, ir::Value*);
     ir::Value* getVariablePtr(sema::SymbolID);
@@ -122,8 +124,9 @@ ir::Value* Context::generate(FunctionDefinition const& def) {
         entry->addInstruction(store);
     }
     currentFunction = fn;
-    currentBB = entry;
+    setCurrentBB(entry);
     dispatch(*def.body);
+    setCurrentBB(nullptr);
     return fn;
 }
 
@@ -171,21 +174,19 @@ ir::Value* Context::generate(IfStatement const& ifStatement) {
     auto* endBlock = new ir::BasicBlock(irCtx, localUniqueName());
     auto branch = new ir::Branch(irCtx, condition, thenBlock, elseBlock ? elseBlock : endBlock);
     currentBB->addInstruction(branch);
-    currentFunction->addBasicBlock(thenBlock);
-    currentBB = thenBlock;
-    auto addBlock = [&](ast::Statement const& block) {
+    auto addBlock = [&](ir::BasicBlock* bb, ast::Statement const& block) {
+        currentFunction->addBasicBlock(bb);
+        setCurrentBB(bb);
         dispatch(block);
         auto* gotoEnd = new ir::Goto(irCtx, endBlock);
         currentBB->addInstruction(gotoEnd);
     };
-    addBlock(*ifStatement.ifBlock);
+    addBlock(thenBlock, *ifStatement.ifBlock);
     if (ifStatement.elseBlock) {
-        currentFunction->addBasicBlock(elseBlock);
-        currentBB = elseBlock;
-        addBlock(*ifStatement.elseBlock);
+        addBlock(elseBlock, *ifStatement.elseBlock);
     }
     currentFunction->addBasicBlock(endBlock);
-    currentBB = endBlock;
+    setCurrentBB(endBlock);
     return nullptr;
 }
 
@@ -198,7 +199,7 @@ ir::Value* Context::generate(WhileStatement const& loopDecl) {
     currentFunction->addBasicBlock(loopEnd);
     auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
     currentBB->addInstruction(gotoLoopHeader);
-    currentBB = loopHeader;
+    setCurrentBB(loopHeader);
     auto* condition = dispatch(*loopDecl.condition);
     auto* branch = new ir::Branch(irCtx, condition, loopBody, loopEnd);
     currentBB->addInstruction(branch);
@@ -206,7 +207,7 @@ ir::Value* Context::generate(WhileStatement const& loopDecl) {
     dispatch(*loopDecl.block);
     auto* gotoLoopHeader2 = new ir::Goto(irCtx, loopHeader);
     currentBB->addInstruction(gotoLoopHeader2);
-    currentBB = loopEnd;
+    setCurrentBB(loopEnd);
     return nullptr;
 }
 
@@ -242,8 +243,6 @@ ir::Value* Context::generate(UnaryPrefixExpression const&) {
 }
 
 ir::Value* Context::generate(BinaryExpression const& exprDecl) {
-    ir::Value* const lhs = exprDecl.operation() != BinaryOperator::Assignment ? dispatch(*exprDecl.lhs) : nullptr;
-    ir::Value* const rhs = dispatch(*exprDecl.rhs);
     switch (exprDecl.operation()) {
         case BinaryOperator::Multiplication: [[fallthrough]];
         case BinaryOperator::Division:       [[fallthrough]];
@@ -254,12 +253,55 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
         case BinaryOperator::RightShift:     [[fallthrough]];
         case BinaryOperator::BitwiseAnd:     [[fallthrough]];
         case BinaryOperator::BitwiseXOr:     [[fallthrough]];
-        case BinaryOperator::BitwiseOr:      [[fallthrough]];
-        case BinaryOperator::LogicalAnd:     [[fallthrough]];
-        case BinaryOperator::LogicalOr: {
+        case BinaryOperator::BitwiseOr: {
+            ir::Value* const lhs = dispatch(*exprDecl.lhs);
+            ir::Value* const rhs = dispatch(*exprDecl.rhs);
             auto* arithInst = new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName());
             currentBB->addInstruction(arithInst);
             return arithInst;
+        }
+//        case BinaryOperator::LogicalAnd: {
+//            ir::Value* const lhs = dispatch(*exprDecl.lhs);
+//            auto* startBlock = currentBB;
+//            auto* rhsBlock = new ir::BasicBlock(irCtx, localUniqueName());
+//            auto* endBlock = new ir::BasicBlock(irCtx, localUniqueName());
+//            currentBB->addInstruction(new ir::Branch(irCtx, lhs, rhsBlock, endBlock));
+//            currentFunction->addBasicBlock(rhsBlock);
+//            setCurrentBB(rhsBlock);
+//            auto* rhs = dispatch(*exprDecl.rhs);
+//            currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
+//            currentFunction->addBasicBlock(endBlock);
+//            setCurrentBB(endBlock);
+//            auto* result = new ir::Phi(irCtx.integralType(1),
+//                                       { { startBlock, irCtx.getIntegralConstant(0, 1) }, { rhsBlock, rhs } },
+//                                       localUniqueName());
+//            currentBB->addInstruction(result);
+//            return result;
+//        }
+        case BinaryOperator::LogicalAnd: [[fallthrough]];
+        case BinaryOperator::LogicalOr: {
+            ir::Value* const lhs = dispatch(*exprDecl.lhs);
+            auto* startBlock = currentBB;
+            auto* rhsBlock = new ir::BasicBlock(irCtx, localUniqueName());
+            auto* endBlock = new ir::BasicBlock(irCtx, localUniqueName());
+            currentBB->addInstruction(exprDecl.operation() == BinaryOperator::LogicalAnd ?
+                                      new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
+                                      new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
+            currentFunction->addBasicBlock(rhsBlock);
+            setCurrentBB(rhsBlock);
+            auto* rhs = dispatch(*exprDecl.rhs);
+            currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
+            currentFunction->addBasicBlock(endBlock);
+            setCurrentBB(endBlock);
+            auto* result = exprDecl.operation() == BinaryOperator::LogicalAnd ?
+                new ir::Phi(irCtx.integralType(1),
+                            { { startBlock, irCtx.getIntegralConstant(0, 1) }, { rhsBlock, rhs } },
+                            localUniqueName()) :
+                new ir::Phi(irCtx.integralType(1),
+                            { { startBlock, irCtx.getIntegralConstant(1, 1) }, { rhsBlock, rhs } },
+                            localUniqueName());
+            currentBB->addInstruction(result);
+            return result;
         }
         case BinaryOperator::Less:      [[fallthrough]];
         case BinaryOperator::LessEq:    [[fallthrough]];
@@ -267,12 +309,15 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
         case BinaryOperator::GreaterEq: [[fallthrough]];
         case BinaryOperator::Equals:    [[fallthrough]];
         case BinaryOperator::NotEquals: {
+            ir::Value* const lhs = dispatch(*exprDecl.lhs);
+            ir::Value* const rhs = dispatch(*exprDecl.rhs);
             auto* cmpInst = new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName());
             currentBB->addInstruction(cmpInst);
             return cmpInst;
         }
         case BinaryOperator::Comma: {
-            return rhs;
+            dispatch(*exprDecl.lhs);
+            return dispatch(*exprDecl.rhs);
         }
         case BinaryOperator::Assignment:    [[fallthrough]];
         case BinaryOperator::AddAssignment: [[fallthrough]];
@@ -285,6 +330,8 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
         case BinaryOperator::AndAssignment: [[fallthrough]];
         case BinaryOperator::OrAssignment:  [[fallthrough]];
         case BinaryOperator::XOrAssignment: {
+            ir::Value* const lhs = exprDecl.operation() != BinaryOperator::Assignment ? dispatch(*exprDecl.lhs) : nullptr;
+            ir::Value* const rhs = dispatch(*exprDecl.rhs);
             auto* lhsPointer = getVariablePtr(cast<Identifier const*>(exprDecl.lhs.get())->symbolID());
             ir::Value* value = [&]() -> ir::Value* {
                 if (exprDecl.operation() == BinaryOperator::Assignment) { return rhs; }
@@ -306,8 +353,26 @@ ir::Value* Context::generate(MemberAccess const&) {
     SC_DEBUGFAIL();
 }
 
-ir::Value* Context::generate(Conditional const&) {
-    SC_DEBUGFAIL();
+ir::Value* Context::generate(Conditional const& condExpr) {
+    ir::Type const* type = mapType(condExpr.typeID());
+    auto* cond = dispatch(*condExpr.condition);
+    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* elseBlock = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* endBlock = new ir::BasicBlock(irCtx, localUniqueName());
+    currentBB->addInstruction(new ir::Branch(irCtx, cond, thenBlock, elseBlock));
+    currentFunction->addBasicBlock(thenBlock);
+    setCurrentBB(thenBlock);
+    auto* thenVal = dispatch(*condExpr.ifExpr);
+    currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
+    currentFunction->addBasicBlock(elseBlock);
+    setCurrentBB(elseBlock);
+    auto* elseVal = dispatch(*condExpr.elseExpr);
+    currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
+    currentFunction->addBasicBlock(endBlock);
+    setCurrentBB(endBlock);
+    auto* result = new ir::Phi(type, { { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName());
+    currentBB->addInstruction(result);
+    return result;
 }
 
 ir::Value* Context::generate(FunctionCall const& functionCall) {
@@ -336,6 +401,26 @@ void Context::declareFunctions() {
         // TODO: Worry about name mangling
         auto* fn = new ir::Function(functionType, mapType(function.signature().returnTypeID()), paramTypes, function.name());
         irCtx.addGlobal(fn);
+    }
+}
+
+void Context::setCurrentBB(ir::BasicBlock* bb) {
+    finishCurrentBB();
+    currentBB = bb;
+}
+
+void Context::finishCurrentBB() {
+    if (currentBB == nullptr) {
+        return;
+    }
+    auto& instructions = currentBB->instructions;
+    for (auto itr = instructions.begin(); itr != instructions.end(); ++itr) {
+        auto& inst = *itr;
+        if (!isa<ir::TerminatorInst>(inst)) {
+            continue;
+        }
+        instructions.erase(std::next(itr), instructions.end());
+        break;
     }
 }
 

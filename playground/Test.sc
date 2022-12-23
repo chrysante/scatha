@@ -13,7 +13,14 @@ fn faculty(n: int) -> int {
     return result;
 }
 
-fn rfac(n: int) -> int {
-    if (n <= 1) { return 1; }
-    return n * rfac(n - 1);
+fn fac(n: int) -> int {
+    return n <= 1 ? 1 : fac(n - 1);
+}
+
+fn testAND(n: int) -> bool {
+    return n == 1 && n == 5;
+}
+
+fn testOR(n: int) -> bool {
+    return n == 1 || n == 5;
 }

@@ -31,7 +31,8 @@ namespace scatha::ir {
 //    │  ├─ Goto
 //    │  ├─ Branch
 //    │  └─ Return
-//    └─ FunctionCall
+//    ├─ FunctionCall
+//    └─ Phi
 
 #define SC_INSTRUCTION_DEF(Inst) class Inst;
 #include "IR/Instructions.def"

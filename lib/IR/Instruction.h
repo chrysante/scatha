@@ -173,6 +173,25 @@ private:
     utl::small_vector<Value*> _args;
 };
 
+struct PhiMapping {
+    BasicBlock* pred;
+    Value* value;
+};
+
+class SCATHA(API) Phi: public Instruction {
+public:
+    explicit Phi(Type const* type, std::initializer_list<PhiMapping> args, std::string name):
+        Phi(type, std::span<PhiMapping const>(args), std::move(name)) {}
+    explicit Phi(Type const* type, std::span<PhiMapping const> args, std::string name):
+        Instruction(NodeType::Phi, type, std::move(name)), arguments(args) {
+            for ([[maybe_unused]] auto& [pred, val]: args) {
+                SC_EXPECT(val->type() == type, "Type mismatch");
+            }
+        }
+    
+    utl::small_vector<PhiMapping> arguments;
+};
+
 } // namespace scatha::ir
 
 #endif // SCATHA_INSTRUCTION_H_

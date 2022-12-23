@@ -31,6 +31,7 @@ struct PrintCtx {
     void print(Branch const&);
     void print(Return const&);
     void print(FunctionCall const&);
+    void print(Phi const&);
     
     std::string toString(Value const&);
     
@@ -69,7 +70,7 @@ void PrintCtx::print(Function const& function) {
 
 void PrintCtx::print(BasicBlock const& bb) {
     str << "  %" << bb.name() << ":\n";
-    for (auto& instruction: bb.instructions()) {
+    for (auto& instruction: bb.instructions) {
         dispatch(instruction);
     }
 }
@@ -126,6 +127,14 @@ void PrintCtx::print(FunctionCall const& call) {
     str << "call " << call.type()->name();
     for (auto& arg: call.arguments()) {
         str << ", " << arg->type()->name() << " " << toString(*arg);
+    }
+    str << "\n";
+}
+
+void PrintCtx::print(Phi const& phi) {
+    str << "    %" << phi.name() << " = phi " << phi.type()->name();
+    for (auto& [pred, value]: phi.arguments) {
+        str << ", [label %" << pred->name() << ", " << toString(*value) << "]";
     }
     str << "\n";
 }
