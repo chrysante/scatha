@@ -718,11 +718,11 @@ std::optional<List> Context::parseList(std::string_view open,
             result.push_back(std::move(elem));
         }
         else {
-#warning Maybe delegate error handling to the parse callback to avoid duplicate errors in some cases
+            /// TODO: Maybe delegate error handling to the parse callback to avoid duplicate errors in some cases
             iss.push(SyntaxIssue(tokens.peek(), ExpectedExpression));
             /// Without eating a token we may get stuck in an infinite loop, otherwise we may miss delimiters in case of
             /// syntax errors (especcially missing ')').
-            //          tokens.eat();
+//          tokens.eat();
         }
     }
     return result;
