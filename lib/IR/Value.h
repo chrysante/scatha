@@ -3,14 +3,17 @@
 
 #include <string>
 
+#include "Common/APInt.h"
 #include "IR/CFGCommon.h"
 #include "IR/Type.h"
 
 namespace scatha::ir {
 
+class Context;
+
 /// Represents a value in the program.
 /// Every value has a type. Types are not values.
-class Value {
+class SCATHA(API) Value {
 protected:
     explicit Value(NodeType nodeType, Type const* type): _nodeType(nodeType), _type(type) {}
 
@@ -35,15 +38,26 @@ private:
 };
 
 // For dyncast compatibilty
-NodeType dyncastGetType(std::derived_from<Value> auto const& value) {
+inline NodeType dyncastGetType(std::derived_from<Value> auto const& value) {
     return value.nodeType();
 }
 
-class Constant: public Value {
+class SCATHA(API) Constant: public Value {
 public:
     using Value::Value;
 
 private:
+    
+};
+
+class SCATHA(API) IntegralConstant: public Constant {
+public:
+    explicit IntegralConstant(Context& context, APInt value, size_t bitWidth);
+    
+    APInt const& value() const { return _value; }
+    
+private:
+    APInt _value;
 };
 
 } // namespace scatha::ir

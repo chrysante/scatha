@@ -16,19 +16,27 @@ class Type;
 
 class SCATHA(API) Function: public Constant, public NodeWithParent<Function, Module> {
 public:
-    explicit Function(FunctionType* functionType, std::span<Type const*> parameterTypes);
+    explicit Function(FunctionType const* functionType, Type const* returnType, std::span<Type const* const> parameterTypes, std::string name);
+    explicit Function(FunctionType const* functionType, Type const* returnType, std::span<Type const* const> parameterTypes, std::string_view name):
+        Function(functionType, returnType, parameterTypes, std::string(name)) {}
+        
     
     Function(Function const&) = delete;
     
     ~Function();
+    
+    Type const* returnType() const { return _returnType; }
 
+    List<Parameter>&       parameters()       { return params; }
     List<Parameter> const& parameters() const { return params; }
 
+    List<BasicBlock>&       basicBlocks()       { return bbs; }
     List<BasicBlock> const& basicBlocks() const { return bbs; }
 
     void addBasicBlock(BasicBlock* basicBlock);
 
 private:
+    Type const* _returnType;
     List<Parameter> params;
     List<BasicBlock> bbs;
 };

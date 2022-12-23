@@ -20,10 +20,12 @@ public:
     
     ~BasicBlock();
 
+    List<Instruction> const& instructions() const { return _instructions; }
+    
     void addInstruction(Instruction* instruction);
 
 private:
-    List<Instruction> instructions;
+    List<Instruction> _instructions;
 };
 
 } // namespace scatha::ir

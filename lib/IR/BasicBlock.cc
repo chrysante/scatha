@@ -12,6 +12,6 @@ BasicBlock::~BasicBlock() = default;
 
 void BasicBlock::addInstruction(Instruction* instruction) {
     instruction->set_parent(this);
-    instructions.push_back(instruction);
+    _instructions.push_back(instruction);
 }
 
