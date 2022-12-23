@@ -46,6 +46,7 @@ project "scatha-lib"
 kind "SharedLib"
 
 addCppFiles "lib"
+files "lib/**.def"
 addCppFiles "include/scatha"
 externalincludedirs { "external/utility/include", "external/gmp/build/include", "external/mpfr/build/include" }
 includedirs { "lib" }
@@ -84,8 +85,6 @@ externalincludedirs {
 }
 
 externalincludedirs { "lib" }
-
---prebuildcommands { "./format-all.sh test/" }
 
 addCppFiles "test"
 links { "scatha-lib" } 

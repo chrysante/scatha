@@ -1,6 +1,6 @@
 
 fn main() -> int {
-    return faculty(5, 4);
+    return faculty(5);
 }
 
 fn faculty(n: int) -> int {
@@ -13,6 +13,7 @@ fn faculty(n: int) -> int {
     return result;
 }
 
-fn faculty(n: int, m: int) -> int {
-    return -1;
+fn rfac(n: int) -> int {
+    if (n <= 1) { return 1; }
+    return n * rfac(n - 1);
 }

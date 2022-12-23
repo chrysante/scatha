@@ -20,17 +20,20 @@
 #include "Sema/Analyze.h"
 #include "Sema/PrintSymbolTable.h"
 
-#include "IC/Canonicalize.h"
-#include "IC/TacGenerator.h"
-#include "IC/PrintTac.h"
+#include "IR/Module.h"
+#include "IR/Context.h"
+#include "IR/Print.h"
+#include "ASTCodeGen/CodeGen.h"
 
 using namespace scatha;
 
 static void sectionHeader(std::string_view header) {
+    utl::print("{:=^40}\n", "");
     utl::print("{:=^40}\n", header);
+    utl::print("{:=^40}\n", "");
 }
 
-[[gnu::weak]]
+//[[gnu::weak]]
 int main() {
     auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     std::fstream file(filepath);
@@ -46,7 +49,7 @@ int main() {
     auto tokens = lex::lex(text, lexIss);
     
     if (!lexIss.empty()) {
-        sectionHeader("Encountered lexical issues");
+        sectionHeader(" Encountered lexical issues ");
         for (auto& issue: lexIss.issues()) {
             auto const token = issue.token();
             auto const l = token.sourceLocation;
@@ -58,14 +61,14 @@ int main() {
         return 1;
     }
     else {
-        sectionHeader("No lexical issues");
+        std::cout << "No lexical issues\n";
     }
     
     issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     
     if (!parseIss.empty()) {
-        sectionHeader("Encountered syntax issues");
+        sectionHeader(" Encountered syntax issues ");
         
         for (auto& issue: parseIss.issues()) {
             std::cout << "L:" << issue.token().sourceLocation.line << " C:" << issue.token().sourceLocation.column << " : "
@@ -75,16 +78,14 @@ int main() {
         return 2;
     }
     else {
-        sectionHeader("No syntax issues");
-        ast::printTree(*ast);
+        std::cout << "No syntax issues\n";
     }
     
     issue::SemaIssueHandler semaIss;
     auto sym = sema::analyze(*ast, semaIss);
-    sema::printSymbolTable(sym);
     
     if (!semaIss.empty()) {
-        sectionHeader("Encountered semantic issues");
+        sectionHeader(" Encountered semantic issues ");
         for (auto& issue: semaIss.issues()) {
             auto const token = issue.token();
             auto const l = token.sourceLocation;
@@ -115,11 +116,14 @@ int main() {
         return 3;
     }
     else {
-        sectionHeader("No semantic issues");
-        ic::canonicalize(ast.get());
-        auto const tac = ic::generateTac(*ast, sym);
-        sectionHeader("Three Address Code");
-        ic::printTac(tac, sym);
+        std::cout << "No semantic issues\n";
     }
+    
+    sectionHeader(" IR Code ");
+    
+    ir::Context ctx;
+    ir::Module mod = ast::codegen(*ast, sym, ctx);
+    ir::print(mod);
+    
     
 }
