@@ -115,6 +115,7 @@ public:
     explicit IntegerLiteral(Token const& token):
         Expression(NodeType::IntegerLiteral, token), _value(token.toInteger()) {}
 
+    /// TODO: Make this an APInt
     /// Value as declared in the source code.
     u64 value() const { return _value; };
 
@@ -140,6 +141,7 @@ public:
     explicit FloatingPointLiteral(Token const& token):
         Expression(NodeType::FloatingPointLiteral, token), _value(token.toFloat()) {}
 
+    /// TODO: Make this an APFloat
     /// Value as declared in the source code.
     f64 value() const { return _value; }
 
@@ -275,9 +277,9 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// The SymbolID of the resolved function.
-    /// Differs from the SymbolID of the object because the latter refers to an
-    /// overload set or an object and this ID is resolved by overload
-    /// resolution.
+    /// Differs from the SymbolID of the object as this ID is resolved by overload
+    /// resolution and refers to an actual function while the latter refers to an
+    /// overload set or object.
     sema::SymbolID functionID() const {
         expectDecorated();
         return _functionID;
