@@ -49,7 +49,7 @@ static void subHeader(std::string_view title = "") {
     utl::print("\n");
 }
 
-[[gnu::weak]]
+ [[gnu::weak]]
 int main() {
     auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     std::fstream file(filepath);
@@ -75,6 +75,10 @@ int main() {
             }
         }
         else {
+            
+            for (auto& token: tokens) {
+                std::cout << token << std::endl;
+            }
             utl::print("No lexical issues.\n");
         }
         
@@ -118,6 +122,9 @@ int main() {
                 [](issue::ProgramIssueBase const&) { std::cout << std::endl; } });
             std::cout << std::endl;
         }
+        
+        if (!lexIss.empty() || !parseIss.empty() || !semaIss.empty()) { return -1; }
+        
         subHeader();
         header(" Generated Three Address Code ");
         ic::canonicalize(ast.get());

@@ -33,7 +33,7 @@ static void sectionHeader(std::string_view header) {
     utl::print("{:=^40}\n", "");
 }
 
-//[[gnu::weak]]
+// [[gnu::weak]]
 int main() {
     auto const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     std::fstream file(filepath);

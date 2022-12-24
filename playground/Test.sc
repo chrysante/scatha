@@ -1,17 +1,53 @@
 
-fn main() -> int {
-    return faculty(5);
-}
 
-fn faculty(n: int) -> int {
-    var i = 1;
-    var result = 1;
-    while i <= n {
-        result *= i;
+fn isPrime(n: int) -> bool {
+    var i = 2;
+    while (i < n) {
+        if (n % i == 0) { return false; }
         i += 1;
     }
-    return result;
+    return true;
 }
+
+fn nthPrime(n: int) -> int {
+    var i = 0;
+    var p = 1;
+    while (i < n) {
+        p += 1;
+        if (isPrime(p)) {
+            i += 1;
+        }
+    }
+    return p;
+}
+
+fn main() -> int {
+    return nthPrime(5);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+
 
 fn fac(n: int) -> int {
     return n <= 1 ? 1 : fac(n - 1);
@@ -54,3 +90,5 @@ fn nestedLoop(n: int, x: int) -> int {
     }
     return result;
 }
+
+*/
