@@ -223,11 +223,11 @@ ir::Value* Context::generate(Identifier const& id) {
 }
 
 ir::Value* Context::generate(IntegerLiteral const& intLit) {
-    return irCtx.getIntegralConstant(intLit.value(), 64);
+    return irCtx.integralConstant(intLit.value(), 64);
 }
 
 ir::Value* Context::generate(BooleanLiteral const& boolLit) {
-    return irCtx.getIntegralConstant(boolLit.value(), 1);
+    return irCtx.integralConstant(boolLit.value(), 1);
 }
 
 ir::Value* Context::generate(FloatingPointLiteral const&) {
@@ -277,10 +277,10 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
             setCurrentBB(endBlock);
             auto* result = exprDecl.operation() == BinaryOperator::LogicalAnd ?
                 new ir::Phi(irCtx.integralType(1),
-                            { { startBlock, irCtx.getIntegralConstant(0, 1) }, { rhsBlock, rhs } },
+                            { { startBlock, irCtx.integralConstant(0, 1) }, { rhsBlock, rhs } },
                             localUniqueName()) :
                 new ir::Phi(irCtx.integralType(1),
-                            { { startBlock, irCtx.getIntegralConstant(1, 1) }, { rhsBlock, rhs } },
+                            { { startBlock, irCtx.integralConstant(1, 1) }, { rhsBlock, rhs } },
                             localUniqueName());
             currentBB->addInstruction(result);
             return result;

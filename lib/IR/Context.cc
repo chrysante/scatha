@@ -33,7 +33,7 @@ Type const* Context::pointerType() {
     return *itr;
 }
 
-IntegralConstant* Context::getIntegralConstant(APInt value, size_t bitWidth) {
+IntegralConstant* Context::integralConstant(APInt value, size_t bitWidth) {
     auto itr = _integralConstants.find({ value, bitWidth });
     if (itr == _integralConstants.end()) {
         std::tie(itr, std::ignore) = _integralConstants.insert({ { value, bitWidth }, new IntegralConstant(*this, value, bitWidth) });

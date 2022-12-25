@@ -10,7 +10,6 @@
 #include "IR/Type.h"
 #include "IR/Value.h"
 
-
 namespace scatha::ir {
 
 class SCATHA(API) Context {
@@ -23,7 +22,7 @@ public:
     
     Type const* pointerType();
     
-    IntegralConstant* getIntegralConstant(APInt value, size_t bitWidth);
+    IntegralConstant* integralConstant(APInt value, size_t bitWidth);
     
     void addGlobal(Constant* constant);
     

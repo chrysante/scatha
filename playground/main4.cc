@@ -55,13 +55,13 @@ int main() {
     auto* allocaI = new ir::Alloca(ctx, ctx.integralType(64), "i_ptr");
     entry->addInstruction(allocaI);
     
-    auto* storeI1 = new ir::Store(ctx, allocaN, ctx.getIntegralConstant(1, 64));
+    auto* storeI1 = new ir::Store(ctx, allocaN, ctx.integralConstant(1, 64));
     entry->addInstruction(storeI1);
     
     auto* allocaResult = new ir::Alloca(ctx, ctx.integralType(64), "result_ptr");
     entry->addInstruction(allocaResult);
     
-    auto* storeResult1 = new ir::Store(ctx, allocaResult, ctx.getIntegralConstant(1, 64));
+    auto* storeResult1 = new ir::Store(ctx, allocaResult, ctx.integralConstant(1, 64));
     entry->addInstruction(storeResult1);
     
     auto* loopHeader = new ir::BasicBlock(ctx, "loop_header");
@@ -102,7 +102,7 @@ int main() {
     auto storeResult2 = new ir::Store(ctx, allocaResult, mulTmp);
     loopBody->addInstruction(storeResult2);
     
-    auto* addTmp = new ir::ArithmeticInst(loadI2, ctx.getIntegralConstant(1, 64), ir::ArithmeticOperation::Add, "add-tmp");
+    auto* addTmp = new ir::ArithmeticInst(loadI2, ctx.integralConstant(1, 64), ir::ArithmeticOperation::Add, "add-tmp");
     loopBody->addInstruction(addTmp);
     
     auto* storeI2 = new ir::Store(ctx, allocaI, addTmp);
