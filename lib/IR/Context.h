@@ -30,9 +30,9 @@ public:
     Constant* getGlobal(std::string_view name) const;
     
 private:
-    utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*, utl::hash<std::pair<APInt, size_t>>> _integralConstants;
+    utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*> _integralConstants;
     utl::hashset<Type*, Type::Hash, Type::Equals> _types;
-    utl::hashmap<std::string, Constant*, utl::hash<std::string>, std::equal_to<>> _globals;
+    utl::hashmap<std::string, Constant*> _globals;
 };
 
 } // namespace scatha::ir
