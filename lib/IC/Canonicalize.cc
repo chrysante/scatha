@@ -71,9 +71,7 @@ void Canonicalizer::canonicalize(ast::BinaryExpression& expr) {
     case ast::BinaryOperator::LSAssignment: [[fallthrough]];
     case ast::BinaryOperator::RSAssignment: [[fallthrough]];
     case ast::BinaryOperator::AndAssignment: [[fallthrough]];
-    case ast::BinaryOperator::OrAssignment:
-        doCompoundAssignment(expr, toNonAssignment(expr.operation()));
-        break;
+    case ast::BinaryOperator::OrAssignment: doCompoundAssignment(expr, toNonAssignment(expr.operation())); break;
     default: break;
     }
 }
@@ -92,4 +90,3 @@ void ic::canonicalize(ast::AbstractSyntaxTree* node) {
     Canonicalizer ctx;
     ctx.dispatch(*node);
 }
-

@@ -17,7 +17,7 @@ public:
     explicit BasicBlock(Context& context, std::string name);
 
     BasicBlock(BasicBlock const&) = delete;
-    
+
     ~BasicBlock();
 
     void addInstruction(Instruction* instruction);

@@ -33,9 +33,7 @@ template <typename To, typename From>
 concept DynCheckable = Dynamic<From> && Dynamic<To>; // TODO: Check that To and From a part of the same hierarchy.
 
 template <typename To, typename From>
-concept DynCastable = DynCheckable<To, From> && requires(From from) {
-    static_cast<To>(from);
-};
+concept DynCastable = DynCheckable<To, From> && requires(From from) { static_cast<To>(from); };
 
 template <typename T>
 using DCEnumType = decltype(DyncastTypeToEnumImpl<std::remove_cvref_t<T>>::value);
@@ -94,18 +92,18 @@ struct DyncastTraits {
 /// \returns \p std::invoke(fn,static_cast<MOST_DERIVED_TYPE>(obj)) where \p MOST_DERIVED_TYPE is the most derived type
 ///          of \p obj with the same cv-ref qualifications as \p obj.
 template <typename T, typename F>
-requires internal::Dynamic<T>
-decltype(auto) visit(T&& obj, F&& fn);
+requires internal::Dynamic<T> decltype(auto)
+visit(T&& obj, F&& fn);
 
 /// Check if \p from 's dymamic type is \p To or derived from \p To.
 template <typename To, typename From>
-requires scatha::internal::DynCheckable<To, From>
-bool isa(From* from);
+requires scatha::internal::DynCheckable<To, From> bool
+isa(From* from);
 
 /// Check if \p from 's dymamic type is \p To or derived from \p To.
 template <typename To, typename From>
-requires scatha::internal::DynCheckable<To, From>
-bool isa(From& from);
+requires scatha::internal::DynCheckable<To, From> bool
+isa(From& from);
 
 /// Downwards cast of \p from in its class hierarchy.
 /// \param from Pointer to an object of type \p From. Pointer must not be null.
@@ -300,8 +298,8 @@ decltype(auto) scatha::visit(T&& obj, F&& fn) {
 // clang-format on
 
 template <typename To, typename From>
-requires scatha::internal::DynCheckable<To, From>
-bool scatha::isa(From* from) {
+requires scatha::internal::DynCheckable<To, From> bool
+scatha::isa(From* from) {
     using namespace internal;
     using EnumType   = decltype(DyncastTypeToEnum<std::remove_const_t<From>>);
     using ToStripped = std::remove_const_t<std::remove_pointer_t<To>>;
@@ -309,8 +307,8 @@ bool scatha::isa(From* from) {
 }
 
 template <typename To, typename From>
-requires scatha::internal::DynCheckable<To, From>
-bool scatha::isa(From& from) {
+requires scatha::internal::DynCheckable<To, From> bool
+scatha::isa(From& from) {
     return isa<To>(&from);
 }
 

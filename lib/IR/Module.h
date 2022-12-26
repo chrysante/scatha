@@ -10,7 +10,7 @@ namespace scatha::ir {
 class SCATHA(API) Module {
 public:
     List<Function> const& functions() const { return funcs; }
-    
+
     void addFunction(Function* function);
 
 private:

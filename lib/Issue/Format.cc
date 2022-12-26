@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-#include <utl/stdio.hpp>
 #include <utl/format.hpp>
+#include <utl/stdio.hpp>
 
 using namespace scatha;
 
@@ -12,7 +12,7 @@ void issue::highlightToken(StructuredSource const& source, Token const& token) {
 }
 
 void issue::highlightToken(StructuredSource const& source, Token const& token, std::ostream& str) {
-    auto const sourceLocation = token.sourceLocation;
+    auto const sourceLocation   = token.sourceLocation;
     std::string_view const line = source.getLine(sourceLocation.line - 1);
     str << line.substr(0, sourceLocation.column - 1);
     str << utl::format("{0}{2}{1}",

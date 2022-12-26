@@ -17,12 +17,11 @@ class Context;
 
 } // namespace scatha::ir
 
-
 namespace scatha::ast {
-	
-SCATHA(API) ir::Module codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& symbolTable, ir::Context& context);
-	
+
+SCATHA(API)
+ir::Module codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& symbolTable, ir::Context& context);
+
 } // namespace scatha::ast
 
 #endif // SCATHA_ASTCODEGEN_CODEGEN_H_
-

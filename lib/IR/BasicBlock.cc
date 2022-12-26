@@ -14,4 +14,3 @@ void BasicBlock::addInstruction(Instruction* instruction) {
     instruction->set_parent(this);
     instructions.push_back(instruction);
 }
-

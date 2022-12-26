@@ -22,7 +22,7 @@ fi
 
 function format() {
 #   This only formats edited files in version control.
-#    for file in $(git status --porcelain | awk 'match($1, "M"){print $2}'); do
+#       for file in $(git status --porcelain | awk 'match($1, "M"){print $2}'); do
 #   This formats all files in given directory
     for entry in $1/*; do
         if [[ -d $entry ]]; then

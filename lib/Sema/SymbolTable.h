@@ -191,7 +191,7 @@ public:
 
     /// Review if we want to keep these:
     auto const& functions() const { return _functions; }
-    
+
 private:
     SymbolID generateID(SymbolCategory category);
 

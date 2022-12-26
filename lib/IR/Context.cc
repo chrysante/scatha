@@ -19,7 +19,7 @@ Type const* Context::voidType() {
 
 Integral const* Context::integralType(size_t bitWidth) {
     std::string const name = utl::strcat("i", bitWidth);
-    auto itr = _types.find(name);
+    auto itr               = _types.find(name);
     if (itr == _types.end()) {
         std::tie(itr, std::ignore) = _types.insert(new Integral(bitWidth));
     }
@@ -36,7 +36,8 @@ Type const* Context::pointerType() {
 IntegralConstant* Context::integralConstant(APInt value, size_t bitWidth) {
     auto itr = _integralConstants.find({ value, bitWidth });
     if (itr == _integralConstants.end()) {
-        std::tie(itr, std::ignore) = _integralConstants.insert({ { value, bitWidth }, new IntegralConstant(*this, value, bitWidth) });
+        std::tie(itr, std::ignore) =
+            _integralConstants.insert({ { value, bitWidth }, new IntegralConstant(*this, value, bitWidth) });
     }
     SC_ASSERT(itr->second->value() == value, "Value mismatch");
     return itr->second;

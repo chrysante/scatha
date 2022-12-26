@@ -2,7 +2,7 @@
 
 using namespace scatha;
 using namespace lex;
-	
+
 utl::vector<std::string> lex::extractLines(std::string_view text) {
     utl::vector<std::string> result;
     size_t pos = 0;
@@ -15,15 +15,14 @@ utl::vector<std::string> lex::extractLines(std::string_view text) {
         if (++lineEnd >= text.size()) {
             break;
         }
-        if (text[lineEnd - 1] == '\r' &&
-            lineEnd < text.size() &&
-            text[lineEnd] == '\n')
-        {
+        if (text[lineEnd - 1] == '\r' && lineEnd < text.size() && text[lineEnd] == '\n') {
             // Handle "\r\n" new line sequence
             ++lineEnd;
         }
         pos = lineEnd;
-        if (pos >= text.size()) { break; }
+        if (pos >= text.size()) {
+            break;
+        }
     }
     return result;
 }

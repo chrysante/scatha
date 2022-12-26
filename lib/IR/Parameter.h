@@ -12,7 +12,8 @@ class Parameter: public Value, public NodeWithParent<Parameter, Function> {
     using NodeBase = NodeWithParent<Parameter, Function>;
 
 public:
-    explicit Parameter(Type const* type, std::string name, Function* parent): Value(NodeType::Parameter, type, std::move(name)), NodeBase(parent) {}
+    explicit Parameter(Type const* type, std::string name, Function* parent):
+        Value(NodeType::Parameter, type, std::move(name)), NodeBase(parent) {}
 
 private:
 };

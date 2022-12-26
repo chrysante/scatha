@@ -20,8 +20,8 @@ filter {}
 
 flags { "MultiProcessorCompile" }
 
-targetdir("build/bin/%{cfg.longname}")
-objdir("build/obj/%{cfg.longname}")
+targetdir "build/bin/%{cfg.longname}"
+objdir "build/obj/%{cfg.longname}"
 
 architecture "x86_64"
 

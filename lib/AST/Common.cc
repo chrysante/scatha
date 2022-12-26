@@ -103,17 +103,17 @@ std::string_view toString(BinaryOperator op) {
 
 BinaryOperator toNonAssignment(BinaryOperator op) {
     switch (op) {
-        case BinaryOperator::AddAssignment: return BinaryOperator::Addition;
-        case BinaryOperator::SubAssignment: return BinaryOperator::Subtraction;
-        case BinaryOperator::MulAssignment: return BinaryOperator::Multiplication;
-        case BinaryOperator::DivAssignment: return BinaryOperator::Division;
-        case BinaryOperator::RemAssignment: return BinaryOperator::Remainder;
-        case BinaryOperator::LSAssignment: return BinaryOperator::LeftShift;
-        case BinaryOperator::RSAssignment: return BinaryOperator::RightShift;
-        case BinaryOperator::AndAssignment: return BinaryOperator::BitwiseAnd;
-        case BinaryOperator::OrAssignment: return BinaryOperator::BitwiseOr;
-        case BinaryOperator::XOrAssignment: return BinaryOperator::BitwiseXOr;
-        default: SC_UNREACHABLE("'op' must be arithmetic assignment operator");
+    case BinaryOperator::AddAssignment: return BinaryOperator::Addition;
+    case BinaryOperator::SubAssignment: return BinaryOperator::Subtraction;
+    case BinaryOperator::MulAssignment: return BinaryOperator::Multiplication;
+    case BinaryOperator::DivAssignment: return BinaryOperator::Division;
+    case BinaryOperator::RemAssignment: return BinaryOperator::Remainder;
+    case BinaryOperator::LSAssignment: return BinaryOperator::LeftShift;
+    case BinaryOperator::RSAssignment: return BinaryOperator::RightShift;
+    case BinaryOperator::AndAssignment: return BinaryOperator::BitwiseAnd;
+    case BinaryOperator::OrAssignment: return BinaryOperator::BitwiseOr;
+    case BinaryOperator::XOrAssignment: return BinaryOperator::BitwiseXOr;
+    default: SC_UNREACHABLE("'op' must be arithmetic assignment operator");
     }
 }
 

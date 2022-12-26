@@ -1,26 +1,26 @@
 #include "ASTCodeGen/CodeGen.h"
 
-#include <utl/vector.hpp>
 #include <utl/ranges.hpp>
+#include <utl/vector.hpp>
 
 #include "AST/AST.h"
-#include "Sema/SymbolTable.h"
-#include "IR/Module.h"
+#include "IR/BasicBlock.h"
 #include "IR/Context.h"
 #include "IR/Function.h"
-#include "IR/BasicBlock.h"
 #include "IR/Instruction.h"
+#include "IR/Module.h"
 #include "IR/Parameter.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace ast;
 
 namespace {
- 
+
 struct Context {
     explicit Context(ir::Module& mod, ir::Context& irCtx, sema::SymbolTable const& symTable):
         mod(mod), irCtx(irCtx), symTable(symTable) {}
-    
+
     ir::Value* dispatch(AbstractSyntaxTree const& node);
 
     ir::Value* generate(AbstractSyntaxTree const& node) { SC_UNREACHABLE(); }
@@ -47,27 +47,27 @@ struct Context {
     ir::Value* generate(Conditional const&);
     ir::Value* generate(FunctionCall const&);
     ir::Value* generate(Subscript const&);
-    
+
     void declareFunctions();
     void setCurrentBB(ir::BasicBlock*);
     void finishCurrentBB();
-    
+
     void memorizeVariablePtr(sema::SymbolID, ir::Value*);
     ir::Value* getVariablePtr(sema::SymbolID);
-    
+
     std::string localUniqueName();
-    
+
     ir::Type const* mapType(sema::TypeID semaTypeID);
     static ir::CompareOperation mapCompareOp(ast::BinaryOperator);
     static ir::ArithmeticOperation mapArithmeticOp(ast::BinaryOperator);
     static ir::ArithmeticOperation mapArithmeticAssignOp(ast::BinaryOperator);
-    
+
     ir::Module& mod;
     ir::Context& irCtx;
     sema::SymbolTable const& symTable;
-    size_t varIndex = 0;
+    size_t varIndex               = 0;
     ir::Function* currentFunction = nullptr;
-    ir::BasicBlock* currentBB = nullptr;
+    ir::BasicBlock* currentBB     = nullptr;
     utl::hashmap<sema::SymbolID, ir::Value*> valueMap;
 };
 
@@ -107,17 +107,16 @@ ir::Value* Context::generate(CompoundStatement const& cmpStmt) {
 }
 
 ir::Value* Context::generate(FunctionDefinition const& def) {
-    utl::small_vector<ir::Type const*> paramTypes = utl::transform(def.parameters, [&](auto& param) {
-        return mapType(param->typeID());
-    });
-// TODO: Also here worry about name mangling
-    auto* fn = cast<ir::Function*>(irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
-    varIndex = def.parameters.size();
+    utl::small_vector<ir::Type const*> paramTypes =
+        utl::transform(def.parameters, [&](auto& param) { return mapType(param->typeID()); });
+    // TODO: Also here worry about name mangling
+    auto* fn    = cast<ir::Function*>(irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
+    varIndex    = def.parameters.size();
     auto* entry = new ir::BasicBlock(irCtx, localUniqueName());
     fn->addBasicBlock(entry);
     for (auto paramItr = fn->parameters().begin(); auto& paramDecl: def.parameters) {
         auto const* const irParamType = mapType(paramDecl->typeID());
-        auto* paramMemPtr = new ir::Alloca(irCtx, irParamType, localUniqueName());
+        auto* paramMemPtr             = new ir::Alloca(irCtx, irParamType, localUniqueName());
         entry->addInstruction(paramMemPtr);
         memorizeVariablePtr(paramDecl->symbolID(), paramMemPtr);
         auto* store = new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
@@ -140,7 +139,7 @@ ir::Value* Context::generate(VariableDeclaration const& varDecl) {
     memorizeVariablePtr(varDecl.symbolID(), varMemPtr);
     if (varDecl.initExpression != nullptr) {
         ir::Value* initValue = dispatch(*varDecl.initExpression);
-        auto* store = new ir::Store(irCtx, varMemPtr, initValue);
+        auto* store          = new ir::Store(irCtx, varMemPtr, initValue);
         currentBB->addInstruction(store);
     }
     return varMemPtr;
@@ -162,7 +161,7 @@ ir::Value* Context::generate(EmptyStatement const& empty) {
 
 ir::Value* Context::generate(ReturnStatement const& retDecl) {
     auto* returnValue = retDecl.expression ? dispatch(*retDecl.expression) : nullptr;
-    auto* ret = new ir::Return(irCtx, returnValue);
+    auto* ret         = new ir::Return(irCtx, returnValue);
     currentBB->addInstruction(ret);
     return nullptr;
 }
@@ -171,8 +170,8 @@ ir::Value* Context::generate(IfStatement const& ifStatement) {
     auto* condition = dispatch(*ifStatement.condition);
     auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName());
     auto* elseBlock = ifStatement.elseBlock ? new ir::BasicBlock(irCtx, localUniqueName()) : nullptr;
-    auto* endBlock = new ir::BasicBlock(irCtx, localUniqueName());
-    auto branch = new ir::Branch(irCtx, condition, thenBlock, elseBlock ? elseBlock : endBlock);
+    auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* branch    = new ir::Branch(irCtx, condition, thenBlock, elseBlock ? elseBlock : endBlock);
     currentBB->addInstruction(branch);
     auto addBlock = [&](ir::BasicBlock* bb, ast::Statement const& block) {
         currentFunction->addBasicBlock(bb);
@@ -201,7 +200,7 @@ ir::Value* Context::generate(WhileStatement const& loopDecl) {
     currentBB->addInstruction(gotoLoopHeader);
     setCurrentBB(loopHeader);
     auto* condition = dispatch(*loopDecl.condition);
-    auto* branch = new ir::Branch(irCtx, condition, loopBody, loopEnd);
+    auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
     currentBB->addInstruction(branch);
     currentBB = loopBody;
     dispatch(*loopDecl.block);
@@ -216,7 +215,7 @@ ir::Value* Context::generate(DoWhileStatement const&) {
 }
 
 ir::Value* Context::generate(Identifier const& id) {
-    auto* memPtr = getVariablePtr(id.symbolID());
+    auto* memPtr   = getVariablePtr(id.symbolID());
     auto* loadInst = new ir::Load(mapType(id.typeID()), memPtr, localUniqueName());
     currentBB->addInstruction(loadInst);
     return loadInst;
@@ -244,90 +243,92 @@ ir::Value* Context::generate(UnaryPrefixExpression const&) {
 
 ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     switch (exprDecl.operation()) {
-        case BinaryOperator::Multiplication: [[fallthrough]];
-        case BinaryOperator::Division:       [[fallthrough]];
-        case BinaryOperator::Remainder:      [[fallthrough]];
-        case BinaryOperator::Addition:       [[fallthrough]];
-        case BinaryOperator::Subtraction:    [[fallthrough]];
-        case BinaryOperator::LeftShift:      [[fallthrough]];
-        case BinaryOperator::RightShift:     [[fallthrough]];
-        case BinaryOperator::BitwiseAnd:     [[fallthrough]];
-        case BinaryOperator::BitwiseXOr:     [[fallthrough]];
-        case BinaryOperator::BitwiseOr: {
-            ir::Value* const lhs = dispatch(*exprDecl.lhs);
-            ir::Value* const rhs = dispatch(*exprDecl.rhs);
-            auto* arithInst = new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName());
-            currentBB->addInstruction(arithInst);
-            return arithInst;
-        }
-        case BinaryOperator::LogicalAnd: [[fallthrough]];
-        case BinaryOperator::LogicalOr: {
-            ir::Value* const lhs = dispatch(*exprDecl.lhs);
-            auto* startBlock = currentBB;
-            auto* rhsBlock = new ir::BasicBlock(irCtx, localUniqueName());
-            auto* endBlock = new ir::BasicBlock(irCtx, localUniqueName());
-            currentBB->addInstruction(exprDecl.operation() == BinaryOperator::LogicalAnd ?
+    case BinaryOperator::Multiplication: [[fallthrough]];
+    case BinaryOperator::Division: [[fallthrough]];
+    case BinaryOperator::Remainder: [[fallthrough]];
+    case BinaryOperator::Addition: [[fallthrough]];
+    case BinaryOperator::Subtraction: [[fallthrough]];
+    case BinaryOperator::LeftShift: [[fallthrough]];
+    case BinaryOperator::RightShift: [[fallthrough]];
+    case BinaryOperator::BitwiseAnd: [[fallthrough]];
+    case BinaryOperator::BitwiseXOr: [[fallthrough]];
+    case BinaryOperator::BitwiseOr: {
+        ir::Value* const lhs = dispatch(*exprDecl.lhs);
+        ir::Value* const rhs = dispatch(*exprDecl.rhs);
+        auto* arithInst = new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName());
+        currentBB->addInstruction(arithInst);
+        return arithInst;
+    }
+    case BinaryOperator::LogicalAnd: [[fallthrough]];
+    case BinaryOperator::LogicalOr: {
+        ir::Value* const lhs = dispatch(*exprDecl.lhs);
+        auto* startBlock     = currentBB;
+        auto* rhsBlock       = new ir::BasicBlock(irCtx, localUniqueName());
+        auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName());
+        currentBB->addInstruction(exprDecl.operation() == BinaryOperator::LogicalAnd ?
                                       new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
                                       new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
-            currentFunction->addBasicBlock(rhsBlock);
-            setCurrentBB(rhsBlock);
-            auto* rhs = dispatch(*exprDecl.rhs);
-            currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
-            currentFunction->addBasicBlock(endBlock);
-            setCurrentBB(endBlock);
-            auto* result = exprDecl.operation() == BinaryOperator::LogicalAnd ?
-                new ir::Phi(irCtx.integralType(1),
-                            { { startBlock, irCtx.integralConstant(0, 1) }, { rhsBlock, rhs } },
-                            localUniqueName()) :
-                new ir::Phi(irCtx.integralType(1),
-                            { { startBlock, irCtx.integralConstant(1, 1) }, { rhsBlock, rhs } },
-                            localUniqueName());
-            currentBB->addInstruction(result);
-            return result;
-        }
-        case BinaryOperator::Less:      [[fallthrough]];
-        case BinaryOperator::LessEq:    [[fallthrough]];
-        case BinaryOperator::Greater:   [[fallthrough]];
-        case BinaryOperator::GreaterEq: [[fallthrough]];
-        case BinaryOperator::Equals:    [[fallthrough]];
-        case BinaryOperator::NotEquals: {
-            ir::Value* const lhs = dispatch(*exprDecl.lhs);
-            ir::Value* const rhs = dispatch(*exprDecl.rhs);
-            auto* cmpInst = new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName());
-            currentBB->addInstruction(cmpInst);
-            return cmpInst;
-        }
-        case BinaryOperator::Comma: {
-            dispatch(*exprDecl.lhs);
-            return dispatch(*exprDecl.rhs);
-        }
-        case BinaryOperator::Assignment:    [[fallthrough]];
-        case BinaryOperator::AddAssignment: [[fallthrough]];
-        case BinaryOperator::SubAssignment: [[fallthrough]];
-        case BinaryOperator::MulAssignment: [[fallthrough]];
-        case BinaryOperator::DivAssignment: [[fallthrough]];
-        case BinaryOperator::RemAssignment: [[fallthrough]];
-        case BinaryOperator::LSAssignment:  [[fallthrough]];
-        case BinaryOperator::RSAssignment:  [[fallthrough]];
-        case BinaryOperator::AndAssignment: [[fallthrough]];
-        case BinaryOperator::OrAssignment:  [[fallthrough]];
-        case BinaryOperator::XOrAssignment: {
-            ir::Value* const lhs = exprDecl.operation() != BinaryOperator::Assignment ? dispatch(*exprDecl.lhs) : nullptr;
-            ir::Value* const rhs = dispatch(*exprDecl.rhs);
-            auto* lhsPointer = getVariablePtr(cast<Identifier const*>(exprDecl.lhs.get())->symbolID());
-            ir::Value* value = [&]() -> ir::Value* {
-                if (exprDecl.operation() == BinaryOperator::Assignment) { return rhs; }
-                auto* arithInst = new ir::ArithmeticInst(lhs, rhs, mapArithmeticAssignOp(exprDecl.operation()), localUniqueName());
-                currentBB->addInstruction(arithInst);
-                return arithInst;
-            }();
-            auto* store = new ir::Store(irCtx, lhsPointer, value);
-            currentBB->addInstruction(store);
-            // TODO: Maybe return value or memory address here.
-            return nullptr;
-        }
-        case BinaryOperator::_count:
-            SC_DEBUGFAIL();
+        currentFunction->addBasicBlock(rhsBlock);
+        setCurrentBB(rhsBlock);
+        auto* rhs = dispatch(*exprDecl.rhs);
+        currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
+        currentFunction->addBasicBlock(endBlock);
+        setCurrentBB(endBlock);
+        auto* result = exprDecl.operation() == BinaryOperator::LogicalAnd ?
+                           new ir::Phi(irCtx.integralType(1),
+                                       { { startBlock, irCtx.integralConstant(0, 1) }, { rhsBlock, rhs } },
+                                       localUniqueName()) :
+                           new ir::Phi(irCtx.integralType(1),
+                                       { { startBlock, irCtx.integralConstant(1, 1) }, { rhsBlock, rhs } },
+                                       localUniqueName());
+        currentBB->addInstruction(result);
+        return result;
+    }
+    case BinaryOperator::Less: [[fallthrough]];
+    case BinaryOperator::LessEq: [[fallthrough]];
+    case BinaryOperator::Greater: [[fallthrough]];
+    case BinaryOperator::GreaterEq: [[fallthrough]];
+    case BinaryOperator::Equals: [[fallthrough]];
+    case BinaryOperator::NotEquals: {
+        ir::Value* const lhs = dispatch(*exprDecl.lhs);
+        ir::Value* const rhs = dispatch(*exprDecl.rhs);
+        auto* cmpInst = new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName());
+        currentBB->addInstruction(cmpInst);
+        return cmpInst;
+    }
+    case BinaryOperator::Comma: {
+        dispatch(*exprDecl.lhs);
+        return dispatch(*exprDecl.rhs);
+    }
+    case BinaryOperator::Assignment: [[fallthrough]];
+    case BinaryOperator::AddAssignment: [[fallthrough]];
+    case BinaryOperator::SubAssignment: [[fallthrough]];
+    case BinaryOperator::MulAssignment: [[fallthrough]];
+    case BinaryOperator::DivAssignment: [[fallthrough]];
+    case BinaryOperator::RemAssignment: [[fallthrough]];
+    case BinaryOperator::LSAssignment: [[fallthrough]];
+    case BinaryOperator::RSAssignment: [[fallthrough]];
+    case BinaryOperator::AndAssignment: [[fallthrough]];
+    case BinaryOperator::OrAssignment: [[fallthrough]];
+    case BinaryOperator::XOrAssignment: {
+        ir::Value* const lhs = exprDecl.operation() != BinaryOperator::Assignment ? dispatch(*exprDecl.lhs) : nullptr;
+        ir::Value* const rhs = dispatch(*exprDecl.rhs);
+        auto* lhsPointer     = getVariablePtr(cast<Identifier const*>(exprDecl.lhs.get())->symbolID());
+        ir::Value* value     = [&]() -> ir::Value* {
+            if (exprDecl.operation() == BinaryOperator::Assignment) {
+                return rhs;
+            }
+            auto* arithInst =
+                new ir::ArithmeticInst(lhs, rhs, mapArithmeticAssignOp(exprDecl.operation()), localUniqueName());
+            currentBB->addInstruction(arithInst);
+            return arithInst;
+        }();
+        auto* store = new ir::Store(irCtx, lhsPointer, value);
+        currentBB->addInstruction(store);
+        // TODO: Maybe return value or memory address here.
+        return nullptr;
+    }
+    case BinaryOperator::_count: SC_DEBUGFAIL();
     }
 }
 
@@ -337,10 +338,10 @@ ir::Value* Context::generate(MemberAccess const&) {
 
 ir::Value* Context::generate(Conditional const& condExpr) {
     ir::Type const* type = mapType(condExpr.typeID());
-    auto* cond = dispatch(*condExpr.condition);
-    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName());
-    auto* elseBlock = new ir::BasicBlock(irCtx, localUniqueName());
-    auto* endBlock = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* cond           = dispatch(*condExpr.condition);
+    auto* thenBlock      = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* elseBlock      = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName());
     currentBB->addInstruction(new ir::Branch(irCtx, cond, thenBlock, elseBlock));
     currentFunction->addBasicBlock(thenBlock);
     setCurrentBB(thenBlock);
@@ -359,12 +360,14 @@ ir::Value* Context::generate(Conditional const& condExpr) {
 
 ir::Value* Context::generate(FunctionCall const& functionCall) {
     // TODO: Perform actual name mangling
-    std::string const mangledName = utl::strcat(cast<Identifier const*>(functionCall.object.get())->value(), functionCall.functionID());
+    std::string const mangledName =
+        utl::strcat(cast<Identifier const*>(functionCall.object.get())->value(), functionCall.functionID());
     ir::Function* function = cast<ir::Function*>(irCtx.getGlobal(mangledName));
-    utl::small_vector<ir::Value*> const args = utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* {
-        return dispatch(*expr);
-    });
-    auto* call = new ir::FunctionCall(function, args, functionCall.typeID() != symTable.Void() ? localUniqueName() : std::string{});
+    utl::small_vector<ir::Value*> const args =
+        utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return dispatch(*expr); });
+    auto* call = new ir::FunctionCall(function,
+                                      args,
+                                      functionCall.typeID() != symTable.Void() ? localUniqueName() : std::string{});
     currentBB->addInstruction(call);
     return call;
 }
@@ -375,9 +378,9 @@ ir::Value* Context::generate(Subscript const&) {
 
 void Context::declareFunctions() {
     for (sema::Function const& function: symTable.functions()) {
-        utl::small_vector<ir::Type const*> paramTypes = utl::transform(function.signature().argumentTypeIDs(), [&](sema::TypeID paramTypeID) {
-            return mapType(paramTypeID);
-        });
+        utl::small_vector<ir::Type const*> paramTypes =
+            utl::transform(function.signature().argumentTypeIDs(),
+                           [&](sema::TypeID paramTypeID) { return mapType(paramTypeID); });
         // TODO: Generate proper function type here
         ir::FunctionType const* const functionType = nullptr;
         // TODO: Worry about name mangling
@@ -410,7 +413,7 @@ void Context::finishCurrentBB() {
 }
 
 void Context::memorizeVariablePtr(sema::SymbolID symbolID, ir::Value* value) {
-    [[maybe_unused]] auto const[_, insertSuccess] = valueMap.insert({ symbolID, value });
+    [[maybe_unused]] auto const [_, insertSuccess] = valueMap.insert({ symbolID, value });
     SC_ASSERT(insertSuccess, "Variable must not be declared multiple times. This error should be handled in sema.");
 }
 
@@ -441,44 +444,44 @@ ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
 
 ir::CompareOperation Context::mapCompareOp(ast::BinaryOperator op) {
     switch (op) {
-        case BinaryOperator::Less:      return ir::CompareOperation::Less;
-        case BinaryOperator::LessEq:    return ir::CompareOperation::LessEq;
-        case BinaryOperator::Greater:   return ir::CompareOperation::Greater;
-        case BinaryOperator::GreaterEq: return ir::CompareOperation::GreaterEq;
-        case BinaryOperator::Equals:    return ir::CompareOperation::Equal;
-        case BinaryOperator::NotEquals: return ir::CompareOperation::NotEqual;
-        default: SC_UNREACHABLE("Only handle compare operations here.");
+    case BinaryOperator::Less: return ir::CompareOperation::Less;
+    case BinaryOperator::LessEq: return ir::CompareOperation::LessEq;
+    case BinaryOperator::Greater: return ir::CompareOperation::Greater;
+    case BinaryOperator::GreaterEq: return ir::CompareOperation::GreaterEq;
+    case BinaryOperator::Equals: return ir::CompareOperation::Equal;
+    case BinaryOperator::NotEquals: return ir::CompareOperation::NotEqual;
+    default: SC_UNREACHABLE("Only handle compare operations here.");
     }
 }
 
 ir::ArithmeticOperation Context::mapArithmeticOp(ast::BinaryOperator op) {
     switch (op) {
-        case BinaryOperator::Multiplication: return ir::ArithmeticOperation::Mul;
-        case BinaryOperator::Division:       return ir::ArithmeticOperation::Div;
-        case BinaryOperator::Remainder:      return ir::ArithmeticOperation::Rem;
-        case BinaryOperator::Addition:       return ir::ArithmeticOperation::Add;
-        case BinaryOperator::Subtraction:    return ir::ArithmeticOperation::Sub;
-        case BinaryOperator::LeftShift:      return ir::ArithmeticOperation::ShiftL;
-        case BinaryOperator::RightShift:     return ir::ArithmeticOperation::ShiftR;
-        case BinaryOperator::BitwiseAnd:     return ir::ArithmeticOperation::And;
-        case BinaryOperator::BitwiseXOr:     return ir::ArithmeticOperation::Or;
-        case BinaryOperator::BitwiseOr:      return ir::ArithmeticOperation::XOr;
-        default: SC_UNREACHABLE("Only handle arithmetic operations here.");
+    case BinaryOperator::Multiplication: return ir::ArithmeticOperation::Mul;
+    case BinaryOperator::Division: return ir::ArithmeticOperation::Div;
+    case BinaryOperator::Remainder: return ir::ArithmeticOperation::Rem;
+    case BinaryOperator::Addition: return ir::ArithmeticOperation::Add;
+    case BinaryOperator::Subtraction: return ir::ArithmeticOperation::Sub;
+    case BinaryOperator::LeftShift: return ir::ArithmeticOperation::ShiftL;
+    case BinaryOperator::RightShift: return ir::ArithmeticOperation::ShiftR;
+    case BinaryOperator::BitwiseAnd: return ir::ArithmeticOperation::And;
+    case BinaryOperator::BitwiseXOr: return ir::ArithmeticOperation::Or;
+    case BinaryOperator::BitwiseOr: return ir::ArithmeticOperation::XOr;
+    default: SC_UNREACHABLE("Only handle arithmetic operations here.");
     }
 }
 
 ir::ArithmeticOperation Context::mapArithmeticAssignOp(ast::BinaryOperator op) {
     switch (op) {
-        case BinaryOperator::AddAssignment: return ir::ArithmeticOperation::Add;
-        case BinaryOperator::SubAssignment: return ir::ArithmeticOperation::Sub;
-        case BinaryOperator::MulAssignment: return ir::ArithmeticOperation::Mul;
-        case BinaryOperator::DivAssignment: return ir::ArithmeticOperation::Div;
-        case BinaryOperator::RemAssignment: return ir::ArithmeticOperation::Rem;
-        case BinaryOperator::LSAssignment:  return ir::ArithmeticOperation::ShiftL;
-        case BinaryOperator::RSAssignment:  return ir::ArithmeticOperation::ShiftR;
-        case BinaryOperator::AndAssignment: return ir::ArithmeticOperation::And;
-        case BinaryOperator::OrAssignment:  return ir::ArithmeticOperation::Or;
-        case BinaryOperator::XOrAssignment: return ir::ArithmeticOperation::XOr;
-        default: SC_UNREACHABLE("Only handle arithmetic assign operations here.");
+    case BinaryOperator::AddAssignment: return ir::ArithmeticOperation::Add;
+    case BinaryOperator::SubAssignment: return ir::ArithmeticOperation::Sub;
+    case BinaryOperator::MulAssignment: return ir::ArithmeticOperation::Mul;
+    case BinaryOperator::DivAssignment: return ir::ArithmeticOperation::Div;
+    case BinaryOperator::RemAssignment: return ir::ArithmeticOperation::Rem;
+    case BinaryOperator::LSAssignment: return ir::ArithmeticOperation::ShiftL;
+    case BinaryOperator::RSAssignment: return ir::ArithmeticOperation::ShiftR;
+    case BinaryOperator::AndAssignment: return ir::ArithmeticOperation::And;
+    case BinaryOperator::OrAssignment: return ir::ArithmeticOperation::Or;
+    case BinaryOperator::XOrAssignment: return ir::ArithmeticOperation::XOr;
+    default: SC_UNREACHABLE("Only handle arithmetic assign operations here.");
     }
 }

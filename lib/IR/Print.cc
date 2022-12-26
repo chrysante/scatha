@@ -3,9 +3,9 @@
 #include <iostream>
 
 #include "Basic/Basic.h"
-#include "IR/Module.h"
 #include "IR/BasicBlock.h"
 #include "IR/Instruction.h"
+#include "IR/Module.h"
 #include "IR/Parameter.h"
 
 using namespace scatha;
@@ -15,9 +15,9 @@ namespace {
 
 struct PrintCtx {
     explicit PrintCtx(std::ostream& str): str(str) {}
-    
+
     void dispatch(Value const&);
-    
+
     void print(Value const&) { SC_DEBUGFAIL(); }
     void print(Function const&);
     void print(BasicBlock const&);
@@ -32,9 +32,9 @@ struct PrintCtx {
     void print(Return const&);
     void print(FunctionCall const&);
     void print(Phi const&);
-    
+
     std::string toString(Value const&);
-    
+
     std::ostream& str;
 };
 
@@ -46,7 +46,7 @@ void ir::print(Module const& program) {
 
 void ir::print(Module const& program, std::ostream& str) {
     PrintCtx ctx(str);
-    
+
     for (auto& function: program.functions()) {
         ctx.dispatch(function);
     }
@@ -88,7 +88,8 @@ void PrintCtx::print(Load const& load) {
 }
 
 void PrintCtx::print(Store const& store) {
-    str << "    " << "store ";
+    str << "    "
+        << "store ";
     str << store.lhs()->type()->name() << " " << toString(*store.lhs()) << ", ";
     str << store.rhs()->type()->name() << " " << toString(*store.rhs()) << "\n";
 }
@@ -106,18 +107,22 @@ void PrintCtx::print(ArithmeticInst const& arith) {
 }
 
 void PrintCtx::print(Goto const& gt) {
-    str << "    " << "goto " << "label %" << gt.target()->name() << "\n";
+    str << "    "
+        << "goto "
+        << "label %" << gt.target()->name() << "\n";
 }
 
 void PrintCtx::print(Branch const& br) {
-    str << "    " << "branch " << br.condition()->type()->name() << " " << toString(*br.condition()) << ", ";
+    str << "    "
+        << "branch " << br.condition()->type()->name() << " " << toString(*br.condition()) << ", ";
     str << "label %" << br.ifTarget()->name() << ", ";
     str << "label %" << br.elseTarget()->name() << "\n";
 }
 
 void PrintCtx::print(Return const& ret) {
-    str << "    " << "return ";
-    
+    str << "    "
+        << "return ";
+
     if (!ret.value()) {
         str << "\n";
     }
@@ -147,8 +152,9 @@ void PrintCtx::print(Phi const& phi) {
 }
 
 std::string PrintCtx::toString(Value const& value) {
-    return visit(value, utl::overload{
-        [&](Value const& value) -> std::string { return utl::strcat("%", value.name()); },
-        [&](IntegralConstant const& value) -> std::string { return value.value().toString(); },
-    });
+    return visit(value,
+                 utl::overload{
+                     [&](Value const& value) -> std::string { return utl::strcat("%", value.name()); },
+                     [&](IntegralConstant const& value) -> std::string { return value.value().toString(); },
+                 });
 }

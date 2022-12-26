@@ -40,9 +40,7 @@ private:
 };
 
 template <typename T, typename... Args>
-requires requires(Args&&... args) {
-    T{ std::forward<Args>(args)... };
-}
+requires requires(Args&&... args) { T{ std::forward<Args>(args)... }; }
 T* allocate(MonotonicBufferAllocator& alloc, Args&&... args) {
     T* result = static_cast<T*>(alloc.allocate(sizeof(T), alignof(T)));
     std::construct_at(result, std::forward<Args>(args)...);

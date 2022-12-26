@@ -185,8 +185,8 @@ struct OpCodeImpl {
         return [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
             size_t const regIdxA = i[0];
             size_t const regIdxB = i[1];
-            auto const a = read<T>(&reg[regIdxA]);
-            auto const b = read<T>(&reg[regIdxB]);
+            auto const a         = read<T>(&reg[regIdxA]);
+            auto const b         = read<T>(&reg[regIdxB]);
             store(&reg[regIdxA], decltype(operation)()(a, b));
             return codeSize(C);
         };
@@ -218,7 +218,7 @@ struct OpCodeImpl {
 
     static utl::vector<Instruction> makeInstructionTable() {
         utl::vector<Instruction> result(static_cast<size_t>(OpCode::_count));
-        auto at = [&, idx = 0](OpCode i) mutable -> auto& {
+        auto at = [&, idx = 0 ](OpCode i) mutable -> auto& {
             SC_ASSERT(static_cast<int>(i) == idx++, "Missing instruction");
             return result[static_cast<u8>(i)];
         };

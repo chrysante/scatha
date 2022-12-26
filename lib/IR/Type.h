@@ -28,7 +28,7 @@ public:
     bool isFloat() const { return category() == FloatingPoint; }
     bool isStruct() const { return category() == Structure; }
     bool isFunction() const { return category() == Function; }
-    
+
     struct Hash {
         using is_transparent = void;
 

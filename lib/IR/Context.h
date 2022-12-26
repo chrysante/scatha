@@ -15,19 +15,19 @@ namespace scatha::ir {
 class SCATHA(API) Context {
 public:
     Context();
-    
+
     Type const* voidType();
-    
+
     Integral const* integralType(size_t bitWidth);
-    
+
     Type const* pointerType();
-    
+
     IntegralConstant* integralConstant(APInt value, size_t bitWidth);
-    
+
     void addGlobal(Constant* constant);
-    
+
     Constant* getGlobal(std::string_view name) const;
-    
+
 private:
     utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*> _integralConstants;
     utl::hashset<Type*, Type::Hash, Type::Equals> _types;

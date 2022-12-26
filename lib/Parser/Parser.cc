@@ -4,10 +4,10 @@
 #include "Basic/Basic.h"
 #include "Common/Expected.h"
 #include "Common/Keyword.h"
+#include "Parser/BracketCorrection.h"
 #include "Parser/Panic.h"
 #include "Parser/SyntaxIssue.h"
 #include "Parser/TokenStream.h"
-#include "Parser/BracketCorrection.h"
 
 #include "Parser/ParserImpl.h"
 
@@ -18,7 +18,9 @@ using enum SyntaxIssue::Reason;
 
 ast::UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens, issue::SyntaxIssueHandler& iss) {
     bracketCorrection(tokens, iss);
-    if (iss.fatal()) { return nullptr; }
+    if (iss.fatal()) {
+        return nullptr;
+    }
     Context ctx{ .tokens{ std::move(tokens) }, .iss = iss };
     return ctx.run();
 }
@@ -71,7 +73,8 @@ bool Context::recover(std::pair<Cond, F>... retry) {
                 return true;
             }
             return false;
-        }(retry.first, retry.second) || ...);
+        }(retry.first, retry.second) ||
+         ...);
         if (success) {
             return true;
         }
@@ -722,7 +725,7 @@ std::optional<List> Context::parseList(std::string_view open,
             iss.push(SyntaxIssue(tokens.peek(), ExpectedExpression));
             /// Without eating a token we may get stuck in an infinite loop, otherwise we may miss delimiters in case of
             /// syntax errors (especcially missing ')').
-//          tokens.eat();
+            //          tokens.eat();
         }
     }
     return result;

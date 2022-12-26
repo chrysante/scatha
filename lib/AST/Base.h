@@ -29,12 +29,14 @@ public:
 };
 
 template <typename T, typename... Args>
-requires std::constructible_from<T, Args...> UniquePtr<T> allocate(Args&&... args) {
+requires std::constructible_from<T, Args...>
+UniquePtr<T> allocate(Args&&... args) {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
 
 template <typename Derived, typename Base>
-requires std::derived_from<Derived, Base> ast::UniquePtr<Derived> staticCast(ast::UniquePtr<Base>&& p) {
+requires std::derived_from<Derived, Base>
+ast::UniquePtr<Derived> staticCast(ast::UniquePtr<Base>&& p) {
     auto d = static_cast<Derived*>(p.release());
     return ast::UniquePtr<Derived>(d);
 }

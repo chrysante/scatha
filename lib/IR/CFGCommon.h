@@ -40,7 +40,7 @@ namespace scatha::ir {
 enum class NodeType {
 #define SC_INSTRUCTION_DEF(Inst) Inst,
 #include "IR/Instructions.def"
-    
+
     _count
 };
 
@@ -51,7 +51,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Inst, _) Inst,
 #include "IR/Instructions.def"
-    
+
     _count
 };
 
@@ -62,7 +62,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation op)
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
 #include "IR/Instructions.def"
-    
+
     _count
 };
 

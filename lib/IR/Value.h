@@ -47,15 +47,14 @@ public:
     using Value::Value;
 
 private:
-    
 };
 
 class SCATHA(API) IntegralConstant: public Constant {
 public:
     explicit IntegralConstant(Context& context, APInt value, size_t bitWidth);
-    
+
     APInt const& value() const { return _value; }
-    
+
 private:
     APInt _value;
 };

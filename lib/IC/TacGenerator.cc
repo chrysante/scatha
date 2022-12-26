@@ -23,39 +23,39 @@ struct OpTable {
         set(sym.Int(), Multiplication) = Operation::mul;
         set(sym.Int(), Division)       = Operation::idiv;
         set(sym.Int(), Remainder)      = Operation::irem;
-        
+
         set(sym.Int(), Equals)    = Operation::eq;
         set(sym.Int(), NotEquals) = Operation::neq;
         set(sym.Int(), Less)      = Operation::ils;
         set(sym.Int(), LessEq)    = Operation::ileq;
-        
+
         set(sym.Int(), LeftShift)  = Operation::sl;
         set(sym.Int(), RightShift) = Operation::sr;
-        
+
         set(sym.Int(), BitwiseAnd) = Operation::And;
         set(sym.Int(), BitwiseOr)  = Operation::Or;
         set(sym.Int(), BitwiseXOr) = Operation::XOr;
-        
+
         set(sym.Bool(), Equals)     = Operation::eq;
         set(sym.Bool(), NotEquals)  = Operation::neq;
         set(sym.Bool(), BitwiseAnd) = Operation::And;
         set(sym.Bool(), BitwiseOr)  = Operation::Or;
         set(sym.Bool(), BitwiseXOr) = Operation::XOr;
-        
+
         set(sym.Float(), Addition)       = Operation::fadd;
         set(sym.Float(), Subtraction)    = Operation::fsub;
         set(sym.Float(), Multiplication) = Operation::fmul;
         set(sym.Float(), Division)       = Operation::fdiv;
-        
+
         set(sym.Float(), Equals)    = Operation::feq;
         set(sym.Float(), NotEquals) = Operation::fneq;
         set(sym.Float(), Less)      = Operation::fls;
         set(sym.Float(), LessEq)    = Operation::fleq;
     }
-    
+
     Operation& set(sema::TypeID typeID, ast::BinaryOperator op) {
         auto const [itr, success] =
-        table.insert({ typeID, std::array<Operation, static_cast<size_t>(ast::BinaryOperator::_count)>{} });
+            table.insert({ typeID, std::array<Operation, static_cast<size_t>(ast::BinaryOperator::_count)>{} });
         if (success) {
             std::fill(itr->second.begin(), itr->second.end(), Operation::_count);
         }
@@ -63,7 +63,7 @@ struct OpTable {
         SC_ASSERT(result == Operation::_count, "");
         return result;
     }
-    
+
     Operation get(sema::TypeID typeID, ast::BinaryOperator op) const {
         auto const itr = table.find(typeID);
         if (itr == table.end()) {
@@ -73,14 +73,14 @@ struct OpTable {
         SC_ASSERT(result != Operation::_count, "");
         return result;
     }
-    
+
     utl::hashmap<sema::TypeID, std::array<Operation, static_cast<size_t>(ast::BinaryOperator::_count)>> table;
 };
 
 struct Context {
     void dispatch(ast::AbstractSyntaxTree const&);
     TasArgument dispatchExpression(ast::Expression const&);
-    
+
     void generate(ast::TranslationUnit const&);
     void generate(ast::FunctionDefinition const&);
     void generate(ast::StructDefinition const&);
@@ -91,7 +91,7 @@ struct Context {
     void generate(ast::WhileStatement const&);
     void generate(ast::ReturnStatement const&);
     void generate(ast::AbstractSyntaxTree const&) { SC_DEBUGFAIL(); }
-    
+
     TasArgument generateExpression(ast::Identifier const&);
     TasArgument generateExpression(ast::MemberAccess const&);
     TasArgument generateExpression(ast::IntegerLiteral const&);
@@ -102,39 +102,39 @@ struct Context {
     TasArgument generateExpression(ast::Conditional const&);
     TasArgument generateExpression(ast::FunctionCall const&);
     TasArgument generateExpression(ast::AbstractSyntaxTree const&) { SC_DEBUGFAIL(); }
-    
+
     void submit(Operation, TasArgument a = {}, TasArgument b = {});
     TasArgument submit(TasArgument result, Operation, TasArgument a = {}, TasArgument b = {});
-    
+
     void submitDeclaration(utl::small_vector<sema::SymbolID>, TasArgument);
-    
+
     /// Returns the code position of the submitted jump,
     /// so the label can be updated later.
     size_t submitJump(Operation, Label label);
-    
+
     // Returns the label
     Label submitLabel();
-    
+
     FunctionLabel submitFunctionLabel(ast::FunctionDefinition const&);
-    
+
     void submitFunctionEndLabel();
-    
+
     /// Returns the appropriate jump instruction to jump over the then block.
     Operation processIfCondition(ast::Expression const& condition);
-    
+
     TasArgument makeTemporary(sema::TypeID type);
-    
+
     Operation selectOperation(sema::TypeID, ast::BinaryOperator) const;
-    
+
     sema::SymbolTable const& sym;
     utl::vector<TacLine>& code;
-    
+
     size_t tmpIndex = 0;
     /// Will be set by the FunctionDefinition case.
     sema::SymbolID currentFunctionID = sema::SymbolID::Invalid;
     /// Will be reset to 0 by the FunctionDefinition case.
     size_t labelIndex = 0;
-    
+
     OpTable opTable{ sym };
 };
 
@@ -277,7 +277,10 @@ TasArgument Context::generateExpression(ast::BinaryExpression const& expr) {
     case ast::BinaryOperator::BitwiseOr: [[fallthrough]];
     case ast::BinaryOperator::BitwiseXOr: [[fallthrough]];
     case ast::BinaryOperator::BitwiseAnd:
-        return submit(makeTemporary(expr.lhs->typeID()), selectOperation(expr.lhs->typeID(), expr.operation()), lhs, rhs);
+        return submit(makeTemporary(expr.lhs->typeID()),
+                      selectOperation(expr.lhs->typeID(), expr.operation()),
+                      lhs,
+                      rhs);
     case ast::BinaryOperator::Less: [[fallthrough]];
     case ast::BinaryOperator::LessEq: [[fallthrough]];
     case ast::BinaryOperator::Equals: [[fallthrough]];
@@ -328,10 +331,10 @@ TasArgument Context::generateExpression(ast::UnaryPrefixExpression const& expr) 
 
 TasArgument Context::generateExpression(ast::Conditional const& expr) {
     SC_ASSERT(expr.condition != nullptr, "Invalid argument.");
-    SC_ASSERT(expr.ifExpr    != nullptr, "Invalid argument.");
-    SC_ASSERT(expr.elseExpr  != nullptr, "Invalid argument.");
-    Operation const cjmpOp = processIfCondition(*expr.condition);
-    size_t const cjmpIndex = submitJump(cjmpOp, Label{});
+    SC_ASSERT(expr.ifExpr != nullptr, "Invalid argument.");
+    SC_ASSERT(expr.elseExpr != nullptr, "Invalid argument.");
+    Operation const cjmpOp   = processIfCondition(*expr.condition);
+    size_t const cjmpIndex   = submitJump(cjmpOp, Label{});
     TasArgument const result = makeTemporary(expr.typeID());
     submit(result, Operation::mov, dispatchExpression(*expr.ifExpr));
     size_t const jmpIndex        = submitJump(Operation::jmp, Label{});
@@ -354,9 +357,9 @@ void Context::submit(Operation op, TasArgument a, TasArgument b) {
 }
 
 TasArgument Context::submit(TasArgument result, Operation op, TasArgument a, TasArgument b) {
-    SC_ASSERT(result.is(TasArgument::variable)  ||
-              result.is(TasArgument::temporary) ||
-              result.is(TasArgument::conditional), "");
+    SC_ASSERT(result.is(TasArgument::variable) || result.is(TasArgument::temporary) ||
+                  result.is(TasArgument::conditional),
+              "");
     code.push_back(ThreeAddressStatement{ .operation = op, .result = result, .arg1 = a, .arg2 = b });
     return result;
 }
@@ -365,7 +368,7 @@ void Context::submitDeclaration(utl::small_vector<sema::SymbolID> lhsId, TasArgu
     SC_ASSERT(!lhsId.empty(), "");
     auto const& var  = sym.getVariable(lhsId.back());
     auto const& type = sym.getObjectType(var.typeID());
-    
+
     if (type.isBuiltin()) {
         code.push_back(ThreeAddressStatement{ .operation = Operation::mov, .result = Variable(lhsId), .arg1 = arg });
         return;
@@ -420,7 +423,7 @@ Operation Context::processIfCondition(ast::Expression const& condition) {
         SC_DEBUGFAIL();
     }();
     // clang-format on
-    
+
     /// Make the condition a tas conditional statement.
     if (isRelop(condStatement.operation)) {
         condStatement.result    = If{};
