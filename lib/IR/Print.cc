@@ -4,7 +4,7 @@
 
 #include "Basic/Basic.h"
 #include "IR/BasicBlock.h"
-#include "IR/Instruction.h"
+#include "IR/Instructions.h"
 #include "IR/Module.h"
 #include "IR/Parameter.h"
 

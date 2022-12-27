@@ -7,7 +7,7 @@
 #include "IR/BasicBlock.h"
 #include "IR/Context.h"
 #include "IR/Function.h"
-#include "IR/Instruction.h"
+#include "IR/Instructions.h"
 #include "IR/Module.h"
 #include "IR/Parameter.h"
 #include "Sema/SymbolTable.h"
