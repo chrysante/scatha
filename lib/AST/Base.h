@@ -84,7 +84,7 @@ private:
 };
 
 // For dyncast compatibilty
-NodeType dyncastGetType(std::derived_from<AbstractSyntaxTree> auto const& node) {
+NodeType dyncast_get_type(std::derived_from<AbstractSyntaxTree> auto const& node) {
     return node.nodeType();
 }
 
