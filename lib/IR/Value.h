@@ -38,7 +38,7 @@ private:
 };
 
 // For dyncast compatibilty
-inline NodeType dyncastGetType(std::derived_from<Value> auto const& value) {
+inline NodeType dyncast_get_type(std::derived_from<Value> auto const& value) {
     return value.nodeType();
 }
 
