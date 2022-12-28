@@ -1,5 +1,5 @@
 #include <Catch/Catch2.hpp>
 
-#include "IR/Value.h"
+#include "IR/CFG.h"
 
 using namespace scatha;

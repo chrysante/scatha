@@ -8,7 +8,7 @@
 
 #include "Common/APInt.h"
 #include "IR/Type.h"
-#include "IR/Value.h"
+#include "IR/CFGCommon.h"
 
 namespace scatha::ir {
 

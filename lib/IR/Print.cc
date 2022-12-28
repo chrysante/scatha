@@ -3,10 +3,8 @@
 #include <iostream>
 
 #include "Basic/Basic.h"
-#include "IR/BasicBlock.h"
-#include "IR/Instructions.h"
+#include "IR/CFG.h"
 #include "IR/Module.h"
-#include "IR/Parameter.h"
 
 using namespace scatha;
 using namespace ir;

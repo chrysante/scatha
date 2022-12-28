@@ -4,12 +4,9 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
-#include "IR/BasicBlock.h"
 #include "IR/Context.h"
-#include "IR/Function.h"
-#include "IR/Instructions.h"
+#include "IR/CFG.h"
 #include "IR/Module.h"
-#include "IR/Parameter.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;

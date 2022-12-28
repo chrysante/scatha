@@ -2,6 +2,8 @@
 
 #include <utl/strcat.hpp>
 
+#include "IR/CFG.h"
+
 using namespace scatha;
 
 using namespace ir;
