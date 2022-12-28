@@ -1,5 +1,7 @@
 // No include guards
 
+/// List of all CFG Nodes.
+
 #ifndef SC_INSTRUCTION_DEF
 #   define SC_INSTRUCTION_DEF(inst)
 #endif
@@ -27,7 +29,7 @@ SC_INSTRUCTION_DEF(Phi)
 
 #undef SC_INSTRUCTION_DEF
 
-
+/// List of compare operations.
 
 #ifndef SC_COMPARE_OPERATION_DEF
 #   define SC_COMPARE_OPERATION_DEF(inst, instShort)
@@ -42,7 +44,7 @@ SC_COMPARE_OPERATION_DEF(NotEqual, neq)
 
 #undef SC_COMPARE_OPERATION_DEF
 
-
+/// List of arithmetic operations.
 
 #ifndef SC_ARITHMETIC_OPERATION_DEF
 #   define SC_ARITHMETIC_OPERATION_DEF(inst, lowerCase)
