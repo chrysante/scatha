@@ -37,7 +37,7 @@ struct Ctx {
     Module const& mod;
     ir::Function const* currentFunction = nullptr;
     std::stringstream str;
-    std::string font = "Andale Mono";
+    std::string font = "SF Mono";
 };
 
 } // namespace
@@ -116,6 +116,7 @@ void Ctx::connect(Function const& function) {
 void Ctx::connect(BasicBlock const& bb) {
     for (auto& inst: bb.instructions) {
         if (!isa<TerminatorInst>(inst)) { continue; }
+        // clang-format off
         visit(cast<TerminatorInst const&>(inst), utl::overload{
             [&](ir::TerminatorInst const& inst) {},
             [&](ir::Goto const& g) {
@@ -126,6 +127,7 @@ void Ctx::connect(BasicBlock const& bb) {
                 str << dotName(bb) << " -> " << dotName(*b.elseTarget()) << "\n";
             },
         });
+        // clang-format on
      }
 }
 
