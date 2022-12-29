@@ -34,11 +34,11 @@ namespace scatha::ir {
 //    ├─ FunctionCall
 //    └─ Phi
 
-#define SC_INSTRUCTION_DEF(Inst) class Inst;
+#define SC_CGFNODE_DEF(Inst) class Inst;
 #include "IR/Instructions.def"
 
 enum class NodeType {
-#define SC_INSTRUCTION_DEF(Inst) Inst,
+#define SC_CGFNODE_DEF(Inst) Inst,
 #include "IR/Instructions.def"
 
     _count
@@ -72,7 +72,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation 
 
 } // namespace scatha::ir
 
-#define SC_INSTRUCTION_DEF(Inst) SC_DYNCAST_MAP(::scatha::ir::Inst, ::scatha::ir::NodeType::Inst);
+#define SC_CGFNODE_DEF(Inst) SC_DYNCAST_MAP(::scatha::ir::Inst, ::scatha::ir::NodeType::Inst);
 #include "IR/Instructions.def"
 
 #endif // SCATHA_IR_COMMON_H_

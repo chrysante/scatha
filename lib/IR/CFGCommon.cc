@@ -8,7 +8,7 @@ using namespace ir;
 std::string_view ir::toString(NodeType nodeType) {
     switch (nodeType) {
         // clang-format off
-#define SC_INSTRUCTION_DEF(Inst) case NodeType::Inst: return #Inst;
+#define SC_CGFNODE_DEF(Inst) case NodeType::Inst: return #Inst;
 #include "IR/Instructions.def"
         // clang-format on
     case NodeType::_count: SC_UNREACHABLE();

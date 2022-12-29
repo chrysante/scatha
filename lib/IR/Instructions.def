@@ -2,32 +2,32 @@
 
 /// List of all CFG Nodes.
 
-#ifndef SC_INSTRUCTION_DEF
-#   define SC_INSTRUCTION_DEF(inst)
+#ifndef SC_CGFNODE_DEF
+#   define SC_CGFNODE_DEF(inst)
 #endif
 
-SC_INSTRUCTION_DEF(Value)
-SC_INSTRUCTION_DEF(Parameter)
-SC_INSTRUCTION_DEF(Constant)
-SC_INSTRUCTION_DEF(IntegralConstant)
-SC_INSTRUCTION_DEF(Function)
-SC_INSTRUCTION_DEF(BasicBlock)
-SC_INSTRUCTION_DEF(Instruction)
-SC_INSTRUCTION_DEF(Alloca)
-SC_INSTRUCTION_DEF(UnaryInstruction)
-SC_INSTRUCTION_DEF(Load)
-SC_INSTRUCTION_DEF(BinaryInstruction)
-SC_INSTRUCTION_DEF(Store)
-SC_INSTRUCTION_DEF(CompareInst)
-SC_INSTRUCTION_DEF(ArithmeticInst)
-SC_INSTRUCTION_DEF(TerminatorInst)
-SC_INSTRUCTION_DEF(Goto)
-SC_INSTRUCTION_DEF(Branch)
-SC_INSTRUCTION_DEF(Return)
-SC_INSTRUCTION_DEF(FunctionCall)
-SC_INSTRUCTION_DEF(Phi)
+SC_CGFNODE_DEF(Value)
+SC_CGFNODE_DEF(Parameter)
+SC_CGFNODE_DEF(Constant)
+SC_CGFNODE_DEF(IntegralConstant)
+SC_CGFNODE_DEF(Function)
+SC_CGFNODE_DEF(BasicBlock)
+SC_CGFNODE_DEF(Instruction)
+SC_CGFNODE_DEF(Alloca)
+SC_CGFNODE_DEF(UnaryInstruction)
+SC_CGFNODE_DEF(Load)
+SC_CGFNODE_DEF(BinaryInstruction)
+SC_CGFNODE_DEF(Store)
+SC_CGFNODE_DEF(CompareInst)
+SC_CGFNODE_DEF(ArithmeticInst)
+SC_CGFNODE_DEF(TerminatorInst)
+SC_CGFNODE_DEF(Goto)
+SC_CGFNODE_DEF(Branch)
+SC_CGFNODE_DEF(Return)
+SC_CGFNODE_DEF(FunctionCall)
+SC_CGFNODE_DEF(Phi)
 
-#undef SC_INSTRUCTION_DEF
+#undef SC_CGFNODE_DEF
 
 /// List of compare operations.
 
