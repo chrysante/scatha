@@ -10,7 +10,7 @@
 namespace scatha::ir {
 
 ///
-/// ** Forward declarations of types in the GFC **
+/// ** Forward declarations of all types in the GFC **
 ///
 
 // Value

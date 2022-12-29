@@ -23,19 +23,25 @@ fn nthPrime(n: int) -> int {
 
 fn main() -> int {
     var i = 0;
-    return nthPrime(5);
+    return nthPrime(12 * 14);
 }
 
 fn fac(n: int) -> int {
     return n <= 1 ? 1 : fac(n - 1);
 }
 
-fn testAND(n: int) -> bool {
-    return n == 1 && n == 5;
-}
+// fn testAND(n: int) -> bool {
+//     return n == 1 && n == 5;
+// }
+// 
+// fn testOR(n: int) -> bool {
+//     return n == 1 || n == 5;
+// }
 
-fn testOR(n: int) -> bool {
-    return n == 1 || n == 5;
+fn doubleLoop() {
+    while (true) {}
+    while (true) {}
+    return;
 }
 
 fn singleLoop(n: int) -> int {
@@ -70,6 +76,7 @@ fn doublyNestedLoop(n: int) -> int {
         while (j < n) {
             var k = 0;
             while (k < n) {
+
                 result *= 2;
                 k += 1;
             }

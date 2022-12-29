@@ -15,11 +15,11 @@ class Module;
 
 } // namespace scatha::ir
 
-namespace scatha {
+namespace scatha::cg2 {
 
 SCATHA(API) assembly::AssemblyStream codegen(ir::Module const& mod);
 	
-} // namespace scatha
+} // namespace scatha::cg2
 
 #endif // SCATHA_CODEGEN2_CODEGENERATOR_H_
 

@@ -18,6 +18,8 @@ namespace {
 struct Ctx {
     explicit Ctx(Module const& mod): mod(mod) {}
 
+    void run();
+
     void declare(Function const&);
     void declare(BasicBlock const&);
 
@@ -44,20 +46,24 @@ struct Ctx {
 
 std::string playground::emitDot(scatha::ir::Module const& mod) {
     Ctx ctx(mod);
-    ctx.beginModule();
-    for (auto& function: mod.functions()) {
-        ctx.beginFunction(function);
-        ctx.declare(function);
-        ctx.connect(function);
-        ctx.endFunction();
-    }
-    ctx.endModule();
+    ctx.run();
     return ctx.takeResult();
 }
 
 void playground::emitDot(scatha::ir::Module const& mod, std::filesystem::path const& outFilepath) {
     std::fstream file(outFilepath, std::ios::out | std::ios::trunc);
     file << emitDot(mod);
+}
+
+void Ctx::run() {
+    beginModule();
+    for (auto& function: mod.functions()) {
+        beginFunction(function);
+        declare(function);
+        connect(function);
+        endFunction();
+    }
+    endModule();
 }
 
 void Ctx::declare(Function const& function) {

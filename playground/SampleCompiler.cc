@@ -14,6 +14,12 @@
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyUtil.h"
 #include "CodeGen/CodeGenerator.h"
+#include "ASTCodeGen/CodeGen.h"
+#include "IR/Module.h"
+#include "IR/CFG.h"
+#include "IR/Context.h"
+#include "IR/Print.h"
+#include "CodeGen2/CodeGenerator.h"
 #include "IC/Canonicalize.h"
 #include "IC/PrintTac.h"
 #include "IC/TacGenerator.h"
@@ -85,7 +91,6 @@ void playground::compile(std::string text) {
     auto ast = parse::parse(tokens, parseIss);
     if (parseIss.empty()) {
         utl::print("No syntax issues.\n");
-        ast::printTree(*ast);
     }
     else {
         utl::print("\nEncoutered {} issues\n", parseIss.issues().size());
@@ -103,7 +108,6 @@ void playground::compile(std::string text) {
     auto const sym = sema::analyze(*ast, semaIss);
     if (semaIss.issues().empty()) {
         utl::print("No semantic issues.\n");
-        sema::printSymbolTable(sym);
     }
     else {
         std::cout << "\nEncoutered " << semaIss.issues().size() << " issues\n";
@@ -142,16 +146,26 @@ void playground::compile(std::string text) {
     if (!lexIss.empty() || !parseIss.empty() || !semaIss.empty()) { return; }
 
     subHeader();
+    header(" Generated IR ");
+    ir::Context irCtx;
+    ir::Module mod = ast::codegen(*ast, sym, irCtx);
+    ir::print(mod);
+    
+    header(" Assembly generated from IR ");
+    auto const str0 = cg2::codegen(mod);
+    print(str0);
+    
+    subHeader();
     header(" Generated Three Address Code ");
     ic::canonicalize(ast.get());
     auto const tac = ic::generateTac(*ast, sym);
-    ic::printTac(tac, sym);
-
-    header(" Generated Assembly ");
+    
+    header(" Assembly generated from IC ");
     codegen::CodeGenerator cg(tac);
     auto const str = cg.run();
     print(str, sym);
 
+    
 
     header(" Assembled Program ");
     assembly::Assembler a(str);
@@ -173,7 +187,6 @@ void playground::compile(std::string text) {
         return;
     }
     auto const program = a.assemble({ .mainID = mainID.rawValue() });
-    print(program);
 
     subHeader();
 

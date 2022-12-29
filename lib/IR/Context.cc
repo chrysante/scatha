@@ -9,8 +9,8 @@ using namespace scatha;
 using namespace ir;
 
 Context::Context() {
-    _types.insert(new Type("void", Type::Category::Void));
-    _types.insert(new Type("ptr", Type::Category::Pointer));
+    _types.insert(new Type("void", Type::Category::Void, 0, 0));
+    _types.insert(new Type("ptr", Type::Category::Pointer, 8, 8));
 }
 
 Type const* Context::voidType() {

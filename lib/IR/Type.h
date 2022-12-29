@@ -4,6 +4,7 @@
 #include <span>
 #include <string>
 
+#include <utl/functional.hpp> // For ceil_divide
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
@@ -16,10 +17,27 @@ class Type {
 public:
     enum Category { Void, Pointer, Integral, FloatingPoint, Structure, Function };
 
-    explicit Type(std::string name, Category category): _name(std::move(name)), _category(category) {}
+    explicit Type(std::string name,
+                  Category category,
+                  size_t size = ~size_t(0),
+                  size_t align = ~size_t(0)):
+        _name(std::move(name)), _category(category), _size(size), _align(align) {}
 
     std::string_view name() const { return _name; }
-
+    
+    size_t size() const { return _size; }
+    size_t align() const { return _align; }
+    
+    void setSize(size_t size) {
+        SC_EXPECT(_size == ~size_t(0), "Size must not have been set before.");
+        _size = size;
+    }
+    
+    void setAlign(size_t align) {
+        SC_EXPECT(_align == ~size_t(0), "Alignment must not have been set before.");
+        _align = align;
+    }
+    
     auto category() const { return _category; }
 
     bool isVoid() const { return category() == Void; }
@@ -48,6 +66,7 @@ public:
 private:
     std::string _name;
     Category _category;
+    size_t _size, _align;
 };
 
 class Arithmetic: public Type {
@@ -56,7 +75,11 @@ public:
 
 protected:
     explicit Arithmetic(std::string_view typenamePrefix, Type::Category category, size_t bitWidth):
-        Type(utl::strcat(typenamePrefix, bitWidth), category), _bitWidth(bitWidth) {}
+        Type(utl::strcat(typenamePrefix, bitWidth),
+             category,
+             utl::ceil_divide(bitWidth, 8),
+             utl::ceil_divide(bitWidth, 8)),
+        _bitWidth(bitWidth) {}
 
 private:
     size_t _bitWidth;
@@ -92,7 +115,7 @@ private:
 class FunctionType: public Type {
 public:
     explicit FunctionType(Type const* returnType, std::span<Type const* const> parameterTypes):
-        Type(makeName(returnType, parameterTypes), Type::Category::Function), _parameterTypes(parameterTypes) {}
+        Type(makeName(returnType, parameterTypes), Type::Category::Function, 0, 0), _parameterTypes(parameterTypes) {}
 
     Type const* returnType() const { return _returnType; }
 
