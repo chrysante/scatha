@@ -12,7 +12,7 @@ namespace scatha::assembly {
 std::ostream& operator<<(std::ostream& str, Instruction i) {
     // clang-format off
     return str << UTL_SERIALIZE_ENUM(i, {
-        { Instruction::allocReg,  "allocReg" },
+        { Instruction::enterFn,  "enterFn" },
         { Instruction::setBrk,    "setBrk" },
         { Instruction::call,      "call" },
         { Instruction::ret,       "ret" },

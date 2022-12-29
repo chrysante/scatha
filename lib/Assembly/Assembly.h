@@ -20,7 +20,7 @@ namespace scatha::assembly {
  */
 
 enum class Instruction : u8 {
-    allocReg,
+    enterFn,
     setBrk,
     call,
     ret,

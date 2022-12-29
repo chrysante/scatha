@@ -38,11 +38,11 @@ namespace scatha::vm {
 
 enum class OpCode : u8 {
     /// MARK: Register allocation
-    /// After executing \p allocReg all registers with index less than \p
+    /// After executing \p enterFn all registers with index less than \p
     /// numRegisters will be available.
     /// This means for a called function, the amount of available registers will
     /// include the argument registers set by the caller.
-    allocReg, // (u8 numRegisters)
+    enterFn, // (u8 numRegisters)
 
     /// MARK: Memory allocation
     /// Places a pointer to beginning of memory section in the argument
@@ -274,7 +274,7 @@ constexpr size_t codeSize(OpCode c) {
     auto const opCodeClass = classify(c);
     if (opCodeClass == Other) {
         switch (c) {
-        case OpCode::allocReg: return 2;
+        case OpCode::enterFn: return 2;
         case OpCode::setBrk: return 2;
         case OpCode::call: return 6;
         case OpCode::ret: return 1;

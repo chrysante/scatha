@@ -24,7 +24,7 @@ TEST_CASE("Memory read write", "[assembly][vm]") {
     using enum Instruction;
 
     AssemblyStream a;
-    a << allocReg << Value8(4);                              // allocate 4 registers
+    a << enterFn << Value8(4);                              // allocate 4 registers
     a << mov << RegisterIndex(0) << Unsigned64(128);         // a = 128
     a << setBrk << RegisterIndex(0);                         // allocate a bytes of memory
                                                              // now a = <pointer-to-memory-section>
@@ -54,7 +54,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
 
     // Should hold the result in R[2]
     // Main function
-    a << allocReg << Value8(4);                   // allocate 4 registers
+    a << enterFn << Value8(4);                   // allocate 4 registers
     a << mov << RegisterIndex(2) << Signed64(54); // a = 54
     a << mov << RegisterIndex(3) << Signed64(24); // b = 24
     a << call << Label(GCD, 0) << Value8(2);
@@ -62,7 +62,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
     a << terminate;
 
     a << Label(GCD, 0);
-    a << allocReg << Value8(3);
+    a << enterFn << Value8(3);
     a << icmp << RegisterIndex(1) << Signed64(0); // b == 0
     a << jne << Label(GCD, 1);
     a << ret; // return a; (as it already is in R[0])
@@ -91,7 +91,7 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
 
     // Should hold the result in R[2]
     a << Label(MAIN);                                  // Main function
-    a << allocReg << Value8(4);                        // allocate 4 registers
+    a << enterFn << Value8(4);                        // allocate 4 registers
                                                        // R[0] and R[1] are for the instruction pointer
                                                        // and register pointer offset
     a << mov << RegisterIndex(2) << Signed64(1023534); // R[2] = arg0
@@ -106,7 +106,7 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
     a << ret;
 
     a << Label(GCD, 0);
-    a << allocReg << Value8(6);                        // Allocate 6 registers:
+    a << enterFn << Value8(6);                        // Allocate 6 registers:
                                                        // R[0]: a
                                                        // R[1]: b
                                                        // R[2]: rpOffset
@@ -132,7 +132,7 @@ static void testArithmeticRR(Instruction i, auto arg1, auto arg2, auto reference
     using enum Instruction;
 
     AssemblyStream a;
-    a << allocReg << Value8(2);
+    a << enterFn << Value8(2);
     a << mov << RegisterIndex(0) << Value64(utl::bit_cast<u64>(arg1), type);
     a << mov << RegisterIndex(1) << Value64(utl::bit_cast<u64>(arg2), type);
     a << i << RegisterIndex(0) << RegisterIndex(1);
@@ -148,7 +148,7 @@ static void testArithmeticRV(Instruction i, auto arg1, auto arg2, auto reference
     using enum Instruction;
 
     AssemblyStream a;
-    a << allocReg << Value8(1);
+    a << enterFn << Value8(1);
     a << mov << RegisterIndex(0) << Value64(utl::bit_cast<u64>(arg1), type);
     a << i << RegisterIndex(0) << Value64(utl::bit_cast<u64>(arg2), type);
     a << terminate;
@@ -163,7 +163,7 @@ static void testArithmeticRM(Instruction i, auto arg1, auto arg2, auto reference
     using enum Instruction;
 
     AssemblyStream a;
-    a << allocReg << Value8(3);
+    a << enterFn << Value8(3);
     a << mov << RegisterIndex(0) << Value64(utl::bit_cast<u64>(arg1), type);
     a << mov << RegisterIndex(1) << Unsigned64(8);                           // R[1] = 8
     a << setBrk << RegisterIndex(1);                                         // allocate R[1] bytes of memory
@@ -238,7 +238,7 @@ TEST_CASE("Unconditional jump", "[assembly][vm]") {
 
     AssemblyStream a;
 
-    a << allocReg << Value8(1); // allocate 1 register
+    a << enterFn << Value8(1); // allocate 1 register
     a << jmp << Label(0, value);
     a << Label(0, 0);
     a << mov << RegisterIndex(0) << Signed64(0);
@@ -267,7 +267,7 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
     AssemblyStream a;
 
     using enum Instruction;
-    a << allocReg << Value8(2);
+    a << enterFn << Value8(2);
     a << mov << RegisterIndex(0) << Signed64(arg1);
     a << icmp << RegisterIndex(0) << Signed64(arg2);
     a << jle << Label(0, value);
@@ -296,7 +296,7 @@ TEST_CASE("itest, set*") {
     AssemblyStream a;
 
     using enum Instruction;
-    a << allocReg << Value8(6);
+    a << enterFn << Value8(6);
     a << mov << RegisterIndex(0) << Signed64(-1);
     a << itest << RegisterIndex(0);
     a << sete << RegisterIndex(0);

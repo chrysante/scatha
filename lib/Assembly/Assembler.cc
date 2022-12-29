@@ -58,8 +58,8 @@ Program Assembler::assemble(AssemblerOptions opt) {
 void Assembler::processInstruction(Instruction i, StreamIterator& itr) {
     switch (i) {
         using enum Instruction;
-    case allocReg:
-        put(OpCode::allocReg);
+    case enterFn:
+        put(OpCode::enterFn);
         put(itr.nextAs<Value8>());
         return;
 
