@@ -10,6 +10,7 @@
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblerIssue.h"
+#include "Sema/SymbolTable.h"
 
 namespace scatha::assembly {
 

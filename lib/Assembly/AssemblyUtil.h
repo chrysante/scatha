@@ -5,8 +5,13 @@
 #include <optional>
 
 #include "Assembly/AssemblyStream.h"
-#include "Sema/SymbolTable.h"
 #include "VM/OpCode.h"
+
+namespace scatha::sema {
+
+class SymbolTable;
+
+} // namespace scatha::sema
 
 namespace scatha::assembly {
 
