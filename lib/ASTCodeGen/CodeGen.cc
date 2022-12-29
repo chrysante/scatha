@@ -319,7 +319,7 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
                 return rhs;
             }
             auto* arithInst =
-                new ir::ArithmeticInst(lhs, rhs, mapArithmeticAssignOp(exprDecl.operation()), localUniqueName("arithmetic-result"));
+                new ir::ArithmeticInst(lhs, rhs, mapArithmeticAssignOp(exprDecl.operation()), localUniqueName("expr-result"));
             currentBB->addInstruction(arithInst);
             return arithInst;
         }();
