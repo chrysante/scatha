@@ -48,7 +48,7 @@ void print(Program const& p, std::ostream& str) {
         case Jump: str << printAs<i32>(data, i + 1); break;
         case Other:
             switch (opcode) {
-            case OpCode::allocReg: str << printAs<u8>(data, i + 1); break;
+            case OpCode::enterFn: str << printAs<u8>(data, i + 1); break;
             case OpCode::setBrk: str << printAs<u64>(data, i + 1); break;
             case OpCode::call: str << printAs<i32>(data, i + 1) << ", " << printAs<u8>(data, i + 5); break;
             case OpCode::ret: break;

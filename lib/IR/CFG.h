@@ -232,8 +232,8 @@ private:
 /// Branch instruction. Leave the current basic block and choose a target basic block based on a condition.
 class SCATHA(API) Branch: public TerminatorInst {
 public:
-    explicit Branch(Context& context, Value* condition, BasicBlock* ifTarget, BasicBlock* elseTarget):
-        TerminatorInst(NodeType::Branch, context), _condition(condition), _if(ifTarget), _else(elseTarget) {
+    explicit Branch(Context& context, Value* condition, BasicBlock* thenTarget, BasicBlock* elseTarget):
+        TerminatorInst(NodeType::Branch, context), _condition(condition), _then(thenTarget), _else(elseTarget) {
         SC_ASSERT(condition->type()->category() == Type::Category::Integral &&
                       static_cast<Integral const*>(condition->type())->bitWidth() == 1,
                   "Condition must be of type i1");
@@ -241,14 +241,14 @@ public:
 
     Value* condition() { return _condition; }
     Value const* condition() const { return _condition; }
-    BasicBlock* ifTarget() { return _if; }
-    BasicBlock const* ifTarget() const { return _if; }
+    BasicBlock* thenTarget() { return _then; }
+    BasicBlock const* thenTarget() const { return _then; }
     BasicBlock* elseTarget() { return _else; }
     BasicBlock const* elseTarget() const { return _else; }
 
 private:
     Value* _condition;
-    BasicBlock* _if;
+    BasicBlock* _then;
     BasicBlock* _else;
 };
 
