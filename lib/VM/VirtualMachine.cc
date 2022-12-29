@@ -17,17 +17,16 @@ void VirtualMachine::load(Program const& program) {
     // Load the program into memory
     memory.resize(instructionCount);
     std::memcpy(memory.data(), program.instructions.data(), instructionCount);
-
     iptr         = memory.data() + program.start;
     programBreak = memory.data() + instructionCount;
-
     memoryPtr   = nullptr;
     memoryBreak = nullptr;
 }
 
 void VirtualMachine::execute() {
     SC_ASSERT(iptr >= memory.data(), "");
-    SC_ASSERT(regPtr == (regPtr ? registers.data() : nullptr), "");
+    registers.resize(defaultRegisterCount);
+    regPtr = registers.data();
     while (iptr < programBreak) {
         u8 const opCode = *iptr;
         SC_ASSERT(opCode < static_cast<u8>(OpCode::_count), "Invalid op-code");
@@ -63,5 +62,7 @@ void VirtualMachine::cleanup() {
     iptr   = memory.data();
     regPtr = registers.data();
 }
+
+size_t VirtualMachine::defaultRegisterCount = 1 << 20;
 
 } // namespace scatha::vm
