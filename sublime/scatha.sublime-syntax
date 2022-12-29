@@ -6,7 +6,7 @@ name:
 file_extensions:
   - sc
 version:
-  - 2
+  - 0
 scope: source.example-c
 variables:
   ident: '[A-Za-z_][A-Za-z_0-9]*'
@@ -15,6 +15,11 @@ contexts:
   main:
     # Comments begin with a '//' and finish at the end of the line
     - match: '//'
+      scope: punctuation.definition.comment.example-c
+      push: line_comment
+
+    # C-style block comment
+    - match: '\/\*(\*(?!\/)|[^*])*\*\/'
       scope: punctuation.definition.comment.example-c
       push: line_comment
 

@@ -36,8 +36,8 @@ UniquePtr<T> allocate(Args&&... args) {
 
 template <typename Derived, typename Base>
 requires std::derived_from<Derived, Base>
-ast::UniquePtr<Derived> staticCast(ast::UniquePtr<Base>&& p) {
-    auto d = static_cast<Derived*>(p.release());
+ast::UniquePtr<Derived> uniquePtrCast(ast::UniquePtr<Base>&& p) {
+    auto* d = utl::cast<Derived*>(p.release());
     return ast::UniquePtr<Derived>(d);
 }
 
