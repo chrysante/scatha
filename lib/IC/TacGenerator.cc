@@ -224,6 +224,10 @@ void Context::generate(ast::WhileStatement const& whileStatement) {
 }
 
 void Context::generate(ast::ReturnStatement const& ret) {
+    if (!ret.expression) {
+        submit(Operation::ret);
+        return;
+    }
     TasArgument const retValue = dispatchExpression(*ret.expression);
     submit(Operation::ret, retValue);
 }
