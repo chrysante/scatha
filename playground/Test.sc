@@ -22,10 +22,13 @@ fn nthPrime(n: int) -> int {
 }
 
 fn main() -> int {
+    var i = 0;
     return nthPrime(5);
 }
 
-
+fn fac(n: int) -> int {
+    return n <= 1 ? 1 : fac(n - 1);
+}
 
 
 
@@ -49,9 +52,6 @@ fn main() -> int {
 /*
 
 
-fn fac(n: int) -> int {
-    return n <= 1 ? 1 : fac(n - 1);
-}
 
 fn testAND(n: int) -> bool {
     return n == 1 && n == 5;

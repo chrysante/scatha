@@ -1,4 +1,6 @@
-Build/
+build
+graphs
+
 .vs/
 .vscode/
 

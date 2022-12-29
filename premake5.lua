@@ -67,7 +67,7 @@ addCppFiles "app"
 externalincludedirs {
     "include",
     "lib",
-    "external/utility",
+    "external/utility/include",
     "external/termfmt"
 }
 
@@ -101,9 +101,10 @@ files "playground/**.sc"
 links { "scatha-lib", "utility" }
 
 filter { "system:macosx"} 
-    defines { "PROJECT_LOCATION=\"../../..\"" } -- use different (maybe less fragile) solution for windows
+    defines { "PROJECT_LOCATION=\"${PROJECT_DIR}\"" }
 filter { "system:windows" }
     defines { "PROJECT_LOCATION=R\"($(ProjectDir))\"" }
+filter {}
 
 ------------------------------------------
 include "external/utility/lib.lua"

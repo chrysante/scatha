@@ -29,7 +29,7 @@ contexts:
     - match: \b(fn|var|let|struct)\b
       scope: punctuation.definition.keyword
 
-    - match: \b(void|bool|int|float|string)\b
+    - match: \b(void|bool|int|float|string|true|false)\b
       scope: punctuation.definition.keyword
 
     - match: '(=|\+=|-=|\*=|\/=|%=|>>=|<<=|&=|\|=|\^=)'
