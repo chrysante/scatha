@@ -62,6 +62,8 @@ public:
         return visit([](issue::ProgramIssueBase const& base) -> auto& { return base.token(); });
     }
 
+    SourceLocation sourceLocation() const { return token().sourceLocation; }
+
     void setToken(Token token) {
         visit([&](ProgramIssueBase& e) { e.setToken(std::move(token)); });
     }
