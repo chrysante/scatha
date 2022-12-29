@@ -30,29 +30,6 @@ fn fac(n: int) -> int {
     return n <= 1 ? 1 : fac(n - 1);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-
-
 fn testAND(n: int) -> bool {
     return n == 1 && n == 5;
 }
@@ -61,23 +38,17 @@ fn testOR(n: int) -> bool {
     return n == 1 || n == 5;
 }
 
-fn nestedLoop(n: int) -> int {
+fn singleLoop(n: int) -> int {
     var i = 0;
-    if true {
-        while (i < n) {
-            i += 1;
-        }
-        return 0;
+    var result = 1;
+    while (i < n) {
+        result *= 2;
+        i += 1;
     }
-    else {
-        while (i < 2 * n) {
-            i += 1;
-        }
-        return i % 7;
-    }
+    return result;
 }
 
-fn nestedLoop(n: int, x: int) -> int {
+fn nestedLoop(n: int) -> int {
     var i = 0;
     var result = 1;
     while (i < n) {
@@ -91,4 +62,23 @@ fn nestedLoop(n: int, x: int) -> int {
     return result;
 }
 
-*/
+fn doublyNestedLoop(n: int) -> int {
+    var i = 0;
+    var result = 1;
+    while (i < n) {
+        var j = 0;
+        while (j < n) {
+            var k = 0;
+            while (k < n) {
+                result *= 2;
+                k += 1;
+            }
+            j += 1;
+        }
+        i += 1;
+    }
+    return result;
+}
+
+
+
