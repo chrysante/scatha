@@ -111,7 +111,6 @@ ir::Value* Context::generate(FunctionDefinition const& def) {
         utl::transform(def.parameters, [&](auto& param) { return mapType(param->typeID()); });
     // TODO: Also here worry about name mangling
     auto* fn    = cast<ir::Function*>(irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
-    varIndex    = def.parameters.size();
     auto* entry = new ir::BasicBlock(irCtx, localUniqueName("entry"));
     fn->addBasicBlock(entry);
     for (auto paramItr = fn->parameters().begin(); auto& paramDecl: def.parameters) {
@@ -434,7 +433,7 @@ std::string Context::localUniqueName(std::string_view name) {
 }
 
 std::string Context::localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args) {
-    return localUniqueName(utl::strcat(name), std::forward<decltype(args)>(args)...);
+    return localUniqueName(utl::strcat(name, std::forward<decltype(args)>(args)...));
 }
 
 ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
