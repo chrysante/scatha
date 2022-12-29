@@ -1,5 +1,6 @@
 #include "ASTCodeGen/CodeGen.h"
 
+#include <utl/strcat.hpp>
 #include <utl/ranges.hpp>
 #include <utl/vector.hpp>
 
@@ -52,7 +53,8 @@ struct Context {
     void memorizeVariablePtr(sema::SymbolID, ir::Value*);
     ir::Value* getVariablePtr(sema::SymbolID);
 
-    std::string localUniqueName();
+    std::string localUniqueName(std::string_view name);
+    std::string localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args);
 
     ir::Type const* mapType(sema::TypeID semaTypeID);
     static ir::CompareOperation mapCompareOp(ast::BinaryOperator);
@@ -62,10 +64,11 @@ struct Context {
     ir::Module& mod;
     ir::Context& irCtx;
     sema::SymbolTable const& symTable;
-    size_t varIndex               = 0;
     ir::Function* currentFunction = nullptr;
     ir::BasicBlock* currentBB     = nullptr;
     utl::hashmap<sema::SymbolID, ir::Value*> valueMap;
+    // For unique names
+    utl::hashmap<std::string, size_t> varIndices;
 };
 
 } // namespace
@@ -109,11 +112,11 @@ ir::Value* Context::generate(FunctionDefinition const& def) {
     // TODO: Also here worry about name mangling
     auto* fn    = cast<ir::Function*>(irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
     varIndex    = def.parameters.size();
-    auto* entry = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* entry = new ir::BasicBlock(irCtx, localUniqueName("entry"));
     fn->addBasicBlock(entry);
     for (auto paramItr = fn->parameters().begin(); auto& paramDecl: def.parameters) {
         auto const* const irParamType = mapType(paramDecl->typeID());
-        auto* paramMemPtr             = new ir::Alloca(irCtx, irParamType, localUniqueName());
+        auto* paramMemPtr             = new ir::Alloca(irCtx, irParamType, localUniqueName(paramDecl->name(), "-ptr"));
         entry->addInstruction(paramMemPtr);
         memorizeVariablePtr(paramDecl->symbolID(), paramMemPtr);
         auto* store = new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
@@ -123,6 +126,7 @@ ir::Value* Context::generate(FunctionDefinition const& def) {
     setCurrentBB(entry);
     dispatch(*def.body);
     setCurrentBB(nullptr);
+    varIndices.clear();
     return fn;
 }
 
@@ -131,7 +135,7 @@ ir::Value* Context::generate(StructDefinition const& def) {
 }
 
 ir::Value* Context::generate(VariableDeclaration const& varDecl) {
-    auto* varMemPtr = new ir::Alloca(irCtx, mapType(varDecl.typeID()), localUniqueName());
+    auto* varMemPtr = new ir::Alloca(irCtx, mapType(varDecl.typeID()), localUniqueName(varDecl.name(), "-ptr"));
     currentBB->addInstruction(varMemPtr);
     memorizeVariablePtr(varDecl.symbolID(), varMemPtr);
     if (varDecl.initExpression != nullptr) {
@@ -165,9 +169,9 @@ ir::Value* Context::generate(ReturnStatement const& retDecl) {
 
 ir::Value* Context::generate(IfStatement const& ifStatement) {
     auto* condition = dispatch(*ifStatement.condition);
-    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName());
-    auto* elseBlock = ifStatement.elseBlock ? new ir::BasicBlock(irCtx, localUniqueName()) : nullptr;
-    auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("then-block"));
+    auto* elseBlock = ifStatement.elseBlock ? new ir::BasicBlock(irCtx, localUniqueName("else-block")) : nullptr;
+    auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("if-end"));
     auto* branch    = new ir::Branch(irCtx, condition, thenBlock, elseBlock ? elseBlock : endBlock);
     currentBB->addInstruction(branch);
     auto addBlock = [&](ir::BasicBlock* bb, ast::Statement const& block) {
@@ -187,11 +191,11 @@ ir::Value* Context::generate(IfStatement const& ifStatement) {
 }
 
 ir::Value* Context::generate(WhileStatement const& loopDecl) {
-    auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName("loop-header"));
     currentFunction->addBasicBlock(loopHeader);
-    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop-body"));
     currentFunction->addBasicBlock(loopBody);
-    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop-end"));
     currentFunction->addBasicBlock(loopEnd);
     auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
     currentBB->addInstruction(gotoLoopHeader);
@@ -213,7 +217,7 @@ ir::Value* Context::generate(DoWhileStatement const&) {
 
 ir::Value* Context::generate(Identifier const& id) {
     auto* memPtr   = getVariablePtr(id.symbolID());
-    auto* loadInst = new ir::Load(mapType(id.typeID()), memPtr, localUniqueName());
+    auto* loadInst = new ir::Load(mapType(id.typeID()), memPtr, localUniqueName(id.value()));
     currentBB->addInstruction(loadInst);
     return loadInst;
 }
@@ -252,7 +256,7 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::BitwiseOr: {
         ir::Value* const lhs = dispatch(*exprDecl.lhs);
         ir::Value* const rhs = dispatch(*exprDecl.rhs);
-        auto* arithInst = new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName());
+        auto* arithInst = new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName("expr-result"));
         currentBB->addInstruction(arithInst);
         return arithInst;
     }
@@ -260,8 +264,8 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::LogicalOr: {
         ir::Value* const lhs = dispatch(*exprDecl.lhs);
         auto* startBlock     = currentBB;
-        auto* rhsBlock       = new ir::BasicBlock(irCtx, localUniqueName());
-        auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName());
+        auto* rhsBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical-rhs-block"));
+        auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical-end-block"));
         currentBB->addInstruction(exprDecl.operation() == BinaryOperator::LogicalAnd ?
                                       new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
                                       new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
@@ -274,10 +278,10 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
         auto* result = exprDecl.operation() == BinaryOperator::LogicalAnd ?
                            new ir::Phi(irCtx.integralType(1),
                                        { { startBlock, irCtx.integralConstant(0, 1) }, { rhsBlock, rhs } },
-                                       localUniqueName()) :
+                                       localUniqueName("logical-and-value")) :
                            new ir::Phi(irCtx.integralType(1),
                                        { { startBlock, irCtx.integralConstant(1, 1) }, { rhsBlock, rhs } },
-                                       localUniqueName());
+                                       localUniqueName("logical-or-value"));
         currentBB->addInstruction(result);
         return result;
     }
@@ -289,7 +293,7 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::NotEquals: {
         ir::Value* const lhs = dispatch(*exprDecl.lhs);
         ir::Value* const rhs = dispatch(*exprDecl.rhs);
-        auto* cmpInst = new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName());
+        auto* cmpInst = new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName("cmp-result"));
         currentBB->addInstruction(cmpInst);
         return cmpInst;
     }
@@ -316,7 +320,7 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
                 return rhs;
             }
             auto* arithInst =
-                new ir::ArithmeticInst(lhs, rhs, mapArithmeticAssignOp(exprDecl.operation()), localUniqueName());
+                new ir::ArithmeticInst(lhs, rhs, mapArithmeticAssignOp(exprDecl.operation()), localUniqueName("arithmetic-result"));
             currentBB->addInstruction(arithInst);
             return arithInst;
         }();
@@ -336,9 +340,9 @@ ir::Value* Context::generate(MemberAccess const&) {
 ir::Value* Context::generate(Conditional const& condExpr) {
     ir::Type const* type = mapType(condExpr.typeID());
     auto* cond           = dispatch(*condExpr.condition);
-    auto* thenBlock      = new ir::BasicBlock(irCtx, localUniqueName());
-    auto* elseBlock      = new ir::BasicBlock(irCtx, localUniqueName());
-    auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName());
+    auto* thenBlock      = new ir::BasicBlock(irCtx, localUniqueName("then-block"));
+    auto* elseBlock      = new ir::BasicBlock(irCtx, localUniqueName("else-block"));
+    auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("conditional-end"));
     currentBB->addInstruction(new ir::Branch(irCtx, cond, thenBlock, elseBlock));
     currentFunction->addBasicBlock(thenBlock);
     setCurrentBB(thenBlock);
@@ -350,7 +354,7 @@ ir::Value* Context::generate(Conditional const& condExpr) {
     currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
     currentFunction->addBasicBlock(endBlock);
     setCurrentBB(endBlock);
-    auto* result = new ir::Phi(type, { { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName());
+    auto* result = new ir::Phi(type, { { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName("conditional-result"));
     currentBB->addInstruction(result);
     return result;
 }
@@ -364,7 +368,7 @@ ir::Value* Context::generate(FunctionCall const& functionCall) {
         utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return dispatch(*expr); });
     auto* call = new ir::FunctionCall(function,
                                       args,
-                                      functionCall.typeID() != symTable.Void() ? localUniqueName() : std::string{});
+                                      functionCall.typeID() != symTable.Void() ? localUniqueName("call-result") : std::string{});
     currentBB->addInstruction(call);
     return call;
 }
@@ -420,8 +424,17 @@ ir::Value* Context::getVariablePtr(sema::SymbolID symbolID) {
     return itr->second;
 }
 
-std::string Context::localUniqueName() {
-    return std::to_string(varIndex++);
+std::string Context::localUniqueName(std::string_view name) {
+    auto itr = varIndices.find(name);
+    if (itr == varIndices.end()) {
+        varIndices.insert({ std::string(name), 1 });
+        return std::string(name);
+    }
+    return utl::strcat(name, "-", itr->second++);
+}
+
+std::string Context::localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args) {
+    return localUniqueName(utl::strcat(name), std::forward<decltype(args)>(args)...);
 }
 
 ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
