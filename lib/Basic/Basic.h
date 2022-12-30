@@ -48,6 +48,8 @@
 #define _SCATHA_PD_CONST()
 #endif
 
+#define _SCATHA_PD_DEBUG() 1
+
 // API Export
 #if SCATHA(GNU)
 #define _SCATHA_PD_API() __attribute__((visibility("default")))
@@ -88,7 +90,12 @@
 #else
 #define _SC_UNREACHABLE_IMPL() ((void)0)
 #endif
-#define SC_UNREACHABLE(...) (_SC_UNREACHABLE_IMPL(), SC_DEBUGFAIL())
+
+#if SCATHA(DEBUG)
+#define SC_UNREACHABLE(...) SC_DEBUGFAIL()
+#else
+#define SC_UNREACHABLE(...) _SC_UNREACHABLE_IMPL()
+#endif
 
 // SC_ASSUME
 #if SCATHA(CLANG)
