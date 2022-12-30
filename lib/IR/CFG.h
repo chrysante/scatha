@@ -85,6 +85,9 @@ public:
         instructions.push_back(instruction);
     }
 
+    /// Check wether this is the entry basic block of a function
+    bool isEntry() const;
+    
     List<Instruction> instructions;
 };
 
@@ -119,6 +122,7 @@ public:
     List<BasicBlock> const& basicBlocks() const { return bbs; }
 
     void addBasicBlock(BasicBlock* basicBlock) {
+        basicBlock->set_parent(this);
         bbs.push_back(basicBlock);
     }
 
@@ -160,6 +164,8 @@ public:
         UnaryInstruction(NodeType::Load, address, type, std::move(name)) {
         SC_ASSERT(address->type()->isPointer(), "Address argument to Load must be a pointer");
     }
+    Value* address() { return operand(); }
+    Value const* address() const { return operand(); }
 };
 
 /// Base class of all binary instructions.
@@ -183,6 +189,11 @@ private:
 class SCATHA(API) Store: public BinaryInstruction {
 public:
     explicit Store(Context& context, Value* address, Value* value);
+    
+    Value* address() { return lhs(); }
+    Value const* address() const { return lhs(); }
+    Value* value() { return rhs(); }
+    Value const* value() const { return rhs(); }
 };
 
 /// Compare instruction.

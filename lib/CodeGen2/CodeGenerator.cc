@@ -22,10 +22,12 @@ struct Context {
     
     void dispatch(ir::Value const& value);
     
-    void generate(ir::Value const& value) { SC_UNREACHABLE(); }
+    void generate(ir::Value const& value) { /* SC_UNREACHABLE(); */ }
     void generate(ir::Function const& function);
     void generate(ir::BasicBlock const& bb);
     void generate(ir::Alloca const&);
+    void generate(ir::Store const&);
+    void generate(ir::Load const&);
     
     size_t labelIndex(ir::Value const* value);
     
@@ -61,15 +63,16 @@ void Context::generate(ir::Function const& function) {
     utl::scope_guard clearRD = [&]{ _currentRD = nullptr; };
     /// Declare parameters.
     for (auto& param: function.parameters()) { rd.resolve(param); }
-    result << assembly::Label(labelIndex(&function));
-    size_t const enterFnArgIndex = result.size() - Value8::size();
+    result << assembly::Label(labelIndex(&function), 0);
     for (auto& bb: function.basicBlocks()) {
         dispatch(bb);
     }
 }
 
 void Context::generate(ir::BasicBlock const& bb) {
-    result << assembly::Label(labelIndex(&bb));
+    if (!bb.isEntry()) {
+        result << assembly::Label(labelIndex(&bb), 0);        
+    }
     for (auto& inst: bb.instructions) {
         dispatch(inst);
     }
@@ -84,8 +87,33 @@ void Context::generate(ir::Alloca const& allocaInst) {
     /// - Once we have both of these we can switch to using real pointers in the VM execution. 
     /// - Then implementation of alloca will be a walk in the park. Just bump the index of the register descriptor by
     ///   ceil_divide(size, reg_size), handle overalignment somehow and return the register pointer plus offset.
-    ///   We already have load and store operations (movMR, movRM, etc). 
-    allocaInst.allocatedType()->size();
+    ///   We already have load and store operations (movMR, movRM, etc).
+    
+    SC_ASSERT(allocaInst.allocatedType()->align() <= 8, "We don't support overaligned types just yet.");
+    result << Instruction::storeRegAddress;
+    result << currentRD().resolve(allocaInst);
+    result << currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8));
+}
+
+void Context::generate(ir::Store const& store) {
+    auto dest = currentRD().resolve(*store.address());
+    auto src = currentRD().resolve(*store.value());
+    
+    if (std::holds_alternative<assembly::Value64>(src)) {
+        /// \p src is a value and must be stored in temporary register first.
+        auto tmp = currentRD().makeTemporary();
+        result << Instruction::mov << tmp << src;
+        result << Instruction::mov << dest << tmp;
+    }
+    else {
+        result << Instruction::mov << dest << src;
+    }
+}
+
+void Context::generate(ir::Load const& load) {
+    result << Instruction::mov;
+    result << currentRD().resolve(load);
+    result << currentRD().resolve(*load.address());
 }
 
 size_t Context::labelIndex(ir::Value const* value) {

@@ -2,6 +2,7 @@
 #define SCATHA_CODEGEN2_REGISTERDESCRIPTOR_H_
 
 #include <string>
+#include <variant>
 
 #include <utl/hashmap.hpp>
 
@@ -12,10 +13,13 @@ namespace scatha::cg2 {
 	
 class RegisterDescriptor {
 public:
-    assembly::RegisterIndex resolve(ir::Value const&);
+    std::variant<assembly::RegisterIndex, assembly::MemoryAddress, assembly::Value64> resolve(ir::Value const&);
+    assembly::MemoryAddress resolveAddr(ir::Value const&);
     
     assembly::RegisterIndex makeTemporary();
-
+    
+    assembly::RegisterIndex allocateAutomatic(size_t numRegisters);
+    
     size_t numUsedRegisters() const { return index; }
     
 private:

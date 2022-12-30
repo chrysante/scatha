@@ -21,6 +21,10 @@ Function::Function(FunctionType const* functionType,
 BasicBlock::BasicBlock(Context& context, std::string name):
     Value(NodeType::BasicBlock, context.voidType(), std::move(name)) {}
 
+bool BasicBlock::isEntry() const {
+    return parent()->basicBlocks().begin() == List<BasicBlock>::const_iterator(this);
+}
+
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
     Instruction(NodeType::Alloca, context.pointerType(), std::move(name)), _allocatedType(allocatedType) {}
 
