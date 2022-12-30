@@ -7,6 +7,7 @@
 
 #include <utl/bit.hpp>
 #include <utl/hash.hpp>
+#include <utl/utility.hpp>
 
 #include "Basic/Basic.h"
 
@@ -26,6 +27,7 @@ enum class Instruction : u8 {
     ret,
     terminate,
     mov,
+    storeRegAddress,
     jmp,
     je,
     jne,
@@ -83,7 +85,7 @@ struct Label {
 std::ostream& operator<<(std::ostream&, Label);
 
 struct RegisterIndex {
-    explicit RegisterIndex(u8 index): index(index) {}
+    explicit RegisterIndex(std::integral auto index): index(utl::narrow_cast<u8>(index)) {}
 
     bool operator==(RegisterIndex const&) const = default;
 

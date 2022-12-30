@@ -86,6 +86,12 @@ void Assembler::processInstruction(Instruction i, StreamIterator& itr) {
         put(itr.nextAs<Value16>());
         return;
 
+    case storeRegAddress:
+        put(OpCode::storeRegAddress);
+        put(itr.nextAs<RegisterIndex>());
+        put(itr.nextAs<RegisterIndex>());
+        return;
+        
     case itest: [[fallthrough]];
     case utest: [[fallthrough]];
     case sete: [[fallthrough]];

@@ -310,6 +310,10 @@ struct Printer {
             str << callExt << " " << itr.nextAs<Value8>() << ", " << itr.nextAs<Value8>() << ", "
                 << itr.nextAs<Value16>();
             return;
+            
+        case storeRegAddress:
+            str << storeRegAddress << " " << itr.nextAs<RegisterIndex>() << ", " << itr.nextAs<RegisterIndex>();
+            return;
 
         case itest: [[fallthrough]];
         case utest: [[fallthrough]];
