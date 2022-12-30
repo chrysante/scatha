@@ -308,28 +308,31 @@ constexpr OpCodeClass classify(OpCode c) {
 }
 
 constexpr size_t codeSize(OpCode c) {
+    // clang-format off
     using enum OpCodeClass;
     auto const opCodeClass = classify(c);
     if (opCodeClass == Other) {
         switch (c) {
-        case OpCode::enterFn: return 2;
-        case OpCode::setBrk: return 2;
-        case OpCode::call: return 6;
-        case OpCode::ret: return 1;
-        case OpCode::terminate: return 1;
-        case OpCode::callExt: return 5;
+        case OpCode::enterFn:         return 2;
+        case OpCode::setBrk:          return 2;
+        case OpCode::call:            return 6;
+        case OpCode::ret:             return 1;
+        case OpCode::terminate:       return 1;
+        case OpCode::callExt:         return 5;
+        case OpCode::storeRegAddress: return 3;
         default: SC_UNREACHABLE();
         }
     }
-    return UTL_MAP_ENUM(opCodeClass,
-                        size_t,
-                        { { OpCodeClass::RR, 3 },
-                          { OpCodeClass::RV, 10 },
-                          { OpCodeClass::RM, 5 },
-                          { OpCodeClass::MR, 5 },
-                          { OpCodeClass::R, 2 },
-                          { OpCodeClass::Jump, 5 },
-                          { OpCodeClass::Other, static_cast<size_t>(-1) } });
+    return UTL_MAP_ENUM(opCodeClass, size_t, {
+        { OpCodeClass::RR,     3 },
+        { OpCodeClass::RV,    10 },
+        { OpCodeClass::RM,     5 },
+        { OpCodeClass::MR,     5 },
+        { OpCodeClass::R,      2 },
+        { OpCodeClass::Jump,   5 },
+        { OpCodeClass::Other, static_cast<size_t>(-1) }
+    });
+    // clang-format on
 }
 
 using Instruction = u64 (*)(u8 const*, u64*, class VirtualMachine*);
