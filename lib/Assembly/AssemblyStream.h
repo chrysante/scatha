@@ -2,6 +2,7 @@
 #define SCATHA_ASSEMBLY_ASSEMBLYSTREAM_H_
 
 #include <array>
+#include <variant>
 
 #include <utl/vector.hpp>
 
@@ -23,6 +24,12 @@ public:
     friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, RegisterIndex);
     friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, MemoryAddress);
     friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, Label);
+    
+    template <typename... T> requires (requires(AssemblyStream& a, T const& t) { a << t; } && ...)
+    friend AssemblyStream& operator<<(AssemblyStream& a, std::variant<T...> const& v) {
+        std::visit([&](auto const& t) { a << t; }, v);
+        return a;
+    }
 
     u8& operator[](size_t index) { return data[index]; }
     u8 const& operator[](size_t index) const { return data[index]; }
