@@ -28,8 +28,14 @@ struct Context {
     void generate(ir::Alloca const&);
     void generate(ir::Store const&);
     void generate(ir::Load const&);
+    void generate(ir::CompareInst const&);
+    void generate(ir::ArithmeticInst const&);
+    void generate(ir::Goto const&);
+    void generate(ir::Branch const&);
     
-    size_t labelIndex(ir::Value const* value);
+    Label toLabel(ir::BasicBlock const&);
+    Label toLabel(ir::Function const&);
+    size_t toLabelImpl(ir::Value const&);
     
     RegisterDescriptor& currentRD() { return *_currentRD; }
     AssemblyStream& result;
@@ -63,7 +69,7 @@ void Context::generate(ir::Function const& function) {
     utl::scope_guard clearRD = [&]{ _currentRD = nullptr; };
     /// Declare parameters.
     for (auto& param: function.parameters()) { rd.resolve(param); }
-    result << assembly::Label(labelIndex(&function), 0);
+    result << toLabel(function);
     for (auto& bb: function.basicBlocks()) {
         dispatch(bb);
     }
@@ -71,7 +77,7 @@ void Context::generate(ir::Function const& function) {
 
 void Context::generate(ir::BasicBlock const& bb) {
     if (!bb.isEntry()) {
-        result << assembly::Label(labelIndex(&bb), 0);        
+        result << toLabel(bb);
     }
     for (auto& inst: bb.instructions) {
         dispatch(inst);
@@ -116,8 +122,75 @@ void Context::generate(ir::Load const& load) {
     result << currentRD().resolve(*load.address());
 }
 
-size_t Context::labelIndex(ir::Value const* value) {
-    auto [itr, success] = labelIndices.insert({ value, labelIndexCounter });
+static Instruction mapCmp(ir::Type const* type) {
+    if (type->isIntegral()) {
+        /// TODO: Also handle unsigned comparison.
+        return Instruction::icmp;
+    }
+    if (type->isFloat()) {
+        return Instruction::fcmp;
+    }
+    SC_UNREACHABLE();
+}
+
+void Context::generate(ir::CompareInst const& cmp) {
+    result << mapCmp(cmp.operandType()) << currentRD().resolve(*cmp.lhs()) << currentRD().resolve(*cmp.rhs());
+}
+
+static Instruction mapArithmetic(ir::ArithmeticOperation op) {
+    return UTL_MAP_ENUM(op, Instruction, {
+        { ir::ArithmeticOperation::Add,    Instruction::add },
+        { ir::ArithmeticOperation::Sub,    Instruction::sub },
+        { ir::ArithmeticOperation::Mul,    Instruction::mul },
+        { ir::ArithmeticOperation::Div,    Instruction::idiv },
+        { ir::ArithmeticOperation::UDiv,   Instruction::div },
+        { ir::ArithmeticOperation::Rem,    Instruction::irem },
+        { ir::ArithmeticOperation::URem,   Instruction::rem },
+        { ir::ArithmeticOperation::ShiftL, Instruction::sl },
+        { ir::ArithmeticOperation::ShiftR, Instruction::sr },
+        { ir::ArithmeticOperation::And,    Instruction::And },
+        { ir::ArithmeticOperation::Or,     Instruction::Or },
+        { ir::ArithmeticOperation::XOr,    Instruction::XOr },
+    });
+}
+
+void Context::generate(ir::ArithmeticInst const& arithmetic) {
+    result << mapArithmetic(arithmetic.operation()) << currentRD().resolve(*arithmetic.lhs()) << currentRD().resolve(*arithmetic.rhs());
+}
+
+// MARK: Terminators
+
+static Instruction mapCmpToJump(ir::CompareOperation op) {
+    return UTL_MAP_ENUM(op, Instruction, {
+        { ir::CompareOperation::Less,      Instruction::jl },
+        { ir::CompareOperation::LessEq,    Instruction::jle },
+        { ir::CompareOperation::Greater,   Instruction::jg },
+        { ir::CompareOperation::GreaterEq, Instruction::jge },
+        { ir::CompareOperation::Equal,     Instruction::je },
+        { ir::CompareOperation::NotEqual,  Instruction::jne },
+    });
+}
+
+void Context::generate(ir::Goto const& gt) {
+    result << Instruction::jmp << toLabel(*gt.target());
+}
+
+void Context::generate(ir::Branch const& br) {
+    auto const& cond = *cast<ir::CompareInst const*>(br.condition());
+    result << mapCmpToJump(cond.operation()) << toLabel(*br.thenTarget());
+    result << Instruction::jmp << toLabel(*br.elseTarget());
+}
+
+Label Context::toLabel(ir::BasicBlock const& bb) {
+    return Label(toLabelImpl(bb), 0);
+}
+
+Label Context::toLabel(ir::Function const& fn) {
+    return Label(toLabelImpl(fn), 0);
+}
+
+size_t Context::toLabelImpl(ir::Value const& value) {
+    auto [itr, success] = labelIndices.insert({ &value, labelIndexCounter });
     if (success) { ++labelIndexCounter; }
     return itr->second;
 }

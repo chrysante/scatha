@@ -153,6 +153,8 @@ public:
     Value* operand() { return _operand; }
     Value const* operand() const { return _operand; }
 
+    Type const* operandType() const { return operand()->type(); }
+    
 private:
     Value* _operand;
 };
@@ -180,6 +182,8 @@ public:
     Value* rhs() { return _rhs; }
     Value const* rhs() const { return _rhs; }
 
+    Type const* operandType() const { return lhs()->type(); }
+    
 private:
     Value* _lhs;
     Value* _rhs;
@@ -213,7 +217,7 @@ class SCATHA(API) ArithmeticInst: public BinaryInstruction {
 public:
     explicit ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, std::string name):
         BinaryInstruction(NodeType::ArithmeticInst, lhs, rhs, lhs->type(), std::move(name)), _op(op) {
-        SC_ASSERT(lhs->type() == rhs->type(), "Operands must have the same type");
+        SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
     }
 
     ArithmeticOperation operation() const { return _op; }

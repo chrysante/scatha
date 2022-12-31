@@ -35,7 +35,10 @@ Store::Store(Context& context, Value* address, Value* value):
 }
 
 CompareInst::CompareInst(Context& context, Value* lhs, Value* rhs, CompareOperation op, std::string name):
-    BinaryInstruction(NodeType::CompareInst, lhs, rhs, context.integralType(1), std::move(name)), _op(op) {}
+    BinaryInstruction(NodeType::CompareInst, lhs, rhs, context.integralType(1), std::move(name)), _op(op)
+{
+    SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
+}
 
 TerminatorInst::TerminatorInst(NodeType nodeType, Context& context): Instruction(nodeType, context.voidType()) {}
 
