@@ -279,7 +279,7 @@ private:
     Value* _value;
 };
 
-/// Function call. Call a function
+/// Function call. Call a function.
 class SCATHA(API) FunctionCall: public Instruction {
 public:
     FunctionCall(Function* function, std::span<Value* const> arguments, std::string name = {});
