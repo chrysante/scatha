@@ -188,7 +188,10 @@ private:
 class ArithmeticInst: public Instruction {
 public:
     explicit ArithmeticInst(ArithmeticOperation op, Type type, std::unique_ptr<Element> lhs, std::unique_ptr<Element> rhs):
-        Instruction(ElemType::ArithmeticInst), _op(op), _type(type), _lhs(std::move(lhs)), _rhs(std::move(rhs)) {}
+        Instruction(ElemType::ArithmeticInst), _op(op), _type(type), _lhs(std::move(lhs)), _rhs(std::move(rhs))
+    {
+        verify();
+    }
     
     ArithmeticOperation operation() const { return _op; }
     
@@ -197,6 +200,9 @@ public:
     Element const& lhs() const { return *_lhs; }
     
     Element const& rhs() const { return *_rhs; }
+    
+private:
+    void verify() const;
     
 private:
     ArithmeticOperation _op;
