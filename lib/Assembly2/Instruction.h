@@ -14,15 +14,7 @@ namespace scatha::asm2 {
 class InstructionBase {
 protected:
     InstructionBase() = default;
-//    InstructionBase(Label label):
-//        _label(std::move(label)) {}
-//
-//    bool isLabelled() const { return static_cast<bool>(label()); }
-//
-//    Label const& label() const { return _label; }
     
-private:
-//    Label _label;
 };
 
 /// Represents a \p mov instruction.
@@ -211,4 +203,3 @@ public:
 } // namespace scatha::asm2
 
 #endif // SCATHA_ASSEMBLY2_STATEMENTS_H_
-
