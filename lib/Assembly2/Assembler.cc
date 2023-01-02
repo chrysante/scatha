@@ -9,6 +9,7 @@
 
 #include "Assembly2/Elements.h"
 #include "Assembly2/AssemblyStream.h"
+#include "Assembly2/Map.h"
 #include "Basic/Memory.h"
 #include "VM/OpCode.h"
 #include "VM/Program.h"
@@ -43,6 +44,7 @@ struct Context {
     void translate(TerminateInst const&);
     void translate(StoreRegAddress const&);
     void translate(CompareInst const&);
+    void translate(TestInst const&);
     void translate(SetInst const&);
     void translate(ArithmeticInst const&);
     void translate(Label const&);
@@ -54,6 +56,7 @@ struct Context {
     void translate(Value64 const&);
     
     void put(vm::OpCode o) {
+        SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
         program.instructions.push_back(utl::to_underlying(o));
     }
     
@@ -106,39 +109,14 @@ void Context::dispatch(Element const& element) {
 }
 
 void Context::translate(MoveInst const& mov) {
-    visit(mov.dest(), mov.source(), utl::overload{
-        [](auto& dest, auto& src) {
-            SC_DEBUGFAIL(); // No matching instruction
-        },
-        [&](RegisterIndex const& dest, RegisterIndex const& src) {
-            put(OpCode::movRR);
-        },
-        [&](RegisterIndex const& dest, Value64 const& src) {
-            put(OpCode::movRV);
-        },
-        [&](RegisterIndex const& dest, MemoryAddress const& src) {
-            put(OpCode::movRM);
-        },
-        [&](MemoryAddress const& dest, RegisterIndex const& src) {
-            put(OpCode::movMR);
-        },
-    });
+    OpCode const opcode = mapMove(mov.dest().elementType(), mov.source().elementType());
+    put(opcode);
     dispatch(mov.dest());
     dispatch(mov.source());
 }
 
 void Context::translate(JumpInst const& jmp) {
-    // clang-format off
-    OpCode const opcode = UTL_MAP_ENUM(jmp.condition(), OpCode, {
-        { CompareOperation::None,      OpCode::jmp },
-        { CompareOperation::Less,      OpCode::jl  },
-        { CompareOperation::LessEq,    OpCode::jle },
-        { CompareOperation::Greater,   OpCode::jg  },
-        { CompareOperation::GreaterEq, OpCode::jge },
-        { CompareOperation::Eq,        OpCode::je  },
-        { CompareOperation::NotEq,     OpCode::jne },
-    });
-    // clang-format on
+    OpCode const opcode = mapJump(jmp.condition());
     put(opcode);
     registerJumpSite(currentPosition(), jmp.targetLabelID());
     put(LabelPlaceholder{});
@@ -167,195 +145,26 @@ void Context::translate(StoreRegAddress const& storeRegAddr) {
 }
 
 void Context::translate(CompareInst const& cmp) {
-    // clang-format off
-    visit(cmp.lhs(), cmp.rhs(), utl::overload{
-        [](auto& lhs, auto& rhs) {
-            SC_DEBUGFAIL(); // No matching instruction
-        },
-        [&](RegisterIndex const& lhs, RegisterIndex const& rhs) {
-            OpCode const opcode = UTL_MAP_ENUM(cmp.type(), OpCode, {
-                { Type::Signed,   OpCode::icmpRR },
-                { Type::Unsigned, OpCode::ucmpRR },
-                { Type::Float,    OpCode::fcmpRR },
-            });
-            put(opcode);
-        },
-        [&](RegisterIndex const& lhs, Value64 const& rhs) {
-            OpCode const opcode = UTL_MAP_ENUM(cmp.type(), OpCode, {
-                { Type::Signed,   OpCode::icmpRV },
-                { Type::Unsigned, OpCode::ucmpRV },
-                { Type::Float,    OpCode::fcmpRV },
-            });
-            put(opcode);
-        },
-    });
-    // clang-format on
+    OpCode const opcode = mapCompare(cmp.type(), cmp.lhs().elementType(), cmp.rhs().elementType());
+    put(opcode);
     dispatch(cmp.lhs());
     dispatch(cmp.rhs());
 }
 
 void Context::translate(SetInst const& set) {
-    // clang-format off
-    OpCode const opcode = UTL_MAP_ENUM(set.operation(), OpCode, {
-        { CompareOperation::None,      OpCode::_count },
-        { CompareOperation::Less,      OpCode::setl  },
-        { CompareOperation::LessEq,    OpCode::setle },
-        { CompareOperation::Greater,   OpCode::setg  },
-        { CompareOperation::GreaterEq, OpCode::setge },
-        { CompareOperation::Eq,        OpCode::sete  },
-        { CompareOperation::NotEq,     OpCode::setne },
-    });
-    // clang-format on
+    OpCode const opcode = mapSet(set.operation());
     put(opcode);
     dispatch(set.dest());
 }
 
-void Context::translate(ArithmeticInst const& arithmetic) {
-    // clang-format off
-    OpCode const opcode = visit(arithmetic.lhs(), arithmetic.rhs(), utl::overload{
-        [](auto&, auto&) -> OpCode {
-            SC_DEBUGFAIL(); /// No matching instruction.
-        },
-        [&](RegisterIndex const& lhs, RegisterIndex const& rhs) {
-            switch (arithmetic.type()) {
-            case Type::Signed:
-                // TODO: Take care of shift and bitwise operations.
-                return UTL_MAP_ENUM(arithmetic.operation(), OpCode, {
-                    { ArithmeticOperation::Add,  OpCode::addRR  },
-                    { ArithmeticOperation::Sub,  OpCode::subRR  },
-                    { ArithmeticOperation::Mul,  OpCode::mulRR  },
-                    { ArithmeticOperation::Div,  OpCode::idivRR },
-                    { ArithmeticOperation::Rem,  OpCode::iremRR },
-                    { ArithmeticOperation::ShL,  OpCode::_count },
-                    { ArithmeticOperation::ShR,  OpCode::_count },
-                    { ArithmeticOperation::And,  OpCode::_count },
-                    { ArithmeticOperation::Or,   OpCode::_count },
-                    { ArithmeticOperation::XOr,  OpCode::_count },
-                });
-            case Type::Unsigned:
-                return UTL_MAP_ENUM(arithmetic.operation(), OpCode, {
-                    { ArithmeticOperation::Add,  OpCode::addRR  },
-                    { ArithmeticOperation::Sub,  OpCode::subRR  },
-                    { ArithmeticOperation::Mul,  OpCode::mulRR  },
-                    { ArithmeticOperation::Div,  OpCode::divRR  },
-                    { ArithmeticOperation::Rem,  OpCode::remRR  },
-                    { ArithmeticOperation::ShL,  OpCode::_count },
-                    { ArithmeticOperation::ShR,  OpCode::_count },
-                    { ArithmeticOperation::And,  OpCode::_count },
-                    { ArithmeticOperation::Or,   OpCode::_count },
-                    { ArithmeticOperation::XOr,  OpCode::_count },
-                });
-            case Type::Float:
-                return UTL_MAP_ENUM(arithmetic.operation(), OpCode, {
-                    { ArithmeticOperation::Add,  OpCode::faddRR },
-                    { ArithmeticOperation::Sub,  OpCode::fsubRR },
-                    { ArithmeticOperation::Mul,  OpCode::fmulRR },
-                    { ArithmeticOperation::Div,  OpCode::fdivRR },
-                    { ArithmeticOperation::Rem,  OpCode::_count },
-                    { ArithmeticOperation::ShL,  OpCode::_count },
-                    { ArithmeticOperation::ShR,  OpCode::_count },
-                    { ArithmeticOperation::And,  OpCode::_count },
-                    { ArithmeticOperation::Or,   OpCode::_count },
-                    { ArithmeticOperation::XOr,  OpCode::_count },
-                });
-            case Type::_count: SC_UNREACHABLE();
-            }
-        },
-        [&](RegisterIndex const& lhs, Value64 const& rhs) {
-            switch (arithmetic.type()) {
-            case Type::Signed:
-                // TODO: Take care of shift and bitwise operations.
-                return UTL_MAP_ENUM(arithmetic.operation(), OpCode, {
-                    { ArithmeticOperation::Add,  OpCode::addRV  },
-                    { ArithmeticOperation::Sub,  OpCode::subRV  },
-                    { ArithmeticOperation::Mul,  OpCode::mulRV  },
-                    { ArithmeticOperation::Div,  OpCode::idivRV },
-                    { ArithmeticOperation::Rem,  OpCode::iremRV },
-                    { ArithmeticOperation::ShL,  OpCode::_count },
-                    { ArithmeticOperation::ShR,  OpCode::_count },
-                    { ArithmeticOperation::And,  OpCode::_count },
-                    { ArithmeticOperation::Or,   OpCode::_count },
-                    { ArithmeticOperation::XOr,  OpCode::_count },
-                });
-            case Type::Unsigned:
-                return UTL_MAP_ENUM(arithmetic.operation(), OpCode, {
-                    { ArithmeticOperation::Add,  OpCode::addRV  },
-                    { ArithmeticOperation::Sub,  OpCode::subRV  },
-                    { ArithmeticOperation::Mul,  OpCode::mulRV  },
-                    { ArithmeticOperation::Div,  OpCode::divRV  },
-                    { ArithmeticOperation::Rem,  OpCode::remRV  },
-                    { ArithmeticOperation::ShL,  OpCode::_count },
-                    { ArithmeticOperation::ShR,  OpCode::_count },
-                    { ArithmeticOperation::And,  OpCode::_count },
-                    { ArithmeticOperation::Or,   OpCode::_count },
-                    { ArithmeticOperation::XOr,  OpCode::_count },
-                });
-            case Type::Float:
-                return UTL_MAP_ENUM(arithmetic.operation(), OpCode, {
-                    { ArithmeticOperation::Add,  OpCode::faddRV },
-                    { ArithmeticOperation::Sub,  OpCode::fsubRV },
-                    { ArithmeticOperation::Mul,  OpCode::fmulRV },
-                    { ArithmeticOperation::Div,  OpCode::fdivRV },
-                    { ArithmeticOperation::Rem,  OpCode::_count },
-                    { ArithmeticOperation::ShL,  OpCode::_count },
-                    { ArithmeticOperation::ShR,  OpCode::_count },
-                    { ArithmeticOperation::And,  OpCode::_count },
-                    { ArithmeticOperation::Or,   OpCode::_count },
-                    { ArithmeticOperation::XOr,  OpCode::_count },
-                });
-            case Type::_count: SC_UNREACHABLE();
-            }
-        },
-        [&](RegisterIndex const& lhs, MemoryAddress const& rhs) {
-            switch (arithmetic.type()) {
-            case Type::Signed:
-                // TODO: Take care of shift and bitwise operations.
-                return UTL_MAP_ENUM(arithmetic.operation(), OpCode, {
-                    { ArithmeticOperation::Add,  OpCode::addRM  },
-                    { ArithmeticOperation::Sub,  OpCode::subRM  },
-                    { ArithmeticOperation::Mul,  OpCode::mulRM  },
-                    { ArithmeticOperation::Div,  OpCode::idivRM },
-                    { ArithmeticOperation::Rem,  OpCode::iremRM },
-                    { ArithmeticOperation::ShL,  OpCode::_count },
-                    { ArithmeticOperation::ShR,  OpCode::_count },
-                    { ArithmeticOperation::And,  OpCode::_count },
-                    { ArithmeticOperation::Or,   OpCode::_count },
-                    { ArithmeticOperation::XOr,  OpCode::_count },
-                });
-            case Type::Unsigned:
-                return UTL_MAP_ENUM(arithmetic.operation(), OpCode, {
-                    { ArithmeticOperation::Add,  OpCode::addRM  },
-                    { ArithmeticOperation::Sub,  OpCode::subRM  },
-                    { ArithmeticOperation::Mul,  OpCode::mulRM  },
-                    { ArithmeticOperation::Div,  OpCode::divRM  },
-                    { ArithmeticOperation::Rem,  OpCode::remRM  },
-                    { ArithmeticOperation::ShL,  OpCode::_count },
-                    { ArithmeticOperation::ShR,  OpCode::_count },
-                    { ArithmeticOperation::And,  OpCode::_count },
-                    { ArithmeticOperation::Or,   OpCode::_count },
-                    { ArithmeticOperation::XOr,  OpCode::_count },
-                });
-            case Type::Float:
-                return UTL_MAP_ENUM(arithmetic.operation(), OpCode, {
-                    { ArithmeticOperation::Add,  OpCode::faddRM },
-                    { ArithmeticOperation::Sub,  OpCode::fsubRM },
-                    { ArithmeticOperation::Mul,  OpCode::fmulRM },
-                    { ArithmeticOperation::Div,  OpCode::fdivRM },
-                    { ArithmeticOperation::Rem,  OpCode::_count },
-                    { ArithmeticOperation::ShL,  OpCode::_count },
-                    { ArithmeticOperation::ShR,  OpCode::_count },
-                    { ArithmeticOperation::And,  OpCode::_count },
-                    { ArithmeticOperation::Or,   OpCode::_count },
-                    { ArithmeticOperation::XOr,  OpCode::_count },
-                });
-            case Type::_count: SC_UNREACHABLE();
-            }
-        },
-    });
-    // clang-format on
+void Context::translate(ArithmeticInst const& inst) {
+    OpCode const opcode = mapArithmetic(inst.operation(),
+                                        inst.type(),
+                                        inst.lhs().elementType(),
+                                        inst.rhs().elementType());
     put(opcode);
-    dispatch(arithmetic.lhs());
-    dispatch(arithmetic.rhs());
+    dispatch(inst.lhs());
+    dispatch(inst.rhs());
 }
 
 void Context::translate(Label const& label) {
