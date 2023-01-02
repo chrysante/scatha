@@ -151,6 +151,12 @@ void Context::translate(CompareInst const& cmp) {
     dispatch(cmp.rhs());
 }
 
+void Context::translate(TestInst const& test) {
+    OpCode const opcode = mapTest(test.type());
+    put(opcode);
+    dispatch(cast<RegisterIndex const&>(test.operand()));
+}
+
 void Context::translate(SetInst const& set) {
     OpCode const opcode = mapSet(set.operation());
     put(opcode);

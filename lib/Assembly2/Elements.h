@@ -157,6 +157,24 @@ private:
     std::unique_ptr<Element> _lhs, _rhs;
 };
 
+/// Represents a test instruction.
+class TestInst: public Instruction {
+public:
+    explicit TestInst(Type type, std::unique_ptr<Element> operand):
+        Instruction(ElemType::TestInst), _type(type), _op(std::move(operand))
+    {
+        SC_ASSERT(type != Type::Float, "Float is invalid for TestInst");
+    }
+    
+    Type type() const { return _type; }
+    
+    Element const& operand() const { return *_op; }
+    
+private:
+    Type _type;
+    std::unique_ptr<Element> _op;
+};
+
 /// Represents a set\* instruction.
 class SetInst: public Instruction {
 public:
