@@ -34,6 +34,7 @@ struct Context {
     void generate(ir::Goto const&);
     void generate(ir::Branch const&);
     void generate(ir::FunctionCall const&);
+    void generate(ir::Return const&);
     void generate(ir::Phi const&);
     
     std::unique_ptr<Label> makeLabel(ir::BasicBlock const&);
@@ -105,7 +106,8 @@ void Context::generate(ir::Alloca const& allocaInst) {
 }
 
 void Context::generate(ir::Store const& store) {
-    auto dest = currentRD().resolve(*store.address());
+    auto destRegIdx = currentRD().resolve(*store.address());
+    auto dest = std::make_unique<MemoryAddress>(cast<RegisterIndex const&>(*destRegIdx).value(), 0, 0);
     auto src = currentRD().resolve(*store.value());
     if (auto* value = dyncast<Value64 const*>(src.get())) {
         /// \p src is a value and must be stored in temporary register first.
@@ -120,9 +122,11 @@ void Context::generate(ir::Store const& store) {
 }
 
 void Context::generate(ir::Load const& load) {
+    auto addr = currentRD().resolve(*load.address());
+    auto src = std::make_unique<MemoryAddress>(cast<RegisterIndex const&>(*addr).value(), 0, 0);
     result.add(std::make_unique<MoveInst>(
                    currentRD().resolve(load),
-                   currentRD().resolve(*load.address())));
+                   std::move(src)));
 }
 
 static asm2::Type mapType(ir::Type const* type) {
@@ -161,10 +165,13 @@ static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
 }
 
 void Context::generate(ir::ArithmeticInst const& arithmetic) {
+    auto dest = cast<RegisterIndex>(currentRD().resolve(arithmetic));
+    auto dest2 = std::make_unique<RegisterIndex>(*dest);
+    result.add(std::make_unique<MoveInst>(std::move(dest), currentRD().resolve(*arithmetic.lhs())));
     result.add(std::make_unique<asm2::ArithmeticInst>(
                    mapArithmetic(arithmetic.operation()),
                    mapType(arithmetic.type()),
-                   currentRD().resolve(*arithmetic.lhs()),
+                   std::move(dest2),
                    currentRD().resolve(*arithmetic.rhs())));
 }
 
@@ -214,6 +221,13 @@ void Context::generate(ir::FunctionCall const& call) {
     result.add(std::make_unique<MoveInst>(
                    currentRD().resolve(call),
                    std::make_unique<RegisterIndex>(resultLocation)));
+}
+
+void Context::generate(ir::Return const& ret) {
+    if (ret.value()) {
+        result.add(std::make_unique<MoveInst>(std::make_unique<RegisterIndex>(0), currentRD().resolve(*ret.value())));
+    }
+    result.add(std::make_unique<ReturnInst>());
 }
 
 void Context::generate(ir::Phi const& phi) {

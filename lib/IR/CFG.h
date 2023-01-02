@@ -270,7 +270,7 @@ private:
 /// Return instruction. Return control flow to the calling function.
 class SCATHA(API) Return: public TerminatorInst {
 public:
-    explicit Return(Context& context, Value* value): TerminatorInst(NodeType::Return, context), _value(value) {}
+    explicit Return(Context& context, Value* value = nullptr): TerminatorInst(NodeType::Return, context), _value(value) {}
 
     Value* value() { return _value; }
     Value const* value() const { return _value; }

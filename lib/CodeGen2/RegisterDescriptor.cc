@@ -12,7 +12,9 @@ std::unique_ptr<Element> RegisterDescriptor::resolve(ir::Value const& value) {
     }
     SC_ASSERT(!value.name().empty(), "Name must not be empty.");
     auto const [itr, success] = values.insert({ value.name(), index });
-    if (success) { ++index; }
+    if (success) {
+        ++index;
+    }
     return std::make_unique<RegisterIndex>(utl::narrow_cast<u8>(itr->second));
 }
 
