@@ -1,0 +1,58 @@
+// No include guards
+
+#ifndef SC_ASM_ELEMENT_DEF
+#   define SC_ASM_ELEMENT_DEF(elem)
+#endif
+
+SC_ASM_ELEMENT_DEF(Element)
+SC_ASM_ELEMENT_DEF(Label)
+SC_ASM_ELEMENT_DEF(Instruction)
+SC_ASM_ELEMENT_DEF(MoveInst)
+SC_ASM_ELEMENT_DEF(JumpInst)
+SC_ASM_ELEMENT_DEF(CallInst)
+SC_ASM_ELEMENT_DEF(ReturnInst)
+SC_ASM_ELEMENT_DEF(TerminateInst)
+SC_ASM_ELEMENT_DEF(StoreRegAddress)
+SC_ASM_ELEMENT_DEF(CompareInst)
+SC_ASM_ELEMENT_DEF(SetInst)
+SC_ASM_ELEMENT_DEF(ArithmeticInst)
+SC_ASM_ELEMENT_DEF(RegisterIndex)
+SC_ASM_ELEMENT_DEF(MemoryAddress)
+SC_ASM_ELEMENT_DEF(Value)
+SC_ASM_ELEMENT_DEF(Value8)
+SC_ASM_ELEMENT_DEF(Value16)
+SC_ASM_ELEMENT_DEF(Value32)
+SC_ASM_ELEMENT_DEF(Value64)
+
+#undef SC_ASM_ELEMENT_DEF
+
+#ifndef SC_ASM_COMPARE_DEF
+#   define SC_ASM_COMPARE_DEF(elem, setInst, jumpInst)
+#endif
+
+SC_ASM_COMPARE_DEF(None,      none,  jmp)
+SC_ASM_COMPARE_DEF(Less,      setl,  jl)
+SC_ASM_COMPARE_DEF(LessEq,    setle, jle)
+SC_ASM_COMPARE_DEF(Greater,   setg,  jg)
+SC_ASM_COMPARE_DEF(GreaterEq, setge, jge)
+SC_ASM_COMPARE_DEF(Eq,        sete,  je)
+SC_ASM_COMPARE_DEF(NotEq,     setne, jne)
+
+#undef SC_ASM_COMPARE_DEF
+
+#ifndef SC_ASM_ARITHMETIC_DEF
+#   define SC_ASM_ARITHMETIC_DEF(op, instName)
+#endif
+
+SC_ASM_ARITHMETIC_DEF(Add, "add")
+SC_ASM_ARITHMETIC_DEF(Sub, "sub")
+SC_ASM_ARITHMETIC_DEF(Mul, "mul")
+SC_ASM_ARITHMETIC_DEF(Div, "div")
+SC_ASM_ARITHMETIC_DEF(Rem, "rem")
+SC_ASM_ARITHMETIC_DEF(ShL, "shl")
+SC_ASM_ARITHMETIC_DEF(ShR, "shr")
+SC_ASM_ARITHMETIC_DEF(And, "and")
+SC_ASM_ARITHMETIC_DEF(Or, "or")
+SC_ASM_ARITHMETIC_DEF(XOr, "xor")
+
+#undef SC_ASM_ARITHMETIC_DEF

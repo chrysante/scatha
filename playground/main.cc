@@ -9,11 +9,13 @@
 #include "SampleCompiler.h"
 #include "IRDump.h"
 #include "IRSketch.h"
+#include "Assembly.h"
 
 enum class ProgramCase {
     SampleCompiler,
     IRDump,
-    IRSketch
+    IRSketch,
+    ASMTest
 };
 
 struct Option {
@@ -51,6 +53,7 @@ int main(int argc, char const* const* argv) {
         { "sample-compiler", ProgramCase::SampleCompiler },
         { "ir-dump", ProgramCase::IRDump },
         { "ir-sketch", ProgramCase::IRSketch },
+        { "test-asm", ProgramCase::ASMTest },
     };
     auto const parseResult = parse(argc, argv);
     if (!parseResult) {
@@ -75,6 +78,10 @@ int main(int argc, char const* const* argv) {
 
     case ProgramCase::IRSketch:
         irSketch();
+        break;
+        
+    case ProgramCase::ASMTest:
+        testAsmModule();
         break;
 
     default:
