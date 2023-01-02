@@ -41,11 +41,11 @@ std::ostream& asm2::operator<<(std::ostream& str, ArithmeticInst const& arithmet
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, JumpInst const& jmp) {
-    return str << instName(toJumpInstName(jmp.condition())) << " " << jmp.targetLabelID();
+    return str << instName(toJumpInstName(jmp.condition())) << " " << jmp.target().name();
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, CallInst const& call) {
-    return str << instName("call") << " " << call.functionLabelID();
+    return str << instName("call") << " " << call.function().name();
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, ReturnInst const&) {

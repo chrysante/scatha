@@ -54,7 +54,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
     a.add(std::make_unique<MoveInst>(
               std::make_unique<RegisterIndex>(3),
               std::make_unique<Value64>(24)));     // b = 24
-    a.add(std::make_unique<CallInst>(GCD, 2));
+    a.add(std::make_unique<CallInst>(std::make_unique<Label>(GCD, "GCD"), 2));
     a.add(std::make_unique<TerminateInst>());
     // GCD function
     a.add(std::make_unique<Label>(GCD, "GCD"));
@@ -62,7 +62,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
               Type::Signed,
               std::make_unique<RegisterIndex>(1),
               std::make_unique<Value64>(0)));      // Test b == 0
-    a.add(std::make_unique<JumpInst>(CompareOperation::NotEq, GCD + 1));
+    a.add(std::make_unique<JumpInst>(CompareOperation::NotEq, std::make_unique<Label>(GCD + 1, "GCD - else")));
     a.add(std::make_unique<ReturnInst>());         // return a; (as it already is in R[0])
     a.add(std::make_unique<Label>(GCD + 1, "GCD - else"));
     // Swap a and b
@@ -79,7 +79,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
               ArithmeticOperation::Rem, Type::Signed,
               std::make_unique<RegisterIndex>(1),
               std::make_unique<RegisterIndex>(2)));
-    a.add(std::make_unique<JumpInst>(GCD));         // Tail call
+    a.add(std::make_unique<JumpInst>(std::make_unique<Label>(GCD, "GCD"))); // Tail call
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     // gcd(54, 24) == 6

@@ -76,41 +76,35 @@ private:
 /// Represents a jump instruction
 class JumpInst: public Instruction {
 public:
-    explicit JumpInst(CompareOperation condition, Label const& target):
-        JumpInst(condition, target.uniqueID()) {}
+    explicit JumpInst(CompareOperation condition, std::unique_ptr<Label> target):
+        Instruction(ElemType::JumpInst), _cond(condition), _target(std::move(target)) {}
     
-    explicit JumpInst(CompareOperation condition, u64 targetLabelID):
-        Instruction(ElemType::JumpInst), _cond(condition), _labelID(targetLabelID) {}
-    
-    explicit JumpInst(u64 targetLabelID):
-        JumpInst(CompareOperation::None, targetLabelID) {}
+    explicit JumpInst(std::unique_ptr<Label> target):
+        JumpInst(CompareOperation::None, std::move(target)) {}
     
     CompareOperation condition() const { return _cond; }
     
-    u64 targetLabelID() const { return _labelID; }
+    Label const& target() const { return *_target; }
     
-    void setTargetLabelID(Label const& target) { setTargetLabelID(target.uniqueID()); }
-    void setTargetLabelID(u64 targetLabelID) { _labelID = targetLabelID; }
+    void setTarget(std::unique_ptr<Label> target) { _target = std::move(target); }
     
 private:
     CompareOperation _cond;
-    u64 _labelID;
+    std::unique_ptr<Label> _target;
 };
 
 /// Represents a call instruction.
 class CallInst: public Instruction {
 public:
-    explicit CallInst(Label const& function, u64 regPtrOffset):
-        CallInst(function.uniqueID(), regPtrOffset) {}
-    explicit CallInst(u64 functionLabelID, u64 regPtrOffset):
-        Instruction(ElemType::CallInst), _functionLabelID(functionLabelID), _regPtrOffset(regPtrOffset) {}
+    explicit CallInst(std::unique_ptr<Label> function, u64 regPtrOffset):
+        Instruction(ElemType::CallInst), _function(std::move(function)), _regPtrOffset(regPtrOffset) {}
     
-    u64 functionLabelID() const { return _functionLabelID; }
+    Label const& function() const { return *_function; }
     
     u64 regPtrOffset() const { return _regPtrOffset; }
     
 private:
-    u64 _functionLabelID;
+    std::unique_ptr<Label> _function;
     u64 _regPtrOffset;
 };
 
@@ -217,6 +211,8 @@ public:
     Element(ElemType::RegisterIndex), _value(utl::narrow_cast<u8>(index)) {}
     
     size_t value() const { return _value; }
+    
+    void setValue(size_t index) { _value = utl::narrow_cast<u8>(index); }
     
 private:
     u8 _value;

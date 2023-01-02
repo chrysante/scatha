@@ -118,14 +118,14 @@ void Context::translate(MoveInst const& mov) {
 void Context::translate(JumpInst const& jmp) {
     OpCode const opcode = mapJump(jmp.condition());
     put(opcode);
-    registerJumpSite(currentPosition(), jmp.targetLabelID());
+    registerJumpSite(currentPosition(), jmp.target().uniqueID());
     put(LabelPlaceholder{});
     return;
 }
 
 void Context::translate(CallInst const& call) {
     put(OpCode::call);
-    registerJumpSite(currentPosition(), call.functionLabelID());
+    registerJumpSite(currentPosition(), call.function().uniqueID());
     put(LabelPlaceholder{});
     put<u8>(call.regPtrOffset());
 }
