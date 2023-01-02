@@ -28,7 +28,7 @@ std::ostream& asm2::operator<<(std::ostream& str, Element const& elem) {
 
 static constexpr utl::streammanip instName = [](std::ostream& str, auto const&... args) {
     int const instNameWidth = 15;
-    str << std::setw(instNameWidth) << std::left << utl::strcat(args...);
+    str << "  " << std::setw(instNameWidth) << std::left << utl::strcat(args...);
 };
 
 
@@ -45,7 +45,7 @@ std::ostream& asm2::operator<<(std::ostream& str, JumpInst const& jmp) {
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, CallInst const& call) {
-    return str << instName("call") << " " << call.function().name();
+    return str << instName("call") << " " << call.function().name() << ", " << call.regPtrOffset();
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, ReturnInst const&) {
@@ -65,7 +65,7 @@ std::ostream& asm2::operator<<(std::ostream& str, StoreRegAddress const& sra) {
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, Label const& label) {
-    return str << label.name() << "/" << label.uniqueID();
+    return str << label.name() << "/" << label.uniqueID() << ":";
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, RegisterIndex const& regIdx) {
@@ -73,7 +73,7 @@ std::ostream& asm2::operator<<(std::ostream& str, RegisterIndex const& regIdx) {
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, MemoryAddress const& addr) {
-    return str << "(ptr)_R[" << addr.registerIndex() << "]";
+    return str << "*(ptr)_R[" << addr.registerIndex() << "]";
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, Value const& value) {
