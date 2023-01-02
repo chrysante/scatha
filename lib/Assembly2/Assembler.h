@@ -1,5 +1,5 @@
-#ifndef SCATHA_CODEGEN_ASSEMBLER_H_
-#define SCATHA_CODEGEN_ASSEMBLER_H_
+#ifndef SCATHA_ASSEMBLY2_ASSEMBLER_H_
+#define SCATHA_ASSEMBLY2_ASSEMBLER_H_
 
 #include "Basic/Basic.h"
 
@@ -21,4 +21,4 @@ SCATHA(API) vm::Program assemble(AssemblyStream const& assemblyStream, Assembler
 
 } // namespace scatha::asm2
 
-#endif // SCATHA_CODEGEN_ASSEMBLER_H_
+#endif // SCATHA_ASSEMBLY2_ASSEMBLER_H_
