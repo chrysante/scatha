@@ -5,16 +5,17 @@
 
 #include <utl/vector.hpp>
 
-#include "Assembly2/Elements.h"
+#include "Assembly2/Value.h"
+#include "Assembly2/Instruction.h"
 
 namespace scatha::asm2 {
 	
 class AssemblyStream {
-    using Vector = utl::vector<std::unique_ptr<Element>>;
+    using Vector = utl::vector<Instruction>;
     template <typename T>
     using ItrBase = std::conditional_t<std::is_const_v<T>,
-                    Vector::const_iterator,
-                    Vector::iterator>;
+                                       Vector::const_iterator,
+                                       Vector::iterator>;
     template <typename T>
     struct IteratorImpl: private ItrBase<T> {
     private:
@@ -30,8 +31,8 @@ class AssemblyStream {
     };
     
 public:
-    using Iterator = IteratorImpl<Element>;
-    using ConstIterator = IteratorImpl<Element const>;
+    using Iterator = IteratorImpl<Value>;
+    using ConstIterator = IteratorImpl<Value const>;
     
     AssemblyStream() = default;
     
@@ -40,16 +41,16 @@ public:
     Iterator end() { return elems.end(); }
     ConstIterator end() const { return elems.end(); }
     
-    Iterator insert(ConstIterator pos, std::unique_ptr<Element> elem) {
-        return elems.insert(pos, std::move(elem));
+    Iterator insert(ConstIterator pos, Instruction inst) {
+        return elems.insert(pos, inst);
     }
     
     Iterator erase(ConstIterator pos) {
         return elems.erase(pos);
     }
     
-    void add(std::unique_ptr<Element> elem) {
-        elems.push_back(std::move(elem));
+    void add(Instruction inst) {
+        elems.push_back(inst);
     }
     
 private:

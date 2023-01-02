@@ -25,20 +25,12 @@ static vm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
 
 TEST_CASE("Alloca implementation", "[assembly][vm]") {
     AssemblyStream a;
-    a.add(std::make_unique<MoveInst>(
-              std::make_unique<RegisterIndex>(0),
-              std::make_unique<Value64>(128)));      // a = 128
-    a.add(std::make_unique<StoreRegAddress>(
-              std::make_unique<RegisterIndex>(1),
-              std::make_unique<RegisterIndex>(2)));  // ptr = alloca(...)
-    a.add(std::make_unique<MoveInst>(
-              std::make_unique<MemoryAddress>(1, 0, 0),
-              std::make_unique<RegisterIndex>(0)));  // *ptr = a
-    a.add(std::make_unique<TerminateInst>());
-    
+    a.add(MoveInst(RegisterIndex(0),       Value64(128)));      // a = 128
+    a.add(StoreRegAddress(RegisterIndex(1),RegisterIndex(2)));  // ptr = alloca(...)
+    a.add(MoveInst(MemoryAddress(1, 0, 0), RegisterIndex(0)));  // *ptr = a
+    a.add(TerminateInst());
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    
     CHECK(read<i64>(&state.registers[0]) == 128);
     CHECK(read<i64>(&state.registers[2]) == 128);
 }
@@ -48,147 +40,104 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
     AssemblyStream a;
     // Should hold the result in R[2]
     // Main function
-    a.add(std::make_unique<MoveInst>(
-              std::make_unique<RegisterIndex>(2),
-              std::make_unique<Value64>(54)));     // a = 54
-    a.add(std::make_unique<MoveInst>(
-              std::make_unique<RegisterIndex>(3),
-              std::make_unique<Value64>(24)));     // b = 24
-    a.add(std::make_unique<CallInst>(std::make_unique<Label>(GCD, "GCD"), 2));
-    a.add(std::make_unique<TerminateInst>());
+    a.add(MoveInst(RegisterIndex(2), Value64(54)));                 // a = 54
+    a.add(MoveInst(RegisterIndex(3), Value64(24)));                 // b = 24
+    a.add(CallInst(GCD, 2));
+    a.add(TerminateInst());
     // GCD function
-    a.add(std::make_unique<Label>(GCD, "GCD"));
-    a.add(std::make_unique<CompareInst>(
-              Type::Signed,
-              std::make_unique<RegisterIndex>(1),
-              std::make_unique<Value64>(0)));      // Test b == 0
-    a.add(std::make_unique<JumpInst>(CompareOperation::NotEq, std::make_unique<Label>(GCD + 1, "GCD - else")));
-    a.add(std::make_unique<ReturnInst>());         // return a; (as it already is in R[0])
-    a.add(std::make_unique<Label>(GCD + 1, "GCD - else"));
+    a.add(Label(GCD, "GCD"));
+    a.add(CompareInst(Type::Signed, RegisterIndex(1), Value64(0))); // Test b == 0
+    a.add(JumpInst(CompareOperation::NotEq, GCD + 1));
+    a.add(ReturnInst());         // return a; (as it already is in R[0])
+    a.add(Label(GCD + 1, "GCD - else"));
     // Swap a and b
-    a.add(std::make_unique<MoveInst>(
-              std::make_unique<RegisterIndex>(2),
-              std::make_unique<RegisterIndex>(1))); // c = b
-    a.add(std::make_unique<MoveInst>(
-              std::make_unique<RegisterIndex>(1),
-              std::make_unique<RegisterIndex>(0))); // b = a
-    a.add(std::make_unique<MoveInst>(
-              std::make_unique<RegisterIndex>(0),
-              std::make_unique<RegisterIndex>(2))); // a = c
-    a.add(std::make_unique<ArithmeticInst>(
-              ArithmeticOperation::Rem, Type::Signed,
-              std::make_unique<RegisterIndex>(1),
-              std::make_unique<RegisterIndex>(2)));
-    a.add(std::make_unique<JumpInst>(std::make_unique<Label>(GCD, "GCD"))); // Tail call
+    a.add(MoveInst(RegisterIndex(2),RegisterIndex(1))); // c = b
+    a.add(MoveInst(RegisterIndex(1),RegisterIndex(0))); // b = a
+    a.add(MoveInst(RegisterIndex(0),RegisterIndex(2))); // a = c
+    a.add(ArithmeticInst(ArithmeticOperation::Rem, Type::Signed,RegisterIndex(1), RegisterIndex(2)));
+    a.add(JumpInst(GCD)); // Tail call
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     // gcd(54, 24) == 6
     CHECK(state.registers[2] == 6);
 }
-//
-//TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
-//    using enum Instruction;
-//
-//    enum { MAIN, GCD };
-//
-//    AssemblyStream a;
-//
-//    // Should hold the result in R[2]
-//    a << Label(MAIN);                                  // Main function
-//    a << enterFn << Value8(4);                        // allocate 4 registers
-//                                                       // R[0] and R[1] are for the instruction pointer
-//                                                       // and register pointer offset
-//    a << mov << RegisterIndex(2) << Signed64(1023534); // R[2] = arg0
-//    a << mov << RegisterIndex(3) << Signed64(213588);  // R[2] = arg1
-//    a << call << Label(GCD) << Value8(2);
-//
-//    a << terminate;
-//
-//    a << Label(GCD);                              // gcd(i64 a, i64 b):
-//    a << icmp << RegisterIndex(1) << Signed64(0); // b == 0
-//    a << jne << Label(GCD, 0);
-//    a << ret;
-//
-//    a << Label(GCD, 0);
-//    a << enterFn << Value8(6);                        // Allocate 6 registers:
-//                                                       // R[0]: a
-//                                                       // R[1]: b
-//                                                       // R[2]: rpOffset
-//                                                       // R[3]: iptr
-//                                                       // R[4]: b
-//                                                       // R[5]: a % b
-//                                                       // R[0] = a and R[1] = b have been placed by the caller.
-//    a << mov << RegisterIndex(5) << RegisterIndex(0);  // R[5] = a
-//    a << irem << RegisterIndex(5) << RegisterIndex(1); // R[5] %= b
-//    a << mov << RegisterIndex(4) << RegisterIndex(1);  // R[4] = b
-//    a << call << Label(GCD) << Value8(4);              // Deliberately no tail call
-//    a << mov << RegisterIndex(0) << RegisterIndex(4);  // R[0] = R[4] to move the result to the expected register
-//    a << ret;
-//
-//    auto const vm     = assembleAndExecute(a);
-//    auto const& state = vm.getState();
-//
-//    // gcd(1023534,213588) == 18
-//    CHECK(state.registers[2] == 18);
-//}
-//
+
+TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
+    enum { MAIN, GCD };
+    AssemblyStream a;
+    // Should hold the result in R[2]
+    a.add(Label(MAIN, "main"));                                   // Main function
+    a.add(MoveInst(RegisterIndex(2), Value64(1023534)));          // R[2] = arg0
+    a.add(MoveInst(RegisterIndex(3), Value64(213588)));           // R[2] = arg1
+    a.add(CallInst(GCD, 2));
+    a.add(TerminateInst());
+    
+    a.add(Label(GCD, "gcd"));                                       // gcd(i64 a, i64 b):
+    a.add(CompareInst(Type::Signed, RegisterIndex(1), Value64(0))); // b == 0
+    a.add(JumpInst(CompareOperation::NotEq, GCD + 1));
+    a.add(ReturnInst());
+    a.add(Label(GCD + 1, "gcd - else"));
+                                                               // R[0]: a
+                                                               // R[1]: b
+                                                               // R[2]: rpOffset
+                                                               // R[3]: iptr
+                                                               // R[4]: b
+                                                               // R[5]: a % b
+                                                               // R[0] = a and R[1] = b have been placed by the caller.
+    a.add(MoveInst(RegisterIndex(5), RegisterIndex(0)));       // R[5] = a
+    a.add(ArithmeticInst(ArithmeticOperation::Rem, Type::Signed,
+                         RegisterIndex(5), RegisterIndex(1))); // R[5] %= b
+    a.add(MoveInst(RegisterIndex(4), RegisterIndex(1)));       // R[4] = b
+    a.add(CallInst(GCD, 4));                                   // Deliberately no tail call
+    a.add(MoveInst(RegisterIndex(0), RegisterIndex(4)));       // R[0] = R[4] to move the result to the expected register
+    a.add(ReturnInst());
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
+    // gcd(1023534,213588) == 18
+    CHECK(state.registers[2] == 18);
+}
+
 
 static void testArithmeticRR(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
     AssemblyStream a;
-    a.add(std::make_unique<MoveInst>(
-              std::make_unique<RegisterIndex>(0),
-              std::make_unique<Value64>(arg1)));
-    a.add(std::make_unique<MoveInst>(
-              std::make_unique<RegisterIndex>(1),
-              std::make_unique<Value64>(arg2)));
-    a.add(std::make_unique<ArithmeticInst>(
-              operation, type,
-              std::make_unique<RegisterIndex>(0),
-              std::make_unique<RegisterIndex>(1)));
-    a.add(std::make_unique<TerminateInst>());
+    a.add(MoveInst(RegisterIndex(0), Value64(arg1)));
+    a.add(MoveInst(RegisterIndex(1), Value64(arg2)));
+    a.add(ArithmeticInst(operation, type, RegisterIndex(0), RegisterIndex(1)));
+    a.add(TerminateInst());
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
 }
-//
-//static void testArithmeticRV(Instruction i, auto arg1, auto arg2, auto reference, Value64::Type type) {
-//    using enum Instruction;
-//
-//    AssemblyStream a;
-//    a << enterFn << Value8(1);
-//    a << mov << RegisterIndex(0) << Value64(utl::bit_cast<u64>(arg1), type);
-//    a << i << RegisterIndex(0) << Value64(utl::bit_cast<u64>(arg2), type);
-//    a << terminate;
-//
-//    auto const vm     = assembleAndExecute(a);
-//    auto const& state = vm.getState();
-//
-//    CHECK(read<decltype(reference)>(state.regPtr) == reference);
-//}
-//
-//static void testArithmeticRM(Instruction i, auto arg1, auto arg2, auto reference, Value64::Type type) {
-//    using enum Instruction;
-//
-//    AssemblyStream a;
-//    a << mov << RegisterIndex(0) << Value64(utl::bit_cast<u64>(arg1), type);
-//    a << storeRegAddress << RegisterIndex(1) << RegisterIndex(3);
-//    a << mov << RegisterIndex(2) << Value64(utl::bit_cast<u64>(arg2), type); // R[2] = arg2
-//    a << mov << MemoryAddress(1, 0, 0) << RegisterIndex(2);
-//    a << i << RegisterIndex(0) << MemoryAddress(1, 0, 0);
-//    a << terminate;
-//
-//    auto const vm     = assembleAndExecute(a);
-//    auto const& state = vm.getState();
-//
-//    CHECK(read<decltype(reference)>(state.regPtr) == reference);
-//}
-//
+
+static void testArithmeticRV(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
+    AssemblyStream a;
+    a.add(MoveInst(RegisterIndex(0), Value64(arg1)));
+    a.add(ArithmeticInst(operation, type, RegisterIndex(0), Value64(arg2)));
+    a.add(TerminateInst());
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
+    CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
+}
+
+static void testArithmeticRM(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
+    AssemblyStream a;
+    a.add(MoveInst(RegisterIndex(0), Value64(arg1)));
+    a.add(MoveInst(RegisterIndex(1), Value64(arg2)));
+    a.add(StoreRegAddress(RegisterIndex(2), RegisterIndex(3)));
+    a.add(MoveInst(MemoryAddress(2, 0, 0), RegisterIndex(1)));
+    a.add(ArithmeticInst(operation, type, RegisterIndex(0), MemoryAddress(2, 0, 0)));
+    a.add(TerminateInst());
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
+    CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
+}
+
 static void testArithmetic(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
     testArithmeticRR(operation, type, arg1, arg2, reference);
-//    testArithmeticRV(operation, type, arg1, arg2, reference);
-//    testArithmeticRM(operation, type, arg1, arg2, reference);
+    testArithmeticRV(operation, type, arg1, arg2, reference);
+    testArithmeticRM(operation, type, arg1, arg2, reference);
 }
-//
+
 TEST_CASE("Arithmetic", "[assembly][vm]") {
     SECTION("add") {
         testArithmetic(ArithmeticOperation::Add, Type::Unsigned, 6,    2,   8);
@@ -220,90 +169,72 @@ TEST_CASE("Arithmetic", "[assembly][vm]") {
         testArithmetic(ArithmeticOperation::Rem, Type::Signed,  -100,  3, -1);
     }
 }
-//
-//TEST_CASE("Unconditional jump", "[assembly][vm]") {
-//    using enum Instruction;
-//
-//    u64 const value = GENERATE(0u, 1u, 2u, 3u);
-//
-//    AssemblyStream a;
-//
-//    a << enterFn << Value8(1); // allocate 1 register
-//    a << jmp << Label(0, value);
-//    a << Label(0, 0);
-//    a << mov << RegisterIndex(0) << Signed64(0);
-//    a << terminate;
-//    a << Label(0, 1);
-//    a << mov << RegisterIndex(0) << Signed64(1);
-//    a << terminate;
-//    a << Label(0, 2);
-//    a << mov << RegisterIndex(0) << Signed64(2);
-//    a << terminate;
-//    a << Label(0, 3);
-//    a << mov << RegisterIndex(0) << Signed64(3);
-//    a << terminate;
-//
-//    auto const vm     = assembleAndExecute(a);
-//    auto const& state = vm.getState();
-//
-//    CHECK(read<u64>(state.regPtr) == value);
-//}
-//
-//TEST_CASE("Conditional jump", "[assembly][vm]") {
-//    u64 const value = GENERATE(0u, 1u, 2u, 3u);
-//    i64 const arg1  = GENERATE(-2, 0, 5, 100);
-//    i64 const arg2  = GENERATE(-100, -3, 0, 7);
-//
-//    AssemblyStream a;
-//
-//    using enum Instruction;
-//    a << enterFn << Value8(2);
-//    a << mov << RegisterIndex(0) << Signed64(arg1);
-//    a << icmp << RegisterIndex(0) << Signed64(arg2);
-//    a << jle << Label(0, value);
-//    a << mov << RegisterIndex(1) << Signed64(-1);
-//    a << terminate;
-//    a << Label(0, 0);
-//    a << mov << RegisterIndex(1) << Signed64(0);
-//    a << terminate;
-//    a << Label(0, 1);
-//    a << mov << RegisterIndex(1) << Signed64(1);
-//    a << terminate;
-//    a << Label(0, 2);
-//    a << mov << RegisterIndex(1) << Signed64(2);
-//    a << terminate;
-//    a << Label(0, 3);
-//    a << mov << RegisterIndex(1) << Signed64(3);
-//    a << terminate;
-//
-//    auto const vm     = assembleAndExecute(a);
-//    auto const& state = vm.getState();
-//
-//    CHECK(read<u64>(state.regPtr + 1) == (arg1 <= arg2 ? value : static_cast<u64>(-1)));
-//}
-//
-//TEST_CASE("itest, set*", "[assembly][vm]") {
-//    AssemblyStream a;
-//
-//    using enum Instruction;
-//    a << enterFn << Value8(6);
-//    a << mov << RegisterIndex(0) << Signed64(-1);
-//    a << itest << RegisterIndex(0);
-//    a << sete << RegisterIndex(0);
-//    a << setne << RegisterIndex(1);
-//    a << setl << RegisterIndex(2);
-//    a << setle << RegisterIndex(3);
-//    a << setg << RegisterIndex(4);
-//    a << setge << RegisterIndex(5);
-//    a << terminate;
-//
-//    auto const vm     = assembleAndExecute(a);
-//    auto const& state = vm.getState();
-//
-//    CHECK(state.registers[0] == 0);
-//    CHECK(state.registers[1] == 1);
-//    CHECK(state.registers[2] == 1);
-//    CHECK(state.registers[3] == 1);
-//    CHECK(state.registers[4] == 0);
-//    CHECK(state.registers[5] == 0);
-//}
+
+TEST_CASE("Unconditional jump", "[assembly][vm]") {
+    u64 const value = GENERATE(0u, 1u, 2u, 3u);
+    AssemblyStream a;
+    a.add(JumpInst(value));
+    a.add(Label(0, "0"));
+    a.add(MoveInst(RegisterIndex(0), Value64(0)));
+    a.add(TerminateInst());
+    a.add(Label(1, "1"));
+    a.add(MoveInst(RegisterIndex(0), Value64(1)));
+    a.add(TerminateInst());
+    a.add(Label(2, "2"));
+    a.add(MoveInst(RegisterIndex(0), Value64(2)));
+    a.add(TerminateInst());
+    a.add(Label(3, "3"));
+    a.add(MoveInst(RegisterIndex(0), Value64(3)));
+    a.add(TerminateInst());
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
+    CHECK(read<u64>(state.regPtr) == value);
+}
+
+TEST_CASE("Conditional jump", "[assembly][vm]") {
+    u64 const value = GENERATE(0u, 1u, 2u, 3u);
+    i64 const arg1  = GENERATE(-2, 0, 5, 100);
+    i64 const arg2  = GENERATE(-100, -3, 0, 7);
+    AssemblyStream a;
+    a.add(MoveInst(RegisterIndex(0), Value64(arg1)));
+    a.add(CompareInst(Type::Signed, RegisterIndex(0), Value64(arg2)));
+    a.add(JumpInst(CompareOperation::LessEq, value));
+    a.add(MoveInst(RegisterIndex(1), Value64(-1)));
+    a.add(TerminateInst());
+    a.add(Label(0, "0"));
+    a.add(MoveInst(RegisterIndex(1), Value64(0)));
+    a.add(TerminateInst());
+    a.add(Label(1, "1"));
+    a.add(MoveInst(RegisterIndex(1), Value64(1)));
+    a.add(TerminateInst());
+    a.add(Label(2, "2"));
+    a.add(MoveInst(RegisterIndex(1), Value64(2)));
+    a.add(TerminateInst());
+    a.add(Label(3, "3"));
+    a.add(MoveInst(RegisterIndex(1), Value64(3)));
+    a.add(TerminateInst());
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
+    CHECK(read<u64>(&state.registers[1]) == (arg1 <= arg2 ? value : static_cast<u64>(-1)));
+}
+
+TEST_CASE("itest, set*", "[assembly][vm]") {
+    AssemblyStream a;
+    a.add(MoveInst(RegisterIndex(0), Value64(-1)));
+    a.add(TestInst(Type::Signed, RegisterIndex(0)));
+    a.add(SetInst(RegisterIndex(0), CompareOperation::Eq));
+    a.add(SetInst(RegisterIndex(1), CompareOperation::NotEq));
+    a.add(SetInst(RegisterIndex(2), CompareOperation::Less));
+    a.add(SetInst(RegisterIndex(3), CompareOperation::LessEq));
+    a.add(SetInst(RegisterIndex(4), CompareOperation::Greater));
+    a.add(SetInst(RegisterIndex(5), CompareOperation::GreaterEq));
+    a.add(TerminateInst());
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
+    CHECK(state.registers[0] == 0);
+    CHECK(state.registers[1] == 1);
+    CHECK(state.registers[2] == 1);
+    CHECK(state.registers[3] == 1);
+    CHECK(state.registers[4] == 0);
+    CHECK(state.registers[5] == 0);
+}

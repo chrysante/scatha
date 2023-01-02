@@ -9,20 +9,20 @@ using vm::OpCode;
 
 // clang-format off
 
-OpCode asm2::mapMove(ElemType dest, ElemType source) {
-    if (dest == ElemType::RegisterIndex) {
+OpCode asm2::mapMove(ValueType dest, ValueType source) {
+    if (dest == ValueType::RegisterIndex) {
         switch (source) {
-        case ElemType::RegisterIndex:
+        case ValueType::RegisterIndex:
             return OpCode::movRR;
-        case ElemType::Value64:
+        case ValueType::Value64:
             return OpCode::movRV;
-        case ElemType::MemoryAddress:
+        case ValueType::MemoryAddress:
             return OpCode::movRM;
         default:
             SC_DEBUGFAIL(); // No matching instruction
         }
     }
-    if (dest == ElemType::MemoryAddress && source == ElemType::RegisterIndex) {
+    if (dest == ValueType::MemoryAddress && source == ValueType::RegisterIndex) {
         return OpCode::movMR;
     }
     SC_DEBUGFAIL(); // No matching instruction
@@ -40,15 +40,15 @@ OpCode asm2::mapJump(CompareOperation condition) {
     });
 }
 
-OpCode asm2::mapCompare(Type type, ElemType lhs, ElemType rhs) {
-    if (lhs == ElemType::RegisterIndex && rhs == ElemType::RegisterIndex) {
+OpCode asm2::mapCompare(Type type, ValueType lhs, ValueType rhs) {
+    if (lhs == ValueType::RegisterIndex && rhs == ValueType::RegisterIndex) {
         return UTL_MAP_ENUM(type, OpCode, {
             { Type::Signed,   OpCode::icmpRR },
             { Type::Unsigned, OpCode::ucmpRR },
             { Type::Float,    OpCode::fcmpRR },
         });
     }
-    if (lhs == ElemType::RegisterIndex && rhs == ElemType::Value64) {
+    if (lhs == ValueType::RegisterIndex && rhs == ValueType::Value64) {
         return UTL_MAP_ENUM(type, OpCode, {
             { Type::Signed,   OpCode::icmpRV },
             { Type::Unsigned, OpCode::ucmpRV },
@@ -78,8 +78,8 @@ OpCode asm2::mapSet(CompareOperation operation) {
     });
 }
 
-OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ElemType lhs, ElemType rhs) {
-    if (lhs == ElemType::RegisterIndex && rhs == ElemType::RegisterIndex) {
+OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ValueType dest, ValueType source) {
+    if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex) {
         switch (type) {
         case Type::Signed:
             // TODO: Take care of shift and bitwise operations.
@@ -124,7 +124,7 @@ OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ElemType lh
         case Type::_count: SC_UNREACHABLE();
         }
     }
-    if (lhs == ElemType::RegisterIndex && rhs == ElemType::Value64) {
+    if (dest == ValueType::RegisterIndex && source == ValueType::Value64) {
         switch (type) {
         case Type::Signed:
             // TODO: Take care of shift and bitwise operations.
@@ -169,7 +169,7 @@ OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ElemType lh
         case Type::_count: SC_UNREACHABLE();
         }
     }
-    if (lhs == ElemType::RegisterIndex && rhs == ElemType::MemoryAddress) {
+    if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress) {
         switch (type) {
         case Type::Signed:
             // TODO: Take care of shift and bitwise operations.

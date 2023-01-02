@@ -7,7 +7,6 @@
 #include <utl/scope_guard.hpp>
 #include <utl/utility.hpp>
 
-#include "Assembly2/Elements.h"
 #include "Assembly2/AssemblyStream.h"
 #include "Assembly2/Map.h"
 #include "Basic/Memory.h"
@@ -35,8 +34,7 @@ struct Context {
     
     void run();
     
-    void dispatch(Element const& element);
-    void translate(Element const& element) { SC_UNREACHABLE(); }
+    void dispatch(Instruction const& inst);
     void translate(MoveInst const&);
     void translate(JumpInst const&);
     void translate(CallInst const&);
@@ -48,6 +46,8 @@ struct Context {
     void translate(SetInst const&);
     void translate(ArithmeticInst const&);
     void translate(Label const&);
+    
+    void dispatch(Value const& value);
     void translate(RegisterIndex const&);
     void translate(MemoryAddress const&);
     void translate(Value8 const&);
@@ -98,18 +98,18 @@ vm::Program asm2::assemble(AssemblyStream const& assemblyStream, AssemblerOption
 }
 
 void Context::run() {
-    for (auto& elem: stream) {
-        dispatch(*elem);
+    for (auto& inst: stream) {
+        dispatch(inst);
     }
     postProcess();
 }
 
-void Context::dispatch(Element const& element) {
-    visit(element, [this](auto& elem) { translate(elem); });
+void Context::dispatch(Instruction const& inst) {
+    inst.visit([this](auto& inst) { translate(inst); });
 }
 
 void Context::translate(MoveInst const& mov) {
-    OpCode const opcode = mapMove(mov.dest().elementType(), mov.source().elementType());
+    OpCode const opcode = mapMove(mov.dest().valueType(), mov.source().valueType());
     put(opcode);
     dispatch(mov.dest());
     dispatch(mov.source());
@@ -118,14 +118,14 @@ void Context::translate(MoveInst const& mov) {
 void Context::translate(JumpInst const& jmp) {
     OpCode const opcode = mapJump(jmp.condition());
     put(opcode);
-    registerJumpSite(currentPosition(), jmp.target().uniqueID());
+    registerJumpSite(currentPosition(), jmp.targetLabelID());
     put(LabelPlaceholder{});
     return;
 }
 
 void Context::translate(CallInst const& call) {
     put(OpCode::call);
-    registerJumpSite(currentPosition(), call.function().uniqueID());
+    registerJumpSite(currentPosition(), call.functionLabelID());
     put(LabelPlaceholder{});
     put<u8>(call.regPtrOffset());
 }
@@ -145,7 +145,7 @@ void Context::translate(StoreRegAddress const& storeRegAddr) {
 }
 
 void Context::translate(CompareInst const& cmp) {
-    OpCode const opcode = mapCompare(cmp.type(), cmp.lhs().elementType(), cmp.rhs().elementType());
+    OpCode const opcode = mapCompare(cmp.type(), cmp.lhs().valueType(), cmp.rhs().valueType());
     put(opcode);
     dispatch(cmp.lhs());
     dispatch(cmp.rhs());
@@ -154,7 +154,7 @@ void Context::translate(CompareInst const& cmp) {
 void Context::translate(TestInst const& test) {
     OpCode const opcode = mapTest(test.type());
     put(opcode);
-    dispatch(cast<RegisterIndex const&>(test.operand()));
+    dispatch(test.operand().get<RegisterIndex>());
 }
 
 void Context::translate(SetInst const& set) {
@@ -166,15 +166,19 @@ void Context::translate(SetInst const& set) {
 void Context::translate(ArithmeticInst const& inst) {
     OpCode const opcode = mapArithmetic(inst.operation(),
                                         inst.type(),
-                                        inst.lhs().elementType(),
-                                        inst.rhs().elementType());
+                                        inst.dest().valueType(),
+                                        inst.source().valueType());
     put(opcode);
-    dispatch(inst.lhs());
-    dispatch(inst.rhs());
+    dispatch(inst.dest());
+    dispatch(inst.source());
 }
 
 void Context::translate(Label const& label) {
-    labels.insert({ label.uniqueID(), currentPosition() });
+    labels.insert({ label.id(), currentPosition() });
+}
+
+void Context::dispatch(Value const& value) {
+    value.visit([this](auto& value) { translate(value); });
 }
 
 void Context::translate(RegisterIndex const& regIdx) {

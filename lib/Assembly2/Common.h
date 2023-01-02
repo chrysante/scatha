@@ -5,7 +5,6 @@
 #include <string_view>
 
 #include "Basic/Basic.h"
-#include "Common/Dyncast.h"
 
 namespace scatha::asm2 {
 
@@ -13,39 +12,38 @@ namespace scatha::asm2 {
 enum class Type {
     Signed, Unsigned, Float, _count
 };
-	
-#define SC_ASM_ELEMENT_DEF(elem) class elem;
-#include "Assembly2/Elements.def"
 
-enum class ElemType {
-#define SC_ASM_ELEMENT_DEF(elem) elem,
-#include "Assembly2/Elements.def"
+/// Forward declare all instructions.
+
+#define SC_ASM_INSTRUCTION_DEF(inst) class inst;
+#include "Assembly2/Lists.def"
+
+class Instruction;
+
+/// Enum naming all concrete types in the \p Instruction variant.
+enum class InstructionType {
+#define SC_ASM_INSTRUCTION_DEF(inst) inst,
+#include "Assembly2/Lists.def"
     _count
 };
 
-/// For \p dyncast compatibility.
-inline ElemType dyncast_get_type(std::derived_from<Element> auto const& elem) {
-    return elem.elementType();
-}
+/// Forward declare all values.
 
-} // namespace scatha::asm2
+#define SC_ASM_VALUE_DEF(value) class value;
+#include "Assembly2/Lists.def"
 
-#define SC_ASM_ELEMENT_DEF(elem) \
-    SC_DYNCAST_MAP(::scatha::asm2::elem, ::scatha::asm2::ElemType::elem);
-#include "Assembly2/Elements.def"
+class Value;
 
-namespace scatha::asm2 {
-
-template <typename To, typename From>
-std::unique_ptr<To> cast(std::unique_ptr<From>&& from) {
-    auto ptr = from.get();
-    from.release();
-    return std::unique_ptr<To>(scatha::cast<To*>(ptr));
-}
+/// Enum naming all concrete types in the \p Value variant.
+enum class ValueType {
+#define SC_ASM_VALUE_DEF(value) value,
+#include "Assembly2/Lists.def"
+    _count
+};
 
 enum class CompareOperation {
 #define SC_ASM_COMPARE_DEF(jmpcnd, ...) jmpcnd,
-#include "Assembly2/Elements.def"
+#include "Assembly2/Lists.def"
     _count
 };
 
@@ -54,7 +52,7 @@ SCATHA(API) std::string_view toSetInstName(CompareOperation condition);
 
 enum class ArithmeticOperation {
 #define SC_ASM_ARITHMETIC_DEF(op, ...) op,
-#include "Assembly2/Elements.def"
+#include "Assembly2/Lists.def"
     _count
 };
 

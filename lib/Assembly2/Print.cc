@@ -7,7 +7,6 @@
 #include <utl/strcat.hpp>
 
 #include "Assembly2/AssemblyStream.h"
-#include "Assembly2/Elements.h"
 
 using namespace scatha;
 using namespace asm2;
@@ -17,13 +16,13 @@ void asm2::print(AssemblyStream const& assemblyStream) {
 }
 
 void asm2::print(AssemblyStream const& stream, std::ostream& str) {
-    for (auto& elem: stream) {
-        str << *elem << "\n";
+    for (auto& inst: stream) {
+        str << inst << "\n";
     }
 }
 
-std::ostream& asm2::operator<<(std::ostream& str, Element const& elem) {
-    return visit(elem, [&](auto& elem) -> auto& { return str << elem; });
+std::ostream& asm2::operator<<(std::ostream& str, Instruction const& inst) {
+    return inst.visit([&](auto& inst) -> auto& { return str << inst; });
 }
 
 static constexpr utl::streammanip instName = [](std::ostream& str, auto const&... args) {
@@ -31,21 +30,20 @@ static constexpr utl::streammanip instName = [](std::ostream& str, auto const&..
     str << "  " << std::setw(instNameWidth) << std::left << utl::strcat(args...);
 };
 
-
 std::ostream& asm2::operator<<(std::ostream& str, MoveInst const& mov) {
     return str << instName("mov") << " " << mov.dest() << ", " << mov.source();
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, ArithmeticInst const& arithmetic) {
-    return str << instName(arithmetic.operation()) << " " << arithmetic.lhs() << ", " << arithmetic.rhs();
+    return str << instName(arithmetic.operation()) << " " << arithmetic.dest() << ", " << arithmetic.source();
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, JumpInst const& jmp) {
-    return str << instName(toJumpInstName(jmp.condition())) << " " << jmp.target().name();
+    return str << instName(toJumpInstName(jmp.condition())) << " " << jmp.targetLabelID();
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, CallInst const& call) {
-    return str << instName("call") << " " << call.function().name() << ", " << call.regPtrOffset();
+    return str << instName("call") << " " << call.functionLabelID() << ", " << call.regPtrOffset();
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, ReturnInst const&) {
@@ -64,8 +62,8 @@ std::ostream& asm2::operator<<(std::ostream& str, StoreRegAddress const& sra) {
     return str << instName("storeRegAddress") << " " << sra.dest() << ", &" << sra.source();
 }
 
-std::ostream& asm2::operator<<(std::ostream& str, Label const& label) {
-    return str << label.name() << "/" << label.uniqueID() << ":";
+std::ostream& asm2::operator<<(std::ostream& str, Value const& value) {
+    return value.visit([&](auto& value) -> auto& { return str << value; });
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, RegisterIndex const& regIdx) {
@@ -76,6 +74,18 @@ std::ostream& asm2::operator<<(std::ostream& str, MemoryAddress const& addr) {
     return str << "*(ptr)_R[" << addr.registerIndex() << "]";
 }
 
-std::ostream& asm2::operator<<(std::ostream& str, Value const& value) {
+std::ostream& asm2::operator<<(std::ostream& str, Value8 const& value) {
+    return str << value.value();
+}
+
+std::ostream& asm2::operator<<(std::ostream& str, Value16 const& value) {
+    return str << value.value();
+}
+
+std::ostream& asm2::operator<<(std::ostream& str, Value32 const& value) {
+    return str << value.value();
+}
+
+std::ostream& asm2::operator<<(std::ostream& str, Value64 const& value) {
     return str << value.value();
 }

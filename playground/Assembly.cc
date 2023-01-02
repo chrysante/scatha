@@ -10,18 +10,9 @@ using namespace asm2;
 
 void playground::testAsmModule() {
     AssemblyStream stream;
-    stream.add(std::make_unique<MoveInst>(
-        std::make_unique<RegisterIndex>(0),
-        std::make_unique<Value64>(3)));
-    
-    stream.add(std::make_unique<StoreRegAddress>(
-        std::make_unique<RegisterIndex>(1),
-        std::make_unique<RegisterIndex>(2)));
-    
-    stream.add(std::make_unique<MoveInst>(
-        std::make_unique<MemoryAddress>(1, 0, 0),
-        std::make_unique<RegisterIndex>(0)));
-    
+    stream.add(MoveInst(RegisterIndex(0), Value64(3)));
+    stream.add(StoreRegAddress(RegisterIndex(1), RegisterIndex(2)));
+    stream.add(MoveInst(MemoryAddress(1, 0, 0), RegisterIndex(0)));
     print(stream);
     
 }
