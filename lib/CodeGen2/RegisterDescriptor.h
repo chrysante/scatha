@@ -6,20 +6,20 @@
 
 #include <utl/hashmap.hpp>
 
-#include "Assembly2/Elements.h"
+#include "Assembly2/Value.h"
 #include "IR/CFGCommon.h"
 
 namespace scatha::cg2 {
 	
 class RegisterDescriptor {
 public:
-    std::unique_ptr<asm2::Element> resolve(ir::Value const&);
+    asm2::Value resolve(ir::Value const&);
     
-    std::unique_ptr<asm2::MemoryAddress> resolveAddr(ir::Value const&);
+    asm2::MemoryAddress resolveAddr(ir::Value const&);
     
-    std::unique_ptr<asm2::RegisterIndex> makeTemporary();
+    asm2::RegisterIndex makeTemporary();
     
-    std::unique_ptr<asm2::RegisterIndex> allocateAutomatic(size_t numRegisters);
+    asm2::RegisterIndex allocateAutomatic(size_t numRegisters);
     
     size_t numUsedRegisters() const { return index; }
     
