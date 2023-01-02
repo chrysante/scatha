@@ -3,7 +3,7 @@
 
 #include <utl/dyncast.hpp>
 
-#define SC_DYNCAST_MAP UTL_DYNCAST_MAP
+#define SC_DYNCAST_MAP(Type, EnumValue) UTL_DYNCAST_MAP(Type, EnumValue)
 
 namespace scatha {
 
