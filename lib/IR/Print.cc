@@ -139,7 +139,7 @@ void PrintCtx::print(FunctionCall const& call) {
     if (!call.name().empty()) {
         str << "%" << call.name() << " = ";
     }
-    str << "call " << call.type()->name();
+    str << "call " << call.type()->name() << ", @" << call.function()->name();
     for (auto& arg: call.arguments()) {
         str << ", " << arg->type()->name() << " " << toString(*arg);
     }
