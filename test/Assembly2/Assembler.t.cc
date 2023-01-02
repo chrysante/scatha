@@ -18,7 +18,7 @@ static vm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
     return vm;
 }
 
-static void assembleAndPrint(AssemblyStream const& str) {
+[[maybe_unused]] static void assembleAndPrint(AssemblyStream const& str) {
     vm::Program p = assemble(str);
     print(p);
 }
