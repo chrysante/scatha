@@ -36,6 +36,13 @@ inline ElemType dyncast_get_type(std::derived_from<Element> auto const& elem) {
 
 namespace scatha::asm2 {
 
+template <typename To, typename From>
+std::unique_ptr<To> cast(std::unique_ptr<From>&& from) {
+    auto ptr = from.get();
+    from.release();
+    return std::unique_ptr<To>(scatha::cast<To*>(ptr));
+}
+
 enum class CompareOperation {
 #define SC_ASM_COMPARE_DEF(jmpcnd, ...) jmpcnd,
 #include "Assembly2/Elements.def"

@@ -4,14 +4,14 @@
 #include <utl/scope_guard.hpp>
 #include <utl/ranges.hpp>
 
-#include "Assembly/AssemblyStream.h"
+#include "Assembly2/AssemblyStream.h"
 #include "CodeGen2/RegisterDescriptor.h"
 #include "IR/Module.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 
 using namespace scatha;
-using namespace assembly;
+using namespace asm2;
 using namespace cg2;
 
 namespace {
@@ -23,7 +23,7 @@ struct Context {
     
     void dispatch(ir::Value const& value);
     
-    void generate(ir::Value const& value) { result << Instruction::enterFn << Value8(0xFF); /* SC_UNREACHABLE(); */ }
+    void generate(ir::Value const& value) { SC_UNREACHABLE(); }
     void generate(ir::Function const& function);
     void generate(ir::BasicBlock const& bb);
     void generate(ir::Alloca const&);
@@ -35,9 +35,9 @@ struct Context {
     void generate(ir::Branch const&);
     void generate(ir::FunctionCall const&);
     
-    Label toLabel(ir::BasicBlock const&);
-    Label toLabel(ir::Function const&);
-    size_t toLabelImpl(ir::Value const&);
+    std::unique_ptr<Label> makeLabel(ir::BasicBlock const&);
+    std::unique_ptr<Label> makeLabel(ir::Function const&);
+    size_t makeLabelImpl(ir::Value const&);
     
     RegisterDescriptor& currentRD() { return *_currentRD; }
     AssemblyStream& result;
@@ -48,8 +48,8 @@ struct Context {
 
 } // namespace
 
-assembly::AssemblyStream cg2::codegen(ir::Module const& mod) {
-    assembly::AssemblyStream result;
+AssemblyStream cg2::codegen(ir::Module const& mod) {
+    AssemblyStream result;
     Context ctx(result);
     ctx.run(mod);
     return result;
@@ -71,7 +71,7 @@ void Context::generate(ir::Function const& function) {
     utl::scope_guard clearRD = [&]{ _currentRD = nullptr; };
     /// Declare parameters.
     for (auto& param: function.parameters()) { rd.resolve(param); }
-    result << toLabel(function);
+    result.add(makeLabel(function));
     for (auto& bb: function.basicBlocks()) {
         dispatch(bb);
     }
@@ -79,7 +79,7 @@ void Context::generate(ir::Function const& function) {
 
 void Context::generate(ir::BasicBlock const& bb) {
     if (!bb.isEntry()) {
-        result << toLabel(bb);
+        result.add(makeLabel(bb));
     }
     for (auto& inst: bb.instructions) {
         dispatch(inst);
@@ -98,119 +98,132 @@ void Context::generate(ir::Alloca const& allocaInst) {
     ///   We already have load and store operations (movMR, movRM, etc).
     
     SC_ASSERT(allocaInst.allocatedType()->align() <= 8, "We don't support overaligned types just yet.");
-    result << Instruction::storeRegAddress;
-    result << currentRD().resolve(allocaInst);
-    result << currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8));
+    result.add(std::make_unique<StoreRegAddress>(
+                   cast<RegisterIndex>(currentRD().resolve(allocaInst)),
+                   currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
 }
 
 void Context::generate(ir::Store const& store) {
     auto dest = currentRD().resolve(*store.address());
     auto src = currentRD().resolve(*store.value());
-    
-    if (std::holds_alternative<assembly::Value64>(src)) {
+    if (auto* value = dyncast<Value64 const*>(src.get())) {
         /// \p src is a value and must be stored in temporary register first.
         auto tmp = currentRD().makeTemporary();
-        result << Instruction::mov << tmp << src;
-        result << Instruction::mov << dest << tmp;
+        auto tmp2 = std::make_unique<RegisterIndex>(*tmp);
+        result.add(std::make_unique<MoveInst>(std::move(tmp), std::move(src)));
+        result.add(std::make_unique<MoveInst>(std::move(dest), std::move(tmp2)));
     }
     else {
-        result << Instruction::mov << dest << src;
+        result.add(std::make_unique<MoveInst>(std::move(dest), std::move(src)));
     }
 }
 
 void Context::generate(ir::Load const& load) {
-    result << Instruction::mov;
-    result << currentRD().resolve(load);
-    result << currentRD().resolve(*load.address());
+    result.add(std::make_unique<MoveInst>(
+                   currentRD().resolve(load),
+                   currentRD().resolve(*load.address())));
 }
 
-static Instruction mapCmp(ir::Type const* type) {
+static asm2::Type mapType(ir::Type const* type) {
     if (type->isIntegral()) {
         /// TODO: Also handle unsigned comparison.
-        return Instruction::icmp;
+        return Type::Signed;
     }
     if (type->isFloat()) {
-        return Instruction::fcmp;
+        return Type::Float;
     }
     SC_UNREACHABLE();
 }
 
 void Context::generate(ir::CompareInst const& cmp) {
-    result << mapCmp(cmp.operandType()) << currentRD().resolve(*cmp.lhs()) << currentRD().resolve(*cmp.rhs());
+    result.add(std::make_unique<asm2::CompareInst>(
+                   mapType(cmp.type()),
+                   currentRD().resolve(*cmp.lhs()),
+                   currentRD().resolve(*cmp.rhs())));
 }
 
-static Instruction mapArithmetic(ir::ArithmeticOperation op) {
-    return UTL_MAP_ENUM(op, Instruction, {
-        { ir::ArithmeticOperation::Add,    Instruction::add },
-        { ir::ArithmeticOperation::Sub,    Instruction::sub },
-        { ir::ArithmeticOperation::Mul,    Instruction::mul },
-        { ir::ArithmeticOperation::Div,    Instruction::idiv },
-        { ir::ArithmeticOperation::UDiv,   Instruction::div },
-        { ir::ArithmeticOperation::Rem,    Instruction::irem },
-        { ir::ArithmeticOperation::URem,   Instruction::rem },
-        { ir::ArithmeticOperation::ShiftL, Instruction::sl },
-        { ir::ArithmeticOperation::ShiftR, Instruction::sr },
-        { ir::ArithmeticOperation::And,    Instruction::And },
-        { ir::ArithmeticOperation::Or,     Instruction::Or },
-        { ir::ArithmeticOperation::XOr,    Instruction::XOr },
+static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
+    return UTL_MAP_ENUM(op, asm2::ArithmeticOperation, {
+        { ir::ArithmeticOperation::Add,    asm2::ArithmeticOperation::Add    },
+        { ir::ArithmeticOperation::Sub,    asm2::ArithmeticOperation::Sub    },
+        { ir::ArithmeticOperation::Mul,    asm2::ArithmeticOperation::Mul    },
+        { ir::ArithmeticOperation::Div,    asm2::ArithmeticOperation::Div    },
+        { ir::ArithmeticOperation::UDiv,   asm2::ArithmeticOperation::Div    },
+        { ir::ArithmeticOperation::Rem,    asm2::ArithmeticOperation::Rem    },
+        { ir::ArithmeticOperation::URem,   asm2::ArithmeticOperation::Rem    },
+        { ir::ArithmeticOperation::ShiftL, asm2::ArithmeticOperation::_count },
+        { ir::ArithmeticOperation::ShiftR, asm2::ArithmeticOperation::_count },
+        { ir::ArithmeticOperation::And,    asm2::ArithmeticOperation::_count },
+        { ir::ArithmeticOperation::Or,     asm2::ArithmeticOperation::_count },
+        { ir::ArithmeticOperation::XOr,    asm2::ArithmeticOperation::_count },
     });
 }
 
 void Context::generate(ir::ArithmeticInst const& arithmetic) {
-    result << mapArithmetic(arithmetic.operation()) << currentRD().resolve(*arithmetic.lhs()) << currentRD().resolve(*arithmetic.rhs());
+    result.add(std::make_unique<asm2::ArithmeticInst>(
+                   mapArithmetic(arithmetic.operation()),
+                   mapType(arithmetic.type()),
+                   currentRD().resolve(*arithmetic.lhs()),
+                   currentRD().resolve(*arithmetic.rhs())));
 }
 
 // MARK: Terminators
 
-static Instruction mapCmpToJump(ir::CompareOperation op) {
-    return UTL_MAP_ENUM(op, Instruction, {
-        { ir::CompareOperation::Less,      Instruction::jl },
-        { ir::CompareOperation::LessEq,    Instruction::jle },
-        { ir::CompareOperation::Greater,   Instruction::jg },
-        { ir::CompareOperation::GreaterEq, Instruction::jge },
-        { ir::CompareOperation::Equal,     Instruction::je },
-        { ir::CompareOperation::NotEqual,  Instruction::jne },
+static asm2::CompareOperation mapCompare(ir::CompareOperation op) {
+    return UTL_MAP_ENUM(op, asm2::CompareOperation, {
+        { ir::CompareOperation::Less,      asm2::CompareOperation::Less      },
+        { ir::CompareOperation::LessEq,    asm2::CompareOperation::LessEq    },
+        { ir::CompareOperation::Greater,   asm2::CompareOperation::Greater   },
+        { ir::CompareOperation::GreaterEq, asm2::CompareOperation::GreaterEq },
+        { ir::CompareOperation::Equal,     asm2::CompareOperation::Eq        },
+        { ir::CompareOperation::NotEqual,  asm2::CompareOperation::NotEq     },
     });
 }
 
 void Context::generate(ir::Goto const& gt) {
-    result << Instruction::jmp << toLabel(*gt.target());
+    result.add(std::make_unique<JumpInst>(makeLabel(*gt.target())));
 }
 
 void Context::generate(ir::Branch const& br) {
     auto const& cond = *cast<ir::CompareInst const*>(br.condition());
-    result << mapCmpToJump(cond.operation()) << toLabel(*br.thenTarget());
-    result << Instruction::jmp << toLabel(*br.elseTarget());
+    result.add(std::make_unique<JumpInst>(
+                   mapCompare(cond.operation()),
+                   makeLabel(*br.thenTarget())));
+    result.add(std::make_unique<JumpInst>(makeLabel(*br.elseTarget())));
 }
 
 void Context::generate(ir::FunctionCall const& call) {
-    utl::small_vector<std::tuple<u8, u8>> parameterRegisterLocations;
-    for (auto const [index, arg]: utl::enumerate(call.arguments())) {
-        result << Instruction::mov << RegisterIndex(0xFF); // 0xFF is a placeholder
-        size_t const location = result.size() - RegisterIndex::size();
-        parameterRegisterLocations.push_back({ utl::narrow_cast<u8>(location), utl::narrow_cast<u8>(index) });
-        result << currentRD().resolve(*arg);
+    utl::small_vector<RegisterIndex*> parameterRegisterLocations;
+    for (auto const arg: call.arguments()) {
+        // TODO: Are the arguments evaluated here?
+        auto argRegIdx = std::make_unique<RegisterIndex>(0xFF);
+        parameterRegisterLocations.push_back(argRegIdx.get());
+        result.add(std::make_unique<MoveInst>(
+                       std::move(argRegIdx),
+                       currentRD().resolve(*arg)));
     }
-    for (auto const& [index, offset]: parameterRegisterLocations) {
-        result[index] = utl::narrow_cast<u8>(currentRD().numUsedRegisters() + 2 + offset);
+    for (auto const& [index, regIdx]: utl::enumerate(parameterRegisterLocations)) {
+        regIdx->setValue(currentRD().numUsedRegisters() + 2 + index);
     }
-    result << Instruction::call << toLabel(*call.function()) << Value8(utl::narrow_cast<u8>(currentRD().numUsedRegisters() + 2));
+    result.add(std::make_unique<CallInst>(makeLabel(*call.function()), currentRD().numUsedRegisters() + 2));
     if (call.type()->isVoid()) {
         return;
     }
     size_t const resultLocation = currentRD().numUsedRegisters() + 2;
-    result << Instruction::mov << currentRD().resolve(call) << RegisterIndex(utl::narrow_cast<u8>(resultLocation));
+    result.add(std::make_unique<MoveInst>(
+                   currentRD().resolve(call),
+                   std::make_unique<RegisterIndex>(resultLocation)));
 }
 
-Label Context::toLabel(ir::BasicBlock const& bb) {
-    return Label(toLabelImpl(bb), 0);
+std::unique_ptr<Label> Context::makeLabel(ir::BasicBlock const& bb) {
+    return std::make_unique<Label>(makeLabelImpl(bb), std::string(bb.name()));
 }
 
-Label Context::toLabel(ir::Function const& fn) {
-    return Label(toLabelImpl(fn), 0);
+std::unique_ptr<Label> Context::makeLabel(ir::Function const& fn) {
+    return std::make_unique<Label>(makeLabelImpl(fn), std::string(fn.name()));
 }
 
-size_t Context::toLabelImpl(ir::Value const& value) {
+size_t Context::makeLabelImpl(ir::Value const& value) {
     auto [itr, success] = labelIndices.insert({ &value, labelIndexCounter });
     if (success) { ++labelIndexCounter; }
     return itr->second;

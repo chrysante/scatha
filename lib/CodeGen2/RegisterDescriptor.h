@@ -2,23 +2,24 @@
 #define SCATHA_CODEGEN2_REGISTERDESCRIPTOR_H_
 
 #include <string>
-#include <variant>
+#include <memory>
 
 #include <utl/hashmap.hpp>
 
-#include "Assembly/Assembly.h"
+#include "Assembly2/Elements.h"
 #include "IR/CFGCommon.h"
 
 namespace scatha::cg2 {
 	
 class RegisterDescriptor {
 public:
-    std::variant<assembly::RegisterIndex, assembly::MemoryAddress, assembly::Value64> resolve(ir::Value const&);
-    assembly::MemoryAddress resolveAddr(ir::Value const&);
+    std::unique_ptr<asm2::Element> resolve(ir::Value const&);
     
-    assembly::RegisterIndex makeTemporary();
+    std::unique_ptr<asm2::MemoryAddress> resolveAddr(ir::Value const&);
     
-    assembly::RegisterIndex allocateAutomatic(size_t numRegisters);
+    std::unique_ptr<asm2::RegisterIndex> makeTemporary();
+    
+    std::unique_ptr<asm2::RegisterIndex> allocateAutomatic(size_t numRegisters);
     
     size_t numUsedRegisters() const { return index; }
     

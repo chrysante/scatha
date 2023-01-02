@@ -4,30 +4,31 @@
 
 using namespace scatha;
 using namespace cg2;
+using namespace asm2;
 
-std::variant<assembly::RegisterIndex, assembly::MemoryAddress, assembly::Value64> RegisterDescriptor::resolve(ir::Value const& value) {
+std::unique_ptr<Element> RegisterDescriptor::resolve(ir::Value const& value) {
     if (auto* constant = dyncast<ir::IntegralConstant const*>(&value)) {
-        return assembly::Value64(static_cast<u64>(constant->value()));
+        return std::make_unique<Value64>(static_cast<u64>(constant->value()));
     }
     SC_ASSERT(!value.name().empty(), "Name must not be empty.");
     auto const [itr, success] = values.insert({ value.name(), index });
     if (success) { ++index; }
-    return assembly::RegisterIndex(utl::narrow_cast<u8>(itr->second));
+    return std::make_unique<RegisterIndex>(utl::narrow_cast<u8>(itr->second));
 }
 
-assembly::MemoryAddress RegisterDescriptor::resolveAddr(ir::Value const& address) {
+std::unique_ptr<MemoryAddress> RegisterDescriptor::resolveAddr(ir::Value const& address) {
     SC_ASSERT(address.type()->category() == ir::Type::Pointer,
               "address must be a pointer");
-    auto const regIdx = std::get<assembly::RegisterIndex>(resolve(address)).index;
-    return assembly::MemoryAddress(regIdx, 0, 0);
+    auto const regIdx = cast<RegisterIndex const*>(resolve(address).get())->value();
+    return std::make_unique<MemoryAddress>(regIdx, 0, 0);
 }
 
-assembly::RegisterIndex RegisterDescriptor::makeTemporary() {
-    return assembly::RegisterIndex(index++);
+std::unique_ptr<RegisterIndex> RegisterDescriptor::makeTemporary() {
+    return std::make_unique<RegisterIndex>(index++);
 }
 
-assembly::RegisterIndex RegisterDescriptor::allocateAutomatic(size_t numRegisters) {
-    assembly::RegisterIndex const result(utl::narrow_cast<u8>(index));
+std::unique_ptr<RegisterIndex> RegisterDescriptor::allocateAutomatic(size_t numRegisters) {
+    auto result = std::make_unique<RegisterIndex>(utl::narrow_cast<u8>(index));
     index += numRegisters;
     return result;
 }
