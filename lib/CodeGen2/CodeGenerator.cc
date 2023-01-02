@@ -2,6 +2,7 @@
 
 #include <utl/hashmap.hpp>
 #include <utl/scope_guard.hpp>
+#include <utl/ranges.hpp>
 
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen2/RegisterDescriptor.h"
@@ -22,7 +23,7 @@ struct Context {
     
     void dispatch(ir::Value const& value);
     
-    void generate(ir::Value const& value) { /* SC_UNREACHABLE(); */ }
+    void generate(ir::Value const& value) { result << Instruction::enterFn << Value8(0xFF); /* SC_UNREACHABLE(); */ }
     void generate(ir::Function const& function);
     void generate(ir::BasicBlock const& bb);
     void generate(ir::Alloca const&);
@@ -32,6 +33,7 @@ struct Context {
     void generate(ir::ArithmeticInst const&);
     void generate(ir::Goto const&);
     void generate(ir::Branch const&);
+    void generate(ir::FunctionCall const&);
     
     Label toLabel(ir::BasicBlock const&);
     Label toLabel(ir::Function const&);
@@ -179,6 +181,25 @@ void Context::generate(ir::Branch const& br) {
     auto const& cond = *cast<ir::CompareInst const*>(br.condition());
     result << mapCmpToJump(cond.operation()) << toLabel(*br.thenTarget());
     result << Instruction::jmp << toLabel(*br.elseTarget());
+}
+
+void Context::generate(ir::FunctionCall const& call) {
+    utl::small_vector<std::tuple<u8, u8>> parameterRegisterLocations;
+    for (auto const [index, arg]: utl::enumerate(call.arguments())) {
+        result << Instruction::mov << RegisterIndex(0xFF); // 0xFF is a placeholder
+        size_t const location = result.size() - RegisterIndex::size();
+        parameterRegisterLocations.push_back({ utl::narrow_cast<u8>(location), utl::narrow_cast<u8>(index) });
+        result << currentRD().resolve(*arg);
+    }
+    for (auto const& [index, offset]: parameterRegisterLocations) {
+        result[index] = utl::narrow_cast<u8>(currentRD().numUsedRegisters() + 2 + offset);
+    }
+    result << Instruction::call << toLabel(*call.function()) << Value8(utl::narrow_cast<u8>(currentRD().numUsedRegisters() + 2));
+    if (call.type()->isVoid()) {
+        return;
+    }
+    size_t const resultLocation = currentRD().numUsedRegisters() + 2;
+    result << Instruction::mov << currentRD().resolve(call) << RegisterIndex(utl::narrow_cast<u8>(resultLocation));
 }
 
 Label Context::toLabel(ir::BasicBlock const& bb) {
