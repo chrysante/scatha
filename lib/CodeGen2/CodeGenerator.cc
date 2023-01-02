@@ -34,6 +34,7 @@ struct Context {
     void generate(ir::Goto const&);
     void generate(ir::Branch const&);
     void generate(ir::FunctionCall const&);
+    void generate(ir::Phi const&);
     
     std::unique_ptr<Label> makeLabel(ir::BasicBlock const&);
     std::unique_ptr<Label> makeLabel(ir::Function const&);
@@ -213,6 +214,12 @@ void Context::generate(ir::FunctionCall const& call) {
     result.add(std::make_unique<MoveInst>(
                    currentRD().resolve(call),
                    std::make_unique<RegisterIndex>(resultLocation)));
+}
+
+void Context::generate(ir::Phi const& phi) {
+    /// We need to find a register index to put the value in that every incoming path can agree on.
+    /// Then put the value into that register in every incoming path.
+    /// Then make this value resolve to that register index.
 }
 
 std::unique_ptr<Label> Context::makeLabel(ir::BasicBlock const& bb) {

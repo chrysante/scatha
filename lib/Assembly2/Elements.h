@@ -246,9 +246,13 @@ public:
 
 protected:
     template <typename T>
-    explicit Value(ElemType elemType, utl::tag<T> type, std::integral auto value):
-        Element(elemType), _value(utl::narrow_cast<T>(value)) {}
+    explicit Value(ElemType elemType, utl::tag<T> type, auto value):
+        Element(elemType), _value(utl::bit_cast<u64>(widen(utl::narrow_cast<T>(value)))) {}
         
+    static f64 widen(std::floating_point auto f) { return f; }
+    static i64 widen(std::signed_integral auto i) { return i; }
+    static u64 widen(std::unsigned_integral auto i) { return i; }
+    
 private:
     u64 _value;
 };
@@ -256,20 +260,23 @@ private:
 /// Represents an 8 bit value.
 class Value8: public Value {
 public:
-    explicit Value8(std::integral auto value): Value(ElemType::Value8, utl::tag<u8>{}, value) {}
+    explicit Value8(std::signed_integral auto value): Value(ElemType::Value8, utl::tag<i8>{}, value) {}
+    explicit Value8(std::unsigned_integral auto value): Value(ElemType::Value8, utl::tag<u8>{}, value) {}
 };
 
 /// Represents a 16 bit value.
 class Value16: public Value {
 public:
-    explicit Value16(std::integral auto value): Value(ElemType::Value16, utl::tag<u16>{}, value) {}
+    explicit Value16(std::signed_integral auto value): Value(ElemType::Value16, utl::tag<i16>{}, value) {}
+    explicit Value16(std::unsigned_integral auto value): Value(ElemType::Value16, utl::tag<u16>{}, value) {}
 };
 
 /// Represents a 32 bit value.
 class Value32: public Value {
 public:
-    explicit Value32(std::integral auto value): Value(ElemType::Value32, utl::tag<u32>{}, value) {}
-    explicit Value32(f32 value): Value(ElemType::Value32, utl::tag<u32>{}, utl::bit_cast<u32>(value)) {}
+    explicit Value32(std::signed_integral auto value):   Value(ElemType::Value32, utl::tag<i32>{}, value) {}
+    explicit Value32(std::unsigned_integral auto value): Value(ElemType::Value32, utl::tag<u32>{}, value) {}
+    explicit Value32(f32 value):                         Value(ElemType::Value32, utl::tag<f32>{}, value) {}
 };
 
 /// Represents a 64 bit value.
@@ -277,7 +284,7 @@ class Value64: public Value {
 public:
     explicit Value64(std::signed_integral auto value):   Value(ElemType::Value64, utl::tag<i64>{}, value) {}
     explicit Value64(std::unsigned_integral auto value): Value(ElemType::Value64, utl::tag<u64>{}, value) {}
-    explicit Value64(f64 value):                         Value(ElemType::Value64, utl::tag<u64>{}, utl::bit_cast<u64>(value)) {}
+    explicit Value64(f64 value):                         Value(ElemType::Value64, utl::tag<f64>{}, value) {}
 };
 
 } // namespace scatha::asm2
