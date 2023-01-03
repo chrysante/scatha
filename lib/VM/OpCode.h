@@ -195,16 +195,21 @@ enum class OpCode : u8 {
     /// MARK: Bitshift
     slRR, //  (u8 regIdxA, u8 regIdxB)
     slRV, //  (u8 regIdxA, u64 value)
+    slRM, //  (u8 regIdxA, MEMORY_POINTER)
     srRR, //  (u8 regIdxA, u8 regIdxB)
     srRV, //  (u8 regIdxA, u64 value)
+    srRM, //  (u8 regIdxA, MEMORY_POINTER)
 
     /// MARK: Bitwise AND/OR
     andRR, //  (u8 regIdxA, u8 regIdxB)
     andRV, //  (u8 regIdxA, u64 value)
+    andRM, //  (u8 regIdxA, MEMORY_POINTER)
     orRR,  //  (u8 regIdxA, u8 regIdxB)
     orRV,  //  (u8 regIdxA, u64 value)
+    orRM,  //  (u8 regIdxA, MEMORY_POINTER)
     xorRR, //  (u8 regIdxA, u8 regIdxB)
     xorRV, //  (u8 regIdxA, u64 value)
+    xorRM, //  (u8 regIdxA, MEMORY_POINTER)
 
     /// MARK: Misc
     // extFunctionTable[tableIdx][idxIntoTable](reg[regIdx], this)
@@ -294,14 +299,19 @@ constexpr OpCodeClass classify(OpCode c) {
         { OpCode::fdivRM,          OpCodeClass::RM },
         { OpCode::slRR,            OpCodeClass::RR },
         { OpCode::slRV,            OpCodeClass::RV },
+        { OpCode::slRM,            OpCodeClass::RM },
         { OpCode::srRR,            OpCodeClass::RR },
         { OpCode::srRV,            OpCodeClass::RV },
+        { OpCode::srRM,            OpCodeClass::RM },
         { OpCode::andRR,           OpCodeClass::RR },
         { OpCode::andRV,           OpCodeClass::RV },
+        { OpCode::andRM,           OpCodeClass::RM },
         { OpCode::orRR,            OpCodeClass::RR },
         { OpCode::orRV,            OpCodeClass::RV },
+        { OpCode::orRM,            OpCodeClass::RM },
         { OpCode::xorRR,           OpCodeClass::RR },
         { OpCode::xorRV,           OpCodeClass::RV },
+        { OpCode::xorRM,           OpCodeClass::RM },
         { OpCode::callExt,         OpCodeClass::Other },
     });
     // clang-format on

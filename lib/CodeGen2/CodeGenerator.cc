@@ -148,18 +148,18 @@ void Context::generate(ir::CompareInst const& cmp) {
 
 static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
     return UTL_MAP_ENUM(op, asm2::ArithmeticOperation, {
-        { ir::ArithmeticOperation::Add,    asm2::ArithmeticOperation::Add    },
-        { ir::ArithmeticOperation::Sub,    asm2::ArithmeticOperation::Sub    },
-        { ir::ArithmeticOperation::Mul,    asm2::ArithmeticOperation::Mul    },
-        { ir::ArithmeticOperation::Div,    asm2::ArithmeticOperation::Div    },
-        { ir::ArithmeticOperation::UDiv,   asm2::ArithmeticOperation::Div    },
-        { ir::ArithmeticOperation::Rem,    asm2::ArithmeticOperation::Rem    },
-        { ir::ArithmeticOperation::URem,   asm2::ArithmeticOperation::Rem    },
-        { ir::ArithmeticOperation::ShiftL, asm2::ArithmeticOperation::_count },
-        { ir::ArithmeticOperation::ShiftR, asm2::ArithmeticOperation::_count },
-        { ir::ArithmeticOperation::And,    asm2::ArithmeticOperation::_count },
-        { ir::ArithmeticOperation::Or,     asm2::ArithmeticOperation::_count },
-        { ir::ArithmeticOperation::XOr,    asm2::ArithmeticOperation::_count },
+        { ir::ArithmeticOperation::Add,    asm2::ArithmeticOperation::Add },
+        { ir::ArithmeticOperation::Sub,    asm2::ArithmeticOperation::Sub },
+        { ir::ArithmeticOperation::Mul,    asm2::ArithmeticOperation::Mul },
+        { ir::ArithmeticOperation::Div,    asm2::ArithmeticOperation::Div },
+        { ir::ArithmeticOperation::UDiv,   asm2::ArithmeticOperation::Div },
+        { ir::ArithmeticOperation::Rem,    asm2::ArithmeticOperation::Rem },
+        { ir::ArithmeticOperation::URem,   asm2::ArithmeticOperation::Rem },
+        { ir::ArithmeticOperation::ShiftL, asm2::ArithmeticOperation::ShL },
+        { ir::ArithmeticOperation::ShiftR, asm2::ArithmeticOperation::ShR },
+        { ir::ArithmeticOperation::And,    asm2::ArithmeticOperation::And },
+        { ir::ArithmeticOperation::Or,     asm2::ArithmeticOperation::Or  },
+        { ir::ArithmeticOperation::XOr,    asm2::ArithmeticOperation::XOr },
     });
 }
 

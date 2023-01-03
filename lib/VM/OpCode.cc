@@ -91,14 +91,19 @@ std::ostream& operator<<(std::ostream& str, OpCode c) {
         { OpCode::fdivRM,          "fdivRM" },
         { OpCode::slRR,            "slRR" },
         { OpCode::slRV,            "slRV" },
+        { OpCode::slRM,            "slRM" },
         { OpCode::srRR,            "srRR" },
         { OpCode::srRV,            "srRV" },
+        { OpCode::srRM,            "srRM" },
         { OpCode::andRR,           "andRR" },
         { OpCode::andRV,           "andRV" },
+        { OpCode::andRM,           "andRM" },
         { OpCode::orRR,            "orRR" },
         { OpCode::orRV,            "orRV" },
+        { OpCode::orRM,            "orRM" },
         { OpCode::xorRR,           "xorRR" },
         { OpCode::xorRV,           "xorRV" },
+        { OpCode::xorRM,           "xorRM" },
         { OpCode::callExt,         "callExt" },
     });
     // clang-format on
@@ -371,15 +376,20 @@ struct OpCodeImpl {
 
         at(slRR) = arithmeticRR<slRR, u64>(utl::leftshift);
         at(slRV) = arithmeticRV<slRV, u64>(utl::leftshift);
+        at(slRM) = arithmeticRM<slRM, u64>(utl::leftshift);
         at(srRR) = arithmeticRR<srRR, u64>(utl::rightshift);
         at(srRV) = arithmeticRV<srRV, u64>(utl::rightshift);
+        at(srRM) = arithmeticRV<srRM, u64>(utl::rightshift);
 
         at(andRR) = arithmeticRR<andRR, u64>(utl::bitwise_and);
         at(andRV) = arithmeticRV<andRV, u64>(utl::bitwise_and);
-        at(orRR)  = arithmeticRR<orRR, u64>(utl::bitwise_or);
-        at(orRV)  = arithmeticRV<orRV, u64>(utl::bitwise_or);
-        at(xorRR) = arithmeticRR<orRR, u64>(utl::bitwise_xor);
-        at(xorRV) = arithmeticRV<orRV, u64>(utl::bitwise_xor);
+        at(andRM) = arithmeticRV<andRM, u64>(utl::bitwise_and);
+        at(orRR)  = arithmeticRR<orRR,  u64>(utl::bitwise_or);
+        at(orRV)  = arithmeticRV<orRV,  u64>(utl::bitwise_or);
+        at(orRM)  = arithmeticRV<orRM,  u64>(utl::bitwise_or);
+        at(xorRR) = arithmeticRR<xorRR, u64>(utl::bitwise_xor);
+        at(xorRV) = arithmeticRV<xorRV, u64>(utl::bitwise_xor);
+        at(xorRM) = arithmeticRV<xorRM, u64>(utl::bitwise_xor);
 
         /// MARK: Misc
         at(callExt) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {

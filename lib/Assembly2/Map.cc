@@ -89,11 +89,11 @@ OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ValueType d
                 { ArithmeticOperation::Mul,  OpCode::mulRR  },
                 { ArithmeticOperation::Div,  OpCode::idivRR },
                 { ArithmeticOperation::Rem,  OpCode::iremRR },
-                { ArithmeticOperation::ShL,  OpCode::_count },
-                { ArithmeticOperation::ShR,  OpCode::_count },
-                { ArithmeticOperation::And,  OpCode::_count },
-                { ArithmeticOperation::Or,   OpCode::_count },
-                { ArithmeticOperation::XOr,  OpCode::_count },
+                { ArithmeticOperation::ShL,  OpCode::slRR   },
+                { ArithmeticOperation::ShR,  OpCode::srRR   },
+                { ArithmeticOperation::And,  OpCode::andRR  },
+                { ArithmeticOperation::Or,   OpCode::orRR   },
+                { ArithmeticOperation::XOr,  OpCode::xorRR  },
             });
         case Type::Unsigned:
             return UTL_MAP_ENUM(operation, OpCode, {
@@ -102,11 +102,11 @@ OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ValueType d
                 { ArithmeticOperation::Mul,  OpCode::mulRR  },
                 { ArithmeticOperation::Div,  OpCode::divRR  },
                 { ArithmeticOperation::Rem,  OpCode::remRR  },
-                { ArithmeticOperation::ShL,  OpCode::_count },
-                { ArithmeticOperation::ShR,  OpCode::_count },
-                { ArithmeticOperation::And,  OpCode::_count },
-                { ArithmeticOperation::Or,   OpCode::_count },
-                { ArithmeticOperation::XOr,  OpCode::_count },
+                { ArithmeticOperation::ShL,  OpCode::slRR   },
+                { ArithmeticOperation::ShR,  OpCode::srRR   },
+                { ArithmeticOperation::And,  OpCode::andRR  },
+                { ArithmeticOperation::Or,   OpCode::orRR   },
+                { ArithmeticOperation::XOr,  OpCode::xorRR  },
             });
         case Type::Float:
             return UTL_MAP_ENUM(operation, OpCode, {
@@ -134,11 +134,11 @@ OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ValueType d
                 { ArithmeticOperation::Mul,  OpCode::mulRV  },
                 { ArithmeticOperation::Div,  OpCode::idivRV },
                 { ArithmeticOperation::Rem,  OpCode::iremRV },
-                { ArithmeticOperation::ShL,  OpCode::_count },
-                { ArithmeticOperation::ShR,  OpCode::_count },
-                { ArithmeticOperation::And,  OpCode::_count },
-                { ArithmeticOperation::Or,   OpCode::_count },
-                { ArithmeticOperation::XOr,  OpCode::_count },
+                { ArithmeticOperation::ShL,  OpCode::slRV   },
+                { ArithmeticOperation::ShR,  OpCode::srRV   },
+                { ArithmeticOperation::And,  OpCode::andRV  },
+                { ArithmeticOperation::Or,   OpCode::orRV   },
+                { ArithmeticOperation::XOr,  OpCode::xorRV  },
             });
         case Type::Unsigned:
             return UTL_MAP_ENUM(operation, OpCode, {
@@ -147,11 +147,11 @@ OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ValueType d
                 { ArithmeticOperation::Mul,  OpCode::mulRV  },
                 { ArithmeticOperation::Div,  OpCode::divRV  },
                 { ArithmeticOperation::Rem,  OpCode::remRV  },
-                { ArithmeticOperation::ShL,  OpCode::_count },
-                { ArithmeticOperation::ShR,  OpCode::_count },
-                { ArithmeticOperation::And,  OpCode::_count },
-                { ArithmeticOperation::Or,   OpCode::_count },
-                { ArithmeticOperation::XOr,  OpCode::_count },
+                { ArithmeticOperation::ShL,  OpCode::slRV   },
+                { ArithmeticOperation::ShR,  OpCode::srRV   },
+                { ArithmeticOperation::And,  OpCode::andRV  },
+                { ArithmeticOperation::Or,   OpCode::orRV   },
+                { ArithmeticOperation::XOr,  OpCode::xorRV  },
             });
         case Type::Float:
             return UTL_MAP_ENUM(operation, OpCode, {
@@ -179,11 +179,11 @@ OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ValueType d
                 { ArithmeticOperation::Mul,  OpCode::mulRM  },
                 { ArithmeticOperation::Div,  OpCode::idivRM },
                 { ArithmeticOperation::Rem,  OpCode::iremRM },
-                { ArithmeticOperation::ShL,  OpCode::_count },
-                { ArithmeticOperation::ShR,  OpCode::_count },
-                { ArithmeticOperation::And,  OpCode::_count },
-                { ArithmeticOperation::Or,   OpCode::_count },
-                { ArithmeticOperation::XOr,  OpCode::_count },
+                { ArithmeticOperation::ShL,  OpCode::slRM   },
+                { ArithmeticOperation::ShR,  OpCode::srRM   },
+                { ArithmeticOperation::And,  OpCode::andRM  },
+                { ArithmeticOperation::Or,   OpCode::orRM   },
+                { ArithmeticOperation::XOr,  OpCode::xorRM  },
             });
         case Type::Unsigned:
             return UTL_MAP_ENUM(operation, OpCode, {
@@ -192,11 +192,11 @@ OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ValueType d
                 { ArithmeticOperation::Mul,  OpCode::mulRM  },
                 { ArithmeticOperation::Div,  OpCode::divRM  },
                 { ArithmeticOperation::Rem,  OpCode::remRM  },
-                { ArithmeticOperation::ShL,  OpCode::_count },
-                { ArithmeticOperation::ShR,  OpCode::_count },
-                { ArithmeticOperation::And,  OpCode::_count },
-                { ArithmeticOperation::Or,   OpCode::_count },
-                { ArithmeticOperation::XOr,  OpCode::_count },
+                { ArithmeticOperation::ShL,  OpCode::slRM   },
+                { ArithmeticOperation::ShR,  OpCode::srRM   },
+                { ArithmeticOperation::And,  OpCode::andRM  },
+                { ArithmeticOperation::Or,   OpCode::orRM   },
+                { ArithmeticOperation::XOr,  OpCode::xorRM  },
             });
         case Type::Float:
             return UTL_MAP_ENUM(operation, OpCode, {

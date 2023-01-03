@@ -21,12 +21,8 @@
 //     return p;
 // }
 
-fn fac(n: int) -> int {
-    return n <= 1 ? 1 : n * fac(n - 1);
-}
-
 fn main() -> int {
-    return fac(5);
+    return 18964514 << 4;
 }
 
 // fn testAND(n: int) -> bool {
