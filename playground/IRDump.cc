@@ -62,5 +62,5 @@ void playground::irDump(std::string text) {
     ir::Context ctx;
     ir::Module mod = ast::codegen(*ast, sym, ctx);
     ir::print(mod);
-    emitDot(mod, std::filesystem::path(PROJECT_LOCATION) / "graphs/Test.gv");
+    emitDot(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/Test.gv");
 }
