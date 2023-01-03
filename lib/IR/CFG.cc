@@ -8,6 +8,9 @@ using namespace ir;
 IntegralConstant::IntegralConstant(Context& context, APInt value, size_t bitWidth):
     Constant(NodeType::IntegralConstant, context.integralType(bitWidth)), _value(value) {}
 
+FloatingPointConstant::FloatingPointConstant(Context& context, APFloat value, size_t bitWidth):
+    Constant(NodeType::FloatingPointConstant, context.floatType(bitWidth)), _value(value) {}
+
 Function::Function(FunctionType const* functionType,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,

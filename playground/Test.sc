@@ -1,19 +1,26 @@
-
-fn main() -> int {
-    let x = 0;
-    return greaterZero(x) ? 1 : 2;
+fn pow(base: float, exp: int) -> float {
+    var result: float = 1.0;
+    var i = 0;
+    if (exp < 0) {
+        base = 1.0 / base;
+        exp = -exp;
+    }
+    while (i < exp) {
+        result *= base;
+        i += 1;
+    }
+    return result;
 }
-fn greaterZero(a: int) -> bool {
-    return !(a <= 0);
+fn main() -> bool {
+    var result = true;
+    result &= pow( 0.5,  3) == 0.125;
+    result &= pow( 1.5,  3) == 1.5 * 2.25;
+    result &= pow( 1.0, 10) == 1.0;
+    result &= pow( 2.0, 10) == 1024.0;
+    result &= pow( 2.0, -3) == 0.125;
+    result &= pow(-2.0,  9) == -512.0;
+    return result;
 }
-
-
-
-
-
-
-
-
 
 
 

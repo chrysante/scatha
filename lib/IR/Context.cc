@@ -19,20 +19,30 @@ Type const* Context::voidType() {
     return *itr;
 }
 
+Type const* Context::pointerType() {
+    auto itr = _types.find("ptr");
+    SC_ASSERT(itr != _types.end(), "Ptr type must exist");
+    return *itr;
+}
+
 Integral const* Context::integralType(size_t bitWidth) {
     std::string const name = utl::strcat("i", bitWidth);
     auto itr               = _types.find(name);
     if (itr == _types.end()) {
         std::tie(itr, std::ignore) = _types.insert(new Integral(bitWidth));
     }
-    SC_ASSERT((*itr)->category() == Type::Integral, "Category of Integral must be Integral");
+    SC_ASSERT((*itr)->category() == Type::Integral, "Category of ints must be Integral");
     return static_cast<Integral const*>(*itr);
 }
 
-Type const* Context::pointerType() {
-    auto itr = _types.find("ptr");
-    SC_ASSERT(itr != _types.end(), "Ptr type must exist");
-    return *itr;
+FloatingPoint const* Context::floatType(size_t bitWidth) {
+    std::string const name = utl::strcat("f", bitWidth);
+    auto itr               = _types.find(name);
+    if (itr == _types.end()) {
+        std::tie(itr, std::ignore) = _types.insert(new FloatingPoint(bitWidth));
+    }
+    SC_ASSERT((*itr)->category() == Type::FloatingPoint, "Category of floats must be FloatingPoint");
+    return static_cast<FloatingPoint const*>(*itr);
 }
 
 IntegralConstant* Context::integralConstant(APInt value, size_t bitWidth) {
@@ -40,6 +50,16 @@ IntegralConstant* Context::integralConstant(APInt value, size_t bitWidth) {
     if (itr == _integralConstants.end()) {
         std::tie(itr, std::ignore) =
             _integralConstants.insert({ { value, bitWidth }, new IntegralConstant(*this, value, bitWidth) });
+    }
+    SC_ASSERT(itr->second->value() == value, "Value mismatch");
+    return itr->second;
+}
+
+FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitWidth) {
+    auto itr = _floatConstants.find({ value, bitWidth });
+    if (itr == _floatConstants.end()) {
+        std::tie(itr, std::ignore) =
+            _floatConstants.insert({ { value, bitWidth }, new FloatingPointConstant(*this, value, bitWidth) });
     }
     SC_ASSERT(itr->second->value() == value, "Value mismatch");
     return itr->second;

@@ -6,6 +6,7 @@
 
 #include <utl/typeinfo.hpp>
 #include <utl/stdio.hpp>
+#include <utl/format.hpp>
 
 #include "AST/PrintSource.h"
 #include "AST/PrintTree.h"
@@ -177,7 +178,7 @@ void playground::compile(std::string text) {
         std::cout << "No main function defined!\n";
         return;
     }
-    auto const program = asm2::assemble(str0, { .startFunction = "main" + std::to_string(mainID.rawValue()) });
+    auto const program = asm2::assemble(str0, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
 
     subHeader();
 
@@ -185,7 +186,9 @@ void playground::compile(std::string text) {
     vm.load(program);
     vm.execute();
     u64 const exitCode = vm.getState().registers[0];
-    std::cout << "VM: Program ended with exit code: " << static_cast<i64>(exitCode) << std::endl;
+    std::cout << "VM: Program ended with exit code: [\n\ti: " << static_cast<i64>(exitCode) <<
+                                                  ", \n\tu: " << exitCode <<
+                                                  ", \n\tf: " << utl::bit_cast<f64>(exitCode) << "\n]" << std::endl;
 
     subHeader();
 }

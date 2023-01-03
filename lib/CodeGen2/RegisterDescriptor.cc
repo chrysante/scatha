@@ -10,6 +10,9 @@ Value RegisterDescriptor::resolve(ir::Value const& value) {
     if (auto* constant = dyncast<ir::IntegralConstant const*>(&value)) {
         return Value64(static_cast<u64>(constant->value()));
     }
+    else if (auto* constant = dyncast<ir::FloatingPointConstant const*>(&value)) {
+        return Value64(static_cast<f64>(constant->value()));
+    }
     SC_ASSERT(!value.name().empty(), "Name must not be empty.");
     auto const [itr, success] = values.insert({ value.name(), index });
     if (success) {

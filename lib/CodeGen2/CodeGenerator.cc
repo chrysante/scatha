@@ -149,15 +149,18 @@ void Context::generate(ir::CompareInst const& cmp) {
         return tmpRegIdx;
     }();
     result.add(asm2::CompareInst(mapType(cmp.type()), lhs, currentRD().resolve(*cmp.rhs())));
+    if (true) /// Actually we should check if the users of this cmp instruction care about having the result in the
+              /// corresponding register. Since we don't have use and user lists yet we do this unconditionally. This
+              /// should not introduce errors, it's only inefficient to execute.
+    {
+        result.add(SetInst(currentRD().resolve(cmp).get<RegisterIndex>(), mapCompare(cmp.operation())));
+    }
 }
 
 void Context::generate(ir::UnaryArithmeticInst const& inst) {
     auto dest = currentRD().resolve(inst).get<RegisterIndex>();
     auto operand = currentRD().resolve(*inst.operand());
     auto genUnaryArithmetic = [&](UnaryArithmeticOperation operation) {
-        if (auto* cmpInst = dyncast<ir::CompareInst const*>(inst.operand())) {
-            result.add(SetInst(operand.get<RegisterIndex>(), mapCompare(cmpInst->operation())));
-        }
         result.add(MoveInst(dest, operand));
         result.add(UnaryArithmeticInst(operation, mapType(inst.type()), dest));
     };

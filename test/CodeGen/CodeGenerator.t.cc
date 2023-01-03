@@ -89,49 +89,49 @@ fn main() -> int {
     CHECK(registers[0] == 15);
 }
 
-//TEST_CASE("Float Addition", "[codegen]") {
-//    std::string const text = R"(
-//fn test() -> float {
-//	let a = 1.3;
-//	let b = 2.3;
-//	return a + b;
-//})";
-//    auto const registers   = test::getRegisters(text);
-//    CHECK(registers[0] == utl::bit_cast<u64>(1.3 + 2.3));
-//}
-//
-//TEST_CASE("Float Mutliplication", "[codegen]") {
-//    std::string const text = R"(
-//fn test() -> float {
-//	let a = 1.3;
-//	let b = 2.3;
-//	return a * b;
-//})";
-//    auto const registers = test::getRegisters(text);
-//    CHECK(registers[0] == utl::bit_cast<u64>(1.3 * 2.3));
-//}
-//
-//TEST_CASE("Float Subtraction", "[codegen]") {
-//    std::string const text = R"(
-//fn test() -> float {
-//	let a = 1.4;
-//	let b = 2.3;
-//	return a - b;
-//})";
-//    auto const registers   = test::getRegisters(text);
-//    CHECK(registers[0] == utl::bit_cast<u64>(1.4 - 2.3));
-//}
-//
-//TEST_CASE("Float Division", "[codegen]") {
-//    std::string const text = R"(
-//fn test() -> float {
-//	let a = 1.4;
-//	let b = 2.3;
-//	return a / b;
-//})";
-//    auto const registers   = test::getRegisters(text);
-//    CHECK(registers[0] == utl::bit_cast<u64>(1.4 / 2.3));
-//}
+TEST_CASE("Float Addition", "[codegen]") {
+    std::string const text = R"(
+fn test() -> float {
+	let a = 1.3;
+	let b = 2.3;
+	return a + b;
+})";
+    auto const registers   = test::getRegisters(text);
+    CHECK(registers[0] == utl::bit_cast<u64>(1.3 + 2.3));
+}
+
+TEST_CASE("Float Mutliplication", "[codegen]") {
+    std::string const text = R"(
+fn test() -> float {
+	let a = 1.3;
+	let b = 2.3;
+	return a * b;
+})";
+    auto const registers = test::getRegisters(text);
+    CHECK(registers[0] == utl::bit_cast<u64>(1.3 * 2.3));
+}
+
+TEST_CASE("Float Subtraction", "[codegen]") {
+    std::string const text = R"(
+fn test() -> float {
+	let a = 1.4;
+	let b = 2.3;
+	return a - b;
+})";
+    auto const registers   = test::getRegisters(text);
+    CHECK(registers[0] == utl::bit_cast<u64>(1.4 - 2.3));
+}
+
+TEST_CASE("Float Division", "[codegen]") {
+    std::string const text = R"(
+fn test() -> float {
+	let a = 1.4;
+	let b = 2.3;
+	return a / b;
+})";
+    auto const registers   = test::getRegisters(text);
+    CHECK(registers[0] == utl::bit_cast<u64>(1.4 / 2.3));
+}
 
 TEST_CASE("More complex expressions", "[codegen]") {
     std::string const text = R"(

@@ -2,6 +2,8 @@
 
 #include <stdexcept>
 
+#include <utl/format.hpp>
+
 #include "Assembly2/Assembler.h"
 #include "Assembly2/AssemblyStream.h"
 #include "ASTCodeGen/CodeGen.h"
@@ -50,7 +52,7 @@ vm::Program compile(std::string_view text) {
         }
         return mainFn->symbolID();
     }();
-    return asm2::assemble(asmStream, { .startFunction = "main" + std::to_string(mainID.rawValue()) });
+    return asm2::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
 }
 
 vm::VirtualMachine compileAndExecute(std::string_view text) {

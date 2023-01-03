@@ -230,8 +230,8 @@ ir::Value* Context::generate(BooleanLiteral const& boolLit) {
     return irCtx.integralConstant(boolLit.value(), 1);
 }
 
-ir::Value* Context::generate(FloatingPointLiteral const&) {
-    SC_DEBUGFAIL();
+ir::Value* Context::generate(FloatingPointLiteral const& floatLit) {
+    return irCtx.floatConstant(floatLit.value(), 64);
 }
 
 ir::Value* Context::generate(StringLiteral const&) {
@@ -454,6 +454,9 @@ ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
     }
     else if (semaTypeID == symTable.Bool()) {
         return irCtx.integralType(1);
+    }
+    else if (semaTypeID == symTable.Float()) {
+        return irCtx.floatType(64);
     }
     else {
         SC_DEBUGFAIL();

@@ -5,6 +5,7 @@
 
 #include <utl/vector.hpp>
 
+#include "Common/APFloat.h"
 #include "Common/APInt.h"
 #include "IR/CFGCommon.h"
 #include "IR/Type.h"
@@ -63,6 +64,17 @@ public:
 
 private:
     APInt _value;
+};
+
+/// Represents a global floating point constant value.
+class SCATHA(API) FloatingPointConstant: public Constant {
+public:
+    explicit FloatingPointConstant(Context& context, APFloat value, size_t bitWidth);
+
+    APFloat const& value() const { return _value; }
+
+private:
+    APFloat _value;
 };
 
 /// Base class of all instructions. Every instruction inherits from \p Value as it (usually) yields a value. If an

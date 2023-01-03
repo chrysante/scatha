@@ -87,7 +87,7 @@ externalincludedirs {
 externalincludedirs { "lib" }
 
 addCppFiles "test"
-links { "scatha-lib" } 
+links { "scatha-lib", "utility" } 
 
 ------------------------------------------
 project "playground"
