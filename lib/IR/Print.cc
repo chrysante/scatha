@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <utl/ranges.hpp>
+
 #include "Basic/Basic.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
@@ -36,6 +38,8 @@ struct PrintCtx {
 
     std::string toString(Value const&);
 
+    void print(StructureType const& structure);
+    
     std::ostream& str;
     Indenter indent;
 };
@@ -48,6 +52,9 @@ void ir::print(Module const& program) {
 
 void ir::print(Module const& program, std::ostream& str) {
     PrintCtx ctx(str);
+    for (auto& structure: program.structures()) {
+        ctx.print(*structure);
+    }
     for (auto& function: program.functions()) {
         ctx.dispatch(function);
     }
@@ -165,4 +172,15 @@ std::string PrintCtx::toString(Value const& value) {
         [&](IntegralConstant const& value) -> std::string { return value.value().toString(); },
     });
     // clang-format on
+}
+
+void PrintCtx::print(StructureType const& structure) {
+    str << "%" << structure.name() << " = struct {\n";
+    indent.increase();
+    for (bool first = true; auto const* type: structure.members()) {
+        str << (first ? (first = false), "" : ",\n") << indent;
+        str << type->name();
+    }
+    indent.decrease();
+    str << "\n}\n";
 }

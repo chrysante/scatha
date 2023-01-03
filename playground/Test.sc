@@ -1,12 +1,20 @@
 
 struct X {
     var i: int;
+    var f: float;
+}
+
+struct Y {
+    var y: X;
 }
 
 fn main() -> int {
     var x: X;
-    x.i = 1;
-    return x.i;
+    var i: int;
+    i = 1;
+    // x.i = 1;
+    // return x.i;
+    return 0;
 }
 
 
@@ -96,3 +104,4 @@ fn main() -> int {
 
 
 
+    

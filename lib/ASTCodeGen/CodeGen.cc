@@ -3,6 +3,8 @@
 #include <utl/strcat.hpp>
 #include <utl/ranges.hpp>
 #include <utl/vector.hpp>
+#include <utl/format.hpp>
+#include <utl/stack.hpp>
 
 #include "AST/AST.h"
 #include "IR/Context.h"
@@ -51,11 +53,13 @@ struct Context {
     void finishCurrentBB();
 
     void memorizeVariablePtr(sema::SymbolID, ir::Value*);
-    ir::Value* getVariablePtr(sema::SymbolID);
+    ir::Value* getVariablePtr(Expression const&);
 
     std::string localUniqueName(std::string_view name);
     std::string localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args);
 
+    std::string makeTypename(sema::SymbolID) const;
+    std::string makeTypename(sema::SymbolID, std::string_view name) const;
     ir::Type const* mapType(sema::TypeID semaTypeID);
     static ir::UnaryArithmeticOperation mapUnaryArithmeticOp(ast::UnaryPrefixOperator);
     static ir::CompareOperation mapCompareOp(ast::BinaryOperator);
@@ -89,9 +93,10 @@ ir::Value* Context::dispatch(AbstractSyntaxTree const& node) {
 
 ir::Value* Context::generate(TranslationUnit const& tu) {
     for (auto& decl: tu.declarations) {
-        auto* val = dispatch(*decl);
-        if (isa<ir::Function>(val)) {
-            mod.addFunction(cast<ir::Function*>(val));
+        ir::Value* const value = dispatch(*decl);
+        if (!value) { continue; }
+        if (isa<ir::Function>(value)) {
+            mod.addFunction(cast<ir::Function*>(value));
         }
         else {
             SC_DEBUGFAIL();
@@ -131,7 +136,25 @@ ir::Value* Context::generate(FunctionDefinition const& def) {
 }
 
 ir::Value* Context::generate(StructDefinition const& def) {
-    SC_DEBUGFAIL();
+    auto* const structure = new ir::StructureType(makeTypename(def.symbolID(), def.name()));
+    for (auto& statement: def.body->statements) {
+        SC_ASSERT(isa<Declaration>(*statement), "Statements in structs must be declarations. Issues should be handled in sema.");
+        auto& decl = dyncast<Declaration const&>(*statement);
+        visit(decl, utl::overload{
+            [&](VariableDeclaration const& decl) {
+                structure->addMember(mapType(decl.typeID()));
+            },
+            [&](FunctionDefinition const& def) {
+                SC_DEBUGFAIL(); // Not supported yet.
+            },
+            [](Declaration const& decl) { SC_UNREACHABLE(); },
+        });
+    }
+    auto& objType = symTable.getObjectType(def.symbolID());
+    structure->setSize(objType.size());
+    structure->setAlign(objType.align());
+    mod.addStructure(structure);
+    return nullptr;
 }
 
 ir::Value* Context::generate(VariableDeclaration const& varDecl) {
@@ -216,7 +239,7 @@ ir::Value* Context::generate(DoWhileStatement const&) {
 }
 
 ir::Value* Context::generate(Identifier const& id) {
-    auto* memPtr   = getVariablePtr(id.symbolID());
+    auto* memPtr   = getVariablePtr(id);
     auto* loadInst = new ir::Load(mapType(id.typeID()), memPtr, localUniqueName(id.value()));
     currentBB->addInstruction(loadInst);
     return loadInst;
@@ -317,7 +340,7 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::XOrAssignment: {
         ir::Value* const lhs = exprDecl.operation() != BinaryOperator::Assignment ? dispatch(*exprDecl.lhs) : nullptr;
         ir::Value* const rhs = dispatch(*exprDecl.rhs);
-        auto* lhsPointer     = getVariablePtr(cast<Identifier const*>(exprDecl.lhs.get())->symbolID());
+        auto* lhsPointer     = getVariablePtr(*exprDecl.lhs);
         ir::Value* value     = [&]() -> ir::Value* {
             if (exprDecl.operation() == BinaryOperator::Assignment) {
                 return rhs;
@@ -426,10 +449,26 @@ void Context::memorizeVariablePtr(sema::SymbolID symbolID, ir::Value* value) {
     SC_ASSERT(insertSuccess, "Variable must not be declared multiple times. This error should be handled in sema.");
 }
 
-ir::Value* Context::getVariablePtr(sema::SymbolID symbolID) {
-    auto itr = valueMap.find(symbolID);
-    SC_ASSERT(itr != valueMap.end(), "Undeclared symbol");
-    return itr->second;
+ir::Value* Context::getVariablePtr(Expression const& expr) {
+    return visit(expr, utl::overload{
+        [&](Identifier const& id) -> ir::Value* {
+            auto itr = valueMap.find(id.symbolID());
+            SC_ASSERT(itr != valueMap.end(), "Undeclared symbol");
+            return itr->second;
+        },
+        [&](MemberAccess const& ma) -> ir::Value* {
+            utl::stack<Expression const*> stack;
+            auto const* obj = ma.object.get();
+            SC_ASSERT(isa<Identifier>(obj) || isa<MemberAccess>(obj), "What else could it sensibly be?");
+            while (!isa<Identifier>(obj)) {
+                stack.push(obj);
+                obj = cast<MemberAccess const*>(obj)->object.get();
+            }
+            SC_DEBUGFAIL();
+        },
+        [](Expression const& expr) -> ir::Value* { SC_UNREACHABLE(); }
+    });
+    
 }
 
 std::string Context::localUniqueName(std::string_view name) {
@@ -445,22 +484,33 @@ std::string Context::localUniqueName(std::string_view name, std::convertible_to<
     return localUniqueName(utl::strcat(name, std::forward<decltype(args)>(args)...));
 }
 
+std::string Context::makeTypename(sema::SymbolID id) const {
+    return makeTypename(id, symTable.getObjectType(id).name());
+}
+
+std::string Context::makeTypename(sema::SymbolID id, std::string_view name) const {
+    return utl::format("{}{:x}", name, id.rawValue());
+}
+
 ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
     if (semaTypeID == symTable.Void()) {
         return irCtx.voidType();
     }
-    else if (semaTypeID == symTable.Int()) {
+    if (semaTypeID == symTable.Int()) {
         return irCtx.integralType(64);
     }
-    else if (semaTypeID == symTable.Bool()) {
+    if (semaTypeID == symTable.Bool()) {
         return irCtx.integralType(1);
     }
-    else if (semaTypeID == symTable.Float()) {
+    if (semaTypeID == symTable.Float()) {
         return irCtx.floatType(64);
     }
-    else {
-        SC_DEBUGFAIL();
+    std::string const name = makeTypename(semaTypeID);
+    auto itr = mod.structures().find(std::string_view(name));
+    if (itr != mod.structures().end()) {
+        return *itr;
     }
+    SC_DEBUGFAIL();
 }
 
 ir::UnaryArithmeticOperation Context::mapUnaryArithmeticOp(ast::UnaryPrefixOperator op) {

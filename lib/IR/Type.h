@@ -69,6 +69,7 @@ private:
     size_t _size, _align;
 };
 
+/// Base class of \p Integral and \p FloatingPoint types.
 class Arithmetic: public Type {
 public:
     size_t bitWidth() const { return _bitWidth; }
@@ -85,16 +86,19 @@ private:
     size_t _bitWidth;
 };
 
+/// Represents an integral type.
 class Integral: public Arithmetic {
 public:
     explicit Integral(size_t bitWidth): Arithmetic("i", Type::Category::Integral, bitWidth) {}
 };
 
+/// Represents a floating point type.
 class FloatingPoint: public Arithmetic {
 public:
     explicit FloatingPoint(size_t bitWidth): Arithmetic("f", Type::Category::FloatingPoint, bitWidth) {}
 };
 
+/// Represents a (user defined) structure type.
 class StructureType: public Type {
 public:
     StructureType(std::string name): Type(std::move(name), Type::Category::Structure) {}
@@ -108,10 +112,32 @@ public:
 
     void addMember(Type const* type) { _members.push_back(type); }
 
+    struct PtrHash: std::hash<std::string_view> {
+        using is_transparent = void;
+        using std::hash<std::string_view>::operator();
+        size_t operator()(StructureType const* s) const {
+            return std::hash<std::string_view>{}(s->name());
+        }
+    };
+    
+    struct PtrEqual {
+        using is_transparent = void;
+        bool operator()(StructureType const* lhs, StructureType const* rhs) const {
+            return lhs == rhs;
+        }
+        bool operator()(StructureType const* s, std::string_view name) const {
+            return s->name() == name;
+        }
+        bool operator()(std::string_view name, StructureType const* s) const {
+            return s->name() == name;
+        }
+    };
+    
 private:
     utl::small_vector<Type const*> _members;
 };
 
+/// Represents a function type.
 class FunctionType: public Type {
 public:
     explicit FunctionType(Type const* returnType, std::span<Type const* const> parameterTypes):
