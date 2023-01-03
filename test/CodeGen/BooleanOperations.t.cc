@@ -27,12 +27,23 @@ fn main() -> bool {
     CHECK(registers[0] == 1);
 }
 
-TEST_CASE("Logical or") {
+TEST_CASE("Logical and") {
     std::string const text = R"(
 fn main() -> bool {
 	let a = true;
 	let b = false;
-	return a || b;
+	return a && b;
+})";
+    auto const registers   = test::getRegisters(text);
+    CHECK(registers[0] == 0);
+}
+
+TEST_CASE("Logical or") {
+    std::string const text = R"(
+fn main() -> bool {
+    let a = true;
+    let b = false;
+    return a || b;
 })";
     auto const registers   = test::getRegisters(text);
     CHECK(registers[0] == 1);
