@@ -6,7 +6,7 @@
 #include <utl/variant.hpp>
 
 #include "Basic/Basic.h"
-#include "Assembly2/Common.h"
+#include "Assembly/Common.h"
 
 namespace scatha::asm2 {
 
@@ -111,7 +111,7 @@ namespace internal {
 using ValueVariantBase = utl::cbvariant<ValueBase,
 #define SC_ASM_VALUE_DEF(value) value
 #define SC_ASM_VALUE_SEPARATOR ,
-#include "Assembly2/Lists.def"
+#include "Assembly/Lists.def"
 >;
 
 } // namespace internal

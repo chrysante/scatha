@@ -1,8 +1,5 @@
 #include "Assembly/Assembler.h"
 
-#include <array>
-#include <iostream>
-#include <ostream>
 #include <span>
 
 #include <utl/bit.hpp>
@@ -10,243 +7,238 @@
 #include <utl/scope_guard.hpp>
 #include <utl/utility.hpp>
 
-#include "Assembly/AssemblerIssue.h"
-#include "Assembly/AssemblyUtil.h"
+#include "Assembly/AssemblyStream.h"
+#include "Assembly/Map.h"
 #include "Basic/Memory.h"
-
 #include "VM/OpCode.h"
+#include "VM/Program.h"
 
-namespace scatha::assembly {
+using namespace scatha;
+using namespace asm2;
 
-using namespace vm;
+using vm::OpCode;
 
-Assembler::Assembler(AssemblyStream const& str): stream(str) {}
+namespace {
 
-Program Assembler::assemble(AssemblerOptions opt) {
-    program = nullptr;
-    labels.clear();
-    jumpsites.clear();
+struct Jumpsite {
+    size_t codePosition;
+    u64 targetID;
+};
 
-    Program result;
-    program = &result;
+struct LabelPlaceholder {};
 
-    StreamIterator itr(stream);
-    for (Element elem = itr.next(); elem.marker() != Marker::EndOfProgram; elem = itr.next()) {
-        switch (elem.marker()) {
-        case Marker::Instruction: {
-            auto const instruction = elem.get<Instruction>();
-            processInstruction(instruction, itr);
-            break;
-        }
-        case Marker::Label: {
-            auto const label = elem.get<Label>();
-            registerLabel(label);
-            if (label.functionID == opt.mainID && label.index == Label::functionBeginIndex) {
-                result.start = currentPosition();
-            }
-            break;
-        }
-        default: throw UnexpectedElement(elem, itr.currentLine());
+struct Context {
+
+    explicit Context(AssemblyStream const& stream, AssemblerOptions options, vm::Program& program):
+        stream(stream), options(options), program(program), instructions(program.instructions) {}
+    
+    void run();
+    
+    void dispatch(Instruction const& inst);
+    void translate(MoveInst const&);
+    void translate(JumpInst const&);
+    void translate(CallInst const&);
+    void translate(ReturnInst const&);
+    void translate(TerminateInst const&);
+    void translate(AllocaInst const&);
+    void translate(CompareInst const&);
+    void translate(TestInst const&);
+    void translate(SetInst const&);
+    void translate(UnaryArithmeticInst const&);
+    void translate(ArithmeticInst const&);
+    void translate(Label const&);
+    
+    void dispatch(Value const& value);
+    void translate(RegisterIndex const&);
+    void translate(MemoryAddress const&);
+    void translate(Value8 const&);
+    void translate(Value16 const&);
+    void translate(Value32 const&);
+    void translate(Value64 const&);
+    
+    void put(vm::OpCode o) {
+        SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
+        program.instructions.push_back(utl::to_underlying(o));
+    }
+    
+    template <typename T>
+    void put(u64 value) {
+        for (auto byte: decompose(utl::narrow_cast<T>(value))) {
+            instructions.push_back(byte);
         }
     }
 
+    void put(LabelPlaceholder) {
+        /// Labels have a size of 4.
+        put<u32>(~0u);
+    }
+    
+    void registerJumpSite(size_t offsetValuePos, u64 targetID);
+    
+    void postProcess();
+    
+    size_t currentPosition() const { return instructions.size(); }
+    
+    AssemblyStream const& stream;
+    AssemblerOptions options;
+    vm::Program& program;
+    utl::vector<u8>& instructions;
+    // Mapping Label ID -> Code position
+    utl::hashmap<u64, size_t> labels;
+    // List of all code position with a jump site
+    utl::vector<Jumpsite> jumpsites;
+};
+
+} // namespace
+
+vm::Program asm2::assemble(AssemblyStream const& assemblyStream, AssemblerOptions options) {
+    vm::Program program;
+    Context ctx(assemblyStream, options, program);
+    ctx.run();
+    return program;
+}
+
+void Context::run() {
+    for (auto& inst: stream) {
+        dispatch(inst);
+    }
     postProcess();
-
-    return result;
 }
 
-void Assembler::processInstruction(Instruction i, StreamIterator& itr) {
-    switch (i) {
-        using enum Instruction;
-    case enterFn:
-        put(OpCode::enterFn);
-        put(itr.nextAs<Value8>());
-        return;
-
-    case setBrk:
-        put(OpCode::setBrk);
-        put(itr.nextAs<RegisterIndex>());
-        return;
-
-    case call:
-        registerJumpsite(itr);
-        put(OpCode::call);
-        put(LabelPlaceholder{});
-        put(itr.nextAs<Value8>());
-        return;
-
-    case ret: put(OpCode::ret); return;
-
-    case terminate: put(OpCode::terminate); return;
-
-    case callExt:
-        put(OpCode::callExt);
-        put(itr.nextAs<Value8>());
-        put(itr.nextAs<Value8>());
-        put(itr.nextAs<Value16>());
-        return;
-
-    case alloca_:
-        put(OpCode::alloca_);
-        put(itr.nextAs<RegisterIndex>());
-        put(itr.nextAs<RegisterIndex>());
-        return;
-        
-    case itest: [[fallthrough]];
-    case utest: [[fallthrough]];
-    case sete: [[fallthrough]];
-    case setne: [[fallthrough]];
-    case setl: [[fallthrough]];
-    case setle: [[fallthrough]];
-    case setg: [[fallthrough]];
-    case setge: [[fallthrough]];
-    case lnt: [[fallthrough]];
-    case bnt: processUnaryInstruction(i, itr); return;
-
-    case mov: [[fallthrough]];
-    case ucmp: [[fallthrough]];
-    case icmp: [[fallthrough]];
-    case fcmp: [[fallthrough]];
-    case add: [[fallthrough]];
-    case sub: [[fallthrough]];
-    case mul: [[fallthrough]];
-    case div: [[fallthrough]];
-    case idiv: [[fallthrough]];
-    case rem: [[fallthrough]];
-    case irem: [[fallthrough]];
-    case fadd: [[fallthrough]];
-    case fsub: [[fallthrough]];
-    case fmul: [[fallthrough]];
-    case fdiv:
-    case sl:
-    case sr:
-    case And:
-    case Or:
-    case XOr: processBinaryInstruction(i, itr); return;
-
-    case jmp: [[fallthrough]];
-    case je: [[fallthrough]];
-    case jne: [[fallthrough]];
-    case jl: [[fallthrough]];
-    case jle: [[fallthrough]];
-    case jg: [[fallthrough]];
-    case jge: processJump(i, itr); return;
-
-    case _count: SC_DEBUGFAIL();
-    }
+void Context::dispatch(Instruction const& inst) {
+    inst.visit([this](auto& inst) { translate(inst); });
 }
 
-void Assembler::processUnaryInstruction(Instruction i, StreamIterator& itr) {
-    auto const arg1   = itr.next();
-    auto const opcode = mapUnaryInstruction(i);
-    if (opcode == OpCode::_count) {
-        throw InvalidArguments(i, arg1, {}, itr.currentLine());
-    }
+void Context::translate(MoveInst const& mov) {
+    OpCode const opcode = mapMove(mov.dest().valueType(), mov.source().valueType());
     put(opcode);
-    put(arg1);
+    dispatch(mov.dest());
+    dispatch(mov.source());
 }
 
-void Assembler::processBinaryInstruction(Instruction i, StreamIterator& itr) {
-    auto const arg1   = itr.next();
-    auto const arg2   = itr.next();
-    auto const opcode = mapBinaryInstruction(i, arg1, arg2);
-    if (opcode == OpCode::_count) {
-        throw InvalidArguments(i, arg1, arg2, itr.currentLine());
-    }
+void Context::translate(JumpInst const& jmp) {
+    OpCode const opcode = mapJump(jmp.condition());
     put(opcode);
-    put(arg1);
-    put(arg2);
-}
-
-void Assembler::processJump(Instruction i, StreamIterator& itr) {
-    registerJumpsite(itr);
-    put(mapUnaryInstruction(i));
+    registerJumpSite(currentPosition(), jmp.targetLabelID());
     put(LabelPlaceholder{});
     return;
 }
 
-void Assembler::registerLabel(Label label) {
-    labels.insert({ label, currentPosition() });
+void Context::translate(CallInst const& call) {
+    put(OpCode::call);
+    registerJumpSite(currentPosition(), call.functionLabelID());
+    put(LabelPlaceholder{});
+    put<u8>(call.regPtrOffset());
 }
 
-void Assembler::registerJumpsite(StreamIterator& itr) {
-    jumpsites.push_back({ program->instructions.size(), itr.currentLine(), itr.nextAs<Label>() });
+void Context::translate(ReturnInst const& ret) {
+    put(OpCode::ret);
 }
 
-void Assembler::postProcess() {
-    for (auto const& [position, line, label]: jumpsites) {
-        auto const itr = labels.find(label);
+void Context::translate(TerminateInst const& term) {
+    put(OpCode::terminate);
+}
+
+void Context::translate(AllocaInst const& alloca_) {
+    put(OpCode::alloca_);
+    dispatch(alloca_.dest());
+    dispatch(alloca_.source());
+}
+
+void Context::translate(CompareInst const& cmp) {
+    OpCode const opcode = mapCompare(cmp.type(), cmp.lhs().valueType(), cmp.rhs().valueType());
+    put(opcode);
+    dispatch(cmp.lhs());
+    dispatch(cmp.rhs());
+}
+
+void Context::translate(TestInst const& test) {
+    OpCode const opcode = mapTest(test.type());
+    put(opcode);
+    dispatch(test.operand().get<RegisterIndex>());
+}
+
+void Context::translate(SetInst const& set) {
+    OpCode const opcode = mapSet(set.operation());
+    put(opcode);
+    dispatch(set.dest());
+}
+
+void Context::translate(UnaryArithmeticInst const& inst) {
+    switch (inst.operation()) {
+    case UnaryArithmeticOperation::LogicalNot:
+        put(vm::OpCode::lnt);
+        break;
+    case UnaryArithmeticOperation::BitwiseNot:
+        put(vm::OpCode::bnt);
+        break;
+    default: SC_UNREACHABLE();
+    }
+    translate(inst.operand());
+}
+
+void Context::translate(ArithmeticInst const& inst) {
+    OpCode const opcode = mapArithmetic(inst.operation(),
+                                        inst.type(),
+                                        inst.dest().valueType(),
+                                        inst.source().valueType());
+    put(opcode);
+    dispatch(inst.dest());
+    dispatch(inst.source());
+}
+
+void Context::translate(Label const& label) {
+    if (!options.startFunction.empty() && label.name() == options.startFunction) {
+        program.start = currentPosition();
+    }
+    labels.insert({ label.id(), currentPosition() });
+}
+
+void Context::dispatch(Value const& value) {
+    value.visit([this](auto& value) { translate(value); });
+}
+
+void Context::translate(RegisterIndex const& regIdx) {
+    put<u8>(regIdx.value());
+}
+
+void Context::translate(MemoryAddress const& memAddr) {
+    put<u8>(memAddr.registerIndex());
+    put<u8>(memAddr.offset());
+    put<u8>(memAddr.offsetShift());
+}
+
+void Context::translate(Value8 const& value) {
+    put<u8>(value.value());
+}
+
+void Context::translate(Value16 const& value) {
+    put<u16>(value.value());
+}
+
+void Context::translate(Value32 const& value) {
+    put<u32>(value.value());
+}
+
+void Context::translate(Value64 const& value) {
+    put<u64>(value.value());
+}
+
+void Context::registerJumpSite(size_t offsetValuePos, u64 targetID) {
+    jumpsites.push_back({
+        .codePosition = offsetValuePos,
+        .targetID     = targetID
+    });
+}
+
+void Context::postProcess() {
+    for (auto const& [position, targetID]: jumpsites) {
+        auto const itr = labels.find(targetID);
         if (itr == labels.end()) {
-            throw UseOfUndeclaredLabel(label, line);
+            SC_DEBUGFAIL(); // Use of undeclared label.
         }
-        size_t const target = itr->second;
-        SC_ASSERT(position >= 1, "Position must be positive");
-        auto const instruction = read<OpCode>(&program->instructions[position]);
-        SC_ASSERT(isJump(instruction), "Before a label should be a jump or call statement at this stage.");
-        store(&program->instructions[position + 1], i32(i64(target) - i64(position)));
+        size_t const targetPosition = itr->second;
+        i32 const offset = utl::narrow_cast<i32>(static_cast<i64>(targetPosition) - static_cast<i64>(position));
+        store(&instructions[position], offset + static_cast<i32>(sizeof(OpCode)));
     }
 }
-
-/// MARK: put()
-void Assembler::put(vm::OpCode o) {
-    program->instructions.push_back(utl::to_underlying(o));
-}
-
-void Assembler::put(LabelPlaceholder) {
-    for (int i = 0; i < 4; ++i) {
-        program->instructions.push_back(0);
-    }
-}
-
-void Assembler::put(Element const& elem) {
-    // clang-format off
-    std::visit(utl::visitor{
-                   [this](auto const& x) { put(x); },
-                   [](Instruction) {
-                       SC_DEBUGFAIL(); // Probably a bug because we should not
-                                       // put an assembly::Instruction into the
-                                       // program, only vm::OpCode.
-                   },
-                   [](Label) {
-                       SC_DEBUGFAIL(); // Same here, labels do not exist in an
-                                       // assembled program.
-                   },
-               }, elem);
-    // clang-format on
-}
-
-void Assembler::put(RegisterIndex r) {
-    program->instructions.push_back(r.index);
-}
-
-void Assembler::put(MemoryAddress m) {
-    program->instructions.push_back(m.ptrRegIdx);
-    program->instructions.push_back(m.offset);
-    program->instructions.push_back(m.offsetShift);
-}
-
-void Assembler::put(Value8 v) {
-    for (auto byte: decompose(v.value)) {
-        program->instructions.push_back(byte);
-    }
-}
-
-void Assembler::put(Value16 v) {
-    for (auto byte: decompose(v.value)) {
-        program->instructions.push_back(byte);
-    }
-}
-
-void Assembler::put(Value32 v) {
-    for (auto byte: decompose(v.value)) {
-        program->instructions.push_back(byte);
-    }
-}
-
-void Assembler::put(Value64 v) {
-    for (auto byte: decompose(v.value)) {
-        program->instructions.push_back(byte);
-    }
-}
-
-} // namespace scatha::assembly

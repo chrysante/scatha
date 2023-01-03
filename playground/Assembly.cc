@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-#include "Assembly2/AssemblyStream.h"
-#include "Assembly2/Print.h"
+#include "Assembly/AssemblyStream.h"
+#include "Assembly/Print.h"
 
 using namespace scatha;
 using namespace asm2;

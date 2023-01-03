@@ -16,34 +16,34 @@ enum class Type {
 /// Forward declare all instructions.
 
 #define SC_ASM_INSTRUCTION_DEF(inst) class inst;
-#include "Assembly2/Lists.def"
+#include "Assembly/Lists.def"
 
 class Instruction;
 
 /// Enum naming all concrete types in the \p Instruction variant.
 enum class InstructionType {
 #define SC_ASM_INSTRUCTION_DEF(inst) inst,
-#include "Assembly2/Lists.def"
+#include "Assembly/Lists.def"
     _count
 };
 
 /// Forward declare all values.
 
 #define SC_ASM_VALUE_DEF(value) class value;
-#include "Assembly2/Lists.def"
+#include "Assembly/Lists.def"
 
 class Value;
 
 /// Enum naming all concrete types in the \p Value variant.
 enum class ValueType {
 #define SC_ASM_VALUE_DEF(value) value,
-#include "Assembly2/Lists.def"
+#include "Assembly/Lists.def"
     _count
 };
 
 enum class CompareOperation {
 #define SC_ASM_COMPARE_DEF(jmpcnd, ...) jmpcnd,
-#include "Assembly2/Lists.def"
+#include "Assembly/Lists.def"
     _count
 };
 
@@ -52,7 +52,7 @@ SCATHA(API) std::string_view toSetInstName(CompareOperation condition);
 
 enum class UnaryArithmeticOperation {
 #define SC_ASM_UNARY_ARITHMETIC_DEF(op, ...) op,
-#include "Assembly2/Lists.def"
+#include "Assembly/Lists.def"
     _count
 };
 
@@ -62,7 +62,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOpera
 
 enum class ArithmeticOperation {
 #define SC_ASM_ARITHMETIC_DEF(op, ...) op,
-#include "Assembly2/Lists.def"
+#include "Assembly/Lists.def"
     _count
 };
 

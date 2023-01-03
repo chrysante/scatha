@@ -1,7 +1,7 @@
 #ifndef SCATHA_ASSEMBLY2_MAP_H_
 #define SCATHA_ASSEMBLY2_MAP_H_
 
-#include "Assembly2/Common.h"
+#include "Assembly/Common.h"
 #include "VM/OpCode.h"
 
 namespace scatha::asm2 {

@@ -3,7 +3,7 @@
 
 #include <iosfwd>
 
-#include "Assembly2/Common.h"
+#include "Assembly/Common.h"
 #include "Basic/Basic.h"
 
 namespace scatha::asm2 {

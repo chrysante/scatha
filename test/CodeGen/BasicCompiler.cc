@@ -4,11 +4,11 @@
 
 #include <utl/format.hpp>
 
-#include "Assembly2/Assembler.h"
-#include "Assembly2/AssemblyStream.h"
+#include "Assembly/Assembler.h"
+#include "Assembly/AssemblyStream.h"
 #include "ASTCodeGen/CodeGen.h"
 #include "Basic/Memory.h"
-#include "CodeGen2/CodeGenerator.h"
+#include "CodeGen/CodeGenerator.h"
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
 #include "IR/Context.h"

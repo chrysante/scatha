@@ -5,8 +5,8 @@
 
 #include <utl/variant.hpp>
 
-#include "Assembly2/Common.h"
-#include "Assembly2/Value.h"
+#include "Assembly/Common.h"
+#include "Assembly/Value.h"
 
 namespace scatha::asm2 {
 
@@ -207,7 +207,7 @@ namespace internal {
 using InstructionVariantBase = utl::cbvariant<InstructionBase,
 #define SC_ASM_INSTRUCTION_DEF(inst) inst
 #define SC_ASM_INSTRUCTION_SEPARATOR ,
-#include "Assembly2/Lists.def"
+#include "Assembly/Lists.def"
 >;
 
 } // namespace internal

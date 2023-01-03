@@ -1,4 +1,4 @@
-#include "Assembly2/Instruction.h"
+#include "Assembly/Instruction.h"
 
 using namespace scatha;
 using namespace asm2;

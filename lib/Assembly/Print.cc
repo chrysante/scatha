@@ -1,4 +1,4 @@
-#include "Assembly2/Print.h"
+#include "Assembly/Print.h"
 
 #include <iomanip>
 #include <iostream>
@@ -6,7 +6,7 @@
 #include <utl/streammanip.hpp>
 #include <utl/strcat.hpp>
 
-#include "Assembly2/AssemblyStream.h"
+#include "Assembly/AssemblyStream.h"
 
 using namespace scatha;
 using namespace asm2;
