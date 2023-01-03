@@ -1,5 +1,7 @@
-build
-graphs
+build/
+graphviz/*
+
+!graphviz/generate.sh
 
 .vs/
 .vscode/
