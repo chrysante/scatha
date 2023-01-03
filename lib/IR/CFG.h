@@ -212,7 +212,18 @@ private:
     CompareOperation _op;
 };
 
-/// Represents an arithmetic instruction.
+/// Represents a unary arithmetic instruction.
+class SCATHA(API) UnaryArithmeticInst: public UnaryInstruction {
+public:
+    explicit UnaryArithmeticInst(Context& context, Value* operand, UnaryArithmeticOperation op, std::string name);
+
+    UnaryArithmeticOperation operation() const { return _op; }
+
+private:
+    UnaryArithmeticOperation _op;
+};
+
+/// Represents a binary arithmetic instruction.
 class SCATHA(API) ArithmeticInst: public BinaryInstruction {
 public:
     explicit ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, std::string name):

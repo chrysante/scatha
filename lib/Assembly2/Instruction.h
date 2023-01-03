@@ -143,6 +143,24 @@ private:
     CompareOperation _op;
 };
 
+/// Represents the \p lnt and \p bnt instructions.
+class UnaryArithmeticInst: public InstructionBase {
+public:
+    explicit UnaryArithmeticInst(UnaryArithmeticOperation op, Type type, RegisterIndex operand):
+        _op(op), _type(type), _operand(operand) {}
+    
+    UnaryArithmeticOperation operation() const { return _op; }
+    
+    Type type() const { return _type; }
+    
+    RegisterIndex const& operand() const { return _operand; }
+    
+private:
+    UnaryArithmeticOperation _op;
+    Type _type;
+    RegisterIndex _operand;
+};
+
 /// Represents a \p add, \p sub, \p mul, ... etc instruction.
 class ArithmeticInst: public InstructionBase {
 public:

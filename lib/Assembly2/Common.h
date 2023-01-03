@@ -50,6 +50,16 @@ enum class CompareOperation {
 SCATHA(API) std::string_view toJumpInstName(CompareOperation condition);
 SCATHA(API) std::string_view toSetInstName(CompareOperation condition);
 
+enum class UnaryArithmeticOperation {
+#define SC_ASM_UNARY_ARITHMETIC_DEF(op, ...) op,
+#include "Assembly2/Lists.def"
+    _count
+};
+
+SCATHA(API) std::string_view toString(UnaryArithmeticOperation operation);
+
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOperation operation);
+
 enum class ArithmeticOperation {
 #define SC_ASM_ARITHMETIC_DEF(op, ...) op,
 #include "Assembly2/Lists.def"

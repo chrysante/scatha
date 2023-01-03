@@ -12,16 +12,17 @@
 #   define SC_ASM_INSTRUCTION_SEPARATOR
 #endif
 
-SC_ASM_INSTRUCTION_DEF(MoveInst)       SC_ASM_INSTRUCTION_SEPARATOR
-SC_ASM_INSTRUCTION_DEF(JumpInst)       SC_ASM_INSTRUCTION_SEPARATOR
-SC_ASM_INSTRUCTION_DEF(CallInst)       SC_ASM_INSTRUCTION_SEPARATOR
-SC_ASM_INSTRUCTION_DEF(ReturnInst)     SC_ASM_INSTRUCTION_SEPARATOR
-SC_ASM_INSTRUCTION_DEF(TerminateInst)  SC_ASM_INSTRUCTION_SEPARATOR
-SC_ASM_INSTRUCTION_DEF(AllocaInst)     SC_ASM_INSTRUCTION_SEPARATOR
-SC_ASM_INSTRUCTION_DEF(CompareInst)    SC_ASM_INSTRUCTION_SEPARATOR
-SC_ASM_INSTRUCTION_DEF(TestInst)       SC_ASM_INSTRUCTION_SEPARATOR
-SC_ASM_INSTRUCTION_DEF(SetInst)        SC_ASM_INSTRUCTION_SEPARATOR
-SC_ASM_INSTRUCTION_DEF(ArithmeticInst) SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(MoveInst)            SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(JumpInst)            SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(CallInst)            SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(ReturnInst)          SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(TerminateInst)       SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(AllocaInst)          SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(CompareInst)         SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(TestInst)            SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(SetInst)             SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(UnaryArithmeticInst) SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(ArithmeticInst)      SC_ASM_INSTRUCTION_SEPARATOR
 SC_ASM_INSTRUCTION_DEF(Label)          // Even though labels aren't instructions.
 
 #undef SC_ASM_INSTRUCTION_DEF
@@ -66,6 +67,19 @@ SC_ASM_COMPARE_DEF(Eq,        sete,  je)
 SC_ASM_COMPARE_DEF(NotEq,     setne, jne)
 
 #undef SC_ASM_COMPARE_DEF
+
+// ===----------------------------------------------------------------------===
+// === Unary Arithmetic ----------------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_ASM_UNARY_ARITHMETIC_DEF
+#   define SC_ASM_UNARY_ARITHMETIC_DEF(op, instName)
+#endif
+
+SC_ASM_UNARY_ARITHMETIC_DEF(BitwiseNot, "bnt")
+SC_ASM_UNARY_ARITHMETIC_DEF(LogicalNot, "lnt")
+
+#undef SC_ASM_UNARY_ARITHMETIC_DEF
 
 // ===----------------------------------------------------------------------===
 // === Arithmetic ----------------------------------------------------------===

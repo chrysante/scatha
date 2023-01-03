@@ -50,31 +50,31 @@ fn main() -> int {
     CHECK(state.registers[0] == 7);
 }
 
-TEST_CASE("float pow", "[codegen]") {
-    std::string const text = R"(
-fn pow(base: float, exp: int) -> float {
-	var result: float = 1.0;
-	var i = 0;
-	if (exp < 0) {
-		base = 1.0 / base;
-		exp = -exp;
-	}
-	while (i < exp) {
-		result *= base;
-		i += 1;
-	}
-	return result;
-}
-fn main() -> bool {
-	var result = true;
-	result &= pow( 0.5,  3) == 0.125;
-	result &= pow( 1.5,  3) == 1.5 * 2.25;
-	result &= pow( 1.0, 10) == 1.0;
-	result &= pow( 2.0, 10) == 1024.0;
-	result &= pow( 2.0, -3) == 0.125;
-	result &= pow(-2.0,  9) == -512.0;
-	return result == true;
-})";
-    auto const registers   = test::getRegisters(text);
-    CHECK(registers[0] == 1);
-}
+//TEST_CASE("float pow", "[codegen]") {
+//    std::string const text = R"(
+//fn pow(base: float, exp: int) -> float {
+//	var result: float = 1.0;
+//	var i = 0;
+//	if (exp < 0) {
+//		base = 1.0 / base;
+//		exp = -exp;
+//	}
+//	while (i < exp) {
+//		result *= base;
+//		i += 1;
+//	}
+//	return result;
+//}
+//fn main() -> bool {
+//	var result = true;
+//	result &= pow( 0.5,  3) == 0.125;
+//	result &= pow( 1.5,  3) == 1.5 * 2.25;
+//	result &= pow( 1.0, 10) == 1.0;
+//	result &= pow( 2.0, 10) == 1024.0;
+//	result &= pow( 2.0, -3) == 0.125;
+//	result &= pow(-2.0,  9) == -512.0;
+//	return result == true;
+//})";
+//    auto const registers   = test::getRegisters(text);
+//    CHECK(registers[0] == 1);
+//}

@@ -1,4 +1,34 @@
 
+fn main() -> int {
+    let x = 0;
+    let y = 1;
+    // return greaterZero(x) ? 1 : 2;
+    return greaterZero(x) ? 1 : greaterZero(y) ? 2 : 3;
+}
+
+fn greaterZero(a: int) -> bool {
+    return !(a <= 0);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // fn isPrime(n: int) -> bool {
 //     var i = 2;
@@ -20,11 +50,6 @@
 //     }
 //     return p;
 // }
-
-fn main() -> int {
-    return 18964514 << 4;
-}
-
 // fn testAND(n: int) -> bool {
 //     return n == 1 && n == 5;
 // }

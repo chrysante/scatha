@@ -15,6 +15,7 @@ SCATHA(API) void print(AssemblyStream const& assemblyStream, std::ostream& ostre
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Instruction const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, MoveInst const&);
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, JumpInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CallInst const&);

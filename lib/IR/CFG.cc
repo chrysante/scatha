@@ -40,6 +40,13 @@ CompareInst::CompareInst(Context& context, Value* lhs, Value* rhs, CompareOperat
     SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
 }
 
+UnaryArithmeticInst::UnaryArithmeticInst(Context& context, Value* operand, UnaryArithmeticOperation op, std::string name):
+    UnaryInstruction(NodeType::UnaryArithmeticInst,
+                     operand,
+                     op == UnaryArithmeticOperation::LogicalNot ? context.integralType(1) : operand->type(),
+                     std::move(name)),
+    _op(op) {}
+
 TerminatorInst::TerminatorInst(NodeType nodeType, Context& context): Instruction(nodeType, context.voidType()) {}
 
 FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments, std::string name):

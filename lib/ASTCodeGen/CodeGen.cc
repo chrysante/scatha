@@ -57,6 +57,7 @@ struct Context {
     std::string localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args);
 
     ir::Type const* mapType(sema::TypeID semaTypeID);
+    static ir::UnaryArithmeticOperation mapUnaryArithmeticOp(ast::UnaryPrefixOperator);
     static ir::CompareOperation mapCompareOp(ast::BinaryOperator);
     static ir::ArithmeticOperation mapArithmeticOp(ast::BinaryOperator);
     static ir::ArithmeticOperation mapArithmeticAssignOp(ast::BinaryOperator);
@@ -237,8 +238,11 @@ ir::Value* Context::generate(StringLiteral const&) {
     SC_DEBUGFAIL();
 }
 
-ir::Value* Context::generate(UnaryPrefixExpression const&) {
-    SC_DEBUGFAIL();
+ir::Value* Context::generate(UnaryPrefixExpression const& expr) {
+    ir::Value* const operand = dispatch(*expr.operand);
+    auto* inst = new ir::UnaryArithmeticInst(irCtx, operand, mapUnaryArithmeticOp(expr.operation()), "expr-result");
+    currentBB->addInstruction(inst);
+    return inst;
 }
 
 ir::Value* Context::generate(BinaryExpression const& exprDecl) {
@@ -344,14 +348,19 @@ ir::Value* Context::generate(Conditional const& condExpr) {
     auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("conditional-end"));
     currentBB->addInstruction(new ir::Branch(irCtx, cond, thenBlock, elseBlock));
     currentFunction->addBasicBlock(thenBlock);
+    /// Generate then block.
     setCurrentBB(thenBlock);
     auto* thenVal = dispatch(*condExpr.ifExpr);
-    currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
+    thenBlock = currentBB;
+    thenBlock->addInstruction(new ir::Goto(irCtx, endBlock));
     currentFunction->addBasicBlock(elseBlock);
+    /// Generate else block.
     setCurrentBB(elseBlock);
     auto* elseVal = dispatch(*condExpr.elseExpr);
-    currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
+    elseBlock = currentBB;
+    elseBlock->addInstruction(new ir::Goto(irCtx, endBlock));
     currentFunction->addBasicBlock(endBlock);
+    /// Generate end block.
     setCurrentBB(endBlock);
     auto* result = new ir::Phi(type, { { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName("conditional-result"));
     currentBB->addInstruction(result);
@@ -451,6 +460,16 @@ ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
     }
 }
 
+ir::UnaryArithmeticOperation Context::mapUnaryArithmeticOp(ast::UnaryPrefixOperator op) {
+    switch (op) {
+    case UnaryPrefixOperator::Promotion:  return ir::UnaryArithmeticOperation::Promotion;
+    case UnaryPrefixOperator::Negation:   return ir::UnaryArithmeticOperation::Negation;
+    case UnaryPrefixOperator::BitwiseNot: return ir::UnaryArithmeticOperation::BitwiseNot;
+    case UnaryPrefixOperator::LogicalNot: return ir::UnaryArithmeticOperation::LogicalNot;
+    default: SC_UNREACHABLE();
+    }
+}
+
 ir::CompareOperation Context::mapCompareOp(ast::BinaryOperator op) {
     switch (op) {
     case BinaryOperator::Less: return ir::CompareOperation::Less;
@@ -473,8 +492,8 @@ ir::ArithmeticOperation Context::mapArithmeticOp(ast::BinaryOperator op) {
     case BinaryOperator::LeftShift: return ir::ArithmeticOperation::ShiftL;
     case BinaryOperator::RightShift: return ir::ArithmeticOperation::ShiftR;
     case BinaryOperator::BitwiseAnd: return ir::ArithmeticOperation::And;
-    case BinaryOperator::BitwiseXOr: return ir::ArithmeticOperation::Or;
-    case BinaryOperator::BitwiseOr: return ir::ArithmeticOperation::XOr;
+    case BinaryOperator::BitwiseXOr: return ir::ArithmeticOperation::XOr;
+    case BinaryOperator::BitwiseOr: return ir::ArithmeticOperation::Or;
     default: SC_UNREACHABLE("Only handle arithmetic operations here.");
     }
 }

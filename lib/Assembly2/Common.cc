@@ -21,6 +21,17 @@ std::string_view asm2::toSetInstName(CompareOperation condition) {
     }[static_cast<size_t>(condition)];
 }
 
+std::string_view asm2::toString(UnaryArithmeticOperation operation) {
+    return std::array{
+#define SC_ASM_UNARY_ARITHMETIC_DEF(_, str) std::string_view(str),
+#include "Assembly2/Lists.def"
+    }[static_cast<size_t>(operation)];
+}
+
+std::ostream& asm2::operator<<(std::ostream& ostream, UnaryArithmeticOperation operation) {
+    return ostream << toString(operation);
+}
+
 std::string_view asm2::toString(ArithmeticOperation operation) {
     return std::array{
 #define SC_ASM_ARITHMETIC_DEF(_, str) std::string_view(str),

@@ -44,6 +44,7 @@ struct Context {
     void translate(CompareInst const&);
     void translate(TestInst const&);
     void translate(SetInst const&);
+    void translate(UnaryArithmeticInst const&);
     void translate(ArithmeticInst const&);
     void translate(Label const&);
     
@@ -161,6 +162,19 @@ void Context::translate(SetInst const& set) {
     OpCode const opcode = mapSet(set.operation());
     put(opcode);
     dispatch(set.dest());
+}
+
+void Context::translate(UnaryArithmeticInst const& inst) {
+    switch (inst.operation()) {
+    case UnaryArithmeticOperation::LogicalNot:
+        put(vm::OpCode::lnt);
+        break;
+    case UnaryArithmeticOperation::BitwiseNot:
+        put(vm::OpCode::bnt);
+        break;
+    default: SC_UNREACHABLE();
+    }
+    translate(inst.operand());
 }
 
 void Context::translate(ArithmeticInst const& inst) {

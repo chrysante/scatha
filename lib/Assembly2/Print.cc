@@ -34,8 +34,12 @@ std::ostream& asm2::operator<<(std::ostream& str, MoveInst const& mov) {
     return str << instName("mov") << " " << mov.dest() << ", " << mov.source();
 }
 
-std::ostream& asm2::operator<<(std::ostream& str, ArithmeticInst const& arithmetic) {
-    return str << instName(arithmetic.operation()) << " " << arithmetic.dest() << ", " << arithmetic.source();
+std::ostream& asm2::operator<<(std::ostream& str, UnaryArithmeticInst const& inst) {
+    return str << instName(inst.operation()) << " " << inst.operand();
+}
+
+std::ostream& asm2::operator<<(std::ostream& str, ArithmeticInst const& inst) {
+    return str << instName(inst.operation()) << " " << inst.dest() << ", " << inst.source();
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, JumpInst const& jmp) {

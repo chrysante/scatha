@@ -32,6 +32,7 @@ struct Context {
     void generate(ir::Store const&);
     void generate(ir::Load const&);
     void generate(ir::CompareInst const&);
+    void generate(ir::UnaryArithmeticInst const&);
     void generate(ir::ArithmeticInst const&);
     void generate(ir::Goto const&);
     void generate(ir::Branch const&);
@@ -59,6 +60,10 @@ AssemblyStream cg2::codegen(ir::Module const& mod) {
     ctx.run(mod);
     return result;
 }
+
+static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op);
+
+static asm2::CompareOperation mapCompare(ir::CompareOperation op);
 
 void Context::run(ir::Module const& mod) {
     for (auto& function: mod.functions()) {
@@ -146,21 +151,31 @@ void Context::generate(ir::CompareInst const& cmp) {
     result.add(asm2::CompareInst(mapType(cmp.type()), lhs, currentRD().resolve(*cmp.rhs())));
 }
 
-static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
-    return UTL_MAP_ENUM(op, asm2::ArithmeticOperation, {
-        { ir::ArithmeticOperation::Add,    asm2::ArithmeticOperation::Add },
-        { ir::ArithmeticOperation::Sub,    asm2::ArithmeticOperation::Sub },
-        { ir::ArithmeticOperation::Mul,    asm2::ArithmeticOperation::Mul },
-        { ir::ArithmeticOperation::Div,    asm2::ArithmeticOperation::Div },
-        { ir::ArithmeticOperation::UDiv,   asm2::ArithmeticOperation::Div },
-        { ir::ArithmeticOperation::Rem,    asm2::ArithmeticOperation::Rem },
-        { ir::ArithmeticOperation::URem,   asm2::ArithmeticOperation::Rem },
-        { ir::ArithmeticOperation::ShiftL, asm2::ArithmeticOperation::ShL },
-        { ir::ArithmeticOperation::ShiftR, asm2::ArithmeticOperation::ShR },
-        { ir::ArithmeticOperation::And,    asm2::ArithmeticOperation::And },
-        { ir::ArithmeticOperation::Or,     asm2::ArithmeticOperation::Or  },
-        { ir::ArithmeticOperation::XOr,    asm2::ArithmeticOperation::XOr },
-    });
+void Context::generate(ir::UnaryArithmeticInst const& inst) {
+    auto dest = currentRD().resolve(inst).get<RegisterIndex>();
+    auto operand = currentRD().resolve(*inst.operand());
+    auto genUnaryArithmetic = [&](UnaryArithmeticOperation operation) {
+        if (auto* cmpInst = dyncast<ir::CompareInst const*>(inst.operand())) {
+            result.add(SetInst(operand.get<RegisterIndex>(), mapCompare(cmpInst->operation())));
+        }
+        result.add(MoveInst(dest, operand));
+        result.add(UnaryArithmeticInst(operation, mapType(inst.type()), dest));
+    };
+    switch (inst.operation()) {
+    case ir::UnaryArithmeticOperation::Promotion:
+        break; /// At this point promotion is a no-op.
+    case ir::UnaryArithmeticOperation::Negation:
+        result.add(MoveInst(dest, Value64(0)));
+        result.add(ArithmeticInst(ArithmeticOperation::Sub, mapType(inst.type()), dest, operand));
+        break;
+    case ir::UnaryArithmeticOperation::BitwiseNot:
+        genUnaryArithmetic(UnaryArithmeticOperation::BitwiseNot);
+        break;
+    case ir::UnaryArithmeticOperation::LogicalNot:
+        genUnaryArithmetic(UnaryArithmeticOperation::LogicalNot);
+        break;
+    default: SC_UNREACHABLE();
+    }
 }
 
 void Context::generate(ir::ArithmeticInst const& arithmetic) {
@@ -175,17 +190,6 @@ void Context::generate(ir::ArithmeticInst const& arithmetic) {
 
 // MARK: Terminators
 
-static asm2::CompareOperation mapCompare(ir::CompareOperation op) {
-    return UTL_MAP_ENUM(op, asm2::CompareOperation, {
-        { ir::CompareOperation::Less,      asm2::CompareOperation::Less      },
-        { ir::CompareOperation::LessEq,    asm2::CompareOperation::LessEq    },
-        { ir::CompareOperation::Greater,   asm2::CompareOperation::Greater   },
-        { ir::CompareOperation::GreaterEq, asm2::CompareOperation::GreaterEq },
-        { ir::CompareOperation::Equal,     asm2::CompareOperation::Eq        },
-        { ir::CompareOperation::NotEqual,  asm2::CompareOperation::NotEq     },
-    });
-}
-
 void Context::generate(ir::Goto const& gt) {
     result.add(JumpInst(makeLabel(*gt.target()).id()));
 }
@@ -195,7 +199,16 @@ void Context::generate(ir::Branch const& br) {
         if (auto const* cond = dyncast<ir::CompareInst const*>(br.condition())) {
             return mapCompare(cond->operation());
         }
-        result.add(TestInst(mapType(br.condition()->type()), currentRD().resolve(*br.condition())));
+        auto testOp = [&]() -> Value {
+            auto cond = currentRD().resolve(*br.condition());
+            if (cond.is<RegisterIndex>()) {
+                return cond;
+            }
+            auto tmp = currentRD().makeTemporary();
+            result.add(MoveInst(tmp, cond));
+            return tmp;
+        }();
+        result.add(TestInst(mapType(br.condition()->type()), testOp));
         return CompareOperation::NotEq;
     }();
     result.add(JumpInst(cmpOp, makeLabel(*br.thenTarget()).id()));
@@ -267,4 +280,32 @@ size_t Context::makeLabelImpl(ir::Value const& value) {
     auto [itr, success] = labelIndices.insert({ &value, labelIndexCounter });
     if (success) { ++labelIndexCounter; }
     return itr->second;
+}
+
+static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
+    return UTL_MAP_ENUM(op, asm2::ArithmeticOperation, {
+        { ir::ArithmeticOperation::Add,    asm2::ArithmeticOperation::Add },
+        { ir::ArithmeticOperation::Sub,    asm2::ArithmeticOperation::Sub },
+        { ir::ArithmeticOperation::Mul,    asm2::ArithmeticOperation::Mul },
+        { ir::ArithmeticOperation::Div,    asm2::ArithmeticOperation::Div },
+        { ir::ArithmeticOperation::UDiv,   asm2::ArithmeticOperation::Div },
+        { ir::ArithmeticOperation::Rem,    asm2::ArithmeticOperation::Rem },
+        { ir::ArithmeticOperation::URem,   asm2::ArithmeticOperation::Rem },
+        { ir::ArithmeticOperation::ShiftL, asm2::ArithmeticOperation::ShL },
+        { ir::ArithmeticOperation::ShiftR, asm2::ArithmeticOperation::ShR },
+        { ir::ArithmeticOperation::And,    asm2::ArithmeticOperation::And },
+        { ir::ArithmeticOperation::Or,     asm2::ArithmeticOperation::Or  },
+        { ir::ArithmeticOperation::XOr,    asm2::ArithmeticOperation::XOr },
+    });
+}
+
+static asm2::CompareOperation mapCompare(ir::CompareOperation op) {
+    return UTL_MAP_ENUM(op, asm2::CompareOperation, {
+        { ir::CompareOperation::Less,      asm2::CompareOperation::Less      },
+        { ir::CompareOperation::LessEq,    asm2::CompareOperation::LessEq    },
+        { ir::CompareOperation::Greater,   asm2::CompareOperation::Greater   },
+        { ir::CompareOperation::GreaterEq, asm2::CompareOperation::GreaterEq },
+        { ir::CompareOperation::Equal,     asm2::CompareOperation::Eq        },
+        { ir::CompareOperation::NotEqual,  asm2::CompareOperation::NotEq     },
+    });
 }

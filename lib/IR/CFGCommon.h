@@ -22,7 +22,8 @@ namespace scatha::ir {
 // └─ Instruction
 //    ├─ Alloca
 //    ├─ UnaryInstruction
-//    │  └─ Load
+//    │  ├─ Load
+//    │  └─ UnaryArithmeticInst
 //    ├─ BinaryInstruction
 //    │  ├─ Store
 //    │  ├─ CompareInst
@@ -40,7 +41,6 @@ namespace scatha::ir {
 enum class NodeType {
 #define SC_CGFNODE_DEF(Inst) Inst,
 #include "IR/Instructions.def"
-
     _count
 };
 
@@ -51,7 +51,6 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Inst, _) Inst,
 #include "IR/Instructions.def"
-
     _count
 };
 
@@ -59,10 +58,19 @@ SCATHA(API) std::string_view toString(CompareOperation op);
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation op);
 
+enum class UnaryArithmeticOperation {
+#define SC_UNARY_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
+#include "IR/Instructions.def"
+    _count
+};
+
+SCATHA(API) std::string_view toString(UnaryArithmeticOperation op);
+
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOperation op);
+
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
 #include "IR/Instructions.def"
-
     _count
 };
 

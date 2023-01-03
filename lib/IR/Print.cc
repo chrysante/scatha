@@ -26,6 +26,7 @@ struct PrintCtx {
     void print(Load const&);
     void print(Store const&);
     void print(CompareInst const&);
+    void print(UnaryArithmeticInst const&);
     void print(ArithmeticInst const&);
     void print(Goto const&);
     void print(Branch const&);
@@ -110,10 +111,15 @@ void PrintCtx::print(CompareInst const& cmp) {
     str << cmp.rhs()->type()->name() << " " << toString(*cmp.rhs());
 }
 
-void PrintCtx::print(ArithmeticInst const& arith) {
-    str << indent << "%" << arith.name() << " = " << arith.operation() << " " << arith.lhs()->type()->name() << " ";
-    str << toString(*arith.lhs()) << ", ";
-    str << toString(*arith.rhs());
+void PrintCtx::print(UnaryArithmeticInst const& inst) {
+    str << indent << "%" << inst.name() << " = " << inst.operation() << " " << inst.operand()->type()->name() << " ";
+    str << toString(*inst.operand());
+}
+
+void PrintCtx::print(ArithmeticInst const& inst) {
+    str << indent << "%" << inst.name() << " = " << inst.operation() << " " << inst.lhs()->type()->name() << " ";
+    str << toString(*inst.lhs()) << ", ";
+    str << toString(*inst.rhs());
 }
 
 void PrintCtx::print(Goto const& gt) {

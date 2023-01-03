@@ -1,6 +1,8 @@
 // No include guards
 
-/// List of all CFG Nodes.
+// ===----------------------------------------------------------------------===
+// === List of all CFG Nodes -----------------------------------------------===
+// ===----------------------------------------------------------------------===
 
 #ifndef SC_CGFNODE_DEF
 #   define SC_CGFNODE_DEF(inst)
@@ -19,6 +21,7 @@ SC_CGFNODE_DEF(Load)
 SC_CGFNODE_DEF(BinaryInstruction)
 SC_CGFNODE_DEF(Store)
 SC_CGFNODE_DEF(CompareInst)
+SC_CGFNODE_DEF(UnaryArithmeticInst)
 SC_CGFNODE_DEF(ArithmeticInst)
 SC_CGFNODE_DEF(TerminatorInst)
 SC_CGFNODE_DEF(Goto)
@@ -29,7 +32,9 @@ SC_CGFNODE_DEF(Phi)
 
 #undef SC_CGFNODE_DEF
 
-/// List of compare operations.
+// ===----------------------------------------------------------------------===
+// === List of compare operations ------------------------------------------===
+// ===----------------------------------------------------------------------===
 
 #ifndef SC_COMPARE_OPERATION_DEF
 #   define SC_COMPARE_OPERATION_DEF(inst, instShort)
@@ -44,23 +49,40 @@ SC_COMPARE_OPERATION_DEF(NotEqual, neq)
 
 #undef SC_COMPARE_OPERATION_DEF
 
-/// List of arithmetic operations.
+// ===----------------------------------------------------------------------===
+// === List of unary arithmetic operations ---------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_UNARY_ARITHMETIC_OPERATION_DEF
+#   define SC_UNARY_ARITHMETIC_OPERATION_DEF(inst, instShort)
+#endif
+
+SC_UNARY_ARITHMETIC_OPERATION_DEF(Promotion,  prom)
+SC_UNARY_ARITHMETIC_OPERATION_DEF(Negation,   neg)
+SC_UNARY_ARITHMETIC_OPERATION_DEF(BitwiseNot, bnt)
+SC_UNARY_ARITHMETIC_OPERATION_DEF(LogicalNot, lnt)
+
+#undef SC_UNARY_ARITHMETIC_OPERATION_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of arithmetic operations ---------------------------------------===
+// ===----------------------------------------------------------------------===
 
 #ifndef SC_ARITHMETIC_OPERATION_DEF
 #   define SC_ARITHMETIC_OPERATION_DEF(inst, lowerCase)
 #endif
 
-SC_ARITHMETIC_OPERATION_DEF(Add, add)
-SC_ARITHMETIC_OPERATION_DEF(Sub, sub)
-SC_ARITHMETIC_OPERATION_DEF(Mul, mul)
-SC_ARITHMETIC_OPERATION_DEF(Div, div)
-SC_ARITHMETIC_OPERATION_DEF(UDiv, udiv)
-SC_ARITHMETIC_OPERATION_DEF(Rem, rem)
-SC_ARITHMETIC_OPERATION_DEF(URem, urem)
+SC_ARITHMETIC_OPERATION_DEF(Add,    add)
+SC_ARITHMETIC_OPERATION_DEF(Sub,    sub)
+SC_ARITHMETIC_OPERATION_DEF(Mul,    mul)
+SC_ARITHMETIC_OPERATION_DEF(Div,    div)
+SC_ARITHMETIC_OPERATION_DEF(UDiv,   udiv)
+SC_ARITHMETIC_OPERATION_DEF(Rem,    rem)
+SC_ARITHMETIC_OPERATION_DEF(URem,   urem)
 SC_ARITHMETIC_OPERATION_DEF(ShiftL, shl)
 SC_ARITHMETIC_OPERATION_DEF(ShiftR, shr)
-SC_ARITHMETIC_OPERATION_DEF(And, and)
-SC_ARITHMETIC_OPERATION_DEF(Or, or)
-SC_ARITHMETIC_OPERATION_DEF(XOr, xor)
+SC_ARITHMETIC_OPERATION_DEF(And,    and)
+SC_ARITHMETIC_OPERATION_DEF(Or,     or)
+SC_ARITHMETIC_OPERATION_DEF(XOr,    xor)
 
 #undef SC_ARITHMETIC_OPERATION_DEF
