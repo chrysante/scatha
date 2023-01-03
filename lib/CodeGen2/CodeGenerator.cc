@@ -259,12 +259,14 @@ void Context::generate(ir::Phi const& phi) {
     /// Then make this value resolve to that register index.
     RegisterIndex const target = currentRD().resolve(phi).get<RegisterIndex>();
     for (auto& [pred, value]: phi.arguments) {
-        auto const [begin, back] = [&, pred = pred]{
+        auto [begin, back] = [&, pred = pred]{
             auto itr = bbInstRanges.find(pred);
             SC_ASSERT(itr != bbInstRanges.end(), "Where is this bb coming from?");
             return itr->second;
         }();
-        result.insert(back, MoveInst(target, currentRD().resolve(*value)));
+        /// Make sure we place our move instruction right before all jumps ending the basic block.
+        while (back->is<JumpInst>() && back != begin) { --back; }
+        result.insert(std::next(back), MoveInst(target, currentRD().resolve(*value)));
     }
 }
 

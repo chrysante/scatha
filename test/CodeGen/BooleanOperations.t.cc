@@ -29,14 +29,11 @@ fn main() -> bool {
 
 TEST_CASE("Logical or") {
     std::string const text = R"(
-/// This fails to compile because we don't have an implementation for operator|| and operator&& yet,
-/// and they are not trivial to implement because of short circuit evaluation.
-//fn main() -> bool {
-//	let a = true;
-//	let b = false;
-//	return a || b;
-//}
-)";
+fn main() -> bool {
+	let a = true;
+	let b = false;
+	return a || b;
+})";
     auto const registers   = test::getRegisters(text);
-    //	CHECK(registers[0] == 1);
+    CHECK(registers[0] == 1);
 }

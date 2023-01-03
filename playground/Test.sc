@@ -1,17 +1,11 @@
 
 fn main() -> int {
     let x = 0;
-    let y = 1;
-    // return greaterZero(x) ? 1 : 2;
-    return greaterZero(x) ? 1 : greaterZero(y) ? 2 : 3;
+    return greaterZero(x) ? 1 : 2;
 }
-
 fn greaterZero(a: int) -> bool {
     return !(a <= 0);
 }
-
-
-
 
 
 
