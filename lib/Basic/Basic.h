@@ -48,6 +48,8 @@
 #define _SCATHA_PD_CONST()
 #endif
 
+#define _SCATHA_PD_DEBUG() 1
+
 // API Export
 #if SCATHA(GNU)
 #define _SCATHA_PD_API() __attribute__((visibility("default")))
@@ -88,7 +90,12 @@
 #else
 #define _SC_UNREACHABLE_IMPL() ((void)0)
 #endif
-#define SC_UNREACHABLE(...) (_SC_UNREACHABLE_IMPL(), SC_DEBUGFAIL())
+
+#if SCATHA(DEBUG)
+#define SC_UNREACHABLE(...) SC_DEBUGFAIL()
+#else
+#define SC_UNREACHABLE(...) _SC_UNREACHABLE_IMPL()
+#endif
 
 // SC_ASSUME
 #if SCATHA(CLANG)
@@ -136,7 +143,8 @@ using ssize_t = std::ptrdiff_t;
 
 /// Reinterpret the bytes of \p t as a \p std::array of bytes.
 template <typename T>
-requires std::is_standard_layout_v<T> std::array<u8, sizeof(T)> decompose(T const& t) {
+requires std::is_standard_layout_v<T>
+std::array<u8, sizeof(T)> decompose(T const& t) {
     return utl::bit_cast<std::array<u8, sizeof(T)>>(t);
 }
 

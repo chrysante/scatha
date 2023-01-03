@@ -39,12 +39,16 @@ public:
     void push(T&&);
     template <typename... Args>
     requires std::constructible_from<T, Args...>
-    void push(Args&&... args) { push(T(std::forward<Args>(args)...)); }
+    void push(Args&&... args) {
+        push(T(std::forward<Args>(args)...));
+    }
     void push(T const&, Fatal);
     void push(T&&, Fatal);
     template <typename... Args>
     requires std::constructible_from<T, Args...>
-    void push(Args&&... args, Fatal) { push(T(std::forward<Args>(args)...), issue::fatal); }
+    void push(Args&&... args, Fatal) {
+        push(T(std::forward<Args>(args)...), issue::fatal);
+    }
 
     std::span<T const> issues() const;
 

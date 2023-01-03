@@ -48,7 +48,7 @@ TypeID SymbolTable::declareBuiltinType(std::string name, size_t size, size_t ali
     Token token(name, TokenType::Identifier);
     /// Hack to prevent \p declareObjectType() from rejecting this token, as it does not accept keywords.
     token.isKeyword = false;
-    auto result = declareObjectType(token);
+    auto result     = declareObjectType(token);
     SC_ASSERT(result, "How could this fail?");
     result->setSize(size);
     result->setAlign(align);

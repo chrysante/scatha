@@ -1,209 +1,316 @@
 #include "CodeGen/CodeGenerator.h"
 
-#include <utl/hashset.hpp>
-#include <utl/utility.hpp>
+#include <array>
 
-#include "Assembly/Assembly.h"
-#include "CodeGen/CodeGenUtil.h"
+#include <utl/hashmap.hpp>
+#include <utl/scope_guard.hpp>
+#include <utl/ranges.hpp>
 
-namespace scatha::codegen {
+#include "Assembly/AssemblyStream.h"
+#include "CodeGen/RegisterDescriptor.h"
+#include "IR/Module.h"
+#include "IR/CFG.h"
+#include "IR/Context.h"
 
-CodeGenerator::CodeGenerator(ic::ThreeAddressCode const& tac): tac(tac) {}
+using namespace scatha;
+using namespace Asm;
+using namespace cg;
 
-static assembly::Label toAsm(ic::Label const& l) {
-    return assembly::Label(l.functionID.rawValue(), l.index);
+namespace {
+
+struct Context {
+    explicit Context(AssemblyStream& result): result(result) {}
+    
+    void run(ir::Module const& mod);
+    
+    void dispatch(ir::Value const& value);
+    
+    void generate(ir::Value const& value) { SC_UNREACHABLE(); }
+    void generate(ir::Function const& function);
+    void generate(ir::BasicBlock const& bb);
+    void generate(ir::Alloca const&);
+    void generate(ir::Store const&);
+    void generate(ir::Load const&);
+    void generate(ir::CompareInst const&);
+    void generate(ir::UnaryArithmeticInst const&);
+    void generate(ir::ArithmeticInst const&);
+    void generate(ir::Goto const&);
+    void generate(ir::Branch const&);
+    void generate(ir::FunctionCall const&);
+    void generate(ir::Return const&);
+    void generate(ir::Phi const&);
+    
+    Label makeLabel(ir::BasicBlock const&);
+    Label makeLabel(ir::Function const&);
+    size_t makeLabelImpl(ir::Value const&);
+    
+    RegisterDescriptor& currentRD() { return *_currentRD; }
+    AssemblyStream& result;
+    RegisterDescriptor* _currentRD = nullptr;
+    size_t labelIndexCounter = 0;
+    utl::hashmap<ir::Value const*, size_t> labelIndices;
+    utl::hashmap<ir::BasicBlock const*, std::array<AssemblyStream::Iterator, 2>> bbInstRanges;
+};
+
+} // namespace
+
+AssemblyStream cg::codegen(ir::Module const& mod) {
+    AssemblyStream result;
+    Context ctx(result);
+    ctx.run(mod);
+    return result;
 }
 
-static assembly::Label toAsm(ic::FunctionLabel const& l) {
-    return assembly::Label(l.functionID().rawValue());
-}
+static Asm::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op);
 
-assembly::AssemblyStream CodeGenerator::run() {
-    using namespace assembly;
-    AssemblyStream a;
-    for (size_t index = 0; index < tac.statements.size(); ++index) {
-        auto const& line = tac.statements[index];
-        std::visit(
-            utl::visitor{ [&](ic::Label const& label) { a << toAsm(label); },
-                          [&](ic::FunctionLabel const& label) {
-            a << toAsm(label);
-            SC_ASSERT(rd.empty(), "rd has not been cleared");
-            rd.declareParameters(label);
-            a << Instruction::allocReg;
-            a << Value8(0xFF); // 0xFF is a placeholder
-            currentFunction.allocRegArgIndex = a.size() - Value8::size();
-                         },
-                          [&](ic::FunctionEndLabel) {
-            a[currentFunction.allocRegArgIndex] = utl::narrow_cast<u8>(rd.numUsedRegisters());
-            if (currentFunction.calledAnyFunction()) {
-                a[currentFunction.allocRegArgIndex] += 2 + currentFunction.maxParamCount();
-            }
-            rd.clear();
-            currentFunction = {};
-            },
-            [&](ic::ThreeAddressStatement const& s) {
-            if (s.result.is(ic::TasArgument::conditional)) {
-                // handle conditional statements separately
-                SC_ASSERT(index + 1 < tac.statements.size(), "we must have another statement");
-                ic::ThreeAddressStatement const& jumpStatement = tac.statements[++index].asTas();
-                generateConditionalJump(a, s, jumpStatement);
-                return;
-            }
+static Asm::CompareOperation mapCompare(ir::CompareOperation op);
 
-            switch (s.operation) {
-            case ic::Operation::mov: {
-                if (s.arg1.is(ic::TasArgument::empty)) {
-                    break;
-                }
-                a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
-                break;
-            }
-            case ic::Operation::param: {
-                a << Instruction::mov << RegisterIndex(0xFF); // 0xFF is a placeholder
-                currentFunction.addParam(a.size() - RegisterIndex::size(),
-                                         utl::narrow_cast<u8>(currentFunction.paramCount()));
-                a << resolve(s.arg1);
-                break;
-            }
-            case ic::Operation::getResult: {
-                size_t const resultLocation = rd.numUsedRegisters() + 2;
-                a << Instruction::mov << resolve(s.result);
-                a << RegisterIndex(utl::narrow_cast<u8>(resultLocation));
-                break;
-            }
-            case ic::Operation::call: {
-                a << Instruction::call << toAsm(s.getLabel())
-                  << Value8(utl::narrow_cast<u8>(rd.numUsedRegisters() + 2));
-                for (auto const& [index, offset]: currentFunction.parameterRegisterLocations()) {
-                    a[index] = utl::narrow_cast<u8>(rd.numUsedRegisters() + 2 + offset);
-                }
-                currentFunction.resetParams();
-                break;
-            }
-            case ic::Operation::ret: {
-                if (!s.arg1.is(ic::TasArgument::empty)) /* if it is not a void
-                                                           return statement */
-                {
-                    auto const argRegister = rd.resolve(s.arg1);
-                    if (!argRegister || *argRegister != RegisterIndex(0)) {
-                        rd.markUsed(1);
-                        a << Instruction::mov << RegisterIndex(0) << resolve(s.arg1);
-                    }
-                }
-                a << Instruction::ret;
-                break;
-            }
-            case ic::Operation::add: [[fallthrough]];
-            case ic::Operation::sub: [[fallthrough]];
-            case ic::Operation::mul: [[fallthrough]];
-            case ic::Operation::div: [[fallthrough]];
-            case ic::Operation::idiv: [[fallthrough]];
-            case ic::Operation::rem: [[fallthrough]];
-            case ic::Operation::irem: [[fallthrough]];
-            case ic::Operation::fadd: [[fallthrough]];
-            case ic::Operation::fsub: [[fallthrough]];
-            case ic::Operation::fmul: [[fallthrough]];
-            case ic::Operation::fdiv: [[fallthrough]];
-            case ic::Operation::sl: [[fallthrough]];
-            case ic::Operation::sr: [[fallthrough]];
-            case ic::Operation::And: [[fallthrough]];
-            case ic::Operation::Or: [[fallthrough]];
-            case ic::Operation::XOr: generateBinaryArithmetic(a, s); break;
-            case ic::Operation::eq: [[fallthrough]];
-            case ic::Operation::neq: [[fallthrough]];
-            case ic::Operation::ils: [[fallthrough]];
-            case ic::Operation::ileq: [[fallthrough]];
-            case ic::Operation::ig: [[fallthrough]];
-            case ic::Operation::igeq: [[fallthrough]];
-            case ic::Operation::uls: [[fallthrough]];
-            case ic::Operation::uleq: [[fallthrough]];
-            case ic::Operation::ug: [[fallthrough]];
-            case ic::Operation::ugeq: [[fallthrough]];
-            case ic::Operation::feq: [[fallthrough]];
-            case ic::Operation::fneq: [[fallthrough]];
-            case ic::Operation::fls: [[fallthrough]];
-            case ic::Operation::fleq: [[fallthrough]];
-            case ic::Operation::fg: [[fallthrough]];
-            case ic::Operation::fgeq: generateComparisonStore(a, s); break;
-            case ic::Operation::lnt: {
-                a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
-                a << Instruction::lnt << resolve(s.result);
-                break;
-            }
-            case ic::Operation::bnt: {
-                a << Instruction::mov << resolve(s.result) << resolve(s.arg1);
-                a << Instruction::bnt << resolve(s.result);
-                break;
-            }
-            case ic::Operation::jmp: generateJump(a, s); break;
-
-            case ic::Operation::ifPlaceholder: [[fallthrough]];
-            case ic::Operation::_count: SC_UNREACHABLE();
-            }
-            } },
-            line);
+void Context::run(ir::Module const& mod) {
+    for (auto& function: mod.functions()) {
+        dispatch(function);
     }
-
-    return a;
 }
 
-void CodeGenerator::generateBinaryArithmetic(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
-    a << assembly::Instruction::mov << resolve(s.result) << resolve(s.arg1);
-    a << mapOperation(s.operation) << resolve(s.result) << resolve(s.arg2);
+void Context::dispatch(ir::Value const& value) {
+    visit(value, [this](auto const& node) { generate(node); });
 }
 
-void CodeGenerator::generateComparison(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
-    auto const cmp = mapComparison(s.operation);
-    if (s.arg1.is(ic::TasArgument::literalValue)) {
-        assembly::RegisterIndex const tmp = rd.makeTemporary();
-        a << assembly::Instruction::mov << tmp << resolve(s.arg1);
-        a << cmp << tmp << resolve(s.arg2);
+void Context::generate(ir::Function const& function) {
+    RegisterDescriptor rd;
+    _currentRD = &rd;
+    utl::scope_guard clearRD = [&]{ _currentRD = nullptr; };
+    /// Declare parameters.
+    for (auto& param: function.parameters()) { rd.resolve(param); }
+    result.add(makeLabel(function));
+    for (auto& bb: function.basicBlocks()) {
+        dispatch(bb);
+    }
+}
+
+void Context::generate(ir::BasicBlock const& bb) {
+    auto const beforeBegin = result.begin();
+    if (!bb.isEntry()) {
+        result.add(makeLabel(bb));
+    }
+    for (auto& inst: bb.instructions) {
+        dispatch(inst);
+    }
+    auto const backItr = result.backItr();
+    bbInstRanges.insert({ &bb, { std::next(beforeBegin), backItr } });
+}
+
+void Context::generate(ir::Alloca const& allocaInst) {
+    SC_ASSERT(allocaInst.allocatedType()->align() <= 8, "We don't support overaligned types just yet.");
+    result.add(AllocaInst(currentRD().resolve(allocaInst).get<RegisterIndex>(),
+                          currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
+}
+
+void Context::generate(ir::Store const& store) {
+    auto destRegIdx = currentRD().resolve(*store.address());
+    auto dest = MemoryAddress(destRegIdx.get<RegisterIndex>().value(), 0, 0);
+    auto src = currentRD().resolve(*store.value());
+    if (src.is<Value64>()) {
+        /// \p src is a value and must be stored in temporary register first.
+        auto tmp = currentRD().makeTemporary();
+        result.add(MoveInst(tmp, src));
+        result.add(MoveInst(dest, tmp));
     }
     else {
-        a << cmp << resolve(s.arg1) << resolve(s.arg2);
+        result.add(MoveInst(dest, src));
     }
 }
 
-void CodeGenerator::generateComparisonStore(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
-    generateComparison(a, s);
-    a << mapComparisonStore(s.operation) << resolve(s.result);
+void Context::generate(ir::Load const& load) {
+    auto addr = currentRD().resolve(*load.address());
+    auto src = MemoryAddress(addr.get<RegisterIndex>().value(), 0, 0);
+    result.add(MoveInst(currentRD().resolve(load), src));
 }
 
-void CodeGenerator::generateJump(assembly::AssemblyStream& a, ic::ThreeAddressStatement const& s) {
-    using namespace assembly;
-    a << Instruction::jmp << toAsm(s.getLabel());
-}
-
-void CodeGenerator::generateConditionalJump(assembly::AssemblyStream& a,
-                                            ic::ThreeAddressStatement const& ifStatement,
-                                            ic::ThreeAddressStatement const& jumpStatement) {
-    SC_ASSERT(isJump(jumpStatement.operation), "which must be a jump");
-    if (ifStatement.operation == ic::Operation::ifPlaceholder) {
-        a << assembly::Instruction::utest << resolve(ifStatement.arg1);
+static Asm::Type mapType(ir::Type const* type) {
+    if (type->isIntegral()) {
+        /// TODO: Also handle unsigned comparison.
+        return Type::Signed;
     }
-    else {
-        SC_ASSERT(ic::isRelop(ifStatement.operation), "operation must be if placeholder or a relop");
-        generateComparison(a, ifStatement);
+    if (type->isFloat()) {
+        return Type::Float;
     }
-    a << mapConditionalJump(ifStatement.operation) << toAsm(jumpStatement.getLabel());
+    SC_UNREACHABLE();
 }
 
-void CodeGenerator::ResolvedArg::streamInsert(assembly::AssemblyStream& str) const {
-    arg.visit(utl::overload([&](ic::EmptyArgument const&) { SC_DEBUGBREAK(); },
-                            [&](ic::Variable const& var) { str << self.rd.resolve(var); },
-                            [&](ic::Temporary const& tmp) { str << self.rd.resolve(tmp); },
-                            [&](ic::LiteralValue const& lit) { str << assembly::Value64(lit.value); },
-                            [&](ic::Label const& label) { str << toAsm(label); },
-                            [&](ic::If) { SC_DEBUGFAIL(); }));
+void Context::generate(ir::CompareInst const& cmp) {
+    Value const lhs = [&]() -> Value {
+        auto resolvedLhs = currentRD().resolve(*cmp.lhs());
+        if (!isa<ir::Constant>(cmp.lhs())) {
+            SC_ASSERT(resolvedLhs.is<RegisterIndex>(), "cmp instruction wants a register index as its lhs argument.");
+            return resolvedLhs;
+        }
+        auto tmpRegIdx = currentRD().makeTemporary();
+        result.add(MoveInst(tmpRegIdx, resolvedLhs));
+        return tmpRegIdx;
+    }();
+    result.add(Asm::CompareInst(mapType(cmp.type()), lhs, currentRD().resolve(*cmp.rhs())));
+    if (true) /// Actually we should check if the users of this cmp instruction care about having the result in the
+              /// corresponding register. Since we don't have use and user lists yet we do this unconditionally. This
+              /// should not introduce errors, it's only inefficient to execute.
+    {
+        result.add(SetInst(currentRD().resolve(cmp).get<RegisterIndex>(), mapCompare(cmp.operation())));
+    }
 }
 
-assembly::AssemblyStream& operator<<(assembly::AssemblyStream& str, CodeGenerator::ResolvedArg a) {
-    a.streamInsert(str);
-    return str;
+void Context::generate(ir::UnaryArithmeticInst const& inst) {
+    auto dest = currentRD().resolve(inst).get<RegisterIndex>();
+    auto operand = currentRD().resolve(*inst.operand());
+    auto genUnaryArithmetic = [&](UnaryArithmeticOperation operation) {
+        result.add(MoveInst(dest, operand));
+        result.add(UnaryArithmeticInst(operation, mapType(inst.type()), dest));
+    };
+    switch (inst.operation()) {
+    case ir::UnaryArithmeticOperation::Promotion:
+        break; /// At this point promotion is a no-op.
+    case ir::UnaryArithmeticOperation::Negation:
+        result.add(MoveInst(dest, Value64(0)));
+        result.add(ArithmeticInst(ArithmeticOperation::Sub, mapType(inst.type()), dest, operand));
+        break;
+    case ir::UnaryArithmeticOperation::BitwiseNot:
+        genUnaryArithmetic(UnaryArithmeticOperation::BitwiseNot);
+        break;
+    case ir::UnaryArithmeticOperation::LogicalNot:
+        genUnaryArithmetic(UnaryArithmeticOperation::LogicalNot);
+        break;
+    default: SC_UNREACHABLE();
+    }
 }
 
-CodeGenerator::ResolvedArg CodeGenerator::resolve(ic::TasArgument const& arg) {
-    return { *this, arg };
+void Context::generate(ir::ArithmeticInst const& arithmetic) {
+    // TODO: Make the move of the source argument conditional?
+    auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
+    result.add(MoveInst(dest, currentRD().resolve(*arithmetic.lhs())));
+    result.add(Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
+                                    mapType(arithmetic.type()),
+                                    dest,
+                                    currentRD().resolve(*arithmetic.rhs())));
 }
 
-} // namespace scatha::codegen
+// MARK: Terminators
+
+void Context::generate(ir::Goto const& gt) {
+    result.add(JumpInst(makeLabel(*gt.target()).id()));
+}
+
+void Context::generate(ir::Branch const& br) {
+    auto const cmpOp = [&]{
+        if (auto const* cond = dyncast<ir::CompareInst const*>(br.condition())) {
+            return mapCompare(cond->operation());
+        }
+        auto testOp = [&]() -> Value {
+            auto cond = currentRD().resolve(*br.condition());
+            if (cond.is<RegisterIndex>()) {
+                return cond;
+            }
+            auto tmp = currentRD().makeTemporary();
+            result.add(MoveInst(tmp, cond));
+            return tmp;
+        }();
+        result.add(TestInst(mapType(br.condition()->type()), testOp));
+        return CompareOperation::NotEq;
+    }();
+    result.add(JumpInst(cmpOp, makeLabel(*br.thenTarget()).id()));
+    result.add(JumpInst(makeLabel(*br.elseTarget()).id()));
+}
+
+void Context::generate(ir::FunctionCall const& call) {
+    utl::small_vector<AssemblyStream::Iterator> parameterRegIdxLocations;
+    for (auto const arg: call.arguments()) {
+        // TODO: Are the arguments evaluated here?
+        auto argRegIdx = RegisterIndex(0xFF);
+        result.add(MoveInst(argRegIdx, currentRD().resolve(*arg)));
+        parameterRegIdxLocations.push_back(result.backItr());
+    }
+    for (auto const& [index, regIdx]: utl::enumerate(parameterRegIdxLocations)) {
+        regIdx->get<MoveInst>()
+            .dest()
+            .get<RegisterIndex>()
+            .setValue(currentRD().numUsedRegisters() + 2 + index);
+    }
+    result.add(CallInst(makeLabel(*call.function()).id(), currentRD().numUsedRegisters() + 2));
+    if (call.type()->isVoid()) {
+        return;
+    }
+    RegisterIndex const resultLocation = currentRD().numUsedRegisters() + 2;
+    RegisterIndex const targetResultLocation = currentRD().resolve(call).get<RegisterIndex>();
+    if (resultLocation != targetResultLocation) {
+        result.add(MoveInst(targetResultLocation, resultLocation));
+    }
+}
+
+void Context::generate(ir::Return const& ret) {
+    if (ret.value()) {
+        auto const returnValue = currentRD().resolve(*ret.value());
+        RegisterIndex const returnValueTargetLocation = 0;
+        if (!returnValue.is<RegisterIndex>() ||
+            returnValue.get<RegisterIndex>() != returnValueTargetLocation)
+        {
+            result.add(MoveInst(returnValueTargetLocation, returnValue));
+        }
+    }
+    result.add(ReturnInst());
+}
+
+void Context::generate(ir::Phi const& phi) {
+    /// We need to find a register index to put the value in that every incoming path can agree on.
+    /// Then put the value into that register in every incoming path.
+    /// Then make this value resolve to that register index.
+    RegisterIndex const target = currentRD().resolve(phi).get<RegisterIndex>();
+    for (auto& [pred, value]: phi.arguments) {
+        auto [begin, back] = [&, pred = pred]{
+            auto itr = bbInstRanges.find(pred);
+            SC_ASSERT(itr != bbInstRanges.end(), "Where is this bb coming from?");
+            return itr->second;
+        }();
+        /// Make sure we place our move instruction right before all jumps ending the basic block.
+        while (back->is<JumpInst>() && back != begin) { --back; }
+        result.insert(std::next(back), MoveInst(target, currentRD().resolve(*value)));
+    }
+}
+
+Label Context::makeLabel(ir::BasicBlock const& bb) {
+    return Label(makeLabelImpl(bb), std::string(bb.name()));
+}
+
+Label Context::makeLabel(ir::Function const& fn) {
+    return Label(makeLabelImpl(fn), std::string(fn.name()));
+}
+
+size_t Context::makeLabelImpl(ir::Value const& value) {
+    auto [itr, success] = labelIndices.insert({ &value, labelIndexCounter });
+    if (success) { ++labelIndexCounter; }
+    return itr->second;
+}
+
+static Asm::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
+    return UTL_MAP_ENUM(op, Asm::ArithmeticOperation, {
+        { ir::ArithmeticOperation::Add,    Asm::ArithmeticOperation::Add },
+        { ir::ArithmeticOperation::Sub,    Asm::ArithmeticOperation::Sub },
+        { ir::ArithmeticOperation::Mul,    Asm::ArithmeticOperation::Mul },
+        { ir::ArithmeticOperation::Div,    Asm::ArithmeticOperation::Div },
+        { ir::ArithmeticOperation::UDiv,   Asm::ArithmeticOperation::Div },
+        { ir::ArithmeticOperation::Rem,    Asm::ArithmeticOperation::Rem },
+        { ir::ArithmeticOperation::URem,   Asm::ArithmeticOperation::Rem },
+        { ir::ArithmeticOperation::ShiftL, Asm::ArithmeticOperation::ShL },
+        { ir::ArithmeticOperation::ShiftR, Asm::ArithmeticOperation::ShR },
+        { ir::ArithmeticOperation::And,    Asm::ArithmeticOperation::And },
+        { ir::ArithmeticOperation::Or,     Asm::ArithmeticOperation::Or  },
+        { ir::ArithmeticOperation::XOr,    Asm::ArithmeticOperation::XOr },
+    });
+}
+
+static Asm::CompareOperation mapCompare(ir::CompareOperation op) {
+    return UTL_MAP_ENUM(op, Asm::CompareOperation, {
+        { ir::CompareOperation::Less,      Asm::CompareOperation::Less      },
+        { ir::CompareOperation::LessEq,    Asm::CompareOperation::LessEq    },
+        { ir::CompareOperation::Greater,   Asm::CompareOperation::Greater   },
+        { ir::CompareOperation::GreaterEq, Asm::CompareOperation::GreaterEq },
+        { ir::CompareOperation::Equal,     Asm::CompareOperation::Eq        },
+        { ir::CompareOperation::NotEqual,  Asm::CompareOperation::NotEq     },
+    });
+}

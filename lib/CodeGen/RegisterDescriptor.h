@@ -1,41 +1,34 @@
-#ifndef SCATHA_CODEGEN_REGISTERDESCRIPTOR_H_
-#define SCATHA_CODEGEN_REGISTERDESCRIPTOR_H_
+#ifndef SCATHA_CODEGEN2_REGISTERDESCRIPTOR_H_
+#define SCATHA_CODEGEN2_REGISTERDESCRIPTOR_H_
 
-#include <optional>
+#include <string>
+#include <memory>
 
 #include <utl/hashmap.hpp>
 
-#include "Assembly/Assembly.h"
-#include "Basic/Basic.h"
-#include "IC/ThreeAddressCode.h"
-#include "Sema/SymbolID.h"
+#include "Assembly/Value.h"
+#include "IR/CFGCommon.h"
 
-namespace scatha::codegen {
-
+namespace scatha::cg {
+	
 class RegisterDescriptor {
 public:
-    void declareParameters(ic::FunctionLabel const&);
-
-    assembly::RegisterIndex resolve(ic::Variable const&);
-    assembly::RegisterIndex resolve(ic::Temporary const&);
-    std::optional<assembly::RegisterIndex> resolve(ic::TasArgument const&);
-
-    assembly::RegisterIndex makeTemporary();
-
-    void markUsed(size_t count);
-
-    void clear();
-
+    Asm::Value resolve(ir::Value const&);
+    
+    Asm::MemoryAddress resolveAddr(ir::Value const&);
+    
+    Asm::RegisterIndex makeTemporary();
+    
+    Asm::RegisterIndex allocateAutomatic(size_t numRegisters);
+    
     size_t numUsedRegisters() const { return index; }
-
-    bool empty() const;
-
+    
 private:
     size_t index = 0;
-    utl::hashmap<sema::SymbolID, size_t> variables;
-    utl::hashmap<size_t, size_t> temporaries;
+    utl::hashmap<std::string, size_t> values;
 };
+	
+} // namespace scatha::cg
 
-} // namespace scatha::codegen
+#endif // SCATHA_CODEGEN2_REGISTERDESCRIPTOR_H_
 
-#endif // SCATHA_CODEGEN_REGISTERDESCRIPTOR_H_

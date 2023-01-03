@@ -1,4 +1,8 @@
-Build/
+build/
+graphviz/*
+
+!graphviz/generate.sh
+
 .vs/
 .vscode/
 

@@ -4,8 +4,4 @@
 
 using namespace scatha;
 
-StructuredSource::StructuredSource(std::string_view source):
-    lines(lex::extractLines(source))
-{
-    
-}
+StructuredSource::StructuredSource(std::string_view source): lines(lex::extractLines(source)) {}

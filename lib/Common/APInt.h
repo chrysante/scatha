@@ -68,19 +68,31 @@ public:
 
     APInt& operator+=(APInt const& rhs) &;
     template <typename T>
-    requires std::is_arithmetic_v<T> APInt& operator+=(T rhs) & { return *this += APInt(rhs); }
+    requires std::is_arithmetic_v<T>
+    APInt& operator+=(T rhs) & {
+        return *this += APInt(rhs);
+    }
 
     APInt& operator-=(APInt const& rhs) &;
     template <typename T>
-    requires std::is_arithmetic_v<T> APInt& operator-=(T rhs) & { return *this -= APInt(rhs); }
+    requires std::is_arithmetic_v<T>
+    APInt& operator-=(T rhs) & {
+        return *this -= APInt(rhs);
+    }
 
     APInt& operator*=(APInt const& rhs) &;
     template <typename T>
-    requires std::is_arithmetic_v<T> APInt& operator*=(T rhs) & { return *this *= APInt(rhs); }
+    requires std::is_arithmetic_v<T>
+    APInt& operator*=(T rhs) & {
+        return *this *= APInt(rhs);
+    }
 
     APInt& operator/=(APInt const& rhs) &;
     template <typename T>
-    requires std::is_arithmetic_v<T> APInt& operator/=(T rhs) & { return *this /= APInt(rhs); }
+    requires std::is_arithmetic_v<T>
+    APInt& operator/=(T rhs) & {
+        return *this /= APInt(rhs);
+    }
 
     friend APInt operator+(APInt const& lhs, APInt const& rhs);
     friend APInt operator-(APInt const& lhs, APInt const& rhs);
@@ -93,8 +105,10 @@ public:
     ///
     /// \returns \p true iff \p *this is losslessly convertible to \p T
     template <typename T>
-    requires std::is_arithmetic_v<T>
-    bool representableAs() const { return representableAsImpl<T>(); }
+    requires std::is_arithmetic_v<T> bool
+    representableAs() const {
+        return representableAsImpl<T>();
+    }
 
     std::string toString() const;
 
@@ -110,9 +124,13 @@ public:
 
     template <typename T>
     requires std::is_arithmetic_v<T>
-    friend bool operator==(APInt const& lhs, T rhs) { return (lhs <=> rhs) == std::strong_ordering::equal; }
+    friend bool operator==(APInt const& lhs, T rhs) {
+        return (lhs <=> rhs) == std::strong_ordering::equal;
+    }
 
     friend std::ostream& operator<<(std::ostream& ostream, APInt const& number);
+
+    friend struct std::hash<APInt>;
 
 private:
     template <typename T>
@@ -127,6 +145,11 @@ private:
 };
 
 } // namespace scatha
+
+template <>
+struct std::hash<scatha::APInt> {
+    std::size_t operator()(scatha::APInt const& value) const;
+};
 
 // MARK: Inline definitions
 

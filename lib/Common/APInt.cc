@@ -5,8 +5,8 @@
 #include <string>
 
 #include <gmp.h>
-#include <utl/utility.hpp>
 #include <utl/scope_guard.hpp>
+#include <utl/utility.hpp>
 
 template <typename T>
 static auto* as_mpz(T& value) {
@@ -19,7 +19,7 @@ static auto* as_mpz(T& value) {
     }
 }
 
-namespace scatha {
+using namespace scatha;
 
 APInt::APInt() {
     mpz_init(as_mpz(storage));
@@ -68,22 +68,22 @@ std::optional<APInt> APInt::fromString(std::string_view value, int base) {
     return std::nullopt;
 }
 
-APInt& APInt::operator+=(APInt const& rhs)& {
+APInt& APInt::operator+=(APInt const& rhs) & {
     mpz_add(as_mpz(storage), as_mpz(storage), as_mpz(rhs.storage));
     return *this;
 }
 
-APInt& APInt::operator-=(APInt const& rhs)& {
+APInt& APInt::operator-=(APInt const& rhs) & {
     mpz_sub(as_mpz(storage), as_mpz(storage), as_mpz(rhs.storage));
     return *this;
 }
 
-APInt& APInt::operator*=(APInt const& rhs)& {
+APInt& APInt::operator*=(APInt const& rhs) & {
     mpz_mul(as_mpz(storage), as_mpz(storage), as_mpz(rhs.storage));
     return *this;
 }
 
-APInt& APInt::operator/=(APInt const& rhs)& {
+APInt& APInt::operator/=(APInt const& rhs) & {
     mpz_div(as_mpz(storage), as_mpz(storage), as_mpz(rhs.storage));
     return *this;
 }
@@ -137,16 +137,16 @@ bool APInt::representableAsImpl() const {
     }
 }
 
-template bool APInt::representableAs<         char>() const;
-template bool APInt::representableAs<  signed char>() const;
+template bool APInt::representableAs<char>() const;
+template bool APInt::representableAs<signed char>() const;
 template bool APInt::representableAs<unsigned char>() const;
-template bool APInt::representableAs<  signed short>() const;
+template bool APInt::representableAs<signed short>() const;
 template bool APInt::representableAs<unsigned short>() const;
-template bool APInt::representableAs<  signed int>() const;
+template bool APInt::representableAs<signed int>() const;
 template bool APInt::representableAs<unsigned int>() const;
-template bool APInt::representableAs<  signed long>() const;
+template bool APInt::representableAs<signed long>() const;
 template bool APInt::representableAs<unsigned long>() const;
-template bool APInt::representableAs<  signed long long>() const;
+template bool APInt::representableAs<signed long long>() const;
 template bool APInt::representableAs<unsigned long long>() const;
 template bool APInt::representableAs<float>() const;
 template bool APInt::representableAs<double>() const;
@@ -176,22 +176,22 @@ static std::strong_ordering toStrongOrdering(int value) {
     }
 }
 
-std::strong_ordering operator<=>(APInt const& lhs, APInt const& rhs) {
+std::strong_ordering scatha::operator<=>(APInt const& lhs, APInt const& rhs) {
     int const result = mpz_cmp(as_mpz(lhs.storage), as_mpz(rhs.storage));
     return toStrongOrdering(result);
 }
 
-std::strong_ordering operator<=>(APInt const& lhs, long long rhs) {
+std::strong_ordering scatha::operator<=>(APInt const& lhs, long long rhs) {
     int const result = mpz_cmp_si(as_mpz(lhs.storage), rhs);
     return toStrongOrdering(result);
 }
 
-std::strong_ordering operator<=>(APInt const& lhs, unsigned long long rhs) {
+std::strong_ordering scatha::operator<=>(APInt const& lhs, unsigned long long rhs) {
     int const result = mpz_cmp_ui(as_mpz(lhs.storage), rhs);
     return toStrongOrdering(result);
 }
 
-std::strong_ordering operator<=>(APInt const& lhs, double rhs) {
+std::strong_ordering scatha::operator<=>(APInt const& lhs, double rhs) {
     int const result = mpz_cmp_d(as_mpz(lhs.storage), rhs);
     return toStrongOrdering(result);
 }
@@ -203,19 +203,27 @@ std::string APInt::toString() const {
     return std::move(sstr).str();
 }
 
-std::ostream& operator<<(std::ostream& ostream, APInt const& number) {
+std::ostream& scatha::operator<<(std::ostream& ostream, APInt const& number) {
     int const base = [&] {
         auto const flags = ostream.flags();
         return flags & std::ios::dec ? 10 :
                flags & std::ios::hex ? 16 :
-                                       (SC_ASSERT(flags & std::ios::oct,
-                                                  "Must be 'oct' here"),
-                                        8);
+                                       (SC_ASSERT(flags & std::ios::oct, "Must be 'oct' here"), 8);
     }();
-    auto const size = mpz_sizeinbase(as_mpz(number.storage), base) + 2; // 2 extra chars for possible minus sign and null terminator.
+    auto const size =
+        mpz_sizeinbase(as_mpz(number.storage), base) + 2; // 2 extra chars for possible minus sign and null terminator.
     char* const buffer = static_cast<char*>(alloca(size));
     mpz_get_str(buffer, base, as_mpz(number.storage));
     return ostream << buffer;
 }
 
-} // namespace scatha
+std::size_t std::hash<scatha::APInt>::operator()(scatha::APInt const& value) const {
+    auto const* const data = mpz_limbs_read(as_mpz(value.storage));
+    size_t const size      = mpz_size(as_mpz(value.storage));
+    static_assert(sizeof(*data) == 8);
+    uint64_t result = 0;
+    for (size_t i = 0; i < size; ++i) {
+        result ^= data[i];
+    }
+    return result;
+}

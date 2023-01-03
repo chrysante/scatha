@@ -53,10 +53,14 @@ public:
 
     friend struct OpCodeImpl;
 
+    static void setDefaultRegisterCount(size_t count) { defaultRegisterCount = count; }
+    
 private:
     void resizeMemory(size_t newSize);
     void cleanup();
 
+    static size_t defaultRegisterCount;
+    
 private:
     utl::vector<Instruction> instructionTable;
     utl::vector<utl::vector<ExternalFunction>> extFunctionTable;

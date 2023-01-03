@@ -1,7 +1,7 @@
 #include "AST/PrintSource.h"
 
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 #include <utl/common.hpp>
 #include <utl/ranges.hpp>
