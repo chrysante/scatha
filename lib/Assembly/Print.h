@@ -6,7 +6,7 @@
 #include "Assembly/Common.h"
 #include "Basic/Basic.h"
 
-namespace scatha::asm2 {
+namespace scatha::Asm {
 	
 class AssemblyStream;
 
@@ -34,7 +34,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value16 const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value32 const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value64 const&);
 
-} // namespace scatha::asm2
+} // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_PRINT_H_
 

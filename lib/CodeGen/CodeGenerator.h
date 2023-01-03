@@ -3,11 +3,11 @@
 
 #include "Basic/Basic.h"
 
-namespace scatha::asm2 {
+namespace scatha::Asm {
 
 class AssemblyStream;
 
-} // namespace scatha::asm2
+} // namespace scatha::Asm
 
 namespace scatha::ir {
 
@@ -15,11 +15,11 @@ class Module;
 
 } // namespace scatha::ir
 
-namespace scatha::cg2 {
+namespace scatha::cg {
 
-SCATHA(API) asm2::AssemblyStream codegen(ir::Module const& mod);
+SCATHA(API) Asm::AssemblyStream codegen(ir::Module const& mod);
 	
-} // namespace scatha::cg2
+} // namespace scatha::cg
 
 #endif // SCATHA_CODEGEN2_CODEGENERATOR_H_
 

@@ -14,7 +14,7 @@
 #include "VM/Program.h"
 
 using namespace scatha;
-using namespace asm2;
+using namespace Asm;
 
 using vm::OpCode;
 
@@ -91,7 +91,7 @@ struct Context {
 
 } // namespace
 
-vm::Program asm2::assemble(AssemblyStream const& assemblyStream, AssemblerOptions options) {
+vm::Program Asm::assemble(AssemblyStream const& assemblyStream, AssemblerOptions options) {
     vm::Program program;
     Context ctx(assemblyStream, options, program);
     ctx.run();

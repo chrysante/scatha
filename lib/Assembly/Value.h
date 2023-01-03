@@ -8,7 +8,7 @@
 #include "Basic/Basic.h"
 #include "Assembly/Common.h"
 
-namespace scatha::asm2 {
+namespace scatha::Asm {
 
 /// Base class of all values in the assembly module.
 /// This defines the main interface of the value class.
@@ -123,7 +123,7 @@ public:
     ValueType valueType() const { return static_cast<ValueType>(index()); }
 };
 
-} // namespace scatha::asm2
+} // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_VALUES_H_
 

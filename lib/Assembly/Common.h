@@ -6,7 +6,7 @@
 
 #include "Basic/Basic.h"
 
-namespace scatha::asm2 {
+namespace scatha::Asm {
 
 /// Value types in asm. There are exactly 3 types: signed, unsigned and float
 enum class Type {
@@ -70,7 +70,7 @@ SCATHA(API) std::string_view toString(ArithmeticOperation operation);
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation operation);
 
-} // namespace scatha::asm2
+} // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_COMMON_H_
 

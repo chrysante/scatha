@@ -6,7 +6,7 @@
 #include "Assembly/Print.h"
 
 using namespace scatha;
-using namespace asm2;
+using namespace Asm;
 
 void playground::testAsmModule() {
     AssemblyStream stream;

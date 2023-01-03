@@ -1,3 +1,3 @@
 #include "Assembly/Value.h"
 
-using namespace scatha::asm2;
+using namespace scatha::Asm;

@@ -1,7 +1,7 @@
 #include "Assembly/Instruction.h"
 
 using namespace scatha;
-using namespace asm2;
+using namespace Asm;
 
 void ArithmeticInst::verify() const {
     SC_ASSERT(operation() != ArithmeticOperation::_count, "Invalid operation.");

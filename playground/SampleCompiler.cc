@@ -150,7 +150,7 @@ void playground::compile(std::string text) {
     ir::print(mod);
     
     header(" Assembly generated from IR ");
-    auto const str0 = cg2::codegen(mod);
+    auto const str0 = cg::codegen(mod);
     print(str0);
     
     header(" Assembled Program ");
@@ -171,7 +171,7 @@ void playground::compile(std::string text) {
         std::cout << "No main function defined!\n";
         return;
     }
-    auto const program = asm2::assemble(str0, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
+    auto const program = Asm::assemble(str0, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
 
     subHeader();
 

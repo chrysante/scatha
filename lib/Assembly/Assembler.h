@@ -11,7 +11,7 @@ class Program;
 
 } // namespace scatha::vm
 
-namespace scatha::asm2 {
+namespace scatha::Asm {
 
 class AssemblyStream;
 
@@ -21,6 +21,6 @@ struct AssemblerOptions {
 
 SCATHA(API) vm::Program assemble(AssemblyStream const& assemblyStream, AssemblerOptions options = {});
 
-} // namespace scatha::asm2
+} // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_ASSEMBLER_H_

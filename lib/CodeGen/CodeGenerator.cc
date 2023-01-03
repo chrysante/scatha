@@ -13,8 +13,8 @@
 #include "IR/Context.h"
 
 using namespace scatha;
-using namespace asm2;
-using namespace cg2;
+using namespace Asm;
+using namespace cg;
 
 namespace {
 
@@ -54,16 +54,16 @@ struct Context {
 
 } // namespace
 
-AssemblyStream cg2::codegen(ir::Module const& mod) {
+AssemblyStream cg::codegen(ir::Module const& mod) {
     AssemblyStream result;
     Context ctx(result);
     ctx.run(mod);
     return result;
 }
 
-static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op);
+static Asm::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op);
 
-static asm2::CompareOperation mapCompare(ir::CompareOperation op);
+static Asm::CompareOperation mapCompare(ir::CompareOperation op);
 
 void Context::run(ir::Module const& mod) {
     for (auto& function: mod.functions()) {
@@ -126,7 +126,7 @@ void Context::generate(ir::Load const& load) {
     result.add(MoveInst(currentRD().resolve(load), src));
 }
 
-static asm2::Type mapType(ir::Type const* type) {
+static Asm::Type mapType(ir::Type const* type) {
     if (type->isIntegral()) {
         /// TODO: Also handle unsigned comparison.
         return Type::Signed;
@@ -148,7 +148,7 @@ void Context::generate(ir::CompareInst const& cmp) {
         result.add(MoveInst(tmpRegIdx, resolvedLhs));
         return tmpRegIdx;
     }();
-    result.add(asm2::CompareInst(mapType(cmp.type()), lhs, currentRD().resolve(*cmp.rhs())));
+    result.add(Asm::CompareInst(mapType(cmp.type()), lhs, currentRD().resolve(*cmp.rhs())));
     if (true) /// Actually we should check if the users of this cmp instruction care about having the result in the
               /// corresponding register. Since we don't have use and user lists yet we do this unconditionally. This
               /// should not introduce errors, it's only inefficient to execute.
@@ -185,7 +185,7 @@ void Context::generate(ir::ArithmeticInst const& arithmetic) {
     // TODO: Make the move of the source argument conditional?
     auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
     result.add(MoveInst(dest, currentRD().resolve(*arithmetic.lhs())));
-    result.add(asm2::ArithmeticInst(mapArithmetic(arithmetic.operation()),
+    result.add(Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
                                     mapType(arithmetic.type()),
                                     dest,
                                     currentRD().resolve(*arithmetic.rhs())));
@@ -287,30 +287,30 @@ size_t Context::makeLabelImpl(ir::Value const& value) {
     return itr->second;
 }
 
-static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
-    return UTL_MAP_ENUM(op, asm2::ArithmeticOperation, {
-        { ir::ArithmeticOperation::Add,    asm2::ArithmeticOperation::Add },
-        { ir::ArithmeticOperation::Sub,    asm2::ArithmeticOperation::Sub },
-        { ir::ArithmeticOperation::Mul,    asm2::ArithmeticOperation::Mul },
-        { ir::ArithmeticOperation::Div,    asm2::ArithmeticOperation::Div },
-        { ir::ArithmeticOperation::UDiv,   asm2::ArithmeticOperation::Div },
-        { ir::ArithmeticOperation::Rem,    asm2::ArithmeticOperation::Rem },
-        { ir::ArithmeticOperation::URem,   asm2::ArithmeticOperation::Rem },
-        { ir::ArithmeticOperation::ShiftL, asm2::ArithmeticOperation::ShL },
-        { ir::ArithmeticOperation::ShiftR, asm2::ArithmeticOperation::ShR },
-        { ir::ArithmeticOperation::And,    asm2::ArithmeticOperation::And },
-        { ir::ArithmeticOperation::Or,     asm2::ArithmeticOperation::Or  },
-        { ir::ArithmeticOperation::XOr,    asm2::ArithmeticOperation::XOr },
+static Asm::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
+    return UTL_MAP_ENUM(op, Asm::ArithmeticOperation, {
+        { ir::ArithmeticOperation::Add,    Asm::ArithmeticOperation::Add },
+        { ir::ArithmeticOperation::Sub,    Asm::ArithmeticOperation::Sub },
+        { ir::ArithmeticOperation::Mul,    Asm::ArithmeticOperation::Mul },
+        { ir::ArithmeticOperation::Div,    Asm::ArithmeticOperation::Div },
+        { ir::ArithmeticOperation::UDiv,   Asm::ArithmeticOperation::Div },
+        { ir::ArithmeticOperation::Rem,    Asm::ArithmeticOperation::Rem },
+        { ir::ArithmeticOperation::URem,   Asm::ArithmeticOperation::Rem },
+        { ir::ArithmeticOperation::ShiftL, Asm::ArithmeticOperation::ShL },
+        { ir::ArithmeticOperation::ShiftR, Asm::ArithmeticOperation::ShR },
+        { ir::ArithmeticOperation::And,    Asm::ArithmeticOperation::And },
+        { ir::ArithmeticOperation::Or,     Asm::ArithmeticOperation::Or  },
+        { ir::ArithmeticOperation::XOr,    Asm::ArithmeticOperation::XOr },
     });
 }
 
-static asm2::CompareOperation mapCompare(ir::CompareOperation op) {
-    return UTL_MAP_ENUM(op, asm2::CompareOperation, {
-        { ir::CompareOperation::Less,      asm2::CompareOperation::Less      },
-        { ir::CompareOperation::LessEq,    asm2::CompareOperation::LessEq    },
-        { ir::CompareOperation::Greater,   asm2::CompareOperation::Greater   },
-        { ir::CompareOperation::GreaterEq, asm2::CompareOperation::GreaterEq },
-        { ir::CompareOperation::Equal,     asm2::CompareOperation::Eq        },
-        { ir::CompareOperation::NotEqual,  asm2::CompareOperation::NotEq     },
+static Asm::CompareOperation mapCompare(ir::CompareOperation op) {
+    return UTL_MAP_ENUM(op, Asm::CompareOperation, {
+        { ir::CompareOperation::Less,      Asm::CompareOperation::Less      },
+        { ir::CompareOperation::LessEq,    Asm::CompareOperation::LessEq    },
+        { ir::CompareOperation::Greater,   Asm::CompareOperation::Greater   },
+        { ir::CompareOperation::GreaterEq, Asm::CompareOperation::GreaterEq },
+        { ir::CompareOperation::Equal,     Asm::CompareOperation::Eq        },
+        { ir::CompareOperation::NotEqual,  Asm::CompareOperation::NotEq     },
     });
 }

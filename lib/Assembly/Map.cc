@@ -3,13 +3,13 @@
 #include <utl/utility.hpp>
 
 using namespace scatha;
-using namespace asm2;
+using namespace Asm;
 
 using vm::OpCode;
 
 // clang-format off
 
-OpCode asm2::mapMove(ValueType dest, ValueType source) {
+OpCode Asm::mapMove(ValueType dest, ValueType source) {
     if (dest == ValueType::RegisterIndex) {
         switch (source) {
         case ValueType::RegisterIndex:
@@ -28,7 +28,7 @@ OpCode asm2::mapMove(ValueType dest, ValueType source) {
     SC_DEBUGFAIL(); // No matching instruction
 }
 
-OpCode asm2::mapJump(CompareOperation condition) {
+OpCode Asm::mapJump(CompareOperation condition) {
     return UTL_MAP_ENUM(condition, OpCode, {
         { CompareOperation::None,      OpCode::jmp },
         { CompareOperation::Less,      OpCode::jl  },
@@ -40,7 +40,7 @@ OpCode asm2::mapJump(CompareOperation condition) {
     });
 }
 
-OpCode asm2::mapCompare(Type type, ValueType lhs, ValueType rhs) {
+OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs) {
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::RegisterIndex) {
         return UTL_MAP_ENUM(type, OpCode, {
             { Type::Signed,   OpCode::icmpRR },
@@ -58,7 +58,7 @@ OpCode asm2::mapCompare(Type type, ValueType lhs, ValueType rhs) {
     SC_DEBUGFAIL(); // No matching instruction
 }
 
-OpCode asm2::mapTest(Type type) {
+OpCode Asm::mapTest(Type type) {
     return UTL_MAP_ENUM(type, OpCode, {
         { Type::Signed,   OpCode::itest  },
         { Type::Unsigned, OpCode::utest  },
@@ -66,7 +66,7 @@ OpCode asm2::mapTest(Type type) {
     });
 }
 
-OpCode asm2::mapSet(CompareOperation operation) {
+OpCode Asm::mapSet(CompareOperation operation) {
     return UTL_MAP_ENUM(operation, OpCode, {
         { CompareOperation::None,      OpCode::_count },
         { CompareOperation::Less,      OpCode::setl  },
@@ -78,7 +78,7 @@ OpCode asm2::mapSet(CompareOperation operation) {
     });
 }
 
-OpCode asm2::mapArithmetic(ArithmeticOperation operation, Type type, ValueType dest, ValueType source) {
+OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType dest, ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex) {
         switch (type) {
         case Type::Signed:

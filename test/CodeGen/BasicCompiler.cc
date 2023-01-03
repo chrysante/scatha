@@ -38,7 +38,7 @@ vm::Program compile(std::string_view text) {
     }
     ir::Context ctx;
     auto mod = ast::codegen(*ast, sym, ctx);
-    auto asmStream = cg2::codegen(mod);
+    auto asmStream = cg::codegen(mod);
     /// Start execution with main if it exists.
     auto const mainID = [&sym] {
         auto const id  = sym.lookup("main");
@@ -52,7 +52,7 @@ vm::Program compile(std::string_view text) {
         }
         return mainFn->symbolID();
     }();
-    return asm2::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
+    return Asm::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
 }
 
 vm::VirtualMachine compileAndExecute(std::string_view text) {

@@ -1,3 +1,3 @@
 #include "Assembly/AssemblyStream.h"
 
-using namespace scatha::asm2;
+using namespace scatha::Asm;

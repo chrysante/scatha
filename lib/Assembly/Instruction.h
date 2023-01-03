@@ -8,7 +8,7 @@
 #include "Assembly/Common.h"
 #include "Assembly/Value.h"
 
-namespace scatha::asm2 {
+namespace scatha::Asm {
 
 /// Base class of all instructions in the assembly module.
 class InstructionBase {
@@ -219,6 +219,6 @@ public:
     InstructionType instructionType() const { return static_cast<InstructionType>(index()); }
 };
 
-} // namespace scatha::asm2
+} // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_STATEMENTS_H_

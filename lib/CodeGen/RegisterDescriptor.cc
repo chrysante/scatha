@@ -3,8 +3,8 @@
 #include "IR/CFG.h"
 
 using namespace scatha;
-using namespace cg2;
-using namespace asm2;
+using namespace cg;
+using namespace Asm;
 
 Value RegisterDescriptor::resolve(ir::Value const& value) {
     if (auto* constant = dyncast<ir::IntegralConstant const*>(&value)) {

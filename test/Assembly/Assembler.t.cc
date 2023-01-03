@@ -8,7 +8,7 @@
 #include "VM/VirtualMachine.h"
 
 using namespace scatha;
-using namespace scatha::asm2;
+using namespace scatha::Asm;
 
 static vm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
     vm::Program p = assemble(str);

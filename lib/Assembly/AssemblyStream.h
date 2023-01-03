@@ -7,7 +7,7 @@
 #include "Assembly/Value.h"
 #include "Assembly/Instruction.h"
 
-namespace scatha::asm2 {
+namespace scatha::Asm {
 	
 class AssemblyStream {
 public:
@@ -39,7 +39,7 @@ private:
     std::list<Instruction> elems;
 };
 	
-} // namespace scatha::asm2
+} // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_ASSEMBLYSTREAM_H_
 
