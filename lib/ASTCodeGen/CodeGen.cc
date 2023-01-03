@@ -147,7 +147,7 @@ ir::Value* Context::generate(VariableDeclaration const& varDecl) {
 }
 
 ir::Value* Context::generate(ParameterDeclaration const&) {
-    SC_UNREACHABLE("Handled by generate(FunctionDefinition const&)");
+    SC_UNREACHABLE("Handled by generate(FunctionDefinition)");
 }
 
 ir::Value* Context::generate(ExpressionStatement const& exprStatement) {

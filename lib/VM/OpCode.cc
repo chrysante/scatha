@@ -287,7 +287,6 @@ struct OpCodeImpl {
             u8* const ptr        = getPointer(reg, i);
             size_t const fromRegIdx = i[3];
             VM_ASSERT(reinterpret_cast<size_t>(ptr) % 8 == 0);
-//            VM_ASSERT(ptr >= vm->programBreak && "Trying to write to the instruction set");
             std::memcpy(ptr, &reg[fromRegIdx], 8);
             return codeSize(movMR);
         };
@@ -295,7 +294,6 @@ struct OpCodeImpl {
             size_t const toRegIdx = i[0];
             u8* const ptr      = getPointer(reg, i + 1);
             VM_ASSERT(reinterpret_cast<size_t>(ptr) % 8 == 0);
-//            VM_WARNING(ptr >= vm->programBreak, "Reading memory from the instruction set");
             std::memcpy(&reg[toRegIdx], ptr, 8);
             return codeSize(movRM);
         };

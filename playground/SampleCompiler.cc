@@ -91,8 +91,7 @@ void playground::compile(std::string text) {
         utl::print("No syntax issues.\n");
     }
     else {
-        utl::print("\nEncoutered {} issues\n", parseIss.issues().size());
-        subHeader();
+        utl::print("\nEncoutered {} issues:\n", parseIss.issues().size());
         for (SyntaxIssue const& issue : parseIss.issues()) {
             auto const loc = issue.token().sourceLocation;
             std::cout << "\tLine " << loc.line << " Col " << loc.column << ": ";
