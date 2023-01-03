@@ -62,6 +62,10 @@ std::ostream& asm2::operator<<(std::ostream& str, StoreRegAddress const& sra) {
     return str << instName("storeRegAddress") << " " << sra.dest() << ", &" << sra.source();
 }
 
+std::ostream& asm2::operator<<(std::ostream& str, Label const& label) {
+    return str << label.name() << "/" << label.id() << ":";
+}
+
 std::ostream& asm2::operator<<(std::ostream& str, Value const& value) {
     return value.visit([&](auto& value) -> auto& { return str << value; });
 }

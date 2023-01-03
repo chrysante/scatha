@@ -53,6 +53,11 @@ public:
         elems.push_back(inst);
     }
     
+    size_t count() const { return elems.size(); }
+    
+    Instruction& operator[](size_t index) { return elems[index]; }
+    Instruction const& operator[](size_t index) const { return elems[index]; }
+    
 private:
     Vector elems;
 };

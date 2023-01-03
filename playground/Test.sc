@@ -22,8 +22,11 @@
 // }
 
 fn main() -> int {
-    var c = true;
-    return 1 > 0 ? 1 : 0;
+    var i = 3 * 5;
+    return i;
+
+    // var c = true;
+    // return 1 > 0 ? 1 : 0;
     // return c ? 1 : 0;
     // return fac(4);
 }

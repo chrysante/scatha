@@ -22,6 +22,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ReturnInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, SetInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, StoreRegAddress const&);
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Label const&);
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, RegisterIndex const&);

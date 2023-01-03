@@ -37,8 +37,8 @@ struct Context {
     void generate(ir::Return const&);
     void generate(ir::Phi const&);
     
-    std::unique_ptr<Label> makeLabel(ir::BasicBlock const&);
-    std::unique_ptr<Label> makeLabel(ir::Function const&);
+    Label makeLabel(ir::BasicBlock const&);
+    Label makeLabel(ir::Function const&);
     size_t makeLabelImpl(ir::Value const&);
     
     RegisterDescriptor& currentRD() { return *_currentRD; }
@@ -89,44 +89,30 @@ void Context::generate(ir::BasicBlock const& bb) {
 }
 
 void Context::generate(ir::Alloca const& allocaInst) {
-    /// MARK: Todo list
-    /// - Remove necessity for the enterFn instruction: Preallocate e.g. 8mb of registers and never reallocate. This
-    ///   way 'all' positive register indices are available for function execution and all we have to do is bump the
-    ///   register pointer on function calls. [done]
-    /// - Then we still have to solve pointer invalidation on memory reallocation but that should be solvable somehow. [later]
-    /// - Once we have both of these we can switch to using real pointers in the VM execution. 
-    /// - Then implementation of alloca will be a walk in the park. Just bump the index of the register descriptor by
-    ///   ceil_divide(size, reg_size), handle overalignment somehow and return the register pointer plus offset.
-    ///   We already have load and store operations (movMR, movRM, etc).
-    
     SC_ASSERT(allocaInst.allocatedType()->align() <= 8, "We don't support overaligned types just yet.");
-    result.add(std::make_unique<StoreRegAddress>(
-                   cast<RegisterIndex>(currentRD().resolve(allocaInst)),
-                   currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
+    result.add(StoreRegAddress(currentRD().resolve(allocaInst).get<RegisterIndex>(),
+                               currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
 }
 
 void Context::generate(ir::Store const& store) {
     auto destRegIdx = currentRD().resolve(*store.address());
-    auto dest = std::make_unique<MemoryAddress>(cast<RegisterIndex const&>(*destRegIdx).value(), 0, 0);
+    auto dest = MemoryAddress(destRegIdx.get<RegisterIndex>().value(), 0, 0);
     auto src = currentRD().resolve(*store.value());
-    if (auto* value = dyncast<Value64 const*>(src.get())) {
+    if (src.is<Value64>()) {
         /// \p src is a value and must be stored in temporary register first.
         auto tmp = currentRD().makeTemporary();
-        auto tmp2 = std::make_unique<RegisterIndex>(*tmp);
-        result.add(std::make_unique<MoveInst>(std::move(tmp), std::move(src)));
-        result.add(std::make_unique<MoveInst>(std::move(dest), std::move(tmp2)));
+        result.add(MoveInst(tmp, src));
+        result.add(MoveInst(dest, tmp));
     }
     else {
-        result.add(std::make_unique<MoveInst>(std::move(dest), std::move(src)));
+        result.add(MoveInst(dest, src));
     }
 }
 
 void Context::generate(ir::Load const& load) {
     auto addr = currentRD().resolve(*load.address());
-    auto src = std::make_unique<MemoryAddress>(cast<RegisterIndex const&>(*addr).value(), 0, 0);
-    result.add(std::make_unique<MoveInst>(
-                   currentRD().resolve(load),
-                   std::move(src)));
+    auto src = MemoryAddress(addr.get<RegisterIndex>().value(), 0, 0);
+    result.add(MoveInst(currentRD().resolve(load), src));
 }
 
 static asm2::Type mapType(ir::Type const* type) {
@@ -141,10 +127,9 @@ static asm2::Type mapType(ir::Type const* type) {
 }
 
 void Context::generate(ir::CompareInst const& cmp) {
-    result.add(std::make_unique<asm2::CompareInst>(
-                   mapType(cmp.type()),
-                   currentRD().resolve(*cmp.lhs()),
-                   currentRD().resolve(*cmp.rhs())));
+    result.add(asm2::CompareInst(mapType(cmp.type()),
+                                 currentRD().resolve(*cmp.lhs()),
+                                 currentRD().resolve(*cmp.rhs())));
 }
 
 static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
@@ -165,13 +150,12 @@ static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
 }
 
 void Context::generate(ir::ArithmeticInst const& arithmetic) {
-    auto dest = cast<RegisterIndex>(currentRD().resolve(arithmetic));
-    auto dest2 = std::make_unique<RegisterIndex>(*dest);
-    result.add(std::make_unique<MoveInst>(std::move(dest), currentRD().resolve(*arithmetic.lhs())));
-    result.add(std::make_unique<asm2::ArithmeticInst>(
+    auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
+    result.add(MoveInst(dest, currentRD().resolve(*arithmetic.lhs())));
+    result.add(asm2::ArithmeticInst(
                    mapArithmetic(arithmetic.operation()),
                    mapType(arithmetic.type()),
-                   std::move(dest2),
+                   dest,
                    currentRD().resolve(*arithmetic.rhs())));
 }
 
@@ -189,45 +173,43 @@ static asm2::CompareOperation mapCompare(ir::CompareOperation op) {
 }
 
 void Context::generate(ir::Goto const& gt) {
-    result.add(std::make_unique<JumpInst>(makeLabel(*gt.target())));
+    result.add(JumpInst(makeLabel(*gt.target()).id()));
 }
 
 void Context::generate(ir::Branch const& br) {
     auto const& cond = *cast<ir::CompareInst const*>(br.condition());
-    result.add(std::make_unique<JumpInst>(
-                   mapCompare(cond.operation()),
-                   makeLabel(*br.thenTarget())));
-    result.add(std::make_unique<JumpInst>(makeLabel(*br.elseTarget())));
+    result.add(JumpInst(mapCompare(cond.operation()), makeLabel(*br.thenTarget()).id()));
+    result.add(JumpInst(makeLabel(*br.elseTarget()).id()));
 }
 
 void Context::generate(ir::FunctionCall const& call) {
-    utl::small_vector<RegisterIndex*> parameterRegisterLocations;
+    utl::small_vector<size_t> parameterRegIdxLocations;
     for (auto const arg: call.arguments()) {
         // TODO: Are the arguments evaluated here?
-        auto argRegIdx = std::make_unique<RegisterIndex>(0xFF);
-        parameterRegisterLocations.push_back(argRegIdx.get());
-        result.add(std::make_unique<MoveInst>(
-                       std::move(argRegIdx),
-                       currentRD().resolve(*arg)));
+        auto argRegIdx = RegisterIndex(0xFF);
+        parameterRegIdxLocations.push_back(result.count());
+        result.add(MoveInst(argRegIdx, currentRD().resolve(*arg)));
     }
-    for (auto const& [index, regIdx]: utl::enumerate(parameterRegisterLocations)) {
-        regIdx->setValue(currentRD().numUsedRegisters() + 2 + index);
+    for (auto const& [index, regIdxLoc]: utl::enumerate(parameterRegIdxLocations)) {
+        result[regIdxLoc]
+            .get<MoveInst>()
+            .dest()
+            .get<RegisterIndex>()
+            .setValue(currentRD().numUsedRegisters() + 2 + index);
     }
-    result.add(std::make_unique<CallInst>(makeLabel(*call.function()), currentRD().numUsedRegisters() + 2));
+    result.add(CallInst(makeLabel(*call.function()).id(), currentRD().numUsedRegisters() + 2));
     if (call.type()->isVoid()) {
         return;
     }
     size_t const resultLocation = currentRD().numUsedRegisters() + 2;
-    result.add(std::make_unique<MoveInst>(
-                   currentRD().resolve(call),
-                   std::make_unique<RegisterIndex>(resultLocation)));
+    result.add(MoveInst(currentRD().resolve(call), RegisterIndex(resultLocation)));
 }
 
 void Context::generate(ir::Return const& ret) {
     if (ret.value()) {
-        result.add(std::make_unique<MoveInst>(std::make_unique<RegisterIndex>(0), currentRD().resolve(*ret.value())));
+        result.add(MoveInst(RegisterIndex(0), currentRD().resolve(*ret.value())));
     }
-    result.add(std::make_unique<ReturnInst>());
+    result.add(ReturnInst());
 }
 
 void Context::generate(ir::Phi const& phi) {
@@ -236,12 +218,12 @@ void Context::generate(ir::Phi const& phi) {
     /// Then make this value resolve to that register index.
 }
 
-std::unique_ptr<Label> Context::makeLabel(ir::BasicBlock const& bb) {
-    return std::make_unique<Label>(makeLabelImpl(bb), std::string(bb.name()));
+Label Context::makeLabel(ir::BasicBlock const& bb) {
+    return Label(makeLabelImpl(bb), std::string(bb.name()));
 }
 
-std::unique_ptr<Label> Context::makeLabel(ir::Function const& fn) {
-    return std::make_unique<Label>(makeLabelImpl(fn), std::string(fn.name()));
+Label Context::makeLabel(ir::Function const& fn) {
+    return Label(makeLabelImpl(fn), std::string(fn.name()));
 }
 
 size_t Context::makeLabelImpl(ir::Value const& value) {

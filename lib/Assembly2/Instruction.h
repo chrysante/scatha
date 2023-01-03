@@ -23,6 +23,7 @@ public:
     explicit MoveInst(Value dest, Value source):
         _dest(dest), _src(source) {}
     
+    Value& dest() { return _dest; }
     Value const& dest() const { return _dest; }
     
     Value const& source() const { return _src; }
