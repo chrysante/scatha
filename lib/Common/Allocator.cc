@@ -73,9 +73,10 @@ void MonotonicBufferAllocator::release() {
 }
 
 void MonotonicBufferAllocator::addChunk(size_t size) {
-    InternalBufferHeader* const newBuffer = static_cast<InternalBufferHeader*>(std::malloc(size + sizeof(InternalBufferHeader)));
-    newBuffer->prev                       = buffer;
-    newBuffer->size                       = size;
+    InternalBufferHeader* const newBuffer =
+        static_cast<InternalBufferHeader*>(std::malloc(size + sizeof(InternalBufferHeader)));
+    newBuffer->prev = buffer;
+    newBuffer->size = size;
 
     buffer  = newBuffer;
     current = reinterpret_cast<u8*>(newBuffer) + sizeof(InternalBufferHeader);

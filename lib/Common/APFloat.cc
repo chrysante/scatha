@@ -5,8 +5,8 @@
 #include <string>
 
 #include <mpfr.h>
-#include <utl/utility.hpp>
 #include <utl/scope_guard.hpp>
+#include <utl/utility.hpp>
 
 using namespace scatha;
 
@@ -17,15 +17,17 @@ auto* internal::asImpl(APFloat const& f) {
 
 namespace scatha::internal {
 
-static auto* asImpl(APFloat& f) { return const_cast<mpfr_ptr>(asImpl(static_cast<APFloat const&>(f))); }
+static auto* asImpl(APFloat& f) {
+    return const_cast<mpfr_ptr>(asImpl(static_cast<APFloat const&>(f)));
+}
 
-} // namespace scatha
+} // namespace scatha::internal
 
 using internal::asImpl;
 
 static constexpr auto roundingMode = MPFR_RNDN;
 
-/// This unfortunately is global.
+/// This unfortunately is global. Luckily though it is implemented as a thread local variable.
 static void setExponentRange(APFloatPrecision prec) {
     /// Weirdly enough mpfr expects these values to be 1 less/greater than the actual values.
     mpfr_set_emin(prec.minExponent() - 1);
@@ -80,32 +82,31 @@ std::optional<APFloat> APFloat::parse(std::string_view value, int base, Precisio
     APFloat result(precision);
     int status = mpfr_set_str(asImpl(result), value.data(), base, roundingMode);
     if (status == 0) {
-        SC_ASSERT( result.isInf()                                            ||
-                   result.isNaN()                                            ||
-                   result.exponent() == std::numeric_limits<long>::min() + 1 || // When result == 0
-                  (result.exponent() <= precision.maxExponent() &&
-                   result.exponent() >= precision.minExponent()), "");
+        SC_ASSERT(result.isInf() || result.isNaN() ||
+                      result.exponent() == std::numeric_limits<long>::min() + 1 || // When result == 0
+                      (result.exponent() <= precision.maxExponent() && result.exponent() >= precision.minExponent()),
+                  "");
         return std::move(result);
     }
     return std::nullopt;
 }
 
-APFloat& APFloat::operator+=(APFloat const& rhs)& {
+APFloat& APFloat::operator+=(APFloat const& rhs) & {
     mpfr_add(asImpl(*this), asImpl(*this), asImpl(rhs), roundingMode);
     return *this;
 }
 
-APFloat& APFloat::operator-=(APFloat const& rhs)& {
+APFloat& APFloat::operator-=(APFloat const& rhs) & {
     mpfr_sub(asImpl(*this), asImpl(*this), asImpl(rhs), roundingMode);
     return *this;
 }
 
-APFloat& APFloat::operator*=(APFloat const& rhs)& {
+APFloat& APFloat::operator*=(APFloat const& rhs) & {
     mpfr_mul(asImpl(*this), asImpl(*this), asImpl(rhs), roundingMode);
     return *this;
 }
 
-APFloat& APFloat::operator/=(APFloat const& rhs)& {
+APFloat& APFloat::operator/=(APFloat const& rhs) & {
     mpfr_div(asImpl(*this), asImpl(*this), asImpl(rhs), roundingMode);
     return *this;
 }
@@ -204,17 +205,15 @@ std::ostream& scatha::operator<<(std::ostream& ostream, APFloat const& number) {
         auto const flags = ostream.flags();
         return flags & std::ios::dec ? 10 :
                flags & std::ios::hex ? 16 :
-                                       (SC_ASSERT(flags & std::ios::oct,
-                                                  "Must be 'oct' here"),
-                                        8);
+                                       (SC_ASSERT(flags & std::ios::oct, "Must be 'oct' here"), 8);
     }();
     mp_exp_t exponent{};
     char* const tmpString = mpfr_get_str(nullptr, &exponent, base, 0, asImpl(number), roundingMode);
-    utl::scope_guard free = [&]{ std::free(tmpString); };
+    utl::scope_guard free = [&] { std::free(tmpString); };
     std::string stringValue(tmpString);
-    bool const negative = stringValue.front() == '-';
+    bool const negative        = stringValue.front() == '-';
     std::size_t const beginPos = negative ? 1 : 0;
-    std::size_t stringSize = stringValue.size() - negative;
+    std::size_t stringSize     = stringValue.size() - negative;
     if (exponent > 0) {
         while (stringSize < exponent) {
             stringValue.push_back('0');
@@ -230,8 +229,7 @@ std::ostream& scatha::operator<<(std::ostream& ostream, APFloat const& number) {
     }
     if (std::find(stringValue.begin(), stringValue.end(), '.') != stringValue.end()) {
         /// Pop trailing zeros if we have a dot.
-        while (stringValue.size() > 2 &&
-               stringValue[stringValue.size() - 1] == '0' &&
+        while (stringValue.size() > 2 && stringValue[stringValue.size() - 1] == '0' &&
                stringValue[stringValue.size() - 2] != '.')
         {
             stringValue.pop_back();

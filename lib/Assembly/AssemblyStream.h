@@ -2,6 +2,7 @@
 #define SCATHA_ASSEMBLY_ASSEMBLYSTREAM_H_
 
 #include <array>
+#include <variant>
 
 #include <utl/vector.hpp>
 
@@ -14,20 +15,21 @@ class SCATHA(API) AssemblyStream {
     friend class StreamIterator;
 
 public:
-    /** MARK: operator<<
-     * Family of functions for inserting data into the stream
-     */
-    SCATHA(API)
-    friend AssemblyStream& operator<<(AssemblyStream&, Instruction);
-    SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Value8);
-    SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Value16);
-    SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Value32);
-    SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Value64);
-    SCATHA(API)
-    friend AssemblyStream& operator<<(AssemblyStream&, RegisterIndex);
-    SCATHA(API)
-    friend AssemblyStream& operator<<(AssemblyStream&, MemoryAddress);
-    SCATHA(API) friend AssemblyStream& operator<<(AssemblyStream&, Label);
+    /// Family of functions for inserting data into the stream.
+    friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, Instruction);
+    friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, Value8);
+    friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, Value16);
+    friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, Value32);
+    friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, Value64);
+    friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, RegisterIndex);
+    friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, MemoryAddress);
+    friend SCATHA(API) AssemblyStream& operator<<(AssemblyStream&, Label);
+    
+    template <typename... T> requires (requires(AssemblyStream& a, T const& t) { a << t; } && ...)
+    friend AssemblyStream& operator<<(AssemblyStream& a, std::variant<T...> const& v) {
+        std::visit([&](auto const& t) { a << t; }, v);
+        return a;
+    }
 
     u8& operator[](size_t index) { return data[index]; }
     u8 const& operator[](size_t index) const { return data[index]; }

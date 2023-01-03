@@ -67,53 +67,53 @@ std::ostream& operator<<(std::ostream& str, UnaryPrefixOperator op) {
 std::string_view toString(BinaryOperator op) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(op, {
-        { BinaryOperator::Multiplication, "*" },
-        { BinaryOperator::Division,       "/" },
-        { BinaryOperator::Remainder,      "%" },
-        { BinaryOperator::Addition,       "+" },
-        { BinaryOperator::Subtraction,    "-" },
-        { BinaryOperator::LeftShift,      "<<" },
-        { BinaryOperator::RightShift,     ">>" },
-        { BinaryOperator::Less,           "<" },
-        { BinaryOperator::LessEq,         "<=" },
-        { BinaryOperator::Greater,        ">" },
-        { BinaryOperator::GreaterEq,      ">=" },
-        { BinaryOperator::Equals,         "==" },
-        { BinaryOperator::NotEquals,      "!=" },
-        { BinaryOperator::BitwiseAnd,     "&" },
-        { BinaryOperator::BitwiseXOr,     "^" },
-        { BinaryOperator::BitwiseOr,      "|" },
-        { BinaryOperator::LogicalAnd,     "&&" },
-        { BinaryOperator::LogicalOr,      "||" },
-        { BinaryOperator::Assignment,     "=" },
-        { BinaryOperator::AddAssignment,  "+=" },
-        { BinaryOperator::SubAssignment,  "-=" },
-        { BinaryOperator::MulAssignment,  "*=" },
-        { BinaryOperator::DivAssignment,  "/=" },
-        { BinaryOperator::RemAssignment,  "%=" },
+        { BinaryOperator::Multiplication, "*"   },
+        { BinaryOperator::Division,       "/"   },
+        { BinaryOperator::Remainder,      "%"   },
+        { BinaryOperator::Addition,       "+"   },
+        { BinaryOperator::Subtraction,    "-"   },
+        { BinaryOperator::LeftShift,      "<<"  },
+        { BinaryOperator::RightShift,     ">>"  },
+        { BinaryOperator::Less,           "<"   },
+        { BinaryOperator::LessEq,         "<="  },
+        { BinaryOperator::Greater,        ">"   },
+        { BinaryOperator::GreaterEq,      ">="  },
+        { BinaryOperator::Equals,         "=="  },
+        { BinaryOperator::NotEquals,      "!="  },
+        { BinaryOperator::BitwiseAnd,     "&"   },
+        { BinaryOperator::BitwiseXOr,     "^"   },
+        { BinaryOperator::BitwiseOr,      "|"   },
+        { BinaryOperator::LogicalAnd,     "&&"  },
+        { BinaryOperator::LogicalOr,      "||"  },
+        { BinaryOperator::Assignment,     "="   },
+        { BinaryOperator::AddAssignment,  "+="  },
+        { BinaryOperator::SubAssignment,  "-="  },
+        { BinaryOperator::MulAssignment,  "*="  },
+        { BinaryOperator::DivAssignment,  "/="  },
+        { BinaryOperator::RemAssignment,  "%="  },
         { BinaryOperator::LSAssignment,   "<<=" },
         { BinaryOperator::RSAssignment,   ">>=" },
-        { BinaryOperator::AndAssignment,  "&=" },
-        { BinaryOperator::OrAssignment,   "|=" },
-        { BinaryOperator::XOrAssignment,  "^=" },
-        { BinaryOperator::Comma,          "," },
+        { BinaryOperator::AndAssignment,  "&="  },
+        { BinaryOperator::OrAssignment,   "|="  },
+        { BinaryOperator::XOrAssignment,  "^="  },
+        { BinaryOperator::Comma,          ","   },
     });
     // clang-format on
 }
 
 BinaryOperator toNonAssignment(BinaryOperator op) {
     switch (op) {
-        case BinaryOperator::AddAssignment: return BinaryOperator::Addition;
-        case BinaryOperator::SubAssignment: return BinaryOperator::Subtraction;
-        case BinaryOperator::MulAssignment: return BinaryOperator::Multiplication;
-        case BinaryOperator::DivAssignment: return BinaryOperator::Division;
-        case BinaryOperator::RemAssignment: return BinaryOperator::Remainder;
-        case BinaryOperator::LSAssignment: return BinaryOperator::LeftShift;
-        case BinaryOperator::RSAssignment: return BinaryOperator::RightShift;
-        case BinaryOperator::AndAssignment: return BinaryOperator::BitwiseAnd;
-        case BinaryOperator::OrAssignment: return BinaryOperator::BitwiseOr;
-        case BinaryOperator::XOrAssignment: return BinaryOperator::BitwiseXOr;
-        default: SC_UNREACHABLE("'op' must be arithmetic assignment operator");
+    case BinaryOperator::AddAssignment: return BinaryOperator::Addition;
+    case BinaryOperator::SubAssignment: return BinaryOperator::Subtraction;
+    case BinaryOperator::MulAssignment: return BinaryOperator::Multiplication;
+    case BinaryOperator::DivAssignment: return BinaryOperator::Division;
+    case BinaryOperator::RemAssignment: return BinaryOperator::Remainder;
+    case BinaryOperator::LSAssignment: return BinaryOperator::LeftShift;
+    case BinaryOperator::RSAssignment: return BinaryOperator::RightShift;
+    case BinaryOperator::AndAssignment: return BinaryOperator::BitwiseAnd;
+    case BinaryOperator::OrAssignment: return BinaryOperator::BitwiseOr;
+    case BinaryOperator::XOrAssignment: return BinaryOperator::BitwiseXOr;
+    default: SC_UNREACHABLE("'op' must be arithmetic assignment operator");
     }
 }
 

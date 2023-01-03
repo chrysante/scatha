@@ -10,6 +10,7 @@
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblerIssue.h"
+#include "Sema/SymbolTable.h"
 
 namespace scatha::assembly {
 
@@ -48,7 +49,7 @@ struct OpCodeTable {
 vm::OpCode mapUnaryInstruction(Instruction i) {
     switch (i) {
     // clang-format off
-    case Instruction::allocReg:  return vm::OpCode::allocReg;
+    case Instruction::enterFn:  return vm::OpCode::enterFn;
     case Instruction::setBrk:    return vm::OpCode::setBrk;
     case Instruction::call:      return vm::OpCode::call;
     case Instruction::ret:       return vm::OpCode::ret;
@@ -291,7 +292,7 @@ struct Printer {
         str << "    ";
         switch (i) {
             using enum Instruction;
-        case allocReg: str << allocReg << " " << itr.nextAs<Value8>(); return;
+        case enterFn: str << enterFn << " " << itr.nextAs<Value8>(); return;
 
         case setBrk: str << setBrk << " " << itr.nextAs<RegisterIndex>(); return;
 
@@ -308,6 +309,10 @@ struct Printer {
         case callExt:
             str << callExt << " " << itr.nextAs<Value8>() << ", " << itr.nextAs<Value8>() << ", "
                 << itr.nextAs<Value16>();
+            return;
+            
+        case alloca_:
+            str << alloca_ << " " << itr.nextAs<RegisterIndex>() << ", " << itr.nextAs<RegisterIndex>();
             return;
 
         case itest: [[fallthrough]];

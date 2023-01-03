@@ -296,12 +296,13 @@ std::optional<Expected<Token, LexicalIssue>> Context::getStringLiteral() {
 
 std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
     if (currentLocation.index + 3 < textSize() &&
-        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 4) == "true") {
+        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 4) == "true")
+    {
         if (auto const n = next(4); n && isLetterEx(*n)) {
             return std::nullopt;
         }
         TokenData result = beginToken(TokenType::BooleanLiteral);
-        result.id    = "true";
+        result.id        = "true";
         advance(4);
         return result;
     }
@@ -312,7 +313,7 @@ std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
             return std::nullopt;
         }
         TokenData result = beginToken(TokenType::BooleanLiteral);
-        result.id    = "false";
+        result.id        = "false";
         advance(5);
         return result;
     }
@@ -369,11 +370,7 @@ void Context::advanceToNextWhitespace() {
 }
 
 TokenData Context::beginToken(TokenType type) const {
-    return TokenData{
-        .id = std::string{},
-        .type = type,
-        .sourceLocation = currentLocation
-    };
+    return TokenData{ .id = std::string{}, .type = type, .sourceLocation = currentLocation };
 }
 
 char Context::current() const {

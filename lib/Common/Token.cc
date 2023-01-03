@@ -5,8 +5,8 @@
 
 #include <utl/utility.hpp>
 
-#include "Common/APInt.h"
 #include "Common/APFloat.h"
+#include "Common/APInt.h"
 
 namespace scatha {
 

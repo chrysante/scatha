@@ -1,84 +1,86 @@
 #ifndef SCATHA_IR_COMMON_H_
 #define SCATHA_IR_COMMON_H_
 
+#include <iosfwd>
+#include <string_view>
+
+#include "Basic/Basic.h"
 #include "Common/Dyncast.h"
 
 namespace scatha::ir {
 
 ///
-/// ** Forward declarations of types in the GFC **
+/// ** Forward declarations of all types in the GFC **
 ///
 
 // Value
 // ├─ Parameter
 // ├─ Constant
+// │  ├─ IntegralConstant
 // │  └─ Function
 // ├─ BasicBlock
 // └─ Instruction
+//    ├─ Alloca
 //    ├─ UnaryInstruction
-//    │  ├─ Alloca
-//    │  └─ Load
-//    ├─ CompareInst
-//    └─ TerminatorInst
-//       ├─ Goto
-//       ├─ Branch
-//       └─ Return
+//    │  ├─ Load
+//    │  └─ UnaryArithmeticInst
+//    ├─ BinaryInstruction
+//    │  ├─ Store
+//    │  ├─ CompareInst
+//    │  └─ ArithmeticInst
+//    ├─ TerminatorInst
+//    │  ├─ Goto
+//    │  ├─ Branch
+//    │  └─ Return
+//    ├─ FunctionCall
+//    └─ Phi
 
-class Value;
-class Parameter;
-class Constant;
-class Function;
-class BasicBlock;
-class Instruction;
-class UnaryInstruction;
-class Alloca;
-class Load;
-class CompareInst;
-class TerminatorInst;
-class Goto;
-class Branch;
-class Return;
+#define SC_CGFNODE_DEF(Inst) class Inst;
+#include "IR/Instructions.def"
 
 enum class NodeType {
-    Value,
-    Parameter,
-    Constant,
-    Function,
-    BasicBlock,
-    Instruction,
-    UnaryInstruction,
-    Alloca,
-    Load,
-    CompareInst,
-    TerminatorInst,
-    Goto,
-    Branch,
-    Return,
-
+#define SC_CGFNODE_DEF(Inst) Inst,
+#include "IR/Instructions.def"
     _count
 };
 
+SCATHA(API) std::string_view toString(NodeType nodeType);
+
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
+
+enum class CompareOperation {
+#define SC_COMPARE_OPERATION_DEF(Inst, _) Inst,
+#include "IR/Instructions.def"
+    _count
+};
+
+SCATHA(API) std::string_view toString(CompareOperation op);
+
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation op);
+
+enum class UnaryArithmeticOperation {
+#define SC_UNARY_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
+#include "IR/Instructions.def"
+    _count
+};
+
+SCATHA(API) std::string_view toString(UnaryArithmeticOperation op);
+
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOperation op);
+
+enum class ArithmeticOperation {
+#define SC_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
+#include "IR/Instructions.def"
+    _count
+};
+
+SCATHA(API) std::string_view toString(ArithmeticOperation op);
+
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation op);
+
 } // namespace scatha::ir
 
-#define SC_IR_ENABLE_DYNCAST(type) SC_DYNCAST_MAP(scatha::ir::type, scatha::ir::NodeType::type)
-
-SC_IR_ENABLE_DYNCAST(Value);
-SC_IR_ENABLE_DYNCAST(Parameter);
-SC_IR_ENABLE_DYNCAST(Constant);
-SC_IR_ENABLE_DYNCAST(Function);
-SC_IR_ENABLE_DYNCAST(BasicBlock);
-SC_IR_ENABLE_DYNCAST(Instruction);
-SC_IR_ENABLE_DYNCAST(UnaryInstruction);
-SC_IR_ENABLE_DYNCAST(Alloca);
-SC_IR_ENABLE_DYNCAST(Load);
-SC_IR_ENABLE_DYNCAST(CompareInst);
-SC_IR_ENABLE_DYNCAST(TerminatorInst);
-SC_IR_ENABLE_DYNCAST(Goto);
-SC_IR_ENABLE_DYNCAST(Branch);
-SC_IR_ENABLE_DYNCAST(Return);
-
-#undef SC_IR_ENABLE_DYNCAST
-
-namespace scatha::ir {} // namespace scatha::ir
+#define SC_CGFNODE_DEF(Inst) SC_DYNCAST_MAP(::scatha::ir::Inst, ::scatha::ir::NodeType::Inst);
+#include "IR/Instructions.def"
 
 #endif // SCATHA_IR_COMMON_H_

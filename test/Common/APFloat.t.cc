@@ -74,6 +74,18 @@ TEST_CASE("APFloat arithmetic", "[common][big-num]") {
         n *= 0.25;
         CHECK(n == 0.5);
     }
+    SECTION("Multiplication - 2") {
+        APFloat const n = APFloat::parse("0.5").value();
+        APFloat const result = n * n * n;
+        APFloat const apfRef = APFloat::parse("0.125").value();
+        CHECK(result == apfRef);
+        double const doubleRef = 0.125;
+        CHECK(result == doubleRef);
+        double const doubleN = static_cast<double>(n);
+        double const doubleResult = doubleN * doubleN * doubleN;
+        CHECK(doubleResult == static_cast<double>(apfRef));
+        CHECK(doubleResult == doubleRef);
+    }
     SECTION("Division") {
         APFloat n = 1;
         n /= 2;

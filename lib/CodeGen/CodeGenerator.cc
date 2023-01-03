@@ -29,7 +29,7 @@ assembly::AssemblyStream CodeGenerator::run() {
             a << toAsm(label);
             SC_ASSERT(rd.empty(), "rd has not been cleared");
             rd.declareParameters(label);
-            a << Instruction::allocReg;
+            a << Instruction::enterFn;
             a << Value8(0xFF); // 0xFF is a placeholder
             currentFunction.allocRegArgIndex = a.size() - Value8::size();
                          },

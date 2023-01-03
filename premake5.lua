@@ -20,8 +20,8 @@ filter {}
 
 flags { "MultiProcessorCompile" }
 
-targetdir("build/bin/%{cfg.longname}")
-objdir("build/obj/%{cfg.longname}")
+targetdir "build/bin/%{cfg.longname}"
+objdir "build/obj/%{cfg.longname}"
 
 architecture "x86_64"
 
@@ -46,6 +46,7 @@ project "scatha-lib"
 kind "SharedLib"
 
 addCppFiles "lib"
+files "lib/**.def"
 addCppFiles "include/scatha"
 externalincludedirs { "external/utility/include", "external/gmp/build/include", "external/mpfr/build/include" }
 includedirs { "lib" }
@@ -66,7 +67,7 @@ addCppFiles "app"
 externalincludedirs {
     "include",
     "lib",
-    "external/utility",
+    "external/utility/include",
     "external/termfmt"
 }
 
@@ -85,10 +86,8 @@ externalincludedirs {
 
 externalincludedirs { "lib" }
 
---prebuildcommands { "./format-all.sh test/" }
-
 addCppFiles "test"
-links { "scatha-lib" } 
+links { "scatha-lib", "utility" } 
 
 ------------------------------------------
 project "playground"
@@ -102,9 +101,10 @@ files "playground/**.sc"
 links { "scatha-lib", "utility" }
 
 filter { "system:macosx"} 
-    defines { "PROJECT_LOCATION=\"../../..\"" } -- use different (maybe less fragile) solution for windows
+    defines { "PROJECT_LOCATION=\"${PROJECT_DIR}\"" }
 filter { "system:windows" }
     defines { "PROJECT_LOCATION=R\"($(ProjectDir))\"" }
+filter {}
 
 ------------------------------------------
 include "external/utility/lib.lua"

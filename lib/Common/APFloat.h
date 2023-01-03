@@ -82,19 +82,31 @@ public:
 
     APFloat& operator+=(APFloat const& rhs) &;
     template <typename T>
-    requires std::is_arithmetic_v<T> APFloat& operator+=(T rhs) & { return *this += APFloat(rhs); }
+    requires std::is_arithmetic_v<T>
+    APFloat& operator+=(T rhs) & {
+        return *this += APFloat(rhs);
+    }
 
     APFloat& operator-=(APFloat const& rhs) &;
     template <typename T>
-    requires std::is_arithmetic_v<T> APFloat& operator-=(T rhs) & { return *this -= APFloat(rhs); }
+    requires std::is_arithmetic_v<T>
+    APFloat& operator-=(T rhs) & {
+        return *this -= APFloat(rhs);
+    }
 
     APFloat& operator*=(APFloat const& rhs) &;
     template <typename T>
-    requires std::is_arithmetic_v<T> APFloat& operator*=(T rhs) & { return *this *= APFloat(rhs); }
+    requires std::is_arithmetic_v<T>
+    APFloat& operator*=(T rhs) & {
+        return *this *= APFloat(rhs);
+    }
 
     APFloat& operator/=(APFloat const& rhs) &;
     template <typename T>
-    requires std::is_arithmetic_v<T> APFloat& operator/=(T rhs) & { return *this /= APFloat(rhs); }
+    requires std::is_arithmetic_v<T>
+    APFloat& operator/=(T rhs) & {
+        return *this /= APFloat(rhs);
+    }
 
     friend APFloat operator+(APFloat const& lhs, APFloat const& rhs);
     friend APFloat operator-(APFloat const& lhs, APFloat const& rhs);

@@ -23,94 +23,99 @@ namespace scatha::vm {
 std::ostream& operator<<(std::ostream& str, OpCode c) {
     // clang-format off
     return str << UTL_SERIALIZE_ENUM(c, {
-        { OpCode::allocReg,  "allocReg" },
-        { OpCode::setBrk,    "setBrk" },
-        { OpCode::call,      "call" },
-        { OpCode::ret,       "ret" },
-        { OpCode::terminate, "terminate" },
-        { OpCode::movRR,     "movRR" },
-        { OpCode::movRV,     "movRV" },
-        { OpCode::movMR,     "movMR" },
-        { OpCode::movRM,     "movRM" },
-        { OpCode::jmp,       "jmp" },
-        { OpCode::je,        "je" },
-        { OpCode::jne,       "jne" },
-        { OpCode::jl,        "jl" },
-        { OpCode::jle,       "jle" },
-        { OpCode::jg,        "jg" },
-        { OpCode::jge,       "jge" },
-        { OpCode::ucmpRR,    "ucmpRR" },
-        { OpCode::icmpRR,    "icmpRR" },
-        { OpCode::ucmpRV,    "ucmpRV" },
-        { OpCode::icmpRV,    "icmpRV" },
-        { OpCode::fcmpRR,    "fcmpRR" },
-        { OpCode::fcmpRV,    "fcmpRV" },
-        { OpCode::itest,     "itest" },
-        { OpCode::utest,     "utest" },
-        { OpCode::sete,      "sete" },
-        { OpCode::setne,     "setne" },
-        { OpCode::setl,      "setl" },
-        { OpCode::setle,     "setle" },
-        { OpCode::setg,      "setg" },
-        { OpCode::setge,     "setge" },
-        { OpCode::lnt,       "lnt" },
-        { OpCode::bnt,       "bnt" },
-        { OpCode::addRR,     "addRR" },
-        { OpCode::addRV,     "addRV" },
-        { OpCode::addRM,     "addRM" },
-        { OpCode::subRR,     "subRR" },
-        { OpCode::subRV,     "subRV" },
-        { OpCode::subRM,     "subRM" },
-        { OpCode::mulRR,     "mulRR" },
-        { OpCode::mulRV,     "mulRV" },
-        { OpCode::mulRM,     "mulRM" },
-        { OpCode::divRR,     "divRR" },
-        { OpCode::divRV,     "divRV" },
-        { OpCode::divRM,     "divRM" },
-        { OpCode::idivRR,    "idivRR" },
-        { OpCode::idivRV,    "idivRV" },
-        { OpCode::idivRM,    "idivRM" },
-        { OpCode::remRR,     "remRR" },
-        { OpCode::remRV,     "remRV" },
-        { OpCode::remRM,     "remRM" },
-        { OpCode::iremRR,    "iremRR" },
-        { OpCode::iremRV,    "iremRV" },
-        { OpCode::iremRM,    "iremRM" },
-        { OpCode::faddRR,    "faddRR" },
-        { OpCode::faddRV,    "faddRV" },
-        { OpCode::faddRM,    "faddRM" },
-        { OpCode::fsubRR,    "fsubRR" },
-        { OpCode::fsubRV,    "fsubRV" },
-        { OpCode::fsubRM,    "fsubRM" },
-        { OpCode::fmulRR,    "fmulRR" },
-        { OpCode::fmulRV,    "fmulRV" },
-        { OpCode::fmulRM,    "fmulRM" },
-        { OpCode::fdivRR,    "fdivRR" },
-        { OpCode::fdivRV,    "fdivRV" },
-        { OpCode::fdivRM,    "fdivRM" },
-        { OpCode::slRR,      "slRR" },
-        { OpCode::slRV,      "slRV" },
-        { OpCode::srRR,      "srRR" },
-        { OpCode::srRV,      "srRV" },
-        { OpCode::andRR,     "andRR" },
-        { OpCode::andRV,     "andRV" },
-        { OpCode::orRR,      "orRR" },
-        { OpCode::orRV,      "orRV" },
-        { OpCode::xorRR,     "xorRR" },
-        { OpCode::xorRV,     "xorRV" },
-        { OpCode::callExt,   "callExt" },
+        { OpCode::enterFn,         "enterFn" },
+        { OpCode::setBrk,          "setBrk" },
+        { OpCode::call,            "call" },
+        { OpCode::ret,             "ret" },
+        { OpCode::terminate,       "terminate" },
+        { OpCode::movRR,           "movRR" },
+        { OpCode::movRV,           "movRV" },
+        { OpCode::movMR,           "movMR" },
+        { OpCode::movRM,           "movRM" },
+        { OpCode::alloca_,         "alloca" },
+        { OpCode::jmp,             "jmp" },
+        { OpCode::je,              "je" },
+        { OpCode::jne,             "jne" },
+        { OpCode::jl,              "jl" },
+        { OpCode::jle,             "jle" },
+        { OpCode::jg,              "jg" },
+        { OpCode::jge,             "jge" },
+        { OpCode::ucmpRR,          "ucmpRR" },
+        { OpCode::icmpRR,          "icmpRR" },
+        { OpCode::ucmpRV,          "ucmpRV" },
+        { OpCode::icmpRV,          "icmpRV" },
+        { OpCode::fcmpRR,          "fcmpRR" },
+        { OpCode::fcmpRV,          "fcmpRV" },
+        { OpCode::itest,           "itest" },
+        { OpCode::utest,           "utest" },
+        { OpCode::sete,            "sete" },
+        { OpCode::setne,           "setne" },
+        { OpCode::setl,            "setl" },
+        { OpCode::setle,           "setle" },
+        { OpCode::setg,            "setg" },
+        { OpCode::setge,           "setge" },
+        { OpCode::lnt,             "lnt" },
+        { OpCode::bnt,             "bnt" },
+        { OpCode::addRR,           "addRR" },
+        { OpCode::addRV,           "addRV" },
+        { OpCode::addRM,           "addRM" },
+        { OpCode::subRR,           "subRR" },
+        { OpCode::subRV,           "subRV" },
+        { OpCode::subRM,           "subRM" },
+        { OpCode::mulRR,           "mulRR" },
+        { OpCode::mulRV,           "mulRV" },
+        { OpCode::mulRM,           "mulRM" },
+        { OpCode::divRR,           "divRR" },
+        { OpCode::divRV,           "divRV" },
+        { OpCode::divRM,           "divRM" },
+        { OpCode::idivRR,          "idivRR" },
+        { OpCode::idivRV,          "idivRV" },
+        { OpCode::idivRM,          "idivRM" },
+        { OpCode::remRR,           "remRR" },
+        { OpCode::remRV,           "remRV" },
+        { OpCode::remRM,           "remRM" },
+        { OpCode::iremRR,          "iremRR" },
+        { OpCode::iremRV,          "iremRV" },
+        { OpCode::iremRM,          "iremRM" },
+        { OpCode::faddRR,          "faddRR" },
+        { OpCode::faddRV,          "faddRV" },
+        { OpCode::faddRM,          "faddRM" },
+        { OpCode::fsubRR,          "fsubRR" },
+        { OpCode::fsubRV,          "fsubRV" },
+        { OpCode::fsubRM,          "fsubRM" },
+        { OpCode::fmulRR,          "fmulRR" },
+        { OpCode::fmulRV,          "fmulRV" },
+        { OpCode::fmulRM,          "fmulRM" },
+        { OpCode::fdivRR,          "fdivRR" },
+        { OpCode::fdivRV,          "fdivRV" },
+        { OpCode::fdivRM,          "fdivRM" },
+        { OpCode::slRR,            "slRR" },
+        { OpCode::slRV,            "slRV" },
+        { OpCode::slRM,            "slRM" },
+        { OpCode::srRR,            "srRR" },
+        { OpCode::srRV,            "srRV" },
+        { OpCode::srRM,            "srRM" },
+        { OpCode::andRR,           "andRR" },
+        { OpCode::andRV,           "andRV" },
+        { OpCode::andRM,           "andRM" },
+        { OpCode::orRR,            "orRR" },
+        { OpCode::orRV,            "orRV" },
+        { OpCode::orRM,            "orRM" },
+        { OpCode::xorRR,           "xorRR" },
+        { OpCode::xorRV,           "xorRV" },
+        { OpCode::xorRM,           "xorRM" },
+        { OpCode::callExt,         "callExt" },
     });
     // clang-format on
 }
 
 struct OpCodeImpl {
 
-    static size_t getPointer(u64 const* reg, u8 const* i) {
+    static u8* getPointer(u64 const* reg, u8 const* i) {
         const size_t ptrRegIdx = i[0];
-        const size_t offset    = i[1];
+        const ssize_t offset    = i[1];
         int const offsetShift  = i[2];
-
-        return reg[ptrRegIdx] + (offset << offsetShift);
+        return reinterpret_cast<u8*>(reg[ptrRegIdx]) + (offset << offsetShift);
     }
 
     template <OpCode C>
@@ -185,8 +190,8 @@ struct OpCodeImpl {
         return [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
             size_t const regIdxA = i[0];
             size_t const regIdxB = i[1];
-            auto const a = read<T>(&reg[regIdxA]);
-            auto const b = read<T>(&reg[regIdxB]);
+            auto const a         = read<T>(&reg[regIdxA]);
+            auto const b         = read<T>(&reg[regIdxB]);
             store(&reg[regIdxA], decltype(operation)()(a, b));
             return codeSize(C);
         };
@@ -207,10 +212,10 @@ struct OpCodeImpl {
     static auto arithmeticRM(auto operation) {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdxA = i[0];
-            size_t const ptr     = getPointer(reg, i + 1);
-            VM_ASSERT(ptr % 8 == 0);
+            u8* const ptr     = getPointer(reg, i + 1);
+            VM_ASSERT(reinterpret_cast<size_t>(ptr) % 8 == 0);
             auto const a = read<T>(&reg[regIdxA]);
-            auto const b = read<T>(&vm->memory[ptr]);
+            auto const b = read<T>(ptr);
             store(&reg[regIdxA], decltype(operation)()(a, b));
             return codeSize(C);
         };
@@ -218,21 +223,15 @@ struct OpCodeImpl {
 
     static utl::vector<Instruction> makeInstructionTable() {
         utl::vector<Instruction> result(static_cast<size_t>(OpCode::_count));
-        auto at = [&, idx = 0](OpCode i) mutable -> auto& {
+        auto at = [&, idx = 0 ](OpCode i) mutable -> auto& {
             SC_ASSERT(static_cast<int>(i) == idx++, "Missing instruction");
             return result[static_cast<u8>(i)];
         };
         using enum OpCode;
 
         /// MARK: Register allocation
-        at(allocReg) = [](u8 const* i, u64* regPtr, VirtualMachine* vm) -> u64 {
-            size_t const numRegs          = i[0];
-            size_t const currentRegOffset = static_cast<u64>(regPtr - vm->registers.data());
-            size_t const newRegCount      = std::max(vm->registers.size(), currentRegOffset + numRegs);
-            VM_ASSERT(newRegCount < (1 << 20) && "Stack overflow");
-            vm->registers.resize(newRegCount);
-            vm->regPtr = vm->registers.data() + currentRegOffset;
-            return codeSize(allocReg);
+        at(enterFn) = [](u8 const* i, u64* regPtr, VirtualMachine* vm) -> u64 {
+            return codeSize(enterFn);
         };
 
         /// MARK: Memory allocation
@@ -285,22 +284,28 @@ struct OpCodeImpl {
             return codeSize(movRV);
         };
         at(movMR) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
-            size_t const ptr        = getPointer(reg, i);
+            u8* const ptr        = getPointer(reg, i);
             size_t const fromRegIdx = i[3];
-            VM_ASSERT(ptr % 8 == 0);
-            VM_ASSERT(vm->memory.data() + ptr >= vm->programBreak && "Trying to write to the instruction set");
-            std::memcpy(&vm->memory[ptr], &reg[fromRegIdx], 8);
+            VM_ASSERT(reinterpret_cast<size_t>(ptr) % 8 == 0);
+//            VM_ASSERT(ptr >= vm->programBreak && "Trying to write to the instruction set");
+            std::memcpy(ptr, &reg[fromRegIdx], 8);
             return codeSize(movMR);
         };
         at(movRM) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const toRegIdx = i[0];
-            size_t const ptr      = getPointer(reg, i + 1);
-            VM_ASSERT(ptr % 8 == 0);
-            VM_WARNING(vm->memory.data() + ptr >= vm->programBreak, "Reading memory from the instruction set");
-            std::memcpy(&reg[toRegIdx], &vm->memory[ptr], 8);
+            u8* const ptr      = getPointer(reg, i + 1);
+            VM_ASSERT(reinterpret_cast<size_t>(ptr) % 8 == 0);
+//            VM_WARNING(ptr >= vm->programBreak, "Reading memory from the instruction set");
+            std::memcpy(&reg[toRegIdx], ptr, 8);
             return codeSize(movRM);
         };
-
+        at(alloca_) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const targetRegIdx = i[0];
+            size_t const sourceRegIdx = i[1];
+            reg[targetRegIdx] = reinterpret_cast<u64>(&reg[sourceRegIdx]);
+            return codeSize(alloca_);
+        };
+        
         /// MARK: Jumps
         at(jmp) = jump<jmp>([](VMFlags) { return true; });
         at(je)  = jump<je>([](VMFlags f) { return f.equal; });
@@ -371,15 +376,20 @@ struct OpCodeImpl {
 
         at(slRR) = arithmeticRR<slRR, u64>(utl::leftshift);
         at(slRV) = arithmeticRV<slRV, u64>(utl::leftshift);
+        at(slRM) = arithmeticRM<slRM, u64>(utl::leftshift);
         at(srRR) = arithmeticRR<srRR, u64>(utl::rightshift);
         at(srRV) = arithmeticRV<srRV, u64>(utl::rightshift);
+        at(srRM) = arithmeticRV<srRM, u64>(utl::rightshift);
 
         at(andRR) = arithmeticRR<andRR, u64>(utl::bitwise_and);
         at(andRV) = arithmeticRV<andRV, u64>(utl::bitwise_and);
-        at(orRR)  = arithmeticRR<orRR, u64>(utl::bitwise_or);
-        at(orRV)  = arithmeticRV<orRV, u64>(utl::bitwise_or);
-        at(xorRR) = arithmeticRR<orRR, u64>(utl::bitwise_xor);
-        at(xorRV) = arithmeticRV<orRV, u64>(utl::bitwise_xor);
+        at(andRM) = arithmeticRV<andRM, u64>(utl::bitwise_and);
+        at(orRR)  = arithmeticRR<orRR,  u64>(utl::bitwise_or);
+        at(orRV)  = arithmeticRV<orRV,  u64>(utl::bitwise_or);
+        at(orRM)  = arithmeticRV<orRM,  u64>(utl::bitwise_or);
+        at(xorRR) = arithmeticRR<xorRR, u64>(utl::bitwise_xor);
+        at(xorRV) = arithmeticRV<xorRV, u64>(utl::bitwise_xor);
+        at(xorRM) = arithmeticRV<xorRM, u64>(utl::bitwise_xor);
 
         /// MARK: Misc
         at(callExt) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {

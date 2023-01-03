@@ -2,13 +2,17 @@
 
 #include <stdexcept>
 
-#include "Assembly/Assembler.h"
+#include <utl/format.hpp>
+
+#include "Assembly2/Assembler.h"
+#include "Assembly2/AssemblyStream.h"
+#include "ASTCodeGen/CodeGen.h"
 #include "Basic/Memory.h"
-#include "CodeGen/CodeGenerator.h"
-#include "IC/Canonicalize.h"
-#include "IC/TacGenerator.h"
+#include "CodeGen2/CodeGenerator.h"
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
+#include "IR/Context.h"
+#include "IR/Module.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "VM/Program.h"
@@ -32,11 +36,9 @@ vm::Program compile(std::string_view text) {
     if (!semaIss.empty()) {
         throw std::runtime_error("Compilation failed");
     }
-    ic::canonicalize(ast.get());
-    auto const tac = ic::generateTac(*ast, sym);
-    codegen::CodeGenerator cg(tac);
-    auto const str = cg.run();
-    assembly::Assembler a(str);
+    ir::Context ctx;
+    auto mod = ast::codegen(*ast, sym, ctx);
+    auto asmStream = cg2::codegen(mod);
     /// Start execution with main if it exists.
     auto const mainID = [&sym] {
         auto const id  = sym.lookup("main");
@@ -50,7 +52,7 @@ vm::Program compile(std::string_view text) {
         }
         return mainFn->symbolID();
     }();
-    return a.assemble({ .mainID = mainID.rawValue() });
+    return asm2::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
 }
 
 vm::VirtualMachine compileAndExecute(std::string_view text) {

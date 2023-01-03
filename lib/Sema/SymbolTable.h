@@ -189,6 +189,9 @@ public:
     TypeID Float() const { return _float; }
     TypeID String() const { return _string; }
 
+    /// Review if we want to keep these:
+    auto const& functions() const { return _functions; }
+
 private:
     SymbolID generateID(SymbolCategory category);
 

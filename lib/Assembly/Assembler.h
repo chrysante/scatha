@@ -16,6 +16,10 @@
 
 namespace scatha::assembly {
 
+/// ** TODO **
+/// We need to rework the entire assembly module. We need to have better iterators into the assembly stream and we
+/// need to insert instructions at random positions in order to implement PHI nodes.
+
 /*
  Before being assembled the program looks like this:
  ---------------------------------------------------
