@@ -26,7 +26,7 @@ static vm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
 TEST_CASE("Alloca implementation", "[assembly][vm]") {
     AssemblyStream a;
     a.add(MoveInst(RegisterIndex(0),       Value64(128)));      // a = 128
-    a.add(StoreRegAddress(RegisterIndex(1),RegisterIndex(2)));  // ptr = alloca(...)
+    a.add(AllocaInst(RegisterIndex(1),RegisterIndex(2)));       // ptr = alloca(...)
     a.add(MoveInst(MemoryAddress(1, 0, 0), RegisterIndex(0)));  // *ptr = a
     a.add(TerminateInst());
     auto const vm     = assembleAndExecute(a);
@@ -123,7 +123,7 @@ static void testArithmeticRM(ArithmeticOperation operation, Type type, auto arg1
     AssemblyStream a;
     a.add(MoveInst(RegisterIndex(0), Value64(arg1)));
     a.add(MoveInst(RegisterIndex(1), Value64(arg2)));
-    a.add(StoreRegAddress(RegisterIndex(2), RegisterIndex(3)));
+    a.add(AllocaInst(RegisterIndex(2), RegisterIndex(3)));
     a.add(MoveInst(MemoryAddress(2, 0, 0), RegisterIndex(1)));
     a.add(ArithmeticInst(operation, type, RegisterIndex(0), MemoryAddress(2, 0, 0)));
     a.add(TerminateInst());

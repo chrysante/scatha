@@ -18,7 +18,7 @@ std::ostream& operator<<(std::ostream& str, Instruction i) {
         { Instruction::ret,             "ret" },
         { Instruction::terminate,       "terminate" },
         { Instruction::mov,             "mov" },
-        { Instruction::storeRegAddress, "storeRegAddress" },
+        { Instruction::alloca_,         "alloca" },
         { Instruction::jmp,             "jmp" },
         { Instruction::je,              "je" },
         { Instruction::jne,             "jne" },

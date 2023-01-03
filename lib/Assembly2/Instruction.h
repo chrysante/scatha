@@ -79,10 +79,10 @@ public:
     TerminateInst() = default;
 };
 
-/// Represents a storeRegAddress instruction.
-class StoreRegAddress: public InstructionBase {
+/// Represents an alloca instruction.
+class AllocaInst: public InstructionBase {
 public:
-    explicit StoreRegAddress(RegisterIndex dest, RegisterIndex source):
+    explicit AllocaInst(RegisterIndex dest, RegisterIndex source):
         _dest(dest), _source(source) {}
 
     RegisterIndex const& dest() const { return _dest; }

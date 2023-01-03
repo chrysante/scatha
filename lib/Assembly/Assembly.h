@@ -27,7 +27,7 @@ enum class Instruction : u8 {
     ret,
     terminate,
     mov,
-    storeRegAddress,
+    alloca_,
     jmp,
     je,
     jne,

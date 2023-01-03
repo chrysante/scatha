@@ -86,8 +86,8 @@ void Assembler::processInstruction(Instruction i, StreamIterator& itr) {
         put(itr.nextAs<Value16>());
         return;
 
-    case storeRegAddress:
-        put(OpCode::storeRegAddress);
+    case alloca_:
+        put(OpCode::alloca_);
         put(itr.nextAs<RegisterIndex>());
         put(itr.nextAs<RegisterIndex>());
         return;

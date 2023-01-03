@@ -26,7 +26,7 @@ std::ostream& asm2::operator<<(std::ostream& str, Instruction const& inst) {
 }
 
 static constexpr utl::streammanip instName = [](std::ostream& str, auto const&... args) {
-    int const instNameWidth = 15;
+    int const instNameWidth = 8;
     str << "  " << std::setw(instNameWidth) << std::left << utl::strcat(args...);
 };
 
@@ -58,8 +58,8 @@ std::ostream& asm2::operator<<(std::ostream& str, SetInst const& set) {
     return str << instName(toSetInstName(set.operation())) << set.dest();
 }
 
-std::ostream& asm2::operator<<(std::ostream& str, StoreRegAddress const& sra) {
-    return str << instName("storeRegAddress") << " " << sra.dest() << ", &" << sra.source();
+std::ostream& asm2::operator<<(std::ostream& str, AllocaInst const& alloca_) {
+    return str << instName("alloca") << " " << alloca_.dest() << ", &" << alloca_.source();
 }
 
 std::ostream& asm2::operator<<(std::ostream& str, Label const& label) {

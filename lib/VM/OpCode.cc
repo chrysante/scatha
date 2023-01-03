@@ -32,7 +32,7 @@ std::ostream& operator<<(std::ostream& str, OpCode c) {
         { OpCode::movRV,           "movRV" },
         { OpCode::movMR,           "movMR" },
         { OpCode::movRM,           "movRM" },
-        { OpCode::storeRegAddress, "storeRegAddress" },
+        { OpCode::alloca_,         "alloca" },
         { OpCode::jmp,             "jmp" },
         { OpCode::je,              "je" },
         { OpCode::jne,             "jne" },
@@ -294,11 +294,11 @@ struct OpCodeImpl {
             std::memcpy(&reg[toRegIdx], ptr, 8);
             return codeSize(movRM);
         };
-        at(storeRegAddress) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+        at(alloca_) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const targetRegIdx = i[0];
             size_t const sourceRegIdx = i[1];
             reg[targetRegIdx] = reinterpret_cast<u64>(&reg[sourceRegIdx]);
-            return codeSize(storeRegAddress);
+            return codeSize(alloca_);
         };
         
         /// MARK: Jumps

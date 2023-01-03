@@ -40,7 +40,7 @@ struct Context {
     void translate(CallInst const&);
     void translate(ReturnInst const&);
     void translate(TerminateInst const&);
-    void translate(StoreRegAddress const&);
+    void translate(AllocaInst const&);
     void translate(CompareInst const&);
     void translate(TestInst const&);
     void translate(SetInst const&);
@@ -138,10 +138,10 @@ void Context::translate(TerminateInst const& term) {
     put(OpCode::terminate);
 }
 
-void Context::translate(StoreRegAddress const& storeRegAddr) {
-    put(OpCode::storeRegAddress);
-    dispatch(storeRegAddr.dest());
-    dispatch(storeRegAddr.source());
+void Context::translate(AllocaInst const& alloca_) {
+    put(OpCode::alloca_);
+    dispatch(alloca_.dest());
+    dispatch(alloca_.source());
 }
 
 void Context::translate(CompareInst const& cmp) {

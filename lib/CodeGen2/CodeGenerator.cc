@@ -90,8 +90,8 @@ void Context::generate(ir::BasicBlock const& bb) {
 
 void Context::generate(ir::Alloca const& allocaInst) {
     SC_ASSERT(allocaInst.allocatedType()->align() <= 8, "We don't support overaligned types just yet.");
-    result.add(StoreRegAddress(currentRD().resolve(allocaInst).get<RegisterIndex>(),
-                               currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
+    result.add(AllocaInst(currentRD().resolve(allocaInst).get<RegisterIndex>(),
+                          currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
 }
 
 void Context::generate(ir::Store const& store) {

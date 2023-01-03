@@ -311,8 +311,8 @@ struct Printer {
                 << itr.nextAs<Value16>();
             return;
             
-        case storeRegAddress:
-            str << storeRegAddress << " " << itr.nextAs<RegisterIndex>() << ", " << itr.nextAs<RegisterIndex>();
+        case alloca_:
+            str << alloca_ << " " << itr.nextAs<RegisterIndex>() << ", " << itr.nextAs<RegisterIndex>();
             return;
 
         case itest: [[fallthrough]];

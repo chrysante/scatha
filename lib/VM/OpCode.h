@@ -70,7 +70,7 @@ enum class OpCode : u8 {
     movRM, // (u8 ptrRegIdx, MEMORY_POINTER)
     
     /// Store the address of the register at \p sourceRegIdx into the register at \p targetRegIdx
-    storeRegAddress, // (u8 targetRegIdx, u8 sourceRegIdx)
+    alloca_, // (u8 targetRegIdx, u8 sourceRegIdx)
     
     /// MARK: Jumps
     /// Jumps are performed by adding the \p offset argument to the instruction
@@ -235,7 +235,7 @@ constexpr OpCodeClass classify(OpCode c) {
         { OpCode::movRV,           OpCodeClass::RV },
         { OpCode::movMR,           OpCodeClass::MR },
         { OpCode::movRM,           OpCodeClass::RM },
-        { OpCode::storeRegAddress, OpCodeClass::Other },
+        { OpCode::alloca_,         OpCodeClass::Other },
         { OpCode::jmp,             OpCodeClass::Jump },
         { OpCode::je,              OpCodeClass::Jump },
         { OpCode::jne,             OpCodeClass::Jump },
@@ -319,7 +319,7 @@ constexpr size_t codeSize(OpCode c) {
         case OpCode::ret:             return 1;
         case OpCode::terminate:       return 1;
         case OpCode::callExt:         return 5;
-        case OpCode::storeRegAddress: return 3;
+        case OpCode::alloca_:         return 3;
         default: SC_UNREACHABLE();
         }
     }

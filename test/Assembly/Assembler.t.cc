@@ -50,7 +50,7 @@ TEST_CASE("Alloca implementation - old", "[assembly][vm]") {
 
     AssemblyStream a;
     a << mov << RegisterIndex(0) << Unsigned64(128);              // a = 128
-    a << storeRegAddress << RegisterIndex(1) << RegisterIndex(2); // ptr = alloca(...)
+    a << alloca_ << RegisterIndex(1) << RegisterIndex(2); // ptr = alloca(...)
     a << mov << MemoryAddress(1, 0, 0) << RegisterIndex(0);       // *ptr = a
     a << terminate;
     
@@ -180,7 +180,7 @@ static void testArithmeticRM(Instruction i, auto arg1, auto arg2, auto reference
 
     AssemblyStream a;
     a << mov << RegisterIndex(0) << Value64(utl::bit_cast<u64>(arg1), type);
-    a << storeRegAddress << RegisterIndex(1) << RegisterIndex(3);
+    a << alloca_ << RegisterIndex(1) << RegisterIndex(3);
     a << mov << RegisterIndex(2) << Value64(utl::bit_cast<u64>(arg2), type); // R[2] = arg2
     a << mov << MemoryAddress(1, 0, 0) << RegisterIndex(2);
     a << i << RegisterIndex(0) << MemoryAddress(1, 0, 0);
