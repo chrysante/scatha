@@ -173,6 +173,11 @@ SCATHA(API) std::ostream& operator<<(std::ostream&, BinaryOperator);
 
 BinaryOperator toNonAssignment(BinaryOperator);
 
+SCATHA(API) bool isArithmetic(BinaryOperator);
+SCATHA(API) bool isLogical(BinaryOperator);
+SCATHA(API) bool isComparison(BinaryOperator);
+SCATHA(API) bool isAssignment(BinaryOperator);
+
 enum class EntityCategory { Value, Type, _count };
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, EntityCategory);

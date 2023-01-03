@@ -4,14 +4,15 @@
 
 #include <utl/utility.hpp>
 
-namespace scatha::ast {
+using namespace scatha;
+using namespace ast;
 
-bool isDeclaration(NodeType t) {
+bool ast::isDeclaration(NodeType t) {
     using enum NodeType;
     return t == FunctionDefinition || t == StructDefinition || t == VariableDeclaration;
 }
 
-std::string_view toString(NodeType t) {
+std::string_view ast::toString(NodeType t) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(t, {
         { NodeType::AbstractSyntaxTree,    "AbstractSyntaxTree" },
@@ -45,11 +46,11 @@ std::string_view toString(NodeType t) {
     // clang-format on
 }
 
-std::ostream& operator<<(std::ostream& str, NodeType t) {
+std::ostream& ast::operator<<(std::ostream& str, NodeType t) {
     return str << toString(t);
 }
 
-std::string_view toString(UnaryPrefixOperator op) {
+std::string_view ast::toString(UnaryPrefixOperator op) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(op, {
         { UnaryPrefixOperator::Promotion,  "+" },
@@ -60,11 +61,11 @@ std::string_view toString(UnaryPrefixOperator op) {
     // clang-format on
 }
 
-std::ostream& operator<<(std::ostream& str, UnaryPrefixOperator op) {
+std::ostream& ast::operator<<(std::ostream& str, UnaryPrefixOperator op) {
     return str << toString(op);
 }
 
-std::string_view toString(BinaryOperator op) {
+std::string_view ast::toString(BinaryOperator op) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(op, {
         { BinaryOperator::Multiplication, "*"   },
@@ -101,7 +102,7 @@ std::string_view toString(BinaryOperator op) {
     // clang-format on
 }
 
-BinaryOperator toNonAssignment(BinaryOperator op) {
+BinaryOperator ast::toNonAssignment(BinaryOperator op) {
     switch (op) {
     case BinaryOperator::AddAssignment: return BinaryOperator::Addition;
     case BinaryOperator::SubAssignment: return BinaryOperator::Subtraction;
@@ -117,11 +118,72 @@ BinaryOperator toNonAssignment(BinaryOperator op) {
     }
 }
 
-std::ostream& operator<<(std::ostream& str, BinaryOperator op) {
+bool ast::isArithmetic(BinaryOperator op) {
+    switch (op) {
+    case BinaryOperator::Multiplication: [[fallthrough]];
+    case BinaryOperator::Division: [[fallthrough]];
+    case BinaryOperator::Remainder: [[fallthrough]];
+    case BinaryOperator::Addition: [[fallthrough]];
+    case BinaryOperator::Subtraction: [[fallthrough]];
+    case BinaryOperator::LeftShift: [[fallthrough]];
+    case BinaryOperator::RightShift: [[fallthrough]];
+    case BinaryOperator::BitwiseAnd: [[fallthrough]];
+    case BinaryOperator::BitwiseXOr: [[fallthrough]];
+    case BinaryOperator::BitwiseOr:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool ast::isLogical(BinaryOperator op) {
+    switch (op) {
+    case BinaryOperator::LogicalAnd: [[fallthrough]];
+    case BinaryOperator::LogicalOr:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool ast::isComparison(BinaryOperator op) {
+    switch (op) {
+    case BinaryOperator::Less: [[fallthrough]];
+    case BinaryOperator::LessEq: [[fallthrough]];
+    case BinaryOperator::Greater: [[fallthrough]];
+    case BinaryOperator::GreaterEq: [[fallthrough]];
+    case BinaryOperator::Equals: [[fallthrough]];
+    case BinaryOperator::NotEquals:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool ast::isAssignment(BinaryOperator op) {
+    switch (op) {
+    case BinaryOperator::Assignment: [[fallthrough]];
+    case BinaryOperator::AddAssignment: [[fallthrough]];
+    case BinaryOperator::SubAssignment: [[fallthrough]];
+    case BinaryOperator::MulAssignment: [[fallthrough]];
+    case BinaryOperator::DivAssignment: [[fallthrough]];
+    case BinaryOperator::RemAssignment: [[fallthrough]];
+    case BinaryOperator::LSAssignment: [[fallthrough]];
+    case BinaryOperator::RSAssignment: [[fallthrough]];
+    case BinaryOperator::AndAssignment: [[fallthrough]];
+    case BinaryOperator::OrAssignment: [[fallthrough]];
+    case BinaryOperator::XOrAssignment:
+        return true;
+    default:
+        return false;
+    }
+}
+
+std::ostream& ast::operator<<(std::ostream& str, BinaryOperator op) {
     return str << toString(op);
 }
 
-std::ostream& operator<<(std::ostream& str, EntityCategory k) {
+std::ostream& ast::operator<<(std::ostream& str, EntityCategory k) {
     // clang-format off
     return str << UTL_SERIALIZE_ENUM(k, {
         { EntityCategory::Value, "Value" },
@@ -129,5 +191,3 @@ std::ostream& operator<<(std::ostream& str, EntityCategory k) {
     });
     // clang-format off
 }
-
-} // namespace scatha::ast
