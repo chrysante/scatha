@@ -21,20 +21,14 @@
 //     return p;
 // }
 
-fn main() -> int {
-    var i = 3 * 5;
-    return i;
-
-    // var c = true;
-    // return 1 > 0 ? 1 : 0;
-    // return c ? 1 : 0;
-    // return fac(4);
-}
-
 fn fac(n: int) -> int {
-    return n <= 1 ? 1 : fac(n - 1);
+    return n <= 1 ? 1 : n * fac(n - 1);
 }
-//
+
+fn main() -> int {
+    return fac(5);
+}
+
 // fn testAND(n: int) -> bool {
 //     return n == 1 && n == 5;
 // }

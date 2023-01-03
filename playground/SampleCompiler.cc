@@ -159,40 +159,25 @@ void playground::compile(std::string text) {
     auto const str0 = cg2::codegen(mod);
     print(str0);
     
-    subHeader();
-    header(" Generated Three Address Code ");
-    ic::canonicalize(ast.get());
-    auto const tac = ic::generateTac(*ast, sym);
-    
-    header(" Assembly generated from IC ");
-    codegen::CodeGenerator cg(tac);
-    auto const str = cg.run();
-    print(str, sym);
-
-    
-
     header(" Assembled Program ");
-    auto program = asm2::assemble(str0);
-    
-//    a(str);
     /// Start execution with main if it exists.
-//    auto const mainID = [&sym] {
-//        auto const id  = sym.lookup("main");
-//        auto const* os = sym.tryGetOverloadSet(id);
-//        if (!os) {
-//            return sema::SymbolID::Invalid;
-//        }
-//        auto const* mainFn = os->find({});
-//        if (!mainFn) {
-//            return sema::SymbolID::Invalid;
-//        }
-//        return mainFn->symbolID();
-//    }();
-//    if (!mainID) {
-//        std::cout << "No main function defined!\n";
-//        return;
-//    }
-//    auto const program = a.assemble({ .mainID = mainID.rawValue() });
+    auto const mainID = [&sym] {
+        auto const id  = sym.lookup("main");
+        auto const* os = sym.tryGetOverloadSet(id);
+        if (!os) {
+            return sema::SymbolID::Invalid;
+        }
+        auto const* mainFn = os->find({});
+        if (!mainFn) {
+            return sema::SymbolID::Invalid;
+        }
+        return mainFn->symbolID();
+    }();
+    if (!mainID) {
+        std::cout << "No main function defined!\n";
+        return;
+    }
+    auto const program = asm2::assemble(str0, { .startFunction = "main" + std::to_string(mainID.rawValue()) });
 
     subHeader();
 

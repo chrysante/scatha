@@ -174,6 +174,9 @@ void Context::translate(ArithmeticInst const& inst) {
 }
 
 void Context::translate(Label const& label) {
+    if (!options.startFunction.empty() && label.name() == options.startFunction) {
+        program.start = currentPosition();
+    }
     labels.insert({ label.id(), currentPosition() });
 }
 

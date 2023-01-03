@@ -16,6 +16,8 @@ class ValueBase {
 public:
     u64 value() const { return _value; }
 
+    bool operator==(ValueBase const&) const = default;
+    
 protected:
     template <typename T>
     explicit ValueBase(utl::tag<T> type, auto value):
@@ -62,7 +64,7 @@ public:
 /// Represents a register index.
 class RegisterIndex: public ValueBase {
 public:
-    explicit RegisterIndex(std::integral auto index):
+    RegisterIndex(std::integral auto index):
         ValueBase(utl::tag<u8>{}, index) {}
     
     void setValue(u64 index) { _value = utl::narrow_cast<u8>(index); }

@@ -54,6 +54,10 @@ std::ostream& asm2::operator<<(std::ostream& str, CompareInst const& cmp) {
     return str << instName("cmp") << " " << cmp.lhs() << ", " << cmp.rhs();
 }
 
+std::ostream& asm2::operator<<(std::ostream& str, TestInst const& test) {
+    return str << instName(test.type() == Type::Signed ? "itest" : "utest") << " " << test.operand();
+}
+
 std::ostream& asm2::operator<<(std::ostream& str, SetInst const& set) {
     return str << instName(toSetInstName(set.operation())) << set.dest();
 }

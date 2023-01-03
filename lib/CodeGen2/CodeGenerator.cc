@@ -1,5 +1,7 @@
 #include "CodeGen2/CodeGenerator.h"
 
+#include <array>
+
 #include <utl/hashmap.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/ranges.hpp>
@@ -46,6 +48,7 @@ struct Context {
     RegisterDescriptor* _currentRD = nullptr;
     size_t labelIndexCounter = 0;
     utl::hashmap<ir::Value const*, size_t> labelIndices;
+    utl::hashmap<ir::BasicBlock const*, std::array<AssemblyStream::Iterator, 2>> bbInstRanges;
 };
 
 } // namespace
@@ -80,12 +83,15 @@ void Context::generate(ir::Function const& function) {
 }
 
 void Context::generate(ir::BasicBlock const& bb) {
+    auto const beforeBegin = result.begin();
     if (!bb.isEntry()) {
         result.add(makeLabel(bb));
     }
     for (auto& inst: bb.instructions) {
         dispatch(inst);
     }
+    auto const backItr = result.backItr();
+    bbInstRanges.insert({ &bb, { std::next(beforeBegin), backItr } });
 }
 
 void Context::generate(ir::Alloca const& allocaInst) {
@@ -127,9 +133,17 @@ static asm2::Type mapType(ir::Type const* type) {
 }
 
 void Context::generate(ir::CompareInst const& cmp) {
-    result.add(asm2::CompareInst(mapType(cmp.type()),
-                                 currentRD().resolve(*cmp.lhs()),
-                                 currentRD().resolve(*cmp.rhs())));
+    Value const lhs = [&]() -> Value {
+        auto resolvedLhs = currentRD().resolve(*cmp.lhs());
+        if (!isa<ir::Constant>(cmp.lhs())) {
+            SC_ASSERT(resolvedLhs.is<RegisterIndex>(), "cmp instruction wants a register index as its lhs argument.");
+            return resolvedLhs;
+        }
+        auto tmpRegIdx = currentRD().makeTemporary();
+        result.add(MoveInst(tmpRegIdx, resolvedLhs));
+        return tmpRegIdx;
+    }();
+    result.add(asm2::CompareInst(mapType(cmp.type()), lhs, currentRD().resolve(*cmp.rhs())));
 }
 
 static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
@@ -150,13 +164,13 @@ static asm2::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
 }
 
 void Context::generate(ir::ArithmeticInst const& arithmetic) {
+    // TODO: Make the move of the source argument conditional?
     auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
     result.add(MoveInst(dest, currentRD().resolve(*arithmetic.lhs())));
-    result.add(asm2::ArithmeticInst(
-                   mapArithmetic(arithmetic.operation()),
-                   mapType(arithmetic.type()),
-                   dest,
-                   currentRD().resolve(*arithmetic.rhs())));
+    result.add(asm2::ArithmeticInst(mapArithmetic(arithmetic.operation()),
+                                    mapType(arithmetic.type()),
+                                    dest,
+                                    currentRD().resolve(*arithmetic.rhs())));
 }
 
 // MARK: Terminators
@@ -177,22 +191,27 @@ void Context::generate(ir::Goto const& gt) {
 }
 
 void Context::generate(ir::Branch const& br) {
-    auto const& cond = *cast<ir::CompareInst const*>(br.condition());
-    result.add(JumpInst(mapCompare(cond.operation()), makeLabel(*br.thenTarget()).id()));
+    auto const cmpOp = [&]{
+        if (auto const* cond = dyncast<ir::CompareInst const*>(br.condition())) {
+            return mapCompare(cond->operation());
+        }
+        result.add(TestInst(mapType(br.condition()->type()), currentRD().resolve(*br.condition())));
+        return CompareOperation::NotEq;
+    }();
+    result.add(JumpInst(cmpOp, makeLabel(*br.thenTarget()).id()));
     result.add(JumpInst(makeLabel(*br.elseTarget()).id()));
 }
 
 void Context::generate(ir::FunctionCall const& call) {
-    utl::small_vector<size_t> parameterRegIdxLocations;
+    utl::small_vector<AssemblyStream::Iterator> parameterRegIdxLocations;
     for (auto const arg: call.arguments()) {
         // TODO: Are the arguments evaluated here?
         auto argRegIdx = RegisterIndex(0xFF);
-        parameterRegIdxLocations.push_back(result.count());
         result.add(MoveInst(argRegIdx, currentRD().resolve(*arg)));
+        parameterRegIdxLocations.push_back(result.backItr());
     }
-    for (auto const& [index, regIdxLoc]: utl::enumerate(parameterRegIdxLocations)) {
-        result[regIdxLoc]
-            .get<MoveInst>()
+    for (auto const& [index, regIdx]: utl::enumerate(parameterRegIdxLocations)) {
+        regIdx->get<MoveInst>()
             .dest()
             .get<RegisterIndex>()
             .setValue(currentRD().numUsedRegisters() + 2 + index);
@@ -201,13 +220,22 @@ void Context::generate(ir::FunctionCall const& call) {
     if (call.type()->isVoid()) {
         return;
     }
-    size_t const resultLocation = currentRD().numUsedRegisters() + 2;
-    result.add(MoveInst(currentRD().resolve(call), RegisterIndex(resultLocation)));
+    RegisterIndex const resultLocation = currentRD().numUsedRegisters() + 2;
+    RegisterIndex const targetResultLocation = currentRD().resolve(call).get<RegisterIndex>();
+    if (resultLocation != targetResultLocation) {
+        result.add(MoveInst(targetResultLocation, resultLocation));
+    }
 }
 
 void Context::generate(ir::Return const& ret) {
     if (ret.value()) {
-        result.add(MoveInst(RegisterIndex(0), currentRD().resolve(*ret.value())));
+        auto const returnValue = currentRD().resolve(*ret.value());
+        RegisterIndex const returnValueTargetLocation = 0;
+        if (!returnValue.is<RegisterIndex>() ||
+            returnValue.get<RegisterIndex>() != returnValueTargetLocation)
+        {
+            result.add(MoveInst(returnValueTargetLocation, returnValue));
+        }
     }
     result.add(ReturnInst());
 }
@@ -216,6 +244,15 @@ void Context::generate(ir::Phi const& phi) {
     /// We need to find a register index to put the value in that every incoming path can agree on.
     /// Then put the value into that register in every incoming path.
     /// Then make this value resolve to that register index.
+    RegisterIndex const target = currentRD().resolve(phi).get<RegisterIndex>();
+    for (auto& [pred, value]: phi.arguments) {
+        auto const [begin, back] = [&, pred = pred]{
+            auto itr = bbInstRanges.find(pred);
+            SC_ASSERT(itr != bbInstRanges.end(), "Where is this bb coming from?");
+            return itr->second;
+        }();
+        result.insert(back, MoveInst(target, currentRD().resolve(*value)));
+    }
 }
 
 Label Context::makeLabel(ir::BasicBlock const& bb) {
