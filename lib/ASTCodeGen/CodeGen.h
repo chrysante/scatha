@@ -20,7 +20,9 @@ class Context;
 namespace scatha::ast {
 
 SCATHA(API)
-ir::Module codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& symbolTable, ir::Context& context);
+ir::Module codegen(AbstractSyntaxTree const& ast,
+                   sema::SymbolTable const& symbolTable,
+                   ir::Context& context);
 
 } // namespace scatha::ast
 

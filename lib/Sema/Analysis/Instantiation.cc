@@ -89,10 +89,10 @@ void Context::run() {
 void Context::instantiateObjectType(DependencyGraphNode const& node) {
     ast::StructDefinition& structDef = utl::down_cast<ast::StructDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.scope);
-    utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    size_t objectSize               = 0;
-    size_t objectAlign              = 0;
-    for (auto& statement: structDef.body->statements) {
+    utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
+    size_t objectSize  = 0;
+    size_t objectAlign = 0;
+    for (auto&& [index, statement]: utl::enumerate(structDef.body->statements)) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }
@@ -107,7 +107,10 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
         objectSize                 = utl::round_up_pow_two(objectSize, type.align());
         size_t const currentOffset = objectSize;
         varDecl.setOffset(currentOffset);
-        sym.getVariable(varDecl.symbolID()).setOffset(currentOffset);
+        varDecl.setIndex(index);
+        auto& var = sym.getVariable(varDecl.symbolID());
+        var.setOffset(currentOffset);
+        var.setIndex(index);
         objectSize += type.size();
     }
     auto& objectType = sym.getObjectType(structDef.symbolID());

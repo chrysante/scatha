@@ -39,6 +39,7 @@ struct Context {
     void generate(ir::FunctionCall const&);
     void generate(ir::Return const&);
     void generate(ir::Phi const&);
+    void generate(ir::GetElementPointer const&);
     
     Label makeLabel(ir::BasicBlock const&);
     Label makeLabel(ir::Function const&);
@@ -100,7 +101,8 @@ void Context::generate(ir::BasicBlock const& bb) {
 }
 
 void Context::generate(ir::Alloca const& allocaInst) {
-    SC_ASSERT(allocaInst.allocatedType()->align() <= 8, "We don't support overaligned types just yet.");
+    SC_ASSERT(allocaInst.allocatedType()->align() <= 8,
+              "We don't support overaligned types just yet.");
     result.add(AllocaInst(currentRD().resolve(allocaInst).get<RegisterIndex>(),
                           currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
 }
@@ -271,6 +273,11 @@ void Context::generate(ir::Phi const& phi) {
         while (back->is<JumpInst>() && back != begin) { --back; }
         result.insert(std::next(back), MoveInst(target, currentRD().resolve(*value)));
     }
+}
+
+void Context::generate(ir::GetElementPointer const& gep) {
+    gep.accessedType();
+    SC_DEBUGFAIL();
 }
 
 Label Context::makeLabel(ir::BasicBlock const& bb) {

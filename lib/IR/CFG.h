@@ -159,7 +159,11 @@ private:
 class SCATHA(API) UnaryInstruction: public Instruction {
 protected:
     explicit UnaryInstruction(NodeType nodeType, Value* operand, Type const* type, std::string name):
-        Instruction(nodeType, type, std::move(name)), _operand(operand) {}
+        Instruction(nodeType, type, std::move(name)), _operand(operand)
+    {
+        SC_ASSERT(nodeType == NodeType::Load || !operand->type()->isPointer(),
+                  "Operand must not be a pointer except when we are a load instruction.");
+    }
 
 public:
     Value* operand() { return _operand; }
@@ -338,6 +342,30 @@ public:
     utl::small_vector<PhiMapping> arguments;
 };
 
+/// GetElementPointer instruction. Calculate offset pointer to a structure member or array element.
+class GetElementPointer: public Instruction {
+public:
+    explicit GetElementPointer(Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name = {}):
+        Instruction(NodeType::GetElementPointer, basePointer->type(), std::move(name)),
+        accType(accessedType),
+        basePtr(basePointer),
+        offsetIdx(offsetIndex)
+    {
+        SC_ASSERT(basePointer->type()->isPointer(), "basePointer must be a pointer.");
+    }
+    
+    Type const* accessedType() const { return accType; }
+    
+    Value* basePointer() { return basePtr; }
+    Value const* basePointer() const { return basePtr; }
+    
+    size_t offsetIndex() const { return offsetIdx; }
+    
+private:
+    Type const* accType;
+    Value* basePtr;
+    size_t offsetIdx;
+};
 
 } // namespace scatha::ir
 

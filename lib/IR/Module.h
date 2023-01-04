@@ -28,7 +28,7 @@ public:
     void addFunction(Function* function);
 
 private:
-    utl::hashset<StructureType*, StructureType::PtrHash, StructureType::PtrEqual> structs;
+    utl::hashset<StructureType*, Type::Hash, Type::Equals> structs;
     List<Function> funcs;
 };
 

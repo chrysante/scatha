@@ -15,28 +15,23 @@ namespace scatha::ir {
 /// Base class of all types in the IR
 class Type {
 public:
+    static constexpr size_t invalidSize() { return ~size_t(0); }
+    
     enum Category { Void, Pointer, Integral, FloatingPoint, Structure, Function };
 
+    explicit Type(std::string name, Category category):
+        Type(std::move(name), category, invalidSize(), invalidSize()) {}
+    
     explicit Type(std::string name,
                   Category category,
-                  size_t size = ~size_t(0),
-                  size_t align = ~size_t(0)):
+                  size_t size,
+                  size_t align):
         _name(std::move(name)), _category(category), _size(size), _align(align) {}
 
     std::string_view name() const { return _name; }
     
     size_t size() const { return _size; }
     size_t align() const { return _align; }
-    
-    void setSize(size_t size) {
-        SC_EXPECT(_size == ~size_t(0), "Size must not have been set before.");
-        _size = size;
-    }
-    
-    void setAlign(size_t align) {
-        SC_EXPECT(_align == ~size_t(0), "Alignment must not have been set before.");
-        _align = align;
-    }
     
     auto category() const { return _category; }
 
@@ -49,20 +44,20 @@ public:
 
     struct Hash {
         using is_transparent = void;
-
         size_t operator()(Type const* type) const { return std::hash<std::string_view>{}(type->name()); }
-
         size_t operator()(std::string_view name) const { return std::hash<std::string_view>{}(name); }
     };
 
     struct Equals {
         using is_transparent = void;
-
         bool operator()(Type const* lhs, Type const* rhs) const { return lhs->name() == rhs->name(); }
-
         bool operator()(std::string_view lhs, Type const* rhs) const { return lhs == rhs->name(); }
     };
 
+protected:
+    void setSize(size_t size) { _size = size; }
+    void setAlign(size_t align) { _align = align; }
+    
 private:
     std::string _name;
     Category _category;
@@ -110,28 +105,13 @@ public:
 
     std::span<Type const* const> members() const { return _members; }
 
-    void addMember(Type const* type) { _members.push_back(type); }
+    void addMember(Type const* type) {
+        _members.push_back(type);
+        computeSizeAndAlign();
+    }
 
-    struct PtrHash: std::hash<std::string_view> {
-        using is_transparent = void;
-        using std::hash<std::string_view>::operator();
-        size_t operator()(StructureType const* s) const {
-            return std::hash<std::string_view>{}(s->name());
-        }
-    };
-    
-    struct PtrEqual {
-        using is_transparent = void;
-        bool operator()(StructureType const* lhs, StructureType const* rhs) const {
-            return lhs == rhs;
-        }
-        bool operator()(StructureType const* s, std::string_view name) const {
-            return s->name() == name;
-        }
-        bool operator()(std::string_view name, StructureType const* s) const {
-            return s->name() == name;
-        }
-    };
+private:
+    void computeSizeAndAlign();
     
 private:
     utl::small_vector<Type const*> _members;

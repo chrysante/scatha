@@ -144,14 +144,17 @@ struct X {
     CHECK(iDecl->name() == "i");
     CHECK(iDecl->typeID() == sym.Float());
     CHECK(iDecl->offset() == 0);
+    CHECK(iDecl->index() == 0);
     auto* jDecl = cast<VariableDeclaration*>(xDef->body->statements[1].get());
     CHECK(jDecl->name() == "j");
     CHECK(jDecl->typeID() == sym.Int());
     CHECK(jDecl->offset() == 8);
+    CHECK(jDecl->index() == 1);
     auto* b2Decl = cast<VariableDeclaration*>(xDef->body->statements[3].get());
     CHECK(b2Decl->name() == "b2");
     CHECK(b2Decl->typeID() == sym.Bool());
     CHECK(b2Decl->offset() == 17);
+    CHECK(b2Decl->index() == 3);
     auto* fDef = cast<FunctionDefinition*>(xDef->body->statements[4].get());
     CHECK(fDef->name() == "f");
     /// TODO: Test argument types when we properly recognize member functions as having an implicit 'this' argument

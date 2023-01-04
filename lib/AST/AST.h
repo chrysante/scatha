@@ -383,19 +383,27 @@ public:
         expectDecorated();
         return _offset;
     }
-
-    /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::TypeID typeID, size_t offset = 0) {
-        _typeID = typeID;
-        _offset = offset;
-        Declaration::decorate(symbolID);
+    
+    /// Index of the variable if this is a struct member. Always zero otherwise.
+    size_t index() const {
+        expectDecorated();
+        return _index;
     }
 
+    /// Decorate this node.
+    void decorate(sema::SymbolID symbolID, sema::TypeID typeID) {
+        _typeID = typeID;
+        Declaration::decorate(symbolID);
+    }
+    
     void setOffset(size_t offset) { _offset = offset; }
+    
+    void setIndex(size_t index) { _index = index; }
 
 private:
     sema::TypeID _typeID = sema::TypeID::Invalid;
     size_t _offset       = 0;
+    size_t _index        = 0;
 };
 
 /// Concrete node representing a parameter declaration.

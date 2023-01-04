@@ -35,6 +35,7 @@ struct PrintCtx {
     void print(Return const&);
     void print(FunctionCall const&);
     void print(Phi const&);
+    void print(GetElementPointer const&);
 
     std::string toString(Value const&);
 
@@ -165,11 +166,16 @@ void PrintCtx::print(Phi const& phi) {
     }
 }
 
+void PrintCtx::print(GetElementPointer const& gep) {
+    str << indent << "%" << gep.name() << " = gep " << gep.accessedType()->name() << ", " << gep.offsetIndex();
+}
+
 std::string PrintCtx::toString(Value const& value) {
     // clang-format off
     return visit(value, utl::overload{
         [&](Value const& value) -> std::string { return utl::strcat("%", value.name()); },
         [&](IntegralConstant const& value) -> std::string { return value.value().toString(); },
+        [&](FloatingPointConstant const& value) -> std::string { return value.value().toString(); },
     });
     // clang-format on
 }

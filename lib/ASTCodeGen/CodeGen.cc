@@ -53,8 +53,12 @@ struct Context {
     void finishCurrentBB();
 
     void memorizeVariablePtr(sema::SymbolID, ir::Value*);
-    ir::Value* getVariablePtr(Expression const&);
+    ir::Value* getVariableAddress(sema::SymbolID);
 
+    ir::Value* load(ir::Type const* type, ir::Value* value, std::string name = {});
+    ir::Value* loadIfPointer(ir::Type const* type, ir::Value* value, std::string name = {});
+    ir::Value* dispatchAndLoad(Expression const& expr);
+    
     std::string localUniqueName(std::string_view name);
     std::string localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args);
 
@@ -88,7 +92,9 @@ ir::Module ast::codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& 
 }
 
 ir::Value* Context::dispatch(AbstractSyntaxTree const& node) {
-    return visit(node, [this](auto const& node) { return generate(node); });
+    return visit(node, [this](auto const& node) {
+        return generate(node);
+    });
 }
 
 ir::Value* Context::generate(TranslationUnit const& tu) {
@@ -145,14 +151,12 @@ ir::Value* Context::generate(StructDefinition const& def) {
                 structure->addMember(mapType(decl.typeID()));
             },
             [&](FunctionDefinition const& def) {
-                SC_DEBUGFAIL(); // Not supported yet.
+                /// This corresponds to the definition of a member function and is not supported yet.
+                SC_DEBUGFAIL();
             },
             [](Declaration const& decl) { SC_UNREACHABLE(); },
         });
     }
-    auto& objType = symTable.getObjectType(def.symbolID());
-    structure->setSize(objType.size());
-    structure->setAlign(objType.align());
     mod.addStructure(structure);
     return nullptr;
 }
@@ -184,7 +188,7 @@ ir::Value* Context::generate(EmptyStatement const& empty) {
 }
 
 ir::Value* Context::generate(ReturnStatement const& retDecl) {
-    auto* returnValue = retDecl.expression ? dispatch(*retDecl.expression) : nullptr;
+    auto* returnValue = retDecl.expression ? dispatchAndLoad(*retDecl.expression) : nullptr;
     auto* ret         = new ir::Return(irCtx, returnValue);
     currentBB->addInstruction(ret);
     return nullptr;
@@ -239,10 +243,7 @@ ir::Value* Context::generate(DoWhileStatement const&) {
 }
 
 ir::Value* Context::generate(Identifier const& id) {
-    auto* memPtr   = getVariablePtr(id);
-    auto* loadInst = new ir::Load(mapType(id.typeID()), memPtr, localUniqueName(id.value()));
-    currentBB->addInstruction(loadInst);
-    return loadInst;
+    return getVariableAddress(id.symbolID());
 }
 
 ir::Value* Context::generate(IntegerLiteral const& intLit) {
@@ -262,7 +263,7 @@ ir::Value* Context::generate(StringLiteral const&) {
 }
 
 ir::Value* Context::generate(UnaryPrefixExpression const& expr) {
-    ir::Value* const operand = dispatch(*expr.operand);
+    ir::Value* const operand = dispatchAndLoad(*expr.operand);
     auto* inst = new ir::UnaryArithmeticInst(irCtx, operand, mapUnaryArithmeticOp(expr.operation()), "expr-result");
     currentBB->addInstruction(inst);
     return inst;
@@ -280,15 +281,15 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::BitwiseAnd: [[fallthrough]];
     case BinaryOperator::BitwiseXOr: [[fallthrough]];
     case BinaryOperator::BitwiseOr: {
-        ir::Value* const lhs = dispatch(*exprDecl.lhs);
-        ir::Value* const rhs = dispatch(*exprDecl.rhs);
+        ir::Value* const lhs = dispatchAndLoad(*exprDecl.lhs);
+        ir::Value* const rhs = dispatchAndLoad(*exprDecl.rhs);
         auto* arithInst = new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName("expr-result"));
         currentBB->addInstruction(arithInst);
         return arithInst;
     }
     case BinaryOperator::LogicalAnd: [[fallthrough]];
     case BinaryOperator::LogicalOr: {
-        ir::Value* const lhs = dispatch(*exprDecl.lhs);
+        ir::Value* const lhs = dispatchAndLoad(*exprDecl.lhs);
         auto* startBlock     = currentBB;
         auto* rhsBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical-rhs-block"));
         auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical-end-block"));
@@ -297,7 +298,7 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
                                       new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
         currentFunction->addBasicBlock(rhsBlock);
         setCurrentBB(rhsBlock);
-        auto* rhs = dispatch(*exprDecl.rhs);
+        auto* rhs = dispatchAndLoad(*exprDecl.rhs);
         currentBB->addInstruction(new ir::Goto(irCtx, endBlock));
         currentFunction->addBasicBlock(endBlock);
         setCurrentBB(endBlock);
@@ -317,8 +318,8 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::GreaterEq: [[fallthrough]];
     case BinaryOperator::Equals: [[fallthrough]];
     case BinaryOperator::NotEquals: {
-        ir::Value* const lhs = dispatch(*exprDecl.lhs);
-        ir::Value* const rhs = dispatch(*exprDecl.rhs);
+        ir::Value* const lhs = dispatchAndLoad(*exprDecl.lhs);
+        ir::Value* const rhs = dispatchAndLoad(*exprDecl.rhs);
         auto* cmpInst = new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName("cmp-result"));
         currentBB->addInstruction(cmpInst);
         return cmpInst;
@@ -338,10 +339,11 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::AndAssignment: [[fallthrough]];
     case BinaryOperator::OrAssignment: [[fallthrough]];
     case BinaryOperator::XOrAssignment: {
-        ir::Value* const lhs = exprDecl.operation() != BinaryOperator::Assignment ? dispatch(*exprDecl.lhs) : nullptr;
-        ir::Value* const rhs = dispatch(*exprDecl.rhs);
-        auto* lhsPointer     = getVariablePtr(*exprDecl.lhs);
-        ir::Value* value     = [&]() -> ir::Value* {
+        ir::Value* const lhsPointer = dispatch(*exprDecl.lhs);
+        ir::Value* const lhs        = exprDecl.operation() == BinaryOperator::Assignment ?
+                                        nullptr : loadIfPointer(mapType(exprDecl.lhs->typeID()), lhsPointer);
+        ir::Value* const rhs        = dispatchAndLoad(*exprDecl.rhs);
+        ir::Value* const value      = [&]() -> ir::Value* {
             if (exprDecl.operation() == BinaryOperator::Assignment) {
                 return rhs;
             }
@@ -359,8 +361,15 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     }
 }
 
-ir::Value* Context::generate(MemberAccess const&) {
-    SC_DEBUGFAIL();
+ir::Value* Context::generate(MemberAccess const& expr) {
+    ir::Value* const basePtr = dispatch(*expr.object);
+    sema::SymbolID const accessedElementID = cast<Identifier const&>(*expr.member).symbolID();
+    auto& var = symTable.getVariable(accessedElementID);
+    size_t const index = var.index();
+    ir::Type const* const accessedType = mapType(expr.object->typeID());
+    auto* const gep = new ir::GetElementPointer(accessedType, basePtr, index, localUniqueName("member-ptr"));
+    currentBB->addInstruction(gep);
+    return gep;
 }
 
 ir::Value* Context::generate(Conditional const& condExpr) {
@@ -396,7 +405,7 @@ ir::Value* Context::generate(FunctionCall const& functionCall) {
         utl::strcat(cast<Identifier const*>(functionCall.object.get())->value(), functionCall.functionID());
     ir::Function* function = cast<ir::Function*>(irCtx.getGlobal(mangledName));
     utl::small_vector<ir::Value*> const args =
-        utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return dispatch(*expr); });
+        utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return dispatchAndLoad(*expr); });
     auto* call = new ir::FunctionCall(function,
                                       args,
                                       functionCall.typeID() != symTable.Void() ? localUniqueName("call-result") : std::string{});
@@ -449,26 +458,36 @@ void Context::memorizeVariablePtr(sema::SymbolID symbolID, ir::Value* value) {
     SC_ASSERT(insertSuccess, "Variable must not be declared multiple times. This error should be handled in sema.");
 }
 
-ir::Value* Context::getVariablePtr(Expression const& expr) {
-    return visit(expr, utl::overload{
-        [&](Identifier const& id) -> ir::Value* {
-            auto itr = valueMap.find(id.symbolID());
-            SC_ASSERT(itr != valueMap.end(), "Undeclared symbol");
-            return itr->second;
-        },
-        [&](MemberAccess const& ma) -> ir::Value* {
-            utl::stack<Expression const*> stack;
-            auto const* obj = ma.object.get();
-            SC_ASSERT(isa<Identifier>(obj) || isa<MemberAccess>(obj), "What else could it sensibly be?");
-            while (!isa<Identifier>(obj)) {
-                stack.push(obj);
-                obj = cast<MemberAccess const*>(obj)->object.get();
-            }
-            SC_DEBUGFAIL();
-        },
-        [](Expression const& expr) -> ir::Value* { SC_UNREACHABLE(); }
-    });
-    
+ir::Value* Context::getVariableAddress(sema::SymbolID symbolID) {
+    auto itr = valueMap.find(symbolID);
+    SC_ASSERT(itr != valueMap.end(), "Undeclared symbol");
+    return itr->second;
+}
+
+ir::Value* Context::load(ir::Type const* type, ir::Value* addr, std::string name) {
+    SC_ASSERT(addr->type()->isPointer(), "Address must be a pointer");
+    if (name.empty()) {
+        name = "load-result";
+    }
+    auto* loadInst = new ir::Load(type, addr, localUniqueName(name));
+    currentBB->addInstruction(loadInst);
+    return loadInst;
+}
+
+ir::Value* Context::loadIfPointer(ir::Type const* type, ir::Value* value, std::string name) {
+    if (!value->type()->isPointer()) {
+        return value;
+    }
+    return load(type, value, std::move(name));
+}
+
+ir::Value* Context::dispatchAndLoad(Expression const& expr) {
+    ir::Value* value = dispatch(expr);
+    return loadIfPointer(mapType(expr.typeID()),
+                         value,
+                         isa<Identifier>(expr) ?
+                            std::string(cast<Identifier const&>(expr).value()) :
+                            std::string{});
 }
 
 std::string Context::localUniqueName(std::string_view name) {
