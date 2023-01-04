@@ -12,10 +12,10 @@ struct Y {
 fn main() -> int {
     var y: Y;
     var z: Y;
-    y.x.aSecondInt = 4;
+    y.x.anInteger = 4;
     
     z.x = y.x;
     
-    return z.x.aSecondInt;
+    return z.x.anInteger;
 }
 
