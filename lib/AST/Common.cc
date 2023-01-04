@@ -1,5 +1,6 @@
 #include "AST/Common.h"
 
+#include <array>
 #include <ostream>
 
 #include <utl/utility.hpp>
@@ -7,58 +8,27 @@
 using namespace scatha;
 using namespace ast;
 
-bool ast::isDeclaration(NodeType t) {
-    using enum NodeType;
-    return t == FunctionDefinition || t == StructDefinition || t == VariableDeclaration;
-}
-
 std::string_view ast::toString(NodeType t) {
-    // clang-format off
-    return UTL_SERIALIZE_ENUM(t, {
-        { NodeType::AbstractSyntaxTree,    "AbstractSyntaxTree" },
-        { NodeType::TranslationUnit,       "TranslationUnit" },
-        { NodeType::CompoundStatement,     "CompoundStatement" },
-        { NodeType::Declaration,           "Declaration" },
-        { NodeType::FunctionDefinition,    "FunctionDefinition" },
-        { NodeType::StructDefinition,      "StructDefinition" },
-        { NodeType::VariableDeclaration,   "VariableDeclaration" },
-        { NodeType::ParameterDeclaration,  "ParameterDeclaration" },
-        { NodeType::Statement,             "Statement" },
-        { NodeType::ExpressionStatement,   "ExpressionStatement" },
-        { NodeType::EmptyStatement,        "EmptyStatement" },
-        { NodeType::ReturnStatement,       "ReturnStatement" },
-        { NodeType::IfStatement,           "IfStatement" },
-        { NodeType::WhileStatement,        "WhileStatement" },
-        { NodeType::DoWhileStatement,      "DoWhileStatement" },
-        { NodeType::Expression,            "Expression" },
-        { NodeType::Identifier,            "Identifier" },
-        { NodeType::IntegerLiteral,        "IntegerLiteral" },
-        { NodeType::BooleanLiteral,        "BooleanLiteral" },
-        { NodeType::FloatingPointLiteral,  "FloatingPointLiteral" },
-        { NodeType::StringLiteral,         "StringLiteral" },
-        { NodeType::UnaryPrefixExpression, "UnaryPrefixExpression" },
-        { NodeType::BinaryExpression,      "BinaryExpression" },
-        { NodeType::MemberAccess,          "MemberAccess" },
-        { NodeType::Conditional,           "Conditional" },
-        { NodeType::FunctionCall,          "FunctionCall" },
-        { NodeType::Subscript,             "Subscript" },
-    });
-    // clang-format on
+    return std::array {
+#define SC_ASTNODE_DEF(node) std::string_view(#node),
+#include "AST/Lists.def"
+    }[static_cast<size_t>(t)];
 }
 
 std::ostream& ast::operator<<(std::ostream& str, NodeType t) {
     return str << toString(t);
 }
 
+bool ast::isDeclaration(NodeType t) {
+    using enum NodeType;
+    return t == FunctionDefinition || t == StructDefinition || t == VariableDeclaration;
+}
+
 std::string_view ast::toString(UnaryPrefixOperator op) {
-    // clang-format off
-    return UTL_SERIALIZE_ENUM(op, {
-        { UnaryPrefixOperator::Promotion,  "+" },
-        { UnaryPrefixOperator::Negation,   "-" },
-        { UnaryPrefixOperator::BitwiseNot, "~" },
-        { UnaryPrefixOperator::LogicalNot, "!" },
-    });
-    // clang-format on
+    return std::array {
+#define SC_UNARY_OPERATOR_DEF(name, opStr) std::string_view(opStr),
+#include "AST/Lists.def"
+    }[static_cast<size_t>(op)];
 }
 
 std::ostream& ast::operator<<(std::ostream& str, UnaryPrefixOperator op) {
@@ -66,40 +36,10 @@ std::ostream& ast::operator<<(std::ostream& str, UnaryPrefixOperator op) {
 }
 
 std::string_view ast::toString(BinaryOperator op) {
-    // clang-format off
-    return UTL_SERIALIZE_ENUM(op, {
-        { BinaryOperator::Multiplication, "*"   },
-        { BinaryOperator::Division,       "/"   },
-        { BinaryOperator::Remainder,      "%"   },
-        { BinaryOperator::Addition,       "+"   },
-        { BinaryOperator::Subtraction,    "-"   },
-        { BinaryOperator::LeftShift,      "<<"  },
-        { BinaryOperator::RightShift,     ">>"  },
-        { BinaryOperator::Less,           "<"   },
-        { BinaryOperator::LessEq,         "<="  },
-        { BinaryOperator::Greater,        ">"   },
-        { BinaryOperator::GreaterEq,      ">="  },
-        { BinaryOperator::Equals,         "=="  },
-        { BinaryOperator::NotEquals,      "!="  },
-        { BinaryOperator::BitwiseAnd,     "&"   },
-        { BinaryOperator::BitwiseXOr,     "^"   },
-        { BinaryOperator::BitwiseOr,      "|"   },
-        { BinaryOperator::LogicalAnd,     "&&"  },
-        { BinaryOperator::LogicalOr,      "||"  },
-        { BinaryOperator::Assignment,     "="   },
-        { BinaryOperator::AddAssignment,  "+="  },
-        { BinaryOperator::SubAssignment,  "-="  },
-        { BinaryOperator::MulAssignment,  "*="  },
-        { BinaryOperator::DivAssignment,  "/="  },
-        { BinaryOperator::RemAssignment,  "%="  },
-        { BinaryOperator::LSAssignment,   "<<=" },
-        { BinaryOperator::RSAssignment,   ">>=" },
-        { BinaryOperator::AndAssignment,  "&="  },
-        { BinaryOperator::OrAssignment,   "|="  },
-        { BinaryOperator::XOrAssignment,  "^="  },
-        { BinaryOperator::Comma,          ","   },
-    });
-    // clang-format on
+    return std::array {
+#define SC_BINARY_OPERATOR_DEF(name, opStr) std::string_view(opStr),
+#include "AST/Lists.def"
+    }[static_cast<size_t>(op)];
 }
 
 BinaryOperator ast::toNonAssignment(BinaryOperator op) {

@@ -36,11 +36,11 @@ namespace scatha::ir {
 //    └─ Phi
 
 #define SC_CGFNODE_DEF(Inst) class Inst;
-#include "IR/Instructions.def"
+#include "IR/Lists.def"
 
 enum class NodeType {
 #define SC_CGFNODE_DEF(Inst) Inst,
-#include "IR/Instructions.def"
+#include "IR/Lists.def"
     _count
 };
 
@@ -50,7 +50,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Inst, _) Inst,
-#include "IR/Instructions.def"
+#include "IR/Lists.def"
     _count
 };
 
@@ -60,7 +60,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation op)
 
 enum class UnaryArithmeticOperation {
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
-#include "IR/Instructions.def"
+#include "IR/Lists.def"
     _count
 };
 
@@ -70,7 +70,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOpera
 
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
-#include "IR/Instructions.def"
+#include "IR/Lists.def"
     _count
 };
 
@@ -81,6 +81,6 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation 
 } // namespace scatha::ir
 
 #define SC_CGFNODE_DEF(Inst) SC_DYNCAST_MAP(::scatha::ir::Inst, ::scatha::ir::NodeType::Inst);
-#include "IR/Instructions.def"
+#include "IR/Lists.def"
 
 #endif // SCATHA_IR_COMMON_H_

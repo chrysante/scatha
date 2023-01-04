@@ -1,0 +1,95 @@
+// No include guards
+
+// ===----------------------------------------------------------------------===
+// === List of all AST Nodes -----------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_ASTNODE_DEF
+#   define SC_ASTNODE_DEF(node)
+#endif
+
+SC_ASTNODE_DEF(AbstractSyntaxTree)
+SC_ASTNODE_DEF(TranslationUnit)
+SC_ASTNODE_DEF(CompoundStatement)
+SC_ASTNODE_DEF(Declaration)
+SC_ASTNODE_DEF(FunctionDefinition)
+SC_ASTNODE_DEF(StructDefinition)
+SC_ASTNODE_DEF(VariableDeclaration)
+SC_ASTNODE_DEF(ParameterDeclaration)
+SC_ASTNODE_DEF(Statement)
+SC_ASTNODE_DEF(ExpressionStatement)
+SC_ASTNODE_DEF(EmptyStatement)
+SC_ASTNODE_DEF(ReturnStatement)
+SC_ASTNODE_DEF(IfStatement)
+SC_ASTNODE_DEF(WhileStatement)
+SC_ASTNODE_DEF(DoWhileStatement)
+SC_ASTNODE_DEF(Expression)
+SC_ASTNODE_DEF(Identifier)
+SC_ASTNODE_DEF(IntegerLiteral)
+SC_ASTNODE_DEF(BooleanLiteral)
+SC_ASTNODE_DEF(FloatingPointLiteral)
+SC_ASTNODE_DEF(StringLiteral)
+SC_ASTNODE_DEF(UnaryPrefixExpression)
+SC_ASTNODE_DEF(BinaryExpression)
+SC_ASTNODE_DEF(MemberAccess)
+SC_ASTNODE_DEF(Conditional)
+SC_ASTNODE_DEF(FunctionCall)
+SC_ASTNODE_DEF(Subscript)
+
+#undef SC_ASTNODE_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of unary operators ---------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_UNARY_OPERATOR_DEF
+#   define SC_UNARY_OPERATOR_DEF(name, opStr)
+#endif
+
+SC_UNARY_OPERATOR_DEF(Promotion,  "+")
+SC_UNARY_OPERATOR_DEF(Negation,   "-")
+SC_UNARY_OPERATOR_DEF(BitwiseNot, "~")
+SC_UNARY_OPERATOR_DEF(LogicalNot, "!")
+
+#undef SC_UNARY_OPERATOR_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of binary operators --------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_BINARY_OPERATOR_DEF
+#   define SC_BINARY_OPERATOR_DEF(node, opStr)
+#endif
+
+SC_BINARY_OPERATOR_DEF(Multiplication, "*"  )
+SC_BINARY_OPERATOR_DEF(Division,       "/"  )
+SC_BINARY_OPERATOR_DEF(Remainder,      "%"  )
+SC_BINARY_OPERATOR_DEF(Addition,       "+"  )
+SC_BINARY_OPERATOR_DEF(Subtraction,    "-"  )
+SC_BINARY_OPERATOR_DEF(LeftShift,      "<<" )
+SC_BINARY_OPERATOR_DEF(RightShift,     ">>" )
+SC_BINARY_OPERATOR_DEF(Less,           "<"  )
+SC_BINARY_OPERATOR_DEF(LessEq,         "<=" )
+SC_BINARY_OPERATOR_DEF(Greater,        ">"  )
+SC_BINARY_OPERATOR_DEF(GreaterEq,      ">=" )
+SC_BINARY_OPERATOR_DEF(Equals,         "==" )
+SC_BINARY_OPERATOR_DEF(NotEquals,      "!=" )
+SC_BINARY_OPERATOR_DEF(BitwiseAnd,     "&"  )
+SC_BINARY_OPERATOR_DEF(BitwiseXOr,     "^"  )
+SC_BINARY_OPERATOR_DEF(BitwiseOr,      "|"  )
+SC_BINARY_OPERATOR_DEF(LogicalAnd,     "&&" )
+SC_BINARY_OPERATOR_DEF(LogicalOr,      "||" )
+SC_BINARY_OPERATOR_DEF(Assignment,     "="  )
+SC_BINARY_OPERATOR_DEF(AddAssignment,  "+=" )
+SC_BINARY_OPERATOR_DEF(SubAssignment,  "-=" )
+SC_BINARY_OPERATOR_DEF(MulAssignment,  "*=" )
+SC_BINARY_OPERATOR_DEF(DivAssignment,  "/=" )
+SC_BINARY_OPERATOR_DEF(RemAssignment,  "%=" )
+SC_BINARY_OPERATOR_DEF(LSAssignment,   "<<=")
+SC_BINARY_OPERATOR_DEF(RSAssignment,   ">>=")
+SC_BINARY_OPERATOR_DEF(AndAssignment,  "&=" )
+SC_BINARY_OPERATOR_DEF(OrAssignment,   "|=" )
+SC_BINARY_OPERATOR_DEF(XOrAssignment,  "^=" )
+SC_BINARY_OPERATOR_DEF(Comma,          ","  )
+
+#undef SC_BINARY_OPERATOR_DEF

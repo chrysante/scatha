@@ -14,116 +14,33 @@ namespace scatha::ast {
 /// **Forward Declaration of all AST nodes**
 ///
 
-class AbstractSyntaxTree;
-class TranslationUnit;
-class CompoundStatement;
-class Declaration;
-class FunctionDefinition;
-class StructDefinition;
-class VariableDeclaration;
-class ParameterDeclaration;
-class Statement;
-class ExpressionStatement;
-class EmptyStatement;
-class ReturnStatement;
-class IfStatement;
-class WhileStatement;
-class DoWhileStatement;
-class Expression;
-class Identifier;
-class IntegerLiteral;
-class BooleanLiteral;
-class FloatingPointLiteral;
-class StringLiteral;
-class UnaryPrefixExpression;
-class BinaryExpression;
-class MemberAccess;
-class Conditional;
-class FunctionCall;
-class Subscript;
+#define SC_ASTNODE_DEF(node) class node;
+#include "AST/Lists.def"
 
-/// List of all concrete AST node types.
+/// List of all  AST node types.
 enum class NodeType {
-    AbstractSyntaxTree,
-    TranslationUnit,
-    CompoundStatement,
-    Declaration,
-    FunctionDefinition,
-    StructDefinition,
-    VariableDeclaration,
-    ParameterDeclaration,
-    Statement,
-    ExpressionStatement,
-    EmptyStatement,
-    ReturnStatement,
-    IfStatement,
-    WhileStatement,
-    DoWhileStatement,
-    Expression,
-    Identifier,
-    IntegerLiteral,
-    BooleanLiteral,
-    FloatingPointLiteral,
-    StringLiteral,
-    UnaryPrefixExpression,
-    BinaryExpression,
-    MemberAccess,
-    Conditional,
-    FunctionCall,
-    Subscript,
-
+#define SC_ASTNODE_DEF(node) node,
+#include "AST/Lists.def"
     _count
 };
-
-bool isDeclaration(NodeType);
 
 SCATHA(API) std::string_view toString(NodeType);
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, NodeType);
 
+bool isDeclaration(NodeType);
+
 } // namespace scatha::ast
 
-#define SC_AST_ENABLE_DYNCAST(type) SC_DYNCAST_MAP(::scatha::ast::type, ::scatha::ast::NodeType::type)
-
-SC_AST_ENABLE_DYNCAST(AbstractSyntaxTree);
-SC_AST_ENABLE_DYNCAST(TranslationUnit);
-SC_AST_ENABLE_DYNCAST(CompoundStatement);
-SC_AST_ENABLE_DYNCAST(Declaration);
-SC_AST_ENABLE_DYNCAST(FunctionDefinition);
-SC_AST_ENABLE_DYNCAST(StructDefinition);
-SC_AST_ENABLE_DYNCAST(VariableDeclaration);
-SC_AST_ENABLE_DYNCAST(ParameterDeclaration);
-SC_AST_ENABLE_DYNCAST(Statement);
-SC_AST_ENABLE_DYNCAST(ExpressionStatement);
-SC_AST_ENABLE_DYNCAST(EmptyStatement);
-SC_AST_ENABLE_DYNCAST(ReturnStatement);
-SC_AST_ENABLE_DYNCAST(IfStatement);
-SC_AST_ENABLE_DYNCAST(WhileStatement);
-SC_AST_ENABLE_DYNCAST(DoWhileStatement);
-SC_AST_ENABLE_DYNCAST(Expression);
-SC_AST_ENABLE_DYNCAST(Identifier);
-SC_AST_ENABLE_DYNCAST(IntegerLiteral);
-SC_AST_ENABLE_DYNCAST(BooleanLiteral);
-SC_AST_ENABLE_DYNCAST(FloatingPointLiteral);
-SC_AST_ENABLE_DYNCAST(StringLiteral);
-SC_AST_ENABLE_DYNCAST(UnaryPrefixExpression);
-SC_AST_ENABLE_DYNCAST(BinaryExpression);
-SC_AST_ENABLE_DYNCAST(MemberAccess);
-SC_AST_ENABLE_DYNCAST(Conditional);
-SC_AST_ENABLE_DYNCAST(FunctionCall);
-SC_AST_ENABLE_DYNCAST(Subscript);
-
-#undef SC_AST_ENABLE_DYNCAST
+#define SC_ASTNODE_DEF(type) SC_DYNCAST_MAP(::scatha::ast::type, ::scatha::ast::NodeType::type);
+#include "AST/Lists.def"
 
 namespace scatha::ast {
 
 /// List of all unary operators in prefix notation
 enum class UnaryPrefixOperator {
-    Promotion,
-    Negation,
-    BitwiseNot,
-    LogicalNot,
-
+#define SC_UNARY_OPERATOR_DEF(name, _) name,
+#include "AST/Lists.def"
     _count
 };
 
@@ -133,37 +50,8 @@ SCATHA(API) std::ostream& operator<<(std::ostream&, UnaryPrefixOperator);
 
 /// List of all binary operators in infix notation
 enum class BinaryOperator {
-    Multiplication,
-    Division,
-    Remainder,
-    Addition,
-    Subtraction,
-    LeftShift,
-    RightShift,
-    Less,
-    LessEq,
-    Greater,
-    GreaterEq,
-    Equals,
-    NotEquals,
-    BitwiseAnd,
-    BitwiseXOr,
-    BitwiseOr,
-    LogicalAnd,
-    LogicalOr,
-    Assignment,
-    AddAssignment,
-    SubAssignment,
-    MulAssignment,
-    DivAssignment,
-    RemAssignment,
-    LSAssignment,
-    RSAssignment,
-    AndAssignment,
-    OrAssignment,
-    XOrAssignment,
-    Comma,
-
+#define SC_BINARY_OPERATOR_DEF(name, _) name,
+#include "AST/Lists.def"
     _count
 };
 
