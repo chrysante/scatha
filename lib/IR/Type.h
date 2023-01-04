@@ -102,6 +102,8 @@ public:
         Type(std::move(name), Type::Category::Structure), _members(members) {}
 
     Type const* memberAt(std::size_t index) const { return _members[index]; }
+    
+    size_t memberOffsetAt(std::size_t index) const { return _memberOffsets[index]; }
 
     std::span<Type const* const> members() const { return _members; }
 
@@ -115,6 +117,7 @@ private:
     
 private:
     utl::small_vector<Type const*> _members;
+    utl::small_vector<u16> _memberOffsets;
 };
 
 /// Represents a function type.

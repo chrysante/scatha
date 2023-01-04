@@ -276,8 +276,11 @@ void Context::generate(ir::Phi const& phi) {
 }
 
 void Context::generate(ir::GetElementPointer const& gep) {
-    gep.accessedType();
-    SC_DEBUGFAIL();
+    /// Should we really generate arithmetic instructions here or should we perform offset calculation in the memory access??
+    auto idx = currentRD().resolve(gep);
+    result.add(MoveInst(idx, currentRD().resolve(*gep.basePointer())));
+    size_t const offset = static_cast<ir::StructureType const*>(gep.accessedType())->memberOffsetAt(gep.offsetIndex());
+    result.add(ArithmeticInst(ArithmeticOperation::Add, Type::Unsigned, idx, Value64(offset)));
 }
 
 Label Context::makeLabel(ir::BasicBlock const& bb) {
