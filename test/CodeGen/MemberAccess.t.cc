@@ -28,5 +28,3 @@ fn main() -> int {
     auto const& state      = vm.getState();
     CHECK(state.registers[0] == 4);
 }
-
-

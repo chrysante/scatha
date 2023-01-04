@@ -167,7 +167,7 @@ void PrintCtx::print(Phi const& phi) {
 }
 
 void PrintCtx::print(GetElementPointer const& gep) {
-    str << indent << "%" << gep.name() << " = gep " << gep.accessedType()->name() << ", " << gep.offsetIndex();
+    str << indent << "%" << gep.name() << " = gep " << gep.accessedType()->name() << ", " << toString(*gep.basePointer()) << ", " << gep.offsetIndex();
 }
 
 std::string PrintCtx::toString(Value const& value) {

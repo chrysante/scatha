@@ -11,7 +11,11 @@ struct Y {
 
 fn main() -> int {
     var y: Y;
+    var z: Y;
     y.x.aSecondInt = 4;
-    return y.x.aSecondInt;
+    
+    z.x = y.x;
+    
+    return z.x.aSecondInt;
 }
 
