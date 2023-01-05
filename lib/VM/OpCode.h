@@ -26,12 +26,10 @@ namespace scatha::vm {
 /// Arguments are passed in consecutive registers starting with index 0.
 /// Return value is passed in consecutive registers starting with index 0.
 /// All registers with positive indices may be used and modified by the callee.
-/// Registers to hold the arguments are allocated by the caller, all further
-/// registers must be allocted by the callee (using \p enterFn). The register
-/// pointer offset is placed in \p R[-2] and added to the register pointer by the
-/// \p call instruction. The register pointer offset is subtracted from the
-/// register pointer by the the \p ret instruction. The return address is placed
-/// in \p R[-1] by the \p call instruction.
+/// The register  pointer offset is placed in \p R[-2] and added to the
+/// register pointer by the \p call instruction. The register pointer offset is
+/// subtracted from the register pointer by the the \p ret instruction. The
+/// return address is placed in \p R[-1] by the \p call instruction.
 ///
 
 enum class OpCode: u8 {
