@@ -31,9 +31,9 @@ struct Context {
 
     explicit Context(AssemblyStream const& stream, AssemblerOptions options, vm::Program& program):
         stream(stream), options(options), program(program), instructions(program.instructions) {}
-    
+
     void run();
-    
+
     void dispatch(Instruction const& inst);
     void translate(MoveInst const&);
     void translate(JumpInst const&);
@@ -47,7 +47,7 @@ struct Context {
     void translate(UnaryArithmeticInst const&);
     void translate(ArithmeticInst const&);
     void translate(Label const&);
-    
+
     void dispatch(Value const& value);
     void translate(RegisterIndex const&);
     void translate(MemoryAddress const&);
@@ -55,12 +55,12 @@ struct Context {
     void translate(Value16 const&);
     void translate(Value32 const&);
     void translate(Value64 const&);
-    
+
     void put(vm::OpCode o) {
         SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
         program.instructions.push_back(utl::to_underlying(o));
     }
-    
+
     template <typename T>
     void put(u64 value) {
         for (auto byte: decompose(utl::narrow_cast<T>(value))) {
@@ -72,13 +72,13 @@ struct Context {
         /// Labels have a size of 4.
         put<u32>(~0u);
     }
-    
+
     void registerJumpSite(size_t offsetValuePos, u64 targetID);
-    
+
     void postProcess();
-    
+
     size_t currentPosition() const { return instructions.size(); }
-    
+
     AssemblyStream const& stream;
     AssemblerOptions options;
     vm::Program& program;
@@ -166,22 +166,16 @@ void Context::translate(SetInst const& set) {
 
 void Context::translate(UnaryArithmeticInst const& inst) {
     switch (inst.operation()) {
-    case UnaryArithmeticOperation::LogicalNot:
-        put(vm::OpCode::lnt);
-        break;
-    case UnaryArithmeticOperation::BitwiseNot:
-        put(vm::OpCode::bnt);
-        break;
+    case UnaryArithmeticOperation::LogicalNot: put(vm::OpCode::lnt); break;
+    case UnaryArithmeticOperation::BitwiseNot: put(vm::OpCode::bnt); break;
     default: SC_UNREACHABLE();
     }
     translate(inst.operand());
 }
 
 void Context::translate(ArithmeticInst const& inst) {
-    OpCode const opcode = mapArithmetic(inst.operation(),
-                                        inst.type(),
-                                        inst.dest().valueType(),
-                                        inst.source().valueType());
+    OpCode const opcode =
+        mapArithmetic(inst.operation(), inst.type(), inst.dest().valueType(), inst.source().valueType());
     put(opcode);
     dispatch(inst.dest());
     dispatch(inst.source());
@@ -225,10 +219,7 @@ void Context::translate(Value64 const& value) {
 }
 
 void Context::registerJumpSite(size_t offsetValuePos, u64 targetID) {
-    jumpsites.push_back({
-        .codePosition = offsetValuePos,
-        .targetID     = targetID
-    });
+    jumpsites.push_back({ .codePosition = offsetValuePos, .targetID = targetID });
 }
 
 void Context::postProcess() {

@@ -21,4 +21,3 @@ SCATHA(API) vm::OpCode mapArithmetic(ArithmeticOperation operation, Type type, V
 } // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_MAP_H_
-

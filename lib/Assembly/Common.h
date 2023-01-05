@@ -9,9 +9,7 @@
 namespace scatha::Asm {
 
 /// Value types in asm. There are exactly 3 types: signed, unsigned and float
-enum class Type {
-    Signed, Unsigned, Float, _count
-};
+enum class Type { Signed, Unsigned, Float, _count };
 
 /// Forward declare all instructions.
 
@@ -73,4 +71,3 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation 
 } // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_COMMON_H_
-

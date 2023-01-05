@@ -19,8 +19,8 @@ void VirtualMachine::load(Program const& program) {
     std::memcpy(memory.data(), program.instructions.data(), instructionCount);
     iptr         = memory.data() + program.start;
     programBreak = memory.data() + instructionCount;
-    memoryPtr   = nullptr;
-    memoryBreak = nullptr;
+    memoryPtr    = nullptr;
+    memoryBreak  = nullptr;
 }
 
 void VirtualMachine::execute() {

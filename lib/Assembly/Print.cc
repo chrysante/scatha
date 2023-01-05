@@ -3,8 +3,8 @@
 #include <iomanip>
 #include <iostream>
 
-#include <utl/streammanip.hpp>
 #include <utl/strcat.hpp>
+#include <utl/streammanip.hpp>
 
 #include "Assembly/AssemblyStream.h"
 

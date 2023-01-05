@@ -8,8 +8,8 @@
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
 #include "IR/CFGCommon.h"
-#include "IR/Type.h"
 #include "IR/List.h"
+#include "IR/Type.h"
 
 namespace scatha::ir {
 
@@ -99,7 +99,7 @@ public:
 
     /// Check wether this is the entry basic block of a function
     bool isEntry() const;
-    
+
     List<Instruction> instructions;
 };
 
@@ -144,7 +144,8 @@ private:
     List<BasicBlock> bbs;
 };
 
-/// \p alloca instruction. Allocates automatically managed memory for local variables. Its value is a pointer to the allocated memory.
+/// \p alloca instruction. Allocates automatically managed memory for local variables. Its value is a pointer to the
+/// allocated memory.
 class SCATHA(API) Alloca: public Instruction {
 public:
     explicit Alloca(Context& context, Type const* allocatedType, std::string name);
@@ -159,8 +160,7 @@ private:
 class SCATHA(API) UnaryInstruction: public Instruction {
 protected:
     explicit UnaryInstruction(NodeType nodeType, Value* operand, Type const* type, std::string name):
-        Instruction(nodeType, type, std::move(name)), _operand(operand)
-    {
+        Instruction(nodeType, type, std::move(name)), _operand(operand) {
         SC_ASSERT(nodeType == NodeType::Load || !operand->type()->isPointer(),
                   "Operand must not be a pointer except when we are a load instruction.");
     }
@@ -170,7 +170,7 @@ public:
     Value const* operand() const { return _operand; }
 
     Type const* operandType() const { return operand()->type(); }
-    
+
 private:
     Value* _operand;
 };
@@ -199,7 +199,7 @@ public:
     Value const* rhs() const { return _rhs; }
 
     Type const* operandType() const { return lhs()->type(); }
-    
+
 private:
     Value* _lhs;
     Value* _rhs;
@@ -209,7 +209,7 @@ private:
 class SCATHA(API) Store: public BinaryInstruction {
 public:
     explicit Store(Context& context, Value* address, Value* value);
-    
+
     Value* address() { return lhs(); }
     Value const* address() const { return lhs(); }
     Value* value() { return rhs(); }
@@ -297,7 +297,8 @@ private:
 /// Return instruction. Return control flow to the calling function.
 class SCATHA(API) Return: public TerminatorInst {
 public:
-    explicit Return(Context& context, Value* value = nullptr): TerminatorInst(NodeType::Return, context), _value(value) {}
+    explicit Return(Context& context, Value* value = nullptr):
+        TerminatorInst(NodeType::Return, context), _value(value) {}
 
     Value* value() { return _value; }
     Value const* value() const { return _value; }
@@ -349,18 +350,17 @@ public:
         Instruction(NodeType::GetElementPointer, basePointer->type(), std::move(name)),
         accType(accessedType),
         basePtr(basePointer),
-        offsetIdx(offsetIndex)
-    {
+        offsetIdx(offsetIndex) {
         SC_ASSERT(basePointer->type()->isPointer(), "basePointer must be a pointer.");
     }
-    
+
     Type const* accessedType() const { return accType; }
-    
+
     Value* basePointer() { return basePtr; }
     Value const* basePointer() const { return basePtr; }
-    
+
     size_t offsetIndex() const { return offsetIdx; }
-    
+
 private:
     Type const* accType;
     Value* basePtr;
@@ -370,4 +370,3 @@ private:
 } // namespace scatha::ir
 
 #endif // SCATHA_IR_CFG_H_
-

@@ -32,7 +32,7 @@ namespace scatha::vm {
 /// return address is placed in \p R[-1] by the \p call instruction.
 ///
 
-enum class OpCode: u8 {
+enum class OpCode : u8 {
 #define SC_INSTRUCTION_DEF(inst, class) inst,
 #include "VM/Lists.def"
     _count

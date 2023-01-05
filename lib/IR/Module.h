@@ -6,15 +6,15 @@
 #include <utl/hashset.hpp>
 
 #include "Basic/Basic.h"
-#include "IR/List.h"
 #include "IR/CFGCommon.h"
+#include "IR/List.h"
 #include "IR/Type.h"
 
 namespace scatha::ir {
 
 class SCATHA(API) Module {
 public:
-    Module() = default;
+    Module()                  = default;
     Module(Module const& rhs) = delete;
     Module(Module&& rhs) noexcept;
     Module& operator=(Module const& rhs) = delete;

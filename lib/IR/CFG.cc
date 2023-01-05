@@ -32,18 +32,19 @@ Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
     Instruction(NodeType::Alloca, context.pointerType(), std::move(name)), _allocatedType(allocatedType) {}
 
 Store::Store(Context& context, Value* address, Value* value):
-    BinaryInstruction(NodeType::Store, address, value, context.voidType())
-{
+    BinaryInstruction(NodeType::Store, address, value, context.voidType()) {
     SC_ASSERT(address->type()->isPointer(), "Address argument to Store must be a pointer");
 }
 
 CompareInst::CompareInst(Context& context, Value* lhs, Value* rhs, CompareOperation op, std::string name):
-    BinaryInstruction(NodeType::CompareInst, lhs, rhs, context.integralType(1), std::move(name)), _op(op)
-{
+    BinaryInstruction(NodeType::CompareInst, lhs, rhs, context.integralType(1), std::move(name)), _op(op) {
     SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
 }
 
-UnaryArithmeticInst::UnaryArithmeticInst(Context& context, Value* operand, UnaryArithmeticOperation op, std::string name):
+UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
+                                         Value* operand,
+                                         UnaryArithmeticOperation op,
+                                         std::string name):
     UnaryInstruction(NodeType::UnaryArithmeticInst,
                      operand,
                      op == UnaryArithmeticOperation::LogicalNot ? context.integralType(1) : operand->type(),

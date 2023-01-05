@@ -16,23 +16,19 @@ namespace scatha::ir {
 class Type {
 public:
     static constexpr size_t invalidSize() { return ~size_t(0); }
-    
+
     enum Category { Void, Pointer, Integral, FloatingPoint, Structure, Function };
 
-    explicit Type(std::string name, Category category):
-        Type(std::move(name), category, invalidSize(), invalidSize()) {}
-    
-    explicit Type(std::string name,
-                  Category category,
-                  size_t size,
-                  size_t align):
+    explicit Type(std::string name, Category category): Type(std::move(name), category, invalidSize(), invalidSize()) {}
+
+    explicit Type(std::string name, Category category, size_t size, size_t align):
         _name(std::move(name)), _category(category), _size(size), _align(align) {}
 
     std::string_view name() const { return _name; }
-    
+
     size_t size() const { return _size; }
     size_t align() const { return _align; }
-    
+
     auto category() const { return _category; }
 
     bool isVoid() const { return category() == Void; }
@@ -57,7 +53,7 @@ public:
 protected:
     void setSize(size_t size) { _size = size; }
     void setAlign(size_t align) { _align = align; }
-    
+
 private:
     std::string _name;
     Category _category;
@@ -102,7 +98,7 @@ public:
         Type(std::move(name), Type::Category::Structure), _members(members) {}
 
     Type const* memberAt(std::size_t index) const { return _members[index]; }
-    
+
     size_t memberOffsetAt(std::size_t index) const { return _memberOffsets[index]; }
 
     std::span<Type const* const> members() const { return _members; }
@@ -114,7 +110,7 @@ public:
 
 private:
     void computeSizeAndAlign();
-    
+
 private:
     utl::small_vector<Type const*> _members;
     utl::small_vector<u16> _memberOffsets;

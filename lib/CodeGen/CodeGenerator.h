@@ -18,8 +18,7 @@ class Module;
 namespace scatha::cg {
 
 SCATHA(API) Asm::AssemblyStream codegen(ir::Module const& mod);
-	
+
 } // namespace scatha::cg
 
 #endif // SCATHA_CODEGEN2_CODEGENERATOR_H_
-

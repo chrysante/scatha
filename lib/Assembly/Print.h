@@ -7,7 +7,7 @@
 #include "Basic/Basic.h"
 
 namespace scatha::Asm {
-	
+
 class AssemblyStream;
 
 SCATHA(API) void print(AssemblyStream const& assemblyStream);
@@ -37,4 +37,3 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value64 const&);
 } // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_PRINT_H_
-

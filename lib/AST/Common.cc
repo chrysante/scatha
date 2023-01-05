@@ -9,7 +9,7 @@ using namespace scatha;
 using namespace ast;
 
 std::string_view ast::toString(NodeType t) {
-    return std::array {
+    return std::array{
 #define SC_ASTNODE_DEF(node) std::string_view(#node),
 #include "AST/Lists.def"
     }[static_cast<size_t>(t)];
@@ -25,7 +25,7 @@ bool ast::isDeclaration(NodeType t) {
 }
 
 std::string_view ast::toString(UnaryPrefixOperator op) {
-    return std::array {
+    return std::array{
 #define SC_UNARY_OPERATOR_DEF(name, opStr) std::string_view(opStr),
 #include "AST/Lists.def"
     }[static_cast<size_t>(op)];
@@ -36,7 +36,7 @@ std::ostream& ast::operator<<(std::ostream& str, UnaryPrefixOperator op) {
 }
 
 std::string_view ast::toString(BinaryOperator op) {
-    return std::array {
+    return std::array{
 #define SC_BINARY_OPERATOR_DEF(name, opStr) std::string_view(opStr),
 #include "AST/Lists.def"
     }[static_cast<size_t>(op)];
@@ -69,20 +69,16 @@ bool ast::isArithmetic(BinaryOperator op) {
     case BinaryOperator::RightShift: [[fallthrough]];
     case BinaryOperator::BitwiseAnd: [[fallthrough]];
     case BinaryOperator::BitwiseXOr: [[fallthrough]];
-    case BinaryOperator::BitwiseOr:
-        return true;
-    default:
-        return false;
+    case BinaryOperator::BitwiseOr: return true;
+    default: return false;
     }
 }
 
 bool ast::isLogical(BinaryOperator op) {
     switch (op) {
     case BinaryOperator::LogicalAnd: [[fallthrough]];
-    case BinaryOperator::LogicalOr:
-        return true;
-    default:
-        return false;
+    case BinaryOperator::LogicalOr: return true;
+    default: return false;
     }
 }
 
@@ -93,10 +89,8 @@ bool ast::isComparison(BinaryOperator op) {
     case BinaryOperator::Greater: [[fallthrough]];
     case BinaryOperator::GreaterEq: [[fallthrough]];
     case BinaryOperator::Equals: [[fallthrough]];
-    case BinaryOperator::NotEquals:
-        return true;
-    default:
-        return false;
+    case BinaryOperator::NotEquals: return true;
+    default: return false;
     }
 }
 
@@ -112,10 +106,8 @@ bool ast::isAssignment(BinaryOperator op) {
     case BinaryOperator::RSAssignment: [[fallthrough]];
     case BinaryOperator::AndAssignment: [[fallthrough]];
     case BinaryOperator::OrAssignment: [[fallthrough]];
-    case BinaryOperator::XOrAssignment:
-        return true;
-    default:
-        return false;
+    case BinaryOperator::XOrAssignment: return true;
+    default: return false;
     }
 }
 

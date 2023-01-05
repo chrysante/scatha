@@ -7,9 +7,9 @@
 
 namespace scatha {
 
-using utl::isa;
 using utl::cast;
 using utl::dyncast;
+using utl::isa;
 using utl::visit;
 
 } // namespace scatha

@@ -36,7 +36,7 @@ struct vm::OpCodeImpl {
 
     static u8* getPointer(u64 const* reg, u8 const* i) {
         const size_t ptrRegIdx = i[0];
-        const ssize_t offset    = i[1];
+        const ssize_t offset   = i[1];
         int const offsetShift  = i[2];
         return reinterpret_cast<u8*>(reg[ptrRegIdx]) + (offset << offsetShift);
     }
@@ -63,19 +63,19 @@ struct vm::OpCodeImpl {
             return codeSize(C);
         };
     }
-    
+
     template <OpCode C, size_t Size>
     static auto moveRM() {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const destRegIdx = i[0];
-            u8* const ptr      = getPointer(reg, i + 1);
+            u8* const ptr           = getPointer(reg, i + 1);
             VM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
             reg[destRegIdx] = 0;
             std::memcpy(&reg[destRegIdx], ptr, Size);
             return codeSize(C);
         };
     }
-    
+
     template <OpCode C, typename T>
     static auto compareRR() {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
@@ -158,7 +158,7 @@ struct vm::OpCodeImpl {
     static auto arithmeticRM(auto operation) {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdxA = i[0];
-            u8* const ptr     = getPointer(reg, i + 1);
+            u8* const ptr        = getPointer(reg, i + 1);
             VM_ASSERT(reinterpret_cast<size_t>(ptr) % 8 == 0);
             auto const a = read<T>(&reg[regIdxA]);
             auto const b = read<T>(ptr);
@@ -174,7 +174,7 @@ struct vm::OpCodeImpl {
             return result[static_cast<u8>(i)];
         };
         using enum OpCode;
-        
+
         /// ** Function call and return **
         at(call) = [](u8 const* i, u64*, VirtualMachine* vm) -> u64 {
             i32 const offset       = read<i32>(i);
@@ -185,7 +185,7 @@ struct vm::OpCodeImpl {
             vm->iptr += offset;
             return 0;
         };
-        
+
         at(ret) = [](u8 const*, u64* regPtr, VirtualMachine* vm) -> u64 {
             if (vm->registers.data() == regPtr) {
                 /// Meaning we are the root of the call tree aka. the main/start function,
@@ -215,29 +215,29 @@ struct vm::OpCodeImpl {
             reg[destRegIdx]         = read<u64>(i + 1);
             return codeSize(mov64RV);
         };
-        at(mov8MR)  = moveMR<mov8MR,  1>();
+        at(mov8MR)  = moveMR<mov8MR, 1>();
         at(mov16MR) = moveMR<mov16MR, 2>();
         at(mov32MR) = moveMR<mov32MR, 4>();
         at(mov64MR) = moveMR<mov64MR, 8>();
-        at(mov8RM)  = moveRM<mov8RM,  1>();
+        at(mov8RM)  = moveRM<mov8RM, 1>();
         at(mov16RM) = moveRM<mov16RM, 2>();
         at(mov32RM) = moveRM<mov32RM, 4>();
         at(mov64RM) = moveRM<mov64RM, 8>();
-        
+
         at(alloca_) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const targetRegIdx = i[0];
             size_t const sourceRegIdx = i[1];
-            reg[targetRegIdx] = reinterpret_cast<u64>(&reg[sourceRegIdx]);
+            reg[targetRegIdx]         = reinterpret_cast<u64>(&reg[sourceRegIdx]);
             return codeSize(alloca_);
         };
-        
+
         /// ** Jumps **
-        at(jmp) = jump<jmp>([](VMFlags)   { return true; });
-        at(je)  = jump<je> ([](VMFlags f) { return f.equal; });
+        at(jmp) = jump<jmp>([](VMFlags) { return true; });
+        at(je)  = jump<je>([](VMFlags f) { return f.equal; });
         at(jne) = jump<jne>([](VMFlags f) { return !f.equal; });
-        at(jl)  = jump<jl> ([](VMFlags f) { return f.less; });
+        at(jl)  = jump<jl>([](VMFlags f) { return f.less; });
         at(jle) = jump<jle>([](VMFlags f) { return f.less || f.equal; });
-        at(jg)  = jump<jg> ([](VMFlags f) { return !f.less && !f.equal; });
+        at(jg)  = jump<jg>([](VMFlags f) { return !f.less && !f.equal; });
         at(jge) = jump<jge>([](VMFlags f) { return !f.less; });
 
         /// ** Comparison **
@@ -251,11 +251,11 @@ struct vm::OpCodeImpl {
         at(utest)  = testR<utest, u64>();
 
         /// ** Read comparison results **
-        at(sete)  = set<sete> ([](VMFlags f) { return  f.equal; });
+        at(sete)  = set<sete>([](VMFlags f) { return f.equal; });
         at(setne) = set<setne>([](VMFlags f) { return !f.equal; });
-        at(setl)  = set<setl> ([](VMFlags f) { return  f.less; });
-        at(setle) = set<setle>([](VMFlags f) { return  f.less || f.equal; });
-        at(setg)  = set<setg> ([](VMFlags f) { return !f.less && !f.equal; });
+        at(setl)  = set<setl>([](VMFlags f) { return f.less; });
+        at(setle) = set<setle>([](VMFlags f) { return f.less || f.equal; });
+        at(setg)  = set<setg>([](VMFlags f) { return !f.less && !f.equal; });
         at(setge) = set<setge>([](VMFlags f) { return !f.less; });
 
         /// ** Unary operations **
@@ -263,24 +263,24 @@ struct vm::OpCodeImpl {
         at(bnt) = unaryR<bnt, u64>(utl::bitwise_not);
 
         /// ** Integer arithmetic **
-        at(addRR)  = arithmeticRR<addRR,  u64>(utl::plus);
-        at(addRV)  = arithmeticRV<addRV,  u64>(utl::plus);
-        at(addRM)  = arithmeticRM<addRM,  u64>(utl::plus);
-        at(subRR)  = arithmeticRR<subRR,  u64>(utl::minus);
-        at(subRV)  = arithmeticRV<subRV,  u64>(utl::minus);
-        at(subRM)  = arithmeticRM<subRM,  u64>(utl::minus);
-        at(mulRR)  = arithmeticRR<mulRR,  u64>(utl::multiplies);
-        at(mulRV)  = arithmeticRV<mulRV,  u64>(utl::multiplies);
-        at(mulRM)  = arithmeticRM<mulRM,  u64>(utl::multiplies);
-        at(divRR)  = arithmeticRR<divRR,  u64>(utl::divides);
+        at(addRR)  = arithmeticRR<addRR, u64>(utl::plus);
+        at(addRV)  = arithmeticRV<addRV, u64>(utl::plus);
+        at(addRM)  = arithmeticRM<addRM, u64>(utl::plus);
+        at(subRR)  = arithmeticRR<subRR, u64>(utl::minus);
+        at(subRV)  = arithmeticRV<subRV, u64>(utl::minus);
+        at(subRM)  = arithmeticRM<subRM, u64>(utl::minus);
+        at(mulRR)  = arithmeticRR<mulRR, u64>(utl::multiplies);
+        at(mulRV)  = arithmeticRV<mulRV, u64>(utl::multiplies);
+        at(mulRM)  = arithmeticRM<mulRM, u64>(utl::multiplies);
+        at(divRR)  = arithmeticRR<divRR, u64>(utl::divides);
         at(divRV)  = arithmeticRV<divRV, u64>(utl::divides);
         at(divRM)  = arithmeticRM<divRM, u64>(utl::divides);
         at(idivRR) = arithmeticRR<idivRR, i64>(utl::divides);
         at(idivRV) = arithmeticRV<idivRV, i64>(utl::divides);
         at(idivRM) = arithmeticRM<idivRM, i64>(utl::divides);
-        at(remRR)  = arithmeticRR<remRR,  u64>(utl::modulo);
-        at(remRV)  = arithmeticRV<remRV,  u64>(utl::modulo);
-        at(remRM)  = arithmeticRM<remRM,  u64>(utl::modulo);
+        at(remRR)  = arithmeticRR<remRR, u64>(utl::modulo);
+        at(remRV)  = arithmeticRV<remRV, u64>(utl::modulo);
+        at(remRM)  = arithmeticRM<remRM, u64>(utl::modulo);
         at(iremRR) = arithmeticRR<iremRR, i64>(utl::modulo);
         at(iremRV) = arithmeticRV<iremRV, i64>(utl::modulo);
         at(iremRM) = arithmeticRM<iremRM, i64>(utl::modulo);
@@ -309,9 +309,9 @@ struct vm::OpCodeImpl {
         at(andRR) = arithmeticRR<andRR, u64>(utl::bitwise_and);
         at(andRV) = arithmeticRV<andRV, u64>(utl::bitwise_and);
         at(andRM) = arithmeticRV<andRM, u64>(utl::bitwise_and);
-        at(orRR)  = arithmeticRR<orRR,  u64>(utl::bitwise_or);
-        at(orRV)  = arithmeticRV<orRV,  u64>(utl::bitwise_or);
-        at(orRM)  = arithmeticRV<orRM,  u64>(utl::bitwise_or);
+        at(orRR)  = arithmeticRR<orRR, u64>(utl::bitwise_or);
+        at(orRV)  = arithmeticRV<orRV, u64>(utl::bitwise_or);
+        at(orRM)  = arithmeticRV<orRM, u64>(utl::bitwise_or);
         at(xorRR) = arithmeticRR<xorRR, u64>(utl::bitwise_xor);
         at(xorRV) = arithmeticRV<xorRV, u64>(utl::bitwise_xor);
         at(xorRM) = arithmeticRV<xorRM, u64>(utl::bitwise_xor);

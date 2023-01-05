@@ -383,7 +383,7 @@ public:
         expectDecorated();
         return _offset;
     }
-    
+
     /// Index of the variable if this is a struct member. Always zero otherwise.
     size_t index() const {
         expectDecorated();
@@ -395,9 +395,9 @@ public:
         _typeID = typeID;
         Declaration::decorate(symbolID);
     }
-    
+
     void setOffset(size_t offset) { _offset = offset; }
-    
+
     void setIndex(size_t index) { _index = index; }
 
 private:

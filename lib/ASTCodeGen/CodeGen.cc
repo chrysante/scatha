@@ -1,14 +1,14 @@
 #include "ASTCodeGen/CodeGen.h"
 
-#include <utl/strcat.hpp>
-#include <utl/ranges.hpp>
-#include <utl/vector.hpp>
 #include <utl/format.hpp>
+#include <utl/ranges.hpp>
 #include <utl/stack.hpp>
+#include <utl/strcat.hpp>
+#include <utl/vector.hpp>
 
 #include "AST/AST.h"
-#include "IR/Context.h"
 #include "IR/CFG.h"
+#include "IR/Context.h"
 #include "IR/Module.h"
 #include "Sema/SymbolTable.h"
 
@@ -58,7 +58,7 @@ struct Context {
     ir::Value* load(ir::Type const* type, ir::Value* value, std::string name = {});
     ir::Value* loadIfPointer(ir::Type const* type, ir::Value* value, std::string name = {});
     ir::Value* dispatchAndLoad(Expression const& expr);
-    
+
     std::string localUniqueName(std::string_view name);
     std::string localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args);
 
@@ -92,15 +92,15 @@ ir::Module ast::codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& 
 }
 
 ir::Value* Context::dispatch(AbstractSyntaxTree const& node) {
-    return visit(node, [this](auto const& node) {
-        return generate(node);
-    });
+    return visit(node, [this](auto const& node) { return generate(node); });
 }
 
 ir::Value* Context::generate(TranslationUnit const& tu) {
     for (auto& decl: tu.declarations) {
         ir::Value* const value = dispatch(*decl);
-        if (!value) { continue; }
+        if (!value) {
+            continue;
+        }
         if (isa<ir::Function>(value)) {
             mod.addFunction(cast<ir::Function*>(value));
         }
@@ -144,17 +144,17 @@ ir::Value* Context::generate(FunctionDefinition const& def) {
 ir::Value* Context::generate(StructDefinition const& def) {
     auto* const structure = new ir::StructureType(makeTypename(def.symbolID(), def.name()));
     for (auto& statement: def.body->statements) {
-        SC_ASSERT(isa<Declaration>(*statement), "Statements in structs must be declarations. Issues should be handled in sema.");
+        SC_ASSERT(isa<Declaration>(*statement),
+                  "Statements in structs must be declarations. Issues should be handled in sema.");
         auto& decl = dyncast<Declaration const&>(*statement);
-        visit(decl, utl::overload{
-            [&](VariableDeclaration const& decl) {
-                structure->addMember(mapType(decl.typeID()));
-            },
-            [&](FunctionDefinition const& def) {
-                /// This corresponds to the definition of a member function and is not supported yet.
-                SC_DEBUGFAIL();
-            },
-            [](Declaration const& decl) { SC_UNREACHABLE(); },
+        visit(decl,
+              utl::overload{
+                  [&](VariableDeclaration const& decl) { structure->addMember(mapType(decl.typeID())); },
+                  [&](FunctionDefinition const& def) {
+            /// This corresponds to the definition of a member function and is not supported yet.
+            SC_DEBUGFAIL();
+                  },
+                  [](Declaration const& decl) { SC_UNREACHABLE(); },
         });
     }
     mod.addStructure(structure);
@@ -283,7 +283,8 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::BitwiseOr: {
         ir::Value* const lhs = dispatchAndLoad(*exprDecl.lhs);
         ir::Value* const rhs = dispatchAndLoad(*exprDecl.rhs);
-        auto* arithInst = new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName("expr-result"));
+        auto* arithInst =
+            new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName("expr-result"));
         currentBB->addInstruction(arithInst);
         return arithInst;
     }
@@ -320,7 +321,8 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::NotEquals: {
         ir::Value* const lhs = dispatchAndLoad(*exprDecl.lhs);
         ir::Value* const rhs = dispatchAndLoad(*exprDecl.rhs);
-        auto* cmpInst = new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName("cmp-result"));
+        auto* cmpInst =
+            new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName("cmp-result"));
         currentBB->addInstruction(cmpInst);
         return cmpInst;
     }
@@ -341,14 +343,17 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
     case BinaryOperator::XOrAssignment: {
         ir::Value* const lhsPointer = dispatch(*exprDecl.lhs);
         ir::Value* const lhs        = exprDecl.operation() == BinaryOperator::Assignment ?
-                                        nullptr : loadIfPointer(mapType(exprDecl.lhs->typeID()), lhsPointer);
+                                          nullptr :
+                                          loadIfPointer(mapType(exprDecl.lhs->typeID()), lhsPointer);
         ir::Value* const rhs        = dispatchAndLoad(*exprDecl.rhs);
         ir::Value* const value      = [&]() -> ir::Value* {
             if (exprDecl.operation() == BinaryOperator::Assignment) {
                 return rhs;
             }
-            auto* arithInst =
-                new ir::ArithmeticInst(lhs, rhs, mapArithmeticAssignOp(exprDecl.operation()), localUniqueName("expr-result"));
+            auto* arithInst = new ir::ArithmeticInst(lhs,
+                                                     rhs,
+                                                     mapArithmeticAssignOp(exprDecl.operation()),
+                                                     localUniqueName("expr-result"));
             currentBB->addInstruction(arithInst);
             return arithInst;
         }();
@@ -362,11 +367,11 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
 }
 
 ir::Value* Context::generate(MemberAccess const& expr) {
-    ir::Value* const basePtr = dispatch(*expr.object);
+    ir::Value* const basePtr               = dispatch(*expr.object);
     sema::SymbolID const accessedElementID = cast<Identifier const&>(*expr.member).symbolID();
-    auto& var = symTable.getVariable(accessedElementID);
-    size_t const index = var.index();
-    ir::Type const* const accessedType = mapType(expr.object->typeID());
+    auto& var                              = symTable.getVariable(accessedElementID);
+    size_t const index                     = var.index();
+    ir::Type const* const accessedType     = mapType(expr.object->typeID());
     auto* const gep = new ir::GetElementPointer(accessedType, basePtr, index, localUniqueName("member-ptr"));
     currentBB->addInstruction(gep);
     return gep;
@@ -383,18 +388,19 @@ ir::Value* Context::generate(Conditional const& condExpr) {
     /// Generate then block.
     setCurrentBB(thenBlock);
     auto* thenVal = dispatch(*condExpr.ifExpr);
-    thenBlock = currentBB;
+    thenBlock     = currentBB;
     thenBlock->addInstruction(new ir::Goto(irCtx, endBlock));
     currentFunction->addBasicBlock(elseBlock);
     /// Generate else block.
     setCurrentBB(elseBlock);
     auto* elseVal = dispatch(*condExpr.elseExpr);
-    elseBlock = currentBB;
+    elseBlock     = currentBB;
     elseBlock->addInstruction(new ir::Goto(irCtx, endBlock));
     currentFunction->addBasicBlock(endBlock);
     /// Generate end block.
     setCurrentBB(endBlock);
-    auto* result = new ir::Phi(type, { { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName("conditional-result"));
+    auto* result =
+        new ir::Phi(type, { { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName("conditional-result"));
     currentBB->addInstruction(result);
     return result;
 }
@@ -406,9 +412,10 @@ ir::Value* Context::generate(FunctionCall const& functionCall) {
     ir::Function* function = cast<ir::Function*>(irCtx.getGlobal(mangledName));
     utl::small_vector<ir::Value*> const args =
         utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return dispatchAndLoad(*expr); });
-    auto* call = new ir::FunctionCall(function,
-                                      args,
-                                      functionCall.typeID() != symTable.Void() ? localUniqueName("call-result") : std::string{});
+    auto* call =
+        new ir::FunctionCall(function,
+                             args,
+                             functionCall.typeID() != symTable.Void() ? localUniqueName("call-result") : std::string{});
     currentBB->addInstruction(call);
     return call;
 }
@@ -485,9 +492,7 @@ ir::Value* Context::dispatchAndLoad(Expression const& expr) {
     ir::Value* value = dispatch(expr);
     return loadIfPointer(mapType(expr.typeID()),
                          value,
-                         isa<Identifier>(expr) ?
-                            std::string(cast<Identifier const&>(expr).value()) :
-                            std::string{});
+                         isa<Identifier>(expr) ? std::string(cast<Identifier const&>(expr).value()) : std::string{});
 }
 
 std::string Context::localUniqueName(std::string_view name) {
@@ -525,7 +530,7 @@ ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
         return irCtx.floatType(64);
     }
     std::string const name = makeTypename(semaTypeID);
-    auto itr = mod.structures().find(std::string_view(name));
+    auto itr               = mod.structures().find(std::string_view(name));
     if (itr != mod.structures().end()) {
         return *itr;
     }
@@ -534,8 +539,8 @@ ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
 
 ir::UnaryArithmeticOperation Context::mapUnaryArithmeticOp(ast::UnaryPrefixOperator op) {
     switch (op) {
-    case UnaryPrefixOperator::Promotion:  return ir::UnaryArithmeticOperation::Promotion;
-    case UnaryPrefixOperator::Negation:   return ir::UnaryArithmeticOperation::Negation;
+    case UnaryPrefixOperator::Promotion: return ir::UnaryArithmeticOperation::Promotion;
+    case UnaryPrefixOperator::Negation: return ir::UnaryArithmeticOperation::Negation;
     case UnaryPrefixOperator::BitwiseNot: return ir::UnaryArithmeticOperation::BitwiseNot;
     case UnaryPrefixOperator::LogicalNot: return ir::UnaryArithmeticOperation::LogicalNot;
     default: SC_UNREACHABLE();

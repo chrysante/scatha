@@ -6,9 +6,9 @@
 #include <utl/ranges.hpp>
 
 #include "Basic/Basic.h"
+#include "Basic/PrintUtil.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
-#include "Basic/PrintUtil.h"
 
 using namespace scatha;
 using namespace ir;
@@ -40,7 +40,7 @@ struct PrintCtx {
     std::string toString(Value const&);
 
     void print(StructureType const& structure);
-    
+
     std::ostream& str;
     Indenter indent;
 };
@@ -131,12 +131,12 @@ void PrintCtx::print(ArithmeticInst const& inst) {
 }
 
 void PrintCtx::print(Goto const& gt) {
-    str << indent << "goto " << "label %" << gt.target()->name();
+    str << indent << "goto "
+        << "label %" << gt.target()->name();
 }
 
 void PrintCtx::print(Branch const& br) {
-    str << indent
-        << "branch " << br.condition()->type()->name() << " " << toString(*br.condition()) << ", ";
+    str << indent << "branch " << br.condition()->type()->name() << " " << toString(*br.condition()) << ", ";
     str << "label %" << br.thenTarget()->name() << ", ";
     str << "label %" << br.elseTarget()->name();
 }
@@ -167,7 +167,8 @@ void PrintCtx::print(Phi const& phi) {
 }
 
 void PrintCtx::print(GetElementPointer const& gep) {
-    str << indent << "%" << gep.name() << " = gep " << gep.accessedType()->name() << ", " << toString(*gep.basePointer()) << ", " << gep.offsetIndex();
+    str << indent << "%" << gep.name() << " = gep " << gep.accessedType()->name() << ", "
+        << toString(*gep.basePointer()) << ", " << gep.offsetIndex();
 }
 
 std::string PrintCtx::toString(Value const& value) {
