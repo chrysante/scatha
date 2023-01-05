@@ -1,21 +1,12 @@
 struct X {
-    var anInteger: int;
-    var aFloat: float;
-    var aSecondInt: int;
+    var b: bool;
+    var c: bool;
+    var d: bool;
+    var a: int;
 }
 
-struct Y {
-    var i: int;
+fn main() -> bool {
     var x: X;
+    x.d = true;
+    return x.d;
 }
-
-fn main() -> int {
-    var y: Y;
-    var z: Y;
-    y.x.anInteger = 4;
-    
-    z.x = y.x;
-    
-    return z.x.anInteger;
-}
-

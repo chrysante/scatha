@@ -13,17 +13,17 @@ OpCode Asm::mapMove(ValueType dest, ValueType source) {
     if (dest == ValueType::RegisterIndex) {
         switch (source) {
         case ValueType::RegisterIndex:
-            return OpCode::movRR;
+            return OpCode::mov64RR;
         case ValueType::Value64:
-            return OpCode::movRV;
+            return OpCode::mov64RV;
         case ValueType::MemoryAddress:
-            return OpCode::movRM;
+            return OpCode::mov64RM;
         default:
             SC_DEBUGFAIL(); // No matching instruction
         }
     }
     if (dest == ValueType::MemoryAddress && source == ValueType::RegisterIndex) {
-        return OpCode::movMR;
+        return OpCode::mov64MR;
     }
     SC_DEBUGFAIL(); // No matching instruction
 }

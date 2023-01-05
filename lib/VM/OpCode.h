@@ -1,7 +1,9 @@
 #ifndef SCATHA_VM_INSTRUCTION_H_
 #define SCATHA_VM_INSTRUCTION_H_
 
+#include <array>
 #include <iosfwd>
+#include <string_view>
 
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
@@ -19,7 +21,7 @@ namespace scatha::vm {
 // sizeof(MEMORY_POINTER)   ==   3
 
 /// ** Calling convention **
-/// All register indices are from the position of the callee.
+/// _ All register indices are from the position of the callee _
 ///
 /// Arguments are passed in consecutive registers starting with index 0.
 /// Return value is passed in consecutive registers starting with index 0.
@@ -32,193 +34,15 @@ namespace scatha::vm {
 /// in \p R[-1] by the \p call instruction.
 ///
 
-enum class OpCode : u8 {
-    /// MARK: Register allocation
-    /// After executing \p enterFn all registers with index less than \p
-    /// numRegisters will be available.
-    /// This means for a called function, the amount of available registers will
-    /// include the argument registers set by the caller.
-    enterFn, // (u8 numRegisters)
-
-    /// MARK: Memory allocation
-    /// Places a pointer to beginning of memory section in the argument
-    /// register.
-    setBrk, // (u8 sizeRegIdx)
-
-    /// MARK: Function call and return
-    /// Performs the following operations:
-    // regPtr += regOffset
-    // regPtr[-2] = regOffset
-    // regPtr[-1] = iptr
-    // jmp offset
-    call, // (i32 offset, u8 regOffset)
-
-    /// Return to caller. Effectively performs the following operations:
-    // iptr = regPtr[-1]
-    // regPtr -= regPtr[-2]
-    ret, // ()
-
-    /// Immediately terminates the program.
-    terminate, // ()
-
-    /// MARK: Loads and stores
-    /// Copies the value from the source operand (right) into the destination
-    /// operand (right).
-    movRR, // (u8 toRegIdx, u8 fromRegIdx)
-    movRV, // (u8 toRegIdx, u64 value)
-    movMR, // (MEMORY_POINTER, u8 ptrRegIdx)
-    movRM, // (u8 ptrRegIdx, MEMORY_POINTER)
-    
-    /// Store the address of the register at \p sourceRegIdx into the register at \p targetRegIdx
-    alloca_, // (u8 targetRegIdx, u8 sourceRegIdx)
-    
-    /// MARK: Jumps
-    /// Jumps are performed by adding the \p offset argument to the instruction
-    /// pointer.
-    /// This means a jump with \p offset 0 will jump to itself and thus enter an
-    /// infinite loop.
-
-    /// Jump to the specified offset.
-    jmp, // (i32 offset)
-    /// Jump to the specified offset if equal flag is set.
-    je, // (i32 offset)
-    /// Jump to the specified offset if equal flag is not set.
-    jne, // (i32 offset)
-    /// Jump to the specified offset if less flag is set.
-    jl, // (i32 offset)
-    /// Jump to the specified offset if less flag or equal flag is set.
-    jle, // (i32 offset)
-    /// Jump to the specified offset if less flag and equal flag are not set.
-    jg, // (i32 offset)
-    /// Jump to the specified offset if less flag is not set.
-    jge, // (i32 offset)
-
-    /// MARK: Comparison
-    /// Compare the operands and set flags accordingly
-    ucmpRR, //  (u8 regIdxA, u8 regIdxB)
-    icmpRR, //  (u8 regIdxA, u8 regIdxB)
-    ucmpRV, //  (u8 regIdxA, u64 value)
-    icmpRV, //  (u8 regIdxA, u64 value)
-    fcmpRR, //  (u8 regIdxA, u8 regIdxB)
-    fcmpRV, //  (u8 regIdxA, u64 value)
-
-    /// Compare the operand to 0 and set flags accordingly
-    itest, //  (u8 regIdx)
-    utest, //  (u8 regIdx)
-
-    /// MARK: Read comparison results
-    /// Set register to 0 or 1 based of the flags set by the \p *cmp* or \p *test
-    /// instructions
-    sete,  //  (u8 regIdx)
-    setne, //  (u8 regIdx)
-    setl,  //  (u8 regIdx)
-    setle, //  (u8 regIdx)
-    setg,  //  (u8 regIdx)
-    setge, //  (u8 regIdx)
-
-    /// MARK: Unary operations
-    // reg[regIdx] = !reg[regIdx]
-    lnt, // (u8 regIdx)
-    // reg[regIdx] = ~reg[regIdx]
-    bnt, // (u8 regIdx)
-
-    /// MARK: Integer arithmetic
-    // reg[regIdxA] += reg[regIdxA]
-    addRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx] += value
-    addRV, // (u8 regIdx, u64 value)
-    // reg[regIdxA] += memory[eval(MEMORY_POINTER)]
-    addRM, // (u8 regIdxA, MEMORY_POINTER)
-    // reg[regIdxA] -= reg[regIdxA]
-    subRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx] -= value
-    subRV, // (u8 regIdx, u64 value)
-    // reg[regIdxA] -= memory[eval(MEMORY_POINTER)]
-    subRM, // (u8 regIdxA, MEMORY_POINTER)
-    // reg[regIdxA] *= reg[regIdxA]
-    mulRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx] *= value
-    mulRV, // (u8 regIdx, u64 value)
-    // reg[regIdxA] *= memory[eval(MEMORY_POINTER)]
-    mulRM, // (u8 regIdxA, MEMORY_POINTER)
-    // reg[regIdxA] /= reg[regIdxA]
-    divRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx] /= value
-    divRV, // (u8 regIdx, u64 value)
-    // reg[regIdxA] /= memory[eval(MEMORY_POINTER)]
-    divRM, // (u8 regIdxA, MEMORY_POINTER)
-    // reg[regIdxA] /= reg[regIdxA]
-    idivRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx] /= value (signed arithmetic)
-    idivRV, // (u8 regIdx, u64 value) (signed arithmetic)
-    // reg[regIdxA] /= memory[eval(MEMORY_POINTER)]
-    idivRM, // (u8 regIdxA, MEMORY_POINTER) (signed arithmetic)
-    // reg[regIdxA] %= reg[regIdxA]
-    remRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx] %= value
-    remRV, // (u8 regIdx, u64 value)
-    // reg[regIdxA] %= memory[eval(MEMORY_POINTER)]
-    remRM, // (u8 regIdxA, MEMORY_POINTER)
-    // reg[regIdxA] %= reg[regIdxA]
-    iremRR, // (u8 regIdxA, u8 regIdxA) (signed arithmetic)
-    // reg[regIdx] %= value
-    iremRV, // (u8 regIdx, u64 value) (signed arithmetic)
-    // reg[regIdxA] %= memory[eval(MEMORY_POINTER)]
-    iremRM, // (u8 regIdxA, MEMORY_POINTER) (signed arithmetic)
-
-    /// MARK: Floating point arithmetic
-    // reg[regIdxA] += reg[regIdxA]
-    faddRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx] += value
-    faddRV, // (u8 regIdx, u64 value)
-    // reg[regIdxA] += memory[eval(MEMORY_POINTER)]
-    faddRM, // (u8 regIdxA, MEMORY_POINTER)
-    // reg[regIdxA] -= reg[regIdxA]
-    fsubRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx] -= value
-    fsubRV, // (u8 regIdx, u64 value)
-    // reg[regIdxA] -= memory[eval(MEMORY_POINTER)]
-    fsubRM, // (u8 regIdxA, MEMORY_POINTER)
-    // reg[regIdxA] *= reg[regIdxA]
-    fmulRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx] *= value
-    fmulRV, // (u8 regIdx, u64 value)
-    // reg[regIdxA] *= memory[eval(MEMORY_POINTER)]
-    fmulRM, // (u8 regIdxA, MEMORY_POINTER)
-    // reg[regIdxA] /= reg[regIdxA]
-    fdivRR, // (u8 regIdxA, u8 regIdxA)
-    // reg[regIdx]  /= value
-    fdivRV, // (u8 regIdx, u64 value)
-    // reg[regIdxA] /= memory[eval(MEMORY_POINTER)]
-    fdivRM, // (u8 regIdxA, MEMORY_POINTER)
-
-    /// MARK: Bitshift
-    slRR, //  (u8 regIdxA, u8 regIdxB)
-    slRV, //  (u8 regIdxA, u64 value)
-    slRM, //  (u8 regIdxA, MEMORY_POINTER)
-    srRR, //  (u8 regIdxA, u8 regIdxB)
-    srRV, //  (u8 regIdxA, u64 value)
-    srRM, //  (u8 regIdxA, MEMORY_POINTER)
-
-    /// MARK: Bitwise AND/OR
-    andRR, //  (u8 regIdxA, u8 regIdxB)
-    andRV, //  (u8 regIdxA, u64 value)
-    andRM, //  (u8 regIdxA, MEMORY_POINTER)
-    orRR,  //  (u8 regIdxA, u8 regIdxB)
-    orRV,  //  (u8 regIdxA, u64 value)
-    orRM,  //  (u8 regIdxA, MEMORY_POINTER)
-    xorRR, //  (u8 regIdxA, u8 regIdxB)
-    xorRV, //  (u8 regIdxA, u64 value)
-    xorRM, //  (u8 regIdxA, MEMORY_POINTER)
-
-    /// MARK: Misc
-    // extFunctionTable[tableIdx][idxIntoTable](reg[regIdx], this)
-    callExt, // (u8 regIdx, u8 tableIdx, u16 idxIntoTable)
-
+enum class OpCode: u8 {
+#define SC_INSTRUCTION_DEF(inst, class) inst,
+#include "VM/Lists.def"
     _count
 };
 
-std::ostream& operator<<(std::ostream&, OpCode);
+SCATHA(API) std::string_view toString(OpCode);
+
+SCATHA(API) std::ostream& operator<<(std::ostream&, OpCode);
 
 enum class OpCodeClass { RR, RV, RM, MR, R, Jump, Other, _count };
 
@@ -229,92 +53,10 @@ constexpr bool isJump(OpCode c) {
 }
 
 constexpr OpCodeClass classify(OpCode c) {
-    // clang-format off
-    return UTL_MAP_ENUM(c, OpCodeClass, {
-        { OpCode::enterFn,         OpCodeClass::Other },
-        { OpCode::setBrk,          OpCodeClass::Other },
-        { OpCode::call,            OpCodeClass::Other },
-        { OpCode::ret,             OpCodeClass::Other },
-        { OpCode::terminate,       OpCodeClass::Other },
-        { OpCode::movRR,           OpCodeClass::RR },
-        { OpCode::movRV,           OpCodeClass::RV },
-        { OpCode::movMR,           OpCodeClass::MR },
-        { OpCode::movRM,           OpCodeClass::RM },
-        { OpCode::alloca_,         OpCodeClass::Other },
-        { OpCode::jmp,             OpCodeClass::Jump },
-        { OpCode::je,              OpCodeClass::Jump },
-        { OpCode::jne,             OpCodeClass::Jump },
-        { OpCode::jl,              OpCodeClass::Jump },
-        { OpCode::jle,             OpCodeClass::Jump },
-        { OpCode::jg,              OpCodeClass::Jump },
-        { OpCode::jge,             OpCodeClass::Jump },
-        { OpCode::ucmpRR,          OpCodeClass::RR },
-        { OpCode::icmpRR,          OpCodeClass::RR },
-        { OpCode::ucmpRV,          OpCodeClass::RV },
-        { OpCode::icmpRV,          OpCodeClass::RV },
-        { OpCode::fcmpRR,          OpCodeClass::RR },
-        { OpCode::fcmpRV,          OpCodeClass::RV },
-        { OpCode::itest,           OpCodeClass::R },
-        { OpCode::utest,           OpCodeClass::R },
-        { OpCode::sete,            OpCodeClass::R },
-        { OpCode::setne,           OpCodeClass::R },
-        { OpCode::setl,            OpCodeClass::R },
-        { OpCode::setle,           OpCodeClass::R },
-        { OpCode::setg,            OpCodeClass::R },
-        { OpCode::setge,           OpCodeClass::R },
-        { OpCode::lnt,             OpCodeClass::R },
-        { OpCode::bnt,             OpCodeClass::R },
-        { OpCode::addRR,           OpCodeClass::RR },
-        { OpCode::addRV,           OpCodeClass::RV },
-        { OpCode::addRM,           OpCodeClass::RM },
-        { OpCode::subRR,           OpCodeClass::RR },
-        { OpCode::subRV,           OpCodeClass::RV },
-        { OpCode::subRM,           OpCodeClass::RM },
-        { OpCode::mulRR,           OpCodeClass::RR },
-        { OpCode::mulRV,           OpCodeClass::RV },
-        { OpCode::mulRM,           OpCodeClass::RM },
-        { OpCode::divRR,           OpCodeClass::RR },
-        { OpCode::divRV,           OpCodeClass::RV },
-        { OpCode::divRM,           OpCodeClass::RM },
-        { OpCode::idivRR,          OpCodeClass::RR },
-        { OpCode::idivRV,          OpCodeClass::RV },
-        { OpCode::idivRM,          OpCodeClass::RM },
-        { OpCode::remRR,           OpCodeClass::RR },
-        { OpCode::remRV,           OpCodeClass::RV },
-        { OpCode::remRM,           OpCodeClass::RM },
-        { OpCode::iremRR,          OpCodeClass::RR },
-        { OpCode::iremRV,          OpCodeClass::RV },
-        { OpCode::iremRM,          OpCodeClass::RM },
-        { OpCode::faddRR,          OpCodeClass::RR },
-        { OpCode::faddRV,          OpCodeClass::RV },
-        { OpCode::faddRM,          OpCodeClass::RM },
-        { OpCode::fsubRR,          OpCodeClass::RR },
-        { OpCode::fsubRV,          OpCodeClass::RV },
-        { OpCode::fsubRM,          OpCodeClass::RM },
-        { OpCode::fmulRR,          OpCodeClass::RR },
-        { OpCode::fmulRV,          OpCodeClass::RV },
-        { OpCode::fmulRM,          OpCodeClass::RM },
-        { OpCode::fdivRR,          OpCodeClass::RR },
-        { OpCode::fdivRV,          OpCodeClass::RV },
-        { OpCode::fdivRM,          OpCodeClass::RM },
-        { OpCode::slRR,            OpCodeClass::RR },
-        { OpCode::slRV,            OpCodeClass::RV },
-        { OpCode::slRM,            OpCodeClass::RM },
-        { OpCode::srRR,            OpCodeClass::RR },
-        { OpCode::srRV,            OpCodeClass::RV },
-        { OpCode::srRM,            OpCodeClass::RM },
-        { OpCode::andRR,           OpCodeClass::RR },
-        { OpCode::andRV,           OpCodeClass::RV },
-        { OpCode::andRM,           OpCodeClass::RM },
-        { OpCode::orRR,            OpCodeClass::RR },
-        { OpCode::orRV,            OpCodeClass::RV },
-        { OpCode::orRM,            OpCodeClass::RM },
-        { OpCode::xorRR,           OpCodeClass::RR },
-        { OpCode::xorRV,           OpCodeClass::RV },
-        { OpCode::xorRM,           OpCodeClass::RM },
-        { OpCode::callExt,         OpCodeClass::Other },
-    });
-    // clang-format on
+    return std::array{
+#define SC_INSTRUCTION_DEF(inst, class) OpCodeClass::class,
+#include "VM/Lists.def"
+    }[static_cast<size_t>(c)];
 }
 
 constexpr size_t codeSize(OpCode c) {
@@ -323,8 +65,6 @@ constexpr size_t codeSize(OpCode c) {
     auto const opCodeClass = classify(c);
     if (opCodeClass == Other) {
         switch (c) {
-        case OpCode::enterFn:         return 2;
-        case OpCode::setBrk:          return 2;
         case OpCode::call:            return 6;
         case OpCode::ret:             return 1;
         case OpCode::terminate:       return 1;

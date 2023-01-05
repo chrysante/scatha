@@ -40,6 +40,8 @@ struct VMStats {
     size_t executedInstructions;
 };
 
+struct OpCodeImpl;
+
 class SCATHA(API) VirtualMachine: VMState {
 public:
     VirtualMachine();
