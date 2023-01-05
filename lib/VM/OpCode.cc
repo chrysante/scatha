@@ -188,7 +188,7 @@ struct vm::OpCodeImpl {
         
         at(ret) = [](u8 const*, u64* regPtr, VirtualMachine* vm) -> u64 {
             if (vm->registers.data() == regPtr) {
-                /// Meaning we are the root of the call tree aka. the main function,
+                /// Meaning we are the root of the call tree aka. the main/start function,
                 /// so we set the instruction pointer to the program break to terminate execution.
                 vm->iptr = vm->programBreak;
                 return 0;
