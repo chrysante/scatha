@@ -1,8 +1,9 @@
-#ifndef SCATHA_ASTCODEGEN_CODEGEN_H_
-#define SCATHA_ASTCODEGEN_CODEGEN_H_
+// SCATHA-PUBLIC-HEADER
 
-#include "AST/Base.h"
-#include "Basic/Basic.h"
+#ifndef SCATHA_CODEGEN_AST2IR_CODEGEN_H_
+#define SCATHA_CODEGEN_AST2IR_CODEGEN_H_
+
+#include <scatha/Basic/Basic.h>
 
 namespace scatha::sema {
 
@@ -19,9 +20,11 @@ class Context;
 
 namespace scatha::ast {
 
+class AbstractSyntaxTree;
+
 SCATHA(API)
 ir::Module codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& symbolTable, ir::Context& context);
 
 } // namespace scatha::ast
 
-#endif // SCATHA_ASTCODEGEN_CODEGEN_H_
+#endif // SCATHA_CODEGEN_AST2IR_CODEGEN_H_

@@ -1,4 +1,4 @@
-#include "ASTCodeGen/CodeGen.h"
+#include "CodeGen/AST2IR/CodeGenerator.h"
 
 #include <utl/format.hpp>
 #include <utl/ranges.hpp>

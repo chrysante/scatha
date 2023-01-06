@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_PRINTSYMBOLTABLE_H_
-#define SCATHA_SEMA_PRINTSYMBOLTABLE_H_
+#ifndef SCATHA_SEMA_PRINT_H_
+#define SCATHA_SEMA_PRINT_H_
 
 #include <iosfwd>
 
@@ -15,4 +15,4 @@ std::string makeQualName(EntityBase const&);
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_PRINTSYMBOLTABLE_H_
+#endif // SCATHA_SEMA_PRINT_H_

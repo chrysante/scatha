@@ -1,7 +1,9 @@
-#ifndef SCATHA_CODEGEN2_CODEGENERATOR_H_
-#define SCATHA_CODEGEN2_CODEGENERATOR_H_
+// SCATHA-PUBLIC-HEADER
 
-#include "Basic/Basic.h"
+#ifndef SCATHA_CODEGEN_IR2BYTECODE_CODEGENERATOR_H_
+#define SCATHA_CODEGEN_IR2BYTECODE_CODEGENERATOR_H_
+
+#include <scatha/Basic/Basic.h>
 
 namespace scatha::Asm {
 
@@ -21,4 +23,4 @@ SCATHA(API) Asm::AssemblyStream codegen(ir::Module const& mod);
 
 } // namespace scatha::cg
 
-#endif // SCATHA_CODEGEN2_CODEGENERATOR_H_
+#endif // SCATHA_CODEGEN_IR2BYTECODE_CODEGENERATOR_H_

@@ -6,9 +6,9 @@
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
-#include "ASTCodeGen/CodeGen.h"
+#include "CodeGen/AST2IR/CodeGenerator.h"
 #include "Basic/Memory.h"
-#include "CodeGen/CodeGenerator.h"
+#include "CodeGen/IR2ByteCode/CodeGenerator.h"
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
 #include "IR/Context.h"

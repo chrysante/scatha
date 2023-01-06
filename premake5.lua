@@ -101,7 +101,10 @@ links { "scatha", "utility" }
 project "playground"
 
 kind "ConsoleApp"
-externalincludedirs { "external/utility/include" }
+externalincludedirs {
+    "include",
+    "external/utility/include" 
+}
 includedirs { ".", "lib" }
 
 addCppFiles "playground"

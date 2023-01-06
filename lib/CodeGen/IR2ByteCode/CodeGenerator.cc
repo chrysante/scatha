@@ -1,4 +1,4 @@
-#include "CodeGen/CodeGenerator.h"
+#include "CodeGen/IR2ByteCode/CodeGenerator.h"
 
 #include <array>
 
@@ -7,7 +7,7 @@
 #include <utl/scope_guard.hpp>
 
 #include "Assembly/AssemblyStream.h"
-#include "CodeGen/RegisterDescriptor.h"
+#include "CodeGen/IR2ByteCode/RegisterDescriptor.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"

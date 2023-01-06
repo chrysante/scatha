@@ -8,24 +8,25 @@
 #include <utl/stdio.hpp>
 #include <utl/format.hpp>
 
-#include "AST/PrintSource.h"
-#include "AST/PrintTree.h"
-#include "AST/PrintExpression.h"
+#include "AST/Print.h"
+#include "AST/Print.h"
+#include "AST/Print.h"
 #include "Parser/SyntaxIssue.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
-#include "ASTCodeGen/CodeGen.h"
+#include "CodeGen/AST2IR/CodeGenerator.h"
+#include "CodeGen/IR2ByteCode/CodeGenerator.h"
 #include "IR/Module.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Print.h"
-#include "CodeGen/CodeGenerator.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
-#include "Sema/PrintSymbolTable.h"
+#include "Sema/Print.h"
+#include "Sema/SemanticIssue.h"
 #include "VM/VirtualMachine.h"
 
 using namespace scatha;

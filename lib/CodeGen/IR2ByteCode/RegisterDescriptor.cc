@@ -1,4 +1,4 @@
-#include "CodeGen/RegisterDescriptor.h"
+#include "CodeGen/IR2ByteCode/RegisterDescriptor.h"
 
 #include "IR/CFG.h"
 

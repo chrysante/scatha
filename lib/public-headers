@@ -1,5 +1,6 @@
 Basic/Basic.h
 
+AST/AST.h
 AST/Base.h
 AST/Common.h
 AST/Lists.def
@@ -11,6 +12,9 @@ Common/Dyncast.h
 Common/Keyword.h
 Common/Token.h
 Common/SourceLocation.h
+
+CodeGen/AST2IR/CodeGenerator.h
+CodeGen/IR2ByteCode/CodeGenerator.h
 
 Issue/IssueHandler.h
 Issue/ProgramIssue.h

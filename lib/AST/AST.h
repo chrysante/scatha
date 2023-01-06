@@ -1,4 +1,4 @@
-#pragma once
+// SCATHA-PUBLIC-HEADER
 
 #ifndef SCATHA_AST_AST_H_
 #define SCATHA_AST_AST_H_
@@ -10,11 +10,11 @@
 
 #include <utl/vector.hpp>
 
-#include "AST/Base.h"
-#include "AST/Common.h"
-#include "Sema/Scope.h"
-#include "Sema/ScopeKind.h"
-#include "Sema/SymbolID.h"
+#include <scatha/AST/Base.h>
+#include <scatha/AST/Common.h>
+#include <scatha/Sema/Scope.h>
+#include <scatha/Sema/ScopeKind.h>
+#include <scatha/Sema/SymbolID.h>
 
 // AbstractSyntaxTree
 // ├─ TranslationUnit

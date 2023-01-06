@@ -1,5 +1,6 @@
 build/
 graphviz/*
+include/
 
 !graphviz/generate.sh
 
