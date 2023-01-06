@@ -1,5 +1,5 @@
-#ifndef SCATHA_VM_INSTRUCTION_H_
-#define SCATHA_VM_INSTRUCTION_H_
+#ifndef SCATHA_VM_OPCODE_H_
+#define SCATHA_VM_OPCODE_H_
 
 #include <array>
 #include <iosfwd>
@@ -9,6 +9,7 @@
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
+#include "VM/Instruction.h"
 
 namespace scatha::vm {
 
@@ -87,10 +88,8 @@ constexpr size_t codeSize(OpCode c) {
     // clang-format on
 }
 
-using Instruction = u64 (*)(u8 const*, u64*, class VirtualMachine*);
-
 utl::vector<Instruction> makeInstructionTable();
 
 } // namespace scatha::vm
 
-#endif // SCATHA_VM_INSTRUCTION_H_
+#endif // SCATHA_VM_OPCODE_H_

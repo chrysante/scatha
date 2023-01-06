@@ -1,3 +1,5 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_IR_MODULE_H_
 #define SCATHA_IR_MODULE_H_
 
@@ -5,10 +7,10 @@
 
 #include <utl/hashset.hpp>
 
-#include "Basic/Basic.h"
-#include "IR/CFGCommon.h"
-#include "IR/List.h"
-#include "IR/Type.h"
+#include <scatha/Basic/Basic.h>
+#include <scatha/IR/CFGCommon.h>
+#include <scatha/IR/List.h>
+#include <scatha/IR/Type.h>
 
 namespace scatha::ir {
 

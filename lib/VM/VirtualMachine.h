@@ -1,12 +1,14 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_VM_VIRTUALMACHINE_H_
 #define SCATHA_VM_VIRTUALMACHINE_H_
 
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
-#include "Basic/Basic.h"
-#include "VM/OpCode.h"
-#include "VM/Program.h"
+#include <scatha/Basic/Basic.h>
+#include <scatha/VM/Program.h>
+#include <scatha/VM/Instruction.h>
 
 namespace scatha::vm {
 

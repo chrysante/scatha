@@ -1,3 +1,5 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_VM_PROGRAM_H_
 #define SCATHA_VM_PROGRAM_H_
 
@@ -5,7 +7,7 @@
 
 #include <utl/vector.hpp>
 
-#include "Basic/Basic.h"
+#include <scatha/Basic/Basic.h>
 
 namespace scatha::vm {
 

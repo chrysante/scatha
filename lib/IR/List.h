@@ -1,3 +1,5 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_IR_LIST_H_
 #define SCATHA_IR_LIST_H_
 

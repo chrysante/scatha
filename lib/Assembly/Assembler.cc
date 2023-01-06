@@ -8,6 +8,8 @@
 #include <utl/utility.hpp>
 
 #include "Assembly/AssemblyStream.h"
+#include "Assembly/Instruction.h"
+#include "Assembly/Value.h"
 #include "Assembly/Map.h"
 #include "Basic/Memory.h"
 #include "VM/OpCode.h"

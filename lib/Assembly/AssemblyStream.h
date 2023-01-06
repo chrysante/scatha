@@ -1,13 +1,16 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_ASSEMBLY2_ASSEMBLYSTREAM_H_
 #define SCATHA_ASSEMBLY2_ASSEMBLYSTREAM_H_
 
 #include <list>
 #include <memory>
 
-#include "Assembly/Instruction.h"
-#include "Assembly/Value.h"
+#include <scatha/Basic/Basic.h>
 
 namespace scatha::Asm {
+
+class Instruction;
 
 class AssemblyStream {
 public:
@@ -16,6 +19,10 @@ public:
 
     AssemblyStream() = default;
 
+    SCATHA(API) AssemblyStream(AssemblyStream&&) noexcept;
+    SCATHA(API) AssemblyStream& operator=(AssemblyStream&&) noexcept;
+    SCATHA(API) ~AssemblyStream();
+    
     Iterator begin() { return elems.begin(); }
     ConstIterator begin() const { return elems.begin(); }
     Iterator end() { return elems.end(); }
@@ -23,11 +30,11 @@ public:
     Iterator backItr() { return std::prev(end()); }
     ConstIterator backItr() const { return std::prev(end()); }
 
-    Iterator insert(ConstIterator before, Instruction inst) { return elems.insert(before, inst); }
+    Iterator insert(ConstIterator before, Instruction inst);
 
-    Iterator erase(ConstIterator pos) { return elems.erase(pos); }
+    Iterator erase(ConstIterator pos);
 
-    void add(Instruction inst) { elems.push_back(inst); }
+    void add(Instruction inst);
 
 private:
     std::list<Instruction> elems;

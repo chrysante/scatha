@@ -1,3 +1,5 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_IR_CONTEXT_H_
 #define SCATHA_IR_CONTEXT_H_
 
@@ -7,10 +9,10 @@
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
 
-#include "Common/APFloat.h"
-#include "Common/APInt.h"
-#include "IR/CFGCommon.h"
-#include "IR/Type.h"
+#include <scatha/Common/APFloat.h>
+#include <scatha/Common/APInt.h>
+#include <scatha/IR/CFGCommon.h>
+#include <scatha/IR/Type.h>
 
 namespace scatha::ir {
 

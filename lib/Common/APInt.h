@@ -1,3 +1,5 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_COMMON_APINT_H_
 #define SCATHA_COMMON_APINT_H_
 
@@ -8,7 +10,7 @@
 #include <string_view>
 #include <type_traits>
 
-#include "Basic/Basic.h"
+#include <scatha/Basic/Basic.h>
 
 namespace scatha {
 

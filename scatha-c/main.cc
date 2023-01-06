@@ -5,12 +5,20 @@
 #include <string>
 
 #include <scatha/AST/Print.h>
+#include <scatha/Assembly/Assembler.h>
+#include <scatha/Assembly/AssemblyStream.h>
 #include <scatha/Lexer/Lexer.h>
 #include <scatha/Lexer/LexicalIssue.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Parser/SyntaxIssue.h>
 #include <scatha/Sema/Analyze.h>
 #include <scatha/Sema/SemanticIssue.h>
+#include <scatha/CodeGen/AST2IR/CodeGenerator.h>
+#include <scatha/CodeGen/IR2ByteCode/CodeGenerator.h>
+#include <scatha/IR/Context.h>
+#include <scatha/IR/Module.h>
+#include <scatha/VM/Program.h>
+#include <scatha/VM/VirtualMachine.h>
 #include <utl/typeinfo.hpp>
 #include <termfmt/termfmt.h>
 
@@ -116,7 +124,21 @@ int main(int argc, char* argv[]) {
     auto symbolTable = sema::analyze(*ast, semaIss);
     printSemaIssues(semaIss, symbolTable);
     
+    /// Generate IR
+    ir::Context contex;
+    auto mod = ast::codegen(*ast, symbolTable, contex);
     
+    /// Generate assembly
+    auto asmStream = cg::codegen(mod);
     
+    /// Assemble program
+    auto program = Asm::assemble(asmStream);
     
+    /// Conditionally run the program
+    if (options.run) {
+        vm::VirtualMachine vm;
+        vm.load(program);
+        vm.execute();
+        std::cout << "Program returned with exit code: " << vm.getState().registers[0] << std::endl;
+    }
 }

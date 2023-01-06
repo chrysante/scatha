@@ -1,14 +1,16 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_ASSEMBLY2_ASSEMBLER_H_
 #define SCATHA_ASSEMBLY2_ASSEMBLER_H_
 
 #include <string>
 
-#include "Basic/Basic.h"
+#include <scatha/Basic/Basic.h>
 
 namespace scatha::vm {
 
 class Program;
-
+ 
 } // namespace scatha::vm
 
 namespace scatha::Asm {
@@ -19,7 +21,7 @@ struct AssemblerOptions {
     std::string startFunction;
 };
 
-SCATHA(API) vm::Program assemble(AssemblyStream const& assemblyStream, AssemblerOptions options = {});
+[[nodiscard]] SCATHA(API) vm::Program assemble(AssemblyStream const& assemblyStream, AssemblerOptions options = {});
 
 } // namespace scatha::Asm
 

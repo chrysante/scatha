@@ -7,6 +7,8 @@
 #include <utl/scope_guard.hpp>
 
 #include "Assembly/AssemblyStream.h"
+#include "Assembly/Instruction.h"
+#include "Assembly/Value.h"
 #include "CodeGen/IR2ByteCode/RegisterDescriptor.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"

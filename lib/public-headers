@@ -6,7 +6,12 @@ AST/Common.h
 AST/Lists.def
 AST/Print.h
 
+Assembly/Assembler.h
+Assembly/AssemblyStream.h
+
 Common/APFwd.h
+Common/APFloat.h
+Common/APInt.h
 Common/Expected.h
 Common/Dyncast.h
 Common/Keyword.h
@@ -15,6 +20,14 @@ Common/SourceLocation.h
 
 CodeGen/AST2IR/CodeGenerator.h
 CodeGen/IR2ByteCode/CodeGenerator.h
+
+IR/Context.h
+IR/CFG.h
+IR/CFGCommon.h
+IR/List.h
+IR/Lists.def
+IR/Module.h
+IR/Type.h
 
 Issue/IssueHandler.h
 Issue/ProgramIssue.h
@@ -41,3 +54,7 @@ Sema/FunctionSignature.h
 Sema/Scope.h
 Sema/ScopeKind.h
 Sema/SemanticIssue.h
+
+VM/Program.h
+VM/Instruction.h
+VM/VirtualMachine.h

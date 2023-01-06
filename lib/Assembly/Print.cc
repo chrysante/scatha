@@ -7,6 +7,8 @@
 #include <utl/streammanip.hpp>
 
 #include "Assembly/AssemblyStream.h"
+#include "Assembly/Instruction.h"
+#include "Assembly/Value.h"
 
 using namespace scatha;
 using namespace Asm;

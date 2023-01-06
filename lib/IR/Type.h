@@ -1,3 +1,5 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_IR_TYPES_H_
 #define SCATHA_IR_TYPES_H_
 
@@ -8,7 +10,7 @@
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
-#include "Basic/Basic.h"
+#include <scatha/Basic/Basic.h>
 
 namespace scatha::ir {
 

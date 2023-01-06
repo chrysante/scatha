@@ -1,11 +1,13 @@
+// SCATHA-PUBLIC-HEADER
+
 #ifndef SCATHA_IR_COMMON_H_
 #define SCATHA_IR_COMMON_H_
 
 #include <iosfwd>
 #include <string_view>
 
-#include "Basic/Basic.h"
-#include "Common/Dyncast.h"
+#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Dyncast.h>
 
 namespace scatha::ir {
 
@@ -36,11 +38,11 @@ namespace scatha::ir {
 //    └─ Phi
 
 #define SC_CGFNODE_DEF(Inst) class Inst;
-#include "IR/Lists.def"
+#include <scatha/IR/Lists.def>
 
 enum class NodeType {
 #define SC_CGFNODE_DEF(Inst) Inst,
-#include "IR/Lists.def"
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -50,7 +52,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Inst, _) Inst,
-#include "IR/Lists.def"
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -60,7 +62,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation op)
 
 enum class UnaryArithmeticOperation {
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
-#include "IR/Lists.def"
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -70,7 +72,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOpera
 
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
-#include "IR/Lists.def"
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -81,6 +83,6 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation 
 } // namespace scatha::ir
 
 #define SC_CGFNODE_DEF(Inst) SC_DYNCAST_MAP(::scatha::ir::Inst, ::scatha::ir::NodeType::Inst);
-#include "IR/Lists.def"
+#include <scatha/IR/Lists.def>
 
 #endif // SCATHA_IR_COMMON_H_
