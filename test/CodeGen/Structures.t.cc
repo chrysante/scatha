@@ -102,15 +102,6 @@ fn main() -> int {
 
 TEST_CASE("Pass and return custom structs and access rvalue", "[codegen]") {
     std::string const text = R"(
-struct X {
-    var b: bool;
-    var c: bool;
-    var d: bool;
-    var a: int;
-}
-fn forward(x: X) -> X {
-    return x;
-}
 fn main() -> int {
     var x: X;
     x.a = 5;
@@ -119,6 +110,15 @@ fn main() -> int {
     x.d = true;
     var y = forward(x);
     return y.a;
+}
+fn forward(x: X) -> X {
+    return x;
+}
+struct X {
+    var b: bool;
+    var c: bool;
+    var d: bool;
+    var a: int;
 })";
     auto const vm          = test::compileAndExecute(text);
     auto const& state      = vm.getState();
