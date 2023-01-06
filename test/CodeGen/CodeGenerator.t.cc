@@ -17,7 +17,6 @@ fn main() -> int {
 	let b = 2;
 	return a + b;
 })";
-
     auto const vm     = test::compileAndExecute(text);
     auto const& state = vm.getState();
     CHECK(state.registers[0] == 3);
@@ -28,7 +27,6 @@ TEST_CASE("Simplest non-trivial program", "[codegen]") {
 fn main() -> int {
 	return 1;
 })";
-
     auto const vm     = test::compileAndExecute(text);
     auto const& state = vm.getState();
     CHECK(state.registers[0] == 1);
