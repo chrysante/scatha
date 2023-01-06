@@ -1,4 +1,4 @@
-#include "Classify.h"
+#include "AST/Classify.h"
 
 using namespace scatha;
 using namespace ast;
