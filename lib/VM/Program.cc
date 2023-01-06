@@ -57,9 +57,10 @@ void print(Program const& p, std::ostream& str) {
         u8 const constantOffsetMultiplier     = readAs<u8>(data, i + 2);
         u8 const constantInnerOffset          = readAs<u8>(data, i + 3);
         str << "*(ptr)R[" << printAs<u8>(baseptrRegisterIndex) << "]";
-        if (constantInnerOffset != 0xFF) {
-            str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex) << "] * " << printAs<u8>(constantOffsetMultiplier) << " + " << printAs<u8>(constantInnerOffset);
+        if (offsetCountRegisterIndex != 0xFF) {
+            str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex) << "] * " << printAs<u8>(constantOffsetMultiplier);
         }
+        str << " + " << printAs<u8>(constantInnerOffset);
     };
 
     for (size_t i = 0; i < data.size();) {

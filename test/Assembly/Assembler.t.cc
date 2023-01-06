@@ -38,11 +38,10 @@ TEST_CASE("Alloca implementation", "[assembly][vm]") {
 TEST_CASE("Alloca 2", "[assembly][vm]") {
     int const offset = GENERATE(0, 1, 2, 3, 4, 5, 6, 7);
     AssemblyStream a;
-    a.add(MoveInst(RegisterIndex(0), Value64(1), 8));              // a = 128
-    a.add(AllocaInst(RegisterIndex(1), RegisterIndex(2)));         // ptr = alloca(...)
-    a.add(ArithmeticInst(ArithmeticOperation::Add, Type::Unsigned,
-                         RegisterIndex(1), Value64(offset)));      // ptr += 2
-    a.add(MoveInst(MemoryAddress(1), RegisterIndex(0), 1));        // *ptr = a
+    a.add(MoveInst(RegisterIndex(0), Value64(1), 8));                   // a = 128
+    a.add(AllocaInst(RegisterIndex(1), RegisterIndex(2)));              // ptr = alloca(...)
+    a.add(MoveInst(MemoryAddress(1, MemoryAddress::invalidRegisterIndex, 0, offset),
+                   RegisterIndex(0), 1));                               // ptr[offset] = a
     a.add(TerminateInst());
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();

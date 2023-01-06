@@ -19,7 +19,7 @@ namespace scatha::vm {
 // MEMORY_POINTER           ==   u8 baseptrRegIdx, u8 offsetCountRegIdx, u8 constantOffsetMultiplier, u8 constantInnerOffset
 // eval(MEMORY_POINTER)     ==   reg[baseptrRegIdx] + offsetCountRegIdx * constantOffsetMultiplier + constantInnerOffset
 // sizeof(MEMORY_POINTER)   ==   4
-// NOTE: If constantInnerOffset == 0xFF then eval(MEMORY_POINTER) == reg[baseptrRegIdx]
+// NOTE: If offsetCountRegIdx == 0xFF then eval(MEMORY_POINTER) == reg[baseptrRegIdx] + constantInnerOffset
 
 /// ** Calling convention **
 /// _ All register indices are from the perspective of the callee _

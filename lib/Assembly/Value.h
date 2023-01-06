@@ -83,9 +83,9 @@ class MemoryAddress: public ValueBase {
 
 public:
     /// See documentation in "OpCode.h"
-    static constexpr size_t invalidInnerOffset = 0xFF;
+    static constexpr size_t invalidRegisterIndex = 0xFF;
     
-    explicit MemoryAddress(std::integral auto baseptrRegIdx): MemoryAddress(baseptrRegIdx, 0, 0, invalidInnerOffset) {}
+    explicit MemoryAddress(std::integral auto baseptrRegIdx): MemoryAddress(baseptrRegIdx, invalidRegisterIndex, 0, 0) {}
     
     explicit MemoryAddress(std::integral auto baseptrRegIdx, std::integral auto offsetCountRegIdx, std::integral auto constantOffsetMultiplier, std::integral auto constantInnerOffset):
         ValueBase(utl::tag<u64>{},
@@ -114,7 +114,7 @@ public:
         return constantInnerOffset;
     }
     
-    bool onlyEvaluatesBasePtr() const { return constantInnerOffset() == invalidInnerOffset; }
+    bool onlyEvaluatesInnerOffset() const { return offsetCountRegisterIndex() == invalidRegisterIndex; }
 };
 
 namespace internal {
