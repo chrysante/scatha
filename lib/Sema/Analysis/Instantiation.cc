@@ -79,16 +79,12 @@ void Context::run() {
     for (size_t const index: dependencyTraversalOrder) {
         auto const& node = dependencyGraph[index];
         switch (node.category) {
-        case SymbolCategory::Variable:
-            instantiateVariable(node);
-            break;
+        case SymbolCategory::Variable: instantiateVariable(node); break;
         case SymbolCategory::ObjectType:
             instantiateObjectType(node);
             sortedObjTypes.push_back(TypeID(node.symbolID));
             break;
-        case SymbolCategory::Function:
-            instantiateFunction(node);
-            break;
+        case SymbolCategory::Function: instantiateFunction(node); break;
         default: break;
         }
     }
@@ -101,7 +97,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
     size_t objectSize  = 0;
     size_t objectAlign = 0;
-    auto& objectType = sym.getObjectType(structDef.symbolID());
+    auto& objectType   = sym.getObjectType(structDef.symbolID());
     for (auto&& [index, statement]: utl::enumerate(structDef.body->statements)) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;

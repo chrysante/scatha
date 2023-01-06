@@ -45,14 +45,14 @@ struct Context {
     MemoryAddress computeAddress(ir::Value const&);
     /// Used by \p computeAddress
     MemoryAddress computeGep(ir::GetElementPointer const&);
-    
+
     void generateBigMove(Value dest, Value source, size_t size);
     void generateBigMove(Value dest, Value source, size_t size, AssemblyStream::ConstIterator before);
-    
+
     Label makeLabel(ir::BasicBlock const&);
     Label makeLabel(ir::Function const&);
     size_t makeLabelImpl(ir::Value const&);
-    
+
     RegisterDescriptor& currentRD() { return *_currentRD; }
     AssemblyStream& result;
     RegisterDescriptor* _currentRD = nullptr;
@@ -118,13 +118,13 @@ void Context::generate(ir::Alloca const& allocaInst) {
 
 void Context::generate(ir::Store const& store) {
     MemoryAddress const addr = computeAddress(*store.address());
-    Value const src          = [&]{
+    Value const src          = [&] {
         if (store.value()->type()->isPointer()) {
-            /// Handle the memory -> memory case separately. This is not really beautiful and can hopefully be refactored in the future.
-            /// The following is copy pasted from ir::Load case and slightly adjusted.
+            /// Handle the memory -> memory case separately. This is not really beautiful and can hopefully be
+            /// refactored in the future. The following is copy pasted from ir::Load case and slightly adjusted.
             MemoryAddress const addr = computeAddress(*store.value());
-            Value const dest = currentRD().makeTemporary();
-            size_t const size = store.value()->type()->size();
+            Value const dest         = currentRD().makeTemporary();
+            size_t const size        = store.value()->type()->size();
             generateBigMove(dest, addr, size);
             return dest;
         }
@@ -145,8 +145,8 @@ void Context::generate(ir::Store const& store) {
 
 void Context::generate(ir::Load const& load) {
     MemoryAddress const addr = computeAddress(*load.address());
-    Value const dest = currentRD().resolve(load);
-    size_t const size = load.type()->size();
+    Value const dest         = currentRD().resolve(load);
+    size_t const size        = load.type()->size();
     generateBigMove(dest, addr, size);
 }
 
@@ -245,11 +245,11 @@ void Context::generate(ir::FunctionCall const& call) {
         offset += utl::ceil_divide(argSize, 8);
     }
     /// Increment to actually point to the first move instruction
-    size_t const commonOffset = currentRD().numUsedRegisters() + 2;
+    size_t const commonOffset              = currentRD().numUsedRegisters() + 2;
     AssemblyStream::Iterator paramLocation = std::prev(result.end(), static_cast<ssize_t>(offset));
     for (size_t i = 0; i < offset; ++i, ++paramLocation) {
         RegisterIndex& moveDestIdx = paramLocation->get<MoveInst>().dest().get<RegisterIndex>();
-        size_t const rawIndex = moveDestIdx.value();
+        size_t const rawIndex      = moveDestIdx.value();
         moveDestIdx.setValue(commonOffset + rawIndex);
     }
     result.add(CallInst(makeLabel(*call.function()).id(), currentRD().numUsedRegisters() + 2));
@@ -307,8 +307,8 @@ MemoryAddress Context::computeAddress(ir::Value const& value) {
 }
 
 MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
-    size_t offset = 0;
-    ir::Value const* value = &gep;
+    size_t offset                       = 0;
+    ir::Value const* value              = &gep;
     ir::GetElementPointer const* gepPtr = nullptr;
     while ((gepPtr = dyncast<ir::GetElementPointer const*>(value)) != nullptr) {
         offset += static_cast<ir::StructureType const*>(gepPtr->accessedType())->memberOffsetAt(gepPtr->offsetIndex());
@@ -336,6 +336,7 @@ void Context::generateBigMove(Value dest, Value source, size_t size, AssemblyStr
         result.insert(before, MoveInst(dest, source, size));
         return;
     }
+    // clang-format off
     auto increment = utl::overload{
         [](RegisterIndex& regIdx) {
             regIdx = RegisterIndex(regIdx.value() + 1);
@@ -345,6 +346,7 @@ void Context::generateBigMove(Value dest, Value source, size_t size, AssemblyStr
         },
         [](auto&) { SC_UNREACHABLE(); }
     };
+    // clang-format on
     SC_ASSERT(size % 8 == 0, "Probably not always true and this function needs some work.");
     for (size_t i = 0; i < size / 8; ++i) {
         result.insert(before, MoveInst(dest, source, 8));

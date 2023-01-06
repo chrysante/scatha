@@ -17,13 +17,12 @@
 #include <scatha/Basic/Basic.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Common/Token.h>
-#include <scatha/Sema/SymbolID.h>
+#include <scatha/Sema/Function.h>
 #include <scatha/Sema/ObjectType.h>
 #include <scatha/Sema/OverloadSet.h>
 #include <scatha/Sema/Scope.h>
+#include <scatha/Sema/SymbolID.h>
 #include <scatha/Sema/Variable.h>
-#include <scatha/Sema/Function.h>
-
 
 namespace scatha::sema {
 
@@ -204,8 +203,6 @@ public:
     std::span<TypeID const> sortedObjectTypes() const { return _sortedObjectTypes; }
     auto const& functions() const { return _functions; }
 
-    
-    
 private:
     SymbolID generateID(SymbolCategory category);
 
@@ -228,7 +225,7 @@ private:
     EntitySet<Scope> _anonymousScopes;
 
     utl::vector<TypeID> _sortedObjectTypes;
-    
+
     /// Builtin types
     TypeID _void, _bool, _int, _float, _string;
 };

@@ -39,7 +39,7 @@ struct vm::OpCodeImpl {
         size_t const offsetCountRegIdx     = i[1];
         i64 const constantOffsetMultiplier = i[2];
         i64 const constantInnerOffset      = i[3];
-        u8* const offsetBaseptr = reinterpret_cast<u8*>(reg[baseptrRegIdx]) + constantInnerOffset;
+        u8* const offsetBaseptr            = reinterpret_cast<u8*>(reg[baseptrRegIdx]) + constantInnerOffset;
         /// See documentation in "OpCode.h"
         if (offsetCountRegIdx == 0xFF) {
             return offsetBaseptr;

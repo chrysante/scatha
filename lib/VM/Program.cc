@@ -18,9 +18,11 @@ void print(Program const& p) {
 
 template <typename T>
 static constexpr std::string_view typeToStr() {
-#define SC_TYPETOSTR_CASE(type) \
-else if constexpr (std::is_same_v<T, type>) { return #type; }
-    if constexpr (false) {}
+#define SC_TYPETOSTR_CASE(type)                                                                                        \
+    else if constexpr (std::is_same_v<T, type>) {                                                                      \
+        return #type;                                                                                                  \
+    }
+    if constexpr (false);
     SC_TYPETOSTR_CASE(u8)
     SC_TYPETOSTR_CASE(u16)
     SC_TYPETOSTR_CASE(u32)
@@ -29,7 +31,9 @@ else if constexpr (std::is_same_v<T, type>) { return #type; }
     SC_TYPETOSTR_CASE(i16)
     SC_TYPETOSTR_CASE(i32)
     SC_TYPETOSTR_CASE(i64)
-    else { static_assert(!std::is_same_v<T, T>); }
+    else {
+        static_assert(!std::is_same_v<T, T>);
+    }
 #undef SC_TYPETOSTR_CASE
 }
 
@@ -58,7 +62,8 @@ void print(Program const& p, std::ostream& str) {
         u8 const constantInnerOffset          = readAs<u8>(data, i + 3);
         str << "*(ptr)R[" << printAs<u8>(baseptrRegisterIndex) << "]";
         if (offsetCountRegisterIndex != 0xFF) {
-            str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex) << "] * " << printAs<u8>(constantOffsetMultiplier);
+            str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex) << "] * "
+                << printAs<u8>(constantOffsetMultiplier);
         }
         str << " + " << printAs<u8>(constantInnerOffset);
     };

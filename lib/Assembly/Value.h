@@ -71,12 +71,13 @@ public:
 /// Represents a memory address.
 class MemoryAddress: public ValueBase {
     static u64 compose(u8 baseptrRegIdx, u8 offsetCountRegIdx, u8 constantOffsetMultiplier, u8 constantInnerOffset) {
-        return u64(baseptrRegIdx) | u64(offsetCountRegIdx) << 8 | u64(constantOffsetMultiplier) << 16 | u64(constantInnerOffset) << 24;
+        return u64(baseptrRegIdx) | u64(offsetCountRegIdx) << 8 | u64(constantOffsetMultiplier) << 16 |
+               u64(constantInnerOffset) << 24;
     }
 
     static std::array<u8, 4> decompose(u64 value) {
-        return { static_cast<u8>((value >>  0) & 0xFF),
-                 static_cast<u8>((value >>  8) & 0xFF),
+        return { static_cast<u8>((value >> 0) & 0xFF),
+                 static_cast<u8>((value >> 8) & 0xFF),
                  static_cast<u8>((value >> 16) & 0xFF),
                  static_cast<u8>((value >> 24) & 0xFF) };
     }
@@ -84,10 +85,14 @@ class MemoryAddress: public ValueBase {
 public:
     /// See documentation in "OpCode.h"
     static constexpr size_t invalidRegisterIndex = 0xFF;
-    
-    explicit MemoryAddress(std::integral auto baseptrRegIdx): MemoryAddress(baseptrRegIdx, invalidRegisterIndex, 0, 0) {}
-    
-    explicit MemoryAddress(std::integral auto baseptrRegIdx, std::integral auto offsetCountRegIdx, std::integral auto constantOffsetMultiplier, std::integral auto constantInnerOffset):
+
+    explicit MemoryAddress(std::integral auto baseptrRegIdx):
+        MemoryAddress(baseptrRegIdx, invalidRegisterIndex, 0, 0) {}
+
+    explicit MemoryAddress(std::integral auto baseptrRegIdx,
+                           std::integral auto offsetCountRegIdx,
+                           std::integral auto constantOffsetMultiplier,
+                           std::integral auto constantInnerOffset):
         ValueBase(utl::tag<u64>{},
                   compose(utl::narrow_cast<u8>(baseptrRegIdx),
                           utl::narrow_cast<u8>(offsetCountRegIdx),
@@ -95,25 +100,29 @@ public:
                           utl::narrow_cast<u8>(constantInnerOffset))) {}
 
     size_t baseptrRegisterIndex() const {
-        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] = decompose(value());
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] =
+            decompose(value());
         return baseptrRegIdx;
     }
-    
+
     size_t offsetCountRegisterIndex() const {
-        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] = decompose(value());
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] =
+            decompose(value());
         return offsetCountRegIdx;
     }
-    
+
     size_t constantOffsetMultiplier() const {
-        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] = decompose(value());
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] =
+            decompose(value());
         return constantOffsetMultiplier;
     }
-    
+
     size_t constantInnerOffset() const {
-        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] = decompose(value());
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] =
+            decompose(value());
         return constantInnerOffset;
     }
-    
+
     bool onlyEvaluatesInnerOffset() const { return offsetCountRegisterIndex() == invalidRegisterIndex; }
 };
 

@@ -32,7 +32,7 @@ public:
 
 private:
     SCATHA(TEST_API) void verify();
-    
+
 private:
     Value _dest, _src;
     size_t _numBytes;

@@ -8,7 +8,7 @@ Value Asm::promote(Value const& value, size_t size) {
         return value;
     }
     size_t const valueSize = sizeOf(value.valueType());
-    size = std::max(size, valueSize);
+    size                   = std::max(size, valueSize);
     switch (size) {
     case 1: return Value8(value->value());
     case 2: return Value16(value->value());

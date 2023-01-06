@@ -146,9 +146,7 @@ void Context::translate(AllocaInst const& alloca_) {
 }
 
 void Context::translate(CompareInst const& cmp) {
-    OpCode const opcode = mapCompare(cmp.type(),
-                                     promote(cmp.lhs().valueType(), 8),
-                                     promote(cmp.rhs().valueType(), 8));
+    OpCode const opcode = mapCompare(cmp.type(), promote(cmp.lhs().valueType(), 8), promote(cmp.rhs().valueType(), 8));
     put(opcode);
     dispatch(promote(cmp.lhs(), 8));
     dispatch(promote(cmp.rhs(), 8));

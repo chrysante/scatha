@@ -62,7 +62,7 @@ struct TypeID: SymbolID {
     constexpr explicit TypeID(u64 rawValue): SymbolID(rawValue, SymbolCategory::ObjectType) {}
     constexpr explicit TypeID(SymbolID id): SymbolID(id) {
         SC_ASSERT(id.category() == SymbolCategory::ObjectType ||
-                  id.category() == SymbolCategory::Invalid && id == SymbolID::Invalid,
+                      id.category() == SymbolCategory::Invalid && id == SymbolID::Invalid,
                   "This symbol id is not a type.");
     }
 

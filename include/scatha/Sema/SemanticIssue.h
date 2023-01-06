@@ -138,7 +138,7 @@ public:
     explicit InvalidStatement(ast::Statement const* statement, Reason reason, Scope const& inScope);
 
     ast::Statement const& statement() const { return *_statement; }
-    
+
     void setStatement(ast::Statement const& statement);
 
     Reason reason() const { return _reason; }

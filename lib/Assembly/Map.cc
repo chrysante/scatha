@@ -19,7 +19,7 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest, ValueType source, size_t 
             case 8: return { OpCode::mov64RM, 8 };
             default: SC_UNREACHABLE();
             }
-        case ValueType::Value8:  [[fallthrough]];
+        case ValueType::Value8: [[fallthrough]];
         case ValueType::Value16: [[fallthrough]];
         case ValueType::Value32: [[fallthrough]];
         case ValueType::Value64: return { OpCode::mov64RV, 8 };

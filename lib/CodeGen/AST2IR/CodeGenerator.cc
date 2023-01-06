@@ -412,7 +412,7 @@ ir::Value* Context::generate(Subscript const&) {
 
 void Context::declareTypes() {
     for (sema::TypeID const& typeID: symTable.sortedObjectTypes()) {
-        auto const& objType = symTable.getObjectType(typeID);
+        auto const& objType   = symTable.getObjectType(typeID);
         auto* const structure = new ir::StructureType(makeTypename(objType.symbolID(), objType.name()));
         for (sema::SymbolID const memberVarID: objType.memberVariables()) {
             auto& varDecl = symTable.getVariable(memberVarID);

@@ -27,7 +27,7 @@ protected:
 
     /// For complex initialization.
     void setType(Type const* type) { _type = type; }
-    
+
 public:
     NodeType nodeType() const { return _nodeType; }
 
@@ -349,8 +349,9 @@ public:
 /// GetElementPointer instruction. Calculate offset pointer to a structure member or array element.
 class GetElementPointer: public Instruction {
 public:
-    explicit GetElementPointer(Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name = {});
-    
+    explicit GetElementPointer(
+        Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name = {});
+
     Type const* accessedType() const { return accType; }
 
     Value* basePointer() { return basePtr; }

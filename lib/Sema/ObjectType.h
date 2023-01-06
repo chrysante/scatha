@@ -46,7 +46,7 @@ public:
     void setIsBuiltin(bool value) { _isBuiltin = value; }
 
     void addMemberVariable(SymbolID symbolID) { _memberVars.push_back(symbolID); }
-    
+
 public:
     size_t _size;
     size_t _align;
