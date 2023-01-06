@@ -1,6 +1,6 @@
 ## Feature roadmap
 
-1. Fully implement C-like structs and pointers.
+1. Fully implement <s> C-like structs and </s> pointers.
 
 2. Strings and host callbacks
 
