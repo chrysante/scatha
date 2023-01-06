@@ -22,7 +22,7 @@ public:
     SCATHA(API) AssemblyStream(AssemblyStream&&) noexcept;
     SCATHA(API) AssemblyStream& operator=(AssemblyStream&&) noexcept;
     SCATHA(API) ~AssemblyStream();
-    
+
     Iterator begin() { return elems.begin(); }
     ConstIterator begin() const { return elems.begin(); }
     Iterator end() { return elems.end(); }

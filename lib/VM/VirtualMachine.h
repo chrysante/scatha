@@ -7,8 +7,8 @@
 #include <utl/vector.hpp>
 
 #include <scatha/Basic/Basic.h>
-#include <scatha/VM/Program.h>
 #include <scatha/VM/Instruction.h>
+#include <scatha/VM/Program.h>
 
 namespace scatha::vm {
 

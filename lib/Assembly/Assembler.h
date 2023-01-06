@@ -10,7 +10,7 @@
 namespace scatha::vm {
 
 class Program;
- 
+
 } // namespace scatha::vm
 
 namespace scatha::Asm {
