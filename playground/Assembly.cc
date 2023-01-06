@@ -4,6 +4,8 @@
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
+#include "Assembly/Instruction.h"
+#include "Assembly/Value.h"
 #include "Assembly/Print.h"
 #include "VM/Program.h"
 
