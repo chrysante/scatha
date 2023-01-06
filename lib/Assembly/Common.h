@@ -1,5 +1,5 @@
-#ifndef SCATHA_ASSEMBLY2_COMMON_H_
-#define SCATHA_ASSEMBLY2_COMMON_H_
+#ifndef SCATHA_ASSEMBLY_COMMON_H_
+#define SCATHA_ASSEMBLY_COMMON_H_
 
 #include <iosfwd>
 #include <string_view>
@@ -76,4 +76,4 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation 
 
 } // namespace scatha::Asm
 
-#endif // SCATHA_ASSEMBLY2_COMMON_H_
+#endif // SCATHA_ASSEMBLY_COMMON_H_

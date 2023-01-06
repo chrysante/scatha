@@ -1,5 +1,5 @@
-#ifndef SCATHA_ASSEMBLY2_PRINT_H_
-#define SCATHA_ASSEMBLY2_PRINT_H_
+#ifndef SCATHA_ASSEMBLY_PRINT_H_
+#define SCATHA_ASSEMBLY_PRINT_H_
 
 #include <iosfwd>
 
@@ -37,4 +37,4 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value64 const&);
 
 } // namespace scatha::Asm
 
-#endif // SCATHA_ASSEMBLY2_PRINT_H_
+#endif // SCATHA_ASSEMBLY_PRINT_H_

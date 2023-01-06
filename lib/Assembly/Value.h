@@ -1,5 +1,5 @@
-#ifndef SCATHA_ASSEMBLY2_VALUES_H_
-#define SCATHA_ASSEMBLY2_VALUES_H_
+#ifndef SCATHA_ASSEMBLY_VALUES_H_
+#define SCATHA_ASSEMBLY_VALUES_H_
 
 #include <utl/bit.hpp>
 #include <utl/utility.hpp>
@@ -147,4 +147,4 @@ Value promote(Value const& value, size_t size);
 
 } // namespace scatha::Asm
 
-#endif // SCATHA_ASSEMBLY2_VALUES_H_
+#endif // SCATHA_ASSEMBLY_VALUES_H_

@@ -1,5 +1,5 @@
-#ifndef SCATHA_ASSEMBLY2_STATEMENTS_H_
-#define SCATHA_ASSEMBLY2_STATEMENTS_H_
+#ifndef SCATHA_ASSEMBLY_STATEMENTS_H_
+#define SCATHA_ASSEMBLY_STATEMENTS_H_
 
 #include <string>
 
@@ -218,4 +218,4 @@ public:
 
 } // namespace scatha::Asm
 
-#endif // SCATHA_ASSEMBLY2_STATEMENTS_H_
+#endif // SCATHA_ASSEMBLY_STATEMENTS_H_

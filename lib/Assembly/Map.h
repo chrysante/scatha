@@ -1,5 +1,5 @@
-#ifndef SCATHA_ASSEMBLY2_MAP_H_
-#define SCATHA_ASSEMBLY2_MAP_H_
+#ifndef SCATHA_ASSEMBLY_MAP_H_
+#define SCATHA_ASSEMBLY_MAP_H_
 
 #include <utility>
 
@@ -22,4 +22,4 @@ SCATHA(API) vm::OpCode mapArithmetic(ArithmeticOperation operation, Type type, V
 
 } // namespace scatha::Asm
 
-#endif // SCATHA_ASSEMBLY2_MAP_H_
+#endif // SCATHA_ASSEMBLY_MAP_H_

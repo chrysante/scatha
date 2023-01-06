@@ -1,7 +1,7 @@
 // SCATHA-PUBLIC-HEADER
 
-#ifndef SCATHA_ASSEMBLY2_ASSEMBLER_H_
-#define SCATHA_ASSEMBLY2_ASSEMBLER_H_
+#ifndef SCATHA_ASSEMBLY_ASSEMBLER_H_
+#define SCATHA_ASSEMBLY_ASSEMBLER_H_
 
 #include <string>
 
@@ -25,4 +25,4 @@ struct AssemblerOptions {
 
 } // namespace scatha::Asm
 
-#endif // SCATHA_ASSEMBLY2_ASSEMBLER_H_
+#endif // SCATHA_ASSEMBLY_ASSEMBLER_H_
