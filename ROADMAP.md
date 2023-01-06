@@ -4,6 +4,8 @@
 
 2. Strings and host callbacks
 
-3. Proper compiler interface
+3. Member functions
 
-4. Runtime integration mechanisms   
+4. Proper compiler interface
+
+5. Runtime integration mechanisms   
