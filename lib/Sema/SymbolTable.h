@@ -190,8 +190,12 @@ public:
     TypeID String() const { return _string; }
 
     /// Review if we want to keep these:
+    void setSortedObjectTypes(utl::vector<TypeID> ids) { _sortedObjectTypes = std::move(ids); }
+    std::span<TypeID const> sortedObjectTypes() const { return _sortedObjectTypes; }
     auto const& functions() const { return _functions; }
 
+    
+    
 private:
     SymbolID generateID(SymbolCategory category);
 
@@ -213,6 +217,8 @@ private:
     EntitySet<FunctionSignature> _signatures;
     EntitySet<Scope> _anonymousScopes;
 
+    utl::vector<TypeID> _sortedObjectTypes;
+    
     /// Builtin types
     TypeID _void, _bool, _int, _float, _string;
 };

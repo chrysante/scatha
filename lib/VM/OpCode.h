@@ -21,7 +21,7 @@ namespace scatha::vm {
 // sizeof(MEMORY_POINTER)   ==   3
 
 /// ** Calling convention **
-/// _ All register indices are from the position of the callee _
+/// _ All register indices are from the perspective of the callee _
 ///
 /// Arguments are passed in consecutive registers starting with index 0.
 /// Return value is passed in consecutive registers starting with index 0.

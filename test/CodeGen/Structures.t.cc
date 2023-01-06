@@ -10,11 +10,6 @@ using namespace scatha;
 
 TEST_CASE("Member access", "[codegen]") {
     std::string const text = R"(
-struct X {
-    var anInteger: int;
-    var aFloat: float;
-    var aSecondInt: int;
-}
 struct Y {
     var i: int;
     var x: X;
@@ -23,6 +18,11 @@ fn main() -> int {
     var y: Y;
     y.x.aSecondInt = 4;
     return y.x.aSecondInt;
+}
+struct X {
+    var anInteger: int;
+    var aFloat: float;
+    var aSecondInt: int;
 })";
     auto const vm          = test::compileAndExecute(text);
     auto const& state      = vm.getState();
@@ -31,17 +31,17 @@ fn main() -> int {
 
 TEST_CASE("Bool member access", "[codegen]") {
     std::string const text = R"(
-struct X {
-    var b: bool;
-    var c: bool;
-    var d: bool;
-    var a: int;
-}
 fn main() -> int {
     var x: X;
     x.d = true;
     if x.d { return 2; }
     return 1;
+}
+struct X {
+    var b: bool;
+    var c: bool;
+    var d: bool;
+    var a: int;
 })";
     auto const vm          = test::compileAndExecute(text);
     auto const& state      = vm.getState();

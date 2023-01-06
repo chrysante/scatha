@@ -48,6 +48,7 @@ struct Context {
     ir::Value* generate(FunctionCall const&);
     ir::Value* generate(Subscript const&);
 
+    void declareTypes();
     void declareFunctions();
     void setCurrentBB(ir::BasicBlock*);
     void finishCurrentBB();
@@ -86,6 +87,7 @@ ir::Module ast::codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& 
     ir::Module mod;
     ir::Context irCtx;
     Context ctx(mod, irCtx, symbolTable);
+    ctx.declareTypes();
     ctx.declareFunctions();
     ctx.dispatch(ast);
     return mod;
@@ -142,22 +144,6 @@ ir::Value* Context::generate(FunctionDefinition const& def) {
 }
 
 ir::Value* Context::generate(StructDefinition const& def) {
-    auto* const structure = new ir::StructureType(makeTypename(def.symbolID(), def.name()));
-    for (auto& statement: def.body->statements) {
-        SC_ASSERT(isa<Declaration>(*statement),
-                  "Statements in structs must be declarations. Issues should be handled in sema.");
-        auto& decl = dyncast<Declaration const&>(*statement);
-        visit(decl,
-              utl::overload{
-                  [&](VariableDeclaration const& decl) { structure->addMember(mapType(decl.typeID())); },
-                  [&](FunctionDefinition const& def) {
-            /// This corresponds to the definition of a member function and is not supported yet.
-            SC_DEBUGFAIL();
-                  },
-                  [](Declaration const& decl) { SC_UNREACHABLE(); },
-        });
-    }
-    mod.addStructure(structure);
     return nullptr;
 }
 
@@ -422,6 +408,18 @@ ir::Value* Context::generate(FunctionCall const& functionCall) {
 
 ir::Value* Context::generate(Subscript const&) {
     SC_DEBUGFAIL();
+}
+
+void Context::declareTypes() {
+    for (sema::TypeID const& typeID: symTable.sortedObjectTypes()) {
+        auto const& objType = symTable.getObjectType(typeID);
+        auto* const structure = new ir::StructureType(makeTypename(objType.symbolID(), objType.name()));
+        for (sema::SymbolID const memberVarID: objType.memberVariables()) {
+            auto& varDecl = symTable.getVariable(memberVarID);
+            structure->addMember(mapType(varDecl.typeID()));
+        }
+        mod.addStructure(structure);
+    }
 }
 
 void Context::declareFunctions() {

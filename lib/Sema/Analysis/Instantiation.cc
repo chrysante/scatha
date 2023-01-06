@@ -74,16 +74,25 @@ void Context::run() {
         dependencyTraversalOrder.begin(),
         dependencyTraversalOrder.end(),
         [&](size_t index) -> auto const& { return dependencyGraph[index].dependencies; });
+    utl::small_vector<TypeID> sortedObjTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {
         auto const& node = dependencyGraph[index];
         switch (node.category) {
-        case SymbolCategory::Variable: instantiateVariable(node); break;
-        case SymbolCategory::ObjectType: instantiateObjectType(node); break;
-        case SymbolCategory::Function: instantiateFunction(node); break;
+        case SymbolCategory::Variable:
+            instantiateVariable(node);
+            break;
+        case SymbolCategory::ObjectType:
+            instantiateObjectType(node);
+            sortedObjTypes.push_back(TypeID(node.symbolID));
+            break;
+        case SymbolCategory::Function:
+            instantiateFunction(node);
+            break;
         default: break;
         }
     }
+    sym.setSortedObjectTypes(std::move(sortedObjTypes));
 }
 
 void Context::instantiateObjectType(DependencyGraphNode const& node) {
@@ -92,11 +101,13 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
     size_t objectSize  = 0;
     size_t objectAlign = 0;
+    auto& objectType = sym.getObjectType(structDef.symbolID());
     for (auto&& [index, statement]: utl::enumerate(structDef.body->statements)) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }
         auto& varDecl = utl::down_cast<ast::VariableDeclaration&>(*statement);
+        objectType.addMemberVariable(varDecl.symbolID());
         if (varDecl.typeID() == TypeID::Invalid) {
             break;
         }
@@ -113,7 +124,6 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
         var.setIndex(index);
         objectSize += type.size();
     }
-    auto& objectType = sym.getObjectType(structDef.symbolID());
     objectType.setSize(objectSize);
     objectType.setAlign(objectAlign);
 }

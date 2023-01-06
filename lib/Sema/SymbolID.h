@@ -20,6 +20,7 @@ SCATHA(API) std::string_view toString(SymbolCategory);
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolCategory);
 
+/// Identifies a semantic symbol. Use the symbol table to access the corresponding entity.
 class SymbolID {
 public:
     static SymbolID const Invalid;
@@ -53,11 +54,15 @@ inline SymbolID const SymbolID::Invalid = SymbolID(0, SymbolCategory::Invalid);
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolID);
 
-// Special kind of SymbolID
+/// Special kind of SymbolID refererring to types.
 struct TypeID: SymbolID {
     TypeID() = default;
     constexpr explicit TypeID(u64 rawValue): SymbolID(rawValue, SymbolCategory::ObjectType) {}
-    constexpr explicit TypeID(SymbolID id): SymbolID(id) {}
+    constexpr explicit TypeID(SymbolID id): SymbolID(id) {
+        SC_ASSERT(id.category() == SymbolCategory::ObjectType ||
+                  id.category() == SymbolCategory::Invalid && id == SymbolID::Invalid,
+                  "This symbol id is not a type.");
+    }
 
     static TypeID const Invalid;
 };
