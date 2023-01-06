@@ -15,13 +15,16 @@ using namespace scatha;
     if (!f.mantissa().empty()) {
         std::cout << "\tMantissa:       ";
         for (bool first = true; auto i: f.mantissa()) {
-            if (!first) { std::cout << "\t                "; } else { first = false; }
+            if (!first) {
+                std::cout << "\t                ";
+            }
+            else {
+                first = false;
+            }
             std::cout << std::bitset<64>(i) << std::endl;
         }
     }
     std::cout << "\tValue:          " << f << "\n";
 }
 
-void playground::apFloatTest() {
-
-}
+void playground::apFloatTest() {}

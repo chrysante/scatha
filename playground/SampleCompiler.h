@@ -13,4 +13,3 @@ void compile(std::filesystem::path file);
 } // namespace playground
 
 #endif // PLAYGROUND_SAMPLECOMPILER_H_
-

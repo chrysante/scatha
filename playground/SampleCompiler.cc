@@ -4,26 +4,24 @@
 #include <iostream>
 #include <sstream>
 
-#include <utl/typeinfo.hpp>
-#include <utl/stdio.hpp>
 #include <utl/format.hpp>
+#include <utl/stdio.hpp>
+#include <utl/typeinfo.hpp>
 
 #include "AST/Print.h"
-#include "AST/Print.h"
-#include "AST/Print.h"
-#include "Parser/SyntaxIssue.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
 #include "CodeGen/AST2IR/CodeGenerator.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
-#include "IR/Module.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Module.h"
 #include "IR/Print.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
 #include "Parser/Parser.h"
+#include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
@@ -37,9 +35,11 @@ namespace internal {
 
 static int const headerWidth = 60;
 
-static void line(std::string_view m) { utl::print("{:=^{}}\n", m, headerWidth); };
+static void line(std::string_view m) {
+    utl::print("{:=^{}}\n", m, headerWidth);
+};
 
-}
+} // namespace internal
 
 static void header(std::string_view title = "") {
     utl::print("\n");
@@ -78,8 +78,7 @@ void playground::compile(std::string text) {
         utl::print("Lexical issues:\n");
         for (auto& issue: lexIss.issues()) {
             issue.visit([]<typename T>(T const& iss) {
-                std::cout << iss.token().sourceLocation << " " << iss.token() << " : "
-                          << utl::nameof<T> << std::endl;
+                std::cout << iss.token().sourceLocation << " " << iss.token() << " : " << utl::nameof<T> << std::endl;
             });
         }
     }
@@ -93,7 +92,7 @@ void playground::compile(std::string text) {
     }
     else {
         utl::print("\nEncoutered {} issues:\n", parseIss.issues().size());
-        for (SyntaxIssue const& issue : parseIss.issues()) {
+        for (SyntaxIssue const& issue: parseIss.issues()) {
             auto const loc = issue.token().sourceLocation;
             std::cout << "\tLine " << loc.line << " Col " << loc.column << ": ";
             std::cout << issue.reason() << "\n";
@@ -110,7 +109,7 @@ void playground::compile(std::string text) {
     else {
         std::cout << "\nEncoutered " << semaIss.issues().size() << " issues\n";
         subHeader();
-        for (auto const& issue : semaIss.issues()) {
+        for (auto const& issue: semaIss.issues()) {
             issue.visit([](auto const& issue) {
                 auto const loc = issue.token().sourceLocation;
                 std::cout << "Line " << loc.line << " Col " << loc.column << ": ";
@@ -141,18 +140,20 @@ void playground::compile(std::string text) {
         }
     }
 
-    if (!lexIss.empty() || !parseIss.empty() || !semaIss.empty()) { return; }
+    if (!lexIss.empty() || !parseIss.empty() || !semaIss.empty()) {
+        return;
+    }
 
     subHeader();
     header(" Generated IR ");
     ir::Context irCtx;
     ir::Module mod = ast::codegen(*ast, sym, irCtx);
     ir::print(mod);
-    
+
     header(" Assembly generated from IR ");
     auto const str0 = cg::codegen(mod);
     print(str0);
-    
+
     header(" Assembled Program ");
     /// Start execution with main if it exists.
     auto const mainID = [&sym] {
@@ -179,9 +180,8 @@ void playground::compile(std::string text) {
     vm.load(program);
     vm.execute();
     u64 const exitCode = vm.getState().registers[0];
-    std::cout << "VM: Program ended with exit code: [\n\ti: " << static_cast<i64>(exitCode) <<
-                                                  ", \n\tu: " << exitCode <<
-                                                  ", \n\tf: " << utl::bit_cast<f64>(exitCode) << "\n]" << std::endl;
+    std::cout << "VM: Program ended with exit code: [\n\ti: " << static_cast<i64>(exitCode) << ", \n\tu: " << exitCode
+              << ", \n\tf: " << utl::bit_cast<f64>(exitCode) << "\n]" << std::endl;
 
     subHeader();
 }

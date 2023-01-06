@@ -2,9 +2,9 @@
 
 #include <iostream>
 
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/CFG.h"
 #include "IR/Print.h"
 
 using namespace scatha;
@@ -17,7 +17,7 @@ void playground::irSketch() {
 
     // The function
     ir::Type const* argTypes[] = { ctx.integralType(64) };
-    auto* fn = new ir::Function(nullptr, ctx.integralType(64), argTypes, "fac"sv);
+    auto* fn                   = new ir::Function(nullptr, ctx.integralType(64), argTypes, "fac"sv);
     mod.addFunction(fn);
 
     // Entry block

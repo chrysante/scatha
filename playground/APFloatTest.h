@@ -8,4 +8,3 @@ void apFloatTest();
 } // namespace playground
 
 #endif // PLAYGROUND_APFLOATTEST_H_
-

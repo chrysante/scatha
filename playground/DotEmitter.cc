@@ -72,34 +72,28 @@ void Ctx::declare(Function const& function) {
     }
 }
 
-inline constexpr utl::streammanip tableBegin = [](std::ostream& str, int border = 0, int cellborder = 0, int cellspacing = 0) {
-    str << "<table border=\"" << border << "\" cellborder=\"" << cellborder << "\" cellspacing=\"" << cellspacing << "\">";
+inline constexpr utl::streammanip tableBegin =
+    [](std::ostream& str, int border = 0, int cellborder = 0, int cellspacing = 0) {
+    str << "<table border=\"" << border << "\" cellborder=\"" << cellborder << "\" cellspacing=\"" << cellspacing
+        << "\">";
 };
 
-inline constexpr utl::streammanip tableEnd = [](std::ostream& str) {
-    str << "</table>";
-};
+inline constexpr utl::streammanip tableEnd = [](std::ostream& str) { str << "</table>"; };
 
 inline constexpr utl::streammanip fontBegin = [](std::ostream& str, std::string_view fontname) {
     str << "<font face=\"" << fontname << "\">";
 };
 
-inline constexpr utl::streammanip fontEnd = [](std::ostream& str) {
-    str << "</font>";
-};
+inline constexpr utl::streammanip fontEnd = [](std::ostream& str) { str << "</font>"; };
 
-inline constexpr utl::streammanip rowBegin = [](std::ostream& str) {
-    str <<  "<tr><td align=\"left\">";
-};
+inline constexpr utl::streammanip rowBegin = [](std::ostream& str) { str << "<tr><td align=\"left\">"; };
 
-inline constexpr utl::streammanip rowEnd = [](std::ostream& str) {
-    str <<  "</td></tr>";
-};
+inline constexpr utl::streammanip rowEnd = [](std::ostream& str) { str << "</td></tr>"; };
 
 void Ctx::declare(BasicBlock const& bb) {
     str << dotName(bb) << " [ label = <\n";
-    auto prolog = [&]{ str << "    " << rowBegin << fontBegin(font) << "\n"; };
-    auto epilog = [&]{ str << "    " << fontEnd << rowEnd << "\n"; };
+    auto prolog = [&] { str << "    " << rowBegin << fontBegin(font) << "\n"; };
+    auto epilog = [&] { str << "    " << fontEnd << rowEnd << "\n"; };
     str << "  " << tableBegin << "\n";
     prolog();
     str << "%" << bb.name() << ":\n";
@@ -121,7 +115,9 @@ void Ctx::connect(Function const& function) {
 
 void Ctx::connect(BasicBlock const& bb) {
     for (auto& inst: bb.instructions) {
-        if (!isa<TerminatorInst>(inst)) { continue; }
+        if (!isa<TerminatorInst>(inst)) {
+            continue;
+        }
         // clang-format off
         visit(cast<TerminatorInst const&>(inst), utl::overload{
             [&](ir::TerminatorInst const& inst) {},
@@ -134,7 +130,7 @@ void Ctx::connect(BasicBlock const& bb) {
             },
         });
         // clang-format on
-     }
+    }
 }
 
 void Ctx::beginModule() {
@@ -151,7 +147,8 @@ void Ctx::beginFunction(ir::Function const& function) {
     currentFunction = &function;
     str << "subgraph cluster_" << function.name() << " {\n";
     str << "  fontname = \"" << font << "\"\n";
-    str << "  " << "label = \"@" << function.name() << "\"";
+    str << "  "
+        << "label = \"@" << function.name() << "\"";
 }
 
 void Ctx::endFunction() {

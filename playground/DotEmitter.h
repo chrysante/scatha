@@ -11,12 +11,11 @@ class Module;
 } // namespace scatha::ir
 
 namespace playground {
-	
+
 std::string emitDot(scatha::ir::Module const& mod);
 
 void emitDot(scatha::ir::Module const& mod, std::filesystem::path const& outFilepath);
-	
-} // namespace 
+
+} // namespace playground
 
 #endif // PLAYGROUND_DOTEMITTER_H_
-

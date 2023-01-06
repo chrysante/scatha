@@ -1,22 +1,17 @@
-#include <string>
 #include <iostream>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
-#include <optional>
 
 #include <utl/vector.hpp>
 
-#include "SampleCompiler.h"
+#include "Assembly.h"
 #include "IRDump.h"
 #include "IRSketch.h"
-#include "Assembly.h"
+#include "SampleCompiler.h"
 
-enum class ProgramCase {
-    SampleCompiler,
-    IRDump,
-    IRSketch,
-    ASMTest
-};
+enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest };
 
 struct Option {
     std::string id;
@@ -35,9 +30,7 @@ struct OptionParser {
     std::optional<ProgramCase> operator()(int argc, char const* const* argv) const {
         for (int i = 1; i < argc; ++i) {
             std::string_view const argument = argv[i];
-            auto const itr = std::find_if(opts.begin(), opts.end(), [&](auto& opt) {
-                return opt.id == argument;
-            });
+            auto const itr = std::find_if(opts.begin(), opts.end(), [&](auto& opt) { return opt.id == argument; });
             if (itr != opts.end()) {
                 return itr->target;
             }
@@ -64,27 +57,14 @@ int main(int argc, char const* const* argv) {
         std::cout << "\n";
         std::exit(EXIT_FAILURE);
     }
-    ProgramCase const theCase = *parseResult;
+    ProgramCase const theCase            = *parseResult;
     std::filesystem::path const filepath = std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     using namespace playground;
     switch (theCase) {
-    case ProgramCase::SampleCompiler:
-        compile(filepath);
-        break;
-
-    case ProgramCase::IRDump:
-        irDump(filepath);
-        break;
-
-    case ProgramCase::IRSketch:
-        irSketch();
-        break;
-        
-    case ProgramCase::ASMTest:
-        testAsmModule();
-        break;
-
-    default:
-        break;
+    case ProgramCase::SampleCompiler: compile(filepath); break;
+    case ProgramCase::IRDump: irDump(filepath); break;
+    case ProgramCase::IRSketch: irSketch(); break;
+    case ProgramCase::ASMTest: testAsmModule(); break;
+    default: break;
     }
 }

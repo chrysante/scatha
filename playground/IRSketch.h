@@ -8,4 +8,3 @@ void irSketch();
 } // namespace playground
 
 #endif // PLAYGROUND_IRSKETCH_H_
-

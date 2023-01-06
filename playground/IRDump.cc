@@ -1,9 +1,9 @@
 #include "IRDump.h"
 
-#include <iostream>
 #include <fstream>
-#include <string>
+#include <iostream>
 #include <sstream>
+#include <string>
 
 #include <utl/stdio.hpp>
 
@@ -12,6 +12,9 @@
 #include "Assembly/Print.h"
 #include "CodeGen/AST2IR/CodeGenerator.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
+#include "IR/Context.h"
+#include "IR/Module.h"
+#include "IR/Print.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
 #include "Parser/Parser.h"
@@ -19,10 +22,6 @@
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
-#include "IR/Module.h"
-#include "IR/Context.h"
-#include "IR/Print.h"
-#include "IR/Print.h"
 #include "VM/Program.h"
 
 #include "DotEmitter.h"
@@ -70,12 +69,11 @@ void playground::irDump(std::string text) {
     ir::Module mod = ast::codegen(*ast, sym, ctx);
     ir::print(mod);
     emitDot(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/Test.gv");
-    
+
     sectionHeader(" Assembly ");
     auto asmStream = cg::codegen(mod);
     Asm::print(asmStream);
-    
-    
+
     sectionHeader(" Assembled program ");
     auto program = Asm::assemble(asmStream);
     print(program);

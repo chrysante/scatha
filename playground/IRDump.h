@@ -13,4 +13,3 @@ void irDump(std::filesystem::path file);
 } // namespace playground
 
 #endif // PLAYGROUND_IRDUMP_H_
-
