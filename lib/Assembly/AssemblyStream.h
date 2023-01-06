@@ -12,7 +12,7 @@ namespace scatha::Asm {
 
 class Instruction;
 
-class AssemblyStream {
+class SCATHA(TEST_API) AssemblyStream {
 public:
     using Iterator      = std::list<Instruction>::iterator;
     using ConstIterator = std::list<Instruction>::const_iterator;
