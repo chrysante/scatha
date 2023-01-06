@@ -70,35 +70,51 @@ public:
 
 /// Represents a memory address.
 class MemoryAddress: public ValueBase {
-    static u64 compose(u8 regIdx, u8 offset, u8 offsetShift) {
-        return u64(regIdx) | u64(offset) << 8 | u64(offsetShift) << 16;
+    static u64 compose(u8 baseptrRegIdx, u8 offsetCountRegIdx, u8 constantOffsetMultiplier, u8 constantInnerOffset) {
+        return u64(baseptrRegIdx) | u64(offsetCountRegIdx) << 8 | u64(constantOffsetMultiplier) << 16 | u64(constantInnerOffset) << 24;
     }
 
-    static std::array<u8, 3> decompose(u64 value) {
-        return { static_cast<u8>(value & 0xFF),
-                 static_cast<u8>((value >> 8) & 0xFF),
-                 static_cast<u8>((value >> 16) & 0xFF) };
+    static std::array<u8, 4> decompose(u64 value) {
+        return { static_cast<u8>((value >>  0) & 0xFF),
+                 static_cast<u8>((value >>  8) & 0xFF),
+                 static_cast<u8>((value >> 16) & 0xFF),
+                 static_cast<u8>((value >> 24) & 0xFF) };
     }
 
 public:
-    explicit MemoryAddress(std::integral auto regIndex, std::integral auto offset, std::integral auto offsetShift):
+    /// See documentation in "OpCode.h"
+    static constexpr size_t invalidInnerOffset = 0xFF;
+    
+    explicit MemoryAddress(std::integral auto baseptrRegIdx): MemoryAddress(baseptrRegIdx, 0, 0, invalidInnerOffset) {}
+    
+    explicit MemoryAddress(std::integral auto baseptrRegIdx, std::integral auto offsetCountRegIdx, std::integral auto constantOffsetMultiplier, std::integral auto constantInnerOffset):
         ValueBase(utl::tag<u64>{},
-                  compose(utl::narrow_cast<u8>(regIndex),
-                          utl::narrow_cast<u8>(offset),
-                          utl::narrow_cast<u8>(offsetShift))) {}
+                  compose(utl::narrow_cast<u8>(baseptrRegIdx),
+                          utl::narrow_cast<u8>(offsetCountRegIdx),
+                          utl::narrow_cast<u8>(constantOffsetMultiplier),
+                          utl::narrow_cast<u8>(constantInnerOffset))) {}
 
-    size_t registerIndex() const {
-        auto const [regIdx, offset, offsetShift] = decompose(value());
-        return regIdx;
+    size_t baseptrRegisterIndex() const {
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] = decompose(value());
+        return baseptrRegIdx;
     }
-    size_t offset() const {
-        auto const [regIdx, offset, offsetShift] = decompose(value());
-        return offset;
+    
+    size_t offsetCountRegisterIndex() const {
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] = decompose(value());
+        return offsetCountRegIdx;
     }
-    size_t offsetShift() const {
-        auto const [regIdx, offset, offsetShift] = decompose(value());
-        return offsetShift;
+    
+    size_t constantOffsetMultiplier() const {
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] = decompose(value());
+        return constantOffsetMultiplier;
     }
+    
+    size_t constantInnerOffset() const {
+        auto const [baseptrRegIdx, offsetCountRegIdx, constantOffsetMultiplier, constantInnerOffset] = decompose(value());
+        return constantInnerOffset;
+    }
+    
+    bool onlyEvaluatesBasePtr() const { return constantInnerOffset() == invalidInnerOffset; }
 };
 
 namespace internal {

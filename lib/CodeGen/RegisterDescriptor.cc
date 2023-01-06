@@ -35,7 +35,7 @@ Value RegisterDescriptor::resolve(ir::Value const& value) {
 MemoryAddress RegisterDescriptor::resolveAddr(ir::Value const& address) {
     SC_ASSERT(address.type()->category() == ir::Type::Pointer, "address must be a pointer");
     auto const regIdx = resolve(address).get<RegisterIndex>().value();
-    return MemoryAddress(regIdx, 0, 0);
+    return MemoryAddress(regIdx);
 }
 
 RegisterIndex RegisterDescriptor::makeTemporary() {

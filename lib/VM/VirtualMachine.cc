@@ -28,9 +28,9 @@ void VirtualMachine::execute() {
     registers.resize(defaultRegisterCount);
     regPtr = registers.data();
     while (iptr < programBreak) {
-        u8 const opCode = *iptr;
-        SC_ASSERT(opCode < static_cast<u8>(OpCode::_count), "Invalid op-code");
-        auto const instruction = instructionTable[opCode];
+        OpCode const opCode{ *iptr };
+        SC_ASSERT(static_cast<u8>(opCode) < static_cast<u8>(OpCode::_count), "Invalid op-code");
+        auto const instruction = instructionTable[static_cast<u8>(opCode)];
         u64 const offset       = instruction(iptr + 1, regPtr, this);
         iptr += offset;
         ++stats.executedInstructions;

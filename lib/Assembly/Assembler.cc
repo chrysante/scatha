@@ -199,9 +199,10 @@ void Context::translate(RegisterIndex const& regIdx) {
 }
 
 void Context::translate(MemoryAddress const& memAddr) {
-    put<u8>(memAddr.registerIndex());
-    put<u8>(memAddr.offset());
-    put<u8>(memAddr.offsetShift());
+    put<u8>(memAddr.baseptrRegisterIndex());
+    put<u8>(memAddr.offsetCountRegisterIndex());
+    put<u8>(memAddr.constantOffsetMultiplier());
+    put<u8>(memAddr.constantInnerOffset());
 }
 
 void Context::translate(Value8 const& value) {

@@ -34,21 +34,32 @@ else if constexpr (std::is_same_v<T, type>) { return #type; }
 }
 
 template <typename T>
-static auto readAs(std::span<u8 const> data, size_t offset) {
-    return +read<T>(&data[offset]);
+static T readAs(std::span<u8 const> data, size_t offset) {
+    return read<T>(&data[offset]);
+}
+
+template <typename T>
+static auto printAs(auto data) {
+    return utl::strcat("(", typeToStr<T>(), ")", +data);
 }
 
 template <typename T>
 static auto printAs(std::span<u8 const> data, size_t offset) {
-    return utl::strcat("(", typeToStr<T>(), ")",  readAs<T>(data, offset));
+    return printAs<T>(readAs<T>(data, offset));
 }
 
 void print(Program const& p, std::ostream& str) {
     std::span<u8 const> data = p.instructions;
 
     auto printMemoryAcccess = [&](size_t i) {
-        str << "memory[R[" << printAs<u8>(data, i) << "] + " << readAs<u8>(data, i + 1) << " * "
-            << (1 << readAs<u8>(data, i + 2)) << "]";
+        size_t const baseptrRegisterIndex     = readAs<u8>(data, i);
+        size_t const offsetCountRegisterIndex = readAs<u8>(data, i + 1);
+        u8 const constantOffsetMultiplier     = readAs<u8>(data, i + 2);
+        u8 const constantInnerOffset          = readAs<u8>(data, i + 3);
+        str << "*(ptr)R[" << printAs<u8>(baseptrRegisterIndex) << "]";
+        if (constantInnerOffset != 0xFF) {
+            str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex) << "] * " << printAs<u8>(constantOffsetMultiplier) << " + " << printAs<u8>(constantInnerOffset);
+        }
     };
 
     for (size_t i = 0; i < data.size();) {

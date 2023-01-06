@@ -27,7 +27,7 @@ TEST_CASE("Alloca implementation", "[assembly][vm]") {
     AssemblyStream a;
     a.add(MoveInst(RegisterIndex(0), Value64(128), 8));            // a = 128
     a.add(AllocaInst(RegisterIndex(1), RegisterIndex(2)));         // ptr = alloca(...)
-    a.add(MoveInst(MemoryAddress(1, 0, 0), RegisterIndex(0), 8));  // *ptr = a
+    a.add(MoveInst(MemoryAddress(1), RegisterIndex(0), 8));        // *ptr = a
     a.add(TerminateInst());
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
@@ -42,7 +42,7 @@ TEST_CASE("Alloca 2", "[assembly][vm]") {
     a.add(AllocaInst(RegisterIndex(1), RegisterIndex(2)));         // ptr = alloca(...)
     a.add(ArithmeticInst(ArithmeticOperation::Add, Type::Unsigned,
                          RegisterIndex(1), Value64(offset)));      // ptr += 2
-    a.add(MoveInst(MemoryAddress(1, 0, 0), RegisterIndex(0), 1));  // *ptr = a
+    a.add(MoveInst(MemoryAddress(1), RegisterIndex(0), 1));        // *ptr = a
     a.add(TerminateInst());
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
@@ -138,8 +138,8 @@ static void testArithmeticRM(ArithmeticOperation operation, Type type, auto arg1
     a.add(MoveInst(RegisterIndex(0), Value64(arg1), 8));
     a.add(MoveInst(RegisterIndex(1), Value64(arg2), 8));
     a.add(AllocaInst(RegisterIndex(2), RegisterIndex(3)));
-    a.add(MoveInst(MemoryAddress(2, 0, 0), RegisterIndex(1), 8));
-    a.add(ArithmeticInst(operation, type, RegisterIndex(0), MemoryAddress(2, 0, 0)));
+    a.add(MoveInst(MemoryAddress(2), RegisterIndex(1), 8));
+    a.add(ArithmeticInst(operation, type, RegisterIndex(0), MemoryAddress(2)));
     a.add(TerminateInst());
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();

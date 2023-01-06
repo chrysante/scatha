@@ -110,7 +110,7 @@ void Context::generate(ir::Alloca const& allocaInst) {
 
 void Context::generate(ir::Store const& store) {
     auto destRegIdx = currentRD().resolve(*store.address());
-    auto dest       = MemoryAddress(destRegIdx.get<RegisterIndex>().value(), 0, 0);
+    auto dest       = MemoryAddress(destRegIdx.get<RegisterIndex>().value());
     auto src        = currentRD().resolve(*store.value());
     if (isLiteralValue(src.valueType())) {
         /// \p src is a value and must be stored in temporary register first.
@@ -126,7 +126,7 @@ void Context::generate(ir::Store const& store) {
 
 void Context::generate(ir::Load const& load) {
     auto addr = currentRD().resolve(*load.address());
-    auto src  = MemoryAddress(addr.get<RegisterIndex>().value(), 0, 0);
+    auto src  = MemoryAddress(addr.get<RegisterIndex>().value());
     result.add(MoveInst(currentRD().resolve(load), src, load.type()->size()));
 }
 

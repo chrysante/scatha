@@ -11,7 +11,7 @@ size_t Asm::sizeOf(ValueType type) {
     // clang-format off
     return UTL_MAP_ENUM(type, size_t, {
         { ValueType::RegisterIndex, 1 },
-        { ValueType::MemoryAddress, 3 },
+        { ValueType::MemoryAddress, 4 },
         { ValueType::Value8,        1 },
         { ValueType::Value16,       2 },
         { ValueType::Value32,       4 },

@@ -35,10 +35,19 @@ std::ostream& vm::operator<<(std::ostream& str, OpCode c) {
 struct vm::OpCodeImpl {
 
     static u8* getPointer(u64 const* reg, u8 const* i) {
-        const size_t ptrRegIdx = i[0];
-        const ssize_t offset   = i[1];
-        int const offsetShift  = i[2];
-        return reinterpret_cast<u8*>(reg[ptrRegIdx]) + (offset << offsetShift);
+        size_t const baseptrRegIdx         = i[0];
+        size_t const offsetCountRegIdx     = i[1];
+        i64 const constantOffsetMultiplier = i[2];
+        i64 const constantInnerOffset      = i[3];
+        u8* const baseptr = reinterpret_cast<u8*>(reg[baseptrRegIdx]);
+        /// See documentation in "OpCode.h"
+        if (constantInnerOffset == 0xFF) {
+            return baseptr;
+        }
+        else {
+            i64 const offsetCount = static_cast<i64>(reg[offsetCountRegIdx]);
+            return baseptr + offsetCount * constantOffsetMultiplier + constantInnerOffset;
+        }
     }
 
     template <OpCode C>
@@ -58,7 +67,7 @@ struct vm::OpCodeImpl {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             u8* const ptr = getPointer(reg, i);
             VM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
-            size_t const sourceRegIdx = i[3];
+            size_t const sourceRegIdx = i[4];
             std::memcpy(ptr, &reg[sourceRegIdx], Size);
             return codeSize(C);
         };

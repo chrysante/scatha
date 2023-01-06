@@ -16,9 +16,10 @@ namespace scatha::vm {
 // u8 [instruction], u8... [arguments]
 // ...
 ///
-// MEMORY_POINTER           ==   u8 ptrRegIdx, u8 offset, u8 offsetShift
-// eval(MEMORY_POINTER)     ==   reg[ptrRegIdx] + (offset << offsetShift)
-// sizeof(MEMORY_POINTER)   ==   3
+// MEMORY_POINTER           ==   u8 baseptrRegIdx, u8 offsetCountRegIdx, u8 constantOffsetMultiplier, u8 constantInnerOffset
+// eval(MEMORY_POINTER)     ==   reg[baseptrRegIdx] + offsetCountRegIdx * constantOffsetMultiplier + constantInnerOffset
+// sizeof(MEMORY_POINTER)   ==   4
+// NOTE: If constantInnerOffset == 0xFF then eval(MEMORY_POINTER) == reg[baseptrRegIdx]
 
 /// ** Calling convention **
 /// _ All register indices are from the perspective of the callee _
@@ -74,8 +75,8 @@ constexpr size_t codeSize(OpCode c) {
     return UTL_MAP_ENUM(opCodeClass, size_t, {
         { OpCodeClass::RR,     3 },
         { OpCodeClass::RV,    10 },
-        { OpCodeClass::RM,     5 },
-        { OpCodeClass::MR,     5 },
+        { OpCodeClass::RM,     6 },
+        { OpCodeClass::MR,     6 },
         { OpCodeClass::R,      2 },
         { OpCodeClass::Jump,   5 },
         { OpCodeClass::Other, static_cast<size_t>(-1) }

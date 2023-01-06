@@ -87,7 +87,9 @@ std::ostream& Asm::operator<<(std::ostream& str, RegisterIndex const& regIdx) {
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, MemoryAddress const& addr) {
-    return str << "*(ptr)_R[" << addr.registerIndex() << "]";
+    return str << "*(ptr)_R[" << addr.baseptrRegisterIndex() << "]";
+    if (addr.onlyEvaluatesBasePtr()) { return str; }
+    return str << " + _R[" << addr.offsetCountRegisterIndex() << "] * " << addr.constantOffsetMultiplier() << " + " << addr.constantInnerOffset();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value8 const& value) {
