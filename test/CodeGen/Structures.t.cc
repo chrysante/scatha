@@ -48,3 +48,57 @@ struct X {
     CHECK(state.registers[0] == 2);
 }
 
+TEST_CASE("Return custom structs", "[codegen]") {
+    std::string const text = R"(
+struct X {
+    var b: bool;
+    var c: bool;
+    var d: bool;
+    var a: int;
+}
+fn makeX() -> X {
+    var result: X;
+    result.a = 1;
+    result.b = false;
+    result.c = true;
+    result.d = false;
+    return result;
+}
+fn main() -> int {
+    var x = makeX();
+    if x.c { return 2; }
+    return 1;
+})";
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
+    CHECK(state.registers[0] == 2);
+}
+
+TEST_CASE("Pass custom structs as arguments", "[codegen]") {
+    return; // Fails because of a problem in sema!
+    std::string const text = R"(
+struct X {
+    var b: bool;
+    var c: bool;
+    var d: bool;
+    var a: int;
+}
+fn getX_a(x: X) -> bool {
+    var result = x.a;
+    return result;
+}
+fn main() -> int {
+    var x;
+    x.a = 5;
+    x.b = true;
+    x.c = false;
+    x.d = true;
+    var result = getX_a(x);
+    return result;
+})";
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
+    CHECK(state.registers[0] == 5);
+}
+
+

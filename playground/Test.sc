@@ -1,25 +1,19 @@
-
 struct X {
     var b: bool;
     var c: bool;
     var d: bool;
     var a: int;
 }
-
-fn makeX() -> X {
-    var result: X;
-    result.a = 1;
-    result.b = true;
-    result.c = false;
-    result.d = true;
+fn getX_a(x: X) -> bool {
+    var result = x.a;
     return result;
 }
-
 fn main() -> int {
-    var x = makeX();
-    if x.c {
-        return 2;
-    }
-    return 1;
+    var x;
+    x.a = 5;
+    x.b = true;
+    x.c = false;
+    x.d = true;
+    var result = getX_a(x);
+    return result;
 }
- 

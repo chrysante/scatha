@@ -46,6 +46,9 @@ struct Context {
     /// Used by \p computeAddress
     MemoryAddress computeGep(ir::GetElementPointer const&);
     
+    void generateBigMove(Value dest, Value source, size_t size);
+    void generateBigMove(Value dest, Value source, size_t size, AssemblyStream::ConstIterator before);
+    
     Label makeLabel(ir::BasicBlock const&);
     Label makeLabel(ir::Function const&);
     size_t makeLabelImpl(ir::Value const&);
@@ -119,18 +122,21 @@ void Context::generate(ir::Store const& store) {
     if (isLiteralValue(src.valueType())) {
         /// \p src is a value and must be stored in temporary register first.
         size_t const size = sizeOf(src.valueType());
+        SC_ASSERT(size <= 8, "");
         auto tmp = currentRD().makeTemporary();
         result.add(MoveInst(tmp, src, size));
         result.add(MoveInst(addr, tmp, size));
     }
     else {
-        result.add(MoveInst(addr, src, store.value()->type()->size()));
+        generateBigMove(addr, src, store.value()->type()->size());
     }
 }
 
 void Context::generate(ir::Load const& load) {
     MemoryAddress const addr = computeAddress(*load.address());
-    result.add(MoveInst(currentRD().resolve(load), addr, load.type()->size()));
+    Value const dest = currentRD().resolve(load);
+    size_t const size = load.type()->size();
+    generateBigMove(dest, addr, size);
 }
 
 static Asm::Type mapType(ir::Type const* type) {
@@ -221,16 +227,20 @@ void Context::generate(ir::Branch const& br) {
 }
 
 void Context::generate(ir::FunctionCall const& call) {
-    utl::small_vector<AssemblyStream::Iterator> parameterRegIdxLocations;
+    AssemblyStream::Iterator paramLocation = result.backItr();
+    size_t offset = 0;
     for (auto const arg: call.arguments()) {
-        // TODO: Are the arguments evaluated here?
-        auto argRegIdx = RegisterIndex(0xFF);
-        result.add(MoveInst(argRegIdx, currentRD().resolve(*arg), arg->type()->size()));
-        parameterRegIdxLocations.push_back(result.backItr());
+        size_t const argSize = arg->type()->size();
+        generateBigMove(RegisterIndex(offset), currentRD().resolve(*arg), argSize);
+        offset += utl::ceil_divide(argSize, 8);
     }
-    for (auto const& [index, regIdx]: utl::enumerate(parameterRegIdxLocations)) {
-        // TODO: Make sure every argument has enough space, don't just increment the register index by 1
-        regIdx->get<MoveInst>().dest().get<RegisterIndex>().setValue(currentRD().numUsedRegisters() + 2 + index);
+    /// Increment to actually point to the first move instruction
+    ++paramLocation;
+    size_t const commonOffset = currentRD().numUsedRegisters() + 2;
+    for (size_t i = 0; i < offset; ++i, ++paramLocation) {
+        RegisterIndex& moveDestIdx = paramLocation->get<MoveInst>().dest().get<RegisterIndex>();
+        size_t const rawIndex = moveDestIdx.value();
+        moveDestIdx.setValue(commonOffset + rawIndex);
     }
     result.add(CallInst(makeLabel(*call.function()).id(), currentRD().numUsedRegisters() + 2));
     if (call.type()->isVoid()) {
@@ -239,7 +249,7 @@ void Context::generate(ir::FunctionCall const& call) {
     RegisterIndex const resultLocation       = currentRD().numUsedRegisters() + 2;
     RegisterIndex const targetResultLocation = currentRD().resolve(call).get<RegisterIndex>();
     if (resultLocation != targetResultLocation) {
-        result.add(MoveInst(targetResultLocation, resultLocation, call.type()->size()));
+        generateBigMove(targetResultLocation, resultLocation, call.type()->size());
     }
 }
 
@@ -248,7 +258,7 @@ void Context::generate(ir::Return const& ret) {
         auto const returnValue                        = currentRD().resolve(*ret.value());
         RegisterIndex const returnValueTargetLocation = 0;
         if (!returnValue.is<RegisterIndex>() || returnValue.get<RegisterIndex>() != returnValueTargetLocation) {
-            result.add(MoveInst(returnValueTargetLocation, returnValue, ret.value()->type()->size()));
+            generateBigMove(returnValueTargetLocation, returnValue, ret.value()->type()->size());
         }
     }
     result.add(ReturnInst());
@@ -269,7 +279,7 @@ void Context::generate(ir::Phi const& phi) {
         while (back->is<JumpInst>() && back != begin) {
             --back;
         }
-        result.insert(std::next(back), MoveInst(target, currentRD().resolve(*value), value->type()->size()));
+        generateBigMove(target, currentRD().resolve(*value), value->type()->size(), std::next(back));
     }
 }
 
@@ -297,6 +307,33 @@ MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
     RegisterIndex const regIdx = currentRD().resolve(*value).get<RegisterIndex>();
     SC_ASSERT(offset <= 0xFF, "Offset too large");
     return MemoryAddress(regIdx.value(), MemoryAddress::invalidRegisterIndex, 0, offset);
+}
+
+void Context::generateBigMove(Value dest, Value source, size_t size) {
+    generateBigMove(dest, source, size, result.end());
+}
+
+void Context::generateBigMove(Value dest, Value source, size_t size, AssemblyStream::ConstIterator before) {
+    if (size <= 8) {
+        result.insert(before, MoveInst(dest, source, size));
+        return;
+    }
+    auto increment = utl::overload{
+        [](RegisterIndex const& regIdx) -> Value {
+            return RegisterIndex(regIdx.value() + 1);
+        },
+        [](MemoryAddress const& addr) -> Value {
+            return MemoryAddress(addr.baseptrRegisterIndex(), 0xFF, 0, addr.constantInnerOffset() + 8);
+        },
+        [](auto const&) -> Value { SC_UNREACHABLE(); }
+    };
+    SC_ASSERT(size % 8 == 0, "Probably not always true and this function needs some work.");
+    for (size_t i = 0; i < size / 8; ++i) {
+        
+        result.insert(before++, MoveInst(dest, source, 8));
+        dest.visit(increment);
+        source.visit(increment);
+    }
 }
 
 Label Context::makeLabel(ir::BasicBlock const& bb) {
