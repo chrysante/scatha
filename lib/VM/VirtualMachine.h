@@ -37,7 +37,7 @@ struct VMState {
 };
 
 struct VMStats {
-    size_t executedInstructions;
+    size_t executedInstructions = 0;
 };
 
 struct OpCodeImpl;

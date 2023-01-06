@@ -7,26 +7,38 @@ using namespace Asm;
 
 using vm::OpCode;
 
-// clang-format off
-
-OpCode Asm::mapMove(ValueType dest, ValueType source) {
+std::pair<OpCode, size_t> Asm::mapMove(ValueType dest, ValueType source, size_t size) {
     if (dest == ValueType::RegisterIndex) {
         switch (source) {
-        case ValueType::RegisterIndex:
-            return OpCode::mov64RR;
-        case ValueType::Value64:
-            return OpCode::mov64RV;
+        case ValueType::RegisterIndex: return { OpCode::mov64RR, 8 };
         case ValueType::MemoryAddress:
-            return OpCode::mov64RM;
-        default:
-            SC_DEBUGFAIL(); // No matching instruction
+            switch (size) {
+            case 1: return { OpCode::mov8RM, 1 };
+            case 2: return { OpCode::mov16RM, 2 };
+            case 4: return { OpCode::mov32RM, 4 };
+            case 8: return { OpCode::mov64RM, 8 };
+            default: SC_UNREACHABLE();
+            }
+        case ValueType::Value8:  [[fallthrough]];
+        case ValueType::Value16: [[fallthrough]];
+        case ValueType::Value32: [[fallthrough]];
+        case ValueType::Value64: return { OpCode::mov64RV, 8 };
+        default: SC_DEBUGFAIL(); // No matching instruction
         }
     }
     if (dest == ValueType::MemoryAddress && source == ValueType::RegisterIndex) {
-        return OpCode::mov64MR;
+        switch (size) {
+        case 1: return { OpCode::mov8MR, 1 };
+        case 2: return { OpCode::mov16MR, 2 };
+        case 4: return { OpCode::mov32MR, 4 };
+        case 8: return { OpCode::mov64MR, 8 };
+        default: SC_UNREACHABLE();
+        }
     }
     SC_DEBUGFAIL(); // No matching instruction
 }
+
+// clang-format off
 
 OpCode Asm::mapJump(CompareOperation condition) {
     return UTL_MAP_ENUM(condition, OpCode, {

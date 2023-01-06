@@ -110,10 +110,10 @@ void Context::dispatch(Instruction const& inst) {
 }
 
 void Context::translate(MoveInst const& mov) {
-    OpCode const opcode = mapMove(mov.dest().valueType(), mov.source().valueType());
+    auto const [opcode, size] = mapMove(mov.dest().valueType(), mov.source().valueType(), mov.numBytes());
     put(opcode);
     dispatch(mov.dest());
-    dispatch(mov.source());
+    dispatch(promote(mov.source(), size));
 }
 
 void Context::translate(JumpInst const& jmp) {
@@ -146,10 +146,12 @@ void Context::translate(AllocaInst const& alloca_) {
 }
 
 void Context::translate(CompareInst const& cmp) {
-    OpCode const opcode = mapCompare(cmp.type(), cmp.lhs().valueType(), cmp.rhs().valueType());
+    OpCode const opcode = mapCompare(cmp.type(),
+                                     promote(cmp.lhs().valueType(), 8),
+                                     promote(cmp.rhs().valueType(), 8));
     put(opcode);
-    dispatch(cmp.lhs());
-    dispatch(cmp.rhs());
+    dispatch(promote(cmp.lhs(), 8));
+    dispatch(promote(cmp.rhs(), 8));
 }
 
 void Context::translate(TestInst const& test) {

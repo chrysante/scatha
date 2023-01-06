@@ -1,1 +1,2 @@
 - Fix void functions ending without return statements 
+- Check all exported apis for wether they only need to be exported in test builds.

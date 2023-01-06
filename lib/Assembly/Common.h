@@ -39,6 +39,12 @@ enum class ValueType {
     _count
 };
 
+size_t sizeOf(ValueType type);
+
+bool isLiteralValue(ValueType type);
+
+ValueType promote(ValueType type, size_t size);
+
 enum class CompareOperation {
 #define SC_ASM_COMPARE_DEF(jmpcnd, ...) jmpcnd,
 #include "Assembly/Lists.def"

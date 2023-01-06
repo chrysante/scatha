@@ -28,3 +28,23 @@ fn main() -> int {
     auto const& state      = vm.getState();
     CHECK(state.registers[0] == 4);
 }
+
+TEST_CASE("Bool member access", "[codegen]") {
+    std::string const text = R"(
+struct X {
+    var b: bool;
+    var c: bool;
+    var d: bool;
+    var a: int;
+}
+fn main() -> int {
+    var x: X;
+    x.d = true;
+    if x.d { return 2; }
+    return 1;
+})";
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
+    CHECK(state.registers[0] == 2);
+}
+

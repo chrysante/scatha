@@ -20,6 +20,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticInst const
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, JumpInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CallInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ReturnInst const&);
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, TerminateInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, TestInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, SetInst const&);

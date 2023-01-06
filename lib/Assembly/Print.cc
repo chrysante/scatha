@@ -31,7 +31,7 @@ static constexpr utl::streammanip instName = [](std::ostream& str, auto const&..
 };
 
 std::ostream& Asm::operator<<(std::ostream& str, MoveInst const& mov) {
-    return str << instName("mov") << " " << mov.dest() << ", " << mov.source();
+    return str << instName("mov", mov.numBytes()) << " " << mov.dest() << ", " << mov.source();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, UnaryArithmeticInst const& inst) {
@@ -52,6 +52,10 @@ std::ostream& Asm::operator<<(std::ostream& str, CallInst const& call) {
 
 std::ostream& Asm::operator<<(std::ostream& str, ReturnInst const&) {
     return str << instName("ret");
+}
+
+std::ostream& Asm::operator<<(std::ostream& str, TerminateInst const&) {
+    return str << instName("terminate");
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, CompareInst const& cmp) {
@@ -87,17 +91,17 @@ std::ostream& Asm::operator<<(std::ostream& str, MemoryAddress const& addr) {
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value8 const& value) {
-    return str << value.value();
+    return str << "(u8)" << value.value();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value16 const& value) {
-    return str << value.value();
+    return str << "(u16)" << value.value();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value32 const& value) {
-    return str << value.value();
+    return str << "(u32)" << value.value();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value64 const& value) {
-    return str << value.value();
+    return str << "(u64)" << value.value();
 }

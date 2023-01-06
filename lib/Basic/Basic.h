@@ -57,6 +57,9 @@
 #define _SCATHA_PD_API() __declspec(dllexport)
 #endif
 
+// TODO: Make this conditional based on wether this is actually a test build.
+#define _SCATHA_PD_TEST_API() _SCATHA_PD_API()
+
 // Shorthand to force types to be move-only.
 #define _SCATHA_PD_MOVE_ONLY(TYPE)                                                                                     \
     TYPE()            = default;                                                                                       \

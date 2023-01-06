@@ -1,12 +1,14 @@
 #ifndef SCATHA_ASSEMBLY2_MAP_H_
 #define SCATHA_ASSEMBLY2_MAP_H_
 
+#include <utility>
+
 #include "Assembly/Common.h"
 #include "VM/OpCode.h"
 
 namespace scatha::Asm {
 
-SCATHA(API) vm::OpCode mapMove(ValueType dest, ValueType source);
+SCATHA(API) std::pair<vm::OpCode, size_t> mapMove(ValueType dest, ValueType source, size_t size);
 
 SCATHA(API) vm::OpCode mapJump(CompareOperation condition);
 

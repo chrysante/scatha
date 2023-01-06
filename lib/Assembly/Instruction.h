@@ -19,15 +19,23 @@ protected:
 /// Represents a \p mov instruction.
 class MoveInst: public InstructionBase {
 public:
-    explicit MoveInst(Value dest, Value source): _dest(dest), _src(source) {}
+    explicit MoveInst(Value dest, Value source, size_t numBytes): _dest(dest), _src(source), _numBytes(numBytes) {
+        verify();
+    }
 
     Value& dest() { return _dest; }
     Value const& dest() const { return _dest; }
 
     Value const& source() const { return _src; }
 
+    size_t numBytes() const { return _numBytes; }
+
+private:
+    SCATHA(TEST_API) void verify();
+    
 private:
     Value _dest, _src;
+    size_t _numBytes;
 };
 
 /// Represents a jump instruction
@@ -169,7 +177,7 @@ public:
     Value const& source() const { return _src; }
 
 private:
-    SCATHA(API) void verify() const;
+    SCATHA(TEST_API) void verify() const;
 
 private:
     ArithmeticOperation _op;

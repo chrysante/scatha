@@ -195,7 +195,7 @@ ir::Value* Context::generate(ReturnStatement const& retDecl) {
 }
 
 ir::Value* Context::generate(IfStatement const& ifStatement) {
-    auto* condition = dispatch(*ifStatement.condition);
+    auto* condition = dispatchAndLoad(*ifStatement.condition);
     auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("then-block"));
     auto* elseBlock = ifStatement.elseBlock ? new ir::BasicBlock(irCtx, localUniqueName("else-block")) : nullptr;
     auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("if-end"));
@@ -227,7 +227,7 @@ ir::Value* Context::generate(WhileStatement const& loopDecl) {
     auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
     currentBB->addInstruction(gotoLoopHeader);
     setCurrentBB(loopHeader);
-    auto* condition = dispatch(*loopDecl.condition);
+    auto* condition = dispatchAndLoad(*loopDecl.condition);
     auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
     currentBB->addInstruction(branch);
     currentBB = loopBody;

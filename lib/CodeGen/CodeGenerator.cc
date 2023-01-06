@@ -112,21 +112,22 @@ void Context::generate(ir::Store const& store) {
     auto destRegIdx = currentRD().resolve(*store.address());
     auto dest       = MemoryAddress(destRegIdx.get<RegisterIndex>().value(), 0, 0);
     auto src        = currentRD().resolve(*store.value());
-    if (src.is<Value64>()) {
+    if (isLiteralValue(src.valueType())) {
         /// \p src is a value and must be stored in temporary register first.
+        size_t const size = sizeOf(src.valueType());
         auto tmp = currentRD().makeTemporary();
-        result.add(MoveInst(tmp, src));
-        result.add(MoveInst(dest, tmp));
+        result.add(MoveInst(tmp, src, size));
+        result.add(MoveInst(dest, tmp, size));
     }
     else {
-        result.add(MoveInst(dest, src));
+        result.add(MoveInst(dest, src, store.value()->type()->size()));
     }
 }
 
 void Context::generate(ir::Load const& load) {
     auto addr = currentRD().resolve(*load.address());
     auto src  = MemoryAddress(addr.get<RegisterIndex>().value(), 0, 0);
-    result.add(MoveInst(currentRD().resolve(load), src));
+    result.add(MoveInst(currentRD().resolve(load), src, load.type()->size()));
 }
 
 static Asm::Type mapType(ir::Type const* type) {
@@ -148,7 +149,7 @@ void Context::generate(ir::CompareInst const& cmp) {
             return resolvedLhs;
         }
         auto tmpRegIdx = currentRD().makeTemporary();
-        result.add(MoveInst(tmpRegIdx, resolvedLhs));
+        result.add(MoveInst(tmpRegIdx, resolvedLhs, cmp.lhs()->type()->size()));
         return tmpRegIdx;
     }();
     result.add(Asm::CompareInst(mapType(cmp.type()), lhs, currentRD().resolve(*cmp.rhs())));
@@ -164,13 +165,13 @@ void Context::generate(ir::UnaryArithmeticInst const& inst) {
     auto dest               = currentRD().resolve(inst).get<RegisterIndex>();
     auto operand            = currentRD().resolve(*inst.operand());
     auto genUnaryArithmetic = [&](UnaryArithmeticOperation operation) {
-        result.add(MoveInst(dest, operand));
+        result.add(MoveInst(dest, operand, inst.operand()->type()->size()));
         result.add(UnaryArithmeticInst(operation, mapType(inst.type()), dest));
     };
     switch (inst.operation()) {
     case ir::UnaryArithmeticOperation::Promotion: break; /// At this point promotion is a no-op.
     case ir::UnaryArithmeticOperation::Negation:
-        result.add(MoveInst(dest, Value64(0)));
+        result.add(MoveInst(dest, Value64(0), 8));
         result.add(ArithmeticInst(ArithmeticOperation::Sub, mapType(inst.type()), dest, operand));
         break;
     case ir::UnaryArithmeticOperation::BitwiseNot: genUnaryArithmetic(UnaryArithmeticOperation::BitwiseNot); break;
@@ -182,7 +183,7 @@ void Context::generate(ir::UnaryArithmeticInst const& inst) {
 void Context::generate(ir::ArithmeticInst const& arithmetic) {
     // TODO: Make the move of the source argument conditional?
     auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
-    result.add(MoveInst(dest, currentRD().resolve(*arithmetic.lhs())));
+    result.add(MoveInst(dest, currentRD().resolve(*arithmetic.lhs()), 8));
     result.add(Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
                                    mapType(arithmetic.type()),
                                    dest,
@@ -206,7 +207,7 @@ void Context::generate(ir::Branch const& br) {
                 return cond;
             }
             auto tmp = currentRD().makeTemporary();
-            result.add(MoveInst(tmp, cond));
+            result.add(MoveInst(tmp, cond, 1));
             return tmp;
         }();
         result.add(TestInst(mapType(br.condition()->type()), testOp));
@@ -221,10 +222,11 @@ void Context::generate(ir::FunctionCall const& call) {
     for (auto const arg: call.arguments()) {
         // TODO: Are the arguments evaluated here?
         auto argRegIdx = RegisterIndex(0xFF);
-        result.add(MoveInst(argRegIdx, currentRD().resolve(*arg)));
+        result.add(MoveInst(argRegIdx, currentRD().resolve(*arg), arg->type()->size()));
         parameterRegIdxLocations.push_back(result.backItr());
     }
     for (auto const& [index, regIdx]: utl::enumerate(parameterRegIdxLocations)) {
+        // TODO: Make sure every argument has enough space, don't just increment the register index by 1
         regIdx->get<MoveInst>().dest().get<RegisterIndex>().setValue(currentRD().numUsedRegisters() + 2 + index);
     }
     result.add(CallInst(makeLabel(*call.function()).id(), currentRD().numUsedRegisters() + 2));
@@ -234,7 +236,7 @@ void Context::generate(ir::FunctionCall const& call) {
     RegisterIndex const resultLocation       = currentRD().numUsedRegisters() + 2;
     RegisterIndex const targetResultLocation = currentRD().resolve(call).get<RegisterIndex>();
     if (resultLocation != targetResultLocation) {
-        result.add(MoveInst(targetResultLocation, resultLocation));
+        result.add(MoveInst(targetResultLocation, resultLocation, call.type()->size()));
     }
 }
 
@@ -243,7 +245,7 @@ void Context::generate(ir::Return const& ret) {
         auto const returnValue                        = currentRD().resolve(*ret.value());
         RegisterIndex const returnValueTargetLocation = 0;
         if (!returnValue.is<RegisterIndex>() || returnValue.get<RegisterIndex>() != returnValueTargetLocation) {
-            result.add(MoveInst(returnValueTargetLocation, returnValue));
+            result.add(MoveInst(returnValueTargetLocation, returnValue, ret.value()->type()->size()));
         }
     }
     result.add(ReturnInst());
@@ -264,7 +266,7 @@ void Context::generate(ir::Phi const& phi) {
         while (back->is<JumpInst>() && back != begin) {
             --back;
         }
-        result.insert(std::next(back), MoveInst(target, currentRD().resolve(*value)));
+        result.insert(std::next(back), MoveInst(target, currentRD().resolve(*value), value->type()->size()));
     }
 }
 
@@ -272,7 +274,7 @@ void Context::generate(ir::GetElementPointer const& gep) {
     /// Should we really generate arithmetic instructions here or should we perform offset calculation in the memory
     /// access??
     auto idx = currentRD().resolve(gep);
-    result.add(MoveInst(idx, currentRD().resolve(*gep.basePointer())));
+    result.add(MoveInst(idx, currentRD().resolve(*gep.basePointer()), 8));
     size_t const offset = static_cast<ir::StructureType const*>(gep.accessedType())->memberOffsetAt(gep.offsetIndex());
     result.add(ArithmeticInst(ArithmeticOperation::Add, Type::Unsigned, idx, Value64(offset)));
 }

@@ -118,6 +118,8 @@ public:
     ValueType valueType() const { return static_cast<ValueType>(index()); }
 };
 
+Value promote(Value const& value, size_t size);
+
 } // namespace scatha::Asm
 
 #endif // SCATHA_ASSEMBLY2_VALUES_H_

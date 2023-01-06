@@ -171,7 +171,7 @@ void playground::compile(std::string text) {
         return;
     }
     auto const program = Asm::assemble(str0, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
-
+    print(program);
     subHeader();
 
     vm::VirtualMachine vm;
