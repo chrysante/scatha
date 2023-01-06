@@ -25,6 +25,9 @@ protected:
     explicit Value(NodeType nodeType, Type const* type, std::string name) noexcept:
         _nodeType(nodeType), _type(type), _name(std::move(name)) {}
 
+    /// For complex initialization.
+    void setType(Type const* type) { _type = type; }
+    
 public:
     NodeType nodeType() const { return _nodeType; }
 
@@ -346,14 +349,8 @@ public:
 /// GetElementPointer instruction. Calculate offset pointer to a structure member or array element.
 class GetElementPointer: public Instruction {
 public:
-    explicit GetElementPointer(Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name = {}):
-        Instruction(NodeType::GetElementPointer, basePointer->type(), std::move(name)),
-        accType(accessedType),
-        basePtr(basePointer),
-        offsetIdx(offsetIndex) {
-        SC_ASSERT(basePointer->type()->isPointer(), "basePointer must be a pointer.");
-    }
-
+    explicit GetElementPointer(Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name = {});
+    
     Type const* accessedType() const { return accType; }
 
     Value* basePointer() { return basePtr; }

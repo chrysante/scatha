@@ -46,7 +46,7 @@ void sema::analyzeFunctions(SymbolTable& sym,
     for (auto const& node: functions) {
         SC_ASSERT(node.category == SymbolCategory::Function, "We only accept functions here");
         sym.makeScopeCurrent(node.scope);
-        ctx.analyze(utl::down_cast<ast::FunctionDefinition&>(*node.astNode));
+        ctx.analyze(cast<ast::FunctionDefinition&>(*node.astNode));
         sym.makeScopeCurrent(nullptr);
     }
 }

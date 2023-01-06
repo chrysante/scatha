@@ -353,12 +353,12 @@ ir::Value* Context::generate(BinaryExpression const& exprDecl) {
 }
 
 ir::Value* Context::generate(MemberAccess const& expr) {
-    ir::Value* const basePtr               = dispatch(*expr.object);
+    ir::Value* basePtr                     = dispatch(*expr.object);
     sema::SymbolID const accessedElementID = cast<Identifier const&>(*expr.member).symbolID();
     auto& var                              = symTable.getVariable(accessedElementID);
     size_t const index                     = var.index();
     ir::Type const* const accessedType     = mapType(expr.object->typeID());
-    auto* const gep = new ir::GetElementPointer(accessedType, basePtr, index, localUniqueName("member-ptr"));
+    auto* const gep = new ir::GetElementPointer(irCtx, accessedType, basePtr, index, localUniqueName("member-ptr"));
     currentBB->addInstruction(gep);
     return gep;
 }

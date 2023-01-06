@@ -57,3 +57,10 @@ FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments
     Instruction(NodeType::FunctionCall, function->returnType(), std::move(name)),
     _function(function),
     _args(arguments) {}
+
+GetElementPointer::GetElementPointer(Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name):
+    Instruction(NodeType::GetElementPointer, context.pointerType(), std::move(name)),
+    accType(accessedType),
+    basePtr(basePointer),
+    offsetIdx(offsetIndex)
+{}

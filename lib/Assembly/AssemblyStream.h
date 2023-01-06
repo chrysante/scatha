@@ -23,7 +23,7 @@ public:
     Iterator backItr() { return std::prev(end()); }
     ConstIterator backItr() const { return std::prev(end()); }
 
-    Iterator insert(ConstIterator pos, Instruction inst) { return elems.insert(pos, inst); }
+    Iterator insert(ConstIterator before, Instruction inst) { return elems.insert(before, inst); }
 
     Iterator erase(ConstIterator pos) { return elems.erase(pos); }
 

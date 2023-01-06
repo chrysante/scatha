@@ -246,8 +246,8 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
             return ExpressionAnalysisResult::fail();
         }
         success &= argRes.success();
-        /// Invalid TypeID if analysis of arg failed.
-        argTypes.push_back(arg->typeID());
+        /// \p arg is undecorated if analysis of \p arg failed.
+        argTypes.push_back(arg->isDecorated() ? arg->typeID() : TypeID::Invalid);
     }
     auto const objRes = dispatch(*fc.object);
     if (iss.fatal()) {

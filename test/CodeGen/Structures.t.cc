@@ -75,7 +75,6 @@ fn main() -> int {
 }
 
 TEST_CASE("Pass custom structs as arguments", "[codegen]") {
-    return; // Fails because of a problem in sema!
     std::string const text = R"(
 struct X {
     var b: bool;
@@ -83,12 +82,12 @@ struct X {
     var d: bool;
     var a: int;
 }
-fn getX_a(x: X) -> bool {
+fn getX_a(x: X) -> int {
     var result = x.a;
     return result;
 }
 fn main() -> int {
-    var x;
+    var x: X;
     x.a = 5;
     x.b = true;
     x.c = false;
@@ -101,4 +100,27 @@ fn main() -> int {
     CHECK(state.registers[0] == 5);
 }
 
-
+TEST_CASE("Pass and return custom structs and access rvalue", "[codegen]") {
+    std::string const text = R"(
+struct X {
+    var b: bool;
+    var c: bool;
+    var d: bool;
+    var a: int;
+}
+fn forward(x: X) -> X {
+    return x;
+}
+fn main() -> int {
+    var x: X;
+    x.a = 5;
+    x.b = true;
+    x.c = false;
+    x.d = true;
+    var y = forward(x);
+    return y.a;
+})";
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
+    CHECK(state.registers[0] == 5);
+}
