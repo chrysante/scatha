@@ -22,7 +22,8 @@ static constexpr std::string_view typeToStr() {
     else if constexpr (std::is_same_v<T, type>) {                                                                      \
         return #type;                                                                                                  \
     }
-    if constexpr (false);
+    if constexpr (false)
+        ;
     SC_TYPETOSTR_CASE(u8)
     SC_TYPETOSTR_CASE(u16)
     SC_TYPETOSTR_CASE(u32)
