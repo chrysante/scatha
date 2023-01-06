@@ -10,13 +10,21 @@
 #include "Sema/SymbolTable.h"
 
 namespace scatha::lex {
+
 class LexicalIssue;
+
 } // namespace scatha::lex
+
 namespace scatha::parse {
+
 class SyntaxIssue;
+
 } // namespace scatha::parse
+
 namespace scatha::sema {
+
 class SemaIssue;
+
 } // namespace scatha::sema
 
 namespace scatha::test {
@@ -78,7 +86,7 @@ struct IssueHelper {
     }
 
     bool empty() const { return iss.empty(); }
-    
+
     using HandlerType = typename internal::ToIssueHandler<IssueBaseType>::type;
     HandlerType iss;
     ast::UniquePtr<ast::AbstractSyntaxTree> ast = nullptr;
@@ -86,9 +94,8 @@ struct IssueHelper {
 };
 
 using LexicalIssueHelper = IssueHelper<lex::LexicalIssue>;
-using SyntaxIssueHelper = IssueHelper<parse::SyntaxIssue>;
-using SemaIssueHelper = IssueHelper<sema::SemanticIssue>;
-
+using SyntaxIssueHelper  = IssueHelper<parse::SyntaxIssue>;
+using SemaIssueHelper    = IssueHelper<sema::SemanticIssue>;
 
 LexicalIssueHelper getLexicalIssues(std::string_view text);
 SyntaxIssueHelper getSyntaxIssues(std::string_view text);

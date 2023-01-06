@@ -3,8 +3,8 @@
 #include <array>
 
 #include "Sema/OverloadSet.h"
-#include "Sema/SymbolTable.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 

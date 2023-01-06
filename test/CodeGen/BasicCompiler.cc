@@ -6,13 +6,13 @@
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
-#include "CodeGen/AST2IR/CodeGenerator.h"
 #include "Basic/Memory.h"
+#include "CodeGen/AST2IR/CodeGenerator.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
-#include "Issue/IssueHandler.h"
-#include "Lexer/Lexer.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "Issue/IssueHandler.h"
+#include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "VM/Program.h"
@@ -37,7 +37,7 @@ vm::Program compile(std::string_view text) {
         throw std::runtime_error("Compilation failed");
     }
     ir::Context ctx;
-    auto mod = ast::codegen(*ast, sym, ctx);
+    auto mod       = ast::codegen(*ast, sym, ctx);
     auto asmStream = cg::codegen(mod);
     /// Start execution with main if it exists.
     auto const mainID = [&sym] {

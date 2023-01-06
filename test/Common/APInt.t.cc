@@ -21,38 +21,38 @@ TEST_CASE("APInt comparison", "[common][big-num]") {
 
 TEST_CASE("APInt representable - 1", "[common][big-num]") {
     APInt n = 300;
-    CHECK( n.representableAs<         int >());
-    CHECK( n.representableAs<unsigned int >());
-    CHECK( n.representableAs<  signed long>());
-    CHECK( n.representableAs<unsigned long>());
-    CHECK(!n.representableAs<         char>());
+    CHECK(n.representableAs<int>());
+    CHECK(n.representableAs<unsigned int>());
+    CHECK(n.representableAs<signed long>());
+    CHECK(n.representableAs<unsigned long>());
+    CHECK(!n.representableAs<char>());
     CHECK(!n.representableAs<unsigned char>());
-    CHECK( n.representableAs<float>());
-    CHECK( n.representableAs<double>());
-    CHECK( n.representableAs<long double>());
+    CHECK(n.representableAs<float>());
+    CHECK(n.representableAs<double>());
+    CHECK(n.representableAs<long double>());
 }
 
 TEST_CASE("APInt representable - 2", "[common][big-num]") {
     APInt n = APInt::fromString("FFffFFffFFffFFffFFffFFffFFffFFff", 16).value();
-    CHECK(!n.representableAs<         int >());
-    CHECK(!n.representableAs<unsigned int >());
-    CHECK(!n.representableAs<  signed long>());
+    CHECK(!n.representableAs<int>());
+    CHECK(!n.representableAs<unsigned int>());
+    CHECK(!n.representableAs<signed long>());
     CHECK(!n.representableAs<unsigned long>());
-    CHECK(!n.representableAs<         char>());
+    CHECK(!n.representableAs<char>());
     CHECK(!n.representableAs<unsigned char>());
 }
 
 TEST_CASE("APInt representable - 3", "[common][big-num]") {
     APInt n = -200;
-    CHECK( n.representableAs<         int >());
-    CHECK(!n.representableAs<unsigned int >());
-    CHECK( n.representableAs<  signed long>());
+    CHECK(n.representableAs<int>());
+    CHECK(!n.representableAs<unsigned int>());
+    CHECK(n.representableAs<signed long>());
     CHECK(!n.representableAs<unsigned long>());
-    CHECK(!n.representableAs<         char>());
+    CHECK(!n.representableAs<char>());
     CHECK(!n.representableAs<unsigned char>());
-    CHECK( n.representableAs<float>());
-    CHECK( n.representableAs<double>());
-    CHECK( n.representableAs<long double>());
+    CHECK(n.representableAs<float>());
+    CHECK(n.representableAs<double>());
+    CHECK(n.representableAs<long double>());
     CHECK(static_cast<int>(n) == -200);
 }
 

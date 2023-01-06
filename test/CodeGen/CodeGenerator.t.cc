@@ -17,8 +17,8 @@ fn main() -> int {
 	let b = 2;
 	return a + b;
 })";
-    auto const vm     = test::compileAndExecute(text);
-    auto const& state = vm.getState();
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
     CHECK(state.registers[0] == 3);
 }
 
@@ -27,8 +27,8 @@ TEST_CASE("Simplest non-trivial program", "[codegen]") {
 fn main() -> int {
 	return 1;
 })";
-    auto const vm     = test::compileAndExecute(text);
-    auto const& state = vm.getState();
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
     CHECK(state.registers[0] == 1);
 }
 
@@ -105,7 +105,7 @@ fn test() -> float {
 	let b = 2.3;
 	return a * b;
 })";
-    auto const registers = test::getRegisters(text);
+    auto const registers   = test::getRegisters(text);
     CHECK(registers[0] == utl::bit_cast<u64>(1.3 * 2.3));
 }
 

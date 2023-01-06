@@ -6,17 +6,15 @@
 
 namespace {
 
-enum class Type {
-    Base, LDerivedA, LDerivedB, LDerivedC, RDerived, _count
-};
+enum class Type { Base, LDerivedA, LDerivedB, LDerivedC, RDerived, _count };
 
-struct Base {        
+struct Base {
 protected:
     explicit Base(Type type): _type(type) {}
-    
+
 public:
     Type type() const { return _type; }
-    
+
 private:
     Type _type;
 };
@@ -24,7 +22,7 @@ private:
 struct LDerivedA: Base {
 protected:
     explicit LDerivedA(Type type): Base(type) {}
-    
+
 public:
     LDerivedA(): Base(Type::LDerivedA) {}
 };
@@ -32,9 +30,9 @@ public:
 struct LDerivedB: LDerivedA {
 protected:
     LDerivedB(Type type): LDerivedA(type) {}
-    
+
     LDerivedB(LDerivedB const&) = delete;
-    
+
 public:
     LDerivedB(): LDerivedA(Type::LDerivedB) {}
 };
@@ -70,10 +68,12 @@ TEST_CASE("Dyncast visit", "[common][dyncast]") {
 
 TEST_CASE("Dyncast visit subtree", "[common][dyncast]") {
     auto dispatcher = [](LDerivedA& x) {
+        // clang-format off
         return visit(x, utl::overload {
             [](LDerivedA& a) { return 0; },
             [](LDerivedC& c) { return 1; },
         });
+        // clang-format on
     };
     LDerivedA a;
     LDerivedB b;
@@ -85,10 +85,12 @@ TEST_CASE("Dyncast visit subtree", "[common][dyncast]") {
 
 TEST_CASE("Dyncast visit subtree - 2", "[common][dyncast]") {
     auto dispatcher = [](LDerivedA& x) {
+        // clang-format off
         return visit(x, utl::overload {
             [](LDerivedA& a) { return 0; },
             [](LDerivedB& b) { return 1; },
         });
+        // clang-format on
     };
     LDerivedA a;
     LDerivedB b;
@@ -100,46 +102,46 @@ TEST_CASE("Dyncast visit subtree - 2", "[common][dyncast]") {
 
 TEST_CASE("isa and dyncast", "[common][dyncast]") {
     LDerivedA la;
-    
-    CHECK( isa<Base>(la));
-    CHECK( isa<LDerivedA>(la));
+
+    CHECK(isa<Base>(la));
+    CHECK(isa<LDerivedA>(la));
     CHECK(!isa<LDerivedB>(la));
     CHECK(!isa<RDerived>(la));
 
-    CHECK(dyncast<Base*>(&la)      != nullptr);
+    CHECK(dyncast<Base*>(&la) != nullptr);
     CHECK(dyncast<LDerivedA*>(&la) != nullptr);
     CHECK(dyncast<LDerivedB*>(&la) == nullptr);
     CHECK(!canDyncast<RDerived*>(&la));
 
     CHECK_NOTHROW(dyncast<Base&>(la));
     CHECK_NOTHROW(dyncast<LDerivedA&>(la));
-    CHECK_THROWS( dyncast<LDerivedB&>(la));
+    CHECK_THROWS(dyncast<LDerivedB&>(la));
 
     Base const* base = &la;
 
-    CHECK( isa<Base>(*base));
-    CHECK( isa<LDerivedA>(*base));
+    CHECK(isa<Base>(*base));
+    CHECK(isa<LDerivedA>(*base));
     CHECK(!isa<LDerivedB>(*base));
     CHECK(!isa<RDerived>(*base));
 
-    CHECK(dyncast<Base const*>(base)      != nullptr);
+    CHECK(dyncast<Base const*>(base) != nullptr);
     CHECK(dyncast<LDerivedA const*>(base) != nullptr);
     CHECK(dyncast<LDerivedB const*>(base) == nullptr);
-    CHECK(dyncast<RDerived const*>(base)  == nullptr);
+    CHECK(dyncast<RDerived const*>(base) == nullptr);
 
     CHECK_NOTHROW(dyncast<Base const&>(*base));
     CHECK_NOTHROW(dyncast<LDerivedA const&>(*base));
-    CHECK_THROWS( dyncast<LDerivedB const&>(*base));
-    CHECK_THROWS( dyncast<RDerived const&>(*base));
+    CHECK_THROWS(dyncast<LDerivedB const&>(*base));
+    CHECK_THROWS(dyncast<RDerived const&>(*base));
 
     LDerivedB lb;
 
-    CHECK( isa<Base>(lb));
-    CHECK( isa<LDerivedA>(lb));
-    CHECK( isa<LDerivedB>(lb));
+    CHECK(isa<Base>(lb));
+    CHECK(isa<LDerivedA>(lb));
+    CHECK(isa<LDerivedB>(lb));
     CHECK(!isa<RDerived>(lb));
 
-    CHECK(dyncast<Base*>(&lb)      != nullptr);
+    CHECK(dyncast<Base*>(&lb) != nullptr);
     CHECK(dyncast<LDerivedA*>(&lb) != nullptr);
     CHECK(dyncast<LDerivedB*>(&lb) != nullptr);
     CHECK(!canDyncast<RDerived*>(&lb));
@@ -150,27 +152,27 @@ TEST_CASE("isa and dyncast", "[common][dyncast]") {
 
     base = &lb;
 
-    CHECK( isa<Base>(*base));
-    CHECK( isa<LDerivedA>(*base));
-    CHECK( isa<LDerivedB>(*base));
+    CHECK(isa<Base>(*base));
+    CHECK(isa<LDerivedA>(*base));
+    CHECK(isa<LDerivedB>(*base));
     CHECK(!isa<RDerived>(*base));
 
-    CHECK(dyncast<Base const*>(base)      != nullptr);
+    CHECK(dyncast<Base const*>(base) != nullptr);
     CHECK(dyncast<LDerivedA const*>(base) != nullptr);
     CHECK(dyncast<LDerivedB const*>(base) != nullptr);
-    CHECK(dyncast<RDerived const*>(base)  == nullptr);
+    CHECK(dyncast<RDerived const*>(base) == nullptr);
 
     CHECK_NOTHROW(dyncast<Base const&>(*base));
     CHECK_NOTHROW(dyncast<LDerivedA const&>(*base));
     CHECK_NOTHROW(dyncast<LDerivedB const&>(*base));
-    CHECK_THROWS( dyncast<RDerived const&>(*base));
+    CHECK_THROWS(dyncast<RDerived const&>(*base));
 
     RDerived r;
 
-    CHECK( isa<Base>(r));
+    CHECK(isa<Base>(r));
     CHECK(!isa<LDerivedA>(r));
     CHECK(!isa<LDerivedB>(r));
-    CHECK( isa<RDerived>(r));
+    CHECK(isa<RDerived>(r));
 
     CHECK(dyncast<Base*>(&r) != nullptr);
     CHECK(!canDyncast<LDerivedA*>(&r));
@@ -182,18 +184,18 @@ TEST_CASE("isa and dyncast", "[common][dyncast]") {
 
     base = &r;
 
-    CHECK( isa<Base>(*base));
+    CHECK(isa<Base>(*base));
     CHECK(!isa<LDerivedA>(*base));
     CHECK(!isa<LDerivedB>(*base));
-    CHECK( isa<RDerived>(*base));
+    CHECK(isa<RDerived>(*base));
 
-    CHECK( dyncast<Base const*>(base));
+    CHECK(dyncast<Base const*>(base));
     CHECK(!dyncast<LDerivedA const*>(base));
     CHECK(!dyncast<LDerivedB const*>(base));
-    CHECK( dyncast<RDerived const*>(base));
+    CHECK(dyncast<RDerived const*>(base));
 
     CHECK_NOTHROW(dyncast<Base const&>(*base));
-    CHECK_THROWS (dyncast<LDerivedA const&>(*base));
-    CHECK_THROWS (dyncast<LDerivedB const&>(*base));
+    CHECK_THROWS(dyncast<LDerivedA const&>(*base));
+    CHECK_THROWS(dyncast<LDerivedB const&>(*base));
     CHECK_NOTHROW(dyncast<RDerived const&>(*base));
 }

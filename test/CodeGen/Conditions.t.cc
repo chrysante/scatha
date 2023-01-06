@@ -216,5 +216,3 @@ fn main() -> int {
     auto const registers   = test::getRegisters(text);
     CHECK(registers[0] == 1);
 }
-
-

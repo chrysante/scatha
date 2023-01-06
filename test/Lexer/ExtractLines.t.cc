@@ -3,7 +3,7 @@
 #include "Lexer/ExtractLines.h"
 
 TEST_CASE("ExtractLines", "[lex]") {
-    auto const text = R"(line 0
+    auto const text  = R"(line 0
 line 1
 line 2
 line 3

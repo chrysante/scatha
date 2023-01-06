@@ -21,33 +21,33 @@ TEST_CASE("APFloat comparison", "[common][big-num]") {
 
 TEST_CASE("APFloat representable - 1", "[common][big-num]") {
     double const base = 1.3;
-    APFloat const f = base;
-    CHECK(static_cast<float>(f)       != base);
-    CHECK(static_cast<double>(f)      == base);
+    APFloat const f   = base;
+    CHECK(static_cast<float>(f) != base);
+    CHECK(static_cast<double>(f) == base);
     CHECK(static_cast<long double>(f) == base);
 }
 
 TEST_CASE("APFloat representable - 2", "[common][big-num]") {
     double const base = std::numeric_limits<double>::min();
-    APFloat const f = base;
-    CHECK(static_cast<float>(f)       != base);
-    CHECK(static_cast<double>(f)      == base);
+    APFloat const f   = base;
+    CHECK(static_cast<float>(f) != base);
+    CHECK(static_cast<double>(f) == base);
     CHECK(static_cast<long double>(f) == base);
 }
 
 TEST_CASE("APFloat representable - 3", "[common][big-num]") {
     double const base = std::numeric_limits<double>::max();
-    APFloat const f = base;
-    CHECK(static_cast<float>(f)       != base);
-    CHECK(static_cast<double>(f)      == base);
+    APFloat const f   = base;
+    CHECK(static_cast<float>(f) != base);
+    CHECK(static_cast<double>(f) == base);
     CHECK(static_cast<long double>(f) == base);
 }
 
 TEST_CASE("APFloat representable - 4", "[common][big-num]") {
     double const base = std::numeric_limits<double>::min();
-    APFloat const f = base;
-    CHECK(static_cast<float>(f)       != base);
-    CHECK(static_cast<double>(f)      == base);
+    APFloat const f   = base;
+    CHECK(static_cast<float>(f) != base);
+    CHECK(static_cast<double>(f) == base);
     CHECK(static_cast<long double>(f) == base);
 }
 
@@ -75,13 +75,13 @@ TEST_CASE("APFloat arithmetic", "[common][big-num]") {
         CHECK(n == 0.5);
     }
     SECTION("Multiplication - 2") {
-        APFloat const n = APFloat::parse("0.5").value();
+        APFloat const n      = APFloat::parse("0.5").value();
         APFloat const result = n * n * n;
         APFloat const apfRef = APFloat::parse("0.125").value();
         CHECK(result == apfRef);
         double const doubleRef = 0.125;
         CHECK(result == doubleRef);
-        double const doubleN = static_cast<double>(n);
+        double const doubleN      = static_cast<double>(n);
         double const doubleResult = doubleN * doubleN * doubleN;
         CHECK(doubleResult == static_cast<double>(apfRef));
         CHECK(doubleResult == doubleRef);
