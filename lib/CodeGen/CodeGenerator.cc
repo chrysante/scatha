@@ -41,10 +41,15 @@ struct Context {
     void generate(ir::Phi const&);
     void generate(ir::GetElementPointer const&);
 
+    /// Used for generating \p Store and \p Load instructions.
+    MemoryAddress computeAddress(ir::Value const&);
+    /// Used by \p computeAddress
+    MemoryAddress computeGep(ir::GetElementPointer const&);
+    
     Label makeLabel(ir::BasicBlock const&);
     Label makeLabel(ir::Function const&);
     size_t makeLabelImpl(ir::Value const&);
-
+    
     RegisterDescriptor& currentRD() { return *_currentRD; }
     AssemblyStream& result;
     RegisterDescriptor* _currentRD = nullptr;
@@ -109,25 +114,23 @@ void Context::generate(ir::Alloca const& allocaInst) {
 }
 
 void Context::generate(ir::Store const& store) {
-    auto destRegIdx = currentRD().resolve(*store.address());
-    auto dest       = MemoryAddress(destRegIdx.get<RegisterIndex>().value());
-    auto src        = currentRD().resolve(*store.value());
+    MemoryAddress const addr = computeAddress(*store.address());
+    Value const src          = currentRD().resolve(*store.value());
     if (isLiteralValue(src.valueType())) {
         /// \p src is a value and must be stored in temporary register first.
         size_t const size = sizeOf(src.valueType());
         auto tmp = currentRD().makeTemporary();
         result.add(MoveInst(tmp, src, size));
-        result.add(MoveInst(dest, tmp, size));
+        result.add(MoveInst(addr, tmp, size));
     }
     else {
-        result.add(MoveInst(dest, src, store.value()->type()->size()));
+        result.add(MoveInst(addr, src, store.value()->type()->size()));
     }
 }
 
 void Context::generate(ir::Load const& load) {
-    auto addr = currentRD().resolve(*load.address());
-    auto src  = MemoryAddress(addr.get<RegisterIndex>().value());
-    result.add(MoveInst(currentRD().resolve(load), src, load.type()->size()));
+    MemoryAddress const addr = computeAddress(*load.address());
+    result.add(MoveInst(currentRD().resolve(load), addr, load.type()->size()));
 }
 
 static Asm::Type mapType(ir::Type const* type) {
@@ -271,12 +274,29 @@ void Context::generate(ir::Phi const& phi) {
 }
 
 void Context::generate(ir::GetElementPointer const& gep) {
-    /// Should we really generate arithmetic instructions here or should we perform offset calculation in the memory
-    /// access??
-    auto idx = currentRD().resolve(gep);
-    result.add(MoveInst(idx, currentRD().resolve(*gep.basePointer()), 8));
-    size_t const offset = static_cast<ir::StructureType const*>(gep.accessedType())->memberOffsetAt(gep.offsetIndex());
-    result.add(ArithmeticInst(ArithmeticOperation::Add, Type::Unsigned, idx, Value64(offset)));
+    /// Do nothing here until we have proper register and value descriptors.
+    return;
+}
+
+MemoryAddress Context::computeAddress(ir::Value const& value) {
+    if (auto* gep = dyncast<ir::GetElementPointer const*>(&value)) {
+        return computeGep(*gep);
+    }
+    auto destRegIdx = currentRD().resolve(value);
+    return MemoryAddress(destRegIdx.get<RegisterIndex>().value());
+}
+
+MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
+    size_t offset = 0;
+    ir::Value const* value = &gep;
+    ir::GetElementPointer const* gepPtr = nullptr;
+    while ((gepPtr = dyncast<ir::GetElementPointer const*>(value)) != nullptr) {
+        offset += static_cast<ir::StructureType const*>(gepPtr->accessedType())->memberOffsetAt(gepPtr->offsetIndex());
+        value = gepPtr->basePointer();
+    }
+    RegisterIndex const regIdx = currentRD().resolve(*value).get<RegisterIndex>();
+    SC_ASSERT(offset <= 0xFF, "Offset too large");
+    return MemoryAddress(regIdx.value(), MemoryAddress::invalidRegisterIndex, 0, offset);
 }
 
 Label Context::makeLabel(ir::BasicBlock const& bb) {
