@@ -5,6 +5,8 @@
 
 #include "AST/Common.h"
 
+#include "Sema/SemanticIssue.h"
+
 namespace scatha::sema {
 
 namespace {

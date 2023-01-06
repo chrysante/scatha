@@ -1,4 +1,4 @@
-#include "AST/PrintTree.h"
+#include "AST/Print.h"
 
 #include <iostream>
 

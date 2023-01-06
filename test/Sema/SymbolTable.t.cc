@@ -4,6 +4,7 @@
 
 #include "Sema/OverloadSet.h"
 #include "Sema/SymbolTable.h"
+#include "Sema/SemanticIssue.h"
 
 using namespace scatha;
 

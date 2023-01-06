@@ -1,5 +1,6 @@
 #include <Catch/Catch2.hpp>
 
+#include "Sema/SemanticIssue.h"
 #include "Sema/OverloadSet.h"
 #include "Sema/SymbolTable.h"
 

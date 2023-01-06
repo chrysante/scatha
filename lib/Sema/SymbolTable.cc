@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "AST/AST.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;
@@ -15,6 +16,12 @@ SymbolTable::SymbolTable(): _globalScope(std::make_unique<GlobalScope>()), _curr
     _float  = declareBuiltinType("float", 8, 8);
     _string = declareBuiltinType("string", sizeof(std::string), alignof(std::string));
 }
+
+SymbolTable::SymbolTable(SymbolTable&&) noexcept = default;
+
+SymbolTable& SymbolTable::operator=(SymbolTable&&) noexcept = default;
+
+SymbolTable::~SymbolTable() = default;
 
 Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(ast::StructDefinition const& structDef) {
     auto result = declareObjectType(structDef.nameIdentifier->token());

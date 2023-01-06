@@ -41,14 +41,19 @@ filter "system:macosx"
 filter {}
 
 ------------------------------------------
-project "scatha-lib"
+project "scatha"
 
 kind "SharedLib"
 
 addCppFiles "lib"
 files "lib/**.def"
 addCppFiles "include/scatha"
-externalincludedirs { "external/utility/include", "external/gmp/build/include", "external/mpfr/build/include" }
+externalincludedirs { 
+    "include",
+    "external/utility/include", 
+    "external/gmp/build/include", 
+    "external/mpfr/build/include" 
+}
 includedirs { "lib" }
 libdirs { "external/gmp/build/lib", "external/mpfr/build/lib" }
 links { "utility", "gmp", "mpfr" }
@@ -57,21 +62,25 @@ filter "system:macosx"
 buildoptions "-fvisibility=hidden"
 filter {}
 
+prebuildcommands {
+    "${PROJECT_DIR}/scripts/copy-public-headers-unix.sh"
+}
+
 ------------------------------------------
-project "scatha"
+project "scatha-c"
 
 kind "ConsoleApp"
 
-addCppFiles "app"
+addCppFiles "scatha-c"
 
 externalincludedirs {
     "include",
-    "lib",
     "external/utility/include",
-    "external/termfmt"
+    "external/termfmt/include",
+    "external/cli11/include"
 }
 
-links { "scatha-lib", "utility", "termfmt" }
+links { "scatha", "utility", "termfmt" }
 
 ------------------------------------------
 project "scatha-test"
@@ -80,14 +89,13 @@ kind "ConsoleApp"
 externalincludedirs { 
     ".", 
     "include", 
+    "lib",
     "external/utility/include", 
     "external/Catch"
 }
 
-externalincludedirs { "lib" }
-
 addCppFiles "test"
-links { "scatha-lib", "utility" } 
+links { "scatha", "utility" } 
 
 ------------------------------------------
 project "playground"
@@ -98,7 +106,7 @@ includedirs { ".", "lib" }
 
 addCppFiles "playground"
 files "playground/**.sc"
-links { "scatha-lib", "utility" }
+links { "scatha", "utility" }
 
 filter { "system:macosx"} 
     defines { "PROJECT_LOCATION=\"${PROJECT_DIR}\"" }

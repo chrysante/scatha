@@ -1,9 +1,8 @@
 #include <Catch/Catch2.hpp>
 
+#include "Sema/SemanticIssue.h"
 #include "Sema/FunctionSignature.h"
 #include "Sema/SymbolTable.h"
-
-#include <iostream>
 
 using namespace scatha;
 

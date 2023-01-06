@@ -1,5 +1,6 @@
 #include <Catch/Catch2.hpp>
 
+#include "AST/AST.h"
 #include "Parser/SyntaxIssue.h"
 #include "test/IssueHelper.h"
 
@@ -9,8 +10,8 @@ using namespace parse;
 using enum SyntaxIssue::Reason;
 
 static void expectFooParse(ast::AbstractSyntaxTree const& ast) {
-    auto const& tu      = utl::down_cast<ast::TranslationUnit const&>(ast);
-    auto const& fooDecl = utl::down_cast<ast::FunctionDefinition const&>(*tu.declarations[0]);
+    auto const& tu      = cast<ast::TranslationUnit const&>(ast);
+    auto const& fooDecl = cast<ast::FunctionDefinition const&>(*tu.declarations[0]);
     CHECK(fooDecl.name() == "foo");
     CHECK(fooDecl.returnTypeExpr == nullptr);
 }
