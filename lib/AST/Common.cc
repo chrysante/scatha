@@ -41,11 +41,21 @@ std::ostream& ast::operator<<(std::ostream& str, BinaryOperator op) {
     return str << toString(op);
 }
 
-std::ostream& ast::operator<<(std::ostream& str, EntityCategory k) {
+std::ostream& ast::operator<<(std::ostream& str, EntityCategory cat) {
     // clang-format off
-    return str << UTL_SERIALIZE_ENUM(k, {
+    return str << UTL_SERIALIZE_ENUM(cat, {
         { EntityCategory::Value, "Value" },
         { EntityCategory::Type,  "Type" },
+    });
+    // clang-format off
+}
+
+std::ostream& ast::operator<<(std::ostream& str, ValueCategory cat) {
+    // clang-format off
+    return str << UTL_SERIALIZE_ENUM(cat, {
+        { ValueCategory::None,   "None" },
+        { ValueCategory::LValue, "LValue" },
+        { ValueCategory::RValue, "RValue" },
     });
     // clang-format off
 }

@@ -50,22 +50,22 @@ ExpressionAnalysisResult Context::dispatch(ast::Expression& expr) {
 }
 
 ExpressionAnalysisResult Context::analyze(ast::IntegerLiteral& l) {
-    l.decorate(sym.Int());
+    l.decorate(sym.Int(), ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(sym.Int());
 }
 
 ExpressionAnalysisResult Context::analyze(ast::BooleanLiteral& l) {
-    l.decorate(sym.Bool());
+    l.decorate(sym.Bool(), ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(sym.Bool());
 }
 
 ExpressionAnalysisResult Context::analyze(ast::FloatingPointLiteral& l) {
-    l.decorate(sym.Float());
+    l.decorate(sym.Float(), ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(sym.Float());
 }
 
 ExpressionAnalysisResult Context::analyze(ast::StringLiteral& l) {
-    l.decorate(sym.String());
+    l.decorate(sym.String(), ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(sym.String());
 }
 
@@ -105,7 +105,7 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
 
     case ast::UnaryPrefixOperator::_count: SC_DEBUGFAIL();
     }
-    u.decorate(u.operand->typeID());
+    u.decorate(u.operand->typeID(), ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(u.typeID());
 }
 
@@ -119,7 +119,7 @@ ExpressionAnalysisResult Context::analyze(ast::BinaryExpression& b) {
     if (!resultType) {
         return ExpressionAnalysisResult::fail();
     }
-    b.decorate(resultType);
+    b.decorate(resultType, ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(b.typeID());
 }
 
@@ -143,15 +143,15 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
     switch (symbolID.category()) {
     case SymbolCategory::Variable: {
         auto const& var = sym.getVariable(symbolID);
-        id.decorate(symbolID, var.typeID());
+        id.decorate(symbolID, var.typeID(), ast::ValueCategory::LValue);
         return ExpressionAnalysisResult::lvalue(symbolID, var.typeID());
     }
     case SymbolCategory::ObjectType: {
-        id.decorate(symbolID, TypeID::Invalid, ast::EntityCategory::Type);
+        id.decorate(symbolID, TypeID::Invalid, ast::ValueCategory::None, ast::EntityCategory::Type);
         return ExpressionAnalysisResult::type(symbolID);
     }
     case SymbolCategory::OverloadSet: {
-        id.decorate(symbolID, TypeID::Invalid);
+        id.decorate(symbolID, TypeID::Invalid, ast::ValueCategory::None);
         return ExpressionAnalysisResult::lvalue(symbolID, TypeID::Invalid);
     }
     default: SC_DEBUGFAIL(); // Maybe push an issue here?
@@ -191,7 +191,10 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
     }
     // Right hand side of member access expressions must be identifiers?
     auto const& memberIdentifier = cast<ast::Identifier&>(*ma.member);
-    ma.decorate(memberIdentifier.symbolID(), memberIdentifier.typeID(), memRes.category());
+    ma.decorate(memberIdentifier.symbolID(),
+                memberIdentifier.typeID(),
+                ma.object->valueCategory(),
+                memRes.category());
     if (memRes.category() == ast::EntityCategory::Value) {
         SC_ASSERT(ma.typeID() == memRes.typeID(), "");
     }
@@ -230,7 +233,11 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
         iss.push(BadOperandsForBinaryExpression(c, ifRes.typeID(), elseRes.typeID()));
         return ExpressionAnalysisResult::fail();
     }
-    c.decorate(ifRes.typeID());
+    /// Maybe make this a global function
+    auto combine = [](ast::ValueCategory a, ast::ValueCategory b) {
+        return a == b ? a : ast::ValueCategory::RValue;
+    };
+    c.decorate(ifRes.typeID(), combine(c.ifExpr->valueCategory(), c.elseExpr->valueCategory()));
     return ExpressionAnalysisResult::rvalue(ifRes.typeID());
 }
 
@@ -283,7 +290,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
         return ExpressionAnalysisResult::fail();
     }
     auto const& function = *functionPtr;
-    fc.decorate(function.symbolID(), /* typeID = */ function.signature().returnTypeID());
+    fc.decorate(function.symbolID(), /* typeID = */ function.signature().returnTypeID(), ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(fc.typeID());
 }
 

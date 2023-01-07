@@ -77,13 +77,18 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     CHECK(varDecl->typeID() == sym.Int());
     auto* varDeclInit = cast<Identifier*>(varDecl->initExpression.get());
     CHECK(varDeclInit->typeID() == sym.Int());
+    CHECK(varDeclInit->valueCategory() == ValueCategory::LValue);
     auto* nestedScope   = cast<CompoundStatement*>(fn->body->statements[1].get());
     auto* nestedVarDecl = cast<VariableDeclaration*>(nestedScope->statements[0].get());
     CHECK(nestedVarDecl->typeID() == sym.String());
+    auto* nestedvarDeclInit = cast<StringLiteral*>(nestedVarDecl->initExpression.get());
+    CHECK(nestedvarDeclInit->typeID() == sym.String());
+    CHECK(nestedvarDeclInit->valueCategory() == ValueCategory::RValue);
     auto* xDecl = cast<VariableDeclaration*>(fn->body->statements[2].get());
     CHECK(xDecl->typeID() == sym.Int());
     auto* intLit = cast<IntegerLiteral*>(xDecl->initExpression.get());
     CHECK(intLit->value() == 39);
+    CHECK(intLit->valueCategory() == ValueCategory::RValue);
     auto* zDecl = cast<VariableDeclaration*>(fn->body->statements[3].get());
     CHECK(zDecl->typeID() == sym.Int());
     auto* intHexLit = cast<IntegerLiteral*>(zDecl->initExpression.get());
@@ -95,6 +100,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     auto* ret           = cast<ReturnStatement*>(fn->body->statements[5].get());
     auto* retIdentifier = cast<Identifier*>(ret->expression.get());
     CHECK(retIdentifier->typeID() == sym.Int());
+    CHECK(retIdentifier->valueCategory() == ValueCategory::LValue);
 }
 
 TEST_CASE("Decoration of the AST with function call expression", "[sema]") {
@@ -124,6 +130,7 @@ fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
     auto* calleeFunction = calleeOverloadSet->find(std::array{ sym.String(), sym.Int(), sym.Bool() });
     REQUIRE(calleeFunction != nullptr);
     CHECK(fnCallExpr->functionID() == calleeFunction->symbolID());
+    CHECK(fnCallExpr->valueCategory() == ValueCategory::RValue);
 }
 
 TEST_CASE("Decoration of the AST with struct definition", "[sema]") {

@@ -56,7 +56,13 @@ public:
     /// Wether the expression refers to a value or a type.
     EntityCategory category() const {
         expectDecorated();
-        return _category;
+        return _entityCat;
+    }
+    
+    /// The value category of this expression.
+    ValueCategory valueCategory() const {
+        expectDecorated();
+        return _valueCat;
     }
 
     /// The type of the expression. Only valid if: \code kind == ::Value \endcode
@@ -72,14 +78,16 @@ public:
     bool isType() const { return category() == EntityCategory::Type; }
 
     /// Decorate this node.
-    void decorate(sema::TypeID typeID, EntityCategory category = EntityCategory::Value) {
-        _category = category;
+    void decorate(sema::TypeID typeID, ValueCategory valueCat, EntityCategory entityCat = EntityCategory::Value) {
+        _entityCat = entityCat;
+        _valueCat = valueCat;
         _typeID   = typeID;
         markDecorated();
     }
 
 private:
-    EntityCategory _category = EntityCategory::Value;
+    EntityCategory _entityCat = EntityCategory::Value;
+    ValueCategory  _valueCat  = ValueCategory::None;
     sema::TypeID _typeID{};
 };
 
@@ -100,9 +108,9 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::TypeID typeID, EntityCategory category = EntityCategory::Value) {
+    void decorate(sema::SymbolID symbolID, sema::TypeID typeID, ValueCategory valueCat, EntityCategory entityCat = EntityCategory::Value) {
         _symbolID = symbolID;
-        Expression::decorate(typeID, category);
+        Expression::decorate(typeID, valueCat, entityCat);
     }
 
 private:
@@ -227,9 +235,9 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::TypeID typeID, EntityCategory category = EntityCategory::Value) {
+    void decorate(sema::SymbolID symbolID, sema::TypeID typeID, ValueCategory valueCat, EntityCategory entityCat = EntityCategory::Value) {
         _symbolID = symbolID;
-        Expression::decorate(typeID, category);
+        Expression::decorate(typeID, valueCat, entityCat);
     }
 
 private:
@@ -286,9 +294,9 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID functionID, sema::TypeID typeID, EntityCategory category = EntityCategory::Value) {
+    void decorate(sema::SymbolID functionID, sema::TypeID typeID, ValueCategory valueCat, EntityCategory entityCat = EntityCategory::Value) {
         _functionID = functionID;
-        Expression::decorate(typeID, category);
+        Expression::decorate(typeID, valueCat, entityCat);
     }
 
 private:
