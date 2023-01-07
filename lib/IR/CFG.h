@@ -164,7 +164,8 @@ class SCATHA(API) UnaryInstruction: public Instruction {
 protected:
     explicit UnaryInstruction(NodeType nodeType, Value* operand, Type const* type, std::string name):
         Instruction(nodeType, type, std::move(name)), _operand(operand) {
-        SC_ASSERT(nodeType == NodeType::Load || !operand->type()->isPointer(),
+        /// Rethink this assert at some point...
+        SC_ASSERT(nodeType == NodeType::Load || !isa<PointerType>(operand->type()),
                   "Operand must not be a pointer except when we are a load instruction.");
     }
 
@@ -183,7 +184,7 @@ class SCATHA(API) Load: public UnaryInstruction {
 public:
     explicit Load(Type const* type, Value* address, std::string name):
         UnaryInstruction(NodeType::Load, address, type, std::move(name)) {
-        SC_ASSERT(address->type()->isPointer(), "Address argument to Load must be a pointer");
+        SC_ASSERT(isa<PointerType>(address->type()), "Address argument to Load must be a pointer");
     }
     Value* address() { return operand(); }
     Value const* address() const { return operand(); }

@@ -535,7 +535,7 @@ ir::Value* Context::getVariableAddress(sema::SymbolID symbolID) {
 }
 
 ir::Value* Context::load(ir::Type const* type, ir::Value* addr, std::string name) {
-    SC_ASSERT(addr->type()->isPointer(), "Address must be a pointer");
+    SC_ASSERT(isa<ir::PointerType>(addr->type()), "Address must be a pointer");
     if (name.empty()) {
         name = "load-result";
     }
@@ -545,7 +545,7 @@ ir::Value* Context::load(ir::Type const* type, ir::Value* addr, std::string name
 }
 
 ir::Value* Context::loadIfPointer(ir::Type const* type, ir::Value* value, std::string name) {
-    if (!value->type()->isPointer()) {
+    if (!isa<ir::PointerType>(value->type())) {
         return value;
     }
     return load(type, value, std::move(name));

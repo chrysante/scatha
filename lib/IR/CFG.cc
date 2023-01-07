@@ -33,7 +33,7 @@ Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
 
 Store::Store(Context& context, Value* address, Value* value):
     BinaryInstruction(NodeType::Store, address, value, context.voidType()) {
-    SC_ASSERT(address->type()->isPointer(), "Address argument to Store must be a pointer");
+    SC_ASSERT(isa<PointerType>(address->type()), "Address argument to Store must be a pointer");
 }
 
 CompareInst::CompareInst(Context& context, Value* lhs, Value* rhs, CompareOperation op, std::string name):

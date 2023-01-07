@@ -127,7 +127,7 @@ void Context::generate(ir::Alloca const& allocaInst) {
 void Context::generate(ir::Store const& store) {
     MemoryAddress const addr = computeAddress(*store.address());
     Value const src          = [&] {
-        if (store.value()->type()->isPointer()) {
+        if (isa<ir::PointerType>(store.value()->type())) {
             /// Handle the memory -> memory case separately. This is not really beautiful and can hopefully be
             /// refactored in the future. The following is copy pasted from ir::Load case and slightly adjusted.
             MemoryAddress const addr = computeAddress(*store.value());
@@ -159,11 +159,11 @@ void Context::generate(ir::Load const& load) {
 }
 
 static Asm::Type mapType(ir::Type const* type) {
-    if (type->isIntegral()) {
+    if (isa<ir::IntegralType>(type)) {
         /// TODO: Also handle unsigned comparison.
         return Type::Signed;
     }
-    if (type->isFloat()) {
+    if (isa<ir::FloatType>(type)) {
         return Type::Float;
     }
     SC_UNREACHABLE();
@@ -310,7 +310,7 @@ MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
     }
     SC_ASSERT(offset <= 0xFF, "Offset too large");
     RegisterIndex const regIdx = currentRD().resolve(*value).get<RegisterIndex>();
-    if (value->type()->isPointer()) {
+    if (isa<ir::PointerType>(value->type())) {
         return MemoryAddress(regIdx.value(), MemoryAddress::invalidRegisterIndex, 0, offset);
     }
     else {
@@ -367,7 +367,7 @@ void Context::placeArguments(std::span<ir::Value const* const> args) {
 }
 
 void Context::getCallResult(ir::Value const& call) {
-    if (call.type()->isVoid()) {
+    if (isa<ir::VoidType>(call.type())) {
         return;
     }
     RegisterIndex const resultLocation       = currentRD().numUsedRegisters() + 2;
