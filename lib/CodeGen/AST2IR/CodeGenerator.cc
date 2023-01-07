@@ -36,6 +36,7 @@ struct Context {
     ir::Value* generate(IfStatement const&);
     ir::Value* generate(WhileStatement const&);
     ir::Value* generate(DoWhileStatement const&);
+    ir::Value* generate(ForStatement const&);
     ir::Value* generate(Identifier const&);
     ir::Value* generate(IntegerLiteral const&);
     ir::Value* generate(BooleanLiteral const&);
@@ -226,6 +227,34 @@ ir::Value* Context::generate(WhileStatement const& loopDecl) {
 
 ir::Value* Context::generate(DoWhileStatement const&) {
     SC_DEBUGFAIL();
+}
+
+ir::Value* Context::generate(ForStatement const& loopDecl) {
+    auto* loopPreheader = new ir::BasicBlock(irCtx, localUniqueName("loop-preheader"));
+    currentFunction->addBasicBlock(loopPreheader);
+    auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName("loop-header"));
+    currentFunction->addBasicBlock(loopHeader);
+    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop-body"));
+    currentFunction->addBasicBlock(loopBody);
+    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop-end"));
+    currentFunction->addBasicBlock(loopEnd);
+    auto* gotoLoopPreheader = new ir::Goto(irCtx, loopPreheader);
+    currentBB->addInstruction(gotoLoopPreheader);
+    setCurrentBB(loopPreheader);
+    dispatch(*loopDecl.varDecl);
+    auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
+    currentBB->addInstruction(gotoLoopHeader);
+    setCurrentBB(loopHeader);
+    auto* condition = dispatchAndLoad(*loopDecl.condition);
+    auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
+    currentBB->addInstruction(branch);
+    currentBB = loopBody;
+    dispatch(*loopDecl.block);
+    dispatch(*loopDecl.increment);
+    auto* gotoLoopHeader2 = new ir::Goto(irCtx, loopHeader);
+    currentBB->addInstruction(gotoLoopHeader2);
+    setCurrentBB(loopEnd);
+    return nullptr;
 }
 
 ir::Value* Context::generate(Identifier const& id) {
@@ -470,7 +499,7 @@ void Context::finishCurrentBB() {
         instructions.erase(std::next(itr), instructions.end());
         break;
     }
-    if (!isa<ir::TerminatorInst>(instructions.back())) {
+    if (instructions.empty() || !isa<ir::TerminatorInst>(instructions.back())) {
         /// Issue returns to non-terminating basic blocks. This should correspond to void functions with implicit return statements.
         instructions.push_back(new ir::Return(irCtx));
     }

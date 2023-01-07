@@ -26,6 +26,7 @@ struct Context {
     void analyze(ast::IfStatement&);
     void analyze(ast::WhileStatement&);
     void analyze(ast::DoWhileStatement&);
+    void analyze(ast::ForStatement&);
     void analyze(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
 
     ExpressionAnalysisResult dispatchExpression(ast::Expression&);
@@ -290,6 +291,25 @@ void Context::analyze(ast::DoWhileStatement& ws) {
         return;
     }
     dispatch(*ws.block);
+}
+
+void Context::analyze(ast::ForStatement& fs) {
+    if (sym.currentScope().kind() != ScopeKind::Function) {
+        iss.push(InvalidStatement(&fs, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+        return;
+    }
+    fs.block->decorate(sema::ScopeKind::Anonymous, sym.addAnonymousScope().symbolID());
+    sym.pushScope(fs.block->symbolID());
+    dispatch(*fs.varDecl);
+    if (dispatchExpression(*fs.condition)) {
+        verifyConversion(*fs.condition, sym.Bool());
+    }
+    dispatchExpression(*fs.increment);
+    if (iss.fatal()) {
+        return;
+    }
+    sym.popScope(); /// The block will push its scope again.
+    dispatch(*fs.block);
 }
 
 ExpressionAnalysisResult Context::dispatchExpression(ast::Expression& expr) {

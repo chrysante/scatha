@@ -1,6 +1,8 @@
-
-
 fn main() -> int {
-    __builtin_puti64(-1);
-    return 0;
+    var result = 0;
+    for i = 0; i < 10; i += 1 {
+        result += 2;
+    }
+    return result;
 }
+

@@ -83,15 +83,6 @@ TEST_CASE("Parse conditional", "[parse]") {
     CHECK(iss.empty());
 }
 
-// Not a parsing but a semantic issue!
-// TEST_CASE("Parse invalid variable decl", "[parse][issue]") {
-//    std::string const text = R"(
-// fn main() {
-//    var result: int * float = a;
-//})";
-//    CHECK_THROWS_AS(makeAST(text), SyntaxIssue);
-//};
-
 // TEST_CASE("Parse invalid member access", "[parse][issue]") {
 //     std::string const text = R"(
 // fn main() {
@@ -107,7 +98,7 @@ TEST_CASE("Parse conditional", "[parse]") {
 TEST_CASE("Parse while statement", "[parse]") {
     std::string const text = R"(
 fn test() {
-    while x > 0 {
+    while x < 0 {
         x += 1;
     }
 })";
@@ -125,7 +116,7 @@ fn test() {
     REQUIRE(whileStatement);
     auto* const condition = cast<BinaryExpression*>(whileStatement->condition.get());
     REQUIRE(condition);
-    CHECK(condition->operation() == BinaryOperator::Greater);
+    CHECK(condition->operation() == BinaryOperator::Less);
     auto* const exprStatement = cast<ExpressionStatement*>(whileStatement->block->statements[0].get());
     REQUIRE(exprStatement);
     auto* const expr = cast<BinaryExpression*>(exprStatement->expression.get());
@@ -144,7 +135,7 @@ TEST_CASE("Parse do-while statement", "[parse]") {
 fn test() {
     do {
         x += 1;
-    } while x > 0;
+    } while x < 0;
 })";
     auto const [ast, iss]  = test::parse(text);
     REQUIRE(iss.empty());
@@ -160,7 +151,7 @@ fn test() {
     REQUIRE(doWhileStatement);
     auto* const condition = cast<BinaryExpression*>(doWhileStatement->condition.get());
     REQUIRE(condition);
-    CHECK(condition->operation() == BinaryOperator::Greater);
+    CHECK(condition->operation() == BinaryOperator::Less);
     auto* const exprStatement = cast<ExpressionStatement*>(doWhileStatement->block->statements[0].get());
     REQUIRE(exprStatement);
     auto* const expr = cast<BinaryExpression*>(exprStatement->expression.get());
@@ -172,4 +163,49 @@ fn test() {
     auto* const intLiteral = cast<IntegerLiteral*>(expr->rhs.get());
     REQUIRE(intLiteral);
     CHECK(intLiteral->value() == 1);
+}
+
+TEST_CASE("Parse for statement", "[parse]") {
+    std::string const text = R"(
+fn test() {
+    for x = 0; x < 10; x += 1 {
+        print(x);
+    }
+})";
+    auto const [ast, iss]  = test::parse(text);
+    REQUIRE(iss.empty());
+    auto* const tu = cast<TranslationUnit*>(ast.get());
+    REQUIRE(tu->declarations.size() == 1);
+    auto* const function = cast<FunctionDefinition*>(tu->declarations[0].get());
+    REQUIRE(function);
+    CHECK(function->name() == "test");
+    CompoundStatement* const body = function->body.get();
+    REQUIRE(body);
+    REQUIRE(body->statements.size() == 1);
+    auto* const forStatement = cast<ForStatement*>(body->statements[0].get());
+    REQUIRE(forStatement);
+    auto* const varDecl = cast<VariableDeclaration*>(forStatement->varDecl.get());
+    REQUIRE(varDecl);
+    CHECK(varDecl->name() == "x");
+    CHECK(varDecl->typeExpr == nullptr);
+    auto* const varInitExpr = cast<IntegerLiteral*>(varDecl->initExpression.get());
+    REQUIRE(varInitExpr);
+    CHECK(varInitExpr->value() == 0);
+    auto* const condition = cast<BinaryExpression*>(forStatement->condition.get());
+    REQUIRE(condition);
+    CHECK(condition->operation() == BinaryOperator::Less);
+    auto* const increment = cast<BinaryExpression*>(forStatement->increment.get());
+    REQUIRE(increment);
+    CHECK(increment->operation() == BinaryOperator::AddAssignment);
+    auto* const identifier = cast<Identifier*>(increment->lhs.get());
+    REQUIRE(identifier);
+    CHECK(identifier->value() == "x");
+    auto* const intLiteral = cast<IntegerLiteral*>(increment->rhs.get());
+    REQUIRE(intLiteral);
+    CHECK(intLiteral->value() == 1);
+    auto* const loopStatement = cast<ExpressionStatement*>(forStatement->block->statements[0].get());
+    REQUIRE(loopStatement);
+    auto* const functionCall = cast<FunctionCall*>(loopStatement->expression.get());
+    REQUIRE(functionCall);
+    CHECK(cast<Identifier*>(functionCall->object.get())->value() == "print");
 }

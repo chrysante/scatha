@@ -239,13 +239,17 @@ ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
         return nullptr;
     }
     tokens.eat();
+    return parseShortVariableDeclaration(declarator);
+}
+
+ast::UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(std::optional<Token> declarator) {
     auto identifier = parseIdentifier();
     if (!identifier) {
         Token const curr = tokens.current();
         Token const next = tokens.peek();
         SC_DEBUGFAIL(); // Handle issue
     }
-    auto result = ast::allocate<ast::VariableDeclaration>(declarator, std::move(identifier));
+    auto result = ast::allocate<ast::VariableDeclaration>(declarator.value_or(Token{}), std::move(identifier));
     if (Token const colon = tokens.peek(); colon.id == ":") {
         tokens.eat();
         auto typeExpr = parseTypeExpression();
@@ -348,6 +352,9 @@ ast::UniquePtr<ast::ControlFlowStatement> Context::parseControlFlowStatement() {
     if (auto doWhileStatement = parseDoWhileStatement()) {
         return doWhileStatement;
     }
+    if (auto forStatement = parseForStatement()) {
+        return forStatement;
+    }
     return nullptr;
 }
 
@@ -447,6 +454,38 @@ ast::UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
         tokens.eat();
     }
     return ast::allocate<ast::DoWhileStatement>(doToken, std::move(cond), std::move(block));
+}
+
+ast::UniquePtr<ast::ForStatement> Context::parseForStatement() {
+    Token const forToken = tokens.peek();
+    if (forToken.id != "for") {
+        return nullptr;
+    }
+    tokens.eat();
+    auto varDecl = parseShortVariableDeclaration(forToken);
+    if (!varDecl) {
+        // TODO: This should be ExpectedDeclaration or something...
+        pushExpectedExpression(tokens.peek());
+        return nullptr;
+    }
+    auto cond = parseComma();
+    if (!cond) {
+        pushExpectedExpression(tokens.peek());
+    }
+    if (tokens.peek().id != ";") {
+        expectDelimiter(";");
+        return nullptr;
+    }
+    tokens.eat();
+    auto inc = parseComma();
+    if (!inc) {
+        pushExpectedExpression(tokens.peek());
+    }
+    auto block = parseCompoundStatement();
+    if (!block) {
+        iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
+    }
+    return ast::allocate<ast::ForStatement>(forToken, std::move(varDecl), std::move(cond), std::move(inc), std::move(block));
 }
 
 ast::UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {

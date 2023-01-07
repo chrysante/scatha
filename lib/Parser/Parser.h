@@ -20,7 +20,8 @@
 // <function-definition>           ::= "fn" <identifier> "(" {<parameter-declaration>}* ")" ["->" <type-expression>] <compound-statement>
 // <parameter-declaration>         ::= <identifier> ":" <type-expression>
 // <struct-definition>             ::= "struct" <identifier> <compound-statement>
-// <variable-declaration>          ::= ("var"|"let") <identifier> [":" <type-expression>] ["=" <assignment-expression>] ";"
+// <variable-declaration>          ::= ("var"|"let") <short-var-declaration>
+// <short-var-declaration>         ::= <identifier> [":" <type-expression>] ["=" <assignment-expression>] ";"
 // <statement>                     ::= <external-declaration>
 //                                   | <variable-declaration>
 //                                   | <control-flow-statement>
@@ -33,10 +34,12 @@
 //                                   | <if-statement>
 //                                   | <while-statement>
 //                                   | <do-while-statement>
+//                                   | <for-statement>
 // <return-statement>              ::= "return" [<comma-expression>] ";"
 // <if-statement>                  ::= "if" <comma-expression> <compound-statement> ["else" (<if-statement> | <compound-statement>)]
 // <while-statement>               ::= "while" <comma-expression> <compound-statement>
 // <do-while-statement>            ::= "do" <compound-statement> "while" <comma-expression> ";"
+// <for-statement>                 ::= "for" <short-var-declaration> <comma-expression> ";" <comma-expression> <compound-statement>
 //
 // <comma-expression>              ::= <assignment-expression>
 //                                   | <comma-expression> "," <assignment-expression>

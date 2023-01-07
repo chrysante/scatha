@@ -622,6 +622,36 @@ public:
     UniquePtr<CompoundStatement> block;
 };
 
+/// Concrete node representing a for statement.
+class SCATHA(API) ForStatement: public ControlFlowStatement {
+public:
+    explicit ForStatement(Token const& token,
+                          UniquePtr<VariableDeclaration> varDecl,
+                          UniquePtr<Expression> condition,
+                          UniquePtr<Expression> increment,
+                          UniquePtr<CompoundStatement> block):
+        ControlFlowStatement(NodeType::ForStatement, token),
+        varDecl(std::move(varDecl)),
+        condition(std::move(condition)),
+        increment(std::move(increment)),
+        block(std::move(block)) {}
+
+    /// Loop variable declared in this statement.
+    UniquePtr<VariableDeclaration> varDecl;
+    
+    /// Condition to loop on.
+    /// Must not be null after parsing and must be of type bool (or maybe later
+    /// convertible to bool).
+    UniquePtr<Expression> condition;
+    
+    /// Increment expression
+    /// Will be executed after each loop iteration.
+    UniquePtr<Expression> increment;
+
+    /// Statement to execute repeatedly.
+    UniquePtr<CompoundStatement> block;
+};
+
 } // namespace scatha::ast
 
 #endif // SCATHA_AST_AST_H_
