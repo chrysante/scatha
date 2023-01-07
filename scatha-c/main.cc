@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
     sstr << file.rdbuf();
     std::string const text = std::move(sstr).str();
 
-    auto const beginTime = std::chrono::high_resolution_clock::now();
+    auto const compileBeginTime = std::chrono::high_resolution_clock::now();
     
     /// Tokenize the text
     issue::LexicalIssueHandler lexIss;
@@ -159,16 +159,22 @@ int main(int argc, char* argv[]) {
     auto program = Asm::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
 
     if (options.time) {
-        auto const endTime = std::chrono::high_resolution_clock::now();
-        auto const dur = endTime - beginTime;
+        auto const compileEndTime = std::chrono::high_resolution_clock::now();
+        auto const dur = compileEndTime - compileBeginTime;
         std::cout << "Compilation took " << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0 << "ms\n";
     }
     
     /// Conditionally run the program
     if (options.run) {
+        auto const runBeginTime = std::chrono::high_resolution_clock::now();
         vm::VirtualMachine vm;
         vm.load(program);
         vm.execute();
-        std::cout << "Program returned with exit code: " << vm.getState().registers[0] << std::endl;
+        if (options.time) {
+            std::cout << "Program returned with exit code: " << vm.getState().registers[0] << std::endl;
+            auto const runEndTime = std::chrono::high_resolution_clock::now();
+            auto const dur = runEndTime - runBeginTime;
+            std::cout << "Run took " << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0 << "ms\n";
+        }
     }
 }
