@@ -1,9 +1,9 @@
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <chrono>
 
 #include <scatha/AST/Print.h>
 #include <scatha/Assembly/Assembler.h>
@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
     std::string const text = std::move(sstr).str();
 
     auto const compileBeginTime = std::chrono::high_resolution_clock::now();
-    
+
     /// Tokenize the text
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
@@ -160,10 +160,11 @@ int main(int argc, char* argv[]) {
 
     if (options.time) {
         auto const compileEndTime = std::chrono::high_resolution_clock::now();
-        auto const dur = compileEndTime - compileBeginTime;
-        std::cout << "Compilation took " << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0 << "ms\n";
+        auto const dur            = compileEndTime - compileBeginTime;
+        std::cout << "Compilation took "
+                  << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0 << "ms\n";
     }
-    
+
     /// Conditionally run the program
     if (options.run) {
         auto const runBeginTime = std::chrono::high_resolution_clock::now();
@@ -173,8 +174,9 @@ int main(int argc, char* argv[]) {
         if (options.time) {
             std::cout << "Program returned with exit code: " << vm.getState().registers[0] << std::endl;
             auto const runEndTime = std::chrono::high_resolution_clock::now();
-            auto const dur = runEndTime - runBeginTime;
-            std::cout << "Run took " << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0 << "ms\n";
+            auto const dur        = runEndTime - runBeginTime;
+            std::cout << "Run took " << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0
+                      << "ms\n";
         }
     }
 }

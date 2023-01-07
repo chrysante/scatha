@@ -638,12 +638,12 @@ public:
 
     /// Loop variable declared in this statement.
     UniquePtr<VariableDeclaration> varDecl;
-    
+
     /// Condition to loop on.
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
     UniquePtr<Expression> condition;
-    
+
     /// Increment expression
     /// Will be executed after each loop iteration.
     UniquePtr<Expression> increment;

@@ -485,7 +485,11 @@ ast::UniquePtr<ast::ForStatement> Context::parseForStatement() {
     if (!block) {
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
     }
-    return ast::allocate<ast::ForStatement>(forToken, std::move(varDecl), std::move(cond), std::move(inc), std::move(block));
+    return ast::allocate<ast::ForStatement>(forToken,
+                                            std::move(varDecl),
+                                            std::move(cond),
+                                            std::move(inc),
+                                            std::move(block));
 }
 
 ast::UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {

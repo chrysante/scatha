@@ -31,7 +31,8 @@ struct Context {
     ast::UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration();
     ast::UniquePtr<ast::StructDefinition> parseStructDefinition();
     ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration();
-    ast::UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(std::optional<Token> declarator = std::nullopt);
+    ast::UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(
+        std::optional<Token> declarator = std::nullopt);
     ast::UniquePtr<ast::Statement> parseStatement();
     ast::UniquePtr<ast::ExpressionStatement> parseExpressionStatement();
     ast::UniquePtr<ast::EmptyStatement> parseEmptyStatement();
