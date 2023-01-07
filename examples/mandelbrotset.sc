@@ -7,8 +7,6 @@ fn main() -> int {
             var z: Complex;
             z.x = 2.0 / scale * ((i / width) - 0.5) * width / (2.0 * height);
             z.y = 2.0 / scale * ((1.0 - j / height) - 0.5);
-
-
             printDot(sqrt(mandelbrotSet(z)));
         }    
         printNewLine();
