@@ -37,9 +37,9 @@ struct Context {
     void generateImpl(WhileStatement const&);
     void generateImpl(DoWhileStatement const&);
     void generateImpl(ForStatement const&);
-    
+
     ir::Value* getValue(Expression const& expr);
-    
+
     ir::Value* getValueImpl(AbstractSyntaxTree const& expr) { SC_UNREACHABLE(); } // Delete this later
     ir::Value* getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getValueImpl(Identifier const&);
@@ -60,12 +60,12 @@ struct Context {
     ir::Value* getAddressImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
-    
+
     ir::Value* loadAddress(ir::Value* address, std::string_view name);
-    
+
     void declareTypes();
     void declareFunctions();
-    
+
     ir::BasicBlock* currentBB() { return _currentBB; }
     void setCurrentBB(ir::BasicBlock*);
     void _finishCurrentBB();
@@ -157,7 +157,7 @@ void Context::generateImpl(VariableDeclaration const& varDecl) {
         return;
     }
     ir::Value* initValue = getValue(*varDecl.initExpression);
-    auto* store = new ir::Store(irCtx, varMemPtr, initValue);
+    auto* store          = new ir::Store(irCtx, varMemPtr, initValue);
     currentBB()->addInstruction(store);
 }
 
@@ -325,8 +325,8 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         auto* rhsBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical-rhs-block"));
         auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical-end-block"));
         currentBB()->addInstruction(exprDecl.operation() == BinaryOperator::LogicalAnd ?
-                                      new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
-                                      new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
+                                        new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
+                                        new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
         currentFunction->addBasicBlock(rhsBlock);
         setCurrentBB(rhsBlock);
         auto* rhs = getValue(*exprDecl.rhs);
@@ -361,7 +361,7 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::Assignment: {
         ir::Value* const lhsAddr = getAddress(*exprDecl.lhs);
         ir::Value* const rhs     = getValue(*exprDecl.rhs);
-        auto* store = new ir::Store(irCtx, lhsAddr, rhs);
+        auto* store              = new ir::Store(irCtx, lhsAddr, rhs);
         currentBB()->addInstruction(store);
         return loadAddress(lhsAddr, "tmp");
     }
@@ -378,7 +378,7 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         ir::Value* const lhsAddr = getAddress(*exprDecl.lhs);
         ir::Value* const lhs     = loadAddress(lhsAddr, "lhs-value");
         ir::Value* const rhs     = getValue(*exprDecl.rhs);
-        auto* result = new ir::ArithmeticInst(lhs,
+        auto* result             = new ir::ArithmeticInst(lhs,
                                               rhs,
                                               mapArithmeticAssignOp(exprDecl.operation()),
                                               localUniqueName("expr-result"));
@@ -396,10 +396,10 @@ ir::Value* Context::getValueImpl(MemberAccess const& expr) {
 }
 
 ir::Value* Context::getValueImpl(Conditional const& condExpr) {
-    auto* cond           = getValue(*condExpr.condition);
-    auto* thenBlock      = new ir::BasicBlock(irCtx, localUniqueName("then-block"));
-    auto* elseBlock      = new ir::BasicBlock(irCtx, localUniqueName("else-block"));
-    auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("conditional-end"));
+    auto* cond      = getValue(*condExpr.condition);
+    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("then-block"));
+    auto* elseBlock = new ir::BasicBlock(irCtx, localUniqueName("else-block"));
+    auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("conditional-end"));
     currentBB()->addInstruction(new ir::Branch(irCtx, cond, thenBlock, elseBlock));
     currentFunction->addBasicBlock(thenBlock);
     /// Generate then block.
@@ -473,7 +473,7 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
         }
         /// If we are an r-value we store the value to memory and return a pointer to it.
         auto* value = getValue(*expr.object);
-        auto* addr = new ir::Alloca(irCtx, value->type(), "tmp-ptr");
+        auto* addr  = new ir::Alloca(irCtx, value->type(), "tmp-ptr");
         currentBB()->addInstruction(addr);
         auto* store = new ir::Store(irCtx, addr, value);
         currentBB()->addInstruction(store);

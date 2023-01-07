@@ -58,7 +58,7 @@ public:
         expectDecorated();
         return _entityCat;
     }
-    
+
     /// The value category of this expression.
     ValueCategory valueCategory() const {
         expectDecorated();
@@ -80,14 +80,14 @@ public:
     /// Decorate this node.
     void decorate(sema::TypeID typeID, ValueCategory valueCat, EntityCategory entityCat = EntityCategory::Value) {
         _entityCat = entityCat;
-        _valueCat = valueCat;
-        _typeID   = typeID;
+        _valueCat  = valueCat;
+        _typeID    = typeID;
         markDecorated();
     }
 
 private:
     EntityCategory _entityCat = EntityCategory::Value;
-    ValueCategory  _valueCat  = ValueCategory::None;
+    ValueCategory _valueCat   = ValueCategory::None;
     sema::TypeID _typeID{};
 };
 
@@ -108,7 +108,10 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::TypeID typeID, ValueCategory valueCat, EntityCategory entityCat = EntityCategory::Value) {
+    void decorate(sema::SymbolID symbolID,
+                  sema::TypeID typeID,
+                  ValueCategory valueCat,
+                  EntityCategory entityCat = EntityCategory::Value) {
         _symbolID = symbolID;
         Expression::decorate(typeID, valueCat, entityCat);
     }
@@ -235,7 +238,10 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::TypeID typeID, ValueCategory valueCat, EntityCategory entityCat = EntityCategory::Value) {
+    void decorate(sema::SymbolID symbolID,
+                  sema::TypeID typeID,
+                  ValueCategory valueCat,
+                  EntityCategory entityCat = EntityCategory::Value) {
         _symbolID = symbolID;
         Expression::decorate(typeID, valueCat, entityCat);
     }
@@ -294,7 +300,10 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID functionID, sema::TypeID typeID, ValueCategory valueCat, EntityCategory entityCat = EntityCategory::Value) {
+    void decorate(sema::SymbolID functionID,
+                  sema::TypeID typeID,
+                  ValueCategory valueCat,
+                  EntityCategory entityCat = EntityCategory::Value) {
         _functionID = functionID;
         Expression::decorate(typeID, valueCat, entityCat);
     }

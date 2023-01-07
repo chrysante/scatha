@@ -183,9 +183,11 @@ private:
 class SCATHA(API) Load: public UnaryInstruction {
 public:
     explicit Load(Value* address, std::string name):
-        UnaryInstruction(NodeType::Load, address, cast<PointerType const*>(address->type())->pointeeType(), std::move(name)) {
-    }
-    
+        UnaryInstruction(NodeType::Load,
+                         address,
+                         cast<PointerType const*>(address->type())->pointeeType(),
+                         std::move(name)) {}
+
     Value* address() { return operand(); }
     Value const* address() const { return operand(); }
 };
@@ -276,8 +278,7 @@ private:
 class SCATHA(API) Branch: public TerminatorInst {
 public:
     explicit Branch(Context& context, Value* condition, BasicBlock* thenTarget, BasicBlock* elseTarget):
-        TerminatorInst(NodeType::Branch, context), _condition(condition), _then(thenTarget), _else(elseTarget)
-    {
+        TerminatorInst(NodeType::Branch, context), _condition(condition), _then(thenTarget), _else(elseTarget) {
         SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1, "Condition must be of type i1");
     }
 
@@ -355,9 +356,9 @@ public:
     explicit Phi(std::initializer_list<PhiMapping> args, std::string name):
         Phi(std::span<PhiMapping const>(args), std::move(name)) {}
     explicit Phi(std::span<PhiMapping const> args, std::string name);
-    
+
     std::span<PhiMapping const> arguments() const { return _arguments; }
-    
+
 private:
     utl::small_vector<PhiMapping> _arguments;
 };

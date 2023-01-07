@@ -191,10 +191,7 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
     }
     // Right hand side of member access expressions must be identifiers?
     auto const& memberIdentifier = cast<ast::Identifier&>(*ma.member);
-    ma.decorate(memberIdentifier.symbolID(),
-                memberIdentifier.typeID(),
-                ma.object->valueCategory(),
-                memRes.category());
+    ma.decorate(memberIdentifier.symbolID(), memberIdentifier.typeID(), ma.object->valueCategory(), memRes.category());
     if (memRes.category() == ast::EntityCategory::Value) {
         SC_ASSERT(ma.typeID() == memRes.typeID(), "");
     }
@@ -234,9 +231,7 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
         return ExpressionAnalysisResult::fail();
     }
     /// Maybe make this a global function
-    auto combine = [](ast::ValueCategory a, ast::ValueCategory b) {
-        return a == b ? a : ast::ValueCategory::RValue;
-    };
+    auto combine = [](ast::ValueCategory a, ast::ValueCategory b) { return a == b ? a : ast::ValueCategory::RValue; };
     c.decorate(ifRes.typeID(), combine(c.ifExpr->valueCategory(), c.elseExpr->valueCategory()));
     return ExpressionAnalysisResult::rvalue(ifRes.typeID());
 }

@@ -5,6 +5,4 @@
 
 using namespace scatha;
 
-void opt::mem2reg(ir::Module& mod) {
-    
-}
+void opt::mem2reg(ir::Module& mod) {}

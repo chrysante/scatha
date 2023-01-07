@@ -29,7 +29,7 @@ PointerType const* Context::pointerType(Type const* pointeeType) {
 }
 
 IntegralType const* Context::integralType(size_t bitWidth) {
-    auto itr               = _types.find(utl::strcat("i", bitWidth));
+    auto itr = _types.find(utl::strcat("i", bitWidth));
     if (itr != _types.end()) {
         return cast<IntegralType const*>(*itr);
     }
@@ -39,7 +39,7 @@ IntegralType const* Context::integralType(size_t bitWidth) {
 }
 
 FloatType const* Context::floatType(size_t bitWidth) {
-    auto itr               = _types.find(utl::strcat("f", bitWidth));
+    auto itr = _types.find(utl::strcat("f", bitWidth));
     if (itr != _types.end()) {
         return cast<FloatType const*>(*itr);
     }

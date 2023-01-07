@@ -20,7 +20,8 @@ class Type {
 public:
     static constexpr size_t invalidSize() { return ~size_t(0); }
 
-    explicit Type(std::string name, TypeCategory category): Type(std::move(name), category, invalidSize(), invalidSize()) {}
+    explicit Type(std::string name, TypeCategory category):
+        Type(std::move(name), category, invalidSize(), invalidSize()) {}
 
     explicit Type(std::string name, TypeCategory category, size_t size, size_t align):
         _name(std::move(name)), _category(category), _size(size), _align(align) {}
@@ -73,14 +74,12 @@ public:
              TypeCategory::PointerType,
              8, /// For now, maybe we want to derive size and align from something in the future.
              8),
-    _pointeeType(pointeeType) {}
-    
+        _pointeeType(pointeeType) {}
+
     Type const* pointeeType() const { return _pointeeType; }
-    
-    static std::string makePointerName(Type const* pointee) {
-        return utl::strcat("*", pointee->name());
-    }
-    
+
+    static std::string makePointerName(Type const* pointee) { return utl::strcat("*", pointee->name()); }
+
 private:
     Type const* _pointeeType;
 };

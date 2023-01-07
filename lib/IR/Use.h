@@ -9,11 +9,8 @@ namespace scatha::ir {
 
 class Value;
 
-class Use {
-    
-};
+class Use {};
 
 } // namespace scatha::ir
 
 #endif // SCATHA_IR_USE_H_
-

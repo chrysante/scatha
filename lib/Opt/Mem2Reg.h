@@ -12,10 +12,9 @@ class Module;
 } // namespace scatha::ir
 
 namespace scatha::opt {
-	
+
 SCATHA(API) void mem2reg(ir::Module& mod);
-	
+
 } // namespace scatha::opt
 
 #endif // SCATHA_OPT_MEM2REG_H_
-

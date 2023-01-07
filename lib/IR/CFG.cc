@@ -33,7 +33,8 @@ Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
 
 Store::Store(Context& context, Value* dest, Value* source):
     BinaryInstruction(NodeType::Store, dest, source, context.voidType()) {
-    SC_ASSERT(cast<PointerType const*>(dest->type())->pointeeType() == source->type(), "dest must be a pointer to type of source");
+    SC_ASSERT(cast<PointerType const*>(dest->type())->pointeeType() == source->type(),
+              "dest must be a pointer to type of source");
 }
 
 CompareInst::CompareInst(Context& context, Value* lhs, Value* rhs, CompareOperation op, std::string name):
@@ -50,16 +51,27 @@ UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
                      operand,
                      op == UnaryArithmeticOperation::LogicalNot ? context.integralType(1) : operand->type(),
                      std::move(name)),
-    _op(op)
-{
-    SC_ASSERT(isa<IntegralType>(operand->type()) ||
-              (op == UnaryArithmeticOperation::Negation && isa<FloatType>(operand->type())),
-              "Operand type must be integral or float (for negation)");
+    _op(op) {
+    switch (op) {
+    case UnaryArithmeticOperation::Promotion:
+        SC_DEBUGBREAK(); // Why do we even generate these?
+        break;
+    case UnaryArithmeticOperation::Negation:
+        SC_ASSERT(isa<ArithmeticType>(operand->type()), "Operand type must be arithmetic");
+        break;
+    case UnaryArithmeticOperation::BitwiseNot:
+        SC_ASSERT(isa<IntegralType>(operand->type()), "Operand type must be integral");
+        break;
+    case UnaryArithmeticOperation::LogicalNot:
+        SC_ASSERT(isa<IntegralType>(operand->type()) && cast<IntegralType const*>(operand->type())->bitWidth() == 1,
+                  "Operand type must be i1");
+        break;
+    default: SC_UNREACHABLE();
+    }
 }
 
 ArithmeticInst::ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, std::string name):
-    BinaryInstruction(NodeType::ArithmeticInst, lhs, rhs, lhs->type(), std::move(name)), _op(op)
-{
+    BinaryInstruction(NodeType::ArithmeticInst, lhs, rhs, lhs->type(), std::move(name)), _op(op) {
     SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
     SC_ASSERT(isa<ArithmeticType>(lhs->type()), "Operands types must be arithmetic");
 }
@@ -80,11 +92,9 @@ ExtFunctionCall::ExtFunctionCall(
 
 Phi::Phi(std::span<PhiMapping const> args, std::string name):
     Instruction(NodeType::Phi,
-                (SC_ASSERT(!args.empty(), "Phi must have at least one argument"),
-                 args[0].value->type()),
+                (SC_ASSERT(!args.empty(), "Phi must have at least one argument"), args[0].value->type()),
                 std::move(name)),
-    _arguments(args)
-{
+    _arguments(args) {
     for ([[maybe_unused]] auto& [pred, val]: args) {
         SC_ASSERT(val->type() == type(), "Type mismatch");
     }

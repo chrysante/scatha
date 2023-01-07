@@ -59,12 +59,12 @@ SCATHA(API) std::string_view toString(BinaryOperator);
 SCATHA(API) std::ostream& operator<<(std::ostream&, BinaryOperator);
 
 /// Categories of entities in the AST module
-enum class EntityCategory: u8 { Value, Type, _count };
+enum class EntityCategory : u8 { Value, Type, _count };
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, EntityCategory);
 
 /// Value category
-enum class ValueCategory: u8 { None, LValue, RValue, _count };
+enum class ValueCategory : u8 { None, LValue, RValue, _count };
 
 SCATHA(API) std::ostream& operator<<(std::ostream&, ValueCategory);
 
