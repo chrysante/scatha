@@ -21,6 +21,8 @@ Common/SourceLocation.h
 CodeGen/AST2IR/CodeGenerator.h
 CodeGen/IR2ByteCode/CodeGenerator.h
 
+Opt/Mem2Reg.h
+
 IR/Context.h
 IR/CFG.h
 IR/CFGCommon.h
