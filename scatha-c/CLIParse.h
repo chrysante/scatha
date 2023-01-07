@@ -8,6 +8,7 @@ namespace scathac {
 struct Options {
     std::filesystem::path filepath;
     bool run;
+    bool time;
 };
 
 Options parseCLI(int argc, char* argv[]);

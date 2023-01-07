@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <chrono>
 
 #include <scatha/AST/Print.h>
 #include <scatha/Assembly/Assembler.h>
@@ -108,6 +109,8 @@ int main(int argc, char* argv[]) {
     sstr << file.rdbuf();
     std::string const text = std::move(sstr).str();
 
+    auto const beginTime = std::chrono::high_resolution_clock::now();
+    
     /// Tokenize the text
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
@@ -155,6 +158,12 @@ int main(int argc, char* argv[]) {
     /// Assemble program
     auto program = Asm::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
 
+    if (options.time) {
+        auto const endTime = std::chrono::high_resolution_clock::now();
+        auto const dur = endTime - beginTime;
+        std::cout << "Compilation took " << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0 << "ms\n";
+    }
+    
     /// Conditionally run the program
     if (options.run) {
         vm::VirtualMachine vm;
