@@ -90,7 +90,7 @@ public:
     ///
     /// \details The name will be prefixed with the string \p "__builtin_" and will be declared in the global scope,
     /// if it hasn't been declared before.
-    
+
     /// \returns \p true iff declaration was successfull.
     ///
     bool declareBuiltinFunction(std::string name, size_t slot, size_t index, FunctionSignature signature);
@@ -182,7 +182,7 @@ public:
     ObjectType* tryGetObjectType(SymbolID id) {
         return const_cast<ObjectType*>(utl::as_const(*this).tryGetObjectType(id));
     }
-    
+
     std::string getName(SymbolID id) const;
 
     SymbolID lookup(std::string_view name) const;

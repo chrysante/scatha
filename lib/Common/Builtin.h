@@ -17,4 +17,3 @@ inline constexpr size_t builtinFunctionSlot = 0;
 } // namespace scatha
 
 #endif // SCATHA_COMMON_BUILTIN_H_
-

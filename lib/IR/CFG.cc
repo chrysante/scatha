@@ -58,7 +58,8 @@ FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments
     _function(function),
     _args(arguments) {}
 
-ExtFunctionCall::ExtFunctionCall(size_t slot, size_t index, std::span<Value* const> arguments, ir::Type const* returnType, std::string name):
+ExtFunctionCall::ExtFunctionCall(
+    size_t slot, size_t index, std::span<Value* const> arguments, ir::Type const* returnType, std::string name):
     Instruction(NodeType::ExtFunctionCall, returnType, std::move(name)),
     _slot(utl::narrow_cast<u32>(slot)),
     _index(utl::narrow_cast<u32>(index)),

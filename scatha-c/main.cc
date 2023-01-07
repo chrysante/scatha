@@ -20,8 +20,8 @@
 #include <scatha/VM/Program.h>
 #include <scatha/VM/VirtualMachine.h>
 #include <termfmt/termfmt.h>
-#include <utl/typeinfo.hpp>
 #include <utl/format.hpp>
+#include <utl/typeinfo.hpp>
 
 #include "CLIParse.h"
 

@@ -54,7 +54,7 @@ struct Context {
 
     void placeArguments(std::span<ir::Value const* const> args);
     void getCallResult(ir::Value const& callInst);
-    
+
     Label makeLabel(ir::BasicBlock const&);
     Label makeLabel(ir::Function const&);
     size_t makeLabelImpl(ir::Value const&);

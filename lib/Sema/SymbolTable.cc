@@ -18,10 +18,13 @@ SymbolTable::SymbolTable(): _globalScope(std::make_unique<GlobalScope>()), _curr
     _int    = declareBuiltinType("int", 8, 8);
     _float  = declareBuiltinType("float", 8, 8);
     _string = declareBuiltinType("string", sizeof(std::string), alignof(std::string));
-    
+
     /// Declare builtin functions
-#define SC_BUILTIN_DEF(name, ...) \
-    declareBuiltinFunction(#name, /* slot = */ builtinFunctionSlot, /* index = */ static_cast<size_t>(Builtin::name), FunctionSignature(__VA_ARGS__));
+#define SC_BUILTIN_DEF(name, ...)                                                                                      \
+    declareBuiltinFunction(#name,                                                                                      \
+                           /* slot = */ builtinFunctionSlot,                                                           \
+                           /* index = */ static_cast<size_t>(Builtin::name),                                           \
+                           FunctionSignature(__VA_ARGS__));
 #include "Common/Builtin.def"
 }
 
@@ -136,7 +139,7 @@ Expected<void, SemanticIssue> SymbolTable::setSignature(SymbolID functionID, Fun
 bool SymbolTable::declareBuiltinFunction(std::string name, size_t slot, size_t index, FunctionSignature signature) {
     utl::scope_guard restoreScope = [this, scope = &currentScope()] { makeScopeCurrent(scope); };
     makeScopeCurrent(nullptr);
-    name = "__builtin_" + name;
+    name            = "__builtin_" + name;
     auto declResult = declareFunction(Token{ std::move(name), TokenType::Identifier });
     if (!declResult) {
         return false;
@@ -144,8 +147,8 @@ bool SymbolTable::declareBuiltinFunction(std::string name, size_t slot, size_t i
     auto& decl = const_cast<Function&>(*declResult);
     setSignature(decl.symbolID(), std::move(signature));
     decl._isExtern = true;
-    decl._slot = utl::narrow_cast<u32>(slot);
-    decl._index = utl::narrow_cast<u32>(index);
+    decl._slot     = utl::narrow_cast<u32>(slot);
+    decl._index    = utl::narrow_cast<u32>(index);
     return true;
 }
 

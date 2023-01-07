@@ -20,14 +20,13 @@ static auto printVal() {
 utl::vector<ExternalFunction> vm::makeBuiltinTable() {
     utl::vector<ExternalFunction> result(static_cast<size_t>(Builtin::_count));
     size_t k = 0;
-    auto at = [&](Builtin index) -> auto& {
+    auto at  = [&](Builtin index) -> auto& {
         size_t const i = static_cast<size_t>(index);
         SC_ASSERT(i == k++, "Missing builtin function.");
         return result[i];
     };
     at(Builtin::puti64) = printVal<i64>();
     at(Builtin::putf64) = printVal<f64>();
-    /// To make sure all functions are set.
-    at(Builtin::_count);
+    SC_ASSERT(static_cast<size_t>(Builtin::_count) == k, "Missing builtin functions.");
     return result;
 }

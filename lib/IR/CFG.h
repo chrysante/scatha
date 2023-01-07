@@ -329,12 +329,16 @@ private:
 /// External function call. Call an external function.
 class SCATHA(API) ExtFunctionCall: public Instruction {
 public:
-    explicit ExtFunctionCall(size_t slot, size_t index, std::span<Value* const> arguments, ir::Type const* returnType, std::string name = {});
+    explicit ExtFunctionCall(size_t slot,
+                             size_t index,
+                             std::span<Value* const> arguments,
+                             ir::Type const* returnType,
+                             std::string name = {});
 
     size_t slot() const { return _slot; }
-    
+
     size_t index() const { return _index; }
-    
+
     std::span<Value* const> arguments() { return _args; }
     std::span<Value const* const> arguments() const { return _args; }
 
