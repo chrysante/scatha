@@ -1,11 +1,13 @@
 ## Feature roadmap
 
-1. Fully implement <s> C-like structs and </s> pointers.
+- Fully implement <s> C-like structs and </s> pointers
 
-2. Strings <s> and host callbacks </s>
+- Strings <s> and host callbacks </s>
 
-3. Member functions
+- Member functions
 
-4. <s> Proper compiler interface </s>
+- <s> Proper compiler interface </s>
 
-5. Runtime integration mechanisms
+- Well defined bytecode format for serialization  
+
+- Runtime integration mechanisms
