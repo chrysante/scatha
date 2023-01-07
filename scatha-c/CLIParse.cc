@@ -13,10 +13,7 @@ Options scathac::parseCLI(int argc, char* argv[]) {
     app.add_option("-f,--file", filepath, "Filename");
     try {
         app.parse(argc, argv);
-        return {
-            .filepath = filepath,
-            .run      = !!run
-        };
+        return { .filepath = filepath, .run = !!run };
     }
     catch (CLI::ParseError const& e) {
         int const exitCode = app.exit(e);

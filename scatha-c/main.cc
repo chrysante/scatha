@@ -7,27 +7,27 @@
 #include <scatha/AST/Print.h>
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
+#include <scatha/CodeGen/AST2IR/CodeGenerator.h>
+#include <scatha/CodeGen/IR2ByteCode/CodeGenerator.h>
+#include <scatha/IR/Context.h>
+#include <scatha/IR/Module.h>
 #include <scatha/Lexer/Lexer.h>
 #include <scatha/Lexer/LexicalIssue.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Parser/SyntaxIssue.h>
 #include <scatha/Sema/Analyze.h>
 #include <scatha/Sema/SemanticIssue.h>
-#include <scatha/CodeGen/AST2IR/CodeGenerator.h>
-#include <scatha/CodeGen/IR2ByteCode/CodeGenerator.h>
-#include <scatha/IR/Context.h>
-#include <scatha/IR/Module.h>
 #include <scatha/VM/Program.h>
 #include <scatha/VM/VirtualMachine.h>
-#include <utl/typeinfo.hpp>
 #include <termfmt/termfmt.h>
+#include <utl/typeinfo.hpp>
 
 #include "CLIParse.h"
 
 using namespace scatha;
 
 static void printIssueEncounters(size_t count, std::string_view kind) {
-    tfmt::format(tfmt::red, std::cout, [&]{
+    tfmt::format(tfmt::red, std::cout, [&] {
         std::cout << "\nEncoutered " << count << " " << kind << " issue" << (count == 1 ? "" : "s") << "\n\n";
     });
 }
@@ -39,8 +39,7 @@ static void printLexicalIssues(issue::LexicalIssueHandler const& iss) {
     printIssueEncounters(iss.issues().size(), "lexical");
     for (auto& issue: iss.issues()) {
         issue.visit([]<typename T>(T const& iss) {
-            std::cout << iss.token().sourceLocation << " " << iss.token() << " : "
-                      << utl::nameof<T> << std::endl;
+            std::cout << iss.token().sourceLocation << " " << iss.token() << " : " << utl::nameof<T> << std::endl;
         });
     }
 }
@@ -50,7 +49,7 @@ static void printSyntaxIssues(issue::SyntaxIssueHandler const& iss) {
         return;
     }
     printIssueEncounters(iss.issues().size(), "syntactic");
-    for (auto const& issue : iss.issues()) {
+    for (auto const& issue: iss.issues()) {
         auto const loc = issue.token().sourceLocation;
         std::cout << "\tLine " << loc.line << " Col " << loc.column << ": ";
         std::cout << issue.reason() << "\n";
@@ -62,12 +61,13 @@ static void printSemaIssues(issue::SemaIssueHandler const& iss, sema::SymbolTabl
         return;
     }
     printIssueEncounters(iss.issues().size(), "semantic");
-    for (auto const& issue : iss.issues()) {
+    for (auto const& issue: iss.issues()) {
         issue.visit([](auto const& issue) {
             auto const loc = issue.token().sourceLocation;
             std::cout << "Line " << loc.line << " Col " << loc.column << ": ";
             std::cout << utl::nameof<std::decay_t<decltype(issue)>> << "\n\t";
         });
+        // clang-format off
         issue.visit(utl::visitor{
             [&](sema::InvalidDeclaration const& e) {
                 std::cout << "Invalid declaration (" << e.reason() << "): ";
@@ -89,7 +89,9 @@ static void printSemaIssues(issue::SemaIssueHandler const& iss, sema::SymbolTabl
                 ast::printExpression(e.expression());
                 std::cout << " in scope: " << e.currentScope().name() << std::endl;
             },
-            [](issue::ProgramIssueBase const&) { std::cout << std::endl; } });
+            [](issue::ProgramIssueBase const&) { std::cout << std::endl; }
+        });
+        // clang-format on
         std::cout << std::endl;
     }
 }
@@ -104,36 +106,36 @@ int main(int argc, char* argv[]) {
     std::stringstream sstr;
     sstr << file.rdbuf();
     std::string const text = std::move(sstr).str();
-    
+
     /// Tokenize the text
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     printLexicalIssues(lexIss);
-    
+
     if (!lexIss.empty()) {
         return -1;
     }
-    
+
     /// Parse the tokens
     issue::SyntaxIssueHandler synIss;
     auto ast = parse::parse(std::move(tokens), synIss);
     printSyntaxIssues(synIss);
-    
+
     /// Analyse the AST
     issue::SemaIssueHandler semaIss;
     auto symbolTable = sema::analyze(*ast, semaIss);
     printSemaIssues(semaIss, symbolTable);
-    
+
     /// Generate IR
     ir::Context contex;
     auto mod = ast::codegen(*ast, symbolTable, contex);
-    
+
     /// Generate assembly
     auto asmStream = cg::codegen(mod);
-    
+
     /// Assemble program
     auto program = Asm::assemble(asmStream);
-    
+
     /// Conditionally run the program
     if (options.run) {
         vm::VirtualMachine vm;
