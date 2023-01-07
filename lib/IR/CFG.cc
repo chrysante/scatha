@@ -39,6 +39,7 @@ Store::Store(Context& context, Value* dest, Value* source):
 CompareInst::CompareInst(Context& context, Value* lhs, Value* rhs, CompareOperation op, std::string name):
     BinaryInstruction(NodeType::CompareInst, lhs, rhs, context.integralType(1), std::move(name)), _op(op) {
     SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
+    SC_ASSERT(isa<ArithmeticType>(lhs->type()), "Compared type must be arithmetic.");
 }
 
 UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
@@ -49,7 +50,19 @@ UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
                      operand,
                      op == UnaryArithmeticOperation::LogicalNot ? context.integralType(1) : operand->type(),
                      std::move(name)),
-    _op(op) {}
+    _op(op)
+{
+    SC_ASSERT(isa<IntegralType>(operand->type()) ||
+              (op == UnaryArithmeticOperation::Negation && isa<FloatType>(operand->type())),
+              "Operand type must be integral or float (for negation)");
+}
+
+ArithmeticInst::ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, std::string name):
+    BinaryInstruction(NodeType::ArithmeticInst, lhs, rhs, lhs->type(), std::move(name)), _op(op)
+{
+    SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
+    SC_ASSERT(isa<ArithmeticType>(lhs->type()), "Operands types must be arithmetic");
+}
 
 TerminatorInst::TerminatorInst(NodeType nodeType, Context& context): Instruction(nodeType, context.voidType()) {}
 
@@ -64,6 +77,18 @@ ExtFunctionCall::ExtFunctionCall(
     _slot(utl::narrow_cast<u32>(slot)),
     _index(utl::narrow_cast<u32>(index)),
     _args(arguments) {}
+
+Phi::Phi(std::span<PhiMapping const> args, std::string name):
+    Instruction(NodeType::Phi,
+                (SC_ASSERT(!args.empty(), "Phi must have at least one argument"),
+                 args[0].value->type()),
+                std::move(name)),
+    _arguments(args)
+{
+    for ([[maybe_unused]] auto& [pred, val]: args) {
+        SC_ASSERT(val->type() == type(), "Type mismatch");
+    }
+}
 
 GetElementPointer::GetElementPointer(
     Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name):

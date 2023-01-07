@@ -49,10 +49,10 @@ void playground::irSketch() {
     entry->addInstruction(gotoLoopHeader);
 
     // Loop header block
-    auto* loadI1 = new ir::Load(ctx.integralType(64), allocaI, "i1");
+    auto* loadI1 = new ir::Load(allocaI, "i1");
     loopHeader->addInstruction(loadI1);
 
-    auto* loadN1 = new ir::Load(ctx.integralType(64), allocaN, "n1");
+    auto* loadN1 = new ir::Load(allocaN, "n1");
     loopHeader->addInstruction(loadN1);
 
     auto* cmp = new ir::CompareInst(ctx, loadI1, loadN1, ir::CompareOperation::LessEq, "loop_cond");
@@ -68,10 +68,10 @@ void playground::irSketch() {
     loopHeader->addInstruction(lhBranch);
 
     // Loop body block - decl
-    auto* loadResult1 = new ir::Load(ctx.integralType(64), allocaResult, "result1");
+    auto* loadResult1 = new ir::Load(allocaResult, "result1");
     loopBody->addInstruction(loadResult1);
 
-    auto* loadI2 = new ir::Load(ctx.integralType(64), allocaI, "i2");
+    auto* loadI2 = new ir::Load(allocaI, "i2");
     loopBody->addInstruction(loadI2);
 
     auto* mulTmp = new ir::ArithmeticInst(loadResult1, loadI2, ir::ArithmeticOperation::Mul, "mul-tmp");
@@ -90,7 +90,7 @@ void playground::irSketch() {
     loopBody->addInstruction(gotoLoopHeader2);
 
     // End block - decl
-    auto* loadResult2 = new ir::Load(ctx.integralType(64), allocaResult, "result2");
+    auto* loadResult2 = new ir::Load(allocaResult, "result2");
     end->addInstruction(loadResult2);
 
     auto* ret = new ir::Return(ctx, loadResult2);

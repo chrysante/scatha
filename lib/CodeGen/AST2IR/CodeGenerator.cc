@@ -334,11 +334,9 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         currentFunction->addBasicBlock(endBlock);
         setCurrentBB(endBlock);
         auto* result = exprDecl.operation() == BinaryOperator::LogicalAnd ?
-                           new ir::Phi(irCtx.integralType(1),
-                                       { { startBlock, irCtx.integralConstant(0, 1) }, { rhsBlock, rhs } },
+                           new ir::Phi({ { startBlock, irCtx.integralConstant(0, 1) }, { rhsBlock, rhs } },
                                        localUniqueName("logical-and-value")) :
-                           new ir::Phi(irCtx.integralType(1),
-                                       { { startBlock, irCtx.integralConstant(1, 1) }, { rhsBlock, rhs } },
+                           new ir::Phi({ { startBlock, irCtx.integralConstant(1, 1) }, { rhsBlock, rhs } },
                                        localUniqueName("logical-or-value"));
         currentBB()->addInstruction(result);
         return result;
@@ -398,7 +396,6 @@ ir::Value* Context::getValueImpl(MemberAccess const& expr) {
 }
 
 ir::Value* Context::getValueImpl(Conditional const& condExpr) {
-    ir::Type const* type = mapType(condExpr.typeID());
     auto* cond           = getValue(*condExpr.condition);
     auto* thenBlock      = new ir::BasicBlock(irCtx, localUniqueName("then-block"));
     auto* elseBlock      = new ir::BasicBlock(irCtx, localUniqueName("else-block"));
@@ -420,7 +417,7 @@ ir::Value* Context::getValueImpl(Conditional const& condExpr) {
     /// Generate end block.
     setCurrentBB(endBlock);
     auto* result =
-        new ir::Phi(type, { { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName("conditional-result"));
+        new ir::Phi({ { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName("conditional-result"));
     currentBB()->addInstruction(result);
     return result;
 }

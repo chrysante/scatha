@@ -161,7 +161,7 @@ void PrintCtx::print(FunctionCall const& call) {
 
 void PrintCtx::print(Phi const& phi) {
     str << indent << "%" << phi.name() << " = phi " << phi.type()->name();
-    for (auto& [pred, value]: phi.arguments) {
+    for (auto& [pred, value]: phi.arguments()) {
         str << ", [label %" << pred->name() << ", " << toString(*value) << "]";
     }
 }

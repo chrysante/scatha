@@ -182,10 +182,6 @@ private:
 /// Load instruction. Load data from memory into a register.
 class SCATHA(API) Load: public UnaryInstruction {
 public:
-    explicit Load(Type const* type, Value* address, std::string name): Load(address, std::move(name)) {
-        SC_ASSERT(type == this->type(), "Explicitly specified type differs from derived type.");
-    }
-    
     explicit Load(Value* address, std::string name):
         UnaryInstruction(NodeType::Load, address, cast<PointerType const*>(address->type())->pointeeType(), std::move(name)) {
     }
@@ -250,10 +246,7 @@ private:
 /// Represents a binary arithmetic instruction.
 class SCATHA(API) ArithmeticInst: public BinaryInstruction {
 public:
-    explicit ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, std::string name):
-        BinaryInstruction(NodeType::ArithmeticInst, lhs, rhs, lhs->type(), std::move(name)), _op(op) {
-        SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
-    }
+    explicit ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, std::string name);
 
     ArithmeticOperation operation() const { return _op; }
 
@@ -359,16 +352,14 @@ struct PhiMapping {
 /// Phi instruction. Choose a value based on where control flow comes from.
 class SCATHA(API) Phi: public Instruction {
 public:
-    explicit Phi(Type const* type, std::initializer_list<PhiMapping> args, std::string name):
-        Phi(type, std::span<PhiMapping const>(args), std::move(name)) {}
-    explicit Phi(Type const* type, std::span<PhiMapping const> args, std::string name):
-        Instruction(NodeType::Phi, type, std::move(name)), arguments(args) {
-        for ([[maybe_unused]] auto& [pred, val]: args) {
-            SC_EXPECT(val->type() == type, "Type mismatch");
-        }
-    }
-
-    utl::small_vector<PhiMapping> arguments;
+    explicit Phi(std::initializer_list<PhiMapping> args, std::string name):
+        Phi(std::span<PhiMapping const>(args), std::move(name)) {}
+    explicit Phi(std::span<PhiMapping const> args, std::string name);
+    
+    std::span<PhiMapping const> arguments() const { return _arguments; }
+    
+private:
+    utl::small_vector<PhiMapping> _arguments;
 };
 
 /// GetElementPointer instruction. Calculate offset pointer to a structure member or array element.

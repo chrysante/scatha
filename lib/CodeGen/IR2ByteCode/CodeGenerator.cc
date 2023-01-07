@@ -273,7 +273,7 @@ void Context::generate(ir::Phi const& phi) {
     /// Then put the value into that register in every incoming path.
     /// Then make this value resolve to that register index.
     RegisterIndex const target = currentRD().resolve(phi).get<RegisterIndex>();
-    for (auto& [pred, value]: phi.arguments) {
+    for (auto& [pred, value]: phi.arguments()) {
         auto [begin, back] = [&, pred = pred] {
             auto itr = bbInstRanges.find(pred);
             SC_ASSERT(itr != bbInstRanges.end(), "Where is this bb coming from?");
