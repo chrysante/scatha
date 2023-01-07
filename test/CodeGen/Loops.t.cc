@@ -96,7 +96,6 @@ fn main() -> int {
     CHECK(state.registers[0] == 24);
 }
 
-
 TEST_CASE("Float pow / for", "[codegen]") {
     std::string const text = R"(
 fn pow(base: float, exp: int) -> float {
@@ -122,4 +121,23 @@ fn main() -> bool {
 })";
     auto const registers   = test::getRegisters(text);
     CHECK(registers[0] == 1);
+}
+
+TEST_CASE("Do/while loop", "[codegen]") {
+    std::string const text = R"(
+fn fact(n: int) -> int {
+    var result = 1;
+    var i = 0;
+    do {
+        i += 1;
+        result *= i;
+    } while i < n;
+    return result;
+}
+fn main() -> int {
+    return fact(4);
+})";
+    auto const vm          = test::compileAndExecute(text);
+    auto const& state      = vm.getState();
+    CHECK(state.registers[0] == 24);
 }

@@ -225,8 +225,25 @@ ir::Value* Context::generate(WhileStatement const& loopDecl) {
     return nullptr;
 }
 
-ir::Value* Context::generate(DoWhileStatement const&) {
-    SC_DEBUGFAIL();
+ir::Value* Context::generate(DoWhileStatement const& loopDecl) {
+    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop-body"));
+    currentFunction->addBasicBlock(loopBody);
+    auto* loopFooter = new ir::BasicBlock(irCtx, localUniqueName("loop-footer"));
+    currentFunction->addBasicBlock(loopFooter);
+    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop-end"));
+    currentFunction->addBasicBlock(loopEnd);
+    auto* gotoLoopBody = new ir::Goto(irCtx, loopBody);
+    currentBB->addInstruction(gotoLoopBody);
+    setCurrentBB(loopBody);
+    dispatch(*loopDecl.block);
+    auto* gotoLoopFooter = new ir::Goto(irCtx, loopFooter);
+    currentBB->addInstruction(gotoLoopFooter);
+    setCurrentBB(loopFooter);
+    auto* condition = dispatchAndLoad(*loopDecl.condition);
+    auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
+    currentBB->addInstruction(branch);
+    setCurrentBB(loopEnd);
+    return nullptr;
 }
 
 ir::Value* Context::generate(ForStatement const& loopDecl) {
