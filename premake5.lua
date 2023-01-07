@@ -4,6 +4,7 @@ function addCppFiles(dir)
     files(dir.."/**.c")
     files(dir.."/**.cc")
     files(dir.."/**.cpp")
+    files(dir.."/**.def")
 end
 
 workspace "scatha"
@@ -46,8 +47,6 @@ project "scatha"
 kind "SharedLib"
 
 addCppFiles "lib"
-files "lib/**.def"
-addCppFiles "include/scatha"
 externalincludedirs { 
     "include",
     "external/utility/include", 
