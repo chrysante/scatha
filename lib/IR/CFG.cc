@@ -31,9 +31,9 @@ bool BasicBlock::isEntry() const {
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
     Instruction(NodeType::Alloca, context.pointerType(allocatedType), std::move(name)), _allocatedType(allocatedType) {}
 
-Store::Store(Context& context, Value* address, Value* value):
-    BinaryInstruction(NodeType::Store, address, value, context.voidType()) {
-    SC_ASSERT(isa<PointerType>(address->type()), "Address argument to Store must be a pointer");
+Store::Store(Context& context, Value* dest, Value* source):
+    BinaryInstruction(NodeType::Store, dest, source, context.voidType()) {
+    SC_ASSERT(cast<PointerType const*>(dest->type())->pointeeType() == source->type(), "dest must be a pointer to type of source");
 }
 
 CompareInst::CompareInst(Context& context, Value* lhs, Value* rhs, CompareOperation op, std::string name):

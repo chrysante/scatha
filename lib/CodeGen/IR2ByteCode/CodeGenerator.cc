@@ -125,18 +125,18 @@ void Context::generate(ir::Alloca const& allocaInst) {
 }
 
 void Context::generate(ir::Store const& store) {
-    MemoryAddress const addr = computeAddress(*store.address());
+    MemoryAddress const addr = computeAddress(*store.dest());
     Value const src          = [&] {
-        if (isa<ir::PointerType>(store.value()->type())) {
+        if (isa<ir::PointerType>(store.source()->type())) {
             /// Handle the memory -> memory case separately. This is not really beautiful and can hopefully be
             /// refactored in the future. The following is copy pasted from ir::Load case and slightly adjusted.
-            MemoryAddress const addr = computeAddress(*store.value());
+            MemoryAddress const addr = computeAddress(*store.source());
             Value const dest         = currentRD().makeTemporary();
-            size_t const size        = store.value()->type()->size();
+            size_t const size        = store.source()->type()->size();
             generateBigMove(dest, addr, size);
             return dest;
         }
-        return currentRD().resolve(*store.value());
+        return currentRD().resolve(*store.source());
     }();
     if (isLiteralValue(src.valueType())) {
         /// \p src is a value and must be stored in temporary register first.
@@ -147,7 +147,7 @@ void Context::generate(ir::Store const& store) {
         result.add(MoveInst(addr, tmp, size));
     }
     else {
-        generateBigMove(addr, src, store.value()->type()->size());
+        generateBigMove(addr, src, store.source()->type()->size());
     }
 }
 

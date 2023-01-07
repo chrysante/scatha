@@ -1,4 +1,17 @@
-fn main() -> bool {
-    let i = 0;
-    return !(i == 1);
+
+fn main() -> int {
+    var x: X;
+    x.y.i = 2;
+    return x.y.i;
+}
+
+
+struct X {
+    var y: Y;
+}
+
+
+struct Y {
+    var i: int;
+    var f: float;
 }

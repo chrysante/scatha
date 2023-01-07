@@ -182,10 +182,14 @@ private:
 /// Load instruction. Load data from memory into a register.
 class SCATHA(API) Load: public UnaryInstruction {
 public:
-    explicit Load(Type const* type, Value* address, std::string name):
-        UnaryInstruction(NodeType::Load, address, type, std::move(name)) {
-        SC_ASSERT(isa<PointerType>(address->type()), "Address argument to Load must be a pointer");
+    explicit Load(Type const* type, Value* address, std::string name): Load(address, std::move(name)) {
+        SC_ASSERT(type == this->type(), "Explicitly specified type differs from derived type.");
     }
+    
+    explicit Load(Value* address, std::string name):
+        UnaryInstruction(NodeType::Load, address, cast<PointerType const*>(address->type())->pointeeType(), std::move(name)) {
+    }
+    
     Value* address() { return operand(); }
     Value const* address() const { return operand(); }
 };
@@ -209,15 +213,15 @@ private:
     Value* _rhs;
 };
 
-/// Store instruction. Store a value in a register into memory.
+/// Store instruction. Store a value from a register into memory.
 class SCATHA(API) Store: public BinaryInstruction {
 public:
-    explicit Store(Context& context, Value* address, Value* value);
+    explicit Store(Context& context, Value* dest, Value* source);
 
-    Value* address() { return lhs(); }
-    Value const* address() const { return lhs(); }
-    Value* value() { return rhs(); }
-    Value const* value() const { return rhs(); }
+    Value* dest() { return lhs(); }
+    Value const* dest() const { return lhs(); }
+    Value* source() { return rhs(); }
+    Value const* source() const { return rhs(); }
 };
 
 /// Compare instruction.
