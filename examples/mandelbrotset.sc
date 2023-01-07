@@ -1,3 +1,6 @@
+//! Run with ./scatha-c -r -f mandelbrotset.sc
+
+
 fn main() -> int {
     let width = 232.0;
     let height = 320.0;
