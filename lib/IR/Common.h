@@ -11,9 +11,7 @@
 
 namespace scatha::ir {
 
-///
-/// ** Forward declarations of all types in the GFC **
-///
+/// ** Forward declarations of all GFC node types  **
 
 // Value
 // ├─ Parameter
@@ -40,49 +38,78 @@ namespace scatha::ir {
 #define SC_CGFNODE_DEF(Inst) class Inst;
 #include <scatha/IR/Lists.def>
 
+/// List of all CFG node type.
 enum class NodeType {
 #define SC_CGFNODE_DEF(Inst) Inst,
 #include <scatha/IR/Lists.def>
     _count
 };
 
+/// Convert a \p NodeType to string.
 SCATHA(API) std::string_view toString(NodeType nodeType);
 
+/// Insert a \p NodeType into ostream.
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
+/// List of all compare arithmetic operations in the IR module.
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Inst, _) Inst,
 #include <scatha/IR/Lists.def>
     _count
 };
 
+/// Convert a \p CompareOperation to string.
 SCATHA(API) std::string_view toString(CompareOperation op);
 
+/// Insert a \p CompareOperation into ostream.
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation op);
 
+/// List of all unary arithmetic operations in the IR module.
 enum class UnaryArithmeticOperation {
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
 #include <scatha/IR/Lists.def>
     _count
 };
 
+/// Convert a \p UnaryArithmeticOperation to string.
 SCATHA(API) std::string_view toString(UnaryArithmeticOperation op);
 
+/// Insert a \p UnaryArithmeticOperation into ostream.
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOperation op);
 
+/// List of all binary arithmetic operations in the IR module.
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
 #include <scatha/IR/Lists.def>
     _count
 };
 
+/// Convert a \p ArithmeticOperation to string.
 SCATHA(API) std::string_view toString(ArithmeticOperation op);
 
+/// Insert a \p ArithmeticOperation into ostream.
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation op);
+
+/// ** Forward declarations of type categories  **
+
+#define SC_TYPE_CATEGORY_DEF(TypeCat) class TypeCat;
+#include <scatha/IR/Lists.def>
+
+/// List of all type categories.
+enum class TypeCategory {
+#define SC_TYPE_CATEGORY_DEF(TypeCat) TypeCat,
+#include <scatha/IR/Lists.def>
+    _count
+};
 
 } // namespace scatha::ir
 
+/// Map enum \p NodeType to actual node types
 #define SC_CGFNODE_DEF(Inst) SC_DYNCAST_MAP(::scatha::ir::Inst, ::scatha::ir::NodeType::Inst);
+#include <scatha/IR/Lists.def>
+
+/// Map enum \p TypeCategory to actual type category classes
+#define SC_TYPE_CATEGORY_DEF(TypeCat) SC_DYNCAST_MAP(::scatha::ir::TypeCat, ::scatha::ir::TypeCategory::TypeCat);
 #include <scatha/IR/Lists.def>
 
 #endif // SCATHA_IR_COMMON_H_

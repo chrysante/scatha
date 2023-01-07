@@ -29,7 +29,7 @@ bool BasicBlock::isEntry() const {
 }
 
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
-    Instruction(NodeType::Alloca, context.pointerType(), std::move(name)), _allocatedType(allocatedType) {}
+    Instruction(NodeType::Alloca, context.pointerType(allocatedType), std::move(name)), _allocatedType(allocatedType) {}
 
 Store::Store(Context& context, Value* address, Value* value):
     BinaryInstruction(NodeType::Store, address, value, context.voidType()) {
@@ -67,7 +67,9 @@ ExtFunctionCall::ExtFunctionCall(
 
 GetElementPointer::GetElementPointer(
     Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name):
-    Instruction(NodeType::GetElementPointer, context.pointerType(), std::move(name)),
+    Instruction(NodeType::GetElementPointer,
+                context.pointerType(cast<StructureType const*>(accessedType)->memberAt(offsetIndex)),
+                std::move(name)),
     accType(accessedType),
     basePtr(basePointer),
     offsetIdx(offsetIndex) {}

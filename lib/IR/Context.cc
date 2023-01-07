@@ -9,40 +9,43 @@ using namespace scatha;
 using namespace ir;
 
 Context::Context() {
-    _types.insert(new Type("void", Type::Category::Void, 0, 0));
-    _types.insert(new Type("ptr", Type::Category::Pointer, 8, 8));
+    _types.insert(new VoidType());
 }
 
-Type const* Context::voidType() {
+VoidType const* Context::voidType() {
     auto itr = _types.find("void");
     SC_ASSERT(itr != _types.end(), "Void must exist");
-    return *itr;
+    return cast<VoidType const*>(*itr);
 }
 
-Type const* Context::pointerType() {
-    auto itr = _types.find("ptr");
-    SC_ASSERT(itr != _types.end(), "Ptr type must exist");
-    return *itr;
-}
-
-Integral const* Context::integralType(size_t bitWidth) {
-    std::string const name = utl::strcat("i", bitWidth);
-    auto itr               = _types.find(name);
-    if (itr == _types.end()) {
-        std::tie(itr, std::ignore) = _types.insert(new Integral(bitWidth));
+PointerType const* Context::pointerType(Type const* pointeeType) {
+    auto itr = _types.find(PointerType::makePointerName(pointeeType));
+    if (itr != _types.end()) {
+        return cast<PointerType const*>(*itr);
     }
-    SC_ASSERT((*itr)->category() == Type::Integral, "Category of ints must be Integral");
-    return static_cast<Integral const*>(*itr);
+    auto* type = new PointerType(pointeeType);
+    _types.insert(type);
+    return type;
 }
 
-FloatingPoint const* Context::floatType(size_t bitWidth) {
-    std::string const name = utl::strcat("f", bitWidth);
-    auto itr               = _types.find(name);
-    if (itr == _types.end()) {
-        std::tie(itr, std::ignore) = _types.insert(new FloatingPoint(bitWidth));
+IntegralType const* Context::integralType(size_t bitWidth) {
+    auto itr               = _types.find(utl::strcat("i", bitWidth));
+    if (itr != _types.end()) {
+        return cast<IntegralType const*>(*itr);
     }
-    SC_ASSERT((*itr)->category() == Type::FloatingPoint, "Category of floats must be FloatingPoint");
-    return static_cast<FloatingPoint const*>(*itr);
+    auto* type = new IntegralType(bitWidth);
+    _types.insert(type);
+    return type;
+}
+
+FloatType const* Context::floatType(size_t bitWidth) {
+    auto itr               = _types.find(utl::strcat("f", bitWidth));
+    if (itr != _types.end()) {
+        return cast<FloatType const*>(*itr);
+    }
+    auto* type = new FloatType(bitWidth);
+    _types.insert(type);
+    return type;
 }
 
 IntegralConstant* Context::integralConstant(APInt value, size_t bitWidth) {

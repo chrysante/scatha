@@ -1,4 +1,4 @@
-#include "IR/CFGCommon.h"
+#include "IR/Common.h"
 
 #include <ostream>
 

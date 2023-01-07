@@ -1,8 +1,4 @@
-
-
-fn main() -> int {
-    var x = 1;
-    var y = x;
-    return y;
+fn main() -> bool {
+    let i = 0;
+    return !(i == 1);
 }
-

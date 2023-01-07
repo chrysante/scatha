@@ -11,7 +11,7 @@
 
 #include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>
-#include <scatha/IR/CFGCommon.h>
+#include <scatha/IR/Common.h>
 #include <scatha/IR/Type.h>
 
 namespace scatha::ir {
@@ -20,13 +20,13 @@ class SCATHA(API) Context {
 public:
     Context();
 
-    Type const* voidType();
+    VoidType const* voidType();
 
-    Type const* pointerType();
+    PointerType const* pointerType(Type const* pointeeType);
 
-    Integral const* integralType(size_t bitWidth);
+    IntegralType const* integralType(size_t bitWidth);
 
-    FloatingPoint const* floatType(size_t bitWidth);
+    FloatType const* floatType(size_t bitWidth);
 
     IntegralConstant* integralConstant(APInt value, size_t bitWidth);
 

@@ -7,7 +7,7 @@
 
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
-#include "IR/CFGCommon.h"
+#include "IR/Common.h"
 #include "IR/List.h"
 #include "IR/Type.h"
 
@@ -278,10 +278,9 @@ private:
 class SCATHA(API) Branch: public TerminatorInst {
 public:
     explicit Branch(Context& context, Value* condition, BasicBlock* thenTarget, BasicBlock* elseTarget):
-        TerminatorInst(NodeType::Branch, context), _condition(condition), _then(thenTarget), _else(elseTarget) {
-        SC_ASSERT(condition->type()->category() == Type::Category::Integral &&
-                      static_cast<Integral const*>(condition->type())->bitWidth() == 1,
-                  "Condition must be of type i1");
+        TerminatorInst(NodeType::Branch, context), _condition(condition), _then(thenTarget), _else(elseTarget)
+    {
+        SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1, "Condition must be of type i1");
     }
 
     Value* condition() { return _condition; }

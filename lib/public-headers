@@ -25,7 +25,7 @@ Opt/Mem2Reg.h
 
 IR/Context.h
 IR/CFG.h
-IR/CFGCommon.h
+IR/Common.h
 IR/List.h
 IR/Lists.def
 IR/Module.h

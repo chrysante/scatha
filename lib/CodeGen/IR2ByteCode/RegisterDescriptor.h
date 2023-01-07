@@ -7,7 +7,7 @@
 #include <utl/hashmap.hpp>
 
 #include "Assembly/Value.h"
-#include "IR/CFGCommon.h"
+#include "IR/Common.h"
 
 namespace scatha::cg {
 

@@ -89,3 +89,21 @@ SC_ARITHMETIC_OPERATION_DEF(Or,     or)
 SC_ARITHMETIC_OPERATION_DEF(XOr,    xor)
 
 #undef SC_ARITHMETIC_OPERATION_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of all types categories ----------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_TYPE_CATEGORY_DEF
+#   define SC_TYPE_CATEGORY_DEF(type)
+#endif
+
+SC_TYPE_CATEGORY_DEF(Type)
+SC_TYPE_CATEGORY_DEF(VoidType)
+SC_TYPE_CATEGORY_DEF(PointerType)
+SC_TYPE_CATEGORY_DEF(IntegralType)
+SC_TYPE_CATEGORY_DEF(FloatType)
+SC_TYPE_CATEGORY_DEF(StructureType)
+SC_TYPE_CATEGORY_DEF(FunctionType)
+
+#undef SC_TYPE_CATEGORY_DEF

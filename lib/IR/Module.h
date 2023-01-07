@@ -8,7 +8,7 @@
 #include <utl/hashset.hpp>
 
 #include <scatha/Basic/Basic.h>
-#include <scatha/IR/CFGCommon.h>
+#include <scatha/IR/Common.h>
 #include <scatha/IR/List.h>
 #include <scatha/IR/Type.h>
 

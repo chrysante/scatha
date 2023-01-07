@@ -11,6 +11,7 @@
 #include <utl/vector.hpp>
 
 #include <scatha/Basic/Basic.h>
+#include <scatha/IR/Common.h>
 
 namespace scatha::ir {
 
@@ -19,11 +20,9 @@ class Type {
 public:
     static constexpr size_t invalidSize() { return ~size_t(0); }
 
-    enum Category { Void, Pointer, Integral, FloatingPoint, Structure, Function };
+    explicit Type(std::string name, TypeCategory category): Type(std::move(name), category, invalidSize(), invalidSize()) {}
 
-    explicit Type(std::string name, Category category): Type(std::move(name), category, invalidSize(), invalidSize()) {}
-
-    explicit Type(std::string name, Category category, size_t size, size_t align):
+    explicit Type(std::string name, TypeCategory category, size_t size, size_t align):
         _name(std::move(name)), _category(category), _size(size), _align(align) {}
 
     std::string_view name() const { return _name; }
@@ -32,13 +31,6 @@ public:
     size_t align() const { return _align; }
 
     auto category() const { return _category; }
-
-    bool isVoid() const { return category() == Void; }
-    bool isPointer() const { return category() == Pointer; }
-    bool isIntegral() const { return category() == Integral; }
-    bool isFloat() const { return category() == FloatingPoint; }
-    bool isStruct() const { return category() == Structure; }
-    bool isFunction() const { return category() == Function; }
 
     struct Hash {
         using is_transparent = void;
@@ -58,17 +50,48 @@ protected:
 
 private:
     std::string _name;
-    Category _category;
+    TypeCategory _category;
     size_t _size, _align;
 };
 
+/// For dyncast compatibilty of the type category hierarchy
+inline TypeCategory dyncast_get_type(std::derived_from<Type> auto const& type) {
+    return type.category();
+}
+
+/// Represents the void type. This is empty.
+class VoidType: public Type {
+public:
+    VoidType(): Type("void", TypeCategory::VoidType, 0, 0) {}
+};
+
+/// Represents a pointer type. Pointers are typed so they know what type they point to.
+class PointerType: public Type {
+public:
+    PointerType(Type const* pointeeType):
+        Type(makePointerName(pointeeType),
+             TypeCategory::PointerType,
+             8, /// For now, maybe we want to derive size and align from something in the future.
+             8),
+    _pointeeType(pointeeType) {}
+    
+    Type const* pointeeType() const { return _pointeeType; }
+    
+    static std::string makePointerName(Type const* pointee) {
+        return utl::strcat("*", pointee->name());
+    }
+    
+private:
+    Type const* _pointeeType;
+};
+
 /// Base class of \p Integral and \p FloatingPoint types.
-class Arithmetic: public Type {
+class ArithmeticType: public Type {
 public:
     size_t bitWidth() const { return _bitWidth; }
 
 protected:
-    explicit Arithmetic(std::string_view typenamePrefix, Type::Category category, size_t bitWidth):
+    explicit ArithmeticType(std::string_view typenamePrefix, TypeCategory category, size_t bitWidth):
         Type(utl::strcat(typenamePrefix, bitWidth),
              category,
              utl::ceil_divide(bitWidth, 8),
@@ -80,24 +103,24 @@ private:
 };
 
 /// Represents an integral type.
-class Integral: public Arithmetic {
+class IntegralType: public ArithmeticType {
 public:
-    explicit Integral(size_t bitWidth): Arithmetic("i", Type::Category::Integral, bitWidth) {}
+    explicit IntegralType(size_t bitWidth): ArithmeticType("i", TypeCategory::IntegralType, bitWidth) {}
 };
 
 /// Represents a floating point type.
-class FloatingPoint: public Arithmetic {
+class FloatType: public ArithmeticType {
 public:
-    explicit FloatingPoint(size_t bitWidth): Arithmetic("f", Type::Category::FloatingPoint, bitWidth) {}
+    explicit FloatType(size_t bitWidth): ArithmeticType("f", TypeCategory::FloatType, bitWidth) {}
 };
 
 /// Represents a (user defined) structure type.
 class StructureType: public Type {
 public:
-    StructureType(std::string name): Type(std::move(name), Type::Category::Structure) {}
+    explicit StructureType(std::string name): StructureType(std::move(name), {}) {}
 
     explicit StructureType(std::string name, std::span<Type const* const> members):
-        Type(std::move(name), Type::Category::Structure), _members(members) {}
+        Type(std::move(name), TypeCategory::StructureType, 0, 0), _members(members) {}
 
     Type const* memberAt(std::size_t index) const { return _members[index]; }
 
@@ -122,7 +145,7 @@ private:
 class FunctionType: public Type {
 public:
     explicit FunctionType(Type const* returnType, std::span<Type const* const> parameterTypes):
-        Type(makeName(returnType, parameterTypes), Type::Category::Function, 0, 0), _parameterTypes(parameterTypes) {}
+        Type(makeName(returnType, parameterTypes), TypeCategory::FunctionType, 0, 0), _parameterTypes(parameterTypes) {}
 
     Type const* returnType() const { return _returnType; }
 
