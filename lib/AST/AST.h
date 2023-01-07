@@ -54,7 +54,7 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Wether the expression refers to a value or a type.
-    EntityCategory category() const {
+    EntityCategory entityCategory() const {
         expectDecorated();
         return _entityCat;
     }
@@ -71,11 +71,11 @@ public:
         return _typeID;
     }
 
-    /// Convenience wrapper for: \code category() == EntityCategory::Value \endcode
-    bool isValue() const { return category() == EntityCategory::Value; }
+    /// Convenience wrapper for: \code entityCategory() == EntityCategory::Value \endcode
+    bool isValue() const { return entityCategory() == EntityCategory::Value; }
 
-    /// Convenience wrapper for: \code category() == EntityCategory::Type \endcode
-    bool isType() const { return category() == EntityCategory::Type; }
+    /// Convenience wrapper for: \code entityCategory() == EntityCategory::Type \endcode
+    bool isType() const { return entityCategory() == EntityCategory::Type; }
 
     /// Decorate this node.
     void decorate(sema::TypeID typeID, ValueCategory valueCat, EntityCategory entityCat = EntityCategory::Value) {

@@ -165,7 +165,7 @@ TypeID Context::analyzeTypeExpression(ast::Expression& expr) const {
         return TypeID::Invalid;
     }
     if (typeExprResult.category() != ast::EntityCategory::Type) {
-        iss.push(BadSymbolReference(expr, expr.category(), ast::EntityCategory::Type));
+        iss.push(BadSymbolReference(expr, expr.entityCategory(), ast::EntityCategory::Type));
         return TypeID::Invalid;
     }
     auto const& type = sym.getObjectType(typeExprResult.typeID());
