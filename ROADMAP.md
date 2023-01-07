@@ -11,3 +11,5 @@
 - Well defined bytecode format for serialization  
 
 - Runtime integration mechanisms
+
+- Optimizations
