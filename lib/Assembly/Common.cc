@@ -1,6 +1,7 @@
 #include "Assembly/Common.h"
 
 #include <array>
+#include <ostream>
 
 #include <utl/utility.hpp>
 
