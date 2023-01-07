@@ -4,9 +4,9 @@
 #include "AST/Common.h"
 
 namespace scatha::ast {
-	
+
 bool isDeclaration(NodeType);
-	
+
 BinaryOperator toNonAssignment(BinaryOperator);
 
 bool isArithmetic(BinaryOperator);
@@ -20,4 +20,3 @@ bool isAssignment(BinaryOperator);
 } // namespace scatha::ast
 
 #endif // SCATHA_AST_CLASSIFY_H_
-
