@@ -11,5 +11,6 @@
 SC_BUILTIN_DEF(putchar, { Int() }, Void())
 SC_BUILTIN_DEF(puti64, { Int() }, Void())
 SC_BUILTIN_DEF(putf64, { Float() }, Void())
+SC_BUILTIN_DEF(sqrtf64, { Float() }, Float())
 
 #undef SC_BUILTIN_DEF

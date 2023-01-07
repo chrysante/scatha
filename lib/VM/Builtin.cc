@@ -1,6 +1,7 @@
 #include "VM/Builtin.h"
 
 #include <iostream>
+#include <cmath>
 
 #include "Basic/Memory.h"
 #include "VM/VirtualMachine.h"
@@ -27,6 +28,11 @@ utl::vector<ExternalFunction> vm::makeBuiltinTable() {
     at(Builtin::putchar) = printVal<char>();
     at(Builtin::puti64)  = printVal<i64>();
     at(Builtin::putf64)  = printVal<f64>();
+    at(Builtin::sqrtf64)  = [](u64* regPtr, VirtualMachine* vm) {
+        f64 const arg = read<f64>(regPtr);
+        f64 const result = std::sqrt(arg);
+        store(regPtr, result);
+    };
     SC_ASSERT(static_cast<size_t>(Builtin::_count) == k, "Missing builtin functions.");
     return result;
 }

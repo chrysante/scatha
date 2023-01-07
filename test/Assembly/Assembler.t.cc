@@ -280,3 +280,15 @@ TEST_CASE("callExt", "[assembly][vm]") {
     assembleAndExecute(a);
     CHECK(cr.str() == "-1 X 0.5");
 }
+
+TEST_CASE("callExt with return value", "[assembly][vm]") {
+    AssemblyStream a;
+    a.add(MoveInst(RegisterIndex(0), Value64(2.0), 8));
+    a.add(CallExtInst(/* regPtrOffset = */ 0,
+                      builtinFunctionSlot,
+                      /* index = */ static_cast<size_t>(Builtin::sqrtf64)));
+    a.add(TerminateInst());
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
+    CHECK(state.registers[0] == utl::bit_cast<u64>(std::sqrt(2.0)));
+}
