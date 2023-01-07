@@ -258,9 +258,25 @@ TEST_CASE("callExt", "[assembly][vm]") {
     a.add(MoveInst(RegisterIndex(0), Value64(-1), 8));
     a.add(CallExtInst(/* regPtrOffset = */ 0,
                       builtinFunctionSlot,
-                      /* functionIndex = */ static_cast<size_t>(Builtin::puti64)));
+                      /* index = */ static_cast<size_t>(Builtin::puti64)));
+    a.add(MoveInst(RegisterIndex(0), Value64(' '), 8));
+    a.add(CallExtInst(/* regPtrOffset = */ 0,
+                      builtinFunctionSlot,
+                      /* index = */ static_cast<size_t>(Builtin::putchar)));
+    a.add(MoveInst(RegisterIndex(0), Value64('X'), 8));
+    a.add(CallExtInst(/* regPtrOffset = */ 0,
+                      builtinFunctionSlot,
+                      /* index = */ static_cast<size_t>(Builtin::putchar)));
+    a.add(MoveInst(RegisterIndex(0), Value64(' '), 8));
+    a.add(CallExtInst(/* regPtrOffset = */ 0,
+                      builtinFunctionSlot,
+                      /* index = */ static_cast<size_t>(Builtin::putchar)));
+    a.add(MoveInst(RegisterIndex(0), Value64(0.5), 8));
+    a.add(CallExtInst(/* regPtrOffset = */ 0,
+                      builtinFunctionSlot,
+                      /* index = */ static_cast<size_t>(Builtin::putf64)));
     a.add(TerminateInst());
     CoutRerouter cr;
     assembleAndExecute(a);
-    CHECK(cr.str() == "-1\n");
+    CHECK(cr.str() == "-1 X 0.5");
 }

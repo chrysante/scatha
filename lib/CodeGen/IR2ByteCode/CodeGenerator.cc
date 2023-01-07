@@ -253,7 +253,7 @@ void Context::generate(ir::FunctionCall const& call) {
 
 void Context::generate(ir::ExtFunctionCall const& call) {
     placeArguments(call.arguments());
-    result.add(CallExtInst(call.slot(), call.index(), currentRD().numUsedRegisters() + 2));
+    result.add(CallExtInst(currentRD().numUsedRegisters() + 2, call.slot(), call.index()));
     getCallResult(call);
 }
 

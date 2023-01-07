@@ -53,8 +53,7 @@ std::ostream& Asm::operator<<(std::ostream& str, CallInst const& call) {
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, CallExtInst const& call) {
-    return str << instName("callExt") << " " << call.tableIndex() << ", " << call.functionIndex() << ", "
-               << call.regPtrOffset();
+    return str << instName("callExt") << " " << call.regPtrOffset() << ", " << call.slot() << ", " << call.index();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, ReturnInst const&) {

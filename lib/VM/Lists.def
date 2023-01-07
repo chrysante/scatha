@@ -185,7 +185,7 @@ SC_INSTRUCTION_DEF(xorRV, RV) //  (u8 regIdxA, u64 value)
 SC_INSTRUCTION_DEF(xorRM, RM) //  (u8 regIdxA, MEMORY_POINTER)
 
 /// ** Misc **
-// extFunctionTable[tableIdx][idxIntoTable](regIdx, this)
-SC_INSTRUCTION_DEF(callExt, Other) // (u8 regIdx, u8 tableIdx, u16 idxIntoTable)
+// extFunctionTable[tableIdx][idxIntoTable](regPtr + regPtrOffset, this)
+SC_INSTRUCTION_DEF(callExt, Other) // (u8 regPtrOffset, u8 tableIdx, u16 idxIntoTable)
 
 #undef SC_INSTRUCTION_DEF

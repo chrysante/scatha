@@ -74,22 +74,22 @@ private:
 /// Represents a call ext instruction.
 class CallExtInst: public InstructionBase {
 public:
-    explicit CallExtInst(size_t slot, size_t functionIndex, size_t regPtrOffset):
-        _slot(slot), _functionIndex(functionIndex), _regPtrOffset(regPtrOffset) {}
-
-    /// Index of the table that the called function sits in.
-    size_t tableIndex() const { return _slot; }
-
-    /// Index of the called function in the table.
-    size_t functionIndex() const { return _functionIndex; }
+    explicit CallExtInst(size_t regPtrOffset, size_t slot, size_t index):
+        _regPtrOffset(regPtrOffset), _slot(slot), _index(index) {}
 
     /// Offset to the register pointer where the function finds it's arguments.
     size_t regPtrOffset() const { return _regPtrOffset; }
 
+    /// Index of the table that the called function sits in.
+    size_t slot() const { return _slot; }
+
+    /// Index of the called function in the table.
+    size_t index() const { return _index; }
+
 private:
-    size_t _slot;
-    size_t _functionIndex;
     size_t _regPtrOffset;
+    size_t _slot;
+    size_t _index;
 };
 
 /// Represents a return instruction.

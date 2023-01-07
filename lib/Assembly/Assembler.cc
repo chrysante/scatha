@@ -137,8 +137,8 @@ void Context::translate(CallInst const& call) {
 void Context::translate(CallExtInst const& call) {
     put(OpCode::callExt);
     put<u8>(call.regPtrOffset());
-    put<u8>(call.tableIndex());
-    put<u16>(call.functionIndex());
+    put<u8>(call.slot());
+    put<u16>(call.index());
 }
 
 void Context::translate(ReturnInst const& ret) {

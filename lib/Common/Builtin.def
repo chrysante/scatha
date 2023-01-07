@@ -8,6 +8,7 @@
 #   define SC_BUILTIN_DEF(name, ...)
 #endif
 
+SC_BUILTIN_DEF(putchar, { Int() }, Void())
 SC_BUILTIN_DEF(puti64, { Int() }, Void())
 SC_BUILTIN_DEF(putf64, { Float() }, Void())
 
