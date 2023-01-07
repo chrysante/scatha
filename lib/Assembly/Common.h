@@ -51,8 +51,8 @@ enum class CompareOperation {
     _count
 };
 
-SCATHA(API) std::string_view toJumpInstName(CompareOperation condition);
-SCATHA(API) std::string_view toSetInstName(CompareOperation condition);
+std::string_view toJumpInstName(CompareOperation condition);
+std::string_view toSetInstName(CompareOperation condition);
 
 enum class UnaryArithmeticOperation {
 #define SC_ASM_UNARY_ARITHMETIC_DEF(op, ...) op,
