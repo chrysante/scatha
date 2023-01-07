@@ -185,8 +185,19 @@ SC_INSTRUCTION_DEF(xorRV, RV) //  (u8 regIdxA, u64 value)
 SC_INSTRUCTION_DEF(xorRM, RM) //  (u8 regIdxA, MEMORY_POINTER)
 
 /// ** Misc **
-// extFunctionTable[tableIdx][idxIntoTable](reg[regIdx], this)
+// extFunctionTable[tableIdx][idxIntoTable](regIdx, this)
 SC_INSTRUCTION_DEF(callExt, Other) // (u8 regIdx, u8 tableIdx, u16 idxIntoTable)
 
 #undef SC_INSTRUCTION_DEF
 
+// ===----------------------------------------------------------------------===
+// === List of all builtin functions ---------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_BUILTIN_DEF
+#   define SC_BUILTIN_DEF(name)
+#endif
+
+SC_BUILTIN_DEF(puti64)
+
+#undef SC_BUILTIN_DEF

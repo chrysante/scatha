@@ -7,6 +7,7 @@
 #include <utl/vector.hpp>
 
 #include <scatha/Basic/Basic.h>
+#include <scatha/VM/ExternalFunction.h>
 #include <scatha/VM/Instruction.h>
 #include <scatha/VM/Program.h>
 
@@ -16,8 +17,6 @@ struct VMFlags {
     bool less  : 1;
     bool equal : 1;
 };
-
-using ExternalFunction = void (*)(u64, class VirtualMachine*);
 
 struct VMState {
     VMState()               = default;
@@ -51,6 +50,10 @@ public:
     void execute();
 
     void addExternalFunction(size_t slot, ExternalFunction);
+
+    static constexpr size_t builtinFunctionSlot = 0;
+
+    void setFunctionTableSlot(size_t slot, utl::vector<ExternalFunction> functions);
 
     VMState const& getState() const { return static_cast<VMState const&>(*this); }
     VMStats const& getStats() const { return stats; }

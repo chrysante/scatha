@@ -1,5 +1,3 @@
-#define SC_TEST
-
 #include <Catch/Catch2.hpp>
 
 #include "Assembly/Assembler.h"
@@ -7,7 +5,9 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
 #include "Basic/Memory.h"
+#include "VM/Builtins.h"
 #include "VM/VirtualMachine.h"
+#include "test/CoutRerouter.h"
 
 using namespace scatha;
 using namespace scatha::Asm;
@@ -251,4 +251,16 @@ TEST_CASE("itest, set*", "[assembly][vm]") {
     CHECK(state.registers[3] == 1);
     CHECK(state.registers[4] == 0);
     CHECK(state.registers[5] == 0);
+}
+
+TEST_CASE("callExt", "[assembly][vm]") {
+    AssemblyStream a;
+    a.add(MoveInst(RegisterIndex(0), Value64(-1), 8));
+    a.add(CallExtInst(/* regPtrOffset = */ 0,
+                      vm::VirtualMachine::builtinFunctionSlot,
+                      /* functionIndex = */ static_cast<size_t>(vm::Builtins::puti64)));
+    a.add(TerminateInst());
+    CoutRerouter cr;
+    assembleAndExecute(a);
+    CHECK(cr.str() == "-1\n");
 }

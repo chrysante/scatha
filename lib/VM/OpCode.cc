@@ -325,10 +325,10 @@ struct vm::OpCodeImpl {
 
         /// ** Misc **
         at(callExt) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
-            size_t const regIdx       = i[0];
+            size_t const regPtrOffset = i[0];
             size_t const tableIdx     = i[1];
             size_t const idxIntoTable = read<u16>(&i[2]);
-            vm->extFunctionTable[tableIdx][idxIntoTable](reg[regIdx], vm);
+            vm->extFunctionTable[tableIdx][idxIntoTable](reg + regPtrOffset, vm);
             return codeSize(callExt);
         };
 

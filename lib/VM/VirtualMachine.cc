@@ -6,11 +6,14 @@
 #include <utl/utility.hpp>
 
 #include "Basic/Memory.h"
+#include "VM/Builtins.h"
 #include "VM/OpCode.h"
 
 namespace scatha::vm {
 
-VirtualMachine::VirtualMachine(): instructionTable(makeInstructionTable()) {}
+VirtualMachine::VirtualMachine(): instructionTable(makeInstructionTable()) {
+    setFunctionTableSlot(builtinFunctionSlot, makeBuiltinTable());
+}
 
 void VirtualMachine::load(Program const& program) {
     instructionCount = program.instructions.size();
@@ -44,6 +47,13 @@ void VirtualMachine::addExternalFunction(size_t slot, ExternalFunction f) {
         extFunctionTable.resize(slot + 1);
     }
     extFunctionTable[slot].push_back(f);
+}
+
+void VirtualMachine::setFunctionTableSlot(size_t slot, utl::vector<ExternalFunction> functions) {
+    if (slot >= extFunctionTable.size()) {
+        extFunctionTable.resize(slot + 1);
+    }
+    extFunctionTable[slot] = std::move(functions);
 }
 
 void VirtualMachine::resizeMemory(size_t newSize) {

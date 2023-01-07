@@ -71,6 +71,27 @@ private:
     u64 _regPtrOffset;
 };
 
+/// Represents a call ext instruction.
+class CallExtInst: public InstructionBase {
+public:
+    explicit CallExtInst(size_t slot, size_t functionIndex, size_t regPtrOffset):
+        _slot(slot), _functionIndex(functionIndex), _regPtrOffset(regPtrOffset) {}
+
+    /// Index of the table that the called function sits in.
+    size_t tableIndex() const { return _slot; }
+
+    /// Index of the called function in the table.
+    size_t functionIndex() const { return _functionIndex; }
+
+    /// Offset to the register pointer where the function finds it's arguments.
+    size_t regPtrOffset() const { return _regPtrOffset; }
+
+private:
+    size_t _slot;
+    size_t _functionIndex;
+    size_t _regPtrOffset;
+};
+
 /// Represents a return instruction.
 class ReturnInst: public InstructionBase {
 public:

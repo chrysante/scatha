@@ -40,6 +40,7 @@ struct Context {
     void translate(MoveInst const&);
     void translate(JumpInst const&);
     void translate(CallInst const&);
+    void translate(CallExtInst const&);
     void translate(ReturnInst const&);
     void translate(TerminateInst const&);
     void translate(AllocaInst const&);
@@ -131,6 +132,13 @@ void Context::translate(CallInst const& call) {
     registerJumpSite(currentPosition(), call.functionLabelID());
     put(LabelPlaceholder{});
     put<u8>(call.regPtrOffset());
+}
+
+void Context::translate(CallExtInst const& call) {
+    put(OpCode::callExt);
+    put<u8>(call.regPtrOffset());
+    put<u8>(call.tableIndex());
+    put<u16>(call.functionIndex());
 }
 
 void Context::translate(ReturnInst const& ret) {
