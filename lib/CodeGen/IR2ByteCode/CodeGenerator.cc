@@ -21,7 +21,7 @@ using namespace cg;
 namespace {
 
 struct Context {
-    explicit Context(AssemblyStream& result): result(result) {}
+    explicit Context(AssemblyStream& result);
 
     void run(ir::Module const& mod);
 
@@ -39,6 +39,7 @@ struct Context {
     void generate(ir::Goto const&);
     void generate(ir::Branch const&);
     void generate(ir::FunctionCall const&);
+    void generate(ir::ExtFunctionCall const&);
     void generate(ir::Return const&);
     void generate(ir::Phi const&);
     void generate(ir::GetElementPointer const&);
@@ -51,6 +52,9 @@ struct Context {
     void generateBigMove(Value dest, Value source, size_t size);
     void generateBigMove(Value dest, Value source, size_t size, AssemblyStream::ConstIterator before);
 
+    void placeArguments(std::span<ir::Value const* const> args);
+    void getCallResult(ir::Value const& callInst);
+    
     Label makeLabel(ir::BasicBlock const&);
     Label makeLabel(ir::Function const&);
     size_t makeLabelImpl(ir::Value const&);
@@ -75,6 +79,8 @@ AssemblyStream cg::codegen(ir::Module const& mod) {
 static Asm::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op);
 
 static Asm::CompareOperation mapCompare(ir::CompareOperation op);
+
+Context::Context(AssemblyStream& result): result(result) {}
 
 void Context::run(ir::Module const& mod) {
     for (auto& function: mod.functions()) {
@@ -240,29 +246,15 @@ void Context::generate(ir::Branch const& br) {
 }
 
 void Context::generate(ir::FunctionCall const& call) {
-    size_t offset = 0;
-    for (auto const arg: call.arguments()) {
-        size_t const argSize = arg->type()->size();
-        generateBigMove(RegisterIndex(offset), currentRD().resolve(*arg), argSize);
-        offset += utl::ceil_divide(argSize, 8);
-    }
-    /// Increment to actually point to the first move instruction
-    size_t const commonOffset              = currentRD().numUsedRegisters() + 2;
-    AssemblyStream::Iterator paramLocation = std::prev(result.end(), static_cast<ssize_t>(offset));
-    for (size_t i = 0; i < offset; ++i, ++paramLocation) {
-        RegisterIndex& moveDestIdx = paramLocation->get<MoveInst>().dest().get<RegisterIndex>();
-        size_t const rawIndex      = moveDestIdx.value();
-        moveDestIdx.setValue(commonOffset + rawIndex);
-    }
+    placeArguments(call.arguments());
     result.add(CallInst(makeLabel(*call.function()).id(), currentRD().numUsedRegisters() + 2));
-    if (call.type()->isVoid()) {
-        return;
-    }
-    RegisterIndex const resultLocation       = currentRD().numUsedRegisters() + 2;
-    RegisterIndex const targetResultLocation = currentRD().resolve(call).get<RegisterIndex>();
-    if (resultLocation != targetResultLocation) {
-        generateBigMove(targetResultLocation, resultLocation, call.type()->size());
-    }
+    getCallResult(call);
+}
+
+void Context::generate(ir::ExtFunctionCall const& call) {
+    placeArguments(call.arguments());
+    result.add(CallExtInst(call.slot(), call.index(), currentRD().numUsedRegisters() + 2));
+    getCallResult(call);
 }
 
 void Context::generate(ir::Return const& ret) {
@@ -354,6 +346,34 @@ void Context::generateBigMove(Value dest, Value source, size_t size, AssemblyStr
         result.insert(before, MoveInst(dest, source, 8));
         dest.visit(increment);
         source.visit(increment);
+    }
+}
+
+void Context::placeArguments(std::span<ir::Value const* const> args) {
+    size_t offset = 0;
+    for (auto const arg: args) {
+        size_t const argSize = arg->type()->size();
+        generateBigMove(RegisterIndex(offset), currentRD().resolve(*arg), argSize);
+        offset += utl::ceil_divide(argSize, 8);
+    }
+    /// Increment to actually point to the first move instruction
+    size_t const commonOffset              = currentRD().numUsedRegisters() + 2;
+    AssemblyStream::Iterator paramLocation = std::prev(result.end(), static_cast<ssize_t>(offset));
+    for (size_t i = 0; i < offset; ++i, ++paramLocation) {
+        RegisterIndex& moveDestIdx = paramLocation->get<MoveInst>().dest().get<RegisterIndex>();
+        size_t const rawIndex      = moveDestIdx.value();
+        moveDestIdx.setValue(commonOffset + rawIndex);
+    }
+}
+
+void Context::getCallResult(ir::Value const& call) {
+    if (call.type()->isVoid()) {
+        return;
+    }
+    RegisterIndex const resultLocation       = currentRD().numUsedRegisters() + 2;
+    RegisterIndex const targetResultLocation = currentRD().resolve(call).get<RegisterIndex>();
+    if (resultLocation != targetResultLocation) {
+        generateBigMove(targetResultLocation, resultLocation, call.type()->size());
     }
 }
 

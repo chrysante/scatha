@@ -51,8 +51,6 @@ public:
 
     void addExternalFunction(size_t slot, ExternalFunction);
 
-    static constexpr size_t builtinFunctionSlot = 0;
-
     void setFunctionTableSlot(size_t slot, utl::vector<ExternalFunction> functions);
 
     VMState const& getState() const { return static_cast<VMState const&>(*this); }

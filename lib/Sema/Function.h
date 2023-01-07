@@ -18,10 +18,22 @@ public:
 
     FunctionSignature const& signature() const { return _sig; }
 
+    /// Wether this function is an external function.
+    bool isExtern() const { return _isExtern; }
+    
+    /// Only applicable if this function is extern
+    size_t slot() const { return _slot; }
+    
+    /// Only applicable if this function is extern
+    size_t index() const { return _index; }
+        
 private:
-    friend class SymbolTable; /// To set \p _sig
+    friend class SymbolTable; /// To set \p _sig and \p _isExtern,...
     FunctionSignature _sig;
     SymbolID _overloadSetID;
+    u32 _slot : 31 = 0;
+    bool _isExtern : 1 = false;
+    u32 _index = 0;
 };
 
 namespace internal {

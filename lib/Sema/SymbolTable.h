@@ -63,11 +63,12 @@ public:
     /// \brief Declares a function to the current scope without signature.
     ///
     /// \details For successful return the name must not have been declared before in the current scope as some entity
-    /// other than \p Function \returns Const reference to declared function if no error occurs.
+    /// other than \p Function
     ///
-    /// \returns \p
-    /// InvalidDeclaration with reason \p Redefinition if declared name is already used by another kind of entity in the
-    /// current scope.
+    /// \returns Const reference to declared function if no error occurs.
+    ///
+    /// \returns \p InvalidDeclaration with reason \p Redefinition if declared name is already used by another kind of
+    /// entity in the current scope.
     Expected<Function const&, SemanticIssue> declareFunction(ast::FunctionDefinition const& functionDef);
 
     /// \overload
@@ -84,6 +85,15 @@ public:
     /// \p CantOverloadOnReturnType if \p signature has same arguments as another function in the overload set but
     /// different return type.
     Expected<void, SemanticIssue> setSignature(SymbolID functionID, FunctionSignature signature);
+
+    /// \brief Declares a builtin function.
+    ///
+    /// \details The name will be prefixed with the string \p "__builtin_" and will be declared in the global scope,
+    /// if it hasn't been declared before.
+    
+    /// \returns \p true iff declaration was successfull.
+    ///
+    bool declareBuiltinFunction(std::string name, size_t slot, size_t index, FunctionSignature signature);
 
     /// \brief Declares a variable to the current scope without type.
     ///
@@ -172,7 +182,7 @@ public:
     ObjectType* tryGetObjectType(SymbolID id) {
         return const_cast<ObjectType*>(utl::as_const(*this).tryGetObjectType(id));
     }
-
+    
     std::string getName(SymbolID id) const;
 
     SymbolID lookup(std::string_view name) const;

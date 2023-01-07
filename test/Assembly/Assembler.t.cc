@@ -5,7 +5,7 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
 #include "Basic/Memory.h"
-#include "VM/Builtins.h"
+#include "VM/Builtin.h"
 #include "VM/VirtualMachine.h"
 #include "test/CoutRerouter.h"
 
@@ -257,8 +257,8 @@ TEST_CASE("callExt", "[assembly][vm]") {
     AssemblyStream a;
     a.add(MoveInst(RegisterIndex(0), Value64(-1), 8));
     a.add(CallExtInst(/* regPtrOffset = */ 0,
-                      vm::VirtualMachine::builtinFunctionSlot,
-                      /* functionIndex = */ static_cast<size_t>(vm::Builtins::puti64)));
+                      builtinFunctionSlot,
+                      /* functionIndex = */ static_cast<size_t>(Builtin::puti64)));
     a.add(TerminateInst());
     CoutRerouter cr;
     assembleAndExecute(a);

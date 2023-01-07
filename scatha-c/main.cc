@@ -21,13 +21,14 @@
 #include <scatha/VM/VirtualMachine.h>
 #include <termfmt/termfmt.h>
 #include <utl/typeinfo.hpp>
+#include <utl/format.hpp>
 
 #include "CLIParse.h"
 
 using namespace scatha;
 
 static void printIssueEncounters(size_t count, std::string_view kind) {
-    tfmt::format(tfmt::red, std::cout, [&] {
+    tfmt::format(tfmt::brightRed, std::cout, [&] {
         std::cout << "\nEncoutered " << count << " " << kind << " issue" << (count == 1 ? "" : "s") << "\n\n";
     });
 }
@@ -133,8 +134,26 @@ int main(int argc, char* argv[]) {
     /// Generate assembly
     auto asmStream = cg::codegen(mod);
 
+    /// Find id of main function
+    auto const mainID = [&symbolTable] {
+        auto const id  = symbolTable.lookup("main");
+        auto const* os = symbolTable.tryGetOverloadSet(id);
+        if (!os) {
+            return sema::SymbolID::Invalid;
+        }
+        auto const* mainFn = os->find({});
+        if (!mainFn) {
+            return sema::SymbolID::Invalid;
+        }
+        return mainFn->symbolID();
+    }();
+    if (!mainID) {
+        std::cout << tfmt::format(tfmt::brightRed, "No main function defined!\n");
+        return -1;
+    }
+
     /// Assemble program
-    auto program = Asm::assemble(asmStream);
+    auto program = Asm::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
 
     /// Conditionally run the program
     if (options.run) {

@@ -6,7 +6,7 @@
 #include <utl/utility.hpp>
 
 #include "Basic/Memory.h"
-#include "VM/Builtins.h"
+#include "VM/Builtin.h"
 #include "VM/OpCode.h"
 
 namespace scatha::vm {

@@ -392,6 +392,21 @@ ir::Value* Context::generate(Conditional const& condExpr) {
 }
 
 ir::Value* Context::generate(FunctionCall const& functionCall) {
+    /// Handle calls to external functions separately.
+    if (auto const& semaFunction = symTable.getFunction(functionCall.functionID());
+        semaFunction.isExtern())
+    {
+        utl::small_vector<ir::Value*> const args =
+            utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return dispatchAndLoad(*expr); });
+        auto* call =
+            new ir::ExtFunctionCall(semaFunction.slot(),
+                                    semaFunction.index(),
+                                    args,
+                                    mapType(semaFunction.signature().returnTypeID()),
+                                    functionCall.typeID() != symTable.Void() ? localUniqueName("ext-call-result") : std::string{});
+        currentBB->addInstruction(call);
+        return call;
+    }
     // TODO: Perform actual name mangling
     std::string const mangledName =
         utl::strcat(cast<Identifier const*>(functionCall.object.get())->value(), functionCall.functionID());

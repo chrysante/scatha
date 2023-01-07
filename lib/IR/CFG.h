@@ -313,7 +313,7 @@ private:
 /// Function call. Call a function.
 class SCATHA(API) FunctionCall: public Instruction {
 public:
-    FunctionCall(Function* function, std::span<Value* const> arguments, std::string name = {});
+    explicit FunctionCall(Function* function, std::span<Value* const> arguments, std::string name = {});
 
     Function* function() { return _function; }
     Function const* function() const { return _function; }
@@ -323,6 +323,23 @@ public:
 
 private:
     Function* _function;
+    utl::small_vector<Value*> _args;
+};
+
+/// External function call. Call an external function.
+class SCATHA(API) ExtFunctionCall: public Instruction {
+public:
+    explicit ExtFunctionCall(size_t slot, size_t index, std::span<Value* const> arguments, ir::Type const* returnType, std::string name = {});
+
+    size_t slot() const { return _slot; }
+    
+    size_t index() const { return _index; }
+    
+    std::span<Value* const> arguments() { return _args; }
+    std::span<Value const* const> arguments() const { return _args; }
+
+private:
+    u32 _slot, _index;
     utl::small_vector<Value*> _args;
 };
 

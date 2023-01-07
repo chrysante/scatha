@@ -58,6 +58,12 @@ FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments
     _function(function),
     _args(arguments) {}
 
+ExtFunctionCall::ExtFunctionCall(size_t slot, size_t index, std::span<Value* const> arguments, ir::Type const* returnType, std::string name):
+    Instruction(NodeType::ExtFunctionCall, returnType, std::move(name)),
+    _slot(utl::narrow_cast<u32>(slot)),
+    _index(utl::narrow_cast<u32>(index)),
+    _args(arguments) {}
+
 GetElementPointer::GetElementPointer(
     Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name):
     Instruction(NodeType::GetElementPointer, context.pointerType(), std::move(name)),

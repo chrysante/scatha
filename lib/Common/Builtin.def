@@ -1,0 +1,14 @@
+// No include guards
+
+// ===----------------------------------------------------------------------===
+// === List of all builtin functions ---------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_BUILTIN_DEF
+#   define SC_BUILTIN_DEF(name, ...)
+#endif
+
+SC_BUILTIN_DEF(puti64, { Int() }, Void())
+SC_BUILTIN_DEF(putf64, { Float() }, Void())
+
+#undef SC_BUILTIN_DEF
