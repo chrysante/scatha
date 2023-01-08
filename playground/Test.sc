@@ -1,18 +1,27 @@
 
 fn main() -> int {
-    
+    if true { return 0; }
     
 }
 
-fn test(x: int) -> int {
-    var i = x;
-    var j = i;
+fn test(cond: bool, i: int) -> int {
+    var result = 1;
     
-    var result = j;
     
-    if true {
-        result = 4;
+    
+    if cond {
+        if cond {
+        
+        }
+        else {
+        
+        }
+    }
+    else {
+        
     }
     
     return result;
 }
+
+fn f() -> int {}
