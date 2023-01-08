@@ -177,7 +177,7 @@ void Ctx::connect(BasicBlock const& bb) {
 
 void Ctx::beginModule() {
     str << "digraph {\n";
-    str << "  rankdir=LR;\n";
+    str << "  rankdir=TB;\n";
     str << "  compound=true;\n";
     str << "  fontname = \"" << font << "\";\n";
     str << "  node [ shape = box ]\n";
