@@ -46,7 +46,10 @@ struct Ctx {
    
     /// ** Allocas **
     
-    
+    void evictDeadAllocas(Function& function);
+
+    /// Analyze a \p Alloca instruction and return true it's memory is not being read.
+    bool isDead(Alloca const* address);
     
     /// ** Generic methods **
     
@@ -69,6 +72,7 @@ void Ctx::run() {
     for (auto& function: mod.functions()) {
         promoteLoads(function);
         evictDeadStores(function);
+        evictDeadAllocas(function);
     }
 }
 
@@ -195,6 +199,8 @@ bool Ctx::isDead(Store const* store) {
         for (Instruction const& inst: bb.instructions) {
             Load const* load = dyncast<Load const*>(&inst);
             if (!load) { continue; }
+            /// \Warning What if the loaded address is a GEP instruction that is based on \p address ???
+            if (load->address() != address) { continue; }
             bool const loadIsReachable = isReachable(store, load);
             if (loadIsReachable) {
                 return false;                
@@ -215,6 +221,38 @@ bool Ctx::isLocalToFunction(Value const* address, Function const& function) {
         }
     }
     return false;
+}
+
+/// ** Allocas **
+
+void Ctx::evictDeadAllocas(Function& function) {
+    for (auto& bb: function.basicBlocks()) {
+        for (auto instItr = bb.instructions.begin(); instItr != bb.instructions.end(); ) {
+            auto* const address = dyncast<Alloca*>(instItr.to_address());
+            if (!address) { ++instItr; continue; }
+            bool const canErase = isDead(address);
+            if (canErase) {
+                instItr = bb.instructions.erase(instItr);
+                continue;
+            }
+            ++instItr;
+        }
+    }
+}
+
+bool Ctx::isDead(Alloca const* address) {
+    Function const& currentFunction = *address->parent()->parent();
+    /// See if there is any load from this address
+    for (BasicBlock const& bb: currentFunction.basicBlocks()) {
+        for (Instruction const& inst: bb.instructions) {
+            Load const* load = dyncast<Load const*>(&inst);
+            if (!load) { continue; }
+            /// \Warning What about GEPs, see \p Store case.
+            if (load->address() != address) { continue; }
+            return false;
+        }
+    }
+    return true;
 }
 
 /// ** Generic methods **
