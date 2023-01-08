@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include <utl/ranges.hpp>
+#include <utl/hashset.hpp>
 #include <utl/vector.hpp>
 
 #include "Common/APFloat.h"
@@ -39,10 +41,16 @@ public:
 
     void setName(std::string name) { _name = std::move(name); }
 
+    auto users() { return utl::transform(_users, utl::identity); }
+    auto users() const { return utl::transform(_users, [](auto* p) -> auto const* { return p; }); }
+
+    void addUser(User* user);
+    
 private:
     NodeType _nodeType;
     Type const* _type;
     std::string _name;
+    utl::hashset<User*> _users;
 };
 
 /// For dyncast compatibilty of the CFG
@@ -50,10 +58,28 @@ inline NodeType dyncast_get_type(std::derived_from<Value> auto const& value) {
     return value.nodeType();
 }
 
-/// Represents a (global) constant value.
-class SCATHA(API) Constant: public Value {
+/// Represents a user of values
+class SCATHA(API) User: public Value {
 public:
     using Value::Value;
+    
+protected:
+    void registerOperandUse(Value* value) { value->addUser(this); }
+    void registerOperandUses(std::initializer_list<Value*> values) {
+        registerOperandUses(std::span<Value* const>(values));
+    }
+    void registerOperandUses(std::span<Value* const> values) {
+        for (auto value: values) { registerOperandUse(value); }
+    }
+    
+private:
+    
+};
+
+/// Represents a (global) constant value.
+class SCATHA(API) Constant: public User {
+public:
+    using User::User;
 
 private:
 };
@@ -82,10 +108,10 @@ private:
 
 /// Base class of all instructions. Every instruction inherits from \p Value as it (usually) yields a value. If an
 /// instruction does not yield a value its \p Value super class is of type void.
-class SCATHA(API) Instruction: public Value, public NodeWithParent<Instruction, BasicBlock> {
+class SCATHA(API) Instruction: public User, public NodeWithParent<Instruction, BasicBlock> {
 protected:
     explicit Instruction(NodeType nodeType, Type const* type, std::string name = {}):
-        Value(nodeType, type, std::move(name)) {}
+        User(nodeType, type, std::move(name)) {}
 };
 
 /// Represents a basic block. A basic block starts is a list of instructions starting with zero or more phi nodes and
@@ -164,9 +190,7 @@ class SCATHA(API) UnaryInstruction: public Instruction {
 protected:
     explicit UnaryInstruction(NodeType nodeType, Value* operand, Type const* type, std::string name):
         Instruction(nodeType, type, std::move(name)), _operand(operand) {
-        /// Rethink this assert at some point...
-        SC_ASSERT(nodeType == NodeType::Load || !isa<PointerType>(operand->type()),
-                  "Operand must not be a pointer except when we are a load instruction.");
+        registerOperandUse(operand);
     }
 
 public:
@@ -196,7 +220,9 @@ public:
 class SCATHA(API) BinaryInstruction: public Instruction {
 protected:
     explicit BinaryInstruction(NodeType nodeType, Value* lhs, Value* rhs, Type const* type, std::string name = {}):
-        Instruction(nodeType, type, std::move(name)), _lhs(lhs), _rhs(rhs) {}
+        Instruction(nodeType, type, std::move(name)), _lhs(lhs), _rhs(rhs) {
+        registerOperandUses({ lhs, rhs });
+    }
 
 public:
     Value* lhs() { return _lhs; }
@@ -279,6 +305,7 @@ class SCATHA(API) Branch: public TerminatorInst {
 public:
     explicit Branch(Context& context, Value* condition, BasicBlock* thenTarget, BasicBlock* elseTarget):
         TerminatorInst(NodeType::Branch, context), _condition(condition), _then(thenTarget), _else(elseTarget) {
+        registerOperandUse(condition);
         SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1, "Condition must be of type i1");
     }
 
@@ -299,9 +326,16 @@ private:
 class SCATHA(API) Return: public TerminatorInst {
 public:
     explicit Return(Context& context, Value* value = nullptr):
-        TerminatorInst(NodeType::Return, context), _value(value) {}
+        TerminatorInst(NodeType::Return, context), _value(value) {
+        if (value != nullptr) {
+            registerOperandUse(value);
+        }
+    }
 
+    /// May be null in case of a void function
     Value* value() { return _value; }
+    
+    /// May be null in case of a void function
     Value const* value() const { return _value; }
 
 private:

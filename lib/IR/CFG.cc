@@ -5,6 +5,10 @@
 using namespace scatha;
 using namespace ir;
 
+void Value::addUser(User* user) {
+    _users.insert(user);
+}
+
 IntegralConstant::IntegralConstant(Context& context, APInt value, size_t bitWidth):
     Constant(NodeType::IntegralConstant, context.integralType(bitWidth)), _value(value) {}
 
@@ -81,25 +85,31 @@ TerminatorInst::TerminatorInst(NodeType nodeType, Context& context): Instruction
 FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments, std::string name):
     Instruction(NodeType::FunctionCall, function->returnType(), std::move(name)),
     _function(function),
-    _args(arguments) {}
+    _args(arguments) {
+    registerOperandUses(arguments);
+}
 
 ExtFunctionCall::ExtFunctionCall(
     size_t slot, size_t index, std::span<Value* const> arguments, ir::Type const* returnType, std::string name):
     Instruction(NodeType::ExtFunctionCall, returnType, std::move(name)),
     _slot(utl::narrow_cast<u32>(slot)),
     _index(utl::narrow_cast<u32>(index)),
-    _args(arguments) {}
+    _args(arguments) {
+    registerOperandUses(arguments);
+}
 
 Phi::Phi(std::span<PhiMapping const> args, std::string name):
     Instruction(NodeType::Phi,
                 (SC_ASSERT(!args.empty(), "Phi must have at least one argument"), args[0].value->type()),
                 std::move(name)),
     _arguments(args) {
-    for ([[maybe_unused]] auto& [pred, val]: args) {
-        SC_ASSERT(val->type() == type(), "Type mismatch");
+    for (auto& [pred, value]: args) {
+        SC_ASSERT(value->type() == type(), "Type mismatch");
+        registerOperandUse(value);
     }
 }
 
+// WARNING: This will not work on arrays. We need to rework this for arrays.
 GetElementPointer::GetElementPointer(
     Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name):
     Instruction(NodeType::GetElementPointer,
@@ -107,4 +117,6 @@ GetElementPointer::GetElementPointer(
                 std::move(name)),
     accType(accessedType),
     basePtr(basePointer),
-    offsetIdx(offsetIndex) {}
+    offsetIdx(offsetIndex) {
+    registerOperandUse(basePtr);
+}

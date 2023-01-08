@@ -15,25 +15,26 @@ namespace scatha::ir {
 
 // Value
 // ├─ Parameter
-// ├─ Constant
-// │  ├─ IntegralConstant
-// │  └─ Function
 // ├─ BasicBlock
-// └─ Instruction
-//    ├─ Alloca
-//    ├─ UnaryInstruction
-//    │  ├─ Load
-//    │  └─ UnaryArithmeticInst
-//    ├─ BinaryInstruction
-//    │  ├─ Store
-//    │  ├─ CompareInst
-//    │  └─ ArithmeticInst
-//    ├─ TerminatorInst
-//    │  ├─ Goto
-//    │  ├─ Branch
-//    │  └─ Return
-//    ├─ FunctionCall
-//    └─ Phi
+// └─ User
+//    ├─ Constant
+//    │  ├─ IntegralConstant
+//    │  └─ Function
+//    └─ Instruction
+//       ├─ Alloca
+//       ├─ UnaryInstruction
+//       │  ├─ Load
+//       │  └─ UnaryArithmeticInst
+//       ├─ BinaryInstruction
+//       │  ├─ Store
+//       │  ├─ CompareInst
+//       │  └─ ArithmeticInst
+//       ├─ TerminatorInst
+//       │  ├─ Goto
+//       │  ├─ Branch
+//       │  └─ Return
+//       ├─ FunctionCall
+//       └─ Phi
 
 #define SC_CGFNODE_DEF(Inst) class Inst;
 #include <scatha/IR/Lists.def>
