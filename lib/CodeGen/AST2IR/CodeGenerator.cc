@@ -10,6 +10,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IR/Validate.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
@@ -56,7 +57,7 @@ struct Context {
 
     ir::Value* getAddress(Expression const& node);
 
-    ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) { SC_UNREACHABLE(); }
+    ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) { SC_UNREACHABLE(); } // Delete this later
     ir::Value* getAddressImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
@@ -68,7 +69,6 @@ struct Context {
 
     ir::BasicBlock* currentBB() { return _currentBB; }
     void setCurrentBB(ir::BasicBlock*);
-    void _finishCurrentBB();
 
     void memorizeVariableAddress(sema::SymbolID, ir::Value*);
 
@@ -102,6 +102,7 @@ ir::Module ast::codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& 
     ctx.declareTypes();
     ctx.declareFunctions();
     ctx.generate(ast);
+    ir::setupInvariants(irCtx, mod);
     return mod;
 }
 
@@ -523,28 +524,7 @@ void Context::declareFunctions() {
 }
 
 void Context::setCurrentBB(ir::BasicBlock* bb) {
-    _finishCurrentBB();
     _currentBB = bb;
-}
-
-void Context::_finishCurrentBB() {
-    if (currentBB() == nullptr) {
-        return;
-    }
-    auto& instructions = currentBB()->instructions;
-    for (auto itr = instructions.begin(); itr != instructions.end(); ++itr) {
-        auto& inst = *itr;
-        if (!isa<ir::TerminatorInst>(inst)) {
-            continue;
-        }
-        instructions.erase(std::next(itr), instructions.end());
-        break;
-    }
-    if (instructions.empty() || !isa<ir::TerminatorInst>(instructions.back())) {
-        /// Issue returns to non-terminating basic blocks. This should correspond to void functions with implicit return
-        /// statements.
-        currentBB()->addInstruction(new ir::Return(irCtx));
-    }
 }
 
 void Context::memorizeVariableAddress(sema::SymbolID symbolID, ir::Value* value) {
