@@ -11,6 +11,10 @@
 
 namespace scatha::ir {
 
+class Context;
+
+class Module;
+
 /// ** Forward declarations of all GFC node types  **
 
 // Value
