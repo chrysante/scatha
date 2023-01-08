@@ -9,8 +9,8 @@ fn test(cond: bool, i: int) -> int {
     
     
     
-    if true {
-        if true {
+    if cond {
+        if cond {
             result = 2;
         }
         else {
