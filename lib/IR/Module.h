@@ -24,7 +24,9 @@ public:
     ~Module();
 
     auto const& structures() const { return structs; }
-    List<Function> const& functions() const { return funcs; }
+
+    auto& functions() { return funcs; }
+    auto const& functions() const { return funcs; }
 
     void addStructure(StructureType* structure) { structs.insert(structure); }
     void addFunction(Function* function);
