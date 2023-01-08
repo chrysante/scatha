@@ -10,6 +10,7 @@
 namespace scatha::sema {
 
 namespace {
+
 struct Context {
     ExpressionAnalysisResult dispatch(ast::Expression&);
 
@@ -38,6 +39,7 @@ struct Context {
     /// unset by Identifier
     bool performRestrictedNameLookup = false;
 };
+
 } // namespace
 
 ExpressionAnalysisResult analyzeExpression(ast::Expression& expr, SymbolTable& sym, issue::SemaIssueHandler& iss) {
