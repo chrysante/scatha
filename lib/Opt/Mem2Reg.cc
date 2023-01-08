@@ -2,6 +2,9 @@
 
 #include <map>
 
+#include <utl/hashmap.hpp>
+#include <utl/vector.hpp>
+
 #include "IR/CFG.h"
 #include "IR/Module.h"
 
@@ -17,9 +20,19 @@ struct Ctx {
     
     void doFunction(Function& function);
     
-    void analyzeLoad(Load* load);
+    /// Analyze a \p Load instruction and return a \p Phi instruction that can replace it.
+    Phi* analyzeLoad(Load* load);
+    
+    struct RelevantStoreResultPair {
+        Store* store;
+        size_t distance;
+    };
+    
+    utl::hashmap<BasicBlock*, RelevantStoreResultPair> findRelevantStores(std::span<Store* const> stores, Load* load);
     
     utl::vector<utl::small_vector<BasicBlock*>> findAllPaths(BasicBlock* origin, BasicBlock* dest);
+    
+    Store* findLastStoreToAddress(std::span<BasicBlock* const> path, Value const* address);
     
     Module& mod;
 };
@@ -49,38 +62,55 @@ void Ctx::doFunction(Function& function) {
             if (!load) {
                 continue;
             }
-            analyzeLoad(load);
+            auto* const phi = analyzeLoad(load);
+            if (phi) {
+                bb.instructions.erase(std::prev(instItr));
+                bb.instructions.insert(instItr, phi);
+            }
         }
     }
 }
 
-#include <iostream>
-#include "IR/Print.h"
-
-void Ctx::analyzeLoad(Load* load) {
+Phi* Ctx::analyzeLoad(Load* load) {
     auto* const addr = load->address();
     utl::small_vector<Store*> storesToAddr;
     /// Gather all the stores to this address.
     for (auto* use: addr->users()) {
         if (auto* store = dyncast<Store*>(use)) { storesToAddr.push_back(store); }
     }
-    std::cout << "Stores to address of %" << load->name() << ":\n";
-    for (auto* store: storesToAddr) {
-        auto paths = findAllPaths(store->parent(), load->parent());
-        for (auto& path: paths) {
-            std::cout << "\tOne path is: ";
-            for (bool first = true; auto* bb: path) {
-                std::cout << (first ? (void)(first = false), "" : " -> ") << bb->name();
-            }
-            std::cout << std::endl;
-        }
-        if (paths.empty()) {
-            std::cout << "Warning: No paths found\n";
-        }
-        auto* source = store->source();
-        std::cout << "\t%" << "" << " : " << toString(*source) << std::endl;
+    // Warning: If we have no stores or no stores for every predecessor we have to figure something else out.
+    auto relevantStores = findRelevantStores(storesToAddr, load);
+    utl::small_vector<PhiMapping> phiArgs;
+    for (auto [pred, rp]: relevantStores) {
+        auto [store, dist] = rp;
+        phiArgs.push_back({ .pred = pred, .value = store->source() });
     }
-    if (storesToAddr.empty()) { std::cout << "\tWarning: No stores\n"; }
+    return new Phi(phiArgs, std::string(load->name()));
+}
+
+utl::hashmap<BasicBlock*, Ctx::RelevantStoreResultPair> Ctx::findRelevantStores(std::span<Store* const> stores, Load* load) {
+    utl::hashmap<BasicBlock*, RelevantStoreResultPair> relevantStores;
+    auto* addr = load->address();
+    for (auto* store: stores) {
+        auto paths = findAllPaths(store->parent(), load->parent());
+        SC_ASSERT(!paths.empty(), "No paths found. This can't be right, or can it?");
+        for (auto& path: paths) {
+            auto* lastStore = findLastStoreToAddress(path, addr);
+            if (lastStore != store) {
+                continue;
+            }
+            RelevantStoreResultPair const rp = { store, path.size() };
+            auto const [itr, success] = relevantStores.insert({ *(path.end() - 2), rp });
+            if (success) {
+                continue;
+            }
+            SC_ASSERT(rp.distance != itr->second.distance, "");
+            if (itr->second.distance > rp.distance) {
+                itr->second = rp;
+            }
+        }
+    }
+    return relevantStores;
 }
 
 namespace {
@@ -100,17 +130,14 @@ struct PathFinder {
         if (currentNode == dest) {
             return;
         }
-        
         switch (currentNode->successors.size()) {
         case 0:
             result.erase(currentPath);
             break;
-            
         case 1:
             currentPath->second.push_back(currentNode->successors.front());
             search(currentPath);
             break;
-            
         default:
             currentPath->second.push_back(currentNode->successors.front());
             auto cpCopy = currentPath->second;
@@ -136,5 +163,22 @@ struct PathFinder {
 utl::vector<utl::small_vector<BasicBlock*>> Ctx::findAllPaths(BasicBlock* origin, BasicBlock* dest) {
     PathFinder pf{ origin, dest };
     pf.run();
-    return utl::vector<utl::small_vector<BasicBlock*>>(utl::transform(std::move(pf.result), [](auto&& pair) -> decltype(auto) { return UTL_FORWARD(pair).second; }));
+    return utl::vector<utl::small_vector<BasicBlock*>>(
+               utl::transform(std::move(pf.result),
+                              [](auto&& pair) -> decltype(auto) { return UTL_FORWARD(pair).second; }));
+}
+
+Store* Ctx::findLastStoreToAddress(std::span<BasicBlock* const> path, Value const* address) {
+    for (auto* bb: utl::reverse(path)) {
+        for (auto& inst: utl::reverse(bb->instructions)) {
+            auto* store = dyncast<Store*>(&inst);
+            if (!store) {
+                continue;
+            }
+            if (store->dest() == address) {
+                return store;
+            }
+        }
+    }
+    return nullptr;
 }

@@ -12,6 +12,7 @@
 #include "SampleCompiler.h"
 #include "DrawGraph.h"
 #include "IR/Module.h"
+#include "Opt/Mem2Reg.h"
 
 enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest, EmitCFG, EmitUseGraph };
 
@@ -71,6 +72,7 @@ int main(int argc, char const* const* argv) {
     case ProgramCase::ASMTest: testAsmModule(); break;
     case ProgramCase::EmitCFG: {
         auto mod = makeIRModule(filepath);
+        scatha::opt::mem2Reg(mod);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg.gv");
         break;
     }
