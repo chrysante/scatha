@@ -37,8 +37,6 @@ struct PrintCtx {
     void print(Phi const&);
     void print(GetElementPointer const&);
 
-    std::string toString(Value const&);
-
     void print(StructureType const& structure);
 
     std::ostream& str;
@@ -65,6 +63,16 @@ std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
     PrintCtx ctx(ostream);
     ctx.dispatch(inst);
     return ostream;
+}
+
+std::string ir::toString(Value const& value) {
+    // clang-format off
+    return visit(value, utl::overload{
+        [&](Value const& value) -> std::string { return utl::strcat("%", value.name()); },
+        [&](IntegralConstant const& value) -> std::string { return value.value().toString(); },
+        [&](FloatingPointConstant const& value) -> std::string { return value.value().toString(); },
+    });
+    // clang-format on
 }
 
 void PrintCtx::dispatch(Value const& value) {
@@ -169,16 +177,6 @@ void PrintCtx::print(Phi const& phi) {
 void PrintCtx::print(GetElementPointer const& gep) {
     str << indent << "%" << gep.name() << " = gep " << gep.accessedType()->name() << ", "
         << toString(*gep.basePointer()) << ", " << gep.offsetIndex();
-}
-
-std::string PrintCtx::toString(Value const& value) {
-    // clang-format off
-    return visit(value, utl::overload{
-        [&](Value const& value) -> std::string { return utl::strcat("%", value.name()); },
-        [&](IntegralConstant const& value) -> std::string { return value.value().toString(); },
-        [&](FloatingPointConstant const& value) -> std::string { return value.value().toString(); },
-    });
-    // clang-format on
 }
 
 void PrintCtx::print(StructureType const& structure) {

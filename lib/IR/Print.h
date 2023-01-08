@@ -8,6 +8,7 @@
 namespace scatha::ir {
 
 class Module;
+class Value;
 class BasicBlock;
 class Instruction;
 
@@ -16,6 +17,8 @@ SCATHA(API) void print(Module const& program);
 SCATHA(API) void print(Module const& program, std::ostream& ostream);
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Instruction const& inst);
+
+SCATHA(API) std::string toString(Value const& value);
 
 } // namespace scatha::ir
 
