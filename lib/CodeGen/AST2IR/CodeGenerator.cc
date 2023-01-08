@@ -543,7 +543,7 @@ void Context::_finishCurrentBB() {
     if (instructions.empty() || !isa<ir::TerminatorInst>(instructions.back())) {
         /// Issue returns to non-terminating basic blocks. This should correspond to void functions with implicit return
         /// statements.
-        instructions.push_back(new ir::Return(irCtx));
+        currentBB()->addInstruction(new ir::Return(irCtx));
     }
 }
 
