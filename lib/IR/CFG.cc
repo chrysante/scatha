@@ -32,6 +32,17 @@ bool BasicBlock::isEntry() const {
     return parent()->basicBlocks().begin() == List<BasicBlock>::const_iterator(this);
 }
 
+bool BasicBlock::contains(Instruction const& inst) const {
+    return std::find_if(instructions.begin(), instructions.end(), [&](Instruction const& i) {
+        return &i == &inst;
+    }) != instructions.end();
+}
+
+TerminatorInst const* BasicBlock::terminator() const {
+    if (instructions.empty()) { return nullptr; }
+    return dyncast<TerminatorInst const*>(&instructions.back());
+}
+
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
     Instruction(NodeType::Alloca, context.pointerType(allocatedType), std::move(name)), _allocatedType(allocatedType) {}
 

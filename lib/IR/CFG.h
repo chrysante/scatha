@@ -41,8 +41,7 @@ public:
 
     void setName(std::string name) { _name = std::move(name); }
 
-    auto users() { return utl::transform(_users, utl::identity); }
-    auto users() const { return utl::transform(_users, [](auto* p) -> auto const* { return p; }); }
+    auto const& users() const { return _users; }
 
     void addUser(User* user);
     
@@ -129,7 +128,22 @@ public:
     /// Check wether this is the entry basic block of a function
     bool isEntry() const;
 
+    /// Check wether \p inst is an instruction of this basic block.
+    bool contains(Instruction const& inst) const;
+    
+    /// Returns the terminator instruction if this basic block is well formed or nullptr
+    TerminatorInst const* terminator() const;
+    
+    /// \overload
+    TerminatorInst* terminator() {
+        return const_cast<TerminatorInst*>(static_cast<BasicBlock const*>(this)->terminator());
+    }
+    
+    /// This is exposed directly because some algorithms need to erase instructions from here.
     List<Instruction> instructions;
+    
+    /// Also just expose this directly, be careful though.
+    utl::small_vector<BasicBlock*> predecessors, successors;
 };
 
 /// Represents a function parameter.
