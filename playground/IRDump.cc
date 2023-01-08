@@ -24,8 +24,6 @@
 #include "Sema/SemanticIssue.h"
 #include "VM/Program.h"
 
-#include "DotEmitter.h"
-
 using namespace scatha;
 
 static void sectionHeader(std::string_view header) {
@@ -34,47 +32,58 @@ static void sectionHeader(std::string_view header) {
     utl::print("{:=^40}\n", "");
 }
 
-void playground::irDump(std::filesystem::path filepath) {
+static std::string readFileToString(std::filesystem::path filepath) {
     std::fstream file(filepath);
     if (!file) {
         std::cerr << "Failed to open file " << filepath << std::endl;
-        return;
+        std::exit(EXIT_FAILURE);
     }
     std::stringstream sstr;
     sstr << file.rdbuf();
-    irDump(sstr.str());
+    return std::move(sstr).str();
+}
+
+void playground::irDump(std::filesystem::path filepath) {
+    irDump(readFileToString(filepath));
 }
 
 void playground::irDump(std::string text) {
+    ir::Module mod = makeIRModule(text);
+    sectionHeader(" IR Code ");
+    ir::print(mod);
+    
+    auto asmStream = cg::codegen(mod);
+    sectionHeader(" Assembly ");
+    Asm::print(asmStream);
+
+    auto program = Asm::assemble(asmStream);
+    sectionHeader(" Assembled program ");
+    print(program);
+}
+
+scatha::ir::Module playground::makeIRModule(std::string text) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     if (!lexIss.empty()) {
         std::cout << "Lexical issue on line " << lexIss.issues()[0].sourceLocation().line << std::endl;
-        return;
+        std::exit(EXIT_FAILURE);
     }
     issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     if (!parseIss.empty()) {
         std::cout << "Syntax issue on line " << parseIss.issues()[0].sourceLocation().line << std::endl;
-        return;
+        std::exit(EXIT_FAILURE);
     }
     issue::SemaIssueHandler semaIss;
     auto sym = sema::analyze(*ast, semaIss);
     if (!semaIss.empty()) {
         std::cout << "Semantic issue on line " << semaIss.issues()[0].sourceLocation().line << std::endl;
-        return;
+        std::exit(EXIT_FAILURE);
     }
-    sectionHeader(" IR Code ");
     ir::Context ctx;
-    ir::Module mod = ast::codegen(*ast, sym, ctx);
-    ir::print(mod);
-    emitDot(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/Test.gv");
+    return ast::codegen(*ast, sym, ctx);
+}
 
-    sectionHeader(" Assembly ");
-    auto asmStream = cg::codegen(mod);
-    Asm::print(asmStream);
-
-    sectionHeader(" Assembled program ");
-    auto program = Asm::assemble(asmStream);
-    print(program);
+scatha::ir::Module playground::makeIRModule(std::filesystem::path filepath) {
+    return makeIRModule(readFileToString(filepath));
 }

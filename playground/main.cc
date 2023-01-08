@@ -10,8 +10,10 @@
 #include "IRDump.h"
 #include "IRSketch.h"
 #include "SampleCompiler.h"
+#include "DrawGraph.h"
+#include "IR/Module.h"
 
-enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest };
+enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest, EmitCFG, EmitUseGraph };
 
 struct Option {
     std::string id;
@@ -47,6 +49,8 @@ int main(int argc, char const* const* argv) {
         { "ir-dump", ProgramCase::IRDump },
         { "ir-sketch", ProgramCase::IRSketch },
         { "test-asm", ProgramCase::ASMTest },
+        { "emit-cfg", ProgramCase::EmitCFG },
+        { "emit-use-graph", ProgramCase::EmitUseGraph },
     };
     auto const parseResult = parse(argc, argv);
     if (!parseResult) {
@@ -65,6 +69,16 @@ int main(int argc, char const* const* argv) {
     case ProgramCase::IRDump: irDump(filepath); break;
     case ProgramCase::IRSketch: irSketch(); break;
     case ProgramCase::ASMTest: testAsmModule(); break;
+    case ProgramCase::EmitCFG: {
+        auto mod = makeIRModule(filepath);
+        drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg.gv");
+        break;
+    }
+    case ProgramCase::EmitUseGraph: {
+        auto mod = makeIRModule(filepath);
+        drawUseGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/use-graph.gv");
+        break;
+    }
     default: break;
     }
 }

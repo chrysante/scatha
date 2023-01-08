@@ -104,7 +104,7 @@ externalincludedirs {
     "include",
     "external/utility/include" 
 }
-includedirs { ".", "lib" }
+includedirs { ".", "lib", "playground" }
 
 addCppFiles "playground"
 files "playground/**.sc"
