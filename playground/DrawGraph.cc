@@ -104,22 +104,8 @@ std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
         str << "]\n";
     };
     auto connectCallback = [](std::stringstream& str, BasicBlock const& bb) {
-        for (auto& inst: bb.instructions) {
-            if (!isa<TerminatorInst>(inst)) {
-                continue;
-            }
-            // clang-format off
-            visit(cast<TerminatorInst const&>(inst), utl::overload{
-                [&](ir::TerminatorInst const& inst) {},
-                [&](ir::Goto const& g) {
-                    str << dotName(bb) << " -> " << dotName(*g.target()) << "\n";
-                },
-                [&](ir::Branch const& b) {
-                    str << dotName(bb) << " -> " << dotName(*b.thenTarget()) << "\n";
-                    str << dotName(bb) << " -> " << dotName(*b.elseTarget()) << "\n";
-                },
-            });
-            // clang-format on
+        for (auto succ: bb.successors) {
+            str << dotName(bb) << " -> " << dotName(*succ) << "\n";
         }
     };
     return drawGraphGeneric(mod, functionCallback, declareCallback, connectCallback);
@@ -131,15 +117,7 @@ void playground::drawControlFlowGraph(scatha::ir::Module const& mod, std::filesy
 }
 
 std::string playground::drawUseGraph(scatha::ir::Module const& mod) {
-    auto functionCallback = [](std::stringstream& str, Function const& function) {
-//        str << "{ rank = same; ";
-//        for (auto& bb: function.basicBlocks()) {
-//            str << "cluster_" << dotName(bb) << " ";
-//
-//
-//        }
-//        str << "}";
-    };
+    auto functionCallback = [](std::stringstream& str, Function const& function) {};
     auto declareCallback = [](std::stringstream& str, BasicBlock const& bb) {
         str << "subgraph cluster_" << dotName(bb) << " {\n";
         str << "  fontname = \"" << font << "\"\n";
