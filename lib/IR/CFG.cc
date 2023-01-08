@@ -6,7 +6,32 @@ using namespace scatha;
 using namespace ir;
 
 void Value::addUser(User* user) {
-    _users.insert(user);
+    auto const [itr, success] = _users.insert({ user, 0 });
+    ++itr->second;
+}
+
+void Value::removeUser(User* user) {
+    auto itr = _users.find(user);
+    SC_ASSERT(itr != _users.end(), "\p user is not a user of this value.");
+    if (--itr->second == 0) {
+        _users.erase(itr);
+    }
+}
+
+User::User(NodeType nodeType, Type const* type, std::string name, std::span<Value* const> operands):
+    Value(nodeType, type, std::move(name)) {
+    for (Value* op: operands) {
+        if (!op) { continue; }
+        _operands.push_back(op);
+        op->addUser(this);
+    }
+}
+
+void User::setOperand(size_t index, Value* operand) {
+    SC_ASSERT(index < _operands.size(), "");
+    _operands[index]->removeUser(this);
+    operand->addUser(this);
+    _operands[index] = operand;
 }
 
 IntegralConstant::IntegralConstant(Context& context, APInt value, size_t bitWidth):
@@ -91,32 +116,36 @@ ArithmeticInst::ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, s
     SC_ASSERT(isa<ArithmeticType>(lhs->type()), "Operands types must be arithmetic");
 }
 
-TerminatorInst::TerminatorInst(NodeType nodeType, Context& context): Instruction(nodeType, context.voidType()) {}
+TerminatorInst::TerminatorInst(NodeType nodeType, Context& context, std::initializer_list<Value*> operands):
+    Instruction(nodeType, context.voidType(), {}, operands) {}
 
 FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments, std::string name):
-    Instruction(NodeType::FunctionCall, function->returnType(), std::move(name)),
-    _function(function),
-    _args(arguments) {
-    registerOperandUses(arguments);
-}
+    Instruction(NodeType::FunctionCall, function->returnType(), std::move(name), arguments),
+    _function(function) {}
 
 ExtFunctionCall::ExtFunctionCall(
     size_t slot, size_t index, std::span<Value* const> arguments, ir::Type const* returnType, std::string name):
-    Instruction(NodeType::ExtFunctionCall, returnType, std::move(name)),
+    Instruction(NodeType::ExtFunctionCall, returnType, std::move(name), arguments),
     _slot(utl::narrow_cast<u32>(slot)),
-    _index(utl::narrow_cast<u32>(index)),
-    _args(arguments) {
-    registerOperandUses(arguments);
+    _index(utl::narrow_cast<u32>(index)) {}
+
+template <typename E>
+static auto extract(std::span<PhiMapping const> args, E extractor) {
+    using R = std::invoke_result_t<E, PhiMapping>;
+    utl::small_vector<R> result;
+    result.reserve(args.size());
+    std::transform(args.begin(), args.end(), std::back_inserter(result), extractor);
+    return result;
 }
 
 Phi::Phi(std::span<PhiMapping const> args, std::string name):
     Instruction(NodeType::Phi,
                 (SC_ASSERT(!args.empty(), "Phi must have at least one argument"), args[0].value->type()),
-                std::move(name)),
-    _arguments(args) {
+                std::move(name),
+                extract(args, [](PhiMapping p) { return p.value; })),
+    _preds(extract(args, [](PhiMapping p) { return p.pred; })) {
     for (auto& [pred, value]: args) {
         SC_ASSERT(value->type() == type(), "Type mismatch");
-        registerOperandUse(value);
     }
 }
 
@@ -125,9 +154,7 @@ GetElementPointer::GetElementPointer(
     Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name):
     Instruction(NodeType::GetElementPointer,
                 context.pointerType(cast<StructureType const*>(accessedType)->memberAt(offsetIndex)),
-                std::move(name)),
+                std::move(name),
+                { basePointer }),
     accType(accessedType),
-    basePtr(basePointer),
-    offsetIdx(offsetIndex) {
-    registerOperandUse(basePtr);
-}
+    offsetIdx(offsetIndex) {}

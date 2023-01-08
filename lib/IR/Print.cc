@@ -169,7 +169,8 @@ void PrintCtx::print(FunctionCall const& call) {
 
 void PrintCtx::print(Phi const& phi) {
     str << indent << "%" << phi.name() << " = phi " << phi.type()->name();
-    for (auto& [pred, value]: phi.arguments()) {
+    for (size_t i = 0; i < phi.argumentCount(); ++i) {
+        auto const [pred, value] = phi.argumentAt(i);
         str << ", [label %" << pred->name() << ", " << toString(*value) << "]";
     }
 }

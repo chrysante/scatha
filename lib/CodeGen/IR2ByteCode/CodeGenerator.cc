@@ -273,10 +273,11 @@ void Context::generate(ir::Phi const& phi) {
     /// Then put the value into that register in every incoming path.
     /// Then make this value resolve to that register index.
     RegisterIndex const target = currentRD().resolve(phi).get<RegisterIndex>();
-    for (auto& [pred, value]: phi.arguments()) {
+    for (size_t i = 0; i < phi.argumentCount(); ++i) {
+        auto const [pred, value] = phi.argumentAt(i);
         auto [begin, back] = [&, pred = pred] {
             auto itr = bbInstRanges.find(pred);
-            SC_ASSERT(itr != bbInstRanges.end(), "Where is this bb coming from?");
+            SC_ASSERT(itr != bbInstRanges.end(), "Where is this BB coming from?");
             return itr->second;
         }();
         /// Make sure we place our move instruction right before all jumps ending the basic block.

@@ -4,7 +4,7 @@
 #include <string>
 
 #include <utl/ranges.hpp>
-#include <utl/hashset.hpp>
+#include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
 
 #include "Common/APFloat.h"
@@ -22,34 +22,45 @@ class Module;
 /// Every value has a type. Types are not values.
 class SCATHA(API) Value {
 protected:
-    explicit Value(NodeType nodeType, Type const* type): _nodeType(nodeType), _type(type) {}
-
-    explicit Value(NodeType nodeType, Type const* type, std::string name) noexcept:
+    explicit Value(NodeType nodeType, Type const* type, std::string name = {}) noexcept:
         _nodeType(nodeType), _type(type), _name(std::move(name)) {}
 
     /// For complex initialization.
     void setType(Type const* type) { _type = type; }
 
 public:
+    /// The runtime type of this CFG node.
     NodeType nodeType() const { return _nodeType; }
 
+    /// The type of this value.
     Type const* type() const { return _type; }
 
+    /// The name of this value.
     std::string_view name() const { return _name; }
 
+    /// Wether this value is named.
     bool hasName() const { return !_name.empty(); }
 
+    /// Set the name of this value.
     void setName(std::string name) { _name = std::move(name); }
 
-    auto const& users() const { return _users; }
+    /// View of all users using this value.
+    auto users() const { return utl::transform(_users, [](auto&& p) { return p.first; }); }
 
+    /// Number of users using this value. Multiple uses by the same user are counted as one.
+    size_t userCount() const { return _users.size(); }
+    
+    /// Register a user of this value.
     void addUser(User* user);
+    
+    /// Unregister a user of this value.
+    void removeUser(User* user);
     
 private:
     NodeType _nodeType;
     Type const* _type;
     std::string _name;
-    utl::hashset<User*> _users;
+    utl::hashmap<User*, uint16_t> _users;
 };
 
 /// For dyncast compatibilty of the CFG
@@ -60,19 +71,19 @@ inline NodeType dyncast_get_type(std::derived_from<Value> auto const& value) {
 /// Represents a user of values
 class SCATHA(API) User: public Value {
 public:
-    using Value::Value;
+    std::span<Value* const> operands() { return _operands; }
+    std::span<Value const* const> operands() const { return _operands; }
+    
+    void setOperand(size_t index, Value* operand);
     
 protected:
-    void registerOperandUse(Value* value) { value->addUser(this); }
-    void registerOperandUses(std::initializer_list<Value*> values) {
-        registerOperandUses(std::span<Value* const>(values));
-    }
-    void registerOperandUses(std::span<Value* const> values) {
-        for (auto value: values) { registerOperandUse(value); }
-    }
+    explicit User(NodeType nodeType, Type const* type, std::string name, std::initializer_list<Value*> operands):
+        User(nodeType, type, std::move(name), std::span<Value* const>(operands)) {}
+    
+    explicit User(NodeType nodeType, Type const* type, std::string name = {}, std::span<Value* const> operands = {});
     
 private:
-    
+    utl::small_vector<Value*> _operands;
 };
 
 /// Represents a (global) constant value.
@@ -109,8 +120,7 @@ private:
 /// instruction does not yield a value its \p Value super class is of type void.
 class SCATHA(API) Instruction: public User, public NodeWithParent<Instruction, BasicBlock> {
 protected:
-    explicit Instruction(NodeType nodeType, Type const* type, std::string name = {}):
-        User(nodeType, type, std::move(name)) {}
+    using User::User;
 };
 
 /// Represents a basic block. A basic block starts is a list of instructions starting with zero or more phi nodes and
@@ -203,18 +213,13 @@ private:
 class SCATHA(API) UnaryInstruction: public Instruction {
 protected:
     explicit UnaryInstruction(NodeType nodeType, Value* operand, Type const* type, std::string name):
-        Instruction(nodeType, type, std::move(name)), _operand(operand) {
-        registerOperandUse(operand);
-    }
+        Instruction(nodeType, type, std::move(name), { operand }) {}
 
 public:
-    Value* operand() { return _operand; }
-    Value const* operand() const { return _operand; }
+    Value* operand() { return operands()[0]; }
+    Value const* operand() const { return operands()[0]; }
 
     Type const* operandType() const { return operand()->type(); }
-
-private:
-    Value* _operand;
 };
 
 /// Load instruction. Load data from memory into a register.
@@ -234,21 +239,15 @@ public:
 class SCATHA(API) BinaryInstruction: public Instruction {
 protected:
     explicit BinaryInstruction(NodeType nodeType, Value* lhs, Value* rhs, Type const* type, std::string name = {}):
-        Instruction(nodeType, type, std::move(name)), _lhs(lhs), _rhs(rhs) {
-        registerOperandUses({ lhs, rhs });
-    }
+        Instruction(nodeType, type, std::move(name), { lhs, rhs }) {}
 
 public:
-    Value* lhs() { return _lhs; }
-    Value const* lhs() const { return _lhs; }
-    Value* rhs() { return _rhs; }
-    Value const* rhs() const { return _rhs; }
+    Value* lhs() { return operands()[0]; }
+    Value const* lhs() const { return operands()[0]; }
+    Value* rhs() { return operands()[1]; }
+    Value const* rhs() const { return operands()[1]; }
 
     Type const* operandType() const { return lhs()->type(); }
-
-private:
-    Value* _lhs;
-    Value* _rhs;
 };
 
 /// Store instruction. Store a value from a register into memory.
@@ -299,7 +298,7 @@ private:
 /// Base class for all instructions terminating basic blocks.
 class SCATHA(API) TerminatorInst: public Instruction {
 protected:
-    explicit TerminatorInst(NodeType nodeType, Context& context);
+    explicit TerminatorInst(NodeType nodeType, Context& context, std::initializer_list<Value*> operands = {});
 };
 
 /// Goto instruction. Leave the current basic block and unconditionally enter the target basic block.
@@ -318,20 +317,18 @@ private:
 class SCATHA(API) Branch: public TerminatorInst {
 public:
     explicit Branch(Context& context, Value* condition, BasicBlock* thenTarget, BasicBlock* elseTarget):
-        TerminatorInst(NodeType::Branch, context), _condition(condition), _then(thenTarget), _else(elseTarget) {
-        registerOperandUse(condition);
+        TerminatorInst(NodeType::Branch, context, { condition }), _then(thenTarget), _else(elseTarget) {
         SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1, "Condition must be of type i1");
     }
 
-    Value* condition() { return _condition; }
-    Value const* condition() const { return _condition; }
+    Value* condition() { return operands()[0]; }
+    Value const* condition() const { return operands()[0]; }
     BasicBlock* thenTarget() { return _then; }
     BasicBlock const* thenTarget() const { return _then; }
     BasicBlock* elseTarget() { return _else; }
     BasicBlock const* elseTarget() const { return _else; }
 
 private:
-    Value* _condition;
     BasicBlock* _then;
     BasicBlock* _else;
 };
@@ -340,20 +337,13 @@ private:
 class SCATHA(API) Return: public TerminatorInst {
 public:
     explicit Return(Context& context, Value* value = nullptr):
-        TerminatorInst(NodeType::Return, context), _value(value) {
-        if (value != nullptr) {
-            registerOperandUse(value);
-        }
-    }
+        TerminatorInst(NodeType::Return, context, { value }) {}
 
     /// May be null in case of a void function
-    Value* value() { return _value; }
+    Value* value() { return const_cast<Value*>(static_cast<Return const*>(this)->value()); }
     
     /// May be null in case of a void function
-    Value const* value() const { return _value; }
-
-private:
-    Value* _value;
+    Value const* value() const { return operands().empty() ? nullptr : operands()[0]; }
 };
 
 /// Function call. Call a function.
@@ -364,12 +354,11 @@ public:
     Function* function() { return _function; }
     Function const* function() const { return _function; }
 
-    std::span<Value* const> arguments() { return _args; }
-    std::span<Value const* const> arguments() const { return _args; }
+    std::span<Value* const> arguments() { return operands(); }
+    std::span<Value const* const> arguments() const { return operands(); }
 
 private:
     Function* _function;
-    utl::small_vector<Value*> _args;
 };
 
 /// External function call. Call an external function.
@@ -385,17 +374,27 @@ public:
 
     size_t index() const { return _index; }
 
-    std::span<Value* const> arguments() { return _args; }
-    std::span<Value const* const> arguments() const { return _args; }
+    std::span<Value* const> arguments() { return operands(); }
+    std::span<Value const* const> arguments() const { return operands(); }
 
 private:
     u32 _slot, _index;
-    utl::small_vector<Value*> _args;
 };
 
 struct PhiMapping {
+    PhiMapping(BasicBlock* pred, Value* value): pred(pred), value(value) {}
+    
     BasicBlock* pred;
     Value* value;
+};
+
+struct ConstPhiMapping {
+    ConstPhiMapping(BasicBlock const* pred, Value const* value): pred(pred), value(value) {}
+    
+    ConstPhiMapping(PhiMapping p): pred(p.pred), value(p.value) {}
+    
+    BasicBlock const* pred;
+    Value const* value;
 };
 
 /// Phi instruction. Choose a value based on where control flow comes from.
@@ -405,10 +404,22 @@ public:
         Phi(std::span<PhiMapping const>(args), std::move(name)) {}
     explicit Phi(std::span<PhiMapping const> args, std::string name);
 
-    std::span<PhiMapping const> arguments() const { return _arguments; }
-
+    /// Note: This ugly interface could be changed if we had C++20 zip range.
+    
+    size_t argumentCount() const { return _preds.size(); }
+    
+    PhiMapping argumentAt(size_t index) {
+        SC_ASSERT(index < argumentCount(), "");
+        return { _preds[index], operands()[index] };
+    }
+    
+    ConstPhiMapping argumentAt(size_t index) const {
+        SC_ASSERT(index < argumentCount(), "");
+        return { _preds[index], operands()[index] };
+    }
+    
 private:
-    utl::small_vector<PhiMapping> _arguments;
+    utl::small_vector<BasicBlock*> _preds;
 };
 
 /// GetElementPointer instruction. Calculate offset pointer to a structure member or array element.
@@ -419,14 +430,13 @@ public:
 
     Type const* accessedType() const { return accType; }
 
-    Value* basePointer() { return basePtr; }
-    Value const* basePointer() const { return basePtr; }
+    Value* basePointer() { return operands()[0]; }
+    Value const* basePointer() const { return operands()[0]; }
 
     size_t offsetIndex() const { return offsetIdx; }
 
 private:
     Type const* accType;
-    Value* basePtr;
     size_t offsetIdx;
 };
 
