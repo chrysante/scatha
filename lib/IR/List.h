@@ -14,7 +14,13 @@ template <typename T, typename Parent>
 using NodeWithParent = utl::ilist_node_with_parent<T, Parent>;
 
 template <typename T>
-using List = utl::ilist<T>;
+struct NonDestroyingAllocator: std::allocator<T> {
+    void destroy(T*) { /* no-op */ }
+    void deallocate(T*, size_t) { /* no-op */ }
+};
+
+template <typename T>
+using List = utl::ilist<T, NonDestroyingAllocator<T>>;
 
 } // namespace scatha::ir
 
