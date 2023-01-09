@@ -1,27 +1,20 @@
+/*
 
-fn main() -> int {
-    if true { return 0; }
-    
-}
-
-fn test(cond: bool, i: int) -> int {
+fn fac(n: int) -> int {
     var result = 1;
-    
-    
-    
-    if cond {
-        if cond {
-            result = 2;
-        }
-        else {
-        
-        }
+    for i = 1; i <= n; i += 1 {
+        result *= i;
     }
-    else {
-        
-    }
-    
     return result;
 }
 
-fn f() -> int {}
+
+*/
+
+fn f() {
+    
+    for i = 1; i <= 10; i += 1 {
+        
+    }
+    
+}
