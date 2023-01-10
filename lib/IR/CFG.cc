@@ -149,6 +149,13 @@ Phi::Phi(std::span<PhiMapping const> args, std::string name):
     }
 }
 
+void Phi::clearArguments() {
+    for (auto* op: operands()) {
+        op->removeUser(this);
+    }
+    _operands.clear();
+}
+
 // WARNING: This will not work on arrays. We need to rework this for arrays.
 GetElementPointer::GetElementPointer(
     Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name):

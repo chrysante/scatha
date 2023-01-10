@@ -10,6 +10,7 @@
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
 #include "IR/Common.h"
+#include "IR/Iterator.h"
 #include "IR/List.h"
 #include "IR/Type.h"
 
@@ -82,7 +83,7 @@ protected:
     
     explicit User(NodeType nodeType, Type const* type, std::string name = {}, std::span<Value* const> operands = {});
     
-private:
+protected:
     utl::small_vector<Value*> _operands;
 };
 
@@ -168,6 +169,9 @@ public:
 /// Represents a function. A function is a prototype with a list of basic blocks.
 class SCATHA(API) Function: public Constant, public NodeWithParent<Function, Module> {
 public:
+    using InstructionIterator = internal::InstructionIteratorImpl<List<BasicBlock>::iterator, List<Instruction>::iterator>;
+    using ConstInstructionIterator = internal::InstructionIteratorImpl<List<BasicBlock>::const_iterator, List<Instruction>::const_iterator>;
+    
     explicit Function(FunctionType const* functionType,
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
@@ -186,11 +190,25 @@ public:
     List<BasicBlock>& basicBlocks() { return bbs; }
     List<BasicBlock> const& basicBlocks() const { return bbs; }
 
+    utl::range_view<InstructionIterator> instructions() { return getInstructionsImpl<InstructionIterator>(*this); }
+    utl::range_view<ConstInstructionIterator> instructions() const { return getInstructionsImpl<ConstInstructionIterator>(*this); }
+    
     void addBasicBlock(BasicBlock* basicBlock) {
         basicBlock->set_parent(this);
         bbs.push_back(basicBlock);
     }
 
+private:
+    template <typename Itr, typename Self>
+    static utl::range_view<Itr> getInstructionsImpl(Self&& self) {
+        using InstItr = typename Itr::InstructionIterator;
+        Itr const begin(self.bbs.begin(),
+                        self.bbs.empty() ? InstItr{} : self.bbs.front().instructions.begin());
+        Itr const end(self.bbs.end(),
+                      InstItr{});
+        return utl::range_view<Itr>{ begin, end };
+    }
+    
 private:
     Type const* _returnType;
     List<Parameter> params;
@@ -417,6 +435,8 @@ public:
         SC_ASSERT(index < argumentCount(), "");
         return { _preds[index], operands()[index] };
     }
+    
+    void clearArguments();
     
 private:
     utl::small_vector<BasicBlock*> _preds;
