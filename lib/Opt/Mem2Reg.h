@@ -7,13 +7,14 @@
 
 namespace scatha::ir {
 
+class Context;
 class Module;
 
 } // namespace scatha::ir
 
 namespace scatha::opt {
 
-SCATHA(API) void mem2Reg(ir::Module& mod);
+SCATHA(API) void mem2Reg(ir::Context& context, ir::Module& mod);
 
 } // namespace scatha::opt
 

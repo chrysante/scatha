@@ -5,6 +5,7 @@
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
 
+#include "IR/Context.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 
@@ -25,7 +26,7 @@ struct Path {
 };
 
 struct Ctx {
-    Ctx(Module& mod): mod(mod) {}
+    Ctx(ir::Context& context, Module& mod): context(context), mod(mod) {}
     
     void run();
     
@@ -73,13 +74,19 @@ struct Ctx {
     /// \pre \p a and \p b must be in the same bsaic block.
     bool preceeds(Instruction const* a, Instruction const* b);
     
+    struct Promotion {
+        Load* load;
+        Value* replacement;
+    };
+
+    ir::Context& context;
     Module& mod;
 };
 
 } // namespace
 
-void opt::mem2Reg(ir::Module& mod) {
-    Ctx ctx(mod);
+void opt::mem2Reg(ir::Context& context, ir::Module& mod) {
+    Ctx ctx(context, mod);
     ctx.run();
 }
 
