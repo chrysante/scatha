@@ -47,20 +47,20 @@ struct Ctx {
         if (currentNode == destBB && currentPath.basicBlocks().size() > 1) {
             return;
         }
-        switch (currentNode->successors.size()) {
+        switch (currentNode->successors().size()) {
         case 0:
             result.erase(currentPathItr);
             break;
         case 1:
-            search(currentPathItr, currentNode->successors.front());
+            search(currentPathItr, currentNode->successors().front());
             break;
         default:
             auto cpCopy = currentPath;
-            search(currentPathItr, currentNode->successors.front());
-            for (size_t i = 1; i < currentNode->successors.size(); ++i) {
+            search(currentPathItr, currentNode->successors().front());
+            for (size_t i = 1; i < currentNode->successors().size(); ++i) {
                 auto [itr, success] = result.insert({ id++, cpCopy });
                 SC_ASSERT(success, "");
-                search(itr, currentNode->successors[i]);
+                search(itr, currentNode->successors()[i]);
             }
             break;
         }

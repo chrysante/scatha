@@ -154,7 +154,13 @@ public:
     List<Instruction> instructions;
     
     /// Also just expose this directly, be careful though.
-    utl::small_vector<BasicBlock*> predecessors, successors;
+    utl::small_vector<BasicBlock*> predecessors;
+    
+    /// The basic blocks directly reachable from this basic block
+    std::span<BasicBlock* const> successors();
+    
+    /// \overload
+    std::span<BasicBlock const* const> successors() const;
 };
 
 /// Represents a function parameter.
@@ -315,47 +321,46 @@ private:
 
 /// Base class for all instructions terminating basic blocks.
 class SCATHA(API) TerminatorInst: public Instruction {
+public:
+    std::span<BasicBlock* const> targets() { return _targets; }
+    std::span<BasicBlock const* const> targets() const { return _targets; }
+    
 protected:
-    explicit TerminatorInst(NodeType nodeType, Context& context, std::initializer_list<Value*> operands = {});
+    explicit TerminatorInst(NodeType nodeType, Context& context, utl::small_vector<BasicBlock*> targets, std::initializer_list<Value*> operands = {});
+    
+    utl::small_vector<BasicBlock*> _targets;
 };
 
 /// Goto instruction. Leave the current basic block and unconditionally enter the target basic block.
 class Goto: public TerminatorInst {
 public:
-    explicit Goto(Context& context, BasicBlock* target): TerminatorInst(NodeType::Goto, context), _target(target) {}
+    explicit Goto(Context& context, BasicBlock* target): TerminatorInst(NodeType::Goto, context, { target }) {}
 
-    BasicBlock* target() { return _target; }
-    BasicBlock const* target() const { return _target; }
-
-private:
-    BasicBlock* _target;
+    BasicBlock* target() { return targets()[0]; }
+    BasicBlock const* target() const { return targets()[0]; }
 };
 
 /// Branch instruction. Leave the current basic block and choose a target basic block based on a condition.
 class SCATHA(API) Branch: public TerminatorInst {
 public:
     explicit Branch(Context& context, Value* condition, BasicBlock* thenTarget, BasicBlock* elseTarget):
-        TerminatorInst(NodeType::Branch, context, { condition }), _then(thenTarget), _else(elseTarget) {
+        TerminatorInst(NodeType::Branch, context, { thenTarget, elseTarget }, { condition }) {
         SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1, "Condition must be of type i1");
     }
 
     Value* condition() { return operands()[0]; }
     Value const* condition() const { return operands()[0]; }
-    BasicBlock* thenTarget() { return _then; }
-    BasicBlock const* thenTarget() const { return _then; }
-    BasicBlock* elseTarget() { return _else; }
-    BasicBlock const* elseTarget() const { return _else; }
-
-private:
-    BasicBlock* _then;
-    BasicBlock* _else;
+    BasicBlock* thenTarget() { return targets()[0]; }
+    BasicBlock const* thenTarget() const { return targets()[0]; }
+    BasicBlock* elseTarget() { return targets()[1]; }
+    BasicBlock const* elseTarget() const { return targets()[1]; }
 };
 
 /// Return instruction. Return control flow to the calling function.
 class SCATHA(API) Return: public TerminatorInst {
 public:
     explicit Return(Context& context, Value* value = nullptr):
-        TerminatorInst(NodeType::Return, context, { value }) {}
+        TerminatorInst(NodeType::Return, context, {}, { value }) {}
 
     /// May be null in case of a void function
     Value* value() { return const_cast<Value*>(static_cast<Return const*>(this)->value()); }

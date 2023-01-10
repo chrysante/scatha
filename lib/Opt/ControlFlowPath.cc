@@ -17,7 +17,7 @@ bool ControlFlowPath::valid() const {
         }
         for (auto backItr = _bbs.end() - 1; itr != backItr; ) {
             auto next = std::next(itr);
-            auto& succs = (*itr)->successors;
+            auto succs = (*itr)->successors();
             if (std::find(succs.begin(), succs.end(), *next) == succs.end()) {
                 return false;
             }

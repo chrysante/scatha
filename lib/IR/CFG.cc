@@ -68,6 +68,18 @@ TerminatorInst const* BasicBlock::terminator() const {
     return dyncast<TerminatorInst const*>(&instructions.back());
 }
 
+static auto succImpl(auto* t) {
+    return t ? t->targets() : std::span<BasicBlock* const>{};
+}
+
+std::span<BasicBlock* const> BasicBlock::successors() {
+    return succImpl(terminator());
+}
+
+std::span<BasicBlock const* const> BasicBlock::successors() const {
+    return succImpl(terminator());
+}
+
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
     Instruction(NodeType::Alloca, context.pointerType(allocatedType), std::move(name)), _allocatedType(allocatedType) {}
 
@@ -116,8 +128,8 @@ ArithmeticInst::ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, s
     SC_ASSERT(isa<ArithmeticType>(lhs->type()), "Operands types must be arithmetic");
 }
 
-TerminatorInst::TerminatorInst(NodeType nodeType, Context& context, std::initializer_list<Value*> operands):
-    Instruction(nodeType, context.voidType(), {}, operands) {}
+TerminatorInst::TerminatorInst(NodeType nodeType, Context& context, utl::small_vector<BasicBlock*> targets, std::initializer_list<Value*> operands):
+    Instruction(nodeType, context.voidType(), {}, operands), _targets(std::move(targets)) {}
 
 FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments, std::string name):
     Instruction(NodeType::FunctionCall, function->returnType(), std::move(name), arguments),

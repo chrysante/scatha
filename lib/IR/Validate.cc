@@ -69,9 +69,29 @@ void AssertContext::assertInvariants(Function const& function) {
 }
 
 void AssertContext::assertInvariants(BasicBlock const& bb) {
+    bool entry = true;
+    CHECK(!bb.instructions.empty(), "Empty basic blocks are not well formed as they must end with a terminator");
     for (auto& inst: bb.instructions) {
         CHECK(inst.parent() == &bb, "Parent pointers must be setup correctly");
         assertInvariants(inst);
+        if (entry && !isa<Phi>(inst)) {
+            entry = false;
+        }
+        if (!entry) {
+            CHECK(!isa<Phi>(inst), "Phi nodes may not appear after one non-phi node has appeared");
+        }
+        CHECK(!isa<TerminatorInst>(inst) ^ (&inst == &bb.instructions.back()),
+              "The last instruction must be the one and only terminator of a basic block");
+    }
+    for (auto* pred: bb.predecessors) {
+        auto const predSucc = pred->successors();
+        CHECK(std::find(predSucc.begin(), predSucc.end(), &bb) != predSucc.end(),
+              "The predecessors of this basic block must have us listed as a successor");
+    }
+    for (auto* succ: bb.successors()) {
+        auto const& succPred = succ->predecessors;
+        CHECK(std::find(succPred.begin(), succPred.end(), &bb) != succPred.end(),
+              "The successors of this basic block must have us listed as a predecessor");
     }
 }
 
@@ -81,20 +101,20 @@ void AssertContext::assertInvariants(Instruction const& inst) {
         uniqueName(*operand);
         auto opUsers = operand->users();
         CHECK(std::find(opUsers.begin(), opUsers.end(), &inst) != opUsers.end(),
-              "The operands of instruction \"inst\" must have \"inst\" listed as their user");
+              "Our operands must have listed us as their user");
         if (auto* opInst = dyncast<Instruction const*>(operand)) {
             CHECK(opInst->parent()->parent() == inst.parent()->parent(),
-                  "If the operand of \"inst\" is an instruction it must be in the same function");
+                  "If our operand is an instruction it must be in the same function");
         }
     }
     for (auto* user: inst.users()) {
         uniqueName(*user);
         auto userOps = user->operands();
         CHECK(std::find(userOps.begin(), userOps.end(), &inst) != userOps.end(),
-              "The users of a value must actually use that value");
+              "Our users must actually use us");
         if (auto* userInst = dyncast<Instruction const*>(user)) {
             CHECK(userInst->parent()->parent() == inst.parent()->parent(),
-                  "If the if the user of \"inst\" is an instruction it must be in the same function");
+                  "If our user is an instruction it must be in the same function");
         }
     }
 }
@@ -124,7 +144,10 @@ void ir::setupInvariants(Context& ctx, Module& mod) {
 }
 
 static void link(ir::BasicBlock* a, ir::BasicBlock* b) {
-    a->successors.push_back(b);
+    auto& bPred = b->predecessors;
+    if (std::find(bPred.begin(), bPred.end(), a) != bPred.end()) {
+        return;
+    }
     b->predecessors.push_back(a);
 };
 
