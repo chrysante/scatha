@@ -33,27 +33,23 @@ using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
 
-namespace internal {
-
 static int const headerWidth = 60;
 
 static void line(std::string_view m) {
     utl::print("{:=^{}}\n", m, headerWidth);
 };
 
-} // namespace internal
-
 static void header(std::string_view title = "") {
     utl::print("\n");
-    ::internal::line("");
-    ::internal::line(title);
-    ::internal::line("");
+    line("");
+    line(title);
+    line("");
     utl::print("\n");
 }
 
 static void subHeader(std::string_view title = "") {
     utl::print("\n");
-    ::internal::line(title);
+    line(title);
     utl::print("\n");
 }
 
@@ -150,14 +146,8 @@ void playground::compile(std::string text) {
     header(" Generated IR ");
     ir::Context irCtx;
     ir::Module mod = ast::codegen(*ast, sym, irCtx);
-    
-    header(" Before mem2reg ");
-    ir::print(mod);
-    opt::mem2Reg(mod);
-    header(" After mem2reg ");
     ir::print(mod);
     
-    return;
     header(" Assembly generated from IR ");
     auto const str0 = cg::codegen(mod);
     print(str0);

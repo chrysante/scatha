@@ -4,6 +4,12 @@
 #include <filesystem>
 #include <string>
 
+namespace scatha::ir {
+
+class Module;
+
+} // namespace scatha::ir
+
 namespace playground {
 
 void compile(std::string text);

@@ -11,10 +11,11 @@
 #include "IRSketch.h"
 #include "SampleCompiler.h"
 #include "DrawGraph.h"
+#include "OptTest.h"
 #include "IR/Module.h"
 #include "Opt/Mem2Reg.h"
 
-enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest, EmitCFG, EmitUseGraph };
+enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest, EmitCFG, EmitUseGraph, OptTest };
 
 struct Option {
     std::string id;
@@ -52,6 +53,7 @@ int main(int argc, char const* const* argv) {
         { "test-asm", ProgramCase::ASMTest },
         { "emit-cfg", ProgramCase::EmitCFG },
         { "emit-use-graph", ProgramCase::EmitUseGraph },
+        { "opt-test", ProgramCase::OptTest },
     };
     auto const parseResult = parse(argc, argv);
     if (!parseResult) {
@@ -81,6 +83,9 @@ int main(int argc, char const* const* argv) {
         drawUseGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/use-graph.gv");
         break;
     }
+    case ProgramCase::OptTest:
+        optTest(filepath);
+        break;
     default: break;
     }
 }

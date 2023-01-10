@@ -1,3 +1,6 @@
+
+
+
 /*
 
 fn fac(n: int) -> int {
@@ -8,7 +11,6 @@ fn fac(n: int) -> int {
     return result;
 }
 
-
 */
 
 fn f() {
@@ -18,3 +20,4 @@ fn f() {
     }
     
 }
+
