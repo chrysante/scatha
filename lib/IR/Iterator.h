@@ -9,6 +9,9 @@ namespace scatha::ir::internal {
 /// Iterator to walk across instructions in a list of basic blocks
 template <typename BBItr, typename InstItr>
 class InstructionIteratorImpl {
+    template <typename, typename>
+    friend class InstructionIteratorImpl;
+    
 public:
     using difference_type   = typename std::iterator_traits<InstItr>::difference_type;
     using value_type        = typename std::iterator_traits<InstItr>::value_type;
@@ -19,12 +22,14 @@ public:
     using BasicBlockIterator = BBItr;
     using InstructionIterator = InstItr;
     
-    InstructionIteratorImpl(BBItr bbItr, InstItr instItr):
-        bbItr(bbItr), instItr(instItr) {}
+    InstructionIteratorImpl(BBItr bbItr, /*BBItr bbEnd,*/ InstItr instItr):
+        bbItr(bbItr), /*bbEnd(bbEnd),*/ instItr(instItr) {
+        handleBBBoundary();
+    }
     
     template <std::convertible_to<BBItr> BBI2, std::convertible_to<InstItr> II2>
     InstructionIteratorImpl(InstructionIteratorImpl<BBI2, II2> const& rhs):
-        bbItr(rhs.bbItr), instItr(rhs.instItr) {}
+        bbItr(rhs.bbItr), /*bbEnd(rhs.bbEnd),*/ instItr(rhs.instItr) {}
     
     InstructionIteratorImpl& operator=(std::convertible_to<InstItr> auto const& rhsInstItr)& {
         instItr = rhsInstItr;
@@ -58,37 +63,27 @@ public:
         return result;
     }
     
-    InstructionIteratorImpl& operator--() {
-        --instItr;
-        if (instItr == bbItr->end()) { // This works because ilist is actually a circular list with one sentinel which is the end() node.
-            --bbItr;
-            instItr = std::prev(bbItr->end());
-        }
-        return *this;
+    bool operator==(InstructionIteratorImpl const& rhs) const {
+        return cmpImpl(*this, rhs);
     }
-    
-    InstructionIteratorImpl operator--(int) {
-        auto result = *this;
-        --*this;
-        return result;
-    }
-    
-    bool operator==(InstructionIteratorImpl const& rhs) const = default;
     
     template <std::equality_comparable_with<BBItr> BBI2, std::equality_comparable_with<InstItr> II2>
     bool operator==(InstructionIteratorImpl<BBI2, II2> const& rhs) const {
-        return bbItr == rhs.bbItr && instItr == rhs.instItr;
+        return cmpImpl(*this, rhs);
     }
     
 private:
+    static bool cmpImpl(auto const& lhs, auto const& rhs) {
+        return lhs.bbItr == rhs.bbItr && lhs.instItr == rhs.instItr;
+    }
+    
     void handleBBBoundary() {
-        if (instItr != bbItr->instructions.end()) {
-            return;
+        while (instItr == bbItr->instructions.end()) {
+            BBItr const next = std::next(bbItr);
+            bool const isEnd = next == bbItr->parent()->basicBlocks().end();
+            bbItr = next;
+            instItr = isEnd ? InstItr{} : bbItr->instructions.begin();
         }
-        BBItr const next = std::next(bbItr);
-        bool const isEnd = next == bbItr->parent()->basicBlocks().end();
-        bbItr = next;
-        instItr = isEnd ? InstItr{} : bbItr->instructions.begin();
     }
     
 private:

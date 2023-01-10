@@ -74,5 +74,4 @@ fn f(n: int) -> int {
         }
         CHECK(function.instructions().empty());
     }
-    
 }
