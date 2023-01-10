@@ -2,8 +2,8 @@
 
 
 fn main() -> int {
-    let width = 232.0;
-    let height = 320.0;
+    let width = 160.0;
+    let height = 60.0;
     let scale = 1.0;
     for j = 0.0; j < height; j += 1.0 {
         for i = 0.0; i < width; i += 1.0 {
