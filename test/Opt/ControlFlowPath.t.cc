@@ -26,6 +26,8 @@ fn f(n: int) -> int {
     REQUIRE(kStore->nodeType() == ir::NodeType::Store);
     auto& ifEnd = f.basicBlocks().back();
     auto const* const kLoad = ifEnd.instructions.back().prev();
+    REQUIRE(kLoad->name() == "k-1");
+    REQUIRE(kLoad->nodeType() == ir::NodeType::Load);
     opt::ControlFlowPath const path(kStore, {
         &entry,
         entry.next(),

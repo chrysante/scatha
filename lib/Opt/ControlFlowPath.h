@@ -10,7 +10,18 @@
 
 namespace scatha::opt {
 
+class ControlFlowPath;
+
+namespace internal {
+
+void addBasicBlock(ControlFlowPath&, ir::BasicBlock const*);
+
+} // namespace internal
+
+/// Represents a path in control flow from one instruction to another.
 class SCATHA(TEST_API) ControlFlowPath {
+    friend void internal::addBasicBlock(ControlFlowPath&, ir::BasicBlock const*);
+    
     template <typename Super>
     class IteratorBase {
         friend class ControlFlowPath;
@@ -136,6 +147,10 @@ public:
         bool operator==(ReverseIterator const& rhs) const = default;
     };
     
+    explicit ControlFlowPath(ir::Instruction const* from, ir::Instruction const* to):
+        _beginInst(from),
+        _backInst(to) {}
+    
     explicit ControlFlowPath(ir::Instruction const* from, utl::small_vector<ir::BasicBlock const*> bbs, ir::Instruction const* to):
         _bbs(std::move(bbs)),
         _beginInst(from),
@@ -156,13 +171,21 @@ public:
     
     ReverseIterator rend() const { return ReverseIterator(this, _bbs.begin() + 1, Iterator::InstItr(_beginInst->prev())); }
     
+    std::span<ir::BasicBlock const* const> basicBlocks() const { return _bbs; }
+    ir::Instruction const& front() const { return *_beginInst; }
+    ir::Instruction const& back() const { return *_backInst; }
+    
 private:
     utl::small_vector<ir::BasicBlock const*> _bbs;
     ir::Instruction const* _beginInst;
-    ir::Instruction const* _backInst; // Note: This is _not_ past the end.
+    ir::Instruction const* _backInst; // Note: This is not past the end.
 };
 
 } // namespace scatha::opt
+
+inline void scatha::opt::internal::addBasicBlock(ControlFlowPath& p, ir::BasicBlock const* bb) {
+    p._bbs.push_back(bb);
+}
 
 #endif // SCATHA_OPT_CONTROLFLOWPATH_H_
 
