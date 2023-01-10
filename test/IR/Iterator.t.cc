@@ -6,10 +6,6 @@
 #include "IR/CFG.h"
 #include "test/IR/CompileToIR.h"
 
-// DELETE THIS!
-#include <iostream>
-#include "IR/Print.h"
-
 using namespace scatha;
 
 TEST_CASE("Iterate over instructions in a function", "[codegen]") {
