@@ -1,6 +1,7 @@
 #include "Opt/Mem2Reg.h"
 
 #include <map>
+#include <optional>
 
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
@@ -8,8 +9,9 @@
 #include "IR/Context.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
+#include "IR/Validate.h"
 
-
+// Remove these later
 #include <iostream>
 #include "IR/Print.h"
 
@@ -37,12 +39,12 @@ struct Ctx {
     /// Analyze a \p Load instruction and if possible return a \p Phi instruction that can replace it.
     Phi* promoteLoad(Load* load);
     
-    struct RelevantStoreResultPair {
-        Store* store;
-        size_t distance;
+    struct PreceedingStoredValue {
+        BasicBlock* incomingBB;
+        Value* value;
     };
     
-    utl::hashmap<BasicBlock const*, RelevantStoreResultPair> findRelevantStores(std::span<Store* const> stores, Load* load);
+    utl::small_vector<PreceedingStoredValue> findRelevantStores(std::span<Store* const> stores, Load* load);
     
     Store const* findLastStoreToAddress(Path const& path, Value const* address);
     
@@ -55,11 +57,11 @@ struct Ctx {
     
     /// Check wether this function contains an \p alloca instruction that allocated the memory of \p address
     bool isLocalToFunction(Value const* address, Function const& function);
-   
+    
     /// ** Allocas **
     
     void evictDeadAllocas(Function& function);
-
+    
     /// Analyze a \p Alloca instruction and return true it's memory is not being read.
     bool isDead(Alloca const* address);
     
@@ -81,6 +83,8 @@ struct Ctx {
 
     ir::Context& context;
     Module& mod;
+    Function* currentFunction = nullptr;
+    utl::small_vector<Promotion, 16> promotions;
 };
 
 } // namespace
@@ -88,13 +92,15 @@ struct Ctx {
 void opt::mem2Reg(ir::Context& context, ir::Module& mod) {
     Ctx ctx(context, mod);
     ctx.run();
+    assertInvariants(context, mod);
 }
 
 void Ctx::run() {
     for (auto& function: mod.functions()) {
+        currentFunction = &function;
         promoteLoads(function);
-//        evictDeadStores(function);
-//        evictDeadAllocas(function);
+        evictDeadStores(function);
+        evictDeadAllocas(function);
     }
 }
 
@@ -116,21 +122,28 @@ void Ctx::promoteLoads(Function& function) {
             if (!phi) {
                 continue;
             }
+            auto const loadToPromote = std::prev(instItr); // TODO: Replace by "load" which is the same pointer
+            Value* newValue = phi;
             if (phi->argumentCount() == 1) {
                 auto* value = phi->argumentAt(0).value;
-                auto* load = std::prev(instItr).to_address();
-                for (auto* user: load->users()) {
+                for (auto* user: loadToPromote->users()) {
                     for (auto [index, op]: utl::enumerate(user->operands())) {
                         if (op == load) {
                             user->setOperand(index, value);
                         }
                     }
                 }
-                bb.instructions.erase(std::prev(instItr));
-                continue;
+                bb.instructions.erase(loadToPromote);
+                newValue = value;
+                phi->clearArguments();
             }
-            bb.instructions.erase(std::prev(instItr));
-            bb.instructions.insert(instItr, phi);
+            else {
+                bb.instructions.erase(loadToPromote);
+                phi->set_parent(loadToPromote->parent());
+                bb.instructions.insert(instItr, phi);
+            }
+            promotions.push_back({ cast<Load*>(loadToPromote.to_address()), newValue });
+            /// \warning We also need to swap the users of the promoted instruction
         }
     }
 }
@@ -143,13 +156,13 @@ Phi* Ctx::promoteLoad(Load* load) {
         if (auto* store = dyncast<Store*>(use)) { storesToAddr.push_back(store); }
     }
     /// \Warning If we have no stores or no stores for every predecessor we have to figure something else out.
-    auto relevantStores = findRelevantStores(storesToAddr, load);
+    auto relevantValues = findRelevantStores(storesToAddr, load);
     utl::small_vector<PhiMapping> phiArgs;
-    for (auto [pred, rp]: relevantStores) {
-        auto [store, dist] = rp;
-        phiArgs.push_back({ /*fu*/ const_cast<BasicBlock*>(pred), store->source() });
+    for (auto [pred, value]: relevantValues) {
+        phiArgs.push_back({ /*fu*/ const_cast<BasicBlock*>(pred), value });
     }
-    return new Phi(phiArgs, std::string(load->name()));
+    auto* result = new Phi(phiArgs, context.uniqueName(currentFunction, std::string(load->name())));
+    return result;
 }
 
 static void debugPrint(BasicBlock const* bb) {
@@ -177,42 +190,95 @@ static void debugPrint(Path const& path) {
     std::cout << "    Path: "; printPath(path); std::cout << std::endl;
 }
 
-utl::hashmap<BasicBlock const*, Ctx::RelevantStoreResultPair> Ctx::findRelevantStores(std::span<Store* const> stores, Load* load) {
-    utl::hashmap<BasicBlock const*, RelevantStoreResultPair> relevantStores;
+bool isUnique(auto begin, auto end, auto cmp) {
+    for (auto i = begin; i != end; ++i) {
+        for (auto j = std::next(i); j != end; ++j) {
+            if (cmp(*i, *j)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+utl::small_vector<Ctx::PreceedingStoredValue> Ctx::findRelevantStores(std::span<Store* const> stores, Load* load) {
+    struct IncomingStore {
+        BasicBlock const* incomingBB = nullptr;
+        std::optional<Path> path;
+        Store* store = nullptr;
+        Value* source = nullptr;
+    };
+    utl::small_vector<IncomingStore, 8> incomingStores;
     auto* addr = load->address();
     debugPrint(load);
     for (auto* store: stores) {
-        debugPrint(store);
         utl::vector<Path> const paths = findAllPaths(store, load);
-        SC_ASSERT(!paths.empty(), "No paths found. This can't be right, or can it?");
+        if (paths.empty()) {
+            if (store->parent() != load->parent()) {
+                continue;
+            }
+            if (preceeds(load, store)) {
+                continue;
+            }
+            incomingStores.push_back({ store->parent(), std::nullopt, store });
+            continue;
+        }
         for (Path const& path: paths) {
-            debugPrint(path);
             SC_ASSERT(!path.bbs.empty(), "How can the path be empty?");
             if (path.bbs.size() == 1 && preceeds(load, store)) {
-                std::cout << "We ignore this store as the load preceeds it in the same BB\n";
                 continue;
             }
             Store const* lastStore = findLastStoreToAddress(path, addr);
             if (lastStore != store) {
-                std::cout << "     We ignore this store; ";
-                if (lastStore) {
-                    std::cout << "Last store is: " << *lastStore;
-                }
-                std::cout << std::endl;
                 continue;
             }
-            RelevantStoreResultPair const rp = { store, path.bbs.size() };
-            auto const [itr, success] = relevantStores.insert({ *(path.bbs.end() - 2), rp });
-            if (success) {
-                continue;
-            }
-            SC_ASSERT(rp.distance != itr->second.distance, "");
-            if (itr->second.distance > rp.distance) {
-                itr->second = rp;
-            }
+            SC_ASSERT(path.bbs.size() >  1, "We need this to subtract 2 from the end itr");
+            incomingStores.push_back({ *(path.bbs.end() - 2), std::move(path), store });
         }
     }
-    return relevantStores;
+    
+    for (auto& incomingStore: incomingStores) {
+        debugPrint(incomingStore.store);
+        if (incomingStore.path) {
+            debugPrint(*incomingStore.path);
+        }
+        else {
+            std::cout << "    " << "No path for this store...\n";
+        }
+    }
+    if (isUnique(incomingStores.begin(), incomingStores.end(), [](auto& a, auto& b) { return a.incomingBB == b.incomingBB; })) {
+        return utl::small_vector<PreceedingStoredValue>(utl::transform(incomingStores, [](IncomingStore const& is) { return PreceedingStoredValue{ const_cast<BasicBlock*>(is.incomingBB), is.store->source() }; }));
+    }
+    struct Y {
+        utl::small_vector<std::optional<Path>> paths;
+        Value* value;
+    };
+    utl::hashmap<BasicBlock const*, Y> x;
+    for (auto& incomingStore: incomingStores) {
+        x[incomingStore.incomingBB].paths.push_back(std::move(incomingStore.path));
+    }
+    for (auto& [incomingBB, y]: x) {
+        debugPrint(incomingBB);
+        auto& [paths, value] = y;
+        SC_ASSERT(!paths.empty(), "");
+        if (paths.size() == 1) {
+            continue;
+        }
+        for (auto& promotion: promotions) {
+            if (promotion.load->parent() != incomingBB) {
+                continue;
+            }
+            if (promotion.load->address() != load->address()) {
+                continue;
+            }
+            /// Now we should have the value that we care about in these paths
+            value = promotion.replacement;
+            goto end;
+        }
+    }
+    SC_DEBUGFAIL();
+    end:
+    return utl::small_vector<PreceedingStoredValue>(utl::transform(x, [](auto& p) { return PreceedingStoredValue{ const_cast<BasicBlock*>(p.first), p.second.value }; }));
 }
 
 Store const* Ctx::findLastStoreToAddress(Path const& path, Value const* address) {
@@ -232,16 +298,6 @@ Store const* Ctx::findLastStoreToAddress(Path const& path, Value const* address)
                 return store;
             }
         }
-        
-//        for (auto& inst: utl::reverse(bb->instructions)) {
-//            auto* store = dyncast<Store*>(&inst);
-//            if (!store) {
-//                continue;
-//            }
-//            if (store->dest() == address) {
-//                return store;
-//            }
-//        }
     }
     return nullptr;
 }
@@ -344,8 +400,6 @@ struct PathFinder {
         dest(dest),
         originBB(origin->parent()),
         destBB(dest->parent()) {}
-    
-    
     
     void run() {
         auto [itr, success] = result.insert({ id++, Path{ .bbs = {}, .begin = origin, .end = dest } });
