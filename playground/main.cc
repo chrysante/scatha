@@ -12,6 +12,7 @@
 #include "SampleCompiler.h"
 #include "DrawGraph.h"
 #include "OptTest.h"
+#include "IR/Context.h"
 #include "IR/Module.h"
 #include "Opt/Mem2Reg.h"
 
@@ -73,13 +74,12 @@ int main(int argc, char const* const* argv) {
     case ProgramCase::IRSketch: irSketch(); break;
     case ProgramCase::ASMTest: testAsmModule(); break;
     case ProgramCase::EmitCFG: {
-        auto mod = makeIRModule(filepath);
-        scatha::opt::mem2Reg(mod);
+        auto [ctx, mod] = makeIRModule(filepath);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg.gv");
         break;
     }
     case ProgramCase::EmitUseGraph: {
-        auto mod = makeIRModule(filepath);
+        auto [ctx, mod] = makeIRModule(filepath);
         drawUseGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/use-graph.gv");
         break;
     }

@@ -19,8 +19,8 @@ using namespace ast;
 namespace {
 
 struct Context {
-    explicit Context(ir::Module& mod, ir::Context& irCtx, sema::SymbolTable const& symTable):
-        mod(mod), irCtx(irCtx), symTable(symTable) {}
+    explicit Context(ir::Context& irCtx, ir::Module& mod, sema::SymbolTable const& symTable):
+        irCtx(irCtx), mod(mod), symTable(symTable) {}
 
     void generate(AbstractSyntaxTree const& node);
 
@@ -72,7 +72,6 @@ struct Context {
 
     void memorizeVariableAddress(sema::SymbolID, ir::Value*);
 
-    std::string localUniqueName(std::string_view name);
     std::string localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args);
 
     std::string mangledName(sema::SymbolID) const;
@@ -83,26 +82,24 @@ struct Context {
     static ir::ArithmeticOperation mapArithmeticOp(ast::BinaryOperator);
     static ir::ArithmeticOperation mapArithmeticAssignOp(ast::BinaryOperator);
 
-    ir::Module& mod;
     ir::Context& irCtx;
+    ir::Module& mod;
     sema::SymbolTable const& symTable;
     ir::Function* currentFunction = nullptr;
     ir::BasicBlock* _currentBB    = nullptr;
     utl::hashmap<sema::SymbolID, ir::Value*> valueMap;
-    // For unique names
-    utl::hashmap<std::string, size_t> varIndices;
 };
 
 } // namespace
 
-ir::Module ast::codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& symbolTable, ir::Context& context) {
+ir::Module ast::codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& symbolTable, ir::Context& irCtx) {
     ir::Module mod;
-    ir::Context irCtx;
-    Context ctx(mod, irCtx, symbolTable);
+    Context ctx(irCtx, mod, symbolTable);
     ctx.declareTypes();
     ctx.declareFunctions();
     ctx.generate(ast);
     ir::setupInvariants(irCtx, mod);
+    ir::assertInvariants(irCtx, mod);
     return mod;
 }
 
@@ -142,7 +139,6 @@ void Context::generateImpl(FunctionDefinition const& def) {
     generate(*def.body);
     setCurrentBB(nullptr);
     currentFunction = nullptr;
-    varIndices.clear();
     mod.addFunction(fn);
 }
 
@@ -295,7 +291,7 @@ ir::Value* Context::getValueImpl(StringLiteral const&) {
 
 ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
     ir::Value* const operand = getValue(*expr.operand);
-    auto* inst = new ir::UnaryArithmeticInst(irCtx, operand, mapUnaryArithmeticOp(expr.operation()), "expr-result");
+    auto* inst = new ir::UnaryArithmeticInst(irCtx, operand, mapUnaryArithmeticOp(expr.operation()), localUniqueName("expr-result"));
     currentBB()->addInstruction(inst);
     return inst;
 }
@@ -474,7 +470,7 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
         }
         /// If we are an r-value we store the value to memory and return a pointer to it.
         auto* value = getValue(*expr.object);
-        auto* addr  = new ir::Alloca(irCtx, value->type(), "tmp-ptr");
+        auto* addr  = new ir::Alloca(irCtx, value->type(), localUniqueName("tmp-ptr"));
         currentBB()->addInstruction(addr);
         auto* store = new ir::Store(irCtx, addr, value);
         currentBB()->addInstruction(store);
@@ -532,17 +528,8 @@ void Context::memorizeVariableAddress(sema::SymbolID symbolID, ir::Value* value)
     SC_ASSERT(insertSuccess, "Variable id must not be declared multiple times. This error must be handled in sema.");
 }
 
-std::string Context::localUniqueName(std::string_view name) {
-    auto itr = varIndices.find(name);
-    if (itr == varIndices.end()) {
-        varIndices.insert({ std::string(name), 1 });
-        return std::string(name);
-    }
-    return utl::strcat(name, "-", itr->second++);
-}
-
 std::string Context::localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args) {
-    return localUniqueName(utl::strcat(name, std::forward<decltype(args)>(args)...));
+    return irCtx.uniqueName(currentFunction, utl::strcat(name, std::forward<decltype(args)>(args)...));
 }
 
 std::string Context::mangledName(sema::SymbolID id) const {

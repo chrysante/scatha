@@ -48,7 +48,7 @@ void playground::irDump(std::filesystem::path filepath) {
 }
 
 void playground::irDump(std::string text) {
-    ir::Module mod = makeIRModule(text);
+    auto [ctx, mod] = makeIRModule(text);
     sectionHeader(" IR Code ");
     ir::print(mod);
     
@@ -61,7 +61,7 @@ void playground::irDump(std::string text) {
     print(program);
 }
 
-scatha::ir::Module playground::makeIRModule(std::string text) {
+std::pair<scatha::ir::Context, scatha::ir::Module> playground::makeIRModule(std::string text) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     if (!lexIss.empty()) {
@@ -81,9 +81,9 @@ scatha::ir::Module playground::makeIRModule(std::string text) {
         std::exit(EXIT_FAILURE);
     }
     ir::Context ctx;
-    return ast::codegen(*ast, sym, ctx);
+    return { std::move(ctx), ast::codegen(*ast, sym, ctx) };
 }
 
-scatha::ir::Module playground::makeIRModule(std::filesystem::path filepath) {
+std::pair<scatha::ir::Context, scatha::ir::Module> playground::makeIRModule(std::filesystem::path filepath) {
     return makeIRModule(readFileToString(filepath));
 }

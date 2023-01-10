@@ -78,3 +78,11 @@ Constant* Context::getGlobal(std::string_view name) const {
     SC_ASSERT(itr != _globals.end(), "Undeclared name");
     return itr->second;
 }
+
+std::string Context::uniqueName(Function const* function, std::string name) {
+    auto const [itr, success] = varIndices.insert({ { function, name }, 0 });
+    if (success) {
+        return name;
+    }
+    return utl::strcat(name, "-", ++itr->second);
+}
