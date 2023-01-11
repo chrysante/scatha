@@ -104,7 +104,7 @@ std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
         str << "]\n";
     };
     auto connectCallback = [](std::stringstream& str, BasicBlock const& bb) {
-        for (auto succ: bb.successors) {
+        for (auto succ: bb.successors()) {
             str << dotName(bb) << " -> " << dotName(*succ) << "\n";
         }
     };

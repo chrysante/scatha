@@ -4,6 +4,14 @@ using namespace scatha;
 using namespace opt;
 
 bool ControlFlowPath::valid() const {
+    return validImpl([](ir::BasicBlock const* bb) { return bb->successors(); });
+}
+
+bool ControlFlowPath::validBackwards() const {
+    return validImpl([](ir::BasicBlock const* bb) -> auto const& { return bb->predecessors; });
+}
+
+bool ControlFlowPath::validImpl(auto getListOfSuccessors) const {
     switch (_bbs.size()) {
     case 0:
         return false;
@@ -17,7 +25,7 @@ bool ControlFlowPath::valid() const {
         }
         for (auto backItr = _bbs.end() - 1; itr != backItr; ) {
             auto next = std::next(itr);
-            auto succs = (*itr)->successors();
+            auto&& succs = getListOfSuccessors(*itr);
             if (std::find(succs.begin(), succs.end(), *next) == succs.end()) {
                 return false;
             }

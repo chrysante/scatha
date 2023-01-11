@@ -147,21 +147,23 @@ public:
         bool operator==(ReverseIterator const& rhs) const = default;
     };
     
-    explicit ControlFlowPath(ir::Instruction const* from, ir::Instruction const* to):
-        _beginInst(from),
-        _backInst(to) {}
+    explicit ControlFlowPath(ir::Instruction const* origin, ir::Instruction const* dest):
+        _beginInst(origin),
+        _backInst(dest) {}
     
-    explicit ControlFlowPath(ir::Instruction const* from, utl::small_vector<ir::BasicBlock const*> bbs, ir::Instruction const* to):
-        _bbs(std::move(bbs)),
-        _beginInst(from),
-        _backInst(to) {}
+    explicit ControlFlowPath(ir::Instruction const* origin, utl::small_vector<ir::BasicBlock const*> intermediateBBs, ir::Instruction const* dest):
+        _bbs(std::move(intermediateBBs)),
+        _beginInst(origin),
+        _backInst(dest) {}
     
-    explicit ControlFlowPath(ir::Instruction const* from, std::span<ir::BasicBlock const* const> bbs, ir::Instruction const* to):
-        _bbs(bbs),
-        _beginInst(from),
-        _backInst(to) {}
+    explicit ControlFlowPath(ir::Instruction const* origin, std::span<ir::BasicBlock const* const> intermediateBBs, ir::Instruction const* dest):
+        _bbs(intermediateBBs),
+        _beginInst(origin),
+        _backInst(dest) {}
     
     bool valid() const;
+    
+    bool validBackwards() const;
     
     Iterator begin() const { return Iterator(this, _bbs.begin(), Iterator::InstItr(_beginInst)); }
     
@@ -171,9 +173,17 @@ public:
     
     ReverseIterator rend() const { return ReverseIterator(this, _bbs.begin() + 1, Iterator::InstItr(_beginInst->prev())); }
     
+    utl::vector<ir::BasicBlock const*>& basicBlocks() { return _bbs; }
     std::span<ir::BasicBlock const* const> basicBlocks() const { return _bbs; }
     ir::Instruction const& front() const { return *_beginInst; }
     ir::Instruction const& back() const { return *_backInst; }
+    
+    void setFront(ir::Instruction const* instruction) { _beginInst = instruction; }
+    
+    void setBack(ir::Instruction const* instruction) { _backInst = instruction; }
+    
+private:
+    bool validImpl(auto) const;
     
 private:
     utl::small_vector<ir::BasicBlock const*> _bbs;
