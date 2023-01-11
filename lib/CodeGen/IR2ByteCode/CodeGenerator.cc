@@ -64,6 +64,7 @@ struct Context {
     RegisterDescriptor* _currentRD = nullptr;
     size_t labelIndexCounter       = 0;
     utl::hashmap<ir::Value const*, size_t> labelIndices;
+    /// Maps basic blocks to pairs of iterators into the assembly stream to identifiy basic blocks with ranges of assembly instructions
     utl::hashmap<ir::BasicBlock const*, std::array<AssemblyStream::Iterator, 2>> bbInstRanges;
 };
 

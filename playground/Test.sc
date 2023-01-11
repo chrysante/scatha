@@ -1,17 +1,6 @@
 
-
-
-/*
-
-fn fac(n: int) -> int {
-    var result = 1;
-    for i = 1; i <= n; i += 1 {
-        result *= i;
-    }
-    return result;
-}
-
 /// Test case for mem2reg
+fn f(i: int) -> int {
     var j = 0;
     
     if true {
@@ -22,10 +11,9 @@ fn fac(n: int) -> int {
     }
     return j;
     
-
-*/
-
-fn f(n: int) -> int {
+}
+// One test case
+fn g(n: int) -> int {
     
     
     var f = 1.3;
@@ -36,3 +24,17 @@ fn f(n: int) -> int {
     
 }
 
+
+
+/*
+// Also a test case
+fn fac(n: int) -> int {
+    var result = 1;
+    for i = 1; i <= n; i += 1 {
+        result *= i;
+    }
+    return result;
+}
+
+
+*/

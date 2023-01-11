@@ -148,6 +148,10 @@ void playground::compile(std::string text) {
     ir::Module mod = ast::codegen(*ast, sym, irCtx);
     ir::print(mod);
     
+    header(" Optimized IR ");
+    opt::mem2Reg(irCtx, mod);
+    ir::print(mod);
+    
     header(" Assembly generated from IR ");
     auto const str0 = cg::codegen(mod);
     print(str0);
