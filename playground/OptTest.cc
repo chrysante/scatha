@@ -5,7 +5,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
-#include "Opt/Mem2Reg2.h"
+#include "Opt/Mem2Reg.h"
 
 #include "IRDump.h"
 
@@ -29,7 +29,7 @@ void playground::optTest(std::filesystem::path filepath) {
     auto [ctx, mod] = makeIRModule(filepath);
     header(" Before mem2reg ");
     scatha::ir::print(mod);
-    scatha::opt::mem2Reg2(ctx, mod);
+    scatha::opt::mem2Reg(ctx, mod);
     header(" After mem2reg ");
     scatha::ir::print(mod);
 }

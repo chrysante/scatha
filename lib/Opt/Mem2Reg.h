@@ -1,13 +1,12 @@
-// SCATHA-PUBLIC-HEADER
-
 #ifndef SCATHA_OPT_MEM2REG_H_
 #define SCATHA_OPT_MEM2REG_H_
 
-#include <scatha/Basic/Basic.h>
+#include "Basic/Basic.h"
 
 namespace scatha::ir {
 
 class Context;
+
 class Module;
 
 } // namespace scatha::ir

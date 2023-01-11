@@ -8,6 +8,10 @@ namespace scatha::opt {
 
 SCATHA(TEST_API) bool preceeds(ir::Instruction const* a, ir::Instruction const* b);
 
+SCATHA(TEST_API) bool isReachable(ir::Instruction const* from, ir::Instruction const* to);
+
+SCATHA(TEST_API) bool compareEqual(ir::Phi const* lhs, ir::Phi const* rhs);
+
 SCATHA(TEST_API) void replaceValue(ir::Value* oldValue, ir::Value* newValue);
 
 } // namespace scatha::opt

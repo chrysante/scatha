@@ -6,6 +6,7 @@
 #include <utl/ranges.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
+#include <utl/hash.hpp>
 
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
@@ -407,6 +408,8 @@ private:
 struct PhiMapping {
     PhiMapping(BasicBlock* pred, Value* value): pred(pred), value(value) {}
     
+    bool operator==(PhiMapping const&) const = default;
+    
     BasicBlock* pred;
     Value* value;
 };
@@ -415,6 +418,8 @@ struct ConstPhiMapping {
     ConstPhiMapping(BasicBlock const* pred, Value const* value): pred(pred), value(value) {}
     
     ConstPhiMapping(PhiMapping p): pred(p.pred), value(p.value) {}
+    
+    bool operator==(ConstPhiMapping const&) const = default;
     
     BasicBlock const* pred;
     Value const* value;
@@ -441,6 +446,9 @@ public:
         return { _preds[index], operands()[index] };
     }
     
+    auto arguments() { return utl::transform(utl::iota(argumentCount()), [this](size_t index){ return argumentAt(index); }); }
+    auto arguments() const { return utl::transform(utl::iota(argumentCount()), [this](size_t index){ return argumentAt(index); }); }
+    
     void clearArguments();
     
 private:
@@ -466,5 +474,19 @@ private:
 };
 
 } // namespace scatha::ir
+
+template <>
+struct std::hash<scatha::ir::PhiMapping> {
+    std::size_t operator()(scatha::ir::PhiMapping const& m) const {
+        return utl::hash_combine(m.pred, m.value);
+    }
+};
+
+template <>
+    struct std::hash<scatha::ir::ConstPhiMapping> {
+    std::size_t operator()(scatha::ir::ConstPhiMapping const& m) const {
+        return utl::hash_combine(m.pred, m.value);
+    }
+};
 
 #endif // SCATHA_IR_CFG_H_
