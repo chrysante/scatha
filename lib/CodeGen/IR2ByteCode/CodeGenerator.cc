@@ -9,6 +9,7 @@
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
+#include "Assembly/Block.h"
 #include "CodeGen/IR2ByteCode/RegisterDescriptor.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
@@ -44,28 +45,38 @@ struct Context {
     void generate(ir::Phi const&);
     void generate(ir::GetElementPointer const&);
 
+    void postprocess();
+    
     /// Used for generating \p Store and \p Load instructions.
     MemoryAddress computeAddress(ir::Value const&);
     /// Used by \p computeAddress
     MemoryAddress computeGep(ir::GetElementPointer const&);
 
-    void generateBigMove(Value dest, Value source, size_t size);
-    void generateBigMove(Value dest, Value source, size_t size, AssemblyStream::ConstIterator before);
+    void generateBigMove(Value dest, Value source, size_t size, Asm::Block* block = nullptr);
+    void generateBigMove(Value dest, Value source, size_t size, Block::ConstIterator before, Asm::Block* block = nullptr);
 
     void placeArguments(std::span<ir::Value const* const> args);
     void getCallResult(ir::Value const& callInst);
 
-    Label makeLabel(ir::BasicBlock const&);
-    Label makeLabel(ir::Function const&);
-    size_t makeLabelImpl(ir::Value const&);
+    size_t getLabelID(ir::BasicBlock const&);
+    size_t getLabelID(ir::Function const&);
+    
+    size_t _getLabelIDImpl(ir::Value const&);
 
     RegisterDescriptor& currentRD() { return *_currentRD; }
+    Asm::Block& currentBlock() { return *_currentBlock; }
+    
     AssemblyStream& result;
+    Asm::Block* _currentBlock = nullptr;
     RegisterDescriptor* _currentRD = nullptr;
     size_t labelIndexCounter       = 0;
+    /// This just exists to tie the lifetime of the register descriptors to this context object.
+    utl::hashmap<ir::Function const*, std::unique_ptr<RegisterDescriptor>> registerDecriptors;
+    utl::hashmap<ir::Phi const*, RegisterIndex> phiTargets;
+    /// Maps basic blocks and functions to label IDs
     utl::hashmap<ir::Value const*, size_t> labelIndices;
-    /// Maps basic blocks to pairs of iterators into the assembly stream to identifiy basic blocks with ranges of assembly instructions
-    utl::hashmap<ir::BasicBlock const*, std::array<AssemblyStream::Iterator, 2>> bbInstRanges;
+    /// Maps basic blocks to block the assembly stream.
+    utl::hashmap<ir::BasicBlock const*, Asm::Block*> blockMap;
 };
 
 } // namespace
@@ -87,6 +98,7 @@ void Context::run(ir::Module const& mod) {
     for (auto& function: mod.functions()) {
         dispatch(function);
     }
+    postprocess();
 }
 
 void Context::dispatch(ir::Value const& value) {
@@ -94,35 +106,35 @@ void Context::dispatch(ir::Value const& value) {
 }
 
 void Context::generate(ir::Function const& function) {
-    RegisterDescriptor rd;
-    _currentRD               = &rd;
+    auto [itr, success] = registerDecriptors.insert({ &function, std::make_unique<RegisterDescriptor>() });
+    SC_ASSERT(success, "");
+    _currentRD               = itr->second.get();
     utl::scope_guard clearRD = [&] { _currentRD = nullptr; };
     /// Declare parameters.
     for (auto& param: function.parameters()) {
-        rd.resolve(param);
+        currentRD().resolve(param);
     }
-    result.add(makeLabel(function));
+    _currentBlock = result.add(Block(getLabelID(function), std::string(function.name())));
     for (auto& bb: function.basicBlocks()) {
         dispatch(bb);
     }
 }
 
 void Context::generate(ir::BasicBlock const& bb) {
-    auto const beforeBegin = result.begin();
     if (!bb.isEntry()) {
-        result.add(makeLabel(bb));
+        _currentBlock = result.add(Block(getLabelID(bb), std::string(bb.name())));
     }
     for (auto& inst: bb.instructions) {
         dispatch(inst);
     }
-    auto const backItr = result.backItr();
-    bbInstRanges.insert({ &bb, { std::next(beforeBegin), backItr } });
+    blockMap.insert({ &bb, &currentBlock() });
+    _currentBlock = nullptr;
 }
 
 void Context::generate(ir::Alloca const& allocaInst) {
     SC_ASSERT(allocaInst.allocatedType()->align() <= 8, "We don't support overaligned types just yet.");
-    result.add(AllocaInst(currentRD().resolve(allocaInst).get<RegisterIndex>(),
-                          currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
+    currentBlock().insertBack(AllocaInst(currentRD().resolve(allocaInst).get<RegisterIndex>(),
+                                         currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
 }
 
 void Context::generate(ir::Store const& store) {
@@ -144,8 +156,8 @@ void Context::generate(ir::Store const& store) {
         size_t const size = sizeOf(src.valueType());
         SC_ASSERT(size <= 8, "");
         auto tmp = currentRD().makeTemporary();
-        result.add(MoveInst(tmp, src, size));
-        result.add(MoveInst(addr, tmp, size));
+        currentBlock().insertBack(MoveInst(tmp, src, size));
+        currentBlock().insertBack(MoveInst(addr, tmp, size));
     }
     else {
         generateBigMove(addr, src, store.source()->type()->size());
@@ -178,15 +190,15 @@ void Context::generate(ir::CompareInst const& cmp) {
             return resolvedLhs;
         }
         auto tmpRegIdx = currentRD().makeTemporary();
-        result.add(MoveInst(tmpRegIdx, resolvedLhs, cmp.lhs()->type()->size()));
+        currentBlock().insertBack(MoveInst(tmpRegIdx, resolvedLhs, cmp.lhs()->type()->size()));
         return tmpRegIdx;
     }();
-    result.add(Asm::CompareInst(mapType(cmp.type()), lhs, currentRD().resolve(*cmp.rhs())));
+    currentBlock().insertBack(Asm::CompareInst(mapType(cmp.type()), lhs, currentRD().resolve(*cmp.rhs())));
     if (true) /// Actually we should check if the users of this cmp instruction care about having the result in the
               /// corresponding register. Since we don't have use and user lists yet we do this unconditionally. This
               /// should not introduce errors, it's only inefficient to execute.
     {
-        result.add(SetInst(currentRD().resolve(cmp).get<RegisterIndex>(), mapCompare(cmp.operation())));
+        currentBlock().insertBack(SetInst(currentRD().resolve(cmp).get<RegisterIndex>(), mapCompare(cmp.operation())));
     }
 }
 
@@ -194,14 +206,14 @@ void Context::generate(ir::UnaryArithmeticInst const& inst) {
     auto dest               = currentRD().resolve(inst).get<RegisterIndex>();
     auto operand            = currentRD().resolve(*inst.operand());
     auto genUnaryArithmetic = [&](UnaryArithmeticOperation operation) {
-        result.add(MoveInst(dest, operand, inst.operand()->type()->size()));
-        result.add(UnaryArithmeticInst(operation, mapType(inst.type()), dest));
+        currentBlock().insertBack(MoveInst(dest, operand, inst.operand()->type()->size()));
+        currentBlock().insertBack(UnaryArithmeticInst(operation, mapType(inst.type()), dest));
     };
     switch (inst.operation()) {
     case ir::UnaryArithmeticOperation::Promotion: break; /// At this point promotion is a no-op.
     case ir::UnaryArithmeticOperation::Negation:
-        result.add(MoveInst(dest, Value64(0), 8));
-        result.add(ArithmeticInst(ArithmeticOperation::Sub, mapType(inst.type()), dest, operand));
+        currentBlock().insertBack(MoveInst(dest, Value64(0), 8));
+        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::Sub, mapType(inst.type()), dest, operand));
         break;
     case ir::UnaryArithmeticOperation::BitwiseNot: genUnaryArithmetic(UnaryArithmeticOperation::BitwiseNot); break;
     case ir::UnaryArithmeticOperation::LogicalNot: genUnaryArithmetic(UnaryArithmeticOperation::LogicalNot); break;
@@ -212,17 +224,17 @@ void Context::generate(ir::UnaryArithmeticInst const& inst) {
 void Context::generate(ir::ArithmeticInst const& arithmetic) {
     // TODO: Make the move of the source argument conditional?
     auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
-    result.add(MoveInst(dest, currentRD().resolve(*arithmetic.lhs()), 8));
-    result.add(Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
-                                   mapType(arithmetic.type()),
-                                   dest,
-                                   currentRD().resolve(*arithmetic.rhs())));
+    currentBlock().insertBack(MoveInst(dest, currentRD().resolve(*arithmetic.lhs()), 8));
+    currentBlock().insertBack(Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
+                                                  mapType(arithmetic.type()),
+                                                  dest,
+                                                  currentRD().resolve(*arithmetic.rhs())));
 }
 
 // MARK: Terminators
 
 void Context::generate(ir::Goto const& gt) {
-    result.add(JumpInst(makeLabel(*gt.target()).id()));
+    currentBlock().insertBack(JumpInst(getLabelID(*gt.target())));
 }
 
 void Context::generate(ir::Branch const& br) {
@@ -236,25 +248,25 @@ void Context::generate(ir::Branch const& br) {
                 return cond;
             }
             auto tmp = currentRD().makeTemporary();
-            result.add(MoveInst(tmp, cond, 1));
+            currentBlock().insertBack(MoveInst(tmp, cond, 1));
             return tmp;
         }();
-        result.add(TestInst(mapType(br.condition()->type()), testOp));
+        currentBlock().insertBack(TestInst(mapType(br.condition()->type()), testOp));
         return CompareOperation::NotEq;
     }();
-    result.add(JumpInst(cmpOp, makeLabel(*br.thenTarget()).id()));
-    result.add(JumpInst(makeLabel(*br.elseTarget()).id()));
+    currentBlock().insertBack(JumpInst(cmpOp, getLabelID(*br.thenTarget())));
+    currentBlock().insertBack(JumpInst(getLabelID(*br.elseTarget())));
 }
 
 void Context::generate(ir::FunctionCall const& call) {
     placeArguments(call.arguments());
-    result.add(CallInst(makeLabel(*call.function()).id(), currentRD().numUsedRegisters() + 2));
+    currentBlock().insertBack(CallInst(getLabelID(*call.function()), currentRD().numUsedRegisters() + 2));
     getCallResult(call);
 }
 
 void Context::generate(ir::ExtFunctionCall const& call) {
     placeArguments(call.arguments());
-    result.add(CallExtInst(currentRD().numUsedRegisters() + 2, call.slot(), call.index()));
+    currentBlock().insertBack(CallExtInst(currentRD().numUsedRegisters() + 2, call.slot(), call.index()));
     getCallResult(call);
 }
 
@@ -266,7 +278,7 @@ void Context::generate(ir::Return const& ret) {
             generateBigMove(returnValueTargetLocation, returnValue, ret.value()->type()->size());
         }
     }
-    result.add(ReturnInst());
+    currentBlock().insertBack(ReturnInst());
 }
 
 void Context::generate(ir::Phi const& phi) {
@@ -274,24 +286,40 @@ void Context::generate(ir::Phi const& phi) {
     /// Then put the value into that register in every incoming path.
     /// Then make this value resolve to that register index.
     RegisterIndex const target = currentRD().resolve(phi).get<RegisterIndex>();
-    for (size_t i = 0; i < phi.argumentCount(); ++i) {
-        auto const [pred, value] = phi.argumentAt(i);
-        auto [begin, back] = [&, pred = pred] {
-            auto itr = bbInstRanges.find(pred);
-            SC_ASSERT(itr != bbInstRanges.end(), "Where is this BB coming from?");
-            return itr->second;
-        }();
-        /// Make sure we place our move instruction right before all jumps ending the basic block.
-        while (back->is<JumpInst>() && back != begin) {
-            --back;
-        }
-        generateBigMove(target, currentRD().resolve(*value), value->type()->size(), std::next(back));
-    }
+    [[maybe_unused]] auto [itr, success] = phiTargets.insert({ &phi, target });
+    SC_ASSERT(success, "Is this phi node evaluated multiple times?");
 }
 
 void Context::generate(ir::GetElementPointer const& gep) {
     /// Do nothing here until we have proper register and value descriptors.
     return;
+}
+
+void Context::postprocess() {
+    /// Place the appropriate values for all phi nodes in the corresponding registers
+    for (auto [phi, targetRegIdx]: phiTargets) {
+        auto& rd = *registerDecriptors.find(phi->parent()->parent())->second;
+        for (auto [pred, value]: phi->arguments()) {
+            auto itr = blockMap.find(pred);
+            SC_ASSERT(itr != blockMap.end(), "Where is this BB coming from?");
+            auto asmBlock = itr->second;
+            auto position = [&]{
+                if (asmBlock->empty()) {
+                    return asmBlock->end();
+                }
+                auto back = std::prev(asmBlock->end());
+                /// Make sure we place our move instruction right before all jumps ending the basic block.
+                while (back->is<JumpInst>()) {
+                    if (back == asmBlock->begin()) {
+                        return back;
+                    }
+                    --back;
+                }
+                return std::next(back);
+            }();
+            generateBigMove(targetRegIdx, rd.resolve(*value), value->type()->size(), position, asmBlock);
+        }
+    }
 }
 
 MemoryAddress Context::computeAddress(ir::Value const& value) {
@@ -318,18 +346,24 @@ MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
     else {
         /// We are operating on a temporary.
         RegisterIndex const tmp = currentRD().makeTemporary();
-        result.add(AllocaInst(tmp, regIdx));
+        currentBlock().insertBack(AllocaInst(tmp, regIdx));
         return MemoryAddress(tmp.value(), MemoryAddress::invalidRegisterIndex, 0, offset);
     }
 }
 
-void Context::generateBigMove(Value dest, Value source, size_t size) {
-    generateBigMove(dest, source, size, result.end());
+void Context::generateBigMove(Value dest, Value source, size_t size, Asm::Block* block) {
+    if (!block) {
+        block = &currentBlock();
+    }
+    generateBigMove(dest, source, size, block->end(), block);
 }
 
-void Context::generateBigMove(Value dest, Value source, size_t size, AssemblyStream::ConstIterator before) {
+void Context::generateBigMove(Value dest, Value source, size_t size, Block::ConstIterator before, Asm::Block* block) {
+    if (!block) {
+        block = &currentBlock();
+    }
     if (size <= 8) {
-        result.insert(before, MoveInst(dest, source, size));
+        block->insert(before, MoveInst(dest, source, size));
         return;
     }
     // clang-format off
@@ -344,11 +378,13 @@ void Context::generateBigMove(Value dest, Value source, size_t size, AssemblyStr
     };
     // clang-format on
     SC_ASSERT(size % 8 == 0, "Probably not always true and this function needs some work.");
-    for (size_t i = 0; i < size / 8; ++i) {
-        result.insert(before, MoveInst(dest, source, 8));
+    
+    block->insert(before, utl::transform(utl::iota(size / 8), [&](size_t i) {
+        auto move = MoveInst(dest, source, 8);
         dest.visit(increment);
         source.visit(increment);
-    }
+        return move;
+    }));
 }
 
 void Context::placeArguments(std::span<ir::Value const* const> args) {
@@ -360,7 +396,7 @@ void Context::placeArguments(std::span<ir::Value const* const> args) {
     }
     /// Increment to actually point to the first move instruction
     size_t const commonOffset              = currentRD().numUsedRegisters() + 2;
-    AssemblyStream::Iterator paramLocation = std::prev(result.end(), static_cast<ssize_t>(offset));
+    Block::Iterator paramLocation = std::prev(currentBlock().end(), static_cast<ssize_t>(offset));
     for (size_t i = 0; i < offset; ++i, ++paramLocation) {
         RegisterIndex& moveDestIdx = paramLocation->get<MoveInst>().dest().get<RegisterIndex>();
         size_t const rawIndex      = moveDestIdx.value();
@@ -379,15 +415,15 @@ void Context::getCallResult(ir::Value const& call) {
     }
 }
 
-Label Context::makeLabel(ir::BasicBlock const& bb) {
-    return Label(makeLabelImpl(bb), std::string(bb.name()));
+size_t Context::getLabelID(ir::BasicBlock const& bb) {
+    return _getLabelIDImpl(bb);
 }
 
-Label Context::makeLabel(ir::Function const& fn) {
-    return Label(makeLabelImpl(fn), std::string(fn.name()));
+size_t Context::getLabelID(ir::Function const& fn) {
+    return _getLabelIDImpl(fn);
 }
 
-size_t Context::makeLabelImpl(ir::Value const& value) {
+size_t Context::_getLabelIDImpl(ir::Value const& value) {
     auto [itr, success] = labelIndices.insert({ &value, labelIndexCounter });
     if (success) {
         ++labelIndexCounter;

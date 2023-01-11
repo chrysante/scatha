@@ -13,11 +13,9 @@ void playground::irSketch() {
     ir::Context ctx;
     ir::Module mod;
 
-    using namespace std::literals;
-
     // The function
     ir::Type const* argTypes[] = { ctx.integralType(64) };
-    auto* fn                   = new ir::Function(nullptr, ctx.integralType(64), argTypes, "fac"sv);
+    auto* fn                   = new ir::Function(nullptr, ctx.integralType(64), argTypes, "fac");
     mod.addFunction(fn);
 
     // Entry block

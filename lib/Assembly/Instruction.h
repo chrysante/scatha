@@ -1,5 +1,5 @@
-#ifndef SCATHA_ASSEMBLY_STATEMENTS_H_
-#define SCATHA_ASSEMBLY_STATEMENTS_H_
+#ifndef SCATHA_ASSEMBLY_INSTRUCTION_H_
+#define SCATHA_ASSEMBLY_INSTRUCTION_H_
 
 #include <string>
 
@@ -206,20 +206,6 @@ private:
     Value _dest, _src;
 };
 
-/// Represents a label.
-class Label: public InstructionBase {
-public:
-    explicit Label(u64 id, std::string name): _id(id), _name(std::move(name)) {}
-
-    u64 id() const { return _id; }
-
-    std::string_view name() const { return _name; }
-
-private:
-    u64 _id;
-    std::string _name;
-};
-
 namespace internal {
 
 using InstructionVariantBase = utl::cbvariant<InstructionBase,
@@ -239,4 +225,4 @@ public:
 
 } // namespace scatha::Asm
 
-#endif // SCATHA_ASSEMBLY_STATEMENTS_H_
+#endif // SCATHA_ASSEMBLY_INSTRUCTION_H_

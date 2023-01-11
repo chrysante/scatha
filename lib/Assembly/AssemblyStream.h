@@ -10,34 +10,26 @@
 
 namespace scatha::Asm {
 
-class Instruction;
+class Block;
 
 class SCATHA(TEST_API) AssemblyStream {
 public:
-    using Iterator      = std::list<Instruction>::iterator;
-    using ConstIterator = std::list<Instruction>::const_iterator;
-
     AssemblyStream() = default;
 
     SCATHA(API) AssemblyStream(AssemblyStream&&) noexcept;
     SCATHA(API) AssemblyStream& operator=(AssemblyStream&&) noexcept;
     SCATHA(API) ~AssemblyStream();
 
-    Iterator begin() { return elems.begin(); }
-    ConstIterator begin() const { return elems.begin(); }
-    Iterator end() { return elems.end(); }
-    ConstIterator end() const { return elems.end(); }
-    Iterator backItr() { return std::prev(end()); }
-    ConstIterator backItr() const { return std::prev(end()); }
-
-    Iterator insert(ConstIterator before, Instruction inst);
-
-    Iterator erase(ConstIterator pos);
-
-    void add(Instruction inst);
+    auto begin() { return blocks.begin(); }
+    auto begin() const { return blocks.begin(); }
+    
+    auto end() { return blocks.end(); }
+    auto end() const { return blocks.end(); }
+    
+    Block* add(Block block);
 
 private:
-    std::list<Instruction> elems;
+    std::list<Block> blocks;
 };
 
 } // namespace scatha::Asm

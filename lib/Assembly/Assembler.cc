@@ -11,6 +11,7 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Map.h"
 #include "Assembly/Value.h"
+#include "Assembly/Block.h"
 #include "Basic/Memory.h"
 #include "VM/OpCode.h"
 #include "VM/Program.h"
@@ -35,7 +36,7 @@ struct Context {
         stream(stream), options(options), program(program), instructions(program.instructions) {}
 
     void run();
-
+    
     void dispatch(Instruction const& inst);
     void translate(MoveInst const&);
     void translate(JumpInst const&);
@@ -49,7 +50,6 @@ struct Context {
     void translate(SetInst const&);
     void translate(UnaryArithmeticInst const&);
     void translate(ArithmeticInst const&);
-    void translate(Label const&);
 
     void dispatch(Value const& value);
     void translate(RegisterIndex const&);
@@ -102,8 +102,14 @@ vm::Program Asm::assemble(AssemblyStream const& assemblyStream, AssemblerOptions
 }
 
 void Context::run() {
-    for (auto& inst: stream) {
-        dispatch(inst);
+    for (auto& block: stream) {
+        if (!options.startFunction.empty() && block.name() == options.startFunction) {
+            program.start = currentPosition();
+        }
+        labels.insert({ block.id(), currentPosition() });
+        for (auto& inst: block) {
+            dispatch(inst);
+        }
     }
     postProcess();
 }
@@ -189,13 +195,6 @@ void Context::translate(ArithmeticInst const& inst) {
     put(opcode);
     dispatch(inst.dest());
     dispatch(inst.source());
-}
-
-void Context::translate(Label const& label) {
-    if (!options.startFunction.empty() && label.name() == options.startFunction) {
-        program.start = currentPosition();
-    }
-    labels.insert({ label.id(), currentPosition() });
 }
 
 void Context::dispatch(Value const& value) {

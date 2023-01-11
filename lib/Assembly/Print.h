@@ -9,9 +9,13 @@
 namespace scatha::Asm {
 
 class AssemblyStream;
+class Block;
 
 SCATHA(API) void print(AssemblyStream const& assemblyStream);
 SCATHA(API) void print(AssemblyStream const& assemblyStream, std::ostream& ostream);
+
+SCATHA(API) void print(Block const& block);
+SCATHA(API) void print(Block const& block, std::ostream& ostream);
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Instruction const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, MoveInst const&);
@@ -26,7 +30,6 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, TestInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, SetInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, AllocaInst const&);
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Label const&);
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, RegisterIndex const&);

@@ -7,6 +7,7 @@
 #include <utl/streammanip.hpp>
 
 #include "Assembly/AssemblyStream.h"
+#include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
 
@@ -18,7 +19,18 @@ void Asm::print(AssemblyStream const& assemblyStream) {
 }
 
 void Asm::print(AssemblyStream const& stream, std::ostream& str) {
-    for (auto& inst: stream) {
+    for (auto& block: stream) {
+        print(block, str);
+    }
+}
+
+void Asm::print(Block const& block) {
+    print(block, std::cout);
+}
+
+void Asm::print(Block const& block, std::ostream& str) {
+    std::cout << block.name() << "/" << block.id() << ":\n";
+    for (auto& inst: block) {
         str << inst << "\n";
     }
 }
@@ -78,10 +90,6 @@ std::ostream& Asm::operator<<(std::ostream& str, SetInst const& set) {
 
 std::ostream& Asm::operator<<(std::ostream& str, AllocaInst const& alloca_) {
     return str << instName("alloca") << " " << alloca_.dest() << ", &" << alloca_.source();
-}
-
-std::ostream& Asm::operator<<(std::ostream& str, Label const& label) {
-    return str << label.name() << "/" << label.id() << ":";
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value const& value) {

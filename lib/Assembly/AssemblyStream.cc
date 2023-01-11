@@ -1,6 +1,6 @@
 #include "Assembly/AssemblyStream.h"
 
-#include "Assembly/Instruction.h"
+#include "Assembly/Block.h"
 
 using namespace scatha;
 using namespace Asm;
@@ -11,14 +11,7 @@ AssemblyStream& AssemblyStream::operator=(AssemblyStream&&) noexcept = default;
 
 AssemblyStream::~AssemblyStream() = default;
 
-AssemblyStream::Iterator AssemblyStream::insert(ConstIterator before, Instruction inst) {
-    return elems.insert(before, inst);
-}
-
-AssemblyStream::Iterator AssemblyStream::erase(ConstIterator pos) {
-    return elems.erase(pos);
-}
-
-void AssemblyStream::add(Instruction inst) {
-    elems.push_back(inst);
+Block* AssemblyStream::add(Block block) {
+    blocks.push_back(std::move(block));
+    return &blocks.back();
 }
