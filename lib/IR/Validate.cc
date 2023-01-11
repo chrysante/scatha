@@ -40,6 +40,10 @@ struct AssertContext {
     void assertInvariants(BasicBlock const& bb);
     void assertInvariants(Instruction const& inst);
     
+    void assertSpecialInvariants(Value const&) { SC_UNREACHABLE(); }
+    void assertSpecialInvariants(Instruction const&) {}
+    void assertSpecialInvariants(Phi const&);
+    
     void uniqueName(Value const& value);
     
     ir::Context const& ctx;
@@ -117,6 +121,15 @@ void AssertContext::assertInvariants(Instruction const& inst) {
                   "If our user is an instruction it must be in the same function");
         }
     }
+    visit(inst, [this](auto& inst){ assertSpecialInvariants(inst); });
+}
+
+void AssertContext::assertSpecialInvariants(Phi const& phi) {
+    auto& predsArray = phi.parent()->predecessors;
+    utl::hashset<BasicBlock const*> preds(predsArray.begin(), predsArray.end());
+    CHECK(preds.size() == predsArray.size(), "The incoming edges in the phi node must be unique");
+    utl::hashset<BasicBlock const*> args(phi.incomingEdges().begin(), phi.incomingEdges().end());
+    CHECK(preds == args, "We need an incoming edge in our phi node for exactly every incoming edge in the basic block");
 }
 
 void AssertContext::uniqueName(Value const& value) {
