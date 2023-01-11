@@ -50,7 +50,7 @@ bool opt::compareEqual(ir::Phi const* lhs, ir::Phi const* rhs) {
         return false;
     }
     auto lhsArgs = lhs->arguments();
-    auto rhsArgs = lhs->arguments();
+    auto rhsArgs = rhs->arguments();
     utl::hashset<ConstPhiMapping> lhsSet(lhsArgs.begin(), lhsArgs.end());
     utl::hashset<ConstPhiMapping> rhsSet(rhsArgs.begin(), rhsArgs.end());
     return lhsSet == rhsSet;

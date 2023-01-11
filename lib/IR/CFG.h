@@ -183,11 +183,6 @@ public:
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
                       std::string name);
-    explicit Function(FunctionType const* functionType,
-                      Type const* returnType,
-                      std::span<Type const* const> parameterTypes,
-                      std::string_view name):
-        Function(functionType, returnType, parameterTypes, std::string(name)) {}
 
     Type const* returnType() const { return _returnType; }
 
@@ -405,25 +400,28 @@ private:
     u32 _slot, _index;
 };
 
-struct PhiMapping {
-    PhiMapping(BasicBlock* pred, Value* value): pred(pred), value(value) {}
+namespace internal {
+
+template <bool IsConst>
+struct PhiMappingImpl {
+    using BB = std::conditional_t<IsConst, BasicBlock const, BasicBlock>;
+    using V = std::conditional_t<IsConst, Value const, Value>;
+    PhiMappingImpl(BB* pred, V* value): pred(pred), value(value) {}
     
-    bool operator==(PhiMapping const&) const = default;
+    PhiMappingImpl(PhiMappingImpl<false> p) requires IsConst: pred(p.pred), value(p.value) {}
     
-    BasicBlock* pred;
-    Value* value;
+    bool operator==(PhiMappingImpl const&) const = default;
+    
+    BB* pred;
+    V* value;
 };
 
-struct ConstPhiMapping {
-    ConstPhiMapping(BasicBlock const* pred, Value const* value): pred(pred), value(value) {}
-    
-    ConstPhiMapping(PhiMapping p): pred(p.pred), value(p.value) {}
-    
-    bool operator==(ConstPhiMapping const&) const = default;
-    
-    BasicBlock const* pred;
-    Value const* value;
-};
+
+
+} // namespace internal
+
+using PhiMapping = internal::PhiMappingImpl<false>;
+using ConstPhiMapping = internal::PhiMappingImpl<true>;
 
 /// Phi instruction. Choose a value based on where control flow comes from.
 class SCATHA(API) Phi: public Instruction {
@@ -478,16 +476,9 @@ private:
 
 } // namespace scatha::ir
 
-template <>
-struct std::hash<scatha::ir::PhiMapping> {
-    std::size_t operator()(scatha::ir::PhiMapping const& m) const {
-        return utl::hash_combine(m.pred, m.value);
-    }
-};
-
-template <>
-    struct std::hash<scatha::ir::ConstPhiMapping> {
-    std::size_t operator()(scatha::ir::ConstPhiMapping const& m) const {
+template <bool IsConst>
+struct std::hash<scatha::ir::internal::PhiMappingImpl<IsConst>> {
+    std::size_t operator()(scatha::ir::internal::PhiMappingImpl<IsConst> const& m) const {
         return utl::hash_combine(m.pred, m.value);
     }
 };
