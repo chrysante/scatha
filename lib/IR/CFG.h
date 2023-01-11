@@ -446,6 +446,9 @@ public:
         return { _preds[index], operands()[index] };
     }
     
+    std::span<BasicBlock* const> incomingEdges() { return _preds; }
+    std::span<BasicBlock const* const> incomingEdges() const { return _preds; }
+    
     auto arguments() { return utl::transform(utl::iota(argumentCount()), [this](size_t index){ return argumentAt(index); }); }
     auto arguments() const { return utl::transform(utl::iota(argumentCount()), [this](size_t index){ return argumentAt(index); }); }
     
