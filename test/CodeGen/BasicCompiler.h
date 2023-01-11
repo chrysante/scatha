@@ -17,6 +17,8 @@ vm::VirtualMachine compileAndExecute(std::string_view text);
 
 utl::vector<u64> getRegisters(std::string_view text);
 
+void checkReturns(u64 value, std::string_view text);
+
 } // namespace scatha::test
 
 #endif // SCATHA_TEST_CODEGEN_BASICCOMPILER_H_

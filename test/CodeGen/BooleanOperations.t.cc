@@ -1,50 +1,40 @@
 #include <Catch/Catch2.hpp>
 
-#include <string>
-
 #include "VM/Program.h"
 #include "VM/VirtualMachine.h"
 #include "test/CodeGen/BasicCompiler.h"
 
 using namespace scatha;
 
-TEST_CASE("Return boolean literal") {
-    std::string const text = R"(
+TEST_CASE("Return boolean literal", "[codegen]") {
+    test::checkReturns(1, R"(
 fn main() -> bool {
-	return true;
-})";
-    auto const registers   = test::getRegisters(text);
-    CHECK(registers[0] == 1);
+    return true;
+})");
 }
 
-TEST_CASE("Logical not") {
-    std::string const text = R"(
+TEST_CASE("Logical not", "[codegen]") {
+    test::checkReturns(1, R"(
 fn main() -> bool {
-	let i = 0;
-	return !(i == 1);
-})";
-    auto const registers   = test::getRegisters(text);
-    CHECK(registers[0] == 1);
+    let i = 0;
+    return !(i == 1);
+})");
 }
 
-TEST_CASE("Logical and") {
-    std::string const text = R"(
+TEST_CASE("Logical and", "[codegen]") {
+    test::checkReturns(0, R"(
 fn main() -> bool {
-	let a = true;
-	let b = false;
-	return a && b;
-})";
-    auto const registers   = test::getRegisters(text);
-    CHECK(registers[0] == 0);
+    let a = true;
+    let b = false;
+    return a && b;
+})");
 }
 
-TEST_CASE("Logical or") {
-    std::string const text = R"(
+TEST_CASE("Logical or", "[codegen]") {
+    test::checkReturns(1, R"(
 fn main() -> bool {
     let a = true;
     let b = false;
     return a || b;
-})";
-    auto const registers   = test::getRegisters(text);
-    CHECK(registers[0] == 1);
+})");
 }

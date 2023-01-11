@@ -9,7 +9,7 @@
 using namespace scatha;
 
 TEST_CASE("Member access", "[codegen]") {
-    std::string const text = R"(
+    test::checkReturns(4, R"(
 struct Y {
     var i: int;
     var x: X;
@@ -23,14 +23,11 @@ struct X {
     var anInteger: int;
     var aFloat: float;
     var aSecondInt: int;
-})";
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
-    CHECK(state.registers[0] == 4);
+})");
 }
 
 TEST_CASE("Bool member access", "[codegen]") {
-    std::string const text = R"(
+    test::checkReturns(2, R"(
 fn main() -> int {
     var x: X;
     x.d = true;
@@ -42,14 +39,11 @@ struct X {
     var c: bool;
     var d: bool;
     var a: int;
-})";
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
-    CHECK(state.registers[0] == 2);
+})");
 }
 
 TEST_CASE("Return custom structs", "[codegen]") {
-    std::string const text = R"(
+    test::checkReturns(2, R"(
 struct X {
     var b: bool;
     var c: bool;
@@ -68,14 +62,11 @@ fn main() -> int {
     var x = makeX();
     if x.c { return 2; }
     return 1;
-})";
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
-    CHECK(state.registers[0] == 2);
+})");
 }
 
 TEST_CASE("Pass custom structs as arguments", "[codegen]") {
-    std::string const text = R"(
+    test::checkReturns(5, R"(
 struct X {
     var b: bool;
     var c: bool;
@@ -94,14 +85,11 @@ fn main() -> int {
     x.d = true;
     var result = getX_a(x);
     return result;
-})";
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
-    CHECK(state.registers[0] == 5);
+})");
 }
 
 TEST_CASE("Pass and return custom structs and access rvalue", "[codegen]") {
-    std::string const text = R"(
+    test::checkReturns(5, R"(
 fn main() -> int {
     var x: X;
     x.a = 5;
@@ -119,14 +107,11 @@ struct X {
     var c: bool;
     var d: bool;
     var a: int;
-})";
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
-    CHECK(state.registers[0] == 5);
+})");
 }
 
 TEST_CASE("More complex structure passing", "[codegen]") {
-    std::string const text = R"(
+    test::checkReturns(5, R"(
 struct X {
     var b: bool;
     var c: bool;
@@ -160,8 +145,5 @@ fn main() -> int {
         return 5;
     }
     return 6;
-})";
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
-    CHECK(state.registers[0] == 5);
+})");
 }

@@ -9,34 +9,28 @@
 using namespace scatha;
 
 TEST_CASE("Local scopes", "[codegen]") {
-    std::string const text = R"(
+    test::checkReturns(1, R"(
 fn main() -> int {
-	let x = 0;
-	{
-		// local name x shadows outer x
-		let x = 1;
-		return x;
-	}
-})";
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
-    CHECK(state.registers[0] == 1);
+    let x = 0;
+    {
+        // local name x shadows outer x
+        let x = 1;
+        return x;
+    }
+})");
 }
 
 TEST_CASE("Local scopes 2", "[codegen]") {
-    std::string const text = R"(
+    test::checkReturns(2, R"(
 fn main() -> int {
-	let x = 0;
-	{
-		// local name x shadows outer x
-		let x = 1;
-	} {
-		/* and again */
-		let x = 2;
-		return x;
-	}
-})";
-    auto const vm          = test::compileAndExecute(text);
-    auto const& state      = vm.getState();
-    CHECK(state.registers[0] == 2);
+    let x = 0;
+    {
+        // local name x shadows outer x
+        let x = 1;
+    } {
+        /* and again */
+        let x = 2;
+        return x;
+    }
+})");
 }
