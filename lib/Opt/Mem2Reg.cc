@@ -82,7 +82,7 @@ void Mem2RegContext::analyze() {
     promoteLoads();
     evictDeadStores();
     evictDeadAllocas();
-    removeDuplicatePhis();
+//    removeDuplicatePhis();
 }
 
 /// MARK: Loads
@@ -116,6 +116,10 @@ bool Mem2RegContext::promoteLoad(Load* load) {
     if (!value) {
         return false;
     }
+    if (isa<Phi>(value)) {
+        value->setName(std::string(load->name()));
+        load->setName("evicted-load");
+    }
     replaceValue(load, value);
     return true;
 }
@@ -140,7 +144,7 @@ Value* Mem2RegContext::generatePhi(utl::vector<scatha::opt::ControlFlowPath> con
     BasicBlock* const basicBlock = const_cast<BasicBlock*>(relevantStores.front().basicBlocks().front());
     assert(relevantStores.size() >= basicBlock->predecessors.size()); // We need to have at least as many preceeding stores as predecessors to our BB.
                                                                       // Otherwise we have UB to to read of uninitialized memory.
-    /// Mapping predecessors to incoming paths
+                                                                      /// Mapping predecessors to incoming paths
     utl::hashmap<BasicBlock const*, utl::small_vector<ControlFlowPath const*>> map;
     for (auto& path: relevantStores) {
         assert(path.basicBlocks().size() > 1); // Otherwise we should not be here. We should be in case 1 because search should have stopped at the preceeding store in our BB.
@@ -175,6 +179,10 @@ Value* Mem2RegContext::generatePhi(utl::vector<scatha::opt::ControlFlowPath> con
     return phi;
 }
 
+static bool contains(std::span<BasicBlock const* const> path, BasicBlock const* bb) {
+    return std::find(path.begin(), path.end(), bb) != path.end();
+};
+
 static bool containsTwice(std::span<BasicBlock const* const> path, BasicBlock const* bb) {
     int count = 0;
     for (auto& pathBB: path) {
@@ -182,6 +190,19 @@ static bool containsTwice(std::span<BasicBlock const* const> path, BasicBlock co
         if (count == 2) { return true; }
     }
     return false;
+};
+
+static size_t occurenceCountMax(std::span<BasicBlock const* const> path, BasicBlock const* bb, size_t max) {
+    size_t count = 0;
+    for (auto& pathBB: path) {
+        if (pathBB == bb) {
+            ++count;
+        }
+        if (count == max) {
+            break;
+        }
+    }
+    return count;
 };
 
 utl::vector<ControlFlowPath> Mem2RegContext::findRelevantStores(Load* load) {
@@ -193,7 +214,7 @@ utl::vector<ControlFlowPath> Mem2RegContext::findRelevantStores(Load* load) {
     auto search = [&](Map::iterator currentPathItr, BasicBlock* currentNode, auto& search) mutable {
         auto& currentPath = currentPathItr->second;
         /// We allow nodes occuring twice to allow cycles, but we only want to traverse the cycle once.
-        if (containsTwice(currentPath.basicBlocks(), currentNode)) {
+        if (contains(currentPath.basicBlocks(), currentNode)) { // If we visit our initial BB again here, then we return without checking for any stores in this BB after our load!!!
             paths.erase(currentPathItr);
             return;
         }
@@ -207,6 +228,7 @@ utl::vector<ControlFlowPath> Mem2RegContext::findRelevantStores(Load* load) {
                 continue;
             }
             if (c.positionInBB > weight) {
+                weight = c.positionInBB;
                 relevantStore = c.store;
             }
         }
@@ -318,24 +340,29 @@ void Mem2RegContext::gather() {
 
 void Mem2RegContext::removeDuplicatePhis() {
     for (auto& bb: function.basicBlocks()) {
-        utl::small_vector<Phi*> phis;
-        for (auto& inst: bb.instructions) {
-            auto* phi = dyncast<Phi*>(&inst);
-            if (!phi) {
-                break;
-            }
-            phis.push_back(phi);
-        }
-        for (auto iPhi = phis.begin(); iPhi != phis.end(); ++iPhi) {
-            for (auto jPhi = iPhi + 1; jPhi != phis.end(); ) {
-                if (!compareEqual(*iPhi, *jPhi)) {
-                    ++jPhi;
-                    continue;
+        bool haveRemovedPhis;
+        do {
+            haveRemovedPhis = false;
+            utl::small_vector<Phi*> phis;
+            for (auto& inst: bb.instructions) {
+                auto* phi = dyncast<Phi*>(&inst);
+                if (!phi) {
+                    break;
                 }
-                replaceValue(*jPhi, *iPhi);
-                bb.instructions.erase(*jPhi);
-                jPhi = phis.erase(jPhi);
+                phis.push_back(phi);
             }
-        }
+            for (auto iPhi = phis.begin(); iPhi != phis.end(); ++iPhi) {
+                for (auto jPhi = iPhi + 1; jPhi != phis.end(); ) {
+                    if (!compareEqual(*iPhi, *jPhi)) {
+                        ++jPhi;
+                        continue;
+                    }
+                    replaceValue(*jPhi, *iPhi);
+                    bb.instructions.erase(*jPhi);
+                    jPhi = phis.erase(jPhi);
+                    haveRemovedPhis = true;
+                }
+            }
+        } while (haveRemovedPhis);
     }
 }
