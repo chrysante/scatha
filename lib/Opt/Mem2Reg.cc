@@ -218,6 +218,10 @@ utl::vector<ControlFlowPath> Mem2RegContext::findRelevantLoadsAndStores(Load* lo
             if (dyncast<Load const*>(c.inst) == load) {
                 continue;
             }
+            if (currentPath.basicBlocks().size() == 1 && (preceeds(load, c.inst) || replacementMap.contains(c.inst))) {
+                /// This means we are still in our starting basic block and only want to search loads and stores preceeding this load
+                continue;
+            }
             if (c.positionInBB > weight) {
                 weight = c.positionInBB;
                 relevantLoadOrStore = c.inst;
