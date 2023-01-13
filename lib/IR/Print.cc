@@ -59,6 +59,15 @@ void ir::print(Module const& program, std::ostream& str) {
     }
 }
 
+void ir::print(Function const& function) {
+    ir::print(function, std::cout);
+}
+
+void ir::print(Function const& function, std::ostream& str) {
+    PrintCtx ctx(str);
+    ctx.dispatch(function);
+}
+
 std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
     PrintCtx ctx(ostream);
     ctx.dispatch(inst);
