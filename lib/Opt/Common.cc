@@ -57,7 +57,9 @@ bool opt::compareEqual(ir::Phi const* lhs, ir::Phi const* rhs) {
 }
 
 void opt::replaceValue(Value* oldValue, Value* newValue) {
-    for (auto* user: oldValue->users()) {
+    /// We need this funny way of traversing the user list of the old value, because if the loop body the user is erased from the user list and iterators are invalidated.
+    while (!oldValue->users().empty()) {
+        auto* user = *oldValue->users().begin();
         for (auto [index, op]: utl::enumerate(user->operands())) {
             if (op == oldValue) {
                 user->setOperand(index, newValue);
