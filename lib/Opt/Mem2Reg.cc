@@ -194,28 +194,6 @@ static bool contains(std::span<BasicBlock const* const> path, BasicBlock const* 
     return std::find(path.begin(), path.end(), bb) != path.end();
 };
 
-static bool containsTwice(std::span<BasicBlock const* const> path, BasicBlock const* bb) {
-    int count = 0;
-    for (auto& pathBB: path) {
-        count += pathBB == bb;
-        if (count == 2) { return true; }
-    }
-    return false;
-};
-
-static size_t occurenceCountMax(std::span<BasicBlock const* const> path, BasicBlock const* bb, size_t max) {
-    size_t count = 0;
-    for (auto& pathBB: path) {
-        if (pathBB == bb) {
-            ++count;
-        }
-        if (count == max) {
-            break;
-        }
-    }
-    return count;
-};
-
 utl::vector<ControlFlowPath> Mem2RegContext::findRelevantLoadsAndStores(Load* load) {
     using Map = std::map<size_t, ControlFlowPath>;
     Map paths;
