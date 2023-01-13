@@ -26,7 +26,7 @@ static void header(std::string_view title = "") {
 }
 
 void playground::optTest(std::filesystem::path filepath) {
-    auto [ctx, mod] = makeIRModule(filepath);
+    auto [ctx, mod] = makeIRModuleFromFile(filepath);
     header(" Before mem2reg ");
     scatha::ir::print(mod);
     scatha::opt::mem2Reg(ctx, mod);

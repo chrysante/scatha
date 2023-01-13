@@ -2,7 +2,7 @@
 #define PLAYGROUND_IRDUMP_H_
 
 #include <filesystem>
-#include <string>
+#include <string_view>
 
 namespace scatha::ir {
 
@@ -13,13 +13,13 @@ class Module;
 
 namespace playground {
 
-void irDump(std::string text);
+void irDump(std::string_view text);
 
-void irDump(std::filesystem::path file);
+void irDumpFromFile(std::filesystem::path file);
 
-std::pair<scatha::ir::Context, scatha::ir::Module> makeIRModule(std::string text);
+std::pair<scatha::ir::Context, scatha::ir::Module> makeIRModule(std::string_view text);
 
-std::pair<scatha::ir::Context, scatha::ir::Module> makeIRModule(std::filesystem::path file);
+std::pair<scatha::ir::Context, scatha::ir::Module> makeIRModuleFromFile(std::filesystem::path file);
 
 } // namespace playground
 

@@ -70,18 +70,18 @@ int main(int argc, char const* const* argv) {
     using namespace playground;
     switch (theCase) {
     case ProgramCase::SampleCompiler: compile(filepath); break;
-    case ProgramCase::IRDump: irDump(filepath); break;
+    case ProgramCase::IRDump: irDumpFromFile(filepath); break;
     case ProgramCase::IRSketch: irSketch(); break;
     case ProgramCase::ASMTest: testAsmModule(); break;
     case ProgramCase::EmitCFG: {
-        auto [ctx, mod] = makeIRModule(filepath);
+        auto [ctx, mod] = makeIRModuleFromFile(filepath);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg.gv");
         scatha::opt::mem2Reg(ctx, mod);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg-opt.gv");
         break;
     }
     case ProgramCase::EmitUseGraph: {
-        auto [ctx, mod] = makeIRModule(filepath);
+        auto [ctx, mod] = makeIRModuleFromFile(filepath);
         drawUseGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/use-graph.gv");
         break;
     }
