@@ -85,6 +85,10 @@ void opt::mem2Reg(ir::Context& context, ir::Module& mod) {
 void Mem2RegContext::analyze() {
     gather();
     promoteLoads();
+    /// This is a temporary measure to make sure the evicted values are not linked anywhere anymore. If they are, asan will complain.
+    for (auto [evicted, replacement]: replacementMap) {
+        visit(*evicted, [](auto& value) { delete &value; });
+    }
     evictDeadStores();
     evictDeadAllocas();
 }
