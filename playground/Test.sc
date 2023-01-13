@@ -1,40 +1,17 @@
-
-/// Test case for mem2reg
-fn f(i: int) -> int {
-    var j = 0;
     
-    if true {
-        j = i;
+fn gcd(a: int, b: int) -> int {
+    while a != b {
+        if a > b {
+            a -= b;
+        }
+        else {
+            b -= a;
+        }
     }
-    else {
-        j = i * 2;
-    }
-    return j;
-    
+    return a;
 }
-// One test case
-fn g(n: int) -> int {
-    
-    
-    var f = 1.3;
-    
-    for i = 1; i <= 10; i += 1 {
-    
-    }
-    
+fn main() -> int {
+    let a = 756476;
+    let b = 1253;
+    return gcd(a, b);
 }
-
-
-
-/*
-// Also a test case
-fn fac(n: int) -> int {
-    var result = 1;
-    for i = 1; i <= n; i += 1 {
-        result *= i;
-    }
-    return result;
-}
-
-
-*/

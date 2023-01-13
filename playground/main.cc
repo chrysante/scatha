@@ -76,6 +76,8 @@ int main(int argc, char const* const* argv) {
     case ProgramCase::EmitCFG: {
         auto [ctx, mod] = makeIRModule(filepath);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg.gv");
+        scatha::opt::mem2Reg(ctx, mod);
+        drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg-opt.gv");
         break;
     }
     case ProgramCase::EmitUseGraph: {
