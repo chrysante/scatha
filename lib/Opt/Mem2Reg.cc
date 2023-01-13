@@ -19,8 +19,9 @@ using namespace ir;
 
 namespace {
 
-struct StoreContext {
-    Store* store;
+/// Context of a load or store instruction.
+struct LSContext {
+    Instruction* inst;
     BasicBlock* basicBlock;
     ssize_t positionInBB;
 };
@@ -35,9 +36,11 @@ struct Mem2RegContext {
     
     void promoteLoads();
     bool promoteLoad(Load* load);
-    utl::vector<ControlFlowPath> findRelevantStores(Load* load);
+    utl::vector<ControlFlowPath> findRelevantLoadsAndStores(Load* load);
     Value* resolveStoredValue(utl::vector<ControlFlowPath> const& relevantStores);
     Value* generatePhi(utl::vector<ControlFlowPath> const& relevantStores);
+    
+    Value* getValueFromPathEnd(ControlFlowPath const&);
     
     /// ** Stores **
     
@@ -59,12 +62,14 @@ struct Mem2RegContext {
     Context& ctx;
     Function& function;
     
-    /// Maps addresses to stores
-    utl::hashmap<Value*, utl::small_vector<StoreContext>> stores;
+    /// Maps addresses to loads and stores
+    utl::hashmap<Value*, utl::small_vector<LSContext>> lsLists;
     /// Table of locally allocated memory
     utl::hashset<Alloca*> allocas;
     /// List of all load instructions in the current function
     utl::small_vector<Load*> loads;
+    /// Maps evicted loads and stores to their respective replacements
+    utl::hashmap<Value const*, Value*> replacementMap;
 };
 
 } // namespace
@@ -82,7 +87,6 @@ void Mem2RegContext::analyze() {
     promoteLoads();
     evictDeadStores();
     evictDeadAllocas();
-//    removeDuplicatePhis();
 }
 
 /// MARK: Loads
@@ -111,16 +115,18 @@ bool Mem2RegContext::promoteLoad(Load* load) {
         /// have UB so we can just assume we have a store.
         return false;
     }
-    auto const relevantStores = findRelevantStores(load);
+    auto const relevantStores = findRelevantLoadsAndStores(load);
     auto* value = resolveStoredValue(relevantStores);
     if (!value) {
         return false;
     }
     if (isa<Phi>(value)) {
         value->setName(std::string(load->name()));
-        load->setName("evicted-load");
+        load->setName(utl::strcat("evicted-load-of-", load->name()));
     }
     replaceValue(load, value);
+    [[maybe_unused]] auto const [itr, success] = replacementMap.insert({ load, value });
+    SC_ASSERT(success, "");
     return true;
 }
 
@@ -130,8 +136,7 @@ Value* Mem2RegContext::resolveStoredValue(utl::vector<ControlFlowPath> const& re
         return nullptr;
     case 1: {
         auto& path = relevantStores.front();
-        auto* store = const_cast<Store*>(cast<Store const*>(&path.back()));
-        return store->source();
+        return getValueFromPathEnd(path);
     }
     default: {
         /// This is a bit harder
@@ -141,6 +146,7 @@ Value* Mem2RegContext::resolveStoredValue(utl::vector<ControlFlowPath> const& re
 }
 
 Value* Mem2RegContext::generatePhi(utl::vector<scatha::opt::ControlFlowPath> const& relevantStores) {
+    auto const* const load = &relevantStores.front().front();
     BasicBlock* const basicBlock = const_cast<BasicBlock*>(relevantStores.front().basicBlocks().front());
     assert(relevantStores.size() >= basicBlock->predecessors.size()); // We need to have at least as many preceeding stores as predecessors to our BB.
                                                                       // Otherwise we have UB to to read of uninitialized memory.
@@ -157,15 +163,16 @@ Value* Mem2RegContext::generatePhi(utl::vector<scatha::opt::ControlFlowPath> con
         auto* const value = [&]() -> Value* {
             if (paths.size() == 1) {
                 auto& path = paths.front();
-                auto* store = cast<Store*>(const_cast<Instruction*>(&path->back()));
-                return store->source();
+                return getValueFromPathEnd(*path);
             }
             /// Here we have more than one path which all enter our BB through the same predecessor.
             for (size_t i = 0; ; ++i) {
                 /// We shave off the first basic block from each path
                 utl::vector<scatha::opt::ControlFlowPath> newPaths(utl::transform(paths, [](auto* p) { return *p; }));
                 for (auto& path: newPaths) { path.basicBlocks().erase(path.basicBlocks().begin()); }
-                return resolveStoredValue(newPaths);
+                auto* phi = cast<Phi*>(resolveStoredValue(newPaths));
+                phi->setName(ctx.uniqueName(&function, utl::strcat(load->name(), "-pred")));
+                return phi;
             }
         }();
         phiArgs.push_back({ const_cast<BasicBlock*>(pred), value });
@@ -205,36 +212,43 @@ static size_t occurenceCountMax(std::span<BasicBlock const* const> path, BasicBl
     return count;
 };
 
-utl::vector<ControlFlowPath> Mem2RegContext::findRelevantStores(Load* load) {
+utl::vector<ControlFlowPath> Mem2RegContext::findRelevantLoadsAndStores(Load* load) {
     using Map = std::map<size_t, ControlFlowPath>;
     Map paths;
     size_t id = 0;
     auto* const address = load->address();
-    auto const& relevantStores = stores[address];
+    auto const& relevantLoadsAndStores = lsLists[address];
     auto search = [&](Map::iterator currentPathItr, BasicBlock* currentNode, auto& search) mutable {
         auto& currentPath = currentPathItr->second;
         /// We allow nodes occuring twice to allow cycles, but we only want to traverse the cycle once.
-        if (contains(currentPath.basicBlocks(), currentNode)) { // If we visit our initial BB again here, then we return without checking for any stores in this BB after our load!!!
+        if (contains(currentPath.basicBlocks(), currentNode) && currentNode != currentPath.basicBlocks().front()) { // If we visit our initial BB again here, then we return without checking for any stores in this BB after our load!!!
             paths.erase(currentPathItr);
             return;
         }
         /// Add the current node to the path
         opt::internal::addBasicBlock(currentPath, currentNode);
         /// Search the current node for a store instruction
-        ssize_t weight = std::numeric_limits<ssize_t>::min();
-        Store* relevantStore = nullptr;
-        for (auto& c: relevantStores) {
+        Instruction* relevantLoadOrStore = nullptr;
+        for (ssize_t weight = std::numeric_limits<ssize_t>::min(); auto& c: relevantLoadsAndStores) {
             if (c.basicBlock != currentNode) {
+                continue;
+            }
+            if (dyncast<Load const*>(c.inst) == load) {
                 continue;
             }
             if (c.positionInBB > weight) {
                 weight = c.positionInBB;
-                relevantStore = c.store;
+                relevantLoadOrStore = c.inst;
             }
         }
-        if (relevantStore != nullptr && (currentPath.basicBlocks().size() > 1 || preceeds(relevantStore, load))) {
+        if (relevantLoadOrStore != nullptr && (currentPath.basicBlocks().size() > 1 || preceeds(relevantLoadOrStore, load))) {
             /// We have found a store to our address. We don't need to search further in this path.
-            currentPath.setBack(relevantStore);
+            currentPath.setBack(relevantLoadOrStore);
+            return;
+        }
+        if (currentNode == currentPath.basicBlocks().front() && currentPath.basicBlocks().size() > 1) {
+            /// This path is a round trip without any stores to the value loaded in the beginning. We pin the value from the first load.
+            currentPath.setBack(load);
             return;
         }
         switch (currentNode->predecessors.size()) {
@@ -258,6 +272,25 @@ utl::vector<ControlFlowPath> Mem2RegContext::findRelevantStores(Load* load) {
     auto [itr, success] = paths.insert({ id++, ControlFlowPath(load, nullptr) });
     search(itr, load->parent(), search);
     return utl::vector<ControlFlowPath>(utl::transform(paths, [](auto& p) { return p.second; }));
+}
+
+Value* Mem2RegContext::getValueFromPathEnd(ControlFlowPath const& path) {
+    auto* const inst = const_cast<Instruction*>(&path.back());
+    if (replacementMap.contains(inst)) {
+        Value* value = replacementMap.find(inst)->second;
+        while (true) {
+            auto itr = replacementMap.find(value);
+            if (itr == replacementMap.end()) {
+                return value;
+            }
+            value = itr->second;
+        }
+    }
+    return visit(*inst, utl::overload{ // clang-format off
+        [](Store& store) -> Value* { return store.source(); },
+        [](Load& load) -> Value* { return &load; },
+        [](auto&) -> Value* { SC_UNREACHABLE(); }
+    }); // clang-format on
 }
 
 /// MARK: Stores
@@ -326,11 +359,16 @@ void Mem2RegContext::gather() {
                     allocas.insert(&allocaInst);
                 },
                 [&](Store& store) {
-                    auto* const dest = store.dest();
-                    stores[dest].push_back({ &store, store.parent(), positionInBB });
+                    auto* const address = store.dest();
+                    lsLists[address].push_back({ &store, store.parent(), positionInBB });
                 },
                 [&](Load& load) {
                     loads.push_back(&load);
+                    if (load.users().empty()) {
+                        return;
+                    }
+                    auto* const address = load.address();
+                    lsLists[address].push_back({ &load, load.parent(), positionInBB });
                 },
                 [](auto&) {}
             }); // clang-format on

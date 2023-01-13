@@ -12,6 +12,7 @@
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "Opt/Mem2Reg.h"
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
@@ -21,7 +22,7 @@
 
 using namespace scatha;
 
-vm::Program test::compile(std::string_view text) {
+static vm::Program compile(std::string_view text, bool optimze) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     if (!lexIss.empty()) {
@@ -39,6 +40,9 @@ vm::Program test::compile(std::string_view text) {
     }
     ir::Context ctx;
     auto mod       = ast::codegen(*ast, sym, ctx);
+    if (optimze) {
+        opt::mem2Reg(ctx, mod);
+    }
     auto asmStream = cg::codegen(mod);
     /// Start execution with main if it exists.
     auto const mainID = [&sym] {
@@ -56,19 +60,15 @@ vm::Program test::compile(std::string_view text) {
     return Asm::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
 }
 
-vm::VirtualMachine test::compileAndExecute(std::string_view text) {
-    vm::Program const p = compile(text);
+static u64 compileAndExecute(std::string_view text, bool optimize) {
+    vm::Program const p = compile(text, optimize);
     vm::VirtualMachine vm;
     vm.load(p);
     vm.execute();
-    return vm;
-}
-
-utl::vector<u64> test::getRegisters(std::string_view text) {
-    auto vm = test::compileAndExecute(text);
-    return vm.getState().registers;
+    return vm.getState().registers[0];
 }
 
 void test::checkReturns(u64 value, std::string_view text) {
-    CHECK(getRegisters(text)[0] == value);
+    bool const optimize = GENERATE(false, true);
+    CHECK(compileAndExecute(text, optimize) == value);
 }
