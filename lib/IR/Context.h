@@ -8,6 +8,7 @@
 
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
+#include <utl/strcat.hpp>
 
 #include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>
@@ -36,7 +37,8 @@ public:
 
     Constant* getGlobal(std::string_view name) const;
 
-    std::string uniqueName(Function const*, std::string name);
+    std::string uniqueName(Function const* function, std::string name);
+    std::string uniqueName(Function const* function, auto const&... args) { return uniqueName(function, utl::strcat(args...)); }
     
 private:
     utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*> _integralConstants;
