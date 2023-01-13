@@ -28,6 +28,7 @@
 #include "Sema/SemanticIssue.h"
 #include "VM/VirtualMachine.h"
 #include "Opt/Mem2Reg.h"
+#include "Opt/Mem2Reg2.h"
 
 using namespace scatha;
 using namespace scatha::lex;
@@ -149,7 +150,7 @@ void playground::compile(std::string text) {
     ir::print(mod);
     
     header(" Optimized IR ");
-    opt::mem2Reg(irCtx, mod);
+    opt::mem2Reg2(irCtx, mod);
     ir::print(mod);
     
     header(" Assembly generated from IR ");
