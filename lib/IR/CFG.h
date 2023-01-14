@@ -450,6 +450,8 @@ public:
 
     Type const* accessedType() const { return accType_constant.pointer(); }
 
+    Type const* pointeeType() const { return cast<PointerType const*>(type())->pointeeType(); }
+    
     bool isAllConstant() const { return accType_constant.integer(); }
     
     Value* basePointer() { return operands()[0]; }
@@ -470,7 +472,7 @@ public:
     }
     
     size_t const constantByteOffset() const {
-        size_t result = accessedType()->size() * constantStructMemberIndex();
+        size_t result = accessedType()->size() * constantArrayIndex();
         if (auto* structType = dyncast<StructureType const*>(accessedType())) {
             result += structType->memberOffsetAt(constantStructMemberIndex());
         }
