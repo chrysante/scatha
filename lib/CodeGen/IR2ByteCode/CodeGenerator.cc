@@ -335,7 +335,9 @@ MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
     ir::Value const* value              = &gep;
     ir::GetElementPointer const* gepPtr = nullptr;
     while ((gepPtr = dyncast<ir::GetElementPointer const*>(value)) != nullptr) {
-        offset += static_cast<ir::StructureType const*>(gepPtr->accessedType())->memberOffsetAt(gepPtr->offsetIndex());
+        SC_ASSERT(gepPtr->isAllConstant(), "Don't know how to generate code for non-constant GEPs");
+        size_t const memberIndex = static_cast<size_t>(cast<ir::IntegralConstant const*>(gepPtr->structMemberIndex())->value());
+        offset += static_cast<ir::StructureType const*>(gepPtr->accessedType())->memberOffsetAt(memberIndex);
         value = gepPtr->basePointer();
     }
     SC_ASSERT(offset <= 0xFF, "Offset too large");

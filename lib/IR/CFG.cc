@@ -175,12 +175,21 @@ void Phi::clearArguments() {
     _operands.clear();
 }
 
-// WARNING: This will not work on arrays. We need to rework this for arrays.
 GetElementPointer::GetElementPointer(
-    Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name):
+    Context& context, Type const* accessedType, Type const* pointeeType, Value* basePointer, Value* arrayOffsetIndex, Value* structureOffsetIndex, std::string name):
     Instruction(NodeType::GetElementPointer,
-                context.pointerType(cast<StructureType const*>(accessedType)->memberAt(offsetIndex)),
+                context.pointerType(pointeeType),
                 std::move(name),
-                { basePointer }),
-    accType(accessedType),
-    offsetIdx(offsetIndex) {}
+                { basePointer, arrayOffsetIndex, structureOffsetIndex }),
+    accType_constant(accessedType, false)
+{
+    SC_ASSERT(isa<PointerType>(basePointer->type()), "basePointer must be a pointer");
+    SC_ASSERT(isa<IntegralType>(arrayOffsetIndex->type()), "Indices must be integral");
+    SC_ASSERT(isa<IntegralType>(structureOffsetIndex->type()), "Indices must be integral");
+    if (auto* offset = dyncast<IntegralConstant const*>(structureOffsetIndex)) {
+        SC_ASSERT(cast<PointerType const*>(type())->pointeeType() == cast<StructureType const*>(accessedType)->memberAt(static_cast<size_t>(offset->value())), "");
+    }
+    if (isa<IntegralConstant>(arrayOffsetIndex) && isa<IntegralConstant>(structureOffsetIndex)) {
+        accType_constant.integer(true);
+    }
+}

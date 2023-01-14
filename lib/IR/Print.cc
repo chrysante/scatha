@@ -186,7 +186,7 @@ void PrintCtx::print(Phi const& phi) {
 
 void PrintCtx::print(GetElementPointer const& gep) {
     str << indent << "%" << gep.name() << " = gep " << gep.accessedType()->name() << ", "
-        << toString(*gep.basePointer()) << ", " << gep.offsetIndex();
+        << toString(*gep.basePointer()) << ", " << toString(*gep.arrayIndex()) << ", " << toString(*gep.structMemberIndex());
 }
 
 void PrintCtx::print(StructureType const& structure) {

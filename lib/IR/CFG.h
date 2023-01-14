@@ -7,6 +7,7 @@
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
 #include <utl/hash.hpp>
+#include <utl/utility.hpp>
 
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
@@ -445,18 +446,39 @@ private:
 class GetElementPointer: public Instruction {
 public:
     explicit GetElementPointer(
-        Context& context, Type const* accessedType, Value* basePointer, size_t offsetIndex, std::string name = {});
+        Context& context, Type const* accessedType, Type const* pointeeType, Value* basePointer, Value* arrayOffsetIndex, Value* structureOffsetIndex, std::string name = {});
 
-    Type const* accessedType() const { return accType; }
+    Type const* accessedType() const { return accType_constant.pointer(); }
 
+    bool isAllConstant() const { return accType_constant.integer(); }
+    
     Value* basePointer() { return operands()[0]; }
     Value const* basePointer() const { return operands()[0]; }
+    
+    Value* arrayIndex() { return operands()[1]; }
+    Value const* arrayIndex() const { return operands()[1]; }
+    
+    Value* structMemberIndex() { return operands()[2]; }
+    Value const* structMemberIndex() const { return operands()[2]; }
 
-    size_t offsetIndex() const { return offsetIdx; }
-
+    size_t const constantArrayIndex() const {
+        return static_cast<u64>(cast<IntegralConstant const*>(arrayIndex())->value());
+    }
+    
+    size_t const constantStructMemberIndex() const {
+        return static_cast<u64>(cast<IntegralConstant const*>(structMemberIndex())->value());
+    }
+    
+    size_t const constantByteOffset() const {
+        size_t result = accessedType()->size() * constantStructMemberIndex();
+        if (auto* structType = dyncast<StructureType const*>(accessedType())) {
+            result += structType->memberOffsetAt(constantStructMemberIndex());
+        }
+        return result;
+    }
+    
 private:
-    Type const* accType;
-    size_t offsetIdx;
+    utl::pointer_int_pair<Type const*, bool> accType_constant;
 };
 
 } // namespace scatha::ir

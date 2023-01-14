@@ -480,7 +480,8 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
     auto& var                              = symTable.getVariable(accessedElementID);
     size_t const index                     = var.index();
     ir::Type const* const accessedType     = mapType(expr.object->typeID());
-    auto* const gep = new ir::GetElementPointer(irCtx, accessedType, basePtr, index, localUniqueName("member-ptr"));
+    ir::Type const* const pointeeType      = mapType(expr.typeID());
+    auto* const gep = new ir::GetElementPointer(irCtx, accessedType, pointeeType, basePtr, irCtx.integralConstant(0, 64), irCtx.integralConstant(index, 64), localUniqueName("member-ptr"));
     currentBB()->addInstruction(gep);
     return gep;
 }
