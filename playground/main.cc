@@ -15,7 +15,6 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "Opt/Mem2Reg.h"
-#include "Opt/Mem2Reg2.h"
 
 enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest, EmitCFG, EmitUseGraph, OptTest };
 
@@ -77,7 +76,7 @@ int main(int argc, char const* const* argv) {
     case ProgramCase::EmitCFG: {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg.gv");
-        scatha::opt::mem2Reg2(ctx, mod);
+        scatha::opt::mem2Reg(ctx, mod);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg-opt.gv");
         break;
     }

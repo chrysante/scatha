@@ -1,299 +1,187 @@
 #include "Opt/Mem2Reg.h"
 
-#include <map>
+#include <algorithm>
 
-#include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
 #include <utl/vector.hpp>
 
+#include "Basic/Basic.h"
 #include "IR/Context.h"
-#include "IR/Module.h"
 #include "IR/CFG.h"
+#include "IR/Module.h"
 #include "IR/Validate.h"
-#include "Opt/ControlFlowPath.h"
 #include "Opt/Common.h"
 
 using namespace scatha;
-using namespace opt;
-using namespace ir;
+using namespace scatha::opt;
+using namespace scatha::ir;
 
 namespace {
 
-/// Context of a load or store instruction.
-struct LSContext {
-    Instruction* inst;
-    BasicBlock* basicBlock;
-    ssize_t positionInBB;
+template <typename I = Instruction>
+struct InstructionContext {
+    I* instruction;
+    size_t positionInBB;
 };
 
-/// One context object will be created for every function we analyze.
+static constexpr auto lsCmpLs = [](auto const& a, auto const& b) { return a.positionInBB < b.positionInBB; };
+
 struct Mem2RegContext {
-    explicit Mem2RegContext(Context& ctx, Function& function): ctx(ctx), function(function) {}
+    explicit Mem2RegContext(ir::Context& context, Function& function): irCtx(context), function(function) {}
     
-    void analyze();
+    void run();
     
-    /// ** Loads **
+    bool promote(InstructionContext<Load>);
+  
+    Value* search(BasicBlock*, size_t depth, size_t bifurkations);
     
-    void promoteLoads();
-    bool promoteLoad(Load* load);
-    utl::vector<ControlFlowPath> findRelevantLoadsAndStores(Load* load);
-    Value* resolveStoredValue(utl::vector<ControlFlowPath> const& relevantStores);
-    Value* generatePhi(utl::vector<ControlFlowPath> const& relevantStores);
+    Value* findReplacement(Value* value);
     
-    Value* getValueFromPathEnd(ControlFlowPath const&);
+    void evictIfDead(Store*);
     
-    /// ** Stores **
+    bool isDead(Store const*);
     
-    void evictDeadStores();
-    /// Analyze a \p Store instruction and return true if this is a store to local variable that is not being read anymore.
-    bool isDead(Store const* store);
+    void evictIfDead(Alloca*);
     
-    /// ** Allocas **
-    void evictDeadAllocas();
-    /// Analyze a \p Alloca instruction and return true it's memory is not being read.
-    bool isDead(Alloca const* address);
-    
-    /// ** Generic methods **
+    bool isDead(Alloca const*);
     
     void gather();
     
-    void removeDuplicatePhis();
-    
-    Context& ctx;
+    ir::Context& irCtx;
     Function& function;
     
-    /// Maps addresses to loads and stores
-    utl::hashmap<Value*, utl::small_vector<LSContext>> lsLists;
-    /// Table of locally allocated memory
+    /// Maps pairs of basic blocks and addresses to lists of load and store instructions from and to that address in that basic block.
+    utl::hashmap<std::pair<BasicBlock*, Value*>, utl::vector<InstructionContext<Instruction>>> loadsAndStores;
+    /// Maps evicted load instructions to their respective replacement values.
+    utl::hashmap<Load const*, Value*> loadReplacementMap;
+    /// List of all load instructions in the function.
+    utl::vector<InstructionContext<Load>> loads;
+    /// List of all store instructions in the function.
+    utl::vector<Store*> stores;
+    /// List of all alloca instructions in the function.
     utl::hashset<Alloca*> allocas;
-    /// List of all load instructions in the current function
-    utl::small_vector<Load*> loads;
-    /// Maps evicted loads and stores to their respective replacements
-    utl::hashmap<Value const*, Value*> replacementMap;
+    
+    void setCurrentLoad(InstructionContext<Load> c) {
+        _currentLoad = c.instruction;
+        _currentLoadPositionInBB = c.positionInBB;
+    }
+    
+    Load* currentLoad() { return _currentLoad; }
+    size_t currentLoadPositionInBB() { return _currentLoadPositionInBB; }
+    
+    Load* _currentLoad = nullptr;
+    size_t _currentLoadPositionInBB = 0;
 };
 
 } // namespace
 
-void opt::mem2Reg(ir::Context& context, ir::Module& mod) {
+void opt::mem2Reg(ir::Context& irCtx, ir::Module& mod) {
     for (auto& function: mod.functions()) {
-        Mem2RegContext ctx(context, function);
-        ctx.analyze();
+        Mem2RegContext ctx(irCtx, function);
+        ctx.run();
     }
-    ir::assertInvariants(context, mod);
+    ir::assertInvariants(irCtx, mod);
 }
 
-void Mem2RegContext::analyze() {
+void Mem2RegContext::run() {
     gather();
-    promoteLoads();
-    /// This is a temporary measure to make sure the evicted values are not linked anywhere anymore. If they are, asan will complain.
-    for (auto [evicted, replacement]: replacementMap) {
-        visit(*evicted, [](auto& value) { delete &value; });
+    for (auto const load: loads) {
+        promote(load);
     }
-    evictDeadStores();
-    evictDeadAllocas();
-}
-
-/// MARK: Loads
-
-void Mem2RegContext::promoteLoads() {
-    for (auto itr = loads.begin(); itr != loads.end(); ) {
-        auto* load = *itr;
-        if (!promoteLoad(load)) {
-            ++itr;
-            continue;
-        }
-        load->parent()->instructions.erase(load);
-        itr = loads.erase(itr);
+    for (auto* const store: stores) {
+        evictIfDead(store);
+    }
+    for (auto* const inst: allocas) {
+        evictIfDead(inst);
     }
 }
 
-bool Mem2RegContext::promoteLoad(Load* load) {
-    auto* const address = load->address();
-    if (load->users().empty()) {
-        /// If this load is not being used we can just erase it.
-        return true;
-    }
-    if (!allocas.contains(address)) {
-        /// It is rather cheap to early out here, extend this later to also analyze non-locally allocated memory.
-        /// Right now we do this, so we can be sure that every load is preceeded by a store in every code path or we
-        /// have UB so we can just assume we have a store.
+bool Mem2RegContext::promote(InstructionContext<Load> loadContext) {
+    setCurrentLoad(loadContext);
+    auto* const basicBlock = currentLoad()->parent();
+    Value* newValue = search(basicBlock, 0, 0);
+    if (!newValue) {
         return false;
     }
-    auto const relevantStores = findRelevantLoadsAndStores(load);
-    auto* value = resolveStoredValue(relevantStores);
-    if (!value) {
-        return false;
-    }
-    if (isa<Phi>(value)) {
-        value->setName(std::string(load->name()));
-        load->setName(utl::strcat("evicted-load-of-", load->name()));
-    }
-    replaceValue(load, value);
-    [[maybe_unused]] auto const [itr, success] = replacementMap.insert({ load, value });
-    SC_ASSERT(success, "");
+    loadReplacementMap[currentLoad()] = newValue;
+    currentLoad()->setName("evicted-load");
+    basicBlock->instructions.erase(currentLoad());
+    replaceValue(currentLoad(), newValue);
+    currentLoad()->clearOperands();
+    setCurrentLoad({});
     return true;
 }
 
-Value* Mem2RegContext::resolveStoredValue(utl::vector<ControlFlowPath> const& relevantStores) {
-    switch (relevantStores.size()) {
+static Phi* findPhiWithArgs(BasicBlock* basicBlock, std::span<PhiMapping const> args) {
+    Phi* phi = nullptr;
+    for (auto itr = basicBlock->instructions.begin();
+         itr != basicBlock->instructions.end() && (phi = dyncast<Phi*>(itr.to_address())) != nullptr;
+         ++itr)
+    {
+        if (compareEqual(phi, args)) {
+            return phi;
+        }
+    }
+    return nullptr;
+}
+
+Value* Mem2RegContext::search(BasicBlock* basicBlock, size_t depth, size_t bifurkations) {
+    auto& ls = loadsAndStores[{ basicBlock, currentLoad()->address() }];
+    auto ourLoad = [&]{
+        return std::find_if(ls.begin(), ls.end(), [&](InstructionContext<> const& c) { return c.positionInBB == currentLoadPositionInBB(); });
+    };
+    auto const beginItr = basicBlock != currentLoad()->parent() || depth == 0 ? ls.begin() : ourLoad();
+    auto const endItr = depth > 0 ? ls.end() : ourLoad();
+    auto const itr = std::max_element(beginItr, endItr, lsCmpLs);
+    if (itr != endItr) {
+        /// This basic block has a load or store that we use to promote
+        auto* const result = visit(*itr->instruction, utl::overload{
+            [](Load& load) { return &load; },
+            [](Store& store) { return store.source(); },
+            [](auto&) -> Value* { SC_UNREACHABLE(); }
+        });
+        return findReplacement(result);
+    }
+    SC_ASSERT(depth == 0 || basicBlock != currentLoad()->parent(), "If we are back in our starting BB we must have found ourself as a matching load.");
+    /// This basic block has no load or store that we use to promote
+    /// We need to visit our predecessors
+    switch (basicBlock->predecessors.size()) {
     case 0:
         return nullptr;
-    case 1: {
-        auto& path = relevantStores.front();
-        return getValueFromPathEnd(path);
-    }
-    default: {
-        /// This is a bit harder
-        return generatePhi(relevantStores);
-    }
+    case 1:
+        return search(basicBlock->predecessors.front(), depth + 1, bifurkations);
+    default:
+        utl::small_vector<PhiMapping> phiArgs;
+        phiArgs.reserve(basicBlock->predecessors.size());
+        for (auto* pred: basicBlock->predecessors) {
+            PhiMapping arg{ pred, search(pred, depth + 1, bifurkations + 1) };
+            SC_ASSERT(arg.value, "This probably just means we can't promote or have to insert a load into pred, but we figure it out later.");
+            phiArgs.push_back(arg);
+        }
+        if (auto* phi = findPhiWithArgs(basicBlock, phiArgs)) {
+            return phi;
+        }
+        std::string name = bifurkations == 0 ? std::string(currentLoad()->name()) : irCtx.uniqueName(&function, currentLoad()->name(), ".p", bifurkations);
+        auto* phi = new Phi(std::move(phiArgs), std::move(name));
+        basicBlock->addInstruction(basicBlock->instructions.begin(), phi);
+        return phi;
     }
 }
 
-Value* Mem2RegContext::generatePhi(utl::vector<scatha::opt::ControlFlowPath> const& relevantStores) {
-    auto const* const load = &relevantStores.front().front();
-    BasicBlock* const basicBlock = const_cast<BasicBlock*>(relevantStores.front().basicBlocks().front());
-    assert(relevantStores.size() >= basicBlock->predecessors.size()); // We need to have at least as many preceeding stores as predecessors to our BB.
-                                                                      // Otherwise we have UB to to read of uninitialized memory.
-                                                                      /// Mapping predecessors to incoming paths
-    utl::hashmap<BasicBlock const*, utl::small_vector<ControlFlowPath const*>> map;
-    for (auto& path: relevantStores) {
-        assert(path.basicBlocks().size() > 1); // Otherwise we should not be here. We should be in case 1 because search should have stopped at the preceeding store in our BB.
-        map[path.basicBlocks()[1]].push_back(&path);
+Value* Mem2RegContext::findReplacement(Value* value) {
+    decltype(loadReplacementMap)::iterator itr;
+    while ((itr = loadReplacementMap.find(value)) != loadReplacementMap.end()) {
+        value = itr->second;
     }
-    utl::small_vector<PhiMapping> phiArgs;
-    for (auto kv: map) {
-        auto& pred = kv.first;
-        auto& paths = kv.second;
-        auto* const value = [&]() -> Value* {
-            if (paths.size() == 1) {
-                auto& path = paths.front();
-                return getValueFromPathEnd(*path);
-            }
-            /// Here we have more than one path which all enter our BB through the same predecessor.
-            for (size_t i = 0; ; ++i) {
-                /// We shave off the first basic block from each path
-                utl::vector<scatha::opt::ControlFlowPath> newPaths(utl::transform(paths, [](auto* p) { return *p; }));
-                for (auto& path: newPaths) { path.basicBlocks().erase(path.basicBlocks().begin()); }
-                auto* phi = cast<Phi*>(resolveStoredValue(newPaths));
-                phi->setName(ctx.uniqueName(&function, utl::strcat(load->name(), "-pred")));
-                return phi;
-            }
-        }();
-        phiArgs.push_back({ const_cast<BasicBlock*>(pred), value });
-    }
-    if (phiArgs.size() == 1) {
-        return phiArgs.front().value;
-    }
-    auto* phi = new Phi(phiArgs, ctx.uniqueName(&function, "promoted-load"));
-    phi->set_parent(basicBlock);
-    basicBlock->instructions.push_front(phi);
-    return phi;
+    return value;
 }
 
-static bool contains(std::span<BasicBlock const* const> path, BasicBlock const* bb) {
-    return std::find(path.begin(), path.end(), bb) != path.end();
-};
-
-utl::vector<ControlFlowPath> Mem2RegContext::findRelevantLoadsAndStores(Load* load) {
-    using Map = std::map<size_t, ControlFlowPath>;
-    Map paths;
-    size_t id = 0;
-    auto* const address = load->address();
-    auto const& relevantLoadsAndStores = lsLists[address];
-    auto search = [&](Map::iterator currentPathItr, BasicBlock* currentNode, auto& search) mutable {
-        auto& currentPath = currentPathItr->second;
-        /// We allow nodes occuring twice to allow cycles, but we only want to traverse the cycle once.
-        if (contains(currentPath.basicBlocks(), currentNode) && currentNode != currentPath.basicBlocks().front()) { // If we visit our initial BB again here, then we return without checking for any stores in this BB after our load!!!
-            paths.erase(currentPathItr);
-            return;
-        }
-        /// Add the current node to the path
-        opt::internal::addBasicBlock(currentPath, currentNode);
-        /// Search the current node for a store instruction
-        Instruction* relevantLoadOrStore = nullptr;
-        for (ssize_t weight = std::numeric_limits<ssize_t>::min(); auto& c: relevantLoadsAndStores) {
-            if (c.basicBlock != currentNode) {
-                continue;
-            }
-            if (dyncast<Load const*>(c.inst) == load) {
-                continue;
-            }
-            if (currentPath.basicBlocks().size() == 1 && (preceeds(load, c.inst) || replacementMap.contains(c.inst))) {
-                /// This means we are still in our starting basic block and only want to search loads and stores preceeding this load
-                continue;
-            }
-            if (c.positionInBB > weight) {
-                weight = c.positionInBB;
-                relevantLoadOrStore = c.inst;
-            }
-        }
-        if (relevantLoadOrStore != nullptr && (currentPath.basicBlocks().size() > 1 || preceeds(relevantLoadOrStore, load))) {
-            /// We have found a store to our address. We don't need to search further in this path.
-            currentPath.setBack(relevantLoadOrStore);
-            return;
-        }
-        if (currentNode == currentPath.basicBlocks().front() && currentPath.basicBlocks().size() > 1) {
-            /// This path is a round trip without any stores to the value loaded in the beginning. We pin the value from the first load.
-            currentPath.setBack(load);
-            return;
-        }
-        switch (currentNode->predecessors.size()) {
-        case 0:
-            paths.erase(currentPathItr);
-            break;
-        case 1:
-            search(currentPathItr, currentNode->predecessors.front(), search);
-            break;
-        default:
-            auto cpCopy = currentPath;
-            search(currentPathItr, currentNode->predecessors.front(), search);
-            for (size_t i = 1; i < currentNode->predecessors.size(); ++i) {
-                auto [itr, success] = paths.insert({ id++, cpCopy });
-                SC_ASSERT(success, "");
-                search(itr, currentNode->predecessors[i], search);
-            }
-            break;
-        }
-    };
-    auto [itr, success] = paths.insert({ id++, ControlFlowPath(load, nullptr) });
-    search(itr, load->parent(), search);
-    return utl::vector<ControlFlowPath>(utl::transform(paths, [](auto& p) { return p.second; }));
-}
-
-Value* Mem2RegContext::getValueFromPathEnd(ControlFlowPath const& path) {
-    auto* const inst = const_cast<Instruction*>(&path.back());
-    if (replacementMap.contains(inst)) {
-        Value* value = replacementMap.find(inst)->second;
-        while (true) {
-            auto itr = replacementMap.find(value);
-            if (itr == replacementMap.end()) {
-                return value;
-            }
-            value = itr->second;
-        }
+void Mem2RegContext::evictIfDead(Store* store) {
+    if (!isDead(store)) {
+        return;
     }
-    return visit(*inst, utl::overload{ // clang-format off
-        [](Store& store) -> Value* { return store.source(); },
-        [](Load& load) -> Value* { return &load; },
-        [](auto&) -> Value* { SC_UNREACHABLE(); }
-    }); // clang-format on
-}
-
-/// MARK: Stores
-
-void Mem2RegContext::evictDeadStores() {
-    for (auto& bb: function.basicBlocks()) {
-        for (auto instItr = bb.instructions.begin(); instItr != bb.instructions.end(); ) {
-            auto* const store = dyncast<Store*>(instItr.to_address());
-            if (!store) { ++instItr; continue; }
-            bool const canErase = isDead(store);
-            if (canErase) {
-                instItr = bb.instructions.erase(instItr);
-                continue;
-            }
-            ++instItr;
-        }
-    }
+    store->parent()->instructions.erase(store);
+    store->clearOperands();
 }
 
 bool Mem2RegContext::isDead(Store const* store) {
@@ -302,7 +190,7 @@ bool Mem2RegContext::isDead(Store const* store) {
         /// We can only guarantee that this store is dead if the memory was locally allocated by this function.
         return false;
     }
-    for (auto& load: loads) {
+    for (auto const [load, _]: loads) {
         if (load->address() != address) { continue; }
         bool const loadIsReachable = isReachable(store, load);
         if (loadIsReachable) {
@@ -312,81 +200,43 @@ bool Mem2RegContext::isDead(Store const* store) {
     return true;
 }
 
-/// MARK: Allocas
-
-void Mem2RegContext::evictDeadAllocas() {
-    for (auto* allocaInst: allocas) {
-        bool const canErase = isDead(allocaInst);
-        if (canErase) {
-            allocaInst->parent()->instructions.erase(allocaInst);
-            continue;
-        }
+void Mem2RegContext::evictIfDead(Alloca* inst) {
+    if (!isDead(inst)) {
+        return;
     }
+    inst->parent()->instructions.erase(inst);
 }
 
 bool Mem2RegContext::isDead(Alloca const* address) {
     /// See if there is any load from this address
-    for (auto* load: loads) {
-        /// \Warning What about GEPs, see \p Store case.
+    for (auto const [load, _]: loads) {
         if (load->address() != address) { continue; }
         return false;
     }
     return true;
 }
 
-/// MARK: Generic methods
-
 void Mem2RegContext::gather() {
-    for (auto& bb: utl::reverse(function.basicBlocks())) {
-        for (ssize_t positionInBB = 0; auto& inst: utl::reverse(bb.instructions)) {
-            --positionInBB;
-            visit(inst, utl::overload { // clang-format off
-                [&](Alloca& allocaInst) {
-                    allocas.insert(&allocaInst);
+    for (auto& bb: function.basicBlocks()) {
+        for (auto&& [index, inst]: utl::enumerate(bb.instructions)) {
+            visit(inst, utl::overload{ // clang-format off
+                [&, index = index](Load& load) {
+                    loads.push_back({ &load, index });
+                    loadsAndStores[{ load.parent(), load.address() }].push_back({ &load, index });
                 },
-                [&](Store& store) {
-                    auto* const address = store.dest();
-                    lsLists[address].push_back({ &store, store.parent(), positionInBB });
+                [&, index = index](Store& store) {
+                    stores.push_back(&store);
+                    loadsAndStores[{ store.parent(), store.dest() }].push_back({ &store, index });
                 },
-                [&](Load& load) {
-                    loads.push_back(&load);
-                    if (load.users().empty()) {
-                        return;
-                    }
-                    auto* const address = load.address();
-                    lsLists[address].push_back({ &load, load.parent(), positionInBB });
+                [&](Alloca& inst) {
+                    allocas.insert(&inst);
                 },
-                [](auto&) {}
+                [&](auto&) {},
             }); // clang-format on
         }
     }
-}
-
-void Mem2RegContext::removeDuplicatePhis() {
-    for (auto& bb: function.basicBlocks()) {
-        bool haveRemovedPhis;
-        do {
-            haveRemovedPhis = false;
-            utl::small_vector<Phi*> phis;
-            for (auto& inst: bb.instructions) {
-                auto* phi = dyncast<Phi*>(&inst);
-                if (!phi) {
-                    break;
-                }
-                phis.push_back(phi);
-            }
-            for (auto iPhi = phis.begin(); iPhi != phis.end(); ++iPhi) {
-                for (auto jPhi = iPhi + 1; jPhi != phis.end(); ) {
-                    if (!compareEqual(*iPhi, *jPhi)) {
-                        ++jPhi;
-                        continue;
-                    }
-                    replaceValue(*jPhi, *iPhi);
-                    bb.instructions.erase(*jPhi);
-                    jPhi = phis.erase(jPhi);
-                    haveRemovedPhis = true;
-                }
-            }
-        } while (haveRemovedPhis);
+    /// Assertion code
+    for (auto&& [bb, ls]: loadsAndStores) {
+        SC_ASSERT(std::is_sorted(ls.begin(), ls.end(), lsCmpLs), "Loads and stores in one basic block must be sorted");
     }
 }
