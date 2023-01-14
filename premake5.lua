@@ -51,10 +51,16 @@ externalincludedirs {
     "include",
     "external/utility/include", 
     "external/gmp/build/include", 
-    "external/mpfr/build/include" 
+    "external/mpfr/build/include",
+    "external/boost/config/include",
+    "external/boost/detail/include",
+    "external/boost/logic/include"
 }
 includedirs { "lib" }
-libdirs { "external/gmp/build/lib", "external/mpfr/build/lib" }
+libdirs { 
+    "external/gmp/build/lib", 
+    "external/mpfr/build/lib"
+}
 links { "utility", "gmp", "mpfr" }
 
 filter "system:macosx"

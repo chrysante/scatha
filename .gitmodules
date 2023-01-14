@@ -10,3 +10,12 @@
 [submodule "external/mpfr"]
 	path = external/mpfr
 	url = https://github.com/chrysante/MPFR
+[submodule "external/boost/config"]
+	path = external/boost/config
+	url = https://github.com/boostorg/config
+[submodule "external/boost/detail"]
+	path = external/boost/detail
+	url = https://github.com/boostorg/detail
+[submodule "external/boost/logic"]
+	path = external/boost/logic
+	url = https://github.com/boostorg/logic
