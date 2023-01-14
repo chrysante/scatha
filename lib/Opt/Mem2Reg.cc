@@ -1,7 +1,9 @@
 #include "Opt/Mem2Reg.h"
 
 #include <algorithm>
+#include <optional>
 
+#include <boost/logic/tribool.hpp>
 #include <utl/hashset.hpp>
 #include <utl/vector.hpp>
 
@@ -34,8 +36,6 @@ struct Mem2RegContext {
     bool isDead(Store const* store);
     
     void evictIfDead(Alloca* inst);
-    
-    bool isDead(Alloca const* inst);
     
     void gather();
     
@@ -120,8 +120,8 @@ Value* Mem2RegContext::search(BasicBlock* basicBlock, size_t depth, size_t bifur
     auto const beginItr = basicBlock != currentLoad()->parent() || depth == 0 ? ls.begin() : ourLoad();
     auto const endItr = depth > 0 ? ls.end() : ourLoad();
     if (beginItr != endItr) {
-        auto const itr = endItr - 1;
         /// This basic block has a load or store that we use to promote
+        auto const itr = endItr - 1;
         auto* const result = visit(**itr, utl::overload{
             [](Load& load) { return &load; },
             [](Store& store) { return store.source(); },
@@ -130,8 +130,7 @@ Value* Mem2RegContext::search(BasicBlock* basicBlock, size_t depth, size_t bifur
         return findReplacement(result);
     }
     SC_ASSERT(depth == 0 || basicBlock != currentLoad()->parent(), "If we are back in our starting BB we must have found ourself as a matching load.");
-    /// This basic block has no load or store that we use to promote
-    /// We need to visit our predecessors
+    /// This basic block has no load or store that we can use to promote. We need to visit our predecessors.
     switch (basicBlock->predecessors.size()) {
     case 0:
         return nullptr;
@@ -184,14 +183,50 @@ void Mem2RegContext::evictIfDead(Store* store) {
     store->clearOperands();
 }
 
+static std::optional<std::tuple<Value const*, size_t, size_t>> getConstantBaseAndOffset(Value const* addr) {
+    GetElementPointer const* gep = nullptr;
+    Value const* base = addr;
+    size_t offset = 0;
+    size_t size = cast<PointerType const*>(addr->type())->pointeeType()->size();
+    while ((gep = dyncast<GetElementPointer const*>(base)) != nullptr) {
+        if (!gep->isAllConstant()) { return std::nullopt; }
+        base = gep->basePointer();
+        offset += gep->constantByteOffset();
+        size = gep->pointeeType()->size();
+    }
+    return std::tuple{ base, offset, size };
+}
+
+static bool testOverlap(size_t aBegin, size_t aSize, size_t bBegin, size_t bSize) {
+    return aBegin <= bBegin + bSize &&
+           bBegin <= aBegin + aSize;
+}
+
+static boost::tribool testAddressOverlap(Value const* a, Value const* b) {
+    if (!a || !b) {
+        return false;
+    }
+    if (a == b) {
+        return true;
+    }
+    auto abo = getConstantBaseAndOffset(a);
+    auto bbo = getConstantBaseAndOffset(b);
+    if (!abo || !bbo) {
+        return boost::indeterminate;
+    }
+    auto const [aBase, aOffset, aSize] = *abo;
+    auto const [bBase, bOffset, bSize] = *bbo;
+    return aBase == bBase && testOverlap(aOffset, aSize, bOffset, bSize);
+}
+
 bool Mem2RegContext::isDead(Store const* store) {
-    Value const* const address = store->dest();
-    if (!allocas.contains(address)) {
+    Value const* const destAddress = store->dest();
+    if (!allocas.contains(destAddress)) {
         /// We can only guarantee that this store is dead if the memory was locally allocated by this function.
         return false;
     }
     for (auto* const load: loads) {
-        if (load->address() != address) { continue; }
+        if (!testAddressOverlap(load->address(), destAddress)) { continue; }
         bool const loadIsReachable = isReachable(store, load);
         if (loadIsReachable) {
             return false;
@@ -201,20 +236,9 @@ bool Mem2RegContext::isDead(Store const* store) {
 }
 
 void Mem2RegContext::evictIfDead(Alloca* inst) {
-    if (!isDead(inst)) {
-        return;
+    if (inst->users().empty()) {
+        inst->parent()->instructions.erase(inst);
     }
-    inst->parent()->instructions.erase(inst);
-}
-
-bool Mem2RegContext::isDead(Alloca const* address) {
-    /// See if there is any load from this address.
-    /// We can query the cached loads like this, because the evicted loads have their operands set to null, so they will compare unequal here.
-    for (auto* const load: loads) {
-        if (load->address() != address) { continue; }
-        return false;
-    }
-    return true;
 }
 
 void Mem2RegContext::gather() {
