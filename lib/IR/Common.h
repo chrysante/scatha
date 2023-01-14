@@ -6,6 +6,8 @@
 #include <iosfwd>
 #include <string_view>
 
+#include <utl/hash.hpp>
+
 #include <scatha/Basic/Basic.h>
 #include <scatha/Common/Dyncast.h>
 
@@ -116,5 +118,37 @@ enum class TypeCategory {
 /// Map enum \p TypeCategory to actual type category classes
 #define SC_TYPE_CATEGORY_DEF(TypeCat) SC_DYNCAST_MAP(::scatha::ir::TypeCat, ::scatha::ir::TypeCategory::TypeCat);
 #include <scatha/IR/Lists.def>
+
+namespace scatha::ir::internal {
+
+template <bool IsConst>
+struct PhiMappingImpl {
+    using BB = std::conditional_t<IsConst, BasicBlock const, BasicBlock>;
+    using V = std::conditional_t<IsConst, Value const, Value>;
+    PhiMappingImpl(BB* pred, V* value): pred(pred), value(value) {}
+    
+    PhiMappingImpl(PhiMappingImpl<false> p) requires IsConst: pred(p.pred), value(p.value) {}
+    
+    bool operator==(PhiMappingImpl const&) const = default;
+    
+    BB* pred;
+    V* value;
+};
+
+} // namespace scatha:ir::internal
+
+template <bool IsConst>
+struct std::hash<scatha::ir::internal::PhiMappingImpl<IsConst>> {
+    std::size_t operator()(scatha::ir::internal::PhiMappingImpl<IsConst> const& m) const {
+        return utl::hash_combine(m.pred, m.value);
+    }
+};
+        
+namespace scatha::ir {
+
+using PhiMapping = internal::PhiMappingImpl<false>;
+using ConstPhiMapping = internal::PhiMappingImpl<true>;
+
+} // scatha::ir
 
 #endif // SCATHA_IR_COMMON_H_
