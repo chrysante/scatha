@@ -18,32 +18,24 @@ using namespace scatha::ir;
 
 namespace {
 
-template <typename I = Instruction>
-struct InstructionContext {
-    I* instruction;
-    size_t positionInBB;
-};
-
-static constexpr auto lsCmpLs = [](auto const& a, auto const& b) { return a.positionInBB < b.positionInBB; };
-
 struct Mem2RegContext {
     explicit Mem2RegContext(ir::Context& context, Function& function): irCtx(context), function(function) {}
     
     void run();
     
-    bool promote(InstructionContext<Load>);
+    bool promote(Load* load);
   
     Value* search(BasicBlock*, size_t depth, size_t bifurkations);
     
     Value* findReplacement(Value* value);
     
-    void evictIfDead(Store*);
+    void evictIfDead(Store* store);
     
-    bool isDead(Store const*);
+    bool isDead(Store const* store);
     
-    void evictIfDead(Alloca*);
+    void evictIfDead(Alloca* inst);
     
-    bool isDead(Alloca const*);
+    bool isDead(Alloca const* inst);
     
     void gather();
     
@@ -51,26 +43,23 @@ struct Mem2RegContext {
     Function& function;
     
     /// Maps pairs of basic blocks and addresses to lists of load and store instructions from and to that address in that basic block.
-    utl::hashmap<std::pair<BasicBlock*, Value*>, utl::vector<InstructionContext<Instruction>>> loadsAndStores;
+    utl::hashmap<std::pair<BasicBlock*, Value*>, utl::small_vector<Instruction*>> loadsAndStores;
     /// Maps evicted load instructions to their respective replacement values.
     utl::hashmap<Load const*, Value*> loadReplacementMap;
     /// List of all load instructions in the function.
-    utl::vector<InstructionContext<Load>> loads;
+    utl::small_vector<Load*> loads;
     /// List of all store instructions in the function.
-    utl::vector<Store*> stores;
+    utl::small_vector<Store*> stores;
     /// List of all alloca instructions in the function.
     utl::hashset<Alloca*> allocas;
     
-    void setCurrentLoad(InstructionContext<Load> c) {
-        _currentLoad = c.instruction;
-        _currentLoadPositionInBB = c.positionInBB;
+    void setCurrentLoad(Load* load) {
+        _currentLoad = load;
     }
     
     Load* currentLoad() { return _currentLoad; }
-    size_t currentLoadPositionInBB() { return _currentLoadPositionInBB; }
     
     Load* _currentLoad = nullptr;
-    size_t _currentLoadPositionInBB = 0;
 };
 
 } // namespace
@@ -96,8 +85,8 @@ void Mem2RegContext::run() {
     }
 }
 
-bool Mem2RegContext::promote(InstructionContext<Load> loadContext) {
-    setCurrentLoad(loadContext);
+bool Mem2RegContext::promote(Load* load) {
+    setCurrentLoad(load);
     auto* const basicBlock = currentLoad()->parent();
     Value* newValue = search(basicBlock, 0, 0);
     if (!newValue) {
@@ -127,15 +116,13 @@ static Phi* findPhiWithArgs(BasicBlock* basicBlock, std::span<PhiMapping const> 
 
 Value* Mem2RegContext::search(BasicBlock* basicBlock, size_t depth, size_t bifurkations) {
     auto& ls = loadsAndStores[{ basicBlock, currentLoad()->address() }];
-    auto ourLoad = [&]{
-        return std::find_if(ls.begin(), ls.end(), [&](InstructionContext<> const& c) { return c.positionInBB == currentLoadPositionInBB(); });
-    };
+    auto ourLoad = [&]{ return std::find(ls.begin(), ls.end(), currentLoad()); };
     auto const beginItr = basicBlock != currentLoad()->parent() || depth == 0 ? ls.begin() : ourLoad();
     auto const endItr = depth > 0 ? ls.end() : ourLoad();
-    auto const itr = std::max_element(beginItr, endItr, lsCmpLs);
-    if (itr != endItr) {
+    if (beginItr != endItr) {
+        auto const itr = endItr - 1;
         /// This basic block has a load or store that we use to promote
-        auto* const result = visit(*itr->instruction, utl::overload{
+        auto* const result = visit(**itr, utl::overload{
             [](Load& load) { return &load; },
             [](Store& store) { return store.source(); },
             [](auto&) -> Value* { SC_UNREACHABLE(); }
@@ -203,7 +190,7 @@ bool Mem2RegContext::isDead(Store const* store) {
         /// We can only guarantee that this store is dead if the memory was locally allocated by this function.
         return false;
     }
-    for (auto const [load, _]: loads) {
+    for (auto* const load: loads) {
         if (load->address() != address) { continue; }
         bool const loadIsReachable = isReachable(store, load);
         if (loadIsReachable) {
@@ -221,8 +208,9 @@ void Mem2RegContext::evictIfDead(Alloca* inst) {
 }
 
 bool Mem2RegContext::isDead(Alloca const* address) {
-    /// See if there is any load from this address
-    for (auto const [load, _]: loads) {
+    /// See if there is any load from this address.
+    /// We can query the cached loads like this, because the evicted loads have their operands set to null, so they will compare unequal here.
+    for (auto* const load: loads) {
         if (load->address() != address) { continue; }
         return false;
     }
@@ -230,26 +218,24 @@ bool Mem2RegContext::isDead(Alloca const* address) {
 }
 
 void Mem2RegContext::gather() {
-    for (auto& bb: function.basicBlocks()) {
-        for (auto&& [index, inst]: utl::enumerate(bb.instructions)) {
-            visit(inst, utl::overload{ // clang-format off
-                [&, index = index](Load& load) {
-                    loads.push_back({ &load, index });
-                    loadsAndStores[{ load.parent(), load.address() }].push_back({ &load, index });
-                },
-                [&, index = index](Store& store) {
-                    stores.push_back(&store);
-                    loadsAndStores[{ store.parent(), store.dest() }].push_back({ &store, index });
-                },
-                [&](Alloca& inst) {
-                    allocas.insert(&inst);
-                },
-                [&](auto&) {},
-            }); // clang-format on
-        }
+    for (auto& inst: function.instructions()) {
+        visit(inst, utl::overload{ // clang-format off
+            [&](Load& load) {
+                loads.push_back(&load);
+                loadsAndStores[{ load.parent(), load.address() }].push_back(&load);
+            },
+            [&](Store& store) {
+                stores.push_back(&store);
+                loadsAndStores[{ store.parent(), store.dest() }].push_back(&store);
+            },
+            [&](Alloca& inst) {
+                allocas.insert(&inst);
+            },
+            [&](auto&) {},
+        }); // clang-format on
     }
     /// Assertion code
     for (auto&& [bb, ls]: loadsAndStores) {
-        SC_ASSERT(std::is_sorted(ls.begin(), ls.end(), lsCmpLs), "Loads and stores in one basic block must be sorted");
+        SC_ASSERT(std::is_sorted(ls.begin(), ls.end(), [](Instruction const* a, Instruction const* b){ return preceeds(a, b); }), "Loads and stores in one basic block must be sorted by position");
     }
 }
