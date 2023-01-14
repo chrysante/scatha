@@ -44,16 +44,27 @@ bool opt::isReachable(Instruction const* from, Instruction const* to) {
     return search(from->parent(), search);
 }
 
-bool opt::compareEqual(ir::Phi const* lhs, ir::Phi const* rhs) {
-    SC_ASSERT(lhs->parent()->parent() == rhs->parent()->parent(), "The phi nodes must be in the same function for this comparison to be sensible");
-    if (lhs->argumentCount() != rhs->argumentCount()) {
+static bool cmpEqImpl(ir::Phi const* lhs, auto rhs) {
+    if (lhs->argumentCount() != rhs.size()) {
         return false;
     }
     auto lhsArgs = lhs->arguments();
-    auto rhsArgs = rhs->arguments();
     utl::hashset<ConstPhiMapping> lhsSet(lhsArgs.begin(), lhsArgs.end());
-    utl::hashset<ConstPhiMapping> rhsSet(rhsArgs.begin(), rhsArgs.end());
+    utl::hashset<ConstPhiMapping> rhsSet(rhs.begin(), rhs.end());
     return lhsSet == rhsSet;
+}
+
+bool opt::compareEqual(ir::Phi const* lhs, std::span<ir::ConstPhiMapping const> rhs) {
+    return cmpEqImpl(lhs, rhs);
+}
+
+bool opt::compareEqual(ir::Phi const* lhs, std::span<ir::PhiMapping const> rhs) {
+    return cmpEqImpl(lhs, rhs);
+}
+
+bool opt::compareEqual(ir::Phi const* lhs, ir::Phi const* rhs) {
+    SC_ASSERT(lhs->parent()->parent() == rhs->parent()->parent(), "The phi nodes must be in the same function for this comparison to be sensible");
+    return cmpEqImpl(lhs, rhs->arguments());
 }
 
 void opt::replaceValue(Value* oldValue, Value* newValue) {
