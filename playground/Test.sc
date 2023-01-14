@@ -1,38 +1,33 @@
-fn fact(n: int) -> int {
-    var result = 1;
-    for i = 1; i <= n; i += 1 {
-        result *= i;
-    }
+struct X {
+    var b: bool;
+    var c: bool;
+    var d: bool;
+    var a: int;
+}
+fn makeX() -> X {
+    var result: X;
+    result.a = 1;
+    result.b = false;
+    result.c = true;
+    result.d = false;
     return result;
 }
 fn main() -> int {
-    return fact(4);
+    var x = makeX();
+    if x.c { return 2; }
+    return 1;
 }
 
 /*
-
-fn gcd(a: int, b: int) -> int {
-    while a != b {
-        a == b;
-        if a > b {
-            if true {
-                a -= b;
-            }
-            else {}
-        }
-        else {
-            if true {
-                b -= a;
-            }
-            
-        }
-    }
-    return a;
+struct V {
+    var x: int;
+    var y: int;
 }
+
 fn main() -> int {
-    let a = 756476;
-    let b = 1253;
-    return gcd(a, b);
+    var v: V;
+    v.x = 1;
+    v.y = 2;
+    return v.y;
 }
-
 */
