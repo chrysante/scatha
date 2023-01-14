@@ -39,6 +39,12 @@ struct Mem2RegContext {
     
     void gather();
     
+    void setCurrentLoad(Load* load) {
+        _currentLoad = load;
+    }
+    
+    Load* currentLoad() { return _currentLoad; }
+    
     ir::Context& irCtx;
     Function& function;
     
@@ -52,12 +58,6 @@ struct Mem2RegContext {
     utl::small_vector<Store*> stores;
     /// List of all alloca instructions in the function.
     utl::hashset<Alloca*> allocas;
-    
-    void setCurrentLoad(Load* load) {
-        _currentLoad = load;
-    }
-    
-    Load* currentLoad() { return _currentLoad; }
     
     Load* _currentLoad = nullptr;
 };
@@ -97,7 +97,7 @@ bool Mem2RegContext::promote(Load* load) {
     basicBlock->instructions.erase(currentLoad());
     replaceValue(currentLoad(), newValue);
     currentLoad()->clearOperands();
-    setCurrentLoad({});
+    setCurrentLoad(nullptr);
     return true;
 }
 
@@ -235,7 +235,7 @@ void Mem2RegContext::gather() {
         }); // clang-format on
     }
     /// Assertion code
-    for (auto&& [bb, ls]: loadsAndStores) {
+    for ([[maybe_unused]] auto&& [bb, ls]: loadsAndStores) {
         SC_ASSERT(std::is_sorted(ls.begin(), ls.end(), [](Instruction const* a, Instruction const* b){ return preceeds(a, b); }), "Loads and stores in one basic block must be sorted by position");
     }
 }
