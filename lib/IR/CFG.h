@@ -78,6 +78,9 @@ public:
     
     void setOperand(size_t index, Value* operand);
     
+    /// This should proably at some point be replaced by some sort of \p delete operation
+    void clearOperands();
+    
 protected:
     explicit User(NodeType nodeType, Type const* type, std::string name, std::initializer_list<Value*> operands):
         User(nodeType, type, std::move(name), std::span<Value* const>(operands)) {}
@@ -125,7 +128,7 @@ protected:
     using User::User;
 };
 
-/// Represents a basic block. A basic block starts is a list of instructions starting with zero or more phi nodes and
+/// Represents a basic block. A basic block  is a list of instructions starting with zero or more phi nodes and
 /// ending with one terminator instruction. These invariants are not enforced by this class because they may be
 /// violated during construction and transformations of the CFG.
 class SCATHA(API) BasicBlock: public Value, public NodeWithParent<BasicBlock, Function> {
@@ -135,6 +138,11 @@ public:
     void addInstruction(Instruction* instruction) {
         instruction->set_parent(this);
         instructions.push_back(instruction);
+    }
+    
+    void addInstruction(List<Instruction>::iterator before, Instruction* instruction) {
+        instruction->set_parent(this);
+        instructions.insert(before, instruction);
     }
 
     /// Check wether this is the entry basic block of a function
@@ -400,29 +408,6 @@ private:
     u32 _slot, _index;
 };
 
-namespace internal {
-
-template <bool IsConst>
-struct PhiMappingImpl {
-    using BB = std::conditional_t<IsConst, BasicBlock const, BasicBlock>;
-    using V = std::conditional_t<IsConst, Value const, Value>;
-    PhiMappingImpl(BB* pred, V* value): pred(pred), value(value) {}
-    
-    PhiMappingImpl(PhiMappingImpl<false> p) requires IsConst: pred(p.pred), value(p.value) {}
-    
-    bool operator==(PhiMappingImpl const&) const = default;
-    
-    BB* pred;
-    V* value;
-};
-
-
-
-} // namespace internal
-
-using PhiMapping = internal::PhiMappingImpl<false>;
-using ConstPhiMapping = internal::PhiMappingImpl<true>;
-
 /// Phi instruction. Choose a value based on where control flow comes from.
 class SCATHA(API) Phi: public Instruction {
 public:
@@ -475,12 +460,5 @@ private:
 };
 
 } // namespace scatha::ir
-
-template <bool IsConst>
-struct std::hash<scatha::ir::internal::PhiMappingImpl<IsConst>> {
-    std::size_t operator()(scatha::ir::internal::PhiMappingImpl<IsConst> const& m) const {
-        return utl::hash_combine(m.pred, m.value);
-    }
-};
 
 #endif // SCATHA_IR_CFG_H_

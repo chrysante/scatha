@@ -34,6 +34,13 @@ void User::setOperand(size_t index, Value* operand) {
     _operands[index] = operand;
 }
 
+void User::clearOperands() {
+    for (auto& op: _operands) {
+        op->removeUser(this);
+        op = nullptr;
+    }
+}
+
 IntegralConstant::IntegralConstant(Context& context, APInt value, size_t bitWidth):
     Constant(NodeType::IntegralConstant, context.integralType(bitWidth)), _value(value) {}
 
