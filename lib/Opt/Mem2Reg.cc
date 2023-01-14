@@ -152,11 +152,24 @@ Value* Mem2RegContext::search(BasicBlock* basicBlock, size_t depth, size_t bifur
         return search(basicBlock->predecessors.front(), depth + 1, bifurkations);
     default:
         utl::small_vector<PhiMapping> phiArgs;
-        phiArgs.reserve(basicBlock->predecessors.size());
+        size_t const predCount = basicBlock->predecessors.size();
+        phiArgs.reserve(predCount);
+        size_t numPredsEqualToSelf = 0;
+        Value* valueUnequalToSelf = nullptr;
         for (auto* pred: basicBlock->predecessors) {
             PhiMapping arg{ pred, search(pred, depth + 1, bifurkations + 1) };
             SC_ASSERT(arg.value, "This probably just means we can't promote or have to insert a load into pred, but we figure it out later.");
             phiArgs.push_back(arg);
+            if (arg.value == currentLoad()) {
+                ++numPredsEqualToSelf;
+            }
+            else {
+                valueUnequalToSelf = arg.value;
+            }
+        }
+        SC_ASSERT(numPredsEqualToSelf < predCount, "How can all predecessors refer to this load? How would we than even reach this basic block?");
+        if (numPredsEqualToSelf == predCount - 1) {
+            return valueUnequalToSelf;
         }
         if (auto* phi = findPhiWithArgs(basicBlock, phiArgs)) {
             return phi;
