@@ -446,13 +446,13 @@ private:
 class GetElementPointer: public Instruction {
 public:
     explicit GetElementPointer(
-        Context& context, Type const* accessedType, Type const* pointeeType, Value* basePointer, Value* arrayOffsetIndex, Value* structureOffsetIndex, std::string name = {});
+        Context& context, Type const* accessedType, Type const* pointeeType, Value* basePointer, Value* arrayIndex, Value* structMemberIndex, std::string name = {});
 
-    Type const* accessedType() const { return accType_constant.pointer(); }
+    Type const* accessedType() const { return accType; }
 
     Type const* pointeeType() const { return cast<PointerType const*>(type())->pointeeType(); }
     
-    bool isAllConstant() const { return accType_constant.integer(); }
+    bool isAllConstant() const { return isa<IntegralConstant>(arrayIndex()) && isa<IntegralConstant>(structMemberIndex()); }
     
     Value* basePointer() { return operands()[0]; }
     Value const* basePointer() const { return operands()[0]; }
@@ -480,7 +480,19 @@ public:
     }
     
 private:
-    utl::pointer_int_pair<Type const*, bool> accType_constant;
+    Type const* accType;
+};
+
+/// ExtractValue instruction. Extract the value of a structure member or array element.
+class ExtractValue: public UnaryInstruction {
+public:
+    explicit ExtractValue(Value* baseValue, size_t index, std::string name = {}):
+        UnaryInstruction(NodeType::ExtractValue, baseValue, cast<StructureType const*>(baseValue->type())->memberAt(index), std::move(name)) {}
+    
+    size_t index() const { return _index; }
+    
+private:
+    size_t _index;
 };
 
 } // namespace scatha::ir

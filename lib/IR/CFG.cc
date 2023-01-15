@@ -176,20 +176,17 @@ void Phi::clearArguments() {
 }
 
 GetElementPointer::GetElementPointer(
-    Context& context, Type const* accessedType, Type const* pointeeType, Value* basePointer, Value* arrayOffsetIndex, Value* structureOffsetIndex, std::string name):
+    Context& context, Type const* accessedType, Type const* pointeeType, Value* basePointer, Value* arrayIndex, Value* structMemberIndex, std::string name):
     Instruction(NodeType::GetElementPointer,
                 context.pointerType(pointeeType),
                 std::move(name),
-                { basePointer, arrayOffsetIndex, structureOffsetIndex }),
-    accType_constant(accessedType, false)
+                { basePointer, arrayIndex, structMemberIndex }),
+    accType(accessedType)
 {
     SC_ASSERT(isa<PointerType>(basePointer->type()), "basePointer must be a pointer");
-    SC_ASSERT(isa<IntegralType>(arrayOffsetIndex->type()), "Indices must be integral");
-    SC_ASSERT(isa<IntegralType>(structureOffsetIndex->type()), "Indices must be integral");
-    if (auto* offset = dyncast<IntegralConstant const*>(structureOffsetIndex)) {
+    SC_ASSERT(isa<IntegralType>(arrayIndex->type()), "Indices must be integral");
+    SC_ASSERT(isa<IntegralType>(structMemberIndex->type()), "Indices must be integral");
+    if (auto* offset = dyncast<IntegralConstant const*>(structMemberIndex)) {
         SC_ASSERT(cast<PointerType const*>(type())->pointeeType() == cast<StructureType const*>(accessedType)->memberAt(static_cast<size_t>(offset->value())), "");
-    }
-    if (isa<IntegralConstant>(arrayOffsetIndex) && isa<IntegralConstant>(structureOffsetIndex)) {
-        accType_constant.integer(true);
     }
 }

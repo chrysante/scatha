@@ -33,6 +33,7 @@ SC_CGFNODE_DEF(FunctionCall)
 SC_CGFNODE_DEF(ExtFunctionCall)
 SC_CGFNODE_DEF(Phi)
 SC_CGFNODE_DEF(GetElementPointer)
+SC_CGFNODE_DEF(ExtractValue)
 
 #undef SC_CGFNODE_DEF
 
