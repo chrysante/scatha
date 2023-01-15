@@ -51,7 +51,7 @@ void playground::irDump(std::string_view text) {
     auto [ctx, mod] = makeIRModule(text);
     sectionHeader(" IR Code ");
     ir::print(mod);
-    
+
     auto asmStream = cg::codegen(mod);
     sectionHeader(" Assembly ");
     Asm::print(asmStream);

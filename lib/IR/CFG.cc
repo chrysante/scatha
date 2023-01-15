@@ -21,7 +21,9 @@ void Value::removeUser(User* user) {
 User::User(NodeType nodeType, Type const* type, std::string name, std::span<Value* const> operands):
     Value(nodeType, type, std::move(name)) {
     for (Value* op: operands) {
-        if (!op) { continue; }
+        if (!op) {
+            continue;
+        }
         _operands.push_back(op);
         op->addUser(this);
     }
@@ -65,13 +67,15 @@ bool BasicBlock::isEntry() const {
 }
 
 bool BasicBlock::contains(Instruction const& inst) const {
-    return std::find_if(instructions.begin(), instructions.end(), [&](Instruction const& i) {
-        return &i == &inst;
-    }) != instructions.end();
+    auto const itr =
+        std::find_if(instructions.begin(), instructions.end(), [&](Instruction const& i) { return &i == &inst; });
+    return itr != instructions.end();
 }
 
 TerminatorInst const* BasicBlock::terminator() const {
-    if (instructions.empty()) { return nullptr; }
+    if (instructions.empty()) {
+        return nullptr;
+    }
     return dyncast<TerminatorInst const*>(&instructions.back());
 }
 
@@ -135,12 +139,14 @@ ArithmeticInst::ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, s
     SC_ASSERT(isa<ArithmeticType>(lhs->type()), "Operands types must be arithmetic");
 }
 
-TerminatorInst::TerminatorInst(NodeType nodeType, Context& context, utl::small_vector<BasicBlock*> targets, std::initializer_list<Value*> operands):
+TerminatorInst::TerminatorInst(NodeType nodeType,
+                               Context& context,
+                               utl::small_vector<BasicBlock*> targets,
+                               std::initializer_list<Value*> operands):
     Instruction(nodeType, context.voidType(), {}, operands), _targets(std::move(targets)) {}
 
 FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments, std::string name):
-    Instruction(NodeType::FunctionCall, function->returnType(), std::move(name), arguments),
-    _function(function) {}
+    Instruction(NodeType::FunctionCall, function->returnType(), std::move(name), arguments), _function(function) {}
 
 ExtFunctionCall::ExtFunctionCall(
     size_t slot, size_t index, std::span<Value* const> arguments, ir::Type const* returnType, std::string name):
@@ -175,18 +181,24 @@ void Phi::clearArguments() {
     _operands.clear();
 }
 
-GetElementPointer::GetElementPointer(
-    Context& context, Type const* accessedType, Type const* pointeeType, Value* basePointer, Value* arrayIndex, Value* structMemberIndex, std::string name):
+GetElementPointer::GetElementPointer(Context& context,
+                                     Type const* accessedType,
+                                     Type const* pointeeType,
+                                     Value* basePointer,
+                                     Value* arrayIndex,
+                                     Value* structMemberIndex,
+                                     std::string name):
     Instruction(NodeType::GetElementPointer,
                 context.pointerType(pointeeType),
                 std::move(name),
                 { basePointer, arrayIndex, structMemberIndex }),
-    accType(accessedType)
-{
+    accType(accessedType) {
     SC_ASSERT(isa<PointerType>(basePointer->type()), "basePointer must be a pointer");
     SC_ASSERT(isa<IntegralType>(arrayIndex->type()), "Indices must be integral");
     SC_ASSERT(isa<IntegralType>(structMemberIndex->type()), "Indices must be integral");
     if (auto* offset = dyncast<IntegralConstant const*>(structMemberIndex)) {
-        SC_ASSERT(cast<PointerType const*>(type())->pointeeType() == cast<StructureType const*>(accessedType)->memberAt(static_cast<size_t>(offset->value())), "");
+        SC_ASSERT(cast<PointerType const*>(type())->pointeeType() ==
+                      cast<StructureType const*>(accessedType)->memberAt(static_cast<size_t>(offset->value())),
+                  "");
     }
 }

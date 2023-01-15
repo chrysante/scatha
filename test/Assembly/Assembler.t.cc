@@ -2,9 +2,9 @@
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
+#include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
-#include "Assembly/Block.h"
 #include "Basic/Memory.h"
 #include "VM/Builtin.h"
 #include "VM/VirtualMachine.h"
@@ -28,12 +28,13 @@ static vm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
 
 TEST_CASE("Alloca implementation", "[assembly][vm]") {
     AssemblyStream a;
+    // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(128), 8),     // a = 128
         AllocaInst(RegisterIndex(1), RegisterIndex(2)),  // ptr = alloca(...)
         MoveInst(MemoryAddress(1), RegisterIndex(0), 8), // *ptr = a
         TerminateInst()
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(read<i64>(&state.registers[0]) == 128);
@@ -43,13 +44,14 @@ TEST_CASE("Alloca implementation", "[assembly][vm]") {
 TEST_CASE("Alloca 2", "[assembly][vm]") {
     int const offset = GENERATE(0, 1, 2, 3, 4, 5, 6, 7);
     AssemblyStream a;
+    // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(1), 8),      // a = 128
         AllocaInst(RegisterIndex(1), RegisterIndex(2)), // ptr = alloca(...)
         MoveInst(MemoryAddress(1, MemoryAddress::invalidRegisterIndex, 0, offset),
                  RegisterIndex(0), 1), // ptr[offset] = a
         TerminateInst()
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(read<i64>(&state.registers[2]) == i64(1) << 8 * offset);
@@ -60,6 +62,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
     AssemblyStream a;
     // Main function
     // Should hold the result in R[2]
+    // clang-format off
     a.add(Block(main, "main", {
         MoveInst(RegisterIndex(2), Value64(54), 8), // a = 54
         MoveInst(RegisterIndex(3), Value64(24), 8), // b = 24
@@ -79,7 +82,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
         MoveInst(RegisterIndex(0), RegisterIndex(2), 8), // a = c
         ArithmeticInst(ArithmeticOperation::Rem, Type::Signed, RegisterIndex(1), RegisterIndex(2)),
         JumpInst(gcd) // Tail call
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     // gcd(54, 24) == 6
@@ -90,6 +93,7 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
     enum { main, gcd, gcd_else };
     AssemblyStream a;
     // Should hold the result in R[2]
+    // clang-format off
     a.add(Block(main, "main", {
         MoveInst(RegisterIndex(2), Value64(1023534), 8), // R[2] = arg0
         MoveInst(RegisterIndex(3), Value64(213588), 8),  // R[2] = arg1
@@ -115,7 +119,7 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
         CallInst(gcd, 4),                                // Deliberately no tail call
         MoveInst(RegisterIndex(0), RegisterIndex(4), 8), // R[0] = R[4] to move the result to the expected register
         ReturnInst(),
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     // gcd(1023534,213588) == 18
@@ -124,12 +128,13 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
 
 static void testArithmeticRR(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
     AssemblyStream a;
+    // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         MoveInst(RegisterIndex(1), Value64(arg2), 8),
         ArithmeticInst(operation, type, RegisterIndex(0), RegisterIndex(1)),
         TerminateInst(),
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
@@ -137,12 +142,13 @@ static void testArithmeticRR(ArithmeticOperation operation, Type type, auto arg1
 
 static void testArithmeticRV(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
     AssemblyStream a;
+    // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         ArithmeticInst(operation, type, RegisterIndex(0), Value64(arg2)),
         TerminateInst(),
-    }));
-    
+    })); // clang-format on
+
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
@@ -150,6 +156,7 @@ static void testArithmeticRV(ArithmeticOperation operation, Type type, auto arg1
 
 static void testArithmeticRM(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
     AssemblyStream a;
+    // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         MoveInst(RegisterIndex(1), Value64(arg2), 8),
@@ -157,7 +164,7 @@ static void testArithmeticRM(ArithmeticOperation operation, Type type, auto arg1
         MoveInst(MemoryAddress(2), RegisterIndex(1), 8),
         ArithmeticInst(operation, type, RegisterIndex(0), MemoryAddress(2)),
         TerminateInst(),
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
@@ -204,6 +211,7 @@ TEST_CASE("Arithmetic", "[assembly][vm]") {
 TEST_CASE("Unconditional jump", "[assembly][vm]") {
     u64 const value = GENERATE(1u, 2u, 3u, 4u);
     AssemblyStream a;
+    // clang-format off
     a.add(Block(0, "start", {
         JumpInst(value)
     }));
@@ -222,7 +230,7 @@ TEST_CASE("Unconditional jump", "[assembly][vm]") {
     a.add(Block(4, "4", {
         MoveInst(RegisterIndex(0), Value64(4), 8),
         TerminateInst(),
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(read<u64>(state.regPtr) == value);
@@ -233,7 +241,7 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
     i64 const arg1  = GENERATE(-2, 0, 5, 100);
     i64 const arg2  = GENERATE(-100, -3, 0, 7);
     AssemblyStream a;
-    
+    // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         CompareInst(Type::Signed, RegisterIndex(0), Value64(arg2)),
@@ -256,7 +264,7 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
     a.add(Block(4, "4", {
         MoveInst(RegisterIndex(1), Value64(4), 8),
         TerminateInst(),
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(read<u64>(&state.registers[1]) == (arg1 <= arg2 ? value : static_cast<u64>(-1)));
@@ -264,6 +272,7 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
 
 TEST_CASE("itest, set*", "[assembly][vm]") {
     AssemblyStream a;
+    // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(-1), 8),
         TestInst(Type::Signed, RegisterIndex(0)),
@@ -274,7 +283,7 @@ TEST_CASE("itest, set*", "[assembly][vm]") {
         SetInst(RegisterIndex(4), CompareOperation::Greater),
         SetInst(RegisterIndex(5), CompareOperation::GreaterEq),
         TerminateInst(),
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(state.registers[0] == 0);
@@ -287,6 +296,7 @@ TEST_CASE("itest, set*", "[assembly][vm]") {
 
 TEST_CASE("callExt", "[assembly][vm]") {
     AssemblyStream a;
+    // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(-1), 8),
         CallExtInst(/* regPtrOffset = */ 0,
@@ -309,8 +319,7 @@ TEST_CASE("callExt", "[assembly][vm]") {
                           builtinFunctionSlot,
                           /* index = */ static_cast<size_t>(Builtin::putf64)),
         TerminateInst()
-    }));
-    
+    })); // clang-format on
     CoutRerouter cr;
     assembleAndExecute(a);
     CHECK(cr.str() == "-1 X 0.5");
@@ -318,13 +327,14 @@ TEST_CASE("callExt", "[assembly][vm]") {
 
 TEST_CASE("callExt with return value", "[assembly][vm]") {
     AssemblyStream a;
+    // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(2.0), 8),
         CallExtInst(/* regPtrOffset = */ 0,
                           builtinFunctionSlot,
                           /* index = */ static_cast<size_t>(Builtin::sqrtf64)),
         TerminateInst(),
-    }));
+    })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(state.registers[0] == utl::bit_cast<u64>(std::sqrt(2.0)));

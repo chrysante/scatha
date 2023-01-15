@@ -2,8 +2,8 @@
 
 #include <string>
 
-#include "IR/Iterator.h"
 #include "IR/CFG.h"
+#include "IR/Iterator.h"
 #include "test/IR/CompileToIR.h"
 
 using namespace scatha;
@@ -17,13 +17,14 @@ fn f(n: int) -> int {
     }
     return k;
 })";
-    auto mod = test::compileToIR(text);
-    auto& function = mod.functions().front();
+    auto mod               = test::compileToIR(text);
+    auto& function         = mod.functions().front();
     struct Reference {
         ir::NodeType type;
         std::string_view name;
     };
-    Reference const reference[] = { // clang-format off
+    Reference const reference[] = {
+        // clang-format off
         { ir::NodeType::Alloca,      "n-ptr" },
         { ir::NodeType::Store,       "" },
         { ir::NodeType::Alloca,      "k-ptr" },
@@ -47,7 +48,7 @@ fn f(n: int) -> int {
     }
     SECTION("Erase every second element") {
         auto const instructions = function.instructions();
-        size_t k = 0;
+        size_t k                = 0;
         for (auto itr = instructions.begin(); itr != instructions.end(); ++k) {
             if (k % 2 == 1) {
                 itr = itr->parent()->instructions.erase(itr.instructionIterator());
@@ -64,7 +65,7 @@ fn f(n: int) -> int {
     }
     SECTION("Erase all") {
         auto const instructions = function.instructions();
-        size_t k = 0;
+        size_t k                = 0;
         for (auto itr = instructions.begin(); itr != instructions.end(); ++k) {
             itr = itr->parent()->instructions.erase(itr.instructionIterator());
         }

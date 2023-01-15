@@ -7,8 +7,8 @@
 #include <utl/hashmap.hpp>
 
 #include "Basic/Basic.h"
-#include "IR/Module.h"
 #include "IR/CFG.h"
+#include "IR/Module.h"
 
 using namespace scatha;
 using namespace ir;
@@ -17,12 +17,8 @@ using namespace ir;
 
 #define CHECK(cond, msg) _doCheck(cond, msg, #cond, __FUNCTION__, __LINE__)
 
-static void _doCheck(bool             condition,
-                     std::string_view msg,
-                     std::string_view conditionStr,
-                     std::string_view functionName,
-                     size_t           line)
-{
+static void _doCheck(
+    bool condition, std::string_view msg, std::string_view conditionStr, std::string_view functionName, size_t line) {
     if (condition) {
         return;
     }
@@ -34,21 +30,21 @@ static void _doCheck(bool             condition,
 
 struct AssertContext {
     explicit AssertContext(ir::Context const& ctx): ctx(ctx) {}
-    
+
     void assertInvariants(Module const& mod);
     void assertInvariants(Function const& function);
     void assertInvariants(BasicBlock const& bb);
     void assertInvariants(Instruction const& inst);
-    
+
     void assertSpecialInvariants(Value const&) { SC_UNREACHABLE(); }
     void assertSpecialInvariants(Instruction const&) {}
     void assertSpecialInvariants(Phi const&);
-    
+
     void uniqueName(Value const& value);
-    
+
     ir::Context const& ctx;
     Function const* currentFunction = nullptr;
-    BasicBlock const* currentBB = nullptr;
+    BasicBlock const* currentBB     = nullptr;
     utl::hashmap<std::string, std::pair<Function const*, Value const*>> nameValueMap;
 };
 
@@ -114,14 +110,13 @@ void AssertContext::assertInvariants(Instruction const& inst) {
     for (auto* user: inst.users()) {
         uniqueName(*user);
         auto userOps = user->operands();
-        CHECK(std::find(userOps.begin(), userOps.end(), &inst) != userOps.end(),
-              "Our users must actually use us");
+        CHECK(std::find(userOps.begin(), userOps.end(), &inst) != userOps.end(), "Our users must actually use us");
         if (auto* userInst = dyncast<Instruction const*>(user)) {
             CHECK(userInst->parent()->parent() == inst.parent()->parent(),
                   "If our user is an instruction it must be in the same function");
         }
     }
-    visit(inst, [this](auto& inst){ assertSpecialInvariants(inst); });
+    visit(inst, [this](auto& inst) { assertSpecialInvariants(inst); });
 }
 
 void AssertContext::assertSpecialInvariants(Phi const& phi) {
@@ -133,19 +128,25 @@ void AssertContext::assertSpecialInvariants(Phi const& phi) {
 }
 
 void AssertContext::uniqueName(Value const& value) {
+    // clang-format off
     Function const* function = visit(value, utl::overload{
         [](Value const& value) -> Function const* { return nullptr; },
         [](Instruction const& inst) { return inst.parent()->parent(); },
         [](Parameter const& param) { return param.parent(); }
-    });
+    }); // clang-format on
     auto const [itr, success] = nameValueMap.insert({ std::string(value.name()), { function, &value } });
-    if (success) { return; }
+    if (success) {
+        return;
+    }
     auto& name = itr->first;
-    if (name.empty()) { return; }
+    if (name.empty()) {
+        return;
+    }
     auto const [funcAddr, valueAddr] = itr->second;
-    if (funcAddr != function) { return; }
-    CHECK(valueAddr == &value,
-          "A value with the same name must be the same value");
+    if (funcAddr != function) {
+        return;
+    }
+    CHECK(valueAddr == &value, "A value with the same name must be the same value");
 }
 
 /// ** Setup **
@@ -181,9 +182,10 @@ void ir::setupInvariants(Context& ctx, Function& function) {
             }
         }
         auto* firstTerminator = cast<TerminatorInst*>(inst->next());
-        using ListType = decltype(bb.instructions);
+        using ListType        = decltype(bb.instructions);
         bb.instructions.erase(ListType::iterator(firstTerminator->next()), bb.instructions.end());
-        visit(*firstTerminator, utl::overload{ // clang-format off
+        // clang-format off
+        visit(*firstTerminator, utl::overload{
             [&](ir::Goto& gt) {
                 link(&bb, gt.target());
             },

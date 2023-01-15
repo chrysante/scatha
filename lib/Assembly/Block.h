@@ -14,36 +14,33 @@ namespace scatha::Asm {
 
 class Block {
 public:
-    using Iterator = utl::vector<Instruction>::iterator;
+    using Iterator      = utl::vector<Instruction>::iterator;
     using ConstIterator = utl::vector<Instruction>::const_iterator;
-    
+
     explicit Block(size_t id, std::string name): Block(id, std::move(name), {}) {}
-    
-    explicit Block(size_t id, std::string name, std::initializer_list<Instruction> instructions): _id(id), _name(std::move(name)), instructions(instructions) {}
-    
+
+    explicit Block(size_t id, std::string name, std::initializer_list<Instruction> instructions):
+        _id(id), _name(std::move(name)), instructions(instructions) {}
+
     size_t id() const { return _id; }
-    
+
     std::string_view name() const { return _name; }
-    
+
     size_t instructionCount() const { return instructions.size(); }
     bool empty() const { return instructions.empty(); }
-    
+
     auto begin() { return instructions.begin(); }
     auto begin() const { return instructions.begin(); }
-    
+
     auto end() { return instructions.end(); }
     auto end() const { return instructions.end(); }
-    
-    void insertBack(Instruction const& instruction) {
-        instructions.push_back(instruction);
-    }
-    void insert(ConstIterator position, Instruction const& instruction) {
-        instructions.insert(position, instruction);
-    }
+
+    void insertBack(Instruction const& instruction) { instructions.push_back(instruction); }
+    void insert(ConstIterator position, Instruction const& instruction) { instructions.insert(position, instruction); }
     void insert(ConstIterator position, utl::range_for<Instruction> auto&& instructions) {
         this->instructions.insert(position, instructions.begin(), instructions.end());
     }
-    
+
 private:
     size_t _id;
     std::string _name;

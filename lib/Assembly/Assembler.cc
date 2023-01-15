@@ -8,10 +8,10 @@
 #include <utl/utility.hpp>
 
 #include "Assembly/AssemblyStream.h"
+#include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
 #include "Assembly/Map.h"
 #include "Assembly/Value.h"
-#include "Assembly/Block.h"
 #include "Basic/Memory.h"
 #include "VM/OpCode.h"
 #include "VM/Program.h"
@@ -36,7 +36,7 @@ struct Context {
         stream(stream), options(options), program(program), instructions(program.instructions) {}
 
     void run();
-    
+
     void dispatch(Instruction const& inst);
     void translate(MoveInst const&);
     void translate(JumpInst const&);

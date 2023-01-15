@@ -12,9 +12,9 @@
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "Opt/Mem2Reg.h"
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
+#include "Opt/Mem2Reg.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "VM/Program.h"
@@ -39,7 +39,7 @@ static vm::Program compile(std::string_view text, bool optimze) {
         throw std::runtime_error("Compilation failed");
     }
     ir::Context ctx;
-    auto mod       = ast::codegen(*ast, sym, ctx);
+    auto mod = ast::codegen(*ast, sym, ctx);
     if (optimze) {
         opt::mem2Reg(ctx, mod);
     }

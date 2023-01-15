@@ -22,10 +22,10 @@ public:
 
     auto begin() { return blocks.begin(); }
     auto begin() const { return blocks.begin(); }
-    
+
     auto end() { return blocks.end(); }
     auto end() const { return blocks.end(); }
-    
+
     Block* add(Block block);
 
 private:

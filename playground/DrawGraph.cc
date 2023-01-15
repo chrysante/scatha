@@ -1,8 +1,8 @@
 #include "DrawGraph.h"
 
-#include <sstream>
 #include <fstream>
 #include <ostream>
+#include <sstream>
 #include <string_view>
 
 #include <utl/strcat.hpp>
@@ -22,7 +22,10 @@ struct Ctx {
                  utl::function_view<void(std::stringstream&, scatha::ir::Function const&)> functionCallback,
                  utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbDeclareCallback,
                  utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbConnectCallback):
-        mod(mod), functionCallback(functionCallback), bbDeclareCallback(bbDeclareCallback), bbConnectCallback(bbConnectCallback) {}
+        mod(mod),
+        functionCallback(functionCallback),
+        bbDeclareCallback(bbDeclareCallback),
+        bbConnectCallback(bbConnectCallback) {}
 
     void run();
 
@@ -40,7 +43,6 @@ struct Ctx {
 
     std::string takeResult() { return std::move(str).str(); }
 
-    
     Module const& mod;
     utl::function_view<void(std::stringstream&, scatha::ir::Function const&)> functionCallback;
     utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbDeclareCallback;
@@ -73,11 +75,11 @@ static constexpr utl::streammanip rowBegin = [](std::ostream& str) { str << "<tr
 
 static constexpr utl::streammanip rowEnd = [](std::ostream& str) { str << "</td></tr>"; };
 
-std::string playground::drawGraphGeneric(scatha::ir::Module const& mod,
-                                         utl::function_view<void(std::stringstream&, scatha::ir::Function const&)> functionCallback,
-                                         utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbDeclareCallback,
-                                         utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbConnectCallback)
-{
+std::string playground::drawGraphGeneric(
+    scatha::ir::Module const& mod,
+    utl::function_view<void(std::stringstream&, scatha::ir::Function const&)> functionCallback,
+    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbDeclareCallback,
+    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbConnectCallback) {
     Ctx ctx(mod, functionCallback, bbDeclareCallback, bbConnectCallback);
     ctx.run();
     return ctx.takeResult();
@@ -85,7 +87,7 @@ std::string playground::drawGraphGeneric(scatha::ir::Module const& mod,
 
 std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
     auto functionCallback = [](std::stringstream& str, Function const& function) {};
-    auto declareCallback = [](std::stringstream& str, BasicBlock const& bb) {
+    auto declareCallback  = [](std::stringstream& str, BasicBlock const& bb) {
         str << dotName(bb) << " [ label = ";
         str << "<\n";
         auto prolog = [&] { str << "    " << rowBegin << fontBegin(font) << "\n"; };
@@ -118,7 +120,7 @@ void playground::drawControlFlowGraph(scatha::ir::Module const& mod, std::filesy
 
 std::string playground::drawUseGraph(scatha::ir::Module const& mod) {
     auto functionCallback = [](std::stringstream& str, Function const& function) {};
-    auto declareCallback = [](std::stringstream& str, BasicBlock const& bb) {
+    auto declareCallback  = [](std::stringstream& str, BasicBlock const& bb) {
         str << "subgraph cluster_" << dotName(bb) << " {\n";
         str << "  fontname = \"" << font << "\"\n";
         str << "  "
@@ -201,7 +203,7 @@ void Ctx::endFunction() {
 }
 
 static std::string dotName(Value const& value) {
-    Function const* currentFunction = [&]{
+    Function const* currentFunction = [&] {
         if (auto* bb = dyncast<BasicBlock const*>(&value)) {
             return bb->parent();
         }

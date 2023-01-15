@@ -15,19 +15,19 @@
 #include "CodeGen/AST2IR/CodeGenerator.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
 #include "IR/CFG.h"
-#include "IR/Validate.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
+#include "IR/Validate.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
+#include "Opt/Mem2Reg.h"
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
 #include "VM/VirtualMachine.h"
-#include "Opt/Mem2Reg.h"
 
 using namespace scatha;
 using namespace scatha::lex;
@@ -147,11 +147,11 @@ void playground::compile(std::string text) {
     ir::Context irCtx;
     ir::Module mod = ast::codegen(*ast, sym, irCtx);
     ir::print(mod);
-    
+
     header(" Optimized IR ");
     opt::mem2Reg(irCtx, mod);
     ir::print(mod);
-    
+
     header(" Assembly generated from IR ");
     auto const str0 = cg::codegen(mod);
     print(str0);

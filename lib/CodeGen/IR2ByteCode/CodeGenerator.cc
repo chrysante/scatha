@@ -7,9 +7,9 @@
 #include <utl/scope_guard.hpp>
 
 #include "Assembly/AssemblyStream.h"
+#include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
-#include "Assembly/Block.h"
 #include "CodeGen/IR2ByteCode/RegisterDescriptor.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
@@ -46,28 +46,29 @@ struct Context {
     void generate(ir::GetElementPointer const&);
 
     void postprocess();
-    
+
     /// Used for generating \p Store and \p Load instructions.
     MemoryAddress computeAddress(ir::Value const&);
     /// Used by \p computeAddress
     MemoryAddress computeGep(ir::GetElementPointer const&);
 
     void generateBigMove(Value dest, Value source, size_t size, Asm::Block* block = nullptr);
-    void generateBigMove(Value dest, Value source, size_t size, Block::ConstIterator before, Asm::Block* block = nullptr);
+    void generateBigMove(
+        Value dest, Value source, size_t size, Block::ConstIterator before, Asm::Block* block = nullptr);
 
     void placeArguments(std::span<ir::Value const* const> args);
     void getCallResult(ir::Value const& callInst);
 
     size_t getLabelID(ir::BasicBlock const&);
     size_t getLabelID(ir::Function const&);
-    
+
     size_t _getLabelIDImpl(ir::Value const&);
 
     RegisterDescriptor& currentRD() { return *_currentRD; }
     Asm::Block& currentBlock() { return *_currentBlock; }
-    
+
     AssemblyStream& result;
-    Asm::Block* _currentBlock = nullptr;
+    Asm::Block* _currentBlock      = nullptr;
     RegisterDescriptor* _currentRD = nullptr;
     size_t labelIndexCounter       = 0;
     /// This just exists to tie the lifetime of the register descriptors to this context object.
@@ -133,8 +134,9 @@ void Context::generate(ir::BasicBlock const& bb) {
 
 void Context::generate(ir::Alloca const& allocaInst) {
     SC_ASSERT(allocaInst.allocatedType()->align() <= 8, "We don't support overaligned types just yet.");
-    currentBlock().insertBack(AllocaInst(currentRD().resolve(allocaInst).get<RegisterIndex>(),
-                                         currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
+    currentBlock().insertBack(
+        AllocaInst(currentRD().resolve(allocaInst).get<RegisterIndex>(),
+                   currentRD().allocateAutomatic(utl::ceil_divide(allocaInst.allocatedType()->size(), 8))));
 }
 
 void Context::generate(ir::Store const& store) {
@@ -285,7 +287,7 @@ void Context::generate(ir::Phi const& phi) {
     /// We need to find a register index to put the value in that every incoming path can agree on.
     /// Then put the value into that register in every incoming path.
     /// Then make this value resolve to that register index.
-    RegisterIndex const target = currentRD().resolve(phi).get<RegisterIndex>();
+    RegisterIndex const target           = currentRD().resolve(phi).get<RegisterIndex>();
     [[maybe_unused]] auto [itr, success] = phiTargets.insert({ &phi, target });
     SC_ASSERT(success, "Is this phi node evaluated multiple times?");
 }
@@ -303,7 +305,7 @@ void Context::postprocess() {
             auto itr = blockMap.find(pred);
             SC_ASSERT(itr != blockMap.end(), "Where is this BB coming from?");
             auto asmBlock = itr->second;
-            auto position = [&]{
+            auto position = [&] {
                 if (asmBlock->empty()) {
                     return asmBlock->end();
                 }
@@ -336,7 +338,8 @@ MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
     ir::GetElementPointer const* gepPtr = nullptr;
     while ((gepPtr = dyncast<ir::GetElementPointer const*>(value)) != nullptr) {
         SC_ASSERT(gepPtr->isAllConstant(), "Don't know how to generate code for non-constant GEPs");
-        size_t const memberIndex = static_cast<size_t>(cast<ir::IntegralConstant const*>(gepPtr->structMemberIndex())->value());
+        size_t const memberIndex =
+            static_cast<size_t>(cast<ir::IntegralConstant const*>(gepPtr->structMemberIndex())->value());
         offset += static_cast<ir::StructureType const*>(gepPtr->accessedType())->memberOffsetAt(memberIndex);
         value = gepPtr->basePointer();
     }
@@ -380,13 +383,12 @@ void Context::generateBigMove(Value dest, Value source, size_t size, Block::Cons
     };
     // clang-format on
     SC_ASSERT(size % 8 == 0, "Probably not always true and this function needs some work.");
-    
     block->insert(before, utl::transform(utl::iota(size / 8), [&](size_t i) {
-        auto move = MoveInst(dest, source, 8);
-        dest.visit(increment);
-        source.visit(increment);
-        return move;
-    }));
+                      auto move = MoveInst(dest, source, 8);
+                      dest.visit(increment);
+                      source.visit(increment);
+                      return move;
+                  }));
 }
 
 void Context::placeArguments(std::span<ir::Value const* const> args) {
@@ -397,7 +399,7 @@ void Context::placeArguments(std::span<ir::Value const* const> args) {
         offset += utl::ceil_divide(argSize, 8);
     }
     /// Increment to actually point to the first move instruction
-    size_t const commonOffset              = currentRD().numUsedRegisters() + 2;
+    size_t const commonOffset     = currentRD().numUsedRegisters() + 2;
     Block::Iterator paramLocation = std::prev(currentBlock().end(), static_cast<ssize_t>(offset));
     for (size_t i = 0; i < offset; ++i, ++paramLocation) {
         RegisterIndex& moveDestIdx = paramLocation->get<MoveInst>().dest().get<RegisterIndex>();

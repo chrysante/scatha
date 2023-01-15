@@ -38,8 +38,10 @@ public:
     Constant* getGlobal(std::string_view name) const;
 
     std::string uniqueName(Function const* function, std::string name);
-    std::string uniqueName(Function const* function, auto const&... args) { return uniqueName(function, utl::strcat(args...)); }
-    
+    std::string uniqueName(Function const* function, auto const&... args) {
+        return uniqueName(function, utl::strcat(args...));
+    }
+
 private:
     utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*> _integralConstants;
     std::map<std::pair<APFloat, size_t>, FloatingPointConstant*> _floatConstants;

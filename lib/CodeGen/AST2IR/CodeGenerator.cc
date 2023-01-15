@@ -291,7 +291,10 @@ ir::Value* Context::getValueImpl(StringLiteral const&) {
 
 ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
     ir::Value* const operand = getValue(*expr.operand);
-    auto* inst = new ir::UnaryArithmeticInst(irCtx, operand, mapUnaryArithmeticOp(expr.operation()), localUniqueName("expr-result"));
+    auto* inst               = new ir::UnaryArithmeticInst(irCtx,
+                                             operand,
+                                             mapUnaryArithmeticOp(expr.operation()),
+                                             localUniqueName("expr-result"));
     currentBB()->addInstruction(inst);
     return inst;
 }
@@ -481,7 +484,13 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
     size_t const index                     = var.index();
     ir::Type const* const accessedType     = mapType(expr.object->typeID());
     ir::Type const* const pointeeType      = mapType(expr.typeID());
-    auto* const gep = new ir::GetElementPointer(irCtx, accessedType, pointeeType, basePtr, irCtx.integralConstant(0, 64), irCtx.integralConstant(index, 64), localUniqueName("member-ptr"));
+    auto* const gep                        = new ir::GetElementPointer(irCtx,
+                                                accessedType,
+                                                pointeeType,
+                                                basePtr,
+                                                irCtx.integralConstant(0, 64),
+                                                irCtx.integralConstant(index, 64),
+                                                localUniqueName("member-ptr"));
     currentBB()->addInstruction(gep);
     return gep;
 }

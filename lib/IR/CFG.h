@@ -3,11 +3,11 @@
 
 #include <string>
 
-#include <utl/ranges.hpp>
-#include <utl/hashmap.hpp>
-#include <utl/vector.hpp>
 #include <utl/hash.hpp>
+#include <utl/hashmap.hpp>
+#include <utl/ranges.hpp>
 #include <utl/utility.hpp>
+#include <utl/vector.hpp>
 
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
@@ -48,17 +48,19 @@ public:
     void setName(std::string name) { _name = std::move(name); }
 
     /// View of all users using this value.
-    auto users() const { return utl::transform(_users, [](auto&& p) { return p.first; }); }
+    auto users() const {
+        return utl::transform(_users, [](auto&& p) { return p.first; });
+    }
 
     /// Number of users using this value. Multiple uses by the same user are counted as one.
     size_t userCount() const { return _users.size(); }
-    
+
     /// Register a user of this value.
     void addUser(User* user);
-    
+
     /// Unregister a user of this value.
     void removeUser(User* user);
-    
+
 private:
     NodeType _nodeType;
     Type const* _type;
@@ -76,18 +78,18 @@ class SCATHA(API) User: public Value {
 public:
     std::span<Value* const> operands() { return _operands; }
     std::span<Value const* const> operands() const { return _operands; }
-    
+
     void setOperand(size_t index, Value* operand);
-    
+
     /// This should proably at some point be replaced by some sort of \p delete operation
     void clearOperands();
-    
+
 protected:
     explicit User(NodeType nodeType, Type const* type, std::string name, std::initializer_list<Value*> operands):
         User(nodeType, type, std::move(name), std::span<Value* const>(operands)) {}
-    
+
     explicit User(NodeType nodeType, Type const* type, std::string name = {}, std::span<Value* const> operands = {});
-    
+
 protected:
     utl::small_vector<Value*> _operands;
 };
@@ -140,7 +142,7 @@ public:
         instruction->set_parent(this);
         instructions.push_back(instruction);
     }
-    
+
     void addInstruction(List<Instruction>::iterator before, Instruction* instruction) {
         instruction->set_parent(this);
         instructions.insert(before, instruction);
@@ -151,24 +153,24 @@ public:
 
     /// Check wether \p inst is an instruction of this basic block.
     bool contains(Instruction const& inst) const;
-    
+
     /// Returns the terminator instruction if this basic block is well formed or nullptr
     TerminatorInst const* terminator() const;
-    
+
     /// \overload
     TerminatorInst* terminator() {
         return const_cast<TerminatorInst*>(static_cast<BasicBlock const*>(this)->terminator());
     }
-    
+
     /// This is exposed directly because some algorithms need to erase instructions from here.
     List<Instruction> instructions;
-    
+
     /// Also just expose this directly, be careful though.
     utl::small_vector<BasicBlock*> predecessors;
-    
+
     /// The basic blocks directly reachable from this basic block
     std::span<BasicBlock* const> successors();
-    
+
     /// \overload
     std::span<BasicBlock const* const> successors() const;
 };
@@ -185,9 +187,11 @@ public:
 /// Represents a function. A function is a prototype with a list of basic blocks.
 class SCATHA(API) Function: public Constant, public NodeWithParent<Function, Module> {
 public:
-    using InstructionIterator = internal::InstructionIteratorImpl<List<BasicBlock>::iterator, List<Instruction>::iterator>;
-    using ConstInstructionIterator = internal::InstructionIteratorImpl<List<BasicBlock>::const_iterator, List<Instruction>::const_iterator>;
-    
+    using InstructionIterator =
+        internal::InstructionIteratorImpl<List<BasicBlock>::iterator, List<Instruction>::iterator>;
+    using ConstInstructionIterator =
+        internal::InstructionIteratorImpl<List<BasicBlock>::const_iterator, List<Instruction>::const_iterator>;
+
     explicit Function(FunctionType const* functionType,
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
@@ -202,8 +206,10 @@ public:
     List<BasicBlock> const& basicBlocks() const { return bbs; }
 
     utl::range_view<InstructionIterator> instructions() { return getInstructionsImpl<InstructionIterator>(*this); }
-    utl::range_view<ConstInstructionIterator> instructions() const { return getInstructionsImpl<ConstInstructionIterator>(*this); }
-    
+    utl::range_view<ConstInstructionIterator> instructions() const {
+        return getInstructionsImpl<ConstInstructionIterator>(*this);
+    }
+
     void addBasicBlock(BasicBlock* basicBlock) {
         basicBlock->set_parent(this);
         bbs.push_back(basicBlock);
@@ -213,13 +219,11 @@ private:
     template <typename Itr, typename Self>
     static utl::range_view<Itr> getInstructionsImpl(Self&& self) {
         using InstItr = typename Itr::InstructionIterator;
-        Itr const begin(self.bbs.begin(),
-                        self.bbs.empty() ? InstItr{} : self.bbs.front().instructions.begin());
-        Itr const end(self.bbs.end(),
-                      InstItr{});
+        Itr const begin(self.bbs.begin(), self.bbs.empty() ? InstItr{} : self.bbs.front().instructions.begin());
+        Itr const end(self.bbs.end(), InstItr{});
         return utl::range_view<Itr>{ begin, end };
     }
-    
+
 private:
     Type const* _returnType;
     List<Parameter> params;
@@ -329,10 +333,13 @@ class SCATHA(API) TerminatorInst: public Instruction {
 public:
     std::span<BasicBlock* const> targets() { return _targets; }
     std::span<BasicBlock const* const> targets() const { return _targets; }
-    
+
 protected:
-    explicit TerminatorInst(NodeType nodeType, Context& context, utl::small_vector<BasicBlock*> targets, std::initializer_list<Value*> operands = {});
-    
+    explicit TerminatorInst(NodeType nodeType,
+                            Context& context,
+                            utl::small_vector<BasicBlock*> targets,
+                            std::initializer_list<Value*> operands = {});
+
     utl::small_vector<BasicBlock*> _targets;
 };
 
@@ -369,7 +376,7 @@ public:
 
     /// May be null in case of a void function
     Value* value() { return const_cast<Value*>(static_cast<Return const*>(this)->value()); }
-    
+
     /// May be null in case of a void function
     Value const* value() const { return operands().empty() ? nullptr : operands()[0]; }
 };
@@ -417,27 +424,31 @@ public:
     explicit Phi(std::span<PhiMapping const> args, std::string name);
 
     /// Note: This ugly interface could be changed if we had C++20 zip range.
-    
+
     size_t argumentCount() const { return _preds.size(); }
-    
+
     PhiMapping argumentAt(size_t index) {
         SC_ASSERT(index < argumentCount(), "");
         return { _preds[index], operands()[index] };
     }
-    
+
     ConstPhiMapping argumentAt(size_t index) const {
         SC_ASSERT(index < argumentCount(), "");
         return { _preds[index], operands()[index] };
     }
-    
+
     std::span<BasicBlock* const> incomingEdges() { return _preds; }
     std::span<BasicBlock const* const> incomingEdges() const { return _preds; }
-    
-    auto arguments() { return utl::transform(utl::iota(argumentCount()), [this](size_t index){ return argumentAt(index); }); }
-    auto arguments() const { return utl::transform(utl::iota(argumentCount()), [this](size_t index){ return argumentAt(index); }); }
-    
+
+    auto arguments() {
+        return utl::transform(utl::iota(argumentCount()), [this](size_t index) { return argumentAt(index); });
+    }
+    auto arguments() const {
+        return utl::transform(utl::iota(argumentCount()), [this](size_t index) { return argumentAt(index); });
+    }
+
     void clearArguments();
-    
+
 private:
     utl::small_vector<BasicBlock*> _preds;
 };
@@ -445,32 +456,39 @@ private:
 /// GetElementPointer instruction. Calculate offset pointer to a structure member or array element.
 class GetElementPointer: public Instruction {
 public:
-    explicit GetElementPointer(
-        Context& context, Type const* accessedType, Type const* pointeeType, Value* basePointer, Value* arrayIndex, Value* structMemberIndex, std::string name = {});
+    explicit GetElementPointer(Context& context,
+                               Type const* accessedType,
+                               Type const* pointeeType,
+                               Value* basePointer,
+                               Value* arrayIndex,
+                               Value* structMemberIndex,
+                               std::string name = {});
 
     Type const* accessedType() const { return accType; }
 
     Type const* pointeeType() const { return cast<PointerType const*>(type())->pointeeType(); }
-    
-    bool isAllConstant() const { return isa<IntegralConstant>(arrayIndex()) && isa<IntegralConstant>(structMemberIndex()); }
-    
+
+    bool isAllConstant() const {
+        return isa<IntegralConstant>(arrayIndex()) && isa<IntegralConstant>(structMemberIndex());
+    }
+
     Value* basePointer() { return operands()[0]; }
     Value const* basePointer() const { return operands()[0]; }
-    
+
     Value* arrayIndex() { return operands()[1]; }
     Value const* arrayIndex() const { return operands()[1]; }
-    
+
     Value* structMemberIndex() { return operands()[2]; }
     Value const* structMemberIndex() const { return operands()[2]; }
 
     size_t const constantArrayIndex() const {
         return static_cast<u64>(cast<IntegralConstant const*>(arrayIndex())->value());
     }
-    
+
     size_t const constantStructMemberIndex() const {
         return static_cast<u64>(cast<IntegralConstant const*>(structMemberIndex())->value());
     }
-    
+
     size_t const constantByteOffset() const {
         size_t result = accessedType()->size() * constantArrayIndex();
         if (auto* structType = dyncast<StructureType const*>(accessedType())) {
@@ -478,7 +496,7 @@ public:
         }
         return result;
     }
-    
+
 private:
     Type const* accType;
 };
@@ -487,10 +505,13 @@ private:
 class ExtractValue: public UnaryInstruction {
 public:
     explicit ExtractValue(Value* baseValue, size_t index, std::string name = {}):
-        UnaryInstruction(NodeType::ExtractValue, baseValue, cast<StructureType const*>(baseValue->type())->memberAt(index), std::move(name)) {}
-    
+        UnaryInstruction(NodeType::ExtractValue,
+                         baseValue,
+                         cast<StructureType const*>(baseValue->type())->memberAt(index),
+                         std::move(name)) {}
+
     size_t index() const { return _index; }
-    
+
 private:
     size_t _index;
 };

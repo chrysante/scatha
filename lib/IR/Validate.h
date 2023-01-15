@@ -15,4 +15,3 @@ SCATHA(API) void setupInvariants(Context& ctx, Function& function);
 } // namespace scatha::ir
 
 #endif // SCATHA_IR_VALIDATE_H_
-

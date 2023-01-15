@@ -7,14 +7,14 @@
 #include <utl/vector.hpp>
 
 #include "Assembly.h"
-#include "IRDump.h"
-#include "IRSketch.h"
-#include "SampleCompiler.h"
 #include "DrawGraph.h"
-#include "OptTest.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IRDump.h"
+#include "IRSketch.h"
 #include "Opt/Mem2Reg.h"
+#include "OptTest.h"
+#include "SampleCompiler.h"
 
 enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest, EmitCFG, EmitUseGraph, OptTest };
 
@@ -85,9 +85,7 @@ int main(int argc, char const* const* argv) {
         drawUseGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/use-graph.gv");
         break;
     }
-    case ProgramCase::OptTest:
-        optTest(filepath);
-        break;
+    case ProgramCase::OptTest: optTest(filepath); break;
     default: break;
     }
 }

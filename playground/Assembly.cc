@@ -13,6 +13,4 @@
 using namespace scatha;
 using namespace Asm;
 
-void playground::testAsmModule() {
-    
-}
+void playground::testAsmModule() {}
