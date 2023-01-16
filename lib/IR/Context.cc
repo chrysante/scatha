@@ -84,5 +84,5 @@ std::string Context::uniqueName(Function const* function, std::string name) {
     if (success) {
         return name;
     }
-    return utl::strcat(name, "-", ++itr->second);
+    return utl::strcat(name, ".", ++itr->second);
 }

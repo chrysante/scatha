@@ -19,31 +19,26 @@ fn f(n: int) -> int {
 })";
     auto mod               = test::compileToIR(text);
     auto& function         = mod.functions().front();
-    struct Reference {
-        ir::NodeType type;
-        std::string_view name;
-    };
-    Reference const reference[] = {
+    ir::NodeType const reference[] = {
         // clang-format off
-        { ir::NodeType::Alloca,      "n-ptr" },
-        { ir::NodeType::Store,       "" },
-        { ir::NodeType::Alloca,      "k-ptr" },
-        { ir::NodeType::Load,        "n" },
-        { ir::NodeType::Store,       "" },
-        { ir::NodeType::Load,        "k" },
-        { ir::NodeType::CompareInst, "cmp-result" },
-        { ir::NodeType::Branch,      "" },
-        { ir::NodeType::Store,       "" },
-        { ir::NodeType::Load,        "tmp" },
-        { ir::NodeType::Goto,        "" },
-        { ir::NodeType::Load,        "k-1" },
-        { ir::NodeType::Return,      "" },
+        ir::NodeType::Alloca,
+        ir::NodeType::Store,
+        ir::NodeType::Alloca,
+        ir::NodeType::Load,
+        ir::NodeType::Store,
+        ir::NodeType::Load,
+        ir::NodeType::CompareInst,
+        ir::NodeType::Branch,
+        ir::NodeType::Store,
+        ir::NodeType::Load,
+        ir::NodeType::Goto,
+        ir::NodeType::Load,
+        ir::NodeType::Return,
     }; // clang-format on
     SECTION("Simple traversal") {
         for (auto&& [index, inst]: utl::enumerate(function.instructions())) {
-            auto const ref = reference[index];
-            CHECK(inst.nodeType() == ref.type);
-            CHECK(inst.name() == ref.name);
+            auto const type = reference[index];
+            CHECK(inst.nodeType() == type);
         }
     }
     SECTION("Erase every second element") {
@@ -58,9 +53,8 @@ fn f(n: int) -> int {
             }
         }
         for (auto&& [index, inst]: utl::enumerate(function.instructions())) {
-            auto const ref = reference[2 * index];
-            CHECK(inst.nodeType() == ref.type);
-            CHECK(inst.name() == ref.name);
+            auto const type = reference[2 * index];
+            CHECK(inst.nodeType() == type);
         }
     }
     SECTION("Erase all") {

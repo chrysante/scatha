@@ -212,6 +212,6 @@ static std::string dotName(Value const& value) {
         return cast<Instruction const*>(&value)->parent()->parent();
     }();
     auto result = utl::strcat("_", currentFunction->name(), "_", value.name(), "_", &value);
-    std::replace(result.begin(), result.end(), '-', '_');
+    std::replace_if(result.begin(), result.end(), [](char c){ return c == '.' || c == '-'; }, '_');
     return result;
 }

@@ -129,7 +129,7 @@ void Context::generateImpl(FunctionDefinition const& def) {
     fn->addBasicBlock(entry);
     for (auto paramItr = fn->parameters().begin(); auto& paramDecl: def.parameters) {
         auto const* const irParamType = mapType(paramDecl->typeID());
-        auto* paramMemPtr             = new ir::Alloca(irCtx, irParamType, localUniqueName(paramDecl->name(), "-ptr"));
+        auto* paramMemPtr             = new ir::Alloca(irCtx, irParamType, localUniqueName(paramDecl->name(), ".addr"));
         entry->addInstruction(paramMemPtr);
         memorizeVariableAddress(paramDecl->symbolID(), paramMemPtr);
         auto* store = new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
@@ -178,9 +178,9 @@ void Context::generateImpl(ReturnStatement const& retDecl) {
 
 void Context::generateImpl(IfStatement const& ifStatement) {
     auto* condition = getValue(*ifStatement.condition);
-    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("then-block"));
-    auto* elseBlock = ifStatement.elseBlock ? new ir::BasicBlock(irCtx, localUniqueName("else-block")) : nullptr;
-    auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("if-end"));
+    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("then"));
+    auto* elseBlock = ifStatement.elseBlock ? new ir::BasicBlock(irCtx, localUniqueName("else")) : nullptr;
+    auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("if.end"));
     auto* branch    = new ir::Branch(irCtx, condition, thenBlock, elseBlock ? elseBlock : endBlock);
     currentBB()->addInstruction(branch);
     auto addBlock = [&](ir::BasicBlock* bb, ast::Statement const& block) {
@@ -199,11 +199,11 @@ void Context::generateImpl(IfStatement const& ifStatement) {
 }
 
 void Context::generateImpl(WhileStatement const& loopDecl) {
-    auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName("loop-header"));
+    auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName("loop.header"));
     currentFunction->addBasicBlock(loopHeader);
-    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop-body"));
+    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop.body"));
     currentFunction->addBasicBlock(loopBody);
-    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop-end"));
+    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop.end"));
     currentFunction->addBasicBlock(loopEnd);
     auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
     currentBB()->addInstruction(gotoLoopHeader);
@@ -219,11 +219,11 @@ void Context::generateImpl(WhileStatement const& loopDecl) {
 }
 
 void Context::generateImpl(DoWhileStatement const& loopDecl) {
-    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop-body"));
+    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop.body"));
     currentFunction->addBasicBlock(loopBody);
-    auto* loopFooter = new ir::BasicBlock(irCtx, localUniqueName("loop-footer"));
+    auto* loopFooter = new ir::BasicBlock(irCtx, localUniqueName("loop.footer"));
     currentFunction->addBasicBlock(loopFooter);
-    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop-end"));
+    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop.end"));
     currentFunction->addBasicBlock(loopEnd);
     auto* gotoLoopBody = new ir::Goto(irCtx, loopBody);
     currentBB()->addInstruction(gotoLoopBody);
@@ -239,17 +239,17 @@ void Context::generateImpl(DoWhileStatement const& loopDecl) {
 }
 
 void Context::generateImpl(ForStatement const& loopDecl) {
-    auto* loopPreheader = new ir::BasicBlock(irCtx, localUniqueName("loop-preheader"));
-    currentFunction->addBasicBlock(loopPreheader);
-    auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName("loop-header"));
+//    auto* loopPreheader = new ir::BasicBlock(irCtx, localUniqueName("loop-preheader"));
+//    currentFunction->addBasicBlock(loopPreheader);
+    auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName("loop.header"));
     currentFunction->addBasicBlock(loopHeader);
-    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop-body"));
+    auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop.body"));
     currentFunction->addBasicBlock(loopBody);
-    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop-end"));
+    auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop.end"));
     currentFunction->addBasicBlock(loopEnd);
-    auto* gotoLoopPreheader = new ir::Goto(irCtx, loopPreheader);
-    currentBB()->addInstruction(gotoLoopPreheader);
-    setCurrentBB(loopPreheader);
+//    auto* gotoLoopPreheader = new ir::Goto(irCtx, loopPreheader);
+//    currentBB()->addInstruction(gotoLoopPreheader);
+//    setCurrentBB(loopPreheader);
     generate(*loopDecl.varDecl);
     auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
     currentBB()->addInstruction(gotoLoopHeader);
@@ -294,7 +294,7 @@ ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
     auto* inst               = new ir::UnaryArithmeticInst(irCtx,
                                              operand,
                                              mapUnaryArithmeticOp(expr.operation()),
-                                             localUniqueName("expr-result"));
+                                             localUniqueName("expr.result"));
     currentBB()->addInstruction(inst);
     return inst;
 }
@@ -314,7 +314,7 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         ir::Value* const lhs = getValue(*exprDecl.lhs);
         ir::Value* const rhs = getValue(*exprDecl.rhs);
         auto* arithInst =
-            new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName("expr-result"));
+            new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName("expr.result"));
         currentBB()->addInstruction(arithInst);
         return arithInst;
     }
@@ -322,8 +322,8 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::LogicalOr: {
         ir::Value* const lhs = getValue(*exprDecl.lhs);
         auto* startBlock     = currentBB();
-        auto* rhsBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical-rhs-block"));
-        auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical-end-block"));
+        auto* rhsBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical.rhs"));
+        auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical.end"));
         currentBB()->addInstruction(exprDecl.operation() == BinaryOperator::LogicalAnd ?
                                         new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
                                         new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
@@ -335,9 +335,9 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         setCurrentBB(endBlock);
         auto* result = exprDecl.operation() == BinaryOperator::LogicalAnd ?
                            new ir::Phi({ { startBlock, irCtx.integralConstant(0, 1) }, { rhsBlock, rhs } },
-                                       localUniqueName("logical-and-value")) :
+                                       localUniqueName("logical.and.value")) :
                            new ir::Phi({ { startBlock, irCtx.integralConstant(1, 1) }, { rhsBlock, rhs } },
-                                       localUniqueName("logical-or-value"));
+                                       localUniqueName("logical.or.value"));
         currentBB()->addInstruction(result);
         return result;
     }
@@ -350,7 +350,7 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         ir::Value* const lhs = getValue(*exprDecl.lhs);
         ir::Value* const rhs = getValue(*exprDecl.rhs);
         auto* cmpInst =
-            new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName("cmp-result"));
+            new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName("cmp.result"));
         currentBB()->addInstruction(cmpInst);
         return cmpInst;
     }
@@ -376,12 +376,12 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::OrAssignment: [[fallthrough]];
     case BinaryOperator::XOrAssignment: {
         ir::Value* const lhsAddr = getAddress(*exprDecl.lhs);
-        ir::Value* const lhs     = loadAddress(lhsAddr, "lhs-value");
+        ir::Value* const lhs     = loadAddress(lhsAddr, "lhs");
         ir::Value* const rhs     = getValue(*exprDecl.rhs);
         auto* result             = new ir::ArithmeticInst(lhs,
                                               rhs,
                                               mapArithmeticAssignOp(exprDecl.operation()),
-                                              localUniqueName("expr-result"));
+                                              localUniqueName("expr.result"));
         currentBB()->addInstruction(result);
         auto* store = new ir::Store(irCtx, lhsAddr, result);
         currentBB()->addInstruction(store);
@@ -392,14 +392,14 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
 }
 
 ir::Value* Context::getValueImpl(MemberAccess const& expr) {
-    return loadAddress(getAddressImpl(expr), "member-access");
+    return loadAddress(getAddressImpl(expr), "member.access");
 }
 
 ir::Value* Context::getValueImpl(Conditional const& condExpr) {
     auto* cond      = getValue(*condExpr.condition);
-    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("then-block"));
-    auto* elseBlock = new ir::BasicBlock(irCtx, localUniqueName("else-block"));
-    auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("conditional-end"));
+    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("conditional.then"));
+    auto* elseBlock = new ir::BasicBlock(irCtx, localUniqueName("conditional.else"));
+    auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("conditional.end"));
     currentBB()->addInstruction(new ir::Branch(irCtx, cond, thenBlock, elseBlock));
     currentFunction->addBasicBlock(thenBlock);
     /// Generate then block.
@@ -417,7 +417,7 @@ ir::Value* Context::getValueImpl(Conditional const& condExpr) {
     /// Generate end block.
     setCurrentBB(endBlock);
     auto* result =
-        new ir::Phi({ { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName("conditional-result"));
+        new ir::Phi({ { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName("conditional.result"));
     currentBB()->addInstruction(result);
     return result;
 }
@@ -432,7 +432,7 @@ ir::Value* Context::getValueImpl(FunctionCall const& functionCall) {
                                     semaFunction.index(),
                                     args,
                                     mapType(semaFunction.signature().returnTypeID()),
-                                    functionCall.typeID() != symTable.Void() ? localUniqueName("ext-call-result") :
+                                    functionCall.typeID() != symTable.Void() ? localUniqueName("call.result") :
                                                                                std::string{});
         currentBB()->addInstruction(call);
         return call;
@@ -446,7 +446,7 @@ ir::Value* Context::getValueImpl(FunctionCall const& functionCall) {
     auto* call =
         new ir::FunctionCall(function,
                              args,
-                             functionCall.typeID() != symTable.Void() ? localUniqueName("call-result") : std::string{});
+                             functionCall.typeID() != symTable.Void() ? localUniqueName("call.result") : std::string{});
     currentBB()->addInstruction(call);
     return call;
 }
@@ -473,7 +473,7 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
         }
         /// If we are an r-value we store the value to memory and return a pointer to it.
         auto* value = getValue(*expr.object);
-        auto* addr  = new ir::Alloca(irCtx, value->type(), localUniqueName("tmp-ptr"));
+        auto* addr  = new ir::Alloca(irCtx, value->type(), localUniqueName("tmp.addr"));
         currentBB()->addInstruction(addr);
         auto* store = new ir::Store(irCtx, addr, value);
         currentBB()->addInstruction(store);
@@ -490,7 +490,7 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
                                                 basePtr,
                                                 irCtx.integralConstant(0, 64),
                                                 irCtx.integralConstant(index, 64),
-                                                localUniqueName("member-ptr"));
+                                                localUniqueName("member.ptr"));
     currentBB()->addInstruction(gep);
     return gep;
 }
