@@ -70,7 +70,37 @@ bool opt::compareEqual(ir::Phi const* lhs, ir::Phi const* rhs) {
     return cmpEqImpl(lhs, rhs->arguments());
 }
 
-void opt::replaceValue(Value* oldValue, Value* newValue) {
+bool opt::addressEqual(ir::Value const* lhs, ir::Value const* rhs) {
+    SC_ASSERT(isa<PointerType>(*lhs->type()), "Arguments must be pointers");
+    SC_ASSERT(isa<PointerType>(*rhs->type()), "Arguments must be pointers");
+    // clang-format off
+    return visit(*lhs, *rhs, utl::overload{
+        [](Value const& lhs, Value const& rhs) {
+            return &lhs == &rhs;
+        },
+        [](GetElementPointer const& lhs, GetElementPointer const& rhs) {
+            return &lhs == &rhs ||
+                   (lhs.isAllConstant() &&
+                    rhs.isAllConstant() &&
+                    lhs.constantArrayIndex() == rhs.constantArrayIndex() &&
+                    lhs.constantStructMemberIndex() == rhs.constantStructMemberIndex() &&
+                    addressEqual(lhs.basePointer(), rhs.basePointer()));
+        }
+    }); // clang-format on
+}
+
+bool opt::isLocalMemory(ir::Value const* address) {
+    SC_ASSERT(isa<PointerType>(*address->type()), "Address is not a pointer");
+    if (isa<Alloca>(*address)) {
+        return true;
+    }
+    if (auto* gep = dyncast<GetElementPointer const*>(address)) {
+        return isLocalMemory(gep->basePointer());
+    }
+    return false;
+}
+
+void opt::replaceValue(ir::Value* oldValue, ir::Value* newValue) {
     /// We need this funny way of traversing the user list of the old value, because if the loop body the user is erased
     /// from the user list and iterators are invalidated.
     while (!oldValue->users().empty()) {
