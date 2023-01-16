@@ -124,6 +124,7 @@ void Context::generateImpl(FunctionDefinition const& def) {
         utl::transform(def.parameters, [&](auto& param) { return mapType(param->typeID()); });
     // TODO: Also here worry about name mangling
     auto* fn    = cast<ir::Function*>(irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
+    currentFunction = fn;
     auto* entry = new ir::BasicBlock(irCtx, localUniqueName("entry"));
     fn->addBasicBlock(entry);
     for (auto paramItr = fn->parameters().begin(); auto& paramDecl: def.parameters) {
@@ -134,7 +135,6 @@ void Context::generateImpl(FunctionDefinition const& def) {
         auto* store = new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
         entry->addInstruction(store);
     }
-    currentFunction = fn;
     setCurrentBB(entry);
     generate(*def.body);
     setCurrentBB(nullptr);
