@@ -193,9 +193,7 @@ void ir::setupInvariants(Context& ctx, Function& function) {
                 link(&bb, br.thenTarget());
                 link(&bb, br.elseTarget());
             },
-            [&](ir::Return&) {
-                /// Nothing to do here
-            },
+            [&](ir::Return&) {},
             [&](ir::TerminatorInst&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
