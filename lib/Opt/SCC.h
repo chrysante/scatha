@@ -12,6 +12,8 @@ class Module;
 
 namespace scatha::opt {
 
+/// Run sparse conditional constant propagation algorithm over \p mod
+/// Folds constants and eliminates dead code.
 SCATHA(API) void scc(ir::Context& context, ir::Module& mod);
 
 } // namespace scatha::opt
