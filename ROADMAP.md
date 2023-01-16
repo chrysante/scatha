@@ -1,6 +1,6 @@
 ## Feature roadmap
 
-- Fully implement <s> C-like structs and </s> pointers
+- Find a good solution for implementing references/pointers in the frontend that is powerful but not harmful 
 
 - Strings <s> and host callbacks </s>
 
