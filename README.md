@@ -25,9 +25,9 @@ Take a look at the [Grammar](docs/Grammar.md).
 
 - Find a good solution for implementing references/pointers in the frontend that is powerful but not harmful 
 
-- Arrays (probably depends on references)
+- Arrays (probably depend on references)
 
-- Strings (depends on arrays)
+- Strings (depend on arrays)
 
 - Member functions
 
