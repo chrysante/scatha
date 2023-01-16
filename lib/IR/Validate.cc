@@ -199,4 +199,13 @@ void ir::setupInvariants(Context& ctx, Function& function) {
             [&](ir::TerminatorInst&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
+    auto& basicBlocks = function.basicBlocks();
+    for (auto itr = basicBlocks.begin(); itr != basicBlocks.end(); ) {
+        if (!itr->isEntry() && itr->predecessors.empty()) {
+            itr = basicBlocks.erase(itr);
+        }
+        else {
+            ++itr;
+        }
+    }
 }
