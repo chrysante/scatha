@@ -1,6 +1,6 @@
 # Scatha compiler
 
-Multi paradigm toy language with an optimizing byte code compiler and a virtual machine.
+Multi paradigm toy language with an optimizing byte code compiler and a virtual register machine.
 The language is compiled and strongly and statically typed. 
 Made for easy integration as an embedded scripting language into other applications. 
 
@@ -23,23 +23,31 @@ Take a look at the [Grammar](docs/Grammar.md).
 
 ### Framework
 
+- Explicit (and maybe some implicit) casts
+
 - Find a good solution for implementing references/pointers in the frontend that is powerful but not harmful 
 
 - Arrays (probably depend on references)
 
 - Strings (depend on arrays)
 
-- Member functions
+- Member functions (also depend on references in a way)
 
     - Uniform function call syntax
+    
+    - Constructors/destructors
 
 - Dynamic dispatch
     
     - Interfaces/Protocols
+    
+    - Multiple dispatch
 
 - Well defined bytecode format for serialization  
 
 - Runtime integration mechanisms
+
+- Textual IR representation / IR parser
 
 - Optimizations
 
