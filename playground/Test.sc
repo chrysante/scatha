@@ -1,23 +1,6 @@
 
-struct V {
-    var x: int;
-    var y: int;
-}
-
 fn main() -> int {
-    return test(4);
-}
-
-fn makeV(i: int) -> V {
-    var v: V;
-    v.x = 1;
-    v.y = fac(i);
-    return v;
-}
-
-fn test(i: int) -> int {
-    var v = makeV(i);
-    return v.y;
+    return fac2(8);
 }
 
 fn fac(n: int) -> int {
@@ -26,4 +9,13 @@ fn fac(n: int) -> int {
         result *= i;
     }
     return result;
+}
+
+fn fac2(n: int) -> int {
+    if n <= 1 {
+        return 1;
+    }
+    else {
+        return n * fac2(n - 1);
+    }
 }
