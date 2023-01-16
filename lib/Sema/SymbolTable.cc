@@ -55,11 +55,12 @@ Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(Token name) 
                                   SymbolCategory::ObjectType,
                                   symbolID.category());
     }
+    auto const newSymbolID = generateID(SymbolCategory::ObjectType);
     auto [itr, success] =
-        _objectTypes.insert(ObjectType(name.id, generateID(SymbolCategory::ObjectType), &currentScope()));
+        _objectTypes.insert({ newSymbolID, ObjectType(name.id, newSymbolID, &currentScope()) });
     SC_ASSERT(success, "");
-    currentScope().add(*itr);
-    return *itr;
+    currentScope().add(itr->second);
+    return itr->second;
 }
 
 TypeID SymbolTable::declareBuiltinType(std::string name, size_t size, size_t align) {
@@ -88,16 +89,18 @@ Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(Token name
         return InvalidDeclaration(nullptr, ReservedIdentifier, currentScope(), SymbolCategory::Function);
     }
     SymbolID const overloadSetID = [&] {
-        auto const id = currentScope().findID(name.id);
-        if (id != SymbolID::Invalid) {
-            return id;
+        auto const symbolID = currentScope().findID(name.id);
+        if (symbolID != SymbolID::Invalid) {
+            return symbolID;
         }
         /// Create a new overload set
+        auto const newSymbolID = generateID(SymbolCategory::OverloadSet);
         auto [itr, success] =
-            _overloadSets.insert(OverloadSet(name.id, generateID(SymbolCategory::OverloadSet), &currentScope()));
+            _overloadSets.insert({ newSymbolID, OverloadSet(name.id, newSymbolID, &currentScope()) });
         SC_ASSERT(success, "");
-        currentScope().add(*itr);
-        return itr->symbolID();
+        OverloadSet& overloadSet = itr->second;
+        currentScope().add(overloadSet);
+        return overloadSet.symbolID();
     }();
     /// Even if we get a valid ID from the lambda, we don't know yet if it's really an overload set.
     auto* const overloadSetPtr = tryGetOverloadSet(overloadSetID);
@@ -108,14 +111,18 @@ Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(Token name
                                   SymbolCategory::Function,
                                   overloadSetID.category());
     }
-    auto const [itr, success] = _functions.insert(Function(name.id,
-                                                           /* functionID = */ generateID(SymbolCategory::Function),
-                                                           /* overloadSetID = */ overloadSetID,
-                                                           &currentScope()));
+    auto const newSymbolID = generateID(SymbolCategory::Function);
+    auto const [itr, success] = _functions.insert({
+        newSymbolID,
+        Function(name.id,
+                 /* functionID = */    newSymbolID,
+                 /* overloadSetID = */ overloadSetID,
+                 &currentScope())
+    });
     SC_ASSERT(success, "?");
-    Function& function = *itr;
+    Function& function = itr->second;
     currentScope().add(function);
-    return *itr;
+    return function;
 }
 
 Expected<void, SemanticIssue> SymbolTable::setSignature(SymbolID functionID, FunctionSignature sig) {
@@ -123,7 +130,7 @@ Expected<void, SemanticIssue> SymbolTable::setSignature(SymbolID functionID, Fun
     auto const overloadSetID = function.overloadSetID();
     auto osItr               = _overloadSets.find(overloadSetID);
     SC_EXPECT(osItr != _overloadSets.end(), "");
-    auto& overloadSet                   = *osItr;
+    auto& overloadSet                   = osItr->second;
     function._sig                       = std::move(sig);
     auto const [otherFunction, success] = overloadSet.add(&function);
     if (!success) {
@@ -169,10 +176,12 @@ Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(Token name) {
     if (symbolID != SymbolID::Invalid) {
         return InvalidDeclaration(nullptr, Redefinition, currentScope(), SymbolCategory::Variable, symbolID.category());
     }
-    auto [itr, success] = _variables.insert(Variable(name.id, generateID(SymbolCategory::Variable), &currentScope()));
+    auto const newSymbolID = generateID(SymbolCategory::Variable);
+    auto [itr, success] = _variables.insert({ newSymbolID, Variable(name.id, newSymbolID, &currentScope()) });
     SC_ASSERT(success, "");
-    currentScope().add(*itr);
-    return *itr;
+    Variable& variable = itr->second;
+    currentScope().add(variable);
+    return variable;
 }
 
 Expected<Variable&, SemanticIssue> SymbolTable::addVariable(ast::VariableDeclaration const& varDecl,
@@ -197,11 +206,13 @@ Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name, TypeID t
 }
 
 Scope const& SymbolTable::addAnonymousScope() {
+    auto const symbolID = generateID(SymbolCategory::Anonymous);
     auto [itr, success] =
-        _anonymousScopes.insert(Scope(ScopeKind::Function, generateID(SymbolCategory::Anonymous), &currentScope()));
+        _anonymousScopes.insert({ symbolID, Scope(ScopeKind::Function, symbolID, &currentScope()) });
     SC_ASSERT(success, "");
-    currentScope().add(*itr);
-    return *itr;
+    Scope& scope = itr->second;
+    currentScope().add(scope);
+    return scope;
 }
 
 void SymbolTable::pushScope(SymbolID id) {
@@ -229,7 +240,7 @@ OverloadSet const* SymbolTable::tryGetOverloadSet(SymbolID id) const {
     if (itr == _overloadSets.end()) {
         return nullptr;
     }
-    return &*itr;
+    return &itr->second;
 }
 
 Function const& SymbolTable::getFunction(SymbolID id) const {
@@ -243,7 +254,7 @@ Function const* SymbolTable::tryGetFunction(SymbolID id) const {
     if (itr == _functions.end()) {
         return nullptr;
     }
-    return &*itr;
+    return &itr->second;
 }
 
 Variable const& SymbolTable::getVariable(SymbolID id) const {
@@ -257,7 +268,7 @@ Variable const* SymbolTable::tryGetVariable(SymbolID id) const {
     if (itr == _variables.end()) {
         return nullptr;
     }
-    return &*itr;
+    return &itr->second;
 }
 
 ObjectType const& SymbolTable::getObjectType(SymbolID id) const {
@@ -271,7 +282,7 @@ ObjectType const* SymbolTable::tryGetObjectType(SymbolID id) const {
     if (itr == _objectTypes.end()) {
         return nullptr;
     }
-    return &*itr;
+    return &itr->second;
 }
 
 std::string SymbolTable::getName(SymbolID id) const {

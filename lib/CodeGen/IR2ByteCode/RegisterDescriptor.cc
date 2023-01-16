@@ -20,7 +20,7 @@ Value RegisterDescriptor::resolve(ir::Value const& value) {
         return Value64(static_cast<f64>(constant->value()));
     }
     SC_ASSERT(!value.name().empty(), "Name must not be empty.");
-    auto const [itr, success] = values.insert({ value.name(), index });
+    auto const [itr, success] = values.insert({ std::string(value.name()), index });
     if (success) {
         index += utl::ceil_divide(value.type()->size(), 8);
     }

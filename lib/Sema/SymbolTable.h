@@ -11,6 +11,7 @@
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
 #include <utl/scope_guard.hpp>
+#include <utl/ranges.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Base.h>
@@ -211,7 +212,7 @@ public:
     /// Review if we want to keep these:
     void setSortedObjectTypes(utl::vector<TypeID> ids) { _sortedObjectTypes = std::move(ids); }
     std::span<TypeID const> sortedObjectTypes() const { return _sortedObjectTypes; }
-    auto const& functions() const { return _functions; }
+    auto functions() const { return utl::transform(_functions, [](auto& p) -> decltype(auto) { return p.second; }); }
 
 private:
     SymbolID generateID(SymbolCategory category);
@@ -222,17 +223,17 @@ private:
 
     u64 _idCounter = 1;
 
-    /// Must be \p node_hashset
+    /// Must be \p node_hashmap
     /// References to the elements are stored by the surrounding scopes.
     template <typename T>
-    using EntitySet = utl::node_hashset<T, EntityBase::MapHash, EntityBase::MapEqual>;
+    using EntityMap = utl::node_hashmap<SymbolID, T>;
 
-    EntitySet<OverloadSet> _overloadSets;
-    EntitySet<Function> _functions;
-    EntitySet<Variable> _variables;
-    EntitySet<ObjectType> _objectTypes;
-    EntitySet<FunctionSignature> _signatures;
-    EntitySet<Scope> _anonymousScopes;
+    EntityMap<OverloadSet> _overloadSets;
+    EntityMap<Function> _functions;
+    EntityMap<Variable> _variables;
+    EntityMap<ObjectType> _objectTypes;
+    EntityMap<FunctionSignature> _signatures;
+    EntityMap<Scope> _anonymousScopes;
 
     utl::vector<TypeID> _sortedObjectTypes;
 
