@@ -193,10 +193,17 @@ Value* Mem2RegContext::combinePredecessors(BasicBlock* basicBlock, size_t depth,
 }
 
 Value* Mem2RegContext::findReplacement(Value* value) {
-    decltype(loadReplacementMap)::iterator itr;
-    while ((itr = loadReplacementMap.find(value)) != loadReplacementMap.end()) {
-        value = itr->second;
+    using Iter = decltype(loadReplacementMap)::iterator;
+    utl::small_vector<Iter, 16> iters;
+    while (true) {
+        auto iter = loadReplacementMap.find(value);
+        if (iter == loadReplacementMap.end()) {
+            break;
+        }
+        iters.push_back(iter);
+        value = iter->second;
     }
+    for (auto iter: iters) { iter->second = value; }
     return value;
 }
 
