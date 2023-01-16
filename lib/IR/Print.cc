@@ -222,9 +222,10 @@ void PrintCtx::print(Phi const& phi) {
 }
 
 void PrintCtx::print(GetElementPointer const& gep) {
-    str << indent << formatName(gep) << equals() << instruction("gep") << " " << formatType(gep.type()) << " "
-        << formatName(*gep.basePointer()) << ", " << formatName(*gep.arrayIndex()) << ", "
-        << formatName(*gep.structMemberIndex());
+    str << indent << formatName(gep) << equals() << instruction("gep") << " "
+        << formatType(gep.type()) << " " << formatName(*gep.basePointer()) << ", "
+        << formatType(gep.arrayIndex()->type()) << " " << formatName(*gep.arrayIndex()) << ", "
+        << formatType(gep.structMemberIndex()->type()) << " " << formatName(*gep.structMemberIndex());
 }
 
 void PrintCtx::print(StructureType const& structure) {
