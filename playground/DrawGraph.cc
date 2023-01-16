@@ -5,9 +5,9 @@
 #include <sstream>
 #include <string_view>
 
+#include <termfmt/termfmt.h>
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
-#include <termfmt/termfmt.h>
 
 #include "IR/CFG.h"
 #include "IR/Module.h"
@@ -89,15 +89,15 @@ std::string playground::drawGraphGeneric(
 std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
     auto functionCallback = [](std::stringstream& str, Function const& function) {};
     auto declareCallback  = [](std::stringstream& str, BasicBlock const& bb) {
+        tfmt::setHTMLFormattable(str);
         str << dotName(bb) << " [ label = ";
         str << "<\n";
         auto prolog = [&] { str << "    " << rowBegin << fontBegin(font) << "\n"; };
         auto epilog = [&] { str << "    " << fontEnd << rowEnd << "\n"; };
         str << "  " << tableBegin << "\n";
         prolog();
-        str << "%" << bb.name() << ":\n";
+        str << tfmt::format(tfmt::italic, "%", bb.name()) << ":\n";
         epilog();
-        tfmt::setHTMLFormattable(str);
         for (auto& inst: bb.instructions) {
             prolog();
             str << inst << "\n";

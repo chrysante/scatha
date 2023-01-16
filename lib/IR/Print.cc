@@ -3,8 +3,8 @@
 #include <iostream>
 #include <sstream>
 
-#include <utl/ranges.hpp>
 #include <termfmt/termfmt.h>
+#include <utl/ranges.hpp>
 
 #include "Basic/Basic.h"
 #include "Basic/PrintUtil.h"
@@ -120,13 +120,16 @@ static auto formatName(Value const& value) {
     }); // clang-format on
 }
 
-static auto equals() { return tfmt::format(tfmt::none, " = "); }
+static auto equals() {
+    return tfmt::format(tfmt::none, " = ");
+}
 
-static auto label() { return tertiary("label"); }
+static auto label() {
+    return tertiary("label");
+}
 
 void PrintCtx::print(Function const& function) {
-    str << keyword("function") << " " << formatType(function.returnType()) << " "
-        << formatName(function) << "(";
+    str << keyword("function") << " " << formatType(function.returnType()) << " " << formatName(function) << "(";
     for (bool first = true; auto& param: function.parameters()) {
         str << (first ? (void)(first = false), "" : ", ") << formatType(param.type()) << " " << formatName(param);
     }
@@ -158,7 +161,8 @@ void PrintCtx::print(Alloca const& alloc) {
 }
 
 void PrintCtx::print(Load const& load) {
-    str << indent << formatName(load) << equals() << instruction("load") << " " << formatType(load.type()) << " " << formatName(*load.operand());
+    str << indent << formatName(load) << equals() << instruction("load") << " " << formatType(load.type()) << " "
+        << formatName(*load.operand());
 }
 
 void PrintCtx::print(Store const& store) {
@@ -174,23 +178,25 @@ void PrintCtx::print(CompareInst const& cmp) {
 }
 
 void PrintCtx::print(UnaryArithmeticInst const& inst) {
-    str << indent << formatName(inst) << equals() << instruction(inst.operation()) << " " << formatType(inst.operand()->type()) << " ";
+    str << indent << formatName(inst) << equals() << instruction(inst.operation()) << " "
+        << formatType(inst.operand()->type()) << " ";
     str << formatName(*inst.operand());
 }
 
 void PrintCtx::print(ArithmeticInst const& inst) {
-    str << indent << formatName(inst) << equals() << instruction(inst.operation()) << " " << formatType(inst.lhs()->type()) << " ";
+    str << indent << formatName(inst) << equals() << instruction(inst.operation()) << " "
+        << formatType(inst.lhs()->type()) << " ";
     str << formatName(*inst.lhs()) << ", ";
     str << formatName(*inst.rhs());
 }
 
 void PrintCtx::print(Goto const& gt) {
-    str << indent << instruction("goto") << " "
-        << label() << " " << formatName(*gt.target());
+    str << indent << instruction("goto") << " " << label() << " " << formatName(*gt.target());
 }
 
 void PrintCtx::print(Branch const& br) {
-    str << indent << instruction("branch") << " " << formatType(br.condition()->type()) << " " << formatName(*br.condition()) << ", ";
+    str << indent << instruction("branch") << " " << formatType(br.condition()->type()) << " "
+        << formatName(*br.condition()) << ", ";
     str << label() << " " << formatName(*br.thenTarget()) << ", ";
     str << label() << " " << formatName(*br.elseTarget());
 }
@@ -222,10 +228,10 @@ void PrintCtx::print(Phi const& phi) {
 }
 
 void PrintCtx::print(GetElementPointer const& gep) {
-    str << indent << formatName(gep) << equals() << instruction("gep") << " "
-        << formatType(gep.type()) << " " << formatName(*gep.basePointer()) << ", "
-        << formatType(gep.arrayIndex()->type()) << " " << formatName(*gep.arrayIndex()) << ", "
-        << formatType(gep.structMemberIndex()->type()) << " " << formatName(*gep.structMemberIndex());
+    str << indent << formatName(gep) << equals() << instruction("gep") << " " << formatType(gep.type()) << " "
+        << formatName(*gep.basePointer()) << ", " << formatType(gep.arrayIndex()->type()) << " "
+        << formatName(*gep.arrayIndex()) << ", " << formatType(gep.structMemberIndex()->type()) << " "
+        << formatName(*gep.structMemberIndex());
 }
 
 void PrintCtx::print(StructureType const& structure) {

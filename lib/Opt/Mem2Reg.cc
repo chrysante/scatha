@@ -30,7 +30,7 @@ struct Mem2RegContext {
     Value* search(BasicBlock*, size_t depth, size_t bifurkations);
 
     Value* combinePredecessors(BasicBlock*, size_t depth, size_t bifurkations);
-    
+
     Value* findReplacement(Value* value);
 
     void evict(Instruction* inst);
@@ -38,7 +38,7 @@ struct Mem2RegContext {
     bool isDead(Store const* store);
 
     static bool isUnused(Instruction const* inst);
-    
+
     void gather();
 
     void setCurrentLoad(Load* load) { _currentLoad = load; }
@@ -58,8 +58,9 @@ struct Mem2RegContext {
             return a.first == b.first && addressEqual(a.second, b.second);
         }
     };
-    using LoadAndStoreMap = utl::hashmap<LoadAndStoreKey, utl::small_vector<Instruction*>, LoadAndStoreKeyHash, LoadAndStoreKeyEqual>;
-    
+    using LoadAndStoreMap =
+        utl::hashmap<LoadAndStoreKey, utl::small_vector<Instruction*>, LoadAndStoreKeyHash, LoadAndStoreKeyEqual>;
+
     /// Maps pairs of basic blocks and addresses to lists of load and store instructions from and to that address in
     /// that basic block.
     LoadAndStoreMap loadsAndStores;
@@ -125,7 +126,7 @@ Value* Mem2RegContext::search(BasicBlock* basicBlock, size_t depth, size_t bifur
     auto const endItr   = depth > 0 ? ls.end() : ourLoad();
     if (beginItr != endItr) {
         /// This basic block has a load or store that we use to promote
-        auto const itr     = endItr - 1;
+        auto const itr = endItr - 1;
         // clang-format off
         auto* const result = visit(**itr, utl::overload{
             [](Load& load) { return &load; },
