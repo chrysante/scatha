@@ -1,8 +1,8 @@
 #include "Opt/SCC.h"
 
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/CFG.h"
 
 using namespace scatha;
 using namespace opt;
@@ -13,9 +13,9 @@ namespace {
 /// One context object is created per analyzed function.
 struct SCCContext {
     explicit SCCContext(Context& irCtx, Function& function): irCtx(irCtx), function(function) {}
-    
+
     void run();
-    
+
     Context& irCtx;
     Function& function;
 };
@@ -29,6 +29,4 @@ void opt::scc(ir::Context& context, ir::Module& mod) {
     }
 }
 
-void SCCContext::run() {
-    
-}
+void SCCContext::run() {}

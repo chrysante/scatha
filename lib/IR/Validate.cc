@@ -198,7 +198,7 @@ void ir::setupInvariants(Context& ctx, Function& function) {
         }); // clang-format on
     }
     auto& basicBlocks = function.basicBlocks();
-    for (auto itr = basicBlocks.begin(); itr != basicBlocks.end(); ) {
+    for (auto itr = basicBlocks.begin(); itr != basicBlocks.end();) {
         if (!itr->isEntry() && itr->predecessors.empty()) {
             itr = basicBlocks.erase(itr);
         }

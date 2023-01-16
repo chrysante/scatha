@@ -10,8 +10,8 @@
 #include <utl/common.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
-#include <utl/scope_guard.hpp>
 #include <utl/ranges.hpp>
+#include <utl/scope_guard.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Base.h>
@@ -212,7 +212,9 @@ public:
     /// Review if we want to keep these:
     void setSortedObjectTypes(utl::vector<TypeID> ids) { _sortedObjectTypes = std::move(ids); }
     std::span<TypeID const> sortedObjectTypes() const { return _sortedObjectTypes; }
-    auto functions() const { return utl::transform(_functions, [](auto& p) -> decltype(auto) { return p.second; }); }
+    auto functions() const {
+        return utl::transform(_functions, [](auto& p) -> decltype(auto) { return p.second; });
+    }
 
 private:
     SymbolID generateID(SymbolCategory category);

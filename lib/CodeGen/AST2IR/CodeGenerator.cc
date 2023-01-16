@@ -239,17 +239,12 @@ void Context::generateImpl(DoWhileStatement const& loopDecl) {
 }
 
 void Context::generateImpl(ForStatement const& loopDecl) {
-//    auto* loopPreheader = new ir::BasicBlock(irCtx, localUniqueName("loop-preheader"));
-//    currentFunction->addBasicBlock(loopPreheader);
     auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName("loop.header"));
     currentFunction->addBasicBlock(loopHeader);
     auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop.body"));
     currentFunction->addBasicBlock(loopBody);
     auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop.end"));
     currentFunction->addBasicBlock(loopEnd);
-//    auto* gotoLoopPreheader = new ir::Goto(irCtx, loopPreheader);
-//    currentBB()->addInstruction(gotoLoopPreheader);
-//    setCurrentBB(loopPreheader);
     generate(*loopDecl.varDecl);
     auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
     currentBB()->addInstruction(gotoLoopHeader);
@@ -427,13 +422,12 @@ ir::Value* Context::getValueImpl(FunctionCall const& functionCall) {
     if (auto const& semaFunction = symTable.getFunction(functionCall.functionID()); semaFunction.isExtern()) {
         utl::small_vector<ir::Value*> const args =
             utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return getValue(*expr); });
-        auto* call =
-            new ir::ExtFunctionCall(semaFunction.slot(),
-                                    semaFunction.index(),
-                                    args,
-                                    mapType(semaFunction.signature().returnTypeID()),
-                                    functionCall.typeID() != symTable.Void() ? localUniqueName("call.result") :
-                                                                               std::string{});
+        auto* call = new ir::ExtFunctionCall(semaFunction.slot(),
+                                             semaFunction.index(),
+                                             args,
+                                             mapType(semaFunction.signature().returnTypeID()),
+                                             functionCall.typeID() != symTable.Void() ? localUniqueName("call.result") :
+                                                                                        std::string{});
         currentBB()->addInstruction(call);
         return call;
     }

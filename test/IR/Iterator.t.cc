@@ -9,7 +9,7 @@
 using namespace scatha;
 
 TEST_CASE("Iterate over instructions in a function", "[codegen]") {
-    std::string const text = R"(
+    std::string const text         = R"(
 fn f(n: int) -> int {
     var k = n;
     if k == 0 {
@@ -17,8 +17,8 @@ fn f(n: int) -> int {
     }
     return k;
 })";
-    auto mod               = test::compileToIR(text);
-    auto& function         = mod.functions().front();
+    auto mod                       = test::compileToIR(text);
+    auto& function                 = mod.functions().front();
     ir::NodeType const reference[] = {
         // clang-format off
         ir::NodeType::Alloca,

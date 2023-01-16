@@ -203,7 +203,9 @@ Value* Mem2RegContext::findReplacement(Value* value) {
         iters.push_back(iter);
         value = iter->second;
     }
-    for (auto iter: iters) { iter->second = value; }
+    for (auto iter: iters) {
+        iter->second = value;
+    }
     return value;
 }
 

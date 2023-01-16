@@ -56,8 +56,7 @@ Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(Token name) 
                                   symbolID.category());
     }
     auto const newSymbolID = generateID(SymbolCategory::ObjectType);
-    auto [itr, success] =
-        _objectTypes.insert({ newSymbolID, ObjectType(name.id, newSymbolID, &currentScope()) });
+    auto [itr, success]    = _objectTypes.insert({ newSymbolID, ObjectType(name.id, newSymbolID, &currentScope()) });
     SC_ASSERT(success, "");
     currentScope().add(itr->second);
     return itr->second;
@@ -95,8 +94,7 @@ Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(Token name
         }
         /// Create a new overload set
         auto const newSymbolID = generateID(SymbolCategory::OverloadSet);
-        auto [itr, success] =
-            _overloadSets.insert({ newSymbolID, OverloadSet(name.id, newSymbolID, &currentScope()) });
+        auto [itr, success] = _overloadSets.insert({ newSymbolID, OverloadSet(name.id, newSymbolID, &currentScope()) });
         SC_ASSERT(success, "");
         OverloadSet& overloadSet = itr->second;
         currentScope().add(overloadSet);
@@ -111,14 +109,12 @@ Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(Token name
                                   SymbolCategory::Function,
                                   overloadSetID.category());
     }
-    auto const newSymbolID = generateID(SymbolCategory::Function);
-    auto const [itr, success] = _functions.insert({
-        newSymbolID,
-        Function(name.id,
-                 /* functionID = */    newSymbolID,
-                 /* overloadSetID = */ overloadSetID,
-                 &currentScope())
-    });
+    auto const newSymbolID    = generateID(SymbolCategory::Function);
+    auto const [itr, success] = _functions.insert({ newSymbolID,
+                                                    Function(name.id,
+                                                             /* functionID = */ newSymbolID,
+                                                             /* overloadSetID = */ overloadSetID,
+                                                             &currentScope()) });
     SC_ASSERT(success, "?");
     Function& function = itr->second;
     currentScope().add(function);
@@ -177,7 +173,7 @@ Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(Token name) {
         return InvalidDeclaration(nullptr, Redefinition, currentScope(), SymbolCategory::Variable, symbolID.category());
     }
     auto const newSymbolID = generateID(SymbolCategory::Variable);
-    auto [itr, success] = _variables.insert({ newSymbolID, Variable(name.id, newSymbolID, &currentScope()) });
+    auto [itr, success]    = _variables.insert({ newSymbolID, Variable(name.id, newSymbolID, &currentScope()) });
     SC_ASSERT(success, "");
     Variable& variable = itr->second;
     currentScope().add(variable);
@@ -207,8 +203,7 @@ Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name, TypeID t
 
 Scope const& SymbolTable::addAnonymousScope() {
     auto const symbolID = generateID(SymbolCategory::Anonymous);
-    auto [itr, success] =
-        _anonymousScopes.insert({ symbolID, Scope(ScopeKind::Function, symbolID, &currentScope()) });
+    auto [itr, success] = _anonymousScopes.insert({ symbolID, Scope(ScopeKind::Function, symbolID, &currentScope()) });
     SC_ASSERT(success, "");
     Scope& scope = itr->second;
     currentScope().add(scope);
