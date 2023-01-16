@@ -52,6 +52,7 @@ externalincludedirs {
     "external/utility/include", 
     "external/gmp/build/include", 
     "external/mpfr/build/include",
+    "external/termfmt/include",
     "external/boost/config/include",
     "external/boost/detail/include",
     "external/boost/logic/include"
@@ -61,7 +62,7 @@ libdirs {
     "external/gmp/build/lib", 
     "external/mpfr/build/lib"
 }
-links { "utility", "gmp", "mpfr" }
+links { "utility", "gmp", "mpfr", "termfmt" }
 
 filter "system:macosx"
 buildoptions "-fvisibility=hidden"
@@ -108,13 +109,14 @@ project "playground"
 kind "ConsoleApp"
 externalincludedirs {
     "include",
-    "external/utility/include" 
+    "external/utility/include",
+    "external/termfmt/include" 
 }
 includedirs { ".", "lib", "playground" }
 
 addCppFiles "playground"
 files "playground/**.sc"
-links { "scatha", "utility" }
+links { "scatha", "utility", "termfmt" }
 
 filter { "system:macosx"} 
     defines { "PROJECT_LOCATION=\"${PROJECT_DIR}\"" }

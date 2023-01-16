@@ -7,6 +7,7 @@
 
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
+#include <termfmt/termfmt.h>
 
 #include "IR/CFG.h"
 #include "IR/Module.h"
@@ -96,6 +97,7 @@ std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
         prolog();
         str << "%" << bb.name() << ":\n";
         epilog();
+        tfmt::setHTMLFormattable(str);
         for (auto& inst: bb.instructions) {
             prolog();
             str << inst << "\n";

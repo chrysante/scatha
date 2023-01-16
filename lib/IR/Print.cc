@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include <utl/ranges.hpp>
+#include <termfmt/termfmt.h>
 
 #include "Basic/Basic.h"
 #include "Basic/PrintUtil.h"
@@ -20,7 +21,7 @@ struct PrintCtx {
 
     void dispatch(Value const&);
 
-    void print(Value const&) { SC_DEBUGFAIL(); }
+    void print(Value const&) { SC_UNREACHABLE(); }
     void print(Function const&);
     void print(BasicBlock const&);
     void print(Instruction const&);
@@ -77,21 +78,57 @@ std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
 std::string ir::toString(Value const& value) {
     // clang-format off
     return visit(value, utl::overload{
-        [&](Value const& value) -> std::string { return utl::strcat("%", value.name()); },
-        [&](IntegralConstant const& value) -> std::string { return value.value().toString(); },
-        [&](FloatingPointConstant const& value) -> std::string { return value.value().toString(); },
-    });
-    // clang-format on
+        [&](Value const& value)                 { return utl::strcat("%", value.name()); },
+        [&](IntegralConstant const& value)      { return utl::strcat("$", value.value().toString()); },
+        [&](FloatingPointConstant const& value) { return utl::strcat("$", value.value().toString()); },
+    }); // clang-format on
 }
 
 void PrintCtx::dispatch(Value const& value) {
     visit(value, [this](auto const& value) { print(value); });
 }
 
+static auto keyword(std::string_view name) {
+    return tfmt::format(tfmt::magenta | tfmt::bold, name);
+}
+
+static auto tertiary(auto... name) {
+    return tfmt::format(tfmt::brightGrey, name...);
+}
+
+static auto instruction(auto... name) {
+    return tfmt::format(tfmt::brightRed | tfmt::bold, name...);
+}
+
+static auto formatType(ir::Type const* type) {
+    if (type->category() == ir::TypeCategory::StructureType) {
+        return tfmt::format(tfmt::green, utl::strcat("%", type->name()));
+    }
+    return tfmt::format(tfmt::brightBlue, std::string(type->name()));
+}
+
+static auto formatName(Value const& value) {
+    // clang-format off
+    return visit(value, utl::overload{
+        [](ir::Function const& function){ return tfmt::format(tfmt::italic, "@", std::string(function.name())); },
+        [](ir::Parameter const& parameter){ return tfmt::format(tfmt::none, "%", std::string(parameter.name())); },
+        [](ir::BasicBlock const& basicBlock){ return tfmt::format(tfmt::italic, "%", std::string(basicBlock.name())); },
+        [](ir::Instruction const& inst){ return tfmt::format(tfmt::none, "%", std::string(inst.name())); },
+        [](ir::IntegralConstant const& value) { return tfmt::format(tfmt::cyan, "$", value.value().toString()); },
+        [](ir::FloatingPointConstant const& value) { return tfmt::format(tfmt::cyan, "$", value.value().toString()); },
+        [](ir::Value const&){ return tfmt::format(tfmt::bgMagenta, "?", std::string("??")); },
+    }); // clang-format on
+}
+
+static auto equals() { return tfmt::format(tfmt::none, " = "); }
+
+static auto label() { return tertiary("label"); }
+
 void PrintCtx::print(Function const& function) {
-    str << "define " << function.returnType()->name() << " @" << function.name() << "(";
+    str << keyword("function") << " " << formatType(function.returnType()) << " "
+        << formatName(function) << "(";
     for (bool first = true; auto& param: function.parameters()) {
-        str << (first ? (void)(first = false), "" : ", ") << param.type()->name() << " %" << param.name();
+        str << (first ? (void)(first = false), "" : ", ") << formatType(param.type()) << " " << formatName(param);
     }
     str << ") {\n";
     indent.increase();
@@ -103,7 +140,7 @@ void PrintCtx::print(Function const& function) {
 }
 
 void PrintCtx::print(BasicBlock const& bb) {
-    str << indent << "%" << bb.name() << ":\n";
+    str << indent << formatName(bb) << ":\n";
     indent.increase();
     for (auto& instruction: bb.instructions) {
         dispatch(instruction);
@@ -117,85 +154,85 @@ void PrintCtx::print(Instruction const& inst) {
 }
 
 void PrintCtx::print(Alloca const& alloc) {
-    str << indent << "%" << alloc.name() << " = alloca " << alloc.allocatedType()->name();
+    str << indent << formatName(alloc) << equals() << instruction("alloca") << " " << formatType(alloc.allocatedType());
 }
 
 void PrintCtx::print(Load const& load) {
-    str << indent << "%" << load.name() << " = load " << load.type()->name() << ", ptr %" << load.operand()->name();
+    str << indent << formatName(load) << equals() << instruction("load") << " " << formatType(load.type()) << " " << formatName(*load.operand());
 }
 
 void PrintCtx::print(Store const& store) {
-    str << indent << "store ";
-    str << store.lhs()->type()->name() << " " << toString(*store.lhs()) << ", ";
-    str << store.rhs()->type()->name() << " " << toString(*store.rhs());
+    str << indent << instruction("store") << " ";
+    str << formatName(*store.lhs()) << ", ";
+    str << formatName(*store.rhs());
 }
 
 void PrintCtx::print(CompareInst const& cmp) {
-    str << indent << "%" << cmp.name() << " = cmp " << cmp.operation() << " ";
-    str << cmp.lhs()->type()->name() << " " << toString(*cmp.lhs()) << ", ";
-    str << cmp.rhs()->type()->name() << " " << toString(*cmp.rhs());
+    str << indent << formatName(cmp) << equals() << instruction("cmp ", cmp.operation()) << " ";
+    str << formatType(cmp.lhs()->type()) << " " << formatName(*cmp.lhs()) << ", ";
+    str << formatType(cmp.rhs()->type()) << " " << formatName(*cmp.rhs());
 }
 
 void PrintCtx::print(UnaryArithmeticInst const& inst) {
-    str << indent << "%" << inst.name() << " = " << inst.operation() << " " << inst.operand()->type()->name() << " ";
-    str << toString(*inst.operand());
+    str << indent << formatName(inst) << equals() << instruction(inst.operation()) << " " << formatType(inst.operand()->type()) << " ";
+    str << formatName(*inst.operand());
 }
 
 void PrintCtx::print(ArithmeticInst const& inst) {
-    str << indent << "%" << inst.name() << " = " << inst.operation() << " " << inst.lhs()->type()->name() << " ";
-    str << toString(*inst.lhs()) << ", ";
-    str << toString(*inst.rhs());
+    str << indent << formatName(inst) << equals() << instruction(inst.operation()) << " " << formatType(inst.lhs()->type()) << " ";
+    str << formatName(*inst.lhs()) << ", ";
+    str << formatName(*inst.rhs());
 }
 
 void PrintCtx::print(Goto const& gt) {
-    str << indent << "goto "
-        << "label %" << gt.target()->name();
+    str << indent << instruction("goto") << " "
+        << label() << " " << formatName(*gt.target());
 }
 
 void PrintCtx::print(Branch const& br) {
-    str << indent << "branch " << br.condition()->type()->name() << " " << toString(*br.condition()) << ", ";
-    str << "label %" << br.thenTarget()->name() << ", ";
-    str << "label %" << br.elseTarget()->name();
+    str << indent << instruction("branch") << " " << formatType(br.condition()->type()) << " " << formatName(*br.condition()) << ", ";
+    str << label() << " " << formatName(*br.thenTarget()) << ", ";
+    str << label() << " " << formatName(*br.elseTarget());
 }
 
 void PrintCtx::print(Return const& ret) {
-    str << indent << "return ";
+    str << indent << instruction("return") << " ";
     if (ret.value()) {
-        str << ret.value()->type()->name() << " " << toString(*ret.value());
+        str << formatType(ret.value()->type()) << " " << formatName(*ret.value());
     }
 }
 
 void PrintCtx::print(FunctionCall const& call) {
     str << indent;
     if (!call.name().empty()) {
-        str << "%" << call.name() << " = ";
+        str << formatName(call) << equals();
     }
-    str << "call " << call.type()->name() << ", @" << call.function()->name();
+    str << instruction("call") << " " << formatType(call.type()) << " " << formatName(*call.function());
     for (auto& arg: call.arguments()) {
-        str << ", " << arg->type()->name() << " " << toString(*arg);
+        str << ", " << formatType(arg->type()) << " " << formatName(*arg);
     }
 }
 
 void PrintCtx::print(Phi const& phi) {
-    str << indent << "%" << phi.name() << " = phi " << phi.type()->name();
-    for (size_t i = 0; i < phi.argumentCount(); ++i) {
-        auto const [pred, value] = phi.argumentAt(i);
-        str << ", [label %" << pred->name() << ", " << toString(*value) << "]";
+    str << indent << formatName(phi) << equals() << instruction("phi") << " " << formatType(phi.type()) << " ";
+    for (bool first = true; auto const [pred, value]: phi.arguments()) {
+        str << (first ? first = false, "" : ", ");
+        str << "[" << label() << " " << formatName(*pred) << " : " << formatName(*value) << "]";
     }
 }
 
 void PrintCtx::print(GetElementPointer const& gep) {
-    str << indent << "%" << gep.name() << " = gep " << gep.accessedType()->name() << ", "
-        << toString(*gep.basePointer()) << ", " << toString(*gep.arrayIndex()) << ", "
-        << toString(*gep.structMemberIndex());
+    str << indent << formatName(gep) << equals() << instruction("gep") << " " << formatType(gep.type()) << " "
+        << formatName(*gep.basePointer()) << ", " << formatName(*gep.arrayIndex()) << ", "
+        << formatName(*gep.structMemberIndex());
 }
 
 void PrintCtx::print(StructureType const& structure) {
-    str << "%" << structure.name() << " = struct {\n";
+    str << keyword("structure") << " " << formatType(&structure) << " {\n";
     indent.increase();
     for (bool first = true; auto const* type: structure.members()) {
         str << (first ? (first = false), "" : ",\n") << indent;
-        str << type->name();
+        str << formatType(type);
     }
     indent.decrease();
     str << "\n}\n";
