@@ -1,5 +1,6 @@
-#include "Opt/SCC.h"
+#include "Opt/ConstantPropagation.h"
 
+#include <deque>
 #include <numeric>
 
 #include <utl/hash.hpp>
@@ -15,6 +16,7 @@
 
 /// Implemented with help from:
 /// https://karkare.github.io/cs738/lecturenotes/11CondConstPropHandout.pdf
+/// https://www.cs.utexas.edu/users/lin/cs380c/wegman.pdf
 
 using namespace scatha;
 using namespace opt;
@@ -46,19 +48,19 @@ namespace {
 enum class Inevaluable{};
 
 /// Supremum, evaluation
-enum class Varying{};
+enum class Unexamined{};
 
-using FormalValue = utl::variant<Varying, Inevaluable, APInt>;
+using FormalValue = utl::variant<Unexamined, Inevaluable, APInt>;
 
-bool isVarying(FormalValue const& value) { return value.index() == 0; }
+bool isUnexamined(FormalValue const& value) { return value.index() == 0; }
 
 bool isInevaluable(FormalValue const& value) { return value.index() == 1; }
 
 bool isConstant(FormalValue const& value) { return value.index() == 2; }
 
 FormalValue infimum(FormalValue const& a, FormalValue const& b) {
-    if (isVarying(a)) { return b; }
-    if (isVarying(b)) { return a; }
+    if (isUnexamined(a)) { return b; }
+    if (isUnexamined(b)) { return a; }
     if (a == b) { return a; }
     return Inevaluable{};
 }
@@ -108,15 +110,15 @@ struct SCCContext {
     Context& irCtx;
     Function& function;
     
-    utl::vector<FlowEdge> flowWorklist;
-    utl::vector<UseEdge> useWorklist;
+    std::deque<FlowEdge> flowWorklist;
+    std::deque<UseEdge> useWorklist;
     utl::hashmap<Value const*, FormalValue> formalValues;
     utl::hashmap<FlowEdge, bool> execMap;
 };
 
 } // namespace
 
-void opt::scc(ir::Context& context, ir::Module& mod) {
+void opt::propagateConstants(ir::Context& context, ir::Module& mod) {
     for (auto& function: mod.functions()) {
         SCCContext ctx(context, function);
         ctx.run();
@@ -126,19 +128,16 @@ void opt::scc(ir::Context& context, ir::Module& mod) {
 
 void SCCContext::run() {
     auto& entry = function.entry();
-    visitExpressions(entry);
-    if (flowWorklist.empty()) {
-        flowWorklist = utl::transform(entry.terminator()->targets(), [&](BasicBlock* target) { return FlowEdge{ &entry, target }; });
-    }
+    flowWorklist.push_back({ nullptr, &entry });
     while (!flowWorklist.empty() || !useWorklist.empty()) {
         if (!flowWorklist.empty()) {
-            FlowEdge const edge = flowWorklist.back();
-            flowWorklist.pop_back();
+            FlowEdge const edge = flowWorklist.front();
+            flowWorklist.pop_front();
             processFlowEdge(edge);
         }
         if (!useWorklist.empty()) {
-            UseEdge const edge = useWorklist.back();
-            useWorklist.pop_back();
+            UseEdge const edge = useWorklist.front();
+            useWorklist.pop_front();
             processUseEdge(edge);
         }
     }
@@ -153,7 +152,7 @@ void SCCContext::processFlowEdge(FlowEdge edge) {
     for (auto& phi: dest->phis()) {
         visitPhi(phi);
     }
-    if (numIncomingExecutableEdges(*dest) == 1) {
+    if (dest->isEntry() || numIncomingExecutableEdges(*dest) == 1) {
         visitExpressions(*dest);
     }
     if (dest->successors().size() == 1) {
@@ -166,8 +165,9 @@ void SCCContext::visitPhi(Phi& phi) {
         if (isExecutable({ arg.pred, bb }))  {
             return formalValue(arg.value);
         }
-        return Varying{};
+        return Unexamined{};
     }));
+    
     if (isConstant(value)) {
         auto* newValue = irCtx.integralConstant(value.get<APInt>(), cast<IntegralType const*>(phi.type())->bitWidth());
         replaceValue(&phi, newValue);
@@ -175,15 +175,15 @@ void SCCContext::visitPhi(Phi& phi) {
         phi.parent()->instructions.erase(&phi);
         return;
     }
-//    if (auto const operands = phi.operands();
-//        std::adjacent_find(operands.begin(), operands.end(), std::not_equal_to<>{}) == operands.end())
-//    {
-//        auto* newValue = *operands.begin();
-//        replaceValue(&phi, newValue);
-//        phi.clearOperands();
-//        phi.parent()->instructions.erase(&phi);
-//        return;
-//    }
+    if (auto const operands = phi.operands();
+        std::adjacent_find(operands.begin(), operands.end(), std::not_equal_to<>{}) == operands.end())
+    {
+        auto* newValue = *operands.begin();
+        replaceValue(&phi, newValue);
+        phi.clearOperands();
+        phi.parent()->instructions.erase(&phi);
+        return;
+    }
 }
 
 void SCCContext::visitExpressions(BasicBlock& basicBlock) {
@@ -231,14 +231,17 @@ void SCCContext::visitExpression(Instruction& inst) {
 void SCCContext::processTerminator(FormalValue const& value, TerminatorInst& inst) {
     // clang-format off
     utl::visit(utl::overload{
-        [&](Inevaluable) {
-            flowWorklist.insert(flowWorklist.end(), utl::transform(inst.targets(), [&](BasicBlock* target) { return FlowEdge{ inst.parent(), target }; }));
-        },
-        [&](Varying) {
+        [&](Unexamined) {
             SC_UNREACHABLE();
         },
         [&](APInt const& constant) {
             addSingleEdge(constant, inst);
+        },
+        [&](Inevaluable) {
+            std::transform(inst.targets().begin(),
+                           inst.targets().end(),
+                           std::back_inserter(flowWorklist),
+                           [&](BasicBlock* target) { return FlowEdge{ inst.parent(), target }; });
         },
     }, value);// clang-format on
 }
@@ -252,10 +255,8 @@ void SCCContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
         [&](Branch& br) {
             SC_ASSERT(constant == 0 || constant == 1, "Boolean constant must be 0 or 1");
             BasicBlock* const origin = br.parent();
-            bool const index = static_cast<bool>(constant);
-            auto const targets = br.targets();
-            BasicBlock* const target = targets[index];
-            BasicBlock* const staleTarget = targets[!index];
+            size_t const index = static_cast<size_t>(constant);
+            BasicBlock* const target = br.targets()[index];
             flowWorklist.push_back({ origin, target });
         },
         [&](Return& inst) {},
@@ -297,21 +298,32 @@ size_t SCCContext::numIncomingExecutableEdges(BasicBlock& basicBlock) {
 
 FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation, FormalValue const& lhs, FormalValue const& rhs) {
     switch (operation) {
-    case ArithmeticOperation::Add:
+    case ArithmeticOperation::Add: [[fallthrough]];
+    case ArithmeticOperation::Sub:
         return utl::visit(utl::overload{
-            [](APInt const& lhs, APInt const& rhs) -> FormalValue {
-                return lhs + rhs;
+            [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
+                switch (operation) {
+                case ArithmeticOperation::Add: return lhs + rhs;
+                case ArithmeticOperation::Sub: return lhs - rhs;
+                default: SC_UNREACHABLE();
+                }
             },
             [](Inevaluable, auto const&) -> FormalValue { return Inevaluable{}; },
             [](auto const&, Inevaluable) -> FormalValue { return Inevaluable{}; },
             [](Inevaluable, Inevaluable) -> FormalValue { return Inevaluable{}; },
-            [](auto const&, auto const&) -> FormalValue { return Varying{}; },
+            [](auto const&, auto const&) -> FormalValue { return Unexamined{}; },
         }, lhs, rhs);
-        // Sub just like that
-    case ArithmeticOperation::Mul:
+    case ArithmeticOperation::Mul: [[fallthrough]];
+    case ArithmeticOperation::Div: [[fallthrough]];
+    case ArithmeticOperation::Rem:
         return utl::visit(utl::overload{
-            [](APInt const& lhs, APInt const& rhs) -> FormalValue {
-                return lhs * rhs;
+            [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
+                switch (operation) {
+                case ArithmeticOperation::Mul: return lhs * rhs;
+                case ArithmeticOperation::Div: return lhs / rhs;
+                case ArithmeticOperation::Rem: return lhs % rhs;
+                default: SC_UNREACHABLE();
+                }
             },
             []<typename T>(APInt const& lhs, T const& rhs) -> FormalValue {
                 if (lhs == 0) {
@@ -320,18 +332,17 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation, Formal
                 return T{};
             },
             []<typename T>(T const& lhs, APInt const& rhs) -> FormalValue {
+                /// TODO: Here we should return 'undef' for division and remainder.
                 if (rhs == 0) {
                     return 0;
                 }
                 return T{};
             },
-            [](Inevaluable, Varying)     -> FormalValue { return Inevaluable{}; },
-            [](Varying,     Inevaluable) -> FormalValue { return Inevaluable{}; },
+            [](Inevaluable, Unexamined)  -> FormalValue { return Inevaluable{}; },
+            [](Unexamined,  Inevaluable) -> FormalValue { return Inevaluable{}; },
             [](Inevaluable, Inevaluable) -> FormalValue { return Inevaluable{}; },
             [](auto const&, auto const&) -> FormalValue { return Inevaluable{}; },
         }, lhs, rhs);
-        // Div also very similar
-        
         
     default:
         return Inevaluable{};
@@ -359,7 +370,7 @@ FormalValue SCCContext::evaluateComparison(CompareOperation operation, FormalVal
 }
 
 FormalValue SCCContext::formalValue(Value const* value) {
-    auto const [itr, justAdded] = formalValues.insert({ value, Varying{} });
+    auto const [itr, justAdded] = formalValues.insert({ value, Unexamined{} });
     auto&& [key, formalValue] = *itr;
     if (!justAdded) {
         return formalValue;
@@ -370,7 +381,7 @@ FormalValue SCCContext::formalValue(Value const* value) {
             return constant.value();
         },
         [&](Parameter const& param) -> FormalValue { return Inevaluable{}; },
-        [&](Value const& other) -> FormalValue { return Varying{}; }
+        [&](Value const& other) -> FormalValue { return Unexamined{}; }
     }); // clang-format on
     return formalValue;
 }
