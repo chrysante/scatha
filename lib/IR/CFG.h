@@ -136,11 +136,13 @@ protected:
 /// violated during construction and transformations of the CFG.
 class SCATHA(API) BasicBlock: public Value, public NodeWithParent<BasicBlock, Function> {
 public:
+    using PhiIterator = internal::PhiIteratorImpl<List<Instruction>::iterator>;
+    using ConstPhiIterator = internal::PhiIteratorImpl<List<Instruction>::const_iterator>;
+    
     explicit BasicBlock(Context& context, std::string name);
 
     void addInstruction(Instruction* instruction) {
-        instruction->set_parent(this);
-        instructions.push_back(instruction);
+        addInstruction(instructions.end(), instruction);
     }
 
     void addInstruction(List<Instruction>::iterator before, Instruction* instruction) {
@@ -162,6 +164,18 @@ public:
         return const_cast<TerminatorInst*>(static_cast<BasicBlock const*>(this)->terminator());
     }
 
+    utl::range_view<ConstPhiIterator, internal::PhiSentinel> phis() const {
+        return { ConstPhiIterator{ instructions.begin(), instructions.end() }, {} };
+    }
+    
+    utl::range_view<PhiIterator, internal::PhiSentinel> phis() {
+        return { PhiIterator{ instructions.begin(), instructions.end() }, {} };
+    }
+    
+    void removePredecessor(BasicBlock const* pred) {
+        predecessors.erase(std::find(predecessors.begin(), predecessors.end(), pred));
+    }
+    
     /// This is exposed directly because some algorithms need to erase instructions from here.
     List<Instruction> instructions;
 
@@ -205,6 +219,9 @@ public:
     List<BasicBlock>& basicBlocks() { return bbs; }
     List<BasicBlock> const& basicBlocks() const { return bbs; }
 
+    BasicBlock& entry() { return bbs.front(); }
+    BasicBlock const& entry() const { return bbs.front(); }
+    
     utl::range_view<InstructionIterator> instructions() { return getInstructionsImpl<InstructionIterator>(*this); }
     utl::range_view<ConstInstructionIterator> instructions() const {
         return getInstructionsImpl<ConstInstructionIterator>(*this);
