@@ -20,21 +20,10 @@ fn f(n: int) -> int {
     auto mod                       = test::compileToIR(text);
     auto& function                 = mod.functions().front();
     ir::NodeType const reference[] = {
-        // clang-format off
-        ir::NodeType::Alloca,
-        ir::NodeType::Store,
-        ir::NodeType::Alloca,
-        ir::NodeType::Load,
-        ir::NodeType::Store,
-        ir::NodeType::Load,
-        ir::NodeType::CompareInst,
-        ir::NodeType::Branch,
-        ir::NodeType::Store,
-        ir::NodeType::Load,
-        ir::NodeType::Goto,
-        ir::NodeType::Load,
-        ir::NodeType::Return,
-    }; // clang-format on
+        ir::NodeType::Alloca, ir::NodeType::Store,       ir::NodeType::Alloca, ir::NodeType::Load,  ir::NodeType::Store,
+        ir::NodeType::Load,   ir::NodeType::CompareInst, ir::NodeType::Branch, ir::NodeType::Store, ir::NodeType::Load,
+        ir::NodeType::Goto,   ir::NodeType::Load,        ir::NodeType::Return,
+    };
     SECTION("Simple traversal") {
         for (auto&& [index, inst]: utl::enumerate(function.instructions())) {
             auto const type = reference[index];
