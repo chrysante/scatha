@@ -22,7 +22,7 @@
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
 #include "Opt/Mem2Reg.h"
-#include "Opt/SCC.h"
+#include "Opt/ConstantPropagation.h"
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
@@ -151,7 +151,7 @@ void playground::compile(std::string text) {
 
     header(" Optimized IR ");
     opt::mem2Reg(irCtx, mod);
-    opt::scc(irCtx, mod);
+    opt::propagateConstants(irCtx, mod);
     ir::print(mod);
 
     header(" Assembly generated from IR ");

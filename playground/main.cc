@@ -13,7 +13,7 @@
 #include "IRDump.h"
 #include "IRSketch.h"
 #include "Opt/Mem2Reg.h"
-#include "Opt/SCC.h"
+#include "Opt/ConstantPropagation.h"
 #include "OptTest.h"
 #include "SampleCompiler.h"
 
@@ -79,7 +79,7 @@ int main(int argc, char const* const* argv) {
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg.gv");
         scatha::opt::mem2Reg(ctx, mod);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg-m2r.gv");
-        scatha::opt::scc(ctx, mod);
+        scatha::opt::propagateConstants(ctx, mod);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg-scc.gv");
         break;
     }
