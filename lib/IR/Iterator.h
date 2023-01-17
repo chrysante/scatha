@@ -13,8 +13,8 @@ class InstructionIteratorImpl {
     friend class InstructionIteratorImpl;
 
 public:
-    using difference_type   = typename std::iterator_traits<InstItr>::difference_type;
     using value_type        = typename std::iterator_traits<InstItr>::value_type;
+    using difference_type   = typename std::iterator_traits<InstItr>::difference_type;
     using pointer           = typename std::iterator_traits<InstItr>::pointer;
     using reference         = typename std::iterator_traits<InstItr>::reference;
     using iterator_category = typename std::iterator_traits<InstItr>::iterator_category;
@@ -87,6 +87,42 @@ private:
 private:
     BBItr bbItr;
     InstItr instItr;
+};
+
+struct PhiSentinel {};
+
+template <typename Itr>
+struct PhiIteratorImpl {
+public:
+    using value_type        = utl::copy_cv_t<typename std::iterator_traits<Itr>::value_type, Phi>;
+    using difference_type   = typename std::iterator_traits<Itr>::difference_type;
+    using pointer           = value_type*;
+    using reference         = value_type&;
+    using iterator_category = typename std::iterator_traits<Itr>::iterator_category;
+    
+    PhiIteratorImpl(Itr begin, Itr end): itr(begin), end(end) {}
+
+    pointer toAddress() const { return cast<pointer>(itr.to_address()); }
+    
+    reference operator*() const { return *toAddress(); }
+    
+    pointer operator->() const { return toAddress(); }
+    
+    PhiIteratorImpl& operator++() {
+        ++itr;
+        return *this;
+    }
+    
+    PhiIteratorImpl operator++(int) {
+        auto result = *this;
+        ++*this;
+        return result;
+    }
+    
+    bool operator==(PhiSentinel const&) const { return itr == end || !isa<Phi>(*itr); }
+    
+private:
+    Itr itr, end;
 };
 
 } // namespace scatha::ir::internal
