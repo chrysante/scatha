@@ -88,25 +88,25 @@ APInt& APInt::operator/=(APInt const& rhs) & {
     return *this;
 }
 
-APInt operator+(APInt const& lhs, APInt const& rhs) {
+APInt scatha::operator+(APInt const& lhs, APInt const& rhs) {
     APInt result = lhs;
     result += rhs;
     return result;
 }
 
-APInt operator-(APInt const& lhs, APInt const& rhs) {
+APInt scatha::operator-(APInt const& lhs, APInt const& rhs) {
     APInt result = lhs;
     result -= rhs;
     return result;
 }
 
-APInt operator*(APInt const& lhs, APInt const& rhs) {
+APInt scatha::operator*(APInt const& lhs, APInt const& rhs) {
     APInt result = lhs;
     result *= rhs;
     return result;
 }
 
-APInt operator/(APInt const& lhs, APInt const& rhs) {
+APInt scatha::operator/(APInt const& lhs, APInt const& rhs) {
     APInt result = lhs;
     result /= rhs;
     return result;
