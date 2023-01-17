@@ -6,7 +6,7 @@
 
 using namespace scatha;
 
-TEST_CASE("APInt comparison", "[common][big-num]") {
+TEST_CASE("APInt comparison", "[common][apint]") {
     APInt n = 300;
     CHECK(n == APInt(300));
     CHECK(n > APInt(0));
@@ -19,7 +19,7 @@ TEST_CASE("APInt comparison", "[common][big-num]") {
     CHECK(1000 > n);
 }
 
-TEST_CASE("APInt representable - 1", "[common][big-num]") {
+TEST_CASE("APInt representable - 1", "[common][apint]") {
     APInt n = 300;
     CHECK(n.representableAs<int>());
     CHECK(n.representableAs<unsigned int>());
@@ -32,7 +32,7 @@ TEST_CASE("APInt representable - 1", "[common][big-num]") {
     CHECK(n.representableAs<long double>());
 }
 
-TEST_CASE("APInt representable - 2", "[common][big-num]") {
+TEST_CASE("APInt representable - 2", "[common][apint]") {
     APInt n = APInt::fromString("FFffFFffFFffFFffFFffFFffFFffFFff", 16).value();
     CHECK(!n.representableAs<int>());
     CHECK(!n.representableAs<unsigned int>());
@@ -42,7 +42,7 @@ TEST_CASE("APInt representable - 2", "[common][big-num]") {
     CHECK(!n.representableAs<unsigned char>());
 }
 
-TEST_CASE("APInt representable - 3", "[common][big-num]") {
+TEST_CASE("APInt representable - 3", "[common][apint]") {
     APInt n = -200;
     CHECK(n.representableAs<int>());
     CHECK(!n.representableAs<unsigned int>());
@@ -56,12 +56,12 @@ TEST_CASE("APInt representable - 3", "[common][big-num]") {
     CHECK(static_cast<int>(n) == -200);
 }
 
-TEST_CASE("APInt fromString()", "[common][big-num]") {
+TEST_CASE("APInt fromString()", "[common][apint]") {
     CHECK(APInt::fromString("123").value() == 123);
     CHECK(APInt::fromString("123", 16).value() == 0x123);
 }
 
-TEST_CASE("APInt arithmetic", "[common][big-num]") {
+TEST_CASE("APInt arithmetic", "[common][apint]") {
     SECTION("Addition") {
         APInt n = 100;
         n += 1;
@@ -94,7 +94,11 @@ TEST_CASE("APInt arithmetic", "[common][big-num]") {
     }
 }
 
-TEST_CASE("APInt formatting", "[common][big-num]") {
+TEST_CASE("APInt conversion", "[common][apint]") {
+    CHECK(APInt(-1).to<u32>() == 0xFFffFFff);
+}
+
+TEST_CASE("APInt formatting", "[common][apint]") {
     std::stringstream sstr;
     SECTION("Positive") {
         APInt const n = 100;

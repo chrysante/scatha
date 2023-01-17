@@ -84,7 +84,12 @@ APInt& APInt::operator*=(APInt const& rhs) & {
 }
 
 APInt& APInt::operator/=(APInt const& rhs) & {
-    mpz_div(as_mpz(storage), as_mpz(storage), as_mpz(rhs.storage));
+    mpz_tdiv_q(as_mpz(storage), as_mpz(storage), as_mpz(rhs.storage));
+    return *this;
+}
+
+APInt& APInt::operator%=(APInt const& rhs) & {
+    mpz_tdiv_r(as_mpz(storage), as_mpz(storage), as_mpz(rhs.storage));
     return *this;
 }
 
@@ -109,6 +114,12 @@ APInt scatha::operator*(APInt const& lhs, APInt const& rhs) {
 APInt scatha::operator/(APInt const& lhs, APInt const& rhs) {
     APInt result = lhs;
     result /= rhs;
+    return result;
+}
+
+APInt scatha::operator%(APInt const& lhs, APInt const& rhs) {
+    APInt result = lhs;
+    result %= rhs;
     return result;
 }
 

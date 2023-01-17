@@ -20,6 +20,7 @@ SCATHA(API) APInt operator+(APInt const& lhs, APInt const& rhs);
 SCATHA(API) APInt operator-(APInt const& lhs, APInt const& rhs);
 SCATHA(API) APInt operator*(APInt const& lhs, APInt const& rhs);
 SCATHA(API) APInt operator/(APInt const& lhs, APInt const& rhs);
+SCATHA(API) APInt operator%(APInt const& lhs, APInt const& rhs);
 
 SCATHA(API) std::strong_ordering operator<=>(APInt const& lhs, APInt const& rhs);
 SCATHA(API) std::strong_ordering operator<=>(APInt const& lhs, long long rhs);
@@ -49,8 +50,12 @@ public:
 
     template <typename T>
     requires std::is_arithmetic_v<T>
-    explicit operator T() const;
+    explicit operator T() const { return to<T>(); }
 
+    template <typename T>
+    requires std::is_arithmetic_v<T>
+    T to() const;
+    
     /// Convert a string to APInt.
     ///
     /// \details Whitespaces are ignored.
@@ -95,11 +100,19 @@ public:
     APInt& operator/=(T rhs) & {
         return *this /= APInt(rhs);
     }
+    
+    APInt& operator%=(APInt const& rhs) &;
+    template <typename T>
+    requires std::is_arithmetic_v<T>
+    APInt& operator%=(T rhs) & {
+        return *this /= APInt(rhs);
+    }
 
     friend APInt operator+(APInt const& lhs, APInt const& rhs);
     friend APInt operator-(APInt const& lhs, APInt const& rhs);
     friend APInt operator*(APInt const& lhs, APInt const& rhs);
     friend APInt operator/(APInt const& lhs, APInt const& rhs);
+    friend APInt operator%(APInt const& lhs, APInt const& rhs);
 
     // MARK: Queries
 
@@ -157,12 +170,9 @@ struct std::hash<scatha::APInt> {
 
 template <typename T>
 requires std::is_arithmetic_v<T>
-inline scatha::APInt::operator T() const {
-    if constexpr (std::signed_integral<T>) {
+inline T scatha::APInt::to() const {
+    if constexpr (std::integral<T>) {
         return static_cast<T>(toSigned());
-    }
-    else if constexpr (std::unsigned_integral<T>) {
-        return static_cast<T>(toUnsigned());
     }
     else {
         static_assert(std::floating_point<T>);
