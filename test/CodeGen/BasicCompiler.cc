@@ -12,6 +12,7 @@
 #include "Basic/Memory.h"
 #include "CodeGen/AST2IR/CodeGenerator.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "Issue/IssueHandler.h"
@@ -76,11 +77,15 @@ void test::checkReturns(u64 value, std::string_view text) {
     utl::vector<OptimizationLevel> const levels = {
         [](ir::Context&, ir::Module&) {},
         [](ir::Context& ctx, ir::Module& mod) {
-            opt::mem2Reg(ctx, mod);
+            for (auto& function: mod.functions()) {
+                opt::mem2Reg(ctx, function);
+            }
         },
         [](ir::Context& ctx, ir::Module& mod) {
-            opt::mem2Reg(ctx, mod);
-            opt::propagateConstants(ctx, mod);
+            for (auto& function: mod.functions()) {
+                opt::mem2Reg(ctx, function);
+                opt::propagateConstants(ctx, function);
+            }
         },
     }; // clang-format on
     for (auto const& level: levels) {

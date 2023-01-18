@@ -9,6 +9,7 @@
 #include "APFloatTest.h"
 #include "Assembly.h"
 #include "DrawGraph.h"
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IRDump.h"
@@ -49,15 +50,15 @@ struct OptionParser {
 };
 
 int main(int argc, char const* const* argv) {
-    OptionParser parse     = { { "sample-compiler", ProgramCase::SampleCompiler },
-                               { "ir-dump", ProgramCase::IRDump },
-                               { "ir-sketch", ProgramCase::IRSketch },
-                               { "test-asm", ProgramCase::ASMTest },
-                               { "emit-cfg", ProgramCase::EmitCFG },
-                               { "emit-use-graph", ProgramCase::EmitUseGraph },
-                               { "opt-test", ProgramCase::OptTest },
-                               { "apfloat-test", ProgramCase::APFloatTest } };
-    auto const parseResult = parse(argc, argv);
+    OptionParser const parse = { { "sample-compiler", ProgramCase::SampleCompiler },
+                                 { "ir-dump", ProgramCase::IRDump },
+                                 { "ir-sketch", ProgramCase::IRSketch },
+                                 { "test-asm", ProgramCase::ASMTest },
+                                 { "emit-cfg", ProgramCase::EmitCFG },
+                                 { "emit-use-graph", ProgramCase::EmitUseGraph },
+                                 { "opt-test", ProgramCase::OptTest },
+                                 { "apfloat-test", ProgramCase::APFloatTest } };
+    auto const parseResult   = parse(argc, argv);
     if (!parseResult) {
         std::cerr << "Invalid usage: ";
         for (int i = 1; i < argc; ++i) {
@@ -77,9 +78,13 @@ int main(int argc, char const* const* argv) {
     case ProgramCase::EmitCFG: {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg.gv");
-        scatha::opt::mem2Reg(ctx, mod);
+        for (auto& function: mod.functions()) {
+            scatha::opt::mem2Reg(ctx, function);
+        }
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg-m2r.gv");
-        scatha::opt::propagateConstants(ctx, mod);
+        for (auto& function: mod.functions()) {
+            scatha::opt::propagateConstants(ctx, function);
+        }
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg-scc.gv");
         break;
     }

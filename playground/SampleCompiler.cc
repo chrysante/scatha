@@ -150,8 +150,10 @@ void playground::compile(std::string text) {
     ir::print(mod);
 
     header(" Optimized IR ");
-    opt::mem2Reg(irCtx, mod);
-    opt::propagateConstants(irCtx, mod);
+    for (auto& function: mod.functions()) {
+        opt::mem2Reg(irCtx, function);
+        opt::propagateConstants(irCtx, function);
+    }
     ir::print(mod);
 
     header(" Assembly generated from IR ");
