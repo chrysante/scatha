@@ -216,9 +216,6 @@ Value* Mem2RegContext::findReplacement(Value* value) {
 }
 
 void Mem2RegContext::evict(Instruction* inst) {
-    if (auto* user = dyncast<User*>(inst)) {
-        user->clearOperands();
-    }
     inst->parent()->erase(inst);
 }
 

@@ -5,12 +5,12 @@
 using namespace scatha;
 using namespace ir;
 
-void Value::addUser(User* user) {
+void Value::addUserWeak(User* user) {
     auto const [itr, success] = _users.insert({ user, 0 });
     ++itr->second;
 }
 
-void Value::removeUser(User* user) {
+void Value::removeUserWeak(User* user) {
     auto itr = _users.find(user);
     SC_ASSERT(itr != _users.end(), "\p user is not a user of this value.");
     if (--itr->second == 0) {
@@ -25,21 +25,21 @@ User::User(NodeType nodeType, Type const* type, std::string name, std::span<Valu
             continue;
         }
         _operands.push_back(op);
-        op->addUser(this);
+        op->addUserWeak(this);
     }
 }
 
 void User::setOperand(size_t index, Value* operand) {
     SC_ASSERT(index < _operands.size(), "");
-    _operands[index]->removeUser(this);
-    operand->addUser(this);
+    _operands[index]->removeUserWeak(this);
+    operand->addUserWeak(this);
     _operands[index] = operand;
 }
 
 void User::clearOperands() {
     for (auto& op: _operands) {
         if (op) {
-            op->removeUser(this);
+            op->removeUserWeak(this);
         }
         op = nullptr;
     }
@@ -64,6 +64,7 @@ Function::Function(FunctionType const* functionType,
 BasicBlock::BasicBlock(Context& context, std::string name):
     Value(NodeType::BasicBlock, context.voidType(), std::move(name)) {}
 
+/// Outlined because Function is incomplete at definition of BasicBlock.
 bool BasicBlock::isEntry() const {
     return parent()->basicBlocks().begin() == List<BasicBlock>::const_iterator(this);
 }
@@ -174,13 +175,6 @@ Phi::Phi(std::span<PhiMapping const> args, std::string name):
     for (auto& [pred, value]: args) {
         SC_ASSERT(value->type() == type(), "Type mismatch");
     }
-}
-
-void Phi::clearArguments() {
-    for (auto* op: operands()) {
-        op->removeUser(this);
-    }
-    _operands.clear();
 }
 
 GetElementPointer::GetElementPointer(Context& context,

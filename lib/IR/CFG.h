@@ -55,12 +55,15 @@ public:
     /// Number of users using this value. Multiple uses by the same user are counted as one.
     size_t userCount() const { return _users.size(); }
 
-    /// Register a user of this value.
-    void addUser(User* user);
+private:
+    friend class User;
 
-    /// Unregister a user of this value.
-    void removeUser(User* user);
-
+    /// Register a user of this value. Won't affect \p user
+    void addUserWeak(User* user);
+    
+    /// Unregister a user of this value. \p this will _not_ be cleared from the operand list of \p user
+    void removeUserWeak(User* user);
+    
 private:
     NodeType _nodeType;
     Type const* _type;
@@ -83,7 +86,7 @@ public:
 
     /// This should proably at some point be replaced by some sort of \p delete operation
     void clearOperands();
-
+    
 protected:
     explicit User(NodeType nodeType, Type const* type, std::string name, std::initializer_list<Value*> operands):
         User(nodeType, type, std::move(name), std::span<Value* const>(operands)) {}
@@ -156,6 +159,13 @@ public:
         instructions.insert(before, instruction);
     }
 
+    /// Clear operands of all instructions of this basic block. Use this before removing a (dead) basic block from a function.
+    void clearAllOperands() {
+        for (auto& inst: *this) {
+            inst.clearOperands();
+        }
+    }
+    
     /// Erase an instruction. Clears the operands.
     Iterator erase(ConstIterator position) {
         const_cast<Instruction*>(position.to_address())->clearOperands();
@@ -169,6 +179,9 @@ public:
     
     /// \overload
     Iterator erase(ConstIterator first, ConstIterator last) {
+        for (Iterator i(const_cast<Instruction*>(first.to_address())); i != last; ++i) {
+            i->clearOperands();
+        }
         return instructions.erase(first, last);
     }
     
@@ -530,8 +543,6 @@ public:
     auto arguments() const {
         return utl::transform(utl::iota(argumentCount()), [this](size_t index) { return argumentAt(index); });
     }
-
-    void clearArguments();
 
 private:
     utl::small_vector<BasicBlock*> _preds;

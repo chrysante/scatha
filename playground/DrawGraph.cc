@@ -98,7 +98,7 @@ std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
         prolog();
         str << tfmt::format(tfmt::italic, "%", bb.name()) << ":\n";
         epilog();
-        for (auto& inst: bb.instructions) {
+        for (auto& inst: bb) {
             prolog();
             str << inst << "\n";
             epilog();
@@ -127,13 +127,13 @@ std::string playground::drawUseGraph(scatha::ir::Module const& mod) {
         str << "  fontname = \"" << font << "\"\n";
         str << "  "
             << "label = \"%" << bb.name() << "\"";
-        for (auto& inst: bb.instructions) {
+        for (auto& inst: bb) {
             str << dotName(inst) << " [ label = \"" << inst << "\" ]\n";
         }
         str << "} // subgraph\n";
     };
     auto connectCallback = [](std::stringstream& str, BasicBlock const& bb) {
-        for (auto& inst: bb.instructions) {
+        for (auto& inst: bb) {
             for (auto* user: inst.users()) {
                 str << dotName(inst) << " -> " << dotName(*user) << "\n";
             }

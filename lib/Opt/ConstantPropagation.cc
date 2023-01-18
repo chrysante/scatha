@@ -187,7 +187,6 @@ bool SCCContext::run() {
         if (!inst->users().empty()) {
             continue;
         }
-        inst->clearOperands();
         inst->parent()->erase(inst);
     }
     return !replacedInstructions.empty();
