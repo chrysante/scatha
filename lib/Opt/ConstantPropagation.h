@@ -14,7 +14,8 @@ namespace scatha::opt {
 
 /// Run sparse conditional constant propagation algorithm over \p function
 /// Folds constants and eliminates dead code.
-SCATHA(API) void propagateConstants(ir::Context& context, ir::Function& function);
+/// \Returns True iff \p function was modified in the pass.
+SCATHA(API) bool propagateConstants(ir::Context& context, ir::Function& function);
 
 } // namespace scatha::opt
 

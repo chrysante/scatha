@@ -10,7 +10,6 @@
 #include "Basic/Basic.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
-#include "IR/Module.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
 
@@ -23,7 +22,7 @@ namespace {
 struct Mem2RegContext {
     explicit Mem2RegContext(ir::Context& context, Function& function): irCtx(context), function(function) {}
 
-    void run();
+    bool run();
 
     bool promote(Load* load);
 
@@ -78,27 +77,32 @@ struct Mem2RegContext {
 
 } // namespace
 
-void opt::mem2Reg(ir::Context& irCtx, ir::Function& function) {
+bool opt::mem2Reg(ir::Context& irCtx, ir::Function& function) {
     Mem2RegContext ctx(irCtx, function);
-    ctx.run();
+    bool const result = ctx.run();
     ir::assertInvariants(irCtx, function);
+    return result;
 }
 
-void Mem2RegContext::run() {
+bool Mem2RegContext::run() {
     gather();
+    bool modifiedAny = false;
     for (auto const load: loads) {
-        promote(load);
+        modifiedAny |= promote(load);
     }
     for (auto* const store: stores) {
         if (isDead(store)) {
             evict(store);
+            modifiedAny = true;
         }
     }
     for (auto* const inst: otherMemInstructions) {
         if (isUnused(inst)) {
             evict(inst);
+            modifiedAny = true;
         }
     }
+    return modifiedAny;
 }
 
 bool Mem2RegContext::promote(Load* load) {

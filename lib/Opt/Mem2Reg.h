@@ -13,7 +13,8 @@ class Function;
 namespace scatha::opt {
 
 /// Perform memory to register promotion on \p function
-SCATHA(API) void mem2Reg(ir::Context& context, ir::Function& function);
+/// \Returns True iff \p function was modified in the pass.
+SCATHA(API) bool mem2Reg(ir::Context& context, ir::Function& function);
 
 } // namespace scatha::opt
 

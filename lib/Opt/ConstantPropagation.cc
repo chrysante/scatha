@@ -11,7 +11,6 @@
 #include "Common/APInt.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
-#include "IR/Module.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
 
@@ -88,7 +87,7 @@ FormalValue infimum(utl::range_for<FormalValue> auto&& range) {
 struct SCCContext {
     explicit SCCContext(Context& irCtx, Function& function): irCtx(irCtx), function(function) {}
 
-    void run();
+    bool run();
 
     void processFlowEdge(FlowEdge edge);
 
@@ -139,13 +138,14 @@ struct SCCContext {
 
 } // namespace
 
-void opt::propagateConstants(ir::Context& context, ir::Function& function) {
+bool opt::propagateConstants(ir::Context& context, ir::Function& function) {
     SCCContext ctx(context, function);
-    ctx.run();
+    bool const result = ctx.run();
     assertInvariants(context, function);
+    return result;
 }
 
-void SCCContext::run() {
+bool SCCContext::run() {
     auto& entry = function.entry();
     flowWorklist.push_back({ nullptr, &entry });
     while (!flowWorklist.empty() || !useWorklist.empty()) {
@@ -190,6 +190,7 @@ void SCCContext::run() {
         inst->parent()->instructions.erase(inst);
         inst->clearOperands();
     }
+    return !replacedInstructions.empty();
 }
 
 void SCCContext::processFlowEdge(FlowEdge edge) {
