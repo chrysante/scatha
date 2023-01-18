@@ -1,3 +1,4 @@
+/*
 fn main() -> int {
     let x = 0;
     if -1002.0 > 0.0 {
@@ -15,7 +16,6 @@ fn main() -> int {
         return x + 100;
     }
 }
-/*
 */
 /*
 fn fact(n: int) -> int {
@@ -30,8 +30,9 @@ fn fact(n: int) -> int {
 fn main() -> int {
     return fact(4);
 }
+*/
 
-fn test() -> int {
+fn main() -> int {
     var i = 1;
     var j = 2;
     var k: int;
@@ -43,14 +44,3 @@ fn test() -> int {
     }
     return k;
 }
-
-fn gcd(a: int, b: int) -> int {
-    while b != 0 || true {
-        let t = b;
-        b = a % b;
-        a = t;
-    }
-    return a;
-}
-
-*/
