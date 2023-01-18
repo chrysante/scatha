@@ -15,6 +15,7 @@
 #include "IRDump.h"
 #include "IRSketch.h"
 #include "Opt/ConstantPropagation.h"
+#include "Opt/DCE.h"
 #include "Opt/Mem2Reg.h"
 #include "OptTest.h"
 #include "SampleCompiler.h"
@@ -86,6 +87,10 @@ int main(int argc, char const* const* argv) {
             scatha::opt::propagateConstants(ctx, function);
         }
         drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg-scc.gv");
+        for (auto& function: mod.functions()) {
+            scatha::opt::dce(ctx, function);
+        }
+        drawControlFlowGraph(mod, std::filesystem::path(PROJECT_LOCATION) / "graphviz/cfg-dce.gv");
         break;
     }
     case ProgramCase::EmitUseGraph: {

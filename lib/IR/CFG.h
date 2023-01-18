@@ -159,6 +159,12 @@ public:
         instructions.insert(before, instruction);
     }
 
+    /// Merge \p this with \p rhs
+    /// Insert nodes of \p rhs before \p pos
+    void splice(ConstIterator pos, BasicBlock* rhs) {
+        instructions.splice(pos, rhs->instructions);
+    }
+    
     /// Clear operands of all instructions of this basic block. Use this before removing a (dead) basic block from a function.
     void clearAllOperands() {
         for (auto& inst: *this) {
@@ -252,6 +258,12 @@ public:
         preds.push_back(pred);
     }
     
+    /// Make \p preds the marked list of predecessors of this basic block. Caller is responsible that these basic blocks are actually predecessords.
+    void setPredecessors(std::span<BasicBlock* const> newPreds) {
+        preds.clear();
+        std::copy(newPreds.begin(), newPreds.end(), std::back_inserter(preds));
+    }
+    
     /// Remove \p pred from the list of predecessors of this basic block.
     /// \pre \p pred must be a listed predecessor of this basic block.
     void removePredecessor(BasicBlock const* pred) {
@@ -264,6 +276,36 @@ public:
     /// \overload
     std::span<BasicBlock const* const> successors() const;
 
+    /// Returns true iff this basic block has exactly one predecessor.
+    bool hasSinglePredecessor() const {
+        return preds.size() == 1;
+    }
+    
+    /// Return predecessor if this basic block has a single predecessor, else nullptr.
+    BasicBlock* singlePredecessor() {
+        return const_cast<BasicBlock*>(static_cast<BasicBlock const*>(this)->singlePredecessor());
+    }
+    
+    /// \overload
+    BasicBlock const* singlePredecessor() const {
+        return hasSinglePredecessor() ? preds.front() : nullptr;
+    }
+    
+    /// Returns true iff this basic block has exactly one successor.
+    bool hasSingleSuccessor() const {
+        return successors().size() == 1;
+    }
+    
+    /// Return successor if this basic block has a single successor, else nullptr.
+    BasicBlock* singleSuccessor() {
+        return const_cast<BasicBlock*>(static_cast<BasicBlock const*>(this)->singleSuccessor());
+    }
+    
+    /// \overload
+    BasicBlock const* singleSuccessor() const {
+        return hasSingleSuccessor() ? successors().front() : nullptr;
+    }
+    
 private:
     List<Instruction> instructions;
     utl::small_vector<BasicBlock*> preds;

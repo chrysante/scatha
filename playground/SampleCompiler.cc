@@ -22,6 +22,7 @@
 #include "IR/Validate.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
+#include "Opt/DCE.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/Mem2Reg.h"
 #include "Parser/Parser.h"
@@ -154,6 +155,7 @@ void playground::compile(std::string text) {
     for (auto& function: mod.functions()) {
         opt::mem2Reg(irCtx, function);
         opt::propagateConstants(irCtx, function);
+        opt::dce(irCtx, function);
     }
     ir::print(mod);
 
