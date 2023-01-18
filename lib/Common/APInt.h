@@ -22,6 +22,11 @@ SCATHA(API) APInt operator*(APInt const& lhs, APInt const& rhs);
 SCATHA(API) APInt operator/(APInt const& lhs, APInt const& rhs);
 SCATHA(API) APInt operator%(APInt const& lhs, APInt const& rhs);
 
+SCATHA(API) APInt operator+(APInt const& operand);
+SCATHA(API) APInt operator-(APInt const& operand);
+SCATHA(API) APInt operator~(APInt const& operand);
+SCATHA(API) APInt operator!(APInt const& operand);
+
 SCATHA(API) std::strong_ordering operator<=>(APInt const& lhs, APInt const& rhs);
 SCATHA(API) std::strong_ordering operator<=>(APInt const& lhs, long long rhs);
 SCATHA(API) std::strong_ordering operator<=>(APInt const& lhs, unsigned long long rhs);
@@ -114,6 +119,11 @@ public:
     friend APInt operator/(APInt const& lhs, APInt const& rhs);
     friend APInt operator%(APInt const& lhs, APInt const& rhs);
 
+    friend APInt operator+(APInt const& operand);
+    friend APInt operator-(APInt const& operand);
+    friend APInt operator~(APInt const& operand);
+    friend APInt operator!(APInt const& operand);
+    
     // MARK: Queries
 
     /// Query this number for lossless convertability to C++ arithmetic types.
@@ -167,18 +177,6 @@ struct std::hash<scatha::APInt> {
 };
 
 // MARK: Inline definitions
-
-template <typename T>
-requires std::is_arithmetic_v<T>
-inline T scatha::APInt::to() const {
-    if constexpr (std::integral<T>) {
-        return static_cast<T>(toSigned());
-    }
-    else {
-        static_assert(std::floating_point<T>);
-        return static_cast<T>(toDouble());
-    }
-}
 
 std::strong_ordering scatha::operator<=>(APInt const& lhs, std::signed_integral auto rhs) {
     return operator<=>(lhs, static_cast<long long>(rhs));

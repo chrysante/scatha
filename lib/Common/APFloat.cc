@@ -135,6 +135,14 @@ APFloat scatha::operator/(APFloat const& lhs, APFloat const& rhs) {
     return result;
 }
 
+APFloat scatha::operator+(APFloat const& operand) {
+    return operand;
+}
+
+APFloat scatha::operator-(APFloat const& operand) {
+    return APFloat(0) - operand;
+}
+
 long long APFloat::toSigned() const {
     return mpfr_get_si(asImpl(*this), roundingMode);
 }

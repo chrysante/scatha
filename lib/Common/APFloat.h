@@ -29,6 +29,9 @@ SCATHA(API) APFloat operator-(APFloat const& lhs, APFloat const& rhs);
 SCATHA(API) APFloat operator*(APFloat const& lhs, APFloat const& rhs);
 SCATHA(API) APFloat operator/(APFloat const& lhs, APFloat const& rhs);
 
+SCATHA(API) APFloat operator+(APFloat const& operand);
+SCATHA(API) APFloat operator-(APFloat const& operand);
+
 SCATHA(API) std::strong_ordering operator<=>(APFloat const& lhs, APFloat const& rhs);
 SCATHA(API) inline bool operator==(APFloat const& lhs, APFloat const& rhs) {
     return (lhs <=> rhs) == std::strong_ordering::equal;

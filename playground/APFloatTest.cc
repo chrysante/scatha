@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "Common/APFloat.h"
+#include "Common/APInt.h"
 
 using namespace scatha;
 
@@ -27,4 +28,9 @@ using namespace scatha;
     std::cout << "\tValue:          " << f << "\n";
 }
 
-void playground::apFloatTest() {}
+void playground::apFloatTest() {
+    APInt i  = 23;
+    std::cout << ~i << std::endl;
+    uint64_t j = 23;
+    std::cout << ~j << std::endl;
+}

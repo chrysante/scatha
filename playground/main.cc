@@ -16,8 +16,9 @@
 #include "Opt/ConstantPropagation.h"
 #include "OptTest.h"
 #include "SampleCompiler.h"
+#include "APFloatTest.h"
 
-enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest, EmitCFG, EmitUseGraph, OptTest };
+enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest, EmitCFG, EmitUseGraph, OptTest, APFloatTest };
 
 struct Option {
     std::string id;
@@ -56,6 +57,7 @@ int main(int argc, char const* const* argv) {
         { "emit-cfg", ProgramCase::EmitCFG },
         { "emit-use-graph", ProgramCase::EmitUseGraph },
         { "opt-test", ProgramCase::OptTest },
+        { "apfloat-test", ProgramCase::APFloatTest }
     };
     auto const parseResult = parse(argc, argv);
     if (!parseResult) {
@@ -89,6 +91,7 @@ int main(int argc, char const* const* argv) {
         break;
     }
     case ProgramCase::OptTest: optTest(filepath); break;
+    case ProgramCase::APFloatTest: apFloatTest(); break;
     default: break;
     }
 }

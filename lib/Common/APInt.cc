@@ -59,6 +59,41 @@ APInt::~APInt() {
     mpz_clear(as_mpz(storage));
 }
 
+template <typename T>
+requires std::is_arithmetic_v<T>
+T scatha::APInt::to() const {
+    if constexpr (std::signed_integral<T>) {
+        return static_cast<T>(toSigned());
+    }
+    else if constexpr (std::unsigned_integral<T>) {
+        if (*this >= 0) {
+            return static_cast<T>(toUnsigned());
+        }
+        else {
+            return static_cast<T>(toSigned());
+        }
+    }
+    else {
+        static_assert(std::floating_point<T>);
+        return static_cast<T>(toDouble());
+    }
+}
+
+template char APInt::to() const;
+template signed char APInt::to() const;
+template unsigned char APInt::to() const;
+template signed short APInt::to() const;
+template unsigned short APInt::to() const;
+template signed int APInt::to() const;
+template unsigned int APInt::to() const;
+template signed long APInt::to() const;
+template unsigned long APInt::to() const;
+template signed long long APInt::to() const;
+template unsigned long long APInt::to() const;
+template float APInt::to() const;
+template double APInt::to() const;
+template long double APInt::to() const;
+
 std::optional<APInt> APInt::fromString(std::string_view value, int base) {
     APInt result;
     int status = mpz_set_str(as_mpz(result.storage), value.data(), base);
@@ -121,6 +156,24 @@ APInt scatha::operator%(APInt const& lhs, APInt const& rhs) {
     APInt result = lhs;
     result %= rhs;
     return result;
+}
+
+APInt scatha::operator+(APInt const& operand) {
+    return operand;
+}
+
+APInt scatha::operator-(APInt const& operand) {
+    return APInt(0) - operand;
+}
+
+APInt scatha::operator~(APInt const& operand) {
+    APInt result(std::numeric_limits<uint64_t>::max());
+    mpz_xor(as_mpz(result.storage), as_mpz(result.storage), as_mpz(operand.storage));
+    return result;
+}
+
+APInt scatha::operator!(APInt const& operand) {
+    return operand == 0 ? 1 : 0;
 }
 
 template <typename T>

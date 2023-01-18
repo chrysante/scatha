@@ -96,6 +96,21 @@ TEST_CASE("APInt arithmetic", "[common][apint]") {
 
 TEST_CASE("APInt conversion", "[common][apint]") {
     CHECK(APInt(-1).to<u32>() == 0xFFffFFff);
+    CHECK(APInt(18446744073709551592ull).to<u64>() == u64(18446744073709551592ull));
+    CHECK(~APInt(23).to<u64>() == u64(18446744073709551592ull));
+}
+
+TEST_CASE("APInt unary operators", "[common][apint]") {
+    CHECK(-APInt(1) == -1);
+    CHECK(-APInt(5) == -5);
+    CHECK(-APInt(0) == 0);
+    CHECK(-APInt(-100) == 100);
+    CHECK(!APInt(1) == 0);
+    CHECK(!APInt(5) == 0);
+    CHECK(!APInt(0) == 1);
+    CHECK(~APInt(5) == ~u64(5));
+    CHECK(~APInt(0) == ~u64(0));
+    CHECK(~APInt(~(u64(0))) == 0);
 }
 
 TEST_CASE("APInt formatting", "[common][apint]") {
