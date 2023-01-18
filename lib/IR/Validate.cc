@@ -53,22 +53,28 @@ void ir::assertInvariants(Context const& ctx, Module const& mod) {
     assertCtx.assertInvariants(mod);
 }
 
+void ir::assertInvariants(Context const& ctx, Function const& function) {
+    AssertContext assertCtx(ctx);
+    assertCtx.assertInvariants(function);
+}
+
 void AssertContext::assertInvariants(Module const& mod) {
     for (auto& function: mod.functions()) {
-        currentFunction = &function;
         assertInvariants(function);
     }
 }
 
 void AssertContext::assertInvariants(Function const& function) {
+    currentFunction = &function;
     for (auto& bb: function.basicBlocks()) {
-        currentBB = &bb;
         CHECK(bb.parent() == &function, "Parent pointers must be setup correctly");
         assertInvariants(bb);
     }
+    currentFunction = nullptr;
 }
 
 void AssertContext::assertInvariants(BasicBlock const& bb) {
+    currentBB  = &bb;
     bool entry = true;
     CHECK(!bb.instructions.empty(), "Empty basic blocks are not well formed as they must end with a terminator");
     for (auto& inst: bb.instructions) {
@@ -93,6 +99,7 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
         CHECK(std::find(succPred.begin(), succPred.end(), &bb) != succPred.end(),
               "The successors of this basic block must have us listed as a predecessor");
     }
+    currentBB = nullptr;
 }
 
 void AssertContext::assertInvariants(Instruction const& inst) {
