@@ -47,6 +47,9 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
         pred->erase(pred->terminator());
         basicBlock->splice(basicBlock->begin(), pred);
         basicBlock->setPredecessors(pred->predecessors());
+        if (pred->isEntry()) {
+            basicBlock->setName(std::string(pred->name()));
+        }
         function.basicBlocks().erase(pred);
     }
     auto* const terminator = basicBlock->terminator();
@@ -66,7 +69,13 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
             BasicBlock* staleTarget = br.targets()[index];
             auto itr = basicBlock->erase(&br);
             basicBlock->insert(itr, new Goto(irCtx, target));
-            erase(staleTarget);
+            if (staleTarget->hasSinglePredecessor()) {
+                erase(staleTarget);
+            }
+            else {
+                SC_DEBUGFAIL();
+                /// Remove current BB as a predecessor of \p staleTarget, also from phi nodes!
+            }
             visitBasicBlock(target);
         },
         [&](Return&) {},
@@ -78,13 +87,14 @@ void DCEContext::erase(BasicBlock* basicBlock) {
     auto* const terminator = basicBlock->terminator();
     basicBlock->clearAllOperands();
     for (auto* target: terminator->targets()) {
-        if (target->predecessors().size() == 1) {
+        if (target->hasSinglePredecessor()) {
             erase(target);
         }
         else {
             target->removePredecessor(basicBlock);
+            SC_DEBUGFAIL();
             /// TODO: Here we also need to remove this basic block as from phi operands of 'target'
         }
     }
-    basicBlock->parent()->basicBlocks().erase(basicBlock);
+    function.basicBlocks().erase(basicBlock);
 }
