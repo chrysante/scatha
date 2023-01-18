@@ -12,9 +12,9 @@ namespace {
 
 struct DCEContext {
     explicit DCEContext(Context& irCtx, Function& function): irCtx(irCtx), function(function) {}
-    
+
     bool run();
-    
+
     Context& irCtx;
     Function& function;
 };

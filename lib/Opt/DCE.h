@@ -19,4 +19,3 @@ SCATHA(API) bool dce(ir::Context& context, ir::Function& function);
 } // namespace scatha::opt
 
 #endif // SCATHA_OPT_DCE_H_
-

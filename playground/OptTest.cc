@@ -17,7 +17,7 @@ static void line(std::string_view m) {
     utl::print("{:=^{}}\n", m, headerWidth);
 };
 
-static void header(std::string_view title = "") {
+[[maybe_unused]] static void header(std::string_view title = "") {
     utl::print("\n");
     line("");
     line(title);
