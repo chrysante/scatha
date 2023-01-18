@@ -6,15 +6,15 @@
 namespace scatha::ir {
 
 class Context;
-class Module;
+class Function;
 
 } // namespace scatha::ir
 
 namespace scatha::opt {
 
-/// Run sparse conditional constant propagation algorithm over \p mod
+/// Run sparse conditional constant propagation algorithm over \p function
 /// Folds constants and eliminates dead code.
-SCATHA(API) void propagateConstants(ir::Context& context, ir::Module& mod);
+SCATHA(API) void propagateConstants(ir::Context& context, ir::Function& function);
 
 } // namespace scatha::opt
 

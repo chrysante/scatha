@@ -57,7 +57,7 @@ bool isUnexamined(FormalValue const& value) {
     return value.index() == 0;
 }
 
-bool isInevaluable(FormalValue const& value) {
+[[maybe_unused]] bool isInevaluable(FormalValue const& value) {
     return value.index() == 1;
 }
 
@@ -100,6 +100,8 @@ struct SCCContext {
 
     void visitExpression(Instruction& inst);
 
+    void notifyUsers(Value& value);
+
     void processTerminator(FormalValue const& value, TerminatorInst& inst);
 
     void addSingleEdge(APInt const& constant, TerminatorInst& inst);
@@ -137,12 +139,10 @@ struct SCCContext {
 
 } // namespace
 
-void opt::propagateConstants(ir::Context& context, ir::Module& mod) {
-    for (auto& function: mod.functions()) {
-        SCCContext ctx(context, function);
-        ctx.run();
-    }
-    assertInvariants(context, mod);
+void opt::propagateConstants(ir::Context& context, ir::Function& function) {
+    SCCContext ctx(context, function);
+    ctx.run();
+    assertInvariants(context, function);
 }
 
 void SCCContext::run() {
@@ -154,7 +154,7 @@ void SCCContext::run() {
             flowWorklist.pop_front();
             processFlowEdge(edge);
         }
-        if (!useWorklist.empty()) {
+        else if (!useWorklist.empty()) {
             UseEdge const edge = useWorklist.front();
             useWorklist.pop_front();
             processUseEdge(edge);
@@ -231,7 +231,11 @@ void SCCContext::visitPhi(Phi& phi) {
             }
             return Unexamined{};
         }));
+    if (value == formalValue(&phi)) {
+        return;
+    }
     setFormalValue(&phi, value);
+    notifyUsers(phi);
 }
 
 void SCCContext::visitExpressions(BasicBlock& basicBlock) {
@@ -263,12 +267,19 @@ void SCCContext::visitExpression(Instruction& inst) {
         return;
     }
     setFormalValue(&inst, value);
-    for (auto* user: inst.users()) {
-        if (isExpression(dyncast<Instruction const*>(user))) {
-            useWorklist.push_back({ &inst, user });
+    notifyUsers(inst);
+}
+
+void SCCContext::notifyUsers(Value& value) {
+    for (auto* user: value.users()) {
+        if (auto* phi = dyncast<Phi*>(user)) {
+            visitPhi(*phi);
+        }
+        else if (isExpression(dyncast<Instruction const*>(user))) {
+            useWorklist.push_back({ &value, user });
         }
         else if (auto* term = dyncast<TerminatorInst*>(user)) {
-            processTerminator(value, *term);
+            processTerminator(formalValue(&value), *term);
         }
     }
 }
@@ -283,13 +294,17 @@ void SCCContext::processTerminator(FormalValue const& value, TerminatorInst& ins
             addSingleEdge(constant, inst);
         },
         [&](APFloat const& constant) {
-            SC_UNREACHABLE("How can a float control a terminator?");
+            SC_ASSERT(isa<Return>(inst), "Float can atmost control return instructions");
         },
         [&](Inevaluable) {
             std::transform(inst.targets().begin(),
                            inst.targets().end(),
                            std::back_inserter(flowWorklist),
-                           [&](BasicBlock* target) { return FlowEdge{ inst.parent(), target }; });
+                           [&](BasicBlock* target) {
+                FlowEdge const edge = { inst.parent(), target };
+                setExecutable(edge, false);
+                return edge;
+            });
         },
     }, value); // clang-format on
 }
@@ -305,7 +320,9 @@ void SCCContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
             BasicBlock* const origin = br.parent();
             size_t const index = 1 - constant.to<size_t>();
             BasicBlock* const target = br.targets()[index];
-            flowWorklist.push_back({ origin, target });
+            FlowEdge const edge = { origin, target };
+            setExecutable(edge, false);
+            flowWorklist.push_back(edge);
         },
         [&](Return& inst) {},
         [](TerminatorInst const&) { SC_UNREACHABLE(); }
