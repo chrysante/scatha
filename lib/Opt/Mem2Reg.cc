@@ -78,12 +78,10 @@ struct Mem2RegContext {
 
 } // namespace
 
-void opt::mem2Reg(ir::Context& irCtx, ir::Module& mod) {
-    for (auto& function: mod.functions()) {
-        Mem2RegContext ctx(irCtx, function);
-        ctx.run();
-    }
-    ir::assertInvariants(irCtx, mod);
+void opt::mem2Reg(ir::Context& irCtx, ir::Function& function) {
+    Mem2RegContext ctx(irCtx, function);
+    ctx.run();
+    ir::assertInvariants(irCtx, function);
 }
 
 void Mem2RegContext::run() {

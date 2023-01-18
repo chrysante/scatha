@@ -6,15 +6,14 @@
 namespace scatha::ir {
 
 class Context;
-
-class Module;
+class Function;
 
 } // namespace scatha::ir
 
 namespace scatha::opt {
 
-/// Perform memory to register promotion on \p mod
-SCATHA(API) void mem2Reg(ir::Context& context, ir::Module& mod);
+/// Perform memory to register promotion on \p function
+SCATHA(API) void mem2Reg(ir::Context& context, ir::Function& function);
 
 } // namespace scatha::opt
 
