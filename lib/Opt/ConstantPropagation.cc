@@ -8,6 +8,7 @@
 #include <utl/variant.hpp>
 
 #include "Common/APInt.h"
+#include "Common/APFloat.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -50,13 +51,13 @@ enum class Inevaluable{};
 /// Supremum, evaluation
 enum class Unexamined{};
 
-using FormalValue = utl::variant<Unexamined, Inevaluable, APInt>;
+using FormalValue = utl::variant<Unexamined, Inevaluable, APInt, APFloat>;
 
 bool isUnexamined(FormalValue const& value) { return value.index() == 0; }
 
 bool isInevaluable(FormalValue const& value) { return value.index() == 1; }
 
-bool isConstant(FormalValue const& value) { return value.index() == 2; }
+bool isConstant(FormalValue const& value) { return value.index() == 2 || value.index() == 3; }
 
 FormalValue infimum(FormalValue const& a, FormalValue const& b) {
     if (isUnexamined(a)) { return b; }
@@ -77,6 +78,8 @@ struct SCCContext {
 
     void processFlowEdge(FlowEdge edge);
     
+    void processUseEdge(UseEdge edge);
+    
     void visitPhi(Phi& phi);
 
     void visitExpressions(BasicBlock& basicBlock);
@@ -86,14 +89,14 @@ struct SCCContext {
     void processTerminator(FormalValue const& value, TerminatorInst& inst);
     
     void addSingleEdge(APInt const& constant, TerminatorInst& inst);
-    
-    void processUseEdge(UseEdge edge);
 
     bool basicBlockIsExecutable(BasicBlock& basicBlock);
 
     size_t numIncomingExecutableEdges(BasicBlock& basicBlock);
     
     FormalValue evaluateArithmetic(ArithmeticOperation operation, FormalValue const& lhs, FormalValue const& rhs);
+    
+    FormalValue evaluateUnaryArithmetic(UnaryArithmeticOperation operation, FormalValue const& operand);
     
     FormalValue evaluateComparison(CompareOperation operation, FormalValue const& lhs, FormalValue const& rhs);
     
@@ -103,16 +106,16 @@ struct SCCContext {
 
     void setExecutable(FlowEdge const& e, bool value) { execMap.insert_or_assign(e, value); }
 
-    FormalValue formalValue(Value const* value);
+    FormalValue formalValue(Value* value);
     
-    void setFormalValue(Value const* value, FormalValue formalValue) { formalValues.insert_or_assign(value, formalValue); }
+    void setFormalValue(Value* value, FormalValue formalValue) { formalValues.insert_or_assign(value, formalValue); }
     
     Context& irCtx;
     Function& function;
     
     std::deque<FlowEdge> flowWorklist;
     std::deque<UseEdge> useWorklist;
-    utl::hashmap<Value const*, FormalValue> formalValues;
+    utl::hashmap<Value*, FormalValue> formalValues;
     utl::hashmap<FlowEdge, bool> execMap;
 };
 
@@ -141,6 +144,36 @@ void SCCContext::run() {
             processUseEdge(edge);
         }
     }
+    utl::small_vector<Instruction*> replacedInstructions;
+    for (auto [value, latticeElement]: formalValues) {
+        if (!isConstant(latticeElement)) {
+            continue;
+        }
+        if (isa<Constant>(value)) {
+            continue;
+        }
+        SC_ASSERT(isa<Instruction>(value), "We can only replace instructions");
+        size_t const bitWidth = cast<ArithmeticType const*>(value->type())->bitWidth();
+        // clang-format off
+        Value* const newValue = visit(utl::overload{
+            [&](APInt const& constant) {
+                return irCtx.integralConstant(constant, bitWidth);
+            },
+            [&](APFloat const& constant) {
+                return irCtx.floatConstant(constant, bitWidth);
+            },
+            [](auto const&) -> Value* { SC_UNREACHABLE(); }
+        }, latticeElement); // clang-format on
+        replaceValue(value, newValue);
+        replacedInstructions.push_back(cast<Instruction*>(value));
+    }
+    for (auto* inst: replacedInstructions) {
+        if (!inst->users().empty()) {
+            continue;
+        }
+        inst->parent()->instructions.erase(inst);
+        inst->clearOperands();
+    }
 }
 
 void SCCContext::processFlowEdge(FlowEdge edge) {
@@ -160,6 +193,20 @@ void SCCContext::processFlowEdge(FlowEdge edge) {
     }
 }
 
+void SCCContext::processUseEdge(UseEdge edge) {
+    // clang-format off
+    visit(*edge.user, utl::overload{
+        [&](Phi& phi) { visitPhi(phi); },
+        [&](Instruction& inst) {
+            if (basicBlockIsExecutable(*inst.parent())) {
+                visitExpression(inst);
+            }
+        },
+        [](TerminatorInst const&) {},
+        [](Value const&) { SC_UNREACHABLE(); }
+    }); // clang-format on
+}
+
 void SCCContext::visitPhi(Phi& phi) {
     FormalValue const value = infimum(utl::transform(phi.arguments(), [this, bb = phi.parent()](PhiMapping arg) -> FormalValue {
         if (isExecutable({ arg.pred, bb }))  {
@@ -167,23 +214,7 @@ void SCCContext::visitPhi(Phi& phi) {
         }
         return Unexamined{};
     }));
-    
-    if (isConstant(value)) {
-        auto* newValue = irCtx.integralConstant(value.get<APInt>(), cast<IntegralType const*>(phi.type())->bitWidth());
-        replaceValue(&phi, newValue);
-        phi.clearOperands();
-        phi.parent()->instructions.erase(&phi);
-        return;
-    }
-    if (auto const operands = phi.operands();
-        std::adjacent_find(operands.begin(), operands.end(), std::not_equal_to<>{}) == operands.end())
-    {
-        auto* newValue = *operands.begin();
-        replaceValue(&phi, newValue);
-        phi.clearOperands();
-        phi.parent()->instructions.erase(&phi);
-        return;
-    }
+    setFormalValue(&phi, value);
 }
 
 void SCCContext::visitExpressions(BasicBlock& basicBlock) {
@@ -201,8 +232,10 @@ void SCCContext::visitExpression(Instruction& inst) {
     // clang-format off
     FormalValue const value = visit(inst, utl::overload{
         [&](ArithmeticInst& inst) {
-            auto result = evaluateArithmetic(inst.operation(), formalValue(inst.lhs()), formalValue(inst.rhs()));
-            return result;
+            return evaluateArithmetic(inst.operation(), formalValue(inst.lhs()), formalValue(inst.rhs()));
+        },
+        [&](UnaryArithmeticInst& inst) {
+            return evaluateUnaryArithmetic(inst.operation(), formalValue(inst.operand()));
         },
         [&](CompareInst& inst) {
             return evaluateComparison(inst.operation(), formalValue(inst.lhs()), formalValue(inst.rhs()));
@@ -221,11 +254,6 @@ void SCCContext::visitExpression(Instruction& inst) {
             processTerminator(value, *term);
         }
     }
-    if (isConstant(value)) {
-        APInt const& constant = value.get<APInt>();
-        auto* newValue = irCtx.integralConstant(constant, cast<IntegralType const*>(inst.type())->bitWidth());
-        replaceValue(&inst, newValue);
-    }
 }
 
 void SCCContext::processTerminator(FormalValue const& value, TerminatorInst& inst) {
@@ -236,6 +264,9 @@ void SCCContext::processTerminator(FormalValue const& value, TerminatorInst& ins
         },
         [&](APInt const& constant) {
             addSingleEdge(constant, inst);
+        },
+        [&](APFloat const& constant) {
+            SC_UNREACHABLE("How can a float control a terminator?");
         },
         [&](Inevaluable) {
             std::transform(inst.targets().begin(),
@@ -255,7 +286,7 @@ void SCCContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
         [&](Branch& br) {
             SC_ASSERT(constant == 0 || constant == 1, "Boolean constant must be 0 or 1");
             BasicBlock* const origin = br.parent();
-            size_t const index = static_cast<size_t>(constant);
+            size_t const index = 1 - constant.to<size_t>();
             BasicBlock* const target = br.targets()[index];
             flowWorklist.push_back({ origin, target });
         },
@@ -274,20 +305,6 @@ bool SCCContext::basicBlockIsExecutable(BasicBlock& bb) {
     return false;
 }
 
-void SCCContext::processUseEdge(UseEdge edge) {
-    // clang-format off
-    visit(*edge.user, utl::overload{
-        [&](Phi& phi) { visitPhi(phi); },
-        [&](Instruction& inst) {
-            if (basicBlockIsExecutable(*inst.parent())) {
-                visitExpression(inst);
-            }
-        },
-        [](TerminatorInst const&) {},
-        [](Value const&) { SC_UNREACHABLE(); }
-    }); // clang-format on
-}
-
 size_t SCCContext::numIncomingExecutableEdges(BasicBlock& basicBlock) {
     size_t result = 0;
     for (auto* pred: basicBlock.predecessors) {
@@ -296,12 +313,15 @@ size_t SCCContext::numIncomingExecutableEdges(BasicBlock& basicBlock) {
     return result;
 }
 
+template <typename T>
+concept FormalConstant = std::same_as<T, APInt> || std::same_as<T, APFloat>;
+
 FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation, FormalValue const& lhs, FormalValue const& rhs) {
     switch (operation) {
     case ArithmeticOperation::Add: [[fallthrough]];
     case ArithmeticOperation::Sub:
         return utl::visit(utl::overload{
-            [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
+            [&]<FormalConstant T>(T const& lhs, T const& rhs) -> FormalValue {
                 switch (operation) {
                 case ArithmeticOperation::Add: return lhs + rhs;
                 case ArithmeticOperation::Sub: return lhs - rhs;
@@ -325,16 +345,24 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation, Formal
                 default: SC_UNREACHABLE();
                 }
             },
+            [&](APFloat const& lhs, APFloat const& rhs) -> FormalValue {
+                switch (operation) {
+                case ArithmeticOperation::Mul: return lhs * rhs;
+                case ArithmeticOperation::Div: return lhs / rhs;
+                case ArithmeticOperation::Rem: SC_UNREACHABLE();
+                default: SC_UNREACHABLE();
+                }
+            },
             []<typename T>(APInt const& lhs, T const& rhs) -> FormalValue {
                 if (lhs == 0) {
-                    return 0;
+                    return APInt(0);
                 }
                 return T{};
             },
             []<typename T>(T const& lhs, APInt const& rhs) -> FormalValue {
                 /// TODO: Here we should return 'undef' for division and remainder.
                 if (rhs == 0) {
-                    return 0;
+                    return APInt(0);
                 }
                 return T{};
             },
@@ -349,27 +377,50 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation, Formal
     }
 }
 
+FormalValue SCCContext::evaluateUnaryArithmetic(UnaryArithmeticOperation operation, FormalValue const& operand) {
+    return utl::visit(utl::overload{
+        [&](APInt const& operand) -> FormalValue {
+            switch (operation) {
+            case UnaryArithmeticOperation::Promotion: return +operand;
+            case UnaryArithmeticOperation::Negation: return -operand;
+            case UnaryArithmeticOperation::BitwiseNot: return ~operand;
+            case UnaryArithmeticOperation::LogicalNot:
+                SC_ASSERT(operand == 0 || operand == 1, "Operand must be boolean");
+                return 1 - operand;
+            case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
+            }
+        },
+        [&](APFloat const& operand) -> FormalValue {
+            switch (operation) {
+            case UnaryArithmeticOperation::Promotion: return +operand;
+            case UnaryArithmeticOperation::Negation: return -operand;
+            case UnaryArithmeticOperation::BitwiseNot: [[fallthrough]];
+            case UnaryArithmeticOperation::LogicalNot: [[fallthrough]];
+            case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
+            }
+        },
+        [](auto const&) -> FormalValue { return Inevaluable{}; },
+    }, operand);
+}
+
 FormalValue SCCContext::evaluateComparison(CompareOperation operation, FormalValue const& lhs, FormalValue const& rhs) {
     return utl::visit(utl::overload{
-        [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
+        [&]<FormalConstant T>(T const& lhs, T const& rhs) -> FormalValue {
             switch (operation) {
-            case CompareOperation::Less:      return lhs <  rhs;
-            case CompareOperation::LessEq:    return lhs <= rhs;
-            case CompareOperation::Greater:   return lhs >  rhs;
-            case CompareOperation::GreaterEq: return lhs >= rhs;
-            case CompareOperation::Equal:     return lhs == rhs;
-            case CompareOperation::NotEqual:  return lhs != rhs;
+            case CompareOperation::Less:      return APInt(lhs <  rhs);
+            case CompareOperation::LessEq:    return APInt(lhs <= rhs);
+            case CompareOperation::Greater:   return APInt(lhs >  rhs);
+            case CompareOperation::GreaterEq: return APInt(lhs >= rhs);
+            case CompareOperation::Equal:     return APInt(lhs == rhs);
+            case CompareOperation::NotEqual:  return APInt(lhs != rhs);
             case CompareOperation::_count: SC_UNREACHABLE();
             }
         },
-        [](Inevaluable, auto const&) -> FormalValue { return Inevaluable{}; },
-        [](auto const&, Inevaluable) -> FormalValue { return Inevaluable{}; },
-        [](Inevaluable, Inevaluable) -> FormalValue { return Inevaluable{}; },
         [](auto const&, auto const&) -> FormalValue { return Inevaluable{}; },
     }, lhs, rhs);
 }
 
-FormalValue SCCContext::formalValue(Value const* value) {
+FormalValue SCCContext::formalValue(Value* value) {
     auto const [itr, justAdded] = formalValues.insert({ value, Unexamined{} });
     auto&& [key, formalValue] = *itr;
     if (!justAdded) {
@@ -378,6 +429,9 @@ FormalValue SCCContext::formalValue(Value const* value) {
     // clang-format off
     formalValue = visit(*value, utl::overload{
         [&](IntegralConstant const& constant) -> FormalValue {
+            return constant.value();
+        },
+        [&](FloatingPointConstant const& constant) -> FormalValue {
             return constant.value();
         },
         [&](Parameter const& param) -> FormalValue { return Inevaluable{}; },
