@@ -76,11 +76,11 @@ private:
     }
 
     void handleBBBoundary() {
-        while (instItr == bbItr->instructions.end()) {
+        while (instItr == bbItr->end()) {
             BBItr const next = std::next(bbItr);
             bool const isEnd = next == bbItr->parent()->basicBlocks().end();
             bbItr            = next;
-            instItr          = isEnd ? InstItr{} : bbItr->instructions.begin();
+            instItr          = isEnd ? InstItr{} : bbItr->begin();
         }
     }
 

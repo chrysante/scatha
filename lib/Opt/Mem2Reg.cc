@@ -8,6 +8,7 @@
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
+#include "Common/UniquePtr.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Validate.h"
@@ -67,6 +68,8 @@ struct Mem2RegContext {
     utl::hashmap<Load const*, Value*> loadReplacementMap;
     /// List of all load instructions in the function.
     utl::small_vector<Load*> loads;
+    /// Evicted loads will be destroyed with the context object.
+    utl::small_vector<UniquePtr<Load>> evictedLoads;
     /// List of all store instructions in the function.
     utl::small_vector<Store*> stores;
     /// List of all other memory instructions in the function. For now that is \p alloca 's and \p gep 's
@@ -114,9 +117,10 @@ bool Mem2RegContext::promote(Load* load) {
     }
     loadReplacementMap[currentLoad()] = newValue;
     currentLoad()->setName("evicted-load");
-    basicBlock->instructions.erase(currentLoad());
     replaceValue(currentLoad(), newValue);
     currentLoad()->clearOperands();
+    /// We extract here because the loads need to stay alive until the algorithm is finished.
+    evictedLoads.push_back(UniquePtr<Load>(cast<Load*>(basicBlock->extract(currentLoad()))));
     setCurrentLoad(nullptr);
     return true;
 }
@@ -140,15 +144,15 @@ Value* Mem2RegContext::search(BasicBlock* basicBlock, size_t depth, size_t bifur
     SC_ASSERT(depth == 0 || basicBlock != currentLoad()->parent(),
               "If we are back in our starting BB we must have found ourself as a matching load.");
     /// This basic block has no load or store that we can use to promote. We need to visit our predecessors.
-    switch (basicBlock->predecessors.size()) {
+    switch (basicBlock->predecessors().size()) {
     case 0: return nullptr;
-    case 1: return search(basicBlock->predecessors.front(), depth + 1, bifurkations);
+    case 1: return search(basicBlock->predecessors().front(), depth + 1, bifurkations);
     default: return combinePredecessors(basicBlock, depth, bifurkations);
     }
 }
 
 static Phi* findPhiWithArgs(BasicBlock* basicBlock, std::span<PhiMapping const> args) {
-    for (auto& inst: basicBlock->instructions) {
+    for (auto& inst: *basicBlock) {
         Phi* const phi = dyncast<Phi*>(&inst);
         if (phi == nullptr) {
             break;
@@ -162,11 +166,11 @@ static Phi* findPhiWithArgs(BasicBlock* basicBlock, std::span<PhiMapping const> 
 
 Value* Mem2RegContext::combinePredecessors(BasicBlock* basicBlock, size_t depth, size_t bifurkations) {
     utl::small_vector<PhiMapping> phiArgs;
-    size_t const predCount = basicBlock->predecessors.size();
+    size_t const predCount = basicBlock->predecessors().size();
     phiArgs.reserve(predCount);
     size_t numPredsEqualToSelf = 0;
     Value* valueUnequalToSelf  = nullptr;
-    for (auto* pred: basicBlock->predecessors) {
+    for (auto* pred: basicBlock->predecessors()) {
         PhiMapping arg{ pred, search(pred, depth + 1, bifurkations + 1) };
         SC_ASSERT(arg.value,
                   "This probably just means we can't promote or have to insert a load into pred, but we figure it "
@@ -190,7 +194,7 @@ Value* Mem2RegContext::combinePredecessors(BasicBlock* basicBlock, size_t depth,
     std::string name = bifurkations == 0 ? std::string(currentLoad()->name()) :
                                            irCtx.uniqueName(&function, currentLoad()->name(), ".p", bifurkations);
     auto* phi        = new Phi(std::move(phiArgs), std::move(name));
-    basicBlock->addInstruction(basicBlock->instructions.begin(), phi);
+    basicBlock->insert(basicBlock->begin(), phi);
     return phi;
 }
 
@@ -215,7 +219,7 @@ void Mem2RegContext::evict(Instruction* inst) {
     if (auto* user = dyncast<User*>(inst)) {
         user->clearOperands();
     }
-    inst->parent()->instructions.erase(inst);
+    inst->parent()->erase(inst);
 }
 
 static std::optional<std::tuple<Value const*, size_t, size_t>> getConstantBaseAndOffset(Value const* addr) {

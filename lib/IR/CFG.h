@@ -136,22 +136,57 @@ protected:
 /// violated during construction and transformations of the CFG.
 class SCATHA(API) BasicBlock: public Value, public NodeWithParent<BasicBlock, Function> {
 public:
-    using PhiIterator      = internal::PhiIteratorImpl<List<Instruction>::iterator>;
-    using ConstPhiIterator = internal::PhiIteratorImpl<List<Instruction>::const_iterator>;
+    using Iterator = List<Instruction>::iterator;
+    using ConstIterator = List<Instruction>::const_iterator;
+    
+    using PhiIterator      = internal::PhiIteratorImpl<Iterator>;
+    using ConstPhiIterator = internal::PhiIteratorImpl<ConstIterator>;
 
     explicit BasicBlock(Context& context, std::string name);
 
-    void addInstruction(Instruction* instruction) { addInstruction(instructions.end(), instruction); }
+    /// Insert an instruction into this basic block. Callee takes ownership.
+    void pushFront(Instruction* instruction) { insert(instructions.begin(), instruction); }
+    
+    /// Insert an instruction into this basic block. Callee takes ownership.
+    void pushBack(Instruction* instruction) { insert(instructions.end(), instruction); }
 
-    void addInstruction(List<Instruction>::iterator before, Instruction* instruction) {
+    /// Insert an instruction into this basic block. Callee takes ownership.
+    void insert(ConstIterator before, Instruction* instruction) {
         instruction->set_parent(this);
         instructions.insert(before, instruction);
     }
 
+    /// Erase an instruction. Clears the operands.
+    Iterator erase(ConstIterator position) {
+        const_cast<Instruction*>(position.to_address())->clearOperands();
+        return instructions.erase(position);
+    }
+    
+    /// \overload
+    Iterator erase(Instruction const* inst) {
+        return erase(ConstIterator(inst));
+    }
+    
+    /// \overload
+    Iterator erase(ConstIterator first, ConstIterator last) {
+        return instructions.erase(first, last);
+    }
+    
+    /// Extract an instruction. Does not clear the operands. Caller takes ownership of the instruction.
+    Instruction* extract(ConstIterator position) {
+        return instructions.extract(position);
+    }
+    
+    /// \overload
+    Instruction* extract(Instruction const* inst) {
+        return extract(ConstIterator(inst));
+    }
+    
     /// Check wether this is the entry basic block of a function
     bool isEntry() const;
 
     /// Check wether \p inst is an instruction of this basic block.
+    /// \warning This is linear in the number of instructions in this basic block.
     bool contains(Instruction const& inst) const;
 
     /// Returns the terminator instruction if this basic block is well formed or nullptr
@@ -162,29 +197,63 @@ public:
         return const_cast<TerminatorInst*>(static_cast<BasicBlock const*>(this)->terminator());
     }
 
-    utl::range_view<ConstPhiIterator, internal::PhiSentinel> phis() const {
+    Iterator begin() { return instructions.begin(); }
+    ConstIterator begin() const { return instructions.begin(); }
+    
+    Iterator end() { return instructions.end(); }
+    ConstIterator end() const { return instructions.end(); }
+    
+    bool empty() const { return instructions.empty(); }
+    
+    Instruction& front() { return instructions.front(); }
+    Instruction const& front() const { return instructions.front(); }
+    
+    Instruction& back() { return instructions.back(); }
+    Instruction const& back() const { return instructions.back(); }
+    
+    /// View over the phi nodes in this basic block.
+    utl::range_view<ConstPhiIterator, internal::PhiSentinel> phiNodes() const {
         return { ConstPhiIterator{ instructions.begin(), instructions.end() }, {} };
     }
 
-    utl::range_view<PhiIterator, internal::PhiSentinel> phis() {
+    /// \overload
+    utl::range_view<PhiIterator, internal::PhiSentinel> phiNodes() {
         return { PhiIterator{ instructions.begin(), instructions.end() }, {} };
     }
+    
+    /// The basic blocks this basic block is directly reachable from
+    std::span<BasicBlock* const> predecessors() { return preds; }
 
-    void removePredecessor(BasicBlock const* pred) {
-        predecessors.erase(std::find(predecessors.begin(), predecessors.end(), pred));
+    /// \overload
+    std::span<BasicBlock const* const> predecessors() const { return preds; }
+
+    /// Test wether \p possiblePred is a predecessor of this basic block.
+    bool isPredecessor(BasicBlock const* possiblePred) const {
+        return std::find(preds.begin(), preds.end(), possiblePred) != preds.end();
     }
-
-    /// This is exposed directly because some algorithms need to erase instructions from here.
-    List<Instruction> instructions;
-
-    /// Also just expose this directly, be careful though.
-    utl::small_vector<BasicBlock*> predecessors;
-
+    
+    /// Mark \p pred as a predecessor of this basic block.
+    /// \pre \p pred must not yet be marked as predecessor.
+    void addPredecessor(BasicBlock* pred) {
+        SC_ASSERT(!isPredecessor(pred), "This basic block already is a predecessor");
+        preds.push_back(pred);
+    }
+    
+    /// Remove \p pred from the list of predecessors of this basic block.
+    /// \pre \p pred must be a listed predecessor of this basic block.
+    void removePredecessor(BasicBlock const* pred) {
+        preds.erase(std::find(preds.begin(), preds.end(), pred));
+    }
+    
     /// The basic blocks directly reachable from this basic block
     std::span<BasicBlock* const> successors();
 
     /// \overload
     std::span<BasicBlock const* const> successors() const;
+
+private:
+    List<Instruction> instructions;
+    utl::small_vector<BasicBlock*> preds;
 };
 
 /// Represents a function parameter.
@@ -234,7 +303,7 @@ private:
     template <typename Itr, typename Self>
     static utl::range_view<Itr> getInstructionsImpl(Self&& self) {
         using InstItr = typename Itr::InstructionIterator;
-        Itr const begin(self.bbs.begin(), self.bbs.empty() ? InstItr{} : self.bbs.front().instructions.begin());
+        Itr const begin(self.bbs.begin(), self.bbs.empty() ? InstItr{} : self.bbs.front().begin());
         Itr const end(self.bbs.end(), InstItr{});
         return utl::range_view<Itr>{ begin, end };
     }

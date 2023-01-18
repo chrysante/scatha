@@ -187,8 +187,8 @@ bool SCCContext::run() {
         if (!inst->users().empty()) {
             continue;
         }
-        inst->parent()->instructions.erase(inst);
         inst->clearOperands();
+        inst->parent()->erase(inst);
     }
     return !replacedInstructions.empty();
 }
@@ -199,7 +199,7 @@ void SCCContext::processFlowEdge(FlowEdge edge) {
     }
     setExecutable(edge, true);
     auto const [origin, dest] = edge;
-    for (auto& phi: dest->phis()) {
+    for (auto& phi: dest->phiNodes()) {
         visitPhi(phi);
     }
     if (dest->isEntry() || numIncomingExecutableEdges(*dest) == 1) {
@@ -240,7 +240,7 @@ void SCCContext::visitPhi(Phi& phi) {
 }
 
 void SCCContext::visitExpressions(BasicBlock& basicBlock) {
-    for (auto& inst: basicBlock.instructions) {
+    for (auto& inst: basicBlock) {
         if (!isExpression(&inst)) {
             continue;
         }
@@ -334,7 +334,7 @@ bool SCCContext::basicBlockIsExecutable(BasicBlock& bb) {
     if (bb.isEntry()) {
         return true;
     }
-    for (auto* pred: bb.predecessors) {
+    for (auto* pred: bb.predecessors()) {
         if (isExecutable({ pred, &bb })) {
             return true;
         }
@@ -344,7 +344,7 @@ bool SCCContext::basicBlockIsExecutable(BasicBlock& bb) {
 
 size_t SCCContext::numIncomingExecutableEdges(BasicBlock& basicBlock) {
     size_t result = 0;
-    for (auto* pred: basicBlock.predecessors) {
+    for (auto* pred: basicBlock.predecessors()) {
         result += isExecutable({ pred, &basicBlock });
     }
     return result;

@@ -125,7 +125,7 @@ void Context::generate(ir::BasicBlock const& bb) {
     if (!bb.isEntry()) {
         _currentBlock = result.add(Block(getLabelID(bb), std::string(bb.name())));
     }
-    for (auto& inst: bb.instructions) {
+    for (auto& inst: bb) {
         dispatch(inst);
     }
     blockMap.insert({ &bb, &currentBlock() });

@@ -35,7 +35,7 @@ fn f(n: int) -> int {
         size_t k                = 0;
         for (auto itr = instructions.begin(); itr != instructions.end(); ++k) {
             if (k % 2 == 1) {
-                itr = itr->parent()->instructions.erase(itr.instructionIterator());
+                itr = itr->parent()->erase(itr.instructionIterator());
             }
             else {
                 ++itr;
@@ -49,8 +49,12 @@ fn f(n: int) -> int {
     SECTION("Erase all") {
         auto const instructions = function.instructions();
         size_t k                = 0;
+        /// We first clear all the operands to prevent the next pass from using deallocated memory.
+        for (auto& inst: instructions) {
+            inst.clearOperands();
+        }
         for (auto itr = instructions.begin(); itr != instructions.end(); ++k) {
-            itr = itr->parent()->instructions.erase(itr.instructionIterator());
+            itr = itr->parent()->erase(itr.instructionIterator());
         }
         CHECK(function.instructions().empty());
     }

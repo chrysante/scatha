@@ -145,7 +145,7 @@ void PrintCtx::print(Function const& function) {
 void PrintCtx::print(BasicBlock const& bb) {
     str << indent << formatName(bb) << ":\n";
     indent.increase();
-    for (auto& instruction: bb.instructions) {
+    for (auto& instruction: bb) {
         dispatch(instruction);
         str << "\n";
     }

@@ -23,38 +23,38 @@ void playground::irSketch() {
     fn->addBasicBlock(entry);
 
     auto* allocaN = new ir::Alloca(ctx, ctx.integralType(64), "n_ptr");
-    entry->addInstruction(allocaN);
+    entry->pushBack(allocaN);
 
     auto* storeN5 = new ir::Store(ctx, allocaN, &fn->parameters().front());
-    entry->addInstruction(storeN5);
+    entry->pushBack(storeN5);
 
     auto* allocaI = new ir::Alloca(ctx, ctx.integralType(64), "i_ptr");
-    entry->addInstruction(allocaI);
+    entry->pushBack(allocaI);
 
     auto* storeI1 = new ir::Store(ctx, allocaN, ctx.integralConstant(1, 64));
-    entry->addInstruction(storeI1);
+    entry->pushBack(storeI1);
 
     auto* allocaResult = new ir::Alloca(ctx, ctx.integralType(64), "result_ptr");
-    entry->addInstruction(allocaResult);
+    entry->pushBack(allocaResult);
 
     auto* storeResult1 = new ir::Store(ctx, allocaResult, ctx.integralConstant(1, 64));
-    entry->addInstruction(storeResult1);
+    entry->pushBack(storeResult1);
 
     auto* loopHeader = new ir::BasicBlock(ctx, "loop_header");
     fn->addBasicBlock(loopHeader);
 
     auto* gotoLoopHeader = new ir::Goto(ctx, loopHeader);
-    entry->addInstruction(gotoLoopHeader);
+    entry->pushBack(gotoLoopHeader);
 
     // Loop header block
     auto* loadI1 = new ir::Load(allocaI, "i1");
-    loopHeader->addInstruction(loadI1);
+    loopHeader->pushBack(loadI1);
 
     auto* loadN1 = new ir::Load(allocaN, "n1");
-    loopHeader->addInstruction(loadN1);
+    loopHeader->pushBack(loadN1);
 
     auto* cmp = new ir::CompareInst(ctx, loadI1, loadN1, ir::CompareOperation::LessEq, "loop_cond");
-    loopHeader->addInstruction(cmp);
+    loopHeader->pushBack(cmp);
 
     auto* loopBody = new ir::BasicBlock(ctx, "loop_body");
     fn->addBasicBlock(loopBody);
@@ -63,36 +63,36 @@ void playground::irSketch() {
     fn->addBasicBlock(end);
 
     auto* lhBranch = new ir::Branch(ctx, cmp, loopBody, end);
-    loopHeader->addInstruction(lhBranch);
+    loopHeader->pushBack(lhBranch);
 
     // Loop body block - decl
     auto* loadResult1 = new ir::Load(allocaResult, "result1");
-    loopBody->addInstruction(loadResult1);
+    loopBody->pushBack(loadResult1);
 
     auto* loadI2 = new ir::Load(allocaI, "i2");
-    loopBody->addInstruction(loadI2);
+    loopBody->pushBack(loadI2);
 
     auto* mulTmp = new ir::ArithmeticInst(loadResult1, loadI2, ir::ArithmeticOperation::Mul, "mul-tmp");
-    loopBody->addInstruction(mulTmp);
+    loopBody->pushBack(mulTmp);
 
     auto storeResult2 = new ir::Store(ctx, allocaResult, mulTmp);
-    loopBody->addInstruction(storeResult2);
+    loopBody->pushBack(storeResult2);
 
     auto* addTmp = new ir::ArithmeticInst(loadI2, ctx.integralConstant(1, 64), ir::ArithmeticOperation::Add, "add-tmp");
-    loopBody->addInstruction(addTmp);
+    loopBody->pushBack(addTmp);
 
     auto* storeI2 = new ir::Store(ctx, allocaI, addTmp);
-    loopBody->addInstruction(storeI2);
+    loopBody->pushBack(storeI2);
 
     auto* gotoLoopHeader2 = new ir::Goto(ctx, loopHeader);
-    loopBody->addInstruction(gotoLoopHeader2);
+    loopBody->pushBack(gotoLoopHeader2);
 
     // End block - decl
     auto* loadResult2 = new ir::Load(allocaResult, "result2");
-    end->addInstruction(loadResult2);
+    end->pushBack(loadResult2);
 
     auto* ret = new ir::Return(ctx, loadResult2);
-    end->addInstruction(ret);
+    end->pushBack(ret);
 
     std::cout << std::endl;
 

@@ -38,7 +38,9 @@ void User::setOperand(size_t index, Value* operand) {
 
 void User::clearOperands() {
     for (auto& op: _operands) {
-        op->removeUser(this);
+        if (op) {
+            op->removeUser(this);
+        }
         op = nullptr;
     }
 }
