@@ -9,7 +9,7 @@
 
 namespace scatha::test {
 
-std::pair<ast::UniquePtr<ast::AbstractSyntaxTree>, issue::SyntaxIssueHandler> parse(std::string_view text);
+std::pair<UniquePtr<ast::AbstractSyntaxTree>, issue::SyntaxIssueHandler> parse(std::string_view text);
 
 parse::TokenStream makeTokenStream(std::string_view text);
 

@@ -23,51 +23,50 @@ using namespace parse;
 namespace {
 
 struct Context {
-    ast::UniquePtr<ast::AbstractSyntaxTree> run();
+    UniquePtr<ast::AbstractSyntaxTree> run();
 
-    ast::UniquePtr<ast::TranslationUnit> parseTranslationUnit();
-    ast::UniquePtr<ast::Declaration> parseExternalDeclaration();
-    ast::UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
-    ast::UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration();
-    ast::UniquePtr<ast::StructDefinition> parseStructDefinition();
-    ast::UniquePtr<ast::VariableDeclaration> parseVariableDeclaration();
-    ast::UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(
-        std::optional<Token> declarator = std::nullopt);
-    ast::UniquePtr<ast::Statement> parseStatement();
-    ast::UniquePtr<ast::ExpressionStatement> parseExpressionStatement();
-    ast::UniquePtr<ast::EmptyStatement> parseEmptyStatement();
-    ast::UniquePtr<ast::CompoundStatement> parseCompoundStatement();
-    ast::UniquePtr<ast::ControlFlowStatement> parseControlFlowStatement();
-    ast::UniquePtr<ast::ReturnStatement> parseReturnStatement();
-    ast::UniquePtr<ast::IfStatement> parseIfStatement();
-    ast::UniquePtr<ast::WhileStatement> parseWhileStatement();
-    ast::UniquePtr<ast::DoWhileStatement> parseDoWhileStatement();
-    ast::UniquePtr<ast::ForStatement> parseForStatement();
+    UniquePtr<ast::TranslationUnit> parseTranslationUnit();
+    UniquePtr<ast::Declaration> parseExternalDeclaration();
+    UniquePtr<ast::FunctionDefinition> parseFunctionDefinition();
+    UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration();
+    UniquePtr<ast::StructDefinition> parseStructDefinition();
+    UniquePtr<ast::VariableDeclaration> parseVariableDeclaration();
+    UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(std::optional<Token> declarator = std::nullopt);
+    UniquePtr<ast::Statement> parseStatement();
+    UniquePtr<ast::ExpressionStatement> parseExpressionStatement();
+    UniquePtr<ast::EmptyStatement> parseEmptyStatement();
+    UniquePtr<ast::CompoundStatement> parseCompoundStatement();
+    UniquePtr<ast::ControlFlowStatement> parseControlFlowStatement();
+    UniquePtr<ast::ReturnStatement> parseReturnStatement();
+    UniquePtr<ast::IfStatement> parseIfStatement();
+    UniquePtr<ast::WhileStatement> parseWhileStatement();
+    UniquePtr<ast::DoWhileStatement> parseDoWhileStatement();
+    UniquePtr<ast::ForStatement> parseForStatement();
 
     // Expressions
 
-    ast::UniquePtr<ast::Expression> parseComma();
-    ast::UniquePtr<ast::Expression> parseAssignment();
-    ast::UniquePtr<ast::Expression> parseTypeExpression() { return parseConditional(); } // Convenience wrapper
-    ast::UniquePtr<ast::Expression> parseConditional();
-    ast::UniquePtr<ast::Expression> parseLogicalOr();
-    ast::UniquePtr<ast::Expression> parseLogicalAnd();
-    ast::UniquePtr<ast::Expression> parseInclusiveOr();
-    ast::UniquePtr<ast::Expression> parseExclusiveOr();
-    ast::UniquePtr<ast::Expression> parseAnd();
-    ast::UniquePtr<ast::Expression> parseEquality();
-    ast::UniquePtr<ast::Expression> parseRelational();
-    ast::UniquePtr<ast::Expression> parseShift();
-    ast::UniquePtr<ast::Expression> parseAdditive();
-    ast::UniquePtr<ast::Expression> parseMultiplicative();
-    ast::UniquePtr<ast::Expression> parseUnary();
-    ast::UniquePtr<ast::Expression> parsePostfix();
-    ast::UniquePtr<ast::Expression> parsePrimary();
-    ast::UniquePtr<ast::Identifier> parseIdentifier();
-    ast::UniquePtr<ast::IntegerLiteral> parseIntegerLiteral();
-    ast::UniquePtr<ast::BooleanLiteral> parseBooleanLiteral();
-    ast::UniquePtr<ast::FloatingPointLiteral> parseFloatingPointLiteral();
-    ast::UniquePtr<ast::StringLiteral> parseStringLiteral();
+    UniquePtr<ast::Expression> parseComma();
+    UniquePtr<ast::Expression> parseAssignment();
+    UniquePtr<ast::Expression> parseTypeExpression() { return parseConditional(); } // Convenience wrapper
+    UniquePtr<ast::Expression> parseConditional();
+    UniquePtr<ast::Expression> parseLogicalOr();
+    UniquePtr<ast::Expression> parseLogicalAnd();
+    UniquePtr<ast::Expression> parseInclusiveOr();
+    UniquePtr<ast::Expression> parseExclusiveOr();
+    UniquePtr<ast::Expression> parseAnd();
+    UniquePtr<ast::Expression> parseEquality();
+    UniquePtr<ast::Expression> parseRelational();
+    UniquePtr<ast::Expression> parseShift();
+    UniquePtr<ast::Expression> parseAdditive();
+    UniquePtr<ast::Expression> parseMultiplicative();
+    UniquePtr<ast::Expression> parseUnary();
+    UniquePtr<ast::Expression> parsePostfix();
+    UniquePtr<ast::Expression> parsePrimary();
+    UniquePtr<ast::Identifier> parseIdentifier();
+    UniquePtr<ast::IntegerLiteral> parseIntegerLiteral();
+    UniquePtr<ast::BooleanLiteral> parseBooleanLiteral();
+    UniquePtr<ast::FloatingPointLiteral> parseFloatingPointLiteral();
+    UniquePtr<ast::StringLiteral> parseStringLiteral();
 
     // Helpers
     //    void pushExpectedExpressionBefore(SourceLocation);
@@ -83,9 +82,9 @@ struct Context {
     bool recover(std::pair<std::string_view, F>... retry);
 
     template <typename Expr>
-    ast::UniquePtr<Expr> parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
-                                               std::string_view open,
-                                               std::string_view close);
+    UniquePtr<Expr> parseFunctionCallLike(UniquePtr<ast::Expression> primary,
+                                          std::string_view open,
+                                          std::string_view close);
 
     template <typename List, typename DList = std::decay_t<List>>
     std::optional<DList> parseList(std::string_view open,
@@ -93,15 +92,15 @@ struct Context {
                                    std::string_view delimiter,
                                    auto parseCallback);
 
-    ast::UniquePtr<ast::Subscript> parseSubscript(ast::UniquePtr<ast::Expression> primary);
-    ast::UniquePtr<ast::FunctionCall> parseFunctionCall(ast::UniquePtr<ast::Expression> primary);
-    ast::UniquePtr<ast::Expression> parseMemberAccess(ast::UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::Subscript> parseSubscript(UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::FunctionCall> parseFunctionCall(UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::Expression> parseMemberAccess(UniquePtr<ast::Expression> primary);
 
     template <ast::BinaryOperator...>
-    ast::UniquePtr<ast::Expression> parseBinaryOperatorLTR(auto&& operand);
+    UniquePtr<ast::Expression> parseBinaryOperatorLTR(auto&& operand);
 
     template <ast::BinaryOperator...>
-    ast::UniquePtr<ast::Expression> parseBinaryOperatorRTL(auto&& parseOperand);
+    UniquePtr<ast::Expression> parseBinaryOperatorRTL(auto&& parseOperand);
 
     void expectDelimiter(std::string_view delimiter);
 

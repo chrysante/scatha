@@ -16,6 +16,7 @@ Common/Expected.h
 Common/Dyncast.h
 Common/Keyword.h
 Common/Token.h
+Common/UniquePtr.h
 Common/SourceLocation.h
 
 CodeGen/AST2IR/CodeGenerator.h

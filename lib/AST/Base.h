@@ -10,33 +10,9 @@
 #include <scatha/AST/Common.h>
 #include <scatha/Common/SourceLocation.h>
 #include <scatha/Common/Token.h>
+#include <scatha/Common/UniquePtr.h>
 
 namespace scatha::ast {
-
-/// ** Smart pointer for allocating AST nodes **
-/// Used to have a common interface for allocating nodes in the AST. Should not be  used to allocate other things so we
-/// can grep for this and perhaps switch to some more efficient allocation strategy in the future.
-template <std::derived_from<AbstractSyntaxTree> T>
-class UniquePtr: public std::unique_ptr<T> {
-    using Base = std::unique_ptr<T>;
-
-public:
-    UniquePtr(std::unique_ptr<T>&& p): Base(std::move(p)) {}
-    using Base::Base;
-};
-
-template <typename T, typename... Args>
-requires std::constructible_from<T, Args...>
-UniquePtr<T> allocate(Args&&... args) {
-    return std::make_unique<T>(std::forward<Args>(args)...);
-}
-
-template <typename Derived, typename Base>
-requires std::derived_from<Derived, Base>
-ast::UniquePtr<Derived> uniquePtrCast(ast::UniquePtr<Base>&& p) {
-    auto* d = utl::cast<Derived*>(p.release());
-    return ast::UniquePtr<Derived>(d);
-}
 
 namespace internal {
 
@@ -58,8 +34,6 @@ private:
 /// Every derived class must specify its runtime type in the constructor via the \p NodeType enum.
 class SCATHA(API) AbstractSyntaxTree: public internal::Decoratable {
 public:
-    virtual ~AbstractSyntaxTree() = default;
-
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }
 

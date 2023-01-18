@@ -16,7 +16,7 @@ using namespace parse;
 
 using enum SyntaxIssue::Reason;
 
-ast::UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens, issue::SyntaxIssueHandler& iss) {
+UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens, issue::SyntaxIssueHandler& iss) {
     bracketCorrection(tokens, iss);
     if (iss.fatal()) {
         return nullptr;
@@ -25,14 +25,14 @@ ast::UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens, 
     return ctx.run();
 }
 
-ast::UniquePtr<ast::AbstractSyntaxTree> Context::run() {
+UniquePtr<ast::AbstractSyntaxTree> Context::run() {
     return parseTranslationUnit();
 }
 
 // MARK: -  RDP
 
-ast::UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
-    ast::UniquePtr<ast::TranslationUnit> result = ast::allocate<ast::TranslationUnit>();
+UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
+    UniquePtr<ast::TranslationUnit> result = allocate<ast::TranslationUnit>();
     while (true) {
         Token const token = tokens.peek();
         if (token.type == TokenType::EndOfFile) {
@@ -49,7 +49,7 @@ ast::UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
     return result;
 }
 
-ast::UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
+UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
     if (auto funcDef = parseFunctionDefinition()) {
         return funcDef;
     }
@@ -90,7 +90,7 @@ bool Context::recover(std::pair<std::string_view, F>... retry) {
     return recover(std::pair{ [&](Token const& token) { return token.id == retry.first; }, retry.second }...);
 }
 
-ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
+UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     Token const declarator = tokens.peek();
     if (declarator.keyword != Keyword::Function) {
         return nullptr;
@@ -106,7 +106,7 @@ ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
             return nullptr;
         }
     }
-    auto result = ast::allocate<ast::FunctionDefinition>(declarator, std::move(identifier));
+    auto result = allocate<ast::FunctionDefinition>(declarator, std::move(identifier));
     /// Parse parameters
     using ParamListType = decltype(result->parameters);
     auto parseList      = [this] {
@@ -154,7 +154,7 @@ ast::UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     return result;
 }
 
-ast::UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
+UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     Token const& idToken = tokens.peek();
     auto identifier      = parseIdentifier();
     if (!identifier) {
@@ -207,10 +207,10 @@ ast::UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
             tokens.eat();
         }
     }
-    return ast::allocate<ast::ParameterDeclaration>(std::move(identifier), std::move(typeExpr));
+    return allocate<ast::ParameterDeclaration>(std::move(identifier), std::move(typeExpr));
 }
 
-ast::UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
+UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
     Token const declarator = tokens.peek();
     if (declarator.keyword != Keyword::Struct) {
         return nullptr;
@@ -230,10 +230,10 @@ ast::UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
         Token const next = tokens.peek();
         SC_DEBUGFAIL(); // Handle issue
     }
-    return ast::allocate<ast::StructDefinition>(declarator, std::move(identifier), std::move(body));
+    return allocate<ast::StructDefinition>(declarator, std::move(identifier), std::move(body));
 }
 
-ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
+UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
     Token const declarator = tokens.peek();
     if (declarator.keyword != Keyword::Var && declarator.keyword != Keyword::Let) {
         return nullptr;
@@ -242,14 +242,14 @@ ast::UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
     return parseShortVariableDeclaration(declarator);
 }
 
-ast::UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(std::optional<Token> declarator) {
+UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(std::optional<Token> declarator) {
     auto identifier = parseIdentifier();
     if (!identifier) {
         Token const curr = tokens.current();
         Token const next = tokens.peek();
         SC_DEBUGFAIL(); // Handle issue
     }
-    auto result = ast::allocate<ast::VariableDeclaration>(declarator.value_or(Token{}), std::move(identifier));
+    auto result = allocate<ast::VariableDeclaration>(declarator.value_or(Token{}), std::move(identifier));
     if (Token const colon = tokens.peek(); colon.id == ":") {
         tokens.eat();
         auto typeExpr = parseTypeExpression();
@@ -281,7 +281,7 @@ ast::UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
     return result;
 }
 
-ast::UniquePtr<ast::Statement> Context::parseStatement() {
+UniquePtr<ast::Statement> Context::parseStatement() {
     if (auto extDecl = parseExternalDeclaration()) {
         return extDecl;
     }
@@ -303,22 +303,22 @@ ast::UniquePtr<ast::Statement> Context::parseStatement() {
     return nullptr;
 }
 
-ast::UniquePtr<ast::ExpressionStatement> Context::parseExpressionStatement() {
+UniquePtr<ast::ExpressionStatement> Context::parseExpressionStatement() {
     auto expression = parseComma();
     if (!expression) {
         return nullptr;
     }
     expectDelimiter(";");
-    return ast::allocate<ast::ExpressionStatement>(std::move(expression));
+    return allocate<ast::ExpressionStatement>(std::move(expression));
 }
 
-ast::UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
+UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
     Token const openBrace = tokens.peek();
     if (openBrace.id != "{") {
         return nullptr;
     }
     tokens.eat();
-    auto result = ast::allocate<ast::CompoundStatement>(openBrace);
+    auto result = allocate<ast::CompoundStatement>(openBrace);
     while (true) {
         /// This mechanism checks wether a failed statement parse has eaten any tokens. If it hasn't we eat one
         /// ourselves and try again.
@@ -339,7 +339,7 @@ ast::UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
     }
 }
 
-ast::UniquePtr<ast::ControlFlowStatement> Context::parseControlFlowStatement() {
+UniquePtr<ast::ControlFlowStatement> Context::parseControlFlowStatement() {
     if (auto returnStatement = parseReturnStatement()) {
         return returnStatement;
     }
@@ -358,7 +358,7 @@ ast::UniquePtr<ast::ControlFlowStatement> Context::parseControlFlowStatement() {
     return nullptr;
 }
 
-ast::UniquePtr<ast::ReturnStatement> Context::parseReturnStatement() {
+UniquePtr<ast::ReturnStatement> Context::parseReturnStatement() {
     Token const returnToken = tokens.peek();
     if (returnToken.id != "return") {
         return nullptr;
@@ -367,10 +367,10 @@ ast::UniquePtr<ast::ReturnStatement> Context::parseReturnStatement() {
     /// May be null in case of void return statement.
     auto expression = parseComma();
     expectDelimiter(";");
-    return ast::allocate<ast::ReturnStatement>(returnToken, std::move(expression));
+    return allocate<ast::ReturnStatement>(returnToken, std::move(expression));
 }
 
-ast::UniquePtr<ast::IfStatement> Context::parseIfStatement() {
+UniquePtr<ast::IfStatement> Context::parseIfStatement() {
     Token const ifToken = tokens.peek();
     if (ifToken.id != "if") {
         return nullptr;
@@ -385,7 +385,7 @@ ast::UniquePtr<ast::IfStatement> Context::parseIfStatement() {
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
         SC_DEBUGFAIL();
     }
-    auto elseBlock = [&]() -> ast::UniquePtr<ast::Statement> {
+    auto elseBlock = [&]() -> UniquePtr<ast::Statement> {
         Token const elseToken = tokens.peek();
         if (elseToken.id != "else") {
             return nullptr;
@@ -402,10 +402,10 @@ ast::UniquePtr<ast::IfStatement> Context::parseIfStatement() {
         SC_DEBUGFAIL(); // Handle issue
         return nullptr;
     }();
-    return ast::allocate<ast::IfStatement>(ifToken, std::move(cond), std::move(ifBlock), std::move(elseBlock));
+    return allocate<ast::IfStatement>(ifToken, std::move(cond), std::move(ifBlock), std::move(elseBlock));
 }
 
-ast::UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
+UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
     Token const whileToken = tokens.peek();
     if (whileToken.id != "while") {
         return nullptr;
@@ -419,10 +419,10 @@ ast::UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
     if (!block) {
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
     }
-    return ast::allocate<ast::WhileStatement>(whileToken, std::move(cond), std::move(block));
+    return allocate<ast::WhileStatement>(whileToken, std::move(cond), std::move(block));
 }
 
-ast::UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
+UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
     Token const doToken = tokens.peek();
     if (doToken.id != "do") {
         return nullptr;
@@ -453,10 +453,10 @@ ast::UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
     else {
         tokens.eat();
     }
-    return ast::allocate<ast::DoWhileStatement>(doToken, std::move(cond), std::move(block));
+    return allocate<ast::DoWhileStatement>(doToken, std::move(cond), std::move(block));
 }
 
-ast::UniquePtr<ast::ForStatement> Context::parseForStatement() {
+UniquePtr<ast::ForStatement> Context::parseForStatement() {
     Token const forToken = tokens.peek();
     if (forToken.id != "for") {
         return nullptr;
@@ -485,29 +485,25 @@ ast::UniquePtr<ast::ForStatement> Context::parseForStatement() {
     if (!block) {
         iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
     }
-    return ast::allocate<ast::ForStatement>(forToken,
-                                            std::move(varDecl),
-                                            std::move(cond),
-                                            std::move(inc),
-                                            std::move(block));
+    return allocate<ast::ForStatement>(forToken, std::move(varDecl), std::move(cond), std::move(inc), std::move(block));
 }
 
-ast::UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
+UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
     Token const delim = tokens.peek();
     if (delim.id != ";") {
         return nullptr;
     }
     tokens.eat();
-    return ast::allocate<ast::EmptyStatement>(delim);
+    return allocate<ast::EmptyStatement>(delim);
 }
 
 // MARK: - Expressions
 
-ast::UniquePtr<ast::Expression> Context::parseComma() {
+UniquePtr<ast::Expression> Context::parseComma() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::Comma>([this] { return parseAssignment(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseAssignment() {
+UniquePtr<ast::Expression> Context::parseAssignment() {
     using enum ast::BinaryOperator;
     return parseBinaryOperatorRTL<Assignment,
                                   AddAssignment,
@@ -522,7 +518,7 @@ ast::UniquePtr<ast::Expression> Context::parseAssignment() {
                                   XOrAssignment>([this] { return parseConditional(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseConditional() {
+UniquePtr<ast::Expression> Context::parseConditional() {
     Token const& condToken = tokens.peek();
     auto logicalOr         = parseLogicalOr();
     if (auto const& questionMark = tokens.peek(); questionMark.id == "?") {
@@ -550,55 +546,55 @@ ast::UniquePtr<ast::Expression> Context::parseConditional() {
     return logicalOr;
 }
 
-ast::UniquePtr<ast::Expression> Context::parseLogicalOr() {
+UniquePtr<ast::Expression> Context::parseLogicalOr() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::LogicalOr>([this] { return parseLogicalAnd(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseLogicalAnd() {
+UniquePtr<ast::Expression> Context::parseLogicalAnd() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::LogicalAnd>([this] { return parseInclusiveOr(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseInclusiveOr() {
+UniquePtr<ast::Expression> Context::parseInclusiveOr() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::BitwiseOr>([this] { return parseExclusiveOr(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseExclusiveOr() {
+UniquePtr<ast::Expression> Context::parseExclusiveOr() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::BitwiseXOr>([this] { return parseAnd(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseAnd() {
+UniquePtr<ast::Expression> Context::parseAnd() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::BitwiseAnd>([this] { return parseEquality(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseEquality() {
+UniquePtr<ast::Expression> Context::parseEquality() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::Equals, ast::BinaryOperator::NotEquals>(
         [this] { return parseRelational(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseRelational() {
+UniquePtr<ast::Expression> Context::parseRelational() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::Less,
                                   ast::BinaryOperator::LessEq,
                                   ast::BinaryOperator::Greater,
                                   ast::BinaryOperator::GreaterEq>([this] { return parseShift(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseShift() {
+UniquePtr<ast::Expression> Context::parseShift() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::LeftShift, ast::BinaryOperator::RightShift>(
         [this] { return parseAdditive(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseAdditive() {
+UniquePtr<ast::Expression> Context::parseAdditive() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::Addition, ast::BinaryOperator::Subtraction>(
         [this] { return parseMultiplicative(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseMultiplicative() {
+UniquePtr<ast::Expression> Context::parseMultiplicative() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::Multiplication,
                                   ast::BinaryOperator::Division,
                                   ast::BinaryOperator::Remainder>([this] { return parseUnary(); });
 }
 
-ast::UniquePtr<ast::Expression> Context::parseUnary() {
+UniquePtr<ast::Expression> Context::parseUnary() {
     if (auto postfix = parsePostfix()) {
         return postfix;
     }
@@ -609,7 +605,7 @@ ast::UniquePtr<ast::Expression> Context::parseUnary() {
         if (!unary) {
             pushExpectedExpression(unaryToken);
         }
-        return ast::allocate<ast::UnaryPrefixExpression>(operatorType, std::move(unary), token);
+        return allocate<ast::UnaryPrefixExpression>(operatorType, std::move(unary), token);
     };
     if (token.id == "&") {
         SC_DEBUGFAIL(); // Do we really want to support addressof operator?
@@ -635,7 +631,7 @@ ast::UniquePtr<ast::Expression> Context::parseUnary() {
     }
 }
 
-ast::UniquePtr<ast::Expression> Context::parsePostfix() {
+UniquePtr<ast::Expression> Context::parsePostfix() {
     auto primary = parsePrimary();
     if (!primary) {
         return nullptr;
@@ -658,7 +654,7 @@ ast::UniquePtr<ast::Expression> Context::parsePostfix() {
     return primary;
 }
 
-ast::UniquePtr<ast::Expression> Context::parsePrimary() {
+UniquePtr<ast::Expression> Context::parsePrimary() {
     if (auto result = parseIdentifier()) {
         return result;
     }
@@ -677,8 +673,8 @@ ast::UniquePtr<ast::Expression> Context::parsePrimary() {
     auto const& token = tokens.peek();
     if (token.id == "(") {
         tokens.eat();
-        Token const& commaToken               = tokens.peek();
-        ast::UniquePtr<ast::Expression> comma = parseComma();
+        Token const& commaToken          = tokens.peek();
+        UniquePtr<ast::Expression> comma = parseComma();
         if (!comma) {
             pushExpectedExpression(commaToken);
         }
@@ -688,49 +684,49 @@ ast::UniquePtr<ast::Expression> Context::parsePrimary() {
     return nullptr;
 }
 
-ast::UniquePtr<ast::Identifier> Context::parseIdentifier() {
+UniquePtr<ast::Identifier> Context::parseIdentifier() {
     Token const next = tokens.peek();
     if (next.type != TokenType::Identifier || next.isDeclarator) {
         return nullptr;
     }
-    return ast::allocate<ast::Identifier>(tokens.eat());
+    return allocate<ast::Identifier>(tokens.eat());
 }
 
-ast::UniquePtr<ast::IntegerLiteral> Context::parseIntegerLiteral() {
+UniquePtr<ast::IntegerLiteral> Context::parseIntegerLiteral() {
     if (tokens.peek().type != TokenType::IntegerLiteral) {
         return nullptr;
     }
-    return ast::allocate<ast::IntegerLiteral>(tokens.eat());
+    return allocate<ast::IntegerLiteral>(tokens.eat());
 }
 
-ast::UniquePtr<ast::BooleanLiteral> Context::parseBooleanLiteral() {
+UniquePtr<ast::BooleanLiteral> Context::parseBooleanLiteral() {
     if (tokens.peek().type != TokenType::BooleanLiteral) {
         return nullptr;
     }
-    return ast::allocate<ast::BooleanLiteral>(tokens.eat());
+    return allocate<ast::BooleanLiteral>(tokens.eat());
 }
 
-ast::UniquePtr<ast::FloatingPointLiteral> Context::parseFloatingPointLiteral() {
+UniquePtr<ast::FloatingPointLiteral> Context::parseFloatingPointLiteral() {
     if (tokens.peek().type != TokenType::FloatingPointLiteral) {
         return nullptr;
     }
-    return ast::allocate<ast::FloatingPointLiteral>(tokens.eat());
+    return allocate<ast::FloatingPointLiteral>(tokens.eat());
 }
 
-ast::UniquePtr<ast::StringLiteral> Context::parseStringLiteral() {
+UniquePtr<ast::StringLiteral> Context::parseStringLiteral() {
     if (tokens.peek().type != TokenType::StringLiteral) {
         return nullptr;
     }
-    return ast::allocate<ast::StringLiteral>(tokens.eat());
+    return allocate<ast::StringLiteral>(tokens.eat());
 }
 
 template <typename FunctionCallLike>
-ast::UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(ast::UniquePtr<ast::Expression> primary,
-                                                                std::string_view open,
-                                                                std::string_view close) {
+UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(UniquePtr<ast::Expression> primary,
+                                                           std::string_view open,
+                                                           std::string_view close) {
     auto const& openToken = tokens.peek();
     SC_ASSERT(openToken.id == open, "");
-    auto result       = ast::allocate<FunctionCallLike>(std::move(primary), openToken);
+    auto result       = allocate<FunctionCallLike>(std::move(primary), openToken);
     result->arguments = parseList<decltype(result->arguments)>(open, close, ",", [this] {
                             return parseAssignment();
                         }).value(); // handle error
@@ -774,15 +770,15 @@ std::optional<List> Context::parseList(std::string_view open,
     return result;
 }
 
-ast::UniquePtr<ast::Subscript> Context::parseSubscript(ast::UniquePtr<ast::Expression> primary) {
+UniquePtr<ast::Subscript> Context::parseSubscript(UniquePtr<ast::Expression> primary) {
     return parseFunctionCallLike<ast::Subscript>(std::move(primary), "[", "]");
 }
 
-ast::UniquePtr<ast::FunctionCall> Context::parseFunctionCall(ast::UniquePtr<ast::Expression> primary) {
+UniquePtr<ast::FunctionCall> Context::parseFunctionCall(UniquePtr<ast::Expression> primary) {
     return parseFunctionCallLike<ast::FunctionCall>(std::move(primary), "(", ")");
 }
 
-ast::UniquePtr<ast::Expression> Context::parseMemberAccess(ast::UniquePtr<ast::Expression> left) {
+UniquePtr<ast::Expression> Context::parseMemberAccess(UniquePtr<ast::Expression> left) {
     SC_ASSERT(tokens.peek().id == ".", "");
     while (true) {
         auto const& token = tokens.peek();
@@ -790,11 +786,11 @@ ast::UniquePtr<ast::Expression> Context::parseMemberAccess(ast::UniquePtr<ast::E
             return left;
         }
         tokens.eat();
-        ast::UniquePtr<ast::Expression> right = parseIdentifier();
+        UniquePtr<ast::Expression> right = parseIdentifier();
         if (!right) {
             iss.push(SyntaxIssue(tokens.peek(), ExpectedExpression));
         }
-        left = ast::allocate<ast::MemberAccess>(std::move(left), std::move(right), token);
+        left = allocate<ast::MemberAccess>(std::move(left), std::move(right), token);
         continue;
     }
 }
@@ -804,10 +800,10 @@ void Context::pushExpectedExpression(Token const& token) {
 }
 
 template <ast::BinaryOperator... Op>
-ast::UniquePtr<ast::Expression> Context::parseBinaryOperatorLTR(auto&& operand) {
-    Token const& lhsToken                = tokens.peek();
-    ast::UniquePtr<ast::Expression> left = operand();
-    auto tryParse                        = [&](Token const token, ast::BinaryOperator op) {
+UniquePtr<ast::Expression> Context::parseBinaryOperatorLTR(auto&& operand) {
+    Token const& lhsToken           = tokens.peek();
+    UniquePtr<ast::Expression> left = operand();
+    auto tryParse                   = [&](Token const token, ast::BinaryOperator op) {
         if (token.id != toString(op)) {
             return false;
         }
@@ -815,12 +811,12 @@ ast::UniquePtr<ast::Expression> Context::parseBinaryOperatorLTR(auto&& operand) 
         if (!left) {
             pushExpectedExpression(lhsToken);
         }
-        Token const& rhsToken                 = tokens.peek();
-        ast::UniquePtr<ast::Expression> right = operand();
+        Token const& rhsToken            = tokens.peek();
+        UniquePtr<ast::Expression> right = operand();
         if (!right) {
             pushExpectedExpression(rhsToken);
         }
-        left = ast::allocate<ast::BinaryExpression>(op, std::move(left), std::move(right), token);
+        left = allocate<ast::BinaryExpression>(op, std::move(left), std::move(right), token);
         return true;
     };
     while (true) {
@@ -833,24 +829,24 @@ ast::UniquePtr<ast::Expression> Context::parseBinaryOperatorLTR(auto&& operand) 
 }
 
 template <ast::BinaryOperator... Op>
-ast::UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(auto&& parseOperand) {
+UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(auto&& parseOperand) {
     Token const& lhsToken = tokens.peek();
     SC_ASSERT(lhsToken.type != TokenType::EndOfFile, "");
-    ast::UniquePtr<ast::Expression> left = parseOperand();
-    Token const operatorToken            = tokens.peek();
-    auto parse                           = [&](ast::BinaryOperator op) {
+    UniquePtr<ast::Expression> left = parseOperand();
+    Token const operatorToken       = tokens.peek();
+    auto parse                      = [&](ast::BinaryOperator op) {
         if (!left) {
             pushExpectedExpression(lhsToken);
         }
         tokens.eat();
-        Token const& rhsToken                 = tokens.peek();
-        ast::UniquePtr<ast::Expression> right = parseBinaryOperatorRTL<Op...>(parseOperand);
+        Token const& rhsToken            = tokens.peek();
+        UniquePtr<ast::Expression> right = parseBinaryOperatorRTL<Op...>(parseOperand);
         if (!right) {
             pushExpectedExpression(rhsToken);
         }
-        return ast::allocate<ast::BinaryExpression>(op, std::move(left), std::move(right), operatorToken);
+        return allocate<ast::BinaryExpression>(op, std::move(left), std::move(right), operatorToken);
     };
-    if (ast::UniquePtr<ast::Expression> result = nullptr;
+    if (UniquePtr<ast::Expression> result = nullptr;
         ((operatorToken.id == toString(Op) && ((result = parse(Op)), true)) || ...))
     {
         return result;

@@ -45,7 +45,7 @@ void Context::run() {
         if (node.category != SymbolCategory::Variable) {
             continue;
         }
-        auto& var         = utl::down_cast<ast::VariableDeclaration const&>(*node.astNode);
+        auto& var         = cast<ast::VariableDeclaration const&>(*node.astNode);
         auto const typeID = analyzeTypeExpression(*var.typeExpr);
         auto const& type  = sym.getObjectType(typeID);
         if (type.isBuiltin()) {
@@ -92,7 +92,7 @@ void Context::run() {
 }
 
 void Context::instantiateObjectType(DependencyGraphNode const& node) {
-    ast::StructDefinition& structDef = utl::down_cast<ast::StructDefinition&>(*node.astNode);
+    ast::StructDefinition& structDef = cast<ast::StructDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.scope);
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
     size_t objectSize  = 0;
@@ -102,7 +102,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }
-        auto& varDecl = utl::down_cast<ast::VariableDeclaration&>(*statement);
+        auto& varDecl = cast<ast::VariableDeclaration&>(*statement);
         objectType.addMemberVariable(varDecl.symbolID());
         if (varDecl.typeID() == TypeID::Invalid) {
             break;
@@ -125,7 +125,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
 }
 
 void Context::instantiateVariable(DependencyGraphNode const& node) {
-    ast::VariableDeclaration& varDecl = utl::down_cast<ast::VariableDeclaration&>(*node.astNode);
+    ast::VariableDeclaration& varDecl = cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.scope);
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     TypeID const typeID             = analyzeTypeExpression(*varDecl.typeExpr);
@@ -137,7 +137,7 @@ void Context::instantiateVariable(DependencyGraphNode const& node) {
 
 void Context::instantiateFunction(DependencyGraphNode const& node) {
     SC_ASSERT(node.category == SymbolCategory::Function, "Must be a function");
-    ast::FunctionDefinition& fnDecl = utl::down_cast<ast::FunctionDefinition&>(*node.astNode);
+    ast::FunctionDefinition& fnDecl = cast<ast::FunctionDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.scope);
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     auto signature                  = analyzeSignature(fnDecl);

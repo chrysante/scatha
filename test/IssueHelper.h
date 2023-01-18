@@ -5,6 +5,7 @@
 #include <optional>
 #include <string_view>
 
+#include "AST/AST.h"
 #include "Common/Token.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
@@ -89,7 +90,7 @@ struct IssueHelper {
 
     using HandlerType = typename internal::ToIssueHandler<IssueBaseType>::type;
     HandlerType iss;
-    ast::UniquePtr<ast::AbstractSyntaxTree> ast = nullptr;
+    UniquePtr<ast::AbstractSyntaxTree> ast = nullptr;
     sema::SymbolTable sym{};
 };
 

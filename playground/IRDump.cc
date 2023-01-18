@@ -7,6 +7,7 @@
 
 #include <utl/stdio.hpp>
 
+#include "AST/AST.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"

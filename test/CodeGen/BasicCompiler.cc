@@ -7,6 +7,7 @@
 #include <utl/functional.hpp>
 #include <utl/vector.hpp>
 
+#include "AST/AST.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Basic/Memory.h"

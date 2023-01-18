@@ -1,5 +1,6 @@
 #include "CompileToIR.h"
 
+#include "AST/AST.h"
 #include "CodeGen/AST2IR/CodeGenerator.h"
 #include "IR/Context.h"
 #include "IR/Module.h"

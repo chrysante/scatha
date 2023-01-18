@@ -5,7 +5,7 @@
 
 using namespace scatha;
 
-std::pair<ast::UniquePtr<ast::AbstractSyntaxTree>, issue::SyntaxIssueHandler> test::parse(std::string_view text) {
+std::pair<UniquePtr<ast::AbstractSyntaxTree>, issue::SyntaxIssueHandler> test::parse(std::string_view text) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     issue::SyntaxIssueHandler syntaxIss;

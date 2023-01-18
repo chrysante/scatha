@@ -8,12 +8,12 @@ using namespace scatha;
 using namespace parse;
 using namespace ast;
 
-static ast::UniquePtr<ast::Expression> parseExpression(std::string expression) {
+static UniquePtr<ast::Expression> parseExpression(std::string expression) {
     auto [ast, iss] = test::parse("fn testFn() { " + expression + "; }");
     assert(iss.empty());
-    auto* const tu      = utl::down_cast<ast::TranslationUnit*>(ast.get());
-    auto* const testFn  = utl::down_cast<ast::FunctionDefinition*>(tu->declarations[0].get());
-    auto* exprStatement = utl::down_cast<ast::ExpressionStatement*>(testFn->body->statements[0].get());
+    auto* const tu      = cast<ast::TranslationUnit*>(ast.get());
+    auto* const testFn  = cast<ast::FunctionDefinition*>(tu->declarations[0].get());
+    auto* exprStatement = cast<ast::ExpressionStatement*>(testFn->body->statements[0].get());
     return std::move(exprStatement->expression);
 }
 
@@ -27,8 +27,8 @@ TEST_CASE("Parsing expressions", "[parse]") {
         //   "a"   "b"
         //
         // clang-format on
-        ast::UniquePtr const expr = parseExpression("a + b");
-        auto* add                 = cast<BinaryExpression*>(expr.get());
+        UniquePtr const expr = parseExpression("a + b");
+        auto* add            = cast<BinaryExpression*>(expr.get());
         REQUIRE(add->operation() == BinaryOperator::Addition);
         auto* lhs = cast<Identifier*>(add->lhs.get());
         CHECK(lhs->value() == "a");
@@ -45,8 +45,8 @@ TEST_CASE("Parsing expressions", "[parse]") {
         //  "3"   "x"
         //
         // clang-format on
-        ast::UniquePtr const expr = parseExpression("3 * x");
-        auto* mul                 = cast<BinaryExpression*>(expr.get());
+        UniquePtr const expr = parseExpression("3 * x");
+        auto* mul            = cast<BinaryExpression*>(expr.get());
         REQUIRE(mul->operation() == BinaryOperator::Multiplication);
         auto* lhs = cast<IntegerLiteral*>(mul->lhs.get());
         CHECK(lhs->value() == 3);
@@ -65,8 +65,8 @@ TEST_CASE("Parsing expressions", "[parse]") {
         //      "b"   "c"
         //
         // clang-format on
-        ast::UniquePtr const expr = parseExpression("a + b * c");
-        auto* add                 = cast<BinaryExpression*>(expr.get());
+        UniquePtr const expr = parseExpression("a + b * c");
+        auto* add            = cast<BinaryExpression*>(expr.get());
         REQUIRE(add->operation() == BinaryOperator::Addition);
         auto* a = cast<Identifier*>(add->lhs.get());
         CHECK(a->value() == "a");
@@ -89,8 +89,8 @@ TEST_CASE("Parsing expressions", "[parse]") {
         //  "a"   "b"
         //
         // clang-format on
-        ast::UniquePtr const expr = parseExpression("(a + b) * c");
-        auto* mul                 = cast<BinaryExpression*>(expr.get());
+        UniquePtr const expr = parseExpression("(a + b) * c");
+        auto* mul            = cast<BinaryExpression*>(expr.get());
         REQUIRE(mul->operation() == BinaryOperator::Multiplication);
         auto* add = cast<BinaryExpression*>(mul->lhs.get());
         REQUIRE(add->operation() == BinaryOperator::Addition);
