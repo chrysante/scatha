@@ -6,17 +6,17 @@
 
 #include <utl/vector.hpp>
 
+#include "APFloatTest.h"
 #include "Assembly.h"
 #include "DrawGraph.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IRDump.h"
 #include "IRSketch.h"
-#include "Opt/Mem2Reg.h"
 #include "Opt/ConstantPropagation.h"
+#include "Opt/Mem2Reg.h"
 #include "OptTest.h"
 #include "SampleCompiler.h"
-#include "APFloatTest.h"
 
 enum class ProgramCase { SampleCompiler, IRDump, IRSketch, ASMTest, EmitCFG, EmitUseGraph, OptTest, APFloatTest };
 
@@ -49,16 +49,14 @@ struct OptionParser {
 };
 
 int main(int argc, char const* const* argv) {
-    OptionParser parse = {
-        { "sample-compiler", ProgramCase::SampleCompiler },
-        { "ir-dump", ProgramCase::IRDump },
-        { "ir-sketch", ProgramCase::IRSketch },
-        { "test-asm", ProgramCase::ASMTest },
-        { "emit-cfg", ProgramCase::EmitCFG },
-        { "emit-use-graph", ProgramCase::EmitUseGraph },
-        { "opt-test", ProgramCase::OptTest },
-        { "apfloat-test", ProgramCase::APFloatTest }
-    };
+    OptionParser parse     = { { "sample-compiler", ProgramCase::SampleCompiler },
+                               { "ir-dump", ProgramCase::IRDump },
+                               { "ir-sketch", ProgramCase::IRSketch },
+                               { "test-asm", ProgramCase::ASMTest },
+                               { "emit-cfg", ProgramCase::EmitCFG },
+                               { "emit-use-graph", ProgramCase::EmitUseGraph },
+                               { "opt-test", ProgramCase::OptTest },
+                               { "apfloat-test", ProgramCase::APFloatTest } };
     auto const parseResult = parse(argc, argv);
     if (!parseResult) {
         std::cerr << "Invalid usage: ";

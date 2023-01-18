@@ -99,28 +99,28 @@ public:
     using pointer           = value_type*;
     using reference         = value_type&;
     using iterator_category = typename std::iterator_traits<Itr>::iterator_category;
-    
+
     PhiIteratorImpl(Itr begin, Itr end): itr(begin), end(end) {}
 
     pointer toAddress() const { return cast<pointer>(itr.to_address()); }
-    
+
     reference operator*() const { return *toAddress(); }
-    
+
     pointer operator->() const { return toAddress(); }
-    
+
     PhiIteratorImpl& operator++() {
         ++itr;
         return *this;
     }
-    
+
     PhiIteratorImpl operator++(int) {
         auto result = *this;
         ++*this;
         return result;
     }
-    
+
     bool operator==(PhiSentinel const&) const { return itr == end || !isa<Phi>(*itr); }
-    
+
 private:
     Itr itr, end;
 };

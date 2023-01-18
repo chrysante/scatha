@@ -55,12 +55,14 @@ public:
 
     template <typename T>
     requires std::is_arithmetic_v<T>
-    explicit operator T() const { return to<T>(); }
+    explicit operator T() const {
+        return to<T>();
+    }
 
     template <typename T>
     requires std::is_arithmetic_v<T>
     T to() const;
-    
+
     /// Convert a string to APInt.
     ///
     /// \details Whitespaces are ignored.
@@ -105,7 +107,7 @@ public:
     APInt& operator/=(T rhs) & {
         return *this /= APInt(rhs);
     }
-    
+
     APInt& operator%=(APInt const& rhs) &;
     template <typename T>
     requires std::is_arithmetic_v<T>
@@ -123,7 +125,7 @@ public:
     friend APInt operator-(APInt const& operand);
     friend APInt operator~(APInt const& operand);
     friend APInt operator!(APInt const& operand);
-    
+
     // MARK: Queries
 
     /// Query this number for lossless convertability to C++ arithmetic types.

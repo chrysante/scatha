@@ -29,7 +29,7 @@ using namespace scatha;
 }
 
 void playground::apFloatTest() {
-    APInt i  = 23;
+    APInt i = 23;
     std::cout << ~i << std::endl;
     uint64_t j = 23;
     std::cout << ~j << std::endl;

@@ -16,8 +16,8 @@
 #include "IR/Module.h"
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
-#include "Opt/Mem2Reg.h"
 #include "Opt/ConstantPropagation.h"
+#include "Opt/Mem2Reg.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "VM/Program.h"
@@ -72,6 +72,7 @@ static u64 compileAndExecute(std::string_view text, OptimizationLevel optLevel) 
 }
 
 void test::checkReturns(u64 value, std::string_view text) {
+    // clang-format off
     utl::vector<OptimizationLevel> const levels = {
         [](ir::Context&, ir::Module&) {},
         [](ir::Context& ctx, ir::Module& mod) {
@@ -81,9 +82,8 @@ void test::checkReturns(u64 value, std::string_view text) {
             opt::mem2Reg(ctx, mod);
             opt::propagateConstants(ctx, mod);
         },
-    };
+    }; // clang-format on
     for (auto const& level: levels) {
         CHECK(compileAndExecute(text, level) == value);
     }
-    
 }
