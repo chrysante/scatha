@@ -201,20 +201,20 @@ bool APInt::representableAsImpl() const {
     }
 }
 
-template bool APInt::representableAs<char>() const;
-template bool APInt::representableAs<signed char>() const;
-template bool APInt::representableAs<unsigned char>() const;
-template bool APInt::representableAs<signed short>() const;
-template bool APInt::representableAs<unsigned short>() const;
-template bool APInt::representableAs<signed int>() const;
-template bool APInt::representableAs<unsigned int>() const;
-template bool APInt::representableAs<signed long>() const;
-template bool APInt::representableAs<unsigned long>() const;
-template bool APInt::representableAs<signed long long>() const;
-template bool APInt::representableAs<unsigned long long>() const;
-template bool APInt::representableAs<float>() const;
-template bool APInt::representableAs<double>() const;
-template bool APInt::representableAs<long double>() const;
+template bool APInt::representableAsImpl<char>() const;
+template bool APInt::representableAsImpl<signed char>() const;
+template bool APInt::representableAsImpl<unsigned char>() const;
+template bool APInt::representableAsImpl<signed short>() const;
+template bool APInt::representableAsImpl<unsigned short>() const;
+template bool APInt::representableAsImpl<signed int>() const;
+template bool APInt::representableAsImpl<unsigned int>() const;
+template bool APInt::representableAsImpl<signed long>() const;
+template bool APInt::representableAsImpl<unsigned long>() const;
+template bool APInt::representableAsImpl<signed long long>() const;
+template bool APInt::representableAsImpl<unsigned long long>() const;
+template bool APInt::representableAsImpl<float>() const;
+template bool APInt::representableAsImpl<double>() const;
+template bool APInt::representableAsImpl<long double>() const;
 
 long long APInt::toSigned() const {
     return mpz_get_si(as_mpz(storage));
