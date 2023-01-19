@@ -27,7 +27,8 @@ struct Context {
     void analyze(ast::WhileStatement&);
     void analyze(ast::DoWhileStatement&);
     void analyze(ast::ForStatement&);
-    void analyze(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
+    void analyze(ast::EmptyStatement&) {}
+    void analyze(ast::AbstractSyntaxTree& node) { SC_UNREACHABLE(); }
 
     ExpressionAnalysisResult dispatchExpression(ast::Expression&);
 
