@@ -89,6 +89,8 @@ struct SCCContext {
 
     bool run();
 
+    bool apply();
+    
     void processFlowEdge(FlowEdge edge);
 
     void processUseEdge(UseEdge edge);
@@ -106,8 +108,10 @@ struct SCCContext {
     void addSingleEdge(APInt const& constant, TerminatorInst& inst);
 
     bool basicBlockIsExecutable(BasicBlock& basicBlock);
-
+    
     size_t numIncomingExecutableEdges(BasicBlock& basicBlock);
+    
+    bool controlledByConstant(TerminatorInst const& terminator);
 
     FormalValue evaluateArithmetic(ArithmeticOperation operation, FormalValue const& lhs, FormalValue const& rhs);
 
@@ -160,6 +164,10 @@ bool SCCContext::run() {
             processUseEdge(edge);
         }
     }
+    return apply();
+}
+
+bool SCCContext::apply() {
     utl::small_vector<Instruction*> replacedInstructions;
     for (auto [value, latticeElement]: formalValues) {
         if (!isConstant(latticeElement)) {
@@ -206,6 +214,10 @@ void SCCContext::processFlowEdge(FlowEdge edge) {
     }
     if (dest->successors().size() == 1) {
         flowWorklist.push_back({ dest, dest->successors().front() });
+    }
+    else if (auto* term = dest->terminator(); controlledByConstant(*term)) {
+        FormalValue const fv = isa<Branch>(term) ? formalValue(cast<Branch*>(term)->condition()) : Inevaluable{};
+        processTerminator(fv, *term);
     }
 }
 
@@ -347,6 +359,16 @@ size_t SCCContext::numIncomingExecutableEdges(BasicBlock& basicBlock) {
         result += isExecutable({ pred, &basicBlock });
     }
     return result;
+}
+
+bool SCCContext::controlledByConstant(TerminatorInst const& terminator) {
+    // clang-format off
+    return visit(terminator, utl::overload{
+        [](Goto const&) { return true; },
+        [](Branch const& br) { return isa<IntegralConstant>(br.condition()); },
+        [](Return const&) { return true; },
+        [](TerminatorInst const&) -> bool { SC_UNREACHABLE(); },
+    }); // clang-format on
 }
 
 template <typename T>
