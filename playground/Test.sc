@@ -1,22 +1,10 @@
-fn fact(n: int) -> int {
-    var result = 1;
-    var i = 0;
-    do {
-        i += 1;
-        result *= i;
-    } while i < n;
-    return result;
-}
-fn main() -> int {
-    return fact(4);
-}
 
-/// Check if SCC is behaving correctly on this function!
-//fn main() -> bool {
-//    let a = true;
-//    let b = false;
-//    return a && b;
-//}
+// Check if SCC is behaving correctly on this function!
+fn main() -> bool {
+    let a = true;
+    let b = false;
+    return a && b;
+}
 
 
 //fn main() -> int {
