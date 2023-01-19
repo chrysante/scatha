@@ -1,8 +1,11 @@
 #include "Opt/DCE.h"
 
+#include <utl/hashtable.hpp>
+
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Validate.h"
+#include "Opt/Common.h"
 
 using namespace scatha;
 using namespace opt;
@@ -23,6 +26,7 @@ struct DCEContext {
     Function& function;
     
     bool modified = false;
+    utl::hashset<BasicBlock const*> visited;
 };
 
 } // namespace
@@ -40,6 +44,10 @@ bool DCEContext::run() {
 }
 
 void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
+    if (visited.contains(basicBlock)) {
+        return;
+    }
+    visited.insert(basicBlock);
     if (auto* pred = basicBlock->singlePredecessor();
         pred && pred->hasSingleSuccessor())
     {
@@ -50,7 +58,11 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
         if (pred->isEntry()) {
             basicBlock->setName(std::string(pred->name()));
         }
+        for (auto* predPred: pred->predecessors()) {
+            predPred->terminator()->updateTarget(pred, basicBlock);
+        }
         function.basicBlocks().erase(pred);
+        modified = true;
     }
     auto* const terminator = basicBlock->terminator();
     // clang-format off
@@ -61,20 +73,22 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
         [&](Branch& br) {
             auto* constant = dyncast<IntegralConstant const*>(br.condition());
             if (!constant) {
+                for (auto* succ: br.targets()) {
+                    visitBasicBlock(succ);
+                }
                 return;
             }
-            modified = true;
             size_t const index = constant->value().to<size_t>();
             BasicBlock* target      = br.targets()[1 - index];
             BasicBlock* staleTarget = br.targets()[index];
             auto itr = basicBlock->erase(&br);
             basicBlock->insert(itr, new Goto(irCtx, target));
+            modified = true;
             if (staleTarget->hasSinglePredecessor()) {
                 erase(staleTarget);
             }
             else {
-                SC_DEBUGFAIL();
-                /// Remove current BB as a predecessor of \p staleTarget, also from phi nodes!
+                removePredecessorAndUpdatePhiNodes(staleTarget, basicBlock);
             }
             visitBasicBlock(target);
         },
@@ -91,9 +105,7 @@ void DCEContext::erase(BasicBlock* basicBlock) {
             erase(target);
         }
         else {
-            target->removePredecessor(basicBlock);
-            SC_DEBUGFAIL();
-            /// TODO: Here we also need to remove this basic block as from phi operands of 'target'
+            removePredecessorAndUpdatePhiNodes(target, basicBlock);
         }
     }
     function.basicBlocks().erase(basicBlock);

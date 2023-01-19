@@ -91,10 +91,12 @@ private:
 
 struct PhiSentinel {};
 
-template <typename Itr>
+template <bool IsConst, typename BB = BasicBlock>
 struct PhiIteratorImpl {
+    using Itr = std::conditional_t<IsConst, typename BB::ConstIterator, typename BB::Iterator>;
+    
 public:
-    using value_type        = utl::copy_cv_t<typename std::iterator_traits<Itr>::value_type, Phi>;
+    using value_type        = std::conditional_t<IsConst, Phi const, Phi>;
     using difference_type   = typename std::iterator_traits<Itr>::difference_type;
     using pointer           = value_type*;
     using reference         = value_type&;
@@ -102,6 +104,11 @@ public:
 
     PhiIteratorImpl(Itr begin, Itr end): itr(begin), end(end) {}
 
+    PhiIteratorImpl& operator=(Itr begin)& { itr = begin; return *this; }
+    
+    operator Itr() const { return itr; }
+    operator typename BB::ConstIterator() const requires (!IsConst) { return itr; }
+    
     pointer toAddress() const { return cast<pointer>(itr.to_address()); }
 
     reference operator*() const { return *toAddress(); }

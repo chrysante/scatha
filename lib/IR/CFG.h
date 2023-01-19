@@ -142,8 +142,8 @@ public:
     using Iterator = List<Instruction>::iterator;
     using ConstIterator = List<Instruction>::const_iterator;
     
-    using PhiIterator      = internal::PhiIteratorImpl<Iterator>;
-    using ConstPhiIterator = internal::PhiIteratorImpl<ConstIterator>;
+    using PhiIterator      = internal::PhiIteratorImpl<false>;
+    using ConstPhiIterator = internal::PhiIteratorImpl<true>;
 
     explicit BasicBlock(Context& context, std::string name);
 
@@ -162,6 +162,9 @@ public:
     /// Merge \p this with \p rhs
     /// Insert nodes of \p rhs before \p pos
     void splice(ConstIterator pos, BasicBlock* rhs) {
+        for (auto& inst: *rhs) {
+            inst.set_parent(this);
+        }
         instructions.splice(pos, rhs->instructions);
     }
     
@@ -189,6 +192,14 @@ public:
             i->clearOperands();
         }
         return instructions.erase(first, last);
+    }
+    
+    void eraseAllPhiNodes() {
+        auto phiEnd = begin();
+        while (isa<Phi>(*phiEnd)) {
+            ++phiEnd;
+        }
+        erase(begin(), phiEnd);
     }
     
     /// Extract an instruction. Does not clear the operands. Caller takes ownership of the instruction.
@@ -473,6 +484,10 @@ public:
     std::span<BasicBlock* const> targets() { return _targets; }
     std::span<BasicBlock const* const> targets() const { return _targets; }
 
+    void updateTarget(BasicBlock const* oldTarget, BasicBlock* newTarget) {
+        *std::find(_targets.begin(), _targets.end(), oldTarget) = newTarget;
+    }
+    
 protected:
     explicit TerminatorInst(NodeType nodeType,
                             Context& context,
@@ -562,28 +577,51 @@ public:
         Phi(std::span<PhiMapping const>(args), std::move(name)) {}
     explicit Phi(std::span<PhiMapping const> args, std::string name);
 
-    /// Note: This ugly interface could be changed if we had C++20 zip range.
-
+    /// Number of arguments. Must match the number of predecessors of parent basic block.
     size_t argumentCount() const { return _preds.size(); }
 
+    /// Access argument pair at index \p index
     PhiMapping argumentAt(size_t index) {
         SC_ASSERT(index < argumentCount(), "");
         return { _preds[index], operands()[index] };
     }
 
+    /// \overload
     ConstPhiMapping argumentAt(size_t index) const {
         SC_ASSERT(index < argumentCount(), "");
         return { _preds[index], operands()[index] };
     }
 
+    /// View over all incoming edges. Must be the same as predecessors of parent basic block.
     std::span<BasicBlock* const> incomingEdges() { return _preds; }
+    
+    /// \overload
     std::span<BasicBlock const* const> incomingEdges() const { return _preds; }
 
+    /// View over arguments
     auto arguments() {
         return utl::transform(utl::iota(argumentCount()), [this](size_t index) { return argumentAt(index); });
     }
+    
+    /// \overload
     auto arguments() const {
         return utl::transform(utl::iota(argumentCount()), [this](size_t index) { return argumentAt(index); });
+    }
+    
+    size_t indexOf(BasicBlock const* predecessor) const {
+        return utl::narrow_cast<size_t>(std::find(_preds.begin(), _preds.end(), predecessor) - _preds.begin());
+    }
+    
+    /// Remove the argument corresponding to \p predecessor
+    /// \p predecessor must be an argument of this phi instruction.
+    void removeArgument(BasicBlock const* predecessor) {
+        removeArgument(indexOf(predecessor));
+    }
+    
+    /// Remove the argument at index \p index
+    void removeArgument(size_t index) {
+        _preds.erase(_preds.begin() + index);
+        _operands.erase(_operands.begin() + index);
     }
 
 private:

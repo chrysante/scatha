@@ -19,6 +19,7 @@
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
 #include "Opt/ConstantPropagation.h"
+#include "Opt/DCE.h"
 #include "Opt/Mem2Reg.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
@@ -86,6 +87,13 @@ void test::checkReturns(u64 value, std::string_view text) {
             for (auto& function: mod.functions()) {
                 opt::mem2Reg(ctx, function);
                 opt::propagateConstants(ctx, function);
+            }
+        },
+        [](ir::Context& ctx, ir::Module& mod) {
+            for (auto& function: mod.functions()) {
+                opt::mem2Reg(ctx, function);
+                opt::propagateConstants(ctx, function);
+                opt::dce(ctx, function);
             }
         },
     }; // clang-format on
