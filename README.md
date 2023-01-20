@@ -51,7 +51,7 @@ Take a look at the [Grammar](docs/Grammar.md).
 
     - <s> Register promotion </s> done
     
-    - <s> Constant folding </> done
+    - <s> Constant folding </s> done
     
     - Inlining
 
