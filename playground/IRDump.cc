@@ -6,8 +6,8 @@
 #include <string>
 
 #include <utl/stdio.hpp>
+#include <svm/Program.h>
 
-#include "AST/AST.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
@@ -23,7 +23,6 @@
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
-#include "VM/Program.h"
 
 using namespace scatha;
 
@@ -59,7 +58,7 @@ void playground::irDump(std::string_view text) {
 
     auto program = Asm::assemble(asmStream);
     sectionHeader(" Assembled program ");
-    print(program);
+    svm::print(program.data());
 }
 
 std::pair<scatha::ir::Context, scatha::ir::Module> playground::makeIRModule(std::string_view text) {

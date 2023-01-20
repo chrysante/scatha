@@ -2,6 +2,7 @@
 
 #include <svm/Builtin.h>
 #include <svm/VirtualMachine.h>
+#include <svm/Program.h>
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
@@ -15,16 +16,16 @@ using namespace scatha;
 using namespace scatha::Asm;
 
 static svm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
-    svm::Program p = assemble(str);
+    auto p = assemble(str);
     svm::VirtualMachine vm;
-    vm.load(p);
+    vm.loadProgram(p.data());
     vm.execute();
     return vm;
 }
 
 [[maybe_unused]] static void assembleAndPrint(AssemblyStream const& str) {
-    svm::Program p = assemble(str);
-    print(p);
+    auto p = assemble(str);
+    svm::print(p.data());
 }
 
 TEST_CASE("Alloca implementation", "[assembly][vm]") {

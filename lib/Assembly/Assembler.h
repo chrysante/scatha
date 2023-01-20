@@ -5,13 +5,9 @@
 
 #include <string>
 
+#include <utl/vector.hpp>
+
 #include <scatha/Basic/Basic.h>
-
-namespace svm {
-
-class Program;
-
-} // namespace svm
 
 namespace scatha::Asm {
 
@@ -21,7 +17,7 @@ struct AssemblerOptions {
     std::string startFunction;
 };
 
-[[nodiscard]] SCATHA(API) svm::Program assemble(AssemblyStream const& assemblyStream, AssemblerOptions options = {});
+[[nodiscard]] SCATHA(API) utl::vector<u8> assemble(AssemblyStream const& assemblyStream, AssemblerOptions options = {});
 
 } // namespace scatha::Asm
 

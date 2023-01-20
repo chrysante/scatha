@@ -1,3 +1,5 @@
+// PUBLIC-HEADER
+
 #ifndef SVM_VIRTUALMACHINE_H_
 #define SVM_VIRTUALMACHINE_H_
 
@@ -7,7 +9,6 @@
 #include <svm/Common.h>
 #include <svm/ExternalFunction.h>
 #include <svm/Instruction.h>
-#include <svm/Program.h>
 
 namespace svm {
 
@@ -44,7 +45,7 @@ struct OpCodeImpl;
 class VirtualMachine: VMState {
 public:
     VirtualMachine();
-    void load(Program const&);
+    void loadProgram(u8 const* data);
     void execute();
 
     void addExternalFunction(size_t slot, ExternalFunction);

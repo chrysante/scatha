@@ -1,3 +1,5 @@
+// PUBLIC-HEADER
+
 #ifndef SVM_COMMON_H_
 #define SVM_COMMON_H_
 

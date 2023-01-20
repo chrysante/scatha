@@ -7,7 +7,7 @@ namespace scathac {
 
 struct Options {
     std::filesystem::path filepath;
-    bool run;
+    std::filesystem::path objpath;
     bool time;
 };
 

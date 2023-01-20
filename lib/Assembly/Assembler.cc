@@ -32,8 +32,8 @@ struct LabelPlaceholder {};
 
 struct Context {
 
-    explicit Context(AssemblyStream const& stream, AssemblerOptions options, svm::Program& program):
-        stream(stream), options(options), program(program), instructions(program.instructions) {}
+    explicit Context(AssemblyStream const& stream, AssemblerOptions options):
+        stream(stream), options(options) {}
 
     void run();
 
@@ -61,7 +61,7 @@ struct Context {
 
     void put(svm::OpCode o) {
         SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
-        program.instructions.push_back(utl::to_underlying(o));
+        instructions.push_back(utl::to_underlying(o));
     }
 
     template <typename T>
@@ -84,27 +84,37 @@ struct Context {
 
     AssemblyStream const& stream;
     AssemblerOptions options;
-    svm::Program& program;
-    utl::vector<u8>& instructions;
-    // Mapping Label ID -> Code position
+    utl::vector<u8> instructions;
+    u64 start = 0;
+    
+    /// Maps Label ID to Code position
     utl::hashmap<u64, size_t> labels;
-    // List of all code position with a jump site
+    /// List of all code position with a jump site
     utl::vector<Jumpsite> jumpsites;
 };
 
 } // namespace
 
-svm::Program Asm::assemble(AssemblyStream const& assemblyStream, AssemblerOptions options) {
-    svm::Program program;
-    Context ctx(assemblyStream, options, program);
+utl::vector<u8> Asm::assemble(AssemblyStream const& assemblyStream, AssemblerOptions options) {
+    Context ctx(assemblyStream, options);
     ctx.run();
+    svm::ProgramHeader const header {
+        .versionString = {},
+        .size          = sizeof(svm::ProgramHeader) + ctx.instructions.size(), // + data.size()
+        .dataOffset    = sizeof(svm::ProgramHeader),
+        .textOffset    = sizeof(svm::ProgramHeader),
+        .start         = ctx.start
+    };
+    utl::vector<u8> program(sizeof(svm::ProgramHeader) + header.size);
+    std::memcpy(program.data(), &header, sizeof(header));
+    std::memcpy(program.data() + sizeof(header), ctx.instructions.data(), ctx.instructions.size());
     return program;
 }
 
 void Context::run() {
     for (auto& block: stream) {
         if (!options.startFunction.empty() && block.name() == options.startFunction) {
-            program.start = currentPosition();
+            start = currentPosition();
         }
         labels.insert({ block.id(), currentPosition() });
         for (auto& inst: block) {

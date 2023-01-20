@@ -7,5 +7,5 @@ do
     fi
     export dir=${file%/*}
     mkdir -p "include/svm/$dir"
-    cp "svm/$file" "include/svm/$file"
-done < svm/public-headers
+    cp "svm-lib/$file" "include/svm/$file"
+done < svm-lib/public-headers

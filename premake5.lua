@@ -91,11 +91,11 @@ externalincludedirs {
 links { "scatha", "utility", "termfmt", "apmath" }
 
 ------------------------------------------
-project "svm"
+project "svm-lib"
 
 kind "StaticLib"
 
-addCppFiles "svm"
+addCppFiles "svm-lib"
 
 externalincludedirs {
     "include",
@@ -105,6 +105,21 @@ externalincludedirs {
 prebuildcommands {
     "${PROJECT_DIR}/scripts/copy-public-vm-headers-unix.sh"
 }
+
+------------------------------------------
+project "svm"
+
+kind "ConsoleApp"
+
+addCppFiles "svm"
+
+externalincludedirs {
+    "include",
+    "external/utility/include",
+    "external/cli11/include",
+}
+
+links "svm-lib"
 
 ------------------------------------------
 project "scatha-test"
@@ -120,7 +135,7 @@ externalincludedirs {
 }
 
 addCppFiles "test"
-links { "scatha", "svm", "utility", "APMath" } 
+links { "scatha", "svm-lib", "utility", "APMath" } 
 
 ------------------------------------------
 project "playground"
@@ -136,7 +151,7 @@ includedirs { ".", "lib", "playground", "apmath" }
 
 addCppFiles "playground"
 files "playground/**.sc"
-links { "scatha", "utility", "termfmt" }
+links { "scatha", "svm-lib", "utility", "termfmt" }
 
 filter { "system:macosx"} 
     defines { "PROJECT_LOCATION=\"${PROJECT_DIR}\"" }

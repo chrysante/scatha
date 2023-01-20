@@ -1,19 +1,19 @@
-#ifndef SVM_PROGRAM_H_
-#define SVM_PROGRAM_H_
+#ifndef SVM_PROGRAMINTERNAL_H_
+#define SVM_PROGRAMINTERNAL_H_
 
 #include <iosfwd>
 
 #include <utl/vector.hpp>
 
 #include <svm/Common.h>
+#include <svm/Program.h>
 
 namespace svm {
 
 class Program {
 public:
-    friend void print(Program const&);
-    friend void print(Program const&, std::ostream&);
-
+    explicit Program(u8 const* data);
+    
     utl::vector<u8> instructions;
     utl::vector<u8> data;
     size_t start = 0;
@@ -21,4 +21,4 @@ public:
 
 } // namespace svm
 
-#endif // SVM_PROGRAM_H_
+#endif // SVM_PROGRAMINTERNAL_H_

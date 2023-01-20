@@ -1,3 +1,5 @@
+#include "ProgramInternal.h"
+
 #include <svm/Program.h>
 
 #include <iomanip>
@@ -12,8 +14,20 @@
 
 using namespace svm;
 
-void svm::print(Program const& p) {
-    print(p, std::cout);
+Program::Program(u8 const* prog) {
+    ProgramHeader header;
+    std::memcpy(&header, prog, sizeof(header));
+    size_t const dataSize = header.textOffset - header.dataOffset;
+    data.resize(dataSize, utl::no_init);
+    std::memcpy(data.data(), prog + header.dataOffset, dataSize);
+    size_t const textSize = header.size - header.textOffset;
+    instructions.resize(textSize, utl::no_init);
+    std::memcpy(instructions.data(), prog + header.textOffset, textSize);
+    start = header.start;
+}
+
+void svm::print(u8 const* program) {
+    svm::print(program, std::cout);
 }
 
 template <typename T>
@@ -53,9 +67,9 @@ static auto printAs(std::span<u8 const> data, size_t offset) {
     return printAs<T>(readAs<T>(data, offset));
 }
 
-void print(Program const& p, std::ostream& str) {
+void svm::print(u8 const* progData, std::ostream& str) {
+    Program const p(progData);
     std::span<u8 const> data = p.instructions;
-
     auto printMemoryAcccess = [&](size_t i) {
         size_t const baseptrRegisterIndex     = readAs<u8>(data, i);
         size_t const offsetCountRegisterIndex = readAs<u8>(data, i + 1);
@@ -68,7 +82,6 @@ void print(Program const& p, std::ostream& str) {
         }
         str << " + " << printAs<u8>(constantInnerOffset);
     };
-
     for (size_t i = 0; i < data.size();) {
         OpCode const opcode = static_cast<OpCode>(data[i]);
         str << std::setw(3) << i << ": " << opcode << " ";
@@ -103,7 +116,6 @@ void print(Program const& p, std::ostream& str) {
             break;
         case _count: assert(false);
         }
-
         str << '\n';
         i += codeSize(opcode);
     }

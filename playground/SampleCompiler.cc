@@ -7,8 +7,9 @@
 #include <utl/format.hpp>
 #include <utl/stdio.hpp>
 #include <utl/typeinfo.hpp>
+#include <svm/VirtualMachine.h>
+#include <svm/Program.h>
 
-#include "AST/AST.h"
 #include "AST/Print.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
@@ -30,7 +31,6 @@
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
-#include "VM/VirtualMachine.h"
 
 using namespace scatha;
 using namespace scatha::lex;
@@ -182,11 +182,11 @@ void playground::compile(std::string text) {
         return;
     }
     auto const program = Asm::assemble(str0, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
-    print(program);
+    svm::print(program.data());
     subHeader();
 
-    vm::VirtualMachine vm;
-    vm.load(program);
+    svm::VirtualMachine vm;
+    vm.loadProgram(program.data());
     vm.execute();
     u64 const exitCode = vm.getState().registers[0];
     std::cout << "VM: Program ended with exit code: [\n\ti: " << static_cast<i64>(exitCode) << ", \n\tu: " << exitCode

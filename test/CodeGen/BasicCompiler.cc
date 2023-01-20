@@ -30,7 +30,7 @@ using namespace scatha;
 
 using OptimizationLevel = utl::function<void(ir::Context&, ir::Module&)>;
 
-static svm::Program compile(std::string_view text, OptimizationLevel optLevel) {
+static auto compile(std::string_view text, OptimizationLevel optLevel) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     if (!lexIss.empty()) {
@@ -67,9 +67,9 @@ static svm::Program compile(std::string_view text, OptimizationLevel optLevel) {
 }
 
 static u64 compileAndExecute(std::string_view text, OptimizationLevel optLevel) {
-    svm::Program const p = compile(text, optLevel);
+    auto const p = compile(text, optLevel);
     svm::VirtualMachine vm;
-    vm.load(p);
+    vm.loadProgram(p.data());
     vm.execute();
     return vm.getState().registers[0];
 }

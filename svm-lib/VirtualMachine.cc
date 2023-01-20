@@ -8,6 +8,7 @@
 #include <svm/OpCode.h>
 
 #include "Memory.h"
+#include "ProgramInternal.h"
 
 using namespace svm;
 
@@ -15,7 +16,8 @@ VirtualMachine::VirtualMachine(): instructionTable(makeInstructionTable()) {
     setFunctionTableSlot(builtinFunctionSlot, makeBuiltinTable());
 }
 
-void VirtualMachine::load(Program const& program) {
+void VirtualMachine::loadProgram(u8 const* data) {
+    Program program(data);
     instructionCount = program.instructions.size();
     // Load the program into memory
     memory.resize(instructionCount);

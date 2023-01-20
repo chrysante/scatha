@@ -18,8 +18,6 @@
 #include <scatha/Parser/SyntaxIssue.h>
 #include <scatha/Sema/Analyze.h>
 #include <scatha/Sema/SemanticIssue.h>
-#include <scatha/VM/Program.h>
-#include <scatha/VM/VirtualMachine.h>
 #include <termfmt/termfmt.h>
 #include <utl/format.hpp>
 #include <utl/typeinfo.hpp>
@@ -99,7 +97,7 @@ static void printSemaIssues(issue::SemaIssueHandler const& iss, sema::SymbolTabl
 }
 
 int main(int argc, char* argv[]) {
-    scathac::Options const options = scathac::parseCLI(argc, argv);
+    scathac::Options options = scathac::parseCLI(argc, argv);
     std::fstream file(options.filepath, std::ios::in);
     if (!file) {
         std::cout << "Failed to open " << options.filepath << "\n";
@@ -165,18 +163,14 @@ int main(int argc, char* argv[]) {
                   << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0 << "ms\n";
     }
 
-    /// Conditionally run the program
-    if (options.run) {
-        auto const runBeginTime = std::chrono::high_resolution_clock::now();
-        vm::VirtualMachine vm;
-        vm.load(program);
-        vm.execute();
-        if (options.time) {
-            std::cout << "Program returned with exit code: " << vm.getState().registers[0] << std::endl;
-            auto const runEndTime = std::chrono::high_resolution_clock::now();
-            auto const dur        = runEndTime - runBeginTime;
-            std::cout << "Run took " << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0
-                      << "ms\n";
-        }
+    if (options.objpath.empty()) {
+        options.objpath = options.filepath.parent_path() / options.filepath.stem().concat(".sbin");
     }
+    std::fstream out(options.objpath, std::ios::out | std::ios::trunc | std::ios::binary);
+    if (!out) {
+        std::cout << "Failed to emit binary\n";
+        std::cout << "Target was: " << options.objpath << "\n";
+        return -1;
+    }
+    std::copy(program.begin(), program.end(), std::ostream_iterator<char>(out));
 }
