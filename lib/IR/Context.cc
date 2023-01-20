@@ -48,14 +48,19 @@ FloatType const* Context::floatType(size_t bitWidth) {
     return type;
 }
 
-IntegralConstant* Context::integralConstant(APInt value, size_t bitWidth) {
-    auto itr = _integralConstants.find({ value, bitWidth });
+IntegralConstant* Context::integralConstant(APInt value) {
+    size_t const bitwidth = value.bitwidth();
+    auto itr = _integralConstants.find({ value, bitwidth });
     if (itr == _integralConstants.end()) {
         std::tie(itr, std::ignore) =
-            _integralConstants.insert({ { value, bitWidth }, new IntegralConstant(*this, value, bitWidth) });
+            _integralConstants.insert({ { value, bitwidth }, new IntegralConstant(*this, value, bitwidth) });
     }
-    SC_ASSERT(itr->second->value() == value, "Value mismatch");
+    SC_ASSERT(ucmp(itr->second->value(), value) == 0, "Value mismatch");
     return itr->second;
+}
+
+IntegralConstant* Context::integralConstant(u64 value, size_t bitWidth) {
+    return integralConstant(APInt(value, bitWidth));
 }
 
 FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitWidth) {

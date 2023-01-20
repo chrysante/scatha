@@ -269,11 +269,11 @@ ir::Value* Context::getValueImpl(Identifier const& id) {
 }
 
 ir::Value* Context::getValueImpl(IntegerLiteral const& intLit) {
-    return irCtx.integralConstant(intLit.value(), 64);
+    return irCtx.integralConstant(intLit.value());
 }
 
 ir::Value* Context::getValueImpl(BooleanLiteral const& boolLit) {
-    return irCtx.integralConstant(boolLit.value(), 1);
+    return irCtx.integralConstant(boolLit.value());
 }
 
 ir::Value* Context::getValueImpl(FloatingPointLiteral const& floatLit) {

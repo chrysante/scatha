@@ -15,6 +15,8 @@
 #include <scatha/Sema/Scope.h>
 #include <scatha/Sema/ScopeKind.h>
 #include <scatha/Sema/SymbolID.h>
+#include <scatha/Common/APInt.h>
+#include <scatha/Common/APFloat.h>
 
 // AbstractSyntaxTree
 // ├─ TranslationUnit
@@ -124,14 +126,12 @@ private:
 class SCATHA(API) IntegerLiteral: public Expression {
 public:
     explicit IntegerLiteral(Token const& token):
-        Expression(NodeType::IntegerLiteral, token), _value(token.toInteger()) {}
+        Expression(NodeType::IntegerLiteral, token), _value(token.toInteger(64)) {}
 
-    /// TODO: Make this an APInt
-    /// Value as declared in the source code.
-    u64 value() const { return _value; };
+    APInt value() const { return _value; };
 
 private:
-    u64 _value;
+    APInt _value;
 };
 
 /// Concrete node representing a boolean literal.
@@ -140,10 +140,10 @@ public:
     explicit BooleanLiteral(Token const& token): Expression(NodeType::BooleanLiteral, token), _value(token.toBool()) {}
 
     /// Value as declared in the source code.
-    bool value() const { return _value; }
+    APInt value() const { return _value; }
 
 private:
-    bool _value;
+    APInt _value;
 };
 
 /// Concrete node representing a floating point literal.
@@ -152,12 +152,10 @@ public:
     explicit FloatingPointLiteral(Token const& token):
         Expression(NodeType::FloatingPointLiteral, token), _value(token.toFloat()) {}
 
-    /// TODO: Make this an APFloat
-    /// Value as declared in the source code.
-    f64 value() const { return _value; }
+    APFloat value() const { return _value; }
 
 private:
-    f64 _value;
+    APFloat _value;
 };
 
 /// Concrete node representing a string literal.

@@ -55,14 +55,15 @@ externalincludedirs {
     "external/termfmt/include",
     "external/boost/config/include",
     "external/boost/detail/include",
-    "external/boost/logic/include"
+    "external/boost/logic/include",
+    "external/APMath/include"
 }
 includedirs { "lib" }
 libdirs { 
     "external/gmp/build/lib", 
     "external/mpfr/build/lib"
 }
-links { "utility", "gmp", "mpfr", "termfmt" }
+links { "utility", "apmath", "mpfr", "termfmt" }
 
 filter "system:macosx"
 buildoptions "-fvisibility=hidden"
@@ -83,10 +84,11 @@ externalincludedirs {
     "include",
     "external/utility/include",
     "external/termfmt/include",
-    "external/cli11/include"
+    "external/cli11/include",
+    "external/APMath/include"
 }
 
-links { "scatha", "utility", "termfmt" }
+links { "scatha", "utility", "termfmt", "apmath" }
 
 ------------------------------------------
 project "scatha-test"
@@ -97,11 +99,12 @@ externalincludedirs {
     "include", 
     "lib",
     "external/utility/include", 
-    "external/Catch"
+    "external/Catch",
+    "external/APMath/include"
 }
 
 addCppFiles "test"
-links { "scatha", "utility" } 
+links { "scatha", "utility", "APMath" } 
 
 ------------------------------------------
 project "playground"
@@ -110,9 +113,10 @@ kind "ConsoleApp"
 externalincludedirs {
     "include",
     "external/utility/include",
-    "external/termfmt/include" 
+    "external/termfmt/include",
+    "external/APMath/include" 
 }
-includedirs { ".", "lib", "playground" }
+includedirs { ".", "lib", "playground", "apmath" }
 
 addCppFiles "playground"
 files "playground/**.sc"
@@ -127,3 +131,4 @@ filter {}
 ------------------------------------------
 include "external/utility/lib.lua"
 include "external/termfmt"
+include "external/APMath/lib.lua"

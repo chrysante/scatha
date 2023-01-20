@@ -9,7 +9,6 @@
 
 namespace scatha {
 
-class APInt;
 class APFloat;
 
 class SCATHA(API) APFloatPrecision {

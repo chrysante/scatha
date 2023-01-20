@@ -8,6 +8,7 @@
 
 #include <scatha/Basic/Basic.h>
 #include <scatha/Common/APFwd.h>
+#include <scatha/Common/APInt.h>
 #include <scatha/Common/Keyword.h>
 #include <scatha/Common/SourceLocation.h>
 
@@ -48,11 +49,9 @@ struct SCATHA(API) Token: public TokenData {
 
     bool empty() const { return id.empty(); }
 
-    std::optional<APInt> toAPInt() const;
-    std::optional<APFloat> toAPFloat(APFloatPrecision precision = APFloatPrecision::Double) const;
-    u64 toInteger() const;
-    bool toBool() const;
-    f64 toFloat() const;
+    APInt toInteger(size_t bitWidth) const;
+    APInt toBool() const;
+    APFloat toFloat(APFloatPrecision precision = APFloatPrecision::Double) const;
 
     bool isSeparator   : 1 = false;
     bool isIdentifier  : 1 = false;

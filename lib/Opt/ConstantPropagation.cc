@@ -181,7 +181,7 @@ bool SCCContext::apply() {
         // clang-format off
         Value* const newValue = visit(utl::overload{
             [&](APInt const& constant) {
-                return irCtx.integralConstant(constant, bitWidth);
+                return irCtx.integralConstant(constant);
             },
             [&](APFloat const& constant) {
                 return irCtx.floatConstant(constant, bitWidth);
@@ -382,7 +382,14 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
     case ArithmeticOperation::Sub:
         // clang-format off
         return utl::visit(utl::overload{
-            [&]<FormalConstant T>(T const& lhs, T const& rhs) -> FormalValue {
+            [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
+                switch (operation) {
+                case ArithmeticOperation::Add: return add(lhs, rhs);
+                case ArithmeticOperation::Sub: return sub(lhs, rhs);
+                default: SC_UNREACHABLE();
+                }
+            },
+            [&](APFloat const& lhs, APFloat const& rhs) -> FormalValue {
                 switch (operation) {
                 case ArithmeticOperation::Add: return lhs + rhs;
                 case ArithmeticOperation::Sub: return lhs - rhs;
@@ -401,9 +408,9 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
         return utl::visit(utl::overload{
             [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
                 switch (operation) {
-                case ArithmeticOperation::Mul: return lhs * rhs;
-                case ArithmeticOperation::Div: return lhs / rhs;
-                case ArithmeticOperation::Rem: return lhs % rhs;
+                case ArithmeticOperation::Mul: return mul(lhs, rhs);
+                case ArithmeticOperation::Div: return sdiv(lhs, rhs);
+                case ArithmeticOperation::Rem: return srem(lhs, rhs);
                 default: SC_UNREACHABLE();
                 }
             },
@@ -443,12 +450,12 @@ FormalValue SCCContext::evaluateUnaryArithmetic(UnaryArithmeticOperation operati
     return utl::visit(utl::overload{
         [&](APInt const& operand) -> FormalValue {
             switch (operation) {
-            case UnaryArithmeticOperation::Promotion: return +operand;
-            case UnaryArithmeticOperation::Negation: return -operand;
-            case UnaryArithmeticOperation::BitwiseNot: return ~operand;
+            case UnaryArithmeticOperation::Promotion: return operand;
+            case UnaryArithmeticOperation::Negation: return negate(operand);
+            case UnaryArithmeticOperation::BitwiseNot: return btwnot(operand);
             case UnaryArithmeticOperation::LogicalNot:
                 SC_ASSERT(operand == 0 || operand == 1, "Operand must be boolean");
-                return 1 - operand;
+                return sub(APInt(1, operand.bitwidth()), operand);
             case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
             }
         },
@@ -468,14 +475,25 @@ FormalValue SCCContext::evaluateUnaryArithmetic(UnaryArithmeticOperation operati
 FormalValue SCCContext::evaluateComparison(CompareOperation operation, FormalValue const& lhs, FormalValue const& rhs) {
     // clang-format off
     return utl::visit(utl::overload{
-        [&]<FormalConstant T>(T const& lhs, T const& rhs) -> FormalValue {
+        [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
             switch (operation) {
-            case CompareOperation::Less:      return APInt(lhs <  rhs);
-            case CompareOperation::LessEq:    return APInt(lhs <= rhs);
-            case CompareOperation::Greater:   return APInt(lhs >  rhs);
-            case CompareOperation::GreaterEq: return APInt(lhs >= rhs);
-            case CompareOperation::Equal:     return APInt(lhs == rhs);
-            case CompareOperation::NotEqual:  return APInt(lhs != rhs);
+            case CompareOperation::Less:      return APInt(scmp(lhs, rhs) <  0, 1);
+            case CompareOperation::LessEq:    return APInt(scmp(lhs, rhs) <= 0, 1);
+            case CompareOperation::Greater:   return APInt(scmp(lhs, rhs) >  0, 1);
+            case CompareOperation::GreaterEq: return APInt(scmp(lhs, rhs) >= 0, 1);
+            case CompareOperation::Equal:     return APInt(scmp(lhs, rhs) == 0, 1);
+            case CompareOperation::NotEqual:  return APInt(scmp(lhs, rhs) != 0, 1);
+            case CompareOperation::_count: SC_UNREACHABLE();
+            }
+        },
+        [&](APFloat const& lhs, APFloat const& rhs) -> FormalValue {
+            switch (operation) {
+            case CompareOperation::Less:      return APInt(lhs <  rhs, 1);
+            case CompareOperation::LessEq:    return APInt(lhs <= rhs, 1);
+            case CompareOperation::Greater:   return APInt(lhs >  rhs, 1);
+            case CompareOperation::GreaterEq: return APInt(lhs >= rhs, 1);
+            case CompareOperation::Equal:     return APInt(lhs == rhs, 1);
+            case CompareOperation::NotEqual:  return APInt(lhs != rhs, 1);
             case CompareOperation::_count: SC_UNREACHABLE();
             }
         },

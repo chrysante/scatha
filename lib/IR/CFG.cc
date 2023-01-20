@@ -194,7 +194,7 @@ GetElementPointer::GetElementPointer(Context& context,
     SC_ASSERT(isa<IntegralType>(structMemberIndex->type()), "Indices must be integral");
     if (auto* offset = dyncast<IntegralConstant const*>(structMemberIndex)) {
         SC_ASSERT(cast<PointerType const*>(type())->pointeeType() ==
-                      cast<StructureType const*>(accessedType)->memberAt(static_cast<size_t>(offset->value())),
+                      cast<StructureType const*>(accessedType)->memberAt(offset->value().to<size_t>()),
                   "");
     }
 }

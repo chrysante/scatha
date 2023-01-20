@@ -657,11 +657,11 @@ public:
     Value const* structMemberIndex() const { return operands()[2]; }
 
     size_t const constantArrayIndex() const {
-        return static_cast<u64>(cast<IntegralConstant const*>(arrayIndex())->value());
+        return cast<IntegralConstant const*>(arrayIndex())->value().to<size_t>();
     }
 
     size_t const constantStructMemberIndex() const {
-        return static_cast<u64>(cast<IntegralConstant const*>(structMemberIndex())->value());
+        return cast<IntegralConstant const*>(structMemberIndex())->value().to<size_t>();
     }
 
     size_t const constantByteOffset() const {

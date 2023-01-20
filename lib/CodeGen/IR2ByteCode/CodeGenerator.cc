@@ -338,8 +338,7 @@ MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
     ir::GetElementPointer const* gepPtr = nullptr;
     while ((gepPtr = dyncast<ir::GetElementPointer const*>(value)) != nullptr) {
         SC_ASSERT(gepPtr->isAllConstant(), "Don't know how to generate code for non-constant GEPs");
-        size_t const memberIndex =
-            static_cast<size_t>(cast<ir::IntegralConstant const*>(gepPtr->structMemberIndex())->value());
+        size_t const memberIndex = gepPtr->constantStructMemberIndex();
         offset += static_cast<ir::StructureType const*>(gepPtr->accessedType())->memberOffsetAt(memberIndex);
         value = gepPtr->basePointer();
     }

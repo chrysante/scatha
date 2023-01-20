@@ -19,3 +19,6 @@
 [submodule "external/boost/logic"]
 	path = external/boost/logic
 	url = https://github.com/boostorg/logic
+[submodule "external/APMath"]
+	path = external/APMath
+	url = https://github.com/chrysante/APMath

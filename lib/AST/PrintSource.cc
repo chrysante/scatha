@@ -197,12 +197,11 @@ void Context::print(Identifier const& i) {
 }
 
 void Context::print(IntegerLiteral const& l) {
-    str << l.value();
+    str << l.value().signedToString();
 }
 
 void Context::print(BooleanLiteral const& l) {
-    UTL_STORE_STREAM_STATE(str);
-    str << std::boolalpha << l.value();
+    str << (l.value().to<bool>() ? "true" : "false");
 }
 
 void Context::print(FloatingPointLiteral const& l) {

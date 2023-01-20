@@ -28,9 +28,4 @@ using namespace scatha;
     std::cout << "\tValue:          " << f << "\n";
 }
 
-void playground::apFloatTest() {
-    APInt i = 23;
-    std::cout << ~i << std::endl;
-    uint64_t j = 23;
-    std::cout << ~j << std::endl;
-}
+void playground::apFloatTest() {}

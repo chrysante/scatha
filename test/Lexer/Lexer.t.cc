@@ -242,11 +242,11 @@ static T lexTo(std::string_view text) {
     auto tokens = lex::lex(text, iss);
     assert(iss.empty());
     if constexpr (std::integral<T>) {
-        return tokens.front().toInteger();
+        return tokens.front().toInteger(64).to<u64>();
     }
     else {
         static_assert(std::floating_point<T>);
-        return tokens.front().toFloat();
+        return static_cast<f64>(tokens.front().toFloat());
     }
 }
 
