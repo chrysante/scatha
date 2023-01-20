@@ -5,7 +5,7 @@
 #include <optional>
 #include <string_view>
 
-#include "AST/AST.h"
+#include "AST/Base.h"
 #include "Common/Token.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"

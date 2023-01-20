@@ -11,9 +11,7 @@
 
 namespace scatha {
 
-/// ** Smart pointer for allocating - AST - nodes **
-/// Used to have a common interface for allocating nodes in the AST. Should not be  used to allocate other things so we
-/// can grep for this and perhaps switch to some more efficient allocation strategy in the future.
+/// ** Smart pointer  **
 template <typename T>
 class UniquePtr {
 public:
@@ -71,7 +69,13 @@ public:
 
 private:
     void deleteThis() {
-        if (ptr) {
+        if (!ptr) {
+            return;
+        }
+        if constexpr (requires(T* ptr) { ptr->privateDestroy(); }) {
+            ptr->privateDestroy();
+        }
+        else {
             visit(*ptr, [](auto& obj) { std::destroy_at(&obj); });
             operator delete(ptr);
         }
