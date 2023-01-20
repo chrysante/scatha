@@ -2,6 +2,7 @@
 
 #include <iostream>
 
+#include "Common/APFloat.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
 #include "test/IssueHelper.h"
