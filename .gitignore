@@ -10,6 +10,8 @@ include/
 .DS_Store
 **/.DS_Store
 
+**.sbin
+
 Makefile
 **.make
 
