@@ -20,10 +20,10 @@ SymbolTable::SymbolTable(): _globalScope(std::make_unique<GlobalScope>()), _curr
     _string = declareBuiltinType("string", sizeof(std::string), alignof(std::string));
 
     /// Declare builtin functions
-#define SC_BUILTIN_DEF(name, ...)                                                                                      \
+#define SVM_BUILTIN_DEF(name, ...)                                                                                     \
     declareBuiltinFunction(#name,                                                                                      \
-                           /* slot = */ builtinFunctionSlot,                                                           \
-                           /* index = */ static_cast<size_t>(Builtin::name),                                           \
+                           /* slot = */ svm::builtinFunctionSlot,                                                      \
+                           /* index = */ static_cast<size_t>(svm::Builtin::name),                                      \
                            FunctionSignature(__VA_ARGS__));
 #include <svm/Builtin.def>
 }
