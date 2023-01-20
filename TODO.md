@@ -5,3 +5,5 @@
     - Maybe find a better solution for testing internal APIs like building with default public visibility for testing. 
 
 - Test idempotency of optimization passes
+
+- Perhaps make DCE pass remove unused instructions, though right now other passes already do this. 
