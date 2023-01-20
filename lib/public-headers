@@ -57,8 +57,3 @@ Sema/FunctionSignature.h
 Sema/Scope.h
 Sema/ScopeKind.h
 Sema/SemanticIssue.h
-
-VM/ExternalFunction.h
-VM/Program.h
-VM/Instruction.h
-VM/VirtualMachine.h

@@ -91,6 +91,22 @@ externalincludedirs {
 links { "scatha", "utility", "termfmt", "apmath" }
 
 ------------------------------------------
+project "svm"
+
+kind "StaticLib"
+
+addCppFiles "svm"
+
+externalincludedirs {
+    "include",
+    "external/utility/include",
+}
+
+prebuildcommands {
+    "${PROJECT_DIR}/scripts/copy-public-vm-headers-unix.sh"
+}
+
+------------------------------------------
 project "scatha-test"
 
 kind "ConsoleApp"

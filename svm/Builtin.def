@@ -4,13 +4,13 @@
 // === List of all builtin functions ---------------------------------------===
 // ===----------------------------------------------------------------------===
 
-#ifndef SC_BUILTIN_DEF
-#   define SC_BUILTIN_DEF(name, ...)
+#ifndef SVM_BUILTIN_DEF
+#   define SVM_BUILTIN_DEF(name, ...)
 #endif
 
-SC_BUILTIN_DEF(putchar, { Int() }, Void())
-SC_BUILTIN_DEF(puti64, { Int() }, Void())
-SC_BUILTIN_DEF(putf64, { Float() }, Void())
-SC_BUILTIN_DEF(sqrtf64, { Float() }, Float())
+SVM_BUILTIN_DEF(putchar, { Int() }, Void())
+SVM_BUILTIN_DEF(puti64, { Int() }, Void())
+SVM_BUILTIN_DEF(putf64, { Float() }, Void())
+SVM_BUILTIN_DEF(sqrtf64, { Float() }, Float())
 
-#undef SC_BUILTIN_DEF
+#undef SVM_BUILTIN_DEF
