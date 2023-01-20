@@ -44,6 +44,23 @@ fn main() -> int {
 })");
 }
 
+TEST_CASE("Iterative gcd - 2", "[codegen]") {
+    test::checkReturns(8, R"(
+fn gcd(a: int, b: int) -> int {
+    while b != 0 && true {
+        let t = b + 0;
+        b = a % b;
+        a = t;
+    }
+    return a;
+}
+fn main() -> int {
+    let a = 756476;
+    let b = 1253;
+    return gcd(a, b) + gcd(1, 7);
+})");
+}
+
 TEST_CASE("Float pow", "[codegen]") {
     test::checkReturns(1, R"(
 fn pow(base: float, exp: int) -> float {
