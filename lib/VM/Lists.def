@@ -165,13 +165,21 @@ SC_INSTRUCTION_DEF(fdivRV, RV) // (u8 regIdx, u64 value)
 // reg[regIdxA] /= memory[eval(MEMORY_POINTER)]
 SC_INSTRUCTION_DEF(fdivRM, RM) // (u8 regIdxA, MEMORY_POINTER)
 
-/// ** Bitshift **
-SC_INSTRUCTION_DEF(slRR, RR) //  (u8 regIdxA, u8 regIdxB)
-SC_INSTRUCTION_DEF(slRV, RV) //  (u8 regIdxA, u64 value)
-SC_INSTRUCTION_DEF(slRM, RM) //  (u8 regIdxA, MEMORY_POINTER)
-SC_INSTRUCTION_DEF(srRR, RR) //  (u8 regIdxA, u8 regIdxB)
-SC_INSTRUCTION_DEF(srRV, RV) //  (u8 regIdxA, u64 value)
-SC_INSTRUCTION_DEF(srRM, RM) //  (u8 regIdxA, MEMORY_POINTER)
+/// ** Logical bitshift **
+SC_INSTRUCTION_DEF(lslRR, RR) //  (u8 regIdxA, u8 regIdxB)
+SC_INSTRUCTION_DEF(lslRV, RV) //  (u8 regIdxA, u64 value)
+SC_INSTRUCTION_DEF(lslRM, RM) //  (u8 regIdxA, MEMORY_POINTER)
+SC_INSTRUCTION_DEF(lsrRR, RR) //  (u8 regIdxA, u8 regIdxB)
+SC_INSTRUCTION_DEF(lsrRV, RV) //  (u8 regIdxA, u64 value)
+SC_INSTRUCTION_DEF(lsrRM, RM) //  (u8 regIdxA, MEMORY_POINTER)
+
+/// ** Arithmetic bitshift **
+SC_INSTRUCTION_DEF(aslRR, RR) //  (u8 regIdxA, u8 regIdxB)
+SC_INSTRUCTION_DEF(aslRV, RV) //  (u8 regIdxA, u64 value)
+SC_INSTRUCTION_DEF(aslRM, RM) //  (u8 regIdxA, MEMORY_POINTER)
+SC_INSTRUCTION_DEF(asrRR, RR) //  (u8 regIdxA, u8 regIdxB)
+SC_INSTRUCTION_DEF(asrRV, RV) //  (u8 regIdxA, u64 value)
+SC_INSTRUCTION_DEF(asrRM, RM) //  (u8 regIdxA, MEMORY_POINTER)
 
 /// ** Bitwise AND/OR **
 SC_INSTRUCTION_DEF(andRR, RR) //  (u8 regIdxA, u8 regIdxB)

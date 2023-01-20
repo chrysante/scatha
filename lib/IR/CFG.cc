@@ -119,9 +119,6 @@ UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
                      std::move(name)),
     _op(op) {
     switch (op) {
-    case UnaryArithmeticOperation::Promotion:
-        SC_DEBUGBREAK(); // Why do we even generate these?
-        break;
     case UnaryArithmeticOperation::Negation:
         SC_ASSERT(isa<ArithmeticType>(operand->type()), "Operand type must be arithmetic");
         break;

@@ -306,12 +306,19 @@ struct vm::OpCodeImpl {
         at(fdivRV) = arithmeticRV<fdivRV, f64>(utl::divides);
         at(fdivRM) = arithmeticRM<fdivRM, f64>(utl::divides);
 
-        at(slRR) = arithmeticRR<slRR, u64>(utl::leftshift);
-        at(slRV) = arithmeticRV<slRV, u64>(utl::leftshift);
-        at(slRM) = arithmeticRM<slRM, u64>(utl::leftshift);
-        at(srRR) = arithmeticRR<srRR, u64>(utl::rightshift);
-        at(srRV) = arithmeticRV<srRV, u64>(utl::rightshift);
-        at(srRM) = arithmeticRV<srRM, u64>(utl::rightshift);
+        at(lslRR) = arithmeticRR<lslRR, u64>(utl::leftshift);
+        at(lslRV) = arithmeticRV<lslRV, u64>(utl::leftshift);
+        at(lslRM) = arithmeticRM<lslRM, u64>(utl::leftshift);
+        at(lsrRR) = arithmeticRR<lsrRR, u64>(utl::rightshift);
+        at(lsrRV) = arithmeticRV<lsrRV, u64>(utl::rightshift);
+        at(lsrRM) = arithmeticRV<lsrRM, u64>(utl::rightshift);
+        
+        at(aslRR) = arithmeticRR<aslRR, u64>(utl::arithmetic_leftshift);
+        at(aslRV) = arithmeticRV<aslRV, u64>(utl::arithmetic_leftshift);
+        at(aslRM) = arithmeticRM<aslRM, u64>(utl::arithmetic_leftshift);
+        at(asrRR) = arithmeticRR<asrRR, u64>(utl::arithmetic_rightshift);
+        at(asrRV) = arithmeticRV<asrRV, u64>(utl::arithmetic_rightshift);
+        at(asrRM) = arithmeticRV<asrRM, u64>(utl::arithmetic_rightshift);
 
         at(andRR) = arithmeticRR<andRR, u64>(utl::bitwise_and);
         at(andRV) = arithmeticRV<andRV, u64>(utl::bitwise_and);

@@ -286,7 +286,10 @@ ir::Value* Context::getValueImpl(StringLiteral const&) {
 
 ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
     ir::Value* const operand = getValue(*expr.operand);
-    auto* inst               = new ir::UnaryArithmeticInst(irCtx,
+    if (expr.operation() == ast::UnaryPrefixOperator::Promotion) {
+        return operand;
+    }
+    auto* inst = new ir::UnaryArithmeticInst(irCtx,
                                              operand,
                                              mapUnaryArithmeticOp(expr.operation()),
                                              localUniqueName("expr.result"));
@@ -567,7 +570,6 @@ ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
 
 ir::UnaryArithmeticOperation Context::mapUnaryArithmeticOp(ast::UnaryPrefixOperator op) {
     switch (op) {
-    case UnaryPrefixOperator::Promotion: return ir::UnaryArithmeticOperation::Promotion;
     case UnaryPrefixOperator::Negation: return ir::UnaryArithmeticOperation::Negation;
     case UnaryPrefixOperator::BitwiseNot: return ir::UnaryArithmeticOperation::BitwiseNot;
     case UnaryPrefixOperator::LogicalNot: return ir::UnaryArithmeticOperation::LogicalNot;
@@ -594,8 +596,8 @@ ir::ArithmeticOperation Context::mapArithmeticOp(ast::BinaryOperator op) {
     case BinaryOperator::Remainder: return ir::ArithmeticOperation::Rem;
     case BinaryOperator::Addition: return ir::ArithmeticOperation::Add;
     case BinaryOperator::Subtraction: return ir::ArithmeticOperation::Sub;
-    case BinaryOperator::LeftShift: return ir::ArithmeticOperation::ShiftL;
-    case BinaryOperator::RightShift: return ir::ArithmeticOperation::ShiftR;
+    case BinaryOperator::LeftShift: return ir::ArithmeticOperation::LShL;
+    case BinaryOperator::RightShift: return ir::ArithmeticOperation::LShR;
     case BinaryOperator::BitwiseAnd: return ir::ArithmeticOperation::And;
     case BinaryOperator::BitwiseXOr: return ir::ArithmeticOperation::XOr;
     case BinaryOperator::BitwiseOr: return ir::ArithmeticOperation::Or;
@@ -610,8 +612,8 @@ ir::ArithmeticOperation Context::mapArithmeticAssignOp(ast::BinaryOperator op) {
     case BinaryOperator::MulAssignment: return ir::ArithmeticOperation::Mul;
     case BinaryOperator::DivAssignment: return ir::ArithmeticOperation::Div;
     case BinaryOperator::RemAssignment: return ir::ArithmeticOperation::Rem;
-    case BinaryOperator::LSAssignment: return ir::ArithmeticOperation::ShiftL;
-    case BinaryOperator::RSAssignment: return ir::ArithmeticOperation::ShiftR;
+    case BinaryOperator::LSAssignment: return ir::ArithmeticOperation::LShL;
+    case BinaryOperator::RSAssignment: return ir::ArithmeticOperation::LShR;
     case BinaryOperator::AndAssignment: return ir::ArithmeticOperation::And;
     case BinaryOperator::OrAssignment: return ir::ArithmeticOperation::Or;
     case BinaryOperator::XOrAssignment: return ir::ArithmeticOperation::XOr;

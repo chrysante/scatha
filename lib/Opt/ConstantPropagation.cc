@@ -403,14 +403,32 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
         }, lhs, rhs); // clang-format on
     case ArithmeticOperation::Mul: [[fallthrough]];
     case ArithmeticOperation::Div: [[fallthrough]];
-    case ArithmeticOperation::Rem:
+    case ArithmeticOperation::UDiv: [[fallthrough]];
+    case ArithmeticOperation::Rem: [[fallthrough]];
+    case ArithmeticOperation::URem: [[fallthrough]];
+    case ArithmeticOperation::LShL: [[fallthrough]];
+    case ArithmeticOperation::LShR: [[fallthrough]];
+    case ArithmeticOperation::AShL: [[fallthrough]];
+    case ArithmeticOperation::AShR: [[fallthrough]];
+    case ArithmeticOperation::And: [[fallthrough]];
+    case ArithmeticOperation::Or: [[fallthrough]];
+    case ArithmeticOperation::XOr:
         // clang-format off
         return utl::visit(utl::overload{
             [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
                 switch (operation) {
                 case ArithmeticOperation::Mul: return mul(lhs, rhs);
                 case ArithmeticOperation::Div: return sdiv(lhs, rhs);
+                case ArithmeticOperation::UDiv: return udiv(lhs, rhs);
                 case ArithmeticOperation::Rem: return srem(lhs, rhs);
+                case ArithmeticOperation::URem: return urem(lhs, rhs);
+                case ArithmeticOperation::LShL: return lshl(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
+                case ArithmeticOperation::LShR: return lshr(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
+                case ArithmeticOperation::AShL: return ashl(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
+                case ArithmeticOperation::AShR: return ashr(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
+                case ArithmeticOperation::And: return btwand(lhs, rhs);
+                case ArithmeticOperation::Or: return btwor(lhs, rhs);
+                case ArithmeticOperation::XOr: return btwxor(lhs, rhs);
                 default: SC_UNREACHABLE();
                 }
             },
@@ -418,7 +436,6 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
                 switch (operation) {
                 case ArithmeticOperation::Mul: return lhs * rhs;
                 case ArithmeticOperation::Div: return lhs / rhs;
-                case ArithmeticOperation::Rem: SC_UNREACHABLE();
                 default: SC_UNREACHABLE();
                 }
             },
@@ -450,7 +467,6 @@ FormalValue SCCContext::evaluateUnaryArithmetic(UnaryArithmeticOperation operati
     return utl::visit(utl::overload{
         [&](APInt const& operand) -> FormalValue {
             switch (operation) {
-            case UnaryArithmeticOperation::Promotion: return operand;
             case UnaryArithmeticOperation::Negation: return negate(operand);
             case UnaryArithmeticOperation::BitwiseNot: return btwnot(operand);
             case UnaryArithmeticOperation::LogicalNot:
@@ -461,7 +477,6 @@ FormalValue SCCContext::evaluateUnaryArithmetic(UnaryArithmeticOperation operati
         },
         [&](APFloat const& operand) -> FormalValue {
             switch (operation) {
-            case UnaryArithmeticOperation::Promotion: return +operand;
             case UnaryArithmeticOperation::Negation: return -operand;
             case UnaryArithmeticOperation::BitwiseNot: [[fallthrough]];
             case UnaryArithmeticOperation::LogicalNot: [[fallthrough]];
