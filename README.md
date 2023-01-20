@@ -59,7 +59,4 @@ Take a look at the [Grammar](docs/Grammar.md).
 
 - Better issue formatting
 
-## Issues
-
-- Parser crashes on many invalid inputs
 

@@ -20,10 +20,8 @@ struct DynAllocator: std::allocator<T> {
     void destroy(T* ptr) {
         visit(*ptr, [](auto& obj) { std::destroy_at(&obj); });
     }
-    
-    void deallocate(T* ptr, size_t count) {
-        operator delete(ptr, count);
-    }
+
+    void deallocate(T* ptr, size_t count) { operator delete(ptr, count); }
 };
 
 template <typename T>

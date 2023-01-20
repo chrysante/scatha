@@ -3,11 +3,11 @@
 #include <stdexcept>
 
 #include <Catch/Catch2.hpp>
+#include <svm/Program.h>
+#include <svm/VirtualMachine.h>
 #include <utl/format.hpp>
 #include <utl/functional.hpp>
 #include <utl/vector.hpp>
-#include <svm/Program.h>
-#include <svm/VirtualMachine.h>
 
 #include "AST/AST.h"
 #include "Assembly/Assembler.h"

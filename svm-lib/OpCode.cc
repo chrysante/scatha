@@ -1,9 +1,9 @@
 #include <svm/OpCode.h>
 
 #include <cassert>
+#include <cstring>
 #include <iostream>
 #include <ostream>
-#include <cstring>
 #include <type_traits>
 
 #include <utl/functional.hpp>
@@ -314,7 +314,7 @@ struct svm::OpCodeImpl {
         at(lsrRR) = arithmeticRR<lsrRR, u64>(utl::rightshift);
         at(lsrRV) = arithmeticRV<lsrRV, u64>(utl::rightshift);
         at(lsrRM) = arithmeticRV<lsrRM, u64>(utl::rightshift);
-        
+
         at(aslRR) = arithmeticRR<aslRR, u64>(utl::arithmetic_leftshift);
         at(aslRV) = arithmeticRV<aslRV, u64>(utl::arithmetic_leftshift);
         at(aslRM) = arithmeticRM<aslRM, u64>(utl::arithmetic_leftshift);

@@ -1,8 +1,8 @@
 #include <Catch/Catch2.hpp>
 
 #include <svm/Builtin.h>
-#include <svm/VirtualMachine.h>
 #include <svm/Program.h>
+#include <svm/VirtualMachine.h>
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"

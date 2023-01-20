@@ -70,7 +70,7 @@ static auto printAs(std::span<u8 const> data, size_t offset) {
 void svm::print(u8 const* progData, std::ostream& str) {
     Program const p(progData);
     std::span<u8 const> data = p.instructions;
-    auto printMemoryAcccess = [&](size_t i) {
+    auto printMemoryAcccess  = [&](size_t i) {
         size_t const baseptrRegisterIndex     = readAs<u8>(data, i);
         size_t const offsetCountRegisterIndex = readAs<u8>(data, i + 1);
         u8 const constantOffsetMultiplier     = readAs<u8>(data, i + 2);

@@ -3,8 +3,8 @@
 #include <string>
 
 #include "Common/UniquePtr.h"
-#include "IR/Context.h"
 #include "IR/CFG.h"
+#include "IR/Context.h"
 #include "IR/Iterator.h"
 #include "test/IR/CompileToIR.h"
 
@@ -84,7 +84,7 @@ TEST_CASE("Phi iterator", "[ir][opt]") {
     header->insert(std::prev(header->end()), new ArithmeticInst(x, z, ArithmeticOperation::Add, "sum"));
     header->insert(std::prev(header->end()), new ArithmeticInst(x, z, ArithmeticOperation::Mul, "prod"));
     auto headerPhiNodes = header->phiNodes();
-    for (auto itr = headerPhiNodes.begin(); itr != headerPhiNodes.end(); ) {
+    for (auto itr = headerPhiNodes.begin(); itr != headerPhiNodes.end();) {
         if (itr->name() == "y") {
             itr = header->erase(itr);
         }

@@ -4,11 +4,11 @@
 #include <iostream>
 #include <sstream>
 
+#include <svm/Program.h>
+#include <svm/VirtualMachine.h>
 #include <utl/format.hpp>
 #include <utl/stdio.hpp>
 #include <utl/typeinfo.hpp>
-#include <svm/VirtualMachine.h>
-#include <svm/Program.h>
 
 #include "AST/Print.h"
 #include "Assembly/Assembler.h"
@@ -23,8 +23,8 @@
 #include "IR/Validate.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
-#include "Opt/DCE.h"
 #include "Opt/ConstantPropagation.h"
+#include "Opt/DCE.h"
 #include "Opt/Mem2Reg.h"
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"

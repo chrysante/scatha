@@ -19,12 +19,12 @@ struct DCEContext {
     bool run();
 
     void visitBasicBlock(BasicBlock* basicBlock);
-    
+
     void erase(BasicBlock*);
-    
+
     Context& irCtx;
     Function& function;
-    
+
     bool modified = false;
     utl::hashset<BasicBlock const*> visited;
 };
@@ -48,9 +48,7 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
         return;
     }
     visited.insert(basicBlock);
-    if (auto* pred = basicBlock->singlePredecessor();
-        pred && pred->hasSingleSuccessor())
-    {
+    if (auto* pred = basicBlock->singlePredecessor(); pred && pred->hasSingleSuccessor()) {
         SC_ASSERT(basicBlock->phiNodes().empty(), "How can we have phi nodes if we only have one predecessor?");
         pred->erase(pred->terminator());
         basicBlock->splice(basicBlock->begin(), pred);

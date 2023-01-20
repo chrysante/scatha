@@ -15,7 +15,6 @@
 #include "Opt/Common.h"
 
 /// Implemented with help from:
-/// https://karkare.github.io/cs738/lecturenotes/11CondConstPropHandout.pdf
 /// https://www.cs.utexas.edu/users/lin/cs380c/wegman.pdf
 
 using namespace scatha;
@@ -90,7 +89,7 @@ struct SCCContext {
     bool run();
 
     bool apply();
-    
+
     void processFlowEdge(FlowEdge edge);
 
     void processUseEdge(UseEdge edge);
@@ -108,9 +107,9 @@ struct SCCContext {
     void addSingleEdge(APInt const& constant, TerminatorInst& inst);
 
     bool basicBlockIsExecutable(BasicBlock& basicBlock);
-    
+
     size_t numIncomingExecutableEdges(BasicBlock& basicBlock);
-    
+
     bool controlledByConstant(TerminatorInst const& terminator);
 
     FormalValue evaluateArithmetic(ArithmeticOperation operation, FormalValue const& lhs, FormalValue const& rhs);

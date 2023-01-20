@@ -60,10 +60,10 @@ private:
 
     /// Register a user of this value. Won't affect \p user
     void addUserWeak(User* user);
-    
+
     /// Unregister a user of this value. \p this will _not_ be cleared from the operand list of \p user
     void removeUserWeak(User* user);
-    
+
 private:
     NodeType _nodeType;
     Type const* _type;
@@ -86,7 +86,7 @@ public:
 
     /// This should proably at some point be replaced by some sort of \p delete operation
     void clearOperands();
-    
+
 protected:
     explicit User(NodeType nodeType, Type const* type, std::string name, std::initializer_list<Value*> operands):
         User(nodeType, type, std::move(name), std::span<Value* const>(operands)) {}
@@ -139,9 +139,9 @@ protected:
 /// violated during construction and transformations of the CFG.
 class SCATHA(API) BasicBlock: public Value, public NodeWithParent<BasicBlock, Function> {
 public:
-    using Iterator = List<Instruction>::iterator;
+    using Iterator      = List<Instruction>::iterator;
     using ConstIterator = List<Instruction>::const_iterator;
-    
+
     using PhiIterator      = internal::PhiIteratorImpl<false>;
     using ConstPhiIterator = internal::PhiIteratorImpl<true>;
 
@@ -149,7 +149,7 @@ public:
 
     /// Insert an instruction into this basic block. Callee takes ownership.
     void pushFront(Instruction* instruction) { insert(instructions.begin(), instruction); }
-    
+
     /// Insert an instruction into this basic block. Callee takes ownership.
     void pushBack(Instruction* instruction) { insert(instructions.end(), instruction); }
 
@@ -167,25 +167,24 @@ public:
         }
         instructions.splice(pos, rhs->instructions);
     }
-    
-    /// Clear operands of all instructions of this basic block. Use this before removing a (dead) basic block from a function.
+
+    /// Clear operands of all instructions of this basic block. Use this before removing a (dead) basic block from a
+    /// function.
     void clearAllOperands() {
         for (auto& inst: *this) {
             inst.clearOperands();
         }
     }
-    
+
     /// Erase an instruction. Clears the operands.
     Iterator erase(ConstIterator position) {
         const_cast<Instruction*>(position.to_address())->clearOperands();
         return instructions.erase(position);
     }
-    
+
     /// \overload
-    Iterator erase(Instruction const* inst) {
-        return erase(ConstIterator(inst));
-    }
-    
+    Iterator erase(Instruction const* inst) { return erase(ConstIterator(inst)); }
+
     /// \overload
     Iterator erase(ConstIterator first, ConstIterator last) {
         for (Iterator i(const_cast<Instruction*>(first.to_address())); i != last; ++i) {
@@ -193,7 +192,7 @@ public:
         }
         return instructions.erase(first, last);
     }
-    
+
     void eraseAllPhiNodes() {
         auto phiEnd = begin();
         while (isa<Phi>(*phiEnd)) {
@@ -201,17 +200,13 @@ public:
         }
         erase(begin(), phiEnd);
     }
-    
+
     /// Extract an instruction. Does not clear the operands. Caller takes ownership of the instruction.
-    Instruction* extract(ConstIterator position) {
-        return instructions.extract(position);
-    }
-    
+    Instruction* extract(ConstIterator position) { return instructions.extract(position); }
+
     /// \overload
-    Instruction* extract(Instruction const* inst) {
-        return extract(ConstIterator(inst));
-    }
-    
+    Instruction* extract(Instruction const* inst) { return extract(ConstIterator(inst)); }
+
     /// Check wether this is the entry basic block of a function
     bool isEntry() const;
 
@@ -229,18 +224,18 @@ public:
 
     Iterator begin() { return instructions.begin(); }
     ConstIterator begin() const { return instructions.begin(); }
-    
+
     Iterator end() { return instructions.end(); }
     ConstIterator end() const { return instructions.end(); }
-    
+
     bool empty() const { return instructions.empty(); }
-    
+
     Instruction& front() { return instructions.front(); }
     Instruction const& front() const { return instructions.front(); }
-    
+
     Instruction& back() { return instructions.back(); }
     Instruction const& back() const { return instructions.back(); }
-    
+
     /// View over the phi nodes in this basic block.
     utl::range_view<ConstPhiIterator, internal::PhiSentinel> phiNodes() const {
         return { ConstPhiIterator{ instructions.begin(), instructions.end() }, {} };
@@ -250,7 +245,7 @@ public:
     utl::range_view<PhiIterator, internal::PhiSentinel> phiNodes() {
         return { PhiIterator{ instructions.begin(), instructions.end() }, {} };
     }
-    
+
     /// The basic blocks this basic block is directly reachable from
     std::span<BasicBlock* const> predecessors() { return preds; }
 
@@ -261,26 +256,25 @@ public:
     bool isPredecessor(BasicBlock const* possiblePred) const {
         return std::find(preds.begin(), preds.end(), possiblePred) != preds.end();
     }
-    
+
     /// Mark \p pred as a predecessor of this basic block.
     /// \pre \p pred must not yet be marked as predecessor.
     void addPredecessor(BasicBlock* pred) {
         SC_ASSERT(!isPredecessor(pred), "This basic block already is a predecessor");
         preds.push_back(pred);
     }
-    
-    /// Make \p preds the marked list of predecessors of this basic block. Caller is responsible that these basic blocks are actually predecessords.
+
+    /// Make \p preds the marked list of predecessors of this basic block. Caller is responsible that these basic blocks
+    /// are actually predecessords.
     void setPredecessors(std::span<BasicBlock* const> newPreds) {
         preds.clear();
         std::copy(newPreds.begin(), newPreds.end(), std::back_inserter(preds));
     }
-    
+
     /// Remove \p pred from the list of predecessors of this basic block.
     /// \pre \p pred must be a listed predecessor of this basic block.
-    void removePredecessor(BasicBlock const* pred) {
-        preds.erase(std::find(preds.begin(), preds.end(), pred));
-    }
-    
+    void removePredecessor(BasicBlock const* pred) { preds.erase(std::find(preds.begin(), preds.end(), pred)); }
+
     /// The basic blocks directly reachable from this basic block
     std::span<BasicBlock* const> successors();
 
@@ -288,35 +282,27 @@ public:
     std::span<BasicBlock const* const> successors() const;
 
     /// Returns true iff this basic block has exactly one predecessor.
-    bool hasSinglePredecessor() const {
-        return preds.size() == 1;
-    }
-    
+    bool hasSinglePredecessor() const { return preds.size() == 1; }
+
     /// Return predecessor if this basic block has a single predecessor, else nullptr.
     BasicBlock* singlePredecessor() {
         return const_cast<BasicBlock*>(static_cast<BasicBlock const*>(this)->singlePredecessor());
     }
-    
+
     /// \overload
-    BasicBlock const* singlePredecessor() const {
-        return hasSinglePredecessor() ? preds.front() : nullptr;
-    }
-    
+    BasicBlock const* singlePredecessor() const { return hasSinglePredecessor() ? preds.front() : nullptr; }
+
     /// Returns true iff this basic block has exactly one successor.
-    bool hasSingleSuccessor() const {
-        return successors().size() == 1;
-    }
-    
+    bool hasSingleSuccessor() const { return successors().size() == 1; }
+
     /// Return successor if this basic block has a single successor, else nullptr.
     BasicBlock* singleSuccessor() {
         return const_cast<BasicBlock*>(static_cast<BasicBlock const*>(this)->singleSuccessor());
     }
-    
+
     /// \overload
-    BasicBlock const* singleSuccessor() const {
-        return hasSingleSuccessor() ? successors().front() : nullptr;
-    }
-    
+    BasicBlock const* singleSuccessor() const { return hasSingleSuccessor() ? successors().front() : nullptr; }
+
 private:
     List<Instruction> instructions;
     utl::small_vector<BasicBlock*> preds;
@@ -487,7 +473,7 @@ public:
     void updateTarget(BasicBlock const* oldTarget, BasicBlock* newTarget) {
         *std::find(_targets.begin(), _targets.end(), oldTarget) = newTarget;
     }
-    
+
 protected:
     explicit TerminatorInst(NodeType nodeType,
                             Context& context,
@@ -594,7 +580,7 @@ public:
 
     /// View over all incoming edges. Must be the same as predecessors of parent basic block.
     std::span<BasicBlock* const> incomingEdges() { return _preds; }
-    
+
     /// \overload
     std::span<BasicBlock const* const> incomingEdges() const { return _preds; }
 
@@ -602,22 +588,20 @@ public:
     auto arguments() {
         return utl::transform(utl::iota(argumentCount()), [this](size_t index) { return argumentAt(index); });
     }
-    
+
     /// \overload
     auto arguments() const {
         return utl::transform(utl::iota(argumentCount()), [this](size_t index) { return argumentAt(index); });
     }
-    
+
     size_t indexOf(BasicBlock const* predecessor) const {
         return utl::narrow_cast<size_t>(std::find(_preds.begin(), _preds.end(), predecessor) - _preds.begin());
     }
-    
+
     /// Remove the argument corresponding to \p predecessor
     /// \p predecessor must be an argument of this phi instruction.
-    void removeArgument(BasicBlock const* predecessor) {
-        removeArgument(indexOf(predecessor));
-    }
-    
+    void removeArgument(BasicBlock const* predecessor) { removeArgument(indexOf(predecessor)); }
+
     /// Remove the argument at index \p index
     void removeArgument(size_t index) {
         _preds.erase(_preds.begin() + index);

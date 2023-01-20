@@ -40,7 +40,7 @@ std::ostream& operator<<(std::ostream& str, Token const& t) {
 
 APInt Token::toInteger(size_t bitWidth) const {
     SC_ASSERT(type == TokenType::IntegerLiteral, "Token is not an integer literal");
-    auto value = [&]{
+    auto value = [&] {
         if (id.size() > 2 && (id.substr(0, 2) == "0x" || id.substr(0, 2) == "0X")) {
             return APInt::parse(id.substr(2, id.size() - 2), 16);
         }

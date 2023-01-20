@@ -115,7 +115,7 @@ void opt::replaceValue(ir::Value* oldValue, ir::Value* newValue) {
 
 void opt::removePredecessorAndUpdatePhiNodes(ir::BasicBlock* basicBlock, ir::BasicBlock const* predecessor) {
     basicBlock->removePredecessor(predecessor);
-    auto* const firstPhi = dyncast<Phi const*>(&basicBlock->front());
+    auto* const firstPhi    = dyncast<Phi const*>(&basicBlock->front());
     size_t const bbPhiIndex = firstPhi ? firstPhi->indexOf(predecessor) : size_t(-1);
     if (basicBlock->hasSinglePredecessor()) {
         /// Transform all phi nodes into the value at the other predecessor.

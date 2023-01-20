@@ -50,7 +50,7 @@ FloatType const* Context::floatType(size_t bitWidth) {
 
 IntegralConstant* Context::integralConstant(APInt value) {
     size_t const bitwidth = value.bitwidth();
-    auto itr = _integralConstants.find({ value, bitwidth });
+    auto itr              = _integralConstants.find({ value, bitwidth });
     if (itr == _integralConstants.end()) {
         std::tie(itr, std::ignore) =
             _integralConstants.insert({ { value, bitwidth }, new IntegralConstant(*this, value, bitwidth) });

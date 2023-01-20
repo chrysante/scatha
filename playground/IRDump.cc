@@ -5,8 +5,8 @@
 #include <sstream>
 #include <string>
 
-#include <utl/stdio.hpp>
 #include <svm/Program.h>
+#include <utl/stdio.hpp>
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"

@@ -3,9 +3,9 @@
 #include <cmath>
 #include <iostream>
 
-#include <svm/VirtualMachine.h>
-#include <svm/ExternalFunction.h>
 #include <svm/Common.h>
+#include <svm/ExternalFunction.h>
+#include <svm/VirtualMachine.h>
 
 #include "Memory.h"
 

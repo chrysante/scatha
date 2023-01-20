@@ -52,11 +52,12 @@ protected:
 private:
     template <typename>
     friend class scatha::UniquePtr;
-    
+
     /// This function is a customization point for \p UniquePtr
-    /// It insulates visitation of the tree on destruction, so users who destroy an AST only need to #include "Base.h" not "AST.h".
+    /// It insulates visitation of the tree on destruction, so users who destroy an AST only need to #include "Base.h"
+    /// not "AST.h".
     void privateDestroy();
-    
+
 private:
     NodeType _type;
     Token _token;

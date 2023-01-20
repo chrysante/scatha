@@ -72,7 +72,7 @@ private:
         if (!ptr) {
             return;
         }
-        if constexpr (requires(T* ptr) { ptr->privateDestroy(); }) {
+        if constexpr (requires(T * ptr) { ptr->privateDestroy(); }) {
             ptr->privateDestroy();
         }
         else {

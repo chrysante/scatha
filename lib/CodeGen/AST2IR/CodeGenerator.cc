@@ -323,8 +323,8 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         auto* rhsBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical.rhs"));
         auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical.end"));
         currentBB()->pushBack(exprDecl.operation() == BinaryOperator::LogicalAnd ?
-                                        new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
-                                        new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
+                                  new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
+                                  new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
         currentFunction->addBasicBlock(rhsBlock);
         setCurrentBB(rhsBlock);
         auto* rhs = getValue(*exprDecl.rhs);

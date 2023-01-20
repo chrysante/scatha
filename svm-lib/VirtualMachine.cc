@@ -2,10 +2,10 @@
 
 #include <iostream>
 
-#include <utl/math.hpp>
-#include <utl/utility.hpp>
 #include <svm/Builtin.h>
 #include <svm/OpCode.h>
+#include <utl/math.hpp>
+#include <utl/utility.hpp>
 
 #include "Memory.h"
 #include "ProgramInternal.h"
@@ -76,4 +76,3 @@ void VirtualMachine::cleanup() {
 }
 
 size_t VirtualMachine::defaultRegisterCount = 1 << 20;
-

@@ -2,12 +2,12 @@
 
 #include <span>
 
+#include <svm/OpCode.h>
+#include <svm/Program.h>
 #include <utl/bit.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/utility.hpp>
-#include <svm/OpCode.h>
-#include <svm/Program.h>
 
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Block.h"
@@ -32,8 +32,7 @@ struct LabelPlaceholder {};
 
 struct Context {
 
-    explicit Context(AssemblyStream const& stream, AssemblerOptions options):
-        stream(stream), options(options) {}
+    explicit Context(AssemblyStream const& stream, AssemblerOptions options): stream(stream), options(options) {}
 
     void run();
 
@@ -86,7 +85,7 @@ struct Context {
     AssemblerOptions options;
     utl::vector<u8> instructions;
     u64 start = 0;
-    
+
     /// Maps Label ID to Code position
     utl::hashmap<u64, size_t> labels;
     /// List of all code position with a jump site
@@ -98,13 +97,11 @@ struct Context {
 utl::vector<u8> Asm::assemble(AssemblyStream const& assemblyStream, AssemblerOptions options) {
     Context ctx(assemblyStream, options);
     ctx.run();
-    svm::ProgramHeader const header {
-        .versionString = {},
-        .size          = sizeof(svm::ProgramHeader) + ctx.instructions.size(), // + data.size()
-        .dataOffset    = sizeof(svm::ProgramHeader),
-        .textOffset    = sizeof(svm::ProgramHeader),
-        .start         = ctx.start
-    };
+    svm::ProgramHeader const header{ .versionString = {},
+                                     .size = sizeof(svm::ProgramHeader) + ctx.instructions.size(), // + data.size()
+                                     .dataOffset = sizeof(svm::ProgramHeader),
+                                     .textOffset = sizeof(svm::ProgramHeader),
+                                     .start      = ctx.start };
     utl::vector<u8> program(sizeof(svm::ProgramHeader) + header.size);
     std::memcpy(program.data(), &header, sizeof(header));
     std::memcpy(program.data() + sizeof(header), ctx.instructions.data(), ctx.instructions.size());

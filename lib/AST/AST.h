@@ -12,11 +12,11 @@
 
 #include <scatha/AST/Base.h>
 #include <scatha/AST/Common.h>
+#include <scatha/Common/APFloat.h>
+#include <scatha/Common/APInt.h>
 #include <scatha/Sema/Scope.h>
 #include <scatha/Sema/ScopeKind.h>
 #include <scatha/Sema/SymbolID.h>
-#include <scatha/Common/APInt.h>
-#include <scatha/Common/APFloat.h>
 
 // AbstractSyntaxTree
 // ├─ TranslationUnit

@@ -30,7 +30,7 @@ public:
     FloatType const* floatType(size_t bitWidth);
 
     IntegralConstant* integralConstant(APInt value);
-    
+
     IntegralConstant* integralConstant(u64 value, size_t bitWidth);
 
     FloatingPointConstant* floatConstant(APFloat value, size_t bitWidth);

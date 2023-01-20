@@ -2,8 +2,8 @@
 
 #include <string>
 
-#include <utl/utility.hpp>
 #include <svm/Builtin.h>
+#include <utl/utility.hpp>
 
 #include "AST/AST.h"
 #include "Sema/SemanticIssue.h"
