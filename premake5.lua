@@ -120,7 +120,7 @@ externalincludedirs {
 }
 
 addCppFiles "test"
-links { "scatha", "utility", "APMath" } 
+links { "scatha", "svm", "utility", "APMath" } 
 
 ------------------------------------------
 project "playground"

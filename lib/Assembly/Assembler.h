@@ -7,11 +7,11 @@
 
 #include <scatha/Basic/Basic.h>
 
-namespace scatha::vm {
+namespace svm {
 
 class Program;
 
-} // namespace scatha::vm
+} // namespace svm
 
 namespace scatha::Asm {
 
@@ -21,7 +21,7 @@ struct AssemblerOptions {
     std::string startFunction;
 };
 
-[[nodiscard]] SCATHA(API) vm::Program assemble(AssemblyStream const& assemblyStream, AssemblerOptions options = {});
+[[nodiscard]] SCATHA(API) svm::Program assemble(AssemblyStream const& assemblyStream, AssemblerOptions options = {});
 
 } // namespace scatha::Asm
 

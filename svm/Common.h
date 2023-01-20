@@ -16,7 +16,10 @@ using i32 = std::int32_t;
 using i64 = std::int64_t;
 
 using f32 = float;
-using f64 = float;
+static_assert(sizeof(f32) == 4);
+
+using f64 = double;
+static_assert(sizeof(f64) == 8);
 
 } // namespace svm
 

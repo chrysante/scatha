@@ -6,6 +6,8 @@
 #include <utl/hashmap.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/utility.hpp>
+#include <svm/OpCode.h>
+#include <svm/Program.h>
 
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Block.h"
@@ -13,13 +15,11 @@
 #include "Assembly/Map.h"
 #include "Assembly/Value.h"
 #include "Basic/Memory.h"
-#include "VM/OpCode.h"
-#include "VM/Program.h"
 
 using namespace scatha;
 using namespace Asm;
 
-using vm::OpCode;
+using svm::OpCode;
 
 namespace {
 
@@ -32,7 +32,7 @@ struct LabelPlaceholder {};
 
 struct Context {
 
-    explicit Context(AssemblyStream const& stream, AssemblerOptions options, vm::Program& program):
+    explicit Context(AssemblyStream const& stream, AssemblerOptions options, svm::Program& program):
         stream(stream), options(options), program(program), instructions(program.instructions) {}
 
     void run();
@@ -59,7 +59,7 @@ struct Context {
     void translate(Value32 const&);
     void translate(Value64 const&);
 
-    void put(vm::OpCode o) {
+    void put(svm::OpCode o) {
         SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
         program.instructions.push_back(utl::to_underlying(o));
     }
@@ -84,7 +84,7 @@ struct Context {
 
     AssemblyStream const& stream;
     AssemblerOptions options;
-    vm::Program& program;
+    svm::Program& program;
     utl::vector<u8>& instructions;
     // Mapping Label ID -> Code position
     utl::hashmap<u64, size_t> labels;
@@ -94,8 +94,8 @@ struct Context {
 
 } // namespace
 
-vm::Program Asm::assemble(AssemblyStream const& assemblyStream, AssemblerOptions options) {
-    vm::Program program;
+svm::Program Asm::assemble(AssemblyStream const& assemblyStream, AssemblerOptions options) {
+    svm::Program program;
     Context ctx(assemblyStream, options, program);
     ctx.run();
     return program;
@@ -182,8 +182,8 @@ void Context::translate(SetInst const& set) {
 
 void Context::translate(UnaryArithmeticInst const& inst) {
     switch (inst.operation()) {
-    case UnaryArithmeticOperation::LogicalNot: put(vm::OpCode::lnt); break;
-    case UnaryArithmeticOperation::BitwiseNot: put(vm::OpCode::bnt); break;
+    case UnaryArithmeticOperation::LogicalNot: put(OpCode::lnt); break;
+    case UnaryArithmeticOperation::BitwiseNot: put(OpCode::bnt); break;
     default: SC_UNREACHABLE();
     }
     translate(inst.operand());

@@ -1,28 +1,29 @@
 #include <Catch/Catch2.hpp>
 
+#include <svm/Builtin.h>
+#include <svm/VirtualMachine.h>
+
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
 #include "Basic/Memory.h"
-#include "VM/Builtin.h"
-#include "VM/VirtualMachine.h"
 #include "test/CoutRerouter.h"
 
 using namespace scatha;
 using namespace scatha::Asm;
 
-static vm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
-    vm::Program p = assemble(str);
-    vm::VirtualMachine vm;
+static svm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
+    svm::Program p = assemble(str);
+    svm::VirtualMachine vm;
     vm.load(p);
     vm.execute();
     return vm;
 }
 
 [[maybe_unused]] static void assembleAndPrint(AssemblyStream const& str) {
-    vm::Program p = assemble(str);
+    svm::Program p = assemble(str);
     print(p);
 }
 
@@ -300,24 +301,24 @@ TEST_CASE("callExt", "[assembly][vm]") {
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(-1), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                          builtinFunctionSlot,
-                          /* index = */ static_cast<size_t>(Builtin::puti64)),
+                    svm::builtinFunctionSlot,
+                    /* index = */ static_cast<size_t>(svm::Builtin::puti64)),
         MoveInst(RegisterIndex(0), Value64(' '), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                          builtinFunctionSlot,
-                          /* index = */ static_cast<size_t>(Builtin::putchar)),
+                    svm::builtinFunctionSlot,
+                    /* index = */ static_cast<size_t>(svm::Builtin::putchar)),
         MoveInst(RegisterIndex(0), Value64('X'), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                          builtinFunctionSlot,
-                          /* index = */ static_cast<size_t>(Builtin::putchar)),
+                    svm::builtinFunctionSlot,
+                    /* index = */ static_cast<size_t>(svm::Builtin::putchar)),
         MoveInst(RegisterIndex(0), Value64(' '), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                          builtinFunctionSlot,
-                          /* index = */ static_cast<size_t>(Builtin::putchar)),
+                    svm::builtinFunctionSlot,
+                    /* index = */ static_cast<size_t>(svm::Builtin::putchar)),
         MoveInst(RegisterIndex(0), Value64(0.5), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                          builtinFunctionSlot,
-                          /* index = */ static_cast<size_t>(Builtin::putf64)),
+                    svm::builtinFunctionSlot,
+                    /* index = */ static_cast<size_t>(svm::Builtin::putf64)),
         TerminateInst()
     })); // clang-format on
     CoutRerouter cr;
@@ -331,8 +332,8 @@ TEST_CASE("callExt with return value", "[assembly][vm]") {
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(2.0), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                          builtinFunctionSlot,
-                          /* index = */ static_cast<size_t>(Builtin::sqrtf64)),
+                    svm::builtinFunctionSlot,
+                    /* index = */ static_cast<size_t>(svm::Builtin::sqrtf64)),
         TerminateInst(),
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);

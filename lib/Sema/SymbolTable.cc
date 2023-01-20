@@ -3,9 +3,9 @@
 #include <string>
 
 #include <utl/utility.hpp>
+#include <svm/Builtin.h>
 
 #include "AST/AST.h"
-#include "Common/Builtin.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;
@@ -25,7 +25,7 @@ SymbolTable::SymbolTable(): _globalScope(std::make_unique<GlobalScope>()), _curr
                            /* slot = */ builtinFunctionSlot,                                                           \
                            /* index = */ static_cast<size_t>(Builtin::name),                                           \
                            FunctionSignature(__VA_ARGS__));
-#include "Common/Builtin.def"
+#include <svm/Builtin.def>
 }
 
 SymbolTable::SymbolTable(SymbolTable&&) noexcept = default;

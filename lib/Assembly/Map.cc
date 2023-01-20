@@ -5,7 +5,7 @@
 using namespace scatha;
 using namespace Asm;
 
-using vm::OpCode;
+using svm::OpCode;
 
 std::pair<OpCode, size_t> Asm::mapMove(ValueType dest, ValueType source, size_t size) {
     if (dest == ValueType::RegisterIndex) {

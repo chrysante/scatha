@@ -3,22 +3,23 @@
 
 #include <utility>
 
+#include <svm/OpCode.h>
+
 #include "Assembly/Common.h"
-#include "VM/OpCode.h"
 
 namespace scatha::Asm {
 
-std::pair<vm::OpCode, size_t> mapMove(ValueType dest, ValueType source, size_t size);
+std::pair<svm::OpCode, size_t> mapMove(ValueType dest, ValueType source, size_t size);
 
-vm::OpCode mapJump(CompareOperation condition);
+svm::OpCode mapJump(CompareOperation condition);
 
-vm::OpCode mapCompare(Type type, ValueType lhs, ValueType rhs);
+svm::OpCode mapCompare(Type type, ValueType lhs, ValueType rhs);
 
-vm::OpCode mapTest(Type type);
+svm::OpCode mapTest(Type type);
 
-vm::OpCode mapSet(CompareOperation operation);
+svm::OpCode mapSet(CompareOperation operation);
 
-vm::OpCode mapArithmetic(ArithmeticOperation operation, Type type, ValueType dest, ValueType source);
+svm::OpCode mapArithmetic(ArithmeticOperation operation, Type type, ValueType dest, ValueType source);
 
 } // namespace scatha::Asm
 

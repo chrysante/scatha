@@ -1,7 +1,5 @@
 #include <Catch/Catch2.hpp>
 
-#include "VM/Program.h"
-#include "VM/VirtualMachine.h"
 #include "test/CodeGen/BasicCompiler.h"
 
 using namespace scatha;

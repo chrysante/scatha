@@ -6,6 +6,8 @@
 #include <utl/format.hpp>
 #include <utl/functional.hpp>
 #include <utl/vector.hpp>
+#include <svm/Program.h>
+#include <svm/VirtualMachine.h>
 
 #include "AST/AST.h"
 #include "Assembly/Assembler.h"
@@ -23,14 +25,12 @@
 #include "Opt/Mem2Reg.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
-#include "VM/Program.h"
-#include "VM/VirtualMachine.h"
 
 using namespace scatha;
 
 using OptimizationLevel = utl::function<void(ir::Context&, ir::Module&)>;
 
-static vm::Program compile(std::string_view text, OptimizationLevel optLevel) {
+static svm::Program compile(std::string_view text, OptimizationLevel optLevel) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     if (!lexIss.empty()) {
@@ -67,8 +67,8 @@ static vm::Program compile(std::string_view text, OptimizationLevel optLevel) {
 }
 
 static u64 compileAndExecute(std::string_view text, OptimizationLevel optLevel) {
-    vm::Program const p = compile(text, optLevel);
-    vm::VirtualMachine vm;
+    svm::Program const p = compile(text, optLevel);
+    svm::VirtualMachine vm;
     vm.load(p);
     vm.execute();
     return vm.getState().registers[0];
