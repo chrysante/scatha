@@ -3,13 +3,13 @@
 
 #include <span>
 
-#include "AST/AST.h"
 #include "Basic/Basic.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/Analysis/DependencyGraph.h"
-#include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
+
+class SymbolTable;
 
 /// Instantiate all functions in the program.
 /// Here we don't need the dependency graph anymore, as functions don't strongly depend on each other at compile time.

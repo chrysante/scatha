@@ -1,6 +1,5 @@
 #include <Catch/Catch2.hpp>
 
-#include "AST/AST.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/SemanticIssue.h"
 #include "test/Sema/SimpleAnalzyer.h"

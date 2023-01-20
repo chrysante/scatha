@@ -4,7 +4,7 @@
 #include <string_view>
 #include <tuple>
 
-#include "AST/AST.h"
+#include "AST/Base.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
 

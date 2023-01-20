@@ -1,6 +1,6 @@
 #include "SimpleAnalzyer.h"
 
-#include "AST/AST.h"
+#include "Common/UniquePtr.h"
 #include "Lexer/Lexer.h"
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"

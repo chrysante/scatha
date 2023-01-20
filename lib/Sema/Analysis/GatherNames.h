@@ -1,16 +1,19 @@
 #ifndef SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 #define SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 
-#include <utl/vector.hpp>
-
-#include "AST/AST.h"
 #include "Basic/Basic.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/Analysis/DependencyGraph.h"
-#include "Sema/ObjectType.h"
-#include "Sema/SymbolTable.h"
+
+namespace scatha::ast {
+
+class AbstractSyntaxTree;
+
+} // namespace scatha::ast
 
 namespace scatha::sema {
+
+class SymbolTable;
 
 /// In gatherNames phase we declare (but not instantiate) all non-local names in the translation unit, including nested
 /// structs and member variables and functions. After executing \p gatherNames() all globally visible symbols are

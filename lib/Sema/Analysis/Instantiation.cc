@@ -6,8 +6,10 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
+#include "Sema/Analysis/DependencyGraph.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace sema;
