@@ -43,17 +43,15 @@ Take a look at the [Grammar](docs/Grammar.md).
     
     - Multiple dispatch
 
-- Well defined bytecode format for serialization  
-
 - Runtime integration mechanisms
 
 - Textual IR representation / IR parser
 
 - Optimizations
 
-    - Register promotion (almost complete)
+    - <s> Register promotion </s> done
     
-    - Constant folding
+    - <s> Constant folding </> done
     
     - Inlining
 
