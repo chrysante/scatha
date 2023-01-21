@@ -149,10 +149,11 @@ FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments
     Instruction(NodeType::FunctionCall, function->returnType(), std::move(name), arguments), _function(function) {}
 
 ExtFunctionCall::ExtFunctionCall(
-    size_t slot, size_t index, std::span<Value* const> arguments, ir::Type const* returnType, std::string name):
+    size_t slot, size_t index, std::string functionName, std::span<Value* const> arguments, ir::Type const* returnType, std::string name):
     Instruction(NodeType::ExtFunctionCall, returnType, std::move(name), arguments),
     _slot(utl::narrow_cast<u32>(slot)),
-    _index(utl::narrow_cast<u32>(index)) {}
+    _index(utl::narrow_cast<u32>(index)),
+    _functionName(std::move(functionName)) {}
 
 template <typename E>
 static auto extract(std::span<PhiMapping const> args, E extractor) {

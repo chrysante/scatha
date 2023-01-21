@@ -541,19 +541,29 @@ class SCATHA(API) ExtFunctionCall: public Instruction {
 public:
     explicit ExtFunctionCall(size_t slot,
                              size_t index,
+                             std::string functionName,
                              std::span<Value* const> arguments,
                              ir::Type const* returnType,
                              std::string name = {});
 
+    /// Slot in external function table of VM.
     size_t slot() const { return _slot; }
 
+    /// Index into slot.
     size_t index() const { return _index; }
 
+    /// Name of the called function.
+    std::string_view functionName() const { return _functionName; }
+    
+    /// Arguments for this call.
     std::span<Value* const> arguments() { return operands(); }
+    
+    /// \overload
     std::span<Value const* const> arguments() const { return operands(); }
 
 private:
     u32 _slot, _index;
+    std::string _functionName;
 };
 
 /// Phi instruction. Choose a value based on where control flow comes from.

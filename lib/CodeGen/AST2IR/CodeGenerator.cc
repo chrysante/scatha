@@ -427,6 +427,7 @@ ir::Value* Context::getValueImpl(FunctionCall const& functionCall) {
             utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return getValue(*expr); });
         auto* call = new ir::ExtFunctionCall(semaFunction.slot(),
                                              semaFunction.index(),
+                                             std::string(semaFunction.name()),
                                              args,
                                              mapType(semaFunction.signature().returnTypeID()),
                                              functionCall.typeID() != symTable.Void() ? localUniqueName("call.result") :
