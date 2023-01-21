@@ -1,5 +1,5 @@
-//! Run with ./scatha-c -r -f mandelbrotset.sc
-
+/// Compile with ./scatha-c -f mandelbrotset.sc
+/// Run with ./svm -f mandelbrotset.sbin
 
 fn main() -> int {
     let width = 160.0;
