@@ -190,3 +190,22 @@ fn main() -> int {
     return acc;
 })");
 }
+
+TEST_CASE("Load of indirectly stored struct", "[codegen]") {
+    test::checkReturns(10, R"(
+fn main() -> int {
+    var acc = 0;
+    for i = 0; i < 5; i += 1 {
+        var z: Complex;
+        z.x = 0;
+        z.y = i;
+        acc += sum(z);
+    }
+    return acc;
+}
+fn sum(z: Complex) -> int { return z.x + z.y; }
+struct Complex {
+    var x: int;
+    var y: int;
+})");
+}
