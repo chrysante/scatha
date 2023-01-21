@@ -190,6 +190,7 @@ Expected<Value*, SearchException> Mem2RegContext::search(BasicBlock* basicBlock,
     }
 }
 
+/// We could actually delete this function as it is only used for a trivial assertion. 
 static Phi* findPhiWithArgs(BasicBlock* basicBlock, std::span<PhiMapping const> args) {
     for (auto& inst: *basicBlock) {
         Phi* const phi = dyncast<Phi*>(&inst);
