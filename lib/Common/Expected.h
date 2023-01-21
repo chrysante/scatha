@@ -72,12 +72,12 @@ public:
 
     T& value() { return *_e; }
     T const& value() const { return *_e; }
-    
+
     template <typename U>
     decltype(auto) valueOr(U&& alternative) {
         return hasValue() ? *_e : std::forward<U>(alternative);
     }
-    
+
     template <typename U>
     decltype(auto) valueOr(U&& alternative) const {
         return hasValue() ? *_e : std::forward<U>(alternative);

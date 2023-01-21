@@ -12,9 +12,8 @@ using namespace opt;
 
 void opt::optimize(ir::Context& context, ir::Module& mod, int level) {
     switch (level) {
-    case 0:
-        return;
-        
+    case 0: return;
+
     case 1:
         for (auto& function: mod.functions()) {
             opt::mem2Reg(context, function);
@@ -22,8 +21,7 @@ void opt::optimize(ir::Context& context, ir::Module& mod, int level) {
             opt::dce(context, function);
         }
         return;
-        
-    default:
-        return;
+
+    default: return;
     }
 }

@@ -34,7 +34,7 @@ void User::setOperands(utl::small_vector<Value*> operands) {
     clearOperands();
     _operands = std::move(operands);
     for (auto* op: _operands) {
-        if (op) {        
+        if (op) {
             op->addUserWeak(this);
         }
     }
@@ -48,7 +48,7 @@ void User::removeOperand(size_t index) {
 
 void User::clearOperands() {
     for (auto& op: _operands) {
-        if (op) {        
+        if (op) {
             op->removeUserWeak(this);
         }
         op = nullptr;
@@ -158,8 +158,12 @@ TerminatorInst::TerminatorInst(NodeType nodeType,
 FunctionCall::FunctionCall(Function* function, std::span<Value* const> arguments, std::string name):
     Instruction(NodeType::FunctionCall, function->returnType(), std::move(name), arguments), _function(function) {}
 
-ExtFunctionCall::ExtFunctionCall(
-    size_t slot, size_t index, std::string functionName, std::span<Value* const> arguments, ir::Type const* returnType, std::string name):
+ExtFunctionCall::ExtFunctionCall(size_t slot,
+                                 size_t index,
+                                 std::string functionName,
+                                 std::span<Value* const> arguments,
+                                 ir::Type const* returnType,
+                                 std::string name):
     Instruction(NodeType::ExtFunctionCall, returnType, std::move(name), arguments),
     _slot(utl::narrow_cast<u32>(slot)),
     _index(utl::narrow_cast<u32>(index)),

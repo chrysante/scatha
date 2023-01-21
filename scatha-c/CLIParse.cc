@@ -16,12 +16,7 @@ Options scathac::parseCLI(int argc, char* argv[]) {
     CLI::Option const& time = *app.add_flag("-t,--time", "Measure duration of compilation");
     try {
         app.parse(argc, argv);
-        return {
-            .filepath = filepath,
-            .objpath = objpath,
-            .time = !!time,
-            .optLevel = optLevel
-        };
+        return { .filepath = filepath, .objpath = objpath, .time = !!time, .optLevel = optLevel };
     }
     catch (CLI::ParseError const& e) {
         int const exitCode = app.exit(e);

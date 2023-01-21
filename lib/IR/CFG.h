@@ -85,9 +85,9 @@ public:
     void setOperand(size_t index, Value* operand);
 
     void setOperands(utl::small_vector<Value*> operands);
-    
+
     void removeOperand(size_t index);
-    
+
     /// This should proably at some point be replaced by some sort of \p delete operation
     void clearOperands();
 
@@ -515,13 +515,11 @@ public:
 /// Return instruction. Return control flow to the calling function.
 class SCATHA(API) Return: public TerminatorInst {
 public:
-    explicit Return(Context& context, Value* value):
-        TerminatorInst(NodeType::Return, context, {}, { value }) {
+    explicit Return(Context& context, Value* value): TerminatorInst(NodeType::Return, context, {}, { value }) {
         SC_ASSERT(value != nullptr, "We don't want null operands");
     }
-    
-    explicit Return(Context& context):
-        TerminatorInst(NodeType::Return, context, {}, {}) {}
+
+    explicit Return(Context& context): TerminatorInst(NodeType::Return, context, {}, {}) {}
 
     /// May be null in case of a void function
     Value* value() { return const_cast<Value*>(static_cast<Return const*>(this)->value()); }
@@ -563,10 +561,10 @@ public:
 
     /// Name of the called function.
     std::string_view functionName() const { return _functionName; }
-    
+
     /// Arguments for this call.
     std::span<Value* const> arguments() { return operands(); }
-    
+
     /// \overload
     std::span<Value const* const> arguments() const { return operands(); }
 
@@ -581,20 +579,19 @@ public:
     /// \overload
     explicit Phi(std::initializer_list<PhiMapping> args, std::string name):
         Phi(std::span<PhiMapping const>(args), std::move(name)) {}
-    
+
     /// Construct a phi node with a set of arguments.
     explicit Phi(std::span<PhiMapping const> args, std::string name):
         Phi(nullptr /* Type will be set by call to setArguments() */, std::move(name)) {
         setArguments(args);
     }
-    
+
     /// Construct an empty phi node.
-    explicit Phi(Type const* type, std::string name = {}):
-        Instruction(NodeType::Phi, type, std::move(name),  {}) {}
+    explicit Phi(Type const* type, std::string name = {}): Instruction(NodeType::Phi, type, std::move(name), {}) {}
 
     /// Assign arguments to this phi node.
     void setArguments(std::span<PhiMapping const> args);
-    
+
     /// Number of arguments. Must match the number of predecessors of parent basic block.
     size_t argumentCount() const { return _preds.size(); }
 

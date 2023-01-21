@@ -12,9 +12,9 @@
 #include <scatha/CodeGen/IR2ByteCode/CodeGenerator.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
-#include <scatha/Opt/Optimizer.h>
 #include <scatha/Lexer/Lexer.h>
 #include <scatha/Lexer/LexicalIssue.h>
+#include <scatha/Opt/Optimizer.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Parser/SyntaxIssue.h>
 #include <scatha/Sema/Analyze.h>
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
     auto mod = ast::codegen(*ast, symbolTable, context);
 
     opt::optimize(context, mod, options.optLevel);
-    
+
     /// Generate assembly
     auto asmStream = cg::codegen(mod);
 
