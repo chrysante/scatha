@@ -35,6 +35,7 @@ struct PrintCtx {
     void print(Branch const&);
     void print(Return const&);
     void print(FunctionCall const&);
+    void print(ExtFunctionCall const&);
     void print(Phi const&);
     void print(GetElementPointer const&);
 
@@ -101,6 +102,9 @@ static auto instruction(auto... name) {
 }
 
 static auto formatType(ir::Type const* type) {
+    if (!type) {
+        return tfmt::format(tfmt::brightBlue | tfmt::italic, std::string("null-type"));
+    }
     if (type->category() == ir::TypeCategory::StructureType) {
         return tfmt::format(tfmt::green, utl::strcat("%", type->name()));
     }
@@ -214,6 +218,17 @@ void PrintCtx::print(FunctionCall const& call) {
         str << formatName(call) << equals();
     }
     str << instruction("call") << " " << formatType(call.type()) << " " << formatName(*call.function());
+    for (auto& arg: call.arguments()) {
+        str << ", " << formatType(arg->type()) << " " << formatName(*arg);
+    }
+}
+
+void PrintCtx::print(ExtFunctionCall const& call) {
+    str << indent;
+    if (!call.name().empty()) {
+        str << formatName(call) << equals();
+    }
+    str << instruction("call") << " " << formatType(call.type()) << " " << call.functionName();
     for (auto& arg: call.arguments()) {
         str << ", " << formatType(arg->type()) << " " << formatName(*arg);
     }
