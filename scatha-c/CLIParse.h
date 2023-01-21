@@ -9,6 +9,7 @@ struct Options {
     std::filesystem::path filepath;
     std::filesystem::path objpath;
     bool time;
+    int optLevel;
 };
 
 Options parseCLI(int argc, char* argv[]);

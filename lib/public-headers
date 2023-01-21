@@ -22,15 +22,14 @@ Common/SourceLocation.h
 CodeGen/AST2IR/CodeGenerator.h
 CodeGen/IR2ByteCode/CodeGenerator.h
 
-Opt/Mem2Reg.h
-
 IR/Context.h
-IR/CFG.h
 IR/Common.h
 IR/List.h
 IR/Lists.def
 IR/Module.h
 IR/Type.h
+
+Opt/Optimizer.h
 
 Issue/IssueHandler.h
 Issue/ProgramIssue.h

@@ -12,6 +12,7 @@
 #include <scatha/CodeGen/IR2ByteCode/CodeGenerator.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
+#include <scatha/Opt/Optimizer.h>
 #include <scatha/Lexer/Lexer.h>
 #include <scatha/Lexer/LexicalIssue.h>
 #include <scatha/Parser/Parser.h>
@@ -129,9 +130,11 @@ int main(int argc, char* argv[]) {
     printSemaIssues(semaIss, symbolTable);
 
     /// Generate IR
-    ir::Context contex;
-    auto mod = ast::codegen(*ast, symbolTable, contex);
+    ir::Context context;
+    auto mod = ast::codegen(*ast, symbolTable, context);
 
+    opt::optimize(context, mod, options.optLevel);
+    
     /// Generate assembly
     auto asmStream = cg::codegen(mod);
 
