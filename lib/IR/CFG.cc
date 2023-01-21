@@ -18,15 +18,9 @@ void Value::removeUserWeak(User* user) {
     }
 }
 
-User::User(NodeType nodeType, Type const* type, std::string name, std::span<Value* const> operands):
+User::User(NodeType nodeType, Type const* type, std::string name, utl::small_vector<Value*> operands):
     Value(nodeType, type, std::move(name)) {
-    for (Value* op: operands) {
-        if (!op) {
-            continue;
-        }
-        _operands.push_back(op);
-        op->addUserWeak(this);
-    }
+    setOperands(std::move(operands));
 }
 
 void User::setOperand(size_t index, Value* operand) {
@@ -36,9 +30,25 @@ void User::setOperand(size_t index, Value* operand) {
     _operands[index] = operand;
 }
 
+void User::setOperands(utl::small_vector<Value*> operands) {
+    clearOperands();
+    _operands = std::move(operands);
+    for (auto* op: _operands) {
+        if (op) {        
+            op->addUserWeak(this);
+        }
+    }
+}
+
+void User::removeOperand(size_t index) {
+    auto const itr = _operands.begin() + index;
+    (*itr)->removeUserWeak(this);
+    _operands.erase(itr);
+}
+
 void User::clearOperands() {
     for (auto& op: _operands) {
-        if (op) {
+        if (op) {        
             op->removeUserWeak(this);
         }
         op = nullptr;
@@ -164,12 +174,11 @@ static auto extract(std::span<PhiMapping const> args, E extractor) {
     return result;
 }
 
-Phi::Phi(std::span<PhiMapping const> args, std::string name):
-    Instruction(NodeType::Phi,
-                (SC_ASSERT(!args.empty(), "Phi must have at least one argument"), args[0].value->type()),
-                std::move(name),
-                extract(args, [](PhiMapping p) { return p.value; })),
-    _preds(extract(args, [](PhiMapping p) { return p.pred; })) {
+void Phi::setArguments(std::span<PhiMapping const> args) {
+    SC_ASSERT(!args.empty(), "Phi must have at least one argument");
+    setType(args[0].value->type());
+    setOperands(extract(args, [](PhiMapping p) { return p.value; }));
+    _preds = extract(args, [](PhiMapping p) { return p.pred; });
     for (auto& [pred, value]: args) {
         SC_ASSERT(value->type() == type(), "Type mismatch");
     }

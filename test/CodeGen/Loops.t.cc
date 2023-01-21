@@ -140,3 +140,56 @@ fn main() -> int {
     return fact(4);
 })");
 }
+
+TEST_CASE("Nested loops", "[codegen]") {
+    test::checkReturns(2 * 3, R"(
+fn main() -> int {
+    var acc = 0;
+    for j = 0; j < 2; j += 1 {
+        for i = 0; i < 3; i += 1 {
+            acc += 1;
+        }
+    }
+    return acc;
+})");
+    test::checkReturns(2 * 3 * 4, R"(
+fn main() -> int {
+    var acc = 0;
+    for k = 0; k < 2; k += 1 {
+        for j = 0; j < 3; j += 1 {
+            for i = 0; i < 4; i += 1 {
+                acc += 1;
+            }
+        }
+    }
+    return acc;
+})");
+    test::checkReturns(2 * 3 * 4, R"(
+fn main() -> int {
+    var acc = 0;
+    for k = 0; k < 2; k += 1 {
+        for j = 0; j < 3; j += 1 {
+            var i = 0;
+            while i < 4 {
+                acc += 1;
+                i += 1;
+            }
+        }
+    }
+    return acc;
+})");
+    test::checkReturns(2 * 3 * 4, R"(
+fn main() -> int {
+    var acc = 0;
+    for k = 0; k < 2; k += 1 {
+        for j = 0; j < 3; j += 1 {
+            var i = 0;
+            do {
+                acc += 1;
+                i += 1;
+            } while i < 4;
+        }
+    }
+    return acc;
+})");
+}

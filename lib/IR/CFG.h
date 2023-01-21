@@ -84,16 +84,20 @@ public:
 
     void setOperand(size_t index, Value* operand);
 
+    void setOperands(utl::small_vector<Value*> operands);
+    
+    void removeOperand(size_t index);
+    
     /// This should proably at some point be replaced by some sort of \p delete operation
     void clearOperands();
 
 protected:
     explicit User(NodeType nodeType, Type const* type, std::string name, std::initializer_list<Value*> operands):
-        User(nodeType, type, std::move(name), std::span<Value* const>(operands)) {}
+        User(nodeType, type, std::move(name), utl::small_vector<Value*>(operands)) {}
 
-    explicit User(NodeType nodeType, Type const* type, std::string name = {}, std::span<Value* const> operands = {});
+    explicit User(NodeType nodeType, Type const* type, std::string name = {}, utl::small_vector<Value*> operands = {});
 
-protected:
+private:
     utl::small_vector<Value*> _operands;
 };
 
@@ -569,10 +573,23 @@ private:
 /// Phi instruction. Choose a value based on where control flow comes from.
 class SCATHA(API) Phi: public Instruction {
 public:
+    /// \overload
     explicit Phi(std::initializer_list<PhiMapping> args, std::string name):
         Phi(std::span<PhiMapping const>(args), std::move(name)) {}
-    explicit Phi(std::span<PhiMapping const> args, std::string name);
+    
+    /// Construct a phi node with a set of arguments.
+    explicit Phi(std::span<PhiMapping const> args, std::string name):
+        Phi(nullptr /* Type will be set by call to setArguments() */, std::move(name)) {
+        setArguments(args);
+    }
+    
+    /// Construct an empty phi node.
+    explicit Phi(Type const* type, std::string name = {}):
+        Instruction(NodeType::Phi, type, std::move(name),  {}) {}
 
+    /// Assign arguments to this phi node.
+    void setArguments(std::span<PhiMapping const> args);
+    
     /// Number of arguments. Must match the number of predecessors of parent basic block.
     size_t argumentCount() const { return _preds.size(); }
 
@@ -615,7 +632,7 @@ public:
     /// Remove the argument at index \p index
     void removeArgument(size_t index) {
         _preds.erase(_preds.begin() + index);
-        _operands.erase(_operands.begin() + index);
+        removeOperand(index);
     }
 
 private:
