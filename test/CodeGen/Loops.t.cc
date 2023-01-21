@@ -40,9 +40,6 @@ fn main() -> int {
     let b = 1253;
     return gcd(a, b);
 })");
-}
-
-TEST_CASE("Iterative gcd - 2", "[codegen]") {
     test::checkReturns(8, R"(
 fn gcd(a: int, b: int) -> int {
     while b != 0 && true {
