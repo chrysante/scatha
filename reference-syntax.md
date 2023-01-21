@@ -8,7 +8,7 @@
 
     struct X {
         // Pass self by reference
-        fn f(self&) -> int { return i; }
+        fn f(self&) -> int { return self.i; }
         
         // Pass self by mutable reference
         fn f(self mut&) -> int {
