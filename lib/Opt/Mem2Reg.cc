@@ -35,7 +35,7 @@ struct Mem2RegContext {
 
     Expected<Value*, SearchException> search(BasicBlock*, size_t depth, size_t bifurkations);
 
-    Value* combinePredecessors(BasicBlock*, size_t depth, size_t bifurkations);
+    Expected<Value*, SearchException> combinePredecessors(BasicBlock*, size_t depth, size_t bifurkations);
 
     Value* findReplacement(Value* value);
 
@@ -195,7 +195,7 @@ static Phi* findPhiWithArgs(BasicBlock* basicBlock, std::span<PhiMapping const> 
     return nullptr;
 }
 
-Value* Mem2RegContext::combinePredecessors(BasicBlock* basicBlock, size_t depth, size_t bifurkations) {
+Expected<Value*, SearchException> Mem2RegContext::combinePredecessors(BasicBlock* basicBlock, size_t depth, size_t bifurkations) {
     utl::small_vector<PhiMapping, 6> phiArgs;
     size_t const predCount = basicBlock->predecessors().size();
     phiArgs.reserve(predCount);
@@ -210,14 +210,12 @@ Value* Mem2RegContext::combinePredecessors(BasicBlock* basicBlock, size_t depth,
     };
     for (auto* pred: basicBlock->predecessors()) {
         auto const searchResult = search(pred, depth + 1, bifurkations + 1);
-        if (!searchResult) {
-            SC_ASSERT(searchResult.error() == SearchException::Cycle,
-                      "For now we can only handle cycles. Otherwise we may havee to insert some loads somewhere.");
+        if (!searchResult && searchResult.error() != SearchException::Cycle) {
+            /// Here may be opportunity for further optimization, as we potentially could load conditionally.
+            return searchResult.error();
         }
         PhiMapping arg{ pred, searchResult.valueOr(phi) };
-        SC_ASSERT(arg.value,
-                  "This probably just means we can't promote or have to insert a load into pred, but we figure it "
-                  "out later.");
+        SC_ASSERT(arg.value, "We never return nullptrs form search()");
         phiArgs.push_back(arg);
         if (arg.value == currentLoad()) {
             ++numPredsEqualToSelf;
