@@ -515,8 +515,13 @@ public:
 /// Return instruction. Return control flow to the calling function.
 class SCATHA(API) Return: public TerminatorInst {
 public:
-    explicit Return(Context& context, Value* value = nullptr):
-        TerminatorInst(NodeType::Return, context, {}, { value }) {}
+    explicit Return(Context& context, Value* value):
+        TerminatorInst(NodeType::Return, context, {}, { value }) {
+        SC_ASSERT(value != nullptr, "We don't want null operands");
+    }
+    
+    explicit Return(Context& context):
+        TerminatorInst(NodeType::Return, context, {}, {}) {}
 
     /// May be null in case of a void function
     Value* value() { return const_cast<Value*>(static_cast<Return const*>(this)->value()); }
