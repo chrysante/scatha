@@ -5,8 +5,8 @@
 
 #include <boost/logic/tribool.hpp>
 #include <utl/hashtable.hpp>
-#include <utl/vector.hpp>
 #include <utl/scope_guard.hpp>
+#include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
 #include "Common/Expected.h"
@@ -22,9 +22,7 @@ using namespace scatha::ir;
 
 namespace {
 
-enum class SearchException {
-    NoResult, Cycle
-};
+enum class SearchException { NoResult, Cycle };
 
 struct Mem2RegContext {
     explicit Mem2RegContext(ir::Context& context, Function& function): irCtx(context), function(function) {}
@@ -51,6 +49,8 @@ struct Mem2RegContext {
 
     Load* currentLoad() { return _currentLoad; }
 
+    Value* currentAddress() { return currentLoad()->address(); }
+
     ir::Context& irCtx;
     Function& function;
 
@@ -67,9 +67,6 @@ struct Mem2RegContext {
     using LoadAndStoreMap =
         utl::hashmap<LoadAndStoreKey, utl::small_vector<Instruction*>, LoadAndStoreKeyHash, LoadAndStoreKeyEqual>;
 
-    using LoadPhiMap =
-        utl::hashmap<LoadAndStoreKey, Phi*, LoadAndStoreKeyHash, LoadAndStoreKeyEqual>;
-    
     /// Maps pairs of basic blocks and addresses to lists of load and store instructions from and to that address in
     /// that basic block.
     LoadAndStoreMap loadsAndStores;
@@ -86,10 +83,22 @@ struct Mem2RegContext {
 
     /// Set of basic blocks visited by \p search() pass.
     utl::hashset<BasicBlock const*> visitedBBs;
-    /// Maps loads to phi nodes that promote that load.
-    LoadPhiMap loadPhiMap;
-    
+
     Load* _currentLoad = nullptr;
+
+    /// Map basic blocks and the address of the current load to phi nodes that correspond to the value in that memory
+    /// location.
+    Phi* correspondingPhi(BasicBlock* basicBlock) {
+        auto itr = _loadPhiMap.find({ basicBlock, currentAddress() });
+        return itr == _loadPhiMap.end() ? nullptr : itr->second;
+    }
+
+    void setCorrespondingPhi(BasicBlock* basicBlock, Phi* phi) { _loadPhiMap[{ basicBlock, currentAddress() }] = phi; }
+
+    void removeCorrespondingPhi(BasicBlock* basicBlock) { _loadPhiMap.erase({ basicBlock, currentAddress() }); }
+
+    using LoadPhiMap = utl::hashmap<LoadAndStoreKey, Phi*, LoadAndStoreKeyHash, LoadAndStoreKeyEqual>;
+    LoadPhiMap _loadPhiMap;
 };
 
 } // namespace
@@ -129,7 +138,7 @@ bool Mem2RegContext::promote(Load* load) {
     if (!searchResult) {
         return false;
     }
-    Value* const newValue = *searchResult;
+    Value* const newValue             = *searchResult;
     loadReplacementMap[currentLoad()] = newValue;
     currentLoad()->setName("evicted-load");
     replaceValue(currentLoad(), newValue);
@@ -160,8 +169,7 @@ Expected<Value*, SearchException> Mem2RegContext::search(BasicBlock* basicBlock,
         return findReplacement(result);
     }
     /// Search the phi nodes in this basic block corresponding to the target load:
-    if (auto itr = loadPhiMap.find({ basicBlock, currentLoad()->address() }); itr != loadPhiMap.end()) {
-        Value* result = itr->second;
+    if (Value* result = correspondingPhi(basicBlock)) {
         if (bifurkations == 0) {
             result->setName(std::string(currentLoad()->name()));
         }
@@ -173,7 +181,7 @@ Expected<Value*, SearchException> Mem2RegContext::search(BasicBlock* basicBlock,
         return SearchException::Cycle;
     }
     visitedBBs.insert({ basicBlock, nullptr });
-    utl::scope_guard eraseVisited = [&]{ visitedBBs.erase(basicBlock); };
+    utl::scope_guard eraseVisited = [&] { visitedBBs.erase(basicBlock); };
     /// This basic block has no load or store that we can use to promote. We need to visit our predecessors.
     switch (basicBlock->predecessors().size()) {
     case 0: return SearchException::NoResult;
@@ -195,18 +203,20 @@ static Phi* findPhiWithArgs(BasicBlock* basicBlock, std::span<PhiMapping const> 
     return nullptr;
 }
 
-Expected<Value*, SearchException> Mem2RegContext::combinePredecessors(BasicBlock* basicBlock, size_t depth, size_t bifurkations) {
+Expected<Value*, SearchException> Mem2RegContext::combinePredecessors(BasicBlock* basicBlock,
+                                                                      size_t depth,
+                                                                      size_t bifurkations) {
     utl::small_vector<PhiMapping, 6> phiArgs;
     size_t const predCount = basicBlock->predecessors().size();
     phiArgs.reserve(predCount);
     size_t numPredsEqualToSelf = 0;
     Value* valueUnequalToSelf  = nullptr;
-    auto* phi = new Phi(currentLoad()->type());
-    SC_ASSERT(!loadPhiMap.contains({ basicBlock, currentLoad()->address() }), "This should be handled by search()");
-    loadPhiMap[{ basicBlock, currentLoad()->address() }] = phi;
-    utl::armed_scope_guard deletePhi = [&]{
+    auto* phi                  = new Phi(currentLoad()->type());
+    SC_ASSERT(correspondingPhi(basicBlock) == nullptr, "This should be handled by search()");
+    setCorrespondingPhi(basicBlock, phi);
+    utl::armed_scope_guard deletePhi = [&] {
         delete phi;
-        loadPhiMap.erase({ basicBlock, currentLoad()->address() });
+        removeCorrespondingPhi(basicBlock);
     };
     for (auto* pred: basicBlock->predecessors()) {
         auto const searchResult = search(pred, depth + 1, bifurkations + 1);
