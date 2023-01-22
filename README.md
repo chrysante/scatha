@@ -23,42 +23,49 @@ Take a look at the [grammar](docs/Grammar.md).
 
 ## Feature roadmap
 
-### Framework
+### Language
+- Arithemtic types with explicitly specified width
+    - Signed and unsigned integral types: 
+        
+        `s8, s16, s32, s64, s128`
 
+        `u8, u16, u32, u64, u128`
+
+    - Floating point types: 
+
+        `f16, f32, f64, f128`
+
+    - Arithmetic vector types?
+
+- `int` defaults to `s64`
+- `float` defaults to `f64`
 - Explicit (and maybe some implicit) casts
-
+    - Explicit casts: 
+        - Integral to floating point and vive versa.
+        - Narrowing integral and floating point conversion.
+    - Implicit casts:
+        - Widening integral and floating point casts.
 - Find a good solution for implementing references/pointers in the language that is powerful but not harmful 
-
-- Arrays (probably depend on references)
-
-- Strings (depend on arrays)
-
 - Member functions (also depend on references in a way)
-
     - Uniform function call syntax
-    
     - Constructors/destructors
-
 - Dynamic dispatch
-    
     - Interfaces/Protocols
-    
     - Multiple dispatch
 
-- Runtime integration mechanisms
+- Generics 
+- Standard library
+    - `string`, `array<T>` / `vector<T>`, `list<T>`, `dict<K, V>` etc. classes/generics
 
+### Optimizer
 - Textual IR representation / IR parser
-
-- Optimizations
-
-    - <s> Register promotion </s> done
-    
-    - <s> Constant folding </s> done
-    
+- Passes
+    - <font color="green">Register promotion</font> 
+    - <font color="green">Constant folding</font>
     - Inlining
 
 ### Compiler
 
 - Better issue formatting
-
-
+- Parallel compilation
+- Runtime integration mechanisms
