@@ -82,6 +82,8 @@
 //                                   | "-" <unary-expression>
 //                                   | "~" <unary-expression>
 //                                   | "!" <unary-expression>
+//                                   | "++" <unary-expression>
+//                                   | "--" <unary-expression>
 // <postfix-expression>            ::= <primary-expression>
 //                                   | <postfix-expression> "[" {<assignment-expression>}* "]"
 //                                   | <postfix-expression> "(" {<assignment-expression>}* ")"

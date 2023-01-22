@@ -54,6 +54,8 @@ SC_UNARY_OPERATOR_DEF(Promotion,  "+")
 SC_UNARY_OPERATOR_DEF(Negation,   "-")
 SC_UNARY_OPERATOR_DEF(BitwiseNot, "~")
 SC_UNARY_OPERATOR_DEF(LogicalNot, "!")
+SC_UNARY_OPERATOR_DEF(Increment,  "++")
+SC_UNARY_OPERATOR_DEF(Decrement,  "--")
 
 #undef SC_UNARY_OPERATOR_DEF
 

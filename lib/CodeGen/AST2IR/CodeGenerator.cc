@@ -72,7 +72,7 @@ struct Context {
 
     void memorizeVariableAddress(sema::SymbolID, ir::Value*);
 
-    std::string localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args);
+    std::string localUniqueName(auto const&... args);
 
     std::string mangledName(sema::SymbolID) const;
     std::string mangledName(sema::SymbolID, std::string_view name) const;
@@ -285,6 +285,23 @@ ir::Value* Context::getValueImpl(StringLiteral const&) {
 }
 
 ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
+    if (expr.operation() == ast::UnaryPrefixOperator::Increment ||
+        expr.operation() == ast::UnaryPrefixOperator::Decrement)
+    {
+        ir::Value* const addr = getAddress(*expr.operand);
+        ir::Value* const value = loadAddress(addr, localUniqueName(expr.operation(), ".value"));
+        auto const operation = expr.operation() == ast::UnaryPrefixOperator::Increment ?
+            ir::ArithmeticOperation::Add : ir::ArithmeticOperation::Sub;
+        auto* arithmetic  = new ir::ArithmeticInst(value,
+                                                   irCtx.integralConstant(APInt(1, 64)),
+                                                   operation,
+                                                   localUniqueName(expr.operation(), ".result"));
+        currentBB()->pushBack(arithmetic);
+        auto* store = new ir::Store(irCtx, addr, arithmetic);
+        currentBB()->pushBack(store);
+        return arithmetic;
+        
+    }
     ir::Value* const operand = getValue(*expr.operand);
     if (expr.operation() == ast::UnaryPrefixOperator::Promotion) {
         return operand;
@@ -536,8 +553,8 @@ void Context::memorizeVariableAddress(sema::SymbolID symbolID, ir::Value* value)
     SC_ASSERT(insertSuccess, "Variable id must not be declared multiple times. This error must be handled in sema.");
 }
 
-std::string Context::localUniqueName(std::string_view name, std::convertible_to<std::string_view> auto&&... args) {
-    return irCtx.uniqueName(currentFunction, utl::strcat(name, std::forward<decltype(args)>(args)...));
+std::string Context::localUniqueName(auto const&... args) {
+    return irCtx.uniqueName(currentFunction, utl::strcat(args...));
 }
 
 std::string Context::mangledName(sema::SymbolID id) const {

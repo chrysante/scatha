@@ -90,21 +90,26 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
             return ExpressionAnalysisResult::fail();
         }
         break;
-
     case ast::UnaryPrefixOperator::BitwiseNot:
         if (operandType.symbolID() != sym.Int()) {
             submitIssue();
             return ExpressionAnalysisResult::fail();
         }
         break;
-
     case ast::UnaryPrefixOperator::LogicalNot:
         if (operandType.symbolID() != sym.Bool()) {
             submitIssue();
             return ExpressionAnalysisResult::fail();
         }
         break;
-
+    case ast::UnaryPrefixOperator::Increment: [[fallthrough]];
+    case ast::UnaryPrefixOperator::Decrement:
+        if (operandType.symbolID() != sym.Int()) {
+            submitIssue();
+            return ExpressionAnalysisResult::fail();
+        }
+        break;
+        
     case ast::UnaryPrefixOperator::_count: SC_DEBUGFAIL();
     }
     u.decorate(u.operand->typeID(), ast::ValueCategory::RValue);

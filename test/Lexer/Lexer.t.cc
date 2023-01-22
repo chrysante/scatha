@@ -128,8 +128,8 @@ an ignored multi line comment
 */
 	var text_: string = "Hello World!";
 	""
-	std.print(_text);
-	1.0;
+	std.print(--_text);
+	++1.0;
 }
 )";
     test.reference = { { TokenType::Identifier, "import" },
@@ -157,9 +157,11 @@ an ignored multi line comment
                        { TokenType::Operator, "." },
                        { TokenType::Identifier, "print" },
                        { TokenType::Punctuation, "(" },
+                       { TokenType::Operator, "--" },
                        { TokenType::Identifier, "_text" },
                        { TokenType::Punctuation, ")" },
                        { TokenType::Punctuation, ";" },
+                       { TokenType::Operator, "++" },
                        { TokenType::FloatingPointLiteral, "1.0" },
                        { TokenType::Punctuation, ";" },
                        { TokenType::Punctuation, "}" },

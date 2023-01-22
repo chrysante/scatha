@@ -626,6 +626,14 @@ UniquePtr<ast::Expression> Context::parseUnary() {
         tokens.eat();
         return makeResult(ast::UnaryPrefixOperator::LogicalNot);
     }
+    else if (token.id == "++") {
+        tokens.eat();
+        return makeResult(ast::UnaryPrefixOperator::Increment);
+    }
+    else if (token.id == "--") {
+        tokens.eat();
+        return makeResult(ast::UnaryPrefixOperator::Decrement);
+    }
     else {
         return nullptr;
     }

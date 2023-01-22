@@ -160,11 +160,9 @@ std::optional<Expected<Token, LexicalIssue>> Context::getMultiLineComment() {
     // now we are at the next character after "/*"
     while (true) {
         result.id += current();
-
         if (!advance()) {
             return UnterminatedMultiLineComment(Token(result));
         }
-
         if (result.id.back() == '*' && current() == '/') {
             result.id += current();
             advance();
@@ -186,11 +184,9 @@ std::optional<Expected<Token, LexicalIssue>> Context::getPunctuation() {
 std::optional<Expected<Token, LexicalIssue>> Context::getOperator() {
     TokenData result = beginToken(TokenType::Operator);
     result.id += current();
-
     if (!isOperator(result.id)) {
         return std::nullopt;
     }
-
     while (true) {
         if (!advance()) {
             return result;

@@ -105,7 +105,7 @@ fn pow(base: float, exp: int) -> float {
         base = 1.0 / base;
         exp = -exp;
     }
-    for i = 0; i < exp; i += 1 {
+    for i = 0; i < exp; ++i {
         result *= base;
     }
     return result;
@@ -126,11 +126,11 @@ TEST_CASE("Do/while loop", "[codegen]") {
     test::checkReturns(24, R"(
 fn fact(n: int) -> int {
     var result = 1;
-    var i = 0;
+    var i = n;
     do {
-        i += 1;
         result *= i;
-    } while i < n;
+        --i;
+    } while i > 0;
     return result;
 }
 fn main() -> int {
@@ -142,9 +142,9 @@ TEST_CASE("Nested loops", "[codegen]") {
     test::checkReturns(2 * 3, R"(
 fn main() -> int {
     var acc = 0;
-    for j = 0; j < 2; j += 1 {
-        for i = 0; i < 3; i += 1 {
-            acc += 1;
+    for j = 0; j < 2; ++j {
+        for i = 0; i < 3; ++i {
+            ++acc;
         }
     }
     return acc;
@@ -169,7 +169,7 @@ fn main() -> int {
             var i = 0;
             while i < 4 {
                 acc += 1;
-                i += 1;
+                ++i;
             }
         }
     }
@@ -195,7 +195,7 @@ TEST_CASE("Load of indirectly stored struct", "[codegen]") {
     test::checkReturns(10, R"(
 fn main() -> int {
     var acc = 0;
-    for i = 0; i < 5; i += 1 {
+    for i = 0; i < 5; ++i {
         var z: Complex;
         z.x = 0;
         z.y = i;

@@ -24,7 +24,8 @@ SCATHA(PURE) bool isOperatorLetter(char c) {
 SCATHA(PURE) bool isOperator(std::string_view id) {
     // clang-format off
     std::string_view constexpr operators[]{
-        "+",  "-",  "*",  "/",  "%",  "&",  "|",   "^",   "!",  "~",  "<<", ">>", "&&", "||",
+        "+",  "-",  "*",  "/",  "%",  "&",  "|",   "^",   "!",  "~",
+        "++", "--", "<<", ">>", "&&", "||",
         "=",  "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "&=", "|=", "^=",
         "==", "!=", "<",  "<=", ">",  ">=",
         ".",  "->", "?"
