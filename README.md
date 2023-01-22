@@ -16,8 +16,10 @@ Made for easy integration as an embedded scripting language into other applicati
         }
         return gcd(b, a % b);
     }
+
+Take a look at [examples](examples/).
     
-Take a look at the [Grammar](docs/Grammar.md).
+Take a look at the [grammar](docs/Grammar.md).
 
 ## Feature roadmap
 
@@ -25,7 +27,7 @@ Take a look at the [Grammar](docs/Grammar.md).
 
 - Explicit (and maybe some implicit) casts
 
-- Find a good solution for implementing references/pointers in the frontend that is powerful but not harmful 
+- Find a good solution for implementing references/pointers in the language that is powerful but not harmful 
 
 - Arrays (probably depend on references)
 
