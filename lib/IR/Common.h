@@ -42,12 +42,12 @@ class Module;
 //       ├─ FunctionCall
 //       └─ Phi
 
-#define SC_CGFNODE_DEF(Inst) class Inst;
+#define SC_CGFNODE_DEF(Node, _) class Node;
 #include <scatha/IR/Lists.def>
 
 /// List of all CFG node type.
 enum class NodeType {
-#define SC_CGFNODE_DEF(Inst) Inst,
+#define SC_CGFNODE_DEF(Node, _) Node,
 #include <scatha/IR/Lists.def>
     _count
 };
@@ -60,7 +60,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
 /// List of all compare arithmetic operations in the IR module.
 enum class CompareOperation {
-#define SC_COMPARE_OPERATION_DEF(Inst, _) Inst,
+#define SC_COMPARE_OPERATION_DEF(Op, _) Op,
 #include <scatha/IR/Lists.def>
     _count
 };
@@ -73,7 +73,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation op)
 
 /// List of all unary arithmetic operations in the IR module.
 enum class UnaryArithmeticOperation {
-#define SC_UNARY_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
+#define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, _) Op,
 #include <scatha/IR/Lists.def>
     _count
 };
@@ -86,7 +86,7 @@ SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOpera
 
 /// List of all binary arithmetic operations in the IR module.
 enum class ArithmeticOperation {
-#define SC_ARITHMETIC_OPERATION_DEF(Inst, _) Inst,
+#define SC_ARITHMETIC_OPERATION_DEF(Op, _) Op,
 #include <scatha/IR/Lists.def>
     _count
 };
@@ -112,11 +112,11 @@ enum class TypeCategory {
 } // namespace scatha::ir
 
 /// Map enum \p NodeType to actual node types
-#define SC_CGFNODE_DEF(Inst) SC_DYNCAST_MAP(::scatha::ir::Inst, ::scatha::ir::NodeType::Inst);
+#define SC_CGFNODE_DEF(Node, Abstractness) SC_DYNCAST_MAP(::scatha::ir::Node, ::scatha::ir::NodeType::Node, Abstractness)
 #include <scatha/IR/Lists.def>
 
 /// Map enum \p TypeCategory to actual type category classes
-#define SC_TYPE_CATEGORY_DEF(TypeCat) SC_DYNCAST_MAP(::scatha::ir::TypeCat, ::scatha::ir::TypeCategory::TypeCat);
+#define SC_TYPE_CATEGORY_DEF(TypeCat) SC_DYNCAST_MAP(::scatha::ir::TypeCat, ::scatha::ir::TypeCategory::TypeCat, CONCRETE);
 #include <scatha/IR/Lists.def>
 
 namespace scatha::ir::internal {

@@ -11,6 +11,7 @@
 
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
+#include "Common/UniquePtr.h"
 #include "IR/Common.h"
 #include "IR/Iterator.h"
 #include "IR/List.h"
@@ -64,6 +65,14 @@ private:
     /// Unregister a user of this value. \p this will _not_ be cleared from the operand list of \p user
     void removeUserWeak(User* user);
 
+    template <typename>
+    friend class scatha::UniquePtr;
+    
+    template <typename>
+    friend class ir::DynAllocator;
+    
+    void privateDestroy();
+    
 private:
     NodeType _nodeType;
     Type const* _type;

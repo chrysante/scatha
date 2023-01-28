@@ -15,12 +15,12 @@ namespace scatha::ast {
 /// **Forward Declaration of all AST nodes**
 ///
 
-#define SC_ASTNODE_DEF(node) class node;
+#define SC_ASTNODE_DEF(node, _) class node;
 #include <scatha/AST/Lists.def>
 
 /// List of all  AST node types.
 enum class NodeType {
-#define SC_ASTNODE_DEF(node) node,
+#define SC_ASTNODE_DEF(node, _) node,
 #include <scatha/AST/Lists.def>
     _count
 };
@@ -31,7 +31,8 @@ SCATHA(API) std::ostream& operator<<(std::ostream&, NodeType);
 
 } // namespace scatha::ast
 
-#define SC_ASTNODE_DEF(type) SC_DYNCAST_MAP(::scatha::ast::type, ::scatha::ast::NodeType::type);
+/// Map types to enum values.
+#define SC_ASTNODE_DEF(type, Abstractness) SC_DYNCAST_MAP(::scatha::ast::type, ::scatha::ast::NodeType::type, Abstractness)
 #include <scatha/AST/Lists.def>
 
 namespace scatha::ast {

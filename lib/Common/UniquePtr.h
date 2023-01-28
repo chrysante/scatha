@@ -72,13 +72,13 @@ private:
         if (!ptr) {
             return;
         }
-        if constexpr (requires(T * ptr) { ptr->privateDestroy(); }) {
+        if constexpr (requires(T* ptr) { ptr->privateDestroy(); }) {
             ptr->privateDestroy();
         }
         else {
             visit(*ptr, [](auto& obj) { std::destroy_at(&obj); });
-            operator delete(ptr);
         }
+        operator delete(ptr);
     }
 
 private:

@@ -229,8 +229,7 @@ void SCCContext::processUseEdge(UseEdge edge) {
                 visitExpression(inst);
             }
         },
-        [](TerminatorInst const&) {},
-        [](Value const&) { SC_UNREACHABLE(); }
+        [](User const&) {}
     }); // clang-format on
 }
 
@@ -335,8 +334,7 @@ void SCCContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
             setExecutable(edge, false);
             flowWorklist.push_back(edge);
         },
-        [&](Return& inst) {},
-        [](TerminatorInst const&) { SC_UNREACHABLE(); }
+        [&](Return& inst) {}
     }); // clang-format on
 }
 
@@ -365,8 +363,7 @@ bool SCCContext::controlledByConstant(TerminatorInst const& terminator) {
     return visit(terminator, utl::overload{
         [](Goto const&) { return true; },
         [](Branch const& br) { return isa<IntegralConstant>(br.condition()); },
-        [](Return const&) { return true; },
-        [](TerminatorInst const&) -> bool { SC_UNREACHABLE(); },
+        [](Return const&) { return true; }
     }); // clang-format on
 }
 

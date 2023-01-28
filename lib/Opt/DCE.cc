@@ -90,8 +90,7 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
             }
             visitBasicBlock(target);
         },
-        [&](Return&) {},
-        [&](TerminatorInst&) { SC_UNREACHABLE(); },
+        [&](Return&) {}
     }); // clang-format on
 }
 

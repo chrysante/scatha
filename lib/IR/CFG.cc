@@ -18,6 +18,10 @@ void Value::removeUserWeak(User* user) {
     }
 }
 
+void Value::privateDestroy() {
+    visit(*this, [](auto& derived) { std::destroy_at(&derived); });
+}
+
 User::User(NodeType nodeType, Type const* type, std::string name, utl::small_vector<Value*> operands):
     Value(nodeType, type, std::move(name)) {
     setOperands(std::move(operands));

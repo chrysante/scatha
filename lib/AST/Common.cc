@@ -10,7 +10,7 @@ using namespace ast;
 
 std::string_view ast::toString(NodeType t) {
     return std::array{
-#define SC_ASTNODE_DEF(node) std::string_view(#node),
+#define SC_ASTNODE_DEF(node, _) std::string_view(#node),
 #include "AST/Lists.def"
     }[static_cast<size_t>(t)];
 }
