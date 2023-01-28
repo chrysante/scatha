@@ -245,7 +245,7 @@ Expected<Value*, SearchException> Mem2RegContext::combinePredecessors(BasicBlock
         return phiArgs.front().value;
     }
     if (auto* phi = findPhiWithArgs(basicBlock, phiArgs)) {
-        SC_DEBUGFAIL();
+        SC_DEBUGFAIL(); // This might actually not be an error. If we already have phi nodes in the function before running mem2reg pass, this case could happen. 
         return phi;
     }
     deletePhi.disarm();
