@@ -249,7 +249,7 @@ static T lexTo(std::string_view text) {
     }
     else {
         static_assert(std::floating_point<T>);
-        return static_cast<f64>(tokens.front().toFloat());
+        return tokens.front().toFloat().to<f64>();
     }
 }
 

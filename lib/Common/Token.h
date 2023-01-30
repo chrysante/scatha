@@ -7,7 +7,7 @@
 #include <string>
 
 #include <scatha/Basic/Basic.h>
-#include <scatha/Common/APFwd.h>
+#include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>
 #include <scatha/Common/Keyword.h>
 #include <scatha/Common/SourceLocation.h>
@@ -51,7 +51,7 @@ struct SCATHA(API) Token: public TokenData {
 
     APInt toInteger(size_t bitWidth) const;
     APInt toBool() const;
-    APFloat toFloat(APFloatPrecision precision = APFloatPrecision::Double) const;
+    APFloat toFloat(APFloatPrec precision = APFloatPrec::Double) const;
 
     bool isSeparator   : 1 = false;
     bool isIdentifier  : 1 = false;

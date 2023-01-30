@@ -155,7 +155,7 @@ void Context::print(BooleanLiteral const& boolLiteral, int ind) {
 }
 
 void Context::print(FloatingPointLiteral const& floatLiteral, int ind) {
-    str << indent(ind) << "<float-literal> " << floatLiteral.value() << endl;
+    str << indent(ind) << "<float-literal> " << floatLiteral.value().toString() << endl;
 }
 
 void Context::print(StringLiteral const& stringLiteral, int ind) {

@@ -28,7 +28,15 @@
 
 using namespace scatha;
 
-using OptimizationLevel = utl::function<void(ir::Context&, ir::Module&)>;
+struct OptimizationLevel {
+    OptimizationLevel(std::invocable<ir::Context&, ir::Module&> auto&& f): optFunc(f) {}
+    
+    void run(ir::Context& ctx, ir::Module& mod) const {
+        optFunc(ctx, mod);
+    }
+    
+    utl::function<void(ir::Context&, ir::Module&)> optFunc;
+};
 
 static auto compile(std::string_view text, OptimizationLevel optLevel) {
     issue::LexicalIssueHandler lexIss;
@@ -48,7 +56,7 @@ static auto compile(std::string_view text, OptimizationLevel optLevel) {
     }
     ir::Context ctx;
     auto mod = ast::codegen(*ast, sym, ctx);
-    optLevel(ctx, mod);
+    optLevel.run(ctx, mod);
     auto asmStream = cg::codegen(mod);
     /// Start execution with main if it exists.
     auto const mainID = [&sym] {
@@ -97,7 +105,7 @@ void test::checkReturns(u64 value, std::string_view text) {
             }
         },
     }; // clang-format on
-    for (auto const& level: levels) {
+    for (auto [index, level]: utl::enumerate(levels)) {
         CHECK(compileAndExecute(text, level) == value);
     }
 }

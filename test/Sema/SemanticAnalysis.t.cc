@@ -96,7 +96,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     auto* yDecl = cast<VariableDeclaration*>(fn->body->statements[4].get());
     CHECK(yDecl->typeID() == sym.Float());
     auto* floatLit = cast<FloatingPointLiteral*>(yDecl->initExpression.get());
-    CHECK(floatLit->value() == 1.2);
+    CHECK(floatLit->value().to<f64>() == 1.2);
     auto* ret           = cast<ReturnStatement*>(fn->body->statements[5].get());
     auto* retIdentifier = cast<Identifier*>(ret->expression.get());
     CHECK(retIdentifier->typeID() == sym.Int());

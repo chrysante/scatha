@@ -58,11 +58,11 @@ APInt Token::toBool() const {
     return APInt(id == "true" ? 1 : 0, 1);
 }
 
-APFloat Token::toFloat(APFloatPrecision precision) const {
+APFloat Token::toFloat(APFloatPrec precision) const {
     SC_ASSERT(type == TokenType::FloatingPointLiteral, "Token is not a floating point literal");
-    auto const value = APFloat::parse(id, 0, precision);
+    auto const value = APFloat::parse(id, precision);
     SC_ASSERT(value, "Invalid literal value");
-    return static_cast<f64>(*value);
+    return *value;
 }
 
 void Token::finalize() {

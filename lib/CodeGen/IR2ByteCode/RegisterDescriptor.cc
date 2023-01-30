@@ -17,7 +17,7 @@ Value RegisterDescriptor::resolve(ir::Value const& value) {
         }
     }
     else if (auto* constant = dyncast<ir::FloatingPointConstant const*>(&value)) {
-        return Value64(static_cast<f64>(constant->value()));
+        return Value64(constant->value().to<f64>());
     }
     SC_ASSERT(!value.name().empty(), "Name must not be empty.");
     auto const [itr, success] = values.insert({ std::string(value.name()), index });

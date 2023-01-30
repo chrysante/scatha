@@ -66,7 +66,7 @@ fn main() -> void {
     auto* const bDecl    = cast<VariableDeclaration*>(function->body->statements[1].get());
     auto* const floatLit = cast<FloatingPointLiteral*>(bDecl->initExpression.get());
     CHECK(floatLit->token().id == "1.2");
-    CHECK(floatLit->value() == 1.2);
+    CHECK(floatLit->value().to<f64>() == 1.2);
 }
 
 TEST_CASE("Parse last statement ending with '}'", "[parse]") {
@@ -82,6 +82,8 @@ TEST_CASE("Parse conditional", "[parse]") {
     auto const [ast, iss] = test::parse("fn main() { true ? 1 : 4; }");
     CHECK(iss.empty());
 }
+
+// TODO: Fix this test case
 
 // TEST_CASE("Parse invalid member access", "[parse][issue]") {
 //     std::string const text = R"(

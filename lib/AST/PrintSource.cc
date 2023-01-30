@@ -206,7 +206,7 @@ void Context::print(BooleanLiteral const& l) {
 
 void Context::print(FloatingPointLiteral const& l) {
     UTL_STORE_STREAM_STATE(str);
-    str << std::fixed << l.value();
+    str << l.value().toString();
 }
 
 void Context::print(StringLiteral const& l) {

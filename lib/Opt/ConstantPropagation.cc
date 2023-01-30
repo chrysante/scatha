@@ -387,8 +387,8 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
             },
             [&](APFloat const& lhs, APFloat const& rhs) -> FormalValue {
                 switch (operation) {
-                case ArithmeticOperation::Add: return lhs + rhs;
-                case ArithmeticOperation::Sub: return lhs - rhs;
+                case ArithmeticOperation::Add: return add(lhs, rhs);
+                case ArithmeticOperation::Sub: return sub(lhs, rhs);
                 default: SC_UNREACHABLE();
                 }
             },
@@ -430,8 +430,8 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
             },
             [&](APFloat const& lhs, APFloat const& rhs) -> FormalValue {
                 switch (operation) {
-                case ArithmeticOperation::Mul: return lhs * rhs;
-                case ArithmeticOperation::Div: return lhs / rhs;
+                case ArithmeticOperation::Mul: return mul(lhs, rhs);
+                case ArithmeticOperation::Div: return div(lhs, rhs);
                 default: SC_UNREACHABLE();
                 }
             },
@@ -452,6 +452,8 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
             [](Unexamined,  Inevaluable) -> FormalValue { return Inevaluable{}; },
             [](Inevaluable, Inevaluable) -> FormalValue { return Inevaluable{}; },
             [](auto const&, auto const&) -> FormalValue { return Inevaluable{}; },
+            [](APInt const&, APFloat const&) -> FormalValue { SC_UNREACHABLE(); },
+            [](APFloat const&, APInt const&) -> FormalValue { SC_UNREACHABLE(); }
         }, lhs, rhs); // clang-format on
 
     default: return Inevaluable{};
@@ -473,7 +475,7 @@ FormalValue SCCContext::evaluateUnaryArithmetic(UnaryArithmeticOperation operati
         },
         [&](APFloat const& operand) -> FormalValue {
             switch (operation) {
-            case UnaryArithmeticOperation::Negation: return -operand;
+            case UnaryArithmeticOperation::Negation: return negate(operand);
             case UnaryArithmeticOperation::BitwiseNot: [[fallthrough]];
             case UnaryArithmeticOperation::LogicalNot: [[fallthrough]];
             case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
