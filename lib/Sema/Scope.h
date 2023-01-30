@@ -54,24 +54,22 @@ public:
 
 inline auto Scope::children() const {
     struct Iterator {
-        auto begin() const {
+        Iterator begin() const {
             Iterator result = *this;
             result._itr     = _map.begin();
             return result;
         }
-        auto end() const {
+        Iterator end() const {
             Iterator result = *this;
             result._itr     = _map.end();
             return result;
         }
-
         Scope const& operator*() const { return *_itr->second; }
         Iterator& operator++() {
             ++_itr;
             return *this;
         }
         bool operator==(Iterator const& rhs) const { return _itr == rhs._itr; }
-
         using Map = utl::hashmap<SymbolID, Scope*>;
         Map const& _map;
         Map::const_iterator _itr;
@@ -81,24 +79,22 @@ inline auto Scope::children() const {
 
 inline auto Scope::symbols() const {
     struct Iterator {
-        auto begin() const {
+        Iterator begin() const {
             Iterator result = *this;
             result._itr     = _map.begin();
             return result;
         }
-        auto end() const {
+        Iterator end() const {
             Iterator result = *this;
             result._itr     = _map.end();
             return result;
         }
-
         SymbolID operator*() const { return _itr->second; }
         Iterator& operator++() {
             ++_itr;
             return *this;
         }
         bool operator==(Iterator const& rhs) const { return _itr == rhs._itr; }
-
         using Map = utl::hashmap<std::string, SymbolID>;
         Map const& _map;
         Map::const_iterator _itr;
