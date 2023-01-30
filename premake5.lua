@@ -59,11 +59,7 @@ externalincludedirs {
     "external/APMath/include"
 }
 includedirs { "lib" }
-libdirs { 
-    "external/gmp/build/lib", 
-    "external/mpfr/build/lib"
-}
-links { "utility", "apmath", "mpfr", "termfmt" }
+links { "utility", "apmath", "termfmt" }
 
 filter "system:macosx"
 buildoptions "-fvisibility=hidden"
