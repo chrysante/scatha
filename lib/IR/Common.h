@@ -112,11 +112,13 @@ enum class TypeCategory {
 } // namespace scatha::ir
 
 /// Map enum \p NodeType to actual node types
-#define SC_CGFNODE_DEF(Node, Abstractness) SC_DYNCAST_MAP(::scatha::ir::Node, ::scatha::ir::NodeType::Node, Abstractness)
+#define SC_CGFNODE_DEF(Node, Abstractness)                                                                             \
+    SC_DYNCAST_MAP(::scatha::ir::Node, ::scatha::ir::NodeType::Node, Abstractness)
 #include <scatha/IR/Lists.def>
 
 /// Map enum \p TypeCategory to actual type category classes
-#define SC_TYPE_CATEGORY_DEF(TypeCat) SC_DYNCAST_MAP(::scatha::ir::TypeCat, ::scatha::ir::TypeCategory::TypeCat, CONCRETE);
+#define SC_TYPE_CATEGORY_DEF(TypeCat)                                                                                  \
+    SC_DYNCAST_MAP(::scatha::ir::TypeCat, ::scatha::ir::TypeCategory::TypeCat, CONCRETE);
 #include <scatha/IR/Lists.def>
 
 namespace scatha::ir::internal {

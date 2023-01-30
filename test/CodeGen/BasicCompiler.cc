@@ -30,11 +30,9 @@ using namespace scatha;
 
 struct OptimizationLevel {
     OptimizationLevel(std::invocable<ir::Context&, ir::Module&> auto&& f): optFunc(f) {}
-    
-    void run(ir::Context& ctx, ir::Module& mod) const {
-        optFunc(ctx, mod);
-    }
-    
+
+    void run(ir::Context& ctx, ir::Module& mod) const { optFunc(ctx, mod); }
+
     utl::function<void(ir::Context&, ir::Module&)> optFunc;
 };
 

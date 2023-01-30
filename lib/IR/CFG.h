@@ -67,12 +67,12 @@ private:
 
     template <typename>
     friend class scatha::UniquePtr;
-    
+
     template <typename>
     friend class ir::DynAllocator;
-    
+
     void privateDestroy();
-    
+
 private:
     NodeType _nodeType;
     Type const* _type;

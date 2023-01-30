@@ -288,19 +288,18 @@ ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
     if (expr.operation() == ast::UnaryPrefixOperator::Increment ||
         expr.operation() == ast::UnaryPrefixOperator::Decrement)
     {
-        ir::Value* const addr = getAddress(*expr.operand);
+        ir::Value* const addr  = getAddress(*expr.operand);
         ir::Value* const value = loadAddress(addr, localUniqueName(expr.operation(), ".value"));
-        auto const operation = expr.operation() == ast::UnaryPrefixOperator::Increment ?
-            ir::ArithmeticOperation::Add : ir::ArithmeticOperation::Sub;
-        auto* arithmetic  = new ir::ArithmeticInst(value,
-                                                   irCtx.integralConstant(APInt(1, 64)),
-                                                   operation,
-                                                   localUniqueName(expr.operation(), ".result"));
+        auto const operation = expr.operation() == ast::UnaryPrefixOperator::Increment ? ir::ArithmeticOperation::Add :
+                                                                                         ir::ArithmeticOperation::Sub;
+        auto* arithmetic     = new ir::ArithmeticInst(value,
+                                                  irCtx.integralConstant(APInt(1, 64)),
+                                                  operation,
+                                                  localUniqueName(expr.operation(), ".result"));
         currentBB()->pushBack(arithmetic);
         auto* store = new ir::Store(irCtx, addr, arithmetic);
         currentBB()->pushBack(store);
         return arithmetic;
-        
     }
     ir::Value* const operand = getValue(*expr.operand);
     if (expr.operation() == ast::UnaryPrefixOperator::Promotion) {

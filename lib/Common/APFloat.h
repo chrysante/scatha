@@ -7,8 +7,8 @@
 
 namespace scatha {
 
-using APMath::APFloatPrec;
 using APMath::APFloat;
+using APMath::APFloatPrec;
 
 } // namespace scatha
 

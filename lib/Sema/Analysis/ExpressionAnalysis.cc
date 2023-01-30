@@ -109,7 +109,6 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
             return ExpressionAnalysisResult::fail();
         }
         break;
-        
     case ast::UnaryPrefixOperator::_count: SC_DEBUGFAIL();
     }
     u.decorate(u.operand->typeID(), ast::ValueCategory::RValue);
