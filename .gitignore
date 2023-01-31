@@ -1,7 +1,8 @@
 build/
-graphviz/*
 include/
 
+/graphviz/*
+!graphviz/
 !graphviz/generate.sh
 
 .vs/

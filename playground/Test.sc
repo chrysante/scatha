@@ -1,7 +1,8 @@
 fn main() -> int {
-    var acc = 1;
-    for i = 1; i <= 5; ++i {
-        acc *= i;
+    let x = 0;
+    {
+        let x = 1;
+        return x;
     }
-    return acc;
+    return x;
 }
