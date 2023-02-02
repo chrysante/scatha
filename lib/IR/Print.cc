@@ -38,6 +38,8 @@ struct PrintCtx {
     void print(ExtFunctionCall const&);
     void print(Phi const&);
     void print(GetElementPointer const&);
+    void print(ExtractValue const&);
+    void print(InsertValue const&);
 
     void print(StructureType const& structure);
 
@@ -243,10 +245,23 @@ void PrintCtx::print(Phi const& phi) {
 }
 
 void PrintCtx::print(GetElementPointer const& gep) {
-    str << indent << formatName(gep) << equals() << instruction("gep") << " " << formatType(gep.type()) << " "
-        << formatName(*gep.basePointer()) << ", " << formatType(gep.arrayIndex()->type()) << " "
-        << formatName(*gep.arrayIndex()) << ", " << formatType(gep.structMemberIndex()->type()) << " "
-        << formatName(*gep.structMemberIndex());
+    str << indent << formatName(gep) << equals() << instruction("gep") << " " << formatType(gep.type()) << ", "
+        << formatType(gep.basePointer()->type()) << " " << formatName(*gep.basePointer()) << ", "
+        << formatType(gep.arrayIndex()->type()) << " " << formatName(*gep.arrayIndex()) << ", "
+        << formatType(gep.structMemberIndex()->type()) << " " << formatName(*gep.structMemberIndex());
+}
+
+void PrintCtx::print(ExtractValue const& extract) {
+    str << indent << formatName(extract) << equals() << instruction("extract_value") << " " << formatType(extract.type()) << ", "
+        << formatType(extract.baseValue()->type()) << " " << formatName(*extract.baseValue()) << ", "
+        << formatType(extract.index()->type()) << " " << formatName(*extract.index());
+}
+
+void PrintCtx::print(InsertValue const& insert) {
+    str << indent << formatName(insert) << equals() << instruction("insert_value") << " " << formatType(insert.type()) << ", "
+        << formatType(insert.baseValue()->type()) << " " << formatName(*insert.baseValue()) << ", "
+        << formatType(insert.insertedValue()->type()) << " " << formatName(*insert.insertedValue()) << " "
+        << formatType(insert.index()->type()) << " " << formatName(*insert.index());
 }
 
 void PrintCtx::print(StructureType const& structure) {
