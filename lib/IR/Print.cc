@@ -5,6 +5,7 @@
 
 #include <termfmt/termfmt.h>
 #include <utl/ranges.hpp>
+#include <utl/streammanip.hpp>
 
 #include "Basic/Basic.h"
 #include "Basic/PrintUtil.h"
@@ -127,7 +128,9 @@ static auto formatName(Value const& value) {
 }
 
 static auto equals() {
-    return tfmt::format(tfmt::none, " = ");
+    return utl::streammanip([](std::ostream& str) -> std::ostream& {
+        return str << " " << tfmt::format(tfmt::none, "=") << " ";
+    });
 }
 
 static auto label() {
