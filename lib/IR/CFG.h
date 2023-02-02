@@ -171,6 +171,11 @@ public:
         instruction->set_parent(this);
         instructions.insert(before, instruction);
     }
+    
+    /// \overload
+    void insert(Instruction const* before, Instruction* instruction) {
+        insert(ConstIterator(before), instruction);
+    }
 
     /// Merge \p this with \p rhs
     /// Insert nodes of \p rhs before \p pos
@@ -720,7 +725,7 @@ private:
 /// ExtractValue instruction. Extract the value of a structure member or array element.
 class ExtractValue: public UnaryInstruction, public internal::AccessValueBase {
 public:
-    explicit ExtractValue(Type const* memberType, Value* baseValue, Value* index, std::string name = {}):
+    explicit ExtractValue(Type const* memberType, Value* baseValue, Value* index, std::string name):
         UnaryInstruction(NodeType::ExtractValue,
                          baseValue,
                          memberType,
@@ -737,7 +742,7 @@ public:
 /// InsertValue instruction. Insert a value into a structure or array.
 class InsertValue: public BinaryInstruction, public internal::AccessValueBase {
 public:
-    explicit InsertValue(Value* baseValue, Value* insertedValue, Value* index, std::string name = {}):
+    explicit InsertValue(Value* baseValue, Value* insertedValue, Value* index, std::string name):
         BinaryInstruction(NodeType::InsertValue,
                           baseValue,
                           insertedValue,
