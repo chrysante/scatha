@@ -177,20 +177,21 @@ static void insertReturn(Context& ctx, BasicBlock& bb) {
 
 void ir::setupInvariants(Context& ctx, Function& function) {
     for (auto& bb: function.basicBlocks()) {
+        /// Erase everything after the last terminator.
+        for (auto itr = bb.begin(); itr != bb.end(); ++itr) {
+            if (isa<TerminatorInst>(*itr)) {
+                bb.erase(std::next(itr), bb.end());
+                break;
+            }
+        }
+        /// If we don't have a terminator insert a return.
         if (bb.empty() || !isa<TerminatorInst>(bb.back())) {
             insertReturn(ctx, bb);
             continue;
         }
-        Instruction* inst = &bb.back();
-        for (; inst != bb.end().to_address(); inst = inst->prev()) {
-            if (!isa<TerminatorInst>(inst)) {
-                break;
-            }
-        }
-        auto* firstTerminator = cast<TerminatorInst*>(inst->next());
-        bb.erase(BasicBlock::Iterator(firstTerminator->next()), bb.end());
+        auto& terminator = cast<TerminatorInst&>(bb.back());
         // clang-format off
-        visit(*firstTerminator, utl::overload{
+        visit(terminator, utl::overload{
             [&](ir::Goto& gt) {
                 link(&bb, gt.target());
             },
