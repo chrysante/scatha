@@ -698,19 +698,55 @@ private:
     Type const* accType;
 };
 
-/// ExtractValue instruction. Extract the value of a structure member or array element.
-class ExtractValue: public UnaryInstruction {
-public:
-    explicit ExtractValue(Value* baseValue, size_t index, std::string name = {}):
-        UnaryInstruction(NodeType::ExtractValue,
-                         baseValue,
-                         cast<StructureType const*>(baseValue->type())->memberAt(index),
-                         std::move(name)) {}
+namespace internal {
 
-    size_t index() const { return _index; }
+class AccessValueBase {
+public:
+    explicit AccessValueBase(Value* index): _index(index) {}
+
+    Value* index() { return _index; }
+    Value const* index() const { return _index; }
+
+    bool indexIsConstant() const { return isa<IntegralConstant>(_index); }
+
+    size_t constantIndex() const { return cast<IntegralConstant const*>(_index)->value().to<size_t>(); }
 
 private:
-    size_t _index;
+    Value* _index;
+};
+
+} // namespace internal
+
+/// ExtractValue instruction. Extract the value of a structure member or array element.
+class ExtractValue: public UnaryInstruction, public internal::AccessValueBase {
+public:
+    explicit ExtractValue(Type const* memberType, Value* baseValue, Value* index, std::string name = {}):
+        UnaryInstruction(NodeType::ExtractValue,
+                         baseValue,
+                         memberType,
+                         std::move(name)),
+        internal::AccessValueBase(index) {}
+
+    Value* baseValue() { return operand(); }
+    Value const* baseValue() const { return operand(); }
+};
+
+/// InsertValue instruction. Insert a value into a structure or array.
+class InsertValue: public BinaryInstruction, public internal::AccessValueBase {
+public:
+    explicit InsertValue(Value* baseValue, Value* insertedValue, Value* index, std::string name = {}):
+        BinaryInstruction(NodeType::InsertValue,
+                          baseValue,
+                          insertedValue,
+                          baseValue->type(),
+                          std::move(name)),
+        internal::AccessValueBase(index) {}
+
+    Value* baseValue() { return lhs(); }
+    Value const* baseValue() const { return lhs(); }
+
+    Value* insertedValue() { return rhs(); }
+    Value const* insertedValue() const { return rhs(); }
 };
 
 } // namespace scatha::ir
