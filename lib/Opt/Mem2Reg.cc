@@ -94,8 +94,6 @@ struct Mem2RegContext {
     utl::small_vector<UniquePtr<Load>> evictedLoads;
     /// List of all store instructions in the function.
     utl::small_vector<Store*> stores;
-    /// List of all other memory instructions in the function. For now that is \p alloca 's and \p gep 's
-    utl::small_vector<Instruction*> otherMemInstructions;
 
     /// Map basic blocks and the address of the current load to phi nodes that correspond to the value in that memory
     /// location.
@@ -133,18 +131,6 @@ bool Mem2RegContext::run() {
     for (auto const load: loads) {
         modifiedAny |= promote(load);
     }
-    for (auto* const store: stores) {
-        if (isDead(store)) {
-            evict(store);
-            modifiedAny = true;
-        }
-    }
-    for (auto* const inst: otherMemInstructions) {
-        if (isUnused(inst)) {
-            evict(inst);
-            modifiedAny = true;
-        }
-    }
     return modifiedAny;
 }
 
@@ -166,6 +152,9 @@ bool Mem2RegContext::promote(Load* load) {
         if (searchResult) {
             return *searchResult;
         }
+        /// TODO: Remove this return statement
+        /// This return exists to disable the rest of this function. This way we won't generate any \p ExtractValue instructions and not crash when generating machine code.
+        return nullptr;
         Value* address = load->address();
         utl::stack<GetElementPointer*> intermediateAddresses;
         while (true) {
@@ -176,7 +165,6 @@ bool Mem2RegContext::promote(Load* load) {
             address = gep->basePointer();
             auto searchResult = search(basicBlock, load, address, "gep.value" /* for now */);
             if (!searchResult) {
-                // TODO: Here we actually need to push to a stack to create a bunch of ExtractValue instructions for nested accesses.
                 intermediateAddresses.push(gep);
                 continue;
             }
@@ -339,10 +327,6 @@ Value* Mem2RegContext::findReplacement(Value* value) {
     return value;
 }
 
-void Mem2RegContext::evict(Instruction* inst) {
-    inst->parent()->erase(inst);
-}
-
 static std::optional<std::tuple<Value const*, size_t, size_t>> getConstantBaseAndOffset(Value const* addr) {
     GetElementPointer const* gep = nullptr;
     Value const* base            = addr;
@@ -380,28 +364,6 @@ static boost::tribool testAddressOverlap(Value const* a, Value const* b) {
     return aBase == bBase && testOverlap(aOffset, aSize, bOffset, bSize);
 }
 
-bool Mem2RegContext::isDead(Store const* store) {
-    Value const* const destAddress = store->dest();
-    if (!isLocalMemory(destAddress)) {
-        /// We can only guarantee that this store is dead if the memory was locally allocated by this function.
-        return false;
-    }
-    for (auto* const load: loads) {
-        if (!testAddressOverlap(load->address(), destAddress)) {
-            continue;
-        }
-        bool const loadIsReachable = isReachable(store, load);
-        if (loadIsReachable) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool Mem2RegContext::isUnused(Instruction const* inst) {
-    return inst->users().empty();
-}
-
 void Mem2RegContext::gather() {
     for (auto& inst: function.instructions()) {
         // clang-format off
@@ -414,13 +376,7 @@ void Mem2RegContext::gather() {
                 stores.push_back(&store);
                 loadsAndStores[{ store.parent(), store.dest() }].push_back(&store);
             },
-            [&](Alloca& inst) {
-                otherMemInstructions.push_back(&inst);
-            },
-            [&](GetElementPointer& gep) {
-                otherMemInstructions.push_back(&gep);
-            },
-            [&](auto&) {},
+            [&](Instruction const&) {},
         }); // clang-format on
     }
     for ([[maybe_unused]] auto&& [bb_addr, ls]: loadsAndStores) {
