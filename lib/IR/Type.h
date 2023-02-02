@@ -78,7 +78,7 @@ public:
 
     Type const* pointeeType() const { return _pointeeType; }
 
-    static std::string makePointerName(Type const* pointee) { return utl::strcat("*", pointee->name()); }
+    static std::string makePointerName(Type const* pointee) { return utl::strcat(pointee->name(), "*"); }
 
 private:
     Type const* _pointeeType;
