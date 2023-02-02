@@ -727,7 +727,10 @@ public:
                          std::move(name)),
         internal::AccessValueBase(index) {}
 
+    /// The structure or array being accessed. Same as \p operand()
     Value* baseValue() { return operand(); }
+
+    /// \overload
     Value const* baseValue() const { return operand(); }
 };
 
@@ -742,10 +745,16 @@ public:
                           std::move(name)),
         internal::AccessValueBase(index) {}
 
+    /// The structure or array being accessed. Same as \p lhs()
     Value* baseValue() { return lhs(); }
+
+    /// \overload
     Value const* baseValue() const { return lhs(); }
 
+    /// The value being inserted. Same as \p rhs()
     Value* insertedValue() { return rhs(); }
+
+    /// \overload
     Value const* insertedValue() const { return rhs(); }
 };
 
