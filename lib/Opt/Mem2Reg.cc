@@ -6,6 +6,7 @@
 #include <boost/logic/tribool.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/scope_guard.hpp>
+#include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
@@ -22,7 +23,24 @@ using namespace scatha::ir;
 
 namespace {
 
-enum class SearchException { NoResult, Cycle };
+enum class SearchError { NoResult, Cycle };
+
+struct SearchContext {
+    explicit SearchContext(Load* currentLoad, Value* currentAddress, std::string name):
+        _currentLoad(currentLoad), _currentAddress(currentAddress), _name(std::move(name)) {}
+
+    Load* load() { return _currentLoad; }
+
+    Value* address() { return _currentAddress; }
+
+    std::string_view name() const { return _name; }
+
+    /// Set of basic blocks visited by \p search() pass.
+    utl::hashset<BasicBlock const*> visitedBBs;
+    Load* _currentLoad;
+    Value* _currentAddress;
+    std::string _name;
+};
 
 struct Mem2RegContext {
     explicit Mem2RegContext(ir::Context& context, Function& function): irCtx(context), function(function) {}
@@ -31,9 +49,12 @@ struct Mem2RegContext {
 
     bool promote(Load* load);
 
-    Expected<Value*, SearchException> search(BasicBlock*, size_t depth, size_t bifurkations);
+    Expected<Value*, SearchError> search(BasicBlock* start, Load* load);
+    Expected<Value*, SearchError> search(BasicBlock* start, Load* load, Value* address, std::string name);
 
-    Expected<Value*, SearchException> combinePredecessors(BasicBlock*, size_t depth, size_t bifurkations);
+    Expected<Value*, SearchError> searchImpl(BasicBlock*, size_t depth, size_t bifurkations);
+
+    Expected<Value*, SearchError> combinePredecessors(BasicBlock*, size_t depth, size_t bifurkations);
 
     Value* findReplacement(Value* value);
 
@@ -45,11 +66,6 @@ struct Mem2RegContext {
 
     void gather();
 
-    void setCurrentLoad(Load* load) { _currentLoad = load; }
-
-    Load* currentLoad() { return _currentLoad; }
-
-    Value* currentAddress() { return currentLoad()->address(); }
 
     ir::Context& irCtx;
     Function& function;
@@ -81,24 +97,25 @@ struct Mem2RegContext {
     /// List of all other memory instructions in the function. For now that is \p alloca 's and \p gep 's
     utl::small_vector<Instruction*> otherMemInstructions;
 
-    /// Set of basic blocks visited by \p search() pass.
-    utl::hashset<BasicBlock const*> visitedBBs;
-
-    Load* _currentLoad = nullptr;
-
     /// Map basic blocks and the address of the current load to phi nodes that correspond to the value in that memory
     /// location.
-    Phi* correspondingPhi(BasicBlock* basicBlock) {
-        auto itr = _loadPhiMap.find({ basicBlock, currentAddress() });
+    Phi* correspondingPhi(BasicBlock* basicBlock, Value* address) {
+        auto itr = _loadPhiMap.find({ basicBlock, address });
         return itr == _loadPhiMap.end() ? nullptr : itr->second;
     }
 
-    void setCorrespondingPhi(BasicBlock* basicBlock, Phi* phi) { _loadPhiMap[{ basicBlock, currentAddress() }] = phi; }
+    void setCorrespondingPhi(BasicBlock* basicBlock, Value* address, Phi* phi) {
+        _loadPhiMap[{ basicBlock, address }] = phi;
+    }
 
-    void removeCorrespondingPhi(BasicBlock* basicBlock) { _loadPhiMap.erase({ basicBlock, currentAddress() }); }
+    void removeCorrespondingPhi(BasicBlock* basicBlock, Value* address) {
+        _loadPhiMap.erase({ basicBlock, address });
+    }
 
     using LoadPhiMap = utl::hashmap<LoadAndStoreKey, Phi*, LoadAndStoreKeyHash, LoadAndStoreKeyEqual>;
     LoadPhiMap _loadPhiMap;
+
+    std::optional<SearchContext> searchContext;
 };
 
 } // namespace
@@ -131,28 +148,74 @@ bool Mem2RegContext::run() {
     return modifiedAny;
 }
 
+static ExtractValue* gepAccessToExtractValue(GetElementPointer* gep, Value* baseObject, std::string name) {
+    Type const* gepBasePointeeType = cast<PointerType const*>(gep->basePointer()->type())->pointeeType();
+    SC_ASSERT(gepBasePointeeType == baseObject->type(), "Types must match");
+    Type const* gepPointeeType = cast<PointerType const*>(gep->type())->pointeeType();
+    return new ExtractValue(gepPointeeType,
+                            baseObject,
+                            gep->structMemberIndex(),
+                            std::move(name));
+}
+
 bool Mem2RegContext::promote(Load* load) {
-    setCurrentLoad(load);
-    auto* const basicBlock = currentLoad()->parent();
-    auto searchResult      = search(basicBlock, 0, 0);
-    if (!searchResult) {
+    auto* const basicBlock = load->parent();
+    /// We could extract this lambda to another \p search* function.
+    Value* const newValue = [&]() -> Value* {
+        auto searchResult      = search(basicBlock, load);
+        if (searchResult) {
+            return *searchResult;
+        }
+        Value* address = load->address();
+        utl::stack<GetElementPointer*> intermediateAddresses;
+        while (true) {
+            auto* const gep = dyncast<GetElementPointer*>(address);
+            if (!gep) {
+                return nullptr;
+            }
+            address = gep->basePointer();
+            auto searchResult = search(basicBlock, load, address, "gep.value" /* for now */);
+            if (!searchResult) {
+                // TODO: Here we actually need to push to a stack to create a bunch of ExtractValue instructions for nested accesses.
+                intermediateAddresses.push(gep);
+                continue;
+            }
+            auto* extract = gepAccessToExtractValue(gep, *searchResult, irCtx.uniqueName(&function, "extr"));
+            basicBlock->insert(load, extract);
+            while (!intermediateAddresses.empty()) {
+                auto* gep = intermediateAddresses.pop();
+                extract = gepAccessToExtractValue(gep, extract, irCtx.uniqueName(&function, "extr"));
+                basicBlock->insert(load, extract);
+            }
+            return extract;
+        }
+    }();
+    if (!newValue) {
         return false;
     }
-    Value* const newValue             = *searchResult;
-    loadReplacementMap[currentLoad()] = newValue;
-    currentLoad()->setName("evicted-load");
-    replaceValue(currentLoad(), newValue);
-    currentLoad()->clearOperands();
+    loadReplacementMap[load] = newValue;
+    load->setName("evicted-load");
+    replaceValue(load, newValue);
+    load->clearOperands();
     /// We extract here because the loads need to stay alive until the algorithm is finished.
-    evictedLoads.push_back(UniquePtr<Load>(cast<Load*>(basicBlock->extract(currentLoad()))));
-    setCurrentLoad(nullptr);
+    evictedLoads.push_back(UniquePtr<Load>(cast<Load*>(basicBlock->extract(load))));
     return true;
 }
 
-Expected<Value*, SearchException> Mem2RegContext::search(BasicBlock* basicBlock, size_t depth, size_t bifurkations) {
-    auto& ls            = loadsAndStores[{ basicBlock, currentLoad()->address() }];
-    auto ourLoad        = [&] { return std::find(ls.begin(), ls.end(), currentLoad()); };
-    auto const beginItr = basicBlock != currentLoad()->parent() || depth == 0 ? ls.begin() : ourLoad();
+Expected<Value*, SearchError> Mem2RegContext::search(BasicBlock* start, Load* load) {
+    return search(start, load, load->address(), std::string(load->name()));
+}
+
+Expected<Value*, SearchError> Mem2RegContext::search(BasicBlock* start, Load* load, Value* address, std::string name) {
+    searchContext = SearchContext(load, address, std::move(name));
+    utl::scope_guard resetSearcgContext = [&]{ searchContext = std::nullopt; };
+    return searchImpl(start, 0, 0);
+}
+
+Expected<Value*, SearchError> Mem2RegContext::searchImpl(BasicBlock* basicBlock, size_t depth, size_t bifurkations) {
+    auto& ls            = loadsAndStores[{ basicBlock, searchContext->address() }];
+    auto ourLoad        = [&] { return std::find(ls.begin(), ls.end(), searchContext->load()); };
+    auto const beginItr = basicBlock != searchContext->load()->parent() || depth == 0 ? ls.begin() : ourLoad();
     auto const endItr   = depth > 0 ? ls.end() : ourLoad();
     /// We search loads, stores and phi nodes in this basic block in reverse order. Phi nodes always appear first so
     /// we can search them separately after searching loads and stores.
@@ -169,23 +232,23 @@ Expected<Value*, SearchException> Mem2RegContext::search(BasicBlock* basicBlock,
         return findReplacement(result);
     }
     /// Search the phi nodes in this basic block corresponding to the target load:
-    if (Value* result = correspondingPhi(basicBlock)) {
+    if (Value* result = correspondingPhi(basicBlock, searchContext->address())) {
         if (bifurkations == 0) {
-            result->setName(std::string(currentLoad()->name()));
+            result->setName(std::string(searchContext->name()));
         }
         return result;
     }
-    SC_ASSERT(depth == 0 || basicBlock != currentLoad()->parent(),
+    SC_ASSERT(depth == 0 || basicBlock != searchContext->load()->parent(),
               "If we are back in our starting BB we must have found ourself as a matching load.");
-    if (visitedBBs.contains(basicBlock)) {
-        return SearchException::Cycle;
+    if (searchContext->visitedBBs.contains(basicBlock)) {
+        return SearchError::Cycle;
     }
-    visitedBBs.insert({ basicBlock, nullptr });
-    utl::scope_guard eraseVisited = [&] { visitedBBs.erase(basicBlock); };
+    searchContext->visitedBBs.insert(basicBlock);
+    utl::scope_guard eraseVisited = [&] { searchContext->visitedBBs.erase(basicBlock); };
     /// This basic block has no load or store that we can use to promote. We need to visit our predecessors.
     switch (basicBlock->predecessors().size()) {
-    case 0: return SearchException::NoResult;
-    case 1: return search(basicBlock->predecessors().front(), depth + 1, bifurkations);
+    case 0: return SearchError::NoResult;
+    case 1: return searchImpl(basicBlock->predecessors().front(), depth + 1, bifurkations);
     default: return combinePredecessors(basicBlock, depth, bifurkations);
     }
 }
@@ -204,31 +267,31 @@ static Phi* findPhiWithArgs(BasicBlock* basicBlock, std::span<PhiMapping const> 
     return nullptr;
 }
 
-Expected<Value*, SearchException> Mem2RegContext::combinePredecessors(BasicBlock* basicBlock,
-                                                                      size_t depth,
-                                                                      size_t bifurkations) {
+Expected<Value*, SearchError> Mem2RegContext::combinePredecessors(BasicBlock* basicBlock,
+                                                                  size_t depth,
+                                                                  size_t bifurkations) {
     utl::small_vector<PhiMapping, 6> phiArgs;
     size_t const predCount = basicBlock->predecessors().size();
     phiArgs.reserve(predCount);
     size_t numPredsEqualToSelf = 0;
     Value* valueUnequalToSelf  = nullptr;
-    auto* phi                  = new Phi(currentLoad()->type());
-    SC_ASSERT(correspondingPhi(basicBlock) == nullptr, "This should be handled by search()");
-    setCorrespondingPhi(basicBlock, phi);
+    auto* phi                  = new Phi(searchContext->load()->type());
+    SC_ASSERT(correspondingPhi(basicBlock, searchContext->address()) == nullptr, "This should be handled by search()");
+    setCorrespondingPhi(basicBlock, searchContext->address(), phi);
     utl::armed_scope_guard deletePhi = [&] {
         delete phi;
-        removeCorrespondingPhi(basicBlock);
+        removeCorrespondingPhi(basicBlock, searchContext->address());
     };
     for (auto* pred: basicBlock->predecessors()) {
-        auto const searchResult = search(pred, depth + 1, bifurkations + 1);
-        if (!searchResult && searchResult.error() != SearchException::Cycle) {
+        auto const searchResult = searchImpl(pred, depth + 1, bifurkations + 1);
+        if (!searchResult && searchResult.error() != SearchError::Cycle) {
             /// Here may be opportunity for further optimization, as we potentially could load conditionally.
             return searchResult.error();
         }
         PhiMapping arg{ pred, searchResult.valueOr(phi) };
         SC_ASSERT(arg.value, "We never return nullptrs form search()");
         phiArgs.push_back(arg);
-        if (arg.value == currentLoad()) {
+        if (arg.value == searchContext->load()) {
             ++numPredsEqualToSelf;
         }
         else {
@@ -251,8 +314,8 @@ Expected<Value*, SearchException> Mem2RegContext::combinePredecessors(BasicBlock
         return phi;
     }
     deletePhi.disarm();
-    std::string name = bifurkations == 0 ? std::string(currentLoad()->name()) :
-                                           irCtx.uniqueName(&function, currentLoad()->name(), ".p", bifurkations);
+    std::string name = bifurkations == 0 ? std::string(searchContext->name()) :
+                                           irCtx.uniqueName(&function, searchContext->name(), ".p", bifurkations);
     phi->setName(std::move(name));
     phi->setArguments(std::move(phiArgs));
     basicBlock->insert(basicBlock->begin(), phi);
