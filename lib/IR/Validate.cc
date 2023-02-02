@@ -7,6 +7,7 @@
 #include <utl/hashmap.hpp>
 
 #include "Basic/Basic.h"
+#include "IR/Context.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 
@@ -29,7 +30,7 @@ static void _doCheck(
 }
 
 struct AssertContext {
-    explicit AssertContext(ir::Context const& ctx): ctx(ctx) {}
+    explicit AssertContext(ir::Context& ctx): ctx(ctx) {}
 
     void assertInvariants(Module const& mod);
     void assertInvariants(Function const& function);
@@ -42,18 +43,18 @@ struct AssertContext {
 
     void uniqueName(Value const& value);
 
-    ir::Context const& ctx;
+    ir::Context& ctx;
     Function const* currentFunction = nullptr;
     BasicBlock const* currentBB     = nullptr;
     utl::hashmap<std::string, std::pair<Function const*, Value const*>> nameValueMap;
 };
 
-void ir::assertInvariants(Context const& ctx, Module const& mod) {
+void ir::assertInvariants(Context& ctx, Module const& mod) {
     AssertContext assertCtx(ctx);
     assertCtx.assertInvariants(mod);
 }
 
-void ir::assertInvariants(Context const& ctx, Function const& function) {
+void ir::assertInvariants(Context& ctx, Function const& function) {
     AssertContext assertCtx(ctx);
     assertCtx.assertInvariants(function);
 }
@@ -89,6 +90,15 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
         CHECK(!isa<TerminatorInst>(inst) ^ (&inst == &bb.back()),
               "The last instruction must be the one and only terminator of a basic block");
     }
+    // clang-format off
+    visit(*bb.terminator(), utl::overload{
+        [&](Return const& ret) {
+            auto const* const returnedType = ret.value() ? ret.value()->type() : ctx.voidType();
+            CHECK(returnedType == bb.parent()->returnType(),
+                  "Returned type must match return type of the function");
+        },
+        [](TerminatorInst const&) {},
+    }); // clang-format on
     for (auto* pred: bb.predecessors()) {
         auto const predSucc = pred->successors();
         CHECK(std::find(predSucc.begin(), predSucc.end(), &bb) != predSucc.end(),

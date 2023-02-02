@@ -6,9 +6,9 @@
 
 namespace scatha::ir {
 
-SCATHA(API) void assertInvariants(Context const& ctx, Module const& mod);
+SCATHA(API) void assertInvariants(Context& ctx, Module const& mod);
 
-SCATHA(API) void assertInvariants(Context const& ctx, Function const& function);
+SCATHA(API) void assertInvariants(Context& ctx, Function const& function);
 
 SCATHA(API) void setupInvariants(Context& ctx, Module& mod);
 
