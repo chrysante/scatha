@@ -1,0 +1,22 @@
+-----------------------------------------
+
+%mem.ptr = gep %M*, %base.ptr, $0, %index
+store %mem.ptr, %val
+
+   ==>
+ 
+%base = load %S %base.ptr
+%base.1 = insert_value %S, %base, %val, %index
+store %base.ptr, %base.1
+
+-----------------------------------------
+
+%mem.ptr = gep %M*, %base.ptr, $0, %index
+%val = load %M %mem.ptr
+
+   ===>
+
+%base = load %S %base.ptr
+%val = extract_value %M, %base, %index
+
+-----------------------------------------
