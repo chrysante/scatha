@@ -27,13 +27,13 @@ Take a look at the [grammar](docs/Grammar.md).
 - Arithemtic types with explicitly specified width
     - Signed and unsigned integral types: 
         
-        `s8, s16, s32, s64, s128`
+        `s8`, `s16`, `s32`, `s64`, `s128`
 
-        `u8, u16, u32, u64, u128`
+        `u8`, `u16`, `u32`, `u64`, `u128`
 
     - Floating point types: 
 
-        `f16, f32, f64, f128`
+        `f16`, `f32`, `f64`, `f128`
 
     - Arithmetic vector types?
 
