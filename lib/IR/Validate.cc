@@ -128,10 +128,8 @@ void AssertContext::assertInvariants(Instruction const& inst) {
         uniqueName(*user);
         auto userOps = user->operands();
         CHECK(std::find(userOps.begin(), userOps.end(), &inst) != userOps.end(), "Our users must actually use us");
-        if (auto* userInst = dyncast<Instruction const*>(user)) {
-            CHECK(userInst->parent()->parent() == inst.parent()->parent(),
-                  "If our user is an instruction it must be in the same function");
-        }
+        CHECK(user->parent()->parent() == inst.parent()->parent(),
+              "If our user is an instruction it must be in the same function");
     }
     visit(inst, [this](auto& inst) { assertSpecialInvariants(inst); });
 }

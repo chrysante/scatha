@@ -143,6 +143,14 @@ private:
 /// Base class of all instructions. Every instruction inherits from \p Value as it (usually) yields a value. If an
 /// instruction does not yield a value its \p Value super class is of type void.
 class SCATHA(API) Instruction: public User, public NodeWithParent<Instruction, BasicBlock> {
+public:
+    /// View of all instructions using this value. This casts the elements in the range returned by \p Value::users() to instructions, as only instructions use instructions.
+    auto users() const {
+        return utl::transform(Value::users(), []<typename T>(T* user) {
+            return cast<utl::copy_cv_t<T, Instruction>*>(user);
+        });
+    }
+    
 protected:
     using User::User;
 };
