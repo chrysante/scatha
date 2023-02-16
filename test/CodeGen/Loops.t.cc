@@ -209,3 +209,18 @@ struct Complex {
     var y: int;
 })");
 }
+
+TEST_CASE("For loop with nested if/else", "[codegen]") {
+    test::checkReturns(48, R"(
+    fn g(n: int) -> int {
+        var result = 1;
+        for i = 1; i <= n; ++i {
+            if i % 2 == 0 {
+                result *= i;
+            }
+        }
+        return result;
+    }
+    fn main() -> int { return g(6); })");
+    
+}
