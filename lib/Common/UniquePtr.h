@@ -73,6 +73,9 @@ private:
             return;
         }
         if constexpr (requires(T * ptr) { ptr->privateDestroy(); }) {
+            /// \p privateDestroy is a customization point. If \p T provides it, we call it here. 
+            /// This is primarily used to insulate the call to the destructor, so we don't have to include 
+            /// the entire class hierarchy to destroy through pointers to base. 
             ptr->privateDestroy();
         }
         else {
