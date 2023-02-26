@@ -72,6 +72,8 @@ private:
     friend class ir::DynAllocator;
 
     void privateDestroy();
+    
+    void privateDelete();
 
 private:
     NodeType _nodeType;
