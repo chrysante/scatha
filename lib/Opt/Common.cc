@@ -94,13 +94,13 @@ bool opt::addressEqual(ir::Value const* lhs, ir::Value const* rhs) {
     }); // clang-format on
 }
 
-bool opt::isLocalMemory(ir::Value const* address) {
+bool opt::refersToLocalMemory(ir::Value const* address) {
     SC_ASSERT(isa<PointerType>(*address->type()), "Address is not a pointer");
     if (isa<Alloca>(*address)) {
         return true;
     }
     if (auto* gep = dyncast<GetElementPointer const*>(address)) {
-        return isLocalMemory(gep->basePointer());
+        return refersToLocalMemory(gep->basePointer());
     }
     return false;
 }
