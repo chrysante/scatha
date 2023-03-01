@@ -252,9 +252,15 @@ public:
 
     Iterator begin() { return instructions.begin(); }
     ConstIterator begin() const { return instructions.begin(); }
+    
+    auto rbegin() { return instructions.rbegin(); }
+    auto rbegin() const { return instructions.rbegin(); }
 
     Iterator end() { return instructions.end(); }
     ConstIterator end() const { return instructions.end(); }
+    
+    auto rend() { return instructions.rend(); }
+    auto rend() const { return instructions.rend(); }
 
     bool empty() const { return instructions.empty(); }
 
