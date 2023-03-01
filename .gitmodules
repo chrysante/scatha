@@ -16,3 +16,6 @@
 [submodule "external/APMath"]
 	path = external/APMath
 	url = https://github.com/chrysante/APMath
+[submodule "external/range-v3"]
+	path = external/range-v3
+	url = https://github.com/chrysante/range-v3

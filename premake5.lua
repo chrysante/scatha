@@ -56,7 +56,8 @@ externalincludedirs {
     "external/boost/config/include",
     "external/boost/detail/include",
     "external/boost/logic/include",
-    "external/APMath/include"
+    "external/APMath/include",
+    "external/range-v3/include",
 }
 includedirs { "lib" }
 links { "utility", "apmath", "termfmt" }
@@ -81,7 +82,8 @@ externalincludedirs {
     "external/utility/include",
     "external/termfmt/include",
     "external/cli11/include",
-    "external/APMath/include"
+    "external/APMath/include",
+    "external/range-v3/include",
 }
 
 links { "scatha", "utility", "termfmt", "apmath" }
@@ -127,7 +129,8 @@ externalincludedirs {
     "lib",
     "external/utility/include", 
     "external/Catch",
-    "external/APMath/include"
+    "external/APMath/include",
+    "external/range-v3/include",
 }
 
 addCppFiles "test"
@@ -141,7 +144,8 @@ externalincludedirs {
     "include",
     "external/utility/include",
     "external/termfmt/include",
-    "external/APMath/include" 
+    "external/APMath/include",
+    "external/range-v3/include",
 }
 includedirs { ".", "lib", "playground", "apmath" }
 
