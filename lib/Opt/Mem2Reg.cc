@@ -134,53 +134,13 @@ bool Mem2RegContext::run() {
     return modifiedAny;
 }
 
-static ExtractValue* gepAccessToExtractValue(GetElementPointer* gep, Value* baseObject, std::string name) {
-    Type const* gepBasePointeeType = cast<PointerType const*>(gep->basePointer()->type())->pointeeType();
-    SC_ASSERT(gepBasePointeeType == baseObject->type(), "Types must match");
-    Type const* gepPointeeType = cast<PointerType const*>(gep->type())->pointeeType();
-    return new ExtractValue(gepPointeeType,
-                            baseObject,
-                            gep->structMemberIndex(),
-                            std::move(name));
-}
-
 bool Mem2RegContext::promote(Load* load) {
     auto* const basicBlock = load->parent();
-    /// We could extract this lambda to another \p search* function.
-    Value* const newValue = [&]() -> Value* {
-        auto searchResult      = search(basicBlock, load);
-        if (searchResult) {
-            return *searchResult;
-        }
-        /// TODO: Remove this return statement
-        /// This return exists to disable the rest of this function. This way we won't generate any \p ExtractValue instructions and not crash when generating machine code.
-        return nullptr;
-        Value* address = load->address();
-        utl::stack<GetElementPointer*> intermediateAddresses;
-        while (true) {
-            auto* const gep = dyncast<GetElementPointer*>(address);
-            if (!gep) {
-                return nullptr;
-            }
-            address = gep->basePointer();
-            auto searchResult = search(basicBlock, load, address, "gep.value" /* for now */);
-            if (!searchResult) {
-                intermediateAddresses.push(gep);
-                continue;
-            }
-            auto* extract = gepAccessToExtractValue(gep, *searchResult, irCtx.uniqueName(&function, "extr"));
-            basicBlock->insert(load, extract);
-            while (!intermediateAddresses.empty()) {
-                auto* gep = intermediateAddresses.pop();
-                extract = gepAccessToExtractValue(gep, extract, irCtx.uniqueName(&function, "extr"));
-                basicBlock->insert(load, extract);
-            }
-            return extract;
-        }
-    }();
-    if (!newValue) {
+    auto searchResult      = search(basicBlock, load);
+    if (!searchResult) {
         return false;
     }
+    Value* const newValue = *searchResult;
     loadReplacementMap[load] = newValue;
     load->setName("evicted-load");
     replaceValue(load, newValue);
@@ -200,6 +160,18 @@ Expected<Value*, SearchError> Mem2RegContext::search(BasicBlock* start, Load* lo
     return searchImpl(start, 0, 0);
 }
 
+/// While promoting a load:
+///     If we encounter a store to a region of memory
+///     - `=` equal to our load:
+///              We call that our result.
+///     - `⊂` enclosing our load:
+///              We insert a sequence of extract-element instructions at the store and call that our result.
+///     - `⊃` enclosed by our load:
+///              We insert a sequence of insert-element instructions at the store and continue the search.
+///     - `?` whose relation to our load is indeterminable:
+///              We insert a load there.
+///
+
 Expected<Value*, SearchError> Mem2RegContext::searchImpl(BasicBlock* basicBlock, size_t depth, size_t bifurkations) {
     auto& ls            = loadsAndStores[{ basicBlock, searchContext->address() }];
     auto ourLoad        = [&] { return std::find(ls.begin(), ls.end(), searchContext->load()); };
@@ -208,6 +180,16 @@ Expected<Value*, SearchError> Mem2RegContext::searchImpl(BasicBlock* basicBlock,
     /// We search loads, stores and phi nodes in this basic block in reverse order. Phi nodes always appear first so
     /// we can search them separately after searching loads and stores.
     /// Search the loads and stores in this basic block:
+    
+    /// Search the entire basic block here, not just the cached loads and stores and then remove the caches entirely from this file.
+    //    std::find_if(basicBlock->begin());...
+    
+    auto reverseBB = utl::reverse(*basicBlock);
+    for (auto i = reverseBB.begin(), end = reverseBB.end(); i != end; ++i) {
+        
+    }
+    
+    
     if (beginItr != endItr) {
         /// This basic block has a load or store that we use to promote
         auto const itr = endItr - 1;
@@ -286,8 +268,9 @@ Expected<Value*, SearchError> Mem2RegContext::combinePredecessors(BasicBlock* ba
             valueUnequalToSelf = arg.value;
         }
     }
-    SC_ASSERT(numPredsEqualToSelf < predCount,
-              "How can all predecessors refer to this load? How would we than even reach this basic block?");
+    if (numPredsEqualToSelf == predCount) {
+        return searchContext->load();
+    }
     SC_ASSERT(phiArgs.size() == predCount || phiArgs.size() == 1, "?");
     if (numPredsEqualToSelf == predCount - 1) {
         return valueUnequalToSelf;
