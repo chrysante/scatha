@@ -26,13 +26,13 @@ bool opt::isReachable(Instruction const* from, Instruction const* to) {
     SC_ASSERT(from->parent()->parent() == to->parent()->parent(),
               "The instructions must be in the same function for this to be sensible");
     if (from->parent() == to->parent()) {
-        /// From and to are in the same basic block. If \p from preceeds \p to then \p to is definitely reachable.
+        /// From and to are in the same basic block. If \p *from preceeds \p *to then \p *to is definitely reachable.
         if (preceeds(from, to)) {
             return true;
         }
     }
-    /// If they are not in the same basic block or \p to comes before \p from perform a DFS to check if we can reach the
-    /// BB of \p to from the BB of \p from.
+    /// If they are not in the same basic block or \p *to comes before \p *from perform a DFS to check if we can reach the
+    /// BB of \p *to from the BB of \p *from.
     utl::hashset<BasicBlock const*> visited;
     auto search = [&, target = to->parent()](BasicBlock const* bb, auto& search) -> bool {
         visited.insert(bb);
@@ -133,7 +133,7 @@ void opt::removePredecessorAndUpdatePhiNodes(ir::BasicBlock* basicBlock, ir::Bas
         basicBlock->eraseAllPhiNodes();
     }
     else {
-        /// Remove \p predecessor from all phi nodes
+        /// Remove \p *predecessor from all phi nodes
         for (auto& phi: basicBlock->phiNodes()) {
             phi.removeArgument(bbPhiIndex);
         }

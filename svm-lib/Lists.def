@@ -42,13 +42,13 @@ SVM_INSTRUCTION_DEF(mov16RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
 SVM_INSTRUCTION_DEF(mov32RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
 SVM_INSTRUCTION_DEF(mov64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
 
-/// Store the address of the register at \p sourceRegIdx into the register at \p targetRegIdx
+/// Store the address of the register at `sourceRegIdx` into the register at `targetRegIdx`
 SVM_INSTRUCTION_DEF(alloca_, Other) // (u8 targetRegIdx, u8 sourceRegIdx)
 
 /// ** Jumps **
-/// Jumps are performed by adding the \p offset argument to the instruction
+/// Jumps are performed by adding the `offset` argument to the instruction
 /// pointer.
-/// This means a jump with \p offset 0 will jump to itself and thus enter an
+/// This means a jump with `offset` 0 will jump to itself and thus enter an
 /// infinite loop.
 
 /// Jump to the specified offset.
@@ -80,7 +80,7 @@ SVM_INSTRUCTION_DEF(itest, R) //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(utest, R) //  (u8 regIdx)
 
 /// ** Read comparison results **
-/// Set register to 0 or 1 based of the flags set by the \p *cmp* or \p *test
+/// Set register to 0 or 1 based of the flags set by the `*cmp*` or `*test`
 /// instructions
 SVM_INSTRUCTION_DEF(sete,  R) //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(setne, R) //  (u8 regIdx)

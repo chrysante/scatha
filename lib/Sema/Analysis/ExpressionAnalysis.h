@@ -54,7 +54,7 @@ private:
 /// \param expression The expression to be analyzed.
 /// \param symbolTable The symbol table to be read from and written to.
 /// \param issueHandler The issue handler to submit issues to. May be null.
-/// \returns An \p ExpressionAnalysisResult.
+/// \returns An `ExpressionAnalysisResult`.
 ///
 ExpressionAnalysisResult analyzeExpression(ast::Expression& expression,
                                            SymbolTable& symbolTable,

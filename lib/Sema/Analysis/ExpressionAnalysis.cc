@@ -256,7 +256,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
             return ExpressionAnalysisResult::fail();
         }
         success &= argRes.success();
-        /// \p arg is undecorated if analysis of \p arg failed.
+        /// `arg` is undecorated if analysis of `arg` failed.
         argTypes.push_back(arg->isDecorated() ? arg->typeID() : TypeID::Invalid);
     }
     auto const objRes = dispatch(*fc.object);
@@ -273,8 +273,8 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     /// We can only call lvalues right now which also must be overload sets (aka
     /// functions) until we have function pointers or overloading of operator().
     /// To implement the latter we must get the type of the expression and look
-    /// in the scope for operator() It might be an idea to make all functions
-    /// class types with defined operator()
+    /// in the scope for `operator()` It might be an idea to make all functions
+    /// class types with defined `operator()`
     if (!objRes.isLValue()) {
         iss.push(BadFunctionCall(fc, SymbolID::Invalid, argTypes, BadFunctionCall::Reason::ObjectNotCallable));
         return ExpressionAnalysisResult::fail();

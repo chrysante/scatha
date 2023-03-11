@@ -36,7 +36,7 @@ struct SearchContext {
 
     std::string_view name() const { return _name; }
 
-    /// Set of basic blocks visited by \p search() pass.
+    /// Set of basic blocks visited by `search()` pass.
     utl::hashset<BasicBlock const*> visitedBBs;
     Load* _currentLoad;
     Value* _currentAddress;

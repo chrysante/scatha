@@ -97,7 +97,7 @@ void Context::run() {
             auto const stackItr = stackReverseItr.base();
             tokenItr            = popStackAndInsertMatchingBrackets(tokenItr, stackItr);
             SC_ASSERT(*tokenItr == token, "'itr' must still point to the same token.");
-            /// From this case we don't \p return; but flow into the good case section, since we have corrected all
+            /// From this case we don't `return` but flow into the good case section, since we have corrected all
             /// errors but still need to pop the last open bracket.
         }
     }

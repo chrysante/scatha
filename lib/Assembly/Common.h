@@ -18,7 +18,7 @@ enum class Type { Signed, Unsigned, Float, _count };
 
 class Instruction;
 
-/// Enum naming all concrete types in the \p Instruction variant.
+/// Enum naming all concrete types in the `Instruction` variant.
 enum class InstructionType {
 #define SC_ASM_INSTRUCTION_DEF(inst) inst,
 #include "Assembly/Lists.def"
@@ -32,7 +32,7 @@ enum class InstructionType {
 
 class Value;
 
-/// Enum naming all concrete types in the \p Value variant.
+/// Enum naming all concrete types in the `Value` variant.
 enum class ValueType {
 #define SC_ASM_VALUE_DEF(value) value,
 #include "Assembly/Lists.def"

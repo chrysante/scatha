@@ -72,7 +72,7 @@ struct SCATHA(API) Token: public TokenData {
     }
 
 private:
-    /// Populates all the fields after \p id in token structure.
+    /// Populates all the fields after `id` in token structure.
     void finalize();
 };
 

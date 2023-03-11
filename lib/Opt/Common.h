@@ -24,8 +24,8 @@ SCATHA(TEST_API) bool refersToLocalMemory(ir::Value const* address);
 
 SCATHA(TEST_API) void replaceValue(ir::Value* oldValue, ir::Value* newValue);
 
-/// Fully remove \p predecessor as predecessor of \p basicBlock.
-/// Caller is responsible for removing \p basicBlock as successor of \p predecessor
+/// Fully remove \p *predecessor as predecessor of \p *basicBlock.
+/// Caller is responsible for removing \p *basicBlock as successor of \p *predecessor
 SCATHA(TEST_API) void removePredecessorAndUpdatePhiNodes(ir::BasicBlock* basicBlock, ir::BasicBlock const* predecessor);
 
 } // namespace scatha::opt

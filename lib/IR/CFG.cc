@@ -12,7 +12,7 @@ void Value::addUserWeak(User* user) {
 
 void Value::removeUserWeak(User* user) {
     auto itr = _users.find(user);
-    SC_ASSERT(itr != _users.end(), "\p user is not a user of this value.");
+    SC_ASSERT(itr != _users.end(), "`user` is not a user of this value.");
     if (--itr->second == 0) {
         _users.erase(itr);
     }

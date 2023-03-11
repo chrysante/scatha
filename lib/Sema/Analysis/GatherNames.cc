@@ -16,7 +16,7 @@ namespace {
 /// Gathers all declarations and declares them in the symbol table. Also analyzes the dependencies of structs because
 /// they are trivial.
 struct Context {
-    /// Dispatches to the appropriate one of the \p gather() overloads below based on the runtime type of \p node
+    /// Dispatches to the appropriate one of the `gather()` overloads below based on the runtime type of \p node
     size_t dispatch(ast::AbstractSyntaxTree& node);
 
     size_t gather(ast::TranslationUnit&);

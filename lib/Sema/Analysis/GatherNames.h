@@ -16,7 +16,7 @@ namespace scatha::sema {
 class SymbolTable;
 
 /// In gatherNames phase we declare (but not instantiate) all non-local names in the translation unit, including nested
-/// structs and member variables and functions. After executing \p gatherNames() all globally visible symbols are
+/// structs and member variables and functions. After executing `gatherNames()` all globally visible symbols are
 /// declared in the table, so we can then analyze all e.g. function declarations. With that we build an incomplete
 /// dependency graph of the declarations in the program.
 ///

@@ -43,9 +43,9 @@ MonotonicBufferAllocator& MonotonicBufferAllocator::operator=(MonotonicBufferAll
     return *this;
 }
 
-SCATHA(DISABLE_UBSAN) /// Disable UBSan for method \p allocate  as it may
-                      /// perform pointer arithmetic on \p nullptr. This pointer
-                      /// will be never dereferenced though, so its all fine.
+SCATHA(DISABLE_UBSAN) /// Disable UBSan for method `allocate`  as it may
+                      /// perform pointer arithmetic on `nullptr`. This pointer
+                      /// will be never dereferenced though, so its all fine. (Still UB though)
 void* MonotonicBufferAllocator::allocate(size_t size, size_t align) {
     using namespace internal;
     u8* const result = alignPointer(current, align);

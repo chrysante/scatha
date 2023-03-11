@@ -12,7 +12,7 @@ using namespace scatha;
 using namespace sema;
 
 SymbolTable::SymbolTable(): _globalScope(std::make_unique<GlobalScope>()), _currentScope(_globalScope.get()) {
-    /// Declare \p void with \p invalidSize  to make it an incomplete type.
+    /// Declare `void` with `invalidSize` to make it an incomplete type.
     _void   = declareBuiltinType("void", invalidSize, invalidSize);
     _bool   = declareBuiltinType("bool", 1, 1);
     _int    = declareBuiltinType("int", 8, 8);
@@ -64,7 +64,7 @@ Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(Token name) 
 
 TypeID SymbolTable::declareBuiltinType(std::string name, size_t size, size_t align) {
     Token token(name, TokenType::Identifier);
-    /// Hack to prevent \p declareObjectType() from rejecting this token, as it does not accept keywords.
+    /// Hack to prevent `declareObjectType()` from rejecting this token, as it does not accept keywords.
     token.isKeyword = false;
     auto result     = declareObjectType(token);
     SC_ASSERT(result, "How could this fail?");

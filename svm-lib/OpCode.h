@@ -13,28 +13,33 @@
 
 namespace svm {
 
-/// ** A program looks like this: **
-// u8 [instruction], u8... [arguments]
-// ...
+/// ## A program looks like this:
+/// ```
+/// u8 [instruction], u8... [arguments]
+/// ...
+/// ```
 ///
-// MEMORY_POINTER         == [u8 baseptrRegIdx,
-//                            u8 offsetCountRegIdx,
-//                            u8 constantOffsetMultiplier,
-//                            u8 constantInnerOffset]
-// eval(MEMORY_POINTER)   == reg[baseptrRegIdx] + offsetCountRegIdx * constantOffsetMultiplier + constantInnerOffset
-// sizeof(MEMORY_POINTER) == 4
-// NOTE: If offsetCountRegIdx == 0xFF then eval(MEMORY_POINTER) == reg[baseptrRegIdx] + constantInnerOffset
+/// ```
+/// MEMORY_POINTER         == [u8 baseptrRegIdx,
+///                            u8 offsetCountRegIdx,
+///                            u8 constantOffsetMultiplier,
+///                            u8 constantInnerOffset]
+/// eval(MEMORY_POINTER)   == reg[baseptrRegIdx] + offsetCountRegIdx * constantOffsetMultiplier + constantInnerOffset
+/// sizeof(MEMORY_POINTER) == 4
+/// ```
+/// NOTE: If `offsetCountRegIdx == 0xFF` then `eval(MEMORY_POINTER) == reg[baseptrRegIdx] + constantInnerOffset`
 
-/// ** Calling convention **
+/// ## Calling convention
+///
 /// _ All register indices are from the perspective of the callee _
 ///
 /// Arguments are passed in consecutive registers starting with index 0.
 /// Return value is passed in consecutive registers starting with index 0.
 /// All registers with positive indices may be used and modified by the callee.
-/// The register  pointer offset is placed in \p R[-2] and added to the
-/// register pointer by the \p call instruction. The register pointer offset is
-/// subtracted from the register pointer by the the \p ret instruction. The
-/// return address is placed in \p R[-1] by the \p call instruction.
+/// The register  pointer offset is placed in `R[-2]` and added to the
+/// register pointer by the `call` instruction. The register pointer offset is
+/// subtracted from the register pointer by the the `ret` instruction. The
+/// return address is placed in `R[-1]` by the `call` instruction.
 ///
 
 enum class OpCode : u8 {

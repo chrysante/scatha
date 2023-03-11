@@ -62,7 +62,7 @@ private:
     /// Register a user of this value. Won't affect \p user
     void addUserWeak(User* user);
 
-    /// Unregister a user of this value. \p this will _not_ be cleared from the operand list of \p user
+    /// Unregister a user of this value. `this` will _not_ be cleared from the operand list of \p user
     void removeUserWeak(User* user);
 
     template <typename>
@@ -99,7 +99,7 @@ public:
 
     void removeOperand(size_t index);
 
-    /// This should proably at some point be replaced by some sort of \p delete operation
+    /// This should proably at some point be replaced by some sort of `delete` operation
     void clearOperands();
 
 protected:
@@ -142,11 +142,12 @@ private:
     APFloat _value;
 };
 
-/// Base class of all instructions. Every instruction inherits from \p Value as it (usually) yields a value. If an
-/// instruction does not yield a value its \p Value super class is of type void.
+/// Base class of all instructions. Every instruction inherits from `Value` as it (usually) yields a value. If an
+/// instruction does not yield a value its `Value` super class is of type void.
 class SCATHA(API) Instruction: public User, public NodeWithParent<Instruction, BasicBlock> {
 public:
-    /// View of all instructions using this value. This casts the elements in the range returned by \p Value::users() to instructions, as only instructions use instructions.
+    /// View of all instructions using this value. This casts the elements in the range returned by `Value::users()` to
+    /// instructions, as instructions are only used by other instructions.
     auto users() const {
         return ranges::views::transform(Value::users(), []<typename T>(T* user) {
             return cast<utl::copy_cv_t<T, Instruction>*>(user);
@@ -187,8 +188,8 @@ public:
         insert(ConstIterator(before), instruction);
     }
 
-    /// Merge \p this with \p rhs
-    /// Insert nodes of \p rhs before \p pos
+    /// Merge `*this` with \p *rhs
+    /// Insert nodes of \p *rhs before \p pos
     void splice(ConstIterator pos, BasicBlock* rhs) {
         for (auto& inst: *rhs) {
             inst.set_parent(this);
@@ -286,13 +287,13 @@ public:
     /// \overload
     std::span<BasicBlock const* const> predecessors() const { return preds; }
 
-    /// Test wether \p possiblePred is a predecessor of this basic block.
+    /// Test wether \p *possiblePred is a predecessor of this basic block.
     bool isPredecessor(BasicBlock const* possiblePred) const {
         return std::find(preds.begin(), preds.end(), possiblePred) != preds.end();
     }
 
-    /// Mark \p pred as a predecessor of this basic block.
-    /// \pre \p pred must not yet be marked as predecessor.
+    /// Mark \p *pred as a predecessor of this basic block.
+    /// \pre \p *pred must not yet be marked as predecessor.
     void addPredecessor(BasicBlock* pred) {
         SC_ASSERT(!isPredecessor(pred), "This basic block already is a predecessor");
         preds.push_back(pred);
@@ -305,8 +306,8 @@ public:
         std::copy(newPreds.begin(), newPreds.end(), std::back_inserter(preds));
     }
 
-    /// Remove \p pred from the list of predecessors of this basic block.
-    /// \pre \p pred must be a listed predecessor of this basic block.
+    /// Remove \p *pred from the list of predecessors of this basic block.
+    /// \pre \p *pred must be a listed predecessor of this basic block.
     void removePredecessor(BasicBlock const* pred) { preds.erase(std::find(preds.begin(), preds.end(), pred)); }
 
     /// The basic blocks directly reachable from this basic block
@@ -315,10 +316,10 @@ public:
     /// \overload
     std::span<BasicBlock const* const> successors() const;
 
-    /// Returns true iff this basic block has exactly one predecessor.
+    /// Returns `true` iff this basic block has exactly one predecessor.
     bool hasSinglePredecessor() const { return preds.size() == 1; }
 
-    /// Return predecessor if this basic block has a single predecessor, else nullptr.
+    /// Return predecessor if this basic block has a single predecessor, else `nullptr`.
     BasicBlock* singlePredecessor() {
         return const_cast<BasicBlock*>(static_cast<BasicBlock const*>(this)->singlePredecessor());
     }
@@ -326,10 +327,10 @@ public:
     /// \overload
     BasicBlock const* singlePredecessor() const { return hasSinglePredecessor() ? preds.front() : nullptr; }
 
-    /// Returns true iff this basic block has exactly one successor.
+    /// Returns `true` iff this basic block has exactly one successor.
     bool hasSingleSuccessor() const { return successors().size() == 1; }
 
-    /// Return successor if this basic block has a single successor, else nullptr.
+    /// Return successor if this basic block has a single successor, else `nullptr`.
     BasicBlock* singleSuccessor() {
         return const_cast<BasicBlock*>(static_cast<BasicBlock const*>(this)->singleSuccessor());
     }
@@ -398,7 +399,7 @@ private:
     List<BasicBlock> bbs;
 };
 
-/// \p alloca instruction. Allocates automatically managed memory for local variables. Its value is a pointer to the
+/// `alloca` instruction. Allocates automatically managed memory for local variables. Its value is a pointer to the
 /// allocated memory.
 class SCATHA(API) Alloca: public Instruction {
 public:
@@ -655,8 +656,8 @@ public:
         return utl::narrow_cast<size_t>(std::find(_preds.begin(), _preds.end(), predecessor) - _preds.begin());
     }
 
-    /// Remove the argument corresponding to \p predecessor
-    /// \p predecessor must be an argument of this phi instruction.
+    /// Remove the argument corresponding to \p *predecessor
+    /// \p *predecessor must be an argument of this phi instruction.
     void removeArgument(BasicBlock const* predecessor) { removeArgument(indexOf(predecessor)); }
 
     /// Remove the argument at index \p index
@@ -746,7 +747,7 @@ public:
                          std::move(name)),
         internal::AccessValueBase(index) {}
 
-    /// The structure or array being accessed. Same as \p operand()
+    /// The structure or array being accessed. Same as `operand()`
     Value* baseValue() { return operand(); }
 
     /// \overload
@@ -764,13 +765,13 @@ public:
                           std::move(name)),
         internal::AccessValueBase(index) {}
 
-    /// The structure or array being accessed. Same as \p lhs()
+    /// The structure or array being accessed. Same as `lhs()`
     Value* baseValue() { return lhs(); }
 
     /// \overload
     Value const* baseValue() const { return lhs(); }
 
-    /// The value being inserted. Same as \p rhs()
+    /// The value being inserted. Same as `rhs()`
     Value* insertedValue() { return rhs(); }
 
     /// \overload

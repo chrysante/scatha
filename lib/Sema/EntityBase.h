@@ -9,16 +9,18 @@
 #include <scatha/Basic/Basic.h>
 #include <scatha/Sema/SymbolID.h>
 
-/// Class hierarchy of \p EntityBase
+/// Class hierarchy of `EntityBase`
 ///
-// EntityBase
-// ├─ Scope
-// │  ├─ Function
-// │  ├─ ObjectType
-// │  ├─ FunctionType [??, does not exist]
-// │  └─ AnonymousScope [??, does not exist either]
-// ├─ OverloadSet
-// └─ Variable
+/// ```
+/// EntityBase
+/// ├─ Scope
+/// │  ├─ Function
+/// │  ├─ ObjectType
+/// │  ├─ FunctionType [??, does not exist]
+/// │  └─ AnonymousScope [??, does not exist either]
+/// ├─ OverloadSet
+/// └─ Variable
+/// ```
 
 namespace scatha::sema {
 

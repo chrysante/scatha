@@ -84,7 +84,7 @@ private:
     Type const* _pointeeType;
 };
 
-/// Base class of \p Integral and \p FloatingPoint types.
+/// Base class of `Integral` and `FloatingPoint` types.
 class ArithmeticType: public Type {
 public:
     size_t bitWidth() const { return _bitWidth; }

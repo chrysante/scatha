@@ -47,9 +47,9 @@ struct Context {
 
     void postprocess();
 
-    /// Used for generating \p Store and \p Load instructions.
+    /// Used for generating `Store` and `Load` instructions.
     MemoryAddress computeAddress(ir::Value const&);
-    /// Used by \p computeAddress
+    /// Used by `computeAddress`
     MemoryAddress computeGep(ir::GetElementPointer const&);
 
     void generateBigMove(Value dest, Value source, size_t size, Asm::Block* block = nullptr);
@@ -154,7 +154,7 @@ void Context::generate(ir::Store const& store) {
         return currentRD().resolve(*store.source());
     }();
     if (isLiteralValue(src.valueType())) {
-        /// \p src is a value and must be stored in temporary register first.
+        /// `src` is a value and must be stored in temporary register first.
         size_t const size = sizeOf(src.valueType());
         SC_ASSERT(size <= 8, "");
         auto tmp = currentRD().makeTemporary();

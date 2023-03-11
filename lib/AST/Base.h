@@ -30,8 +30,8 @@ private:
 
 } // namespace internal
 
-/// **Base class for all nodes in the AST**
-/// Every derived class must specify its runtime type in the constructor via the \p NodeType enum.
+/// ##Base class for all nodes in the AST
+/// Every derived class must specify its runtime type in the constructor via the `NodeType` enum.
 class SCATHA(API) AbstractSyntaxTree: public internal::Decoratable {
 public:
     /// Runtime type of this node
@@ -41,7 +41,7 @@ public:
     Token const& token() const { return _token; }
 
     /// Source location object associated with this node. Same as
-    /// token().sourceLocation
+    /// `token().sourceLocation`
     SourceLocation sourceLocation() const { return token().sourceLocation; }
 
 protected:
@@ -53,12 +53,12 @@ private:
     template <typename>
     friend class scatha::UniquePtr;
 
-    /// This function is a customization point for \p UniquePtr
+    /// This function is a customization point for `UniquePtr<>`
     /// It insulates visitation of the tree on destruction, so users who destroy an AST only need to #include "Base.h"
     /// not "AST.h".
     void privateDestroy();
     
-    /// Calls \p delete on the most derived type.
+    /// Calls `delete` on the most derived type.
     void privateDelete();
 
 private:
@@ -66,7 +66,7 @@ private:
     Token _token;
 };
 
-// For dyncast compatibilty
+// For `dyncast` compatibilty
 NodeType dyncast_get_type(std::derived_from<AbstractSyntaxTree> auto const& node) {
     return node.nodeType();
 }

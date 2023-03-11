@@ -28,7 +28,7 @@ public:
     size_t index() const { return _index; }
 
 private:
-    friend class SymbolTable; /// To set \p _sig and \p _isExtern,...
+    friend class SymbolTable; /// To set `_sig` and `_isExtern`
     FunctionSignature _sig;
     SymbolID _overloadSetID;
     u32 _slot      : 31 = 0;

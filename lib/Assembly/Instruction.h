@@ -16,7 +16,7 @@ protected:
     InstructionBase() = default;
 };
 
-/// Represents a \p mov instruction.
+/// Represents a `mov` instruction.
 class MoveInst: public InstructionBase {
 public:
     explicit MoveInst(Value dest, Value source, size_t numBytes): _dest(dest), _src(source), _numBytes(numBytes) {
@@ -38,7 +38,7 @@ private:
     size_t _numBytes;
 };
 
-/// Represents a jump instruction
+/// Represents a `jump` instruction
 class JumpInst: public InstructionBase {
 public:
     explicit JumpInst(CompareOperation condition, u64 targetLabelID): _cond(condition), _target(targetLabelID) {}
@@ -56,7 +56,7 @@ private:
     u64 _target;
 };
 
-/// Represents a call instruction.
+/// Represents a `call` instruction.
 class CallInst: public InstructionBase {
 public:
     explicit CallInst(u64 functionLabelID, size_t regPtrOffset):
@@ -71,7 +71,7 @@ private:
     u64 _regPtrOffset;
 };
 
-/// Represents a call ext instruction.
+/// Represents a `call ext` instruction.
 class CallExtInst: public InstructionBase {
 public:
     explicit CallExtInst(size_t regPtrOffset, size_t slot, size_t index):
@@ -92,19 +92,19 @@ private:
     size_t _index;
 };
 
-/// Represents a return instruction.
+/// Represents a `return` instruction.
 class ReturnInst: public InstructionBase {
 public:
     ReturnInst() = default;
 };
 
-/// Represents a terminate instruction.
+/// Represents a terminator instruction.
 class TerminateInst: public InstructionBase {
 public:
     TerminateInst() = default;
 };
 
-/// Represents an alloca instruction.
+/// Represents an `alloca` instruction.
 class AllocaInst: public InstructionBase {
 public:
     explicit AllocaInst(RegisterIndex dest, RegisterIndex source): _dest(dest), _source(source) {}
@@ -117,7 +117,7 @@ private:
     RegisterIndex _source;
 };
 
-/// Represents a compare instruction.
+/// Represents a `cmp*` instruction.
 class CompareInst: public InstructionBase {
 public:
     explicit CompareInst(Type type, Value lhs, Value rhs): _type(type), _lhs(lhs), _rhs(rhs) {}
@@ -133,7 +133,7 @@ private:
     Value _lhs, _rhs;
 };
 
-/// Represents a test instruction.
+/// Represents a `test` instruction.
 class TestInst: public InstructionBase {
 public:
     explicit TestInst(Type type, Value operand): _type(type), _op(operand) {
@@ -149,7 +149,7 @@ private:
     Value _op;
 };
 
-/// Represents a set\* instruction.
+/// Represents a `set*` instruction.
 class SetInst: public InstructionBase {
 public:
     explicit SetInst(RegisterIndex dest, CompareOperation operation): _dest(dest), _op(operation) {}
@@ -163,7 +163,7 @@ private:
     CompareOperation _op;
 };
 
-/// Represents the \p lnt and \p bnt instructions.
+/// Represents the `lnt` and `bnt` instructions.
 class UnaryArithmeticInst: public InstructionBase {
 public:
     explicit UnaryArithmeticInst(UnaryArithmeticOperation op, Type type, RegisterIndex operand):
@@ -181,7 +181,7 @@ private:
     RegisterIndex _operand;
 };
 
-/// Represents a \p add, \p sub, \p mul, ... etc instruction.
+/// Represents a `add`, `sub`, `mul`, ... etc instruction.
 class ArithmeticInst: public InstructionBase {
 public:
     explicit ArithmeticInst(ArithmeticOperation op, Type type, Value dest, Value source):

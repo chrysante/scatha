@@ -144,7 +144,7 @@ static_assert(sizeof(f64) == 8);
 using std::size_t;
 using ssize_t = std::ptrdiff_t;
 
-/// Reinterpret the bytes of \p t as a \p std::array of bytes.
+/// Reinterpret the bytes of \p t as a `std::array` of bytes.
 template <typename T>
 requires std::is_standard_layout_v<T>
 std::array<u8, sizeof(T)> decompose(T const& t) {

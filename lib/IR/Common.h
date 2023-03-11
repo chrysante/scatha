@@ -52,10 +52,10 @@ enum class NodeType {
     _count
 };
 
-/// Convert a \p NodeType to string.
+/// Convert \p nodeType to string.
 SCATHA(API) std::string_view toString(NodeType nodeType);
 
-/// Insert a \p NodeType into ostream.
+/// Insert \p nodeType into \p ostream.
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
 /// List of all compare arithmetic operations in the IR module.
@@ -65,11 +65,11 @@ enum class CompareOperation {
     _count
 };
 
-/// Convert a \p CompareOperation to string.
-SCATHA(API) std::string_view toString(CompareOperation op);
+/// Convert \p compareOp to string.
+SCATHA(API) std::string_view toString(CompareOperation compareOp);
 
-/// Insert a \p CompareOperation into ostream.
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation op);
+/// Insert \p compareOp into \p ostream.
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation compareOp);
 
 /// List of all unary arithmetic operations in the IR module.
 enum class UnaryArithmeticOperation {
@@ -78,11 +78,11 @@ enum class UnaryArithmeticOperation {
     _count
 };
 
-/// Convert a \p UnaryArithmeticOperation to string.
-SCATHA(API) std::string_view toString(UnaryArithmeticOperation op);
+/// Convert \p unaryArithmeticOp to string.
+SCATHA(API) std::string_view toString(UnaryArithmeticOperation unaryArithmeticOp);
 
-/// Insert a \p UnaryArithmeticOperation into ostream.
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOperation op);
+/// Insert \p unaryArithmeticOp into \p ostream.
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOperation unaryArithmeticOp);
 
 /// List of all binary arithmetic operations in the IR module.
 enum class ArithmeticOperation {
@@ -91,11 +91,11 @@ enum class ArithmeticOperation {
     _count
 };
 
-/// Convert a \p ArithmeticOperation to string.
-SCATHA(API) std::string_view toString(ArithmeticOperation op);
+/// Convert \p arithmeticOp to string.
+SCATHA(API) std::string_view toString(ArithmeticOperation arithmeticOp);
 
-/// Insert a \p ArithmeticOperation into ostream.
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation op);
+/// Insert \p arithmeticOp into \p ostream.
+SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation arithmeticOp);
 
 /// ** Forward declarations of type categories  **
 
@@ -111,12 +111,12 @@ enum class TypeCategory {
 
 } // namespace scatha::ir
 
-/// Map enum \p NodeType to actual node types
+/// Map enum `NodeType` to actual node types
 #define SC_CGFNODE_DEF(Node, Abstractness)                                                                             \
     SC_DYNCAST_MAP(::scatha::ir::Node, ::scatha::ir::NodeType::Node, Abstractness)
 #include <scatha/IR/Lists.def>
 
-/// Map enum \p TypeCategory to actual type category classes
+/// Map enum `TypeCategory` to actual type category classes
 #define SC_TYPE_CATEGORY_DEF(TypeCat)                                                                                  \
     SC_DYNCAST_MAP(::scatha::ir::TypeCat, ::scatha::ir::TypeCategory::TypeCat, CONCRETE);
 #include <scatha/IR/Lists.def>

@@ -25,12 +25,12 @@ public:
 
     /// \brief Add a function to this overload set.
     /// \returns Pair of \p function and \p true if \p function is a legal overload.
-    /// Pair of pointer to existing function that prevents \p from being a legal overload and \p false otherwise.
+    /// Pair of pointer to existing function that prevents \p function from being a legal overload and \p false otherwise.
     std::pair<Function const*, bool> add(Function* function);
 
-    /// Begin iterator to set of \p Function 's
+    /// Begin iterator to set of `Function`'s
     auto begin() const { return functions.begin(); }
-    /// End iterator to set of \p Function 's
+    /// End iterator to set of `Function`'s
     auto end() const { return functions.end(); }
 
 private:

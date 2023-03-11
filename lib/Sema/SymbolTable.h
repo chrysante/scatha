@@ -47,7 +47,7 @@ public:
     ///
     /// \returns Reference to declared type if no error occurs.
     ///
-    /// \returns \p InvalidDeclaration with reason \p Redefinition if declared name is already in use in the current
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared name is already in use in the current
     /// scope.
     Expected<ObjectType&, SemanticIssue> declareObjectType(ast::StructDefinition const& structDef);
 
@@ -56,7 +56,7 @@ public:
     /// Only exposed for testing purposes.
     Expected<ObjectType&, SemanticIssue> declareObjectType(Token name);
 
-    /// Simpler interface to declare builtins. Internally calls \p declareObjectType()
+    /// Simpler interface to declare builtins. Internally calls `declareObjectType()`
     ///
     /// TODO: Only used internally. Make this private.
     TypeID declareBuiltinType(std::string name, size_t size, size_t align);
@@ -64,11 +64,11 @@ public:
     /// \brief Declares a function to the current scope without signature.
     ///
     /// \details For successful return the name must not have been declared before in the current scope as some entity
-    /// other than \p Function
+    /// other than `Function`
     ///
     /// \returns Const reference to declared function if no error occurs.
     ///
-    /// \returns \p InvalidDeclaration with reason \p Redefinition if declared name is already used by another kind of
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared name is already used by another kind of
     /// entity in the current scope.
     Expected<Function const&, SemanticIssue> declareFunction(ast::FunctionDefinition const& functionDef);
 
@@ -82,17 +82,17 @@ public:
     /// \details We need this two step way of addings functions to first scan all declarations to allow for forward
     /// references to other entities. \returns Nothing if  \p signature is a legal overload.
     ///
-    /// \returns \p InvalidDeclaration with reason \p Redefinition if \p signature is not a legal overload, with reason
-    /// \p CantOverloadOnReturnType if \p signature has same arguments as another function in the overload set but
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if \p signature is not a legal overload, with reason
+    /// `CantOverloadOnReturnType` if \p signature has same arguments as another function in the overload set but
     /// different return type.
     Expected<void, SemanticIssue> setSignature(SymbolID functionID, FunctionSignature signature);
 
     /// \brief Declares a builtin function.
     ///
-    /// \details The name will be prefixed with the string \p "__builtin_" and will be declared in the global scope,
+    /// \details The name will be prefixed with the string `"__builtin_"` and will be declared in the global scope,
     /// if it hasn't been declared before.
 
-    /// \returns \p true iff declaration was successfull.
+    /// \returns `true` iff declaration was successfull.
     ///
     bool declareBuiltinFunction(std::string name, size_t slot, size_t index, FunctionSignature signature);
 
@@ -102,7 +102,7 @@ public:
     ///
     /// \returns Reference to declared variable if no error occurs.
     ///
-    /// \returns \p InvalidDeclaration with reason \p Redefinition if declared name is already in use in the current
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared name is already in use in the current
     /// scope.
     Expected<Variable&, SemanticIssue> declareVariable(ast::VariableDeclaration const& varDecl);
 
@@ -117,7 +117,8 @@ public:
     ///
     /// \returns Reference to declared variable if no error occurs.
     ///
-    /// \returns \p InvalidDeclaration with reason \p Redefinition if \p name is already in use in the current scope.
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if name of \p varDecl is already in use in the current
+    /// scope.
     Expected<Variable&, SemanticIssue> addVariable(ast::VariableDeclaration const& varDecl, TypeID, size_t offset = 0);
 
     /// \overload
@@ -140,7 +141,7 @@ public:
 
     /// \brief Makes \p scope the current scope.
     ///
-    /// \details If \p scope is NULL the global scope will be current after the call.
+    /// \details If \p scope is `nullptr` the global scope will be current after the call.
     void makeScopeCurrent(Scope* scope);
 
     decltype(auto) withScopePushed(SymbolID scopeID, std::invocable auto&& f) const {
@@ -225,7 +226,7 @@ private:
 
     u64 _idCounter = 1;
 
-    /// Must be \p node_hashmap
+    /// Must be `node_hashmap`
     /// References to the elements are stored by the surrounding scopes.
     template <typename T>
     using EntityMap = utl::node_hashmap<SymbolID, T>;

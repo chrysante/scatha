@@ -80,7 +80,7 @@ bool Context::recover(std::pair<Cond, F>... retry) {
         }
         tokens.eat();
     }
-    /// Here we assume that \p panic() gets us past the function body.
+    /// Here we assume that `panic()` gets us past the function body.
     panic(tokens);
     return false;
 }
