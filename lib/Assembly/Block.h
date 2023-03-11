@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include <utl/ranges.hpp>
+#include <range/v3/range.hpp>
 #include <utl/vector.hpp>
 
 #include "Assembly/Instruction.h"
@@ -37,8 +37,8 @@ public:
 
     void insertBack(Instruction const& instruction) { instructions.push_back(instruction); }
     void insert(ConstIterator position, Instruction const& instruction) { instructions.insert(position, instruction); }
-    void insert(ConstIterator position, utl::range_for<Instruction> auto&& instructions) {
-        this->instructions.insert(position, instructions.begin(), instructions.end());
+    void insert(ConstIterator position, ranges::range auto&& instructions) {
+        this->instructions.insert(position, ranges::begin(instructions), ranges::end(instructions));
     }
 
 private:

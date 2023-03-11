@@ -4,6 +4,7 @@
 #include <optional>
 
 #include <boost/logic/tribool.hpp>
+#include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/stack.hpp>
@@ -184,7 +185,7 @@ Expected<Value*, SearchError> Mem2RegContext::searchImpl(BasicBlock* basicBlock,
     /// Search the entire basic block here, not just the cached loads and stores and then remove the caches entirely from this file.
     //    std::find_if(basicBlock->begin());...
     
-    auto reverseBB = utl::reverse(*basicBlock);
+    auto reverseBB = ranges::views::reverse(*basicBlock);
     for (auto i = reverseBB.begin(), end = reverseBB.end(); i != end; ++i) {
         
     }

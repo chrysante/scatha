@@ -1,5 +1,6 @@
 #include "Opt/Common.h"
 
+#include <range/v3/view.hpp>
 #include <utl/hashset.hpp>
 
 #include "IR/CFG.h"
@@ -52,12 +53,13 @@ bool opt::isReachable(Instruction const* from, Instruction const* to) {
 }
 
 static bool cmpEqImpl(ir::Phi const* lhs, auto rhs) {
-    if (lhs->argumentCount() != rhs.size()) {
+    if (lhs->argumentCount() != ranges::size(rhs)) {
         return false;
     }
-    auto lhsArgs = lhs->arguments();
+    auto lhsArgs = ranges::views::common(lhs->arguments());
     utl::hashset<ConstPhiMapping> lhsSet(lhsArgs.begin(), lhsArgs.end());
-    utl::hashset<ConstPhiMapping> rhsSet(rhs.begin(), rhs.end());
+    auto rhsCommon = ranges::views::common(rhs);
+    utl::hashset<ConstPhiMapping> rhsSet(rhsCommon.begin(), rhsCommon.end());
     return lhsSet == rhsSet;
 }
 
@@ -110,7 +112,7 @@ void opt::replaceValue(ir::Value* oldValue, ir::Value* newValue) {
     /// from the user list and iterators are invalidated.
     while (!oldValue->users().empty()) {
         auto* user = *oldValue->users().begin();
-        for (auto [index, op]: utl::enumerate(user->operands())) {
+        for (auto [index, op]: ranges::views::enumerate(user->operands())) {
             if (op == oldValue) {
                 user->setOperand(index, newValue);
             }

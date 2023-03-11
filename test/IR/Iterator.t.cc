@@ -27,7 +27,7 @@ fn f(n: int) -> int {
         ir::NodeType::Goto,   ir::NodeType::Load,        ir::NodeType::Return,
     };
     SECTION("Simple traversal") {
-        for (auto&& [index, inst]: utl::enumerate(function.instructions())) {
+        for (auto&& [index, inst]: ranges::views::enumerate(function.instructions())) {
             auto const type = reference[index];
             CHECK(inst.nodeType() == type);
         }
@@ -43,7 +43,7 @@ fn f(n: int) -> int {
                 ++itr;
             }
         }
-        for (auto&& [index, inst]: utl::enumerate(function.instructions())) {
+        for (auto&& [index, inst]: ranges::views::enumerate(function.instructions())) {
             auto const type = reference[2 * index];
             CHECK(inst.nodeType() == type);
         }

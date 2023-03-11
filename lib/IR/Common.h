@@ -133,6 +133,9 @@ struct PhiMappingImpl {
     requires IsConst
         : pred(p.pred), value(p.value) {}
 
+    template <typename BBPtr, typename VPtr>
+    PhiMappingImpl(std::pair<BBPtr, VPtr> p): pred(p.first), value(p.second) {}
+    
     bool operator==(PhiMappingImpl const&) const = default;
 
     BB* pred;

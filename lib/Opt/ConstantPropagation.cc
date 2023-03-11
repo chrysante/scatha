@@ -1,8 +1,9 @@
 #include "Opt/ConstantPropagation.h"
 
 #include <deque>
-#include <numeric>
 
+#include <range/v3/numeric.hpp>
+#include <range/v3/view.hpp>
 #include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/variant.hpp>
@@ -60,7 +61,7 @@ bool isUnexamined(FormalValue const& value) {
 }
 
 bool isConstant(FormalValue const& value) {
-    return value.index() == 2 || value.index() == 3;
+    return value.index() == 2 /* APInt */ || value.index() == 3 /* APFloat */;
 }
 
 FormalValue infimum(FormalValue const& a, FormalValue const& b) {
@@ -76,8 +77,8 @@ FormalValue infimum(FormalValue const& a, FormalValue const& b) {
     return Inevaluable{};
 }
 
-FormalValue infimum(utl::range_for<FormalValue> auto&& range) {
-    return std::accumulate(++std::begin(range), std::end(range), *std::begin(range), [](auto const& a, auto const& b) {
+FormalValue infimum(auto&& range) {
+    return ranges::accumulate(range, FormalValue{ Unexamined{} }, [](FormalValue const& a, FormalValue const& b) {
         return infimum(a, b);
     });
 }
@@ -235,7 +236,7 @@ void SCCContext::processUseEdge(UseEdge edge) {
 
 void SCCContext::visitPhi(Phi& phi) {
     FormalValue const value =
-        infimum(utl::transform(phi.arguments(), [this, bb = phi.parent()](PhiMapping arg) -> FormalValue {
+        infimum(ranges::views::transform(phi.arguments(), [this, bb = phi.parent()](PhiMapping arg) -> FormalValue {
             if (isExecutable({ arg.pred, bb })) {
                 return formalValue(arg.value);
             }

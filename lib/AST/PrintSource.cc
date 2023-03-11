@@ -3,8 +3,8 @@
 #include <iomanip>
 #include <iostream>
 
+#include <range/v3/view.hpp>
 #include <utl/common.hpp>
-#include <utl/ranges.hpp>
 
 #include "AST/AST.h"
 #include "Basic/Basic.h"
@@ -74,7 +74,7 @@ void Context::print(CompoundStatement const& block) {
     if (block.statements.empty()) {
         str << endl;
     }
-    for (auto [i, s]: utl::enumerate(block.statements)) {
+    for (auto [i, s]: ranges::views::enumerate(block.statements)) {
         if (i == 0) {
             endl.increase();
         }

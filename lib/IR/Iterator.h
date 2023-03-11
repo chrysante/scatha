@@ -22,6 +22,8 @@ public:
     using BasicBlockIterator  = BBItr;
     using InstructionIterator = InstItr;
 
+    InstructionIteratorImpl() = default;
+    
     InstructionIteratorImpl(BBItr bbItr, /*BBItr bbEnd,*/ InstItr instItr):
         bbItr(bbItr), /*bbEnd(bbEnd),*/ instItr(instItr) {
         handleBBBoundary();

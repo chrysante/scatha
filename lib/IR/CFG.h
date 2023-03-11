@@ -3,9 +3,9 @@
 
 #include <string>
 
+#include <range/v3/view.hpp>
 #include <utl/hash.hpp>
 #include <utl/hashmap.hpp>
-#include <utl/ranges.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
@@ -50,7 +50,7 @@ public:
 
     /// View of all users using this value.
     auto users() const {
-        return utl::transform(_users, [](auto&& p) { return p.first; });
+        return ranges::views::transform(_users, [](auto&& p) { return p.first; });
     }
 
     /// Number of users using this value. Multiple uses by the same user are counted as one.
@@ -148,7 +148,7 @@ class SCATHA(API) Instruction: public User, public NodeWithParent<Instruction, B
 public:
     /// View of all instructions using this value. This casts the elements in the range returned by \p Value::users() to instructions, as only instructions use instructions.
     auto users() const {
-        return utl::transform(Value::users(), []<typename T>(T* user) {
+        return ranges::views::transform(Value::users(), []<typename T>(T* user) {
             return cast<utl::copy_cv_t<T, Instruction>*>(user);
         });
     }
@@ -271,12 +271,12 @@ public:
     Instruction const& back() const { return instructions.back(); }
 
     /// View over the phi nodes in this basic block.
-    utl::range_view<ConstPhiIterator, internal::PhiSentinel> phiNodes() const {
+    ranges::subrange<ConstPhiIterator, internal::PhiSentinel> phiNodes() const {
         return { ConstPhiIterator{ instructions.begin(), instructions.end() }, {} };
     }
 
     /// \overload
-    utl::range_view<PhiIterator, internal::PhiSentinel> phiNodes() {
+    ranges::subrange<PhiIterator, internal::PhiSentinel> phiNodes() {
         return { PhiIterator{ instructions.begin(), instructions.end() }, {} };
     }
 
@@ -375,10 +375,8 @@ public:
     BasicBlock& entry() { return bbs.front(); }
     BasicBlock const& entry() const { return bbs.front(); }
 
-    utl::range_view<InstructionIterator> instructions() { return getInstructionsImpl<InstructionIterator>(*this); }
-    utl::range_view<ConstInstructionIterator> instructions() const {
-        return getInstructionsImpl<ConstInstructionIterator>(*this);
-    }
+    ranges::subrange<InstructionIterator> instructions() { return getInstructionsImpl<InstructionIterator>(*this); }
+    auto instructions() const { return getInstructionsImpl<ConstInstructionIterator>(*this); }
 
     void addBasicBlock(BasicBlock* basicBlock) {
         basicBlock->set_parent(this);
@@ -387,11 +385,11 @@ public:
 
 private:
     template <typename Itr, typename Self>
-    static utl::range_view<Itr> getInstructionsImpl(Self&& self) {
+    static ranges::subrange<Itr> getInstructionsImpl(Self&& self) {
         using InstItr = typename Itr::InstructionIterator;
         Itr const begin(self.bbs.begin(), self.bbs.empty() ? InstItr{} : self.bbs.front().begin());
         Itr const end(self.bbs.end(), InstItr{});
-        return utl::range_view<Itr>{ begin, end };
+        return { begin, end };
     }
 
 private:
@@ -645,12 +643,12 @@ public:
 
     /// View over arguments
     auto arguments() {
-        return utl::transform(utl::iota(argumentCount()), [this](size_t index) { return argumentAt(index); });
+        return ranges::views::zip(_preds, operands()) | ranges::views::transform([](auto p) -> PhiMapping { return p; });
     }
 
     /// \overload
     auto arguments() const {
-        return utl::transform(utl::iota(argumentCount()), [this](size_t index) { return argumentAt(index); });
+        return ranges::views::zip(_preds, operands()) | ranges::views::transform([](auto p) -> ConstPhiMapping { return p; });
     }
 
     size_t indexOf(BasicBlock const* predecessor) const {
