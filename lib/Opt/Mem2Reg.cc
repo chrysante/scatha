@@ -67,7 +67,6 @@ struct Mem2RegContext {
 
     void gather();
 
-
     ir::Context& irCtx;
     Function& function;
 
@@ -107,9 +106,7 @@ struct Mem2RegContext {
         _loadPhiMap[{ basicBlock, address }] = phi;
     }
 
-    void removeCorrespondingPhi(BasicBlock* basicBlock, Value* address) {
-        _loadPhiMap.erase({ basicBlock, address });
-    }
+    void removeCorrespondingPhi(BasicBlock* basicBlock, Value* address) { _loadPhiMap.erase({ basicBlock, address }); }
 
     using LoadPhiMap = utl::hashmap<LoadAndStoreKey, Phi*, LoadAndStoreKeyHash, LoadAndStoreKeyEqual>;
     LoadPhiMap _loadPhiMap;
@@ -141,7 +138,7 @@ bool Mem2RegContext::promote(Load* load) {
     if (!searchResult) {
         return false;
     }
-    Value* const newValue = *searchResult;
+    Value* const newValue    = *searchResult;
     loadReplacementMap[load] = newValue;
     load->setName("evicted-load");
     replaceValue(load, newValue);
@@ -156,8 +153,8 @@ Expected<Value*, SearchError> Mem2RegContext::search(BasicBlock* start, Load* lo
 }
 
 Expected<Value*, SearchError> Mem2RegContext::search(BasicBlock* start, Load* load, Value* address, std::string name) {
-    searchContext = SearchContext(load, address, std::move(name));
-    utl::scope_guard resetSearcgContext = [&]{ searchContext = std::nullopt; };
+    searchContext                       = SearchContext(load, address, std::move(name));
+    utl::scope_guard resetSearcgContext = [&] { searchContext = std::nullopt; };
     return searchImpl(start, 0, 0);
 }
 
@@ -181,16 +178,15 @@ Expected<Value*, SearchError> Mem2RegContext::searchImpl(BasicBlock* basicBlock,
     /// We search loads, stores and phi nodes in this basic block in reverse order. Phi nodes always appear first so
     /// we can search them separately after searching loads and stores.
     /// Search the loads and stores in this basic block:
-    
-    /// Search the entire basic block here, not just the cached loads and stores and then remove the caches entirely from this file.
+
+    /// Search the entire basic block here, not just the cached loads and stores and then remove the caches entirely
+    /// from this file.
     //    std::find_if(basicBlock->begin());...
-    
+
     auto reverseBB = ranges::views::reverse(*basicBlock);
     for (auto i = reverseBB.begin(), end = reverseBB.end(); i != end; ++i) {
-        
     }
-    
-    
+
     if (beginItr != endItr) {
         /// This basic block has a load or store that we use to promote
         auto const itr = endItr - 1;

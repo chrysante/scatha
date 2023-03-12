@@ -3,20 +3,16 @@
 #include <ostream>
 
 #include <utl/hashtable.hpp>
- 
+
 #include "IR/CFG.h"
 
 using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-void opt::print(DomTree const& domTree) {
-    
-}
+void opt::print(DomTree const& domTree) {}
 
-void opt::print(DomTree const& domTree, std::ostream& ostream) {
-    
-}
+void opt::print(DomTree const& domTree, std::ostream& ostream) {}
 
 DomTree::DomTree() = default;
 
@@ -27,7 +23,7 @@ DomTree opt::buildDomTree(ir::Function& function) {
         indexMap.insert({ &basicBlock, result._nodes.size() });
         result._nodes.push_back({ &basicBlock });
     }
-    
+
 #if 0
     // dominator of the start node is the start itself
     Dom(n0) = {n0}

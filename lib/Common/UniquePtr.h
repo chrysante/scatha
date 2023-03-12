@@ -76,9 +76,7 @@ private:
             ptr->privateDelete();
         }
         else {
-            visit(*ptr, [](auto& obj) {
-                delete &obj;
-            });
+            visit(*ptr, [](auto& obj) { delete &obj; });
         }
     }
 

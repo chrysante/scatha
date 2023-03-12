@@ -72,7 +72,7 @@ private:
     friend class ir::DynAllocator;
 
     void privateDestroy();
-    
+
     void privateDelete();
 
 private:
@@ -153,7 +153,7 @@ public:
             return cast<utl::copy_cv_t<T, Instruction>*>(user);
         });
     }
-    
+
 protected:
     using User::User;
 };
@@ -182,11 +182,9 @@ public:
         instruction->set_parent(this);
         instructions.insert(before, instruction);
     }
-    
+
     /// \overload
-    void insert(Instruction const* before, Instruction* instruction) {
-        insert(ConstIterator(before), instruction);
-    }
+    void insert(Instruction const* before, Instruction* instruction) { insert(ConstIterator(before), instruction); }
 
     /// Merge `*this` with \p *rhs
     /// Insert nodes of \p *rhs before \p pos
@@ -253,13 +251,13 @@ public:
 
     Iterator begin() { return instructions.begin(); }
     ConstIterator begin() const { return instructions.begin(); }
-    
+
     auto rbegin() { return instructions.rbegin(); }
     auto rbegin() const { return instructions.rbegin(); }
 
     Iterator end() { return instructions.end(); }
     ConstIterator end() const { return instructions.end(); }
-    
+
     auto rend() { return instructions.rend(); }
     auto rend() const { return instructions.rend(); }
 
@@ -644,12 +642,14 @@ public:
 
     /// View over arguments
     auto arguments() {
-        return ranges::views::zip(_preds, operands()) | ranges::views::transform([](auto p) -> PhiMapping { return p; });
+        return ranges::views::zip(_preds, operands()) |
+               ranges::views::transform([](auto p) -> PhiMapping { return p; });
     }
 
     /// \overload
     auto arguments() const {
-        return ranges::views::zip(_preds, operands()) | ranges::views::transform([](auto p) -> ConstPhiMapping { return p; });
+        return ranges::views::zip(_preds, operands()) |
+               ranges::views::transform([](auto p) -> ConstPhiMapping { return p; });
     }
 
     size_t indexOf(BasicBlock const* predecessor) const {
@@ -741,10 +741,7 @@ private:
 class ExtractValue: public UnaryInstruction, public internal::AccessValueBase {
 public:
     explicit ExtractValue(Type const* memberType, Value* baseValue, Value* index, std::string name):
-        UnaryInstruction(NodeType::ExtractValue,
-                         baseValue,
-                         memberType,
-                         std::move(name)),
+        UnaryInstruction(NodeType::ExtractValue, baseValue, memberType, std::move(name)),
         internal::AccessValueBase(index) {}
 
     /// The structure or array being accessed. Same as `operand()`
@@ -758,11 +755,7 @@ public:
 class InsertValue: public BinaryInstruction, public internal::AccessValueBase {
 public:
     explicit InsertValue(Value* baseValue, Value* insertedValue, Value* index, std::string name):
-        BinaryInstruction(NodeType::InsertValue,
-                          baseValue,
-                          insertedValue,
-                          baseValue->type(),
-                          std::move(name)),
+        BinaryInstruction(NodeType::InsertValue, baseValue, insertedValue, baseValue->type(), std::move(name)),
         internal::AccessValueBase(index) {}
 
     /// The structure or array being accessed. Same as `lhs()`

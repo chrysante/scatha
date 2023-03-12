@@ -222,5 +222,4 @@ TEST_CASE("For loop with nested if/else", "[codegen]") {
         return result;
     }
     fn main() -> int { return g(6); })");
-    
 }

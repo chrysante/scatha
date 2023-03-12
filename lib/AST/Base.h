@@ -57,7 +57,7 @@ private:
     /// It insulates visitation of the tree on destruction, so users who destroy an AST only need to #include "Base.h"
     /// not "AST.h".
     void privateDestroy();
-    
+
     /// Calls `delete` on the most derived type.
     void privateDelete();
 

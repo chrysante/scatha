@@ -31,8 +31,8 @@ bool opt::isReachable(Instruction const* from, Instruction const* to) {
             return true;
         }
     }
-    /// If they are not in the same basic block or \p *to comes before \p *from perform a DFS to check if we can reach the
-    /// BB of \p *to from the BB of \p *from.
+    /// If they are not in the same basic block or \p *to comes before \p *from perform a DFS to check if we can reach
+    /// the BB of \p *to from the BB of \p *from.
     utl::hashset<BasicBlock const*> visited;
     auto search = [&, target = to->parent()](BasicBlock const* bb, auto& search) -> bool {
         visited.insert(bb);

@@ -19,15 +19,11 @@ void Value::removeUserWeak(User* user) {
 }
 
 void Value::privateDestroy() {
-    visit(*this, [](auto& derived) {
-        std::destroy_at(&derived);
-    });
+    visit(*this, [](auto& derived) { std::destroy_at(&derived); });
 }
 
 void Value::privateDelete() {
-    visit(*this, [](auto& derived) {
-        delete &derived;
-    });
+    visit(*this, [](auto& derived) { delete &derived; });
 }
 
 User::User(NodeType nodeType, Type const* type, std::string name, utl::small_vector<Value*> operands):

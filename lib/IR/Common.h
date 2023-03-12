@@ -17,30 +17,31 @@ class Context;
 
 class Module;
 
-/// ** Forward declarations of all GFC node types  **
-
-// Value
-// ├─ Parameter
-// ├─ BasicBlock
-// └─ User
-//    ├─ Constant
-//    │  ├─ IntegralConstant
-//    │  └─ Function
-//    └─ Instruction
-//       ├─ Alloca
-//       ├─ UnaryInstruction
-//       │  ├─ Load
-//       │  └─ UnaryArithmeticInst
-//       ├─ BinaryInstruction
-//       │  ├─ Store
-//       │  ├─ CompareInst
-//       │  └─ ArithmeticInst
-//       ├─ TerminatorInst
-//       │  ├─ Goto
-//       │  ├─ Branch
-//       │  └─ Return
-//       ├─ FunctionCall
-//       └─ Phi
+/// ## Forward declarations of all GFC node types
+/// ```
+/// Value
+/// ├─ Parameter
+/// ├─ BasicBlock
+/// └─ User
+///    ├─ Constant
+///    │  ├─ IntegralConstant
+///    │  └─ Function
+///    └─ Instruction
+///       ├─ Alloca
+///       ├─ UnaryInstruction
+///       │  ├─ Load
+///       │  └─ UnaryArithmeticInst
+///       ├─ BinaryInstruction
+///       │  ├─ Store
+///       │  ├─ CompareInst
+///       │  └─ ArithmeticInst
+///       ├─ TerminatorInst
+///       │  ├─ Goto
+///       │  ├─ Branch
+///       │  └─ Return
+///       ├─ FunctionCall
+///       └─ Phi
+/// ```
 
 #define SC_CGFNODE_DEF(Node, _) class Node;
 #include <scatha/IR/Lists.def>
@@ -135,7 +136,7 @@ struct PhiMappingImpl {
 
     template <typename BBPtr, typename VPtr>
     PhiMappingImpl(std::pair<BBPtr, VPtr> p): pred(p.first), value(p.second) {}
-    
+
     bool operator==(PhiMappingImpl const&) const = default;
 
     BB* pred;

@@ -385,11 +385,12 @@ void Context::generateBigMove(Value dest, Value source, size_t size, Block::Cons
     // clang-format on
     SC_ASSERT(size % 8 == 0, "Probably not always true and this function needs some work.");
     auto insertRange = ranges::views::iota(0u, size / 8) | ranges::views::transform([&](size_t i) {
-        auto move = MoveInst(dest, source, 8);
-        dest.visit(increment);
-        source.visit(increment);
-        return move;
-    }) | ranges::views::common;
+                           auto move = MoveInst(dest, source, 8);
+                           dest.visit(increment);
+                           source.visit(increment);
+                           return move;
+                       }) |
+                       ranges::views::common;
     block->insert(before, insertRange);
 }
 

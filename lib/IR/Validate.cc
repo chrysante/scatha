@@ -7,8 +7,8 @@
 #include <utl/hashmap.hpp>
 
 #include "Basic/Basic.h"
-#include "IR/Context.h"
 #include "IR/CFG.h"
+#include "IR/Context.h"
 #include "IR/Module.h"
 
 using namespace scatha;

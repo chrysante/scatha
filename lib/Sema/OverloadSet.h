@@ -24,8 +24,9 @@ public:
     Function const* find(std::span<TypeID const> argumentTypes) const;
 
     /// \brief Add a function to this overload set.
-    /// \returns Pair of \p function and \p true if \p function is a legal overload.
-    /// Pair of pointer to existing function that prevents \p function from being a legal overload and \p false otherwise.
+    /// \returns Pair of \p function and `true` if \p function is a legal overload.
+    /// Pair of pointer to existing function that prevents \p function from being a legal overload and `false`
+    /// otherwise.
     std::pair<Function const*, bool> add(Function* function);
 
     /// Begin iterator to set of `Function`'s
