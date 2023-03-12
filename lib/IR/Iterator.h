@@ -24,14 +24,10 @@ public:
 
     InstructionIteratorImpl() = default;
 
-    InstructionIteratorImpl(BBItr bbItr, InstItr instItr):
-        bbItr(bbItr), instItr(instItr) {
-        handleBBBoundary();
-    }
+    InstructionIteratorImpl(BBItr bbItr, InstItr instItr): bbItr(bbItr), instItr(instItr) { handleBBBoundary(); }
 
     template <std::convertible_to<BBItr> BBI2, std::convertible_to<InstItr> II2>
-    InstructionIteratorImpl(InstructionIteratorImpl<BBI2, II2> const& rhs):
-        bbItr(rhs.bbItr), instItr(rhs.instItr) {}
+    InstructionIteratorImpl(InstructionIteratorImpl<BBI2, II2> const& rhs): bbItr(rhs.bbItr), instItr(rhs.instItr) {}
 
     InstructionIteratorImpl& operator=(std::convertible_to<InstItr> auto const& rhsInstItr) & {
         instItr = rhsInstItr;

@@ -1,9 +1,8 @@
 #include "Parser/BracketCorrection.h"
 
-#include <algorithm> // for std::find
 #include <string_view>
 
-#include <utl/ranges.hpp>
+#include <range/v3/view.hpp>
 #include <utl/stack.hpp>
 
 #include "Parser/Bracket.h"
@@ -115,12 +114,14 @@ utl::vector<scatha::Token>::iterator Context::popStackAndInsertMatchingBrackets(
     auto& stackContainer = bracketStack.container();
     ssize_t const count  = stackContainer.end() - stackItr;
     /// Insert all missing closing brackets, i.e. all brackets matchings the open ones past and push errors.
-    auto const insertIterator = utl::transform_iterator(std::reverse_iterator(stackItr + count), [&](Bracket bracket) {
-        iss.push(SyntaxIssue(*tokenItr, SyntaxIssue::Reason::ExpectedClosingBracket));
-        Bracket const newBracket = { bracket.type, Bracket::Side::Close };
-        return Token(toString(newBracket), TokenType::Punctuation, tokenItr->sourceLocation);
-    });
-    auto const resultItr      = tokens.insert(tokenItr, insertIterator, insertIterator + count);
+    auto insertRange = stackContainer | ranges::views::reverse | ranges::views::take(count) |
+                       ranges::views::transform([&](Bracket bracket) {
+                           iss.push(SyntaxIssue(*tokenItr, SyntaxIssue::Reason::ExpectedClosingBracket));
+                           Bracket const newBracket = { bracket.type, Bracket::Side::Close };
+                           return Token(toString(newBracket), TokenType::Punctuation, tokenItr->sourceLocation);
+                       }) |
+                       ranges::views::common;
+    auto const resultItr = tokens.insert(tokenItr, ranges::begin(insertRange), ranges::end(insertRange));
     /// Now erase the bracket stack until \p stackItr
     stackContainer.erase(stackItr, stackContainer.end());
     return resultItr + count;

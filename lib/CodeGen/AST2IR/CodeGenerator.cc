@@ -1,5 +1,6 @@
 #include "CodeGen/AST2IR/CodeGenerator.h"
 
+#include <range/v3/view.hpp>
 #include <utl/format.hpp>
 #include <utl/stack.hpp>
 #include <utl/strcat.hpp>
@@ -119,8 +120,9 @@ void Context::generateImpl(CompoundStatement const& cmpStmt) {
 }
 
 void Context::generateImpl(FunctionDefinition const& def) {
-    utl::small_vector<ir::Type const*> paramTypes =
-        utl::transform(def.parameters, [&](auto& param) { return mapType(param->typeID()); });
+    auto paramTypes = def.parameters |
+                      ranges::views::transform([&](auto& param) { return mapType(param->typeID()); }) |
+                      ranges::to<utl::small_vector<ir::Type const*>>;
     // TODO: Also here worry about name mangling
     auto* fn        = cast<ir::Function*>(irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
     currentFunction = fn;
@@ -438,8 +440,9 @@ ir::Value* Context::getValueImpl(Conditional const& condExpr) {
 ir::Value* Context::getValueImpl(FunctionCall const& functionCall) {
     /// Handle calls to external functions separately.
     if (auto const& semaFunction = symTable.getFunction(functionCall.functionID()); semaFunction.isExtern()) {
-        utl::small_vector<ir::Value*> const args =
-            utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return getValue(*expr); });
+        auto const args = functionCall.arguments |
+                          ranges::views::transform([this](auto& expr) -> ir::Value* { return getValue(*expr); }) |
+                          ranges::to<utl::small_vector<ir::Value*>>;
         auto* call = new ir::ExtFunctionCall(semaFunction.slot(),
                                              semaFunction.index(),
                                              std::string(semaFunction.name()),
@@ -454,8 +457,9 @@ ir::Value* Context::getValueImpl(FunctionCall const& functionCall) {
     std::string const mangledName =
         utl::strcat(cast<Identifier const*>(functionCall.object.get())->value(), functionCall.functionID());
     ir::Function* function = cast<ir::Function*>(irCtx.getGlobal(mangledName));
-    utl::small_vector<ir::Value*> const args =
-        utl::transform(functionCall.arguments, [this](auto& expr) -> ir::Value* { return getValue(*expr); });
+    auto const args        = functionCall.arguments |
+                      ranges::views::transform([this](auto& expr) -> ir::Value* { return getValue(*expr); }) |
+                      ranges::to<utl::small_vector<ir::Value*>>;
     auto* call =
         new ir::FunctionCall(function,
                              args,
@@ -528,9 +532,9 @@ void Context::declareTypes() {
 
 void Context::declareFunctions() {
     for (sema::Function const& function: symTable.functions()) {
-        utl::small_vector<ir::Type const*> paramTypes =
-            utl::transform(function.signature().argumentTypeIDs(),
-                           [&](sema::TypeID paramTypeID) { return mapType(paramTypeID); });
+        auto paramTypes = function.signature().argumentTypeIDs() |
+                          ranges::views::transform([&](sema::TypeID paramTypeID) { return mapType(paramTypeID); }) |
+                          ranges::to<utl::small_vector<ir::Type const*>>;
         // TODO: Generate proper function type here
         ir::FunctionType const* const functionType = nullptr;
         // TODO: Worry about name mangling

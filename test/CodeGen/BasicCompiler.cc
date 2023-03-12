@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include <Catch/Catch2.hpp>
+#include <range/v3/view.hpp>
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
 #include <utl/format.hpp>
@@ -103,7 +104,7 @@ void test::checkReturns(u64 value, std::string_view text) {
             }
         },
     }; // clang-format on
-    for (auto [index, level]: utl::enumerate(levels)) {
+    for (auto [index, level]: levels | ranges::views::enumerate) {
         CHECK(compileAndExecute(text, level) == value);
     }
 }

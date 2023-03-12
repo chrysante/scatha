@@ -1,7 +1,7 @@
 #include "Sema/Analysis/Instantiation.h"
 
+#include <range/v3/view.hpp>
 #include <utl/graph.hpp>
-#include <utl/ranges.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/vector.hpp>
 
@@ -56,22 +56,24 @@ void Context::run() {
         node.dependencies.push_back(utl::narrow_cast<u16>(dependencyGraph.index(typeID)));
     }
     /// Check for cycles
-    utl::small_vector<u16> indices(utl::iota(dependencyGraph.size()));
+    auto indices     = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) | ranges::to<utl::small_vector<u16>>;
     auto const cycle = utl::find_cycle(
         indices.begin(),
         indices.end(),
         [&](size_t index) -> auto const& { return dependencyGraph[index].dependencies; });
     if (!cycle.empty()) {
         using Node = StrongReferenceCycle::Node;
-        utl::vector<Node> nodes(utl::transform(cycle, [&](size_t index) {
-            auto const& node = dependencyGraph[index];
-            return Node{ node.astNode, node.symbolID };
-        }));
+        auto nodes = cycle | ranges::views::transform([&](size_t index) {
+                         auto const& node = dependencyGraph[index];
+                         return Node{ node.astNode, node.symbolID };
+                     }) |
+                     ranges::to<utl::vector<Node>>;
         iss.push(SemanticIssue{ StrongReferenceCycle(std::move(nodes)) });
         return;
     }
     /// Sort dependencies...
-    utl::small_vector<u16> dependencyTraversalOrder(utl::iota(dependencyGraph.size()));
+    auto dependencyTraversalOrder =
+        ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) | ranges::to<utl::small_vector<u16>>;
     utl::topsort(
         dependencyTraversalOrder.begin(),
         dependencyTraversalOrder.end(),
@@ -100,7 +102,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
     size_t objectSize  = 0;
     size_t objectAlign = 0;
     auto& objectType   = sym.getObjectType(structDef.symbolID());
-    for (auto&& [index, statement]: utl::enumerate(structDef.body->statements)) {
+    for (auto&& [index, statement]: structDef.body->statements | ranges::views::enumerate) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }

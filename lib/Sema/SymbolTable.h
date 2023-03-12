@@ -7,10 +7,10 @@
 #include <memory>
 #include <string>
 
+#include <range/v3/view.hpp>
 #include <utl/common.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
-#include <utl/ranges.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/vector.hpp>
 
@@ -214,7 +214,7 @@ public:
     void setSortedObjectTypes(utl::vector<TypeID> ids) { _sortedObjectTypes = std::move(ids); }
     std::span<TypeID const> sortedObjectTypes() const { return _sortedObjectTypes; }
     auto functions() const {
-        return utl::transform(_functions, [](auto& p) -> decltype(auto) { return p.second; });
+        return _functions | ranges::views::transform([](auto& p) -> auto& { return p.second; });
     }
 
 private:
