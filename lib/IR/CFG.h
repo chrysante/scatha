@@ -50,7 +50,7 @@ public:
 
     /// View of all users using this value.
     auto users() const {
-        return ranges::views::transform(_users, [](auto&& p) { return p.first; });
+        return _users | ranges::views::transform([](auto&& p) { return p.first; });
     }
 
     /// Number of users using this value. Multiple uses by the same user are counted as one.
@@ -149,7 +149,7 @@ public:
     /// View of all instructions using this value. This casts the elements in the range returned by `Value::users()` to
     /// instructions, as instructions are only used by other instructions.
     auto users() const {
-        return ranges::views::transform(Value::users(), []<typename T>(T* user) {
+        return Value::users() | ranges::views::transform([]<typename T>(T* user) {
             return cast<utl::copy_cv_t<T, Instruction>*>(user);
         });
     }
@@ -342,7 +342,7 @@ private:
 };
 
 /// Represents a function parameter.
-class Parameter: public Value, public NodeWithParent<Parameter, Function> {
+class SCATHA(API) Parameter: public Value, public NodeWithParent<Parameter, Function> {
     using NodeBase = NodeWithParent<Parameter, Function>;
 
 public:
