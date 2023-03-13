@@ -71,8 +71,7 @@ private:
     template <typename>
     friend class ir::DynAllocator;
 
-    void privateDestroy();
-
+    /// Called by `UniquePtr`
     void privateDelete();
 
 private:
@@ -82,7 +81,7 @@ private:
     utl::hashmap<User*, uint16_t> _users;
 };
 
-/// For dyncast compatibilty of the CFG
+/// For `dyncast` compatibilty of the CFG
 inline NodeType dyncast_get_type(std::derived_from<Value> auto const& value) {
     return value.nodeType();
 }
@@ -142,7 +141,7 @@ private:
     APFloat _value;
 };
 
-/// Base class of all instructions. Every instruction inherits from `Value` as it (usually) yields a value. If an
+/// Base class of all instructions. `Instruction` inherits from `Value` as it (usually) yields a value. If an
 /// instruction does not yield a value its `Value` super class is of type void.
 class SCATHA(API) Instruction: public User, public NodeWithParent<Instruction, BasicBlock> {
 public:
@@ -160,7 +159,7 @@ protected:
 
 namespace internal {
 
-/// Base class of `BasicBlock` and `Function`
+/// Base class of `BasicBlock` and `Function` implementing their common container-like interface.
 /// `ValueType` is `Instruction` for `BasicBlock` and `BasicBlock` for `Function`.
 template <typename Derived, typename ValueType>
 class CFGList {
@@ -396,6 +395,21 @@ class SCATHA(API) Function:
 {
     using ListBase = internal::CFGList<Function, BasicBlock>;
     
+    static auto getParametersImpl(auto&& self) {
+        /// Trick to return a view over parameters without returning the `List<>` itself.
+        return self.params | ranges::views::transform([](auto& param) -> auto& {
+            return param;
+        });
+    }
+    
+    template <typename Itr, typename Self>
+    static ranges::subrange<Itr> getInstructionsImpl(Self&& self) {
+        using InstItr = typename Itr::InstructionIterator;
+        Itr const begin(self.values.begin(), self.values.empty() ? InstItr{} : self.values.front().begin());
+        Itr const end(self.values.end(), InstItr{});
+        return { begin, end };
+    }
+    
 public:
     using ListBase::Iterator;
     using ListBase::ConstIterator;
@@ -412,8 +426,15 @@ public:
 
     Type const* returnType() const { return _returnType; }
 
-    List<Parameter>& parameters() { return params; }
-    List<Parameter> const& parameters() const { return params; }
+    /// View over function parameters
+    auto parameters() {
+        return getParametersImpl(*this);
+    }
+    
+    /// \overload
+    auto parameters() const {
+        return getParametersImpl(*this);
+    }
 
     BasicBlock& entry() { return front(); }
     BasicBlock const& entry() const { return front(); }
@@ -423,16 +444,7 @@ public:
     
     /// \overload
     auto instructions() const { return getInstructionsImpl<ConstInstructionIterator>(*this); }
-
-private:
-    template <typename Itr, typename Self>
-    static ranges::subrange<Itr> getInstructionsImpl(Self&& self) {
-        using InstItr = typename Itr::InstructionIterator;
-        Itr const begin(self.values.begin(), self.values.empty() ? InstItr{} : self.values.front().begin());
-        Itr const end(self.values.end(), InstItr{});
-        return { begin, end };
-    }
-
+    
 private:
     Type const* _returnType;
     List<Parameter> params;
@@ -463,7 +475,7 @@ public:
     Type const* operandType() const { return operand()->type(); }
 };
 
-/// Load instruction. Load data from memory into a register.
+/// `load` instruction. Load data from memory into a register.
 class SCATHA(API) Load: public UnaryInstruction {
 public:
     explicit Load(Value* address, std::string name):
@@ -491,7 +503,7 @@ public:
     Type const* operandType() const { return lhs()->type(); }
 };
 
-/// Store instruction. Store a value from a register into memory.
+/// `store` instruction. Store a value from a register into memory.
 class SCATHA(API) Store: public BinaryInstruction {
 public:
     explicit Store(Context& context, Value* dest, Value* source);
@@ -502,7 +514,7 @@ public:
     Value const* source() const { return rhs(); }
 };
 
-/// Compare instruction.
+/// `cmp` instruction.
 /// TODO: Rename to 'Compare' or find a uniform naming scheme across the IR module.
 class SCATHA(API) CompareInst: public BinaryInstruction {
 public:
@@ -555,7 +567,7 @@ protected:
     utl::small_vector<BasicBlock*> _targets;
 };
 
-/// Goto instruction. Leave the current basic block and unconditionally enter the target basic block.
+/// `goto` instruction. Leave the current basic block and unconditionally enter the target basic block.
 class Goto: public TerminatorInst {
 public:
     explicit Goto(Context& context, BasicBlock* target): TerminatorInst(NodeType::Goto, context, { target }) {}
@@ -564,7 +576,7 @@ public:
     BasicBlock const* target() const { return targets()[0]; }
 };
 
-/// Branch instruction. Leave the current basic block and choose a target basic block based on a condition.
+/// `branch` instruction. Leave the current basic block and choose a target basic block based on a condition.
 class SCATHA(API) Branch: public TerminatorInst {
 public:
     explicit Branch(Context& context, Value* condition, BasicBlock* thenTarget, BasicBlock* elseTarget):
@@ -580,7 +592,7 @@ public:
     BasicBlock const* elseTarget() const { return targets()[1]; }
 };
 
-/// Return instruction. Return control flow to the calling function.
+/// `return` instruction. Return control flow to the calling function.
 class SCATHA(API) Return: public TerminatorInst {
 public:
     explicit Return(Context& context, Value* value): TerminatorInst(NodeType::Return, context, {}, { value }) {
@@ -596,7 +608,7 @@ public:
     Value const* value() const { return operands().empty() ? nullptr : operands()[0]; }
 };
 
-/// Function call. Call a function.
+/// `call` instruction. Calls a function.
 class SCATHA(API) FunctionCall: public Instruction {
 public:
     explicit FunctionCall(Function* function, std::span<Value* const> arguments, std::string name = {});
@@ -611,7 +623,7 @@ private:
     Function* _function;
 };
 
-/// External function call. Call an external function.
+/// `ext call` instruction. Calls an external function.
 class SCATHA(API) ExtFunctionCall: public Instruction {
 public:
     explicit ExtFunctionCall(size_t slot,
@@ -641,7 +653,7 @@ private:
     std::string _functionName;
 };
 
-/// Phi instruction. Choose a value based on where control flow comes from.
+/// `phi` instruction. Select a value based on where control flow comes from.
 class SCATHA(API) Phi: public Instruction {
 public:
     /// \overload
@@ -711,7 +723,7 @@ private:
     utl::small_vector<BasicBlock*> _preds;
 };
 
-/// GetElementPointer instruction. Calculate offset pointer to a structure member or array element.
+/// `gep` or GetElementPointer instruction. Calculate offset pointer to a structure member or array element.
 class GetElementPointer: public Instruction {
 public:
     explicit GetElementPointer(Context& context,
@@ -778,7 +790,7 @@ private:
 
 } // namespace internal
 
-/// ExtractValue instruction. Extract the value of a structure member or array element.
+/// `extract_value` instruction. Extract the value of a structure member or array element.
 class ExtractValue: public UnaryInstruction, public internal::AccessValueBase {
 public:
     explicit ExtractValue(Type const* memberType, Value* baseValue, Value* index, std::string name):
@@ -792,7 +804,7 @@ public:
     Value const* baseValue() const { return operand(); }
 };
 
-/// InsertValue instruction. Insert a value into a structure or array.
+/// `insert_value` instruction. Insert a value into a structure or array.
 class InsertValue: public BinaryInstruction, public internal::AccessValueBase {
 public:
     explicit InsertValue(Value* baseValue, Value* insertedValue, Value* index, std::string name):
