@@ -59,7 +59,7 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
         for (auto* predPred: pred->predecessors()) {
             predPred->terminator()->updateTarget(pred, basicBlock);
         }
-        function.basicBlocks().erase(pred);
+        function.erase(pred);
         modified = true;
     }
     auto* const terminator = basicBlock->terminator();
@@ -105,5 +105,5 @@ void DCEContext::erase(BasicBlock* basicBlock) {
             removePredecessorAndUpdatePhiNodes(target, basicBlock);
         }
     }
-    function.basicBlocks().erase(basicBlock);
+    function.erase(basicBlock);
 }

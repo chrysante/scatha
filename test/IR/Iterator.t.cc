@@ -67,11 +67,11 @@ TEST_CASE("Phi iterator", "[ir][opt]") {
     ir::Context ctx;
     UniquePtr f = allocate<Function>(nullptr, ctx.voidType(), std::span<Type const*>{}, "f");
     auto* entry = new BasicBlock(ctx, "entry");
-    f->basicBlocks().push_back(entry);
+    f->pushBack(entry);
     auto* header = new BasicBlock(ctx, "header");
-    f->basicBlocks().push_back(header);
+    f->pushBack(header);
     auto* body = new BasicBlock(ctx, "body");
-    f->basicBlocks().push_back(body);
+    f->pushBack(body);
     entry->pushBack(new Goto(ctx, header));
     header->pushBack(new Goto(ctx, body));
     body->pushBack(new Goto(ctx, header));

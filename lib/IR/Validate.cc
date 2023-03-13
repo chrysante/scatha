@@ -67,7 +67,7 @@ void AssertContext::assertInvariants(Module const& mod) {
 
 void AssertContext::assertInvariants(Function const& function) {
     currentFunction = &function;
-    for (auto& bb: function.basicBlocks()) {
+    for (auto& bb: function) {
         CHECK(bb.parent() == &function, "Parent pointers must be setup correctly");
         assertInvariants(bb);
     }
@@ -91,6 +91,7 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
               "The last instruction must be the one and only terminator of a basic block");
     }
     // clang-format off
+    CHECK(bb.terminator() != nullptr, "Basic block must have a terminator");
     visit(*bb.terminator(), utl::overload{
         [&](Return const& ret) {
             auto const* const returnedType = ret.value() ? ret.value()->type() : ctx.voidType();
@@ -184,7 +185,7 @@ static void insertReturn(Context& ctx, BasicBlock& bb) {
 }
 
 void ir::setupInvariants(Context& ctx, Function& function) {
-    for (auto& bb: function.basicBlocks()) {
+    for (auto& bb: function) {
         /// Erase everything after the last terminator.
         for (auto itr = bb.begin(); itr != bb.end(); ++itr) {
             if (isa<TerminatorInst>(*itr)) {
@@ -211,14 +212,13 @@ void ir::setupInvariants(Context& ctx, Function& function) {
             [&](ir::TerminatorInst&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
-    auto& basicBlocks = function.basicBlocks();
     /// We erase blocks that have no predecessors thus cannot be reached.
-    for (auto itr = basicBlocks.begin(); itr != basicBlocks.end();) {
+    for (auto itr = function.begin(); itr != function.end();) {
         if (!itr->isEntry() && itr->predecessors().empty()) {
             for (auto* succ: itr->successors()) {
                 succ->removePredecessor(itr.to_address());
             }
-            itr = basicBlocks.erase(itr);
+            itr = function.erase(itr);
         }
         else {
             ++itr;

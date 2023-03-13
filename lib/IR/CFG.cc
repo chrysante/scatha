@@ -84,20 +84,20 @@ BasicBlock::BasicBlock(Context& context, std::string name):
 
 /// Outlined because Function is incomplete at definition of BasicBlock.
 bool BasicBlock::isEntry() const {
-    return parent()->basicBlocks().begin() == List<BasicBlock>::const_iterator(this);
+    return parent()->begin().to_address() == this;
 }
 
 bool BasicBlock::contains(Instruction const& inst) const {
     auto const itr =
-        std::find_if(instructions.begin(), instructions.end(), [&](Instruction const& i) { return &i == &inst; });
-    return itr != instructions.end();
+        std::find_if(begin(), end(), [&](Instruction const& i) { return &i == &inst; });
+    return itr != end();
 }
 
 TerminatorInst const* BasicBlock::terminator() const {
-    if (instructions.empty()) {
+    if (empty()) {
         return nullptr;
     }
-    return dyncast<TerminatorInst const*>(&instructions.back());
+    return dyncast<TerminatorInst const*>(&back());
 }
 
 static auto succImpl(auto* t) {

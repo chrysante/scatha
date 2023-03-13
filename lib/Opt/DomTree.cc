@@ -19,7 +19,7 @@ DomTree::DomTree() = default;
 DomTree opt::buildDomTree(ir::Function& function) {
     DomTree result;
     utl::hashmap<BasicBlock*, size_t> indexMap;
-    for (auto& basicBlock: function.basicBlocks()) {
+    for (auto& basicBlock: function) {
         indexMap.insert({ &basicBlock, result._nodes.size() });
         result._nodes.push_back({ &basicBlock });
     }

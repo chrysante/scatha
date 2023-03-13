@@ -116,7 +116,7 @@ void Context::generate(ir::Function const& function) {
         currentRD().resolve(param);
     }
     _currentBlock = result.add(Block(getLabelID(function), std::string(function.name())));
-    for (auto& bb: function.basicBlocks()) {
+    for (auto& bb: function) {
         dispatch(bb);
     }
 }

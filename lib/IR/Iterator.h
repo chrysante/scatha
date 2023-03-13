@@ -76,7 +76,7 @@ private:
     void handleBBBoundary() {
         while (instItr == bbItr->end()) {
             BBItr const next = std::next(bbItr);
-            bool const isEnd = next == bbItr->parent()->basicBlocks().end();
+            bool const isEnd = next == bbItr->parent()->end();
             bbItr            = next;
             instItr          = isEnd ? InstItr{} : bbItr->begin();
         }

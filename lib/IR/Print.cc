@@ -142,7 +142,7 @@ void PrintCtx::print(Function const& function) {
     }
     str << ") {\n";
     indent.increase();
-    for (auto& bb: function.basicBlocks()) {
+    for (auto& bb: function) {
         dispatch(bb);
     }
     indent.decrease();

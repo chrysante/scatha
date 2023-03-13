@@ -160,7 +160,7 @@ void Ctx::run() {
 }
 
 void Ctx::declare(Function const& function) {
-    for (auto& bb: function.basicBlocks()) {
+    for (auto& bb: function) {
         declare(bb);
     }
 }
@@ -170,7 +170,7 @@ void Ctx::declare(BasicBlock const& bb) {
 }
 
 void Ctx::connect(Function const& function) {
-    for (auto& bb: function.basicBlocks()) {
+    for (auto& bb: function) {
         connect(bb);
     }
 }

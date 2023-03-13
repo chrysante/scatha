@@ -158,33 +158,92 @@ protected:
     using User::User;
 };
 
+namespace internal {
+
+/// Base class of `BasicBlock` and `Function`
+/// `ValueType` is `Instruction` for `BasicBlock` and `BasicBlock` for `Function`.
+template <typename Derived, typename ValueType>
+class CFGList {
+public:
+    using Iterator      = typename List<ValueType>::iterator;
+    using ConstIterator = typename List<ValueType>::const_iterator;
+    
+    /// Callee takes ownership.
+    void pushFront(ValueType* value) { insert(values.begin(), value); }
+
+    /// Callee takes ownership.
+    void pushBack(ValueType* value) { insert(values.end(), value); }
+
+    /// Callee takes ownership.
+    void insert(ConstIterator before, ValueType* value) {
+        value->set_parent(static_cast<Derived*>(this));
+        values.insert(before, value);
+    }
+
+    /// \overload
+    void insert(ValueType const* before, ValueType* value) { insert(ConstIterator(before), value); }
+    
+    /// Erase an instruction. Clears the operands.
+    Iterator erase(ConstIterator position) {
+        return values.erase(position);
+    }
+
+    /// \overload
+    Iterator erase(ValueType const* value) {
+        return static_cast<Derived*>(this)->erase(ConstIterator(value));
+    }
+
+    /// \overload
+    Iterator erase(ConstIterator first, ConstIterator last) {
+        return values.erase(first, last);
+    }
+    
+    Iterator begin() { return values.begin(); }
+    ConstIterator begin() const { return values.begin(); }
+
+    auto rbegin() { return values.rbegin(); }
+    auto rbegin() const { return values.rbegin(); }
+
+    Iterator end() { return values.end(); }
+    ConstIterator end() const { return values.end(); }
+
+    auto rend() { return values.rend(); }
+    auto rend() const { return values.rend(); }
+
+    bool empty() const { return values.empty(); }
+
+    ValueType& front() { return values.front(); }
+    ValueType const& front() const { return values.front(); }
+
+    ValueType& back() { return values.back(); }
+    ValueType const& back() const { return values.back(); }
+    
+private:
+    friend class ir::BasicBlock;
+    friend class ir::Function;
+    List<ValueType> values;
+};
+
+} // namespace internal
+
 /// Represents a basic block. A basic block  is a list of instructions starting with zero or more phi nodes and
 /// ending with one terminator instruction. These invariants are not enforced by this class because they may be
 /// violated during construction and transformations of the CFG.
-class SCATHA(API) BasicBlock: public Value, public NodeWithParent<BasicBlock, Function> {
+class SCATHA(API) BasicBlock:
+    public Value,
+    public internal::CFGList<BasicBlock, Instruction>,
+    public NodeWithParent<BasicBlock, Function>
+{
+    using ListBase = internal::CFGList<BasicBlock, Instruction>;
+    
 public:
-    using Iterator      = List<Instruction>::iterator;
-    using ConstIterator = List<Instruction>::const_iterator;
+    using ListBase::Iterator;
+    using ListBase::ConstIterator;
 
     using PhiIterator      = internal::PhiIteratorImpl<false>;
     using ConstPhiIterator = internal::PhiIteratorImpl<true>;
 
     explicit BasicBlock(Context& context, std::string name);
-
-    /// Insert an instruction into this basic block. Callee takes ownership.
-    void pushFront(Instruction* instruction) { insert(instructions.begin(), instruction); }
-
-    /// Insert an instruction into this basic block. Callee takes ownership.
-    void pushBack(Instruction* instruction) { insert(instructions.end(), instruction); }
-
-    /// Insert an instruction into this basic block. Callee takes ownership.
-    void insert(ConstIterator before, Instruction* instruction) {
-        instruction->set_parent(this);
-        instructions.insert(before, instruction);
-    }
-
-    /// \overload
-    void insert(Instruction const* before, Instruction* instruction) { insert(ConstIterator(before), instruction); }
 
     /// Merge `*this` with \p *rhs
     /// Insert nodes of \p *rhs before \p pos
@@ -192,7 +251,7 @@ public:
         for (auto& inst: *rhs) {
             inst.set_parent(this);
         }
-        instructions.splice(pos, rhs->instructions);
+        values.splice(pos, rhs->values);
     }
 
     /// Clear operands of all instructions of this basic block. Use this before removing a (dead) basic block from a
@@ -206,18 +265,18 @@ public:
     /// Erase an instruction. Clears the operands.
     Iterator erase(ConstIterator position) {
         const_cast<Instruction*>(position.to_address())->clearOperands();
-        return instructions.erase(position);
+        return ListBase::erase(position);
     }
 
-    /// \overload
-    Iterator erase(Instruction const* inst) { return erase(ConstIterator(inst)); }
+    /// Pull in other overloads
+    using ListBase::erase;
 
     /// \overload
     Iterator erase(ConstIterator first, ConstIterator last) {
         for (Iterator i(const_cast<Instruction*>(first.to_address())); i != last; ++i) {
             i->clearOperands();
         }
-        return instructions.erase(first, last);
+        return ListBase::erase(first, last);
     }
 
     void eraseAllPhiNodes() {
@@ -229,7 +288,7 @@ public:
     }
 
     /// Extract an instruction. Does not clear the operands. Caller takes ownership of the instruction.
-    Instruction* extract(ConstIterator position) { return instructions.extract(position); }
+    Instruction* extract(ConstIterator position) { return values.extract(position); }
 
     /// \overload
     Instruction* extract(Instruction const* inst) { return extract(ConstIterator(inst)); }
@@ -249,34 +308,14 @@ public:
         return const_cast<TerminatorInst*>(static_cast<BasicBlock const*>(this)->terminator());
     }
 
-    Iterator begin() { return instructions.begin(); }
-    ConstIterator begin() const { return instructions.begin(); }
-
-    auto rbegin() { return instructions.rbegin(); }
-    auto rbegin() const { return instructions.rbegin(); }
-
-    Iterator end() { return instructions.end(); }
-    ConstIterator end() const { return instructions.end(); }
-
-    auto rend() { return instructions.rend(); }
-    auto rend() const { return instructions.rend(); }
-
-    bool empty() const { return instructions.empty(); }
-
-    Instruction& front() { return instructions.front(); }
-    Instruction const& front() const { return instructions.front(); }
-
-    Instruction& back() { return instructions.back(); }
-    Instruction const& back() const { return instructions.back(); }
-
     /// View over the phi nodes in this basic block.
     ranges::subrange<ConstPhiIterator, internal::PhiSentinel> phiNodes() const {
-        return { ConstPhiIterator{ instructions.begin(), instructions.end() }, {} };
+        return { ConstPhiIterator{ begin(), end() }, {} };
     }
 
     /// \overload
     ranges::subrange<PhiIterator, internal::PhiSentinel> phiNodes() {
-        return { PhiIterator{ instructions.begin(), instructions.end() }, {} };
+        return { PhiIterator{ begin(), end() }, {} };
     }
 
     /// The basic blocks this basic block is directly reachable from
@@ -337,7 +376,6 @@ public:
     BasicBlock const* singleSuccessor() const { return hasSingleSuccessor() ? successors().front() : nullptr; }
 
 private:
-    List<Instruction> instructions;
     utl::small_vector<BasicBlock*> preds;
 };
 
@@ -351,12 +389,21 @@ public:
 };
 
 /// Represents a function. A function is a prototype with a list of basic blocks.
-class SCATHA(API) Function: public Constant, public NodeWithParent<Function, Module> {
+class SCATHA(API) Function:
+    public Constant,
+    public internal::CFGList<Function, BasicBlock>,
+    public NodeWithParent<Function, Module>
+{
+    using ListBase = internal::CFGList<Function, BasicBlock>;
+    
 public:
+    using ListBase::Iterator;
+    using ListBase::ConstIterator;
+    
     using InstructionIterator =
-        internal::InstructionIteratorImpl<List<BasicBlock>::iterator, List<Instruction>::iterator>;
+        internal::InstructionIteratorImpl<Function::Iterator, BasicBlock::Iterator>;
     using ConstInstructionIterator =
-        internal::InstructionIteratorImpl<List<BasicBlock>::const_iterator, List<Instruction>::const_iterator>;
+        internal::InstructionIteratorImpl<Function::ConstIterator, BasicBlock::ConstIterator>;
 
     explicit Function(FunctionType const* functionType,
                       Type const* returnType,
@@ -368,33 +415,27 @@ public:
     List<Parameter>& parameters() { return params; }
     List<Parameter> const& parameters() const { return params; }
 
-    List<BasicBlock>& basicBlocks() { return bbs; }
-    List<BasicBlock> const& basicBlocks() const { return bbs; }
+    BasicBlock& entry() { return front(); }
+    BasicBlock const& entry() const { return front(); }
 
-    BasicBlock& entry() { return bbs.front(); }
-    BasicBlock const& entry() const { return bbs.front(); }
-
+    /// View over all instructions in this `Function`.
     ranges::subrange<InstructionIterator> instructions() { return getInstructionsImpl<InstructionIterator>(*this); }
+    
+    /// \overload
     auto instructions() const { return getInstructionsImpl<ConstInstructionIterator>(*this); }
-
-    void addBasicBlock(BasicBlock* basicBlock) {
-        basicBlock->set_parent(this);
-        bbs.push_back(basicBlock);
-    }
 
 private:
     template <typename Itr, typename Self>
     static ranges::subrange<Itr> getInstructionsImpl(Self&& self) {
         using InstItr = typename Itr::InstructionIterator;
-        Itr const begin(self.bbs.begin(), self.bbs.empty() ? InstItr{} : self.bbs.front().begin());
-        Itr const end(self.bbs.end(), InstItr{});
+        Itr const begin(self.values.begin(), self.values.empty() ? InstItr{} : self.values.front().begin());
+        Itr const end(self.values.end(), InstItr{});
         return { begin, end };
     }
 
 private:
     Type const* _returnType;
     List<Parameter> params;
-    List<BasicBlock> bbs;
 };
 
 /// `alloca` instruction. Allocates automatically managed memory for local variables. Its value is a pointer to the

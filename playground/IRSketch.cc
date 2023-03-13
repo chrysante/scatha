@@ -20,7 +20,7 @@ void playground::irSketch() {
 
     // Entry block
     auto* entry = new ir::BasicBlock(ctx, "entry");
-    fn->addBasicBlock(entry);
+    fn->pushBack(entry);
 
     auto* allocaN = new ir::Alloca(ctx, ctx.integralType(64), "n_ptr");
     entry->pushBack(allocaN);
@@ -41,7 +41,7 @@ void playground::irSketch() {
     entry->pushBack(storeResult1);
 
     auto* loopHeader = new ir::BasicBlock(ctx, "loop_header");
-    fn->addBasicBlock(loopHeader);
+    fn->pushBack(loopHeader);
 
     auto* gotoLoopHeader = new ir::Goto(ctx, loopHeader);
     entry->pushBack(gotoLoopHeader);
@@ -57,10 +57,10 @@ void playground::irSketch() {
     loopHeader->pushBack(cmp);
 
     auto* loopBody = new ir::BasicBlock(ctx, "loop_body");
-    fn->addBasicBlock(loopBody);
+    fn->pushBack(loopBody);
 
     auto* end = new ir::BasicBlock(ctx, "end");
-    fn->addBasicBlock(end);
+    fn->pushBack(end);
 
     auto* lhBranch = new ir::Branch(ctx, cmp, loopBody, end);
     loopHeader->pushBack(lhBranch);
