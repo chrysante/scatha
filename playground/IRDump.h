@@ -17,9 +17,11 @@ void irDump(std::string_view text);
 
 void irDumpFromFile(std::filesystem::path file);
 
-std::pair<scatha::ir::Context, scatha::ir::Module> makeIRModule(std::string_view text);
+std::pair<scatha::ir::Context, scatha::ir::Module> makeIRModule(
+    std::string_view text);
 
-std::pair<scatha::ir::Context, scatha::ir::Module> makeIRModuleFromFile(std::filesystem::path file);
+std::pair<scatha::ir::Context, scatha::ir::Module> makeIRModuleFromFile(
+    std::filesystem::path file);
 
 } // namespace playground
 

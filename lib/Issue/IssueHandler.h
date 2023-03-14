@@ -68,12 +68,14 @@ private:
 
 } // namespace internal
 
-class LexicalIssueHandler: public internal::IssueHandlerBase<lex::LexicalIssue> {
+class LexicalIssueHandler:
+    public internal::IssueHandlerBase<lex::LexicalIssue> {
 public:
     using internal::IssueHandlerBase<lex::LexicalIssue>::IssueHandlerBase;
 };
 
-class SyntaxIssueHandler: public internal::IssueHandlerBase<parse::SyntaxIssue> {
+class SyntaxIssueHandler:
+    public internal::IssueHandlerBase<parse::SyntaxIssue> {
 public:
     using internal::IssueHandlerBase<parse::SyntaxIssue>::IssueHandlerBase;
 };

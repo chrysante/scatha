@@ -20,7 +20,10 @@ public:
     ssize_t braces() const { return _braces; }
 
 private:
-    void countImpl(std::string_view id, ssize_t& counter, std::string_view open, std::string_view close) {
+    void countImpl(std::string_view id,
+                   ssize_t& counter,
+                   std::string_view open,
+                   std::string_view close) {
         if (id == open) {
             ++counter;
         }

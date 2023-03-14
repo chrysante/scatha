@@ -54,7 +54,9 @@ T* allocateArrayUninit(MonotonicBufferAllocator& alloc, size_t count) {
 }
 
 template <typename T, typename Itr>
-std::span<T> allocateArray(MonotonicBufferAllocator& alloc, Itr begin, Itr end) {
+std::span<T> allocateArray(MonotonicBufferAllocator& alloc,
+                           Itr begin,
+                           Itr end) {
     size_t const count = std::distance(begin, end);
     T* result          = allocateArrayUninit<T>(alloc, count);
     std::uninitialized_copy(begin, end, result);
@@ -63,7 +65,8 @@ std::span<T> allocateArray(MonotonicBufferAllocator& alloc, Itr begin, Itr end) 
 
 } // namespace scatha
 
-inline void* operator new(size_t size, scatha::MonotonicBufferAllocator& alloc) {
+inline void* operator new(size_t size,
+                          scatha::MonotonicBufferAllocator& alloc) {
     return alloc.allocate(size, alignof(std::max_align_t));
 }
 

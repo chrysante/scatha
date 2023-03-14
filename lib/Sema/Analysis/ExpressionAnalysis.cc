@@ -27,7 +27,9 @@ struct Context {
     ExpressionAnalysisResult analyze(ast::FunctionCall&);
     ExpressionAnalysisResult analyze(ast::Subscript&);
 
-    ExpressionAnalysisResult analyze(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
+    ExpressionAnalysisResult analyze(ast::AbstractSyntaxTree&) {
+        SC_DEBUGFAIL();
+    }
 
     bool verifyConversion(ast::Expression const& from, TypeID to) const;
 
@@ -42,7 +44,9 @@ struct Context {
 
 } // namespace
 
-ExpressionAnalysisResult analyzeExpression(ast::Expression& expr, SymbolTable& sym, issue::SemaIssueHandler& iss) {
+ExpressionAnalysisResult analyzeExpression(ast::Expression& expr,
+                                           SymbolTable& sym,
+                                           issue::SemaIssueHandler& iss) {
     Context ctx{ .sym = sym, .iss = iss };
     return ctx.dispatch(expr);
 }
@@ -77,7 +81,9 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
         return ExpressionAnalysisResult::fail();
     }
     auto const& operandType = sym.getObjectType(u.operand->typeID());
-    auto submitIssue        = [&] { iss.push(BadOperandForUnaryExpression(u, operandType.symbolID())); };
+    auto submitIssue        = [&] {
+        iss.push(BadOperandForUnaryExpression(u, operandType.symbolID()));
+    };
     if (!operandType.isBuiltin() || operandType.symbolID() == sym.String()) {
         submitIssue();
         return ExpressionAnalysisResult::fail();
@@ -85,7 +91,9 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
     switch (u.operation()) {
     case ast::UnaryPrefixOperator::Promotion: [[fallthrough]];
     case ast::UnaryPrefixOperator::Negation:
-        if (operandType.symbolID() != sym.Int() && operandType.symbolID() != sym.Float()) {
+        if (operandType.symbolID() != sym.Int() &&
+            operandType.symbolID() != sym.Float())
+        {
             submitIssue();
             return ExpressionAnalysisResult::fail();
         }
@@ -153,7 +161,10 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
         return ExpressionAnalysisResult::lvalue(symbolID, var.typeID());
     }
     case SymbolCategory::ObjectType: {
-        id.decorate(symbolID, TypeID::Invalid, ast::ValueCategory::None, ast::EntityCategory::Type);
+        id.decorate(symbolID,
+                    TypeID::Invalid,
+                    ast::ValueCategory::None,
+                    ast::EntityCategory::Type);
         return ExpressionAnalysisResult::type(symbolID);
     }
     case SymbolCategory::OverloadSet: {
@@ -190,14 +201,19 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
     if (!memRes.success()) {
         return ExpressionAnalysisResult::fail();
     }
-    if (objRes.category() == ast::EntityCategory::Value && memRes.category() != ast::EntityCategory::Value) {
+    if (objRes.category() == ast::EntityCategory::Value &&
+        memRes.category() != ast::EntityCategory::Value)
+    {
         SC_DEBUGFAIL(); // can't look in a value an then in a type. probably
                         // just return failure here
         return ExpressionAnalysisResult::fail();
     }
     // Right hand side of member access expressions must be identifiers?
     auto const& memberIdentifier = cast<ast::Identifier&>(*ma.member);
-    ma.decorate(memberIdentifier.symbolID(), memberIdentifier.typeID(), ma.object->valueCategory(), memRes.category());
+    ma.decorate(memberIdentifier.symbolID(),
+                memberIdentifier.typeID(),
+                ma.object->valueCategory(),
+                memRes.category());
     if (memRes.category() == ast::EntityCategory::Value) {
         SC_ASSERT(ma.typeID() == memRes.typeID(), "");
     }
@@ -225,20 +241,29 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
         return ExpressionAnalysisResult::fail();
     }
     if (ifRes.category() != ast::EntityCategory::Value) {
-        iss.push(BadSymbolReference(*c.ifExpr, ifRes.category(), ast::EntityCategory::Value));
+        iss.push(BadSymbolReference(*c.ifExpr,
+                                    ifRes.category(),
+                                    ast::EntityCategory::Value));
         return ExpressionAnalysisResult::fail();
     }
     if (elseRes.category() != ast::EntityCategory::Value) {
-        iss.push(BadSymbolReference(*c.elseExpr, elseRes.category(), ast::EntityCategory::Value));
+        iss.push(BadSymbolReference(*c.elseExpr,
+                                    elseRes.category(),
+                                    ast::EntityCategory::Value));
         return ExpressionAnalysisResult::fail();
     }
     if (ifRes.typeID() != elseRes.typeID()) {
-        iss.push(BadOperandsForBinaryExpression(c, ifRes.typeID(), elseRes.typeID()));
+        iss.push(BadOperandsForBinaryExpression(c,
+                                                ifRes.typeID(),
+                                                elseRes.typeID()));
         return ExpressionAnalysisResult::fail();
     }
     /// Maybe make this a global function
-    auto combine = [](ast::ValueCategory a, ast::ValueCategory b) { return a == b ? a : ast::ValueCategory::RValue; };
-    c.decorate(ifRes.typeID(), combine(c.ifExpr->valueCategory(), c.elseExpr->valueCategory()));
+    auto combine = [](ast::ValueCategory a, ast::ValueCategory b) {
+        return a == b ? a : ast::ValueCategory::RValue;
+    };
+    c.decorate(ifRes.typeID(),
+               combine(c.ifExpr->valueCategory(), c.elseExpr->valueCategory()));
     return ExpressionAnalysisResult::rvalue(ifRes.typeID());
 }
 
@@ -257,7 +282,8 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
         }
         success &= argRes.success();
         /// `arg` is undecorated if analysis of `arg` failed.
-        argTypes.push_back(arg->isDecorated() ? arg->typeID() : TypeID::Invalid);
+        argTypes.push_back(arg->isDecorated() ? arg->typeID() :
+                                                TypeID::Invalid);
     }
     auto const objRes = dispatch(*fc.object);
     if (iss.fatal()) {
@@ -276,22 +302,33 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     /// in the scope for `operator()` It might be an idea to make all functions
     /// class types with defined `operator()`
     if (!objRes.isLValue()) {
-        iss.push(BadFunctionCall(fc, SymbolID::Invalid, argTypes, BadFunctionCall::Reason::ObjectNotCallable));
+        iss.push(BadFunctionCall(fc,
+                                 SymbolID::Invalid,
+                                 argTypes,
+                                 BadFunctionCall::Reason::ObjectNotCallable));
         return ExpressionAnalysisResult::fail();
     }
     if (objRes.symbolID().category() != SymbolCategory::OverloadSet) {
-        iss.push(BadFunctionCall(fc, SymbolID::Invalid, argTypes, BadFunctionCall::Reason::ObjectNotCallable));
+        iss.push(BadFunctionCall(fc,
+                                 SymbolID::Invalid,
+                                 argTypes,
+                                 BadFunctionCall::Reason::ObjectNotCallable));
         return ExpressionAnalysisResult::fail();
     }
     auto const& overloadSet = sym.getOverloadSet(objRes.symbolID());
 
     auto const* functionPtr = overloadSet.find(argTypes);
     if (!functionPtr) {
-        iss.push(BadFunctionCall(fc, objRes.symbolID(), argTypes, BadFunctionCall::Reason::NoMatchingFunction));
+        iss.push(BadFunctionCall(fc,
+                                 objRes.symbolID(),
+                                 argTypes,
+                                 BadFunctionCall::Reason::NoMatchingFunction));
         return ExpressionAnalysisResult::fail();
     }
     auto const& function = *functionPtr;
-    fc.decorate(function.symbolID(), /* typeID = */ function.signature().returnTypeID(), ast::ValueCategory::RValue);
+    fc.decorate(function.symbolID(),
+                /* typeID = */ function.signature().returnTypeID(),
+                ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(fc.typeID());
 }
 
@@ -304,8 +341,12 @@ bool Context::verifyConversion(ast::Expression const& from, TypeID to) const {
 }
 
 TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
-    auto submitIssue = [&] { iss.push(BadOperandsForBinaryExpression(expr, expr.lhs->typeID(), expr.rhs->typeID())); };
-    auto verifySame  = [&] {
+    auto submitIssue = [&] {
+        iss.push(BadOperandsForBinaryExpression(expr,
+                                                expr.lhs->typeID(),
+                                                expr.rhs->typeID()));
+    };
+    auto verifySame = [&] {
         if (expr.lhs->typeID() != expr.rhs->typeID()) {
             submitIssue();
             return false;
@@ -388,7 +429,9 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
         if (!verifySame()) {
             return TypeID::Invalid;
         }
-        if (!verifyAnyOf(expr.lhs->typeID(), { sym.Int(), sym.Float(), sym.Bool() })) {
+        if (!verifyAnyOf(expr.lhs->typeID(),
+                         { sym.Int(), sym.Float(), sym.Bool() }))
+        {
             return TypeID::Invalid;
         }
         return sym.Bool();

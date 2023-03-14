@@ -21,7 +21,9 @@ public:
     bool isDecorated() const { return decorated; }
 
 protected:
-    void expectDecorated() const { SC_EXPECT(isDecorated(), "Requested decoration on undecorated node."); }
+    void expectDecorated() const {
+        SC_EXPECT(isDecorated(), "Requested decoration on undecorated node.");
+    }
     void markDecorated() { decorated = true; }
 
 private:
@@ -31,7 +33,8 @@ private:
 } // namespace internal
 
 /// ##Base class for all nodes in the AST
-/// Every derived class must specify its runtime type in the constructor via the `NodeType` enum.
+/// Every derived class must specify its runtime type in the constructor via the
+/// `NodeType` enum.
 class SCATHA(API) AbstractSyntaxTree: public internal::Decoratable {
 public:
     /// Runtime type of this node
@@ -45,7 +48,8 @@ public:
     SourceLocation sourceLocation() const { return token().sourceLocation; }
 
 protected:
-    explicit AbstractSyntaxTree(NodeType type, Token const& token): _type(type), _token(token) {}
+    explicit AbstractSyntaxTree(NodeType type, Token const& token):
+        _type(type), _token(token) {}
 
     void setToken(Token token) { _token = std::move(token); }
 
@@ -54,8 +58,8 @@ private:
     friend class scatha::UniquePtr;
 
     /// This function is a customization point for `UniquePtr<>`
-    /// It insulates visitation of the tree on destruction, so users who destroy an AST only need to #include "Base.h"
-    /// not "AST.h".
+    /// It insulates visitation of the tree on destruction, so users who destroy
+    /// an AST only need to #include "Base.h" not "AST.h".
     void privateDestroy();
 
     /// Calls `delete` on the most derived type.
@@ -67,7 +71,8 @@ private:
 };
 
 // For `dyncast` compatibilty
-NodeType dyncast_get_type(std::derived_from<AbstractSyntaxTree> auto const& node) {
+NodeType dyncast_get_type(
+    std::derived_from<AbstractSyntaxTree> auto const& node) {
     return node.nodeType();
 }
 

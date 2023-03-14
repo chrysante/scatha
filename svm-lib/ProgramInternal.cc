@@ -32,9 +32,9 @@ void svm::print(u8 const* program) {
 
 template <typename T>
 static constexpr std::string_view typeToStr() {
-#define SVM_TYPETOSTR_CASE(type)                                                                                       \
-    else if constexpr (std::is_same_v<T, type>) {                                                                      \
-        return #type;                                                                                                  \
+#define SVM_TYPETOSTR_CASE(type)                                               \
+    else if constexpr (std::is_same_v<T, type>) {                              \
+        return #type;                                                          \
     }
     if constexpr (false)
         ;
@@ -77,8 +77,8 @@ void svm::print(u8 const* progData, std::ostream& str) {
         u8 const constantInnerOffset          = readAs<u8>(data, i + 3);
         str << "*(ptr)R[" << printAs<u8>(baseptrRegisterIndex) << "]";
         if (offsetCountRegisterIndex != 0xFF) {
-            str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex) << "] * "
-                << printAs<u8>(constantOffsetMultiplier);
+            str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex)
+                << "] * " << printAs<u8>(constantOffsetMultiplier);
         }
         str << " + " << printAs<u8>(constantInnerOffset);
     };
@@ -89,8 +89,14 @@ void svm::print(u8 const* progData, std::ostream& str) {
         auto const opcodeClass = classify(opcode);
         switch (opcodeClass) {
             using enum OpCodeClass;
-        case RR: str << "R[" << printAs<u8>(data, i + 1) << "], R[" << printAs<u8>(data, i + 2) << "]"; break;
-        case RV: str << "R[" << printAs<u8>(data, i + 1) << "], " << printAs<u64>(data, i + 2); break;
+        case RR:
+            str << "R[" << printAs<u8>(data, i + 1) << "], R["
+                << printAs<u8>(data, i + 2) << "]";
+            break;
+        case RV:
+            str << "R[" << printAs<u8>(data, i + 1) << "], "
+                << printAs<u64>(data, i + 2);
+            break;
         case RM:
             str << "R[" << printAs<u8>(data, i + 1) << "], ";
             printMemoryAcccess(i + 2);
@@ -103,12 +109,19 @@ void svm::print(u8 const* progData, std::ostream& str) {
         case Jump: str << printAs<i32>(data, i + 1); break;
         case Other:
             switch (opcode) {
-            case OpCode::alloca_: str << printAs<u8>(data, i + 1) << ", " << printAs<u8>(data, i + 2); break;
-            case OpCode::call: str << printAs<i32>(data, i + 1) << ", " << printAs<u8>(data, i + 5); break;
+            case OpCode::alloca_:
+                str << printAs<u8>(data, i + 1) << ", "
+                    << printAs<u8>(data, i + 2);
+                break;
+            case OpCode::call:
+                str << printAs<i32>(data, i + 1) << ", "
+                    << printAs<u8>(data, i + 5);
+                break;
             case OpCode::ret: break;
             case OpCode::terminate: break;
             case OpCode::callExt:
-                str << printAs<u8>(data, i + 1) << ", " << printAs<u8>(data, i + 2) << ", "
+                str << printAs<u8>(data, i + 1) << ", "
+                    << printAs<u8>(data, i + 2) << ", "
                     << printAs<u16>(data, i + 3);
                 break;
             default: assert(false);

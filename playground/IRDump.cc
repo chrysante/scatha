@@ -61,29 +61,34 @@ void playground::irDump(std::string_view text) {
     svm::print(program.data());
 }
 
-std::pair<scatha::ir::Context, scatha::ir::Module> playground::makeIRModule(std::string_view text) {
+std::pair<scatha::ir::Context, scatha::ir::Module> playground::makeIRModule(
+    std::string_view text) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     if (!lexIss.empty()) {
-        std::cout << "Lexical issue on line " << lexIss.issues()[0].sourceLocation().line << std::endl;
+        std::cout << "Lexical issue on line "
+                  << lexIss.issues()[0].sourceLocation().line << std::endl;
         std::exit(EXIT_FAILURE);
     }
     issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     if (!parseIss.empty()) {
-        std::cout << "Syntax issue on line " << parseIss.issues()[0].sourceLocation().line << std::endl;
+        std::cout << "Syntax issue on line "
+                  << parseIss.issues()[0].sourceLocation().line << std::endl;
         std::exit(EXIT_FAILURE);
     }
     issue::SemaIssueHandler semaIss;
     auto sym = sema::analyze(*ast, semaIss);
     if (!semaIss.empty()) {
-        std::cout << "Semantic issue on line " << semaIss.issues()[0].sourceLocation().line << std::endl;
+        std::cout << "Semantic issue on line "
+                  << semaIss.issues()[0].sourceLocation().line << std::endl;
         std::exit(EXIT_FAILURE);
     }
     ir::Context ctx;
     return { std::move(ctx), ast::codegen(*ast, sym, ctx) };
 }
 
-std::pair<scatha::ir::Context, scatha::ir::Module> playground::makeIRModuleFromFile(std::filesystem::path filepath) {
+std::pair<scatha::ir::Context, scatha::ir::Module> playground::
+    makeIRModuleFromFile(std::filesystem::path filepath) {
     return makeIRModule(readFileToString(filepath));
 }

@@ -45,7 +45,9 @@ public:
     void setAlign(size_t value) { _align = value; }
     void setIsBuiltin(bool value) { _isBuiltin = value; }
 
-    void addMemberVariable(SymbolID symbolID) { _memberVars.push_back(symbolID); }
+    void addMemberVariable(SymbolID symbolID) {
+        _memberVars.push_back(symbolID);
+    }
 
 public:
     size_t _size;

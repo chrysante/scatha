@@ -9,7 +9,8 @@
 using namespace scatha;
 using namespace parse;
 
-static std::tuple<utl::vector<Token>, test::SyntaxIssueHelper> correctBrackets(std::string_view text) {
+static std::tuple<utl::vector<Token>, test::SyntaxIssueHelper> correctBrackets(
+    std::string_view text) {
     auto tokens = [&] {
         issue::LexicalIssueHandler iss;
         return lex::lex(text, iss);
@@ -29,12 +30,14 @@ TEST_CASE("BracketCorrection - No issues", "[parse][preparse]") {
         CHECK(iss.empty());
     }
     SECTION("Complex") {
-        auto const [tokens, iss] = correctBrackets("( x{\"Hello world!\"; []({{}{}})} *!)");
+        auto const [tokens, iss] =
+            correctBrackets("( x{\"Hello world!\"; []({{}{}})} *!)");
         CHECK(iss.empty());
     }
 }
 
-TEST_CASE("BracketCorrection - Missing closing brackets at end of file", "[parse][preparse]") {
+TEST_CASE("BracketCorrection - Missing closing brackets at end of file",
+          "[parse][preparse]") {
     SECTION("1") {
         auto const [tokens, iss] = correctBrackets("(");
         auto const issues        = iss.iss.issues();
@@ -51,19 +54,23 @@ TEST_CASE("BracketCorrection - Missing closing brackets at end of file", "[parse
         auto const [tokens, iss] = correctBrackets("([{");
         auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 3);
-        // TODO: Check for right bracket type once we added that information to SyntaxIssue
+        // TODO: Check for right bracket type once we added that information to
+        // SyntaxIssue
         {
             auto const curlyIssue = issues[0];
-            CHECK(curlyIssue.reason() == SyntaxIssue::Reason::ExpectedClosingBracket);
+            CHECK(curlyIssue.reason() ==
+                  SyntaxIssue::Reason::ExpectedClosingBracket);
             CHECK(curlyIssue.sourceLocation().column == 4);
         }
         {
             auto const squareIssue = issues[1];
-            CHECK(squareIssue.reason() == SyntaxIssue::Reason::ExpectedClosingBracket);
+            CHECK(squareIssue.reason() ==
+                  SyntaxIssue::Reason::ExpectedClosingBracket);
         }
         {
             auto const paranIssue = issues[2];
-            CHECK(paranIssue.reason() == SyntaxIssue::Reason::ExpectedClosingBracket);
+            CHECK(paranIssue.reason() ==
+                  SyntaxIssue::Reason::ExpectedClosingBracket);
         }
 
         REQUIRE(tokens.size() == 7); /// Accounting for EOF token.
@@ -76,7 +83,8 @@ TEST_CASE("BracketCorrection - Missing closing brackets at end of file", "[parse
     }
 }
 
-TEST_CASE("BracketCorrection - Unexpected closing brackets", "[parse][preparse]") {
+TEST_CASE("BracketCorrection - Unexpected closing brackets",
+          "[parse][preparse]") {
     SECTION("1") {
         auto const [tokens, iss] = correctBrackets("-)*");
         auto const issues        = iss.iss.issues();
@@ -112,7 +120,8 @@ TEST_CASE("BracketCorrection - Unexpected closing brackets", "[parse][preparse]"
         auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 3);
         for (int i = 2; auto& issue: issues) {
-            CHECK(issue.reason() == SyntaxIssue::Reason::UnexpectedClosingBracket);
+            CHECK(issue.reason() ==
+                  SyntaxIssue::Reason::UnexpectedClosingBracket);
             CHECK(issue.sourceLocation().column == i++);
         }
         auto const issue = issues[0];
@@ -124,12 +133,14 @@ TEST_CASE("BracketCorrection - Unexpected closing brackets", "[parse][preparse]"
         REQUIRE(issues.size() == 2);
         {
             auto const missingClosingCurly = issues[0];
-            CHECK(missingClosingCurly.reason() == SyntaxIssue::Reason::ExpectedClosingBracket);
+            CHECK(missingClosingCurly.reason() ==
+                  SyntaxIssue::Reason::ExpectedClosingBracket);
             CHECK(missingClosingCurly.sourceLocation().column == 3);
         }
         {
             auto const unexpectedClosingCurly = issues[1];
-            CHECK(unexpectedClosingCurly.reason() == SyntaxIssue::Reason::UnexpectedClosingBracket);
+            CHECK(unexpectedClosingCurly.reason() ==
+                  SyntaxIssue::Reason::UnexpectedClosingBracket);
             CHECK(unexpectedClosingCurly.sourceLocation().column == 4);
         }
         REQUIRE(tokens.size() == 5);
@@ -143,7 +154,8 @@ TEST_CASE("BracketCorrection - Unexpected closing brackets", "[parse][preparse]"
         auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 3);
         for (auto& issue: issues) {
-            CHECK(issue.reason() == SyntaxIssue::Reason::ExpectedClosingBracket);
+            CHECK(issue.reason() ==
+                  SyntaxIssue::Reason::ExpectedClosingBracket);
             CHECK(issue.sourceLocation().column == 17);
         }
         REQUIRE(tokens.size() == 13);

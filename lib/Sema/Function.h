@@ -10,8 +10,12 @@ namespace scatha::sema {
 
 class SCATHA(API) Function: public Scope {
 public:
-    explicit Function(std::string name, SymbolID functionID, SymbolID overloadSetID, Scope* parentScope):
-        Scope(ScopeKind::Function, std::move(name), functionID, parentScope), _overloadSetID(overloadSetID) {}
+    explicit Function(std::string name,
+                      SymbolID functionID,
+                      SymbolID overloadSetID,
+                      Scope* parentScope):
+        Scope(ScopeKind::Function, std::move(name), functionID, parentScope),
+        _overloadSetID(overloadSetID) {}
 
     TypeID typeID() const { return signature().typeID(); }
     SymbolID overloadSetID() const { return _overloadSetID; }
@@ -40,8 +44,12 @@ namespace internal {
 
 struct FunctionArgumentsHash {
     struct is_transparent;
-    size_t operator()(Function const* f) const { return f->signature().argumentHash(); }
-    size_t operator()(std::span<TypeID const> const& args) const { return FunctionSignature::hashArguments(args); }
+    size_t operator()(Function const* f) const {
+        return f->signature().argumentHash();
+    }
+    size_t operator()(std::span<TypeID const> const& args) const {
+        return FunctionSignature::hashArguments(args);
+    }
 };
 
 struct FunctionArgumentsEqual {
@@ -53,11 +61,13 @@ struct FunctionArgumentsEqual {
         return a->signature().argumentHash() == b->signature().argumentHash();
     }
     bool operator()(Function const* a, Args b) const {
-        return a->signature().argumentHash() == FunctionSignature::hashArguments(b);
+        return a->signature().argumentHash() ==
+               FunctionSignature::hashArguments(b);
     }
     bool operator()(Args a, Function const* b) const { return (*this)(b, a); }
     bool operator()(Args a, Args b) const {
-        return FunctionSignature::hashArguments(a) == FunctionSignature::hashArguments(b);
+        return FunctionSignature::hashArguments(a) ==
+               FunctionSignature::hashArguments(b);
     }
 };
 

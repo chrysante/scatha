@@ -8,7 +8,10 @@ using namespace parse;
 
 namespace {
 
-void checkBracketImpl(std::string str, TokenType tokenType, Bracket::Type type, Bracket::Side side) {
+void checkBracketImpl(std::string str,
+                      TokenType tokenType,
+                      Bracket::Type type,
+                      Bracket::Side side) {
     Token const t(std::move(str), tokenType);
     Bracket const bracket = toBracket(t);
     CHECK(bracket.type == type);

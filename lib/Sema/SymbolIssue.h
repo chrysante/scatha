@@ -39,7 +39,8 @@ private:
 
 class SCATHA(API) SymbolCollisionIssue: public DefinitionIssue {
 public:
-    explicit SymbolCollisionIssue(std::string_view symbolName, SymbolID existing);
+    explicit SymbolCollisionIssue(std::string_view symbolName,
+                                  SymbolID existing);
 
     SymbolID existing() const { return _existing; }
 
@@ -52,7 +53,9 @@ public:
     enum Reason { CantOverloadOnReturnType, Redefinition };
 
 public:
-    explicit OverloadIssue(std::string_view symbolName, SymbolID existing, Reason);
+    explicit OverloadIssue(std::string_view symbolName,
+                           SymbolID existing,
+                           Reason);
 
     Reason reason() const { return _reason; }
 

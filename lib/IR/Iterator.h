@@ -13,23 +13,30 @@ class InstructionIteratorImpl {
     friend class InstructionIteratorImpl;
 
 public:
-    using value_type        = typename std::iterator_traits<InstItr>::value_type;
-    using difference_type   = typename std::iterator_traits<InstItr>::difference_type;
-    using pointer           = typename std::iterator_traits<InstItr>::pointer;
-    using reference         = typename std::iterator_traits<InstItr>::reference;
-    using iterator_category = typename std::iterator_traits<InstItr>::iterator_category;
+    using value_type = typename std::iterator_traits<InstItr>::value_type;
+    using difference_type =
+        typename std::iterator_traits<InstItr>::difference_type;
+    using pointer   = typename std::iterator_traits<InstItr>::pointer;
+    using reference = typename std::iterator_traits<InstItr>::reference;
+    using iterator_category =
+        typename std::iterator_traits<InstItr>::iterator_category;
 
     using BasicBlockIterator  = BBItr;
     using InstructionIterator = InstItr;
 
     InstructionIteratorImpl() = default;
 
-    InstructionIteratorImpl(BBItr bbItr, InstItr instItr): bbItr(bbItr), instItr(instItr) { handleBBBoundary(); }
+    InstructionIteratorImpl(BBItr bbItr, InstItr instItr):
+        bbItr(bbItr), instItr(instItr) {
+        handleBBBoundary();
+    }
 
     template <std::convertible_to<BBItr> BBI2, std::convertible_to<InstItr> II2>
-    InstructionIteratorImpl(InstructionIteratorImpl<BBI2, II2> const& rhs): bbItr(rhs.bbItr), instItr(rhs.instItr) {}
+    InstructionIteratorImpl(InstructionIteratorImpl<BBI2, II2> const& rhs):
+        bbItr(rhs.bbItr), instItr(rhs.instItr) {}
 
-    InstructionIteratorImpl& operator=(std::convertible_to<InstItr> auto const& rhsInstItr) & {
+    InstructionIteratorImpl& operator=(
+        std::convertible_to<InstItr> auto const& rhsInstItr) & {
         instItr = rhsInstItr;
         handleBBBoundary();
         return *this;
@@ -61,9 +68,12 @@ public:
         return result;
     }
 
-    bool operator==(InstructionIteratorImpl const& rhs) const { return cmpImpl(*this, rhs); }
+    bool operator==(InstructionIteratorImpl const& rhs) const {
+        return cmpImpl(*this, rhs);
+    }
 
-    template <std::equality_comparable_with<BBItr> BBI2, std::equality_comparable_with<InstItr> II2>
+    template <std::equality_comparable_with<BBItr> BBI2,
+              std::equality_comparable_with<InstItr> II2>
     bool operator==(InstructionIteratorImpl<BBI2, II2> const& rhs) const {
         return cmpImpl(*this, rhs);
     }
@@ -91,14 +101,17 @@ struct PhiSentinel {};
 
 template <bool IsConst, typename BB = BasicBlock>
 struct PhiIteratorImpl {
-    using Itr = std::conditional_t<IsConst, typename BB::ConstIterator, typename BB::Iterator>;
+    using Itr = std::conditional_t<IsConst,
+                                   typename BB::ConstIterator,
+                                   typename BB::Iterator>;
 
 public:
-    using value_type        = std::conditional_t<IsConst, Phi const, Phi>;
-    using difference_type   = typename std::iterator_traits<Itr>::difference_type;
-    using pointer           = value_type*;
-    using reference         = value_type&;
-    using iterator_category = typename std::iterator_traits<Itr>::iterator_category;
+    using value_type      = std::conditional_t<IsConst, Phi const, Phi>;
+    using difference_type = typename std::iterator_traits<Itr>::difference_type;
+    using pointer         = value_type*;
+    using reference       = value_type&;
+    using iterator_category =
+        typename std::iterator_traits<Itr>::iterator_category;
 
     PhiIteratorImpl(Itr begin, Itr end): itr(begin), end(end) {}
 
@@ -132,7 +145,9 @@ public:
         return result;
     }
 
-    bool operator==(PhiSentinel const&) const { return itr == end || !isa<Phi>(*itr); }
+    bool operator==(PhiSentinel const&) const {
+        return itr == end || !isa<Phi>(*itr);
+    }
 
 private:
     Itr itr, end;

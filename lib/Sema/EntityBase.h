@@ -32,14 +32,22 @@ public:
     struct MapHash: std::hash<SymbolID> {
         struct is_transparent;
         using std::hash<SymbolID>::operator();
-        size_t operator()(EntityBase const& e) const { return std::hash<SymbolID>{}(e.symbolID()); }
+        size_t operator()(EntityBase const& e) const {
+            return std::hash<SymbolID>{}(e.symbolID());
+        }
     };
 
     struct MapEqual {
         struct is_transparent;
-        bool operator()(EntityBase const& a, EntityBase const& b) const { return a.symbolID() == b.symbolID(); }
-        bool operator()(EntityBase const& a, SymbolID b) const { return a.symbolID() == b; }
-        bool operator()(SymbolID a, EntityBase const& b) const { return a == b.symbolID(); }
+        bool operator()(EntityBase const& a, EntityBase const& b) const {
+            return a.symbolID() == b.symbolID();
+        }
+        bool operator()(EntityBase const& a, SymbolID b) const {
+            return a.symbolID() == b;
+        }
+        bool operator()(SymbolID a, EntityBase const& b) const {
+            return a == b.symbolID();
+        }
     };
 
 public:

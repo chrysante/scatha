@@ -45,7 +45,8 @@ void sema::analyzeFunctions(SymbolTable& sym,
                             std::span<DependencyGraphNode const> functions) {
     Context ctx{ sym, iss };
     for (auto const& node: functions) {
-        SC_ASSERT(node.category == SymbolCategory::Function, "We only accept functions here");
+        SC_ASSERT(node.category == SymbolCategory::Function,
+                  "We only accept functions here");
         sym.makeScopeCurrent(node.scope);
         ctx.analyze(cast<ast::FunctionDefinition&>(*node.astNode));
         sym.makeScopeCurrent(nullptr);
@@ -57,21 +58,24 @@ void Context::dispatch(ast::AbstractSyntaxTree& node) {
 }
 
 void Context::analyze(ast::FunctionDefinition& fn) {
-    if (auto const sk = sym.currentScope().kind();
-        sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object)
+    if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
+                                                   sk != ScopeKind::Namespace &&
+                                                   sk != ScopeKind::Object)
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        iss.push(InvalidDeclaration(&fn,
-                                    InvalidDeclaration::Reason::InvalidInCurrentScope,
-                                    sym.currentScope(),
-                                    SymbolCategory::Function));
+        iss.push(InvalidDeclaration(
+            &fn,
+            InvalidDeclaration::Reason::InvalidInCurrentScope,
+            sym.currentScope(),
+            SymbolCategory::Function));
         return;
     }
     SC_ASSERT(fn.symbolID() != SymbolID::Invalid,
-              "Can't analyze the body if wen don't have a symbol to push this functions scope.");
-    /// Here the AST node is partially decorated: symbolID() is already set by gatherNames() phase, now we complete the
-    /// decoration.
+              "Can't analyze the body if wen don't have a symbol to push this "
+              "functions scope.");
+    /// Here the AST node is partially decorated: symbolID() is already set by
+    /// gatherNames() phase, now we complete the decoration.
     SymbolID const fnSymID = fn.symbolID();
     auto const& function   = sym.getFunction(fnSymID);
     fn.decorate(fnSymID, function.signature().returnTypeID());
@@ -93,23 +97,29 @@ void Context::analyze(ast::FunctionDefinition& fn) {
 
 void Context::analyze(ast::StructDefinition& s) {
     auto const sk = sym.currentScope().kind();
-    if (sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object) {
+    if (sk != ScopeKind::Global && sk != ScopeKind::Namespace &&
+        sk != ScopeKind::Object)
+    {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        iss.push(InvalidDeclaration(&s,
-                                    InvalidDeclaration::Reason::InvalidInCurrentScope,
-                                    sym.currentScope(),
-                                    SymbolCategory::ObjectType));
+        iss.push(InvalidDeclaration(
+            &s,
+            InvalidDeclaration::Reason::InvalidInCurrentScope,
+            sym.currentScope(),
+            SymbolCategory::ObjectType));
     }
 }
 
 void Context::analyze(ast::CompoundStatement& block) {
     if (!block.isDecorated()) {
-        block.decorate(sema::ScopeKind::Anonymous, sym.addAnonymousScope().symbolID());
+        block.decorate(sema::ScopeKind::Anonymous,
+                       sym.addAnonymousScope().symbolID());
     }
     else {
-        SC_ASSERT(block.scopeKind() != ScopeKind::Anonymous || currentFunction != nullptr,
-                  "If we are analyzing an anonymous scope we must have a function pushed, because anonymous scopes "
+        SC_ASSERT(block.scopeKind() != ScopeKind::Anonymous ||
+                      currentFunction != nullptr,
+                  "If we are analyzing an anonymous scope we must have a "
+                  "function pushed, because anonymous scopes "
                   "can only appear in functions.");
     }
     sym.pushScope(block.symbolID());
@@ -124,8 +134,10 @@ void Context::analyze(ast::CompoundStatement& block) {
 }
 
 void Context::analyze(ast::VariableDeclaration& var) {
-    SC_ASSERT(currentFunction != nullptr, "We only handle function local variables in this pass.");
-    SC_ASSERT(!var.isDecorated(), "We should not have handled local variables in prepass.");
+    SC_ASSERT(currentFunction != nullptr,
+              "We only handle function local variables in this pass.");
+    SC_ASSERT(!var.isDecorated(),
+              "We should not have handled local variables in prepass.");
     if (!var.typeExpr && !var.initExpression) {
         iss.push(InvalidDeclaration(&var,
                                     InvalidDeclaration::Reason::CantInferType,
@@ -143,7 +155,9 @@ void Context::analyze(ast::VariableDeclaration& var) {
             return TypeID::Invalid;
         }
         if (varTypeRes.category() != ast::EntityCategory::Type) {
-            iss.push(BadSymbolReference(*var.typeExpr, varTypeRes.category(), ast::EntityCategory::Type));
+            iss.push(BadSymbolReference(*var.typeExpr,
+                                        varTypeRes.category(),
+                                        ast::EntityCategory::Type));
             return TypeID::Invalid;
         }
         auto const& objType = sym.getObjectType(varTypeRes.typeID());
@@ -161,7 +175,9 @@ void Context::analyze(ast::VariableDeclaration& var) {
             return TypeID::Invalid;
         }
         if (initExprRes.category() != ast::EntityCategory::Value) {
-            iss.push(BadSymbolReference(*var.initExpression, initExprRes.category(), ast::EntityCategory::Value));
+            iss.push(BadSymbolReference(*var.initExpression,
+                                        initExprRes.category(),
+                                        ast::EntityCategory::Value));
             return TypeID::Invalid;
         }
         return var.initExpression->typeID();
@@ -185,8 +201,11 @@ void Context::analyze(ast::VariableDeclaration& var) {
 }
 
 void Context::analyze(ast::ParameterDeclaration& paramDecl) {
-    SC_ASSERT(currentFunction != nullptr, "We'd better have a function pushed when analyzing function parameters.");
-    SC_ASSERT(!paramDecl.isDecorated(), "We should not have handled parameters in prepass.");
+    SC_ASSERT(currentFunction != nullptr,
+              "We'd better have a function pushed when analyzing function "
+              "parameters.");
+    SC_ASSERT(!paramDecl.isDecorated(),
+              "We should not have handled parameters in prepass.");
     TypeID const declaredTypeID = [&] {
         if (paramDecl.typeExpr == nullptr) {
             return TypeID::Invalid;
@@ -196,7 +215,9 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
             return TypeID::Invalid;
         }
         if (declTypeRes.category() != ast::EntityCategory::Type) {
-            iss.push(BadSymbolReference(*paramDecl.typeExpr, declTypeRes.category(), ast::EntityCategory::Type));
+            iss.push(BadSymbolReference(*paramDecl.typeExpr,
+                                        declTypeRes.category(),
+                                        ast::EntityCategory::Type));
             return TypeID::Invalid;
         }
         auto const& objType = sym.getObjectType(declTypeRes.typeID());
@@ -216,7 +237,10 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
 
 void Context::analyze(ast::ExpressionStatement& es) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(InvalidStatement(&es, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+        iss.push(
+            InvalidStatement(&es,
+                             InvalidStatement::Reason::InvalidScopeForStatement,
+                             sym.currentScope()));
         return;
     }
     dispatchExpression(*es.expression);
@@ -225,7 +249,10 @@ void Context::analyze(ast::ExpressionStatement& es) {
 void Context::analyze(ast::ReturnStatement& rs) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         SC_DEBUGFAIL(); // Can this even happen?
-        iss.push(InvalidStatement(&rs, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+        iss.push(
+            InvalidStatement(&rs,
+                             InvalidStatement::Reason::InvalidScopeForStatement,
+                             sym.currentScope()));
         return;
     }
     if (rs.expression == nullptr) {
@@ -236,16 +263,22 @@ void Context::analyze(ast::ReturnStatement& rs) {
         return;
     }
     if (exprRes.category() != ast::EntityCategory::Value) {
-        iss.push(BadSymbolReference(*rs.expression, exprRes.category(), ast::EntityCategory::Value));
+        iss.push(BadSymbolReference(*rs.expression,
+                                    exprRes.category(),
+                                    ast::EntityCategory::Value));
         return;
     }
-    SC_ASSERT(currentFunction != nullptr, "This should have been set by case FunctionDefinition");
+    SC_ASSERT(currentFunction != nullptr,
+              "This should have been set by case FunctionDefinition");
     verifyConversion(*rs.expression, currentFunction->returnTypeID());
 }
 
 void Context::analyze(ast::IfStatement& is) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(InvalidStatement(&is, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+        iss.push(
+            InvalidStatement(&is,
+                             InvalidStatement::Reason::InvalidScopeForStatement,
+                             sym.currentScope()));
         return;
     }
     if (dispatchExpression(*is.condition)) {
@@ -266,7 +299,10 @@ void Context::analyze(ast::IfStatement& is) {
 
 void Context::analyze(ast::WhileStatement& ws) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(InvalidStatement(&ws, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+        iss.push(
+            InvalidStatement(&ws,
+                             InvalidStatement::Reason::InvalidScopeForStatement,
+                             sym.currentScope()));
         return;
     }
     if (dispatchExpression(*ws.condition)) {
@@ -279,9 +315,13 @@ void Context::analyze(ast::WhileStatement& ws) {
 }
 
 void Context::analyze(ast::DoWhileStatement& ws) {
-    // TODO: This implementation is completely analogous to analyze(WhileStatement&). Try to merge them.
+    // TODO: This implementation is completely analogous to
+    // analyze(WhileStatement&). Try to merge them.
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(InvalidStatement(&ws, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+        iss.push(
+            InvalidStatement(&ws,
+                             InvalidStatement::Reason::InvalidScopeForStatement,
+                             sym.currentScope()));
         return;
     }
     if (dispatchExpression(*ws.condition)) {
@@ -295,10 +335,14 @@ void Context::analyze(ast::DoWhileStatement& ws) {
 
 void Context::analyze(ast::ForStatement& fs) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(InvalidStatement(&fs, InvalidStatement::Reason::InvalidScopeForStatement, sym.currentScope()));
+        iss.push(
+            InvalidStatement(&fs,
+                             InvalidStatement::Reason::InvalidScopeForStatement,
+                             sym.currentScope()));
         return;
     }
-    fs.block->decorate(sema::ScopeKind::Anonymous, sym.addAnonymousScope().symbolID());
+    fs.block->decorate(sema::ScopeKind::Anonymous,
+                       sym.addAnonymousScope().symbolID());
     sym.pushScope(fs.block->symbolID());
     dispatch(*fs.varDecl);
     if (dispatchExpression(*fs.condition)) {

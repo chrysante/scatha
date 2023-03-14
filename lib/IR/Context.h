@@ -45,8 +45,10 @@ public:
     }
 
 private:
-    utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*> _integralConstants;
-    std::map<std::pair<APFloat, size_t>, FloatingPointConstant*> _floatConstants;
+    utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*>
+        _integralConstants;
+    std::map<std::pair<APFloat, size_t>, FloatingPointConstant*>
+        _floatConstants;
     utl::hashset<Type*, Type::Hash, Type::Equals> _types;
     utl::hashmap<std::string, Constant*> _globals;
     // For unique names

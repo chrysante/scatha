@@ -18,14 +18,18 @@ using namespace ir;
 
 #define CHECK(cond, msg) _doCheck(cond, msg, #cond, __FUNCTION__, __LINE__)
 
-static void _doCheck(
-    bool condition, std::string_view msg, std::string_view conditionStr, std::string_view functionName, size_t line) {
+static void _doCheck(bool condition,
+                     std::string_view msg,
+                     std::string_view conditionStr,
+                     std::string_view functionName,
+                     size_t line) {
     if (condition) {
         return;
     }
     std::cout << "IR Invariant [" << conditionStr << "] not satisfied.\n";
     std::cout << "\t\"" << msg << "\"\n";
-    std::cout << "\tIn function \"" << functionName << "\" on line " << line << std::endl;
+    std::cout << "\tIn function \"" << functionName << "\" on line " << line
+              << std::endl;
     SC_DEBUGBREAK();
 }
 
@@ -46,7 +50,8 @@ struct AssertContext {
     ir::Context& ctx;
     Function const* currentFunction = nullptr;
     BasicBlock const* currentBB     = nullptr;
-    utl::hashmap<std::string, std::pair<Function const*, Value const*>> nameValueMap;
+    utl::hashmap<std::string, std::pair<Function const*, Value const*>>
+        nameValueMap;
 };
 
 void ir::assertInvariants(Context& ctx, Module const& mod) {
@@ -68,7 +73,8 @@ void AssertContext::assertInvariants(Module const& mod) {
 void AssertContext::assertInvariants(Function const& function) {
     currentFunction = &function;
     for (auto& bb: function) {
-        CHECK(bb.parent() == &function, "Parent pointers must be setup correctly");
+        CHECK(bb.parent() == &function,
+              "Parent pointers must be setup correctly");
         assertInvariants(bb);
     }
     currentFunction = nullptr;
@@ -77,7 +83,9 @@ void AssertContext::assertInvariants(Function const& function) {
 void AssertContext::assertInvariants(BasicBlock const& bb) {
     currentBB  = &bb;
     bool entry = true;
-    CHECK(!bb.empty(), "Empty basic blocks are not well formed as they must end with a terminator");
+    CHECK(!bb.empty(),
+          "Empty basic blocks are not well formed as they must end with a "
+          "terminator");
     for (auto& inst: bb) {
         CHECK(inst.parent() == &bb, "Parent pointers must be setup correctly");
         assertInvariants(inst);
@@ -85,10 +93,13 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
             entry = false;
         }
         if (!entry) {
-            CHECK(!isa<Phi>(inst), "Phi nodes may not appear after one non-phi node has appeared");
+            CHECK(
+                !isa<Phi>(inst),
+                "Phi nodes may not appear after one non-phi node has appeared");
         }
         CHECK(!isa<TerminatorInst>(inst) ^ (&inst == &bb.back()),
-              "The last instruction must be the one and only terminator of a basic block");
+              "The last instruction must be the one and only terminator of a "
+              "basic block");
     }
     // clang-format off
     CHECK(bb.terminator() != nullptr, "Basic block must have a terminator");
@@ -102,13 +113,17 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
     }); // clang-format on
     for (auto* pred: bb.predecessors()) {
         auto const predSucc = pred->successors();
-        CHECK(std::find(predSucc.begin(), predSucc.end(), &bb) != predSucc.end(),
-              "The predecessors of this basic block must have us listed as a successor");
+        CHECK(std::find(predSucc.begin(), predSucc.end(), &bb) !=
+                  predSucc.end(),
+              "The predecessors of this basic block must have us listed as a "
+              "successor");
     }
     for (auto* succ: bb.successors()) {
         auto const& succPred = succ->predecessors();
-        CHECK(std::find(succPred.begin(), succPred.end(), &bb) != succPred.end(),
-              "The successors of this basic block must have us listed as a predecessor");
+        CHECK(std::find(succPred.begin(), succPred.end(), &bb) !=
+                  succPred.end(),
+              "The successors of this basic block must have us listed as a "
+              "predecessor");
     }
     currentBB = nullptr;
 }
@@ -122,13 +137,15 @@ void AssertContext::assertInvariants(Instruction const& inst) {
               "Our operands must have listed us as their user");
         if (auto* opInst = dyncast<Instruction const*>(operand)) {
             CHECK(opInst->parent()->parent() == inst.parent()->parent(),
-                  "If our operand is an instruction it must be in the same function");
+                  "If our operand is an instruction it must be in the same "
+                  "function");
         }
     }
     for (auto* user: inst.users()) {
         uniqueName(*user);
         auto userOps = user->operands();
-        CHECK(std::find(userOps.begin(), userOps.end(), &inst) != userOps.end(), "Our users must actually use us");
+        CHECK(std::find(userOps.begin(), userOps.end(), &inst) != userOps.end(),
+              "Our users must actually use us");
         CHECK(user->parent()->parent() == inst.parent()->parent(),
               "If our user is an instruction it must be in the same function");
     }
@@ -138,9 +155,13 @@ void AssertContext::assertInvariants(Instruction const& inst) {
 void AssertContext::assertSpecialInvariants(Phi const& phi) {
     auto const predsView = phi.parent()->predecessors();
     utl::hashset<BasicBlock const*> preds(predsView.begin(), predsView.end());
-    CHECK(preds.size() == predsView.size(), "The incoming edges in the phi node must be unique");
-    utl::hashset<BasicBlock const*> args(phi.incomingEdges().begin(), phi.incomingEdges().end());
-    CHECK(preds == args, "We need an incoming edge in our phi node for exactly every incoming edge in the basic block");
+    CHECK(preds.size() == predsView.size(),
+          "The incoming edges in the phi node must be unique");
+    utl::hashset<BasicBlock const*> args(phi.incomingEdges().begin(),
+                                         phi.incomingEdges().end());
+    CHECK(preds == args,
+          "We need an incoming edge in our phi node for exactly every incoming "
+          "edge in the basic block");
 }
 
 void AssertContext::uniqueName(Value const& value) {
@@ -150,7 +171,8 @@ void AssertContext::uniqueName(Value const& value) {
         [](Instruction const& inst) { return inst.parent()->parent(); },
         [](Parameter const& param) { return param.parent(); }
     }); // clang-format on
-    auto const [itr, success] = nameValueMap.insert({ std::string(value.name()), { function, &value } });
+    auto const [itr, success] = nameValueMap.insert(
+        { std::string(value.name()), { function, &value } });
     if (success) {
         return;
     }
@@ -162,7 +184,8 @@ void AssertContext::uniqueName(Value const& value) {
     if (funcAddr != function) {
         return;
     }
-    CHECK(valueAddr == &value, "A value with the same name must be the same value");
+    CHECK(valueAddr == &value,
+          "A value with the same name must be the same value");
 }
 
 /// ** Setup **

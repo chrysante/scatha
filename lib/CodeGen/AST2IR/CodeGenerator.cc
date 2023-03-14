@@ -19,7 +19,9 @@ using namespace ast;
 namespace {
 
 struct Context {
-    explicit Context(ir::Context& irCtx, ir::Module& mod, sema::SymbolTable const& symTable):
+    explicit Context(ir::Context& irCtx,
+                     ir::Module& mod,
+                     sema::SymbolTable const& symTable):
         irCtx(irCtx), mod(mod), symTable(symTable) {}
 
     void generate(AbstractSyntaxTree const& node);
@@ -41,7 +43,9 @@ struct Context {
 
     ir::Value* getValue(Expression const& expr);
 
-    ir::Value* getValueImpl(AbstractSyntaxTree const& expr) { SC_UNREACHABLE(); } // Delete this later
+    ir::Value* getValueImpl(AbstractSyntaxTree const& expr) {
+        SC_UNREACHABLE();
+    } // Delete this later
     ir::Value* getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getValueImpl(Identifier const&);
     ir::Value* getValueImpl(IntegerLiteral const&);
@@ -57,7 +61,9 @@ struct Context {
 
     ir::Value* getAddress(Expression const& node);
 
-    ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) { SC_UNREACHABLE(); } // Delete this later
+    ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) {
+        SC_UNREACHABLE();
+    } // Delete this later
     ir::Value* getAddressImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
@@ -77,7 +83,8 @@ struct Context {
     std::string mangledName(sema::SymbolID) const;
     std::string mangledName(sema::SymbolID, std::string_view name) const;
     ir::Type const* mapType(sema::TypeID semaTypeID);
-    static ir::UnaryArithmeticOperation mapUnaryArithmeticOp(ast::UnaryPrefixOperator);
+    static ir::UnaryArithmeticOperation mapUnaryArithmeticOp(
+        ast::UnaryPrefixOperator);
     static ir::CompareOperation mapCompareOp(ast::BinaryOperator);
     static ir::ArithmeticOperation mapArithmeticOp(ast::BinaryOperator);
     static ir::ArithmeticOperation mapArithmeticAssignOp(ast::BinaryOperator);
@@ -92,7 +99,9 @@ struct Context {
 
 } // namespace
 
-ir::Module ast::codegen(AbstractSyntaxTree const& ast, sema::SymbolTable const& symbolTable, ir::Context& irCtx) {
+ir::Module ast::codegen(AbstractSyntaxTree const& ast,
+                        sema::SymbolTable const& symbolTable,
+                        ir::Context& irCtx) {
     ir::Module mod;
     Context ctx(irCtx, mod, symbolTable);
     ctx.declareTypes();
@@ -121,19 +130,28 @@ void Context::generateImpl(CompoundStatement const& cmpStmt) {
 
 void Context::generateImpl(FunctionDefinition const& def) {
     auto paramTypes = def.parameters |
-                      ranges::views::transform([&](auto& param) { return mapType(param->typeID()); }) |
+                      ranges::views::transform([&](auto& param) {
+                          return mapType(param->typeID());
+                      }) |
                       ranges::to<utl::small_vector<ir::Type const*>>;
     // TODO: Also here worry about name mangling
-    auto* fn        = cast<ir::Function*>(irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
+    auto* fn = cast<ir::Function*>(
+        irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
     currentFunction = fn;
     auto* entry     = new ir::BasicBlock(irCtx, localUniqueName("entry"));
     fn->pushBack(entry);
-    for (auto paramItr = fn->parameters().begin(); auto& paramDecl: def.parameters) {
+    for (auto paramItr = fn->parameters().begin();
+         auto& paramDecl: def.parameters)
+    {
         auto const* const irParamType = mapType(paramDecl->typeID());
-        auto* paramMemPtr             = new ir::Alloca(irCtx, irParamType, localUniqueName(paramDecl->name(), ".addr"));
+        auto* paramMemPtr =
+            new ir::Alloca(irCtx,
+                           irParamType,
+                           localUniqueName(paramDecl->name(), ".addr"));
         entry->pushBack(paramMemPtr);
         memorizeVariableAddress(paramDecl->symbolID(), paramMemPtr);
-        auto* store = new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
+        auto* store =
+            new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
         entry->pushBack(store);
     }
     setCurrentBB(entry);
@@ -148,7 +166,9 @@ void Context::generateImpl(StructDefinition const& def) {
 }
 
 void Context::generateImpl(VariableDeclaration const& varDecl) {
-    auto* varMemPtr = new ir::Alloca(irCtx, mapType(varDecl.typeID()), localUniqueName(varDecl.name(), "-ptr"));
+    auto* varMemPtr = new ir::Alloca(irCtx,
+                                     mapType(varDecl.typeID()),
+                                     localUniqueName(varDecl.name(), "-ptr"));
     currentBB()->pushBack(varMemPtr);
     memorizeVariableAddress(varDecl.symbolID(), varMemPtr);
     if (varDecl.initExpression == nullptr) {
@@ -172,17 +192,23 @@ void Context::generateImpl(EmptyStatement const& empty) {
 }
 
 void Context::generateImpl(ReturnStatement const& retDecl) {
-    auto* returnValue = retDecl.expression ? getValue(*retDecl.expression) : nullptr;
-    auto* ret         = new ir::Return(irCtx, returnValue);
+    auto* returnValue =
+        retDecl.expression ? getValue(*retDecl.expression) : nullptr;
+    auto* ret = new ir::Return(irCtx, returnValue);
     currentBB()->pushBack(ret);
 }
 
 void Context::generateImpl(IfStatement const& ifStatement) {
     auto* condition = getValue(*ifStatement.condition);
     auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("then"));
-    auto* elseBlock = ifStatement.elseBlock ? new ir::BasicBlock(irCtx, localUniqueName("else")) : nullptr;
+    auto* elseBlock = ifStatement.elseBlock ?
+                          new ir::BasicBlock(irCtx, localUniqueName("else")) :
+                          nullptr;
     auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("if.end"));
-    auto* branch    = new ir::Branch(irCtx, condition, thenBlock, elseBlock ? elseBlock : endBlock);
+    auto* branch    = new ir::Branch(irCtx,
+                                  condition,
+                                  thenBlock,
+                                  elseBlock ? elseBlock : endBlock);
     currentBB()->pushBack(branch);
     auto addBlock = [&](ir::BasicBlock* bb, ast::Statement const& block) {
         currentFunction->pushBack(bb);
@@ -200,7 +226,8 @@ void Context::generateImpl(IfStatement const& ifStatement) {
 }
 
 void Context::generateImpl(WhileStatement const& loopDecl) {
-    auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName("loop.header"));
+    auto* loopHeader =
+        new ir::BasicBlock(irCtx, localUniqueName("loop.header"));
     currentFunction->pushBack(loopHeader);
     auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop.body"));
     currentFunction->pushBack(loopBody);
@@ -222,7 +249,8 @@ void Context::generateImpl(WhileStatement const& loopDecl) {
 void Context::generateImpl(DoWhileStatement const& loopDecl) {
     auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop.body"));
     currentFunction->pushBack(loopBody);
-    auto* loopFooter = new ir::BasicBlock(irCtx, localUniqueName("loop.footer"));
+    auto* loopFooter =
+        new ir::BasicBlock(irCtx, localUniqueName("loop.footer"));
     currentFunction->pushBack(loopFooter);
     auto* loopEnd = new ir::BasicBlock(irCtx, localUniqueName("loop.end"));
     currentFunction->pushBack(loopEnd);
@@ -240,7 +268,8 @@ void Context::generateImpl(DoWhileStatement const& loopDecl) {
 }
 
 void Context::generateImpl(ForStatement const& loopDecl) {
-    auto* loopHeader = new ir::BasicBlock(irCtx, localUniqueName("loop.header"));
+    auto* loopHeader =
+        new ir::BasicBlock(irCtx, localUniqueName("loop.header"));
     currentFunction->pushBack(loopHeader);
     auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop.body"));
     currentFunction->pushBack(loopBody);
@@ -289,14 +318,19 @@ ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
     if (expr.operation() == ast::UnaryPrefixOperator::Increment ||
         expr.operation() == ast::UnaryPrefixOperator::Decrement)
     {
-        ir::Value* const addr  = getAddress(*expr.operand);
-        ir::Value* const value = loadAddress(addr, localUniqueName(expr.operation(), ".value"));
-        auto const operation = expr.operation() == ast::UnaryPrefixOperator::Increment ? ir::ArithmeticOperation::Add :
-                                                                                         ir::ArithmeticOperation::Sub;
-        auto* arithmetic     = new ir::ArithmeticInst(value,
-                                                  irCtx.integralConstant(APInt(1, 64)),
-                                                  operation,
-                                                  localUniqueName(expr.operation(), ".result"));
+        ir::Value* const addr = getAddress(*expr.operand);
+        ir::Value* const value =
+            loadAddress(addr, localUniqueName(expr.operation(), ".value"));
+        auto const operation =
+            expr.operation() == ast::UnaryPrefixOperator::Increment ?
+                ir::ArithmeticOperation::Add :
+                ir::ArithmeticOperation::Sub;
+        auto* arithmetic =
+            new ir::ArithmeticInst(value,
+                                   irCtx.integralConstant(APInt(1, 64)),
+                                   operation,
+                                   localUniqueName(expr.operation(),
+                                                   ".result"));
         currentBB()->pushBack(arithmetic);
         auto* store = new ir::Store(irCtx, addr, arithmetic);
         currentBB()->pushBack(store);
@@ -306,10 +340,11 @@ ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
     if (expr.operation() == ast::UnaryPrefixOperator::Promotion) {
         return operand;
     }
-    auto* inst = new ir::UnaryArithmeticInst(irCtx,
-                                             operand,
-                                             mapUnaryArithmeticOp(expr.operation()),
-                                             localUniqueName("expr.result"));
+    auto* inst =
+        new ir::UnaryArithmeticInst(irCtx,
+                                    operand,
+                                    mapUnaryArithmeticOp(expr.operation()),
+                                    localUniqueName("expr.result"));
     currentBB()->pushBack(inst);
     return inst;
 }
@@ -329,7 +364,10 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         ir::Value* const lhs = getValue(*exprDecl.lhs);
         ir::Value* const rhs = getValue(*exprDecl.rhs);
         auto* arithInst =
-            new ir::ArithmeticInst(lhs, rhs, mapArithmeticOp(exprDecl.operation()), localUniqueName("expr.result"));
+            new ir::ArithmeticInst(lhs,
+                                   rhs,
+                                   mapArithmeticOp(exprDecl.operation()),
+                                   localUniqueName("expr.result"));
         currentBB()->pushBack(arithInst);
         return arithInst;
     }
@@ -337,22 +375,28 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::LogicalOr: {
         ir::Value* const lhs = getValue(*exprDecl.lhs);
         auto* startBlock     = currentBB();
-        auto* rhsBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical.rhs"));
-        auto* endBlock       = new ir::BasicBlock(irCtx, localUniqueName("logical.end"));
-        currentBB()->pushBack(exprDecl.operation() == BinaryOperator::LogicalAnd ?
-                                  new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
-                                  new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
+        auto* rhsBlock =
+            new ir::BasicBlock(irCtx, localUniqueName("logical.rhs"));
+        auto* endBlock =
+            new ir::BasicBlock(irCtx, localUniqueName("logical.end"));
+        currentBB()->pushBack(
+            exprDecl.operation() == BinaryOperator::LogicalAnd ?
+                new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
+                new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
         currentFunction->pushBack(rhsBlock);
         setCurrentBB(rhsBlock);
         auto* rhs = getValue(*exprDecl.rhs);
         currentBB()->pushBack(new ir::Goto(irCtx, endBlock));
         currentFunction->pushBack(endBlock);
         setCurrentBB(endBlock);
-        auto* result = exprDecl.operation() == BinaryOperator::LogicalAnd ?
-                           new ir::Phi({ { startBlock, irCtx.integralConstant(0, 1) }, { rhsBlock, rhs } },
-                                       localUniqueName("logical.and.value")) :
-                           new ir::Phi({ { startBlock, irCtx.integralConstant(1, 1) }, { rhsBlock, rhs } },
-                                       localUniqueName("logical.or.value"));
+        auto* result =
+            exprDecl.operation() == BinaryOperator::LogicalAnd ?
+                new ir::Phi({ { startBlock, irCtx.integralConstant(0, 1) },
+                              { rhsBlock, rhs } },
+                            localUniqueName("logical.and.value")) :
+                new ir::Phi({ { startBlock, irCtx.integralConstant(1, 1) },
+                              { rhsBlock, rhs } },
+                            localUniqueName("logical.or.value"));
         currentBB()->pushBack(result);
         return result;
     }
@@ -364,8 +408,11 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::NotEquals: {
         ir::Value* const lhs = getValue(*exprDecl.lhs);
         ir::Value* const rhs = getValue(*exprDecl.rhs);
-        auto* cmpInst =
-            new ir::CompareInst(irCtx, lhs, rhs, mapCompareOp(exprDecl.operation()), localUniqueName("cmp.result"));
+        auto* cmpInst        = new ir::CompareInst(irCtx,
+                                            lhs,
+                                            rhs,
+                                            mapCompareOp(exprDecl.operation()),
+                                            localUniqueName("cmp.result"));
         currentBB()->pushBack(cmpInst);
         return cmpInst;
     }
@@ -393,10 +440,11 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         ir::Value* const lhsAddr = getAddress(*exprDecl.lhs);
         ir::Value* const lhs     = loadAddress(lhsAddr, "lhs");
         ir::Value* const rhs     = getValue(*exprDecl.rhs);
-        auto* result             = new ir::ArithmeticInst(lhs,
-                                              rhs,
-                                              mapArithmeticAssignOp(exprDecl.operation()),
-                                              localUniqueName("expr.result"));
+        auto* result =
+            new ir::ArithmeticInst(lhs,
+                                   rhs,
+                                   mapArithmeticAssignOp(exprDecl.operation()),
+                                   localUniqueName("expr.result"));
         currentBB()->pushBack(result);
         auto* store = new ir::Store(irCtx, lhsAddr, result);
         currentBB()->pushBack(store);
@@ -411,10 +459,13 @@ ir::Value* Context::getValueImpl(MemberAccess const& expr) {
 }
 
 ir::Value* Context::getValueImpl(Conditional const& condExpr) {
-    auto* cond      = getValue(*condExpr.condition);
-    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("conditional.then"));
-    auto* elseBlock = new ir::BasicBlock(irCtx, localUniqueName("conditional.else"));
-    auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("conditional.end"));
+    auto* cond = getValue(*condExpr.condition);
+    auto* thenBlock =
+        new ir::BasicBlock(irCtx, localUniqueName("conditional.then"));
+    auto* elseBlock =
+        new ir::BasicBlock(irCtx, localUniqueName("conditional.else"));
+    auto* endBlock =
+        new ir::BasicBlock(irCtx, localUniqueName("conditional.end"));
     currentBB()->pushBack(new ir::Branch(irCtx, cond, thenBlock, elseBlock));
     currentFunction->pushBack(thenBlock);
     /// Generate then block.
@@ -432,38 +483,51 @@ ir::Value* Context::getValueImpl(Conditional const& condExpr) {
     /// Generate end block.
     setCurrentBB(endBlock);
     auto* result =
-        new ir::Phi({ { thenBlock, thenVal }, { elseBlock, elseVal } }, localUniqueName("conditional.result"));
+        new ir::Phi({ { thenBlock, thenVal }, { elseBlock, elseVal } },
+                    localUniqueName("conditional.result"));
     currentBB()->pushBack(result);
     return result;
 }
 
 ir::Value* Context::getValueImpl(FunctionCall const& functionCall) {
     /// Handle calls to external functions separately.
-    if (auto const& semaFunction = symTable.getFunction(functionCall.functionID()); semaFunction.isExtern()) {
-        auto const args = functionCall.arguments |
-                          ranges::views::transform([this](auto& expr) -> ir::Value* { return getValue(*expr); }) |
-                          ranges::to<utl::small_vector<ir::Value*>>;
-        auto* call = new ir::ExtFunctionCall(semaFunction.slot(),
-                                             semaFunction.index(),
-                                             std::string(semaFunction.name()),
-                                             args,
-                                             mapType(semaFunction.signature().returnTypeID()),
-                                             functionCall.typeID() != symTable.Void() ? localUniqueName("call.result") :
-                                                                                        std::string{});
+    if (auto const& semaFunction =
+            symTable.getFunction(functionCall.functionID());
+        semaFunction.isExtern())
+    {
+        auto const args =
+            functionCall.arguments |
+            ranges::views::transform(
+                [this](auto& expr) -> ir::Value* { return getValue(*expr); }) |
+            ranges::to<utl::small_vector<ir::Value*>>;
+        auto* call =
+            new ir::ExtFunctionCall(semaFunction.slot(),
+                                    semaFunction.index(),
+                                    std::string(semaFunction.name()),
+                                    args,
+                                    mapType(semaFunction.signature()
+                                                .returnTypeID()),
+                                    functionCall.typeID() != symTable.Void() ?
+                                        localUniqueName("call.result") :
+                                        std::string{});
         currentBB()->pushBack(call);
         return call;
     }
     // TODO: Perform actual name mangling
     std::string const mangledName =
-        utl::strcat(cast<Identifier const*>(functionCall.object.get())->value(), functionCall.functionID());
+        utl::strcat(cast<Identifier const*>(functionCall.object.get())->value(),
+                    functionCall.functionID());
     ir::Function* function = cast<ir::Function*>(irCtx.getGlobal(mangledName));
-    auto const args        = functionCall.arguments |
-                      ranges::views::transform([this](auto& expr) -> ir::Value* { return getValue(*expr); }) |
-                      ranges::to<utl::small_vector<ir::Value*>>;
-    auto* call =
-        new ir::FunctionCall(function,
-                             args,
-                             functionCall.typeID() != symTable.Void() ? localUniqueName("call.result") : std::string{});
+    auto const args =
+        functionCall.arguments |
+        ranges::views::transform(
+            [this](auto& expr) -> ir::Value* { return getValue(*expr); }) |
+        ranges::to<utl::small_vector<ir::Value*>>;
+    auto* call = new ir::FunctionCall(function,
+                                      args,
+                                      functionCall.typeID() != symTable.Void() ?
+                                          localUniqueName("call.result") :
+                                          std::string{});
     currentBB()->pushBack(call);
     return call;
 }
@@ -473,7 +537,8 @@ ir::Value* Context::getValueImpl(Subscript const&) {
 }
 
 ir::Value* Context::getAddress(Expression const& expr) {
-    return visit(expr, [this](auto const& expr) { return getAddressImpl(expr); });
+    return visit(expr,
+                 [this](auto const& expr) { return getAddressImpl(expr); });
 }
 
 ir::Value* Context::getAddressImpl(Identifier const& id) {
@@ -483,31 +548,36 @@ ir::Value* Context::getAddressImpl(Identifier const& id) {
 }
 
 ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
-    /// Get the value or the address based on wether the base object is an l-value or r-value
+    /// Get the value or the address based on wether the base object is an
+    /// l-value or r-value
     ir::Value* basePtr = [&]() -> ir::Value* {
         if (expr.object->valueCategory() == ast::ValueCategory::LValue) {
             return getAddress(*expr.object);
         }
-        /// If we are an r-value we store the value to memory and return a pointer to it.
+        /// If we are an r-value we store the value to memory and return a
+        /// pointer to it.
         auto* value = getValue(*expr.object);
-        auto* addr  = new ir::Alloca(irCtx, value->type(), localUniqueName("tmp.addr"));
+        auto* addr =
+            new ir::Alloca(irCtx, value->type(), localUniqueName("tmp.addr"));
         currentBB()->pushBack(addr);
         auto* store = new ir::Store(irCtx, addr, value);
         currentBB()->pushBack(store);
         return addr;
     }();
-    sema::SymbolID const accessedElementID = cast<Identifier const&>(*expr.member).symbolID();
-    auto& var                              = symTable.getVariable(accessedElementID);
-    size_t const index                     = var.index();
-    ir::Type const* const accessedType     = mapType(expr.object->typeID());
-    ir::Type const* const pointeeType      = mapType(expr.typeID());
-    auto* const gep                        = new ir::GetElementPointer(irCtx,
-                                                accessedType,
-                                                pointeeType,
-                                                basePtr,
-                                                irCtx.integralConstant(0, 64),
-                                                irCtx.integralConstant(index, 64),
-                                                localUniqueName("member.ptr"));
+    sema::SymbolID const accessedElementID =
+        cast<Identifier const&>(*expr.member).symbolID();
+    auto& var          = symTable.getVariable(accessedElementID);
+    size_t const index = var.index();
+    ir::Type const* const accessedType = mapType(expr.object->typeID());
+    ir::Type const* const pointeeType  = mapType(expr.typeID());
+    auto* const gep =
+        new ir::GetElementPointer(irCtx,
+                                  accessedType,
+                                  pointeeType,
+                                  basePtr,
+                                  irCtx.integralConstant(0, 64),
+                                  irCtx.integralConstant(index, 64),
+                                  localUniqueName("member.ptr"));
     currentBB()->pushBack(gep);
     return gep;
 }
@@ -521,7 +591,8 @@ ir::Value* Context::loadAddress(ir::Value* address, std::string_view name) {
 void Context::declareTypes() {
     for (sema::TypeID const& typeID: symTable.sortedObjectTypes()) {
         auto const& objType   = symTable.getObjectType(typeID);
-        auto* const structure = new ir::StructureType(mangledName(objType.symbolID(), objType.name()));
+        auto* const structure = new ir::StructureType(
+            mangledName(objType.symbolID(), objType.name()));
         for (sema::SymbolID const memberVarID: objType.memberVariables()) {
             auto& varDecl = symTable.getVariable(memberVarID);
             structure->addMember(mapType(varDecl.typeID()));
@@ -532,16 +603,20 @@ void Context::declareTypes() {
 
 void Context::declareFunctions() {
     for (sema::Function const& function: symTable.functions()) {
-        auto paramTypes = function.signature().argumentTypeIDs() |
-                          ranges::views::transform([&](sema::TypeID paramTypeID) { return mapType(paramTypeID); }) |
-                          ranges::to<utl::small_vector<ir::Type const*>>;
+        auto paramTypes =
+            function.signature().argumentTypeIDs() |
+            ranges::views::transform([&](sema::TypeID paramTypeID) {
+                return mapType(paramTypeID);
+            }) |
+            ranges::to<utl::small_vector<ir::Type const*>>;
         // TODO: Generate proper function type here
         ir::FunctionType const* const functionType = nullptr;
         // TODO: Worry about name mangling
-        auto* fn = new ir::Function(functionType,
-                                    mapType(function.signature().returnTypeID()),
-                                    paramTypes,
-                                    mangledName(function.symbolID(), function.name()));
+        auto* fn =
+            new ir::Function(functionType,
+                             mapType(function.signature().returnTypeID()),
+                             paramTypes,
+                             mangledName(function.symbolID(), function.name()));
         irCtx.addGlobal(fn);
     }
 }
@@ -550,9 +625,13 @@ void Context::setCurrentBB(ir::BasicBlock* bb) {
     _currentBB = bb;
 }
 
-void Context::memorizeVariableAddress(sema::SymbolID symbolID, ir::Value* value) {
-    [[maybe_unused]] auto const [_, insertSuccess] = valueMap.insert({ symbolID, value });
-    SC_ASSERT(insertSuccess, "Variable id must not be declared multiple times. This error must be handled in sema.");
+void Context::memorizeVariableAddress(sema::SymbolID symbolID,
+                                      ir::Value* value) {
+    [[maybe_unused]] auto const [_, insertSuccess] =
+        valueMap.insert({ symbolID, value });
+    SC_ASSERT(insertSuccess,
+              "Variable id must not be declared multiple times. This error "
+              "must be handled in sema.");
 }
 
 std::string Context::localUniqueName(auto const&... args) {
@@ -563,7 +642,8 @@ std::string Context::mangledName(sema::SymbolID id) const {
     return mangledName(id, symTable.getObjectType(id).name());
 }
 
-std::string Context::mangledName(sema::SymbolID id, std::string_view name) const {
+std::string Context::mangledName(sema::SymbolID id,
+                                 std::string_view name) const {
     return utl::format("{}{:x}", name, id.rawValue());
 }
 
@@ -588,11 +668,15 @@ ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
     SC_DEBUGFAIL();
 }
 
-ir::UnaryArithmeticOperation Context::mapUnaryArithmeticOp(ast::UnaryPrefixOperator op) {
+ir::UnaryArithmeticOperation Context::mapUnaryArithmeticOp(
+    ast::UnaryPrefixOperator op) {
     switch (op) {
-    case UnaryPrefixOperator::Negation: return ir::UnaryArithmeticOperation::Negation;
-    case UnaryPrefixOperator::BitwiseNot: return ir::UnaryArithmeticOperation::BitwiseNot;
-    case UnaryPrefixOperator::LogicalNot: return ir::UnaryArithmeticOperation::LogicalNot;
+    case UnaryPrefixOperator::Negation:
+        return ir::UnaryArithmeticOperation::Negation;
+    case UnaryPrefixOperator::BitwiseNot:
+        return ir::UnaryArithmeticOperation::BitwiseNot;
+    case UnaryPrefixOperator::LogicalNot:
+        return ir::UnaryArithmeticOperation::LogicalNot;
     default: SC_UNREACHABLE();
     }
 }

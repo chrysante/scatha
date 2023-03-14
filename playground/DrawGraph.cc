@@ -19,10 +19,16 @@ using namespace ir;
 namespace {
 
 struct Ctx {
-    explicit Ctx(Module const& mod,
-                 utl::function_view<void(std::stringstream&, scatha::ir::Function const&)> functionCallback,
-                 utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbDeclareCallback,
-                 utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbConnectCallback):
+    explicit Ctx(
+        Module const& mod,
+        utl::function_view<void(std::stringstream&,
+                                scatha::ir::Function const&)> functionCallback,
+        utl::function_view<void(std::stringstream&,
+                                scatha::ir::BasicBlock const&)>
+            bbDeclareCallback,
+        utl::function_view<void(std::stringstream&,
+                                scatha::ir::BasicBlock const&)>
+            bbConnectCallback):
         mod(mod),
         functionCallback(functionCallback),
         bbDeclareCallback(bbDeclareCallback),
@@ -45,9 +51,12 @@ struct Ctx {
     std::string takeResult() { return std::move(str).str(); }
 
     Module const& mod;
-    utl::function_view<void(std::stringstream&, scatha::ir::Function const&)> functionCallback;
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbDeclareCallback;
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbConnectCallback;
+    utl::function_view<void(std::stringstream&, scatha::ir::Function const&)>
+        functionCallback;
+    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
+        bbDeclareCallback;
+    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
+        bbConnectCallback;
     ir::Function const* currentFunction = nullptr;
     std::stringstream str;
 };
@@ -58,41 +67,58 @@ static constexpr auto font = "SF Mono";
 
 static std::string dotName(Value const& value);
 
-static constexpr utl::streammanip tableBegin =
-    [](std::ostream& str, int border = 0, int cellborder = 0, int cellspacing = 0) {
-    str << "<table border=\"" << border << "\" cellborder=\"" << cellborder << "\" cellspacing=\"" << cellspacing
-        << "\">";
+static constexpr utl::streammanip tableBegin = [](std::ostream& str,
+                                                  int border      = 0,
+                                                  int cellborder  = 0,
+                                                  int cellspacing = 0) {
+    str << "<table border=\"" << border << "\" cellborder=\"" << cellborder
+        << "\" cellspacing=\"" << cellspacing << "\">";
 };
 
-static constexpr utl::streammanip tableEnd = [](std::ostream& str) { str << "</table>"; };
+static constexpr utl::streammanip tableEnd = [](std::ostream& str) {
+    str << "</table>";
+};
 
-static constexpr utl::streammanip fontBegin = [](std::ostream& str, std::string_view fontname) {
+static constexpr utl::streammanip fontBegin =
+    [](std::ostream& str, std::string_view fontname) {
     str << "<font face=\"" << fontname << "\">";
 };
 
-static constexpr utl::streammanip fontEnd = [](std::ostream& str) { str << "</font>"; };
+static constexpr utl::streammanip fontEnd = [](std::ostream& str) {
+    str << "</font>";
+};
 
-static constexpr utl::streammanip rowBegin = [](std::ostream& str) { str << "<tr><td align=\"left\">"; };
+static constexpr utl::streammanip rowBegin = [](std::ostream& str) {
+    str << "<tr><td align=\"left\">";
+};
 
-static constexpr utl::streammanip rowEnd = [](std::ostream& str) { str << "</td></tr>"; };
+static constexpr utl::streammanip rowEnd = [](std::ostream& str) {
+    str << "</td></tr>";
+};
 
 std::string playground::drawGraphGeneric(
     scatha::ir::Module const& mod,
-    utl::function_view<void(std::stringstream&, scatha::ir::Function const&)> functionCallback,
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbDeclareCallback,
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)> bbConnectCallback) {
+    utl::function_view<void(std::stringstream&, scatha::ir::Function const&)>
+        functionCallback,
+    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
+        bbDeclareCallback,
+    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
+        bbConnectCallback) {
     Ctx ctx(mod, functionCallback, bbDeclareCallback, bbConnectCallback);
     ctx.run();
     return ctx.takeResult();
 }
 
 std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
-    auto functionCallback = [](std::stringstream& str, Function const& function) {};
+    auto functionCallback = [](std::stringstream& str,
+                               Function const& function) {};
     auto declareCallback  = [](std::stringstream& str, BasicBlock const& bb) {
         tfmt::setHTMLFormattable(str);
         str << dotName(bb) << " [ label = ";
         str << "<\n";
-        auto prolog = [&] { str << "    " << rowBegin << fontBegin(font) << "\n"; };
+        auto prolog = [&] {
+            str << "    " << rowBegin << fontBegin(font) << "\n";
+        };
         auto epilog = [&] { str << "    " << fontEnd << rowEnd << "\n"; };
         str << "  " << tableBegin << "\n";
         prolog();
@@ -112,16 +138,21 @@ std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
             str << dotName(bb) << " -> " << dotName(*succ) << "\n";
         }
     };
-    return drawGraphGeneric(mod, functionCallback, declareCallback, connectCallback);
+    return drawGraphGeneric(mod,
+                            functionCallback,
+                            declareCallback,
+                            connectCallback);
 }
 
-void playground::drawControlFlowGraph(scatha::ir::Module const& mod, std::filesystem::path const& outFilepath) {
+void playground::drawControlFlowGraph(
+    scatha::ir::Module const& mod, std::filesystem::path const& outFilepath) {
     std::fstream file(outFilepath, std::ios::out | std::ios::trunc);
     file << drawControlFlowGraph(mod);
 }
 
 std::string playground::drawUseGraph(scatha::ir::Module const& mod) {
-    auto functionCallback = [](std::stringstream& str, Function const& function) {};
+    auto functionCallback = [](std::stringstream& str,
+                               Function const& function) {};
     auto declareCallback  = [](std::stringstream& str, BasicBlock const& bb) {
         str << "subgraph cluster_" << dotName(bb) << " {\n";
         str << "  fontname = \"" << font << "\"\n";
@@ -139,10 +170,14 @@ std::string playground::drawUseGraph(scatha::ir::Module const& mod) {
             }
         }
     };
-    return drawGraphGeneric(mod, functionCallback, declareCallback, connectCallback);
+    return drawGraphGeneric(mod,
+                            functionCallback,
+                            declareCallback,
+                            connectCallback);
 }
 
-void playground::drawUseGraph(scatha::ir::Module const& mod, std::filesystem::path const& outFilepath) {
+void playground::drawUseGraph(scatha::ir::Module const& mod,
+                              std::filesystem::path const& outFilepath) {
     std::fstream file(outFilepath, std::ios::out | std::ios::trunc);
     file << drawUseGraph(mod);
 }
@@ -211,7 +246,12 @@ static std::string dotName(Value const& value) {
         }
         return cast<Instruction const*>(&value)->parent()->parent();
     }();
-    auto result = utl::strcat("_", currentFunction->name(), "_", value.name(), "_", &value);
+    auto result = utl::strcat("_",
+                              currentFunction->name(),
+                              "_",
+                              value.name(),
+                              "_",
+                              &value);
     std::replace_if(
         result.begin(),
         result.end(),

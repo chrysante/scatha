@@ -26,7 +26,8 @@ public:
 class SCATHA(API) InvalidNumericLiteral: public IssueBase {
 public:
     enum class Kind { Integer, FloatingPoint };
-    explicit InvalidNumericLiteral(Token const& token, Kind kind): IssueBase(token), _kind(kind) {}
+    explicit InvalidNumericLiteral(Token const& token, Kind kind):
+        IssueBase(token), _kind(kind) {}
 
     Kind kind() const { return _kind; }
 
@@ -41,21 +42,26 @@ public:
 
 class SCATHA(API) UnterminatedMultiLineComment: public IssueBase {
 public:
-    explicit UnterminatedMultiLineComment(Token const& token): IssueBase(token) {}
+    explicit UnterminatedMultiLineComment(Token const& token):
+        IssueBase(token) {}
 };
 
 /// MARK: Common class LexicalIssue
 
 namespace internal {
 
-using IssueVariant =
-    std::variant<UnexpectedID, InvalidNumericLiteral, UnterminatedStringLiteral, UnterminatedMultiLineComment>;
+using IssueVariant = std::variant<UnexpectedID,
+                                  InvalidNumericLiteral,
+                                  UnterminatedStringLiteral,
+                                  UnterminatedMultiLineComment>;
 
 } // namespace internal
 
-class SCATHA(API) LexicalIssue: public issue::internal::VariantIssueBase<internal::IssueVariant> {
+class SCATHA(API) LexicalIssue:
+    public issue::internal::VariantIssueBase<internal::IssueVariant> {
 public:
-    using issue::internal::VariantIssueBase<internal::IssueVariant>::VariantIssueBase;
+    using issue::internal::VariantIssueBase<
+        internal::IssueVariant>::VariantIssueBase;
 };
 
 } // namespace scatha::lex

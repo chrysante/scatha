@@ -20,7 +20,8 @@ SCATHA(API) void print(Function const& function);
 
 SCATHA(API) void print(Function const& function, std::ostream& ostream);
 
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Instruction const& inst);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream, Instruction const& inst);
 
 SCATHA(API) std::string toString(Value const& value);
 

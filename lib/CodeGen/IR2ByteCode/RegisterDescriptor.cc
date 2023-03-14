@@ -16,11 +16,13 @@ Value RegisterDescriptor::resolve(ir::Value const& value) {
         default: SC_UNREACHABLE();
         }
     }
-    else if (auto* constant = dyncast<ir::FloatingPointConstant const*>(&value)) {
+    else if (auto* constant = dyncast<ir::FloatingPointConstant const*>(&value))
+    {
         return Value64(constant->value().to<f64>());
     }
     SC_ASSERT(!value.name().empty(), "Name must not be empty.");
-    auto const [itr, success] = values.insert({ std::string(value.name()), index });
+    auto const [itr, success] =
+        values.insert({ std::string(value.name()), index });
     if (success) {
         index += utl::ceil_divide(value.type()->size(), 8);
     }
@@ -28,7 +30,8 @@ Value RegisterDescriptor::resolve(ir::Value const& value) {
 }
 
 MemoryAddress RegisterDescriptor::resolveAddr(ir::Value const& address) {
-    SC_ASSERT(isa<ir::PointerType>(address.type()), "address must be a pointer");
+    SC_ASSERT(isa<ir::PointerType>(address.type()),
+              "address must be a pointer");
     auto const regIdx = resolve(address).get<RegisterIndex>().value();
     return MemoryAddress(regIdx);
 }

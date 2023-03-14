@@ -17,9 +17,12 @@ public:
     using Iterator      = utl::vector<Instruction>::iterator;
     using ConstIterator = utl::vector<Instruction>::const_iterator;
 
-    explicit Block(size_t id, std::string name): Block(id, std::move(name), {}) {}
+    explicit Block(size_t id, std::string name):
+        Block(id, std::move(name), {}) {}
 
-    explicit Block(size_t id, std::string name, std::initializer_list<Instruction> instructions):
+    explicit Block(size_t id,
+                   std::string name,
+                   std::initializer_list<Instruction> instructions):
         _id(id), _name(std::move(name)), instructions(instructions) {}
 
     size_t id() const { return _id; }
@@ -35,10 +38,16 @@ public:
     auto end() { return instructions.end(); }
     auto end() const { return instructions.end(); }
 
-    void insertBack(Instruction const& instruction) { instructions.push_back(instruction); }
-    void insert(ConstIterator position, Instruction const& instruction) { instructions.insert(position, instruction); }
+    void insertBack(Instruction const& instruction) {
+        instructions.push_back(instruction);
+    }
+    void insert(ConstIterator position, Instruction const& instruction) {
+        instructions.insert(position, instruction);
+    }
     void insert(ConstIterator position, ranges::range auto&& instructions) {
-        this->instructions.insert(position, ranges::begin(instructions), ranges::end(instructions));
+        this->instructions.insert(position,
+                                  ranges::begin(instructions),
+                                  ranges::end(instructions));
     }
 
 private:

@@ -19,14 +19,15 @@ public:
     explicit OverloadSet(std::string name, SymbolID id, Scope* parentScope):
         EntityBase(std::move(name), id, parentScope) {}
 
-    /// Resolve best matching function from this overload set for \p argumentTypes
-    /// Returns NULL if no matching function exists in the overload set.
+    /// Resolve best matching function from this overload set for \p
+    /// argumentTypes Returns NULL if no matching function exists in the
+    /// overload set.
     Function const* find(std::span<TypeID const> argumentTypes) const;
 
     /// \brief Add a function to this overload set.
-    /// \returns Pair of \p function and `true` if \p function is a legal overload.
-    /// Pair of pointer to existing function that prevents \p function from being a legal overload and `false`
-    /// otherwise.
+    /// \returns Pair of \p function and `true` if \p function is a legal
+    /// overload. Pair of pointer to existing function that prevents \p function
+    /// from being a legal overload and `false` otherwise.
     std::pair<Function const*, bool> add(Function* function);
 
     /// Begin iterator to set of `Function`'s
@@ -35,7 +36,10 @@ public:
     auto end() const { return functions.end(); }
 
 private:
-    utl::hashset<Function*, internal::FunctionArgumentsHash, internal::FunctionArgumentsEqual> functions;
+    utl::hashset<Function*,
+                 internal::FunctionArgumentsHash,
+                 internal::FunctionArgumentsEqual>
+        functions;
 };
 
 } // namespace scatha::sema

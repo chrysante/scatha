@@ -10,7 +10,9 @@
 
 namespace scatha::test {
 
-std::tuple<UniquePtr<ast::AbstractSyntaxTree>, sema::SymbolTable, issue::SemaIssueHandler>
+std::tuple<UniquePtr<ast::AbstractSyntaxTree>,
+           sema::SymbolTable,
+           issue::SemaIssueHandler>
 produceDecoratedASTAndSymTable(std::string_view text);
 
 } // namespace scatha::test

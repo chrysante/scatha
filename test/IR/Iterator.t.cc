@@ -22,12 +22,16 @@ fn f(n: int) -> int {
     auto mod                       = test::compileToIR(text);
     auto& function                 = mod.functions().front();
     ir::NodeType const reference[] = {
-        ir::NodeType::Alloca, ir::NodeType::Store,       ir::NodeType::Alloca, ir::NodeType::Load,  ir::NodeType::Store,
-        ir::NodeType::Load,   ir::NodeType::CompareInst, ir::NodeType::Branch, ir::NodeType::Store, ir::NodeType::Load,
-        ir::NodeType::Goto,   ir::NodeType::Load,        ir::NodeType::Return,
+        ir::NodeType::Alloca,      ir::NodeType::Store,  ir::NodeType::Alloca,
+        ir::NodeType::Load,        ir::NodeType::Store,  ir::NodeType::Load,
+        ir::NodeType::CompareInst, ir::NodeType::Branch, ir::NodeType::Store,
+        ir::NodeType::Load,        ir::NodeType::Goto,   ir::NodeType::Load,
+        ir::NodeType::Return,
     };
     SECTION("Simple traversal") {
-        for (auto&& [index, inst]: ranges::views::enumerate(function.instructions())) {
+        for (auto&& [index, inst]:
+             ranges::views::enumerate(function.instructions()))
+        {
             auto const type = reference[index];
             CHECK(inst.nodeType() == type);
         }
@@ -43,7 +47,9 @@ fn f(n: int) -> int {
                 ++itr;
             }
         }
-        for (auto&& [index, inst]: ranges::views::enumerate(function.instructions())) {
+        for (auto&& [index, inst]:
+             ranges::views::enumerate(function.instructions()))
+        {
             auto const type = reference[2 * index];
             CHECK(inst.nodeType() == type);
         }
@@ -51,7 +57,8 @@ fn f(n: int) -> int {
     SECTION("Erase all") {
         auto const instructions = function.instructions();
         size_t k                = 0;
-        /// We first clear all the operands to prevent the next pass from using deallocated memory.
+        /// We first clear all the operands to prevent the next pass from using
+        /// deallocated memory.
         for (auto& inst: instructions) {
             inst.clearOperands();
         }
@@ -65,7 +72,10 @@ fn f(n: int) -> int {
 TEST_CASE("Phi iterator", "[ir][opt]") {
     using namespace ir;
     ir::Context ctx;
-    UniquePtr f = allocate<Function>(nullptr, ctx.voidType(), std::span<Type const*>{}, "f");
+    UniquePtr f = allocate<Function>(nullptr,
+                                     ctx.voidType(),
+                                     std::span<Type const*>{},
+                                     "f");
     auto* entry = new BasicBlock(ctx, "entry");
     f->pushBack(entry);
     auto* header = new BasicBlock(ctx, "header");
@@ -75,14 +85,22 @@ TEST_CASE("Phi iterator", "[ir][opt]") {
     entry->pushBack(new Goto(ctx, header));
     header->pushBack(new Goto(ctx, body));
     body->pushBack(new Goto(ctx, header));
-    auto* x = new Phi({ { entry, ctx.integralConstant(1, 64) }, { body, ctx.integralConstant(2, 64) } }, "x");
+    auto* x = new Phi({ { entry, ctx.integralConstant(1, 64) },
+                        { body, ctx.integralConstant(2, 64) } },
+                      "x");
     header->pushFront(x);
-    auto* y = new Phi({ { entry, ctx.integralConstant(2, 64) }, { body, ctx.integralConstant(3, 64) } }, "y");
+    auto* y = new Phi({ { entry, ctx.integralConstant(2, 64) },
+                        { body, ctx.integralConstant(3, 64) } },
+                      "y");
     header->pushFront(y);
-    auto* z = new Phi({ { entry, ctx.integralConstant(3, 64) }, { body, ctx.integralConstant(4, 64) } }, "z");
+    auto* z = new Phi({ { entry, ctx.integralConstant(3, 64) },
+                        { body, ctx.integralConstant(4, 64) } },
+                      "z");
     header->pushFront(z);
-    header->insert(std::prev(header->end()), new ArithmeticInst(x, z, ArithmeticOperation::Add, "sum"));
-    header->insert(std::prev(header->end()), new ArithmeticInst(x, z, ArithmeticOperation::Mul, "prod"));
+    header->insert(std::prev(header->end()),
+                   new ArithmeticInst(x, z, ArithmeticOperation::Add, "sum"));
+    header->insert(std::prev(header->end()),
+                   new ArithmeticInst(x, z, ArithmeticOperation::Mul, "prod"));
     auto headerPhiNodes = header->phiNodes();
     for (auto itr = headerPhiNodes.begin(); itr != headerPhiNodes.end();) {
         if (itr->name() == "y") {
@@ -92,7 +110,11 @@ TEST_CASE("Phi iterator", "[ir][opt]") {
             ++itr;
         }
     }
-    CHECK(std::count_if(header->begin(), header->end(), [](auto&&) { return true; }) == 5);
+    CHECK(std::count_if(header->begin(), header->end(), [](auto&&) {
+              return true;
+          }) == 5);
     header->eraseAllPhiNodes();
-    CHECK(std::count_if(header->begin(), header->end(), [](auto&&) { return true; }) == 3);
+    CHECK(std::count_if(header->begin(), header->end(), [](auto&&) {
+              return true;
+          }) == 3);
 }

@@ -133,7 +133,8 @@ fn g() {}
 )");
     auto const line3  = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
-    CHECK(line3->reason() == InvalidDeclaration::Reason::CantOverloadOnReturnType);
+    CHECK(line3->reason() ==
+          InvalidDeclaration::Reason::CantOverloadOnReturnType);
     CHECK(line3->symbolCategory() == SymbolCategory::Function);
     auto const line5 = issues.findOnLine<InvalidDeclaration>(5);
     REQUIRE(line5);
@@ -221,8 +222,10 @@ fn f() {
 	fn g() {}
 	struct X {}
 })");
-    SymbolID const fID = issues.sym.lookupOverloadSet("f")->find(std::array<TypeID, 0>{})->symbolID();
-    auto const line3   = issues.findOnLine<InvalidDeclaration>(3);
+    SymbolID const fID = issues.sym.lookupOverloadSet("f")
+                             ->find(std::array<TypeID, 0>{})
+                             ->symbolID();
+    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
     CHECK(line3->reason() == InvalidDeclaration::Reason::InvalidInCurrentScope);
     CHECK(line3->currentScope().symbolID() == fID);
@@ -247,7 +250,8 @@ struct X {
     auto checkLine     = [&](int line) {
         auto const issue = issues.findOnLine<InvalidStatement>(line);
         REQUIRE(issue);
-        CHECK(issue->reason() == InvalidStatement::Reason::InvalidScopeForStatement);
+        CHECK(issue->reason() ==
+              InvalidStatement::Reason::InvalidScopeForStatement);
         CHECK(issue->currentScope().symbolID() == xID);
     };
     checkLine(3);                // return 0;

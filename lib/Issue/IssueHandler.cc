@@ -16,17 +16,20 @@ struct issue::internal::IssueHandlerBase<T>::Impl {
 };
 
 template <typename T>
-issue::internal::IssueHandlerBase<T>::IssueHandlerBase(): impl(std::make_unique<Impl>()) {}
+issue::internal::IssueHandlerBase<T>::IssueHandlerBase():
+    impl(std::make_unique<Impl>()) {}
 
 template <typename T>
-issue::internal::IssueHandlerBase<T>::IssueHandlerBase(IssueHandlerBase&&) noexcept = default;
+issue::internal::IssueHandlerBase<T>::IssueHandlerBase(
+    IssueHandlerBase&&) noexcept = default;
 
 template <typename T>
-issue::internal::IssueHandlerBase<T>::IssueHandlerBase::~IssueHandlerBase() = default;
-
-template <typename T>
-issue::internal::IssueHandlerBase<T>& issue::internal::IssueHandlerBase<T>::operator=(IssueHandlerBase&&) noexcept =
+issue::internal::IssueHandlerBase<T>::IssueHandlerBase::~IssueHandlerBase() =
     default;
+
+template <typename T>
+issue::internal::IssueHandlerBase<T>& issue::internal::IssueHandlerBase<
+    T>::operator=(IssueHandlerBase&&) noexcept = default;
 
 template <typename T>
 void issue::internal::IssueHandlerBase<T>::push(T const& issue) {

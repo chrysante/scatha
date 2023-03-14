@@ -43,7 +43,8 @@ std::string_view ir::toString(UnaryArithmeticOperation op) {
     };
 }
 
-std::ostream& ir::operator<<(std::ostream& ostream, UnaryArithmeticOperation op) {
+std::ostream& ir::operator<<(std::ostream& ostream,
+                             UnaryArithmeticOperation op) {
     return ostream << toString(op);
 }
 

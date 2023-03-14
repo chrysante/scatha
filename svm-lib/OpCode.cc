@@ -14,11 +14,11 @@
 #include "Memory.h"
 
 #define SVM_ASSERT(COND) assert(COND)
-#define SVM_WARNING(COND, MSG)                                                                                         \
-    do {                                                                                                               \
-        if (!(COND)) {                                                                                                 \
-            std::cout << (MSG);                                                                                        \
-        }                                                                                                              \
+#define SVM_WARNING(COND, MSG)                                                 \
+    do {                                                                       \
+        if (!(COND)) {                                                         \
+            std::cout << (MSG);                                                \
+        }                                                                      \
     } while (0)
 
 using namespace svm;
@@ -41,7 +41,8 @@ struct svm::OpCodeImpl {
         size_t const offsetCountRegIdx     = i[1];
         i64 const constantOffsetMultiplier = i[2];
         i64 const constantInnerOffset      = i[3];
-        u8* const offsetBaseptr            = reinterpret_cast<u8*>(reg[baseptrRegIdx]) + constantInnerOffset;
+        u8* const offsetBaseptr =
+            reinterpret_cast<u8*>(reg[baseptrRegIdx]) + constantInnerOffset;
         /// See documentation in "OpCode.h"
         if (offsetCountRegIdx == 0xFF) {
             return offsetBaseptr;
@@ -125,7 +126,8 @@ struct svm::OpCodeImpl {
     static auto set(auto setter) {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdx = i[0];
-            store(&reg[regIdx], static_cast<u64>(decltype(setter)()(vm->flags)));
+            store(&reg[regIdx],
+                  static_cast<u64>(decltype(setter)()(vm->flags)));
             return codeSize(C);
         };
     }
@@ -197,8 +199,9 @@ struct svm::OpCodeImpl {
 
         at(ret) = [](u8 const*, u64* regPtr, VirtualMachine* vm) -> u64 {
             if (vm->registers.data() == regPtr) {
-                /// Meaning we are the root of the call tree aka. the main/start function,
-                /// so we set the instruction pointer to the program break to terminate execution.
+                /// Meaning we are the root of the call tree aka. the main/start
+                /// function, so we set the instruction pointer to the program
+                /// break to terminate execution.
                 vm->iptr = vm->programBreak;
                 return 0;
             }
@@ -236,7 +239,7 @@ struct svm::OpCodeImpl {
         at(alloca_) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const targetRegIdx = i[0];
             size_t const sourceRegIdx = i[1];
-            reg[targetRegIdx]         = reinterpret_cast<u64>(&reg[sourceRegIdx]);
+            reg[targetRegIdx] = reinterpret_cast<u64>(&reg[sourceRegIdx]);
             return codeSize(alloca_);
         };
 
@@ -337,7 +340,8 @@ struct svm::OpCodeImpl {
             size_t const regPtrOffset = i[0];
             size_t const tableIdx     = i[1];
             size_t const idxIntoTable = read<u16>(&i[2]);
-            vm->extFunctionTable[tableIdx][idxIntoTable](reg + regPtrOffset, vm);
+            vm->extFunctionTable[tableIdx][idxIntoTable](reg + regPtrOffset,
+                                                         vm);
             return codeSize(callExt);
         };
 

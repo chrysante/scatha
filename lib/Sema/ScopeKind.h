@@ -10,7 +10,16 @@
 
 namespace scatha::sema {
 
-enum class ScopeKind { Invalid, Global, Namespace, Variable, Function, Object, Anonymous, _count };
+enum class ScopeKind {
+    Invalid,
+    Global,
+    Namespace,
+    Variable,
+    Function,
+    Object,
+    Anonymous,
+    _count
+};
 
 SCATHA(API) std::string_view toString(ScopeKind);
 

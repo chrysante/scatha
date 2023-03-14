@@ -14,7 +14,8 @@ using namespace ir;
 namespace {
 
 struct DCEContext {
-    explicit DCEContext(Context& irCtx, Function& function): irCtx(irCtx), function(function) {}
+    explicit DCEContext(Context& irCtx, Function& function):
+        irCtx(irCtx), function(function) {}
 
     bool run();
 
@@ -48,8 +49,11 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
         return;
     }
     visited.insert(basicBlock);
-    if (auto* pred = basicBlock->singlePredecessor(); pred && pred->hasSingleSuccessor()) {
-        SC_ASSERT(basicBlock->phiNodes().empty(), "How can we have phi nodes if we only have one predecessor?");
+    if (auto* pred = basicBlock->singlePredecessor();
+        pred && pred->hasSingleSuccessor())
+    {
+        SC_ASSERT(basicBlock->phiNodes().empty(),
+                  "How can we have phi nodes if we only have one predecessor?");
         pred->erase(pred->terminator());
         basicBlock->splice(basicBlock->begin(), pred);
         basicBlock->setPredecessors(pred->predecessors());

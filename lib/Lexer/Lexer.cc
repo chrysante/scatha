@@ -47,7 +47,8 @@ struct Context {
 
 } // namespace
 
-utl::vector<Token> lex::lex(std::string_view text, issue::LexicalIssueHandler& iss) {
+utl::vector<Token> lex::lex(std::string_view text,
+                            issue::LexicalIssueHandler& iss) {
     Context ctx{ text, iss };
     return ctx.run();
 }
@@ -225,7 +226,8 @@ std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteral() {
         // we are a floating point literal
         return std::nullopt;
     }
-    return InvalidNumericLiteral(Token(result), InvalidNumericLiteral::Kind::Integer);
+    return InvalidNumericLiteral(Token(result),
+                                 InvalidNumericLiteral::Kind::Integer);
 }
 
 std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteralHex() {
@@ -243,10 +245,12 @@ std::optional<Expected<Token, LexicalIssue>> Context::getIntegerLiteralHex() {
     if (next() && !isLetter(*next())) {
         return result;
     }
-    return InvalidNumericLiteral(Token(result), InvalidNumericLiteral::Kind::Integer);
+    return InvalidNumericLiteral(Token(result),
+                                 InvalidNumericLiteral::Kind::Integer);
 }
 
-std::optional<Expected<Token, LexicalIssue>> Context::getFloatingPointLiteral() {
+std::optional<Expected<Token, LexicalIssue>> Context::
+    getFloatingPointLiteral() {
     if (!isFloatDigitDec(current())) {
         return std::nullopt;
     }
@@ -267,7 +271,8 @@ std::optional<Expected<Token, LexicalIssue>> Context::getFloatingPointLiteral() 
         }
         return result;
     }
-    return InvalidNumericLiteral(Token(result), InvalidNumericLiteral::Kind::FloatingPoint);
+    return InvalidNumericLiteral(Token(result),
+                                 InvalidNumericLiteral::Kind::FloatingPoint);
 }
 
 std::optional<Expected<Token, LexicalIssue>> Context::getStringLiteral() {
@@ -292,7 +297,8 @@ std::optional<Expected<Token, LexicalIssue>> Context::getStringLiteral() {
 
 std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
     if (currentLocation.index + 3 < textSize() &&
-        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 4) == "true")
+        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 4) ==
+            "true")
     {
         if (auto const n = next(4); n && isLetterEx(*n)) {
             return std::nullopt;
@@ -303,7 +309,8 @@ std::optional<Expected<Token, LexicalIssue>> Context::getBooleanLiteral() {
         return result;
     }
     if (currentLocation.index + 4 < textSize() &&
-        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 5) == "false")
+        text.substr(utl::narrow_cast<size_t>(currentLocation.index), 5) ==
+            "false")
     {
         if (auto const n = next(5); n && isLetterEx(*n)) {
             return std::nullopt;
@@ -366,7 +373,9 @@ void Context::advanceToNextWhitespace() {
 }
 
 TokenData Context::beginToken(TokenType type) const {
-    return TokenData{ .id = std::string{}, .type = type, .sourceLocation = currentLocation };
+    return TokenData{ .id             = std::string{},
+                      .type           = type,
+                      .sourceLocation = currentLocation };
 }
 
 char Context::current() const {

@@ -28,7 +28,9 @@ struct TestCase {
         auto const tokens = lex::lex(text, iss);
         REQUIRE(iss.empty());
         REQUIRE(tokens.size() == reference.size());
-        for (std::size_t i = 0; i < std::min(tokens.size(), reference.size()); ++i) {
+        for (std::size_t i = 0; i < std::min(tokens.size(), reference.size());
+             ++i)
+        {
             INFO("LHS: " << reference[i] << "\nRHS: " << tokens[i]);
             CHECK(reference[i].type == tokens[i].type);
             CHECK(reference[i].id == tokens[i].id);
@@ -46,18 +48,36 @@ fn mul(a: int, b: int) -> int {
 	result *= b; return result;
 }
 )";
-    test.reference = {
-        { TokenType::Identifier, "fn" },     { TokenType::Identifier, "mul" },    { TokenType::Punctuation, "(" },
-        { TokenType::Identifier, "a" },      { TokenType::Punctuation, ":" },     { TokenType::Identifier, "int" },
-        { TokenType::Punctuation, "," },     { TokenType::Identifier, "b" },      { TokenType::Punctuation, ":" },
-        { TokenType::Identifier, "int" },    { TokenType::Punctuation, ")" },     { TokenType::Operator, "->" },
-        { TokenType::Identifier, "int" },    { TokenType::Punctuation, "{" },     { TokenType::Identifier, "var" },
-        { TokenType::Identifier, "result" }, { TokenType::Punctuation, ":" },     { TokenType::Identifier, "int" },
-        { TokenType::Operator, "=" },        { TokenType::Identifier, "a" },      { TokenType::Punctuation, ";" },
-        { TokenType::Identifier, "result" }, { TokenType::Operator, "*=" },       { TokenType::Identifier, "b" },
-        { TokenType::Punctuation, ";" },     { TokenType::Identifier, "return" }, { TokenType::Identifier, "result" },
-        { TokenType::Punctuation, ";" },     { TokenType::Punctuation, "}" },     { TokenType::EndOfFile, "" }
-    };
+    test.reference = { { TokenType::Identifier, "fn" },
+                       { TokenType::Identifier, "mul" },
+                       { TokenType::Punctuation, "(" },
+                       { TokenType::Identifier, "a" },
+                       { TokenType::Punctuation, ":" },
+                       { TokenType::Identifier, "int" },
+                       { TokenType::Punctuation, "," },
+                       { TokenType::Identifier, "b" },
+                       { TokenType::Punctuation, ":" },
+                       { TokenType::Identifier, "int" },
+                       { TokenType::Punctuation, ")" },
+                       { TokenType::Operator, "->" },
+                       { TokenType::Identifier, "int" },
+                       { TokenType::Punctuation, "{" },
+                       { TokenType::Identifier, "var" },
+                       { TokenType::Identifier, "result" },
+                       { TokenType::Punctuation, ":" },
+                       { TokenType::Identifier, "int" },
+                       { TokenType::Operator, "=" },
+                       { TokenType::Identifier, "a" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Identifier, "result" },
+                       { TokenType::Operator, "*=" },
+                       { TokenType::Identifier, "b" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Identifier, "return" },
+                       { TokenType::Identifier, "result" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Punctuation, "}" },
+                       { TokenType::EndOfFile, "" } };
     test.run();
 }
 
@@ -72,18 +92,35 @@ fn main() {
 	std.print(text);
 }
 )";
-    test.reference = {
-        { TokenType::Identifier, "import" }, { TokenType::Identifier, "std" },   { TokenType::Punctuation, ";" },
-        { TokenType::Identifier, "import" }, { TokenType::Identifier, "myLib" }, { TokenType::Punctuation, ";" },
-        { TokenType::Identifier, "fn" },     { TokenType::Identifier, "main" },  { TokenType::Punctuation, "(" },
-        { TokenType::Punctuation, ")" },     { TokenType::Punctuation, "{" },    { TokenType::Identifier, "var" },
-        { TokenType::Identifier, "text" },   { TokenType::Punctuation, ":" },    { TokenType::Identifier, "string" },
-        { TokenType::Operator, "=" },        { TokenType::Identifier, "f" },     { TokenType::Punctuation, "(" },
-        { TokenType::Punctuation, ")" },     { TokenType::Punctuation, ";" },    { TokenType::Identifier, "std" },
-        { TokenType::Operator, "." },        { TokenType::Identifier, "print" }, { TokenType::Punctuation, "(" },
-        { TokenType::Identifier, "text" },   { TokenType::Punctuation, ")" },    { TokenType::Punctuation, ";" },
-        { TokenType::Punctuation, "}" },     { TokenType::EndOfFile, "" }
-    };
+    test.reference = { { TokenType::Identifier, "import" },
+                       { TokenType::Identifier, "std" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Identifier, "import" },
+                       { TokenType::Identifier, "myLib" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Identifier, "fn" },
+                       { TokenType::Identifier, "main" },
+                       { TokenType::Punctuation, "(" },
+                       { TokenType::Punctuation, ")" },
+                       { TokenType::Punctuation, "{" },
+                       { TokenType::Identifier, "var" },
+                       { TokenType::Identifier, "text" },
+                       { TokenType::Punctuation, ":" },
+                       { TokenType::Identifier, "string" },
+                       { TokenType::Operator, "=" },
+                       { TokenType::Identifier, "f" },
+                       { TokenType::Punctuation, "(" },
+                       { TokenType::Punctuation, ")" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Identifier, "std" },
+                       { TokenType::Operator, "." },
+                       { TokenType::Identifier, "print" },
+                       { TokenType::Punctuation, "(" },
+                       { TokenType::Identifier, "text" },
+                       { TokenType::Punctuation, ")" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Punctuation, "}" },
+                       { TokenType::EndOfFile, "" } };
     test.run();
 }
 
@@ -95,24 +132,42 @@ while (x >= 0) {
 	x -= x % 3  ? 1 : 2;
 }
 )";
-    test.reference = { { TokenType::Identifier, "a" },         { TokenType::Operator, "*=" },
-                       { TokenType::Identifier, "b" },         { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "x" },         { TokenType::Operator, "+=" },
-                       { TokenType::IntegerLiteral, "1" },     { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "fn" },        { TokenType::Punctuation, "(" },
-                       { TokenType::BooleanLiteral, "true" },  { TokenType::Operator, "&&" },
-                       { TokenType::BooleanLiteral, "false" }, { TokenType::Punctuation, ")" },
-                       { TokenType::Operator, "+=" },          { TokenType::Identifier, "NULL" },
-                       { TokenType::Punctuation, ";" },        { TokenType::Identifier, "while" },
-                       { TokenType::Punctuation, "(" },        { TokenType::Identifier, "x" },
-                       { TokenType::Operator, ">=" },          { TokenType::IntegerLiteral, "0" },
-                       { TokenType::Punctuation, ")" },        { TokenType::Punctuation, "{" },
-                       { TokenType::Identifier, "x" },         { TokenType::Operator, "-=" },
-                       { TokenType::Identifier, "x" },         { TokenType::Operator, "%" },
-                       { TokenType::IntegerLiteral, "3" },     { TokenType::Operator, "?" },
-                       { TokenType::IntegerLiteral, "1" },     { TokenType::Punctuation, ":" },
-                       { TokenType::IntegerLiteral, "2" },     { TokenType::Punctuation, ";" },
-                       { TokenType::Punctuation, "}" },        { TokenType::EndOfFile, "" } };
+    test.reference = { { TokenType::Identifier, "a" },
+                       { TokenType::Operator, "*=" },
+                       { TokenType::Identifier, "b" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Identifier, "x" },
+                       { TokenType::Operator, "+=" },
+                       { TokenType::IntegerLiteral, "1" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Identifier, "fn" },
+                       { TokenType::Punctuation, "(" },
+                       { TokenType::BooleanLiteral, "true" },
+                       { TokenType::Operator, "&&" },
+                       { TokenType::BooleanLiteral, "false" },
+                       { TokenType::Punctuation, ")" },
+                       { TokenType::Operator, "+=" },
+                       { TokenType::Identifier, "NULL" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Identifier, "while" },
+                       { TokenType::Punctuation, "(" },
+                       { TokenType::Identifier, "x" },
+                       { TokenType::Operator, ">=" },
+                       { TokenType::IntegerLiteral, "0" },
+                       { TokenType::Punctuation, ")" },
+                       { TokenType::Punctuation, "{" },
+                       { TokenType::Identifier, "x" },
+                       { TokenType::Operator, "-=" },
+                       { TokenType::Identifier, "x" },
+                       { TokenType::Operator, "%" },
+                       { TokenType::IntegerLiteral, "3" },
+                       { TokenType::Operator, "?" },
+                       { TokenType::IntegerLiteral, "1" },
+                       { TokenType::Punctuation, ":" },
+                       { TokenType::IntegerLiteral, "2" },
+                       { TokenType::Punctuation, ";" },
+                       { TokenType::Punctuation, "}" },
+                       { TokenType::EndOfFile, "" } };
     test.run();
 }
 

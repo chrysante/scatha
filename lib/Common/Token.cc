@@ -39,27 +39,33 @@ std::ostream& operator<<(std::ostream& str, Token const& t) {
 }
 
 APInt Token::toInteger(size_t bitWidth) const {
-    SC_ASSERT(type == TokenType::IntegerLiteral, "Token is not an integer literal");
+    SC_ASSERT(type == TokenType::IntegerLiteral,
+              "Token is not an integer literal");
     auto value = [&] {
-        if (id.size() > 2 && (id.substr(0, 2) == "0x" || id.substr(0, 2) == "0X")) {
+        if (id.size() > 2 &&
+            (id.substr(0, 2) == "0x" || id.substr(0, 2) == "0X"))
+        {
             return APInt::parse(id.substr(2, id.size() - 2), 16);
         }
         return APInt::parse(id);
     }();
     SC_ASSERT(value, "Invalid literal value");
-    SC_ASSERT(value->bitwidth() <= bitWidth, "Value too large for integral type");
+    SC_ASSERT(value->bitwidth() <= bitWidth,
+              "Value too large for integral type");
     value->zext(bitWidth);
     return *value;
 }
 
 APInt Token::toBool() const {
-    SC_ASSERT(type == TokenType::BooleanLiteral, "Token is not an bool literal");
+    SC_ASSERT(type == TokenType::BooleanLiteral,
+              "Token is not an bool literal");
     SC_ASSERT(id == "true" || id == "false", "Must be either true or false");
     return APInt(id == "true" ? 1 : 0, 1);
 }
 
 APFloat Token::toFloat(APFloatPrec precision) const {
-    SC_ASSERT(type == TokenType::FloatingPointLiteral, "Token is not a floating point literal");
+    SC_ASSERT(type == TokenType::FloatingPointLiteral,
+              "Token is not a floating point literal");
     auto const value = APFloat::parse(id, precision);
     SC_ASSERT(value, "Invalid literal value");
     return *value;

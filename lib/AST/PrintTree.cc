@@ -147,28 +147,34 @@ void Context::print(Identifier const& identifier, int ind) {
 }
 
 void Context::print(IntegerLiteral const& intLiteral, int ind) {
-    str << indent(ind) << "<integer-literal> " << intLiteral.value().signedToString() << endl;
+    str << indent(ind) << "<integer-literal> "
+        << intLiteral.value().signedToString() << endl;
 }
 
 void Context::print(BooleanLiteral const& boolLiteral, int ind) {
-    str << indent(ind) << "<boolean-literal> " << (boolLiteral.value().to<bool>() ? "true" : "false") << endl;
+    str << indent(ind) << "<boolean-literal> "
+        << (boolLiteral.value().to<bool>() ? "true" : "false") << endl;
 }
 
 void Context::print(FloatingPointLiteral const& floatLiteral, int ind) {
-    str << indent(ind) << "<float-literal> " << floatLiteral.value().toString() << endl;
+    str << indent(ind) << "<float-literal> " << floatLiteral.value().toString()
+        << endl;
 }
 
 void Context::print(StringLiteral const& stringLiteral, int ind) {
-    str << indent(ind) << "<string-literal> " << '"' << stringLiteral.value() << '"' << endl;
+    str << indent(ind) << "<string-literal> " << '"' << stringLiteral.value()
+        << '"' << endl;
 }
 
 void Context::print(UnaryPrefixExpression const& unaryPrefExpr, int ind) {
-    str << indent(ind) << "<unary-prefix-expression> : " << '"' << toString(unaryPrefExpr.operation()) << '"' << endl;
+    str << indent(ind) << "<unary-prefix-expression> : " << '"'
+        << toString(unaryPrefExpr.operation()) << '"' << endl;
     dispatch(unaryPrefExpr.operand.get(), ind + 1);
 }
 
 void Context::print(BinaryExpression const& binExpr, int ind) {
-    str << indent(ind) << "<binary-expression> " << '"' << toString(binExpr.operation()) << '"' << endl;
+    str << indent(ind) << "<binary-expression> " << '"'
+        << toString(binExpr.operation()) << '"' << endl;
     dispatch(binExpr.lhs.get(), ind + 1);
     dispatch(binExpr.rhs.get(), ind + 1);
 }

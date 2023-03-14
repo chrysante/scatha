@@ -6,8 +6,10 @@
 namespace scatha {
 
 struct Indenter {
-    explicit Indenter(int spacesPerLevel = 1): level(0), spacesPerLevel(spacesPerLevel) {}
-    explicit Indenter(int level, int spacesPerLevel): level(level), spacesPerLevel(spacesPerLevel) {}
+    explicit Indenter(int spacesPerLevel = 1):
+        level(0), spacesPerLevel(spacesPerLevel) {}
+    explicit Indenter(int level, int spacesPerLevel):
+        level(level), spacesPerLevel(spacesPerLevel) {}
 
     Indenter& increase() & {
         ++level;

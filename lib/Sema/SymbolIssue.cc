@@ -7,13 +7,19 @@ void SymbolIssue::setToken(Token tok) {
     _token = std::move(tok);
 }
 
-InvalidScopeIssue::InvalidScopeIssue(std::string_view symbolName, ScopeKind kind):
-    DefinitionIssue(Token(std::string(symbolName), TokenType::Identifier)), _kind(kind) {}
+InvalidScopeIssue::InvalidScopeIssue(std::string_view symbolName,
+                                     ScopeKind kind):
+    DefinitionIssue(Token(std::string(symbolName), TokenType::Identifier)),
+    _kind(kind) {}
 
-SymbolCollisionIssue::SymbolCollisionIssue(std::string_view symbolName, SymbolID existing):
-    DefinitionIssue(Token(std::string(symbolName), TokenType::Identifier)), _existing(existing) {}
+SymbolCollisionIssue::SymbolCollisionIssue(std::string_view symbolName,
+                                           SymbolID existing):
+    DefinitionIssue(Token(std::string(symbolName), TokenType::Identifier)),
+    _existing(existing) {}
 
-OverloadIssue::OverloadIssue(std::string_view symbolName, SymbolID existing, Reason reason):
+OverloadIssue::OverloadIssue(std::string_view symbolName,
+                             SymbolID existing,
+                             Reason reason):
     SymbolCollisionIssue(symbolName, existing), _reason(reason) {}
 
 } // namespace scatha::sema

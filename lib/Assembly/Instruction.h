@@ -19,7 +19,8 @@ protected:
 /// Represents a `mov` instruction.
 class MoveInst: public InstructionBase {
 public:
-    explicit MoveInst(Value dest, Value source, size_t numBytes): _dest(dest), _src(source), _numBytes(numBytes) {
+    explicit MoveInst(Value dest, Value source, size_t numBytes):
+        _dest(dest), _src(source), _numBytes(numBytes) {
         verify();
     }
 
@@ -41,9 +42,11 @@ private:
 /// Represents a `jump` instruction
 class JumpInst: public InstructionBase {
 public:
-    explicit JumpInst(CompareOperation condition, u64 targetLabelID): _cond(condition), _target(targetLabelID) {}
+    explicit JumpInst(CompareOperation condition, u64 targetLabelID):
+        _cond(condition), _target(targetLabelID) {}
 
-    explicit JumpInst(u64 targetLabelID): JumpInst(CompareOperation::None, targetLabelID) {}
+    explicit JumpInst(u64 targetLabelID):
+        JumpInst(CompareOperation::None, targetLabelID) {}
 
     CompareOperation condition() const { return _cond; }
 
@@ -107,7 +110,8 @@ public:
 /// Represents an `alloca` instruction.
 class AllocaInst: public InstructionBase {
 public:
-    explicit AllocaInst(RegisterIndex dest, RegisterIndex source): _dest(dest), _source(source) {}
+    explicit AllocaInst(RegisterIndex dest, RegisterIndex source):
+        _dest(dest), _source(source) {}
 
     RegisterIndex const& dest() const { return _dest; }
     RegisterIndex const& source() const { return _source; }
@@ -120,7 +124,8 @@ private:
 /// Represents a `cmp*` instruction.
 class CompareInst: public InstructionBase {
 public:
-    explicit CompareInst(Type type, Value lhs, Value rhs): _type(type), _lhs(lhs), _rhs(rhs) {}
+    explicit CompareInst(Type type, Value lhs, Value rhs):
+        _type(type), _lhs(lhs), _rhs(rhs) {}
 
     Type type() const { return _type; }
 
@@ -152,7 +157,8 @@ private:
 /// Represents a `set*` instruction.
 class SetInst: public InstructionBase {
 public:
-    explicit SetInst(RegisterIndex dest, CompareOperation operation): _dest(dest), _op(operation) {}
+    explicit SetInst(RegisterIndex dest, CompareOperation operation):
+        _dest(dest), _op(operation) {}
 
     RegisterIndex const& dest() const { return _dest; }
 
@@ -166,7 +172,9 @@ private:
 /// Represents the `lnt` and `bnt` instructions.
 class UnaryArithmeticInst: public InstructionBase {
 public:
-    explicit UnaryArithmeticInst(UnaryArithmeticOperation op, Type type, RegisterIndex operand):
+    explicit UnaryArithmeticInst(UnaryArithmeticOperation op,
+                                 Type type,
+                                 RegisterIndex operand):
         _op(op), _type(type), _operand(operand) {}
 
     UnaryArithmeticOperation operation() const { return _op; }
@@ -184,7 +192,10 @@ private:
 /// Represents a `add`, `sub`, `mul`, ... etc instruction.
 class ArithmeticInst: public InstructionBase {
 public:
-    explicit ArithmeticInst(ArithmeticOperation op, Type type, Value dest, Value source):
+    explicit ArithmeticInst(ArithmeticOperation op,
+                            Type type,
+                            Value dest,
+                            Value source):
         _op(op), _type(type), _dest(dest), _src(source) {
         verify();
     }
@@ -220,7 +231,9 @@ using InstructionVariantBase = utl::cbvariant<InstructionBase,
 class Instruction: public internal::InstructionVariantBase {
 public:
     using internal::InstructionVariantBase::InstructionVariantBase;
-    InstructionType instructionType() const { return static_cast<InstructionType>(index()); }
+    InstructionType instructionType() const {
+        return static_cast<InstructionType>(index());
+    }
 };
 
 } // namespace scatha::Asm

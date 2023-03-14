@@ -5,8 +5,9 @@
 
 #include <utl/dyncast.hpp>
 
-#define SC_DYNCAST_MAP(Type, EnumValue, Abstractness)                                                                  \
-    UTL_DYNCAST_MAP(Type, EnumValue) UTL_INVOKE_MACRO(UTL_DYNCAST_##Abstractness, Type)
+#define SC_DYNCAST_MAP(Type, EnumValue, Abstractness)                          \
+    UTL_DYNCAST_MAP(Type, EnumValue)                                           \
+    UTL_INVOKE_MACRO(UTL_DYNCAST_##Abstractness, Type)
 
 namespace scatha {
 

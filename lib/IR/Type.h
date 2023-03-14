@@ -23,8 +23,14 @@ public:
     explicit Type(std::string name, TypeCategory category):
         Type(std::move(name), category, invalidSize(), invalidSize()) {}
 
-    explicit Type(std::string name, TypeCategory category, size_t size, size_t align):
-        _name(std::move(name)), _category(category), _size(size), _align(align) {}
+    explicit Type(std::string name,
+                  TypeCategory category,
+                  size_t size,
+                  size_t align):
+        _name(std::move(name)),
+        _category(category),
+        _size(size),
+        _align(align) {}
 
     std::string_view name() const { return _name; }
 
@@ -35,14 +41,22 @@ public:
 
     struct Hash {
         using is_transparent = void;
-        size_t operator()(Type const* type) const { return std::hash<std::string_view>{}(type->name()); }
-        size_t operator()(std::string_view name) const { return std::hash<std::string_view>{}(name); }
+        size_t operator()(Type const* type) const {
+            return std::hash<std::string_view>{}(type->name());
+        }
+        size_t operator()(std::string_view name) const {
+            return std::hash<std::string_view>{}(name);
+        }
     };
 
     struct Equals {
         using is_transparent = void;
-        bool operator()(Type const* lhs, Type const* rhs) const { return lhs->name() == rhs->name(); }
-        bool operator()(std::string_view lhs, Type const* rhs) const { return lhs == rhs->name(); }
+        bool operator()(Type const* lhs, Type const* rhs) const {
+            return lhs->name() == rhs->name();
+        }
+        bool operator()(std::string_view lhs, Type const* rhs) const {
+            return lhs == rhs->name();
+        }
     };
 
 protected:
@@ -66,19 +80,23 @@ public:
     VoidType(): Type("void", TypeCategory::VoidType, 0, 0) {}
 };
 
-/// Represents a pointer type. Pointers are typed so they know what type they point to.
+/// Represents a pointer type. Pointers are typed so they know what type they
+/// point to.
 class PointerType: public Type {
 public:
     PointerType(Type const* pointeeType):
         Type(makePointerName(pointeeType),
              TypeCategory::PointerType,
-             8, /// For now, maybe we want to derive size and align from something in the future.
+             8, /// For now, maybe we want to derive size and align from
+                /// something in the future.
              8),
         _pointeeType(pointeeType) {}
 
     Type const* pointeeType() const { return _pointeeType; }
 
-    static std::string makePointerName(Type const* pointee) { return utl::strcat(pointee->name(), "*"); }
+    static std::string makePointerName(Type const* pointee) {
+        return utl::strcat(pointee->name(), "*");
+    }
 
 private:
     Type const* _pointeeType;
@@ -90,7 +108,9 @@ public:
     size_t bitWidth() const { return _bitWidth; }
 
 protected:
-    explicit ArithmeticType(std::string_view typenamePrefix, TypeCategory category, size_t bitWidth):
+    explicit ArithmeticType(std::string_view typenamePrefix,
+                            TypeCategory category,
+                            size_t bitWidth):
         Type(utl::strcat(typenamePrefix, bitWidth),
              category,
              utl::ceil_divide(bitWidth, 8),
@@ -104,26 +124,33 @@ private:
 /// Represents an integral type.
 class IntegralType: public ArithmeticType {
 public:
-    explicit IntegralType(size_t bitWidth): ArithmeticType("i", TypeCategory::IntegralType, bitWidth) {}
+    explicit IntegralType(size_t bitWidth):
+        ArithmeticType("i", TypeCategory::IntegralType, bitWidth) {}
 };
 
 /// Represents a floating point type.
 class FloatType: public ArithmeticType {
 public:
-    explicit FloatType(size_t bitWidth): ArithmeticType("f", TypeCategory::FloatType, bitWidth) {}
+    explicit FloatType(size_t bitWidth):
+        ArithmeticType("f", TypeCategory::FloatType, bitWidth) {}
 };
 
 /// Represents a (user defined) structure type.
 class StructureType: public Type {
 public:
-    explicit StructureType(std::string name): StructureType(std::move(name), {}) {}
+    explicit StructureType(std::string name):
+        StructureType(std::move(name), {}) {}
 
-    explicit StructureType(std::string name, std::span<Type const* const> members):
-        Type(std::move(name), TypeCategory::StructureType, 0, 0), _members(members) {}
+    explicit StructureType(std::string name,
+                           std::span<Type const* const> members):
+        Type(std::move(name), TypeCategory::StructureType, 0, 0),
+        _members(members) {}
 
     Type const* memberAt(std::size_t index) const { return _members[index]; }
 
-    size_t memberOffsetAt(std::size_t index) const { return _memberOffsets[index]; }
+    size_t memberOffsetAt(std::size_t index) const {
+        return _memberOffsets[index];
+    }
 
     std::span<Type const* const> members() const { return _members; }
 
@@ -143,17 +170,27 @@ private:
 /// Represents a function type.
 class FunctionType: public Type {
 public:
-    explicit FunctionType(Type const* returnType, std::span<Type const* const> parameterTypes):
-        Type(makeName(returnType, parameterTypes), TypeCategory::FunctionType, 0, 0), _parameterTypes(parameterTypes) {}
+    explicit FunctionType(Type const* returnType,
+                          std::span<Type const* const> parameterTypes):
+        Type(makeName(returnType, parameterTypes),
+             TypeCategory::FunctionType,
+             0,
+             0),
+        _parameterTypes(parameterTypes) {}
 
     Type const* returnType() const { return _returnType; }
 
-    std::span<Type const* const> parameterTypes() const { return _parameterTypes; }
+    std::span<Type const* const> parameterTypes() const {
+        return _parameterTypes;
+    }
 
-    Type const* parameterTypeAt(std::size_t index) const { return _parameterTypes[index]; }
+    Type const* parameterTypeAt(std::size_t index) const {
+        return _parameterTypes[index];
+    }
 
 private:
-    static std::string makeName(Type const* returnType, std::span<Type const* const> parameterTypes);
+    static std::string makeName(Type const* returnType,
+                                std::span<Type const* const> parameterTypes);
 
 private:
     Type const* _returnType;

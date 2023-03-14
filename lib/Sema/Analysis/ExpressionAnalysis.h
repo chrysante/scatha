@@ -35,17 +35,29 @@ private:
 
 public:
     /// TODO: Make these private somehow
-    static constexpr ExpressionAnalysisResult lvalue(SymbolID symbolID, TypeID typeID) {
+    static constexpr ExpressionAnalysisResult lvalue(SymbolID symbolID,
+                                                     TypeID typeID) {
         return { ast::EntityCategory::Value, symbolID, typeID };
     }
-    static constexpr ExpressionAnalysisResult rvalue(TypeID typeID) { return { ast::EntityCategory::Value, typeID }; }
-    static constexpr ExpressionAnalysisResult type(TypeID id) { return { ast::EntityCategory::Type, id }; }
-    static constexpr ExpressionAnalysisResult type(SymbolID id) { return type(TypeID(id)); }
+    static constexpr ExpressionAnalysisResult rvalue(TypeID typeID) {
+        return { ast::EntityCategory::Value, typeID };
+    }
+    static constexpr ExpressionAnalysisResult type(TypeID id) {
+        return { ast::EntityCategory::Type, id };
+    }
+    static constexpr ExpressionAnalysisResult type(SymbolID id) {
+        return type(TypeID(id));
+    }
     static constexpr ExpressionAnalysisResult fail() { return { false }; }
 
 private:
-    constexpr ExpressionAnalysisResult(ast::EntityCategory category, SymbolID symbolID, TypeID typeID):
-        _success(true), _category(category), _symbolID(symbolID), _typeID(typeID) {}
+    constexpr ExpressionAnalysisResult(ast::EntityCategory category,
+                                       SymbolID symbolID,
+                                       TypeID typeID):
+        _success(true),
+        _category(category),
+        _symbolID(symbolID),
+        _typeID(typeID) {}
     constexpr ExpressionAnalysisResult(ast::EntityCategory kind, TypeID typeID):
         ExpressionAnalysisResult(kind, SymbolID{}, typeID) {}
     constexpr ExpressionAnalysisResult(bool success): _success(success) {}
@@ -56,9 +68,10 @@ private:
 /// \param issueHandler The issue handler to submit issues to. May be null.
 /// \returns An `ExpressionAnalysisResult`.
 ///
-ExpressionAnalysisResult analyzeExpression(ast::Expression& expression,
-                                           SymbolTable& symbolTable,
-                                           issue::SemaIssueHandler& issueHandler);
+ExpressionAnalysisResult analyzeExpression(
+    ast::Expression& expression,
+    SymbolTable& symbolTable,
+    issue::SemaIssueHandler& issueHandler);
 
 } // namespace scatha::sema
 

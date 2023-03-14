@@ -57,7 +57,9 @@ struct IssueHelper {
             static_assert(std::is_same_v<T, parse::SyntaxIssue>);
             for (auto&& issue: iss.issues()) {
                 auto const& token = issue.token();
-                if (token.sourceLocation.line == line && (token.sourceLocation.column == col || col == (size_t)-1)) {
+                if (token.sourceLocation.line == line &&
+                    (token.sourceLocation.column == col || col == (size_t)-1))
+                {
                     return issue;
                 }
             }
@@ -67,7 +69,9 @@ struct IssueHelper {
                 if (issue.template is<T>()) {
                     T const& t         = issue.template get<T>();
                     Token const& token = t.token();
-                    if (token.sourceLocation.line == line && (token.sourceLocation.column == col || col == (size_t)-1))
+                    if (token.sourceLocation.line == line &&
+                        (token.sourceLocation.column == col ||
+                         col == (size_t)-1))
                     {
                         return t;
                     }

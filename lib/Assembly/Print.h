@@ -12,28 +12,34 @@ class AssemblyStream;
 class Block;
 
 SCATHA(API) void print(AssemblyStream const& assemblyStream);
-SCATHA(API) void print(AssemblyStream const& assemblyStream, std::ostream& ostream);
+SCATHA(API)
+void print(AssemblyStream const& assemblyStream, std::ostream& ostream);
 
 SCATHA(API) void print(Block const& block);
 SCATHA(API) void print(Block const& block, std::ostream& ostream);
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Instruction const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, MoveInst const&);
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticInst const&);
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticInst const&);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticInst const&);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream, ArithmeticInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, JumpInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CallInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CallExtInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ReturnInst const&);
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, TerminateInst const&);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream, TerminateInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, TestInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, SetInst const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, AllocaInst const&);
 
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value const&);
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, RegisterIndex const&);
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, MemoryAddress const&);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream, RegisterIndex const&);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream, MemoryAddress const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value8 const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value16 const&);
 SCATHA(API) std::ostream& operator<<(std::ostream& ostream, Value32 const&);

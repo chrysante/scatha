@@ -60,12 +60,6 @@
 // TODO: Make this conditional based on wether this is actually a test build.
 #define _SCATHA_PD_TEST_API() _SCATHA_PD_API()
 
-// Shorthand to force types to be move-only.
-#define _SCATHA_PD_MOVE_ONLY(TYPE)                                                                                     \
-    TYPE()            = default;                                                                                       \
-    TYPE(TYPE&&)      = default;                                                                                       \
-    TYPE(TYPE const&) = delete
-
 // Disable UBSAN for certain integer shift operations. Maybe rethink this later.
 #if defined(__clang__) && __clang_major__ >= 10
 #define _SCATHA_PD_DISABLE_UBSAN() __attribute__((no_sanitize("undefined")))

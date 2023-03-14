@@ -4,7 +4,8 @@
 
 using namespace scatha;
 
-std::string ir::FunctionType::makeName(Type const* returnType, std::span<Type const* const> parameterTypes) {
+std::string ir::FunctionType::makeName(
+    Type const* returnType, std::span<Type const* const> parameterTypes) {
     std::stringstream sstr;
     sstr << returnType->name();
     sstr << "(";

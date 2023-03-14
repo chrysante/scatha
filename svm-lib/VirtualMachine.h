@@ -50,14 +50,19 @@ public:
 
     void addExternalFunction(size_t slot, ExternalFunction);
 
-    void setFunctionTableSlot(size_t slot, utl::vector<ExternalFunction> functions);
+    void setFunctionTableSlot(size_t slot,
+                              utl::vector<ExternalFunction> functions);
 
-    VMState const& getState() const { return static_cast<VMState const&>(*this); }
+    VMState const& getState() const {
+        return static_cast<VMState const&>(*this);
+    }
     VMStats const& getStats() const { return stats; }
 
     friend struct OpCodeImpl;
 
-    static void setDefaultRegisterCount(size_t count) { defaultRegisterCount = count; }
+    static void setDefaultRegisterCount(size_t count) {
+        defaultRegisterCount = count;
+    }
 
 private:
     void resizeMemory(size_t newSize);

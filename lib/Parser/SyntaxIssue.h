@@ -32,11 +32,15 @@ public:
         _count
     };
 
-    explicit SyntaxIssue(Token const& token, Reason reason): issue::ProgramIssueBase(token), _reason(reason) {}
+    explicit SyntaxIssue(Token const& token, Reason reason):
+        issue::ProgramIssueBase(token), _reason(reason) {}
 
-    explicit SyntaxIssue(SourceLocation location, Reason reason): issue::ProgramIssueBase(location), _reason(reason) {}
+    explicit SyntaxIssue(SourceLocation location, Reason reason):
+        issue::ProgramIssueBase(location), _reason(reason) {}
 
-    SyntaxIssue static expectedID(Token const& token, std::string id) { return SyntaxIssue(token, std::move(id)); }
+    SyntaxIssue static expectedID(Token const& token, std::string id) {
+        return SyntaxIssue(token, std::move(id));
+    }
 
     Reason reason() const { return _reason; }
 
@@ -47,7 +51,9 @@ public:
 
 private:
     SyntaxIssue(Token const& token, std::string id):
-        issue::ProgramIssueBase(token), _reason(Reason::UnqualifiedID), _expectedID(std::move(id)) {}
+        issue::ProgramIssueBase(token),
+        _reason(Reason::UnqualifiedID),
+        _expectedID(std::move(id)) {}
 
 private:
     Reason _reason;

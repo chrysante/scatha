@@ -10,7 +10,8 @@ namespace scatha {
 
 u8* internal::alignPointer(u8* ptr, size_t alignment) {
     static_assert(sizeof(size_t) == sizeof(ptr));
-    size_t const r = utl::fast_mod_pow_two(reinterpret_cast<size_t>(ptr), alignment);
+    size_t const r =
+        utl::fast_mod_pow_two(reinterpret_cast<size_t>(ptr), alignment);
     ptr += alignment * !!r - r;
     return ptr;
 }
@@ -21,7 +22,8 @@ MonotonicBufferAllocator::MonotonicBufferAllocator(size_t initSize) {
     addChunk(initSize);
 }
 
-MonotonicBufferAllocator::MonotonicBufferAllocator(MonotonicBufferAllocator&& rhs) noexcept:
+MonotonicBufferAllocator::MonotonicBufferAllocator(
+    MonotonicBufferAllocator&& rhs) noexcept:
     buffer(rhs.buffer), current(rhs.current), end(rhs.end) {
     rhs.buffer  = nullptr;
     rhs.current = nullptr;
@@ -32,7 +34,8 @@ MonotonicBufferAllocator::~MonotonicBufferAllocator() {
     release();
 }
 
-MonotonicBufferAllocator& MonotonicBufferAllocator::operator=(MonotonicBufferAllocator&& rhs) noexcept {
+MonotonicBufferAllocator& MonotonicBufferAllocator::operator=(
+    MonotonicBufferAllocator&& rhs) noexcept {
     release();
     buffer      = rhs.buffer;
     current     = rhs.current;
@@ -45,7 +48,8 @@ MonotonicBufferAllocator& MonotonicBufferAllocator::operator=(MonotonicBufferAll
 
 SCATHA(DISABLE_UBSAN) /// Disable UBSan for method `allocate`  as it may
                       /// perform pointer arithmetic on `nullptr`. This pointer
-                      /// will be never dereferenced though, so its all fine. (Still UB though)
+                      /// will be never dereferenced though, so its all fine.
+                      /// (Still UB though)
 void* MonotonicBufferAllocator::allocate(size_t size, size_t align) {
     using namespace internal;
     u8* const result = alignPointer(current, align);
@@ -73,8 +77,8 @@ void MonotonicBufferAllocator::release() {
 }
 
 void MonotonicBufferAllocator::addChunk(size_t size) {
-    InternalBufferHeader* const newBuffer =
-        static_cast<InternalBufferHeader*>(std::malloc(size + sizeof(InternalBufferHeader)));
+    InternalBufferHeader* const newBuffer = static_cast<InternalBufferHeader*>(
+        std::malloc(size + sizeof(InternalBufferHeader)));
     newBuffer->prev = buffer;
     newBuffer->size = size;
 

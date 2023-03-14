@@ -7,7 +7,8 @@
 namespace scatha::sema {
 
 u64 FunctionSignature::hashArguments(std::span<TypeID const> types) {
-    auto r = types | ranges::views::transform([](TypeID x) { return x.hash(); });
+    auto r =
+        types | ranges::views::transform([](TypeID x) { return x.hash(); });
     return utl::hash_combine_range(r.begin(), r.end());
 }
 

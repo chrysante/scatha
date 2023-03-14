@@ -86,7 +86,8 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Pass and return custom structs and access rvalue", "[codegen][member-access]") {
+TEST_CASE("Pass and return custom structs and access rvalue",
+          "[codegen][member-access]") {
     test::checkReturns(5, R"(
 fn main() -> int {
     var x: X;

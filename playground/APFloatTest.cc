@@ -8,7 +8,8 @@
 
 using namespace scatha;
 
-[[maybe_unused]] static void printAPFloat(std::string_view name, APFloat const& f) {
+[[maybe_unused]] static void printAPFloat(std::string_view name,
+                                          APFloat const& f) {
     //    std::cout << name << ":\n";
     //    std::cout << "\tExponent:       " << f.exponent() << "\n";
     //    std::cout << "\tPrecision:      " << f.precision() << "\n";

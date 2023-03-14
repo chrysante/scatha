@@ -15,7 +15,8 @@ int main(int argc, char* argv[]) {
 
     std::fstream file(options.filepath, std::ios::in);
     if (!file) {
-        std::cout << "Failed to open program: " << options.filepath << std::endl;
+        std::cout << "Failed to open program: " << options.filepath
+                  << std::endl;
         return -1;
     }
     file.seekg(0, std::ios::end);
@@ -35,7 +36,9 @@ int main(int argc, char* argv[]) {
 
     if (options.time) {
         auto const dur = endTime - beginTime;
-        std::cout << "Execution took " << std::chrono::duration_cast<std::chrono::milliseconds>(dur).count() << "ms."
-                  << std::endl;
+        std::cout << "Execution took "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(dur)
+                         .count()
+                  << "ms." << std::endl;
     }
 }

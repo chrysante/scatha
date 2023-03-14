@@ -62,7 +62,9 @@ enum class UnaryArithmeticOperation {
 
 SCATHA(API) std::string_view toString(UnaryArithmeticOperation operation);
 
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOperation operation);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream,
+                         UnaryArithmeticOperation operation);
 
 enum class ArithmeticOperation {
 #define SC_ASM_ARITHMETIC_DEF(op, ...) op,
@@ -72,7 +74,8 @@ enum class ArithmeticOperation {
 
 SCATHA(API) std::string_view toString(ArithmeticOperation operation);
 
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation operation);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation operation);
 
 } // namespace scatha::Asm
 

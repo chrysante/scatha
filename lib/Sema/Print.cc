@@ -29,7 +29,9 @@ void printSymbolTable(SymbolTable const& sym, std::ostream& str) {
     p.printScope(sym.globalScope(), str, 0);
 }
 
-void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, int ind) {
+void internal::ScopePrinter::printScope(Scope const& scope,
+                                        std::ostream& str,
+                                        int ind) {
     struct PrintData {
         std::string_view name;
         EntityBase const* entity;
@@ -40,7 +42,8 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
     utl::vector<PrintData> data;
     for (auto&& [name, id]: scope._symbols) {
         if (id.category() == SymbolCategory::Variable) {
-            data.push_back({ name, &sym.getVariable(id), id, SymbolCategory::Variable });
+            data.push_back(
+                { name, &sym.getVariable(id), id, SymbolCategory::Variable });
             continue;
         }
         if (id.category() == SymbolCategory::ObjectType) {
@@ -48,7 +51,10 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
                 printedScopes.insert(id);
                 continue;
             }
-            data.push_back({ name, &sym.getObjectType(id), id, SymbolCategory::ObjectType });
+            data.push_back({ name,
+                             &sym.getObjectType(id),
+                             id,
+                             SymbolCategory::ObjectType });
             continue;
         }
         SC_ASSERT(id.category() == SymbolCategory::OverloadSet, "What else?");
@@ -74,9 +80,12 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
                     str << ", ";
                 }
                 first = false;
-                str << (id ? makeQualName(sym.getObjectType(id)) : "<invalid-type>");
+                str << (id ? makeQualName(sym.getObjectType(id)) :
+                             "<invalid-type>");
             }
-            str << ") -> " << makeQualName(sym.getObjectType(fn.signature().returnTypeID()));
+            str << ") -> "
+                << makeQualName(
+                       sym.getObjectType(fn.signature().returnTypeID()));
         }
         else if (cat == SymbolCategory::ObjectType) {
             auto& type     = sym.getObjectType(id);
@@ -94,7 +103,10 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
         }
         else if (cat == SymbolCategory::Variable) {
             auto& var = sym.getVariable(id);
-            str << ": " << (var.typeID() ? makeQualName(sym.getObjectType(var.typeID())) : "<invalid-type>");
+            str << ": "
+                << (var.typeID() ?
+                        makeQualName(sym.getObjectType(var.typeID())) :
+                        "<invalid-type>");
         }
         str << endl;
         auto const itr = scope._children.find(id);
@@ -110,7 +122,8 @@ void internal::ScopePrinter::printScope(Scope const& scope, std::ostream& str, i
         if (printedScopes.contains(id)) {
             continue;
         }
-        str << indent(ind) << "<anonymous-scope-" << id.rawValue() << ">" << endl;
+        str << indent(ind) << "<anonymous-scope-" << id.rawValue() << ">"
+            << endl;
         printScope(*childScope, str, ind + 1);
     }
 }

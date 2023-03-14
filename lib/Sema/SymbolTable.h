@@ -41,36 +41,41 @@ public:
 
     /// MARK: Modifiers
 
-    /// \brief Declares an object type to the current scope without size and alignment.
+    /// \brief Declares an object type to the current scope without size and
+    /// alignment.
     ///
-    /// \details For successful return the name must not have been declared before in the current scope.
+    /// \details For successful return the name must not have been declared
+    /// before in the current scope.
     ///
     /// \returns Reference to declared type if no error occurs.
     ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared name is already in use in the current
-    /// scope.
-    Expected<ObjectType&, SemanticIssue> declareObjectType(ast::StructDefinition const& structDef);
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
+    /// name is already in use in the current scope.
+    Expected<ObjectType&, SemanticIssue> declareObjectType(
+        ast::StructDefinition const& structDef);
 
     /// \overload
     ///
     /// Only exposed for testing purposes.
     Expected<ObjectType&, SemanticIssue> declareObjectType(Token name);
 
-    /// Simpler interface to declare builtins. Internally calls `declareObjectType()`
+    /// Simpler interface to declare builtins. Internally calls
+    /// `declareObjectType()`
     ///
     /// TODO: Only used internally. Make this private.
     TypeID declareBuiltinType(std::string name, size_t size, size_t align);
 
     /// \brief Declares a function to the current scope without signature.
     ///
-    /// \details For successful return the name must not have been declared before in the current scope as some entity
-    /// other than `Function`
+    /// \details For successful return the name must not have been declared
+    /// before in the current scope as some entity other than `Function`
     ///
     /// \returns Const reference to declared function if no error occurs.
     ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared name is already used by another kind of
-    /// entity in the current scope.
-    Expected<Function const&, SemanticIssue> declareFunction(ast::FunctionDefinition const& functionDef);
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
+    /// name is already used by another kind of entity in the current scope.
+    Expected<Function const&, SemanticIssue> declareFunction(
+        ast::FunctionDefinition const& functionDef);
 
     /// \overload
     ///
@@ -79,32 +84,40 @@ public:
 
     /// \brief Add signature to declared function.
     ///
-    /// \details We need this two step way of addings functions to first scan all declarations to allow for forward
-    /// references to other entities. \returns Nothing if  \p signature is a legal overload.
+    /// \details We need this two step way of addings functions to first scan
+    /// all declarations to allow for forward references to other entities.
+    /// \returns Nothing if  \p signature is a legal overload.
     ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if \p signature is not a legal overload, with reason
-    /// `CantOverloadOnReturnType` if \p signature has same arguments as another function in the overload set but
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if \p signature
+    /// is not a legal overload, with reason `CantOverloadOnReturnType` if \p
+    /// signature has same arguments as another function in the overload set but
     /// different return type.
-    Expected<void, SemanticIssue> setSignature(SymbolID functionID, FunctionSignature signature);
+    Expected<void, SemanticIssue> setSignature(SymbolID functionID,
+                                               FunctionSignature signature);
 
     /// \brief Declares a builtin function.
     ///
-    /// \details The name will be prefixed with the string `"__builtin_"` and will be declared in the global scope,
-    /// if it hasn't been declared before.
+    /// \details The name will be prefixed with the string `"__builtin_"` and
+    /// will be declared in the global scope, if it hasn't been declared before.
 
     /// \returns `true` iff declaration was successfull.
     ///
-    bool declareBuiltinFunction(std::string name, size_t slot, size_t index, FunctionSignature signature);
+    bool declareBuiltinFunction(std::string name,
+                                size_t slot,
+                                size_t index,
+                                FunctionSignature signature);
 
     /// \brief Declares a variable to the current scope without type.
     ///
-    /// \details For successful return the name must not have been declared before in the current scope.
+    /// \details For successful return the name must not have been declared
+    /// before in the current scope.
     ///
     /// \returns Reference to declared variable if no error occurs.
     ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared name is already in use in the current
-    /// scope.
-    Expected<Variable&, SemanticIssue> declareVariable(ast::VariableDeclaration const& varDecl);
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
+    /// name is already in use in the current scope.
+    Expected<Variable&, SemanticIssue> declareVariable(
+        ast::VariableDeclaration const& varDecl);
 
     /// \overload
     ///
@@ -113,16 +126,20 @@ public:
 
     /// \brief Declares a variable to the current scope.
     ///
-    /// \details For successful return the name must not have been declared before in the current scope.
+    /// \details For successful return the name must not have been declared
+    /// before in the current scope.
     ///
     /// \returns Reference to declared variable if no error occurs.
     ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if name of \p varDecl is already in use in the current
-    /// scope.
-    Expected<Variable&, SemanticIssue> addVariable(ast::VariableDeclaration const& varDecl, TypeID, size_t offset = 0);
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if name of \p
+    /// varDecl is already in use in the current scope.
+    Expected<Variable&, SemanticIssue> addVariable(
+        ast::VariableDeclaration const& varDecl, TypeID, size_t offset = 0);
 
     /// \overload
-    Expected<Variable&, SemanticIssue> addVariable(Token name, TypeID, size_t offset = 0);
+    Expected<Variable&, SemanticIssue> addVariable(Token name,
+                                                   TypeID,
+                                                   size_t offset = 0);
 
     /// \brief Declares an anonymous scope within the current scope.
     ///
@@ -141,16 +158,19 @@ public:
 
     /// \brief Makes \p scope the current scope.
     ///
-    /// \details If \p scope is `nullptr` the global scope will be current after the call.
+    /// \details If \p scope is `nullptr` the global scope will be current after
+    /// the call.
     void makeScopeCurrent(Scope* scope);
 
-    decltype(auto) withScopePushed(SymbolID scopeID, std::invocable auto&& f) const {
+    decltype(auto) withScopePushed(SymbolID scopeID,
+                                   std::invocable auto&& f) const {
         utl::scope_guard pop = [this] { utl::as_mutable(*this).popScope(); };
         utl::as_mutable(*this).pushScope(scopeID);
         return f();
     }
 
-    decltype(auto) withScopeCurrent(Scope* scope, std::invocable auto&& f) const {
+    decltype(auto) withScopeCurrent(Scope* scope,
+                                    std::invocable auto&& f) const {
         SC_ASSERT(scope != nullptr, "");
         utl::scope_guard pop = [this, old = &utl::as_mutable(currentScope())] {
             utl::as_mutable(*this).makeScopeCurrent(old);
@@ -162,27 +182,41 @@ public:
     /// MARK: Queries
 
     OverloadSet const& getOverloadSet(SymbolID) const;
-    OverloadSet& getOverloadSet(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getOverloadSet(id)); }
+    OverloadSet& getOverloadSet(SymbolID id) {
+        return utl::as_mutable(utl::as_const(*this).getOverloadSet(id));
+    }
     OverloadSet const* tryGetOverloadSet(SymbolID) const;
     OverloadSet* tryGetOverloadSet(SymbolID id) {
-        return const_cast<OverloadSet*>(utl::as_const(*this).tryGetOverloadSet(id));
+        return const_cast<OverloadSet*>(
+            utl::as_const(*this).tryGetOverloadSet(id));
     }
 
     Function const& getFunction(SymbolID) const;
-    Function& getFunction(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getFunction(id)); }
+    Function& getFunction(SymbolID id) {
+        return utl::as_mutable(utl::as_const(*this).getFunction(id));
+    }
     Function const* tryGetFunction(SymbolID) const;
-    Function* tryGetFunction(SymbolID id) { return const_cast<Function*>(utl::as_const(*this).tryGetFunction(id)); }
+    Function* tryGetFunction(SymbolID id) {
+        return const_cast<Function*>(utl::as_const(*this).tryGetFunction(id));
+    }
 
     Variable const& getVariable(SymbolID) const;
-    Variable& getVariable(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getVariable(id)); }
+    Variable& getVariable(SymbolID id) {
+        return utl::as_mutable(utl::as_const(*this).getVariable(id));
+    }
     Variable const* tryGetVariable(SymbolID) const;
-    Variable* tryGetVariable(SymbolID id) { return const_cast<Variable*>(utl::as_const(*this).tryGetVariable(id)); }
+    Variable* tryGetVariable(SymbolID id) {
+        return const_cast<Variable*>(utl::as_const(*this).tryGetVariable(id));
+    }
 
     ObjectType const& getObjectType(SymbolID) const;
-    ObjectType& getObjectType(SymbolID id) { return utl::as_mutable(utl::as_const(*this).getObjectType(id)); }
+    ObjectType& getObjectType(SymbolID id) {
+        return utl::as_mutable(utl::as_const(*this).getObjectType(id));
+    }
     ObjectType const* tryGetObjectType(SymbolID) const;
     ObjectType* tryGetObjectType(SymbolID id) {
-        return const_cast<ObjectType*>(utl::as_const(*this).tryGetObjectType(id));
+        return const_cast<ObjectType*>(
+            utl::as_const(*this).tryGetObjectType(id));
     }
 
     std::string getName(SymbolID id) const;
@@ -191,11 +225,17 @@ public:
     SymbolID lookup(Token const& token) const { return lookup(token.id); }
 
     OverloadSet const* lookupOverloadSet(std::string_view name) const;
-    OverloadSet const* lookupOverloadSet(Token const& token) const { return lookupOverloadSet(token.id); }
+    OverloadSet const* lookupOverloadSet(Token const& token) const {
+        return lookupOverloadSet(token.id);
+    }
     Variable const* lookupVariable(std::string_view name) const;
-    Variable const* lookupVariable(Token const& token) const { return lookupVariable(token.id); }
+    Variable const* lookupVariable(Token const& token) const {
+        return lookupVariable(token.id);
+    }
     ObjectType const* lookupObjectType(std::string_view name) const;
-    ObjectType const* lookupObjectType(Token const& token) const { return lookupObjectType(token.id); }
+    ObjectType const* lookupObjectType(Token const& token) const {
+        return lookupObjectType(token.id);
+    }
 
     Scope& currentScope() { return *_currentScope; }
     Scope const& currentScope() const { return *_currentScope; }
@@ -211,10 +251,15 @@ public:
     TypeID String() const { return _string; }
 
     /// Review if we want to keep these:
-    void setSortedObjectTypes(utl::vector<TypeID> ids) { _sortedObjectTypes = std::move(ids); }
-    std::span<TypeID const> sortedObjectTypes() const { return _sortedObjectTypes; }
+    void setSortedObjectTypes(utl::vector<TypeID> ids) {
+        _sortedObjectTypes = std::move(ids);
+    }
+    std::span<TypeID const> sortedObjectTypes() const {
+        return _sortedObjectTypes;
+    }
     auto functions() const {
-        return _functions | ranges::views::transform([](auto& p) -> auto& { return p.second; });
+        return _functions | ranges::views::transform(
+                                [](auto& p) -> auto& { return p.second; });
     }
 
 private:

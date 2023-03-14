@@ -11,7 +11,9 @@ void issue::highlightToken(StructuredSource const& source, Token const& token) {
     highlightToken(source, token, std::cout);
 }
 
-void issue::highlightToken(StructuredSource const& source, Token const& token, std::ostream& str) {
+void issue::highlightToken(StructuredSource const& source,
+                           Token const& token,
+                           std::ostream& str) {
 #if 0
     auto const sourceLocation   = token.sourceLocation;
     std::string_view const line = source.getLine(sourceLocation.line - 1);

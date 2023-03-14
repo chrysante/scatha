@@ -6,7 +6,8 @@
 namespace scatha {
 
 std::ostream& operator<<(std::ostream& str, SourceLocation const& sc) {
-    return str << "(" << std::setw(3) << sc.line << ", " << std::setw(3) << sc.column << ")";
+    return str << "(" << std::setw(3) << sc.line << ", " << std::setw(3)
+               << sc.column << ")";
 }
 
 } // namespace scatha

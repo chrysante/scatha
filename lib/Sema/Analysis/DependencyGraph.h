@@ -33,7 +33,9 @@ public:
     auto end() const { return _nodes.end(); }
     auto end() { return _nodes.end(); }
 
-    DependencyGraphNode const& operator[](size_t index) const { return _nodes[index]; }
+    DependencyGraphNode const& operator[](size_t index) const {
+        return _nodes[index];
+    }
     DependencyGraphNode& operator[](size_t index) { return _nodes[index]; }
 
     size_t size() const { return _nodes.size(); }

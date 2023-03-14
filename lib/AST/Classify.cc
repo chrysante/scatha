@@ -5,7 +5,8 @@ using namespace ast;
 
 bool ast::isDeclaration(NodeType t) {
     using enum NodeType;
-    return t == FunctionDefinition || t == StructDefinition || t == VariableDeclaration;
+    return t == FunctionDefinition || t == StructDefinition ||
+           t == VariableDeclaration;
 }
 
 BinaryOperator ast::toNonAssignment(BinaryOperator op) {

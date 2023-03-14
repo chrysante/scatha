@@ -23,7 +23,10 @@ public:
 
 protected:
 public:
-    explicit Scope(ScopeKind, std::string name, SymbolID symbolID, Scope* parent);
+    explicit Scope(ScopeKind,
+                   std::string name,
+                   SymbolID symbolID,
+                   Scope* parent);
 
     // Until we have heterogenous lookup
     SymbolID findID(std::string_view name) const;

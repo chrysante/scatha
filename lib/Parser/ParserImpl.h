@@ -1,5 +1,6 @@
-/// This header is not meant to expose the internal parser interface but to separate it from the implementation file.
-/// Thus the weird include guard to prevent multiple include.
+/// This header is not meant to expose the internal parser interface but to
+/// separate it from the implementation file. Thus the weird include guard to
+/// prevent multiple include.
 
 #ifdef SCATHA_PARSE_PARSERIMPL_H_
 #error Include this file only once
@@ -31,7 +32,8 @@ struct Context {
     UniquePtr<ast::ParameterDeclaration> parseParameterDeclaration();
     UniquePtr<ast::StructDefinition> parseStructDefinition();
     UniquePtr<ast::VariableDeclaration> parseVariableDeclaration();
-    UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(std::optional<Token> declarator = std::nullopt);
+    UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(
+        std::optional<Token> declarator = std::nullopt);
     UniquePtr<ast::Statement> parseStatement();
     UniquePtr<ast::ExpressionStatement> parseExpressionStatement();
     UniquePtr<ast::EmptyStatement> parseEmptyStatement();
@@ -47,7 +49,9 @@ struct Context {
 
     UniquePtr<ast::Expression> parseComma();
     UniquePtr<ast::Expression> parseAssignment();
-    UniquePtr<ast::Expression> parseTypeExpression() { return parseConditional(); } // Convenience wrapper
+    UniquePtr<ast::Expression> parseTypeExpression() {
+        return parseConditional();
+    } // Convenience wrapper
     UniquePtr<ast::Expression> parseConditional();
     UniquePtr<ast::Expression> parseLogicalOr();
     UniquePtr<ast::Expression> parseLogicalAnd();
@@ -92,9 +96,12 @@ struct Context {
                                    std::string_view delimiter,
                                    auto parseCallback);
 
-    UniquePtr<ast::Subscript> parseSubscript(UniquePtr<ast::Expression> primary);
-    UniquePtr<ast::FunctionCall> parseFunctionCall(UniquePtr<ast::Expression> primary);
-    UniquePtr<ast::Expression> parseMemberAccess(UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::Subscript> parseSubscript(
+        UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::FunctionCall> parseFunctionCall(
+        UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::Expression> parseMemberAccess(
+        UniquePtr<ast::Expression> primary);
 
     template <ast::BinaryOperator...>
     UniquePtr<ast::Expression> parseBinaryOperatorLTR(auto&& operand);

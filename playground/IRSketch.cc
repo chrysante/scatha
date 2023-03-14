@@ -15,7 +15,7 @@ void playground::irSketch() {
 
     // The function
     ir::Type const* argTypes[] = { ctx.integralType(64) };
-    auto* fn                   = new ir::Function(nullptr, ctx.integralType(64), argTypes, "fac");
+    auto* fn = new ir::Function(nullptr, ctx.integralType(64), argTypes, "fac");
     mod.addFunction(fn);
 
     // Entry block
@@ -34,10 +34,12 @@ void playground::irSketch() {
     auto* storeI1 = new ir::Store(ctx, allocaN, ctx.integralConstant(1, 64));
     entry->pushBack(storeI1);
 
-    auto* allocaResult = new ir::Alloca(ctx, ctx.integralType(64), "result_ptr");
+    auto* allocaResult =
+        new ir::Alloca(ctx, ctx.integralType(64), "result_ptr");
     entry->pushBack(allocaResult);
 
-    auto* storeResult1 = new ir::Store(ctx, allocaResult, ctx.integralConstant(1, 64));
+    auto* storeResult1 =
+        new ir::Store(ctx, allocaResult, ctx.integralConstant(1, 64));
     entry->pushBack(storeResult1);
 
     auto* loopHeader = new ir::BasicBlock(ctx, "loop_header");
@@ -53,7 +55,11 @@ void playground::irSketch() {
     auto* loadN1 = new ir::Load(allocaN, "n1");
     loopHeader->pushBack(loadN1);
 
-    auto* cmp = new ir::CompareInst(ctx, loadI1, loadN1, ir::CompareOperation::LessEq, "loop_cond");
+    auto* cmp = new ir::CompareInst(ctx,
+                                    loadI1,
+                                    loadN1,
+                                    ir::CompareOperation::LessEq,
+                                    "loop_cond");
     loopHeader->pushBack(cmp);
 
     auto* loopBody = new ir::BasicBlock(ctx, "loop_body");
@@ -72,13 +78,19 @@ void playground::irSketch() {
     auto* loadI2 = new ir::Load(allocaI, "i2");
     loopBody->pushBack(loadI2);
 
-    auto* mulTmp = new ir::ArithmeticInst(loadResult1, loadI2, ir::ArithmeticOperation::Mul, "mul-tmp");
+    auto* mulTmp = new ir::ArithmeticInst(loadResult1,
+                                          loadI2,
+                                          ir::ArithmeticOperation::Mul,
+                                          "mul-tmp");
     loopBody->pushBack(mulTmp);
 
     auto storeResult2 = new ir::Store(ctx, allocaResult, mulTmp);
     loopBody->pushBack(storeResult2);
 
-    auto* addTmp = new ir::ArithmeticInst(loadI2, ctx.integralConstant(1, 64), ir::ArithmeticOperation::Add, "add-tmp");
+    auto* addTmp = new ir::ArithmeticInst(loadI2,
+                                          ctx.integralConstant(1, 64),
+                                          ir::ArithmeticOperation::Add,
+                                          "add-tmp");
     loopBody->pushBack(addTmp);
 
     auto* storeI2 = new ir::Store(ctx, allocaI, addTmp);

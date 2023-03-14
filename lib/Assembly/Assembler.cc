@@ -32,7 +32,8 @@ struct LabelPlaceholder {};
 
 struct Context {
 
-    explicit Context(AssemblyStream const& stream, AssemblerOptions options): stream(stream), options(options) {}
+    explicit Context(AssemblyStream const& stream, AssemblerOptions options):
+        stream(stream), options(options) {}
 
     void run();
 
@@ -94,23 +95,31 @@ struct Context {
 
 } // namespace
 
-utl::vector<u8> Asm::assemble(AssemblyStream const& assemblyStream, AssemblerOptions options) {
+utl::vector<u8> Asm::assemble(AssemblyStream const& assemblyStream,
+                              AssemblerOptions options) {
     Context ctx(assemblyStream, options);
     ctx.run();
-    svm::ProgramHeader const header{ .versionString = {},
-                                     .size = sizeof(svm::ProgramHeader) + ctx.instructions.size(), // + data.size()
-                                     .dataOffset = sizeof(svm::ProgramHeader),
-                                     .textOffset = sizeof(svm::ProgramHeader),
-                                     .start      = ctx.start };
+    svm::ProgramHeader const header{
+        .versionString = {},
+        .size          = sizeof(svm::ProgramHeader) +
+                ctx.instructions.size(), // + data.size()
+        .dataOffset = sizeof(svm::ProgramHeader),
+        .textOffset = sizeof(svm::ProgramHeader),
+        .start      = ctx.start
+    };
     utl::vector<u8> program(sizeof(svm::ProgramHeader) + header.size);
     std::memcpy(program.data(), &header, sizeof(header));
-    std::memcpy(program.data() + sizeof(header), ctx.instructions.data(), ctx.instructions.size());
+    std::memcpy(program.data() + sizeof(header),
+                ctx.instructions.data(),
+                ctx.instructions.size());
     return program;
 }
 
 void Context::run() {
     for (auto& block: stream) {
-        if (!options.startFunction.empty() && block.name() == options.startFunction) {
+        if (!options.startFunction.empty() &&
+            block.name() == options.startFunction)
+        {
             start = currentPosition();
         }
         labels.insert({ block.id(), currentPosition() });
@@ -126,7 +135,9 @@ void Context::dispatch(Instruction const& inst) {
 }
 
 void Context::translate(MoveInst const& mov) {
-    auto const [opcode, size] = mapMove(mov.dest().valueType(), mov.source().valueType(), mov.numBytes());
+    auto const [opcode, size] = mapMove(mov.dest().valueType(),
+                                        mov.source().valueType(),
+                                        mov.numBytes());
     put(opcode);
     dispatch(mov.dest());
     dispatch(promote(mov.source(), size));
@@ -169,7 +180,9 @@ void Context::translate(AllocaInst const& alloca_) {
 }
 
 void Context::translate(CompareInst const& cmp) {
-    OpCode const opcode = mapCompare(cmp.type(), promote(cmp.lhs().valueType(), 8), promote(cmp.rhs().valueType(), 8));
+    OpCode const opcode = mapCompare(cmp.type(),
+                                     promote(cmp.lhs().valueType(), 8),
+                                     promote(cmp.rhs().valueType(), 8));
     put(opcode);
     dispatch(promote(cmp.lhs(), 8));
     dispatch(promote(cmp.rhs(), 8));
@@ -197,8 +210,10 @@ void Context::translate(UnaryArithmeticInst const& inst) {
 }
 
 void Context::translate(ArithmeticInst const& inst) {
-    OpCode const opcode =
-        mapArithmetic(inst.operation(), inst.type(), inst.dest().valueType(), inst.source().valueType());
+    OpCode const opcode = mapArithmetic(inst.operation(),
+                                        inst.type(),
+                                        inst.dest().valueType(),
+                                        inst.source().valueType());
     put(opcode);
     dispatch(inst.dest());
     dispatch(inst.source());
@@ -236,7 +251,8 @@ void Context::translate(Value64 const& value) {
 }
 
 void Context::registerJumpSite(size_t offsetValuePos, u64 targetID) {
-    jumpsites.push_back({ .codePosition = offsetValuePos, .targetID = targetID });
+    jumpsites.push_back(
+        { .codePosition = offsetValuePos, .targetID = targetID });
 }
 
 void Context::postProcess() {
@@ -246,7 +262,9 @@ void Context::postProcess() {
             SC_DEBUGFAIL(); // Use of undeclared label.
         }
         size_t const targetPosition = itr->second;
-        i32 const offset = utl::narrow_cast<i32>(static_cast<i64>(targetPosition) - static_cast<i64>(position));
-        store(&instructions[position], offset + static_cast<i32>(sizeof(OpCode)));
+        i32 const offset            = utl::narrow_cast<i32>(
+            static_cast<i64>(targetPosition) - static_cast<i64>(position));
+        store(&instructions[position],
+              offset + static_cast<i32>(sizeof(OpCode)));
     }
 }

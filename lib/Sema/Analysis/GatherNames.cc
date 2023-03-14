@@ -13,10 +13,11 @@ using namespace scatha::sema;
 
 namespace {
 
-/// Gathers all declarations and declares them in the symbol table. Also analyzes the dependencies of structs because
-/// they are trivial.
+/// Gathers all declarations and declares them in the symbol table. Also
+/// analyzes the dependencies of structs because they are trivial.
 struct Context {
-    /// Dispatches to the appropriate one of the `gather()` overloads below based on the runtime type of \p node
+    /// Dispatches to the appropriate one of the `gather()` overloads below
+    /// based on the runtime type of \p node
     size_t dispatch(ast::AbstractSyntaxTree& node);
 
     size_t gather(ast::TranslationUnit&);
@@ -55,14 +56,16 @@ size_t Context::gather(ast::TranslationUnit& tu) {
 
 size_t Context::gather(ast::FunctionDefinition& funcDef) {
     if (auto const scopeKind = sym.currentScope().kind();
-        scopeKind != ScopeKind::Global && scopeKind != ScopeKind::Namespace && scopeKind != ScopeKind::Object)
+        scopeKind != ScopeKind::Global && scopeKind != ScopeKind::Namespace &&
+        scopeKind != ScopeKind::Object)
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(&funcDef,
-                                    InvalidDeclaration::Reason::InvalidInCurrentScope,
-                                    sym.currentScope(),
-                                    SymbolCategory::Function));
+        iss.push(InvalidDeclaration(
+            &funcDef,
+            InvalidDeclaration::Reason::InvalidInCurrentScope,
+            sym.currentScope(),
+            SymbolCategory::Function));
         return static_cast<size_t>(-1);
     }
     Expected const declResult = sym.declareFunction(funcDef);
@@ -81,15 +84,17 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
 }
 
 size_t Context::gather(ast::StructDefinition& s) {
-    if (auto const sk = sym.currentScope().kind();
-        sk != ScopeKind::Global && sk != ScopeKind::Namespace && sk != ScopeKind::Object)
+    if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
+                                                   sk != ScopeKind::Namespace &&
+                                                   sk != ScopeKind::Object)
     {
         /// Struct defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(&s,
-                                    InvalidDeclaration::Reason::InvalidInCurrentScope,
-                                    sym.currentScope(),
-                                    SymbolCategory::ObjectType));
+        iss.push(InvalidDeclaration(
+            &s,
+            InvalidDeclaration::Reason::InvalidInCurrentScope,
+            sym.currentScope(),
+            SymbolCategory::ObjectType));
         return invalidIndex;
     }
     Expected const declResult = sym.declareObjectType(s);
@@ -101,17 +106,19 @@ size_t Context::gather(ast::StructDefinition& s) {
     s.decorate(objType.symbolID());
     s.body->decorate(ScopeKind::Object, objType.symbolID());
     SC_ASSERT(s.symbolID() != SymbolID::Invalid, "");
-    size_t const index = dependencyGraph.add({ .symbolID = objType.symbolID(),
-                                               .category = SymbolCategory::ObjectType,
-                                               .astNode  = &s,
-                                               .scope    = &sym.currentScope() });
+    size_t const index =
+        dependencyGraph.add({ .symbolID = objType.symbolID(),
+                              .category = SymbolCategory::ObjectType,
+                              .astNode  = &s,
+                              .scope    = &sym.currentScope() });
     /// After we declared this type we gather all its members
     sym.pushScope(objType.symbolID());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto& statement: s.body->statements) {
         size_t const dependency = dispatch(*statement);
         if (dependency != invalidIndex) {
-            dependencyGraph[index].dependencies.push_back(utl::narrow_cast<u16>(dependency));
+            dependencyGraph[index].dependencies.push_back(
+                utl::narrow_cast<u16>(dependency));
         }
     }
     popScope.execute();
@@ -120,8 +127,9 @@ size_t Context::gather(ast::StructDefinition& s) {
 }
 
 size_t Context::gather(ast::VariableDeclaration& varDecl) {
-    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Object,
-              "We only want to prepass struct definitions. What are we doing here?");
+    SC_ASSERT(
+        sym.currentScope().kind() == ScopeKind::Object,
+        "We only want to prepass struct definitions. What are we doing here?");
     SC_ASSERT(varDecl.typeExpr,
               "In structs variables need explicit type "
               "specifiers. Make this a program issue.");
@@ -139,6 +147,8 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
 
 size_t Context::gather(ast::Statement& statement) {
     using enum InvalidStatement::Reason;
-    iss.push(SemanticIssue{ InvalidStatement(&statement, InvalidScopeForStatement, sym.currentScope()) });
+    iss.push(SemanticIssue{ InvalidStatement(&statement,
+                                             InvalidScopeForStatement,
+                                             sym.currentScope()) });
     return invalidIndex;
 }

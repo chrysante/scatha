@@ -16,7 +16,8 @@ template <typename>
 class VariantIssueBase; // Undefined
 
 template <std::derived_from<ProgramIssueBase>... Issues>
-class VariantIssueBase<std::variant<Issues...>>: private std::variant<Issues...> {
+class VariantIssueBase<std::variant<Issues...>>:
+    private std::variant<Issues...> {
     static_assert(utl::type_sequence<Issues...>::unique);
 
 private:
@@ -61,7 +62,9 @@ public:
     }
 
     Token const& token() const {
-        return visit([](issue::ProgramIssueBase const& base) -> auto& { return base.token(); });
+        return visit([](issue::ProgramIssueBase const& base) -> auto& {
+            return base.token();
+        });
     }
 
     SourceLocation sourceLocation() const { return token().sourceLocation; }

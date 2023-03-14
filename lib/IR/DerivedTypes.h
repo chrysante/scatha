@@ -46,7 +46,8 @@ private:
 /// Class representing the type of a function
 class FunctionType: public Type {
 public:
-    explicit FunctionType(std::span<Type* const> argumentTypes, Type* returnType);
+    explicit FunctionType(std::span<Type* const> argumentTypes,
+                          Type* returnType);
 
 private:
     utl::small_vector<Type*> _argumentTypes;

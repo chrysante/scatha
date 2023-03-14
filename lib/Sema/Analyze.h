@@ -13,7 +13,8 @@ namespace scatha::sema {
 ///
 /// \param root Root of the tree to analyze.
 /// \returns The generated symbol table.
-[[nodiscard]] SCATHA(API) SymbolTable analyze(ast::AbstractSyntaxTree& root, issue::SemaIssueHandler&);
+[[nodiscard]] SCATHA(API) SymbolTable
+    analyze(ast::AbstractSyntaxTree& root, issue::SemaIssueHandler&);
 
 } // namespace scatha::sema
 

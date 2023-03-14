@@ -11,9 +11,11 @@ using namespace ast;
 static UniquePtr<ast::Expression> parseExpression(std::string expression) {
     auto [ast, iss] = test::parse("fn testFn() { " + expression + "; }");
     assert(iss.empty());
-    auto* const tu      = cast<ast::TranslationUnit*>(ast.get());
-    auto* const testFn  = cast<ast::FunctionDefinition*>(tu->declarations[0].get());
-    auto* exprStatement = cast<ast::ExpressionStatement*>(testFn->body->statements[0].get());
+    auto* const tu = cast<ast::TranslationUnit*>(ast.get());
+    auto* const testFn =
+        cast<ast::FunctionDefinition*>(tu->declarations[0].get());
+    auto* exprStatement =
+        cast<ast::ExpressionStatement*>(testFn->body->statements[0].get());
     return std::move(exprStatement->expression);
 }
 

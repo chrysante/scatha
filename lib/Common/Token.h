@@ -43,7 +43,9 @@ struct TokenData {
 
 struct SCATHA(API) Token: public TokenData {
     Token() = default;
-    explicit Token(std::string id, TokenType type, SourceLocation sourceLocation = {}):
+    explicit Token(std::string id,
+                   TokenType type,
+                   SourceLocation sourceLocation = {}):
         Token({ std::move(id), type, sourceLocation }) {}
     explicit Token(TokenData data): TokenData(std::move(data)) { finalize(); }
 
@@ -68,7 +70,8 @@ struct SCATHA(API) Token: public TokenData {
     IdentifierCategory identifierCategory{};
 
     bool operator==(Token const& rhs) const {
-        return static_cast<TokenData const&>(*this) == static_cast<TokenData const&>(rhs);
+        return static_cast<TokenData const&>(*this) ==
+               static_cast<TokenData const&>(rhs);
     }
 
 private:

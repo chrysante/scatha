@@ -11,7 +11,8 @@ Function const* OverloadSet::find(std::span<TypeID const> argumentTypes) const {
 }
 
 std::pair<Function const*, bool> OverloadSet::add(Function* f) {
-    SC_ASSERT(f->name() == name(), "Name of function must match name of overload set");
+    SC_ASSERT(f->name() == name(),
+              "Name of function must match name of overload set");
     auto const [itr, success] = functions.insert(f);
     return { *itr, success };
 }

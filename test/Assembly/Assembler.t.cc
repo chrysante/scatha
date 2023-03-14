@@ -128,7 +128,11 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
     CHECK(state.registers[2] == 18);
 }
 
-static void testArithmeticRR(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
+static void testArithmeticRR(ArithmeticOperation operation,
+                             Type type,
+                             auto arg1,
+                             auto arg2,
+                             auto reference) {
     AssemblyStream a;
     // clang-format off
     a.add(Block(0, "start", {
@@ -142,7 +146,11 @@ static void testArithmeticRR(ArithmeticOperation operation, Type type, auto arg1
     CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
 }
 
-static void testArithmeticRV(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
+static void testArithmeticRV(ArithmeticOperation operation,
+                             Type type,
+                             auto arg1,
+                             auto arg2,
+                             auto reference) {
     AssemblyStream a;
     // clang-format off
     a.add(Block(0, "start", {
@@ -156,7 +164,11 @@ static void testArithmeticRV(ArithmeticOperation operation, Type type, auto arg1
     CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
 }
 
-static void testArithmeticRM(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
+static void testArithmeticRM(ArithmeticOperation operation,
+                             Type type,
+                             auto arg1,
+                             auto arg2,
+                             auto reference) {
     AssemblyStream a;
     // clang-format off
     a.add(Block(0, "start", {
@@ -172,7 +184,11 @@ static void testArithmeticRM(ArithmeticOperation operation, Type type, auto arg1
     CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
 }
 
-static void testArithmetic(ArithmeticOperation operation, Type type, auto arg1, auto arg2, auto reference) {
+static void testArithmetic(ArithmeticOperation operation,
+                           Type type,
+                           auto arg1,
+                           auto arg2,
+                           auto reference) {
     testArithmeticRR(operation, type, arg1, arg2, reference);
     testArithmeticRV(operation, type, arg1, arg2, reference);
     testArithmeticRM(operation, type, arg1, arg2, reference);
@@ -269,7 +285,8 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    CHECK(read<u64>(&state.registers[1]) == (arg1 <= arg2 ? value : static_cast<u64>(-1)));
+    CHECK(read<u64>(&state.registers[1]) ==
+          (arg1 <= arg2 ? value : static_cast<u64>(-1)));
 }
 
 TEST_CASE("itest, set*", "[assembly][vm]") {

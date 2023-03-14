@@ -16,7 +16,8 @@ namespace scatha::sema {
 class SCATHA(API) FunctionSignature {
 public:
     FunctionSignature() = default;
-    explicit FunctionSignature(utl::vector<TypeID> argumentTypes, TypeID returnType):
+    explicit FunctionSignature(utl::vector<TypeID> argumentTypes,
+                               TypeID returnType):
         _argumentTypeIDs(std::move(argumentTypes)),
         _returnTypeID(returnType),
         _argHash(hashArguments(argumentTypeIDs())),
@@ -27,7 +28,9 @@ public:
     /// TypeIDs of the argument types
     std::span<TypeID const> argumentTypeIDs() const { return _argumentTypeIDs; }
 
-    TypeID argumentTypeID(size_t index) const { return _argumentTypeIDs[index]; }
+    TypeID argumentTypeID(size_t index) const {
+        return _argumentTypeIDs[index];
+    }
 
     size_t argumentCount() const { return _argumentTypeIDs.size(); }
 

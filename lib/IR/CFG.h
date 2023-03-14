@@ -26,7 +26,9 @@ class Module;
 /// Every value has a type. Types are not values.
 class SCATHA(API) Value {
 protected:
-    explicit Value(NodeType nodeType, Type const* type, std::string name = {}) noexcept:
+    explicit Value(NodeType nodeType,
+                   Type const* type,
+                   std::string name = {}) noexcept:
         _nodeType(nodeType), _type(type), _name(std::move(name)) {}
 
     /// For complex initialization.
@@ -50,10 +52,12 @@ public:
 
     /// View of all users using this value.
     auto users() const {
-        return _users | ranges::views::transform([](auto&& p) { return p.first; });
+        return _users |
+               ranges::views::transform([](auto&& p) { return p.first; });
     }
 
-    /// Number of users using this value. Multiple uses by the same user are counted as one.
+    /// Number of users using this value. Multiple uses by the same user are
+    /// counted as one.
     size_t userCount() const { return _users.size(); }
 
 private:
@@ -62,7 +66,8 @@ private:
     /// Register a user of this value. Won't affect \p user
     void addUserWeak(User* user);
 
-    /// Unregister a user of this value. `this` will _not_ be cleared from the operand list of \p user
+    /// Unregister a user of this value. `this` will _not_ be cleared from the
+    /// operand list of \p user
     void removeUserWeak(User* user);
 
     template <typename>
@@ -71,6 +76,8 @@ private:
     template <typename>
     friend class ir::DynAllocator;
 
+    void privateDestroy();
+    
     /// Called by `UniquePtr`
     void privateDelete();
 
@@ -98,14 +105,24 @@ public:
 
     void removeOperand(size_t index);
 
-    /// This should proably at some point be replaced by some sort of `delete` operation
+    /// This should proably at some point be replaced by some sort of `delete`
+    /// operation
     void clearOperands();
 
 protected:
-    explicit User(NodeType nodeType, Type const* type, std::string name, std::initializer_list<Value*> operands):
-        User(nodeType, type, std::move(name), utl::small_vector<Value*>(operands)) {}
+    explicit User(NodeType nodeType,
+                  Type const* type,
+                  std::string name,
+                  std::initializer_list<Value*> operands):
+        User(nodeType,
+             type,
+             std::move(name),
+             utl::small_vector<Value*>(operands)) {}
 
-    explicit User(NodeType nodeType, Type const* type, std::string name = {}, utl::small_vector<Value*> operands = {});
+    explicit User(NodeType nodeType,
+                  Type const* type,
+                  std::string name                   = {},
+                  utl::small_vector<Value*> operands = {});
 
 private:
     utl::small_vector<Value*> _operands;
@@ -133,7 +150,9 @@ private:
 /// Represents a global floating point constant value.
 class SCATHA(API) FloatingPointConstant: public Constant {
 public:
-    explicit FloatingPointConstant(Context& context, APFloat value, size_t bitWidth);
+    explicit FloatingPointConstant(Context& context,
+                                   APFloat value,
+                                   size_t bitWidth);
 
     APFloat const& value() const { return _value; }
 
@@ -141,16 +160,21 @@ private:
     APFloat _value;
 };
 
-/// Base class of all instructions. `Instruction` inherits from `Value` as it (usually) yields a value. If an
-/// instruction does not yield a value its `Value` super class is of type void.
-class SCATHA(API) Instruction: public User, public NodeWithParent<Instruction, BasicBlock> {
+/// Base class of all instructions. `Instruction` inherits from `Value` as it
+/// (usually) yields a value. If an instruction does not yield a value its
+/// `Value` super class is of type void.
+class SCATHA(API) Instruction:
+    public User,
+    public NodeWithParent<Instruction, BasicBlock> {
 public:
-    /// View of all instructions using this value. This casts the elements in the range returned by `Value::users()` to
-    /// instructions, as instructions are only used by other instructions.
+    /// View of all instructions using this value. This casts the elements in
+    /// the range returned by `Value::users()` to instructions, as instructions
+    /// are only used by other instructions.
     auto users() const {
-        return Value::users() | ranges::views::transform([]<typename T>(T* user) {
-            return cast<utl::copy_cv_t<T, Instruction>*>(user);
-        });
+        return Value::users() |
+               ranges::views::transform([]<typename T>(T* user) {
+                   return cast<utl::copy_cv_t<T, Instruction>*>(user);
+               });
     }
 
 protected:
@@ -159,14 +183,15 @@ protected:
 
 namespace internal {
 
-/// Base class of `BasicBlock` and `Function` implementing their common container-like interface.
-/// `ValueType` is `Instruction` for `BasicBlock` and `BasicBlock` for `Function`.
+/// Base class of `BasicBlock` and `Function` implementing their common
+/// container-like interface. `ValueType` is `Instruction` for `BasicBlock` and
+/// `BasicBlock` for `Function`.
 template <typename Derived, typename ValueType>
 class CFGList {
 public:
     using Iterator      = typename List<ValueType>::iterator;
     using ConstIterator = typename List<ValueType>::const_iterator;
-    
+
     /// Callee takes ownership.
     void pushFront(ValueType* value) { insert(values.begin(), value); }
 
@@ -180,12 +205,12 @@ public:
     }
 
     /// \overload
-    void insert(ValueType const* before, ValueType* value) { insert(ConstIterator(before), value); }
-    
-    /// Erase an instruction. Clears the operands.
-    Iterator erase(ConstIterator position) {
-        return values.erase(position);
+    void insert(ValueType const* before, ValueType* value) {
+        insert(ConstIterator(before), value);
     }
+
+    /// Erase an instruction. Clears the operands.
+    Iterator erase(ConstIterator position) { return values.erase(position); }
 
     /// \overload
     Iterator erase(ValueType const* value) {
@@ -196,7 +221,7 @@ public:
     Iterator erase(ConstIterator first, ConstIterator last) {
         return values.erase(first, last);
     }
-    
+
     Iterator begin() { return values.begin(); }
     ConstIterator begin() const { return values.begin(); }
 
@@ -216,7 +241,7 @@ public:
 
     ValueType& back() { return values.back(); }
     ValueType const& back() const { return values.back(); }
-    
+
 private:
     friend class ir::BasicBlock;
     friend class ir::Function;
@@ -225,19 +250,19 @@ private:
 
 } // namespace internal
 
-/// Represents a basic block. A basic block  is a list of instructions starting with zero or more phi nodes and
-/// ending with one terminator instruction. These invariants are not enforced by this class because they may be
-/// violated during construction and transformations of the CFG.
+/// Represents a basic block. A basic block  is a list of instructions starting
+/// with zero or more phi nodes and ending with one terminator instruction.
+/// These invariants are not enforced by this class because they may be violated
+/// during construction and transformations of the CFG.
 class SCATHA(API) BasicBlock:
     public Value,
     public internal::CFGList<BasicBlock, Instruction>,
-    public NodeWithParent<BasicBlock, Function>
-{
+    public NodeWithParent<BasicBlock, Function> {
     using ListBase = internal::CFGList<BasicBlock, Instruction>;
-    
+
 public:
-    using ListBase::Iterator;
     using ListBase::ConstIterator;
+    using ListBase::Iterator;
 
     using PhiIterator      = internal::PhiIteratorImpl<false>;
     using ConstPhiIterator = internal::PhiIteratorImpl<true>;
@@ -253,8 +278,8 @@ public:
         values.splice(pos, rhs->values);
     }
 
-    /// Clear operands of all instructions of this basic block. Use this before removing a (dead) basic block from a
-    /// function.
+    /// Clear operands of all instructions of this basic block. Use this before
+    /// removing a (dead) basic block from a function.
     void clearAllOperands() {
         for (auto& inst: *this) {
             inst.clearOperands();
@@ -272,7 +297,10 @@ public:
 
     /// \overload
     Iterator erase(ConstIterator first, ConstIterator last) {
-        for (Iterator i(const_cast<Instruction*>(first.to_address())); i != last; ++i) {
+        for (Iterator i(const_cast<Instruction*>(first.to_address()));
+             i != last;
+             ++i)
+        {
             i->clearOperands();
         }
         return ListBase::erase(first, last);
@@ -286,25 +314,33 @@ public:
         erase(begin(), phiEnd);
     }
 
-    /// Extract an instruction. Does not clear the operands. Caller takes ownership of the instruction.
-    Instruction* extract(ConstIterator position) { return values.extract(position); }
+    /// Extract an instruction. Does not clear the operands. Caller takes
+    /// ownership of the instruction.
+    Instruction* extract(ConstIterator position) {
+        return values.extract(position);
+    }
 
     /// \overload
-    Instruction* extract(Instruction const* inst) { return extract(ConstIterator(inst)); }
+    Instruction* extract(Instruction const* inst) {
+        return extract(ConstIterator(inst));
+    }
 
     /// Check wether this is the entry basic block of a function
     bool isEntry() const;
 
     /// Check wether \p inst is an instruction of this basic block.
-    /// \warning This is linear in the number of instructions in this basic block.
+    /// \warning This is linear in the number of instructions in this basic
+    /// block.
     bool contains(Instruction const& inst) const;
 
-    /// Returns the terminator instruction if this basic block is well formed or nullptr
+    /// Returns the terminator instruction if this basic block is well formed or
+    /// nullptr
     TerminatorInst const* terminator() const;
 
     /// \overload
     TerminatorInst* terminator() {
-        return const_cast<TerminatorInst*>(static_cast<BasicBlock const*>(this)->terminator());
+        return const_cast<TerminatorInst*>(
+            static_cast<BasicBlock const*>(this)->terminator());
     }
 
     /// View over the phi nodes in this basic block.
@@ -325,18 +361,21 @@ public:
 
     /// Test wether \p *possiblePred is a predecessor of this basic block.
     bool isPredecessor(BasicBlock const* possiblePred) const {
-        return std::find(preds.begin(), preds.end(), possiblePred) != preds.end();
+        return std::find(preds.begin(), preds.end(), possiblePred) !=
+               preds.end();
     }
 
     /// Mark \p *pred as a predecessor of this basic block.
     /// \pre \p *pred must not yet be marked as predecessor.
     void addPredecessor(BasicBlock* pred) {
-        SC_ASSERT(!isPredecessor(pred), "This basic block already is a predecessor");
+        SC_ASSERT(!isPredecessor(pred),
+                  "This basic block already is a predecessor");
         preds.push_back(pred);
     }
 
-    /// Make \p preds the marked list of predecessors of this basic block. Caller is responsible that these basic blocks
-    /// are actually predecessords.
+    /// Make \p preds the marked list of predecessors of this basic block.
+    /// Caller is responsible that these basic blocks are actually
+    /// predecessords.
     void setPredecessors(std::span<BasicBlock* const> newPreds) {
         preds.clear();
         std::copy(newPreds.begin(), newPreds.end(), std::back_inserter(preds));
@@ -344,7 +383,9 @@ public:
 
     /// Remove \p *pred from the list of predecessors of this basic block.
     /// \pre \p *pred must be a listed predecessor of this basic block.
-    void removePredecessor(BasicBlock const* pred) { preds.erase(std::find(preds.begin(), preds.end(), pred)); }
+    void removePredecessor(BasicBlock const* pred) {
+        preds.erase(std::find(preds.begin(), preds.end(), pred));
+    }
 
     /// The basic blocks directly reachable from this basic block
     std::span<BasicBlock* const> successors();
@@ -355,31 +396,41 @@ public:
     /// Returns `true` iff this basic block has exactly one predecessor.
     bool hasSinglePredecessor() const { return preds.size() == 1; }
 
-    /// Return predecessor if this basic block has a single predecessor, else `nullptr`.
+    /// Return predecessor if this basic block has a single predecessor, else
+    /// `nullptr`.
     BasicBlock* singlePredecessor() {
-        return const_cast<BasicBlock*>(static_cast<BasicBlock const*>(this)->singlePredecessor());
+        return const_cast<BasicBlock*>(
+            static_cast<BasicBlock const*>(this)->singlePredecessor());
     }
 
     /// \overload
-    BasicBlock const* singlePredecessor() const { return hasSinglePredecessor() ? preds.front() : nullptr; }
+    BasicBlock const* singlePredecessor() const {
+        return hasSinglePredecessor() ? preds.front() : nullptr;
+    }
 
     /// Returns `true` iff this basic block has exactly one successor.
     bool hasSingleSuccessor() const { return successors().size() == 1; }
 
-    /// Return successor if this basic block has a single successor, else `nullptr`.
+    /// Return successor if this basic block has a single successor, else
+    /// `nullptr`.
     BasicBlock* singleSuccessor() {
-        return const_cast<BasicBlock*>(static_cast<BasicBlock const*>(this)->singleSuccessor());
+        return const_cast<BasicBlock*>(
+            static_cast<BasicBlock const*>(this)->singleSuccessor());
     }
 
     /// \overload
-    BasicBlock const* singleSuccessor() const { return hasSingleSuccessor() ? successors().front() : nullptr; }
+    BasicBlock const* singleSuccessor() const {
+        return hasSingleSuccessor() ? successors().front() : nullptr;
+    }
 
 private:
     utl::small_vector<BasicBlock*> preds;
 };
 
 /// Represents a function parameter.
-class SCATHA(API) Parameter: public Value, public NodeWithParent<Parameter, Function> {
+class SCATHA(API) Parameter:
+    public Value,
+    public NodeWithParent<Parameter, Function> {
     using NodeBase = NodeWithParent<Parameter, Function>;
 
 public:
@@ -387,37 +438,41 @@ public:
         Value(NodeType::Parameter, type, std::move(name)), NodeBase(parent) {}
 };
 
-/// Represents a function. A function is a prototype with a list of basic blocks.
+/// Represents a function. A function is a prototype with a list of basic
+/// blocks.
 class SCATHA(API) Function:
     public Constant,
     public internal::CFGList<Function, BasicBlock>,
-    public NodeWithParent<Function, Module>
-{
+    public NodeWithParent<Function, Module> {
     using ListBase = internal::CFGList<Function, BasicBlock>;
-    
+
     static auto getParametersImpl(auto&& self) {
-        /// Trick to return a view over parameters without returning the `List<>` itself.
-        return self.params | ranges::views::transform([](auto& param) -> auto& {
-            return param;
-        });
+        /// Trick to return a view over parameters without returning the
+        /// `List<>` itself.
+        return self.params | ranges::views::transform(
+                                 [](auto& param) -> auto& { return param; });
     }
-    
+
     template <typename Itr, typename Self>
     static ranges::subrange<Itr> getInstructionsImpl(Self&& self) {
         using InstItr = typename Itr::InstructionIterator;
-        Itr const begin(self.values.begin(), self.values.empty() ? InstItr{} : self.values.front().begin());
+        Itr const begin(self.values.begin(),
+                        self.values.empty() ? InstItr{} :
+                                              self.values.front().begin());
         Itr const end(self.values.end(), InstItr{});
         return { begin, end };
     }
-    
+
 public:
-    using ListBase::Iterator;
     using ListBase::ConstIterator;
-    
+    using ListBase::Iterator;
+
     using InstructionIterator =
-        internal::InstructionIteratorImpl<Function::Iterator, BasicBlock::Iterator>;
+        internal::InstructionIteratorImpl<Function::Iterator,
+                                          BasicBlock::Iterator>;
     using ConstInstructionIterator =
-        internal::InstructionIteratorImpl<Function::ConstIterator, BasicBlock::ConstIterator>;
+        internal::InstructionIteratorImpl<Function::ConstIterator,
+                                          BasicBlock::ConstIterator>;
 
     explicit Function(FunctionType const* functionType,
                       Type const* returnType,
@@ -427,34 +482,36 @@ public:
     Type const* returnType() const { return _returnType; }
 
     /// View over function parameters
-    auto parameters() {
-        return getParametersImpl(*this);
-    }
-    
+    auto parameters() { return getParametersImpl(*this); }
+
     /// \overload
-    auto parameters() const {
-        return getParametersImpl(*this);
-    }
+    auto parameters() const { return getParametersImpl(*this); }
 
     BasicBlock& entry() { return front(); }
     BasicBlock const& entry() const { return front(); }
 
     /// View over all instructions in this `Function`.
-    ranges::subrange<InstructionIterator> instructions() { return getInstructionsImpl<InstructionIterator>(*this); }
-    
+    ranges::subrange<InstructionIterator> instructions() {
+        return getInstructionsImpl<InstructionIterator>(*this);
+    }
+
     /// \overload
-    auto instructions() const { return getInstructionsImpl<ConstInstructionIterator>(*this); }
-    
+    auto instructions() const {
+        return getInstructionsImpl<ConstInstructionIterator>(*this);
+    }
+
 private:
     Type const* _returnType;
     List<Parameter> params;
 };
 
-/// `alloca` instruction. Allocates automatically managed memory for local variables. Its value is a pointer to the
-/// allocated memory.
+/// `alloca` instruction. Allocates automatically managed memory for local
+/// variables. Its value is a pointer to the allocated memory.
 class SCATHA(API) Alloca: public Instruction {
 public:
-    explicit Alloca(Context& context, Type const* allocatedType, std::string name);
+    explicit Alloca(Context& context,
+                    Type const* allocatedType,
+                    std::string name);
 
     Type const* allocatedType() const { return _allocatedType; }
 
@@ -465,7 +522,10 @@ private:
 /// Base class of all unary instructions.
 class SCATHA(API) UnaryInstruction: public Instruction {
 protected:
-    explicit UnaryInstruction(NodeType nodeType, Value* operand, Type const* type, std::string name):
+    explicit UnaryInstruction(NodeType nodeType,
+                              Value* operand,
+                              Type const* type,
+                              std::string name):
         Instruction(nodeType, type, std::move(name), { operand }) {}
 
 public:
@@ -481,7 +541,8 @@ public:
     explicit Load(Value* address, std::string name):
         UnaryInstruction(NodeType::Load,
                          address,
-                         cast<PointerType const*>(address->type())->pointeeType(),
+                         cast<PointerType const*>(address->type())
+                             ->pointeeType(),
                          std::move(name)) {}
 
     Value* address() { return operand(); }
@@ -491,7 +552,11 @@ public:
 /// Base class of all binary instructions.
 class SCATHA(API) BinaryInstruction: public Instruction {
 protected:
-    explicit BinaryInstruction(NodeType nodeType, Value* lhs, Value* rhs, Type const* type, std::string name = {}):
+    explicit BinaryInstruction(NodeType nodeType,
+                               Value* lhs,
+                               Value* rhs,
+                               Type const* type,
+                               std::string name = {}):
         Instruction(nodeType, type, std::move(name), { lhs, rhs }) {}
 
 public:
@@ -515,10 +580,15 @@ public:
 };
 
 /// `cmp` instruction.
-/// TODO: Rename to 'Compare' or find a uniform naming scheme across the IR module.
+/// TODO: Rename to 'Compare' or find a uniform naming scheme across the IR
+/// module.
 class SCATHA(API) CompareInst: public BinaryInstruction {
 public:
-    explicit CompareInst(Context& context, Value* lhs, Value* rhs, CompareOperation op, std::string name);
+    explicit CompareInst(Context& context,
+                         Value* lhs,
+                         Value* rhs,
+                         CompareOperation op,
+                         std::string name);
 
     CompareOperation operation() const { return _op; }
 
@@ -529,7 +599,10 @@ private:
 /// Represents a unary arithmetic instruction.
 class SCATHA(API) UnaryArithmeticInst: public UnaryInstruction {
 public:
-    explicit UnaryArithmeticInst(Context& context, Value* operand, UnaryArithmeticOperation op, std::string name);
+    explicit UnaryArithmeticInst(Context& context,
+                                 Value* operand,
+                                 UnaryArithmeticOperation op,
+                                 std::string name);
 
     UnaryArithmeticOperation operation() const { return _op; }
 
@@ -540,7 +613,10 @@ private:
 /// Represents a binary arithmetic instruction.
 class SCATHA(API) ArithmeticInst: public BinaryInstruction {
 public:
-    explicit ArithmeticInst(Value* lhs, Value* rhs, ArithmeticOperation op, std::string name);
+    explicit ArithmeticInst(Value* lhs,
+                            Value* rhs,
+                            ArithmeticOperation op,
+                            std::string name);
 
     ArithmeticOperation operation() const { return _op; }
 
@@ -567,21 +643,31 @@ protected:
     utl::small_vector<BasicBlock*> _targets;
 };
 
-/// `goto` instruction. Leave the current basic block and unconditionally enter the target basic block.
+/// `goto` instruction. Leave the current basic block and unconditionally enter
+/// the target basic block.
 class Goto: public TerminatorInst {
 public:
-    explicit Goto(Context& context, BasicBlock* target): TerminatorInst(NodeType::Goto, context, { target }) {}
+    explicit Goto(Context& context, BasicBlock* target):
+        TerminatorInst(NodeType::Goto, context, { target }) {}
 
     BasicBlock* target() { return targets()[0]; }
     BasicBlock const* target() const { return targets()[0]; }
 };
 
-/// `branch` instruction. Leave the current basic block and choose a target basic block based on a condition.
+/// `branch` instruction. Leave the current basic block and choose a target
+/// basic block based on a condition.
 class SCATHA(API) Branch: public TerminatorInst {
 public:
-    explicit Branch(Context& context, Value* condition, BasicBlock* thenTarget, BasicBlock* elseTarget):
-        TerminatorInst(NodeType::Branch, context, { thenTarget, elseTarget }, { condition }) {
-        SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1, "Condition must be of type i1");
+    explicit Branch(Context& context,
+                    Value* condition,
+                    BasicBlock* thenTarget,
+                    BasicBlock* elseTarget):
+        TerminatorInst(NodeType::Branch,
+                       context,
+                       { thenTarget, elseTarget },
+                       { condition }) {
+        SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1,
+                  "Condition must be of type i1");
     }
 
     Value* condition() { return operands()[0]; }
@@ -595,23 +681,31 @@ public:
 /// `return` instruction. Return control flow to the calling function.
 class SCATHA(API) Return: public TerminatorInst {
 public:
-    explicit Return(Context& context, Value* value): TerminatorInst(NodeType::Return, context, {}, { value }) {
+    explicit Return(Context& context, Value* value):
+        TerminatorInst(NodeType::Return, context, {}, { value }) {
         SC_ASSERT(value != nullptr, "We don't want null operands");
     }
 
-    explicit Return(Context& context): TerminatorInst(NodeType::Return, context, {}, {}) {}
+    explicit Return(Context& context):
+        TerminatorInst(NodeType::Return, context, {}, {}) {}
 
     /// May be null in case of a void function
-    Value* value() { return const_cast<Value*>(static_cast<Return const*>(this)->value()); }
+    Value* value() {
+        return const_cast<Value*>(static_cast<Return const*>(this)->value());
+    }
 
     /// May be null in case of a void function
-    Value const* value() const { return operands().empty() ? nullptr : operands()[0]; }
+    Value const* value() const {
+        return operands().empty() ? nullptr : operands()[0];
+    }
 };
 
 /// `call` instruction. Calls a function.
 class SCATHA(API) FunctionCall: public Instruction {
 public:
-    explicit FunctionCall(Function* function, std::span<Value* const> arguments, std::string name = {});
+    explicit FunctionCall(Function* function,
+                          std::span<Value* const> arguments,
+                          std::string name = {});
 
     Function* function() { return _function; }
     Function const* function() const { return _function; }
@@ -662,17 +756,20 @@ public:
 
     /// Construct a phi node with a set of arguments.
     explicit Phi(std::span<PhiMapping const> args, std::string name):
-        Phi(nullptr /* Type will be set by call to setArguments() */, std::move(name)) {
+        Phi(nullptr /* Type will be set by call to setArguments() */,
+            std::move(name)) {
         setArguments(args);
     }
 
     /// Construct an empty phi node.
-    explicit Phi(Type const* type, std::string name = {}): Instruction(NodeType::Phi, type, std::move(name), {}) {}
+    explicit Phi(Type const* type, std::string name = {}):
+        Instruction(NodeType::Phi, type, std::move(name), {}) {}
 
     /// Assign arguments to this phi node.
     void setArguments(std::span<PhiMapping const> args);
 
-    /// Number of arguments. Must match the number of predecessors of parent basic block.
+    /// Number of arguments. Must match the number of predecessors of parent
+    /// basic block.
     size_t argumentCount() const { return _preds.size(); }
 
     /// Access argument pair at index \p index
@@ -687,7 +784,8 @@ public:
         return { _preds[index], operands()[index] };
     }
 
-    /// View over all incoming edges. Must be the same as predecessors of parent basic block.
+    /// View over all incoming edges. Must be the same as predecessors of parent
+    /// basic block.
     std::span<BasicBlock* const> incomingEdges() { return _preds; }
 
     /// \overload
@@ -702,16 +800,21 @@ public:
     /// \overload
     auto arguments() const {
         return ranges::views::zip(_preds, operands()) |
-               ranges::views::transform([](auto p) -> ConstPhiMapping { return p; });
+               ranges::views::transform(
+                   [](auto p) -> ConstPhiMapping { return p; });
     }
 
     size_t indexOf(BasicBlock const* predecessor) const {
-        return utl::narrow_cast<size_t>(std::find(_preds.begin(), _preds.end(), predecessor) - _preds.begin());
+        return utl::narrow_cast<size_t>(
+            std::find(_preds.begin(), _preds.end(), predecessor) -
+            _preds.begin());
     }
 
     /// Remove the argument corresponding to \p *predecessor
     /// \p *predecessor must be an argument of this phi instruction.
-    void removeArgument(BasicBlock const* predecessor) { removeArgument(indexOf(predecessor)); }
+    void removeArgument(BasicBlock const* predecessor) {
+        removeArgument(indexOf(predecessor));
+    }
 
     /// Remove the argument at index \p index
     void removeArgument(size_t index) {
@@ -723,7 +826,8 @@ private:
     utl::small_vector<BasicBlock*> _preds;
 };
 
-/// `gep` or GetElementPointer instruction. Calculate offset pointer to a structure member or array element.
+/// `gep` or GetElementPointer instruction. Calculate offset pointer to a
+/// structure member or array element.
 class GetElementPointer: public Instruction {
 public:
     explicit GetElementPointer(Context& context,
@@ -736,10 +840,13 @@ public:
 
     Type const* accessedType() const { return accType; }
 
-    Type const* pointeeType() const { return cast<PointerType const*>(type())->pointeeType(); }
+    Type const* pointeeType() const {
+        return cast<PointerType const*>(type())->pointeeType();
+    }
 
     bool isAllConstant() const {
-        return isa<IntegralConstant>(arrayIndex()) && isa<IntegralConstant>(structMemberIndex());
+        return isa<IntegralConstant>(arrayIndex()) &&
+               isa<IntegralConstant>(structMemberIndex());
     }
 
     Value* basePointer() { return operands()[0]; }
@@ -752,11 +859,15 @@ public:
     Value const* structMemberIndex() const { return operands()[2]; }
 
     size_t const constantArrayIndex() const {
-        return cast<IntegralConstant const*>(arrayIndex())->value().to<size_t>();
+        return cast<IntegralConstant const*>(arrayIndex())
+            ->value()
+            .to<size_t>();
     }
 
     size_t const constantStructMemberIndex() const {
-        return cast<IntegralConstant const*>(structMemberIndex())->value().to<size_t>();
+        return cast<IntegralConstant const*>(structMemberIndex())
+            ->value()
+            .to<size_t>();
     }
 
     size_t const constantByteOffset() const {
@@ -782,7 +893,9 @@ public:
 
     bool indexIsConstant() const { return isa<IntegralConstant>(_index); }
 
-    size_t constantIndex() const { return cast<IntegralConstant const*>(_index)->value().to<size_t>(); }
+    size_t constantIndex() const {
+        return cast<IntegralConstant const*>(_index)->value().to<size_t>();
+    }
 
 private:
     Value* _index;
@@ -790,11 +903,18 @@ private:
 
 } // namespace internal
 
-/// `extract_value` instruction. Extract the value of a structure member or array element.
+/// `extract_value` instruction. Extract the value of a structure member or
+/// array element.
 class ExtractValue: public UnaryInstruction, public internal::AccessValueBase {
 public:
-    explicit ExtractValue(Type const* memberType, Value* baseValue, Value* index, std::string name):
-        UnaryInstruction(NodeType::ExtractValue, baseValue, memberType, std::move(name)),
+    explicit ExtractValue(Type const* memberType,
+                          Value* baseValue,
+                          Value* index,
+                          std::string name):
+        UnaryInstruction(NodeType::ExtractValue,
+                         baseValue,
+                         memberType,
+                         std::move(name)),
         internal::AccessValueBase(index) {}
 
     /// The structure or array being accessed. Same as `operand()`
@@ -807,8 +927,15 @@ public:
 /// `insert_value` instruction. Insert a value into a structure or array.
 class InsertValue: public BinaryInstruction, public internal::AccessValueBase {
 public:
-    explicit InsertValue(Value* baseValue, Value* insertedValue, Value* index, std::string name):
-        BinaryInstruction(NodeType::InsertValue, baseValue, insertedValue, baseValue->type(), std::move(name)),
+    explicit InsertValue(Value* baseValue,
+                         Value* insertedValue,
+                         Value* index,
+                         std::string name):
+        BinaryInstruction(NodeType::InsertValue,
+                          baseValue,
+                          insertedValue,
+                          baseValue->type(),
+                          std::move(name)),
         internal::AccessValueBase(index) {}
 
     /// The structure or array being accessed. Same as `lhs()`

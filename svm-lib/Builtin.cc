@@ -35,6 +35,7 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
         f64 const result = std::sqrt(arg);
         store(regPtr, result);
     };
-    assert(static_cast<size_t>(Builtin::_count) == k && "Missing builtin functions.");
+    assert(static_cast<size_t>(Builtin::_count) == k &&
+           "Missing builtin functions.");
     return result;
 }

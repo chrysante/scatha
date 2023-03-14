@@ -79,7 +79,8 @@ void playground::compile(std::string text) {
         utl::print("Lexical issues:\n");
         for (auto& issue: lexIss.issues()) {
             issue.visit([]<typename T>(T const& iss) {
-                std::cout << iss.token().sourceLocation << " " << iss.token() << " : " << utl::nameof<T> << std::endl;
+                std::cout << iss.token().sourceLocation << " " << iss.token()
+                          << " : " << utl::nameof<T> << std::endl;
             });
         }
     }
@@ -113,18 +114,22 @@ void playground::compile(std::string text) {
         for (auto const& issue: semaIss.issues()) {
             issue.visit([](auto const& issue) {
                 auto const loc = issue.token().sourceLocation;
-                std::cout << "Line " << loc.line << " Col " << loc.column << ": ";
-                std::cout << utl::nameof<std::decay_t<decltype(issue)>> << "\n\t";
+                std::cout << "Line " << loc.line << " Col " << loc.column
+                          << ": ";
+                std::cout
+                    << utl::nameof<std::decay_t<decltype(issue)>> << "\n\t";
             });
             issue.visit(utl::visitor{ [&](sema::InvalidDeclaration const& e) {
-                                         std::cout << "Invalid declaration (" << e.reason() << "): ";
+                                         std::cout << "Invalid declaration ("
+                                                   << e.reason() << "): ";
                                          std::cout << std::endl;
                                      },
                                       [&](sema::BadTypeConversion const& e) {
                 std::cout << "Bad type conversion: ";
                 ast::printExpression(e.expression());
                 std::cout << std::endl;
-                std::cout << "\tFrom " << sym.getName(e.from()) << " to " << sym.getName(e.to()) << "\n";
+                std::cout << "\tFrom " << sym.getName(e.from()) << " to "
+                          << sym.getName(e.to()) << "\n";
                                      },
                                       [&](sema::BadFunctionCall const& e) {
                 std::cout << "Bad function call: " << e.reason() << ": ";
@@ -134,9 +139,12 @@ void playground::compile(std::string text) {
                         [&](sema::UseOfUndeclaredIdentifier const& e) {
                 std::cout << "Use of undeclared identifier ";
                 ast::printExpression(e.expression());
-                std::cout << " in scope: " << e.currentScope().name() << std::endl;
+                std::cout << " in scope: " << e.currentScope().name()
+                          << std::endl;
             },
-                [](issue::ProgramIssueBase const&) { std::cout << std::endl; } });
+                [](issue::ProgramIssueBase const&) {
+                std::cout << std::endl;
+            } });
             std::cout << std::endl;
         }
     }
@@ -181,7 +189,10 @@ void playground::compile(std::string text) {
         std::cout << "No main function defined!\n";
         return;
     }
-    auto const program = Asm::assemble(str0, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
+    auto const program =
+        Asm::assemble(str0,
+                      { .startFunction =
+                            utl::format("main{:x}", mainID.rawValue()) });
     svm::print(program.data());
     subHeader();
 
@@ -189,8 +200,10 @@ void playground::compile(std::string text) {
     vm.loadProgram(program.data());
     vm.execute();
     u64 const exitCode = vm.getState().registers[0];
-    std::cout << "VM: Program ended with exit code: [\n\ti: " << static_cast<i64>(exitCode) << ", \n\tu: " << exitCode
-              << ", \n\tf: " << utl::bit_cast<f64>(exitCode) << "\n]" << std::endl;
+    std::cout << "VM: Program ended with exit code: [\n\ti: "
+              << static_cast<i64>(exitCode) << ", \n\tu: " << exitCode
+              << ", \n\tf: " << utl::bit_cast<f64>(exitCode) << "\n]"
+              << std::endl;
 
     subHeader();
 }

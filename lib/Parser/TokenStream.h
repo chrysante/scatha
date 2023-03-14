@@ -29,14 +29,14 @@ public:
     /// \returns A reference to the next token in the stream.
     ///
     /// \details
-    /// 1.  Always returns a valid reference, however it must not be called after
-    /// end of file has been returned.
+    /// 1.  Always returns a valid reference, however it must not be called
+    /// after end of file has been returned.
     /// 2. When called in a loop, the stream will be iterated.
     Token const& eat();
 
-    /// Advance the token stream to the next token with `token.id == id` or past the next separator.
-    /// After calling this function a call to `current()` will return the next token with specified id or a  separator
-    /// token.
+    /// Advance the token stream to the next token with `token.id == id` or past
+    /// the next separator. After calling this function a call to `current()`
+    /// will return the next token with specified id or a  separator token.
     ///
     /// \returns `true` iff \p id was found before a separator.
     bool advanceTo(std::string_view id);
@@ -47,8 +47,8 @@ public:
     /// \returns A reference to the next token in the stream.
     ///
     /// \details
-    /// 1.  Always returns a valid reference, however it must not be called after
-    /// end of file has been returned by `eat()`.
+    /// 1.  Always returns a valid reference, however it must not be called
+    /// after end of file has been returned by `eat()`.
     /// 2. Always returns the same token when called in a loop.
     Token const& peek();
 

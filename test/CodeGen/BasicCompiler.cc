@@ -30,7 +30,8 @@
 using namespace scatha;
 
 struct OptimizationLevel {
-    OptimizationLevel(std::invocable<ir::Context&, ir::Module&> auto&& f): optFunc(f) {}
+    OptimizationLevel(std::invocable<ir::Context&, ir::Module&> auto&& f):
+        optFunc(f) {}
 
     void run(ir::Context& ctx, ir::Module& mod) const { optFunc(ctx, mod); }
 
@@ -70,10 +71,13 @@ static auto compile(std::string_view text, OptimizationLevel optLevel) {
         }
         return mainFn->symbolID();
     }();
-    return Asm::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
+    return Asm::assemble(asmStream,
+                         { .startFunction =
+                               utl::format("main{:x}", mainID.rawValue()) });
 }
 
-static u64 compileAndExecute(std::string_view text, OptimizationLevel optLevel) {
+static u64 compileAndExecute(std::string_view text,
+                             OptimizationLevel optLevel) {
     auto const p = compile(text, optLevel);
     svm::VirtualMachine vm;
     vm.loadProgram(p.data());

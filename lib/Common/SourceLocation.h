@@ -15,16 +15,20 @@ struct SourceLocation {
     i32 line = 0, column = 0;
 };
 
-inline bool operator==(SourceLocation const& lhs, SourceLocation const& rhs) noexcept {
+inline bool operator==(SourceLocation const& lhs,
+                       SourceLocation const& rhs) noexcept {
     bool const result = lhs.index == rhs.index;
     if (result) {
-        SC_ASSERT(lhs.line == rhs.line, "Line number must match for the same index.");
-        SC_ASSERT(lhs.column == rhs.column, "Column number must match for the same index.");
+        SC_ASSERT(lhs.line == rhs.line,
+                  "Line number must match for the same index.");
+        SC_ASSERT(lhs.column == rhs.column,
+                  "Column number must match for the same index.");
     }
     return result;
 }
 
-inline std::strong_ordering operator<=>(SourceLocation const& lhs, SourceLocation const& rhs) noexcept {
+inline std::strong_ordering operator<=>(SourceLocation const& lhs,
+                                        SourceLocation const& rhs) noexcept {
     return lhs.index <=> rhs.index;
 }
 

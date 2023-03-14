@@ -9,7 +9,9 @@ void parse::panic(TokenStream& tokens, PanicOptions const options) {
     if (tokens.index() == tokens.size() - 1) {
         return;
     }
-    for (ssize_t numOpenBrace = 0, numOpenParan = 0, numOpenBracket = 0; tokens.index() < tokens.size();) {
+    for (ssize_t numOpenBrace = 0, numOpenParan = 0, numOpenBracket = 0;
+         tokens.index() < tokens.size();)
+    {
         Token const& next = tokens.peek();
         if (next.id == "{") {
             ++numOpenBrace;

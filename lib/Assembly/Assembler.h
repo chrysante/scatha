@@ -17,7 +17,8 @@ struct AssemblerOptions {
     std::string startFunction;
 };
 
-[[nodiscard]] SCATHA(API) utl::vector<u8> assemble(AssemblyStream const& assemblyStream, AssemblerOptions options = {});
+[[nodiscard]] SCATHA(API) utl::vector<u8> assemble(
+    AssemblyStream const& assemblyStream, AssemblerOptions options = {});
 
 } // namespace scatha::Asm
 

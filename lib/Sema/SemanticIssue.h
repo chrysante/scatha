@@ -54,7 +54,8 @@ private:
 
 class SCATHA(API) BadOperandForUnaryExpression: public BadExpression {
 public:
-    explicit BadOperandForUnaryExpression(ast::Expression const& expression, TypeID operand);
+    explicit BadOperandForUnaryExpression(ast::Expression const& expression,
+                                          TypeID operand);
 
     TypeID operand() const { return _operand; }
 
@@ -64,7 +65,9 @@ private:
 
 class SCATHA(API) BadOperandsForBinaryExpression: public BadExpression {
 public:
-    explicit BadOperandsForBinaryExpression(ast::Expression const& expression, TypeID lhs, TypeID rhs):
+    explicit BadOperandsForBinaryExpression(ast::Expression const& expression,
+                                            TypeID lhs,
+                                            TypeID rhs):
         BadExpression(expression), _lhs(lhs), _rhs(rhs) {}
 
     TypeID lhs() const { return _lhs; }
@@ -89,7 +92,10 @@ public:
                              SymbolID overloadSetID,
                              utl::small_vector<TypeID> argTypeIDs,
                              Reason reason):
-        BadExpression(expression), _reason(reason), _argTypeIDs(std::move(argTypeIDs)), _overloadSetID(overloadSetID) {}
+        BadExpression(expression),
+        _reason(reason),
+        _argTypeIDs(std::move(argTypeIDs)),
+        _overloadSetID(overloadSetID) {}
 
     Reason reason() const { return _reason; }
     std::span<TypeID const> argumentTypeIDs() const { return _argTypeIDs; }
@@ -105,7 +111,8 @@ SCATHA(API) std::ostream& operator<<(std::ostream&, BadFunctionCall::Reason);
 
 class SCATHA(API) UseOfUndeclaredIdentifier: public BadExpression {
 public:
-    explicit UseOfUndeclaredIdentifier(ast::Expression const& expression, Scope const& inScope):
+    explicit UseOfUndeclaredIdentifier(ast::Expression const& expression,
+                                       Scope const& inScope):
         BadExpression(expression), _scope(&inScope) {}
 
     Scope const& currentScope() const { return *_scope; }
@@ -132,10 +139,17 @@ private:
 /// MARK: Statement Issues
 class SCATHA(API) InvalidStatement: public IssueBase {
 public:
-    enum class Reason { ExpectedDeclaration, InvalidDeclaration, InvalidScopeForStatement, _count };
+    enum class Reason {
+        ExpectedDeclaration,
+        InvalidDeclaration,
+        InvalidScopeForStatement,
+        _count
+    };
 
 public:
-    explicit InvalidStatement(ast::Statement const* statement, Reason reason, Scope const& inScope);
+    explicit InvalidStatement(ast::Statement const* statement,
+                              Reason reason,
+                              Scope const& inScope);
 
     ast::Statement const& statement() const { return *_statement; }
 
@@ -165,12 +179,15 @@ public:
     };
 
 public:
-    explicit InvalidDeclaration(ast::Statement const* statement,
-                                Reason reason,
-                                Scope const& currentScope,
-                                SymbolCategory symbolCategory,
-                                std::optional<SymbolCategory> existingSymbolCategory = std::nullopt):
-        InvalidStatement(statement, InvalidStatement::Reason::InvalidDeclaration, currentScope),
+    explicit InvalidDeclaration(
+        ast::Statement const* statement,
+        Reason reason,
+        Scope const& currentScope,
+        SymbolCategory symbolCategory,
+        std::optional<SymbolCategory> existingSymbolCategory = std::nullopt):
+        InvalidStatement(statement,
+                         InvalidStatement::Reason::InvalidDeclaration,
+                         currentScope),
         _reason(reason),
         _category(symbolCategory),
         _existingCategory(existingSymbolCategory.value_or(symbolCategory)) {}
@@ -225,11 +242,14 @@ using IssueVariant = std::variant<BadTypeConversion,
 
 } // namespace internal
 
-class SCATHA(API) SemanticIssue: public issue::internal::VariantIssueBase<internal::IssueVariant> {
+class SCATHA(API) SemanticIssue:
+    public issue::internal::VariantIssueBase<internal::IssueVariant> {
 public:
-    using issue::internal::VariantIssueBase<internal::IssueVariant>::VariantIssueBase;
+    using issue::internal::VariantIssueBase<
+        internal::IssueVariant>::VariantIssueBase;
 
-    /// Weirdly enough this won't compile. We also don't really need the function though.
+    /// Weirdly enough this won't compile. We also don't really need the
+    /// function though.
 #if 0
     ast::Statement const& statement() const {
         return visit<ast::Statement const&>([&](InvalidStatement const& e) -> auto& {

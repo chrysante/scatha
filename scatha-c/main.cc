@@ -29,7 +29,8 @@ using namespace scatha;
 
 static void printIssueEncounters(size_t count, std::string_view kind) {
     tfmt::format(tfmt::brightRed, std::cout, [&] {
-        std::cout << "\nEncoutered " << count << " " << kind << " issue" << (count == 1 ? "" : "s") << "\n\n";
+        std::cout << "\nEncoutered " << count << " " << kind << " issue"
+                  << (count == 1 ? "" : "s") << "\n\n";
     });
 }
 
@@ -40,7 +41,8 @@ static void printLexicalIssues(issue::LexicalIssueHandler const& iss) {
     printIssueEncounters(iss.issues().size(), "lexical");
     for (auto& issue: iss.issues()) {
         issue.visit([]<typename T>(T const& iss) {
-            std::cout << iss.token().sourceLocation << " " << iss.token() << " : " << utl::nameof<T> << std::endl;
+            std::cout << iss.token().sourceLocation << " " << iss.token()
+                      << " : " << utl::nameof<T> << std::endl;
         });
     }
 }
@@ -57,7 +59,8 @@ static void printSyntaxIssues(issue::SyntaxIssueHandler const& iss) {
     }
 }
 
-static void printSemaIssues(issue::SemaIssueHandler const& iss, sema::SymbolTable const& sym) {
+static void printSemaIssues(issue::SemaIssueHandler const& iss,
+                            sema::SymbolTable const& sym) {
     if (iss.issues().empty()) {
         return;
     }
@@ -152,24 +155,33 @@ int main(int argc, char* argv[]) {
         return mainFn->symbolID();
     }();
     if (!mainID) {
-        std::cout << tfmt::format(tfmt::brightRed, "No main function defined!\n");
+        std::cout << tfmt::format(tfmt::brightRed,
+                                  "No main function defined!\n");
         return -1;
     }
 
     /// Assemble program
-    auto program = Asm::assemble(asmStream, { .startFunction = utl::format("main{:x}", mainID.rawValue()) });
+    auto program =
+        Asm::assemble(asmStream,
+                      { .startFunction =
+                            utl::format("main{:x}", mainID.rawValue()) });
 
     if (options.time) {
         auto const compileEndTime = std::chrono::high_resolution_clock::now();
         auto const dur            = compileEndTime - compileBeginTime;
         std::cout << "Compilation took "
-                  << std::chrono::duration_cast<std::chrono::nanoseconds>(dur).count() / 1'000'000.0 << "ms\n";
+                  << std::chrono::duration_cast<std::chrono::nanoseconds>(dur)
+                             .count() /
+                         1'000'000.0
+                  << "ms\n";
     }
 
     if (options.objpath.empty()) {
-        options.objpath = options.filepath.parent_path() / options.filepath.stem().concat(".sbin");
+        options.objpath = options.filepath.parent_path() /
+                          options.filepath.stem().concat(".sbin");
     }
-    std::fstream out(options.objpath, std::ios::out | std::ios::trunc | std::ios::binary);
+    std::fstream out(options.objpath,
+                     std::ios::out | std::ios::trunc | std::ios::binary);
     if (!out) {
         std::cout << "Failed to emit binary\n";
         std::cout << "Target was: " << options.objpath << "\n";

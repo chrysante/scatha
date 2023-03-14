@@ -52,8 +52,9 @@ IntegralConstant* Context::integralConstant(APInt value) {
     size_t const bitwidth = value.bitwidth();
     auto itr              = _integralConstants.find({ value, bitwidth });
     if (itr == _integralConstants.end()) {
-        std::tie(itr, std::ignore) =
-            _integralConstants.insert({ { value, bitwidth }, new IntegralConstant(*this, value, bitwidth) });
+        std::tie(itr, std::ignore) = _integralConstants.insert(
+            { { value, bitwidth },
+              new IntegralConstant(*this, value, bitwidth) });
     }
     SC_ASSERT(ucmp(itr->second->value(), value) == 0, "Value mismatch");
     return itr->second;
@@ -66,15 +67,17 @@ IntegralConstant* Context::integralConstant(u64 value, size_t bitWidth) {
 FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitWidth) {
     auto itr = _floatConstants.find({ value, bitWidth });
     if (itr == _floatConstants.end()) {
-        std::tie(itr, std::ignore) =
-            _floatConstants.insert({ { value, bitWidth }, new FloatingPointConstant(*this, value, bitWidth) });
+        std::tie(itr, std::ignore) = _floatConstants.insert(
+            { { value, bitWidth },
+              new FloatingPointConstant(*this, value, bitWidth) });
     }
     SC_ASSERT(itr->second->value() == value, "Value mismatch");
     return itr->second;
 }
 
 void Context::addGlobal(Constant* constant) {
-    auto const [_, success] = _globals.insert({ std::string(constant->name()), constant });
+    auto const [_, success] =
+        _globals.insert({ std::string(constant->name()), constant });
     SC_ASSERT(success, "Name already in use?");
 }
 

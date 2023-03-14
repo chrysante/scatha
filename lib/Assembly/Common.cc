@@ -60,7 +60,8 @@ std::string_view Asm::toString(UnaryArithmeticOperation operation) {
     }[static_cast<size_t>(operation)];
 }
 
-std::ostream& Asm::operator<<(std::ostream& ostream, UnaryArithmeticOperation operation) {
+std::ostream& Asm::operator<<(std::ostream& ostream,
+                              UnaryArithmeticOperation operation) {
     return ostream << toString(operation);
 }
 
@@ -71,6 +72,7 @@ std::string_view Asm::toString(ArithmeticOperation operation) {
     }[static_cast<size_t>(operation)];
 }
 
-std::ostream& Asm::operator<<(std::ostream& ostream, ArithmeticOperation operation) {
+std::ostream& Asm::operator<<(std::ostream& ostream,
+                              ArithmeticOperation operation) {
     return ostream << toString(operation);
 }

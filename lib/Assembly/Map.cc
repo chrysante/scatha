@@ -7,7 +7,9 @@ using namespace Asm;
 
 using svm::OpCode;
 
-std::pair<OpCode, size_t> Asm::mapMove(ValueType dest, ValueType source, size_t size) {
+std::pair<OpCode, size_t> Asm::mapMove(ValueType dest,
+                                       ValueType source,
+                                       size_t size) {
     if (dest == ValueType::RegisterIndex) {
         switch (source) {
         case ValueType::RegisterIndex: return { OpCode::mov64RR, 8 };
@@ -26,7 +28,8 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest, ValueType source, size_t 
         default: SC_DEBUGFAIL(); // No matching instruction
         }
     }
-    if (dest == ValueType::MemoryAddress && source == ValueType::RegisterIndex) {
+    if (dest == ValueType::MemoryAddress && source == ValueType::RegisterIndex)
+    {
         switch (size) {
         case 1: return { OpCode::mov8MR, 1 };
         case 2: return { OpCode::mov16MR, 2 };
@@ -38,9 +41,8 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest, ValueType source, size_t 
     SC_DEBUGFAIL(); // No matching instruction
 }
 
-// clang-format off
-
 OpCode Asm::mapJump(CompareOperation condition) {
+    // clang-format off
     return UTL_MAP_ENUM(condition, OpCode, {
         { CompareOperation::None,      OpCode::jmp },
         { CompareOperation::Less,      OpCode::jl  },
@@ -49,36 +51,40 @@ OpCode Asm::mapJump(CompareOperation condition) {
         { CompareOperation::GreaterEq, OpCode::jge },
         { CompareOperation::Eq,        OpCode::je  },
         { CompareOperation::NotEq,     OpCode::jne },
-    });
+    }); // clang-format on
 }
 
 OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs) {
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::RegisterIndex) {
+        // clang-format off
         return UTL_MAP_ENUM(type, OpCode, {
             { Type::Signed,   OpCode::icmpRR },
             { Type::Unsigned, OpCode::ucmpRR },
             { Type::Float,    OpCode::fcmpRR },
-        });
+        }); // clang-format on
     }
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::Value64) {
+        // clang-format off
         return UTL_MAP_ENUM(type, OpCode, {
             { Type::Signed,   OpCode::icmpRV },
             { Type::Unsigned, OpCode::ucmpRV },
             { Type::Float,    OpCode::fcmpRV },
-        });
+        }); // clang-format on
     }
     SC_DEBUGFAIL(); // No matching instruction
 }
 
 OpCode Asm::mapTest(Type type) {
+    // clang-format off
     return UTL_MAP_ENUM(type, OpCode, {
         { Type::Signed,   OpCode::itest  },
         { Type::Unsigned, OpCode::utest  },
         { Type::Float,    OpCode::_count },
-    });
+    }); // clang-format on
 }
 
 OpCode Asm::mapSet(CompareOperation operation) {
+    // clang-format off
     return UTL_MAP_ENUM(operation, OpCode, {
         { CompareOperation::None,      OpCode::_count },
         { CompareOperation::Less,      OpCode::setl  },
@@ -87,14 +93,19 @@ OpCode Asm::mapSet(CompareOperation operation) {
         { CompareOperation::GreaterEq, OpCode::setge },
         { CompareOperation::Eq,        OpCode::sete  },
         { CompareOperation::NotEq,     OpCode::setne },
-    });
+    }); // clang-format on
 }
 
-OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType dest, ValueType source) {
-    if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex) {
+OpCode Asm::mapArithmetic(ArithmeticOperation operation,
+                          Type type,
+                          ValueType dest,
+                          ValueType source) {
+    if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
+    {
         switch (type) {
         case Type::Signed:
             // TODO: Take care of shift and bitwise operations.
+            // clang-format off
             return UTL_MAP_ENUM(operation, OpCode, {
                 { ArithmeticOperation::Add,  OpCode::addRR  },
                 { ArithmeticOperation::Sub,  OpCode::subRR  },
@@ -108,8 +119,9 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
                 { ArithmeticOperation::And,  OpCode::andRR  },
                 { ArithmeticOperation::Or,   OpCode::orRR   },
                 { ArithmeticOperation::XOr,  OpCode::xorRR  },
-            });
+            }); // clang-format on
         case Type::Unsigned:
+            // clang-format off
             return UTL_MAP_ENUM(operation, OpCode, {
                 { ArithmeticOperation::Add,  OpCode::addRR  },
                 { ArithmeticOperation::Sub,  OpCode::subRR  },
@@ -123,8 +135,9 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
                 { ArithmeticOperation::And,  OpCode::andRR  },
                 { ArithmeticOperation::Or,   OpCode::orRR   },
                 { ArithmeticOperation::XOr,  OpCode::xorRR  },
-            });
+            }); // clang-format on
         case Type::Float:
+            // clang-format off
             return UTL_MAP_ENUM(operation, OpCode, {
                 { ArithmeticOperation::Add,  OpCode::faddRR },
                 { ArithmeticOperation::Sub,  OpCode::fsubRR },
@@ -138,7 +151,7 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
                 { ArithmeticOperation::And,  OpCode::_count },
                 { ArithmeticOperation::Or,   OpCode::_count },
                 { ArithmeticOperation::XOr,  OpCode::_count },
-            });
+            }); // clang-format on
         case Type::_count: SC_UNREACHABLE();
         }
     }
@@ -146,6 +159,7 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
         switch (type) {
         case Type::Signed:
             // TODO: Take care of shift and bitwise operations.
+            // clang-format off
             return UTL_MAP_ENUM(operation, OpCode, {
                 { ArithmeticOperation::Add,  OpCode::addRV  },
                 { ArithmeticOperation::Sub,  OpCode::subRV  },
@@ -159,8 +173,9 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
                 { ArithmeticOperation::And,  OpCode::andRV  },
                 { ArithmeticOperation::Or,   OpCode::orRV   },
                 { ArithmeticOperation::XOr,  OpCode::xorRV  },
-            });
+            }); // clang-format on
         case Type::Unsigned:
+            // clang-format off
             return UTL_MAP_ENUM(operation, OpCode, {
                 { ArithmeticOperation::Add,  OpCode::addRV  },
                 { ArithmeticOperation::Sub,  OpCode::subRV  },
@@ -174,8 +189,9 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
                 { ArithmeticOperation::And,  OpCode::andRV  },
                 { ArithmeticOperation::Or,   OpCode::orRV   },
                 { ArithmeticOperation::XOr,  OpCode::xorRV  },
-            });
+            }); // clang-format on
         case Type::Float:
+            // clang-format off
             return UTL_MAP_ENUM(operation, OpCode, {
                 { ArithmeticOperation::Add,  OpCode::faddRV },
                 { ArithmeticOperation::Sub,  OpCode::fsubRV },
@@ -189,14 +205,16 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
                 { ArithmeticOperation::And,  OpCode::_count },
                 { ArithmeticOperation::Or,   OpCode::_count },
                 { ArithmeticOperation::XOr,  OpCode::_count },
-            });
+            }); // clang-format on
         case Type::_count: SC_UNREACHABLE();
         }
     }
-    if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress) {
+    if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress)
+    {
         switch (type) {
         case Type::Signed:
             // TODO: Take care of shift and bitwise operations.
+            // clang-format off
             return UTL_MAP_ENUM(operation, OpCode, {
                 { ArithmeticOperation::Add,  OpCode::addRM  },
                 { ArithmeticOperation::Sub,  OpCode::subRM  },
@@ -210,8 +228,9 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
                 { ArithmeticOperation::And,  OpCode::andRM  },
                 { ArithmeticOperation::Or,   OpCode::orRM   },
                 { ArithmeticOperation::XOr,  OpCode::xorRM  },
-            });
+            }); // clang-format on
         case Type::Unsigned:
+            // clang-format off
             return UTL_MAP_ENUM(operation, OpCode, {
                 { ArithmeticOperation::Add,  OpCode::addRM  },
                 { ArithmeticOperation::Sub,  OpCode::subRM  },
@@ -225,8 +244,9 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
                 { ArithmeticOperation::And,  OpCode::andRM  },
                 { ArithmeticOperation::Or,   OpCode::orRM   },
                 { ArithmeticOperation::XOr,  OpCode::xorRM  },
-            });
+            }); // clang-format on
         case Type::Float:
+            // clang-format off
             return UTL_MAP_ENUM(operation, OpCode, {
                 { ArithmeticOperation::Add,  OpCode::faddRM  },
                 { ArithmeticOperation::Sub,  OpCode::fsubRM  },
@@ -240,7 +260,7 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation, Type type, ValueType de
                 { ArithmeticOperation::And,  OpCode::_count  },
                 { ArithmeticOperation::Or,   OpCode::_count  },
                 { ArithmeticOperation::XOr,  OpCode::_count  },
-            });
+            }); // clang-format on
         case Type::_count: SC_UNREACHABLE();
         }
     }

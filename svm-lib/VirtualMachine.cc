@@ -34,7 +34,8 @@ void VirtualMachine::execute() {
     regPtr = registers.data();
     while (iptr < programBreak) {
         OpCode const opCode{ *iptr };
-        assert(static_cast<u8>(opCode) < static_cast<u8>(OpCode::_count) && "Invalid op-code");
+        assert(static_cast<u8>(opCode) < static_cast<u8>(OpCode::_count) &&
+               "Invalid op-code");
         auto const instruction = instructionTable[static_cast<u8>(opCode)];
         u64 const offset       = instruction(iptr + 1, regPtr, this);
         iptr += offset;
@@ -51,7 +52,8 @@ void VirtualMachine::addExternalFunction(size_t slot, ExternalFunction f) {
     extFunctionTable[slot].push_back(f);
 }
 
-void VirtualMachine::setFunctionTableSlot(size_t slot, utl::vector<ExternalFunction> functions) {
+void VirtualMachine::setFunctionTableSlot(
+    size_t slot, utl::vector<ExternalFunction> functions) {
     if (slot >= extFunctionTable.size()) {
         extFunctionTable.resize(slot + 1);
     }
@@ -59,10 +61,14 @@ void VirtualMachine::setFunctionTableSlot(size_t slot, utl::vector<ExternalFunct
 }
 
 void VirtualMachine::resizeMemory(size_t newSize) {
-    size_t const iptrOffset             = memory.empty() ? 0 : utl::narrow_cast<size_t>(iptr - memory.data());
-    size_t const programBreakOffset     = utl::narrow_cast<size_t>(programBreak - iptr);
-    size_t const memoryBreakOffset      = utl::narrow_cast<size_t>(memoryBreak - memoryPtr);
-    size_t const paddedInstructionCount = utl::round_up_pow_two(instructionCount, 16);
+    size_t const iptrOffset =
+        memory.empty() ? 0 : utl::narrow_cast<size_t>(iptr - memory.data());
+    size_t const programBreakOffset =
+        utl::narrow_cast<size_t>(programBreak - iptr);
+    size_t const memoryBreakOffset =
+        utl::narrow_cast<size_t>(memoryBreak - memoryPtr);
+    size_t const paddedInstructionCount =
+        utl::round_up_pow_two(instructionCount, 16);
     memory.resize(paddedInstructionCount + newSize);
     iptr         = memory.data() + iptrOffset;
     programBreak = iptr + programBreakOffset;

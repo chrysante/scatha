@@ -70,7 +70,8 @@ enum class CompareOperation {
 SCATHA(API) std::string_view toString(CompareOperation compareOp);
 
 /// Insert \p compareOp into \p ostream.
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, CompareOperation compareOp);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream, CompareOperation compareOp);
 
 /// List of all unary arithmetic operations in the IR module.
 enum class UnaryArithmeticOperation {
@@ -80,10 +81,13 @@ enum class UnaryArithmeticOperation {
 };
 
 /// Convert \p unaryArithmeticOp to string.
-SCATHA(API) std::string_view toString(UnaryArithmeticOperation unaryArithmeticOp);
+SCATHA(API)
+std::string_view toString(UnaryArithmeticOperation unaryArithmeticOp);
 
 /// Insert \p unaryArithmeticOp into \p ostream.
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, UnaryArithmeticOperation unaryArithmeticOp);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream,
+                         UnaryArithmeticOperation unaryArithmeticOp);
 
 /// List of all binary arithmetic operations in the IR module.
 enum class ArithmeticOperation {
@@ -96,7 +100,9 @@ enum class ArithmeticOperation {
 SCATHA(API) std::string_view toString(ArithmeticOperation arithmeticOp);
 
 /// Insert \p arithmeticOp into \p ostream.
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation arithmeticOp);
+SCATHA(API)
+std::ostream& operator<<(std::ostream& ostream,
+                         ArithmeticOperation arithmeticOp);
 
 /// ** Forward declarations of type categories  **
 
@@ -113,13 +119,17 @@ enum class TypeCategory {
 } // namespace scatha::ir
 
 /// Map enum `NodeType` to actual node types
-#define SC_CGFNODE_DEF(Node, Abstractness)                                                                             \
-    SC_DYNCAST_MAP(::scatha::ir::Node, ::scatha::ir::NodeType::Node, Abstractness)
+#define SC_CGFNODE_DEF(Node, Abstractness)                                     \
+    SC_DYNCAST_MAP(::scatha::ir::Node,                                         \
+                   ::scatha::ir::NodeType::Node,                               \
+                   Abstractness)
 #include <scatha/IR/Lists.def>
 
 /// Map enum `TypeCategory` to actual type category classes
-#define SC_TYPE_CATEGORY_DEF(TypeCat)                                                                                  \
-    SC_DYNCAST_MAP(::scatha::ir::TypeCat, ::scatha::ir::TypeCategory::TypeCat, CONCRETE);
+#define SC_TYPE_CATEGORY_DEF(TypeCat)                                          \
+    SC_DYNCAST_MAP(::scatha::ir::TypeCat,                                      \
+                   ::scatha::ir::TypeCategory::TypeCat,                        \
+                   CONCRETE);
 #include <scatha/IR/Lists.def>
 
 namespace scatha::ir::internal {
@@ -147,7 +157,8 @@ struct PhiMappingImpl {
 
 template <bool IsConst>
 struct std::hash<scatha::ir::internal::PhiMappingImpl<IsConst>> {
-    std::size_t operator()(scatha::ir::internal::PhiMappingImpl<IsConst> const& m) const {
+    std::size_t operator()(
+        scatha::ir::internal::PhiMappingImpl<IsConst> const& m) const {
         return utl::hash_combine(m.pred, m.value);
     }
 };
