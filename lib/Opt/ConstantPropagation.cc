@@ -133,6 +133,7 @@ struct SCCContext {
         return inst != nullptr && !isa<Phi>(inst) && !isa<TerminatorInst>(inst);
     }
 
+    /// Unexamined edges are not executable
     bool isExecutable(FlowEdge const& e) {
         return execMap.insert({ e, false }).first->second;
     }
@@ -286,13 +287,18 @@ void SCCContext::visitExpression(Instruction& inst) {
     // clang-format off
     FormalValue const value = visit(inst, utl::overload{
         [&](ArithmeticInst& inst) {
-            return evaluateArithmetic(inst.operation(), formalValue(inst.lhs()), formalValue(inst.rhs()));
+            return evaluateArithmetic(inst.operation(),
+                                      formalValue(inst.lhs()),
+                                      formalValue(inst.rhs()));
         },
         [&](UnaryArithmeticInst& inst) {
-            return evaluateUnaryArithmetic(inst.operation(), formalValue(inst.operand()));
+            return evaluateUnaryArithmetic(inst.operation(),
+                                           formalValue(inst.operand()));
         },
         [&](CompareInst& inst) {
-            return evaluateComparison(inst.operation(), formalValue(inst.lhs()), formalValue(inst.rhs()));
+            return evaluateComparison(inst.operation(),
+                                      formalValue(inst.lhs()),
+                                      formalValue(inst.rhs()));
         },
         [&](Instruction const&) -> FormalValue { return Inevaluable{}; }
     }); // clang-format on
@@ -328,7 +334,8 @@ void SCCContext::processTerminator(FormalValue const& value,
             addSingleEdge(constant, inst);
         },
         [&](APFloat const& constant) {
-            SC_ASSERT(isa<Return>(inst), "Float can atmost control return instructions");
+            SC_ASSERT(isa<Return>(inst),
+                      "Float can atmost control return instructions");
         },
         [&](Inevaluable) {
             std::transform(inst.targets().begin(),
@@ -350,7 +357,8 @@ void SCCContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
             flowWorklist.push_back({ inst.parent(), gt.target() });
         },
         [&](Branch& br) {
-            SC_ASSERT(constant == 0 || constant == 1, "Boolean constant must be 0 or 1");
+            SC_ASSERT(constant == 0 || constant == 1,
+                      "Boolean constant must be 0 or 1");
             BasicBlock* const origin = br.parent();
             size_t const index = 1 - constant.to<size_t>();
             BasicBlock* const target = br.targets()[index];
@@ -442,10 +450,14 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
                 case ArithmeticOperation::UDiv: return udiv(lhs, rhs);
                 case ArithmeticOperation::Rem: return srem(lhs, rhs);
                 case ArithmeticOperation::URem: return urem(lhs, rhs);
-                case ArithmeticOperation::LShL: return lshl(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
-                case ArithmeticOperation::LShR: return lshr(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
-                case ArithmeticOperation::AShL: return ashl(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
-                case ArithmeticOperation::AShR: return ashr(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
+                case ArithmeticOperation::LShL:
+                    return lshl(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
+                case ArithmeticOperation::LShR:
+                    return lshr(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
+                case ArithmeticOperation::AShL:
+                    return ashl(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
+                case ArithmeticOperation::AShR:
+                    return ashr(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
                 case ArithmeticOperation::And: return btwand(lhs, rhs);
                 case ArithmeticOperation::Or: return btwor(lhs, rhs);
                 case ArithmeticOperation::XOr: return btwxor(lhs, rhs);
@@ -493,7 +505,8 @@ FormalValue SCCContext::evaluateUnaryArithmetic(
             case UnaryArithmeticOperation::Negation: return negate(operand);
             case UnaryArithmeticOperation::BitwiseNot: return btwnot(operand);
             case UnaryArithmeticOperation::LogicalNot:
-                SC_ASSERT(operand == 0 || operand == 1, "Operand must be boolean");
+                SC_ASSERT(operand == 0 || operand == 1,
+                          "Operand must be boolean");
                 return sub(APInt(1, operand.bitwidth()), operand);
             case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
             }
@@ -517,12 +530,18 @@ FormalValue SCCContext::evaluateComparison(CompareOperation operation,
     return utl::visit(utl::overload{
         [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
             switch (operation) {
-            case CompareOperation::Less:      return APInt(scmp(lhs, rhs) <  0, 1);
-            case CompareOperation::LessEq:    return APInt(scmp(lhs, rhs) <= 0, 1);
-            case CompareOperation::Greater:   return APInt(scmp(lhs, rhs) >  0, 1);
-            case CompareOperation::GreaterEq: return APInt(scmp(lhs, rhs) >= 0, 1);
-            case CompareOperation::Equal:     return APInt(scmp(lhs, rhs) == 0, 1);
-            case CompareOperation::NotEqual:  return APInt(scmp(lhs, rhs) != 0, 1);
+            case CompareOperation::Less:
+                return APInt(scmp(lhs, rhs) <  0, 1);
+            case CompareOperation::LessEq:
+                return APInt(scmp(lhs, rhs) <= 0, 1);
+            case CompareOperation::Greater:
+                return APInt(scmp(lhs, rhs) >  0, 1);
+            case CompareOperation::GreaterEq:
+                return APInt(scmp(lhs, rhs) >= 0, 1);
+            case CompareOperation::Equal:
+                return APInt(scmp(lhs, rhs) == 0, 1);
+            case CompareOperation::NotEqual:
+                return APInt(scmp(lhs, rhs) != 0, 1);
             case CompareOperation::_count: SC_UNREACHABLE();
             }
         },

@@ -104,7 +104,7 @@ SCATHA(API)
 std::ostream& operator<<(std::ostream& ostream,
                          ArithmeticOperation arithmeticOp);
 
-/// ** Forward declarations of type categories  **
+/// ## Forward declarations of type categories
 
 #define SC_TYPE_CATEGORY_DEF(TypeCat) class TypeCat;
 #include <scatha/IR/Lists.def>

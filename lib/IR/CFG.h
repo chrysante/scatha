@@ -77,7 +77,7 @@ private:
     friend class ir::DynAllocator;
 
     void privateDestroy();
-    
+
     /// Called by `UniquePtr`
     void privateDelete();
 
@@ -250,7 +250,7 @@ private:
 
 } // namespace internal
 
-/// Represents a basic block. A basic block  is a list of instructions starting
+/// Represents a basic block. A basic block is a list of instructions starting
 /// with zero or more phi nodes and ending with one terminator instruction.
 /// These invariants are not enforced by this class because they may be violated
 /// during construction and transformations of the CFG.

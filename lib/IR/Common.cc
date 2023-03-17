@@ -22,7 +22,8 @@ std::ostream& ir::operator<<(std::ostream& ostream, NodeType nodeType) {
 std::string_view ir::toString(CompareOperation op) {
     switch (op) {
         // clang-format off
-#define SC_COMPARE_OPERATION_DEF(Op, name) case CompareOperation::Op: return #name;
+#define SC_COMPARE_OPERATION_DEF(Op, name)                                     \
+    case CompareOperation::Op: return #name;
 #include "IR/Lists.def"
         // clang-format on
     case CompareOperation::_count: SC_UNREACHABLE();
@@ -36,7 +37,8 @@ std::ostream& ir::operator<<(std::ostream& ostream, CompareOperation op) {
 std::string_view ir::toString(UnaryArithmeticOperation op) {
     switch (op) {
         // clang-format off
-#define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, name) case UnaryArithmeticOperation::Op: return #name;
+#define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, name)                            \
+    case UnaryArithmeticOperation::Op: return #name;
 #include "IR/Lists.def"
         // clang-format on
     case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
@@ -51,7 +53,8 @@ std::ostream& ir::operator<<(std::ostream& ostream,
 std::string_view ir::toString(ArithmeticOperation op) {
     switch (op) {
         // clang-format off
-#define SC_ARITHMETIC_OPERATION_DEF(Op, name) case ArithmeticOperation::Op: return #name;
+#define SC_ARITHMETIC_OPERATION_DEF(Op, name)                                  \
+    case ArithmeticOperation::Op: return #name;
 #include "IR/Lists.def"
         // clang-format on
     case ArithmeticOperation::_count: SC_UNREACHABLE();

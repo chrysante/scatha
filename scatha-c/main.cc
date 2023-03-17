@@ -81,7 +81,8 @@ static void printSemaIssues(issue::SemaIssueHandler const& iss,
                 std::cout << "Bad type conversion: ";
                 ast::printExpression(e.expression());
                 std::cout << std::endl;
-                std::cout << "\tFrom " << sym.getName(e.from()) << " to " << sym.getName(e.to()) << "\n";
+                std::cout << "\tFrom " << sym.getName(e.from()) << " to "
+                          << sym.getName(e.to()) << "\n";
             },
             [&](sema::BadFunctionCall const& e) {
                 std::cout << "Bad function call: " << e.reason() << ": ";
@@ -91,7 +92,8 @@ static void printSemaIssues(issue::SemaIssueHandler const& iss,
             [&](sema::UseOfUndeclaredIdentifier const& e) {
                 std::cout << "Use of undeclared identifier ";
                 ast::printExpression(e.expression());
-                std::cout << " in scope: " << e.currentScope().name() << std::endl;
+                std::cout << " in scope: " << e.currentScope().name()
+                          << std::endl;
             },
             [](issue::ProgramIssueBase const&) { std::cout << std::endl; }
         });

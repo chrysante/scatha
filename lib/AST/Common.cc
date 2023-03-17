@@ -47,7 +47,7 @@ std::ostream& ast::operator<<(std::ostream& str, EntityCategory cat) {
         { EntityCategory::Value, "Value" },
         { EntityCategory::Type,  "Type" },
     });
-    // clang-format off
+    // clang-format on
 }
 
 std::ostream& ast::operator<<(std::ostream& str, ValueCategory cat) {
@@ -57,5 +57,5 @@ std::ostream& ast::operator<<(std::ostream& str, ValueCategory cat) {
         { ValueCategory::LValue, "LValue" },
         { ValueCategory::RValue, "RValue" },
     });
-    // clang-format off
+    // clang-format on
 }

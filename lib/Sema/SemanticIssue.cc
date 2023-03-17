@@ -44,9 +44,12 @@ std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
 std::ostream& sema::operator<<(std::ostream& str, InvalidStatement::Reason r) {
     // clang-format off
     return str << UTL_SERIALIZE_ENUM(r, {
-        { InvalidStatement::Reason::ExpectedDeclaration,      "Expected declaration" },
-        { InvalidStatement::Reason::InvalidDeclaration,       "Invalid declaration" },
-        { InvalidStatement::Reason::InvalidScopeForStatement, "Invalid scope for statement" },
+        { InvalidStatement::Reason::ExpectedDeclaration,
+          "Expected declaration" },
+        { InvalidStatement::Reason::InvalidDeclaration,
+          "Invalid declaration" },
+        { InvalidStatement::Reason::InvalidScopeForStatement,
+          "Invalid scope for statement" },
     }); // clang-format on
 }
 
@@ -54,10 +57,15 @@ std::ostream& sema::operator<<(std::ostream& str,
                                InvalidDeclaration::Reason r) {
     // clang-format off
     return str << UTL_SERIALIZE_ENUM(r, {
-        { InvalidDeclaration::Reason::InvalidInCurrentScope,    "Invalid in currentScope" },
-        { InvalidDeclaration::Reason::Redefinition,             "Redefinition" },
-        { InvalidDeclaration::Reason::CantOverloadOnReturnType, "Can't overload on ReturnType" },
-        { InvalidDeclaration::Reason::CantInferType,            "Can't infer type" },
-        { InvalidDeclaration::Reason::ReservedIdentifier,       "Reserved identifier" },
+        { InvalidDeclaration::Reason::InvalidInCurrentScope,
+          "Invalid in currentScope" },
+        { InvalidDeclaration::Reason::Redefinition,
+          "Redefinition" },
+        { InvalidDeclaration::Reason::CantOverloadOnReturnType,
+          "Can't overload on ReturnType" },
+        { InvalidDeclaration::Reason::CantInferType,
+          "Can't infer type" },
+        { InvalidDeclaration::Reason::ReservedIdentifier,
+          "Reserved identifier" },
     }); // clang-format on
 }

@@ -15,8 +15,9 @@ namespace internal {
 
 // clang-format off
 
-/// Concept to restrict error construction from arbitrary arguments. To allow error construction from arbitrary
-/// arguments, the expected type must not be constructible from those arguments to avoid ambiguities.
+/// Concept to restrict error construction from arbitrary arguments. To allow
+/// error construction from arbitrary arguments, the expected type must not be
+/// constructible from those arguments to avoid ambiguities.
 template <typename T, typename E, typename... Args>
 concept ErrorConstructibleFrom =
     std::constructible_from<E, Args...> &&

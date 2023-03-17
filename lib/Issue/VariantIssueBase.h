@@ -24,11 +24,14 @@ private:
     template <typename T>
     static decltype(auto) visitImpl(auto&& f, auto&& v) {
         // clang-format off
-        auto const vis = utl::overload{ f, [](issue::internal::ProgramIssuePrivateBase&) -> T {
-            if constexpr (!std::is_same_v<T, void>) {
-                SC_DEBUGFAIL();
+        auto const vis = utl::overload{
+            f,
+            [](issue::internal::ProgramIssuePrivateBase&) -> T {
+                if constexpr (!std::is_same_v<T, void>) {
+                    SC_DEBUGFAIL();
+                }
             }
-        } };
+        };
         // clang-format on
         return std::visit(vis, v);
     }

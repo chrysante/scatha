@@ -448,7 +448,10 @@ void Context::generateBigMove(Value dest,
             regIdx = RegisterIndex(regIdx.value() + 1);
         },
         [](MemoryAddress& addr) {
-            addr = MemoryAddress(addr.baseptrRegisterIndex(), 0xFF, 0, addr.constantInnerOffset() + 8);
+            addr = MemoryAddress(addr.baseptrRegisterIndex(),
+                                 0xFF,
+                                 0,
+                                 addr.constantInnerOffset() + 8);
         },
         [](auto&) { SC_UNREACHABLE(); }
     };
