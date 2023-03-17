@@ -661,9 +661,9 @@ ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
         return irCtx.floatType(64);
     }
     std::string const name = mangledName(semaTypeID);
-    auto itr               = mod.structures().find(std::string_view(name));
-    if (itr != mod.structures().end()) {
-        return *itr;
+    auto* structType       = mod.findStructure(name);
+    if (structType != nullptr) {
+        return structType;
     }
     SC_DEBUGFAIL();
 }
