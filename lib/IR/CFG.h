@@ -638,6 +638,10 @@ public:
         *itr = newTarget;
     }
 
+    void setTarget(size_t index, BasicBlock* bb) {
+        _targets[index] = bb;
+    }
+    
 protected:
     explicit TerminatorInst(NodeType nodeType,
                             Context& context,
@@ -656,6 +660,10 @@ public:
 
     BasicBlock* target() { return targets()[0]; }
     BasicBlock const* target() const { return targets()[0]; }
+    
+    void setTarget(BasicBlock* bb) { _targets[0] = bb; }
+    
+    using TerminatorInst::setTarget;
 };
 
 /// `branch` instruction. Leave the current basic block and choose a target
@@ -676,10 +684,20 @@ public:
 
     Value* condition() { return operands()[0]; }
     Value const* condition() const { return operands()[0]; }
+    
     BasicBlock* thenTarget() { return targets()[0]; }
     BasicBlock const* thenTarget() const { return targets()[0]; }
+    
     BasicBlock* elseTarget() { return targets()[1]; }
     BasicBlock const* elseTarget() const { return targets()[1]; }
+    
+    void setThenTarget(BasicBlock* bb) {
+        _targets[0] = bb;
+    }
+    
+    void setElseTarget(BasicBlock* bb) {
+        _targets[1] = bb;
+    }
 };
 
 /// `return` instruction. Return control flow to the calling function.
