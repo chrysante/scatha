@@ -20,7 +20,8 @@ function i64 @testfn(i64) {
 })";
     ir::Context ctx;
     ir::Module mod = ir::parse(text, ctx).value();
-    auto fnItr = ranges::find_if(mod.functions(), [](auto& f) { return f.name() == "testfn"; });
+    auto fnItr     = ranges::find_if(mod.functions(),
+                                 [](auto& f) { return f.name() == "testfn"; });
     REQUIRE(fnItr != mod.functions().end());
     ir::Function& fn = *fnItr;
     CHECK(fn.name() == "testfn");
@@ -29,7 +30,7 @@ function i64 @testfn(i64) {
     CHECK(firstParam.type() == ctx.integralType(64));
     ir::BasicBlock& entry = fn.front();
     CHECK(entry.name() == "entry");
-    ir::Return& ret = cast<ir::Return&>(entry.front());
+    ir::Return& ret     = cast<ir::Return&>(entry.front());
     ir::Value* retValue = ret.value();
     CHECK(retValue == &firstParam);
 }
@@ -68,34 +69,85 @@ function i64 @main() {
 })";
     ir::Context ctx;
     ir::Module mod = ir::parse(text, ctx).value();
-    /// Check `f`
-    auto fItr = ranges::find_if(mod.functions(), [](auto& f) { return f.name() == "f"; });
-    REQUIRE(fItr != mod.functions().end());
-    ir::Function& f = *fItr;
-    CHECK(f.name() == "f");
-    CHECK(f.returnType() == ctx.integralType(64));
-    auto& firstParam = f.parameters().front();
-    CHECK(firstParam.type() == ctx.integralType(64));
-    std::array fBBNames = {
-        "entry", "if.then", "if.end"
-    };
-    for (auto&& [index, bb]: f | ranges::views::enumerate) {
-        CHECK(bb.name() == fBBNames[index]);
-        
-    }
-    std::array const fInstNames = {
-        "i.addr", "", "j.ptr", "i", "expr.result", "", "i.1", "cmp.result",
-        "", "++.value.1", "++.result", "", "", "j", ""
-    };
+    using namespace test::ir;
     using enum ir::NodeType;
-    std::array const fInstTypes = {
-        Alloca, Store, Alloca, Load, ArithmeticInst, Store, Load, CompareInst,
-        Branch, Load, ArithmeticInst, Store, Goto, Load, Return
-    };
-    for (auto&& [index, inst]: f.instructions() | ranges::views::enumerate) {
-        CHECK(inst.name() == fInstNames[index]);
-        CHECK(inst.nodeType() == fInstTypes[index]);
-    }
+    // clang-format off
+    testModule(&mod).functions({
+        testFunction("f").parameters({ "i64" }).basicBlocks({
+            testBasicBlock("entry").instructions({
+                testInstruction("i.addr")
+                    .instType(Alloca),
+                testInstruction("")
+                    .instType(Store)
+                    .references({ "i.addr", "0" }),
+                testInstruction("j.ptr")
+                    .instType(Alloca),
+                testInstruction("i")
+                    .instType(Load)
+                    .references({ "i.addr" }),
+                testInstruction("expr.result")
+                    .instType(ArithmeticInst)
+                    .references({ "i" }),
+                testInstruction("")
+                    .instType(Store)
+                    .references({ "j.ptr", "expr.result" }),
+                testInstruction("i.1")
+                    .instType(Load)
+                    .references({ "i.addr" }),
+                testInstruction("cmp.result")
+                    .instType(CompareInst)
+                    .references({ "i.1" }),
+                testInstruction("")
+                    .instType(Branch)
+                    .references({ "cmp.result" }),
+            }),
+            testBasicBlock("if.then").instructions({
+                testInstruction("++.value.1")
+                    .instType(Load)
+                    .references({ "j.ptr" }),
+                testInstruction("++.result")
+                    .instType(ArithmeticInst)
+                    .references({ "++.value.1" }),
+                testInstruction("")
+                    .instType(Store)
+                    .references({ "j.ptr", "++.result" }),
+                testInstruction("")
+                    .instType(Goto)
+            }),
+            testBasicBlock("if.end").instructions({
+                testInstruction("j")
+                    .instType(Load)
+                    .references({ "j.ptr" }),
+                testInstruction("")
+                    .instType(Return)
+                    .references({ "j" })
+            })
+        }),
+        testFunction("main").basicBlocks({
+            testBasicBlock("entry").instructions({
+                testInstruction("i-ptr")
+                    .instType(Alloca),
+                testInstruction("expr.result")
+                    .instType(UnaryArithmeticInst),
+                testInstruction("")
+                    .instType(Store)
+                    .references({ "i-ptr", "expr.result" }),
+                testInstruction("i")
+                    .instType(Load)
+                    .references({ "i-ptr" }),
+                testInstruction("expr.result.1")
+                    .instType(UnaryArithmeticInst)
+                    .references({ "i" }),
+                testInstruction("call.result")
+                    .instType(FunctionCall)
+                    .references({ "expr.result.1" }),
+                testInstruction("")
+                    .instType(Return)
+                    .references({ "call.result" }),
+            })
+        })
+    });
+    // clang-format on
 }
 
 TEST_CASE("Parse IR with insert_value/extract_value", "[ir][parser]") {
@@ -115,35 +167,26 @@ function @X @f(@X) {
     ir::Module mod = ir::parse(text, ctx).value();
     using namespace test::ir;
     using enum ir::NodeType;
-    testModule(&mod)
-      .structures({
-          testStructure("X")
-          .members({
-              "i64", "f64"
-          })
-      })
-      .functions({
-          testFunction("f")
-          .parameters({
-              "X"
-          })
-          .basicBlocks({
-              testBasicBlock("entry")
-              .instructions({
-                  testInstruction("1")
-                  .instType(ExtractValue)
-                  .references({ "0" }),
-                  testInstruction("2")
-                  .instType(ExtractValue)
-                  .references({ "0" }),
-                  testInstruction("res")
-                  .instType(InsertValue)
-                  .references({ "0" }),
-                  testInstruction("")
-                  .instType(InsertValue)
-                  .references({ "res" })
-              })
-          })
-      });
+    // clang-format off
+    testModule(&mod).structures({
+        testStructure("X").members({ "i64", "f64" })
+    }).functions({
+        testFunction("f").parameters({ "X" }).basicBlocks({
+            testBasicBlock("entry").instructions({
+                testInstruction("1")
+                    .instType(ExtractValue)
+                    .references({ "0" }),
+                testInstruction("2")
+                    .instType(ExtractValue)
+                    .references({ "0" }),
+                testInstruction("res")
+                    .instType(InsertValue)
+                    .references({ "0" }),
+                testInstruction("")
+                    .instType(InsertValue)
+                .references({ "res" })
+            })
+        })
+    });
+    // clang-format on
 }
-

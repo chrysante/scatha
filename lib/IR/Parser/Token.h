@@ -26,7 +26,7 @@ public:
                    TokenKind kind,
                    unsigned width = 0):
         _id(id), _loc(loc), _kind(kind), _width(width) {}
-    
+
     explicit Token(char const* first,
                    char const* last,
                    SourceLocation loc,
@@ -38,15 +38,15 @@ public:
               width) {}
 
     std::string_view id() const { return _id; }
-    
+
     SourceLocation sourceLocation() const { return _loc; }
-    
+
     TokenKind kind() const { return _kind; }
-    
+
     /// Width of integral or float type. Only applicable if `kind() == IntType`
     /// or `kind() == FloatType`
     unsigned width() const { return _width; }
-    
+
 private:
     std::string_view _id;
     SourceLocation _loc;

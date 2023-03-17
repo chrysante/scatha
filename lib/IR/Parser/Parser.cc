@@ -54,9 +54,9 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/Type.h"
-#include "IR/Parser/Token.h"
 #include "IR/Parser/Lexer.h"
+#include "IR/Parser/Token.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace ir;
@@ -69,34 +69,33 @@ struct ParseContext {
         mod(mod),
         lexer(text),
         nextToken{ lexer.next().value(), lexer.next().value() } {}
-    
+
     void parse();
-    
+
 private:
     Function* parseFunction();
     Type const* parseParamDecl();
     BasicBlock* parseBasicBlock();
     Instruction* parseInstruction();
     StructureType* parseStructure();
-    
-    
+
     void parseTypeDefinition();
 
     Type const* getType(Token const& token);
     Function* getFunction(Token const& token);
     BasicBlock* getBasicBlock(Token const& token);
     Value* getValue(Token const& token);
-    
+
     void registerBasicBlock(BasicBlock* basicBlock);
-    
+
     void registerInstruction(Instruction* instruction);
-    
+
     void addPendingUpdate(std::string_view name, std::function<void()> f) {
         pendingUpdates[name].push_back(std::move(f));
     }
-    
+
     void executePendingUpdates(std::string_view name);
-    
+
     Token eatToken() {
         Token result = peekToken();
         if (result.kind() != TokenKind::EndOfFile) {
@@ -109,7 +108,7 @@ private:
         }
         return result;
     }
-    
+
     Token eatToken(size_t count) {
         SC_ASSERT(count > 0, "`count` must be positive");
         for (size_t i = 0; i < count - 1; ++i) {
@@ -117,13 +116,13 @@ private:
         }
         return eatToken();
     }
-    
+
     Token peekToken(size_t i = 0) {
         SC_ASSERT(i < 2, "We only have a look-ahead of 2");
         SC_ASSERT(nextToken[i].has_value(), "");
         return *nextToken[i];
     }
-    
+
     Context& irCtx;
     Module& mod;
     Lexer lexer;
@@ -131,7 +130,8 @@ private:
     utl::hashmap<std::string_view, Instruction*> instructions;
     utl::hashmap<std::string, Parameter*> parameters;
     utl::hashmap<std::string_view, BasicBlock*> basicBlocks;
-    utl::hashmap<std::string, utl::small_vector<std::function<void()>>> pendingUpdates;
+    utl::hashmap<std::string, utl::small_vector<std::function<void()>>>
+        pendingUpdates;
 };
 
 } // namespace
@@ -180,15 +180,15 @@ void ParseContext::parse() {
 
 Function* ParseContext::parseFunction() {
     Token const declarator = peekToken();
-    if (declarator.kind() != TokenKind::Keyword || declarator.id() != "function") {
+    if (declarator.kind() != TokenKind::Keyword ||
+        declarator.id() != "function")
+    {
         return nullptr;
     }
     eatToken();
-    Token const returnTypeID = eatToken();
-    auto* const returnType = getType(returnTypeID);
-    Token const name = eatToken();
-    Token const openParan = eatToken();
-    expect(openParan, "(");
+    auto* const returnType   = getType(eatToken());
+    Token const name         = eatToken();
+    expect(eatToken(), "(");
     utl::vector<Type const*> parameterTypes;
     while (true) {
         auto* paramDecl = parseParamDecl();
@@ -197,14 +197,12 @@ Function* ParseContext::parseFunction() {
         }
         parameterTypes.push_back(paramDecl);
     }
-    Token const closeParan = eatToken();
-    expect(closeParan, ")");
+    expect(eatToken(), ")");
     auto* result = new Function(nullptr,
                                 returnType,
                                 parameterTypes,
                                 std::string(name.id()));
-    Token const openBrace = eatToken();
-    expect(openBrace, "{");
+    expect(eatToken(), "{");
     /// Parse the body of the function.
     instructions.clear();
     parameters = result->parameters() |
@@ -226,8 +224,7 @@ Function* ParseContext::parseFunction() {
 }
 
 Type const* ParseContext::parseParamDecl() {
-    Token const typeID = peekToken();
-    auto* const type = getType(typeID);
+    auto* const type = getType(peekToken());
     if (!type) {
         return nullptr;
     }
@@ -240,10 +237,7 @@ BasicBlock* ParseContext::parseBasicBlock() {
         return nullptr;
     }
     Token const name = eatToken();
-    if (peekToken().id() != ":") {
-        throw ParseError(peekToken().sourceLocation());
-    }
-    eatToken();
+    expect(eatToken(), ":");
     auto* result = new BasicBlock(irCtx, std::string(name.id()));
     registerBasicBlock(result);
     while (true) {
@@ -258,27 +252,28 @@ BasicBlock* ParseContext::parseBasicBlock() {
 }
 
 static std::optional<CompareOperation> toCompareOp(Token token) {
-#define SC_COMPARE_OPERATION_DEF(op, str) \
-    if (token.id() == #str) { \
-        return CompareOperation::op; \
+#define SC_COMPARE_OPERATION_DEF(op, str)                                      \
+    if (token.id() == #str) {                                                  \
+        return CompareOperation::op;                                           \
     }
 #include "IR/Lists.def"
     return std::nullopt;
 }
 
-static std::optional<UnaryArithmeticOperation> toUnaryArithmeticOp(Token token) {
-#define SC_UNARY_ARITHMETIC_OPERATION_DEF(op, str) \
-    if (token.id() == #str) { \
-        return UnaryArithmeticOperation::op; \
+static std::optional<UnaryArithmeticOperation> toUnaryArithmeticOp(
+    Token token) {
+#define SC_UNARY_ARITHMETIC_OPERATION_DEF(op, str)                             \
+    if (token.id() == #str) {                                                  \
+        return UnaryArithmeticOperation::op;                                   \
     }
 #include "IR/Lists.def"
     return std::nullopt;
 }
 
 static std::optional<ArithmeticOperation> toArithmeticOp(Token token) {
-#define SC_ARITHMETIC_OPERATION_DEF(op, str) \
-    if (token.id() == #str) { \
-        return ArithmeticOperation::op; \
+#define SC_ARITHMETIC_OPERATION_DEF(op, str)                                   \
+    if (token.id() == #str) {                                                  \
+        return ArithmeticOperation::op;                                        \
     }
 #include "IR/Lists.def"
     return std::nullopt;
@@ -286,7 +281,7 @@ static std::optional<ArithmeticOperation> toArithmeticOp(Token token) {
 
 Instruction* ParseContext::parseInstruction() {
     auto name = [&]() -> std::optional<std::string> {
-        Token const nameToken = peekToken(0);
+        Token const nameToken   = peekToken(0);
         Token const assignToken = peekToken(1);
         if (nameToken.kind() != TokenKind::LocalIdentifier) {
             return std::nullopt;
@@ -299,25 +294,20 @@ Instruction* ParseContext::parseInstruction() {
     }();
     if (peekToken().id() == "alloca") {
         eatToken();
-        Token const typeID = eatToken();
-        auto* const type = getType(typeID);
+        auto* const type = getType(eatToken());
         return new Alloca(irCtx, type, std::move(name).value());
     }
     if (peekToken().id() == "load") {
         eatToken();
-        Token const typeID = eatToken();
-        auto* const type = getType(typeID);
-        Token const ptrID = eatToken();
-        Value* const ptr = getValue(ptrID);
+        auto* const type = getType(eatToken());
+        Value* const ptr = getValue(eatToken());
         return new Load(ptr, std::move(name).value());
     }
     if (peekToken().id() == "store") {
         eatToken();
-        Token const addrID = eatToken();
-        Value* const addr = getValue(addrID);
+        Value* const addr  = getValue(eatToken());
         expect(eatToken(), ",");
-        Token const valueID = eatToken();
-        Value* const value = getValue(valueID);
+        Value* const value  = getValue(eatToken());
         return new Store(irCtx, addr, value);
     }
     if (peekToken().id() == "goto") {
@@ -326,9 +316,9 @@ Instruction* ParseContext::parseInstruction() {
         Token const targetID = eatToken();
         expect(targetID, TokenKind::LocalIdentifier);
         BasicBlock* const target = getBasicBlock(targetID);
-        auto* result = new Goto(irCtx, target);
+        auto* result             = new Goto(irCtx, target);
         if (!target) {
-            addPendingUpdate(targetID.id(), [=]{
+            addPendingUpdate(targetID.id(), [=] {
                 auto* bb = getBasicBlock(targetID);
                 SC_ASSERT(bb, "");
                 result->setTarget(bb);
@@ -338,11 +328,9 @@ Instruction* ParseContext::parseInstruction() {
     }
     if (peekToken().id() == "branch") {
         eatToken();
-        Token const typeID = eatToken();
-        auto* const type = getType(typeID);
-        Token const condID = eatToken();
-        Value* const cond = getValue(condID);
-        auto* result = new Branch(irCtx, cond, nullptr, nullptr);
+        auto* const type   = getType(eatToken());
+        Value* const cond  = getValue(eatToken());
+        auto* result       = new Branch(irCtx, cond, nullptr, nullptr);
         for (size_t i = 0; i < 2; ++i) {
             expect(eatToken(), ",");
             expect(eatToken(), "label");
@@ -353,7 +341,7 @@ Instruction* ParseContext::parseInstruction() {
                 result->setTarget(i, target);
             }
             else {
-                addPendingUpdate(targetID.id(), [=]{
+                addPendingUpdate(targetID.id(), [=] {
                     auto* target = getBasicBlock(targetID);
                     SC_ASSERT(target, "");
                     result->setTarget(i, target);
@@ -364,59 +352,61 @@ Instruction* ParseContext::parseInstruction() {
     }
     if (peekToken().id() == "return") {
         eatToken();
-        Token const typeID = eatToken();
-        auto* const type = getType(typeID);
-        Token const valueID = eatToken();
-        Value* const value = getValue(valueID);
+        auto* const type    = getType(eatToken());
+        Value* const value  = getValue(eatToken());
         /// Here we could check that `value` is of type `type`
         return new Return(irCtx, value);
     }
     if (peekToken().id() == "call") {
         eatToken();
-        Token const typeID = eatToken();
-        auto* const type = getType(typeID);
-        Token const functionID = eatToken();
-        auto* const function = getFunction(functionID);
+        auto* const type       = getType(eatToken());
+        auto* const function   = getFunction(eatToken());
         utl::small_vector<Value*> args;
         while (true) {
             if (peekToken().id() != ",") {
                 break;
             }
             eatToken();
-            Token const argTypeID = eatToken();
-            auto* const argType = getType(argTypeID);
-            Token const argID = eatToken();
-            Value* arg = getValue(argID);
+            auto* const argType   = getType(eatToken());
+            Value* arg            = getValue(eatToken());
             args.push_back(arg);
         }
-        return new FunctionCall(function, args, std::move(name).value_or(std::string{}));
+        return new FunctionCall(function,
+                                args,
+                                std::move(name).value_or(std::string{}));
     }
     if (peekToken().id() == "phi") {
         SC_DEBUGFAIL();
     }
     if (peekToken().id() == "cmp") {
         eatToken();
-        Token const cmpToken = eatToken();
-        auto const cmpOp = toCompareOp(cmpToken);
+        auto const cmpOp     = toCompareOp(eatToken());
         if (!cmpOp) {
             throw ParseError(cmpToken.sourceLocation());
         }
         auto* const lhsType = getType(eatToken());
-        Value* const lhs = getValue(eatToken());
+        Value* const lhs    = getValue(eatToken());
         expect(eatToken(), ",");
         auto* const rhsType = getType(eatToken());
-        Value* const rhs = getValue(eatToken());
-        return new CompareInst(irCtx, lhs, rhs, *cmpOp, std::move(name).value());
+        Value* const rhs    = getValue(eatToken());
+        return new CompareInst(irCtx,
+                               lhs,
+                               rhs,
+                               *cmpOp,
+                               std::move(name).value());
     }
     if (auto unaryOp = toUnaryArithmeticOp(peekToken())) {
         eatToken();
-        auto* type = getType(eatToken());
+        auto* type           = getType(eatToken());
         Value* const operand = getValue(eatToken());
-        return new UnaryArithmeticInst(irCtx, operand, *unaryOp, std::move(name).value());
+        return new UnaryArithmeticInst(irCtx,
+                                       operand,
+                                       *unaryOp,
+                                       std::move(name).value());
     }
     if (auto binaryOp = toArithmeticOp(peekToken())) {
         eatToken();
-        auto* type = getType(eatToken());
+        auto* type       = getType(eatToken());
         Value* const lhs = getValue(eatToken());
         expect(eatToken(), ",");
         Value* const rhs = getValue(eatToken());
@@ -427,35 +417,42 @@ Instruction* ParseContext::parseInstruction() {
     }
     if (peekToken().id() == "insert_value") {
         eatToken();
-        auto* const structType = getType(eatToken());
+        auto* const structType  = getType(eatToken());
         auto* const structValue = getValue(eatToken());
         expect(eatToken(), ",");
-        auto* const memberType = getType(eatToken());
+        auto* const memberType  = getType(eatToken());
         auto* const memberValue = getValue(eatToken());
         expect(eatToken(), ",");
-        auto* const indexType = getType(eatToken());
+        auto* const indexType  = getType(eatToken());
         auto* const indexValue = getValue(eatToken());
-        return new InsertValue(structValue, memberValue, indexValue, std::move(name).value());
+        return new InsertValue(structValue,
+                               memberValue,
+                               indexValue,
+                               std::move(name).value());
     }
     if (peekToken().id() == "extract_value") {
         eatToken();
-        auto* const structType = getType(eatToken());
+        auto* const structType  = getType(eatToken());
         auto* const structValue = getValue(eatToken());
         expect(eatToken(), ",");
-        auto* const indexType = getType(eatToken());
+        auto* const indexType  = getType(eatToken());
         auto* const indexValue = getValue(eatToken());
-        APInt const constantIndex = cast<IntegralConstant const*>(indexValue)->value();
-        return new ExtractValue(cast<StructureType const*>(structType)->memberAt(constantIndex.to<size_t>()),
+        APInt const constantIndex =
+            cast<IntegralConstant const*>(indexValue)->value();
+        return new ExtractValue(cast<StructureType const*>(structType)
+                                    ->memberAt(constantIndex.to<size_t>()),
                                 structValue,
                                 indexValue,
                                 std::move(name).value());
     }
     return nullptr;
 }
-           
+
 StructureType* ParseContext::parseStructure() {
     Token const declarator = peekToken();
-    if (declarator.kind() != TokenKind::Keyword || declarator.id() != "structure") {
+    if (declarator.kind() != TokenKind::Keyword ||
+        declarator.id() != "structure")
+    {
         return nullptr;
     }
     eatToken();
@@ -481,7 +478,7 @@ Type const* ParseContext::getType(Token const& token) {
     switch (token.kind()) {
     case TokenKind::GlobalIdentifier: {
         auto structures = mod.structures();
-        auto itr = ranges::find_if(structures, [&](Type* type) {
+        auto itr        = ranges::find_if(structures, [&](Type* type) {
             // TODO: Handle '@' and '%' prefixes
             return type->name() == token.id();
         });
@@ -490,14 +487,10 @@ Type const* ParseContext::getType(Token const& token) {
         }
         return *itr;
     }
-    case TokenKind::LocalIdentifier:
-        return nullptr;
-    case TokenKind::IntType:
-        return irCtx.integralType(token.width());
-    case TokenKind::FloatType:
-        return irCtx.floatType(token.width());
-    default:
-        return nullptr;
+    case TokenKind::LocalIdentifier: return nullptr;
+    case TokenKind::IntType: return irCtx.integralType(token.width());
+    case TokenKind::FloatType: return irCtx.floatType(token.width());
+    default: return nullptr;
     }
 }
 
@@ -518,9 +511,7 @@ BasicBlock* ParseContext::getBasicBlock(Token const& token) {
     if (token.kind() != TokenKind::LocalIdentifier) {
         throw ParseError(token.sourceLocation());
     }
-    if (auto itr = basicBlocks.find(token.id());
-        itr != basicBlocks.end())
-    {
+    if (auto itr = basicBlocks.find(token.id()); itr != basicBlocks.end()) {
         return itr->second;
     }
     return nullptr;
@@ -534,7 +525,7 @@ Value* ParseContext::getValue(Token const& token) {
         {
             return itr->second;
         }
-        if (auto const  itr = parameters.find(token.id());
+        if (auto const itr = parameters.find(token.id());
             itr != parameters.end())
         {
             return itr->second;
@@ -549,13 +540,13 @@ Value* ParseContext::getValue(Token const& token) {
         value->zext(64);
         return irCtx.integralConstant(*value);
     }
-    default:
-        throw ParseError(token.sourceLocation());
+    default: throw ParseError(token.sourceLocation());
     }
 }
 
 void ParseContext::registerBasicBlock(BasicBlock* basicBlock) {
-    SC_ASSERT(!basicBlocks.contains(basicBlock->name()), "Actually a soft error");
+    SC_ASSERT(!basicBlocks.contains(basicBlock->name()),
+              "Actually a soft error");
     basicBlocks[basicBlock->name()] = basicBlock;
     executePendingUpdates(basicBlock->name());
 }
@@ -564,7 +555,8 @@ void ParseContext::registerInstruction(Instruction* instruction) {
     if (instruction->name().empty()) {
         return;
     }
-    SC_ASSERT(!instructions.contains(instruction->name()), "Actually a soft error");
+    SC_ASSERT(!instructions.contains(instruction->name()),
+              "Actually a soft error");
     instructions[instruction->name()] = instruction;
     executePendingUpdates(instruction->name());
 }

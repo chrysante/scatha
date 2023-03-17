@@ -1,21 +1,22 @@
 #include "EqualityTestHelper.h"
 
+#include <Catch/Catch2.hpp>
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 
-#include "IR/Module.h"
 #include "IR/CFG.h"
+#include "IR/Module.h"
 
 using namespace scatha;
 using namespace test;
 using namespace test::ir;
 
-#define CHECK(cond) assert(cond)
-
 void StructureEqTester::test(scatha::ir::StructureType const& structure) const {
     CHECK(structure.name() == name);
     CHECK(structure.members().size() == memberTypenames.size());
-    for (auto&& [memType, name]: ranges::views::zip(structure.members(), memberTypenames)) {
+    for (auto&& [memType, name]:
+         ranges::views::zip(structure.members(), memberTypenames))
+    {
         CHECK(memType->name() == name);
     }
 }
@@ -24,9 +25,10 @@ void InstructionEqTester::test(scatha::ir::Instruction const& inst) const {
     CHECK(inst.name() == name);
     for (auto& refName: referedNames) {
         auto const operands = inst.operands();
-        auto itr = ranges::find_if(operands, [&](scatha::ir::Value const* operand) {
-            return operand->name() == refName;
-        });
+        auto itr =
+            ranges::find_if(operands, [&](scatha::ir::Value const* operand) {
+                return operand->name() == refName;
+            });
         CHECK(itr != ranges::end(operands));
     }
 }
@@ -55,14 +57,17 @@ void FunctionEqTester::test(scatha::ir::Function const& function) const {
 
 void ModuleEqTester::testStructures(scatha::ir::Module const& mod) const {
     CHECK(mod.structures().size() == structs.size());
-    for (auto&& [structure, tester]: ranges::views::zip(mod.structures(), structs)) {
+    for (auto&& [structure, tester]:
+         ranges::views::zip(mod.structures(), structs))
+    {
         tester.test(*structure);
     }
 }
 
 void ModuleEqTester::testFunctions(scatha::ir::Module const& mod) const {
     CHECK(ranges::distance(mod.functions()) == funcs.size());
-    for (auto&& [function, tester]: ranges::views::zip(mod.functions(), funcs)) {
+    for (auto&& [function, tester]: ranges::views::zip(mod.functions(), funcs))
+    {
         tester.test(function);
     }
 }

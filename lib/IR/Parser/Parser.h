@@ -15,15 +15,16 @@ class Module;
 class ParseError {
 public:
     explicit ParseError(SourceLocation loc): _loc(loc) {}
-    
+
     SourceLocation sourceLocation() const { return _loc; }
-    
+
 private:
     SourceLocation _loc;
 };
 
 /// Parses \p text into an IR module.
-SCATHA(API) Expected<Module, ParseError> parse(std::string_view text, Context& context);
+SCATHA(API)
+Expected<Module, ParseError> parse(std::string_view text, Context& context);
 
 } // namespace scatha::ir
 

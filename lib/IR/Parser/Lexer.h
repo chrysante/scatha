@@ -13,9 +13,9 @@ class Token;
 class InvalidToken {
 public:
     explicit InvalidToken(SourceLocation loc): _loc(loc) {}
-    
+
     SourceLocation sourceLocation() const { return _loc; }
-    
+
 private:
     SourceLocation _loc;
 };
@@ -23,13 +23,12 @@ private:
 class Lexer {
 public:
     explicit Lexer(std::string_view text):
-        i(text.data()),
-        end(i + text.size()) {}
-    
+        i(text.data()), end(i + text.size()) {}
+
     Expected<Token, InvalidToken> next();
-    
+
     void inc();
-    
+
 private:
     char const* i;
     char const* end;
