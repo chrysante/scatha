@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "test/CodeGen/BasicCompiler.h"
+#include "test/EndToEndTests/BasicCompiler.h"
 
 using namespace scatha;
 
