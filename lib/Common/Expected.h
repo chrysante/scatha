@@ -9,6 +9,8 @@
 #include <utl/common.hpp>
 #include <utl/expected.hpp>
 
+#include "Basic/Basic.h"
+
 namespace scatha {
 
 namespace internal {
@@ -72,10 +74,10 @@ public:
 
     explicit operator bool() const { return hasValue(); }
 
-    T& value()& { return *_e; }
-    T&& value()&& { return *std::move(_e); }
-    T const& value() const& { return *_e; }
-    T const&& value() const&& { return *std::move(_e); }
+    T& value()& { return getValueImpl(*this); }
+    T&& value()&& { return getValueImpl(std::move(*this)); }
+    T const& value() const& { return getValueImpl(*this); }
+    T const&& value() const&& { return getValueImpl(std::move(*this)); }
 
     template <typename U>
     decltype(auto) valueOr(U&& alternative) {
@@ -87,10 +89,10 @@ public:
         return hasValue() ? *_e : std::forward<U>(alternative);
     }
 
-    E& error()& { return _e.error(); }
-    E&& error()&& { return std::move(_e).error(); }
-    E const& error() const& { return _e.error(); }
-    E const&& error() const&& { return std::move(_e).error(); }
+    E& error()& { return getErrorImpl(*this); }
+    E&& error()&& { return getErrorImpl(std::move(*this)); }
+    E const& error() const& { return getErrorImpl(*this); }
+    E const&& error() const&& { return getErrorImpl(std::move(*this)); }
 
     T* operator->() { return _e.operator->(); }
     T const* operator->() const { return _e.operator->(); }
@@ -100,6 +102,19 @@ public:
     T const& operator*() const& { return value(); }
     T const&& operator*() const&& { return value(); }
 
+private:
+    template <typename Self>
+    static decltype(auto) getValueImpl(Self&& self) {
+        SC_EXPECT(self._e.has_value(), "");
+        return *std::forward<Self>(self)._e;
+    }
+    
+    template <typename Self>
+    static decltype(auto) getErrorImpl(Self&& self) {
+        SC_EXPECT(!self._e.has_value(), "");
+        return std::forward<Self>(self)._e.error();
+    }
+    
 private:
     utl::expected<T, E> _e;
 };
@@ -124,11 +139,18 @@ public:
 
     void value() const {}
 
-    E& error()& { return _e.error(); }
-    E&& error()&& { return std::move(_e).error(); }
-    E const& error() const& { return _e.error(); }
-    E const&& error() const&& { return std::move(_e).error(); }
+    E& error()& { return getErrorImpl(*this); }
+    E&& error()&& { return getErrorImpl(std::move(*this)); }
+    E const& error() const& { return getErrorImpl(*this); }
+    E const&& error() const&& { return getErrorImpl(std::move(*this)); }
 
+private:
+    template <typename Self>
+    static decltype(auto) getErrorImpl(Self&& self) {
+        SC_EXPECT(!self._e.has_value(), "");
+        return std::forward<Self>(self)._e.error();
+    }
+    
 private:
     utl::expected<void, E> _e;
 };
@@ -153,14 +175,21 @@ public:
 
     T& value() const { return **_e; }
 
-    E& error()& { return _e.error(); }
-    E&& error()&& { return std::move(_e).error(); }
-    E const& error() const& { return _e.error(); }
-    E const&& error() const&& { return std::move(_e).error(); }
+    E& error()& { return getErrorImpl(*this); }
+    E&& error()&& { return getErrorImpl(std::move(*this)); }
+    E const& error() const& { return getErrorImpl(*this); }
+    E const&& error() const&& { return getErrorImpl(std::move(*this)); }
 
     T* operator->() const { return *_e.operator->(); }
 
     T& operator*() const { return value(); }
+    
+private:
+    template <typename Self>
+    static decltype(auto) getErrorImpl(Self&& self) {
+        SC_EXPECT(!self._e.has_value(), "");
+        return std::forward<Self>(self)._e.error();
+    }
 
 private:
     utl::expected<T*, E> _e;
