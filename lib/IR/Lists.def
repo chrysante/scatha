@@ -74,7 +74,7 @@ SC_UNARY_ARITHMETIC_OPERATION_DEF(LogicalNot, lnt)
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_ARITHMETIC_OPERATION_DEF
-#   define SC_ARITHMETIC_OPERATION_DEF(op, lowerCase)
+#   define SC_ARITHMETIC_OPERATION_DEF(op, opShort)
 #endif
 
 SC_ARITHMETIC_OPERATION_DEF(Add,  add)
