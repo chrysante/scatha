@@ -8,6 +8,8 @@
 #include "IR/Module.h"
 #include "IR/Parser/Parser.h"
 
+#include "test/IR/EqualityTestHelper.h"
+
 using namespace scatha;
 
 TEST_CASE("Parse simple ir-function", "[ir][parser]") {
@@ -111,11 +113,37 @@ function @X @f(@X) {
 })";
     ir::Context ctx;
     ir::Module mod = ir::parse(text, ctx).value();
-    /// Check `X`
-    auto* X = mod.findStructure("X");
-    CHECK(X != nullptr);
-    CHECK(X->name() == "X");
-    CHECK(X->members().size() == 2);
-    CHECK(X->memberAt(0)->name() == "i64");
-    CHECK(X->memberAt(1)->name() == "f64");
+    using namespace test::ir;
+    using enum ir::NodeType;
+    testModule(&mod)
+      .structures({
+          testStructure("X")
+          .members({
+              "i64", "f64"
+          })
+      })
+      .functions({
+          testFunction("f")
+          .parameters({
+              "X"
+          })
+          .basicBlocks({
+              testBasicBlock("entry")
+              .instructions({
+                  testInstruction("1")
+                  .instType(ExtractValue)
+                  .references({ "0" }),
+                  testInstruction("2")
+                  .instType(ExtractValue)
+                  .references({ "0" }),
+                  testInstruction("res")
+                  .instType(InsertValue)
+                  .references({ "0" }),
+                  testInstruction("")
+                  .instType(InsertValue)
+                  .references({ "res" })
+              })
+          })
+      });
 }
+
