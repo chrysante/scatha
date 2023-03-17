@@ -14,6 +14,7 @@ enum class TokenKind {
     Keyword,
     IntType,
     FloatType,
+    IntLiteral,
     Punctuation,
     EndOfFile
 };

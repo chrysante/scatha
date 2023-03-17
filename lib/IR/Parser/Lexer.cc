@@ -38,6 +38,18 @@ Expected<Token, InvalidToken> Lexer::next() {
         TokenKind const kind = *first == '@' ? TokenKind::GlobalIdentifier : TokenKind::LocalIdentifier;
         return Token(first + 1, i, beginSL, kind);
     }
+    // IntLiteral
+    if (*i == '$') {
+        SourceLocation const beginSL = loc;
+        char const* const first = i++;
+        while (i != end && !std::isspace(*i) && !isPunctuation(*i)) {
+            if (!std::isdigit(*i)) {
+                return InvalidToken(beginSL);
+            }
+            inc();
+        }
+        return Token(first + 1, i, beginSL, TokenKind::IntLiteral);
+    }
     // Punctuation
     if (isPunctuation(*i)) {
         SourceLocation const beginSL = loc;
@@ -46,26 +58,39 @@ Expected<Token, InvalidToken> Lexer::next() {
         return Token(first, i, beginSL, TokenKind::Punctuation);
     }
     // Keyword
-    if (std::isalpha(*i)) {
+    if (std::isalpha(*i) || *i == '_') {
         SourceLocation const beginSL = loc;
         char const* const first = i;
         do {
             inc();
-        } while (i != end && std::isalnum(*i));
+        } while (i != end && (std::isalnum(*i) || *i == '_'));
         std::string_view const id(first, static_cast<size_t>(i - first));
         using namespace std::string_view_literals;
         static constexpr std::array keywords = {
             "function"sv,
             "structure"sv,
+            "label"sv,
+            "alloca"sv,
             "load"sv,
             "store"sv,
+            "cmp"sv,
+            "goto"sv,
+            "branch"sv,
             "return"sv,
-            "neg"sv,
-            "add"sv,
-            "sub"sv,
-            "mul"sv,
-            "div"sv,
-            "rem"sv,
+            "call"sv,
+            "phi"sv,
+            "gep"sv,
+            "extract_value"sv,
+            "insert_value"sv,
+// clang-format off
+#define SC_COMPARE_OPERATION_DEF(op, opShort)                                  \
+    std::string_view(#opShort),
+#define SC_UNARY_ARITHMETIC_OPERATION_DEF(op, opShort)                         \
+    std::string_view(#opShort),
+#define SC_ARITHMETIC_OPERATION_DEF(op, opShort)                               \
+    std::string_view(#opShort),
+#include "IR/Lists.def"
+// clang-format on
         };
         auto itr = ranges::find(keywords, id);
         if (itr != ranges::end(keywords)) {
