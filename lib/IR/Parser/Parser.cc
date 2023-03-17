@@ -186,8 +186,8 @@ Function* ParseContext::parseFunction() {
         return nullptr;
     }
     eatToken();
-    auto* const returnType   = getType(eatToken());
-    Token const name         = eatToken();
+    auto* const returnType = getType(eatToken());
+    Token const name       = eatToken();
     expect(eatToken(), "(");
     utl::vector<Type const*> parameterTypes;
     while (true) {
@@ -305,9 +305,9 @@ Instruction* ParseContext::parseInstruction() {
     }
     if (peekToken().id() == "store") {
         eatToken();
-        Value* const addr  = getValue(eatToken());
+        Value* const addr = getValue(eatToken());
         expect(eatToken(), ",");
-        Value* const value  = getValue(eatToken());
+        Value* const value = getValue(eatToken());
         return new Store(irCtx, addr, value);
     }
     if (peekToken().id() == "goto") {
@@ -328,9 +328,9 @@ Instruction* ParseContext::parseInstruction() {
     }
     if (peekToken().id() == "branch") {
         eatToken();
-        auto* const type   = getType(eatToken());
-        Value* const cond  = getValue(eatToken());
-        auto* result       = new Branch(irCtx, cond, nullptr, nullptr);
+        auto* const type  = getType(eatToken());
+        Value* const cond = getValue(eatToken());
+        auto* result      = new Branch(irCtx, cond, nullptr, nullptr);
         for (size_t i = 0; i < 2; ++i) {
             expect(eatToken(), ",");
             expect(eatToken(), "label");
@@ -352,23 +352,23 @@ Instruction* ParseContext::parseInstruction() {
     }
     if (peekToken().id() == "return") {
         eatToken();
-        auto* const type    = getType(eatToken());
-        Value* const value  = getValue(eatToken());
+        auto* const type   = getType(eatToken());
+        Value* const value = getValue(eatToken());
         /// Here we could check that `value` is of type `type`
         return new Return(irCtx, value);
     }
     if (peekToken().id() == "call") {
         eatToken();
-        auto* const type       = getType(eatToken());
-        auto* const function   = getFunction(eatToken());
+        auto* const type     = getType(eatToken());
+        auto* const function = getFunction(eatToken());
         utl::small_vector<Value*> args;
         while (true) {
             if (peekToken().id() != ",") {
                 break;
             }
             eatToken();
-            auto* const argType   = getType(eatToken());
-            Value* arg            = getValue(eatToken());
+            auto* const argType = getType(eatToken());
+            Value* arg          = getValue(eatToken());
             args.push_back(arg);
         }
         return new FunctionCall(function,
@@ -380,7 +380,8 @@ Instruction* ParseContext::parseInstruction() {
     }
     if (peekToken().id() == "cmp") {
         eatToken();
-        auto const cmpOp     = toCompareOp(eatToken());
+        Token const cmpToken = eatToken();
+        auto const cmpOp     = toCompareOp(cmpToken);
         if (!cmpOp) {
             throw ParseError(cmpToken.sourceLocation());
         }
