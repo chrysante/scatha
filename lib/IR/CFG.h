@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/hash.hpp>
 #include <utl/hashmap.hpp>
@@ -631,7 +632,10 @@ public:
     std::span<BasicBlock const* const> targets() const { return _targets; }
 
     void updateTarget(BasicBlock const* oldTarget, BasicBlock* newTarget) {
-        *std::find(_targets.begin(), _targets.end(), oldTarget) = newTarget;
+        auto itr = ranges::find(_targets, oldTarget);
+        SC_ASSERT(itr != _targets.end(),
+                  "`oldTarget` is not a target of this terminator");
+        *itr = newTarget;
     }
 
 protected:
