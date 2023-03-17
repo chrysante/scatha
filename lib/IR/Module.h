@@ -24,24 +24,20 @@ public:
     Module& operator=(Module&& rhs) noexcept;
     ~Module();
 
-    auto structures() {
-        return makeOpaqueRange(structs);
-    }
-    
-    auto structures() const {
-        return makeOpaqueRange(structs);
-    }
-    
+    auto structures() { return makeOpaqueRange(structs); }
+
+    auto structures() const { return makeOpaqueRange(structs); }
+
     StructureType* findStructure(std::string_view name) {
         auto* res = static_cast<Module const*>(this)->findStructure(name);
         return const_cast<StructureType*>(res);
     }
-    
+
     StructureType const* findStructure(std::string_view name) const {
         auto itr = structs.find(name);
         return itr != structs.end() ? *itr : nullptr;
     }
-    
+
     auto& functions() { return funcs; }
     auto const& functions() const { return funcs; }
 

@@ -15,4 +15,3 @@ auto makeOpaqueRange(auto&& r) {
 } // namespace scatha
 
 #endif // SCATHA_BASIC_OPAQUERANGE_H_
-

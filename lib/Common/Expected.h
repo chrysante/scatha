@@ -74,8 +74,8 @@ public:
 
     explicit operator bool() const { return hasValue(); }
 
-    T& value()& { return getValueImpl(*this); }
-    T&& value()&& { return getValueImpl(std::move(*this)); }
+    T& value() & { return getValueImpl(*this); }
+    T&& value() && { return getValueImpl(std::move(*this)); }
     T const& value() const& { return getValueImpl(*this); }
     T const&& value() const&& { return getValueImpl(std::move(*this)); }
 
@@ -89,16 +89,16 @@ public:
         return hasValue() ? *_e : std::forward<U>(alternative);
     }
 
-    E& error()& { return getErrorImpl(*this); }
-    E&& error()&& { return getErrorImpl(std::move(*this)); }
+    E& error() & { return getErrorImpl(*this); }
+    E&& error() && { return getErrorImpl(std::move(*this)); }
     E const& error() const& { return getErrorImpl(*this); }
     E const&& error() const&& { return getErrorImpl(std::move(*this)); }
 
     T* operator->() { return _e.operator->(); }
     T const* operator->() const { return _e.operator->(); }
 
-    T& operator*()& { return value(); }
-    T&& operator*()&& { return value(); }
+    T& operator*() & { return value(); }
+    T&& operator*() && { return value(); }
     T const& operator*() const& { return value(); }
     T const&& operator*() const&& { return value(); }
 
@@ -108,13 +108,13 @@ private:
         SC_EXPECT(self._e.has_value(), "");
         return *std::forward<Self>(self)._e;
     }
-    
+
     template <typename Self>
     static decltype(auto) getErrorImpl(Self&& self) {
         SC_EXPECT(!self._e.has_value(), "");
         return std::forward<Self>(self)._e.error();
     }
-    
+
 private:
     utl::expected<T, E> _e;
 };
@@ -139,8 +139,8 @@ public:
 
     void value() const {}
 
-    E& error()& { return getErrorImpl(*this); }
-    E&& error()&& { return getErrorImpl(std::move(*this)); }
+    E& error() & { return getErrorImpl(*this); }
+    E&& error() && { return getErrorImpl(std::move(*this)); }
     E const& error() const& { return getErrorImpl(*this); }
     E const&& error() const&& { return getErrorImpl(std::move(*this)); }
 
@@ -150,7 +150,7 @@ private:
         SC_EXPECT(!self._e.has_value(), "");
         return std::forward<Self>(self)._e.error();
     }
-    
+
 private:
     utl::expected<void, E> _e;
 };
@@ -175,15 +175,15 @@ public:
 
     T& value() const { return **_e; }
 
-    E& error()& { return getErrorImpl(*this); }
-    E&& error()&& { return getErrorImpl(std::move(*this)); }
+    E& error() & { return getErrorImpl(*this); }
+    E&& error() && { return getErrorImpl(std::move(*this)); }
     E const& error() const& { return getErrorImpl(*this); }
     E const&& error() const&& { return getErrorImpl(std::move(*this)); }
 
     T* operator->() const { return *_e.operator->(); }
 
     T& operator*() const { return value(); }
-    
+
 private:
     template <typename Self>
     static decltype(auto) getErrorImpl(Self&& self) {
