@@ -146,3 +146,24 @@ fn main() -> int {
     return 6;
 })");
 }
+
+TEST_CASE("Member access mem2reg failure", "[codegen][member-access]") {
+#warning Known failure
+    return;
+    test::checkReturns(1, R"(
+fn modifyX(x: X) -> X {
+    x.a = 1;
+    return x;
+}
+fn main() -> int {
+    var x: X;
+    x.a = 0;
+    x.b = 0;
+    x = modifyX(x);
+    return x.a;
+}
+struct X {
+    var a: int;
+    var b: int;
+})");
+}
