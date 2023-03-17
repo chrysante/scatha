@@ -105,7 +105,8 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
     CHECK(bb.terminator() != nullptr, "Basic block must have a terminator");
     visit(*bb.terminator(), utl::overload{
         [&](Return const& ret) {
-            auto const* const returnedType = ret.value() ? ret.value()->type() : ctx.voidType();
+            auto const* const returnedType =
+                ret.value() ? ret.value()->type() : ctx.voidType();
             CHECK(returnedType == bb.parent()->returnType(),
                   "Returned type must match return type of the function");
         },

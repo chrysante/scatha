@@ -81,9 +81,13 @@ std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
 std::string ir::toString(Value const& value) {
     // clang-format off
     return visit(value, utl::overload{
-        [&](Value const& value)                 { return utl::strcat("%", value.name()); },
-        [&](IntegralConstant const& value)      { return utl::strcat("$", value.value().toString()); },
-        [&](FloatingPointConstant const& value) { return utl::strcat("$", value.value().toString()); },
+        [&](Value const& value) { return utl::strcat("%", value.name()); },
+        [&](IntegralConstant const& value) {
+            return utl::strcat("$", value.value().toString());
+        },
+        [&](FloatingPointConstant const& value) {
+            return utl::strcat("$", value.value().toString());
+        },
     }); // clang-format on
 }
 
@@ -117,13 +121,31 @@ static auto formatType(ir::Type const* type) {
 static auto formatName(Value const& value) {
     // clang-format off
     return visit(value, utl::overload{
-        [](ir::Function const& function){ return tfmt::format(tfmt::italic, "@", std::string(function.name())); },
-        [](ir::Parameter const& parameter){ return tfmt::format(tfmt::none, "%", std::string(parameter.name())); },
-        [](ir::BasicBlock const& basicBlock){ return tfmt::format(tfmt::italic, "%", std::string(basicBlock.name())); },
-        [](ir::Instruction const& inst){ return tfmt::format(tfmt::none, "%", std::string(inst.name())); },
-        [](ir::IntegralConstant const& value) { return tfmt::format(tfmt::cyan, "$", value.value().toString()); },
-        [](ir::FloatingPointConstant const& value) { return tfmt::format(tfmt::cyan, "$", value.value().toString()); },
-        [](ir::Value const&){ return tfmt::format(tfmt::bgMagenta, "?", std::string("??")); },
+        [](ir::Function const& function) {
+            return tfmt::format(tfmt::italic,
+                                "@",
+                                std::string(function.name()));
+        },
+        [](ir::Parameter const& parameter) {
+            return tfmt::format(tfmt::none, "%", std::string(parameter.name()));
+        },
+        [](ir::BasicBlock const& basicBlock) {
+            return tfmt::format(tfmt::italic,
+                                "%",
+                                std::string(basicBlock.name()));
+        },
+        [](ir::Instruction const& inst) {
+            return tfmt::format(tfmt::none, "%", std::string(inst.name()));
+        },
+        [](ir::IntegralConstant const& value) {
+            return tfmt::format(tfmt::cyan, "$", value.value().toString());
+        },
+        [](ir::FloatingPointConstant const& value) {
+            return tfmt::format(tfmt::cyan, "$", value.value().toString());
+        },
+        [](ir::Value const&) {
+            return tfmt::format(tfmt::bgMagenta, "?", std::string("??"));
+        },
     }); // clang-format on
 }
 
