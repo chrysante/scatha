@@ -178,8 +178,11 @@ public:
                });
     }
 
+    std::span<Type const* const> typeOperands() const { return typeOps; }
+
 protected:
     using User::User;
+    utl::small_vector<Type const*> typeOps;
 };
 
 namespace internal {
@@ -539,12 +542,11 @@ public:
 /// `load` instruction. Load data from memory into a register.
 class SCATHA(API) Load: public UnaryInstruction {
 public:
-    explicit Load(Value* address, std::string name):
-        UnaryInstruction(NodeType::Load,
-                         address,
-                         cast<PointerType const*>(address->type())
-                             ->pointeeType(),
-                         std::move(name)) {}
+    explicit Load(Value* address, Type const* type, std::string name):
+        UnaryInstruction(NodeType::Load, address, type, std::move(name)) {
+        SC_ASSERT(isa<PointerType>(address->type()),
+                  "`address` must be of type `ptr`");
+    }
 
     Value* address() { return operand(); }
     Value const* address() const { return operand(); }
@@ -572,7 +574,7 @@ public:
 /// `store` instruction. Store a value from a register into memory.
 class SCATHA(API) Store: public BinaryInstruction {
 public:
-    explicit Store(Context& context, Value* dest, Value* source);
+    explicit Store(Context& context, Value* address, Value* value);
 
     Value* dest() { return lhs(); }
     Value const* dest() const { return lhs(); }
@@ -855,10 +857,6 @@ public:
                                std::string name = {});
 
     Type const* accessedType() const { return accType; }
-
-    Type const* pointeeType() const {
-        return cast<PointerType const*>(type())->pointeeType();
-    }
 
     bool isAllConstant() const {
         return isa<IntegralConstant>(arrayIndex()) &&

@@ -84,22 +84,12 @@ public:
 /// point to.
 class PointerType: public Type {
 public:
-    PointerType(Type const* pointeeType):
-        Type(makePointerName(pointeeType),
+    PointerType():
+        Type("ptr",
              TypeCategory::PointerType,
              8, /// For now, maybe we want to derive size and align from
                 /// something in the future.
-             8),
-        _pointeeType(pointeeType) {}
-
-    Type const* pointeeType() const { return _pointeeType; }
-
-    static std::string makePointerName(Type const* pointee) {
-        return utl::strcat(pointee->name(), "*");
-    }
-
-private:
-    Type const* _pointeeType;
+             8) {}
 };
 
 /// Base class of `Integral` and `FloatingPoint` types.

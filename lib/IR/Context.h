@@ -23,7 +23,7 @@ public:
 
     VoidType const* voidType();
 
-    PointerType const* pointerType(Type const* pointeeType);
+    PointerType const* pointerType();
 
     IntegralType const* integralType(size_t bitWidth);
 

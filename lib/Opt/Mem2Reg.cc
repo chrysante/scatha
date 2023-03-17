@@ -362,47 +362,6 @@ Value* Mem2RegContext::findReplacement(Value* value) {
     return value;
 }
 
-static std::optional<std::tuple<Value const*, size_t, size_t>>
-getConstantBaseAndOffset(Value const* addr) {
-    GetElementPointer const* gep = nullptr;
-    Value const* base            = addr;
-    size_t offset                = 0;
-    size_t size = cast<PointerType const*>(addr->type())->pointeeType()->size();
-    while ((gep = dyncast<GetElementPointer const*>(base)) != nullptr) {
-        if (!gep->isAllConstant()) {
-            return std::nullopt;
-        }
-        base = gep->basePointer();
-        offset += gep->constantByteOffset();
-        size = gep->pointeeType()->size();
-    }
-    return std::tuple{ base, offset, size };
-}
-
-static bool testOverlap(size_t aBegin,
-                        size_t aSize,
-                        size_t bBegin,
-                        size_t bSize) {
-    return aBegin <= bBegin + bSize && bBegin <= aBegin + aSize;
-}
-
-static boost::tribool testAddressOverlap(Value const* a, Value const* b) {
-    if (!a || !b) {
-        return false;
-    }
-    if (a == b) {
-        return true;
-    }
-    auto abo = getConstantBaseAndOffset(a);
-    auto bbo = getConstantBaseAndOffset(b);
-    if (!abo || !bbo) {
-        return boost::indeterminate;
-    }
-    auto const [aBase, aOffset, aSize] = *abo;
-    auto const [bBase, bOffset, bSize] = *bbo;
-    return aBase == bBase && testOverlap(aOffset, aSize, bOffset, bSize);
-}
-
 void Mem2RegContext::gather() {
     for (auto& inst: function.instructions()) {
         // clang-format off
@@ -421,9 +380,7 @@ void Mem2RegContext::gather() {
     for ([[maybe_unused]] auto&& [bb_addr, ls]: loadsAndStores) {
         SC_ASSERT(std::is_sorted(ls.begin(),
                                  ls.end(),
-                                 [](Instruction const* a,
-                                    Instruction const*
-                                        b) { return preceeds(a, b); }),
+                                 &opt::preceeds),
                   "Cached loads and stores in one basic block must be sorted "
                   "by position");
     }

@@ -124,16 +124,13 @@ std::span<BasicBlock const* const> BasicBlock::successors() const {
 }
 
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
-    Instruction(NodeType::Alloca,
-                context.pointerType(allocatedType),
-                std::move(name)),
+    Instruction(NodeType::Alloca, context.pointerType(), std::move(name)),
     _allocatedType(allocatedType) {}
 
-Store::Store(Context& context, Value* dest, Value* source):
-    BinaryInstruction(NodeType::Store, dest, source, context.voidType()) {
-    SC_ASSERT(cast<PointerType const*>(dest->type())->pointeeType() ==
-                  source->type(),
-              "dest must be a pointer to type of source");
+Store::Store(Context& context, Value* address, Value* value):
+    BinaryInstruction(NodeType::Store, address, value, context.voidType()) {
+    SC_ASSERT(isa<PointerType>(address->type()),
+              "`address` must be of type `ptr`");
 }
 
 CompareInst::CompareInst(Context& context,
@@ -257,20 +254,21 @@ GetElementPointer::GetElementPointer(Context& context,
                                      Value* structMemberIndex,
                                      std::string name):
     Instruction(NodeType::GetElementPointer,
-                context.pointerType(pointeeType),
+                context.pointerType(),
                 std::move(name),
                 { basePointer, arrayIndex, structMemberIndex }),
     accType(accessedType) {
     SC_ASSERT(isa<PointerType>(basePointer->type()),
-              "basePointer must be a pointer");
+              "`basePointer` must be a pointer");
     SC_ASSERT(isa<IntegralType>(arrayIndex->type()),
               "Indices must be integral");
     SC_ASSERT(isa<IntegralType>(structMemberIndex->type()),
               "Indices must be integral");
-    if (auto* offset = dyncast<IntegralConstant const*>(structMemberIndex)) {
-        SC_ASSERT(cast<PointerType const*>(type())->pointeeType() ==
-                      cast<StructureType const*>(accessedType)
-                          ->memberAt(offset->value().to<size_t>()),
-                  "");
-    }
+    //    if (auto* offset = dyncast<IntegralConstant
+    //    const*>(structMemberIndex)) {
+    //        SC_ASSERT(cast<PointerType const*>(type())->pointeeType() ==
+    //                      cast<StructureType const*>(accessedType)
+    //                          ->memberAt(offset->value().to<size_t>()),
+    //                  "");
+    //    }
 }

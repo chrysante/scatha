@@ -18,12 +18,12 @@ VoidType const* Context::voidType() {
     return cast<VoidType const*>(*itr);
 }
 
-PointerType const* Context::pointerType(Type const* pointeeType) {
-    auto itr = _types.find(PointerType::makePointerName(pointeeType));
+PointerType const* Context::pointerType() {
+    auto itr = _types.find("ptr");
     if (itr != _types.end()) {
         return cast<PointerType const*>(*itr);
     }
-    auto* type = new PointerType(pointeeType);
+    auto* type = new PointerType();
     _types.insert(type);
     return type;
 }

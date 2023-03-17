@@ -68,7 +68,9 @@ struct Context {
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
 
-    ir::Value* loadAddress(ir::Value* address, std::string_view name);
+    ir::Value* loadAddress(ir::Value* address,
+                           ir::Type const* type,
+                           std::string_view name);
 
     void declareTypes();
     void declareFunctions();
@@ -295,7 +297,7 @@ ir::Value* Context::getValue(Expression const& expr) {
 }
 
 ir::Value* Context::getValueImpl(Identifier const& id) {
-    return loadAddress(getAddressImpl(id), id.value());
+    return loadAddress(getAddressImpl(id), mapType(id.typeID()), id.value());
 }
 
 ir::Value* Context::getValueImpl(IntegerLiteral const& intLit) {
@@ -318,9 +320,12 @@ ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
     if (expr.operation() == ast::UnaryPrefixOperator::Increment ||
         expr.operation() == ast::UnaryPrefixOperator::Decrement)
     {
-        ir::Value* const addr = getAddress(*expr.operand);
-        ir::Value* const value =
-            loadAddress(addr, localUniqueName(expr.operation(), ".value"));
+        ir::Value* addr      = getAddress(*expr.operand);
+        ir::Type const* type = mapType(expr.operand->typeID());
+        ir::Value* value =
+            loadAddress(addr,
+                        type,
+                        localUniqueName(expr.operation(), ".value"));
         auto const operation =
             expr.operation() == ast::UnaryPrefixOperator::Increment ?
                 ir::ArithmeticOperation::Add :
@@ -421,11 +426,12 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         return getValue(*exprDecl.rhs);
     }
     case BinaryOperator::Assignment: {
-        ir::Value* const lhsAddr = getAddress(*exprDecl.lhs);
-        ir::Value* const rhs     = getValue(*exprDecl.rhs);
-        auto* store              = new ir::Store(irCtx, lhsAddr, rhs);
+        ir::Value* lhsAddr      = getAddress(*exprDecl.lhs);
+        ir::Type const* lhsType = mapType(exprDecl.lhs->typeID());
+        ir::Value* rhs          = getValue(*exprDecl.rhs);
+        auto* store             = new ir::Store(irCtx, lhsAddr, rhs);
         currentBB()->pushBack(store);
-        return loadAddress(lhsAddr, "tmp");
+        return loadAddress(lhsAddr, lhsType, "tmp");
     }
     case BinaryOperator::AddAssignment: [[fallthrough]];
     case BinaryOperator::SubAssignment: [[fallthrough]];
@@ -437,9 +443,10 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::AndAssignment: [[fallthrough]];
     case BinaryOperator::OrAssignment: [[fallthrough]];
     case BinaryOperator::XOrAssignment: {
-        ir::Value* const lhsAddr = getAddress(*exprDecl.lhs);
-        ir::Value* const lhs     = loadAddress(lhsAddr, "lhs");
-        ir::Value* const rhs     = getValue(*exprDecl.rhs);
+        ir::Value* lhsAddr      = getAddress(*exprDecl.lhs);
+        ir::Type const* lhsType = mapType(exprDecl.lhs->typeID());
+        ir::Value* lhs          = loadAddress(lhsAddr, lhsType, "lhs");
+        ir::Value* rhs          = getValue(*exprDecl.rhs);
         auto* result =
             new ir::ArithmeticInst(lhs,
                                    rhs,
@@ -448,14 +455,16 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
         currentBB()->pushBack(result);
         auto* store = new ir::Store(irCtx, lhsAddr, result);
         currentBB()->pushBack(store);
-        return loadAddress(lhsAddr, "tmp");
+        return loadAddress(lhsAddr, lhsType, "tmp");
     }
     case BinaryOperator::_count: SC_DEBUGFAIL();
     }
 }
 
 ir::Value* Context::getValueImpl(MemberAccess const& expr) {
-    return loadAddress(getAddressImpl(expr), "member.access");
+    return loadAddress(getAddressImpl(expr),
+                       mapType(expr.typeID()),
+                       "member.access");
 }
 
 ir::Value* Context::getValueImpl(Conditional const& condExpr) {
@@ -582,8 +591,10 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
     return gep;
 }
 
-ir::Value* Context::loadAddress(ir::Value* address, std::string_view name) {
-    auto* const load = new ir::Load(address, localUniqueName(name));
+ir::Value* Context::loadAddress(ir::Value* address,
+                                ir::Type const* type,
+                                std::string_view name) {
+    auto* const load = new ir::Load(address, type, localUniqueName(name));
     currentBB()->pushBack(load);
     return load;
 }

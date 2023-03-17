@@ -301,7 +301,7 @@ Instruction* ParseContext::parseInstruction() {
         eatToken();
         auto* const type = getType(eatToken());
         Value* const ptr = getValue(eatToken());
-        return new Load(ptr, std::move(name).value());
+        return new Load(ptr, type, std::move(name).value());
     }
     if (peekToken().id() == "store") {
         eatToken();
