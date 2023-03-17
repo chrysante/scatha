@@ -8,6 +8,7 @@
 #include <utl/hashset.hpp>
 
 #include <scatha/Basic/Basic.h>
+#include <scatha/Basic/OpaqueRange.h>
 #include <scatha/IR/Common.h>
 #include <scatha/IR/List.h>
 #include <scatha/IR/Type.h>
@@ -23,8 +24,14 @@ public:
     Module& operator=(Module&& rhs) noexcept;
     ~Module();
 
-    auto const& structures() const { return structs; }
-
+    auto structures() {
+        return makeOpaqueRange(structs);
+    }
+    
+    auto structures() const {
+        return makeOpaqueRange(structs);
+    }
+    
     auto& functions() { return funcs; }
     auto const& functions() const { return funcs; }
 
