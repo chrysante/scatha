@@ -79,7 +79,7 @@ TEST_CASE("Expected Reference", "[common]") {
     }
     CHECK(MyError::dtorRun);
     auto const c = f(true, i);
-    CHECK(std::is_same_v<decltype(*c), int const&>);
+    CHECK(std::is_same_v<decltype(*c), int&>);
 }
 
 TEST_CASE("Expected Const Reference", "[common]") {
