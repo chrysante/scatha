@@ -1,4 +1,5 @@
 Basic/Basic.h
+Basic/OpaqueRange.h
 
 AST/AST.h
 AST/Base.h

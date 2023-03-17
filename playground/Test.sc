@@ -1,9 +1,21 @@
-fn main() -> bool {
-    let a = true;
-    let b = false;
-    return a && b;
+
+struct X {
+    var i: int;
+    var f: float;
 }
 
+fn f(i: int) -> int {
+    var j = i * 2;
+    if i > 2 {
+        ++j;
+    }
+    return j;
+}
+
+fn main() -> int {
+    var i = -3;
+    return f(-i);
+}
 
 
 /*
@@ -34,4 +46,5 @@ struct X {
 struct Y {
     var i: int;
 }
- */
+
+*/
