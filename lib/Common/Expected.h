@@ -72,8 +72,10 @@ public:
 
     explicit operator bool() const { return hasValue(); }
 
-    T& value() { return *_e; }
-    T const& value() const { return *_e; }
+    T& value()& { return *_e; }
+    T&& value()&& { return *std::move(_e); }
+    T const& value() const& { return *_e; }
+    T const&& value() const&& { return *std::move(_e); }
 
     template <typename U>
     decltype(auto) valueOr(U&& alternative) {
@@ -85,14 +87,18 @@ public:
         return hasValue() ? *_e : std::forward<U>(alternative);
     }
 
-    E& error() { return _e.error(); }
-    E const& error() const { return _e.error(); }
+    E& error()& { return _e.error(); }
+    E&& error()&& { return std::move(_e).error(); }
+    E const& error() const& { return _e.error(); }
+    E const&& error() const&& { return std::move(_e).error(); }
 
     T* operator->() { return _e.operator->(); }
     T const* operator->() const { return _e.operator->(); }
 
-    T& operator*() { return _e.operator*(); }
-    T const& operator*() const { return _e.operator*(); }
+    T& operator*()& { return value(); }
+    T&& operator*()&& { return value(); }
+    T const& operator*() const& { return value(); }
+    T const&& operator*() const&& { return value(); }
 
 private:
     utl::expected<T, E> _e;
@@ -118,8 +124,10 @@ public:
 
     void value() const {}
 
-    E& error() { return _e.error(); }
-    E const& error() const { return _e.error(); }
+    E& error()& { return _e.error(); }
+    E&& error()&& { return std::move(_e).error(); }
+    E const& error() const& { return _e.error(); }
+    E const&& error() const&& { return std::move(_e).error(); }
 
 private:
     utl::expected<void, E> _e;
@@ -143,17 +151,16 @@ public:
 
     explicit operator bool() const { return hasValue(); }
 
-    T& value() { return **_e; }
-    T const& value() const { return **_e; }
+    T& value() const { return **_e; }
 
-    E& error() { return _e.error(); }
-    E const& error() const { return _e.error(); }
+    E& error()& { return _e.error(); }
+    E&& error()&& { return std::move(_e).error(); }
+    E const& error() const& { return _e.error(); }
+    E const&& error() const&& { return std::move(_e).error(); }
 
-    T* operator->() { return *_e.operator->(); }
-    T const* operator->() const { return *_e.operator->(); }
+    T* operator->() const { return *_e.operator->(); }
 
-    T& operator*() { return *_e.operator*(); }
-    T const& operator*() const { return *_e.operator*(); }
+    T& operator*() const { return value(); }
 
 private:
     utl::expected<T*, E> _e;
