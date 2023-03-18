@@ -1,25 +1,39 @@
 #include <Catch/Catch2.hpp>
 
+#include <range/v3/algorithm.hpp>
 #include <string>
 
 #include "Common/UniquePtr.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Iterator.h"
-#include "test/IR/CompileToIR.h"
+#include "IR/Module.h"
+#include "IR/Parser/Parser.h"
 
 using namespace scatha;
 
 TEST_CASE("Iterate over instructions in a function", "[ir][opt]") {
-    std::string const text         = R"(
-fn f(n: int) -> int {
-    var k = n;
-    if k == 0 {
-        k = 1;
-    }
-    return k;
+    auto const text = R"(
+function i64 @ff(i64) {
+  %entry:
+    %n.addr = alloca i64
+    store %n.addr, %0
+    %k-ptr = alloca i64
+    %n = load i64 %n.addr
+    store %k-ptr, %n
+    %k = load i64 %k-ptr
+    %cmp.result = cmp eq i64 %k, i64 $0
+    branch i1 %cmp.result, label %then, label %if.end
+  %then:
+    store %k-ptr, $1
+    %tmp = load i64 %k-ptr
+    goto label %if.end
+  %if.end:
+    %k.1 = load i64 %k-ptr
+    return i64 %k.1
 })";
-    auto mod                       = test::compileToIR(text);
+    ir::Context ctx;
+    auto mod                       = ir::parse(text, ctx).value();
     auto& function                 = mod.functions().front();
     ir::NodeType const reference[] = {
         ir::NodeType::Alloca,      ir::NodeType::Store,  ir::NodeType::Alloca,
@@ -30,7 +44,7 @@ fn f(n: int) -> int {
     };
     SECTION("Simple traversal") {
         for (auto&& [index, inst]:
-             ranges::views::enumerate(function.instructions()))
+             function.instructions() | ranges::views::enumerate)
         {
             auto const type = reference[index];
             CHECK(inst.nodeType() == type);
@@ -70,51 +84,34 @@ fn f(n: int) -> int {
 }
 
 TEST_CASE("Phi iterator", "[ir][opt]") {
-    using namespace ir;
+    auto const text = R"(
+function i64 @f() {
+  %entry:
+    goto label %header
+  %header:
+    %z = phi i64 [label %entry: $3], [label %body: $4]
+    %y = phi i64 [label %entry: $2], [label %body: $3]
+    %x = phi i64 [label %entry: $1], [label %body: $2]
+    %sum = add i64 %z, %z
+    %prod = mul i64 %z, %z
+    goto label %body
+  %body:
+    goto label %header
+})";
     ir::Context ctx;
-    UniquePtr f = allocate<Function>(nullptr,
-                                     ctx.voidType(),
-                                     std::span<Type const*>{},
-                                     "f");
-    auto* entry = new BasicBlock(ctx, "entry");
-    f->pushBack(entry);
-    auto* header = new BasicBlock(ctx, "header");
-    f->pushBack(header);
-    auto* body = new BasicBlock(ctx, "body");
-    f->pushBack(body);
-    entry->pushBack(new Goto(ctx, header));
-    header->pushBack(new Goto(ctx, body));
-    body->pushBack(new Goto(ctx, header));
-    auto* x = new Phi({ { entry, ctx.integralConstant(1, 64) },
-                        { body, ctx.integralConstant(2, 64) } },
-                      "x");
-    header->pushFront(x);
-    auto* y = new Phi({ { entry, ctx.integralConstant(2, 64) },
-                        { body, ctx.integralConstant(3, 64) } },
-                      "y");
-    header->pushFront(y);
-    auto* z = new Phi({ { entry, ctx.integralConstant(3, 64) },
-                        { body, ctx.integralConstant(4, 64) } },
-                      "z");
-    header->pushFront(z);
-    header->insert(std::prev(header->end()),
-                   new ArithmeticInst(x, z, ArithmeticOperation::Add, "sum"));
-    header->insert(std::prev(header->end()),
-                   new ArithmeticInst(x, z, ArithmeticOperation::Mul, "prod"));
-    auto headerPhiNodes = header->phiNodes();
+    auto mod = ir::parse(text, ctx).value();
+    auto& f = mod.functions().front();
+    auto& header = *f.front().next();
+    auto headerPhiNodes = header.phiNodes();
     for (auto itr = headerPhiNodes.begin(); itr != headerPhiNodes.end();) {
         if (itr->name() == "y") {
-            itr = header->erase(itr);
+            itr = header.erase(itr);
         }
         else {
             ++itr;
         }
     }
-    CHECK(std::count_if(header->begin(), header->end(), [](auto&&) {
-              return true;
-          }) == 5);
-    header->eraseAllPhiNodes();
-    CHECK(std::count_if(header->begin(), header->end(), [](auto&&) {
-              return true;
-          }) == 3);
+    CHECK(ranges::distance(header) == 5);
+    header.eraseAllPhiNodes();
+    CHECK(ranges::distance(header) == 3);
 }
