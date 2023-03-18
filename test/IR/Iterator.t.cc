@@ -99,9 +99,9 @@ function i64 @f() {
     goto label %header
 })";
     ir::Context ctx;
-    auto mod = ir::parse(text, ctx).value();
-    auto& f = mod.functions().front();
-    auto& header = *f.front().next();
+    auto mod            = ir::parse(text, ctx).value();
+    auto& f             = mod.functions().front();
+    auto& header        = *f.front().next();
     auto headerPhiNodes = header.phiNodes();
     for (auto itr = headerPhiNodes.begin(); itr != headerPhiNodes.end();) {
         if (itr->name() == "y") {
