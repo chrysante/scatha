@@ -13,12 +13,12 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IRDump.h"
-#include "Volatile.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/Mem2Reg.h"
 #include "OptTest.h"
 #include "SampleCompiler.h"
+#include "Volatile.h"
 
 enum class ProgramCase {
     SampleCompiler,

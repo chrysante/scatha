@@ -6,6 +6,4 @@
 
 using namespace scatha;
 
-void playground::volatilePlayground() {
-    
-}
+void playground::volatilePlayground() {}
