@@ -378,7 +378,23 @@ Instruction* ParseContext::parseInstruction() {
                                 std::move(name).value_or(std::string{}));
     }
     if (peekToken().id() == "phi") {
-        SC_DEBUGFAIL();
+        eatToken();
+        auto* const type = getType(eatToken());
+        utl::small_vector<PhiMapping> phiArgs;
+        while (true) {
+            expect(eatToken(), "[");
+            expect(eatToken(), "label");
+            auto* const pred = getBasicBlock(eatToken());
+            expect(eatToken(), ":");
+            Value* const value = getValue(eatToken());
+            phiArgs.push_back({ pred, value });
+            expect(eatToken(), "]");
+            if (peekToken().id() != ",") {
+                break;
+            }
+            eatToken();
+        }
+        return new Phi(std::move(phiArgs), std::move(name).value());
     }
     if (peekToken().id() == "cmp") {
         eatToken();
