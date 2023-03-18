@@ -200,14 +200,14 @@ public:
     void pushBack(ValueType* value) { insert(values.end(), value); }
 
     /// Callee takes ownership.
-    void insert(ConstIterator before, ValueType* value) {
+    Iterator insert(ConstIterator before, ValueType* value) {
         value->set_parent(static_cast<Derived*>(this));
-        values.insert(before, value);
+        return values.insert(before, value);
     }
 
     /// \overload
-    void insert(ValueType const* before, ValueType* value) {
-        insert(ConstIterator(before), value);
+    ValueType* insert(ValueType const* before, ValueType* value) {
+        return insert(ConstIterator(before), value).to_address();
     }
 
     /// Erase an instruction. Clears the operands.
