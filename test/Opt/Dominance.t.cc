@@ -23,7 +23,8 @@ static auto& find(auto range, std::string_view name) {
 
 /// Requires the sequences \p a and \p b to be unique.
 static bool setEqual(auto&& a, auto&& b) {
-    if (ranges::size(a) != ranges::size(b));
+    if (ranges::size(a) != ranges::size(b))
+        return false;
     for (auto&& x: a) {
         if (ranges::find(b, x) == ranges::end(b)) {
             return false;
@@ -57,14 +58,14 @@ function i64 @f() {
     ir::Module mod  = ir::parse(text, ctx).value();
     auto& f         = mod.functions().front();
     /// ## Dominator tree
-    auto domTree    = opt::buildDomTree(f);
-    auto& root      = domTree.root();
+    auto domTree = opt::buildDomTree(f);
+    auto& root   = domTree.root();
     CHECK(root.basicBlock()->name() == "entry");
     REQUIRE(root.children().size() == 1);
     auto& BB2 = root.children()[0];
     CHECK(BB2.basicBlock()->name() == "2");
-    auto childrenOf2  = BB2.children();
-    auto& BB3 = find(childrenOf2, "3");
+    auto childrenOf2 = BB2.children();
+    auto& BB3        = find(childrenOf2, "3");
     REQUIRE(BB3.children().empty());
     auto& BB4 = find(childrenOf2, "4");
     REQUIRE(BB4.children().empty());
@@ -113,13 +114,13 @@ function i64 @f() {
     ir::Module mod  = ir::parse(text, ctx).value();
     auto& f         = mod.functions().front();
     /// ## Dominator tree
-    auto domTree    = opt::buildDomTree(f);
-    auto& root      = domTree.root();
+    auto domTree = opt::buildDomTree(f);
+    auto& root   = domTree.root();
     CHECK(root.basicBlock()->name() == "entry");
     REQUIRE(root.children().size() == 3);
     auto childrenOfRoot = root.children();
-    auto& BB1 = find(childrenOfRoot, "1");
-    auto& BB2 = find(childrenOfRoot, "2");
+    auto& BB1           = find(childrenOfRoot, "1");
+    auto& BB2           = find(childrenOfRoot, "2");
     REQUIRE(BB2.children().empty());
     auto& BB4 = find(childrenOfRoot, "4");
     REQUIRE(BB1.children().size() == 1);
