@@ -378,9 +378,7 @@ void Mem2RegContext::gather() {
         }); // clang-format on
     }
     for ([[maybe_unused]] auto&& [bb_addr, ls]: loadsAndStores) {
-        SC_ASSERT(std::is_sorted(ls.begin(),
-                                 ls.end(),
-                                 &opt::preceeds),
+        SC_ASSERT(std::is_sorted(ls.begin(), ls.end(), &opt::preceeds),
                   "Cached loads and stores in one basic block must be sorted "
                   "by position");
     }

@@ -57,6 +57,7 @@
 #include "IR/Parser/Lexer.h"
 #include "IR/Parser/Token.h"
 #include "IR/Type.h"
+#include "IR/Validate.h"
 
 using namespace scatha;
 using namespace ir;
@@ -141,6 +142,7 @@ Expected<Module, ParseError> ir::parse(std::string_view text, Context& irCtx) {
     ParseContext ctx(irCtx, mod, text);
     try {
         ctx.parse();
+        setupInvariants(irCtx, mod);
         return mod;
     }
     catch (ParseError const& error) {

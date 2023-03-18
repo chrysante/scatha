@@ -164,8 +164,7 @@ public:
                          std::string name                            = {},
                          utl::small_vector<Value*> operands          = {},
                          utl::small_vector<Type const*> typeOperands = {});
-        
-        
+
     /// View of all instructions using this value. This casts the elements in
     /// the range returned by `Value::users()` to instructions, as instructions
     /// are only used by other instructions.
