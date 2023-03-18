@@ -83,23 +83,16 @@ DomTree opt::buildDomTree(ir::Function& function) {
             }
         }
     }
-    for (auto&& [bb, domSet]: domSets) {
-        std::cout << bb->name() << ": [";
-        for (bool first = true; auto* dom: domSet) {
-            std::cout << (first ? first = false, "" : ", ") << dom->name();
-        }
-        std::cout << "]\n";
-    }
     result._nodes = nodeSet | ranges::views::transform([](BasicBlock* bb) {
                         return DomTree::Node{ bb };
                     }) |
                     ranges::to<DomTree::NodeSet>;
     result._root = &result.findMut(&function.entry());
     for (auto& start: result._nodes) {
-        utl::hashset<DomTree::Node*> visited;
         auto const& domSet = domSets[start.basicBlock()];
-        auto findParent    = [&](DomTree::Node& node,
-                                 auto& findParent) -> DomTree::Node* {
+        utl::hashset<DomTree::Node*> visited;
+        auto findParent = [&](DomTree::Node& node,
+                              auto& findParent) -> DomTree::Node* {
             if (visited.contains(&node)) {
                 return nullptr;
             }
@@ -159,50 +152,46 @@ void PrintCtx::print(DomTree::Node const& node) {
     indent.decrease();
 }
 
-using DFResult = utl::hashmap<ir::BasicBlock*, utl::small_vector<ir::BasicBlock*>>;
-
 namespace {
 
 struct DFContext {
-    DFContext(ir::Function& function, DomTree const& domTree, DFResult& result):
-        function(function), domTree(domTree), result(result) {}
-    
+    DFContext(ir::Function& function, DomTree const& domTree, DFMap& df):
+        function(function), domTree(domTree), df(df) {}
+
     void compute(DomTree::Node const& node);
-    
+
     ir::Function& function;
     DomTree const& domTree;
-    DFResult& result;
+    DFMap& df;
 };
 
 } // namespace
 
-DFResult opt::computeDominanceFrontiers(ir::Function& function,
-                                        DomTree const& domTree) {
-    DFResult result;
+DFMap opt::computeDominanceFrontiers(ir::Function& function,
+                                     DomTree const& domTree) {
+    DFMap result;
     DFContext ctx(function, domTree, result);
     ctx.compute(domTree.root());
     return result;
 }
 
-void DFContext::compute(DomTree::Node const& node) {
-    for (auto& child: node.children()) {
-        compute(child);
+void DFContext::compute(DomTree::Node const& uNode) {
+    for (auto& n: uNode.children()) {
+        compute(n);
     }
-    auto* bb = node.basicBlock();
-    auto& df = result[bb];
+    auto* u   = uNode.basicBlock();
+    auto& dfU = df[u];
     // DF_local
-    for (BasicBlock* succ: bb->successors()) {
-        auto& succNode = domTree[succ];
-        if (succNode.parent() != &node) {
-            df.push_back(succ);
+    for (BasicBlock* v: u->successors()) {
+        if (domTree.idom(v) != u) {
+            dfU.push_back(v);
         }
     }
     // DF_up
-    for (DomTree::Node const& child: node.children()) {
-        for (auto* v: result[child.basicBlock()]) {
-            auto& vNode = domTree[v];
-            if (vNode.parent() != &node) {
-                df.push_back(v);
+    for (auto& wNode: uNode.children()) {
+        for (auto* v: df[wNode.basicBlock()]) {
+            if (domTree.idom(v) != u) {
+                dfU.push_back(v);
             }
         }
     }

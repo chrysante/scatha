@@ -20,22 +20,22 @@ class SCATHA(API) DomTree {
 public:
     class Node {
     public:
-        explicit Node(ir::BasicBlock* basicBlock):
-            _bb(basicBlock) {}
-        
+        explicit Node(ir::BasicBlock* basicBlock): _bb(basicBlock) {}
+
         ir::BasicBlock* basicBlock() const { return _bb; }
-        
-        Node* parent() const { return _parent; }
-        
+
+        Node const& parent() const { return *_parent; }
+
         auto children() const {
-            return _children | ranges::views::transform([](auto* ptr) -> auto const& { return *ptr; });
+            return _children | ranges::views::transform(
+                                   [](auto* p) -> auto const& { return *p; });
         }
-        
+
     private:
         friend DomTree buildDomTree(ir::Function&);
-        
+
         ir::BasicBlock* _bb = nullptr;
-        Node* _parent = nullptr;
+        Node* _parent       = nullptr;
         utl::small_vector<Node*> _children;
     };
 
@@ -48,7 +48,7 @@ public:
             return std::hash<ir::BasicBlock const*>{}(bb);
         }
     };
-    
+
     struct NodeEq {
         using is_transparent = void;
         bool operator()(Node const& a, Node const& b) const {
@@ -61,17 +61,15 @@ public:
             return a == b.basicBlock();
         }
     };
-    
+
 public:
     /// Construct an empty dominator tree.
     DomTree();
 
     /// \Returns Flat array of nodes in the dominator tree.
     auto nodes() const {
-        return _nodes |
-               ranges::views::transform([](auto& n) -> Node const& {
-                   return n;
-               });
+        return _nodes | ranges::views::transform(
+                            [](auto& n) -> Node const& { return n; });
     }
 
     Node const& operator[](ir::BasicBlock const* bb) const {
@@ -79,17 +77,27 @@ public:
         SC_ASSERT(itr != _nodes.end(), "Not found");
         return *itr;
     }
-    
+
     /// \Returns root of the dominator tree.
     Node const& root() const { return *_root; }
+
+    ir::BasicBlock* idom(ir::BasicBlock* block) const {
+        return const_cast<ir::BasicBlock*>(
+            idom(static_cast<ir::BasicBlock const*>(block)));
+    }
+
+    ir::BasicBlock const* idom(ir::BasicBlock const* block) const {
+        return (*this)[block].parent().basicBlock();
+    }
 
 private:
     friend DomTree opt::buildDomTree(ir::Function&);
 
     Node& findMut(ir::BasicBlock const* bb) {
-        return const_cast<Node&>(static_cast<DomTree const*>(this)->operator[](bb));
+        return const_cast<Node&>(
+            static_cast<DomTree const*>(this)->operator[](bb));
     }
-    
+
 private:
     using NodeSet = utl::hashset<Node, NodeHash, NodeEq>;
     NodeSet _nodes;
@@ -99,8 +107,10 @@ private:
 SCATHA(API) void print(DomTree const& domTree);
 SCATHA(API) void print(DomTree const& domTree, std::ostream& ostream);
 
-SCATHA(API) utl::hashmap<ir::BasicBlock*, utl::small_vector<ir::BasicBlock*>>
-computeDominanceFrontiers(ir::Function& function, DomTree const& domTree);
+using DFMap = utl::hashmap<ir::BasicBlock*, utl::small_vector<ir::BasicBlock*>>;
+
+SCATHA(API)
+DFMap computeDominanceFrontiers(ir::Function& function, DomTree const& domTree);
 
 } // namespace scatha::opt
 
