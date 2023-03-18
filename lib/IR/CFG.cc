@@ -78,6 +78,14 @@ FloatingPointConstant::FloatingPointConstant(Context& context,
     Constant(NodeType::FloatingPointConstant, context.floatType(bitWidth)),
     _value(value) {}
 
+Instruction::Instruction(NodeType nodeType,
+                         Type const* type,
+                         std::string name,
+                         utl::small_vector<Value*> operands,
+                         utl::small_vector<Type const*> typeOperands):
+    User(nodeType, type, std::move(name), std::move(operands)),
+    typeOps(std::move(typeOperands)) {}
+
 Function::Function(FunctionType const* functionType,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
@@ -124,8 +132,11 @@ std::span<BasicBlock const* const> BasicBlock::successors() const {
 }
 
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
-    Instruction(NodeType::Alloca, context.pointerType(), std::move(name)),
-    _allocatedType(allocatedType) {}
+    Instruction(NodeType::Alloca,
+                context.pointerType(),
+                std::move(name),
+                {},
+                { allocatedType }) {}
 
 Store::Store(Context& context, Value* address, Value* value):
     BinaryInstruction(NodeType::Store, address, value, context.voidType()) {

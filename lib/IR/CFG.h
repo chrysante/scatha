@@ -113,15 +113,6 @@ public:
 protected:
     explicit User(NodeType nodeType,
                   Type const* type,
-                  std::string name,
-                  std::initializer_list<Value*> operands):
-        User(nodeType,
-             type,
-             std::move(name),
-             utl::small_vector<Value*>(operands)) {}
-
-    explicit User(NodeType nodeType,
-                  Type const* type,
                   std::string name                   = {},
                   utl::small_vector<Value*> operands = {});
 
@@ -168,6 +159,13 @@ class SCATHA(API) Instruction:
     public User,
     public NodeWithParent<Instruction, BasicBlock> {
 public:
+    explicit Instruction(NodeType nodeType,
+                         Type const* type,
+                         std::string name                            = {},
+                         utl::small_vector<Value*> operands          = {},
+                         utl::small_vector<Type const*> typeOperands = {});
+        
+        
     /// View of all instructions using this value. This casts the elements in
     /// the range returned by `Value::users()` to instructions, as instructions
     /// are only used by other instructions.
@@ -517,10 +515,7 @@ public:
                     Type const* allocatedType,
                     std::string name);
 
-    Type const* allocatedType() const { return _allocatedType; }
-
-private:
-    Type const* _allocatedType;
+    Type const* allocatedType() const { return typeOperands()[0]; }
 };
 
 /// Base class of all unary instructions.
