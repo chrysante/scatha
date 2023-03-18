@@ -15,8 +15,8 @@ using namespace scatha;
 using namespace ir;
 
 bool isPunctuation(char c) {
-    static constexpr std::array punctuations = { '(', ')', '{', '}',
-                                                 '=', ':', ',' };
+    static constexpr std::array punctuations = { '(', ')', '[', ']', '{',
+                                                 '}', '=', ':', ',' };
     return ranges::find(punctuations, c) != ranges::end(punctuations);
 };
 
