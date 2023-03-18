@@ -13,7 +13,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IRDump.h"
-#include "IRSketch.h"
+#include "Volatile.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/Mem2Reg.h"
@@ -23,7 +23,7 @@
 enum class ProgramCase {
     SampleCompiler,
     IRDump,
-    IRSketch,
+    Volatile,
     ASMTest,
     EmitCFG,
     EmitUseGraph,
@@ -69,7 +69,7 @@ int main(int argc, char const* const* argv) {
     OptionParser const parse = {
         { "sample-compiler", ProgramCase::SampleCompiler },
         { "ir-dump", ProgramCase::IRDump },
-        { "ir-sketch", ProgramCase::IRSketch },
+        { "volatile", ProgramCase::Volatile },
         { "test-asm", ProgramCase::ASMTest },
         { "emit-cfg", ProgramCase::EmitCFG },
         { "emit-use-graph", ProgramCase::EmitUseGraph },
@@ -92,7 +92,7 @@ int main(int argc, char const* const* argv) {
     switch (theCase) {
     case ProgramCase::SampleCompiler: compile(filepath); break;
     case ProgramCase::IRDump: irDumpFromFile(filepath); break;
-    case ProgramCase::IRSketch: irSketch(); break;
+    case ProgramCase::Volatile: volatilePlayground(); break;
     case ProgramCase::ASMTest: testAsmModule(); break;
     case ProgramCase::EmitCFG: {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);
