@@ -822,7 +822,7 @@ std::optional<List> Context::parseList(std::string_view open,
             /// Without eating a token we may get stuck in an infinite loop,
             /// otherwise we may miss delimiters in case of syntax errors
             /// (especcially missing ')').
-//          tokens.eat();
+            //          tokens.eat();
         }
     }
     return result;
