@@ -75,6 +75,11 @@ struct Context {
     void declareTypes();
     void declareFunctions();
 
+    void addAlloca(ir::Alloca* allc) {
+        allocaInsertItr =
+            currentFunction->entry().insert(allocaInsertItr, allc)->next();
+    }
+
     ir::BasicBlock* currentBB() { return _currentBB; }
     void setCurrentBB(ir::BasicBlock*);
 
@@ -97,6 +102,7 @@ struct Context {
     ir::Function* currentFunction = nullptr;
     ir::BasicBlock* _currentBB    = nullptr;
     utl::hashmap<sema::SymbolID, ir::Value*> valueMap;
+    ir::Instruction* allocaInsertItr;
 };
 
 } // namespace
@@ -142,6 +148,8 @@ void Context::generateImpl(FunctionDefinition const& def) {
     currentFunction = fn;
     auto* entry     = new ir::BasicBlock(irCtx, localUniqueName("entry"));
     fn->pushBack(entry);
+    setCurrentBB(entry);
+    allocaInsertItr = entry->begin().to_address();
     for (auto paramItr = fn->parameters().begin();
          auto& paramDecl: def.parameters)
     {
@@ -150,13 +158,12 @@ void Context::generateImpl(FunctionDefinition const& def) {
             new ir::Alloca(irCtx,
                            irParamType,
                            localUniqueName(paramDecl->name(), ".addr"));
-        entry->pushBack(paramMemPtr);
+        addAlloca(paramMemPtr);
         memorizeVariableAddress(paramDecl->symbolID(), paramMemPtr);
         auto* store =
             new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
         entry->pushBack(store);
     }
-    setCurrentBB(entry);
     generate(*def.body);
     setCurrentBB(nullptr);
     currentFunction = nullptr;
@@ -171,7 +178,7 @@ void Context::generateImpl(VariableDeclaration const& varDecl) {
     auto* varMemPtr = new ir::Alloca(irCtx,
                                      mapType(varDecl.typeID()),
                                      localUniqueName(varDecl.name(), "-ptr"));
-    currentBB()->pushBack(varMemPtr);
+    addAlloca(varMemPtr);
     memorizeVariableAddress(varDecl.symbolID(), varMemPtr);
     if (varDecl.initExpression == nullptr) {
         return;
@@ -568,7 +575,7 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
         auto* value = getValue(*expr.object);
         auto* addr =
             new ir::Alloca(irCtx, value->type(), localUniqueName("tmp.addr"));
-        currentBB()->pushBack(addr);
+        addAlloca(addr);
         auto* store = new ir::Store(irCtx, addr, value);
         currentBB()->pushBack(store);
         return addr;
