@@ -1,5 +1,11 @@
-    #ifndef SCATHA_OPT_GRAPH_H_
+#ifndef SCATHA_OPT_GRAPH_H_
 #define SCATHA_OPT_GRAPH_H_
+
+#include <type_traits>
+
+#include <range/v3/algorithm.hpp>
+#include <range/v3/view.hpp>
+#include <utl/vector.hpp>
 
 namespace scatha::opt {
 
@@ -61,18 +67,20 @@ public:
     
     void setParent(Self* parent) requires IsTree { _parentLink = parent; }
     
-    void addChild(Self* child) requires IsTree { _outgoingEdges.push_back(child); }
+    void addChild(Self* child) requires IsTree {
+        addEdgeImpl(_outgoingEdges, child);
+    }
 
     auto predecessors() const requires (!IsTree) {
         return incomingImpl();
     }
     
     void addPredecessor(Self* pred) requires (!IsTree) {
-        _parentLink.push_back(pred);
+        addEdgeImpl(_parentLink, pred);
     }
     
     void addSuccessor(Self* succ) requires (!IsTree) {
-        _outgoingEdges.push_back(succ);
+        addEdgeImpl(_outgoingEdges, succ);
     }
     
     auto successors() const requires (!IsTree) {
@@ -86,6 +94,13 @@ private:
     
     auto incomingImpl() const {
         return _parentLink | ranges::views::transform([](auto* p) -> Self const& { return *p; });
+    }
+    
+    static void addEdgeImpl(utl::small_vector<Self*>& list, Self* other) {
+        if (ranges::find(list, other) != ranges::end(list)) {
+            return;
+        }
+        list.push_back(other);
     }
     
 private:
