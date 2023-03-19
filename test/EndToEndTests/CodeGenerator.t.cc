@@ -8,7 +8,7 @@
 
 using namespace scatha;
 
-TEST_CASE("First entire compilation and execution", "[codegen]") {
+TEST_CASE("First entire compilation and execution", "[end-to-end]") {
     test::checkReturns(3, R"(
 fn main() -> int {
     let a = 1;
@@ -17,14 +17,14 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Simplest non-trivial program", "[codegen]") {
+TEST_CASE("Simplest non-trivial program", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     return 1;
 })");
 }
 
-TEST_CASE("Addition", "[codegen]") {
+TEST_CASE("Addition", "[end-to-end]") {
     test::checkReturns(3, R"(
 fn main() -> int {
     let a = 1;
@@ -33,7 +33,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Subtraction", "[codegen]") {
+TEST_CASE("Subtraction", "[end-to-end]") {
     test::checkReturns(static_cast<u64>(-1), R"(
 fn main() -> int {
     let a = 1;
@@ -42,7 +42,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Multiplication", "[codegen]") {
+TEST_CASE("Multiplication", "[end-to-end]") {
     test::checkReturns(static_cast<u64>(-92), R"(
 fn main() -> int {
     let a = 4;
@@ -51,7 +51,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Division", "[codegen]") {
+TEST_CASE("Division", "[end-to-end]") {
     test::checkReturns(25, R"(
 fn main() -> int {
     let a = 100;
@@ -60,7 +60,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Remainder", "[codegen]") {
+TEST_CASE("Remainder", "[end-to-end]") {
     test::checkReturns(15, R"(
 fn main() -> int {
     let a = 100;
@@ -69,7 +69,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Float Addition", "[codegen]") {
+TEST_CASE("Float Addition", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.3 + 2.3), R"(
 fn test() -> float {
     let a = 1.3;
@@ -78,7 +78,7 @@ fn test() -> float {
 })");
 }
 
-TEST_CASE("Float Mutliplication", "[codegen]") {
+TEST_CASE("Float Mutliplication", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.3 * 2.3), R"(
 fn test() -> float {
     let a = 1.3;
@@ -87,7 +87,7 @@ fn test() -> float {
 })");
 }
 
-TEST_CASE("Float Subtraction", "[codegen]") {
+TEST_CASE("Float Subtraction", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.4 - 2.3), R"(
 fn test() -> float {
     let a = 1.4;
@@ -96,7 +96,7 @@ fn test() -> float {
 })");
 }
 
-TEST_CASE("Float Division", "[codegen]") {
+TEST_CASE("Float Division", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.4 / 2.3), R"(
 fn test() -> float {
     let a = 1.4;
@@ -105,7 +105,7 @@ fn test() -> float {
 })");
 }
 
-TEST_CASE("More complex expressions", "[codegen]") {
+TEST_CASE("More complex expressions", "[end-to-end]") {
     test::checkReturns(10, R"(
 fn main() -> int {
     let a = 12;
@@ -115,7 +115,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Even more complex expressions", "[codegen]") {
+TEST_CASE("Even more complex expressions", "[end-to-end]") {
     test::checkReturns(10, R"(
 fn main() -> int {
     let a = 12;

@@ -6,7 +6,7 @@
 
 using namespace scatha;
 
-TEST_CASE("fcmp greater var-lit", "[codegen]") {
+TEST_CASE("fcmp greater var-lit", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     let a = 32.1;
@@ -18,7 +18,7 @@ fn main() -> int {
     }
 })");
 }
-TEST_CASE("fcmp greater lit-var", "[codegen]") {
+TEST_CASE("fcmp greater lit-var", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     let a = 32.1;
@@ -30,7 +30,7 @@ fn main() -> int {
     }
 })");
 }
-TEST_CASE("fcmp less var-lit", "[codegen]") {
+TEST_CASE("fcmp less var-lit", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     let a = 32.1;
@@ -42,7 +42,7 @@ fn main() -> int {
     }
 })");
 }
-TEST_CASE("fcmp less lit-var", "[codegen]") {
+TEST_CASE("fcmp less lit-var", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     let a = 32.1;
@@ -54,7 +54,7 @@ fn main() -> int {
     }
 })");
 }
-TEST_CASE("fcmp less lit-lit", "[codegen]") {
+TEST_CASE("fcmp less lit-lit", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     let a = 32.1;
@@ -66,7 +66,7 @@ fn main() -> int {
     }
 })");
 }
-TEST_CASE("nested if-else-if", "[codegen]") {
+TEST_CASE("nested if-else-if", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     let x = 0;
@@ -84,7 +84,7 @@ fn main() -> int {
     }
 })");
 }
-TEST_CASE("more nested if else", "[codegen]") {
+TEST_CASE("more nested if else", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     let x = 0;
@@ -105,14 +105,14 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("logical not", "[codegen]") {
+TEST_CASE("logical not", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> bool {
     return !false;
 })");
 }
 
-TEST_CASE("Branch based on literals", "[codegen]") {
+TEST_CASE("Branch based on literals", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     if true {
@@ -124,7 +124,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Branch based on result of function calls", "[codegen]") {
+TEST_CASE("Branch based on result of function calls", "[end-to-end]") {
     test::checkReturns(2, R"(
 fn main() -> int {
     let x = 0;
@@ -144,7 +144,7 @@ fn greaterZero(a: int) -> bool {
 })");
 }
 
-TEST_CASE("Conditional", "[codegen]") {
+TEST_CASE("Conditional", "[end-to-end]") {
     test::checkReturns(2, R"(
 fn main() -> int {
     let x = 0;
@@ -155,7 +155,7 @@ fn greaterZero(a: int) -> bool {
 })");
 }
 
-TEST_CASE("Right-nested conditional", "[codegen]") {
+TEST_CASE("Right-nested conditional", "[end-to-end]") {
     test::checkReturns(2, R"(
 fn main() -> int {
     let x = 0;
@@ -167,7 +167,7 @@ fn greaterZero(a: int) -> bool {
 })");
 }
 
-TEST_CASE("Left-nested conditional", "[codegen]") {
+TEST_CASE("Left-nested conditional", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     let x = 0;
@@ -179,7 +179,7 @@ fn greaterZero(a: int) -> bool {
 })");
 }
 
-TEST_CASE("Left-nested conditional with literals", "[codegen]") {
+TEST_CASE("Left-nested conditional with literals", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     return true ? true ? 1 : 2 : 3;

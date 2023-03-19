@@ -6,7 +6,7 @@
 
 using namespace scatha;
 
-TEST_CASE("Member access", "[codegen][member-access]") {
+TEST_CASE("Member access", "[end-to-end][member-access]") {
     test::checkReturns(4, R"(
 struct Y {
     var i: int;
@@ -24,7 +24,7 @@ struct X {
 })");
 }
 
-TEST_CASE("Bool member access", "[codegen][member-access]") {
+TEST_CASE("Bool member access", "[end-to-end][member-access]") {
     test::checkReturns(2, R"(
 fn main() -> int {
     var x: X;
@@ -40,7 +40,7 @@ struct X {
 })");
 }
 
-TEST_CASE("Return custom structs", "[codegen][member-access]") {
+TEST_CASE("Return custom structs", "[end-to-end][member-access]") {
     test::checkReturns(2, R"(
 struct X {
     var b: bool;
@@ -63,7 +63,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Pass custom structs as arguments", "[codegen][member-access]") {
+TEST_CASE("Pass custom structs as arguments", "[end-to-end][member-access]") {
     test::checkReturns(5, R"(
 struct X {
     var b: bool;
@@ -87,7 +87,7 @@ fn main() -> int {
 }
 
 TEST_CASE("Pass and return custom structs and access rvalue",
-          "[codegen][member-access]") {
+          "[end-to-end][member-access]") {
     test::checkReturns(5, R"(
 fn main() -> int {
     var x: X;
@@ -109,7 +109,7 @@ struct X {
 })");
 }
 
-TEST_CASE("More complex structure passing", "[codegen][member-access]") {
+TEST_CASE("More complex structure passing", "[end-to-end][member-access]") {
     test::checkReturns(5, R"(
 struct X {
     var b: bool;
@@ -147,7 +147,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Member access mem2reg failure", "[codegen][member-access]") {
+TEST_CASE("Member access mem2reg failure", "[end-to-end][member-access]") {
 #warning Known failure
     return;
     test::checkReturns(1, R"(

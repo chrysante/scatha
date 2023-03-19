@@ -6,7 +6,7 @@
 
 using namespace scatha;
 
-TEST_CASE("Local scopes", "[codegen]") {
+TEST_CASE("Local scopes", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> int {
     let x = 0;
@@ -18,7 +18,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Local scopes 2", "[codegen]") {
+TEST_CASE("Local scopes 2", "[end-to-end]") {
     test::checkReturns(2, R"(
 fn main() -> int {
     let x = 0;

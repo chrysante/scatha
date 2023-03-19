@@ -6,7 +6,7 @@
 
 using namespace scatha;
 
-TEST_CASE("Recursive euclidean algorithm", "[codegen]") {
+TEST_CASE("Recursive euclidean algorithm", "[end-to-end]") {
     test::checkReturns(7, R"(
 fn main() -> int {
     let a = 756476;
@@ -21,7 +21,7 @@ fn gcd(a: int, b: int) -> int {
 })");
 }
 
-TEST_CASE("Recursive fibonacci", "[codegen]") {
+TEST_CASE("Recursive fibonacci", "[end-to-end]") {
     test::checkReturns(55, R"(
 fn main() -> int {
     let n = 10;
@@ -38,7 +38,7 @@ fn fib(n: int) -> int {
 })");
 }
 
-TEST_CASE("Recursive factorial", "[codegen]") {
+TEST_CASE("Recursive factorial", "[end-to-end]") {
     test::checkReturns(3628800, R"(
 fn main() -> int {
     return fact(10);
@@ -51,7 +51,7 @@ fn fact(n: int) -> int {
 })");
 }
 
-TEST_CASE("Recursive pow", "[codegen]") {
+TEST_CASE("Recursive pow", "[end-to-end]") {
     test::checkReturns(243, R"(
 fn main() -> int {
      return pow(3, 5);

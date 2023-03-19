@@ -4,7 +4,7 @@
 
 using namespace scatha;
 
-TEST_CASE("Overloading", "[codegen]") {
+TEST_CASE("Overloading", "[end-to-end]") {
     test::checkReturns(1 + 1 + 2 + 3 + 4 + 5 + 6, R"(
 fn main() -> int {
     return add() + add(1.0) * add(1) + add(2, 3) + add(4, 5, 6);
@@ -26,7 +26,7 @@ fn add(x: int, y: int, z: int) -> int {
 })");
 }
 
-TEST_CASE("Overloading 2", "[codegen]") {
+TEST_CASE("Overloading 2", "[end-to-end]") {
     test::checkReturns(2, R"(
 fn f(i: int, b: bool) -> int { return 1; }
 fn f(i: float, b: bool) -> int { return 2; }

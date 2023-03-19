@@ -6,7 +6,7 @@
 
 using namespace scatha;
 
-TEST_CASE("While loop", "[codegen]") {
+TEST_CASE("While loop", "[end-to-end]") {
     test::checkReturns(24, R"(
 fn fact(n: int) -> int {
     var i = 0;
@@ -22,7 +22,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Iterative gcd", "[codegen]") {
+TEST_CASE("Iterative gcd", "[end-to-end]") {
     test::checkReturns(7, R"(
 fn gcd(a: int, b: int) -> int {
     while a != b {
@@ -56,7 +56,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Float pow", "[codegen]") {
+TEST_CASE("Float pow", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn pow(base: float, exp: int) -> float {
     var result: float = 1.0;
@@ -83,7 +83,7 @@ fn main() -> bool {
 })");
 }
 
-TEST_CASE("For loop", "[codegen]") {
+TEST_CASE("For loop", "[end-to-end]") {
     test::checkReturns(24, R"(
 fn fact(n: int) -> int {
     var result = 1;
@@ -97,7 +97,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Float pow / for", "[codegen]") {
+TEST_CASE("Float pow / for", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn pow(base: float, exp: int) -> float {
     var result: float = 1.0;
@@ -122,7 +122,7 @@ fn main() -> bool {
 })");
 }
 
-TEST_CASE("Do/while loop", "[codegen]") {
+TEST_CASE("Do/while loop", "[end-to-end]") {
     test::checkReturns(24, R"(
 fn fact(n: int) -> int {
     var result = 1;
@@ -138,7 +138,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Nested loops", "[codegen]") {
+TEST_CASE("Nested loops", "[end-to-end]") {
     test::checkReturns(2 * 3, R"(
 fn main() -> int {
     var acc = 0;
@@ -191,7 +191,7 @@ fn main() -> int {
 })");
 }
 
-TEST_CASE("Load of indirectly stored struct", "[codegen]") {
+TEST_CASE("Load of indirectly stored struct", "[end-to-end]") {
     test::checkReturns(10, R"(
 fn main() -> int {
     var acc = 0;
@@ -210,7 +210,7 @@ struct Complex {
 })");
 }
 
-TEST_CASE("For loop with nested if/else", "[codegen]") {
+TEST_CASE("For loop with nested if/else", "[end-to-end]") {
     test::checkReturns(48, R"(
     fn g(n: int) -> int {
         var result = 1;

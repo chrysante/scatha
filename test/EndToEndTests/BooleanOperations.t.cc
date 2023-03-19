@@ -4,14 +4,14 @@
 
 using namespace scatha;
 
-TEST_CASE("Return boolean literal", "[codegen]") {
+TEST_CASE("Return boolean literal", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> bool {
     return true;
 })");
 }
 
-TEST_CASE("Logical not", "[codegen]") {
+TEST_CASE("Logical not", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> bool {
     let i = 0;
@@ -19,7 +19,7 @@ fn main() -> bool {
 })");
 }
 
-TEST_CASE("Logical and", "[codegen]") {
+TEST_CASE("Logical and", "[end-to-end]") {
     test::checkReturns(0, R"(
 fn main() -> bool {
     let a = true;
@@ -28,7 +28,7 @@ fn main() -> bool {
 })");
 }
 
-TEST_CASE("Logical or", "[codegen]") {
+TEST_CASE("Logical or", "[end-to-end]") {
     test::checkReturns(1, R"(
 fn main() -> bool {
     let a = true;
