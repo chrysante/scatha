@@ -1,8 +1,8 @@
 #include <Catch/Catch2.hpp>
 
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/CFG.h"
 #include "IR/Parser/Parser.h"
 #include "Opt/MemToReg.h"
 #include "test/IR/EqualityTestHelper.h"
@@ -61,8 +61,8 @@ function i64 @f(i64) {
     goto label %loop.header
 })";
     ir::Context ctx;
-    ir::Module mod = ir::parse(text, ctx).value();
-    auto& f        = mod.functions().front();
+    ir::Module mod               = ir::parse(text, ctx).value();
+    auto& f                      = mod.functions().front();
     bool const modifiedFirstTime = opt::memToReg(ctx, f);
     CHECK(modifiedFirstTime);
     bool const modifiedSecondTime = opt::memToReg(ctx, f);
@@ -156,8 +156,8 @@ function i64 @f(i64) {
     return i64 %n.1
 })";
     ir::Context ctx;
-    ir::Module mod = ir::parse(text, ctx).value();
-    auto& f        = mod.functions().front();
+    ir::Module mod               = ir::parse(text, ctx).value();
+    auto& f                      = mod.functions().front();
     bool const modifiedFirstTime = opt::memToReg(ctx, f);
     CHECK(modifiedFirstTime);
     bool const modifiedSecondTime = opt::memToReg(ctx, f);
