@@ -579,9 +579,16 @@ class SCATHA(API) Store: public BinaryInstruction {
 public:
     explicit Store(Context& context, Value* address, Value* value);
 
+    /// The address this store writes to.
     Value* dest() { return lhs(); }
+    
+    /// \overload
     Value const* dest() const { return lhs(); }
+    
+    /// The value written to memory.
     Value* source() { return rhs(); }
+    
+    /// \overload
     Value const* source() const { return rhs(); }
 };
 
