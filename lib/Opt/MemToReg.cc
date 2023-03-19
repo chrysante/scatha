@@ -58,7 +58,7 @@ struct MemToRegContext {
     void genName(Alloca* addr, Value* value);
 
     bool clean();
-    
+
     Context& irCtx;
     Function& function;
     DominanceMap domSets;
@@ -129,68 +129,71 @@ VariableInfo MemToRegContext::gatherInfo(Alloca* address) {
 utl::hashset<BasicBlock*> MemToRegContext::computeLiveBlocks(Alloca* address) {
     utl::hashset<BasicBlock*> result;
     auto& info = variables.find(address)->second;
-    auto worklist = info.usingBlocks | ranges::to<utl::small_vector<BasicBlock*>>;
+    auto worklist =
+        info.usingBlocks | ranges::to<utl::small_vector<BasicBlock*>>;
     for (auto itr = worklist.begin(); itr != worklist.end(); ++itr) {
         auto* bb = *itr;
         if (!info.definingBlocks.contains(bb)) {
             continue;
         }
-        // Okay, this is a block that both uses and defines the value. If the first
-        // reference to the alloca is a def (store), then we know it isn't live-in.
-        for (auto i = bb->begin(); ; ++i) {
+        /// Okay, this is a block that both uses and defines the value. If the
+        /// first reference to the alloca is a def (store), then we know it
+        /// isn't live-in.
+        for (auto i = bb->begin();; ++i) {
             if (auto* store = dyncast<Store const*>(i.to_address())) {
                 if (store->dest() != address) {
                     continue;
                 }
-                // We found a store to the alloca before a load. The alloca is not
-                // actually live-in here.
+                /// We found a store to the alloca before a load. The alloca is
+                /// not actually live-in here.
                 *itr = worklist.back();
                 worklist.pop_back();
                 --itr;
                 break;
             }
             if (Load* load = dyncast<Load*>(i.to_address())) {
-                // Okay, we found a load before a store to the alloca. It is actually
-                // live into this block.
+                /// Okay, we found a load before a store to the alloca. It is
+                /// actually live into this block.
                 if (load->address() == address) {
                     break;
                 }
             }
         }
     }
-    // Now that we have a set of blocks where the phi is live-in, recursively add
-    // their predecessors until we find the full region the value is live.
+    /// Now that we have a set of blocks where the phi is live-in, recursively
+    /// add their predecessors until we find the full region the value is live.
     while (!worklist.empty()) {
-        BasicBlock *bb = worklist.back();
+        BasicBlock* bb = worklist.back();
         worklist.pop_back();
 
-        // The block really is live in here, insert it into the set. If already in
-        // the set, then it has already been processed.
+        /// The block really is live in here, insert it into the set. If already
+        /// in the set, then it has already been processed.
         if (!result.insert(bb).second) {
             continue;
         }
 
-        // Since the value is live into BB, it is either defined in a predecessor or
-        // live into it too. Add the preds to the worklist unless they are a
-        // defining block.
+        /// Since the value is live into BB, it is either defined in a
+        /// predecessor or live into it too. Add the preds to the worklist
+        /// unless they are a defining block.
         for (auto* pred: bb->predecessors()) {
-           // The value is not live into a predecessor if it defines the value.
-           if (info.definingBlocks.contains(pred)) {
-               continue;
-           }
+            /// The value is not live into a predecessor if it defines the
+            /// value.
+            if (info.definingBlocks.contains(pred)) {
+                continue;
+            }
 
-           // Otherwise it is, add to the worklist.
-           worklist.push_back(pred);
+            /// Otherwise it is, add to the worklist.
+            worklist.push_back(pred);
         }
     }
-    
+
     return result;
 }
 
 void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
     SC_ASSERT(isPromotable(*address), "");
-    auto const liveBlocks = computeLiveBlocks(address);
-    utl::hashset<BasicBlock*> appearedOnWorklist = varInfo.definingBlocks;
+    auto const liveBlocks   = computeLiveBlocks(address);
+    auto appearedOnWorklist = varInfo.definingBlocks;
     auto worklist =
         appearedOnWorklist | ranges::to<utl::small_vector<BasicBlock*>>;
     while (!worklist.empty()) {
@@ -211,8 +214,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
                            }) |
                            ranges::to<utl::small_vector<PhiMapping>>;
             /// Name will be set later in `genName()`
-            auto* phi =
-                new Phi(std::move(phiArgs), std::string{});
+            auto* phi = new Phi(std::move(phiArgs), std::string{});
             phiMap.insert({ phi, address });
             y->pushFront(phi);
             varInfo.phiNodes[y] = phi;
@@ -226,7 +228,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
 
 void MemToRegContext::genName(Alloca* addr, Value* value) {
     SC_ASSERT(variables.contains(addr), "");
-    auto& info     = variables.find(addr)->second;
+    auto& info       = variables.find(addr)->second;
     uint32_t const i = info.counter;
     info.setVersion(i, value);
     info.stack.push(i);
@@ -283,7 +285,7 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
             }
             auto* address = itr->second;
             SC_ASSERT(variables.contains(address), "");
-            auto& info    = variables.find(address)->second;
+            auto& info = variables.find(address)->second;
             if (info.stack.empty()) {
                 continue;
             }

@@ -153,11 +153,9 @@ void Context::generateImpl(FunctionDefinition const& def) {
     for (auto paramItr = fn->parameters().begin();
          auto& paramDecl: def.parameters)
     {
-        auto const* const irParamType = mapType(paramDecl->typeID());
-        auto* paramMemPtr =
-            new ir::Alloca(irCtx,
-                           irParamType,
-                           localUniqueName(paramDecl->name()));
+        auto* paramMemPtr = new ir::Alloca(irCtx,
+                                           mapType(paramDecl->typeID()),
+                                           localUniqueName(paramDecl->name()));
         addAlloca(paramMemPtr);
         memorizeVariableAddress(paramDecl->symbolID(), paramMemPtr);
         auto* store =
