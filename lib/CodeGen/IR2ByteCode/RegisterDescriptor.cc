@@ -20,6 +20,9 @@ Value RegisterDescriptor::resolve(ir::Value const& value) {
     {
         return Value64(constant->value().to<f64>());
     }
+    else if (auto* undef = dyncast<ir::UndefValue const*>(&value)) {
+        return Value64(-1);
+    }
     SC_ASSERT(!value.name().empty(), "Name must not be empty.");
     auto const [itr, success] =
         values.insert({ std::string(value.name()), index });
