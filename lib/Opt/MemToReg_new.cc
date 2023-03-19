@@ -1,5 +1,7 @@
 #include "MemToReg_new.h"
 
+#include <string>
+
 #include <utl/hashtable.hpp>
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
@@ -24,13 +26,15 @@ struct VariableInfo {
     }
 
     Type const* type = nullptr;
+    std::string name;
     utl::small_vector<Load*> loads;
+    utl::hashset<BasicBlock*> usingBlocks;
     utl::small_vector<Store*> stores;
+    utl::hashset<BasicBlock*> definingBlocks;
     utl::hashmap<BasicBlock*, Phi*> phiNodes;
-    utl::hashset<BasicBlock*> blocksWithStores;
-    utl::stack<size_t> stack;
+    utl::stack<uint32_t> stack;
     utl::small_vector<Value*> versions;
-    size_t counter = 0;
+    uint32_t counter = 0;
 };
 
 struct MemToRegContext {
@@ -45,6 +49,8 @@ struct MemToRegContext {
 
     VariableInfo gatherInfo(Alloca* address);
 
+    utl::hashset<BasicBlock*> computeLiveBlocks(Alloca* address);
+
     void insertPhis(Alloca* address, VariableInfo& info);
 
     void renameVariables(BasicBlock* basicBlock);
@@ -52,7 +58,7 @@ struct MemToRegContext {
     void genName(Alloca* addr, Value* value);
 
     bool clean();
-
+    
     Context& irCtx;
     Function& function;
     DominanceMap domSets;
@@ -102,31 +108,100 @@ bool MemToRegContext::run() {
 VariableInfo MemToRegContext::gatherInfo(Alloca* address) {
     VariableInfo result;
     result.type = address->allocatedType();
+    result.name = std::string(address->name());
     for (auto* user: address->users()) {
-        visit(*user,
-              utl::overload{
-                  [&](Store& store) {
-            result.stores.push_back(&store);
-            result.blocksWithStores.insert(store.parent());
-                  },
-                  [&](Load& load) { result.loads.push_back(&load); },
-                  [&](Instruction const& inst) { SC_UNREACHABLE(); } });
+        // clang-format off
+        visit(*user, utl::overload{
+            [&](Store& store) {
+                result.stores.push_back(&store);
+                result.definingBlocks.insert(store.parent());
+            },
+            [&](Load& load) {
+                result.loads.push_back(&load);
+                result.usingBlocks.insert(load.parent());
+            },
+            [&](Instruction const& inst) { SC_UNREACHABLE(); }
+        }); // clang-format on
     }
+    return result;
+}
+
+utl::hashset<BasicBlock*> MemToRegContext::computeLiveBlocks(Alloca* address) {
+    utl::hashset<BasicBlock*> result;
+    auto& info = variables.find(address)->second;
+    auto worklist = info.usingBlocks | ranges::to<utl::small_vector<BasicBlock*>>;
+    for (auto itr = worklist.begin(); itr != worklist.end(); ++itr) {
+        auto* bb = *itr;
+        if (!info.definingBlocks.contains(bb)) {
+            continue;
+        }
+        // Okay, this is a block that both uses and defines the value. If the first
+        // reference to the alloca is a def (store), then we know it isn't live-in.
+        for (auto i = bb->begin(); ; ++i) {
+            if (auto* store = dyncast<Store const*>(i.to_address())) {
+                if (store->dest() != address) {
+                    continue;
+                }
+                // We found a store to the alloca before a load. The alloca is not
+                // actually live-in here.
+                *itr = worklist.back();
+                worklist.pop_back();
+                --itr;
+                break;
+            }
+            if (Load* load = dyncast<Load*>(i.to_address())) {
+                // Okay, we found a load before a store to the alloca. It is actually
+                // live into this block.
+                if (load->address() == address) {
+                    break;
+                }
+            }
+        }
+    }
+    // Now that we have a set of blocks where the phi is live-in, recursively add
+    // their predecessors until we find the full region the value is live.
+    while (!worklist.empty()) {
+        BasicBlock *bb = worklist.back();
+        worklist.pop_back();
+
+        // The block really is live in here, insert it into the set. If already in
+        // the set, then it has already been processed.
+        if (!result.insert(bb).second) {
+            continue;
+        }
+
+        // Since the value is live into BB, it is either defined in a predecessor or
+        // live into it too. Add the preds to the worklist unless they are a
+        // defining block.
+        for (auto* pred: bb->predecessors()) {
+           // The value is not live into a predecessor if it defines the value.
+           if (info.definingBlocks.contains(pred)) {
+               continue;
+           }
+
+           // Otherwise it is, add to the worklist.
+           worklist.push_back(pred);
+        }
+    }
+    
     return result;
 }
 
 void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
     SC_ASSERT(isPromotable(*address), "");
+    auto const liveBlocks = computeLiveBlocks(address);
+    utl::hashset<BasicBlock*> appearedOnWorklist = varInfo.definingBlocks;
     auto worklist =
-        varInfo.blocksWithStores | ranges::to<utl::small_vector<BasicBlock*>>;
-    auto everOnWorklist = worklist;
+        appearedOnWorklist | ranges::to<utl::small_vector<BasicBlock*>>;
     while (!worklist.empty()) {
         BasicBlock* x = worklist.back();
         worklist.pop_back();
         auto& dfX = domFronts[x];
         for (auto* y: dfX) {
             if (varInfo.phiNodes.contains(y)) {
-
+                continue;
+            }
+            if (!liveBlocks.contains(y)) {
                 continue;
             }
             auto* undefVal = irCtx.undef(varInfo.type);
@@ -135,25 +210,29 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
                                return PhiMapping(pred, undefVal);
                            }) |
                            ranges::to<utl::small_vector<PhiMapping>>;
+            /// Name will be set later in `genName()`
             auto* phi =
-                new Phi(std::move(phiArgs),
-                        irCtx.uniqueName(&function,
-                                         utl::strcat(address->name(), ".phi")));
+                new Phi(std::move(phiArgs), std::string{});
             phiMap[phi] = address;
             y->pushFront(phi);
             varInfo.phiNodes[y] = phi;
-            worklist.push_back(y);
-            everOnWorklist.push_back(y);
+            if (!appearedOnWorklist.contains(y)) {
+                appearedOnWorklist.insert(y);
+                worklist.push_back(y);
+            }
         }
     }
 }
 
 void MemToRegContext::genName(Alloca* addr, Value* value) {
-    auto& info     = variables[addr];
-    size_t const i = info.counter;
+    auto& info     = variables.find(addr)->second;
+    uint32_t const i = info.counter;
     info.setVersion(i, value);
     info.stack.push(i);
     info.counter = i + 1;
+    if (auto* phi = dyncast<Phi*>(value)) {
+        phi->setName(utl::strcat(info.name, ".", i));
+    }
 }
 
 void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
@@ -177,7 +256,7 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
                 continue;
             }
             auto* address = cast<Alloca*>(load->address());
-            auto& info    = variables[address];
+            auto& info    = variables.find(address)->second;
             size_t i      = info.stack.top();
             inst.setOperand(index, info.versions[i]);
         }
@@ -191,10 +270,10 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
         }
         genName(cast<Alloca*>(store->dest()), store->source());
     }
-    for (auto succ: basicBlock->successors()) {
+    for (auto* succ: basicBlock->successors()) {
         for (auto& phi: succ->phiNodes()) {
             auto* address = phiMap[&phi];
-            auto& info    = variables[address];
+            auto& info    = variables.find(address)->second;
             if (info.stack.empty()) {
                 continue;
             }
@@ -226,7 +305,7 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
         if (!address) {
             continue;
         }
-        auto& info = variables[address];
+        auto& info = variables.find(address)->second;
         info.stack.pop();
     }
 }
