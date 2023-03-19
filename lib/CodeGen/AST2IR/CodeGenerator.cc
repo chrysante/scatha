@@ -157,7 +157,7 @@ void Context::generateImpl(FunctionDefinition const& def) {
         auto* paramMemPtr =
             new ir::Alloca(irCtx,
                            irParamType,
-                           localUniqueName(paramDecl->name(), ".addr"));
+                           localUniqueName(paramDecl->name()));
         addAlloca(paramMemPtr);
         memorizeVariableAddress(paramDecl->symbolID(), paramMemPtr);
         auto* store =
@@ -177,7 +177,7 @@ void Context::generateImpl(StructDefinition const& def) {
 void Context::generateImpl(VariableDeclaration const& varDecl) {
     auto* varMemPtr = new ir::Alloca(irCtx,
                                      mapType(varDecl.typeID()),
-                                     localUniqueName(varDecl.name(), "-ptr"));
+                                     localUniqueName(varDecl.name()));
     addAlloca(varMemPtr);
     memorizeVariableAddress(varDecl.symbolID(), varMemPtr);
     if (varDecl.initExpression == nullptr) {
@@ -574,7 +574,7 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
         /// pointer to it.
         auto* value = getValue(*expr.object);
         auto* addr =
-            new ir::Alloca(irCtx, value->type(), localUniqueName("tmp.addr"));
+            new ir::Alloca(irCtx, value->type(), localUniqueName("tmp"));
         addAlloca(addr);
         auto* store = new ir::Store(irCtx, addr, value);
         currentBB()->pushBack(store);
