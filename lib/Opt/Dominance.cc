@@ -166,7 +166,9 @@ void PrintCtx::print(DomTree::Node const& node) {
 namespace {
 
 struct DFContext {
-    DFContext(ir::Function& function, DomTree const& domTree, DominanceFrontierMap& df):
+    DFContext(ir::Function& function,
+              DomTree const& domTree,
+              DominanceFrontierMap& df):
         function(function), domTree(domTree), df(df) {}
 
     void compute(DomTree::Node const& node);
@@ -179,7 +181,7 @@ struct DFContext {
 } // namespace
 
 DominanceFrontierMap opt::computeDominanceFrontiers(ir::Function& function,
-                                     DomTree const& domTree) {
+                                                    DomTree const& domTree) {
     DominanceFrontierMap result;
     DFContext ctx(function, domTree, result);
     ctx.compute(domTree.root());

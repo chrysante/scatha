@@ -157,8 +157,6 @@ class SCATHA(API) UndefValue: public Constant {
 public:
     explicit UndefValue(Type const* type):
         Constant(NodeType::UndefValue, type) {}
-private:
-    
 };
 
 /// Base class of all instructions. `Instruction` inherits from `Value` as it
@@ -581,13 +579,13 @@ public:
 
     /// The address this store writes to.
     Value* dest() { return lhs(); }
-    
+
     /// \overload
     Value const* dest() const { return lhs(); }
-    
+
     /// The value written to memory.
     Value* source() { return rhs(); }
-    
+
     /// \overload
     Value const* source() const { return rhs(); }
 };
@@ -799,10 +797,10 @@ public:
     /// Assign \p value to the predecessor argument \p pred
     /// \pre \p pred must be a predecessor to this phi node.
     void setArgument(BasicBlock const* pred, Value* value);
-    
+
     /// Assign \p value to argument at \p index
     void setArgument(size_t index, Value* value);
-    
+
     /// Number of arguments. Must match the number of predecessors of parent
     /// basic block.
     size_t argumentCount() const { return _preds.size(); }

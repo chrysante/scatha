@@ -79,7 +79,8 @@ UndefValue* Context::undef(Type const* type) {
     auto itr = _undefConstants.find(type);
     if (itr == _undefConstants.end()) {
         bool success = false;
-        std::tie(itr, success) = _undefConstants.insert({ type, new UndefValue(type) });
+        std::tie(itr, success) =
+            _undefConstants.insert({ type, new UndefValue(type) });
         SC_ASSERT(success, "");
     }
     return itr->second;

@@ -36,7 +36,7 @@ public:
     FloatingPointConstant* floatConstant(APFloat value, size_t bitWidth);
 
     UndefValue* undef(Type const* type);
-    
+
     void addGlobal(Constant* constant);
 
     Constant* getGlobal(std::string_view name) const;
@@ -51,8 +51,7 @@ private:
         _integralConstants;
     std::map<std::pair<APFloat, size_t>, FloatingPointConstant*>
         _floatConstants;
-    utl::hashmap<Type const*, UndefValue*>
-        _undefConstants;
+    utl::hashmap<Type const*, UndefValue*> _undefConstants;
     utl::hashset<Type*, Type::Hash, Type::Equals> _types;
     utl::hashmap<std::string, Constant*> _globals;
     // For unique names

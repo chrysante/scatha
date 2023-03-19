@@ -138,9 +138,9 @@ template <bool IsConst>
 struct PhiMappingImpl {
     using BB = std::conditional_t<IsConst, BasicBlock const, BasicBlock>;
     using V  = std::conditional_t<IsConst, Value const, Value>;
-    
+
     PhiMappingImpl() = default;
-    
+
     PhiMappingImpl(BB* pred, V* value): pred(pred), value(value) {}
 
     PhiMappingImpl(PhiMappingImpl<false> p)

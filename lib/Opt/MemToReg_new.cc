@@ -22,7 +22,7 @@ struct VariableInfo {
         }
         versions[index] = value;
     }
-    
+
     Type const* type = nullptr;
     utl::small_vector<Load*> loads;
     utl::small_vector<Store*> stores;
@@ -44,15 +44,15 @@ struct MemToRegContext {
     bool run();
 
     VariableInfo gatherInfo(Alloca* address);
-    
+
     void insertPhis(Alloca* address, VariableInfo& info);
 
     void renameVariables(BasicBlock* basicBlock);
-    
+
     void genName(Alloca* addr, Value* value);
-    
+
     bool clean();
-    
+
     Context& irCtx;
     Function& function;
     DominanceMap domSets;
@@ -83,15 +83,15 @@ bool opt::memToReg(Context& irCtx, Function& function) {
 }
 
 bool MemToRegContext::run() {
-    variables = function.entry() |
-                ranges::views::filter([](Instruction& inst) {
-                    return isa<Alloca>(inst) && isPromotable(cast<Alloca const&>(inst));
-                }) |
-                ranges::views::transform([this](Instruction& inst) {
-                    auto* addr = dyncast<Alloca*>(&inst);
-                    return std::pair{ addr, gatherInfo(addr) };
-                }) |
-                ranges::to<utl::hashmap<Alloca*, VariableInfo>>;
+    variables =
+        function.entry() | ranges::views::filter([](Instruction& inst) {
+            return isa<Alloca>(inst) && isPromotable(cast<Alloca const&>(inst));
+        }) |
+        ranges::views::transform([this](Instruction& inst) {
+            auto* addr = dyncast<Alloca*>(&inst);
+            return std::pair{ addr, gatherInfo(addr) };
+        }) |
+        ranges::to<utl::hashmap<Alloca*, VariableInfo>>;
     for (auto&& [addr, info]: variables) {
         insertPhis(addr, info);
     }
@@ -103,24 +103,22 @@ VariableInfo MemToRegContext::gatherInfo(Alloca* address) {
     VariableInfo result;
     result.type = address->allocatedType();
     for (auto* user: address->users()) {
-        visit(*user, utl::overload{
-            [&](Store& store) {
-                result.stores.push_back(&store);
-                result.blocksWithStores.insert(store.parent());
-            },
-            [&](Load& load) {
-                result.loads.push_back(&load);
-            },
-            [&](Instruction const& inst) { SC_UNREACHABLE(); }
-        });
+        visit(*user,
+              utl::overload{
+                  [&](Store& store) {
+            result.stores.push_back(&store);
+            result.blocksWithStores.insert(store.parent());
+                  },
+                  [&](Load& load) { result.loads.push_back(&load); },
+                  [&](Instruction const& inst) { SC_UNREACHABLE(); } });
     }
     return result;
 }
 
 void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
     SC_ASSERT(isPromotable(*address), "");
-    auto worklist = varInfo.blocksWithStores |
-                    ranges::to<utl::small_vector<BasicBlock*>>;
+    auto worklist =
+        varInfo.blocksWithStores | ranges::to<utl::small_vector<BasicBlock*>>;
     auto everOnWorklist = worklist;
     while (!worklist.empty()) {
         BasicBlock* x = worklist.back();
@@ -128,17 +126,19 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
         auto& dfX = domFronts[x];
         for (auto* y: dfX) {
             if (varInfo.phiNodes.contains(y)) {
-                
+
                 continue;
             }
             auto* undefVal = irCtx.undef(varInfo.type);
-            auto phiArgs = y->predecessors() |
+            auto phiArgs   = y->predecessors() |
                            ranges::views::transform([&](BasicBlock* pred) {
                                return PhiMapping(pred, undefVal);
                            }) |
                            ranges::to<utl::small_vector<PhiMapping>>;
-            auto* phi = new Phi(std::move(phiArgs),
-                                irCtx.uniqueName(&function, utl::strcat(address->name(), ".phi")));
+            auto* phi =
+                new Phi(std::move(phiArgs),
+                        irCtx.uniqueName(&function,
+                                         utl::strcat(address->name(), ".phi")));
             phiMap[phi] = address;
             y->pushFront(phi);
             varInfo.phiNodes[y] = phi;
@@ -149,7 +149,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
 }
 
 void MemToRegContext::genName(Alloca* addr, Value* value) {
-    auto& info = variables[addr];
+    auto& info     = variables[addr];
     size_t const i = info.counter;
     info.setVersion(i, value);
     info.stack.push(i);
@@ -165,18 +165,20 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
         genName(phiMap[&phi], &phi);
     }
     for (auto& inst: *basicBlock) {
-        for (auto [index, operand]: inst.operands() | ranges::views::enumerate) {
+        for (auto [index, operand]: inst.operands() | ranges::views::enumerate)
+        {
             auto* load = dyncast<Load*>(operand);
             if (!load) {
                 continue;
             }
             if (auto* allc = static_cast<Alloca*>(load->address());
-                !variables.contains(allc)) {
+                !variables.contains(allc))
+            {
                 continue;
             }
             auto* address = cast<Alloca*>(load->address());
-            auto& info = variables[address];
-            size_t i = info.stack.top();
+            auto& info    = variables[address];
+            size_t i      = info.stack.top();
             inst.setOperand(index, info.versions[i]);
         }
         auto* store = dyncast<Store*>(&inst);
@@ -192,7 +194,7 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
     for (auto succ: basicBlock->successors()) {
         for (auto& phi: succ->phiNodes()) {
             auto* address = phiMap[&phi];
-            auto& info = variables[address];
+            auto& info    = variables[address];
             if (info.stack.empty()) {
                 continue;
             }
