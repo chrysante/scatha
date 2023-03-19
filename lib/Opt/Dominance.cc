@@ -48,8 +48,7 @@ static utl::hashset<BasicBlock*> intersect(auto&& range) {
     });
 }
 
-DomTree opt::buildDomTree(ir::Function& function) {
-    DomTree result;
+DominanceMap opt::computeDominanceSets(ir::Function& function) {
     auto const nodeSet = [&] {
         utl::hashset<BasicBlock*> res;
         for (auto& bb: function) {
@@ -57,8 +56,8 @@ DomTree opt::buildDomTree(ir::Function& function) {
         }
         return res;
     }();
-    auto domSets = [&] {
-        utl::hashmap<BasicBlock*, utl::hashset<BasicBlock*>> res;
+    DominanceMap domSets = [&] {
+        DominanceMap res;
         for (auto& bb: function) {
             res.insert({ &bb, nodeSet });
         }
@@ -83,13 +82,25 @@ DomTree opt::buildDomTree(ir::Function& function) {
             }
         }
     }
+    return domSets;
+}
+
+DomTree opt::buildDomTree(ir::Function& function, DominanceMap const& domSets) {
+    DomTree result;
+    auto const nodeSet = [&] {
+        utl::hashset<BasicBlock*> res;
+        for (auto& bb: function) {
+            res.insert(&bb);
+        }
+        return res;
+    }();
     result._nodes = nodeSet | ranges::views::transform([](BasicBlock* bb) {
                         return DomTree::Node{ bb };
                     }) |
                     ranges::to<DomTree::NodeSet>;
     result._root = &result.findMut(&function.entry());
     for (auto& start: result._nodes) {
-        auto const& domSet = domSets[start.basicBlock()];
+        auto const& domSet = domSets.find(start.basicBlock())->second;
         utl::hashset<DomTree::Node*> visited;
         auto findParent = [&](DomTree::Node& node,
                               auto& findParent) -> DomTree::Node* {
@@ -155,21 +166,21 @@ void PrintCtx::print(DomTree::Node const& node) {
 namespace {
 
 struct DFContext {
-    DFContext(ir::Function& function, DomTree const& domTree, DFMap& df):
+    DFContext(ir::Function& function, DomTree const& domTree, DominanceFrontierMap& df):
         function(function), domTree(domTree), df(df) {}
 
     void compute(DomTree::Node const& node);
 
     ir::Function& function;
     DomTree const& domTree;
-    DFMap& df;
+    DominanceFrontierMap& df;
 };
 
 } // namespace
 
-DFMap opt::computeDominanceFrontiers(ir::Function& function,
+DominanceFrontierMap opt::computeDominanceFrontiers(ir::Function& function,
                                      DomTree const& domTree) {
-    DFMap result;
+    DominanceFrontierMap result;
     DFContext ctx(function, domTree, result);
     ctx.compute(domTree.root());
     return result;
