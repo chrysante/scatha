@@ -9,6 +9,7 @@
 #include <utl/vector.hpp>
 
 #include "IR/Common.h"
+#include "Opt/Graph.h"
 
 namespace scatha::opt {
 
@@ -25,48 +26,16 @@ DomTree buildDomTree(ir::Function& function, DominanceMap const& domSets);
 
 class SCATHA(API) DomTree {
 public:
-    class Node {
+    class Node: public opt::TreeNode<ir::BasicBlock*, Node> {
+        using Base = opt::TreeNode<ir::BasicBlock*, Node>;
+    
     public:
-        explicit Node(ir::BasicBlock* basicBlock): _bb(basicBlock) {}
-
-        ir::BasicBlock* basicBlock() const { return _bb; }
-
-        Node const& parent() const { return *_parent; }
-
-        auto children() const {
-            return _children | ranges::views::transform(
-                                   [](auto* p) -> auto const& { return *p; });
-        }
+        using Base::Base;
+        
+        ir::BasicBlock* basicBlock() const { return payload(); }
 
     private:
         friend DomTree opt::buildDomTree(ir::Function&, DominanceMap const&);
-
-        ir::BasicBlock* _bb = nullptr;
-        Node* _parent       = nullptr;
-        utl::small_vector<Node*> _children;
-    };
-
-    struct NodeHash {
-        using is_transparent = void;
-        size_t operator()(Node const& node) const {
-            return (*this)(node.basicBlock());
-        }
-        size_t operator()(ir::BasicBlock const* bb) const {
-            return std::hash<ir::BasicBlock const*>{}(bb);
-        }
-    };
-
-    struct NodeEq {
-        using is_transparent = void;
-        bool operator()(Node const& a, Node const& b) const {
-            return a.basicBlock() == b.basicBlock();
-        }
-        bool operator()(Node const& a, ir::BasicBlock const* b) const {
-            return a.basicBlock() == b;
-        }
-        bool operator()(ir::BasicBlock const* a, Node const& b) const {
-            return a == b.basicBlock();
-        }
     };
 
 public:
@@ -106,7 +75,7 @@ private:
     }
 
 private:
-    using NodeSet = utl::hashset<Node, NodeHash, NodeEq>;
+    using NodeSet = utl::hashset<Node, Node::PayloadHash, Node::PayloadEqual>;
     NodeSet _nodes;
     Node* _root;
 };

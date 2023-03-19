@@ -123,8 +123,8 @@ DomTree opt::buildDomTree(ir::Function& function, DominanceMap const& domSets) {
             auto& predNode = result.findMut(pred);
             if (auto* res = findParent(predNode, findParent)) {
                 auto* mutStart = const_cast<DomTree::Node*>(&start);
-                res->_children.push_back(mutStart);
-                mutStart->_parent = res;
+                res->addChild(mutStart);
+                mutStart->setParent(res);
                 break;
             }
         }
