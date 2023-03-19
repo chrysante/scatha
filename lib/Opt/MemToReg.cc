@@ -1,4 +1,4 @@
-#include "MemToReg_new.h"
+#include "Opt/MemToReg.h"
 
 #include <string>
 
@@ -213,7 +213,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
             /// Name will be set later in `genName()`
             auto* phi =
                 new Phi(std::move(phiArgs), std::string{});
-            phiMap[phi] = address;
+            phiMap.insert({ phi, address });
             y->pushFront(phi);
             varInfo.phiNodes[y] = phi;
             if (!appearedOnWorklist.contains(y)) {
@@ -225,6 +225,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
 }
 
 void MemToRegContext::genName(Alloca* addr, Value* value) {
+    SC_ASSERT(variables.contains(addr), "");
     auto& info     = variables.find(addr)->second;
     uint32_t const i = info.counter;
     info.setVersion(i, value);
@@ -241,7 +242,11 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
     }
     renamedBlocks.insert(basicBlock);
     for (auto& phi: basicBlock->phiNodes()) {
-        genName(phiMap[&phi], &phi);
+        auto itr = phiMap.find(&phi);
+        if (itr == phiMap.end()) {
+            continue;
+        }
+        genName(itr->second, &phi);
     }
     for (auto& inst: *basicBlock) {
         for (auto [index, operand]: inst.operands() | ranges::views::enumerate)
@@ -272,7 +277,12 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
     }
     for (auto* succ: basicBlock->successors()) {
         for (auto& phi: succ->phiNodes()) {
-            auto* address = phiMap[&phi];
+            auto const itr = phiMap.find(&phi);
+            if (itr == phiMap.end()) {
+                continue;
+            }
+            auto* address = itr->second;
+            SC_ASSERT(variables.contains(address), "");
             auto& info    = variables.find(address)->second;
             if (info.stack.empty()) {
                 continue;
@@ -288,7 +298,8 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
         // clang-format off
         auto* address = visit(inst, utl::overload{
             [&](Phi& phi) {
-                return phiMap[&phi];
+                auto itr = phiMap.find(&phi);
+                return itr != phiMap.end() ? itr->second : nullptr;
             },
             [&](Store& store) -> Alloca* {
                 auto* addr = dyncast<Alloca*>(store.dest());

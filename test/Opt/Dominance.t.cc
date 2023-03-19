@@ -58,7 +58,8 @@ function i64 @f() {
     ir::Module mod  = ir::parse(text, ctx).value();
     auto& f         = mod.functions().front();
     /// ## Dominator tree
-    auto domTree = opt::buildDomTree(f);
+    auto domSets = opt::computeDominanceSets(f);
+    auto domTree = opt::buildDomTree(f, domSets);
     auto& root   = domTree.root();
     CHECK(root.basicBlock()->name() == "entry");
     REQUIRE(root.children().size() == 1);
@@ -114,7 +115,8 @@ function i64 @f() {
     ir::Module mod  = ir::parse(text, ctx).value();
     auto& f         = mod.functions().front();
     /// ## Dominator tree
-    auto domTree = opt::buildDomTree(f);
+    auto domSets = opt::computeDominanceSets(f);
+    auto domTree = opt::buildDomTree(f, domSets);
     auto& root   = domTree.root();
     CHECK(root.basicBlock()->name() == "entry");
     REQUIRE(root.children().size() == 3);

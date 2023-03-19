@@ -25,7 +25,7 @@
 #include "Lexer/LexicalIssue.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
-#include "Opt/Mem2Reg.h"
+#include "Opt/MemToReg.h"
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
@@ -161,7 +161,7 @@ void playground::compile(std::string text) {
 
     header(" Optimized IR ");
     for (auto& function: mod.functions()) {
-        opt::mem2Reg(irCtx, function);
+        opt::memToReg(irCtx, function);
         opt::propagateConstants(irCtx, function);
         opt::dce(irCtx, function);
     }
@@ -172,7 +172,7 @@ void playground::compile(std::string text) {
     print(str0);
 
     header(" Assembled Program ");
-    /// Start execution with main if it exists.
+    /// Start execution with `main` if it exists.
     auto const mainID = [&sym] {
         auto const id  = sym.lookup("main");
         auto const* os = sym.tryGetOverloadSet(id);

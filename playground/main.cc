@@ -15,7 +15,7 @@
 #include "IRDump.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
-#include "Opt/Mem2Reg.h"
+#include "Opt/MemToReg.h"
 #include "OptTest.h"
 #include "SampleCompiler.h"
 #include "Volatile.h"
@@ -100,7 +100,7 @@ int main(int argc, char const* const* argv) {
                              std::filesystem::path(PROJECT_LOCATION) /
                                  "graphviz/cfg.gv");
         for (auto& function: mod.functions()) {
-            scatha::opt::mem2Reg(ctx, function);
+            scatha::opt::memToReg(ctx, function);
         }
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /

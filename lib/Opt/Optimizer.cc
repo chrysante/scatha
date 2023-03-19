@@ -5,7 +5,7 @@
 #include "IR/Module.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
-#include "Opt/Mem2Reg.h"
+#include "Opt/MemToReg.h"
 
 using namespace scatha;
 using namespace opt;
@@ -16,7 +16,7 @@ void opt::optimize(ir::Context& context, ir::Module& mod, int level) {
 
     case 1:
         for (auto& function: mod.functions()) {
-            opt::mem2Reg(context, function);
+            opt::memToReg(context, function);
             opt::propagateConstants(context, function);
             opt::dce(context, function);
         }

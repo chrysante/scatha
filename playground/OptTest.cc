@@ -5,7 +5,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
-#include "Opt/Mem2Reg.h"
+#include "Opt/MemToReg.h"
 
 #include "IRDump.h"
 
