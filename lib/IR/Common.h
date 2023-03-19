@@ -138,6 +138,9 @@ template <bool IsConst>
 struct PhiMappingImpl {
     using BB = std::conditional_t<IsConst, BasicBlock const, BasicBlock>;
     using V  = std::conditional_t<IsConst, Value const, Value>;
+    
+    PhiMappingImpl() = default;
+    
     PhiMappingImpl(BB* pred, V* value): pred(pred), value(value) {}
 
     PhiMappingImpl(PhiMappingImpl<false> p)
@@ -149,8 +152,8 @@ struct PhiMappingImpl {
 
     bool operator==(PhiMappingImpl const&) const = default;
 
-    BB* pred;
-    V* value;
+    BB* pred = nullptr;
+    V* value = nullptr;
 };
 
 } // namespace scatha::ir::internal
