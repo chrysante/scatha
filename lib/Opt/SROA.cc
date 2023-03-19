@@ -1,7 +1,7 @@
 #include "Opt/SROA.h"
 
-#include "IR/Context.h"
 #include "IR/CFG.h"
+#include "IR/Context.h"
 
 using namespace scatha;
 using namespace ir;
@@ -12,9 +12,9 @@ namespace {
 struct SROAContext {
     SROAContext(ir::Context& irCtx, ir::Function& function):
         irCtx(irCtx), function(function) {}
-    
+
     bool run();
-    
+
     ir::Context& irCtx;
     ir::Function& function;
 };
@@ -32,7 +32,6 @@ bool SROAContext::run() {
         if (!address) {
             continue;
         }
-        
     }
     SC_DEBUGFAIL();
 }

@@ -28,10 +28,10 @@ class SCATHA(API) DomTree {
 public:
     class Node: public opt::TreeNode<ir::BasicBlock*, Node> {
         using Base = opt::TreeNode<ir::BasicBlock*, Node>;
-    
+
     public:
         using Base::Base;
-        
+
         ir::BasicBlock* basicBlock() const { return payload(); }
 
     private:
