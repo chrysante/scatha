@@ -780,6 +780,13 @@ public:
     /// Assign arguments to this phi node.
     void setArguments(std::span<PhiMapping const> args);
 
+    /// Assign \p value to the predecessor argument \p pred
+    /// \pre \p pred must be a predecessor to this phi node.
+    void setArgument(BasicBlock const* pred, Value* value);
+    
+    /// Assign \p value to argument at \p index
+    void setArgument(size_t index, Value* value);
+    
     /// Number of arguments. Must match the number of predecessors of parent
     /// basic block.
     size_t argumentCount() const { return _preds.size(); }

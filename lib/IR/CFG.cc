@@ -257,6 +257,14 @@ void Phi::setArguments(std::span<PhiMapping const> args) {
     }
 }
 
+void Phi::setArgument(BasicBlock const* pred, Value* value) {
+    setArgument(indexOf(pred), value);
+}
+
+void Phi::setArgument(size_t index, Value* value) {
+    setOperand(index, value);
+}
+
 GetElementPointer::GetElementPointer(Context& context,
                                      Type const* accessedType,
                                      Type const* pointeeType,
