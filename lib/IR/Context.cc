@@ -75,6 +75,16 @@ FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitWidth) {
     return itr->second;
 }
 
+UndefValue* Context::undef(Type const* type) {
+    auto itr = _undefConstants.find(type);
+    if (itr == _undefConstants.end()) {
+        bool success = false;
+        std::tie(itr, success) = _undefConstants.insert({ type, new UndefValue(type) });
+        SC_ASSERT(success, "");
+    }
+    return itr->second;
+}
+
 void Context::addGlobal(Constant* constant) {
     auto const [_, success] =
         _globals.insert({ std::string(constant->name()), constant });

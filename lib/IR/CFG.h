@@ -152,6 +152,15 @@ private:
     APFloat _value;
 };
 
+/// Represents an `undef` value.
+class SCATHA(API) UndefValue: public Constant {
+public:
+    explicit UndefValue(Type const* type):
+        Constant(NodeType::UndefValue, type) {}
+private:
+    
+};
+
 /// Base class of all instructions. `Instruction` inherits from `Value` as it
 /// (usually) yields a value. If an instruction does not yield a value its
 /// `Value` super class is of type void.

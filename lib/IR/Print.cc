@@ -143,6 +143,10 @@ static auto formatName(Value const& value) {
         [](ir::FloatingPointConstant const& value) {
             return tfmt::format(tfmt::cyan, "$", value.value().toString());
         },
+        [](ir::UndefValue const& value) {
+            /// Really annoying that I have to format it like this.
+            return tfmt::format(tfmt::magenta, "u", std::string("ndef"));
+        },
         [](ir::Value const&) {
             return tfmt::format(tfmt::bgMagenta, "?", std::string("??"));
         },
