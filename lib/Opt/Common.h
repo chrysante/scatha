@@ -22,6 +22,7 @@ bool compareEqual(ir::Phi const* lhs, std::span<ir::ConstPhiMapping const> rhs);
 SCATHA(TEST_API)
 bool compareEqual(ir::Phi const* lhs, std::span<ir::PhiMapping const> rhs);
 
+/// Replace all uses of \p oldValue with \p newValue
 SCATHA(TEST_API) void replaceValue(ir::Value* oldValue, ir::Value* newValue);
 
 /// Fully remove \p *predecessor as predecessor of \p *basicBlock.
