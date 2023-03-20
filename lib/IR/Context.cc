@@ -10,44 +10,32 @@ using namespace scatha;
 using namespace ir;
 
 Context::Context() {
-    auto voidType = UniquePtr<Type>(new VoidType());
-    _types.insert({ std::string(voidType->name()), std::move(voidType) });
+    auto vt   = allocate<VoidType>();
+    _voidType = vt.get();
+    _types.push_back(std::move(vt));
+    auto pt  = allocate<PointerType>();
+    _ptrType = pt.get();
+    _types.push_back(std::move(pt));
 }
 
-VoidType const* Context::voidType() {
-    auto itr = _types.find(std::string_view("void"));
-    SC_ASSERT(itr != _types.end(), "Void must exist");
-    return cast<VoidType const*>(itr->second.get());
-}
-
-PointerType const* Context::pointerType() {
-    auto itr = _types.find(std::string_view("ptr"));
-    if (itr != _types.end()) {
-        return cast<PointerType const*>(itr->second.get());
+template <typename A>
+static auto* getArithmeticType(size_t bitWidth, auto& types, auto& map) {
+    auto itr = map.find(bitWidth);
+    if (itr != map.end()) {
+        return itr->second;
     }
-    auto* type = new PointerType();
-    _types.insert({ std::string(type->name()), UniquePtr<Type>(type) });
-    return type;
+    auto type = allocate<A>(bitWidth);
+    itr       = map.insert({ bitWidth, type.get() }).first;
+    types.push_back(std::move(type));
+    return itr->second;
 }
 
 IntegralType const* Context::integralType(size_t bitWidth) {
-    auto itr = _types.find(utl::strcat("i", bitWidth));
-    if (itr != _types.end()) {
-        return cast<IntegralType const*>(itr->second.get());
-    }
-    auto* type = new IntegralType(bitWidth);
-    _types.insert({ std::string(type->name()), UniquePtr<Type>(type) });
-    return type;
+    return getArithmeticType<IntegralType>(bitWidth, _types, _intTypes);
 }
 
 FloatType const* Context::floatType(size_t bitWidth) {
-    auto itr = _types.find(utl::strcat("f", bitWidth));
-    if (itr != _types.end()) {
-        return cast<FloatType const*>(itr->second.get());
-    }
-    auto* type = new FloatType(bitWidth);
-    _types.insert({ std::string(type->name()), UniquePtr<Type>(type) });
-    return type;
+    return getArithmeticType<FloatType>(bitWidth, _types, _floatTypes);
 }
 
 IntegralConstant* Context::integralConstant(APInt value) {
@@ -90,18 +78,6 @@ UndefValue* Context::undef(Type const* type) {
 
 Value* Context::voidValue() {
     return undef(voidType());
-}
-
-void Context::addGlobal(Constant* constant) {
-    auto const [_, success] =
-        _globals.insert({ std::string(constant->name()), constant });
-    SC_ASSERT(success, "Name already in use?");
-}
-
-Constant* Context::getGlobal(std::string_view name) const {
-    auto itr = _globals.find(name);
-    SC_ASSERT(itr != _globals.end(), "Undeclared name");
-    return itr->second;
 }
 
 std::string Context::uniqueName(Function const* function, std::string name) {

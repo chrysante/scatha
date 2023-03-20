@@ -5,7 +5,7 @@
 
 #include <span>
 
-#include <utl/hashset.hpp>
+#include <utl/vector.hpp>
 
 #include <scatha/Basic/Basic.h>
 #include <scatha/Basic/OpaqueRange.h>
@@ -29,10 +29,15 @@ public:
     auto structures() const { return makeOpaqueRange(structs); }
 
     auto& functions() { return funcs; }
+
     auto const& functions() const { return funcs; }
 
     void addStructure(UniquePtr<StructureType> structure) {
-        structs.insert(std::move(structure));
+        structs.push_back(std::move(structure));
+    }
+
+    void addGlobal(UniquePtr<Value> value) {
+        _globals.push_back(std::move(value));
     }
 
     void addFunction(Function* function);
@@ -40,7 +45,8 @@ public:
     void addFunction(UniquePtr<Function> function);
 
 private:
-    utl::hashset<UniquePtr<StructureType>> structs;
+    utl::vector<UniquePtr<StructureType>> structs;
+    utl::vector<UniquePtr<Value>> _globals;
     List<Function> funcs;
 };
 

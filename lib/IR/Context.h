@@ -3,12 +3,13 @@
 #ifndef SCATHA_IR_CONTEXT_H_
 #define SCATHA_IR_CONTEXT_H_
 
-#include <map> // For now, we shouldn't actually use this.
+#include <map>
 #include <string>
 
 #include <utl/hashmap.hpp>
 #include <utl/hashset.hpp>
 #include <utl/strcat.hpp>
+#include <utl/vector.hpp>
 
 #include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>
@@ -21,9 +22,9 @@ class SCATHA(API) Context {
 public:
     Context();
 
-    VoidType const* voidType();
+    VoidType const* voidType() { return _voidType; }
 
-    PointerType const* pointerType();
+    PointerType const* pointerType() { return _ptrType; }
 
     IntegralType const* integralType(size_t bitWidth);
 
@@ -40,10 +41,6 @@ public:
     /// \Returns an opaque value of type void
     Value* voidValue();
 
-    void addGlobal(Constant* constant);
-
-    Constant* getGlobal(std::string_view name) const;
-
     std::string uniqueName(Function const* function, std::string name);
     std::string uniqueName(Function const* function, auto const&... args) {
         return uniqueName(function, utl::strcat(args...));
@@ -53,14 +50,17 @@ private:
     /// ## Constants
     utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*>
         _integralConstants;
+    /// We use `std::map` here because floats are not really hashable.
     std::map<std::pair<APFloat, size_t>, FloatingPointConstant*>
         _floatConstants;
     utl::hashmap<Type const*, UndefValue*> _undefConstants;
 
     /// ## Types
-    utl::hashmap<std::string, UniquePtr<Type>> _types;
-
-    utl::hashmap<std::string, Constant*> _globals;
+    utl::vector<UniquePtr<Type>> _types;
+    VoidType const* _voidType;
+    PointerType const* _ptrType;
+    utl::hashmap<uint32_t, IntegralType const*> _intTypes;
+    utl::hashmap<uint32_t, FloatType const*> _floatTypes;
 
     // For unique names
     utl::hashmap<std::pair<Function const*, std::string>, size_t> varIndices;

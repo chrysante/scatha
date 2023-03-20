@@ -101,7 +101,8 @@ struct CodeGenContext {
     sema::SymbolTable const& symTable;
     ir::Function* currentFunction = nullptr;
     ir::BasicBlock* _currentBB    = nullptr;
-    utl::hashmap<sema::SymbolID, ir::Value*> valueMap;
+    utl::hashmap<sema::SymbolID, ir::Value*> variableAddressMap;
+    utl::hashmap<sema::SymbolID, ir::Function*> functionMap;
     utl::hashmap<sema::TypeID, ir::Type const*> typeMap;
     ir::Instruction* allocaInsertItr;
 };
@@ -143,9 +144,7 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
                           return mapType(param->typeID());
                       }) |
                       ranges::to<utl::small_vector<ir::Type const*>>;
-    // TODO: Also here worry about name mangling
-    auto* fn = cast<ir::Function*>(
-        irCtx.getGlobal(utl::strcat(def.name(), def.symbolID())));
+    auto* fn        = functionMap.find(def.symbolID())->second;
     currentFunction = fn;
     auto* entry     = new ir::BasicBlock(irCtx, localUniqueName("entry"));
     fn->pushBack(entry);
@@ -166,7 +165,6 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
     generate(*def.body);
     setCurrentBB(nullptr);
     currentFunction = nullptr;
-    mod.addFunction(fn);
 }
 
 void CodeGenContext::generateImpl(StructDefinition const& def) {
@@ -528,11 +526,8 @@ ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
         currentBB()->pushBack(call);
         return call;
     }
-    // TODO: Perform actual name mangling
-    std::string const mangledName =
-        utl::strcat(cast<Identifier const*>(functionCall.object.get())->value(),
-                    functionCall.functionID());
-    ir::Function* function = cast<ir::Function*>(irCtx.getGlobal(mangledName));
+    ir::Function* function =
+        functionMap.find(functionCall.functionID())->second;
     auto const args =
         functionCall.arguments |
         ranges::views::transform(
@@ -557,8 +552,8 @@ ir::Value* CodeGenContext::getAddress(Expression const& expr) {
 }
 
 ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {
-    auto itr = valueMap.find(id.symbolID());
-    SC_ASSERT(itr != valueMap.end(), "Undeclared symbol");
+    auto itr = variableAddressMap.find(id.symbolID());
+    SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
     return itr->second;
 }
 
@@ -624,13 +619,19 @@ void CodeGenContext::declareFunctions() {
             ranges::to<utl::small_vector<ir::Type const*>>;
         // TODO: Generate proper function type here
         ir::FunctionType const* const functionType = nullptr;
-        // TODO: Worry about name mangling
-        auto* fn =
-            new ir::Function(functionType,
-                             mapType(function.signature().returnTypeID()),
-                             paramTypes,
-                             mangledName(function.symbolID(), function.name()));
-        irCtx.addGlobal(fn);
+        auto fn =
+            allocate<ir::Function>(functionType,
+                                   mapType(function.signature().returnTypeID()),
+                                   paramTypes,
+                                   mangledName(function.symbolID(),
+                                               function.name()));
+        functionMap[function.symbolID()] = fn.get();
+        if (function.isExtern()) {
+            mod.addGlobal(std::move(fn));
+        }
+        else {
+            mod.addFunction(std::move(fn));
+        }
     }
 }
 
@@ -641,7 +642,7 @@ void CodeGenContext::setCurrentBB(ir::BasicBlock* bb) {
 void CodeGenContext::memorizeVariableAddress(sema::SymbolID symbolID,
                                              ir::Value* value) {
     [[maybe_unused]] auto const [_, insertSuccess] =
-        valueMap.insert({ symbolID, value });
+        variableAddressMap.insert({ symbolID, value });
     SC_ASSERT(insertSuccess,
               "Variable id must not be declared multiple times. This error "
               "must be handled in sema.");
