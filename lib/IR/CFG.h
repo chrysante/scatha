@@ -65,16 +65,18 @@ private:
     friend class User;
 
     /// Register a user of this value. Won't affect \p user
+    /// This function and `removeUserWeak()` are solely intended to be used be
+    /// class `User`
     void addUserWeak(User* user);
 
     /// Unregister a user of this value. `this` will _not_ be cleared from the
     /// operand list of \p user
     void removeUserWeak(User* user);
 
-    /// Called by `UniquePtr`
+    /// Customization point for `UniquePtr`
     friend void scatha::internal::privateDelete(Value* value);
 
-    /// Called by `ir::DynAllocator`
+    /// Customization point for `ir::DynAllocator`
     friend void scatha::internal::privateDestroy(Value* value);
 
 private:
@@ -92,19 +94,31 @@ inline NodeType dyncast_get_type(std::derived_from<Value> auto const& value) {
 /// Represents a user of values
 class SCATHA(API) User: public Value {
 public:
+    /// \returns a view of all operands
     std::span<Value* const> operands() { return _operands; }
+
+    /// \overload
     std::span<Value const* const> operands() const { return _operands; }
 
+    /// Set the operand at \p index to \p operand
+    /// Updates user list of \p operand and removed operand.
     void setOperand(size_t index, Value* operand);
 
+    /// Clear all operands and replace with new operands.
+    /// User lists are updated.
     void setOperands(utl::small_vector<Value*> operands);
 
+    /// Find \p oldOperand and replace it with \p newOperand
+    /// User lists are updated.
+    /// \pre \p oldOperand must be an operand of this user.
     void updateOperand(Value const* oldOperand, Value* newOperand);
 
+    /// Remove operand at \p index
+    /// User lists are updated.
     void removeOperand(size_t index);
 
-    /// This should proably at some point be replaced by some sort of `delete`
-    /// operation
+    /// Remove all operands from this user.
+    /// User lists are updated.
     void clearOperands();
 
 protected:
@@ -169,7 +183,9 @@ public:
                          utl::small_vector<Value*> operands          = {},
                          utl::small_vector<Type const*> typeOperands = {});
 
-    /// View of all instructions using this value. This casts the elements in
+    /// \returns a view of all instructions using this value.
+    ///
+    /// \details This casts the elements in
     /// the range returned by `Value::users()` to instructions, as instructions
     /// are only used by other instructions.
     auto users() const {
@@ -179,6 +195,7 @@ public:
                });
     }
 
+    /// \returns a view over the type operands of this instruction
     std::span<Type const* const> typeOperands() const { return typeOps; }
 
 protected:
@@ -340,13 +357,7 @@ public:
         return ListBase::erase(first, last);
     }
 
-    void eraseAllPhiNodes() {
-        auto phiEnd = begin();
-        while (isa<Phi>(*phiEnd)) {
-            ++phiEnd;
-        }
-        erase(begin(), phiEnd);
-    }
+    void eraseAllPhiNodes();
 
     /// Extract an instruction. Does not clear the operands. Caller takes
     /// ownership of the instruction.
@@ -359,16 +370,16 @@ public:
         return extract(ConstIterator(inst));
     }
 
-    /// Check wether this is the entry basic block of a function
+    /// \returns `true` iff this basic block is the entry basic block
     bool isEntry() const;
 
-    /// Check wether \p inst is an instruction of this basic block.
+    /// \returns `true` iff \p inst is an instruction of this basic block.
     /// \warning This is linear in the number of instructions in this basic
     /// block.
     bool contains(Instruction const& inst) const;
 
-    /// Returns the terminator instruction if this basic block is well formed or
-    /// nullptr
+    /// \returns the terminator instruction if this basic block is well formed
+    /// or nullptr
     TerminatorInst const* terminator() const;
 
     /// \overload
@@ -377,7 +388,7 @@ public:
             static_cast<BasicBlock const*>(this)->terminator());
     }
 
-    /// View over the phi nodes in this basic block.
+    /// \returns a view over the phi nodes in this basic block.
     ranges::subrange<ConstPhiIterator, internal::PhiSentinel> phiNodes() const {
         return { ConstPhiIterator{ begin(), end() }, {} };
     }
@@ -387,13 +398,15 @@ public:
         return { PhiIterator{ begin(), end() }, {} };
     }
 
-    /// The basic blocks this basic block is directly reachable from
+    /// \returns a view over the basic blocks this basic block is directly
+    /// reachable from
     std::span<BasicBlock* const> predecessors() { return preds; }
 
     /// \overload
     std::span<BasicBlock const* const> predecessors() const { return preds; }
 
-    /// Test wether \p *possiblePred is a predecessor of this basic block.
+    /// \returns `true`iff \p *possiblePred is a predecessor of this basic
+    /// block.
     bool isPredecessor(BasicBlock const* possiblePred) const {
         return std::find(preds.begin(), preds.end(), possiblePred) !=
                preds.end();
@@ -427,10 +440,10 @@ public:
     /// \overload
     auto successors() const;
 
-    /// Returns `true` iff this basic block has exactly one predecessor.
+    /// \returns `true` iff this basic block has exactly one predecessor.
     bool hasSinglePredecessor() const { return preds.size() == 1; }
 
-    /// Return predecessor if this basic block has a single predecessor, else
+    /// \returns predecessor if this basic block has a single predecessor, else
     /// `nullptr`.
     BasicBlock* singlePredecessor() {
         return const_cast<BasicBlock*>(
@@ -442,10 +455,10 @@ public:
         return hasSinglePredecessor() ? preds.front() : nullptr;
     }
 
-    /// Returns `true` iff this basic block has exactly one successor.
+    /// \returns `true` iff this basic block has exactly one successor.
     bool hasSingleSuccessor() const;
 
-    /// Return successor if this basic block has a single successor, else
+    /// \returns successor if this basic block has a single successor, else
     /// `nullptr`.
     BasicBlock* singleSuccessor() {
         return const_cast<BasicBlock*>(
@@ -471,6 +484,7 @@ public:
         NodeBase(parent),
         _index(index) {}
 
+    /// \returns the index of this parameter which is also its name
     size_t index() const { return _index; }
 
 private:
@@ -513,23 +527,28 @@ public:
         internal::InstructionIteratorImpl<Function::ConstIterator,
                                           BasicBlock::ConstIterator>;
 
+    /// Construct a function
     explicit Function(FunctionType const* functionType,
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
                       std::string name);
 
+    /// \returns the return type of this function
     Type const* returnType() const { return _returnType; }
 
-    /// View over function parameters
+    /// \returns a view over the function parameters
     auto parameters() { return getParametersImpl(*this); }
 
     /// \overload
     auto parameters() const { return getParametersImpl(*this); }
 
+    /// \returns the entry basic block of this function
     BasicBlock& entry() { return front(); }
+
+    /// \overload
     BasicBlock const& entry() const { return front(); }
 
-    /// View over all instructions in this `Function`.
+    /// \returns a view over all instructions in this `Function`.
     ranges::subrange<InstructionIterator> instructions() {
         return getInstructionsImpl<InstructionIterator>(*this);
     }
@@ -544,6 +563,11 @@ private:
     List<Parameter> params;
 };
 
+/// Outlined because `Function` is incomplete at definition of `BasicBlock`
+inline bool BasicBlock::isEntry() const {
+    return parent()->begin().to_address() == this;
+}
+
 /// `alloca` instruction. Allocates automatically managed memory for local
 /// variables. Its value is a pointer to the allocated memory.
 class SCATHA(API) Alloca: public Instruction {
@@ -552,6 +576,7 @@ public:
                     Type const* allocatedType,
                     std::string name);
 
+    /// \returns the type allocated by this `alloca` instruction
     Type const* allocatedType() const { return typeOperands()[0]; }
 };
 
@@ -565,9 +590,13 @@ protected:
         Instruction(nodeType, type, std::move(name), { operand }) {}
 
 public:
+    /// \returns the operand of this instruction
     Value* operand() { return operands()[0]; }
+
+    /// \overload
     Value const* operand() const { return operands()[0]; }
 
+    /// \returns the type of the operand of this instruction
     Type const* operandType() const { return operand()->type(); }
 };
 
@@ -580,7 +609,10 @@ public:
                   "`address` must be of type `ptr`");
     }
 
+    /// \returns the address this instruction loads from
     Value* address() { return operand(); }
+
+    /// \overload
     Value const* address() const { return operand(); }
 };
 
@@ -595,11 +627,19 @@ protected:
         Instruction(nodeType, type, std::move(name), { lhs, rhs }) {}
 
 public:
+    /// \returns the LHS operand
     Value* lhs() { return operands()[0]; }
+
+    ///  \overload
     Value const* lhs() const { return operands()[0]; }
+
+    /// \returns the RHS operand
     Value* rhs() { return operands()[1]; }
+
+    ///  \overload
     Value const* rhs() const { return operands()[1]; }
 
+    /// \returns the type of the operands.
     Type const* operandType() const { return lhs()->type(); }
 };
 

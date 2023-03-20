@@ -35,6 +35,7 @@ IntegralType const* Context::integralType(size_t bitWidth) {
 }
 
 FloatType const* Context::floatType(size_t bitWidth) {
+    SC_ASSERT(bitWidth == 32 || bitWidth == 64, "Other sizes not supported");
     return getArithmeticType<FloatType>(bitWidth, _types, _floatTypes);
 }
 

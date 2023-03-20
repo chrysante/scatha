@@ -20,28 +20,41 @@ namespace scatha::ir {
 
 class SCATHA(API) Context {
 public:
+    /// Construct an empty `Context` object
     Context();
 
+    /// \returns the `void` type
     VoidType const* voidType() { return _voidType; }
 
+    /// \returns the `ptr` type
     PointerType const* pointerType() { return _ptrType; }
 
+    /// \returns the `iN` type where `N` is \p bitWidth
     IntegralType const* integralType(size_t bitWidth);
 
+    /// \returns the `fN` type where `N` is \p bitWidth
+    /// \param bitWidth must be either 32 or 64
     FloatType const* floatType(size_t bitWidth);
 
+    /// \returns the global integral constant with value \p value
     IntegralConstant* integralConstant(APInt value);
 
+    /// \returns the global integral constant of \p bitWidth bits with value \p
+    /// value
     IntegralConstant* integralConstant(u64 value, size_t bitWidth);
 
+    /// \returns the global floating point constant of \p bitWidth bits with
+    /// value \p value
     FloatingPointConstant* floatConstant(APFloat value, size_t bitWidth);
 
+    /// \returns the `undef` constant of type \p type
     UndefValue* undef(Type const* type);
 
-    /// \Returns an opaque value of type void
+    /// \returns an opaque value of type void
     Value* voidValue();
 
     std::string uniqueName(Function const* function, std::string name);
+
     std::string uniqueName(Function const* function, auto const&... args) {
         return uniqueName(function, utl::strcat(args...));
     }

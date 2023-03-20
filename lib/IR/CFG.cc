@@ -56,7 +56,7 @@ void User::setOperands(utl::small_vector<Value*> operands) {
 void User::updateOperand(Value const* oldOperand, Value* newOperand) {
     auto itr = ranges::find(_operands, oldOperand);
     SC_ASSERT(itr != ranges::end(_operands), "Not found");
-    auto const index = ranges::end(_operands) - itr;
+    auto const index = ranges::distance(ranges::begin(_operands), itr);
     setOperand(utl::narrow_cast<size_t>(index), newOperand);
 }
 
@@ -109,9 +109,12 @@ Function::Function(FunctionType const* functionType,
 BasicBlock::BasicBlock(Context& context, std::string name):
     Value(NodeType::BasicBlock, context.voidType(), std::move(name)) {}
 
-/// Outlined because Function is incomplete at definition of BasicBlock.
-bool BasicBlock::isEntry() const {
-    return parent()->begin().to_address() == this;
+void BasicBlock::eraseAllPhiNodes() {
+    auto phiEnd = begin();
+    while (isa<Phi>(*phiEnd)) {
+        ++phiEnd;
+    }
+    erase(begin(), phiEnd);
 }
 
 bool BasicBlock::contains(Instruction const& inst) const {
