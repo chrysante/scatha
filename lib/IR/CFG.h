@@ -104,6 +104,8 @@ public:
 
     void setOperands(utl::small_vector<Value*> operands);
 
+    void updateOperand(Value const* oldOperand, Value* newOperand);
+    
     void removeOperand(size_t index);
 
     /// This should proably at some point be replaced by some sort of `delete`
@@ -396,10 +398,10 @@ public:
     }
 
     /// The basic blocks directly reachable from this basic block
-    std::span<BasicBlock* const> successors();
+    auto successors();
 
     /// \overload
-    std::span<BasicBlock const* const> successors() const;
+    auto successors() const;
 
     /// Returns `true` iff this basic block has exactly one predecessor.
     bool hasSinglePredecessor() const { return preds.size() == 1; }
@@ -417,7 +419,7 @@ public:
     }
 
     /// Returns `true` iff this basic block has exactly one successor.
-    bool hasSingleSuccessor() const { return successors().size() == 1; }
+    bool hasSingleSuccessor() const;
 
     /// Return successor if this basic block has a single successor, else
     /// `nullptr`.
@@ -427,9 +429,7 @@ public:
     }
 
     /// \overload
-    BasicBlock const* singleSuccessor() const {
-        return hasSingleSuccessor() ? successors().front() : nullptr;
-    }
+    BasicBlock const* singleSuccessor() const;
 
 private:
     utl::small_vector<BasicBlock*> preds;
@@ -616,7 +616,7 @@ public:
                                  std::string name);
 
     UnaryArithmeticOperation operation() const { return _op; }
-
+    
 private:
     UnaryArithmeticOperation _op;
 };
@@ -636,46 +636,83 @@ private:
 };
 
 /// Base class for all instructions terminating basic blocks.
+///
+/// \details
+/// Non-basic block argument are the first `nonTargetArguments` operands. Targets are the following operands.
 class SCATHA(API) TerminatorInst: public Instruction {
+    template <typename T>
+    static auto targetsImpl(auto& self) {
+        return self.operands() | ranges::views::drop(self.nonTargetArguments) | ranges::views::transform([](auto* value) {
+            return value ? cast<T*>(value) : nullptr;
+        });
+    }
+    
 public:
-    std::span<BasicBlock* const> targets() { return _targets; }
-    std::span<BasicBlock const* const> targets() const { return _targets; }
+    auto targets() { return targetsImpl<BasicBlock>(*this); }
+    
+    auto targets() const { return targetsImpl<BasicBlock const>(*this); }
 
     void updateTarget(BasicBlock const* oldTarget, BasicBlock* newTarget) {
-        auto itr = ranges::find(_targets, oldTarget);
-        SC_ASSERT(itr != _targets.end(),
-                  "`oldTarget` is not a target of this terminator");
-        *itr = newTarget;
+        updateOperand(oldTarget, newTarget);
     }
 
-    void setTarget(size_t index, BasicBlock* bb) { _targets[index] = bb; }
-
+    void setTarget(size_t index, BasicBlock* bb) { setOperand(nonTargetArguments + index, bb); }
+    
 protected:
     explicit TerminatorInst(NodeType nodeType,
                             Context& context,
-                            utl::small_vector<BasicBlock*> targets,
-                            std::initializer_list<Value*> operands = {});
+                            std::initializer_list<Value*> operands,
+                            std::initializer_list<BasicBlock*> targets);
 
-    utl::small_vector<BasicBlock*> _targets;
+private:
+    uint16_t nonTargetArguments = 0;
 };
+
+/// Now that we have defined `TerminatorInst` we can define `BasicBlock::successors()`
+namespace internal {
+
+static auto succImpl(auto* t) {
+    SC_ASSERT(t, "No successors without a terminator");
+    return t->targets();
+}
+
+} // namespace internal
+
+inline auto BasicBlock::successors() {
+    return internal::succImpl(terminator());
+}
+
+inline auto BasicBlock::successors() const {
+    return internal::succImpl(terminator());
+}
+
+inline bool BasicBlock::hasSingleSuccessor() const { return successors().size() == 1; }
+
+inline BasicBlock const* BasicBlock::singleSuccessor() const {
+    return hasSingleSuccessor() ? successors().front() : nullptr;
+}
+
 
 /// `goto` instruction. Leave the current basic block and unconditionally enter
 /// the target basic block.
 class Goto: public TerminatorInst {
 public:
     explicit Goto(Context& context, BasicBlock* target):
-        TerminatorInst(NodeType::Goto, context, { target }) {}
+        TerminatorInst(NodeType::Goto, context, {}, { target }) {}
 
     BasicBlock* target() { return targets()[0]; }
     BasicBlock const* target() const { return targets()[0]; }
 
-    void setTarget(BasicBlock* bb) { _targets[0] = bb; }
+    void setTarget(BasicBlock* bb) { setOperand(0, bb); }
 
     using TerminatorInst::setTarget;
 };
 
 /// `branch` instruction. Leave the current basic block and choose a target
 /// basic block based on a condition.
+///
+/// \details
+/// Condition is the first operand. Targets are second and third operands.
 class SCATHA(API) Branch: public TerminatorInst {
 public:
     explicit Branch(Context& context,
@@ -684,8 +721,8 @@ public:
                     BasicBlock* elseTarget):
         TerminatorInst(NodeType::Branch,
                        context,
-                       { thenTarget, elseTarget },
-                       { condition }) {
+                       { condition },
+                       { thenTarget, elseTarget }) {
         SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1,
                   "Condition must be of type i1");
     }
@@ -699,16 +736,18 @@ public:
     BasicBlock* elseTarget() { return targets()[1]; }
     BasicBlock const* elseTarget() const { return targets()[1]; }
 
-    void setThenTarget(BasicBlock* bb) { _targets[0] = bb; }
+    void setThenTarget(BasicBlock* bb) { setOperand(1, bb); }
 
-    void setElseTarget(BasicBlock* bb) { _targets[1] = bb; }
+    void setElseTarget(BasicBlock* bb) { setOperand(2, bb); }
 };
 
 /// `return` instruction. Return control flow to the calling function.
+///
+/// \details
 class SCATHA(API) Return: public TerminatorInst {
 public:
     explicit Return(Context& context, Value* value):
-        TerminatorInst(NodeType::Return, context, {}, { value }) {
+        TerminatorInst(NodeType::Return, context, { value }, {}) {
         SC_ASSERT(value != nullptr, "We don't want null operands");
     }
 
@@ -727,23 +766,26 @@ public:
 };
 
 /// `call` instruction. Calls a function.
+///
+/// \details
+/// Callee is stored as the first operand. Arguments are the following operands starting from index 1.
 class SCATHA(API) FunctionCall: public Instruction {
 public:
     explicit FunctionCall(Function* function,
                           std::span<Value* const> arguments,
                           std::string name = {});
 
-    Function* function() { return _function; }
-    Function const* function() const { return _function; }
+    Function* function() { return cast<Function*>(operands()[0]); }
+    Function const* function() const { return cast<Function const*>(operands()[0]); }
 
-    std::span<Value* const> arguments() { return operands(); }
-    std::span<Value const* const> arguments() const { return operands(); }
-
-private:
-    Function* _function;
+    auto arguments() { return operands() | ranges::views::drop(1); }
+    auto arguments() const { return operands() | ranges::views::drop(1); }
 };
 
 /// `ext call` instruction. Calls an external function.
+///
+/// \details
+/// Call arguments are the operands. Callee information is not visible to `Instruction` base class, as it's just indices.
 class SCATHA(API) ExtFunctionCall: public Instruction {
 public:
     explicit ExtFunctionCall(size_t slot,

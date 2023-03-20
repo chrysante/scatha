@@ -36,7 +36,9 @@ User::User(NodeType nodeType,
 
 void User::setOperand(size_t index, Value* operand) {
     SC_ASSERT(index < _operands.size(), "");
-    _operands[index]->removeUserWeak(this);
+    if (auto* op = _operands[index]) {
+        op->removeUserWeak(this);
+    }
     operand->addUserWeak(this);
     _operands[index] = operand;
 }
@@ -49,6 +51,13 @@ void User::setOperands(utl::small_vector<Value*> operands) {
             op->addUserWeak(this);
         }
     }
+}
+
+void User::updateOperand(Value const* oldOperand, Value* newOperand) {
+    auto itr = ranges::find(_operands, oldOperand);
+    SC_ASSERT(itr != ranges::end(_operands), "Not found");
+    auto const index = ranges::end(_operands) - itr;
+    setOperand(utl::narrow_cast<size_t>(index), newOperand);
 }
 
 void User::removeOperand(size_t index) {
@@ -117,18 +126,6 @@ TerminatorInst const* BasicBlock::terminator() const {
         return nullptr;
     }
     return dyncast<TerminatorInst const*>(&back());
-}
-
-static auto succImpl(auto* t) {
-    return t ? t->targets() : std::span<BasicBlock* const>{};
-}
-
-std::span<BasicBlock* const> BasicBlock::successors() {
-    return succImpl(terminator());
-}
-
-std::span<BasicBlock const* const> BasicBlock::successors() const {
-    return succImpl(terminator());
 }
 
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
@@ -207,19 +204,31 @@ ArithmeticInst::ArithmeticInst(Value* lhs,
 
 TerminatorInst::TerminatorInst(NodeType nodeType,
                                Context& context,
-                               utl::small_vector<BasicBlock*> targets,
-                               std::initializer_list<Value*> operands):
-    Instruction(nodeType, context.voidType(), {}, operands),
-    _targets(std::move(targets)) {}
+                               std::initializer_list<Value*> operands,
+                               std::initializer_list<BasicBlock*> targets):
+    Instruction(nodeType, context.voidType(), {}),
+    nonTargetArguments(utl::narrow_cast<uint16_t>(operands.size()))
+{
+    utl::small_vector<Value*> ops;
+    ops.reserve(operands.size() + targets.size());
+    ranges::copy(operands, std::back_inserter(ops));
+    ranges::copy(targets, std::back_inserter(ops));
+    setOperands(std::move(ops));
+}
 
 FunctionCall::FunctionCall(Function* function,
                            std::span<Value* const> arguments,
                            std::string name):
     Instruction(NodeType::FunctionCall,
                 function->returnType(),
-                std::move(name),
-                arguments),
-    _function(function) {}
+                std::move(name))
+{
+    utl::small_vector<Value*> args;
+    args.reserve(1 + arguments.size());
+    args.push_back(function);
+    ranges::copy(arguments, std::back_inserter(args));
+    setOperands(std::move(args));
+}
 
 ExtFunctionCall::ExtFunctionCall(size_t slot,
                                  size_t index,

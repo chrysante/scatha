@@ -33,6 +33,9 @@ struct DCEContext {
 } // namespace
 
 bool opt::dce(ir::Context& context, ir::Function& function) {
+    // TODO: Implement proper DCE pass. This implementation is kinda naive and bugged.
+    return false;
+    
     DCEContext ctx(context, function);
     bool const result = ctx.run();
     ir::assertInvariants(context, function);
@@ -59,9 +62,6 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
         basicBlock->setPredecessors(pred->predecessors());
         if (pred->isEntry()) {
             basicBlock->setName(std::string(pred->name()));
-        }
-        for (auto* predPred: pred->predecessors()) {
-            predPred->terminator()->updateTarget(pred, basicBlock);
         }
         function.erase(pred);
         modified = true;
@@ -100,8 +100,10 @@ void DCEContext::visitBasicBlock(BasicBlock* basicBlock) {
 
 void DCEContext::erase(BasicBlock* basicBlock) {
     auto* const terminator = basicBlock->terminator();
+    /// Clearing the operands also erases successor information, to we make a copy before.
+    auto targets = basicBlock->successors() | ranges::to<utl::small_vector<BasicBlock*>>;
     basicBlock->clearAllOperands();
-    for (auto* target: terminator->targets()) {
+    for (auto* target: targets) {
         if (target->hasSinglePredecessor()) {
             erase(target);
         }
