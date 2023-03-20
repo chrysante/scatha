@@ -12,10 +12,10 @@ using namespace ir;
 using namespace opt;
 
 void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
-    auto* callerBB    = call->parent();
-    auto* caller      = callerBB->parent();
-    auto* callee      = call->function();
-    auto* calleeClone = clone(ctx, callee);
+    auto* callerBB   = call->parent();
+    auto* caller     = callerBB->parent();
+    auto* callee     = call->function();
+    auto calleeClone = clone(ctx, callee);
     for (auto& bb: *calleeClone) {
         bb.setName(ctx.uniqueName(caller, bb.name()));
         for (auto& inst: bb) {
@@ -67,6 +67,5 @@ void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
     /// erase the call instruction.
     landingpad->erase(call);
     /// Move basic blocks from the calleeClone into calling function.
-    caller->splice(Function::Iterator(landingpad), calleeClone);
-    delete calleeClone;
+    caller->splice(Function::Iterator(landingpad), calleeClone.get());
 }

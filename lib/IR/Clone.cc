@@ -108,17 +108,17 @@ static BasicBlock* clone(Context& context, BasicBlock* bb, ValueMap& valueMap) {
     return result;
 }
 
-Function* ir::clone(Context& context, Function* function) {
+UniquePtr<Function> ir::clone(Context& context, Function* function) {
     // TODO: Use actual type here when we have proper function types
     // auto* type = cast<FunctionType const*>(function->type());
     auto paramTypes =
         function->parameters() |
         ranges::views::transform([](Parameter const& p) { return p.type(); }) |
         ranges::to<utl::small_vector<Type const*>>;
-    auto* result = new Function(nullptr,
-                                function->returnType(),
-                                paramTypes,
-                                std::string(function->name()));
+    auto result = allocate<Function>(nullptr,
+                                     function->returnType(),
+                                     paramTypes,
+                                     std::string(function->name()));
     ValueMap valueMap;
     for (auto& bb: *function) {
         auto* cloned  = ::clone(context, &bb, valueMap);
