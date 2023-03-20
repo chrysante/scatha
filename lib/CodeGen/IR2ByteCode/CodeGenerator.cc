@@ -315,7 +315,7 @@ void Context::generate(ir::ExtFunctionCall const& call) {
 }
 
 void Context::generate(ir::Return const& ret) {
-    if (ret.value()) {
+    if (!isa<ir::VoidType>(ret.value()->type())) {
         auto const returnValue = currentRD().resolve(*ret.value());
         RegisterIndex const returnValueTargetLocation = 0;
         if (!returnValue.is<RegisterIndex>() ||

@@ -128,6 +128,8 @@ TerminatorInst const* BasicBlock::terminator() const {
     return dyncast<TerminatorInst const*>(&back());
 }
 
+Return::Return(Context& context): Return(context, context.voidValue()) {}
+
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
     Instruction(NodeType::Alloca,
                 context.pointerType(),

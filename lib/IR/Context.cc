@@ -86,6 +86,10 @@ UndefValue* Context::undef(Type const* type) {
     return itr->second;
 }
 
+Value* Context::voidValue() {
+    return undef(voidType());
+}
+
 void Context::addGlobal(Constant* constant) {
     auto const [_, success] =
         _globals.insert({ std::string(constant->name()), constant });

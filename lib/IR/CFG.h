@@ -771,18 +771,17 @@ public:
         SC_ASSERT(value != nullptr, "We don't want null operands");
     }
 
-    explicit Return(Context& context):
-        TerminatorInst(NodeType::Return, context, {}, {}) {}
+    explicit Return(Context& context);
 
     /// May be null in case of a void function
     Value* value() {
         return const_cast<Value*>(static_cast<Return const*>(this)->value());
     }
 
-    /// May be null in case of a void function
-    Value const* value() const {
-        return operands().empty() ? nullptr : operands()[0];
-    }
+    /// Value returned by this return instruction.
+    /// If the parent function returns void, this is an unspecified value of
+    /// type void.
+    Value const* value() const { return operands()[0]; }
 };
 
 /// `call` instruction. Calls a function.

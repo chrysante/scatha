@@ -37,6 +37,9 @@ public:
 
     UndefValue* undef(Type const* type);
 
+    /// \Returns an opaque value of type void
+    Value* voidValue();
+
     void addGlobal(Constant* constant);
 
     Constant* getGlobal(std::string_view name) const;

@@ -247,7 +247,7 @@ void PrintCtx::print(Branch const& br) {
 
 void PrintCtx::print(Return const& ret) {
     str << indent << instruction("return") << " ";
-    if (ret.value()) {
+    if (!isa<VoidType>(ret.value()->type())) {
         str << formatType(ret.value()->type()) << " "
             << formatName(*ret.value());
     }
