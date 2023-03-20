@@ -17,7 +17,10 @@ void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
     auto* callee      = call->function();
     auto* calleeClone = clone(ctx, callee);
     for (auto& bb: *calleeClone) {
-        bb.setName(utl::strcat("inline.", bb.name()));
+        bb.setName(ctx.uniqueName(caller, bb.name()));
+        for (auto& inst: bb) {
+            inst.setName(ctx.uniqueName(caller, inst.name()));
+        }
     }
     auto* newGoto = new Goto(ctx, &calleeClone->entry());
     callerBB->insert(call, newGoto);
