@@ -105,7 +105,7 @@ public:
     void setOperands(utl::small_vector<Value*> operands);
 
     void updateOperand(Value const* oldOperand, Value* newOperand);
-    
+
     void removeOperand(size_t index);
 
     /// This should proably at some point be replaced by some sort of `delete`
@@ -616,7 +616,7 @@ public:
                                  std::string name);
 
     UnaryArithmeticOperation operation() const { return _op; }
-    
+
 private:
     UnaryArithmeticOperation _op;
 };
@@ -638,26 +638,30 @@ private:
 /// Base class for all instructions terminating basic blocks.
 ///
 /// \details
-/// Non-basic block argument are the first `nonTargetArguments` operands. Targets are the following operands.
+/// Non-basic block argument are the first `nonTargetArguments` operands.
+/// Targets are the following operands.
 class SCATHA(API) TerminatorInst: public Instruction {
     template <typename T>
     static auto targetsImpl(auto& self) {
-        return self.operands() | ranges::views::drop(self.nonTargetArguments) | ranges::views::transform([](auto* value) {
-            return value ? cast<T*>(value) : nullptr;
-        });
+        return self.operands() | ranges::views::drop(self.nonTargetArguments) |
+               ranges::views::transform([](auto* value) {
+                   return value ? cast<T*>(value) : nullptr;
+               });
     }
-    
+
 public:
     auto targets() { return targetsImpl<BasicBlock>(*this); }
-    
+
     auto targets() const { return targetsImpl<BasicBlock const>(*this); }
 
     void updateTarget(BasicBlock const* oldTarget, BasicBlock* newTarget) {
         updateOperand(oldTarget, newTarget);
     }
 
-    void setTarget(size_t index, BasicBlock* bb) { setOperand(nonTargetArguments + index, bb); }
-    
+    void setTarget(size_t index, BasicBlock* bb) {
+        setOperand(nonTargetArguments + index, bb);
+    }
+
 protected:
     explicit TerminatorInst(NodeType nodeType,
                             Context& context,
@@ -668,7 +672,8 @@ private:
     uint16_t nonTargetArguments = 0;
 };
 
-/// Now that we have defined `TerminatorInst` we can define `BasicBlock::successors()`
+/// Now that we have defined `TerminatorInst` we can define
+/// `BasicBlock::successors()`
 namespace internal {
 
 static auto succImpl(auto* t) {
@@ -686,12 +691,13 @@ inline auto BasicBlock::successors() const {
     return internal::succImpl(terminator());
 }
 
-inline bool BasicBlock::hasSingleSuccessor() const { return successors().size() == 1; }
+inline bool BasicBlock::hasSingleSuccessor() const {
+    return successors().size() == 1;
+}
 
 inline BasicBlock const* BasicBlock::singleSuccessor() const {
     return hasSingleSuccessor() ? successors().front() : nullptr;
 }
-
 
 /// `goto` instruction. Leave the current basic block and unconditionally enter
 /// the target basic block.
@@ -768,7 +774,8 @@ public:
 /// `call` instruction. Calls a function.
 ///
 /// \details
-/// Callee is stored as the first operand. Arguments are the following operands starting from index 1.
+/// Callee is stored as the first operand. Arguments are the following operands
+/// starting from index 1.
 class SCATHA(API) FunctionCall: public Instruction {
 public:
     explicit FunctionCall(Function* function,
@@ -776,7 +783,9 @@ public:
                           std::string name = {});
 
     Function* function() { return cast<Function*>(operands()[0]); }
-    Function const* function() const { return cast<Function const*>(operands()[0]); }
+    Function const* function() const {
+        return cast<Function const*>(operands()[0]);
+    }
 
     auto arguments() { return operands() | ranges::views::drop(1); }
     auto arguments() const { return operands() | ranges::views::drop(1); }
@@ -785,7 +794,8 @@ public:
 /// `ext call` instruction. Calls an external function.
 ///
 /// \details
-/// Call arguments are the operands. Callee information is not visible to `Instruction` base class, as it's just indices.
+/// Call arguments are the operands. Callee information is not visible to
+/// `Instruction` base class, as it's just indices.
 class SCATHA(API) ExtFunctionCall: public Instruction {
 public:
     explicit ExtFunctionCall(size_t slot,

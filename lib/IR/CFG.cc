@@ -207,8 +207,7 @@ TerminatorInst::TerminatorInst(NodeType nodeType,
                                std::initializer_list<Value*> operands,
                                std::initializer_list<BasicBlock*> targets):
     Instruction(nodeType, context.voidType(), {}),
-    nonTargetArguments(utl::narrow_cast<uint16_t>(operands.size()))
-{
+    nonTargetArguments(utl::narrow_cast<uint16_t>(operands.size())) {
     utl::small_vector<Value*> ops;
     ops.reserve(operands.size() + targets.size());
     ranges::copy(operands, std::back_inserter(ops));
@@ -221,8 +220,7 @@ FunctionCall::FunctionCall(Function* function,
                            std::string name):
     Instruction(NodeType::FunctionCall,
                 function->returnType(),
-                std::move(name))
-{
+                std::move(name)) {
     utl::small_vector<Value*> args;
     args.reserve(1 + arguments.size());
     args.push_back(function);
