@@ -853,6 +853,9 @@ public:
     /// Assign \p value to argument at \p index
     void setArgument(size_t index, Value* value);
 
+    /// Assign \p pred to predecessor at \p index
+    void setPredecessor(size_t index, BasicBlock* pred);
+
     /// Number of arguments. Must match the number of predecessors of parent
     /// basic block.
     size_t argumentCount() const { return _preds.size(); }

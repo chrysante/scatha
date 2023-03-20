@@ -272,6 +272,10 @@ void Phi::setArgument(size_t index, Value* value) {
     setOperand(index, value);
 }
 
+void Phi::setPredecessor(size_t index, BasicBlock* pred) {
+    _preds[index] = pred;
+}
+
 GetElementPointer::GetElementPointer(Context& context,
                                      Type const* accessedType,
                                      Value* basePointer,
