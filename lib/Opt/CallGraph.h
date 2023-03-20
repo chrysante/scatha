@@ -29,12 +29,12 @@ public:
     };
 
 public:
-    CallGraph() = default;
-    CallGraph(CallGraph const&) = delete;
-    CallGraph(CallGraph&&) = default;
+    CallGraph()                            = default;
+    CallGraph(CallGraph const&)            = delete;
+    CallGraph(CallGraph&&)                 = default;
     CallGraph& operator=(CallGraph const&) = delete;
-    CallGraph& operator=(CallGraph&&) = default;
-    
+    CallGraph& operator=(CallGraph&&)      = default;
+
     static CallGraph build(ir::Module& mod);
 
     Node const& operator[](ir::Function const* function) const {
@@ -44,7 +44,7 @@ public:
     }
 
     auto const& nodes() const { return _nodes; }
-    
+
 private:
     Node& findMut(ir::Function* function) {
         return const_cast<Node&>(
@@ -57,8 +57,8 @@ private:
 };
 
 SCATHA(API)
-utl::vector<utl::small_vector<ir::Function*>>
-computeSCCs(CallGraph const& callGraph);
+utl::vector<utl::small_vector<ir::Function*>> computeSCCs(
+    CallGraph const& callGraph);
 
 } // namespace scatha::opt
 

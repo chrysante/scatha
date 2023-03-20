@@ -34,21 +34,21 @@ CallGraph CallGraph::build(Module& mod) {
 namespace {
 
 struct VertexData {
-    uint32_t index:   31 = 0;
-    bool defined:      1 = false;
-    uint32_t lowlink: 31 = 0;
-    bool     onStack:  1 = false;
+    uint32_t index   : 31 = 0;
+    bool defined     : 1  = false;
+    uint32_t lowlink : 31 = 0;
+    bool onStack     : 1  = false;
 };
 
 struct SCCComputeContext {
     SCCComputeContext(CallGraph const& callGraph,
                       utl::vector<utl::small_vector<ir::Function*>>& result):
         callGraph(callGraph), result(result) {}
-    
+
     void compute();
-    
+
     void strongConnect(CallGraph::Node const& node);
-    
+
     CallGraph const& callGraph;
     utl::vector<utl::small_vector<ir::Function*>>& result;
     utl::stack<CallGraph::Node const*> stack;
@@ -58,8 +58,8 @@ struct SCCComputeContext {
 
 } // namespace
 
-utl::vector<utl::small_vector<ir::Function*>>
-opt::computeSCCs(CallGraph const& callGraph) {
+utl::vector<utl::small_vector<ir::Function*>> opt::computeSCCs(
+    CallGraph const& callGraph) {
     utl::vector<utl::small_vector<ir::Function*>> result;
     SCCComputeContext ctx(callGraph, result);
     ctx.compute();
@@ -72,6 +72,8 @@ void SCCComputeContext::compute() {
                      return std::pair{ &node, VertexData{} };
                  }) |
                  ranges::to<utl::hashmap<CallGraph::Node const*, VertexData>>;
+    /// Algorithm from here:
+    /// https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
     for (auto& node: callGraph.nodes()) {
         if (!vertexData[&node].defined) {
             strongConnect(node);
@@ -82,13 +84,13 @@ void SCCComputeContext::compute() {
 void SCCComputeContext::strongConnect(CallGraph::Node const& v) {
     auto& vData = vertexData[&v];
     /// Set the depth index for `v` to the smallest unused index
-    vData.index = index;
+    vData.index   = index;
     vData.defined = true;
     vData.lowlink = index;
     ++index;
     stack.push(&v);
     vData.onStack = true;
-    
+
     for (auto& w: v.successors()) {
         auto& wData = vertexData[&w];
         if (!wData.defined) {
@@ -97,10 +99,11 @@ void SCCComputeContext::strongConnect(CallGraph::Node const& v) {
             vData.lowlink = std::min(vData.lowlink, wData.lowlink);
         }
         else if (wData.onStack) {
-            /// Successor `w` is in stack S and hence in the current SCC.
-            /// If `w` is not on stack, then `(v, w)` is an edge pointing to an SCC already found and must be ignored.
-            /// Note: The next line may look odd - but is correct.
-            /// It says `wData.index`, not `wData.lowLink`; that is deliberate and from the original paper.
+            /// Successor `w` is in `stack` and hence in the current SCC.
+            /// If `w` is not on stack, then `(v, w)` is an edge pointing to an
+            /// SCC already found and must be ignored. Note: The next line may
+            /// look odd - but is correct. It says `wData.index`, not
+            /// `wData.lowLink`; that is deliberate and from the original paper.
             vData.lowlink = std::min(vData.lowlink, wData.index);
         }
     }
@@ -109,9 +112,9 @@ void SCCComputeContext::strongConnect(CallGraph::Node const& v) {
         utl::small_vector<ir::Function*> component;
         CallGraph::Node const* wPtr = nullptr;
         do {
-            wPtr = stack.pop();
-            auto& w = *wPtr;
-            auto& wData = vertexData[&w];
+            wPtr          = stack.pop();
+            auto& w       = *wPtr;
+            auto& wData   = vertexData[&w];
             wData.onStack = false;
             component.push_back(w.function());
         } while (wPtr != &v);
