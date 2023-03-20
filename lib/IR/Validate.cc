@@ -235,16 +235,4 @@ void ir::setupInvariants(Context& ctx, Function& function) {
             [&](ir::TerminatorInst&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
-    /// We erase blocks that have no predecessors thus cannot be reached.
-    for (auto itr = function.begin(); itr != function.end();) {
-        if (!itr->isEntry() && itr->predecessors().empty()) {
-            for (auto* succ: itr->successors()) {
-                succ->removePredecessor(itr.to_address());
-            }
-            itr = function.erase(itr);
-        }
-        else {
-            ++itr;
-        }
-    }
 }
