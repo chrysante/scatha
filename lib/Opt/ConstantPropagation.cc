@@ -360,7 +360,7 @@ void SCCContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
             SC_ASSERT(constant == 0 || constant == 1,
                       "Boolean constant must be 0 or 1");
             BasicBlock* const origin = br.parent();
-            size_t const index = 1 - constant.to<size_t>();
+            auto const index = 1 - constant.to<ssize_t>();
             BasicBlock* const target = br.targets()[index];
             FlowEdge const edge = { origin, target };
             setExecutable(edge, false);
