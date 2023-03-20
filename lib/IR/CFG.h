@@ -442,8 +442,15 @@ class SCATHA(API) Parameter:
     using NodeBase = NodeWithParent<Parameter, Function>;
 
 public:
-    explicit Parameter(Type const* type, std::string name, Function* parent):
-        Value(NodeType::Parameter, type, std::move(name)), NodeBase(parent) {}
+    explicit Parameter(Type const* type, size_t index, Function* parent):
+        Value(NodeType::Parameter, type, std::to_string(index)),
+        NodeBase(parent),
+        _index(index) {}
+
+    size_t index() const { return _index; }
+
+private:
+    size_t _index;
 };
 
 /// Represents a function. A function is a prototype with a list of basic

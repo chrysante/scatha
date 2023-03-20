@@ -101,8 +101,8 @@ Function::Function(FunctionType const* functionType,
                    std::string name):
     Constant(NodeType::Function, functionType, std::move(name)),
     _returnType(returnType) {
-    for (int index = 0; auto* type: parameterTypes) {
-        params.push_back(new Parameter(type, std::to_string(index++), this));
+    for (auto [index, type]: parameterTypes | ranges::views::enumerate) {
+        params.push_back(new Parameter(type, index++, this));
     }
 }
 
