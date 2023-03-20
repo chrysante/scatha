@@ -173,4 +173,20 @@ using ConstPhiMapping = internal::PhiMappingImpl<true>;
 
 } // namespace scatha::ir
 
+namespace scatha::internal {
+
+/// Insulated call to `delete` on the most derived base of \p *value
+SCATHA(API) void privateDelete(ir::Value* value);
+
+/// Insulated call to destructor on the most derived base of \p *value
+SCATHA(API) void privateDestroy(ir::Value* value);
+
+/// Insulated call to `delete` on the most derived base of \p *type
+SCATHA(API) void privateDelete(ir::Type* type);
+
+/// Insulated call to destructor on the most derived base of \p *type
+SCATHA(API) void privateDestroy(ir::Type* type);
+
+} // namespace scatha::internal
+
 #endif // SCATHA_IR_COMMON_H_

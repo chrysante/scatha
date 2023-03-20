@@ -9,6 +9,18 @@
 #include <scatha/Basic/Basic.h>
 #include <scatha/Common/Dyncast.h>
 
+namespace scatha::internal {
+
+void privateDelete(auto* ptr) {
+    delete ptr;
+}
+
+void privateDestroy(auto* ptr) {
+    std::destroy_at(ptr);
+}
+
+} // namespace scatha::internal
+
 namespace scatha {
 
 /// ** Smart pointer  **
@@ -72,12 +84,8 @@ private:
         if (!ptr) {
             return;
         }
-        if constexpr (requires(T * ptr) { ptr->privateDelete(); }) {
-            ptr->privateDelete();
-        }
-        else {
-            visit(*ptr, [](auto& obj) { delete &obj; });
-        }
+        /// Customization point
+        ::scatha::internal::privateDelete(ptr);
     }
 
 private:
@@ -98,5 +106,12 @@ UniquePtr<Derived> uniquePtrCast(UniquePtr<Base>&& p) {
 }
 
 } // namespace scatha
+
+template <typename T>
+struct std::hash<scatha::UniquePtr<T>> {
+    std::size_t operator()(scatha::UniquePtr<T> const& p) const {
+        return std::hash<T const*>{}(p.get());
+    }
+};
 
 #endif // SCATHA_COMMON_UNIQUEPTR_H_

@@ -3,8 +3,17 @@
 #include <sstream>
 
 using namespace scatha;
+using namespace ir;
 
-std::string ir::FunctionType::makeName(
+void scatha::internal::privateDelete(ir::Type* type) {
+    visit(*type, [](auto& derived) { delete &derived; });
+}
+
+void scatha::internal::privateDestroy(ir::Type* type) {
+    visit(*type, [](auto& derived) { std::destroy_at(&derived); });
+}
+
+std::string FunctionType::makeName(
     Type const* returnType, std::span<Type const* const> parameterTypes) {
     std::stringstream sstr;
     sstr << returnType->name();
@@ -17,7 +26,7 @@ std::string ir::FunctionType::makeName(
     return std::move(sstr).str();
 }
 
-void ir::StructureType::computeSizeAndAlign() {
+void StructureType::computeSizeAndAlign() {
     setSize(0);
     setAlign(0);
     _memberOffsets.clear();

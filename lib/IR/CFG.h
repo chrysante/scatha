@@ -71,16 +71,11 @@ private:
     /// operand list of \p user
     void removeUserWeak(User* user);
 
-    template <typename>
-    friend class scatha::UniquePtr;
-
-    template <typename>
-    friend class ir::DynAllocator;
-
-    void privateDestroy();
-
     /// Called by `UniquePtr`
-    void privateDelete();
+    friend void scatha::internal::privateDelete(Value* value);
+    
+    /// Called by `ir::DynAllocator`
+    friend void scatha::internal::privateDestroy(Value* value);
 
 private:
     NodeType _nodeType;

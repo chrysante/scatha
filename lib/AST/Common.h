@@ -74,4 +74,11 @@ SCATHA(API) std::ostream& operator<<(std::ostream&, ValueCategory);
 
 } // namespace scatha::ast
 
+namespace scatha::internal {
+
+/// Insulated call to `delete` on the most derived base of \p *astNode
+SCATHA(API) void privateDelete(ast::AbstractSyntaxTree* astNode);
+
+} // namespace scatha::internal
+
 #endif // SCATHA_AST_COMMON_H_

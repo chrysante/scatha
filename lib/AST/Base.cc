@@ -5,10 +5,6 @@
 using namespace scatha;
 using namespace ast;
 
-void AbstractSyntaxTree::privateDestroy() {
-    visit(*this, [](auto& derived) { std::destroy_at(&derived); });
-}
-
-void AbstractSyntaxTree::privateDelete() {
-    visit(*this, [](auto& derived) { delete &derived; });
+void scatha::internal::privateDelete(ast::AbstractSyntaxTree* node) {
+    visit(*node, [](auto& derived) { delete &derived; });
 }

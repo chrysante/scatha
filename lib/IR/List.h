@@ -7,6 +7,8 @@
 
 #include <utl/ilist.hpp>
 
+#include <scatha/Common/UniquePtr.h> /// For privateDestroy()
+
 namespace scatha::ir {
 
 template <typename T>
@@ -19,15 +21,10 @@ template <typename T>
 class DynAllocator: public std::allocator<T> {
 public:
     void destroy(T* ptr) {
-        if constexpr (requires(T * ptr) { ptr->privateDestroy(); }) {
-            ptr->privateDestroy();
-        }
-        else {
-            visit(*ptr, [](auto& obj) { std::destroy_at(&obj); });
-        }
+        scatha::internal::privateDestroy(ptr);
     }
 
-    void deallocate(T* ptr, size_t count) { operator delete(ptr, count); }
+    void deallocate(T* ptr, size_t count) { ::operator delete(ptr, count); }
 };
 
 template <typename T>

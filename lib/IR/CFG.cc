@@ -18,12 +18,12 @@ void Value::removeUserWeak(User* user) {
     }
 }
 
-void Value::privateDestroy() {
-    visit(*this, [](auto& derived) { std::destroy_at(&derived); });
+void scatha::internal::privateDelete(Value* value) {
+    visit(*value, [](auto& derived) { delete &derived; });
 }
 
-void Value::privateDelete() {
-    visit(*this, [](auto& derived) { delete &derived; });
+void scatha::internal::privateDestroy(Value* value) {
+    visit(*value, [](auto& derived) { std::destroy_at(&derived); });
 }
 
 User::User(NodeType nodeType,
@@ -296,7 +296,7 @@ GetElementPointer::GetElementPointer(Context& context,
               "Indices must be integral");
 }
 
-Type const* internal::AccessValueBase::computeAccessedType(
+Type const* ir::internal::AccessValueBase::computeAccessedType(
     Type const* operandType, std::span<size_t const> indices) {
     Type const* result = operandType;
     for (auto index: indices) {

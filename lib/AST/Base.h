@@ -32,7 +32,7 @@ private:
 
 } // namespace internal
 
-/// ##Base class for all nodes in the AST
+/// ## Base class for all nodes in the AST
 /// Every derived class must specify its runtime type in the constructor via the
 /// `NodeType` enum.
 class SCATHA(API) AbstractSyntaxTree: public internal::Decoratable {
@@ -54,16 +54,7 @@ protected:
     void setToken(Token token) { _token = std::move(token); }
 
 private:
-    template <typename>
-    friend class scatha::UniquePtr;
-
-    /// This function is a customization point for `UniquePtr<>`
-    /// It insulates visitation of the tree on destruction, so users who destroy
-    /// an AST only need to #include "Base.h" not "AST.h".
-    void privateDestroy();
-
-    /// Calls `delete` on the most derived type.
-    void privateDelete();
+    friend void scatha::internal::privateDelete(ast::AbstractSyntaxTree*);
 
 private:
     NodeType _type;

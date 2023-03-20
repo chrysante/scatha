@@ -64,6 +64,13 @@ protected:
     void setAlign(size_t align) { _align = align; }
 
 private:
+    /// For `UniquePtr<>`
+    friend void scatha::internal::privateDelete(Type* type);
+    
+    /// For `ir::DynAllocator`
+    friend void scatha::internal::privateDestroy(Type* type);
+    
+private:
     std::string _name;
     TypeCategory _category;
     size_t _size, _align;
