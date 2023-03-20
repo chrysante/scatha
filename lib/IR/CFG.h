@@ -232,6 +232,22 @@ public:
         return values.erase(first, last);
     }
 
+    /// Merge `*this` with \p *rhs
+    /// Insert nodes of \p *rhs before \p pos
+    void splice(ConstIterator pos, Derived* rhs) {
+        splice(pos, rhs->begin(), rhs->end());
+    }
+
+    /// Merge range `[begin, end)` into `*this`
+    /// Insert nodes before \p pos
+    void splice(ConstIterator pos, Iterator begin, ConstIterator end) {
+        for (auto itr = begin; itr != end; ++itr) {
+            SC_ASSERT(itr->parent() != this, "This is UB");
+            itr->set_parent(static_cast<Derived*>(this));
+        }
+        values.splice(pos, begin, end);
+    }
+
     Iterator begin() { return values.begin(); }
     ConstIterator begin() const { return values.begin(); }
 
@@ -278,15 +294,6 @@ public:
     using ConstPhiIterator = internal::PhiIteratorImpl<true>;
 
     explicit BasicBlock(Context& context, std::string name);
-
-    /// Merge `*this` with \p *rhs
-    /// Insert nodes of \p *rhs before \p pos
-    void splice(ConstIterator pos, BasicBlock* rhs) {
-        for (auto& inst: *rhs) {
-            inst.set_parent(this);
-        }
-        values.splice(pos, rhs->values);
-    }
 
     /// Clear operands of all instructions of this basic block. Use this before
     /// removing a (dead) basic block from a function.
