@@ -92,7 +92,7 @@ int main(int argc, char const* const* argv) {
     switch (theCase) {
     case ProgramCase::SampleCompiler: compile(filepath); break;
     case ProgramCase::IRDump: irDumpFromFile(filepath); break;
-    case ProgramCase::Volatile: volatilePlayground(); break;
+    case ProgramCase::Volatile: volatilePlayground(filepath); break;
     case ProgramCase::ASMTest: testAsmModule(); break;
     case ProgramCase::EmitCFG: {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);

@@ -17,7 +17,7 @@ class Module;
 
 namespace scatha::opt {
 
-class CallGraph {
+class SCATHA(API) CallGraph {
 public:
     class Node: public opt::GraphNode<ir::Function*, Node> {
         using Base = opt::GraphNode<ir::Function*, Node>;
@@ -29,6 +29,12 @@ public:
     };
 
 public:
+    CallGraph() = default;
+    CallGraph(CallGraph const&) = delete;
+    CallGraph(CallGraph&&) = default;
+    CallGraph& operator=(CallGraph const&) = delete;
+    CallGraph& operator=(CallGraph&&) = default;
+    
     static CallGraph build(ir::Module& mod);
 
     Node const& operator[](ir::Function const* function) const {
@@ -37,6 +43,8 @@ public:
         return *itr;
     }
 
+    auto const& nodes() const { return _nodes; }
+    
 private:
     Node& findMut(ir::Function* function) {
         return const_cast<Node&>(
@@ -47,6 +55,10 @@ private:
     using NodeSet = utl::hashset<Node, Node::PayloadHash, Node::PayloadEqual>;
     NodeSet _nodes;
 };
+
+SCATHA(API)
+utl::vector<utl::small_vector<ir::Function*>>
+computeSCCs(CallGraph const& callGraph);
 
 } // namespace scatha::opt
 
