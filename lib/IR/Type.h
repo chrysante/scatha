@@ -39,26 +39,6 @@ public:
 
     auto category() const { return _category; }
 
-    struct Hash {
-        using is_transparent = void;
-        size_t operator()(Type const* type) const {
-            return std::hash<std::string_view>{}(type->name());
-        }
-        size_t operator()(std::string_view name) const {
-            return std::hash<std::string_view>{}(name);
-        }
-    };
-
-    struct Equals {
-        using is_transparent = void;
-        bool operator()(Type const* lhs, Type const* rhs) const {
-            return lhs->name() == rhs->name();
-        }
-        bool operator()(std::string_view lhs, Type const* rhs) const {
-            return lhs == rhs->name();
-        }
-    };
-
 protected:
     void setSize(size_t size) { _size = size; }
     void setAlign(size_t align) { _align = align; }

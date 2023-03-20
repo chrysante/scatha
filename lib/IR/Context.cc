@@ -3,48 +3,50 @@
 #include <utl/strcat.hpp>
 
 #include "IR/CFG.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 
 using namespace ir;
 
 Context::Context() {
-    _types.insert(new VoidType());
+    auto voidType = UniquePtr<Type>(new VoidType());
+    _types.insert({ std::string(voidType->name()), std::move(voidType) });
 }
 
 VoidType const* Context::voidType() {
-    auto itr = _types.find("void");
+    auto itr = _types.find(std::string_view("void"));
     SC_ASSERT(itr != _types.end(), "Void must exist");
-    return cast<VoidType const*>(*itr);
+    return cast<VoidType const*>(itr->second.get());
 }
 
 PointerType const* Context::pointerType() {
-    auto itr = _types.find("ptr");
+    auto itr = _types.find(std::string_view("ptr"));
     if (itr != _types.end()) {
-        return cast<PointerType const*>(*itr);
+        return cast<PointerType const*>(itr->second.get());
     }
     auto* type = new PointerType();
-    _types.insert(type);
+    _types.insert({ std::string(type->name()), UniquePtr<Type>(type) });
     return type;
 }
 
 IntegralType const* Context::integralType(size_t bitWidth) {
     auto itr = _types.find(utl::strcat("i", bitWidth));
     if (itr != _types.end()) {
-        return cast<IntegralType const*>(*itr);
+        return cast<IntegralType const*>(itr->second.get());
     }
     auto* type = new IntegralType(bitWidth);
-    _types.insert(type);
+    _types.insert({ std::string(type->name()), UniquePtr<Type>(type) });
     return type;
 }
 
 FloatType const* Context::floatType(size_t bitWidth) {
     auto itr = _types.find(utl::strcat("f", bitWidth));
     if (itr != _types.end()) {
-        return cast<FloatType const*>(*itr);
+        return cast<FloatType const*>(itr->second.get());
     }
     auto* type = new FloatType(bitWidth);
-    _types.insert(type);
+    _types.insert({ std::string(type->name()), UniquePtr<Type>(type) });
     return type;
 }
 

@@ -102,6 +102,7 @@ struct CodeGenContext {
     ir::Function* currentFunction = nullptr;
     ir::BasicBlock* _currentBB    = nullptr;
     utl::hashmap<sema::SymbolID, ir::Value*> valueMap;
+    utl::hashmap<sema::TypeID, ir::Type const*> typeMap;
     ir::Instruction* allocaInsertItr;
 };
 
@@ -602,13 +603,14 @@ ir::Value* CodeGenContext::loadAddress(ir::Value* address,
 void CodeGenContext::declareTypes() {
     for (sema::TypeID const& typeID: symTable.sortedObjectTypes()) {
         auto const& objType   = symTable.getObjectType(typeID);
-        auto* const structure = new ir::StructureType(
+        auto structure = allocate<ir::StructureType>(
             mangledName(objType.symbolID(), objType.name()));
         for (sema::SymbolID const memberVarID: objType.memberVariables()) {
             auto& varDecl = symTable.getVariable(memberVarID);
             structure->addMember(mapType(varDecl.typeID()));
         }
-        mod.addStructure(structure);
+        typeMap[typeID] = structure.get();
+        mod.addStructure(std::move(structure));
     }
 }
 
@@ -671,10 +673,10 @@ ir::Type const* CodeGenContext::mapType(sema::TypeID semaTypeID) {
     if (semaTypeID == symTable.Float()) {
         return irCtx.floatType(64);
     }
-    std::string const name = mangledName(semaTypeID);
-    auto* structType       = mod.findStructure(name);
-    if (structType != nullptr) {
-        return structType;
+    if (auto itr = typeMap.find(semaTypeID);
+        itr != typeMap.end())
+    {
+        return itr->second;
     }
     SC_DEBUGFAIL();
 }

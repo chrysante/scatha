@@ -1,6 +1,7 @@
 #include "IR/Module.h"
 
 #include "IR/CFG.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace ir;

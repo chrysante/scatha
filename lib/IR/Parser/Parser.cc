@@ -79,7 +79,7 @@ private:
     Type const* parseParamDecl();
     BasicBlock* parseBasicBlock();
     Instruction* parseInstruction();
-    StructureType* parseStructure();
+    UniquePtr<StructureType> parseStructure();
 
     void parseTypeDefinition();
 
@@ -173,8 +173,8 @@ void ParseContext::parse() {
             mod.addFunction(function);
             continue;
         }
-        if (auto* structure = parseStructure()) {
-            mod.addStructure(structure);
+        if (auto structure = parseStructure()) {
+            mod.addStructure(std::move(structure));
             continue;
         }
         throw ParseError(peekToken().sourceLocation());
@@ -487,7 +487,7 @@ Instruction* ParseContext::parseInstruction() {
     return nullptr;
 }
 
-StructureType* ParseContext::parseStructure() {
+UniquePtr<StructureType> ParseContext::parseStructure() {
     Token const declarator = peekToken();
     if (declarator.kind() != TokenKind::Keyword ||
         declarator.id() != "structure")
@@ -508,23 +508,21 @@ StructureType* ParseContext::parseStructure() {
         eatToken();
     }
     expect(eatToken(), "}");
-    auto* result = new StructureType(std::string(nameID.id()), members);
-    mod.addStructure(result);
-    return result;
+    return allocate<StructureType>(std::string(nameID.id()), members);
 }
 
 Type const* ParseContext::getType(Token const& token) {
     switch (token.kind()) {
     case TokenKind::GlobalIdentifier: {
         auto structures = mod.structures();
-        auto itr        = ranges::find_if(structures, [&](Type* type) {
+        auto itr        = ranges::find_if(structures, [&](auto&& type) {
             // TODO: Handle '@' and '%' prefixes
             return type->name() == token.id();
         });
         if (itr == ranges::end(structures)) {
             throw ParseError(token.sourceLocation());
         }
-        return *itr;
+        return itr->get();
     }
     case TokenKind::LocalIdentifier: return nullptr;
     case TokenKind::IntType: return irCtx.integralType(token.width());
