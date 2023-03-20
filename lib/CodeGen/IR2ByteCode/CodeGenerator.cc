@@ -21,8 +21,8 @@ using namespace cg;
 
 namespace {
 
-struct Context {
-    explicit Context(AssemblyStream& result);
+struct CodeGenContext {
+    explicit CodeGenContext(AssemblyStream& result);
 
     void run(ir::Module const& mod);
 
@@ -92,7 +92,7 @@ struct Context {
 
 AssemblyStream cg::codegen(ir::Module const& mod) {
     AssemblyStream result;
-    Context ctx(result);
+    CodeGenContext ctx(result);
     ctx.run(mod);
     return result;
 }
@@ -101,20 +101,20 @@ static Asm::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op);
 
 static Asm::CompareOperation mapCompare(ir::CompareOperation op);
 
-Context::Context(AssemblyStream& result): result(result) {}
+CodeGenContext::CodeGenContext(AssemblyStream& result): result(result) {}
 
-void Context::run(ir::Module const& mod) {
+void CodeGenContext::run(ir::Module const& mod) {
     for (auto& function: mod.functions()) {
         dispatch(function);
     }
     postprocess();
 }
 
-void Context::dispatch(ir::Value const& value) {
+void CodeGenContext::dispatch(ir::Value const& value) {
     visit(value, [this](auto const& node) { generate(node); });
 }
 
-void Context::generate(ir::Function const& function) {
+void CodeGenContext::generate(ir::Function const& function) {
     auto [itr, success] = registerDecriptors.insert(
         { &function, std::make_unique<RegisterDescriptor>() });
     SC_ASSERT(success, "");
@@ -131,7 +131,7 @@ void Context::generate(ir::Function const& function) {
     }
 }
 
-void Context::generate(ir::BasicBlock const& bb) {
+void CodeGenContext::generate(ir::BasicBlock const& bb) {
     if (!bb.isEntry()) {
         _currentBlock =
             result.add(Block(getLabelID(bb), std::string(bb.name())));
@@ -143,7 +143,7 @@ void Context::generate(ir::BasicBlock const& bb) {
     _currentBlock = nullptr;
 }
 
-void Context::generate(ir::Alloca const& allocaInst) {
+void CodeGenContext::generate(ir::Alloca const& allocaInst) {
     SC_ASSERT(allocaInst.allocatedType()->align() <= 8,
               "We don't support overaligned types just yet.");
     currentBlock().insertBack(
@@ -153,7 +153,7 @@ void Context::generate(ir::Alloca const& allocaInst) {
                                         8))));
 }
 
-void Context::generate(ir::Store const& store) {
+void CodeGenContext::generate(ir::Store const& store) {
     MemoryAddress const addr = computeAddress(*store.dest());
     Value const src          = [&] {
         if (isa<ir::PointerType>(store.source()->type())) {
@@ -182,7 +182,7 @@ void Context::generate(ir::Store const& store) {
     }
 }
 
-void Context::generate(ir::Load const& load) {
+void CodeGenContext::generate(ir::Load const& load) {
     MemoryAddress const addr = computeAddress(*load.address());
     Value const dest         = currentRD().resolve(load);
     size_t const size        = load.type()->size();
@@ -200,7 +200,7 @@ static Asm::Type mapType(ir::Type const* type) {
     SC_UNREACHABLE();
 }
 
-void Context::generate(ir::CompareInst const& cmp) {
+void CodeGenContext::generate(ir::CompareInst const& cmp) {
     Value const lhs = [&]() -> Value {
         auto resolvedLhs = currentRD().resolve(*cmp.lhs());
         if (!isa<ir::Constant>(cmp.lhs())) {
@@ -231,7 +231,7 @@ void Context::generate(ir::CompareInst const& cmp) {
     }
 }
 
-void Context::generate(ir::UnaryArithmeticInst const& inst) {
+void CodeGenContext::generate(ir::UnaryArithmeticInst const& inst) {
     auto dest               = currentRD().resolve(inst).get<RegisterIndex>();
     auto operand            = currentRD().resolve(*inst.operand());
     auto genUnaryArithmetic = [&](UnaryArithmeticOperation operation) {
@@ -258,7 +258,7 @@ void Context::generate(ir::UnaryArithmeticInst const& inst) {
     }
 }
 
-void Context::generate(ir::ArithmeticInst const& arithmetic) {
+void CodeGenContext::generate(ir::ArithmeticInst const& arithmetic) {
     // TODO: Make the move of the source argument conditional?
     auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
     currentBlock().insertBack(
@@ -272,11 +272,11 @@ void Context::generate(ir::ArithmeticInst const& arithmetic) {
 
 // MARK: Terminators
 
-void Context::generate(ir::Goto const& gt) {
+void CodeGenContext::generate(ir::Goto const& gt) {
     currentBlock().insertBack(JumpInst(getLabelID(*gt.target())));
 }
 
-void Context::generate(ir::Branch const& br) {
+void CodeGenContext::generate(ir::Branch const& br) {
     auto const cmpOp = [&] {
         if (auto const* cond = dyncast<ir::CompareInst const*>(br.condition()))
         {
@@ -299,14 +299,14 @@ void Context::generate(ir::Branch const& br) {
     currentBlock().insertBack(JumpInst(getLabelID(*br.elseTarget())));
 }
 
-void Context::generate(ir::FunctionCall const& call) {
+void CodeGenContext::generate(ir::FunctionCall const& call) {
     placeArguments(call.arguments());
     currentBlock().insertBack(CallInst(getLabelID(*call.function()),
                                        currentRD().numUsedRegisters() + 2));
     getCallResult(call);
 }
 
-void Context::generate(ir::ExtFunctionCall const& call) {
+void CodeGenContext::generate(ir::ExtFunctionCall const& call) {
     placeArguments(call.arguments());
     currentBlock().insertBack(CallExtInst(currentRD().numUsedRegisters() + 2,
                                           call.slot(),
@@ -314,7 +314,7 @@ void Context::generate(ir::ExtFunctionCall const& call) {
     getCallResult(call);
 }
 
-void Context::generate(ir::Return const& ret) {
+void CodeGenContext::generate(ir::Return const& ret) {
     if (!isa<ir::VoidType>(ret.value()->type())) {
         auto const returnValue = currentRD().resolve(*ret.value());
         RegisterIndex const returnValueTargetLocation = 0;
@@ -329,7 +329,7 @@ void Context::generate(ir::Return const& ret) {
     currentBlock().insertBack(ReturnInst());
 }
 
-void Context::generate(ir::Phi const& phi) {
+void CodeGenContext::generate(ir::Phi const& phi) {
     /// We need to find a register index to put the value in that every incoming
     /// path can agree on. Then put the value into that register in every
     /// incoming path. Then make this value resolve to that register index.
@@ -338,12 +338,12 @@ void Context::generate(ir::Phi const& phi) {
     SC_ASSERT(success, "Is this phi node evaluated multiple times?");
 }
 
-void Context::generate(ir::GetElementPointer const& gep) {
+void CodeGenContext::generate(ir::GetElementPointer const& gep) {
     /// Do nothing here until we have proper register and value descriptors.
     return;
 }
 
-void Context::postprocess() {
+void CodeGenContext::postprocess() {
     /// Place the appropriate values for all phi nodes in the corresponding
     /// registers
     for (auto [phi, targetRegIdx]: phiTargets) {
@@ -376,7 +376,7 @@ void Context::postprocess() {
     }
 }
 
-MemoryAddress Context::computeAddress(ir::Value const& value) {
+MemoryAddress CodeGenContext::computeAddress(ir::Value const& value) {
     if (auto* gep = dyncast<ir::GetElementPointer const*>(&value)) {
         return computeGep(*gep);
     }
@@ -384,7 +384,7 @@ MemoryAddress Context::computeAddress(ir::Value const& value) {
     return MemoryAddress(destRegIdx.get<RegisterIndex>().value());
 }
 
-MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
+MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const& gep) {
     size_t offset          = 0;
     ir::Value const* value = &gep;
     while (true) {
@@ -422,7 +422,7 @@ MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
     }
 }
 
-void Context::generateBigMove(Value dest,
+void CodeGenContext::generateBigMove(Value dest,
                               Value source,
                               size_t size,
                               Asm::Block* block) {
@@ -432,7 +432,7 @@ void Context::generateBigMove(Value dest,
     generateBigMove(dest, source, size, block->end(), block);
 }
 
-void Context::generateBigMove(Value dest,
+void CodeGenContext::generateBigMove(Value dest,
                               Value source,
                               size_t size,
                               Block::ConstIterator before,
@@ -471,7 +471,7 @@ void Context::generateBigMove(Value dest,
     block->insert(before, insertRange);
 }
 
-void Context::placeArguments(std::span<ir::Value const* const> args) {
+void CodeGenContext::placeArguments(std::span<ir::Value const* const> args) {
     size_t offset = 0;
     for (auto const arg: args) {
         size_t const argSize = arg->type()->size();
@@ -492,7 +492,7 @@ void Context::placeArguments(std::span<ir::Value const* const> args) {
     }
 }
 
-void Context::getCallResult(ir::Value const& call) {
+void CodeGenContext::getCallResult(ir::Value const& call) {
     if (isa<ir::VoidType>(call.type())) {
         return;
     }
@@ -506,15 +506,15 @@ void Context::getCallResult(ir::Value const& call) {
     }
 }
 
-size_t Context::getLabelID(ir::BasicBlock const& bb) {
+size_t CodeGenContext::getLabelID(ir::BasicBlock const& bb) {
     return _getLabelIDImpl(bb);
 }
 
-size_t Context::getLabelID(ir::Function const& fn) {
+size_t CodeGenContext::getLabelID(ir::Function const& fn) {
     return _getLabelIDImpl(fn);
 }
 
-size_t Context::_getLabelIDImpl(ir::Value const& value) {
+size_t CodeGenContext::_getLabelIDImpl(ir::Value const& value) {
     auto [itr, success] = labelIndices.insert({ &value, labelIndexCounter });
     if (success) {
         ++labelIndexCounter;

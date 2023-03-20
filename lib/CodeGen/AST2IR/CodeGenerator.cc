@@ -18,8 +18,8 @@ using namespace ast;
 
 namespace {
 
-struct Context {
-    explicit Context(ir::Context& irCtx,
+struct CodeGenContext {
+    explicit CodeGenContext(ir::Context& irCtx,
                      ir::Module& mod,
                      sema::SymbolTable const& symTable):
         irCtx(irCtx), mod(mod), symTable(symTable) {}
@@ -111,7 +111,7 @@ ir::Module ast::codegen(AbstractSyntaxTree const& ast,
                         sema::SymbolTable const& symbolTable,
                         ir::Context& irCtx) {
     ir::Module mod;
-    Context ctx(irCtx, mod, symbolTable);
+    CodeGenContext ctx(irCtx, mod, symbolTable);
     ctx.declareTypes();
     ctx.declareFunctions();
     ctx.generate(ast);
@@ -120,23 +120,23 @@ ir::Module ast::codegen(AbstractSyntaxTree const& ast,
     return mod;
 }
 
-void Context::generate(AbstractSyntaxTree const& node) {
+void CodeGenContext::generate(AbstractSyntaxTree const& node) {
     visit(node, [this](auto const& node) { return generateImpl(node); });
 }
 
-void Context::generateImpl(TranslationUnit const& tu) {
+void CodeGenContext::generateImpl(TranslationUnit const& tu) {
     for (auto& decl: tu.declarations) {
         generate(*decl);
     }
 }
 
-void Context::generateImpl(CompoundStatement const& cmpStmt) {
+void CodeGenContext::generateImpl(CompoundStatement const& cmpStmt) {
     for (auto& statement: cmpStmt.statements) {
         generate(*statement);
     }
 }
 
-void Context::generateImpl(FunctionDefinition const& def) {
+void CodeGenContext::generateImpl(FunctionDefinition const& def) {
     auto paramTypes = def.parameters |
                       ranges::views::transform([&](auto& param) {
                           return mapType(param->typeID());
@@ -168,11 +168,11 @@ void Context::generateImpl(FunctionDefinition const& def) {
     mod.addFunction(fn);
 }
 
-void Context::generateImpl(StructDefinition const& def) {
+void CodeGenContext::generateImpl(StructDefinition const& def) {
     /// Nothing to do here, structs are handled separately.
 }
 
-void Context::generateImpl(VariableDeclaration const& varDecl) {
+void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
     auto* varMemPtr = new ir::Alloca(irCtx,
                                      mapType(varDecl.typeID()),
                                      localUniqueName(varDecl.name()));
@@ -186,26 +186,26 @@ void Context::generateImpl(VariableDeclaration const& varDecl) {
     currentBB()->pushBack(store);
 }
 
-void Context::generateImpl(ParameterDeclaration const&) {
+void CodeGenContext::generateImpl(ParameterDeclaration const&) {
     SC_UNREACHABLE("Handled by generate(FunctionDefinition)");
 }
 
-void Context::generateImpl(ExpressionStatement const& exprStatement) {
+void CodeGenContext::generateImpl(ExpressionStatement const& exprStatement) {
     (void)getValue(*exprStatement.expression);
 }
 
-void Context::generateImpl(EmptyStatement const& empty) {
+void CodeGenContext::generateImpl(EmptyStatement const& empty) {
     /// Nothing to do here.
 }
 
-void Context::generateImpl(ReturnStatement const& retDecl) {
+void CodeGenContext::generateImpl(ReturnStatement const& retDecl) {
     auto* returnValue =
         retDecl.expression ? getValue(*retDecl.expression) : nullptr;
     auto* ret = new ir::Return(irCtx, returnValue);
     currentBB()->pushBack(ret);
 }
 
-void Context::generateImpl(IfStatement const& ifStatement) {
+void CodeGenContext::generateImpl(IfStatement const& ifStatement) {
     auto* condition = getValue(*ifStatement.condition);
     auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("then"));
     auto* elseBlock = ifStatement.elseBlock ?
@@ -232,7 +232,7 @@ void Context::generateImpl(IfStatement const& ifStatement) {
     setCurrentBB(endBlock);
 }
 
-void Context::generateImpl(WhileStatement const& loopDecl) {
+void CodeGenContext::generateImpl(WhileStatement const& loopDecl) {
     auto* loopHeader =
         new ir::BasicBlock(irCtx, localUniqueName("loop.header"));
     currentFunction->pushBack(loopHeader);
@@ -253,7 +253,7 @@ void Context::generateImpl(WhileStatement const& loopDecl) {
     setCurrentBB(loopEnd);
 }
 
-void Context::generateImpl(DoWhileStatement const& loopDecl) {
+void CodeGenContext::generateImpl(DoWhileStatement const& loopDecl) {
     auto* loopBody = new ir::BasicBlock(irCtx, localUniqueName("loop.body"));
     currentFunction->pushBack(loopBody);
     auto* loopFooter =
@@ -274,7 +274,7 @@ void Context::generateImpl(DoWhileStatement const& loopDecl) {
     setCurrentBB(loopEnd);
 }
 
-void Context::generateImpl(ForStatement const& loopDecl) {
+void CodeGenContext::generateImpl(ForStatement const& loopDecl) {
     auto* loopHeader =
         new ir::BasicBlock(irCtx, localUniqueName("loop.header"));
     currentFunction->pushBack(loopHeader);
@@ -297,31 +297,31 @@ void Context::generateImpl(ForStatement const& loopDecl) {
     setCurrentBB(loopEnd);
 }
 
-ir::Value* Context::getValue(Expression const& expr) {
+ir::Value* CodeGenContext::getValue(Expression const& expr) {
     return visit(expr, [this](auto const& expr) { return getValueImpl(expr); });
 }
 
-ir::Value* Context::getValueImpl(Identifier const& id) {
+ir::Value* CodeGenContext::getValueImpl(Identifier const& id) {
     return loadAddress(getAddressImpl(id), mapType(id.typeID()), id.value());
 }
 
-ir::Value* Context::getValueImpl(IntegerLiteral const& intLit) {
+ir::Value* CodeGenContext::getValueImpl(IntegerLiteral const& intLit) {
     return irCtx.integralConstant(intLit.value());
 }
 
-ir::Value* Context::getValueImpl(BooleanLiteral const& boolLit) {
+ir::Value* CodeGenContext::getValueImpl(BooleanLiteral const& boolLit) {
     return irCtx.integralConstant(boolLit.value());
 }
 
-ir::Value* Context::getValueImpl(FloatingPointLiteral const& floatLit) {
+ir::Value* CodeGenContext::getValueImpl(FloatingPointLiteral const& floatLit) {
     return irCtx.floatConstant(floatLit.value(), 64);
 }
 
-ir::Value* Context::getValueImpl(StringLiteral const&) {
+ir::Value* CodeGenContext::getValueImpl(StringLiteral const&) {
     SC_DEBUGFAIL();
 }
 
-ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
+ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
     if (expr.operation() == ast::UnaryPrefixOperator::Increment ||
         expr.operation() == ast::UnaryPrefixOperator::Decrement)
     {
@@ -359,7 +359,7 @@ ir::Value* Context::getValueImpl(UnaryPrefixExpression const& expr) {
     return inst;
 }
 
-ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
+ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     switch (exprDecl.operation()) {
     case BinaryOperator::Multiplication: [[fallthrough]];
     case BinaryOperator::Division: [[fallthrough]];
@@ -466,13 +466,13 @@ ir::Value* Context::getValueImpl(BinaryExpression const& exprDecl) {
     }
 }
 
-ir::Value* Context::getValueImpl(MemberAccess const& expr) {
+ir::Value* CodeGenContext::getValueImpl(MemberAccess const& expr) {
     return loadAddress(getAddressImpl(expr),
                        mapType(expr.typeID()),
                        "member.access");
 }
 
-ir::Value* Context::getValueImpl(Conditional const& condExpr) {
+ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
     auto* cond = getValue(*condExpr.condition);
     auto* thenBlock =
         new ir::BasicBlock(irCtx, localUniqueName("conditional.then"));
@@ -503,7 +503,7 @@ ir::Value* Context::getValueImpl(Conditional const& condExpr) {
     return result;
 }
 
-ir::Value* Context::getValueImpl(FunctionCall const& functionCall) {
+ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
     /// Handle calls to external functions separately.
     if (auto const& semaFunction =
             symTable.getFunction(functionCall.functionID());
@@ -546,22 +546,22 @@ ir::Value* Context::getValueImpl(FunctionCall const& functionCall) {
     return call;
 }
 
-ir::Value* Context::getValueImpl(Subscript const&) {
+ir::Value* CodeGenContext::getValueImpl(Subscript const&) {
     SC_DEBUGFAIL();
 }
 
-ir::Value* Context::getAddress(Expression const& expr) {
+ir::Value* CodeGenContext::getAddress(Expression const& expr) {
     return visit(expr,
                  [this](auto const& expr) { return getAddressImpl(expr); });
 }
 
-ir::Value* Context::getAddressImpl(Identifier const& id) {
+ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {
     auto itr = valueMap.find(id.symbolID());
     SC_ASSERT(itr != valueMap.end(), "Undeclared symbol");
     return itr->second;
 }
 
-ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
+ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     /// Get the value or the address based on wether the base object is an
     /// l-value or r-value
     ir::Value* basePtr = [&]() -> ir::Value* {
@@ -591,7 +591,7 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
     return gep;
 }
 
-ir::Value* Context::loadAddress(ir::Value* address,
+ir::Value* CodeGenContext::loadAddress(ir::Value* address,
                                 ir::Type const* type,
                                 std::string_view name) {
     auto* const load = new ir::Load(address, type, localUniqueName(name));
@@ -599,7 +599,7 @@ ir::Value* Context::loadAddress(ir::Value* address,
     return load;
 }
 
-void Context::declareTypes() {
+void CodeGenContext::declareTypes() {
     for (sema::TypeID const& typeID: symTable.sortedObjectTypes()) {
         auto const& objType   = symTable.getObjectType(typeID);
         auto* const structure = new ir::StructureType(
@@ -612,7 +612,7 @@ void Context::declareTypes() {
     }
 }
 
-void Context::declareFunctions() {
+void CodeGenContext::declareFunctions() {
     for (sema::Function const& function: symTable.functions()) {
         auto paramTypes =
             function.signature().argumentTypeIDs() |
@@ -632,11 +632,11 @@ void Context::declareFunctions() {
     }
 }
 
-void Context::setCurrentBB(ir::BasicBlock* bb) {
+void CodeGenContext::setCurrentBB(ir::BasicBlock* bb) {
     _currentBB = bb;
 }
 
-void Context::memorizeVariableAddress(sema::SymbolID symbolID,
+void CodeGenContext::memorizeVariableAddress(sema::SymbolID symbolID,
                                       ir::Value* value) {
     [[maybe_unused]] auto const [_, insertSuccess] =
         valueMap.insert({ symbolID, value });
@@ -645,20 +645,20 @@ void Context::memorizeVariableAddress(sema::SymbolID symbolID,
               "must be handled in sema.");
 }
 
-std::string Context::localUniqueName(auto const&... args) {
+std::string CodeGenContext::localUniqueName(auto const&... args) {
     return irCtx.uniqueName(currentFunction, utl::strcat(args...));
 }
 
-std::string Context::mangledName(sema::SymbolID id) const {
+std::string CodeGenContext::mangledName(sema::SymbolID id) const {
     return mangledName(id, symTable.getObjectType(id).name());
 }
 
-std::string Context::mangledName(sema::SymbolID id,
+std::string CodeGenContext::mangledName(sema::SymbolID id,
                                  std::string_view name) const {
     return utl::format("{}{:x}", name, id.rawValue());
 }
 
-ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
+ir::Type const* CodeGenContext::mapType(sema::TypeID semaTypeID) {
     if (semaTypeID == symTable.Void()) {
         return irCtx.voidType();
     }
@@ -679,7 +679,7 @@ ir::Type const* Context::mapType(sema::TypeID semaTypeID) {
     SC_DEBUGFAIL();
 }
 
-ir::UnaryArithmeticOperation Context::mapUnaryArithmeticOp(
+ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
     ast::UnaryPrefixOperator op) {
     switch (op) {
     case UnaryPrefixOperator::Negation:
@@ -692,7 +692,7 @@ ir::UnaryArithmeticOperation Context::mapUnaryArithmeticOp(
     }
 }
 
-ir::CompareOperation Context::mapCompareOp(ast::BinaryOperator op) {
+ir::CompareOperation CodeGenContext::mapCompareOp(ast::BinaryOperator op) {
     switch (op) {
     case BinaryOperator::Less: return ir::CompareOperation::Less;
     case BinaryOperator::LessEq: return ir::CompareOperation::LessEq;
@@ -704,7 +704,7 @@ ir::CompareOperation Context::mapCompareOp(ast::BinaryOperator op) {
     }
 }
 
-ir::ArithmeticOperation Context::mapArithmeticOp(ast::BinaryOperator op) {
+ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(ast::BinaryOperator op) {
     switch (op) {
     case BinaryOperator::Multiplication: return ir::ArithmeticOperation::Mul;
     case BinaryOperator::Division: return ir::ArithmeticOperation::Div;
@@ -720,7 +720,7 @@ ir::ArithmeticOperation Context::mapArithmeticOp(ast::BinaryOperator op) {
     }
 }
 
-ir::ArithmeticOperation Context::mapArithmeticAssignOp(ast::BinaryOperator op) {
+ir::ArithmeticOperation CodeGenContext::mapArithmeticAssignOp(ast::BinaryOperator op) {
     switch (op) {
     case BinaryOperator::AddAssignment: return ir::ArithmeticOperation::Add;
     case BinaryOperator::SubAssignment: return ir::ArithmeticOperation::Sub;
