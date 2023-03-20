@@ -9,6 +9,7 @@
 #include "IR/Iterator.h"
 #include "IR/Module.h"
 #include "IR/Parser/Parser.h"
+#include "Opt/Common.h"
 
 using namespace scatha;
 
@@ -55,6 +56,7 @@ function i64 @ff(i64) {
         size_t k                = 0;
         for (auto itr = instructions.begin(); itr != instructions.end(); ++k) {
             if (k % 2 == 1) {
+                opt::replaceValue(&itr.instruction(), ctx.undef(itr.instruction().type()));
                 itr = itr->parent()->erase(itr.instructionIterator());
             }
             else {
