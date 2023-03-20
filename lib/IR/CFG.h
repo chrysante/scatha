@@ -220,7 +220,11 @@ public:
     }
 
     /// Erase an instruction. Clears the operands.
-    Iterator erase(ConstIterator position) { return values.erase(position); }
+    Iterator erase(ConstIterator position) {
+        SC_ASSERT(position->users().empty(),
+                  "We should not erase this value when it's still in use");
+        return values.erase(position);
+    }
 
     /// \overload
     Iterator erase(ValueType const* value) {
