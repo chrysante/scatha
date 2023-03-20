@@ -1003,10 +1003,6 @@ public:
 
     /// \overload
     Value const* baseValue() const { return operand(); }
-
-private:
-    static Type const* computeMemberType(Type const* operandType,
-                                         std::span<size_t const> indices);
 };
 
 /// `insert_value` instruction. Insert a value into a structure or array.
