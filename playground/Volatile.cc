@@ -39,29 +39,29 @@ using namespace scatha;
 
 void playground::volatilePlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
-    auto& main      = mod.functions().front();
-    auto& f         = mod.functions().back();
-
+    auto& main      = mod.functions().back();
+    auto& f         = mod.functions().front();
+    assert(main.name().starts_with("main"));
     /// Optimize a bit to get more readable output
     opt::memToReg(ctx, main);
     opt::memToReg(ctx, f);
-
     header(" Before inlining ");
     ir::print(mod);
-
-    auto& callInst =
-        *ranges::find_if(main.instructions(), [](ir::Instruction const& inst) {
+    auto itr =
+        ranges::find_if(main.instructions(), [](ir::Instruction const& inst) {
             return isa<ir::FunctionCall>(inst);
         });
+    if (itr == ranges::end(main.instructions())) {
+        std::cout << "No call instruction in main to inline\n";
+        return;
+    }
+    auto& callInst = *itr;
     opt::inlineCallsite(ctx, cast<ir::FunctionCall*>(&callInst));
-
     header(" After inlining ");
     ir::print(mod);
-
     auto const assembly = cg::codegen(mod);
     auto const program =
         Asm::assemble(assembly, { .startFunction = std::string(main.name()) });
-
     svm::VirtualMachine vm;
     vm.loadProgram(program.data());
     vm.execute();

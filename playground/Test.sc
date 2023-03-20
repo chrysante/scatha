@@ -1,7 +1,7 @@
 
-
 fn main() -> int {
-    return f(4);
+    let i = 1 + 20;
+    return f(i);
 }
 
 fn f(n: int) -> int {
@@ -14,3 +14,5 @@ fn f(n: int) -> int {
     }
     return i;
 }
+
+
