@@ -141,7 +141,7 @@ utl::hashset<BasicBlock*> MemToRegContext::computeLiveBlocks(Alloca* address) {
         /// isn't live-in.
         for (auto i = bb->begin();; ++i) {
             if (auto* store = dyncast<Store const*>(i.to_address())) {
-                if (store->dest() != address) {
+                if (store->address() != address) {
                     continue;
                 }
                 /// We found a store to the alloca before a load. The alloca is
@@ -271,11 +271,14 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
         if (!store) {
             continue;
         }
-        auto* address = static_cast<Alloca*>(store->dest());
+        /// We `static_cast` and not `cast` because the address might not be an
+        /// alloca instruction. However it surely is an alloca if it is in
+        /// `variables`
+        auto* address = static_cast<Alloca*>(store->address());
         if (!variables.contains(address)) {
             continue;
         }
-        genName(cast<Alloca*>(store->dest()), store->source());
+        genName(cast<Alloca*>(store->address()), store->value());
     }
     for (auto* succ: basicBlock->successors()) {
         for (auto& phi: succ->phiNodes()) {
@@ -304,7 +307,7 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
                 return itr != phiMap.end() ? itr->second : nullptr;
             },
             [&](Store& store) -> Alloca* {
-                auto* addr = dyncast<Alloca*>(store.dest());
+                auto* addr = dyncast<Alloca*>(store.address());
                 if (!addr) {
                     return nullptr;
                 }

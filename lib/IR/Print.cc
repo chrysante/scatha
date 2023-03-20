@@ -205,8 +205,8 @@ void PrintCtx::print(Load const& load) {
 
 void PrintCtx::print(Store const& store) {
     str << indent << instruction("store") << " ";
-    str << formatName(*store.lhs()) << ", ";
-    str << formatName(*store.rhs());
+    str << formatName(*store.address()) << ", ";
+    str << formatName(*store.value());
 }
 
 void PrintCtx::print(CompareInst const& cmp) {

@@ -22,7 +22,7 @@ static Load* doClone(Context& context, Load* load) {
 }
 
 static Store* doClone(Context& context, Store* store) {
-    return new Store(context, store->dest(), store->source());
+    return new Store(context, store->address(), store->value());
 }
 
 static CompareInst* doClone(Context& context, CompareInst* cmp) {

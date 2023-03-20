@@ -28,11 +28,11 @@ class Module;
 ///    │  └─ Function
 ///    └─ Instruction
 ///       ├─ Alloca
+///       ├─ Store
 ///       ├─ UnaryInstruction
 ///       │  ├─ Load
 ///       │  └─ UnaryArithmeticInst
 ///       ├─ BinaryInstruction
-///       │  ├─ Store
 ///       │  ├─ CompareInst
 ///       │  └─ ArithmeticInst
 ///       ├─ TerminatorInst

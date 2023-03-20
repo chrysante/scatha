@@ -138,7 +138,10 @@ Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
                 { allocatedType }) {}
 
 Store::Store(Context& context, Value* address, Value* value):
-    BinaryInstruction(NodeType::Store, address, value, context.voidType()) {
+    Instruction(NodeType::Store,
+                context.voidType(),
+                std::string{},
+                { address, value }) {
     SC_ASSERT(isa<PointerType>(address->type()),
               "`address` must be of type `ptr`");
 }

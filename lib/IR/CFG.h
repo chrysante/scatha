@@ -604,21 +604,21 @@ public:
 };
 
 /// `store` instruction. Store a value from a register into memory.
-class SCATHA(API) Store: public BinaryInstruction {
+class SCATHA(API) Store: public Instruction {
 public:
     explicit Store(Context& context, Value* address, Value* value);
 
-    /// The address this store writes to.
-    Value* dest() { return lhs(); }
+    /// \returns the address this store writes to.
+    Value* address() { return operands()[0]; }
 
     /// \overload
-    Value const* dest() const { return lhs(); }
+    Value const* address() const { return operands()[0]; }
 
-    /// The value written to memory.
-    Value* source() { return rhs(); }
+    /// \returns the value written to memory.
+    Value* value() { return operands()[1]; }
 
     /// \overload
-    Value const* source() const { return rhs(); }
+    Value const* value() const { return operands()[1]; }
 };
 
 /// `cmp` instruction.
