@@ -29,7 +29,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
         //   "a"   "b"
         //
         // clang-format on
-        UniquePtr const expr = parseExpression("a + b");
+        auto const expr = parseExpression("a + b");
         auto* add            = cast<BinaryExpression*>(expr.get());
         REQUIRE(add->operation() == BinaryOperator::Addition);
         auto* lhs = cast<Identifier*>(add->lhs.get());
@@ -47,7 +47,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
         //  "3"   "x"
         //
         // clang-format on
-        UniquePtr const expr = parseExpression("3 * x");
+        auto const expr = parseExpression("3 * x");
         auto* mul            = cast<BinaryExpression*>(expr.get());
         REQUIRE(mul->operation() == BinaryOperator::Multiplication);
         auto* lhs = cast<IntegerLiteral*>(mul->lhs.get());
@@ -67,7 +67,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
         //      "b"   "c"
         //
         // clang-format on
-        UniquePtr const expr = parseExpression("a + b * c");
+        auto const expr = parseExpression("a + b * c");
         auto* add            = cast<BinaryExpression*>(expr.get());
         REQUIRE(add->operation() == BinaryOperator::Addition);
         auto* a = cast<Identifier*>(add->lhs.get());
@@ -91,7 +91,7 @@ TEST_CASE("Parsing expressions", "[parse]") {
         //  "a"   "b"
         //
         // clang-format on
-        UniquePtr const expr = parseExpression("(a + b) * c");
+        auto const expr = parseExpression("(a + b) * c");
         auto* mul            = cast<BinaryExpression*>(expr.get());
         REQUIRE(mul->operation() == BinaryOperator::Multiplication);
         auto* add = cast<BinaryExpression*>(mul->lhs.get());
