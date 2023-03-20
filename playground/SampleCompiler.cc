@@ -168,8 +168,8 @@ void playground::compile(std::string text) {
     ir::print(mod);
 
     header(" Assembly generated from IR ");
-    auto const str0 = cg::codegen(mod);
-    print(str0);
+    auto const assembly = cg::codegen(mod);
+    print(assembly);
 
     header(" Assembled Program ");
     /// Start execution with `main` if it exists.
@@ -190,7 +190,7 @@ void playground::compile(std::string text) {
         return;
     }
     auto const program =
-        Asm::assemble(str0,
+        Asm::assemble(assembly,
                       { .startFunction =
                             utl::format("main{:x}", mainID.rawValue()) });
     svm::print(program.data());
