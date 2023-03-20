@@ -423,9 +423,9 @@ MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const& gep) {
 }
 
 void CodeGenContext::generateBigMove(Value dest,
-                              Value source,
-                              size_t size,
-                              Asm::Block* block) {
+                                     Value source,
+                                     size_t size,
+                                     Asm::Block* block) {
     if (!block) {
         block = &currentBlock();
     }
@@ -433,10 +433,10 @@ void CodeGenContext::generateBigMove(Value dest,
 }
 
 void CodeGenContext::generateBigMove(Value dest,
-                              Value source,
-                              size_t size,
-                              Block::ConstIterator before,
-                              Asm::Block* block) {
+                                     Value source,
+                                     size_t size,
+                                     Block::ConstIterator before,
+                                     Asm::Block* block) {
     if (!block) {
         block = &currentBlock();
     }

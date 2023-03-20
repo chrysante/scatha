@@ -20,8 +20,8 @@ namespace {
 
 struct CodeGenContext {
     explicit CodeGenContext(ir::Context& irCtx,
-                     ir::Module& mod,
-                     sema::SymbolTable const& symTable):
+                            ir::Module& mod,
+                            sema::SymbolTable const& symTable):
         irCtx(irCtx), mod(mod), symTable(symTable) {}
 
     void generate(AbstractSyntaxTree const& node);
@@ -593,8 +593,8 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
 }
 
 ir::Value* CodeGenContext::loadAddress(ir::Value* address,
-                                ir::Type const* type,
-                                std::string_view name) {
+                                       ir::Type const* type,
+                                       std::string_view name) {
     auto* const load = new ir::Load(address, type, localUniqueName(name));
     currentBB()->pushBack(load);
     return load;
@@ -602,8 +602,8 @@ ir::Value* CodeGenContext::loadAddress(ir::Value* address,
 
 void CodeGenContext::declareTypes() {
     for (sema::TypeID const& typeID: symTable.sortedObjectTypes()) {
-        auto const& objType   = symTable.getObjectType(typeID);
-        auto structure = allocate<ir::StructureType>(
+        auto const& objType = symTable.getObjectType(typeID);
+        auto structure      = allocate<ir::StructureType>(
             mangledName(objType.symbolID(), objType.name()));
         for (sema::SymbolID const memberVarID: objType.memberVariables()) {
             auto& varDecl = symTable.getVariable(memberVarID);
@@ -639,7 +639,7 @@ void CodeGenContext::setCurrentBB(ir::BasicBlock* bb) {
 }
 
 void CodeGenContext::memorizeVariableAddress(sema::SymbolID symbolID,
-                                      ir::Value* value) {
+                                             ir::Value* value) {
     [[maybe_unused]] auto const [_, insertSuccess] =
         valueMap.insert({ symbolID, value });
     SC_ASSERT(insertSuccess,
@@ -656,7 +656,7 @@ std::string CodeGenContext::mangledName(sema::SymbolID id) const {
 }
 
 std::string CodeGenContext::mangledName(sema::SymbolID id,
-                                 std::string_view name) const {
+                                        std::string_view name) const {
     return utl::format("{}{:x}", name, id.rawValue());
 }
 
@@ -673,9 +673,7 @@ ir::Type const* CodeGenContext::mapType(sema::TypeID semaTypeID) {
     if (semaTypeID == symTable.Float()) {
         return irCtx.floatType(64);
     }
-    if (auto itr = typeMap.find(semaTypeID);
-        itr != typeMap.end())
-    {
+    if (auto itr = typeMap.find(semaTypeID); itr != typeMap.end()) {
         return itr->second;
     }
     SC_DEBUGFAIL();
@@ -706,7 +704,8 @@ ir::CompareOperation CodeGenContext::mapCompareOp(ast::BinaryOperator op) {
     }
 }
 
-ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(ast::BinaryOperator op) {
+ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
+    ast::BinaryOperator op) {
     switch (op) {
     case BinaryOperator::Multiplication: return ir::ArithmeticOperation::Mul;
     case BinaryOperator::Division: return ir::ArithmeticOperation::Div;
@@ -722,7 +721,8 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(ast::BinaryOperator op) 
     }
 }
 
-ir::ArithmeticOperation CodeGenContext::mapArithmeticAssignOp(ast::BinaryOperator op) {
+ir::ArithmeticOperation CodeGenContext::mapArithmeticAssignOp(
+    ast::BinaryOperator op) {
     switch (op) {
     case BinaryOperator::AddAssignment: return ir::ArithmeticOperation::Add;
     case BinaryOperator::SubAssignment: return ir::ArithmeticOperation::Sub;
