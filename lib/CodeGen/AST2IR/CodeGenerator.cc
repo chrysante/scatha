@@ -580,14 +580,12 @@ ir::Value* Context::getAddressImpl(MemberAccess const& expr) {
     }();
     sema::SymbolID const accessedElementID =
         cast<Identifier const&>(*expr.member).symbolID();
-    auto& var          = symTable.getVariable(accessedElementID);
-    size_t const index = var.index();
-    ir::Type const* const accessedType = mapType(expr.object->typeID());
+    auto& var       = symTable.getVariable(accessedElementID);
     auto* const gep = new ir::GetElementPointer(irCtx,
-                                                accessedType,
+                                                mapType(expr.object->typeID()),
                                                 basePtr,
                                                 irCtx.integralConstant(0, 64),
-                                                { index },
+                                                { var.index() },
                                                 localUniqueName("member.ptr"));
     currentBB()->pushBack(gep);
     return gep;
