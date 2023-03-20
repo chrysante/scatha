@@ -11,6 +11,11 @@ void Module::addFunction(Function* function) {
     funcs.push_back(function);
 }
 
+void Module::addFunction(UniquePtr<Function> function) {
+    /// `.release()` because `List<>` takes ownership.
+    addFunction(function.release());
+}
+
 Module::Module(Module&& rhs) noexcept = default;
 
 Module& Module::operator=(Module&& rhs) noexcept = default;

@@ -10,9 +10,9 @@
 #include <utl/hashset.hpp>
 #include <utl/strcat.hpp>
 
-#include <scatha/Common/UniquePtr.h>
 #include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>
+#include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Common.h>
 
 namespace scatha::ir {
@@ -56,12 +56,12 @@ private:
     std::map<std::pair<APFloat, size_t>, FloatingPointConstant*>
         _floatConstants;
     utl::hashmap<Type const*, UndefValue*> _undefConstants;
-    
+
     /// ## Types
     utl::hashmap<std::string, UniquePtr<Type>> _types;
-    
+
     utl::hashmap<std::string, Constant*> _globals;
-    
+
     // For unique names
     utl::hashmap<std::pair<Function const*, std::string>, size_t> varIndices;
 };

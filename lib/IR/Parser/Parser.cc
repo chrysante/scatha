@@ -75,10 +75,10 @@ struct ParseContext {
     void parse();
 
 private:
-    Function* parseFunction();
+    UniquePtr<Function> parseFunction();
     Type const* parseParamDecl();
-    BasicBlock* parseBasicBlock();
-    Instruction* parseInstruction();
+    UniquePtr<BasicBlock> parseBasicBlock();
+    UniquePtr<Instruction> parseInstruction();
     UniquePtr<StructureType> parseStructure();
 
     void parseTypeDefinition();
@@ -169,8 +169,8 @@ static void expect(Token const& token, TokenKind kind) {
 
 void ParseContext::parse() {
     while (peekToken().kind() != TokenKind::EndOfFile) {
-        if (auto* function = parseFunction()) {
-            mod.addFunction(function);
+        if (auto function = parseFunction()) {
+            mod.addFunction(std::move(function));
             continue;
         }
         if (auto structure = parseStructure()) {
@@ -181,7 +181,7 @@ void ParseContext::parse() {
     }
 }
 
-Function* ParseContext::parseFunction() {
+UniquePtr<Function> ParseContext::parseFunction() {
     Token const declarator = peekToken();
     if (declarator.kind() != TokenKind::Keyword ||
         declarator.id() != "function")
@@ -201,10 +201,10 @@ Function* ParseContext::parseFunction() {
         parameterTypes.push_back(paramDecl);
     }
     expect(eatToken(), ")");
-    auto* result = new Function(nullptr,
-                                returnType,
-                                parameterTypes,
-                                std::string(name.id()));
+    auto result = allocate<Function>(nullptr,
+                                     returnType,
+                                     parameterTypes,
+                                     std::string(name.id()));
     expect(eatToken(), "{");
     /// Parse the body of the function.
     instructions.clear();
@@ -215,11 +215,11 @@ Function* ParseContext::parseFunction() {
                  ranges::to<utl::hashmap<std::string, Parameter*>>;
     basicBlocks.clear();
     while (true) {
-        auto* basicBlock = parseBasicBlock();
+        auto basicBlock = parseBasicBlock();
         if (!basicBlock) {
             break;
         }
-        result->pushBack(basicBlock);
+        result->pushBack(std::move(basicBlock));
     }
     Token const closeBrace = eatToken();
     expect(closeBrace, "}");
@@ -235,21 +235,21 @@ Type const* ParseContext::parseParamDecl() {
     return type;
 }
 
-BasicBlock* ParseContext::parseBasicBlock() {
+UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {
     if (peekToken().kind() != TokenKind::LocalIdentifier) {
         return nullptr;
     }
     Token const name = eatToken();
     expect(eatToken(), ":");
-    auto* result = new BasicBlock(irCtx, std::string(name.id()));
-    registerBasicBlock(result);
+    auto result = allocate<BasicBlock>(irCtx, std::string(name.id()));
+    registerBasicBlock(result.get());
     while (true) {
-        auto* instruction = parseInstruction();
+        auto instruction = parseInstruction();
         if (!instruction) {
             break;
         }
-        registerInstruction(instruction);
-        result->pushBack(instruction);
+        registerInstruction(instruction.get());
+        result->pushBack(std::move(instruction));
     }
     return result;
 }
@@ -282,7 +282,7 @@ static std::optional<ArithmeticOperation> toArithmeticOp(Token token) {
     return std::nullopt;
 }
 
-Instruction* ParseContext::parseInstruction() {
+UniquePtr<Instruction> ParseContext::parseInstruction() {
     auto name = [&]() -> std::optional<std::string> {
         Token const nameToken   = peekToken(0);
         Token const assignToken = peekToken(1);
@@ -298,20 +298,20 @@ Instruction* ParseContext::parseInstruction() {
     if (peekToken().id() == "alloca") {
         eatToken();
         auto* const type = getType(eatToken());
-        return new Alloca(irCtx, type, std::move(name).value());
+        return allocate<Alloca>(irCtx, type, std::move(name).value());
     }
     if (peekToken().id() == "load") {
         eatToken();
         auto* const type = getType(eatToken());
         Value* const ptr = getValue(eatToken());
-        return new Load(ptr, type, std::move(name).value());
+        return allocate<Load>(ptr, type, std::move(name).value());
     }
     if (peekToken().id() == "store") {
         eatToken();
         Value* const addr = getValue(eatToken());
         expect(eatToken(), ",");
         Value* const value = getValue(eatToken());
-        return new Store(irCtx, addr, value);
+        return allocate<Store>(irCtx, addr, value);
     }
     if (peekToken().id() == "goto") {
         eatToken();
@@ -319,9 +319,9 @@ Instruction* ParseContext::parseInstruction() {
         Token const targetID = eatToken();
         expect(targetID, TokenKind::LocalIdentifier);
         BasicBlock* const target = getBasicBlock(targetID);
-        auto* result             = new Goto(irCtx, target);
+        auto result              = allocate<Goto>(irCtx, target);
         if (!target) {
-            addPendingUpdate(targetID.id(), [=] {
+            addPendingUpdate(targetID.id(), [=, result = result.get()] {
                 auto* bb = getBasicBlock(targetID);
                 SC_ASSERT(bb, "");
                 result->setTarget(bb);
@@ -333,7 +333,7 @@ Instruction* ParseContext::parseInstruction() {
         eatToken();
         auto* const type  = getType(eatToken());
         Value* const cond = getValue(eatToken());
-        auto* result      = new Branch(irCtx, cond, nullptr, nullptr);
+        auto result       = allocate<Branch>(irCtx, cond, nullptr, nullptr);
         for (size_t i = 0; i < 2; ++i) {
             expect(eatToken(), ",");
             expect(eatToken(), "label");
@@ -344,7 +344,7 @@ Instruction* ParseContext::parseInstruction() {
                 result->setTarget(i, target);
             }
             else {
-                addPendingUpdate(targetID.id(), [=] {
+                addPendingUpdate(targetID.id(), [=, result = result.get()] {
                     auto* target = getBasicBlock(targetID);
                     SC_ASSERT(target, "");
                     result->setTarget(i, target);
@@ -358,7 +358,7 @@ Instruction* ParseContext::parseInstruction() {
         auto* const type   = getType(eatToken());
         Value* const value = getValue(eatToken());
         /// Here we could check that `value` is of type `type`
-        return new Return(irCtx, value);
+        return allocate<Return>(irCtx, value);
     }
     if (peekToken().id() == "call") {
         eatToken();
@@ -374,9 +374,9 @@ Instruction* ParseContext::parseInstruction() {
             Value* arg          = getValue(eatToken());
             args.push_back(arg);
         }
-        return new FunctionCall(function,
-                                args,
-                                std::move(name).value_or(std::string{}));
+        return allocate<FunctionCall>(function,
+                                      args,
+                                      std::move(name).value_or(std::string{}));
     }
     if (peekToken().id() == "phi") {
         eatToken();
@@ -395,7 +395,7 @@ Instruction* ParseContext::parseInstruction() {
             }
             eatToken();
         }
-        return new Phi(std::move(phiArgs), std::move(name).value());
+        return allocate<Phi>(std::move(phiArgs), std::move(name).value());
     }
     if (peekToken().id() == "cmp") {
         eatToken();
@@ -409,20 +409,20 @@ Instruction* ParseContext::parseInstruction() {
         expect(eatToken(), ",");
         auto* const rhsType = getType(eatToken());
         Value* const rhs    = getValue(eatToken());
-        return new CompareInst(irCtx,
-                               lhs,
-                               rhs,
-                               *cmpOp,
-                               std::move(name).value());
+        return allocate<CompareInst>(irCtx,
+                                     lhs,
+                                     rhs,
+                                     *cmpOp,
+                                     std::move(name).value());
     }
     if (auto unaryOp = toUnaryArithmeticOp(peekToken())) {
         eatToken();
         auto* type           = getType(eatToken());
         Value* const operand = getValue(eatToken());
-        return new UnaryArithmeticInst(irCtx,
-                                       operand,
-                                       *unaryOp,
-                                       std::move(name).value());
+        return allocate<UnaryArithmeticInst>(irCtx,
+                                             operand,
+                                             *unaryOp,
+                                             std::move(name).value());
     }
     if (auto binaryOp = toArithmeticOp(peekToken())) {
         eatToken();
@@ -430,7 +430,10 @@ Instruction* ParseContext::parseInstruction() {
         Value* const lhs = getValue(eatToken());
         expect(eatToken(), ",");
         Value* const rhs = getValue(eatToken());
-        return new ArithmeticInst(lhs, rhs, *binaryOp, std::move(name).value());
+        return allocate<ArithmeticInst>(lhs,
+                                        rhs,
+                                        *binaryOp,
+                                        std::move(name).value());
     }
     if (peekToken().id() == "gep") {
         SC_DEBUGFAIL();
@@ -457,10 +460,10 @@ Instruction* ParseContext::parseInstruction() {
         if (indices.empty()) {
             throw ParseError(peekToken().sourceLocation());
         }
-        return new InsertValue(structValue,
-                               memberValue,
-                               indices,
-                               std::move(name).value());
+        return allocate<InsertValue>(structValue,
+                                     memberValue,
+                                     indices,
+                                     std::move(name).value());
     }
     if (peekToken().id() == "extract_value") {
         eatToken();
@@ -482,7 +485,9 @@ Instruction* ParseContext::parseInstruction() {
         if (indices.empty()) {
             throw ParseError(peekToken().sourceLocation());
         }
-        return new ExtractValue(structValue, indices, std::move(name).value());
+        return allocate<ExtractValue>(structValue,
+                                      indices,
+                                      std::move(name).value());
     }
     return nullptr;
 }

@@ -73,7 +73,7 @@ private:
 
     /// Called by `UniquePtr`
     friend void scatha::internal::privateDelete(Value* value);
-    
+
     /// Called by `ir::DynAllocator`
     friend void scatha::internal::privateDestroy(Value* value);
 
@@ -198,19 +198,36 @@ public:
     using ConstIterator = typename List<ValueType>::const_iterator;
 
     /// Callee takes ownership.
-    void pushFront(ValueType* value) { insert(values.begin(), value); }
+    void pushFront(ValueType* value) {
+        setParent(*value);
+        insert(values.begin(), value);
+    }
+
+    /// \overload
+    void pushFront(UniquePtr<ValueType> value) {
+        pushFront(value.release());
+    }
 
     /// Callee takes ownership.
-    void pushBack(ValueType* value) { insert(values.end(), value); }
+    void pushBack(ValueType* value) {
+        setParent(*value);
+        insert(values.end(), value);
+    }
+
+    /// \overload
+    void pushBack(UniquePtr<ValueType> value) {
+        pushBack(value.release());
+    }
 
     /// Callee takes ownership.
     Iterator insert(ConstIterator before, ValueType* value) {
-        value->set_parent(static_cast<Derived*>(this));
+        setParent(*value);
         return values.insert(before, value);
     }
 
     /// \overload
     ValueType* insert(ValueType const* before, ValueType* value) {
+        setParent(*value);
         return insert(ConstIterator(before), value).to_address();
     }
 
@@ -266,6 +283,11 @@ public:
 
     ValueType& back() { return values.back(); }
     ValueType const& back() const { return values.back(); }
+
+private:
+    void setParent(ValueType& value) {
+        value.set_parent(static_cast<Derived*>(this));
+    }
 
 private:
     friend class ir::BasicBlock;
@@ -332,12 +354,12 @@ public:
 
     /// Extract an instruction. Does not clear the operands. Caller takes
     /// ownership of the instruction.
-    Instruction* extract(ConstIterator position) {
-        return values.extract(position);
+    UniquePtr<Instruction> extract(ConstIterator position) {
+        return UniquePtr<Instruction>(values.extract(position));
     }
 
     /// \overload
-    Instruction* extract(Instruction const* inst) {
+    UniquePtr<Instruction> extract(Instruction const* inst) {
         return extract(ConstIterator(inst));
     }
 

@@ -19,9 +19,7 @@ void privateDestroy(auto* ptr) {
 }
 
 struct PrivateDeleter {
-    void operator()(auto* ptr) const {
-        ::scatha::internal::privateDelete(ptr);
-    }
+    void operator()(auto* ptr) const { ::scatha::internal::privateDelete(ptr); }
 };
 
 } // namespace scatha::internal

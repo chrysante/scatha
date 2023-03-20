@@ -31,8 +31,13 @@ public:
     auto& functions() { return funcs; }
     auto const& functions() const { return funcs; }
 
-    void addStructure(UniquePtr<StructureType> structure) { structs.insert(std::move(structure)); }
+    void addStructure(UniquePtr<StructureType> structure) {
+        structs.insert(std::move(structure));
+    }
+
     void addFunction(Function* function);
+
+    void addFunction(UniquePtr<Function> function);
 
 private:
     utl::hashset<UniquePtr<StructureType>> structs;

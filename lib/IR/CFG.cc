@@ -102,7 +102,7 @@ Function::Function(FunctionType const* functionType,
     Constant(NodeType::Function, functionType, std::move(name)),
     _returnType(returnType) {
     for (auto [index, type]: parameterTypes | ranges::views::enumerate) {
-        params.push_back(new Parameter(type, index++, this));
+        params.emplace_back(type, index++, this);
     }
 }
 
