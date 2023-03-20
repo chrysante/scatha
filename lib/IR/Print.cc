@@ -293,9 +293,10 @@ void PrintCtx::print(GetElementPointer const& gep) {
         << formatType(gep.basePointer()->type()) << " "
         << formatName(*gep.basePointer()) << ", "
         << formatType(gep.arrayIndex()->type()) << " "
-        << formatName(*gep.arrayIndex()) << ", "
-        << formatType(gep.structMemberIndex()->type()) << " "
-        << formatName(*gep.structMemberIndex());
+        << formatName(*gep.arrayIndex());
+    for (auto index: gep.memberIndices()) {
+        str << ", " << index;
+    }
 }
 
 void PrintCtx::print(ExtractValue const& extract) {

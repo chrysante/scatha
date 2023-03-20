@@ -22,10 +22,6 @@ bool compareEqual(ir::Phi const* lhs, std::span<ir::ConstPhiMapping const> rhs);
 SCATHA(TEST_API)
 bool compareEqual(ir::Phi const* lhs, std::span<ir::PhiMapping const> rhs);
 
-SCATHA(TEST_API) bool addressEqual(ir::Value const* lhs, ir::Value const* rhs);
-
-SCATHA(TEST_API) bool refersToLocalMemory(ir::Value const* address);
-
 SCATHA(TEST_API) void replaceValue(ir::Value* oldValue, ir::Value* newValue);
 
 /// Fully remove \p *predecessor as predecessor of \p *basicBlock.

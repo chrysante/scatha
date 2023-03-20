@@ -907,18 +907,25 @@ class GetElementPointer: public Instruction {
 public:
     explicit GetElementPointer(Context& context,
                                Type const* accessedType,
-                               Type const* pointeeType,
                                Value* basePointer,
                                Value* arrayIndex,
-                               Value* structMemberIndex,
-                               std::string name = {});
+                               std::initializer_list<size_t> memberIndices,
+                               std::string name):
+        GetElementPointer(context,
+                          accessedType,
+                          basePointer,
+                          arrayIndex,
+                          std::span<size_t const>(memberIndices),
+                          name) {}
 
-    Type const* accessedType() const { return accType; }
+    explicit GetElementPointer(Context& context,
+                               Type const* accessedType,
+                               Value* basePointer,
+                               Value* arrayIndex,
+                               std::span<size_t const> memberIndices,
+                               std::string name);
 
-    bool isAllConstant() const {
-        return isa<IntegralConstant>(arrayIndex()) &&
-               isa<IntegralConstant>(structMemberIndex());
-    }
+    Type const* accessedType() const { return typeOperands()[0]; }
 
     Value* basePointer() { return operands()[0]; }
     Value const* basePointer() const { return operands()[0]; }
@@ -926,31 +933,20 @@ public:
     Value* arrayIndex() { return operands()[1]; }
     Value const* arrayIndex() const { return operands()[1]; }
 
-    Value* structMemberIndex() { return operands()[2]; }
-    Value const* structMemberIndex() const { return operands()[2]; }
+    std::span<uint16_t const> memberIndices() const { return _memberIndices; }
 
-    size_t const constantArrayIndex() const {
+    bool hasConstantArrayIndex() const {
+        return isa<IntegralConstant>(arrayIndex());
+    }
+
+    size_t constantArrayIndex() const {
         return cast<IntegralConstant const*>(arrayIndex())
             ->value()
             .to<size_t>();
     }
 
-    size_t const constantStructMemberIndex() const {
-        return cast<IntegralConstant const*>(structMemberIndex())
-            ->value()
-            .to<size_t>();
-    }
-
-    size_t const constantByteOffset() const {
-        size_t result = accessedType()->size() * constantArrayIndex();
-        if (auto* structType = dyncast<StructureType const*>(accessedType())) {
-            result += structType->memberOffsetAt(constantStructMemberIndex());
-        }
-        return result;
-    }
-
 private:
-    Type const* accType;
+    utl::small_vector<uint16_t> _memberIndices;
 };
 
 namespace internal {

@@ -393,10 +393,12 @@ MemoryAddress Context::computeGep(ir::GetElementPointer const& gep) {
         if (gepPtr == nullptr) {
             break;
         }
-        SC_ASSERT(gepPtr->isAllConstant(),
-                  "Don't know how to generate code for non-constant GEPs");
-        size_t const memberIndex = gepPtr->constantStructMemberIndex();
-        offset += static_cast<ir::StructureType const*>(gepPtr->accessedType())
+        SC_ASSERT(gepPtr->memberIndices().size() <= 1,
+                  "Can't generate code for nested accesses yet");
+        size_t const memberIndex = gepPtr->memberIndices().size() == 1 ?
+                                       gepPtr->memberIndices().front() :
+                                       0;
+        offset += cast<ir::StructureType const*>(gepPtr->accessedType())
                       ->memberOffsetAt(memberIndex);
         value = gepPtr->basePointer();
     }

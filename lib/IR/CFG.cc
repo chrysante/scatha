@@ -276,27 +276,18 @@ void Phi::setArgument(size_t index, Value* value) {
 
 GetElementPointer::GetElementPointer(Context& context,
                                      Type const* accessedType,
-                                     Type const* pointeeType,
                                      Value* basePointer,
                                      Value* arrayIndex,
-                                     Value* structMemberIndex,
+                                     std::span<size_t const> memberIndices,
                                      std::string name):
     Instruction(NodeType::GetElementPointer,
                 context.pointerType(),
                 std::move(name),
-                { basePointer, arrayIndex, structMemberIndex }),
-    accType(accessedType) {
+                { basePointer, arrayIndex },
+                { accessedType }),
+    _memberIndices(memberIndices | ranges::to<utl::small_vector<uint16_t>>) {
     SC_ASSERT(isa<PointerType>(basePointer->type()),
               "`basePointer` must be a pointer");
     SC_ASSERT(isa<IntegralType>(arrayIndex->type()),
               "Indices must be integral");
-    SC_ASSERT(isa<IntegralType>(structMemberIndex->type()),
-              "Indices must be integral");
-    //    if (auto* offset = dyncast<IntegralConstant
-    //    const*>(structMemberIndex)) {
-    //        SC_ASSERT(cast<PointerType const*>(type())->pointeeType() ==
-    //                      cast<StructureType const*>(accessedType)
-    //                          ->memberAt(offset->value().to<size_t>()),
-    //                  "");
-    //    }
 }
