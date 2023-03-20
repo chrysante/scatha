@@ -616,6 +616,24 @@ public:
     Value const* address() const { return operand(); }
 };
 
+/// `store` instruction. Store a value from a register into memory.
+class SCATHA(API) Store: public Instruction {
+public:
+    explicit Store(Context& context, Value* address, Value* value);
+
+    /// \returns the address this store writes to.
+    Value* address() { return operands()[0]; }
+
+    /// \overload
+    Value const* address() const { return operands()[0]; }
+
+    /// \returns the value written to memory.
+    Value* value() { return operands()[1]; }
+
+    /// \overload
+    Value const* value() const { return operands()[1]; }
+};
+
 /// Base class of all binary instructions.
 class SCATHA(API) BinaryInstruction: public Instruction {
 protected:
@@ -641,24 +659,6 @@ public:
 
     /// \returns the type of the operands.
     Type const* operandType() const { return lhs()->type(); }
-};
-
-/// `store` instruction. Store a value from a register into memory.
-class SCATHA(API) Store: public Instruction {
-public:
-    explicit Store(Context& context, Value* address, Value* value);
-
-    /// \returns the address this store writes to.
-    Value* address() { return operands()[0]; }
-
-    /// \overload
-    Value const* address() const { return operands()[0]; }
-
-    /// \returns the value written to memory.
-    Value* value() { return operands()[1]; }
-
-    /// \overload
-    Value const* value() const { return operands()[1]; }
 };
 
 /// `cmp` instruction.
