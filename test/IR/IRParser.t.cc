@@ -153,14 +153,14 @@ function i64 @main() {
 TEST_CASE("Parse IR with insert_value/extract_value", "[ir][parser]") {
     auto const text = R"(
 structure @X {
-  i64,
-  f64
+  f64,
+  i64
 }
 function @X @f(@X) {
   %entry:
-    %1 = extract_value @X %0, i64 $0
-    %2 = extract_value @X %0, i64 $1
-    %res = insert_value @X %0, i64 $7, i64 $1
+    %1 = extract_value @X %0, $0
+    %2 = extract_value @X %0, $1
+    %res = insert_value @X %0, i64 $7, $1
     return @X %res
 })";
     ir::Context ctx;
@@ -169,7 +169,7 @@ function @X @f(@X) {
     using enum ir::NodeType;
     // clang-format off
     testModule(&mod).structures({
-        testStructure("X").members({ "i64", "f64" })
+        testStructure("X").members({ "f64", "i64" })
     }).functions({
         testFunction("f").parameters({ "X" }).basicBlocks({
             testBasicBlock("entry").instructions({

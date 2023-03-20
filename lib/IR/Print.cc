@@ -303,9 +303,10 @@ void PrintCtx::print(ExtractValue const& extract) {
     str << indent << formatName(extract) << equals()
         << instruction("extract_value") << " " << formatType(extract.type())
         << ", " << formatType(extract.baseValue()->type()) << " "
-        << formatName(*extract.baseValue()) << ", "
-        << formatType(extract.index()->type()) << " "
-        << formatName(*extract.index());
+        << formatName(*extract.baseValue());
+    for (auto index: extract.memberIndices()) {
+        str << ", " << index;
+    }
 }
 
 void PrintCtx::print(InsertValue const& insert) {
@@ -314,9 +315,10 @@ void PrintCtx::print(InsertValue const& insert) {
         << ", " << formatType(insert.baseValue()->type()) << " "
         << formatName(*insert.baseValue()) << ", "
         << formatType(insert.insertedValue()->type()) << " "
-        << formatName(*insert.insertedValue()) << " "
-        << formatType(insert.index()->type()) << " "
-        << formatName(*insert.index());
+        << formatName(*insert.insertedValue());
+    for (auto index: insert.memberIndices()) {
+        str << ", " << index;
+    }
 }
 
 void PrintCtx::print(StructureType const& structure) {

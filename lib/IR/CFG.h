@@ -963,19 +963,17 @@ namespace internal {
 
 class AccessValueBase {
 public:
-    explicit AccessValueBase(Value* index): _index(index) {}
+    explicit AccessValueBase(std::span<size_t const> indices):
+        _indices(indices | ranges::to<utl::small_vector<uint16_t>>) {}
 
-    Value* index() { return _index; }
-    Value const* index() const { return _index; }
+    std::span<uint16_t const> memberIndices() const { return _indices; }
 
-    bool indexIsConstant() const { return isa<IntegralConstant>(_index); }
-
-    size_t constantIndex() const {
-        return cast<IntegralConstant const*>(_index)->value().to<size_t>();
-    }
+protected:
+    static Type const* computeAccessedType(Type const* operandType,
+                                           std::span<size_t const> indices);
 
 private:
-    Value* _index;
+    utl::small_vector<uint16_t> _indices;
 };
 
 } // namespace internal
@@ -984,21 +982,31 @@ private:
 /// array element.
 class ExtractValue: public UnaryInstruction, public internal::AccessValueBase {
 public:
-    explicit ExtractValue(Type const* memberType,
-                          Value* baseValue,
-                          Value* index,
+    explicit ExtractValue(Value* baseValue,
+                          std::initializer_list<size_t> indices,
+                          std::string name):
+        ExtractValue(baseValue,
+                     std::span<size_t const>(indices),
+                     std::move(name)) {}
+
+    explicit ExtractValue(Value* baseValue,
+                          std::span<size_t const> indices,
                           std::string name):
         UnaryInstruction(NodeType::ExtractValue,
                          baseValue,
-                         memberType,
+                         computeAccessedType(baseValue->type(), indices),
                          std::move(name)),
-        internal::AccessValueBase(index) {}
+        internal::AccessValueBase(indices) {}
 
     /// The structure or array being accessed. Same as `operand()`
     Value* baseValue() { return operand(); }
 
     /// \overload
     Value const* baseValue() const { return operand(); }
+
+private:
+    static Type const* computeMemberType(Type const* operandType,
+                                         std::span<size_t const> indices);
 };
 
 /// `insert_value` instruction. Insert a value into a structure or array.
@@ -1006,14 +1014,27 @@ class InsertValue: public BinaryInstruction, public internal::AccessValueBase {
 public:
     explicit InsertValue(Value* baseValue,
                          Value* insertedValue,
-                         Value* index,
+                         std::initializer_list<size_t> indices,
+                         std::string name):
+        InsertValue(baseValue,
+                    insertedValue,
+                    std::span<size_t const>(indices),
+                    std::move(name)) {}
+
+    explicit InsertValue(Value* baseValue,
+                         Value* insertedValue,
+                         std::span<size_t const> indices,
                          std::string name):
         BinaryInstruction(NodeType::InsertValue,
                           baseValue,
                           insertedValue,
                           baseValue->type(),
                           std::move(name)),
-        internal::AccessValueBase(index) {}
+        internal::AccessValueBase(indices) {
+        SC_ASSERT(insertedValue->type() ==
+                      computeAccessedType(baseValue->type(), indices),
+                  "Type mismatch");
+    }
 
     /// The structure or array being accessed. Same as `lhs()`
     Value* baseValue() { return lhs(); }

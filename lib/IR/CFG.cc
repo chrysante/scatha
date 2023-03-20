@@ -289,3 +289,12 @@ GetElementPointer::GetElementPointer(Context& context,
     SC_ASSERT(isa<IntegralType>(arrayIndex->type()),
               "Indices must be integral");
 }
+
+Type const* internal::AccessValueBase::computeAccessedType(
+    Type const* operandType, std::span<size_t const> indices) {
+    Type const* result = operandType;
+    for (auto index: indices) {
+        result = cast<StructureType const*>(result)->memberAt(index);
+    }
+    return result;
+}

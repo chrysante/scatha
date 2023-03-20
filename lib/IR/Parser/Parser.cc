@@ -26,8 +26,8 @@
 ///                     | <un-op> <type-id> <id>
 ///                     | <bin-op> <type-id> <id> "," <id>
 ///                     | "gep" <type-id> <id> "," <type-id> <id> "," <type-id> <id>
-///                     | "insert_value" <type-id> <id> "," <type-id> <id> "," <type-id> <id>
-///                     | "extract_value" <type-id> <id> "," <type-id> <id>
+///                     | "insert_value" <type-id> <id> "," <type-id> <id> { "," <id> }
+///                     | "extract_value" <type-id> <id> { "," <id> }+
 /// <call-arg>        ::= <type-id> <local-id>
 /// <phi-arg>         ::= "[" "label" <local-id> ":" <id> "]"
 /// <cmp-op>          ::= "le", "leq",
@@ -51,6 +51,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/APInt.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -441,28 +442,47 @@ Instruction* ParseContext::parseInstruction() {
         expect(eatToken(), ",");
         auto* const memberType  = getType(eatToken());
         auto* const memberValue = getValue(eatToken());
-        expect(eatToken(), ",");
-        auto* const indexType  = getType(eatToken());
-        auto* const indexValue = getValue(eatToken());
+        utl::small_vector<size_t> indices;
+        while (true) {
+            if (peekToken().id() != ",") {
+                break;
+            }
+            eatToken();
+            Token const indexToken = eatToken();
+            expect(indexToken, TokenKind::IntLiteral);
+            auto const index =
+                APInt::parse(indexToken.id()).value().to<size_t>();
+            indices.push_back(index);
+        }
+        if (indices.empty()) {
+            throw ParseError(peekToken().sourceLocation());
+        }
         return new InsertValue(structValue,
                                memberValue,
-                               indexValue,
+                               indices,
                                std::move(name).value());
     }
     if (peekToken().id() == "extract_value") {
         eatToken();
         auto* const structType  = getType(eatToken());
         auto* const structValue = getValue(eatToken());
-        expect(eatToken(), ",");
-        auto* const indexType  = getType(eatToken());
-        auto* const indexValue = getValue(eatToken());
-        APInt const constantIndex =
-            cast<IntegralConstant const*>(indexValue)->value();
-        return new ExtractValue(cast<StructureType const*>(structType)
-                                    ->memberAt(constantIndex.to<size_t>()),
-                                structValue,
-                                indexValue,
-                                std::move(name).value());
+        // TODO: Copy-pasted from `insert_value` case. Extract this to function.
+        utl::small_vector<size_t> indices;
+        while (true) {
+            if (peekToken().id() != ",") {
+                break;
+            }
+            eatToken();
+            Token const indexToken = eatToken();
+            expect(indexToken, TokenKind::IntLiteral);
+            auto const index =
+                APInt::parse(indexToken.id()).value().to<size_t>();
+            indices.push_back(index);
+        }
+        if (indices.empty()) {
+            throw ParseError(peekToken().sourceLocation());
+        }
+        return new ExtractValue(structValue, indices, std::move(name).value());
     }
     return nullptr;
 }
