@@ -12,55 +12,58 @@ using namespace ir;
 using namespace opt;
 
 void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
-    auto* callingBB       = call->parent();
-    auto* callingFunction = callingBB->parent();
-    auto* calledFunction  = call->function();
-    auto* clone           = ir::clone(ctx, calledFunction);
-    for (auto& bb: *clone) {
+    auto* callerBB    = call->parent();
+    auto* caller      = callerBB->parent();
+    auto* callee      = call->function();
+    auto* calleeClone = clone(ctx, callee);
+    for (auto& bb: *calleeClone) {
         bb.setName(utl::strcat("inline.", bb.name()));
     }
-    auto* newGoto = new Goto(ctx, &clone->entry());
-    callingBB->insert(call, newGoto);
-    auto* returningBB =
-        new BasicBlock(ctx, ctx.uniqueName(callingFunction, "inline.return"));
-    returningBB->splice(returningBB->begin(),
-                        BasicBlock::Iterator(newGoto->next()),
-                        callingBB->end());
-    callingFunction->insert(callingBB->next(), returningBB);
-    /// Add a phi node to `returningBB` the merge all returns from `clone`
-    auto* phi =
-        new Phi(call->type(), ctx.uniqueName(callingFunction, "inline.phi"));
-    returningBB->insert(returningBB->begin(), phi);
-    utl::small_vector<PhiMapping> phiArgs;
+    auto* newGoto = new Goto(ctx, &calleeClone->entry());
+    callerBB->insert(call, newGoto);
+    auto* landingpad =
+        new BasicBlock(ctx, ctx.uniqueName(caller, "inline.landingpad"));
+    landingpad->splice(landingpad->begin(),
+                       BasicBlock::Iterator(newGoto->next()),
+                       callerBB->end());
+    caller->insert(callerBB->next(), landingpad);
     /// Replace all parameters with the callers arguments.
     for (auto [param, arg]:
-         ranges::views::zip(clone->parameters(), call->arguments()))
+         ranges::views::zip(calleeClone->parameters(), call->arguments()))
     {
         replaceValue(&param, arg);
     }
-    /// Traverse the about-to-be-inlined function and replace all returns with
-    /// gotos to `returningBB`
-    for (auto& bb: *clone) {
+    /// Traverse `calleeClone` and replace all returns with
+    /// gotos to `landingpad`
+    utl::small_vector<PhiMapping> phiArgs;
+    for (auto& bb: *calleeClone) {
         for (auto itr = bb.begin(); itr != bb.end();) {
             auto* ret = dyncast<Return*>(itr.to_address());
             if (!ret) {
                 ++itr;
                 continue;
             }
-            auto* gotoInst = new Goto(ctx, returningBB);
+            auto* gotoInst = new Goto(ctx, landingpad);
             bb.insert(ret, gotoInst);
             phiArgs.push_back({ &bb, ret->value() });
             itr = bb.erase(BasicBlock::Iterator(ret));
         }
     }
-    phi->setArguments(phiArgs);
-    returningBB->setPredecessors(
+    landingpad->setPredecessors(
         phiArgs | ranges::views::transform([](auto m) { return m.pred; }) |
         ranges::to<utl::small_vector<BasicBlock*>>);
-    /// Now we can replace the call instruction with the phi node and erase it.
-    replaceValue(call, phi);
-    returningBB->erase(call);
-    /// Move basic blocks from the clone into calling function.
-    callingFunction->splice(Function::Iterator(returningBB), clone);
-    delete clone;
+    if (!isa<VoidType>(callee->returnType())) {
+        /// Add a phi node to `landingpad` the merge all returns from
+        /// `calleeClone`
+        auto* phi = new Phi(call->type(), ctx.uniqueName(caller, "inline.phi"));
+        phi->setArguments(phiArgs);
+        landingpad->insert(landingpad->begin(), phi);
+        replaceValue(call, phi);
+    }
+    /// Now that we have eventually replaced all uses with a phi node we can
+    /// erase the call instruction.
+    landingpad->erase(call);
+    /// Move basic blocks from the calleeClone into calling function.
+    caller->splice(Function::Iterator(landingpad), calleeClone);
+    delete calleeClone;
 }
