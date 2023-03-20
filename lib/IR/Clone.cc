@@ -125,6 +125,11 @@ Function* ir::clone(Context& context, Function* function) {
         valueMap[&bb] = cloned;
         result->pushBack(cloned);
     }
+    for (auto&& [oldParam, newParam]:
+         ranges::views::zip(function->parameters(), result->parameters()))
+    {
+        valueMap[&oldParam] = &newParam;
+    }
     auto map = [&]<typename T>(T* value) {
         auto itr = valueMap.find(value);
         if (itr == valueMap.end()) {
