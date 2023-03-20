@@ -204,9 +204,7 @@ public:
     }
 
     /// \overload
-    void pushFront(UniquePtr<ValueType> value) {
-        pushFront(value.release());
-    }
+    void pushFront(UniquePtr<ValueType> value) { pushFront(value.release()); }
 
     /// Callee takes ownership.
     void pushBack(ValueType* value) {
@@ -215,9 +213,7 @@ public:
     }
 
     /// \overload
-    void pushBack(UniquePtr<ValueType> value) {
-        pushBack(value.release());
-    }
+    void pushBack(UniquePtr<ValueType> value) { pushBack(value.release()); }
 
     /// Callee takes ownership.
     Iterator insert(ConstIterator before, ValueType* value) {
