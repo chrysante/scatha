@@ -18,8 +18,7 @@ class DomTree;
 using DominanceMap =
     utl::hashmap<ir::BasicBlock*, utl::hashset<ir::BasicBlock*>>;
 
-SCATHA(API)
-DominanceMap computeDominanceSets(ir::Function& function);
+SCATHA(API) DominanceMap computeDominanceSets(ir::Function& function);
 
 SCATHA(API)
 DomTree buildDomTree(ir::Function& function, DominanceMap const& domSets);
@@ -87,8 +86,8 @@ using DominanceFrontierMap =
     utl::hashmap<ir::BasicBlock*, utl::small_vector<ir::BasicBlock*>>;
 
 SCATHA(API)
-DominanceFrontierMap computeDominanceFrontiers(ir::Function& function,
-                                               DomTree const& domTree);
+DominanceFrontierMap
+    computeDominanceFrontiers(ir::Function& function, DomTree const& domTree);
 
 } // namespace scatha::opt
 

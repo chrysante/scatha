@@ -23,8 +23,9 @@ static auto& find(auto range, std::string_view name) {
 
 /// Requires the sequences \p a and \p b to be unique.
 static bool setEqual(auto&& a, auto&& b) {
-    if (ranges::size(a) != ranges::size(b))
+    if (ranges::size(a) != ranges::size(b)) {
         return false;
+    }
     for (auto&& x: a) {
         if (ranges::find(b, x) == ranges::end(b)) {
             return false;

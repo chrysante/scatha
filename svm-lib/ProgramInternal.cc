@@ -35,7 +35,7 @@ static constexpr std::string_view typeToStr() {
 #define SVM_TYPETOSTR_CASE(type)                                               \
     else if constexpr (std::is_same_v<T, type>) { return #type; }
     if constexpr (false)
-        ; /// First case for the macro to work. 
+        ; /// First case for the macro to work.
     SVM_TYPETOSTR_CASE(u8)
     SVM_TYPETOSTR_CASE(u16)
     SVM_TYPETOSTR_CASE(u32)

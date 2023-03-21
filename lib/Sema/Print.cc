@@ -90,10 +90,12 @@ void internal::ScopePrinter::printScope(Scope const& scope,
         else if (cat == SymbolCategory::ObjectType) {
             auto& type     = sym.getObjectType(id);
             auto printSize = [&str](size_t s) {
-                if (s == invalidSize)
+                if (s == invalidSize) {
                     str << "invalid";
-                else
+                }
+                else {
                     str << s;
+                }
             };
             str << " [size: ";
             printSize(type.size());

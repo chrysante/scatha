@@ -204,8 +204,7 @@ private:
     SymbolCategory _existingCategory;
 };
 
-SCATHA(API)
-std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
+SCATHA(API) std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
 
 /// MARK: Cycles
 class SCATHA(API) StrongReferenceCycle: public IssueBase {
