@@ -287,7 +287,7 @@ void Context::analyze(ast::IfStatement& is) {
     if (iss.fatal()) {
         return;
     }
-    dispatch(*is.ifBlock);
+    dispatch(*is.thenBlock);
     if (iss.fatal()) {
         return;
     }

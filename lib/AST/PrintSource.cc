@@ -169,7 +169,7 @@ void Context::print(IfStatement const& is) {
     str << "if ";
     dispatch(*is.condition);
     str << " ";
-    dispatch(*is.ifBlock);
+    dispatch(*is.thenBlock);
     if (!is.elseBlock) {
         return;
     }

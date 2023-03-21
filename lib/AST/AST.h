@@ -631,7 +631,7 @@ public:
                          UniquePtr<Statement> elseBlock):
         ControlFlowStatement(NodeType::IfStatement, token),
         condition(std::move(condition)),
-        ifBlock(std::move(ifBlock)),
+        thenBlock(std::move(ifBlock)),
         elseBlock(std::move(elseBlock)) {}
 
     /// Condition to branch on.
@@ -640,7 +640,7 @@ public:
     UniquePtr<Expression> condition;
 
     /// Statement to execute if condition is true.
-    UniquePtr<Statement> ifBlock;
+    UniquePtr<Statement> thenBlock;
 
     /// Statement to execute if condition is false.
     UniquePtr<Statement> elseBlock;

@@ -206,9 +206,9 @@ void CodeGenContext::generateImpl(ReturnStatement const& retDecl) {
 
 void CodeGenContext::generateImpl(IfStatement const& ifStatement) {
     auto* condition = getValue(*ifStatement.condition);
-    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("then"));
+    auto* thenBlock = new ir::BasicBlock(irCtx, localUniqueName("if.then"));
     auto* elseBlock = ifStatement.elseBlock ?
-                          new ir::BasicBlock(irCtx, localUniqueName("else")) :
+                          new ir::BasicBlock(irCtx, localUniqueName("if.else")) :
                           nullptr;
     auto* endBlock  = new ir::BasicBlock(irCtx, localUniqueName("if.end"));
     auto* branch    = new ir::Branch(irCtx,
@@ -223,7 +223,7 @@ void CodeGenContext::generateImpl(IfStatement const& ifStatement) {
         auto* gotoEnd = new ir::Goto(irCtx, endBlock);
         currentBB()->pushBack(gotoEnd);
     };
-    addBlock(thenBlock, *ifStatement.ifBlock);
+    addBlock(thenBlock, *ifStatement.thenBlock);
     if (ifStatement.elseBlock) {
         addBlock(elseBlock, *ifStatement.elseBlock);
     }

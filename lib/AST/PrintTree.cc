@@ -126,7 +126,7 @@ void Context::print(ReturnStatement const& returnStatement, int ind) {
 void Context::print(IfStatement const& ifStatement, int ind) {
     str << indent(ind) << "<if-statement> " << endl;
     dispatch(ifStatement.condition.get(), ind + 1);
-    dispatch(ifStatement.ifBlock.get(), ind + 1);
+    dispatch(ifStatement.thenBlock.get(), ind + 1);
     dispatch(ifStatement.elseBlock.get(), ind + 1);
 }
 
