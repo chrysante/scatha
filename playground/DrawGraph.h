@@ -14,6 +14,12 @@ class BasicBlock;
 
 } // namespace scatha::ir
 
+namespace scatha::opt {
+
+class SCCCallGraph;
+
+} // namespace scatha::opt
+
 namespace playground {
 
 std::string drawGraphGeneric(
@@ -34,6 +40,11 @@ std::string drawUseGraph(scatha::ir::Module const& mod);
 
 void drawUseGraph(scatha::ir::Module const& mod,
                   std::filesystem::path const& outFilepath);
+
+std::string drawCallGraph(scatha::opt::SCCCallGraph const& callGraph);
+
+void drawCallGraph(scatha::opt::SCCCallGraph const& callGraph,
+                   std::filesystem::path const& outFilepath);
 
 } // namespace playground
 

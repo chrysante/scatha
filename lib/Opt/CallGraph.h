@@ -17,48 +17,91 @@ class Module;
 
 namespace scatha::opt {
 
-class SCATHA(API) CallGraph {
+class SCATHA(TEST_API) SCCCallGraph {
 public:
-    class Node: public opt::GraphNode<ir::Function*, Node> {
-        using Base = opt::GraphNode<ir::Function*, Node>;
+    class SCCNode;
+
+    /// Node representing a function
+    class FunctionNode: public opt::GraphNode<ir::Function*, FunctionNode> {
+        using Base = opt::GraphNode<ir::Function*, FunctionNode>;
 
     public:
         using Base::Base;
 
+        /// \returns the function corresponding to this node
         ir::Function* function() const { return payload(); }
+
+        /// \returns the SCC this function belongs to
+        SCCNode* scc() const { return _scc; }
+
+    private:
+        friend class SCCCallGraph;
+
+        SCCNode* _scc = nullptr;
+    };
+
+    /// Node representing an SCC
+    class SCCNode: public opt::GraphNode<void, SCCNode> {
+        using Base = opt::GraphNode<void, SCCNode>;
+
+    public:
+        using Base::Base;
+
+        /// \returns a view over the function nodes in this SCC
+        std::span<FunctionNode const* const> nodes() const { return _nodes; }
+
+        /// \returns a view over the functions this SCC
+        auto functions() const {
+            return _nodes | ranges::views::transform(
+                                [](auto* node) { return node->function(); });
+        }
+
+    private:
+        friend class SCCCallGraph;
+
+        utl::small_vector<FunctionNode*> _nodes;
     };
 
 public:
-    CallGraph()                            = default;
-    CallGraph(CallGraph const&)            = delete;
-    CallGraph(CallGraph&&)                 = default;
-    CallGraph& operator=(CallGraph const&) = delete;
-    CallGraph& operator=(CallGraph&&)      = default;
+    SCCCallGraph()                               = default;
+    SCCCallGraph(SCCCallGraph const&)            = delete;
+    SCCCallGraph(SCCCallGraph&&)                 = default;
+    SCCCallGraph& operator=(SCCCallGraph const&) = delete;
+    SCCCallGraph& operator=(SCCCallGraph&&)      = default;
 
-    static CallGraph build(ir::Module& mod);
+    /// Compute the `SCCCallGraph` of \p mod
+    static SCCCallGraph compute(ir::Module& mod);
 
-    Node const& operator[](ir::Function const* function) const {
-        auto itr = _nodes.find(function);
-        SC_ASSERT(itr != _nodes.end(), "Not found");
+    /// \returns the node corresponding to \p function
+    FunctionNode const& operator[](ir::Function const* function) const {
+        auto itr = _functions.find(function);
+        SC_ASSERT(itr != _functions.end(), "Not found");
         return *itr;
     }
 
-    auto const& nodes() const { return _nodes; }
+    /// \returns a view over the SCC's
+    std::span<SCCNode const> sccs() const { return _sccs; }
 
 private:
-    Node& findMut(ir::Function* function) {
-        return const_cast<Node&>(
+    void computeCallGraph(ir::Module&);
+
+    void computeSCCs();
+
+    FunctionNode& findMut(ir::Function* function) {
+        return const_cast<FunctionNode&>(
             (*this)[static_cast<ir::Function const*>(function)]);
     }
 
 private:
-    using NodeSet = utl::hashset<Node, Node::PayloadHash, Node::PayloadEqual>;
-    NodeSet _nodes;
-};
+    /// We are fine to use a potentially flat hashset here as long as we gather
+    /// all the nodes aka functions first and don't modify this afterwards.
+    using FuncNodeSet = utl::hashset<FunctionNode,
+                                     FunctionNode::PayloadHash,
+                                     FunctionNode::PayloadEqual>;
 
-SCATHA(API)
-utl::vector<utl::small_vector<ir::Function*>> computeSCCs(
-    CallGraph const& callGraph);
+    FuncNodeSet _functions;
+    utl::vector<SCCNode> _sccs;
+};
 
 } // namespace scatha::opt
 

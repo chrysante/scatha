@@ -12,9 +12,11 @@
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
+#include "Opt/CallGraph.h"
 
 using namespace scatha;
 using namespace ir;
+using namespace opt;
 
 namespace {
 
@@ -61,7 +63,8 @@ struct Ctx {
     std::stringstream str;
 };
 
-static constexpr auto font = "SF Mono";
+static constexpr auto font     = "SF Pro";
+static constexpr auto monoFont = "SF Mono";
 
 } // namespace
 
@@ -117,7 +120,7 @@ std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
         str << dotName(bb) << " [ label = ";
         str << "<\n";
         auto prolog = [&] {
-            str << "    " << rowBegin << fontBegin(font) << "\n";
+            str << "    " << rowBegin << fontBegin(monoFont) << "\n";
         };
         auto epilog = [&] { str << "    " << fontEnd << rowEnd << "\n"; };
         str << "  " << tableBegin << "\n";
@@ -155,7 +158,7 @@ std::string playground::drawUseGraph(scatha::ir::Module const& mod) {
                                Function const& function) {};
     auto declareCallback  = [](std::stringstream& str, BasicBlock const& bb) {
         str << "subgraph cluster_" << dotName(bb) << " {\n";
-        str << "  fontname = \"" << font << "\"\n";
+        str << "  fontname = \"" << monoFont << "\"\n";
         str << "  "
             << "label = \"%" << bb.name() << "\"";
         for (auto& inst: bb) {
@@ -218,7 +221,6 @@ void Ctx::beginModule() {
     str << "digraph {\n";
     str << "  rankdir=TB;\n";
     str << "  compound=true;\n";
-    str << "  fontname = \"" << font << "\";\n";
     str << "  node [ shape = box ]\n";
 }
 
@@ -229,9 +231,9 @@ void Ctx::endModule() {
 void Ctx::beginFunction(ir::Function const& function) {
     currentFunction = &function;
     str << "subgraph cluster_" << function.name() << " {\n";
-    str << "  fontname = \"" << font << "\"\n";
-    str << "  "
-        << "label = \"@" << function.name() << "\"";
+    str << "  fontname = \"" << monoFont << "\"\n";
+    str << "  label = \"@" << function.name() << "\"\n";
+    str << "  rank=same\n";
 }
 
 void Ctx::endFunction() {
@@ -258,4 +260,102 @@ static std::string dotName(Value const& value) {
         [](char c) { return c == '.' || c == '-'; },
         '_');
     return result;
+}
+
+namespace {
+
+struct CallGraphContext {
+    CallGraphContext(SCCCallGraph const& callGraph): callGraph(callGraph) {}
+
+    std::string run();
+
+    void declare(SCCCallGraph::SCCNode const&);
+    void declare(SCCCallGraph::FunctionNode const&);
+
+    void connect(SCCCallGraph::SCCNode const&);
+    void connect(SCCCallGraph::FunctionNode const&);
+
+    size_t index(SCCCallGraph::SCCNode const& node) {
+        auto itr = sccIndexMap.find(&node);
+        if (itr == sccIndexMap.end()) {
+            itr = sccIndexMap.insert({ &node, sccIndex++ }).first;
+        }
+        return itr->second;
+    }
+
+    SCCCallGraph const& callGraph;
+    std::stringstream str;
+    size_t sccIndex = 0;
+    utl::hashmap<SCCCallGraph::SCCNode const*, size_t> sccIndexMap;
+};
+
+} // namespace
+
+std::string playground::drawCallGraph(SCCCallGraph const& callGraph) {
+    CallGraphContext ctx(callGraph);
+    return ctx.run();
+}
+
+void playground::drawCallGraph(SCCCallGraph const& callGraph,
+                               std::filesystem::path const& outFilepath) {
+    std::fstream file(outFilepath, std::ios::out | std::ios::trunc);
+    file << drawCallGraph(callGraph);
+}
+
+std::string CallGraphContext::run() {
+    str << "digraph {\n";
+    str << "  rankdir=BT;\n";
+    str << "  compound=true;\n";
+    str << "  graph [ fontname=\"" << monoFont
+        << "\", nodesep=0.5, ranksep=0.5 ];\n";
+    str << "  node  [ fontname=\"" << monoFont << "\" ];\n";
+    str << "  edge  [ fontname=\"" << monoFont << "\" ];\n";
+    str << "  node  [ shape=ellipse ]\n";
+    str << "\n  // We first declare all the nodes \n";
+    for (auto& scc: callGraph.sccs()) {
+        declare(scc);
+    }
+    str << "\n  // And then define the edges \n";
+    for (auto& scc: callGraph.sccs()) {
+        connect(scc);
+    }
+    str << "} // digraph\n";
+    return std::move(str).str();
+}
+
+void CallGraphContext::declare(SCCCallGraph::SCCNode const& scc) {
+    str << "  subgraph cluster_" << index(scc) << " {\n";
+    str << "    style=filled\n";
+    str << "    bgcolor=\"#0000ff11\"\n";
+    str << "    node [ shape=circle, style=filled, fillcolor=white ]\n";
+    for (auto* function: scc.nodes()) {
+        declare(*function);
+    }
+    str << "  } // subgraph cluster_" << index(scc) << "\n\n";
+}
+
+void CallGraphContext::declare(SCCCallGraph::FunctionNode const& node) {
+    str << "    " << node.function()->name() << "\n";
+}
+
+void CallGraphContext::connect(SCCCallGraph::SCCNode const& scc) {
+    for (auto& succ: scc.successors()) {
+        str << "  " << scc.functions().front()->name() << " -> "
+            << succ.functions().front()->name() << "[ltail=cluster_"
+            << index(scc) << ", lhead=cluster_" << index(succ) << "]"
+            << "\n";
+    }
+    for (auto* func: scc.nodes()) {
+        connect(*func);
+    }
+}
+
+void CallGraphContext::connect(SCCCallGraph::FunctionNode const& node) {
+    for (auto& succ: node.successors()) {
+        str << "  " << node.function()->name() << " -> "
+            << succ.function()->name() << "\n";
+        if (node.scc() != succ.scc()) {
+            str << "[style=dashed, color=\"#00000080\", arrowhead=empty]\n";
+        }
+    }
 }

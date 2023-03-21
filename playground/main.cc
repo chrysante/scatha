@@ -13,6 +13,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IRDump.h"
+#include "Opt/CallGraph.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/MemToReg.h"
@@ -26,6 +27,7 @@ enum class ProgramCase {
     Volatile,
     ASMTest,
     EmitCFG,
+    EmitCallGraph,
     EmitUseGraph,
     OptTest,
     APFloatTest
@@ -72,6 +74,7 @@ int main(int argc, char const* const* argv) {
         { "volatile", ProgramCase::Volatile },
         { "test-asm", ProgramCase::ASMTest },
         { "emit-cfg", ProgramCase::EmitCFG },
+        { "emit-callgraph", ProgramCase::EmitCallGraph },
         { "emit-use-graph", ProgramCase::EmitUseGraph },
         { "opt-test", ProgramCase::OptTest },
         { "apfloat-test", ProgramCase::APFloatTest }
@@ -106,7 +109,7 @@ int main(int argc, char const* const* argv) {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
-                                 "graphviz/cfg.gv");
+                                 "graphviz/cfg-none.gv");
         for (auto& function: mod.functions()) {
             scatha::opt::memToReg(ctx, function);
         }
@@ -125,6 +128,14 @@ int main(int argc, char const* const* argv) {
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
                                  "graphviz/cfg-dce.gv");
+        break;
+    }
+    case ProgramCase::EmitCallGraph: {
+        auto [ctx, mod] = makeIRModuleFromFile(filepath);
+        auto callGraph  = scatha::opt::SCCCallGraph::compute(mod);
+        drawCallGraph(callGraph,
+                      std::filesystem::path(PROJECT_LOCATION) /
+                          "graphviz/callgraph.gv");
         break;
     }
     case ProgramCase::EmitUseGraph: {

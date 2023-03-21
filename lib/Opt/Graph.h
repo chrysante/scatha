@@ -1,6 +1,7 @@
 #ifndef SCATHA_OPT_GRAPH_H_
 #define SCATHA_OPT_GRAPH_H_
 
+#include <concepts>
 #include <type_traits>
 
 #include <range/v3/algorithm.hpp>
@@ -9,21 +10,63 @@
 
 namespace scatha::opt {
 
+namespace internal {
+
+template <typename Payload,
+          bool IsTrivial =
+              (sizeof(Payload) <= 16) && std::is_trivially_copyable_v<Payload>>
+struct PayloadViewImpl /* IsTrivial = true*/ {
+    using type = Payload;
+};
+
+template <typename Payload>
+struct PayloadViewImpl<Payload, false> {
+    using type = Payload const&;
+};
+
+template <typename Payload>
+struct PayloadView: PayloadViewImpl<Payload> {};
+
+template <>
+struct PayloadView<void> {
+    using type = void;
+};
+
+template <typename T>
+struct PayloadWrapper {
+    T value;
+};
+
+template <>
+struct PayloadWrapper<void> {};
+
+} // namespace internal
+
+/// A generic graph or tree node. It is intended to be subclassed with CRTP.
+///
+/// \param Payload Can be anything including `void`
+/// Some TMP trickery happens to ensure no unnecessary copies are made when
+/// passing payloads from and to functions.
+///
+/// \param Derived The derived class, used by CRTP. Can also be void, then no
+/// CRTP is happening.
+///
+/// \param IsTree Wether this node shall be a tree node.
+/// If so, it implements a `.parent()` and a `.children()` method.
+/// Otherwise it implements a `.predecessors()` and a `.successors()` method.
 template <typename Payload, typename Derived = void, bool IsTree = false>
 class GraphNode {
     /// Return and pass small trivial types by value, everything else by
     /// `const&`.
-    using PayloadView =
-        std::conditional_t<(sizeof(Payload) <= 16) &&
-                               std::is_trivially_copyable_v<Payload>,
-                           Payload,
-                           Payload const&>;
+    using PayloadView = typename internal::PayloadView<Payload>::type;
 
     /// To add const-ness to the pointee if payload is a pointer.
     using PayloadViewConstPtr =
         std::conditional_t<std::is_pointer_v<PayloadView>,
                            std::remove_pointer_t<PayloadView> const*,
                            PayloadView>;
+
+    static constexpr bool hasPayload = !std::is_same_v<Payload, void>;
 
     /// Either `GraphNode` or `Derived` is specified.
     using Self =
@@ -62,11 +105,23 @@ public:
         }
     };
 
-    explicit GraphNode(Payload const& payload): _payload(payload) {}
+    GraphNode()
+    requires std::is_default_constructible_v<internal::PayloadWrapper<Payload>>
+        : _payload{} {}
 
-    explicit GraphNode(Payload&& payload): _payload(std::move(payload)) {}
+    template <typename P = Payload>
+    requires hasPayload
+    explicit GraphNode(P const& payload): _payload{ payload } {}
 
-    PayloadView payload() const { return _payload; }
+    template <typename P = Payload>
+    requires hasPayload
+    explicit GraphNode(P&& payload): _payload{ std::move(payload) } {}
+
+    PayloadView payload() const
+    requires hasPayload
+    {
+        return _payload.value;
+    }
 
     Self const& parent() const
     requires IsTree
@@ -104,12 +159,14 @@ public:
         addEdgeImpl(_parentLink, pred);
     }
 
+    /// Add \p succ as successor if it is not already a successor
     void addSuccessor(Self* succ)
     requires(!IsTree)
     {
         addEdgeImpl(_outgoingEdges, succ);
     }
 
+    /// \returns a view over references to successors
     auto successors() const
     requires(!IsTree)
     {
@@ -135,7 +192,7 @@ private:
     }
 
 private:
-    Payload _payload;
+    [[no_unique_address]] internal::PayloadWrapper<Payload> _payload;
     ParentLink _parentLink{};
     utl::small_vector<Self*> _outgoingEdges;
 };
