@@ -405,6 +405,10 @@ public:
     /// \overload
     std::span<BasicBlock const* const> predecessors() const { return preds; }
 
+    /// Update the predecessor \p oldPred to \p newPred
+    /// \pre \p oldPred must be a predecessor of this basic block.
+    void updatePredecessor(BasicBlock const* oldPred, BasicBlock* newPred);
+
     /// \returns `true`iff \p *possiblePred is a predecessor of this basic
     /// block.
     bool isPredecessor(BasicBlock const* possiblePred) const {

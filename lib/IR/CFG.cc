@@ -131,6 +131,13 @@ TerminatorInst const* BasicBlock::terminator() const {
     return dyncast<TerminatorInst const*>(&back());
 }
 
+void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
+                                   BasicBlock* newPred) {
+    auto itr = ranges::find(preds, oldPred);
+    SC_ASSERT(itr != ranges::end(preds), "Not found");
+    *itr = newPred;
+}
+
 Return::Return(Context& context): Return(context, context.voidValue()) {}
 
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):

@@ -326,35 +326,53 @@ std::string CallGraphContext::run() {
 void CallGraphContext::declare(SCCCallGraph::SCCNode const& scc) {
     str << "  subgraph cluster_" << index(scc) << " {\n";
     str << "    style=filled\n";
-    str << "    bgcolor=\"#0000ff11\"\n";
+    auto const color = [&]() -> std::string {
+        if (scc.predecessors().empty()) {
+            if (scc.successors().empty()) {
+                return "#00000011";
+            }
+            else {
+                return "#0000ff11";
+            }
+        }
+        else {
+            if (scc.successors().empty()) {
+                return "#ff000011";
+            }
+            else {
+                return "#00000011";
+            }
+        }
+    }();
+    str << "    bgcolor=\"" << color << "\"\n";
     str << "    node [ shape=circle, style=filled, fillcolor=white ]\n";
-    for (auto* function: scc.nodes()) {
-        declare(*function);
+    for (auto& function: scc.nodes()) {
+        declare(function);
     }
     str << "  } // subgraph cluster_" << index(scc) << "\n\n";
 }
 
 void CallGraphContext::declare(SCCCallGraph::FunctionNode const& node) {
-    str << "    " << node.function()->name() << "\n";
+    str << "    " << node.function().name() << "\n";
 }
 
 void CallGraphContext::connect(SCCCallGraph::SCCNode const& scc) {
     for (auto& succ: scc.successors()) {
-        str << "  " << scc.functions().front()->name() << " -> "
-            << succ.functions().front()->name() << "[ltail=cluster_"
+        str << "  " << scc.functions().front().name() << " -> "
+            << succ.functions().front().name() << "[ltail=cluster_"
             << index(scc) << ", lhead=cluster_" << index(succ) << "]"
             << "\n";
     }
-    for (auto* func: scc.nodes()) {
-        connect(*func);
+    for (auto& func: scc.nodes()) {
+        connect(func);
     }
 }
 
 void CallGraphContext::connect(SCCCallGraph::FunctionNode const& node) {
     for (auto& succ: node.successors()) {
-        str << "  " << node.function()->name() << " -> "
-            << succ.function()->name() << "\n";
-        if (node.scc() != succ.scc()) {
+        str << "  " << node.function().name() << " -> "
+            << succ.function().name() << "\n";
+        if (&node.scc() != &succ.scc()) {
             str << "[style=dashed, color=\"#00000080\", arrowhead=empty]\n";
         }
     }

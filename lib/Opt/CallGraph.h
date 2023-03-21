@@ -6,14 +6,8 @@
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
+#include "IR/Common.h"
 #include "Opt/Graph.h"
-
-namespace scatha::ir {
-
-class Function;
-class Module;
-
-} // namespace scatha::ir
 
 namespace scatha::opt {
 
@@ -29,15 +23,28 @@ public:
         using Base::Base;
 
         /// \returns the function corresponding to this node
-        ir::Function* function() const { return payload(); }
+        ir::Function& function() const { return *payload(); }
 
         /// \returns the SCC this function belongs to
-        SCCNode* scc() const { return _scc; }
+        SCCNode& scc() const { return *_scc; }
+
+        /// \returns the callers of this function. Same as `predecessors()`
+        auto callers() const { return predecessors(); }
+
+        /// \returns the callees of this function. Same as `successors()`
+        auto callees() const { return successors(); }
+
+        /// \returns all `call` instructions in this function that call \p
+        /// callee
+        std::span<ir::FunctionCall* const> callsites(
+            FunctionNode const& callee) const;
 
     private:
         friend class SCCCallGraph;
 
         SCCNode* _scc = nullptr;
+        utl::hashmap<FunctionNode const*, utl::small_vector<ir::FunctionCall*>>
+            _callsites;
     };
 
     /// Node representing an SCC
@@ -48,12 +55,16 @@ public:
         using Base::Base;
 
         /// \returns a view over the function nodes in this SCC
-        std::span<FunctionNode const* const> nodes() const { return _nodes; }
+        auto nodes() const {
+            return _nodes | ranges::views::transform(
+                                [](auto* p) -> auto const& { return *p; });
+        }
 
         /// \returns a view over the functions this SCC
         auto functions() const {
-            return _nodes | ranges::views::transform(
-                                [](auto* node) { return node->function(); });
+            return _nodes | ranges::views::transform([](auto* node) -> auto& {
+                       return node->function();
+                   });
         }
 
     private:

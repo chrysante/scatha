@@ -105,6 +105,10 @@ static BasicBlock* clone(Context& context, BasicBlock* bb, ValueMap& valueMap) {
         valueMap[&inst] = cloned;
         result->pushBack(cloned);
     }
+    /// While this may look sketchy, we will remap these to their counterparts
+    /// in the cloned function later. We just add them here to have something to
+    /// remap.
+    result->setPredecessors(bb->predecessors());
     return result;
 }
 

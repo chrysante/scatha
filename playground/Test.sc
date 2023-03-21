@@ -1,48 +1,26 @@
 /*
-/// SCC 0
-fn main() {
-    f();
-    i();
-    z();
-}
+fn A() { B(); }
+fn B() { C(); D(); }
+fn C() { A(); }
+fn D() { E(); X(); X(); X(); }
+fn E() { F(); G(); }
+fn F() { D(); }
+fn G() { H(); }
+fn H() { I(); I2(); }
+fn I() { G(); }
+fn I2() { G(); }
 
-/// SCC 1
-fn f() { g(); }
-
-fn g() { z(); h(); }
-
-fn h() { f(); }
-
-/// SCC 2
-fn i() { j(true); }
-
-fn j(cond: bool) {
-    if cond {
-        z();
-    }
-    else {
-        k();
-    }
-}
-
-fn k() { i(); }
-
-/// SCC 3
-fn z() {  }
+fn X() { Y(); }
+fn Y() {  }
 */
 
 fn main() -> int {
-    let i = 20;
-    return f(i);
+    return f(1);
 }
 
 fn f(n: int) -> int {
-    var i = 0;
-    while i < n {
-        ++i;
-        if i > 10 {
-            return -1;
-        }
-    }
-    return i;
+    return n > zero() ? pass(n) : zero();
 }
+
+fn pass(n: int) -> int { return n; }
+fn zero() -> int { return 0; }

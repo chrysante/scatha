@@ -181,6 +181,13 @@ void PrintCtx::print(Function const& function) {
 
 void PrintCtx::print(BasicBlock const& bb) {
     str << indent << formatName(bb) << ":\n";
+    tfmt::pushModifier(tfmt::brightGrey, str);
+    str << "    # preds: ";
+    for (bool first = true; auto* pred: bb.predecessors()) {
+        str << (first ? first = false, "" : ", ") << pred->name();
+    }
+    tfmt::popModifier(str);
+    str << "\n";
     indent.increase();
     for (auto& instruction: bb) {
         dispatch(instruction);

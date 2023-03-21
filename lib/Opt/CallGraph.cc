@@ -9,6 +9,13 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
+std::span<ir::FunctionCall* const> SCCCallGraph::FunctionNode::callsites(
+    FunctionNode const& callee) const {
+    auto itr = _callsites.find(&callee);
+    SC_ASSERT(itr != _callsites.end(), "Not found");
+    return itr->second;
+}
+
 SCCCallGraph SCCCallGraph::compute(Module& mod) {
     SCCCallGraph result;
     result.computeCallGraph(mod);
@@ -32,6 +39,7 @@ void SCCCallGraph::computeCallGraph(Module& mod) {
             auto& succNode = findMut(call->function());
             thisNode.addSuccessor(&succNode);
             succNode.addPredecessor(&thisNode);
+            thisNode._callsites[&succNode].push_back(call);
         }
     }
 }
@@ -132,14 +140,14 @@ void SCCCallGraph::computeSCCs() {
     /// Then we set up the remaining links to make the set of SCC's into a graph
     /// representing the call graph.
     for (auto& scc: _sccs) {
-        for (auto* function: scc._nodes) {
-            for (auto& succ: function->successors()) {
-                auto* succSCC = succ.scc();
-                if (succSCC == &scc) {
+        for (auto& function: scc.nodes()) {
+            for (auto& succ: function.successors()) {
+                auto& succSCC = succ.scc();
+                if (&succSCC == &scc) {
                     continue;
                 }
-                scc.addSuccessor(succSCC);
-                succSCC->addPredecessor(&scc);
+                scc.addSuccessor(&succSCC);
+                succSCC.addPredecessor(&scc);
             }
         }
     }

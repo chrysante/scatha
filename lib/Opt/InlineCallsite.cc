@@ -23,12 +23,20 @@ void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
         }
     }
     auto* newGoto = new Goto(ctx, &calleeClone->entry());
+    calleeClone->entry().setPredecessors(std::array{ callerBB });
     callerBB->insert(call, newGoto);
     auto* landingpad =
         new BasicBlock(ctx, ctx.uniqueName(caller, "inline.landingpad"));
     landingpad->splice(landingpad->begin(),
                        BasicBlock::Iterator(newGoto->next()),
                        callerBB->end());
+    for (auto* succ: landingpad->successors()) {
+        succ->updatePredecessor(callerBB, landingpad);
+        for (auto& phi: succ->phiNodes()) {
+            size_t const index = phi.indexOf(callerBB);
+            phi.setPredecessor(index, landingpad);
+        }
+    }
     caller->insert(callerBB->next(), landingpad);
     /// Replace all parameters with the callers arguments.
     for (auto [param, arg]:
