@@ -22,7 +22,7 @@
     fn f(x: X mut&) -> X mut& {
         var y: X = { /\*\*/ };
         x = y;    // Assign y to x.
-        return x; // Well formed, x's' lifetime is independent of f.
+        return x; // Well formed, x's lifetime is independent of f.
     }
     
     fn g() -> X mut& {

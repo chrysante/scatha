@@ -46,7 +46,11 @@ void playground::volatilePlayground(std::filesystem::path path) {
     opt::memToReg(ctx, main);
     opt::memToReg(ctx, f);
     header(" Before inlining ");
-    ir::print(mod);
+//    ir::print(mod);
+    
+    auto const uninlinedAsm = cg::codegen(mod);
+    print(uninlinedAsm);
+    
     auto itr =
         ranges::find_if(main.instructions(), [](ir::Instruction const& inst) {
             return isa<ir::FunctionCall>(inst);
@@ -58,8 +62,9 @@ void playground::volatilePlayground(std::filesystem::path path) {
     auto& callInst = *itr;
     opt::inlineCallsite(ctx, cast<ir::FunctionCall*>(&callInst));
     header(" After inlining ");
-    ir::print(mod);
+//    ir::print(mod);
     auto const assembly = cg::codegen(mod);
+    print(assembly);
     auto const program =
         Asm::assemble(assembly, { .startFunction = std::string(main.name()) });
     svm::VirtualMachine vm;

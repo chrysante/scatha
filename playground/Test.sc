@@ -1,6 +1,6 @@
 
 fn main() -> int {
-    let i = 1 + 20;
+    let i = 20;
     return f(i);
 }
 
