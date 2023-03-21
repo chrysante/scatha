@@ -202,9 +202,14 @@ void Context::translate(SetInst const& set) {
 
 void Context::translate(UnaryArithmeticInst const& inst) {
     switch (inst.operation()) {
-    case UnaryArithmeticOperation::LogicalNot: put(OpCode::lnt); break;
-    case UnaryArithmeticOperation::BitwiseNot: put(OpCode::bnt); break;
-    default: SC_UNREACHABLE();
+    case UnaryArithmeticOperation::LogicalNot:
+        put(OpCode::lnt);
+        break;
+    case UnaryArithmeticOperation::BitwiseNot:
+        put(OpCode::bnt);
+        break;
+    default:
+        SC_UNREACHABLE();
     }
     translate(inst.operand());
 }

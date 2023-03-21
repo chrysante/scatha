@@ -31,11 +31,16 @@ ValueType Asm::promote(ValueType type, size_t size) {
         return type;
     }
     switch (std::max(size, sizeOf(type))) {
-    case 1: return ValueType::Value8;
-    case 2: return ValueType::Value16;
-    case 4: return ValueType::Value32;
-    case 8: return ValueType::Value64;
-    default: SC_UNREACHABLE();
+    case 1:
+        return ValueType::Value8;
+    case 2:
+        return ValueType::Value16;
+    case 4:
+        return ValueType::Value32;
+    case 8:
+        return ValueType::Value64;
+    default:
+        SC_UNREACHABLE();
     }
 }
 

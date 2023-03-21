@@ -89,7 +89,8 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
         return ExpressionAnalysisResult::fail();
     }
     switch (u.operation()) {
-    case ast::UnaryPrefixOperator::Promotion: [[fallthrough]];
+    case ast::UnaryPrefixOperator::Promotion:
+        [[fallthrough]];
     case ast::UnaryPrefixOperator::Negation:
         if (operandType.symbolID() != sym.Int() &&
             operandType.symbolID() != sym.Float())
@@ -110,14 +111,16 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
             return ExpressionAnalysisResult::fail();
         }
         break;
-    case ast::UnaryPrefixOperator::Increment: [[fallthrough]];
+    case ast::UnaryPrefixOperator::Increment:
+        [[fallthrough]];
     case ast::UnaryPrefixOperator::Decrement:
         if (operandType.symbolID() != sym.Int()) {
             submitIssue();
             return ExpressionAnalysisResult::fail();
         }
         break;
-    case ast::UnaryPrefixOperator::_count: SC_DEBUGFAIL();
+    case ast::UnaryPrefixOperator::_count:
+        SC_DEBUGFAIL();
     }
     u.decorate(u.operand->typeID(), ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(u.typeID());
@@ -171,7 +174,8 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
         id.decorate(symbolID, TypeID::Invalid, ast::ValueCategory::None);
         return ExpressionAnalysisResult::lvalue(symbolID, TypeID::Invalid);
     }
-    default: SC_DEBUGFAIL(); // Maybe push an issue here?
+    default:
+        SC_DEBUGFAIL(); // Maybe push an issue here?
     }
 }
 
@@ -369,9 +373,12 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
 
     switch (expr.operation()) {
         using enum ast::BinaryOperator;
-    case Multiplication: [[fallthrough]];
-    case Division: [[fallthrough]];
-    case Addition: [[fallthrough]];
+    case Multiplication:
+        [[fallthrough]];
+    case Division:
+        [[fallthrough]];
+    case Addition:
+        [[fallthrough]];
     case Subtraction:
         if (!verifySame()) {
             return TypeID::Invalid;
@@ -390,8 +397,10 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
         }
         return expr.lhs->typeID();
 
-    case BitwiseAnd: [[fallthrough]];
-    case BitwiseXOr: [[fallthrough]];
+    case BitwiseAnd:
+        [[fallthrough]];
+    case BitwiseXOr:
+        [[fallthrough]];
     case BitwiseOr:
         if (!verifySame()) {
             return TypeID::Invalid;
@@ -401,7 +410,8 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
         }
         return expr.lhs->typeID();
 
-    case LeftShift: [[fallthrough]];
+    case LeftShift:
+        [[fallthrough]];
     case RightShift:
         if (expr.lhs->typeID() != sym.Int()) {
             submitIssue();
@@ -413,9 +423,12 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
         }
         return expr.lhs->typeID();
 
-    case Less: [[fallthrough]];
-    case LessEq: [[fallthrough]];
-    case Greater: [[fallthrough]];
+    case Less:
+        [[fallthrough]];
+    case LessEq:
+        [[fallthrough]];
+    case Greater:
+        [[fallthrough]];
     case GreaterEq:
         if (!verifySame()) {
             return TypeID::Invalid;
@@ -424,7 +437,8 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
             return TypeID::Invalid;
         }
         return sym.Bool();
-    case Equals: [[fallthrough]];
+    case Equals:
+        [[fallthrough]];
     case NotEquals:
         if (!verifySame()) {
             return TypeID::Invalid;
@@ -436,7 +450,8 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
         }
         return sym.Bool();
 
-    case LogicalAnd: [[fallthrough]];
+    case LogicalAnd:
+        [[fallthrough]];
     case LogicalOr:
         if (!verifySame()) {
             return TypeID::Invalid;
@@ -446,25 +461,37 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
         }
         return sym.Bool();
 
-    case Assignment: [[fallthrough]];
-    case AddAssignment: [[fallthrough]];
-    case SubAssignment: [[fallthrough]];
-    case MulAssignment: [[fallthrough]];
-    case DivAssignment: [[fallthrough]];
-    case RemAssignment: [[fallthrough]];
-    case LSAssignment: [[fallthrough]];
-    case RSAssignment: [[fallthrough]];
-    case AndAssignment: [[fallthrough]];
-    case OrAssignment: [[fallthrough]];
+    case Assignment:
+        [[fallthrough]];
+    case AddAssignment:
+        [[fallthrough]];
+    case SubAssignment:
+        [[fallthrough]];
+    case MulAssignment:
+        [[fallthrough]];
+    case DivAssignment:
+        [[fallthrough]];
+    case RemAssignment:
+        [[fallthrough]];
+    case LSAssignment:
+        [[fallthrough]];
+    case RSAssignment:
+        [[fallthrough]];
+    case AndAssignment:
+        [[fallthrough]];
+    case OrAssignment:
+        [[fallthrough]];
     case XOrAssignment:
         if (!verifySame()) {
             return TypeID::Invalid;
         }
         return sym.Void();
 
-    case Comma: return expr.rhs->typeID();
+    case Comma:
+        return expr.rhs->typeID();
 
-    case _count: SC_DEBUGFAIL();
+    case _count:
+        SC_DEBUGFAIL();
     }
 }
 

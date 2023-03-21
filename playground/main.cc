@@ -90,10 +90,18 @@ int main(int argc, char const* const* argv) {
         std::filesystem::path(PROJECT_LOCATION) / "playground/Test.sc";
     using namespace playground;
     switch (theCase) {
-    case ProgramCase::SampleCompiler: compile(filepath); break;
-    case ProgramCase::IRDump: irDumpFromFile(filepath); break;
-    case ProgramCase::Volatile: volatilePlayground(filepath); break;
-    case ProgramCase::ASMTest: testAsmModule(); break;
+    case ProgramCase::SampleCompiler:
+        compile(filepath);
+        break;
+    case ProgramCase::IRDump:
+        irDumpFromFile(filepath);
+        break;
+    case ProgramCase::Volatile:
+        volatilePlayground(filepath);
+        break;
+    case ProgramCase::ASMTest:
+        testAsmModule();
+        break;
     case ProgramCase::EmitCFG: {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);
         drawControlFlowGraph(mod,
@@ -126,8 +134,13 @@ int main(int argc, char const* const* argv) {
                          "graphviz/use-graph.gv");
         break;
     }
-    case ProgramCase::OptTest: optTest(filepath); break;
-    case ProgramCase::APFloatTest: apFloatTest(); break;
-    default: break;
+    case ProgramCase::OptTest:
+        optTest(filepath);
+        break;
+    case ProgramCase::APFloatTest:
+        apFloatTest();
+        break;
+    default:
+        break;
     }
 }

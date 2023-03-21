@@ -12,30 +12,46 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest,
                                        size_t size) {
     if (dest == ValueType::RegisterIndex) {
         switch (source) {
-        case ValueType::RegisterIndex: return { OpCode::mov64RR, 8 };
+        case ValueType::RegisterIndex:
+            return { OpCode::mov64RR, 8 };
         case ValueType::MemoryAddress:
             switch (size) {
-            case 1: return { OpCode::mov8RM, 1 };
-            case 2: return { OpCode::mov16RM, 2 };
-            case 4: return { OpCode::mov32RM, 4 };
-            case 8: return { OpCode::mov64RM, 8 };
-            default: SC_UNREACHABLE();
+            case 1:
+                return { OpCode::mov8RM, 1 };
+            case 2:
+                return { OpCode::mov16RM, 2 };
+            case 4:
+                return { OpCode::mov32RM, 4 };
+            case 8:
+                return { OpCode::mov64RM, 8 };
+            default:
+                SC_UNREACHABLE();
             }
-        case ValueType::Value8: [[fallthrough]];
-        case ValueType::Value16: [[fallthrough]];
-        case ValueType::Value32: [[fallthrough]];
-        case ValueType::Value64: return { OpCode::mov64RV, 8 };
-        default: SC_DEBUGFAIL(); // No matching instruction
+        case ValueType::Value8:
+            [[fallthrough]];
+        case ValueType::Value16:
+            [[fallthrough]];
+        case ValueType::Value32:
+            [[fallthrough]];
+        case ValueType::Value64:
+            return { OpCode::mov64RV, 8 };
+        default:
+            SC_DEBUGFAIL(); // No matching instruction
         }
     }
     if (dest == ValueType::MemoryAddress && source == ValueType::RegisterIndex)
     {
         switch (size) {
-        case 1: return { OpCode::mov8MR, 1 };
-        case 2: return { OpCode::mov16MR, 2 };
-        case 4: return { OpCode::mov32MR, 4 };
-        case 8: return { OpCode::mov64MR, 8 };
-        default: SC_UNREACHABLE();
+        case 1:
+            return { OpCode::mov8MR, 1 };
+        case 2:
+            return { OpCode::mov16MR, 2 };
+        case 4:
+            return { OpCode::mov32MR, 4 };
+        case 8:
+            return { OpCode::mov64MR, 8 };
+        default:
+            SC_UNREACHABLE();
         }
     }
     SC_DEBUGFAIL(); // No matching instruction
@@ -152,7 +168,8 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation,
                 { ArithmeticOperation::Or,   OpCode::_count },
                 { ArithmeticOperation::XOr,  OpCode::_count },
             }); // clang-format on
-        case Type::_count: SC_UNREACHABLE();
+        case Type::_count:
+            SC_UNREACHABLE();
         }
     }
     if (dest == ValueType::RegisterIndex && source == ValueType::Value64) {
@@ -206,7 +223,8 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation,
                 { ArithmeticOperation::Or,   OpCode::_count },
                 { ArithmeticOperation::XOr,  OpCode::_count },
             }); // clang-format on
-        case Type::_count: SC_UNREACHABLE();
+        case Type::_count:
+            SC_UNREACHABLE();
         }
     }
     if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress)
@@ -261,7 +279,8 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation,
                 { ArithmeticOperation::Or,   OpCode::_count  },
                 { ArithmeticOperation::XOr,  OpCode::_count  },
             }); // clang-format on
-        case Type::_count: SC_UNREACHABLE();
+        case Type::_count:
+            SC_UNREACHABLE();
         }
     }
     SC_DEBUGFAIL(); // No matching instruction.

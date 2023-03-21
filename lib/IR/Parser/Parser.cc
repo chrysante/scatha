@@ -529,10 +529,14 @@ Type const* ParseContext::getType(Token const& token) {
         }
         return itr->get();
     }
-    case TokenKind::LocalIdentifier: return nullptr;
-    case TokenKind::IntType: return irCtx.integralType(token.width());
-    case TokenKind::FloatType: return irCtx.floatType(token.width());
-    default: return nullptr;
+    case TokenKind::LocalIdentifier:
+        return nullptr;
+    case TokenKind::IntType:
+        return irCtx.integralType(token.width());
+    case TokenKind::FloatType:
+        return irCtx.floatType(token.width());
+    default:
+        return nullptr;
     }
 }
 
@@ -582,7 +586,8 @@ Value* ParseContext::getValue(Token const& token) {
         value->zext(64);
         return irCtx.integralConstant(*value);
     }
-    default: throw ParseError(token.sourceLocation());
+    default:
+        throw ParseError(token.sourceLocation());
     }
 }
 

@@ -406,7 +406,8 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
                                            FormalValue const& lhs,
                                            FormalValue const& rhs) {
     switch (operation) {
-    case ArithmeticOperation::Add: [[fallthrough]];
+    case ArithmeticOperation::Add:
+        [[fallthrough]];
     case ArithmeticOperation::Sub:
         // clang-format off
         return utl::visit(utl::overload{
@@ -429,17 +430,28 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
             [](Inevaluable, Inevaluable) -> FormalValue { return Inevaluable{}; },
             [](auto const&, auto const&) -> FormalValue { return Unexamined{}; },
         }, lhs, rhs); // clang-format on
-    case ArithmeticOperation::Mul: [[fallthrough]];
-    case ArithmeticOperation::Div: [[fallthrough]];
-    case ArithmeticOperation::UDiv: [[fallthrough]];
-    case ArithmeticOperation::Rem: [[fallthrough]];
-    case ArithmeticOperation::URem: [[fallthrough]];
-    case ArithmeticOperation::LShL: [[fallthrough]];
-    case ArithmeticOperation::LShR: [[fallthrough]];
-    case ArithmeticOperation::AShL: [[fallthrough]];
-    case ArithmeticOperation::AShR: [[fallthrough]];
-    case ArithmeticOperation::And: [[fallthrough]];
-    case ArithmeticOperation::Or: [[fallthrough]];
+    case ArithmeticOperation::Mul:
+        [[fallthrough]];
+    case ArithmeticOperation::Div:
+        [[fallthrough]];
+    case ArithmeticOperation::UDiv:
+        [[fallthrough]];
+    case ArithmeticOperation::Rem:
+        [[fallthrough]];
+    case ArithmeticOperation::URem:
+        [[fallthrough]];
+    case ArithmeticOperation::LShL:
+        [[fallthrough]];
+    case ArithmeticOperation::LShR:
+        [[fallthrough]];
+    case ArithmeticOperation::AShL:
+        [[fallthrough]];
+    case ArithmeticOperation::AShR:
+        [[fallthrough]];
+    case ArithmeticOperation::And:
+        [[fallthrough]];
+    case ArithmeticOperation::Or:
+        [[fallthrough]];
     case ArithmeticOperation::XOr:
         // clang-format off
         return utl::visit(utl::overload{
@@ -492,7 +504,8 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
             [](APFloat const&, APInt const&) -> FormalValue { SC_UNREACHABLE(); }
         }, lhs, rhs); // clang-format on
 
-    default: return Inevaluable{};
+    default:
+        return Inevaluable{};
     }
 }
 

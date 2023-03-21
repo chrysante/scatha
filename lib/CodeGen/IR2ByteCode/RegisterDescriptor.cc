@@ -9,11 +9,16 @@ using namespace Asm;
 Value RegisterDescriptor::resolve(ir::Value const& value) {
     if (auto* const constant = dyncast<ir::IntegralConstant const*>(&value)) {
         switch (constant->type()->size()) {
-        case 1: return Value8(constant->value().to<u8>());
-        case 2: return Value16(constant->value().to<u16>());
-        case 4: return Value32(constant->value().to<u32>());
-        case 8: return Value64(constant->value().to<u64>());
-        default: SC_UNREACHABLE();
+        case 1:
+            return Value8(constant->value().to<u8>());
+        case 2:
+            return Value16(constant->value().to<u16>());
+        case 4:
+            return Value32(constant->value().to<u32>());
+        case 8:
+            return Value64(constant->value().to<u64>());
+        default:
+            SC_UNREACHABLE();
         }
     }
     else if (auto* constant = dyncast<ir::FloatingPointConstant const*>(&value))

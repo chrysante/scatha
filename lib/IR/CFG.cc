@@ -191,7 +191,8 @@ UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
                           1,
                   "Operand type must be i1");
         break;
-    default: SC_UNREACHABLE();
+    default:
+        SC_UNREACHABLE();
     }
 }
 

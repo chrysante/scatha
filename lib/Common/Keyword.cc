@@ -116,8 +116,10 @@ bool isDeclarator(Keyword k) {
     case Keyword::Struct:
     case Keyword::Function:
     case Keyword::Var:
-    case Keyword::Let: return true;
-    default: return false;
+    case Keyword::Let:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -128,8 +130,10 @@ bool isControlFlow(Keyword k) {
     case Keyword::Else:
     case Keyword::For:
     case Keyword::While:
-    case Keyword::Do: return true;
-    default: return false;
+    case Keyword::Do:
+        return true;
+    default:
+        return false;
     }
 }
 

@@ -33,11 +33,9 @@ void svm::print(u8 const* program) {
 template <typename T>
 static constexpr std::string_view typeToStr() {
 #define SVM_TYPETOSTR_CASE(type)                                               \
-    else if constexpr (std::is_same_v<T, type>) {                              \
-        return #type;                                                          \
-    }
+    else if constexpr (std::is_same_v<T, type>) { return #type; }
     if constexpr (false)
-        ;
+        ; /// First case for the macro to work. 
     SVM_TYPETOSTR_CASE(u8)
     SVM_TYPETOSTR_CASE(u16)
     SVM_TYPETOSTR_CASE(u32)
@@ -105,8 +103,12 @@ void svm::print(u8 const* progData, std::ostream& str) {
             printMemoryAcccess(i + 1);
             str << ", R[" << printAs<u8>(data, i + 4) << "]";
             break;
-        case R: str << "R[" << printAs<u8>(data, i + 1) << "]"; break;
-        case Jump: str << printAs<i32>(data, i + 1); break;
+        case R:
+            str << "R[" << printAs<u8>(data, i + 1) << "]";
+            break;
+        case Jump:
+            str << printAs<i32>(data, i + 1);
+            break;
         case Other:
             switch (opcode) {
             case OpCode::alloca_:
@@ -117,17 +119,21 @@ void svm::print(u8 const* progData, std::ostream& str) {
                 str << printAs<i32>(data, i + 1) << ", "
                     << printAs<u8>(data, i + 5);
                 break;
-            case OpCode::ret: break;
-            case OpCode::terminate: break;
+            case OpCode::ret:
+                break;
+            case OpCode::terminate:
+                break;
             case OpCode::callExt:
                 str << printAs<u8>(data, i + 1) << ", "
                     << printAs<u8>(data, i + 2) << ", "
                     << printAs<u16>(data, i + 3);
                 break;
-            default: assert(false);
+            default:
+                assert(false);
             }
             break;
-        case _count: assert(false);
+        case _count:
+            assert(false);
         }
         str << '\n';
         i += codeSize(opcode);

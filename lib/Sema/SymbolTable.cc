@@ -349,7 +349,8 @@ std::string SymbolTable::getName(SymbolID id) const {
         auto const* ptr = tryGetObjectType(id);
         return ptr ? std::string(ptr->name()) : "<invalid-type>";
     }
-    default: SC_UNREACHABLE();
+    default:
+        SC_UNREACHABLE();
     }
 }
 

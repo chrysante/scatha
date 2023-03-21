@@ -11,7 +11,8 @@ std::string_view ir::toString(NodeType nodeType) {
 #define SC_CGFNODE_DEF(Node, _) case NodeType::Node: return #Node;
 #include "IR/Lists.def"
         // clang-format on
-    case NodeType::_count: SC_UNREACHABLE();
+    case NodeType::_count:
+        SC_UNREACHABLE();
     };
 }
 
@@ -26,7 +27,8 @@ std::string_view ir::toString(CompareOperation op) {
     case CompareOperation::Op: return #name;
 #include "IR/Lists.def"
         // clang-format on
-    case CompareOperation::_count: SC_UNREACHABLE();
+    case CompareOperation::_count:
+        SC_UNREACHABLE();
     };
 }
 
@@ -41,7 +43,8 @@ std::string_view ir::toString(UnaryArithmeticOperation op) {
     case UnaryArithmeticOperation::Op: return #name;
 #include "IR/Lists.def"
         // clang-format on
-    case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
+    case UnaryArithmeticOperation::_count:
+        SC_UNREACHABLE();
     };
 }
 
@@ -57,7 +60,8 @@ std::string_view ir::toString(ArithmeticOperation op) {
     case ArithmeticOperation::Op: return #name;
 #include "IR/Lists.def"
         // clang-format on
-    case ArithmeticOperation::_count: SC_UNREACHABLE();
+    case ArithmeticOperation::_count:
+        SC_UNREACHABLE();
     };
 }
 

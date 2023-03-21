@@ -360,15 +360,24 @@ ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
 
 ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     switch (exprDecl.operation()) {
-    case BinaryOperator::Multiplication: [[fallthrough]];
-    case BinaryOperator::Division: [[fallthrough]];
-    case BinaryOperator::Remainder: [[fallthrough]];
-    case BinaryOperator::Addition: [[fallthrough]];
-    case BinaryOperator::Subtraction: [[fallthrough]];
-    case BinaryOperator::LeftShift: [[fallthrough]];
-    case BinaryOperator::RightShift: [[fallthrough]];
-    case BinaryOperator::BitwiseAnd: [[fallthrough]];
-    case BinaryOperator::BitwiseXOr: [[fallthrough]];
+    case BinaryOperator::Multiplication:
+        [[fallthrough]];
+    case BinaryOperator::Division:
+        [[fallthrough]];
+    case BinaryOperator::Remainder:
+        [[fallthrough]];
+    case BinaryOperator::Addition:
+        [[fallthrough]];
+    case BinaryOperator::Subtraction:
+        [[fallthrough]];
+    case BinaryOperator::LeftShift:
+        [[fallthrough]];
+    case BinaryOperator::RightShift:
+        [[fallthrough]];
+    case BinaryOperator::BitwiseAnd:
+        [[fallthrough]];
+    case BinaryOperator::BitwiseXOr:
+        [[fallthrough]];
     case BinaryOperator::BitwiseOr: {
         ir::Value* const lhs = getValue(*exprDecl.lhs);
         ir::Value* const rhs = getValue(*exprDecl.rhs);
@@ -380,7 +389,8 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         currentBB()->pushBack(arithInst);
         return arithInst;
     }
-    case BinaryOperator::LogicalAnd: [[fallthrough]];
+    case BinaryOperator::LogicalAnd:
+        [[fallthrough]];
     case BinaryOperator::LogicalOr: {
         ir::Value* const lhs = getValue(*exprDecl.lhs);
         auto* startBlock     = currentBB();
@@ -409,11 +419,16 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         currentBB()->pushBack(result);
         return result;
     }
-    case BinaryOperator::Less: [[fallthrough]];
-    case BinaryOperator::LessEq: [[fallthrough]];
-    case BinaryOperator::Greater: [[fallthrough]];
-    case BinaryOperator::GreaterEq: [[fallthrough]];
-    case BinaryOperator::Equals: [[fallthrough]];
+    case BinaryOperator::Less:
+        [[fallthrough]];
+    case BinaryOperator::LessEq:
+        [[fallthrough]];
+    case BinaryOperator::Greater:
+        [[fallthrough]];
+    case BinaryOperator::GreaterEq:
+        [[fallthrough]];
+    case BinaryOperator::Equals:
+        [[fallthrough]];
     case BinaryOperator::NotEquals: {
         ir::Value* const lhs = getValue(*exprDecl.lhs);
         ir::Value* const rhs = getValue(*exprDecl.rhs);
@@ -437,15 +452,24 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         currentBB()->pushBack(store);
         return loadAddress(lhsAddr, lhsType, "tmp");
     }
-    case BinaryOperator::AddAssignment: [[fallthrough]];
-    case BinaryOperator::SubAssignment: [[fallthrough]];
-    case BinaryOperator::MulAssignment: [[fallthrough]];
-    case BinaryOperator::DivAssignment: [[fallthrough]];
-    case BinaryOperator::RemAssignment: [[fallthrough]];
-    case BinaryOperator::LSAssignment: [[fallthrough]];
-    case BinaryOperator::RSAssignment: [[fallthrough]];
-    case BinaryOperator::AndAssignment: [[fallthrough]];
-    case BinaryOperator::OrAssignment: [[fallthrough]];
+    case BinaryOperator::AddAssignment:
+        [[fallthrough]];
+    case BinaryOperator::SubAssignment:
+        [[fallthrough]];
+    case BinaryOperator::MulAssignment:
+        [[fallthrough]];
+    case BinaryOperator::DivAssignment:
+        [[fallthrough]];
+    case BinaryOperator::RemAssignment:
+        [[fallthrough]];
+    case BinaryOperator::LSAssignment:
+        [[fallthrough]];
+    case BinaryOperator::RSAssignment:
+        [[fallthrough]];
+    case BinaryOperator::AndAssignment:
+        [[fallthrough]];
+    case BinaryOperator::OrAssignment:
+        [[fallthrough]];
     case BinaryOperator::XOrAssignment: {
         ir::Value* lhsAddr      = getAddress(*exprDecl.lhs);
         ir::Type const* lhsType = mapType(exprDecl.lhs->typeID());
@@ -461,7 +485,8 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         currentBB()->pushBack(store);
         return loadAddress(lhsAddr, lhsType, "tmp");
     }
-    case BinaryOperator::_count: SC_DEBUGFAIL();
+    case BinaryOperator::_count:
+        SC_DEBUGFAIL();
     }
 }
 
@@ -689,52 +714,82 @@ ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
         return ir::UnaryArithmeticOperation::BitwiseNot;
     case UnaryPrefixOperator::LogicalNot:
         return ir::UnaryArithmeticOperation::LogicalNot;
-    default: SC_UNREACHABLE();
+    default:
+        SC_UNREACHABLE();
     }
 }
 
 ir::CompareOperation CodeGenContext::mapCompareOp(ast::BinaryOperator op) {
     switch (op) {
-    case BinaryOperator::Less: return ir::CompareOperation::Less;
-    case BinaryOperator::LessEq: return ir::CompareOperation::LessEq;
-    case BinaryOperator::Greater: return ir::CompareOperation::Greater;
-    case BinaryOperator::GreaterEq: return ir::CompareOperation::GreaterEq;
-    case BinaryOperator::Equals: return ir::CompareOperation::Equal;
-    case BinaryOperator::NotEquals: return ir::CompareOperation::NotEqual;
-    default: SC_UNREACHABLE("Only handle compare operations here.");
+    case BinaryOperator::Less:
+        return ir::CompareOperation::Less;
+    case BinaryOperator::LessEq:
+        return ir::CompareOperation::LessEq;
+    case BinaryOperator::Greater:
+        return ir::CompareOperation::Greater;
+    case BinaryOperator::GreaterEq:
+        return ir::CompareOperation::GreaterEq;
+    case BinaryOperator::Equals:
+        return ir::CompareOperation::Equal;
+    case BinaryOperator::NotEquals:
+        return ir::CompareOperation::NotEqual;
+    default:
+        SC_UNREACHABLE("Only handle compare operations here.");
     }
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
     ast::BinaryOperator op) {
     switch (op) {
-    case BinaryOperator::Multiplication: return ir::ArithmeticOperation::Mul;
-    case BinaryOperator::Division: return ir::ArithmeticOperation::Div;
-    case BinaryOperator::Remainder: return ir::ArithmeticOperation::Rem;
-    case BinaryOperator::Addition: return ir::ArithmeticOperation::Add;
-    case BinaryOperator::Subtraction: return ir::ArithmeticOperation::Sub;
-    case BinaryOperator::LeftShift: return ir::ArithmeticOperation::LShL;
-    case BinaryOperator::RightShift: return ir::ArithmeticOperation::LShR;
-    case BinaryOperator::BitwiseAnd: return ir::ArithmeticOperation::And;
-    case BinaryOperator::BitwiseXOr: return ir::ArithmeticOperation::XOr;
-    case BinaryOperator::BitwiseOr: return ir::ArithmeticOperation::Or;
-    default: SC_UNREACHABLE("Only handle arithmetic operations here.");
+    case BinaryOperator::Multiplication:
+        return ir::ArithmeticOperation::Mul;
+    case BinaryOperator::Division:
+        return ir::ArithmeticOperation::Div;
+    case BinaryOperator::Remainder:
+        return ir::ArithmeticOperation::Rem;
+    case BinaryOperator::Addition:
+        return ir::ArithmeticOperation::Add;
+    case BinaryOperator::Subtraction:
+        return ir::ArithmeticOperation::Sub;
+    case BinaryOperator::LeftShift:
+        return ir::ArithmeticOperation::LShL;
+    case BinaryOperator::RightShift:
+        return ir::ArithmeticOperation::LShR;
+    case BinaryOperator::BitwiseAnd:
+        return ir::ArithmeticOperation::And;
+    case BinaryOperator::BitwiseXOr:
+        return ir::ArithmeticOperation::XOr;
+    case BinaryOperator::BitwiseOr:
+        return ir::ArithmeticOperation::Or;
+    default:
+        SC_UNREACHABLE("Only handle arithmetic operations here.");
     }
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticAssignOp(
     ast::BinaryOperator op) {
     switch (op) {
-    case BinaryOperator::AddAssignment: return ir::ArithmeticOperation::Add;
-    case BinaryOperator::SubAssignment: return ir::ArithmeticOperation::Sub;
-    case BinaryOperator::MulAssignment: return ir::ArithmeticOperation::Mul;
-    case BinaryOperator::DivAssignment: return ir::ArithmeticOperation::Div;
-    case BinaryOperator::RemAssignment: return ir::ArithmeticOperation::Rem;
-    case BinaryOperator::LSAssignment: return ir::ArithmeticOperation::LShL;
-    case BinaryOperator::RSAssignment: return ir::ArithmeticOperation::LShR;
-    case BinaryOperator::AndAssignment: return ir::ArithmeticOperation::And;
-    case BinaryOperator::OrAssignment: return ir::ArithmeticOperation::Or;
-    case BinaryOperator::XOrAssignment: return ir::ArithmeticOperation::XOr;
-    default: SC_UNREACHABLE("Only handle arithmetic assign operations here.");
+    case BinaryOperator::AddAssignment:
+        return ir::ArithmeticOperation::Add;
+    case BinaryOperator::SubAssignment:
+        return ir::ArithmeticOperation::Sub;
+    case BinaryOperator::MulAssignment:
+        return ir::ArithmeticOperation::Mul;
+    case BinaryOperator::DivAssignment:
+        return ir::ArithmeticOperation::Div;
+    case BinaryOperator::RemAssignment:
+        return ir::ArithmeticOperation::Rem;
+    case BinaryOperator::LSAssignment:
+        return ir::ArithmeticOperation::LShL;
+    case BinaryOperator::RSAssignment:
+        return ir::ArithmeticOperation::LShR;
+    case BinaryOperator::AndAssignment:
+        return ir::ArithmeticOperation::And;
+    case BinaryOperator::OrAssignment:
+        return ir::ArithmeticOperation::Or;
+    case BinaryOperator::XOrAssignment:
+        return ir::ArithmeticOperation::XOr;
+    default:
+        SC_UNREACHABLE("Only handle arithmetic assign operations here.");
     }
 }

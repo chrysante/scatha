@@ -93,13 +93,18 @@ void Context::run() {
     for (size_t const index: dependencyTraversalOrder) {
         auto const& node = dependencyGraph[index];
         switch (node.category) {
-        case SymbolCategory::Variable: instantiateVariable(node); break;
+        case SymbolCategory::Variable:
+            instantiateVariable(node);
+            break;
         case SymbolCategory::ObjectType:
             instantiateObjectType(node);
             sortedObjTypes.push_back(TypeID(node.symbolID));
             break;
-        case SymbolCategory::Function: instantiateFunction(node); break;
-        default: break;
+        case SymbolCategory::Function:
+            instantiateFunction(node);
+            break;
+        default:
+            break;
         }
     }
     sym.setSortedObjectTypes(std::move(sortedObjTypes));

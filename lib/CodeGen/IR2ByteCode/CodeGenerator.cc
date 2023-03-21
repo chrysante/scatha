@@ -254,7 +254,8 @@ void CodeGenContext::generate(ir::UnaryArithmeticInst const& inst) {
     case ir::UnaryArithmeticOperation::LogicalNot:
         genUnaryArithmetic(UnaryArithmeticOperation::LogicalNot);
         break;
-    default: SC_UNREACHABLE();
+    default:
+        SC_UNREACHABLE();
     }
 }
 

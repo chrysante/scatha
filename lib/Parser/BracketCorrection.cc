@@ -29,9 +29,9 @@ struct Context {
     void run();
 
     [[nodiscard]] utl::vector<scatha::Token>::iterator
-    popStackAndInsertMatchingBrackets(
-        utl::vector<scatha::Token>::const_iterator tokenItr,
-        utl::vector<Bracket>::iterator stackItr);
+        popStackAndInsertMatchingBrackets(
+            utl::vector<scatha::Token>::const_iterator tokenItr,
+            utl::vector<Bracket>::iterator stackItr);
 
     [[nodiscard]] utl::vector<scatha::Token>::iterator handleOpeningBracket(
         utl::vector<Token>::iterator tokenItr, Bracket bracket);
