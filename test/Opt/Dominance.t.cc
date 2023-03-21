@@ -58,10 +58,10 @@ function i64 @f() {
 })";
     ir::Module mod  = ir::parse(text, ctx).value();
     auto& f         = mod.functions().front();
+    auto domInfo    = opt::DominanceInfo::compute(f);
     /// ## Dominator tree
-    auto domSets = opt::computeDominanceSets(f);
-    auto domTree = opt::buildDomTree(f, domSets);
-    auto& root   = domTree.root();
+    auto& domTree = domInfo.domTree();
+    auto& root    = domTree.root();
     CHECK(root.basicBlock()->name() == "entry");
     REQUIRE(root.children().size() == 1);
     auto& BB2 = root.children()[0];
@@ -83,10 +83,7 @@ function i64 @f() {
     CHECK(BB8.basicBlock()->name() == "8");
     REQUIRE(BB8.children().empty());
     /// ## Dominance frontiers
-    auto dfMap = opt::computeDominanceFrontiers(f, domTree);
-    auto df    = [&](auto& node) -> auto& {
-        return dfMap.find(node.basicBlock())->second;
-    };
+    auto df = [&](auto& node) { return domInfo.domFront(node.basicBlock()); };
     CHECK(df(root).empty());
     CHECK(df(BB2).empty());
     CHECK(setEqual(df(BB3), std::array{ BB5.basicBlock() }));
@@ -115,10 +112,10 @@ function i64 @f() {
 })";
     ir::Module mod  = ir::parse(text, ctx).value();
     auto& f         = mod.functions().front();
+    auto domInfo    = opt::DominanceInfo::compute(f);
     /// ## Dominator tree
-    auto domSets = opt::computeDominanceSets(f);
-    auto domTree = opt::buildDomTree(f, domSets);
-    auto& root   = domTree.root();
+    auto& domTree = domInfo.domTree();
+    auto& root    = domTree.root();
     CHECK(root.basicBlock()->name() == "entry");
     REQUIRE(root.children().size() == 3);
     auto childrenOfRoot = root.children();
@@ -130,10 +127,7 @@ function i64 @f() {
     auto& BB3 = BB1.children()[0];
     REQUIRE(BB3.children().empty());
     /// ## Dominance frontiers
-    auto dfMap = opt::computeDominanceFrontiers(f, domTree);
-    auto df    = [&](auto& node) -> auto& {
-        return dfMap.find(node.basicBlock())->second;
-    };
+    auto df = [&](auto& node) { return domInfo.domFront(node.basicBlock()); };
     CHECK(df(root).empty());
     CHECK(setEqual(df(BB1), std::array{ BB1.basicBlock(), BB4.basicBlock() }));
     CHECK(setEqual(df(BB2), std::array{ BB4.basicBlock() }));

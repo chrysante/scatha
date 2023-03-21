@@ -14,8 +14,6 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-DomTree::DomTree() = default;
-
 static void merge(utl::hashset<BasicBlock*>& dest,
                   utl::hashset<BasicBlock*> const& source) {
     for (auto* bb: source) {
@@ -48,7 +46,60 @@ static utl::hashset<BasicBlock*> intersect(auto&& range) {
     });
 }
 
-DominanceMap opt::computeDominanceSets(ir::Function& function) {
+namespace {
+
+struct PrintCtx {
+    PrintCtx(std::ostream& str): str(str) {}
+
+    void print(DomTree::Node const& node);
+
+    std::ostream& str;
+    Indenter indent;
+};
+
+} // namespace
+
+void opt::print(DomTree const& domTree) {
+    print(domTree, std::cout);
+}
+
+void opt::print(DomTree const& domTree, std::ostream& str) {
+    PrintCtx ctx(str);
+    ctx.print(domTree.root());
+}
+
+void PrintCtx::print(DomTree::Node const& node) {
+    str << indent << node.basicBlock()->name() << ":\n";
+    indent.increase();
+    for (auto& child: node.children()) {
+        print(child);
+    }
+    indent.decrease();
+}
+
+DominanceInfo DominanceInfo::compute(Function& function) {
+    DominanceInfo result;
+    result._domMap   = computeDomSets(function);
+    result._domTree  = computeDomTree(function, result._domMap);
+    result._domFront = computeDomFronts(function, result._domTree);
+    return result;
+}
+
+utl::hashset<ir::BasicBlock*> const& DominanceInfo::domSet(
+    ir::BasicBlock const* basicBlock) const {
+    auto itr = _domMap.find(basicBlock);
+    SC_ASSERT(itr != _domMap.end(), "Basic block not found");
+    return itr->second;
+}
+
+std::span<ir::BasicBlock* const> DominanceInfo::domFront(
+    ir::BasicBlock const* basicBlock) const {
+    auto itr = _domFront.find(basicBlock);
+    SC_ASSERT(itr != _domFront.end(), "Basic block not found");
+    return itr->second;
+}
+
+DominanceInfo::DomMap DominanceInfo::computeDomSets(Function& function) {
     auto const nodeSet = [&] {
         utl::hashset<BasicBlock*> res;
         for (auto& bb: function) {
@@ -56,8 +107,8 @@ DominanceMap opt::computeDominanceSets(ir::Function& function) {
         }
         return res;
     }();
-    DominanceMap domSets = [&] {
-        DominanceMap res;
+    DomMap domSets = [&] {
+        DomMap res;
         for (auto& bb: function) {
             res.insert({ &bb, nodeSet });
         }
@@ -85,7 +136,8 @@ DominanceMap opt::computeDominanceSets(ir::Function& function) {
     return domSets;
 }
 
-DomTree opt::buildDomTree(ir::Function& function, DominanceMap const& domSets) {
+DomTree DominanceInfo::computeDomTree(Function& function,
+                                      DomMap const& domSets) {
     DomTree result;
     auto const nodeSet = [&] {
         utl::hashset<BasicBlock*> res;
@@ -132,80 +184,40 @@ DomTree opt::buildDomTree(ir::Function& function, DominanceMap const& domSets) {
     return result;
 }
 
-void opt::print(DomTree const& domTree) {
-    print(domTree, std::cout);
-}
+DominanceInfo::DomFrontMap DominanceInfo::computeDomFronts(
+    Function& function, DomTree const& domTree) {
+    struct DFContext {
+        DFContext(Function& function, DomTree const& domTree, DomFrontMap& df):
+            function(function), domTree(domTree), df(df) {}
 
-namespace {
+        void compute(DomTree::Node const& uNode) {
+            for (auto& n: uNode.children()) {
+                compute(n);
+            }
+            auto* u   = uNode.basicBlock();
+            auto& dfU = df[u];
+            // DF_local
+            for (BasicBlock* v: u->successors()) {
+                if (domTree.idom(v) != u) {
+                    dfU.push_back(v);
+                }
+            }
+            // DF_up
+            for (auto& wNode: uNode.children()) {
+                for (auto* v: df[wNode.basicBlock()]) {
+                    if (domTree.idom(v) != u) {
+                        dfU.push_back(v);
+                    }
+                }
+            }
+        }
 
-struct PrintCtx {
-    PrintCtx(std::ostream& str): str(str) {}
-
-    void print(DomTree::Node const& node);
-
-    std::ostream& str;
-    Indenter indent;
-};
-
-} // namespace
-
-void opt::print(DomTree const& domTree, std::ostream& str) {
-    PrintCtx ctx(str);
-    ctx.print(domTree.root());
-}
-
-void PrintCtx::print(DomTree::Node const& node) {
-    str << indent << node.basicBlock()->name() << ":\n";
-    indent.increase();
-    for (auto& child: node.children()) {
-        print(child);
-    }
-    indent.decrease();
-}
-
-namespace {
-
-struct DFContext {
-    DFContext(ir::Function& function,
-              DomTree const& domTree,
-              DominanceFrontierMap& df):
-        function(function), domTree(domTree), df(df) {}
-
-    void compute(DomTree::Node const& node);
-
-    ir::Function& function;
-    DomTree const& domTree;
-    DominanceFrontierMap& df;
-};
-
-} // namespace
-
-DominanceFrontierMap opt::computeDominanceFrontiers(ir::Function& function,
-                                                    DomTree const& domTree) {
-    DominanceFrontierMap result;
+        Function& function;
+        DomTree const& domTree;
+        DomFrontMap& df;
+    };
+    DomFrontMap result;
     DFContext ctx(function, domTree, result);
     ctx.compute(domTree.root());
     return result;
-}
-
-void DFContext::compute(DomTree::Node const& uNode) {
-    for (auto& n: uNode.children()) {
-        compute(n);
-    }
-    auto* u   = uNode.basicBlock();
-    auto& dfU = df[u];
-    // DF_local
-    for (BasicBlock* v: u->successors()) {
-        if (domTree.idom(v) != u) {
-            dfU.push_back(v);
-        }
-    }
-    // DF_up
-    for (auto& wNode: uNode.children()) {
-        for (auto* v: df[wNode.basicBlock()]) {
-            if (domTree.idom(v) != u) {
-                dfU.push_back(v);
-            }
-        }
-    }
 }

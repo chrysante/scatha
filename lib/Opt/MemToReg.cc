@@ -41,9 +41,7 @@ struct MemToRegContext {
     MemToRegContext(Context& irCtx, Function& function):
         irCtx(irCtx),
         function(function),
-        domSets(computeDominanceSets(function)),
-        domTree(buildDomTree(function, domSets)),
-        domFronts(computeDominanceFrontiers(function, domTree)) {}
+        domInfo(DominanceInfo::compute(function)) {}
 
     bool run();
 
@@ -61,9 +59,7 @@ struct MemToRegContext {
 
     Context& irCtx;
     Function& function;
-    DominanceMap domSets;
-    DomTree domTree;
-    DominanceFrontierMap domFronts;
+    DominanceInfo domInfo;
     utl::hashmap<Alloca*, VariableInfo> variables;
     utl::hashset<BasicBlock const*> renamedBlocks;
     /// Map phis to corresponding allocas
@@ -199,7 +195,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
     while (!worklist.empty()) {
         BasicBlock* x = worklist.back();
         worklist.pop_back();
-        auto& dfX = domFronts[x];
+        auto dfX = domInfo.domFront(x);
         for (auto* y: dfX) {
             if (varInfo.phiNodes.contains(y)) {
                 continue;

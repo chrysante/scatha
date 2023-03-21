@@ -38,7 +38,7 @@ function i64 @f(i64) {
     ir::Context ctx;
     ir::Module mod = ir::parse(text, ctx).value();
     auto& f        = mod.functions().front();
-    auto* fClone   = ir::clone(ctx, &f);
+    auto fClone    = ir::clone(ctx, &f);
     using namespace test::ir;
     using enum ir::NodeType;
     // clang-format off
