@@ -1,14 +1,8 @@
 #include "Opt/Optimizer.h"
 
-#include "IR/CFG.h"
-#include "IR/Context.h"
-#include "IR/Module.h"
-#include "Opt/ConstantPropagation.h"
-#include "Opt/DCE.h"
-#include "Opt/MemToReg.h"
+#include "Opt/Inliner.h"
 
 using namespace scatha;
-using namespace opt;
 
 void opt::optimize(ir::Context& context, ir::Module& mod, int level) {
     switch (level) {
@@ -16,11 +10,7 @@ void opt::optimize(ir::Context& context, ir::Module& mod, int level) {
         return;
 
     case 1:
-        for (auto& function: mod.functions()) {
-            opt::memToReg(context, function);
-            opt::propagateConstants(context, function);
-            opt::dce(context, function);
-        }
+        opt::inlineFunctions(context, mod);
         return;
 
     default:
