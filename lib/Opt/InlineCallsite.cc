@@ -17,7 +17,7 @@ void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
     auto* caller     = callerBB->parent();
     auto* callee     = call->function();
     auto calleeClone = clone(ctx, callee);
-    auto* newGoto = new Goto(ctx, &calleeClone->entry());
+    auto* newGoto    = new Goto(ctx, &calleeClone->entry());
     calleeClone->entry().setPredecessors(std::array{ callerBB });
     callerBB->insert(call, newGoto);
     auto* landingpad = new BasicBlock(ctx, "inline.landingpad");

@@ -2,7 +2,10 @@
 
 #include "IR/CFG.h"
 #include "Opt/CallGraph.h"
+#include "Opt/ConstantPropagation.h"
 #include "Opt/InlineCallsite.h"
+#include "Opt/MemToReg.h"
+#include "Opt/SimplifyCFG.h"
 
 using namespace scatha;
 using namespace ir;
@@ -39,13 +42,15 @@ struct Inliner {
 
     bool run();
 
-    bool processSCC(SCC const& scc);
+    bool visitSCC(SCC const& scc);
 
-    bool processFunction(FunctionNode const& node);
+    bool visitFunction(FunctionNode const& node);
 
     utl::small_vector<SCC const*> gatherLeaves() const;
 
     bool allSuccessorsAnalyzed(SCC const& scc) const;
+
+    bool optimize(Function& function) const;
 
     Context& ctx;
     Module& mod;
@@ -68,10 +73,13 @@ bool Inliner::run() {
         auto itr = worklist.begin();
         while (!allSuccessorsAnalyzed(**itr)) {
             ++itr;
+            SC_ASSERT(itr != worklist.end(),
+                      "We have no component in the worklist that has all "
+                      "successors analyzed.");
         }
         SCC const& scc = **itr;
         worklist.erase(itr);
-        modifiedAny |= processSCC(scc);
+        modifiedAny |= visitSCC(scc);
         analyzed.insert(&scc);
         for (auto& pred: scc.predecessors()) {
             worklist.insert(&pred);
@@ -80,14 +88,14 @@ bool Inliner::run() {
     return modifiedAny;
 }
 
-bool Inliner::processSCC(SCC const& scc) {
+bool Inliner::visitSCC(SCC const& scc) {
     utl::hashset<FunctionNode const*> visited;
     bool modifiedAny = false;
     auto walk        = [&](FunctionNode const& node, auto& walk) {
         if (!visited.insert(&node).second) {
             return;
         }
-        modifiedAny |= processFunction(node);
+        modifiedAny |= visitFunction(node);
         for (auto& pred: node.predecessors()) {
             if (&pred.scc() == &scc) {
                 walk(pred, walk);
@@ -98,17 +106,23 @@ bool Inliner::processSCC(SCC const& scc) {
     return modifiedAny;
 }
 
-bool Inliner::processFunction(FunctionNode const& node) {
+bool Inliner::visitFunction(FunctionNode const& node) {
+    /// We optimize this function, then inline callees, then optimize again to
+    /// catch optimization opportunities emerged from inlining.
+    bool modifiedAny = false;
+    modifiedAny |= optimize(node.function());
     for (auto& callee: node.callees()) {
         auto callsitesOfCallee = node.callsites(callee);
         for (auto* callInst: callsitesOfCallee) {
             bool const shouldInline = shouldInlineCallsite(callGraph, callInst);
             if (shouldInline) {
                 inlineCallsite(ctx, callInst);
+                modifiedAny = true;
             }
         }
     }
-    return false;
+    modifiedAny |= optimize(node.function());
+    return modifiedAny;
 }
 
 utl::small_vector<SCC const*> Inliner::gatherLeaves() const {
@@ -128,4 +142,12 @@ bool Inliner::allSuccessorsAnalyzed(SCC const& scc) const {
         }
     }
     return true;
+}
+
+bool Inliner::optimize(Function& function) const {
+    bool modifiedAny = false;
+    modifiedAny |= memToReg(ctx, function);
+    modifiedAny |= propagateConstants(ctx, function);
+    modifiedAny |= simplifyCFG(ctx, function);
+    return modifiedAny;
 }

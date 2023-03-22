@@ -17,11 +17,6 @@ struct Ctx {
     Ctx(ir::Context& irCtx, Function& function):
         irCtx(irCtx), function(function) {}
 
-    /// Actually we should do two passes over the function. One to identify
-    /// conditional branches that depend on constants and replace those by
-    /// unconditional branches. Then we do a second pass and merge basic blocks
-    /// if possible.
-
     void replaceConstCondBranches(BasicBlock* bb);
 
     void merge(BasicBlock* bb);
@@ -41,6 +36,7 @@ bool opt::simplifyCFG(ir::Context& irCtx, Function& function) {
     ctx.replaceConstCondBranches(&function.entry());
     ctx.visited.clear();
     ctx.merge(&function.entry());
+    assertInvariants(irCtx, function);
     return ctx.changedAny;
 }
 
