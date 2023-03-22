@@ -356,7 +356,7 @@ public:
         return extract(ConstIterator(inst));
     }
 
-    /// \returns `true` iff this basic block is the entry basic block
+    /// \returns `true` iff this basic block is the entry basic block.
     bool isEntry() const;
 
     /// \returns `true` iff \p inst is an instruction of this basic block.
@@ -365,7 +365,7 @@ public:
     bool contains(Instruction const& inst) const;
 
     /// \returns the terminator instruction if this basic block is well formed
-    /// or nullptr
+    /// or `nullptr`.
     TerminatorInst const* terminator() const;
 
     /// \overload
@@ -374,6 +374,9 @@ public:
             static_cast<BasicBlock const*>(this)->terminator());
     }
 
+    /// \returns `true` iff the terminator is the only instruction in the basic block.
+    bool emptyExceptTerminator() const;
+        
     /// \returns a view over the phi nodes in this basic block.
     ranges::subrange<ConstPhiIterator, internal::PhiSentinel> phiNodes() const {
         return { ConstPhiIterator{ begin(), end() }, {} };

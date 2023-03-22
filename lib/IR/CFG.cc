@@ -151,6 +151,10 @@ TerminatorInst const* BasicBlock::terminator() const {
     return dyncast<TerminatorInst const*>(&back());
 }
 
+bool BasicBlock::emptyExceptTerminator() const {
+    return terminator() == &front();
+}
+
 void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
                                    BasicBlock* newPred) {
     auto itr = ranges::find(preds, oldPred);
