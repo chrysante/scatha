@@ -70,20 +70,40 @@ void Ctx::replaceConstCondBranches(BasicBlock* bb) {
     }
 }
 
+#include <iostream>
+
 void Ctx::merge(BasicBlock* bb) {
     if (visited.contains(bb)) {
         return;
     }
+    std::cout << "Visiting " << bb->name() << std::endl;
     utl::armed_scope_guard visitPreds = [&] {
         for (auto* succ: bb->successors()) {
             merge(succ);
         }
     };
     visited.insert(bb);
+//    if (bb->successors().size() > 1 && ranges::all_of(bb->successors(), [first = bb->successors().front()](auto* succ) { return succ == first; })) {
+//        auto* newTerm = new Goto(irCtx, bb->successors().front());
+//        bb->erase(bb->terminator());
+//        bb->pushBack(newTerm);
+//    }
     if (!bb->hasSingleSuccessor()) {
         return;
     }
     auto* succ = bb->singleSuccessor();
+    if (bb->hasSinglePredecessor() && bb->emptyExceptTerminator()) {
+        /// Simple `Pred -> BB -> Succ` case where `BB` is empty.
+        /// We can just erase `BB` and branch to `Succ` directly.
+        auto* pred = bb->singlePredecessor();
+        pred->terminator()->updateTarget(bb, succ);
+        succ->updatePredecessor(bb, pred);
+        function.erase(bb);
+        visited.erase(pred);
+        visitPreds.disarm();
+        merge(pred);
+        return;
+    }
     if (!succ->hasSinglePredecessor()) {
         return;
     }
