@@ -5,6 +5,7 @@
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
+#include "IR/Validate.h"
 #include "Opt/Common.h"
 
 using namespace scatha;
@@ -16,26 +17,15 @@ void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
     auto* caller     = callerBB->parent();
     auto* callee     = call->function();
     auto calleeClone = clone(ctx, callee);
-    for (auto& bb: *calleeClone) {
-        bb.setName(ctx.uniqueName(caller, bb.name()));
-        for (auto& inst: bb) {
-            inst.setName(ctx.uniqueName(caller, inst.name()));
-        }
-    }
     auto* newGoto = new Goto(ctx, &calleeClone->entry());
     calleeClone->entry().setPredecessors(std::array{ callerBB });
     callerBB->insert(call, newGoto);
-    auto* landingpad =
-        new BasicBlock(ctx, ctx.uniqueName(caller, "inline.landingpad"));
+    auto* landingpad = new BasicBlock(ctx, "inline.landingpad");
     landingpad->splice(landingpad->begin(),
                        BasicBlock::Iterator(newGoto->next()),
                        callerBB->end());
     for (auto* succ: landingpad->successors()) {
         succ->updatePredecessor(callerBB, landingpad);
-        for (auto& phi: succ->phiNodes()) {
-            size_t const index = phi.indexOf(callerBB);
-            phi.setPredecessor(index, landingpad);
-        }
     }
     caller->insert(callerBB->next(), landingpad);
     /// Replace all parameters with the callers arguments.
@@ -66,7 +56,7 @@ void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
     if (!isa<VoidType>(callee->returnType())) {
         /// Add a phi node to `landingpad` the merge all returns from
         /// `calleeClone`
-        auto* phi = new Phi(call->type(), ctx.uniqueName(caller, "inline.phi"));
+        auto* phi = new Phi(call->type(), "inline.phi");
         phi->setArguments(phiArgs);
         landingpad->insert(landingpad->begin(), phi);
         replaceValue(call, phi);
@@ -76,4 +66,5 @@ void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
     landingpad->erase(call);
     /// Move basic blocks from the calleeClone into calling function.
     caller->splice(Function::Iterator(landingpad), calleeClone.get());
+    ir::assertInvariants(ctx, *caller);
 }

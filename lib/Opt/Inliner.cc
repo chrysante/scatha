@@ -21,7 +21,14 @@ static bool shouldInlineCallsite(SCCCallGraph const& callGraph,
         return false;
     }
     /// Most naive heuristic ever: Inline if we have less than 7 instructions.
-    return ranges::distance(callee.function().instructions()) < 7;
+    if (ranges::distance(callee.function().instructions()) < 7) {
+        return true;
+    }
+    /// Also always inline if we are the only user of this function.
+    if (callee.function().users().size() <= 1) {
+        return true;
+    }
+    return false;
 }
 
 namespace {

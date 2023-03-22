@@ -1,3 +1,4 @@
+
 /*
 fn A() { B(); }
 fn B() { C(); D(); }
@@ -23,4 +24,9 @@ fn f(n: int) -> int {
 }
 
 fn pass(n: int) -> int { return n; }
+
 fn zero() -> int { return 0; }
+
+fn g(n: int) -> int {
+    return n > 0 ? n : 0;
+}

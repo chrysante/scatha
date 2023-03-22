@@ -24,6 +24,7 @@
 #include "Opt/InlineCallsite.h"
 #include "Opt/Inliner.h"
 #include "Opt/MemToReg.h"
+#include "Opt/SimplifyCFG.h"
 
 static int const headerWidth = 60;
 
@@ -50,15 +51,19 @@ void playground::volatilePlayground(std::filesystem::path path) {
     header(" Before inlining ");
     ir::print(mod);
     opt::inlineFunctions(ctx, mod);
-    header(" After inlining ");
     ir::assertInvariants(ctx, mod);
 
     for (auto& f: mod.functions()) {
         opt::memToReg(ctx, f);
         opt::propagateConstants(ctx, f);
+        opt::simplifyCFG(ctx, f);
     }
 
+    ir::assertInvariants(ctx, mod);
+
+    header(" After inlining ");
     ir::print(mod);
+
     //    auto& main      = mod.functions().back();
     //    auto& f         = mod.functions().front();
     //    assert(main.name().starts_with("main"));
