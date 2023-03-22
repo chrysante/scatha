@@ -19,7 +19,7 @@ struct Ctx {
 
     void replaceConstCondBranches(BasicBlock* bb);
 
-    void merge(BasicBlock* bb);
+    void merge();
 
     void eraseDeadBasicBlock(BasicBlock* bb);
 
@@ -37,7 +37,7 @@ bool opt::simplifyCFG(ir::Context& irCtx, Function& function) {
     Ctx ctx(irCtx, function);
     ctx.replaceConstCondBranches(&function.entry());
     ctx.visited.clear();
-    ctx.merge(&function.entry());
+    ctx.merge();
     assertInvariants(irCtx, function);
     return ctx.changedAny;
 }
@@ -70,62 +70,97 @@ void Ctx::replaceConstCondBranches(BasicBlock* bb) {
     }
 }
 
-#include <iostream>
+static bool allSuccessorsEqual(BasicBlock const* bb) {
+    return ranges::all_of(bb->successors(),
+                          [first = bb->successors().front()](auto* succ) {
+        return succ == first;
+    });
+}
 
-void Ctx::merge(BasicBlock* bb) {
-    if (visited.contains(bb)) {
-        return;
-    }
-    std::cout << "Visiting " << bb->name() << std::endl;
-    utl::armed_scope_guard visitPreds = [&] {
-        for (auto* succ: bb->successors()) {
-            merge(succ);
-        }
+void Ctx::merge() {
+    utl::hashset<BasicBlock*> worklist = { &function.entry() };
+    utl::hashmap<BasicBlock*, bool> visited;
+    auto insertSuccessors = [&](BasicBlock* bb) {
+        auto succlist = bb->successors();
+        worklist.insert(succlist.begin(), succlist.end());
     };
-    visited.insert(bb);
-//    if (bb->successors().size() > 1 && ranges::all_of(bb->successors(), [first = bb->successors().front()](auto* succ) { return succ == first; })) {
-//        auto* newTerm = new Goto(irCtx, bb->successors().front());
-//        bb->erase(bb->terminator());
-//        bb->pushBack(newTerm);
-//    }
-    if (!bb->hasSingleSuccessor()) {
-        return;
+    while (!worklist.empty()) {
+        auto* bb = *worklist.begin();
+        worklist.erase(worklist.begin());
+        if (visited[bb]) {
+            continue;
+        }
+        visited[bb] = true;
+
+        /// Unfortunately the disabled code does not work in general without
+        /// `select` instructions. In the following scenario
+        /// ```
+        ///   A
+        ///  / \
+        /// B   C
+        ///  \ /
+        ///   D
+        /// ```
+        /// when in `D` different values are `phi`'d we cannot collapse this
+        /// construct without replace the `phi`by a `select`.
+#if 0
+        /// Replace a `branch` with all equal targets by a `goto`
+        if (bb->successors().size() > 1 &&
+            allSuccessorsEqual(bb))
+        {
+            auto* succ = bb->successors().front();
+            auto* newTerm = new Goto(irCtx, succ);
+            bb->erase(bb->terminator());
+            bb->pushBack(newTerm);
+            /// Here we would then also need to update or replace the phi nodes in `succ`.
+            succ->setPredecessors(std::array{ bb });
+        }
+#endif
+        if (!bb->hasSingleSuccessor()) {
+            insertSuccessors(bb);
+            continue;
+        }
+        auto* succ = bb->singleSuccessor();
+#if 0
+        /// Erase empty basic block which just 'forward' meaning one incoming
+        /// and one outgoing edge.
+        if (bb->hasSinglePredecessor() && bb->emptyExceptTerminator()) {
+            /// Simple `Pred -> BB -> Succ` case where `BB` is empty.
+            /// We can just erase `BB` and branch to `Succ` directly.
+            auto* pred = bb->singlePredecessor();
+            pred->terminator()->updateTarget(bb, succ);
+            succ->updatePredecessor(bb, pred);
+            function.erase(bb);
+            /// To visit `pred` again we need to mark it unvisited.
+            visited[pred] = false;
+            worklist.insert(pred);
+            continue;
+        }
+#endif
+        if (!succ->hasSinglePredecessor()) {
+            insertSuccessors(bb);
+            continue;
+        }
+        SC_ASSERT(succ->singlePredecessor() == bb,
+                  "BBs are not linked properly");
+        /// Now we have the simple case we are looking for. Here we can merge
+        /// the basic blocks.
+        bb->erase(bb->terminator());
+        for (auto& phi: succ->phiNodes()) {
+            SC_ASSERT(phi.argumentCount() == 1, "Invalid argument count");
+            opt::replaceValue(&phi, phi.argumentAt(0).value);
+        }
+        succ->eraseAllPhiNodes();
+        bb->splice(bb->end(), succ);
+        for (auto* newSucc: bb->successors()) {
+            newSucc->updatePredecessor(succ, bb);
+        }
+        function.erase(succ);
+        /// We process ourself again, because otherwise we miss single
+        /// successors of this.
+        visited[bb] = false;
+        worklist.insert(bb);
     }
-    auto* succ = bb->singleSuccessor();
-    if (bb->hasSinglePredecessor() && bb->emptyExceptTerminator()) {
-        /// Simple `Pred -> BB -> Succ` case where `BB` is empty.
-        /// We can just erase `BB` and branch to `Succ` directly.
-        auto* pred = bb->singlePredecessor();
-        pred->terminator()->updateTarget(bb, succ);
-        succ->updatePredecessor(bb, pred);
-        function.erase(bb);
-        visited.erase(pred);
-        visitPreds.disarm();
-        merge(pred);
-        return;
-    }
-    if (!succ->hasSinglePredecessor()) {
-        return;
-    }
-    visitPreds.disarm();
-    SC_ASSERT(succ->singlePredecessor() == bb, "BBs are not linked properly");
-    /// Now we have the simple case we are looking for. Here we can merge the
-    /// basic blocks.
-    bb->erase(bb->terminator());
-    for (auto& phi: succ->phiNodes()) {
-        SC_ASSERT(phi.argumentCount() == 1, "Invalid argument count");
-        opt::replaceValue(&phi, phi.argumentAt(0).value);
-    }
-    succ->eraseAllPhiNodes();
-    bb->splice(bb->end(), succ);
-    for (auto* newSucc: bb->successors()) {
-        newSucc->updatePredecessor(succ, bb);
-    }
-    function.erase(succ);
-    /// We process ourself again, because other wise we miss single successors
-    /// of this.
-    visited.erase(bb);
-    merge(bb);
 }
 
 void Ctx::eraseDeadBasicBlock(BasicBlock* bb) {
