@@ -197,7 +197,7 @@ void CodeGenContext::generateImpl(EmptyStatement const& empty) {
 
 void CodeGenContext::generateImpl(ReturnStatement const& retDecl) {
     auto* returnValue =
-        retDecl.expression ? getValue(*retDecl.expression) : nullptr;
+        retDecl.expression ? getValue(*retDecl.expression) : irCtx.voidValue();
     auto* ret = new ir::Return(irCtx, returnValue);
     currentBB()->pushBack(ret);
 }
