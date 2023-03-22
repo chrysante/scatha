@@ -10,7 +10,7 @@
 
 namespace scatha {
 
-class SCATHA(API) StructuredSource {
+class SCATHA_API StructuredSource {
 public:
     explicit StructuredSource(std::string_view source);
 

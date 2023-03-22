@@ -11,7 +11,7 @@
 
 namespace scatha::opt {
 
-class SCATHA(TEST_API) SCCCallGraph {
+class SCATHA_TESTAPI SCCCallGraph {
 public:
     class SCCNode;
 

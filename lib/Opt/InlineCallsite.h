@@ -11,7 +11,7 @@ class Context;
 
 namespace scatha::opt {
 
-SCATHA(API) void inlineCallsite(ir::Context& ctx, ir::FunctionCall* call);
+SCATHA_API void inlineCallsite(ir::Context& ctx, ir::FunctionCall* call);
 
 } // namespace scatha::opt
 

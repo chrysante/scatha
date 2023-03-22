@@ -151,9 +151,7 @@ void Context::print(ExpressionStatement const& es) {
     str << ";";
 }
 
-void Context::print(EmptyStatement const&) {
-    str << ";";
-}
+void Context::print(EmptyStatement const&) { str << ";"; }
 
 void Context::print(ReturnStatement const& rs) {
     str << "return";
@@ -192,9 +190,7 @@ void Context::print(DoWhileStatement const& ws) {
     str << ";";
 }
 
-void Context::print(Identifier const& i) {
-    str << i.value();
-}
+void Context::print(Identifier const& i) { str << i.value(); }
 
 void Context::print(IntegerLiteral const& l) {
     str << l.value().signedToString();
@@ -209,9 +205,7 @@ void Context::print(FloatingPointLiteral const& l) {
     str << l.value().toString();
 }
 
-void Context::print(StringLiteral const& l) {
-    str << '"' << l.value() << '"';
-}
+void Context::print(StringLiteral const& l) { str << '"' << l.value() << '"'; }
 
 void Context::print(UnaryPrefixExpression const& u) {
     str << u.operation() << '(';

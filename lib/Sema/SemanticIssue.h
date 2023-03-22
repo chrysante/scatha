@@ -24,13 +24,13 @@ namespace scatha::sema {
 
 class Scope;
 
-class SCATHA(API) IssueBase: public issue::ProgramIssueBase {
+class SCATHA_API IssueBase: public issue::ProgramIssueBase {
 public:
     using issue::ProgramIssueBase::ProgramIssueBase;
 };
 
 /// MARK: Expression Issues
-class SCATHA(API) BadExpression: public IssueBase {
+class SCATHA_API BadExpression: public IssueBase {
 public:
     explicit BadExpression(ast::Expression const& expr);
 
@@ -40,7 +40,7 @@ private:
     ast::Expression const* _expr;
 };
 
-class SCATHA(API) BadTypeConversion: public BadExpression {
+class SCATHA_API BadTypeConversion: public BadExpression {
 public:
     explicit BadTypeConversion(ast::Expression const& expression, TypeID to);
 
@@ -52,7 +52,7 @@ private:
     TypeID _to;
 };
 
-class SCATHA(API) BadOperandForUnaryExpression: public BadExpression {
+class SCATHA_API BadOperandForUnaryExpression: public BadExpression {
 public:
     explicit BadOperandForUnaryExpression(ast::Expression const& expression,
                                           TypeID operand);
@@ -63,7 +63,7 @@ private:
     TypeID _operand;
 };
 
-class SCATHA(API) BadOperandsForBinaryExpression: public BadExpression {
+class SCATHA_API BadOperandsForBinaryExpression: public BadExpression {
 public:
     explicit BadOperandsForBinaryExpression(ast::Expression const& expression,
                                             TypeID lhs,
@@ -78,12 +78,12 @@ private:
     TypeID _rhs;
 };
 
-class SCATHA(API) BadMemberAccess: public BadExpression {
+class SCATHA_API BadMemberAccess: public BadExpression {
 public:
     using BadExpression::BadExpression;
 };
 
-class SCATHA(API) BadFunctionCall: public BadExpression {
+class SCATHA_API BadFunctionCall: public BadExpression {
 public:
     enum class Reason { NoMatchingFunction, ObjectNotCallable, _count };
 
@@ -107,9 +107,9 @@ private:
     SymbolID _overloadSetID;
 };
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, BadFunctionCall::Reason);
+SCATHA_API std::ostream& operator<<(std::ostream&, BadFunctionCall::Reason);
 
-class SCATHA(API) UseOfUndeclaredIdentifier: public BadExpression {
+class SCATHA_API UseOfUndeclaredIdentifier: public BadExpression {
 public:
     explicit UseOfUndeclaredIdentifier(ast::Expression const& expression,
                                        Scope const& inScope):
@@ -121,7 +121,7 @@ private:
     Scope const* _scope;
 };
 
-class SCATHA(API) BadSymbolReference: public BadExpression {
+class SCATHA_API BadSymbolReference: public BadExpression {
 public:
     explicit BadSymbolReference(ast::Expression const& expression,
                                 ast::EntityCategory have,
@@ -137,7 +137,7 @@ private:
 };
 
 /// MARK: Statement Issues
-class SCATHA(API) InvalidStatement: public IssueBase {
+class SCATHA_API InvalidStatement: public IssueBase {
 public:
     enum class Reason {
         ExpectedDeclaration,
@@ -165,9 +165,9 @@ private:
     Scope const* _scope;
 };
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, InvalidStatement::Reason);
+SCATHA_API std::ostream& operator<<(std::ostream&, InvalidStatement::Reason);
 
-class SCATHA(API) InvalidDeclaration: public InvalidStatement {
+class SCATHA_API InvalidDeclaration: public InvalidStatement {
 public:
     enum class Reason {
         InvalidInCurrentScope,
@@ -204,10 +204,10 @@ private:
     SymbolCategory _existingCategory;
 };
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
+SCATHA_API std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
 
 /// MARK: Cycles
-class SCATHA(API) StrongReferenceCycle: public IssueBase {
+class SCATHA_API StrongReferenceCycle: public IssueBase {
 public:
     struct Node {
         ast::AbstractSyntaxTree const* astNode;
@@ -241,7 +241,7 @@ using IssueVariant = std::variant<BadTypeConversion,
 
 } // namespace internal
 
-class SCATHA(API) SemanticIssue:
+class SCATHA_API SemanticIssue:
     public issue::internal::VariantIssueBase<internal::IssueVariant> {
 public:
     using issue::internal::VariantIssueBase<

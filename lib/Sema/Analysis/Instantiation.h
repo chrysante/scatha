@@ -9,10 +9,9 @@ namespace scatha::sema {
 class DependencyGraph;
 class SymbolTable;
 
-SCATHA(API)
-void instantiateEntities(SymbolTable& symbolTable,
-                         issue::SemaIssueHandler& issueHandler,
-                         DependencyGraph& typeDependencies);
+SCATHA_API void instantiateEntities(SymbolTable& symbolTable,
+                                    issue::SemaIssueHandler& issueHandler,
+                                    DependencyGraph& typeDependencies);
 
 } // namespace scatha::sema
 

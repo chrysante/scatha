@@ -24,9 +24,7 @@ void Asm::print(AssemblyStream const& stream, std::ostream& str) {
     }
 }
 
-void Asm::print(Block const& block) {
-    print(block, std::cout);
-}
+void Asm::print(Block const& block) { print(block, std::cout); }
 
 void Asm::print(Block const& block, std::ostream& str) {
     std::cout << block.name() << "/" << block.id() << ":\n";

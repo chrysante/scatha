@@ -6,7 +6,7 @@
 
 namespace scatha::opt {
 
-SCATHA(TEST_API) bool inlineFunctions(ir::Context& ctx, ir::Module& mod);
+SCATHA_TESTAPI bool inlineFunctions(ir::Context& ctx, ir::Module& mod);
 
 } // namespace scatha::opt
 

@@ -9,7 +9,7 @@ namespace scatha::ir {
 
 class Context;
 
-SCATHA(TEST_API)
+SCATHA_TESTAPI
 UniquePtr<Function> clone(Context& context, Function* function);
 
 } // namespace scatha::ir

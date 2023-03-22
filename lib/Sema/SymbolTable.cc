@@ -261,9 +261,7 @@ void SymbolTable::pushScope(SymbolID id) {
     _currentScope = itr->second;
 }
 
-void SymbolTable::popScope() {
-    _currentScope = currentScope().parent();
-}
+void SymbolTable::popScope() { _currentScope = currentScope().parent(); }
 
 void SymbolTable::makeScopeCurrent(Scope* scope) {
     _currentScope = scope ? scope : &globalScope();

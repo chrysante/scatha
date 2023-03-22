@@ -55,9 +55,7 @@ void ast::printTree(AbstractSyntaxTree const& root, std::ostream& str) {
 
 static constexpr char endl = '\n';
 
-static Indenter indent(int level) {
-    return Indenter(level, 2);
-}
+static Indenter indent(int level) { return Indenter(level, 2); }
 
 void Context::dispatch(AbstractSyntaxTree const* node, int ind) {
     if (!node) {

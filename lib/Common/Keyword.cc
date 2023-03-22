@@ -9,9 +9,7 @@ namespace scatha {
 
 static utl::vector<std::string> const keywords = [] {
     utl::vector<std::string> result{ size_t(Keyword::_count) };
-    auto at = [&](Keyword k) -> auto& {
-        return result[size_t(k)];
-    };
+    auto at = [&](Keyword k) -> auto& { return result[size_t(k)]; };
     using enum Keyword;
 
     // MARK: Types

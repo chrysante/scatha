@@ -18,7 +18,7 @@
 
 namespace scatha::ir {
 
-class SCATHA(API) Context {
+class SCATHA_API Context {
 public:
     /// Construct an empty `Context` object
     Context();

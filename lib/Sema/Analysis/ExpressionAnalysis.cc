@@ -271,9 +271,7 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
     return ExpressionAnalysisResult::rvalue(ifRes.typeID());
 }
 
-ExpressionAnalysisResult Context::analyze(ast::Subscript&) {
-    SC_DEBUGFAIL();
-}
+ExpressionAnalysisResult Context::analyze(ast::Subscript&) { SC_DEBUGFAIL(); }
 
 ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     bool success = true;

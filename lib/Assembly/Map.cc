@@ -54,7 +54,8 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest,
             SC_UNREACHABLE();
         }
     }
-    SC_DEBUGFAIL(); // No matching instruction
+    /// No matching instruction.
+    SC_DEBUGFAIL();
 }
 
 OpCode Asm::mapJump(CompareOperation condition) {
@@ -87,7 +88,8 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs) {
             { Type::Float,    OpCode::fcmpRV },
         }); // clang-format on
     }
-    SC_DEBUGFAIL(); // No matching instruction
+    /// No matching instruction.
+    SC_DEBUGFAIL();
 }
 
 OpCode Asm::mapTest(Type type) {
@@ -283,7 +285,8 @@ OpCode Asm::mapArithmetic(ArithmeticOperation operation,
             SC_UNREACHABLE();
         }
     }
-    SC_DEBUGFAIL(); // No matching instruction.
+    /// No matching instruction.
+    SC_DEBUGFAIL();
 }
 
 // clang-format on

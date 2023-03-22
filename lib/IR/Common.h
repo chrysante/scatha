@@ -54,10 +54,10 @@ enum class NodeType {
 };
 
 /// Convert \p nodeType to string.
-SCATHA(API) std::string_view toString(NodeType nodeType);
+SCATHA_API std::string_view toString(NodeType nodeType);
 
 /// Insert \p nodeType into \p ostream.
-SCATHA(API) std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
 /// List of all compare arithmetic operations in the IR module.
 enum class CompareOperation {
@@ -67,11 +67,11 @@ enum class CompareOperation {
 };
 
 /// Convert \p compareOp to string.
-SCATHA(API) std::string_view toString(CompareOperation compareOp);
+SCATHA_API std::string_view toString(CompareOperation compareOp);
 
 /// Insert \p compareOp into \p ostream.
-SCATHA(API)
-std::ostream& operator<<(std::ostream& ostream, CompareOperation compareOp);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    CompareOperation compareOp);
 
 /// List of all unary arithmetic operations in the IR module.
 enum class UnaryArithmeticOperation {
@@ -81,13 +81,12 @@ enum class UnaryArithmeticOperation {
 };
 
 /// Convert \p unaryArithmeticOp to string.
-SCATHA(API)
-std::string_view toString(UnaryArithmeticOperation unaryArithmeticOp);
+SCATHA_API std::string_view toString(
+    UnaryArithmeticOperation unaryArithmeticOp);
 
 /// Insert \p unaryArithmeticOp into \p ostream.
-SCATHA(API)
-std::ostream& operator<<(std::ostream& ostream,
-                         UnaryArithmeticOperation unaryArithmeticOp);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    UnaryArithmeticOperation unaryArithmeticOp);
 
 /// List of all binary arithmetic operations in the IR module.
 enum class ArithmeticOperation {
@@ -97,12 +96,11 @@ enum class ArithmeticOperation {
 };
 
 /// Convert \p arithmeticOp to string.
-SCATHA(API) std::string_view toString(ArithmeticOperation arithmeticOp);
+SCATHA_API std::string_view toString(ArithmeticOperation arithmeticOp);
 
 /// Insert \p arithmeticOp into \p ostream.
-SCATHA(API)
-std::ostream& operator<<(std::ostream& ostream,
-                         ArithmeticOperation arithmeticOp);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    ArithmeticOperation arithmeticOp);
 
 /// ## Forward declarations of type categories
 
@@ -176,16 +174,16 @@ using ConstPhiMapping = internal::PhiMappingImpl<true>;
 namespace scatha::internal {
 
 /// Insulated call to `delete` on the most derived base of \p *value
-SCATHA(API) void privateDelete(ir::Value* value);
+SCATHA_API void privateDelete(ir::Value* value);
 
 /// Insulated call to destructor on the most derived base of \p *value
-SCATHA(API) void privateDestroy(ir::Value* value);
+SCATHA_API void privateDestroy(ir::Value* value);
 
 /// Insulated call to `delete` on the most derived base of \p *type
-SCATHA(API) void privateDelete(ir::Type* type);
+SCATHA_API void privateDelete(ir::Type* type);
 
 /// Insulated call to destructor on the most derived base of \p *type
-SCATHA(API) void privateDestroy(ir::Type* type);
+SCATHA_API void privateDestroy(ir::Type* type);
 
 } // namespace scatha::internal
 

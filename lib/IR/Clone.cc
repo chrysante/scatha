@@ -7,9 +7,7 @@
 using namespace scatha;
 using namespace ir;
 
-static Instruction* doClone(Context&, Instruction*) {
-    SC_UNREACHABLE();
-}
+static Instruction* doClone(Context&, Instruction*) { SC_UNREACHABLE(); }
 
 static Alloca* doClone(Context& context, Alloca* allc) {
     return new Alloca(context,

@@ -29,7 +29,7 @@ inline constexpr Fatal fatal{};
 namespace internal {
 
 template <typename T>
-class SCATHA(API) IssueHandlerBase {
+class SCATHA_API IssueHandlerBase {
 public:
     IssueHandlerBase();
     IssueHandlerBase(IssueHandlerBase&&) noexcept;

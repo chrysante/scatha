@@ -58,7 +58,10 @@
 #endif
 
 // TODO: Make this conditional based on wether this is actually a test build.
-#define _SCATHA_PD_TEST_API() _SCATHA_PD_API()
+#define _SCATHA_PD_TESTAPI() _SCATHA_PD_API()
+
+#define SCATHA_API     _SCATHA_PD_API()
+#define SCATHA_TESTAPI _SCATHA_PD_TESTAPI()
 
 // Disable UBSAN for certain integer shift operations. Maybe rethink this later.
 #if defined(__clang__) && __clang_major__ >= 10

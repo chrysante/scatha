@@ -10,7 +10,7 @@
 
 namespace scatha::lex {
 
-SCATHA(API) utl::vector<std::string> extractLines(std::string_view text);
+SCATHA_API utl::vector<std::string> extractLines(std::string_view text);
 
 }
 

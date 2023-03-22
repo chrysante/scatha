@@ -14,39 +14,27 @@ inline bool isLetter(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
-inline bool isDigitDec(char c) {
-    return c >= '0' && c <= '9';
-}
+inline bool isDigitDec(char c) { return c >= '0' && c <= '9'; }
 
 inline bool isDigitHex(char c) {
     return isDigitDec(c) || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 }
 
-inline bool isFloatDigitDec(char c) {
-    return isDigitDec(c) || c == '.';
-}
+inline bool isFloatDigitDec(char c) { return isDigitDec(c) || c == '.'; }
 
-inline bool isLetterEx(char c) {
-    return isLetter(c) || isDigitDec(c);
-}
+inline bool isLetterEx(char c) { return isLetter(c) || isDigitDec(c); }
 
-SCATHA(API) SCATHA(CONST) bool isPunctuation(char);
+SCATHA_API bool isPunctuation(char);
 
-inline bool isNewline(char c) {
-    return c == '\n';
-}
+inline bool isNewline(char c) { return c == '\n'; }
 
-inline bool isSpace(char c) {
-    return std::isspace(c) || isNewline(c);
-}
+inline bool isSpace(char c) { return std::isspace(c) || isNewline(c); }
 
-inline bool isDelimiter(char c) {
-    return isPunctuation(c) || isSpace(c);
-}
+inline bool isDelimiter(char c) { return isPunctuation(c) || isSpace(c); }
 
-SCATHA(API) SCATHA(CONST) bool isOperatorLetter(char);
+SCATHA_API bool isOperatorLetter(char);
 
-SCATHA(API) SCATHA(PURE) bool isOperator(std::string_view);
+SCATHA_API bool isOperator(std::string_view);
 
 } // namespace scatha::lex
 

@@ -10,13 +10,9 @@
 
 namespace scatha::internal {
 
-void privateDelete(auto* ptr) {
-    delete ptr;
-}
+void privateDelete(auto* ptr) { delete ptr; }
 
-void privateDestroy(auto* ptr) {
-    std::destroy_at(ptr);
-}
+void privateDestroy(auto* ptr) { std::destroy_at(ptr); }
 
 struct PrivateDeleter {
     void operator()(auto* ptr) const { ::scatha::internal::privateDelete(ptr); }

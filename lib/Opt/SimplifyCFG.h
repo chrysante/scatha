@@ -6,7 +6,7 @@
 
 namespace scatha::opt {
 
-SCATHA(TEST_API) bool simplifyCFG(ir::Context& ctx, ir::Function& function);
+SCATHA_TESTAPI bool simplifyCFG(ir::Context& ctx, ir::Function& function);
 
 } // namespace scatha::opt
 

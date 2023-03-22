@@ -13,15 +13,13 @@ static bool isAnyOf(char c, std::string_view data) {
     return false;
 }
 
-SCATHA(PURE) bool isPunctuation(char c) {
-    return isAnyOf(c, "{}()[],;:");
-}
+bool isPunctuation(char c) { return isAnyOf(c, "{}()[],;:"); }
 
-SCATHA(PURE) bool isOperatorLetter(char c) {
+bool isOperatorLetter(char c) {
     return isAnyOf(c, "+-*/%&|^.=><?!~");
 }
 
-SCATHA(PURE) bool isOperator(std::string_view id) {
+bool isOperator(std::string_view id) {
     // clang-format off
     std::string_view constexpr operators[]{
         "+",  "-",  "*",  "/",  "%",  "&",  "|",   "^",   "!",  "~",

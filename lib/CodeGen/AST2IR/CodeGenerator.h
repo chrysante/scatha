@@ -22,10 +22,10 @@ namespace scatha::ast {
 
 class AbstractSyntaxTree;
 
-[[nodiscard]] SCATHA(API) ir::Module
-    codegen(AbstractSyntaxTree const& ast,
-            sema::SymbolTable const& symbolTable,
-            ir::Context& context);
+[[nodiscard]] SCATHA_API ir::Module codegen(
+    AbstractSyntaxTree const& ast,
+    sema::SymbolTable const& symbolTable,
+    ir::Context& context);
 
 } // namespace scatha::ast
 

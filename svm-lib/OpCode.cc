@@ -180,7 +180,7 @@ struct svm::OpCodeImpl {
 
     static utl::vector<Instruction> makeInstructionTable() {
         utl::vector<Instruction> result(static_cast<size_t>(OpCode::_count));
-        auto at = [&, idx = 0 ](OpCode i) mutable -> auto& {
+        auto at = [&, idx = 0](OpCode i) mutable -> auto& {
             assert(static_cast<int>(i) == idx++ && "Missing instruction");
             return result[static_cast<u8>(i)];
         };

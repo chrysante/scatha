@@ -49,9 +49,7 @@ struct PrintCtx {
 
 } // namespace
 
-void ir::print(Module const& program) {
-    ir::print(program, std::cout);
-}
+void ir::print(Module const& program) { ir::print(program, std::cout); }
 
 void ir::print(Module const& program, std::ostream& str) {
     PrintCtx ctx(str);
@@ -63,9 +61,7 @@ void ir::print(Module const& program, std::ostream& str) {
     }
 }
 
-void ir::print(Function const& function) {
-    ir::print(function, std::cout);
-}
+void ir::print(Function const& function) { ir::print(function, std::cout); }
 
 void ir::print(Function const& function, std::ostream& str) {
     PrintCtx ctx(str);
@@ -159,9 +155,7 @@ static auto equals() {
     });
 }
 
-static auto label() {
-    return tertiary("label");
-}
+static auto label() { return tertiary("label"); }
 
 void PrintCtx::print(Function const& function) {
     str << keyword("function") << " " << formatType(function.returnType())

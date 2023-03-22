@@ -138,7 +138,7 @@
 
 namespace scatha::parse {
 
-[[nodiscard]] SCATHA(API) UniquePtr<ast::AbstractSyntaxTree> parse(
+[[nodiscard]] SCATHA_API UniquePtr<ast::AbstractSyntaxTree> parse(
     utl::vector<Token> tokens, issue::SyntaxIssueHandler& issueHandler);
 
 } // namespace scatha::parse

@@ -203,9 +203,7 @@ void Ctx::declare(Function const& function) {
     }
 }
 
-void Ctx::declare(BasicBlock const& bb) {
-    bbDeclareCallback(str, bb);
-}
+void Ctx::declare(BasicBlock const& bb) { bbDeclareCallback(str, bb); }
 
 void Ctx::connect(Function const& function) {
     for (auto& bb: function) {
@@ -213,9 +211,7 @@ void Ctx::connect(Function const& function) {
     }
 }
 
-void Ctx::connect(BasicBlock const& bb) {
-    bbConnectCallback(str, bb);
-}
+void Ctx::connect(BasicBlock const& bb) { bbConnectCallback(str, bb); }
 
 void Ctx::beginModule() {
     str << "digraph {\n";
@@ -224,9 +220,7 @@ void Ctx::beginModule() {
     str << "  node [ shape = box ]\n";
 }
 
-void Ctx::endModule() {
-    str << "} // digraph\n";
-}
+void Ctx::endModule() { str << "} // digraph\n"; }
 
 void Ctx::beginFunction(ir::Function const& function) {
     currentFunction = &function;

@@ -52,17 +52,11 @@ void Context::dispatchExpression(Expression const& expr) {
     visit(expr, [&](auto const& expr) { printExpression(expr); });
 }
 
-void Context::printExpression(Identifier const& id) {
-    str << id.value();
-}
+void Context::printExpression(Identifier const& id) { str << id.value(); }
 
-void Context::printExpression(IntegerLiteral const& l) {
-    str << l.token().id;
-}
+void Context::printExpression(IntegerLiteral const& l) { str << l.token().id; }
 
-void Context::printExpression(BooleanLiteral const& l) {
-    str << l.token().id;
-}
+void Context::printExpression(BooleanLiteral const& l) { str << l.token().id; }
 
 void Context::printExpression(FloatingPointLiteral const& l) {
     str << l.token().id;

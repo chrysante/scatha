@@ -8,27 +8,27 @@
 
 namespace scatha::opt {
 
-SCATHA(TEST_API)
+SCATHA_TESTAPI
 bool preceeds(ir::Instruction const* a, ir::Instruction const* b);
 
-SCATHA(TEST_API)
+SCATHA_TESTAPI
 bool isReachable(ir::Instruction const* from, ir::Instruction const* to);
 
-SCATHA(TEST_API) bool compareEqual(ir::Phi const* lhs, ir::Phi const* rhs);
+SCATHA_TESTAPI bool compareEqual(ir::Phi const* lhs, ir::Phi const* rhs);
 
-SCATHA(TEST_API)
+SCATHA_TESTAPI
 bool compareEqual(ir::Phi const* lhs, std::span<ir::ConstPhiMapping const> rhs);
 
-SCATHA(TEST_API)
+SCATHA_TESTAPI
 bool compareEqual(ir::Phi const* lhs, std::span<ir::PhiMapping const> rhs);
 
 /// Replace all uses of \p oldValue with \p newValue
-SCATHA(TEST_API) void replaceValue(ir::Value* oldValue, ir::Value* newValue);
+SCATHA_TESTAPI void replaceValue(ir::Value* oldValue, ir::Value* newValue);
 
 /// Fully remove \p *predecessor as predecessor of \p *basicBlock.
 /// Caller is responsible for removing \p *basicBlock as successor of \p
 /// *predecessor
-SCATHA(TEST_API)
+SCATHA_TESTAPI
 void removePredecessorAndUpdatePhiNodes(ir::BasicBlock* basicBlock,
                                         ir::BasicBlock const* predecessor);
 

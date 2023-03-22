@@ -12,18 +12,18 @@ class Value;
 class Function;
 class Instruction;
 
-SCATHA(API) void print(Module const& program);
+SCATHA_API void print(Module const& program);
 
-SCATHA(API) void print(Module const& program, std::ostream& ostream);
+SCATHA_API void print(Module const& program, std::ostream& ostream);
 
-SCATHA(API) void print(Function const& function);
+SCATHA_API void print(Function const& function);
 
-SCATHA(API) void print(Function const& function, std::ostream& ostream);
+SCATHA_API void print(Function const& function, std::ostream& ostream);
 
-SCATHA(API)
-std::ostream& operator<<(std::ostream& ostream, Instruction const& inst);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    Instruction const& inst);
 
-SCATHA(API) std::string toString(Value const& value);
+SCATHA_API std::string toString(Value const& value);
 
 } // namespace scatha::ir
 

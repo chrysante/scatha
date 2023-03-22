@@ -13,7 +13,7 @@
 
 namespace scatha::sema {
 
-class SCATHA(API) OverloadSet: public EntityBase {
+class SCATHA_API OverloadSet: public EntityBase {
 public:
     /// Construct an empty overload set.
     explicit OverloadSet(std::string name, SymbolID id, Scope* parentScope):

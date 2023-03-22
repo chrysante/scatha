@@ -33,6 +33,4 @@ bool opt::dce(ir::Context& context, ir::Function& function) {
     return result;
 }
 
-bool DCEContext::run() {
-    return modified;
-}
+bool DCEContext::run() { return modified; }

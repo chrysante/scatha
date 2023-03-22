@@ -355,9 +355,7 @@ void Phi::setArgument(BasicBlock const* pred, Value* value) {
     setArgument(indexOf(pred), value);
 }
 
-void Phi::setArgument(size_t index, Value* value) {
-    setOperand(index, value);
-}
+void Phi::setArgument(size_t index, Value* value) { setOperand(index, value); }
 
 void Phi::setPredecessor(size_t index, BasicBlock* pred) {
     _preds[index] = pred;

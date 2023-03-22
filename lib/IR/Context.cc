@@ -77,6 +77,4 @@ UndefValue* Context::undef(Type const* type) {
     return itr->second;
 }
 
-Value* Context::voidValue() {
-    return undef(voidType());
-}
+Value* Context::voidValue() { return undef(voidType()); }

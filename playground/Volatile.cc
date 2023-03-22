@@ -48,12 +48,23 @@ void playground::volatilePlayground(std::filesystem::path path) {
     header(" Before inlining ");
     ir::print(mod);
 
-    size_t count = 0;
-    do {
-        ++count;
-    } while (opt::inlineFunctions(ctx, mod) && count < 6);
+    opt::inlineFunctions(ctx, mod);
 
     header(" After inlining ");
-    std::cout << "Inliner ran " << count << " time(s)\n\n";
+
     ir::print(mod);
+
+    auto assembly = cg::codegen(mod);
+
+    header(" Assembly ");
+
+    Asm::print(assembly);
+
+    auto program = Asm::assemble(assembly);
+
+    svm::VirtualMachine vm;
+    vm.loadProgram(program.data());
+    vm.execute();
+    std::cout << "Program returned: " << vm.getState().registers[0]
+              << std::endl;
 }

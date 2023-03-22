@@ -26,7 +26,7 @@ struct Bracket {
     bool operator==(Bracket const&) const = default;
 };
 
-SCATHA(API) Bracket toBracket(Token const& token);
+SCATHA_API Bracket toBracket(Token const& token);
 
 std::string toString(Bracket bracket);
 

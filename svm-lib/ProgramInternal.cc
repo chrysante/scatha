@@ -26,9 +26,7 @@ Program::Program(u8 const* prog) {
     start = header.start;
 }
 
-void svm::print(u8 const* program) {
-    svm::print(program, std::cout);
-}
+void svm::print(u8 const* program) { svm::print(program, std::cout); }
 
 template <typename T>
 static constexpr std::string_view typeToStr() {
@@ -44,9 +42,7 @@ static constexpr std::string_view typeToStr() {
     SVM_TYPETOSTR_CASE(i16)
     SVM_TYPETOSTR_CASE(i32)
     SVM_TYPETOSTR_CASE(i64)
-    else {
-        static_assert(!std::is_same_v<T, T>);
-    }
+    else { static_assert(!std::is_same_v<T, T>); }
 #undef SVM_TYPETOSTR_CASE
 }
 

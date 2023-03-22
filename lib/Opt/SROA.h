@@ -14,7 +14,7 @@ namespace scatha::opt {
 
 /// Perform scalar replacement of aggregates on \p function
 /// \Returns True iff \p function was modified in the pass.
-SCATHA(API) bool sroa(ir::Context& context, ir::Function& function);
+SCATHA_API bool sroa(ir::Context& context, ir::Function& function);
 
 } // namespace scatha::opt
 

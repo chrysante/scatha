@@ -165,13 +165,9 @@ void Context::translate(CallExtInst const& call) {
     put<u16>(call.index());
 }
 
-void Context::translate(ReturnInst const& ret) {
-    put(OpCode::ret);
-}
+void Context::translate(ReturnInst const& ret) { put(OpCode::ret); }
 
-void Context::translate(TerminateInst const& term) {
-    put(OpCode::terminate);
-}
+void Context::translate(TerminateInst const& term) { put(OpCode::terminate); }
 
 void Context::translate(AllocaInst const& alloca_) {
     put(OpCode::alloca_);
@@ -239,21 +235,13 @@ void Context::translate(MemoryAddress const& memAddr) {
     put<u8>(memAddr.constantInnerOffset());
 }
 
-void Context::translate(Value8 const& value) {
-    put<u8>(value.value());
-}
+void Context::translate(Value8 const& value) { put<u8>(value.value()); }
 
-void Context::translate(Value16 const& value) {
-    put<u16>(value.value());
-}
+void Context::translate(Value16 const& value) { put<u16>(value.value()); }
 
-void Context::translate(Value32 const& value) {
-    put<u32>(value.value());
-}
+void Context::translate(Value32 const& value) { put<u32>(value.value()); }
 
-void Context::translate(Value64 const& value) {
-    put<u64>(value.value());
-}
+void Context::translate(Value64 const& value) { put<u64>(value.value()); }
 
 void Context::registerJumpSite(size_t offsetValuePos, u64 targetID) {
     jumpsites.push_back(

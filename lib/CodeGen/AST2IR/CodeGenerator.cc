@@ -551,9 +551,7 @@ ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
     return call;
 }
 
-ir::Value* CodeGenContext::getValueImpl(Subscript const&) {
-    SC_DEBUGFAIL();
-}
+ir::Value* CodeGenContext::getValueImpl(Subscript const&) { SC_DEBUGFAIL(); }
 
 ir::Value* CodeGenContext::getAddress(Expression const& expr) {
     return visit(expr,
@@ -643,9 +641,7 @@ void CodeGenContext::declareFunctions() {
     }
 }
 
-void CodeGenContext::setCurrentBB(ir::BasicBlock* bb) {
-    _currentBB = bb;
-}
+void CodeGenContext::setCurrentBB(ir::BasicBlock* bb) { _currentBB = bb; }
 
 void CodeGenContext::memorizeVariableAddress(sema::SymbolID symbolID,
                                              ir::Value* value) {

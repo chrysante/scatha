@@ -30,9 +30,7 @@ MonotonicBufferAllocator::MonotonicBufferAllocator(
     rhs.end     = nullptr;
 }
 
-MonotonicBufferAllocator::~MonotonicBufferAllocator() {
-    release();
-}
+MonotonicBufferAllocator::~MonotonicBufferAllocator() { release(); }
 
 MonotonicBufferAllocator& MonotonicBufferAllocator::operator=(
     MonotonicBufferAllocator&& rhs) noexcept {

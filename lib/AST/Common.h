@@ -25,9 +25,9 @@ enum class NodeType {
     _count
 };
 
-SCATHA(API) std::string_view toString(NodeType);
+SCATHA_API std::string_view toString(NodeType);
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, NodeType);
+SCATHA_API std::ostream& operator<<(std::ostream&, NodeType);
 
 } // namespace scatha::ast
 
@@ -47,9 +47,9 @@ enum class UnaryPrefixOperator {
     _count
 };
 
-SCATHA(API) std::string_view toString(UnaryPrefixOperator);
+SCATHA_API std::string_view toString(UnaryPrefixOperator);
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, UnaryPrefixOperator);
+SCATHA_API std::ostream& operator<<(std::ostream&, UnaryPrefixOperator);
 
 /// List of all binary operators in infix notation
 enum class BinaryOperator {
@@ -58,26 +58,26 @@ enum class BinaryOperator {
     _count
 };
 
-SCATHA(API) std::string_view toString(BinaryOperator);
+SCATHA_API std::string_view toString(BinaryOperator);
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, BinaryOperator);
+SCATHA_API std::ostream& operator<<(std::ostream&, BinaryOperator);
 
 /// Categories of entities in the AST module
 enum class EntityCategory : u8 { Value, Type, _count };
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, EntityCategory);
+SCATHA_API std::ostream& operator<<(std::ostream&, EntityCategory);
 
 /// Value category
 enum class ValueCategory : u8 { None, LValue, RValue, _count };
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, ValueCategory);
+SCATHA_API std::ostream& operator<<(std::ostream&, ValueCategory);
 
 } // namespace scatha::ast
 
 namespace scatha::internal {
 
 /// Insulated call to `delete` on the most derived base of \p *astNode
-SCATHA(API) void privateDelete(ast::AbstractSyntaxTree* astNode);
+SCATHA_API void privateDelete(ast::AbstractSyntaxTree* astNode);
 
 } // namespace scatha::internal
 

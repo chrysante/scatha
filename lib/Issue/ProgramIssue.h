@@ -9,13 +9,13 @@
 namespace scatha::issue::internal {
 
 /// So we can accept this as a parameter for default case in visitors.
-class SCATHA(API) ProgramIssuePrivateBase {};
+class SCATHA_API ProgramIssuePrivateBase {};
 
 } // namespace scatha::issue::internal
 
 namespace scatha::issue {
 
-class SCATHA(API) ProgramIssueBase: public internal::ProgramIssuePrivateBase {
+class SCATHA_API ProgramIssueBase: public internal::ProgramIssuePrivateBase {
 public:
     explicit ProgramIssueBase(Token token): _token(std::move(token)) {}
     explicit ProgramIssueBase(SourceLocation location) {

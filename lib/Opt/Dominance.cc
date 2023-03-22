@@ -59,9 +59,7 @@ struct PrintCtx {
 
 } // namespace
 
-void opt::print(DomTree const& domTree) {
-    print(domTree, std::cout);
-}
+void opt::print(DomTree const& domTree) { print(domTree, std::cout); }
 
 void opt::print(DomTree const& domTree, std::ostream& str) {
     PrintCtx ctx(str);
@@ -121,9 +119,8 @@ DominanceInfo::DomMap DominanceInfo::computeDomSets(Function& function) {
         utl::hashset<BasicBlock*> newDomSet = { bb };
         auto predDomSets =
             bb->predecessors() |
-            ranges::views::transform([&](auto* pred) -> auto const& {
-                return domSets[pred];
-            });
+            ranges::views::transform(
+                [&](auto* pred) -> auto const& { return domSets[pred]; });
         merge(newDomSet, intersect(predDomSets));
         auto& oldDomSet = domSets[bb];
         if (newDomSet != oldDomSet) {

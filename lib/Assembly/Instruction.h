@@ -32,7 +32,7 @@ public:
     size_t numBytes() const { return _numBytes; }
 
 private:
-    SCATHA(TEST_API) void verify();
+    SCATHA_TESTAPI void verify();
 
 private:
     Value _dest, _src;
@@ -209,7 +209,7 @@ public:
     Value const& source() const { return _src; }
 
 private:
-    SCATHA(TEST_API) void verify() const;
+    SCATHA_TESTAPI void verify() const;
 
 private:
     ArithmeticOperation _op;

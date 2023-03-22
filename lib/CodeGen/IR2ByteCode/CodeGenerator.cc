@@ -231,9 +231,16 @@ void CodeGenContext::generate(ir::CompareInst const& cmp) {
     }
 }
 
+static Value widenConstantTo64Bit(Value value) {
+    if (value.is<Value8>() || value.is<Value16>() || value.is<Value32>()) {
+        return value.as_base<ValueBase>().widen();
+    }
+    return value;
+}
+
 void CodeGenContext::generate(ir::UnaryArithmeticInst const& inst) {
-    auto dest               = currentRD().resolve(inst).get<RegisterIndex>();
-    auto operand            = currentRD().resolve(*inst.operand());
+    auto dest    = currentRD().resolve(inst).get<RegisterIndex>();
+    auto operand = widenConstantTo64Bit(currentRD().resolve(*inst.operand()));
     auto genUnaryArithmetic = [&](UnaryArithmeticOperation operation) {
         currentBlock().insertBack(
             MoveInst(dest, operand, inst.operand()->type()->size()));
@@ -268,7 +275,8 @@ void CodeGenContext::generate(ir::ArithmeticInst const& arithmetic) {
         Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
                             mapType(arithmetic.type()),
                             dest,
-                            currentRD().resolve(*arithmetic.rhs())));
+                            widenConstantTo64Bit(
+                                currentRD().resolve(*arithmetic.rhs()))));
 }
 
 // MARK: Terminators

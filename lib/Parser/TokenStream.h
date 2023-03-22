@@ -14,7 +14,7 @@ namespace scatha::parse {
 ///
 /// \details
 /// 1. Expects the last token in the stream to be of type EndOfFile.
-class SCATHA(API) TokenStream: private ParanCounter {
+class SCATHA_API TokenStream: private ParanCounter {
 public:
     /// Constructs an empty TokenStream.
     TokenStream() = default;

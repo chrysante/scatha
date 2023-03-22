@@ -49,7 +49,7 @@ namespace scatha::ast {
 /// MARK: Expressions
 
 /// Abstract node representing any expression.
-class SCATHA(API) Expression: public AbstractSyntaxTree {
+class SCATHA_API Expression: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
 
@@ -96,7 +96,7 @@ private:
 };
 
 /// Concrete node representing an identifier.
-class SCATHA(API) Identifier: public Expression {
+class SCATHA_API Identifier: public Expression {
 public:
     explicit Identifier(Token const& token):
         Expression(NodeType::Identifier, token) {}
@@ -126,7 +126,7 @@ private:
 };
 
 /// Concrete node representing an integer literal.
-class SCATHA(API) IntegerLiteral: public Expression {
+class SCATHA_API IntegerLiteral: public Expression {
 public:
     explicit IntegerLiteral(Token const& token):
         Expression(NodeType::IntegerLiteral, token),
@@ -139,7 +139,7 @@ private:
 };
 
 /// Concrete node representing a boolean literal.
-class SCATHA(API) BooleanLiteral: public Expression {
+class SCATHA_API BooleanLiteral: public Expression {
 public:
     explicit BooleanLiteral(Token const& token):
         Expression(NodeType::BooleanLiteral, token), _value(token.toBool()) {}
@@ -152,7 +152,7 @@ private:
 };
 
 /// Concrete node representing a floating point literal.
-class SCATHA(API) FloatingPointLiteral: public Expression {
+class SCATHA_API FloatingPointLiteral: public Expression {
 public:
     explicit FloatingPointLiteral(Token const& token):
         Expression(NodeType::FloatingPointLiteral, token),
@@ -165,7 +165,7 @@ private:
 };
 
 /// Concrete node representing a string literal.
-class SCATHA(API) StringLiteral: public Expression {
+class SCATHA_API StringLiteral: public Expression {
 public:
     explicit StringLiteral(Token const& token):
         Expression(NodeType::StringLiteral, token), _value(token.id) {}
@@ -180,7 +180,7 @@ private:
 /// MARK: Unary Expressions
 
 /// Concrete node representing a unary prefix expression.
-class SCATHA(API) UnaryPrefixExpression: public Expression {
+class SCATHA_API UnaryPrefixExpression: public Expression {
 public:
     explicit UnaryPrefixExpression(UnaryPrefixOperator op,
                                    UniquePtr<Expression> operand,
@@ -202,7 +202,7 @@ private:
 /// MARK: Binary Expressions
 
 /// Concrete node representing a binary infix expression.
-class SCATHA(API) BinaryExpression: public Expression {
+class SCATHA_API BinaryExpression: public Expression {
 public:
     explicit BinaryExpression(BinaryOperator op,
                               UniquePtr<Expression> lhs,
@@ -230,7 +230,7 @@ private:
 };
 
 /// Concrete node representing a member access expression.
-class SCATHA(API) MemberAccess: public Expression {
+class SCATHA_API MemberAccess: public Expression {
 public:
     explicit MemberAccess(UniquePtr<Expression> object,
                           UniquePtr<Expression> member,
@@ -269,7 +269,7 @@ private:
 /// MARK: Ternary Expressions
 
 /// Concrete node representing a conditional expression.
-class SCATHA(API) Conditional: public Expression {
+class SCATHA_API Conditional: public Expression {
 public:
     explicit Conditional(UniquePtr<Expression> condition,
                          UniquePtr<Expression> ifExpr,
@@ -293,7 +293,7 @@ public:
 /// MARK: More Complex Expressions
 
 /// Concrete node representing a function call expression.
-class SCATHA(API) FunctionCall: public Expression {
+class SCATHA_API FunctionCall: public Expression {
 public:
     explicit FunctionCall(UniquePtr<Expression> object, Token const& token):
         Expression(NodeType::FunctionCall, token), object(std::move(object)) {}
@@ -329,7 +329,7 @@ private:
 };
 
 /// Concrete node representing a subscript expression.
-class SCATHA(API) Subscript: public Expression {
+class SCATHA_API Subscript: public Expression {
 public:
     explicit Subscript(UniquePtr<Expression> object, Token const& token):
         Expression(NodeType::Subscript, token), object(std::move(object)) {}
@@ -342,13 +342,13 @@ public:
 };
 
 /// Abstract node representing a statement.
-class SCATHA(API) Statement: public AbstractSyntaxTree {
+class SCATHA_API Statement: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
 };
 
 /// Abstract node representing a declaration.
-class SCATHA(API) Declaration: public Statement {
+class SCATHA_API Declaration: public Statement {
 public:
     /// Name of the declared symbol as written in the source code.
     std::string_view name() const {
@@ -384,7 +384,7 @@ private:
 };
 
 /// Concrete node representing a translation unit.
-class SCATHA(API) TranslationUnit: public AbstractSyntaxTree {
+class SCATHA_API TranslationUnit: public AbstractSyntaxTree {
 public:
     TranslationUnit(): AbstractSyntaxTree(NodeType::TranslationUnit, Token{}) {}
 
@@ -393,7 +393,7 @@ public:
 };
 
 /// Concrete node representing a variable declaration.
-class SCATHA(API) VariableDeclaration: public Declaration {
+class SCATHA_API VariableDeclaration: public Declaration {
 public:
     explicit VariableDeclaration(Token const& declarator,
                                  UniquePtr<Identifier> name):
@@ -449,7 +449,7 @@ private:
 };
 
 /// Concrete node representing a parameter declaration.
-class SCATHA(API) ParameterDeclaration: public Declaration {
+class SCATHA_API ParameterDeclaration: public Declaration {
 public:
     explicit ParameterDeclaration(UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
@@ -482,14 +482,14 @@ private:
 };
 
 /// Nothing to see here yet...
-class SCATHA(API) ModuleDeclaration: public Declaration {
+class SCATHA_API ModuleDeclaration: public Declaration {
 public:
     ModuleDeclaration() = delete;
 };
 
 /// Concrete node representing a compound statement. Declares its own (possibly
 /// anonymous) scope.
-class SCATHA(API) CompoundStatement: public Statement {
+class SCATHA_API CompoundStatement: public Statement {
 public:
     explicit CompoundStatement(Token const& token):
         Statement(NodeType::CompoundStatement, token) {}
@@ -527,14 +527,14 @@ private:
 /// Concrete node representing an empty statement (";").
 /// Note: This class exists so we don't have to ignore empty statements while
 /// parsing but can potentially handle them in some way in semantic analysis.
-class SCATHA(API) EmptyStatement: public Statement {
+class SCATHA_API EmptyStatement: public Statement {
 public:
     explicit EmptyStatement(Token const& token):
         Statement(NodeType::EmptyStatement, token) {}
 };
 
 /// Concrete node representing the definition of a function.
-class SCATHA(API) FunctionDefinition: public Declaration {
+class SCATHA_API FunctionDefinition: public Declaration {
 public:
     explicit FunctionDefinition(Token const& declarator,
                                 UniquePtr<Identifier> name):
@@ -571,7 +571,7 @@ private:
 };
 
 /// Concrete node representing the definition of a struct.
-class SCATHA(API) StructDefinition: public Declaration {
+class SCATHA_API StructDefinition: public Declaration {
 public:
     explicit StructDefinition(Token const& declarator,
                               UniquePtr<Identifier> name,
@@ -592,7 +592,7 @@ public:
 
 /// Concrete node representing a statement that consists of a single expression.
 /// May only appear at function scope.
-class SCATHA(API) ExpressionStatement: public Statement {
+class SCATHA_API ExpressionStatement: public Statement {
 public:
     explicit ExpressionStatement(UniquePtr<Expression> expression):
         Statement(NodeType::ExpressionStatement,
@@ -605,13 +605,13 @@ public:
 
 /// Abstract node representing any control flow statement like if, while, for,
 /// return etc. May only appear at function scope.
-class SCATHA(API) ControlFlowStatement: public Statement {
+class SCATHA_API ControlFlowStatement: public Statement {
 protected:
     using Statement::Statement;
 };
 
 /// Concrete node representing a return statement.
-class SCATHA(API) ReturnStatement: public ControlFlowStatement {
+class SCATHA_API ReturnStatement: public ControlFlowStatement {
 public:
     explicit ReturnStatement(Token const& returnToken,
                              UniquePtr<Expression> expression):
@@ -623,7 +623,7 @@ public:
 };
 
 /// Concrete node representing an if/else statement.
-class SCATHA(API) IfStatement: public ControlFlowStatement {
+class SCATHA_API IfStatement: public ControlFlowStatement {
 public:
     explicit IfStatement(Token const& token,
                          UniquePtr<Expression> condition,
@@ -647,7 +647,7 @@ public:
 };
 
 /// Concrete node representing a while statement.
-class SCATHA(API) WhileStatement: public ControlFlowStatement {
+class SCATHA_API WhileStatement: public ControlFlowStatement {
 public:
     explicit WhileStatement(Token const& token,
                             UniquePtr<Expression> condition,
@@ -666,7 +666,7 @@ public:
 };
 
 /// Concrete node representing a do-while statement.
-class SCATHA(API) DoWhileStatement: public ControlFlowStatement {
+class SCATHA_API DoWhileStatement: public ControlFlowStatement {
 public:
     explicit DoWhileStatement(Token const& token,
                               UniquePtr<Expression> condition,
@@ -685,7 +685,7 @@ public:
 };
 
 /// Concrete node representing a for statement.
-class SCATHA(API) ForStatement: public ControlFlowStatement {
+class SCATHA_API ForStatement: public ControlFlowStatement {
 public:
     explicit ForStatement(Token const& token,
                           UniquePtr<VariableDeclaration> varDecl,

@@ -9,13 +9,12 @@
 
 namespace scatha::issue {
 
-SCATHA(API)
-void highlightToken(StructuredSource const& source, Token const& token);
+SCATHA_API void highlightToken(StructuredSource const& source,
+                               Token const& token);
 
-SCATHA(API)
-void highlightToken(StructuredSource const& source,
-                    Token const& token,
-                    std::ostream& ostream);
+SCATHA_API void highlightToken(StructuredSource const& source,
+                               Token const& token,
+                               std::ostream& ostream);
 
 } // namespace scatha::issue
 

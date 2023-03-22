@@ -21,9 +21,9 @@ enum class ScopeKind {
     _count
 };
 
-SCATHA(API) std::string_view toString(ScopeKind);
+SCATHA_API std::string_view toString(ScopeKind);
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, ScopeKind);
+SCATHA_API std::ostream& operator<<(std::ostream&, ScopeKind);
 
 } // namespace scatha::sema
 

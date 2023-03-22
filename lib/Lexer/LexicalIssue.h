@@ -13,17 +13,17 @@
 
 namespace scatha::lex {
 
-class SCATHA(API) IssueBase: public issue::ProgramIssueBase {
+class SCATHA_API IssueBase: public issue::ProgramIssueBase {
 protected:
     using issue::ProgramIssueBase::ProgramIssueBase;
 };
 
-class SCATHA(API) UnexpectedID: public IssueBase {
+class SCATHA_API UnexpectedID: public IssueBase {
 public:
     explicit UnexpectedID(Token const& token): IssueBase(token) {}
 };
 
-class SCATHA(API) InvalidNumericLiteral: public IssueBase {
+class SCATHA_API InvalidNumericLiteral: public IssueBase {
 public:
     enum class Kind { Integer, FloatingPoint };
     explicit InvalidNumericLiteral(Token const& token, Kind kind):
@@ -35,12 +35,12 @@ private:
     Kind _kind;
 };
 
-class SCATHA(API) UnterminatedStringLiteral: public IssueBase {
+class SCATHA_API UnterminatedStringLiteral: public IssueBase {
 public:
     explicit UnterminatedStringLiteral(Token const& token): IssueBase(token) {}
 };
 
-class SCATHA(API) UnterminatedMultiLineComment: public IssueBase {
+class SCATHA_API UnterminatedMultiLineComment: public IssueBase {
 public:
     explicit UnterminatedMultiLineComment(Token const& token):
         IssueBase(token) {}
@@ -57,7 +57,7 @@ using IssueVariant = std::variant<UnexpectedID,
 
 } // namespace internal
 
-class SCATHA(API) LexicalIssue:
+class SCATHA_API LexicalIssue:
     public issue::internal::VariantIssueBase<internal::IssueVariant> {
 public:
     using issue::internal::VariantIssueBase<

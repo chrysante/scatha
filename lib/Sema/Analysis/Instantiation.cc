@@ -62,12 +62,12 @@ void Context::run() {
     /// Check for cycles
     auto indices = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
                    ranges::to<utl::small_vector<u16>>;
-    auto const cycle = utl::find_cycle(
-        indices.begin(),
-        indices.end(),
-        [&](size_t index) -> auto const& {
-            return dependencyGraph[index].dependencies;
-        });
+    auto const cycle =
+        utl::find_cycle(indices.begin(),
+                        indices.end(),
+                        [&](size_t index) -> auto const& {
+                            return dependencyGraph[index].dependencies;
+                        });
     if (!cycle.empty()) {
         using Node = StrongReferenceCycle::Node;
         auto nodes = cycle | ranges::views::transform([&](size_t index) {
@@ -82,12 +82,11 @@ void Context::run() {
     auto dependencyTraversalOrder =
         ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
         ranges::to<utl::small_vector<u16>>;
-    utl::topsort(
-        dependencyTraversalOrder.begin(),
-        dependencyTraversalOrder.end(),
-        [&](size_t index) -> auto const& {
-            return dependencyGraph[index].dependencies;
-        });
+    utl::topsort(dependencyTraversalOrder.begin(),
+                 dependencyTraversalOrder.end(),
+                 [&](size_t index) -> auto const& {
+                     return dependencyGraph[index].dependencies;
+                 });
     utl::small_vector<TypeID> sortedObjTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {

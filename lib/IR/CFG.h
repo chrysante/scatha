@@ -26,7 +26,7 @@ class Module;
 
 /// Represents a value in the program.
 /// Every value has a type. Types are not values.
-class SCATHA(API) Value {
+class SCATHA_API Value {
 protected:
     explicit Value(NodeType nodeType,
                    Type const* type,
@@ -100,7 +100,7 @@ inline NodeType dyncast_get_type(std::derived_from<Value> auto const& value) {
 }
 
 /// Represents a user of values
-class SCATHA(API) User: public Value {
+class SCATHA_API User: public Value {
 public:
     /// \returns a view of all operands
     std::span<Value* const> operands() { return _operands; }
@@ -140,7 +140,7 @@ private:
 };
 
 /// Represents a (global) constant value.
-class SCATHA(API) Constant: public User {
+class SCATHA_API Constant: public User {
 public:
     using User::User;
 
@@ -148,7 +148,7 @@ private:
 };
 
 /// Represents a global integral constant value.
-class SCATHA(API) IntegralConstant: public Constant {
+class SCATHA_API IntegralConstant: public Constant {
 public:
     explicit IntegralConstant(Context& context, APInt value, size_t bitWidth);
 
@@ -159,7 +159,7 @@ private:
 };
 
 /// Represents a global floating point constant value.
-class SCATHA(API) FloatingPointConstant: public Constant {
+class SCATHA_API FloatingPointConstant: public Constant {
 public:
     explicit FloatingPointConstant(Context& context,
                                    APFloat value,
@@ -172,7 +172,7 @@ private:
 };
 
 /// Represents an `undef` value.
-class SCATHA(API) UndefValue: public Constant {
+class SCATHA_API UndefValue: public Constant {
 public:
     explicit UndefValue(Type const* type):
         Constant(NodeType::UndefValue, type) {}
@@ -181,7 +181,7 @@ public:
 /// Base class of all instructions. `Instruction` inherits from `Value` as it
 /// (usually) yields a value. If an instruction does not yield a value its
 /// `Value` super class is of type void.
-class SCATHA(API) Instruction:
+class SCATHA_API Instruction:
     public User,
     public NodeWithParent<Instruction, BasicBlock> {
 public:
@@ -319,7 +319,7 @@ private:
 /// with zero or more phi nodes and ending with one terminator instruction.
 /// These invariants are not enforced by this class because they may be violated
 /// during construction and transformations of the CFG.
-class SCATHA(API) BasicBlock:
+class SCATHA_API BasicBlock:
     public Value,
     public internal::CFGList<BasicBlock, Instruction>,
     public NodeWithParent<BasicBlock, Function> {
@@ -472,7 +472,7 @@ private:
 };
 
 /// Represents a function parameter.
-class SCATHA(API) Parameter:
+class SCATHA_API Parameter:
     public Value,
     public NodeWithParent<Parameter, Function> {
     using NodeBase = NodeWithParent<Parameter, Function>;
@@ -492,7 +492,7 @@ private:
 
 /// Represents a function. A function is a prototype with a list of basic
 /// blocks.
-class SCATHA(API) Function:
+class SCATHA_API Function:
     public Constant,
     public internal::CFGList<Function, BasicBlock>,
     public NodeWithParent<Function, Module> {
@@ -580,7 +580,7 @@ inline bool BasicBlock::isEntry() const {
 
 /// `alloca` instruction. Allocates automatically managed memory for local
 /// variables. Its value is a pointer to the allocated memory.
-class SCATHA(API) Alloca: public Instruction {
+class SCATHA_API Alloca: public Instruction {
 public:
     explicit Alloca(Context& context,
                     Type const* allocatedType,
@@ -591,7 +591,7 @@ public:
 };
 
 /// Base class of all unary instructions.
-class SCATHA(API) UnaryInstruction: public Instruction {
+class SCATHA_API UnaryInstruction: public Instruction {
 protected:
     explicit UnaryInstruction(NodeType nodeType,
                               Value* operand,
@@ -601,7 +601,7 @@ protected:
 
 public:
     /// \returns the operand of this instruction
-    Value* operand() { return operands()[0]; }
+    Value* operand() { return operands()[0]; } // namespace scatha::ir
 
     /// \overload
     Value const* operand() const { return operands()[0]; }
@@ -611,7 +611,7 @@ public:
 };
 
 /// `load` instruction. Load data from memory into a register.
-class SCATHA(API) Load: public UnaryInstruction {
+class SCATHA_API Load: public UnaryInstruction {
 public:
     explicit Load(Value* address, Type const* type, std::string name):
         UnaryInstruction(NodeType::Load, address, type, std::move(name)) {
@@ -627,7 +627,7 @@ public:
 };
 
 /// `store` instruction. Store a value from a register into memory.
-class SCATHA(API) Store: public Instruction {
+class SCATHA_API Store: public Instruction {
 public:
     explicit Store(Context& context, Value* address, Value* value);
 
@@ -645,7 +645,7 @@ public:
 };
 
 /// Base class of all binary instructions.
-class SCATHA(API) BinaryInstruction: public Instruction {
+class SCATHA_API BinaryInstruction: public Instruction {
 protected:
     explicit BinaryInstruction(NodeType nodeType,
                                Value* lhs,
@@ -674,7 +674,7 @@ public:
 /// `cmp` instruction.
 /// TODO: Rename to 'Compare' or find a uniform naming scheme across the IR
 /// module.
-class SCATHA(API) CompareInst: public BinaryInstruction {
+class SCATHA_API CompareInst: public BinaryInstruction {
 public:
     explicit CompareInst(Context& context,
                          Value* lhs,
@@ -689,7 +689,7 @@ private:
 };
 
 /// Represents a unary arithmetic instruction.
-class SCATHA(API) UnaryArithmeticInst: public UnaryInstruction {
+class SCATHA_API UnaryArithmeticInst: public UnaryInstruction {
 public:
     explicit UnaryArithmeticInst(Context& context,
                                  Value* operand,
@@ -703,7 +703,7 @@ private:
 };
 
 /// Represents a binary arithmetic instruction.
-class SCATHA(API) ArithmeticInst: public BinaryInstruction {
+class SCATHA_API ArithmeticInst: public BinaryInstruction {
 public:
     explicit ArithmeticInst(Value* lhs,
                             Value* rhs,
@@ -721,7 +721,7 @@ private:
 /// \details
 /// Non-basic block argument are the first `nonTargetArguments` operands.
 /// Targets are the following operands.
-class SCATHA(API) TerminatorInst: public Instruction {
+class SCATHA_API TerminatorInst: public Instruction {
     template <typename T>
     static auto targetsImpl(auto& self) {
         return self.operands() | ranges::views::drop(self.nonTargetArguments) |
@@ -800,7 +800,7 @@ public:
 ///
 /// \details
 /// Condition is the first operand. Targets are second and third operands.
-class SCATHA(API) Branch: public TerminatorInst {
+class SCATHA_API Branch: public TerminatorInst {
 public:
     explicit Branch(Context& context,
                     Value* condition,
@@ -831,7 +831,7 @@ public:
 /// `return` instruction. Return control flow to the calling function.
 ///
 /// \details
-class SCATHA(API) Return: public TerminatorInst {
+class SCATHA_API Return: public TerminatorInst {
 public:
     explicit Return(Context& context, Value* value):
         TerminatorInst(NodeType::Return, context, { value }, {}) {
@@ -856,7 +856,7 @@ public:
 /// \details
 /// Callee is stored as the first operand. Arguments are the following operands
 /// starting from index 1.
-class SCATHA(API) FunctionCall: public Instruction {
+class SCATHA_API FunctionCall: public Instruction {
 public:
     explicit FunctionCall(Function* function,
                           std::span<Value* const> arguments,
@@ -876,7 +876,7 @@ public:
 /// \details
 /// Call arguments are the operands. Callee information is not visible to
 /// `Instruction` base class, as it's just indices.
-class SCATHA(API) ExtFunctionCall: public Instruction {
+class SCATHA_API ExtFunctionCall: public Instruction {
 public:
     explicit ExtFunctionCall(size_t slot,
                              size_t index,
@@ -906,7 +906,7 @@ private:
 };
 
 /// `phi` instruction. Select a value based on where control flow comes from.
-class SCATHA(API) Phi: public Instruction {
+class SCATHA_API Phi: public Instruction {
 public:
     /// \overload
     explicit Phi(std::initializer_list<PhiMapping> args, std::string name):

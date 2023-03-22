@@ -18,14 +18,16 @@ public:
 
     bool operator==(ValueBase const&) const = default;
 
+    Value64 widen() const;
+
 protected:
     template <typename T>
     explicit ValueBase(utl::tag<T> type, auto value):
-        _value(utl::bit_cast<u64>(widen(utl::narrow_cast<T>(value)))) {}
+        _value(utl::bit_cast<u64>(widenFundType(utl::narrow_cast<T>(value)))) {}
 
-    static f64 widen(std::floating_point auto f) { return f; }
-    static i64 widen(std::signed_integral auto i) { return i; }
-    static u64 widen(std::unsigned_integral auto i) { return i; }
+    static f64 widenFundType(std::floating_point auto f) { return f; }
+    static i64 widenFundType(std::signed_integral auto i) { return i; }
+    static u64 widenFundType(std::unsigned_integral auto i) { return i; }
 
 protected:
     u64 _value;
@@ -68,6 +70,8 @@ public:
         ValueBase(utl::tag<u64>{}, value) {}
     explicit Value64(f64 value): ValueBase(utl::tag<f64>{}, value) {}
 };
+
+inline Value64 ValueBase::widen() const { return Value64(value()); }
 
 /// Represents a register index.
 class RegisterIndex: public ValueBase {

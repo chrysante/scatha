@@ -14,7 +14,7 @@ namespace scatha::opt {
 
 /// Perform memory to register promotion on \p function
 /// \Returns True iff \p function was modified in the pass.
-SCATHA(API) bool memToReg(ir::Context& context, ir::Function& function);
+SCATHA_API bool memToReg(ir::Context& context, ir::Function& function);
 
 } // namespace scatha::opt
 

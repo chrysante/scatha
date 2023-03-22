@@ -29,7 +29,7 @@ namespace scatha::sema {
 
 class SemanticIssue;
 
-class SCATHA(API) SymbolTable {
+class SCATHA_API SymbolTable {
 public:
     static constexpr size_t invalidSize = static_cast<size_t>(-1);
 

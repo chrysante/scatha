@@ -10,19 +10,19 @@
 
 namespace scatha::ast {
 
-SCATHA(API) std::string toString(Expression const&);
+SCATHA_API std::string toString(Expression const&);
 
-SCATHA(API) void printExpression(Expression const&);
+SCATHA_API void printExpression(Expression const&);
 
-SCATHA(API) void printExpression(Expression const&, std::ostream&);
+SCATHA_API void printExpression(Expression const&, std::ostream&);
 
-SCATHA(API) void printSource(AbstractSyntaxTree const&);
+SCATHA_API void printSource(AbstractSyntaxTree const&);
 
-SCATHA(API) void printSource(AbstractSyntaxTree const&, std::ostream&);
+SCATHA_API void printSource(AbstractSyntaxTree const&, std::ostream&);
 
-SCATHA(API) void printTree(AbstractSyntaxTree const&);
+SCATHA_API void printTree(AbstractSyntaxTree const&);
 
-SCATHA(API) void printTree(AbstractSyntaxTree const&, std::ostream&);
+SCATHA_API void printTree(AbstractSyntaxTree const&, std::ostream&);
 
 } // namespace scatha::ast
 

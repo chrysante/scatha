@@ -29,10 +29,9 @@ class SymbolTable;
 /// \param issueHandler Handler to write issues to.
 ///
 /// \returns (Incomplete) dependency graph
-SCATHA(API)
-DependencyGraph gatherNames(SymbolTable& sym,
-                            ast::AbstractSyntaxTree& astRoot,
-                            issue::SemaIssueHandler& issueHandler);
+SCATHA_API DependencyGraph gatherNames(SymbolTable& sym,
+                                       ast::AbstractSyntaxTree& astRoot,
+                                       issue::SemaIssueHandler& issueHandler);
 
 } // namespace scatha::sema
 

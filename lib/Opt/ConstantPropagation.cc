@@ -54,9 +54,7 @@ enum class Unexamined {};
 
 using FormalValue = utl::variant<Unexamined, Inevaluable, APInt, APFloat>;
 
-bool isUnexamined(FormalValue const& value) {
-    return value.index() == 0;
-}
+bool isUnexamined(FormalValue const& value) { return value.index() == 0; }
 
 [[maybe_unused]] bool isInevaluable(FormalValue const& value) {
     return value.index() == 1;

@@ -27,7 +27,7 @@ namespace scatha::sema {
 class Scope;
 
 /// Base class for all semantic entities in the language.
-class SCATHA(API) EntityBase {
+class SCATHA_API EntityBase {
 public:
     struct MapHash: std::hash<SymbolID> {
         struct is_transparent;

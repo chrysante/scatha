@@ -9,7 +9,7 @@
 
 namespace scatha::sema {
 
-class SCATHA(API) SymbolIssue {
+class SCATHA_API SymbolIssue {
 public:
     virtual ~SymbolIssue() = default;
 
@@ -22,12 +22,12 @@ private:
     Token _token;
 };
 
-class SCATHA(API) DefinitionIssue: public SymbolIssue {
+class SCATHA_API DefinitionIssue: public SymbolIssue {
 public:
     using SymbolIssue::SymbolIssue;
 };
 
-class SCATHA(API) InvalidScopeIssue: public DefinitionIssue {
+class SCATHA_API InvalidScopeIssue: public DefinitionIssue {
 public:
     InvalidScopeIssue(std::string_view symbolName, ScopeKind kind);
 
@@ -37,7 +37,7 @@ private:
     ScopeKind _kind;
 };
 
-class SCATHA(API) SymbolCollisionIssue: public DefinitionIssue {
+class SCATHA_API SymbolCollisionIssue: public DefinitionIssue {
 public:
     explicit SymbolCollisionIssue(std::string_view symbolName,
                                   SymbolID existing);
@@ -48,7 +48,7 @@ private:
     SymbolID _existing;
 };
 
-class SCATHA(API) OverloadIssue: public SymbolCollisionIssue {
+class SCATHA_API OverloadIssue: public SymbolCollisionIssue {
 public:
     enum Reason { CantOverloadOnReturnType, Redefinition };
 

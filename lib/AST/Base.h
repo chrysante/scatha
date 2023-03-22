@@ -35,7 +35,7 @@ private:
 /// ## Base class for all nodes in the AST
 /// Every derived class must specify its runtime type in the constructor via the
 /// `NodeType` enum.
-class SCATHA(API) AbstractSyntaxTree: public internal::Decoratable {
+class SCATHA_API AbstractSyntaxTree: public internal::Decoratable {
 public:
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }

@@ -23,8 +23,8 @@ private:
 };
 
 /// Parses \p text into an IR module.
-SCATHA(API)
-Expected<Module, ParseError> parse(std::string_view text, Context& context);
+SCATHA_API Expected<Module, ParseError> parse(std::string_view text,
+                                              Context& context);
 
 } // namespace scatha::ir
 

@@ -28,9 +28,9 @@ static_assert(static_cast<int>(SymbolCategory::_count) <= 1 << 4,
               "SymbolCategory values shall fit into the last four bytes of the "
               "SymbolID structure.");
 
-SCATHA(API) std::string_view toString(SymbolCategory);
+SCATHA_API std::string_view toString(SymbolCategory);
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolCategory);
+SCATHA_API std::ostream& operator<<(std::ostream&, SymbolCategory);
 
 /// Identifies a semantic symbol. Use the symbol table to access the
 /// corresponding entity.
@@ -69,7 +69,7 @@ private:
 
 inline SymbolID const SymbolID::Invalid = SymbolID(0, SymbolCategory::Invalid);
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, SymbolID);
+SCATHA_API std::ostream& operator<<(std::ostream&, SymbolID);
 
 /// Special kind of SymbolID refererring to types.
 struct TypeID: SymbolID {

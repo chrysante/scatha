@@ -8,7 +8,7 @@
 
 namespace scatha::sema {
 
-class SCATHA(API) Function: public Scope {
+class SCATHA_API Function: public Scope {
 public:
     explicit Function(std::string name,
                       SymbolID functionID,

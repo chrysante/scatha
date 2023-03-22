@@ -31,7 +31,7 @@ enum class TokenType {
 
 enum class IdentifierCategory : u8 { Type, Variable, Function };
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, TokenType);
+SCATHA_API std::ostream& operator<<(std::ostream&, TokenType);
 
 struct TokenData {
     std::string id;
@@ -41,7 +41,7 @@ struct TokenData {
     bool operator==(TokenData const&) const = default;
 };
 
-struct SCATHA(API) Token: public TokenData {
+struct SCATHA_API Token: public TokenData {
     Token() = default;
     explicit Token(std::string id,
                    TokenType type,
@@ -79,7 +79,7 @@ private:
     void finalize();
 };
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, Token const&);
+SCATHA_API std::ostream& operator<<(std::ostream&, Token const&);
 
 } // namespace scatha
 

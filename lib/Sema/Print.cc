@@ -20,9 +20,7 @@ public:
 
 static constexpr auto endl = '\n';
 
-static Indenter indent(int level) {
-    return Indenter(level, 2);
-}
+static Indenter indent(int level) { return Indenter(level, 2); }
 
 void printSymbolTable(SymbolTable const& sym, std::ostream& str) {
     internal::ScopePrinter p{ sym };

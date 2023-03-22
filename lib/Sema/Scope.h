@@ -16,7 +16,7 @@ namespace internal {
 class ScopePrinter;
 }
 
-class SCATHA(API) Scope: public EntityBase {
+class SCATHA_API Scope: public EntityBase {
 public:
     ScopeKind kind() const { return _kind; }
     explicit Scope(ScopeKind, SymbolID symbolID, Scope* parent);

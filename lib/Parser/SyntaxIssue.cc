@@ -10,7 +10,7 @@ using namespace scatha;
 
 using enum parse::SyntaxIssue::Reason;
 
-SCATHA(API) std::string_view parse::toString(SyntaxIssue::Reason reason) {
+SCATHA_API std::string_view parse::toString(SyntaxIssue::Reason reason) {
     // clang-format off
     return UTL_SERIALIZE_ENUM(reason, {
         { ExpectedIdentifier,       "Expected Identifier" },
@@ -24,8 +24,8 @@ SCATHA(API) std::string_view parse::toString(SyntaxIssue::Reason reason) {
     // clang-format on
 }
 
-SCATHA(API)
-std::ostream& parse::operator<<(std::ostream& str, SyntaxIssue::Reason reason) {
+SCATHA_API std::ostream& parse::operator<<(std::ostream& str,
+                                           SyntaxIssue::Reason reason) {
     return str << toString(reason);
 }
 

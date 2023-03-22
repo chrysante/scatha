@@ -32,7 +32,7 @@ inline std::strong_ordering operator<=>(SourceLocation const& lhs,
     return lhs.index <=> rhs.index;
 }
 
-SCATHA(API) std::ostream& operator<<(std::ostream&, SourceLocation const&);
+SCATHA_API std::ostream& operator<<(std::ostream&, SourceLocation const&);
 
 } // namespace scatha
 

@@ -12,13 +12,13 @@ namespace scatha::Asm {
 
 class Block;
 
-class SCATHA(TEST_API) AssemblyStream {
+class SCATHA_TESTAPI AssemblyStream {
 public:
     AssemblyStream() = default;
 
-    SCATHA(API) AssemblyStream(AssemblyStream&&) noexcept;
-    SCATHA(API) AssemblyStream& operator=(AssemblyStream&&) noexcept;
-    SCATHA(API) ~AssemblyStream();
+    SCATHA_API AssemblyStream(AssemblyStream&&) noexcept;
+    SCATHA_API AssemblyStream& operator=(AssemblyStream&&) noexcept;
+    SCATHA_API ~AssemblyStream();
 
     auto begin() { return blocks.begin(); }
     auto begin() const { return blocks.begin(); }

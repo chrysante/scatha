@@ -19,7 +19,7 @@ class SyntaxIssueHandler;
 
 namespace scatha::parse {
 
-class SCATHA(API) SyntaxIssue: public issue::ProgramIssueBase {
+class SCATHA_API SyntaxIssue: public issue::ProgramIssueBase {
 public:
     enum class Reason {
         ExpectedIdentifier,
@@ -60,8 +60,8 @@ private:
     std::string _expectedID;
 };
 
-SCATHA(API) std::string_view toString(SyntaxIssue::Reason);
-SCATHA(API) std::ostream& operator<<(std::ostream&, SyntaxIssue::Reason);
+SCATHA_API std::string_view toString(SyntaxIssue::Reason);
+SCATHA_API std::ostream& operator<<(std::ostream&, SyntaxIssue::Reason);
 
 bool expectIdentifier(issue::SyntaxIssueHandler&, Token const&);
 bool expectDeclarator(issue::SyntaxIssueHandler&, Token const&);

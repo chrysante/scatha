@@ -56,13 +56,13 @@ enum class KeywordCategory : u8 {
     Placeholder
 };
 
-SCATHA(API) std::optional<Keyword> toKeyword(std::string_view);
+SCATHA_API std::optional<Keyword> toKeyword(std::string_view);
 
-SCATHA(API) bool isDeclarator(Keyword);
+SCATHA_API bool isDeclarator(Keyword);
 
-SCATHA(API) bool isControlFlow(Keyword);
+SCATHA_API bool isControlFlow(Keyword);
 
-SCATHA(API) KeywordCategory categorize(Keyword);
+SCATHA_API KeywordCategory categorize(Keyword);
 
 } // namespace scatha
 

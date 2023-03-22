@@ -14,7 +14,7 @@ class Module;
 
 namespace scatha::opt {
 
-SCATHA(API) void optimize(ir::Context& context, ir::Module& mod, int level);
+SCATHA_API void optimize(ir::Context& context, ir::Module& mod, int level);
 
 } // namespace scatha::opt
 
