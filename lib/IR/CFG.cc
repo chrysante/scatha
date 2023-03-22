@@ -19,31 +19,32 @@ void Value::removeUserWeak(User* user) {
 }
 
 void Value::setName(std::string name) {
-    if (auto* bb = dyncast<BasicBlock*>(this)) {
-        auto* func = bb->parent();
-        if (func) {
-            /// See comment below about erasing the name first.
-            _name = func->nameFac.makeUnique(std::move(name));
-        }
-    }
-    else if (auto* inst = dyncast<Instruction*>(this)) {
-        auto* bb   = inst->parent();
-        auto* func = bb ? bb->parent() : nullptr;
-        if (func) {
-            /// It would be correct to erase the old name here, before assigning
-            /// a new name. However, this method is also used by BasicBlock and
-            /// Function to unique existing duplicate names. So if we did erase
-            /// the name, we would never really unique the names, because the
-            /// duplicate name is always erased from the set of names before
-            /// testing for uniqueness. We should provide a separate method to
-            /// deduplicate existing names but I'm too lazy right now.
-            // func->nameFac.tryErase(_name);
-            _name = func->nameFac.makeUnique(std::move(name));
-        }
-    }
-    else {
-        _name = std::move(name);
-    }
+    auto makeUnique = [&](std::string& name, Function& func) {
+        func.nameFac.tryErase(_name);
+        name = func.nameFac.makeUnique(std::move(name));
+    };
+    // clang-format off
+    visit(*this, utl::overload{
+        [&](BasicBlock& bb) {
+            auto* func = bb.parent();
+            if (func) {
+                makeUnique(name, *func);
+            }
+        },
+        [&](Instruction& inst) {
+            auto* bb   = inst.parent();
+            auto* func = bb ? bb->parent() : nullptr;
+            if (func) {
+                makeUnique(name, *func);
+            }
+        },
+        [](Value const&) {}
+    }); // clang-format on
+    _name = std::move(name);
+}
+
+void Value::uniqueExistingName(Function& func) {
+    _name = func.nameFac.makeUnique(std::move(_name));
 }
 
 void scatha::internal::privateDelete(Value* value) {
@@ -170,8 +171,9 @@ void BasicBlock::removePredecessor(BasicBlock const* pred) {
 
 void BasicBlock::insertCallback(Instruction& inst) {
     inst.set_parent(this);
-    /// To unique the name now that we have added it to our function.
-    inst.setName(std::string(inst.name()));
+    if (auto* func = parent()) {
+        inst.uniqueExistingName(*func);
+    }
 }
 
 void BasicBlock::eraseCallback(Instruction const& inst) {
@@ -194,7 +196,7 @@ Function::Function(FunctionType const* functionType,
 
 void Function::insertCallback(BasicBlock& bb) {
     bb.set_parent(this);
-    bb.setName(std::string(bb.name()));
+    bb.uniqueExistingName(*this);
     for (auto& inst: bb) {
         bb.insertCallback(inst);
     }

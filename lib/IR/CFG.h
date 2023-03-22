@@ -74,6 +74,13 @@ private:
     /// operand list of \p user
     void removeUserWeak(User* user);
 
+    friend class BasicBlock;
+    friend class Function;
+
+    /// Unique the existing name of this value. This should be called when
+    /// adding this value to a function.
+    void uniqueExistingName(Function& func);
+
     /// Customization point for `UniquePtr`
     friend void scatha::internal::privateDelete(Value* value);
 
