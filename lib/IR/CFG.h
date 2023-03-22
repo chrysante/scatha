@@ -30,7 +30,7 @@ class SCATHA(API) Value {
 protected:
     explicit Value(NodeType nodeType,
                    Type const* type,
-                   std::string name = {}) noexcept:
+                   std::string name) noexcept:
         _nodeType(nodeType), _type(type), _name(std::move(name)) {}
 
     /// For complex initialization.
@@ -651,7 +651,7 @@ protected:
                                Value* lhs,
                                Value* rhs,
                                Type const* type,
-                               std::string name = {}):
+                               std::string name):
         Instruction(nodeType, type, std::move(name), { lhs, rhs }) {}
 
 public:
@@ -860,7 +860,7 @@ class SCATHA(API) FunctionCall: public Instruction {
 public:
     explicit FunctionCall(Function* function,
                           std::span<Value* const> arguments,
-                          std::string name = {});
+                          std::string name);
 
     Function* function() { return cast<Function*>(operands()[0]); }
     Function const* function() const {
@@ -883,7 +883,7 @@ public:
                              std::string functionName,
                              std::span<Value* const> arguments,
                              ir::Type const* returnType,
-                             std::string name = {});
+                             std::string name);
 
     /// Slot in external function table of VM.
     size_t slot() const { return _slot; }
@@ -920,7 +920,7 @@ public:
     }
 
     /// Construct an empty phi node.
-    explicit Phi(Type const* type, std::string name = {}):
+    explicit Phi(Type const* type, std::string name):
         Instruction(NodeType::Phi, type, std::move(name), {}) {}
 
     /// Assign arguments to this phi node.
