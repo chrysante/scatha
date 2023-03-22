@@ -1,5 +1,6 @@
 #include "BasicCompiler.h"
 
+#include <iostream>
 #include <stdexcept>
 
 #include <Catch/Catch2.hpp>
@@ -23,9 +24,11 @@
 #include "Lexer/Lexer.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
+#include "Opt/Inliner.h"
 #include "Opt/MemToReg.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
+#include "Sema/SemanticIssue.h"
 
 using namespace scatha;
 
@@ -52,6 +55,9 @@ static auto compile(std::string_view text, OptimizationLevel optLevel) {
     issue::SemaIssueHandler semaIss;
     auto sym = sema::analyze(*ast, semaIss);
     if (!semaIss.empty()) {
+        for (auto& issue: semaIss.issues()) {
+            std::cout << " at: " << issue.sourceLocation() << std::endl;
+        }
         throw std::runtime_error("Compilation failed");
     }
     ir::Context ctx;
@@ -90,6 +96,10 @@ void test::checkReturns(u64 value, std::string_view text) {
     utl::vector<OptimizationLevel> const levels = {
         [](ir::Context&, ir::Module&) {},
         [](ir::Context& ctx, ir::Module& mod) {
+            opt::inlineFunctions(ctx, mod);
+        },
+        /// Technically we can remove these two because the inliner already performs these optimizations, but we'll leave them in for now...
+        [](ir::Context& ctx, ir::Module& mod) {
             for (auto& function: mod.functions()) {
                 opt::memToReg(ctx, function);
             }
@@ -98,13 +108,6 @@ void test::checkReturns(u64 value, std::string_view text) {
             for (auto& function: mod.functions()) {
                 opt::memToReg(ctx, function);
                 opt::propagateConstants(ctx, function);
-            }
-        },
-        [](ir::Context& ctx, ir::Module& mod) {
-            for (auto& function: mod.functions()) {
-                opt::memToReg(ctx, function);
-                opt::propagateConstants(ctx, function);
-                opt::dce(ctx, function);
             }
         },
     }; // clang-format on
