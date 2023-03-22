@@ -48,8 +48,12 @@ void playground::volatilePlayground(std::filesystem::path path) {
     header(" Before inlining ");
     ir::print(mod);
 
-    opt::inlineFunctions(ctx, mod);
+    size_t count = 0;
+    do {
+        ++count;
+    } while (opt::inlineFunctions(ctx, mod) && count < 6);
 
     header(" After inlining ");
+    std::cout << "Inliner ran " << count << " time(s)\n\n";
     ir::print(mod);
 }
