@@ -385,7 +385,10 @@ public:
     std::span<BasicBlock const* const> predecessors() const { return preds; }
 
     /// Update the predecessor \p oldPred to \p newPred
+    ///
     /// \pre \p oldPred must be a predecessor of this basic block.
+    ///
+    /// This also updates all the phi nodes in this basic block.
     void updatePredecessor(BasicBlock const* oldPred, BasicBlock* newPred);
 
     /// \returns `true`iff \p *possiblePred is a predecessor of this basic
@@ -413,9 +416,7 @@ public:
 
     /// Remove \p *pred from the list of predecessors of this basic block.
     /// \pre \p *pred must be a listed predecessor of this basic block.
-    void removePredecessor(BasicBlock const* pred) {
-        preds.erase(std::find(preds.begin(), preds.end(), pred));
-    }
+    void removePredecessor(BasicBlock const* pred);
 
     /// The basic blocks directly reachable from this basic block
     auto successors();

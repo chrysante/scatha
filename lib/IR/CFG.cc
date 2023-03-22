@@ -67,7 +67,9 @@ void User::setOperand(size_t index, Value* operand) {
     if (auto* op = _operands[index]) {
         op->removeUserWeak(this);
     }
-    operand->addUserWeak(this);
+    if (operand) {
+        operand->addUserWeak(this);
+    }
     _operands[index] = operand;
 }
 
@@ -122,17 +124,6 @@ Instruction::Instruction(NodeType nodeType,
                          utl::small_vector<Type const*> typeOperands):
     User(nodeType, type, std::move(name), std::move(operands)),
     typeOps(std::move(typeOperands)) {}
-
-Function::Function(FunctionType const* functionType,
-                   Type const* returnType,
-                   std::span<Type const* const> parameterTypes,
-                   std::string name):
-    Constant(NodeType::Function, functionType, std::move(name)),
-    _returnType(returnType) {
-    for (auto [index, type]: parameterTypes | ranges::views::enumerate) {
-        params.emplace_back(type, index++, this);
-    }
-}
 
 BasicBlock::BasicBlock(Context& context, std::string name):
     Value(NodeType::BasicBlock, context.voidType(), std::move(name)) {}
