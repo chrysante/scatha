@@ -84,7 +84,13 @@ static Phi* doClone(Context& context, Phi* inst) {
 }
 
 static GetElementPointer* doClone(Context& context, GetElementPointer* inst) {
-    SC_DEBUGFAIL();
+    return new GetElementPointer(context,
+                                 inst->accessedType(),
+                                 inst->basePointer(),
+                                 inst->arrayIndex(),
+                                 inst->memberIndices() |
+                                     ranges::to<utl::small_vector<size_t>>,
+                                 std::string(inst->name()));
 }
 
 static ExtractValue* doClone(Context& context, ExtractValue* inst) {
