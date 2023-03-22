@@ -23,9 +23,20 @@ static bool shouldInlineCallsite(SCCCallGraph const& callGraph,
     if (&caller == &callee) {
         return false;
     }
-    /// Most naive heuristic ever: Inline if we have less than 7 instructions.
-    if (ranges::distance(callee.function().instructions()) < 7) {
+    auto const calleeNumInstructions =
+        ranges::distance(callee.function().instructions());
+    /// Most naive heuristic ever: Inline if we have less than 14 instructions.
+    if (calleeNumInstructions < 14) {
         return true;
+    }
+    /// If we have constant arguments, then there are more opportunities for
+    /// optimization, so we inline more aggressively.
+    if (ranges::any_of(call->arguments(),
+                       [](Value const* value) { return isa<Constant>(value); }))
+    {
+        if (calleeNumInstructions < 21) {
+            return true;
+        }
     }
     /// Also always inline if we are the only user of this function.
     if (callee.function().users().size() <= 1) {
@@ -62,8 +73,7 @@ struct Inliner {
 
 bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
     Inliner inl(ctx, mod);
-    inl.run();
-    return false;
+    return inl.run();
 }
 
 bool Inliner::run() {
@@ -89,6 +99,13 @@ bool Inliner::run() {
 }
 
 bool Inliner::visitSCC(SCC const& scc) {
+    /// Perform one local optimization pass on every function before traversing
+    /// the SCC. Otherwise, because we are in a cyclic component,  there will
+    /// always be a function which will not have been optimized before being
+    /// considered for inlining.
+    for (auto& node: scc.nodes()) {
+        optimize(node.function());
+    }
     utl::hashset<FunctionNode const*> visited;
     bool modifiedAny = false;
     auto walk        = [&](FunctionNode const& node, auto& walk) {
