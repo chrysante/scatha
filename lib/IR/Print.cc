@@ -176,24 +176,29 @@ void PrintCtx::print(Function const& function) {
         dispatch(bb);
     }
     indent.decrease();
-    str << "}\n";
+    str << "}\n\n";
 }
 
 void PrintCtx::print(BasicBlock const& bb) {
-    str << indent << formatName(bb) << ":\n";
-    tfmt::pushModifier(tfmt::brightGrey, str);
-    str << "    # preds: ";
-    for (bool first = true; auto* pred: bb.predecessors()) {
-        str << (first ? first = false, "" : ", ") << pred->name();
+    if (!bb.isEntry()) {
+        tfmt::pushModifier(tfmt::brightGrey, str);
+        str << "# preds: ";
+        for (bool first = true; auto* pred: bb.predecessors()) {
+            str << (first ? first = false, "" : ", ") << pred->name();
+        }
+        tfmt::popModifier(str);
+        str << "\n";
     }
-    tfmt::popModifier(str);
-    str << "\n";
+    str << indent << formatName(bb) << ":\n";
     indent.increase();
     for (auto& instruction: bb) {
         dispatch(instruction);
         str << "\n";
     }
     indent.decrease();
+    if (bb.next() != bb.parent()->end().to_address()) {
+        str << "\n";
+    }
 }
 
 void PrintCtx::print(Instruction const& inst) {
@@ -336,5 +341,5 @@ void PrintCtx::print(StructureType const& structure) {
         str << formatType(type);
     }
     indent.decrease();
-    str << "\n}\n";
+    str << "\n}\n\n";
 }
