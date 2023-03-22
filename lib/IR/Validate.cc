@@ -10,28 +10,14 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IR/Print.h"
 
 using namespace scatha;
 using namespace ir;
 
 /// ** Assertions **
 
-#define CHECK(cond, msg) _doCheck(cond, msg, #cond, __FUNCTION__, __LINE__)
-
-static void _doCheck(bool condition,
-                     std::string_view msg,
-                     std::string_view conditionStr,
-                     std::string_view functionName,
-                     size_t line) {
-    if (condition) {
-        return;
-    }
-    std::cout << "IR Invariant [" << conditionStr << "] not satisfied.\n";
-    std::cout << "\t\"" << msg << "\"\n";
-    std::cout << "\tIn function \"" << functionName << "\" on line " << line
-              << std::endl;
-    SC_DEBUGBREAK();
-}
+#define CHECK(cond, msg) doCheck(cond, msg, #cond)
 
 struct AssertContext {
     explicit AssertContext(ir::Context& ctx): ctx(ctx) {}
@@ -46,6 +32,25 @@ struct AssertContext {
     void assertSpecialInvariants(Phi const&);
 
     void uniqueName(Value const& value);
+
+    void doCheck(bool condition,
+                 std::string_view msg,
+                 std::string_view conditionStr) const {
+        if (condition) {
+            return;
+        }
+        std::cout << "IR Invariant [" << conditionStr << "] not satisfied.\n";
+        std::cout << "\t\"" << msg << "\"\n";
+        if (currentFunction) {
+            std::cout << "\tIn function " << currentFunction->name();
+            if (currentBB) {
+                std::cout << " in basic block " << currentBB->name();
+            }
+            std::cout << ":\n\n";
+            ir::print(*currentFunction);
+        }
+        SC_DEBUGBREAK();
+    }
 
     ir::Context& ctx;
     Function const* currentFunction = nullptr;
