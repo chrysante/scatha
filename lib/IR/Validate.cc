@@ -131,7 +131,6 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
 void AssertContext::assertInvariants(Instruction const& inst) {
     uniqueName(inst);
     for (auto* operand: inst.operands()) {
-        uniqueName(*operand);
         auto opUsers = operand->users();
         CHECK(std::find(opUsers.begin(), opUsers.end(), &inst) != opUsers.end(),
               "Our operands must have listed us as their user");
@@ -142,7 +141,6 @@ void AssertContext::assertInvariants(Instruction const& inst) {
         }
     }
     for (auto* user: inst.users()) {
-        uniqueName(*user);
         auto userOps = user->operands();
         CHECK(std::find(userOps.begin(), userOps.end(), &inst) != userOps.end(),
               "Our users must actually use us");
@@ -165,21 +163,27 @@ void AssertContext::assertSpecialInvariants(Phi const& phi) {
 }
 
 void AssertContext::uniqueName(Value const& value) {
+    // TODO: This should actually check for globals, but we don't have a
+    // `Global` type. Maybe add one?
+    if (isa<Constant>(value)) {
+        return;
+    }
+    if (value.name().empty()) {
+        return;
+    }
     // clang-format off
     Function const* function = visit(value, utl::overload{
-        [](Value const& value) -> Function const* { return nullptr; },
         [](Instruction const& inst) { return inst.parent()->parent(); },
-        [](Parameter const& param) { return param.parent(); }
+        [](Parameter const& param) { return param.parent(); },
+        [](BasicBlock const& bb) { return bb.parent(); },
+        [](Value const& value) -> Function const* { SC_UNREACHABLE(); },
     }); // clang-format on
     auto const [itr, success] = nameValueMap.insert(
         { std::string(value.name()), { function, &value } });
     if (success) {
         return;
     }
-    auto& name = itr->first;
-    if (name.empty()) {
-        return;
-    }
+    SC_ASSERT(!itr->first.empty(), "Name should not be empty at this stage");
     auto const [funcAddr, valueAddr] = itr->second;
     if (funcAddr != function) {
         return;
