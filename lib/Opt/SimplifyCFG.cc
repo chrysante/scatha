@@ -23,6 +23,8 @@ struct Ctx {
 
     void eraseDeadBasicBlock(BasicBlock* bb);
 
+    void removeDeadLink(BasicBlock* origin, BasicBlock* dest);
+
     ir::Context& irCtx;
     Function& function;
     utl::hashset<BasicBlock const*> visited;
@@ -55,12 +57,11 @@ void Ctx::replaceConstCondBranches(BasicBlock* bb) {
                 SC_ASSERT(value <= 1, "");
                 /// First target will be taken if `value == 1` aka `cond == true`
                 /// This means the branch to target at index `value` shall be removed.
-                auto* targetToStay = branch.targets()[1 - value];
-                auto* targetToRemove = branch.targets()[value];
-                targetToRemove->removePredecessor(bb);
-                bb->insert(bb->end(), new Goto(irCtx, targetToStay));
+                auto* deadSuccessor = branch.targets()[value];
+                auto* liveSuccessor = branch.targets()[1 - value];
+                removeDeadLink(bb, deadSuccessor);
                 bb->erase(&branch);
-                eraseDeadBasicBlock(targetToRemove);
+                bb->insert(bb->end(), new Goto(irCtx, liveSuccessor));
             }
         },
     }); // clang-format on
@@ -108,15 +109,19 @@ void Ctx::merge(BasicBlock* bb) {
 }
 
 void Ctx::eraseDeadBasicBlock(BasicBlock* bb) {
-    for (auto [index, succ]: bb->successors() | ranges::views::enumerate) {
-        if (succ->hasSinglePredecessor()) {
-            SC_ASSERT(succ->singlePredecessor() == bb, "Bad link");
-            bb->terminator()->setTarget(index, nullptr);
-            eraseDeadBasicBlock(succ);
-        }
-        else {
-            succ->removePredecessor(bb);
-        }
+    for (auto* succ: bb->successors()) {
+        removeDeadLink(bb, succ);
     }
     function.erase(bb);
+}
+
+void Ctx::removeDeadLink(BasicBlock* origin, BasicBlock* dest) {
+    origin->terminator()->updateTarget(dest, nullptr);
+    if (dest->hasSinglePredecessor()) {
+        SC_ASSERT(dest->singlePredecessor() == origin, "Bad link");
+        eraseDeadBasicBlock(dest);
+    }
+    else {
+        dest->removePredecessor(origin);
+    }
 }
