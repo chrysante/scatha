@@ -1,5 +1,4 @@
 
-/*
 fn A() { B(); }
 fn B() { C(); D(); }
 fn C() { A(); }
@@ -13,8 +12,8 @@ fn I2() { G(); }
 
 fn X() { Y(); }
 fn Y() {  }
-*/
 
+/*
 fn main() -> int {
     return f(1);
 }
@@ -30,3 +29,4 @@ fn zero() -> int { return 0; }
 fn g(n: int) -> int {
     return n > 0 ? n : 0;
 }
+*/
