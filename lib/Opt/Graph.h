@@ -106,69 +106,70 @@ public:
     };
 
     GraphNode()
-    requires std::is_default_constructible_v<internal::PayloadWrapper<Payload>>
+        requires std::is_default_constructible_v<
+            internal::PayloadWrapper<Payload>>
         : _payload{} {}
 
     template <typename P = Payload>
-    requires hasPayload
+        requires hasPayload
     explicit GraphNode(P const& payload): _payload{ payload } {}
 
     template <typename P = Payload>
-    requires hasPayload
+        requires hasPayload
     explicit GraphNode(P&& payload): _payload{ std::move(payload) } {}
 
     PayloadView payload() const
-    requires hasPayload
+        requires hasPayload
     {
         return _payload.value;
     }
 
     Self const& parent() const
-    requires IsTree
+        requires IsTree
     {
         return *_parentLink;
     }
 
     auto children() const
-    requires IsTree
+        requires IsTree
     {
         return outgoingImpl();
     }
 
     void setParent(Self* parent)
-    requires IsTree
+        requires IsTree
     {
         _parentLink = parent;
     }
 
     void addChild(Self* child)
-    requires IsTree
+        requires IsTree
     {
         addEdgeImpl(_outgoingEdges, child);
     }
 
     auto predecessors() const
-    requires(!IsTree)
+        requires(!IsTree)
     {
         return incomingImpl();
     }
 
     void addPredecessor(Self* pred)
-    requires(!IsTree)
+        requires(!IsTree)
     {
         addEdgeImpl(_parentLink, pred);
     }
 
     /// Add \p succ as successor if it is not already a successor
     void addSuccessor(Self* succ)
-    requires(!IsTree)
+        requires(!IsTree)
     {
         addEdgeImpl(_outgoingEdges, succ);
     }
 
     /// \returns a view over references to successors
     auto successors() const
-    requires(!IsTree)
+        requires(!IsTree)
     {
         return outgoingImpl();
     }

@@ -30,13 +30,13 @@ template <typename T>
 using UniquePtr = std::unique_ptr<T, internal::PrivateDeleter>;
 
 template <typename T, typename... Args>
-requires std::constructible_from<T, Args...>
+    requires std::constructible_from<T, Args...>
 UniquePtr<T> allocate(Args&&... args) {
     return UniquePtr<T>(new T(std::forward<Args>(args)...));
 }
 
 template <typename Derived, typename Base>
-requires std::derived_from<Derived, Base>
+    requires std::derived_from<Derived, Base>
 UniquePtr<Derived> uniquePtrCast(UniquePtr<Base>&& p) {
     auto* d = cast<Derived*>(p.release());
     return UniquePtr<Derived>(d);

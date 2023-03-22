@@ -144,7 +144,7 @@ struct PhiMappingImpl {
     PhiMappingImpl(BB* pred, V* value): pred(pred), value(value) {}
 
     PhiMappingImpl(PhiMappingImpl<false> p)
-    requires IsConst
+        requires IsConst
         : pred(p.pred), value(p.value) {}
 
     template <typename BBPtr, typename VPtr>

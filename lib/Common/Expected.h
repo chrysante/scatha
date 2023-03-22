@@ -37,7 +37,7 @@ public:
     Expected(T&& value): _e(std::move(value)) {}
 
     template <typename... Args>
-    requires std::constructible_from<T, Args...>
+        requires std::constructible_from<T, Args...>
     Expected(Args&&... args): _e(T(std::forward<Args>(args)...)) {}
 
     Expected(E const& error): _e(utl::unexpected(error)) {}
@@ -45,7 +45,7 @@ public:
     Expected(E&& error): _e(utl::unexpected(std::move(error))) {}
 
     template <typename... Args>
-    requires internal::ErrorConstructibleFrom<T, E, Args...>
+        requires internal::ErrorConstructibleFrom<T, E, Args...>
     Expected(Args&&... args):
         _e(utl::unexpected(std::forward<Args>(args)...)) {}
 
@@ -60,7 +60,7 @@ public:
     }
 
     template <typename U>
-    requires std::convertible_to<U&&, T&&>
+        requires std::convertible_to<U&&, T&&>
     operator Expected<U, E>() && {
         if (hasValue()) {
             return std::move(value());
@@ -129,7 +129,7 @@ public:
     Expected(E&& error): _e(utl::unexpected(std::move(error))) {}
 
     template <typename... Args>
-    requires internal::ErrorConstructibleFrom<void, E, Args...>
+        requires internal::ErrorConstructibleFrom<void, E, Args...>
     Expected(Args&&... args):
         _e(utl::unexpected(std::forward<Args>(args)...)) {}
 
@@ -165,7 +165,7 @@ public:
     Expected(E&& error): _e(utl::unexpected(std::move(error))) {}
 
     template <typename... Args>
-    requires internal::ErrorConstructibleFrom<T, E, Args...>
+        requires internal::ErrorConstructibleFrom<T, E, Args...>
     Expected(Args&&... args):
         _e(utl::unexpected(std::forward<Args>(args)...)) {}
 
