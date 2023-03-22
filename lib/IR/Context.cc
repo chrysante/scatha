@@ -80,11 +80,3 @@ UndefValue* Context::undef(Type const* type) {
 Value* Context::voidValue() {
     return undef(voidType());
 }
-
-std::string Context::uniqueName(Function const* function, std::string name) {
-    auto const [itr, success] = varIndices.insert({ { function, name }, 0 });
-    if (success) {
-        return name;
-    }
-    return utl::strcat(name, ".", ++itr->second);
-}

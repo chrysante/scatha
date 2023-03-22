@@ -77,15 +77,15 @@ function i64 @f(i64) {
                     .instType(Goto)
             }),
             testBasicBlock("loop.header").instructions({
-                testInstruction("j.1")
+                testInstruction("j.0")
                     .instType(Phi)
                     .references({ "++.result" }),
-                testInstruction("result.1")
+                testInstruction("result.0")
                     .instType(Phi)
-                    .references({ "result.3" }),
+                    .references({ "result.5" }),
                 testInstruction("cmp.result")
                     .instType(CompareInst)
-                    .references({ "j.1" }),
+                    .references({ "j.0" }),
                 testInstruction("")
                     .instType(Branch)
                     .references({ "cmp.result" })
@@ -93,7 +93,7 @@ function i64 @f(i64) {
             testBasicBlock("loop.body").instructions({
                 testInstruction("expr.result")
                     .instType(ArithmeticInst)
-                    .references({ "result.1" }),
+                    .references({ "result.0" }),
                 testInstruction("cmp.result.1")
                     .instType(CompareInst)
                     .references({ "expr.result" }),
@@ -104,32 +104,32 @@ function i64 @f(i64) {
             testBasicBlock("loop.end").instructions({
                 testInstruction("")
                     .instType(Return)
-                    .references({ "result.1" })
+                    .references({ "result.0" })
             }),
             testBasicBlock("then").instructions({
                 testInstruction("expr.result.1")
                     .instType(ArithmeticInst)
-                    .references({ "result.1", "j.1" }),
+                    .references({ "result.0", "j.0" }),
                 testInstruction("")
                     .instType(Goto)
             }),
             testBasicBlock("else").instructions({
                 testInstruction("expr.result.2")
                     .instType(ArithmeticInst)
-                    .references({ "result.1" }),
+                    .references({ "result.0" }),
                 testInstruction("expr.result.3")
                     .instType(ArithmeticInst)
-                    .references({ "expr.result.2", "j.1" }),
+                    .references({ "expr.result.2", "j.0" }),
                 testInstruction("")
                     .instType(Goto)
             }),
             testBasicBlock("if.end").instructions({
-                testInstruction("result.3")
+                testInstruction("result.5")
                     .instType(Phi)
                     .references({ "expr.result.1", "expr.result.3" }),
                 testInstruction("++.result")
                     .instType(ArithmeticInst)
-                    .references({ "j.1" }),
+                    .references({ "j.0" }),
                 testInstruction("")
                     .instType(Goto)
             })
@@ -180,11 +180,11 @@ function i64 @f(i64) {
                     .instType(Goto)
             }),
             testBasicBlock("if.end").instructions({
-                testInstruction("n.1")
+                testInstruction("n.0")
                     .instType(Phi),
                 testInstruction("")
                     .instType(Return)
-                    .references({ "n.1" })
+                    .references({ "n.0" })
             }),
         })
     }); // clang-format on

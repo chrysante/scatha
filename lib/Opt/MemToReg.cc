@@ -230,7 +230,7 @@ void MemToRegContext::genName(Alloca* addr, Value* value) {
     info.stack.push(i);
     info.counter = i + 1;
     if (auto* phi = dyncast<Phi*>(value)) {
-        phi->setName(utl::strcat(info.name, ".", i));
+        phi->setName(info.name);
     }
 }
 

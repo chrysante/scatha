@@ -17,6 +17,7 @@
 #include "IR/Iterator.h"
 #include "IR/List.h"
 #include "IR/Type.h"
+#include "IR/UniqueName.h"
 
 namespace scatha::ir {
 
@@ -49,7 +50,7 @@ public:
     bool hasName() const { return !_name.empty(); }
 
     /// Set the name of this value.
-    void setName(std::string name) { _name = std::move(name); }
+    void setName(std::string name);
 
     /// View of all users using this value.
     auto users() const {
@@ -215,50 +216,27 @@ public:
     using ConstIterator = typename List<ValueType>::const_iterator;
 
     /// Callee takes ownership.
-    void pushFront(ValueType* value) {
-        setParent(*value);
-        insert(values.begin(), value);
-    }
+    void pushFront(ValueType* value) { insert(values.begin(), value); }
 
     /// \overload
     void pushFront(UniquePtr<ValueType> value) { pushFront(value.release()); }
 
     /// Callee takes ownership.
-    void pushBack(ValueType* value) {
-        setParent(*value);
-        insert(values.end(), value);
-    }
+    void pushBack(ValueType* value) { insert(values.end(), value); }
 
     /// \overload
     void pushBack(UniquePtr<ValueType> value) { pushBack(value.release()); }
 
     /// Callee takes ownership.
     Iterator insert(ConstIterator before, ValueType* value) {
-        setParent(*value);
+        asDerived().insertCallback(*value);
         return values.insert(before, value);
     }
 
     /// \overload
     ValueType* insert(ValueType const* before, ValueType* value) {
-        setParent(*value);
+        asDerived().insertCallback(*value);
         return insert(ConstIterator(before), value).to_address();
-    }
-
-    /// Erase an instruction. Clears the operands.
-    Iterator erase(ConstIterator position) {
-        SC_ASSERT(position->users().empty(),
-                  "We should not erase this value when it's still in use");
-        return values.erase(position);
-    }
-
-    /// \overload
-    Iterator erase(ValueType const* value) {
-        return static_cast<Derived*>(this)->erase(ConstIterator(value));
-    }
-
-    /// \overload
-    Iterator erase(ConstIterator first, ConstIterator last) {
-        return values.erase(first, last);
     }
 
     /// Merge `*this` with \p *rhs
@@ -269,12 +247,34 @@ public:
 
     /// Merge range `[begin, end)` into `*this`
     /// Insert nodes before \p pos
-    void splice(ConstIterator pos, Iterator begin, ConstIterator end) {
-        for (auto itr = begin; itr != end; ++itr) {
+    void splice(ConstIterator pos, Iterator first, ConstIterator last) {
+        for (auto itr = first; itr != last; ++itr) {
             SC_ASSERT(itr->parent() != this, "This is UB");
-            itr->set_parent(static_cast<Derived*>(this));
+            asDerived().insertCallback(*itr);
         }
-        values.splice(pos, begin, end);
+        values.splice(pos, first, last);
+    }
+
+    /// Erase an instruction. Clears the operands.
+    Iterator erase(ConstIterator position) {
+        SC_ASSERT(position->users().empty(),
+                  "We should not erase this value when it's still in use");
+        asDerived().eraseCallback(*position);
+        return values.erase(position);
+    }
+
+    /// \overload
+    Iterator erase(ValueType const* value) {
+        return erase(ConstIterator(value));
+    }
+
+    /// \overload
+    Iterator erase(ConstIterator first, ConstIterator last) {
+        for (auto itr = first; itr != last; ++itr) {
+            SC_ASSERT(itr->parent() == this, "This is UB");
+            asDerived().eraseCallback(*itr);
+        }
+        return values.erase(first, last);
     }
 
     Iterator begin() { return values.begin(); }
@@ -298,9 +298,7 @@ public:
     ValueType const& back() const { return values.back(); }
 
 private:
-    void setParent(ValueType& value) {
-        value.set_parent(static_cast<Derived*>(this));
-    }
+    Derived& asDerived() { return *static_cast<Derived*>(this); }
 
 private:
     friend class ir::BasicBlock;
@@ -318,6 +316,7 @@ class SCATHA(API) BasicBlock:
     public Value,
     public internal::CFGList<BasicBlock, Instruction>,
     public NodeWithParent<BasicBlock, Function> {
+    friend class internal::CFGList<BasicBlock, Instruction>;
     using ListBase = internal::CFGList<BasicBlock, Instruction>;
 
 public:
@@ -335,26 +334,6 @@ public:
         for (auto& inst: *this) {
             inst.clearOperands();
         }
-    }
-
-    /// Erase an instruction. Clears the operands.
-    Iterator erase(ConstIterator position) {
-        const_cast<Instruction*>(position.to_address())->clearOperands();
-        return ListBase::erase(position);
-    }
-
-    /// Pull in other overloads
-    using ListBase::erase;
-
-    /// \overload
-    Iterator erase(ConstIterator first, ConstIterator last) {
-        for (Iterator i(const_cast<Instruction*>(first.to_address()));
-             i != last;
-             ++i)
-        {
-            i->clearOperands();
-        }
-        return ListBase::erase(first, last);
     }
 
     void eraseAllPhiNodes();
@@ -473,6 +452,14 @@ public:
     BasicBlock const* singleSuccessor() const;
 
 private:
+    /// For access to insert and erase callbacks.
+    friend class Function;
+
+    /// Callbacks used by CFGList base class
+    void insertCallback(Instruction&);
+    void eraseCallback(Instruction const&);
+
+private:
     utl::small_vector<BasicBlock*> preds;
 };
 
@@ -501,6 +488,7 @@ class SCATHA(API) Function:
     public Constant,
     public internal::CFGList<Function, BasicBlock>,
     public NodeWithParent<Function, Module> {
+    friend class internal::CFGList<Function, BasicBlock>;
     using ListBase = internal::CFGList<Function, BasicBlock>;
 
     static auto getParametersImpl(auto&& self) {
@@ -563,8 +551,18 @@ public:
     }
 
 private:
+    /// Callbacks used by CFGList base class
+    void insertCallback(BasicBlock&);
+    void eraseCallback(BasicBlock const&);
+
+private:
+    /// For access to `nameFac`
+    friend class Value;
+    friend class BasicBlock;
+
     Type const* _returnType;
     List<Parameter> params;
+    UniqueNameFactory nameFac;
 };
 
 /// Outlined because `Function` is incomplete at definition of `BasicBlock`

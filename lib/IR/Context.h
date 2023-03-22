@@ -53,12 +53,6 @@ public:
     /// \returns an opaque value of type void
     Value* voidValue();
 
-    std::string uniqueName(Function const* function, std::string name);
-
-    std::string uniqueName(Function const* function, auto const&... args) {
-        return uniqueName(function, utl::strcat(args...));
-    }
-
 private:
     /// ## Constants
     utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*>

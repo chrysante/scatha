@@ -18,6 +18,34 @@ void Value::removeUserWeak(User* user) {
     }
 }
 
+void Value::setName(std::string name) {
+    if (auto* bb = dyncast<BasicBlock*>(this)) {
+        auto* func = bb->parent();
+        if (func) {
+            /// See comment below about erasing the name first.
+            _name = func->nameFac.makeUnique(std::move(name));
+        }
+    }
+    else if (auto* inst = dyncast<Instruction*>(this)) {
+        auto* bb   = inst->parent();
+        auto* func = bb ? bb->parent() : nullptr;
+        if (func) {
+            /// It would be correct to erase the old name here, before assigning
+            /// a new name. However, this method is also used by BasicBlock and
+            /// Function to unique existing duplicate names. So if we did erase
+            /// the name, we would never really unique the names, because the
+            /// duplicate name is always erased from the set of names before
+            /// testing for uniqueness. We should provide a separate method to
+            /// deduplicate existing names but I'm too lazy right now.
+            // func->nameFac.tryErase(_name);
+            _name = func->nameFac.makeUnique(std::move(name));
+        }
+    }
+    else {
+        _name = std::move(name);
+    }
+}
+
 void scatha::internal::privateDelete(Value* value) {
     visit(*value, [](auto& derived) { delete &derived; });
 }
@@ -136,6 +164,56 @@ void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
     auto itr = ranges::find(preds, oldPred);
     SC_ASSERT(itr != ranges::end(preds), "Not found");
     *itr = newPred;
+    for (auto& phi: phiNodes()) {
+        size_t const index = phi.indexOf(oldPred);
+        phi.setPredecessor(index, newPred);
+    }
+}
+
+void BasicBlock::removePredecessor(BasicBlock const* pred) {
+    preds.erase(std::find(preds.begin(), preds.end(), pred));
+    for (auto& phi: phiNodes()) {
+        phi.removeArgument(pred);
+    }
+}
+
+void BasicBlock::insertCallback(Instruction& inst) {
+    inst.set_parent(this);
+    /// To unique the name now that we have added it to our function.
+    inst.setName(std::string(inst.name()));
+}
+
+void BasicBlock::eraseCallback(Instruction const& inst) {
+    const_cast<Instruction&>(inst).clearOperands();
+    parent()->nameFac.erase(inst.name());
+}
+
+Function::Function(FunctionType const* functionType,
+                   Type const* returnType,
+                   std::span<Type const* const> parameterTypes,
+                   std::string name):
+    Constant(NodeType::Function, functionType, std::move(name)),
+    _returnType(returnType) {
+    for (auto [index, type]: parameterTypes | ranges::views::enumerate) {
+        params.emplace_back(type, index++, this);
+        bool const nameUnique = nameFac.tryRegister(params.back().name());
+        SC_ASSERT(nameUnique, "How are the parameter names not unique?");
+    }
+}
+
+void Function::insertCallback(BasicBlock& bb) {
+    bb.set_parent(this);
+    bb.setName(std::string(bb.name()));
+    for (auto& inst: bb) {
+        bb.insertCallback(inst);
+    }
+}
+
+void Function::eraseCallback(BasicBlock const& bb) {
+    nameFac.erase(bb.name());
+    for (auto& inst: bb) {
+        const_cast<BasicBlock&>(bb).eraseCallback(inst);
+    }
 }
 
 Return::Return(Context& context): Return(context, context.voidValue()) {}
