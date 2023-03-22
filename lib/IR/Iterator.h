@@ -155,6 +155,4 @@ private:
 
 } // namespace scatha::ir::internal
 
-namespace scatha::ir {} // namespace scatha::ir
-
 #endif // SCATHA_IR_ITERATOR_H_

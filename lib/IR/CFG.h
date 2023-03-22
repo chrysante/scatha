@@ -374,9 +374,10 @@ public:
             static_cast<BasicBlock const*>(this)->terminator());
     }
 
-    /// \returns `true` iff the terminator is the only instruction in the basic block.
+    /// \returns `true` iff the terminator is the only instruction in the basic
+    /// block.
     bool emptyExceptTerminator() const;
-        
+
     /// \returns a view over the phi nodes in this basic block.
     ranges::subrange<ConstPhiIterator, internal::PhiSentinel> phiNodes() const {
         return { ConstPhiIterator{ begin(), end() }, {} };

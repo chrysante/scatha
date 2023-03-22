@@ -15,9 +15,7 @@ static bool isAnyOf(char c, std::string_view data) {
 
 bool isPunctuation(char c) { return isAnyOf(c, "{}()[],;:"); }
 
-bool isOperatorLetter(char c) {
-    return isAnyOf(c, "+-*/%&|^.=><?!~");
-}
+bool isOperatorLetter(char c) { return isAnyOf(c, "+-*/%&|^.=><?!~"); }
 
 bool isOperator(std::string_view id) {
     // clang-format off
