@@ -44,6 +44,8 @@ struct CodeGenContext {
     void generate(ir::Return const&);
     void generate(ir::Phi const&);
     void generate(ir::GetElementPointer const&);
+    /// InsertValue, ExtractValue missing
+    void generate(ir::Select const&);
 
     void postprocess();
 
@@ -350,6 +352,24 @@ void CodeGenContext::generate(ir::Phi const& phi) {
 void CodeGenContext::generate(ir::GetElementPointer const& gep) {
     /// Do nothing here until we have proper register and value descriptors.
     return;
+}
+
+void CodeGenContext::generate(ir::Select const& select) {
+    auto dest    = currentRD().resolve(select).get<RegisterIndex>();
+    auto cond    = currentRD().resolve(*select.condition());
+    auto thenVal = currentRD().resolve(*select.thenValue());
+    auto elseVal = currentRD().resolve(*select.elseValue());
+    currentBlock().insertBack(MoveInst(dest, thenVal, select.type()->size()));
+    /// Move `cond` into a register if it not alreay in one.
+    if (!cond.is<RegisterIndex>()) {
+        auto tmp = currentRD().makeTemporary();
+        currentBlock().insertBack(
+            MoveInst(tmp, cond, select.condition()->type()->size()));
+        cond = tmp;
+    }
+    currentBlock().insertBack(TestInst(Type::Unsigned, cond));
+    currentBlock().insertBack(
+        CMoveInst(CompareOperation::Eq, dest, elseVal, select.type()->size()));
 }
 
 void CodeGenContext::postprocess() {

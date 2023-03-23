@@ -91,6 +91,13 @@ static GetElementPointer* doClone(Context& context, GetElementPointer* inst) {
                                  std::string(inst->name()));
 }
 
+static Select* doClone(Context& context, Select* inst) {
+    return new Select(inst->condition(),
+                      inst->thenValue(),
+                      inst->elseValue(),
+                      std::string(inst->name()));
+}
+
 static ExtractValue* doClone(Context& context, ExtractValue* inst) {
     SC_DEBUGFAIL();
 }
