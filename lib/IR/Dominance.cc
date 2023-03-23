@@ -1,4 +1,4 @@
-#include "Opt/Dominance.h"
+#include "IR/Dominance.h"
 
 #include <iostream>
 
@@ -11,7 +11,6 @@
 #include "IR/CFG.h"
 
 using namespace scatha;
-using namespace opt;
 using namespace ir;
 
 static void merge(utl::hashset<BasicBlock*>& dest,
@@ -59,9 +58,9 @@ struct PrintCtx {
 
 } // namespace
 
-void opt::print(DomTree const& domTree) { print(domTree, std::cout); }
+void ir::print(DomTree const& domTree) { print(domTree, std::cout); }
 
-void opt::print(DomTree const& domTree, std::ostream& str) {
+void ir::print(DomTree const& domTree, std::ostream& str) {
     PrintCtx ctx(str);
     ctx.print(domTree.root());
 }
@@ -83,14 +82,14 @@ DominanceInfo DominanceInfo::compute(Function& function) {
     return result;
 }
 
-utl::hashset<ir::BasicBlock*> const& DominanceInfo::domSet(
+utl::hashset<BasicBlock*> const& DominanceInfo::domSet(
     ir::BasicBlock const* basicBlock) const {
     auto itr = _domMap.find(basicBlock);
     SC_ASSERT(itr != _domMap.end(), "Basic block not found");
     return itr->second;
 }
 
-std::span<ir::BasicBlock* const> DominanceInfo::domFront(
+std::span<BasicBlock* const> DominanceInfo::domFront(
     ir::BasicBlock const* basicBlock) const {
     auto itr = _domFront.find(basicBlock);
     SC_ASSERT(itr != _domFront.end(), "Basic block not found");

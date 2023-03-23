@@ -7,7 +7,7 @@
 
 #include "Basic/Basic.h"
 #include "IR/Common.h"
-#include "Opt/Graph.h"
+#include "Common/Graph.h"
 
 namespace scatha::opt {
 
@@ -16,8 +16,8 @@ public:
     class SCCNode;
 
     /// Node representing a function
-    class FunctionNode: public opt::GraphNode<ir::Function*, FunctionNode> {
-        using Base = opt::GraphNode<ir::Function*, FunctionNode>;
+    class FunctionNode: public GraphNode<ir::Function*, FunctionNode> {
+        using Base = GraphNode<ir::Function*, FunctionNode>;
 
     public:
         using Base::Base;
@@ -48,8 +48,8 @@ public:
     };
 
     /// Node representing an SCC
-    class SCCNode: public opt::GraphNode<void, SCCNode> {
-        using Base = opt::GraphNode<void, SCCNode>;
+    class SCCNode: public GraphNode<void, SCCNode> {
+        using Base = GraphNode<void, SCCNode>;
 
     public:
         using Base::Base;

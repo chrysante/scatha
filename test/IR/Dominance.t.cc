@@ -9,7 +9,7 @@
 #include "IR/Module.h"
 #include "IR/Parser/Parser.h"
 #include "IR/Print.h"
-#include "Opt/Dominance.h"
+#include "IR/Dominance.h"
 
 using namespace scatha;
 
@@ -58,7 +58,7 @@ function i64 @f() {
 })";
     ir::Module mod  = ir::parse(text, ctx).value();
     auto& f         = mod.functions().front();
-    auto domInfo    = opt::DominanceInfo::compute(f);
+    auto domInfo    = ir::DominanceInfo::compute(f);
     /// ## Dominator tree
     auto& domTree = domInfo.domTree();
     auto& root    = domTree.root();
@@ -112,7 +112,7 @@ function i64 @f() {
 })";
     ir::Module mod  = ir::parse(text, ctx).value();
     auto& f         = mod.functions().front();
-    auto domInfo    = opt::DominanceInfo::compute(f);
+    auto domInfo    = ir::DominanceInfo::compute(f);
     /// ## Dominator tree
     auto& domTree = domInfo.domTree();
     auto& root    = domTree.root();

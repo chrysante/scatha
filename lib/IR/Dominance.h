@@ -1,5 +1,5 @@
-#ifndef SCATHA_OPT_DOMINANCE_H_
-#define SCATHA_OPT_DOMINANCE_H_
+#ifndef SCATHA_IR_DOMINANCE_H_
+#define SCATHA_IR_DOMINANCE_H_
 
 #include <iosfwd>
 #include <span>
@@ -9,17 +9,17 @@
 #include <utl/vector.hpp>
 
 #include "IR/Common.h"
-#include "Opt/Graph.h"
+#include "Common/Graph.h"
 
-namespace scatha::opt {
+namespace scatha::ir {
 
 class DomTree;
 
 /// Dominator tree of a function
 class SCATHA_TESTAPI DomTree {
 public:
-    class Node: public opt::TreeNode<ir::BasicBlock*, Node> {
-        using Base = opt::TreeNode<ir::BasicBlock*, Node>;
+    class Node: public TreeNode<ir::BasicBlock*, Node> {
+        using Base = TreeNode<ir::BasicBlock*, Node>;
 
     public:
         using Base::Base;
@@ -80,7 +80,23 @@ SCATHA_TESTAPI void print(DomTree const& domTree, std::ostream& ostream);
 /// - Dominance frontiers for each basic block
 class SCATHA_TESTAPI DominanceInfo {
 public:
+    using DomMap = utl::hashmap<ir::BasicBlock*, utl::hashset<ir::BasicBlock*>>;
+
+    using DomFrontMap =
+        utl::hashmap<ir::BasicBlock*, utl::small_vector<ir::BasicBlock*>>;
+
+    /// Compute the dominator sets of the basic blocks in \p function
+    static DomMap computeDomSets(ir::Function& function);
+
+    /// Compute the dominator tree of \p function
+    static DomTree computeDomTree(ir::Function& function, DomMap const& domMap);
+
+    /// Compute the dominance frontiers of the basic blocks in \p function
+    static DomFrontMap computeDomFronts(ir::Function& function,
+                                        DomTree const& domTree);
+
     /// Compute dominance information of \p function
+    /// Computes dominance sets, dominator tree and dominance frontiers.
     static DominanceInfo compute(ir::Function& function);
 
     /// \returns a reference to the set of basic blocks dominated by \p
@@ -98,24 +114,12 @@ public:
 private:
     friend struct DFContext;
 
-    using DomMap = utl::hashmap<ir::BasicBlock*, utl::hashset<ir::BasicBlock*>>;
-
-    using DomFrontMap =
-        utl::hashmap<ir::BasicBlock*, utl::small_vector<ir::BasicBlock*>>;
-
-    static DomMap computeDomSets(ir::Function& function);
-
-    static DomTree computeDomTree(ir::Function&, DomMap const&);
-
-    static DomFrontMap computeDomFronts(ir::Function& function,
-                                        DomTree const& domTree);
-
 private:
     DomMap _domMap;
     DomTree _domTree;
     DomFrontMap _domFront;
 };
 
-} // namespace scatha::opt
+} // namespace scatha::ir
 
-#endif // SCATHA_OPT_DOMINANCE_H_
+#endif // SCATHA_IR_DOMINANCE_H_

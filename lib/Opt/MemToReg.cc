@@ -9,7 +9,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Validate.h"
-#include "Opt/Dominance.h"
+#include "IR/Dominance.h"
 
 using namespace scatha;
 using namespace ir;

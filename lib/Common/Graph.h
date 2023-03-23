@@ -1,5 +1,5 @@
-#ifndef SCATHA_OPT_GRAPH_H_
-#define SCATHA_OPT_GRAPH_H_
+#ifndef SCATHA_COMMON_GRAPH_H_
+#define SCATHA_COMMON_GRAPH_H_
 
 #include <concepts>
 #include <type_traits>
@@ -8,7 +8,7 @@
 #include <range/v3/view.hpp>
 #include <utl/vector.hpp>
 
-namespace scatha::opt {
+namespace scatha {
 
 namespace internal {
 
@@ -201,6 +201,6 @@ private:
 template <typename Payload, typename Derived = void, bool IsTree = false>
 using TreeNode = GraphNode<Payload, Derived, true>;
 
-} // namespace scatha::opt
+} // namespace scatha
 
-#endif // SCATHA_OPT_GRAPH_H_
+#endif // SCATHA_COMMON_GRAPH_H_
