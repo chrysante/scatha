@@ -9,9 +9,9 @@
 #include "Basic/Basic.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Dominance.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
-#include "IR/Dominance.h"
 
 using namespace scatha;
 using namespace ir;
@@ -55,10 +55,10 @@ struct AssertContext {
 
     ir::Context& ctx;
     Function const* currentFunction = nullptr;
-    DominanceInfo::DomMap domMap;
     BasicBlock const* currentBB     = nullptr;
     utl::hashmap<std::string, std::pair<Function const*, Value const*>>
         nameValueMap;
+    DominanceInfo::DomMap domMap;
 };
 
 void ir::assertInvariants(Context& ctx, Module const& mod) {

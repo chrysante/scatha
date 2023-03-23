@@ -6,10 +6,10 @@
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Dominance.h"
 #include "IR/Module.h"
 #include "IR/Parser/Parser.h"
 #include "IR/Print.h"
-#include "IR/Dominance.h"
 
 using namespace scatha;
 

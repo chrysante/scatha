@@ -6,8 +6,8 @@
 #include <utl/vector.hpp>
 
 #include "Basic/Basic.h"
-#include "IR/Common.h"
 #include "Common/Graph.h"
+#include "IR/Common.h"
 
 namespace scatha::opt {
 

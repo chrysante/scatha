@@ -8,8 +8,8 @@
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
-#include "IR/Validate.h"
 #include "IR/Dominance.h"
+#include "IR/Validate.h"
 
 using namespace scatha;
 using namespace ir;

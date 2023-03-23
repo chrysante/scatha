@@ -8,8 +8,8 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
-#include "IR/Common.h"
 #include "Common/Graph.h"
+#include "IR/Common.h"
 
 namespace scatha::ir {
 
