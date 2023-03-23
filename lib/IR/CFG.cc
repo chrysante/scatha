@@ -365,6 +365,14 @@ void Phi::setPredecessor(size_t index, BasicBlock* pred) {
     _preds[index] = pred;
 }
 
+Value const* Phi::operandOf(BasicBlock const* pred) const {
+    auto itr = ranges::find(_preds, pred);
+    SC_ASSERT(itr != ranges::end(_preds),
+              "`pred` is not a predecessor of this phi node");
+    size_t index = utl::narrow_cast<size_t>(itr - ranges::begin(_preds));
+    return operands()[index];
+}
+
 GetElementPointer::GetElementPointer(Context& context,
                                      Type const* accessedType,
                                      Value* basePointer,
@@ -392,7 +400,10 @@ Type const* ir::internal::AccessValueBase::computeAccessedType(
     return result;
 }
 
-Select::Select(Value* condition, Value* thenValue, Value* elseValue, std::string name):
+Select::Select(Value* condition,
+               Value* thenValue,
+               Value* elseValue,
+               std::string name):
     Instruction(NodeType::Select,
                 thenValue->type(),
                 std::move(name),

@@ -1,14 +1,32 @@
-fn f(n: int) -> int {
-    if n == 0 {
-    
+fn gcd(a: int, b: int) -> int {
+    while b != 0 && true
+     {
+        let t = b + 0;
+        b = a % b;
+        a = t;
     }
-    else {
-    
-    }
-    return 0;
+    return a;
+}
+fn main() -> int {
+    let a = 756476;
+    let b = 1253;
+    return gcd(a, b);// + gcd(1, 7);
 }
 
 /*
+fn main() -> int { return f(1); }
+
+fn f(n: int) -> int {
+    var result = 0;
+    if n == 0 {
+        result = 10;
+    }
+    else {
+        result = 42;
+    }
+    return result;
+}
+
 
 fn A(n: int) {
     B(n);

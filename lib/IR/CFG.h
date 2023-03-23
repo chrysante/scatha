@@ -435,8 +435,20 @@ public:
     /// \overload
     auto successors() const;
 
+    BasicBlock* successor(size_t index);
+
+    BasicBlock const* successor(size_t index) const;
+
+    BasicBlock* predecessor(size_t index);
+
+    BasicBlock const* predecessor(size_t index) const;
+
+    size_t numSuccessors() const;
+
+    size_t numPredecessors() const;
+
     /// \returns `true` iff this basic block has exactly one predecessor.
-    bool hasSinglePredecessor() const { return preds.size() == 1; }
+    bool hasSinglePredecessor() const;
 
     /// \returns predecessor if this basic block has a single predecessor, else
     /// `nullptr`.
@@ -776,8 +788,34 @@ inline auto BasicBlock::successors() const {
     return internal::succImpl(terminator());
 }
 
+inline BasicBlock* BasicBlock::successor(size_t index) {
+    return successors()[utl::narrow_cast<ssize_t>(index)];
+}
+
+inline BasicBlock const* BasicBlock::successor(size_t index) const {
+    return successors()[utl::narrow_cast<ssize_t>(index)];
+}
+
+inline BasicBlock* BasicBlock::predecessor(size_t index) {
+    return predecessors()[index];
+}
+
+inline BasicBlock const* BasicBlock::predecessor(size_t index) const {
+    return predecessors()[index];
+}
+
+inline size_t BasicBlock::numSuccessors() const { return successors().size(); }
+
 inline bool BasicBlock::hasSingleSuccessor() const {
-    return successors().size() == 1;
+    return numSuccessors() == 1;
+}
+
+inline size_t BasicBlock::numPredecessors() const {
+    return predecessors().size();
+}
+
+inline bool BasicBlock::hasSinglePredecessor() const {
+    return numPredecessors() == 1;
 }
 
 inline BasicBlock const* BasicBlock::singleSuccessor() const {
@@ -955,6 +993,13 @@ public:
         SC_ASSERT(index < argumentCount(), "");
         return { _preds[index], operands()[index] };
     }
+
+    Value* operandOf(BasicBlock const* pred) {
+        return const_cast<Value*>(
+            static_cast<Phi const*>(this)->operandOf(pred));
+    }
+
+    Value const* operandOf(BasicBlock const* pred) const;
 
     /// View over all incoming edges. Must be the same as predecessors of parent
     /// basic block.
@@ -1134,23 +1179,26 @@ public:
 
 class Select: public Instruction {
 public:
-    explicit Select(Value* condition, Value* thenValue, Value* elseValue, std::string name);
-    
+    explicit Select(Value* condition,
+                    Value* thenValue,
+                    Value* elseValue,
+                    std::string name);
+
     /// The condition to select on.
     Value* condition() { return operands()[0]; }
-    
+
     /// \overload
     Value const* condition() const { return operands()[0]; }
-    
+
     /// Value to choose if condition is `true`
     Value* thenValue() { return operands()[1]; }
-    
+
     /// \overload
     Value const* thenValue() const { return operands()[1]; }
-    
+
     /// Value to choose if condition is `false`
     Value* elseValue() { return operands()[2]; }
-    
+
     /// \overload
     Value const* elseValue() const { return operands()[2]; }
 };

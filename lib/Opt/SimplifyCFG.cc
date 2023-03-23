@@ -19,11 +19,15 @@ struct Ctx {
 
     void replaceConstCondBranches(BasicBlock* bb);
 
+    void removeDeadLink(BasicBlock* origin, BasicBlock* dest);
+
     void merge();
 
     void eraseDeadBasicBlock(BasicBlock* bb);
 
-    void removeDeadLink(BasicBlock* origin, BasicBlock* dest);
+    /// \returns `nullptr` if \p bb could not be erased or a basic block to
+    /// push into the worklist otherwise.
+    BasicBlock* eraseForwardingBasicBlock(BasicBlock* bb);
 
     ir::Context& irCtx;
     Function& function;
@@ -70,11 +74,15 @@ void Ctx::replaceConstCondBranches(BasicBlock* bb) {
     }
 }
 
-static bool allSuccessorsEqual(BasicBlock const* bb) {
-    return ranges::all_of(bb->successors(),
-                          [first = bb->successors().front()](auto* succ) {
-        return succ == first;
-    });
+void Ctx::removeDeadLink(BasicBlock* origin, BasicBlock* dest) {
+    origin->terminator()->updateTarget(dest, nullptr);
+    if (dest->hasSinglePredecessor()) {
+        SC_ASSERT(dest->singlePredecessor() == origin, "Bad link");
+        eraseDeadBasicBlock(dest);
+    }
+    else {
+        dest->removePredecessor(origin);
+    }
 }
 
 void Ctx::merge() {
@@ -91,52 +99,36 @@ void Ctx::merge() {
             continue;
         }
         visited[bb] = true;
-
-        /// Unfortunately the disabled code does not work in general without
-        /// `select` instructions. In the following scenario
-        /// ```
-        ///   A
-        ///  / \
-        /// B   C
-        ///  \ /
-        ///   D
-        /// ```
-        /// when in `D` different values are `phi`'d we cannot collapse this
-        /// construct without replace the `phi`by a `select`.
-#if 0
         /// Replace a `branch` with all equal targets by a `goto`
-        if (bb->successors().size() > 1 &&
-            allSuccessorsEqual(bb))
+        /// I guess we will have to generalize this once we get `switch`
+        /// instructions.
+        if (bb->successors().size() == 2 &&
+            bb->successor(0) == bb->successor(1))
         {
-            auto* succ = bb->successors().front();
+            auto* succ = bb->successor(0);
+            SC_ASSERT(succ->phiNodes().empty(),
+                      "This case should not happen with phi nodes in `succ`");
+            succ->removePredecessor(bb);
+            SC_ASSERT(ranges::find(succ->predecessors(), bb) !=
+                          succ->predecessors().end(),
+                      "`bb` should have been a duplicate predecessor of `succ` "
+                      "and should thus be still in the list after erasing one "
+                      "pointer ");
             auto* newTerm = new Goto(irCtx, succ);
             bb->erase(bb->terminator());
             bb->pushBack(newTerm);
-            /// Here we would then also need to update or replace the phi nodes in `succ`.
-            succ->setPredecessors(std::array{ bb });
         }
-#endif
         if (!bb->hasSingleSuccessor()) {
             insertSuccessors(bb);
             continue;
         }
         auto* succ = bb->singleSuccessor();
-#if 0
-        /// Erase empty basic block which just 'forward' meaning one incoming
-        /// and one outgoing edge.
-        if (bb->hasSinglePredecessor() && bb->emptyExceptTerminator()) {
-            /// Simple `Pred -> BB -> Succ` case where `BB` is empty.
-            /// We can just erase `BB` and branch to `Succ` directly.
-            auto* pred = bb->singlePredecessor();
-            pred->terminator()->updateTarget(bb, succ);
-            succ->updatePredecessor(bb, pred);
-            function.erase(bb);
+        if (auto* bb2 = eraseForwardingBasicBlock(bb)) {
             /// To visit `pred` again we need to mark it unvisited.
-            visited[pred] = false;
-            worklist.insert(pred);
+            visited[bb2] = false;
+            worklist.insert(bb2);
             continue;
         }
-#endif
         if (!succ->hasSinglePredecessor()) {
             insertSuccessors(bb);
             continue;
@@ -170,13 +162,62 @@ void Ctx::eraseDeadBasicBlock(BasicBlock* bb) {
     function.erase(bb);
 }
 
-void Ctx::removeDeadLink(BasicBlock* origin, BasicBlock* dest) {
-    origin->terminator()->updateTarget(dest, nullptr);
-    if (dest->hasSinglePredecessor()) {
-        SC_ASSERT(dest->singlePredecessor() == origin, "Bad link");
-        eraseDeadBasicBlock(dest);
+BasicBlock* Ctx::eraseForwardingBasicBlock(BasicBlock* bb) {
+    /// Erase empty basic block which just 'forward' meaning one incoming
+    /// and one outgoing edge.
+    if (!bb->hasSinglePredecessor() || !bb->hasSingleSuccessor() ||
+        !bb->emptyExceptTerminator())
+    {
+        return nullptr;
     }
-    else {
-        dest->removePredecessor(origin);
+    /// Simple `Pred -> BB -> Succ` case where `BB` is empty.
+    /// Maybe we can just erase `BB` and branch to `Succ` directly.
+    auto* succ = bb->singleSuccessor();
+    auto* pred = bb->singlePredecessor();
+    /// If `succ` doesn't have phi nodes we have nothing to worry about.
+    if (succ->phiNodes().empty()) {
+        goto doErase;
     }
+    if (ranges::find(succ->predecessors(), pred) ==
+        ranges::end(succ->predecessors()))
+    {
+        goto doErase;
+    }
+    /// Our predecessor, which would become `succ`'s predecessor, is already
+    /// a predecessor of `succ` and would thus become a duplicate
+    /// predecessor of `succ`. Since `succ` has phi nodes, this is a
+    /// problem as they become ambigous.
+    SC_ASSERT(succ->numPredecessors() > 1, "Can hardly be 1 or 0");
+    if (succ->numPredecessors() == 2 && pred->numSuccessors() == 2) {
+        /// We got lucky and we can replace the `phi`'s in `succ` by `select`
+        /// instructions.
+        /// `pred`'s terminator  must be a `branch` since `pred` has 2
+        /// successors.
+        auto* branch = cast<Branch*>(pred->terminator());
+        utl::small_vector<Select*> selects;
+        auto* a = pred;
+        auto* b = bb;
+        if (branch->thenTarget() == b) {
+            std::swap(a, b);
+        }
+        for (auto& phi: succ->phiNodes()) {
+            auto* select = new Select(branch->condition(),
+                                      phi.operandOf(a),
+                                      phi.operandOf(b),
+                                      utl::strcat("select.", phi.name()));
+            selects.push_back(select);
+            opt::replaceValue(&phi, select);
+        }
+        succ->eraseAllPhiNodes();
+        for (auto* select: selects | ranges::views::reverse) {
+            succ->pushFront(select);
+        }
+        goto doErase;
+    }
+    return nullptr;
+doErase:
+    pred->terminator()->updateTarget(bb, succ);
+    succ->updatePredecessor(bb, pred);
+    function.erase(bb);
+    return pred;
 }
