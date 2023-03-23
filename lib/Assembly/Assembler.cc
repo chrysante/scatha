@@ -39,6 +39,7 @@ struct Context {
 
     void dispatch(Instruction const& inst);
     void translate(MoveInst const&);
+    void translate(CMoveInst const&);
     void translate(JumpInst const&);
     void translate(CallInst const&);
     void translate(CallExtInst const&);
@@ -143,6 +144,16 @@ void Context::translate(MoveInst const& mov) {
     dispatch(promote(mov.source(), size));
 }
 
+void Context::translate(CMoveInst const& cmov) {
+    auto const [opcode, size] = mapCMove(cmov.condition(),
+                                         cmov.dest().valueType(),
+                                         cmov.source().valueType(),
+                                         cmov.numBytes());
+    put(opcode);
+    dispatch(cmov.dest());
+    dispatch(promote(cmov.source(), size));
+}
+
 void Context::translate(JumpInst const& jmp) {
     OpCode const opcode = mapJump(jmp.condition());
     put(opcode);
@@ -187,6 +198,8 @@ void Context::translate(CompareInst const& cmp) {
 void Context::translate(TestInst const& test) {
     OpCode const opcode = mapTest(test.type());
     put(opcode);
+    SC_ASSERT(test.operand().is<RegisterIndex>(),
+              "Can only test values in registers");
     dispatch(test.operand().get<RegisterIndex>());
 }
 

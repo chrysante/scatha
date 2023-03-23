@@ -39,6 +39,35 @@ private:
     size_t _numBytes;
 };
 
+/// Represents a `cmov` instruction.
+class CMoveInst: public InstructionBase {
+public:
+    explicit CMoveInst(CompareOperation condition,
+                       Value dest,
+                       Value source,
+                       size_t numBytes):
+        _cond(condition), _dest(dest), _src(source), _numBytes(numBytes) {
+        verify();
+    }
+
+    CompareOperation condition() const { return _cond; }
+
+    Value& dest() { return _dest; }
+    Value const& dest() const { return _dest; }
+
+    Value const& source() const { return _src; }
+
+    size_t numBytes() const { return _numBytes; }
+
+private:
+    SCATHA_TESTAPI void verify();
+
+private:
+    CompareOperation _cond;
+    Value _dest, _src;
+    size_t _numBytes;
+};
+
 /// Represents a `jump` instruction
 class JumpInst: public InstructionBase {
 public:

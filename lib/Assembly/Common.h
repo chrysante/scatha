@@ -51,6 +51,7 @@ enum class CompareOperation {
     _count
 };
 
+std::string_view toCMoveInstName(CompareOperation condition);
 std::string_view toJumpInstName(CompareOperation condition);
 std::string_view toSetInstName(CompareOperation condition);
 

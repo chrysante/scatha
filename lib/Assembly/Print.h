@@ -20,6 +20,7 @@ SCATHA_API void print(Block const& block, std::ostream& ostream);
 
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, Instruction const&);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, MoveInst const&);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream, CMoveInst const&);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     UnaryArithmeticInst const&);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,

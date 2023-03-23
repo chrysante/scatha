@@ -86,6 +86,43 @@ struct svm::OpCodeImpl {
         };
     }
 
+    template <OpCode C>
+    static auto condMove64RR(auto cond) {
+        return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const destRegIdx   = i[0];
+            size_t const sourceRegIdx = i[1];
+            if (decltype(cond)()(vm->flags)) {
+                reg[destRegIdx] = reg[sourceRegIdx];
+            }
+            return codeSize(C);
+        };
+    }
+
+    template <OpCode C>
+    static auto condMove64RV(auto cond) {
+        return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const destRegIdx = i[0];
+            if (decltype(cond)()(vm->flags)) {
+                reg[destRegIdx] = read<u64>(i + 1);
+            }
+            return codeSize(C);
+        };
+    }
+
+    template <OpCode C, size_t Size>
+    static auto condMoveRM(auto cond) {
+        return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const destRegIdx = i[0];
+            u8* const ptr           = getPointer(reg, i + 1);
+            SVM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
+            if (decltype(cond)()(vm->flags)) {
+                reg[destRegIdx] = 0;
+                std::memcpy(&reg[destRegIdx], ptr, Size);
+            }
+            return codeSize(C);
+        };
+    }
+
     template <OpCode C, typename T>
     static auto compareRR() {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
@@ -236,6 +273,58 @@ struct svm::OpCodeImpl {
         at(mov32RM) = moveRM<mov32RM, 4>();
         at(mov64RM) = moveRM<mov64RM, 8>();
 
+        /// ** Condition callbacks **
+        auto equal     = [](VMFlags f) { return f.equal; };
+        auto notEqual  = [](VMFlags f) { return !f.equal; };
+        auto less      = [](VMFlags f) { return f.less; };
+        auto lessEq    = [](VMFlags f) { return f.less || f.equal; };
+        auto greater   = [](VMFlags f) { return !f.less && !f.equal; };
+        auto greaterEq = [](VMFlags f) { return !f.less; };
+
+        /// ** Conditional moves **
+        at(cmove64RR) = condMove64RR<cmove64RR>(equal);
+        at(cmove64RV) = condMove64RV<cmove64RV>(equal);
+        at(cmove8RM)  = condMoveRM<cmove8RM, 1>(equal);
+        at(cmove16RM) = condMoveRM<cmove16RM, 2>(equal);
+        at(cmove32RM) = condMoveRM<cmove32RM, 4>(equal);
+        at(cmove64RM) = condMoveRM<cmove64RM, 8>(equal);
+
+        at(cmovne64RR) = condMove64RR<cmovne64RR>(notEqual);
+        at(cmovne64RV) = condMove64RV<cmovne64RV>(notEqual);
+        at(cmovne8RM)  = condMoveRM<cmovne8RM, 1>(notEqual);
+        at(cmovne16RM) = condMoveRM<cmovne16RM, 2>(notEqual);
+        at(cmovne32RM) = condMoveRM<cmovne32RM, 4>(notEqual);
+        at(cmovne64RM) = condMoveRM<cmovne64RM, 8>(notEqual);
+
+        at(cmovl64RR) = condMove64RR<cmovl64RR>(less);
+        at(cmovl64RV) = condMove64RV<cmovl64RV>(less);
+        at(cmovl8RM)  = condMoveRM<cmovl8RM, 1>(less);
+        at(cmovl16RM) = condMoveRM<cmovl16RM, 2>(less);
+        at(cmovl32RM) = condMoveRM<cmovl32RM, 4>(less);
+        at(cmovl64RM) = condMoveRM<cmovl64RM, 8>(less);
+
+        at(cmovle64RR) = condMove64RR<cmovle64RR>(lessEq);
+        at(cmovle64RV) = condMove64RV<cmovle64RV>(lessEq);
+        at(cmovle8RM)  = condMoveRM<cmovle8RM, 1>(lessEq);
+        at(cmovle16RM) = condMoveRM<cmovle16RM, 2>(lessEq);
+        at(cmovle32RM) = condMoveRM<cmovle32RM, 4>(lessEq);
+        at(cmovle64RM) = condMoveRM<cmovle64RM, 8>(lessEq);
+
+        at(cmovg64RR) = condMove64RR<cmovg64RR>(greater);
+        at(cmovg64RV) = condMove64RV<cmovg64RV>(greater);
+        at(cmovg8RM)  = condMoveRM<cmovg8RM, 1>(greater);
+        at(cmovg16RM) = condMoveRM<cmovg16RM, 2>(greater);
+        at(cmovg32RM) = condMoveRM<cmovg32RM, 4>(greater);
+        at(cmovg64RM) = condMoveRM<cmovg64RM, 8>(greater);
+
+        at(cmovge64RR) = condMove64RR<cmovge64RR>(greaterEq);
+        at(cmovge64RV) = condMove64RV<cmovge64RV>(greaterEq);
+        at(cmovge8RM)  = condMoveRM<cmovge8RM, 1>(greaterEq);
+        at(cmovge16RM) = condMoveRM<cmovge16RM, 2>(greaterEq);
+        at(cmovge32RM) = condMoveRM<cmovge32RM, 4>(greaterEq);
+        at(cmovge64RM) = condMoveRM<cmovge64RM, 8>(greaterEq);
+
+        /// ** Alloca **
         at(alloca_) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const targetRegIdx = i[0];
             size_t const sourceRegIdx = i[1];
@@ -245,12 +334,12 @@ struct svm::OpCodeImpl {
 
         /// ** Jumps **
         at(jmp) = jump<jmp>([](VMFlags) { return true; });
-        at(je)  = jump<je>([](VMFlags f) { return f.equal; });
-        at(jne) = jump<jne>([](VMFlags f) { return !f.equal; });
-        at(jl)  = jump<jl>([](VMFlags f) { return f.less; });
-        at(jle) = jump<jle>([](VMFlags f) { return f.less || f.equal; });
-        at(jg)  = jump<jg>([](VMFlags f) { return !f.less && !f.equal; });
-        at(jge) = jump<jge>([](VMFlags f) { return !f.less; });
+        at(je)  = jump<je>(equal);
+        at(jne) = jump<jne>(notEqual);
+        at(jl)  = jump<jl>(less);
+        at(jle) = jump<jle>(lessEq);
+        at(jg)  = jump<jg>(greater);
+        at(jge) = jump<jge>(greaterEq);
 
         /// ** Comparison **
         at(ucmpRR) = compareRR<ucmpRR, u64>();

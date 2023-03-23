@@ -58,6 +58,154 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest,
     SC_DEBUGFAIL();
 }
 
+static OpCode mapCMovRR(CompareOperation cmpOp) {
+    switch (cmpOp) {
+    case CompareOperation::Less:
+        return OpCode::cmove64RR;
+    case CompareOperation::LessEq:
+        return OpCode::cmovne64RR;
+    case CompareOperation::Greater:
+        return OpCode::cmovl64RR;
+    case CompareOperation::GreaterEq:
+        return OpCode::cmovle64RR;
+    case CompareOperation::Eq:
+        return OpCode::cmovg64RR;
+    case CompareOperation::NotEq:
+        return OpCode::cmovge64RR;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+static OpCode mapCMovRV(CompareOperation cmpOp) {
+    switch (cmpOp) {
+    case CompareOperation::Less:
+        return OpCode::cmovl64RV;
+    case CompareOperation::LessEq:
+        return OpCode::cmovle64RV;
+    case CompareOperation::Greater:
+        return OpCode::cmovg64RV;
+    case CompareOperation::GreaterEq:
+        return OpCode::cmovge64RV;
+    case CompareOperation::Eq:
+        return OpCode::cmove64RV;
+    case CompareOperation::NotEq:
+        return OpCode::cmovne64RV;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+static OpCode mapCMovRM(CompareOperation cmpOp, size_t size) {
+    switch (cmpOp) {
+    case CompareOperation::Less:
+        switch (size) {
+        case 1:
+            return OpCode::cmovl8RM;
+        case 2:
+            return OpCode::cmovl16RM;
+        case 4:
+            return OpCode::cmovl32RM;
+        case 8:
+            return OpCode::cmovl64RM;
+        default:
+            SC_UNREACHABLE();
+        }
+    case CompareOperation::LessEq:
+        switch (size) {
+        case 1:
+            return OpCode::cmovle8RM;
+        case 2:
+            return OpCode::cmovle16RM;
+        case 4:
+            return OpCode::cmovle32RM;
+        case 8:
+            return OpCode::cmovle64RM;
+        default:
+            SC_UNREACHABLE();
+        }
+    case CompareOperation::Greater:
+        switch (size) {
+        case 1:
+            return OpCode::cmovg8RM;
+        case 2:
+            return OpCode::cmovg16RM;
+        case 4:
+            return OpCode::cmovg32RM;
+        case 8:
+            return OpCode::cmovg64RM;
+        default:
+            SC_UNREACHABLE();
+        }
+    case CompareOperation::GreaterEq:
+        switch (size) {
+        case 1:
+            return OpCode::cmovge8RM;
+        case 2:
+            return OpCode::cmovge16RM;
+        case 4:
+            return OpCode::cmovge32RM;
+        case 8:
+            return OpCode::cmovge64RM;
+        default:
+            SC_UNREACHABLE();
+        }
+    case CompareOperation::Eq:
+        switch (size) {
+        case 1:
+            return OpCode::cmove8RM;
+        case 2:
+            return OpCode::cmove16RM;
+        case 4:
+            return OpCode::cmove32RM;
+        case 8:
+            return OpCode::cmove64RM;
+        default:
+            SC_UNREACHABLE();
+        }
+    case CompareOperation::NotEq:
+        switch (size) {
+        case 1:
+            return OpCode::cmovne8RM;
+        case 2:
+            return OpCode::cmovne16RM;
+        case 4:
+            return OpCode::cmovne32RM;
+        case 8:
+            return OpCode::cmovne64RM;
+        default:
+            SC_UNREACHABLE();
+        }
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp,
+                                        ValueType dest,
+                                        ValueType source,
+                                        size_t size) {
+    SC_ASSERT(dest == ValueType::RegisterIndex, "Can only cmov to registers");
+    switch (source) {
+    case ValueType::RegisterIndex:
+        SC_ASSERT(size == 8, "Registers are 8 bytes");
+        return { mapCMovRR(cmpOp), 8 };
+    case ValueType::MemoryAddress:
+        return { mapCMovRM(cmpOp, size), size };
+    case ValueType::Value8:
+        [[fallthrough]];
+    case ValueType::Value16:
+        [[fallthrough]];
+    case ValueType::Value32:
+        [[fallthrough]];
+    case ValueType::Value64:
+        return { mapCMovRV(cmpOp), 8 };
+    default:
+        /// No matching instruction.
+        SC_DEBUGFAIL();
+    }
+}
+
 OpCode Asm::mapJump(CompareOperation condition) {
     // clang-format off
     return UTL_MAP_ENUM(condition, OpCode, {

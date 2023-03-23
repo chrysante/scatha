@@ -358,3 +358,18 @@ TEST_CASE("callExt with return value", "[assembly][vm]") {
     auto const& state = vm.getState();
     CHECK(state.registers[0] == utl::bit_cast<u64>(std::sqrt(2.0)));
 }
+
+TEST_CASE("Conditional move", "[assembly][vm]") {
+    AssemblyStream a;
+    // clang-format off
+    a.add(Block(0, "start", {
+        MoveInst(RegisterIndex(0), Value64(2), 8),
+        MoveInst(RegisterIndex(1), Value64(0), 8),
+        TestInst(Type::Unsigned, RegisterIndex(1)),
+        CMoveInst(CompareOperation::Eq, RegisterIndex(0), Value64(42), 8),
+        TerminateInst(),
+    })); // clang-format on
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
+    CHECK(state.registers[0] == 42);
+}

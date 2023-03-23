@@ -13,6 +13,7 @@
 #endif
 
 SC_ASM_INSTRUCTION_DEF(MoveInst)            SC_ASM_INSTRUCTION_SEPARATOR
+SC_ASM_INSTRUCTION_DEF(CMoveInst)           SC_ASM_INSTRUCTION_SEPARATOR
 SC_ASM_INSTRUCTION_DEF(JumpInst)            SC_ASM_INSTRUCTION_SEPARATOR
 SC_ASM_INSTRUCTION_DEF(CallInst)            SC_ASM_INSTRUCTION_SEPARATOR
 SC_ASM_INSTRUCTION_DEF(CallExtInst)         SC_ASM_INSTRUCTION_SEPARATOR
@@ -55,16 +56,16 @@ SC_ASM_VALUE_DEF(Value64)
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_ASM_COMPARE_DEF
-#   define SC_ASM_COMPARE_DEF(elem, setInst, jumpInst)
+#   define SC_ASM_COMPARE_DEF(elem, shortStr)
 #endif
 
-SC_ASM_COMPARE_DEF(None,      none,  jmp)
-SC_ASM_COMPARE_DEF(Less,      setl,  jl)
-SC_ASM_COMPARE_DEF(LessEq,    setle, jle)
-SC_ASM_COMPARE_DEF(Greater,   setg,  jg)
-SC_ASM_COMPARE_DEF(GreaterEq, setge, jge)
-SC_ASM_COMPARE_DEF(Eq,        sete,  je)
-SC_ASM_COMPARE_DEF(NotEq,     setne, jne)
+SC_ASM_COMPARE_DEF(None,      "")
+SC_ASM_COMPARE_DEF(Less,      "l")
+SC_ASM_COMPARE_DEF(LessEq,    "le")
+SC_ASM_COMPARE_DEF(Greater,   "g")
+SC_ASM_COMPARE_DEF(GreaterEq, "ge")
+SC_ASM_COMPARE_DEF(Eq,        "e")
+SC_ASM_COMPARE_DEF(NotEq,     "ne")
 
 #undef SC_ASM_COMPARE_DEF
 

@@ -9,6 +9,12 @@ void MoveInst::verify() {
               "Invalid numer of bytes.");
 }
 
+void CMoveInst::verify() {
+    SC_ASSERT(_numBytes == 1 || _numBytes == 2 || _numBytes == 4 ||
+                  _numBytes == 8,
+              "Invalid numer of bytes.");
+}
+
 void ArithmeticInst::verify() const {
     SC_ASSERT(operation() != ArithmeticOperation::_count, "Invalid operation.");
     SC_ASSERT(dest().is<RegisterIndex>(),

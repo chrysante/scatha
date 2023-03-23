@@ -13,6 +13,11 @@ std::pair<svm::OpCode, size_t> mapMove(ValueType dest,
                                        ValueType source,
                                        size_t size);
 
+std::pair<svm::OpCode, size_t> mapCMove(CompareOperation cmpOp,
+                                        ValueType dest,
+                                        ValueType source,
+                                        size_t size);
+
 svm::OpCode mapJump(CompareOperation condition);
 
 svm::OpCode mapCompare(Type type, ValueType lhs, ValueType rhs);

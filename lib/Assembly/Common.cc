@@ -44,16 +44,23 @@ ValueType Asm::promote(ValueType type, size_t size) {
     }
 }
 
+std::string_view Asm::toCMoveInstName(CompareOperation condition) {
+    return std::array{
+#define SC_ASM_COMPARE_DEF(_0, name) std::string_view("cmov" name),
+#include "Assembly/Lists.def"
+    }[static_cast<size_t>(condition)];
+}
+
 std::string_view Asm::toJumpInstName(CompareOperation condition) {
     return std::array{
-#define SC_ASM_COMPARE_DEF(_0, _1, name) std::string_view(#name),
+#define SC_ASM_COMPARE_DEF(_0, name) std::string_view("jmp" name),
 #include "Assembly/Lists.def"
     }[static_cast<size_t>(condition)];
 }
 
 std::string_view Asm::toSetInstName(CompareOperation condition) {
     return std::array{
-#define SC_ASM_COMPARE_DEF(_0, name, _2) std::string_view(#name),
+#define SC_ASM_COMPARE_DEF(_0, name) std::string_view("set" name),
 #include "Assembly/Lists.def"
     }[static_cast<size_t>(condition)];
 }

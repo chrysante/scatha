@@ -49,6 +49,11 @@ std::ostream& Asm::operator<<(std::ostream& str, MoveInst const& mov) {
                << mov.source();
 }
 
+std::ostream& Asm::operator<<(std::ostream& str, CMoveInst const& cmov) {
+    return str << instName(toCMoveInstName(cmov.condition()), cmov.numBytes())
+               << " " << cmov.dest() << ", " << cmov.source();
+}
+
 std::ostream& Asm::operator<<(std::ostream& str,
                               UnaryArithmeticInst const& inst) {
     return str << instName(inst.operation()) << " " << inst.operand();
