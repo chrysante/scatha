@@ -36,6 +36,7 @@ SC_CGFNODE_DEF(Phi,                   CONCRETE)
 SC_CGFNODE_DEF(GetElementPointer,     CONCRETE)
 SC_CGFNODE_DEF(ExtractValue,          CONCRETE)
 SC_CGFNODE_DEF(InsertValue,           CONCRETE)
+SC_CGFNODE_DEF(Select,                CONCRETE)
 
 #undef SC_CGFNODE_DEF
 

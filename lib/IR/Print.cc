@@ -40,6 +40,7 @@ struct PrintCtx {
     void print(GetElementPointer const&);
     void print(ExtractValue const&);
     void print(InsertValue const&);
+    void print(Select const&);
 
     void print(StructureType const& structure);
 
@@ -325,6 +326,15 @@ void PrintCtx::print(InsertValue const& insert) {
     for (auto index: insert.memberIndices()) {
         str << ", " << index;
     }
+}
+
+void PrintCtx::print(Select const& select) {
+    str << indent << formatName(select) << equals()
+        << instruction("select") << " " << formatType(select.condition()->type())
+        << ", " << formatType(select.type()) << " "
+        << formatName(*select.thenValue()) << ", "
+        << formatType(select.type()) << " "
+        << formatName(*select.elseValue());
 }
 
 void PrintCtx::print(StructureType const& structure) {

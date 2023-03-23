@@ -391,3 +391,13 @@ Type const* ir::internal::AccessValueBase::computeAccessedType(
     }
     return result;
 }
+
+Select::Select(Value* condition, Value* thenValue, Value* elseValue, std::string name):
+    Instruction(NodeType::Select,
+                thenValue->type(),
+                std::move(name),
+                { condition, thenValue, elseValue }) {
+    SC_ASSERT(thenValue->type() == elseValue->type(), "Type mismatch");
+    SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1,
+              "`condition` needs to be of type i1");
+}

@@ -1132,6 +1132,29 @@ public:
     Value const* insertedValue() const { return rhs(); }
 };
 
+class Select: public Instruction {
+public:
+    explicit Select(Value* condition, Value* thenValue, Value* elseValue, std::string name);
+    
+    /// The condition to select on.
+    Value* condition() { return operands()[0]; }
+    
+    /// \overload
+    Value const* condition() const { return operands()[0]; }
+    
+    /// Value to choose if condition is `true`
+    Value* thenValue() { return operands()[1]; }
+    
+    /// \overload
+    Value const* thenValue() const { return operands()[1]; }
+    
+    /// Value to choose if condition is `false`
+    Value* elseValue() { return operands()[2]; }
+    
+    /// \overload
+    Value const* elseValue() const { return operands()[2]; }
+};
+
 } // namespace scatha::ir
 
 #endif // SCATHA_IR_CFG_H_
