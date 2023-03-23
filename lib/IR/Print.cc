@@ -174,17 +174,35 @@ void PrintCtx::print(Function const& function) {
     str << "}\n\n";
 }
 
+static ssize_t length(auto const& fmt) {
+    std::stringstream sstr;
+    sstr << fmt;
+    return utl::narrow_cast<ssize_t>(std::move(sstr).str().size());
+}
+
 void PrintCtx::print(BasicBlock const& bb) {
+    str << indent << formatName(bb) << ":";
     if (!bb.isEntry()) {
+        ssize_t commentIndent = 30;
+        ssize_t const currentColumn =
+            indent.totalIndent() + length(formatName(bb)) + 1;
+        if (currentColumn >= commentIndent) {
+            str << "\n";
+        }
+        else {
+            commentIndent -= currentColumn;
+        }
+        for (ssize_t i = 0; i < commentIndent; ++i) {
+            str << ' ';
+        }
         tfmt::pushModifier(tfmt::brightGrey, str);
         str << "# preds: ";
         for (bool first = true; auto* pred: bb.predecessors()) {
             str << (first ? first = false, "" : ", ") << pred->name();
         }
         tfmt::popModifier(str);
-        str << "\n";
     }
-    str << indent << formatName(bb) << ":\n";
+    str << "\n";
     indent.increase();
     for (auto& instruction: bb) {
         dispatch(instruction);
@@ -329,12 +347,11 @@ void PrintCtx::print(InsertValue const& insert) {
 }
 
 void PrintCtx::print(Select const& select) {
-    str << indent << formatName(select) << equals()
-        << instruction("select") << " " << formatType(select.condition()->type())
-        << ", " << formatType(select.type()) << " "
-        << formatName(*select.thenValue()) << ", "
-        << formatType(select.type()) << " "
-        << formatName(*select.elseValue());
+    str << indent << formatName(select) << equals() << instruction("select")
+        << " " << formatType(select.condition()->type()) << " "
+        << formatName(*select.condition()) << ", " << formatType(select.type())
+        << " " << formatName(*select.thenValue()) << ", "
+        << formatType(select.type()) << " " << formatName(*select.elseValue());
 }
 
 void PrintCtx::print(StructureType const& structure) {

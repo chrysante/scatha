@@ -5,7 +5,7 @@
 namespace scatha {
 
 std::ostream& operator<<(std::ostream& str, Indenter const& ind) {
-    for (int i = 0; i < ind.level * ind.spacesPerLevel; ++i) {
+    for (int i = 0; i < ind.level() * ind.spacesPerLevel(); ++i) {
         str << ' ';
     }
     return str;

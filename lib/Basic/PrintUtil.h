@@ -7,24 +7,30 @@ namespace scatha {
 
 struct Indenter {
     explicit Indenter(int spacesPerLevel = 1):
-        level(0), spacesPerLevel(spacesPerLevel) {}
+        _level(0), _spacesPerLevel(spacesPerLevel) {}
     explicit Indenter(int level, int spacesPerLevel):
-        level(level), spacesPerLevel(spacesPerLevel) {}
+        _level(level), _spacesPerLevel(spacesPerLevel) {}
 
     Indenter& increase() & {
-        ++level;
+        ++_level;
         return *this;
     }
     Indenter& decrease() & {
-        --level;
+        --_level;
         return *this;
     }
+
+    int level() const { return _level; }
+
+    int spacesPerLevel() const { return _spacesPerLevel; }
+
+    int totalIndent() const { return level() * spacesPerLevel(); }
 
     friend std::ostream& operator<<(std::ostream&, Indenter const&);
 
 private:
-    int level;
-    int spacesPerLevel;
+    int _level;
+    int _spacesPerLevel;
 };
 
 struct EndlIndenter: Indenter {
