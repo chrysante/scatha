@@ -86,6 +86,7 @@ public:
         utl::hashmap<ir::BasicBlock*, utl::small_vector<ir::BasicBlock*>>;
 
     /// Compute the dominator sets of the basic blocks in \p function
+    /// I.e. for each basic block `B` the set of basic blocks the dominate `B`.
     static DomMap computeDomSets(ir::Function& function);
 
     /// Compute the dominator tree of \p function

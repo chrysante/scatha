@@ -11,6 +11,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
+#include "IR/Dominance.h"
 
 using namespace scatha;
 using namespace ir;
@@ -40,7 +41,7 @@ struct AssertContext {
             return;
         }
         std::cout << "IR Invariant [" << conditionStr << "] not satisfied.\n";
-        std::cout << "\t\"" << msg << "\"\n";
+        std::cout << "\t" << msg << "\n";
         if (currentFunction) {
             std::cout << "\tIn function " << currentFunction->name();
             if (currentBB) {
@@ -54,6 +55,7 @@ struct AssertContext {
 
     ir::Context& ctx;
     Function const* currentFunction = nullptr;
+    DominanceInfo::DomMap domMap;
     BasicBlock const* currentBB     = nullptr;
     utl::hashmap<std::string, std::pair<Function const*, Value const*>>
         nameValueMap;
@@ -77,6 +79,9 @@ void AssertContext::assertInvariants(Module const& mod) {
 
 void AssertContext::assertInvariants(Function const& function) {
     currentFunction = &function;
+    /// Annoying that we have to `const_cast` here, but `DominanceInfo` exposes
+    /// all references as mutable so we have no other choice.
+    domMap = DominanceInfo::computeDomSets(const_cast<Function&>(function));
     for (auto& bb: function) {
         CHECK(bb.parent() == &function,
               "Parent pointers must be setup correctly");
@@ -143,6 +148,12 @@ void AssertContext::assertInvariants(Instruction const& inst) {
             CHECK(opInst->parent()->parent() == inst.parent()->parent(),
                   "If our operand is an instruction it must be in the same "
                   "function");
+        }
+        auto* instOp = dyncast<Instruction const*>(operand);
+        if (instOp && !isa<Phi>(inst)) {
+            auto& domSetOfInst = domMap.find(inst.parent())->second;
+            CHECK(domSetOfInst.contains(instOp->parent()),
+                  "If we use another instruction it must dominate us");
         }
     }
     for (auto* user: inst.users()) {
