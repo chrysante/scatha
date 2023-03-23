@@ -122,6 +122,8 @@ VariableInfo MemToRegContext::gatherInfo(Alloca* address) {
     return result;
 }
 
+/// Stolen from here:
+/// https://github.com/llvm-mirror/llvm/blob/master/lib/Transforms/Utils/PromoteMemoryToRegister.cpp#L773
 utl::hashset<BasicBlock*> MemToRegContext::computeLiveBlocks(Alloca* address) {
     utl::hashset<BasicBlock*> result;
     auto& info = variables.find(address)->second;
