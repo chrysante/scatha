@@ -1,10 +1,27 @@
 
-fn f(z: Z) -> Z {
-    z.b = 1;
-    return z;
+fn g(x: X) -> X { return 0,x; }
+
+fn f() -> int {
+    var x: X;
+    var y: Y;
+    y.i = 1;
+    y.j = 2;
+    
+    x.y = y;
+    return x.y.i + x.y.j;
 }
 
 
+struct X {
+    var y: Y;
+}
+struct Y {
+    var i: int;
+    var j: int;
+}
+
+
+/*
 fn g(cond: bool) -> int {
     var x: X;
     x.i = 0;
@@ -37,7 +54,7 @@ struct Z {
     var a: float;
     var b: int;
 }
-
+*/
 
 
 

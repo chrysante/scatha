@@ -56,7 +56,7 @@ struct VariableContext {
 
     void buildAccessTree();
 
-    void addAllocasForLeaves(AccessTreeNode*) const;
+    void addAllocasForLeaves();
 
     void replaceBySlices();
     
@@ -131,7 +131,7 @@ void VariableContext::slice() {
     cleanUnusedGEPs();
     cleanUnusedLoads();
     buildAccessTree();
-    addAllocasForLeaves(&accessTreeRoot);
+    addAllocasForLeaves();
     replaceBySlices();
 }
 
@@ -220,17 +220,22 @@ void VariableContext::buildAccessTree() {
     });
 }
 
-void VariableContext::addAllocasForLeaves(AccessTreeNode* node) const {
-    for (auto& child: node->children) {
-        addAllocasForLeaves(child.get());
+static std::string makeName(Value const* original, std::span<std::size_t const> indices) {
+    std::string result = utl::strcat(original->name(), ".slice");
+    for (size_t index: indices) {
+        result += utl::strcat("_", index);
     }
-    if (node->children.empty()) {
+    return result;
+}
+
+void VariableContext::addAllocasForLeaves() {
+    accessTreeLeafWalk(&accessTreeRoot, [&](AccessTreeNode* node, std::span<size_t const> indices) {
         SC_ASSERT(node->type, "");
         node->newScalarVar = new Alloca(irCtx,
                                         node->type,
-                                        utl::strcat(address->name(), ".slice"));
+                                        makeName(address, indices));
         address->parent()->insert(address, node->newScalarVar);
-    }
+    });
 }
 
 void VariableContext::replaceBySlices() {
