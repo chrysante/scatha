@@ -1,14 +1,12 @@
 
-fn g(x: X) -> X { return 0,x; }
 
-fn f() -> int {
+
+fn main() -> bool {
     var x: X;
     var y: Y;
-    y.i = 1;
-    y.j = 2;
-    
+    y.b = true;
     x.y = y;
-    return x.y.i + x.y.j;
+    return x.y.b;
 }
 
 
@@ -16,8 +14,9 @@ struct X {
     var y: Y;
 }
 struct Y {
-    var i: int;
-    var j: int;
+    var c: bool;
+    var b: bool;
+    
 }
 
 

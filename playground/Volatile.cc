@@ -63,6 +63,31 @@ using namespace playground;
         opt::propagateConstants(ctx, function);
     }
     ir::print(mod);
+    
+    header(" Generated assembly ");
+    auto assembly = cg::codegen(mod);
+    Asm::print(assembly);
+    
+    auto& main = mod.functions().front();
+    auto program = Asm::assemble(assembly, { std::string(main.name()) });
+
+//    header(" Program ");
+//    svm::print(program.data());
+
+    svm::VirtualMachine vm;
+    vm.loadProgram(program.data());
+    vm.execute();
+
+    std::cout << "Registers: \n";
+    for (auto [index, value]: vm.getState().registers |
+                                  ranges::views::take(10) |
+                                  ranges::views::enumerate)
+    {
+        std::cout << "[" << index << "] = " << value << std::endl;
+    }
+
+    std::cout << "Program returned: " << vm.getState().registers[0]
+              << std::endl << std::endl << std::endl;
 }
 
 [[maybe_unused]] static void inlinerAndSimplifyCFG(std::filesystem::path path) {
