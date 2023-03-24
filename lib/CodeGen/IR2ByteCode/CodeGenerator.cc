@@ -356,9 +356,9 @@ void CodeGenContext::generate(ir::GetElementPointer const& gep) {
 }
 
 void CodeGenContext::generate(ir::ExtractValue const& extract) {
-    auto baseValue = currentRD().resolve(*extract.baseValue());
-    auto dest = currentRD().resolve(extract);
-    size_t byteOffset = 0;
+    auto baseValue       = currentRD().resolve(*extract.baseValue());
+    auto dest            = currentRD().resolve(extract);
+    size_t byteOffset    = 0;
     ir::Type const* type = extract.baseValue()->type();
     for (size_t index: extract.memberIndices()) {
         auto* sType = cast<ir::StructureType const*>(type);
@@ -366,15 +366,16 @@ void CodeGenContext::generate(ir::ExtractValue const& extract) {
         type = sType->memberAt(index);
     }
     auto const baseRegIdx = baseValue.get<RegisterIndex>();
-    auto const sourceRegIdx = RegisterIndex(baseRegIdx.value() + byteOffset / 8);
+    auto const sourceRegIdx =
+        RegisterIndex(baseRegIdx.value() + byteOffset / 8);
     if (byteOffset % 8 == 0 && type->size() % 8 == 0) {
         generateBigMove(dest, sourceRegIdx, type->size());
     }
     else {
-        size_t const size = type->size();
+        size_t const size   = type->size();
         size_t const offset = byteOffset % 8;
         SC_ASSERT(size + offset <= 8, "This will need even more work");
-        uint64_t const mask = [&]{
+        uint64_t const mask = [&] {
             std::array<uint8_t, 8> bytes{};
             for (size_t i = 0; i < size; ++i) {
                 bytes[i] = 0xFF;
@@ -382,46 +383,63 @@ void CodeGenContext::generate(ir::ExtractValue const& extract) {
             return utl::bit_cast<uint64_t>(bytes);
         }();
         currentBlock().insertBack(MoveInst(dest, sourceRegIdx, 8));
-        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::LShR, Type::Unsigned, dest, Value64(8 * offset)));
-        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And, Type::Unsigned, dest, Value64(mask)));
+        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::LShR,
+                                                 Type::Unsigned,
+                                                 dest,
+                                                 Value64(8 * offset)));
+        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
+                                                 Type::Unsigned,
+                                                 dest,
+                                                 Value64(mask)));
     }
 }
 
 void CodeGenContext::generate(ir::InsertValue const& insert) {
     auto original = currentRD().resolve(*insert.baseValue());
-    auto dest = currentRD().resolve(insert);
+    auto dest     = currentRD().resolve(insert);
     generateBigMove(dest, original, insert.type()->size());
-    size_t byteOffset = 0;
+    size_t byteOffset    = 0;
     ir::Type const* type = insert.baseValue()->type();
     for (size_t index: insert.memberIndices()) {
         auto* sType = cast<ir::StructureType const*>(type);
         byteOffset += sType->memberOffsetAt(index);
         type = sType->memberAt(index);
     }
-    auto source = currentRD().resolve(*insert.insertedValue());
+    auto source           = currentRD().resolve(*insert.insertedValue());
     auto const baseRegIdx = dest.get<RegisterIndex>();
     auto const destRegIdx = RegisterIndex(baseRegIdx.value() + byteOffset / 8);
     if (byteOffset % 8 == 0 && type->size() % 8 == 0) {
         generateBigMove(destRegIdx, source, type->size());
     }
     else {
-        size_t const size = type->size();
+        size_t const size   = type->size();
         size_t const offset = byteOffset % 8;
         SC_ASSERT(size + offset <= 8, "This will need even more work");
-        uint64_t const destMask = [&]{
+        uint64_t const destMask = [&] {
             std::array<uint8_t, 8> bytes{};
             for (size_t i = 0; i < size; ++i) {
                 bytes[i + offset] = 0xFF;
             }
             return utl::bit_cast<uint64_t>(bytes);
         }();
-        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And, Type::Unsigned, destRegIdx, Value64(~destMask)));
+        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
+                                                 Type::Unsigned,
+                                                 destRegIdx,
+                                                 Value64(~destMask)));
         auto tmp = currentRD().makeTemporary();
         currentBlock().insertBack(MoveInst(tmp, source, 8));
-        currentBlock().insertBack(
-            ArithmeticInst(ArithmeticOperation::LShL, Type::Unsigned, tmp, Value64(8 * offset)));
-        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And, Type::Unsigned, tmp, Value64(destMask)));
-        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::Or, Type::Unsigned, destRegIdx, tmp));
+        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::LShL,
+                                                 Type::Unsigned,
+                                                 tmp,
+                                                 Value64(8 * offset)));
+        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
+                                                 Type::Unsigned,
+                                                 tmp,
+                                                 Value64(destMask)));
+        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::Or,
+                                                 Type::Unsigned,
+                                                 destRegIdx,
+                                                 tmp));
     }
 }
 

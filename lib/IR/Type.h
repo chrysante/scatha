@@ -134,7 +134,7 @@ public:
     /// \returns A view over the member types in this structure.
     std::span<Type const* const> members() const { return _members; }
 
-    /// Add a member to the end of this structure. 
+    /// Add a member to the end of this structure.
     void addMember(Type const* type) {
         _members.push_back(type);
         computeSizeAndAlign();

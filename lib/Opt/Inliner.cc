@@ -4,8 +4,8 @@
 #include "Opt/CallGraph.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/InlineCallsite.h"
-#include "Opt/SROA.h"
 #include "Opt/MemToReg.h"
+#include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
 
 using namespace scatha;

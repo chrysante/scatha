@@ -39,19 +39,18 @@ struct AccessTreeNode {
 };
 
 struct VariableContext {
-    explicit VariableContext(Alloca* address,
-                             ir::Context& irCtx):
+    explicit VariableContext(Alloca* address, ir::Context& irCtx):
         address(address), irCtx(irCtx) {}
-    
+
     bool gatherAndCheckSliceable(Value* = nullptr);
-    
+
     /// Main algorithm
     void slice();
-    
+
     void simplifyGEPChains();
-    
+
     void cleanUnusedGEPs();
-    
+
     void cleanUnusedLoads();
 
     void buildAccessTree();
@@ -59,14 +58,14 @@ struct VariableContext {
     void addAllocasForLeaves();
 
     void replaceBySlices();
-    
+
     void replaceBySlicesImpl(Instruction* address);
 
     void accessTreeLeafWalk(
         AccessTreeNode* root,
         utl::function_view<void(AccessTreeNode*, std::span<size_t const>)>
             callback);
-    
+
     void accessTreePreorderWalk(
         AccessTreeNode* root,
         utl::function_view<void(AccessTreeNode*)> callback);
@@ -140,9 +139,10 @@ void VariableContext::slice() {
 /// Transform chains of geps into single geps with multiple indices
 void VariableContext::simplifyGEPChains() {
     for (auto* gep: GEPs) {
-        bool const allUsersAreLoadsOrStores = ranges::all_of(gep->users(), [](User* user) {
-            return isa<Load>(user) || isa<Store>(user);
-        });
+        bool const allUsersAreLoadsOrStores =
+            ranges::all_of(gep->users(), [](User* user) {
+                return isa<Load>(user) || isa<Store>(user);
+            });
         if (!allUsersAreLoadsOrStores) {
             continue;
         }
@@ -150,7 +150,9 @@ void VariableContext::simplifyGEPChains() {
         while (auto* baseGep = dyncast<GetElementPointer*>(basePtr)) {
             gep->setBasePtr(baseGep->basePointer());
             gep->setAccessedType(baseGep->inboundsType());
-            SC_ASSERT(baseGep->memberIndices().size() == 1, "We expect the front end to only generate GEPs with 1 index");
+            SC_ASSERT(
+                baseGep->memberIndices().size() == 1,
+                "We expect the front end to only generate GEPs with 1 index");
             gep->addMemberIndexFront(baseGep->memberIndices().front());
             basePtr = baseGep->basePointer();
         }
@@ -222,7 +224,8 @@ void VariableContext::buildAccessTree() {
     });
 }
 
-static std::string makeName(Value const* original, std::span<std::size_t const> indices) {
+static std::string makeName(Value const* original,
+                            std::span<std::size_t const> indices) {
     std::string result = utl::strcat(original->name(), ".slice");
     for (size_t index: indices) {
         result += utl::strcat("_", index);
@@ -231,11 +234,12 @@ static std::string makeName(Value const* original, std::span<std::size_t const> 
 }
 
 void VariableContext::addAllocasForLeaves() {
-    accessTreeLeafWalk(&accessTreeRoot, [&](AccessTreeNode* node, std::span<size_t const> indices) {
+    accessTreeLeafWalk(&accessTreeRoot,
+                       [&](AccessTreeNode* node,
+                           std::span<size_t const> indices) {
         SC_ASSERT(node->type, "");
-        node->newScalarVar = new Alloca(irCtx,
-                                        node->type,
-                                        makeName(address, indices));
+        node->newScalarVar =
+            new Alloca(irCtx, node->type, makeName(address, indices));
         address->parent()->insert(address, node->newScalarVar);
     });
 }
@@ -324,8 +328,7 @@ void VariableContext::accessTreeLeafWalk(
 }
 
 void VariableContext::accessTreePreorderWalk(
-    AccessTreeNode* root,
-    utl::function_view<void(AccessTreeNode*)> callback) {
+    AccessTreeNode* root, utl::function_view<void(AccessTreeNode*)> callback) {
     auto impl = [&](auto* node, auto impl) -> void {
         callback(node);
         for (auto&& child: node->children) {
