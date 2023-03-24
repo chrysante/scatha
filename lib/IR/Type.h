@@ -123,14 +123,18 @@ public:
         Type(std::move(name), TypeCategory::StructureType, 0, 0),
         _members(members) {}
 
+    /// \returns The member type at \p index
     Type const* memberAt(std::size_t index) const { return _members[index]; }
 
+    /// \returns The offset of member at \p index in bytes.
     size_t memberOffsetAt(std::size_t index) const {
         return _memberOffsets[index];
     }
 
+    /// \returns A view over the member types in this structure.
     std::span<Type const* const> members() const { return _members; }
 
+    /// Add a member to the end of this structure. 
     void addMember(Type const* type) {
         _members.push_back(type);
         computeSizeAndAlign();
