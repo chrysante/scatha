@@ -7,34 +7,38 @@ using namespace cg;
 using namespace Asm;
 
 Value RegisterDescriptor::resolve(ir::Value const& value) {
-    if (auto* const constant = dyncast<ir::IntegralConstant const*>(&value)) {
-        switch (constant->type()->size()) {
-        case 1:
-            return Value8(constant->value().to<u8>());
-        case 2:
-            return Value16(constant->value().to<u16>());
-        case 4:
-            return Value32(constant->value().to<u32>());
-        case 8:
-            return Value64(constant->value().to<u64>());
-        default:
-            SC_UNREACHABLE();
+    // clang-format off
+    return visit(value, utl::overload{
+        [&](ir::IntegralConstant const& constant) -> Asm::Value {
+            switch (constant.type()->size()) {
+            case 1:
+                return Value8(constant.value().to<u8>());
+            case 2:
+                return Value16(constant.value().to<u16>());
+            case 4:
+                return Value32(constant.value().to<u32>());
+            case 8:
+                return Value64(constant.value().to<u64>());
+            default:
+                SC_UNREACHABLE();
+            }
+        },
+        [&](ir::FloatingPointConstant const& constant) {
+            return Value64(constant.value().to<f64>());
+        },
+        [&](ir::UndefValue const&) {
+            return RegisterIndex(0);
+        },
+        [&](ir::Value const& value) {
+            SC_ASSERT(!value.name().empty(), "Name must not be empty.");
+            auto const [itr, success] =
+                values.insert({ std::string(value.name()), index });
+            if (success) {
+                index += utl::ceil_divide(value.type()->size(), 8);
+            }
+            return RegisterIndex(utl::narrow_cast<u8>(itr->second));
         }
-    }
-    else if (auto* constant = dyncast<ir::FloatingPointConstant const*>(&value))
-    {
-        return Value64(constant->value().to<f64>());
-    }
-    else if (auto* undef = dyncast<ir::UndefValue const*>(&value)) {
-        return Value64(-1);
-    }
-    SC_ASSERT(!value.name().empty(), "Name must not be empty.");
-    auto const [itr, success] =
-        values.insert({ std::string(value.name()), index });
-    if (success) {
-        index += utl::ceil_divide(value.type()->size(), 8);
-    }
-    return RegisterIndex(utl::narrow_cast<u8>(itr->second));
+    }); // clang-format on
 }
 
 MemoryAddress RegisterDescriptor::resolveAddr(ir::Value const& address) {
