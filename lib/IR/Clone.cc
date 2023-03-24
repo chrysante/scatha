@@ -99,11 +99,11 @@ static Select* doClone(Context& context, Select* inst) {
 }
 
 static ExtractValue* doClone(Context& context, ExtractValue* inst) {
-    SC_DEBUGFAIL();
+    return new ExtractValue(inst->baseValue(), inst->memberIndices() | ranges::to<utl::small_vector<size_t>>, std::string(inst->name()));
 }
 
 static InsertValue* doClone(Context& context, InsertValue* inst) {
-    SC_DEBUGFAIL();
+    return new InsertValue(inst->baseValue(), inst->insertedValue(), inst->memberIndices() | ranges::to<utl::small_vector<size_t>>, std::string(inst->name()));
 }
 
 static Instruction* clone(Context& context, Instruction* inst) {
