@@ -122,18 +122,32 @@ std::ostream& Asm::operator<<(std::ostream& str, MemoryAddress const& addr) {
     return str << " + " << addr.constantInnerOffset();
 }
 
+namespace {
+
+struct CoutRestore {
+    CoutRestore(): flags(std::cout.flags()) {}
+    ~CoutRestore() { std::cout.flags(flags); }
+    std::ios_base::fmtflags flags;
+};
+
+} // namespace
+
 std::ostream& Asm::operator<<(std::ostream& str, Value8 const& value) {
-    return str << "(u8)" << value.value();
+    CoutRestore r;
+    return str << "(u8)" << std::hex << value.value();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value16 const& value) {
-    return str << "(u16)" << value.value();
+    CoutRestore r;
+    return str << "(u16)" << std::hex << value.value();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value32 const& value) {
-    return str << "(u32)" << value.value();
+    CoutRestore r;
+    return str << "(u32)" << std::hex << value.value();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value64 const& value) {
-    return str << "(u64)" << value.value();
+    CoutRestore r;
+    return str << "(u64)" << std::hex << value.value();
 }
