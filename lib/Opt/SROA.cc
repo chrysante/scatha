@@ -87,6 +87,7 @@ bool opt::sroa(ir::Context& irCtx, ir::Function& function) {
             allocas.push_back(allocaInst);
         }
     }
+    bool modifiedAny = false;
     for (auto* address: allocas) {
         VariableContext varInfo(address, irCtx);
         if (!varInfo.gatherAndCheckSliceable()) {
@@ -96,8 +97,9 @@ bool opt::sroa(ir::Context& irCtx, ir::Function& function) {
             continue;
         }
         varInfo.slice();
+        modifiedAny = true;
     }
-    return false;
+    return modifiedAny;
 }
 
 bool VariableContext::gatherAndCheckSliceable(Value* value) {
