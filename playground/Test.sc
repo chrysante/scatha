@@ -1,6 +1,11 @@
 
+fn f(z: Z) -> Z {
+    z.b = 1;
+    return z;
+}
 
-fn main(cond: bool) -> int {
+
+fn g(cond: bool) -> int {
     var x: X;
     x.i = 0;
     x.y.j = 0;
@@ -28,7 +33,10 @@ struct Y {
     var k: int;
     var z: Z;
 }
-struct Z { var a: int; }
+struct Z {
+    var a: float;
+    var b: int;
+}
 
 
 

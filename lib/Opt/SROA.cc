@@ -38,51 +38,72 @@ struct AccessTreeNode {
     utl::small_vector<std::unique_ptr<AccessTreeNode>> children;
 };
 
-struct VariableInfo {
-    void cleanUnusedLoads(Value* address);
+struct VariableContext {
+    explicit VariableContext(Alloca* address,
+                             ir::Context& irCtx):
+        address(address), irCtx(irCtx) {}
+    
+    bool gatherAndCheckSliceable(Value* = nullptr);
+    
+    /// Main algorithm
+    void slice();
+    
+    void simplifyGEPChains();
+    
+    void cleanUnusedGEPs();
+    
+    void cleanUnusedLoads();
 
     void buildAccessTree();
 
     void addAllocasForLeaves(AccessTreeNode*) const;
 
-    void replaceBySlices(Instruction* address);
+    void replaceBySlices();
+    
+    void replaceBySlicesImpl(Instruction* address);
 
     void accessTreeLeafWalk(
         AccessTreeNode* root,
         utl::function_view<void(AccessTreeNode*, std::span<size_t const>)>
             callback);
+    
+    void accessTreePreorderWalk(
+        AccessTreeNode* root,
+        utl::function_view<void(AccessTreeNode*)> callback);
 
     Alloca* address;
-    ir::Context* irCtx;
-    utl::small_vector<GetElementPointer*> geps;
+    ir::Context& irCtx;
+    utl::small_vector<GetElementPointer*> GEPs;
     utl::hashmap<Value*, AccessTreeNode*> accessNodeMap;
     AccessTreeNode accessTreeRoot{ 0 };
-};
-
-struct SROAContext {
-    SROAContext(ir::Context& irCtx, ir::Function& function):
-        irCtx(irCtx), function(function) {}
-
-    bool run();
-
-    void gather();
-
-    void slice(VariableInfo& varInfo);
-
-    ir::Context& irCtx;
-    ir::Function& function;
-    utl::small_vector<VariableInfo> variables;
 };
 
 } // namespace
 
 bool opt::sroa(ir::Context& irCtx, ir::Function& function) {
-    SROAContext ctx(irCtx, function);
-    return ctx.run();
+    utl::small_vector<Alloca*> allocas;
+    for (auto& inst: function.entry()) {
+        if (auto* allocaInst = dyncast<Alloca*>(&inst)) {
+            allocas.push_back(allocaInst);
+        }
+    }
+    for (auto* address: allocas) {
+        VariableContext varInfo(address, irCtx);
+        if (!varInfo.gatherAndCheckSliceable()) {
+            continue;
+        }
+        if (varInfo.GEPs.empty()) {
+            continue;
+        }
+        varInfo.slice();
+    }
+    return false;
 }
 
-static bool isSROAPromotable(Value* value,
-                             utl::vector<GetElementPointer*>& geps) {
+bool VariableContext::gatherAndCheckSliceable(Value* value) {
+    if (!value) {
+        value = address;
+    }
     for (auto* user: value->users()) {
         if (!isa<Load>(user) && !isa<Store>(user) &&
             !isa<GetElementPointer>(user))
@@ -97,109 +118,80 @@ static bool isSROAPromotable(Value* value,
         if (!gep->hasConstantArrayIndex() || gep->constantArrayIndex() != 0) {
             return false;
         }
-        geps.push_back(gep);
-        if (!isSROAPromotable(gep, geps)) {
+        GEPs.push_back(gep);
+        if (!gatherAndCheckSliceable(gep)) {
             return false;
         }
     }
-    return true;
+    return !GEPs.empty();
 }
 
-#include <iostream>
-
-bool SROAContext::run() {
-    gather();
-
-    for (auto& varInfo: variables) {
-        slice(varInfo);
-    }
-
-    return false;
+void VariableContext::slice() {
+    simplifyGEPChains();
+    cleanUnusedGEPs();
+    cleanUnusedLoads();
+    buildAccessTree();
+    addAllocasForLeaves(&accessTreeRoot);
+    replaceBySlices();
 }
 
-void SROAContext::gather() {
-    for (auto& inst: function.entry()) {
-        auto* address = dyncast<Alloca*>(&inst);
-        if (!address) {
+/// Transform chains of geps into single geps with multiple indices
+void VariableContext::simplifyGEPChains() {
+    for (auto* gep: GEPs) {
+        bool const allUsersAreLoadsOrStores = ranges::all_of(gep->users(), [](User* user) {
+            return isa<Load>(user) || isa<Store>(user);
+        });
+        if (!allUsersAreLoadsOrStores) {
             continue;
         }
-        VariableInfo varInfo{ address, &irCtx };
-        if (!isSROAPromotable(address, varInfo.geps)) {
-            continue;
+        auto* basePtr = gep->basePointer();
+        while (auto* baseGep = dyncast<GetElementPointer*>(basePtr)) {
+            gep->setBasePtr(baseGep->basePointer());
+            gep->setAccessedType(baseGep->inboundsType());
+            SC_ASSERT(baseGep->memberIndices().size() == 1, "We expect the front end to only generate GEPs with 1 index");
+            gep->addMemberIndexFront(baseGep->memberIndices().front());
+            basePtr = baseGep->basePointer();
         }
-        if (varInfo.geps.empty()) {
-            continue;
-        }
-        variables.push_back(std::move(varInfo));
     }
 }
 
-void SROAContext::slice(VariableInfo& varInfo) {
-
-    /// Transform chains of geps into single geps with multiple indices
-
-    for (auto* gep: varInfo.geps) {
-        if (ranges::all_of(gep->users(), [](User* user) {
-                return isa<Load>(user) || isa<Store>(user);
-            }))
-        {
-            auto* basePtr = gep->basePointer();
-            while (auto* baseGep = dyncast<GetElementPointer*>(basePtr)) {
-                gep->setBasePtr(baseGep->basePointer());
-                gep->setAccessedType(baseGep->inboundsType());
-                SC_ASSERT(baseGep->memberIndices().size() == 1, "");
-                gep->addMemberIndexFront(baseGep->memberIndices().front());
-                basePtr = baseGep->basePointer();
-            }
-        }
-    }
-
-    for (auto itr = varInfo.geps.begin(); itr != varInfo.geps.end();) {
+void VariableContext::cleanUnusedGEPs() {
+    for (auto itr = GEPs.begin(); itr != GEPs.end();) {
         auto* gep = *itr;
         if (gep->users().empty()) {
             gep->parent()->erase(gep);
-            itr = varInfo.geps.erase(itr);
+            itr = GEPs.erase(itr);
         }
         else {
             ++itr;
         }
     }
-
-    for (auto* gep: varInfo.geps) {
-        varInfo.cleanUnusedLoads(gep);
-    }
-    varInfo.cleanUnusedLoads(varInfo.address);
-
-    varInfo.buildAccessTree();
-
-    varInfo.addAllocasForLeaves(&varInfo.accessTreeRoot);
-
-    //    return;
-
-    for (auto* gep: varInfo.geps) {
-        varInfo.replaceBySlices(gep);
-    }
-    varInfo.replaceBySlices(varInfo.address);
 }
 
-void VariableInfo::cleanUnusedLoads(Value* address) {
-    utl::small_vector<Load*> unusedLoads;
-    for (auto* user: address->users()) {
-        auto* load = dyncast<Load*>(user);
-        if (!load) {
-            continue;
+void VariableContext::cleanUnusedLoads() {
+    auto impl = [](Value* address) {
+        utl::small_vector<Load*> unusedLoads;
+        for (auto* user: address->users()) {
+            auto* load = dyncast<Load*>(user);
+            if (!load) {
+                continue;
+            }
+            if (load->users().empty()) {
+                unusedLoads.push_back(load);
+            }
         }
-        if (load->users().empty()) {
-            unusedLoads.push_back(load);
+        for (auto* load: unusedLoads) {
+            load->parent()->erase(load);
         }
+    };
+    for (auto* gep: GEPs) {
+        impl(gep);
     }
-    for (auto* load: unusedLoads) {
-        load->parent()->erase(load);
-    }
+    impl(address);
 }
 
-void VariableInfo::buildAccessTree() {
-    for (auto* gep: geps) {
+void VariableContext::buildAccessTree() {
+    for (auto* gep: GEPs) {
         AccessTreeNode* node = &accessTreeRoot;
         for (size_t index: gep->memberIndices()) {
             node = node->at(index);
@@ -210,8 +202,8 @@ void VariableInfo::buildAccessTree() {
     accessNodeMap[address] = &accessTreeRoot;
     accessTreeRoot.type    = address->allocatedType();
 
-    /// complete the tree
-    auto walk = [&](AccessTreeNode* node, auto& walk) -> void {
+    /// Complete the tree
+    accessTreePreorderWalk(&accessTreeRoot, [&](AccessTreeNode* node) {
         /// If `node->type` is set, then we know this node is directly accessed.
         /// That means we need to make sure all children are present.
         if (!node->children.empty() && node->type &&
@@ -225,66 +217,56 @@ void VariableInfo::buildAccessTree() {
                 childNode->type = memType;
             }
         }
-        for (auto& child: node->children) {
-            walk(child.get(), walk);
-        }
-    };
-    walk(&accessTreeRoot, walk);
-
-    // Print access tree...
-    std::cout << address->name() << ": " << address->type()->name() << "\n";
-    auto printTree = [indent = 0](AccessTreeNode* node,
-                                  auto& printTree) mutable -> void {
-        for (int i = 0; i < indent; ++i)
-            std::cout << "  ";
-        std::cout << node->idx;
-        if (node->type) {
-            std::cout << ": " << node->type->name();
-        }
-        std::cout << "\n";
-        ++indent;
-        for (auto& child: node->children) {
-            printTree(child.get(), printTree);
-        }
-        --indent;
-    };
-    for (auto& child: accessTreeRoot.children) {
-        printTree(child.get(), printTree);
-    }
+    });
 }
 
-void VariableInfo::addAllocasForLeaves(AccessTreeNode* node) const {
+void VariableContext::addAllocasForLeaves(AccessTreeNode* node) const {
     for (auto& child: node->children) {
         addAllocasForLeaves(child.get());
     }
     if (node->children.empty()) {
         SC_ASSERT(node->type, "");
-        node->newScalarVar = new Alloca(*irCtx,
+        node->newScalarVar = new Alloca(irCtx,
                                         node->type,
-                                        utl::strcat("slice.", address->name()));
+                                        utl::strcat(address->name(), ".slice"));
         address->parent()->insert(address, node->newScalarVar);
     }
 }
 
-void VariableInfo::replaceBySlices(Instruction* address) {
+void VariableContext::replaceBySlices() {
+    for (auto* gep: GEPs) {
+        replaceBySlicesImpl(gep);
+    }
+    replaceBySlicesImpl(address);
+}
+
+void VariableContext::replaceBySlicesImpl(Instruction* address) {
     AccessTreeNode* node = accessNodeMap[address];
     /// Make a copy of the user list because we edit the user list during
     /// traversal.
     auto users = address->users() | ranges::to<utl::small_vector<Instruction*>>;
-    // clang-format off
     for (auto* user: users) {
         auto* bb = user->parent();
+        // clang-format off
         visit(*user, utl::overload{
             [&](Load& load) {
                 if (node->children.empty()) {
                     load.setAddress(node->newScalarVar);
                     return;
                 }
-                Value* aggregate = irCtx->undef(load.type());
-                accessTreeLeafWalk(node, [&](AccessTreeNode* leaf, std::span<size_t const> indices) {
-                    auto* newLoad = new Load(leaf->newScalarVar, leaf->newScalarVar->allocatedType(), utl::strcat("slice.", load.name()));
+                Value* aggregate = irCtx.undef(load.type());
+                accessTreeLeafWalk(node, [&](AccessTreeNode* leaf,
+                                             std::span<size_t const> indices) {
+                    auto* newLoad =
+                        new Load(leaf->newScalarVar,
+                                 leaf->newScalarVar->allocatedType(),
+                                 utl::strcat(load.name(), ".slice"));
                     bb->insert(&load, newLoad);
-                    aggregate = new InsertValue(aggregate, newLoad, indices, utl::strcat("slice.", load.name()));
+                    aggregate = new InsertValue(aggregate,
+                                                newLoad,
+                                                indices,
+                                                utl::strcat(load.name(),
+                                                            ".slice"));
                     bb->insert(&load, cast<Instruction*>(aggregate));
                 });
                 replaceValue(&load, aggregate);
@@ -296,10 +278,14 @@ void VariableInfo::replaceBySlices(Instruction* address) {
                     return;
                 }
                 auto* storedValue = store.value();
-                accessTreeLeafWalk(node, [&](AccessTreeNode* leaf, std::span<size_t const> indices) {
-                    auto* slice = new ExtractValue(storedValue, indices, std::string(leaf->newScalarVar->name()));
+                accessTreeLeafWalk(node, [&](AccessTreeNode* leaf,
+                                             std::span<size_t const> indices) {
+                    auto* slice =
+                        new ExtractValue(storedValue,
+                                         indices,
+                                         std::string(leaf->newScalarVar->name()));
                     store.parent()->insert(&store, slice);
-                    auto* newStore = new Store(*irCtx, leaf->newScalarVar, slice);
+                    auto* newStore = new Store(irCtx, leaf->newScalarVar, slice);
                     bb->insert(&store, newStore);
                 });
                 bb->erase(&store);
@@ -311,7 +297,7 @@ void VariableInfo::replaceBySlices(Instruction* address) {
     address->parent()->erase(address);
 }
 
-void VariableInfo::accessTreeLeafWalk(
+void VariableContext::accessTreeLeafWalk(
     AccessTreeNode* root,
     utl::function_view<void(AccessTreeNode*, std::span<size_t const>)>
         callback) {
@@ -325,6 +311,18 @@ void VariableInfo::accessTreeLeafWalk(
         indices.pop_back();
         if (node->children.empty()) {
             callback(node, indices);
+        }
+    };
+    impl(root, impl);
+}
+
+void VariableContext::accessTreePreorderWalk(
+    AccessTreeNode* root,
+    utl::function_view<void(AccessTreeNode*)> callback) {
+    auto impl = [&](auto* node, auto impl) -> void {
+        callback(node);
+        for (auto&& child: node->children) {
+            impl(child.get(), impl);
         }
     };
     impl(root, impl);

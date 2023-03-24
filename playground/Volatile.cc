@@ -48,15 +48,20 @@ using namespace playground;
     auto [ctx, mod] = makeIRModuleFromFile(path);
     header(" Before SROA ");
     ir::print(mod);
+    header(" After SROA ");
     for (auto& function: mod.functions()) {
         opt::sroa(ctx, function);
     }
-    header(" After SROA ");
     ir::print(mod);
+    header(" After M2R ");
     for (auto& function: mod.functions()) {
         opt::memToReg(ctx, function);
     }
-    header(" After M2R ");
+    ir::print(mod);
+    header(" After SCCP ");
+    for (auto& function: mod.functions()) {
+        opt::propagateConstants(ctx, function);
+    }
     ir::print(mod);
 }
 
