@@ -262,8 +262,16 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
             }
             auto* address = cast<Alloca*>(load->address());
             auto& info    = variables.find(address)->second;
-            size_t i      = info.stack.top();
-            inst.setOperand(index, info.versions[i]);
+            /// The stack being empty means we load from uninitialized memory,
+            /// so we replace the load with `undef`
+            if (!info.stack.empty()) {
+                size_t i = info.stack.top();
+                inst.setOperand(index, info.versions[i]);
+            }
+            else {
+                auto* opType = inst.operands()[index]->type();
+                inst.setOperand(index, irCtx.undef(opType));
+            }
         }
         auto* store = dyncast<Store*>(&inst);
         if (!store) {
