@@ -110,7 +110,7 @@ static auto formatType(ir::Type const* type) {
                             std::string("null-type"));
     }
     if (type->category() == ir::TypeCategory::StructureType) {
-        return tfmt::format(tfmt::green, utl::strcat("%", type->name()));
+        return tfmt::format(tfmt::green, utl::strcat("@", type->name()));
     }
     return tfmt::format(tfmt::brightBlue, std::string(type->name()));
 }
@@ -119,7 +119,7 @@ static auto formatName(Value const& value) {
     // clang-format off
     return visit(value, utl::overload{
         [](ir::Function const& function) {
-            return tfmt::format(tfmt::italic,
+            return tfmt::format(tfmt::italic | tfmt::green,
                                 "@",
                                 std::string(function.name()));
         },
