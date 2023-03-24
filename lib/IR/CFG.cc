@@ -126,6 +126,11 @@ Instruction::Instruction(NodeType nodeType,
     User(nodeType, type, std::move(name), std::move(operands)),
     typeOps(std::move(typeOperands)) {}
 
+void Instruction::setTypeOperand(size_t index, Type const* type) {
+    SC_ASSERT(index < typeOps.size(), "Invalid index");
+    typeOps[index] = type;
+}
+
 BasicBlock::BasicBlock(Context& context, std::string name):
     Value(NodeType::BasicBlock, context.voidType(), std::move(name)) {}
 
@@ -222,6 +227,12 @@ Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
                 {},
                 { allocatedType }) {}
 
+void Load::setAddress(Value* address) {
+    SC_ASSERT(isa<PointerType>(address->type()),
+              "`address` must be of type `ptr`");
+    setOperand(0, address);
+}
+
 Store::Store(Context& context, Value* address, Value* value):
     Instruction(NodeType::Store,
                 context.voidType(),
@@ -230,6 +241,14 @@ Store::Store(Context& context, Value* address, Value* value):
     SC_ASSERT(isa<PointerType>(address->type()),
               "`address` must be of type `ptr`");
 }
+
+void Store::setAddress(Value* address) {
+    SC_ASSERT(isa<PointerType>(address->type()),
+              "`address` must be of type `ptr`");
+    setOperand(0, address);
+}
+
+void Store::setValue(Value* value) { setOperand(1, value); }
 
 CompareInst::CompareInst(Context& context,
                          Value* lhs,
@@ -373,6 +392,16 @@ Value const* Phi::operandOf(BasicBlock const* pred) const {
     return operands()[index];
 }
 
+template <typename SizeT>
+static Type const* computeAccessedTypeGen(Type const* operandType,
+                                          std::span<SizeT const> indices) {
+    Type const* result = operandType;
+    for (auto index: indices) {
+        result = cast<StructureType const*>(result)->memberAt(index);
+    }
+    return result;
+}
+
 GetElementPointer::GetElementPointer(Context& context,
                                      Type const* accessedType,
                                      Value* basePointer,
@@ -391,13 +420,27 @@ GetElementPointer::GetElementPointer(Context& context,
               "Indices must be integral");
 }
 
+Type const* GetElementPointer::accessedType() const {
+    return computeAccessedTypeGen(inboundsType(), memberIndices());
+}
+
 Type const* ir::internal::AccessValueBase::computeAccessedType(
     Type const* operandType, std::span<size_t const> indices) {
-    Type const* result = operandType;
-    for (auto index: indices) {
-        result = cast<StructureType const*>(result)->memberAt(index);
-    }
-    return result;
+    return computeAccessedTypeGen(operandType, indices);
+}
+
+InsertValue::InsertValue(Value* baseValue,
+                         Value* insertedValue,
+                         std::span<size_t const> indices,
+                         std::string name):
+    BinaryInstruction(NodeType::InsertValue,
+                      baseValue,
+                      insertedValue,
+                      baseValue->type(),
+                      std::move(name)),
+    internal::AccessValueBase(indices) {
+    auto* compAccessedType = computeAccessedType(baseValue->type(), indices);
+    SC_ASSERT(insertedValue->type() == compAccessedType, "Type mismatch");
 }
 
 Select::Select(Value* condition,

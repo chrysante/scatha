@@ -83,7 +83,7 @@ static Phi* doClone(Context& context, Phi* inst) {
 
 static GetElementPointer* doClone(Context& context, GetElementPointer* inst) {
     return new GetElementPointer(context,
-                                 inst->accessedType(),
+                                 inst->inboundsType(),
                                  inst->basePointer(),
                                  inst->arrayIndex(),
                                  inst->memberIndices() |

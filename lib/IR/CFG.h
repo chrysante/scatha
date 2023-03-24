@@ -206,6 +206,8 @@ public:
     /// \returns a view over the type operands of this instruction
     std::span<Type const* const> typeOperands() const { return typeOps; }
 
+    void setTypeOperand(size_t index, Type const* type);
+
 protected:
     using User::User;
     utl::small_vector<Type const*> typeOps;
@@ -635,11 +637,14 @@ public:
                   "`address` must be of type `ptr`");
     }
 
-    /// \returns the address this instruction loads from
+    /// \returns the address this instruction loads from.
     Value* address() { return operand(); }
 
     /// \overload
     Value const* address() const { return operand(); }
+
+    /// Set the address this instruction loads from.
+    void setAddress(Value* address);
 };
 
 /// `store` instruction. Store a value from a register into memory.
@@ -658,6 +663,12 @@ public:
 
     /// \overload
     Value const* value() const { return operands()[1]; }
+
+    /// Set the address this instruction stores to.
+    void setAddress(Value* address);
+
+    /// Set the value this instruction stores into memory.
+    void setValue(Value* value);
 };
 
 /// Base class of all binary instructions.
@@ -1067,12 +1078,18 @@ public:
                                std::span<size_t const> memberIndices,
                                std::string name);
 
-    Type const* accessedType() const { return typeOperands()[0]; }
+    /// The type of the value that the base pointer points to.
+    Type const* inboundsType() const { return typeOperands()[0]; }
+
+    /// The type of the value the result of this instruction points to.
+    Type const* accessedType() const;
 
     Value* basePointer() { return operands()[0]; }
+
     Value const* basePointer() const { return operands()[0]; }
 
     Value* arrayIndex() { return operands()[1]; }
+
     Value const* arrayIndex() const { return operands()[1]; }
 
     std::span<uint16_t const> memberIndices() const { return _memberIndices; }
@@ -1085,6 +1102,27 @@ public:
         return cast<IntegralConstant const*>(arrayIndex())
             ->value()
             .to<size_t>();
+    }
+
+    void setAccessedType(Type const* type) { setTypeOperand(0, type); }
+
+    void setBasePtr(Value* basePtr) {
+        SC_ASSERT(isa<PointerType>(basePtr->type()), "");
+        setOperand(0, basePtr);
+    }
+
+    void setArrayIndex(Value* arrayIndex) {
+        SC_ASSERT(isa<IntegralType>(arrayIndex->type()), "");
+        setOperand(1, arrayIndex);
+    }
+
+    void addMemberIndexFront(size_t index) {
+        _memberIndices.insert(_memberIndices.begin(),
+                              utl::narrow_cast<uint16_t>(index));
+    }
+
+    void addMemberIndexBack(size_t index) {
+        _memberIndices.push_back(utl::narrow_cast<uint16_t>(index));
     }
 
 private:
@@ -1152,17 +1190,7 @@ public:
     explicit InsertValue(Value* baseValue,
                          Value* insertedValue,
                          std::span<size_t const> indices,
-                         std::string name):
-        BinaryInstruction(NodeType::InsertValue,
-                          baseValue,
-                          insertedValue,
-                          baseValue->type(),
-                          std::move(name)),
-        internal::AccessValueBase(indices) {
-        SC_ASSERT(insertedValue->type() ==
-                      computeAccessedType(baseValue->type(), indices),
-                  "Type mismatch");
-    }
+                         std::string name);
 
     /// The structure or array being accessed. Same as `lhs()`
     Value* baseValue() { return lhs(); }

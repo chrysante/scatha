@@ -427,7 +427,7 @@ MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const& gep) {
         size_t const memberIndex = gepPtr->memberIndices().size() == 1 ?
                                        gepPtr->memberIndices().front() :
                                        0;
-        offset += cast<ir::StructureType const*>(gepPtr->accessedType())
+        offset += cast<ir::StructureType const*>(gepPtr->inboundsType())
                       ->memberOffsetAt(memberIndex);
         value = gepPtr->basePointer();
     }

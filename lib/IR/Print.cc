@@ -314,7 +314,7 @@ void PrintCtx::print(Phi const& phi) {
 
 void PrintCtx::print(GetElementPointer const& gep) {
     str << indent << formatName(gep) << equals() << instruction("gep") << " "
-        << formatType(gep.type()) << ", "
+        << keyword("inbounds") << " " << formatType(gep.inboundsType()) << ", "
         << formatType(gep.basePointer()->type()) << " "
         << formatName(*gep.basePointer()) << ", "
         << formatType(gep.arrayIndex()->type()) << " "
