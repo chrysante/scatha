@@ -1,17 +1,37 @@
-fn gcd(a: int, b: int) -> int {
-    while b != 0 && true
-     {
-        let t = b + 0;
-        b = a % b;
-        a = t;
+
+
+fn main(cond: bool) -> int {
+    var x: X;
+    x.i = 0;
+    x.y.j = 0;
+    if cond {
+        x.i = 1;
+        var z: Z;
+        x.y.z = z;
     }
-    return a;
+    else {
+        var y: Y;
+        y.j = 1;
+        y.k = 2;
+        x.y = y;
+    }
+    return x.i + x.y.j + x.y.k; 
 }
-fn main() -> int {
-    let a = 756476;
-    let b = 1253;
-    return gcd(a, b);// + gcd(1, 7);
+
+struct X {
+    var i: int;
+    var y: Y;
 }
+
+struct Y {
+    var j: int;
+    var k: int;
+    var z: Z;
+}
+struct Z { var a: int; }
+
+
+
 
 /*
 fn main() -> int { return f(1); }

@@ -24,6 +24,7 @@
 #include "Opt/InlineCallsite.h"
 #include "Opt/Inliner.h"
 #include "Opt/MemToReg.h"
+#include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
 
 static int const headerWidth = 60;
@@ -41,8 +42,25 @@ static void header(std::string_view title = "") {
 }
 
 using namespace scatha;
+using namespace playground;
 
-void playground::volatilePlayground(std::filesystem::path path) {
+[[maybe_unused]] static void sroaPlayground(std::filesystem::path path) {
+    auto [ctx, mod] = makeIRModuleFromFile(path);
+    header(" Before SROA ");
+    ir::print(mod);
+    for (auto& function: mod.functions()) {
+        opt::sroa(ctx, function);
+    }
+    header(" After SROA ");
+    ir::print(mod);
+    for (auto& function: mod.functions()) {
+        opt::memToReg(ctx, function);
+    }
+    header(" After M2R ");
+    ir::print(mod);
+}
+
+[[maybe_unused]] static void inlinerAndSimplifyCFG(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
 
     header(" Before inlining ");
@@ -82,4 +100,8 @@ void playground::volatilePlayground(std::filesystem::path path) {
 
     std::cout << "Program returned: " << vm.getState().registers[0]
               << std::endl;
+}
+
+void playground::volatilePlayground(std::filesystem::path path) {
+    sroaPlayground(path);
 }
