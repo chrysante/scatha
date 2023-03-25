@@ -1,23 +1,13 @@
 
 
-
-fn main() -> bool {
-    var x: X;
-    var y: Y;
-    y.b = true;
-    x.y = y;
-    return x.y.b;
+fn f(n: int) -> int {
+    var k = 1;
+    for i = 0; i < n; ++i {
+        k *= 2;
+    }
+    return 1;
 }
 
-
-struct X {
-    var y: Y;
-}
-struct Y {
-    var c: bool;
-    var b: bool;
-    
-}
 
 
 /*

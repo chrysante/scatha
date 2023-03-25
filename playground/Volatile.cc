@@ -25,6 +25,7 @@
 #include "Opt/Inliner.h"
 #include "Opt/MemToReg.h"
 #include "Opt/SROA.h"
+#include "Opt/InstCombine.h"
 #include "Opt/SimplifyCFG.h"
 
 static int const headerWidth = 60;
@@ -56,6 +57,11 @@ using namespace playground;
     header(" After M2R ");
     for (auto& function: mod.functions()) {
         opt::memToReg(ctx, function);
+    }
+    ir::print(mod);
+    header(" After InstCombine ");
+    for (auto& function: mod.functions()) {
+        opt::instCombine(ctx, function);
     }
     ir::print(mod);
     header(" After SCCP ");
