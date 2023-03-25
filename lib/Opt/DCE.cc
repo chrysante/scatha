@@ -92,6 +92,11 @@ bool DCEContext::run() {
         for (auto* bb: postDomInfo.domFront(inst->parent())) {
             mark(bb->terminator());
         }
+        if (auto* phi = dyncast<Phi*>(inst)) {
+            for (auto [pred, value]: phi->arguments()) {
+                mark(pred->terminator());
+            }
+        }
     }
     /// Sweep phase
     bool modifiedAny = false;
