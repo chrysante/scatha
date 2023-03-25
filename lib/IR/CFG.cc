@@ -154,13 +154,6 @@ bool BasicBlock::contains(Instruction const& inst) const {
     return itr != end();
 }
 
-TerminatorInst const* BasicBlock::terminator() const {
-    if (empty()) {
-        return nullptr;
-    }
-    return dyncast<TerminatorInst const*>(&back());
-}
-
 bool BasicBlock::emptyExceptTerminator() const {
     return terminator() == &front();
 }

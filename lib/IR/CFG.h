@@ -333,6 +333,11 @@ class SCATHA_API BasicBlock:
     friend class internal::CFGList<BasicBlock, Instruction>;
     using ListBase = internal::CFGList<BasicBlock, Instruction>;
 
+    static auto succImpl(auto* t) {
+        SC_ASSERT(t, "No successors without a terminator");
+        return t->targets();
+    }
+        
 public:
     using ListBase::ConstIterator;
     using ListBase::Iterator;
@@ -373,11 +378,18 @@ public:
 
     /// \returns the terminator instruction if this basic block is well formed
     /// or `nullptr`.
-    TerminatorInst const* terminator() const;
+    template <typename TermInst = TerminatorInst>
+    TermInst const* terminator() const {
+        if (empty()) {
+            return nullptr;
+        }
+        return dyncast<TermInst const*>(&back());
+    }
 
     /// \overload
-    TerminatorInst* terminator() {
-        return const_cast<TerminatorInst*>(
+    template <typename TermInst = TerminatorInst>
+    TermInst* terminator() {
+        return const_cast<TermInst*>(
             static_cast<BasicBlock const*>(this)->terminator());
     }
 
@@ -437,25 +449,40 @@ public:
     void removePredecessor(BasicBlock const* pred);
 
     /// The basic blocks directly reachable from this basic block
-    auto successors();
+    template <typename TermInst = TerminatorInst>
+    auto successors() { return succImpl(terminator<TermInst>()); }
 
     /// \overload
-    auto successors() const;
+    template <typename TermInst = TerminatorInst>
+    auto successors() const { return succImpl(terminator<TermInst>()); }
 
-    BasicBlock* successor(size_t index);
+    template <typename TermInst = TerminatorInst>
+    BasicBlock* successor(size_t index) {
+        return successors<TermInst>()[utl::narrow_cast<ssize_t>(index)];
+    }
 
-    BasicBlock const* successor(size_t index) const;
+    template <typename TermInst = TerminatorInst>
+    BasicBlock const* successor(size_t index) const {
+        return successors<TermInst>()[utl::narrow_cast<ssize_t>(index)];
+    }
 
-    BasicBlock* predecessor(size_t index);
+    BasicBlock* predecessor(size_t index) {
+        return predecessors()[index];
+    }
 
-    BasicBlock const* predecessor(size_t index) const;
+    BasicBlock const* predecessor(size_t index) const {
+        return predecessors()[index];
+    }
 
-    size_t numSuccessors() const;
+    template <typename TermInst = TerminatorInst>
+    size_t numSuccessors() const { return successors<TermInst>().size(); }
 
-    size_t numPredecessors() const;
+    size_t numPredecessors() const { return predecessors().size(); }
 
     /// \returns `true` iff this basic block has exactly one predecessor.
-    bool hasSinglePredecessor() const;
+    bool hasSinglePredecessor() const {
+        return numPredecessors() == 1;
+    }
 
     /// \returns predecessor if this basic block has a single predecessor, else
     /// `nullptr`.
@@ -470,17 +497,24 @@ public:
     }
 
     /// \returns `true` iff this basic block has exactly one successor.
-    bool hasSingleSuccessor() const;
+    template <typename TermInst = TerminatorInst>
+    bool hasSingleSuccessor() const {
+        return numSuccessors<TermInst>() == 1;
+    }
 
     /// \returns successor if this basic block has a single successor, else
     /// `nullptr`.
+    template <typename TermInst = TerminatorInst>
     BasicBlock* singleSuccessor() {
         return const_cast<BasicBlock*>(
-            static_cast<BasicBlock const*>(this)->singleSuccessor());
+            static_cast<BasicBlock const*>(this)->singleSuccessor<TermInst>());
     }
 
     /// \overload
-    BasicBlock const* singleSuccessor() const;
+    template <typename TermInst = TerminatorInst>
+    BasicBlock const* singleSuccessor() const {
+        return hasSingleSuccessor<TermInst>() ? successors<TermInst>().front() : nullptr;
+    }
 
 private:
     /// For access to insert and erase callbacks.
@@ -784,59 +818,6 @@ protected:
 private:
     uint16_t nonTargetArguments = 0;
 };
-
-/// Now that we have defined `TerminatorInst` we can define
-/// `BasicBlock::successors()`
-namespace internal {
-
-static auto succImpl(auto* t) {
-    SC_ASSERT(t, "No successors without a terminator");
-    return t->targets();
-}
-
-} // namespace internal
-
-inline auto BasicBlock::successors() {
-    return internal::succImpl(terminator());
-}
-
-inline auto BasicBlock::successors() const {
-    return internal::succImpl(terminator());
-}
-
-inline BasicBlock* BasicBlock::successor(size_t index) {
-    return successors()[utl::narrow_cast<ssize_t>(index)];
-}
-
-inline BasicBlock const* BasicBlock::successor(size_t index) const {
-    return successors()[utl::narrow_cast<ssize_t>(index)];
-}
-
-inline BasicBlock* BasicBlock::predecessor(size_t index) {
-    return predecessors()[index];
-}
-
-inline BasicBlock const* BasicBlock::predecessor(size_t index) const {
-    return predecessors()[index];
-}
-
-inline size_t BasicBlock::numSuccessors() const { return successors().size(); }
-
-inline bool BasicBlock::hasSingleSuccessor() const {
-    return numSuccessors() == 1;
-}
-
-inline size_t BasicBlock::numPredecessors() const {
-    return predecessors().size();
-}
-
-inline bool BasicBlock::hasSinglePredecessor() const {
-    return numPredecessors() == 1;
-}
-
-inline BasicBlock const* BasicBlock::singleSuccessor() const {
-    return hasSingleSuccessor() ? successors().front() : nullptr;
-}
 
 /// `goto` instruction. Leave the current basic block and unconditionally enter
 /// the target basic block.
