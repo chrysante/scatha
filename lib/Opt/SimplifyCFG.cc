@@ -19,6 +19,8 @@ struct Ctx {
 
     void replaceConstCondBranches(BasicBlock* bb);
 
+    void eraseUnreachableBlocks();
+
     void removeDeadLink(BasicBlock* origin, BasicBlock* dest);
 
     void merge();
@@ -40,6 +42,7 @@ struct Ctx {
 bool opt::simplifyCFG(ir::Context& irCtx, Function& function) {
     Ctx ctx(irCtx, function);
     ctx.replaceConstCondBranches(&function.entry());
+    ctx.eraseUnreachableBlocks();
     ctx.visited.clear();
     ctx.merge();
     assertInvariants(irCtx, function);
@@ -74,13 +77,32 @@ void Ctx::replaceConstCondBranches(BasicBlock* bb) {
     }
 }
 
+void Ctx::eraseUnreachableBlocks() {
+    auto unreachableBlocks =
+        function | ranges::views::filter([&](auto& bb) {
+            return !visited.contains(&bb);
+        }) |
+        ranges::views::transform([](auto& bb) { return &bb; }) |
+        ranges::to<utl::small_vector<BasicBlock*>>;
+    for (auto* bb: unreachableBlocks) {
+        for (auto* succ: bb->successors()) {
+            succ->removePredecessor(bb);
+        }
+        for (auto& inst: *bb) {
+            clearAllUses(&inst);
+        }
+        clearAllUses(bb);
+        function.erase(bb);
+    }
+}
+
 void Ctx::removeDeadLink(BasicBlock* origin, BasicBlock* dest) {
     origin->terminator()->updateTarget(dest, nullptr);
     if (dest->hasSinglePredecessor()) {
         SC_ASSERT(dest->singlePredecessor() == origin, "Bad link");
         eraseDeadBasicBlock(dest);
     }
-    else {
+    else if (origin) {
         dest->removePredecessor(origin);
     }
 }
