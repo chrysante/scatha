@@ -4,6 +4,7 @@
 #include "Opt/CallGraph.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/InlineCallsite.h"
+#include "Opt/InstCombine.h"
 #include "Opt/MemToReg.h"
 #include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
@@ -166,6 +167,7 @@ bool Inliner::optimize(Function& function) const {
     bool modifiedAny = false;
     modifiedAny |= sroa(ctx, function);
     modifiedAny |= memToReg(ctx, function);
+    modifiedAny |= instCombine(ctx, function);
     modifiedAny |= propagateConstants(ctx, function);
     modifiedAny |= simplifyCFG(ctx, function);
     return modifiedAny;
