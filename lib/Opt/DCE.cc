@@ -119,15 +119,15 @@ bool DCEContext::run() {
     return modifiedAny;
 }
 
-BasicBlock* DCEContext::nearestUsefulPostdom(BasicBlock* bb) {
+BasicBlock* DCEContext::nearestUsefulPostdom(BasicBlock* origin) {
     auto& postDomTree = postDomInfo.domTree();
-    auto* node        = &postDomTree[bb].parent();
+    auto* node        = postDomTree[origin].parent();
     do {
-        auto* bb = node->basicBlock();
-        if (usefulBlocks.contains(bb)) {
-            return bb;
+        auto* dest = node->basicBlock();
+        if (usefulBlocks.contains(dest)) {
+            return dest;
         }
-        node = &node->parent();
+        node = node->parent();
     } while (node);
     SC_UNREACHABLE();
 }
