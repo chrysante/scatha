@@ -61,17 +61,14 @@ using namespace playground;
         opt::memToReg(ctx, function);
     }
     ir::print(mod);
-    header(" PDT ");
-    auto domInfo = ir::DominanceInfo::computePost(mod.functions().front());
-    ir::print(domInfo.domTree());
-    header(" After DCE ");
-    for (auto& function: mod.functions()) {
-        opt::dce(ctx, function);
-    }
-    ir::print(mod);
     header(" After InstCombine ");
     for (auto& function: mod.functions()) {
         opt::instCombine(ctx, function);
+    }
+    ir::print(mod);
+    header(" After DCE ");
+    for (auto& function: mod.functions()) {
+        opt::dce(ctx, function);
     }
     ir::print(mod);
     header(" After SCCP ");

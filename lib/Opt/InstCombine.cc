@@ -20,9 +20,12 @@ struct InstCombineCtx {
     bool visitInstruction(Instruction* inst);
 
     bool visitImpl(Instruction* inst) { return false; }
+    bool visitImpl(Phi* phi);
     bool visitImpl(ExtractValue* inst);
     bool visitImpl(InsertValue* inst);
 
+    void notifyUsers(Instruction* inst);
+    
     Context& irCtx;
     Function& function;
     utl::hashset<Instruction*> worklist;
@@ -52,6 +55,19 @@ bool InstCombineCtx::visitInstruction(Instruction* inst) {
     return visit(*inst, [this](auto& inst) { return visitImpl(&inst); });
 }
 
+bool InstCombineCtx::visitImpl(Phi* phi) {
+    Value* const first = phi->operands().front();
+    bool const allEqual =
+        ranges::all_of(phi->operands(), [&](auto* op) { return op == first; });
+    if (!allEqual) {
+        return false;
+    }
+    notifyUsers(phi);
+    replaceValue(phi, first);
+    phi->parent()->erase(phi);
+    return true;
+}
+
 bool InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     for (auto* insertInst = dyncast<InsertValue*>(extractInst->baseValue());
          insertInst != nullptr;
@@ -60,6 +76,7 @@ bool InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         if (ranges::equal(extractInst->memberIndices(),
                           insertInst->memberIndices()))
         {
+            notifyUsers(extractInst);
             replaceValue(extractInst, insertInst->insertedValue());
             return true;
         }
@@ -75,4 +92,8 @@ bool InstCombineCtx::visitImpl(InsertValue* insertInst) {
     }
 #endif
     return false;
+}
+
+void InstCombineCtx::notifyUsers(Instruction* inst) {
+    worklist.insert(inst->users().begin(), inst->users().end());
 }
