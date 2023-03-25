@@ -1,13 +1,11 @@
-
-
-fn f(n: int) -> int {
-    var k = 1;
-    var l = 1;
-    for i = 0; i < n; ++i {
-        k *= 2;
-        l = 1;
+fn main() -> int {
+    let a = 32.1;
+    if a > 12.2 {
+        return 1;
     }
-    return l;
+    else {
+        return 2;
+    }
 }
 
 

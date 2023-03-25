@@ -86,7 +86,9 @@ void Ctx::eraseUnreachableBlocks() {
         ranges::to<utl::small_vector<BasicBlock*>>;
     for (auto* bb: unreachableBlocks) {
         for (auto* succ: bb->successors()) {
-            succ->removePredecessor(bb);
+            if (succ) {
+                succ->removePredecessor(bb);
+            }
         }
         for (auto& inst: *bb) {
             clearAllUses(&inst);

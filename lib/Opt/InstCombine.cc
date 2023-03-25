@@ -25,7 +25,7 @@ struct InstCombineCtx {
     bool visitImpl(InsertValue* inst);
 
     void notifyUsers(Instruction* inst);
-    
+
     Context& irCtx;
     Function& function;
     utl::hashset<Instruction*> worklist;
