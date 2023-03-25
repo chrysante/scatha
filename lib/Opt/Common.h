@@ -32,6 +32,9 @@ SCATHA_TESTAPI
 void removePredecessorAndUpdatePhiNodes(ir::BasicBlock* basicBlock,
                                         ir::BasicBlock const* predecessor);
 
+/// Remove this value from the operand lists of all its users.
+SCATHA_TESTAPI void clearAllUses(ir::Value* value);
+
 } // namespace scatha::opt
 
 #endif // SCATHA_OPT_COMMON_H_

@@ -122,3 +122,9 @@ void opt::removePredecessorAndUpdatePhiNodes(
         }
     }
 }
+
+void opt::clearAllUses(Value* value) {
+    for (auto* user: value->users()) {
+        user->updateOperand(value, nullptr);
+    }
+}
