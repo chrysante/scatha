@@ -228,6 +228,7 @@ static void insertReturn(Context& ctx, BasicBlock& bb) {
 }
 
 void ir::setupInvariants(Context& ctx, Function& function) {
+    size_t numReturns = 0;
     for (auto& bb: function) {
         /// Erase everything after the last terminator.
         for (auto itr = bb.begin(); itr != bb.end(); ++itr) {
@@ -239,6 +240,7 @@ void ir::setupInvariants(Context& ctx, Function& function) {
         /// If we don't have a terminator insert a return.
         if (bb.empty() || !isa<TerminatorInst>(bb.back())) {
             insertReturn(ctx, bb);
+            ++numReturns;
             continue;
         }
         auto& terminator = cast<TerminatorInst&>(bb.back());
@@ -251,7 +253,7 @@ void ir::setupInvariants(Context& ctx, Function& function) {
                 link(&bb, br.thenTarget());
                 link(&bb, br.elseTarget());
             },
-            [&](ir::Return&) {},
+            [&](ir::Return&) { ++numReturns; },
             [&](ir::TerminatorInst&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
