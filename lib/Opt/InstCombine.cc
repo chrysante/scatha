@@ -10,19 +10,19 @@ using namespace ir;
 using namespace opt;
 
 namespace {
- 
+
 struct InstCombineCtx {
     InstCombineCtx(Context& irCtx, Function& function):
         irCtx(irCtx), function(function) {}
-    
+
     bool run();
-    
+
     bool visitInstruction(Instruction* inst);
-    
+
     bool visitImpl(Instruction* inst) { return false; }
     bool visitImpl(ExtractValue* inst);
     bool visitImpl(InsertValue* inst);
-    
+
     Context& irCtx;
     Function& function;
     utl::hashset<Instruction*> worklist;
@@ -57,7 +57,9 @@ bool InstCombineCtx::visitImpl(ExtractValue* extractInst) {
          insertInst != nullptr;
          insertInst = dyncast<InsertValue*>(insertInst->baseValue()))
     {
-        if (ranges::equal(extractInst->memberIndices(), insertInst->memberIndices())) {
+        if (ranges::equal(extractInst->memberIndices(),
+                          insertInst->memberIndices()))
+        {
             replaceValue(extractInst, insertInst->insertedValue());
             return true;
         }

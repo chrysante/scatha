@@ -127,11 +127,11 @@ protected:
                   Type const* type,
                   std::string name                   = {},
                   utl::small_vector<Value*> operands = {});
-    
+
     /// Clear all operands and replace with new operands.
     /// User lists are updated.
     void setOperands(utl::small_vector<Value*> operands);
-    
+
     /// Remove operand at \p index
     /// User lists are updated.
     /// \warning Erases the operand, that means higher indices get messed up.

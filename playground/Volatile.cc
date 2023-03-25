@@ -23,9 +23,9 @@
 #include "Opt/ConstantPropagation.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/Inliner.h"
+#include "Opt/InstCombine.h"
 #include "Opt/MemToReg.h"
 #include "Opt/SROA.h"
-#include "Opt/InstCombine.h"
 #include "Opt/SimplifyCFG.h"
 
 static int const headerWidth = 60;
