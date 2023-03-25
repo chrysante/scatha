@@ -75,7 +75,9 @@ void ir::print(DomTree const& domTree, std::ostream& str) {
 }
 
 void PrintCtx::print(DomTree::Node const& node) {
-    str << indent << node.basicBlock()->name() << ":\n";
+    auto* bb              = node.basicBlock();
+    std::string_view name = bb ? bb->name() : "<virtual root>";
+    str << indent << name << ":\n";
     indent.increase();
     for (auto* child: node.children()) {
         print(*child);
@@ -202,6 +204,9 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
         }
     }
     for (auto& start: result._nodes) {
+        if (!start.basicBlock()) {
+            continue;
+        }
         auto const& domSet = domSets.find(start.basicBlock())->second;
         utl::hashset<DomTree::Node*> visited = { const_cast<DomTree::Node*>(
             &start) };
@@ -269,8 +274,11 @@ DominanceInfo::DomFrontMap DominanceInfo::computeDomFrontsImpl(
         return {};
     }
     struct DFContext {
-        DFContext(Function& function, DomTree const& domTree, DomFrontMap& df):
-            function(function), domTree(domTree), df(df) {}
+        DFContext(Function& function,
+                  DomTree const& domTree,
+                  DomFrontMap& df,
+                  decltype(successors) succ):
+            function(function), domTree(domTree), df(df), succ(succ) {}
 
         void compute(DomTree::Node const& uNode) {
             for (auto* n: uNode.children()) {
@@ -279,7 +287,6 @@ DominanceInfo::DomFrontMap DominanceInfo::computeDomFrontsImpl(
             auto* u   = uNode.basicBlock();
             auto& dfU = df[u];
             // DF_local
-            auto succ = decltype(successors){};
             for (BasicBlock* v: succ(u)) {
                 if (domTree.idom(v) != u) {
                     dfU.push_back(v);
@@ -298,9 +305,10 @@ DominanceInfo::DomFrontMap DominanceInfo::computeDomFrontsImpl(
         Function& function;
         DomTree const& domTree;
         DomFrontMap& df;
+        decltype(successors) succ;
     };
     DomFrontMap result;
-    DFContext ctx(function, domTree, result);
+    DFContext ctx(function, domTree, result, successors);
     ctx.compute(domTree.root());
     return result;
 }
@@ -314,7 +322,8 @@ DominanceInfo::DomFrontMap DominanceInfo::computeDomFronts(
 
 DominanceInfo::DomFrontMap DominanceInfo::computePostDomFronts(
     Function& function, DomTree const& postDomTree) {
-    return computeDomFrontsImpl(function, postDomTree, [](BasicBlock* bb) {
-        return bb->predecessors();
+    auto exits = exitNodes(function);
+    return computeDomFrontsImpl(function, postDomTree, [&](BasicBlock* bb) {
+        return bb ? bb->predecessors() : std::span<BasicBlock* const>(exits);
     });
 }
