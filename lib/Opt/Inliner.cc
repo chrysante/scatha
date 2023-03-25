@@ -115,9 +115,9 @@ bool Inliner::visitSCC(SCC const& scc) {
             return;
         }
         modifiedAny |= visitFunction(node);
-        for (auto& pred: node.predecessors()) {
-            if (&pred.scc() == &scc) {
-                walk(pred, walk);
+        for (auto* pred: node.predecessors()) {
+            if (&pred->scc() == &scc) {
+                walk(*pred, walk);
             }
         }
     };
@@ -130,8 +130,8 @@ bool Inliner::visitFunction(FunctionNode const& node) {
     /// catch optimization opportunities emerged from inlining.
     bool modifiedAny = false;
     modifiedAny |= optimize(node.function());
-    for (auto& callee: node.callees()) {
-        auto callsitesOfCallee = node.callsites(callee);
+    for (auto* callee: node.callees()) {
+        auto callsitesOfCallee = node.callsites(*callee);
         for (auto* callInst: callsitesOfCallee) {
             bool const shouldInline = shouldInlineCallsite(callGraph, callInst);
             if (shouldInline) {
@@ -155,8 +155,8 @@ utl::small_vector<SCC const*> Inliner::gatherLeaves() const {
 }
 
 bool Inliner::allSuccessorsAnalyzed(SCC const& scc) const {
-    for (auto& succ: scc.successors()) {
-        if (!analyzed.contains(&succ)) {
+    for (auto* succ: scc.successors()) {
+        if (!analyzed.contains(succ)) {
             return false;
         }
     }

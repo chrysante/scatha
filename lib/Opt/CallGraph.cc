@@ -85,11 +85,11 @@ void SCCCallGraph::computeSCCs() {
             stack.push(&v);
             vData.onStack = true;
 
-            for (auto& w: v.successors()) {
-                auto& wData = vertexData[&w];
+            for (auto* w: v.successors()) {
+                auto& wData = vertexData[w];
                 if (!wData.defined) {
                     //// Successor `w` has not yet been visited; recurse on it.
-                    strongConnect(w);
+                    strongConnect(*w);
                     vData.lowlink = std::min(vData.lowlink, wData.lowlink);
                 }
                 else if (wData.onStack) {
@@ -141,8 +141,8 @@ void SCCCallGraph::computeSCCs() {
     /// representing the call graph.
     for (auto& scc: _sccs) {
         for (auto& function: scc.nodes()) {
-            for (auto& succ: function.successors()) {
-                auto& succSCC = succ.scc();
+            for (auto* succ: function.successors()) {
+                auto& succSCC = succ->scc();
                 if (&succSCC == &scc) {
                     continue;
                 }

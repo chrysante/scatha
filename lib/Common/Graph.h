@@ -126,10 +126,10 @@ public:
         return _payload.value;
     }
 
-    Self const& parent() const
+    Self const* parent() const
         requires IsTree
     {
-        return *_parentLink;
+        return _parentLink;
     }
 
     auto children() const
@@ -179,15 +179,9 @@ public:
     }
 
 private:
-    auto outgoingImpl() const {
-        return _outgoingEdges | ranges::views::transform(
-                                    [](auto* p) -> Self const& { return *p; });
-    }
+    std::span<Self const* const> outgoingImpl() const { return _outgoingEdges; }
 
-    auto incomingImpl() const {
-        return _parentLink | ranges::views::transform(
-                                 [](auto* p) -> Self const& { return *p; });
-    }
+    std::span<Self const* const> incomingImpl() const { return _parentLink; }
 
     static void addEdgeImpl(utl::small_vector<Self*>& list, Self* other) {
         if (ranges::find(list, other) != ranges::end(list)) {

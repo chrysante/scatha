@@ -351,10 +351,10 @@ void CallGraphContext::declare(SCCCallGraph::FunctionNode const& node) {
 }
 
 void CallGraphContext::connect(SCCCallGraph::SCCNode const& scc) {
-    for (auto& succ: scc.successors()) {
+    for (auto* succ: scc.successors()) {
         str << "  " << scc.functions().front().name() << " -> "
-            << succ.functions().front().name() << "[ltail=cluster_"
-            << index(scc) << ", lhead=cluster_" << index(succ) << "]"
+            << succ->functions().front().name() << "[ltail=cluster_"
+            << index(scc) << ", lhead=cluster_" << index(*succ) << "]"
             << "\n";
     }
     for (auto& func: scc.nodes()) {
@@ -363,10 +363,10 @@ void CallGraphContext::connect(SCCCallGraph::SCCNode const& scc) {
 }
 
 void CallGraphContext::connect(SCCCallGraph::FunctionNode const& node) {
-    for (auto& succ: node.successors()) {
+    for (auto* succ: node.successors()) {
         str << "  " << node.function().name() << " -> "
-            << succ.function().name() << "\n";
-        if (&node.scc() != &succ.scc()) {
+            << succ->function().name() << "\n";
+        if (&node.scc() != &succ->scc()) {
             str << "[style=dashed, color=\"#00000080\", arrowhead=empty]\n";
         }
     }

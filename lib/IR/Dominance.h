@@ -52,7 +52,8 @@ public:
     }
 
     ir::BasicBlock const* idom(ir::BasicBlock const* block) const {
-        return (*this)[block].parent().basicBlock();
+        auto* parent = (*this)[block].parent();
+        return parent ? parent->basicBlock() : nullptr;
     }
 
     bool empty() const { return _nodes.empty(); }

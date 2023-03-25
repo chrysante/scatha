@@ -77,8 +77,8 @@ void ir::print(DomTree const& domTree, std::ostream& str) {
 void PrintCtx::print(DomTree::Node const& node) {
     str << indent << node.basicBlock()->name() << ":\n";
     indent.increase();
-    for (auto& child: node.children()) {
-        print(child);
+    for (auto* child: node.children()) {
+        print(*child);
     }
     indent.decrease();
 }
@@ -273,8 +273,8 @@ DominanceInfo::DomFrontMap DominanceInfo::computeDomFrontsImpl(
             function(function), domTree(domTree), df(df) {}
 
         void compute(DomTree::Node const& uNode) {
-            for (auto& n: uNode.children()) {
-                compute(n);
+            for (auto* n: uNode.children()) {
+                compute(*n);
             }
             auto* u   = uNode.basicBlock();
             auto& dfU = df[u];
@@ -286,8 +286,8 @@ DominanceInfo::DomFrontMap DominanceInfo::computeDomFrontsImpl(
                 }
             }
             // DF_up
-            for (auto& wNode: uNode.children()) {
-                for (auto* v: df[wNode.basicBlock()]) {
+            for (auto* wNode: uNode.children()) {
+                for (auto* v: df[wNode->basicBlock()]) {
                     if (domTree.idom(v) != u) {
                         dfU.push_back(v);
                     }

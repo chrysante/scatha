@@ -243,9 +243,9 @@ void ir::setupInvariants(Context& ctx, Function& function) {
             ++numReturns;
             continue;
         }
-        auto& terminator = cast<TerminatorInst&>(bb.back());
+        auto* terminator = bb.terminator();
         // clang-format off
-        visit(terminator, utl::overload{
+        visit(*terminator, utl::overload{
             [&](ir::Goto& gt) {
                 link(&bb, gt.target());
             },
