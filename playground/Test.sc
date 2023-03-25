@@ -2,10 +2,12 @@
 
 fn f(n: int) -> int {
     var k = 1;
+    var l = 1;
     for i = 0; i < n; ++i {
         k *= 2;
+        l = 1;
     }
-    return 1;
+    return l;
 }
 
 

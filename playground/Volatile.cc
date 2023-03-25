@@ -14,6 +14,7 @@
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
+#include "IR/Dominance.h"
 #include "IR/Module.h"
 #include "IR/Parser/Parser.h"
 #include "IR/Print.h"
@@ -21,6 +22,7 @@
 #include "IRDump.h"
 #include "Opt/CallGraph.h"
 #include "Opt/ConstantPropagation.h"
+#include "Opt/DCE.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/Inliner.h"
 #include "Opt/InstCombine.h"
@@ -59,6 +61,14 @@ using namespace playground;
         opt::memToReg(ctx, function);
     }
     ir::print(mod);
+    header(" PDT ");
+    auto domInfo = ir::DominanceInfo::computePost(mod.functions().front());
+    ir::print(domInfo.domTree());
+    header(" After DCE ");
+    for (auto& function: mod.functions()) {
+        opt::dce(ctx, function);
+    }
+    ir::print(mod);
     header(" After InstCombine ");
     for (auto& function: mod.functions()) {
         opt::instCombine(ctx, function);
@@ -67,6 +77,11 @@ using namespace playground;
     header(" After SCCP ");
     for (auto& function: mod.functions()) {
         opt::propagateConstants(ctx, function);
+    }
+    ir::print(mod);
+    header(" After SCFG ");
+    for (auto& function: mod.functions()) {
+        opt::simplifyCFG(ctx, function);
     }
     ir::print(mod);
 
