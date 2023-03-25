@@ -8,6 +8,8 @@
 #include <range/v3/view.hpp>
 #include <utl/vector.hpp>
 
+#include "Basic/Basic.h"
+
 namespace scatha {
 
 namespace internal {
@@ -139,12 +141,14 @@ public:
     void setParent(Self* parent)
         requires IsTree
     {
+        SC_ASSERT(parent != this, "Would form an invalid tree");
         _parentLink = parent;
     }
 
     void addChild(Self* child)
         requires IsTree
     {
+        SC_ASSERT(child != this, "Would form an invalid tree");
         addEdgeImpl(_outgoingEdges, child);
     }
 
