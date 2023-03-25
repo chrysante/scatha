@@ -3,6 +3,7 @@
 #include "IR/CFG.h"
 #include "Opt/CallGraph.h"
 #include "Opt/ConstantPropagation.h"
+#include "Opt/DCE.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/InstCombine.h"
 #include "Opt/MemToReg.h"
@@ -93,8 +94,8 @@ bool Inliner::run() {
         worklist.erase(itr);
         modifiedAny |= visitSCC(scc);
         analyzed.insert(&scc);
-        for (auto& pred: scc.predecessors()) {
-            worklist.insert(&pred);
+        for (auto* pred: scc.predecessors()) {
+            worklist.insert(pred);
         }
     }
     return modifiedAny;
@@ -169,6 +170,7 @@ bool Inliner::optimize(Function& function) const {
     modifiedAny |= memToReg(ctx, function);
     modifiedAny |= instCombine(ctx, function);
     modifiedAny |= propagateConstants(ctx, function);
+    modifiedAny |= dce(ctx, function);
     modifiedAny |= simplifyCFG(ctx, function);
     return modifiedAny;
 }
