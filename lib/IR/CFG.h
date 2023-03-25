@@ -110,22 +110,15 @@ public:
 
     /// Set the operand at \p index to \p operand
     /// Updates user list of \p operand and removed operand.
+    /// \p operand may be `nullptr`.
     void setOperand(size_t index, Value* operand);
-
-    /// Clear all operands and replace with new operands.
-    /// User lists are updated.
-    void setOperands(utl::small_vector<Value*> operands);
 
     /// Find \p oldOperand and replace it with \p newOperand
     /// User lists are updated.
     /// \pre \p oldOperand must be an operand of this user.
     void updateOperand(Value const* oldOperand, Value* newOperand);
 
-    /// Remove operand at \p index
-    /// User lists are updated.
-    void removeOperand(size_t index);
-
-    /// Remove all operands from this user.
+    /// Set all operands to `nullptr`.
     /// User lists are updated.
     void clearOperands();
 
@@ -134,6 +127,15 @@ protected:
                   Type const* type,
                   std::string name                   = {},
                   utl::small_vector<Value*> operands = {});
+    
+    /// Clear all operands and replace with new operands.
+    /// User lists are updated.
+    void setOperands(utl::small_vector<Value*> operands);
+    
+    /// Remove operand at \p index
+    /// User lists are updated.
+    /// \warning Erases the operand, that means higher indices get messed up.
+    void removeOperand(size_t index);
 
 private:
     utl::small_vector<Value*> _operands;
@@ -152,6 +154,7 @@ class SCATHA_API IntegralConstant: public Constant {
 public:
     explicit IntegralConstant(Context& context, APInt value, size_t bitWidth);
 
+    /// \returns The value of this constant.
     APInt const& value() const { return _value; }
 
 private:
@@ -165,6 +168,7 @@ public:
                                    APFloat value,
                                    size_t bitWidth);
 
+    /// \returns The value of this constant.
     APFloat const& value() const { return _value; }
 
 private:
@@ -206,6 +210,7 @@ public:
     /// \returns a view over the type operands of this instruction
     std::span<Type const* const> typeOperands() const { return typeOps; }
 
+    /// Set the type operand at \p index to \p type
     void setTypeOperand(size_t index, Type const* type);
 
 protected:
@@ -264,7 +269,7 @@ public:
         values.splice(pos, first, last);
     }
 
-    /// Erase an instruction. Clears the operands.
+    /// Clears the operands.
     Iterator erase(ConstIterator position) {
         SC_ASSERT(position->users().empty(),
                   "We should not erase this value when it's still in use");

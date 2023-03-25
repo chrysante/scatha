@@ -64,7 +64,7 @@ User::User(NodeType nodeType,
 }
 
 void User::setOperand(size_t index, Value* operand) {
-    SC_ASSERT(index < _operands.size(), "");
+    SC_ASSERT(index < _operands.size(), "`index` not valid for this instruction");
     if (auto* op = _operands[index]) {
         op->removeUserWeak(this);
     }
