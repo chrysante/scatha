@@ -86,10 +86,14 @@ void User::setOperands(utl::small_vector<Value*> operands) {
 }
 
 void User::updateOperand(Value const* oldOperand, Value* newOperand) {
-    auto itr = ranges::find(_operands, oldOperand);
-    SC_ASSERT(itr != ranges::end(_operands), "Not found");
-    auto const index = ranges::distance(ranges::begin(_operands), itr);
-    setOperand(utl::narrow_cast<size_t>(index), newOperand);
+    bool leastOne = false;
+    for (auto&& [index, op]: _operands | ranges::views::enumerate) {
+        if (op == oldOperand) {
+            setOperand(index, newOperand);
+            leastOne = true;
+        }
+    }
+    SC_ASSERT(leastOne, "Not found");
 }
 
 void User::removeOperand(size_t index) {
