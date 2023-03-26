@@ -39,6 +39,10 @@ void SCCCallGraph::computeCallGraph(Module& mod) {
             if (!target) {
                 continue;
             }
+            /// We ignore self recursion.
+            if (target == &function) {
+                continue;
+            }
             auto& thisNode = findMut(&function);
             auto& succNode = findMut(target);
             thisNode.addSuccessor(&succNode);
@@ -88,7 +92,6 @@ void SCCCallGraph::computeSCCs() {
             ++index;
             stack.push(&v);
             vData.onStack = true;
-
             for (auto* w: v.successors()) {
                 auto& wData = vertexData[w];
                 if (!wData.defined) {

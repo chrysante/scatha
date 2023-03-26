@@ -11,6 +11,10 @@
 
 namespace scatha::opt {
 
+/// Call graph of functions in a module.
+/// Also computes SCC's
+///
+/// \Warning Direct self recursion is ignored.
 class SCATHA_TESTAPI SCCCallGraph {
 public:
     class SCCNode;
