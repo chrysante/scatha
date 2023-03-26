@@ -584,7 +584,7 @@ FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
 
 FormalValue SCCPContext::evaluateCall(Callable const* function,
                                       std::span<FormalValue const> args) {
-    /// We need all arguments constant to evaluate this.
+    /// We need all arguments be constant to evaluate this.
     if (!ranges::all_of(args, [&](FormalValue const& value) {
             return isConstant(value);
         }))
@@ -600,10 +600,40 @@ FormalValue SCCPContext::evaluateCall(Callable const* function,
         return Inevaluable{};
     }
     switch (static_cast<svm::Builtin>(extFn->index())) {
-    case svm::Builtin::sqrtf64: {
-        auto const arg = args.front().get<APFloat>();
-        return sqrt(arg);
-    }
+    case svm::Builtin::abs_f64:
+        return abs(args[0].get<APFloat>());
+    case svm::Builtin::exp_f64:
+        return exp(args[0].get<APFloat>());
+    case svm::Builtin::exp2_f64:
+        return exp2(args[0].get<APFloat>());
+    case svm::Builtin::exp10_f64:
+        return exp10(args[0].get<APFloat>());
+    case svm::Builtin::log_f64:
+        return log(args[0].get<APFloat>());
+    case svm::Builtin::log2_f64:
+        return log2(args[0].get<APFloat>());
+    case svm::Builtin::log10_f64:
+        return log10(args[0].get<APFloat>());
+    case svm::Builtin::pow_f64:
+        return pow(args[0].get<APFloat>(), args[1].get<APFloat>());
+    case svm::Builtin::sqrt_f64:
+        return sqrt(args[0].get<APFloat>());
+    case svm::Builtin::cbrt_f64:
+        return cbrt(args[0].get<APFloat>());
+    case svm::Builtin::hypot_f64:
+        return hypot(args[0].get<APFloat>(), args[1].get<APFloat>());
+    case svm::Builtin::sin_f64:
+        return sin(args[0].get<APFloat>());
+    case svm::Builtin::cos_f64:
+        return cos(args[0].get<APFloat>());
+    case svm::Builtin::tan_f64:
+        return tan(args[0].get<APFloat>());
+    case svm::Builtin::asin_f64:
+        return asin(args[0].get<APFloat>());
+    case svm::Builtin::acos_f64:
+        return acos(args[0].get<APFloat>());
+    case svm::Builtin::atan_f64:
+        return atan(args[0].get<APFloat>());
     case svm::Builtin::f64toi64: {
         double const arg = args.front().get<APFloat>().to<double>();
         return APInt(static_cast<int64_t>(arg), 64);
