@@ -3,8 +3,9 @@
 #include <optional>
 #include <span>
 
-#include "AST/Common.h"
+#include <svm/Builtin.h>
 
+#include "AST/Common.h"
 #include "Sema/SemanticIssue.h"
 
 namespace scatha::sema {
@@ -34,6 +35,8 @@ struct Context {
     bool verifyConversion(ast::Expression const& from, TypeID to) const;
 
     TypeID verifyBinaryOperation(ast::BinaryExpression const&) const;
+
+    SymbolID findExplicitCast(TypeID targetType, std::span<TypeID const> from);
 
     SymbolTable& sym;
     issue::SemaIssueHandler& iss;
@@ -318,7 +321,15 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     }
 
     case SymbolCategory::ObjectType: {
-        SC_DEBUGFAIL();
+        TypeID const targetType = TypeID(objRes.typeID());
+        SymbolID const castFn   = findExplicitCast(targetType, argTypes);
+        if (!castFn) {
+            // TODO: Make better error class here.
+            iss.push(BadTypeConversion(*fc.arguments.front(), targetType));
+            return ExpressionAnalysisResult::fail();
+        }
+        fc.decorate(castFn, targetType, ast::ValueCategory::RValue);
+        return ExpressionAnalysisResult::rvalue(fc.typeID());
     }
 
     default:
@@ -487,6 +498,19 @@ TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
     case _count:
         SC_DEBUGFAIL();
     }
+}
+
+SymbolID Context::findExplicitCast(TypeID to, std::span<TypeID const> from) {
+    if (from.size() != 1) {
+        return SymbolID::Invalid;
+    }
+    if (from.front() == sym.Int() && to == sym.Float()) {
+        return sym.builtinFunction(static_cast<size_t>(svm::Builtin::i64tof64));
+    }
+    if (from.front() == sym.Float() && to == sym.Int()) {
+        return sym.builtinFunction(static_cast<size_t>(svm::Builtin::f64toi64));
+    }
+    return SymbolID::Invalid;
 }
 
 } // namespace scatha::sema

@@ -23,6 +23,7 @@ SymbolTable::SymbolTable():
         declareBuiltinType("string", sizeof(std::string), alignof(std::string));
 
     /// Declare builtin functions
+    _builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
     declareBuiltinFunction(                                                    \
         #name,                                                                 \
@@ -187,10 +188,11 @@ bool SymbolTable::declareBuiltinFunction(std::string name,
     }
     auto& decl = const_cast<Function&>(*declResult);
     setSignature(decl.symbolID(), std::move(signature));
-    decl._isExtern = true;
-    decl._slot     = utl::narrow_cast<u32>(slot);
-    decl._index    = utl::narrow_cast<u32>(index);
-    decl.attrs     = attrs;
+    decl._isExtern           = true;
+    decl._slot               = utl::narrow_cast<u32>(slot);
+    decl._index              = utl::narrow_cast<u32>(index);
+    decl.attrs               = attrs;
+    _builtinFunctions[index] = decl.symbolID();
     return true;
 }
 

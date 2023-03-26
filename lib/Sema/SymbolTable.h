@@ -222,6 +222,10 @@ public:
 
     std::string getName(SymbolID id) const;
 
+    SymbolID builtinFunction(size_t index) const {
+        return _builtinFunctions[index];
+    }
+
     SymbolID lookup(std::string_view name) const;
     SymbolID lookup(Token const& token) const { return lookup(token.id); }
 
@@ -285,6 +289,8 @@ private:
     EntityMap<Scope> _anonymousScopes;
 
     utl::vector<TypeID> _sortedObjectTypes;
+
+    utl::vector<SymbolID> _builtinFunctions;
 
     /// Builtin types
     TypeID _void, _bool, _int, _float, _string;
