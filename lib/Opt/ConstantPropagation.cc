@@ -4,6 +4,7 @@
 
 #include <range/v3/numeric.hpp>
 #include <range/v3/view.hpp>
+#include <svm/Builtin.h>
 #include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/variant.hpp>
@@ -125,6 +126,9 @@ struct SCCPContext {
     FormalValue evaluateComparison(CompareOperation operation,
                                    FormalValue const& lhs,
                                    FormalValue const& rhs);
+
+    FormalValue evaluateCall(Callable const* function,
+                             std::span<FormalValue const> args);
 
     bool isExpression(Instruction const* inst) const {
         return inst != nullptr && !isa<Phi>(inst) && !isa<TerminatorInst>(inst);
@@ -296,6 +300,14 @@ void SCCPContext::visitExpression(Instruction& inst) {
             return evaluateComparison(inst.operation(),
                                       formalValue(inst.lhs()),
                                       formalValue(inst.rhs()));
+        },
+        [&](Call& call) {
+            auto args = call.arguments() |
+                        ranges::views::transform([&](Value* arg) {
+                            return formalValue(arg);
+                        }) |
+                        ranges::to<utl::small_vector<FormalValue>>;
+            return evaluateCall(call.function(), args);
         },
         [&](Instruction const&) -> FormalValue { return Inevaluable{}; }
     }); // clang-format on
@@ -568,6 +580,42 @@ FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
         },
         [](auto const&, auto const&) -> FormalValue { return Inevaluable{}; },
     }, lhs, rhs); // clang-format on
+}
+
+FormalValue SCCPContext::evaluateCall(Callable const* function,
+                                      std::span<FormalValue const> args) {
+    /// We need all arguments constant to evaluate this.
+    if (!ranges::all_of(args, [&](FormalValue const& value) {
+            return isConstant(value);
+        }))
+    {
+        return Inevaluable{};
+    }
+    /// Right now we can atmost evaluate certain builtin functions.
+    auto* extFn = dyncast<ExtFunction const*>(function);
+    if (!extFn) {
+        return Inevaluable{};
+    }
+    if (extFn->slot() != svm::builtinFunctionSlot) {
+        return Inevaluable{};
+    }
+    switch (static_cast<svm::Builtin>(extFn->index())) {
+    case svm::Builtin::sqrtf64: {
+        auto const arg = args.front().get<APFloat>();
+        return sqrt(arg);
+    }
+    case svm::Builtin::f64toi64: {
+        double const arg = args.front().get<APFloat>().to<double>();
+        return APInt(static_cast<int64_t>(arg), 64);
+    }
+    case svm::Builtin::i64tof64: {
+        int64_t const arg = args.front().get<APInt>().to<int64_t>();
+        return APFloat(static_cast<double>(arg), APFloatPrec::Double);
+    }
+
+    default:
+        return Inevaluable{};
+    }
 }
 
 FormalValue SCCPContext::formalValue(Value* value) {
