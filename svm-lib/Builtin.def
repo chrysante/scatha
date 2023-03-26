@@ -10,11 +10,32 @@
 #   define SVM_BUILTIN_DEF(name, ...)
 #endif
 
+/// ## Conversion functions
+SVM_BUILTIN_DEF(f64toi64,  Const, { Float() }, Int())
+SVM_BUILTIN_DEF(i64tof64,  Const, { Int() }, Float())
+
+/// ## Common math functions
+SVM_BUILTIN_DEF(abs_f64,   Const, { Float() }, Float())
+SVM_BUILTIN_DEF(exp_f64,   Const, { Float() }, Float())
+SVM_BUILTIN_DEF(exp2_f64,  Const, { Float() }, Float())
+SVM_BUILTIN_DEF(exp10_f64, Const, { Float() }, Float())
+SVM_BUILTIN_DEF(log_f64,   Const, { Float() }, Float())
+SVM_BUILTIN_DEF(log2_f64,  Const, { Float() }, Float())
+SVM_BUILTIN_DEF(log10_f64, Const, { Float() }, Float())
+SVM_BUILTIN_DEF(pow_f64,   Const, { Float(), Float() }, Float())
+SVM_BUILTIN_DEF(sqrt_f64,  Const, { Float() }, Float())
+SVM_BUILTIN_DEF(cbrt_f64,  Const, { Float() }, Float())
+SVM_BUILTIN_DEF(hypot_f64, Const, { Float(), Float() }, Float())
+SVM_BUILTIN_DEF(sin_f64,   Const, { Float() }, Float())
+SVM_BUILTIN_DEF(cos_f64,   Const, { Float() }, Float())
+SVM_BUILTIN_DEF(tan_f64,   Const, { Float() }, Float())
+SVM_BUILTIN_DEF(asin_f64,  Const, { Float() }, Float())
+SVM_BUILTIN_DEF(acos_f64,  Const, { Float() }, Float())
+SVM_BUILTIN_DEF(atan_f64,  Const, { Float() }, Float())
+
+/// ## Console output
 SVM_BUILTIN_DEF(putchar,   None,  { Int() }, Void())
 SVM_BUILTIN_DEF(puti64,    None,  { Int() }, Void())
 SVM_BUILTIN_DEF(putf64,    None,  { Float() }, Void())
-SVM_BUILTIN_DEF(sqrtf64,   Const, { Float() }, Float())
-SVM_BUILTIN_DEF(f64toi64,  Const, { Float() }, Int())
-SVM_BUILTIN_DEF(i64tof64,  Const, { Int() }, Float())
 
 #undef SVM_BUILTIN_DEF

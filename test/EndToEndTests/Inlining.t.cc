@@ -27,6 +27,6 @@ fn main() -> float {
     return sqrt(2.0);
 }
 fn sqrt(x: float) -> float {
-    return __builtin_sqrtf64(x);
+    return __builtin_sqrt_f64(x);
 })");
 }

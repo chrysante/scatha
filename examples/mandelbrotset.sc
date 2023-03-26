@@ -17,14 +17,6 @@ fn main() -> int {
     return 0;
 }
 
-fn pow(base: float, exp: int) -> float {
-    if exp < 0 { return pow(1.0 / base, -exp); }
-    if exp == 0 { return 1.0; }
-    if exp == 1 { return base; }
-    if exp % 2 == 1 { return base * pow(base, exp - 1); }
-    return pow(base * base, exp / 2);
-}
-
 struct Complex {
     var x: float;
     var y: float;
@@ -54,7 +46,7 @@ fn next(z: Complex, c: Complex) -> Complex {
 }
 
 fn length(z: Complex) -> float {
-    return sqrt(z.x * z.x + z.y * z.y);
+    return __builtin_hypot_f64(z.x, z.y);
 }
 
 fn calcDot() -> float {
@@ -89,5 +81,5 @@ fn print(x: float) {
 }
 
 fn sqrt(x: float) -> float {
-    return __builtin_sqrtf64(x);
+    return __builtin_sqrt_f64(x);
 }

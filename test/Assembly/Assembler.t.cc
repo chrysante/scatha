@@ -351,7 +351,7 @@ TEST_CASE("callExt with return value", "[assembly][vm]") {
         MoveInst(RegisterIndex(0), Value64(2.0), 8),
         CallExtInst(/* regPtrOffset = */ 0,
                     svm::builtinFunctionSlot,
-                    /* index = */ static_cast<size_t>(svm::Builtin::sqrtf64)),
+                    /* index = */ static_cast<size_t>(svm::Builtin::sqrt_f64)),
         TerminateInst(),
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);

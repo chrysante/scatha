@@ -10,12 +10,12 @@
 
 /// ** Function call and return **
 /// Performs the following operations:
-/// \code
+/// ```
 /// regPtr    += regOffset
 /// regPtr[-2] = regOffset
 /// regPtr[-1] = iptr
 /// jmp          offset
-/// \endcode
+/// ```
 SVM_INSTRUCTION_DEF(call, Other) // (i32 offset, u8 regOffset)
 
 /// Return to caller. Effectively performs the following operations:
