@@ -85,9 +85,8 @@ FormalValue infimum(auto&& range) {
     });
 }
 
-/// One context object is created per analyzed function.
-struct SCCContext {
-    explicit SCCContext(Context& irCtx, Function& function):
+struct SCCPContext {
+    explicit SCCPContext(Context& irCtx, Function& function):
         irCtx(irCtx), function(function) {}
 
     bool run();
@@ -158,13 +157,13 @@ struct SCCContext {
 } // namespace
 
 bool opt::propagateConstants(ir::Context& context, ir::Function& function) {
-    SCCContext ctx(context, function);
+    SCCPContext ctx(context, function);
     bool const result = ctx.run();
     assertInvariants(context, function);
     return result;
 }
 
-bool SCCContext::run() {
+bool SCCPContext::run() {
     auto& entry = function.entry();
     flowWorklist.push_back({ nullptr, &entry });
     while (!flowWorklist.empty() || !useWorklist.empty()) {
@@ -182,7 +181,7 @@ bool SCCContext::run() {
     return apply();
 }
 
-bool SCCContext::apply() {
+bool SCCPContext::apply() {
     utl::small_vector<Instruction*> replacedInstructions;
     for (auto [value, latticeElement]: formalValues) {
         if (!isConstant(latticeElement)) {
@@ -216,7 +215,7 @@ bool SCCContext::apply() {
     return !replacedInstructions.empty();
 }
 
-void SCCContext::processFlowEdge(FlowEdge edge) {
+void SCCPContext::processFlowEdge(FlowEdge edge) {
     if (isExecutable(edge)) {
         return;
     }
@@ -239,7 +238,7 @@ void SCCContext::processFlowEdge(FlowEdge edge) {
     }
 }
 
-void SCCContext::processUseEdge(UseEdge edge) {
+void SCCPContext::processUseEdge(UseEdge edge) {
     // clang-format off
     visit(*edge.user, utl::overload{
         [&](Phi& phi) { visitPhi(phi); },
@@ -252,7 +251,7 @@ void SCCContext::processUseEdge(UseEdge edge) {
     }); // clang-format on
 }
 
-void SCCContext::visitPhi(Phi& phi) {
+void SCCPContext::visitPhi(Phi& phi) {
     FormalValue const value =
         infimum(ranges::views::transform(phi.arguments(),
                                          [this, bb = phi.parent()](
@@ -270,7 +269,7 @@ void SCCContext::visitPhi(Phi& phi) {
     notifyUsers(phi);
 }
 
-void SCCContext::visitExpressions(BasicBlock& basicBlock) {
+void SCCPContext::visitExpressions(BasicBlock& basicBlock) {
     for (auto& inst: basicBlock) {
         if (!isExpression(&inst)) {
             continue;
@@ -279,7 +278,7 @@ void SCCContext::visitExpressions(BasicBlock& basicBlock) {
     }
 }
 
-void SCCContext::visitExpression(Instruction& inst) {
+void SCCPContext::visitExpression(Instruction& inst) {
     SC_ASSERT(isExpression(&inst), "");
     FormalValue const oldValue = formalValue(&inst);
     // clang-format off
@@ -307,7 +306,7 @@ void SCCContext::visitExpression(Instruction& inst) {
     notifyUsers(inst);
 }
 
-void SCCContext::notifyUsers(Value& value) {
+void SCCPContext::notifyUsers(Value& value) {
     for (auto* user: value.users()) {
         if (auto* phi = dyncast<Phi*>(user)) {
             visitPhi(*phi);
@@ -321,8 +320,8 @@ void SCCContext::notifyUsers(Value& value) {
     }
 }
 
-void SCCContext::processTerminator(FormalValue const& value,
-                                   TerminatorInst& inst) {
+void SCCPContext::processTerminator(FormalValue const& value,
+                                    TerminatorInst& inst) {
     // clang-format off
     utl::visit(utl::overload{
         [&](Unexamined) {
@@ -348,7 +347,7 @@ void SCCContext::processTerminator(FormalValue const& value,
     }, value); // clang-format on
 }
 
-void SCCContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
+void SCCPContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
     // clang-format off
     visit(inst, utl::overload{
         [&](Goto& gt)   {
@@ -368,7 +367,7 @@ void SCCContext::addSingleEdge(APInt const& constant, TerminatorInst& inst) {
     }); // clang-format on
 }
 
-bool SCCContext::basicBlockIsExecutable(BasicBlock& bb) {
+bool SCCPContext::basicBlockIsExecutable(BasicBlock& bb) {
     if (bb.isEntry()) {
         return true;
     }
@@ -380,7 +379,7 @@ bool SCCContext::basicBlockIsExecutable(BasicBlock& bb) {
     return false;
 }
 
-size_t SCCContext::numIncomingExecutableEdges(BasicBlock& basicBlock) {
+size_t SCCPContext::numIncomingExecutableEdges(BasicBlock& basicBlock) {
     size_t result = 0;
     for (auto* pred: basicBlock.predecessors()) {
         result += isExecutable({ pred, &basicBlock });
@@ -388,7 +387,7 @@ size_t SCCContext::numIncomingExecutableEdges(BasicBlock& basicBlock) {
     return result;
 }
 
-bool SCCContext::controlledByConstant(TerminatorInst const& terminator) {
+bool SCCPContext::controlledByConstant(TerminatorInst const& terminator) {
     // clang-format off
     return visit(terminator, utl::overload{
         [](Goto const&) { return true; },
@@ -400,9 +399,9 @@ bool SCCContext::controlledByConstant(TerminatorInst const& terminator) {
 template <typename T>
 concept FormalConstant = std::same_as<T, APInt> || std::same_as<T, APFloat>;
 
-FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
-                                           FormalValue const& lhs,
-                                           FormalValue const& rhs) {
+FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
+                                            FormalValue const& lhs,
+                                            FormalValue const& rhs) {
     switch (operation) {
     case ArithmeticOperation::Add:
         [[fallthrough]];
@@ -507,7 +506,7 @@ FormalValue SCCContext::evaluateArithmetic(ArithmeticOperation operation,
     }
 }
 
-FormalValue SCCContext::evaluateUnaryArithmetic(
+FormalValue SCCPContext::evaluateUnaryArithmetic(
     UnaryArithmeticOperation operation, FormalValue const& operand) {
     // clang-format off
     return utl::visit(utl::overload{
@@ -534,9 +533,9 @@ FormalValue SCCContext::evaluateUnaryArithmetic(
     }, operand); // clang-format on
 }
 
-FormalValue SCCContext::evaluateComparison(CompareOperation operation,
-                                           FormalValue const& lhs,
-                                           FormalValue const& rhs) {
+FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
+                                            FormalValue const& lhs,
+                                            FormalValue const& rhs) {
     // clang-format off
     return utl::visit(utl::overload{
         [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
@@ -571,7 +570,7 @@ FormalValue SCCContext::evaluateComparison(CompareOperation operation,
     }, lhs, rhs); // clang-format on
 }
 
-FormalValue SCCContext::formalValue(Value* value) {
+FormalValue SCCPContext::formalValue(Value* value) {
     auto const [itr, justAdded] = formalValues.insert({ value, Unexamined{} });
     auto&& [key, formalValue]   = *itr;
     if (!justAdded) {
