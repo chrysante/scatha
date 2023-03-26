@@ -4,6 +4,7 @@
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Validate.h"
 #include "Opt/Common.h"
 
 using namespace scatha;
@@ -36,7 +37,9 @@ struct InstCombineCtx {
 
 bool opt::instCombine(Context& irCtx, Function& function) {
     InstCombineCtx ctx(irCtx, function);
-    return ctx.run();
+    bool const result = ctx.run();
+    assertInvariants(irCtx, function);
+    return result;
 }
 
 bool InstCombineCtx::run() {
