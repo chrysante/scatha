@@ -126,7 +126,7 @@ bool DCEContext::run() {
 
 BasicBlock* DCEContext::nearestUsefulPostdom(BasicBlock* origin) {
     auto& postDomTree = postDomInfo.domTree();
-    auto* node        = postDomTree[origin].parent();
+    auto* node        = postDomTree[origin]->parent();
     do {
         auto* dest = node->basicBlock();
         if (usefulBlocks.contains(dest)) {
