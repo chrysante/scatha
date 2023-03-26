@@ -52,17 +52,19 @@ bool opt::dce(ir::Context& context, ir::Function& function) {
 }
 
 static bool isCritical(Instruction const& inst) {
-    return visit(inst,
-                 utl::overload{
-                     [](Return const&) { return true; },
-                     [](Store const&) { return true; },
-                     [](Call const&) {
-        // TODO: Use function attributes to check if this call really is
-        // critical
-        return true;
-                     },
-                     [](Instruction const&) { return false; },
-    });
+    // clang-format off
+    return visit(inst, utl::overload{
+        [](Return const&) { return true; },
+        [](Store const&) { return true; },
+        [](Call const& call) {
+            auto* function = call.function();
+            if (function->hasAttribute(FunctionAttribute::Memory_WriteNone)) {
+                return false;
+            }
+            return true;
+        },
+        [](Instruction const&) { return false; },
+    }); // clang-format on
 }
 
 bool DCEContext::run() {
