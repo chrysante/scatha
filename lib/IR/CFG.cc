@@ -111,6 +111,10 @@ void User::clearOperands() {
     }
 }
 
+bool User::directlyUses(Value const* value) const {
+    return ranges::find(_operands, value) != ranges::end(_operands);
+}
+
 IntegralConstant::IntegralConstant(Context& context,
                                    APInt value,
                                    size_t bitWidth):
@@ -170,7 +174,15 @@ void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
 }
 
 void BasicBlock::removePredecessor(BasicBlock const* pred) {
-    preds.erase(std::find(preds.begin(), preds.end(), pred));
+    auto itr = ranges::find(preds, pred);
+    auto index = utl::narrow_cast<size_t>(ranges::end(preds) - itr);
+    removePredecessor(index);
+}
+
+void BasicBlock::removePredecessor(size_t index) {
+    auto itr = preds.begin() + index;
+    auto* pred = *itr;
+    preds.erase(itr);
     for (auto& phi: phiNodes()) {
         phi.removeArgument(pred);
     }
@@ -389,9 +401,6 @@ void Phi::setArguments(std::span<PhiMapping const> args) {
     setType(args[0].value->type());
     setOperands(extract(args, [](PhiMapping p) { return p.value; }));
     _preds = extract(args, [](PhiMapping p) { return p.pred; });
-    for (auto& [pred, value]: args) {
-        SC_ASSERT(value->type() == type(), "Type mismatch");
-    }
 }
 
 void Phi::setArgument(BasicBlock const* pred, Value* value) {

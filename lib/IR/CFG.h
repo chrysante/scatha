@@ -123,6 +123,9 @@ public:
     /// User lists are updated.
     void clearOperands();
 
+    /// \returns `true` iff \p value is an operand of this user.
+    bool directlyUses(Value const* value) const;
+    
 protected:
     explicit User(NodeType nodeType,
                   Type const* type,
@@ -445,10 +448,14 @@ public:
         std::copy(newPreds.begin(), newPreds.end(), std::back_inserter(preds));
     }
 
-    /// Remove \p *pred from the list of predecessors of this basic block.
+    /// Remove predecessor \p *pred from the list of predecessors of this basic block.
     /// \pre \p *pred must be a listed predecessor of this basic block.
     void removePredecessor(BasicBlock const* pred);
 
+    /// Remove the predecessor at index \p index from the list of predecessors of this basic block.
+    /// \pre \p index must be valid.
+    void removePredecessor(size_t index);
+        
     /// The basic blocks directly reachable from this basic block
     template <typename TermInst = TerminatorInst>
     auto successors() {
@@ -930,15 +937,20 @@ public:
 
     explicit Return(Context& context);
 
-    /// May be null in case of a void function
+    /// Value returned by this return instruction.
+    /// If the parent function returns void, this is an unspecified value of
+    /// type void.
     Value* value() {
         return const_cast<Value*>(static_cast<Return const*>(this)->value());
     }
 
-    /// Value returned by this return instruction.
-    /// If the parent function returns void, this is an unspecified value of
-    /// type void.
+    /// \overload
     Value const* value() const { return operands()[0]; }
+    
+    /// Set the value returned by this `return` instruction.
+    void setValue(Value* newValue) {
+        setOperand(0, newValue);
+    }
 };
 
 /// `call` instruction. Calls a function.
