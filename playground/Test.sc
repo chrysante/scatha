@@ -1,9 +1,9 @@
 
 
+fn fac(n: int) -> int {
+    return n <= 1 ? 1 : fac(n - 1);
+}
+
 fn main() -> int {
-    var f = float(3);
-    f = __builtin_sqrt_f64(f);
-    
-    return int(f);
-    
+    return fac(100);
 }

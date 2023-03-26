@@ -25,10 +25,12 @@
 #include "Opt/DCE.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/Inliner.h"
+#include "Opt/TailRecElim.h"
 #include "Opt/InstCombine.h"
 #include "Opt/MemToReg.h"
 #include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
+#include "Opt/UnifyReturns.h"
 
 static int const headerWidth = 60;
 
@@ -49,61 +51,32 @@ using namespace playground;
 
 [[maybe_unused]] static void sroaPlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
-    header(" Before SROA ");
-    ir::print(mod);
-    header(" After SROA ");
     for (auto& function: mod.functions()) {
         opt::sroa(ctx, function);
-    }
-    ir::print(mod);
-    header(" After M2R ");
-    for (auto& function: mod.functions()) {
         opt::memToReg(ctx, function);
-    }
-    ir::print(mod);
-    header(" After InstCombine ");
-    for (auto& function: mod.functions()) {
         opt::instCombine(ctx, function);
-    }
-    ir::print(mod);
-    header(" After DCE ");
-    for (auto& function: mod.functions()) {
         opt::dce(ctx, function);
-    }
-    ir::print(mod);
-    header(" After SCCP ");
-    for (auto& function: mod.functions()) {
         opt::propagateConstants(ctx, function);
-    }
-    ir::print(mod);
-    header(" After SCFG ");
-    for (auto& function: mod.functions()) {
         opt::simplifyCFG(ctx, function);
     }
+    header(" Before TRE ");
+    ir::print(mod);
+    header(" After TRE ");
+    for (auto& function: mod.functions()) {
+        opt::tailRecElim(ctx, function);
+    }
     ir::print(mod);
 
-    header(" Generated assembly ");
-    auto assembly = cg::codegen(mod);
-    Asm::print(assembly);
-
-    auto& main   = mod.functions().front();
-    auto program = Asm::assemble(assembly, { std::string(main.name()) });
-
-    svm::VirtualMachine vm;
-    vm.loadProgram(program.data());
-    vm.execute();
-
-    std::cout << "Registers: \n";
-    for (auto [index, value]: vm.getState().registers |
-                                  ranges::views::take(10) |
-                                  ranges::views::enumerate)
-    {
-        std::cout << "[" << index << "] = " << value << std::endl;
-    }
-
-    std::cout << "Program returned: " << vm.getState().registers[0] << std::endl
-              << std::endl
-              << std::endl;
+    
+//    auto assembly = cg::codegen(mod);
+//    auto& main   = mod.functions().front();
+//    auto program = Asm::assemble(assembly, { std::string(main.name()) });
+//    svm::VirtualMachine vm;
+//    vm.loadProgram(program.data());
+//    vm.execute();
+//    std::cout << "Program returned: " << vm.getState().registers[0] << std::endl
+//              << std::endl
+//              << std::endl;
 }
 
 [[maybe_unused]] static void inlinerAndSimplifyCFG(std::filesystem::path path) {
