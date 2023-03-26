@@ -48,7 +48,7 @@ static constexpr std::string_view typeToStr() {
 
 template <typename T>
 static T readAs(std::span<u8 const> data, size_t offset) {
-    return read<T>(&data[offset]);
+    return load<T>(&data[offset]);
 }
 
 template <typename T>

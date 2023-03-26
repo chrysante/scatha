@@ -10,9 +10,11 @@
 #   define SVM_BUILTIN_DEF(name, ...)
 #endif
 
-SVM_BUILTIN_DEF(putchar, None,  { Int() }, Void())
-SVM_BUILTIN_DEF(puti64,  None,  { Int() }, Void())
-SVM_BUILTIN_DEF(putf64,  None,  { Float() }, Void())
-SVM_BUILTIN_DEF(sqrtf64, Const, { Float() }, Float())
+SVM_BUILTIN_DEF(putchar,   None,  { Int() }, Void())
+SVM_BUILTIN_DEF(puti64,    None,  { Int() }, Void())
+SVM_BUILTIN_DEF(putf64,    None,  { Float() }, Void())
+SVM_BUILTIN_DEF(sqrtf64,   Const, { Float() }, Float())
+SVM_BUILTIN_DEF(f64toi64,  Const, { Float() }, Int())
+SVM_BUILTIN_DEF(i64tof64,  Const, { Int() }, Float())
 
 #undef SVM_BUILTIN_DEF

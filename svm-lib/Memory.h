@@ -7,7 +7,7 @@
 namespace svm {
 
 template <typename T>
-T read(void const* ptr) {
+T load(void const* ptr) {
     std::aligned_storage_t<sizeof(T), alignof(T)> storage;
     std::memcpy(&storage, ptr, sizeof(T));
     return reinterpret_cast<T const&>(storage);

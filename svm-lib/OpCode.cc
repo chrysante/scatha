@@ -54,7 +54,7 @@ struct svm::OpCodeImpl {
     template <OpCode C>
     static auto jump(auto cond) {
         return [](u8 const* i, u64*, VirtualMachine* vm) -> u64 {
-            i32 const offset = read<i32>(&i[0]);
+            i32 const offset = load<i32>(&i[0]);
             if (decltype(cond)()(vm->flags)) {
                 vm->iptr += offset;
                 return 0;
@@ -103,7 +103,7 @@ struct svm::OpCodeImpl {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const destRegIdx = i[0];
             if (decltype(cond)()(vm->flags)) {
-                reg[destRegIdx] = read<u64>(i + 1);
+                reg[destRegIdx] = load<u64>(i + 1);
             }
             return codeSize(C);
         };
@@ -128,8 +128,8 @@ struct svm::OpCodeImpl {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdxA = i[0];
             size_t const regIdxB = i[1];
-            T const a            = read<T>(&reg[regIdxA]);
-            T const b            = read<T>(&reg[regIdxB]);
+            T const a            = load<T>(&reg[regIdxA]);
+            T const b            = load<T>(&reg[regIdxB]);
             vm->flags.less       = a < b;
             vm->flags.equal      = a == b;
             return codeSize(C);
@@ -140,8 +140,8 @@ struct svm::OpCodeImpl {
     static auto compareRV() {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdxA = i[0];
-            T const a            = read<T>(&reg[regIdxA]);
-            T const b            = read<T>(i + 1);
+            T const a            = load<T>(&reg[regIdxA]);
+            T const b            = load<T>(i + 1);
             vm->flags.less       = a < b;
             vm->flags.equal      = a == b;
             return codeSize(C);
@@ -152,7 +152,7 @@ struct svm::OpCodeImpl {
     static auto testR() {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdx = i[0];
-            T const a           = read<T>(&reg[regIdx]);
+            T const a           = load<T>(&reg[regIdx]);
             vm->flags.less      = a < 0;
             vm->flags.equal     = a == 0;
             return codeSize(C);
@@ -173,7 +173,7 @@ struct svm::OpCodeImpl {
     static auto unaryR(auto operation) {
         return [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
             size_t const regIdx = i[0];
-            auto const a        = read<T>(&reg[regIdx]);
+            auto const a        = load<T>(&reg[regIdx]);
             store(&reg[regIdx], decltype(operation)()(a));
             return codeSize(C);
         };
@@ -184,8 +184,8 @@ struct svm::OpCodeImpl {
         return [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
             size_t const regIdxA = i[0];
             size_t const regIdxB = i[1];
-            auto const a         = read<T>(&reg[regIdxA]);
-            auto const b         = read<T>(&reg[regIdxB]);
+            auto const a         = load<T>(&reg[regIdxA]);
+            auto const b         = load<T>(&reg[regIdxB]);
             store(&reg[regIdxA], decltype(operation)()(a, b));
             return codeSize(C);
         };
@@ -195,8 +195,8 @@ struct svm::OpCodeImpl {
     static auto arithmeticRV(auto operation) {
         return [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
             size_t const regIdx = i[0];
-            auto const a        = read<T>(&reg[regIdx]);
-            auto const b        = read<T>(i + 1);
+            auto const a        = load<T>(&reg[regIdx]);
+            auto const b        = load<T>(i + 1);
             store(&reg[regIdx], decltype(operation)()(a, b));
             return codeSize(C);
         };
@@ -208,8 +208,8 @@ struct svm::OpCodeImpl {
             size_t const regIdxA = i[0];
             u8* const ptr        = getPointer(reg, i + 1);
             SVM_ASSERT(reinterpret_cast<size_t>(ptr) % 8 == 0);
-            auto const a = read<T>(&reg[regIdxA]);
-            auto const b = read<T>(ptr);
+            auto const a = load<T>(&reg[regIdxA]);
+            auto const b = load<T>(ptr);
             store(&reg[regIdxA], decltype(operation)()(a, b));
             return codeSize(C);
         };
@@ -225,7 +225,7 @@ struct svm::OpCodeImpl {
 
         /// ** Function call and return **
         at(call) = [](u8 const* i, u64*, VirtualMachine* vm) -> u64 {
-            i32 const offset       = read<i32>(i);
+            i32 const offset       = load<i32>(i);
             size_t const regOffset = i[4];
             vm->regPtr += regOffset;
             vm->regPtr[-2] = regOffset;
@@ -261,7 +261,7 @@ struct svm::OpCodeImpl {
         };
         at(mov64RV) = [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
             size_t const destRegIdx = i[0];
-            reg[destRegIdx]         = read<u64>(i + 1);
+            reg[destRegIdx]         = load<u64>(i + 1);
             return codeSize(mov64RV);
         };
         at(mov8MR)  = moveMR<mov8MR, 1>();
@@ -351,7 +351,7 @@ struct svm::OpCodeImpl {
         at(itest)  = testR<itest, i64>();
         at(utest)  = testR<utest, u64>();
 
-        /// ** Read comparison results **
+        /// ** load comparison results **
         at(sete)  = set<sete>([](VMFlags f) { return f.equal; });
         at(setne) = set<setne>([](VMFlags f) { return !f.equal; });
         at(setl)  = set<setl>([](VMFlags f) { return f.less; });
@@ -428,7 +428,7 @@ struct svm::OpCodeImpl {
         at(callExt) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regPtrOffset = i[0];
             size_t const tableIdx     = i[1];
-            size_t const idxIntoTable = read<u16>(&i[2]);
+            size_t const idxIntoTable = load<u16>(&i[2]);
             vm->extFunctionTable[tableIdx][idxIntoTable](reg + regPtrOffset,
                                                          vm);
             return codeSize(callExt);
