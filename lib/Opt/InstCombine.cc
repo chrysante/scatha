@@ -18,15 +18,14 @@ struct InstCombineCtx {
 
     bool run();
 
-    bool visitInstruction(Instruction* inst);
+    /// \Returns Replacement value if possible
+    Value* visitInstruction(Instruction* inst);
 
-    bool visitImpl(Instruction* inst) { return false; }
-    bool visitImpl(ArithmeticInst* inst);
-    bool visitImpl(Phi* phi);
-    bool visitImpl(ExtractValue* inst);
-    bool visitImpl(InsertValue* inst);
-
-    void notifyUsers(Instruction* inst);
+    Value* visitImpl(Instruction* inst) { return nullptr; }
+    Value* visitImpl(ArithmeticInst* inst);
+    Value* visitImpl(Phi* phi);
+    Value* visitImpl(ExtractValue* inst);
+    Value* visitImpl(InsertValue* inst);
 
     Context& irCtx;
     Function& function;
@@ -48,9 +47,20 @@ bool InstCombineCtx::run() {
     while (!worklist.empty()) {
         Instruction* inst = *worklist.begin();
         worklist.erase(worklist.begin());
-        modifiedAny |= visitInstruction(inst);
+        auto* replacement = visitInstruction(inst);
+        if (!replacement) {
+            continue;
+        }
+        replaceValue(inst, replacement);
+        worklist.insert(inst->users().begin(), inst->users().end());
+        inst->parent()->erase(inst);
+        modifiedAny = true;
     }
     return modifiedAny;
+}
+
+Value* InstCombineCtx::visitInstruction(Instruction* inst) {
+    return visit(*inst, [this](auto& inst) { return visitImpl(&inst); });
 }
 
 static bool isConstant(Value const* value, int constant) {
@@ -61,7 +71,7 @@ static bool isConstant(Value const* value, int constant) {
     return cval->value() == static_cast<uint64_t>(constant);
 }
 
-static Value* simplifyArithmetic(Context& irCtx, ArithmeticInst* inst) {
+Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
     auto* const lhs       = inst->lhs();
     auto* const rhs       = inst->rhs();
     auto* const intType   = dyncast<IntegralType const*>(inst->type());
@@ -115,34 +125,17 @@ static Value* simplifyArithmetic(Context& irCtx, ArithmeticInst* inst) {
     return nullptr;
 }
 
-bool InstCombineCtx::visitImpl(ArithmeticInst* inst) {
-    auto* newVal = simplifyArithmetic(irCtx, inst);
-    if (!newVal) {
-        return false;
-    }
-    notifyUsers(inst);
-    opt::replaceValue(inst, newVal);
-    return true;
-}
-
-bool InstCombineCtx::visitInstruction(Instruction* inst) {
-    return visit(*inst, [this](auto& inst) { return visitImpl(&inst); });
-}
-
-bool InstCombineCtx::visitImpl(Phi* phi) {
+Value* InstCombineCtx::visitImpl(Phi* phi) {
     Value* const first = phi->operands().front();
     bool const allEqual =
         ranges::all_of(phi->operands(), [&](auto* op) { return op == first; });
     if (!allEqual) {
-        return false;
+        return nullptr;
     }
-    notifyUsers(phi);
-    replaceValue(phi, first);
-    phi->parent()->erase(phi);
-    return true;
+    return first;
 }
 
-bool InstCombineCtx::visitImpl(ExtractValue* extractInst) {
+Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     for (auto* insertInst = dyncast<InsertValue*>(extractInst->baseValue());
          insertInst != nullptr;
          insertInst = dyncast<InsertValue*>(insertInst->baseValue()))
@@ -150,24 +143,18 @@ bool InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         if (ranges::equal(extractInst->memberIndices(),
                           insertInst->memberIndices()))
         {
-            notifyUsers(extractInst);
-            replaceValue(extractInst, insertInst->insertedValue());
-            return true;
+            return insertInst->insertedValue();
         }
     }
-    return false;
+    return nullptr;
 }
 
-bool InstCombineCtx::visitImpl(InsertValue* insertInst) {
+Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
 #if 0
     utl::small_vector<InsertValue*> insts;
     for (; insertInst != nullptr; insertInst = dyncast<InsertValue*>(insertInst->baseValue())) {
         insts.push_back(insertInst);
     }
 #endif
-    return false;
-}
-
-void InstCombineCtx::notifyUsers(Instruction* inst) {
-    worklist.insert(inst->users().begin(), inst->users().end());
+    return nullptr;
 }
