@@ -23,12 +23,14 @@ SymbolTable::SymbolTable():
         declareBuiltinType("string", sizeof(std::string), alignof(std::string));
 
     /// Declare builtin functions
-#define SVM_BUILTIN_DEF(name, ...)                                             \
+#define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
     declareBuiltinFunction(                                                    \
         #name,                                                                 \
         /* slot = */ svm::builtinFunctionSlot,                                 \
         /* index = */ static_cast<size_t>(svm::Builtin::name),                 \
-        FunctionSignature(__VA_ARGS__));
+        FunctionSignature(__VA_ARGS__),                                        \
+        attrs);
+    using enum FunctionAttribute;
 #include <svm/Builtin.def>
 }
 
@@ -136,7 +138,8 @@ Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(
                             Function(name.id,
                                      /* functionID = */ newSymbolID,
                                      /* overloadSetID = */ overloadSetID,
-                                     &currentScope()) });
+                                     &currentScope(),
+                                     FunctionAttribute::None) });
     SC_ASSERT(success, "?");
     Function& function = itr->second;
     currentScope().add(function);
@@ -170,7 +173,8 @@ Expected<void, SemanticIssue> SymbolTable::setSignature(SymbolID functionID,
 bool SymbolTable::declareBuiltinFunction(std::string name,
                                          size_t slot,
                                          size_t index,
-                                         FunctionSignature signature) {
+                                         FunctionSignature signature,
+                                         FunctionAttribute attrs) {
     utl::scope_guard restoreScope = [this, scope = &currentScope()] {
         makeScopeCurrent(scope);
     };
@@ -186,6 +190,7 @@ bool SymbolTable::declareBuiltinFunction(std::string name,
     decl._isExtern = true;
     decl._slot     = utl::narrow_cast<u32>(slot);
     decl._index    = utl::narrow_cast<u32>(index);
+    decl.attrs     = attrs;
     return true;
 }
 

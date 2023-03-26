@@ -196,8 +196,11 @@ Callable::Callable(NodeType nodeType,
                    FunctionType const* functionType,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
-                   std::string name):
-    Constant(nodeType, functionType, std::move(name)), _returnType(returnType) {
+                   std::string name,
+                   FunctionAttribute attr):
+    Constant(nodeType, functionType, std::move(name)),
+    _returnType(returnType),
+    attrs(attr) {
     for (auto [index, type]: parameterTypes | ranges::views::enumerate) {
         params.emplace_back(type, index++, this);
     }
@@ -206,12 +209,14 @@ Callable::Callable(NodeType nodeType,
 Function::Function(FunctionType const* functionType,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
-                   std::string name):
+                   std::string name,
+                   FunctionAttribute attr):
     Callable(NodeType::Function,
              functionType,
              returnType,
              parameterTypes,
-             std::move(name)) {
+             std::move(name),
+             attr) {
     for (auto& param: parameters()) {
         bool const nameUnique = nameFac.tryRegister(param.name());
         SC_ASSERT(nameUnique, "How are the parameter names not unique?");
@@ -238,12 +243,14 @@ ExtFunction::ExtFunction(FunctionType const* functionType,
                          std::span<Type const* const> parameterTypes,
                          std::string name,
                          uint32_t slot,
-                         uint32_t index):
+                         uint32_t index,
+                         FunctionAttribute attr):
     Callable(NodeType::ExtFunction,
              functionType,
              returnType,
              parameterTypes,
-             std::move(name)),
+             std::move(name),
+             attr),
     _slot(slot),
     _index(index) {}
 

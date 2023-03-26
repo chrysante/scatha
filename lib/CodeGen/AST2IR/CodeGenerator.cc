@@ -592,6 +592,18 @@ void CodeGenContext::declareTypes() {
     }
 }
 
+static ir::FunctionAttribute translateAttrs(sema::FunctionAttribute attr) {
+    switch (attr) {
+        using enum ir::FunctionAttribute;
+    case sema::FunctionAttribute::Pure:
+        return Memory_WriteNone;
+    case sema::FunctionAttribute::Const:
+        return Memory_ReadNone | Memory_WriteNone;
+    default:
+        return None;
+    }
+}
+
 void CodeGenContext::declareFunctions() {
     for (sema::Function const& function: symTable.functions()) {
         auto paramTypes =
@@ -609,7 +621,8 @@ void CodeGenContext::declareFunctions() {
                 paramTypes,
                 std::string(function.name()),
                 utl::narrow_cast<uint32_t>(function.slot()),
-                utl::narrow_cast<uint32_t>(function.index()));
+                utl::narrow_cast<uint32_t>(function.index()),
+                translateAttrs(function.attributes()));
             functionMap[function.symbolID()] = fn.get();
             mod.addGlobal(std::move(fn));
         }
@@ -620,7 +633,8 @@ void CodeGenContext::declareFunctions() {
                                            function.signature().returnTypeID()),
                                        paramTypes,
                                        mangledName(function.symbolID(),
-                                                   function.name()));
+                                                   function.name()),
+                                       translateAttrs(function.attributes()));
             functionMap[function.symbolID()] = fn.get();
             mod.addFunction(std::move(fn));
         }

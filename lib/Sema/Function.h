@@ -3,6 +3,7 @@
 #ifndef SCATHA_SEMA_FUNCTION_H_
 #define SCATHA_SEMA_FUNCTION_H_
 
+#include <scatha/Sema/Attributes.h>
 #include <scatha/Sema/EntityBase.h>
 #include <scatha/Sema/FunctionSignature.h>
 
@@ -13,28 +14,48 @@ public:
     explicit Function(std::string name,
                       SymbolID functionID,
                       SymbolID overloadSetID,
-                      Scope* parentScope):
+                      Scope* parentScope,
+                      FunctionAttribute attrs):
         Scope(ScopeKind::Function, std::move(name), functionID, parentScope),
+        attrs(attrs),
         _overloadSetID(overloadSetID) {}
 
+    /// \Returns The type ID of this function.
     TypeID typeID() const { return signature().typeID(); }
+
+    /// \Returns The overload set ID of this function.
     SymbolID overloadSetID() const { return _overloadSetID; }
 
+    /// \Returns The signature of this function.
     FunctionSignature const& signature() const { return _sig; }
 
-    /// Wether this function is an external function.
+    /// \Returns `true` iff this function is an external function.
     bool isExtern() const { return _isExtern; }
 
-    /// Only applicable if this function is extern
+    /// \returns Slot of extern function table.
+    ///
+    /// Only applicable if this function is extern.
     size_t slot() const { return _slot; }
 
-    /// Only applicable if this function is extern
+    /// \returns Index into slot of extern function table.
+    ///
+    /// Only applicable if this function is extern.
     size_t index() const { return _index; }
+
+    /// \returns Bitfield of function attributes
+    FunctionAttribute attributes() const { return attrs; }
+
+    /// Set attribute \p attr to `true`.
+    void setAttribute(FunctionAttribute attr) { attrs |= attr; }
+
+    /// Set attribute \p attr to `false`.
+    void removeAttribute(FunctionAttribute attr) { attrs &= ~attr; }
 
 private:
     friend class SymbolTable; /// To set `_sig` and `_isExtern`
     FunctionSignature _sig;
     SymbolID _overloadSetID;
+    FunctionAttribute attrs;
     u32 _slot      : 31 = 0;
     bool _isExtern : 1  = false;
     u32 _index          = 0;

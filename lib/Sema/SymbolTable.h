@@ -105,7 +105,8 @@ public:
     bool declareBuiltinFunction(std::string name,
                                 size_t slot,
                                 size_t index,
-                                FunctionSignature signature);
+                                FunctionSignature signature,
+                                FunctionAttribute attrs);
 
     /// \brief Declares a variable to the current scope without type.
     ///

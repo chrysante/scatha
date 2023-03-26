@@ -134,7 +134,8 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
     auto result = allocate<Function>(nullptr,
                                      function->returnType(),
                                      paramTypes,
-                                     std::string(function->name()));
+                                     std::string(function->name()),
+                                     function->attributes());
     ValueMap valueMap;
     for (auto& bb: *function) {
         auto* cloned  = ::clone(context, &bb, valueMap);

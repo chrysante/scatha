@@ -590,7 +590,8 @@ protected:
                       FunctionType const* functionType,
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
-                      std::string name);
+                      std::string name,
+                      FunctionAttribute attr);
 
 private:
     List<Parameter> params;
@@ -632,7 +633,8 @@ public:
     explicit Function(FunctionType const* functionType,
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
-                      std::string name);
+                      std::string name,
+                      FunctionAttribute attr);
 
     /// \returns the entry basic block of this function
     BasicBlock& entry() { return front(); }
@@ -671,7 +673,8 @@ public:
                          std::span<Type const* const> parameterTypes,
                          std::string name,
                          uint32_t slot,
-                         uint32_t index);
+                         uint32_t index,
+                         FunctionAttribute attr);
 
     /// Slot in external function table of VM.
     size_t slot() const { return _slot; }

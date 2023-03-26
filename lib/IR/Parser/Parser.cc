@@ -204,7 +204,8 @@ UniquePtr<Function> ParseContext::parseFunction() {
     auto result = allocate<Function>(nullptr,
                                      returnType,
                                      parameterTypes,
-                                     std::string(name.id()));
+                                     std::string(name.id()),
+                                     FunctionAttribute::None);
     expect(eatToken(), "{");
     /// Parse the body of the function.
     instructions.clear();

@@ -6,6 +6,8 @@
 namespace scatha::ir {
 
 enum class FunctionAttribute : unsigned {
+    None             = 0,
+    All              = unsigned(-1),
     Memory_ReadNone  = 1 << 0,
     Memory_WriteNone = 1 << 1,
     Memory_None      = Memory_ReadNone | Memory_WriteNone
