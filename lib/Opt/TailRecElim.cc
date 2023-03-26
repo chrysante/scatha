@@ -71,6 +71,8 @@ struct TREContext {
 
     std::optional<ViableReturn> getViableReturn(BasicBlock*) const;
 
+    bool isInterestingCall(Value const* inst) const;
+    
     static bool isCommutativeAndAssociative(ArithmeticInst const* inst);
 
     Value* identityValue(ArithmeticInst const* inst) const;
@@ -245,11 +247,11 @@ std::optional<ViableReturn> TREContext::getViableReturn(BasicBlock* bb) const {
                 return std::nullopt;
             }
             auto [call, other] = std::tuple(inst.lhs(), inst.rhs());
-            if (!isa<Call>(call)) {
+            if (!isInterestingCall(call)) {
                 std::swap(call, other);
-            }
-            if (!isa<Call>(call)) {
-                return std::nullopt;
+                if (!isInterestingCall(call)) {
+                    return std::nullopt;
+                }
             }
             return AccumulatedReturn{
               { .retInst      = ret },
@@ -268,6 +270,9 @@ std::optional<ViableReturn> TREContext::getViableReturn(BasicBlock* bb) const {
                 auto* constant = dyncast<Constant*>(a);
                 if (!constant) { return std::nullopt; }
                 if (auto* call = dyncast<Call*>(b)) {
+                    if (call->function() != &function) {
+                        return std::nullopt;
+                    }
                     return DirectPhiReturn{
                       { .retInst      = ret },
                         .phi          = &phi,
@@ -282,11 +287,11 @@ std::optional<ViableReturn> TREContext::getViableReturn(BasicBlock* bb) const {
                     return std::nullopt;
                 }
                 auto [call, other] = std::tuple(accOp->lhs(), accOp->rhs());
-                if (!isa<Call>(call)) {
+                if (!isInterestingCall(call)) {
                     std::swap(call, other);
-                }
-                if (!isa<Call>(call)) {
-                    return std::nullopt;
+                    if (!isInterestingCall(call)) {
+                        return std::nullopt;
+                    }
                 }
                 return AccumulatedPhiReturn{
                   { .retInst      = ret },
@@ -310,13 +315,18 @@ std::optional<ViableReturn> TREContext::getViableReturn(BasicBlock* bb) const {
     }); // clang-format on
 }
 
+bool TREContext::isInterestingCall(Value const* inst) const {
+    auto* call = dyncast<Call const*>(inst);
+    return call && call->function() == &function;
+}
+
 bool TREContext::isCommutativeAndAssociative(ArithmeticInst const* inst) {
     switch (inst->operation()) {
     case ArithmeticOperation::Add:
     case ArithmeticOperation::Mul:
     case ArithmeticOperation::And:
     case ArithmeticOperation::Or:
-//    case ArithmeticOperation::XOr:
+        //    case ArithmeticOperation::XOr:
         return true;
     default:
         return false;
@@ -333,8 +343,8 @@ Value* TREContext::identityValue(ArithmeticInst const* inst) const {
         return irCtx.integralConstant(APInt(-1, 64));
     case ArithmeticOperation::Or:
         return irCtx.integralConstant(APInt(0, 64));
-//    case ArithmeticOperation::XOr:
-//        return irCtx.integralConstant(APInt(0, 64));
+        //    case ArithmeticOperation::XOr:
+        //        return irCtx.integralConstant(APInt(0, 64));
     default:
         SC_UNREACHABLE();
     }
