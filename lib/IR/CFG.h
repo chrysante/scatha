@@ -13,6 +13,7 @@
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
 #include "Common/UniquePtr.h"
+#include "IR/Attributes.h"
 #include "IR/Common.h"
 #include "IR/Iterator.h"
 #include "IR/List.h"
@@ -570,6 +571,20 @@ public:
     /// \returns the return type of this function
     Type const* returnType() const { return _returnType; }
 
+    /// \returns The attribute bitfield of this function.
+    FunctionAttribute attributes() const { return attrs; }
+
+    /// \returns `true` iff attribute `attr` is set on this function.
+    bool hasAttribute(FunctionAttribute attr) const {
+        return test(attrs & attr);
+    }
+
+    /// Set attribute `attr` to `true`.
+    void setAttribute(FunctionAttribute attr) { attrs |= attr; }
+
+    /// Set attribute `attr` to `false`.
+    void removeAttribute(FunctionAttribute attr) { attrs &= ~attr; }
+
 protected:
     explicit Callable(NodeType nodeType,
                       FunctionType const* functionType,
@@ -580,6 +595,7 @@ protected:
 private:
     List<Parameter> params;
     Type const* _returnType;
+    FunctionAttribute attrs;
 };
 
 /// Represents a function. A function is a prototype with a list of basic
