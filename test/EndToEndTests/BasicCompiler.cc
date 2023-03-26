@@ -97,19 +97,7 @@ void test::checkReturns(u64 value, std::string_view text) {
         [](ir::Context&, ir::Module&) {},
         [](ir::Context& ctx, ir::Module& mod) {
             opt::inlineFunctions(ctx, mod);
-        },
-        /// Technically we can remove these two because the inliner already performs these optimizations, but we'll leave them in for now...
-        [](ir::Context& ctx, ir::Module& mod) {
-            for (auto& function: mod.functions()) {
-                opt::memToReg(ctx, function);
-            }
-        },
-        [](ir::Context& ctx, ir::Module& mod) {
-            for (auto& function: mod.functions()) {
-                opt::memToReg(ctx, function);
-                opt::propagateConstants(ctx, function);
-            }
-        },
+        }
     }; // clang-format on
     for (auto [index, level]: levels | ranges::views::enumerate) {
         CHECK(compileAndExecute(text, level) == value);

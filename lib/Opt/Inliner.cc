@@ -9,6 +9,7 @@
 #include "Opt/MemToReg.h"
 #include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
+#include "Opt/TailRecElim.h"
 
 using namespace scatha;
 using namespace ir;
@@ -169,9 +170,18 @@ bool Inliner::optimize(Function& function) const {
     bool modifiedAny = false;
     modifiedAny |= sroa(ctx, function);
     modifiedAny |= memToReg(ctx, function);
-    modifiedAny |= instCombine(ctx, function);
-    modifiedAny |= propagateConstants(ctx, function);
-    modifiedAny |= dce(ctx, function);
-    modifiedAny |= simplifyCFG(ctx, function);
+    int const tripLimit = 4;
+    for (int i = 0; i < tripLimit; ++i) {
+        bool modified = false;
+        modified |= instCombine(ctx, function);
+        modified |= propagateConstants(ctx, function);
+        modified |= dce(ctx, function);
+        modified |= simplifyCFG(ctx, function);
+        modified |= tailRecElim(ctx, function);
+        if (!modified) {
+            break;
+        }
+        modifiedAny = true;
+    }
     return modifiedAny;
 }
