@@ -1,15 +1,15 @@
-//! Run with ./scatha-c -r -f mandelbrotset.sc
-
+//! Compile with: ./scatha-c -f mandelbrotset.sc
+//! Run with:     ./svm -f mandelbrotset.sbin
 
 fn main() -> int {
-    let width = 160.0;
-    let height = 60.0;
+    let width = 160;
+    let height = 60;
     let scale = 1.0;
-    for j = 0.0; j < height; j += 1.0 {
-        for i = 0.0; i < width; i += 1.0 {
+    for j = 0; j < height; ++j {
+        for i = 0; i < width; ++i {
             var z: Complex;
-            z.x = 2.0 / scale * ((i / width) - 0.5) * width / (2.0 * height);
-            z.y = 2.0 / scale * ((1.0 - j / height) - 0.5);
+            z.x = 2.0 / scale * ((float(i) / float(width)) - 0.5) * float(width) / (2.0 * float(height));
+            z.y = 2.0 / scale * ((1.0 - float(j) / float(height)) - 0.5);
             printDot(sqrt(mandelbrotSet(z)));
         }    
         printNewLine();
