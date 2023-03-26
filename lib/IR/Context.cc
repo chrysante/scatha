@@ -66,15 +66,26 @@ FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitWidth) {
     return itr->second;
 }
 
+FloatingPointConstant* Context::floatConstant(double value, size_t bitWidth) {
+    switch (bitWidth) {
+    case 32:
+        return floatConstant(APFloat(value, APFloatPrec::Single), 32);
+    case 64:
+        return floatConstant(APFloat(value, APFloatPrec::Double), 64);
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 UndefValue* Context::undef(Type const* type) {
     auto itr = _undefConstants.find(type);
     if (itr == _undefConstants.end()) {
         bool success = false;
         std::tie(itr, success) =
-            _undefConstants.insert({ type, new UndefValue(type) });
+            _undefConstants.insert({ type, allocate<UndefValue>(type) });
         SC_ASSERT(success, "");
     }
-    return itr->second;
+    return itr->second.get();
 }
 
 Value* Context::voidValue() { return undef(voidType()); }

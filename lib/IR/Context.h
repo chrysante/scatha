@@ -47,6 +47,10 @@ public:
     /// value \p value
     FloatingPointConstant* floatConstant(APFloat value, size_t bitWidth);
 
+    /// \returns the global floating point constant of \p bitWidth bits with
+    /// value \p value
+    FloatingPointConstant* floatConstant(double value, size_t bitWidth);
+
     /// \returns the `undef` constant of type \p type
     UndefValue* undef(Type const* type);
 
@@ -60,7 +64,7 @@ private:
     /// We use `std::map` here because floats are not really hashable.
     std::map<std::pair<APFloat, size_t>, FloatingPointConstant*>
         _floatConstants;
-    utl::hashmap<Type const*, UndefValue*> _undefConstants;
+    utl::hashmap<Type const*, UniquePtr<UndefValue>> _undefConstants;
 
     /// ## Types
     utl::vector<UniquePtr<Type>> _types;
@@ -68,9 +72,6 @@ private:
     PointerType const* _ptrType;
     utl::hashmap<uint32_t, IntegralType const*> _intTypes;
     utl::hashmap<uint32_t, FloatType const*> _floatTypes;
-
-    // For unique names
-    utl::hashmap<std::pair<Function const*, std::string>, size_t> varIndices;
 };
 
 } // namespace scatha::ir
