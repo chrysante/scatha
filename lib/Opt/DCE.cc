@@ -5,6 +5,7 @@
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
+#include "Basic/Basic.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
@@ -78,6 +79,28 @@ bool DCEContext::run() {
         ranges::views::filter([](auto* inst) { return isCritical(*inst); });
     for (auto* inst: criticalInstructions) {
         mark(inst);
+    }
+    if (postDomInfo.domTree().empty()) /// The function has no exits.
+    {
+        if (marked.empty()) {
+            /// A non terminating function without critical instructions is
+            /// undefined behaviour. We delete the body.
+            SC_ASSERT(&function.front() != &function.back() ||
+                          &function.front().front() != &function.front().back(),
+                      "`function` is empty, however then it should have a "
+                      "return statement");
+            function.clear();
+            function.pushBack(new BasicBlock(irCtx, "entry"));
+            function.entry().pushBack(
+                new Return(irCtx, irCtx.undef(function.returnType())));
+            return true;
+        }
+        else {
+            /// We can't delete the body due to critical instruction, and we
+            /// can't run the algorithm because we can't compute post dom info.
+            /// We'll just leave.
+            return false;
+        }
     }
     /// Mark phase
     while (!worklist.empty()) {
