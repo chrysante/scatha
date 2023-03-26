@@ -584,16 +584,16 @@ FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
 
 FormalValue SCCPContext::evaluateCall(Callable const* function,
                                       std::span<FormalValue const> args) {
+    /// Right now we can atmost evaluate certain builtin functions.
+    auto* extFn = dyncast<ExtFunction const*>(function);
+    if (!extFn) {
+        return Inevaluable{};
+    }
     /// We need all arguments be constant to evaluate this.
     if (!ranges::all_of(args, [&](FormalValue const& value) {
             return isConstant(value);
         }))
     {
-        return Inevaluable{};
-    }
-    /// Right now we can atmost evaluate certain builtin functions.
-    auto* extFn = dyncast<ExtFunction const*>(function);
-    if (!extFn) {
         return Inevaluable{};
     }
     if (extFn->slot() != svm::builtinFunctionSlot) {

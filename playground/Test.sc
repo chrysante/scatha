@@ -1,6 +1,9 @@
 
 
 fn main() -> int {
-    return int(1.0);
+    var f = float(3);
+    f = __builtin_sqrt_f64(f);
+    
+    return int(f);
     
 }
