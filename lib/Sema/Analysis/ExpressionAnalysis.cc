@@ -298,40 +298,36 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     if (!objRes) {
         return ExpressionAnalysisResult::fail();
     }
-    /// We can only call lvalues right now which also must be overload sets (aka
-    /// functions) until we have function pointers or overloading of operator().
-    /// To implement the latter we must get the type of the expression and look
-    /// in the scope for `operator()` It might be an idea to make all functions
-    /// class types with defined `operator()`
-    if (!objRes.isLValue()) {
-        iss.push(BadFunctionCall(fc,
-                                 SymbolID::Invalid,
-                                 argTypes,
-                                 BadFunctionCall::Reason::ObjectNotCallable));
-        return ExpressionAnalysisResult::fail();
+    switch (objRes.symbolID().category()) {
+    case SymbolCategory::OverloadSet: {
+        auto const& overloadSet = sym.getOverloadSet(objRes.symbolID());
+        auto const* functionPtr = overloadSet.find(argTypes);
+        if (!functionPtr) {
+            iss.push(
+                BadFunctionCall(fc,
+                                objRes.symbolID(),
+                                argTypes,
+                                BadFunctionCall::Reason::NoMatchingFunction));
+            return ExpressionAnalysisResult::fail();
+        }
+        auto const& function = *functionPtr;
+        fc.decorate(function.symbolID(),
+                    /* typeID = */ function.signature().returnTypeID(),
+                    ast::ValueCategory::RValue);
+        return ExpressionAnalysisResult::rvalue(fc.typeID());
     }
-    if (objRes.symbolID().category() != SymbolCategory::OverloadSet) {
-        iss.push(BadFunctionCall(fc,
-                                 SymbolID::Invalid,
-                                 argTypes,
-                                 BadFunctionCall::Reason::ObjectNotCallable));
-        return ExpressionAnalysisResult::fail();
-    }
-    auto const& overloadSet = sym.getOverloadSet(objRes.symbolID());
 
-    auto const* functionPtr = overloadSet.find(argTypes);
-    if (!functionPtr) {
+    case SymbolCategory::ObjectType: {
+        SC_DEBUGFAIL();
+    }
+
+    default:
         iss.push(BadFunctionCall(fc,
-                                 objRes.symbolID(),
+                                 SymbolID::Invalid,
                                  argTypes,
-                                 BadFunctionCall::Reason::NoMatchingFunction));
+                                 BadFunctionCall::Reason::ObjectNotCallable));
         return ExpressionAnalysisResult::fail();
     }
-    auto const& function = *functionPtr;
-    fc.decorate(function.symbolID(),
-                /* typeID = */ function.signature().returnTypeID(),
-                ast::ValueCategory::RValue);
-    return ExpressionAnalysisResult::rvalue(fc.typeID());
 }
 
 bool Context::verifyConversion(ast::Expression const& from, TypeID to) const {

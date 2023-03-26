@@ -24,6 +24,10 @@ std::ostream& operator<<(std::ostream& str, SymbolCategory cat) {
     return str << toString(cat);
 }
 
+SymbolID SymbolID::InvalidWithCategory(SymbolCategory cat) {
+    return SymbolID(0, cat);
+}
+
 u64 SymbolID::hash() const {
     u64 x = rawValue();
     x     = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);

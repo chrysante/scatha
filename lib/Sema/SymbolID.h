@@ -37,6 +37,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, SymbolCategory);
 class SymbolID {
 public:
     static SymbolID const Invalid;
+    static SymbolID InvalidWithCategory(SymbolCategory cat);
 
 public:
     constexpr SymbolID() = default;
