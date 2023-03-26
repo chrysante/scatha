@@ -56,10 +56,13 @@ static bool isCritical(Instruction const& inst) {
                  utl::overload{
                      [](Return const&) { return true; },
                      [](Store const&) { return true; },
-                     [](FunctionCall const&) { return true; },
-                     [](ExtFunctionCall const&) { return true; },
+                     [](Call const&) {
+        // TODO: Use function attributes to check if this call really is
+        // critical
+        return true;
+                     },
                      [](Instruction const&) { return false; },
-                 });
+    });
 }
 
 bool DCEContext::run() {

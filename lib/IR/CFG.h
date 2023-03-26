@@ -559,15 +559,14 @@ class SCATHA_API Callable: public Constant {
         return self.params | ranges::views::transform(
                                  [](auto& param) -> auto& { return param; });
     }
-    
+
 public:
-    
     /// \returns a view over the function parameters
     auto parameters() { return getParametersImpl(*this); }
 
     /// \overload
     auto parameters() const { return getParametersImpl(*this); }
-    
+
     /// \returns the return type of this function
     Type const* returnType() const { return _returnType; }
 
@@ -577,7 +576,7 @@ protected:
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
                       std::string name);
-    
+
 private:
     List<Parameter> params;
     Type const* _returnType;
@@ -654,8 +653,10 @@ public:
     explicit ExtFunction(FunctionType const* functionType,
                          Type const* returnType,
                          std::span<Type const* const> parameterTypes,
-                         std::string name);
-    
+                         std::string name,
+                         uint32_t slot,
+                         uint32_t index);
+
     /// Slot in external function table of VM.
     size_t slot() const { return _slot; }
 
@@ -663,7 +664,7 @@ public:
     size_t index() const { return _index; }
 
 private:
-    u32 _slot, _index;
+    uint32_t _slot, _index;
 };
 
 /// `alloca` instruction. Allocates automatically managed memory for local
@@ -926,53 +927,19 @@ public:
 /// \details
 /// Callee is stored as the first operand. Arguments are the following operands
 /// starting from index 1.
-class SCATHA_API FunctionCall: public Instruction {
+class SCATHA_API Call: public Instruction {
 public:
-    explicit FunctionCall(Function* function,
-                          std::span<Value* const> arguments,
-                          std::string name);
+    explicit Call(Callable* function,
+                  std::span<Value* const> arguments,
+                  std::string name);
 
-    Function* function() { return cast<Function*>(operands()[0]); }
-    Function const* function() const {
-        return cast<Function const*>(operands()[0]);
+    Callable* function() { return cast<Callable*>(operands()[0]); }
+    Callable const* function() const {
+        return cast<Callable const*>(operands()[0]);
     }
 
     auto arguments() { return operands() | ranges::views::drop(1); }
     auto arguments() const { return operands() | ranges::views::drop(1); }
-};
-
-/// `ext call` instruction. Calls an external function.
-///
-/// \details
-/// Call arguments are the operands. Callee information is not visible to
-/// `Instruction` base class, as it's just indices.
-class SCATHA_API ExtFunctionCall: public Instruction {
-public:
-    explicit ExtFunctionCall(size_t slot,
-                             size_t index,
-                             std::string functionName,
-                             std::span<Value* const> arguments,
-                             ir::Type const* returnType,
-                             std::string name);
-
-    /// Slot in external function table of VM.
-    size_t slot() const { return _slot; }
-
-    /// Index into slot.
-    size_t index() const { return _index; }
-
-    /// Name of the called function.
-    std::string_view functionName() const { return _functionName; }
-
-    /// Arguments for this call.
-    std::span<Value* const> arguments() { return operands(); }
-
-    /// \overload
-    std::span<Value const* const> arguments() const { return operands(); }
-
-private:
-    u32 _slot, _index;
-    std::string _functionName;
 };
 
 /// `phi` instruction. Select a value based on where control flow comes from.

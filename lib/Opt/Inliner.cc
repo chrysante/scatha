@@ -19,9 +19,10 @@ using SCC = SCCCallGraph::SCCNode;
 using FunctionNode = SCCCallGraph::FunctionNode;
 
 static bool shouldInlineCallsite(SCCCallGraph const& callGraph,
-                                 FunctionCall const* call) {
+                                 Call const* call) {
+    SC_ASSERT(isa<Function>(call->function()), "");
     auto& caller = callGraph[call->parent()->parent()];
-    auto& callee = callGraph[call->function()];
+    auto& callee = callGraph[cast<Function const*>(call->function())];
     /// We can inline direct recursion, not yet at least...
     if (&caller == &callee) {
         return false;

@@ -197,8 +197,7 @@ Callable::Callable(NodeType nodeType,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
                    std::string name):
-    Constant(nodeType, functionType, std::move(name)),
-    _returnType(returnType) {
+    Constant(nodeType, functionType, std::move(name)), _returnType(returnType) {
     for (auto [index, type]: parameterTypes | ranges::views::enumerate) {
         params.emplace_back(type, index++, this);
     }
@@ -208,7 +207,11 @@ Function::Function(FunctionType const* functionType,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
                    std::string name):
-    Callable(NodeType::Function, functionType, returnType, parameterTypes, std::move(name)) {
+    Callable(NodeType::Function,
+             functionType,
+             returnType,
+             parameterTypes,
+             std::move(name)) {
     for (auto& param: parameters()) {
         bool const nameUnique = nameFac.tryRegister(param.name());
         SC_ASSERT(nameUnique, "How are the parameter names not unique?");
@@ -233,8 +236,16 @@ void Function::eraseCallback(BasicBlock const& bb) {
 ExtFunction::ExtFunction(FunctionType const* functionType,
                          Type const* returnType,
                          std::span<Type const* const> parameterTypes,
-                         std::string name):
-    Callable(NodeType::ExtFunction, functionType, returnType, parameterTypes, std::move(name)) {}
+                         std::string name,
+                         uint32_t slot,
+                         uint32_t index):
+    Callable(NodeType::ExtFunction,
+             functionType,
+             returnType,
+             parameterTypes,
+             std::move(name)),
+    _slot(slot),
+    _index(index) {}
 
 Return::Return(Context& context): Return(context, context.voidValue()) {}
 
@@ -343,32 +354,16 @@ TerminatorInst::TerminatorInst(NodeType nodeType,
     setOperands(std::move(ops));
 }
 
-FunctionCall::FunctionCall(Function* function,
-                           std::span<Value* const> arguments,
-                           std::string name):
-    Instruction(NodeType::FunctionCall,
-                function->returnType(),
-                std::move(name)) {
+Call::Call(Callable* function,
+           std::span<Value* const> arguments,
+           std::string name):
+    Instruction(NodeType::Call, function->returnType(), std::move(name)) {
     utl::small_vector<Value*> args;
     args.reserve(1 + arguments.size());
     args.push_back(function);
     ranges::copy(arguments, std::back_inserter(args));
     setOperands(std::move(args));
 }
-
-ExtFunctionCall::ExtFunctionCall(size_t slot,
-                                 size_t index,
-                                 std::string functionName,
-                                 std::span<Value* const> arguments,
-                                 ir::Type const* returnType,
-                                 std::string name):
-    Instruction(NodeType::ExtFunctionCall,
-                returnType,
-                std::move(name),
-                arguments),
-    _slot(utl::narrow_cast<u32>(slot)),
-    _index(utl::narrow_cast<u32>(index)),
-    _functionName(std::move(functionName)) {}
 
 template <typename E>
 static auto extract(std::span<PhiMapping const> args, E extractor) {

@@ -61,19 +61,10 @@ static Return* doClone(Context& context, Return* inst) {
     return new Return(context, inst->value());
 }
 
-static FunctionCall* doClone(Context& context, FunctionCall* inst) {
-    return new FunctionCall(inst->function(),
-                            inst->arguments(),
-                            std::string(inst->name()));
-}
-
-static ExtFunctionCall* doClone(Context& context, ExtFunctionCall* inst) {
-    return new ExtFunctionCall(inst->slot(),
-                               inst->index(),
-                               std::string(inst->functionName()),
-                               inst->arguments(),
-                               inst->type(),
-                               std::string(inst->name()));
+static Call* doClone(Context& context, Call* inst) {
+    return new Call(inst->function(),
+                    inst->arguments(),
+                    std::string(inst->name()));
 }
 
 static Phi* doClone(Context& context, Phi* inst) {

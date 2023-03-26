@@ -39,8 +39,7 @@ struct CodeGenContext {
     void generate(ir::ArithmeticInst const&);
     void generate(ir::Goto const&);
     void generate(ir::Branch const&);
-    void generate(ir::FunctionCall const&);
-    void generate(ir::ExtFunctionCall const&);
+    void generate(ir::Call const&);
     void generate(ir::Return const&);
     void generate(ir::Phi const&);
     void generate(ir::GetElementPointer const&);
@@ -311,18 +310,22 @@ void CodeGenContext::generate(ir::Branch const& br) {
     currentBlock().insertBack(JumpInst(getLabelID(*br.elseTarget())));
 }
 
-void CodeGenContext::generate(ir::FunctionCall const& call) {
+void CodeGenContext::generate(ir::Call const& call) {
     placeArguments(call.arguments());
-    currentBlock().insertBack(CallInst(getLabelID(*call.function()),
-                                       currentRD().numUsedRegisters() + 2));
-    getCallResult(call);
-}
-
-void CodeGenContext::generate(ir::ExtFunctionCall const& call) {
-    placeArguments(call.arguments());
-    currentBlock().insertBack(CallExtInst(currentRD().numUsedRegisters() + 2,
-                                          call.slot(),
-                                          call.index()));
+    // clang-format off
+    visit(*call.function(), utl::overload{
+        [&](ir::Function const& func) {
+            currentBlock().insertBack(
+                CallInst(getLabelID(func),
+                         currentRD().numUsedRegisters() + 2));
+        },
+        [&](ir::ExtFunction const& func) {
+            currentBlock().insertBack(
+                CallExtInst(currentRD().numUsedRegisters() + 2,
+                            func.slot(),
+                            func.index()));
+        },
+    }); // clang-format on
     getCallResult(call);
 }
 

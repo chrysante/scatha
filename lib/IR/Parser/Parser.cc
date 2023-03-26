@@ -374,9 +374,9 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
             Value* arg          = getValue(eatToken());
             args.push_back(arg);
         }
-        return allocate<FunctionCall>(function,
-                                      args,
-                                      std::move(name).value_or(std::string{}));
+        return allocate<Call>(function,
+                              args,
+                              std::move(name).value_or(std::string{}));
     }
     if (peekToken().id() == "phi") {
         eatToken();

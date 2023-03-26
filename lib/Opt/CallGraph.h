@@ -36,14 +36,13 @@ public:
 
         /// \returns all `call` instructions in this function that call \p
         /// callee
-        std::span<ir::FunctionCall* const> callsites(
-            FunctionNode const& callee) const;
+        std::span<ir::Call* const> callsites(FunctionNode const& callee) const;
 
     private:
         friend class SCCCallGraph;
 
         SCCNode* _scc = nullptr;
-        utl::hashmap<FunctionNode const*, utl::small_vector<ir::FunctionCall*>>
+        utl::hashmap<FunctionNode const*, utl::small_vector<ir::Call*>>
             _callsites;
     };
 

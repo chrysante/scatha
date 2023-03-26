@@ -139,7 +139,7 @@ function i64 @main() {
                     .instType(UnaryArithmeticInst)
                     .references({ "i" }),
                 testInstruction("call.result")
-                    .instType(FunctionCall)
+                    .instType(Call)
                     .references({ "expr.result.1" }),
                 testInstruction("")
                     .instType(Return)

@@ -12,10 +12,12 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-void opt::inlineCallsite(ir::Context& ctx, FunctionCall* call) {
+void opt::inlineCallsite(ir::Context& ctx, Call* call) {
+    SC_ASSERT(isa<Function>(call->function()),
+              "Call target must be an actual function");
     auto* callerBB   = call->parent();
     auto* caller     = callerBB->parent();
-    auto* callee     = call->function();
+    auto* callee     = cast<Function*>(call->function());
     auto calleeClone = clone(ctx, callee);
     auto* newGoto    = new Goto(ctx, &calleeClone->entry());
     calleeClone->entry().setPredecessors(std::array{ callerBB });

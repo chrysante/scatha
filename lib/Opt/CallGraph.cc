@@ -9,7 +9,7 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-std::span<ir::FunctionCall* const> SCCCallGraph::FunctionNode::callsites(
+std::span<ir::Call* const> SCCCallGraph::FunctionNode::callsites(
     FunctionNode const& callee) const {
     auto itr = _callsites.find(&callee);
     SC_ASSERT(itr != _callsites.end(), "Not found");
@@ -31,12 +31,16 @@ void SCCCallGraph::computeCallGraph(Module& mod) {
                  ranges::to<FuncNodeSet>;
     for (auto& function: mod.functions()) {
         for (auto& inst: function.instructions()) {
-            auto* call = dyncast<FunctionCall*>(&inst);
+            auto* call = dyncast<Call*>(&inst);
             if (!call) {
                 continue;
             }
+            auto* target = dyncast<Function*>(call->function());
+            if (!target) {
+                continue;
+            }
             auto& thisNode = findMut(&function);
-            auto& succNode = findMut(call->function());
+            auto& succNode = findMut(target);
             thisNode.addSuccessor(&succNode);
             succNode.addPredecessor(&thisNode);
             thisNode._callsites[&succNode].push_back(call);

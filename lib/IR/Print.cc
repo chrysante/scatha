@@ -34,8 +34,7 @@ struct PrintCtx {
     void print(Goto const&);
     void print(Branch const&);
     void print(Return const&);
-    void print(FunctionCall const&);
-    void print(ExtFunctionCall const&);
+    void print(Call const&);
     void print(Phi const&);
     void print(GetElementPointer const&);
     void print(ExtractValue const&);
@@ -118,7 +117,7 @@ static auto formatType(ir::Type const* type) {
 static auto formatName(Value const& value) {
     // clang-format off
     return visit(value, utl::overload{
-        [](ir::Function const& function) {
+        [](ir::Callable const& function) {
             return tfmt::format(tfmt::italic | tfmt::green,
                                 "@",
                                 std::string(function.name()));
@@ -278,25 +277,13 @@ void PrintCtx::print(Return const& ret) {
     }
 }
 
-void PrintCtx::print(FunctionCall const& call) {
+void PrintCtx::print(Call const& call) {
     str << indent;
     if (!call.name().empty()) {
         str << formatName(call) << equals();
     }
     str << instruction("call") << " " << formatType(call.type()) << " "
         << formatName(*call.function());
-    for (auto& arg: call.arguments()) {
-        str << ", " << formatType(arg->type()) << " " << formatName(*arg);
-    }
-}
-
-void PrintCtx::print(ExtFunctionCall const& call) {
-    str << indent;
-    if (!call.name().empty()) {
-        str << formatName(call) << equals();
-    }
-    str << instruction("call") << " " << formatType(call.type()) << " "
-        << call.functionName();
     for (auto& arg: call.arguments()) {
         str << ", " << formatType(arg->type()) << " " << formatName(*arg);
     }

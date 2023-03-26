@@ -142,7 +142,7 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
                           return mapType(param->typeID());
                       }) |
                       ranges::to<utl::small_vector<ir::Type const*>>;
-    auto* fn        = cast<ir::Function*>(functionMap.find(def.symbolID())->second);
+    auto* fn = cast<ir::Function*>(functionMap.find(def.symbolID())->second);
     currentFunction = fn;
     auto* entry     = new ir::BasicBlock(irCtx, "entry");
     fn->pushBack(entry);
@@ -512,41 +512,18 @@ ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
 }
 
 ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
-    /// Handle calls to external functions separately.
-    if (auto const& semaFunction =
-            symTable.getFunction(functionCall.functionID());
-        semaFunction.isExtern())
-    {
-        auto const args =
-            functionCall.arguments |
-            ranges::views::transform(
-                [this](auto& expr) -> ir::Value* { return getValue(*expr); }) |
-            ranges::to<utl::small_vector<ir::Value*>>;
-        auto* call =
-            new ir::ExtFunctionCall(semaFunction.slot(),
-                                    semaFunction.index(),
-                                    std::string(semaFunction.name()),
-                                    args,
-                                    mapType(semaFunction.signature()
-                                                .returnTypeID()),
-                                    functionCall.typeID() != symTable.Void() ?
-                                        "call.result" :
-                                        std::string{});
-        currentBB()->pushBack(call);
-        return call;
-    }
-    ir::Function* function =
-        cast<ir::Function*>(functionMap.find(functionCall.functionID())->second);
+    ir::Callable* function =
+        functionMap.find(functionCall.functionID())->second;
     auto const args =
         functionCall.arguments |
         ranges::views::transform(
             [this](auto& expr) -> ir::Value* { return getValue(*expr); }) |
         ranges::to<utl::small_vector<ir::Value*>>;
-    auto* call = new ir::FunctionCall(function,
-                                      args,
-                                      functionCall.typeID() != symTable.Void() ?
-                                          "call.result" :
-                                          std::string{});
+    auto* call =
+        new ir::Call(function,
+                     args,
+                     functionCall.typeID() != symTable.Void() ? "call.result" :
+                                                                std::string{});
     currentBB()->pushBack(call);
     return call;
 }
@@ -626,18 +603,21 @@ void CodeGenContext::declareFunctions() {
         // TODO: Generate proper function type here
         ir::FunctionType const* const functionType = nullptr;
         if (function.isExtern()) {
-            auto fn =
-                allocate<ir::ExtFunction>(functionType,
-                                          mapType(function.signature().returnTypeID()),
-                                          paramTypes,
-                                          std::string(function.name()));
+            auto fn = allocate<ir::ExtFunction>(
+                functionType,
+                mapType(function.signature().returnTypeID()),
+                paramTypes,
+                std::string(function.name()),
+                utl::narrow_cast<uint32_t>(function.slot()),
+                utl::narrow_cast<uint32_t>(function.index()));
             functionMap[function.symbolID()] = fn.get();
             mod.addGlobal(std::move(fn));
         }
         else {
             auto fn =
                 allocate<ir::Function>(functionType,
-                                       mapType(function.signature().returnTypeID()),
+                                       mapType(
+                                           function.signature().returnTypeID()),
                                        paramTypes,
                                        mangledName(function.symbolID(),
                                                    function.name()));
