@@ -125,7 +125,7 @@ public:
 
     /// \returns `true` iff \p value is an operand of this user.
     bool directlyUses(Value const* value) const;
-    
+
 protected:
     explicit User(NodeType nodeType,
                   Type const* type,
@@ -448,14 +448,14 @@ public:
         std::copy(newPreds.begin(), newPreds.end(), std::back_inserter(preds));
     }
 
-    /// Remove predecessor \p *pred from the list of predecessors of this basic block.
-    /// \pre \p *pred must be a listed predecessor of this basic block.
+    /// Remove predecessor \p *pred from the list of predecessors of this basic
+    /// block. \pre \p *pred must be a listed predecessor of this basic block.
     void removePredecessor(BasicBlock const* pred);
 
-    /// Remove the predecessor at index \p index from the list of predecessors of this basic block.
-    /// \pre \p index must be valid.
+    /// Remove the predecessor at index \p index from the list of predecessors
+    /// of this basic block. \pre \p index must be valid.
     void removePredecessor(size_t index);
-        
+
     /// The basic blocks directly reachable from this basic block
     template <typename TermInst = TerminatorInst>
     auto successors() {
@@ -526,6 +526,12 @@ public:
         return hasSingleSuccessor<TermInst>() ? successors<TermInst>().front() :
                                                 nullptr;
     }
+
+    /// \Returns Iterator to the first non-phi instruction in this basic block.
+    Iterator phiEnd();
+
+    /// \overload
+    ConstIterator phiEnd() const;
 
 private:
     /// For access to insert and erase callbacks.
@@ -658,6 +664,9 @@ public:
     auto instructions() const {
         return getInstructionsImpl<ConstInstructionIterator>(*this);
     }
+
+    /// Erase all basic blocks and all instructions.
+    void clear();
 
 private:
     /// Callbacks used by CFGList base class
@@ -946,11 +955,9 @@ public:
 
     /// \overload
     Value const* value() const { return operands()[0]; }
-    
+
     /// Set the value returned by this `return` instruction.
-    void setValue(Value* newValue) {
-        setOperand(0, newValue);
-    }
+    void setValue(Value* newValue) { setOperand(0, newValue); }
 };
 
 /// `call` instruction. Calls a function.

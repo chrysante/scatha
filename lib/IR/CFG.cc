@@ -174,13 +174,14 @@ void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
 }
 
 void BasicBlock::removePredecessor(BasicBlock const* pred) {
-    auto itr = ranges::find(preds, pred);
-    auto index = utl::narrow_cast<size_t>(ranges::end(preds) - itr);
+    auto itr   = ranges::find(preds, pred);
+    auto index = utl::narrow_cast<size_t>(itr - ranges::begin(preds));
     removePredecessor(index);
 }
 
 void BasicBlock::removePredecessor(size_t index) {
-    auto itr = preds.begin() + index;
+    SC_ASSERT(index < preds.size(), "");
+    auto itr   = preds.begin() + index;
     auto* pred = *itr;
     preds.erase(itr);
     for (auto& phi: phiNodes()) {
@@ -202,6 +203,19 @@ void BasicBlock::eraseCallback(Instruction const& inst) {
 
 bool BasicBlock::isEntry() const {
     return parent()->begin().to_address() == this;
+}
+
+static auto phiEndImpl(auto begin, auto end) {
+    while (begin != end && isa<Phi>(begin.to_address())) {
+        ++begin;
+    }
+    return begin;
+}
+
+BasicBlock::Iterator BasicBlock::phiEnd() { return phiEndImpl(begin(), end()); }
+
+BasicBlock::ConstIterator BasicBlock::phiEnd() const {
+    return phiEndImpl(begin(), end());
 }
 
 Callable::Callable(NodeType nodeType,
@@ -233,6 +247,13 @@ Function::Function(FunctionType const* functionType,
         bool const nameUnique = nameFac.tryRegister(param.name());
         SC_ASSERT(nameUnique, "How are the parameter names not unique?");
     }
+}
+
+void Function::clear() {
+    for (auto& inst: instructions()) {
+        inst.clearOperands();
+    }
+    values.clear();
 }
 
 void Function::insertCallback(BasicBlock& bb) {
