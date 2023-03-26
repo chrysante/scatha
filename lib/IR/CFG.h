@@ -337,7 +337,7 @@ class SCATHA_API BasicBlock:
         SC_ASSERT(t, "No successors without a terminator");
         return t->targets();
     }
-        
+
 public:
     using ListBase::ConstIterator;
     using ListBase::Iterator;
@@ -450,11 +450,15 @@ public:
 
     /// The basic blocks directly reachable from this basic block
     template <typename TermInst = TerminatorInst>
-    auto successors() { return succImpl(terminator<TermInst>()); }
+    auto successors() {
+        return succImpl(terminator<TermInst>());
+    }
 
     /// \overload
     template <typename TermInst = TerminatorInst>
-    auto successors() const { return succImpl(terminator<TermInst>()); }
+    auto successors() const {
+        return succImpl(terminator<TermInst>());
+    }
 
     template <typename TermInst = TerminatorInst>
     BasicBlock* successor(size_t index) {
@@ -466,23 +470,21 @@ public:
         return successors<TermInst>()[utl::narrow_cast<ssize_t>(index)];
     }
 
-    BasicBlock* predecessor(size_t index) {
-        return predecessors()[index];
-    }
+    BasicBlock* predecessor(size_t index) { return predecessors()[index]; }
 
     BasicBlock const* predecessor(size_t index) const {
         return predecessors()[index];
     }
 
     template <typename TermInst = TerminatorInst>
-    size_t numSuccessors() const { return successors<TermInst>().size(); }
+    size_t numSuccessors() const {
+        return successors<TermInst>().size();
+    }
 
     size_t numPredecessors() const { return predecessors().size(); }
 
     /// \returns `true` iff this basic block has exactly one predecessor.
-    bool hasSinglePredecessor() const {
-        return numPredecessors() == 1;
-    }
+    bool hasSinglePredecessor() const { return numPredecessors() == 1; }
 
     /// \returns predecessor if this basic block has a single predecessor, else
     /// `nullptr`.
@@ -513,7 +515,8 @@ public:
     /// \overload
     template <typename TermInst = TerminatorInst>
     BasicBlock const* singleSuccessor() const {
-        return hasSingleSuccessor<TermInst>() ? successors<TermInst>().front() : nullptr;
+        return hasSingleSuccessor<TermInst>() ? successors<TermInst>().front() :
+                                                nullptr;
     }
 
 private:
