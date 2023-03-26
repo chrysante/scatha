@@ -13,9 +13,9 @@
 
 using namespace scatha;
 
-static auto& find(auto range, std::string_view name) {
-    auto itr = ranges::find_if(range, [&](auto& node) {
-        return node.basicBlock()->name() == name;
+static auto* find(auto range, std::string_view name) {
+    auto itr = ranges::find_if(range, [&](auto* node) {
+        return node->basicBlock()->name() == name;
     });
     assert(itr != ranges::end(range));
     return *itr;
@@ -61,36 +61,36 @@ function i64 @f() {
     auto domInfo    = ir::DominanceInfo::compute(f);
     /// ## Dominator tree
     auto& domTree = domInfo.domTree();
-    auto& root    = domTree.root();
-    CHECK(root.basicBlock()->name() == "entry");
-    REQUIRE(root.children().size() == 1);
-    auto& BB2 = root.children()[0];
-    CHECK(BB2.basicBlock()->name() == "2");
-    auto childrenOf2 = BB2.children();
-    auto& BB3        = find(childrenOf2, "3");
-    REQUIRE(BB3.children().empty());
-    auto& BB4 = find(childrenOf2, "4");
-    REQUIRE(BB4.children().empty());
-    auto& BB5 = find(childrenOf2, "5");
-    REQUIRE(BB5.children().size() == 1);
-    auto& BB6 = BB5.children()[0];
-    CHECK(BB6.basicBlock()->name() == "6");
-    REQUIRE(BB6.children().size() == 1);
-    auto& BB7 = BB6.children()[0];
-    CHECK(BB7.basicBlock()->name() == "7");
-    REQUIRE(BB7.children().size() == 1);
-    auto& BB8 = BB7.children()[0];
-    CHECK(BB8.basicBlock()->name() == "8");
-    REQUIRE(BB8.children().empty());
+    auto* root    = domTree.root();
+    CHECK(root->basicBlock()->name() == "entry");
+    REQUIRE(root->children().size() == 1);
+    auto* BB2 = root->children()[0];
+    CHECK(BB2->basicBlock()->name() == "2");
+    auto childrenOf2 = BB2->children();
+    auto* BB3        = find(childrenOf2, "3");
+    REQUIRE(BB3->children().empty());
+    auto* BB4 = find(childrenOf2, "4");
+    REQUIRE(BB4->children().empty());
+    auto* BB5 = find(childrenOf2, "5");
+    REQUIRE(BB5->children().size() == 1);
+    auto* BB6 = BB5->children()[0];
+    CHECK(BB6->basicBlock()->name() == "6");
+    REQUIRE(BB6->children().size() == 1);
+    auto* BB7 = BB6->children()[0];
+    CHECK(BB7->basicBlock()->name() == "7");
+    REQUIRE(BB7->children().size() == 1);
+    auto* BB8 = BB7->children()[0];
+    CHECK(BB8->basicBlock()->name() == "8");
+    REQUIRE(BB8->children().empty());
     /// ## Dominance frontiers
-    auto df = [&](auto& node) { return domInfo.domFront(node.basicBlock()); };
+    auto df = [&](auto* node) { return domInfo.domFront(node->basicBlock()); };
     CHECK(df(root).empty());
     CHECK(df(BB2).empty());
-    CHECK(setEqual(df(BB3), std::array{ BB5.basicBlock() }));
-    CHECK(setEqual(df(BB4), std::array{ BB5.basicBlock() }));
+    CHECK(setEqual(df(BB3), std::array{ BB5->basicBlock() }));
+    CHECK(setEqual(df(BB4), std::array{ BB5->basicBlock() }));
     CHECK(df(BB5).empty());
-    CHECK(setEqual(df(BB6), std::array{ BB6.basicBlock() }));
-    CHECK(setEqual(df(BB7), std::array{ BB6.basicBlock() }));
+    CHECK(setEqual(df(BB6), std::array{ BB6->basicBlock() }));
+    CHECK(setEqual(df(BB7), std::array{ BB6->basicBlock() }));
     CHECK(df(BB8).empty());
 }
 
@@ -115,22 +115,24 @@ function i64 @f() {
     auto domInfo    = ir::DominanceInfo::compute(f);
     /// ## Dominator tree
     auto& domTree = domInfo.domTree();
-    auto& root    = domTree.root();
-    CHECK(root.basicBlock()->name() == "entry");
-    REQUIRE(root.children().size() == 3);
-    auto childrenOfRoot = root.children();
-    auto& BB1           = find(childrenOfRoot, "1");
-    auto& BB2           = find(childrenOfRoot, "2");
-    REQUIRE(BB2.children().empty());
-    auto& BB4 = find(childrenOfRoot, "4");
-    REQUIRE(BB1.children().size() == 1);
-    auto& BB3 = BB1.children()[0];
-    REQUIRE(BB3.children().empty());
+    auto* root    = domTree.root();
+    CHECK(root->basicBlock()->name() == "entry");
+    REQUIRE(root->children().size() == 3);
+    auto childrenOfRoot = root->children();
+    auto* BB1           = find(childrenOfRoot, "1");
+    auto* BB2           = find(childrenOfRoot, "2");
+    REQUIRE(BB2->children().empty());
+    auto* BB4 = find(childrenOfRoot, "4");
+    REQUIRE(BB1->children().size() == 1);
+    auto* BB3 = BB1->children()[0];
+    REQUIRE(BB3->children().empty());
     /// ## Dominance frontiers
-    auto df = [&](auto& node) { return domInfo.domFront(node.basicBlock()); };
+    auto df = [&](auto* node) { return domInfo.domFront(node->basicBlock()); };
     CHECK(df(root).empty());
-    CHECK(setEqual(df(BB1), std::array{ BB1.basicBlock(), BB4.basicBlock() }));
-    CHECK(setEqual(df(BB2), std::array{ BB4.basicBlock() }));
-    CHECK(setEqual(df(BB3), std::array{ BB1.basicBlock(), BB4.basicBlock() }));
+    CHECK(
+        setEqual(df(BB1), std::array{ BB1->basicBlock(), BB4->basicBlock() }));
+    CHECK(setEqual(df(BB2), std::array{ BB4->basicBlock() }));
+    CHECK(
+        setEqual(df(BB3), std::array{ BB1->basicBlock(), BB4->basicBlock() }));
     CHECK(df(BB4).empty());
 }

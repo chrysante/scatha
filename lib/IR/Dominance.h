@@ -37,32 +37,35 @@ public:
                             [](auto& n) -> Node const& { return n; });
     }
 
-    Node const& operator[](ir::BasicBlock const* bb) const {
-        auto itr = _nodes.find(bb);
+    /// \Returns The tree node corresponding to basic block \p BB
+    Node const* operator[](ir::BasicBlock const* BB) const {
+        auto itr = _nodes.find(BB);
         SC_ASSERT(itr != _nodes.end(), "Not found");
-        return *itr;
+        return &*itr;
     }
 
-    /// \Returns root of the dominator tree.
-    Node const& root() const { return *_root; }
+    /// \Returns root of the tree.
+    Node const* root() const { return _root; }
 
     ir::BasicBlock* idom(ir::BasicBlock* block) const {
         return const_cast<ir::BasicBlock*>(
             idom(static_cast<ir::BasicBlock const*>(block)));
     }
 
-    ir::BasicBlock const* idom(ir::BasicBlock const* block) const {
-        auto* parent = (*this)[block].parent();
+    /// \Returns The immediate dominator of basic block \p BB
+    ir::BasicBlock const* idom(ir::BasicBlock const* BB) const {
+        auto* parent = (*this)[BB]->parent();
         return parent ? parent->basicBlock() : nullptr;
     }
 
+    /// \Returns `true` iff the tree is empty
     bool empty() const { return _nodes.empty(); }
 
 private:
     friend class DominanceInfo;
 
-    Node& findMut(ir::BasicBlock const* bb) {
-        return const_cast<Node&>(
+    Node* findMut(ir::BasicBlock const* bb) {
+        return const_cast<Node*>(
             static_cast<DomTree const*>(this)->operator[](bb));
     }
 
