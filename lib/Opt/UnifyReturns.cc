@@ -42,7 +42,7 @@ bool opt::unifyReturns(Context& ctx, Function& function) {
 }
 
 bool opt::splitReturns(Context& ctx, Function& function) {
-    bool modifiedAny = false;
+    bool modifiedAny  = false;
     auto returnBlocks = gatherReturnBlocks(function);
     for (auto* block: returnBlocks) {
         auto* ret = cast<Return*>(block->terminator());
@@ -50,12 +50,15 @@ bool opt::splitReturns(Context& ctx, Function& function) {
         if (!phi) {
             continue;
         }
-        /// If there is dead code between the phi and the return this pass fails, so DCE should be run before.
+        /// If there is dead code between the phi and the return this pass
+        /// fails, so DCE should be run before.
         if (phi->next() != ret) {
             continue;
         }
         utl::small_vector<uint16_t> removedPreds;
-        for (auto [index, pred]: block->predecessors() | ranges::views::enumerate) {
+        for (auto [index, pred]:
+             block->predecessors() | ranges::views::enumerate)
+        {
             /// We can only do this for predecessors that end in `goto`'s
             if (!isa<Goto>(pred->terminator())) {
                 continue;
