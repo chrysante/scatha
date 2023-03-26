@@ -100,7 +100,7 @@ struct CodeGenContext {
     ir::Function* currentFunction = nullptr;
     ir::BasicBlock* _currentBB    = nullptr;
     utl::hashmap<sema::SymbolID, ir::Value*> variableAddressMap;
-    utl::hashmap<sema::SymbolID, ir::Function*> functionMap;
+    utl::hashmap<sema::SymbolID, ir::Callable*> functionMap;
     utl::hashmap<sema::TypeID, ir::Type const*> typeMap;
     ir::Instruction* allocaInsertItr;
 };
@@ -142,7 +142,7 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
                           return mapType(param->typeID());
                       }) |
                       ranges::to<utl::small_vector<ir::Type const*>>;
-    auto* fn        = functionMap.find(def.symbolID())->second;
+    auto* fn        = cast<ir::Function*>(functionMap.find(def.symbolID())->second);
     currentFunction = fn;
     auto* entry     = new ir::BasicBlock(irCtx, "entry");
     fn->pushBack(entry);
@@ -536,7 +536,7 @@ ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
         return call;
     }
     ir::Function* function =
-        functionMap.find(functionCall.functionID())->second;
+        cast<ir::Function*>(functionMap.find(functionCall.functionID())->second);
     auto const args =
         functionCall.arguments |
         ranges::views::transform(
@@ -625,17 +625,23 @@ void CodeGenContext::declareFunctions() {
             ranges::to<utl::small_vector<ir::Type const*>>;
         // TODO: Generate proper function type here
         ir::FunctionType const* const functionType = nullptr;
-        auto fn =
-            allocate<ir::Function>(functionType,
-                                   mapType(function.signature().returnTypeID()),
-                                   paramTypes,
-                                   mangledName(function.symbolID(),
-                                               function.name()));
-        functionMap[function.symbolID()] = fn.get();
         if (function.isExtern()) {
+            auto fn =
+                allocate<ir::ExtFunction>(functionType,
+                                          mapType(function.signature().returnTypeID()),
+                                          paramTypes,
+                                          std::string(function.name()));
+            functionMap[function.symbolID()] = fn.get();
             mod.addGlobal(std::move(fn));
         }
         else {
+            auto fn =
+                allocate<ir::Function>(functionType,
+                                       mapType(function.signature().returnTypeID()),
+                                       paramTypes,
+                                       mangledName(function.symbolID(),
+                                                   function.name()));
+            functionMap[function.symbolID()] = fn.get();
             mod.addFunction(std::move(fn));
         }
     }

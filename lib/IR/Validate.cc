@@ -56,7 +56,7 @@ struct AssertContext {
     ir::Context& ctx;
     Function const* currentFunction = nullptr;
     BasicBlock const* currentBB     = nullptr;
-    utl::hashmap<std::string, std::pair<Function const*, Value const*>>
+    utl::hashmap<std::string, std::pair<Callable const*, Value const*>>
         nameValueMap;
     DominanceInfo::DomMap domMap;
 };
@@ -188,7 +188,7 @@ void AssertContext::uniqueName(Value const& value) {
         return;
     }
     // clang-format off
-    Function const* function = visit(value, utl::overload{
+    Callable const* function = visit(value, utl::overload{
         [](Instruction const& inst) { return inst.parent()->parent(); },
         [](Parameter const& param) { return param.parent(); },
         [](BasicBlock const& bb) { return bb.parent(); },

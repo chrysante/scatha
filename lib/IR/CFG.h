@@ -534,11 +534,11 @@ private:
 /// Represents a function parameter.
 class SCATHA_API Parameter:
     public Value,
-    public NodeWithParent<Parameter, Function> {
-    using NodeBase = NodeWithParent<Parameter, Function>;
+    public NodeWithParent<Parameter, Callable> {
+    using NodeBase = NodeWithParent<Parameter, Callable>;
 
 public:
-    explicit Parameter(Type const* type, size_t index, Function* parent):
+    explicit Parameter(Type const* type, size_t index, Callable* parent):
         Value(NodeType::Parameter, type, std::to_string(index)),
         NodeBase(parent),
         _index(index) {}
@@ -550,21 +550,47 @@ private:
     size_t _index;
 };
 
-/// Represents a function. A function is a prototype with a list of basic
-/// blocks.
-class SCATHA_API Function:
-    public Constant,
-    public internal::CFGList<Function, BasicBlock>,
-    public NodeWithParent<Function, Module> {
-    friend class internal::CFGList<Function, BasicBlock>;
-    using ListBase = internal::CFGList<Function, BasicBlock>;
-
+/// Represents a callable.
+/// This is a base common class of `Function` and `ExtFunction`.
+class SCATHA_API Callable: public Constant {
     static auto getParametersImpl(auto&& self) {
         /// Trick to return a view over parameters without returning the
         /// `List<>` itself.
         return self.params | ranges::views::transform(
                                  [](auto& param) -> auto& { return param; });
     }
+    
+public:
+    
+    /// \returns a view over the function parameters
+    auto parameters() { return getParametersImpl(*this); }
+
+    /// \overload
+    auto parameters() const { return getParametersImpl(*this); }
+    
+    /// \returns the return type of this function
+    Type const* returnType() const { return _returnType; }
+
+protected:
+    explicit Callable(NodeType nodeType,
+                      FunctionType const* functionType,
+                      Type const* returnType,
+                      std::span<Type const* const> parameterTypes,
+                      std::string name);
+    
+private:
+    List<Parameter> params;
+    Type const* _returnType;
+};
+
+/// Represents a function. A function is a prototype with a list of basic
+/// blocks.
+class SCATHA_API Function:
+    public Callable,
+    public internal::CFGList<Function, BasicBlock>,
+    public NodeWithParent<Function, Module> {
+    friend class internal::CFGList<Function, BasicBlock>;
+    using ListBase = internal::CFGList<Function, BasicBlock>;
 
     template <typename Itr, typename Self>
     static ranges::subrange<Itr> getInstructionsImpl(Self&& self) {
@@ -593,15 +619,6 @@ public:
                       std::span<Type const* const> parameterTypes,
                       std::string name);
 
-    /// \returns the return type of this function
-    Type const* returnType() const { return _returnType; }
-
-    /// \returns a view over the function parameters
-    auto parameters() { return getParametersImpl(*this); }
-
-    /// \overload
-    auto parameters() const { return getParametersImpl(*this); }
-
     /// \returns the entry basic block of this function
     BasicBlock& entry() { return front(); }
 
@@ -628,15 +645,26 @@ private:
     friend class Value;
     friend class BasicBlock;
 
-    Type const* _returnType;
-    List<Parameter> params;
     UniqueNameFactory nameFac;
 };
 
-/// Outlined because `Function` is incomplete at definition of `BasicBlock`
-inline bool BasicBlock::isEntry() const {
-    return parent()->begin().to_address() == this;
-}
+/// Represents an external function.
+class SCATHA_API ExtFunction: public Callable {
+public:
+    explicit ExtFunction(FunctionType const* functionType,
+                         Type const* returnType,
+                         std::span<Type const* const> parameterTypes,
+                         std::string name);
+    
+    /// Slot in external function table of VM.
+    size_t slot() const { return _slot; }
+
+    /// Index into slot.
+    size_t index() const { return _index; }
+
+private:
+    u32 _slot, _index;
+};
 
 /// `alloca` instruction. Allocates automatically managed memory for local
 /// variables. Its value is a pointer to the allocated memory.

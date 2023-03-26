@@ -188,15 +188,29 @@ void BasicBlock::eraseCallback(Instruction const& inst) {
     parent()->nameFac.erase(inst.name());
 }
 
+bool BasicBlock::isEntry() const {
+    return parent()->begin().to_address() == this;
+}
+
+Callable::Callable(NodeType nodeType,
+                   FunctionType const* functionType,
+                   Type const* returnType,
+                   std::span<Type const* const> parameterTypes,
+                   std::string name):
+    Constant(nodeType, functionType, std::move(name)),
+    _returnType(returnType) {
+    for (auto [index, type]: parameterTypes | ranges::views::enumerate) {
+        params.emplace_back(type, index++, this);
+    }
+}
+
 Function::Function(FunctionType const* functionType,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
                    std::string name):
-    Constant(NodeType::Function, functionType, std::move(name)),
-    _returnType(returnType) {
-    for (auto [index, type]: parameterTypes | ranges::views::enumerate) {
-        params.emplace_back(type, index++, this);
-        bool const nameUnique = nameFac.tryRegister(params.back().name());
+    Callable(NodeType::Function, functionType, returnType, parameterTypes, std::move(name)) {
+    for (auto& param: parameters()) {
+        bool const nameUnique = nameFac.tryRegister(param.name());
         SC_ASSERT(nameUnique, "How are the parameter names not unique?");
     }
 }
@@ -215,6 +229,12 @@ void Function::eraseCallback(BasicBlock const& bb) {
         const_cast<BasicBlock&>(bb).eraseCallback(inst);
     }
 }
+
+ExtFunction::ExtFunction(FunctionType const* functionType,
+                         Type const* returnType,
+                         std::span<Type const* const> parameterTypes,
+                         std::string name):
+    Callable(NodeType::ExtFunction, functionType, returnType, parameterTypes, std::move(name)) {}
 
 Return::Return(Context& context): Return(context, context.voidValue()) {}
 
