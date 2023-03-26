@@ -336,8 +336,8 @@ void PrintCtx::print(ExtractValue const& extract) {
 
 void PrintCtx::print(InsertValue const& insert) {
     str << indent << formatName(insert) << equals()
-        << instruction("insert_value") << " " << formatType(insert.type())
-        << ", " << formatType(insert.baseValue()->type()) << " "
+        << instruction("insert_value") << " "
+        << formatType(insert.baseValue()->type()) << " "
         << formatName(*insert.baseValue()) << ", "
         << formatType(insert.insertedValue()->type()) << " "
         << formatName(*insert.insertedValue());
