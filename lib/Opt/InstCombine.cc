@@ -3,6 +3,7 @@
 #include <utl/hashtable.hpp>
 
 #include "IR/CFG.h"
+#include "IR/Context.h"
 #include "Opt/Common.h"
 
 using namespace scatha;
@@ -20,6 +21,7 @@ struct InstCombineCtx {
     bool visitInstruction(Instruction* inst);
 
     bool visitImpl(Instruction* inst) { return false; }
+    bool visitImpl(ArithmeticInst* inst);
     bool visitImpl(Phi* phi);
     bool visitImpl(ExtractValue* inst);
     bool visitImpl(InsertValue* inst);
@@ -49,6 +51,78 @@ bool InstCombineCtx::run() {
         modifiedAny |= visitInstruction(inst);
     }
     return modifiedAny;
+}
+
+static bool isConstant(Value const* value, int constant) {
+    auto* cval = dyncast<IntegralConstant const*>(value);
+    if (!cval) {
+        return false;
+    }
+    return cval->value() == static_cast<uint64_t>(constant);
+}
+
+static Value* simplifyArithmetic(Context& irCtx, ArithmeticInst* inst) {
+    auto* const lhs       = inst->lhs();
+    auto* const rhs       = inst->rhs();
+    auto* const intType   = dyncast<IntegralType const*>(inst->type());
+    auto* const floatType = dyncast<FloatType const*>(inst->type());
+    switch (inst->operation()) {
+    case ArithmeticOperation::Add:
+        if (isConstant(lhs, 0)) {
+            return rhs;
+        }
+        if (isConstant(rhs, 0)) {
+            return lhs;
+        }
+        break;
+    
+    case ArithmeticOperation::Sub:
+        if (isConstant(rhs, 0)) {
+            return lhs;
+        }
+        if (lhs == rhs && intType) {
+            return irCtx.integralConstant(0, intType->bitWidth());
+        }
+        if (lhs == rhs && floatType) {
+            return irCtx.floatConstant(0.0, floatType->bitWidth());
+        }
+        break;
+    
+    case ArithmeticOperation::Mul:
+        if (isConstant(lhs, 1)) {
+            return rhs;
+        }
+        if (isConstant(rhs, 1)) {
+            return lhs;
+        }
+        break;
+    
+    case ArithmeticOperation::Div:
+        if (isConstant(rhs, 1)) {
+            return lhs;
+        }
+        if (lhs == rhs && intType) {
+            return irCtx.integralConstant(1, intType->bitWidth());
+        }
+        if (lhs == rhs && floatType) {
+            return irCtx.floatConstant(1.0, floatType->bitWidth());
+        }
+        break;
+        
+    default:
+        break;
+    }
+    return nullptr;
+}
+
+bool InstCombineCtx::visitImpl(ArithmeticInst* inst) {
+    auto* newVal = simplifyArithmetic(irCtx, inst);
+    if (!newVal) {
+        return false;
+    }
+    notifyUsers(inst);
+    opt::replaceValue(inst, newVal);
+    return true;
 }
 
 bool InstCombineCtx::visitInstruction(Instruction* inst) {
