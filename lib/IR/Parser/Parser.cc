@@ -75,11 +75,11 @@ struct ParseContext {
     void parse();
 
 private:
-    UniquePtr<Function> parseFunction();
+    bool parseFunction();
     Type const* parseParamDecl();
     UniquePtr<BasicBlock> parseBasicBlock();
     UniquePtr<Instruction> parseInstruction();
-    UniquePtr<StructureType> parseStructure();
+    bool parseStructure();
 
     void parseTypeDefinition();
 
@@ -169,24 +169,22 @@ static void expect(Token const& token, TokenKind kind) {
 
 void ParseContext::parse() {
     while (peekToken().kind() != TokenKind::EndOfFile) {
-        if (auto function = parseFunction()) {
-            mod.addFunction(std::move(function));
+        if (parseFunction()) {
             continue;
         }
-        if (auto structure = parseStructure()) {
-            mod.addStructure(std::move(structure));
+        if (parseStructure()) {
             continue;
         }
         throw ParseError(peekToken().sourceLocation());
     }
 }
 
-UniquePtr<Function> ParseContext::parseFunction() {
+bool ParseContext::parseFunction() {
     Token const declarator = peekToken();
     if (declarator.kind() != TokenKind::Keyword ||
         declarator.id() != "function")
     {
-        return nullptr;
+        return false;
     }
     eatToken();
     auto* const returnType = getType(eatToken());
@@ -201,11 +199,13 @@ UniquePtr<Function> ParseContext::parseFunction() {
         parameterTypes.push_back(paramDecl);
     }
     expect(eatToken(), ")");
-    auto result = allocate<Function>(nullptr,
-                                     returnType,
-                                     parameterTypes,
-                                     std::string(name.id()),
-                                     FunctionAttribute::None);
+    auto resultOwner = allocate<Function>(nullptr,
+                                          returnType,
+                                          parameterTypes,
+                                          std::string(name.id()),
+                                          FunctionAttribute::None);
+    auto* result     = resultOwner.get();
+    mod.addFunction(std::move(resultOwner));
     expect(eatToken(), "{");
     /// Parse the body of the function.
     instructions.clear();
@@ -224,7 +224,7 @@ UniquePtr<Function> ParseContext::parseFunction() {
     }
     Token const closeBrace = eatToken();
     expect(closeBrace, "}");
-    return result;
+    return true;
 }
 
 Type const* ParseContext::parseParamDecl() {
@@ -363,8 +363,9 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     if (peekToken().id() == "call") {
         eatToken();
-        auto* const type     = getType(eatToken());
-        auto* const function = getFunction(eatToken());
+        auto* const type          = getType(eatToken());
+        Token const funcnameToken = eatToken();
+        auto* const function      = getFunction(funcnameToken);
         utl::small_vector<Value*> args;
         while (true) {
             if (peekToken().id() != ",") {
@@ -375,9 +376,15 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
             Value* arg          = getValue(eatToken());
             args.push_back(arg);
         }
-        return allocate<Call>(function,
-                              args,
-                              std::move(name).value_or(std::string{}));
+        auto res = allocate<Call>(function,
+                                  args,
+                                  std::move(name).value_or(std::string{}));
+        if (!function) {
+            addPendingUpdate(funcnameToken.id(), [=, res = res.get()] {
+                res->setFunction(getFunction(funcnameToken));
+            });
+        }
+        return res;
     }
     if (peekToken().id() == "phi") {
         eatToken();
@@ -493,12 +500,12 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     return nullptr;
 }
 
-UniquePtr<StructureType> ParseContext::parseStructure() {
+bool ParseContext::parseStructure() {
     Token const declarator = peekToken();
     if (declarator.kind() != TokenKind::Keyword ||
         declarator.id() != "structure")
     {
-        return nullptr;
+        return false;
     }
     eatToken();
     Token const nameID = eatToken();
@@ -514,7 +521,9 @@ UniquePtr<StructureType> ParseContext::parseStructure() {
         eatToken();
     }
     expect(eatToken(), "}");
-    return allocate<StructureType>(std::string(nameID.id()), members);
+    auto structure = allocate<StructureType>(std::string(nameID.id()), members);
+    mod.addStructure(std::move(structure));
+    return true;
 }
 
 Type const* ParseContext::getType(Token const& token) {
