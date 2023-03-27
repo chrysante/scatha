@@ -129,10 +129,8 @@ bool Inliner::visitSCC(SCC const& scc) {
 }
 
 bool Inliner::visitFunction(FunctionNode const& node) {
-    /// We optimize this function, then inline callees, then optimize again to
-    /// catch optimization opportunities emerged from inlining.
+    /// We have already optimized this function. Now we try to inline callees.
     bool modifiedAny = false;
-    modifiedAny |= optimize(node.function());
     for (auto* callee: node.callees()) {
         auto callsitesOfCallee = node.callsites(*callee);
         for (auto* callInst: callsitesOfCallee) {
@@ -143,7 +141,11 @@ bool Inliner::visitFunction(FunctionNode const& node) {
             }
         }
     }
-    modifiedAny |= optimize(node.function());
+    /// If we did we succeed, we optimize again to catch optimization
+    /// opportunities emerged from inlining.
+    if (modifiedAny) {
+        optimize(node.function());
+    }
     return modifiedAny;
 }
 
