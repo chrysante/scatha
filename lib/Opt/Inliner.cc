@@ -10,6 +10,7 @@
 #include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
 #include "Opt/TailRecElim.h"
+#include "Opt/UnifyReturns.h"
 
 using namespace scatha;
 using namespace ir;
@@ -170,6 +171,7 @@ bool Inliner::allSuccessorsAnalyzed(SCC const& scc) const {
 
 bool Inliner::optimize(Function& function) const {
     bool modifiedAny = false;
+    modifiedAny |= unifyReturns(ctx, function);
     modifiedAny |= sroa(ctx, function);
     modifiedAny |= memToReg(ctx, function);
     int const tripLimit = 4;
