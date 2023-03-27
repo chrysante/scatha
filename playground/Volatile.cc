@@ -1,7 +1,9 @@
 #include "Volatile.h"
 
+#include <fstream>
 #include <iostream>
 #include <range/v3/view.hpp>
+#include <sstream>
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
 #include <utl/stdio.hpp>
@@ -25,11 +27,11 @@
 #include "Opt/DCE.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/Inliner.h"
-#include "Opt/TailRecElim.h"
 #include "Opt/InstCombine.h"
 #include "Opt/MemToReg.h"
 #include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
+#include "Opt/TailRecElim.h"
 #include "Opt/UnifyReturns.h"
 
 static int const headerWidth = 60;
@@ -49,59 +51,75 @@ static void header(std::string_view title = "") {
 using namespace scatha;
 using namespace playground;
 
-[[maybe_unused]] static void sroaPlayground(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
-    for (auto& function: mod.functions()) {
-        opt::sroa(ctx, function);
-        opt::memToReg(ctx, function);
-        opt::instCombine(ctx, function);
-        opt::dce(ctx, function);
-        opt::propagateConstants(ctx, function);
-        opt::simplifyCFG(ctx, function);
+static void run(ir::Module const& mod) {
+    auto assembly              = cg::codegen(mod);
+    std::string const mainName = [&] {
+        for (auto& f: mod.functions()) {
+            if (f.name().starts_with("main")) {
+                return std::string(f.name());
+            }
+        }
+        return std::string{};
+    }();
+    if (mainName.empty()) {
+        std::cout << "No main function found\n";
+        return;
     }
-    header(" Before TRE ");
-    ir::print(mod);
-    header(" After TRE ");
-    for (auto& function: mod.functions()) {
-        opt::tailRecElim(ctx, function);
-    }
-    ir::print(mod);
-
-    
-//    auto assembly = cg::codegen(mod);
-//    auto& main   = mod.functions().front();
-//    auto program = Asm::assemble(assembly, { std::string(main.name()) });
-//    svm::VirtualMachine vm;
-//    vm.loadProgram(program.data());
-//    vm.execute();
-//    std::cout << "Program returned: " << vm.getState().registers[0] << std::endl
-//              << std::endl
-//              << std::endl;
-}
-
-[[maybe_unused]] static void inlinerAndSimplifyCFG(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
-
-    header(" Before inlining ");
-    ir::print(mod);
-
-    header(" After inlining ");
-    opt::inlineFunctions(ctx, mod);
-    ir::print(mod);
-
-    //    header(" Assembly ");
-    auto assembly = cg::codegen(mod);
-    //    Asm::print(assembly);
-
-    auto& main   = mod.functions().front();
-    auto program = Asm::assemble(assembly, { std::string(main.name()) });
-
+    auto program = Asm::assemble(assembly, { std::string(mainName) });
     svm::VirtualMachine vm;
     vm.loadProgram(program.data());
     vm.execute();
-
-    std::cout << "Program returned: " << vm.getState().registers[0]
+    std::cout << "Program returned: " << vm.getState().registers[0] << std::endl
+              << std::endl
               << std::endl;
+}
+
+static std::string readFile(std::filesystem::path path) {
+    std::fstream file(path);
+    assert(file);
+    std::stringstream sstr;
+    sstr << file.rdbuf();
+    return std::move(sstr).str();
+}
+
+[[maybe_unused]] static void sroaPlayground(std::filesystem::path path) {
+    //    auto [ctx, mod] = makeIRModuleFromFile(path);
+
+    ir::Context ctx;
+    auto mod = ir::parse(readFile(path), ctx).value();
+    auto phase =
+        [ctx = &ctx, mod = &mod](std::string name,
+                                 bool (*optFn)(ir::Context&, ir::Function&)) {
+        header(" " + name + " ");
+        for (auto& function: mod->functions()) {
+            optFn(*ctx, function);
+        }
+        ir::print(*mod);
+    };
+    run(mod);
+    phase("SROA", opt::sroa);
+    phase("M2R", opt::memToReg);
+    phase("Inst Combine", opt::instCombine);
+    phase("DCE", opt::dce);
+    phase("SCCP", opt::propagateConstants);
+    phase("SCFG", opt::simplifyCFG);
+    phase("TRE", opt::tailRecElim);
+    run(mod);
+}
+
+[[maybe_unused]] static void inliner(std::filesystem::path path) {
+    auto [ctx, mod] = makeIRModuleFromFile(path);
+
+    header(" Before inlining ");
+    //    ir::print(mod);
+
+    run(mod);
+
+    //    header(" Now inlining... ");
+    opt::inlineFunctions(ctx, mod);
+    //    ir::print(mod);
+
+    run(mod);
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
