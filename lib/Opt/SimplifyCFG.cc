@@ -17,13 +17,13 @@ struct Ctx {
     Ctx(ir::Context& irCtx, Function& function):
         irCtx(irCtx), function(function) {}
 
-    void replaceConstCondBranches(BasicBlock* bb);
+    bool replaceConstCondBranches(BasicBlock* bb);
 
-    void eraseUnreachableBlocks();
+    bool eraseUnreachableBlocks();
 
     void removeDeadLink(BasicBlock* origin, BasicBlock* dest);
 
-    void merge();
+    bool merge();
 
     void eraseDeadBasicBlock(BasicBlock* bb);
 
@@ -34,50 +34,56 @@ struct Ctx {
     ir::Context& irCtx;
     Function& function;
     utl::hashset<BasicBlock const*> visited;
-    bool changedAny = false;
 };
 
 } // namespace
 
 bool opt::simplifyCFG(ir::Context& irCtx, Function& function) {
     Ctx ctx(irCtx, function);
-    ctx.replaceConstCondBranches(&function.entry());
-    ctx.eraseUnreachableBlocks();
+    bool modifiedAny = false;
+    modifiedAny |= ctx.replaceConstCondBranches(&function.entry());
+    modifiedAny |= ctx.eraseUnreachableBlocks();
     ctx.visited.clear();
-    ctx.merge();
+    modifiedAny |= ctx.merge();
     assertInvariants(irCtx, function);
-    return ctx.changedAny;
+    return modifiedAny;
 }
 
-void Ctx::replaceConstCondBranches(BasicBlock* bb) {
+bool Ctx::replaceConstCondBranches(BasicBlock* bb) {
     if (visited.contains(bb)) {
-        return;
+        return false;
     }
     visited.insert(bb);
     // clang-format off
-    visit(*bb->terminator(), utl::overload{
-        [&](Goto const&) {},
-        [&](Return const&) {},
+    bool modified = visit(*bb->terminator(), utl::overload{
+        [&](Goto const&) { return false; },
+        [&](Return const&) { return false; },
         [&](Branch& branch) {
-            if (auto* cond = dyncast<IntegralConstant const*>(branch.condition())) {
-                auto const value = cond->value().to<ssize_t>();
-                SC_ASSERT(value <= 1, "");
-                /// First target will be taken if `value == 1` aka `cond == true`
-                /// This means the branch to target at index `value` shall be removed.
-                auto* deadSuccessor = branch.targets()[value];
-                auto* liveSuccessor = branch.targets()[1 - value];
-                removeDeadLink(bb, deadSuccessor);
-                bb->erase(&branch);
-                bb->insert(bb->end(), new Goto(irCtx, liveSuccessor));
+            auto* constCond =
+                dyncast<IntegralConstant const*>(branch.condition());
+            if (!constCond) {
+                return false;
             }
+            auto const value = constCond->value().to<ssize_t>();
+            SC_ASSERT(value <= 1, "");
+            /// First target will be taken if `value == 1` aka
+            /// `constCond == true`. This means the branch to target at index
+            /// `value` shall be removed.
+            auto* deadSuccessor = branch.targets()[value];
+            auto* liveSuccessor = branch.targets()[1 - value];
+            removeDeadLink(bb, deadSuccessor);
+            bb->erase(&branch);
+            bb->insert(bb->end(), new Goto(irCtx, liveSuccessor));
+            return true;
         },
     }); // clang-format on
     for (auto* succ: bb->successors()) {
-        replaceConstCondBranches(succ);
+        modified |= replaceConstCondBranches(succ);
     }
+    return modified;
 }
 
-void Ctx::eraseUnreachableBlocks() {
+bool Ctx::eraseUnreachableBlocks() {
     auto unreachableBlocks =
         function | ranges::views::filter([&](auto& bb) {
             return !visited.contains(&bb);
@@ -96,6 +102,7 @@ void Ctx::eraseUnreachableBlocks() {
         clearAllUses(bb);
         function.erase(bb);
     }
+    return !unreachableBlocks.empty();
 }
 
 void Ctx::removeDeadLink(BasicBlock* origin, BasicBlock* dest) {
@@ -109,13 +116,14 @@ void Ctx::removeDeadLink(BasicBlock* origin, BasicBlock* dest) {
     }
 }
 
-void Ctx::merge() {
+bool Ctx::merge() {
     utl::hashset<BasicBlock*> worklist = { &function.entry() };
     utl::hashmap<BasicBlock*, bool> visited;
     auto insertSuccessors = [&](BasicBlock* bb) {
         auto succlist = bb->successors();
         worklist.insert(succlist.begin(), succlist.end());
     };
+    bool modified = false;
     while (!worklist.empty()) {
         auto* bb = *worklist.begin();
         worklist.erase(worklist.begin());
@@ -141,6 +149,7 @@ void Ctx::merge() {
             auto* newTerm = new Goto(irCtx, succ);
             bb->erase(bb->terminator());
             bb->pushBack(newTerm);
+            modified = true;
         }
         if (!bb->hasSingleSuccessor()) {
             insertSuccessors(bb);
@@ -151,6 +160,7 @@ void Ctx::merge() {
             /// To visit `pred` again we need to mark it unvisited.
             visited[bb2] = false;
             worklist.insert(bb2);
+            modified = true;
             continue;
         }
         if (!succ->hasSinglePredecessor()) {
@@ -176,7 +186,9 @@ void Ctx::merge() {
         /// successors of this.
         visited[bb] = false;
         worklist.insert(bb);
+        modified = true;
     }
+    return modified;
 }
 
 void Ctx::eraseDeadBasicBlock(BasicBlock* bb) {
