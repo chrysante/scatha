@@ -3,11 +3,21 @@
 
 #include <string_view>
 
+#include <utl/function_view.hpp>
+
 #include "Basic/Basic.h"
+#include "IR/Common.h"
 
 namespace scatha::test {
 
 void checkReturns(u64 value, std::string_view text);
+
+void checkIRReturns(u64 value, std::string_view text);
+
+void checkIRReturns(
+    u64 value,
+    std::string_view text,
+    utl::function_view<void(ir::Context&, ir::Module&)> optFunction);
 
 } // namespace scatha::test
 

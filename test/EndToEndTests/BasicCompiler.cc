@@ -20,6 +20,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IR/Parser/Parser.h"
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
 #include "Opt/ConstantPropagation.h"
@@ -32,16 +33,7 @@
 
 using namespace scatha;
 
-struct OptimizationLevel {
-    OptimizationLevel(std::invocable<ir::Context&, ir::Module&> auto&& f):
-        optFunc(f) {}
-
-    void run(ir::Context& ctx, ir::Module& mod) const { optFunc(ctx, mod); }
-
-    utl::function<void(ir::Context&, ir::Module&)> optFunc;
-};
-
-static auto compile(std::string_view text, OptimizationLevel optLevel) {
+static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     if (!lexIss.empty()) {
@@ -62,44 +54,62 @@ static auto compile(std::string_view text, OptimizationLevel optLevel) {
     }
     ir::Context ctx;
     auto mod = ast::codegen(*ast, sym, ctx);
-    optLevel.run(ctx, mod);
-    auto asmStream = cg::codegen(mod);
-    /// Start execution with main if it exists.
-    auto const mainID = [&sym] {
-        auto const id  = sym.lookup("main");
-        auto const* os = sym.tryGetOverloadSet(id);
-        if (!os) {
-            return sema::SymbolID::Invalid;
-        }
-        auto const* mainFn = os->find({});
-        if (!mainFn) {
-            return sema::SymbolID::Invalid;
-        }
-        return mainFn->symbolID();
-    }();
-    return Asm::assemble(asmStream,
-                         { .startFunction =
-                               utl::format("main{:x}", mainID.rawValue()) });
+    return { std::move(ctx), std::move(mod) };
 }
 
-static u64 compileAndExecute(std::string_view text,
-                             OptimizationLevel optLevel) {
-    auto const p = compile(text, optLevel);
+static std::pair<ir::Context, ir::Module> irParse(std::string_view text) {
+    ir::Context ctx;
+    auto mod = ir::parse(text, ctx).value();
+    return { std::move(ctx), std::move(mod) };
+}
+
+static void optimize(ir::Context& ctx, ir::Module& mod) {
+    opt::inlineFunctions(ctx, mod);
+}
+
+static uint64_t run(ir::Module const& mod) {
+    /// Start execution with main if it exists.
+    std::string mainName;
+    for (auto& f: mod.functions()) {
+        if (f.name().starts_with("main")) {
+            mainName = std::string(f.name());
+            break;
+        }
+    }
+    assert(!mainName.empty());
+    auto assembly = cg::codegen(mod);
+    auto prog     = Asm::assemble(assembly, { .startFunction = mainName });
     svm::VirtualMachine vm;
-    vm.loadProgram(p.data());
+    vm.loadProgram(prog.data());
     vm.execute();
     return vm.getState().registers[0];
 }
 
+static void checkReturnImpl(uint64_t value,
+                            ir::Context& ctx,
+                            ir::Module& mod,
+                            auto opt) {
+    uint64_t res1 = run(mod);
+    CHECK(res1 == value);
+    opt(ctx, mod);
+    uint64_t res2 = run(mod);
+    CHECK(res2 == value);
+}
+
 void test::checkReturns(u64 value, std::string_view text) {
-    // clang-format off
-    utl::vector<OptimizationLevel> const levels = {
-        [](ir::Context&, ir::Module&) {},
-        [](ir::Context& ctx, ir::Module& mod) {
-            opt::inlineFunctions(ctx, mod);
-        }
-    }; // clang-format on
-    for (auto [index, level]: levels | ranges::views::enumerate) {
-        CHECK(compileAndExecute(text, level) == value);
-    }
+    auto [ctx, mod] = frontEndParse(text);
+    checkReturnImpl(value, ctx, mod, &optimize);
+}
+
+void test::checkIRReturns(u64 value, std::string_view text) {
+    auto [ctx, mod] = irParse(text);
+    checkReturnImpl(value, ctx, mod, &optimize);
+}
+
+void test::checkIRReturns(
+    u64 value,
+    std::string_view text,
+    utl::function_view<void(ir::Context&, ir::Module&)> optFunction) {
+    auto [ctx, mod] = irParse(text);
+    checkReturnImpl(value, ctx, mod, optFunction);
 }

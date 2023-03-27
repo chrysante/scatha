@@ -2,6 +2,9 @@
 
 #include <string>
 
+#include "IR/CFG.h"
+#include "IR/Module.h"
+#include "Opt/TailRecElim.h"
 #include "test/EndToEndTests/BasicCompiler.h"
 
 using namespace scatha;
@@ -71,6 +74,32 @@ fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n & fac((n >> 1) + 1);
 })");
+    test::checkIRReturns(120,
+                         R"(
+function i64 @f(i64) {
+  %entry:
+    %cond = cmp leq i64 %0, i64 $1
+    branch i1 %cond, label %then, label %else
+  
+  %then:
+    return i64 $1
+
+  %else:
+    %sub.res = sub i64 %0, $1
+    %call.res = call i64 @f, i64 %sub.res
+    %mul.res = mul i64 %0, %call.res
+    return i64 %mul.res
+}
+function i64 @main() {
+  %entry:
+    %call.res = call i64 @f, i64 $5
+    return i64 %call.res
+})",
+                         [](ir::Context& ctx, ir::Module& mod) {
+        for (auto& f: mod.functions()) {
+            opt::tailRecElim(ctx, f);
+        }
+    });
 }
 
 TEST_CASE("Recursive pow", "[end-to-end]") {

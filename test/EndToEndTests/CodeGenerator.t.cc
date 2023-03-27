@@ -71,7 +71,7 @@ fn main() -> int {
 
 TEST_CASE("Float Addition", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.3 + 2.3), R"(
-fn test() -> float {
+fn main() -> float {
     let a = 1.3;
     let b = 2.3;
     return a + b;
@@ -80,7 +80,7 @@ fn test() -> float {
 
 TEST_CASE("Float Mutliplication", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.3 * 2.3), R"(
-fn test() -> float {
+fn main() -> float {
     let a = 1.3;
     let b = 2.3;
     return a * b;
@@ -89,7 +89,7 @@ fn test() -> float {
 
 TEST_CASE("Float Subtraction", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.4 - 2.3), R"(
-fn test() -> float {
+fn main() -> float {
     let a = 1.4;
     let b = 2.3;
     return a - b;
@@ -98,7 +98,7 @@ fn test() -> float {
 
 TEST_CASE("Float Division", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.4 / 2.3), R"(
-fn test() -> float {
+fn main() -> float {
     let a = 1.4;
     let b = 2.3;
     return a / b;
