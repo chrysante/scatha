@@ -256,16 +256,14 @@ void SCCPContext::processUseEdge(UseEdge edge) {
 }
 
 void SCCPContext::visitPhi(Phi& phi) {
-    FormalValue const value =
-        infimum(ranges::views::transform(phi.arguments(),
-                                         [this, bb = phi.parent()](
-                                             PhiMapping arg) -> FormalValue {
-                                             if (isExecutable({ arg.pred, bb }))
-                                             {
-                                                 return formalValue(arg.value);
-                                             }
-                                             return Unexamined{};
-                                         }));
+    auto formalArgs =
+        phi.arguments() |
+        ranges::views::transform([&](PhiMapping arg) -> FormalValue {
+            return isExecutable({ arg.pred, phi.parent() }) ?
+                       formalValue(arg.value) :
+                       Unexamined{};
+        });
+    FormalValue const value = infimum(formalArgs);
     if (value == formalValue(&phi)) {
         return;
     }
@@ -321,7 +319,7 @@ void SCCPContext::visitExpression(Instruction& inst) {
 void SCCPContext::notifyUsers(Value& value) {
     for (auto* user: value.users()) {
         if (auto* phi = dyncast<Phi*>(user)) {
-            visitPhi(*phi);
+            useWorklist.push_back({ &value, phi });
         }
         else if (isExpression(dyncast<Instruction const*>(user))) {
             useWorklist.push_back({ &value, user });
@@ -493,16 +491,16 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
                 }
             },
             []<typename T>(APInt const& lhs, T const& rhs) -> FormalValue {
-                if (lhs == 0) {
-                    return APInt(0);
-                }
+                /// Here and in the case below we still have optimization
+                /// opportunities, e.g. when we have:
+                /// - `0 & <ineval>          ==>    0`
+                /// - `<uintmax> | <ineval>  ==>    <uintmax>`
+                /// - `<ineval> * 0          ==>    0`
+                /// - `<ineval> / 0          ==>    undef`
+                /// - `<ineval> % 0          ==>    undef`
                 return T{};
             },
             []<typename T>(T const& lhs, APInt const& rhs) -> FormalValue {
-                /// TODO: Here we should return `undef` for division and remainder.
-                if (rhs == 0) {
-                    return APInt(0);
-                }
                 return T{};
             },
             [](Inevaluable, Unexamined)  -> FormalValue { return Inevaluable{}; },
