@@ -38,7 +38,7 @@ fn fib(n: int) -> int {
 })");
 }
 
-TEST_CASE("Recursive factorial", "[end-to-end]") {
+TEST_CASE("Recursive factorial and weird variations", "[end-to-end]") {
     test::checkReturns(3628800, R"(
 fn main() -> int {
     return fact(10);
@@ -48,6 +48,28 @@ fn fact(n: int) -> int {
         return 1;
     }
     return n * fact(n - 1);
+})");
+    test::checkReturns(9223372036854775807ull, R"(
+fn main() -> int { return fac(6); }
+fn fac(n: int) -> int {
+    return n <= 1 ? 1 : n | fac((n << 2) + 1);
+})");
+    test::checkReturns(2147483647, R"(
+fn main() -> int { return fac(1459485138); }
+fn fac(n: int) -> int {
+    return n <= 2 ? 1 : n | fac((n >> 1) + 1);
+}
+fn pass(n: int) -> int { return n; }
+)");
+    test::checkReturns(1688818043, R"(
+fn main() -> int { return fac(1459485138); }
+fn fac(n: int) -> int {
+    return n <= 2 ? 1 : n ^ fac((n >> 1) + 1);
+})");
+    test::checkReturns(0, R"(
+fn main() -> int { return fac(1459485138); }
+fn fac(n: int) -> int {
+    return n <= 2 ? 1 : n & fac((n >> 1) + 1);
 })");
 }
 
