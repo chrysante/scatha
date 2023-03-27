@@ -26,6 +26,8 @@ struct AccumulatedReturn: RetBase {
     ArithmeticInst* accInst;
     Call* call;
     Value* otherAccArg;
+    Value* constant;
+    Return* otherReturn;
 };
 
 struct DirectPhiReturn: RetBase {
@@ -61,25 +63,32 @@ struct TREContext {
 
     void generateLoopHeader();
 
-    void rewrite(DirectReturn info);
+    void rewrite(ViableReturn const& ret) {
+        generateLoopHeader();
+        utl::visit([this](auto& ret) { rewriteImpl(ret); }, ret);
+    }
 
-    void rewrite(AccumulatedReturn info);
+    void rewriteImpl(DirectReturn info);
 
-    void rewrite(DirectPhiReturn info);
+    void rewriteImpl(AccumulatedReturn info);
 
-    void rewrite(AccumulatedPhiReturn info);
+    void rewriteImpl(DirectPhiReturn info);
 
-    std::optional<ViableReturn> getViableReturn(BasicBlock*) const;
+    void rewriteImpl(AccumulatedPhiReturn info);
+
+    std::optional<ViableReturn> getViableReturn(Return& ret) const;
 
     bool isInterestingCall(Value const* inst) const;
-    
+
     static bool isCommutativeAndAssociative(ArithmeticInst const* inst);
 
     Value* identityValue(ArithmeticInst const* inst) const;
 
     Context& irCtx;
     Function& function;
-    utl::small_vector<ViableReturn> returns;
+    utl::small_vector<ViableReturn> viableReturns;
+    utl::small_vector<Return*> otherReturns;
+    size_t totalReturns    = 0;
     BasicBlock* loopHeader = nullptr;
     utl::small_vector<Phi*> phiParams;
 };
@@ -95,12 +104,47 @@ bool opt::tailRecElim(Context& irCtx, Function& function) {
 
 bool TREContext::run() {
     gather();
-    if (returns.empty()) {
+    if (viableReturns.empty()) {
         return false;
     }
-    generateLoopHeader();
-    for (auto const& ret: returns) {
-        utl::visit([this](auto& ret) { rewrite(ret); }, ret);
+    switch (totalReturns) {
+    case 1: {
+        auto ret = viableReturns.front();
+        rewrite(ret);
+        break;
+    }
+    case 2: {
+        if (viableReturns.size() > 1) {
+            return false;
+        }
+        auto ret   = viableReturns.front();
+        auto other = otherReturns.front();
+        // clang-format off
+        bool const modified = visit(utl::overload{
+            [&](DirectReturn const& ret) {
+                rewrite(ret);
+                return true;
+            },
+            [&](AccumulatedReturn ret) {
+                auto* otherConstRetval = dyncast<Constant*>(other->value());
+                if (!otherConstRetval) {
+                    return false;
+                }
+                ret.constant = otherConstRetval;
+                ret.otherReturn = other;
+                rewrite(ret);
+                return true;
+            },
+            [&](DirectPhiReturn const&) { return false; },
+            [&](AccumulatedPhiReturn const&) { return false; },
+        }, ret); // clang-format on
+        if (!modified) {
+            return false;
+        }
+        break;
+    }
+    default:
+        return false;
     }
     for (auto [phi, param]:
          ranges::views::zip(phiParams, function.parameters()))
@@ -116,8 +160,16 @@ void TREContext::gather() {
     /// It relies on other passes to eliminate dead instructions between the
     /// call and the return.
     for (auto& bb: function) {
-        if (auto ret = getViableReturn(&bb)) {
-            returns.push_back(*ret);
+        auto* ret = dyncast<Return*>(bb.terminator());
+        if (!ret) {
+            continue;
+        }
+        ++totalReturns;
+        if (auto viableRet = getViableReturn(*ret)) {
+            viableReturns.push_back(*viableRet);
+        }
+        else {
+            otherReturns.push_back(ret);
         }
     }
 }
@@ -131,7 +183,7 @@ void TREContext::generateLoopHeader() {
 
     std::array entryRng = { newEntry };
     auto preds          = ranges::views::concat(entryRng,
-                                       returns |
+                                       viableReturns |
                                            ranges::views::transform(
                                                [](ViableReturn const& ret) {
         return ret.as_base<RetBase>().retInst->parent();
@@ -140,8 +192,8 @@ void TREContext::generateLoopHeader() {
     loopHeader->setPredecessors(preds);
     /// Phis
     std::array entryArg = { PhiMapping{ newEntry, nullptr } };
-    auto otherArgs      = returns | ranges::views::transform(
-                                   [](ViableReturn const& ret) {
+    auto otherArgs      = viableReturns | ranges::views::transform(
+                                         [](ViableReturn const& ret) {
         return PhiMapping{ ret.as_base<RetBase>().retInst->parent(), nullptr };
     });
     auto phiArgs = ranges::views::concat(entryArg, otherArgs) |
@@ -154,7 +206,7 @@ void TREContext::generateLoopHeader() {
     }
 }
 
-void TREContext::rewrite(DirectReturn info) {
+void TREContext::rewriteImpl(DirectReturn info) {
     auto* bb = info.retInst->parent();
     for (auto [phi, arg]: ranges::views::zip(phiParams, info.call->arguments()))
     {
@@ -164,7 +216,7 @@ void TREContext::rewrite(DirectReturn info) {
     bb->erase(bb->terminator());
 }
 
-void TREContext::rewrite(AccumulatedReturn info) {
+void TREContext::rewriteImpl(AccumulatedReturn info) {
     auto* bb = info.retInst->parent();
     for (auto [phi, arg]: ranges::views::zip(phiParams, info.call->arguments()))
     {
@@ -173,17 +225,21 @@ void TREContext::rewrite(AccumulatedReturn info) {
     bb->insert(bb->terminator(), new Goto(irCtx, loopHeader));
     bb->erase(bb->terminator());
     /// Add accumulator to loop header
-    auto* accBase =
-        new Phi({ { &function.entry(), identityValue(info.accInst) },
-                  { bb, info.accInst } },
+    auto* startValue =
+        info.constant ? info.constant : identityValue(info.accInst);
+    auto* acc =
+        new Phi({ { &function.entry(), startValue }, { bb, info.accInst } },
                 "tre.acc");
-    loopHeader->insert(loopHeader->phiEnd(), accBase);
+    loopHeader->insert(loopHeader->phiEnd(), acc);
     /// Other stuff...
-    info.accInst->updateOperand(info.call, accBase);
+    info.accInst->updateOperand(info.call, acc);
     bb->erase(info.call);
+    if (info.otherReturn) {
+        info.otherReturn->setValue(acc);
+    }
 }
 
-void TREContext::rewrite(DirectPhiReturn info) {
+void TREContext::rewriteImpl(DirectPhiReturn info) {
     loopHeader->updatePredecessor(info.retInst->parent(), info.callPred);
     info.retInst->setValue(info.constant);
     for (auto [phi, arg]: ranges::views::zip(phiParams, info.call->arguments()))
@@ -198,7 +254,7 @@ void TREContext::rewrite(DirectPhiReturn info) {
     info.callPred->erase(info.call);
 }
 
-void TREContext::rewrite(AccumulatedPhiReturn info) {
+void TREContext::rewriteImpl(AccumulatedPhiReturn info) {
     /// Update loop header
     loopHeader->updatePredecessor(info.retInst->parent(), info.accPred);
     for (auto [phi, arg]: ranges::views::zip(phiParams, info.call->arguments()))
@@ -211,25 +267,20 @@ void TREContext::rewrite(AccumulatedPhiReturn info) {
     info.accPred->erase(info.accPred->terminator());
     info.retInst->parent()->removePredecessor(info.accPred);
     /// Add accumulator to loop header
-    auto* accBase =
-        new Phi({ { &function.entry(), identityValue(info.accInst) },
-                  { info.accPred, info.accInst } },
-                "tre.acc");
-    loopHeader->insert(loopHeader->phiEnd(), accBase);
+    auto* acc = new Phi({ { &function.entry(), info.constant },
+                          { info.accPred, info.accInst } },
+                        "tre.acc");
+    loopHeader->insert(loopHeader->phiEnd(), acc);
     /// Other stuff...
-    info.accInst->updateOperand(info.call, accBase);
+    info.accInst->updateOperand(info.call, acc);
     info.accPred->erase(info.call);
-    info.retInst->setValue(accBase);
+    info.retInst->setValue(acc);
     info.retInst->parent()->erase(info.phi);
 }
 
-std::optional<ViableReturn> TREContext::getViableReturn(BasicBlock* bb) const {
-    auto* ret = dyncast<Return*>(bb->terminator());
-    if (!ret) {
-        return std::nullopt;
-    }
+std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
     // clang-format off
-    return visit(*ret->value(), utl::overload{
+    return visit(*ret.value(), utl::overload{
         [&](Value const& value) -> std::optional<ViableReturn> {
             return std::nullopt;
         },
@@ -238,7 +289,7 @@ std::optional<ViableReturn> TREContext::getViableReturn(BasicBlock* bb) const {
                 return std::nullopt;
             }
             return DirectReturn{
-              { .retInst = ret },
+              { .retInst = &ret },
                 .call = &call
             };
         },
@@ -254,7 +305,7 @@ std::optional<ViableReturn> TREContext::getViableReturn(BasicBlock* bb) const {
                 }
             }
             return AccumulatedReturn{
-              { .retInst      = ret },
+              { .retInst      = &ret },
                 .accInst      = &inst,
                 .call         = cast<Call*>(call),
                 .otherAccArg  = other
@@ -274,7 +325,7 @@ std::optional<ViableReturn> TREContext::getViableReturn(BasicBlock* bb) const {
                         return std::nullopt;
                     }
                     return DirectPhiReturn{
-                      { .retInst      = ret },
+                      { .retInst      = &ret },
                         .phi          = &phi,
                         .constantPred = aPred,
                         .constant     = constant,
@@ -294,7 +345,7 @@ std::optional<ViableReturn> TREContext::getViableReturn(BasicBlock* bb) const {
                     }
                 }
                 return AccumulatedPhiReturn{
-                  { .retInst      = ret },
+                  { .retInst      = &ret },
                     .phi          = &phi,
                     .constantPred = aPred,
                     .constant     = constant,
