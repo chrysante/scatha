@@ -111,8 +111,11 @@ utl::hashset<BasicBlock*> const& DominanceInfo::domSet(
 std::span<BasicBlock* const> DominanceInfo::domFront(
     ir::BasicBlock const* basicBlock) const {
     auto itr = _domFront.find(basicBlock);
-    SC_ASSERT(itr != _domFront.end(), "Basic block not found");
-    return itr->second;
+    if (itr != _domFront.end()) {
+        return itr->second;
+    }
+    /// Basic block not found
+    return {};
 }
 
 DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(

@@ -976,6 +976,8 @@ public:
         return cast<Callable const*>(operands()[0]);
     }
 
+    void setFunction(Callable* function);
+
     auto arguments() { return operands() | ranges::views::drop(1); }
     auto arguments() const { return operands() | ranges::views::drop(1); }
 };

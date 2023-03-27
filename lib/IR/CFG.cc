@@ -397,12 +397,19 @@ TerminatorInst::TerminatorInst(NodeType nodeType,
 Call::Call(Callable* function,
            std::span<Value* const> arguments,
            std::string name):
-    Instruction(NodeType::Call, function->returnType(), std::move(name)) {
+    Instruction(NodeType::Call,
+                function ? function->returnType() : nullptr,
+                std::move(name)) {
     utl::small_vector<Value*> args;
     args.reserve(1 + arguments.size());
     args.push_back(function);
     ranges::copy(arguments, std::back_inserter(args));
     setOperands(std::move(args));
+}
+
+void Call::setFunction(Callable* function) {
+    setType(function ? function->returnType() : nullptr);
+    setOperand(0, function);
 }
 
 template <typename E>
