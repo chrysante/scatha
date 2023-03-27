@@ -228,7 +228,6 @@ static void insertReturn(Context& ctx, BasicBlock& bb) {
 }
 
 void ir::setupInvariants(Context& ctx, Function& function) {
-    utl::small_vector<BasicBlock*> returnBlocks;
     for (auto& bb: function) {
         /// Erase everything after the last terminator.
         for (auto itr = bb.begin(); itr != bb.end(); ++itr) {
@@ -240,7 +239,6 @@ void ir::setupInvariants(Context& ctx, Function& function) {
         /// If we don't have a terminator insert a return.
         if (bb.empty() || !isa<TerminatorInst>(bb.back())) {
             insertReturn(ctx, bb);
-            returnBlocks.push_back(&bb);
             continue;
         }
         auto* terminator = bb.terminator();
@@ -253,28 +251,8 @@ void ir::setupInvariants(Context& ctx, Function& function) {
                 link(&bb, br.thenTarget());
                 link(&bb, br.elseTarget());
             },
-            [&](ir::Return&) {
-                returnBlocks.push_back(&bb);
-            },
+            [&](ir::Return&) {},
             [&](ir::TerminatorInst&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
-    if (returnBlocks.size() <= 1) {
-        return;
-    }
-    auto* returnBlock = new BasicBlock(ctx, "return");
-    auto* retvalPhi   = new Phi(function.returnType(), "retval");
-    utl::small_vector<PhiMapping> args;
-    args.reserve(returnBlocks.size());
-    for (auto* oldRetBlock: returnBlocks) {
-        auto* retInst = cast<Return*>(oldRetBlock->terminator());
-        args.push_back({ oldRetBlock, retInst->value() });
-        oldRetBlock->erase(retInst);
-        oldRetBlock->pushBack(new Goto(ctx, returnBlock));
-        returnBlock->addPredecessor(oldRetBlock);
-    }
-    retvalPhi->setArguments(args);
-    returnBlock->pushBack(retvalPhi);
-    returnBlock->pushBack(new Return(ctx, retvalPhi));
-    function.pushBack(returnBlock);
 }
