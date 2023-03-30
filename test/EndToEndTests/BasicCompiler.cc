@@ -57,12 +57,6 @@ static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
     return { std::move(ctx), std::move(mod) };
 }
 
-static std::pair<ir::Context, ir::Module> irParse(std::string_view text) {
-    ir::Context ctx;
-    auto mod = ir::parse(text, ctx).value();
-    return { std::move(ctx), std::move(mod) };
-}
-
 static void optimize(ir::Context& ctx, ir::Module& mod) {
     opt::inlineFunctions(ctx, mod);
 }
@@ -102,7 +96,7 @@ void test::checkReturns(u64 value, std::string_view text) {
 }
 
 void test::checkIRReturns(u64 value, std::string_view text) {
-    auto [ctx, mod] = irParse(text);
+    auto [ctx, mod] = ir::parse(text).value();
     checkReturnImpl(value, ctx, mod, &optimize);
 }
 
@@ -110,6 +104,6 @@ void test::checkIRReturns(
     u64 value,
     std::string_view text,
     utl::function_view<void(ir::Context&, ir::Module&)> optFunction) {
-    auto [ctx, mod] = irParse(text);
+    auto [ctx, mod] = ir::parse(text).value();
     checkReturnImpl(value, ctx, mod, optFunction);
 }

@@ -15,30 +15,31 @@ using namespace scatha;
 
 TEST_CASE("IR clone", "[ir][parser]") {
     auto const text = R"(
-function i64 @f(i64) {
+func i64 @f(i64) {
   %entry:
     %i.addr = alloca i64
-    store %i.addr, %0
+    store ptr %i.addr, i64 %0
     %j.ptr = alloca i64
-    %i = load i64 %i.addr
-    %expr.result = mul i64 %i, $2
-    store %j.ptr, %expr.result
-    %i.1 = load i64 %i.addr
-    %cmp.result = cmp grt i64 %i.1, i64 $2
+    %i = load i64, ptr %i.addr
+    %expr.result = mul i64 %i, i64 2
+    store ptr %j.ptr, i64 %expr.result
+    %i.1 = load i64, ptr %i.addr
+    %cmp.result = cmp grt i64 %i.1, i64 2
     branch i1 %cmp.result, label %if.then, label %if.end
+
   %if.then:
-    %++.value.1 = load i64 %j.ptr
-    %++.result = add i64 %++.value.1, $1
-    store %j.ptr, %++.result
+    %++.value.1 = load i64, ptr %j.ptr
+    %++.result = add i64 %++.value.1, i64 1
+    store ptr %j.ptr, i64 %++.result
     goto label %if.end
+
   %if.end:
-    %j = load i64 %j.ptr
+    %j = load i64, ptr %j.ptr
     return i64 %j
 })";
-    ir::Context ctx;
-    ir::Module mod = ir::parse(text, ctx).value();
-    auto& f        = mod.functions().front();
-    auto fClone    = ir::clone(ctx, &f);
+    auto [ctx, mod] = ir::parse(text).value();
+    auto& f         = mod.functions().front();
+    auto fClone     = ir::clone(ctx, &f);
     using namespace test::ir;
     using enum ir::NodeType;
     // clang-format off

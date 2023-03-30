@@ -1,50 +1,6 @@
-// clang-format off
-
-/// ## IR Grammar in BNF
-///
-/// ```
-/// <module>          ::= {<decl>}*
-/// <decl>            ::= <func-def>
-///                     | <struct-def>
-///
-/// <func-def>        ::= "function" <type-id> <global-id> "(" {<type-id>}* ")" <func-body>
-/// <func-body>       ::= "{" {<basic-block>}* "}"
-///
-/// <basic-block>     ::= <local-id> ":" {<statement>}*
-/// <instruction>     ::= [<local-id> "="] <inst-...>
-/// <inst-...>        ::= "alloca" <type-id>
-///                     | "load" <type-id> <id>
-///                     | "store" <id>, <id>
-///                     | "goto" "label" <local-id>
-///                     | "branch" <type-id> <local-id> ","
-///                                "label" <local-id> ","
-///                                "label" <local-id>
-///                     | "return" <type-id> <id>
-///                     | "call" <type-id> <global-id> "," {<call-arg>}+
-///                     | "phi" <type-id> {<phi-arg>}+
-///                     | "cmp" <cmp-op> <type-id> <id> "," <type-id> <id>
-///                     | <un-op> <type-id> <id>
-///                     | <bin-op> <type-id> <id> "," <id>
-///                     | "gep" <type-id> <id> "," <type-id> <id> "," <type-id> <id>
-///                     | "insert_value" <type-id> <id> "," <type-id> <id> { "," <id> }
-///                     | "extract_value" <type-id> <id> { "," <id> }+
-/// <call-arg>        ::= <type-id> <local-id>
-/// <phi-arg>         ::= "[" "label" <local-id> ":" <id> "]"
-/// <cmp-op>          ::= "le", "leq",
-/// <un-op>           ::= "neg" | ...
-/// <bin-op>          ::= "add" | "sub | "mul" | "div" | "rem" | ...
-///
-/// <struct-def>      ::= "structure" <identifier> "{" {<type-id>}* "}"
-///
-/// <id>              ::= <local-id> | <global-id>
-/// <type-id>         ::= "iN" | "fN" | <global-id>
-///
-/// ```
-
-// clang-format on
-
 #include "IR/Parser/Parser.h"
 
+#include <array>
 #include <functional>
 
 #include <range/v3/algorithm.hpp>
@@ -75,35 +31,63 @@ struct ParseContext {
     void parse();
 
 private:
-    bool parseFunction();
+    UniquePtr<Function> parseFunction();
     Type const* parseParamDecl();
     UniquePtr<BasicBlock> parseBasicBlock();
     UniquePtr<Instruction> parseInstruction();
-    bool parseStructure();
+    utl::small_vector<size_t> parseConstantIndices();
+    UniquePtr<StructureType> parseStructure();
 
     void parseTypeDefinition();
 
     Type const* getType(Token const& token);
-    Function* getFunction(Token const& token);
-    BasicBlock* getBasicBlock(Token const& token);
-    Value* getValue(Token const& token);
 
-    void registerBasicBlock(BasicBlock* basicBlock);
+    template <typename V>
+    V* getValue(Type const* type, Token const& token);
 
-    void registerInstruction(Instruction* instruction);
+    void registerValue(Token const& token, Value* value);
 
-    void addPendingUpdate(std::string_view name, std::function<void()> f) {
-        pendingUpdates[name].push_back(std::move(f));
+    void _addPendingUpdate(Token const& name, std::function<void(Value*)> f) {
+        switch (name.kind()) {
+        case TokenKind::GlobalIdentifier:
+            globalPendingUpdates[name.id()].push_back(std::move(f));
+            break;
+        case TokenKind::LocalIdentifier:
+            localPendingUpdates[name.id()].push_back(std::move(f));
+            break;
+        default:
+            SC_UNREACHABLE();
+        }
     }
 
-    void executePendingUpdates(std::string_view name);
+    template <typename V = Value, std::derived_from<User> U>
+    void addValueLink(U* user, Type const* type, Token token, auto fn) {
+        auto* value = getValue<V>(type, token);
+        if (value) {
+            if (type && value->type() != type) {
+                reportSemaIssue();
+            }
+            std::invoke(fn, user, value);
+            return;
+        }
+        _addPendingUpdate(token, [=](Value* v) {
+            SC_ASSERT(v, "");
+            auto* value = dyncast<V*>(v);
+            if (!value) {
+                reportSemaIssue();
+            }
+            std::invoke(fn, user, value);
+        });
+    }
+
+    void executePendingUpdates(Token const& name, Value* value);
 
     Token eatToken() {
         Token result = peekToken();
         if (result.kind() != TokenKind::EndOfFile) {
             auto next = lexer.next();
             if (!next) {
-                throw ParseError(next.error().sourceLocation());
+                throw next.error();
             }
             nextToken[0] = nextToken[1];
             nextToken[1] = next.value();
@@ -125,96 +109,188 @@ private:
         return *nextToken[i];
     }
 
+    [[noreturn]] void reportSyntaxIssue(Token const& token) const {
+        throw SyntaxIssue(token);
+    }
+
+    [[noreturn]] void reportSemaIssue() const { throw SemanticIssue(); }
+
+    void expectAny(Token const& token,
+                   std::same_as<TokenKind> auto... kind) const {
+        if (((token.kind() != kind) && ...)) {
+            reportSyntaxIssue(token);
+        }
+    }
+
+    void expect(Token const& token, TokenKind kind) const {
+        expectAny(token, kind);
+    }
+
+    void expectNext(std::same_as<TokenKind> auto... next) {
+        (expect(eatToken(), next), ...);
+    }
+
+    CompareOperation toCompareOp(Token token) const {
+        switch (token.kind()) {
+        case TokenKind::Equal:
+            return CompareOperation::Equal;
+        case TokenKind::NotEqual:
+            return CompareOperation::NotEqual;
+        case TokenKind::Less:
+            return CompareOperation::Less;
+        case TokenKind::LessEq:
+            return CompareOperation::LessEq;
+        case TokenKind::Greater:
+            return CompareOperation::Greater;
+        case TokenKind::GreaterEq:
+            return CompareOperation::GreaterEq;
+        default:
+            reportSyntaxIssue(token);
+        }
+    }
+
+    UnaryArithmeticOperation toUnaryArithmeticOp(Token token) const {
+        switch (token.kind()) {
+        case TokenKind::Neg:
+            return UnaryArithmeticOperation::Negation;
+        case TokenKind::Bnt:
+            return UnaryArithmeticOperation::BitwiseNot;
+        case TokenKind::Lnt:
+            return UnaryArithmeticOperation::LogicalNot;
+        default:
+            reportSyntaxIssue(token);
+        }
+    }
+
+    ArithmeticOperation toArithmeticOp(Token token) const {
+        switch (token.kind()) {
+        case TokenKind::Add:
+            return ArithmeticOperation::Add;
+        case TokenKind::Sub:
+            return ArithmeticOperation::Sub;
+        case TokenKind::Mul:
+            return ArithmeticOperation::Mul;
+        case TokenKind::SDiv:
+            return ArithmeticOperation::SDiv;
+        case TokenKind::UDiv:
+            return ArithmeticOperation::UDiv;
+        case TokenKind::SRem:
+            return ArithmeticOperation::SRem;
+        case TokenKind::URem:
+            return ArithmeticOperation::URem;
+        case TokenKind::FAdd:
+            return ArithmeticOperation::FAdd;
+        case TokenKind::FSub:
+            return ArithmeticOperation::FSub;
+        case TokenKind::FMul:
+            return ArithmeticOperation::FMul;
+        case TokenKind::FDiv:
+            return ArithmeticOperation::FDiv;
+        case TokenKind::LShL:
+            return ArithmeticOperation::LShL;
+        case TokenKind::LShR:
+            return ArithmeticOperation::LShR;
+        case TokenKind::AShL:
+            return ArithmeticOperation::AShL;
+        case TokenKind::AShR:
+            return ArithmeticOperation::AShR;
+        case TokenKind::And:
+            return ArithmeticOperation::And;
+        case TokenKind::Or:
+            return ArithmeticOperation::Or;
+        case TokenKind::XOr:
+            return ArithmeticOperation::XOr;
+        default:
+            reportSyntaxIssue(token);
+        }
+    }
+
+    using ValueMap = utl::hashmap<std::string, Value*>;
+    using PUMap    = utl::hashmap<std::string,
+                               utl::small_vector<std::function<void(Value*)>>>;
+
     Context& irCtx;
     Module& mod;
     Lexer lexer;
     std::optional<Token> nextToken[2];
-    utl::hashmap<std::string_view, Instruction*> instructions;
-    utl::hashmap<std::string, Parameter*> parameters;
-    utl::hashmap<std::string_view, BasicBlock*> basicBlocks;
-    utl::hashmap<std::string, utl::small_vector<std::function<void()>>>
-        pendingUpdates;
+    ValueMap globals;
+    ValueMap locals;
+    PUMap globalPendingUpdates;
+    PUMap localPendingUpdates;
 };
 
 } // namespace
 
-Expected<Module, ParseError> ir::parse(std::string_view text, Context& irCtx) {
-    Module mod;
-    ParseContext ctx(irCtx, mod, text);
+Expected<std::pair<Context, Module>, ParseIssue> ir::parse(
+    std::string_view text) {
     try {
+        Context irCtx;
+        Module mod;
+        ParseContext ctx(irCtx, mod, text);
         ctx.parse();
         setupInvariants(irCtx, mod);
-        return mod;
+        assertInvariants(irCtx, mod);
+        return { std::move(irCtx), std::move(mod) };
     }
-    catch (ParseError const& error) {
-        return error;
+    catch (LexicalIssue const& issue) {
+        return issue;
     }
-    catch (InvalidToken const& error) {
-        return ParseError(error.sourceLocation());
+    catch (SyntaxIssue const& issue) {
+        return issue;
     }
-    SC_UNREACHABLE();
-}
-
-static void expect(Token const& token, std::string_view id) {
-    if (token.id() != id) {
-        throw ParseError(token.sourceLocation());
-    }
-}
-
-static void expect(Token const& token, TokenKind kind) {
-    if (token.kind() != kind) {
-        throw ParseError(token.sourceLocation());
+    catch (SemanticIssue const& issue) {
+        return issue;
     }
 }
 
 void ParseContext::parse() {
     while (peekToken().kind() != TokenKind::EndOfFile) {
-        if (parseFunction()) {
+        if (auto fn = parseFunction()) {
+            mod.addFunction(std::move(fn));
             continue;
         }
-        if (parseStructure()) {
+        if (auto s = parseStructure()) {
+            mod.addStructure(std::move(s));
             continue;
         }
-        throw ParseError(peekToken().sourceLocation());
+        throw SyntaxIssue(peekToken());
     }
 }
 
-bool ParseContext::parseFunction() {
+UniquePtr<Function> ParseContext::parseFunction() {
     Token const declarator = peekToken();
-    if (declarator.kind() != TokenKind::Keyword ||
-        declarator.id() != "function")
-    {
-        return false;
+    if (declarator.kind() != TokenKind::Function) {
+        return nullptr;
     }
     eatToken();
     auto* const returnType = getType(eatToken());
     Token const name       = eatToken();
-    expect(eatToken(), "(");
+    expect(eatToken(), TokenKind::OpenParan);
     utl::vector<Type const*> parameterTypes;
+    if (peekToken().kind() != TokenKind::CloseParan) {
+        parameterTypes.push_back(parseParamDecl());
+    }
     while (true) {
-        auto* paramDecl = parseParamDecl();
-        if (!paramDecl) {
+        if (peekToken().kind() != TokenKind::Comma) {
             break;
         }
-        parameterTypes.push_back(paramDecl);
+        eatToken(); // Comma
+        parameterTypes.push_back(parseParamDecl());
     }
-    expect(eatToken(), ")");
-    auto resultOwner = allocate<Function>(nullptr,
-                                          returnType,
-                                          parameterTypes,
-                                          std::string(name.id()),
-                                          FunctionAttribute::None);
-    auto* result     = resultOwner.get();
-    mod.addFunction(std::move(resultOwner));
-    expect(eatToken(), "{");
+    expect(eatToken(), TokenKind::CloseParan);
+    auto result = allocate<Function>(nullptr,
+                                     returnType,
+                                     parameterTypes,
+                                     std::string(name.id()),
+                                     FunctionAttribute::None);
+    registerValue(name, result.get());
+    expect(eatToken(), TokenKind::OpenBrace);
     /// Parse the body of the function.
-    instructions.clear();
-    parameters = result->parameters() |
-                 ranges::views::transform([i = 0](auto& p) mutable {
-                     return std::pair{ std::to_string(i++), &p };
-                 }) |
-                 ranges::to<utl::hashmap<std::string, Parameter*>>;
-    basicBlocks.clear();
+    locals = result->parameters() |
+             ranges::views::transform([i = 0](auto& p) mutable {
+                 return std::pair{ std::to_string(i++), &p };
+             }) |
+             ranges::to<ValueMap>;
     while (true) {
         auto basicBlock = parseBasicBlock();
         if (!basicBlock) {
@@ -222,15 +298,18 @@ bool ParseContext::parseFunction() {
         }
         result->pushBack(std::move(basicBlock));
     }
-    Token const closeBrace = eatToken();
-    expect(closeBrace, "}");
-    return true;
+    expect(eatToken(), TokenKind::CloseBrace);
+    if (!localPendingUpdates.empty()) {
+        reportSemaIssue(); // Use of undeclared identifier for each pending
+                           // update.
+    }
+    return result;
 }
 
 Type const* ParseContext::parseParamDecl() {
     auto* const type = getType(peekToken());
     if (!type) {
-        return nullptr;
+        reportSyntaxIssue(peekToken());
     }
     eatToken();
     return type;
@@ -241,293 +320,415 @@ UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {
         return nullptr;
     }
     Token const name = eatToken();
-    expect(eatToken(), ":");
+    expect(eatToken(), TokenKind::Colon);
     auto result = allocate<BasicBlock>(irCtx, std::string(name.id()));
-    registerBasicBlock(result.get());
+    registerValue(name, result.get());
     while (true) {
+        auto optInstName = peekToken();
         auto instruction = parseInstruction();
         if (!instruction) {
             break;
         }
-        registerInstruction(instruction.get());
+        registerValue(optInstName, instruction.get());
         result->pushBack(std::move(instruction));
     }
     return result;
 }
 
-static std::optional<CompareOperation> toCompareOp(Token token) {
-#define SC_COMPARE_OPERATION_DEF(op, str)                                      \
-    if (token.id() == #str) {                                                  \
-        return CompareOperation::op;                                           \
-    }
-#include "IR/Lists.def"
-    return std::nullopt;
-}
-
-static std::optional<UnaryArithmeticOperation> toUnaryArithmeticOp(
-    Token token) {
-#define SC_UNARY_ARITHMETIC_OPERATION_DEF(op, str)                             \
-    if (token.id() == #str) {                                                  \
-        return UnaryArithmeticOperation::op;                                   \
-    }
-#include "IR/Lists.def"
-    return std::nullopt;
-}
-
-static std::optional<ArithmeticOperation> toArithmeticOp(Token token) {
-#define SC_ARITHMETIC_OPERATION_DEF(op, str)                                   \
-    if (token.id() == #str) {                                                  \
-        return ArithmeticOperation::op;                                        \
-    }
-#include "IR/Lists.def"
-    return std::nullopt;
-}
-
 UniquePtr<Instruction> ParseContext::parseInstruction() {
-    auto name = [&]() -> std::optional<std::string> {
-        Token const nameToken   = peekToken(0);
-        Token const assignToken = peekToken(1);
-        if (nameToken.kind() != TokenKind::LocalIdentifier) {
+    auto _nameTok = peekToken(0);
+    auto _name    = [&]() -> std::optional<std::string> {
+        if (_nameTok.kind() != TokenKind::LocalIdentifier) {
             return std::nullopt;
         }
-        if (assignToken.id() != "=") {
+        auto assignToken = peekToken(1);
+        if (assignToken.kind() != TokenKind::Assign) {
             return std::nullopt;
         }
         eatToken(2);
-        return std::string(nameToken.id());
+        return std::string(_nameTok.id());
     }();
-    if (peekToken().id() == "alloca") {
+    auto name = [&] {
+        if (!_name) {
+            throw SyntaxIssue(_nameTok);
+        }
+        return *std::move(_name);
+    };
+    auto nameOrEmpty = [&] { return _name.value_or(std::string{}); };
+    switch (peekToken().kind()) {
+    case TokenKind::Alloca: {
         eatToken();
         auto* const type = getType(eatToken());
-        return allocate<Alloca>(irCtx, type, std::move(name).value());
+        return allocate<Alloca>(irCtx, type, name());
     }
-    if (peekToken().id() == "load") {
+    case TokenKind::Load: {
         eatToken();
         auto* const type = getType(eatToken());
-        Value* const ptr = getValue(eatToken());
-        return allocate<Load>(ptr, type, std::move(name).value());
+        expect(eatToken(), TokenKind::Comma);
+        expect(eatToken(), TokenKind::Ptr);
+        expectAny(peekToken(),
+                  TokenKind::LocalIdentifier,
+                  TokenKind::GlobalIdentifier);
+        auto const ptrName = eatToken();
+        auto result        = allocate<Load>(nullptr, type, name());
+        addValueLink(result.get(),
+                     irCtx.pointerType(),
+                     ptrName,
+                     &Load::setAddress);
+        return result;
     }
-    if (peekToken().id() == "store") {
+    case TokenKind::Store: {
         eatToken();
-        Value* const addr = getValue(eatToken());
-        expect(eatToken(), ",");
-        Value* const value = getValue(eatToken());
-        return allocate<Store>(irCtx, addr, value);
+        expect(eatToken(), TokenKind::Ptr);
+        auto const addrName = eatToken();
+        expect(eatToken(), TokenKind::Comma);
+        auto* valueType      = getType(eatToken());
+        auto const valueName = eatToken();
+        auto result          = allocate<Store>(irCtx, nullptr, nullptr);
+        addValueLink(result.get(),
+                     irCtx.pointerType(),
+                     addrName,
+                     &Store::setAddress);
+        addValueLink(result.get(), valueType, valueName, &Store::setValue);
+        return result;
     }
-    if (peekToken().id() == "goto") {
+    case TokenKind::Goto: {
         eatToken();
-        expect(eatToken(), "label");
-        Token const targetID = eatToken();
-        expect(targetID, TokenKind::LocalIdentifier);
-        BasicBlock* const target = getBasicBlock(targetID);
-        auto result              = allocate<Goto>(irCtx, target);
-        if (!target) {
-            addPendingUpdate(targetID.id(), [=, result = result.get()] {
-                auto* bb = getBasicBlock(targetID);
-                SC_ASSERT(bb, "");
-                result->setTarget(bb);
+        expect(eatToken(), TokenKind::Label);
+        auto targetName = eatToken();
+        expect(targetName, TokenKind::LocalIdentifier);
+        auto result = allocate<Goto>(irCtx, nullptr);
+        addValueLink<BasicBlock>(result.get(),
+                                 nullptr,
+                                 targetName,
+                                 &Goto::setTarget);
+        return result;
+    }
+    case TokenKind::Branch: {
+        eatToken();
+        auto* condType = getType(eatToken());
+        if (condType != irCtx.integralType(1)) {
+            reportSemaIssue();
+        }
+        auto condName = eatToken();
+        expectNext(TokenKind::Comma, TokenKind::Label);
+        auto thenName = eatToken();
+        expectNext(TokenKind::Comma, TokenKind::Label);
+        auto elseName = eatToken();
+        auto result   = allocate<Branch>(irCtx, nullptr, nullptr, nullptr);
+        addValueLink(result.get(),
+                     irCtx.integralType(1),
+                     condName,
+                     &Branch::setCondition);
+        addValueLink<BasicBlock>(result.get(),
+                                 irCtx.voidType(),
+                                 thenName,
+                                 &Branch::setThenTarget);
+        addValueLink<BasicBlock>(result.get(),
+                                 irCtx.voidType(),
+                                 elseName,
+                                 &Branch::setElseTarget);
+        return result;
+    }
+    case TokenKind::Return: {
+        eatToken();
+        auto result     = allocate<Return>(irCtx, nullptr);
+        auto* valueType = getType(peekToken());
+        if (!valueType) {
+            result->setValue(irCtx.voidValue());
+            return result;
+        }
+        eatToken();
+        auto valueName = eatToken();
+        addValueLink(result.get(), valueType, valueName, &Return::setValue);
+        return result;
+    }
+    case TokenKind::Call: {
+        eatToken();
+        auto* retType = getType(eatToken());
+        auto funcName = eatToken();
+        using CallArg = std::pair<Type const*, Token>;
+        utl::small_vector<CallArg> args;
+        while (true) {
+            if (peekToken().kind() != TokenKind::Comma) {
+                break;
+            }
+            eatToken();
+            auto* argType = getType(eatToken());
+            auto argName  = eatToken();
+            args.push_back({ argType, argName });
+        }
+        utl::small_vector<Value*> nullArgs(args.size());
+        auto result = allocate<Call>(nullptr, nullArgs, nameOrEmpty());
+        addValueLink<Callable>(result.get(),
+                               nullptr,
+                               funcName,
+                               [=](Call* call, Callable* func) {
+            if (retType != func->returnType()) {
+                reportSemaIssue();
+            }
+            call->setFunction(func);
+        });
+        for (auto [index, arg]: args | ranges::views::enumerate) {
+            auto [type, name] = arg;
+            addValueLink(result.get(),
+                         type,
+                         name,
+                         [index = index](Call* call, Value* arg) {
+                call->setArgument(index, arg);
             });
         }
         return result;
     }
-    if (peekToken().id() == "branch") {
+    case TokenKind::Phi: {
         eatToken();
-        auto* const type  = getType(eatToken());
-        Value* const cond = getValue(eatToken());
-        auto result       = allocate<Branch>(irCtx, cond, nullptr, nullptr);
-        for (size_t i = 0; i < 2; ++i) {
-            expect(eatToken(), ",");
-            expect(eatToken(), "label");
-            Token const targetID = eatToken();
-            expect(targetID, TokenKind::LocalIdentifier);
-            BasicBlock* const target = getBasicBlock(targetID);
-            if (target) {
-                result->setTarget(i, target);
+        auto* type   = getType(eatToken());
+        using PhiArg = std::array<Token, 2>;
+        utl::small_vector<PhiArg> args;
+        while (true) {
+            expectNext(TokenKind::OpenBracket, TokenKind::Label);
+            auto predName = eatToken();
+            expect(eatToken(), TokenKind::Colon);
+            auto valueName = eatToken();
+            expect(eatToken(), TokenKind::CloseBracket);
+            args.push_back({ predName, valueName });
+            if (peekToken().kind() != TokenKind::Comma) {
+                break;
             }
-            else {
-                addPendingUpdate(targetID.id(), [=, result = result.get()] {
-                    auto* target = getBasicBlock(targetID);
-                    SC_ASSERT(target, "");
-                    result->setTarget(i, target);
-                });
-            }
+            eatToken();
+        }
+        auto result = allocate<Phi>(type, args.size(), name());
+        for (auto [index, arg]: args | ranges::views::enumerate) {
+            auto [predName, valueName] = arg;
+            addValueLink<BasicBlock>(result.get(),
+                                     irCtx.voidType(),
+                                     predName,
+                                     [index = index](Phi* phi,
+                                                     BasicBlock* pred) {
+                phi->setPredecessor(index, pred);
+            });
+            addValueLink(result.get(),
+                         type,
+                         valueName,
+                         [index = index](Phi* phi, Value* value) {
+                phi->setArgument(index, value);
+            });
         }
         return result;
     }
-    if (peekToken().id() == "return") {
+    case TokenKind::Cmp: {
         eatToken();
-        auto* const type   = getType(eatToken());
-        Value* const value = getValue(eatToken());
-        /// Here we could check that `value` is of type `type`
-        return allocate<Return>(irCtx, value);
+        auto op       = toCompareOp(eatToken());
+        auto* lhsType = getType(eatToken());
+        auto lhsName  = eatToken();
+        expect(eatToken(), TokenKind::Comma);
+        auto* rhsType = getType(eatToken());
+        auto rhsName  = eatToken();
+        auto result =
+            allocate<CompareInst>(irCtx, nullptr, nullptr, op, name());
+        addValueLink(result.get(), lhsType, lhsName, &CompareInst::setLHS);
+        addValueLink(result.get(), rhsType, rhsName, &CompareInst::setRHS);
+        return result;
     }
-    if (peekToken().id() == "call") {
+    case TokenKind::Neg:
+        [[fallthrough]];
+    case TokenKind::Bnt:
+        [[fallthrough]];
+    case TokenKind::Lnt: {
+        auto op         = toUnaryArithmeticOp(eatToken());
+        auto* valueType = getType(eatToken());
+        auto valueName  = eatToken();
+        auto result = allocate<UnaryArithmeticInst>(irCtx, nullptr, op, name());
+        addValueLink(result.get(),
+                     valueType,
+                     valueName,
+                     &UnaryArithmeticInst::setOperand);
+        return result;
+    }
+
+    case TokenKind::Add:
+        [[fallthrough]];
+    case TokenKind::Sub:
+        [[fallthrough]];
+    case TokenKind::Mul:
+        [[fallthrough]];
+    case TokenKind::SDiv:
+        [[fallthrough]];
+    case TokenKind::UDiv:
+        [[fallthrough]];
+    case TokenKind::SRem:
+        [[fallthrough]];
+    case TokenKind::URem:
+        [[fallthrough]];
+    case TokenKind::FAdd:
+        [[fallthrough]];
+    case TokenKind::FSub:
+        [[fallthrough]];
+    case TokenKind::FMul:
+        [[fallthrough]];
+    case TokenKind::FDiv:
+        [[fallthrough]];
+    case TokenKind::LShL:
+        [[fallthrough]];
+    case TokenKind::LShR:
+        [[fallthrough]];
+    case TokenKind::AShL:
+        [[fallthrough]];
+    case TokenKind::AShR:
+        [[fallthrough]];
+    case TokenKind::And:
+        [[fallthrough]];
+    case TokenKind::Or:
+        [[fallthrough]];
+    case TokenKind::XOr: {
+        auto op       = toArithmeticOp(eatToken());
+        auto* lhsType = getType(eatToken());
+        auto lhsName  = eatToken();
+        expect(eatToken(), TokenKind::Comma);
+        auto* rhsType = getType(eatToken());
+        auto rhsName  = eatToken();
+        auto result   = allocate<ArithmeticInst>(nullptr, nullptr, op, name());
+        addValueLink(result.get(), lhsType, lhsName, &ArithmeticInst::setLHS);
+        addValueLink(result.get(), rhsType, rhsName, &ArithmeticInst::setRHS);
+        return result;
+    }
+    case TokenKind::GetElementPointer: {
         eatToken();
-        auto* const type          = getType(eatToken());
-        Token const funcnameToken = eatToken();
-        auto* const function      = getFunction(funcnameToken);
-        utl::small_vector<Value*> args;
-        while (true) {
-            if (peekToken().id() != ",") {
-                break;
-            }
-            eatToken();
-            auto* const argType = getType(eatToken());
-            Value* arg          = getValue(eatToken());
-            args.push_back(arg);
-        }
-        auto res = allocate<Call>(function,
-                                  args,
-                                  std::move(name).value_or(std::string{}));
-        if (!function) {
-            addPendingUpdate(funcnameToken.id(), [=, res = res.get()] {
-                res->setFunction(getFunction(funcnameToken));
-            });
-        }
-        return res;
-    }
-    if (peekToken().id() == "phi") {
-        eatToken();
-        auto* const type = getType(eatToken());
-        utl::small_vector<PhiMapping> phiArgs;
-        while (true) {
-            expect(eatToken(), "[");
-            expect(eatToken(), "label");
-            auto* const pred = getBasicBlock(eatToken());
-            expect(eatToken(), ":");
-            Value* const value = getValue(eatToken());
-            phiArgs.push_back({ pred, value });
-            expect(eatToken(), "]");
-            if (peekToken().id() != ",") {
-                break;
-            }
-            eatToken();
-        }
-        return allocate<Phi>(std::move(phiArgs), std::move(name).value());
-    }
-    if (peekToken().id() == "cmp") {
-        eatToken();
-        Token const cmpToken = eatToken();
-        auto const cmpOp     = toCompareOp(cmpToken);
-        if (!cmpOp) {
-            throw ParseError(cmpToken.sourceLocation());
-        }
-        auto* const lhsType = getType(eatToken());
-        Value* const lhs    = getValue(eatToken());
-        expect(eatToken(), ",");
-        auto* const rhsType = getType(eatToken());
-        Value* const rhs    = getValue(eatToken());
-        return allocate<CompareInst>(irCtx,
-                                     lhs,
-                                     rhs,
-                                     *cmpOp,
-                                     std::move(name).value());
-    }
-    if (auto unaryOp = toUnaryArithmeticOp(peekToken())) {
-        eatToken();
-        auto* type           = getType(eatToken());
-        Value* const operand = getValue(eatToken());
-        return allocate<UnaryArithmeticInst>(irCtx,
-                                             operand,
-                                             *unaryOp,
-                                             std::move(name).value());
-    }
-    if (auto binaryOp = toArithmeticOp(peekToken())) {
-        eatToken();
-        auto* type       = getType(eatToken());
-        Value* const lhs = getValue(eatToken());
-        expect(eatToken(), ",");
-        Value* const rhs = getValue(eatToken());
-        return allocate<ArithmeticInst>(lhs,
-                                        rhs,
-                                        *binaryOp,
-                                        std::move(name).value());
-    }
-    if (peekToken().id() == "gep") {
-        SC_DEBUGFAIL();
-    }
-    if (peekToken().id() == "insert_value") {
-        eatToken();
-        auto* const structType  = getType(eatToken());
-        auto* const structValue = getValue(eatToken());
-        expect(eatToken(), ",");
-        auto* const memberType  = getType(eatToken());
-        auto* const memberValue = getValue(eatToken());
-        utl::small_vector<size_t> indices;
-        while (true) {
-            if (peekToken().id() != ",") {
-                break;
-            }
-            eatToken();
-            Token const indexToken = eatToken();
-            expect(indexToken, TokenKind::IntLiteral);
-            auto const index =
-                APInt::parse(indexToken.id()).value().to<size_t>();
-            indices.push_back(index);
-        }
+        auto* accessedType = getType(eatToken());
+        expectNext(TokenKind::Comma, TokenKind::Ptr);
+        auto basePtrName = eatToken();
+        expectNext(TokenKind::Comma);
+        auto* indexType = getType(eatToken());
+        auto indexName  = eatToken();
+        auto indices    = parseConstantIndices();
         if (indices.empty()) {
-            throw ParseError(peekToken().sourceLocation());
+            reportSyntaxIssue(peekToken());
         }
-        return allocate<InsertValue>(structValue,
-                                     memberValue,
-                                     indices,
-                                     std::move(name).value());
+        auto result = allocate<GetElementPointer>(irCtx,
+                                                  accessedType,
+                                                  nullptr,
+                                                  nullptr,
+                                                  indices,
+                                                  name());
+        addValueLink(result.get(),
+                     irCtx.pointerType(),
+                     basePtrName,
+                     &GetElementPointer::setBasePtr);
+        addValueLink(result.get(),
+                     indexType,
+                     indexName,
+                     &GetElementPointer::setArrayIndex);
+        return result;
     }
-    if (peekToken().id() == "extract_value") {
+    case TokenKind::InsertValue: {
         eatToken();
-        auto* const structType  = getType(eatToken());
-        auto* const structValue = getValue(eatToken());
-        // TODO: Copy-pasted from `insert_value` case. Extract this to function.
-        utl::small_vector<size_t> indices;
-        while (true) {
-            if (peekToken().id() != ",") {
-                break;
-            }
-            eatToken();
-            Token const indexToken = eatToken();
-            expect(indexToken, TokenKind::IntLiteral);
-            auto const index =
-                APInt::parse(indexToken.id()).value().to<size_t>();
-            indices.push_back(index);
-        }
+        auto* baseType = getType(eatToken());
+        auto baseName  = eatToken();
+        expectNext(TokenKind::Comma);
+        auto* insType = getType(eatToken());
+        auto insName  = eatToken();
+        auto indices  = parseConstantIndices();
         if (indices.empty()) {
-            throw ParseError(peekToken().sourceLocation());
+            reportSyntaxIssue(peekToken());
         }
-        return allocate<ExtractValue>(structValue,
-                                      indices,
-                                      std::move(name).value());
+        auto result = allocate<InsertValue>(nullptr, nullptr, indices, name());
+        addValueLink(result.get(),
+                     baseType,
+                     baseName,
+                     &InsertValue::setBaseValue);
+        addValueLink(result.get(),
+                     insType,
+                     insName,
+                     &InsertValue::setInsertedValue);
+        return result;
     }
-    return nullptr;
+    case TokenKind::ExtractValue: {
+        eatToken();
+        auto* baseType = getType(eatToken());
+        auto baseName  = eatToken();
+        auto indices   = parseConstantIndices();
+        if (indices.empty()) {
+            reportSyntaxIssue(peekToken());
+        }
+        auto result = allocate<ExtractValue>(nullptr, indices, name());
+        addValueLink(result.get(),
+                     baseType,
+                     baseName,
+                     &ExtractValue::setOperand);
+        return result;
+    }
+    case TokenKind::Select: {
+        eatToken();
+        auto* condType = getType(eatToken());
+        if (condType != irCtx.integralType(1)) {
+            reportSemaIssue();
+        }
+        auto condName = eatToken();
+        expectNext(TokenKind::Comma);
+        auto* thenType = getType(eatToken());
+        auto thenName  = eatToken();
+        expectNext(TokenKind::Comma);
+        auto* elseType = getType(eatToken());
+        auto elseName  = eatToken();
+        auto result    = allocate<Select>(nullptr, nullptr, nullptr, name());
+        addValueLink(result.get(),
+                     irCtx.integralType(1),
+                     condName,
+                     &Select::setCondition);
+        addValueLink(result.get(), thenType, thenName, &Select::setThenValue);
+        addValueLink(result.get(), elseType, elseName, &Select::setElseValue);
+        return result;
+    }
+    default:
+        return nullptr;
+    }
 }
 
-bool ParseContext::parseStructure() {
-    Token const declarator = peekToken();
-    if (declarator.kind() != TokenKind::Keyword ||
-        declarator.id() != "structure")
-    {
-        return false;
+utl::small_vector<size_t> ParseContext::parseConstantIndices() {
+    utl::small_vector<size_t> result;
+    while (true) {
+        if (peekToken().kind() != TokenKind::Comma) {
+            return result;
+        }
+        eatToken();
+        auto indexToken = eatToken();
+        if (indexToken.kind() != TokenKind::IntLiteral) {
+            reportSyntaxIssue(indexToken);
+        }
+        size_t index =
+            utl::narrow_cast<size_t>(std::atoll(indexToken.id().data()));
+        result.push_back(index);
+    }
+}
+
+UniquePtr<StructureType> ParseContext::parseStructure() {
+    if (peekToken().kind() != TokenKind::Structure) {
+        return nullptr;
     }
     eatToken();
     Token const nameID = eatToken();
     expect(nameID, TokenKind::GlobalIdentifier);
-    expect(eatToken(), "{");
+    expect(eatToken(), TokenKind::OpenBrace);
     utl::small_vector<Type const*> members;
     while (true) {
         auto* type = getType(eatToken());
         members.push_back(type);
-        if (peekToken().id() != ",") {
+        if (peekToken().kind() != TokenKind::Comma) {
             break;
         }
         eatToken();
     }
-    expect(eatToken(), "}");
+    expect(eatToken(), TokenKind::CloseBrace);
     auto structure = allocate<StructureType>(std::string(nameID.id()), members);
-    mod.addStructure(std::move(structure));
-    return true;
+    return structure;
 }
 
 Type const* ParseContext::getType(Token const& token) {
     switch (token.kind()) {
+    case TokenKind::Void:
+        return irCtx.voidType();
+    case TokenKind::Ptr:
+        return irCtx.pointerType();
     case TokenKind::GlobalIdentifier: {
         auto structures = mod.structures();
         auto itr        = ranges::find_if(structures, [&](auto&& type) {
@@ -535,12 +736,12 @@ Type const* ParseContext::getType(Token const& token) {
             return type->name() == token.id();
         });
         if (itr == ranges::end(structures)) {
-            throw ParseError(token.sourceLocation());
+            reportSemaIssue();
         }
         return itr->get();
     }
     case TokenKind::LocalIdentifier:
-        return nullptr;
+        reportSemaIssue();
     case TokenKind::IntType:
         return irCtx.integralType(token.width());
     case TokenKind::FloatType:
@@ -550,80 +751,99 @@ Type const* ParseContext::getType(Token const& token) {
     }
 }
 
-Function* ParseContext::getFunction(Token const& token) {
-    if (token.kind() != TokenKind::GlobalIdentifier) {
-        throw ParseError(token.sourceLocation());
-    }
-    auto itr = ranges::find_if(mod.functions(), [&](Function const& f) {
-        return f.name() == token.id();
-    });
-    if (itr != mod.functions().end()) {
-        return &*itr;
-    }
-    return nullptr;
-}
-
-BasicBlock* ParseContext::getBasicBlock(Token const& token) {
-    if (token.kind() != TokenKind::LocalIdentifier) {
-        throw ParseError(token.sourceLocation());
-    }
-    if (auto itr = basicBlocks.find(token.id()); itr != basicBlocks.end()) {
-        return itr->second;
-    }
-    return nullptr;
-}
-
-Value* ParseContext::getValue(Token const& token) {
+template <typename V>
+V* ParseContext::getValue(Type const* type, Token const& token) {
     switch (token.kind()) {
-    case TokenKind::LocalIdentifier: {
-        if (auto const itr = instructions.find(token.id());
-            itr != instructions.end())
-        {
-            return itr->second;
+    case TokenKind::LocalIdentifier:
+        [[fallthrough]];
+    case TokenKind::GlobalIdentifier: {
+        auto& values =
+            token.kind() == TokenKind::LocalIdentifier ? locals : globals;
+        auto const itr = values.find(token.id());
+        if (itr == values.end()) {
+            return nullptr;
         }
-        if (auto const itr = parameters.find(token.id());
-            itr != parameters.end())
-        {
-            return itr->second;
+        auto* value = dyncast<V*>(itr->second);
+        if (!value) {
+            reportSemaIssue();
         }
+        if (value->type() && type && value->type() != type) {
+            reportSemaIssue();
+        }
+        return value;
+    }
+    case TokenKind::UndefLiteral:
+        if constexpr (std::convertible_to<V*, BasicBlock*> ||
+                      std::convertible_to<V*, Callable*>)
+        {
+            reportSyntaxIssue(token);
+        }
+        else {
+            return irCtx.undef(type);
+        }
+    case TokenKind::IntLiteral:
+        if constexpr (std::convertible_to<IntegralConstant*, V*>) {
+            auto value = APInt::parse(token.id());
+            if (!value) {
+                throw SyntaxIssue(token);
+            }
+            auto* intType = dyncast<IntegralType const*>(type);
+            if (!intType) {
+                reportSemaIssue();
+            }
+            value->zext(intType->bitWidth());
+            return irCtx.integralConstant(*value);
+        }
+        else {
+            SC_UNREACHABLE();
+        }
+    case TokenKind::FloatLiteral: {
         SC_DEBUGFAIL();
     }
-    case TokenKind::IntLiteral: {
-        auto value = APInt::parse(token.id());
-        if (!value) {
-            throw ParseError(token.sourceLocation());
-        }
-        value->zext(64);
-        return irCtx.integralConstant(*value);
-    }
     default:
-        throw ParseError(token.sourceLocation());
+        reportSemaIssue();
     }
 }
 
-void ParseContext::registerBasicBlock(BasicBlock* basicBlock) {
-    SC_ASSERT(!basicBlocks.contains(basicBlock->name()),
-              "Actually a soft error");
-    basicBlocks[basicBlock->name()] = basicBlock;
-    executePendingUpdates(basicBlock->name());
-}
-
-void ParseContext::registerInstruction(Instruction* instruction) {
-    if (instruction->name().empty()) {
+void ParseContext::registerValue(Token const& token, Value* value) {
+    if (value->name().empty()) {
         return;
     }
-    SC_ASSERT(!instructions.contains(instruction->name()),
-              "Actually a soft error");
-    instructions[instruction->name()] = instruction;
-    executePendingUpdates(instruction->name());
+    auto& values = [&]() -> auto& {
+        switch (token.kind()) {
+        case TokenKind::GlobalIdentifier:
+            return globals;
+        case TokenKind::LocalIdentifier:
+            return locals;
+        default:
+            SC_UNREACHABLE();
+        }
+    }();
+    if (values.contains(value->name())) {
+        reportSemaIssue();
+    }
+    values[value->name()] = value;
+    executePendingUpdates(token, value);
 }
 
-void ParseContext::executePendingUpdates(std::string_view name) {
-    auto const itr = pendingUpdates.find(name);
-    if (itr == pendingUpdates.end()) {
+void ParseContext::executePendingUpdates(Token const& name, Value* value) {
+    auto& map = [&]() -> auto& {
+        switch (name.kind()) {
+        case TokenKind::GlobalIdentifier:
+            return globalPendingUpdates;
+        case TokenKind::LocalIdentifier:
+            return localPendingUpdates;
+        default:
+            SC_UNREACHABLE();
+        }
+    }();
+    auto const itr = map.find(name.id());
+    if (itr == map.end()) {
         return;
     }
-    for (auto& updateFn: itr->second) {
-        updateFn();
+    auto& updateList = itr->second;
+    for (auto& updateFn: updateList) {
+        updateFn(value);
     }
+    map.erase(itr);
 }

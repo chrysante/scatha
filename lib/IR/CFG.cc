@@ -180,7 +180,7 @@ void BasicBlock::removePredecessor(BasicBlock const* pred) {
 }
 
 void BasicBlock::removePredecessor(size_t index) {
-    SC_ASSERT(index < preds.size(), "");
+    SC_ASSERT(index < preds.size(), "Invalid index");
     auto itr   = preds.begin() + index;
     auto* pred = *itr;
     preds.erase(itr);
@@ -296,26 +296,15 @@ Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
                 {},
                 { allocatedType }) {}
 
-void Load::setAddress(Value* address) {
-    SC_ASSERT(isa<PointerType>(address->type()),
-              "`address` must be of type `ptr`");
-    setOperand(0, address);
-}
+void Load::setAddress(Value* address) { UnaryInstruction::setOperand(address); }
 
 Store::Store(Context& context, Value* address, Value* value):
     Instruction(NodeType::Store,
                 context.voidType(),
                 std::string{},
-                { address, value }) {
-    SC_ASSERT(isa<PointerType>(address->type()),
-              "`address` must be of type `ptr`");
-}
+                { address, value }) {}
 
-void Store::setAddress(Value* address) {
-    SC_ASSERT(isa<PointerType>(address->type()),
-              "`address` must be of type `ptr`");
-    setOperand(0, address);
-}
+void Store::setAddress(Value* address) { setOperand(0, address); }
 
 void Store::setValue(Value* value) { setOperand(1, value); }
 
@@ -329,11 +318,7 @@ CompareInst::CompareInst(Context& context,
                       rhs,
                       context.integralType(1),
                       std::move(name)),
-    _op(op) {
-    SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
-    SC_ASSERT(isa<ArithmeticType>(lhs->type()),
-              "Compared type must be arithmetic.");
-}
+    _op(op) {}
 
 UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
                                          Value* operand,
@@ -345,26 +330,7 @@ UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
                          context.integralType(1) :
                          operand->type(),
                      std::move(name)),
-    _op(op) {
-    switch (op) {
-    case UnaryArithmeticOperation::Negation:
-        SC_ASSERT(isa<ArithmeticType>(operand->type()),
-                  "Operand type must be arithmetic");
-        break;
-    case UnaryArithmeticOperation::BitwiseNot:
-        SC_ASSERT(isa<IntegralType>(operand->type()),
-                  "Operand type must be integral");
-        break;
-    case UnaryArithmeticOperation::LogicalNot:
-        SC_ASSERT(isa<IntegralType>(operand->type()) &&
-                      cast<IntegralType const*>(operand->type())->bitWidth() ==
-                          1,
-                  "Operand type must be i1");
-        break;
-    default:
-        SC_UNREACHABLE();
-    }
-}
+    _op(op) {}
 
 ArithmeticInst::ArithmeticInst(Value* lhs,
                                Value* rhs,
@@ -373,13 +339,9 @@ ArithmeticInst::ArithmeticInst(Value* lhs,
     BinaryInstruction(NodeType::ArithmeticInst,
                       lhs,
                       rhs,
-                      lhs->type(),
+                      lhs ? lhs->type() : nullptr,
                       std::move(name)),
-    _op(op) {
-    SC_ASSERT(lhs->type() == rhs->type(), "Type mismatch");
-    SC_ASSERT(isa<ArithmeticType>(lhs->type()),
-              "Operands types must be arithmetic");
-}
+    _op(op) {}
 
 TerminatorInst::TerminatorInst(NodeType nodeType,
                                Context& context,
@@ -393,6 +355,9 @@ TerminatorInst::TerminatorInst(NodeType nodeType,
     ranges::copy(targets, std::back_inserter(ops));
     setOperands(std::move(ops));
 }
+
+Call::Call(Callable* function, std::string name):
+    Call(function, std::span<Value* const>{}, std::move(name)) {}
 
 Call::Call(Callable* function,
            std::span<Value* const> arguments,
@@ -426,7 +391,9 @@ static auto extract(std::span<PhiMapping const> args, E extractor) {
 
 void Phi::setArguments(std::span<PhiMapping const> args) {
     SC_ASSERT(!args.empty(), "Phi must have at least one argument");
-    setType(args[0].value->type());
+    if (auto* val = args.front().value) {
+        setType(val->type());
+    }
     setOperands(extract(args, [](PhiMapping p) { return p.value; }));
     _preds = extract(args, [](PhiMapping p) { return p.pred; });
 }
@@ -470,12 +437,7 @@ GetElementPointer::GetElementPointer(Context& context,
                 std::move(name),
                 { basePointer, arrayIndex },
                 { accessedType }),
-    _memberIndices(memberIndices | ranges::to<utl::small_vector<uint16_t>>) {
-    SC_ASSERT(isa<PointerType>(basePointer->type()),
-              "`basePointer` must be a pointer");
-    SC_ASSERT(isa<IntegralType>(arrayIndex->type()),
-              "Indices must be integral");
-}
+    _memberIndices(memberIndices | ranges::to<utl::small_vector<uint16_t>>) {}
 
 Type const* GetElementPointer::accessedType() const {
     return computeAccessedTypeGen(inboundsType(), memberIndices());
@@ -493,22 +455,15 @@ InsertValue::InsertValue(Value* baseValue,
     BinaryInstruction(NodeType::InsertValue,
                       baseValue,
                       insertedValue,
-                      baseValue->type(),
+                      baseValue ? baseValue->type() : nullptr,
                       std::move(name)),
-    internal::AccessValueBase(indices) {
-    auto* compAccessedType = computeAccessedType(baseValue->type(), indices);
-    SC_ASSERT(insertedValue->type() == compAccessedType, "Type mismatch");
-}
+    internal::AccessValueBase(indices) {}
 
 Select::Select(Value* condition,
                Value* thenValue,
                Value* elseValue,
                std::string name):
     Instruction(NodeType::Select,
-                thenValue->type(),
+                thenValue ? thenValue->type() : nullptr,
                 std::move(name),
-                { condition, thenValue, elseValue }) {
-    SC_ASSERT(thenValue->type() == elseValue->type(), "Type mismatch");
-    SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1,
-              "`condition` needs to be of type i1");
-}
+                { condition, thenValue, elseValue }) {}

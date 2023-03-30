@@ -14,27 +14,28 @@
 using namespace scatha;
 
 TEST_CASE("Iterate over instructions in a function", "[ir][opt]") {
-    auto const text = R"(
-function i64 @ff(i64) {
+    auto const text                = R"(
+func i64 @ff(i64) {
   %entry:
     %n.addr = alloca i64
-    store %n.addr, %0
+    store ptr %n.addr, i64 %0
     %k-ptr = alloca i64
-    %n = load i64 %n.addr
-    store %k-ptr, %n
-    %k = load i64 %k-ptr
-    %cmp.result = cmp eq i64 %k, i64 $0
+    %n = load i64, ptr %n.addr
+    store ptr %k-ptr, i64 %n
+    %k = load i64, ptr %k-ptr
+    %cmp.result = cmp eq i64 %k, i64 0
     branch i1 %cmp.result, label %then, label %if.end
+  
   %then:
-    store %k-ptr, $1
-    %tmp = load i64 %k-ptr
+    store ptr %k-ptr, i64 1
+    %tmp = load i64, ptr %k-ptr
     goto label %if.end
+  
   %if.end:
-    %k.1 = load i64 %k-ptr
+    %k.1 = load i64, ptr %k-ptr
     return i64 %k.1
 })";
-    ir::Context ctx;
-    auto mod                       = ir::parse(text, ctx).value();
+    auto [ctx, mod]                = ir::parse(text).value();
     auto& function                 = mod.functions().front();
     ir::NodeType const reference[] = {
         ir::NodeType::Alloca,      ir::NodeType::Store,  ir::NodeType::Alloca,
@@ -87,22 +88,23 @@ function i64 @ff(i64) {
 }
 
 TEST_CASE("Phi iterator", "[ir][opt]") {
-    auto const text = R"(
-function i64 @f() {
+    auto const text     = R"(
+func i64 @f() {
   %entry:
     goto label %header
+
   %header:
-    %z = phi i64 [label %entry: $3], [label %body: $4]
-    %y = phi i64 [label %entry: $2], [label %body: $3]
-    %x = phi i64 [label %entry: $1], [label %body: $2]
-    %sum = add i64 %z, %z
-    %prod = mul i64 %z, %z
+    %z = phi i64 [label %entry: 3], [label %body: 4]
+    %y = phi i64 [label %entry: 2], [label %body: 3]
+    %x = phi i64 [label %entry: 1], [label %body: 2]
+    %sum = add i64 %z, i64 %z
+    %prod = mul i64 %z, i64 %z
     goto label %body
+  
   %body:
     goto label %header
 })";
-    ir::Context ctx;
-    auto mod            = ir::parse(text, ctx).value();
+    auto [ctx, mod]     = ir::parse(text).value();
     auto& f             = mod.functions().front();
     auto& header        = *f.front().next();
     auto headerPhiNodes = header.phiNodes();

@@ -136,6 +136,8 @@ protected:
     /// User lists are updated.
     void setOperands(utl::small_vector<Value*> operands);
 
+    void setOperandCount(size_t count) { _operands.resize(count); }
+
     /// Remove operand at \p index
     /// User lists are updated.
     /// \warning Erases the operand, that means higher indices get messed up.
@@ -730,6 +732,9 @@ public:
     /// \overload
     Value const* operand() const { return operands()[0]; }
 
+    /// Set the single operand of this unary instruction.
+    void setOperand(Value* value) { User::setOperand(0, value); }
+
     /// \returns the type of the operand of this instruction
     Type const* operandType() const { return operand()->type(); }
 };
@@ -738,10 +743,7 @@ public:
 class SCATHA_API Load: public UnaryInstruction {
 public:
     explicit Load(Value* address, Type const* type, std::string name):
-        UnaryInstruction(NodeType::Load, address, type, std::move(name)) {
-        SC_ASSERT(isa<PointerType>(address->type()),
-                  "`address` must be of type `ptr`");
-    }
+        UnaryInstruction(NodeType::Load, address, type, std::move(name)) {}
 
     /// \returns the address this instruction loads from.
     Value* address() { return operand(); }
@@ -794,11 +796,17 @@ public:
     ///  \overload
     Value const* lhs() const { return operands()[0]; }
 
+    /// Set LHS operand to \p value
+    void setLHS(Value* value) { setOperand(0, value); }
+
     /// \returns the RHS operand
     Value* rhs() { return operands()[1]; }
 
     ///  \overload
     Value const* rhs() const { return operands()[1]; }
+
+    /// Set RHS operand to \p value
+    void setRHS(Value* value) { setOperand(1, value); }
 
     /// \returns the type of the operands.
     Type const* operandType() const { return lhs()->type(); }
@@ -844,6 +852,22 @@ public:
                             std::string name);
 
     ArithmeticOperation operation() const { return _op; }
+
+    /// Set LHS operand to \p value
+    void setLHS(Value* value) {
+        if (!type()) {
+            setType(value->type());
+        }
+        BinaryInstruction::setLHS(value);
+    }
+
+    /// Set RHS operand to \p value
+    void setRHS(Value* value) {
+        if (!type()) {
+            setType(value->type());
+        }
+        BinaryInstruction::setRHS(value);
+    }
 
 private:
     ArithmeticOperation _op;
@@ -897,8 +921,6 @@ public:
     BasicBlock const* target() const { return targets()[0]; }
 
     void setTarget(BasicBlock* bb) { setOperand(0, bb); }
-
-    using TerminatorInst::setTarget;
 };
 
 /// `branch` instruction. Leave the current basic block and choose a target
@@ -915,10 +937,7 @@ public:
         TerminatorInst(NodeType::Branch,
                        context,
                        { condition },
-                       { thenTarget, elseTarget }) {
-        SC_ASSERT(cast<IntegralType const*>(condition->type())->bitWidth() == 1,
-                  "Condition must be of type i1");
-    }
+                       { thenTarget, elseTarget }) {}
 
     Value* condition() { return operands()[0]; }
     Value const* condition() const { return operands()[0]; }
@@ -928,6 +947,8 @@ public:
 
     BasicBlock* elseTarget() { return targets()[1]; }
     BasicBlock const* elseTarget() const { return targets()[1]; }
+
+    void setCondition(Value* cond) { setOperand(0, cond); }
 
     void setThenTarget(BasicBlock* bb) { setOperand(1, bb); }
 
@@ -940,9 +961,7 @@ public:
 class SCATHA_API Return: public TerminatorInst {
 public:
     explicit Return(Context& context, Value* value):
-        TerminatorInst(NodeType::Return, context, { value }, {}) {
-        SC_ASSERT(value != nullptr, "We don't want null operands");
-    }
+        TerminatorInst(NodeType::Return, context, { value }, {}) {}
 
     explicit Return(Context& context);
 
@@ -967,6 +986,8 @@ public:
 /// starting from index 1.
 class SCATHA_API Call: public Instruction {
 public:
+    explicit Call(Callable* function, std::string name);
+
     explicit Call(Callable* function,
                   std::span<Value* const> arguments,
                   std::string name);
@@ -980,6 +1001,10 @@ public:
 
     auto arguments() { return operands() | ranges::views::drop(1); }
     auto arguments() const { return operands() | ranges::views::drop(1); }
+
+    void setArgument(size_t index, Value* value) {
+        setOperand(1 + index, value);
+    }
 };
 
 /// `phi` instruction. Select a value based on where control flow comes from.
@@ -994,6 +1019,13 @@ public:
         Phi(nullptr /* Type will be set by call to setArguments() */,
             std::move(name)) {
         setArguments(args);
+    }
+
+    /// Construct a phi node with a \p count arguments
+    explicit Phi(Type const* type, size_t count, std::string name):
+        Phi(type, std::move(name)) {
+        setOperandCount(count);
+        _preds.resize(count);
     }
 
     /// Construct an empty phi node.
@@ -1130,15 +1162,9 @@ public:
 
     void setAccessedType(Type const* type) { setTypeOperand(0, type); }
 
-    void setBasePtr(Value* basePtr) {
-        SC_ASSERT(isa<PointerType>(basePtr->type()), "");
-        setOperand(0, basePtr);
-    }
+    void setBasePtr(Value* basePtr) { setOperand(0, basePtr); }
 
-    void setArrayIndex(Value* arrayIndex) {
-        SC_ASSERT(isa<IntegralType>(arrayIndex->type()), "");
-        setOperand(1, arrayIndex);
-    }
+    void setArrayIndex(Value* arrayIndex) { setOperand(1, arrayIndex); }
 
     void addMemberIndexFront(size_t index) {
         _memberIndices.insert(_memberIndices.begin(),
@@ -1188,7 +1214,9 @@ public:
                           std::string name):
         UnaryInstruction(NodeType::ExtractValue,
                          baseValue,
-                         computeAccessedType(baseValue->type(), indices),
+                         baseValue ?
+                             computeAccessedType(baseValue->type(), indices) :
+                             nullptr,
                          std::move(name)),
         internal::AccessValueBase(indices) {}
 
@@ -1197,6 +1225,14 @@ public:
 
     /// \overload
     Value const* baseValue() const { return operand(); }
+
+    /// Same as `setOperand()`
+    void setBaseValue(Value* value) {
+        if (!type()) {
+            setType(value->type());
+        }
+        setOperand(value);
+    }
 };
 
 /// `insert_value` instruction. Insert a value into a structure or array.
@@ -1222,11 +1258,22 @@ public:
     /// \overload
     Value const* baseValue() const { return lhs(); }
 
+    /// Same as `setLHS()`
+    void setBaseValue(Value* value) {
+        if (!type()) {
+            setType(value->type());
+        }
+        setLHS(value);
+    }
+
     /// The value being inserted. Same as `rhs()`
     Value* insertedValue() { return rhs(); }
 
     /// \overload
     Value const* insertedValue() const { return rhs(); }
+
+    /// Same as `setRHS()`
+    void setInsertedValue(Value* value) { setRHS(value); }
 };
 
 class Select: public Instruction {
@@ -1242,17 +1289,36 @@ public:
     /// \overload
     Value const* condition() const { return operands()[0]; }
 
+    /// Set the condition to select on.
+    void setCondition(Value* value) { setOperand(0, value); }
+
     /// Value to choose if condition is `true`
     Value* thenValue() { return operands()[1]; }
 
     /// \overload
     Value const* thenValue() const { return operands()[1]; }
 
+    /// Set the value to choose if condition is `true`.
+    void setThenValue(Value* value) {
+        if (!type()) {
+            setType(value->type());
+        }
+        setOperand(1, value);
+    }
+
     /// Value to choose if condition is `false`
     Value* elseValue() { return operands()[2]; }
 
     /// \overload
     Value const* elseValue() const { return operands()[2]; }
+
+    /// Set the value to choose if condition is `false`.
+    void setElseValue(Value* value) {
+        if (!type()) {
+            setType(value->type());
+        }
+        setOperand(2, value);
+    }
 };
 
 } // namespace scatha::ir

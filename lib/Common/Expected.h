@@ -105,7 +105,9 @@ public:
 private:
     template <typename Self>
     static decltype(auto) getValueImpl(Self&& self) {
-        SC_EXPECT(self._e.has_value(), "");
+        if (!self._e.has_value()) {
+            throw std::move(self).error();
+        }
         return *std::forward<Self>(self)._e;
     }
 
@@ -137,7 +139,11 @@ public:
 
     explicit operator bool() const { return hasValue(); }
 
-    void value() const {}
+    void value() const {
+        if (!hasValue()) {
+            throw error();
+        }
+    }
 
     E& error() & { return getErrorImpl(*this); }
     E&& error() && { return getErrorImpl(std::move(*this)); }
@@ -173,7 +179,12 @@ public:
 
     explicit operator bool() const { return hasValue(); }
 
-    T& value() const { return **_e; }
+    T& value() const {
+        if (!hasValue()) {
+            throw error();
+        }
+        return **_e;
+    }
 
     E& error() & { return getErrorImpl(*this); }
     E&& error() && { return getErrorImpl(std::move(*this)); }

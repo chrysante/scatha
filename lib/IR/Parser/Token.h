@@ -9,13 +9,75 @@
 namespace scatha::ir {
 
 enum class TokenKind {
-    GlobalIdentifier,
-    LocalIdentifier,
-    Keyword,
+    Structure,
+    Function,
+
+    OpenParan,
+    CloseParan,
+    OpenBrace,
+    CloseBrace,
+    OpenBracket,
+    CloseBracket,
+    Assign,
+    Comma,
+    Colon,
+
+    Void,
+    Ptr,
     IntType,
     FloatType,
+
     IntLiteral,
-    Punctuation,
+    FloatLiteral,
+    UndefLiteral,
+
+    GlobalIdentifier,
+    LocalIdentifier,
+
+    Alloca,
+    Load,
+    Store,
+    Goto,
+    Branch,
+    Return,
+    Call,
+    Phi,
+    Cmp,
+    Neg,
+    Bnt,
+    Lnt,
+    Add,
+    Sub,
+    Mul,
+    SDiv,
+    UDiv,
+    SRem,
+    URem,
+    FAdd,
+    FSub,
+    FMul,
+    FDiv,
+    LShL,
+    LShR,
+    AShL,
+    AShR,
+    And,
+    Or,
+    XOr,
+    GetElementPointer,
+    InsertValue,
+    ExtractValue,
+    Select,
+
+    Ext,
+    Label,
+    Equal,
+    NotEqual,
+    Less,
+    LessEq,
+    Greater,
+    GreaterEq,
+
     EndOfFile
 };
 
@@ -51,7 +113,9 @@ private:
     std::string_view _id;
     SourceLocation _loc;
     TokenKind _kind;
-    unsigned _width;
+    union {
+        unsigned _width;
+    };
 };
 
 } // namespace scatha::ir

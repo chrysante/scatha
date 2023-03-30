@@ -5,6 +5,7 @@
 
 #include "Basic/Basic.h"
 #include "Common/Expected.h"
+#include "IR/Parser/Issue.h"
 #include "IR/Parser/SourceLocation.h"
 
 namespace scatha::ir {
@@ -12,19 +13,9 @@ namespace scatha::ir {
 class Context;
 class Module;
 
-class ParseError {
-public:
-    explicit ParseError(SourceLocation loc): _loc(loc) {}
-
-    SourceLocation sourceLocation() const { return _loc; }
-
-private:
-    SourceLocation _loc;
-};
-
 /// Parses \p text into an IR module.
-SCATHA_API Expected<Module, ParseError> parse(std::string_view text,
-                                              Context& context);
+SCATHA_API Expected<std::pair<Context, Module>, ParseIssue> parse(
+    std::string_view text);
 
 } // namespace scatha::ir
 

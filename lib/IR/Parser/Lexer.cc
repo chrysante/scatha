@@ -20,7 +20,89 @@ bool isPunctuation(char c) {
     return ranges::find(punctuations, c) != ranges::end(punctuations);
 };
 
-Expected<Token, InvalidToken> Lexer::next() {
+static std::optional<TokenKind> getPunctuation(char c) {
+    switch (c) {
+    case '(':
+        return TokenKind::OpenParan;
+    case ')':
+        return TokenKind::CloseParan;
+    case '{':
+        return TokenKind::OpenBrace;
+    case '}':
+        return TokenKind::CloseBrace;
+    case '[':
+        return TokenKind::OpenBracket;
+    case ']':
+        return TokenKind::CloseBracket;
+    case '=':
+        return TokenKind::Assign;
+    case ',':
+        return TokenKind::Comma;
+    case ':':
+        return TokenKind::Colon;
+    default:
+        return std::nullopt;
+    }
+}
+
+static std::optional<TokenKind> getKeyword(std::string_view id) {
+    static constexpr std::pair<std::string_view, TokenKind> values[] = {
+        { "struct", TokenKind::Structure },
+        { "func", TokenKind::Function },
+        { "void", TokenKind::Void },
+        { "ptr", TokenKind::Ptr },
+        { "undef", TokenKind::UndefLiteral },
+        { "alloca", TokenKind::Alloca },
+        { "load", TokenKind::Load },
+        { "store", TokenKind::Store },
+        { "goto", TokenKind::Goto },
+        { "branch", TokenKind::Branch },
+        { "return", TokenKind::Return },
+        { "call", TokenKind::Call },
+        { "phi", TokenKind::Phi },
+        { "cmp", TokenKind::Cmp },
+        { "neg", TokenKind::Neg },
+        { "bnt", TokenKind::Bnt },
+        { "lnt", TokenKind::Lnt },
+        { "add", TokenKind::Add },
+        { "sub", TokenKind::Sub },
+        { "mul", TokenKind::Mul },
+        { "sdiv", TokenKind::SDiv },
+        { "udiv", TokenKind::UDiv },
+        { "srem", TokenKind::SRem },
+        { "urem", TokenKind::URem },
+        { "fadd", TokenKind::FAdd },
+        { "fsub", TokenKind::FSub },
+        { "fmul", TokenKind::FMul },
+        { "fdiv", TokenKind::FDiv },
+        { "lshl", TokenKind::LShL },
+        { "lshr", TokenKind::LShR },
+        { "ashl", TokenKind::AShL },
+        { "ashr", TokenKind::AShR },
+        { "and", TokenKind::And },
+        { "or", TokenKind::Or },
+        { "xor", TokenKind::XOr },
+        { "getelementptr", TokenKind::GetElementPointer },
+        { "insert_value", TokenKind::InsertValue },
+        { "extract_value", TokenKind::ExtractValue },
+        { "select", TokenKind::Select },
+        { "ext", TokenKind::Ext },
+        { "label", TokenKind::Label },
+        { "eq", TokenKind::Equal },
+        { "neq", TokenKind::NotEqual },
+        { "le", TokenKind::Less },
+        { "leq", TokenKind::LessEq },
+        { "grt", TokenKind::Greater },
+        { "geq", TokenKind::GreaterEq },
+    };
+    auto itr = ranges::find_if(values, [&](auto& p) { return p.first == id; });
+    if (itr == ranges::end(values)) {
+        return std::nullopt;
+    }
+    return itr->second;
+}
+
+Expected<Token, LexicalIssue> Lexer::next() {
     while (i != end && std::isspace(*i)) {
         inc();
     }
@@ -39,23 +121,23 @@ Expected<Token, InvalidToken> Lexer::next() {
         return Token(first + 1, i, beginSL, kind);
     }
     // IntLiteral
-    if (*i == '$') {
+    if (std::isdigit(*i)) {
         SourceLocation const beginSL = loc;
-        char const* const first      = i++;
+        char const* const first      = i;
         while (i != end && !std::isspace(*i) && !isPunctuation(*i)) {
             if (!std::isdigit(*i)) {
-                return InvalidToken(beginSL);
+                return LexicalIssue(beginSL);
             }
             inc();
         }
-        return Token(first + 1, i, beginSL, TokenKind::IntLiteral);
+        return Token(first, i, beginSL, TokenKind::IntLiteral);
     }
     // Punctuation
-    if (isPunctuation(*i)) {
+    if (auto kind = getPunctuation(*i)) {
         SourceLocation const beginSL = loc;
         auto first                   = i;
         inc();
-        return Token(first, i, beginSL, TokenKind::Punctuation);
+        return Token(first, i, beginSL, *kind);
     }
     // Keyword
     if (std::isalpha(*i) || *i == '_') {
@@ -65,25 +147,9 @@ Expected<Token, InvalidToken> Lexer::next() {
             inc();
         } while (i != end && (std::isalnum(*i) || *i == '_'));
         std::string_view const id(first, static_cast<size_t>(i - first));
-        using namespace std::string_view_literals;
-        static constexpr std::array keywords = {
-            "function"sv, "structure"sv,     "label"sv,        "alloca"sv,
-            "load"sv,     "store"sv,         "cmp"sv,          "goto"sv,
-            "branch"sv,   "return"sv,        "call"sv,         "phi"sv,
-            "gep"sv,      "extract_value"sv, "insert_value"sv,
-// clang-format off
-#define SC_COMPARE_OPERATION_DEF(op, opShort)                                  \
-    std::string_view(#opShort),
-#define SC_UNARY_ARITHMETIC_OPERATION_DEF(op, opShort)                         \
-    std::string_view(#opShort),
-#define SC_ARITHMETIC_OPERATION_DEF(op, opShort)                               \
-    std::string_view(#opShort),
-#include "IR/Lists.def"
-            // clang-format on
-        };
-        auto itr = ranges::find(keywords, id);
-        if (itr != ranges::end(keywords)) {
-            return Token(id, beginSL, TokenKind::Keyword);
+        auto keyword = getKeyword(id);
+        if (keyword) {
+            return Token(id, beginSL, *keyword);
         }
         if ((*first == 'i' || *first == 'f') &&
             ranges::all_of(first + 1, i, [](char c) {
@@ -92,21 +158,25 @@ Expected<Token, InvalidToken> Lexer::next() {
         {
             char* strEnd     = nullptr;
             long const width = std::strtol(first + 1, &strEnd, 10);
-            SC_ASSERT(first + 1 != strEnd, "Failed to pass width");
+            SC_ASSERT(first + 1 != strEnd, "Failed to parse width");
             auto const kind =
                 *first == 'i' ? TokenKind::IntType : TokenKind::FloatType;
             return Token(id, beginSL, kind, utl::narrow_cast<unsigned>(width));
         }
-        return InvalidToken(beginSL);
+        return LexicalIssue(beginSL);
     }
-    return InvalidToken(loc);
+    return LexicalIssue(loc);
 }
 
 void Lexer::inc() {
+    if (i == end) {
+        return;
+    }
     ++i;
     ++loc.column;
-    if (i != end && *i == '\n') {
-        loc.column = 0;
-        ++loc.line;
+    if (i[-1] != '\n') {
+        return;
     }
+    loc.column = 0;
+    ++loc.line;
 }

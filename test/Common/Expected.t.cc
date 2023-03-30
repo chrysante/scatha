@@ -7,6 +7,7 @@ namespace {
 struct MyError {
     explicit MyError(int i): i(i) {}
     int value() const { return i; }
+    MyError(MyError const&)     = default;
     MyError(MyError&&) noexcept = default;
     ~MyError() { dtorRun = true; }
 

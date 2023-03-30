@@ -35,13 +35,12 @@ static bool setEqual(auto&& a, auto&& b) {
 }
 
 TEST_CASE("Dominance - 1", "[opt]") {
-    ir::Context ctx;
     auto const text = R"(
-function i64 @f() {
+func i64 @f() {
   %entry:
     goto label %2
   %2:
-    %cond = cmp leq i64 $1, i64 $2
+    %cond = cmp leq i64 1, i64 2
     branch i1 %cond, label %3, label %4
   %3:
     goto label %5
@@ -54,9 +53,9 @@ function i64 @f() {
   %7:
     branch i1 %cond, label %8, label %6
   %8:
-    return i64 $0
+    return i64 0
 })";
-    ir::Module mod  = ir::parse(text, ctx).value();
+    auto [ctx, mod] = ir::parse(text).value();
     auto& f         = mod.functions().front();
     auto domInfo    = ir::DominanceInfo::compute(f);
     /// ## Dominator tree
@@ -95,11 +94,10 @@ function i64 @f() {
 }
 
 TEST_CASE("Dominance - 2", "[opt]") {
-    ir::Context ctx;
     auto const text = R"(
-function i64 @f() {
+func i64 @f() {
   %entry:
-    %cond = cmp leq i64 $1, i64 $2
+    %cond = cmp leq i64 1, i64 2
     branch i1 %cond, label %1, label %2
   %1:
     goto label %3
@@ -108,9 +106,9 @@ function i64 @f() {
   %3:
     branch i1 %cond, label %1, label %4
   %4:
-    return i64 $0
+    return i64 0
 })";
-    ir::Module mod  = ir::parse(text, ctx).value();
+    auto [ctx, mod] = ir::parse(text).value();
     auto& f         = mod.functions().front();
     auto domInfo    = ir::DominanceInfo::compute(f);
     /// ## Dominator tree
