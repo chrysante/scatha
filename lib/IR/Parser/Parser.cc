@@ -65,7 +65,7 @@ private:
         auto* value = getValue<V>(type, token);
         if (value) {
             if (type && value->type() != type) {
-                reportSemaIssue();
+                reportSemaIssue(); // Type mismatch
             }
             std::invoke(fn, user, value);
             return;
@@ -74,7 +74,7 @@ private:
             SC_ASSERT(v, "");
             auto* value = dyncast<V*>(v);
             if (!value) {
-                reportSemaIssue();
+                reportSemaIssue(); // Type mismatch
             }
             std::invoke(fn, user, value);
         });
@@ -406,7 +406,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         eatToken();
         auto* condType = getType(eatToken());
         if (condType != irCtx.integralType(1)) {
-            reportSemaIssue();
+            reportSemaIssue(); // Invalid type
         }
         auto condName = eatToken();
         expectNext(TokenKind::Comma, TokenKind::Label);
@@ -463,7 +463,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
                                funcName,
                                [=](Call* call, Callable* func) {
             if (retType != func->returnType()) {
-                reportSemaIssue();
+                reportSemaIssue(); // Type mismatch
             }
             call->setFunction(func);
         });
@@ -657,7 +657,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         eatToken();
         auto* condType = getType(eatToken());
         if (condType != irCtx.integralType(1)) {
-            reportSemaIssue();
+            reportSemaIssue(); // Invalid operand type
         }
         auto condName = eatToken();
         expectNext(TokenKind::Comma);
@@ -732,12 +732,12 @@ Type const* ParseContext::getType(Token const& token) {
             return type->name() == token.id();
         });
         if (itr == ranges::end(structures)) {
-            reportSemaIssue();
+            reportSemaIssue(); // Undeclared typename
         }
         return itr->get();
     }
     case TokenKind::LocalIdentifier:
-        reportSemaIssue();
+        reportSemaIssue(); // Invalid typename
     case TokenKind::IntType:
         return irCtx.integralType(token.width());
     case TokenKind::FloatType:
@@ -761,10 +761,10 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
         }
         auto* value = dyncast<V*>(itr->second);
         if (!value) {
-            reportSemaIssue();
+            reportSemaIssue(); // Type mismatch ?
         }
         if (value->type() && type && value->type() != type) {
-            reportSemaIssue();
+            reportSemaIssue(); // Type mismatch ?
         }
         return value;
     }
@@ -785,7 +785,7 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
             }
             auto* intType = dyncast<IntegralType const*>(type);
             if (!intType) {
-                reportSemaIssue();
+                reportSemaIssue(); // Invalid type
             }
             value->zext(intType->bitWidth());
             return irCtx.integralConstant(*value);
@@ -797,7 +797,7 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
         SC_DEBUGFAIL();
     }
     default:
-        reportSemaIssue();
+        reportSemaIssue(); // Invalid value token
     }
 }
 
@@ -816,7 +816,7 @@ void ParseContext::registerValue(Token const& token, Value* value) {
         }
     }();
     if (values.contains(value->name())) {
-        reportSemaIssue();
+        reportSemaIssue(); // Redeclaration
     }
     values[value->name()] = value;
     executePendingUpdates(token, value);
