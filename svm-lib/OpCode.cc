@@ -373,18 +373,18 @@ struct svm::OpCodeImpl {
         at(mulRR)  = arithmeticRR<mulRR, u64>(utl::multiplies);
         at(mulRV)  = arithmeticRV<mulRV, u64>(utl::multiplies);
         at(mulRM)  = arithmeticRM<mulRM, u64>(utl::multiplies);
-        at(divRR)  = arithmeticRR<divRR, u64>(utl::divides);
-        at(divRV)  = arithmeticRV<divRV, u64>(utl::divides);
-        at(divRM)  = arithmeticRM<divRM, u64>(utl::divides);
-        at(idivRR) = arithmeticRR<idivRR, i64>(utl::divides);
-        at(idivRV) = arithmeticRV<idivRV, i64>(utl::divides);
-        at(idivRM) = arithmeticRM<idivRM, i64>(utl::divides);
-        at(remRR)  = arithmeticRR<remRR, u64>(utl::modulo);
-        at(remRV)  = arithmeticRV<remRV, u64>(utl::modulo);
-        at(remRM)  = arithmeticRM<remRM, u64>(utl::modulo);
-        at(iremRR) = arithmeticRR<iremRR, i64>(utl::modulo);
-        at(iremRV) = arithmeticRV<iremRV, i64>(utl::modulo);
-        at(iremRM) = arithmeticRM<iremRM, i64>(utl::modulo);
+        at(udivRR) = arithmeticRR<udivRR, u64>(utl::divides);
+        at(udivRV) = arithmeticRV<udivRV, u64>(utl::divides);
+        at(udivRM) = arithmeticRM<udivRM, u64>(utl::divides);
+        at(sdivRR) = arithmeticRR<sdivRR, i64>(utl::divides);
+        at(sdivRV) = arithmeticRV<sdivRV, i64>(utl::divides);
+        at(sdivRM) = arithmeticRM<sdivRM, i64>(utl::divides);
+        at(uremRR) = arithmeticRR<uremRR, u64>(utl::modulo);
+        at(uremRV) = arithmeticRV<uremRV, u64>(utl::modulo);
+        at(uremRM) = arithmeticRM<uremRM, u64>(utl::modulo);
+        at(sremRR) = arithmeticRR<sremRR, i64>(utl::modulo);
+        at(sremRV) = arithmeticRV<sremRV, i64>(utl::modulo);
+        at(sremRM) = arithmeticRM<sremRM, i64>(utl::modulo);
 
         /// ** Floating point arithmetic **
         at(faddRR) = arithmeticRR<faddRR, f64>(utl::plus);

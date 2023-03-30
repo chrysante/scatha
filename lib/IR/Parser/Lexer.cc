@@ -61,7 +61,6 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "call", TokenKind::Call },
         { "phi", TokenKind::Phi },
         { "cmp", TokenKind::Cmp },
-        { "neg", TokenKind::Neg },
         { "bnt", TokenKind::Bnt },
         { "lnt", TokenKind::Lnt },
         { "add", TokenKind::Add },

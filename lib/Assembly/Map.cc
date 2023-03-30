@@ -263,175 +263,80 @@ OpCode Asm::mapSet(CompareOperation operation) {
 }
 
 OpCode Asm::mapArithmetic(ArithmeticOperation operation,
-                          Type type,
                           ValueType dest,
                           ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {
-        switch (type) {
-        case Type::Signed:
-            // TODO: Take care of shift and bitwise operations.
-            // clang-format off
-            return UTL_MAP_ENUM(operation, OpCode, {
-                { ArithmeticOperation::Add,  OpCode::addRR  },
-                { ArithmeticOperation::Sub,  OpCode::subRR  },
-                { ArithmeticOperation::Mul,  OpCode::mulRR  },
-                { ArithmeticOperation::Div,  OpCode::idivRR },
-                { ArithmeticOperation::Rem,  OpCode::iremRR },
-                { ArithmeticOperation::LShL, OpCode::lslRR  },
-                { ArithmeticOperation::LShR, OpCode::lsrRR  },
-                { ArithmeticOperation::AShL, OpCode::aslRR  },
-                { ArithmeticOperation::AShR, OpCode::asrRR  },
-                { ArithmeticOperation::And,  OpCode::andRR  },
-                { ArithmeticOperation::Or,   OpCode::orRR   },
-                { ArithmeticOperation::XOr,  OpCode::xorRR  },
-            }); // clang-format on
-        case Type::Unsigned:
-            // clang-format off
-            return UTL_MAP_ENUM(operation, OpCode, {
-                { ArithmeticOperation::Add,  OpCode::addRR  },
-                { ArithmeticOperation::Sub,  OpCode::subRR  },
-                { ArithmeticOperation::Mul,  OpCode::mulRR  },
-                { ArithmeticOperation::Div,  OpCode::divRR  },
-                { ArithmeticOperation::Rem,  OpCode::remRR  },
-                { ArithmeticOperation::LShL, OpCode::lslRR  },
-                { ArithmeticOperation::LShR, OpCode::lsrRR  },
-                { ArithmeticOperation::AShL, OpCode::aslRR  },
-                { ArithmeticOperation::AShR, OpCode::asrRR  },
-                { ArithmeticOperation::And,  OpCode::andRR  },
-                { ArithmeticOperation::Or,   OpCode::orRR   },
-                { ArithmeticOperation::XOr,  OpCode::xorRR  },
-            }); // clang-format on
-        case Type::Float:
-            // clang-format off
-            return UTL_MAP_ENUM(operation, OpCode, {
-                { ArithmeticOperation::Add,  OpCode::faddRR },
-                { ArithmeticOperation::Sub,  OpCode::fsubRR },
-                { ArithmeticOperation::Mul,  OpCode::fmulRR },
-                { ArithmeticOperation::Div,  OpCode::fdivRR },
-                { ArithmeticOperation::Rem,  OpCode::_count },
-                { ArithmeticOperation::LShL,  OpCode::_count },
-                { ArithmeticOperation::LShR,  OpCode::_count },
-                { ArithmeticOperation::AShL,  OpCode::_count },
-                { ArithmeticOperation::AShR,  OpCode::_count },
-                { ArithmeticOperation::And,  OpCode::_count },
-                { ArithmeticOperation::Or,   OpCode::_count },
-                { ArithmeticOperation::XOr,  OpCode::_count },
-            }); // clang-format on
-        case Type::_count:
-            SC_UNREACHABLE();
-        }
+        return UTL_MAP_ENUM(operation,
+                            OpCode,
+                            {
+                                { ArithmeticOperation::Add, OpCode::addRR },
+                                { ArithmeticOperation::Sub, OpCode::subRR },
+                                { ArithmeticOperation::Mul, OpCode::mulRR },
+                                { ArithmeticOperation::SDiv, OpCode::sdivRR },
+                                { ArithmeticOperation::UDiv, OpCode::udivRR },
+                                { ArithmeticOperation::SRem, OpCode::sremRR },
+                                { ArithmeticOperation::URem, OpCode::uremRR },
+                                { ArithmeticOperation::FAdd, OpCode::faddRR },
+                                { ArithmeticOperation::FSub, OpCode::fsubRR },
+                                { ArithmeticOperation::FMul, OpCode::fmulRR },
+                                { ArithmeticOperation::FDiv, OpCode::fdivRR },
+                                { ArithmeticOperation::LShL, OpCode::lslRR },
+                                { ArithmeticOperation::LShR, OpCode::lsrRR },
+                                { ArithmeticOperation::AShL, OpCode::aslRR },
+                                { ArithmeticOperation::AShR, OpCode::asrRR },
+                                { ArithmeticOperation::And, OpCode::andRR },
+                                { ArithmeticOperation::Or, OpCode::orRR },
+                                { ArithmeticOperation::XOr, OpCode::xorRR },
+                            }); // clang-format on
     }
     if (dest == ValueType::RegisterIndex && source == ValueType::Value64) {
-        switch (type) {
-        case Type::Signed:
-            // TODO: Take care of shift and bitwise operations.
-            // clang-format off
-            return UTL_MAP_ENUM(operation, OpCode, {
-                { ArithmeticOperation::Add,  OpCode::addRV  },
-                { ArithmeticOperation::Sub,  OpCode::subRV  },
-                { ArithmeticOperation::Mul,  OpCode::mulRV  },
-                { ArithmeticOperation::Div,  OpCode::idivRV },
-                { ArithmeticOperation::Rem,  OpCode::iremRV },
-                { ArithmeticOperation::LShL, OpCode::lslRV  },
-                { ArithmeticOperation::LShR, OpCode::lsrRV  },
-                { ArithmeticOperation::AShL, OpCode::aslRV  },
-                { ArithmeticOperation::AShR, OpCode::asrRV  },
-                { ArithmeticOperation::And,  OpCode::andRV  },
-                { ArithmeticOperation::Or,   OpCode::orRV   },
-                { ArithmeticOperation::XOr,  OpCode::xorRV  },
-            }); // clang-format on
-        case Type::Unsigned:
-            // clang-format off
-            return UTL_MAP_ENUM(operation, OpCode, {
-                { ArithmeticOperation::Add,  OpCode::addRV  },
-                { ArithmeticOperation::Sub,  OpCode::subRV  },
-                { ArithmeticOperation::Mul,  OpCode::mulRV  },
-                { ArithmeticOperation::Div,  OpCode::divRV  },
-                { ArithmeticOperation::Rem,  OpCode::remRV  },
-                { ArithmeticOperation::LShL, OpCode::lslRV  },
-                { ArithmeticOperation::LShR, OpCode::lsrRV  },
-                { ArithmeticOperation::AShL, OpCode::aslRV  },
-                { ArithmeticOperation::AShR, OpCode::asrRV  },
-                { ArithmeticOperation::And,  OpCode::andRV  },
-                { ArithmeticOperation::Or,   OpCode::orRV   },
-                { ArithmeticOperation::XOr,  OpCode::xorRV  },
-            }); // clang-format on
-        case Type::Float:
-            // clang-format off
-            return UTL_MAP_ENUM(operation, OpCode, {
-                { ArithmeticOperation::Add,  OpCode::faddRV },
-                { ArithmeticOperation::Sub,  OpCode::fsubRV },
-                { ArithmeticOperation::Mul,  OpCode::fmulRV },
-                { ArithmeticOperation::Div,  OpCode::fdivRV },
-                { ArithmeticOperation::Rem,  OpCode::_count },
-                { ArithmeticOperation::LShL, OpCode::_count },
-                { ArithmeticOperation::LShR, OpCode::_count },
-                { ArithmeticOperation::AShL, OpCode::_count },
-                { ArithmeticOperation::AShR, OpCode::_count },
-                { ArithmeticOperation::And,  OpCode::_count },
-                { ArithmeticOperation::Or,   OpCode::_count },
-                { ArithmeticOperation::XOr,  OpCode::_count },
-            }); // clang-format on
-        case Type::_count:
-            SC_UNREACHABLE();
-        }
+        return UTL_MAP_ENUM(operation,
+                            OpCode,
+                            {
+                                { ArithmeticOperation::Add, OpCode::addRV },
+                                { ArithmeticOperation::Sub, OpCode::subRV },
+                                { ArithmeticOperation::Mul, OpCode::mulRV },
+                                { ArithmeticOperation::SDiv, OpCode::sdivRV },
+                                { ArithmeticOperation::UDiv, OpCode::udivRV },
+                                { ArithmeticOperation::SRem, OpCode::sremRV },
+                                { ArithmeticOperation::URem, OpCode::uremRV },
+                                { ArithmeticOperation::FAdd, OpCode::faddRV },
+                                { ArithmeticOperation::FSub, OpCode::fsubRV },
+                                { ArithmeticOperation::FMul, OpCode::fmulRV },
+                                { ArithmeticOperation::FDiv, OpCode::fdivRV },
+                                { ArithmeticOperation::LShL, OpCode::lslRV },
+                                { ArithmeticOperation::LShR, OpCode::lsrRV },
+                                { ArithmeticOperation::AShL, OpCode::aslRV },
+                                { ArithmeticOperation::AShR, OpCode::asrRV },
+                                { ArithmeticOperation::And, OpCode::andRV },
+                                { ArithmeticOperation::Or, OpCode::orRV },
+                                { ArithmeticOperation::XOr, OpCode::xorRV },
+                            }); // clang-format on
     }
     if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress)
     {
-        switch (type) {
-        case Type::Signed:
-            // TODO: Take care of shift and bitwise operations.
-            // clang-format off
-            return UTL_MAP_ENUM(operation, OpCode, {
-                { ArithmeticOperation::Add,  OpCode::addRM  },
-                { ArithmeticOperation::Sub,  OpCode::subRM  },
-                { ArithmeticOperation::Mul,  OpCode::mulRM  },
-                { ArithmeticOperation::Div,  OpCode::idivRM },
-                { ArithmeticOperation::Rem,  OpCode::iremRM },
-                { ArithmeticOperation::LShL, OpCode::lslRM  },
-                { ArithmeticOperation::LShR, OpCode::lsrRM  },
-                { ArithmeticOperation::AShL, OpCode::aslRM  },
-                { ArithmeticOperation::AShR, OpCode::asrRM  },
-                { ArithmeticOperation::And,  OpCode::andRM  },
-                { ArithmeticOperation::Or,   OpCode::orRM   },
-                { ArithmeticOperation::XOr,  OpCode::xorRM  },
-            }); // clang-format on
-        case Type::Unsigned:
-            // clang-format off
-            return UTL_MAP_ENUM(operation, OpCode, {
-                { ArithmeticOperation::Add,  OpCode::addRM  },
-                { ArithmeticOperation::Sub,  OpCode::subRM  },
-                { ArithmeticOperation::Mul,  OpCode::mulRM  },
-                { ArithmeticOperation::Div,  OpCode::divRM  },
-                { ArithmeticOperation::Rem,  OpCode::remRM  },
-                { ArithmeticOperation::LShL, OpCode::lslRM  },
-                { ArithmeticOperation::LShR, OpCode::lsrRM  },
-                { ArithmeticOperation::AShL, OpCode::aslRM  },
-                { ArithmeticOperation::AShR, OpCode::asrRM  },
-                { ArithmeticOperation::And,  OpCode::andRM  },
-                { ArithmeticOperation::Or,   OpCode::orRM   },
-                { ArithmeticOperation::XOr,  OpCode::xorRM  },
-            }); // clang-format on
-        case Type::Float:
-            // clang-format off
-            return UTL_MAP_ENUM(operation, OpCode, {
-                { ArithmeticOperation::Add,  OpCode::faddRM  },
-                { ArithmeticOperation::Sub,  OpCode::fsubRM  },
-                { ArithmeticOperation::Mul,  OpCode::fmulRM  },
-                { ArithmeticOperation::Div,  OpCode::fdivRM  },
-                { ArithmeticOperation::Rem,  OpCode::_count  },
-                { ArithmeticOperation::LShL,  OpCode::_count },
-                { ArithmeticOperation::LShR,  OpCode::_count },
-                { ArithmeticOperation::AShL, OpCode::_count  },
-                { ArithmeticOperation::AShR, OpCode::_count  },
-                { ArithmeticOperation::And,  OpCode::_count  },
-                { ArithmeticOperation::Or,   OpCode::_count  },
-                { ArithmeticOperation::XOr,  OpCode::_count  },
-            }); // clang-format on
-        case Type::_count:
-            SC_UNREACHABLE();
-        }
+        // clang-format off
+        return UTL_MAP_ENUM(operation, OpCode, {
+            { ArithmeticOperation::Add,  OpCode::addRM  },
+            { ArithmeticOperation::Sub,  OpCode::subRM  },
+            { ArithmeticOperation::Mul,  OpCode::mulRM  },
+            { ArithmeticOperation::SDiv, OpCode::sdivRM },
+            { ArithmeticOperation::UDiv, OpCode::udivRM },
+            { ArithmeticOperation::SRem, OpCode::sremRM },
+            { ArithmeticOperation::URem, OpCode::uremRM },
+            { ArithmeticOperation::FAdd, OpCode::faddRM },
+            { ArithmeticOperation::FSub, OpCode::fsubRM },
+            { ArithmeticOperation::FMul, OpCode::fmulRM },
+            { ArithmeticOperation::FDiv, OpCode::fdivRM },
+            { ArithmeticOperation::LShL, OpCode::lslRM  },
+            { ArithmeticOperation::LShR, OpCode::lsrRM  },
+            { ArithmeticOperation::AShL, OpCode::aslRM  },
+            { ArithmeticOperation::AShR, OpCode::asrRM  },
+            { ArithmeticOperation::And,  OpCode::andRM  },
+            { ArithmeticOperation::Or,   OpCode::orRM   },
+            { ArithmeticOperation::XOr,  OpCode::xorRM  },
+        }); // clang-format on
     }
     /// No matching instruction.
     SC_DEBUGFAIL();

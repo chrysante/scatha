@@ -530,7 +530,6 @@ FormalValue SCCPContext::evaluateUnaryArithmetic(
     return utl::visit(utl::overload{
         [&](APInt const& operand) -> FormalValue {
             switch (operation) {
-            case UnaryArithmeticOperation::Negation: return negate(operand);
             case UnaryArithmeticOperation::BitwiseNot: return btwnot(operand);
             case UnaryArithmeticOperation::LogicalNot:
                 SC_ASSERT(operand == 0 || operand == 1,
@@ -541,7 +540,6 @@ FormalValue SCCPContext::evaluateUnaryArithmetic(
         },
         [&](APFloat const& operand) -> FormalValue {
             switch (operation) {
-            case UnaryArithmeticOperation::Negation: return negate(operand);
             case UnaryArithmeticOperation::BitwiseNot: [[fallthrough]];
             case UnaryArithmeticOperation::LogicalNot: [[fallthrough]];
             case UnaryArithmeticOperation::_count: SC_UNREACHABLE();

@@ -77,6 +77,20 @@ FloatingPointConstant* Context::floatConstant(double value, size_t bitWidth) {
     }
 }
 
+Constant* Context::arithmeticConstant(int64_t value, Type const* type) {
+    // clang-format off
+    return visit(*type, utl::overload{
+        [&](IntegralType const& type) {
+            return integralConstant(static_cast<uint64_t>(value),
+                                    type.bitWidth());
+        },
+        [&](FloatType const& type) {
+            return floatConstant(value, type.bitWidth());
+        },
+        [&](Type const& type) -> Constant* { SC_UNREACHABLE(); }
+    }); // clang-format on
+}
+
 UndefValue* Context::undef(Type const* type) {
     auto itr = _undefConstants.find(type);
     if (itr == _undefConstants.end()) {

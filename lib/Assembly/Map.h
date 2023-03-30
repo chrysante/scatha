@@ -27,7 +27,6 @@ svm::OpCode mapTest(Type type);
 svm::OpCode mapSet(CompareOperation operation);
 
 svm::OpCode mapArithmetic(ArithmeticOperation operation,
-                          Type type,
                           ValueType dest,
                           ValueType source);
 

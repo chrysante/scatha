@@ -250,13 +250,6 @@ void CodeGenContext::generate(ir::UnaryArithmeticInst const& inst) {
             UnaryArithmeticInst(operation, mapType(inst.type()), dest));
     };
     switch (inst.operation()) {
-    case ir::UnaryArithmeticOperation::Negation:
-        currentBlock().insertBack(MoveInst(dest, Value64(0), 8));
-        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::Sub,
-                                                 mapType(inst.type()),
-                                                 dest,
-                                                 operand));
-        break;
     case ir::UnaryArithmeticOperation::BitwiseNot:
         genUnaryArithmetic(UnaryArithmeticOperation::BitwiseNot);
         break;
@@ -275,7 +268,6 @@ void CodeGenContext::generate(ir::ArithmeticInst const& arithmetic) {
         MoveInst(dest, currentRD().resolve(*arithmetic.lhs()), 8));
     currentBlock().insertBack(
         Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
-                            mapType(arithmetic.type()),
                             dest,
                             widenConstantTo64Bit(
                                 currentRD().resolve(*arithmetic.rhs()))));
@@ -387,13 +379,10 @@ void CodeGenContext::generate(ir::ExtractValue const& extract) {
         }();
         currentBlock().insertBack(MoveInst(dest, sourceRegIdx, 8));
         currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::LShR,
-                                                 Type::Unsigned,
                                                  dest,
                                                  Value64(8 * offset)));
-        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
-                                                 Type::Unsigned,
-                                                 dest,
-                                                 Value64(mask)));
+        currentBlock().insertBack(
+            ArithmeticInst(ArithmeticOperation::And, dest, Value64(mask)));
     }
 }
 
@@ -426,23 +415,17 @@ void CodeGenContext::generate(ir::InsertValue const& insert) {
             return utl::bit_cast<uint64_t>(bytes);
         }();
         currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
-                                                 Type::Unsigned,
                                                  destRegIdx,
                                                  Value64(~destMask)));
         auto tmp = currentRD().makeTemporary();
         currentBlock().insertBack(MoveInst(tmp, source, 8));
         currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::LShL,
-                                                 Type::Unsigned,
                                                  tmp,
                                                  Value64(8 * offset)));
-        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
-                                                 Type::Unsigned,
-                                                 tmp,
-                                                 Value64(destMask)));
-        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::Or,
-                                                 Type::Unsigned,
-                                                 destRegIdx,
-                                                 tmp));
+        currentBlock().insertBack(
+            ArithmeticInst(ArithmeticOperation::And, tmp, Value64(destMask)));
+        currentBlock().insertBack(
+            ArithmeticInst(ArithmeticOperation::Or, destRegIdx, tmp));
     }
 }
 
@@ -644,20 +627,19 @@ size_t CodeGenContext::_getLabelIDImpl(ir::Value const& value) {
 }
 
 static Asm::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
-#warning
     // clang-format off
     return UTL_MAP_ENUM(op, Asm::ArithmeticOperation, {
         { ir::ArithmeticOperation::Add,   Asm::ArithmeticOperation::Add  },
         { ir::ArithmeticOperation::Sub,   Asm::ArithmeticOperation::Sub  },
         { ir::ArithmeticOperation::Mul,   Asm::ArithmeticOperation::Mul  },
-        { ir::ArithmeticOperation::SDiv,  Asm::ArithmeticOperation::Div  },
-        { ir::ArithmeticOperation::UDiv,  Asm::ArithmeticOperation::Div  },
-        { ir::ArithmeticOperation::SRem,  Asm::ArithmeticOperation::Rem  },
-        { ir::ArithmeticOperation::URem,  Asm::ArithmeticOperation::Rem  },
-        { ir::ArithmeticOperation::FAdd,  Asm::ArithmeticOperation::Add  },
-        { ir::ArithmeticOperation::FSub,  Asm::ArithmeticOperation::Sub  },
-        { ir::ArithmeticOperation::FMul,  Asm::ArithmeticOperation::Mul  },
-        { ir::ArithmeticOperation::FDiv,  Asm::ArithmeticOperation::Div  },
+        { ir::ArithmeticOperation::SDiv,  Asm::ArithmeticOperation::SDiv },
+        { ir::ArithmeticOperation::UDiv,  Asm::ArithmeticOperation::UDiv },
+        { ir::ArithmeticOperation::SRem,  Asm::ArithmeticOperation::SRem },
+        { ir::ArithmeticOperation::URem,  Asm::ArithmeticOperation::URem },
+        { ir::ArithmeticOperation::FAdd,  Asm::ArithmeticOperation::FAdd },
+        { ir::ArithmeticOperation::FSub,  Asm::ArithmeticOperation::FSub },
+        { ir::ArithmeticOperation::FMul,  Asm::ArithmeticOperation::FMul },
+        { ir::ArithmeticOperation::FDiv,  Asm::ArithmeticOperation::FDiv },
         { ir::ArithmeticOperation::LShL,  Asm::ArithmeticOperation::LShL },
         { ir::ArithmeticOperation::LShR,  Asm::ArithmeticOperation::LShR },
         { ir::ArithmeticOperation::AShL,  Asm::ArithmeticOperation::AShL },

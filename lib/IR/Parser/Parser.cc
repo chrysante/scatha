@@ -151,8 +151,6 @@ private:
 
     UnaryArithmeticOperation toUnaryArithmeticOp(Token token) const {
         switch (token.kind()) {
-        case TokenKind::Neg:
-            return UnaryArithmeticOperation::Negation;
         case TokenKind::Bnt:
             return UnaryArithmeticOperation::BitwiseNot;
         case TokenKind::Lnt:
@@ -530,8 +528,6 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         addValueLink(result.get(), rhsType, rhsName, &CompareInst::setRHS);
         return result;
     }
-    case TokenKind::Neg:
-        [[fallthrough]];
     case TokenKind::Bnt:
         [[fallthrough]];
     case TokenKind::Lnt: {

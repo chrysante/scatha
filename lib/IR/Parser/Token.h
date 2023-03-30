@@ -43,7 +43,6 @@ enum class TokenKind {
     Call,
     Phi,
     Cmp,
-    Neg,
     Bnt,
     Lnt,
     Add,

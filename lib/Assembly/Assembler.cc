@@ -225,7 +225,6 @@ void Context::translate(UnaryArithmeticInst const& inst) {
 
 void Context::translate(ArithmeticInst const& inst) {
     OpCode const opcode = mapArithmetic(inst.operation(),
-                                        inst.type(),
                                         inst.dest().valueType(),
                                         inst.source().valueType());
     put(opcode);

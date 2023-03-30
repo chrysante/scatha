@@ -342,13 +342,26 @@ ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
     if (expr.operation() == ast::UnaryPrefixOperator::Promotion) {
         return operand;
     }
-    auto* inst =
-        new ir::UnaryArithmeticInst(irCtx,
-                                    operand,
-                                    mapUnaryArithmeticOp(expr.operation()),
-                                    std::string("expr.result"));
-    currentBB()->pushBack(inst);
-    return inst;
+    else if (expr.operation() == ast::UnaryPrefixOperator::Negation) {
+        auto* type = operand->type();
+        auto* inst = new ir::ArithmeticInst(irCtx.arithmeticConstant(0, type),
+                                            operand,
+                                            isa<ir::IntegralType>(type) ?
+                                                ir::ArithmeticOperation::Sub :
+                                                ir::ArithmeticOperation::FSub,
+                                            std::string("expr.result"));
+        currentBB()->pushBack(inst);
+        return inst;
+    }
+    else {
+        auto* inst =
+            new ir::UnaryArithmeticInst(irCtx,
+                                        operand,
+                                        mapUnaryArithmeticOp(expr.operation()),
+                                        std::string("expr.result"));
+        currentBB()->pushBack(inst);
+        return inst;
+    }
 }
 
 ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
@@ -687,8 +700,6 @@ ir::Type const* CodeGenContext::mapType(sema::TypeID semaTypeID) {
 ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
     ast::UnaryPrefixOperator op) const {
     switch (op) {
-    case UnaryPrefixOperator::Negation:
-        return ir::UnaryArithmeticOperation::Negation;
     case UnaryPrefixOperator::BitwiseNot:
         return ir::UnaryArithmeticOperation::BitwiseNot;
     case UnaryPrefixOperator::LogicalNot:

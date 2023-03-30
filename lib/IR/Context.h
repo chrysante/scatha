@@ -23,38 +23,42 @@ public:
     /// Construct an empty `Context` object
     Context();
 
-    /// \returns the `void` type
+    /// \returns The `void` type
     VoidType const* voidType() { return _voidType; }
 
-    /// \returns the `ptr` type
+    /// \returns The `ptr` type
     PointerType const* pointerType() { return _ptrType; }
 
-    /// \returns the `iN` type where `N` is \p bitWidth
+    /// \returns The `iN` type where `N` is \p bitWidth
     IntegralType const* integralType(size_t bitWidth);
 
-    /// \returns the `fN` type where `N` is \p bitWidth
+    /// \returns The `fN` type where `N` is \p bitWidth
     /// \param bitWidth must be either 32 or 64
     FloatType const* floatType(size_t bitWidth);
 
-    /// \returns the global integral constant with value \p value
+    /// \returns The global integral constant with value \p value
     IntegralConstant* integralConstant(APInt value);
 
-    /// \returns the global integral constant of \p bitWidth bits with value \p
+    /// \returns The global integral constant of \p bitWidth bits with value \p
     /// value
     IntegralConstant* integralConstant(u64 value, size_t bitWidth);
 
-    /// \returns the global floating point constant of \p bitWidth bits with
+    /// \returns The global floating point constant of \p bitWidth bits with
     /// value \p value
     FloatingPointConstant* floatConstant(APFloat value, size_t bitWidth);
 
-    /// \returns the global floating point constant of \p bitWidth bits with
+    /// \returns The global floating point constant of \p bitWidth bits with
     /// value \p value
     FloatingPointConstant* floatConstant(double value, size_t bitWidth);
 
-    /// \returns the `undef` constant of type \p type
+    /// \returns The global integral or floating point constant of type \p type
+    /// with value \p value
+    Constant* arithmeticConstant(int64_t value, Type const* type);
+
+    /// \returns The `undef` constant of type \p type
     UndefValue* undef(Type const* type);
 
-    /// \returns an opaque value of type void
+    /// \returns An opaque value of type void.
     Value* voidValue();
 
 private:

@@ -221,17 +221,12 @@ private:
 /// Represents a `add`, `sub`, `mul`, ... etc instruction.
 class ArithmeticInst: public InstructionBase {
 public:
-    explicit ArithmeticInst(ArithmeticOperation op,
-                            Type type,
-                            Value dest,
-                            Value source):
-        _op(op), _type(type), _dest(dest), _src(source) {
+    explicit ArithmeticInst(ArithmeticOperation op, Value dest, Value source):
+        _op(op), _dest(dest), _src(source) {
         verify();
     }
 
     ArithmeticOperation operation() const { return _op; }
-
-    Type type() const { return _type; }
 
     Value const& dest() const { return _dest; }
 
@@ -242,7 +237,6 @@ private:
 
 private:
     ArithmeticOperation _op;
-    Type _type;
     Value _dest, _src;
 };
 

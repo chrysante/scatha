@@ -82,7 +82,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
         MoveInst(RegisterIndex(2), RegisterIndex(1), 8), // c = b
         MoveInst(RegisterIndex(1), RegisterIndex(0), 8), // b = a
         MoveInst(RegisterIndex(0), RegisterIndex(2), 8), // a = c
-        ArithmeticInst(ArithmeticOperation::Rem, Type::Signed, RegisterIndex(1), RegisterIndex(2)),
+        ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(1), RegisterIndex(2)),
         JumpInst(gcd) // Tail call
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
@@ -116,7 +116,7 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
         // R[5]: a % b
         // R[0] = a and R[1] = b have been placed by the caller.
         MoveInst(RegisterIndex(5), RegisterIndex(0), 8),                                            // R[5] = a
-        ArithmeticInst(ArithmeticOperation::Rem, Type::Signed, RegisterIndex(5), RegisterIndex(1)), // R[5] %= b
+        ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(5), RegisterIndex(1)), // R[5] %= b
         MoveInst(RegisterIndex(4), RegisterIndex(1), 8),                                            // R[4] = b
         CallInst(gcd, 4),                                // Deliberately no tail call
         MoveInst(RegisterIndex(0), RegisterIndex(4), 8), // R[0] = R[4] to move the result to the expected register
@@ -129,7 +129,6 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
 }
 
 static void testArithmeticRR(ArithmeticOperation operation,
-                             Type type,
                              auto arg1,
                              auto arg2,
                              auto reference) {
@@ -138,7 +137,7 @@ static void testArithmeticRR(ArithmeticOperation operation,
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         MoveInst(RegisterIndex(1), Value64(arg2), 8),
-        ArithmeticInst(operation, type, RegisterIndex(0), RegisterIndex(1)),
+        ArithmeticInst(operation, RegisterIndex(0), RegisterIndex(1)),
         TerminateInst(),
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
@@ -147,7 +146,6 @@ static void testArithmeticRR(ArithmeticOperation operation,
 }
 
 static void testArithmeticRV(ArithmeticOperation operation,
-                             Type type,
                              auto arg1,
                              auto arg2,
                              auto reference) {
@@ -155,7 +153,7 @@ static void testArithmeticRV(ArithmeticOperation operation,
     // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
-        ArithmeticInst(operation, type, RegisterIndex(0), Value64(arg2)),
+        ArithmeticInst(operation, RegisterIndex(0), Value64(arg2)),
         TerminateInst(),
     })); // clang-format on
 
@@ -165,7 +163,6 @@ static void testArithmeticRV(ArithmeticOperation operation,
 }
 
 static void testArithmeticRM(ArithmeticOperation operation,
-                             Type type,
                              auto arg1,
                              auto arg2,
                              auto reference) {
@@ -176,7 +173,7 @@ static void testArithmeticRM(ArithmeticOperation operation,
         MoveInst(RegisterIndex(1), Value64(arg2), 8),
         AllocaInst(RegisterIndex(2), RegisterIndex(3)),
         MoveInst(MemoryAddress(2), RegisterIndex(1), 8),
-        ArithmeticInst(operation, type, RegisterIndex(0), MemoryAddress(2)),
+        ArithmeticInst(operation, RegisterIndex(0), MemoryAddress(2)),
         TerminateInst(),
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
@@ -185,44 +182,43 @@ static void testArithmeticRM(ArithmeticOperation operation,
 }
 
 static void testArithmetic(ArithmeticOperation operation,
-                           Type type,
                            auto arg1,
                            auto arg2,
                            auto reference) {
-    testArithmeticRR(operation, type, arg1, arg2, reference);
-    testArithmeticRV(operation, type, arg1, arg2, reference);
-    testArithmeticRM(operation, type, arg1, arg2, reference);
+    testArithmeticRR(operation, arg1, arg2, reference);
+    testArithmeticRV(operation, arg1, arg2, reference);
+    testArithmeticRM(operation, arg1, arg2, reference);
 }
 
 TEST_CASE("Arithmetic", "[assembly][vm]") {
     SECTION("add") {
-        testArithmetic(ArithmeticOperation::Add, Type::Unsigned, 6, 2, 8);
-        testArithmetic(ArithmeticOperation::Add, Type::Signed, 2, -6, -4);
-        testArithmetic(ArithmeticOperation::Add, Type::Float, 6.4, -2.2, 4.2);
+        testArithmetic(ArithmeticOperation::Add, 6, 2, 8);
+        testArithmetic(ArithmeticOperation::Add, 2, -6, -4);
+        testArithmetic(ArithmeticOperation::FAdd, 6.4, -2.2, 4.2);
     }
     SECTION("sub") {
-        testArithmetic(ArithmeticOperation::Sub, Type::Unsigned, 6, 2, 4);
-        testArithmetic(ArithmeticOperation::Sub, Type::Signed, 2, -6, 8);
-        testArithmetic(ArithmeticOperation::Sub, Type::Float, 6.0, 2.3, 3.7);
+        testArithmetic(ArithmeticOperation::Sub, 6, 2, 4);
+        testArithmetic(ArithmeticOperation::Sub, 2, -6, 8);
+        testArithmetic(ArithmeticOperation::FSub, 6.0, 2.3, 3.7);
     }
     SECTION("mul") {
-        testArithmetic(ArithmeticOperation::Mul, Type::Unsigned, 6, 2, 12);
-        testArithmetic(ArithmeticOperation::Mul, Type::Signed, 2, -6, -12);
-        testArithmetic(ArithmeticOperation::Mul, Type::Float, 2.4, 2.5, 6.0);
+        testArithmetic(ArithmeticOperation::Mul, 6, 2, 12);
+        testArithmetic(ArithmeticOperation::Mul, 2, -6, -12);
+        testArithmetic(ArithmeticOperation::FMul, 2.4, 2.5, 6.0);
     }
     SECTION("div") {
-        testArithmetic(ArithmeticOperation::Div, Type::Unsigned, 6, 2, 3);
-        testArithmetic(ArithmeticOperation::Div, Type::Unsigned, 100, 3, 33);
-        testArithmetic(ArithmeticOperation::Div, Type::Signed, 6, -2, -3);
-        testArithmetic(ArithmeticOperation::Div, Type::Signed, 100, -3, -33);
-        testArithmetic(ArithmeticOperation::Div, Type::Float, 6.3, 3.0, 2.1);
+        testArithmetic(ArithmeticOperation::UDiv, 6, 2, 3);
+        testArithmetic(ArithmeticOperation::UDiv, 100, 3, 33);
+        testArithmetic(ArithmeticOperation::SDiv, 6, -2, -3);
+        testArithmetic(ArithmeticOperation::SDiv, 100, -3, -33);
+        testArithmetic(ArithmeticOperation::FDiv, 6.3, 3.0, 2.1);
     }
     SECTION("rem") {
-        testArithmetic(ArithmeticOperation::Rem, Type::Unsigned, 6, 2, 0);
-        testArithmetic(ArithmeticOperation::Rem, Type::Unsigned, 100, 3, 1);
-        testArithmetic(ArithmeticOperation::Rem, Type::Signed, 6, -2, 0);
-        testArithmetic(ArithmeticOperation::Rem, Type::Signed, 100, -3, 1);
-        testArithmetic(ArithmeticOperation::Rem, Type::Signed, -100, 3, -1);
+        testArithmetic(ArithmeticOperation::URem, 6, 2, 0);
+        testArithmetic(ArithmeticOperation::URem, 100, 3, 1);
+        testArithmetic(ArithmeticOperation::SRem, 6, -2, 0);
+        testArithmetic(ArithmeticOperation::SRem, 100, -3, 1);
+        testArithmetic(ArithmeticOperation::SRem, -100, 3, -1);
     }
 }
 
