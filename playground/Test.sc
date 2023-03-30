@@ -1,22 +1,27 @@
 
-
-function i64 @f(i64) {
+func void @set_var(ptr) {
   %entry:
-    %cond = cmp leq i64 %0, i64 $1
-    branch i1 %cond, label %then, label %else
-  
-  %then:
-    return i64 $1
-
-  %else:
-    %sub.res = sub i64 %0, $1
-    %call.res = call i64 @f, i64 %sub.res
-    %mul.res = mul i64 %0, %call.res
-    return i64 %mul.res
+    %p = alloca i64
+    store ptr %p, i64 1
+    %i = load i64, ptr %p
+    goto label %loopheader
+    
+  %loopheader:
+    %cond = cmp leq i64 1, i64 undef
+    goto label %loopbody
+    
+  %loopbody:
+    %x = phi ptr [label %loopheader: %0], [label %loopbody: undef]
+    branch i1 1, label %exit, label %loopbody
+    
+  %exit:
+   %res = call i64 @get_value, ptr undef, ptr undef
+   return
 }
 
-function i64 @main() {
+func i64 @get_value(ptr, ptr) {
   %entry:
-    %call.res = call i64 @f, i64 $5
-    return i64 %call.res
+    %res = call i64 @get_value, ptr %1, ptr %0
+    return i64 %res
 }
+

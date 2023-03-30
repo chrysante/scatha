@@ -85,8 +85,12 @@ static std::string readFile(std::filesystem::path path) {
 [[maybe_unused]] static void sroaPlayground(std::filesystem::path path) {
     //    auto [ctx, mod] = makeIRModuleFromFile(path);
 
-    ir::Context ctx;
-    auto mod = ir::parse(readFile(path), ctx).value();
+    auto parseRes = ir::parse(readFile(path));
+    if (!parseRes) {
+        SC_DEBUGFAIL();
+    }
+    auto [ctx, mod] = std::move(parseRes).value();
+
     auto phase =
         [ctx = &ctx, mod = &mod](std::string name,
                                  bool (*optFn)(ir::Context&, ir::Function&)) {
@@ -108,20 +112,27 @@ static std::string readFile(std::filesystem::path path) {
 }
 
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
+//    auto [ctx, mod] = makeIRModuleFromFile(path);
+
+    auto parseRes = ir::parse(readFile(path));
+    if (!parseRes) {
+        print(parseRes.error());
+        return;
+    }
+    auto [ctx, mod] = std::move(parseRes).value();
 
     header(" Before inlining ");
-    //    ir::print(mod);
+    ir::print(mod);
 
     run(mod);
 
-    //    header(" Now inlining... ");
+    header(" After inlining ");
     opt::inlineFunctions(ctx, mod);
-    //    ir::print(mod);
+    ir::print(mod);
 
     run(mod);
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    sroaPlayground(path);
+    inliner(path);
 }

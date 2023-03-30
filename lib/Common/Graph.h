@@ -74,13 +74,13 @@ class GraphNode {
     using Self =
         std::conditional_t<std::is_same_v<Derived, void>, GraphNode, Derived>;
 
-    /// For a tree node parent link is just a pointer, for a graph node it's a
+    /// For a tree node, parent link is just a pointer, for a graph node it's a
     /// vector of pointers.
     using ParentLink =
         std::conditional_t<IsTree, Self*, utl::small_vector<Self*>>;
 
 public:
-    /// `PayloadHash` and `PayloadEqual` exist to put `GraphNode` in hashset
+    /// `PayloadHash` and `PayloadEqual` exist to put `GraphNode` in hashsets
     /// where only the payload is used as the key.
     struct PayloadHash {
         using is_transparent = void;
