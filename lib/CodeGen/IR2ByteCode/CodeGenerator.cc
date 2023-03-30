@@ -644,15 +644,20 @@ size_t CodeGenContext::_getLabelIDImpl(ir::Value const& value) {
 }
 
 static Asm::ArithmeticOperation mapArithmetic(ir::ArithmeticOperation op) {
+#warning
     // clang-format off
     return UTL_MAP_ENUM(op, Asm::ArithmeticOperation, {
         { ir::ArithmeticOperation::Add,   Asm::ArithmeticOperation::Add  },
         { ir::ArithmeticOperation::Sub,   Asm::ArithmeticOperation::Sub  },
         { ir::ArithmeticOperation::Mul,   Asm::ArithmeticOperation::Mul  },
-        { ir::ArithmeticOperation::Div,   Asm::ArithmeticOperation::Div  },
+        { ir::ArithmeticOperation::SDiv,  Asm::ArithmeticOperation::Div  },
         { ir::ArithmeticOperation::UDiv,  Asm::ArithmeticOperation::Div  },
-        { ir::ArithmeticOperation::Rem,   Asm::ArithmeticOperation::Rem  },
+        { ir::ArithmeticOperation::SRem,  Asm::ArithmeticOperation::Rem  },
         { ir::ArithmeticOperation::URem,  Asm::ArithmeticOperation::Rem  },
+        { ir::ArithmeticOperation::FAdd,  Asm::ArithmeticOperation::Add  },
+        { ir::ArithmeticOperation::FSub,  Asm::ArithmeticOperation::Sub  },
+        { ir::ArithmeticOperation::FMul,  Asm::ArithmeticOperation::Mul  },
+        { ir::ArithmeticOperation::FDiv,  Asm::ArithmeticOperation::Div  },
         { ir::ArithmeticOperation::LShL,  Asm::ArithmeticOperation::LShL },
         { ir::ArithmeticOperation::LShR,  Asm::ArithmeticOperation::LShR },
         { ir::ArithmeticOperation::AShL,  Asm::ArithmeticOperation::AShL },

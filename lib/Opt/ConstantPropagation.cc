@@ -416,6 +416,10 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
     case ArithmeticOperation::Add:
         [[fallthrough]];
     case ArithmeticOperation::Sub:
+        [[fallthrough]];
+    case ArithmeticOperation::FAdd:
+        [[fallthrough]];
+    case ArithmeticOperation::FSub:
         // clang-format off
         return utl::visit(utl::overload{
             [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
@@ -427,8 +431,8 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
             },
             [&](APFloat const& lhs, APFloat const& rhs) -> FormalValue {
                 switch (operation) {
-                case ArithmeticOperation::Add: return add(lhs, rhs);
-                case ArithmeticOperation::Sub: return sub(lhs, rhs);
+                case ArithmeticOperation::FAdd: return add(lhs, rhs);
+                case ArithmeticOperation::FSub: return sub(lhs, rhs);
                 default: SC_UNREACHABLE();
                 }
             },
@@ -439,13 +443,17 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
         }, lhs, rhs); // clang-format on
     case ArithmeticOperation::Mul:
         [[fallthrough]];
-    case ArithmeticOperation::Div:
+    case ArithmeticOperation::SDiv:
         [[fallthrough]];
     case ArithmeticOperation::UDiv:
         [[fallthrough]];
-    case ArithmeticOperation::Rem:
+    case ArithmeticOperation::SRem:
         [[fallthrough]];
     case ArithmeticOperation::URem:
+        [[fallthrough]];
+    case ArithmeticOperation::FMul:
+        [[fallthrough]];
+    case ArithmeticOperation::FDiv:
         [[fallthrough]];
     case ArithmeticOperation::LShL:
         [[fallthrough]];
@@ -465,9 +473,9 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
             [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
                 switch (operation) {
                 case ArithmeticOperation::Mul: return mul(lhs, rhs);
-                case ArithmeticOperation::Div: return sdiv(lhs, rhs);
+                case ArithmeticOperation::SDiv: return sdiv(lhs, rhs);
                 case ArithmeticOperation::UDiv: return udiv(lhs, rhs);
-                case ArithmeticOperation::Rem: return srem(lhs, rhs);
+                case ArithmeticOperation::SRem: return srem(lhs, rhs);
                 case ArithmeticOperation::URem: return urem(lhs, rhs);
                 case ArithmeticOperation::LShL:
                     return lshl(lhs, utl::narrow_cast<int>(rhs.to<u64>()));
@@ -485,8 +493,8 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
             },
             [&](APFloat const& lhs, APFloat const& rhs) -> FormalValue {
                 switch (operation) {
-                case ArithmeticOperation::Mul: return mul(lhs, rhs);
-                case ArithmeticOperation::Div: return div(lhs, rhs);
+                case ArithmeticOperation::FMul: return mul(lhs, rhs);
+                case ArithmeticOperation::FDiv: return div(lhs, rhs);
                 default: SC_UNREACHABLE();
                 }
             },

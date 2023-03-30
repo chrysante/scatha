@@ -96,6 +96,11 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         if (lhs == rhs && intType) {
             return irCtx.integralConstant(0, intType->bitWidth());
         }
+        break;
+    case ArithmeticOperation::FSub:
+        if (isConstant(rhs, 0)) {
+            return lhs;
+        }
         if (lhs == rhs && floatType) {
             return irCtx.floatConstant(0.0, floatType->bitWidth());
         }
@@ -110,14 +115,21 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         }
         break;
 
-    case ArithmeticOperation::Div:
+    case ArithmeticOperation::SDiv:
+        [[fallthrough]];
+    case ArithmeticOperation::UDiv:
         if (isConstant(rhs, 1)) {
             return lhs;
         }
         if (lhs == rhs && intType) {
             return irCtx.integralConstant(1, intType->bitWidth());
         }
-        if (lhs == rhs && floatType) {
+        break;
+    case ArithmeticOperation::FDiv:
+        if (isConstant(rhs, 1)) {
+            return lhs;
+        }
+        if (lhs == rhs) {
             return irCtx.floatConstant(1.0, floatType->bitWidth());
         }
         break;

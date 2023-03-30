@@ -88,11 +88,13 @@ struct CodeGenContext {
     std::string mangledName(sema::SymbolID) const;
     std::string mangledName(sema::SymbolID, std::string_view name) const;
     ir::Type const* mapType(sema::TypeID semaTypeID);
-    static ir::UnaryArithmeticOperation mapUnaryArithmeticOp(
-        ast::UnaryPrefixOperator);
-    static ir::CompareOperation mapCompareOp(ast::BinaryOperator);
-    static ir::ArithmeticOperation mapArithmeticOp(ast::BinaryOperator);
-    static ir::ArithmeticOperation mapArithmeticAssignOp(ast::BinaryOperator);
+    ir::UnaryArithmeticOperation mapUnaryArithmeticOp(
+        ast::UnaryPrefixOperator) const;
+    ir::CompareOperation mapCompareOp(ast::BinaryOperator) const;
+    ir::ArithmeticOperation mapArithmeticOp(sema::TypeID typeID,
+                                            ast::BinaryOperator) const;
+    ir::ArithmeticOperation mapArithmeticAssignOp(sema::TypeID typeID,
+                                                  ast::BinaryOperator) const;
 
     ir::Context& irCtx;
     ir::Module& mod;
@@ -375,7 +377,8 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         auto* arithInst =
             new ir::ArithmeticInst(lhs,
                                    rhs,
-                                   mapArithmeticOp(exprDecl.operation()),
+                                   mapArithmeticOp(exprDecl.typeID(),
+                                                   exprDecl.operation()),
                                    "expr.result");
         currentBB()->pushBack(arithInst);
         return arithInst;
@@ -465,7 +468,8 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         auto* result =
             new ir::ArithmeticInst(lhs,
                                    rhs,
-                                   mapArithmeticAssignOp(exprDecl.operation()),
+                                   mapArithmeticAssignOp(exprDecl.lhs->typeID(),
+                                                         exprDecl.operation()),
                                    "expr.result");
         currentBB()->pushBack(result);
         auto* store = new ir::Store(irCtx, lhsAddr, result);
@@ -681,7 +685,7 @@ ir::Type const* CodeGenContext::mapType(sema::TypeID semaTypeID) {
 }
 
 ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
-    ast::UnaryPrefixOperator op) {
+    ast::UnaryPrefixOperator op) const {
     switch (op) {
     case UnaryPrefixOperator::Negation:
         return ir::UnaryArithmeticOperation::Negation;
@@ -694,7 +698,8 @@ ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
     }
 }
 
-ir::CompareOperation CodeGenContext::mapCompareOp(ast::BinaryOperator op) {
+ir::CompareOperation CodeGenContext::mapCompareOp(
+    ast::BinaryOperator op) const {
     switch (op) {
     case BinaryOperator::Less:
         return ir::CompareOperation::Less;
@@ -714,18 +719,45 @@ ir::CompareOperation CodeGenContext::mapCompareOp(ast::BinaryOperator op) {
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
-    ast::BinaryOperator op) {
+    sema::TypeID typeID, ast::BinaryOperator op) const {
     switch (op) {
     case BinaryOperator::Multiplication:
-        return ir::ArithmeticOperation::Mul;
+        if (typeID == symTable.Int()) {
+            return ir::ArithmeticOperation::Mul;
+        }
+        if (typeID == symTable.Float()) {
+            return ir::ArithmeticOperation::FMul;
+        }
+        SC_UNREACHABLE();
     case BinaryOperator::Division:
-        return ir::ArithmeticOperation::Div;
+        if (typeID == symTable.Int()) {
+            return ir::ArithmeticOperation::SDiv;
+        }
+        if (typeID == symTable.Float()) {
+            return ir::ArithmeticOperation::FDiv;
+        }
+        SC_UNREACHABLE();
     case BinaryOperator::Remainder:
-        return ir::ArithmeticOperation::Rem;
+        if (typeID == symTable.Int()) {
+            return ir::ArithmeticOperation::SRem;
+        }
+        SC_UNREACHABLE();
     case BinaryOperator::Addition:
-        return ir::ArithmeticOperation::Add;
+        if (typeID == symTable.Int()) {
+            return ir::ArithmeticOperation::Add;
+        }
+        if (typeID == symTable.Float()) {
+            return ir::ArithmeticOperation::FAdd;
+        }
+        SC_UNREACHABLE();
     case BinaryOperator::Subtraction:
-        return ir::ArithmeticOperation::Sub;
+        if (typeID == symTable.Int()) {
+            return ir::ArithmeticOperation::Sub;
+        }
+        if (typeID == symTable.Float()) {
+            return ir::ArithmeticOperation::FSub;
+        }
+        SC_UNREACHABLE();
     case BinaryOperator::LeftShift:
         return ir::ArithmeticOperation::LShL;
     case BinaryOperator::RightShift:
@@ -742,29 +774,32 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticAssignOp(
-    ast::BinaryOperator op) {
-    switch (op) {
-    case BinaryOperator::AddAssignment:
-        return ir::ArithmeticOperation::Add;
-    case BinaryOperator::SubAssignment:
-        return ir::ArithmeticOperation::Sub;
-    case BinaryOperator::MulAssignment:
-        return ir::ArithmeticOperation::Mul;
-    case BinaryOperator::DivAssignment:
-        return ir::ArithmeticOperation::Div;
-    case BinaryOperator::RemAssignment:
-        return ir::ArithmeticOperation::Rem;
-    case BinaryOperator::LSAssignment:
-        return ir::ArithmeticOperation::LShL;
-    case BinaryOperator::RSAssignment:
-        return ir::ArithmeticOperation::LShR;
-    case BinaryOperator::AndAssignment:
-        return ir::ArithmeticOperation::And;
-    case BinaryOperator::OrAssignment:
-        return ir::ArithmeticOperation::Or;
-    case BinaryOperator::XOrAssignment:
-        return ir::ArithmeticOperation::XOr;
-    default:
-        SC_UNREACHABLE("Only handle arithmetic assign operations here.");
-    }
+    sema::TypeID typeID, ast::BinaryOperator op) const {
+    auto nonAssign = [&] {
+        switch (op) {
+        case BinaryOperator::AddAssignment:
+            return BinaryOperator::Addition;
+        case BinaryOperator::SubAssignment:
+            return BinaryOperator::Subtraction;
+        case BinaryOperator::MulAssignment:
+            return BinaryOperator::Multiplication;
+        case BinaryOperator::DivAssignment:
+            return BinaryOperator::Division;
+        case BinaryOperator::RemAssignment:
+            return BinaryOperator::Remainder;
+        case BinaryOperator::LSAssignment:
+            return BinaryOperator::LeftShift;
+        case BinaryOperator::RSAssignment:
+            return BinaryOperator::RightShift;
+        case BinaryOperator::AndAssignment:
+            return BinaryOperator::BitwiseAnd;
+        case BinaryOperator::OrAssignment:
+            return BinaryOperator::BitwiseOr;
+        case BinaryOperator::XOrAssignment:
+            return BinaryOperator::BitwiseXOr;
+        default:
+            SC_UNREACHABLE("Only handle arithmetic assign operations here.");
+        }
+    }();
+    return mapArithmeticOp(typeID, nonAssign);
 }
