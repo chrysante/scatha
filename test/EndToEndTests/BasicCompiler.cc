@@ -20,7 +20,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
-#include "IR/Parser/Parser.h"
+#include "IR/Parser.h"
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
 #include "Opt/ConstantPropagation.h"

@@ -18,7 +18,7 @@
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Module.h"
-#include "IR/Parser/Parser.h"
+#include "IR/Parser.h"
 #include "IR/Print.h"
 #include "IR/Validate.h"
 #include "IRDump.h"
@@ -112,7 +112,7 @@ static std::string readFile(std::filesystem::path path) {
 }
 
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
-//    auto [ctx, mod] = makeIRModuleFromFile(path);
+    //    auto [ctx, mod] = makeIRModuleFromFile(path);
 
     auto parseRes = ir::parse(readFile(path));
     if (!parseRes) {

@@ -1,4 +1,4 @@
-#include "IR/Parser/Parser.h"
+#include "IR/Parser.h"
 
 #include <array>
 #include <functional>

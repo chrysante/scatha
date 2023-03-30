@@ -8,7 +8,7 @@
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Module.h"
-#include "IR/Parser/Parser.h"
+#include "IR/Parser.h"
 #include "IR/Print.h"
 
 using namespace scatha;

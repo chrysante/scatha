@@ -8,7 +8,7 @@
 #include "IR/Context.h"
 #include "IR/Iterator.h"
 #include "IR/Module.h"
-#include "IR/Parser/Parser.h"
+#include "IR/Parser.h"
 #include "Opt/Common.h"
 
 using namespace scatha;
