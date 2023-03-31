@@ -2,6 +2,7 @@
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Instructions.h"
 #include "Opt/Common.h"
 #include "test/IR/CompileToIR.h"
 
@@ -11,7 +12,11 @@ using namespace ir;
 
 TEST_CASE("Phi compareEqual()", "[opt]") {
     Context ctx;
-    Function f(nullptr, ctx.voidType(), {}, "f", FunctionAttribute::None);
+    Function f(nullptr,
+               ctx.voidType(),
+               std::span<ir::Parameter*>{},
+               "f",
+               FunctionAttribute::None);
     BasicBlock bb1(ctx, "bb1");
     bb1.set_parent(&f);
     BasicBlock bb2(ctx, "bb2");
