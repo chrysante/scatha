@@ -3,7 +3,7 @@ struct @X {
     i64, i64
 }
 
-func i64 @set_var(ptr) {
+func i64 @main() {
   %entry:
     %q = alloca @X
     %p = getelementptr inbounds @X, ptr %q, i64 0, 0
@@ -16,18 +16,29 @@ func i64 @set_var(ptr) {
     goto label %loopbody
     
   %loopbody:
-    %x = phi ptr [label %loopheader: %0], [label %loopbody: undef]
+    %x = phi ptr [label %loopheader: %p], [label %loopbody: undef]
     branch i1 1, label %exit, label %loopbody
     
   %exit:
-   %res = call i64 @get_value, ptr undef, ptr undef
+   %res = call i64 @get_value, ptr undef, ptr undef, i1 1
    %s = select i1 1, f64 undef, f64 undef
    return i64 1
 }
 
-func i64 @get_value(ptr, ptr) {
+func i64 @get_value(ptr, ptr, i1) {
   %entry:
-    %res = call i64 @get_value, ptr %1, ptr %0
+    branch i1 %2, label %then, label %else
+  
+  %then:
+    %cond = lnt i1 %2
+    %res.0 = call i64 @get_value, ptr %1, ptr %0, i1 %cond
+    goto label %ret
+  
+  %else:
+    goto label %ret
+  
+  %ret:
+    %res = phi i64 [label %then: %res.0], [label %else: 1]
     return i64 %res
 }
 

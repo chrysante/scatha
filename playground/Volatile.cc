@@ -91,12 +91,6 @@ static std::string readFile(std::filesystem::path path) {
     }
     auto [ctx, mod] = std::move(parseRes).value();
 
-    auto clone = ir::clone(ctx, &mod.functions().front());
-
-    ir::print(*clone);
-
-    return;
-
     auto phase =
         [ctx = &ctx, mod = &mod](std::string name,
                                  bool (*optFn)(ir::Context&, ir::Function&)) {
@@ -114,6 +108,10 @@ static std::string readFile(std::filesystem::path path) {
     phase("SCCP", opt::propagateConstants);
     phase("SCFG", opt::simplifyCFG);
     phase("TRE", opt::tailRecElim);
+    phase("DCE", opt::dce);
+    phase("SROA", opt::sroa);
+    phase("M2R", opt::memToReg);
+    phase("M2R", opt::memToReg);
     run(mod);
 }
 
