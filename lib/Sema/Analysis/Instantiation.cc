@@ -52,6 +52,9 @@ void Context::run() {
         }
         auto& var = cast<ast::VariableDeclaration const&>(*node.astNode);
         auto const typeID = analyzeTypeExpression(*var.typeExpr);
+        if (!typeID) {
+            continue;
+        }
         auto const& type  = sym.getObjectType(typeID);
         if (type.isBuiltin()) {
             continue;
