@@ -32,18 +32,32 @@ public:
 
     auto const& functions() const { return funcs; }
 
-    void addStructure(UniquePtr<StructureType> structure) {
-        structs.push_back(std::move(structure));
-    }
+    void addStructure(UniquePtr<StructureType> structure);
 
-    void addGlobal(UniquePtr<Value> value) {
-        _globals.push_back(std::move(value));
-    }
+    void addGlobal(UniquePtr<Value> value);
 
     void addFunction(Function* function);
 
     void addFunction(UniquePtr<Function> function);
 
+    void eraseFunction(Function* function);
+    
+    void eraseFunction(List<Function>::iterator itr);
+    
+    List<Function>::iterator begin();
+    List<Function>::const_iterator begin() const;
+    
+    List<Function>::iterator end();
+    List<Function>::const_iterator end() const;
+    
+    bool empty() const;
+    
+    Function& front();
+    Function const& front() const;
+    
+    Function& back();
+    Function const& back() const;
+    
 private:
     utl::vector<UniquePtr<StructureType>> structs;
     utl::vector<UniquePtr<Value>> _globals;

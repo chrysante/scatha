@@ -67,7 +67,7 @@ void ir::print(Module const& program, std::ostream& str) {
     for (auto& structure: program.structures()) {
         ctx.print(*structure);
     }
-    for (auto& function: program.functions()) {
+    for (auto& function: program) {
         ctx.dispatch(function);
     }
 }

@@ -187,7 +187,7 @@ void playground::drawUseGraph(scatha::ir::Module const& mod,
 
 void Ctx::run() {
     beginModule();
-    for (auto& function: mod.functions()) {
+    for (auto& function: mod) {
         beginFunction(function);
         declare(function);
         functionCallback(str, function);

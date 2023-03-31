@@ -66,8 +66,8 @@ void ModuleEqTester::testStructures(scatha::ir::Module const& mod) const {
 }
 
 void ModuleEqTester::testFunctions(scatha::ir::Module const& mod) const {
-    CHECK(ranges::distance(mod.functions()) == funcs.size());
-    for (auto&& [function, tester]: ranges::views::zip(mod.functions(), funcs))
+    CHECK(ranges::distance(mod) == funcs.size());
+    for (auto&& [function, tester]: ranges::views::zip(mod, funcs))
     {
         tester.test(function);
     }

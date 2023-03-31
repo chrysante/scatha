@@ -102,6 +102,10 @@ public:
 private:
     Derived& asDerived() { return *static_cast<Derived*>(this); }
 
+    /// Stub 
+    void insertCallback(auto&&...) {}
+    void eraseCallback(auto&&...) {}
+    
 private:
     friend class ir::BasicBlock;
     friend class ir::Function;

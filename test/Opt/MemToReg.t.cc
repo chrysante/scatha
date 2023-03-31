@@ -67,7 +67,7 @@ func i64 @f(i64) {
     goto label %loop.header
 })";
     auto [ctx, mod]              = ir::parse(text).value();
-    auto& f                      = mod.functions().front();
+    auto& f                      = mod.front();
     bool const modifiedFirstTime = opt::memToReg(ctx, f);
     CHECK(modifiedFirstTime);
     bool const modifiedSecondTime = opt::memToReg(ctx, f);
@@ -163,7 +163,7 @@ func i64 @f(i64) {
     return i64 %n.1
 })";
     auto [ctx, mod]              = ir::parse(text).value();
-    auto& f                      = mod.functions().front();
+    auto& f                      = mod.front();
     bool const modifiedFirstTime = opt::memToReg(ctx, f);
     CHECK(modifiedFirstTime);
     bool const modifiedSecondTime = opt::memToReg(ctx, f);

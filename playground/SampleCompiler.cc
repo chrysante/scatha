@@ -163,7 +163,7 @@ void playground::compile(std::string text) {
     ir::print(mod);
 
     header(" Optimized IR ");
-    for (auto& function: mod.functions()) {
+    for (auto& function: mod) {
         opt::memToReg(irCtx, function);
         opt::propagateConstants(irCtx, function);
         opt::dce(irCtx, function);

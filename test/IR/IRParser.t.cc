@@ -20,9 +20,9 @@ func i64 @testfn(i64) {
     return i64 %0
 })";
     auto [ctx, mod] = ir::parse(text).value();
-    auto fnItr      = ranges::find_if(mod.functions(),
+    auto fnItr      = ranges::find_if(mod,
                                  [](auto& f) { return f.name() == "testfn"; });
-    REQUIRE(fnItr != mod.functions().end());
+    REQUIRE(fnItr != mod.end());
     ir::Function& fn = *fnItr;
     CHECK(fn.name() == "testfn");
     CHECK(fn.returnType() == ctx.integralType(64));

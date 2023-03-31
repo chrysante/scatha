@@ -97,7 +97,7 @@ func i64 @main() {
     return i64 %call.res
 })",
                          [](ir::Context& ctx, ir::Module& mod) {
-        for (auto& f: mod.functions()) {
+        for (auto& f: mod) {
             opt::tailRecElim(ctx, f);
         }
     });

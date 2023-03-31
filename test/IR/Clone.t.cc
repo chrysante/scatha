@@ -38,7 +38,7 @@ func i64 @f(i64) {
     return i64 %j
 })";
     auto [ctx, mod] = ir::parse(text).value();
-    auto& f         = mod.functions().front();
+    auto& f         = mod.front();
     auto fClone     = ir::clone(ctx, &f);
     using namespace test::ir;
     using enum ir::NodeType;

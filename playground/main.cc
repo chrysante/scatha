@@ -110,19 +110,19 @@ int main(int argc, char const* const* argv) {
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
                                  "graphviz/cfg-none.gv");
-        for (auto& function: mod.functions()) {
+        for (auto& function: mod) {
             scatha::opt::memToReg(ctx, function);
         }
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
                                  "graphviz/cfg-m2r.gv");
-        for (auto& function: mod.functions()) {
+        for (auto& function: mod) {
             scatha::opt::propagateConstants(ctx, function);
         }
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
                                  "graphviz/cfg-scc.gv");
-        for (auto& function: mod.functions()) {
+        for (auto& function: mod) {
             scatha::opt::dce(ctx, function);
         }
         drawControlFlowGraph(mod,

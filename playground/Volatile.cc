@@ -54,7 +54,7 @@ using namespace playground;
 static void run(ir::Module const& mod) {
     auto assembly              = cg::codegen(mod);
     std::string const mainName = [&] {
-        for (auto& f: mod.functions()) {
+        for (auto& f: mod) {
             if (f.name().starts_with("main")) {
                 return std::string(f.name());
             }
@@ -95,7 +95,7 @@ static std::string readFile(std::filesystem::path path) {
         [ctx = &ctx, mod = &mod](std::string name,
                                  bool (*optFn)(ir::Context&, ir::Function&)) {
         header(" " + name + " ");
-        for (auto& function: mod->functions()) {
+        for (auto& function: *mod) {
             optFn(*ctx, function);
         }
         ir::print(*mod);

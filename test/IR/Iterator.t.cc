@@ -36,7 +36,7 @@ func i64 @ff(i64) {
     return i64 %k.1
 })";
     auto [ctx, mod]                = ir::parse(text).value();
-    auto& function                 = mod.functions().front();
+    auto& function                 = mod.front();
     ir::NodeType const reference[] = {
         ir::NodeType::Alloca,      ir::NodeType::Store,  ir::NodeType::Alloca,
         ir::NodeType::Load,        ir::NodeType::Store,  ir::NodeType::Load,
@@ -105,7 +105,7 @@ func i64 @f() {
     goto label %header
 })";
     auto [ctx, mod]     = ir::parse(text).value();
-    auto& f             = mod.functions().front();
+    auto& f             = mod.front();
     auto& header        = *f.front().next();
     auto headerPhiNodes = header.phiNodes();
     for (auto itr = headerPhiNodes.begin(); itr != headerPhiNodes.end();) {

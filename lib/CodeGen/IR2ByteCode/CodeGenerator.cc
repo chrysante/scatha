@@ -107,7 +107,7 @@ static Asm::CompareOperation mapCompare(ir::CompareOperation op);
 CodeGenContext::CodeGenContext(AssemblyStream& result): result(result) {}
 
 void CodeGenContext::run(ir::Module const& mod) {
-    for (auto& function: mod.functions()) {
+    for (auto& function: mod) {
         dispatch(function);
     }
     postprocess();

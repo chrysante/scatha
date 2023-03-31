@@ -64,7 +64,7 @@ static void optimize(ir::Context& ctx, ir::Module& mod) {
 static uint64_t run(ir::Module const& mod) {
     /// Start execution with main if it exists.
     std::string mainName;
-    for (auto& f: mod.functions()) {
+    for (auto& f: mod) {
         if (f.name().starts_with("main")) {
             mainName = std::string(f.name());
             break;

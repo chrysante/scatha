@@ -24,12 +24,12 @@ SCCCallGraph SCCCallGraph::compute(Module& mod) {
 }
 
 void SCCCallGraph::computeCallGraph(Module& mod) {
-    _functions = mod.functions() |
+    _functions = mod |
                  ranges::views::transform([](Function& function) {
                      return FunctionNode(&function);
                  }) |
                  ranges::to<FuncNodeSet>;
-    for (auto& function: mod.functions()) {
+    for (auto& function: mod) {
         for (auto& inst: function.instructions()) {
             auto* call = dyncast<Call*>(&inst);
             if (!call) {

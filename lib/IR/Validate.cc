@@ -75,7 +75,7 @@ void ir::assertInvariants(Context& ctx, Function const& function) {
 }
 
 void AssertContext::assertInvariants(Module const& mod) {
-    for (auto& function: mod.functions()) {
+    for (auto& function: mod) {
         assertInvariants(function);
     }
 }
@@ -232,7 +232,7 @@ void AssertContext::uniqueName(Value const& value) {
 /// ** Setup **
 
 void ir::setupInvariants(Context& ctx, Module& mod) {
-    for (auto& function: mod.functions()) {
+    for (auto& function: mod) {
         setupInvariants(ctx, function);
     }
 }

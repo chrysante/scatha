@@ -56,7 +56,7 @@ func i64 @f() {
     return i64 0
 })";
     auto [ctx, mod] = ir::parse(text).value();
-    auto& f         = mod.functions().front();
+    auto& f         = mod.front();
     auto domInfo    = ir::DominanceInfo::compute(f);
     /// ## Dominator tree
     auto& domTree = domInfo.domTree();
@@ -109,7 +109,7 @@ func i64 @f() {
     return i64 0
 })";
     auto [ctx, mod] = ir::parse(text).value();
-    auto& f         = mod.functions().front();
+    auto& f         = mod.front();
     auto domInfo    = ir::DominanceInfo::compute(f);
     /// ## Dominator tree
     auto& domTree = domInfo.domTree();
