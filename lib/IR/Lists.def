@@ -46,15 +46,15 @@ SC_CGFNODE_DEF(Select,                CONCRETE)
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_COMPARE_OPERATION_DEF
-#   define SC_COMPARE_OPERATION_DEF(op, opShort)
+#   define SC_COMPARE_OPERATION_DEF(op, keyword)
 #endif
 
-SC_COMPARE_OPERATION_DEF(Less, ls)
-SC_COMPARE_OPERATION_DEF(LessEq, leq)
-SC_COMPARE_OPERATION_DEF(Greater, grt)
+SC_COMPARE_OPERATION_DEF(Less,      ls)
+SC_COMPARE_OPERATION_DEF(LessEq,    leq)
+SC_COMPARE_OPERATION_DEF(Greater,   grt)
 SC_COMPARE_OPERATION_DEF(GreaterEq, geq)
-SC_COMPARE_OPERATION_DEF(Equal, eq)
-SC_COMPARE_OPERATION_DEF(NotEqual, neq)
+SC_COMPARE_OPERATION_DEF(Equal,     eq)
+SC_COMPARE_OPERATION_DEF(NotEqual,  neq)
 
 #undef SC_COMPARE_OPERATION_DEF
 
@@ -63,7 +63,7 @@ SC_COMPARE_OPERATION_DEF(NotEqual, neq)
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_UNARY_ARITHMETIC_OPERATION_DEF
-#   define SC_UNARY_ARITHMETIC_OPERATION_DEF(op, opShort)
+#   define SC_UNARY_ARITHMETIC_OPERATION_DEF(op, keyword)
 #endif
 
 SC_UNARY_ARITHMETIC_OPERATION_DEF(BitwiseNot, bnt)
@@ -76,7 +76,7 @@ SC_UNARY_ARITHMETIC_OPERATION_DEF(LogicalNot, lnt)
 // ===----------------------------------------------------------------------===
 
 #ifndef SC_ARITHMETIC_OPERATION_DEF
-#   define SC_ARITHMETIC_OPERATION_DEF(op, opShort)
+#   define SC_ARITHMETIC_OPERATION_DEF(op, keyword)
 #endif
 
 SC_ARITHMETIC_OPERATION_DEF(Add,  add)
