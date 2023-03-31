@@ -61,11 +61,11 @@ static void run(ir::Module const& mod) {
         }
         return std::string{};
     }();
+    auto program = Asm::assemble(assembly, { std::string(mainName) });
     if (mainName.empty()) {
         std::cout << "No main function found\n";
         return;
     }
-    auto program = Asm::assemble(assembly, { std::string(mainName) });
     svm::VirtualMachine vm;
     vm.loadProgram(program.data());
     vm.execute();
@@ -83,13 +83,7 @@ static std::string readFile(std::filesystem::path path) {
 }
 
 [[maybe_unused]] static void sroaPlayground(std::filesystem::path path) {
-    //    auto [ctx, mod] = makeIRModuleFromFile(path);
-
-    auto parseRes = ir::parse(readFile(path));
-    if (!parseRes) {
-        SC_DEBUGFAIL();
-    }
-    auto [ctx, mod] = std::move(parseRes).value();
+    auto [ctx, mod] = makeIRModuleFromFile(path);
 
     auto phase =
         [ctx = &ctx, mod = &mod](std::string name,
@@ -105,25 +99,18 @@ static std::string readFile(std::filesystem::path path) {
     phase("M2R", opt::memToReg);
     phase("Inst Combine", opt::instCombine);
     phase("DCE", opt::dce);
-    phase("SCCP", opt::propagateConstants);
-    phase("SCFG", opt::simplifyCFG);
-    phase("TRE", opt::tailRecElim);
-    phase("DCE", opt::dce);
-    phase("SROA", opt::sroa);
-    phase("M2R", opt::memToReg);
-    phase("M2R", opt::memToReg);
     run(mod);
 }
 
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
-    //    auto [ctx, mod] = makeIRModuleFromFile(path);
+    auto [ctx, mod] = makeIRModuleFromFile(path);
 
-    auto parseRes = ir::parse(readFile(path));
-    if (!parseRes) {
-        print(parseRes.error());
-        return;
-    }
-    auto [ctx, mod] = std::move(parseRes).value();
+    //    auto parseRes = ir::parse(readFile(path));
+    //    if (!parseRes) {
+    //        print(parseRes.error());
+    //        return;
+    //    }
+    //    auto [ctx, mod] = std::move(parseRes).value();
 
     header(" Before inlining ");
     ir::print(mod);

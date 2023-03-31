@@ -4,6 +4,4 @@
 
 - Test idempotency of optimization passes
 
-- Perhaps make DCE pass remove unused instructions, though right now other passes already do this. 
-
 - Fix parser crashes
