@@ -31,6 +31,8 @@ struct AssertContext {
     void assertSpecialInvariants(Value const&) { SC_UNREACHABLE(); }
     void assertSpecialInvariants(Instruction const&) {}
     void assertSpecialInvariants(Phi const&);
+    void assertSpecialInvariants(Call const&);
+    void assertSpecialInvariants(Branch const&);
 
     void uniqueName(Value const& value);
 
@@ -141,6 +143,7 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
 void AssertContext::assertInvariants(Instruction const& inst) {
     uniqueName(inst);
     for (auto* operand: inst.operands()) {
+        CHECK(operand != nullptr, "Operands can't be null");
         auto opUsers = operand->users();
         CHECK(std::find(opUsers.begin(), opUsers.end(), &inst) != opUsers.end(),
               "Our operands must have listed us as their user");
@@ -176,6 +179,23 @@ void AssertContext::assertSpecialInvariants(Phi const& phi) {
     CHECK(preds == args,
           "We need an incoming edge in our phi node for exactly every incoming "
           "edge in the basic block");
+}
+
+void AssertContext::assertSpecialInvariants(Call const& call) {
+    auto* func = call.function();
+    CHECK(call.type() == func->returnType(), "Return type mismatch");
+    CHECK(ranges::distance(func->parameters()) == call.arguments().size(),
+          "We need an argument for every parameter");
+    for (auto&& [param, arg]:
+         ranges::views::zip(func->parameters(), call.arguments()))
+    {
+        CHECK(param.type() == arg->type(), "Argument type mismatch");
+    }
+}
+
+void AssertContext::assertSpecialInvariants(Branch const& branch) {
+    CHECK(branch.condition()->type() == ctx.integralType(1),
+          "Condition must be type i1");
 }
 
 void AssertContext::uniqueName(Value const& value) {
