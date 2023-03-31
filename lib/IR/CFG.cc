@@ -390,8 +390,8 @@ static auto extract(std::span<PhiMapping const> args, E extractor) {
 }
 
 void Phi::setArguments(std::span<PhiMapping const> args) {
-    SC_ASSERT(!args.empty(), "Phi must have at least one argument");
-    if (auto* val = args.front().value) {
+    Value* val = nullptr;
+    if (!args.empty() && (val = args.front().value)) {
         setType(val->type());
     }
     setOperands(extract(args, [](PhiMapping p) { return p.value; }));
