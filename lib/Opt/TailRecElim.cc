@@ -377,6 +377,8 @@ bool TREContext::isInterestingCall(Value const* inst) const {
     return call && call->function() == &function;
 }
 
+static constexpr bool FloatsAreCommutativeAndAssociative = true;
+
 bool TREContext::isCommutativeAndAssociative(ArithmeticInst const* inst) {
     switch (inst->operation()) {
     case ArithmeticOperation::Add:
@@ -385,6 +387,10 @@ bool TREContext::isCommutativeAndAssociative(ArithmeticInst const* inst) {
     case ArithmeticOperation::Or:
     case ArithmeticOperation::XOr:
         return true;
+
+    case ArithmeticOperation::FAdd:
+    case ArithmeticOperation::FMul:
+        return FloatsAreCommutativeAndAssociative;
     default:
         return false;
     }
@@ -400,8 +406,8 @@ Value* TREContext::identityValue(ArithmeticInst const* inst) const {
         return irCtx.integralConstant(APInt(-1, 64));
     case ArithmeticOperation::Or:
         return irCtx.integralConstant(APInt(0, 64));
-        //    case ArithmeticOperation::XOr:
-        //        return irCtx.integralConstant(APInt(0, 64));
+    case ArithmeticOperation::XOr:
+        return irCtx.integralConstant(APInt(0, 64));
     default:
         SC_UNREACHABLE();
     }
