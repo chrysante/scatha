@@ -1,9 +1,11 @@
 #include "Opt/InstCombine.h"
 
+#include <range/v3/algorithm.hpp>
 #include <utl/hashtable.hpp>
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
 

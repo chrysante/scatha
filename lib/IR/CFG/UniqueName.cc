@@ -1,4 +1,4 @@
-#include "IR/UniqueName.h"
+#include "IR/CFG/UniqueName.h"
 
 #include <range/v3/view.hpp>
 #include <utl/strcat.hpp>

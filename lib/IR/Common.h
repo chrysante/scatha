@@ -44,12 +44,12 @@ class Module;
 /// ```
 
 #define SC_CGFNODE_DEF(Node, _) class Node;
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/CFG/Lists.def>
 
 /// List of all CFG node type.
 enum class NodeType {
 #define SC_CGFNODE_DEF(Node, _) Node,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/CFG/Lists.def>
     _count
 };
 
@@ -62,7 +62,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 /// List of all compare arithmetic operations in the IR module.
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Op, _) Op,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/CFG/Lists.def>
     _count
 };
 
@@ -76,7 +76,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// List of all unary arithmetic operations in the IR module.
 enum class UnaryArithmeticOperation {
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, _) Op,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/CFG/Lists.def>
     _count
 };
 
@@ -91,7 +91,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// List of all binary arithmetic operations in the IR module.
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Op, _) Op,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/CFG/Lists.def>
     _count
 };
 
@@ -105,12 +105,12 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// ## Forward declarations of type categories
 
 #define SC_TYPE_CATEGORY_DEF(TypeCat) class TypeCat;
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/CFG/Lists.def>
 
 /// List of all type categories.
 enum class TypeCategory {
 #define SC_TYPE_CATEGORY_DEF(TypeCat) TypeCat,
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/CFG/Lists.def>
     _count
 };
 
@@ -121,14 +121,14 @@ enum class TypeCategory {
     SC_DYNCAST_MAP(::scatha::ir::Node,                                         \
                    ::scatha::ir::NodeType::Node,                               \
                    Abstractness)
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/CFG/Lists.def>
 
 /// Map enum `TypeCategory` to actual type category classes
 #define SC_TYPE_CATEGORY_DEF(TypeCat)                                          \
     SC_DYNCAST_MAP(::scatha::ir::TypeCat,                                      \
                    ::scatha::ir::TypeCategory::TypeCat,                        \
                    CONCRETE);
-#include <scatha/IR/Lists.def>
+#include <scatha/IR/CFG/Lists.def>
 
 namespace scatha::ir::internal {
 

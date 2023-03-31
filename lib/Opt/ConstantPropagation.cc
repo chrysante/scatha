@@ -2,6 +2,7 @@
 
 #include <deque>
 
+#include <range/v3/algorithm.hpp>
 #include <range/v3/numeric.hpp>
 #include <range/v3/view.hpp>
 #include <svm/Builtin.h>
@@ -13,6 +14,7 @@
 #include "Common/APInt.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
 

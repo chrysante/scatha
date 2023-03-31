@@ -5,6 +5,7 @@
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
+#include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
 

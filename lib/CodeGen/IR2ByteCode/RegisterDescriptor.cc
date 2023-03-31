@@ -1,6 +1,9 @@
 #include "CodeGen/IR2ByteCode/RegisterDescriptor.h"
 
+#include <utl/utility.hpp>
+
 #include "IR/CFG.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace cg;

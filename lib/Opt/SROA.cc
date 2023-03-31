@@ -2,12 +2,14 @@
 
 #include <memory>
 
+#include <range/v3/algorithm.hpp>
 #include <utl/function_view.hpp>
 #include <utl/vector.hpp>
 
 #include "Common/Allocator.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Type.h"
 #include "Opt/Common.h"
 
 using namespace scatha;

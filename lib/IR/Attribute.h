@@ -1,5 +1,5 @@
-#ifndef SCATHA_IR_ATTRIBUTES_H_
-#define SCATHA_IR_ATTRIBUTES_H_
+#ifndef SCATHA_IR_ATTRIBUTE_H_
+#define SCATHA_IR_ATTRIBUTE_H_
 
 #include <utl/common.hpp>
 
@@ -17,4 +17,4 @@ UTL_BITFIELD_OPERATORS(FunctionAttribute);
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_ATTRIBUTES_H_
+#endif // SCATHA_IR_ATTRIBUTE_H_

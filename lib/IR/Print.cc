@@ -4,12 +4,14 @@
 #include <sstream>
 
 #include <termfmt/termfmt.h>
+#include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
 #include "Basic/Basic.h"
 #include "Basic/PrintUtil.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace ir;
@@ -112,10 +114,7 @@ static auto tertiary(auto... name) {
     return tfmt::format(tfmt::brightGrey, name...);
 }
 
-static auto formatInstName(auto... name) {
-    return formatKeyword(name...);
-    //    return tfmt::format(tfmt::brightRed | tfmt::bold, name...);
-}
+static auto formatInstName(auto... name) { return formatKeyword(name...); }
 
 static tfmt::VObjectWrapper formatType(ir::Type const* type) {
     if (!type) {

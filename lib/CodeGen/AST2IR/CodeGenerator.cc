@@ -10,6 +10,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Sema/SymbolTable.h"
 

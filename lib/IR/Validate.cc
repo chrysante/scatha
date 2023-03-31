@@ -12,6 +12,7 @@
 #include "IR/Dominance.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace ir;

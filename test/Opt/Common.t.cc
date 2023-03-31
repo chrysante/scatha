@@ -2,7 +2,7 @@
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
-#include "IR/Instructions.h"
+#include "IR/Type.h"
 #include "Opt/Common.h"
 #include "test/IR/CompileToIR.h"
 

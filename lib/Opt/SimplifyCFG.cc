@@ -1,7 +1,9 @@
 #include "Opt/SimplifyCFG.h"
 
+#include <range/v3/algorithm.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/scope_guard.hpp>
+#include <utl/strcat.hpp>
 
 #include "IR/CFG.h"
 #include "IR/Validate.h"

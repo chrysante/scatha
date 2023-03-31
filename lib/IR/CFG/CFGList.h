@@ -1,0 +1,113 @@
+#ifndef SCATHA_IR_CFG_CFGLIST_H_
+#define SCATHA_IR_CFG_CFGLIST_H_
+
+#include "Common/UniquePtr.h"
+#include "IR/CFG/Iterator.h"
+#include "IR/CFG/List.h"
+#include "IR/Common.h"
+
+namespace scatha::ir::internal {
+
+/// Base class of `BasicBlock` and `Function` implementing their common
+/// container-like interface. `ValueType` is `Instruction` for `BasicBlock` and
+/// `BasicBlock` for `Function`.
+template <typename Derived, typename ValueType>
+class CFGList {
+public:
+    using Iterator      = typename List<ValueType>::iterator;
+    using ConstIterator = typename List<ValueType>::const_iterator;
+
+    /// Callee takes ownership.
+    void pushFront(ValueType* value) { insert(values.begin(), value); }
+
+    /// \overload
+    void pushFront(UniquePtr<ValueType> value) { pushFront(value.release()); }
+
+    /// Callee takes ownership.
+    void pushBack(ValueType* value) { insert(values.end(), value); }
+
+    /// \overload
+    void pushBack(UniquePtr<ValueType> value) { pushBack(value.release()); }
+
+    /// Callee takes ownership.
+    Iterator insert(ConstIterator before, ValueType* value) {
+        asDerived().insertCallback(*value);
+        return values.insert(before, value);
+    }
+
+    /// \overload
+    ValueType* insert(ValueType const* before, ValueType* value) {
+        asDerived().insertCallback(*value);
+        return insert(ConstIterator(before), value).to_address();
+    }
+
+    /// Merge `*this` with \p *rhs
+    /// Insert nodes of \p *rhs before \p pos
+    void splice(ConstIterator pos, Derived* rhs) {
+        splice(pos, rhs->begin(), rhs->end());
+    }
+
+    /// Merge range `[begin, end)` into `*this`
+    /// Insert nodes before \p pos
+    void splice(ConstIterator pos, Iterator first, ConstIterator last) {
+        for (auto itr = first; itr != last; ++itr) {
+            SC_ASSERT(itr->parent() != this, "This is UB");
+            asDerived().insertCallback(*itr);
+        }
+        values.splice(pos, first, last);
+    }
+
+    /// Clears the operands.
+    Iterator erase(ConstIterator position) {
+        SC_ASSERT(position->users().empty(),
+                  "We should not erase this value when it's still in use");
+        asDerived().eraseCallback(*position);
+        return values.erase(position);
+    }
+
+    /// \overload
+    Iterator erase(ValueType const* value) {
+        return erase(ConstIterator(value));
+    }
+
+    /// \overload
+    Iterator erase(ConstIterator first, ConstIterator last) {
+        for (auto itr = first; itr != last; ++itr) {
+            SC_ASSERT(itr->parent() == this, "This is UB");
+            asDerived().eraseCallback(*itr);
+        }
+        return values.erase(first, last);
+    }
+
+    Iterator begin() { return values.begin(); }
+    ConstIterator begin() const { return values.begin(); }
+
+    auto rbegin() { return values.rbegin(); }
+    auto rbegin() const { return values.rbegin(); }
+
+    Iterator end() { return values.end(); }
+    ConstIterator end() const { return values.end(); }
+
+    auto rend() { return values.rend(); }
+    auto rend() const { return values.rend(); }
+
+    bool empty() const { return values.empty(); }
+
+    ValueType& front() { return values.front(); }
+    ValueType const& front() const { return values.front(); }
+
+    ValueType& back() { return values.back(); }
+    ValueType const& back() const { return values.back(); }
+
+private:
+    Derived& asDerived() { return *static_cast<Derived*>(this); }
+
+private:
+    friend class ir::BasicBlock;
+    friend class ir::Function;
+    List<ValueType> values;
+};
+
+} // namespace scatha::ir::internal
+
+#endif // SCATHA_IR_CFG_CFGLIST_H_

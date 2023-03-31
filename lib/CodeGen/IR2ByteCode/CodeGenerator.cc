@@ -14,6 +14,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace Asm;
