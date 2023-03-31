@@ -36,5 +36,5 @@ void StructureType::computeSizeAndAlign() {
         _memberOffsets.push_back(utl::narrow_cast<u16>(currentBaseSize));
         setSize(currentBaseSize + member->size());
     }
-    setSize(utl::round_up(size(), align()));
+    setSize(size() == 0 ? 0 : utl::round_up(size(), align()));
 }
