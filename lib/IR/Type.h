@@ -121,7 +121,9 @@ public:
     explicit StructureType(std::string name,
                            std::span<Type const* const> members):
         Type(std::move(name), TypeCategory::StructureType, 0, 0),
-        _members(members) {}
+        _members(members) {
+        computeSizeAndAlign();
+    }
 
     /// \returns The member type at \p index
     Type const* memberAt(std::size_t index) const { return _members[index]; }
