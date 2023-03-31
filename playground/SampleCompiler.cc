@@ -119,32 +119,35 @@ void playground::compile(std::string text) {
                 std::cout
                     << utl::nameof<std::decay_t<decltype(issue)>> << "\n\t";
             });
-            issue.visit(utl::visitor{ [&](sema::InvalidDeclaration const& e) {
-                                         std::cout << "Invalid declaration ("
-                                                   << e.reason() << "): ";
-                                         std::cout << std::endl;
-                                     },
-                                      [&](sema::BadTypeConversion const& e) {
-                std::cout << "Bad type conversion: ";
-                ast::printExpression(e.expression());
-                std::cout << std::endl;
-                std::cout << "\tFrom " << sym.getName(e.from()) << " to "
-                          << sym.getName(e.to()) << "\n";
-                                     },
-                                      [&](sema::BadFunctionCall const& e) {
-                std::cout << "Bad function call: " << e.reason() << ": ";
-                ast::printExpression(e.expression());
-                std::cout << std::endl;
-            },
-                        [&](sema::UseOfUndeclaredIdentifier const& e) {
-                std::cout << "Use of undeclared identifier ";
-                ast::printExpression(e.expression());
-                std::cout << " in scope: " << e.currentScope().name()
-                          << std::endl;
-            },
+            // clang-format off
+            issue.visit(utl::overload{
+                [&](sema::InvalidDeclaration const& e) {
+                    std::cout << "Invalid declaration ("
+                                << e.reason() << "): ";
+                    std::cout << std::endl;
+                },
+                [&](sema::BadTypeConversion const& e) {
+                    std::cout << "Bad type conversion: ";
+                    ast::printExpression(e.expression());
+                    std::cout << std::endl;
+                    std::cout << "\tFrom " << sym.getName(e.from()) << " to "
+                              << sym.getName(e.to()) << "\n";
+                },
+                [&](sema::BadFunctionCall const& e) {
+                    std::cout << "Bad function call: " << e.reason() << ": ";
+                    ast::printExpression(e.expression());
+                    std::cout << std::endl;
+                },
+                [&](sema::UseOfUndeclaredIdentifier const& e) {
+                    std::cout << "Use of undeclared identifier ";
+                    ast::printExpression(e.expression());
+                    std::cout << " in scope: " << e.currentScope().name()
+                              << std::endl;
+                },
                 [](issue::ProgramIssueBase const&) {
-                std::cout << std::endl;
-            } });
+                    std::cout << std::endl;
+                }
+            }); // clang-format on
             std::cout << std::endl;
         }
     }

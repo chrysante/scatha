@@ -1,7 +1,12 @@
 
-func void @set_var(ptr) {
+struct @X {
+    i64, i64
+}
+
+func i64 @set_var(ptr) {
   %entry:
-    %p = alloca i64
+    %q = alloca @X
+    %p = getelementptr inbounds @X, ptr %q, i64 0, 0
     store ptr %p, i64 1
     %i = load i64, ptr %p
     goto label %loopheader
@@ -16,7 +21,8 @@ func void @set_var(ptr) {
     
   %exit:
    %res = call i64 @get_value, ptr undef, ptr undef
-   return
+   %s = select i1 1, f64 undef, f64 undef
+   return i64 1
 }
 
 func i64 @get_value(ptr, ptr) {

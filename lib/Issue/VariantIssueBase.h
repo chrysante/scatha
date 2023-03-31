@@ -23,17 +23,18 @@ class VariantIssueBase<std::variant<Issues...>>:
 private:
     template <typename T>
     static decltype(auto) visitImpl(auto&& f, auto&& v) {
-        // clang-format off
-        auto const vis = utl::overload{
-            f,
-            [](issue::internal::ProgramIssuePrivateBase&) -> T {
+        using F = std::decay_t<decltype(f)>;
+        struct Vis: F {
+            Vis(F f): F(f) {}
+            T operator()(
+                issue::internal::ProgramIssuePrivateBase const&) const {
                 if constexpr (!std::is_same_v<T, void>) {
                     SC_DEBUGFAIL();
                 }
             }
+            using F::operator();
         };
-        // clang-format on
-        return std::visit(vis, v);
+        return std::visit(Vis(std::forward<decltype(f)>(f)), v);
     }
 
 public:
