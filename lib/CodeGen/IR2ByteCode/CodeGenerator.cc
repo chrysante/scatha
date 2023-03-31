@@ -247,8 +247,7 @@ void CodeGenContext::generate(ir::UnaryArithmeticInst const& inst) {
     auto genUnaryArithmetic = [&](UnaryArithmeticOperation operation) {
         currentBlock().insertBack(
             MoveInst(dest, operand, inst.operand()->type()->size()));
-        currentBlock().insertBack(
-            UnaryArithmeticInst(operation, mapType(inst.type()), dest));
+        currentBlock().insertBack(UnaryArithmeticInst(operation, dest));
     };
     switch (inst.operation()) {
     case ir::UnaryArithmeticOperation::BitwiseNot:
@@ -590,10 +589,11 @@ void CodeGenContext::placeArguments(std::span<ir::Value const* const> args) {
     Block::Iterator paramLocation =
         std::prev(currentBlock().end(), static_cast<ssize_t>(offset));
     for (size_t i = 0; i < offset; ++i, ++paramLocation) {
-        RegisterIndex& moveDestIdx =
+        RegisterIndex moveDestIdx =
             paramLocation->get<MoveInst>().dest().get<RegisterIndex>();
         size_t const rawIndex = moveDestIdx.value();
         moveDestIdx.setValue(commonOffset + rawIndex);
+        paramLocation->get<MoveInst>().setDest(moveDestIdx);
     }
 }
 

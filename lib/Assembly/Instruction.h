@@ -24,10 +24,11 @@ public:
         verify();
     }
 
-    Value& dest() { return _dest; }
-    Value const& dest() const { return _dest; }
+    Value dest() const { return _dest; }
 
-    Value const& source() const { return _src; }
+    void setDest(Value value) { _dest = value; }
+
+    Value source() const { return _src; }
 
     size_t numBytes() const { return _numBytes; }
 
@@ -52,10 +53,9 @@ public:
 
     CompareOperation condition() const { return _cond; }
 
-    Value& dest() { return _dest; }
-    Value const& dest() const { return _dest; }
+    Value dest() const { return _dest; }
 
-    Value const& source() const { return _src; }
+    Value source() const { return _src; }
 
     size_t numBytes() const { return _numBytes; }
 
@@ -142,8 +142,8 @@ public:
     explicit AllocaInst(RegisterIndex dest, RegisterIndex source):
         _dest(dest), _source(source) {}
 
-    RegisterIndex const& dest() const { return _dest; }
-    RegisterIndex const& source() const { return _source; }
+    RegisterIndex dest() const { return _dest; }
+    RegisterIndex source() const { return _source; }
 
 private:
     RegisterIndex _dest;
@@ -158,9 +158,9 @@ public:
 
     Type type() const { return _type; }
 
-    Value const& lhs() const { return _lhs; }
+    Value lhs() const { return _lhs; }
 
-    Value const& rhs() const { return _rhs; }
+    Value rhs() const { return _rhs; }
 
 private:
     Type _type;
@@ -176,7 +176,7 @@ public:
 
     Type type() const { return _type; }
 
-    Value const& operand() const { return _op; }
+    Value operand() const { return _op; }
 
 private:
     Type _type;
@@ -189,7 +189,7 @@ public:
     explicit SetInst(RegisterIndex dest, CompareOperation operation):
         _dest(dest), _op(operation) {}
 
-    RegisterIndex const& dest() const { return _dest; }
+    RegisterIndex dest() const { return _dest; }
 
     CompareOperation operation() const { return _op; }
 
@@ -202,19 +202,15 @@ private:
 class UnaryArithmeticInst: public InstructionBase {
 public:
     explicit UnaryArithmeticInst(UnaryArithmeticOperation op,
-                                 Type type,
                                  RegisterIndex operand):
-        _op(op), _type(type), _operand(operand) {}
+        _op(op), _operand(operand) {}
 
     UnaryArithmeticOperation operation() const { return _op; }
 
-    Type type() const { return _type; }
-
-    RegisterIndex const& operand() const { return _operand; }
+    RegisterIndex operand() const { return _operand; }
 
 private:
     UnaryArithmeticOperation _op;
-    Type _type;
     RegisterIndex _operand;
 };
 
@@ -228,9 +224,9 @@ public:
 
     ArithmeticOperation operation() const { return _op; }
 
-    Value const& dest() const { return _dest; }
+    Value dest() const { return _dest; }
 
-    Value const& source() const { return _src; }
+    Value source() const { return _src; }
 
 private:
     SCATHA_TESTAPI void verify() const;
