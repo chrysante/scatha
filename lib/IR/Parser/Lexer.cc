@@ -106,6 +106,14 @@ Expected<Token, LexicalIssue> Lexer::next() {
     while (i != end && std::isspace(*i)) {
         inc();
     }
+    // Comments
+    if (*i == '#') {
+        while (i != end && *i != '\n') {
+            inc();
+        }
+        return next();
+    }
+    // End of file
     if (i == end) {
         return Token(std::string_view{}, loc, TokenKind::EndOfFile);
     }
