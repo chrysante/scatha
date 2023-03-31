@@ -32,7 +32,7 @@ struct ParseContext {
 
 private:
     UniquePtr<Function> parseFunction();
-    Type const* parseParamDecl();
+    UniquePtr<Parameter> parseParamDecl(size_t index);
     UniquePtr<BasicBlock> parseBasicBlock();
     UniquePtr<Instruction> parseInstruction();
     utl::small_vector<size_t> parseConstantIndices();
@@ -264,21 +264,22 @@ UniquePtr<Function> ParseContext::parseFunction() {
     auto* const returnType = getType(eatToken());
     Token const name       = eatToken();
     expect(eatToken(), TokenKind::OpenParan);
-    utl::vector<Type const*> parameterTypes;
+    utl::small_vector<Parameter*> parameters;
+    size_t index = 0;
     if (peekToken().kind() != TokenKind::CloseParan) {
-        parameterTypes.push_back(parseParamDecl());
+        parameters.push_back(parseParamDecl(index++).release());
     }
     while (true) {
         if (peekToken().kind() != TokenKind::Comma) {
             break;
         }
         eatToken(); // Comma
-        parameterTypes.push_back(parseParamDecl());
+        parameters.push_back(parseParamDecl(index++).release());
     }
     expect(eatToken(), TokenKind::CloseParan);
     auto result = allocate<Function>(nullptr,
                                      returnType,
-                                     parameterTypes,
+                                     parameters,
                                      std::string(name.id()),
                                      FunctionAttribute::None);
     registerValue(name, result.get());
@@ -304,13 +305,21 @@ UniquePtr<Function> ParseContext::parseFunction() {
     return result;
 }
 
-Type const* ParseContext::parseParamDecl() {
+UniquePtr<Parameter> ParseContext::parseParamDecl(size_t index) {
     auto* const type = getType(peekToken());
     if (!type) {
         reportSyntaxIssue(peekToken());
     }
     eatToken();
-    return type;
+    if (peekToken().kind() == TokenKind::LocalIdentifier) {
+        return allocate<Parameter>(type,
+                                   index,
+                                   std::string(eatToken().id()),
+                                   nullptr);
+    }
+    else {
+        return allocate<Parameter>(type, index, nullptr);
+    }
 }
 
 UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {

@@ -555,12 +555,21 @@ class SCATHA_API Parameter:
 
 public:
     explicit Parameter(Type const* type, size_t index, Callable* parent):
-        Value(NodeType::Parameter, type, std::to_string(index)),
+        Parameter(type, index, std::to_string(index), parent) {}
+
+    explicit Parameter(Type const* type,
+                       size_t index,
+                       std::string name,
+                       Callable* parent):
+        Value(NodeType::Parameter, type, std::move(name)),
         NodeBase(parent),
         _index(index) {}
 
-    /// \returns the index of this parameter which is also its name
+    /// \returns the index of this parameter which may but does not have to be
+    /// its name.
     size_t index() const { return _index; }
+
+    void setIndex(size_t index) { _index = index; }
 
 private:
     size_t _index;
@@ -608,6 +617,13 @@ protected:
                       std::string name,
                       FunctionAttribute attr);
 
+    explicit Callable(NodeType nodeType,
+                      FunctionType const* functionType,
+                      Type const* returnType,
+                      std::span<Parameter* const>,
+                      std::string name,
+                      FunctionAttribute attr);
+
 private:
     List<Parameter> params;
     Type const* _returnType;
@@ -644,10 +660,17 @@ public:
         internal::InstructionIteratorImpl<Function::ConstIterator,
                                           BasicBlock::ConstIterator>;
 
-    /// Construct a function
+    /// Construct a function with parameter types.
     explicit Function(FunctionType const* functionType,
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
+                      std::string name,
+                      FunctionAttribute attr);
+
+    /// Construct a function with explicit parameters.
+    explicit Function(FunctionType const* functionType,
+                      Type const* returnType,
+                      std::span<Parameter* const> parameters,
                       std::string name,
                       FunctionAttribute attr);
 
