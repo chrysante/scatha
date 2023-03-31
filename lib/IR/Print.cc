@@ -43,6 +43,15 @@ struct PrintCtx {
 
     void print(StructureType const& structure);
 
+    void instDecl(Instruction const*) const;
+    void name(Value const*) const;
+    void type(Type const*) const;
+    void typedName(Value const*) const;
+    void keyword(auto...) const;
+    void space() const { str << " "; }
+    void comma() const { str << ", "; }
+    void indexList(auto list) const;
+
     std::ostream& str;
     Indenter indent;
 };
@@ -77,12 +86,16 @@ std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
 std::string ir::toString(Value const& value) {
     // clang-format off
     return visit(value, utl::overload{
+        [&](Function const& func) { return utl::strcat("@", value.name()); },
         [&](Value const& value) { return utl::strcat("%", value.name()); },
         [&](IntegralConstant const& value) {
-            return utl::strcat("$", value.value().toString());
+            return value.value().toString();
         },
         [&](FloatingPointConstant const& value) {
-            return utl::strcat("$", value.value().toString());
+            return value.value().toString();
+        },
+        [&](UndefValue const&) {
+            return std::string("undef");
         },
     }); // clang-format on
 }
@@ -91,65 +104,65 @@ void PrintCtx::dispatch(Value const& value) {
     visit(value, [this](auto const& value) { print(value); });
 }
 
-static auto keyword(std::string_view name) {
-    return tfmt::format(tfmt::magenta | tfmt::bold, name);
+static auto formatKeyword(auto... name) {
+    return tfmt::format(tfmt::magenta | tfmt::bold, name...);
 }
 
 static auto tertiary(auto... name) {
     return tfmt::format(tfmt::brightGrey, name...);
 }
 
-static auto instruction(auto... name) {
-    return tfmt::format(tfmt::brightRed | tfmt::bold, name...);
+static auto formatInstName(auto... name) {
+    return formatKeyword(name...);
+    //    return tfmt::format(tfmt::brightRed | tfmt::bold, name...);
 }
 
-static auto formatType(ir::Type const* type) {
+static tfmt::VObjectWrapper formatType(ir::Type const* type) {
     if (!type) {
-        return tfmt::format(tfmt::brightBlue | tfmt::italic,
-                            std::string("null-type"));
+        return tfmt::format(tfmt::brightBlue | tfmt::italic, "null-type");
     }
     if (type->category() == ir::TypeCategory::StructureType) {
-        return tfmt::format(tfmt::green, utl::strcat("@", type->name()));
+        return tfmt::format(tfmt::green, "@", type->name());
     }
-    return tfmt::format(tfmt::brightBlue, std::string(type->name()));
+    return tfmt::format(tfmt::brightBlue, type->name());
 }
 
-static auto formatName(Value const* value) {
+static auto formatNumLiteral(auto... value) {
+    return tfmt::format(tfmt::cyan, value...);
+}
+
+static tfmt::VObjectWrapper formatName(Value const* value) {
     if (!value) {
         return tfmt::format(tfmt::brightWhite | tfmt::bgBrightRed | tfmt::bold,
-                            "<",
-                            std::string("NULL>"));
+                            "<NULL>");
     }
     // clang-format off
     return visit(*value, utl::overload{
-        [](ir::Callable const& function) {
+        [](ir::Callable const& function) -> tfmt::VObjectWrapper {
             return tfmt::format(tfmt::italic | tfmt::green,
-                                "@",
-                                std::string(function.name()));
+                                "@", function.name());
         },
-        [](ir::Parameter const& parameter) {
-            return tfmt::format(tfmt::none, "%", std::string(parameter.name()));
+        [](ir::Parameter const& parameter) -> tfmt::VObjectWrapper {
+            return tfmt::format(tfmt::none, "%", parameter.name());
         },
-        [](ir::BasicBlock const& basicBlock) {
+        [](ir::BasicBlock const& basicBlock) -> tfmt::VObjectWrapper {
             return tfmt::format(tfmt::italic,
-                                "%",
-                                std::string(basicBlock.name()));
+                                "%", basicBlock.name());
         },
-        [](ir::Instruction const& inst) {
-            return tfmt::format(tfmt::none, "%", std::string(inst.name()));
+        [](ir::Instruction const& inst) -> tfmt::VObjectWrapper {
+            return tfmt::format(tfmt::none, "%", inst.name());
         },
-        [](ir::IntegralConstant const& value) {
-            return tfmt::format(tfmt::cyan, "$", value.value().toString());
+        [](ir::IntegralConstant const& value) -> tfmt::VObjectWrapper {
+            return formatNumLiteral(value.value().toString());
         },
-        [](ir::FloatingPointConstant const& value) {
-            return tfmt::format(tfmt::cyan, "$", value.value().toString());
+        [](ir::FloatingPointConstant const& value) -> tfmt::VObjectWrapper {
+            return formatNumLiteral(value.value().toString());
         },
-        [](ir::UndefValue const& value) {
-            /// Really annoying that I have to format it like this.
-            return tfmt::format(tfmt::magenta, "u", std::string("ndef"));
+        [](ir::UndefValue const& value) -> tfmt::VObjectWrapper {
+            return formatKeyword("undef");
         },
-        [](ir::Value const&) {
-            return tfmt::format(tfmt::bgMagenta, "?", std::string("??"));
+        [](ir::Value const&) -> tfmt::VObjectWrapper {
+            return tfmt::format(tfmt::bgMagenta, "???");
         },
     }); // clang-format on
 }
@@ -163,7 +176,7 @@ static auto equals() {
 static auto label() { return tertiary("label"); }
 
 void PrintCtx::print(Function const& function) {
-    str << keyword("function") << " " << formatType(function.returnType())
+    str << formatKeyword("func") << " " << formatType(function.returnType())
         << " " << formatName(&function) << "(";
     for (bool first = true; auto& param: function.parameters()) {
         str << (first ? (void)(first = false), "" : ", ")
@@ -208,8 +221,10 @@ void PrintCtx::print(BasicBlock const& bb) {
     }
     str << "\n";
     indent.increase();
-    for (auto& instruction: bb) {
-        dispatch(instruction);
+    for (auto& inst: bb) {
+        str << indent;
+        instDecl(&inst);
+        dispatch(inst);
         str << "\n";
     }
     indent.decrease();
@@ -219,84 +234,71 @@ void PrintCtx::print(BasicBlock const& bb) {
 }
 
 void PrintCtx::print(Instruction const& inst) {
-    str << indent << "<<" << inst.nodeType() << ">>\n";
+    str << "<" << inst.nodeType() << ">\n";
 }
 
-void PrintCtx::print(Alloca const& alloc) {
-    str << indent << formatName(&alloc) << equals() << instruction("alloca")
-        << " " << formatType(alloc.allocatedType());
-}
+void PrintCtx::print(Alloca const& alloc) { type(alloc.allocatedType()); }
 
 void PrintCtx::print(Load const& load) {
-    str << indent << formatName(&load) << equals() << instruction("load") << " "
-        << formatType(load.type()) << " " << formatName(load.operand());
+    type(load.type());
+    comma();
+    typedName(load.address());
 }
 
 void PrintCtx::print(Store const& store) {
-    str << indent << instruction("store") << " ";
-    str << formatName(store.address()) << ", ";
-    str << formatName(store.value());
+    typedName(store.address());
+    comma();
+    typedName(store.value());
 }
 
 void PrintCtx::print(CompareInst const& cmp) {
-    str << indent << formatName(&cmp) << equals()
-        << instruction("cmp ", cmp.operation()) << " ";
-    str << formatType(cmp.lhs()->type()) << " " << formatName(cmp.lhs())
-        << ", ";
-    str << formatType(cmp.rhs()->type()) << " " << formatName(cmp.rhs());
+    keyword(cmp.operation());
+    space();
+    typedName(cmp.lhs());
+    comma();
+    typedName(cmp.rhs());
 }
 
 void PrintCtx::print(UnaryArithmeticInst const& inst) {
-    str << indent << formatName(&inst) << equals()
-        << instruction(inst.operation()) << " "
-        << formatType(inst.operand()->type()) << " ";
-    str << formatName(inst.operand());
+    typedName(inst.operand());
 }
 
 void PrintCtx::print(ArithmeticInst const& inst) {
-    str << indent << formatName(&inst) << equals()
-        << instruction(inst.operation()) << " "
-        << formatType(inst.lhs()->type()) << " ";
-    str << formatName(inst.lhs()) << ", ";
-    str << formatName(inst.rhs());
+    typedName(inst.lhs());
+    comma();
+    typedName(inst.rhs());
 }
 
-void PrintCtx::print(Goto const& gt) {
-    str << indent << instruction("goto") << " " << label() << " "
-        << formatName(gt.target());
-}
+void PrintCtx::print(Goto const& gt) { typedName(gt.target()); }
 
 void PrintCtx::print(Branch const& br) {
-    str << indent << instruction("branch") << " "
-        << formatType(br.condition()->type()) << " "
-        << formatName(br.condition()) << ", ";
-    str << label() << " " << formatName(br.thenTarget()) << ", ";
-    str << label() << " " << formatName(br.elseTarget());
+    typedName(br.condition());
+    comma();
+    typedName(br.thenTarget());
+    comma();
+    typedName(br.elseTarget());
 }
 
 void PrintCtx::print(Return const& ret) {
-    str << indent << instruction("return") << " ";
-    if (!isa<VoidType>(ret.value()->type())) {
-        str << formatType(ret.value()->type()) << " "
-            << formatName(ret.value());
+    if (isa<VoidType>(ret.value()->type())) {
+        return;
     }
+    typedName(ret.value());
 }
 
 void PrintCtx::print(Call const& call) {
-    str << indent;
-    if (!call.name().empty()) {
-        str << formatName(&call) << equals();
-    }
-    str << instruction("call") << " " << formatType(call.type()) << " "
-        << formatName(call.function());
-    for (auto& arg: call.arguments()) {
-        str << ", " << formatType(arg->type()) << " " << formatName(arg);
+    type(call.type());
+    space();
+    name(call.function());
+    for (auto* arg: call.arguments()) {
+        comma();
+        typedName(arg);
     }
 }
 
 void PrintCtx::print(Phi const& phi) {
-    str << indent << formatName(&phi) << equals() << instruction("phi") << " "
-        << formatType(phi.type()) << " ";
+    type(phi.type());
+    space();
     for (bool first = true; auto const [pred, value]: phi.arguments()) {
         str << (first ? first = false, "" : ", ");
         str << "[" << label() << " " << formatName(pred) << " : "
@@ -305,49 +307,38 @@ void PrintCtx::print(Phi const& phi) {
 }
 
 void PrintCtx::print(GetElementPointer const& gep) {
-    str << indent << formatName(&gep) << equals() << instruction("gep") << " "
-        << keyword("inbounds") << " " << formatType(gep.inboundsType()) << ", "
-        << formatType(gep.basePointer()->type()) << " "
-        << formatName(gep.basePointer()) << ", "
-        << formatType(gep.arrayIndex()->type()) << " "
-        << formatName(gep.arrayIndex());
-    for (auto index: gep.memberIndices()) {
-        str << ", " << index;
-    }
+    keyword("inbounds");
+    space();
+    type(gep.inboundsType());
+    comma();
+    typedName(gep.basePointer());
+    comma();
+    typedName(gep.arrayIndex());
+    indexList(gep.memberIndices());
 }
 
 void PrintCtx::print(ExtractValue const& extract) {
-    str << indent << formatName(&extract) << equals()
-        << instruction("extract_value") << " " << formatType(extract.type())
-        << ", " << formatType(extract.baseValue()->type()) << " "
-        << formatName(extract.baseValue());
-    for (auto index: extract.memberIndices()) {
-        str << ", " << index;
-    }
+    typedName(extract.baseValue());
+    indexList(extract.memberIndices());
 }
 
 void PrintCtx::print(InsertValue const& insert) {
-    str << indent << formatName(&insert) << equals()
-        << instruction("insert_value") << " "
-        << formatType(insert.baseValue()->type()) << " "
-        << formatName(insert.baseValue()) << ", "
-        << formatType(insert.insertedValue()->type()) << " "
-        << formatName(insert.insertedValue());
-    for (auto index: insert.memberIndices()) {
-        str << ", " << index;
-    }
+    typedName(insert.baseValue());
+    comma();
+    typedName(insert.insertedValue());
+    indexList(insert.memberIndices());
 }
 
 void PrintCtx::print(Select const& select) {
-    str << indent << formatName(&select) << equals() << instruction("select")
-        << " " << formatType(select.condition()->type()) << " "
-        << formatName(select.condition()) << ", " << formatType(select.type())
-        << " " << formatName(select.thenValue()) << ", "
-        << formatType(select.type()) << " " << formatName(select.elseValue());
+    typedName(select.condition());
+    comma();
+    typedName(select.thenValue());
+    comma();
+    typedName(select.elseValue());
 }
 
 void PrintCtx::print(StructureType const& structure) {
-    str << keyword("structure") << " " << formatType(&structure) << " {\n";
+    str << formatKeyword("struct") << " " << formatType(&structure) << " {\n";
     indent.increase();
     for (bool first = true; auto const* type: structure.members()) {
         str << (first ? (first = false), "" : ",\n") << indent;
@@ -355,4 +346,72 @@ void PrintCtx::print(StructureType const& structure) {
     }
     indent.decrease();
     str << "\n}\n\n";
+}
+
+static std::string_view toStrName(ir::Instruction const* inst) {
+    switch (inst->nodeType()) {
+    case NodeType::Alloca:
+        return "alloca";
+    case NodeType::Load:
+        return "load";
+    case NodeType::Store:
+        return "store";
+    case NodeType::CompareInst:
+        return "cmp";
+    case NodeType::UnaryArithmeticInst:
+        return toString(cast<UnaryArithmeticInst const*>(inst)->operation());
+    case NodeType::ArithmeticInst:
+        return toString(cast<ArithmeticInst const*>(inst)->operation());
+    case NodeType::Goto:
+        return "goto";
+    case NodeType::Branch:
+        return "branch";
+    case NodeType::Return:
+        return "return";
+    case NodeType::Call:
+        return "call";
+    case NodeType::Phi:
+        return "phi";
+    case NodeType::GetElementPointer:
+        return "getelementptr";
+    case NodeType::ExtractValue:
+        return "extract_value";
+    case NodeType::InsertValue:
+        return "insert_value";
+    case NodeType::Select:
+        return "select";
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+void PrintCtx::instDecl(Instruction const* inst) const {
+    if (!inst->name().empty()) {
+        str << formatName(inst) << equals();
+    }
+    str << formatInstName(toStrName(inst)) << " ";
+}
+
+void PrintCtx::name(Value const* value) const { str << formatName(value); }
+
+void PrintCtx::type(Type const* type) const { str << formatType(type); }
+
+void PrintCtx::typedName(Value const* value) const {
+    if (isa<BasicBlock>(value)) {
+        str << label();
+    }
+    else {
+        type(value->type());
+    }
+    space();
+    name(value);
+}
+
+void PrintCtx::keyword(auto... name) const { str << formatKeyword(name...); }
+
+void PrintCtx::indexList(auto list) const {
+    for (auto index: list) {
+        comma();
+        str << formatNumLiteral(index);
+    }
 }
