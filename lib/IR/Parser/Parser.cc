@@ -590,6 +590,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::GetElementPointer: {
         eatToken();
+        expectNext(TokenKind::Inbounds);
         auto* accessedType = getType(eatToken());
         expectNext(TokenKind::Comma, TokenKind::Ptr);
         auto basePtrName = eatToken();

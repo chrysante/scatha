@@ -9,7 +9,7 @@
 ```
 <module>          ::= {<struct-def>}* {<func-decl>}* {<func-def>}*
 
-<func-decl>       ::= "function" <type-id> <global-id> "(" [<param-list>] ")" 
+<func-decl>       ::= "func" <type-id> <global-id> "(" [<param-list>] ")" 
 <param-list>      ::= <type-id> ["," <type-id>]
 
 <func-def>        ::= <func-decl> "{" {<basic-block>}+ "}"
@@ -29,8 +29,10 @@
                     | "cmp" <cmp-op> <type-id> <value> "," <type-id> <value>
                     | <un-op> <type-id> <value>
                     | <bin-op> <type-id> <value> "," <type-id> <value>
-                    | "gep" <type-id>, "ptr" <id> ","   
-                            <type-id> <value> <lit-idx-list>
+                    | "gep" "inbounds" <type-id> ","
+                                       "ptr" <value> ","   
+                                       <type-id> <value>
+                                       <lit-idx-list>
                     | "insert_value" <type-id> <value> ","
                                      <type-id> <value> <lit-idx-list>
                     | "extract_value" <type-id> <value> <lit-idx-list>
@@ -44,7 +46,7 @@
 <bin-op>          ::= "add" | "sub | "mul" | "div" | "rem" | ...
 <lit-idx-list>    ::= { "," <int-lit> }+
 
-<struct-def>      ::= "structure" <identifier> "{" {<type-id>}* "}"
+<struct-def>      ::= "struct" <identifier> "{" {<type-id>}* "}"
 
 <value>           ::= <id> | <literal>
 <id>              ::= <local-id> | <global-id>

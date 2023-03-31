@@ -87,6 +87,7 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "select", TokenKind::Select },
         { "ext", TokenKind::Ext },
         { "label", TokenKind::Label },
+        { "inbounds", TokenKind::Inbounds },
         { "eq", TokenKind::Equal },
         { "neq", TokenKind::NotEqual },
         { "le", TokenKind::Less },

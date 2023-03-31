@@ -70,6 +70,7 @@ enum class TokenKind {
 
     Ext,
     Label,
+    Inbounds,
     Equal,
     NotEqual,
     Less,
