@@ -55,7 +55,7 @@ void Context::run() {
         if (!typeID) {
             continue;
         }
-        auto const& type  = sym.getObjectType(typeID);
+        auto const& type = sym.getObjectType(typeID);
         if (type.isBuiltin()) {
             continue;
         }

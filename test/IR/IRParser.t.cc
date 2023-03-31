@@ -20,8 +20,8 @@ func i64 @testfn(i64) {
     return i64 %0
 })";
     auto [ctx, mod] = ir::parse(text).value();
-    auto fnItr      = ranges::find_if(mod,
-                                 [](auto& f) { return f.name() == "testfn"; });
+    auto fnItr =
+        ranges::find_if(mod, [](auto& f) { return f.name() == "testfn"; });
     REQUIRE(fnItr != mod.end());
     ir::Function& fn = *fnItr;
     CHECK(fn.name() == "testfn");

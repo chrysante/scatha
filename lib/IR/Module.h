@@ -41,23 +41,23 @@ public:
     void addFunction(UniquePtr<Function> function);
 
     void eraseFunction(Function* function);
-    
+
     void eraseFunction(List<Function>::iterator itr);
-    
+
     List<Function>::iterator begin();
     List<Function>::const_iterator begin() const;
-    
+
     List<Function>::iterator end();
     List<Function>::const_iterator end() const;
-    
+
     bool empty() const;
-    
+
     Function& front();
     Function const& front() const;
-    
+
     Function& back();
     Function const& back() const;
-    
+
 private:
     utl::vector<UniquePtr<StructureType>> structs;
     utl::vector<UniquePtr<Value>> _globals;
