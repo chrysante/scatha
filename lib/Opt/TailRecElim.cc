@@ -190,7 +190,11 @@ void TREContext::generateLoopHeader() {
                                            })) |
         ranges::to<utl::small_vector<BasicBlock*, 16>>;
     loopHeader->setPredecessors(preds);
-    /// Phis
+    /// ## Phis for parameters
+    /// For every function parameter, we add a phi node to the loopheader block.
+    /// The first argument to the phi function will be the actual parameter.
+    /// The next arguments will be the corresponding argument of the recursive
+    /// calls.
     std::array entryArg = { PhiMapping{ newEntry, nullptr } };
     auto otherArgs      = viableReturns | ranges::views::transform(
                                          [](ViableReturn const& ret) {
@@ -198,10 +202,11 @@ void TREContext::generateLoopHeader() {
     });
     auto phiArgs = ranges::views::concat(entryArg, otherArgs) |
                    ranges::to<utl::small_vector<PhiMapping, 8>>;
-    for (auto& param: function.parameters() | ranges::views::reverse) {
+    auto before = loopHeader->phiEnd();
+    for (auto& param: function.parameters()) {
         phiArgs[0].value = &param;
         auto* phi = new Phi(phiArgs, utl::strcat("tre.param.", param.name()));
-        loopHeader->pushFront(phi);
+        loopHeader->insert(before, phi);
         phiParams.push_back(phi);
     }
 }
@@ -214,6 +219,7 @@ void TREContext::rewriteImpl(DirectReturn info) {
     }
     bb->insert(bb->terminator(), new Goto(irCtx, loopHeader));
     bb->erase(bb->terminator());
+    bb->erase(info.call);
 }
 
 void TREContext::rewriteImpl(AccumulatedReturn info) {
@@ -377,7 +383,7 @@ bool TREContext::isCommutativeAndAssociative(ArithmeticInst const* inst) {
     case ArithmeticOperation::Mul:
     case ArithmeticOperation::And:
     case ArithmeticOperation::Or:
-        //    case ArithmeticOperation::XOr:
+    case ArithmeticOperation::XOr:
         return true;
     default:
         return false;
