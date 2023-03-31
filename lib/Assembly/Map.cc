@@ -223,7 +223,7 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs) {
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::RegisterIndex) {
         // clang-format off
         return UTL_MAP_ENUM(type, OpCode, {
-            { Type::Signed,   OpCode::icmpRR },
+            { Type::Signed,   OpCode::scmpRR },
             { Type::Unsigned, OpCode::ucmpRR },
             { Type::Float,    OpCode::fcmpRR },
         }); // clang-format on
@@ -231,7 +231,7 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs) {
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::Value64) {
         // clang-format off
         return UTL_MAP_ENUM(type, OpCode, {
-            { Type::Signed,   OpCode::icmpRV },
+            { Type::Signed,   OpCode::scmpRV },
             { Type::Unsigned, OpCode::ucmpRV },
             { Type::Float,    OpCode::fcmpRV },
         }); // clang-format on
@@ -243,7 +243,7 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs) {
 OpCode Asm::mapTest(Type type) {
     // clang-format off
     return UTL_MAP_ENUM(type, OpCode, {
-        { Type::Signed,   OpCode::itest  },
+        { Type::Signed,   OpCode::stest  },
         { Type::Unsigned, OpCode::utest  },
         { Type::Float,    OpCode::_count },
     }); // clang-format on

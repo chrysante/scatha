@@ -88,11 +88,17 @@ std::ostream& Asm::operator<<(std::ostream& str, TerminateInst const&) {
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, CompareInst const& cmp) {
-    return str << instName("cmp") << " " << cmp.lhs() << ", " << cmp.rhs();
+    // clang-format off
+    auto name = UTL_MAP_ENUM(cmp.type(), std::string_view, {
+        { Type::Signed,   "scmp" },
+        { Type::Unsigned, "ucmp" },
+        { Type::Float,    "fcmp" },
+    }); // clang-format on
+    return str << instName(name) << " " << cmp.lhs() << ", " << cmp.rhs();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, TestInst const& test) {
-    return str << instName(test.type() == Type::Signed ? "itest" : "utest")
+    return str << instName(test.type() == Type::Signed ? "stest" : "utest")
                << " " << test.operand();
 }
 

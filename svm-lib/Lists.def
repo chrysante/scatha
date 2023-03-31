@@ -125,14 +125,14 @@ SVM_INSTRUCTION_DEF(jge, Jump) // (i32 offset)
 /// ** Comparison **
 /// Compare the operands and set flags accordingly
 SVM_INSTRUCTION_DEF(ucmpRR, RR) //  (u8 regIdxA, u8 regIdxB)
-SVM_INSTRUCTION_DEF(icmpRR, RR) //  (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(scmpRR, RR) //  (u8 regIdxA, u8 regIdxB)
 SVM_INSTRUCTION_DEF(ucmpRV, RV) //  (u8 regIdxA, u64 value)
-SVM_INSTRUCTION_DEF(icmpRV, RV) //  (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(scmpRV, RV) //  (u8 regIdxA, u64 value)
 SVM_INSTRUCTION_DEF(fcmpRR, RR) //  (u8 regIdxA, u8 regIdxB)
 SVM_INSTRUCTION_DEF(fcmpRV, RV) //  (u8 regIdxA, u64 value)
 
 /// Compare the operand to 0 and set flags accordingly
-SVM_INSTRUCTION_DEF(itest, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(stest, R) //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(utest, R) //  (u8 regIdx)
 
 /// ** Read comparison results **

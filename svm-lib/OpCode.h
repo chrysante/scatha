@@ -32,12 +32,12 @@ namespace svm {
 
 /// ## Calling convention
 ///
-/// _ All register indices are from the perspective of the callee _
+/// _All register indices are from the perspective of the callee_
 ///
 /// Arguments are passed in consecutive registers starting with index 0.
 /// Return value is passed in consecutive registers starting with index 0.
 /// All registers with positive indices may be used and modified by the callee.
-/// The register  pointer offset is placed in `R[-2]` and added to the
+/// The register pointer offset is placed in `R[-2]` and added to the
 /// register pointer by the `call` instruction. The register pointer offset is
 /// subtracted from the register pointer by the the `ret` instruction. The
 /// return address is placed in `R[-1]` by the `call` instruction.

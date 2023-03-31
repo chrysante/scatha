@@ -343,12 +343,12 @@ struct svm::OpCodeImpl {
 
         /// ** Comparison **
         at(ucmpRR) = compareRR<ucmpRR, u64>();
-        at(icmpRR) = compareRR<icmpRR, i64>();
+        at(scmpRR) = compareRR<scmpRR, i64>();
         at(ucmpRV) = compareRV<ucmpRV, u64>();
-        at(icmpRV) = compareRV<icmpRV, i64>();
+        at(scmpRV) = compareRV<scmpRV, i64>();
         at(fcmpRR) = compareRR<fcmpRR, f64>();
         at(fcmpRV) = compareRV<fcmpRV, f64>();
-        at(itest)  = testR<itest, i64>();
+        at(stest)  = testR<stest, i64>();
         at(utest)  = testR<utest, u64>();
 
         /// ** load comparison results **
