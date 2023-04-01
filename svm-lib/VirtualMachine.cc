@@ -16,22 +16,21 @@ VirtualMachine::VirtualMachine(): instructionTable(makeInstructionTable()) {
     setFunctionTableSlot(builtinFunctionSlot, makeBuiltinTable());
 }
 
-void VirtualMachine::loadProgram(u8 const* data) {
-    Program program(data);
+void VirtualMachine::loadProgram(u8 const* progData) {
+    Program program(progData);
     instructionCount = program.instructions.size();
-    // Load the program into memory
-    memory.resize(instructionCount);
-    std::memcpy(memory.data(), program.instructions.data(), instructionCount);
-    iptr         = memory.data() + program.start;
-    programBreak = memory.data() + instructionCount;
-    memoryPtr    = nullptr;
-    memoryBreak  = nullptr;
+    text = std::move(program.instructions);
+    data = std::move(program.data);
+    programStart = program.start;
+    iptr         = text.data() + programStart;
+    programBreak = text.data() + text.size();
 }
 
 void VirtualMachine::execute() {
-    assert(iptr >= memory.data());
     registers.resize(defaultRegisterCount);
     regPtr = registers.data();
+    stack.resize(defaultStackSize);
+    stackPtr = stack.data();
     while (iptr < programBreak) {
         OpCode const opCode{ *iptr };
         assert(static_cast<u8>(opCode) < static_cast<u8>(OpCode::_count) &&
@@ -60,25 +59,10 @@ void VirtualMachine::setFunctionTableSlot(
     extFunctionTable[slot] = std::move(functions);
 }
 
-void VirtualMachine::resizeMemory(size_t newSize) {
-    size_t const iptrOffset =
-        memory.empty() ? 0 : utl::narrow_cast<size_t>(iptr - memory.data());
-    size_t const programBreakOffset =
-        utl::narrow_cast<size_t>(programBreak - iptr);
-    size_t const memoryBreakOffset =
-        utl::narrow_cast<size_t>(memoryBreak - memoryPtr);
-    size_t const paddedInstructionCount =
-        utl::round_up_pow_two(instructionCount, 16);
-    memory.resize(paddedInstructionCount + newSize);
-    iptr         = memory.data() + iptrOffset;
-    programBreak = iptr + programBreakOffset;
-    memoryPtr    = memory.data() + paddedInstructionCount;
-    memoryBreak  = memoryPtr + memoryBreakOffset;
-}
-
 void VirtualMachine::cleanup() {
-    iptr   = memory.data();
-    regPtr = registers.data();
+    iptr = text.data() + programStart;
 }
 
 size_t VirtualMachine::defaultRegisterCount = 1 << 20;
+
+size_t VirtualMachine::defaultStackSize = 1 << 20;

@@ -42,7 +42,7 @@ struct svm::OpCodeImpl {
         i64 const constantOffsetMultiplier = i[2];
         i64 const constantInnerOffset      = i[3];
         u8* const offsetBaseptr =
-            reinterpret_cast<u8*>(reg[baseptrRegIdx]) + constantInnerOffset;
+            utl::bit_cast<u8*>(reg[baseptrRegIdx]) + constantInnerOffset;
         /// See documentation in "OpCode.h"
         if (offsetCountRegIdx == 0xFF) {
             return offsetBaseptr;
@@ -332,6 +332,28 @@ struct svm::OpCodeImpl {
             return codeSize(alloca_);
         };
 
+        /// ** Stack pointer manipulation **
+        at(incsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const offset = load<u16>(i);
+            vm->stackPtr += offset;
+            return codeSize(incsp);
+        };
+        at(decsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const offset = load<u16>(i);
+            vm->stackPtr -= offset;
+            return codeSize(decsp);
+        };
+        at(loadsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const destRegIdx = load<u8>(i);
+            reg[destRegIdx] = utl::bit_cast<u64>(vm->stackPtr);
+            return codeSize(loadsp);
+        };
+        at(storesp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const sourceRegIdx = load<u8>(i);
+            vm->stackPtr = utl::bit_cast<u8*>(reg[sourceRegIdx]);
+            return codeSize(storesp);
+        };
+        
         /// ** Jumps **
         at(jmp) = jump<jmp>([](VMFlags) { return true; });
         at(je)  = jump<je>(equal);

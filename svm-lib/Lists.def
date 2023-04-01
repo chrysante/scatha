@@ -95,6 +95,18 @@ SVM_INSTRUCTION_DEF(cmovge64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
 /// Store the address of the register at `sourceRegIdx` into the register at `targetRegIdx`
 SVM_INSTRUCTION_DEF(alloca_, Other) // (u8 targetRegIdx, u8 sourceRegIdx)
 
+/// Increment the spack pointer by `offset` bytes
+SVM_INSTRUCTION_DEF(incsp, Other)   // (u16 offset)
+
+/// Decrement the spack pointer by `offset` bytes
+SVM_INSTRUCTION_DEF(decsp, Other)   // (u16 offset)
+
+/// Copy the stack pointer into the register `destRegIdx`
+SVM_INSTRUCTION_DEF(loadsp, Other)   // (u8 destRegIdx)
+
+/// Set the stack pointer to the value in register `sourceRegIdx`
+SVM_INSTRUCTION_DEF(storesp, Other)   // (u8 destRegIdx)
+
 /// ** Jumps **
 /// Jumps are performed by adding the `offset` argument to the instruction
 /// pointer.

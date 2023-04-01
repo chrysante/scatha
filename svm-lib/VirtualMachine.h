@@ -22,18 +22,19 @@ struct VMState {
     VMState(VMState const&) = delete;
     VMState(VMState&&)      = default;
 
-    u8 const* iptr = nullptr;
     u64* regPtr    = nullptr;
+    u8 const* iptr = nullptr;
+    u8* stackPtr   = nullptr;
     VMFlags flags{};
 
     utl::vector<u64> registers;
-    utl::vector<u8> memory;
-
+    utl::vector<u8> text;
+    utl::vector<u8> data;
+    utl::vector<u8> stack;
+    
     u8 const* programBreak = nullptr;
-    u8* memoryPtr          = nullptr;
-    u8 const* memoryBreak  = nullptr;
-
     size_t instructionCount = 0;
+    size_t programStart = 0;
 };
 
 struct VMStats {
@@ -65,10 +66,11 @@ public:
     }
 
 private:
-    void resizeMemory(size_t newSize);
     void cleanup();
 
     static size_t defaultRegisterCount;
+    
+    static size_t defaultStackSize;
 
 private:
     utl::vector<Instruction> instructionTable;
