@@ -90,7 +90,7 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "inbounds", TokenKind::Inbounds },
         { "eq", TokenKind::Equal },
         { "neq", TokenKind::NotEqual },
-        { "le", TokenKind::Less },
+        { "ls", TokenKind::Less },
         { "leq", TokenKind::LessEq },
         { "grt", TokenKind::Greater },
         { "geq", TokenKind::GreaterEq },
@@ -129,10 +129,13 @@ Expected<Token, LexicalIssue> Lexer::next() {
         return Token(first + 1, i, beginSL, kind);
     }
     // NumericLiteral
-    if (std::isdigit(*i)) {
+    if (std::isdigit(*i) || *i == '-') {
         SourceLocation const beginSL = loc;
         char const* const first      = i;
         size_t numDots               = 0;
+        if (*i == '-') {
+            inc();
+        }
         while (i != end && !std::isspace(*i) && !isPunctuation(*i)) {
             if (*i == '.') {
                 ++numDots;

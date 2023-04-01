@@ -798,8 +798,7 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
             reportSemaIssue(token, SemanticIssue::InvalidEntity);
         }
         if (value->type() && type && value->type() != type) {
-            reportSemaIssue(token,
-                            SemanticIssue::TypeMismatch); // Type mismatch ?
+            reportSemaIssue(token, SemanticIssue::TypeMismatch);
         }
         return value;
     }
@@ -818,11 +817,10 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
             if (!intType) {
                 reportSemaIssue(token, SemanticIssue::InvalidType);
             }
-            auto value = APInt::parse(token.id());
+            auto value = APInt::parse(token.id(), 10, intType->bitWidth());
             if (!value) {
                 throw SyntaxIssue(token);
             }
-            value->zext(intType->bitWidth());
             return irCtx.integralConstant(*value);
         }
         else {
@@ -832,8 +830,7 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
         if constexpr (std::convertible_to<FloatingPointConstant*, V*>) {
             auto* floatType = dyncast<FloatType const*>(type);
             if (!floatType) {
-                reportSemaIssue(token,
-                                SemanticIssue::InvalidType); // Invalid type
+                reportSemaIssue(token, SemanticIssue::InvalidType);
             }
             auto value = APFloat::parse(token.id(),
                                         floatType->bitWidth() == 32 ?
