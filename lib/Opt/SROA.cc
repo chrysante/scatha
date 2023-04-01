@@ -42,13 +42,15 @@ struct AccessTreeNode {
 
 struct VariableContext {
     explicit VariableContext(Alloca* address, ir::Context& irCtx):
-        address(address), irCtx(irCtx) {}
+        irCtx(irCtx), address(address) {}
 
     bool gatherAndCheckSliceable(Value* = nullptr);
 
     /// Main algorithm
     void slice();
 
+    /// All 'leaf' GEPs are transformed such that they don't access other GEPs
+    /// but the `alloca` directly.
     void simplifyGEPChains();
 
     void cleanUnusedGEPs();
@@ -61,7 +63,7 @@ struct VariableContext {
 
     void replaceBySlices();
 
-    void replaceBySlicesImpl(Instruction* address);
+    void replaceBySlicesImpl(Instruction* address, AccessTreeNode* node);
 
     void accessTreeLeafWalk(
         AccessTreeNode* root,
@@ -72,11 +74,28 @@ struct VariableContext {
         AccessTreeNode* root,
         utl::function_view<void(AccessTreeNode*)> callback);
 
-    Alloca* address;
+    AccessTreeNode* rootAt(size_t index) {
+        if (accessTreeRoots.size() >= index) {
+            accessTreeRoots.resize_emplace(index + 1, 0);
+        }
+        return &accessTreeRoots[index];
+    }
+
     ir::Context& irCtx;
+
+    /// The address of the structure we are trying to slice.
+    Alloca* address;
+
+    /// Every `getelementptr` instruction that directly or indirectly accesses
+    /// the structure.
     utl::small_vector<GetElementPointer*> GEPs;
-    utl::hashmap<Value*, AccessTreeNode*> accessNodeMap;
-    AccessTreeNode accessTreeRoot{ 0 };
+
+    /// Maps `getelementptr` instructions to their corresponding nodes in the
+    /// access tree.
+    utl::hashmap<GetElementPointer*, AccessTreeNode*> accessNodeMap;
+
+    /// The access trees. This only has as many elements the alloca allocates.
+    utl::small_vector<AccessTreeNode> accessTreeRoots;
 };
 
 } // namespace
@@ -104,8 +123,12 @@ bool opt::sroa(ir::Context& irCtx, ir::Function& function) {
 }
 
 bool VariableContext::gatherAndCheckSliceable(Value* value) {
-    if (!value) {
+    bool const first = !value;
+    if (first) {
         value = address;
+        if (auto* constCount = dyncast<IntegralConstant*>(address->count())) {
+            accessTreeRoots.resize_emplace(constCount->value().to<size_t>(), 0);
+        }
     }
     for (auto* user: value->users()) {
         if (!isa<Load>(user) && !isa<Store>(user) &&
@@ -117,8 +140,12 @@ bool VariableContext::gatherAndCheckSliceable(Value* value) {
         if (!gep) {
             continue;
         }
-        /// We cannot promote with non-constant or non-zero gep array index.
-        if (!gep->hasConstantArrayIndex() || gep->constantArrayIndex() != 0) {
+        /// We cannot promote with non-constant gep array index.
+        if (!gep->hasConstantArrayIndex()) {
+            return false;
+        }
+        /// And only the first index can non-zero.
+        if (!first && gep->constantArrayIndex() != 0) {
             return false;
         }
         GEPs.push_back(gep);
@@ -141,6 +168,8 @@ void VariableContext::slice() {
 /// Transform chains of geps into single geps with multiple indices
 void VariableContext::simplifyGEPChains() {
     for (auto* gep: GEPs) {
+        /// TODO: Consider if this is really correct
+        /// What if a GEP is being loaded from, but also refined by other GEPs?
         bool const allUsersAreLoadsOrStores =
             ranges::all_of(gep->users(), [](User* user) {
                 return isa<Load>(user) || isa<Store>(user);
@@ -148,15 +177,21 @@ void VariableContext::simplifyGEPChains() {
         if (!allUsersAreLoadsOrStores) {
             continue;
         }
-        auto* basePtr = gep->basePointer();
+        auto* basePtr           = gep->basePointer();
+        GetElementPointer* root = gep;
         while (auto* baseGep = dyncast<GetElementPointer*>(basePtr)) {
             gep->setBasePtr(baseGep->basePointer());
             gep->setAccessedType(baseGep->inboundsType());
-            SC_ASSERT(
-                baseGep->memberIndices().size() == 1,
-                "We expect the front end to only generate GEPs with 1 index");
-            gep->addMemberIndexFront(baseGep->memberIndices().front());
+            for (size_t index:
+                 baseGep->memberIndices() | ranges::views::reverse)
+            {
+                gep->addMemberIndexFront(index);
+            }
             basePtr = baseGep->basePointer();
+            root    = baseGep;
+        }
+        if (root != gep) {
+            root->setArrayIndex(gep->arrayIndex());
         }
     }
 }
@@ -198,32 +233,33 @@ void VariableContext::cleanUnusedLoads() {
 
 void VariableContext::buildAccessTree() {
     for (auto* gep: GEPs) {
-        AccessTreeNode* node = &accessTreeRoot;
+        AccessTreeNode* node = rootAt(gep->constantArrayIndex());
         for (size_t index: gep->memberIndices()) {
             node = node->at(index);
         }
         node->type         = gep->accessedType();
         accessNodeMap[gep] = node;
     }
-    accessNodeMap[address] = &accessTreeRoot;
-    accessTreeRoot.type    = address->allocatedType();
-
     /// Complete the tree
-    accessTreePreorderWalk(&accessTreeRoot, [&](AccessTreeNode* node) {
-        /// If `node->type` is set, then we know this node is directly accessed.
-        /// That means we need to make sure all children are present.
-        if (!node->children.empty() && node->type &&
-            isa<StructureType>(node->type))
-        {
-            auto* sType = cast<StructureType const*>(node->type);
-            for (auto [index, memType]:
-                 sType->members() | ranges::views::enumerate)
+    for (auto& root: accessTreeRoots) {
+        root.type = address->allocatedType();
+        accessTreePreorderWalk(&root, [&](AccessTreeNode* node) {
+            /// If `node->type` is set, then we know this node is directly
+            /// accessed. That means we need to make sure all children are
+            /// present.
+            if (!node->children.empty() && node->type &&
+                isa<StructureType>(node->type))
             {
-                auto* childNode = node->at(index);
-                childNode->type = memType;
+                auto* sType = cast<StructureType const*>(node->type);
+                for (auto [index, memType]:
+                     sType->members() | ranges::views::enumerate)
+                {
+                    auto* childNode = node->at(index);
+                    childNode->type = memType;
+                }
             }
-        }
-    });
+        });
+    }
 }
 
 static std::string makeName(Value const* original,
@@ -236,25 +272,29 @@ static std::string makeName(Value const* original,
 }
 
 void VariableContext::addAllocasForLeaves() {
-    accessTreeLeafWalk(&accessTreeRoot,
-                       [&](AccessTreeNode* node,
-                           std::span<size_t const> indices) {
-        SC_ASSERT(node->type, "");
-        node->newScalarVar =
-            new Alloca(irCtx, node->type, makeName(address, indices));
-        address->parent()->insert(address, node->newScalarVar);
-    });
+    for (auto& root: accessTreeRoots) {
+        accessTreeLeafWalk(&root,
+                           [&](AccessTreeNode* node,
+                               std::span<size_t const> indices) {
+            SC_ASSERT(node->type, "");
+            node->newScalarVar =
+                new Alloca(irCtx, node->type, makeName(address, indices));
+            address->parent()->insert(address, node->newScalarVar);
+        });
+    }
 }
 
 void VariableContext::replaceBySlices() {
     for (auto* gep: GEPs) {
-        replaceBySlicesImpl(gep);
+        AccessTreeNode* node = accessNodeMap[gep];
+        replaceBySlicesImpl(gep, node);
     }
-    replaceBySlicesImpl(address);
+    /// This handles the non-array case and does not hurt in the array case.
+    replaceBySlicesImpl(address, rootAt(0));
 }
 
-void VariableContext::replaceBySlicesImpl(Instruction* address) {
-    AccessTreeNode* node = accessNodeMap[address];
+void VariableContext::replaceBySlicesImpl(Instruction* address,
+                                          AccessTreeNode* node) {
     /// Make a copy of the user list because we edit the user list during
     /// traversal.
     auto users = address->users() | ranges::to<utl::small_vector<Instruction*>>;
