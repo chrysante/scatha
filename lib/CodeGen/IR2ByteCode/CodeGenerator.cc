@@ -514,21 +514,11 @@ MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const& gep) {
     SC_ASSERT(offset <= 0xFF, "Offset too large");
     RegisterIndex const regIdx =
         currentRD().resolve(*value).get<RegisterIndex>();
-    if (isa<ir::PointerType>(value->type())) {
-        return MemoryAddress(regIdx.value(),
-                             MemoryAddress::invalidRegisterIndex,
-                             0,
-                             offset);
-    }
-    else {
-        /// We are operating on a temporary.
-        RegisterIndex const tmp = currentRD().makeTemporary();
-        currentBlock().insertBack(AllocaInst(tmp, regIdx));
-        return MemoryAddress(tmp.value(),
-                             MemoryAddress::invalidRegisterIndex,
-                             0,
-                             offset);
-    }
+    SC_ASSERT(isa<ir::PointerType>(value->type()), "");
+    return MemoryAddress(regIdx.value(),
+                         MemoryAddress::invalidRegisterIndex,
+                         0,
+                         offset);
 }
 
 void CodeGenContext::generateBigMove(Value dest,

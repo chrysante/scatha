@@ -326,14 +326,6 @@ struct svm::OpCodeImpl {
         at(cmovge32RM) = condMoveRM<cmovge32RM, 4>(greaterEq);
         at(cmovge64RM) = condMoveRM<cmovge64RM, 8>(greaterEq);
 
-        /// ** Alloca **
-        at(alloca_) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
-            size_t const targetRegIdx = i[0];
-            size_t const sourceRegIdx = i[1];
-            reg[targetRegIdx] = reinterpret_cast<u64>(&reg[sourceRegIdx]);
-            return codeSize(alloca_);
-        };
-
         /// ** Stack pointer manipulation **
         at(lincsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const destRegIdx = load<u8>(i);

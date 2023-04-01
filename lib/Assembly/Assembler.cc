@@ -45,7 +45,6 @@ struct Context {
     void translate(CallExtInst const&);
     void translate(ReturnInst const&);
     void translate(TerminateInst const&);
-    void translate(AllocaInst const&);
     void translate(LIncSPInst const&);
     void translate(CompareInst const&);
     void translate(TestInst const&);
@@ -180,12 +179,6 @@ void Context::translate(CallExtInst const& call) {
 void Context::translate(ReturnInst const& ret) { put(OpCode::ret); }
 
 void Context::translate(TerminateInst const& term) { put(OpCode::terminate); }
-
-void Context::translate(AllocaInst const& alloca_) {
-    put(OpCode::alloca_);
-    dispatch(alloca_.dest());
-    dispatch(alloca_.source());
-}
 
 void Context::translate(LIncSPInst const& lincsp) {
     put(OpCode::lincsp);

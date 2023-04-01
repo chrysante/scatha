@@ -136,20 +136,6 @@ public:
     TerminateInst() = default;
 };
 
-/// Represents an `alloca` instruction.
-class AllocaInst: public InstructionBase {
-public:
-    explicit AllocaInst(RegisterIndex dest, RegisterIndex source):
-        _dest(dest), _source(source) {}
-
-    RegisterIndex dest() const { return _dest; }
-    RegisterIndex source() const { return _source; }
-
-private:
-    RegisterIndex _dest;
-    RegisterIndex _source;
-};
-
 /// Represents the `lincsp` instruction, which loads and increments the stack
 /// pointer.
 class LIncSPInst: public InstructionBase {

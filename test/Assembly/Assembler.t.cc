@@ -33,14 +33,14 @@ TEST_CASE("Alloca implementation", "[assembly][vm]") {
     // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(128), 8),     // a = 128
-        AllocaInst(RegisterIndex(1), RegisterIndex(2)),  // ptr = alloca(...)
+        LIncSPInst(RegisterIndex(1), Value16(8)),        // ptr = alloca(8)
         MoveInst(MemoryAddress(1), RegisterIndex(0), 8), // *ptr = a
         TerminateInst()
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CHECK(read<i64>(&state.registers[0]) == 128);
-    CHECK(read<i64>(&state.registers[2]) == 128);
+    CHECK(read<i64>(state.stack.data()) == 128);
 }
 
 TEST_CASE("Alloca 2", "[assembly][vm]") {
@@ -49,14 +49,15 @@ TEST_CASE("Alloca 2", "[assembly][vm]") {
     // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(1), 8),      // a = 128
-        AllocaInst(RegisterIndex(1), RegisterIndex(2)), // ptr = alloca(...)
+        LIncSPInst(RegisterIndex(1), Value16(8)),       // ptr = alloca(8)
         MoveInst(MemoryAddress(1, MemoryAddress::invalidRegisterIndex, 0, offset),
-                 RegisterIndex(0), 1), // ptr[offset] = a
+                 RegisterIndex(0), 1),                  // ptr[offset] = a
         TerminateInst()
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    CHECK(read<i64>(&state.registers[2]) == i64(1) << 8 * offset);
+    CAPTURE(offset);
+    CHECK(read<i64>(state.stack.data()) == i64(1) << 8 * offset);
 }
 
 TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
@@ -171,7 +172,7 @@ static void testArithmeticRM(ArithmeticOperation operation,
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         MoveInst(RegisterIndex(1), Value64(arg2), 8),
-        AllocaInst(RegisterIndex(2), RegisterIndex(3)),
+        LIncSPInst(RegisterIndex(2), Value16(8)),
         MoveInst(MemoryAddress(2), RegisterIndex(1), 8),
         ArithmeticInst(operation, RegisterIndex(0), MemoryAddress(2)),
         TerminateInst(),

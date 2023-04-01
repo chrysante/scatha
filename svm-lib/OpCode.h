@@ -80,7 +80,6 @@ constexpr size_t codeSize(OpCode c) {
         case OpCode::ret:             return 1;
         case OpCode::terminate:       return 1;
         case OpCode::callExt:         return 5;
-        case OpCode::alloca_:         return 3;
         case OpCode::lincsp:          return 4;
         default: assert(false);
         }

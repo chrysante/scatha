@@ -107,10 +107,9 @@ void svm::print(u8 const* progData, std::ostream& str) {
             break;
         case Other:
             switch (opcode) {
-            case OpCode::alloca_:
-                str << printAs<u8>(data, i + 1) << ", "
-                    << printAs<u8>(data, i + 2);
-                break;
+            case OpCode::lincsp:
+                str << "R[" << printAs<u8>(data, i + 1) << "], "
+                    << printAs<u16>(i + 2);
             case OpCode::call:
                 str << printAs<i32>(data, i + 1) << ", "
                     << printAs<u8>(data, i + 5);
