@@ -1,7 +1,5 @@
 #include <Catch/Catch2.hpp>
 
-#include <string>
-
 #include "test/EndToEndTests/BasicCompiler.h"
 
 using namespace scatha;
@@ -211,5 +209,54 @@ func ptr @populate(ptr %a) {
     %x.1 = insert_value @X %x.0, i64 2, 1
     store ptr %p, @X %x.1
     return ptr %p
+})");
+}
+
+TEST_CASE("Loop over array", "[end-to-end][array-access]") {
+    test::checkIRReturns(55, R"(
+func i32 @main() {
+  %entry:
+    %data = alloca i32, i32 10
+    call void @fill, ptr %data, i32 10
+    %res = call i32 @sum, ptr %data, i32 10
+    return i32 %res
+}
+func void @fill(ptr %data, i32 %count) {
+  %entry:
+    goto label %header
+    
+  %header:
+    %i = phi i32 [label %entry: 0], [label %body: %inc]
+    %cond = cmp ls i32 %i, i32 %count
+    branch i1 %cond, label %body, label %end
+    
+  %body:
+    %p = getelementptr inbounds i32, ptr %data, i32 %i
+    %inc = add i32 %i, i32 1
+    store ptr %p, i32 %inc
+    goto label %header
+  
+  %end:
+    return
+}
+func i32 @sum(ptr %data, i32 %count) {
+  %entry:
+    goto label %header
+    
+  %header:
+    %i = phi i32 [label %entry: 0], [label %body: %inc]
+    %acc = phi i32 [label %entry: 0], [label %body: %acc2]
+    %cond = cmp ls i32 %i, i32 %count
+    branch i1 %cond, label %body, label %end
+    
+  %body:
+    %inc = add i32 %i, i32 1
+    %p = getelementptr inbounds i32, ptr %data, i32 %i
+    %x = load i32, ptr %p
+    %acc2 = add i32 %acc, i32 %x
+    goto label %header
+  
+  %end:
+    return i32 %acc
 })");
 }
