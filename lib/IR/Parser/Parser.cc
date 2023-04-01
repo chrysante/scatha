@@ -375,7 +375,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         if (!_name) {
             throw SyntaxIssue(_nameTok);
         }
-        return *std::move(_name);
+        return *_name;
     };
     auto nameOrEmpty = [&] { return _name.value_or(std::string{}); };
     switch (peekToken().kind()) {
@@ -683,7 +683,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         addValueLink(result.get(),
                      baseType,
                      baseName,
-                     &ExtractValue::setOperand);
+                     &ExtractValue::setBaseValue);
         return result;
     }
     case TokenKind::Select: {
