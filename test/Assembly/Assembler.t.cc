@@ -39,8 +39,8 @@ TEST_CASE("Alloca implementation", "[assembly][vm]") {
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    CHECK(read<i64>(&state.registers[0]) == 128);
-    CHECK(read<i64>(state.stack.data()) == 128);
+    CHECK(load<i64>(&state.registers[0]) == 128);
+    CHECK(load<i64>(state.stack.data()) == 128);
 }
 
 TEST_CASE("Alloca 2", "[assembly][vm]") {
@@ -57,7 +57,7 @@ TEST_CASE("Alloca 2", "[assembly][vm]") {
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     CAPTURE(offset);
-    CHECK(read<i64>(state.stack.data()) == i64(1) << 8 * offset);
+    CHECK(load<i64>(state.stack.data()) == i64(1) << 8 * offset);
 }
 
 TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
@@ -143,7 +143,7 @@ static void testArithmeticRR(ArithmeticOperation operation,
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
+    CHECK(load<decltype(reference)>(&state.registers[0]) == reference);
 }
 
 static void testArithmeticRV(ArithmeticOperation operation,
@@ -160,7 +160,7 @@ static void testArithmeticRV(ArithmeticOperation operation,
 
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
+    CHECK(load<decltype(reference)>(&state.registers[0]) == reference);
 }
 
 static void testArithmeticRM(ArithmeticOperation operation,
@@ -179,7 +179,7 @@ static void testArithmeticRM(ArithmeticOperation operation,
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    CHECK(read<decltype(reference)>(&state.registers[0]) == reference);
+    CHECK(load<decltype(reference)>(&state.registers[0]) == reference);
 }
 
 static void testArithmetic(ArithmeticOperation operation,
@@ -248,7 +248,7 @@ TEST_CASE("Unconditional jump", "[assembly][vm]") {
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    CHECK(read<u64>(state.regPtr) == value);
+    CHECK(load<u64>(state.regPtr) == value);
 }
 
 TEST_CASE("Conditional jump", "[assembly][vm]") {
@@ -282,7 +282,7 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    CHECK(read<u64>(&state.registers[1]) ==
+    CHECK(load<u64>(&state.registers[1]) ==
           (arg1 <= arg2 ? value : static_cast<u64>(-1)));
 }
 
