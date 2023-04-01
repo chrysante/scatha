@@ -168,8 +168,9 @@ void VariableContext::slice() {
 /// Transform chains of geps into single geps with multiple indices
 void VariableContext::simplifyGEPChains() {
     for (auto* gep: GEPs) {
-        /// TODO: Consider if this is really correct
-        /// What if a GEP is being loaded from, but also refined by other GEPs?
+        /// The case that all users are loads or stores is the opposite case to
+        /// all users are geps, because we only consider geps used by loads,
+        /// stores and other geps.
         bool const allUsersAreLoadsOrStores =
             ranges::all_of(gep->users(), [](User* user) {
                 return isa<Load>(user) || isa<Store>(user);
