@@ -57,12 +57,17 @@ public:
     VMState const& getState() const {
         return static_cast<VMState const&>(*this);
     }
+
     VMStats const& getStats() const { return stats; }
 
     friend struct OpCodeImpl;
 
     static void setDefaultRegisterCount(size_t count) {
         defaultRegisterCount = count;
+    }
+
+    static void setDefaultStackSize(size_t numBytes) {
+        defaultStackSize = numBytes;
     }
 
 private:
