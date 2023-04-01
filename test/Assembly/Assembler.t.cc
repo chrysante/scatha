@@ -50,7 +50,7 @@ TEST_CASE("Alloca 2", "[assembly][vm]") {
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(1), 8),      // a = 128
         LIncSPInst(RegisterIndex(1), Value16(8)),       // ptr = alloca(8)
-        MoveInst(MemoryAddress(1, MemoryAddress::invalidRegisterIndex, 0, offset),
+        MoveInst(MemoryAddress(1, MemoryAddress::InvalidRegisterIndex.value(), 0, offset),
                  RegisterIndex(0), 1),                  // ptr[offset] = a
         TerminateInst()
     })); // clang-format on

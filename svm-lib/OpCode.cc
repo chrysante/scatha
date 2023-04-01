@@ -215,6 +215,25 @@ struct svm::OpCodeImpl {
         };
     }
 
+    static auto sext1() {
+        return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const regIdx = i[0];
+            auto const a        = load<int>(&reg[regIdx]);
+            store(&reg[regIdx], a & 1 ? static_cast<u64>(-1ull) : 0);
+            return codeSize(OpCode::sext1);
+        };
+    }
+
+    template <OpCode C, typename T>
+    static auto sext() {
+        return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const regIdx = i[0];
+            auto const a        = load<T>(&reg[regIdx]);
+            store(&reg[regIdx], static_cast<i64>(a));
+            return codeSize(C);
+        };
+    }
+
     static utl::vector<Instruction> makeInstructionTable() {
         utl::vector<Instruction> result(static_cast<size_t>(OpCode::_count));
         auto at = [&, idx = 0](OpCode i) mutable -> auto& {
@@ -434,6 +453,12 @@ struct svm::OpCodeImpl {
         at(xorRR) = arithmeticRR<xorRR, u64>(utl::bitwise_xor);
         at(xorRV) = arithmeticRV<xorRV, u64>(utl::bitwise_xor);
         at(xorRM) = arithmeticRV<xorRM, u64>(utl::bitwise_xor);
+
+        /// ** Conversion **
+        at(sext1)  = OpCodeImpl::sext1();
+        at(sext8)  = sext<sext8, i8>();
+        at(sext16) = sext<sext16, i16>();
+        at(sext32) = sext<sext32, i32>();
 
         /// ** Misc **
         at(callExt) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {

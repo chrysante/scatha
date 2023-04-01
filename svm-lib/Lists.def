@@ -130,12 +130,12 @@ SVM_INSTRUCTION_DEF(jge, Jump) // (i32 offset)
 
 /// ** Comparison **
 /// Compare the operands and set flags accordingly
-SVM_INSTRUCTION_DEF(ucmpRR, RR) //  (u8 regIdxA, u8 regIdxB)
-SVM_INSTRUCTION_DEF(scmpRR, RR) //  (u8 regIdxA, u8 regIdxB)
-SVM_INSTRUCTION_DEF(ucmpRV, RV) //  (u8 regIdxA, u64 value)
-SVM_INSTRUCTION_DEF(scmpRV, RV) //  (u8 regIdxA, u64 value)
-SVM_INSTRUCTION_DEF(fcmpRR, RR) //  (u8 regIdxA, u8 regIdxB)
-SVM_INSTRUCTION_DEF(fcmpRV, RV) //  (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(ucmpRR, RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(scmpRR, RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(ucmpRV, RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(scmpRV, RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(fcmpRR, RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(fcmpRV, RV) // (u8 regIdxA, u64 value)
 
 /// Compare the operand to 0 and set flags accordingly
 SVM_INSTRUCTION_DEF(stest, R) //  (u8 regIdx)
@@ -144,12 +144,12 @@ SVM_INSTRUCTION_DEF(utest, R) //  (u8 regIdx)
 /// ** Read comparison results **
 /// Set register to 0 or 1 based of the flags set by the `*cmp*` or `*test`
 /// instructions
-SVM_INSTRUCTION_DEF(sete,  R) //  (u8 regIdx)
-SVM_INSTRUCTION_DEF(setne, R) //  (u8 regIdx)
-SVM_INSTRUCTION_DEF(setl,  R) //  (u8 regIdx)
-SVM_INSTRUCTION_DEF(setle, R) //  (u8 regIdx)
-SVM_INSTRUCTION_DEF(setg,  R) //  (u8 regIdx)
-SVM_INSTRUCTION_DEF(setge, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(sete,  R) // (u8 regIdx)
+SVM_INSTRUCTION_DEF(setne, R) // (u8 regIdx)
+SVM_INSTRUCTION_DEF(setl,  R) // (u8 regIdx)
+SVM_INSTRUCTION_DEF(setle, R) // (u8 regIdx)
+SVM_INSTRUCTION_DEF(setg,  R) // (u8 regIdx)
+SVM_INSTRUCTION_DEF(setge, R) // (u8 regIdx)
 
 /// ** Unary operations **
 /// reg[regIdx] = !reg[regIdx]
@@ -286,6 +286,15 @@ SVM_INSTRUCTION_DEF(orRM,  RM) //  (u8 regIdxA, MEMORY_POINTER)
 SVM_INSTRUCTION_DEF(xorRR, RR) //  (u8 regIdxA, u8 regIdxB)
 SVM_INSTRUCTION_DEF(xorRV, RV) //  (u8 regIdxA, u64 value)
 SVM_INSTRUCTION_DEF(xorRM, RM) //  (u8 regIdxA, MEMORY_POINTER)
+
+/// ** Conversion **
+/// Sign extend the value in register `regIdx`.
+/// The value is either interpreted as 1, 8, 16, 32 or 64 bit and sign extended to
+/// 64 bits wide.
+SVM_INSTRUCTION_DEF(sext1,  R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(sext8,  R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(sext16, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(sext32, R) //  (u8 regIdx)
 
 /// ** Misc **
 // extFunctionTable[tableIdx][idxIntoTable](regPtr + regPtrOffset, this)

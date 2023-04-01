@@ -82,6 +82,15 @@ static void printImpl(std::ostream& str, TerminateInst const&) {
     str << instName("terminate");
 }
 
+static void printImpl(std::ostream& str, LIncSPInst const& lincsp) {
+    str << instName("lincsp") << " " << lincsp.dest() << ", "
+        << lincsp.offset();
+}
+
+static void printImpl(std::ostream& str, LEAInst const& lea) {
+    str << instName("lea") << " " << lea.dest() << ", " << lea.address();
+}
+
 static void printImpl(std::ostream& str, CompareInst const& cmp) {
     // clang-format off
     auto name = UTL_MAP_ENUM(cmp.type(), std::string_view, {
@@ -101,26 +110,8 @@ static void printImpl(std::ostream& str, SetInst const& set) {
     str << instName(toSetInstName(set.operation())) << " " << set.dest();
 }
 
-static void printImpl(std::ostream& str, LIncSPInst const& lincsp) {
-    str << instName("lincsp") << " " << lincsp.dest() << ", "
-        << lincsp.offset();
-}
-
-static void printImpl(std::ostream& str, LEAInst const& lea) {
-    str << instName("lea") << " " << lea.dest() << ", " << lea.address();
-}
-
-static void printImpl(std::ostream& str, RegisterIndex const& regIdx) {
-    str << "_R[" << regIdx.value() << "]";
-}
-
-static void printImpl(std::ostream& str, MemoryAddress const& addr) {
-    str << "*(ptr)_R[" << addr.baseptrRegisterIndex() << "]";
-    if (!addr.onlyEvaluatesInnerOffset()) {
-        str << " + _R[" << addr.offsetCountRegisterIndex() << "] * "
-            << addr.constantOffsetMultiplier();
-    }
-    str << " + " << addr.constantInnerOffset();
+static void printImpl(std::ostream& str, SExtInst const& sext) {
+    str << instName("sext", sext.fromBits()) << " " << sext.operand();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Instruction const& inst) {
@@ -156,6 +147,19 @@ static void printImpl(std::ostream& str, Value32 const& value) {
 static void printImpl(std::ostream& str, Value64 const& value) {
     CoutRestore r;
     str << "(u64)" << std::hex << value.value();
+}
+
+static void printImpl(std::ostream& str, RegisterIndex const& regIdx) {
+    str << "_R[" << regIdx.value() << "]";
+}
+
+static void printImpl(std::ostream& str, MemoryAddress const& addr) {
+    str << "*(ptr)_R[" << addr.baseptrRegisterIndex() << "]";
+    if (!addr.onlyEvaluatesInnerOffset()) {
+        str << " + _R[" << addr.offsetCountRegisterIndex() << "] * "
+            << addr.constantOffsetMultiplier();
+    }
+    str << " + " << addr.constantInnerOffset();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value const& value) {

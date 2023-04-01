@@ -22,3 +22,5 @@ Value Asm::promote(Value const& value, size_t size) {
         SC_UNREACHABLE();
     }
 }
+
+RegisterIndex const MemoryAddress::InvalidRegisterIndex{ 0xFF };

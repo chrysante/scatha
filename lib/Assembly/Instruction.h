@@ -253,6 +253,21 @@ private:
     Value _dest, _src;
 };
 
+/// Represents the `sext*` instructions.
+class SExtInst: public InstructionBase {
+public:
+    explicit SExtInst(RegisterIndex op, size_t fromBits):
+        _op(op), _fromBits(fromBits) {}
+
+    RegisterIndex operand() const { return _op; }
+
+    size_t fromBits() const { return _fromBits; }
+
+private:
+    RegisterIndex _op;
+    size_t _fromBits;
+};
+
 namespace internal {
 
 using InstructionVariantBase = utl::cbvariant<InstructionBase,

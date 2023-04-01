@@ -69,6 +69,8 @@ struct CodeGenContext {
     void placeArguments(std::span<ir::Value const* const> args);
     void getCallResult(ir::Value const& callInst);
 
+    Value signExtend(Value value, size_t fromBits);
+
     size_t getLabelID(ir::BasicBlock const&);
     size_t getLabelID(ir::Function const&);
 
@@ -207,7 +209,7 @@ static Asm::Type mapType(ir::Type const* type) {
 }
 
 void CodeGenContext::generate(ir::CompareInst const& cmp) {
-    Value const lhs = [&]() -> Value {
+    Value LHS = [&]() -> Value {
         auto resolvedLhs = currentRD().resolve(*cmp.lhs());
         if (!isa<ir::Constant>(cmp.lhs())) {
             SC_ASSERT(
@@ -220,10 +222,16 @@ void CodeGenContext::generate(ir::CompareInst const& cmp) {
             MoveInst(tmpRegIdx, resolvedLhs, cmp.lhs()->type()->size()));
         return tmpRegIdx;
     }();
-    currentBlock().insertBack(
-        Asm::CompareInst(mapType(cmp.type()),
-                         lhs,
-                         currentRD().resolve(*cmp.rhs())));
+    Value RHS          = currentRD().resolve(*cmp.rhs());
+    auto* operandType  = cmp.lhs()->type();
+    auto const cmpType = mapType(operandType);
+    if (cmpType == Type::Signed) {
+        auto* intType         = cast<ir::IntegralType const*>(operandType);
+        size_t const fromBits = intType->bitWidth();
+        LHS                   = signExtend(LHS, fromBits);
+        RHS                   = signExtend(RHS, fromBits);
+    }
+    currentBlock().insertBack(Asm::CompareInst(mapType(cmp.type()), LHS, RHS));
     if (true) /// Actually we should check if the users of this cmp instruction
               /// care about having the result in the corresponding register.
               /// Since we don't have use and user lists yet we do this
@@ -267,13 +275,21 @@ void CodeGenContext::generate(ir::UnaryArithmeticInst const& inst) {
 void CodeGenContext::generate(ir::ArithmeticInst const& arithmetic) {
     // TODO: Make the move of the source argument conditional?
     auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
-    currentBlock().insertBack(
-        MoveInst(dest, currentRD().resolve(*arithmetic.lhs()), 8));
+    auto LHS  = currentRD().resolve(*arithmetic.lhs());
+    auto RHS  = currentRD().resolve(*arithmetic.rhs());
+    if (arithmetic.operation() == ir::ArithmeticOperation::SDiv ||
+        arithmetic.operation() == ir::ArithmeticOperation::SRem)
+    {
+        size_t const fromBits =
+            cast<ir::IntegralType const*>(arithmetic.type())->bitWidth();
+        LHS = signExtend(LHS, fromBits);
+        RHS = signExtend(RHS, fromBits);
+    }
+    currentBlock().insertBack(MoveInst(dest, LHS, 8));
     currentBlock().insertBack(
         Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
                             dest,
-                            widenConstantTo64Bit(
-                                currentRD().resolve(*arithmetic.rhs()))));
+                            widenConstantTo64Bit(RHS)));
 }
 
 // MARK: Terminators
@@ -330,7 +346,7 @@ void CodeGenContext::generate(ir::Call const& call) {
 void CodeGenContext::generate(ir::Return const& ret) {
     if (!isa<ir::VoidType>(ret.value()->type())) {
         auto const returnValue = currentRD().resolve(*ret.value());
-        RegisterIndex const returnValueTargetLocation = 0;
+        RegisterIndex const returnValueTargetLocation(0);
         if (!returnValue.is<RegisterIndex>() ||
             returnValue.get<RegisterIndex>() != returnValueTargetLocation)
         {
@@ -513,7 +529,7 @@ MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const& gep) {
         auto* constIndex =
             dyncast<ir::IntegralConstant const*>(gep.arrayIndex());
         if (constIndex && constIndex->value() == 0) {
-            return MemoryAddress::invalidRegisterIndex;
+            return MemoryAddress::InvalidRegisterIndex;
         }
         Value res = currentRD().resolve(*gep.arrayIndex());
         if (res.is<RegisterIndex>()) {
@@ -613,15 +629,63 @@ void CodeGenContext::getCallResult(ir::Value const& call) {
     if (isa<ir::VoidType>(call.type())) {
         return;
     }
-    RegisterIndex const resultLocation =
-        currentRD().numUsedRegisters() + NumRegsForMetadata;
-    RegisterIndex const targetResultLocation =
-        currentRD().resolve(call).get<RegisterIndex>();
+    RegisterIndex const resultLocation(currentRD().numUsedRegisters() +
+                                       NumRegsForMetadata);
+    RegisterIndex const targetResultLocation(
+        currentRD().resolve(call).get<RegisterIndex>());
     if (resultLocation != targetResultLocation) {
         generateBigMove(targetResultLocation,
                         resultLocation,
                         call.type()->size());
     }
+}
+
+template <typename T>
+static Value64 sextImpl(u64 value) {
+    auto origin = static_cast<T>(value);
+    auto wide   = static_cast<i64>(origin);
+    auto res    = static_cast<u64>(wide);
+    return Value64(res);
+}
+
+Value CodeGenContext::signExtend(Value value, size_t fromBits) {
+    SC_ASSERT(fromBits <= 64, "");
+    if (fromBits == 64) {
+        return value;
+    }
+    // clang-format off
+    return utl::visit(utl::overload{
+        [&](Value8  v) -> Value {
+            if (fromBits == 1) {
+                return Value64(v.value() == 0 ? 0 : static_cast<u64>(-1));
+            }
+            SC_ASSERT(fromBits == 8, "");
+            return sextImpl<i8>(v.value());
+        },
+        [&](Value16 v) -> Value {
+            SC_ASSERT(fromBits == 16, "");
+            return sextImpl<i16>(v.value());
+        },
+        [&](Value32 v) -> Value {
+            SC_ASSERT(fromBits == 32, "");
+            return sextImpl<i32>(v.value());
+        },
+        [&](Value64 v) -> Value {
+            SC_ASSERT(fromBits == 64, "");
+            return sextImpl<i64>(v.value());
+        },
+        [&](RegisterIndex i) -> Value {
+            auto tmp = currentRD().makeTemporary();
+            currentBlock().insertBack(MoveInst(tmp, i, 8));
+            currentBlock().insertBack(SExtInst(tmp, fromBits));
+            return tmp;
+        },
+        [&](MemoryAddress p) -> Value {
+            auto tmp = currentRD().makeTemporary();
+            currentBlock().insertBack(MoveInst(tmp, p, 8));
+            return signExtend(tmp, fromBits);
+        },
+    }, value); // clang-format on
 }
 
 size_t CodeGenContext::getLabelID(ir::BasicBlock const& bb) {

@@ -76,7 +76,8 @@ inline Value64 ValueBase::widen() const { return Value64(value()); }
 /// Represents a register index.
 class RegisterIndex: public ValueBase {
 public:
-    RegisterIndex(std::integral auto index): ValueBase(utl::tag<u8>{}, index) {}
+    explicit RegisterIndex(std::integral auto index):
+        ValueBase(utl::tag<u8>{}, index) {}
 
     void setValue(u64 index) { _value = utl::narrow_cast<u8>(index); }
 };
@@ -101,13 +102,13 @@ class MemoryAddress: public ValueBase {
 
 public:
     /// See documentation in "OpCode.h"
-    static constexpr size_t invalidRegisterIndex = 0xFF;
+    SCATHA_TESTAPI static RegisterIndex const InvalidRegisterIndex;
 
     explicit MemoryAddress(RegisterIndex baseptrRegIdx):
         MemoryAddress(baseptrRegIdx.value()) {}
 
     explicit MemoryAddress(std::integral auto baseptrRegIdx):
-        MemoryAddress(baseptrRegIdx, invalidRegisterIndex, 0, 0) {}
+        MemoryAddress(baseptrRegIdx, InvalidRegisterIndex.value(), 0, 0) {}
 
     explicit MemoryAddress(RegisterIndex baseptrRegIdx,
                            RegisterIndex offsetCountRegIdx,
@@ -161,7 +162,7 @@ public:
     }
 
     bool onlyEvaluatesInnerOffset() const {
-        return offsetCountRegisterIndex() == invalidRegisterIndex;
+        return offsetCountRegisterIndex() == InvalidRegisterIndex.value();
     }
 };
 
