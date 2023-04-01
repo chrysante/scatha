@@ -12,6 +12,7 @@
 /// Performs the following operations:
 /// ```
 /// regPtr    += regOffset
+/// regPtr[-3] = stackPtr
 /// regPtr[-2] = regOffset
 /// regPtr[-1] = iptr
 /// jmp          offset
@@ -19,10 +20,11 @@
 SVM_INSTRUCTION_DEF(call, Other) // (i32 offset, u8 regOffset)
 
 /// Return to caller. Effectively performs the following operations:
-/// \code
-/// iptr = regPtr[-1]
-/// regPtr -= regPtr[-2]
-/// \endcode
+/// ```
+/// iptr     = regPtr[-1]
+/// regPtr  -= regPtr[-2]
+/// stackPtr = regPtr[-3]
+/// ```
 SVM_INSTRUCTION_DEF(ret, Other)
 
 /// Immediately terminates the program.
@@ -95,17 +97,8 @@ SVM_INSTRUCTION_DEF(cmovge64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
 /// Store the address of the register at `sourceRegIdx` into the register at `targetRegIdx`
 SVM_INSTRUCTION_DEF(alloca_, Other) // (u8 targetRegIdx, u8 sourceRegIdx)
 
-/// Increment the spack pointer by `offset` bytes
-SVM_INSTRUCTION_DEF(incsp, Other)   // (u16 offset)
-
-/// Decrement the spack pointer by `offset` bytes
-SVM_INSTRUCTION_DEF(decsp, Other)   // (u16 offset)
-
-/// Copy the stack pointer into the register `destRegIdx`
-SVM_INSTRUCTION_DEF(loadsp, Other)   // (u8 destRegIdx)
-
-/// Set the stack pointer to the value in register `sourceRegIdx`
-SVM_INSTRUCTION_DEF(storesp, Other)   // (u8 destRegIdx)
+/// Store the stack pointer into register `destRegIdx` and increment it  by `offset` bytes
+SVM_INSTRUCTION_DEF(lincsp, Other)  // (u8 destRegIdx, u16 offset)
 
 /// ** Jumps **
 /// Jumps are performed by adding the `offset` argument to the instruction

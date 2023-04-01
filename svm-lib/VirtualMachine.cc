@@ -19,11 +19,11 @@ VirtualMachine::VirtualMachine(): instructionTable(makeInstructionTable()) {
 void VirtualMachine::loadProgram(u8 const* progData) {
     Program program(progData);
     instructionCount = program.instructions.size();
-    text = std::move(program.instructions);
-    data = std::move(program.data);
-    programStart = program.start;
-    iptr         = text.data() + programStart;
-    programBreak = text.data() + text.size();
+    text             = std::move(program.instructions);
+    data             = std::move(program.data);
+    programStart     = program.start;
+    iptr             = text.data() + programStart;
+    programBreak     = text.data() + text.size();
 }
 
 void VirtualMachine::execute() {
@@ -59,9 +59,7 @@ void VirtualMachine::setFunctionTableSlot(
     extFunctionTable[slot] = std::move(functions);
 }
 
-void VirtualMachine::cleanup() {
-    iptr = text.data() + programStart;
-}
+void VirtualMachine::cleanup() { iptr = text.data() + programStart; }
 
 size_t VirtualMachine::defaultRegisterCount = 1 << 20;
 

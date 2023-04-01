@@ -302,6 +302,9 @@ void CodeGenContext::generate(ir::Branch const& br) {
     currentBlock().insertBack(JumpInst(getLabelID(*br.elseTarget())));
 }
 
+/// Instruction pointer, register pointer offset and stack pointer
+static constexpr size_t NumRegsForMetadata = 3;
+
 void CodeGenContext::generate(ir::Call const& call) {
     placeArguments(call.arguments());
     // clang-format off
@@ -309,11 +312,11 @@ void CodeGenContext::generate(ir::Call const& call) {
         [&](ir::Function const& func) {
             currentBlock().insertBack(
                 CallInst(getLabelID(func),
-                         currentRD().numUsedRegisters() + 2));
+                         currentRD().numUsedRegisters() + NumRegsForMetadata));
         },
         [&](ir::ExtFunction const& func) {
             currentBlock().insertBack(
-                CallExtInst(currentRD().numUsedRegisters() + 2,
+                CallExtInst(currentRD().numUsedRegisters() + NumRegsForMetadata,
                             func.slot(),
                             func.index()));
         },
@@ -585,7 +588,8 @@ void CodeGenContext::placeArguments(std::span<ir::Value const* const> args) {
         offset += utl::ceil_divide(argSize, 8);
     }
     /// Increment to actually point to the first move instruction
-    size_t const commonOffset = currentRD().numUsedRegisters() + 2;
+    size_t const commonOffset =
+        currentRD().numUsedRegisters() + NumRegsForMetadata;
     Block::Iterator paramLocation =
         std::prev(currentBlock().end(), static_cast<ssize_t>(offset));
     for (size_t i = 0; i < offset; ++i, ++paramLocation) {
@@ -601,7 +605,8 @@ void CodeGenContext::getCallResult(ir::Value const& call) {
     if (isa<ir::VoidType>(call.type())) {
         return;
     }
-    RegisterIndex const resultLocation = currentRD().numUsedRegisters() + 2;
+    RegisterIndex const resultLocation =
+        currentRD().numUsedRegisters() + NumRegsForMetadata;
     RegisterIndex const targetResultLocation =
         currentRD().resolve(call).get<RegisterIndex>();
     if (resultLocation != targetResultLocation) {

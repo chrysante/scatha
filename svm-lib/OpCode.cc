@@ -228,6 +228,7 @@ struct svm::OpCodeImpl {
             i32 const offset       = load<i32>(i);
             size_t const regOffset = i[4];
             vm->regPtr += regOffset;
+            vm->regPtr[-3] = utl::bit_cast<u64>(vm->stackPtr);
             vm->regPtr[-2] = regOffset;
             vm->regPtr[-1] = utl::bit_cast<u64>(vm->iptr + codeSize(call));
             vm->iptr += offset;
@@ -244,6 +245,7 @@ struct svm::OpCodeImpl {
             }
             vm->iptr = utl::bit_cast<u8 const*>(regPtr[-1]);
             vm->regPtr -= regPtr[-2];
+            vm->stackPtr = utl::bit_cast<u8*>(regPtr[-3]);
             return 0;
         };
 
@@ -333,27 +335,14 @@ struct svm::OpCodeImpl {
         };
 
         /// ** Stack pointer manipulation **
-        at(incsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
-            size_t const offset = load<u16>(i);
-            vm->stackPtr += offset;
-            return codeSize(incsp);
-        };
-        at(decsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
-            size_t const offset = load<u16>(i);
-            vm->stackPtr -= offset;
-            return codeSize(decsp);
-        };
-        at(loadsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+        at(lincsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const destRegIdx = load<u8>(i);
-            reg[destRegIdx] = utl::bit_cast<u64>(vm->stackPtr);
-            return codeSize(loadsp);
+            size_t const offset     = load<u16>(i + 1);
+            reg[destRegIdx]         = utl::bit_cast<u64>(vm->stackPtr);
+            vm->stackPtr += offset;
+            return codeSize(lincsp);
         };
-        at(storesp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
-            size_t const sourceRegIdx = load<u8>(i);
-            vm->stackPtr = utl::bit_cast<u8*>(reg[sourceRegIdx]);
-            return codeSize(storesp);
-        };
-        
+
         /// ** Jumps **
         at(jmp) = jump<jmp>([](VMFlags) { return true; });
         at(je)  = jump<je>(equal);

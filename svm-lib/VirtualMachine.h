@@ -31,10 +31,10 @@ struct VMState {
     utl::vector<u8> text;
     utl::vector<u8> data;
     utl::vector<u8> stack;
-    
-    u8 const* programBreak = nullptr;
+
+    u8 const* programBreak  = nullptr;
     size_t instructionCount = 0;
-    size_t programStart = 0;
+    size_t programStart     = 0;
 };
 
 struct VMStats {
@@ -69,7 +69,7 @@ private:
     void cleanup();
 
     static size_t defaultRegisterCount;
-    
+
     static size_t defaultStackSize;
 
 private:

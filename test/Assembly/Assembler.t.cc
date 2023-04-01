@@ -63,12 +63,12 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
     enum { main, gcd, gcd_else };
     AssemblyStream a;
     // Main function
-    // Should hold the result in R[2]
+    // Should hold the result in R[3]
     // clang-format off
     a.add(Block(main, "main", {
-        MoveInst(RegisterIndex(2), Value64(54), 8), // a = 54
-        MoveInst(RegisterIndex(3), Value64(24), 8), // b = 24
-        CallInst(gcd, 2),
+        MoveInst(RegisterIndex(3), Value64(54), 8), // a = 54
+        MoveInst(RegisterIndex(4), Value64(24), 8), // b = 24
+        CallInst(gcd, 3),
         TerminateInst()
     }));
     // GCD function
@@ -88,18 +88,18 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     // gcd(54, 24) == 6
-    CHECK(state.registers[2] == 6);
+    CHECK(state.registers[3] == 6);
 }
 
 TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
     enum { main, gcd, gcd_else };
     AssemblyStream a;
-    // Should hold the result in R[2]
+    // Should hold the result in R[3]
     // clang-format off
     a.add(Block(main, "main", {
-        MoveInst(RegisterIndex(2), Value64(1023534), 8), // R[2] = arg0
-        MoveInst(RegisterIndex(3), Value64(213588), 8),  // R[2] = arg1
-        CallInst(gcd, 2),
+        MoveInst(RegisterIndex(3), Value64(1023534), 8), // R[2] = arg0
+        MoveInst(RegisterIndex(4), Value64(213588), 8),  // R[2] = arg1
+        CallInst(gcd, 3),
         TerminateInst(),
     }));
     a.add(Block(gcd, "gcd", {
@@ -115,17 +115,17 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
         // R[4]: b
         // R[5]: a % b
         // R[0] = a and R[1] = b have been placed by the caller.
-        MoveInst(RegisterIndex(5), RegisterIndex(0), 8),                                            // R[5] = a
-        ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(5), RegisterIndex(1)), // R[5] %= b
-        MoveInst(RegisterIndex(4), RegisterIndex(1), 8),                                            // R[4] = b
-        CallInst(gcd, 4),                                // Deliberately no tail call
-        MoveInst(RegisterIndex(0), RegisterIndex(4), 8), // R[0] = R[4] to move the result to the expected register
+        MoveInst(RegisterIndex(6), RegisterIndex(0), 8),                               // R[6] = a
+        ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(6), RegisterIndex(1)), // R[6] %= b
+        MoveInst(RegisterIndex(5), RegisterIndex(1), 8),                               // R[5] = b
+        CallInst(gcd, 5),                                // Deliberately no tail call
+        MoveInst(RegisterIndex(0), RegisterIndex(5), 8), // R[0] = R[5] to move the result to the expected register
         ReturnInst(),
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
     // gcd(1023534,213588) == 18
-    CHECK(state.registers[2] == 18);
+    CHECK(state.registers[3] == 18);
 }
 
 static void testArithmeticRR(ArithmeticOperation operation,
