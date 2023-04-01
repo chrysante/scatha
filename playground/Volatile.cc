@@ -52,7 +52,8 @@ using namespace scatha;
 using namespace playground;
 
 static void run(ir::Module const& mod) {
-    auto assembly              = cg::codegen(mod);
+    auto assembly = cg::codegen(mod);
+    Asm::print(assembly);
     std::string const mainName = [&] {
         for (auto& f: mod) {
             if (f.name().starts_with("main")) {
@@ -103,20 +104,20 @@ static std::string readFile(std::filesystem::path path) {
 }
 
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
+    //    auto [ctx, mod] = makeIRModuleFromFile(path);
 
-    //    auto parseRes = ir::parse(readFile(path));
-    //    if (!parseRes) {
-    //        print(parseRes.error());
-    //        return;
-    //    }
-    //    auto [ctx, mod] = std::move(parseRes).value();
+    auto parseRes = ir::parse(readFile(path));
+    if (!parseRes) {
+        print(parseRes.error());
+        return;
+    }
+    auto [ctx, mod] = std::move(parseRes).value();
 
     header(" Before inlining ");
     ir::print(mod);
-
     run(mod);
 
+    return;
     header(" After inlining ");
     opt::inlineFunctions(ctx, mod);
     ir::print(mod);

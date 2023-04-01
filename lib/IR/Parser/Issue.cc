@@ -22,7 +22,18 @@ void ir::print(ParseIssue const& issue, std::ostream& str) {
             auto sl = issue.sourceLocation();
             str << "Syntax issue: " << sl << "\n";
         },
-        [&](SemanticIssue const& issue) { str << "Semantic issue.\n"; },
+        [&](SemanticIssue const& issue) {
+            auto reasonStr = UTL_SERIALIZE_ENUM(issue.reason(), {
+                { SemanticIssue::TypeMismatch,              "Type mismatch" },
+                { SemanticIssue::InvalidType,               "Invalid type" },
+                { SemanticIssue::InvalidEntity,             "Invalid entity" },
+                { SemanticIssue::UseOfUndeclaredIdentifier, "Use of undeclared identifier" },
+                { SemanticIssue::Redeclaration,             "Redeclaration" },
+                { SemanticIssue::UnexpectedID,              "Unexpected ID" },
+            });
+            auto sl = issue.sourceLocation();
+            str << "Semantic issue: " << sl << ": " << reasonStr << "\n";
+        },
     }, issue); // clang-format on
 }
 

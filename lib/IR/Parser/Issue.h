@@ -34,7 +34,28 @@ private:
 
 class SCATHA_API SemanticIssue {
 public:
-    //    explicit SemanticIssue() {}
+    enum Reason {
+        TypeMismatch,
+        InvalidType,
+        InvalidEntity,
+        UseOfUndeclaredIdentifier,
+        Redeclaration,
+        UnexpectedID,
+        _count
+    };
+
+    explicit SemanticIssue(Token token, Reason reason):
+        _token(token), _reason(reason) {}
+
+    Token token() const { return _token; }
+
+    SourceLocation sourceLocation() const { return token().sourceLocation(); }
+
+    Reason reason() const { return _reason; }
+
+private:
+    Token _token;
+    Reason _reason;
 };
 
 using ParseIssue = utl::variant<LexicalIssue, SyntaxIssue, SemanticIssue>;

@@ -22,6 +22,16 @@ using namespace ir;
 namespace {
 
 struct ParseContext {
+    using ValueMap = utl::hashmap<std::string, Value*>;
+    struct PendingUpdate: std::function<void(Value*)> {
+        using Base = std::function<void(Value*)>;
+        PendingUpdate(Token token, Base base):
+            Base(std::move(base)), token(token) {}
+
+        Token token;
+    };
+    using PUMap = utl::hashmap<std::string, utl::small_vector<PendingUpdate>>;
+
     explicit ParseContext(Context& irCtx, Module& mod, std::string_view text):
         irCtx(irCtx),
         mod(mod),
@@ -30,7 +40,6 @@ struct ParseContext {
 
     void parse();
 
-private:
     UniquePtr<Function> parseFunction();
     UniquePtr<Parameter> parseParamDecl(size_t index);
     UniquePtr<BasicBlock> parseBasicBlock();
@@ -50,10 +59,10 @@ private:
     void _addPendingUpdate(Token const& name, std::function<void(Value*)> f) {
         switch (name.kind()) {
         case TokenKind::GlobalIdentifier:
-            globalPendingUpdates[name.id()].push_back(std::move(f));
+            globalPendingUpdates[name.id()].push_back({ name, std::move(f) });
             break;
         case TokenKind::LocalIdentifier:
-            localPendingUpdates[name.id()].push_back(std::move(f));
+            localPendingUpdates[name.id()].push_back({ name, std::move(f) });
             break;
         default:
             SC_UNREACHABLE();
@@ -64,8 +73,8 @@ private:
     void addValueLink(U* user, Type const* type, Token token, auto fn) {
         auto* value = getValue<V>(type, token);
         if (value) {
-            if (type && value->type() != type) {
-                reportSemaIssue(); // Type mismatch
+            if (type && value->type() && value->type() != type) {
+                reportSemaIssue(token, SemanticIssue::TypeMismatch);
             }
             std::invoke(fn, user, value);
             return;
@@ -74,7 +83,7 @@ private:
             SC_ASSERT(v, "");
             auto* value = dyncast<V*>(v);
             if (!value) {
-                reportSemaIssue(); // Type mismatch
+                reportSemaIssue(token, SemanticIssue::InvalidEntity);
             }
             std::invoke(fn, user, value);
         });
@@ -113,7 +122,10 @@ private:
         throw SyntaxIssue(token);
     }
 
-    [[noreturn]] void reportSemaIssue() const { throw SemanticIssue(); }
+    [[noreturn]] void reportSemaIssue(Token const& token,
+                                      SemanticIssue::Reason reason) const {
+        throw SemanticIssue(token, reason);
+    }
 
     void expectAny(Token const& token,
                    std::same_as<TokenKind> auto... kind) const {
@@ -203,9 +215,16 @@ private:
         }
     }
 
-    using ValueMap = utl::hashmap<std::string, Value*>;
-    using PUMap    = utl::hashmap<std::string,
-                               utl::small_vector<std::function<void(Value*)>>>;
+    void checkEmpty(PUMap const& updates) const {
+        /// We expect `globalPendingUpdates` to be empty when parsed
+        /// successfully.
+        for (auto&& [name, list]: updates) {
+            for (auto&& update: list) {
+                reportSemaIssue(update.token,
+                                SemanticIssue::UseOfUndeclaredIdentifier);
+            }
+        }
+    }
 
     Context& irCtx;
     Module& mod;
@@ -253,9 +272,11 @@ void ParseContext::parse() {
         }
         throw SyntaxIssue(peekToken());
     }
+    checkEmpty(globalPendingUpdates);
 }
 
 UniquePtr<Function> ParseContext::parseFunction() {
+    locals.clear();
     Token const declarator = peekToken();
     if (declarator.kind() != TokenKind::Function) {
         return nullptr;
@@ -285,11 +306,6 @@ UniquePtr<Function> ParseContext::parseFunction() {
     registerValue(name, result.get());
     expect(eatToken(), TokenKind::OpenBrace);
     /// Parse the body of the function.
-    locals = result->parameters() |
-             ranges::views::transform([i = 0](auto& p) mutable {
-                 return std::pair{ std::to_string(i++), &p };
-             }) |
-             ranges::to<ValueMap>;
     while (true) {
         auto basicBlock = parseBasicBlock();
         if (!basicBlock) {
@@ -298,10 +314,7 @@ UniquePtr<Function> ParseContext::parseFunction() {
         result->pushBack(std::move(basicBlock));
     }
     expect(eatToken(), TokenKind::CloseBrace);
-    if (!localPendingUpdates.empty()) {
-        reportSemaIssue(); // Use of undeclared identifier for each pending
-                           // update.
-    }
+    checkEmpty(localPendingUpdates);
     return result;
 }
 
@@ -311,15 +324,18 @@ UniquePtr<Parameter> ParseContext::parseParamDecl(size_t index) {
         reportSyntaxIssue(peekToken());
     }
     eatToken();
+    UniquePtr<Parameter> result;
     if (peekToken().kind() == TokenKind::LocalIdentifier) {
-        return allocate<Parameter>(type,
-                                   index,
-                                   std::string(eatToken().id()),
-                                   nullptr);
+        result = allocate<Parameter>(type,
+                                     index,
+                                     std::string(eatToken().id()),
+                                     nullptr);
     }
     else {
-        return allocate<Parameter>(type, index, nullptr);
+        result = allocate<Parameter>(type, index, nullptr);
     }
+    locals[std::string(result->name())] = result.get();
+    return result;
 }
 
 UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {
@@ -366,7 +382,15 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::Alloca: {
         eatToken();
         auto* const type = getType(eatToken());
-        return allocate<Alloca>(irCtx, type, name());
+        auto result      = allocate<Alloca>(irCtx, type, name());
+        if (peekToken().kind() != TokenKind::Comma) {
+            return result;
+        }
+        eatToken();
+        auto* countType = getType(eatToken());
+        auto countToken = eatToken();
+        addValueLink(result.get(), countType, countToken, &Alloca::setCount);
+        return result;
     }
     case TokenKind::Load: {
         eatToken();
@@ -413,9 +437,10 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::Branch: {
         eatToken();
-        auto* condType = getType(eatToken());
+        auto condTypeName = eatToken();
+        auto* condType    = getType(condTypeName);
         if (condType != irCtx.integralType(1)) {
-            reportSemaIssue(); // Invalid type
+            reportSemaIssue(condTypeName, SemanticIssue::InvalidType);
         }
         auto condName = eatToken();
         expectNext(TokenKind::Comma, TokenKind::Label);
@@ -452,9 +477,10 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::Call: {
         eatToken();
-        auto* retType = getType(eatToken());
-        auto funcName = eatToken();
-        using CallArg = std::pair<Type const*, Token>;
+        auto retTypeName = eatToken();
+        auto* retType    = getType(retTypeName);
+        auto funcName    = eatToken();
+        using CallArg    = std::pair<Type const*, Token>;
         utl::small_vector<CallArg> args;
         while (true) {
             if (peekToken().kind() != TokenKind::Comma) {
@@ -472,7 +498,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
                                funcName,
                                [=](Call* call, Callable* func) {
             if (retType != func->returnType()) {
-                reportSemaIssue(); // Type mismatch
+                reportSemaIssue(retTypeName, SemanticIssue::TypeMismatch);
             }
             call->setFunction(func);
         });
@@ -607,10 +633,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         auto* indexType = getType(eatToken());
         auto indexName  = eatToken();
         auto indices    = parseConstantIndices();
-        if (indices.empty()) {
-            reportSyntaxIssue(peekToken());
-        }
-        auto result = allocate<GetElementPointer>(irCtx,
+        auto result     = allocate<GetElementPointer>(irCtx,
                                                   accessedType,
                                                   nullptr,
                                                   nullptr,
@@ -665,9 +688,10 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::Select: {
         eatToken();
-        auto* condType = getType(eatToken());
+        auto condTypeName = eatToken();
+        auto* condType    = getType(condTypeName);
         if (condType != irCtx.integralType(1)) {
-            reportSemaIssue(); // Invalid operand type
+            reportSemaIssue(condTypeName, SemanticIssue::InvalidType);
         }
         auto condName = eatToken();
         expectNext(TokenKind::Comma);
@@ -742,12 +766,12 @@ Type const* ParseContext::getType(Token const& token) {
             return type->name() == token.id();
         });
         if (itr == ranges::end(structures)) {
-            reportSemaIssue(); // Undeclared typename
+            reportSemaIssue(token, SemanticIssue::UseOfUndeclaredIdentifier);
         }
         return itr->get();
     }
     case TokenKind::LocalIdentifier:
-        reportSemaIssue(); // Invalid typename
+        reportSemaIssue(token, SemanticIssue::UnexpectedID);
     case TokenKind::IntType:
         return irCtx.integralType(token.width());
     case TokenKind::FloatType:
@@ -771,10 +795,11 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
         }
         auto* value = dyncast<V*>(itr->second);
         if (!value) {
-            reportSemaIssue(); // Type mismatch ?
+            reportSemaIssue(token, SemanticIssue::InvalidEntity);
         }
         if (value->type() && type && value->type() != type) {
-            reportSemaIssue(); // Type mismatch ?
+            reportSemaIssue(token,
+                            SemanticIssue::TypeMismatch); // Type mismatch ?
         }
         return value;
     }
@@ -789,13 +814,13 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
         }
     case TokenKind::IntLiteral:
         if constexpr (std::convertible_to<IntegralConstant*, V*>) {
+            auto* intType = dyncast<IntegralType const*>(type);
+            if (!intType) {
+                reportSemaIssue(token, SemanticIssue::InvalidType);
+            }
             auto value = APInt::parse(token.id());
             if (!value) {
                 throw SyntaxIssue(token);
-            }
-            auto* intType = dyncast<IntegralType const*>(type);
-            if (!intType) {
-                reportSemaIssue(); // Invalid type
             }
             value->zext(intType->bitWidth());
             return irCtx.integralConstant(*value);
@@ -804,10 +829,27 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
             SC_UNREACHABLE();
         }
     case TokenKind::FloatLiteral: {
-        SC_DEBUGFAIL();
+        if constexpr (std::convertible_to<FloatingPointConstant*, V*>) {
+            auto* floatType = dyncast<FloatType const*>(type);
+            if (!floatType) {
+                reportSemaIssue(token,
+                                SemanticIssue::InvalidType); // Invalid type
+            }
+            auto value = APFloat::parse(token.id(),
+                                        floatType->bitWidth() == 32 ?
+                                            APFloatPrec::Single :
+                                            APFloatPrec::Double);
+            if (!value) {
+                throw SyntaxIssue(token);
+            }
+            return irCtx.floatConstant(*value, floatType->bitWidth());
+        }
+        else {
+            SC_UNREACHABLE();
+        }
     }
     default:
-        reportSemaIssue(); // Invalid value token
+        reportSemaIssue(token, SemanticIssue::UnexpectedID);
     }
 }
 
@@ -826,7 +868,7 @@ void ParseContext::registerValue(Token const& token, Value* value) {
         }
     }();
     if (values.contains(value->name())) {
-        reportSemaIssue(); // Redeclaration
+        reportSemaIssue(token, SemanticIssue::Redeclaration);
     }
     values[value->name()] = value;
     executePendingUpdates(token, value);

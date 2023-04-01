@@ -128,17 +128,34 @@ Expected<Token, LexicalIssue> Lexer::next() {
                                                TokenKind::LocalIdentifier;
         return Token(first + 1, i, beginSL, kind);
     }
-    // IntLiteral
+    // NumericLiteral
     if (std::isdigit(*i)) {
         SourceLocation const beginSL = loc;
         char const* const first      = i;
+        size_t numDots               = 0;
         while (i != end && !std::isspace(*i) && !isPunctuation(*i)) {
-            if (!std::isdigit(*i)) {
-                return LexicalIssue(beginSL);
+            if (*i == '.') {
+                ++numDots;
+                inc();
+                if (numDots > 1) {
+                    return LexicalIssue(beginSL);
+                }
+                continue;
             }
-            inc();
+            else if (std::isdigit(*i)) {
+                inc();
+                continue;
+            }
+            return LexicalIssue(beginSL);
         }
-        return Token(first, i, beginSL, TokenKind::IntLiteral);
+
+        if (numDots == 0) {
+            return Token(first, i, beginSL, TokenKind::IntLiteral);
+        }
+        else {
+            SC_ASSERT(numDots == 1, "");
+            return Token(first, i, beginSL, TokenKind::FloatLiteral);
+        }
     }
     // Punctuation
     if (auto kind = getPunctuation(*i)) {

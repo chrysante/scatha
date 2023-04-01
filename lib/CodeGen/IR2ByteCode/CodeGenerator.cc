@@ -502,13 +502,20 @@ MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const& gep) {
         if (gepPtr == nullptr) {
             break;
         }
+        SC_ASSERT(isa<ir::IntegralConstant>(gepPtr->arrayIndex()),
+                  "We need more work for dynamic indices");
+        size_t const arrayIndex =
+            cast<ir::IntegralConstant const*>(gepPtr->arrayIndex())
+                ->value()
+                .to<size_t>();
+        offset += arrayIndex * gepPtr->type()->size();
         SC_ASSERT(gepPtr->memberIndices().size() <= 1,
                   "Can't generate code for nested accesses yet");
-        size_t const memberIndex = gepPtr->memberIndices().size() == 1 ?
-                                       gepPtr->memberIndices().front() :
-                                       0;
-        offset += cast<ir::StructureType const*>(gepPtr->inboundsType())
-                      ->memberOffsetAt(memberIndex);
+        if (gepPtr->memberIndices().size() > 1) {
+            size_t const memberIndex = gepPtr->memberIndices().front();
+            offset += cast<ir::StructureType const*>(gepPtr->inboundsType())
+                          ->memberOffsetAt(memberIndex);
+        }
         value = gepPtr->basePointer();
     }
     SC_ASSERT(offset <= 0xFF, "Offset too large");
