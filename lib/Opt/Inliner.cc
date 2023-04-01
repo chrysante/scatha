@@ -172,11 +172,11 @@ bool Inliner::allSuccessorsAnalyzed(SCC const& scc) const {
 bool Inliner::optimize(Function& function) const {
     bool modifiedAny = false;
     modifiedAny |= unifyReturns(ctx, function);
-    modifiedAny |= sroa(ctx, function);
-    modifiedAny |= memToReg(ctx, function);
     int const tripLimit = 4;
     for (int i = 0; i < tripLimit; ++i) {
         bool modified = false;
+        modified |= sroa(ctx, function);
+        modified |= memToReg(ctx, function);
         modified |= instCombine(ctx, function);
         modified |= propagateConstants(ctx, function);
         modified |= dce(ctx, function);
