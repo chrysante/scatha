@@ -35,6 +35,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream, CompareInst const&);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, TestInst const&);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, SetInst const&);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, AllocaInst const&);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream, LIncSPInst const&);
 
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, Value const&);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,

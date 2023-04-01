@@ -14,7 +14,21 @@ public:
                     Type const* allocatedType,
                     std::string name);
 
-    /// \returns the type allocated by this `alloca` instruction
+    explicit Alloca(Context& context,
+                    Value* count,
+                    Type const* allocatedType,
+                    std::string name);
+
+    /// \returns The number of objects allocated.
+    Value* count() { return operands()[0]; }
+
+    /// \overload
+    Value const* count() const { return operands()[0]; }
+
+    /// Set the number of objects allocated.
+    void setCount(Value* count) { setOperand(0, count); }
+
+    /// \returns The type allocated by this `alloca` instruction
     Type const* allocatedType() const { return typeOperands()[0]; }
 };
 

@@ -103,12 +103,17 @@ std::ostream& Asm::operator<<(std::ostream& str, TestInst const& test) {
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, SetInst const& set) {
-    return str << instName(toSetInstName(set.operation())) << set.dest();
+    return str << instName(toSetInstName(set.operation())) << " " << set.dest();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, AllocaInst const& alloca_) {
     return str << instName("alloca") << " " << alloca_.dest() << ", &"
                << alloca_.source();
+}
+
+std::ostream& Asm::operator<<(std::ostream& str, LIncSPInst const& lincsp) {
+    return str << instName("lincsp") << " " << lincsp.dest() << ", "
+               << lincsp.offset();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value const& value) {

@@ -149,11 +149,13 @@ void CodeGenContext::generate(ir::BasicBlock const& bb) {
 void CodeGenContext::generate(ir::Alloca const& allocaInst) {
     SC_ASSERT(allocaInst.allocatedType()->align() <= 8,
               "We don't support overaligned types just yet.");
+    auto* type          = allocaInst.allocatedType();
+    auto* countConstant = cast<ir::IntegralConstant const*>(allocaInst.count());
+    size_t count        = countConstant->value().to<size_t>();
+    size_t numBytes     = utl::round_up(type->size() * count, 8);
     currentBlock().insertBack(
-        AllocaInst(currentRD().resolve(allocaInst).get<RegisterIndex>(),
-                   currentRD().allocateAutomatic(
-                       utl::ceil_divide(allocaInst.allocatedType()->size(),
-                                        8))));
+        LIncSPInst(currentRD().resolve(allocaInst).get<RegisterIndex>(),
+                   Value16(utl::narrow_cast<uint16_t>(numBytes))));
 }
 
 void CodeGenContext::generate(ir::Store const& store) {

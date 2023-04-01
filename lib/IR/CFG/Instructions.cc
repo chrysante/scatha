@@ -11,10 +11,19 @@ using namespace scatha;
 using namespace ir;
 
 Alloca::Alloca(Context& context, Type const* allocatedType, std::string name):
+    Alloca(context,
+           context.integralConstant(1, 32),
+           allocatedType,
+           std::move(name)) {}
+
+Alloca::Alloca(Context& context,
+               Value* count,
+               Type const* allocatedType,
+               std::string name):
     Instruction(NodeType::Alloca,
                 context.pointerType(),
                 std::move(name),
-                {},
+                { count },
                 { allocatedType }) {}
 
 void Load::setAddress(Value* address) { UnaryInstruction::setOperand(address); }

@@ -150,6 +150,22 @@ private:
     RegisterIndex _source;
 };
 
+/// Represents the `lincsp` instruction, which loads and increments the stack
+/// pointer.
+class LIncSPInst: public InstructionBase {
+public:
+    LIncSPInst(RegisterIndex dest, Value16 offset):
+        _dest(dest), _offset(offset) {}
+
+    RegisterIndex dest() const { return _dest; }
+
+    Value16 offset() const { return _offset; }
+
+private:
+    RegisterIndex _dest;
+    Value16 _offset;
+};
+
 /// Represents a `cmp*` instruction.
 class CompareInst: public InstructionBase {
 public:

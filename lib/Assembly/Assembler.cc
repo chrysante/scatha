@@ -46,6 +46,7 @@ struct Context {
     void translate(ReturnInst const&);
     void translate(TerminateInst const&);
     void translate(AllocaInst const&);
+    void translate(LIncSPInst const&);
     void translate(CompareInst const&);
     void translate(TestInst const&);
     void translate(SetInst const&);
@@ -184,6 +185,12 @@ void Context::translate(AllocaInst const& alloca_) {
     put(OpCode::alloca_);
     dispatch(alloca_.dest());
     dispatch(alloca_.source());
+}
+
+void Context::translate(LIncSPInst const& lincsp) {
+    put(OpCode::lincsp);
+    dispatch(lincsp.dest());
+    dispatch(lincsp.offset());
 }
 
 void Context::translate(CompareInst const& cmp) {
