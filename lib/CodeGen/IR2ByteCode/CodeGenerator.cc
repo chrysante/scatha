@@ -511,7 +511,7 @@ MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const& gep) {
         offset += arrayIndex * gepPtr->type()->size();
         SC_ASSERT(gepPtr->memberIndices().size() <= 1,
                   "Can't generate code for nested accesses yet");
-        if (gepPtr->memberIndices().size() > 1) {
+        if (gepPtr->memberIndices().size() > 0) {
             size_t const memberIndex = gepPtr->memberIndices().front();
             offset += cast<ir::StructureType const*>(gepPtr->inboundsType())
                           ->memberOffsetAt(memberIndex);

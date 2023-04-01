@@ -370,3 +370,19 @@ TEST_CASE("Conditional move", "[assembly][vm]") {
     auto const& state = vm.getState();
     CHECK(state.registers[0] == 42);
 }
+
+TEST_CASE("LEA instruction", "[assembly][vm]") {
+    AssemblyStream a;
+    // clang-format off
+    a.add(Block(0, "start", {
+        LIncSPInst(RegisterIndex(0), Value16(80)),
+        MoveInst(RegisterIndex(1), Value64(2), 8),
+        LEAInst(RegisterIndex(2), MemoryAddress(0, 1, 16, 8)),
+        MoveInst(RegisterIndex(0), Value64(42), 8),
+        MoveInst(MemoryAddress(2), RegisterIndex(0), 8),
+        TerminateInst(),
+    })); // clang-format on
+    auto const vm     = assembleAndExecute(a);
+    auto const& state = vm.getState();
+    CHECK(load<u64>(state.stack.data() + 40) == 42);
+}

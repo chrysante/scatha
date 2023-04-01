@@ -47,55 +47,59 @@ SVM_INSTRUCTION_DEF(mov64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
 /// ** Conditional moves **
 /// `cmov` instruction cannot move _to_ memory, only to registers.
 /// Perform move if `equal` flag is set
-SVM_INSTRUCTION_DEF(cmove64RR, RR) // (u8 destRegIdx,  u8 sourceRegIdx)
-SVM_INSTRUCTION_DEF(cmove64RV, RV) // (u8 destRegIdx,  u64 sourceValue)
-SVM_INSTRUCTION_DEF(cmove8RM,  RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmove16RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmove32RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmove64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmove64RR, RR) // (u8 destRegIdx, u8 sourceRegIdx)
+SVM_INSTRUCTION_DEF(cmove64RV, RV) // (u8 destRegIdx, u64 sourceValue)
+SVM_INSTRUCTION_DEF(cmove8RM,  RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmove16RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmove32RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmove64RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
 
 /// Perform move if `not equal` flag is set
-SVM_INSTRUCTION_DEF(cmovne64RR, RR) // (u8 destRegIdx,  u8 sourceRegIdx)
-SVM_INSTRUCTION_DEF(cmovne64RV, RV) // (u8 destRegIdx,  u64 sourceValue)
-SVM_INSTRUCTION_DEF(cmovne8RM,  RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovne16RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovne32RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovne64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovne64RR, RR) // (u8 destRegIdx, u8 sourceRegIdx)
+SVM_INSTRUCTION_DEF(cmovne64RV, RV) // (u8 destRegIdx, u64 sourceValue)
+SVM_INSTRUCTION_DEF(cmovne8RM,  RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovne16RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovne32RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovne64RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
 
 /// Perform move if `less` flag is set
-SVM_INSTRUCTION_DEF(cmovl64RR, RR) // (u8 destRegIdx,  u8 sourceRegIdx)
-SVM_INSTRUCTION_DEF(cmovl64RV, RV) // (u8 destRegIdx,  u64 sourceValue)
-SVM_INSTRUCTION_DEF(cmovl8RM,  RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovl16RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovl32RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovl64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovl64RR, RR) // (u8 destRegIdx, u8 sourceRegIdx)
+SVM_INSTRUCTION_DEF(cmovl64RV, RV) // (u8 destRegIdx, u64 sourceValue)
+SVM_INSTRUCTION_DEF(cmovl8RM,  RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovl16RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovl32RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovl64RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
 
 /// Perform move if `less or equal` flag is set
-SVM_INSTRUCTION_DEF(cmovle64RR, RR) // (u8 destRegIdx,  u8 sourceRegIdx)
-SVM_INSTRUCTION_DEF(cmovle64RV, RV) // (u8 destRegIdx,  u64 sourceValue)
-SVM_INSTRUCTION_DEF(cmovle8RM,  RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovle16RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovle32RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovle64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovle64RR, RR) // (u8 destRegIdx, u8 sourceRegIdx)
+SVM_INSTRUCTION_DEF(cmovle64RV, RV) // (u8 destRegIdx, u64 sourceValue)
+SVM_INSTRUCTION_DEF(cmovle8RM,  RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovle16RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovle32RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovle64RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
 
 /// Perform move if `greater` flag is set
-SVM_INSTRUCTION_DEF(cmovg64RR, RR) // (u8 destRegIdx,  u8 sourceRegIdx)
-SVM_INSTRUCTION_DEF(cmovg64RV, RV) // (u8 destRegIdx,  u64 sourceValue)
-SVM_INSTRUCTION_DEF(cmovg8RM,  RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovg16RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovg32RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovg64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovg64RR, RR) // (u8 destRegIdx, u8 sourceRegIdx)
+SVM_INSTRUCTION_DEF(cmovg64RV, RV) // (u8 destRegIdx, u64 sourceValue)
+SVM_INSTRUCTION_DEF(cmovg8RM,  RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovg16RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovg32RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovg64RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
 
 /// Perform move if `greater or equal` flag is set
-SVM_INSTRUCTION_DEF(cmovge64RR, RR) // (u8 destRegIdx,  u8 sourceRegIdx)
-SVM_INSTRUCTION_DEF(cmovge64RV, RV) // (u8 destRegIdx,  u64 sourceValue)
-SVM_INSTRUCTION_DEF(cmovge8RM,  RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovge16RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovge32RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
-SVM_INSTRUCTION_DEF(cmovge64RM, RM) // (u8 destRegIdx,  MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovge64RR, RR) // (u8 destRegIdx, u8 sourceRegIdx)
+SVM_INSTRUCTION_DEF(cmovge64RV, RV) // (u8 destRegIdx, u64 sourceValue)
+SVM_INSTRUCTION_DEF(cmovge8RM,  RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovge16RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovge32RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
+SVM_INSTRUCTION_DEF(cmovge64RM, RM) // (u8 destRegIdx, MEMORY_POINTER)
 
 /// Store the stack pointer into register `destRegIdx` and increment it  by `offset` bytes
 SVM_INSTRUCTION_DEF(lincsp, Other)  // (u8 destRegIdx, u16 offset)
+
+/// Load effective address. Compute the address specified by `MEMORY_POINTER`
+/// and store it in register `destRegIdx`
+SVM_INSTRUCTION_DEF(lea, RM) // (u8 destRegIdx, MEMORY_POINTER)
 
 /// ** Jumps **
 /// Jumps are performed by adding the `offset` argument to the instruction

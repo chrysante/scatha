@@ -335,6 +335,14 @@ struct svm::OpCodeImpl {
             return codeSize(lincsp);
         };
 
+        /// ** LEA **
+        at(lea) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
+            size_t const destRegIdx = load<u8>(i);
+            u8* const ptr           = getPointer(reg, i + 1);
+            reg[destRegIdx]         = utl::bit_cast<u64>(ptr);
+            return codeSize(lea);
+        };
+
         /// ** Jumps **
         at(jmp) = jump<jmp>([](VMFlags) { return true; });
         at(je)  = jump<je>(equal);

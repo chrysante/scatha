@@ -140,7 +140,7 @@ public:
 /// pointer.
 class LIncSPInst: public InstructionBase {
 public:
-    LIncSPInst(RegisterIndex dest, Value16 offset):
+    explicit LIncSPInst(RegisterIndex dest, Value16 offset):
         _dest(dest), _offset(offset) {}
 
     RegisterIndex dest() const { return _dest; }
@@ -150,6 +150,21 @@ public:
 private:
     RegisterIndex _dest;
     Value16 _offset;
+};
+
+/// Represents the `lea` instruction.
+class LEAInst: public InstructionBase {
+public:
+    explicit LEAInst(RegisterIndex dest, MemoryAddress address):
+        _dest(dest), _address(address) {}
+
+    RegisterIndex dest() const { return _dest; }
+
+    MemoryAddress address() const { return _address; }
+
+private:
+    RegisterIndex _dest;
+    MemoryAddress _address;
 };
 
 /// Represents a `cmp*` instruction.
