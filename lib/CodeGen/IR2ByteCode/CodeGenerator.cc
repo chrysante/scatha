@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/scope_guard.hpp>
@@ -351,7 +352,18 @@ void CodeGenContext::generate(ir::Phi const& phi) {
 }
 
 void CodeGenContext::generate(ir::GetElementPointer const& gep) {
-    /// Do nothing here until we have proper register and value descriptors.
+    bool const allUsersAreLoadsAndStores =
+        ranges::all_of(gep.users(), [](ir::User const* user) {
+            return isa<ir::Load>(user) || isa<ir::Store>(user);
+        });
+    if (allUsersAreLoadsAndStores) {
+        /// Loads and stores can compute their addresses themselves, so we don't
+        /// need to do it here.
+        return;
+    }
+    MemoryAddress address = computeGep(gep);
+    RegisterIndex dest    = currentRD().resolve(gep).get<RegisterIndex>();
+    currentBlock().insertBack(LEAInst(dest, address));
     return;
 }
 
@@ -494,38 +506,35 @@ MemoryAddress CodeGenContext::computeAddress(ir::Value const& value) {
 }
 
 MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const& gep) {
-    size_t offset          = 0;
-    ir::Value const* value = &gep;
-    while (true) {
-        ir::GetElementPointer const* gepPtr =
-            dyncast<ir::GetElementPointer const*>(value);
-        if (gepPtr == nullptr) {
-            break;
+    auto* basePtr = gep.basePointer();
+    RegisterIndex const basePtrRegIdx =
+        currentRD().resolve(*basePtr).get<RegisterIndex>();
+    RegisterIndex const multiplierRegIdx = [&]() -> RegisterIndex {
+        auto* constIndex =
+            dyncast<ir::IntegralConstant const*>(gep.arrayIndex());
+        if (constIndex && constIndex->value() == 0) {
+            return MemoryAddress::invalidRegisterIndex;
         }
-        SC_ASSERT(isa<ir::IntegralConstant>(gepPtr->arrayIndex()),
-                  "We need more work for dynamic indices");
-        size_t const arrayIndex =
-            cast<ir::IntegralConstant const*>(gepPtr->arrayIndex())
-                ->value()
-                .to<size_t>();
-        offset += arrayIndex * gepPtr->type()->size();
-        SC_ASSERT(gepPtr->memberIndices().size() <= 1,
-                  "Can't generate code for nested accesses yet");
-        if (gepPtr->memberIndices().size() > 0) {
-            size_t const memberIndex = gepPtr->memberIndices().front();
-            offset += cast<ir::StructureType const*>(gepPtr->inboundsType())
-                          ->memberOffsetAt(memberIndex);
+        Value res = currentRD().resolve(*gep.arrayIndex());
+        if (res.is<RegisterIndex>()) {
+            return res.get<RegisterIndex>();
         }
-        value = gepPtr->basePointer();
+        auto tmp = currentRD().makeTemporary();
+        currentBlock().insertBack(MoveInst(tmp, res, 8));
+        return tmp;
+    }();
+    auto* accType         = gep.inboundsType();
+    size_t const elemSize = accType->size();
+    size_t innerOffset    = 0;
+    for (size_t index: gep.memberIndices()) {
+        auto* sType = cast<ir::StructureType const*>(accType);
+        innerOffset += sType->memberOffsetAt(index);
+        accType = sType->memberAt(index);
     }
-    SC_ASSERT(offset <= 0xFF, "Offset too large");
-    RegisterIndex const regIdx =
-        currentRD().resolve(*value).get<RegisterIndex>();
-    SC_ASSERT(isa<ir::PointerType>(value->type()), "");
-    return MemoryAddress(regIdx.value(),
-                         MemoryAddress::invalidRegisterIndex,
-                         0,
-                         offset);
+    return MemoryAddress(basePtrRegIdx,
+                         multiplierRegIdx,
+                         elemSize,
+                         innerOffset);
 }
 
 void CodeGenContext::generateBigMove(Value dest,
@@ -557,8 +566,8 @@ void CodeGenContext::generateBigMove(Value dest,
         },
         [](MemoryAddress& addr) {
             addr = MemoryAddress(addr.baseptrRegisterIndex(),
-                                 0xFF,
-                                 0,
+                                 addr.offsetCountRegisterIndex(),
+                                 addr.constantOffsetMultiplier(),
                                  addr.constantInnerOffset() + 8);
         },
         [](auto&) { SC_UNREACHABLE(); }

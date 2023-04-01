@@ -103,8 +103,20 @@ public:
     /// See documentation in "OpCode.h"
     static constexpr size_t invalidRegisterIndex = 0xFF;
 
+    explicit MemoryAddress(RegisterIndex baseptrRegIdx):
+        MemoryAddress(baseptrRegIdx.value()) {}
+
     explicit MemoryAddress(std::integral auto baseptrRegIdx):
         MemoryAddress(baseptrRegIdx, invalidRegisterIndex, 0, 0) {}
+
+    explicit MemoryAddress(RegisterIndex baseptrRegIdx,
+                           RegisterIndex offsetCountRegIdx,
+                           std::integral auto constantOffsetMultiplier,
+                           std::integral auto constantInnerOffset):
+        MemoryAddress(baseptrRegIdx.value(),
+                      offsetCountRegIdx.value(),
+                      constantOffsetMultiplier,
+                      constantInnerOffset) {}
 
     explicit MemoryAddress(std::integral auto baseptrRegIdx,
                            std::integral auto offsetCountRegIdx,

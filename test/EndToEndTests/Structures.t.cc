@@ -165,3 +165,28 @@ struct X {
     var b: int;
 })");
 }
+
+TEST_CASE("Nested array member access",
+          "[end-to-end][member-access][array-access]") {
+    test::checkIRReturns(2, R"(
+struct @X {
+    i64, i64
+}
+func i64 @main() {
+  %entry:
+    %a = alloca @X, i32 10
+    %p = call ptr @populate, ptr %a
+    %q = getelementptr inbounds @X, ptr %p, i32 0, 1
+    %res = load i64, ptr %q
+    return i64 %res
+}
+func ptr @populate(ptr %a) {
+  %entry:
+    %index = add i32 1, i32 2
+    %p = getelementptr inbounds @X, ptr %a, i32 %index
+    %x.0 = insert_value @X undef, i64 1, 0
+    %x.1 = insert_value @X %x.0, i64 2, 1
+    store ptr %p, @X %x.1
+    return ptr %p
+})");
+}
