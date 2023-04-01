@@ -192,6 +192,13 @@ Type const* ir::internal::AccessValueBase::computeAccessedType(
     return computeAccessedTypeGen(operandType, indices);
 }
 
+void ExtractValue::setBaseValue(Value* value) {
+    if (!type()) {
+        setType(computeAccessedTypeGen(value->type(), memberIndices()));
+    }
+    setOperand(value);
+}
+
 InsertValue::InsertValue(Value* baseValue,
                          Value* insertedValue,
                          std::span<size_t const> indices,

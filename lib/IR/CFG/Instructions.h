@@ -539,12 +539,7 @@ public:
     Value const* baseValue() const { return operand(); }
 
     /// Same as `setOperand()`
-    void setBaseValue(Value* value) {
-        if (!type()) {
-            setType(value->type());
-        }
-        setOperand(value);
-    }
+    void setBaseValue(Value* value);
 };
 
 /// `insert_value` instruction. Insert a value into a structure or array.
