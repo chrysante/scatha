@@ -50,7 +50,6 @@ func ptr @populate(ptr %a, i32 %index) {
     auto* call2 = cast<Call*>(std::to_address(itr));
     inlineCallsite(ctx, call1);
     inlineCallsite(ctx, call2);
-
     propagateConstants(ctx, main);
     for (int i = 0; i < 2; ++i) {
         sroa(ctx, main);
