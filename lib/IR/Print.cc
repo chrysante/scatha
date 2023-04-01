@@ -236,7 +236,11 @@ void PrintCtx::print(Instruction const& inst) {
     str << "<" << inst.nodeType() << ">\n";
 }
 
-void PrintCtx::print(Alloca const& alloc) { type(alloc.allocatedType()); }
+void PrintCtx::print(Alloca const& alloc) {
+    type(alloc.allocatedType());
+    comma();
+    typedName(alloc.count());
+}
 
 void PrintCtx::print(Load const& load) {
     type(load.type());
