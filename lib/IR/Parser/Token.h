@@ -42,6 +42,7 @@ enum class TokenKind {
     Trunc,
     Fext,
     Ftrunc,
+    Bitcast,
     Goto,
     Branch,
     Return,

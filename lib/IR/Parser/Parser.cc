@@ -448,6 +448,8 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         return parseArithmeticConversion<FextInst>(name());
     case TokenKind::Ftrunc:
         return parseArithmeticConversion<FtruncInst>(name());
+    case TokenKind::Bitcast:
+        return parseArithmeticConversion<BitcastInst>(name());
     case TokenKind::Goto: {
         eatToken();
         expect(eatToken(), TokenKind::Label);

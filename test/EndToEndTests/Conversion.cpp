@@ -35,3 +35,13 @@ func f64 @main() {
     return f64 %r
 })");
 }
+
+TEST_CASE("Bitcast", "[end-to-end]") {
+    test::checkIRReturns(utl::bit_cast<u64>(11.0 + 0.1), R"(
+func i64 @main() {
+  %entry:
+    %a = fadd f64 11.0, f64 0.1
+    %r = bitcast f64 %a to i64
+    return i64 %r
+})");
+}

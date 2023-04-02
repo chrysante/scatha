@@ -60,6 +60,7 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "trunc", TokenKind::Trunc },
         { "fext", TokenKind::Fext },
         { "ftrunc", TokenKind::Ftrunc },
+        { "bitcast", TokenKind::Bitcast },
         { "goto", TokenKind::Goto },
         { "branch", TokenKind::Branch },
         { "return", TokenKind::Return },

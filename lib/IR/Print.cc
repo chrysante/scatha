@@ -377,6 +377,8 @@ static std::string_view toStrName(ir::Instruction const* inst) {
         return "fext";
     case NodeType::FtruncInst:
         return "ftrunc";
+    case NodeType::BitcastInst:
+        return "bitcast";
     case NodeType::CompareInst:
         return "cmp";
     case NodeType::UnaryArithmeticInst:

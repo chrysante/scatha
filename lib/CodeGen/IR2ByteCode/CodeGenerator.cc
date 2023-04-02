@@ -41,6 +41,7 @@ struct CodeGenContext {
     void generate(ir::TruncInst const&);
     void generate(ir::FextInst const&);
     void generate(ir::FtruncInst const&);
+    void generate(ir::BitcastInst const&);
     void generate(ir::CompareInst const&);
     void generate(ir::UnaryArithmeticInst const&);
     void generate(ir::ArithmeticInst const&);
@@ -234,6 +235,12 @@ void CodeGenContext::generate(ir::FtruncInst const& inst) {
     auto dest = currentRD().resolve(inst);
     auto op   = currentRD().resolve(*inst.operand());
     op = convertValue(op, Type::Float, inst.operand()->type()->size() * 8);
+    currentBlock().insertBack(MoveInst(dest, op, 8));
+}
+
+void CodeGenContext::generate(ir::BitcastInst const& inst) {
+    auto dest = currentRD().resolve(inst);
+    auto op   = currentRD().resolve(*inst.operand());
     currentBlock().insertBack(MoveInst(dest, op, 8));
 }
 

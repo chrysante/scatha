@@ -136,6 +136,18 @@ public:
                        std::move(name)) {}
 };
 
+/// Represents a `bitcast` instruction.
+class BitcastInst: public ConversionInst {
+public:
+    explicit BitcastInst(Value* operand,
+                         Type const* targetType,
+                         std::string name):
+        ConversionInst(NodeType::BitcastInst,
+                       operand,
+                       targetType,
+                       std::move(name)) {}
+};
+
 /// `cmp` instruction.
 /// TODO: Rename to 'Compare' or find a uniform naming scheme across the IR
 /// module.
