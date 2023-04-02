@@ -20,6 +20,22 @@ std::ostream& ir::operator<<(std::ostream& ostream, NodeType nodeType) {
     return ostream << toString(nodeType);
 }
 
+std::string_view ir::toString(CompareMode mode) {
+    switch (mode) {
+        // clang-format off
+#define SC_COMPARE_MODE_DEF(Mode, name)                                        \
+    case CompareMode::Mode: return #name;
+#include "IR/CFG/Lists.def"
+        // clang-format on
+    case CompareMode::_count:
+        SC_UNREACHABLE();
+    };
+}
+
+std::ostream& ir::operator<<(std::ostream& ostream, CompareMode mode) {
+    return ostream << toString(mode);
+}
+
 std::string_view ir::toString(CompareOperation op) {
     switch (op) {
         // clang-format off

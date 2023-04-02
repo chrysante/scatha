@@ -42,6 +42,20 @@ SC_CGFNODE_DEF(Select,                CONCRETE)
 #undef SC_CGFNODE_DEF
 
 // ===----------------------------------------------------------------------===
+// === List of compare modes -----------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_COMPARE_MODE_DEF
+#   define SC_COMPARE_MODE_DEF(op, keyword)
+#endif
+
+SC_COMPARE_MODE_DEF(Signed,   scmp)
+SC_COMPARE_MODE_DEF(Unsigned, ucmp)
+SC_COMPARE_MODE_DEF(Float,    fcmp)
+
+#undef SC_COMPARE_MODE_DEF
+
+// ===----------------------------------------------------------------------===
 // === List of compare operations ------------------------------------------===
 // ===----------------------------------------------------------------------===
 

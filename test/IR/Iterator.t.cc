@@ -23,7 +23,7 @@ func i64 @ff(i64) {
     %n = load i64, ptr %n.addr
     store ptr %k-ptr, i64 %n
     %k = load i64, ptr %k-ptr
-    %cmp.result = cmp eq i64 %k, i64 0
+    %cmp.result = scmp eq i64 %k, i64 0
     branch i1 %cmp.result, label %then, label %if.end
   
   %then:

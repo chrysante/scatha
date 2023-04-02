@@ -24,7 +24,7 @@ func i64 @f(i64) {
     %expr.result = mul i64 %i, i64 2
     store ptr %j.ptr, i64 %expr.result
     %i.1 = load i64, ptr %i.addr
-    %cmp.result = cmp grt i64 %i.1, i64 2
+    %cmp.result = scmp grt i64 %i.1, i64 2
     branch i1 %cmp.result, label %if.then, label %if.end
 
   %if.then:

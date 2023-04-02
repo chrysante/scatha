@@ -91,6 +91,7 @@ struct CodeGenContext {
     ir::Type const* mapType(sema::TypeID semaTypeID);
     ir::UnaryArithmeticOperation mapUnaryArithmeticOp(
         ast::UnaryPrefixOperator) const;
+    ir::CompareMode mapCompareMode(sema::TypeID) const;
     ir::CompareOperation mapCompareOp(ast::BinaryOperator) const;
     ir::ArithmeticOperation mapArithmeticOp(sema::TypeID typeID,
                                             ast::BinaryOperator) const;
@@ -436,11 +437,13 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::Equals:
         [[fallthrough]];
     case BinaryOperator::NotEquals: {
-        auto* cmpInst = new ir::CompareInst(irCtx,
-                                            getValue(*exprDecl.lhs),
-                                            getValue(*exprDecl.rhs),
-                                            mapCompareOp(exprDecl.operation()),
-                                            "cmp.result");
+        auto* cmpInst =
+            new ir::CompareInst(irCtx,
+                                getValue(*exprDecl.lhs),
+                                getValue(*exprDecl.rhs),
+                                mapCompareMode(exprDecl.lhs->typeID()),
+                                mapCompareOp(exprDecl.operation()),
+                                "cmp.result");
         currentBB()->pushBack(cmpInst);
         return cmpInst;
     }
@@ -708,6 +711,19 @@ ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
     default:
         SC_UNREACHABLE();
     }
+}
+
+ir::CompareMode CodeGenContext::mapCompareMode(sema::TypeID typeID) const {
+    if (typeID == symTable.Bool()) {
+        return ir::CompareMode::Unsigned;
+    }
+    if (typeID == symTable.Int()) {
+        return ir::CompareMode::Signed;
+    }
+    if (typeID == symTable.Float()) {
+        return ir::CompareMode::Float;
+    }
+    SC_DEBUGFAIL();
 }
 
 ir::CompareOperation CodeGenContext::mapCompareOp(

@@ -142,6 +142,19 @@ struct ParseContext {
         (expect(eatToken(), next), ...);
     }
 
+    CompareMode toCompareMode(Token token) const {
+        switch (token.kind()) {
+        case TokenKind::SCmp:
+            return CompareMode::Signed;
+        case TokenKind::UCmp:
+            return CompareMode::Unsigned;
+        case TokenKind::FCmp:
+            return CompareMode::Float;
+        default:
+            reportSyntaxIssue(token);
+        }
+    }
+
     CompareOperation toCompareOp(Token token) const {
         switch (token.kind()) {
         case TokenKind::Equal:
@@ -549,8 +562,12 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         }
         return result;
     }
-    case TokenKind::Cmp: {
-        eatToken();
+    case TokenKind::SCmp:
+        [[fallthrough]];
+    case TokenKind::UCmp:
+        [[fallthrough]];
+    case TokenKind::FCmp: {
+        auto mode     = toCompareMode(eatToken());
         auto op       = toCompareOp(eatToken());
         auto* lhsType = getType(eatToken());
         auto lhsName  = eatToken();
@@ -558,7 +575,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         auto* rhsType = getType(eatToken());
         auto rhsName  = eatToken();
         auto result =
-            allocate<CompareInst>(irCtx, nullptr, nullptr, op, name());
+            allocate<CompareInst>(irCtx, nullptr, nullptr, mode, op, name());
         addValueLink(result.get(), lhsType, lhsName, &CompareInst::setLHS);
         addValueLink(result.get(), rhsType, rhsName, &CompareInst::setRHS);
         return result;

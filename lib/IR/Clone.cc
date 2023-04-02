@@ -27,6 +27,7 @@ static CompareInst* doClone(Context& context, CompareInst* cmp) {
     return new CompareInst(context,
                            cmp->lhs(),
                            cmp->rhs(),
+                           cmp->mode(),
                            cmp->operation(),
                            std::string(cmp->name()));
 }

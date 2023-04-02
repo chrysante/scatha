@@ -25,13 +25,13 @@ func i64 @f(i64) {
 
   %loop.header:
     %j.1 = load i64, ptr %j
-    %cmp.result = cmp leq i64 %j.1, i64 5
+    %cmp.result = scmp leq i64 %j.1, i64 5
     branch i1 %cmp.result, label %loop.body, label %loop.end
 
   %loop.body:
     %result.1 = load i64, ptr %result
     %expr.result = urem i64 %result.1, i64 2
-    %cmp.result.1 = cmp eq i64 %expr.result, i64 0
+    %cmp.result.1 = scmp eq i64 %expr.result, i64 0
     branch i1 %cmp.result.1, label %then, label %else
 
   %loop.end:
@@ -150,7 +150,7 @@ func i64 @f(i64) {
     %i = alloca i64
     store ptr %i, i64 %0
     %i.1 = load i64, ptr %i
-    %cmp.result = cmp grt i64 %i.1, i64 0
+    %cmp.result = scmp grt i64 %i.1, i64 0
     branch i1 %cmp.result, label %then, label %if.end
 
   %then:

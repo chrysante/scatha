@@ -227,7 +227,7 @@ func void @fill(ptr %data, i32 %count) {
     
   %header:
     %i = phi i32 [label %entry: 0], [label %body: %inc]
-    %cond = cmp ls i32 %i, i32 %count
+    %cond = ucmp ls i32 %i, i32 %count
     branch i1 %cond, label %body, label %end
     
   %body:
@@ -246,7 +246,7 @@ func i32 @sum(ptr %data, i32 %count) {
   %header:
     %i = phi i32 [label %entry: 0], [label %body: %inc]
     %acc = phi i32 [label %entry: 0], [label %body: %acc2]
-    %cond = cmp ls i32 %i, i32 %count
+    %cond = ucmp ls i32 %i, i32 %count
     branch i1 %cond, label %body, label %end
     
   %body:

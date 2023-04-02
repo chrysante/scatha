@@ -136,12 +136,16 @@ public:
     explicit CompareInst(Context& context,
                          Value* lhs,
                          Value* rhs,
+                         CompareMode mode,
                          CompareOperation op,
                          std::string name);
+
+    CompareMode mode() const { return _mode; }
 
     CompareOperation operation() const { return _op; }
 
 private:
+    CompareMode _mode;
     CompareOperation _op;
 };
 

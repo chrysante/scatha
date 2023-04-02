@@ -41,6 +41,7 @@ void Store::setValue(Value* value) { setOperand(1, value); }
 CompareInst::CompareInst(Context& context,
                          Value* lhs,
                          Value* rhs,
+                         CompareMode mode,
                          CompareOperation op,
                          std::string name):
     BinaryInstruction(NodeType::CompareInst,
@@ -48,6 +49,7 @@ CompareInst::CompareInst(Context& context,
                       rhs,
                       context.integralType(1),
                       std::move(name)),
+    _mode(mode),
     _op(op) {}
 
 UnaryArithmeticInst::UnaryArithmeticInst(Context& context,

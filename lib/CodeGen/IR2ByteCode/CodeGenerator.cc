@@ -197,15 +197,17 @@ void CodeGenContext::generate(ir::Load const& load) {
     generateBigMove(dest, addr, size);
 }
 
-static Asm::Type mapType(ir::Type const* type) {
-    if (isa<ir::IntegralType>(type)) {
-        /// TODO: Also handle unsigned comparison.
+static Asm::Type mapCmpMode(ir::CompareMode mode) {
+    switch (mode) {
+    case ir::CompareMode::Signed:
         return Type::Signed;
-    }
-    if (isa<ir::FloatType>(type)) {
+    case ir::CompareMode::Unsigned:
+        return Type::Unsigned;
+    case ir::CompareMode::Float:
         return Type::Float;
+    case ir::CompareMode::_count:
+        SC_UNREACHABLE();
     }
-    SC_UNREACHABLE();
 }
 
 void CodeGenContext::generate(ir::CompareInst const& cmp) {
@@ -223,15 +225,15 @@ void CodeGenContext::generate(ir::CompareInst const& cmp) {
         return tmpRegIdx;
     }();
     Value RHS          = currentRD().resolve(*cmp.rhs());
-    auto* operandType  = cmp.lhs()->type();
-    auto const cmpType = mapType(operandType);
-    if (cmpType == Type::Signed) {
+    auto const cmpMode = mapCmpMode(cmp.mode());
+    if (cmpMode == Type::Signed) {
+        auto* operandType     = cmp.lhs()->type();
         auto* intType         = cast<ir::IntegralType const*>(operandType);
         size_t const fromBits = intType->bitWidth();
         LHS                   = signExtend(LHS, fromBits);
         RHS                   = signExtend(RHS, fromBits);
     }
-    currentBlock().insertBack(Asm::CompareInst(mapType(cmp.type()), LHS, RHS));
+    currentBlock().insertBack(Asm::CompareInst(cmpMode, LHS, RHS));
     if (true) /// Actually we should check if the users of this cmp instruction
               /// care about having the result in the corresponding register.
               /// Since we don't have use and user lists yet we do this
@@ -313,8 +315,7 @@ void CodeGenContext::generate(ir::Branch const& br) {
             currentBlock().insertBack(MoveInst(tmp, cond, 1));
             return tmp;
         }();
-        currentBlock().insertBack(
-            TestInst(mapType(br.condition()->type()), testOp));
+        currentBlock().insertBack(TestInst(Type::Unsigned, testOp));
         return CompareOperation::NotEq;
     }();
     currentBlock().insertBack(JumpInst(cmpOp, getLabelID(*br.thenTarget())));

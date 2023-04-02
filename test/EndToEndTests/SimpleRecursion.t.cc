@@ -78,7 +78,7 @@ fn fac(n: int) -> int {
                          R"(
 func i64 @f(i64) {
   %entry:
-    %cond = cmp leq i64 %0, i64 1
+    %cond = scmp leq i64 %0, i64 1
     branch i1 %cond, label %then, label %else
   
   %then:
@@ -138,7 +138,7 @@ func i64 @main() {
     goto label %loopheader
 
   %loopheader:                # preds: entry
-    %cond = cmp leq i64 1, i64 undef
+    %cond = scmp leq i64 1, i64 undef
     goto label %loopbody
 
   %loopbody:                  # preds: loopheader, loopbody

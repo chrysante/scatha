@@ -59,7 +59,21 @@ SCATHA_API std::string_view toString(NodeType nodeType);
 /// Insert \p nodeType into \p ostream.
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
-/// List of all compare arithmetic operations in the IR module.
+/// List of compare modes (signed, unsigned, float)
+enum class CompareMode {
+#define SC_COMPARE_MODE_DEF(Op, _) Op,
+#include <scatha/IR/CFG/Lists.def>
+    _count
+};
+
+/// Convert \p compareOp to string.
+SCATHA_API std::string_view toString(CompareMode compareMode);
+
+/// Insert \p compareOp into \p ostream.
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    CompareMode compareMode);
+
+/// List of all compare operations
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Op, _) Op,
 #include <scatha/IR/CFG/Lists.def>

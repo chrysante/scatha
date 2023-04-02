@@ -40,7 +40,7 @@ func i64 @f() {
   %entry:
     goto label %2
   %2:
-    %cond = cmp leq i64 1, i64 2
+    %cond = scmp leq i64 1, i64 2
     branch i1 %cond, label %3, label %4
   %3:
     goto label %5
@@ -97,7 +97,7 @@ TEST_CASE("Dominance - 2", "[opt]") {
     auto const text = R"(
 func i64 @f() {
   %entry:
-    %cond = cmp leq i64 1, i64 2
+    %cond = scmp leq i64 1, i64 2
     branch i1 %cond, label %1, label %2
   %1:
     goto label %3
