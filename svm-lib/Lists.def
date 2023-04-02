@@ -22,8 +22,8 @@ SVM_INSTRUCTION_DEF(call, Other) // (i32 offset, u8 regOffset)
 /// Return to caller. Effectively performs the following operations:
 /// ```
 /// iptr     = regPtr[-1]
-/// regPtr  -= regPtr[-2]
 /// stackPtr = regPtr[-3]
+/// regPtr  -= regPtr[-2]
 /// ```
 SVM_INSTRUCTION_DEF(ret, Other)
 
