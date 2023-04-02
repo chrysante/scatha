@@ -41,10 +41,10 @@ Take a look at the [grammar](docs/Grammar.md).
 - `float` defaults to `f64`
 - Explicit (and maybe some implicit) casts
     - Explicit casts: 
-        - <font color="green">Integral to floating point and vice versa.</font>
+        - Integral to floating point and vice versa. ✅
         - Narrowing integral and floating point conversion.
     - Implicit casts:
-        - Widening integral and floating point casts.
+        - Widening integral and floating point casts. 
 - Find a good solution for implementing references/pointers in the language that is powerful but not harmful 
 - Member functions (also depend on references in a way)
     - Uniform function call syntax
@@ -58,11 +58,13 @@ Take a look at the [grammar](docs/Grammar.md).
     - `string`, `array<T>` / `vector<T>`, `list<T>`, `dict<K, V>` etc. classes/generics
 
 ### Optimizer
-- <font color="green">Textual IR representation / IR parser</font>
+- Textual IR representation / IR parser. ✅
 - Passes
-    - <font color="green">Register promotion</font> 
-    - <font color="green">Constant folding</font>
-    - <font color="green">Inlining</font>
+    - Register promotion (SSA construction) ✅
+    - Constant folding ✅
+    - Dead code elimination ✅
+    - Tail recursion elimination ✅
+    - Inlining ✅
 
 ### Compiler
 
