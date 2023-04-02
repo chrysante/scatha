@@ -130,16 +130,42 @@ SVM_INSTRUCTION_DEF(jge, Jump) // (i32 offset)
 
 /// ** Comparison **
 /// Compare the operands and set flags accordingly
-SVM_INSTRUCTION_DEF(ucmpRR, RR) // (u8 regIdxA, u8 regIdxB)
-SVM_INSTRUCTION_DEF(scmpRR, RR) // (u8 regIdxA, u8 regIdxB)
-SVM_INSTRUCTION_DEF(ucmpRV, RV) // (u8 regIdxA, u64 value)
-SVM_INSTRUCTION_DEF(scmpRV, RV) // (u8 regIdxA, u64 value)
-SVM_INSTRUCTION_DEF(fcmpRR, RR) // (u8 regIdxA, u8 regIdxB)
-SVM_INSTRUCTION_DEF(fcmpRV, RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(ucmp8RR,  RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(ucmp16RR, RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(ucmp32RR, RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(ucmp64RR, RR) // (u8 regIdxA, u8 regIdxB)
+
+SVM_INSTRUCTION_DEF(scmp8RR,  RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(scmp16RR, RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(scmp32RR, RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(scmp64RR, RR) // (u8 regIdxA, u8 regIdxB)
+
+SVM_INSTRUCTION_DEF(ucmp8RV,  RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(ucmp16RV, RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(ucmp32RV, RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(ucmp64RV, RV) // (u8 regIdxA, u64 value)
+
+SVM_INSTRUCTION_DEF(scmp8RV,  RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(scmp16RV, RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(scmp32RV, RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(scmp64RV, RV) // (u8 regIdxA, u64 value)
+
+SVM_INSTRUCTION_DEF(fcmp32RR, RR) // (u8 regIdxA, u8 regIdxB)
+SVM_INSTRUCTION_DEF(fcmp64RR, RR) // (u8 regIdxA, u8 regIdxB)
+
+SVM_INSTRUCTION_DEF(fcmp32RV, RV) // (u8 regIdxA, u64 value)
+SVM_INSTRUCTION_DEF(fcmp64RV, RV) // (u8 regIdxA, u64 value)
 
 /// Compare the operand to 0 and set flags accordingly
-SVM_INSTRUCTION_DEF(stest, R) //  (u8 regIdx)
-SVM_INSTRUCTION_DEF(utest, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(stest8, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(stest16, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(stest32, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(stest64, R) //  (u8 regIdx)
+
+SVM_INSTRUCTION_DEF(utest8, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(utest16, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(utest32, R) //  (u8 regIdx)
+SVM_INSTRUCTION_DEF(utest64, R) //  (u8 regIdx)
 
 /// ** Read comparison results **
 /// Set register to 0 or 1 based of the flags set by the `*cmp*` or `*test`

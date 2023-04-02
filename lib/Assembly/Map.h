@@ -20,9 +20,12 @@ std::pair<svm::OpCode, size_t> mapCMove(CompareOperation cmpOp,
 
 svm::OpCode mapJump(CompareOperation condition);
 
-svm::OpCode mapCompare(Type type, ValueType lhs, ValueType rhs);
+svm::OpCode mapCompare(Type type,
+                       ValueType lhs,
+                       ValueType rhs,
+                       size_t bitwidth);
 
-svm::OpCode mapTest(Type type);
+svm::OpCode mapTest(Type type, size_t bitwidth);
 
 svm::OpCode mapSet(CompareOperation operation);
 

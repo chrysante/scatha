@@ -170,8 +170,8 @@ private:
 /// Represents a `cmp*` instruction.
 class CompareInst: public InstructionBase {
 public:
-    explicit CompareInst(Type type, Value lhs, Value rhs):
-        _type(type), _lhs(lhs), _rhs(rhs) {}
+    explicit CompareInst(Type type, Value lhs, Value rhs, size_t width):
+        _type(type), _lhs(lhs), _rhs(rhs), _width(width) {}
 
     Type type() const { return _type; }
 
@@ -179,15 +179,21 @@ public:
 
     Value rhs() const { return _rhs; }
 
+    /// Number of bytes to compare.
+    /// Must be either of 1, 2, 4 or 8.
+    size_t width() const { return _width; }
+
 private:
     Type _type;
     Value _lhs, _rhs;
+    size_t _width;
 };
 
 /// Represents a `test` instruction.
 class TestInst: public InstructionBase {
 public:
-    explicit TestInst(Type type, Value operand): _type(type), _op(operand) {
+    explicit TestInst(Type type, Value operand, size_t width):
+        _type(type), _op(operand), _width(width) {
         SC_ASSERT(type != Type::Float, "Float is invalid for TestInst");
     }
 
@@ -195,9 +201,14 @@ public:
 
     Value operand() const { return _op; }
 
+    /// Number of bytes to test.
+    /// Must be either of of 1, 2, 4 or 8.
+    size_t width() const { return _width; }
+
 private:
     Type _type;
     Value _op;
+    size_t _width;
 };
 
 /// Represents a `set*` instruction.

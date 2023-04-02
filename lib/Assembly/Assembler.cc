@@ -197,14 +197,15 @@ void Context::translate(LEAInst const& lea) {
 void Context::translate(CompareInst const& cmp) {
     OpCode const opcode = mapCompare(cmp.type(),
                                      promote(cmp.lhs().valueType(), 8),
-                                     promote(cmp.rhs().valueType(), 8));
+                                     promote(cmp.rhs().valueType(), 8),
+                                     cmp.width());
     put(opcode);
     dispatch(promote(cmp.lhs(), 8));
     dispatch(promote(cmp.rhs(), 8));
 }
 
 void Context::translate(TestInst const& test) {
-    OpCode const opcode = mapTest(test.type());
+    OpCode const opcode = mapTest(test.type(), test.width());
     put(opcode);
     SC_ASSERT(test.operand().is<RegisterIndex>(),
               "Can only test values in registers");

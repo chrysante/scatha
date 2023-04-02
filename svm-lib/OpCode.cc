@@ -372,14 +372,41 @@ struct svm::OpCodeImpl {
         at(jge) = jump<jge>(greaterEq);
 
         /// ** Comparison **
-        at(ucmpRR) = compareRR<ucmpRR, u64>();
-        at(scmpRR) = compareRR<scmpRR, i64>();
-        at(ucmpRV) = compareRV<ucmpRV, u64>();
-        at(scmpRV) = compareRV<scmpRV, i64>();
-        at(fcmpRR) = compareRR<fcmpRR, f64>();
-        at(fcmpRV) = compareRV<fcmpRV, f64>();
-        at(stest)  = testR<stest, i64>();
-        at(utest)  = testR<utest, u64>();
+        at(ucmp8RR)  = compareRR<ucmp8RR, u8>();
+        at(ucmp16RR) = compareRR<ucmp16RR, u16>();
+        at(ucmp32RR) = compareRR<ucmp32RR, u32>();
+        at(ucmp64RR) = compareRR<ucmp64RR, u64>();
+
+        at(scmp8RR)  = compareRR<scmp8RR, i8>();
+        at(scmp16RR) = compareRR<scmp16RR, i16>();
+        at(scmp32RR) = compareRR<scmp32RR, i32>();
+        at(scmp64RR) = compareRR<scmp64RR, i64>();
+
+        at(ucmp8RV)  = compareRV<ucmp8RV, u8>();
+        at(ucmp16RV) = compareRV<ucmp16RV, u16>();
+        at(ucmp32RV) = compareRV<ucmp32RV, u32>();
+        at(ucmp64RV) = compareRV<ucmp64RV, u64>();
+
+        at(scmp8RV)  = compareRV<scmp8RV, i8>();
+        at(scmp16RV) = compareRV<scmp16RV, i16>();
+        at(scmp32RV) = compareRV<scmp32RV, i32>();
+        at(scmp64RV) = compareRV<scmp64RV, i64>();
+
+        at(fcmp32RR) = compareRR<fcmp32RR, f32>();
+        at(fcmp64RR) = compareRR<fcmp64RR, f64>();
+
+        at(fcmp32RV) = compareRV<fcmp32RV, f32>();
+        at(fcmp64RV) = compareRV<fcmp64RV, f64>();
+
+        at(stest8)  = testR<stest8, i8>();
+        at(stest16) = testR<stest16, i16>();
+        at(stest32) = testR<stest32, i32>();
+        at(stest64) = testR<stest64, i64>();
+
+        at(utest8)  = testR<utest8, u8>();
+        at(utest16) = testR<utest16, u16>();
+        at(utest32) = testR<utest32, u32>();
+        at(utest64) = testR<utest64, u64>();
 
         /// ** load comparison results **
         at(sete)  = set<sete>([](VMFlags f) { return f.equal; });

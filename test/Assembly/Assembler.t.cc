@@ -74,7 +74,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
     }));
     // GCD function
     a.add(Block(gcd, "gcd", {
-        CompareInst(Type::Signed, RegisterIndex(1), Value64(0)), // Test b == 0
+        CompareInst(Type::Signed, RegisterIndex(1), Value64(0), 8), // Test b == 0
         JumpInst(CompareOperation::NotEq, gcd_else),
         ReturnInst() // return a; (as it already is in R[0])
     }));
@@ -104,7 +104,7 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
         TerminateInst(),
     }));
     a.add(Block(gcd, "gcd", {
-        CompareInst(Type::Signed, RegisterIndex(1), Value64(0)), // b == 0
+        CompareInst(Type::Signed, RegisterIndex(1), Value64(0), 8), // b == 0
         JumpInst(CompareOperation::NotEq, gcd_else),
         ReturnInst(),
     }));
@@ -259,7 +259,7 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
     // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
-        CompareInst(Type::Signed, RegisterIndex(0), Value64(arg2)),
+        CompareInst(Type::Signed, RegisterIndex(0), Value64(arg2), 8),
         JumpInst(CompareOperation::LessEq, value),
         MoveInst(RegisterIndex(1), Value64(-1), 8),
         TerminateInst(),
@@ -291,7 +291,7 @@ TEST_CASE("itest, set*", "[assembly][vm]") {
     // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(-1), 8),
-        TestInst(Type::Signed, RegisterIndex(0)),
+        TestInst(Type::Signed, RegisterIndex(0), 8),
         SetInst(RegisterIndex(0), CompareOperation::Eq),
         SetInst(RegisterIndex(1), CompareOperation::NotEq),
         SetInst(RegisterIndex(2), CompareOperation::Less),
@@ -362,7 +362,7 @@ TEST_CASE("Conditional move", "[assembly][vm]") {
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(2), 8),
         MoveInst(RegisterIndex(1), Value64(0), 8),
-        TestInst(Type::Unsigned, RegisterIndex(1)),
+        TestInst(Type::Unsigned, RegisterIndex(1), 8),
         CMoveInst(CompareOperation::Eq, RegisterIndex(0), Value64(42), 8),
         TerminateInst(),
     })); // clang-format on

@@ -219,34 +219,112 @@ OpCode Asm::mapJump(CompareOperation condition) {
     }); // clang-format on
 }
 
-OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs) {
+OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::RegisterIndex) {
-        // clang-format off
-        return UTL_MAP_ENUM(type, OpCode, {
-            { Type::Signed,   OpCode::scmpRR },
-            { Type::Unsigned, OpCode::ucmpRR },
-            { Type::Float,    OpCode::fcmpRR },
-        }); // clang-format on
+        switch (width) {
+        case 1:
+            // clang-format off
+            return UTL_MAP_ENUM(type, OpCode, {
+                { Type::Signed,   OpCode::scmp8RR },
+                { Type::Unsigned, OpCode::ucmp8RR },
+                { Type::Float,    OpCode::_count },
+            }); // clang-format on
+        case 2:
+            // clang-format off
+            return UTL_MAP_ENUM(type, OpCode, {
+                { Type::Signed,   OpCode::scmp16RR },
+                { Type::Unsigned, OpCode::ucmp16RR },
+                { Type::Float,    OpCode::_count },
+            }); // clang-format on
+        case 4:
+            // clang-format off
+            return UTL_MAP_ENUM(type, OpCode, {
+                { Type::Signed,   OpCode::scmp32RR },
+                { Type::Unsigned, OpCode::ucmp32RR },
+                { Type::Float,    OpCode::fcmp32RR },
+            }); // clang-format on
+        case 8:
+            // clang-format off
+            return UTL_MAP_ENUM(type, OpCode, {
+                { Type::Signed,   OpCode::scmp64RR },
+                { Type::Unsigned, OpCode::ucmp64RR },
+                { Type::Float,    OpCode::fcmp64RR },
+            }); // clang-format on
+        default:
+            SC_UNREACHABLE();
+        }
     }
     if (lhs == ValueType::RegisterIndex && rhs == ValueType::Value64) {
-        // clang-format off
-        return UTL_MAP_ENUM(type, OpCode, {
-            { Type::Signed,   OpCode::scmpRV },
-            { Type::Unsigned, OpCode::ucmpRV },
-            { Type::Float,    OpCode::fcmpRV },
-        }); // clang-format on
+        switch (width) {
+        case 1:
+            // clang-format off
+            return UTL_MAP_ENUM(type, OpCode, {
+                { Type::Signed,   OpCode::scmp8RV },
+                { Type::Unsigned, OpCode::ucmp8RV },
+                { Type::Float,    OpCode::_count },
+            }); // clang-format on
+        case 2:
+            // clang-format off
+            return UTL_MAP_ENUM(type, OpCode, {
+                { Type::Signed,   OpCode::scmp16RV },
+                { Type::Unsigned, OpCode::ucmp16RV },
+                { Type::Float,    OpCode::_count },
+            }); // clang-format on
+        case 4:
+            // clang-format off
+            return UTL_MAP_ENUM(type, OpCode, {
+                { Type::Signed,   OpCode::scmp32RV },
+                { Type::Unsigned, OpCode::ucmp32RV },
+                { Type::Float,    OpCode::fcmp32RV },
+            }); // clang-format on
+        case 8:
+            // clang-format off
+            return UTL_MAP_ENUM(type, OpCode, {
+                { Type::Signed,   OpCode::scmp64RV },
+                { Type::Unsigned, OpCode::ucmp64RV },
+                { Type::Float,    OpCode::fcmp64RV },
+            }); // clang-format on
+        default:
+            SC_UNREACHABLE();
+        }
     }
     /// No matching instruction.
     SC_DEBUGFAIL();
 }
 
-OpCode Asm::mapTest(Type type) {
-    // clang-format off
-    return UTL_MAP_ENUM(type, OpCode, {
-        { Type::Signed,   OpCode::stest  },
-        { Type::Unsigned, OpCode::utest  },
-        { Type::Float,    OpCode::_count },
-    }); // clang-format on
+OpCode Asm::mapTest(Type type, size_t width) {
+    switch (width) {
+    case 1:
+        // clang-format off
+        return UTL_MAP_ENUM(type, OpCode, {
+            { Type::Signed,   OpCode::stest8 },
+            { Type::Unsigned, OpCode::utest8 },
+            { Type::Float,    OpCode::_count },
+        }); // clang-format on
+    case 2:
+        // clang-format off
+        return UTL_MAP_ENUM(type, OpCode, {
+            { Type::Signed,   OpCode::stest16 },
+            { Type::Unsigned, OpCode::utest16 },
+            { Type::Float,    OpCode::_count },
+        }); // clang-format on
+    case 4:
+        // clang-format off
+        return UTL_MAP_ENUM(type, OpCode, {
+            { Type::Signed,   OpCode::stest32 },
+            { Type::Unsigned, OpCode::utest32 },
+            { Type::Float,    OpCode::_count },
+        }); // clang-format on
+    case 8:
+        // clang-format off
+        return UTL_MAP_ENUM(type, OpCode, {
+            { Type::Signed,   OpCode::stest64 },
+            { Type::Unsigned, OpCode::utest64 },
+            { Type::Float,    OpCode::_count },
+        }); // clang-format on
+    default:
+        SC_UNREACHABLE();
+    }
 }
 
 OpCode Asm::mapSet(CompareOperation operation) {

@@ -211,7 +211,8 @@ static Asm::Type mapCmpMode(ir::CompareMode mode) {
 }
 
 void CodeGenContext::generate(ir::CompareInst const& cmp) {
-    Value LHS = [&]() -> Value {
+    auto* operandType = cmp.lhs()->type();
+    Value LHS         = [&]() -> Value {
         auto resolvedLhs = currentRD().resolve(*cmp.lhs());
         if (!isa<ir::Constant>(cmp.lhs())) {
             SC_ASSERT(
@@ -227,13 +228,13 @@ void CodeGenContext::generate(ir::CompareInst const& cmp) {
     Value RHS          = currentRD().resolve(*cmp.rhs());
     auto const cmpMode = mapCmpMode(cmp.mode());
     if (cmpMode == Type::Signed) {
-        auto* operandType     = cmp.lhs()->type();
         auto* intType         = cast<ir::IntegralType const*>(operandType);
         size_t const fromBits = intType->bitWidth();
         LHS                   = signExtend(LHS, fromBits);
         RHS                   = signExtend(RHS, fromBits);
     }
-    currentBlock().insertBack(Asm::CompareInst(cmpMode, LHS, RHS));
+    currentBlock().insertBack(
+        Asm::CompareInst(cmpMode, LHS, RHS, operandType->size()));
     if (true) /// Actually we should check if the users of this cmp instruction
               /// care about having the result in the corresponding register.
               /// Since we don't have use and user lists yet we do this
@@ -315,7 +316,7 @@ void CodeGenContext::generate(ir::Branch const& br) {
             currentBlock().insertBack(MoveInst(tmp, cond, 1));
             return tmp;
         }();
-        currentBlock().insertBack(TestInst(Type::Unsigned, testOp));
+        currentBlock().insertBack(TestInst(Type::Unsigned, testOp, 1));
         return CompareOperation::NotEq;
     }();
     currentBlock().insertBack(JumpInst(cmpOp, getLabelID(*br.thenTarget())));
@@ -476,7 +477,7 @@ void CodeGenContext::generate(ir::Select const& select) {
             MoveInst(tmp, cond, select.condition()->type()->size()));
         cond = tmp;
     }
-    currentBlock().insertBack(TestInst(Type::Unsigned, cond));
+    currentBlock().insertBack(TestInst(Type::Unsigned, cond, 1));
     currentBlock().insertBack(
         CMoveInst(CompareOperation::Eq, dest, elseVal, select.type()->size()));
 }
