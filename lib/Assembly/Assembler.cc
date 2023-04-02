@@ -52,7 +52,7 @@ struct Context {
     void translate(SetInst const&);
     void translate(UnaryArithmeticInst const&);
     void translate(ArithmeticInst const&);
-    void translate(SExtInst const&);
+    void translate(ConvInst const&);
 
     void dispatch(Value const& value);
     void translate(RegisterIndex const&);
@@ -241,19 +241,32 @@ void Context::translate(ArithmeticInst const& inst) {
     dispatch(inst.source());
 }
 
-void Context::translate(SExtInst const& inst) {
+void Context::translate(ConvInst const& inst) {
     auto const opcode = [&] {
-        switch (inst.fromBits()) {
-        case 1:
-            return OpCode::sext1;
-        case 8:
-            return OpCode::sext8;
-        case 16:
-            return OpCode::sext16;
-        case 32:
-            return OpCode::sext32;
-        default:
-            SC_UNREACHABLE();
+        if (inst.type() == Type::Signed) {
+            switch (inst.fromBits()) {
+            case 1:
+                return OpCode::sext1;
+            case 8:
+                return OpCode::sext8;
+            case 16:
+                return OpCode::sext16;
+            case 32:
+                return OpCode::sext32;
+            default:
+                SC_UNREACHABLE();
+            }
+        }
+        else {
+            SC_ASSERT(inst.type() == Type::Float, "");
+            switch (inst.fromBits()) {
+            case 32:
+                return OpCode::fext;
+            case 64:
+                return OpCode::ftrunc;
+            default:
+                SC_UNREACHABLE();
+            }
         }
     }();
     put(opcode);

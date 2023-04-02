@@ -9,22 +9,39 @@
 #endif
 
 SC_CGFNODE_DEF(Value,                 ABSTRACT)
+
 SC_CGFNODE_DEF(Parameter,             CONCRETE)
+
 SC_CGFNODE_DEF(User,                  ABSTRACT)
+
 SC_CGFNODE_DEF(Constant,              ABSTRACT)
 SC_CGFNODE_DEF(IntegralConstant,      CONCRETE)
 SC_CGFNODE_DEF(FloatingPointConstant, CONCRETE)
 SC_CGFNODE_DEF(UndefValue,            CONCRETE)
+
 SC_CGFNODE_DEF(Callable,              ABSTRACT)
 SC_CGFNODE_DEF(Function,              CONCRETE)
 SC_CGFNODE_DEF(ExtFunction,           CONCRETE)
+
 SC_CGFNODE_DEF(BasicBlock,            CONCRETE)
+
+/// Instruction base classes
+
 SC_CGFNODE_DEF(Instruction,           ABSTRACT)
-SC_CGFNODE_DEF(Alloca,                CONCRETE)
-SC_CGFNODE_DEF(UnaryInstruction,      CONCRETE)
-SC_CGFNODE_DEF(Load,                  CONCRETE)
+SC_CGFNODE_DEF(UnaryInstruction,      ABSTRACT)
 SC_CGFNODE_DEF(BinaryInstruction,     ABSTRACT)
+
+/// Instructions
+
+SC_CGFNODE_DEF(Alloca,                CONCRETE)
+SC_CGFNODE_DEF(Load,                  CONCRETE)
 SC_CGFNODE_DEF(Store,                 CONCRETE)
+SC_CGFNODE_DEF(ConversionInst,        ABSTRACT)
+SC_CGFNODE_DEF(ZextInst,              CONCRETE)
+SC_CGFNODE_DEF(SextInst,              CONCRETE)
+SC_CGFNODE_DEF(TruncInst,             CONCRETE)
+SC_CGFNODE_DEF(FextInst,              CONCRETE)
+SC_CGFNODE_DEF(FtruncInst,            CONCRETE)
 SC_CGFNODE_DEF(CompareInst,           CONCRETE)
 SC_CGFNODE_DEF(UnaryArithmeticInst,   CONCRETE)
 SC_CGFNODE_DEF(ArithmeticInst,        CONCRETE)

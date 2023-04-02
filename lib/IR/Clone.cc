@@ -23,6 +23,12 @@ static Store* doClone(Context& context, Store* store) {
     return new Store(context, store->address(), store->value());
 }
 
+template <std::derived_from<ConversionInst> Inst>
+    requires(!std::same_as<Inst, ConversionInst>)
+static ConversionInst* doClone(Context& context, Inst* inst) {
+    return new Inst(inst->operand(), inst->type(), std::string(inst->name()));
+}
+
 static CompareInst* doClone(Context& context, CompareInst* cmp) {
     return new CompareInst(context,
                            cmp->lhs(),

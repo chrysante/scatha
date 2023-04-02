@@ -265,17 +265,24 @@ private:
 };
 
 /// Represents the `sext*` instructions.
-class SExtInst: public InstructionBase {
+class ConvInst: public InstructionBase {
 public:
-    explicit SExtInst(RegisterIndex op, size_t fromBits):
-        _op(op), _fromBits(fromBits) {}
+    explicit ConvInst(RegisterIndex op, Type type, size_t fromBits):
+        _op(op), _type(type), _fromBits(fromBits) {
+        verify();
+    }
 
     RegisterIndex operand() const { return _op; }
+
+    Type type() const { return _type; }
 
     size_t fromBits() const { return _fromBits; }
 
 private:
+    SCATHA_TESTAPI void verify();
+
     RegisterIndex _op;
+    Type _type;
     size_t _fromBits;
 };
 

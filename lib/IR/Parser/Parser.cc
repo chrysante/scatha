@@ -44,6 +44,8 @@ struct ParseContext {
     UniquePtr<Parameter> parseParamDecl(size_t index);
     UniquePtr<BasicBlock> parseBasicBlock();
     UniquePtr<Instruction> parseInstruction();
+    template <typename T>
+    UniquePtr<Instruction> parseArithmeticConversion(std::string name);
     utl::small_vector<size_t> parseConstantIndices();
     UniquePtr<StructureType> parseStructure();
 
@@ -436,6 +438,16 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         addValueLink(result.get(), valueType, valueName, &Store::setValue);
         return result;
     }
+    case TokenKind::Zext:
+        return parseArithmeticConversion<ZextInst>(name());
+    case TokenKind::Sext:
+        return parseArithmeticConversion<SextInst>(name());
+    case TokenKind::Trunc:
+        return parseArithmeticConversion<TruncInst>(name());
+    case TokenKind::Fext:
+        return parseArithmeticConversion<FextInst>(name());
+    case TokenKind::Ftrunc:
+        return parseArithmeticConversion<FtruncInst>(name());
     case TokenKind::Goto: {
         eatToken();
         expect(eatToken(), TokenKind::Label);
@@ -729,6 +741,19 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     default:
         return nullptr;
     }
+}
+
+template <typename T>
+UniquePtr<Instruction> ParseContext::parseArithmeticConversion(
+    std::string name) {
+    eatToken();
+    auto* valueType = getType(eatToken());
+    auto valueName  = eatToken();
+    expect(eatToken(), TokenKind::To);
+    auto* targetType = getType(eatToken());
+    auto result      = allocate<T>(nullptr, targetType, std::move(name));
+    addValueLink(result.get(), valueType, valueName, &T::setOperand);
+    return result;
 }
 
 utl::small_vector<size_t> ParseContext::parseConstantIndices() {

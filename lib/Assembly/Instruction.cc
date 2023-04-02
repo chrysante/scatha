@@ -20,3 +20,19 @@ void ArithmeticInst::verify() const {
     SC_ASSERT(dest().is<RegisterIndex>(),
               "Dest operand must always be a register index.");
 }
+
+void ConvInst::verify() {
+    switch (_type) {
+    case Type::Signed:
+        SC_ASSERT(_fromBits == 1 || _fromBits == 8 || _fromBits == 16 ||
+                      _fromBits == 32 || _fromBits == 64,
+                  "");
+        break;
+    case Type::Float:
+        SC_ASSERT(_fromBits == 32 || _fromBits == 64, "");
+        break;
+
+    default:
+        SC_DEBUGFAIL();
+    }
+}

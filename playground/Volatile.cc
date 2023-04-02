@@ -53,6 +53,7 @@ using namespace playground;
 
 static void run(ir::Module const& mod) {
     auto assembly = cg::codegen(mod);
+    header(" Assembly ");
     Asm::print(assembly);
     std::string const mainName = [&] {
         for (auto& f: mod) {
@@ -63,6 +64,8 @@ static void run(ir::Module const& mod) {
         return std::string{};
     }();
     auto program = Asm::assemble(assembly, { std::string(mainName) });
+    header(" Op codes ");
+    svm::print(program.data());
     if (mainName.empty()) {
         std::cout << "No main function found\n";
         return;
@@ -70,11 +73,15 @@ static void run(ir::Module const& mod) {
     svm::VirtualMachine vm;
     vm.loadProgram(program.data());
     vm.execute();
-    uint32_t const retval = static_cast<uint32_t>(vm.getState().registers[0]);
-    int32_t const signedRetval = static_cast<int32_t>(retval);
+    using RetType        = uint64_t;
+    using SRetType       = uint64_t;
+    RetType const retval = static_cast<RetType>(vm.getState().registers[0]);
+    SRetType const signedRetval = static_cast<SRetType>(retval);
     std::cout << "Program returned: " << retval;
+    std::cout << "\n                 (" << std::hex << retval << std::dec
+              << ")";
     if (signedRetval < 0) {
-        std::cout << " (" << signedRetval << ")";
+        std::cout << "\n                (" << signedRetval << ")";
     }
     std::cout << std::endl << std::endl << std::endl;
 }

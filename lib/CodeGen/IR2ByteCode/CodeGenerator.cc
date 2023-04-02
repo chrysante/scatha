@@ -36,6 +36,11 @@ struct CodeGenContext {
     void generate(ir::Alloca const&);
     void generate(ir::Store const&);
     void generate(ir::Load const&);
+    void generate(ir::ZextInst const&);
+    void generate(ir::SextInst const&);
+    void generate(ir::TruncInst const&);
+    void generate(ir::FextInst const&);
+    void generate(ir::FtruncInst const&);
     void generate(ir::CompareInst const&);
     void generate(ir::UnaryArithmeticInst const&);
     void generate(ir::ArithmeticInst const&);
@@ -69,7 +74,7 @@ struct CodeGenContext {
     void placeArguments(std::span<ir::Value const* const> args);
     void getCallResult(ir::Value const& callInst);
 
-    Value signExtend(Value value, size_t fromBits);
+    Value convertValue(Value value, Type type, size_t fromBits);
 
     size_t getLabelID(ir::BasicBlock const&);
     size_t getLabelID(ir::Function const&);
@@ -197,6 +202,41 @@ void CodeGenContext::generate(ir::Load const& load) {
     generateBigMove(dest, addr, size);
 }
 
+/// All the moves we insert here are unnecessary, we just don't have a better
+/// way of implementing this yet...
+void CodeGenContext::generate(ir::ZextInst const& inst) {
+    auto dest = currentRD().resolve(inst);
+    auto op   = currentRD().resolve(*inst.operand());
+    currentBlock().insertBack(MoveInst(dest, op, 8));
+}
+
+void CodeGenContext::generate(ir::SextInst const& inst) {
+    auto dest = currentRD().resolve(inst);
+    auto op   = currentRD().resolve(*inst.operand());
+    op = convertValue(op, Type::Signed, inst.operand()->type()->size() * 8);
+    currentBlock().insertBack(MoveInst(dest, op, 8));
+}
+
+void CodeGenContext::generate(ir::TruncInst const& inst) {
+    auto dest = currentRD().resolve(inst);
+    auto op   = currentRD().resolve(*inst.operand());
+    currentBlock().insertBack(MoveInst(dest, op, 8));
+}
+
+void CodeGenContext::generate(ir::FextInst const& inst) {
+    auto dest = currentRD().resolve(inst);
+    auto op   = currentRD().resolve(*inst.operand());
+    op = convertValue(op, Type::Float, inst.operand()->type()->size() * 8);
+    currentBlock().insertBack(MoveInst(dest, op, 8));
+}
+
+void CodeGenContext::generate(ir::FtruncInst const& inst) {
+    auto dest = currentRD().resolve(inst);
+    auto op   = currentRD().resolve(*inst.operand());
+    op = convertValue(op, Type::Float, inst.operand()->type()->size() * 8);
+    currentBlock().insertBack(MoveInst(dest, op, 8));
+}
+
 static Asm::Type mapCmpMode(ir::CompareMode mode) {
     switch (mode) {
     case ir::CompareMode::Signed:
@@ -230,8 +270,8 @@ void CodeGenContext::generate(ir::CompareInst const& cmp) {
     if (cmpMode == Type::Signed) {
         auto* intType         = cast<ir::IntegralType const*>(operandType);
         size_t const fromBits = intType->bitWidth();
-        LHS                   = signExtend(LHS, fromBits);
-        RHS                   = signExtend(RHS, fromBits);
+        LHS                   = convertValue(LHS, Type::Signed, fromBits);
+        RHS                   = convertValue(RHS, Type::Signed, fromBits);
     }
     currentBlock().insertBack(
         Asm::CompareInst(cmpMode, LHS, RHS, operandType->size()));
@@ -275,24 +315,46 @@ void CodeGenContext::generate(ir::UnaryArithmeticInst const& inst) {
     }
 }
 
+static bool isSignedOp(ir::ArithmeticOperation op) {
+    return op == ir::ArithmeticOperation::SDiv ||
+           op == ir::ArithmeticOperation::SRem;
+}
+
+static bool isFloatOp(ir::ArithmeticOperation op) {
+    return op == ir::ArithmeticOperation::FAdd ||
+           op == ir::ArithmeticOperation::FSub ||
+           op == ir::ArithmeticOperation::FMul ||
+           op == ir::ArithmeticOperation::FDiv;
+}
+
 void CodeGenContext::generate(ir::ArithmeticInst const& arithmetic) {
     // TODO: Make the move of the source argument conditional?
     auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
     auto LHS  = currentRD().resolve(*arithmetic.lhs());
     auto RHS  = currentRD().resolve(*arithmetic.rhs());
-    if (arithmetic.operation() == ir::ArithmeticOperation::SDiv ||
-        arithmetic.operation() == ir::ArithmeticOperation::SRem)
-    {
-        size_t const fromBits =
-            cast<ir::IntegralType const*>(arithmetic.type())->bitWidth();
-        LHS = signExtend(LHS, fromBits);
-        RHS = signExtend(RHS, fromBits);
+    size_t const operandWidth = arithmetic.type()->bitWidth();
+    bool const isSigned       = isSignedOp(arithmetic.operation());
+    bool const isFloat        = isFloatOp(arithmetic.operation());
+    /// Since all arithmetic operations are on 64 bit types, we need to widen
+    /// operands for signed and float operations.
+    if (isSigned) {
+        LHS = convertValue(LHS, Type::Signed, operandWidth);
+        RHS = convertValue(RHS, Type::Signed, operandWidth);
+    }
+    else if (isFloat) {
+        LHS = convertValue(LHS, Type::Float, operandWidth);
+        RHS = convertValue(RHS, Type::Float, operandWidth);
     }
     currentBlock().insertBack(MoveInst(dest, LHS, 8));
     currentBlock().insertBack(
         Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
                             dest,
                             widenConstantTo64Bit(RHS)));
+    /// To emulate 32 bit float arithmetic, we need to truncate the result back
+    /// to 32 bits.
+    if (isFloat && operandWidth == 32) {
+        convertValue(dest, Type::Float, 64);
+    }
 }
 
 // MARK: Terminators
@@ -650,7 +712,23 @@ static Value64 sextImpl(u64 value) {
     return Value64(res);
 }
 
-Value CodeGenContext::signExtend(Value value, size_t fromBits) {
+static Value64 fextImpl(u64 value) {
+    auto h = static_cast<u32>(value);
+    auto f = utl::bit_cast<f32>(h);
+    auto d = static_cast<f64>(f);
+    auto r = utl::bit_cast<u64>(d);
+    return Value64(r);
+}
+
+static Value64 ftruncImpl(u64 value) {
+    auto d = utl::bit_cast<f64>(value);
+    auto f = static_cast<f32>(d);
+    auto r = utl::bit_cast<u32>(f);
+    return Value64(r);
+}
+
+Value CodeGenContext::convertValue(Value value, Type type, size_t fromBits) {
+    SC_ASSERT(type == Type::Signed || type == Type::Float, "");
     SC_ASSERT(fromBits <= 64, "");
     if (fromBits == 64) {
         return value;
@@ -658,6 +736,7 @@ Value CodeGenContext::signExtend(Value value, size_t fromBits) {
     // clang-format off
     return utl::visit(utl::overload{
         [&](Value8  v) -> Value {
+            SC_ASSERT(type != Type::Float, "");
             if (fromBits == 1) {
                 return Value64(v.value() == 0 ? 0 : static_cast<u64>(-1));
             }
@@ -665,27 +744,38 @@ Value CodeGenContext::signExtend(Value value, size_t fromBits) {
             return sextImpl<i8>(v.value());
         },
         [&](Value16 v) -> Value {
+            SC_ASSERT(type != Type::Float, "");
             SC_ASSERT(fromBits == 16, "");
             return sextImpl<i16>(v.value());
         },
         [&](Value32 v) -> Value {
             SC_ASSERT(fromBits == 32, "");
-            return sextImpl<i32>(v.value());
+            if (type == Type::Signed) {
+                return sextImpl<i32>(v.value());
+            }
+            else {
+                return fextImpl(v.value());
+            }
         },
         [&](Value64 v) -> Value {
             SC_ASSERT(fromBits == 64, "");
-            return sextImpl<i64>(v.value());
+            if (type == Type::Signed) {
+                return v;
+            }
+            else {
+                return ftruncImpl(v.value());
+            }
         },
         [&](RegisterIndex i) -> Value {
             auto tmp = currentRD().makeTemporary();
             currentBlock().insertBack(MoveInst(tmp, i, 8));
-            currentBlock().insertBack(SExtInst(tmp, fromBits));
+            currentBlock().insertBack(ConvInst(tmp, type, fromBits));
             return tmp;
         },
         [&](MemoryAddress p) -> Value {
             auto tmp = currentRD().makeTemporary();
             currentBlock().insertBack(MoveInst(tmp, p, 8));
-            return signExtend(tmp, fromBits);
+            return convertValue(tmp, type, fromBits);
         },
     }, value); // clang-format on
 }

@@ -72,6 +72,70 @@ public:
     void setValue(Value* value);
 };
 
+/// Represents an conversion instruction.
+class ConversionInst: public UnaryInstruction {
+protected:
+    explicit ConversionInst(NodeType nodeType,
+                            Value* operand,
+                            Type const* targetType,
+                            std::string name):
+        UnaryInstruction(nodeType, operand, targetType, std::move(name)) {}
+};
+
+/// Represents a `zext` instruction.
+class ZextInst: public ConversionInst {
+public:
+    explicit ZextInst(Value* operand, Type const* targetType, std::string name):
+        ConversionInst(NodeType::ZextInst,
+                       operand,
+                       targetType,
+                       std::move(name)) {}
+};
+
+/// Represents a `sext` instruction.
+class SextInst: public ConversionInst {
+public:
+    explicit SextInst(Value* operand, Type const* targetType, std::string name):
+        ConversionInst(NodeType::SextInst,
+                       operand,
+                       targetType,
+                       std::move(name)) {}
+};
+
+/// Represents a `trunc` instruction.
+class TruncInst: public ConversionInst {
+public:
+    explicit TruncInst(Value* operand,
+                       Type const* targetType,
+                       std::string name):
+        ConversionInst(NodeType::TruncInst,
+                       operand,
+                       targetType,
+                       std::move(name)) {}
+};
+
+/// Represents a `fext` instruction.
+class FextInst: public ConversionInst {
+public:
+    explicit FextInst(Value* operand, Type const* targetType, std::string name):
+        ConversionInst(NodeType::FextInst,
+                       operand,
+                       targetType,
+                       std::move(name)) {}
+};
+
+/// Represents a `ftrunc` instruction.
+class FtruncInst: public ConversionInst {
+public:
+    explicit FtruncInst(Value* operand,
+                        Type const* targetType,
+                        std::string name):
+        ConversionInst(NodeType::FtruncInst,
+                       operand,
+                       targetType,
+                       std::move(name)) {}
+};
+
 /// `cmp` instruction.
 /// TODO: Rename to 'Compare' or find a uniform naming scheme across the IR
 /// module.
@@ -132,6 +196,8 @@ public:
         }
         BinaryInstruction::setRHS(value);
     }
+
+    ArithmeticType const* type() const;
 
 private:
     ArithmeticOperation _op;

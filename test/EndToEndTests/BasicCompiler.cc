@@ -79,15 +79,15 @@ static uint64_t run(ir::Module const& mod) {
     return vm.getState().registers[0];
 }
 
-static void checkReturnImpl(uint64_t value,
+static void checkReturnImpl(uint64_t expected,
                             ir::Context& ctx,
                             ir::Module& mod,
                             auto opt) {
-    uint64_t res1 = run(mod);
-    CHECK(res1 == value);
+    uint64_t unOptResult = run(mod);
+    CHECK(unOptResult == expected);
     opt(ctx, mod);
-    uint64_t res2 = run(mod);
-    CHECK(res2 == value);
+    uint64_t optResult = run(mod);
+    CHECK(optResult == expected);
 }
 
 void test::checkReturns(u64 value, std::string_view text) {

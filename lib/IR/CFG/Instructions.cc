@@ -75,6 +75,14 @@ ArithmeticInst::ArithmeticInst(Value* lhs,
                       std::move(name)),
     _op(op) {}
 
+ArithmeticType const* ArithmeticInst::type() const {
+    auto* t = Value::type();
+    if (!t) {
+        return nullptr;
+    }
+    return cast<ArithmeticType const*>(t);
+}
+
 TerminatorInst::TerminatorInst(NodeType nodeType,
                                Context& context,
                                std::initializer_list<Value*> operands,

@@ -98,7 +98,8 @@ static void printImpl(std::ostream& str, CompareInst const& cmp) {
         { Type::Unsigned, "ucmp" },
         { Type::Float,    "fcmp" },
     }); // clang-format on
-    str << instName(name) << " " << cmp.lhs() << ", " << cmp.rhs();
+    str << instName(name, cmp.width() * 8) << " " << cmp.lhs() << ", "
+        << cmp.rhs();
 }
 
 static void printImpl(std::ostream& str, TestInst const& test) {
@@ -110,8 +111,22 @@ static void printImpl(std::ostream& str, SetInst const& set) {
     str << instName(toSetInstName(set.operation())) << " " << set.dest();
 }
 
-static void printImpl(std::ostream& str, SExtInst const& sext) {
-    str << instName("sext", sext.fromBits()) << " " << sext.operand();
+static void printImpl(std::ostream& str, ConvInst const& conv) {
+    switch (conv.type()) {
+    case Type::Signed:
+        str << instName("sext", conv.fromBits()) << " " << conv.operand();
+        break;
+    case Type::Float:
+        if (conv.fromBits() == 32) {
+            str << instName("fext") << " " << conv.operand();
+        }
+        else {
+            str << instName("ftrunc") << " " << conv.operand();
+        }
+        break;
+    default:
+        SC_UNREACHABLE();
+    }
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Instruction const& inst) {

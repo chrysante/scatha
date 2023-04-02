@@ -30,6 +30,7 @@ struct PrintCtx {
     void print(Alloca const&);
     void print(Load const&);
     void print(Store const&);
+    void print(ConversionInst const&);
     void print(CompareInst const&);
     void print(UnaryArithmeticInst const&);
     void print(ArithmeticInst const&);
@@ -52,6 +53,7 @@ struct PrintCtx {
     void keyword(auto...) const;
     void space() const { str << " "; }
     void comma() const { str << ", "; }
+    void to() const;
     void indexList(auto list) const;
 
     std::ostream& str;
@@ -254,6 +256,12 @@ void PrintCtx::print(Store const& store) {
     typedName(store.value());
 }
 
+void PrintCtx::print(ConversionInst const& inst) {
+    typedName(inst.operand());
+    to();
+    type(inst.type());
+}
+
 void PrintCtx::print(CompareInst const& cmp) {
     keyword(cmp.operation());
     space();
@@ -359,6 +367,16 @@ static std::string_view toStrName(ir::Instruction const* inst) {
         return "load";
     case NodeType::Store:
         return "store";
+    case NodeType::ZextInst:
+        return "zext";
+    case NodeType::SextInst:
+        return "sext";
+    case NodeType::TruncInst:
+        return "trunc";
+    case NodeType::FextInst:
+        return "fext";
+    case NodeType::FtruncInst:
+        return "ftrunc";
     case NodeType::CompareInst:
         return "cmp";
     case NodeType::UnaryArithmeticInst:
@@ -411,6 +429,8 @@ void PrintCtx::typedName(Value const* value) const {
 }
 
 void PrintCtx::keyword(auto... name) const { str << formatKeyword(name...); }
+
+void PrintCtx::to() const { str << " " << formatKeyword("to") << " "; }
 
 void PrintCtx::indexList(auto list) const {
     for (auto index: list) {

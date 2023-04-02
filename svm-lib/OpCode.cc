@@ -224,12 +224,12 @@ struct svm::OpCodeImpl {
         };
     }
 
-    template <OpCode C, typename T>
-    static auto sext() {
+    template <OpCode C, typename From, typename To>
+    static auto ext() {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regIdx = i[0];
-            auto const a        = load<T>(&reg[regIdx]);
-            store(&reg[regIdx], static_cast<i64>(a));
+            auto const a        = load<From>(&reg[regIdx]);
+            store(&reg[regIdx], static_cast<To>(a));
             return codeSize(C);
         };
     }
@@ -483,9 +483,11 @@ struct svm::OpCodeImpl {
 
         /// ** Conversion **
         at(sext1)  = OpCodeImpl::sext1();
-        at(sext8)  = sext<sext8, i8>();
-        at(sext16) = sext<sext16, i16>();
-        at(sext32) = sext<sext32, i32>();
+        at(sext8)  = ext<sext8, i8, i64>();
+        at(sext16) = ext<sext16, i16, i64>();
+        at(sext32) = ext<sext32, i32, i64>();
+        at(fext)   = ext<fext, f32, f64>();
+        at(ftrunc) = ext<ftrunc, f64, f32>();
 
         /// ** Misc **
         at(callExt) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
