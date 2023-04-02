@@ -25,7 +25,12 @@ protected:
     explicit ValueBase(utl::tag<T> type, auto value):
         _value(utl::bit_cast<u64>(widenFundType(utl::narrow_cast<T>(value)))) {}
 
-    static f64 widenFundType(std::floating_point auto f) { return f; }
+    explicit ValueBase(utl::tag<f32> type, f32 value):
+        _value(utl::bit_cast<u32>(value)) {}
+
+    explicit ValueBase(utl::tag<f64> type, f64 value):
+        _value(utl::bit_cast<u64>(value)) {}
+
     static i64 widenFundType(std::signed_integral auto i) { return i; }
     static u64 widenFundType(std::unsigned_integral auto i) { return i; }
 

@@ -26,8 +26,15 @@ Value RegisterDescriptor::resolve(ir::Value const& value) {
                 SC_UNREACHABLE();
             }
         },
-        [&](ir::FloatingPointConstant const& constant) {
-            return Value64(constant.value().to<f64>());
+        [&](ir::FloatingPointConstant const& constant) -> Asm::Value {
+            switch (constant.type()->size()) {
+            case 4:
+                return Value32(constant.value().to<f32>());
+            case 8:
+                return Value64(constant.value().to<f64>());
+            default:
+                SC_UNREACHABLE();
+            }
         },
         [&](ir::UndefValue const&) {
             return RegisterIndex(0);

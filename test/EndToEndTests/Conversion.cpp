@@ -25,3 +25,13 @@ func i64 @main() {
     return i64 %re
 })");
 }
+    
+TEST_CASE("Float converstion", "[end-to-end]") {
+    test::checkIRReturns(utl::bit_cast<u64>(static_cast<double>(3.0f / 2.0f)), R"(
+func f64 @main() {
+  %entry:
+    %q = fdiv f32 3.0, f32 2.0
+    %r = fext f32 %q to f64
+    return f64 %r
+})");
+}
