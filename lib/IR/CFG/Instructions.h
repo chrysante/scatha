@@ -79,7 +79,10 @@ public:
                             Type const* targetType,
                             Conversion conv,
                             std::string name):
-        UnaryInstruction(NodeType::ConversionInst, operand, targetType, std::move(name)),
+        UnaryInstruction(NodeType::ConversionInst,
+                         operand,
+                         targetType,
+                         std::move(name)),
         conv(conv) {}
 
     /// \Returns The conversion this instruction performs.

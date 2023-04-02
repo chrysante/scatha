@@ -162,7 +162,7 @@ struct ParseContext {
             reportSyntaxIssue(token);
         }
     }
-    
+
     CompareMode toCompareMode(Token token) const {
         switch (token.kind()) {
         case TokenKind::SCmp:
@@ -468,13 +468,17 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::Ftrunc:
         [[fallthrough]];
     case TokenKind::Bitcast: {
-        auto conv = toConversion(eatToken());
+        auto conv       = toConversion(eatToken());
         auto* valueType = getType(eatToken());
         auto valueName  = eatToken();
         expect(eatToken(), TokenKind::To);
         auto* targetType = getType(eatToken());
-        auto result      = allocate<ConversionInst>(nullptr, targetType, conv, name());
-        addValueLink(result.get(), valueType, valueName, &ConversionInst::setOperand);
+        auto result =
+            allocate<ConversionInst>(nullptr, targetType, conv, name());
+        addValueLink(result.get(),
+                     valueType,
+                     valueName,
+                     &ConversionInst::setOperand);
         return result;
     }
     case TokenKind::Goto: {

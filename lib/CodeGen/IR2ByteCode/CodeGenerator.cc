@@ -337,10 +337,10 @@ static bool isSignedOp(ir::ArithmeticOperation op) {
 
 void CodeGenContext::generate(ir::ArithmeticInst const& arithmetic) {
     // TODO: Make the move of the source argument conditional?
-    auto dest      = currentRD().resolve(arithmetic).get<RegisterIndex>();
-    auto operation = mapArithmetic(arithmetic.operation());
-    auto LHS       = currentRD().resolve(*arithmetic.lhs());
-    auto RHS       = currentRD().resolve(*arithmetic.rhs());
+    auto dest           = currentRD().resolve(arithmetic).get<RegisterIndex>();
+    auto operation      = mapArithmetic(arithmetic.operation());
+    auto LHS            = currentRD().resolve(*arithmetic.lhs());
+    auto RHS            = currentRD().resolve(*arithmetic.rhs());
     size_t operandWidth = arithmetic.type()->size();
     bool const isSigned = isSignedOp(arithmetic.operation());
     /// Since all arithmetic operations are on 64 bit types, we need to widen
@@ -359,11 +359,8 @@ void CodeGenContext::generate(ir::ArithmeticInst const& arithmetic) {
         RHS = truncConstantTo8Bit(RHS);
     }
     currentBlock().insertBack(MoveInst(dest, LHS, 8));
-    currentBlock().insertBack(Asm::ArithmeticInst(
-        operation,
-        dest,
-        RHS,
-        operandWidth));
+    currentBlock().insertBack(
+        Asm::ArithmeticInst(operation, dest, RHS, operandWidth));
 }
 
 // MARK: Terminators

@@ -74,13 +74,12 @@ func i64 @ff(i64) {
     }
     SECTION("Erase all") {
         auto const instructions = function.instructions();
-        size_t k                = 0;
         /// We first clear all the operands to prevent the next pass from using
         /// deallocated memory.
         for (auto& inst: instructions) {
             inst.clearOperands();
         }
-        for (auto itr = instructions.begin(); itr != instructions.end(); ++k) {
+        for (auto itr = instructions.begin(); itr != instructions.end();) {
             itr = itr->parent()->erase(itr.instructionIterator());
         }
         CHECK(function.instructions().empty());

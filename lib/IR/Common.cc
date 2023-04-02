@@ -31,8 +31,7 @@ std::string_view ir::toString(Conversion conv) {
     };
 }
 
-std::ostream& ir::operator<<(std::ostream& ostream,
-                             Conversion conv) {
+std::ostream& ir::operator<<(std::ostream& ostream, Conversion conv) {
     return ostream << toString(conv);
 }
 

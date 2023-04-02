@@ -24,7 +24,10 @@ static Store* doClone(Context& context, Store* store) {
 }
 
 static ConversionInst* doClone(Context& context, ConversionInst* inst) {
-    return new ConversionInst(inst->operand(), inst->type(), inst->conversion(), std::string(inst->name()));
+    return new ConversionInst(inst->operand(),
+                              inst->type(),
+                              inst->conversion(),
+                              std::string(inst->name()));
 }
 
 static CompareInst* doClone(Context& context, CompareInst* cmp) {

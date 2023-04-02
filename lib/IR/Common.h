@@ -70,8 +70,7 @@ enum class Conversion {
 SCATHA_API std::string_view toString(Conversion conv);
 
 /// Insert \p conv into \p ostream.
-SCATHA_API std::ostream& operator<<(std::ostream& ostream,
-                                    Conversion conv);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream, Conversion conv);
 
 /// List of compare modes (signed, unsigned, float)
 enum class CompareMode {
