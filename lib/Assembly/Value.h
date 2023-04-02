@@ -81,6 +81,7 @@ inline Value64 ValueBase::widen() const { return Value64(value()); }
 /// Represents a register index.
 class RegisterIndex: public ValueBase {
 public:
+    RegisterIndex(): RegisterIndex(0) {}
     explicit RegisterIndex(std::integral auto index):
         ValueBase(utl::tag<u8>{}, index) {}
 
