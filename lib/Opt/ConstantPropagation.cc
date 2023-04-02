@@ -118,6 +118,10 @@ struct SCCPContext {
 
     bool controlledByConstant(TerminatorInst const& terminator);
 
+    FormalValue evaluateConversion(Conversion conv,
+                                   ArithmeticType const* targetType,
+                                   FormalValue operand);
+
     FormalValue evaluateArithmetic(ArithmeticOperation operation,
                                    FormalValue const& lhs,
                                    FormalValue const& rhs);
@@ -287,6 +291,11 @@ void SCCPContext::visitExpression(Instruction& inst) {
     FormalValue const oldValue = formalValue(&inst);
     // clang-format off
     FormalValue const value = visit(inst, utl::overload{
+        [&](ConversionInst& inst) {
+            return evaluateConversion(inst.conversion(),
+                                      inst.type(),
+                                      formalValue(inst.operand()));
+        },
         [&](ArithmeticInst& inst) {
             return evaluateArithmetic(inst.operation(),
                                       formalValue(inst.lhs()),
@@ -410,6 +419,55 @@ bool SCCPContext::controlledByConstant(TerminatorInst const& terminator) {
 
 template <typename T>
 concept FormalConstant = std::same_as<T, APInt> || std::same_as<T, APFloat>;
+
+FormalValue SCCPContext::evaluateConversion(Conversion conv,
+                                            ArithmeticType const* targetType,
+                                            FormalValue operand) {
+    if (!isConstant(operand)) {
+        return operand;
+    }
+    switch (conv) {
+    case Conversion::Zext: {
+        APInt value = operand.get<APInt>();
+        return value.zext(targetType->bitWidth());
+    }
+    case Conversion::Sext: {
+        APInt value = operand.get<APInt>();
+        return value.sext(targetType->bitWidth());
+    }
+    case Conversion::Trunc: {
+        APInt value = operand.get<APInt>();
+        /// `APInt::zext` also handles truncation.
+        return value.zext(targetType->bitWidth());
+    }
+    case Conversion::Fext: {
+        APFloat value = operand.get<APFloat>();
+        SC_ASSERT(value.precision() == APFloatPrec::Single,
+                  "Can only extend single precision floats");
+        SC_ASSERT(targetType->bitWidth() == 64,
+                  "Can only extend to 64 bit floats");
+        return APFloat(value.to<float>(), APFloatPrec::Double);
+    }
+    case Conversion::Ftrunc: {
+        APFloat value = operand.get<APFloat>();
+        SC_ASSERT(value.precision() == APFloatPrec::Double,
+                  "Can only truncate double precision floats");
+        SC_ASSERT(targetType->bitWidth() == 32,
+                  "Can only truncate to 32 bit floats");
+        return APFloat(value.to<double>(), APFloatPrec::Single);
+    }
+    case Conversion::Bitcast: {
+        if (operand.is<APInt>()) {
+            return bitcast<APFloat>(operand.get<APInt>());
+        }
+        else {
+            return bitcast<APInt>(operand.get<APFloat>());
+        }
+    }
+    case Conversion::_count:
+        SC_UNREACHABLE();
+    }
+}
 
 FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
                                             FormalValue const& lhs,

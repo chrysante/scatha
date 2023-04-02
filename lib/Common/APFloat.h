@@ -4,6 +4,7 @@
 #define SCATHA_COMMON_APFLOAT_H_
 
 #include <APMath/APFloat.h>
+#include <APMath/Conversion.h>
 
 namespace scatha {
 

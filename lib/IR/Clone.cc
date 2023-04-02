@@ -3,6 +3,7 @@
 #include <utl/hashtable.hpp>
 
 #include "IR/CFG.h"
+#include "IR/Type.h"
 
 using namespace scatha;
 using namespace ir;

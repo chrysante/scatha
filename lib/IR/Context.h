@@ -63,10 +63,12 @@ public:
 
 private:
     /// ## Constants
-    utl::hashmap<std::pair<APInt, size_t>, IntegralConstant*>
+    /// ** Bitwidth must appear before the value, because comparison of values
+    /// of different widths may not be possible. **
+    utl::hashmap<std::pair<size_t, APInt>, IntegralConstant*>
         _integralConstants;
     /// We use `std::map` here because floats are not really hashable.
-    std::map<std::pair<APFloat, size_t>, FloatingPointConstant*>
+    std::map<std::pair<size_t, APFloat>, FloatingPointConstant*>
         _floatConstants;
     utl::hashmap<Type const*, UniquePtr<UndefValue>> _undefConstants;
 

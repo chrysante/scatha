@@ -87,7 +87,10 @@ public:
 
     /// \Returns The conversion this instruction performs.
     Conversion conversion() const { return conv; }
-    
+
+    /// \Returns The type of this value and the target type of the conversion.
+    ArithmeticType const* type() const;
+
 private:
     Conversion conv;
 };
