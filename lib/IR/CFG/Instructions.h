@@ -32,29 +32,6 @@ public:
     Type const* allocatedType() const { return typeOperands()[0]; }
 };
 
-/// Base class of all unary instructions.
-class SCATHA_API UnaryInstruction: public Instruction {
-protected:
-    explicit UnaryInstruction(NodeType nodeType,
-                              Value* operand,
-                              Type const* type,
-                              std::string name):
-        Instruction(nodeType, type, std::move(name), { operand }) {}
-
-public:
-    /// \returns the operand of this instruction
-    Value* operand() { return operands()[0]; } // namespace scatha::ir
-
-    /// \overload
-    Value const* operand() const { return operands()[0]; }
-
-    /// Set the single operand of this unary instruction.
-    void setOperand(Value* value) { User::setOperand(0, value); }
-
-    /// \returns the type of the operand of this instruction
-    Type const* operandType() const { return operand()->type(); }
-};
-
 /// `load` instruction. Load data from memory into a register.
 class SCATHA_API Load: public UnaryInstruction {
 public:
@@ -93,39 +70,6 @@ public:
 
     /// Set the value this instruction stores into memory.
     void setValue(Value* value);
-};
-
-/// Base class of all binary instructions.
-class SCATHA_API BinaryInstruction: public Instruction {
-protected:
-    explicit BinaryInstruction(NodeType nodeType,
-                               Value* lhs,
-                               Value* rhs,
-                               Type const* type,
-                               std::string name):
-        Instruction(nodeType, type, std::move(name), { lhs, rhs }) {}
-
-public:
-    /// \returns the LHS operand
-    Value* lhs() { return operands()[0]; }
-
-    ///  \overload
-    Value const* lhs() const { return operands()[0]; }
-
-    /// Set LHS operand to \p value
-    void setLHS(Value* value) { setOperand(0, value); }
-
-    /// \returns the RHS operand
-    Value* rhs() { return operands()[1]; }
-
-    ///  \overload
-    Value const* rhs() const { return operands()[1]; }
-
-    /// Set RHS operand to \p value
-    void setRHS(Value* value) { setOperand(1, value); }
-
-    /// \returns the type of the operands.
-    Type const* operandType() const { return lhs()->type(); }
 };
 
 /// `cmp` instruction.
