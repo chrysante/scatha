@@ -87,9 +87,17 @@ void svm::print(u8 const* progData, std::ostream& str) {
             str << "R[" << printAs<u8>(data, i + 1) << "], R["
                 << printAs<u8>(data, i + 2) << "]";
             break;
-        case RV:
+        case RV64:
             str << "R[" << printAs<u8>(data, i + 1) << "], "
                 << printAs<u64>(data, i + 2);
+            break;
+        case RV32:
+            str << "R[" << printAs<u8>(data, i + 1) << "], "
+                << printAs<u32>(data, i + 2);
+            break;
+        case RV8:
+            str << "R[" << printAs<u8>(data, i + 1) << "], "
+                << printAs<u8>(data, i + 2);
             break;
         case RM:
             str << "R[" << printAs<u8>(data, i + 1) << "], ";

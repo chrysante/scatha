@@ -340,80 +340,164 @@ OpCode Asm::mapSet(CompareOperation operation) {
     }); // clang-format on
 }
 
-OpCode Asm::mapArithmetic(ArithmeticOperation operation,
-                          ValueType dest,
-                          ValueType source) {
+OpCode Asm::mapArithmetic64(ArithmeticOperation operation,
+                            ValueType dest,
+                            ValueType source) {
     if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
     {
-        return UTL_MAP_ENUM(operation,
-                            OpCode,
-                            {
-                                { ArithmeticOperation::Add, OpCode::addRR },
-                                { ArithmeticOperation::Sub, OpCode::subRR },
-                                { ArithmeticOperation::Mul, OpCode::mulRR },
-                                { ArithmeticOperation::SDiv, OpCode::sdivRR },
-                                { ArithmeticOperation::UDiv, OpCode::udivRR },
-                                { ArithmeticOperation::SRem, OpCode::sremRR },
-                                { ArithmeticOperation::URem, OpCode::uremRR },
-                                { ArithmeticOperation::FAdd, OpCode::faddRR },
-                                { ArithmeticOperation::FSub, OpCode::fsubRR },
-                                { ArithmeticOperation::FMul, OpCode::fmulRR },
-                                { ArithmeticOperation::FDiv, OpCode::fdivRR },
-                                { ArithmeticOperation::LShL, OpCode::lslRR },
-                                { ArithmeticOperation::LShR, OpCode::lsrRR },
-                                { ArithmeticOperation::AShL, OpCode::aslRR },
-                                { ArithmeticOperation::AShR, OpCode::asrRR },
-                                { ArithmeticOperation::And, OpCode::andRR },
-                                { ArithmeticOperation::Or, OpCode::orRR },
-                                { ArithmeticOperation::XOr, OpCode::xorRR },
-                            }); // clang-format on
+        // clang-format off
+        return UTL_MAP_ENUM(operation, OpCode, {
+            { ArithmeticOperation::Add,  OpCode::add64RR },
+            { ArithmeticOperation::Sub,  OpCode::sub64RR },
+            { ArithmeticOperation::Mul,  OpCode::mul64RR },
+            { ArithmeticOperation::SDiv, OpCode::sdiv64RR },
+            { ArithmeticOperation::UDiv, OpCode::udiv64RR },
+            { ArithmeticOperation::SRem, OpCode::srem64RR },
+            { ArithmeticOperation::URem, OpCode::urem64RR },
+            { ArithmeticOperation::FAdd, OpCode::fadd64RR },
+            { ArithmeticOperation::FSub, OpCode::fsub64RR },
+            { ArithmeticOperation::FMul, OpCode::fmul64RR },
+            { ArithmeticOperation::FDiv, OpCode::fdiv64RR },
+            { ArithmeticOperation::LShL, OpCode::lsl64RR },
+            { ArithmeticOperation::LShR, OpCode::lsr64RR },
+            { ArithmeticOperation::AShL, OpCode::asl64RR },
+            { ArithmeticOperation::AShR, OpCode::asr64RR },
+            { ArithmeticOperation::And,  OpCode::and64RR },
+            { ArithmeticOperation::Or,   OpCode::or64RR },
+            { ArithmeticOperation::XOr,  OpCode::xor64RR },
+        }); // clang-format on
     }
-    if (dest == ValueType::RegisterIndex && source == ValueType::Value64) {
-        return UTL_MAP_ENUM(operation,
-                            OpCode,
-                            {
-                                { ArithmeticOperation::Add, OpCode::addRV },
-                                { ArithmeticOperation::Sub, OpCode::subRV },
-                                { ArithmeticOperation::Mul, OpCode::mulRV },
-                                { ArithmeticOperation::SDiv, OpCode::sdivRV },
-                                { ArithmeticOperation::UDiv, OpCode::udivRV },
-                                { ArithmeticOperation::SRem, OpCode::sremRV },
-                                { ArithmeticOperation::URem, OpCode::uremRV },
-                                { ArithmeticOperation::FAdd, OpCode::faddRV },
-                                { ArithmeticOperation::FSub, OpCode::fsubRV },
-                                { ArithmeticOperation::FMul, OpCode::fmulRV },
-                                { ArithmeticOperation::FDiv, OpCode::fdivRV },
-                                { ArithmeticOperation::LShL, OpCode::lslRV },
-                                { ArithmeticOperation::LShR, OpCode::lsrRV },
-                                { ArithmeticOperation::AShL, OpCode::aslRV },
-                                { ArithmeticOperation::AShR, OpCode::asrRV },
-                                { ArithmeticOperation::And, OpCode::andRV },
-                                { ArithmeticOperation::Or, OpCode::orRV },
-                                { ArithmeticOperation::XOr, OpCode::xorRV },
-                            }); // clang-format on
+    if (dest == ValueType::RegisterIndex &&
+        (source == ValueType::Value64 || source == ValueType::Value8))
+    {
+        SC_ASSERT((source == ValueType::Value8) == isShift(operation),
+                  "Only shift operations allow 8 bit literal operands");
+        // clang-format off
+        return UTL_MAP_ENUM(operation, OpCode, {
+            { ArithmeticOperation::Add,  OpCode::add64RV },
+            { ArithmeticOperation::Sub,  OpCode::sub64RV },
+            { ArithmeticOperation::Mul,  OpCode::mul64RV },
+            { ArithmeticOperation::SDiv, OpCode::sdiv64RV },
+            { ArithmeticOperation::UDiv, OpCode::udiv64RV },
+            { ArithmeticOperation::SRem, OpCode::srem64RV },
+            { ArithmeticOperation::URem, OpCode::urem64RV },
+            { ArithmeticOperation::FAdd, OpCode::fadd64RV },
+            { ArithmeticOperation::FSub, OpCode::fsub64RV },
+            { ArithmeticOperation::FMul, OpCode::fmul64RV },
+            { ArithmeticOperation::FDiv, OpCode::fdiv64RV },
+            { ArithmeticOperation::LShL, OpCode::lsl64RV },
+            { ArithmeticOperation::LShR, OpCode::lsr64RV },
+            { ArithmeticOperation::AShL, OpCode::asl64RV },
+            { ArithmeticOperation::AShR, OpCode::asr64RV },
+            { ArithmeticOperation::And,  OpCode::and64RV },
+            { ArithmeticOperation::Or,   OpCode::or64RV },
+            { ArithmeticOperation::XOr,  OpCode::xor64RV },
+        }); // clang-format on
     }
     if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress)
     {
         // clang-format off
         return UTL_MAP_ENUM(operation, OpCode, {
-            { ArithmeticOperation::Add,  OpCode::addRM  },
-            { ArithmeticOperation::Sub,  OpCode::subRM  },
-            { ArithmeticOperation::Mul,  OpCode::mulRM  },
-            { ArithmeticOperation::SDiv, OpCode::sdivRM },
-            { ArithmeticOperation::UDiv, OpCode::udivRM },
-            { ArithmeticOperation::SRem, OpCode::sremRM },
-            { ArithmeticOperation::URem, OpCode::uremRM },
-            { ArithmeticOperation::FAdd, OpCode::faddRM },
-            { ArithmeticOperation::FSub, OpCode::fsubRM },
-            { ArithmeticOperation::FMul, OpCode::fmulRM },
-            { ArithmeticOperation::FDiv, OpCode::fdivRM },
-            { ArithmeticOperation::LShL, OpCode::lslRM  },
-            { ArithmeticOperation::LShR, OpCode::lsrRM  },
-            { ArithmeticOperation::AShL, OpCode::aslRM  },
-            { ArithmeticOperation::AShR, OpCode::asrRM  },
-            { ArithmeticOperation::And,  OpCode::andRM  },
-            { ArithmeticOperation::Or,   OpCode::orRM   },
-            { ArithmeticOperation::XOr,  OpCode::xorRM  },
+            { ArithmeticOperation::Add,  OpCode::add64RM  },
+            { ArithmeticOperation::Sub,  OpCode::sub64RM  },
+            { ArithmeticOperation::Mul,  OpCode::mul64RM  },
+            { ArithmeticOperation::SDiv, OpCode::sdiv64RM },
+            { ArithmeticOperation::UDiv, OpCode::udiv64RM },
+            { ArithmeticOperation::SRem, OpCode::srem64RM },
+            { ArithmeticOperation::URem, OpCode::urem64RM },
+            { ArithmeticOperation::FAdd, OpCode::fadd64RM },
+            { ArithmeticOperation::FSub, OpCode::fsub64RM },
+            { ArithmeticOperation::FMul, OpCode::fmul64RM },
+            { ArithmeticOperation::FDiv, OpCode::fdiv64RM },
+            { ArithmeticOperation::LShL, OpCode::lsl64RM  },
+            { ArithmeticOperation::LShR, OpCode::lsr64RM  },
+            { ArithmeticOperation::AShL, OpCode::asl64RM  },
+            { ArithmeticOperation::AShR, OpCode::asr64RM  },
+            { ArithmeticOperation::And,  OpCode::and64RM  },
+            { ArithmeticOperation::Or,   OpCode::or64RM   },
+            { ArithmeticOperation::XOr,  OpCode::xor64RM  },
+        }); // clang-format on
+    }
+    /// No matching instruction.
+    SC_DEBUGFAIL();
+}
+
+OpCode Asm::mapArithmetic32(ArithmeticOperation operation,
+                            ValueType dest,
+                            ValueType source) {
+    if (dest == ValueType::RegisterIndex && source == ValueType::RegisterIndex)
+    {
+        // clang-format off
+        return UTL_MAP_ENUM(operation, OpCode, {
+            { ArithmeticOperation::Add,  OpCode::add32RR },
+            { ArithmeticOperation::Sub,  OpCode::sub32RR },
+            { ArithmeticOperation::Mul,  OpCode::mul32RR },
+            { ArithmeticOperation::SDiv, OpCode::sdiv32RR },
+            { ArithmeticOperation::UDiv, OpCode::udiv32RR },
+            { ArithmeticOperation::SRem, OpCode::srem32RR },
+            { ArithmeticOperation::URem, OpCode::urem32RR },
+            { ArithmeticOperation::FAdd, OpCode::fadd32RR },
+            { ArithmeticOperation::FSub, OpCode::fsub32RR },
+            { ArithmeticOperation::FMul, OpCode::fmul32RR },
+            { ArithmeticOperation::FDiv, OpCode::fdiv32RR },
+            { ArithmeticOperation::LShL, OpCode::lsl32RR },
+            { ArithmeticOperation::LShR, OpCode::lsr32RR },
+            { ArithmeticOperation::AShL, OpCode::asl32RR },
+            { ArithmeticOperation::AShR, OpCode::asr32RR },
+            { ArithmeticOperation::And,  OpCode::and32RR },
+            { ArithmeticOperation::Or,   OpCode::or32RR },
+            { ArithmeticOperation::XOr,  OpCode::xor32RR },
+        }); // clang-format on
+    }
+    if (dest == ValueType::RegisterIndex &&
+        (source == ValueType::Value32 || source == ValueType::Value8))
+    {
+        SC_ASSERT((source == ValueType::Value8) == isShift(operation),
+                  "Only shift operations allow 8 bit literal operands");
+        // clang-format off
+        return UTL_MAP_ENUM(operation, OpCode, {
+            { ArithmeticOperation::Add,  OpCode::add32RV },
+            { ArithmeticOperation::Sub,  OpCode::sub32RV },
+            { ArithmeticOperation::Mul,  OpCode::mul32RV },
+            { ArithmeticOperation::SDiv, OpCode::sdiv32RV },
+            { ArithmeticOperation::UDiv, OpCode::udiv32RV },
+            { ArithmeticOperation::SRem, OpCode::srem32RV },
+            { ArithmeticOperation::URem, OpCode::urem32RV },
+            { ArithmeticOperation::FAdd, OpCode::fadd32RV },
+            { ArithmeticOperation::FSub, OpCode::fsub32RV },
+            { ArithmeticOperation::FMul, OpCode::fmul32RV },
+            { ArithmeticOperation::FDiv, OpCode::fdiv32RV },
+            { ArithmeticOperation::LShL, OpCode::lsl32RV },
+            { ArithmeticOperation::LShR, OpCode::lsr32RV },
+            { ArithmeticOperation::AShL, OpCode::asl32RV },
+            { ArithmeticOperation::AShR, OpCode::asr32RV },
+            { ArithmeticOperation::And,  OpCode::and32RV },
+            { ArithmeticOperation::Or,   OpCode::or32RV },
+            { ArithmeticOperation::XOr,  OpCode::xor32RV },
+        }); // clang-format on
+    }
+    if (dest == ValueType::RegisterIndex && source == ValueType::MemoryAddress)
+    {
+        // clang-format off
+        return UTL_MAP_ENUM(operation, OpCode, {
+            { ArithmeticOperation::Add,  OpCode::add32RM  },
+            { ArithmeticOperation::Sub,  OpCode::sub32RM  },
+            { ArithmeticOperation::Mul,  OpCode::mul32RM  },
+            { ArithmeticOperation::SDiv, OpCode::sdiv32RM },
+            { ArithmeticOperation::UDiv, OpCode::udiv32RM },
+            { ArithmeticOperation::SRem, OpCode::srem32RM },
+            { ArithmeticOperation::URem, OpCode::urem32RM },
+            { ArithmeticOperation::FAdd, OpCode::fadd32RM },
+            { ArithmeticOperation::FSub, OpCode::fsub32RM },
+            { ArithmeticOperation::FMul, OpCode::fmul32RM },
+            { ArithmeticOperation::FDiv, OpCode::fdiv32RM },
+            { ArithmeticOperation::LShL, OpCode::lsl32RM  },
+            { ArithmeticOperation::LShR, OpCode::lsr32RM  },
+            { ArithmeticOperation::AShL, OpCode::asl32RM  },
+            { ArithmeticOperation::AShR, OpCode::asr32RM  },
+            { ArithmeticOperation::And,  OpCode::and32RM  },
+            { ArithmeticOperation::Or,   OpCode::or32RM   },
+            { ArithmeticOperation::XOr,  OpCode::xor32RM  },
         }); // clang-format on
     }
     /// No matching instruction.

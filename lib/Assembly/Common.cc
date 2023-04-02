@@ -88,3 +88,8 @@ std::ostream& Asm::operator<<(std::ostream& ostream,
                               ArithmeticOperation operation) {
     return ostream << toString(operation);
 }
+
+bool Asm::isShift(ArithmeticOperation op) {
+    return op == ArithmeticOperation::LShL || op == ArithmeticOperation::LShR ||
+           op == ArithmeticOperation::AShL || op == ArithmeticOperation::AShR;
+}

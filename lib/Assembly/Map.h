@@ -29,9 +29,13 @@ svm::OpCode mapTest(Type type, size_t bitwidth);
 
 svm::OpCode mapSet(CompareOperation operation);
 
-svm::OpCode mapArithmetic(ArithmeticOperation operation,
-                          ValueType dest,
-                          ValueType source);
+svm::OpCode mapArithmetic64(ArithmeticOperation operation,
+                            ValueType dest,
+                            ValueType source);
+
+svm::OpCode mapArithmetic32(ArithmeticOperation operation,
+                            ValueType dest,
+                            ValueType source);
 
 } // namespace scatha::Asm
 

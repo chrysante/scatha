@@ -295,6 +295,13 @@ static Value widenConstantTo64Bit(Value value) {
     return value;
 }
 
+static Value truncConstantTo8Bit(Value value) {
+    if (value.is<Value16>() || value.is<Value32>() || value.is<Value64>()) {
+        return Value8(value.as_base<ValueBase>().value());
+    }
+    return value;
+}
+
 void CodeGenContext::generate(ir::UnaryArithmeticInst const& inst) {
     auto dest    = currentRD().resolve(inst).get<RegisterIndex>();
     auto operand = widenConstantTo64Bit(currentRD().resolve(*inst.operand()));
@@ -320,7 +327,7 @@ static bool isSignedOp(ir::ArithmeticOperation op) {
            op == ir::ArithmeticOperation::SRem;
 }
 
-static bool isFloatOp(ir::ArithmeticOperation op) {
+[[maybe_unused]] static bool isFloatOp(ir::ArithmeticOperation op) {
     return op == ir::ArithmeticOperation::FAdd ||
            op == ir::ArithmeticOperation::FSub ||
            op == ir::ArithmeticOperation::FMul ||
@@ -329,32 +336,33 @@ static bool isFloatOp(ir::ArithmeticOperation op) {
 
 void CodeGenContext::generate(ir::ArithmeticInst const& arithmetic) {
     // TODO: Make the move of the source argument conditional?
-    auto dest = currentRD().resolve(arithmetic).get<RegisterIndex>();
-    auto LHS  = currentRD().resolve(*arithmetic.lhs());
-    auto RHS  = currentRD().resolve(*arithmetic.rhs());
-    size_t const operandWidth = arithmetic.type()->bitWidth();
-    bool const isSigned       = isSignedOp(arithmetic.operation());
-    bool const isFloat        = isFloatOp(arithmetic.operation());
+    auto dest      = currentRD().resolve(arithmetic).get<RegisterIndex>();
+    auto operation = mapArithmetic(arithmetic.operation());
+    auto LHS       = currentRD().resolve(*arithmetic.lhs());
+    auto RHS       = currentRD().resolve(*arithmetic.rhs());
+    size_t operandWidth = arithmetic.type()->size();
+    bool const isSigned = isSignedOp(arithmetic.operation());
     /// Since all arithmetic operations are on 64 bit types, we need to widen
     /// operands for signed and float operations.
-    if (isSigned) {
-        LHS = convertValue(LHS, Type::Signed, operandWidth);
-        RHS = convertValue(RHS, Type::Signed, operandWidth);
+    if (operandWidth < 4) {
+        if (isSigned) {
+            LHS = convertValue(LHS, Type::Signed, operandWidth);
+            RHS = convertValue(RHS, Type::Signed, operandWidth);
+        }
+        else {
+            RHS = widenConstantTo64Bit(RHS);
+        }
+        operandWidth = 8;
     }
-    else if (isFloat) {
-        LHS = convertValue(LHS, Type::Float, operandWidth);
-        RHS = convertValue(RHS, Type::Float, operandWidth);
+    if (isShift(operation)) {
+        RHS = truncConstantTo8Bit(RHS);
     }
     currentBlock().insertBack(MoveInst(dest, LHS, 8));
-    currentBlock().insertBack(
-        Asm::ArithmeticInst(mapArithmetic(arithmetic.operation()),
-                            dest,
-                            widenConstantTo64Bit(RHS)));
-    /// To emulate 32 bit float arithmetic, we need to truncate the result back
-    /// to 32 bits.
-    if (isFloat && operandWidth == 32) {
-        convertValue(dest, Type::Float, 64);
-    }
+    currentBlock().insertBack(Asm::ArithmeticInst(
+        operation,
+        dest,
+        RHS,
+        operandWidth));
 }
 
 // MARK: Terminators
@@ -477,9 +485,10 @@ void CodeGenContext::generate(ir::ExtractValue const& extract) {
         currentBlock().insertBack(MoveInst(dest, sourceRegIdx, 8));
         currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::LShR,
                                                  dest,
-                                                 Value64(8 * offset)));
+                                                 Value8(8 * offset),
+                                                 8));
         currentBlock().insertBack(
-            ArithmeticInst(ArithmeticOperation::And, dest, Value64(mask)));
+            ArithmeticInst(ArithmeticOperation::And, dest, Value64(mask), 8));
     }
 }
 
@@ -513,16 +522,20 @@ void CodeGenContext::generate(ir::InsertValue const& insert) {
         }();
         currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
                                                  destRegIdx,
-                                                 Value64(~destMask)));
+                                                 Value64(~destMask),
+                                                 8));
         auto tmp = currentRD().makeTemporary();
         currentBlock().insertBack(MoveInst(tmp, source, 8));
         currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::LShL,
                                                  tmp,
-                                                 Value64(8 * offset)));
+                                                 Value8(8 * offset),
+                                                 8));
+        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
+                                                 tmp,
+                                                 Value64(destMask),
+                                                 8));
         currentBlock().insertBack(
-            ArithmeticInst(ArithmeticOperation::And, tmp, Value64(destMask)));
-        currentBlock().insertBack(
-            ArithmeticInst(ArithmeticOperation::Or, destRegIdx, tmp));
+            ArithmeticInst(ArithmeticOperation::Or, destRegIdx, tmp, 8));
     }
 }
 

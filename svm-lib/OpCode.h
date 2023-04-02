@@ -53,7 +53,7 @@ std::string_view toString(OpCode);
 
 std::ostream& operator<<(std::ostream&, OpCode);
 
-enum class OpCodeClass { RR, RV, RM, MR, R, Jump, Other, _count };
+enum class OpCodeClass { RR, RV64, RV32, RV8, RM, MR, R, Jump, Other, _count };
 
 constexpr bool isJump(OpCode c) {
     using enum OpCode;
@@ -86,7 +86,9 @@ constexpr size_t codeSize(OpCode c) {
     }
     return UTL_MAP_ENUM(opCodeClass, size_t, {
         { OpCodeClass::RR,     3 },
-        { OpCodeClass::RV,    10 },
+        { OpCodeClass::RV64,  10 },
+        { OpCodeClass::RV32,   6 },
+        { OpCodeClass::RV8,    3 },
         { OpCodeClass::RM,     6 },
         { OpCodeClass::MR,     6 },
         { OpCodeClass::R,      2 },

@@ -41,7 +41,7 @@ static constexpr utl::streammanip instName =
 };
 
 static void printImpl(std::ostream& str, MoveInst const& mov) {
-    str << instName("mov", mov.numBytes()) << " " << mov.dest() << ", "
+    str << instName("mov", mov.numBytes() * 8) << " " << mov.dest() << ", "
         << mov.source();
 }
 

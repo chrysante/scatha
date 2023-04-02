@@ -233,9 +233,13 @@ void Context::translate(UnaryArithmeticInst const& inst) {
 }
 
 void Context::translate(ArithmeticInst const& inst) {
-    OpCode const opcode = mapArithmetic(inst.operation(),
-                                        inst.dest().valueType(),
-                                        inst.source().valueType());
+    OpCode const opcode = inst.width() == 4 ?
+                              mapArithmetic32(inst.operation(),
+                                              inst.dest().valueType(),
+                                              inst.source().valueType()) :
+                              mapArithmetic64(inst.operation(),
+                                              inst.dest().valueType(),
+                                              inst.source().valueType());
     put(opcode);
     dispatch(inst.dest());
     dispatch(inst.source());

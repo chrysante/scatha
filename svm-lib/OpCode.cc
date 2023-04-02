@@ -191,13 +191,14 @@ struct svm::OpCodeImpl {
         };
     }
 
-    template <OpCode C, typename T>
+    template <OpCode C, typename LhsType, typename RhsType = LhsType>
     static auto arithmeticRV(auto operation) {
         return [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
             size_t const regIdx = i[0];
-            auto const a        = load<T>(&reg[regIdx]);
-            auto const b        = load<T>(i + 1);
-            store(&reg[regIdx], decltype(operation)()(a, b));
+            auto const a        = load<LhsType>(&reg[regIdx]);
+            auto const b        = load<RhsType>(i + 1);
+            store(&reg[regIdx],
+                  static_cast<LhsType>(decltype(operation)()(a, b)));
             return codeSize(C);
         };
     }
@@ -273,7 +274,7 @@ struct svm::OpCodeImpl {
             return 0;
         };
 
-        /// ** Loads and stores **
+        /// ## Loads and stores
         at(mov64RR) = [](u8 const* i, u64* reg, VirtualMachine*) -> u64 {
             size_t const destRegIdx   = i[0];
             size_t const sourceRegIdx = i[1];
@@ -294,7 +295,7 @@ struct svm::OpCodeImpl {
         at(mov32RM) = moveRM<mov32RM, 4>();
         at(mov64RM) = moveRM<mov64RM, 8>();
 
-        /// ** Condition callbacks **
+        /// ## Condition callbacks
         auto equal     = [](VMFlags f) { return f.equal; };
         auto notEqual  = [](VMFlags f) { return !f.equal; };
         auto less      = [](VMFlags f) { return f.less; };
@@ -302,7 +303,7 @@ struct svm::OpCodeImpl {
         auto greater   = [](VMFlags f) { return !f.less && !f.equal; };
         auto greaterEq = [](VMFlags f) { return !f.less; };
 
-        /// ** Conditional moves **
+        /// ## Conditional moves
         at(cmove64RR) = condMove64RR<cmove64RR>(equal);
         at(cmove64RV) = condMove64RV<cmove64RV>(equal);
         at(cmove8RM)  = condMoveRM<cmove8RM, 1>(equal);
@@ -345,7 +346,7 @@ struct svm::OpCodeImpl {
         at(cmovge32RM) = condMoveRM<cmovge32RM, 4>(greaterEq);
         at(cmovge64RM) = condMoveRM<cmovge64RM, 8>(greaterEq);
 
-        /// ** Stack pointer manipulation **
+        /// ## Stack pointer manipulation
         at(lincsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const destRegIdx = load<u8>(i);
             size_t const offset     = load<u16>(i + 1);
@@ -354,7 +355,7 @@ struct svm::OpCodeImpl {
             return codeSize(lincsp);
         };
 
-        /// ** LEA **
+        /// ## LEA
         at(lea) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const destRegIdx = load<u8>(i);
             u8* const ptr           = getPointer(reg, i + 1);
@@ -362,7 +363,7 @@ struct svm::OpCodeImpl {
             return codeSize(lea);
         };
 
-        /// ** Jumps **
+        /// ## Jumps
         at(jmp) = jump<jmp>([](VMFlags) { return true; });
         at(je)  = jump<je>(equal);
         at(jne) = jump<jne>(notEqual);
@@ -371,7 +372,7 @@ struct svm::OpCodeImpl {
         at(jg)  = jump<jg>(greater);
         at(jge) = jump<jge>(greaterEq);
 
-        /// ** Comparison **
+        /// ## Comparison
         at(ucmp8RR)  = compareRR<ucmp8RR, u8>();
         at(ucmp16RR) = compareRR<ucmp16RR, u16>();
         at(ucmp32RR) = compareRR<ucmp32RR, u32>();
@@ -408,7 +409,7 @@ struct svm::OpCodeImpl {
         at(utest32) = testR<utest32, u32>();
         at(utest64) = testR<utest64, u64>();
 
-        /// ** load comparison results **
+        /// ## load comparison results
         at(sete)  = set<sete>([](VMFlags f) { return f.equal; });
         at(setne) = set<setne>([](VMFlags f) { return !f.equal; });
         at(setl)  = set<setl>([](VMFlags f) { return f.less; });
@@ -416,72 +417,141 @@ struct svm::OpCodeImpl {
         at(setg)  = set<setg>([](VMFlags f) { return !f.less && !f.equal; });
         at(setge) = set<setge>([](VMFlags f) { return !f.less; });
 
-        /// ** Unary operations **
+        /// ## Unary operations
         at(lnt) = unaryR<lnt, u64>(utl::logical_not);
         at(bnt) = unaryR<bnt, u64>(utl::bitwise_not);
 
-        /// ** Integer arithmetic **
-        at(addRR)  = arithmeticRR<addRR, u64>(utl::plus);
-        at(addRV)  = arithmeticRV<addRV, u64>(utl::plus);
-        at(addRM)  = arithmeticRM<addRM, u64>(utl::plus);
-        at(subRR)  = arithmeticRR<subRR, u64>(utl::minus);
-        at(subRV)  = arithmeticRV<subRV, u64>(utl::minus);
-        at(subRM)  = arithmeticRM<subRM, u64>(utl::minus);
-        at(mulRR)  = arithmeticRR<mulRR, u64>(utl::multiplies);
-        at(mulRV)  = arithmeticRV<mulRV, u64>(utl::multiplies);
-        at(mulRM)  = arithmeticRM<mulRM, u64>(utl::multiplies);
-        at(udivRR) = arithmeticRR<udivRR, u64>(utl::divides);
-        at(udivRV) = arithmeticRV<udivRV, u64>(utl::divides);
-        at(udivRM) = arithmeticRM<udivRM, u64>(utl::divides);
-        at(sdivRR) = arithmeticRR<sdivRR, i64>(utl::divides);
-        at(sdivRV) = arithmeticRV<sdivRV, i64>(utl::divides);
-        at(sdivRM) = arithmeticRM<sdivRM, i64>(utl::divides);
-        at(uremRR) = arithmeticRR<uremRR, u64>(utl::modulo);
-        at(uremRV) = arithmeticRV<uremRV, u64>(utl::modulo);
-        at(uremRM) = arithmeticRM<uremRM, u64>(utl::modulo);
-        at(sremRR) = arithmeticRR<sremRR, i64>(utl::modulo);
-        at(sremRV) = arithmeticRV<sremRV, i64>(utl::modulo);
-        at(sremRM) = arithmeticRM<sremRM, i64>(utl::modulo);
+        /// ## 64 bit integer arithmetic
+        at(add64RR)  = arithmeticRR<add64RR, u64>(utl::plus);
+        at(add64RV)  = arithmeticRV<add64RV, u64>(utl::plus);
+        at(add64RM)  = arithmeticRM<add64RM, u64>(utl::plus);
+        at(sub64RR)  = arithmeticRR<sub64RR, u64>(utl::minus);
+        at(sub64RV)  = arithmeticRV<sub64RV, u64>(utl::minus);
+        at(sub64RM)  = arithmeticRM<sub64RM, u64>(utl::minus);
+        at(mul64RR)  = arithmeticRR<mul64RR, u64>(utl::multiplies);
+        at(mul64RV)  = arithmeticRV<mul64RV, u64>(utl::multiplies);
+        at(mul64RM)  = arithmeticRM<mul64RM, u64>(utl::multiplies);
+        at(udiv64RR) = arithmeticRR<udiv64RR, u64>(utl::divides);
+        at(udiv64RV) = arithmeticRV<udiv64RV, u64>(utl::divides);
+        at(udiv64RM) = arithmeticRM<udiv64RM, u64>(utl::divides);
+        at(sdiv64RR) = arithmeticRR<sdiv64RR, i64>(utl::divides);
+        at(sdiv64RV) = arithmeticRV<sdiv64RV, i64>(utl::divides);
+        at(sdiv64RM) = arithmeticRM<sdiv64RM, i64>(utl::divides);
+        at(urem64RR) = arithmeticRR<urem64RR, u64>(utl::modulo);
+        at(urem64RV) = arithmeticRV<urem64RV, u64>(utl::modulo);
+        at(urem64RM) = arithmeticRM<urem64RM, u64>(utl::modulo);
+        at(srem64RR) = arithmeticRR<srem64RR, i64>(utl::modulo);
+        at(srem64RV) = arithmeticRV<srem64RV, i64>(utl::modulo);
+        at(srem64RM) = arithmeticRM<srem64RM, i64>(utl::modulo);
 
-        /// ** Floating point arithmetic **
-        at(faddRR) = arithmeticRR<faddRR, f64>(utl::plus);
-        at(faddRV) = arithmeticRV<faddRV, f64>(utl::plus);
-        at(faddRM) = arithmeticRM<faddRM, f64>(utl::plus);
-        at(fsubRR) = arithmeticRR<fsubRR, f64>(utl::minus);
-        at(fsubRV) = arithmeticRV<fsubRV, f64>(utl::minus);
-        at(fsubRM) = arithmeticRM<fsubRM, f64>(utl::minus);
-        at(fmulRR) = arithmeticRR<fmulRR, f64>(utl::multiplies);
-        at(fmulRV) = arithmeticRV<fmulRV, f64>(utl::multiplies);
-        at(fmulRM) = arithmeticRM<fmulRM, f64>(utl::multiplies);
-        at(fdivRR) = arithmeticRR<fdivRR, f64>(utl::divides);
-        at(fdivRV) = arithmeticRV<fdivRV, f64>(utl::divides);
-        at(fdivRM) = arithmeticRM<fdivRM, f64>(utl::divides);
+        /// ## 32 bit integer arithmetic
+        at(add32RR)  = arithmeticRR<add32RR, u32>(utl::plus);
+        at(add32RV)  = arithmeticRV<add32RV, u32>(utl::plus);
+        at(add32RM)  = arithmeticRM<add32RM, u32>(utl::plus);
+        at(sub32RR)  = arithmeticRR<sub32RR, u32>(utl::minus);
+        at(sub32RV)  = arithmeticRV<sub32RV, u32>(utl::minus);
+        at(sub32RM)  = arithmeticRM<sub32RM, u32>(utl::minus);
+        at(mul32RR)  = arithmeticRR<mul32RR, u32>(utl::multiplies);
+        at(mul32RV)  = arithmeticRV<mul32RV, u32>(utl::multiplies);
+        at(mul32RM)  = arithmeticRM<mul32RM, u32>(utl::multiplies);
+        at(udiv32RR) = arithmeticRR<udiv32RR, u32>(utl::divides);
+        at(udiv32RV) = arithmeticRV<udiv32RV, u32>(utl::divides);
+        at(udiv32RM) = arithmeticRM<udiv32RM, u32>(utl::divides);
+        at(sdiv32RR) = arithmeticRR<sdiv32RR, i32>(utl::divides);
+        at(sdiv32RV) = arithmeticRV<sdiv32RV, i32>(utl::divides);
+        at(sdiv32RM) = arithmeticRM<sdiv32RM, i32>(utl::divides);
+        at(urem32RR) = arithmeticRR<urem32RR, u32>(utl::modulo);
+        at(urem32RV) = arithmeticRV<urem32RV, u32>(utl::modulo);
+        at(urem32RM) = arithmeticRM<urem32RM, u32>(utl::modulo);
+        at(srem32RR) = arithmeticRR<srem32RR, i32>(utl::modulo);
+        at(srem32RV) = arithmeticRV<srem32RV, i32>(utl::modulo);
+        at(srem32RM) = arithmeticRM<srem32RM, i32>(utl::modulo);
 
-        at(lslRR) = arithmeticRR<lslRR, u64>(utl::leftshift);
-        at(lslRV) = arithmeticRV<lslRV, u64>(utl::leftshift);
-        at(lslRM) = arithmeticRM<lslRM, u64>(utl::leftshift);
-        at(lsrRR) = arithmeticRR<lsrRR, u64>(utl::rightshift);
-        at(lsrRV) = arithmeticRV<lsrRV, u64>(utl::rightshift);
-        at(lsrRM) = arithmeticRV<lsrRM, u64>(utl::rightshift);
+        /// ## 64 bit Floating point arithmetic
+        at(fadd64RR) = arithmeticRR<fadd64RR, f64>(utl::plus);
+        at(fadd64RV) = arithmeticRV<fadd64RV, f64>(utl::plus);
+        at(fadd64RM) = arithmeticRM<fadd64RM, f64>(utl::plus);
+        at(fsub64RR) = arithmeticRR<fsub64RR, f64>(utl::minus);
+        at(fsub64RV) = arithmeticRV<fsub64RV, f64>(utl::minus);
+        at(fsub64RM) = arithmeticRM<fsub64RM, f64>(utl::minus);
+        at(fmul64RR) = arithmeticRR<fmul64RR, f64>(utl::multiplies);
+        at(fmul64RV) = arithmeticRV<fmul64RV, f64>(utl::multiplies);
+        at(fmul64RM) = arithmeticRM<fmul64RM, f64>(utl::multiplies);
+        at(fdiv64RR) = arithmeticRR<fdiv64RR, f64>(utl::divides);
+        at(fdiv64RV) = arithmeticRV<fdiv64RV, f64>(utl::divides);
+        at(fdiv64RM) = arithmeticRM<fdiv64RM, f64>(utl::divides);
 
-        at(aslRR) = arithmeticRR<aslRR, u64>(utl::arithmetic_leftshift);
-        at(aslRV) = arithmeticRV<aslRV, u64>(utl::arithmetic_leftshift);
-        at(aslRM) = arithmeticRM<aslRM, u64>(utl::arithmetic_leftshift);
-        at(asrRR) = arithmeticRR<asrRR, u64>(utl::arithmetic_rightshift);
-        at(asrRV) = arithmeticRV<asrRV, u64>(utl::arithmetic_rightshift);
-        at(asrRM) = arithmeticRV<asrRM, u64>(utl::arithmetic_rightshift);
+        /// ## 32 bit Floating point arithmetic
+        at(fadd32RR) = arithmeticRR<fadd32RR, f32>(utl::plus);
+        at(fadd32RV) = arithmeticRV<fadd32RV, f32>(utl::plus);
+        at(fadd32RM) = arithmeticRM<fadd32RM, f32>(utl::plus);
+        at(fsub32RR) = arithmeticRR<fsub32RR, f32>(utl::minus);
+        at(fsub32RV) = arithmeticRV<fsub32RV, f32>(utl::minus);
+        at(fsub32RM) = arithmeticRM<fsub32RM, f32>(utl::minus);
+        at(fmul32RR) = arithmeticRR<fmul32RR, f32>(utl::multiplies);
+        at(fmul32RV) = arithmeticRV<fmul32RV, f32>(utl::multiplies);
+        at(fmul32RM) = arithmeticRM<fmul32RM, f32>(utl::multiplies);
+        at(fdiv32RR) = arithmeticRR<fdiv32RR, f32>(utl::divides);
+        at(fdiv32RV) = arithmeticRV<fdiv32RV, f32>(utl::divides);
+        at(fdiv32RM) = arithmeticRM<fdiv32RM, f32>(utl::divides);
 
-        at(andRR) = arithmeticRR<andRR, u64>(utl::bitwise_and);
-        at(andRV) = arithmeticRV<andRV, u64>(utl::bitwise_and);
-        at(andRM) = arithmeticRV<andRM, u64>(utl::bitwise_and);
-        at(orRR)  = arithmeticRR<orRR, u64>(utl::bitwise_or);
-        at(orRV)  = arithmeticRV<orRV, u64>(utl::bitwise_or);
-        at(orRM)  = arithmeticRV<orRM, u64>(utl::bitwise_or);
-        at(xorRR) = arithmeticRR<xorRR, u64>(utl::bitwise_xor);
-        at(xorRV) = arithmeticRV<xorRV, u64>(utl::bitwise_xor);
-        at(xorRM) = arithmeticRV<xorRM, u64>(utl::bitwise_xor);
+        /// ## 64 bit logical shifts
+        at(lsl64RR) = arithmeticRR<lsl64RR, u64>(utl::leftshift);
+        at(lsl64RV) = arithmeticRV<lsl64RV, u64, u8>(utl::leftshift);
+        at(lsl64RM) = arithmeticRM<lsl64RM, u64>(utl::leftshift);
+        at(lsr64RR) = arithmeticRR<lsr64RR, u64>(utl::rightshift);
+        at(lsr64RV) = arithmeticRV<lsr64RV, u64, u8>(utl::rightshift);
+        at(lsr64RM) = arithmeticRV<lsr64RM, u64>(utl::rightshift);
 
-        /// ** Conversion **
+        /// ## 32 bit logical shifts
+        at(lsl32RR) = arithmeticRR<lsl32RR, u32>(utl::leftshift);
+        at(lsl32RV) = arithmeticRV<lsl32RV, u32, u8>(utl::leftshift);
+        at(lsl32RM) = arithmeticRM<lsl32RM, u32>(utl::leftshift);
+        at(lsr32RR) = arithmeticRR<lsr32RR, u32>(utl::rightshift);
+        at(lsr32RV) = arithmeticRV<lsr32RV, u32, u8>(utl::rightshift);
+        at(lsr32RM) = arithmeticRV<lsr32RM, u32>(utl::rightshift);
+
+        /// ## 64 bit arithmetic shifts
+        at(asl64RR) = arithmeticRR<asl64RR, u64>(utl::arithmetic_leftshift);
+        at(asl64RV) = arithmeticRV<asl64RV, u64, u8>(utl::arithmetic_leftshift);
+        at(asl64RM) = arithmeticRM<asl64RM, u64>(utl::arithmetic_leftshift);
+        at(asr64RR) = arithmeticRR<asr64RR, u64>(utl::arithmetic_rightshift);
+        at(asr64RV) =
+            arithmeticRV<asr64RV, u64, u8>(utl::arithmetic_rightshift);
+        at(asr64RM) = arithmeticRV<asr64RM, u64>(utl::arithmetic_rightshift);
+
+        /// ## 32 bit arithmetic shifts
+        at(asl32RR) = arithmeticRR<asl32RR, u32>(utl::arithmetic_leftshift);
+        at(asl32RV) = arithmeticRV<asl32RV, u32, u8>(utl::arithmetic_leftshift);
+        at(asl32RM) = arithmeticRM<asl32RM, u32>(utl::arithmetic_leftshift);
+        at(asr32RR) = arithmeticRR<asr32RR, u32>(utl::arithmetic_rightshift);
+        at(asr32RV) =
+            arithmeticRV<asr32RV, u32, u8>(utl::arithmetic_rightshift);
+        at(asr32RM) = arithmeticRV<asr32RM, u32>(utl::arithmetic_rightshift);
+
+        /// ## 64 bit bitwise operations
+        at(and64RR) = arithmeticRR<and64RR, u64>(utl::bitwise_and);
+        at(and64RV) = arithmeticRV<and64RV, u64>(utl::bitwise_and);
+        at(and64RM) = arithmeticRV<and64RM, u64>(utl::bitwise_and);
+        at(or64RR)  = arithmeticRR<or64RR, u64>(utl::bitwise_or);
+        at(or64RV)  = arithmeticRV<or64RV, u64>(utl::bitwise_or);
+        at(or64RM)  = arithmeticRV<or64RM, u64>(utl::bitwise_or);
+        at(xor64RR) = arithmeticRR<xor64RR, u64>(utl::bitwise_xor);
+        at(xor64RV) = arithmeticRV<xor64RV, u64>(utl::bitwise_xor);
+        at(xor64RM) = arithmeticRV<xor64RM, u64>(utl::bitwise_xor);
+
+        /// ## 32 bit bitwise operations
+        at(and32RR) = arithmeticRR<and32RR, u32>(utl::bitwise_and);
+        at(and32RV) = arithmeticRV<and32RV, u32>(utl::bitwise_and);
+        at(and32RM) = arithmeticRV<and32RM, u32>(utl::bitwise_and);
+        at(or32RR)  = arithmeticRR<or32RR, u32>(utl::bitwise_or);
+        at(or32RV)  = arithmeticRV<or32RV, u32>(utl::bitwise_or);
+        at(or32RM)  = arithmeticRV<or32RM, u32>(utl::bitwise_or);
+        at(xor32RR) = arithmeticRR<xor32RR, u32>(utl::bitwise_xor);
+        at(xor32RV) = arithmeticRV<xor32RV, u32>(utl::bitwise_xor);
+        at(xor32RM) = arithmeticRV<xor32RM, u32>(utl::bitwise_xor);
+
+        /// ## Conversion
         at(sext1)  = OpCodeImpl::sext1();
         at(sext8)  = ext<sext8, i8, i64>();
         at(sext16) = ext<sext16, i16, i64>();
@@ -489,7 +559,7 @@ struct svm::OpCodeImpl {
         at(fext)   = ext<fext, f32, f64>();
         at(ftrunc) = ext<ftrunc, f64, f32>();
 
-        /// ** Misc **
+        /// ## Misc
         at(callExt) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const regPtrOffset = i[0];
             size_t const tableIdx     = i[1];

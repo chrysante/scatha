@@ -83,7 +83,7 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
         MoveInst(RegisterIndex(2), RegisterIndex(1), 8), // c = b
         MoveInst(RegisterIndex(1), RegisterIndex(0), 8), // b = a
         MoveInst(RegisterIndex(0), RegisterIndex(2), 8), // a = c
-        ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(1), RegisterIndex(2)),
+        ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(1), RegisterIndex(2), 8),
         JumpInst(gcd) // Tail call
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
@@ -116,9 +116,9 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
         // R[4]: b
         // R[5]: a % b
         // R[0] = a and R[1] = b have been placed by the caller.
-        MoveInst(RegisterIndex(6), RegisterIndex(0), 8),                               // R[6] = a
-        ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(6), RegisterIndex(1)), // R[6] %= b
-        MoveInst(RegisterIndex(5), RegisterIndex(1), 8),                               // R[5] = b
+        MoveInst(RegisterIndex(6), RegisterIndex(0), 8),                                  // R[6] = a
+        ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(6), RegisterIndex(1), 8), // R[6] %= b
+        MoveInst(RegisterIndex(5), RegisterIndex(1), 8),                                  // R[5] = b
         CallInst(gcd, 5),                                // Deliberately no tail call
         MoveInst(RegisterIndex(0), RegisterIndex(5), 8), // R[0] = R[5] to move the result to the expected register
         ReturnInst(),
@@ -138,7 +138,7 @@ static void testArithmeticRR(ArithmeticOperation operation,
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
         MoveInst(RegisterIndex(1), Value64(arg2), 8),
-        ArithmeticInst(operation, RegisterIndex(0), RegisterIndex(1)),
+        ArithmeticInst(operation, RegisterIndex(0), RegisterIndex(1), 8),
         TerminateInst(),
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
@@ -154,7 +154,7 @@ static void testArithmeticRV(ArithmeticOperation operation,
     // clang-format off
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(arg1), 8),
-        ArithmeticInst(operation, RegisterIndex(0), Value64(arg2)),
+        ArithmeticInst(operation, RegisterIndex(0), Value64(arg2), 8),
         TerminateInst(),
     })); // clang-format on
 
@@ -174,7 +174,7 @@ static void testArithmeticRM(ArithmeticOperation operation,
         MoveInst(RegisterIndex(1), Value64(arg2), 8),
         LIncSPInst(RegisterIndex(2), Value16(8)),
         MoveInst(MemoryAddress(2), RegisterIndex(1), 8),
-        ArithmeticInst(operation, RegisterIndex(0), MemoryAddress(2)),
+        ArithmeticInst(operation, RegisterIndex(0), MemoryAddress(2), 8),
         TerminateInst(),
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);

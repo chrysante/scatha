@@ -245,16 +245,25 @@ private:
 /// Represents a `add`, `sub`, `mul`, ... etc instruction.
 class ArithmeticInst: public InstructionBase {
 public:
-    explicit ArithmeticInst(ArithmeticOperation op, Value dest, Value source):
-        _op(op), _dest(dest), _src(source) {
+    explicit ArithmeticInst(ArithmeticOperation op,
+                            Value dest,
+                            Value source,
+                            size_t width):
+        _op(op), _dest(dest), _src(source), _width(width) {
         verify();
     }
 
+    /// \Returns The arithmetic operation to perform.
     ArithmeticOperation operation() const { return _op; }
 
+    /// \Returns The destination (LHS) operand.
     Value dest() const { return _dest; }
 
+    /// \Returns The source (RHS) operand.
     Value source() const { return _src; }
+
+    /// \Returns The width of the operands in bytes.
+    size_t width() const { return _width; }
 
 private:
     SCATHA_TESTAPI void verify() const;
@@ -262,6 +271,7 @@ private:
 private:
     ArithmeticOperation _op;
     Value _dest, _src;
+    size_t _width;
 };
 
 /// Represents the `sext*` instructions.
