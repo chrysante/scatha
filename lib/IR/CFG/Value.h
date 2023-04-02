@@ -8,6 +8,7 @@
 #include <utl/hashtable.hpp>
 
 #include "Basic/Basic.h"
+#include "Basic/OpaqueRange.h"
 #include "IR/Common.h"
 
 namespace scatha::ir {
@@ -45,6 +46,9 @@ public:
         return _users |
                ranges::views::transform([](auto&& p) { return p.first; });
     }
+
+    /// View of all users with use counts using this value.
+    auto countedUsers() const { return makeOpaqueRange(_users); }
 
     /// Number of users using this value. Multiple uses by the same user are
     /// counted as one.
