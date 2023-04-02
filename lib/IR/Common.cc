@@ -20,6 +20,22 @@ std::ostream& ir::operator<<(std::ostream& ostream, NodeType nodeType) {
     return ostream << toString(nodeType);
 }
 
+std::string_view ir::toString(Conversion conv) {
+    switch (conv) {
+        // clang-format off
+#define SC_CONVERSION_DEF(Conv, Keyword) case Conversion::Conv: return #Keyword;
+#include "IR/CFG/Lists.def"
+        // clang-format on
+    case Conversion::_count:
+        SC_UNREACHABLE();
+    };
+}
+
+std::ostream& ir::operator<<(std::ostream& ostream,
+                             Conversion conv) {
+    return ostream << toString(conv);
+}
+
 std::string_view ir::toString(CompareMode mode) {
     switch (mode) {
         // clang-format off

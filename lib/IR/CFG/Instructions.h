@@ -72,80 +72,21 @@ public:
     void setValue(Value* value);
 };
 
-/// Represents an conversion instruction.
+/// Represents a conversion instruction.
 class ConversionInst: public UnaryInstruction {
-protected:
-    explicit ConversionInst(NodeType nodeType,
-                            Value* operand,
+public:
+    explicit ConversionInst(Value* operand,
                             Type const* targetType,
+                            Conversion conv,
                             std::string name):
-        UnaryInstruction(nodeType, operand, targetType, std::move(name)) {}
-};
+        UnaryInstruction(NodeType::ConversionInst, operand, targetType, std::move(name)),
+        conv(conv) {}
 
-/// Represents a `zext` instruction.
-class ZextInst: public ConversionInst {
-public:
-    explicit ZextInst(Value* operand, Type const* targetType, std::string name):
-        ConversionInst(NodeType::ZextInst,
-                       operand,
-                       targetType,
-                       std::move(name)) {}
-};
-
-/// Represents a `sext` instruction.
-class SextInst: public ConversionInst {
-public:
-    explicit SextInst(Value* operand, Type const* targetType, std::string name):
-        ConversionInst(NodeType::SextInst,
-                       operand,
-                       targetType,
-                       std::move(name)) {}
-};
-
-/// Represents a `trunc` instruction.
-class TruncInst: public ConversionInst {
-public:
-    explicit TruncInst(Value* operand,
-                       Type const* targetType,
-                       std::string name):
-        ConversionInst(NodeType::TruncInst,
-                       operand,
-                       targetType,
-                       std::move(name)) {}
-};
-
-/// Represents a `fext` instruction.
-class FextInst: public ConversionInst {
-public:
-    explicit FextInst(Value* operand, Type const* targetType, std::string name):
-        ConversionInst(NodeType::FextInst,
-                       operand,
-                       targetType,
-                       std::move(name)) {}
-};
-
-/// Represents a `ftrunc` instruction.
-class FtruncInst: public ConversionInst {
-public:
-    explicit FtruncInst(Value* operand,
-                        Type const* targetType,
-                        std::string name):
-        ConversionInst(NodeType::FtruncInst,
-                       operand,
-                       targetType,
-                       std::move(name)) {}
-};
-
-/// Represents a `bitcast` instruction.
-class BitcastInst: public ConversionInst {
-public:
-    explicit BitcastInst(Value* operand,
-                         Type const* targetType,
-                         std::string name):
-        ConversionInst(NodeType::BitcastInst,
-                       operand,
-                       targetType,
-                       std::move(name)) {}
+    /// \Returns The conversion this instruction performs.
+    Conversion conversion() const { return conv; }
+    
+private:
+    Conversion conv;
 };
 
 /// `cmp` instruction.

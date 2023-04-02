@@ -36,12 +36,7 @@ struct CodeGenContext {
     void generate(ir::Alloca const&);
     void generate(ir::Store const&);
     void generate(ir::Load const&);
-    void generate(ir::ZextInst const&);
-    void generate(ir::SextInst const&);
-    void generate(ir::TruncInst const&);
-    void generate(ir::FextInst const&);
-    void generate(ir::FtruncInst const&);
-    void generate(ir::BitcastInst const&);
+    void generate(ir::ConversionInst const&);
     void generate(ir::CompareInst const&);
     void generate(ir::UnaryArithmeticInst const&);
     void generate(ir::ArithmeticInst const&);
@@ -205,43 +200,42 @@ void CodeGenContext::generate(ir::Load const& load) {
 
 /// All the moves we insert here are unnecessary, we just don't have a better
 /// way of implementing this yet...
-void CodeGenContext::generate(ir::ZextInst const& inst) {
-    auto dest = currentRD().resolve(inst);
-    auto op   = currentRD().resolve(*inst.operand());
-    currentBlock().insertBack(MoveInst(dest, op, 8));
-}
-
-void CodeGenContext::generate(ir::SextInst const& inst) {
-    auto dest = currentRD().resolve(inst);
-    auto op   = currentRD().resolve(*inst.operand());
-    op = convertValue(op, Type::Signed, inst.operand()->type()->size() * 8);
-    currentBlock().insertBack(MoveInst(dest, op, 8));
-}
-
-void CodeGenContext::generate(ir::TruncInst const& inst) {
-    auto dest = currentRD().resolve(inst);
-    auto op   = currentRD().resolve(*inst.operand());
-    currentBlock().insertBack(MoveInst(dest, op, 8));
-}
-
-void CodeGenContext::generate(ir::FextInst const& inst) {
-    auto dest = currentRD().resolve(inst);
-    auto op   = currentRD().resolve(*inst.operand());
-    op = convertValue(op, Type::Float, inst.operand()->type()->size() * 8);
-    currentBlock().insertBack(MoveInst(dest, op, 8));
-}
-
-void CodeGenContext::generate(ir::FtruncInst const& inst) {
-    auto dest = currentRD().resolve(inst);
-    auto op   = currentRD().resolve(*inst.operand());
-    op = convertValue(op, Type::Float, inst.operand()->type()->size() * 8);
-    currentBlock().insertBack(MoveInst(dest, op, 8));
-}
-
-void CodeGenContext::generate(ir::BitcastInst const& inst) {
-    auto dest = currentRD().resolve(inst);
-    auto op   = currentRD().resolve(*inst.operand());
-    currentBlock().insertBack(MoveInst(dest, op, 8));
+void CodeGenContext::generate(ir::ConversionInst const& inst) {
+    switch (inst.conversion()) {
+    case ir::Conversion::Zext:
+        [[fallthrough]];
+    case ir::Conversion::Trunc:
+        [[fallthrough]];
+    case ir::Conversion::Bitcast: {
+        auto dest = currentRD().resolve(inst);
+        auto op   = currentRD().resolve(*inst.operand());
+        currentBlock().insertBack(MoveInst(dest, op, 8));
+        break;
+    }
+    case ir::Conversion::Sext: {
+        auto dest = currentRD().resolve(inst);
+        auto op   = currentRD().resolve(*inst.operand());
+        op = convertValue(op, Type::Signed, inst.operand()->type()->size() * 8);
+        currentBlock().insertBack(MoveInst(dest, op, 8));
+        break;
+    }
+    case ir::Conversion::Fext: {
+        auto dest = currentRD().resolve(inst);
+        auto op   = currentRD().resolve(*inst.operand());
+        op = convertValue(op, Type::Float, inst.operand()->type()->size() * 8);
+        currentBlock().insertBack(MoveInst(dest, op, 8));
+        break;
+    }
+    case ir::Conversion::Ftrunc: {
+        auto dest = currentRD().resolve(inst);
+        auto op   = currentRD().resolve(*inst.operand());
+        op = convertValue(op, Type::Float, inst.operand()->type()->size() * 8);
+        currentBlock().insertBack(MoveInst(dest, op, 8));
+        break;
+    }
+    case ir::Conversion::_count:
+        SC_UNREACHABLE();
+    }
 }
 
 static Asm::Type mapCmpMode(ir::CompareMode mode) {

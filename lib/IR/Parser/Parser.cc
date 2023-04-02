@@ -144,6 +144,25 @@ struct ParseContext {
         (expect(eatToken(), next), ...);
     }
 
+    Conversion toConversion(Token token) const {
+        switch (token.kind()) {
+        case TokenKind::Zext:
+            return Conversion::Zext;
+        case TokenKind::Sext:
+            return Conversion::Sext;
+        case TokenKind::Trunc:
+            return Conversion::Trunc;
+        case TokenKind::Fext:
+            return Conversion::Fext;
+        case TokenKind::Ftrunc:
+            return Conversion::Ftrunc;
+        case TokenKind::Bitcast:
+            return Conversion::Bitcast;
+        default:
+            reportSyntaxIssue(token);
+        }
+    }
+    
     CompareMode toCompareMode(Token token) const {
         switch (token.kind()) {
         case TokenKind::SCmp:
@@ -439,17 +458,25 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         return result;
     }
     case TokenKind::Zext:
-        return parseArithmeticConversion<ZextInst>(name());
+        [[fallthrough]];
     case TokenKind::Sext:
-        return parseArithmeticConversion<SextInst>(name());
+        [[fallthrough]];
     case TokenKind::Trunc:
-        return parseArithmeticConversion<TruncInst>(name());
+        [[fallthrough]];
     case TokenKind::Fext:
-        return parseArithmeticConversion<FextInst>(name());
+        [[fallthrough]];
     case TokenKind::Ftrunc:
-        return parseArithmeticConversion<FtruncInst>(name());
-    case TokenKind::Bitcast:
-        return parseArithmeticConversion<BitcastInst>(name());
+        [[fallthrough]];
+    case TokenKind::Bitcast: {
+        auto conv = toConversion(eatToken());
+        auto* valueType = getType(eatToken());
+        auto valueName  = eatToken();
+        expect(eatToken(), TokenKind::To);
+        auto* targetType = getType(eatToken());
+        auto result      = allocate<ConversionInst>(nullptr, targetType, conv, name());
+        addValueLink(result.get(), valueType, valueName, &ConversionInst::setOperand);
+        return result;
+    }
     case TokenKind::Goto: {
         eatToken();
         expect(eatToken(), TokenKind::Label);
@@ -743,19 +770,6 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     default:
         return nullptr;
     }
-}
-
-template <typename T>
-UniquePtr<Instruction> ParseContext::parseArithmeticConversion(
-    std::string name) {
-    eatToken();
-    auto* valueType = getType(eatToken());
-    auto valueName  = eatToken();
-    expect(eatToken(), TokenKind::To);
-    auto* targetType = getType(eatToken());
-    auto result      = allocate<T>(nullptr, targetType, std::move(name));
-    addValueLink(result.get(), valueType, valueName, &T::setOperand);
-    return result;
 }
 
 utl::small_vector<size_t> ParseContext::parseConstantIndices() {

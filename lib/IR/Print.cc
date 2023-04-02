@@ -367,18 +367,8 @@ static std::string_view toStrName(ir::Instruction const* inst) {
         return "load";
     case NodeType::Store:
         return "store";
-    case NodeType::ZextInst:
-        return "zext";
-    case NodeType::SextInst:
-        return "sext";
-    case NodeType::TruncInst:
-        return "trunc";
-    case NodeType::FextInst:
-        return "fext";
-    case NodeType::FtruncInst:
-        return "ftrunc";
-    case NodeType::BitcastInst:
-        return "bitcast";
+    case NodeType::ConversionInst:
+        return toString(cast<ConversionInst const*>(inst)->conversion());
     case NodeType::CompareInst:
         return "cmp";
     case NodeType::UnaryArithmeticInst:

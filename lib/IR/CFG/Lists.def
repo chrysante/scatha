@@ -9,9 +9,7 @@
 #endif
 
 SC_CGFNODE_DEF(Value,                 ABSTRACT)
-
 SC_CGFNODE_DEF(Parameter,             CONCRETE)
-
 SC_CGFNODE_DEF(User,                  ABSTRACT)
 
 SC_CGFNODE_DEF(Constant,              ABSTRACT)
@@ -22,27 +20,18 @@ SC_CGFNODE_DEF(UndefValue,            CONCRETE)
 SC_CGFNODE_DEF(Callable,              ABSTRACT)
 SC_CGFNODE_DEF(Function,              CONCRETE)
 SC_CGFNODE_DEF(ExtFunction,           CONCRETE)
-
 SC_CGFNODE_DEF(BasicBlock,            CONCRETE)
 
 /// Instruction base classes
-
 SC_CGFNODE_DEF(Instruction,           ABSTRACT)
 SC_CGFNODE_DEF(UnaryInstruction,      ABSTRACT)
 SC_CGFNODE_DEF(BinaryInstruction,     ABSTRACT)
 
 /// Instructions
-
 SC_CGFNODE_DEF(Alloca,                CONCRETE)
 SC_CGFNODE_DEF(Load,                  CONCRETE)
 SC_CGFNODE_DEF(Store,                 CONCRETE)
-SC_CGFNODE_DEF(ConversionInst,        ABSTRACT)
-SC_CGFNODE_DEF(ZextInst,              CONCRETE)
-SC_CGFNODE_DEF(SextInst,              CONCRETE)
-SC_CGFNODE_DEF(TruncInst,             CONCRETE)
-SC_CGFNODE_DEF(FextInst,              CONCRETE)
-SC_CGFNODE_DEF(FtruncInst,            CONCRETE)
-SC_CGFNODE_DEF(BitcastInst,           CONCRETE)
+SC_CGFNODE_DEF(ConversionInst,        CONCRETE)
 SC_CGFNODE_DEF(CompareInst,           CONCRETE)
 SC_CGFNODE_DEF(UnaryArithmeticInst,   CONCRETE)
 SC_CGFNODE_DEF(ArithmeticInst,        CONCRETE)
@@ -58,6 +47,23 @@ SC_CGFNODE_DEF(InsertValue,           CONCRETE)
 SC_CGFNODE_DEF(Select,                CONCRETE)
 
 #undef SC_CGFNODE_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of conversions -------------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_CONVERSION_DEF
+#   define SC_CONVERSION_DEF(op, keyword)
+#endif
+
+SC_CONVERSION_DEF(Zext,    zext)
+SC_CONVERSION_DEF(Sext,    sext)
+SC_CONVERSION_DEF(Trunc,   trunc)
+SC_CONVERSION_DEF(Fext,    fext)
+SC_CONVERSION_DEF(Ftrunc,  ftrunc)
+SC_CONVERSION_DEF(Bitcast, bitcast)
+
+#undef SC_CONVERSION_DEF
 
 // ===----------------------------------------------------------------------===
 // === List of compare modes -----------------------------------------------===

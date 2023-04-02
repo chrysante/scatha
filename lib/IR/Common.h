@@ -59,6 +59,20 @@ SCATHA_API std::string_view toString(NodeType nodeType);
 /// Insert \p nodeType into \p ostream.
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
+/// List of conversion operations
+enum class Conversion {
+#define SC_CONVERSION_DEF(Op, _) Op,
+#include <scatha/IR/CFG/Lists.def>
+    _count
+};
+
+/// Convert \p conv to string.
+SCATHA_API std::string_view toString(Conversion conv);
+
+/// Insert \p conv into \p ostream.
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    Conversion conv);
+
 /// List of compare modes (signed, unsigned, float)
 enum class CompareMode {
 #define SC_COMPARE_MODE_DEF(Op, _) Op,
@@ -66,10 +80,10 @@ enum class CompareMode {
     _count
 };
 
-/// Convert \p compareOp to string.
+/// Convert \p compareMode to string.
 SCATHA_API std::string_view toString(CompareMode compareMode);
 
-/// Insert \p compareOp into \p ostream.
+/// Insert \p compareMode into \p ostream.
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     CompareMode compareMode);
 
