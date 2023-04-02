@@ -27,13 +27,13 @@ Take a look at the [grammar](docs/Grammar.md).
 - Arithemtic types with explicitly specified width
     - Signed and unsigned integral types: 
         
-        `s8`, `s16`, `s32`, `s64`, `s128`
+        `s8`, `s16`, `s32`, `s64`~~, `s128`~~
 
-        `u8`, `u16`, `u32`, `u64`, `u128`
+        `u8`, `u16`, `u32`, `u64`~~, `u128`~~
 
     - Floating point types: 
 
-        `f16`, `f32`, `f64`, `f128`
+        ~~`f16`,~~ `f32`, `f64`~~, `f128`~~
 
     - Arithmetic vector types?
 
@@ -41,7 +41,7 @@ Take a look at the [grammar](docs/Grammar.md).
 - `float` defaults to `f64`
 - Explicit (and maybe some implicit) casts
     - Explicit casts: 
-        - Integral to floating point and vive versa.
+        - <font color="green">Integral to floating point and vice versa.</font>
         - Narrowing integral and floating point conversion.
     - Implicit casts:
         - Widening integral and floating point casts.
@@ -58,11 +58,11 @@ Take a look at the [grammar](docs/Grammar.md).
     - `string`, `array<T>` / `vector<T>`, `list<T>`, `dict<K, V>` etc. classes/generics
 
 ### Optimizer
-- Textual IR representation / IR parser
+- <font color="green">Textual IR representation / IR parser</font>
 - Passes
     - <font color="green">Register promotion</font> 
     - <font color="green">Constant folding</font>
-    - Inlining
+    - <font color="green">Inlining</font>
 
 ### Compiler
 
