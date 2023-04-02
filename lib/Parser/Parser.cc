@@ -99,7 +99,6 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
         return nullptr;
     }
     tokens.eat();
-
     auto identifier = parseIdentifier();
     if (!identifier) {
         iss.push(SyntaxIssue(tokens.peek(), ExpectedIdentifier));

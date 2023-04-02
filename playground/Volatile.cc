@@ -70,9 +70,13 @@ static void run(ir::Module const& mod) {
     svm::VirtualMachine vm;
     vm.loadProgram(program.data());
     vm.execute();
-    std::cout << "Program returned: " << vm.getState().registers[0] << std::endl
-              << std::endl
-              << std::endl;
+    uint32_t const retval = static_cast<uint32_t>(vm.getState().registers[0]);
+    int32_t const signedRetval = static_cast<int32_t>(retval);
+    std::cout << "Program returned: " << retval;
+    if (signedRetval < 0) {
+        std::cout << " (" << signedRetval << ")";
+    }
+    std::cout << std::endl << std::endl << std::endl;
 }
 
 static std::string readFile(std::filesystem::path path) {
@@ -83,9 +87,18 @@ static std::string readFile(std::filesystem::path path) {
     return std::move(sstr).str();
 }
 
-[[maybe_unused]] static void sroaPlayground(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
+auto makeIRModuleFromIR(std::filesystem::path path) {
+    auto parseRes = ir::parse(readFile(path));
+    if (!parseRes) {
+        print(parseRes.error());
+        std::exit(-1);
+    }
+    return std::move(parseRes).value();
+}
 
+[[maybe_unused]] static void sroaPlayground(std::filesystem::path path) {
+    //    auto [ctx, mod] = makeIRModuleFromFile(path);
+    auto [ctx, mod] = makeIRModuleFromIR(path);
     auto phase =
         [ctx = &ctx, mod = &mod](std::string name,
                                  bool (*optFn)(ir::Context&, ir::Function&)) {
@@ -95,29 +108,20 @@ static std::string readFile(std::filesystem::path path) {
         }
         ir::print(*mod);
     };
-    run(mod);
-    phase("SROA", opt::sroa);
-    phase("M2R", opt::memToReg);
-    phase("Inst Combine", opt::instCombine);
-    phase("DCE", opt::dce);
+    phase("sroa", opt::sroa);
+    phase("memToReg", opt::memToReg);
+    phase("instCombine", opt::instCombine);
     run(mod);
 }
 
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
     //    auto [ctx, mod] = makeIRModuleFromFile(path);
-
-    auto parseRes = ir::parse(readFile(path));
-    if (!parseRes) {
-        print(parseRes.error());
-        return;
-    }
-    auto [ctx, mod] = std::move(parseRes).value();
+    auto [ctx, mod] = makeIRModuleFromIR(path);
 
     header(" Before inlining ");
     ir::print(mod);
     run(mod);
 
-    return;
     header(" After inlining ");
     opt::inlineFunctions(ctx, mod);
     ir::print(mod);
