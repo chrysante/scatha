@@ -25,12 +25,17 @@ class Module;
 /// └─ User
 ///    ├─ Constant
 ///    │  ├─ IntegralConstant
-///    │  └─ Function
+///    │  ├─ FloatingPointConstant
+///    │  ├─ UndefValue
+///    │  └─ Callable
+///    │     ├─ Function
+///    │     └─ ExtFunction
 ///    └─ Instruction
 ///       ├─ Alloca
 ///       ├─ Store
+///       ├─ Load
 ///       ├─ UnaryInstruction
-///       │  ├─ Load
+///       │  ├─ ConversionInst
 ///       │  └─ UnaryArithmeticInst
 ///       ├─ BinaryInstruction
 ///       │  ├─ CompareInst
@@ -39,8 +44,12 @@ class Module;
 ///       │  ├─ Goto
 ///       │  ├─ Branch
 ///       │  └─ Return
-///       ├─ FunctionCall
-///       └─ Phi
+///       ├─ Call
+///       ├─ Phi
+///       ├─ GetElementPointer
+///       ├─ ExtractValue
+///       ├─ InsertValue
+///       └─ Select
 /// ```
 
 #define SC_CGFNODE_DEF(Node, _) class Node;
