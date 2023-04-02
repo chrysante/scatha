@@ -72,7 +72,7 @@ static void printSemaIssues(issue::SemaIssueHandler const& iss,
             std::cout << utl::nameof<std::decay_t<decltype(issue)>> << "\n\t";
         });
         // clang-format off
-        issue.visit(utl::visitor{
+        issue.visit(utl::overload{
             [&](sema::InvalidDeclaration const& e) {
                 std::cout << "Invalid declaration (" << e.reason() << "): ";
                 std::cout << std::endl;
