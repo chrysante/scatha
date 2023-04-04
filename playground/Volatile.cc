@@ -34,18 +34,16 @@
 #include "Opt/TailRecElim.h"
 #include "Opt/UnifyReturns.h"
 
-static int const headerWidth = 60;
-
 static void line(std::string_view m) {
-    utl::print("{:=^{}}\n", m, headerWidth);
+    std::cout << "==============================" << m << "==============================\n";
 };
 
 static void header(std::string_view title = "") {
-    utl::print("\n");
+    std::cout << "\n";
     line("");
     line(title);
     line("");
-    utl::print("\n");
+    std::cout << "\n";
 }
 
 using namespace scatha;
@@ -64,8 +62,6 @@ static void run(ir::Module const& mod) {
         return std::string{};
     }();
     auto program = Asm::assemble(assembly, { std::string(mainName) });
-    header(" Op codes ");
-    svm::print(program.data());
     if (mainName.empty()) {
         std::cout << "No main function found\n";
         return;
@@ -81,8 +77,9 @@ static void run(ir::Module const& mod) {
     std::cout << "\n                 (" << std::hex << retval << std::dec
               << ")";
     if (signedRetval < 0) {
-        std::cout << "\n                (" << signedRetval << ")";
+        std::cout << "\n                 (" << signedRetval << ")";
     }
+    std::cout << "\n                 (" << utl::bit_cast<double>(retval) << ")";
     std::cout << std::endl << std::endl << std::endl;
 }
 
@@ -103,21 +100,9 @@ auto makeIRModuleFromIR(std::filesystem::path path) {
     return std::move(parseRes).value();
 }
 
-[[maybe_unused]] static void sroaPlayground(std::filesystem::path path) {
-    //    auto [ctx, mod] = makeIRModuleFromFile(path);
+[[maybe_unused]] static void volPlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromIR(path);
-    auto phase =
-        [ctx = &ctx, mod = &mod](std::string name,
-                                 bool (*optFn)(ir::Context&, ir::Function&)) {
-        header(" " + name + " ");
-        for (auto& function: *mod) {
-            optFn(*ctx, function);
-        }
-        ir::print(*mod);
-    };
-    phase("sroa", opt::sroa);
-    phase("memToReg", opt::memToReg);
-    phase("instCombine", opt::instCombine);
+    print(mod);
     run(mod);
 }
 

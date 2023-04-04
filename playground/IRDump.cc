@@ -6,7 +6,6 @@
 #include <string>
 
 #include <svm/Program.h>
-#include <utl/stdio.hpp>
 
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
@@ -27,9 +26,9 @@
 using namespace scatha;
 
 static void sectionHeader(std::string_view header) {
-    utl::print("{:=^40}\n", "");
-    utl::print("{:=^40}\n", header);
-    utl::print("{:=^40}\n", "");
+    std::cout << "====================" << "====================\n";
+    std::cout << "====================" << header << "====================\n";
+    std::cout << "====================" << "====================\n";
 }
 
 static std::string readFileToString(std::filesystem::path filepath) {

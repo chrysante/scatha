@@ -6,8 +6,6 @@
 
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
-#include <utl/format.hpp>
-#include <utl/stdio.hpp>
 #include <utl/typeinfo.hpp>
 
 #include "AST/Print.h"
@@ -36,24 +34,22 @@ using namespace scatha;
 using namespace scatha::lex;
 using namespace scatha::parse;
 
-static int const headerWidth = 60;
-
 static void line(std::string_view m) {
-    utl::print("{:=^{}}\n", m, headerWidth);
+    std::cout << "==============================" << m << "==============================\n";
 };
 
 static void header(std::string_view title = "") {
-    utl::print("\n");
+    std::cout << "\n";
     line("");
     line(title);
     line("");
-    utl::print("\n");
+    std::cout << "\n";
 }
 
 static void subHeader(std::string_view title = "") {
-    utl::print("\n");
+    std::cout << "\n";
     line(title);
-    utl::print("\n");
+    std::cout << "\n";
 }
 
 void playground::compile(std::filesystem::path filepath) {
@@ -73,10 +69,10 @@ void playground::compile(std::string text) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     if (lexIss.empty()) {
-        utl::print("No lexical issues.\n");
+        std::cout << "No lexical issues.\n";
     }
     else {
-        utl::print("Lexical issues:\n");
+        std::cout << "Lexical issues:\n";
         for (auto& issue: lexIss.issues()) {
             issue.visit([]<typename T>(T const& iss) {
                 std::cout << iss.token().sourceLocation << " " << iss.token()
@@ -90,10 +86,10 @@ void playground::compile(std::string text) {
     issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     if (parseIss.empty()) {
-        utl::print("No syntax issues.\n");
+        std::cout << "No syntax issues.\n";
     }
     else {
-        utl::print("\nEncoutered {} issues:\n", parseIss.issues().size());
+        std::cout << "\nEncoutered " << parseIss.issues().size() << " issues:\n";
         for (SyntaxIssue const& issue: parseIss.issues()) {
             auto const loc = issue.token().sourceLocation;
             std::cout << "\tLine " << loc.line << " Col " << loc.column << ": ";
@@ -106,7 +102,7 @@ void playground::compile(std::string text) {
     issue::SemaIssueHandler semaIss;
     auto const sym = sema::analyze(*ast, semaIss);
     if (semaIss.issues().empty()) {
-        utl::print("No semantic issues.\n");
+        std::cout << "No semantic issues.\n";
     }
     else {
         std::cout << "\nEncoutered " << semaIss.issues().size() << " issues\n";
@@ -176,26 +172,27 @@ void playground::compile(std::string text) {
 
     header(" Assembled Program ");
     /// Start execution with `main` if it exists.
-    auto const mainID = [&sym] {
+    auto const mainName = [&sym]() -> std::optional<std::string> {
         auto const id  = sym.lookup("main");
         auto const* os = sym.tryGetOverloadSet(id);
         if (!os) {
-            return sema::SymbolID::Invalid;
+            return std::nullopt;
         }
         auto const* mainFn = os->find({});
         if (!mainFn) {
-            return sema::SymbolID::Invalid;
+            return std::nullopt;
         }
-        return mainFn->symbolID();
+        std::stringstream sstr;
+        sstr << "main" << std::hex << mainFn->symbolID();
+        return std::move(sstr).str();
     }();
-    if (!mainID) {
+    if (!mainName) {
         std::cout << "No main function defined!\n";
         return;
     }
     auto const program =
         Asm::assemble(assembly,
-                      { .startFunction =
-                            utl::format("main{:x}", mainID.rawValue()) });
+                      { .startFunction = *mainName });
     svm::print(program.data());
     subHeader();
 

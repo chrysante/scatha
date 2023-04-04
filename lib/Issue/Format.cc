@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#include <utl/format.hpp>
 #include <utl/stdio.hpp>
 
 using namespace scatha;

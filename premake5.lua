@@ -60,7 +60,7 @@ externalincludedirs {
     "external/range-v3/include",
 }
 includedirs { "lib" }
-links { "utility", "apmath", "termfmt" }
+links { "apmath", "termfmt" }
 
 filter "system:macosx"
 buildoptions "-fvisibility=hidden"
@@ -86,7 +86,7 @@ externalincludedirs {
     "external/range-v3/include",
 }
 
-links { "scatha", "utility", "termfmt", "apmath" }
+links { "scatha", "termfmt", "apmath" }
 
 ------------------------------------------
 project "svm-lib"
@@ -134,7 +134,7 @@ externalincludedirs {
 }
 
 addCppFiles "test"
-links { "scatha", "svm-lib", "utility", "APMath" } 
+links { "scatha", "svm-lib", "APMath" } 
 
 ------------------------------------------
 project "playground"
@@ -151,7 +151,7 @@ includedirs { ".", "lib", "playground", "apmath" }
 
 addCppFiles "playground"
 files "playground/**.sc"
-links { "scatha", "svm-lib", "utility", "termfmt" }
+links { "scatha", "svm-lib", "termfmt" }
 
 filter { "system:macosx"} 
     defines { "PROJECT_LOCATION=\"${PROJECT_DIR}\"" }
@@ -160,6 +160,5 @@ filter { "system:windows" }
 filter {}
 
 ------------------------------------------
-include "external/utility/lib.lua"
 include "external/termfmt"
 include "external/APMath/lib.lua"

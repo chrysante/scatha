@@ -1,7 +1,9 @@
 #include "CodeGen/AST2IR/CodeGenerator.h"
 
+#include <string>
+#include <sstream>
+
 #include <range/v3/view.hpp>
-#include <utl/format.hpp>
 #include <utl/stack.hpp>
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
@@ -679,7 +681,9 @@ std::string CodeGenContext::mangledName(sema::SymbolID id) const {
 
 std::string CodeGenContext::mangledName(sema::SymbolID id,
                                         std::string_view name) const {
-    return utl::format("{}{:x}", name, id.rawValue());
+    std::stringstream sstr;
+    sstr << name << std::hex << id.rawValue();
+    return std::move(sstr).str();
 }
 
 ir::Type const* CodeGenContext::mapType(sema::TypeID semaTypeID) {

@@ -20,7 +20,6 @@
 #include <scatha/Sema/Analyze.h>
 #include <scatha/Sema/SemanticIssue.h>
 #include <termfmt/termfmt.h>
-#include <utl/format.hpp>
 #include <utl/typeinfo.hpp>
 
 #include "CLIParse.h"
@@ -143,20 +142,22 @@ int main(int argc, char* argv[]) {
     /// Generate assembly
     auto asmStream = cg::codegen(mod);
 
-    /// Find id of main function
-    auto const mainID = [&symbolTable] {
+    /// Find name of main function
+    auto const mainName = [&symbolTable]() -> std::optional<std::string> {
         auto const id  = symbolTable.lookup("main");
         auto const* os = symbolTable.tryGetOverloadSet(id);
         if (!os) {
-            return sema::SymbolID::Invalid;
+            return std::nullopt;
         }
         auto const* mainFn = os->find({});
         if (!mainFn) {
-            return sema::SymbolID::Invalid;
+            return std::nullopt;
         }
-        return mainFn->symbolID();
+        std::stringstream sstr;
+        sstr << "main" << std::hex << mainFn->symbolID();
+        return std::move(sstr).str();
     }();
-    if (!mainID) {
+    if (!mainName) {
         std::cout << tfmt::format(tfmt::brightRed,
                                   "No main function defined!\n");
         return -1;
@@ -165,8 +166,7 @@ int main(int argc, char* argv[]) {
     /// Assemble program
     auto program =
         Asm::assemble(asmStream,
-                      { .startFunction =
-                            utl::format("main{:x}", mainID.rawValue()) });
+                      { .startFunction = *mainName });
 
     if (options.time) {
         auto const compileEndTime = std::chrono::high_resolution_clock::now();
