@@ -83,6 +83,7 @@ void ir::print(Function const& function, std::ostream& str) {
 
 std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
     PrintCtx ctx(ostream);
+    ctx.instDecl(&inst);
     ctx.dispatch(inst);
     return ostream;
 }
@@ -224,7 +225,6 @@ void PrintCtx::print(BasicBlock const& bb) {
     indent.increase();
     for (auto& inst: bb) {
         str << indent;
-        instDecl(&inst);
         dispatch(inst);
         str << "\n";
     }
