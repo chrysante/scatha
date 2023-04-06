@@ -1,7 +1,7 @@
 #include "CodeGen/AST2IR/CodeGenerator.h"
 
-#include <string>
 #include <sstream>
+#include <string>
 
 #include <range/v3/view.hpp>
 #include <utl/stack.hpp>

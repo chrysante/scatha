@@ -71,7 +71,7 @@ public:
         }
 
         void addNode(FunctionNode* node) { _nodes.push_back(node); }
-        
+
     private:
         friend class SCCCallGraph;
 

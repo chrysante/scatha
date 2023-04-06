@@ -26,9 +26,11 @@
 using namespace scatha;
 
 static void sectionHeader(std::string_view header) {
-    std::cout << "====================" << "====================\n";
+    std::cout << "===================="
+              << "====================\n";
     std::cout << "====================" << header << "====================\n";
-    std::cout << "====================" << "====================\n";
+    std::cout << "===================="
+              << "====================\n";
 }
 
 static std::string readFileToString(std::filesystem::path filepath) {

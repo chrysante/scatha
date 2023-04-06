@@ -1,12 +1,12 @@
 #include "Opt/Inliner.h"
 
 #include "IR/CFG.h"
-#include "Opt/SCCCallGraph.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/InstCombine.h"
 #include "Opt/MemToReg.h"
+#include "Opt/SCCCallGraph.h"
 #include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
 #include "Opt/TailRecElim.h"

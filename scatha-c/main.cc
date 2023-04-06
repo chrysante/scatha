@@ -164,9 +164,7 @@ int main(int argc, char* argv[]) {
     }
 
     /// Assemble program
-    auto program =
-        Asm::assemble(asmStream,
-                      { .startFunction = *mainName });
+    auto program = Asm::assemble(asmStream, { .startFunction = *mainName });
 
     if (options.time) {
         auto const compileEndTime = std::chrono::high_resolution_clock::now();

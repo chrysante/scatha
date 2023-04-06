@@ -52,15 +52,17 @@ void SCCCallGraph::computeCallGraph(Module& mod) {
 }
 
 void SCCCallGraph::computeSCCs() {
-    auto vertices = _functions | ranges::views::transform([](auto& v) { return &v; });
-    utl::compute_sccs(vertices.begin(),
-                      vertices.end(),
-                      [](FunctionNode const* node) { return node->successors(); },
-                      [&] { _sccs.emplace_back(); },
-                      [&](FunctionNode const* node) {
-                          auto& scc = _sccs.back();
-                          scc.addNode(const_cast<FunctionNode*>(node));
-                      });
+    auto vertices =
+        _functions | ranges::views::transform([](auto& v) { return &v; });
+    utl::compute_sccs(
+        vertices.begin(),
+        vertices.end(),
+        [](FunctionNode const* node) { return node->successors(); },
+        [&] { _sccs.emplace_back(); },
+        [&](FunctionNode const* node) {
+        auto& scc = _sccs.back();
+        scc.addNode(const_cast<FunctionNode*>(node));
+        });
     /// After we have computed the SCC's, we set up parent pointers of the
     /// function nodes.
     for (auto& scc: _sccs) {

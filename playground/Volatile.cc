@@ -22,20 +22,21 @@
 #include "IR/Print.h"
 #include "IR/Validate.h"
 #include "IRDump.h"
-#include "Opt/SCCCallGraph.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/Inliner.h"
 #include "Opt/InstCombine.h"
 #include "Opt/MemToReg.h"
+#include "Opt/SCCCallGraph.h"
 #include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
 #include "Opt/TailRecElim.h"
 #include "Opt/UnifyReturns.h"
 
 static void line(std::string_view m) {
-    std::cout << "==============================" << m << "==============================\n";
+    std::cout << "==============================" << m
+              << "==============================\n";
 };
 
 static void header(std::string_view title = "") {

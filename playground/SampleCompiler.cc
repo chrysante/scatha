@@ -35,7 +35,8 @@ using namespace scatha::lex;
 using namespace scatha::parse;
 
 static void line(std::string_view m) {
-    std::cout << "==============================" << m << "==============================\n";
+    std::cout << "==============================" << m
+              << "==============================\n";
 };
 
 static void header(std::string_view title = "") {
@@ -89,7 +90,8 @@ void playground::compile(std::string text) {
         std::cout << "No syntax issues.\n";
     }
     else {
-        std::cout << "\nEncoutered " << parseIss.issues().size() << " issues:\n";
+        std::cout << "\nEncoutered " << parseIss.issues().size()
+                  << " issues:\n";
         for (SyntaxIssue const& issue: parseIss.issues()) {
             auto const loc = issue.token().sourceLocation;
             std::cout << "\tLine " << loc.line << " Col " << loc.column << ": ";
@@ -191,8 +193,7 @@ void playground::compile(std::string text) {
         return;
     }
     auto const program =
-        Asm::assemble(assembly,
-                      { .startFunction = *mainName });
+        Asm::assemble(assembly, { .startFunction = *mainName });
     svm::print(program.data());
     subHeader();
 
