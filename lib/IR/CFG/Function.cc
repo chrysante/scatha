@@ -90,30 +90,31 @@ void Function::clear() {
     values.clear();
 }
 
-DomTree const& Function::getOrComputeDomTree() {
+DomTree const& Function::getOrComputeDomTree() const {
     return getOrComputeDomInfo().domTree();
 }
 
-DominanceInfo const& Function::getOrComputeDomInfo() {
+DominanceInfo const& Function::getOrComputeDomInfo() const {
     if (!domInfo) {
-        domInfo =
-            std::make_unique<DominanceInfo>(DominanceInfo::compute(*this));
+        domInfo = std::make_unique<DominanceInfo>(
+            DominanceInfo::compute(const_cast<Function&>(*this)));
     }
     return *domInfo;
 }
 
-DominanceInfo const& Function::getOrComputePostDomInfo() {
+DominanceInfo const& Function::getOrComputePostDomInfo() const {
     if (!postDomInfo) {
-        postDomInfo =
-            std::make_unique<DominanceInfo>(DominanceInfo::computePost(*this));
+        postDomInfo = std::make_unique<DominanceInfo>(
+            DominanceInfo::computePost(const_cast<Function&>(*this)));
     }
     return *postDomInfo;
 }
 
-LoopNestingForest const& Function::getOrComputeLNF() {
+LoopNestingForest const& Function::getOrComputeLNF() const {
     if (!LNF) {
         LNF = std::make_unique<LoopNestingForest>(
-            LoopNestingForest::compute(this, getOrComputeDomTree()));
+            LoopNestingForest::compute(const_cast<Function&>(*this),
+                                       getOrComputeDomTree()));
     }
     return *LNF;
 }

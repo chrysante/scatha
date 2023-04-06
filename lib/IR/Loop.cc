@@ -12,10 +12,10 @@
 using namespace scatha;
 using namespace ir;
 
-LoopNestingForest LoopNestingForest::compute(ir::Function* function,
+LoopNestingForest LoopNestingForest::compute(ir::Function& function,
                                              DomTree const& domtree) {
     LoopNestingForest result;
-    auto bbs = *function |
+    auto bbs = function |
                ranges::views::transform([](auto& bb) { return &bb; }) |
                ranges::to<utl::hashset<BasicBlock*>>;
     result._nodes =

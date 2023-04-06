@@ -14,6 +14,9 @@ namespace scatha::ir {
 
 class DomTree;
 
+/// The loop nesting forest of a function `F` is a forest representing the loops
+/// of `F`. Every node is the header of a loop, where single basic blocks are
+/// considered to be trivial loops.
 class SCATHA_TESTAPI LoopNestingForest {
 public:
     class Node: public GraphNode<ir::BasicBlock*, Node, true> {
@@ -22,17 +25,11 @@ public:
     public:
         using Base::Base;
 
-        void markHeader(bool value = true) { _isHeader = value; }
-
-        bool isHeader() const { return _isHeader; }
-
         BasicBlock* basicBlock() const { return payload(); }
-
-    private:
-        bool _isHeader = false;
     };
 
-    static LoopNestingForest compute(ir::Function* function,
+    /// Compute the loop nesting forest of \p function
+    static LoopNestingForest compute(ir::Function& function,
                                      DomTree const& domtree);
 
     /// \Returns The node corresponding to basic block \p BB
@@ -59,8 +56,10 @@ private:
     Node _virtualRoot;
 };
 
+/// Print the loop nesting forest \p LNF to `std::cout`.
 SCATHA_TESTAPI void print(LoopNestingForest const& LNF);
 
+/// Print the loop nesting forest \p LNF to \p ostream
 SCATHA_TESTAPI void print(LoopNestingForest const& LNF, std::ostream& ostream);
 
 } // namespace scatha::ir

@@ -163,16 +163,16 @@ public:
     void clear();
 
     /// Access this functions dominator tree.
-    DomTree const& getOrComputeDomTree();
+    DomTree const& getOrComputeDomTree() const;
 
     /// Access this functions dominance information.
-    DominanceInfo const& getOrComputeDomInfo();
+    DominanceInfo const& getOrComputeDomInfo() const;
 
     /// Access this functions post-dominance information.
-    DominanceInfo const& getOrComputePostDomInfo();
+    DominanceInfo const& getOrComputePostDomInfo() const;
 
     /// Access this functions loop nesting forest.
-    LoopNestingForest const& getOrComputeLNF();
+    LoopNestingForest const& getOrComputeLNF() const;
 
     /// Invalidate (post-) dominance and loop information.
     void invalidateCFGInfo();
@@ -190,9 +190,9 @@ private:
     friend class Terminator;
 
     UniqueNameFactory nameFac;
-    std::unique_ptr<DominanceInfo> domInfo;
-    std::unique_ptr<DominanceInfo> postDomInfo;
-    std::unique_ptr<LoopNestingForest> LNF;
+    mutable std::unique_ptr<DominanceInfo> domInfo;
+    mutable std::unique_ptr<DominanceInfo> postDomInfo;
+    mutable std::unique_ptr<LoopNestingForest> LNF;
 };
 
 /// Represents an external function.
