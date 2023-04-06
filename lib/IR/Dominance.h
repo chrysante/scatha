@@ -58,7 +58,7 @@ public:
         return parent ? parent->basicBlock() : nullptr;
     }
 
-    /// \Returns `true` iff the tree is empty
+    /// \Returns `true` iff the tree is empty.
     bool empty() const { return _nodes.empty(); }
 
 private:
