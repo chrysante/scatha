@@ -17,6 +17,7 @@
 #include "IR/Clone.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
+#include "IR/Loop.h"
 #include "IR/Module.h"
 #include "IR/Parser.h"
 #include "IR/Print.h"
@@ -102,9 +103,19 @@ auto makeIRModuleFromIR(std::filesystem::path path) {
 }
 
 [[maybe_unused]] static void volPlayground(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromIR(path);
+    auto [ctx, mod] = makeIRModuleFromFile(path);
+
+    auto& f = mod.front();
+    opt::memToReg(ctx, f);
+//    opt::propagateConstants(ctx, f);
+    opt::dce(ctx, f);
+
     print(mod);
-    run(mod);
+
+    auto domInfo = ir::DominanceInfo::compute(f);
+    auto LNF     = ir::LoopNestingForest::compute(&f, domInfo.domTree());
+
+    ir::print(LNF);
 }
 
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
@@ -123,5 +134,5 @@ auto makeIRModuleFromIR(std::filesystem::path path) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    inliner(path);
+    volPlayground(path);
 }
