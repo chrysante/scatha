@@ -13,7 +13,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IRDump.h"
-#include "Opt/CallGraph.h"
+#include "Opt/SCCCallGraph.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/MemToReg.h"

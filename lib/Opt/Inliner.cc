@@ -1,7 +1,7 @@
 #include "Opt/Inliner.h"
 
 #include "IR/CFG.h"
-#include "Opt/CallGraph.h"
+#include "Opt/SCCCallGraph.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/InlineCallsite.h"

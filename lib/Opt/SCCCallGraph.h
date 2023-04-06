@@ -1,5 +1,5 @@
-#ifndef SCATHA_OPT_CALLGRAPH_H_
-#define SCATHA_OPT_CALLGRAPH_H_
+#ifndef SCATHA_OPT_SCCCALLGRAPH_H_
+#define SCATHA_OPT_SCCCALLGRAPH_H_
 
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
@@ -70,6 +70,8 @@ public:
                    });
         }
 
+        void addNode(FunctionNode* node) { _nodes.push_back(node); }
+        
     private:
         friend class SCCCallGraph;
 
@@ -119,4 +121,4 @@ private:
 
 } // namespace scatha::opt
 
-#endif // SCATHA_OPT_CALLGRAPH_H_
+#endif // SCATHA_OPT_SCCCALLGRAPH_H_

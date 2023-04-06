@@ -12,7 +12,7 @@
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
-#include "Opt/CallGraph.h"
+#include "Opt/SCCCallGraph.h"
 
 using namespace scatha;
 using namespace ir;
