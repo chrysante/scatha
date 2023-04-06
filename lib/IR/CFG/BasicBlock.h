@@ -226,6 +226,8 @@ private:
     void insertCallback(Instruction&);
     void eraseCallback(Instruction const&);
 
+    void invalidateDomInfoEtc();
+
 private:
     utl::small_vector<BasicBlock*> preds;
 };

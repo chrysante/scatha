@@ -141,6 +141,8 @@ public:
                       std::string name,
                       FunctionAttribute attr);
 
+    ~Function();
+
     /// \returns the entry basic block of this function
     BasicBlock& entry() { return front(); }
 
@@ -160,17 +162,32 @@ public:
     /// Erase all basic blocks and all instructions.
     void clear();
 
+    /// Access this functions dominator tree.
+    DomTree const& getOrComputeDomTree();
+
+    /// Access this functions dominance information.
+    DominanceInfo const& getOrComputeDomInfo();
+
+    /// Access this functions loop nesting forest.
+    LoopNestingForest const& getOrComputeLNF();
+
 private:
     /// Callbacks used by CFGList base class
     void insertCallback(BasicBlock&);
     void eraseCallback(BasicBlock const&);
 
+    void invalidateDomInfoEtc();
+
 private:
     /// For access to `nameFac`
     friend class Value;
     friend class BasicBlock;
+    /// For access to `invalidateDomInfoEtc()`
+    friend class Terminator;
 
     UniqueNameFactory nameFac;
+    std::unique_ptr<DominanceInfo> domInfo;
+    std::unique_ptr<LoopNestingForest> LNF;
 };
 
 /// Represents an external function.

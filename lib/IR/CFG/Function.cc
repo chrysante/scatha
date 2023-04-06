@@ -1,5 +1,7 @@
 #include "IR/CFG/Function.h"
 
+#include "IR/Dominance.h"
+#include "IR/Loop.h"
 #include "IR/Type.h"
 
 using namespace scatha;
@@ -79,11 +81,33 @@ Function::Function(FunctionType const* functionType,
     uniqueParams(this->parameters(), nameFac);
 }
 
+Function::~Function() = default;
+
 void Function::clear() {
     for (auto& inst: instructions()) {
         inst.clearOperands();
     }
     values.clear();
+}
+
+DomTree const& Function::getOrComputeDomTree() {
+    return getOrComputeDomInfo().domTree();
+}
+
+DominanceInfo const& Function::getOrComputeDomInfo() {
+    if (!domInfo) {
+        domInfo =
+            std::make_unique<DominanceInfo>(DominanceInfo::compute(*this));
+    }
+    return *domInfo;
+}
+
+LoopNestingForest const& Function::getOrComputeLNF() {
+    if (!LNF) {
+        LNF = std::make_unique<LoopNestingForest>(
+            LoopNestingForest::compute(this, getOrComputeDomTree()));
+    }
+    return *LNF;
 }
 
 void Function::insertCallback(BasicBlock& bb) {
@@ -92,6 +116,7 @@ void Function::insertCallback(BasicBlock& bb) {
     for (auto& inst: bb) {
         bb.insertCallback(inst);
     }
+    invalidateDomInfoEtc();
 }
 
 void Function::eraseCallback(BasicBlock const& bb) {
@@ -99,6 +124,12 @@ void Function::eraseCallback(BasicBlock const& bb) {
     for (auto& inst: bb) {
         const_cast<BasicBlock&>(bb).eraseCallback(inst);
     }
+    invalidateDomInfoEtc();
+}
+
+void Function::invalidateDomInfoEtc() {
+    domInfo.reset();
+    LNF.reset();
 }
 
 ExtFunction::ExtFunction(FunctionType const* functionType,

@@ -223,4 +223,14 @@ SCATHA_API void privateDestroy(ir::Type* type);
 
 } // namespace scatha::internal
 
+namespace scatha::ir {
+
+class DomTree;
+
+class DominanceInfo;
+
+class LoopNestingForest;
+
+} // namespace scatha::ir
+
 #endif // SCATHA_IR_COMMON_H_
