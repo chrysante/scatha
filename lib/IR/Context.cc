@@ -18,6 +18,12 @@ Context::Context() {
     _types.push_back(std::move(pt));
 }
 
+Context::Context(Context&&) noexcept = default;
+
+Context& Context::operator=(Context&&) noexcept = default;
+
+Context::~Context() = default;
+
 template <typename A>
 static auto* getArithmeticType(size_t bitWidth, auto& types, auto& map) {
     auto itr = map.find(bitWidth);

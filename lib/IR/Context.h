@@ -23,6 +23,12 @@ public:
     /// Construct an empty `Context` object
     Context();
 
+    Context(Context&&) noexcept;
+
+    Context& operator=(Context&&) noexcept;
+
+    ~Context();
+
     /// \returns The `void` type
     VoidType const* voidType() { return _voidType; }
 
