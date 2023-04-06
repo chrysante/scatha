@@ -83,7 +83,6 @@ void ir::print(Function const& function, std::ostream& str) {
 
 std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
     PrintCtx ctx(ostream);
-    ctx.instDecl(&inst);
     ctx.dispatch(inst);
     return ostream;
 }
@@ -106,6 +105,9 @@ std::string ir::toString(Value const& value) {
 }
 
 void PrintCtx::dispatch(Value const& value) {
+    if (auto* inst = dyncast<Instruction const*>(&value)) {
+        instDecl(inst);
+    }
     visit(value, [this](auto const& value) { print(value); });
 }
 
