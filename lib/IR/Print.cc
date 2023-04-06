@@ -372,7 +372,7 @@ static std::string_view toStrName(ir::Instruction const* inst) {
     case NodeType::ConversionInst:
         return toString(cast<ConversionInst const*>(inst)->conversion());
     case NodeType::CompareInst:
-        return "cmp";
+        return toString(cast<CompareInst const*>(inst)->mode());
     case NodeType::UnaryArithmeticInst:
         return toString(cast<UnaryArithmeticInst const*>(inst)->operation());
     case NodeType::ArithmeticInst:
