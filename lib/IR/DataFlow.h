@@ -4,8 +4,8 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
-#include "IR/Common.h"
 #include "Basic/Basic.h"
+#include "IR/Common.h"
 
 namespace scatha::ir {
 
@@ -22,20 +22,24 @@ class LiveSets {
         SC_ASSERT(itr != map.end(), "Not found");
         return itr->second;
     }
-    
+
 public:
-    utl::hashset<Instruction const*> const& liveIn(BasicBlock const* BB) const { return getImpl(in, BB); }
-    
-    utl::hashset<Instruction const*> const& liveOut(BasicBlock const* BB) const { return getImpl(out, BB); }
+    utl::hashset<Instruction const*> const& liveIn(BasicBlock const* BB) const {
+        return getImpl(in, BB);
+    }
+
+    utl::hashset<Instruction const*> const& liveOut(
+        BasicBlock const* BB) const {
+        return getImpl(out, BB);
+    }
 
 private:
     friend LiveSets ir::computeLiveSets(Function const&);
-    
+
     LiveSets() = default;
-    
+
     utl::hashmap<BasicBlock const*, utl::hashset<Instruction const*>> in, out;
 };
-
 
 } // namespace scatha::ir
 

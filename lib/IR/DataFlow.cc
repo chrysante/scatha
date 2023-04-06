@@ -9,8 +9,7 @@ using namespace scatha;
 using namespace ir;
 
 template <typename T>
-static void merge(utl::hashset<T>& dest,
-                  auto const& source) {
+static void merge(utl::hashset<T>& dest, auto const& source) {
     for (auto* BB: source) {
         dest.insert(BB);
     }
@@ -19,22 +18,23 @@ static void merge(utl::hashset<T>& dest,
 namespace {
 
 struct LivenessContext {
-    enum Flags {
-        Visited   = 1 << 0,
-        Processed = 1 << 1
-    };
-    
-    LivenessContext(auto& in, auto& out): liveIn(in), liveOut(out) {}
-    
+    enum Flags { Visited = 1 << 0, Processed = 1 << 1 };
+
+    using ResultMap =
+        utl::hashmap<BasicBlock const*, utl::hashset<Instruction const*>>;
+
+    LivenessContext(ResultMap& in, ResultMap& out): liveIn(in), liveOut(out) {}
+
     void run(Function const& F);
-    
+
     void dag(BasicBlock const* BB);
-    
+
     void loopTree(LoopNestingForest::Node const* node);
-  
+
     utl::hashset<Instruction const*> phiUses(BasicBlock const* BB);
-    
-    utl::hashmap<BasicBlock const*, utl::hashset<Instruction const*>> &liveIn, &liveOut;
+
+    ResultMap& liveIn;
+    ResultMap& liveOut;
     utl::hashmap<BasicBlock const*, int> flags;
     utl::hashset<std::pair<BasicBlock const*, BasicBlock const*>> backEdges;
 };
@@ -82,6 +82,9 @@ void LivenessContext::dag(BasicBlock const* BB) {
     }
     liveOut[BB] = live;
     for (auto& inst: *BB | ranges::views::reverse) {
+        if (isa<Phi>(inst)) {
+            break;
+        }
         live.erase(&inst);
         for (auto* operand: inst.operands()) {
             if (auto* instOp = dyncast<Instruction const*>(operand)) {
@@ -97,13 +100,10 @@ void LivenessContext::dag(BasicBlock const* BB) {
 }
 
 void LivenessContext::loopTree(LoopNestingForest::Node const* node) {
-//    if (!node->isLoopNode()) {
-//        return;
-//    }
     if (node->children().empty()) {
         return;
     }
-    auto* header = node->basicBlock();
+    auto* header  = node->basicBlock();
     auto liveLoop = liveIn[header];
     for (auto& phi: header->phiNodes()) {
         liveLoop.erase(&phi);
@@ -116,14 +116,14 @@ void LivenessContext::loopTree(LoopNestingForest::Node const* node) {
     }
 }
 
-static constexpr auto take_address = ranges::views::transform([](auto& x) { return &x; });
+static constexpr auto take_address =
+    ranges::views::transform([](auto& x) { return &x; });
 
-utl::hashset<Instruction const*> LivenessContext::phiUses(BasicBlock const* BB) {
-    return *BB |
-           ranges::views::filter([](Instruction const& inst) {
-               auto&& users = inst.users();
-               return ranges::find_if(users, [](Instruction const* user) { return isa<Phi>(user); }) != ranges::end(users);
-           }) |
-           take_address |
+utl::hashset<Instruction const*> LivenessContext::phiUses(
+    BasicBlock const* BB) {
+    return *BB | ranges::views::filter([](Instruction const& inst) {
+        return ranges::any_of(inst.users(),
+                              [](auto* user) { return isa<Phi>(user); });
+    }) | take_address |
            ranges::to<utl::hashset<Instruction const*>>;
 }
