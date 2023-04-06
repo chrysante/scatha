@@ -86,11 +86,6 @@ func void @f() {
         auto& F         = mod.front();
         auto dom        = ir::DominanceInfo::compute(F);
         auto LNF        = ir::LoopNestingForest::compute(&F, dom.domTree());
-        auto find       = [&](auto&& rng, std::string_view name) {
-            return *ranges::find(rng, name, [](auto* n) {
-                return n->basicBlock()->name();
-            });
-        };
         REQUIRE((LNF.roots() | names) == test::Set{ "entry" });
     }
 }
