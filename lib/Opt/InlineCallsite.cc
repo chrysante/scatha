@@ -69,5 +69,6 @@ void opt::inlineCallsite(ir::Context& ctx, Call* call) {
     landingpad->erase(call);
     /// Move basic blocks from the calleeClone into calling function.
     caller->splice(Function::Iterator(landingpad), calleeClone.get());
+    caller->invalidateCFGInfo();
     ir::assertInvariants(ctx, *caller);
 }

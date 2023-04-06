@@ -41,7 +41,6 @@ void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
         size_t const index = phi.indexOf(oldPred);
         phi.setPredecessor(index, newPred);
     }
-    invalidateDomInfoEtc();
 }
 
 void BasicBlock::removePredecessor(BasicBlock const* pred) {
@@ -58,7 +57,6 @@ void BasicBlock::removePredecessor(size_t index) {
     for (auto& phi: phiNodes()) {
         phi.removeArgument(pred);
     }
-    invalidateDomInfoEtc();
 }
 
 void BasicBlock::insertCallback(Instruction& inst) {
@@ -66,17 +64,11 @@ void BasicBlock::insertCallback(Instruction& inst) {
     if (auto* func = parent()) {
         inst.uniqueExistingName(*func);
     }
-    if (auto* term = dyncast<TerminatorInst const*>(&inst)) {
-        invalidateDomInfoEtc();
-    }
 }
 
 void BasicBlock::eraseCallback(Instruction const& inst) {
     const_cast<Instruction&>(inst).clearOperands();
     parent()->nameFac.erase(inst.name());
-    if (auto* term = dyncast<TerminatorInst const*>(&inst)) {
-        invalidateDomInfoEtc();
-    }
 }
 
 bool BasicBlock::isEntry() const {
@@ -94,10 +86,4 @@ BasicBlock::Iterator BasicBlock::phiEnd() { return phiEndImpl(begin(), end()); }
 
 BasicBlock::ConstIterator BasicBlock::phiEnd() const {
     return phiEndImpl(begin(), end());
-}
-
-void BasicBlock::invalidateDomInfoEtc() {
-    if (parent()) {
-        parent()->invalidateDomInfoEtc();
-    }
 }

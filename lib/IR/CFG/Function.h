@@ -168,15 +168,19 @@ public:
     /// Access this functions dominance information.
     DominanceInfo const& getOrComputeDomInfo();
 
+    /// Access this functions post-dominance information.
+    DominanceInfo const& getOrComputePostDomInfo();
+
     /// Access this functions loop nesting forest.
     LoopNestingForest const& getOrComputeLNF();
+
+    /// Invalidate (post-) dominance and loop information.
+    void invalidateCFGInfo();
 
 private:
     /// Callbacks used by CFGList base class
     void insertCallback(BasicBlock&);
     void eraseCallback(BasicBlock const&);
-
-    void invalidateDomInfoEtc();
 
 private:
     /// For access to `nameFac`
@@ -187,6 +191,7 @@ private:
 
     UniqueNameFactory nameFac;
     std::unique_ptr<DominanceInfo> domInfo;
+    std::unique_ptr<DominanceInfo> postDomInfo;
     std::unique_ptr<LoopNestingForest> LNF;
 };
 

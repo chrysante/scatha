@@ -22,7 +22,7 @@ struct DCEContext {
     explicit DCEContext(Context& irCtx, Function& function):
         irCtx(irCtx),
         function(function),
-        postDomInfo(DominanceInfo::computePost(function)) {}
+        postDomInfo(function.getOrComputePostDomInfo()) {}
 
     bool run();
 
@@ -40,7 +40,7 @@ struct DCEContext {
     utl::hashset<Instruction*> worklist;
     utl::hashset<Instruction*> marked;
     utl::hashset<BasicBlock*> usefulBlocks;
-    DominanceInfo postDomInfo;
+    DominanceInfo const& postDomInfo;
 };
 
 } // namespace

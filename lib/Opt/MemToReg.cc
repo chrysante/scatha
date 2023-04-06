@@ -41,7 +41,7 @@ struct MemToRegContext {
     MemToRegContext(Context& irCtx, Function& function):
         irCtx(irCtx),
         function(function),
-        domInfo(DominanceInfo::compute(function)) {}
+        domInfo(function.getOrComputeDomInfo()) {}
 
     bool run();
 
@@ -59,7 +59,7 @@ struct MemToRegContext {
 
     Context& irCtx;
     Function& function;
-    DominanceInfo domInfo;
+    DominanceInfo const& domInfo;
     utl::hashmap<Alloca*, VariableInfo> variables;
     utl::hashset<BasicBlock const*> renamedBlocks;
     /// Map phis to corresponding allocas

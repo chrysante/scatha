@@ -4,6 +4,7 @@
 #include <string>
 
 #include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Function.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Loop.h"
@@ -58,8 +59,7 @@ func void @f() {
 })";
         auto [ctx, mod] = ir::parse(text).value();
         auto& F         = mod.front();
-        auto dom        = ir::DominanceInfo::compute(F);
-        auto LNF        = ir::LoopNestingForest::compute(&F, dom.domTree());
+        auto& LNF       = F.getOrComputeLNF();
         auto find       = [&](auto&& rng, std::string_view name) {
             return *ranges::find(rng, name, [](auto* n) {
                 return n->basicBlock()->name();
@@ -84,8 +84,7 @@ func void @f() {
 })";
         auto [ctx, mod] = ir::parse(text).value();
         auto& F         = mod.front();
-        auto dom        = ir::DominanceInfo::compute(F);
-        auto LNF        = ir::LoopNestingForest::compute(&F, dom.domTree());
+        auto& LNF       = F.getOrComputeLNF();
         REQUIRE((LNF.roots() | names) == test::Set{ "entry" });
     }
 }

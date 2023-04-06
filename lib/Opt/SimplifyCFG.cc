@@ -48,6 +48,9 @@ bool opt::simplifyCFG(ir::Context& irCtx, Function& function) {
     ctx.visited.clear();
     modifiedAny |= ctx.merge();
     assertInvariants(irCtx, function);
+    if (modifiedAny) {
+        function.invalidateCFGInfo();
+    }
     return modifiedAny;
 }
 

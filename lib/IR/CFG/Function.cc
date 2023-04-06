@@ -102,6 +102,14 @@ DominanceInfo const& Function::getOrComputeDomInfo() {
     return *domInfo;
 }
 
+DominanceInfo const& Function::getOrComputePostDomInfo() {
+    if (!postDomInfo) {
+        postDomInfo =
+            std::make_unique<DominanceInfo>(DominanceInfo::computePost(*this));
+    }
+    return *postDomInfo;
+}
+
 LoopNestingForest const& Function::getOrComputeLNF() {
     if (!LNF) {
         LNF = std::make_unique<LoopNestingForest>(
@@ -110,13 +118,18 @@ LoopNestingForest const& Function::getOrComputeLNF() {
     return *LNF;
 }
 
+void Function::invalidateCFGInfo() {
+    domInfo.reset();
+    postDomInfo.reset();
+    LNF.reset();
+}
+
 void Function::insertCallback(BasicBlock& bb) {
     bb.set_parent(this);
     bb.uniqueExistingName(*this);
     for (auto& inst: bb) {
         bb.insertCallback(inst);
     }
-    invalidateDomInfoEtc();
 }
 
 void Function::eraseCallback(BasicBlock const& bb) {
@@ -124,12 +137,6 @@ void Function::eraseCallback(BasicBlock const& bb) {
     for (auto& inst: bb) {
         const_cast<BasicBlock&>(bb).eraseCallback(inst);
     }
-    invalidateDomInfoEtc();
-}
-
-void Function::invalidateDomInfoEtc() {
-    domInfo.reset();
-    LNF.reset();
 }
 
 ExtFunction::ExtFunction(FunctionType const* functionType,
