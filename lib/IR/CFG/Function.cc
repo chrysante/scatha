@@ -83,13 +83,6 @@ Function::Function(FunctionType const* functionType,
 
 Function::~Function() = default;
 
-void Function::clear() {
-    for (auto& inst: instructions()) {
-        inst.clearOperands();
-    }
-    values.clear();
-}
-
 DomTree const& Function::getOrComputeDomTree() const {
     return getOrComputeDomInfo().domTree();
 }

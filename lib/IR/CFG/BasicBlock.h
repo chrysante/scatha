@@ -3,7 +3,6 @@
 
 #include <utl/vector.hpp>
 
-#include "IR/CFG/CFGList.h"
 #include "IR/CFG/Instruction.h"
 #include "IR/CFG/Iterator.h"
 #include "IR/CFG/Value.h"
@@ -17,10 +16,10 @@ namespace scatha::ir {
 /// during construction and transformations of the CFG.
 class SCATHA_API BasicBlock:
     public Value,
-    public internal::CFGList<BasicBlock, Instruction>,
+    public CFGList<BasicBlock, Instruction>,
     public NodeWithParent<BasicBlock, Function> {
-    friend class internal::CFGList<BasicBlock, Instruction>;
-    using ListBase = internal::CFGList<BasicBlock, Instruction>;
+    friend class CFGList<BasicBlock, Instruction>;
+    using ListBase = CFGList<BasicBlock, Instruction>;
 
     static auto succImpl(auto* t) {
         SC_ASSERT(t, "No successors without a terminator");
@@ -45,17 +44,6 @@ public:
     }
 
     void eraseAllPhiNodes();
-
-    /// Extract an instruction. Does not clear the operands. Caller takes
-    /// ownership of the instruction.
-    UniquePtr<Instruction> extract(ConstIterator position) {
-        return UniquePtr<Instruction>(values.extract(position));
-    }
-
-    /// \overload
-    UniquePtr<Instruction> extract(Instruction const* inst) {
-        return extract(ConstIterator(inst));
-    }
 
     /// \returns `true` iff this basic block is the entry basic block.
     bool isEntry() const;

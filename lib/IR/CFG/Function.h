@@ -7,7 +7,6 @@
 #include "Basic/Basic.h"
 #include "IR/Attribute.h"
 #include "IR/CFG/BasicBlock.h"
-#include "IR/CFG/CFGList.h"
 #include "IR/CFG/Constant.h"
 #include "IR/CFG/UniqueName.h"
 #include "IR/Common.h"
@@ -101,18 +100,17 @@ private:
 /// blocks.
 class SCATHA_API Function:
     public Callable,
-    public internal::CFGList<Function, BasicBlock>,
+    public CFGList<Function, BasicBlock>,
     public NodeWithParent<Function, Module> {
-    friend class internal::CFGList<Function, BasicBlock>;
-    using ListBase = internal::CFGList<Function, BasicBlock>;
+    friend class CFGList<Function, BasicBlock>;
+    using ListBase = CFGList<Function, BasicBlock>;
 
     template <typename Itr, typename Self>
     static ranges::subrange<Itr> getInstructionsImpl(Self&& self) {
         using InstItr = typename Itr::InstructionIterator;
-        Itr const begin(self.values.begin(),
-                        self.values.empty() ? InstItr{} :
-                                              self.values.front().begin());
-        Itr const end(self.values.end(), InstItr{});
+        Itr const begin(self.begin(),
+                        self.empty() ? InstItr{} : self.front().begin());
+        Itr const end(self.end(), InstItr{});
         return { begin, end };
     }
 
@@ -158,9 +156,6 @@ public:
     auto instructions() const {
         return getInstructionsImpl<ConstInstructionIterator>(*this);
     }
-
-    /// Erase all basic blocks and all instructions.
-    void clear();
 
     /// Access this functions dominator tree.
     DomTree const& getOrComputeDomTree() const;
