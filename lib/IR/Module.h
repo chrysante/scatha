@@ -9,8 +9,8 @@
 
 #include <scatha/Basic/Basic.h>
 #include <scatha/Basic/OpaqueRange.h>
+#include <scatha/Common/List.h>
 #include <scatha/Common/UniquePtr.h>
-#include <scatha/IR/CFG/List.h>
 #include <scatha/IR/Common.h>
 
 namespace scatha::ir {

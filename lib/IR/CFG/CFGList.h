@@ -1,9 +1,9 @@
 #ifndef SCATHA_IR_CFG_CFGLIST_H_
 #define SCATHA_IR_CFG_CFGLIST_H_
 
+#include "Common/List.h"
 #include "Common/UniquePtr.h"
 #include "IR/CFG/Iterator.h"
-#include "IR/CFG/List.h"
 #include "IR/Common.h"
 
 namespace scatha::ir::internal {
