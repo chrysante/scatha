@@ -1,0 +1,47 @@
+// No include guards
+
+// ===----------------------------------------------------------------------===
+// === CFG -----------------------------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_MIR_CFGNODE_DEF
+#   define SC_MIR_CFGNODE_DEF(node, _)
+#endif
+
+SC_MIR_CFGNODE_DEF(Value,               ABSTRACT)
+SC_MIR_CFGNODE_DEF(Register,            ABSTRACT)
+SC_MIR_CFGNODE_DEF(Constant,            CONCRETE)
+SC_MIR_CFGNODE_DEF(BasicBlock,          CONCRETE)
+SC_MIR_CFGNODE_DEF(Parameter,           CONCRETE)
+SC_MIR_CFGNODE_DEF(Function,            CONCRETE)
+SC_MIR_CFGNODE_DEF(Instruction,         CONCRETE)
+
+#undef SC_MIR_CFGNODE_DEF
+
+// ===----------------------------------------------------------------------===
+// === Instructions --------------------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_MIR_INSTRUCTION_DEF
+#   define SC_MIR_INSTRUCTION_DEF(node, name)
+#endif
+
+SC_MIR_INSTRUCTION_DEF(Store,           "store")
+SC_MIR_INSTRUCTION_DEF(Load,            "load")
+SC_MIR_INSTRUCTION_DEF(Copy,            "copy")
+SC_MIR_INSTRUCTION_DEF(Call,            "call")
+SC_MIR_INSTRUCTION_DEF(CallExt,         "callExt")
+SC_MIR_INSTRUCTION_DEF(CondCopy,        "ccpy")
+
+SC_MIR_INSTRUCTION_DEF(LIncSP,          "lincsp") /// (u64 numBytes)
+SC_MIR_INSTRUCTION_DEF(LEA,             "lea")
+SC_MIR_INSTRUCTION_DEF(Compare,         "<compare>")
+SC_MIR_INSTRUCTION_DEF(Set,             "set")
+SC_MIR_INSTRUCTION_DEF(UnaryArithmetic, "<unary-arithmetic>")
+SC_MIR_INSTRUCTION_DEF(Arithmetic,      "<arithmetic>")
+SC_MIR_INSTRUCTION_DEF(Conversion,      "<conv>")
+SC_MIR_INSTRUCTION_DEF(Return,          "return")
+SC_MIR_INSTRUCTION_DEF(Goto,            "goto")
+SC_MIR_INSTRUCTION_DEF(Branch,          "branch")
+
+#undef SC_MIR_INSTRUCTION_DEF
