@@ -1,6 +1,7 @@
 #ifndef SCATHA_IR_CFG_FUNCTION_H_
 #define SCATHA_IR_CFG_FUNCTION_H_
 
+#include <memory>
 #include <span>
 #include <string>
 
@@ -181,13 +182,11 @@ private:
     /// For access to `nameFac`
     friend class Value;
     friend class BasicBlock;
-    /// For access to `invalidateDomInfoEtc()`
-    friend class Terminator;
+
+    struct AnalysisData;
 
     UniqueNameFactory nameFac;
-    mutable std::unique_ptr<DominanceInfo> domInfo;
-    mutable std::unique_ptr<DominanceInfo> postDomInfo;
-    mutable std::unique_ptr<LoopNestingForest> LNF;
+    std::unique_ptr<AnalysisData> analysisData;
 };
 
 /// Represents an external function.

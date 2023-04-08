@@ -1,5 +1,7 @@
 #include "IR/CFG/Function.h"
 
+#include <optional>
+
 #include "IR/Dominance.h"
 #include "IR/Loop.h"
 #include "IR/Type.h"
@@ -46,6 +48,12 @@ Callable::Callable(NodeType nodeType,
     }
 }
 
+struct Function::AnalysisData {
+    std::optional<DominanceInfo> domInfo;
+    std::optional<DominanceInfo> postDomInfo;
+    std::optional<LoopNestingForest> LNF;
+};
+
 static void uniqueParams(auto&& params, auto&& nameFac) {
     for (auto& param: params) {
         bool const nameUnique = nameFac.tryRegister(param.name());
@@ -63,7 +71,9 @@ Function::Function(FunctionType const* functionType,
              returnType,
              parameterTypes,
              std::move(name),
-             attr) {
+             attr),
+    nameFac(),
+    analysisData(std::make_unique<AnalysisData>()) {
     uniqueParams(parameters(), nameFac);
 }
 
@@ -88,34 +98,34 @@ DomTree const& Function::getOrComputeDomTree() const {
 }
 
 DominanceInfo const& Function::getOrComputeDomInfo() const {
-    if (!domInfo) {
-        domInfo = std::make_unique<DominanceInfo>(
-            DominanceInfo::compute(const_cast<Function&>(*this)));
+    if (!analysisData->domInfo) {
+        analysisData->domInfo =
+            DominanceInfo::compute(const_cast<Function&>(*this));
     }
-    return *domInfo;
+    return *analysisData->domInfo;
 }
 
 DominanceInfo const& Function::getOrComputePostDomInfo() const {
-    if (!postDomInfo) {
-        postDomInfo = std::make_unique<DominanceInfo>(
-            DominanceInfo::computePost(const_cast<Function&>(*this)));
+    if (!analysisData->postDomInfo) {
+        analysisData->postDomInfo =
+            DominanceInfo::computePost(const_cast<Function&>(*this));
     }
-    return *postDomInfo;
+    return *analysisData->postDomInfo;
 }
 
 LoopNestingForest const& Function::getOrComputeLNF() const {
-    if (!LNF) {
-        LNF = std::make_unique<LoopNestingForest>(
+    if (!analysisData->LNF) {
+        analysisData->LNF =
             LoopNestingForest::compute(const_cast<Function&>(*this),
-                                       getOrComputeDomTree()));
+                                       getOrComputeDomTree());
     }
-    return *LNF;
+    return *analysisData->LNF;
 }
 
 void Function::invalidateCFGInfo() {
-    domInfo.reset();
-    postDomInfo.reset();
-    LNF.reset();
+    analysisData->domInfo     = std::nullopt;
+    analysisData->postDomInfo = std::nullopt;
+    analysisData->LNF         = std::nullopt;
 }
 
 void Function::insertCallback(BasicBlock& bb) {
