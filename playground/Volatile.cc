@@ -16,6 +16,7 @@
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
+#include "IR/DataFlow.h"
 #include "IR/Dominance.h"
 #include "IR/Loop.h"
 #include "IR/Module.h"
@@ -85,42 +86,28 @@ static void run(ir::Module const& mod) {
     std::cout << std::endl << std::endl << std::endl;
 }
 
-static std::string readFile(std::filesystem::path path) {
-    std::fstream file(path);
-    assert(file);
-    std::stringstream sstr;
-    sstr << file.rdbuf();
-    return std::move(sstr).str();
-}
-
-auto makeIRModuleFromIR(std::filesystem::path path) {
-    auto parseRes = ir::parse(readFile(path));
-    if (!parseRes) {
-        print(parseRes.error());
-        std::exit(-1);
-    }
-    return std::move(parseRes).value();
-}
-
 [[maybe_unused]] static void volPlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
 
     auto& f = mod.front();
     opt::memToReg(ctx, f);
-//    opt::propagateConstants(ctx, f);
-    opt::dce(ctx, f);
 
     print(mod);
 
-    auto domInfo = ir::DominanceInfo::compute(f);
-    auto LNF     = ir::LoopNestingForest::compute(&f, domInfo.domTree());
+    auto liveSets = ir::LiveSets::compute(f);
 
-    ir::print(LNF);
+    for (auto& bb: f) {
+        auto toNames = ranges::views::transform(
+            [](ir::Value const* value) { return value->name(); });
+        auto& live = liveSets.live(&bb);
+        std::cout << bb.name() << ":\n";
+        std::cout << "\tLive in:  " << (live.liveIn | toNames) << "\n";
+        std::cout << "\tLive out: " << (live.liveOut | toNames) << "\n";
+    }
 }
 
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
-    //    auto [ctx, mod] = makeIRModuleFromFile(path);
-    auto [ctx, mod] = makeIRModuleFromIR(path);
+    auto [ctx, mod] = makeIRModuleFromFile(path);
 
     header(" Before inlining ");
     ir::print(mod);
