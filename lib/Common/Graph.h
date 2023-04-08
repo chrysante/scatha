@@ -62,7 +62,8 @@ enum class GraphKind { Undirected, Directed, Tree };
 /// \param Derived The derived class, used by CRTP. Can also be void, then no
 /// CRTP is happening.
 ///
-/// \param Kind Depending on the kind, this class implements different interfaces:
+/// \param Kind Depending on the kind, this class implements different
+/// interfaces:
 /// - `UndirectedGraph`: Implements `.neighbours()` method.
 /// - `DirectedGraph`: Implements `.predecessors()` and `.successors()` methods.
 /// - `Tree`: Implements `.parent()` and `.children()` methods.
@@ -149,7 +150,7 @@ public:
     auto neighbours() const
         requires(Kind == GraphKind::Undirected)
     {
-        return incomingImpl();
+        return outgoingImpl();
     }
 
     /// Add \p neigh as predecessor if it is not already a predecessor.
