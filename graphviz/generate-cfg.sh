@@ -1,3 +1,5 @@
+mkdir "gen"
+
 # For now. Adding arguments for file to process would be handy.
 ./../build/bin/Debug/playground --emit-cfg
 
@@ -6,11 +8,11 @@ generate_graph() {
 }
 
 # Warning: This script depends on the playground executable to emit
-# "cfg-{@}.gv" files
+# "gen/cfg-{@}.gv" files
 
 for ((i=1;i<=$#;i++));
 do
-    generate_graph "cfg-${!i}"
-    open "cfg-${!i}.svg"
+    generate_graph "gen/cfg-${!i}"
+    open "gen/cfg-${!i}.svg"
 done;
 

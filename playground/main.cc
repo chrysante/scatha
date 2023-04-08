@@ -29,6 +29,7 @@ enum class ProgramCase {
     EmitCFG,
     EmitCallGraph,
     EmitUseGraph,
+    EmitInterferenceGraph,
     OptTest,
     APFloatTest
 };
@@ -76,6 +77,7 @@ int main(int argc, char const* const* argv) {
         { "emit-cfg", ProgramCase::EmitCFG },
         { "emit-callgraph", ProgramCase::EmitCallGraph },
         { "emit-use-graph", ProgramCase::EmitUseGraph },
+        { "emit-interference-graph", ProgramCase::EmitInterferenceGraph },
         { "opt-test", ProgramCase::OptTest },
         { "apfloat-test", ProgramCase::APFloatTest }
     };
@@ -109,25 +111,25 @@ int main(int argc, char const* const* argv) {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
-                                 "graphviz/cfg-none.gv");
+                                 "graphviz/gen/cfg-none.gv");
         for (auto& function: mod) {
             scatha::opt::memToReg(ctx, function);
         }
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
-                                 "graphviz/cfg-m2r.gv");
+                                 "graphviz/gen/cfg-m2r.gv");
         for (auto& function: mod) {
             scatha::opt::propagateConstants(ctx, function);
         }
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
-                                 "graphviz/cfg-scc.gv");
+                                 "graphviz/gen/cfg-scc.gv");
         for (auto& function: mod) {
             scatha::opt::dce(ctx, function);
         }
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
-                                 "graphviz/cfg-dce.gv");
+                                 "graphviz/gen/cfg-dce.gv");
         break;
     }
     case ProgramCase::EmitCallGraph: {
@@ -135,14 +137,23 @@ int main(int argc, char const* const* argv) {
         auto callGraph  = scatha::opt::SCCCallGraph::compute(mod);
         drawCallGraph(callGraph,
                       std::filesystem::path(PROJECT_LOCATION) /
-                          "graphviz/callgraph.gv");
+                          "graphviz/gen/callgraph.gv");
         break;
     }
     case ProgramCase::EmitUseGraph: {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);
         drawUseGraph(mod,
                      std::filesystem::path(PROJECT_LOCATION) /
-                         "graphviz/use-graph.gv");
+                         "graphviz/gen/use-graph.gv");
+        break;
+    }
+    case ProgramCase::EmitInterferenceGraph: {
+        auto [ctx, mod] = makeIRModuleFromFile(filepath);
+        auto& f         = mod.front();
+        scatha::opt::memToReg(ctx, f);
+        drawInterferenceGraph(f,
+                              std::filesystem::path(PROJECT_LOCATION) /
+                                  "graphviz/gen/interference-graph.gv");
         break;
     }
     case ProgramCase::OptTest:

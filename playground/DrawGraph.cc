@@ -9,6 +9,7 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
+#include "CodeGen/CodeGen2/InterferenceGraph.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
@@ -370,4 +371,55 @@ void CallGraphContext::connect(SCCCallGraph::FunctionNode const& node) {
             str << "[style=dashed, color=\"#00000080\", arrowhead=empty]\n";
         }
     }
+}
+
+static std::string toName(cg::InterferenceGraph::Node const* node) {
+    return utl::strcat("node_", static_cast<void const*>(node));
+}
+
+static std::string toLabel(cg::InterferenceGraph::Node const* node) {
+    std::stringstream str;
+    str << toName(node) << " [ label = <\n";
+    str << "  " << tableBegin << "\n";
+    for (auto* value: node->values()) {
+        str << "    " << rowBegin << fontBegin(monoFont) << "\n";
+        str << "    " << value->name() << "\n";
+        str << "    " << fontEnd << rowEnd << "\n";
+    }
+    str << "    " << tableEnd << "\n";
+    str << ">]\n";
+    return std::move(str).str();
+}
+
+std::string playground::drawInterferenceGraph(Function const& function) {
+    auto graph = cg::InterferenceGraph::compute(function);
+    std::stringstream str;
+    str << "graph {\n";
+    str << "  rankdir=BT;\n";
+    str << "  compound=true;\n";
+    str << "  graph [ fontname=\"" << monoFont << "\" ];\n";
+    str << "  node  [ fontname=\"" << monoFont << "\" ];\n";
+    str << "  edge  [ fontname=\"" << monoFont << "\" ];\n";
+    str << "  node  [ shape=circle ]\n";
+    str << "\n";
+    using Node = cg::InterferenceGraph::Node;
+    utl::hashset<std::pair<Node const*, Node const*>> drawnEdges;
+    for (auto* n: graph) {
+        str << toLabel(n) << "\n";
+        for (auto* m: n->neighbours()) {
+            if (drawnEdges.contains({ m, n })) {
+                continue;
+            }
+            drawnEdges.insert({ n, m });
+            str << toName(n) << " -- " << toName(m) << "\n";
+        }
+    }
+    str << "} // graph\n";
+    return std::move(str).str();
+}
+
+void playground::drawInterferenceGraph(
+    Function const& function, std::filesystem::path const& outFilepath) {
+    std::fstream file(outFilepath, std::ios::out | std::ios::trunc);
+    file << drawInterferenceGraph(function);
 }

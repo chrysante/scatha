@@ -46,6 +46,11 @@ std::string drawCallGraph(scatha::opt::SCCCallGraph const& callGraph);
 void drawCallGraph(scatha::opt::SCCCallGraph const& callGraph,
                    std::filesystem::path const& outFilepath);
 
+std::string drawInterferenceGraph(scatha::ir::Function const& function);
+
+void drawInterferenceGraph(scatha::ir::Function const& function,
+                           std::filesystem::path const& outFilepath);
+
 } // namespace playground
 
 #endif // PLAYGROUND_DRAWGRAPH_H_
