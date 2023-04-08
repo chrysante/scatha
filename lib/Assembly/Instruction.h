@@ -274,7 +274,7 @@ private:
     size_t _width;
 };
 
-/// Represents the `sext*` instructions.
+/// Represents the `sext*`, `trunc*`, `fext` and `ftrunc`  instructions.
 class ConvInst: public InstructionBase {
 public:
     explicit ConvInst(RegisterIndex op, Type type, size_t fromBits):
