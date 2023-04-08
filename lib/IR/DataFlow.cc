@@ -21,34 +21,35 @@ struct LivenessContext {
     enum Flags { Visited = 1 << 0, Processed = 1 << 1 };
 
     using ResultMap =
-        utl::hashmap<BasicBlock const*, utl::hashset<Instruction const*>>;
+        utl::hashmap<BasicBlock const*, LiveSets::BasicBlockLiveSets>;
 
-    LivenessContext(ResultMap& in, ResultMap& out): liveIn(in), liveOut(out) {}
+    LivenessContext(Function const& F, ResultMap& live): F(F), liveSets(live) {}
 
-    void run(Function const& F);
+    void run();
 
     void dag(BasicBlock const* BB);
 
     void loopTree(LoopNestingForest::Node const* node);
 
-    utl::hashset<Instruction const*> phiUses(BasicBlock const* BB);
+    utl::hashset<Value const*> phiUses(BasicBlock const* BB);
+    utl::hashset<Value const*> phiUses(ranges::range auto&& params);
 
-    ResultMap& liveIn;
-    ResultMap& liveOut;
+    Function const& F;
+    ResultMap& liveSets;
     utl::hashmap<BasicBlock const*, int> flags;
     utl::hashset<std::pair<BasicBlock const*, BasicBlock const*>> backEdges;
 };
 
 } // namespace
 
-LiveSets ir::computeLiveSets(Function const& F) {
+LiveSets LiveSets::compute(Function const& F) {
     LiveSets result;
-    LivenessContext ctx(result.in, result.out);
-    ctx.run(F);
+    LivenessContext ctx(F, result.sets);
+    ctx.run();
     return result;
 }
 
-void LivenessContext::run(Function const& F) {
+void LivenessContext::run() {
     dag(&F.entry());
     auto& LNF = F.getOrComputeLNF();
     for (auto* root: LNF.roots()) {
@@ -58,6 +59,7 @@ void LivenessContext::run(Function const& F) {
 
 void LivenessContext::dag(BasicBlock const* BB) {
     flags[BB] |= Visited;
+    // TODO: Implement modification for irreducible CFGs
     for (auto* succ: BB->successors()) {
         auto const succFlag = flags[succ];
         if (succFlag & Visited) {
@@ -70,32 +72,35 @@ void LivenessContext::dag(BasicBlock const* BB) {
         dag(succ);
     }
     auto live = phiUses(BB);
+    if (BB->isEntry()) {
+        merge(live, phiUses(F.parameters()));
+    }
     for (auto* succ: BB->successors()) {
         if (backEdges.contains({ BB, succ })) {
             continue;
         }
-        auto liveInSucc = liveIn[succ];
+        auto liveInSucc = liveSets[succ].liveIn;
         for (auto& phi: succ->phiNodes()) {
             liveInSucc.erase(&phi);
         }
         merge(live, liveInSucc);
     }
-    liveOut[BB] = live;
+    liveSets[BB].liveOut = live;
     for (auto& inst: *BB | ranges::views::reverse) {
         if (isa<Phi>(inst)) {
             break;
         }
         live.erase(&inst);
-        for (auto* operand: inst.operands()) {
-            if (auto* instOp = dyncast<Instruction const*>(operand)) {
-                live.insert(instOp);
+        for (auto* op: inst.operands()) {
+            if (isa<Instruction>(op) || isa<Parameter>(op)) {
+                live.insert(op);
             }
         }
     }
     for (auto& phi: BB->phiNodes()) {
         live.insert(&phi);
     }
-    liveIn[BB] = std::move(live);
+    liveSets[BB].liveIn = std::move(live);
     flags[BB] |= Processed;
 }
 
@@ -104,14 +109,14 @@ void LivenessContext::loopTree(LoopNestingForest::Node const* node) {
         return;
     }
     auto* header  = node->basicBlock();
-    auto liveLoop = liveIn[header];
+    auto liveLoop = liveSets[header].liveIn;
     for (auto& phi: header->phiNodes()) {
         liveLoop.erase(&phi);
     }
     for (auto* child: node->children()) {
         auto* header = child->basicBlock();
-        merge(liveIn[header], liveLoop);
-        merge(liveOut[header], liveLoop);
+        merge(liveSets[header].liveIn, liveLoop);
+        merge(liveSets[header].liveOut, liveLoop);
         loopTree(child);
     }
 }
@@ -119,11 +124,17 @@ void LivenessContext::loopTree(LoopNestingForest::Node const* node) {
 static constexpr auto take_address =
     ranges::views::transform([](auto& x) { return &x; });
 
-utl::hashset<Instruction const*> LivenessContext::phiUses(
-    BasicBlock const* BB) {
-    return *BB | ranges::views::filter([](Instruction const& inst) {
-        return ranges::any_of(inst.users(),
-                              [](auto* user) { return isa<Phi>(user); });
-    }) | take_address |
-           ranges::to<utl::hashset<Instruction const*>>;
+static constexpr auto phiUseFilter = ranges::views::filter(
+                                         [](Value const& value) {
+    return ranges::any_of(value.users(),
+                          [](auto* user) { return isa<Phi>(user); });
+}) | take_address;
+
+utl::hashset<Value const*> LivenessContext::phiUses(BasicBlock const* BB) {
+    return *BB | phiUseFilter | ranges::to<utl::hashset<Value const*>>;
+}
+
+utl::hashset<Value const*> LivenessContext::phiUses(
+    ranges::range auto&& params) {
+    return params | phiUseFilter | ranges::to<utl::hashset<Value const*>>;
 }

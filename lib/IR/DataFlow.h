@@ -11,34 +11,34 @@ namespace scatha::ir {
 
 class LiveSets;
 
-///
-///
-///
-SCATHA_TESTAPI LiveSets computeLiveSets(Function const& F);
-
 class LiveSets {
-    static auto& getImpl(auto& map, auto* BB) {
-        auto itr = map.find(BB);
-        SC_ASSERT(itr != map.end(), "Not found");
+public:
+    struct BasicBlockLiveSets {
+        utl::hashset<Value const*> liveIn, liveOut;
+    };
+
+    /// Computes the live-in and live-out sets for each basic block of function
+    /// \p F
+    SCATHA_TESTAPI static LiveSets compute(Function const& F);
+
+    BasicBlockLiveSets const& live(BasicBlock const* BB) const {
+        auto itr = sets.find(BB);
+        SC_ASSERT(itr != sets.end(), "Not found");
         return itr->second;
     }
 
-public:
-    utl::hashset<Instruction const*> const& liveIn(BasicBlock const* BB) const {
-        return getImpl(in, BB);
-    }
+    auto begin() const { return sets.begin(); }
 
-    utl::hashset<Instruction const*> const& liveOut(
-        BasicBlock const* BB) const {
-        return getImpl(out, BB);
-    }
+    auto end() const { return sets.end(); }
+
+    bool empty() const { return sets.empty(); }
+
+    bool size() const { return sets.size(); }
 
 private:
-    friend LiveSets ir::computeLiveSets(Function const&);
-
     LiveSets() = default;
 
-    utl::hashmap<BasicBlock const*, utl::hashset<Instruction const*>> in, out;
+    utl::hashmap<BasicBlock const*, BasicBlockLiveSets> sets;
 };
 
 } // namespace scatha::ir
