@@ -87,7 +87,9 @@ Function::Function(FunctionType const* functionType,
              returnType,
              parameters,
              std::move(name),
-             attr) {
+             attr),
+    nameFac(),
+    analysisData(std::make_unique<AnalysisData>()) {
     uniqueParams(this->parameters(), nameFac);
 }
 
