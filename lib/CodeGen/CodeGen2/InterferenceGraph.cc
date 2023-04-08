@@ -14,6 +14,13 @@ InterferenceGraph InterferenceGraph::compute(Function const& function) {
     return result;
 }
 
+void InterferenceGraph::colorize(size_t maxColors) {
+    numCols = maxColors;
+    for (auto& n: nodes) {
+        n->col = 0;
+    }
+}
+
 void InterferenceGraph::computeImpl(Function const& function) {
     for (auto& param: function.parameters()) {
         addValue(&param);
@@ -46,6 +53,9 @@ void InterferenceGraph::computeImpl(Function const& function) {
         }
     }
     auto liveSets = LiveSets::compute(function);
+    for (auto& param: function.parameters()) {
+        addEdges(&param, liveSets.live(&function.entry()).liveIn);
+    }
     for (auto& [BB, liveSetsOfBB]: liveSets) {
         auto live          = liveSetsOfBB.liveOut;
         auto const& liveIn = liveSetsOfBB.liveIn;
@@ -74,6 +84,9 @@ void InterferenceGraph::addEdges(ir::Value const* value, auto&& listOfValues) {
     Node* valNode = find(value);
     for (auto* rhs: listOfValues) {
         Node* rhsNode = find(rhs);
+        if (valNode == rhsNode) {
+            continue;
+        }
         valNode->addNeighbour(rhsNode);
         rhsNode->addNeighbour(valNode);
     }

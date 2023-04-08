@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -14,6 +15,7 @@
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IR/Parser.h"
 #include "IR/Print.h"
 #include "Lexer/Lexer.h"
 #include "Lexer/LexicalIssue.h"
@@ -62,31 +64,59 @@ void playground::irDump(std::string_view text) {
     svm::print(program.data());
 }
 
-std::pair<scatha::ir::Context, scatha::ir::Module> playground::makeIRModule(
-    std::string_view text) {
+static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
+    makeIRModuleFromSC(std::string_view text, std::ostream& errStr) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
     if (!lexIss.empty()) {
-        std::cout << "Lexical issue on line "
-                  << lexIss.issues()[0].sourceLocation().line << std::endl;
-        std::exit(EXIT_FAILURE);
+        errStr << "Lexical issue on line "
+               << lexIss.issues()[0].sourceLocation().line << std::endl;
+        return std::nullopt;
     }
     issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     if (!parseIss.empty()) {
-        std::cout << "Syntax issue on line "
-                  << parseIss.issues()[0].sourceLocation().line << std::endl;
-        std::exit(EXIT_FAILURE);
+        errStr << "Syntax issue on line "
+               << parseIss.issues()[0].sourceLocation().line << std::endl;
+        return std::nullopt;
     }
     issue::SemaIssueHandler semaIss;
     auto sym = sema::analyze(*ast, semaIss);
     if (!semaIss.empty()) {
-        std::cout << "Semantic issue on line "
-                  << semaIss.issues()[0].sourceLocation().line << std::endl;
-        std::exit(EXIT_FAILURE);
+        errStr << "Semantic issue on line "
+               << semaIss.issues()[0].sourceLocation().line << std::endl;
+        return std::nullopt;
     }
     ir::Context ctx;
-    return { std::move(ctx), ast::codegen(*ast, sym, ctx) };
+    return std::pair{ std::move(ctx), ast::codegen(*ast, sym, ctx) };
+}
+
+static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
+    makeIRModuleFromIR(std::string_view text, std::ostream& errStr) {
+    auto res = ir::parse(text);
+    if (!res) {
+        ir::print(res.error(), errStr);
+        return std::nullopt;
+    }
+    return std::move(res).value();
+}
+
+std::pair<scatha::ir::Context, scatha::ir::Module> playground::makeIRModule(
+    std::string_view text) {
+    std::stringstream scErr;
+    auto res = makeIRModuleFromSC(text, scErr);
+    if (res) {
+        return *std::move(res);
+    }
+    std::stringstream irErr;
+    res = makeIRModuleFromIR(text, irErr);
+    if (res) {
+        return *std::move(res);
+    }
+    std::cout << "Failed to parse text:\n";
+    std::cout << "   Interpreted as .sc: " << scErr.str() << std::endl;
+    std::cout << "   Interpreted as .scir: " << irErr.str() << std::endl;
+    std::exit(EXIT_FAILURE);
 }
 
 std::pair<scatha::ir::Context, scatha::ir::Module> playground::

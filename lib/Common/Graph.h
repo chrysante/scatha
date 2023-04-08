@@ -160,6 +160,13 @@ public:
         addEdgeImpl(_outgoingEdges, neigh);
     }
 
+    /// \Returns Number of egdes.
+    size_t degree() const
+        requires(Kind == GraphKind::Undirected)
+    {
+        return _outgoingEdges.size();
+    }
+
     ///
     /// # Directed graph node members
     ///
@@ -171,18 +178,32 @@ public:
         return incomingImpl();
     }
 
-    /// Add \p pred as predecessor if it is not already a predecessor.
-    void addPredecessor(Self* pred)
-        requires(Kind == GraphKind::Directed)
-    {
-        addEdgeImpl(_parentLink, pred);
-    }
-
     /// \returns a view over references to successors.
     auto successors() const
         requires(Kind == GraphKind::Directed)
     {
         return outgoingImpl();
+    }
+
+    /// \Returns Number of incoming egdes.
+    size_t indegree() const
+        requires(Kind == GraphKind::Directed)
+    {
+        return _parentLink.size();
+    }
+
+    /// \Returns Number of outgoing egdes.
+    size_t outdegree() const
+        requires(Kind == GraphKind::Directed)
+    {
+        return _outgoingEdges.size();
+    }
+
+    /// Add \p pred as predecessor if it is not already a predecessor.
+    void addPredecessor(Self* pred)
+        requires(Kind == GraphKind::Directed)
+    {
+        addEdgeImpl(_parentLink, pred);
     }
 
     /// Add \p succ as successor if it is not already a successor.

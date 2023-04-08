@@ -1,10 +1,12 @@
 #include "DrawGraph.h"
 
 #include <fstream>
+#include <iomanip>
 #include <ostream>
 #include <sstream>
 #include <string_view>
 
+#include <range/v3/numeric.hpp>
 #include <termfmt/termfmt.h>
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
@@ -373,49 +375,91 @@ void CallGraphContext::connect(SCCCallGraph::FunctionNode const& node) {
     }
 }
 
-static std::string toName(cg::InterferenceGraph::Node const* node) {
-    return utl::strcat("node_", static_cast<void const*>(node));
-}
+namespace {
 
-static std::string toLabel(cg::InterferenceGraph::Node const* node) {
-    std::stringstream str;
-    str << toName(node) << " [ label = <\n";
-    str << "  " << tableBegin << "\n";
-    for (auto* value: node->values()) {
-        str << "    " << rowBegin << fontBegin(monoFont) << "\n";
-        str << "    " << value->name() << "\n";
-        str << "    " << fontEnd << rowEnd << "\n";
+struct InterferenceGraphContext {
+    using Node = cg::InterferenceGraph::Node;
+
+    InterferenceGraphContext(Function const& F):
+        graph(cg::InterferenceGraph::compute(F)) {
+        graph.colorize(255);
+        maxDegree =
+            ranges::accumulate(graph, size_t(0), ranges::max, [](auto* node) {
+                return node->degree();
+            });
     }
-    str << "    " << tableEnd << "\n";
-    str << ">]\n";
-    return std::move(str).str();
-}
+
+    std::string draw() const {
+        std::stringstream str;
+        str << "graph {\n";
+        str << "  rankdir=BT;\n";
+        str << "  compound=true;\n";
+        str << "  graph [ fontname=\"" << monoFont << "\" ];\n";
+        str << "  node  [ \n";
+        str << "      shape=circle, \n";
+        str << "      fontname=\"" << monoFont << "\", \n";
+        str << "      fontsize=\"20pt\", \n";
+        str << "      fontcolor=\"white\", \n";
+        str << "  ];\n";
+        str << "  edge  [ fontname=\"" << monoFont << "\" ];\n";
+        str << "\n";
+        utl::hashset<std::pair<Node const*, Node const*>> drawnEdges;
+        for (auto* n: graph) {
+            str << toLabel(n) << "\n";
+            for (auto* m: n->neighbours()) {
+                if (drawnEdges.contains({ m, n })) {
+                    continue;
+                }
+                drawnEdges.insert({ n, m });
+                str << toName(n) << " -- " << toName(m) << "\n";
+            }
+        }
+        str << "} // graph\n";
+        return std::move(str).str();
+    }
+
+    std::string toName(Node const* node) const {
+        return utl::strcat("node_", static_cast<void const*>(node));
+    }
+
+    std::string toColor(Node const* node) const {
+        double const hue =
+            static_cast<double>(node->color()) / graph.numColors();
+        double const val =
+            0.5 + 0.5 * static_cast<double>(node->degree()) / (maxDegree);
+        std::stringstream str;
+        str << std::setw(5) << std::fixed << hue << " 0.5 " << val << " 0.5";
+        return std::move(str).str();
+    }
+
+    std::string toLabel(Node const* node) const {
+        std::stringstream str;
+        str << toName(node) << " [ \n";
+        str << "    style=filled, \n";
+        str << "    fillcolor=\"" << toColor(node) << "\", \n";
+        str << "    height=2 \n";
+        str << "    width=2 \n";
+        str << "    label=<\n";
+        str << "" << tableBegin << "\n";
+        for (auto* value: node->values()) {
+            str << "" << rowBegin << fontBegin(monoFont) << "\n";
+            str << "" << value->name() << "\n";
+            str << "" << fontEnd << rowEnd << "\n";
+        }
+        str << "" << tableEnd << "\n";
+        str << ">]\n";
+        return std::move(str).str();
+    }
+
+    cg::InterferenceGraph graph;
+    size_t maxDegree = 0;
+};
+
+} // namespace
 
 std::string playground::drawInterferenceGraph(Function const& function) {
-    auto graph = cg::InterferenceGraph::compute(function);
-    std::stringstream str;
-    str << "graph {\n";
-    str << "  rankdir=BT;\n";
-    str << "  compound=true;\n";
-    str << "  graph [ fontname=\"" << monoFont << "\" ];\n";
-    str << "  node  [ fontname=\"" << monoFont << "\" ];\n";
-    str << "  edge  [ fontname=\"" << monoFont << "\" ];\n";
-    str << "  node  [ shape=circle ]\n";
-    str << "\n";
-    using Node = cg::InterferenceGraph::Node;
-    utl::hashset<std::pair<Node const*, Node const*>> drawnEdges;
-    for (auto* n: graph) {
-        str << toLabel(n) << "\n";
-        for (auto* m: n->neighbours()) {
-            if (drawnEdges.contains({ m, n })) {
-                continue;
-            }
-            drawnEdges.insert({ n, m });
-            str << toName(n) << " -- " << toName(m) << "\n";
-        }
-    }
-    str << "} // graph\n";
-    return std::move(str).str();
+    InterferenceGraphContext ctx(function);
+    return ctx.draw();
 }
 
 void playground::drawInterferenceGraph(

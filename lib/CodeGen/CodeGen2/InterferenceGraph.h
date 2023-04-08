@@ -14,7 +14,7 @@
 
 namespace scatha::cg {
 
-class InterferenceGraph {
+class SCATHA_TESTAPI InterferenceGraph {
     auto getNodeView() const {
         return nodes | ranges::views::transform(
                            [](auto& ptr) -> auto const* { return ptr.get(); });
@@ -36,8 +36,11 @@ public:
         utl::small_vector<ir::Value const*> vals;
     };
 
-    SCATHA_TESTAPI static InterferenceGraph compute(
-        ir::Function const& function);
+    static InterferenceGraph compute(ir::Function const& function);
+
+    void colorize(size_t maxColors);
+
+    size_t numColors() const { return numCols; }
 
     auto begin() const { return getNodeView().begin(); }
 
@@ -55,6 +58,7 @@ private:
 
     utl::hashmap<ir::Value const*, Node*> valueMap;
     utl::vector<std::unique_ptr<Node>> nodes;
+    size_t numCols = 0;
 };
 
 } // namespace scatha::cg
