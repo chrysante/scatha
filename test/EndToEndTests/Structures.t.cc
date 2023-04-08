@@ -223,6 +223,8 @@ func i32 @main() {
 }
 func void @fill(ptr %data, i32 %count) {
   %entry:
+    %data-var = alloca ptr, i32 1
+    store ptr %data-var, ptr %data
     goto label %header
     
   %header:
@@ -231,7 +233,8 @@ func void @fill(ptr %data, i32 %count) {
     branch i1 %cond, label %body, label %end
     
   %body:
-    %p = getelementptr inbounds i32, ptr %data, i32 %i
+    %data.0 = load ptr, ptr %data-var
+    %p = getelementptr inbounds i32, ptr %data.0, i32 %i
     %inc = add i32 %i, i32 1
     store ptr %p, i32 %inc
     goto label %header

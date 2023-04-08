@@ -164,20 +164,7 @@ void CodeGenContext::generate(ir::Alloca const& allocaInst) {
 
 void CodeGenContext::generate(ir::Store const& store) {
     MemoryAddress const addr = computeAddress(*store.address());
-    Value const src          = [&] {
-        if (isa<ir::PointerType>(store.value()->type())) {
-            /// Handle the memory -> memory case separately. This is not really
-            /// beautiful and can hopefully be refactored in the future. The
-            /// following is copy pasted from ir::Load case and slightly
-            /// adjusted.
-            MemoryAddress const addr = computeAddress(*store.value());
-            Value const dest         = currentRD().makeTemporary();
-            size_t const size        = store.value()->type()->size();
-            generateBigMove(dest, addr, size);
-            return dest;
-        }
-        return currentRD().resolve(*store.value());
-    }();
+    Value const src          = currentRD().resolve(*store.value());
     if (isLiteralValue(src.valueType())) {
         /// `src` is a value and must be stored in temporary register first.
         size_t const size = sizeOf(src.valueType());
