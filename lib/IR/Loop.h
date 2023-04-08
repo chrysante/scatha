@@ -19,8 +19,8 @@ class DomTree;
 /// considered to be trivial loops.
 class SCATHA_TESTAPI LoopNestingForest {
 public:
-    class Node: public GraphNode<ir::BasicBlock*, Node, true> {
-        using Base = GraphNode<ir::BasicBlock*, Node, true>;
+    class Node: public GraphNode<ir::BasicBlock*, Node, GraphKind::Tree> {
+        using Base = GraphNode<ir::BasicBlock*, Node, GraphKind::Tree>;
 
     public:
         using Base::Base;

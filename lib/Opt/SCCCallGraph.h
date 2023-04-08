@@ -20,8 +20,10 @@ public:
     class SCCNode;
 
     /// Node representing a function
-    class FunctionNode: public GraphNode<ir::Function*, FunctionNode> {
-        using Base = GraphNode<ir::Function*, FunctionNode>;
+    class FunctionNode:
+        public GraphNode<ir::Function*, FunctionNode, GraphKind::Directed> {
+        using Base =
+            GraphNode<ir::Function*, FunctionNode, GraphKind::Directed>;
 
     public:
         using Base::Base;
@@ -51,8 +53,8 @@ public:
     };
 
     /// Node representing an SCC
-    class SCCNode: public GraphNode<void, SCCNode> {
-        using Base = GraphNode<void, SCCNode>;
+    class SCCNode: public GraphNode<void, SCCNode, GraphKind::Directed> {
+        using Base = GraphNode<void, SCCNode, GraphKind::Directed>;
 
     public:
         using Base::Base;

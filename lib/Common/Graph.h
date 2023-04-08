@@ -2,6 +2,7 @@
 #define SCATHA_COMMON_GRAPH_H_
 
 #include <concepts>
+#include <tuple>
 #include <type_traits>
 
 #include <range/v3/algorithm.hpp>
@@ -42,7 +43,15 @@ struct PayloadWrapper {
 template <>
 struct PayloadWrapper<void> {};
 
+template <size_t Index, typename... T>
+using TypeSwitch = std::tuple_element_t<Index, std::tuple<T...>>;
+
+struct Empty {};
+
 } // namespace internal
+
+/// To be used as template parameter of `class GraphNode<>`
+enum class GraphKind { Undirected, Directed, Tree };
 
 /// A generic graph or tree node. It is intended to be subclassed with CRTP.
 ///
@@ -53,10 +62,11 @@ struct PayloadWrapper<void> {};
 /// \param Derived The derived class, used by CRTP. Can also be void, then no
 /// CRTP is happening.
 ///
-/// \param IsTree Wether this node shall be a tree node.
-/// If so, it implements a `.parent()` and a `.children()` method.
-/// Otherwise it implements a `.predecessors()` and a `.successors()` method.
-template <typename Payload, typename Derived = void, bool IsTree = false>
+/// \param Kind Depending on the kind, this class implements different interfaces:
+/// - `UndirectedGraph`: Implements `.neighbours()` method.
+/// - `DirectedGraph`: Implements `.predecessors()` and `.successors()` methods.
+/// - `Tree`: Implements `.parent()` and `.children()` methods.
+template <typename Payload, typename Derived, GraphKind Kind>
 class GraphNode {
     /// Return and pass small trivial types by value, everything else by
     /// `const&`.
@@ -68,16 +78,19 @@ class GraphNode {
                            std::remove_pointer_t<PayloadView> const*,
                            PayloadView>;
 
-    static constexpr bool hasPayload = !std::is_same_v<Payload, void>;
+    static constexpr bool HasPayload = !std::is_same_v<Payload, void>;
 
     /// Either `GraphNode` or `Derived` is specified.
     using Self =
         std::conditional_t<std::is_same_v<Derived, void>, GraphNode, Derived>;
 
-    /// For a tree node, parent link is just a pointer, for a graph node it's a
-    /// vector of pointers.
-    using ParentLink =
-        std::conditional_t<IsTree, Self*, utl::small_vector<Self*>>;
+    /// For an undirected graph, parent links don't exist.
+    /// For a digraph node parent links are vectors of pointers.
+    /// For a tree, it's a single pointer.
+    using ParentLink = internal::TypeSwitch<static_cast<size_t>(Kind),
+                                            internal::Empty,
+                                            utl::small_vector<Self*>,
+                                            Self*>;
 
 public:
     /// `PayloadHash` and `PayloadEqual` exist to put `GraphNode` in hashsets
@@ -107,75 +120,105 @@ public:
         }
     };
 
+    /// ## Common
+
     GraphNode()
         requires std::is_default_constructible_v<
             internal::PayloadWrapper<Payload>>
         : _payload{} {}
 
     template <typename P = Payload>
-        requires hasPayload
+        requires HasPayload
     explicit GraphNode(P const& payload): _payload{ payload } {}
 
     template <typename P = Payload>
-        requires hasPayload
+        requires HasPayload
     explicit GraphNode(P&& payload): _payload{ std::move(payload) } {}
 
     PayloadView payload() const
-        requires hasPayload
+        requires HasPayload
     {
         return _payload.value;
     }
 
+    ///
+    /// # Undirected graph node members
+    ///
+
+    /// \returns a view over references to neighbours.
+    auto neighbours() const
+        requires(Kind == GraphKind::Undirected)
+    {
+        return incomingImpl();
+    }
+
+    /// Add \p neigh as predecessor if it is not already a predecessor.
+    void addNeighbour(Self* neigh)
+        requires(Kind == GraphKind::Undirected)
+    {
+        addEdgeImpl(_outgoingEdges, neigh);
+    }
+
+    ///
+    /// # Directed graph node members
+    ///
+
+    /// \returns a view over references to predecessors.
+    auto predecessors() const
+        requires(Kind == GraphKind::Directed)
+    {
+        return incomingImpl();
+    }
+
+    /// Add \p pred as predecessor if it is not already a predecessor.
+    void addPredecessor(Self* pred)
+        requires(Kind == GraphKind::Directed)
+    {
+        addEdgeImpl(_parentLink, pred);
+    }
+
+    /// \returns a view over references to successors.
+    auto successors() const
+        requires(Kind == GraphKind::Directed)
+    {
+        return outgoingImpl();
+    }
+
+    /// Add \p succ as successor if it is not already a successor.
+    void addSuccessor(Self* succ)
+        requires(Kind == GraphKind::Directed)
+    {
+        addEdgeImpl(_outgoingEdges, succ);
+    }
+
+    ///
+    /// # Tree node members
+    ///
+
     Self const* parent() const
-        requires IsTree
+        requires(Kind == GraphKind::Tree)
     {
         return _parentLink;
     }
 
     auto children() const
-        requires IsTree
+        requires(Kind == GraphKind::Tree)
     {
         return outgoingImpl();
     }
 
     void setParent(Self* parent)
-        requires IsTree
+        requires(Kind == GraphKind::Tree)
     {
         SC_ASSERT(parent != this, "Would form an invalid tree");
         _parentLink = parent;
     }
 
     void addChild(Self* child)
-        requires IsTree
+        requires(Kind == GraphKind::Tree)
     {
         SC_ASSERT(child != this, "Would form an invalid tree");
         addEdgeImpl(_outgoingEdges, child);
-    }
-
-    auto predecessors() const
-        requires(!IsTree)
-    {
-        return incomingImpl();
-    }
-
-    void addPredecessor(Self* pred)
-        requires(!IsTree)
-    {
-        addEdgeImpl(_parentLink, pred);
-    }
-
-    /// Add \p succ as successor if it is not already a successor
-    void addSuccessor(Self* succ)
-        requires(!IsTree)
-    {
-        addEdgeImpl(_outgoingEdges, succ);
-    }
-
-    /// \returns a view over references to successors
-    auto successors() const
-        requires(!IsTree)
-    {
-        return outgoingImpl();
     }
 
 private:
@@ -192,12 +235,12 @@ private:
 
 private:
     [[no_unique_address]] internal::PayloadWrapper<Payload> _payload;
-    ParentLink _parentLink{};
+    [[no_unique_address]] ParentLink _parentLink{};
     utl::small_vector<Self*> _outgoingEdges;
 };
 
-template <typename Payload, typename Derived = void, bool IsTree = false>
-using TreeNode = GraphNode<Payload, Derived, true>;
+template <typename Payload, typename Derived>
+using TreeNode = GraphNode<Payload, Derived, GraphKind::Tree>;
 
 } // namespace scatha
 
