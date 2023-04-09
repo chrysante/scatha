@@ -63,3 +63,26 @@ void Register::removeUser(Instruction* inst) {
         _users.erase(itr);
     }
 }
+
+bool BasicBlock::isEntry() const { return parent()->entry() == this; }
+
+void BasicBlock::insertCallback(Instruction& inst) { inst.set_parent(this); }
+
+void BasicBlock::eraseCallback(Instruction const& inst) {
+    auto& mutInst = const_cast<Instruction&>(inst);
+    mutInst.clearOperands();
+    mutInst.setDest(nullptr);
+}
+
+void Function::insertCallback(BasicBlock& bb) {
+    bb.set_parent(this);
+    for (auto& inst: bb) {
+        bb.insertCallback(inst);
+    }
+}
+
+void Function::eraseCallback(BasicBlock const& bb) {
+    for (auto& inst: bb) {
+        const_cast<BasicBlock&>(bb).eraseCallback(inst);
+    }
+}

@@ -46,6 +46,11 @@ static constexpr auto regName =
 
 static constexpr auto opcode = keyword;
 
+static constexpr auto light =
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
+        return str << tfmt::format(tfmt::brightGrey | tfmt::italic, args...);
+    });
+
 namespace {
 
 std::string formatInstCode(InstCode code, uint64_t data) {
@@ -97,12 +102,37 @@ struct PrintContext {
     }
 
     void print(BasicBlock const* BB) {
-        str << indent << localName(BB->name()) << ": \n";
+        str << indent << localName(BB->name()) << ": ";
+        if (!BB->isEntry()) {
+            printPredList(BB);
+        }
+        str << "\n";
         indent.increase();
+        printLiveList("Live in", BB->liveIn());
         for (auto& inst: *BB) {
             print(&inst);
         }
+        printLiveList("Live out", BB->liveOut());
+        str << "\n";
         indent.decrease();
+    }
+
+    void printPredList(BasicBlock const* BB) {
+        str << light("preds: ");
+        bool first = true;
+        for (auto* pred: BB->predecessors()) {
+            str << light(first ? first = false, "" : ", ", pred->name());
+        }
+    }
+
+    void printLiveList(std::string_view name,
+                       utl::hashset<Register*> const& regs) {
+        str << indent << light(name, ": [ ");
+        bool first = true;
+        for (auto* reg: regs) {
+            str << light(first ? first = false, "" : ", ") << regName(reg);
+        }
+        str << light(" ]") << "\n";
     }
 
     void print(Instruction const* inst) {

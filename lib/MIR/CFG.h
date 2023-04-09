@@ -164,8 +164,38 @@ public:
 
     std::string_view name() const { return _name; }
 
+    void addLiveIn(Register* reg) { addLiveImpl(_liveIn, reg); }
+
+    void removeLiveIn(Register* reg) { removeLiveImpl(_liveIn, reg); }
+
+    void addLiveOut(Register* reg) { addLiveImpl(_liveOut, reg); }
+
+    void removeLiveOut(Register* reg) { removeLiveImpl(_liveOut, reg); }
+
+    auto const& liveIn() const { return _liveIn; }
+
+    auto const& liveOut() const { return _liveOut; }
+
+    bool isEntry() const;
+
 private:
+    friend class Function;
+    friend class CFGList<BasicBlock, Instruction>;
+
+    void insertCallback(Instruction& inst);
+    void eraseCallback(Instruction const& inst);
+
+    static void addLiveImpl(utl::hashset<Register*>& set, Register* reg) {
+        set.insert(reg);
+    }
+    static void removeLiveImpl(utl::hashset<Register*>& set, Register* reg) {
+        auto itr = set.find(reg);
+        SC_ASSERT(itr != set.end(), "Not found");
+        set.erase(itr);
+    }
+
     std::string _name;
+    utl::hashset<Register*> _liveIn, _liveOut;
 };
 
 ///
@@ -206,7 +236,16 @@ public:
 
     void addRegister(Register* reg) { regs.push_back(reg); }
 
+    BasicBlock* entry() { return &front(); }
+
+    BasicBlock const* entry() const { return &front(); }
+
 private:
+    friend class CFGList<Function, BasicBlock>;
+
+    void insertCallback(BasicBlock&);
+    void eraseCallback(BasicBlock const&);
+
     std::string _name;
     List<Register> regs;
 };

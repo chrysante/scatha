@@ -3,6 +3,7 @@
 #include <utl/functional.hpp>
 
 #include "IR/CFG.h"
+#include "IR/DataFlow.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "MIR/CFG.h"
@@ -114,9 +115,11 @@ struct CodeGenContext {
 
     mir::Value* resolveImpl(ir::Value const* value);
 
-    mir::Register* makeTemporary(mir::Value* value);
+    mir::Register* nextRegistersFor(ir::Value const* value) {
+        return nextRegistersFor(numWords(value->type()), value);
+    }
 
-    mir::Register* nextRegister(size_t count = 1);
+    mir::Register* nextRegistersFor(size_t numWords, ir::Value const* liveWith);
 
     template <mir::InstructionData T = uint64_t>
     mir::Instruction* newInst(mir::Register* dest,
@@ -151,6 +154,8 @@ struct CodeGenContext {
 
     mir::Function* currentFunction = nullptr;
     mir::BasicBlock* currentBlock  = nullptr;
+
+    ir::BasicBlockLiveSets const* currentLiveSets = nullptr;
 
     utl::small_vector<ir::Phi const*> phiNodes;
 
@@ -188,17 +193,21 @@ void CodeGenContext::declareFunction(ir::Function const& function) {
 
 void CodeGenContext::genFunction(ir::Function const& function) {
     regIdx          = 0;
-    currentFunction = resolve<mir::Function>(&function);
-    /// Generate registers for parameters.
-    for (auto& param: function.parameters()) {
-        size_t const numWords = utl::ceil_divide(param.type()->size(), 8);
-        auto* reg             = nextRegister(numWords);
-        valueMap.insert({ &param, reg });
-    }
+    currentFunction = resolve(&function);
+    auto liveSets   = ir::LiveSets::compute(function);
     for (auto& bb: function) {
         declareBasicBlock(bb);
     }
+    /// Generate registers for parameters.
+    auto* entry     = &function.entry();
+    currentLiveSets = &liveSets[entry];
+    currentBlock    = resolve(entry);
+    for (auto& param: function.parameters()) {
+        auto* reg = nextRegistersFor(&param);
+        valueMap.insert({ &param, reg });
+    }
     for (auto& bb: function) {
+        currentLiveSets = &liveSets[&bb];
         genBasicBlock(bb);
     }
 }
@@ -210,12 +219,15 @@ void CodeGenContext::declareBasicBlock(ir::BasicBlock const& bb) {
 }
 
 void CodeGenContext::genBasicBlock(ir::BasicBlock const& bb) {
-    currentBlock = resolve<mir::BasicBlock>(&bb);
+    currentBlock = resolve(&bb);
+    for (auto* pred: bb.predecessors()) {
+        currentBlock->addPredecessor(resolve(pred));
+    }
+    for (auto* succ: bb.successors()) {
+        currentBlock->addSuccessor(resolve(succ));
+    }
     for (auto& inst: bb) {
         dispatchInst(inst);
-        //        if (reg) {
-        //            registerMap[&inst] = reg;
-        //        }
     }
 }
 
@@ -550,7 +562,7 @@ mir::MemoryAddress CodeGenContext::computeGep(
         if (auto* regArrayIdx = cast<mir::Register*>(arrayIndex)) {
             return regArrayIdx;
         }
-        return genCopy(nullptr, arrayIndex, 1);
+        return genCopy(nextRegistersFor(1, gep), arrayIndex, 1);
     }();
     auto* accessedType    = gep->inboundsType();
     size_t const elemSize = accessedType->size();
@@ -570,9 +582,6 @@ mir::Register* CodeGenContext::genCopy(mir::Register* dest,
                                        mir::Value* source,
                                        size_t numWords,
                                        mir::BasicBlock::ConstIterator before) {
-    if (!dest) {
-        dest = nextRegister(numWords);
-    }
     if (!isa<mir::Register>(source)) {
         SC_ASSERT(numWords == 1,
                   "Can't handle literal values larger than 64 bit");
@@ -598,7 +607,7 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
     return visit(*value, utl::overload{
         [&](ir::Instruction const& inst) {
             SC_ASSERT(!isa<ir::VoidType>(inst.type()), "");
-            auto* reg = nextRegister(numWords(inst.type()));
+            auto* reg = nextRegistersFor(&inst);
             valueMap.insert({ &inst, reg });
             return reg;
         },
@@ -618,18 +627,27 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
     }); // clang-format on
 }
 
-mir::Register* CodeGenContext::makeTemporary(mir::Value* value) {
-    auto* dest = nextRegister();
-    auto* copy = new mir::Instruction(mir::InstCode::Copy, dest, { value });
-    currentBlock->pushBack(copy);
-    return dest;
-}
-
-mir::Register* CodeGenContext::nextRegister(size_t count) {
-    auto* reg = new mir::Register(regIdx++);
+mir::Register* CodeGenContext::nextRegistersFor(size_t numWords,
+                                                ir::Value const* value) {
+    bool liveIn  = currentLiveSets->liveIn.contains(value);
+    bool liveOut = currentLiveSets->liveOut.contains(value);
+    auto* reg    = new mir::Register(regIdx++);
+    if (liveIn) {
+        currentBlock->addLiveIn(reg);
+    }
+    if (liveOut) {
+        currentBlock->addLiveOut(reg);
+    }
     currentFunction->addRegister(reg);
-    for (size_t i = 1; i < count; ++i) {
-        currentFunction->addRegister(new mir::Register(regIdx++));
+    for (size_t i = 1; i < numWords; ++i) {
+        auto* r = new mir::Register(regIdx++);
+        currentFunction->addRegister(r);
+        if (liveIn) {
+            currentBlock->addLiveIn(r);
+        }
+        if (liveOut) {
+            currentBlock->addLiveOut(r);
+        }
     }
     return reg;
 }
