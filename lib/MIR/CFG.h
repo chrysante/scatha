@@ -179,6 +179,10 @@ public:
         removeLiveImpl(_liveOut, reg, count);
     }
 
+    bool isLiveIn(Register const* reg) const { return _liveIn.contains(reg); }
+        
+    bool isLiveOut(Register const* reg) const { return _liveOut.contains(reg); }
+        
     auto const& liveIn() const { return _liveIn; }
 
     auto const& liveOut() const { return _liveOut; }

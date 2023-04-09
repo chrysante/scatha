@@ -530,6 +530,7 @@ void CodeGenContext::postprocess() {
     /// Place the appropriate values for all phi nodes in the corresponding
     /// registers
     for (auto* phi: phiNodes) {
+        currentBlock = resolve(phi->parent());
         auto* dest = resolve(phi);
         for (auto [pred, arg]: phi->arguments()) {
             auto* mPred = cast<mir::BasicBlock*>(resolve(pred));
@@ -543,7 +544,8 @@ void CodeGenContext::postprocess() {
             }
             size_t const count = numWords(arg->type());
             auto* mArg         = resolve(arg);
-            if (auto* argReg = dyncast<mir::Register*>(mArg)) {
+            auto* argReg = dyncast<mir::Register*>(mArg);
+            if (argReg && !currentBlock->isLiveOut(argReg)) {
                 mPred->removeLiveOut(argReg, count);
             }
             mPred->addLiveOut(dest, count);
