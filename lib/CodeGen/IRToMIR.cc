@@ -291,7 +291,7 @@ void CodeGenContext::genInst(ir::CompareInst const& cmp) {
     auto* lhs = resolve(cmp.lhs());
     auto* rhs = resolve(cmp.rhs());
     addNewInst(mir::InstCode::Compare, nullptr, { lhs, rhs }, cmp.mode());
-    addNewInst(mir::InstCode::Set, resolve(&cmp), {});
+    addNewInst(mir::InstCode::Set, resolve(&cmp), {}, cmp.operation());
 }
 
 void CodeGenContext::genInst(ir::UnaryArithmeticInst const& inst) {
@@ -594,28 +594,28 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
     if (itr != valueMap.end()) {
         return itr->second;
     }
-    return visit(*value,
-                 utl::overload{
-                     [&](ir::Instruction const& inst) {
-        SC_ASSERT(!isa<ir::VoidType>(inst.type()), "");
-        return nextRegister(numWords(inst.type()));
-                     },
-                     [&](ir::IntegralConstant const& constant) {
-        SC_ASSERT(constant.type()->bitWidth() <= 64, "");
-        auto value          = constant.value().to<uint64_t>();
-        auto* mirConst      = result.constant(value);
-        valueMap[&constant] = mirConst;
-        return mirConst;
-                 },
-                 [&](ir::FloatingPointConstant const& constant) -> mir::Value* {
-                     SC_DEBUGFAIL();
-                     //            SC_ASSERT(constant.type()->bitWidth() <= 64);
-                     //            return constant.value().to<uint64_t>();
-                 },
-                 [](ir::Value const& value) -> mir::Value* {
-                     SC_UNREACHABLE(
-                         "Everything else shall be forward declared");
-                 } });
+    // clang-format off
+    return visit(*value, utl::overload{
+        [&](ir::Instruction const& inst) {
+            SC_ASSERT(!isa<ir::VoidType>(inst.type()), "");
+            auto* reg = nextRegister(numWords(inst.type()));
+            valueMap.insert({ &inst, reg });
+            return reg;
+        },
+        [&](ir::IntegralConstant const& constant) {
+            SC_ASSERT(constant.type()->bitWidth() <= 64, "");
+            auto value          = constant.value().to<uint64_t>();
+            auto* mirConst      = result.constant(value);
+            valueMap.insert({ &constant, mirConst });
+            return mirConst;
+        },
+        [&](ir::FloatingPointConstant const& constant) -> mir::Value* {
+            SC_DEBUGFAIL();
+        },
+        [](ir::Value const& value) -> mir::Value* {
+            SC_UNREACHABLE("Everything else shall be forward declared");
+        }
+    }); // clang-format on
 }
 
 mir::Register* CodeGenContext::makeTemporary(mir::Value* value) {
@@ -628,7 +628,7 @@ mir::Register* CodeGenContext::makeTemporary(mir::Value* value) {
 mir::Register* CodeGenContext::nextRegister(size_t count) {
     auto* reg = new mir::Register(regIdx++);
     currentFunction->addRegister(reg);
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 1; i < count; ++i) {
         currentFunction->addRegister(new mir::Register(regIdx++));
     }
     return reg;

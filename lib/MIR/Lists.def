@@ -26,16 +26,16 @@ SC_MIR_CFGNODE_DEF(Function,            CONCRETE)
 
 SC_MIR_INSTRUCTION_DEF(Store,           "store")      /// (<Ptr> dest, Value source) [Data = const-ptr-data]
 SC_MIR_INSTRUCTION_DEF(Load,            "load")       /// (<Ptr> source)             [Data = const-ptr-data]
-SC_MIR_INSTRUCTION_DEF(Copy,            "cpy")        /// (Value source)
+SC_MIR_INSTRUCTION_DEF(Copy,            "copy")       /// (Value source)
 SC_MIR_INSTRUCTION_DEF(Call,            "call")       /// (Function callee)
 SC_MIR_INSTRUCTION_DEF(CallExt,         "callExt")    /// ()                         [Data = slot, index]
-SC_MIR_INSTRUCTION_DEF(CondCopy,        "ccpy")       /// (Value source)             [Data = condition]
+SC_MIR_INSTRUCTION_DEF(CondCopy,        "<cond-cpy>") /// (Value source)             [Data = condition]
 
 SC_MIR_INSTRUCTION_DEF(LIncSP,          "lincsp")     /// (Constant numBytes)
 SC_MIR_INSTRUCTION_DEF(LEA,             "lea")        /// (<Ptr> address)            [Data = const-ptr-data]
 SC_MIR_INSTRUCTION_DEF(Compare,         "<compare>")  /// (Value lhs, Value rhs)     [Data = mode]
 SC_MIR_INSTRUCTION_DEF(Test,            "<test>")     /// (Value operand)            [Data = mode]
-SC_MIR_INSTRUCTION_DEF(Set,             "set")        /// ()                         [Data = condition]
+SC_MIR_INSTRUCTION_DEF(Set,             "<set-inst>") /// ()                         [Data = condition]
 SC_MIR_INSTRUCTION_DEF(UnaryArithmetic, "<un-arith>") /// (Value operand)            [Data = operation]
 SC_MIR_INSTRUCTION_DEF(Arithmetic,      "<arith>")    /// (Value lhs, Value rhs)     [Data = operation]
 SC_MIR_INSTRUCTION_DEF(Conversion,      "<conv>")     /// (Register operand)         [Data = conversion]
