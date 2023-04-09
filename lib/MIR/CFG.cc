@@ -103,6 +103,11 @@ Function::Function(ir::Function const* irFunc):
     _name(std::string(irFunc->name())),
     irFunc(irFunc) {}
 
+void Function::addRegister(Register* reg) {
+    reg->set_parent(this);
+    regs.push_back(reg);
+}
+
 void Function::insertCallback(BasicBlock& bb) {
     bb.set_parent(this);
     for (auto& inst: bb) {

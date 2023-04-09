@@ -249,12 +249,14 @@ void CodeGenContext::genInst(ir::Alloca const& allocaInst) {
 void CodeGenContext::genInst(ir::Store const& store) {
     mir::MemoryAddress dest = computeAddress(store.address());
     mir::Value* src         = resolve(store.value());
-    size_t numWords = utl::ceil_divide(store.value()->type()->size(), 8);
+    size_t numWords    = utl::ceil_divide(store.value()->type()->size(), 8);
+    auto addrConstData = dest.constantData();
     for (size_t i = 0; i < numWords; ++i) {
         addNewInst(mir::InstCode::Store,
                    nullptr,
                    { dest.addressRegister(), dest.offsetRegister(), src },
-                   dest.constantData());
+                   addrConstData);
+        addrConstData.offsetTerm += 8;
     }
 }
 
@@ -262,11 +264,13 @@ void CodeGenContext::genInst(ir::Load const& load) {
     mir::MemoryAddress src = computeAddress(load.address());
     size_t numWords        = utl::ceil_divide(load.type()->size(), 8);
     auto* dest             = resolve(&load);
+    auto addrConstData     = src.constantData();
     for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
         addNewInst(mir::InstCode::Load,
                    dest,
                    { src.addressRegister(), src.offsetRegister() },
-                   src.constantData());
+                   addrConstData);
+        addrConstData.offsetTerm += 8;
     }
 }
 
@@ -368,7 +372,9 @@ void CodeGenContext::genInst(ir::Call const& call) {
             });
         },
     }); // clang-format on
-    genCopy(resolve(&call), &calleeRegs.front(), numWords(call.type()));
+    if (!isa<ir::VoidType>(call.type())) {
+        genCopy(resolve(&call), &calleeRegs.front(), numWords(call.type()));
+    }
 }
 
 void CodeGenContext::genInst(ir::Return const& ret) {
@@ -601,7 +607,11 @@ mir::Register* CodeGenContext::genCopy(mir::Register* dest,
     for (size_t i = 0; i < numWords;
          ++i, dest = dest->next(), sourceReg = sourceReg->next())
     {
-        addNewInst(mir::InstCode::Copy, dest, { source }, uint64_t(0), before);
+        addNewInst(mir::InstCode::Copy,
+                   dest,
+                   { sourceReg },
+                   uint64_t(0),
+                   before);
     }
     return result;
 }

@@ -29,6 +29,11 @@ static constexpr auto keyword =
         return str << tfmt::format(tfmt::magenta | tfmt::bold, args...);
     });
 
+static constexpr auto literal =
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
+        return str << tfmt::format(tfmt::cyan, args...);
+    });
+
 static constexpr auto globalName =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::green | tfmt::italic, "@", args...);
@@ -150,17 +155,27 @@ struct PrintContext {
             first = false;
             print(op);
         }
+        if (inst->instcode() == InstCode::Load ||
+            inst->instcode() == InstCode::Store ||
+            inst->instcode() == InstCode::LEA)
+        {
+            printPtrData(inst->instDataAs<MemoryAddress::ConstantData>());
+        }
         str << "\n";
     }
 
     void print(Value const* value) {
+        if (!value) {
+            str << keyword("null");
+            return;
+        }
         // clang-format off
         visit(*value, utl::overload{
             [&](Register const& reg) {
                 str << regName(&reg);
             },
             [&](Constant const& C) {
-                str << "0x" << std::hex << C.value() << std::dec;
+                str << literal("0x", std::hex, C.value(), std::dec);
             },
             [&](BasicBlock const& BB) {
                 str << localName(BB.name());
@@ -169,6 +184,10 @@ struct PrintContext {
                 str << globalName(F.name());
             }
         }); // clang-format on
+    }
+
+    void printPtrData(MemoryAddress::ConstantData data) {
+        str << ", of=" << data.offsetFactor << ", ot=" << data.offsetTerm;
     }
 
     std::ostream& str;

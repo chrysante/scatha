@@ -239,7 +239,7 @@ public:
 
     bool regEmpty() const { return regs.empty(); }
 
-    void addRegister(Register* reg) { regs.push_back(reg); }
+    void addRegister(Register* reg);
 
     BasicBlock* entry() { return &front(); }
 
