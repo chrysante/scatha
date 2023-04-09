@@ -103,7 +103,7 @@ static void run(ir::Module const& mod) {
     for (auto& bb: f) {
         auto toNames = ranges::views::transform(
             [](ir::Value const* value) { return value->name(); });
-        auto& live = liveSets.live(&bb);
+        auto& live = liveSets.find(&bb);
         std::cout << bb.name() << ":\n";
         std::cout << "\tLive in:  " << (live.liveIn | toNames) << "\n";
         std::cout << "\tLive out: " << (live.liveOut | toNames) << "\n";

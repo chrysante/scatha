@@ -19,14 +19,14 @@ public:
     /// \p F
     SCATHA_TESTAPI static LiveSets compute(Function const& F);
 
-    BasicBlockLiveSets const& live(BasicBlock const* BB) const {
+    BasicBlockLiveSets const& find(BasicBlock const* BB) const {
         auto itr = sets.find(BB);
         SC_ASSERT(itr != sets.end(), "Not found");
         return itr->second;
     }
 
     BasicBlockLiveSets const& operator[](BasicBlock const* BB) const {
-        return live(BB);
+        return find(BB);
     }
 
     auto begin() const { return sets.begin(); }
