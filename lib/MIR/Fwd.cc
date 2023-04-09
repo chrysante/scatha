@@ -31,7 +31,7 @@ void internal::privateDestroy(mir::Value* value) {
 std::string_view mir::toString(InstCode code) {
     switch (code) {
 #define SC_MIR_INSTRUCTION_DEF(Inst, Name)                                     \
-    case InstCode::Inst:                                                \
+    case InstCode::Inst:                                                       \
         return Name;
 #include "MIR/Lists.def"
     case InstCode::_count:
@@ -43,20 +43,7 @@ std::ostream& mir::operator<<(std::ostream& ostream, InstCode code) {
     return ostream << toString(code);
 }
 
-std::string_view mir::toString(UnaryArithmeticOperation operation) {
-    SC_UNREACHABLE();
-}
-
-std::ostream& mir::operator<<(std::ostream& ostream,
-                              UnaryArithmeticOperation operation) {
-    return ostream << toString(operation);
-}
-
-std::string_view mir::toString(ArithmeticOperation operation) {
-    SC_UNREACHABLE();
-}
-
-std::ostream& mir::operator<<(std::ostream& ostream,
-                              ArithmeticOperation operation) {
-    return ostream << toString(operation);
+bool mir::isTerminator(InstCode code) {
+    return code == InstCode::Jump || code == InstCode::CondJump ||
+           code == InstCode::Return;
 }

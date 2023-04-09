@@ -13,6 +13,7 @@
 #include "Assembly/Print.h"
 #include "Basic/Basic.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
+#include "CodeGen/IRToMIR.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
@@ -24,6 +25,9 @@
 #include "IR/Print.h"
 #include "IR/Validate.h"
 #include "IRDump.h"
+#include "MIR/CFG.h"
+#include "MIR/Module.h"
+#include "MIR/Print.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/InlineCallsite.h"
@@ -120,6 +124,10 @@ static void run(ir::Module const& mod) {
     run(mod);
 }
 
-void playground::volatilePlayground(std::filesystem::path path) {
-    volPlayground(path);
+[[maybe_unused]] static void mirPG(std::filesystem::path path) {
+    auto [ctx, irMod] = makeIRModuleFromFile(path);
+    auto mirMod       = cg::lowerToMIR(irMod);
+    mir::print(mirMod);
 }
+
+void playground::volatilePlayground(std::filesystem::path path) { mirPG(path); }

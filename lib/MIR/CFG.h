@@ -13,56 +13,6 @@
 
 namespace scatha::mir {
 
-///
-///
-///
-class Value {
-public:
-    NodeType nodeType() const { return _nodeType; }
-
-protected:
-    Value(NodeType nodeType): _nodeType(nodeType) {}
-
-private:
-    NodeType _nodeType;
-};
-
-inline NodeType dyncast_get_type(Value const& value) {
-    return value.nodeType();
-}
-
-///
-///
-///
-class Register: public Value, public NodeWithParent<Register, BasicBlock> {
-public:
-    static constexpr size_t InvalidIndex = ~size_t(0);
-
-    size_t index() const { return _index; }
-
-    void setIndex(size_t index) { _index = index; }
-
-protected:
-    explicit Register(NodeType nodeType, size_t index):
-        Value(nodeType), _index(index) {}
-
-private:
-    size_t _index;
-};
-
-///
-///
-///
-class Constant: public Value {
-public:
-    Constant(uint64_t value): Value(NodeType::Constant), val(value) {}
-
-    uint64_t value() const { return val; }
-
-private:
-    uint64_t val;
-};
-
 template <typename T>
 concept InstructionData =
     sizeof(T) <= sizeof(uint64_t) && std::is_trivially_copyable_v<T>;
@@ -70,26 +20,28 @@ concept InstructionData =
 ///
 ///
 ///
-class Instruction:
-    public ListNodeOverride<Instruction, Register> {
-    using NodeBase = ListNodeOverride<Instruction, Register>;
-        
+class Instruction: public NodeWithParent<Instruction, BasicBlock> {
 public:
     template <InstructionData T = uint64_t>
     Instruction(InstCode opcode,
-                size_t index,
+                Register* dest,
                 utl::small_vector<Value*> operands = {},
                 T instData                         = {}):
-        NodeBase(NodeType::Instruction, index),
-        oc(opcode),
-        ops(std::move(operands)),
-        _instData(instData) {}
+        oc(opcode), _dest(dest), ops(std::move(operands)), _instData(0) {
+        std::memcpy(&_instData, &instData, sizeof(T));
+    }
+
+    void setDest(Register* dest) { _dest = dest; }
 
     void setOperands(utl::small_vector<Value*> operands) {
         ops = std::move(operands);
     }
 
     InstCode instcode() const { return oc; }
+
+    Register* dest() { return _dest; }
+
+    Register const* dest() const { return _dest; }
 
     template <typename V = Value>
     V* operandAt(size_t index) {
@@ -116,8 +68,61 @@ public:
 
 private:
     InstCode oc;
+    Register* _dest;
     utl::small_vector<Value*> ops;
     uint64_t _instData;
+};
+
+} // namespace scatha::mir
+
+namespace scatha::mir {
+
+///
+///
+///
+class Value {
+public:
+    NodeType nodeType() const { return _nodeType; }
+
+protected:
+    Value(NodeType nodeType): _nodeType(nodeType) {}
+
+private:
+    NodeType _nodeType;
+};
+
+inline NodeType dyncast_get_type(Value const& value) {
+    return value.nodeType();
+}
+
+///
+///
+///
+class Register: public Value, public NodeWithParent<Register, Function> {
+public:
+    static constexpr size_t InvalidIndex = ~size_t(0);
+
+    explicit Register(size_t index): Value(NodeType::Register), _index(index) {}
+
+    size_t index() const { return _index; }
+
+    void setIndex(size_t index) { _index = index; }
+
+private:
+    size_t _index;
+};
+
+///
+///
+///
+class Constant: public Value {
+public:
+    Constant(uint64_t value): Value(NodeType::Constant), val(value) {}
+
+    uint64_t value() const { return val; }
+
+private:
+    uint64_t val;
 };
 
 ///
@@ -146,19 +151,6 @@ private:
 ///
 ///
 ///
-class Parameter:
-    public ListNodeOverride<Instruction, Register> {
-    using NodeBase = ListNodeOverride<Parameter, Register>;
-        
-public:
-    explicit Parameter(size_t index): NodeBase(NodeType::Parameter, index) {}
-
-private:
-};
-
-///
-///
-///
 class Function:
     public Value,
     public CFGList<Function, BasicBlock>,
@@ -169,23 +161,34 @@ public:
     using ListBase::ConstIterator;
     using ListBase::Iterator;
 
-    explicit Function(std::span<Parameter* const> parameters, std::string name);
+    explicit Function(std::string name):
+        Value(NodeType::Function), _name(std::move(name)) {}
 
     std::string_view name() const { return _name; }
 
-    auto parameters() {
-        return params |
-               ranges::views::transform([](auto& p) { return p.get(); });
+    auto registers() {
+        return regs | ranges::views::transform([](auto& p) { return &p; });
     }
 
-    auto parameters() const {
-        return params |
-               ranges::views::transform([](auto& p) { return p.get(); });
+    auto registers() const {
+        return regs | ranges::views::transform([](auto& p) { return &p; });
     }
+
+    auto regBegin() { return regs.begin(); }
+
+    auto regBegin() const { return regs.begin(); }
+
+    auto regEnd() { return regs.end(); }
+
+    auto regEnd() const { return regs.end(); }
+
+    bool regEmpty() const { return regs.empty(); }
+
+    void addRegister(Register* reg) { regs.push_back(reg); }
 
 private:
     std::string _name;
-    utl::small_vector<UniquePtr<Parameter>> params;
+    List<Register> regs;
 };
 
 } // namespace scatha::mir

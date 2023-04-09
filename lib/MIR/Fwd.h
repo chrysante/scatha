@@ -4,9 +4,9 @@
 #include <iosfwd>
 #include <string_view>
 
-#include "IR/Common.h"
 #include "Basic/Basic.h"
 #include "Common/Dyncast.h"
+#include "IR/Common.h"
 
 namespace scatha::mir {
 
@@ -16,8 +16,6 @@ class Module;
 /// ```
 /// Value
 /// ├─ Register
-/// │  ├─ Parameter
-/// │  └─ Instruction
 /// ├─ Constant
 /// ├─ BasicBlock
 /// └─ Function
@@ -71,6 +69,8 @@ enum class InstCode {
 std::string_view toString(InstCode code);
 
 std::ostream& operator<<(std::ostream& ostream, InstCode code);
+
+bool isTerminator(InstCode code);
 
 using ir::Conversion;
 

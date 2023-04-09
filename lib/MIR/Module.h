@@ -3,6 +3,7 @@
 
 #include <utl/hashmap.hpp>
 
+#include "Basic/Basic.h"
 #include "Common/List.h"
 #include "MIR/Fwd.h"
 
@@ -11,7 +12,7 @@ namespace scatha::mir {
 ///
 ///
 ///
-class Module {
+class SCATHA_TESTAPI Module {
     template <typename T>
     static decltype(auto) asDerived(auto&& self) {
         return static_cast<T&>(self);
