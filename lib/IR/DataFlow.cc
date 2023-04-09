@@ -20,8 +20,7 @@ namespace {
 struct LivenessContext {
     enum Flags { Visited = 1 << 0, Processed = 1 << 1 };
 
-    using ResultMap =
-        utl::hashmap<BasicBlock const*, LiveSets::BasicBlockLiveSets>;
+    using ResultMap = utl::hashmap<BasicBlock const*, BasicBlockLiveSets>;
 
     LivenessContext(Function const& F, ResultMap& live): F(F), liveSets(live) {}
 

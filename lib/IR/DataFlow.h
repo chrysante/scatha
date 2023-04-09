@@ -9,14 +9,12 @@
 
 namespace scatha::ir {
 
-class LiveSets;
+struct BasicBlockLiveSets {
+    utl::hashset<Value const*> liveIn, liveOut;
+};
 
 class LiveSets {
 public:
-    struct BasicBlockLiveSets {
-        utl::hashset<Value const*> liveIn, liveOut;
-    };
-
     /// Computes the live-in and live-out sets for each basic block of function
     /// \p F
     SCATHA_TESTAPI static LiveSets compute(Function const& F);
@@ -25,6 +23,10 @@ public:
         auto itr = sets.find(BB);
         SC_ASSERT(itr != sets.end(), "Not found");
         return itr->second;
+    }
+
+    BasicBlockLiveSets const& operator[](BasicBlock const* BB) const {
+        return live(BB);
     }
 
     auto begin() const { return sets.begin(); }
