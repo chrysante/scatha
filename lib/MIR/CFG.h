@@ -34,7 +34,7 @@ inline NodeType dyncast_get_type(Value const& value) {
 ///
 ///
 ///
-class Register: public Value {
+class Register: public Value, public NodeWithParent<Register, BasicBlock> {
 public:
     static constexpr size_t InvalidIndex = ~size_t(0);
 
@@ -71,15 +71,16 @@ concept InstructionData =
 ///
 ///
 class Instruction:
-    public Register,
-    public NodeWithParent<Instruction, BasicBlock> {
+    public ListNodeOverride<Instruction, Register> {
+    using NodeBase = ListNodeOverride<Instruction, Register>;
+        
 public:
     template <InstructionData T = uint64_t>
-    Instruction(InstructionType opcode,
+    Instruction(InstCode opcode,
                 size_t index,
                 utl::small_vector<Value*> operands = {},
                 T instData                         = {}):
-        Register(NodeType::Instruction, index),
+        NodeBase(NodeType::Instruction, index),
         oc(opcode),
         ops(std::move(operands)),
         _instData(instData) {}
@@ -88,7 +89,7 @@ public:
         ops = std::move(operands);
     }
 
-    InstructionType opcode() const { return oc; }
+    InstCode instcode() const { return oc; }
 
     template <typename V = Value>
     V* operandAt(size_t index) {
@@ -114,7 +115,7 @@ public:
     }
 
 private:
-    InstructionType oc;
+    InstCode oc;
     utl::small_vector<Value*> ops;
     uint64_t _instData;
 };
@@ -145,9 +146,12 @@ private:
 ///
 ///
 ///
-class Parameter: public Register {
+class Parameter:
+    public ListNodeOverride<Instruction, Register> {
+    using NodeBase = ListNodeOverride<Parameter, Register>;
+        
 public:
-    explicit Parameter(size_t index): Register(NodeType::Parameter, index) {}
+    explicit Parameter(size_t index): NodeBase(NodeType::Parameter, index) {}
 
 private:
 };

@@ -4,12 +4,25 @@
 #include <iosfwd>
 #include <string_view>
 
+#include "IR/Common.h"
 #include "Basic/Basic.h"
 #include "Common/Dyncast.h"
 
 namespace scatha::mir {
 
 class Module;
+
+///
+/// ```
+/// Value
+/// ├─ Register
+/// │  ├─ Parameter
+/// │  └─ Instruction
+/// ├─ Constant
+/// ├─ BasicBlock
+/// └─ Function
+/// ```
+///
 
 /// Forward declarations of all CFG node types in the MIR module.
 #define SC_MIR_CFGNODE_DEF(type, _) class type;
@@ -49,42 +62,25 @@ SCATHA_TESTAPI void privateDestroy(mir::Value* value);
 namespace scatha::mir {
 
 /// Enum listing all instructions in the MIR module.
-enum class InstructionType {
+enum class InstCode {
 #define SC_MIR_INSTRUCTION_DEF(type, name) type,
 #include "MIR/Lists.def"
     _count
 };
 
-std::string_view toString(InstructionType instType);
+std::string_view toString(InstCode code);
 
-std::ostream& operator<<(std::ostream& ostream, InstructionType instType);
+std::ostream& operator<<(std::ostream& ostream, InstCode code);
 
-enum class CompareOperation {
-#define SC_ASM_COMPARE_DEF(cnd, ...) cnd,
-#include "Assembly/Lists.def"
-    _count
-};
+using ir::Conversion;
 
-enum class UnaryArithmeticOperation {
-#define SC_ASM_UNARY_ARITHMETIC_DEF(op, ...) op,
-#include "Assembly/Lists.def"
-    _count
-};
+using ir::CompareMode;
 
-std::string_view toString(UnaryArithmeticOperation operation);
+using ir::CompareOperation;
 
-std::ostream& operator<<(std::ostream& ostream,
-                         UnaryArithmeticOperation operation);
+using ir::UnaryArithmeticOperation;
 
-enum class ArithmeticOperation {
-#define SC_ASM_ARITHMETIC_DEF(op, ...) op,
-#include "Assembly/Lists.def"
-    _count
-};
-
-std::string_view toString(ArithmeticOperation operation);
-
-std::ostream& operator<<(std::ostream& ostream, ArithmeticOperation operation);
+using ir::ArithmeticOperation;
 
 ///
 ///
@@ -128,6 +124,14 @@ private:
     Register* addrReg;
     Register* offsetReg;
     ConstantData constData;
+};
+
+///
+///
+///
+struct ExtFuncAddress {
+    uint32_t slot;
+    uint32_t index;
 };
 
 } // namespace scatha::mir

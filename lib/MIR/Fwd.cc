@@ -28,19 +28,19 @@ void internal::privateDestroy(mir::Value* value) {
     visit(*value, [](auto& value) { std::destroy_at(&value); });
 }
 
-std::string_view mir::toString(InstructionType instType) {
-    switch (instType) {
+std::string_view mir::toString(InstCode code) {
+    switch (code) {
 #define SC_MIR_INSTRUCTION_DEF(Inst, Name)                                     \
-    case InstructionType::Inst:                                                \
+    case InstCode::Inst:                                                \
         return Name;
 #include "MIR/Lists.def"
-    case InstructionType::_count:
+    case InstCode::_count:
         SC_UNREACHABLE();
     }
 }
 
-std::ostream& mir::operator<<(std::ostream& ostream, InstructionType instType) {
-    return ostream << toString(instType);
+std::ostream& mir::operator<<(std::ostream& ostream, InstCode code) {
+    return ostream << toString(code);
 }
 
 std::string_view mir::toString(UnaryArithmeticOperation operation) {

@@ -17,48 +17,68 @@ struct CodeGenContext {
     explicit CodeGenContext(mir::Module& result): result(result) {}
 
     void run(ir::Module const& mod);
-
-    void dispatch(ir::Value const& value);
-
-    void generate(ir::Value const& value) { SC_UNREACHABLE(); }
-    void generate(ir::Function const& function);
-    void generate(ir::BasicBlock const& bb);
-    void generate(ir::Alloca const&);
-    void generate(ir::Store const&);
-    void generate(ir::Load const&);
-    void generate(ir::ConversionInst const&);
-    void generate(ir::CompareInst const&);
-    void generate(ir::UnaryArithmeticInst const&);
-    void generate(ir::ArithmeticInst const&);
-    void generate(ir::Goto const&);
-    void generate(ir::Branch const&);
-    void generate(ir::Call const&);
-    void generate(ir::Return const&);
-    void generate(ir::Phi const&);
-    void generate(ir::GetElementPointer const&);
-    void generate(ir::ExtractValue const&);
-    void generate(ir::InsertValue const&);
-    void generate(ir::Select const&);
+    
+    void genFunction(ir::Function const& function);
+    void genBasicBlock(ir::BasicBlock const& bb);
+    
+    mir::Register* dispatchInst(ir::Instruction const& value);
+    mir::Register* genInst(ir::Instruction const& value) { SC_UNREACHABLE(); }
+    mir::Register* genInst(ir::Alloca const&);
+    mir::Register* genInst(ir::Store const&);
+    mir::Register* genInst(ir::Load const&);
+    mir::Register* genInst(ir::ConversionInst const&);
+    mir::Register* genInst(ir::CompareInst const&);
+    mir::Register* genInst(ir::UnaryArithmeticInst const&);
+    mir::Register* genInst(ir::ArithmeticInst const&);
+    mir::Register* genInst(ir::Goto const&);
+    mir::Register* genInst(ir::Branch const&);
+    mir::Register* genInst(ir::Call const&);
+    mir::Register* genInst(ir::Return const&);
+    mir::Register* genInst(ir::Phi const&);
+    mir::Register* genInst(ir::GetElementPointer const&);
+    mir::Register* genInst(ir::ExtractValue const&);
+    mir::Register* genInst(ir::InsertValue const&);
+    mir::Register* genInst(ir::Select const&);
 
     void postprocess();
 
     /// Used for generating `Store` and `Load` instructions.
-    mir::MemoryAddress computeAddress(ir::Value const&);
+    mir::MemoryAddress computeAddress(ir::Value const*);
 
     /// Used by `computeAddress`
-    mir::MemoryAddress computeGep(ir::GetElementPointer const&);
+    mir::MemoryAddress computeGep(ir::GetElementPointer const*);
 
     void placeArguments(std::span<ir::Value const* const> args);
 
     void getCallResult(ir::Value const& callInst);
 
+    void generateMoves(mir::Value* dest, mir::Value* src, size_t size);
+    
+    void generateMoves(mir::Value* dest, mir::Value* src, size_t size, mir::BasicBlock::Iterator before);
+    
+    mir::Instruction* genCopy(mir::Value* source, size_t numBytes);
+    
+    mir::Value* resolve(ir::Value const* value);
+    
+    mir::Register* makeTemporary(mir::Value* value);
+
     size_t nextRegIndex() { return regIdx++; }
 
+    template <mir::InstructionData T = uint64_t>
+    mir::Instruction* newInst(mir::InstCode code, utl::small_vector<mir::Value*> operands, T instData = {});
+    
+    template <mir::InstructionData T = uint64_t>
+    mir::Instruction* addNewInst(mir::InstCode code, utl::small_vector<mir::Value*> operands, T instData = {});
+    
     mir::Module& result;
 
     mir::Function* currentFunction = nullptr;
     mir::BasicBlock* currentBlock  = nullptr;
 
+    utl::hashmap<ir::Phi const*, mir::Register*> registerMap;
+    
+    utl::hashmap<ir::Value const*, mir::Register*> registerMap;
+    
     utl::hashmap<ir::BasicBlock const*, mir::BasicBlock*> basicBlockMap;
 
     utl::hashmap<ir::Function const*, mir::Function*> functionMap;
@@ -77,212 +97,120 @@ mir::Module cg::lowerToMIR(ir::Module const& mod) {
 
 void CodeGenContext::run(ir::Module const& mod) {
     for (auto& function: mod) {
-        dispatch(function);
+        genFunction(function);
     }
     postprocess();
 }
 
-void CodeGenContext::dispatch(ir::Value const& value) {
-    visit(value, [this](auto const& node) { generate(node); });
-}
-
-void CodeGenContext::generate(ir::Function const& function) {
+void CodeGenContext::genFunction(ir::Function const& function) {
     utl::small_vector<mir::Parameter*> params;
-    for (auto& param: function.parameters()) {
+    for (size_t index = 0; auto& param: function.parameters()) {
         size_t const size          = param.type()->size();
         size_t const paramRegCount = utl::ceil_divide(size, 8);
         for (size_t i = 0; i < paramRegCount; ++i) {
             params.push_back(new mir::Parameter(nextRegIndex()));
         }
+        registerMap[&param] = params[index];
+        index += paramRegCount;
     }
     currentFunction = new mir::Function(params, std::string(function.name()));
     result.addFunction(currentFunction);
     for (auto& bb: function) {
-        dispatch(bb);
+        genBasicBlock(bb);
     }
 }
 
-void CodeGenContext::generate(ir::BasicBlock const& bb) {
+void CodeGenContext::genBasicBlock(ir::BasicBlock const& bb) {
     currentBlock = new mir::BasicBlock(std::string(bb.name()));
     currentFunction->pushBack(currentBlock);
     basicBlockMap.insert({ &bb, currentBlock });
     for (auto& inst: bb) {
-        dispatch(inst);
+        auto* reg = dispatchInst(inst);
+        if (reg) {
+            registerMap[&inst] = reg;
+        }
     }
 }
 
-void CodeGenContext::generate(ir::Alloca const& allocaInst) {
+mir::Register* CodeGenContext::dispatchInst(ir::Instruction const& inst) {
+    return visit(inst, [this](auto const& inst) { return genInst(inst); });
+}
+
+mir::Register* CodeGenContext::genInst(ir::Alloca const& allocaInst) {
     SC_ASSERT(allocaInst.allocatedType()->align() <= 8,
               "We don't support overaligned types just yet.");
     auto* type          = allocaInst.allocatedType();
     auto* countConstant = cast<ir::IntegralConstant const*>(allocaInst.count());
     size_t count        = countConstant->value().to<size_t>();
     size_t numBytes     = type->size() * count;
-    auto* inst          = new mir::Instruction(mir::InstructionType::LIncSP,
-                                      nextRegIndex(),
-                                               { result.constant(numBytes) });
-    currentBlock->pushBack(inst);
+    return addNewInst(mir::InstCode::LIncSP,
+                   { result.constant(numBytes) });
 }
 
-void CodeGenContext::generate(ir::Store const& store) {
-    mir::MemoryAddress const addr = computeAddress(*store.address());
-    Value const src               = [&] {
-        if (isa<ir::PointerType>(store.value()->type())) {
-            /// Handle the memory -> memory case separately. This is not really
-            /// beautiful and can hopefully be refactored in the future. The
-            /// following is copy pasted from ir::Load case and slightly
-            /// adjusted.
-            MemoryAddress const addr = computeAddress(*store.value());
-            Value const dest         = currentRD().makeTemporary();
-            size_t const size        = store.value()->type()->size();
-            generateBigMove(dest, addr, size);
-            return dest;
+mir::Register* CodeGenContext::genInst(ir::Store const& store) {
+    mir::MemoryAddress dest = computeAddress(store.address());
+    mir::Value* src         = resolve(store.value());
+    size_t numWords = utl::ceil_divide(store.value()->type()->size(), 8);
+    for (size_t i = 0; i < numWords; ++i) {
+        auto* inst = addNewInst(mir::InstCode::Store,
+                             { dest.addressRegister(), dest.offsetRegister(), src },
+                             dest.constantData());
+    }
+    return nullptr;
+}
+
+mir::Register* CodeGenContext::genInst(ir::Load const& load) {
+    mir::MemoryAddress src  = computeAddress(load.address());
+    size_t numWords = utl::ceil_divide(load.type()->size(), 8);
+    mir::Register* result = nullptr;
+    for (size_t i = 0; i < numWords; ++i) {
+        auto* inst = addNewInst(mir::InstCode::Load,
+                             { src.addressRegister(), src.offsetRegister() },
+                             src.constantData());
+        if (i == 0) {
+            result = inst;
         }
-        return currentRD().resolve(*store.value());
-    }();
-    if (isLiteralValue(src.valueType())) {
-        /// `src` is a value and must be stored in temporary register first.
-        size_t const size = sizeOf(src.valueType());
-        SC_ASSERT(size <= 8, "");
-        auto tmp = currentRD().makeTemporary();
-        currentBlock().insertBack(MoveInst(tmp, src, size));
-        currentBlock().insertBack(MoveInst(addr, tmp, size));
     }
-    else {
-        generateBigMove(addr, src, store.value()->type()->size());
-    }
-}
-
-void CodeGenContext::generate(ir::Load const& load) {
-    MemoryAddress const addr = computeAddress(*load.address());
-    Value const dest         = currentRD().resolve(load);
-    size_t const size        = load.type()->size();
-    generateBigMove(dest, addr, size);
+    return result;
 }
 
 /// All the moves we insert here are unnecessary, we just don't have a better
 /// way of implementing this yet...
-void CodeGenContext::generate(ir::ConversionInst const& inst) {
+mir::Register* CodeGenContext::genInst(ir::ConversionInst const& inst) {
     switch (inst.conversion()) {
     case ir::Conversion::Zext:
         [[fallthrough]];
     case ir::Conversion::Trunc:
         [[fallthrough]];
     case ir::Conversion::Bitcast: {
-        auto dest = currentRD().resolve(inst);
-        auto op   = currentRD().resolve(*inst.operand());
-        currentBlock().insertBack(MoveInst(dest, op, 8));
-        break;
+        /// These are no-ops, we just return the original register.
+        return dyncast<mir::Register*>(resolve(&inst));
     }
-    case ir::Conversion::Sext: {
-        auto dest = currentRD().resolve(inst);
-        auto op   = currentRD().resolve(*inst.operand());
-        op = convertValue(op, Type::Signed, inst.operand()->type()->size() * 8);
-        currentBlock().insertBack(MoveInst(dest, op, 8));
-        break;
-    }
-    case ir::Conversion::Fext: {
-        auto dest = currentRD().resolve(inst);
-        auto op   = currentRD().resolve(*inst.operand());
-        op = convertValue(op, Type::Float, inst.operand()->type()->size() * 8);
-        currentBlock().insertBack(MoveInst(dest, op, 8));
-        break;
-    }
+    case ir::Conversion::Sext:
+        [[fallthrough]];
+    case ir::Conversion::Fext:
+        [[fallthrough]];
     case ir::Conversion::Ftrunc: {
-        auto dest = currentRD().resolve(inst);
-        auto op   = currentRD().resolve(*inst.operand());
-        op = convertValue(op, Type::Float, inst.operand()->type()->size() * 8);
-        currentBlock().insertBack(MoveInst(dest, op, 8));
-        break;
+        mir::Value* operand = resolve(inst.operand());
+        return addNewInst(mir::InstCode::Conversion,
+                       { operand },
+                       inst.conversion());
     }
     case ir::Conversion::_count:
         SC_UNREACHABLE();
     }
 }
 
-static Asm::Type mapCmpMode(ir::CompareMode mode) {
-    switch (mode) {
-    case ir::CompareMode::Signed:
-        return Type::Signed;
-    case ir::CompareMode::Unsigned:
-        return Type::Unsigned;
-    case ir::CompareMode::Float:
-        return Type::Float;
-    case ir::CompareMode::_count:
-        SC_UNREACHABLE();
-    }
+mir::Register* CodeGenContext::genInst(ir::CompareInst const& cmp) {
+    auto* lhs = resolve(cmp.lhs());
+    auto* rhs = resolve(cmp.rhs());
+    addNewInst(mir::InstCode::Compare, { lhs, rhs }, cmp.mode());
+    return addNewInst(mir::InstCode::Set, {});
 }
 
-void CodeGenContext::generate(ir::CompareInst const& cmp) {
-    auto* operandType = cmp.lhs()->type();
-    Value LHS         = [&]() -> Value {
-        auto resolvedLhs = currentRD().resolve(*cmp.lhs());
-        if (!isa<ir::Constant>(cmp.lhs())) {
-            SC_ASSERT(
-                resolvedLhs.is<RegisterIndex>(),
-                "cmp instruction wants a register index as its lhs argument.");
-            return resolvedLhs;
-        }
-        auto tmpRegIdx = currentRD().makeTemporary();
-        currentBlock().insertBack(
-            MoveInst(tmpRegIdx, resolvedLhs, cmp.lhs()->type()->size()));
-        return tmpRegIdx;
-    }();
-    Value RHS          = currentRD().resolve(*cmp.rhs());
-    auto const cmpMode = mapCmpMode(cmp.mode());
-    if (cmpMode == Type::Signed) {
-        auto* intType         = cast<ir::IntegralType const*>(operandType);
-        size_t const fromBits = intType->bitWidth();
-        LHS                   = convertValue(LHS, Type::Signed, fromBits);
-        RHS                   = convertValue(RHS, Type::Signed, fromBits);
-    }
-    currentBlock().insertBack(
-        Asm::CompareInst(cmpMode, LHS, RHS, operandType->size()));
-    if (true) /// Actually we should check if the users of this cmp instruction
-              /// care about having the result in the corresponding register.
-              /// Since we don't have use and user lists yet we do this
-              /// unconditionally. This should not introduce errors, it's only
-              /// inefficient to execute.
-              /// TODO: We have user lists now, change this!
-    {
-        currentBlock().insertBack(
-            SetInst(currentRD().resolve(cmp).get<RegisterIndex>(),
-                    mapCompare(cmp.operation())));
-    }
-}
-
-static Value widenConstantTo64Bit(Value value) {
-    if (value.is<Value8>() || value.is<Value16>() || value.is<Value32>()) {
-        return value.as_base<ValueBase>().widen();
-    }
-    return value;
-}
-
-static Value truncConstantTo8Bit(Value value) {
-    if (value.is<Value16>() || value.is<Value32>() || value.is<Value64>()) {
-        return Value8(value.as_base<ValueBase>().value());
-    }
-    return value;
-}
-
-void CodeGenContext::generate(ir::UnaryArithmeticInst const& inst) {
-    auto dest    = currentRD().resolve(inst).get<RegisterIndex>();
-    auto operand = widenConstantTo64Bit(currentRD().resolve(*inst.operand()));
-    auto genUnaryArithmetic = [&](UnaryArithmeticOperation operation) {
-        currentBlock().insertBack(
-            MoveInst(dest, operand, inst.operand()->type()->size()));
-        currentBlock().insertBack(UnaryArithmeticInst(operation, dest));
-    };
-    switch (inst.operation()) {
-    case ir::UnaryArithmeticOperation::BitwiseNot:
-        genUnaryArithmetic(UnaryArithmeticOperation::BitwiseNot);
-        break;
-    case ir::UnaryArithmeticOperation::LogicalNot:
-        genUnaryArithmetic(UnaryArithmeticOperation::LogicalNot);
-        break;
-    default:
-        SC_UNREACHABLE();
-    }
+mir::Register* CodeGenContext::genInst(ir::UnaryArithmeticInst const& inst) {
+    auto* operand = resolve(inst.operand());
+    return addNewInst(mir::InstCode::UnaryArithmetic, { operand }, inst.operation());
 }
 
 static bool isSignedOp(ir::ArithmeticOperation op) {
@@ -297,100 +225,76 @@ static bool isSignedOp(ir::ArithmeticOperation op) {
            op == ir::ArithmeticOperation::FDiv;
 }
 
-void CodeGenContext::generate(ir::ArithmeticInst const& arithmetic) {
-    // TODO: Make the move of the source argument conditional?
-    auto dest           = currentRD().resolve(arithmetic).get<RegisterIndex>();
-    auto operation      = mapArithmetic(arithmetic.operation());
-    auto LHS            = currentRD().resolve(*arithmetic.lhs());
-    auto RHS            = currentRD().resolve(*arithmetic.rhs());
-    size_t operandWidth = arithmetic.type()->size();
-    bool const isSigned = isSignedOp(arithmetic.operation());
-    /// Since all arithmetic operations are on 64 bit types, we need to widen
-    /// operands for signed and float operations.
-    if (operandWidth < 4) {
-        if (isSigned) {
-            LHS = convertValue(LHS, Type::Signed, operandWidth);
-            RHS = convertValue(RHS, Type::Signed, operandWidth);
-        }
-        else {
-            RHS = widenConstantTo64Bit(RHS);
-        }
-        operandWidth = 8;
-    }
-    if (isShift(operation)) {
-        RHS = truncConstantTo8Bit(RHS);
-    }
-    currentBlock().insertBack(MoveInst(dest, LHS, 8));
-    currentBlock().insertBack(
-        Asm::ArithmeticInst(operation, dest, RHS, operandWidth));
+mir::Register* CodeGenContext::genInst(ir::ArithmeticInst const& inst) {
+    auto* lhs = resolve(inst.lhs());
+    auto* rhs = resolve(inst.rhs());
+    return addNewInst(mir::InstCode::Arithmetic, { lhs, rhs }, inst.operation());
 }
 
-// MARK: Terminators
-
-void CodeGenContext::generate(ir::Goto const& gt) {
-    currentBlock().insertBack(JumpInst(getLabelID(*gt.target())));
+mir::Register* CodeGenContext::genInst(ir::Goto const& gt) {
+    auto* target = resolve(gt.target());
+    addNewInst(mir::InstCode::Jump, { target });
+    return nullptr;
 }
 
-void CodeGenContext::generate(ir::Branch const& br) {
-    auto const cmpOp = [&] {
-        if (auto const* cond = dyncast<ir::CompareInst const*>(br.condition()))
-        {
-            return mapCompare(cond->operation());
-        }
-        auto testOp = [&]() -> Value {
-            auto cond = currentRD().resolve(*br.condition());
-            if (cond.is<RegisterIndex>()) {
-                return cond;
-            }
-            auto tmp = currentRD().makeTemporary();
-            currentBlock().insertBack(MoveInst(tmp, cond, 1));
-            return tmp;
-        }();
-        currentBlock().insertBack(TestInst(Type::Unsigned, testOp, 1));
-        return CompareOperation::NotEq;
-    }();
-    currentBlock().insertBack(JumpInst(cmpOp, getLabelID(*br.thenTarget())));
-    currentBlock().insertBack(JumpInst(getLabelID(*br.elseTarget())));
+mir::Register* CodeGenContext::genInst(ir::Branch const& br) {
+    auto* cond = resolve(br.condition());
+    auto* thenTarget = resolve(br.thenTarget());
+    auto* elseTarget = resolve(br.elseTarget());
+    addNewInst(mir::InstCode::Test, { cond }, mir::CompareMode::Unsigned);
+    addNewInst(mir::InstCode::CJump, { thenTarget }, mir::CompareOperation::NotEqual);
+    addNewInst(mir::InstCode::Jump, { elseTarget });
+    return nullptr;
 }
 
 /// Instruction pointer, register pointer offset and stack pointer
 static constexpr size_t NumRegsForMetadata = 3;
 
-void CodeGenContext::generate(ir::Call const& call) {
-    placeArguments(call.arguments());
+mir::Register* CodeGenContext::genInst(ir::Call const& call) {
+    /// Place the arguments in expected registers
+    for (auto* irArg: call.arguments()) {
+        auto* arg = resolve(irArg);
+        // FIXME: Correct register indices
+        genCopy(arg, irArg->type()->size());
+    }
     // clang-format off
     visit(*call.function(), utl::overload{
         [&](ir::Function const& func) {
-            currentBlock().insertBack(
-                CallInst(getLabelID(func),
-                         currentRD().numUsedRegisters() + NumRegsForMetadata));
+            auto* callee = resolve(&func);
+            addNewInst(mir::InstCode::Call, { callee });
         },
         [&](ir::ExtFunction const& func) {
-            currentBlock().insertBack(
-                CallExtInst(currentRD().numUsedRegisters() + NumRegsForMetadata,
-                            func.slot(),
-                            func.index()));
+            addNewInst(mir::InstCode::CallExt, {}, mir::ExtFuncAddress{
+                .slot = static_cast<uint32_t>(func.slot()),
+                .index = static_cast<uint32_t>(func.index())
+            });
         },
     }); // clang-format on
-    getCallResult(call);
+    
+    // How to get the call result???
+    SC_DEBUGFAIL();
+    
+//    size_t numWords = utl::ceil_divide(call.type()->size(), 8);
+//    for (size_t i = 0; i < numWords; ++i, argReg = argReg->next()) {
+//        auto* copy = new mir::Instruction(mir::InstCode::Copy,
+//                                          -1, // FIXME: Need correct register index
+//                                          { argReg });
+//        currentBlock->pushBack(copy);
+//    }
+//
+//
+//    getCallResult(call);
 }
 
-void CodeGenContext::generate(ir::Return const& ret) {
+mir::Register* CodeGenContext::genInst(ir::Return const& ret) {
     if (!isa<ir::VoidType>(ret.value()->type())) {
-        auto const returnValue = currentRD().resolve(*ret.value());
-        RegisterIndex const returnValueTargetLocation(0);
-        if (!returnValue.is<RegisterIndex>() ||
-            returnValue.get<RegisterIndex>() != returnValueTargetLocation)
-        {
-            generateBigMove(returnValueTargetLocation,
-                            returnValue,
-                            ret.value()->type()->size());
-        }
+        auto* returnValue = resolve(ret.value());
+        genCopy(returnValue, ret.value()->type()->size());
     }
-    currentBlock().insertBack(ReturnInst());
+    return nullptr;
 }
 
-void CodeGenContext::generate(ir::Phi const& phi) {
+mir::Register* CodeGenContext::genInst(ir::Phi const& phi) {
     /// We need to find a register index to put the value in that every incoming
     /// path can agree on. Then put the value into that register in every
     /// incoming path. Then make this value resolve to that register index.
@@ -399,7 +303,7 @@ void CodeGenContext::generate(ir::Phi const& phi) {
     SC_ASSERT(success, "Is this phi node evaluated multiple times?");
 }
 
-void CodeGenContext::generate(ir::GetElementPointer const& gep) {
+mir::Register* CodeGenContext::genInst(ir::GetElementPointer const& gep) {
     bool const allUsersAreLoadsAndStores =
         ranges::all_of(gep.users(), [](ir::User const* user) {
             return isa<ir::Load>(user) || isa<ir::Store>(user);
@@ -415,7 +319,7 @@ void CodeGenContext::generate(ir::GetElementPointer const& gep) {
     return;
 }
 
-void CodeGenContext::generate(ir::ExtractValue const& extract) {
+mir::Register* CodeGenContext::genInst(ir::ExtractValue const& extract) {
     auto baseValue       = currentRD().resolve(*extract.baseValue());
     auto dest            = currentRD().resolve(extract);
     size_t byteOffset    = 0;
@@ -452,7 +356,7 @@ void CodeGenContext::generate(ir::ExtractValue const& extract) {
     }
 }
 
-void CodeGenContext::generate(ir::InsertValue const& insert) {
+mir::Register* CodeGenContext::genInst(ir::InsertValue const& insert) {
     auto original = currentRD().resolve(*insert.baseValue());
     auto dest     = currentRD().resolve(insert);
     generateBigMove(dest, original, insert.type()->size());
@@ -499,7 +403,7 @@ void CodeGenContext::generate(ir::InsertValue const& insert) {
     }
 }
 
-void CodeGenContext::generate(ir::Select const& select) {
+mir::Register* CodeGenContext::genInst(ir::Select const& select) {
     auto dest    = currentRD().resolve(select).get<RegisterIndex>();
     auto cond    = currentRD().resolve(*select.condition());
     auto thenVal = currentRD().resolve(*select.thenValue());
@@ -550,42 +454,133 @@ void CodeGenContext::postprocess() {
     }
 }
 
-MemoryAddress CodeGenContext::computeAddress(ir::Value const& value) {
+mir::MemoryAddress CodeGenContext::computeAddress(ir::Value const* value) {
     if (auto* gep = dyncast<ir::GetElementPointer const*>(&value)) {
         return computeGep(*gep);
     }
-    auto destRegIdx = currentRD().resolve(value);
-    return MemoryAddress(destRegIdx.get<RegisterIndex>().value());
+    auto* dest = resolve(value);
+    return mir::MemoryAddress(dest);
 }
 
-MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const& gep) {
-    auto* basePtr = gep.basePointer();
-    RegisterIndex const basePtrRegIdx =
-        currentRD().resolve(*basePtr).get<RegisterIndex>();
-    RegisterIndex const multiplierRegIdx = [&]() -> RegisterIndex {
+mir::MemoryAddress CodeGenContext::computeGep(ir::GetElementPointer const* gep) {
+    mir::Value* basePtr = resolve(gep.basePointer());
+    mir::Value* dynFactor = [&]() -> mir::Value* {
         auto* constIndex =
             dyncast<ir::IntegralConstant const*>(gep.arrayIndex());
         if (constIndex && constIndex->value() == 0) {
-            return MemoryAddress::InvalidRegisterIndex;
+            return nullptr;
         }
-        Value res = currentRD().resolve(*gep.arrayIndex());
-        if (res.is<RegisterIndex>()) {
-            return res.get<RegisterIndex>();
+        mir::Value* arrayIndex = resolve(gep.arrayIndex());
+        if (isa<Register>(arrayIndex)) {
+            return arrayIndex;
         }
-        auto tmp = currentRD().makeTemporary();
-        currentBlock().insertBack(MoveInst(tmp, res, 8));
-        return tmp;
+        return new mir::Instruction(mir::InstCode::Copy, nextRegIndex(), { arrayIndex });
     }();
-    auto* accType         = gep.inboundsType();
-    size_t const elemSize = accType->size();
+    auto* accessedType    = gep.inboundsType();
+    size_t const elemSize = accessedType->size();
     size_t innerOffset    = 0;
     for (size_t index: gep.memberIndices()) {
-        auto* sType = cast<ir::StructureType const*>(accType);
+        auto* sType  = cast<ir::StructureType const*>(accessedType);
         innerOffset += sType->memberOffsetAt(index);
-        accType = sType->memberAt(index);
+        accessedType = sType->memberAt(index);
     }
-    return MemoryAddress(basePtrRegIdx,
-                         multiplierRegIdx,
-                         elemSize,
-                         innerOffset);
+    return mir::MemoryAddress(basePtr,
+                              dynFactor,
+                              elemSize,
+                              innerOffset);
+}
+
+//void CodeGenContext::generateMoves(mir::Value* dest,
+//                                   mir::Value* src,
+//                                   size_t size) {
+//    generateMoves(dest, src, size, currentBlock->end());
+//}
+//
+//void CodeGenContext::generateMoves(mir::Value* dest,
+//                                   mir::Value* src,
+//                                   size_t size,
+//                                   mir::BasicBlock::Iterator before) {
+//    for (size_t i = 0; i < utl::ceil_divide(size, 8); ++i) {
+//        auto* move = new mir::Instruction(mir::InstCode::);
+//        currentBlock->insert(before, move);
+//    }
+//}
+
+mir::Instruction* CodeGenContext::genCopy(mir::Value* source, size_t numBytes) {
+    size_t numWords = utl::ceil_divide(numBytes, 8);
+    if (auto* reg = dyncast<mir::Register*>(source)) {
+        size_t const regIdx = reg->index();
+        mir::Instruction* result = nullptr;
+        for (size_t i = 0; i < numWords; ++i, reg = reg->next()) {
+            SC_ASSERT(reg->index() == regIdx + i, "We expect the registers to be consecutive");
+            auto* copy = new mir::Instruction(mir::InstCode::Copy,
+                                              nextRegIndex(),
+                                              { reg });
+            if (i == 0) {
+                result = copy;
+            }
+            currentBlock->pushBack(copy);
+        }
+        return result;
+    }
+    else {
+        SC_ASSERT(numWords == 1, "Can't handle literal value larger than 64 bit");
+        auto* copy = new mir::Instruction(mir::InstCode::Copy,
+                                          nextRegIndex(),
+                                          { source });
+        currentBlock->pushBack(copy);
+        return copy;
+    }
+}
+
+mir::Value* CodeGenContext::resolve(ir::Value const* value) {
+    return visit(*value, utl::overload{
+        [&](ir::Instruction const& inst) {
+            auto itr = registerMap.find(&inst);
+            SC_ASSERT(itr != registerMap.end(), "Not found");
+            return itr->second;
+        },
+        [&](ir::Parameter const& param) {
+            auto itr = registerMap.find(&param);
+            SC_ASSERT(itr != registerMap.end(), "Not found");
+            return itr->second;
+        },
+        [&](ir::BasicBlock const& BB) {
+            auto itr = basicBlockMap.find(&BB);
+            SC_ASSERT(itr != basicBlockMap.end(), "Not found");
+            return itr->second;
+        },
+        [&](ir::IntegralConstant const& constant) {
+            SC_ASSERT(constant.type()->bitWidth() <= 64);
+            return constant.value().to<uint64_t>();
+        },
+        [&](ir::FloatingPointConstant const& constant) {
+            SC_DEBUGFAIL();
+//            SC_ASSERT(constant.type()->bitWidth() <= 64);
+//            return constant.value().to<uint64_t>();
+        },
+        [](ir::Value const& value) { SC_UNREACHABLE(); }
+    });
+}
+
+mir::Register* CodeGenContext::makeTemporary(mir::Value* value) {
+    auto* copy = new mir::Instruction(mir::InstCode::Copy, nextRegIndex(), { value });
+    currentBlock->pushBack(copy);
+    return copy;
+}
+
+template <mir::InstructionData T>
+mir::Instruction* CodeGenContext::newInst(mir::InstCode code,
+                                               utl::small_vector<mir::Value*> operands,
+                                               T data) {
+    return new mir::Instruction(code, nextRegIndex(), std::move(operands), data);
+}
+
+template <mir::InstructionData T>
+mir::Instruction* CodeGenContext::addNewInst(mir::InstCode code,
+                                          utl::small_vector<mir::Value*> operands,
+                                          T data) {
+    auto* inst = newInst(code, std::move(operands), data);
+    currentBlock->pushBack(inst);
+    return inst;
 }
