@@ -18,6 +18,9 @@ public:
     /// \returns The value of this constant.
     APInt const& value() const { return _value; }
 
+    /// \Returns The type of this constant as `IntegralType`.
+    IntegralType const* type() const;
+
 private:
     APInt _value;
 };
@@ -31,6 +34,9 @@ public:
 
     /// \returns The value of this constant.
     APFloat const& value() const { return _value; }
+
+    /// \Returns The type of this constant as `FloatType`.
+    FloatType const* type() const;
 
 private:
     APFloat _value;
