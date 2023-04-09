@@ -155,7 +155,7 @@ struct CodeGenContext {
     mir::Function* currentFunction = nullptr;
     mir::BasicBlock* currentBlock  = nullptr;
 
-    ir::BasicBlockLiveSets const* currentLiveSets = nullptr;
+    ir::LiveSets const* currentLiveSets = nullptr;
 
     utl::small_vector<ir::Phi const*> phiNodes;
 
@@ -186,7 +186,7 @@ void CodeGenContext::run(ir::Module const& mod) {
 }
 
 void CodeGenContext::declareFunction(ir::Function const& function) {
-    auto* mirFunc = new mir::Function(std::string(function.name()));
+    auto* mirFunc = new mir::Function(&function);
     result.addFunction(mirFunc);
     valueMap.insert({ &function, mirFunc });
 }
@@ -195,25 +195,24 @@ void CodeGenContext::genFunction(ir::Function const& function) {
     regIdx          = 0;
     currentFunction = resolve(&function);
     auto liveSets   = ir::LiveSets::compute(function);
+    currentLiveSets = &liveSets;
     for (auto& bb: function) {
         declareBasicBlock(bb);
     }
     /// Generate registers for parameters.
-    auto* entry     = &function.entry();
-    currentLiveSets = &liveSets[entry];
-    currentBlock    = resolve(entry);
+    auto* entry  = &function.entry();
+    currentBlock = resolve(entry);
     for (auto& param: function.parameters()) {
         auto* reg = nextRegistersFor(&param);
         valueMap.insert({ &param, reg });
     }
     for (auto& bb: function) {
-        currentLiveSets = &liveSets[&bb];
         genBasicBlock(bb);
     }
 }
 
 void CodeGenContext::declareBasicBlock(ir::BasicBlock const& bb) {
-    auto* mirBB = new mir::BasicBlock(std::string(bb.name()));
+    auto* mirBB = new mir::BasicBlock(&bb);
     currentFunction->pushBack(mirBB);
     valueMap.insert({ &bb, mirBB });
 }
@@ -374,10 +373,13 @@ void CodeGenContext::genInst(ir::Call const& call) {
 
 void CodeGenContext::genInst(ir::Return const& ret) {
     if (!isa<ir::VoidType>(ret.value()->type())) {
-        auto* returnValue = resolve(ret.value());
-        genCopy(currentFunction->regBegin().to_address(),
-                returnValue,
-                numWords(ret.value()->type()));
+        auto* returnValue     = resolve(ret.value());
+        auto* dest            = currentFunction->regBegin().to_address();
+        size_t const numWords = this->numWords(ret.value()->type());
+        genCopy(dest, returnValue, numWords);
+        for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
+            currentBlock->addLiveOut(dest);
+        }
     }
     addNewInst(mir::InstCode::Return, nullptr, {});
 }
@@ -536,7 +538,13 @@ void CodeGenContext::postprocess() {
                 }
                 before = p;
             }
-            genCopy(dest, resolve(arg), numWords(arg->type()), before);
+            size_t const count = numWords(arg->type());
+            auto* mArg         = resolve(arg);
+            if (auto* argReg = dyncast<mir::Register*>(mArg)) {
+                mPred->removeLiveOut(argReg, count);
+            }
+            mPred->addLiveOut(dest, count);
+            genCopy(dest, mArg, count, before);
         }
     }
 }
@@ -629,27 +637,26 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
 
 mir::Register* CodeGenContext::nextRegistersFor(size_t numWords,
                                                 ir::Value const* value) {
-    bool liveIn  = currentLiveSets->liveIn.contains(value);
-    bool liveOut = currentLiveSets->liveOut.contains(value);
-    auto* reg    = new mir::Register(regIdx++);
-    if (liveIn) {
-        currentBlock->addLiveIn(reg);
-    }
-    if (liveOut) {
-        currentBlock->addLiveOut(reg);
-    }
-    currentFunction->addRegister(reg);
-    for (size_t i = 1; i < numWords; ++i) {
+    utl::small_vector<mir::Register*> regs;
+    for (size_t i = 0; i < numWords; ++i) {
         auto* r = new mir::Register(regIdx++);
+        regs.push_back(r);
         currentFunction->addRegister(r);
-        if (liveIn) {
-            currentBlock->addLiveIn(r);
+    }
+    for (auto& BB: *currentFunction) {
+        auto& liveSet = currentLiveSets->find(BB.irBasicBlock());
+        if (liveSet.liveIn.contains(value)) {
+            for (auto* r: regs) {
+                BB.addLiveIn(r);
+            }
         }
-        if (liveOut) {
-            currentBlock->addLiveOut(r);
+        if (liveSet.liveOut.contains(value)) {
+            for (auto* r: regs) {
+                BB.addLiveOut(r);
+            }
         }
     }
-    return reg;
+    return regs.front();
 }
 
 template <mir::InstructionData T>

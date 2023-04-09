@@ -159,24 +159,33 @@ public:
     using ListBase::ConstIterator;
     using ListBase::Iterator;
 
-    explicit BasicBlock(std::string name):
-        Value(NodeType::BasicBlock), _name(std::move(name)) {}
+    explicit BasicBlock(ir::BasicBlock const* irBB);
 
     std::string_view name() const { return _name; }
 
-    void addLiveIn(Register* reg) { addLiveImpl(_liveIn, reg); }
+    void addLiveIn(Register* reg, size_t count = 1) {
+        addLiveImpl(_liveIn, reg, count);
+    }
 
-    void removeLiveIn(Register* reg) { removeLiveImpl(_liveIn, reg); }
+    void removeLiveIn(Register* reg, size_t count = 1) {
+        removeLiveImpl(_liveIn, reg, count);
+    }
 
-    void addLiveOut(Register* reg) { addLiveImpl(_liveOut, reg); }
+    void addLiveOut(Register* reg, size_t count = 1) {
+        addLiveImpl(_liveOut, reg, count);
+    }
 
-    void removeLiveOut(Register* reg) { removeLiveImpl(_liveOut, reg); }
+    void removeLiveOut(Register* reg, size_t count = 1) {
+        removeLiveImpl(_liveOut, reg, count);
+    }
 
     auto const& liveIn() const { return _liveIn; }
 
     auto const& liveOut() const { return _liveOut; }
 
     bool isEntry() const;
+
+    ir::BasicBlock const* irBasicBlock() const { return irBB; }
 
 private:
     friend class Function;
@@ -185,17 +194,14 @@ private:
     void insertCallback(Instruction& inst);
     void eraseCallback(Instruction const& inst);
 
-    static void addLiveImpl(utl::hashset<Register*>& set, Register* reg) {
-        set.insert(reg);
-    }
-    static void removeLiveImpl(utl::hashset<Register*>& set, Register* reg) {
-        auto itr = set.find(reg);
-        SC_ASSERT(itr != set.end(), "Not found");
-        set.erase(itr);
-    }
+    void addLiveImpl(utl::hashset<Register*>& set, Register* reg, size_t count);
+    void removeLiveImpl(utl::hashset<Register*>& set,
+                        Register* reg,
+                        size_t count);
 
     std::string _name;
     utl::hashset<Register*> _liveIn, _liveOut;
+    ir::BasicBlock const* irBB = nullptr;
 };
 
 ///
@@ -211,8 +217,7 @@ public:
     using ListBase::ConstIterator;
     using ListBase::Iterator;
 
-    explicit Function(std::string name):
-        Value(NodeType::Function), _name(std::move(name)) {}
+    explicit Function(ir::Function const* irFunc);
 
     std::string_view name() const { return _name; }
 
@@ -240,6 +245,8 @@ public:
 
     BasicBlock const* entry() const { return &front(); }
 
+    ir::Function const* irFunction() const { return irFunc; }
+
 private:
     friend class CFGList<Function, BasicBlock>;
 
@@ -248,6 +255,7 @@ private:
 
     std::string _name;
     List<Register> regs;
+    ir::Function const* irFunc = nullptr;
 };
 
 } // namespace scatha::mir

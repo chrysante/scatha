@@ -1,5 +1,8 @@
 #include "MIR/CFG.h"
 
+#include "IR/CFG/BasicBlock.h"
+#include "IR/CFG/Function.h"
+
 using namespace scatha;
 using namespace mir;
 
@@ -64,6 +67,9 @@ void Register::removeUser(Instruction* inst) {
     }
 }
 
+BasicBlock::BasicBlock(ir::BasicBlock const* irBB):
+    Value(NodeType::BasicBlock), _name(std::string(irBB->name())), irBB(irBB) {}
+
 bool BasicBlock::isEntry() const { return parent()->entry() == this; }
 
 void BasicBlock::insertCallback(Instruction& inst) { inst.set_parent(this); }
@@ -73,6 +79,29 @@ void BasicBlock::eraseCallback(Instruction const& inst) {
     mutInst.clearOperands();
     mutInst.setDest(nullptr);
 }
+
+void BasicBlock::addLiveImpl(utl::hashset<Register*>& set,
+                             Register* reg,
+                             size_t count) {
+    for (size_t i = 0; i < count; ++i, reg = reg->next()) {
+        set.insert(reg);
+    }
+}
+void BasicBlock::removeLiveImpl(utl::hashset<Register*>& set,
+                                Register* reg,
+                                size_t count) {
+    for (size_t i = 0; i < count; ++i, reg = reg->next()) {
+        auto itr = set.find(reg);
+        if (itr != set.end()) {
+            set.erase(itr);
+        }
+    }
+}
+
+Function::Function(ir::Function const* irFunc):
+    Value(NodeType::Function),
+    _name(std::string(irFunc->name())),
+    irFunc(irFunc) {}
 
 void Function::insertCallback(BasicBlock& bb) {
     bb.set_parent(this);

@@ -99,7 +99,6 @@ static void run(ir::Module const& mod) {
     print(mod);
 
     auto liveSets = ir::LiveSets::compute(f);
-
     for (auto& bb: f) {
         auto toNames = ranges::views::transform(
             [](ir::Value const* value) { return value->name(); });
@@ -126,7 +125,21 @@ static void run(ir::Module const& mod) {
 
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
-    auto mirMod       = cg::lowerToMIR(irMod);
+
+    print(irMod);
+
+    auto& f       = irMod.front();
+    auto liveSets = ir::LiveSets::compute(f);
+    for (auto& bb: f) {
+        auto toNames = ranges::views::transform(
+            [](ir::Value const* value) { return value->name(); });
+        auto& live = liveSets.find(&bb);
+        std::cout << bb.name() << ":\n";
+        std::cout << "\tLive in:  " << (live.liveIn | toNames) << "\n";
+        std::cout << "\tLive out: " << (live.liveOut | toNames) << "\n";
+    }
+
+    auto mirMod = cg::lowerToMIR(irMod);
     mir::print(mirMod);
 }
 
