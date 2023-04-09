@@ -1,5 +1,6 @@
 #include "MIR/Print.h"
 
+#include <iomanip>
 #include <iostream>
 
 #include <termfmt/termfmt.h>
@@ -41,15 +42,20 @@ static constexpr auto globalName =
 
 static constexpr auto localName =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
-        return str << tfmt::format(tfmt::grey | tfmt::italic, "%", args...);
+        return str << tfmt::format(tfmt::italic, "%", args...);
     });
 
 static constexpr auto regName =
     utl::streammanip([](std::ostream& str, Register const* reg) -> auto& {
-        return str << tfmt::format(tfmt::blue, "%", reg->index());
+        auto name = utl::strcat("%", reg->index());
+        return str << tfmt::format(tfmt::brightBlue, name);
     });
 
-static constexpr auto opcode = keyword;
+static constexpr auto opcode =
+    utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
+        return str << tfmt::format(tfmt::red | tfmt::bold, args...);
+    });
+;
 
 static constexpr auto light =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
@@ -61,12 +67,11 @@ namespace {
 std::string formatInstCode(InstCode code, uint64_t data) {
     switch (code) {
     case InstCode::CondCopy:
-        return utl::strcat("ccpy-",
-                           toString(static_cast<CompareOperation>(data)));
+        return utl::strcat("c", toString(static_cast<CompareOperation>(data)));
     case InstCode::Compare:
         return std::string(toString(static_cast<CompareMode>(data)));
     case InstCode::Set:
-        return utl::strcat("set-",
+        return utl::strcat("set",
                            toString(static_cast<CompareOperation>(data)));
     case InstCode::Test:
         switch (static_cast<CompareMode>(data)) {
@@ -85,8 +90,7 @@ std::string formatInstCode(InstCode code, uint64_t data) {
     case InstCode::Conversion:
         return std::string(toString(static_cast<Conversion>(data)));
     case InstCode::CondJump:
-        return utl::strcat("cjmp-",
-                           toString(static_cast<CompareOperation>(data)));
+        return utl::strcat("j", toString(static_cast<CompareOperation>(data)));
     default:
         break;
     }
@@ -97,9 +101,10 @@ struct PrintContext {
     PrintContext(std::ostream& str): str(str) {}
 
     void print(Function const* F) {
-        str << keyword("func") << " " << globalName(F->name()) << " { \n";
+        str << keyword("func") << " " << globalName(F->name()) << " {";
         indent.increase();
         for (auto& BB: *F) {
+            str << "\n";
             print(&BB);
         }
         indent.decrease();
@@ -107,18 +112,17 @@ struct PrintContext {
     }
 
     void print(BasicBlock const* BB) {
-        str << indent << localName(BB->name()) << ": ";
         if (!BB->isEntry()) {
+            str << indent << localName(BB->name()) << ": ";
             printPredList(BB);
+            str << "\n";
         }
-        str << "\n";
         indent.increase();
         printLiveList("Live in", BB->liveIn());
         for (auto& inst: *BB) {
             print(&inst);
         }
         printLiveList("Live out", BB->liveOut());
-        str << "\n";
         indent.decrease();
     }
 
@@ -143,11 +147,14 @@ struct PrintContext {
     void print(Instruction const* inst) {
         str << indent;
         if (auto* reg = inst->dest()) {
-            str << regName(reg) << " = ";
+            str << std::setw(3) << std::left << regName(reg) << " = ";
+        }
+        else {
+            str << std::setw(6) << "";
         }
         std::string opcodeStr =
             formatInstCode(inst->instcode(), inst->instData());
-        str << opcode(opcodeStr) << " ";
+        str << std::left << std::setw(6) << opcode(opcodeStr) << " ";
         for (bool first = true; auto* op: inst->operands()) {
             if (!first) {
                 str << ", ";

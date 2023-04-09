@@ -28,10 +28,10 @@ SC_MIR_INSTRUCTION_DEF(Store,           "store")      /// (<Ptr> dest, Value sou
 SC_MIR_INSTRUCTION_DEF(Load,            "load")       /// (<Ptr> source)             [Data = const-ptr-data]
 SC_MIR_INSTRUCTION_DEF(Copy,            "copy")       /// (Value source)
 SC_MIR_INSTRUCTION_DEF(Call,            "call")       /// (Function callee)
-SC_MIR_INSTRUCTION_DEF(CallExt,         "callExt")    /// ()                         [Data = slot, index]
+SC_MIR_INSTRUCTION_DEF(CallExt,         "callext")    /// ()                         [Data = slot, index]
 SC_MIR_INSTRUCTION_DEF(CondCopy,        "<cond-cpy>") /// (Value source)             [Data = condition]
 
-SC_MIR_INSTRUCTION_DEF(LIncSP,          "lincsp")     /// (Constant numBytes)
+SC_MIR_INSTRUCTION_DEF(LIncSP,          "incsp")      /// (Constant numBytes)
 SC_MIR_INSTRUCTION_DEF(LEA,             "lea")        /// (<Ptr> address)            [Data = const-ptr-data]
 SC_MIR_INSTRUCTION_DEF(Compare,         "<compare>")  /// (Value lhs, Value rhs)     [Data = mode]
 SC_MIR_INSTRUCTION_DEF(Test,            "<test>")     /// (Value operand)            [Data = mode]
@@ -39,8 +39,8 @@ SC_MIR_INSTRUCTION_DEF(Set,             "<set-inst>") /// ()                    
 SC_MIR_INSTRUCTION_DEF(UnaryArithmetic, "<un-arith>") /// (Value operand)            [Data = operation]
 SC_MIR_INSTRUCTION_DEF(Arithmetic,      "<arith>")    /// (Value lhs, Value rhs)     [Data = operation]
 SC_MIR_INSTRUCTION_DEF(Conversion,      "<conv>")     /// (Register operand)         [Data = conversion]
-SC_MIR_INSTRUCTION_DEF(Jump,            "jump")       /// (BasicBlock target)
+SC_MIR_INSTRUCTION_DEF(Jump,            "jmp")        /// (BasicBlock target)
 SC_MIR_INSTRUCTION_DEF(CondJump,        "<cond-jmp>") /// (BasicBlock target)        [Data = condition]
-SC_MIR_INSTRUCTION_DEF(Return,          "return")     /// ()
+SC_MIR_INSTRUCTION_DEF(Return,          "ret")        /// ()
 
 #undef SC_MIR_INSTRUCTION_DEF

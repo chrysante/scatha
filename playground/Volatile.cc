@@ -90,16 +90,9 @@ static void run(ir::Module const& mod) {
     std::cout << std::endl << std::endl << std::endl;
 }
 
-[[maybe_unused]] static void volPlayground(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
-
-    auto& f = mod.front();
-    opt::memToReg(ctx, f);
-
-    print(mod);
-
-    auto liveSets = ir::LiveSets::compute(f);
-    for (auto& bb: f) {
+[[maybe_unused]] static void printIRLiveSets(ir::Function const& F) {
+    auto liveSets = ir::LiveSets::compute(F);
+    for (auto& bb: F) {
         auto toNames = ranges::views::transform(
             [](ir::Value const* value) { return value->name(); });
         auto& live = liveSets.find(&bb);
@@ -107,6 +100,16 @@ static void run(ir::Module const& mod) {
         std::cout << "\tLive in:  " << (live.liveIn | toNames) << "\n";
         std::cout << "\tLive out: " << (live.liveOut | toNames) << "\n";
     }
+    std::cout << "\n";
+}
+
+[[maybe_unused]] static void volPlayground(std::filesystem::path path) {
+    auto [ctx, mod] = makeIRModuleFromFile(path);
+
+    auto& f = mod.front();
+    opt::memToReg(ctx, f);
+
+    print(mod);
 }
 
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
@@ -126,22 +129,10 @@ static void run(ir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    //    print(irMod);
-
-    //    auto& f       = irMod.front();
-    //    auto liveSets = ir::LiveSets::compute(f);
-    //    for (auto& bb: f) {
-    //        auto toNames = ranges::views::transform(
-    //            [](ir::Value const* value) { return value->name(); });
-    //        auto& live = liveSets.find(&bb);
-    //        std::cout << bb.name() << ":\n";
-    //        std::cout << "\tLive in:  " << (live.liveIn | toNames) << "\n";
-    //        std::cout << "\tLive out: " << (live.liveOut | toNames) << "\n";
-    //    }
-
     {
         header(" no opt ");
         print(irMod);
+        printIRLiveSets(irMod.front());
         auto mirMod = cg::lowerToMIR(irMod);
         mir::print(mirMod);
     }

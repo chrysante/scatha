@@ -61,17 +61,6 @@ struct CodeGenContext {
     /// Used by `computeAddress`
     mir::MemoryAddress computeGep(ir::GetElementPointer const*);
 
-    void placeArguments(std::span<ir::Value const* const> args);
-
-    void getCallResult(ir::Value const& callInst);
-
-    void generateMoves(mir::Value* dest, mir::Value* src, size_t size);
-
-    void generateMoves(mir::Value* dest,
-                       mir::Value* src,
-                       size_t size,
-                       mir::BasicBlock::Iterator before);
-
     mir::Register* genCopy(mir::Register* dest,
                            mir::Value* source,
                            size_t numWords) {
@@ -114,6 +103,10 @@ struct CodeGenContext {
     }
 
     mir::Value* resolveImpl(ir::Value const* value);
+
+    mir::Register* nextRegister(size_t numWords = 1) {
+        return nextRegistersFor(numWords, nullptr);
+    }
 
     mir::Register* nextRegistersFor(ir::Value const* value) {
         return nextRegistersFor(numWords(value->type()), value);
@@ -413,90 +406,94 @@ void CodeGenContext::genInst(ir::GetElementPointer const& gep) {
 }
 
 void CodeGenContext::genInst(ir::ExtractValue const& extract) {
-    SC_DEBUGFAIL();
-    //    auto baseValue       = currentRD().resolve(*extract.baseValue());
-    //    auto dest            = currentRD().resolve(extract);
-    //    size_t byteOffset    = 0;
-    //    ir::Type const* type = extract.baseValue()->type();
-    //    for (size_t index: extract.memberIndices()) {
-    //        auto* sType = cast<ir::StructureType const*>(type);
-    //        byteOffset += sType->memberOffsetAt(index);
-    //        type = sType->memberAt(index);
-    //    }
-    //    auto const baseRegIdx = baseValue.get<RegisterIndex>();
-    //    auto const sourceRegIdx =
-    //        RegisterIndex(baseRegIdx.value() + byteOffset / 8);
-    //    if (byteOffset % 8 == 0 && type->size() % 8 == 0) {
-    //        generateBigMove(dest, sourceRegIdx, type->size());
-    //    }
-    //    else {
-    //        size_t const size   = type->size();
-    //        size_t const offset = byteOffset % 8;
-    //        SC_ASSERT(size + offset <= 8, "This will need even more work");
-    //        uint64_t const mask = [&] {
-    //            std::array<uint8_t, 8> bytes{};
-    //            for (size_t i = 0; i < size; ++i) {
-    //                bytes[i] = 0xFF;
-    //            }
-    //            return utl::bit_cast<uint64_t>(bytes);
-    //        }();
-    //        currentBlock().insertBack(MoveInst(dest, sourceRegIdx, 8));
-    //        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::LShR,
-    //                                                 dest,
-    //                                                 Value8(8 * offset),
-    //                                                 8));
-    //        currentBlock().insertBack(
-    //            ArithmeticInst(ArithmeticOperation::And, dest, Value64(mask),
-    //            8));
-    //    }
+    mir::Register* source = resolve<mir::Register>(extract.baseValue());
+    mir::Register* dest   = resolve(&extract);
+    size_t byteOffset     = 0;
+    ir::Type const* type  = extract.baseValue()->type();
+    for (size_t index: extract.memberIndices()) {
+        auto* sType = cast<ir::StructureType const*>(type);
+        byteOffset += sType->memberOffsetAt(index);
+        type = sType->memberAt(index);
+    }
+    while (byteOffset >= 8) {
+        source = source->next();
+        byteOffset -= 8;
+    }
+    size_t const numWords = this->numWords(type);
+    if (byteOffset % 8 == 0 && type->size() % 8 == 0) {
+        genCopy(dest, source, numWords);
+        return;
+    }
+    size_t const size   = type->size();
+    size_t const offset = byteOffset % 8;
+    SC_ASSERT(size + offset <= 8, "This will need even more work");
+    uint64_t const mask = [&] {
+        std::array<uint8_t, 8> bytes{};
+        for (size_t i = 0; i < size; ++i) {
+            bytes[i] = 0xFF;
+        }
+        return utl::bit_cast<uint64_t>(bytes);
+    }();
+    addNewInst(mir::InstCode::Copy, dest, { source });
+    addNewInst(mir::InstCode::Arithmetic,
+               dest,
+               { dest, result.constant(8 * offset) },
+               mir::ArithmeticOperation::LShR);
+    addNewInst(mir::InstCode::Arithmetic,
+               dest,
+               { dest, result.constant(mask) },
+               mir::ArithmeticOperation::And);
 }
 
 void CodeGenContext::genInst(ir::InsertValue const& insert) {
-    SC_DEBUGFAIL();
-    //    auto original = currentRD().resolve(*insert.baseValue());
-    //    auto dest     = currentRD().resolve(insert);
-    //    generateBigMove(dest, original, insert.type()->size());
-    //    size_t byteOffset    = 0;
-    //    ir::Type const* type = insert.baseValue()->type();
-    //    for (size_t index: insert.memberIndices()) {
-    //        auto* sType = cast<ir::StructureType const*>(type);
-    //        byteOffset += sType->memberOffsetAt(index);
-    //        type = sType->memberAt(index);
-    //    }
-    //    auto source           = currentRD().resolve(*insert.insertedValue());
-    //    auto const baseRegIdx = dest.get<RegisterIndex>();
-    //    auto const destRegIdx = RegisterIndex(baseRegIdx.value() + byteOffset
-    //    / 8); if (byteOffset % 8 == 0 && type->size() % 8 == 0) {
-    //        generateBigMove(destRegIdx, source, type->size());
-    //    }
-    //    else {
-    //        size_t const size   = type->size();
-    //        size_t const offset = byteOffset % 8;
-    //        SC_ASSERT(size + offset <= 8, "This will need even more work");
-    //        uint64_t const destMask = [&] {
-    //            std::array<uint8_t, 8> bytes{};
-    //            for (size_t i = 0; i < size; ++i) {
-    //                bytes[i + offset] = 0xFF;
-    //            }
-    //            return utl::bit_cast<uint64_t>(bytes);
-    //        }();
-    //        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
-    //                                                 destRegIdx,
-    //                                                 Value64(~destMask),
-    //                                                 8));
-    //        auto tmp = currentRD().makeTemporary();
-    //        currentBlock().insertBack(MoveInst(tmp, source, 8));
-    //        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::LShL,
-    //                                                 tmp,
-    //                                                 Value8(8 * offset),
-    //                                                 8));
-    //        currentBlock().insertBack(ArithmeticInst(ArithmeticOperation::And,
-    //                                                 tmp,
-    //                                                 Value64(destMask),
-    //                                                 8));
-    //        currentBlock().insertBack(
-    //            ArithmeticInst(ArithmeticOperation::Or, destRegIdx, tmp, 8));
-    //    }
+    auto* source              = resolve(insert.insertedValue());
+    auto* original            = resolve(insert.baseValue());
+    auto* dest                = resolve(&insert);
+    ir::Type const* outerType = insert.type();
+    genCopy(dest, original, numWords(outerType));
+    size_t byteOffset         = 0;
+    ir::Type const* innerType = outerType;
+    for (size_t index: insert.memberIndices()) {
+        auto* sType = cast<ir::StructureType const*>(innerType);
+        byteOffset += sType->memberOffsetAt(index);
+        innerType = sType->memberAt(index);
+    }
+    while (byteOffset >= 8) {
+        dest = dest->next();
+        byteOffset -= 8;
+    }
+    if (byteOffset % 8 == 0 && innerType->size() % 8 == 0) {
+        genCopy(dest, source, numWords(innerType));
+        return;
+    }
+    size_t const size   = innerType->size();
+    size_t const offset = byteOffset % 8;
+    SC_ASSERT(size + offset <= 8, "This will need even more work");
+    uint64_t const destMask = [&] {
+        std::array<uint8_t, 8> bytes{};
+        for (size_t i = 0; i < size; ++i) {
+            bytes[i + offset] = 0xFF;
+        }
+        return utl::bit_cast<uint64_t>(bytes);
+    }();
+    addNewInst(mir::InstCode::Arithmetic,
+               dest,
+               { dest, result.constant(~destMask) },
+               mir::ArithmeticOperation::And);
+    auto* tmp = nextRegister();
+    addNewInst(mir::InstCode::Copy, tmp, { source });
+    addNewInst(mir::InstCode::Arithmetic,
+               tmp,
+               { tmp, result.constant(8 * offset) },
+               mir::ArithmeticOperation::LShL);
+    addNewInst(mir::InstCode::Arithmetic,
+               tmp,
+               { tmp, result.constant(destMask) },
+               mir::ArithmeticOperation::And);
+    addNewInst(mir::InstCode::Arithmetic,
+               dest,
+               { dest, tmp },
+               mir::ArithmeticOperation::Or);
 }
 
 void CodeGenContext::genInst(ir::Select const& select) {
@@ -631,13 +628,17 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
         },
         [&](ir::IntegralConstant const& constant) {
             SC_ASSERT(constant.type()->bitWidth() <= 64, "");
-            auto value          = constant.value().to<uint64_t>();
-            auto* mirConst      = result.constant(value);
+            uint64_t value = constant.value().to<uint64_t>();
+            auto* mirConst = result.constant(value);
             valueMap.insert({ &constant, mirConst });
             return mirConst;
         },
         [&](ir::FloatingPointConstant const& constant) -> mir::Value* {
-            SC_DEBUGFAIL();
+            SC_ASSERT(constant.type()->bitWidth() <= 64, "");
+            uint64_t value = constant.value().limbs().front();
+            auto* mirConst = result.constant(value);
+            valueMap.insert({ &constant, mirConst });
+            return mirConst;
         },
         [](ir::Value const& value) -> mir::Value* {
             SC_UNREACHABLE("Everything else shall be forward declared");
@@ -652,6 +653,9 @@ mir::Register* CodeGenContext::nextRegistersFor(size_t numWords,
         auto* r = new mir::Register(regIdx++);
         regs.push_back(r);
         currentFunction->addRegister(r);
+    }
+    if (!value) {
+        return regs.front();
     }
     for (auto& BB: *currentFunction) {
         auto& liveSet = currentLiveSets->find(BB.irBasicBlock());
