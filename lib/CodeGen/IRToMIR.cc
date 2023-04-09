@@ -545,7 +545,7 @@ void CodeGenContext::postprocess() {
             size_t const count = numWords(arg->type());
             auto* mArg         = resolve(arg);
             auto* argReg = dyncast<mir::Register*>(mArg);
-            if (argReg && !currentBlock->isLiveOut(argReg)) {
+            if (argReg && !currentBlock->isLiveIn(argReg)) {
                 mPred->removeLiveOut(argReg, count);
             }
             mPred->addLiveOut(dest, count);
