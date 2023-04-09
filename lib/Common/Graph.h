@@ -2,6 +2,7 @@
 #define SCATHA_COMMON_GRAPH_H_
 
 #include <concepts>
+#include <span>
 #include <tuple>
 #include <type_traits>
 
@@ -12,6 +13,26 @@
 #include "Basic/Basic.h"
 
 namespace scatha {
+
+/// To be used as template parameter of `class GraphNode<>`
+enum class GraphKind { Undirected, Directed, Tree };
+
+/// A generic graph or tree node. It is intended to be subclassed with CRTP.
+///
+/// \param Payload Can be anything including `void`
+/// Some TMP trickery happens to ensure no unnecessary copies are made when
+/// passing payloads from and to functions.
+///
+/// \param Derived The derived class, used by CRTP. Can also be void, then no
+/// CRTP is happening.
+///
+/// \param Kind Depending on the kind, this class implements different
+/// interfaces:
+/// - `UndirectedGraph`: Implements `.neighbours()` method.
+/// - `DirectedGraph`: Implements `.predecessors()` and `.successors()` methods.
+/// - `Tree`: Implements `.parent()` and `.children()` methods.
+template <typename Payload, typename Derived, GraphKind Kind>
+class GraphNode;
 
 namespace internal {
 
@@ -48,27 +69,11 @@ using TypeSwitch = std::tuple_element_t<Index, std::tuple<T...>>;
 
 struct Empty {};
 
-} // namespace internal
-
-/// To be used as template parameter of `class GraphNode<>`
-enum class GraphKind { Undirected, Directed, Tree };
-
-/// A generic graph or tree node. It is intended to be subclassed with CRTP.
-///
-/// \param Payload Can be anything including `void`
-/// Some TMP trickery happens to ensure no unnecessary copies are made when
-/// passing payloads from and to functions.
-///
-/// \param Derived The derived class, used by CRTP. Can also be void, then no
-/// CRTP is happening.
-///
-/// \param Kind Depending on the kind, this class implements different
-/// interfaces:
-/// - `UndirectedGraph`: Implements `.neighbours()` method.
-/// - `DirectedGraph`: Implements `.predecessors()` and `.successors()` methods.
-/// - `Tree`: Implements `.parent()` and `.children()` methods.
 template <typename Payload, typename Derived, GraphKind Kind>
-class GraphNode {
+class GraphNodeBase {
+    template <typename, typename, GraphKind>
+    friend class scatha::GraphNode;
+
     /// Return and pass small trivial types by value, everything else by
     /// `const&`.
     using PayloadView = typename internal::PayloadView<Payload>::type;
@@ -82,23 +87,16 @@ class GraphNode {
     static constexpr bool HasPayload = !std::is_same_v<Payload, void>;
 
     /// Either `GraphNode` or `Derived` is specified.
-    using Self =
-        std::conditional_t<std::is_same_v<Derived, void>, GraphNode, Derived>;
-
-    /// For an undirected graph, parent links don't exist.
-    /// For a digraph node parent links are vectors of pointers.
-    /// For a tree, it's a single pointer.
-    using ParentLink = internal::TypeSwitch<static_cast<size_t>(Kind),
-                                            internal::Empty,
-                                            utl::small_vector<Self*>,
-                                            Self*>;
+    using Self = std::conditional_t<std::is_same_v<Derived, void>,
+                                    GraphNode<Payload, Derived, Kind>,
+                                    Derived>;
 
 public:
     /// `PayloadHash` and `PayloadEqual` exist to put `GraphNode` in hashsets
     /// where only the payload is used as the key.
     struct PayloadHash {
         using is_transparent = void;
-        size_t operator()(GraphNode const& node) const {
+        size_t operator()(Self const& node) const {
             return (*this)(node.payload());
         }
         size_t operator()(PayloadViewConstPtr payload) const {
@@ -110,31 +108,29 @@ public:
     /// See `PayloadHash`.
     struct PayloadEqual {
         using is_transparent = void;
-        bool operator()(GraphNode const& a, GraphNode const& b) const {
+        bool operator()(Self const& a, Self const& b) const {
             return a.payload() == b.payload();
         }
-        bool operator()(GraphNode const& a, PayloadViewConstPtr b) const {
+        bool operator()(Self const& a, PayloadViewConstPtr b) const {
             return a.payload() == b;
         }
-        bool operator()(PayloadViewConstPtr a, GraphNode const& b) const {
+        bool operator()(PayloadViewConstPtr a, Self const& b) const {
             return a == b.payload();
         }
     };
 
-    /// ## Common
-
-    GraphNode()
+    GraphNodeBase()
         requires std::is_default_constructible_v<
             internal::PayloadWrapper<Payload>>
         : _payload{} {}
 
     template <typename P = Payload>
         requires HasPayload
-    explicit GraphNode(P const& payload): _payload{ payload } {}
+    explicit GraphNodeBase(P const& payload): _payload{ payload } {}
 
     template <typename P = Payload>
         requires HasPayload
-    explicit GraphNode(P&& payload): _payload{ std::move(payload) } {}
+    explicit GraphNodeBase(P&& payload): _payload{ std::move(payload) } {}
 
     PayloadView payload() const
         requires HasPayload
@@ -142,112 +138,7 @@ public:
         return _payload.value;
     }
 
-    ///
-    /// # Undirected graph node members
-    ///
-
-    /// \returns a view over references to neighbours.
-    auto neighbours() const
-        requires(Kind == GraphKind::Undirected)
-    {
-        return outgoingImpl();
-    }
-
-    /// Add \p neigh as predecessor if it is not already a predecessor.
-    void addNeighbour(Self* neigh)
-        requires(Kind == GraphKind::Undirected)
-    {
-        addEdgeImpl(_outgoingEdges, neigh);
-    }
-
-    /// \Returns Number of egdes.
-    size_t degree() const
-        requires(Kind == GraphKind::Undirected)
-    {
-        return _outgoingEdges.size();
-    }
-
-    ///
-    /// # Directed graph node members
-    ///
-
-    /// \returns a view over references to predecessors.
-    auto predecessors() const
-        requires(Kind == GraphKind::Directed)
-    {
-        return incomingImpl();
-    }
-
-    /// \returns a view over references to successors.
-    auto successors() const
-        requires(Kind == GraphKind::Directed)
-    {
-        return outgoingImpl();
-    }
-
-    /// \Returns Number of incoming egdes.
-    size_t indegree() const
-        requires(Kind == GraphKind::Directed)
-    {
-        return _parentLink.size();
-    }
-
-    /// \Returns Number of outgoing egdes.
-    size_t outdegree() const
-        requires(Kind == GraphKind::Directed)
-    {
-        return _outgoingEdges.size();
-    }
-
-    /// Add \p pred as predecessor if it is not already a predecessor.
-    void addPredecessor(Self* pred)
-        requires(Kind == GraphKind::Directed)
-    {
-        addEdgeImpl(_parentLink, pred);
-    }
-
-    /// Add \p succ as successor if it is not already a successor.
-    void addSuccessor(Self* succ)
-        requires(Kind == GraphKind::Directed)
-    {
-        addEdgeImpl(_outgoingEdges, succ);
-    }
-
-    ///
-    /// # Tree node members
-    ///
-
-    Self const* parent() const
-        requires(Kind == GraphKind::Tree)
-    {
-        return _parentLink;
-    }
-
-    auto children() const
-        requires(Kind == GraphKind::Tree)
-    {
-        return outgoingImpl();
-    }
-
-    void setParent(Self* parent)
-        requires(Kind == GraphKind::Tree)
-    {
-        SC_ASSERT(parent != this, "Would form an invalid tree");
-        _parentLink = parent;
-    }
-
-    void addChild(Self* child)
-        requires(Kind == GraphKind::Tree)
-    {
-        SC_ASSERT(child != this, "Would form an invalid tree");
-        addEdgeImpl(_outgoingEdges, child);
-    }
-
 private:
-    std::span<Self const* const> outgoingImpl() const { return _outgoingEdges; }
-
-    std::span<Self const* const> incomingImpl() const { return _parentLink; }
-
     static void addEdgeImpl(utl::small_vector<Self*>& list, Self* other) {
         if (ranges::find(list, other) != ranges::end(list)) {
             return;
@@ -255,10 +146,92 @@ private:
         list.push_back(other);
     }
 
+    [[no_unique_address]] PayloadWrapper<Payload> _payload;
+};
+
+} // namespace internal
+
+template <typename Payload, typename Derived>
+class GraphNode<Payload, Derived, GraphKind::Undirected>:
+    public internal::GraphNodeBase<Payload, Derived, GraphKind::Undirected> {
+    using Base =
+        internal::GraphNodeBase<Payload, Derived, GraphKind::Undirected>;
+    using typename Base::Self;
+
+public:
+    using Base::Base;
+
+    /// \returns a view over references to neighbours.
+    std::span<Self const* const> neighbours() const { return edges; }
+
+    /// Add \p neigh as predecessor if it is not already a predecessor.
+    void addNeighbour(Self* neigh) { Base::addEdgeImpl(edges, neigh); }
+
+    /// \Returns Number of egdes.
+    size_t degree() const { return edges.size(); }
+
 private:
-    [[no_unique_address]] internal::PayloadWrapper<Payload> _payload;
-    [[no_unique_address]] ParentLink _parentLink{};
-    utl::small_vector<Self*> _outgoingEdges;
+    utl::small_vector<Self*> edges;
+};
+
+template <typename Payload, typename Derived>
+class GraphNode<Payload, Derived, GraphKind::Directed>:
+    public internal::GraphNodeBase<Payload, Derived, GraphKind::Directed> {
+    using Base = internal::GraphNodeBase<Payload, Derived, GraphKind::Directed>;
+    using typename Base::Self;
+
+public:
+    using Base::Base;
+
+    /// \returns a view over references to predecessors.
+    std::span<Self const* const> predecessors() const { return incoming; }
+
+    /// \returns a view over references to successors.
+    std::span<Self const* const> successors() const { return outgoing; }
+
+    /// \Returns Number of incoming egdes.
+    size_t indegree() const { return incoming.size(); }
+
+    /// \Returns Number of outgoing egdes.
+    size_t outdegree() const { return outgoing.size(); }
+
+    /// Add \p pred as predecessor if it is not already a predecessor.
+    void addPredecessor(Self* pred) { Base::addEdgeImpl(incoming, pred); }
+
+    /// Add \p succ as successor if it is not already a successor.
+    void addSuccessor(Self* succ) { Base::addEdgeImpl(outgoing, succ); }
+
+private:
+    utl::small_vector<Self*> incoming;
+    utl::small_vector<Self*> outgoing;
+};
+
+template <typename Payload, typename Derived>
+class GraphNode<Payload, Derived, GraphKind::Tree>:
+    public internal::GraphNodeBase<Payload, Derived, GraphKind::Tree> {
+    using Base = internal::GraphNodeBase<Payload, Derived, GraphKind::Tree>;
+    using typename Base::Self;
+
+public:
+    using Base::Base;
+
+    Self const* parent() const { return _parent; }
+
+    std::span<Self const* const> children() const { return _children; }
+
+    void setParent(Self* parent) {
+        SC_ASSERT(parent != this, "Would form an invalid tree");
+        _parent = parent;
+    }
+
+    void addChild(Self* child) {
+        SC_ASSERT(child != this, "Would form an invalid tree");
+        Base::addEdgeImpl(_children, child);
+    }
+
+private:
+    Self* _parent = nullptr;
+    utl::small_vector<Self*> _children;
 };
 
 template <typename Payload, typename Derived>
