@@ -21,7 +21,7 @@ concept InstructionData =
 ///
 ///
 ///
-class Instruction: public NodeWithParent<Instruction, BasicBlock> {
+class Instruction: public ListNodeWithParent<Instruction, BasicBlock> {
     template <typename T>
     static uint64_t convInstData(T data) {
         uint64_t res = 0;
@@ -110,7 +110,7 @@ inline NodeType dyncast_get_type(Value const& value) {
 ///
 ///
 ///
-class Register: public Value, public NodeWithParent<Register, Function> {
+class Register: public Value, public ListNodeWithParent<Register, Function> {
 public:
     static constexpr size_t InvalidIndex = ~size_t(0);
 
@@ -151,7 +151,7 @@ private:
 class BasicBlock:
     public Value,
     public CFGList<BasicBlock, Instruction>,
-    public NodeWithParent<BasicBlock, Function>,
+    public ListNodeWithParent<BasicBlock, Function>,
     public GraphNode<void, BasicBlock, GraphKind::Directed> {
     using ListBase = CFGList<BasicBlock, Instruction>;
 
@@ -204,7 +204,7 @@ private:
 class Function:
     public Value,
     public CFGList<Function, BasicBlock>,
-    public Node<Function> {
+    public ListNode<Function> {
     using ListBase = CFGList<Function, BasicBlock>;
 
 public:

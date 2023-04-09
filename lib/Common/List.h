@@ -12,7 +12,7 @@
 namespace scatha {
 
 template <typename T>
-using Node = utl::ilist_node<T>;
+using ListNode = utl::ilist_node<T>;
 
 /// Used to inherit from a class `Original` that already is a base class of
 /// `ListNode<...>` Then, when `Derived` inherits from
@@ -40,7 +40,7 @@ private:
 };
 
 template <typename T, typename Parent>
-using NodeWithParent = utl::ilist_node_with_parent<T, Parent>;
+using ListNodeWithParent = utl::ilist_node_with_parent<T, Parent>;
 
 template <typename T>
 class DynAllocator: public std::allocator<T> {

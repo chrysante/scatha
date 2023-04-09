@@ -12,7 +12,7 @@ namespace scatha::ir {
 /// `Value` super class is of type void.
 class SCATHA_API Instruction:
     public User,
-    public NodeWithParent<Instruction, BasicBlock> {
+    public ListNodeWithParent<Instruction, BasicBlock> {
 public:
     explicit Instruction(NodeType nodeType,
                          Type const* type,
