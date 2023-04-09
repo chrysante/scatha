@@ -4,6 +4,7 @@
 #include <span>
 
 #include <range/v3/view.hpp>
+#include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include "Common/Graph.h"
@@ -21,21 +22,32 @@ concept InstructionData =
 ///
 ///
 class Instruction: public NodeWithParent<Instruction, BasicBlock> {
+    template <typename T>
+    static uint64_t convInstData(T data) {
+        uint64_t res = 0;
+        std::memcpy(&res, &data, sizeof(T));
+        return res;
+    }
+
 public:
     template <InstructionData T = uint64_t>
-    Instruction(InstCode opcode,
-                Register* dest,
-                utl::small_vector<Value*> operands = {},
-                T instData                         = {}):
-        oc(opcode), _dest(dest), ops(std::move(operands)), _instData(0) {
-        std::memcpy(&_instData, &instData, sizeof(T));
+    explicit Instruction(InstCode opcode,
+                         Register* dest,
+                         utl::small_vector<Value*> operands,
+                         T instData):
+        Instruction(opcode, dest, std::move(operands), convInstData(instData)) {
     }
 
-    void setDest(Register* dest) { _dest = dest; }
+    explicit Instruction(InstCode opcode,
+                         Register* dest,
+                         utl::small_vector<Value*> operands = {},
+                         uint64_t instData                  = 0);
 
-    void setOperands(utl::small_vector<Value*> operands) {
-        ops = std::move(operands);
-    }
+    void setDest(Register* dest);
+
+    void setOperands(utl::small_vector<Value*> operands);
+
+    void clearOperands();
 
     InstCode instcode() const { return oc; }
 
@@ -109,7 +121,15 @@ public:
     void setIndex(size_t index) { _index = index; }
 
 private:
+    friend class Instruction;
+    void addDef(Instruction* inst);
+    void removeDef(Instruction* inst);
+    void addUser(Instruction* inst);
+    void removeUser(Instruction* inst);
+
     size_t _index;
+    utl::hashset<Instruction*> _defs;
+    utl::hashmap<Instruction*, size_t> _users;
 };
 
 ///
