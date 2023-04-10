@@ -12,12 +12,13 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
+#include "AST/LowerToIR.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Basic/Memory.h"
-#include "CodeGen/AST2IR/CodeGenerator.h"
-#include "CodeGen/IRToMIR.h"
-#include "CodeGen/MIRToASM.h"
+#include "CodeGen/Devirtualize.h"
+#include "CodeGen/LowerToASM.h"
+#include "CodeGen/LowerToMIR.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -25,7 +26,6 @@
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
 #include "MIR/CFG.h"
-#include "MIR/Devirtualize.h"
 #include "MIR/Module.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
@@ -77,7 +77,7 @@ static uint64_t run(ir::Module const& irMod) {
     assert(!mainName.empty());
     auto mirMod = cg::lowerToMIR(irMod);
     for (auto& F: mirMod) {
-        mir::devirtualize(F);
+        cg::devirtualize(F);
     }
     auto assembly = cg::lowerToASM(mirMod);
     auto prog     = Asm::assemble(assembly, { .startFunction = mainName });

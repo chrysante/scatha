@@ -1,4 +1,4 @@
-#include "CodeGen/MIRToASM.h"
+#include "CodeGen/LowerToASM.h"
 
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Block.h"

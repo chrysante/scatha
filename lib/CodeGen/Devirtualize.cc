@@ -1,4 +1,4 @@
-#include "MIR/Devirtualize.h"
+#include "CodeGen/Devirtualize.h"
 
 #include "MIR/CFG.h"
 
@@ -8,7 +8,7 @@ using namespace mir;
 /// Instruction pointer, register pointer offset and stack pointer
 static constexpr size_t NumRegsForCallMetadata = 3;
 
-bool mir::devirtualize(mir::Function& F) {
+bool cg::devirtualize(mir::Function& F) {
     Register* last         = F.registers().back();
     size_t const localRegs = last->index();
     size_t idx             = localRegs + NumRegsForCallMetadata;

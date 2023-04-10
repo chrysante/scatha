@@ -1,4 +1,4 @@
-#include "CodeGen/IRToMIR.h"
+#include "CodeGen/LowerToMIR.h"
 
 #include <range/v3/numeric.hpp>
 #include <utl/functional.hpp>

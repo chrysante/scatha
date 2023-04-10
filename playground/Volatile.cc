@@ -12,9 +12,10 @@
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
 #include "Basic/Basic.h"
+#include "CodeGen/Devirtualize.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
-#include "CodeGen/IRToMIR.h"
-#include "CodeGen/MIRToASM.h"
+#include "CodeGen/LowerToASM.h"
+#include "CodeGen/LowerToMIR.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
@@ -27,7 +28,6 @@
 #include "IR/Validate.h"
 #include "IRDump.h"
 #include "MIR/CFG.h"
-#include "MIR/Devirtualize.h"
 #include "MIR/Module.h"
 #include "MIR/Print.h"
 #include "Opt/ConstantPropagation.h"
@@ -163,7 +163,7 @@ static void run(mir::Module const& mod) {
     print(irMod);
     auto mirMod = cg::lowerToMIR(irMod);
     for (auto& F: mirMod) {
-        mir::devirtualize(F);
+        cg::devirtualize(F);
     }
     header(" MIR Module ");
     mir::print(mirMod);

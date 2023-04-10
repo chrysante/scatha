@@ -1,7 +1,7 @@
 // SCATHA-PUBLIC-HEADER
 
-#ifndef SCATHA_CODEGEN_MIRTOASM_H_
-#define SCATHA_CODEGEN_MIRTOASM_H_
+#ifndef SCATHA_CODEGEN_LOWERTOASM_H_
+#define SCATHA_CODEGEN_LOWERTOASM_H_
 
 #include <scatha/Basic/Basic.h>
 
@@ -23,4 +23,4 @@ namespace scatha::cg {
 
 } // namespace scatha::cg
 
-#endif // SCATHA_CODEGEN_MIRTOASM_H_
+#endif // SCATHA_CODEGEN_LOWERTOASM_H_
