@@ -1,5 +1,5 @@
-#ifndef SCATHA_CG_INTERFERENCEGRAPH_H_
-#define SCATHA_CG_INTERFERENCEGRAPH_H_
+#ifndef SCATHA_CODEGEN_INTERFERENCEGRAPH_H_
+#define SCATHA_CODEGEN_INTERFERENCEGRAPH_H_
 
 #include <memory>
 #include <span>
@@ -10,7 +10,7 @@
 
 #include "Basic/Basic.h"
 #include "Common/Graph.h"
-#include "IR/Common.h"
+#include "MIR/Fwd.h"
 
 namespace scatha::cg {
 
@@ -23,20 +23,20 @@ class SCATHA_TESTAPI InterferenceGraph {
 public:
     class Node: public GraphNode<void, Node, GraphKind::Undirected> {
     public:
-        explicit Node(ir::Value const* value): vals({ value }) {}
+        explicit Node(mir::Register* reg): _reg(reg) {}
 
         int color() const { return col; }
 
-        std::span<ir::Value const* const> values() const { return vals; }
+        mir::Register* reg() const { return _reg; }
 
     private:
         friend class InterferenceGraph;
 
         int col = -1;
-        utl::small_vector<ir::Value const*> vals;
+        mir::Register* _reg;
     };
 
-    static InterferenceGraph compute(ir::Function const& function);
+    static InterferenceGraph compute(mir::Function& F);
 
     void colorize(size_t maxColors);
 
@@ -51,16 +51,16 @@ public:
     bool empty() const { return nodes.empty(); }
 
 private:
-    void computeImpl(ir::Function const&);
-    void addValue(ir::Value const*);
-    void addEdges(ir::Value const*, auto&& listOfValues);
-    Node* find(ir::Value const*);
+    void computeImpl(mir::Function&);
+    void addRegister(mir::Register*);
+    void addEdges(mir::Register*, auto&& listOfRegs);
+    Node* find(mir::Register*);
 
-    utl::hashmap<ir::Value const*, Node*> valueMap;
+    utl::hashmap<mir::Register*, Node*> regMap;
     utl::vector<std::unique_ptr<Node>> nodes;
     size_t numCols = 0;
 };
 
 } // namespace scatha::cg
 
-#endif // SCATHA_CG_INTERFERENCEGRAPH_H_
+#endif // SCATHA_CODEGEN_INTERFERENCEGRAPH_H_

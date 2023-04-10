@@ -53,6 +53,26 @@ public:
         return asDerived<M>(*this).funcs.end();
     }
 
+    template <typename M = Module>
+    Function& front() {
+        return asDerived<M>(*this).funcs.front();
+    }
+
+    template <typename M = Module const>
+    Function const& front() const {
+        return asDerived<M>(*this).funcs.front();
+    }
+
+    template <typename M = Module>
+    Function& back() {
+        return asDerived<M>(*this).funcs.back();
+    }
+
+    template <typename M = Module const>
+    Function const& back() const {
+        return asDerived<M>(*this).funcs.back();
+    }
+
     Constant* constant(uint64_t value, size_t width);
 
     UndefValue* undefValue() const { return undef.get(); }

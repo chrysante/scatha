@@ -11,28 +11,27 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
-#include "CodeGen/CodeGen2/InterferenceGraph.h"
+#include "CodeGen/InterferenceGraph.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "IR/Print.h"
+#include "MIR/CFG.h"
+#include "MIR/Module.h"
+#include "MIR/Print.h"
 #include "Opt/SCCCallGraph.h"
 
 using namespace scatha;
-using namespace ir;
-using namespace opt;
 
 namespace {
 
 struct Ctx {
     explicit Ctx(
-        Module const& mod,
-        utl::function_view<void(std::stringstream&,
-                                scatha::ir::Function const&)> functionCallback,
-        utl::function_view<void(std::stringstream&,
-                                scatha::ir::BasicBlock const&)>
+        ir::Module const& mod,
+        utl::function_view<void(std::stringstream&, ir::Function const&)>
+            functionCallback,
+        utl::function_view<void(std::stringstream&, ir::BasicBlock const&)>
             bbDeclareCallback,
-        utl::function_view<void(std::stringstream&,
-                                scatha::ir::BasicBlock const&)>
+        utl::function_view<void(std::stringstream&, ir::BasicBlock const&)>
             bbConnectCallback):
         mod(mod),
         functionCallback(functionCallback),
@@ -41,11 +40,11 @@ struct Ctx {
 
     void run();
 
-    void declare(Function const&);
-    void declare(BasicBlock const&);
+    void declare(ir::Function const&);
+    void declare(ir::BasicBlock const&);
 
-    void connect(Function const&);
-    void connect(BasicBlock const&);
+    void connect(ir::Function const&);
+    void connect(ir::BasicBlock const&);
 
     void beginModule();
     void endModule();
@@ -55,12 +54,12 @@ struct Ctx {
 
     std::string takeResult() { return std::move(str).str(); }
 
-    Module const& mod;
-    utl::function_view<void(std::stringstream&, scatha::ir::Function const&)>
+    ir::Module const& mod;
+    utl::function_view<void(std::stringstream&, ir::Function const&)>
         functionCallback;
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
+    utl::function_view<void(std::stringstream&, ir::BasicBlock const&)>
         bbDeclareCallback;
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
+    utl::function_view<void(std::stringstream&, ir::BasicBlock const&)>
         bbConnectCallback;
     ir::Function const* currentFunction = nullptr;
     std::stringstream str;
@@ -71,7 +70,7 @@ static constexpr auto monoFont = "SF Mono";
 
 } // namespace
 
-static std::string dotName(Value const& value);
+static std::string dotName(ir::Value const& value);
 
 static constexpr utl::streammanip tableBegin = [](std::ostream& str,
                                                   int border      = 0,
@@ -103,12 +102,12 @@ static constexpr utl::streammanip rowEnd = [](std::ostream& str) {
 };
 
 std::string playground::drawGraphGeneric(
-    scatha::ir::Module const& mod,
-    utl::function_view<void(std::stringstream&, scatha::ir::Function const&)>
+    ir::Module const& mod,
+    utl::function_view<void(std::stringstream&, ir::Function const&)>
         functionCallback,
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
+    utl::function_view<void(std::stringstream&, ir::BasicBlock const&)>
         bbDeclareCallback,
-    utl::function_view<void(std::stringstream&, scatha::ir::BasicBlock const&)>
+    utl::function_view<void(std::stringstream&, ir::BasicBlock const&)>
         bbConnectCallback) {
     Ctx ctx(mod, functionCallback, bbDeclareCallback, bbConnectCallback);
     ctx.run();
@@ -117,8 +116,9 @@ std::string playground::drawGraphGeneric(
 
 std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
     auto functionCallback = [](std::stringstream& str,
-                               Function const& function) {};
-    auto declareCallback  = [](std::stringstream& str, BasicBlock const& bb) {
+                               ir::Function const& function) {};
+    auto declareCallback =
+        [](std::stringstream& str, ir::BasicBlock const& bb) {
         tfmt::setHTMLFormattable(str);
         str << dotName(bb) << " [ label = ";
         str << "<\n";
@@ -139,7 +139,8 @@ std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
         str << ">";
         str << "]\n";
     };
-    auto connectCallback = [](std::stringstream& str, BasicBlock const& bb) {
+    auto connectCallback =
+        [](std::stringstream& str, ir::BasicBlock const& bb) {
         for (auto succ: bb.successors()) {
             str << dotName(bb) << " -> " << dotName(*succ) << "\n";
         }
@@ -151,15 +152,16 @@ std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
 }
 
 void playground::drawControlFlowGraph(
-    scatha::ir::Module const& mod, std::filesystem::path const& outFilepath) {
+    ir::Module const& mod, std::filesystem::path const& outFilepath) {
     std::fstream file(outFilepath, std::ios::out | std::ios::trunc);
     file << drawControlFlowGraph(mod);
 }
 
-std::string playground::drawUseGraph(scatha::ir::Module const& mod) {
+std::string playground::drawUseGraph(ir::Module const& mod) {
     auto functionCallback = [](std::stringstream& str,
-                               Function const& function) {};
-    auto declareCallback  = [](std::stringstream& str, BasicBlock const& bb) {
+                               ir::Function const& function) {};
+    auto declareCallback =
+        [](std::stringstream& str, ir::BasicBlock const& bb) {
         str << "subgraph cluster_" << dotName(bb) << " {\n";
         str << "  fontname = \"" << monoFont << "\"\n";
         str << "  "
@@ -169,7 +171,8 @@ std::string playground::drawUseGraph(scatha::ir::Module const& mod) {
         }
         str << "} // subgraph\n";
     };
-    auto connectCallback = [](std::stringstream& str, BasicBlock const& bb) {
+    auto connectCallback =
+        [](std::stringstream& str, ir::BasicBlock const& bb) {
         for (auto& inst: bb) {
             for (auto* user: inst.users()) {
                 str << dotName(inst) << " -> " << dotName(*user) << "\n";
@@ -182,7 +185,7 @@ std::string playground::drawUseGraph(scatha::ir::Module const& mod) {
                             connectCallback);
 }
 
-void playground::drawUseGraph(scatha::ir::Module const& mod,
+void playground::drawUseGraph(ir::Module const& mod,
                               std::filesystem::path const& outFilepath) {
     std::fstream file(outFilepath, std::ios::out | std::ios::trunc);
     file << drawUseGraph(mod);
@@ -200,21 +203,21 @@ void Ctx::run() {
     endModule();
 }
 
-void Ctx::declare(Function const& function) {
+void Ctx::declare(ir::Function const& function) {
     for (auto& bb: function) {
         declare(bb);
     }
 }
 
-void Ctx::declare(BasicBlock const& bb) { bbDeclareCallback(str, bb); }
+void Ctx::declare(ir::BasicBlock const& bb) { bbDeclareCallback(str, bb); }
 
-void Ctx::connect(Function const& function) {
+void Ctx::connect(ir::Function const& function) {
     for (auto& bb: function) {
         connect(bb);
     }
 }
 
-void Ctx::connect(BasicBlock const& bb) { bbConnectCallback(str, bb); }
+void Ctx::connect(ir::BasicBlock const& bb) { bbConnectCallback(str, bb); }
 
 void Ctx::beginModule() {
     str << "digraph {\n";
@@ -238,12 +241,12 @@ void Ctx::endFunction() {
     str << "} // subgraph\n";
 }
 
-static std::string dotName(Value const& value) {
-    Function const* currentFunction = [&] {
-        if (auto* bb = dyncast<BasicBlock const*>(&value)) {
+static std::string dotName(ir::Value const& value) {
+    ir::Function const* currentFunction = [&] {
+        if (auto* bb = dyncast<ir::BasicBlock const*>(&value)) {
             return bb->parent();
         }
-        return cast<Instruction const*>(&value)->parent()->parent();
+        return cast<ir::Instruction const*>(&value)->parent()->parent();
     }();
     auto result = utl::strcat("_",
                               currentFunction->name(),
@@ -262,17 +265,18 @@ static std::string dotName(Value const& value) {
 namespace {
 
 struct CallGraphContext {
-    CallGraphContext(SCCCallGraph const& callGraph): callGraph(callGraph) {}
+    CallGraphContext(opt::SCCCallGraph const& callGraph):
+        callGraph(callGraph) {}
 
     std::string run();
 
-    void declare(SCCCallGraph::SCCNode const&);
-    void declare(SCCCallGraph::FunctionNode const&);
+    void declare(opt::SCCCallGraph::SCCNode const&);
+    void declare(opt::SCCCallGraph::FunctionNode const&);
 
-    void connect(SCCCallGraph::SCCNode const&);
-    void connect(SCCCallGraph::FunctionNode const&);
+    void connect(opt::SCCCallGraph::SCCNode const&);
+    void connect(opt::SCCCallGraph::FunctionNode const&);
 
-    size_t index(SCCCallGraph::SCCNode const& node) {
+    size_t index(opt::SCCCallGraph::SCCNode const& node) {
         auto itr = sccIndexMap.find(&node);
         if (itr == sccIndexMap.end()) {
             itr = sccIndexMap.insert({ &node, sccIndex++ }).first;
@@ -280,20 +284,20 @@ struct CallGraphContext {
         return itr->second;
     }
 
-    SCCCallGraph const& callGraph;
+    opt::SCCCallGraph const& callGraph;
     std::stringstream str;
     size_t sccIndex = 0;
-    utl::hashmap<SCCCallGraph::SCCNode const*, size_t> sccIndexMap;
+    utl::hashmap<opt::SCCCallGraph::SCCNode const*, size_t> sccIndexMap;
 };
 
 } // namespace
 
-std::string playground::drawCallGraph(SCCCallGraph const& callGraph) {
+std::string playground::drawCallGraph(opt::SCCCallGraph const& callGraph) {
     CallGraphContext ctx(callGraph);
     return ctx.run();
 }
 
-void playground::drawCallGraph(SCCCallGraph const& callGraph,
+void playground::drawCallGraph(opt::SCCCallGraph const& callGraph,
                                std::filesystem::path const& outFilepath) {
     std::fstream file(outFilepath, std::ios::out | std::ios::trunc);
     file << drawCallGraph(callGraph);
@@ -320,7 +324,7 @@ std::string CallGraphContext::run() {
     return std::move(str).str();
 }
 
-void CallGraphContext::declare(SCCCallGraph::SCCNode const& scc) {
+void CallGraphContext::declare(opt::SCCCallGraph::SCCNode const& scc) {
     str << "  subgraph cluster_" << index(scc) << " {\n";
     str << "    style=filled\n";
     auto const color = [&]() -> std::string {
@@ -349,11 +353,11 @@ void CallGraphContext::declare(SCCCallGraph::SCCNode const& scc) {
     str << "  } // subgraph cluster_" << index(scc) << "\n\n";
 }
 
-void CallGraphContext::declare(SCCCallGraph::FunctionNode const& node) {
+void CallGraphContext::declare(opt::SCCCallGraph::FunctionNode const& node) {
     str << "    " << node.function().name() << "\n";
 }
 
-void CallGraphContext::connect(SCCCallGraph::SCCNode const& scc) {
+void CallGraphContext::connect(opt::SCCCallGraph::SCCNode const& scc) {
     for (auto* succ: scc.successors()) {
         str << "  " << scc.functions().front().name() << " -> "
             << succ->functions().front().name() << "[ltail=cluster_"
@@ -365,7 +369,7 @@ void CallGraphContext::connect(SCCCallGraph::SCCNode const& scc) {
     }
 }
 
-void CallGraphContext::connect(SCCCallGraph::FunctionNode const& node) {
+void CallGraphContext::connect(opt::SCCCallGraph::FunctionNode const& node) {
     for (auto* succ: node.successors()) {
         str << "  " << node.function().name() << " -> "
             << succ->function().name() << "\n";
@@ -380,8 +384,8 @@ namespace {
 struct InterferenceGraphContext {
     using Node = cg::InterferenceGraph::Node;
 
-    InterferenceGraphContext(Function const& F):
-        graph(cg::InterferenceGraph::compute(F)) {
+    InterferenceGraphContext(mir::Function const& F):
+        graph(cg::InterferenceGraph::compute(const_cast<mir::Function&>(F))) {
         graph.colorize(255);
         maxDegree =
             ranges::accumulate(graph, size_t(0), ranges::max, [](auto* node) {
@@ -401,7 +405,6 @@ struct InterferenceGraphContext {
         str << "      fontsize=\"20pt\", \n";
         str << "      fontcolor=\"white\", \n";
         str << "  ];\n";
-        str << "  edge  [ fontname=\"" << monoFont << "\" ];\n";
         str << "\n";
         utl::hashset<std::pair<Node const*, Node const*>> drawnEdges;
         for (auto* n: graph) {
@@ -437,17 +440,10 @@ struct InterferenceGraphContext {
         str << toName(node) << " [ \n";
         str << "    style=filled, \n";
         str << "    fillcolor=\"" << toColor(node) << "\", \n";
-        str << "    height=2 \n";
-        str << "    width=2 \n";
-        str << "    label=<\n";
-        str << "" << tableBegin << "\n";
-        for (auto* value: node->values()) {
-            str << "" << rowBegin << fontBegin(monoFont) << "\n";
-            str << "" << value->name() << "\n";
-            str << "" << fontEnd << rowEnd << "\n";
-        }
-        str << "" << tableEnd << "\n";
-        str << ">]\n";
+        str << "    height=1.5 \n";
+        str << "    width=1.5 \n";
+        str << "    label= \"%" << node->reg()->index() << "\"";
+        str << "]\n";
         return std::move(str).str();
     }
 
@@ -457,13 +453,13 @@ struct InterferenceGraphContext {
 
 } // namespace
 
-std::string playground::drawInterferenceGraph(Function const& function) {
+std::string playground::drawInterferenceGraph(mir::Function const& function) {
     InterferenceGraphContext ctx(function);
     return ctx.draw();
 }
 
 void playground::drawInterferenceGraph(
-    Function const& function, std::filesystem::path const& outFilepath) {
+    mir::Function const& function, std::filesystem::path const& outFilepath) {
     std::fstream file(outFilepath, std::ios::out | std::ios::trunc);
     file << drawInterferenceGraph(function);
 }

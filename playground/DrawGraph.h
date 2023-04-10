@@ -14,6 +14,12 @@ class BasicBlock;
 
 } // namespace scatha::ir
 
+namespace scatha::mir {
+
+class Function;
+
+} // namespace scatha::mir
+
 namespace scatha::opt {
 
 class SCCCallGraph;
@@ -46,9 +52,9 @@ std::string drawCallGraph(scatha::opt::SCCCallGraph const& callGraph);
 void drawCallGraph(scatha::opt::SCCCallGraph const& callGraph,
                    std::filesystem::path const& outFilepath);
 
-std::string drawInterferenceGraph(scatha::ir::Function const& function);
+std::string drawInterferenceGraph(scatha::mir::Function const& function);
 
-void drawInterferenceGraph(scatha::ir::Function const& function,
+void drawInterferenceGraph(scatha::mir::Function const& function,
                            std::filesystem::path const& outFilepath);
 
 } // namespace playground

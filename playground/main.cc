@@ -8,11 +8,14 @@
 
 #include "APFloatTest.h"
 #include "Assembly.h"
+#include "CodeGen/LowerToMIR.h"
 #include "DrawGraph.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IRDump.h"
+#include "MIR/CFG.h"
+#include "MIR/Module.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/MemToReg.h"
@@ -148,10 +151,11 @@ int main(int argc, char const* const* argv) {
         break;
     }
     case ProgramCase::EmitInterferenceGraph: {
-        auto [ctx, mod] = makeIRModuleFromFile(filepath);
-        auto& f         = mod.front();
-        scatha::opt::memToReg(ctx, f);
-        drawInterferenceGraph(f,
+        auto [ctx, irMod] = makeIRModuleFromFile(filepath);
+        scatha::opt::memToReg(ctx, irMod.front());
+        auto mirMod = scatha::cg::lowerToMIR(irMod);
+        auto& F     = mirMod.front();
+        drawInterferenceGraph(F,
                               std::filesystem::path(PROJECT_LOCATION) /
                                   "graphviz/gen/interference-graph.gv");
         break;

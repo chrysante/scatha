@@ -287,6 +287,14 @@ public:
         return regs | ranges::views::transform([](auto& p) { return &p; });
     }
 
+    auto virtualRegisters() {
+        return virtRegs | ranges::views::transform([](auto& p) { return &p; });
+    }
+
+    auto virtualRegisters() const {
+        return virtRegs | ranges::views::transform([](auto& p) { return &p; });
+    }
+
     auto regBegin() { return regs.begin(); }
 
     auto regBegin() const { return regs.begin(); }
