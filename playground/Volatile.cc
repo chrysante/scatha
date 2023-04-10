@@ -14,6 +14,7 @@
 #include "Basic/Basic.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
 #include "CodeGen/IRToMIR.h"
+#include "CodeGen/MIRToASM.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
@@ -57,23 +58,8 @@ static void header(std::string_view title = "") {
 using namespace scatha;
 using namespace playground;
 
-static void run(ir::Module const& mod) {
-    auto assembly = cg::codegen(mod);
-    header(" Assembly ");
-    Asm::print(assembly);
-    std::string const mainName = [&] {
-        for (auto& f: mod) {
-            if (f.name().starts_with("main")) {
-                return std::string(f.name());
-            }
-        }
-        return std::string{};
-    }();
-    auto program = Asm::assemble(assembly, { std::string(mainName) });
-    if (mainName.empty()) {
-        std::cout << "No main function found\n";
-        return;
-    }
+static void run(Asm::AssemblyStream const& assembly, std::string mainName) {
+    auto program = Asm::assemble(assembly, { mainName });
     svm::VirtualMachine vm;
     vm.loadProgram(program.data());
     vm.execute();
@@ -89,6 +75,44 @@ static void run(ir::Module const& mod) {
     }
     std::cout << "\n                 (" << utl::bit_cast<double>(retval) << ")";
     std::cout << std::endl << std::endl << std::endl;
+}
+
+static void run(ir::Module const& mod) {
+    auto assembly = cg::codegen(mod);
+    header(" Assembly ");
+    Asm::print(assembly);
+    std::string const mainName = [&] {
+        for (auto& f: mod) {
+            if (f.name().starts_with("main")) {
+                return std::string(f.name());
+            }
+        }
+        return std::string{};
+    }();
+    if (mainName.empty()) {
+        std::cout << "No main function found\n";
+        return;
+    }
+    run(assembly, mainName);
+}
+
+static void run(mir::Module const& mod) {
+    auto assembly = cg::lowerToASM(mod);
+    header(" Assembly ");
+    Asm::print(assembly);
+    std::string const mainName = [&] {
+        for (auto& f: mod) {
+            if (f.name().starts_with("main")) {
+                return std::string(f.name());
+            }
+        }
+        return std::string{};
+    }();
+    if (mainName.empty()) {
+        std::cout << "No main function found\n";
+        return;
+    }
+    run(assembly, mainName);
 }
 
 [[maybe_unused]] static void printIRLiveSets(ir::Function const& F) {
@@ -130,27 +154,20 @@ static void run(ir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    if (0) {
-        header(" no opt ");
-        print(irMod);
-        printIRLiveSets(irMod.front());
-        auto mirMod = cg::lowerToMIR(irMod);
-        for (auto& F: mirMod) {
-            mir::devirtualize(F);
-        }
-        mir::print(mirMod);
-    }
+    bool const optimize = true;
 
-    {
+    if (optimize) {
         opt::inlineFunctions(ctx, irMod);
-        header(" opt ");
-        print(irMod);
-        auto mirMod = cg::lowerToMIR(irMod);
-        for (auto& F: mirMod) {
-            mir::devirtualize(F);
-        }
-        mir::print(mirMod);
     }
+    header(" IR Module ");
+    print(irMod);
+    auto mirMod = cg::lowerToMIR(irMod);
+    for (auto& F: mirMod) {
+        mir::devirtualize(F);
+    }
+    header(" MIR Module ");
+    mir::print(mirMod);
+    run(mirMod);
 }
 
 void playground::volatilePlayground(std::filesystem::path path) { mirPG(path); }

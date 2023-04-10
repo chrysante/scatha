@@ -302,6 +302,10 @@ public:
 
     ir::Function const* irFunction() const { return irFunc; }
 
+    size_t numLocalRegisters() const { return localRegs; }
+
+    void setNumLocalRegisters(size_t count) { localRegs = count; }
+
 private:
     friend class CFGList<Function, BasicBlock>;
 
@@ -312,6 +316,7 @@ private:
     List<Register> regs;
     List<Register> virtRegs;
     ir::Function const* irFunc = nullptr;
+    size_t localRegs           = 0;
 };
 
 } // namespace scatha::mir
