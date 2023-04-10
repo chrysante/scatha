@@ -1,17 +1,43 @@
-
-func i32 @f(i64, i32) {
-  %entry:
-    %2 = trunc i64 %0 to i32
-    %r = add i32 %1, i32 %2
-    return i32 %r
+struct X {
+    var b: bool;
+    var c: bool;
+    var d: bool;
+    var a: int;
+    var y: Y;
+}
+struct Y {
+    var i: int;
+    var f: float;
+}
+fn makeX() -> X {
+    var x: X;
+    x.a = 5;
+    x.b = false;
+    x.c = true;
+    x.d = false;
+    x.y = makeY();
+    return forward(x);
+}
+fn makeY() -> Y {
+    var y: Y;
+    y.i = -1;
+    y.f = 0.5;
+    return y;
+}
+fn forward(x: X) -> X { return x; }
+fn forward(y: Y) -> Y { return y; }
+fn main() -> int {
+    if forward(makeX().y).f == 0.5 {
+        return 5;
+    }
+    return 6;
 }
 
 
-func i32 @main() {
-  %entry:
-    %0 = call i32 @f, i64 1, i32 2
-    return i32 %0
-}
+
+
+
+/*
 
 #//fn f(a: int, b: int) -> int {
 #//    let aSave = a;
@@ -36,11 +62,7 @@ func i32 @main() {
 #//    y.x.f0 = 1.0;
 #//    return y.x;
 #//}
-#
-#
-#
-#
-#
+
 #//func i64 @f33(i64 %0, i64 %1) {
 #//  %entry:
 #//    goto label %loop.header
@@ -80,4 +102,4 @@ func i32 @main() {
 #//    return @X %x.4
 #//}
 
-    
+*/

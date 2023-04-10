@@ -109,6 +109,10 @@ struct CodeGenContext {
 
     mir::Value* resolveImpl(ir::Value const* value);
 
+    /// \Returns If resolved value already is in a register, that register.
+    /// Otherwise allocates a temporary register and stores value into it.
+    mir::Register* resolveToRegister(ir::Value const* value);
+
     mir::Register* nextRegister(size_t numWords = 1) {
         return nextRegistersFor(numWords, nullptr);
     }
@@ -152,12 +156,24 @@ struct CodeGenContext {
         return utl::ceil_divide(type->size(), 8);
     }
 
+    /// Used to calculate width of a slice when issuing multiple copy
+    /// instructions for large types.
+    static size_t sliceWidth(size_t numBytes, size_t index, size_t numWords) {
+        if (index != numWords - 1) {
+            return 8;
+        }
+        size_t res = numBytes % 8;
+        return res == 0 ? 8 : res;
+    }
+
     mir::Module& result;
 
     mir::Function* currentFunction = nullptr;
     mir::BasicBlock* currentBlock  = nullptr;
 
     ir::LiveSets const* currentLiveSets = nullptr;
+
+    utl::hashmap<ir::Function const*, ir::LiveSets> liveSets;
 
     utl::small_vector<ir::Phi const*> phiNodes;
 
@@ -197,8 +213,8 @@ void CodeGenContext::genFunction(ir::Function const& function) {
     regIdx = 0;
     virtRegs.clear();
     currentFunction = resolve(&function);
-    auto liveSets   = ir::LiveSets::compute(function);
-    currentLiveSets = &liveSets;
+    auto& LS = liveSets[&function] = ir::LiveSets::compute(function);
+    currentLiveSets                = &LS;
     for (auto& bb: function) {
         declareBasicBlock(bb);
     }
@@ -243,25 +259,24 @@ void CodeGenContext::genInst(ir::Alloca const& allocaInst) {
     auto* type          = allocaInst.allocatedType();
     auto* countConstant = cast<ir::IntegralConstant const*>(allocaInst.count());
     size_t count        = countConstant->value().to<size_t>();
-    size_t numBytes     = type->size() * count;
+    size_t numBytes     = utl::round_up(type->size() * count, 8);
     addNewInst(mir::InstCode::LIncSP,
                resolve(&allocaInst),
-               { result.constant(numBytes) });
+               { result.constant(numBytes, 2) });
 }
 
 void CodeGenContext::genInst(ir::Store const& store) {
     mir::MemoryAddress dest = computeAddress(store.address());
-    mir::Value* src         = resolve(store.value());
+    mir::Value* src         = resolveToRegister(store.value());
     size_t numBytes         = store.value()->type()->size();
     size_t numWords         = utl::ceil_divide(numBytes, 8);
     auto addrConstData      = dest.constantData();
     for (size_t i = 0; i < numWords; ++i, src = src->next()) {
-        size_t byteWidth = i != numWords - 1 ? 8 : numBytes % 8;
         addNewInst(mir::InstCode::Store,
                    nullptr,
                    { dest.addressRegister(), dest.offsetRegister(), src },
                    addrConstData,
-                   byteWidth);
+                   sliceWidth(numBytes, i, numWords));
         addrConstData.offsetTerm += 8;
     }
 }
@@ -273,12 +288,11 @@ void CodeGenContext::genInst(ir::Load const& load) {
     auto* dest             = resolve(&load);
     auto addrConstData     = src.constantData();
     for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
-        size_t byteWidth = i != numWords - 1 ? 8 : numBytes % 8;
         addNewInst(mir::InstCode::Load,
                    dest,
                    { src.addressRegister(), src.offsetRegister() },
                    addrConstData,
-                   byteWidth);
+                   sliceWidth(numBytes, i, numWords));
         addrConstData.offsetTerm += 8;
     }
 }
@@ -303,7 +317,8 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
         addNewInst(mir::InstCode::Conversion,
                    resolve(&inst),
                    { operand },
-                   inst.conversion());
+                   inst.conversion(),
+                   inst.operand()->type()->size());
         return;
     }
     case ir::Conversion::_count:
@@ -312,29 +327,40 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
 }
 
 void CodeGenContext::genInst(ir::CompareInst const& cmp) {
-    auto* lhs = resolve(cmp.lhs());
+    auto* lhs = resolveToRegister(cmp.lhs());
     auto* rhs = resolve(cmp.rhs());
     addNewInst(mir::InstCode::Compare, nullptr, { lhs, rhs }, cmp.mode());
     addNewInst(mir::InstCode::Set, resolve(&cmp), {}, cmp.operation());
 }
 
 void CodeGenContext::genInst(ir::UnaryArithmeticInst const& inst) {
-    auto* operand = resolve(inst.operand());
+    auto* operand = resolveToRegister(inst.operand());
     addNewInst(mir::InstCode::UnaryArithmetic,
                resolve(&inst),
                { operand },
                inst.operation(),
-               inst.operand()->type()->size());
+               8);
 }
 
 void CodeGenContext::genInst(ir::ArithmeticInst const& inst) {
-    auto* lhs = resolve(inst.lhs());
+    auto* lhs = resolveToRegister(inst.lhs());
     auto* rhs = resolve(inst.rhs());
+    /// Shift instructions only allow 8 bit literals as RHS operand.
+    if (isShift(inst.operation()) && isa<mir::Constant>(rhs)) {
+        rhs = result.constant(cast<mir::Constant*>(rhs)->value(), 1);
+    }
+    size_t size = inst.lhs()->type()->size();
+    if (size < 4) {
+        size = 8;
+        if (auto* constant = dyncast<mir::Constant*>(rhs)) {
+            rhs = result.constant(constant->value(), 8);
+        }
+    }
     addNewInst(mir::InstCode::Arithmetic,
                resolve(&inst),
                { lhs, rhs },
                inst.operation(),
-               inst.lhs()->type()->size());
+               size);
 }
 
 void CodeGenContext::genInst(ir::Goto const& gt) {
@@ -343,7 +369,7 @@ void CodeGenContext::genInst(ir::Goto const& gt) {
 }
 
 void CodeGenContext::genInst(ir::Branch const& br) {
-    auto* cond       = resolve(br.condition());
+    auto* cond       = resolveToRegister(br.condition());
     auto* thenTarget = resolve(br.thenTarget());
     auto* elseTarget = resolve(br.elseTarget());
     addNewInst(mir::InstCode::Test,
@@ -360,16 +386,17 @@ void CodeGenContext::genInst(ir::Branch const& br) {
 
 void CodeGenContext::genInst(ir::Call const& call) {
     /// Place the arguments in expected registers
-    size_t const numArgRegs =
+    size_t numVirtRegs =
         ranges::accumulate(call.arguments(),
                            size_t(0),
                            ranges::plus{},
                            [&](auto* arg) { return numWords(arg->type()); });
+    numVirtRegs = ranges::max(numVirtRegs, numWords(call.type()));
     /// Allocate additional virtual registers if not enough present.
-    if (virtRegs.size() < numArgRegs) {
+    if (virtRegs.size() < numVirtRegs) {
         size_t const oldSize = virtRegs.size();
-        virtRegs.resize(numArgRegs);
-        for (size_t i = oldSize; i < numArgRegs; ++i) {
+        virtRegs.resize(numVirtRegs);
+        for (size_t i = oldSize; i < numVirtRegs; ++i) {
             auto* reg = new mir::Register(i);
             reg->setVirtual();
             currentFunction->addVirtualRegister(reg);
@@ -476,14 +503,18 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
         }
         return utl::bit_cast<uint64_t>(bytes);
     }();
-    addNewInst(mir::InstCode::Copy, dest, { source });
+    addNewInst(mir::InstCode::Copy,
+               dest,
+               { source },
+               /* inst-data = */ 0,
+               /* width = */ 8);
     addNewInst(mir::InstCode::Arithmetic,
                dest,
-               { dest, result.constant(8 * offset) },
+               { dest, result.constant(8 * offset, 1) },
                mir::ArithmeticOperation::LShR);
     addNewInst(mir::InstCode::Arithmetic,
                dest,
-               { dest, result.constant(mask) },
+               { dest, result.constant(mask, 8) },
                mir::ArithmeticOperation::And);
 }
 
@@ -520,17 +551,21 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
     }();
     addNewInst(mir::InstCode::Arithmetic,
                dest,
-               { dest, result.constant(~destMask) },
+               { dest, result.constant(~destMask, 8) },
                mir::ArithmeticOperation::And);
     auto* tmp = nextRegister();
-    addNewInst(mir::InstCode::Copy, tmp, { source });
+    addNewInst(mir::InstCode::Copy,
+               tmp,
+               { source },
+               /* inst-data = */ 0,
+               /* width = */ 8);
     addNewInst(mir::InstCode::Arithmetic,
                tmp,
-               { tmp, result.constant(8 * offset) },
+               { tmp, result.constant(8 * offset, 1) },
                mir::ArithmeticOperation::LShL);
     addNewInst(mir::InstCode::Arithmetic,
                tmp,
-               { tmp, result.constant(destMask) },
+               { tmp, result.constant(destMask, 8) },
                mir::ArithmeticOperation::And);
     addNewInst(mir::InstCode::Arithmetic,
                dest,
@@ -539,7 +574,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
 }
 
 void CodeGenContext::genInst(ir::Select const& select) {
-    auto* cond      = resolve(select.condition());
+    auto* cond      = resolveToRegister(select.condition());
     auto* thenVal   = resolve(select.thenValue());
     auto* elseVal   = resolve(select.elseValue());
     size_t numBytes = select.type()->size();
@@ -555,15 +590,16 @@ void CodeGenContext::genInst(ir::Select const& select) {
             numBytes,
             currentBlock->end(),
             mir::InstCode::CondCopy,
-            static_cast<uint64_t>(mir::CompareOperation::NotEqual));
+            static_cast<uint64_t>(mir::CompareOperation::Equal));
 }
 
 void CodeGenContext::postprocess() {
     /// Place the appropriate values for all phi nodes in the corresponding
     /// registers
     for (auto* phi: phiNodes) {
-        currentBlock = resolve(phi->parent());
-        auto* dest   = resolve(phi);
+        currentBlock    = resolve(phi->parent());
+        currentLiveSets = &liveSets[currentBlock->parent()->irFunction()];
+        auto* dest      = resolve(phi);
         for (auto [pred, arg]: phi->arguments()) {
             auto* mPred = cast<mir::BasicBlock*>(resolve(pred));
             auto before = mPred->end();
@@ -605,7 +641,7 @@ mir::MemoryAddress CodeGenContext::computeGep(
             return nullptr;
         }
         mir::Value* arrayIndex = resolve(gep->arrayIndex());
-        if (auto* regArrayIdx = cast<mir::Register*>(arrayIndex)) {
+        if (auto* regArrayIdx = dyncast<mir::Register*>(arrayIndex)) {
             return regArrayIdx;
         }
         auto* result = nextRegistersFor(1, gep);
@@ -636,8 +672,12 @@ mir::Register* CodeGenContext::genCopy(mir::Register* dest,
     for (size_t i = 0; i < numWords;
          ++i, dest = dest->next(), source = source->next())
     {
-        size_t const byteWidth = i != numWords - 1 ? 8 : numBytes % 8;
-        addNewInst(code, dest, { source }, instData, byteWidth, before);
+        addNewInst(code,
+                   dest,
+                   { source },
+                   instData,
+                   sliceWidth(numBytes, i, numWords),
+                   before);
     }
     return dest;
 }
@@ -658,14 +698,20 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
         [&](ir::IntegralConstant const& constant) {
             SC_ASSERT(constant.type()->bitWidth() <= 64, "");
             uint64_t value = constant.value().to<uint64_t>();
-            auto* mirConst = result.constant(value);
+            auto* mirConst = result.constant(value, constant.type()->size());
             valueMap.insert({ &constant, mirConst });
             return mirConst;
         },
         [&](ir::FloatingPointConstant const& constant) -> mir::Value* {
             SC_ASSERT(constant.type()->bitWidth() <= 64, "");
-            uint64_t value = constant.value().limbs().front();
-            auto* mirConst = result.constant(value);
+            uint64_t value = 0;
+            if (constant.value().precision() == APFloatPrec::Single) {
+                value = utl::bit_cast<uint32_t>(constant.value().to<float>());
+            }
+            else {
+                value = utl::bit_cast<uint64_t>(constant.value().to<double>());
+            }
+            auto* mirConst = result.constant(value, constant.type()->size());
             valueMap.insert({ &constant, mirConst });
             return mirConst;
         },
@@ -676,6 +722,16 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             SC_UNREACHABLE("Everything else shall be forward declared");
         }
     }); // clang-format on
+}
+
+mir::Register* CodeGenContext::resolveToRegister(ir::Value const* value) {
+    auto* result = resolve(value);
+    if (auto* reg = dyncast<mir::Register*>(result)) {
+        return reg;
+    }
+    auto* reg = nextRegister(numWords(value->type()));
+    genCopy(reg, result, value->type()->size());
+    return reg;
 }
 
 mir::Register* CodeGenContext::nextRegistersFor(size_t numWords,
@@ -690,13 +746,16 @@ mir::Register* CodeGenContext::nextRegistersFor(size_t numWords,
         return regs.front();
     }
     for (auto& BB: *currentFunction) {
-        auto& liveSet = currentLiveSets->find(BB.irBasicBlock());
-        if (liveSet.liveIn.contains(value)) {
+        auto* liveSet = currentLiveSets->find(BB.irBasicBlock());
+        if (!liveSet) {
+            continue;
+        }
+        if (liveSet->liveIn.contains(value)) {
             for (auto* r: regs) {
                 BB.addLiveIn(r);
             }
         }
-        if (liveSet.liveOut.contains(value)) {
+        if (liveSet->liveOut.contains(value)) {
             for (auto* r: regs) {
                 BB.addLiveOut(r);
             }

@@ -108,7 +108,13 @@ static Asm::Value toValue(mir::Value const* value) {
     // clang-format off
     return visit(*value, utl::overload{
         [](mir::Constant const& constant) -> Asm::Value {
-            return Value64(constant.value());
+            switch (constant.bytewidth()) {
+            case 1: return Value8(constant.value());
+            case 2: return Value16(constant.value());
+            case 4: return Value32(constant.value());
+            case 8: return Value64(constant.value());
+            default: SC_UNREACHABLE();
+            }
         },
         [](mir::UndefValue const&) -> Asm::Value {
             return Asm::RegisterIndex(0);
@@ -120,22 +126,6 @@ static Asm::Value toValue(mir::Value const* value) {
             SC_UNREACHABLE();
         }
     }); // clang-format on
-}
-
-static Asm::Value toConstant(mir::Value const* value, size_t numBytes) {
-    auto* c = cast<mir::Constant const*>(value);
-    switch (numBytes) {
-    case 1:
-        return Asm::Value8(c->value());
-    case 2:
-        return Asm::Value16(c->value());
-    case 4:
-        return Asm::Value32(c->value());
-    case 8:
-        return Asm::Value64(c->value());
-    default:
-        SC_UNREACHABLE();
-    }
 }
 
 /// Instruction pointer, register pointer offset and stack pointer
@@ -187,9 +177,8 @@ void CGContext::genInst(mir::Instruction const& inst) {
         break;
     }
     case mir::InstCode::LIncSP: {
-        auto dest = toRegIdx(inst.dest());
-        /// 2 bytes because `LIncSPInst` expects a `Value16`.
-        auto numBytes = toConstant(inst.operandAt(0), 2);
+        auto dest     = toRegIdx(inst.dest());
+        auto numBytes = toValue(inst.operandAt(0));
         currentBlock->insertBack(
             LIncSPInst(dest, numBytes.get<Asm::Value16>()));
         break;
@@ -247,8 +236,25 @@ void CGContext::genInst(mir::Instruction const& inst) {
         break;
     }
     case mir::InstCode::Conversion: {
-        SC_DEBUGFAIL();
-        //        currentBlock->insertBack(ConvInst(tmp, type, fromBits));
+        auto dest    = toRegIdx(inst.dest());
+        auto operand = toRegIdx(inst.operandAt(0));
+        auto conv    = inst.instDataAs<mir::Conversion>();
+        auto type    = [&] {
+            switch (conv) {
+            case mir::Conversion::Sext:
+                return Asm::Type::Signed;
+            case mir::Conversion::Fext:
+                return Asm::Type::Float;
+            case mir::Conversion::Ftrunc:
+                return Asm::Type::Float;
+            default:
+                SC_UNREACHABLE();
+            }
+        }();
+        if (inst.dest() != inst.operandAt(0)) {
+            currentBlock->insertBack(MoveInst(dest, operand, inst.bytewidth()));
+        }
+        currentBlock->insertBack(ConvInst(dest, type, inst.bitwidth()));
         break;
     }
     case mir::InstCode::Jump: {

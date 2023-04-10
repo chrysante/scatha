@@ -54,7 +54,7 @@ void InterferenceGraph::computeImpl(Function const& function) {
     }
     auto liveSets = LiveSets::compute(function);
     for (auto& param: function.parameters()) {
-        addEdges(&param, liveSets.find(&function.entry()).liveIn);
+        addEdges(&param, liveSets.find(&function.entry())->liveIn);
     }
     for (auto& [BB, liveSetsOfBB]: liveSets) {
         auto live          = liveSetsOfBB.liveOut;

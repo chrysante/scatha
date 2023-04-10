@@ -73,7 +73,8 @@ public:
 
     template <typename V = Value>
     V const* operandAt(size_t index) const {
-        return cast<V const*>(ops[index]);
+        auto* op = ops[index];
+        return op ? cast<V const*>(op) : nullptr;
     }
 
     std::span<Value* const> operands() { return ops; }
@@ -177,12 +178,18 @@ private:
 ///
 class Constant: public Value {
 public:
-    Constant(uint64_t value): Value(NodeType::Constant), val(value) {}
+    Constant(uint64_t value, size_t width):
+        Value(NodeType::Constant), val(value), _width(width) {}
 
     uint64_t value() const { return val; }
 
+    size_t bytewidth() const { return _width; }
+
+    size_t bitwidth() const { return 8 * bytewidth(); }
+
 private:
-    uint64_t val;
+    uint64_t val  = 0;
+    size_t _width = 0;
 };
 
 ///

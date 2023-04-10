@@ -138,6 +138,8 @@ SCATHA_API std::string_view toString(ArithmeticOperation arithmeticOp);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     ArithmeticOperation arithmeticOp);
 
+bool isShift(ArithmeticOperation arithmeticOp);
+
 /// ## Forward declarations of type categories
 
 #define SC_TYPE_CATEGORY_DEF(TypeCat) class TypeCat;

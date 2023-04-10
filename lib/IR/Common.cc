@@ -99,3 +99,8 @@ std::string_view ir::toString(ArithmeticOperation op) {
 std::ostream& ir::operator<<(std::ostream& ostream, ArithmeticOperation op) {
     return ostream << toString(op);
 }
+
+bool ir::isShift(ArithmeticOperation op) {
+    return op == ArithmeticOperation::LShL || op == ArithmeticOperation::LShR ||
+           op == ArithmeticOperation::AShL || op == ArithmeticOperation::AShR;
+}

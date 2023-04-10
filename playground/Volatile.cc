@@ -120,10 +120,10 @@ static void run(mir::Module const& mod) {
     for (auto& bb: F) {
         auto toNames = ranges::views::transform(
             [](ir::Value const* value) { return value->name(); });
-        auto& live = liveSets.find(&bb);
+        auto* live = liveSets.find(&bb);
         std::cout << bb.name() << ":\n";
-        std::cout << "\tLive in:  " << (live.liveIn | toNames) << "\n";
-        std::cout << "\tLive out: " << (live.liveOut | toNames) << "\n";
+        std::cout << "\tLive in:  " << (live->liveIn | toNames) << "\n";
+        std::cout << "\tLive out: " << (live->liveOut | toNames) << "\n";
     }
     std::cout << "\n";
 }
@@ -154,7 +154,7 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    bool const optimize = true;
+    bool const optimize = 1;
 
     if (optimize) {
         opt::inlineFunctions(ctx, irMod);

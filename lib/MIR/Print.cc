@@ -68,6 +68,8 @@ static constexpr auto light =
 
 static std::string formatInstCode(mir::Instruction const& inst) {
     switch (inst.instcode()) {
+    case InstCode::Copy:
+        return utl::strcat("cpy", inst.bitwidth());
     case InstCode::CondCopy:
         return utl::strcat("c",
                            inst.instDataAs<CompareOperation>(),

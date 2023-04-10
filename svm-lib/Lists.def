@@ -95,6 +95,7 @@ SVM_INSTRUCTION_DEF(cmovge32RM, RM)   // (u8 destRegIdx, MEMORY_POINTER)
 SVM_INSTRUCTION_DEF(cmovge64RM, RM)   // (u8 destRegIdx, MEMORY_POINTER)
 
 /// Store the stack pointer into register `destRegIdx` and increment it  by `offset` bytes
+/// \Warning: `offset` must be a multiple of 8 bytes.
 SVM_INSTRUCTION_DEF(lincsp, Other)  // (u8 destRegIdx, u16 offset)
 
 /// Load effective address. Compute the address specified by `MEMORY_POINTER`

@@ -26,7 +26,7 @@ func i64 @main() {
 })");
 }
 
-TEST_CASE("Float converstion", "[end-to-end]") {
+TEST_CASE("Float conversion", "[end-to-end]") {
     test::checkIRReturns(utl::bit_cast<u64>(static_cast<double>(3.0f / 2.0f)),
                          R"(
 func f64 @main() {

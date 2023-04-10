@@ -19,14 +19,14 @@ public:
     /// \p F
     SCATHA_TESTAPI static LiveSets compute(Function const& F);
 
-    BasicBlockLiveSets const& find(BasicBlock const* BB) const {
+    /// \Returns Live sets of basic block \p BB or `nullptr` if \p BB does not have live sets.
+    /// This can occur if a block is unreachable.
+    BasicBlockLiveSets const* find(BasicBlock const* BB) const {
         auto itr = sets.find(BB);
-        SC_ASSERT(itr != sets.end(), "Not found");
-        return itr->second;
-    }
-
-    BasicBlockLiveSets const& operator[](BasicBlock const* BB) const {
-        return find(BB);
+        if (itr == sets.end()) {
+            return nullptr;
+        }
+        return &itr->second;
     }
 
     auto begin() const { return sets.begin(); }
@@ -38,8 +38,6 @@ public:
     bool size() const { return sets.size(); }
 
 private:
-    LiveSets() = default;
-
     utl::hashmap<BasicBlock const*, BasicBlockLiveSets> sets;
 };
 

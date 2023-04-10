@@ -18,7 +18,8 @@ Module::~Module() = default;
 
 void Module::addFunction(Function* function) { funcs.push_back(function); }
 
-Constant* Module::constant(uint64_t value) {
-    auto [itr, success] = constants.insert({ value, Constant(value) });
+Constant* Module::constant(uint64_t value, size_t width) {
+    auto [itr, success] =
+        constants.insert({ { value, width }, Constant(value, width) });
     return &itr->second;
 }

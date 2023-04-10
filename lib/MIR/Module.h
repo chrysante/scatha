@@ -53,13 +53,13 @@ public:
         return asDerived<M>(*this).funcs.end();
     }
 
-    Constant* constant(uint64_t value);
+    Constant* constant(uint64_t value, size_t width);
 
     UndefValue* undefValue() const { return undef.get(); }
 
 private:
     List<Function> funcs;
-    utl::node_hashmap<uint64_t, Constant> constants;
+    utl::node_hashmap<std::pair<uint64_t, size_t>, Constant> constants;
     std::unique_ptr<UndefValue> undef;
 };
 

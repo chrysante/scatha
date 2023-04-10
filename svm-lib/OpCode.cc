@@ -66,9 +66,9 @@ struct svm::OpCodeImpl {
     template <OpCode C, size_t Size>
     static auto moveMR() {
         return [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
-            u8* const ptr = getPointer(reg, i);
-            SVM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
+            u8* const ptr             = getPointer(reg, i);
             size_t const sourceRegIdx = i[4];
+            SVM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
             std::memcpy(ptr, &reg[sourceRegIdx], Size);
             return codeSize(C);
         };
@@ -350,7 +350,8 @@ struct svm::OpCodeImpl {
         at(lincsp) = [](u8 const* i, u64* reg, VirtualMachine* vm) -> u64 {
             size_t const destRegIdx = load<u8>(i);
             size_t const offset     = load<u16>(i + 1);
-            reg[destRegIdx]         = utl::bit_cast<u64>(vm->stackPtr);
+            SVM_ASSERT(offset % 8 == 0);
+            reg[destRegIdx] = utl::bit_cast<u64>(vm->stackPtr);
             vm->stackPtr += offset;
             return codeSize(lincsp);
         };

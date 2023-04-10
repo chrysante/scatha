@@ -16,13 +16,17 @@
 #include "Assembly/AssemblyStream.h"
 #include "Basic/Memory.h"
 #include "CodeGen/AST2IR/CodeGenerator.h"
-#include "CodeGen/IR2ByteCode/CodeGenerator.h"
+#include "CodeGen/IRToMIR.h"
+#include "CodeGen/MIRToASM.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Parser.h"
 #include "Issue/IssueHandler.h"
 #include "Lexer/Lexer.h"
+#include "MIR/CFG.h"
+#include "MIR/Devirtualize.h"
+#include "MIR/Module.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
 #include "Opt/Inliner.h"
@@ -61,17 +65,21 @@ static void optimize(ir::Context& ctx, ir::Module& mod) {
     opt::inlineFunctions(ctx, mod);
 }
 
-static uint64_t run(ir::Module const& mod) {
+static uint64_t run(ir::Module const& irMod) {
     /// Start execution with main if it exists.
     std::string mainName;
-    for (auto& f: mod) {
+    for (auto& f: irMod) {
         if (f.name().starts_with("main")) {
             mainName = std::string(f.name());
             break;
         }
     }
     assert(!mainName.empty());
-    auto assembly = cg::codegen(mod);
+    auto mirMod = cg::lowerToMIR(irMod);
+    for (auto& F: mirMod) {
+        mir::devirtualize(F);
+    }
+    auto assembly = cg::lowerToASM(mirMod);
     auto prog     = Asm::assemble(assembly, { .startFunction = mainName });
     svm::VirtualMachine vm;
     vm.loadProgram(prog.data());
