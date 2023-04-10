@@ -184,6 +184,9 @@ struct PrintContext {
             [&](Constant const& C) {
                 str << literal("0x", std::hex, C.value(), std::dec);
             },
+            [&](UndefValue const&) {
+                str << keyword("undef");
+            },
             [&](BasicBlock const& BB) {
                 str << localName(BB.name());
             },

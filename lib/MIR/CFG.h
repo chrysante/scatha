@@ -21,7 +21,9 @@ concept InstructionData =
 ///
 ///
 ///
-class Instruction: public ListNodeWithParent<Instruction, BasicBlock> {
+class Instruction:
+    public ListNode<Instruction>,
+    public ParentedNode<BasicBlock> {
     template <typename T>
     static uint64_t convInstData(T data) {
         uint64_t res = 0;
@@ -92,7 +94,7 @@ namespace scatha::mir {
 ///
 ///
 ///
-class Value {
+class Value: public ListNode<Value, /* AllowSetSiblings = */ true> {
 public:
     NodeType nodeType() const { return _nodeType; }
 
@@ -110,11 +112,14 @@ inline NodeType dyncast_get_type(Value const& value) {
 ///
 ///
 ///
-class Register: public Value, public ListNodeWithParent<Register, Function> {
+class Register:
+    public ListNodeOverride<Register, Value>,
+    public ParentedNode<Function> {
 public:
     static constexpr size_t InvalidIndex = ~size_t(0);
 
-    explicit Register(size_t index): Value(NodeType::Register), _index(index) {}
+    explicit Register(size_t index):
+        ListNodeOverride<Register, Value>(NodeType::Register), _index(index) {}
 
     size_t index() const { return _index; }
 
@@ -148,11 +153,19 @@ private:
 ///
 ///
 ///
+class UndefValue: public Value {
+public:
+    UndefValue(): Value(NodeType::UndefValue) {}
+};
+
+///
+///
+///
 class BasicBlock:
-    public Value,
-    public CFGList<BasicBlock, Instruction>,
-    public ListNodeWithParent<BasicBlock, Function>,
-    public GraphNode<void, BasicBlock, GraphKind::Directed> {
+    public ListNodeOverride<BasicBlock, Value>,
+    public ParentedNode<Function>,
+    public GraphNode<void, BasicBlock, GraphKind::Directed>,
+    public CFGList<BasicBlock, Instruction> {
     using ListBase = CFGList<BasicBlock, Instruction>;
 
 public:
@@ -180,9 +193,9 @@ public:
     }
 
     bool isLiveIn(Register const* reg) const { return _liveIn.contains(reg); }
-        
+
     bool isLiveOut(Register const* reg) const { return _liveOut.contains(reg); }
-        
+
     auto const& liveIn() const { return _liveIn; }
 
     auto const& liveOut() const { return _liveOut; }
@@ -212,9 +225,8 @@ private:
 ///
 ///
 class Function:
-    public Value,
-    public CFGList<Function, BasicBlock>,
-    public ListNode<Function> {
+    public ListNodeOverride<Function, Value>,
+    public CFGList<Function, BasicBlock> {
     using ListBase = CFGList<Function, BasicBlock>;
 
 public:

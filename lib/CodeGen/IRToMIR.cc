@@ -244,7 +244,7 @@ void CodeGenContext::genInst(ir::Store const& store) {
     mir::Value* src         = resolve(store.value());
     size_t numWords    = utl::ceil_divide(store.value()->type()->size(), 8);
     auto addrConstData = dest.constantData();
-    for (size_t i = 0; i < numWords; ++i) {
+    for (size_t i = 0; i < numWords; ++i, src = src->next()) {
         addNewInst(mir::InstCode::Store,
                    nullptr,
                    { dest.addressRegister(), dest.offsetRegister(), src },
@@ -385,6 +385,8 @@ void CodeGenContext::genInst(ir::Return const& ret) {
 
 void CodeGenContext::genInst(ir::Phi const& phi) {
     /// We just remember the phi node to insert copies later.
+    /// Registers will be allocated by the first call to `resolve()` by any user
+    /// of this phi node.
     phiNodes.push_back(&phi);
 }
 
@@ -531,7 +533,7 @@ void CodeGenContext::postprocess() {
     /// registers
     for (auto* phi: phiNodes) {
         currentBlock = resolve(phi->parent());
-        auto* dest = resolve(phi);
+        auto* dest   = resolve(phi);
         for (auto [pred, arg]: phi->arguments()) {
             auto* mPred = cast<mir::BasicBlock*>(resolve(pred));
             auto before = mPred->end();
@@ -544,7 +546,7 @@ void CodeGenContext::postprocess() {
             }
             size_t const count = numWords(arg->type());
             auto* mArg         = resolve(arg);
-            auto* argReg = dyncast<mir::Register*>(mArg);
+            auto* argReg       = dyncast<mir::Register*>(mArg);
             if (argReg && !currentBlock->isLiveIn(argReg)) {
                 mPred->removeLiveOut(argReg, count);
             }
@@ -595,22 +597,11 @@ mir::Register* CodeGenContext::genCopy(mir::Register* dest,
                                        mir::Value* source,
                                        size_t numWords,
                                        mir::BasicBlock::ConstIterator before) {
-    if (!isa<mir::Register>(source)) {
-        SC_ASSERT(numWords == 1,
-                  "Can't handle literal values larger than 64 bit");
-        addNewInst(mir::InstCode::Copy, dest, { source }, uint64_t(0), before);
-        return dest;
-    }
-    auto* result    = dest;
-    auto* sourceReg = cast<mir::Register*>(source);
+    auto* result = dest;
     for (size_t i = 0; i < numWords;
-         ++i, dest = dest->next(), sourceReg = sourceReg->next())
+         ++i, dest = dest->next(), source = source->next())
     {
-        addNewInst(mir::InstCode::Copy,
-                   dest,
-                   { sourceReg },
-                   uint64_t(0),
-                   before);
+        addNewInst(mir::InstCode::Copy, dest, { source }, uint64_t(0), before);
     }
     return result;
 }
@@ -641,6 +632,9 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             auto* mirConst = result.constant(value);
             valueMap.insert({ &constant, mirConst });
             return mirConst;
+        },
+        [&](ir::UndefValue const&) -> mir::Value* {
+            return result.undefValue();
         },
         [](ir::Value const& value) -> mir::Value* {
             SC_UNREACHABLE("Everything else shall be forward declared");

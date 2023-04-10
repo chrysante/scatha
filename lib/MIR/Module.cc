@@ -5,6 +5,11 @@
 using namespace scatha;
 using namespace mir;
 
+Module::Module(): undef(new UndefValue()) {
+    undef->set_next(undef.get());
+    undef->set_prev(undef.get());
+}
+
 Module::Module(Module&&) noexcept = default;
 
 Module& Module::operator=(Module&&) noexcept = default;

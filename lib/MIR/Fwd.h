@@ -17,6 +17,7 @@ class Module;
 /// Value
 /// ├─ Register
 /// ├─ Constant
+/// ├─ UndefValue
 /// ├─ BasicBlock
 /// └─ Function
 /// ```

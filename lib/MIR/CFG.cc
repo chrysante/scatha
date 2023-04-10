@@ -68,7 +68,9 @@ void Register::removeUser(Instruction* inst) {
 }
 
 BasicBlock::BasicBlock(ir::BasicBlock const* irBB):
-    Value(NodeType::BasicBlock), _name(std::string(irBB->name())), irBB(irBB) {}
+    ListNodeOverride<BasicBlock, Value>(NodeType::BasicBlock),
+    _name(std::string(irBB->name())),
+    irBB(irBB) {}
 
 bool BasicBlock::isEntry() const { return parent()->entry() == this; }
 
@@ -87,6 +89,7 @@ void BasicBlock::addLiveImpl(utl::hashset<Register*>& set,
         set.insert(reg);
     }
 }
+
 void BasicBlock::removeLiveImpl(utl::hashset<Register*>& set,
                                 Register* reg,
                                 size_t count) {
@@ -99,7 +102,7 @@ void BasicBlock::removeLiveImpl(utl::hashset<Register*>& set,
 }
 
 Function::Function(ir::Function const* irFunc):
-    Value(NodeType::Function),
+    ListNodeOverride<Function, Value>(NodeType::Function),
     _name(std::string(irFunc->name())),
     irFunc(irFunc) {}
 

@@ -19,7 +19,7 @@ class SCATHA_TESTAPI Module {
     }
 
 public:
-    Module() = default;
+    Module();
 
     Module(Module const&) = delete;
 
@@ -55,9 +55,12 @@ public:
 
     Constant* constant(uint64_t value);
 
+    UndefValue* undefValue() const { return undef.get(); }
+
 private:
     List<Function> funcs;
     utl::node_hashmap<uint64_t, Constant> constants;
+    std::unique_ptr<UndefValue> undef;
 };
 
 } // namespace scatha::mir

@@ -11,6 +11,7 @@
 SC_MIR_CFGNODE_DEF(Value,               ABSTRACT)
 SC_MIR_CFGNODE_DEF(Register,            CONCRETE)
 SC_MIR_CFGNODE_DEF(Constant,            CONCRETE)
+SC_MIR_CFGNODE_DEF(UndefValue,          CONCRETE)
 SC_MIR_CFGNODE_DEF(BasicBlock,          CONCRETE)
 SC_MIR_CFGNODE_DEF(Function,            CONCRETE)
 
