@@ -11,8 +11,8 @@
 
 namespace scatha {
 
-template <typename T>
-using ListNode = utl::ilist_node<T>;
+template <typename T, bool AllowSetSiblings = false>
+using ListNode = utl::ilist_node<T, AllowSetSiblings>;
 
 /// Used to inherit from a class `Original` that already is a base class of
 /// `ListNode<...>` Then, when `Derived` inherits from
@@ -24,10 +24,13 @@ public:
     using Original::Original;
 
     Derived* prev() { return static_cast<Derived*>(asOriginal(this)->prev()); }
+
     Derived const* prev() const {
         return static_cast<Derived const*>(asOriginal(this)->prev());
     }
+
     Derived* next() { return static_cast<Derived*>(asOriginal(this)->next()); }
+
     Derived const* next() const {
         return static_cast<Derived const*>(asOriginal(this)->next());
     }
@@ -39,8 +42,22 @@ private:
     }
 };
 
-template <typename T, typename Parent>
-using ListNodeWithParent = utl::ilist_node_with_parent<T, Parent>;
+template <typename Parent>
+struct ParentedNode {
+public:
+    ParentedNode() = default;
+
+    ParentedNode(Parent* p): p(p) {}
+
+    Parent* parent() { return p; }
+
+    Parent const* parent() const { return p; }
+
+    void set_parent(Parent* parent) { p = parent; }
+
+private:
+    Parent* p = nullptr;
+};
 
 template <typename T>
 class DynAllocator: public std::allocator<T> {

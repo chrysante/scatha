@@ -17,7 +17,8 @@ namespace scatha::ir {
 class SCATHA_API BasicBlock:
     public Value,
     public CFGList<BasicBlock, Instruction>,
-    public ListNodeWithParent<BasicBlock, Function> {
+    public ListNode<BasicBlock>,
+    public ParentedNode<Function> {
     friend class CFGList<BasicBlock, Instruction>;
     using ListBase = CFGList<BasicBlock, Instruction>;
 

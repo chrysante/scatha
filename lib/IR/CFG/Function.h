@@ -17,8 +17,9 @@ namespace scatha::ir {
 /// Represents a function parameter.
 class SCATHA_API Parameter:
     public Value,
-    public ListNodeWithParent<Parameter, Callable> {
-    using NodeBase = ListNodeWithParent<Parameter, Callable>;
+    public ListNode<Parameter>,
+    public ParentedNode<Callable> {
+    using ParentNodeBase = ParentedNode<Callable>;
 
 public:
     explicit Parameter(Type const* type, size_t index, Callable* parent):
@@ -29,7 +30,7 @@ public:
                        std::string name,
                        Callable* parent):
         Value(NodeType::Parameter, type, std::move(name)),
-        NodeBase(parent),
+        ParentNodeBase(parent),
         _index(index) {}
 
     /// \returns the index of this parameter which may but does not have to be
@@ -102,7 +103,8 @@ private:
 class SCATHA_API Function:
     public Callable,
     public CFGList<Function, BasicBlock>,
-    public ListNodeWithParent<Function, Module> {
+    public ListNode<Function>,
+    public ParentedNode<Module> {
     friend class CFGList<Function, BasicBlock>;
     using ListBase = CFGList<Function, BasicBlock>;
 
