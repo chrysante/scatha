@@ -9,8 +9,12 @@ using namespace mir;
 Instruction::Instruction(InstCode opcode,
                          Register* dest,
                          utl::small_vector<Value*> operands,
-                         uint64_t instData):
-    oc(opcode), _dest(nullptr), _instData(instData) {
+                         uint64_t instData,
+                         size_t width):
+    oc(opcode),
+    _width(utl::narrow_cast<uint32_t>(width)),
+    _dest(nullptr),
+    _instData(instData) {
     setDest(dest);
     setOperands(std::move(operands));
 }

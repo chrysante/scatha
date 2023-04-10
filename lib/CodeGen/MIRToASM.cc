@@ -146,19 +146,19 @@ void CGContext::genInst(mir::Instruction const& inst) {
     case mir::InstCode::Store: {
         auto dest   = getAddressOperand(inst);
         auto source = toRegIdx(inst.operandAt(2));
-        currentBlock->insertBack(MoveInst(dest, source, 8));
+        currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
         break;
     }
     case mir::InstCode::Load: {
         auto dest   = toRegIdx(inst.dest());
         auto source = getAddressOperand(inst);
-        currentBlock->insertBack(MoveInst(dest, source, 8));
+        currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
         break;
     }
     case mir::InstCode::Copy: {
         auto dest   = toRegIdx(inst.dest());
         auto source = toValue(inst.operandAt(0));
-        currentBlock->insertBack(MoveInst(dest, source, 8));
+        currentBlock->insertBack(MoveInst(dest, source, inst.bytewidth()));
         break;
     }
     case mir::InstCode::Call: {
@@ -180,8 +180,10 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto dest   = toRegIdx(inst.dest());
         auto source = toValue(inst.operandAt(0));
         auto cond   = inst.instDataAs<mir::CompareOperation>();
-        currentBlock->insertBack(
-            CMoveInst(mapCompareOperation(cond), dest, source, 8));
+        currentBlock->insertBack(CMoveInst(mapCompareOperation(cond),
+                                           dest,
+                                           source,
+                                           inst.bytewidth()));
         break;
     }
     case mir::InstCode::LIncSP: {
@@ -203,13 +205,14 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto RHS  = toValue(inst.operandAt(1));
         auto mode = inst.instDataAs<mir::CompareMode>();
         currentBlock->insertBack(
-            Asm::CompareInst(mapCompareMode(mode), LHS, RHS, 8));
+            Asm::CompareInst(mapCompareMode(mode), LHS, RHS, inst.bytewidth()));
         break;
     }
     case mir::InstCode::Test: {
         auto operand = toValue(inst.operandAt(0));
         auto mode    = inst.instDataAs<mir::CompareMode>();
-        currentBlock->insertBack(TestInst(mapCompareMode(mode), operand, 8));
+        currentBlock->insertBack(
+            TestInst(mapCompareMode(mode), operand, inst.bytewidth()));
         break;
     }
     case mir::InstCode::Set: {
@@ -223,7 +226,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto operand   = toRegIdx(inst.operandAt(0));
         auto operation = inst.instDataAs<mir::UnaryArithmeticOperation>();
         if (inst.dest() != inst.operandAt(0)) {
-            currentBlock->insertBack(MoveInst(dest, operand, 8));
+            currentBlock->insertBack(MoveInst(dest, operand, inst.bytewidth()));
         }
         currentBlock->insertBack(
             UnaryArithmeticInst(mapUnaryArithmetic(operation), dest));
@@ -235,10 +238,12 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto RHS       = toValue(inst.operandAt(1));
         auto operation = inst.instDataAs<mir::ArithmeticOperation>();
         if (inst.dest() != inst.operandAt(0)) {
-            currentBlock->insertBack(MoveInst(dest, LHS, 8));
+            currentBlock->insertBack(MoveInst(dest, LHS, inst.bytewidth()));
         }
-        currentBlock->insertBack(
-            Asm::ArithmeticInst(mapArithmetic(operation), dest, RHS, 8));
+        currentBlock->insertBack(Asm::ArithmeticInst(mapArithmetic(operation),
+                                                     dest,
+                                                     RHS,
+                                                     inst.bytewidth()));
         break;
     }
     case mir::InstCode::Conversion: {

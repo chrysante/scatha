@@ -65,15 +65,17 @@ struct CodeGenContext {
     /// \Returns The register after \p dest
     mir::Register* genCopy(mir::Register* dest,
                            mir::Value* source,
-                           size_t numWords) {
-        return genCopy(dest, source, numWords, currentBlock->end());
+                           size_t numBytes) {
+        return genCopy(dest, source, numBytes, currentBlock->end());
     }
 
     /// \overload
     mir::Register* genCopy(mir::Register* dest,
                            mir::Value* source,
-                           size_t numWords,
-                           mir::BasicBlock::ConstIterator before);
+                           size_t numBytes,
+                           mir::BasicBlock::ConstIterator before,
+                           mir::InstCode code = mir::InstCode::Copy,
+                           uint64_t instData  = 0);
 
     /// Maps IR values to MIR values. In particular:
     /// ```
@@ -118,20 +120,23 @@ struct CodeGenContext {
     mir::Register* nextRegistersFor(size_t numWords, ir::Value const* liveWith);
 
     template <mir::InstructionData T = uint64_t>
-    mir::Instruction* newInst(mir::Register* dest,
-                              mir::InstCode code,
+    mir::Instruction* newInst(mir::InstCode code,
+                              mir::Register* dest,
                               utl::small_vector<mir::Value*> operands,
-                              T instData = {});
+                              T instData   = {},
+                              size_t width = 8);
 
     template <mir::InstructionData T = uint64_t>
     AddNewInstResult addNewInst(mir::InstCode code,
                                 mir::Register* dest,
                                 utl::small_vector<mir::Value*> operands,
-                                T instData = {}) {
+                                T instData   = {},
+                                size_t width = 8) {
         return addNewInst(code,
                           dest,
                           std::move(operands),
                           instData,
+                          width,
                           currentBlock->end());
     }
 
@@ -140,6 +145,7 @@ struct CodeGenContext {
                                 mir::Register* dest,
                                 utl::small_vector<mir::Value*> operands,
                                 T instData,
+                                size_t width,
                                 mir::BasicBlock::ConstIterator before);
 
     size_t numWords(ir::Type const* type) const {
@@ -246,27 +252,33 @@ void CodeGenContext::genInst(ir::Alloca const& allocaInst) {
 void CodeGenContext::genInst(ir::Store const& store) {
     mir::MemoryAddress dest = computeAddress(store.address());
     mir::Value* src         = resolve(store.value());
-    size_t numWords    = utl::ceil_divide(store.value()->type()->size(), 8);
-    auto addrConstData = dest.constantData();
+    size_t numBytes         = store.value()->type()->size();
+    size_t numWords         = utl::ceil_divide(numBytes, 8);
+    auto addrConstData      = dest.constantData();
     for (size_t i = 0; i < numWords; ++i, src = src->next()) {
+        size_t byteWidth = i != numWords - 1 ? 8 : numBytes % 8;
         addNewInst(mir::InstCode::Store,
                    nullptr,
                    { dest.addressRegister(), dest.offsetRegister(), src },
-                   addrConstData);
+                   addrConstData,
+                   byteWidth);
         addrConstData.offsetTerm += 8;
     }
 }
 
 void CodeGenContext::genInst(ir::Load const& load) {
     mir::MemoryAddress src = computeAddress(load.address());
-    size_t numWords        = utl::ceil_divide(load.type()->size(), 8);
+    size_t numBytes        = load.type()->size();
+    size_t numWords        = utl::ceil_divide(numBytes, 8);
     auto* dest             = resolve(&load);
     auto addrConstData     = src.constantData();
     for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
+        size_t byteWidth = i != numWords - 1 ? 8 : numBytes % 8;
         addNewInst(mir::InstCode::Load,
                    dest,
                    { src.addressRegister(), src.offsetRegister() },
-                   addrConstData);
+                   addrConstData,
+                   byteWidth);
         addrConstData.offsetTerm += 8;
     }
 }
@@ -311,7 +323,8 @@ void CodeGenContext::genInst(ir::UnaryArithmeticInst const& inst) {
     addNewInst(mir::InstCode::UnaryArithmetic,
                resolve(&inst),
                { operand },
-               inst.operation());
+               inst.operation(),
+               inst.operand()->type()->size());
 }
 
 void CodeGenContext::genInst(ir::ArithmeticInst const& inst) {
@@ -320,7 +333,8 @@ void CodeGenContext::genInst(ir::ArithmeticInst const& inst) {
     addNewInst(mir::InstCode::Arithmetic,
                resolve(&inst),
                { lhs, rhs },
-               inst.operation());
+               inst.operation(),
+               inst.lhs()->type()->size());
 }
 
 void CodeGenContext::genInst(ir::Goto const& gt) {
@@ -335,7 +349,8 @@ void CodeGenContext::genInst(ir::Branch const& br) {
     addNewInst(mir::InstCode::Test,
                nullptr,
                { cond },
-               mir::CompareMode::Unsigned);
+               mir::CompareMode::Unsigned,
+               1);
     addNewInst(mir::InstCode::CondJump,
                nullptr,
                { thenTarget },
@@ -364,7 +379,7 @@ void CodeGenContext::genInst(ir::Call const& call) {
     /// Copy arguments into virtual registers.
     auto* dest = currentFunction->virtRegBegin().to_address();
     for (auto* arg: call.arguments()) {
-        dest = genCopy(dest, resolve(arg), numWords(arg->type()));
+        dest = genCopy(dest, resolve(arg), arg->type()->size());
     }
     // clang-format off
     visit(*call.function(), utl::overload{
@@ -382,16 +397,26 @@ void CodeGenContext::genInst(ir::Call const& call) {
     if (!isa<ir::VoidType>(call.type())) {
         genCopy(resolve(&call),
                 currentFunction->virtRegBegin().to_address(),
-                numWords(call.type()));
+                call.type()->size());
     }
 }
 
 void CodeGenContext::genInst(ir::Return const& ret) {
     if (!isa<ir::VoidType>(ret.value()->type())) {
-        auto* returnValue     = resolve(ret.value());
-        auto* dest            = currentFunction->regBegin().to_address();
-        size_t const numWords = this->numWords(ret.value()->type());
-        genCopy(dest, returnValue, numWords);
+        size_t const numBytes = ret.value()->type()->size();
+        size_t const numWords = utl::ceil_divide(numBytes, 8);
+        /// Make sure we actually have allocated enough registers for the return
+        /// value.
+        size_t const highRegIndex =
+            currentFunction->regEmpty() ?
+                static_cast<size_t>(-1) :
+                currentFunction->registers().back()->index();
+        for (size_t i = highRegIndex + 1; i < numWords; ++i) {
+            currentFunction->addRegister(new mir::Register(i));
+        }
+        auto* returnValue = resolve(ret.value());
+        auto* dest        = currentFunction->regBegin().to_address();
+        genCopy(dest, returnValue, numBytes);
         for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
             currentBlock->addLiveOut(dest);
         }
@@ -437,9 +462,8 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
         source = source->next();
         byteOffset -= 8;
     }
-    size_t const numWords = this->numWords(type);
     if (byteOffset % 8 == 0 && type->size() % 8 == 0) {
-        genCopy(dest, source, numWords);
+        genCopy(dest, source, type->size());
         return;
     }
     size_t const size   = type->size();
@@ -468,7 +492,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
     auto* original            = resolve(insert.baseValue());
     auto* dest                = resolve(&insert);
     ir::Type const* outerType = insert.type();
-    genCopy(dest, original, numWords(outerType));
+    genCopy(dest, original, outerType->size());
     size_t byteOffset         = 0;
     ir::Type const* innerType = outerType;
     for (size_t index: insert.memberIndices()) {
@@ -481,7 +505,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
         byteOffset -= 8;
     }
     if (byteOffset % 8 == 0 && innerType->size() % 8 == 0) {
-        genCopy(dest, source, numWords(innerType));
+        genCopy(dest, source, innerType->size());
         return;
     }
     size_t const size   = innerType->size();
@@ -515,33 +539,23 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
 }
 
 void CodeGenContext::genInst(ir::Select const& select) {
-    auto* cond            = resolve(select.condition());
-    auto* thenVal         = resolve(select.thenValue());
-    auto* elseVal         = resolve(select.elseValue());
-    size_t const numWords = this->numWords(select.type());
-    auto* dest            = resolve(&select);
+    auto* cond      = resolve(select.condition());
+    auto* thenVal   = resolve(select.thenValue());
+    auto* elseVal   = resolve(select.elseValue());
+    size_t numBytes = select.type()->size();
+    auto* dest      = resolve(&select);
     addNewInst(mir::InstCode::Test,
                nullptr,
                { cond },
-               mir::CompareMode::Unsigned);
-    genCopy(dest, thenVal, numWords);
-    if (auto* srcReg = dyncast<mir::Register*>(elseVal)) {
-        for (size_t i = 0; i < numWords;
-             ++i, dest = dest->next(), srcReg = srcReg->next())
-        {
-            addNewInst(mir::InstCode::CondCopy,
-                       dest,
-                       { srcReg },
-                       mir::CompareOperation::NotEqual);
-        }
-    }
-    else {
-        SC_ASSERT(numWords == 1, "");
-        addNewInst(mir::InstCode::CondCopy,
-                   dest,
-                   { elseVal },
-                   mir::CompareOperation::NotEqual);
-    }
+               mir::CompareMode::Unsigned,
+               1);
+    genCopy(dest, thenVal, numBytes);
+    genCopy(dest,
+            elseVal,
+            numBytes,
+            currentBlock->end(),
+            mir::InstCode::CondCopy,
+            static_cast<uint64_t>(mir::CompareOperation::NotEqual));
 }
 
 void CodeGenContext::postprocess() {
@@ -560,14 +574,15 @@ void CodeGenContext::postprocess() {
                 }
                 before = p;
             }
-            size_t const count = numWords(arg->type());
-            auto* mArg         = resolve(arg);
-            auto* argReg       = dyncast<mir::Register*>(mArg);
+            size_t numBytes = arg->type()->size();
+            size_t numWords = utl::ceil_divide(numBytes, 8);
+            auto* mArg      = resolve(arg);
+            auto* argReg    = dyncast<mir::Register*>(mArg);
             if (argReg && !currentBlock->isLiveIn(argReg)) {
-                mPred->removeLiveOut(argReg, count);
+                mPred->removeLiveOut(argReg, numWords);
             }
-            mPred->addLiveOut(dest, count);
-            genCopy(dest, mArg, count, before);
+            mPred->addLiveOut(dest, numWords);
+            genCopy(dest, mArg, numBytes, before);
         }
     }
 }
@@ -594,7 +609,7 @@ mir::MemoryAddress CodeGenContext::computeGep(
             return regArrayIdx;
         }
         auto* result = nextRegistersFor(1, gep);
-        genCopy(result, arrayIndex, 1);
+        genCopy(result, arrayIndex, 8);
         return result;
     }();
     auto* accessedType    = gep->inboundsType();
@@ -613,12 +628,16 @@ mir::MemoryAddress CodeGenContext::computeGep(
 
 mir::Register* CodeGenContext::genCopy(mir::Register* dest,
                                        mir::Value* source,
-                                       size_t numWords,
-                                       mir::BasicBlock::ConstIterator before) {
+                                       size_t numBytes,
+                                       mir::BasicBlock::ConstIterator before,
+                                       mir::InstCode code,
+                                       uint64_t instData) {
+    size_t const numWords = utl::ceil_divide(numBytes, 8);
     for (size_t i = 0; i < numWords;
          ++i, dest = dest->next(), source = source->next())
     {
-        addNewInst(mir::InstCode::Copy, dest, { source }, uint64_t(0), before);
+        size_t const byteWidth = i != numWords - 1 ? 8 : numBytes % 8;
+        addNewInst(code, dest, { source }, instData, byteWidth, before);
     }
     return dest;
 }
@@ -688,11 +707,12 @@ mir::Register* CodeGenContext::nextRegistersFor(size_t numWords,
 
 template <mir::InstructionData T>
 mir::Instruction* CodeGenContext::newInst(
-    mir::Register* dest,
     mir::InstCode code,
+    mir::Register* dest,
     utl::small_vector<mir::Value*> operands,
-    T data) {
-    return new mir::Instruction(code, dest, std::move(operands), data);
+    T data,
+    size_t width) {
+    return new mir::Instruction(code, dest, std::move(operands), data, width);
 }
 
 template <mir::InstructionData T>
@@ -701,8 +721,9 @@ AddNewInstResult CodeGenContext::addNewInst(
     mir::Register* dest,
     utl::small_vector<mir::Value*> operands,
     T data,
+    size_t width,
     mir::BasicBlock::ConstIterator before) {
-    auto* inst = newInst(dest, code, std::move(operands), data);
+    auto* inst = newInst(code, dest, std::move(operands), data, width);
     currentBlock->insert(before, inst);
     return { .reg = dest, .inst = inst };
 }

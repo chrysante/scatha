@@ -66,40 +66,43 @@ static constexpr auto light =
         return str << tfmt::format(tfmt::brightGrey | tfmt::italic, args...);
     });
 
-namespace {
-
-std::string formatInstCode(InstCode code, uint64_t data) {
-    switch (code) {
+static std::string formatInstCode(mir::Instruction const& inst) {
+    switch (inst.instcode()) {
     case InstCode::CondCopy:
-        return utl::strcat("c", toString(static_cast<CompareOperation>(data)));
+        return utl::strcat("c",
+                           inst.instDataAs<CompareOperation>(),
+                           inst.bitwidth());
     case InstCode::Compare:
-        return std::string(toString(static_cast<CompareMode>(data)));
+        return utl::strcat(inst.instDataAs<CompareMode>(), inst.bitwidth());
     case InstCode::Set:
-        return utl::strcat("set",
-                           toString(static_cast<CompareOperation>(data)));
+        return utl::strcat("set", inst.instDataAs<CompareOperation>());
     case InstCode::Test:
-        switch (static_cast<CompareMode>(data)) {
+        switch (inst.instDataAs<CompareMode>()) {
         case CompareMode::Signed:
-            return "stest";
+            return utl::strcat("stest", inst.bitwidth());
         case CompareMode::Unsigned:
-            return "utest";
+            return utl::strcat("utest", inst.bitwidth());
         default:
             SC_UNREACHABLE();
         }
     case InstCode::UnaryArithmetic:
-        return std::string(
-            toString(static_cast<UnaryArithmeticOperation>(data)));
+        return utl::strcat(toString(
+                               inst.instDataAs<UnaryArithmeticOperation>()),
+                           inst.bitwidth());
     case InstCode::Arithmetic:
-        return std::string(toString(static_cast<ArithmeticOperation>(data)));
+        return utl::strcat(inst.instDataAs<ArithmeticOperation>(),
+                           inst.bitwidth());
     case InstCode::Conversion:
-        return std::string(toString(static_cast<Conversion>(data)));
+        return utl::strcat(inst.instDataAs<Conversion>());
     case InstCode::CondJump:
-        return utl::strcat("j", toString(static_cast<CompareOperation>(data)));
+        return utl::strcat("j", inst.instDataAs<CompareOperation>());
     default:
         break;
     }
-    return std::string(mir::toString(code));
+    return std::string(mir::toString(inst.instcode()));
 }
+
+namespace {
 
 struct PrintContext {
     PrintContext(std::ostream& str): str(str) {}
@@ -156,8 +159,7 @@ struct PrintContext {
         else {
             str << std::setw(6) << "";
         }
-        std::string opcodeStr =
-            formatInstCode(inst->instcode(), inst->instData());
+        std::string opcodeStr = formatInstCode(*inst);
         str << std::left << std::setw(6) << opcode(opcodeStr) << " ";
         for (bool first = true; auto* op: inst->operands()) {
             if (!first) {

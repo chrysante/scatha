@@ -36,14 +36,19 @@ public:
     explicit Instruction(InstCode opcode,
                          Register* dest,
                          utl::small_vector<Value*> operands,
-                         T instData):
-        Instruction(opcode, dest, std::move(operands), convInstData(instData)) {
-    }
+                         T instData,
+                         size_t width):
+        Instruction(opcode,
+                    dest,
+                    std::move(operands),
+                    convInstData(instData),
+                    width) {}
 
     explicit Instruction(InstCode opcode,
                          Register* dest,
                          utl::small_vector<Value*> operands = {},
-                         uint64_t instData                  = 0);
+                         uint64_t instData                  = 0,
+                         size_t width                       = 8);
 
     void setDest(Register* dest);
 
@@ -52,6 +57,10 @@ public:
     void clearOperands();
 
     InstCode instcode() const { return oc; }
+
+    size_t bytewidth() const { return _width; }
+
+    size_t bitwidth() const { return 8 * bytewidth(); }
 
     Register* dest() { return _dest; }
 
@@ -84,6 +93,7 @@ public:
 
 private:
     InstCode oc;
+    uint32_t _width;
     Register* _dest;
     utl::small_vector<Value*> ops;
     uint64_t _instData;

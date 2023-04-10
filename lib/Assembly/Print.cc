@@ -41,7 +41,7 @@ static constexpr utl::streammanip instName =
 };
 
 static void printImpl(std::ostream& str, MoveInst const& mov) {
-    str << instName("mov", mov.numBytes() * 8) << " " << mov.dest() << ", "
+    str << instName("mov", 8 * mov.numBytes()) << " " << mov.dest() << ", "
         << mov.source();
 }
 
@@ -55,8 +55,8 @@ static void printImpl(std::ostream& str, UnaryArithmeticInst const& inst) {
 }
 
 static void printImpl(std::ostream& str, ArithmeticInst const& inst) {
-    str << instName(inst.operation()) << " " << inst.dest() << ", "
-        << inst.source();
+    str << instName(inst.operation(), 8 * inst.width()) << " " << inst.dest()
+        << ", " << inst.source();
 }
 
 static void printImpl(std::ostream& str, JumpInst const& jmp) {
