@@ -1,5 +1,8 @@
 #include "CodeGen/InterferenceGraph.h"
 
+#include <utl/graph.hpp>
+#include <utl/vector.hpp>
+
 #include "MIR/CFG.h"
 
 using namespace scatha;
@@ -12,11 +15,24 @@ InterferenceGraph InterferenceGraph::compute(Function& function) {
     return result;
 }
 
-void InterferenceGraph::colorize(size_t maxColors) {
-    numCols = maxColors;
-    for (auto& n: nodes) {
-        n->col = 0;
-    }
+void InterferenceGraph::colorize() {
+    utl::small_vector<Node const*> lexOrdering;
+    lexOrdering.reserve(size());
+    auto neighbours = [](Node const* node) { return node->neighbours(); };
+    utl::find_lex_ordering(begin(),
+                           end(),
+                           neighbours,
+                           std::back_inserter(lexOrdering));
+    bool const isChordal =
+        utl::is_chordal(lexOrdering.begin(), lexOrdering.end(), neighbours);
+    /// ** Graph is not chordal for some reason... **
+    (void)isChordal;
+    numCols = utl::greedy_color(lexOrdering.begin(),
+                                lexOrdering.end(),
+                                neighbours,
+                                [](Node const* node, size_t color) {
+        const_cast<Node*>(node)->col = color;
+    });
 }
 
 void InterferenceGraph::computeImpl(Function& F) {
@@ -25,6 +41,12 @@ void InterferenceGraph::computeImpl(Function& F) {
     }
     for (auto* reg: F.virtualRegisters()) {
         addRegister(reg);
+    }
+    for (auto argRegs = F.argumentRegisters(); auto* r: argRegs) {
+        addEdges(r, argRegs);
+    }
+    for (auto returnRegs = F.returnRegisters(); auto* r: returnRegs) {
+        addEdges(r, returnRegs);
     }
     for (auto& BB: F) {
         auto live = BB.liveOut();

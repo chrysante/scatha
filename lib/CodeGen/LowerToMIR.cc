@@ -219,12 +219,30 @@ void CodeGenContext::genFunction(ir::Function const& function) {
         declareBasicBlock(bb);
     }
     /// Generate registers for parameters.
-    auto* entry  = &function.entry();
-    currentBlock = resolve(entry);
+    auto* entry         = &function.entry();
+    currentBlock        = resolve(entry);
+    size_t numParamRegs = 0;
     for (auto& param: function.parameters()) {
+        numParamRegs += numWords(param.type());
         auto* reg = nextRegistersFor(&param);
         valueMap.insert({ &param, reg });
     }
+    utl::small_vector<mir::Register*> regs;
+    regs.reserve(numParamRegs);
+    auto* reg = currentFunction->regBegin().to_address();
+    for (size_t i = 0; i < numParamRegs; ++i, reg = reg->next()) {
+        regs.push_back(reg);
+    }
+    currentFunction->setArgumentRegisters(regs);
+    /// Generate registers for parameters the return value.
+    size_t const returnTypeNumWords = numWords(function.returnType());
+    for (size_t i = numParamRegs; i < returnTypeNumWords; ++i) {
+        auto* r = new mir::Register(i);
+        regs.push_back(r);
+        currentFunction->addRegister(r);
+    }
+    regs.resize(returnTypeNumWords);
+    currentFunction->setReturnRegisters(std::move(regs));
     for (auto& bb: function) {
         genBasicBlock(bb);
     }
@@ -432,17 +450,8 @@ void CodeGenContext::genInst(ir::Return const& ret) {
     if (!isa<ir::VoidType>(ret.value()->type())) {
         size_t const numBytes = ret.value()->type()->size();
         size_t const numWords = utl::ceil_divide(numBytes, 8);
-        /// Make sure we actually have allocated enough registers for the return
-        /// value.
-        size_t const highRegIndex =
-            currentFunction->regEmpty() ?
-                static_cast<size_t>(-1) :
-                currentFunction->registers().back()->index();
-        for (size_t i = highRegIndex + 1; i < numWords; ++i) {
-            currentFunction->addRegister(new mir::Register(i));
-        }
-        auto* returnValue = resolve(ret.value());
-        auto* dest        = currentFunction->regBegin().to_address();
+        auto* returnValue     = resolve(ret.value());
+        auto* dest            = currentFunction->regBegin().to_address();
         genCopy(dest, returnValue, numBytes);
         for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
             currentBlock->addLiveOut(dest);

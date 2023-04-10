@@ -386,7 +386,7 @@ struct InterferenceGraphContext {
 
     InterferenceGraphContext(mir::Function const& F):
         graph(cg::InterferenceGraph::compute(const_cast<mir::Function&>(F))) {
-        graph.colorize(255);
+        graph.colorize();
         maxDegree =
             ranges::accumulate(graph, size_t(0), ranges::max, [](auto* node) {
                 return node->degree();
@@ -428,8 +428,7 @@ struct InterferenceGraphContext {
     std::string toColor(Node const* node) const {
         double const hue =
             static_cast<double>(node->color()) / graph.numColors();
-        double const val =
-            0.5 + 0.5 * static_cast<double>(node->degree()) / (maxDegree);
+        double const val = 0.8;
         std::stringstream str;
         str << std::setw(5) << std::fixed << hue << " 0.5 " << val << " 0.5";
         return std::move(str).str();
@@ -442,7 +441,8 @@ struct InterferenceGraphContext {
         str << "    fillcolor=\"" << toColor(node) << "\", \n";
         str << "    height=1.5 \n";
         str << "    width=1.5 \n";
-        str << "    label= \"%" << node->reg()->index() << "\"";
+        str << "    label= \"%" << node->reg()->index() << " -> %"
+            << node->color() << "\"";
         str << "]\n";
         return std::move(str).str();
     }

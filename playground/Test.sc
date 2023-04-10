@@ -1,4 +1,4 @@
-fn f(a: int, b: int) -> int {
+fn f(a: int, b: int, c: int, d: int) -> int {
     let aSave = a;
     while a != b {
         let t = b;

@@ -331,6 +331,24 @@ public:
 
     void setNumLocalRegisters(size_t count) { localRegs = count; }
 
+    std::span<Register* const> argumentRegisters() { return argRegs; }
+
+    std::span<Register const* const> argumentRegister() const {
+        return argRegs;
+    }
+
+    void setArgumentRegisters(utl::small_vector<Register*> regs) {
+        argRegs = std::move(regs);
+    }
+
+    std::span<Register* const> returnRegisters() { return retRegs; }
+
+    std::span<Register const* const> returnRegisters() const { return retRegs; }
+
+    void setReturnRegisters(utl::small_vector<Register*> regs) {
+        retRegs = std::move(regs);
+    }
+
 private:
     friend class CFGList<Function, BasicBlock>;
 
@@ -342,6 +360,7 @@ private:
     List<Register> virtRegs;
     ir::Function const* irFunc = nullptr;
     size_t localRegs           = 0;
+    utl::small_vector<Register*> argRegs, retRegs;
 };
 
 } // namespace scatha::mir

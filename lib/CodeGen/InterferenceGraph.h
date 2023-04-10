@@ -25,20 +25,20 @@ public:
     public:
         explicit Node(mir::Register* reg): _reg(reg) {}
 
-        int color() const { return col; }
+        size_t color() const { return col; }
 
         mir::Register* reg() const { return _reg; }
 
     private:
         friend class InterferenceGraph;
 
-        int col = -1;
+        size_t col = ~size_t{ 0 };
         mir::Register* _reg;
     };
 
     static InterferenceGraph compute(mir::Function& F);
 
-    void colorize(size_t maxColors);
+    void colorize();
 
     size_t numColors() const { return numCols; }
 
