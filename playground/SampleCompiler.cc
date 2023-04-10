@@ -8,11 +8,11 @@
 #include <svm/VirtualMachine.h>
 #include <utl/typeinfo.hpp>
 
+#include "AST/LowerToIR.h"
 #include "AST/Print.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
-#include "CodeGen/AST2IR/CodeGenerator.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"

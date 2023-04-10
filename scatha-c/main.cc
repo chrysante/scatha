@@ -5,10 +5,10 @@
 #include <sstream>
 #include <string>
 
+#include <scatha/AST/LowerToIR.h>
 #include <scatha/AST/Print.h>
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
-#include <scatha/CodeGen/AST2IR/CodeGenerator.h>
 #include <scatha/CodeGen/IR2ByteCode/CodeGenerator.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>

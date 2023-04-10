@@ -8,10 +8,10 @@
 
 #include <svm/Program.h>
 
+#include "AST/LowerToIR.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
-#include "CodeGen/AST2IR/CodeGenerator.h"
 #include "CodeGen/IR2ByteCode/CodeGenerator.h"
 #include "IR/Context.h"
 #include "IR/Module.h"

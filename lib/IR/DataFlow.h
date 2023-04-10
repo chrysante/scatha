@@ -19,8 +19,8 @@ public:
     /// \p F
     SCATHA_TESTAPI static LiveSets compute(Function const& F);
 
-    /// \Returns Live sets of basic block \p BB or `nullptr` if \p BB does not have live sets.
-    /// This can occur if a block is unreachable.
+    /// \Returns Live sets of basic block \p BB or `nullptr` if \p BB does not
+    /// have live sets. This can occur if a block is unreachable.
     BasicBlockLiveSets const* find(BasicBlock const* BB) const {
         auto itr = sets.find(BB);
         if (itr == sets.end()) {
