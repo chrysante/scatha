@@ -73,6 +73,8 @@ public:
 
     uint64_t instData() const { return _instData; }
 
+    void replaceOperand(Value* old, Value* repl);
+
     template <InstructionData T>
     T instDataAs() const {
         alignas(T) char buffer[sizeof(T)];
@@ -125,6 +127,28 @@ public:
 
     void setIndex(size_t index) { _index = index; }
 
+    bool isVirtual() const { return isVirt; }
+
+    void setVirtual(bool value = true) { isVirt = value; }
+
+    auto defs() {
+        return _defs | ranges::views::transform([](auto* d) { return d; });
+    }
+
+    auto defs() const {
+        return _defs | ranges::views::transform([](auto* d) { return d; });
+    }
+
+    auto uses() {
+        return _users |
+               ranges::views::transform([](auto& p) { return p.first; });
+    }
+
+    auto uses() const {
+        return _users |
+               ranges::views::transform([](auto& p) { return p.first; });
+    }
+
 private:
     friend class Instruction;
     void addDef(Instruction* inst);
@@ -132,7 +156,8 @@ private:
     void addUser(Instruction* inst);
     void removeUser(Instruction* inst);
 
-    size_t _index;
+    size_t _index : 63;
+    bool isVirt   : 1 = false;
     utl::hashset<Instruction*> _defs;
     utl::hashmap<Instruction*, size_t> _users;
 };
@@ -257,6 +282,20 @@ public:
 
     void addRegister(Register* reg);
 
+    auto virtRegBegin() { return virtRegs.begin(); }
+
+    auto virtRegBegin() const { return virtRegs.begin(); }
+
+    auto virtRegEnd() { return virtRegs.end(); }
+
+    auto virtRegEnd() const { return virtRegs.end(); }
+
+    bool virtRegEmpty() const { return virtRegs.empty(); }
+
+    void addVirtualRegister(Register* reg);
+
+    void clearVirtualRegisters() { virtRegs.clear(); }
+
     BasicBlock* entry() { return &front(); }
 
     BasicBlock const* entry() const { return &front(); }
@@ -271,6 +310,7 @@ private:
 
     std::string _name;
     List<Register> regs;
+    List<Register> virtRegs;
     ir::Function const* irFunc = nullptr;
 };
 

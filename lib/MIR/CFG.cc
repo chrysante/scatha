@@ -50,6 +50,21 @@ void Instruction::clearOperands() {
     ops.clear();
 }
 
+void Instruction::replaceOperand(Value* old, Value* repl) {
+    for (auto& op: ops) {
+        if (op != old) {
+            continue;
+        }
+        if (auto* oldReg = dyncast<Register*>(old)) {
+            oldReg->removeUser(this);
+        }
+        if (auto* replReg = dyncast<Register*>(repl)) {
+            replReg->addUser(this);
+        }
+        op = repl;
+    }
+}
+
 void Register::addDef(Instruction* inst) { _defs.insert(inst); }
 
 void Register::removeDef(Instruction* inst) {
@@ -109,6 +124,11 @@ Function::Function(ir::Function const* irFunc):
 void Function::addRegister(Register* reg) {
     reg->set_parent(this);
     regs.push_back(reg);
+}
+
+void Function::addVirtualRegister(Register* reg) {
+    reg->set_parent(this);
+    virtRegs.push_back(reg);
 }
 
 void Function::insertCallback(BasicBlock& bb) {

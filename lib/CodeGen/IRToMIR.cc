@@ -1,5 +1,6 @@
 #include "CodeGen/IRToMIR.h"
 
+#include <range/v3/numeric.hpp>
 #include <utl/functional.hpp>
 
 #include "IR/CFG.h"
@@ -61,12 +62,14 @@ struct CodeGenContext {
     /// Used by `computeAddress`
     mir::MemoryAddress computeGep(ir::GetElementPointer const*);
 
+    /// \Returns The register after \p dest
     mir::Register* genCopy(mir::Register* dest,
                            mir::Value* source,
                            size_t numWords) {
         return genCopy(dest, source, numWords, currentBlock->end());
     }
 
+    /// \overload
     mir::Register* genCopy(mir::Register* dest,
                            mir::Value* source,
                            size_t numWords,
@@ -154,7 +157,7 @@ struct CodeGenContext {
 
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
-    utl::hashmap<ir::Call const*, List<mir::Register>> calleeRegStacks;
+    utl::small_vector<mir::Register*> virtRegs;
 
     size_t regIdx = 0;
 };
@@ -185,7 +188,8 @@ void CodeGenContext::declareFunction(ir::Function const& function) {
 }
 
 void CodeGenContext::genFunction(ir::Function const& function) {
-    regIdx          = 0;
+    regIdx = 0;
+    virtRegs.clear();
     currentFunction = resolve(&function);
     auto liveSets   = ir::LiveSets::compute(function);
     currentLiveSets = &liveSets;
@@ -341,16 +345,26 @@ void CodeGenContext::genInst(ir::Branch const& br) {
 
 void CodeGenContext::genInst(ir::Call const& call) {
     /// Place the arguments in expected registers
-    auto& calleeRegs    = calleeRegStacks[&call];
-    size_t calleeRegIdx = 0;
-    for (auto* irArg: call.arguments()) {
-        size_t const numWords = this->numWords(irArg->type());
-        auto* dest            = new mir::Register(calleeRegIdx++);
-        calleeRegs.push_back(dest);
-        for (size_t i = 1; i < numWords; ++i) {
-            calleeRegs.push_back(new mir::Register(calleeRegIdx++));
+    size_t const numArgRegs =
+        ranges::accumulate(call.arguments(),
+                           size_t(0),
+                           ranges::plus{},
+                           [&](auto* arg) { return numWords(arg->type()); });
+    /// Allocate additional virtual registers if not enough present.
+    if (virtRegs.size() < numArgRegs) {
+        size_t const oldSize = virtRegs.size();
+        virtRegs.resize(numArgRegs);
+        for (size_t i = oldSize; i < numArgRegs; ++i) {
+            auto* reg = new mir::Register(i);
+            reg->setVirtual();
+            currentFunction->addVirtualRegister(reg);
+            virtRegs[i] = reg;
         }
-        genCopy(dest, resolve(irArg), numWords);
+    }
+    /// Copy arguments into virtual registers.
+    auto* dest = currentFunction->virtRegBegin().to_address();
+    for (auto* arg: call.arguments()) {
+        dest = genCopy(dest, resolve(arg), numWords(arg->type()));
     }
     // clang-format off
     visit(*call.function(), utl::overload{
@@ -366,7 +380,9 @@ void CodeGenContext::genInst(ir::Call const& call) {
         },
     }); // clang-format on
     if (!isa<ir::VoidType>(call.type())) {
-        genCopy(resolve(&call), &calleeRegs.front(), numWords(call.type()));
+        genCopy(resolve(&call),
+                currentFunction->virtRegBegin().to_address(),
+                numWords(call.type()));
     }
 }
 
@@ -577,7 +593,9 @@ mir::MemoryAddress CodeGenContext::computeGep(
         if (auto* regArrayIdx = cast<mir::Register*>(arrayIndex)) {
             return regArrayIdx;
         }
-        return genCopy(nextRegistersFor(1, gep), arrayIndex, 1);
+        auto* result = nextRegistersFor(1, gep);
+        genCopy(result, arrayIndex, 1);
+        return result;
     }();
     auto* accessedType    = gep->inboundsType();
     size_t const elemSize = accessedType->size();
@@ -597,13 +615,12 @@ mir::Register* CodeGenContext::genCopy(mir::Register* dest,
                                        mir::Value* source,
                                        size_t numWords,
                                        mir::BasicBlock::ConstIterator before) {
-    auto* result = dest;
     for (size_t i = 0; i < numWords;
          ++i, dest = dest->next(), source = source->next())
     {
         addNewInst(mir::InstCode::Copy, dest, { source }, uint64_t(0), before);
     }
-    return result;
+    return dest;
 }
 
 mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {

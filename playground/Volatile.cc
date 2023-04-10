@@ -26,6 +26,7 @@
 #include "IR/Validate.h"
 #include "IRDump.h"
 #include "MIR/CFG.h"
+#include "MIR/Devirtualize.h"
 #include "MIR/Module.h"
 #include "MIR/Print.h"
 #include "Opt/ConstantPropagation.h"
@@ -129,19 +130,25 @@ static void run(ir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    {
+    if (0) {
         header(" no opt ");
         print(irMod);
         printIRLiveSets(irMod.front());
         auto mirMod = cg::lowerToMIR(irMod);
+        for (auto& F: mirMod) {
+            mir::devirtualize(F);
+        }
         mir::print(mirMod);
     }
-    return;
+
     {
         opt::inlineFunctions(ctx, irMod);
         header(" opt ");
         print(irMod);
         auto mirMod = cg::lowerToMIR(irMod);
+        for (auto& F: mirMod) {
+            mir::devirtualize(F);
+        }
         mir::print(mirMod);
     }
 }
