@@ -120,17 +120,49 @@ void BasicBlock::removeLiveImpl(utl::hashset<Register*>& set,
     }
 }
 
-Function::Function(ir::Function const* irFunc):
+Function::Function(ir::Function const* irFunc,
+                   size_t numArgRegs,
+                   size_t numRetvalRegs):
     ListNodeOverride<Function, Value>(NodeType::Function),
     _name(std::string(irFunc->name())),
-    irFunc(irFunc) {}
+    irFunc(irFunc),
+    numArgRegs(numArgRegs),
+    numRetvalRegs(numRetvalRegs) {
+    size_t const numRegs = std::max(numArgRegs, numRetvalRegs);
+    for (size_t i = 0; i < numRegs; ++i) {
+        addRegister();
+    }
+}
 
-void Function::addRegister(Register* reg) {
+Register* Function::addRegister() {
+    Register* reg = new Register();
+    reg->setIndex(flatRegs.size());
     reg->set_parent(this);
     regs.push_back(reg);
+    flatRegs.push_back(reg);
+    return reg;
+}
+
+void Function::eraseRegister(Register* reg) {
+    flatRegs[reg->index()] = nullptr;
+    regs.erase(reg);
+}
+
+void Function::renameRegisters() {
+    auto itr = ranges::remove(flatRegs, nullptr);
+    flatRegs.erase(itr, flatRegs.end());
+    for (auto [index, reg]: flatRegs | ranges::views::enumerate) {
+        reg->setIndex(index);
+    }
 }
 
 void Function::addVirtualRegister(Register* reg) {
+    if (virtRegs.empty()) {
+        reg->setIndex(0);
+    }
+    else {
+        reg->setIndex(virtRegs.back().index() + 1);
+    }
     reg->set_parent(this);
     virtRegs.push_back(reg);
 }

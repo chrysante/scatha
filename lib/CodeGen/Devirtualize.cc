@@ -8,16 +8,16 @@ using namespace mir;
 /// Instruction pointer, register pointer offset and stack pointer
 static constexpr size_t NumRegsForCallMetadata = 3;
 
+// TODO: Rename to devirtualizeCalls()
 bool cg::devirtualize(mir::Function& F) {
-    Register* last         = F.registers().back();
-    size_t const localRegs = last->index();
-    size_t idx             = localRegs + NumRegsForCallMetadata;
-    F.setNumLocalRegisters(localRegs);
+    F.setNumLocalRegisters(F.numUsedRegisters());
+    for (size_t i = 0; i < NumRegsForCallMetadata; ++i) {
+        F.addRegister();
+    }
     for (auto virtReg = F.virtRegBegin(), end = F.virtRegEnd(); virtReg != end;
-         ++virtReg, ++idx)
+         ++virtReg)
     {
-        auto* r = new Register(idx);
-        F.addRegister(r);
+        auto* r = F.addRegister();
         while (!virtReg->defs().empty()) {
             auto* def = virtReg->defs().front();
             def->setDest(r);

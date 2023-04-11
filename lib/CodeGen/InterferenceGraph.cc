@@ -45,7 +45,7 @@ void InterferenceGraph::computeImpl(Function& F) {
     for (auto argRegs = F.argumentRegisters(); auto* r: argRegs) {
         addEdges(r, argRegs);
     }
-    for (auto returnRegs = F.returnRegisters(); auto* r: returnRegs) {
+    for (auto returnRegs = F.returnValueRegisters(); auto* r: returnRegs) {
         addEdges(r, returnRegs);
     }
     for (auto& BB: F) {

@@ -68,7 +68,8 @@ public:
 
     template <typename V = Value>
     V* operandAt(size_t index) {
-        return const_cast<V*>(static_cast<Instruction const*>(this)->operandAt(index));
+        return const_cast<V*>(
+            static_cast<Instruction const*>(this)->operandAt(index));
     }
 
     template <typename V = Value>
@@ -131,12 +132,9 @@ class Register:
 public:
     static constexpr size_t InvalidIndex = ~size_t(0);
 
-    explicit Register(size_t index):
-        ListNodeOverride<Register, Value>(NodeType::Register), _index(index) {}
+    Register(): ListNodeOverride<Register, Value>(NodeType::Register) {}
 
     size_t index() const { return _index; }
-
-    void setIndex(size_t index) { _index = index; }
 
     bool isVirtual() const { return isVirt; }
 
@@ -162,13 +160,18 @@ public:
 
 private:
     friend class Instruction;
+
     void addDef(Instruction* inst);
     void removeDef(Instruction* inst);
     void addUser(Instruction* inst);
     void removeUser(Instruction* inst);
 
-    size_t _index : 63;
-    bool isVirt   : 1 = false;
+    friend class Function;
+    /// Index is only set by `Function`
+    void setIndex(size_t index) { _index = index; }
+
+    size_t _index : 63 = ~size_t{ 0 };
+    bool isVirt   : 1  = false;
     utl::hashset<Instruction*> _defs;
     utl::hashmap<Instruction*, size_t> _users;
 };
@@ -275,14 +278,21 @@ public:
     using ListBase::ConstIterator;
     using ListBase::Iterator;
 
-    explicit Function(ir::Function const* irFunc);
+    /// Construct a `mir::Function` referencing \p irFunc with \p numRegisters
+    /// number of registers.
+    explicit Function(ir::Function const* irFunc,
+                      size_t numArgRegisters,
+                      size_t numReturnRegisters);
 
+    /// \Returns The name of this function.
     std::string_view name() const { return _name; }
 
+    /// \Returns View over the registers used by this function.
     auto registers() {
         return regs | ranges::views::transform([](auto& p) { return &p; });
     }
 
+    /// \overload
     auto registers() const {
         return regs | ranges::views::transform([](auto& p) { return &p; });
     }
@@ -295,6 +305,12 @@ public:
         return virtRegs | ranges::views::transform([](auto& p) { return &p; });
     }
 
+    /// \Returns The register with index \p index
+    Register* registerAt(size_t index) { return flatRegs[index]; }
+
+    /// \overload
+    Register const* registerAt(size_t index) const { return flatRegs[index]; }
+
     auto regBegin() { return regs.begin(); }
 
     auto regBegin() const { return regs.begin(); }
@@ -305,7 +321,16 @@ public:
 
     bool regEmpty() const { return regs.empty(); }
 
-    void addRegister(Register* reg);
+    /// Add a new register to this function.
+    /// \Returns The newly added register.
+    Register* addRegister();
+
+    void eraseRegister(Register* reg);
+
+    /// Rename all registers of this function from 0 to N
+    /// After removal of registers, e.g. due to coalescing, the register indices
+    /// may not be consecutive anymore. This function will clean that up.
+    void renameRegisters();
 
     auto virtRegBegin() { return virtRegs.begin(); }
 
@@ -321,32 +346,47 @@ public:
 
     void clearVirtualRegisters() { virtRegs.clear(); }
 
+    /// \Returns Pointer to the entry basic block
     BasicBlock* entry() { return &front(); }
 
+    /// \overload
     BasicBlock const* entry() const { return &front(); }
 
+    /// \Return Pointer to the `ir::Function` corresponding to this
+    /// `mir::Function`.
     ir::Function const* irFunction() const { return irFunc; }
 
-    size_t numLocalRegisters() const { return localRegs; }
+    /// \Returns The number of registers local to this function, excluding
+    /// arguments passed to callees and callee metadata.
+    size_t numLocalRegisters() const { return numLocalRegs; }
 
-    void setNumLocalRegisters(size_t count) { localRegs = count; }
+    /// Set the number of registers local to this function. This should be
+    /// called be `devirtualizeCalls()`.
+    void setNumLocalRegisters(size_t count) { numLocalRegs = count; }
 
-    std::span<Register* const> argumentRegisters() { return argRegs; }
+    /// \Returns Number of registers used by this function. After devirtualizing
+    /// calls this includes the arguments copied in the higher callee registers
+    /// and the registers for call metadata.
+    size_t numUsedRegisters() const { return flatRegs.size(); }
 
-    std::span<Register const* const> argumentRegister() const {
-        return argRegs;
+    /// Registers used by the arguments to this function.
+    std::span<Register* const> argumentRegisters() {
+        return std::span<Register* const>(flatRegs.data(), numArgRegs);
     }
 
-    void setArgumentRegisters(utl::small_vector<Register*> regs) {
-        argRegs = std::move(regs);
+    /// \overload
+    std::span<Register const* const> argumentRegisters() const {
+        return std::span<Register const* const>(flatRegs.data(), numArgRegs);
     }
 
-    std::span<Register* const> returnRegisters() { return retRegs; }
+    /// Registers used for the return value of this function.
+    std::span<Register* const> returnValueRegisters() {
+        return std::span<Register* const>(flatRegs.data(), numRetvalRegs);
+    }
 
-    std::span<Register const* const> returnRegisters() const { return retRegs; }
-
-    void setReturnRegisters(utl::small_vector<Register*> regs) {
-        retRegs = std::move(regs);
+    /// \overload
+    std::span<Register const* const> returnValueRegisters() const {
+        return std::span<Register const* const>(flatRegs.data(), numRetvalRegs);
     }
 
 private:
@@ -357,10 +397,12 @@ private:
 
     std::string _name;
     List<Register> regs;
+    utl::vector<Register*> flatRegs;
     List<Register> virtRegs;
     ir::Function const* irFunc = nullptr;
-    size_t localRegs           = 0;
-    utl::small_vector<Register*> argRegs, retRegs;
+    size_t numLocalRegs  : 20  = 0;
+    size_t numArgRegs    : 20  = 0;
+    size_t numRetvalRegs : 20  = 0;
 };
 
 } // namespace scatha::mir

@@ -180,8 +180,6 @@ struct CodeGenContext {
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
     utl::small_vector<mir::Register*> virtRegs;
-
-    size_t regIdx = 0;
 };
 
 } // namespace
@@ -204,13 +202,24 @@ void CodeGenContext::run(ir::Module const& mod) {
 }
 
 void CodeGenContext::declareFunction(ir::Function const& function) {
-    auto* mirFunc = new mir::Function(&function);
+    size_t const numParamRegs =
+        ranges::accumulate(function.parameters(),
+                           size_t(0),
+                           ranges::plus{},
+                           [&](auto& param) { return numWords(param.type()); });
+    size_t const numRetvalRegs = numWords(function.returnType());
+    auto* mirFunc = new mir::Function(&function, numParamRegs, numRetvalRegs);
     result.addFunction(mirFunc);
     valueMap.insert({ &function, mirFunc });
+    /// Associate parameters with bottom registers.
+    auto regItr = mirFunc->regBegin();
+    for (auto& param: function.parameters()) {
+        valueMap.insert({ &param, regItr.to_address() });
+        std::advance(regItr, numWords(param.type()));
+    }
 }
 
 void CodeGenContext::genFunction(ir::Function const& function) {
-    regIdx = 0;
     virtRegs.clear();
     currentFunction = resolve(&function);
     auto& LS = liveSets[&function] = ir::LiveSets::compute(function);
@@ -218,31 +227,6 @@ void CodeGenContext::genFunction(ir::Function const& function) {
     for (auto& bb: function) {
         declareBasicBlock(bb);
     }
-    /// Generate registers for parameters.
-    auto* entry         = &function.entry();
-    currentBlock        = resolve(entry);
-    size_t numParamRegs = 0;
-    for (auto& param: function.parameters()) {
-        numParamRegs += numWords(param.type());
-        auto* reg = nextRegistersFor(&param);
-        valueMap.insert({ &param, reg });
-    }
-    utl::small_vector<mir::Register*> regs;
-    regs.reserve(numParamRegs);
-    auto* reg = currentFunction->regBegin().to_address();
-    for (size_t i = 0; i < numParamRegs; ++i, reg = reg->next()) {
-        regs.push_back(reg);
-    }
-    currentFunction->setArgumentRegisters(regs);
-    /// Generate registers for parameters the return value.
-    size_t const returnTypeNumWords = numWords(function.returnType());
-    for (size_t i = numParamRegs; i < returnTypeNumWords; ++i) {
-        auto* r = new mir::Register(i);
-        regs.push_back(r);
-        currentFunction->addRegister(r);
-    }
-    regs.resize(returnTypeNumWords);
-    currentFunction->setReturnRegisters(std::move(regs));
     for (auto& bb: function) {
         genBasicBlock(bb);
     }
@@ -415,7 +399,7 @@ void CodeGenContext::genInst(ir::Call const& call) {
         size_t const oldSize = virtRegs.size();
         virtRegs.resize(numVirtRegs);
         for (size_t i = oldSize; i < numVirtRegs; ++i) {
-            auto* reg = new mir::Register(i);
+            auto* reg = new mir::Register();
             reg->setVirtual();
             currentFunction->addVirtualRegister(reg);
             virtRegs[i] = reg;
@@ -747,9 +731,8 @@ mir::Register* CodeGenContext::nextRegistersFor(size_t numWords,
                                                 ir::Value const* value) {
     utl::small_vector<mir::Register*> regs;
     for (size_t i = 0; i < numWords; ++i) {
-        auto* r = new mir::Register(regIdx++);
+        auto* r = currentFunction->addRegister();
         regs.push_back(r);
-        currentFunction->addRegister(r);
     }
     if (!value) {
         return regs.front();
