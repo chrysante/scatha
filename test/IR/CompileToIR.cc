@@ -1,7 +1,7 @@
 #include "CompileToIR.h"
 
 #include "AST/AST.h"
-#include "CodeGen/AST2IR/CodeGenerator.h"
+#include "AST/LowerToIR.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "Issue/IssueHandler.h"
