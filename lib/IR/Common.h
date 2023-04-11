@@ -109,6 +109,16 @@ SCATHA_API std::string_view toString(CompareOperation compareOp);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     CompareOperation compareOp);
 
+/// \Returns The inverse operation of \p compareOp
+/// In particular, this function maps:
+/// - `Less` -> `GreaterEq`
+/// - `LessEq` -> `Greater`
+/// - `Greater` -> `LessEq`
+/// - `GreaterEq` -> `Less`
+/// - `Equal` -> `NotEqual`
+/// - `NotEqual` -> `Equal`
+CompareOperation inverse(CompareOperation compareOp);
+
 /// List of all unary arithmetic operations in the IR module.
 enum class UnaryArithmeticOperation {
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, _) Op,

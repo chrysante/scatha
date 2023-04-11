@@ -67,6 +67,18 @@ std::ostream& ir::operator<<(std::ostream& ostream, CompareOperation op) {
     return ostream << toString(op);
 }
 
+CompareOperation ir::inverse(CompareOperation compareOp) {
+    // clang-format off
+    return UTL_MAP_ENUM(compareOp, CompareOperation, {
+        { CompareOperation::Less,      CompareOperation::GreaterEq },
+        { CompareOperation::LessEq,    CompareOperation::Greater   },
+        { CompareOperation::Greater,   CompareOperation::LessEq    },
+        { CompareOperation::GreaterEq, CompareOperation::Less      },
+        { CompareOperation::Equal,     CompareOperation::NotEqual  },
+        { CompareOperation::NotEqual,  CompareOperation::Equal     },
+    }); // clang-format on
+}
+
 std::string_view ir::toString(UnaryArithmeticOperation op) {
     switch (op) {
         // clang-format off

@@ -77,6 +77,9 @@ struct CodeGenContext {
                            mir::InstCode code = mir::InstCode::Copy,
                            uint64_t instData  = 0);
 
+    ///
+    mir::CompareOperation readCondition(ir::Value const* condition);
+
     /// Maps IR values to MIR values. In particular:
     /// ```
     /// Functions    -> Functions
@@ -180,6 +183,8 @@ struct CodeGenContext {
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
     utl::small_vector<mir::Register*> virtRegs;
+
+    ir::CompareInst const* lastEmittedCompare = nullptr;
 };
 
 } // namespace
@@ -329,8 +334,9 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
 }
 
 void CodeGenContext::genInst(ir::CompareInst const& cmp) {
-    auto* lhs = resolveToRegister(cmp.lhs());
-    auto* rhs = resolve(cmp.rhs());
+    lastEmittedCompare = &cmp;
+    auto* lhs          = resolveToRegister(cmp.lhs());
+    auto* rhs          = resolve(cmp.rhs());
     addNewInst(mir::InstCode::Compare, nullptr, { lhs, rhs }, cmp.mode());
     addNewInst(mir::InstCode::Set, resolve(&cmp), {}, cmp.operation());
 }
@@ -371,18 +377,10 @@ void CodeGenContext::genInst(ir::Goto const& gt) {
 }
 
 void CodeGenContext::genInst(ir::Branch const& br) {
-    auto* cond       = resolveToRegister(br.condition());
+    auto condition   = readCondition(br.condition());
     auto* thenTarget = resolve(br.thenTarget());
     auto* elseTarget = resolve(br.elseTarget());
-    addNewInst(mir::InstCode::Test,
-               nullptr,
-               { cond },
-               mir::CompareMode::Unsigned,
-               1);
-    addNewInst(mir::InstCode::CondJump,
-               nullptr,
-               { thenTarget },
-               mir::CompareOperation::NotEqual);
+    addNewInst(mir::InstCode::CondJump, nullptr, { thenTarget }, condition);
     addNewInst(mir::InstCode::Jump, nullptr, { elseTarget });
 }
 
@@ -567,23 +565,18 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
 }
 
 void CodeGenContext::genInst(ir::Select const& select) {
-    auto* cond      = resolveToRegister(select.condition());
+    auto condition  = readCondition(select.condition());
     auto* thenVal   = resolve(select.thenValue());
     auto* elseVal   = resolve(select.elseValue());
     size_t numBytes = select.type()->size();
     auto* dest      = resolve(&select);
-    addNewInst(mir::InstCode::Test,
-               nullptr,
-               { cond },
-               mir::CompareMode::Unsigned,
-               1);
     genCopy(dest, thenVal, numBytes);
     genCopy(dest,
             elseVal,
             numBytes,
             currentBlock->end(),
             mir::InstCode::CondCopy,
-            static_cast<uint64_t>(mir::CompareOperation::Equal));
+            static_cast<uint64_t>(inverse(condition)));
 }
 
 void CodeGenContext::postprocess() {
@@ -673,6 +666,27 @@ mir::Register* CodeGenContext::genCopy(mir::Register* dest,
                    before);
     }
     return dest;
+}
+
+mir::CompareOperation CodeGenContext::readCondition(
+    ir::Value const* condition) {
+    /// If our condition is the last emitted compare operation, the compare
+    /// flags are still set and we can just read them directly. We also have to
+    /// check if it was emitted in the same basic block, since we only emit
+    /// instructions linearly within basic blocks.
+    if (condition == lastEmittedCompare &&
+        currentBlock->irBasicBlock() == lastEmittedCompare->parent())
+    {
+        return lastEmittedCompare->operation();
+    }
+    /// Otherwise we have to generate a `test` instruction.
+    auto* cond = resolveToRegister(condition);
+    addNewInst(mir::InstCode::Test,
+               nullptr,
+               { cond },
+               mir::CompareMode::Unsigned,
+               1);
+    return mir::CompareOperation::NotEqual;
 }
 
 mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
