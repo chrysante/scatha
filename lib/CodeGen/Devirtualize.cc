@@ -13,20 +13,21 @@ bool cg::devirtualizeCalls(mir::Function& F) {
     for (size_t i = 0; i < NumRegsForCallMetadata; ++i) {
         F.addRegister();
     }
-    for (auto virtReg = F.virtRegBegin(), end = F.virtRegEnd(); virtReg != end;
-         ++virtReg)
+    for (auto calleeReg = F.calleeRegsBegin(), end = F.calleeRegsEnd();
+         calleeReg != end;
+         ++calleeReg)
     {
         auto* r = F.addRegister();
-        while (!virtReg->defs().empty()) {
-            auto* def = virtReg->defs().front();
+        while (!calleeReg->defs().empty()) {
+            auto* def = calleeReg->defs().front();
             def->setDest(r);
         }
-        while (!virtReg->uses().empty()) {
-            auto* user = virtReg->uses().front();
-            user->replaceOperand(virtReg.to_address(), r);
+        while (!calleeReg->uses().empty()) {
+            auto* user = calleeReg->uses().front();
+            user->replaceOperand(calleeReg.to_address(), r);
         }
     }
-    bool const changedAny = F.virtRegBegin() != F.virtRegEnd();
-    F.clearVirtualRegisters();
+    bool const changedAny = F.calleeRegsBegin() != F.calleeRegsEnd();
+    F.clearCalleeRegisters();
     return changedAny;
 }

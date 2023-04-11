@@ -61,7 +61,7 @@ SCATHA_TESTAPI void privateDestroy(mir::Value* value);
 namespace scatha::mir {
 
 /// Enum listing all instructions in the MIR module.
-enum class InstCode {
+enum class InstCode : uint16_t {
 #define SC_MIR_INSTRUCTION_DEF(type, name) type,
 #include "MIR/Lists.def"
     _count

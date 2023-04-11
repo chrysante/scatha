@@ -12,7 +12,7 @@ Instruction::Instruction(InstCode opcode,
                          uint64_t instData,
                          size_t width):
     oc(opcode),
-    _width(utl::narrow_cast<uint32_t>(width)),
+    _width(utl::narrow_cast<uint16_t>(width)),
     _dest(nullptr),
     _instData(instData) {
     setDest(dest);
@@ -40,6 +40,17 @@ void Instruction::setOperands(utl::small_vector<Value*> operands) {
         }
     }
     ops = std::move(operands);
+}
+
+void Instruction::setOperandAt(size_t index, Value* newOp) {
+    auto* old = ops[index];
+    if (old && isa<Register>(old)) {
+        cast<Register*>(old)->removeUser(this);
+    }
+    ops[index] = newOp;
+    if (auto* reg = dyncast<Register*>(newOp)) {
+        reg->addUser(this);
+    }
 }
 
 void Instruction::clearOperands() {
@@ -156,15 +167,26 @@ void Function::renameRegisters() {
     }
 }
 
-void Function::addVirtualRegister(Register* reg) {
-    if (virtRegs.empty()) {
+void Function::addCalleeRegister(Register* reg) {
+    if (calleeRegs.empty()) {
         reg->setIndex(0);
     }
     else {
-        reg->setIndex(virtRegs.back().index() + 1);
+        reg->setIndex(calleeRegs.back().index() + 1);
     }
     reg->set_parent(this);
-    virtRegs.push_back(reg);
+    calleeRegs.push_back(reg);
+}
+
+void Function::linearizeInstructions() {
+    instrs.clear();
+    size_t index = 0;
+    for (auto& BB: *this) {
+        for (auto& inst: BB) {
+            inst.setIndex(index++);
+            instrs.push_back(&inst);
+        }
+    }
 }
 
 void Function::insertCallback(BasicBlock& bb) {

@@ -47,8 +47,8 @@ static constexpr auto localName =
 
 static constexpr auto regName =
     utl::streammanip([](std::ostream& str, Register const* reg) -> auto& {
-        if (reg->isVirtual()) {
-            auto name = utl::strcat("%v", reg->index());
+        if (reg->isCalleeRegister()) {
+            auto name = utl::strcat("%c", reg->index());
             return str << tfmt::format(tfmt::blue | tfmt::italic, name);
         }
         auto name = utl::strcat("%", reg->index());

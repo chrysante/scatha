@@ -54,7 +54,7 @@ struct CodeGenContext {
     void genInst(ir::InsertValue const&);
     void genInst(ir::Select const&);
 
-    void postprocess();
+    void placePhiCopies();
 
     /// Used for generating `Store` and `Load` instructions.
     mir::MemoryAddress computeAddress(ir::Value const*);
@@ -182,7 +182,7 @@ struct CodeGenContext {
 
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
-    utl::small_vector<mir::Register*> virtRegs;
+    utl::small_vector<mir::Register*> calleeRegs;
 
     ir::CompareInst const* lastEmittedCompare = nullptr;
 };
@@ -203,7 +203,6 @@ void CodeGenContext::run(ir::Module const& mod) {
     for (auto& function: mod) {
         genFunction(function);
     }
-    postprocess();
 }
 
 void CodeGenContext::declareFunction(ir::Function const& function) {
@@ -216,25 +215,34 @@ void CodeGenContext::declareFunction(ir::Function const& function) {
     auto* mirFunc = new mir::Function(&function, numParamRegs, numRetvalRegs);
     result.addFunction(mirFunc);
     valueMap.insert({ &function, mirFunc });
-    /// Associate parameters with bottom registers.
-    auto regItr = mirFunc->regBegin();
-    for (auto& param: function.parameters()) {
-        valueMap.insert({ &param, regItr.to_address() });
-        std::advance(regItr, numWords(param.type()));
-    }
 }
 
 void CodeGenContext::genFunction(ir::Function const& function) {
-    virtRegs.clear();
+    calleeRegs.clear();
+    phiNodes.clear();
     currentFunction = resolve(&function);
     auto& LS = liveSets[&function] = ir::LiveSets::compute(function);
     currentLiveSets                = &LS;
     for (auto& bb: function) {
         declareBasicBlock(bb);
     }
+    /// Associate parameters with bottom registers.
+    auto* liveSet  = LS.find(&function.entry());
+    auto* mirEntry = resolve(&function.entry());
+    auto regItr    = currentFunction->regBegin();
+    for (auto& param: function.parameters()) {
+        valueMap.insert({ &param, regItr.to_address() });
+        size_t const numWords = this->numWords(param.type());
+        if (liveSet->liveIn.contains(&param)) {
+            for (size_t i = 0; i < numWords; ++i, ++regItr) {
+                mirEntry->addLiveIn(regItr.to_address());
+            }
+        }
+    }
     for (auto& bb: function) {
         genBasicBlock(bb);
     }
+    placePhiCopies();
 }
 
 void CodeGenContext::declareBasicBlock(ir::BasicBlock const& bb) {
@@ -393,18 +401,18 @@ void CodeGenContext::genInst(ir::Call const& call) {
                            [&](auto* arg) { return numWords(arg->type()); });
     numVirtRegs = ranges::max(numVirtRegs, numWords(call.type()));
     /// Allocate additional virtual registers if not enough present.
-    if (virtRegs.size() < numVirtRegs) {
-        size_t const oldSize = virtRegs.size();
-        virtRegs.resize(numVirtRegs);
+    if (calleeRegs.size() < numVirtRegs) {
+        size_t const oldSize = calleeRegs.size();
+        calleeRegs.resize(numVirtRegs);
         for (size_t i = oldSize; i < numVirtRegs; ++i) {
             auto* reg = new mir::Register();
-            reg->setVirtual();
-            currentFunction->addVirtualRegister(reg);
-            virtRegs[i] = reg;
+            reg->setIsCalleeRegister();
+            currentFunction->addCalleeRegister(reg);
+            calleeRegs[i] = reg;
         }
     }
     /// Copy arguments into virtual registers.
-    auto* dest = currentFunction->virtRegBegin().to_address();
+    auto* dest = currentFunction->calleeRegsBegin().to_address();
     for (auto* arg: call.arguments()) {
         dest = genCopy(dest, resolve(arg), arg->type()->size());
     }
@@ -423,7 +431,7 @@ void CodeGenContext::genInst(ir::Call const& call) {
     }); // clang-format on
     if (!isa<ir::VoidType>(call.type())) {
         genCopy(resolve(&call),
-                currentFunction->virtRegBegin().to_address(),
+                currentFunction->calleeRegsBegin().to_address(),
                 call.type()->size());
     }
 }
@@ -579,12 +587,12 @@ void CodeGenContext::genInst(ir::Select const& select) {
             static_cast<uint64_t>(inverse(condition)));
 }
 
-void CodeGenContext::postprocess() {
+void CodeGenContext::placePhiCopies() {
     /// Place the appropriate values for all phi nodes in the corresponding
     /// registers
     for (auto* phi: phiNodes) {
         currentBlock    = resolve(phi->parent());
-        currentLiveSets = &liveSets[currentBlock->parent()->irFunction()];
+        currentLiveSets = &liveSets[currentFunction->irFunction()];
         auto* dest      = resolve(phi);
         for (auto [pred, arg]: phi->arguments()) {
             auto* mPred = cast<mir::BasicBlock*>(resolve(pred));
