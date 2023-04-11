@@ -68,7 +68,7 @@ public:
 
     template <typename V = Value>
     V* operandAt(size_t index) {
-        return cast<V*>(ops[index]);
+        return const_cast<V*>(static_cast<Instruction const*>(this)->operandAt(index));
     }
 
     template <typename V = Value>
