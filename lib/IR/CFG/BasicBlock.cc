@@ -67,8 +67,12 @@ void BasicBlock::insertCallback(Instruction& inst) {
 }
 
 void BasicBlock::eraseCallback(Instruction const& cinst) {
-    SC_ASSERT(cinst.users().empty(),
-              "We should not erase this instruction when it's still in use");
+    /// The assertion for `inst.users().empty()` is omitted.
+    /// While on the surface that check may look natural, when erasing multiple
+    /// instructions at the same time, that reference each other, this check
+    /// will fail if we don't clean up all the references before. But cleaning
+    /// the references may be unnecessary work as the instructions are deleted
+    /// anyway.
     auto& inst = const_cast<Instruction&>(cinst);
     inst.clearOperands();
     parent()->nameFac.erase(inst.name());
