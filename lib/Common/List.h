@@ -121,8 +121,6 @@ public:
 
     /// Clears the operands.
     Iterator erase(ConstIterator position) {
-        SC_ASSERT(position->users().empty(),
-                  "We should not erase this value when it's still in use");
         asDerived().eraseCallback(*position);
         return values.erase(position);
     }

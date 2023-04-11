@@ -66,8 +66,11 @@ void BasicBlock::insertCallback(Instruction& inst) {
     }
 }
 
-void BasicBlock::eraseCallback(Instruction const& inst) {
-    const_cast<Instruction&>(inst).clearOperands();
+void BasicBlock::eraseCallback(Instruction const& cinst) {
+    SC_ASSERT(cinst.users().empty(),
+              "We should not erase this instruction when it's still in use");
+    auto& inst = const_cast<Instruction&>(cinst);
+    inst.clearOperands();
     parent()->nameFac.erase(inst.name());
 }
 
