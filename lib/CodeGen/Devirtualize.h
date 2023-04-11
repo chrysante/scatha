@@ -5,7 +5,7 @@
 
 namespace scatha::cg {
 
-SCATHA_TESTAPI bool devirtualize(mir::Function& F);
+SCATHA_TESTAPI bool devirtualizeCalls(mir::Function& F);
 
 } // namespace scatha::cg
 

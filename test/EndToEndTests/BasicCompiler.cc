@@ -77,7 +77,7 @@ static uint64_t run(ir::Module const& irMod) {
     assert(!mainName.empty());
     auto mirMod = cg::lowerToMIR(irMod);
     for (auto& F: mirMod) {
-        cg::devirtualize(F);
+        cg::devirtualizeCalls(F);
     }
     auto assembly = cg::lowerToASM(mirMod);
     auto prog     = Asm::assemble(assembly, { .startFunction = mainName });

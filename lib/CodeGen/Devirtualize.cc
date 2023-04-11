@@ -8,8 +8,7 @@ using namespace mir;
 /// Instruction pointer, register pointer offset and stack pointer
 static constexpr size_t NumRegsForCallMetadata = 3;
 
-// TODO: Rename to devirtualizeCalls()
-bool cg::devirtualize(mir::Function& F) {
+bool cg::devirtualizeCalls(mir::Function& F) {
     F.setNumLocalRegisters(F.numUsedRegisters());
     for (size_t i = 0; i < NumRegsForCallMetadata; ++i) {
         F.addRegister();
