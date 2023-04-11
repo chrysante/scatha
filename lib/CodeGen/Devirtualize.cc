@@ -11,13 +11,13 @@ static constexpr size_t NumRegsForCallMetadata = 3;
 bool cg::devirtualizeCalls(mir::Function& F) {
     F.setNumLocalRegisters(F.numUsedRegisters());
     for (size_t i = 0; i < NumRegsForCallMetadata; ++i) {
-        F.addRegister();
+        F.addVirtualRegister();
     }
     for (auto calleeReg = F.calleeRegsBegin(), end = F.calleeRegsEnd();
          calleeReg != end;
          ++calleeReg)
     {
-        auto* r = F.addRegister();
+        auto* r = F.addVirtualRegister();
         while (!calleeReg->defs().empty()) {
             auto* def = calleeReg->defs().front();
             def->setDest(r);

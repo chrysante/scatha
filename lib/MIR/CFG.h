@@ -320,14 +320,14 @@ public:
     /// \Returns The name of this function.
     std::string_view name() const { return _name; }
 
-    /// \Returns View over the registers used by this function.
-    auto registers() {
-        return regs | ranges::views::transform([](auto& p) { return &p; });
+    /// \Returns View over the virtual (SSA) registers used by this function.
+    auto virtualRegisters() {
+        return virtRegs | ranges::views::transform([](auto& p) { return &p; });
     }
 
     /// \overload
-    auto registers() const {
-        return regs | ranges::views::transform([](auto& p) { return &p; });
+    auto virtualRegisters() const {
+        return virtRegs | ranges::views::transform([](auto& p) { return &p; });
     }
 
     auto calleeRegisters() {
@@ -346,21 +346,21 @@ public:
     /// \overload
     Register const* registerAt(size_t index) const { return flatRegs[index]; }
 
-    auto regBegin() { return regs.begin(); }
+    auto virtRegBegin() { return virtRegs.begin(); }
 
-    auto regBegin() const { return regs.begin(); }
+    auto virtRegBegin() const { return virtRegs.begin(); }
 
-    auto regEnd() { return regs.end(); }
+    auto virtRegEnd() { return virtRegs.end(); }
 
-    auto regEnd() const { return regs.end(); }
+    auto virtRegEnd() const { return virtRegs.end(); }
 
-    bool regEmpty() const { return regs.empty(); }
+    bool virtRegEmpty() const { return virtRegs.empty(); }
 
-    /// Add a new register to this function.
+    /// Adds a new virtual register to this function.
     /// \Returns The newly added register.
-    Register* addRegister();
+    Register* addVirtualRegister();
 
-    void eraseRegister(Register* reg);
+    void eraseVirtualRegister(Register* reg);
 
     /// Rename all registers of this function from 0 to N
     /// After removal of registers, e.g. due to coalescing, the register indices
@@ -444,7 +444,7 @@ private:
     void eraseCallback(BasicBlock const&);
 
     std::string _name;
-    List<Register> regs;
+    List<Register> virtRegs;
     utl::vector<Register*> flatRegs;
     List<Register> calleeRegs;
 

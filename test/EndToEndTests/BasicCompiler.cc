@@ -19,6 +19,7 @@
 #include "CodeGen/Devirtualize.h"
 #include "CodeGen/LowerToASM.h"
 #include "CodeGen/LowerToMIR.h"
+#include "CodeGen/RegisterAllocator.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -66,7 +67,7 @@ static void optimize(ir::Context& ctx, ir::Module& mod) {
 }
 
 static uint64_t run(ir::Module const& irMod) {
-    /// Start execution with main if it exists.
+    /// Start execution with `main` if it exists.
     std::string mainName;
     for (auto& f: irMod) {
         if (f.name().starts_with("main")) {
@@ -77,6 +78,7 @@ static uint64_t run(ir::Module const& irMod) {
     assert(!mainName.empty());
     auto mirMod = cg::lowerToMIR(irMod);
     for (auto& F: mirMod) {
+        //        cg::allocateRegisters(F);
         cg::devirtualizeCalls(F);
     }
     auto assembly = cg::lowerToASM(mirMod);

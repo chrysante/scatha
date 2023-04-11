@@ -441,7 +441,7 @@ struct InterferenceGraphContext {
         str << "    fillcolor=\"" << toColor(node) << "\", \n";
         str << "    height=1.5 \n";
         str << "    width=1.5 \n";
-        str << "    label= \"%" << node->reg()->index() << " -> %"
+        str << "    label= \"%" << node->reg()->index() << " -> R"
             << node->color() << "\"";
         str << "]\n";
         return std::move(str).str();

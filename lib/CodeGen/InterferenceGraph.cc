@@ -36,7 +36,7 @@ void InterferenceGraph::colorize() {
 }
 
 void InterferenceGraph::computeImpl(Function& F) {
-    for (auto* reg: F.registers()) {
+    for (auto* reg: F.virtualRegisters()) {
         addRegister(reg);
     }
     for (auto argRegs = F.argumentRegisters(); auto* r: argRegs) {

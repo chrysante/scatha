@@ -229,7 +229,7 @@ void CodeGenContext::genFunction(ir::Function const& function) {
     /// Associate parameters with bottom registers.
     auto* liveSet  = LS.find(&function.entry());
     auto* mirEntry = resolve(&function.entry());
-    auto regItr    = currentFunction->regBegin();
+    auto regItr    = currentFunction->virtRegBegin();
     for (auto& param: function.parameters()) {
         valueMap.insert({ &param, regItr.to_address() });
         size_t const numWords = this->numWords(param.type());
@@ -441,7 +441,7 @@ void CodeGenContext::genInst(ir::Return const& ret) {
         size_t const numBytes = ret.value()->type()->size();
         size_t const numWords = utl::ceil_divide(numBytes, 8);
         auto* returnValue     = resolve(ret.value());
-        auto* dest            = currentFunction->regBegin().to_address();
+        auto* dest            = currentFunction->virtRegBegin().to_address();
         genCopy(dest, returnValue, numBytes);
         for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
             currentBlock->addLiveOut(dest);
@@ -753,7 +753,7 @@ mir::Register* CodeGenContext::nextRegistersFor(size_t numWords,
                                                 ir::Value const* value) {
     utl::small_vector<mir::Register*> regs;
     for (size_t i = 0; i < numWords; ++i) {
-        auto* r = currentFunction->addRegister();
+        auto* r = currentFunction->addVirtualRegister();
         regs.push_back(r);
     }
     if (!value) {

@@ -141,22 +141,22 @@ Function::Function(ir::Function const* irFunc,
     numRetvalRegs(numRetvalRegs) {
     size_t const numRegs = std::max(numArgRegs, numRetvalRegs);
     for (size_t i = 0; i < numRegs; ++i) {
-        addRegister();
+        addVirtualRegister();
     }
 }
 
-Register* Function::addRegister() {
+Register* Function::addVirtualRegister() {
     Register* reg = new Register();
     reg->setIndex(flatRegs.size());
     reg->set_parent(this);
-    regs.push_back(reg);
+    virtRegs.push_back(reg);
     flatRegs.push_back(reg);
     return reg;
 }
 
-void Function::eraseRegister(Register* reg) {
+void Function::eraseVirtualRegister(Register* reg) {
     flatRegs[reg->index()] = nullptr;
-    regs.erase(reg);
+    virtRegs.erase(reg);
 }
 
 void Function::renameRegisters() {
