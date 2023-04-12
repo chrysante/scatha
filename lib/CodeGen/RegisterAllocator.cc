@@ -6,25 +6,28 @@
 using namespace scatha;
 using namespace cg;
 
-static void replaceUsesAndDefsWith(mir::Register* old, mir::Register* repl) {
-    auto defs = old->defs() | ranges::to<utl::small_vector<mir::Instruction*>>;
-    for (auto* inst: defs) {
-        inst->setDest(repl);
-    }
-    auto uses = old->uses() | ranges::to<utl::small_vector<mir::Instruction*>>;
-    for (auto* inst: uses) {
-        inst->replaceOperand(old, repl);
-    }
-}
+// static void replaceUsesAndDefsWith(mir::Register* old, mir::Register* repl) {
+//     auto defs = old->defs() |
+//     ranges::to<utl::small_vector<mir::Instruction*>>; for (auto* inst: defs)
+//     {
+//         inst->setDest(repl);
+//     }
+//     auto uses = old->uses() |
+//     ranges::to<utl::small_vector<mir::Instruction*>>; for (auto* inst: uses)
+//     {
+//         inst->replaceOperand(old, repl);
+//     }
+// }
 
 /// Before allocating registers the MIR is in somewhat of an SSA form, as every
 /// instruction assigns a new virtual register. Register allocation assigns
 /// actual hardware registers to the virtual registers and thus destroys SSA
 /// form.
 void cg::allocateRegisters(mir::Function& F) {
+    return;
     /// For instructions that are three address instructions in the MIR but two
     /// address instructions in the VM, we issue copies of the first operand
-    /// into the destination register and than replace the first operand by the
+    /// into the destination register and then replace the first operand by the
     /// dest register.
     for (auto& BB: F) {
         for (auto& inst: BB) {
@@ -50,7 +53,7 @@ void cg::allocateRegisters(mir::Function& F) {
     graph.colorize();
     for (auto* node: graph) {
         size_t color = node->color();
-        replaceUsesAndDefsWith(node->reg(), F.registerAt(color));
+        //        replaceUsesAndDefsWith(node->reg(), F.registerAt(color));
     }
 
     /// Then we erase self assigning copy instructions.

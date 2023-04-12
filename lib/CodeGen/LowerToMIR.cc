@@ -182,8 +182,6 @@ struct CodeGenContext {
 
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
-    utl::small_vector<mir::Register*> calleeRegs;
-
     ir::CompareInst const* lastEmittedCompare = nullptr;
 };
 
@@ -218,7 +216,6 @@ void CodeGenContext::declareFunction(ir::Function const& function) {
 }
 
 void CodeGenContext::genFunction(ir::Function const& function) {
-    calleeRegs.clear();
     phiNodes.clear();
     currentFunction = resolve(&function);
     auto& LS = liveSets[&function] = ir::LiveSets::compute(function);
@@ -229,7 +226,7 @@ void CodeGenContext::genFunction(ir::Function const& function) {
     /// Associate parameters with bottom registers.
     auto* liveSet  = LS.find(&function.entry());
     auto* mirEntry = resolve(&function.entry());
-    auto regItr    = currentFunction->virtRegBegin();
+    auto regItr    = currentFunction->virtualRegisters().begin();
     for (auto& param: function.parameters()) {
         valueMap.insert({ &param, regItr.to_address() });
         size_t const numWords = this->numWords(param.type());
@@ -394,26 +391,26 @@ void CodeGenContext::genInst(ir::Branch const& br) {
 
 void CodeGenContext::genInst(ir::Call const& call) {
     /// Place the arguments in expected registers
-    size_t numVirtRegs =
+    size_t numArgRegs =
         ranges::accumulate(call.arguments(),
                            size_t(0),
                            ranges::plus{},
                            [&](auto* arg) { return numWords(arg->type()); });
-    numVirtRegs = ranges::max(numVirtRegs, numWords(call.type()));
-    /// Allocate additional virtual registers if not enough present.
-    if (calleeRegs.size() < numVirtRegs) {
-        size_t const oldSize = calleeRegs.size();
-        calleeRegs.resize(numVirtRegs);
-        for (size_t i = oldSize; i < numVirtRegs; ++i) {
-            auto* reg = new mir::Register();
-            reg->setIsCalleeRegister();
-            currentFunction->addCalleeRegister(reg);
-            calleeRegs[i] = reg;
+    size_t const numCalleeRegs = ranges::max(numArgRegs, numWords(call.type()));
+    /// Allocate additional callee registers if not enough present.
+    if (size_t const oldSize = currentFunction->calleeRegisters().size();
+        oldSize < numCalleeRegs)
+    {
+        for (size_t i = oldSize; i < numCalleeRegs; ++i) {
+            auto* reg = new mir::CalleeRegister();
+            currentFunction->calleeRegisters().add(reg);
         }
     }
     /// Copy arguments into virtual registers.
-    auto* dest = currentFunction->calleeRegsBegin().to_address();
-    for (auto* arg: call.arguments()) {
+
+    for (auto* dest = currentFunction->calleeRegisters().begin().to_address();
+         auto* arg: call.arguments())
+    {
         dest = genCopy(dest, resolve(arg), arg->type()->size());
     }
     // clang-format off
@@ -431,7 +428,7 @@ void CodeGenContext::genInst(ir::Call const& call) {
     }); // clang-format on
     if (!isa<ir::VoidType>(call.type())) {
         genCopy(resolve(&call),
-                currentFunction->calleeRegsBegin().to_address(),
+                currentFunction->calleeRegisters().begin().to_address(),
                 call.type()->size());
     }
 }
@@ -441,7 +438,7 @@ void CodeGenContext::genInst(ir::Return const& ret) {
         size_t const numBytes = ret.value()->type()->size();
         size_t const numWords = utl::ceil_divide(numBytes, 8);
         auto* returnValue     = resolve(ret.value());
-        auto* dest            = currentFunction->virtRegBegin().to_address();
+        auto* dest = currentFunction->virtualRegisters().begin().to_address();
         genCopy(dest, returnValue, numBytes);
         for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
             currentBlock->addLiveOut(dest);
@@ -753,7 +750,8 @@ mir::Register* CodeGenContext::nextRegistersFor(size_t numWords,
                                                 ir::Value const* value) {
     utl::small_vector<mir::Register*> regs;
     for (size_t i = 0; i < numWords; ++i) {
-        auto* r = currentFunction->addVirtualRegister();
+        auto* r = new mir::VirtualRegister();
+        currentFunction->virtualRegisters().add(r);
         regs.push_back(r);
     }
     if (!value) {

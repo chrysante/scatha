@@ -11,6 +11,8 @@
 #include "Common/List.h"
 #include "Common/UniquePtr.h"
 #include "MIR/Fwd.h"
+#include "MIR/Register.h" // Maybe we can remove this later
+#include "MIR/Value.h"
 
 namespace scatha::mir {
 
@@ -118,100 +120,6 @@ namespace scatha::mir {
 ///
 ///
 ///
-class Value: public ListNode<Value, /* AllowSetSiblings = */ true> {
-public:
-    NodeType nodeType() const { return _nodeType; }
-
-protected:
-    Value(NodeType nodeType): _nodeType(nodeType) {}
-
-private:
-    NodeType _nodeType;
-};
-
-inline NodeType dyncast_get_type(Value const& value) {
-    return value.nodeType();
-}
-
-/// Represents the live range of a value in a register. Value comes is defined
-/// by instruction at index `begin` and last used by instruction at index `end`.
-/// An index of `-1` means the register is live on entry.
-struct LiveRange {
-    int32_t begin;
-    int32_t end;
-};
-
-///
-///
-///
-class Register:
-    public ListNodeOverride<Register, Value>,
-    public ParentedNode<Function> {
-public:
-    static constexpr size_t InvalidIndex = ~size_t(0);
-
-    Register(): ListNodeOverride<Register, Value>(NodeType::Register) {}
-
-    size_t index() const { return _index; }
-
-    /// \Returns `true` iff. this represents a register in the callee's register
-    /// space.
-    bool isCalleeRegister() const { return isCallee; }
-
-    /// Set wether this represents a register in the callee's register space.
-    void setIsCalleeRegister(bool value = true) { isCallee = value; }
-
-    auto defs() {
-        return _defs | ranges::views::transform([](auto* d) { return d; });
-    }
-
-    auto defs() const {
-        return _defs | ranges::views::transform([](auto* d) { return d; });
-    }
-
-    auto uses() {
-        return _users |
-               ranges::views::transform([](auto& p) { return p.first; });
-    }
-
-    auto uses() const {
-        return _users |
-               ranges::views::transform([](auto& p) { return p.first; });
-    }
-
-    /// \Returns `true` iff. \p inst uses this register (as an argument).
-    bool isUsedBy(Instruction const* inst) const {
-        return _users.contains(inst);
-    }
-
-    std::span<LiveRange const> liveRanges() const { return _liveRanges; }
-
-    void setLiveRanges(utl::vector<LiveRange> liveRanges) {
-        _liveRanges = std::move(liveRanges);
-    }
-
-private:
-    friend class Instruction;
-
-    void addDef(Instruction* inst);
-    void removeDef(Instruction* inst);
-    void addUser(Instruction* inst);
-    void removeUser(Instruction* inst);
-
-    friend class Function;
-    /// Index is only set by `Function`
-    void setIndex(size_t index) { _index = index; }
-
-    size_t _index : 63 = ~size_t{ 0 };
-    bool isCallee : 1  = false;
-    utl::hashset<Instruction*> _defs;
-    utl::hashmap<Instruction*, size_t> _users;
-    utl::vector<LiveRange> _liveRanges;
-};
-
-///
-///
-///
 class Constant: public Value {
 public:
     Constant(uint64_t value, size_t width):
@@ -312,7 +220,7 @@ public:
     using ListBase::Iterator;
 
     /// Construct a `mir::Function` referencing \p irFunc with \p numRegisters
-    /// number of registers.
+    /// number of virtual registers.
     explicit Function(ir::Function const* irFunc,
                       size_t numArgRegisters,
                       size_t numReturnRegisters);
@@ -320,66 +228,17 @@ public:
     /// \Returns The name of this function.
     std::string_view name() const { return _name; }
 
-    /// \Returns View over the virtual (SSA) registers used by this function.
-    auto virtualRegisters() {
-        return virtRegs | ranges::views::transform([](auto& p) { return &p; });
-    }
+    /// \Returns The set of virtual registers used by this function.
+    RegisterSet& virtualRegisters() { return virtRegs; }
 
     /// \overload
-    auto virtualRegisters() const {
-        return virtRegs | ranges::views::transform([](auto& p) { return &p; });
-    }
+    RegisterSet const& virtualRegisters() const { return virtRegs; }
 
-    auto calleeRegisters() {
-        return calleeRegs |
-               ranges::views::transform([](auto& p) { return &p; });
-    }
+    /// \Returns The set of callee registers used by this function.
+    RegisterSet& calleeRegisters() { return calleeRegs; }
 
-    auto calleeRegisters() const {
-        return calleeRegs |
-               ranges::views::transform([](auto& p) { return &p; });
-    }
-
-    /// \Returns The register with index \p index
-    Register* registerAt(size_t index) { return flatRegs[index]; }
-
-    /// \overload
-    Register const* registerAt(size_t index) const { return flatRegs[index]; }
-
-    auto virtRegBegin() { return virtRegs.begin(); }
-
-    auto virtRegBegin() const { return virtRegs.begin(); }
-
-    auto virtRegEnd() { return virtRegs.end(); }
-
-    auto virtRegEnd() const { return virtRegs.end(); }
-
-    bool virtRegEmpty() const { return virtRegs.empty(); }
-
-    /// Adds a new virtual register to this function.
-    /// \Returns The newly added register.
-    Register* addVirtualRegister();
-
-    void eraseVirtualRegister(Register* reg);
-
-    /// Rename all registers of this function from 0 to N
-    /// After removal of registers, e.g. due to coalescing, the register indices
-    /// may not be consecutive anymore. This function will clean that up.
-    void renameRegisters();
-
-    auto calleeRegsBegin() { return calleeRegs.begin(); }
-
-    auto calleeRegsBegin() const { return calleeRegs.begin(); }
-
-    auto calleeRegsEnd() { return calleeRegs.end(); }
-
-    auto calleeRegsEnd() const { return calleeRegs.end(); }
-
-    bool calleeRegsEmpty() const { return calleeRegs.empty(); }
-
-    void addCalleeRegister(Register* reg);
-
-    void clearCalleeRegisters() { calleeRegs.clear(); }
+    ///  \overload
+    RegisterSet const& calleeRegisters() const { return calleeRegs; }
 
     /// \Returns Pointer to the entry basic block
     BasicBlock* entry() { return &front(); }
@@ -391,37 +250,27 @@ public:
     /// `mir::Function`.
     ir::Function const* irFunction() const { return irFunc; }
 
-    /// \Returns The number of registers local to this function, excluding
-    /// arguments passed to callees and callee metadata.
-    size_t numLocalRegisters() const { return numLocalRegs; }
-
-    /// Set the number of registers local to this function. This should be
-    /// called be `devirtualizeCalls()`.
-    void setNumLocalRegisters(size_t count) { numLocalRegs = count; }
-
-    /// \Returns Number of registers used by this function. After devirtualizing
-    /// calls this includes the arguments copied in the higher callee registers
-    /// and the registers for call metadata.
-    size_t numUsedRegisters() const { return flatRegs.size(); }
-
     /// Registers used by the arguments to this function.
     std::span<Register* const> argumentRegisters() {
-        return std::span<Register* const>(flatRegs.data(), numArgRegs);
+        return std::span<Register* const>(virtRegs.flat().data(), numArgRegs);
     }
 
     /// \overload
     std::span<Register const* const> argumentRegisters() const {
-        return std::span<Register const* const>(flatRegs.data(), numArgRegs);
+        return std::span<Register const* const>(virtRegs.flat().data(),
+                                                numArgRegs);
     }
 
     /// Registers used for the return value of this function.
     std::span<Register* const> returnValueRegisters() {
-        return std::span<Register* const>(flatRegs.data(), numRetvalRegs);
+        return std::span<Register* const>(virtRegs.flat().data(),
+                                          numRetvalRegs);
     }
 
     /// \overload
     std::span<Register const* const> returnValueRegisters() const {
-        return std::span<Register const* const>(flatRegs.data(), numRetvalRegs);
+        return std::span<Register const* const>(virtRegs.flat().data(),
+                                                numRetvalRegs);
     }
 
     /// Assign indices to the instructions in this function and create a table
@@ -444,16 +293,13 @@ private:
     void eraseCallback(BasicBlock const&);
 
     std::string _name;
-    List<Register> virtRegs;
-    utl::vector<Register*> flatRegs;
-    List<Register> calleeRegs;
+    RegisterSet virtRegs, calleeRegs, hardwareRegs;
 
     /// Flat array of pointers to instructions in this function. Populated by
     /// `linearizeInstructions()`.
     utl::vector<Instruction*> instrs;
 
     ir::Function const* irFunc = nullptr;
-    size_t numLocalRegs  : 20  = 0;
     size_t numArgRegs    : 20  = 0;
     size_t numRetvalRegs : 20  = 0;
 };

@@ -2,6 +2,7 @@
 
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Function.h"
+#include "MIR/Register.h"
 
 using namespace scatha;
 using namespace mir;
@@ -80,23 +81,6 @@ void Instruction::replaceOperand(Value* old, Value* repl) {
     }
 }
 
-void Register::addDef(Instruction* inst) { _defs.insert(inst); }
-
-void Register::removeDef(Instruction* inst) {
-    size_t removeCount = _defs.erase(inst);
-    SC_ASSERT(removeCount == 1, "inst was not a definition of this register");
-}
-
-void Register::addUser(Instruction* inst) { ++_users[inst]; }
-
-void Register::removeUser(Instruction* inst) {
-    auto itr = _users.find(inst);
-    SC_ASSERT(itr != _users.end(), "inst is not a user of this register");
-    if (--itr->second == 0) {
-        _users.erase(itr);
-    }
-}
-
 BasicBlock::BasicBlock(ir::BasicBlock const* irBB):
     ListNodeOverride<BasicBlock, Value>(NodeType::BasicBlock),
     _name(std::string(irBB->name())),
@@ -136,46 +120,16 @@ Function::Function(ir::Function const* irFunc,
                    size_t numRetvalRegs):
     ListNodeOverride<Function, Value>(NodeType::Function),
     _name(std::string(irFunc->name())),
+    virtRegs(this),
+    calleeRegs(this),
+    hardwareRegs(this),
     irFunc(irFunc),
     numArgRegs(numArgRegs),
     numRetvalRegs(numRetvalRegs) {
     size_t const numRegs = std::max(numArgRegs, numRetvalRegs);
     for (size_t i = 0; i < numRegs; ++i) {
-        addVirtualRegister();
+        virtRegs.add(new VirtualRegister());
     }
-}
-
-Register* Function::addVirtualRegister() {
-    Register* reg = new Register();
-    reg->setIndex(flatRegs.size());
-    reg->set_parent(this);
-    virtRegs.push_back(reg);
-    flatRegs.push_back(reg);
-    return reg;
-}
-
-void Function::eraseVirtualRegister(Register* reg) {
-    flatRegs[reg->index()] = nullptr;
-    virtRegs.erase(reg);
-}
-
-void Function::renameRegisters() {
-    auto itr = ranges::remove(flatRegs, nullptr);
-    flatRegs.erase(itr, flatRegs.end());
-    for (auto [index, reg]: flatRegs | ranges::views::enumerate) {
-        reg->setIndex(index);
-    }
-}
-
-void Function::addCalleeRegister(Register* reg) {
-    if (calleeRegs.empty()) {
-        reg->setIndex(0);
-    }
-    else {
-        reg->setIndex(calleeRegs.back().index() + 1);
-    }
-    reg->set_parent(this);
-    calleeRegs.push_back(reg);
 }
 
 void Function::linearizeInstructions() {

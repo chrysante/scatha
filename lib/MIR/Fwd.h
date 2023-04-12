@@ -16,6 +16,9 @@ class Module;
 /// ```
 /// Value
 /// ├─ Register
+/// │  ├─ VirtualRegister
+/// │  ├─ CalleeRegister
+/// │  └─ ...
 /// ├─ Constant
 /// ├─ UndefValue
 /// ├─ BasicBlock

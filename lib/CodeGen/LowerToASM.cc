@@ -11,6 +11,9 @@ using namespace scatha;
 using namespace mir;
 using namespace Asm;
 
+/// Instruction pointer, register pointer offset and stack pointer
+static constexpr size_t NumRegsForCallMetadata = 3;
+
 namespace {
 
 struct CGContext {
@@ -35,8 +38,54 @@ struct CGContext {
         return itr->second;
     }
 
+    Asm::RegisterIndex toRegIdx(mir::Register const* reg) const {
+        // clang-format off
+        return visit(*reg, utl::overload{
+            [&](mir::VirtualRegister const& vreg) {
+                /// TODO: This case should fail
+                /// We only want to look at hardware registers here.
+                return Asm::RegisterIndex(vreg.index());
+            },
+            [&](mir::CalleeRegister const& creg) {
+                /// Should fail as well
+                size_t idx = currentFunction->virtualRegisters().size() +
+                             NumRegsForCallMetadata + creg.index();
+                return Asm::RegisterIndex(idx);
+            },
+        }); // clang-format on
+    }
+
+    Asm::RegisterIndex toRegIdx(mir::Value const* value) const {
+        return toRegIdx(cast<mir::Register const*>(value));
+    }
+
+    Asm::Value toValue(mir::Value const* value) const {
+        // clang-format off
+        return visit(*value, utl::overload{
+            [](mir::Constant const& constant) -> Asm::Value {
+                switch (constant.bytewidth()) {
+                case 1: return Value8(constant.value());
+                case 2: return Value16(constant.value());
+                case 4: return Value32(constant.value());
+                case 8: return Value64(constant.value());
+                default: SC_UNREACHABLE();
+                }
+            },
+            [](mir::UndefValue const&) -> Asm::Value {
+                return Asm::RegisterIndex(0);
+            },
+            [&](mir::Register const& reg) -> Asm::Value {
+                return toRegIdx(&reg);
+            },
+            [](mir::Value const& value) -> Asm::Value {
+                SC_UNREACHABLE();
+            }
+        }); // clang-format on
+    }
+
     Asm::AssemblyStream& result;
-    Asm::Block* currentBlock = nullptr;
+    Asm::Block* currentBlock             = nullptr;
+    mir::Function const* currentFunction = nullptr;
 
     /// Maps basic blocks and functions to label IDs
     utl::hashmap<mir::Value const*, size_t> labelIndices;
@@ -60,6 +109,7 @@ void CGContext::run(mir::Module const& mod) {
 
 void CGContext::genFunction(mir::Function const& F) {
     currentBlock = result.add(Asm::Block(getLabelID(F), std::string(F.name())));
+    currentFunction = &F;
     for (auto& BB: F) {
         genBlock(BB);
     }
@@ -96,41 +146,6 @@ static Asm::CompareOperation mapCompareOperation(mir::CompareOperation op);
 
 static Asm::Type mapCompareMode(ir::CompareMode mode);
 
-static Asm::RegisterIndex toRegIdx(mir::Register const* reg) {
-    return Asm::RegisterIndex(reg->index());
-}
-
-static Asm::RegisterIndex toRegIdx(mir::Value const* value) {
-    return toRegIdx(cast<mir::Register const*>(value));
-}
-
-static Asm::Value toValue(mir::Value const* value) {
-    // clang-format off
-    return visit(*value, utl::overload{
-        [](mir::Constant const& constant) -> Asm::Value {
-            switch (constant.bytewidth()) {
-            case 1: return Value8(constant.value());
-            case 2: return Value16(constant.value());
-            case 4: return Value32(constant.value());
-            case 8: return Value64(constant.value());
-            default: SC_UNREACHABLE();
-            }
-        },
-        [](mir::UndefValue const&) -> Asm::Value {
-            return Asm::RegisterIndex(0);
-        },
-        [](mir::Register const& reg) -> Asm::Value {
-            return Asm::RegisterIndex(reg.index());
-        },
-        [](mir::Value const& value) -> Asm::Value {
-            SC_UNREACHABLE();
-        }
-    }); // clang-format on
-}
-
-/// Instruction pointer, register pointer offset and stack pointer
-static constexpr size_t NumRegsForCallMetadata = 3;
-
 void CGContext::genInst(mir::Instruction const& inst) {
     switch (inst.instcode()) {
     case mir::InstCode::Store: {
@@ -152,16 +167,18 @@ void CGContext::genInst(mir::Instruction const& inst) {
         break;
     }
     case mir::InstCode::Call: {
-        auto* callee     = cast<mir::Function const*>(inst.operandAt(0));
-        auto* caller     = inst.parent()->parent();
-        size_t regOffset = caller->numLocalRegisters() + NumRegsForCallMetadata;
+        auto* callee = cast<mir::Function const*>(inst.operandAt(0));
+        auto* caller = currentFunction;
+        size_t regOffset =
+            caller->virtualRegisters().size() + NumRegsForCallMetadata;
         currentBlock->insertBack(CallInst(getLabelID(*callee), regOffset));
         break;
     }
     case mir::InstCode::CallExt: {
-        auto callee      = inst.instDataAs<mir::ExtFuncAddress>();
-        auto* caller     = inst.parent()->parent();
-        size_t regOffset = caller->numLocalRegisters() + NumRegsForCallMetadata;
+        auto callee  = inst.instDataAs<mir::ExtFuncAddress>();
+        auto* caller = currentFunction;
+        size_t regOffset =
+            caller->virtualRegisters().size() + NumRegsForCallMetadata;
         currentBlock->insertBack(
             CallExtInst(regOffset, callee.slot, callee.index));
         break;

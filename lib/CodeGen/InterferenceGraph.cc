@@ -36,8 +36,8 @@ void InterferenceGraph::colorize() {
 }
 
 void InterferenceGraph::computeImpl(Function& F) {
-    for (auto* reg: F.virtualRegisters()) {
-        addRegister(reg);
+    for (auto& reg: F.virtualRegisters()) {
+        addRegister(&reg);
     }
     for (auto argRegs = F.argumentRegisters(); auto* r: argRegs) {
         addEdges(r, argRegs);
@@ -49,15 +49,15 @@ void InterferenceGraph::computeImpl(Function& F) {
         auto live = BB.liveOut();
         for (auto& inst: BB | ranges::views::reverse) {
             auto* dest = inst.dest();
-            if (dest && !dest->isCalleeRegister()) {
+            if (dest && isa<VirtualRegister>(dest)) {
                 addEdges(dest, live);
             }
             for (auto* op: inst.operands()) {
-                auto* reg = op ? dyncast<Register*>(op) : nullptr;
-                if (!reg || reg->isCalleeRegister()) {
+                auto* vreg = op ? dyncast<VirtualRegister*>(op) : nullptr;
+                if (!vreg) {
                     continue;
                 }
-                live.insert(reg);
+                live.insert(vreg);
             }
             live.erase(dest);
         }

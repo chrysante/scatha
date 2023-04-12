@@ -9,7 +9,9 @@
 #endif
 
 SC_MIR_CFGNODE_DEF(Value,               ABSTRACT)
-SC_MIR_CFGNODE_DEF(Register,            CONCRETE)
+SC_MIR_CFGNODE_DEF(Register,            ABSTRACT)
+SC_MIR_CFGNODE_DEF(VirtualRegister,     CONCRETE)
+SC_MIR_CFGNODE_DEF(CalleeRegister,      CONCRETE)
 SC_MIR_CFGNODE_DEF(Constant,            CONCRETE)
 SC_MIR_CFGNODE_DEF(UndefValue,          CONCRETE)
 SC_MIR_CFGNODE_DEF(BasicBlock,          CONCRETE)
