@@ -12,6 +12,7 @@
 #include "Common/UniquePtr.h"
 #include "MIR/Fwd.h"
 #include "MIR/Register.h" // Maybe we can remove this later
+#include "MIR/RegisterSet.h"
 #include "MIR/Value.h"
 
 namespace scatha::mir {
@@ -228,17 +229,92 @@ public:
     /// \Returns The name of this function.
     std::string_view name() const { return _name; }
 
-    /// \Returns The set of virtual registers used by this function.
-    RegisterSet& virtualRegisters() { return virtRegs; }
+    /// # SSA registers
 
-    /// \overload
-    RegisterSet const& virtualRegisters() const { return virtRegs; }
-
-    /// \Returns The set of callee registers used by this function.
-    RegisterSet& calleeRegisters() { return calleeRegs; }
+    /// \Returns The set of SSA registers used by this function.
+    RegisterSet<SSARegister>& ssaRegisters() { return ssaRegs; }
 
     ///  \overload
-    RegisterSet const& calleeRegisters() const { return calleeRegs; }
+    RegisterSet<SSARegister> const& ssaRegisters() const { return ssaRegs; }
+
+    /// SSA registers used by the arguments to this function.
+    std::span<SSARegister* const> ssaArgumentRegisters() {
+        return std::span<SSARegister* const>(ssaRegs.flat().data(), numArgRegs);
+    }
+
+    /// \overload
+    std::span<SSARegister const* const> ssaArgumentRegisters() const {
+        return std::span<SSARegister const* const>(ssaRegs.flat().data(),
+                                                   numArgRegs);
+    }
+
+    /// SSA registers used for the return value of this function.
+    std::span<SSARegister* const> ssaReturnValueRegisters() {
+        return std::span<SSARegister* const>(ssaRegs.flat().data() + numArgRegs,
+                                             numRetvalRegs);
+    }
+
+    /// \overload
+    std::span<SSARegister const* const> ssaReturnValueRegisters() const {
+        return std::span<SSARegister const* const>(ssaRegs.flat().data() +
+                                                       numArgRegs,
+                                                   numRetvalRegs);
+    }
+
+    /// # Virtual registers
+
+    /// \Returns The set of virtual registers used by this function.
+    RegisterSet<VirtualRegister>& virtualRegisters() { return virtRegs; }
+
+    /// \overload
+    RegisterSet<VirtualRegister> const& virtualRegisters() const {
+        return virtRegs;
+    }
+
+    /// Virtual registers used by the arguments to this function.
+    std::span<VirtualRegister* const> virtualArgumentRegisters() {
+        return std::span<VirtualRegister* const>(virtRegs.flat().data(),
+                                                 numArgRegs);
+    }
+
+    /// \overload
+    std::span<VirtualRegister const* const> virtualArgumentRegisters() const {
+        return std::span<VirtualRegister const* const>(virtRegs.flat().data(),
+                                                       numArgRegs);
+    }
+
+    /// Virtual registers used for the return value of this function.
+    std::span<VirtualRegister* const> virtualReturnValueRegisters() {
+        return std::span<VirtualRegister* const>(virtRegs.flat().data(),
+                                                 numRetvalRegs);
+    }
+
+    /// \overload
+    std::span<VirtualRegister const* const> virtualReturnValueRegisters()
+        const {
+        return std::span<VirtualRegister const* const>(virtRegs.flat().data(),
+                                                       numRetvalRegs);
+    }
+
+    /// # Callee registers
+
+    /// \Returns The set of callee registers used by this function.
+    RegisterSet<CalleeRegister>& calleeRegisters() { return calleeRegs; }
+
+    ///  \overload
+    RegisterSet<CalleeRegister> const& calleeRegisters() const {
+        return calleeRegs;
+    }
+
+    /// # Hardware registers
+
+    /// \Returns The set of hardware registers used by this function.
+    RegisterSet<HardwareRegister>& hardwareRegisters() { return hardwareRegs; }
+
+    ///  \overload
+    RegisterSet<HardwareRegister> const& hardwareRegisters() const {
+        return hardwareRegs;
+    }
 
     /// \Returns Pointer to the entry basic block
     BasicBlock* entry() { return &front(); }
@@ -249,29 +325,6 @@ public:
     /// \Return Pointer to the `ir::Function` corresponding to this
     /// `mir::Function`.
     ir::Function const* irFunction() const { return irFunc; }
-
-    /// Registers used by the arguments to this function.
-    std::span<Register* const> argumentRegisters() {
-        return std::span<Register* const>(virtRegs.flat().data(), numArgRegs);
-    }
-
-    /// \overload
-    std::span<Register const* const> argumentRegisters() const {
-        return std::span<Register const* const>(virtRegs.flat().data(),
-                                                numArgRegs);
-    }
-
-    /// Registers used for the return value of this function.
-    std::span<Register* const> returnValueRegisters() {
-        return std::span<Register* const>(virtRegs.flat().data(),
-                                          numRetvalRegs);
-    }
-
-    /// \overload
-    std::span<Register const* const> returnValueRegisters() const {
-        return std::span<Register const* const>(virtRegs.flat().data(),
-                                                numRetvalRegs);
-    }
 
     /// Assign indices to the instructions in this function and create a table
     /// to index
@@ -293,7 +346,11 @@ private:
     void eraseCallback(BasicBlock const&);
 
     std::string _name;
-    RegisterSet virtRegs, calleeRegs, hardwareRegs;
+
+    RegisterSet<SSARegister> ssaRegs;
+    RegisterSet<VirtualRegister> virtRegs;
+    RegisterSet<CalleeRegister> calleeRegs;
+    RegisterSet<HardwareRegister> hardwareRegs;
 
     /// Flat array of pointers to instructions in this function. Populated by
     /// `linearizeInstructions()`.

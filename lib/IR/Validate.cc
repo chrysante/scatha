@@ -180,6 +180,13 @@ void AssertContext::assertSpecialInvariants(Phi const& phi) {
     CHECK(preds == args,
           "We need an incoming edge in our phi node for exactly every incoming "
           "edge in the basic block");
+    for (auto [pred, phiPred]:
+         ranges::views::zip(phi.parent()->predecessors(), phi.incomingEdges()))
+    {
+        CHECK(pred == phiPred,
+              "We also require that the predecessors to the phi node have the "
+              "same order as the predecessors of the basic block.");
+    }
 }
 
 void AssertContext::assertSpecialInvariants(Call const& call) {

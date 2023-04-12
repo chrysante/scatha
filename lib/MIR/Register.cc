@@ -21,31 +21,29 @@ void Register::removeUser(Instruction* inst) {
     visit(*this, [&](auto& reg) { removeUserImpl(inst); });
 }
 
-void VirtualRegister::addDefImpl(Instruction* inst) { _defs.insert(inst); }
+void Register::addUserImpl(Instruction* inst) { ++_users[inst]; }
 
-void VirtualRegister::removeDefImpl(Instruction* inst) {
-    size_t removeCount = _defs.erase(inst);
-    SC_ASSERT(removeCount == 1, "inst was not a definition of this register");
-}
-
-void VirtualRegister::addUserImpl(Instruction* inst) { ++_users[inst]; }
-
-void VirtualRegister::removeUserImpl(Instruction* inst) {
+void Register::removeUserImpl(Instruction* inst) {
     auto itr = _users.find(inst);
-    SC_ASSERT(itr != _users.end(), "inst is not a user of this register");
+    SC_ASSERT(itr != _users.end(), "`inst` is not a user of this register");
     if (--itr->second == 0) {
         _users.erase(itr);
     }
 }
 
-void RegisterSet::add(Register* reg) {
-    reg->setIndex(flt.size());
-    reg->set_parent(func);
-    list.push_back(reg);
-    flt.push_back(reg);
+void SSARegister::addDefImpl(Instruction* inst) {
+    SC_ASSERT(!_def, "SSA register can only be assigned once");
+    _def = inst;
 }
 
-void RegisterSet::erase(Register* reg) {
-    flt[reg->index()] = nullptr;
-    list.erase(reg);
+void SSARegister::removeDefImpl(Instruction* inst) {
+    SC_ASSERT(_def == inst, "`inst` was not a definition of this register");
+    _def = nullptr;
+}
+
+void VirtualRegister::addDefImpl(Instruction* inst) { _defs.insert(inst); }
+
+void VirtualRegister::removeDefImpl(Instruction* inst) {
+    size_t removeCount = _defs.erase(inst);
+    SC_ASSERT(removeCount == 1, "`inst` was not a definition of this register");
 }

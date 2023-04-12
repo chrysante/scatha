@@ -120,15 +120,15 @@ Function::Function(ir::Function const* irFunc,
                    size_t numRetvalRegs):
     ListNodeOverride<Function, Value>(NodeType::Function),
     _name(std::string(irFunc->name())),
+    ssaRegs(this),
     virtRegs(this),
     calleeRegs(this),
     hardwareRegs(this),
     irFunc(irFunc),
     numArgRegs(numArgRegs),
     numRetvalRegs(numRetvalRegs) {
-    size_t const numRegs = std::max(numArgRegs, numRetvalRegs);
-    for (size_t i = 0; i < numRegs; ++i) {
-        virtRegs.add(new VirtualRegister());
+    for (size_t i = 0; i < numArgRegs + numRetvalRegs; ++i) {
+        ssaRegs.add(new SSARegister());
     }
 }
 

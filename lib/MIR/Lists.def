@@ -10,8 +10,10 @@
 
 SC_MIR_CFGNODE_DEF(Value,               ABSTRACT)
 SC_MIR_CFGNODE_DEF(Register,            ABSTRACT)
+SC_MIR_CFGNODE_DEF(SSARegister,         CONCRETE)
 SC_MIR_CFGNODE_DEF(VirtualRegister,     CONCRETE)
 SC_MIR_CFGNODE_DEF(CalleeRegister,      CONCRETE)
+SC_MIR_CFGNODE_DEF(HardwareRegister,    CONCRETE)
 SC_MIR_CFGNODE_DEF(Constant,            CONCRETE)
 SC_MIR_CFGNODE_DEF(UndefValue,          CONCRETE)
 SC_MIR_CFGNODE_DEF(BasicBlock,          CONCRETE)
@@ -45,5 +47,6 @@ SC_MIR_INSTRUCTION_DEF(Conversion,      "<conv>")     /// (Register operand)    
 SC_MIR_INSTRUCTION_DEF(Jump,            "jmp")        /// (BasicBlock target)
 SC_MIR_INSTRUCTION_DEF(CondJump,        "<cond-jmp>") /// (BasicBlock target)        [Data = condition]
 SC_MIR_INSTRUCTION_DEF(Return,          "ret")        /// ()
+SC_MIR_INSTRUCTION_DEF(Phi,             "phi")        /// (Value...)                 [one Value entry per predecessor]
 
 #undef SC_MIR_INSTRUCTION_DEF

@@ -47,11 +47,14 @@ static constexpr auto localName =
 
 static constexpr auto regName =
     utl::streammanip([](std::ostream& str, Register const* reg) -> auto& {
-        if (isa<CalleeRegister>(reg)) {
-            auto name = utl::strcat("%c", reg->index());
-            return str << tfmt::format(tfmt::blue | tfmt::italic, name);
-        }
-        auto name = utl::strcat("%", reg->index());
+        // clang-format off
+        char const prefix = visit(*reg, utl::overload{
+            [](SSARegister const&) { return 'S'; },
+            [](VirtualRegister const&) { return 'V'; },
+            [](CalleeRegister const&) { return 'C'; },
+            [](HardwareRegister const&) { return 'H'; },
+        }); // clang-format on
+        auto name = utl::strcat(prefix, reg->index());
         return str << tfmt::format(tfmt::brightBlue, name);
     });
 
@@ -59,7 +62,6 @@ static constexpr auto opcode =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
         return str << tfmt::format(tfmt::red | tfmt::bold, args...);
     });
-;
 
 static constexpr auto light =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
@@ -163,12 +165,26 @@ struct PrintContext {
         }
         std::string opcodeStr = formatInstCode(*inst);
         str << std::left << std::setw(6) << opcode(opcodeStr) << " ";
-        for (bool first = true; auto* op: inst->operands()) {
-            if (!first) {
-                str << ", ";
+        if (inst->instcode() == InstCode::Phi) {
+            for (size_t i = 0; auto* op: inst->operands()) {
+                if (i != 0) {
+                    str << ", ";
+                }
+                str << "["
+                    << localName(inst->parent()->predecessors()[i++]->name())
+                    << ": ";
+                print(op);
+                str << "]";
             }
-            first = false;
-            print(op);
+        }
+        else {
+            for (bool first = true; auto* op: inst->operands()) {
+                if (!first) {
+                    str << ", ";
+                }
+                first = false;
+                print(op);
+            }
         }
         if (inst->instcode() == InstCode::Load ||
             inst->instcode() == InstCode::Store ||

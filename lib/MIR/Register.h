@@ -64,11 +64,31 @@ class Register:
     public ListNodeOverride<Register, Value>,
     public ParentedNode<Function> {
 public:
+    template <typename R>
+    using Override = ListNodeOverride<R, Register>;
+
     static constexpr size_t InvalidIndex = ~size_t{ 0 };
 
     size_t index() const { return idx; }
 
     void setIndex(size_t index) { idx = index; }
+
+    /// \Returns A view over pointers to instructions using this register
+    auto uses() {
+        return _users |
+               ranges::views::transform([](auto& p) { return p.first; });
+    }
+
+    /// \overload
+    auto uses() const {
+        return _users |
+               ranges::views::transform([](auto& p) { return p.first; });
+    }
+
+    /// \Returns `true` iff. \p inst uses this register (as an argument).
+    bool isUsedBy(Instruction const* inst) const {
+        return _users.contains(inst);
+    }
 
 protected:
     explicit Register(NodeType nodeType, size_t index = InvalidIndex):
@@ -82,19 +102,41 @@ private:
     void removeDef(Instruction* inst);
     void removeDefImpl(Instruction* inst) {}
     void addUser(Instruction* inst);
-    void addUserImpl(Instruction* inst) {}
+    void addUserImpl(Instruction* inst);
     void removeUser(Instruction* inst);
-    void removeUserImpl(Instruction* inst) {}
+    void removeUserImpl(Instruction* inst);
 
     size_t idx;
+    utl::hashmap<Instruction*, size_t> _users;
+};
+
+/// Represents a register that can only be assigned once.
+///
+///
+class SSARegister: public Register::Override<SSARegister> {
+public:
+    SSARegister(): Register::Override<SSARegister>(NodeType::SSARegister) {}
+
+    /// \Returns A pointer to the instruction defining this register.
+    Instruction* def() { return _def; }
+
+    /// \overload
+    Instruction const* def() const { return _def; }
+
+private:
+    void addDefImpl(Instruction* inst);
+    void removeDefImpl(Instruction* inst);
+
+    Instruction* _def = nullptr;
 };
 
 /// Represents a virtual register used early in the backend
 ///
 ///
-class VirtualRegister: public Register {
+class VirtualRegister: public Register::Override<VirtualRegister> {
 public:
-    explicit VirtualRegister(): Register(NodeType::VirtualRegister) {}
+    explicit VirtualRegister():
+        Register::Override<VirtualRegister>(NodeType::VirtualRegister) {}
 
     auto defs() {
         return _defs | ranges::views::transform([](auto* d) { return d; });
@@ -104,74 +146,31 @@ public:
         return _defs | ranges::views::transform([](auto* d) { return d; });
     }
 
-    auto uses() {
-        return _users |
-               ranges::views::transform([](auto& p) { return p.first; });
-    }
-
-    auto uses() const {
-        return _users |
-               ranges::views::transform([](auto& p) { return p.first; });
-    }
-
-    /// \Returns `true` iff. \p inst uses this register (as an argument).
-    bool isUsedBy(Instruction const* inst) const {
-        return _users.contains(inst);
-    }
-
 private:
     void addDefImpl(Instruction* inst);
     void removeDefImpl(Instruction* inst);
-    void addUserImpl(Instruction* inst);
-    void removeUserImpl(Instruction* inst);
 
     utl::hashset<Instruction*> _defs;
-    utl::hashmap<Instruction*, size_t> _users;
 };
 
 /// Represents a register in a callee's register space.
 ///
 ///
-class CalleeRegister: public Register {
+class CalleeRegister: public Register::Override<CalleeRegister> {
 public:
-    explicit CalleeRegister(): Register(NodeType::CalleeRegister) {}
+    explicit CalleeRegister():
+        Register::Override<CalleeRegister>(NodeType::CalleeRegister) {}
 };
 
+/// Represents an actual register in the hardware (or the VM)
 ///
 ///
-///
-class RegisterSet {
+class HardwareRegister: public Register::Override<HardwareRegister> {
 public:
-    explicit RegisterSet(mir::Function* F): func(F) {}
-
-    void add(Register* reg);
-
-    void erase(Register* reg);
-
-    Register* at(size_t index) { return flt[index]; }
-
-    Register const* at(size_t index) const { return flt[index]; }
-
-    auto begin() { return list.begin(); }
-
-    auto begin() const { return list.begin(); }
-
-    auto end() { return list.end(); }
-
-    auto end() const { return list.end(); }
-
-    bool empty() const { return list.empty(); }
-
-    size_t size() const { return flt.size(); }
-
-    std::span<Register* const> flat() { return flt; }
-
-    std::span<Register const* const> flat() const { return flt; }
+    HardwareRegister():
+        Register::Override<HardwareRegister>(NodeType::HardwareRegister) {}
 
 private:
-    mir::Function* func;
-    List<Register> list;
-    utl::vector<Register*> flt;
 };
 
 } // namespace scatha::mir

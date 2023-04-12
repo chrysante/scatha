@@ -52,6 +52,9 @@ struct CGContext {
                              NumRegsForCallMetadata + creg.index();
                 return Asm::RegisterIndex(idx);
             },
+            [&](mir::Register const& reg) -> Asm::RegisterIndex {
+                SC_DEBUGFAIL();
+            },
         }); // clang-format on
     }
 
