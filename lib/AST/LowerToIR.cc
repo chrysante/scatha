@@ -114,8 +114,8 @@ struct CodeGenContext {
 } // namespace
 
 ir::Module ast::lowerToIR(AbstractSyntaxTree const& ast,
-                        sema::SymbolTable const& symbolTable,
-                        ir::Context& irCtx) {
+                          sema::SymbolTable const& symbolTable,
+                          ir::Context& irCtx) {
     ir::Module mod;
     CodeGenContext ctx(irCtx, mod, symbolTable);
     ctx.declareTypes();
