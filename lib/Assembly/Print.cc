@@ -146,32 +146,32 @@ struct CoutRestore {
 
 static void printImpl(std::ostream& str, Value8 const& value) {
     CoutRestore r;
-    str << "(u8)" << std::hex << value.value();
+    str << std::hex << value.value() << "_u8";
 }
 
 static void printImpl(std::ostream& str, Value16 const& value) {
     CoutRestore r;
-    str << "(u16)" << std::hex << value.value();
+    str << std::hex << value.value() << "_u16";
 }
 
 static void printImpl(std::ostream& str, Value32 const& value) {
     CoutRestore r;
-    str << "(u32)" << std::hex << value.value();
+    str << std::hex << value.value() << "_u32";
 }
 
 static void printImpl(std::ostream& str, Value64 const& value) {
     CoutRestore r;
-    str << "(u64)" << std::hex << value.value();
+    str << std::hex << value.value() << "_u64";
 }
 
 static void printImpl(std::ostream& str, RegisterIndex const& regIdx) {
-    str << "_R[" << regIdx.value() << "]";
+    str << "%" << regIdx.value();
 }
 
 static void printImpl(std::ostream& str, MemoryAddress const& addr) {
-    str << "*(ptr)_R[" << addr.baseptrRegisterIndex() << "]";
+    str << "*(ptr)%" << addr.baseptrRegisterIndex();
     if (!addr.onlyEvaluatesInnerOffset()) {
-        str << " + _R[" << addr.offsetCountRegisterIndex() << "] * "
+        str << " + %" << addr.offsetCountRegisterIndex() << " * "
             << addr.constantOffsetMultiplier();
     }
     str << " + " << addr.constantInnerOffset();
