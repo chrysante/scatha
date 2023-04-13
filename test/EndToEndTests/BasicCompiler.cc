@@ -16,12 +16,7 @@
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Basic/Memory.h"
-#include "CodeGen/DataFlow.h"
-#include "CodeGen/DeadCodeElim.h"
-#include "CodeGen/DestroySSA.h"
-#include "CodeGen/LowerToASM.h"
-#include "CodeGen/LowerToMIR.h"
-#include "CodeGen/RegisterAllocator.h"
+#include "CodeGen/CodeGen.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -68,24 +63,17 @@ static void optimize(ir::Context& ctx, ir::Module& mod) {
     opt::inlineFunctions(ctx, mod);
 }
 
-static uint64_t run(ir::Module const& irMod) {
+static uint64_t run(ir::Module const& mod) {
     /// Start execution with `main` if it exists.
     std::string mainName;
-    for (auto& f: irMod) {
+    for (auto& f: mod) {
         if (f.name().starts_with("main")) {
             mainName = std::string(f.name());
             break;
         }
     }
     assert(!mainName.empty());
-    auto mirMod = cg::lowerToMIR(irMod);
-    for (auto& F: mirMod) {
-        cg::computeLiveSets(F);
-        cg::deadCodeElim(F);
-        cg::destroySSA(F);
-        cg::allocateRegisters(F);
-    }
-    auto assembly = cg::lowerToASM(mirMod);
+    auto assembly = cg::codegen(mod);
     auto prog     = Asm::assemble(assembly, { .startFunction = mainName });
     svm::VirtualMachine vm;
     vm.loadProgram(prog.data());

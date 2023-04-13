@@ -9,7 +9,7 @@
 #include <scatha/AST/Print.h>
 #include <scatha/Assembly/Assembler.h>
 #include <scatha/Assembly/AssemblyStream.h>
-#include <scatha/CodeGen/IR2ByteCode/CodeGenerator.h>
+#include <scatha/CodeGen/CodeGen.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
 #include <scatha/Lexer/Lexer.h>

@@ -169,7 +169,7 @@ void playground::compile(std::string text) {
     ir::print(mod);
 
     header(" Assembly generated from IR ");
-    auto const assembly = cg::codegen(mod);
+    auto const assembly = cg::codegen_Old(mod);
     print(assembly);
 
     header(" Assembled Program ");

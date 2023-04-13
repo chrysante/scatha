@@ -19,7 +19,7 @@ class Module;
 
 namespace scatha::cg {
 
-[[nodiscard]] SCATHA_API Asm::AssemblyStream codegen(ir::Module const& mod);
+[[nodiscard]] SCATHA_API Asm::AssemblyStream codegen_Old(ir::Module const& mod);
 
 } // namespace scatha::cg
 

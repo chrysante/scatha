@@ -55,7 +55,7 @@ void playground::irDump(std::string_view text) {
     sectionHeader(" IR Code ");
     ir::print(mod);
 
-    auto asmStream = cg::codegen(mod);
+    auto asmStream = cg::codegen_Old(mod);
     sectionHeader(" Assembly ");
     Asm::print(asmStream);
 

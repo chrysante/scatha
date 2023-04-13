@@ -8,6 +8,7 @@
 
 #include "APFloatTest.h"
 #include "Assembly.h"
+#include "CodeGen/DestroySSA.h"
 #include "CodeGen/LowerToMIR.h"
 #include "DrawGraph.h"
 #include "IR/CFG.h"
@@ -155,6 +156,7 @@ int main(int argc, char const* const* argv) {
         scatha::opt::memToReg(ctx, irMod.front());
         auto mirMod = scatha::cg::lowerToMIR(irMod);
         auto& F     = mirMod.front();
+        scatha::cg::destroySSA(F);
         drawInterferenceGraph(F,
                               std::filesystem::path(PROJECT_LOCATION) /
                                   "graphviz/gen/interference-graph.gv");

@@ -22,7 +22,7 @@ Common/SourceLocation.h
 Common/Token.h
 Common/UniquePtr.h
 
-CodeGen/IR2ByteCode/CodeGenerator.h
+CodeGen/CodeGen.h
 
 IR/Context.h
 IR/Common.h

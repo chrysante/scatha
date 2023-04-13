@@ -97,7 +97,7 @@ struct CodeGenContext {
 
 } // namespace
 
-AssemblyStream cg::codegen(ir::Module const& mod) {
+AssemblyStream cg::codegen_Old(ir::Module const& mod) {
     AssemblyStream result;
     CodeGenContext ctx(result);
     ctx.run(mod);
