@@ -188,9 +188,17 @@ public:
 
     bool isLiveOut(Register const* reg) const { return _liveOut.contains(reg); }
 
-    auto const& liveIn() const { return _liveIn; }
+    utl::hashset<Register*> const& liveIn() const { return _liveIn; }
 
-    auto const& liveOut() const { return _liveOut; }
+    void setLiveIn(utl::hashset<Register*> liveIn) {
+        _liveIn = std::move(liveIn);
+    }
+
+    utl::hashset<Register*> const& liveOut() const { return _liveOut; }
+
+    void setLiveOut(utl::hashset<Register*> liveOut) {
+        _liveOut = std::move(liveOut);
+    }
 
     bool isEntry() const;
 
