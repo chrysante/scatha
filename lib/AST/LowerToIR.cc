@@ -113,7 +113,7 @@ struct CodeGenContext {
 
 } // namespace
 
-ir::Module ast::codegen(AbstractSyntaxTree const& ast,
+ir::Module ast::lowerToIR(AbstractSyntaxTree const& ast,
                         sema::SymbolTable const& symbolTable,
                         ir::Context& irCtx) {
     ir::Module mod;

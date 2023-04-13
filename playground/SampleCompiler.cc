@@ -157,7 +157,7 @@ void playground::compile(std::string text) {
     subHeader();
     header(" Generated IR ");
     ir::Context irCtx;
-    ir::Module mod = ast::codegen(*ast, sym, irCtx);
+    ir::Module mod = ast::lowerToIR(*ast, sym, irCtx);
     ir::print(mod);
 
     header(" Optimized IR ");

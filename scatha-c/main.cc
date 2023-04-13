@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
 
     /// Generate IR
     ir::Context context;
-    auto mod = ast::codegen(*ast, symbolTable, context);
+    auto mod = ast::lowerToIR(*ast, symbolTable, context);
 
     opt::optimize(context, mod, options.optLevel);
 

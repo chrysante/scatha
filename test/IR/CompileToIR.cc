@@ -28,5 +28,5 @@ ir::Module test::compileToIR(std::string_view text) {
         throw std::runtime_error("Compilation failed");
     }
     ir::Context ctx;
-    return ast::codegen(*ast, sym, ctx);
+    return ast::lowerToIR(*ast, sym, ctx);
 }

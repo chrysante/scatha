@@ -55,7 +55,7 @@ static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
         throw std::runtime_error("Compilation failed");
     }
     ir::Context ctx;
-    auto mod = ast::codegen(*ast, sym, ctx);
+    auto mod = ast::lowerToIR(*ast, sym, ctx);
     return { std::move(ctx), std::move(mod) };
 }
 

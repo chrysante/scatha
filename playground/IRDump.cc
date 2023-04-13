@@ -88,7 +88,7 @@ static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
         return std::nullopt;
     }
     ir::Context ctx;
-    return std::pair{ std::move(ctx), ast::codegen(*ast, sym, ctx) };
+    return std::pair{ std::move(ctx), ast::lowerToIR(*ast, sym, ctx) };
 }
 
 static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
