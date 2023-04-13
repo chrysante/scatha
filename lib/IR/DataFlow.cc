@@ -10,15 +10,15 @@ using namespace ir;
 
 template <typename T>
 static void merge(utl::hashset<T>& dest, auto const& source) {
-    for (auto* BB: source) {
-        dest.insert(BB);
+    for (auto* value: source) {
+        dest.insert(value);
     }
 }
 
 namespace {
 
 struct LivenessContext {
-    enum Flags { Visited = 1 << 0, Processed = 1 << 1 };
+    //    enum Flags { Visited = 1 << 0, Processed = 1 << 1 };
 
     using ResultMap = utl::hashmap<BasicBlock const*, BasicBlockLiveSets>;
 
@@ -35,7 +35,10 @@ struct LivenessContext {
 
     Function const& F;
     ResultMap& liveSets;
-    utl::hashmap<BasicBlock const*, int> flags;
+    /// Need two sets because we use `visited` like a stack to detect back
+    /// edges.
+    utl::hashset<BasicBlock const*> processed;
+    utl::hashset<BasicBlock const*> visited;
     utl::hashset<std::pair<BasicBlock const*, BasicBlock const*>> backEdges;
 };
 
@@ -57,15 +60,14 @@ void LivenessContext::run() {
 }
 
 void LivenessContext::dag(BasicBlock const* BB) {
-    flags[BB] |= Visited;
+    visited.insert(BB);
     // TODO: Implement modification for irreducible CFGs
     for (auto* succ: BB->successors()) {
-        auto const succFlag = flags[succ];
-        if (succFlag & Visited) {
+        if (visited.contains(succ)) {
             backEdges.insert({ BB, succ });
             continue;
         }
-        if (succFlag & Processed) {
+        if (processed.contains(succ)) {
             continue;
         }
         dag(succ);
@@ -100,10 +102,13 @@ void LivenessContext::dag(BasicBlock const* BB) {
         live.insert(&phi);
     }
     liveSets[BB].liveIn = std::move(live);
-    flags[BB] |= Processed;
+    processed.insert(BB);
+    visited.erase(BB);
 }
 
 void LivenessContext::loopTree(LoopNestingForest::Node const* node) {
+    /// If this 'loop header' has no children it is a trivial loop aka. not a
+    /// loop. Then we don't need to preserve our live-in values.
     if (node->children().empty()) {
         return;
     }
@@ -112,10 +117,15 @@ void LivenessContext::loopTree(LoopNestingForest::Node const* node) {
     for (auto& phi: header->phiNodes()) {
         liveLoop.erase(&phi);
     }
+    /// We also need to merge our own live-out values with the other loop-live
+    /// values.
+    auto& headerLiveSets = liveSets[header];
+    merge(headerLiveSets.liveIn, liveLoop);
+    merge(headerLiveSets.liveOut, liveLoop);
     for (auto* child: node->children()) {
-        auto* header = child->basicBlock();
-        merge(liveSets[header].liveIn, liveLoop);
-        merge(liveSets[header].liveOut, liveLoop);
+        auto& childLiveSets = liveSets[child->basicBlock()];
+        merge(childLiveSets.liveIn, liveLoop);
+        merge(childLiveSets.liveOut, liveLoop);
         loopTree(child);
     }
 }
