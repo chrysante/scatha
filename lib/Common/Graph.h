@@ -162,6 +162,9 @@ public:
     using Base::Base;
 
     /// \returns a view over references to neighbours.
+    std::span<Self* const> neighbours() { return edges; }
+
+    /// \overload
     std::span<Self const* const> neighbours() const { return edges; }
 
     /// Add \p neigh as predecessor if it is not already a predecessor.
@@ -184,9 +187,15 @@ public:
     using Base::Base;
 
     /// \returns a view over references to predecessors.
+    std::span<Self* const> predecessors() { return incoming; }
+
+    /// \returns a view over references to predecessors.
     std::span<Self const* const> predecessors() const { return incoming; }
 
     /// \returns a view over references to successors.
+    std::span<Self* const> successors() { return outgoing; }
+
+    /// \overload
     std::span<Self const* const> successors() const { return outgoing; }
 
     /// \Returns Number of incoming egdes.
