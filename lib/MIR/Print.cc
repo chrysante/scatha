@@ -196,6 +196,18 @@ struct PrintContext {
         {
             printPtrData(inst->instDataAs<MemoryAddress::ConstantData>());
         }
+
+        if (inst->instcode() == InstCode::Call ||
+            inst->instcode() == InstCode::CallExt)
+        {
+            auto callData = inst->instDataAs<CallInstData>();
+            str << "regoffset=" << callData.regOffset;
+            if (inst->instcode() == InstCode::CallExt) {
+                str << ", slot=" << callData.extFuncAddress.slot;
+                str << ", index=" << callData.extFuncAddress.index;
+            }
+        }
+
         str << "\n";
     }
 
