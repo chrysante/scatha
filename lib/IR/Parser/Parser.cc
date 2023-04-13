@@ -73,6 +73,12 @@ struct ParseContext {
 
     template <typename V = Value, std::derived_from<User> U>
     void addValueLink(U* user, Type const* type, Token token, auto fn) {
+        if (user->name() == token.id()) {
+            /// We report self references as use of undeclared identifier
+            /// because the identifier is not defined before the next
+            /// declaration.
+            reportSemaIssue(token, SemanticIssue::UseOfUndeclaredIdentifier);
+        }
         auto* value = getValue<V>(type, token);
         if (value) {
             if (type && value->type() && value->type() != type) {
