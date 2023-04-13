@@ -12,7 +12,7 @@
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
-#include "CodeGen/IR2ByteCode/CodeGenerator.h"
+#include "CodeGen/CodeGen.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Parser.h"
@@ -55,7 +55,7 @@ void playground::irDump(std::string_view text) {
     sectionHeader(" IR Code ");
     ir::print(mod);
 
-    auto asmStream = cg::codegen_Old(mod);
+    auto asmStream = cg::codegen(mod);
     sectionHeader(" Assembly ");
     Asm::print(asmStream);
 

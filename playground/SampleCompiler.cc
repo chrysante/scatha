@@ -13,7 +13,7 @@
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
-#include "CodeGen/IR2ByteCode/CodeGenerator.h"
+#include "CodeGen/CodeGen.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -169,7 +169,7 @@ void playground::compile(std::string text) {
     ir::print(mod);
 
     header(" Assembly generated from IR ");
-    auto const assembly = cg::codegen_Old(mod);
+    auto const assembly = cg::codegen(mod);
     print(assembly);
 
     header(" Assembled Program ");
