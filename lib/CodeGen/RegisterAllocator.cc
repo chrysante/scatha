@@ -46,13 +46,30 @@ void cg::allocateRegisters(mir::Function& F) {
     /// Then we erase self assigning copy instructions.
     for (auto& BB: F) {
         for (auto inst = BB.begin(); inst != BB.end();) {
-            if (inst->instcode() != mir::InstCode::Copy ||
-                inst->dest() != inst->operandAt(0))
-            {
+            if (inst->instcode() != mir::InstCode::Copy) {
                 ++inst;
                 continue;
             }
-            inst = BB.erase(inst);
+            auto* dest     = inst->dest();
+            auto* source = inst->operandAt(0);
+            if (auto* constant = dyncast<mir::Constant*>(source);
+                constant && constant->value() == 0)
+            {
+                auto* selfXor =
+                    new mir::Instruction(mir::InstCode::Arithmetic,
+                                         dest,
+                                         { dest, dest },
+                                         mir::ArithmeticOperation::XOr,
+                                         8);
+                BB.insert(inst, selfXor);
+                inst = BB.erase(inst);
+                continue;
+            }
+            if (dest == source) {
+                inst = BB.erase(inst);
+                continue;
+            }
+            ++inst;
         }
     }
     /// Now as a last step we allocate callee registers to the upper hardware
