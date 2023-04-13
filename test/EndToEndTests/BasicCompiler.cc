@@ -17,6 +17,7 @@
 #include "Assembly/AssemblyStream.h"
 #include "Basic/Memory.h"
 #include "CodeGen/DataFlow.h"
+#include "CodeGen/DeadCodeElim.h"
 #include "CodeGen/DestroySSA.h"
 #include "CodeGen/LowerToASM.h"
 #include "CodeGen/LowerToMIR.h"
@@ -80,6 +81,7 @@ static uint64_t run(ir::Module const& irMod) {
     auto mirMod = cg::lowerToMIR(irMod);
     for (auto& F: mirMod) {
         cg::computeLiveSets(F);
+        cg::deadCodeElim(F);
         cg::destroySSA(F);
         cg::allocateRegisters(F);
     }
