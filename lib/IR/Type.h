@@ -113,7 +113,7 @@ public:
 };
 
 /// Represents a (user defined) structure type.
-class StructureType: public Type {
+class SCATHA_TESTAPI StructureType: public Type {
 public:
     explicit StructureType(std::string name):
         StructureType(std::move(name), {}) {}
