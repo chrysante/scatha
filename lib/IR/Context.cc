@@ -50,11 +50,11 @@ IntegralConstant* Context::integralConstant(APInt value) {
     auto itr              = _integralConstants.find({ bitwidth, value });
     if (itr == _integralConstants.end()) {
         std::tie(itr, std::ignore) = _integralConstants.insert(
-            { { bitwidth, value },
-              new IntegralConstant(*this, value, bitwidth) });
+            { std::pair{ bitwidth, value },
+              allocate<IntegralConstant>(*this, value, bitwidth) });
     }
     SC_ASSERT(ucmp(itr->second->value(), value) == 0, "Value mismatch");
-    return itr->second;
+    return itr->second.get();
 }
 
 IntegralConstant* Context::integralConstant(u64 value, size_t bitWidth) {
@@ -65,11 +65,11 @@ FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitWidth) {
     auto itr = _floatConstants.find({ bitWidth, value });
     if (itr == _floatConstants.end()) {
         std::tie(itr, std::ignore) = _floatConstants.insert(
-            { { bitWidth, value },
-              new FloatingPointConstant(*this, value, bitWidth) });
+            { std::pair{ bitWidth, value },
+              allocate<FloatingPointConstant>(*this, value, bitWidth) });
     }
     SC_ASSERT(itr->second->value() == value, "Value mismatch");
-    return itr->second;
+    return itr->second.get();
 }
 
 FloatingPointConstant* Context::floatConstant(double value, size_t bitWidth) {

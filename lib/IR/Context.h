@@ -3,7 +3,6 @@
 #ifndef SCATHA_IR_CONTEXT_H_
 #define SCATHA_IR_CONTEXT_H_
 
-#include <map>
 #include <string>
 
 #include <utl/hashmap.hpp>
@@ -71,10 +70,10 @@ private:
     /// ## Constants
     /// ** Bitwidth must appear before the value, because comparison of values
     /// of different widths may not be possible. **
-    utl::hashmap<std::pair<size_t, APInt>, IntegralConstant*>
+    utl::hashmap<std::pair<size_t, APInt>, UniquePtr<IntegralConstant>>
         _integralConstants;
     /// We use `std::map` here because floats are not really hashable.
-    std::map<std::pair<size_t, APFloat>, FloatingPointConstant*>
+    utl::hashmap<std::pair<size_t, APFloat>, UniquePtr<FloatingPointConstant>>
         _floatConstants;
     utl::hashmap<Type const*, UniquePtr<UndefValue>> _undefConstants;
 
