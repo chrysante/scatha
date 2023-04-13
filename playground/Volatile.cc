@@ -2,8 +2,9 @@
 
 #include <fstream>
 #include <iostream>
-#include <range/v3/view.hpp>
 #include <sstream>
+
+#include <range/v3/view.hpp>
 #include <svm/Program.h>
 #include <svm/VirtualMachine.h>
 #include <utl/stdio.hpp>
@@ -12,10 +13,13 @@
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
 #include "Basic/Basic.h"
-#include "CodeGen/Devirtualize.h"
-#include "CodeGen/IR2ByteCode/CodeGenerator.h"
+#include "CodeGen/CodeGen.h"
+#include "CodeGen/DataFlow.h"
+#include "CodeGen/DeadCodeElim.h"
+#include "CodeGen/DestroySSA.h"
 #include "CodeGen/LowerToASM.h"
 #include "CodeGen/LowerToMIR.h"
+#include "CodeGen/RegisterAllocator.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
@@ -121,6 +125,9 @@ static void run(mir::Module const& mod) {
         auto toNames = ranges::views::transform(
             [](ir::Value const* value) { return value->name(); });
         auto* live = liveSets.find(&bb);
+        if (!live) {
+            continue;
+        }
         std::cout << bb.name() << ":\n";
         std::cout << "\tLive in:  " << (live->liveIn | toNames) << "\n";
         std::cout << "\tLive out: " << (live->liveOut | toNames) << "\n";
@@ -154,19 +161,37 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    bool const optimize = 1;
+    bool const optimize = false;
 
     if (optimize) {
         opt::inlineFunctions(ctx, irMod);
     }
     header(" IR Module ");
     print(irMod);
+
+    header(" IR Live sets ");
+    printIRLiveSets(irMod.front());
+
+    header(" MIR Module in SSA form ");
     auto mirMod = cg::lowerToMIR(irMod);
     for (auto& F: mirMod) {
-        cg::devirtualize(F);
+        cg::computeLiveSets(F);
+        cg::deadCodeElim(F);
     }
-    header(" MIR Module ");
     mir::print(mirMod);
+
+    header(" MIR Module after SSA destruction ");
+    for (auto& F: mirMod) {
+        cg::destroySSA(F);
+    }
+    mir::print(mirMod);
+
+    header(" MIR Module after register allocation ");
+    for (auto& F: mirMod) {
+        cg::allocateRegisters(F);
+    }
+    mir::print(mirMod);
+
     run(mirMod);
 }
 

@@ -1,14 +1,11 @@
-fn f(a: int, b: int, c: int, d: int) -> int {
-    let aSave = a;
-    while a != b {
-        let t = b;
-        b = a % b;
-        a = t;
+fn pow(x: float, n: int) -> float {
+    var result = 1.0;
+    for i = 0; i < n; ++i {
+        result *= x;
     }
-    let x = a + aSave;
-    var r = 1;
-    for i = 1; i <= x; ++i {
-        r *= i;
-    }
-    return r;
+    return result;
+}
+fn main() -> int {
+    let x = pow(1.61, int(5.5));
+    return int(x);
 }
