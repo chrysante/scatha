@@ -56,11 +56,12 @@ void cg::allocateRegisters(mir::Function& F) {
                 inst = BB.erase(inst);
                 continue;
             }
-            /// We replace copies from contant 0 with self-xor's. This decreases
+            /// We replace copies from constant 0 with self-xor's. This decreases
             /// binary size because two register indices take 2 bytes to encode
-            /// vs 8 bytes for the zero literal.
+            /// vs >2 bytes for the zero literal.
             if (auto* constant = dyncast<mir::Constant*>(source);
-                constant && constant->value() == 0)
+                constant && constant->value() == 0 && 
+                inst->bytewidth() > 2)
             {
                 auto* selfXor =
                     new mir::Instruction(mir::InstCode::Arithmetic,
