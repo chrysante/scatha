@@ -73,7 +73,14 @@ public:
 
     void setIndex(size_t index) { idx = index; }
 
-    /// \Returns A view over pointers to instructions using this register
+    /// A register is *fixed* if it has a special meaning and may not be
+    /// replaced by another register with a different index.
+    bool fixed() const { return _fixed; }
+
+    /// Set wether this register is fixed.
+    void setFixed(bool value = true) { _fixed = value; }
+
+    /// \Returns A view over pointers to instructions reading from this register
     auto uses() {
         return _users |
                ranges::views::transform([](auto& p) { return p.first; });
@@ -85,10 +92,23 @@ public:
                ranges::views::transform([](auto& p) { return p.first; });
     }
 
+    /// \Returns A view over pointers to instructions writing to this register
+    auto defs() {
+        return _defs | ranges::views::transform([](auto* d) { return d; });
+    }
+
+    /// \overload
+    auto defs() const {
+        return _defs | ranges::views::transform([](auto* d) { return d; });
+    }
+
     /// \Returns `true` iff. \p inst uses this register (as an argument).
     bool isUsedBy(Instruction const* inst) const {
         return _users.contains(inst);
     }
+
+    /// Replace all uses and defs of this register with the register \p repl
+    void replaceWith(Register* repl);
 
 protected:
     explicit Register(NodeType nodeType, size_t index = InvalidIndex):
@@ -96,17 +116,20 @@ protected:
 
 private:
     friend class Instruction;
+    friend class SSARegister;
 
     void addDef(Instruction* inst);
-    void addDefImpl(Instruction* inst) {}
+    void addDefImpl(Instruction* inst);
     void removeDef(Instruction* inst);
-    void removeDefImpl(Instruction* inst) {}
+    void removeDefImpl(Instruction* inst);
     void addUser(Instruction* inst);
     void addUserImpl(Instruction* inst);
     void removeUser(Instruction* inst);
     void removeUserImpl(Instruction* inst);
 
-    size_t idx;
+    size_t idx  : 63;
+    bool _fixed : 1 = false;
+    utl::hashset<Instruction*> _defs;
     utl::hashmap<Instruction*, size_t> _users;
 };
 
@@ -118,16 +141,20 @@ public:
     SSARegister(): Register::Override<SSARegister>(NodeType::SSARegister) {}
 
     /// \Returns A pointer to the instruction defining this register.
-    Instruction* def() { return _def; }
+    Instruction* def() {
+        return const_cast<Instruction*>(
+            static_cast<SSARegister const*>(this)->def());
+    }
 
     /// \overload
-    Instruction const* def() const { return _def; }
+    Instruction const* def() const {
+        auto d = defs();
+        return d.empty() ? nullptr : d.front();
+    }
 
 private:
+    friend class Register;
     void addDefImpl(Instruction* inst);
-    void removeDefImpl(Instruction* inst);
-
-    Instruction* _def = nullptr;
 };
 
 /// Represents a virtual register used early in the backend
@@ -137,20 +164,6 @@ class VirtualRegister: public Register::Override<VirtualRegister> {
 public:
     explicit VirtualRegister():
         Register::Override<VirtualRegister>(NodeType::VirtualRegister) {}
-
-    auto defs() {
-        return _defs | ranges::views::transform([](auto* d) { return d; });
-    }
-
-    auto defs() const {
-        return _defs | ranges::views::transform([](auto* d) { return d; });
-    }
-
-private:
-    void addDefImpl(Instruction* inst);
-    void removeDefImpl(Instruction* inst);
-
-    utl::hashset<Instruction*> _defs;
 };
 
 /// Represents a register in a callee's register space.

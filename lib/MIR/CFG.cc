@@ -127,8 +127,11 @@ Function::Function(ir::Function const* irFunc,
     irFunc(irFunc),
     numArgRegs(numArgRegs),
     numRetvalRegs(numRetvalRegs) {
-    for (size_t i = 0; i < numArgRegs + numRetvalRegs; ++i) {
+    for (size_t i = 0; i < numArgRegs; ++i) {
         ssaRegs.add(new SSARegister());
+    }
+    for (size_t i = 0; i < numRetvalRegs; ++i) {
+        virtRegs.add(new VirtualRegister());
     }
 }
 

@@ -15,9 +15,10 @@
 namespace scatha::cg {
 
 class SCATHA_TESTAPI InterferenceGraph {
+    template <typename N>
     auto getNodeView() const {
         return nodes | ranges::views::transform(
-                           [](auto& ptr) -> auto const* { return ptr.get(); });
+                           [](auto& ptr) -> N* { return ptr.get(); });
     }
 
 public:
@@ -42,9 +43,9 @@ public:
 
     size_t numColors() const { return numCols; }
 
-    auto begin() const { return getNodeView().begin(); }
+    auto begin() const { return getNodeView<Node const>().begin(); }
 
-    auto end() const { return getNodeView().end(); }
+    auto end() const { return getNodeView<Node const>().end(); }
 
     size_t size() const { return nodes.size(); }
 

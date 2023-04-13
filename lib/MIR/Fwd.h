@@ -131,13 +131,22 @@ private:
     ConstantData constData;
 };
 
-///
-///
-///
+/// Represents the address of an external function.
 struct ExtFuncAddress {
-    uint32_t slot;
-    uint32_t index;
+    uint32_t slot  : 11;
+    uint32_t index : 21;
 };
+
+/// `InstData` for call instructions.
+struct CallInstData {
+    uint32_t regOffset;
+
+    /// Only used by `callext` instructions.
+    ExtFuncAddress extFuncAddress;
+};
+
+static_assert(sizeof(CallInstData) == 8,
+              "Must fit into `instdata` field of Instruction class");
 
 } // namespace scatha::mir
 

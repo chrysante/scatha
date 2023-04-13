@@ -16,7 +16,7 @@
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Basic/Memory.h"
-#include "CodeGen/Devirtualize.h"
+#include "CodeGen/DestroySSA.h"
 #include "CodeGen/LowerToASM.h"
 #include "CodeGen/LowerToMIR.h"
 #include "CodeGen/RegisterAllocator.h"
@@ -78,8 +78,8 @@ static uint64_t run(ir::Module const& irMod) {
     assert(!mainName.empty());
     auto mirMod = cg::lowerToMIR(irMod);
     for (auto& F: mirMod) {
-        //        cg::allocateRegisters(F);
-        cg::devirtualizeCalls(F);
+        cg::destroySSA(F);
+        cg::allocateRegisters(F);
     }
     auto assembly = cg::lowerToASM(mirMod);
     auto prog     = Asm::assemble(assembly, { .startFunction = mainName });

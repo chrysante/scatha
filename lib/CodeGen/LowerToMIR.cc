@@ -154,6 +154,8 @@ struct CodeGenContext {
                                 size_t width,
                                 mir::BasicBlock::ConstIterator before);
 
+    void copyLivenessInfo(ir::Value const* value, mir::SSARegister* reg);
+
     size_t numWords(ir::Type const* type) const {
         return utl::ceil_divide(type->size(), 8);
     }
@@ -220,17 +222,11 @@ void CodeGenContext::genFunction(ir::Function const& function) {
         declareBasicBlock(bb);
     }
     /// Associate parameters with bottom registers.
-    auto* liveSet  = LS.find(&function.entry());
-    auto* mirEntry = resolve(&function.entry());
-    auto regItr    = currentFunction->ssaRegisters().begin();
+    auto regItr = currentFunction->ssaRegisters().begin();
     for (auto& param: function.parameters()) {
         valueMap.insert({ &param, regItr.to_address() });
-        size_t const numWords = this->numWords(param.type());
-        if (liveSet->liveIn.contains(&param)) {
-            for (size_t i = 0; i < numWords; ++i, ++regItr) {
-                mirEntry->addLiveIn(regItr.to_address());
-            }
-        }
+        copyLivenessInfo(&param, regItr.to_address());
+        std::advance(regItr, numWords(param.type()));
     }
     for (auto& bb: function) {
         genBasicBlock(bb);
@@ -412,12 +408,17 @@ void CodeGenContext::genInst(ir::Call const& call) {
     visit(*call.function(), utl::overload{
         [&](ir::Function const& func) {
             auto* callee = resolve(&func);
-            addNewInst(mir::InstCode::Call, nullptr, { callee });
+            addNewInst(mir::InstCode::Call, nullptr, { callee }, mir::CallInstData{
+                .regOffset = 0
+            });
         },
         [&](ir::ExtFunction const& func) {
-            addNewInst(mir::InstCode::CallExt, nullptr, {}, mir::ExtFuncAddress{
-                .slot = static_cast<uint32_t>(func.slot()),
-                .index = static_cast<uint32_t>(func.index())
+            addNewInst(mir::InstCode::CallExt, nullptr, {}, mir::CallInstData{
+                .regOffset = 0,
+                .extFuncAddress = {
+                    .slot = static_cast<uint32_t>(func.slot()),
+                    .index = static_cast<uint32_t>(func.index())
+                }
             });
         },
     }); // clang-format on
@@ -434,7 +435,7 @@ void CodeGenContext::genInst(ir::Return const& ret) {
         size_t const numBytes = ret.value()->type()->size();
         size_t const numWords = utl::ceil_divide(numBytes, 8);
         auto* returnValue     = resolve(ret.value());
-        auto dest = currentFunction->ssaReturnValueRegisters().begin();
+        auto dest = currentFunction->virtualReturnValueRegisters().begin();
         genCopy(*dest, returnValue, numBytes);
         for (size_t i = 0; i < numWords; ++i, ++dest) {
             currentBlock->addLiveOut(*dest);
@@ -444,12 +445,26 @@ void CodeGenContext::genInst(ir::Return const& ret) {
 }
 
 void CodeGenContext::genInst(ir::Phi const& phi) {
+    auto* dest     = resolve(&phi);
     auto arguments = phi.arguments() |
                      ranges::views::transform([&](ir::ConstPhiMapping arg) {
                          return resolve(arg.value);
                      }) |
                      ranges::to<utl::small_vector<mir::Value*>>;
-    addNewInst(mir::InstCode::Phi, resolve(&phi), arguments);
+    size_t const numBytes = phi.type()->size();
+    size_t const numWords = utl::ceil_divide(numBytes, 8);
+    for (size_t i = 0; i < numWords; ++i) {
+        addNewInst(mir::InstCode::Phi,
+                   dest,
+                   arguments,
+                   0,
+                   sliceWidth(numBytes, i, numWords),
+                   currentBlock->end());
+        dest = dest->next();
+        for (auto& arg: arguments) {
+            arg = arg->next();
+        }
+    }
 }
 
 void CodeGenContext::genInst(ir::GetElementPointer const& gep) {
@@ -512,59 +527,115 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
                mir::ArithmeticOperation::And);
 }
 
-void CodeGenContext::genInst(ir::InsertValue const& insert) {
-    auto* source              = resolve(insert.insertedValue());
-    auto* original            = resolve(insert.baseValue());
-    auto* dest                = resolve(&insert);
-    ir::Type const* outerType = insert.type();
-    genCopy(dest, original, outerType->size());
-    size_t byteOffset         = 0;
-    ir::Type const* innerType = outerType;
-    for (size_t index: insert.memberIndices()) {
-        auto* sType = cast<ir::StructureType const*>(innerType);
+static std::pair<ir::Type const*, size_t> computeInnerTypeAndByteOffset(
+    ir::Type const* type, std::span<uint16_t const> indices) {
+    size_t byteOffset = 0;
+    for (size_t index: indices) {
+        auto* sType = cast<ir::StructureType const*>(type);
         byteOffset += sType->memberOffsetAt(index);
-        innerType = sType->memberAt(index);
+        type = sType->memberAt(index);
     }
-    while (byteOffset >= 8) {
-        dest = dest->next();
-        byteOffset -= 8;
+    return { type, byteOffset };
+}
+
+template <typename R>
+static R* advance(R* r, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        r = r->next();
     }
-    if (byteOffset % 8 == 0 && innerType->size() % 8 == 0) {
-        genCopy(dest, source, innerType->size());
-        return;
-    }
-    size_t const size   = innerType->size();
-    size_t const offset = byteOffset % 8;
-    SC_ASSERT(size + offset <= 8, "This will need even more work");
-    uint64_t const destMask = [&] {
-        std::array<uint8_t, 8> bytes{};
-        for (size_t i = 0; i < size; ++i) {
-            bytes[i + offset] = 0xFF;
+    return r;
+}
+
+void CodeGenContext::genInst(ir::InsertValue const& insert) {
+    auto* insertedMember = resolve(insert.insertedValue());
+    auto* source         = resolve(insert.baseValue());
+    auto* dest           = resolve(&insert);
+
+    /// Slice the outer value like so (`x` marks parts of the inner value, `_`
+    /// marks the rest of the outer value, and `outerWordCount` is the number of
+    /// words of the outer value):
+    /// ```
+    ///        ┌─ innerByteOffset // Distance between `innerWordBegin` and
+    ///        `innerByteBegin`
+    ///        v
+    /// [__|__|_x|xx|xx|xx|xx|xx|x_|__|__]
+    ///        ^^                 ^ ^
+    ///        │|                 | |
+    ///        │└─ innerByteBegin └─┼─ innerByteEnd
+    ///        │                    |
+    ///        └── innerWordBegin   └─ innerWordEnd
+    /// ```
+    /// This partitions the outer value into 3 subranges:
+    /// `[0, innerWordBegin)` the first words not touching the inner value.
+    /// `[innerWordBegin, innerWordEnd)` the first words containing the inner
+    /// value.
+    /// `[innerWordEnd, outerWordCount)` the last words not touching the inner
+    /// value.
+
+    ir::Type const* const outerType = insert.type();
+    auto const [innerType, innerByteBegin] =
+        computeInnerTypeAndByteOffset(outerType, insert.memberIndices());
+
+    size_t const innerByteEnd   = innerByteBegin + innerType->size();
+    size_t const innerWordBegin = innerByteBegin / 8;
+    size_t const innerWordEnd   = innerWordBegin + numWords(innerType);
+
+    /// Copy the first full words
+    dest   = genCopy(dest, source, 8 * innerWordBegin);
+    source = advance(source, innerWordBegin);
+
+    /// Handle the complex middle part
+    size_t const innerByteOffset = innerByteBegin % 8;
+    if (innerByteOffset == 0) {
+        /// If we are on a word boundary things are kind of easy.
+        /// We emit copies for all full words of the inner value.
+        size_t const fullWordsInner = innerType->size() / 8;
+        dest           = genCopy(dest, insertedMember, 8 * fullWordsInner);
+        insertedMember = advance(insertedMember, fullWordsInner);
+        source         = advance(source, fullWordsInner);
+        /// These are the bytes we hang over into the last register of the inner
+        /// section.
+        size_t const hungOverBytes = innerType->size() % 8;
+        if (hungOverBytes != 0) {
+            auto* maskedSource = nextRegister();
+            auto* sourceMask =
+                result.constant(~uint64_t{ 0 } << 8 * hungOverBytes, 8);
+            addNewInst(mir::InstCode::Arithmetic,
+                       maskedSource,
+                       { source, sourceMask },
+                       mir::ArithmeticOperation::And);
+            auto* maskedInserted = nextRegister();
+            auto* insertedMask   = result.constant(~sourceMask->value(), 8);
+            addNewInst(mir::InstCode::Arithmetic,
+                       maskedInserted,
+                       { insertedMember, insertedMask },
+                       mir::ArithmeticOperation::And);
+            addNewInst(mir::InstCode::Arithmetic,
+                       dest,
+                       { maskedSource, maskedInserted },
+                       mir::ArithmeticOperation::Or);
+            dest = dest->next();
         }
-        return utl::bit_cast<uint64_t>(bytes);
-    }();
-    addNewInst(mir::InstCode::Arithmetic,
-               dest,
-               { dest, result.constant(~destMask, 8) },
-               mir::ArithmeticOperation::And);
-    auto* tmp = nextRegister();
-    addNewInst(mir::InstCode::Copy,
-               tmp,
-               { source },
-               /* inst-data = */ 0,
-               /* width = */ 8);
-    addNewInst(mir::InstCode::Arithmetic,
-               tmp,
-               { tmp, result.constant(8 * offset, 1) },
-               mir::ArithmeticOperation::LShL);
-    addNewInst(mir::InstCode::Arithmetic,
-               tmp,
-               { tmp, result.constant(destMask, 8) },
-               mir::ArithmeticOperation::And);
-    addNewInst(mir::InstCode::Arithmetic,
-               dest,
-               { dest, tmp },
-               mir::ArithmeticOperation::Or);
+    }
+    else {
+        SC_ASSERT(innerByteOffset + innerType->size() <= 8,
+                  "Everything else is too complex for now");
+        /// TODO: IMPLEMENT THIS!
+        /// Too complicated for now...
+        SC_DEBUGFAIL();
+        /// If the inner type does not begin on a word boundary, things become
+        /// tricky. We make a copy of the inner value
+        size_t const numInnerWords = innerWordEnd - innerWordBegin;
+        auto* shifted              = nextRegister(numInnerWords);
+        auto* offset               = result.constant(8 * innerByteOffset, 8);
+        addNewInst(mir::InstCode::Arithmetic,
+                   shifted,
+                   { insertedMember, offset },
+                   mir::ArithmeticOperation::LShR);
+    }
+
+    /// Copy the last full words
+    dest = genCopy(dest, source, outerType->size() - 8 * innerWordEnd);
 }
 
 void CodeGenContext::genInst(ir::Select const& select) {
@@ -572,14 +643,19 @@ void CodeGenContext::genInst(ir::Select const& select) {
     auto* thenVal   = resolve(select.thenValue());
     auto* elseVal   = resolve(select.elseValue());
     size_t numBytes = select.type()->size();
+    size_t numWords = utl::ceil_divide(numBytes, 8);
     auto* dest      = resolve(&select);
-    genCopy(dest, thenVal, numBytes);
-    genCopy(dest,
-            elseVal,
-            numBytes,
-            currentBlock->end(),
-            mir::InstCode::CondCopy,
-            static_cast<uint64_t>(inverse(condition)));
+    for (size_t i = 0; i < numWords; ++i) {
+        addNewInst(mir::InstCode::Select,
+                   dest,
+                   { thenVal, elseVal },
+                   condition,
+                   sliceWidth(numBytes, i, numWords),
+                   currentBlock->end());
+        dest    = dest->next();
+        thenVal = thenVal->next();
+        elseVal = elseVal->next();
+    }
 }
 
 mir::MemoryAddress CodeGenContext::computeAddress(ir::Value const* value) {
@@ -717,32 +793,16 @@ mir::SSARegister* CodeGenContext::resolveToRegister(ir::Value const* value) {
 
 mir::SSARegister* CodeGenContext::nextRegistersFor(size_t numWords,
                                                    ir::Value const* value) {
-    utl::small_vector<mir::SSARegister*> regs;
-    for (size_t i = 0; i < numWords; ++i) {
+    auto* result = new mir::SSARegister();
+    currentFunction->ssaRegisters().add(result);
+    for (size_t i = 1; i < numWords; ++i) {
         auto* r = new mir::SSARegister();
         currentFunction->ssaRegisters().add(r);
-        regs.push_back(r);
     }
-    if (!value) {
-        return regs.front();
+    if (value) {
+        copyLivenessInfo(value, result);
     }
-    for (auto& BB: *currentFunction) {
-        auto* liveSet = currentLiveSets->find(BB.irBasicBlock());
-        if (!liveSet) {
-            continue;
-        }
-        if (liveSet->liveIn.contains(value)) {
-            for (auto* r: regs) {
-                BB.addLiveIn(r);
-            }
-        }
-        if (liveSet->liveOut.contains(value)) {
-            for (auto* r: regs) {
-                BB.addLiveOut(r);
-            }
-        }
-    }
-    return regs.front();
+    return result;
 }
 
 template <mir::InstructionData T>
@@ -766,4 +826,27 @@ AddNewInstResult CodeGenContext::addNewInst(
     auto* inst = newInst(code, dest, std::move(operands), data, width);
     currentBlock->insert(before, inst);
     return { .reg = dest, .inst = inst };
+}
+
+void CodeGenContext::copyLivenessInfo(ir::Value const* value,
+                                      mir::SSARegister* reg) {
+    size_t const count = numWords(value->type());
+    for (auto& BB: *currentFunction) {
+        auto* liveSet = currentLiveSets->find(BB.irBasicBlock());
+        if (!liveSet) {
+            continue;
+        }
+        if (liveSet->liveIn.contains(value)) {
+            auto* r = reg;
+            for (size_t i = 0; i < count; ++i, r = r->next()) {
+                BB.addLiveIn(r);
+            }
+        }
+        if (liveSet->liveOut.contains(value)) {
+            auto* r = reg;
+            for (size_t i = 0; i < count; ++i, r = r->next()) {
+                BB.addLiveOut(r);
+            }
+        }
+    }
 }

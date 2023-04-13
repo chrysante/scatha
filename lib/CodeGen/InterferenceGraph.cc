@@ -15,24 +15,55 @@ InterferenceGraph InterferenceGraph::compute(Function& function) {
     return result;
 }
 
+static uint32_t firstAvail(utl::hashset<uint32_t> const& used) {
+    for (uint32_t i = 0;; ++i) {
+        if (!used.contains(i)) {
+            return i;
+        }
+    }
+}
+
 void InterferenceGraph::colorize() {
-    utl::small_vector<Node const*> lexOrdering;
+    utl::small_vector<Node*> lexOrdering;
     lexOrdering.reserve(size());
-    auto neighbours = [](Node const* node) { return node->neighbours(); };
-    utl::find_lex_ordering(begin(),
-                           end(),
+    auto neighbours = [](Node* node) { return node->neighbours(); };
+    auto nodeView   = getNodeView<Node>();
+    utl::find_lex_ordering(nodeView.begin(),
+                           nodeView.end(),
                            neighbours,
                            std::back_inserter(lexOrdering));
     bool const isChordal =
         utl::is_chordal(lexOrdering.begin(), lexOrdering.end(), neighbours);
     /// ** Graph is not chordal for some reason... **
     (void)isChordal;
-    numCols = utl::greedy_color(lexOrdering.begin(),
-                                lexOrdering.end(),
-                                neighbours,
-                                [](Node const* node, size_t color) {
-        const_cast<Node*>(node)->col = color;
-    });
+    utl::hashmap<Node const*, uint32_t> colors;
+    uint32_t maxCol = 0;
+    for (auto* node: nodeView) {
+        auto* reg = node->reg();
+        if (reg->fixed()) {
+            uint32_t const col = utl::narrow_cast<uint32_t>(reg->index());
+            colors[node] = node->col = col;
+            maxCol                   = std::max(maxCol, col + 1);
+        }
+    }
+    /// Greedy coloring algorithm:
+    for (auto* n: lexOrdering) {
+        if (colors.contains(n)) {
+            continue;
+        }
+        utl::hashset<uint32_t> used;
+        for (auto m: n->neighbours()) {
+            auto itr = colors.find(m);
+            if (itr != colors.end()) {
+                used.insert(itr->second);
+            }
+        }
+        uint32_t col = firstAvail(used);
+        maxCol       = std::max(maxCol, col + 1);
+        colors.insert({ n, col });
+        n->col = col;
+    }
+    numCols = maxCol;
 }
 
 void InterferenceGraph::computeImpl(Function& F) {

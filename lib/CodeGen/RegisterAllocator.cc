@@ -6,25 +6,7 @@
 using namespace scatha;
 using namespace cg;
 
-// static void replaceUsesAndDefsWith(mir::Register* old, mir::Register* repl) {
-//     auto defs = old->defs() |
-//     ranges::to<utl::small_vector<mir::Instruction*>>; for (auto* inst: defs)
-//     {
-//         inst->setDest(repl);
-//     }
-//     auto uses = old->uses() |
-//     ranges::to<utl::small_vector<mir::Instruction*>>; for (auto* inst: uses)
-//     {
-//         inst->replaceOperand(old, repl);
-//     }
-// }
-
-/// Before allocating registers the MIR is in somewhat of an SSA form, as every
-/// instruction assigns a new virtual register. Register allocation assigns
-/// actual hardware registers to the virtual registers and thus destroys SSA
-/// form.
 void cg::allocateRegisters(mir::Function& F) {
-    return;
     /// For instructions that are three address instructions in the MIR but two
     /// address instructions in the VM, we issue copies of the first operand
     /// into the destination register and then replace the first operand by the
@@ -47,15 +29,20 @@ void cg::allocateRegisters(mir::Function& F) {
             inst.setOperandAt(0, dest);
         }
     }
-
     /// Now we color the interference graph and replace registers
     auto graph = InterferenceGraph::compute(F);
     graph.colorize();
-    for (auto* node: graph) {
-        size_t color = node->color();
-        //        replaceUsesAndDefsWith(node->reg(), F.registerAt(color));
+    size_t const numCols = graph.numColors();
+    SC_ASSERT(F.hardwareRegisters().empty(),
+              "Must be empty because we are allocating `numCols` new registers "
+              "that we expect to be indexed with [0, numCols)");
+    for (size_t i = 0; i < numCols; ++i) {
+        F.hardwareRegisters().add(new mir::HardwareRegister());
     }
-
+    for (auto* node: graph) {
+        size_t const color = node->color();
+        node->reg()->replaceWith(F.hardwareRegisters().at(color));
+    }
     /// Then we erase self assigning copy instructions.
     for (auto& BB: F) {
         for (auto inst = BB.begin(); inst != BB.end();) {
@@ -66,6 +53,33 @@ void cg::allocateRegisters(mir::Function& F) {
                 continue;
             }
             inst = BB.erase(inst);
+        }
+    }
+    /// Now as a last step we allocate callee registers to the upper hardware
+    /// registers.
+    /// First we reserve some registers for call metadata
+    size_t const numLocalRegs = F.hardwareRegisters().size();
+    static constexpr size_t NumRegsForCallMetadata = 3;
+    for (size_t i = 0; i < NumRegsForCallMetadata; ++i) {
+        F.hardwareRegisters().add(new mir::HardwareRegister());
+    }
+    /// Then we replace all callee registers with new hardware registers
+    for (auto& calleeReg: F.calleeRegisters()) {
+        auto* hReg = new mir::HardwareRegister();
+        F.hardwareRegisters().add(hReg);
+        calleeReg.replaceWith(hReg);
+    }
+    for (auto& BB: F) {
+        for (auto& inst: BB) {
+            if (inst.instcode() != mir::InstCode::Call &&
+                inst.instcode() != mir::InstCode::CallExt)
+            {
+                continue;
+            }
+            auto callData      = inst.instDataAs<mir::CallInstData>();
+            callData.regOffset = utl::narrow_cast<uint8_t>(
+                numLocalRegs + NumRegsForCallMetadata);
+            inst.setInstData(callData);
         }
     }
 }

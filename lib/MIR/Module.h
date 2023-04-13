@@ -73,7 +73,7 @@ public:
         return asDerived<M>(*this).funcs.back();
     }
 
-    Constant* constant(uint64_t value, size_t width);
+    Constant* constant(uint64_t value, size_t bytewidth);
 
     UndefValue* undefValue() const { return undef.get(); }
 

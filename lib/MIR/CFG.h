@@ -91,6 +91,11 @@ public:
 
     std::span<Value const* const> operands() const { return ops; }
 
+    template <InstructionData T>
+    void setInstData(T data) {
+        std::memcpy(&_instData, &data, sizeof(T));
+    }
+
     uint64_t instData() const { return _instData; }
 
     void replaceOperand(Value* old, Value* repl);
@@ -229,6 +234,13 @@ public:
     /// \Returns The name of this function.
     std::string_view name() const { return _name; }
 
+    /// \Returns The number of registers filled with arguments by the caller.
+    size_t numArgumentRegisters() const { return numArgRegs; }
+
+    /// \Returns The number of registers to be filled with the return value by
+    /// the callee.
+    size_t numReturnValueRegisters() const { return numRetvalRegs; }
+
     /// # SSA registers
 
     /// \Returns The set of SSA registers used by this function.
@@ -246,19 +258,6 @@ public:
     std::span<SSARegister const* const> ssaArgumentRegisters() const {
         return std::span<SSARegister const* const>(ssaRegs.flat().data(),
                                                    numArgRegs);
-    }
-
-    /// SSA registers used for the return value of this function.
-    std::span<SSARegister* const> ssaReturnValueRegisters() {
-        return std::span<SSARegister* const>(ssaRegs.flat().data() + numArgRegs,
-                                             numRetvalRegs);
-    }
-
-    /// \overload
-    std::span<SSARegister const* const> ssaReturnValueRegisters() const {
-        return std::span<SSARegister const* const>(ssaRegs.flat().data() +
-                                                       numArgRegs,
-                                                   numRetvalRegs);
     }
 
     /// # Virtual registers

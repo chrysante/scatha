@@ -11,9 +11,6 @@ using namespace scatha;
 using namespace mir;
 using namespace Asm;
 
-/// Instruction pointer, register pointer offset and stack pointer
-static constexpr size_t NumRegsForCallMetadata = 3;
-
 namespace {
 
 struct CGContext {
@@ -39,23 +36,10 @@ struct CGContext {
     }
 
     Asm::RegisterIndex toRegIdx(mir::Register const* reg) const {
-        // clang-format off
-        return visit(*reg, utl::overload{
-            [&](mir::VirtualRegister const& vreg) {
-                /// TODO: This case should fail
-                /// We only want to look at hardware registers here.
-                return Asm::RegisterIndex(vreg.index());
-            },
-            [&](mir::CalleeRegister const& creg) {
-                /// Should fail as well
-                size_t idx = currentFunction->virtualRegisters().size() +
-                             NumRegsForCallMetadata + creg.index();
-                return Asm::RegisterIndex(idx);
-            },
-            [&](mir::Register const& reg) -> Asm::RegisterIndex {
-                SC_DEBUGFAIL();
-            },
-        }); // clang-format on
+        SC_ASSERT(
+            reg->nodeType() == mir::NodeType::HardwareRegister,
+            "At this point we expect all registers to be hardware registers");
+        return Asm::RegisterIndex(reg->index());
     }
 
     Asm::RegisterIndex toRegIdx(mir::Value const* value) const {
@@ -170,20 +154,17 @@ void CGContext::genInst(mir::Instruction const& inst) {
         break;
     }
     case mir::InstCode::Call: {
-        auto* callee = cast<mir::Function const*>(inst.operandAt(0));
-        auto* caller = currentFunction;
-        size_t regOffset =
-            caller->virtualRegisters().size() + NumRegsForCallMetadata;
-        currentBlock->insertBack(CallInst(getLabelID(*callee), regOffset));
+        auto callData = inst.instDataAs<mir::CallInstData>();
+        auto* callee  = cast<mir::Function const*>(inst.operandAt(0));
+        currentBlock->insertBack(
+            CallInst(getLabelID(*callee), callData.regOffset));
         break;
     }
     case mir::InstCode::CallExt: {
-        auto callee  = inst.instDataAs<mir::ExtFuncAddress>();
-        auto* caller = currentFunction;
-        size_t regOffset =
-            caller->virtualRegisters().size() + NumRegsForCallMetadata;
+        auto callData = inst.instDataAs<mir::CallInstData>();
+        auto callee   = callData.extFuncAddress;
         currentBlock->insertBack(
-            CallExtInst(regOffset, callee.slot, callee.index));
+            CallExtInst(callData.regOffset, callee.slot, callee.index));
         break;
     }
     case mir::InstCode::CondCopy: {
@@ -293,7 +274,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
         currentBlock->insertBack(ReturnInst());
         break;
     }
-    case mir::InstCode::_count:
+    default:
         SC_UNREACHABLE();
     }
 }

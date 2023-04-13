@@ -6,7 +6,7 @@ using namespace scatha;
 using namespace mir;
 
 void Register::addDef(Instruction* inst) {
-    visit(*this, [&](auto& reg) { addDefImpl(inst); });
+    visit(*this, [inst](auto& reg) { reg.addDefImpl(inst); });
 }
 
 void Register::removeDef(Instruction* inst) {
@@ -21,6 +21,24 @@ void Register::removeUser(Instruction* inst) {
     visit(*this, [&](auto& reg) { removeUserImpl(inst); });
 }
 
+void Register::replaceWith(Register* repl) {
+    auto defs = this->defs() | ranges::to<utl::small_vector<mir::Instruction*>>;
+    for (auto* inst: defs) {
+        inst->setDest(repl);
+    }
+    auto uses = this->uses() | ranges::to<utl::small_vector<mir::Instruction*>>;
+    for (auto* inst: uses) {
+        inst->replaceOperand(this, repl);
+    }
+}
+
+void Register::addDefImpl(Instruction* inst) { _defs.insert(inst); }
+
+void Register::removeDefImpl(Instruction* inst) {
+    size_t removeCount = _defs.erase(inst);
+    SC_ASSERT(removeCount == 1, "`inst` was not a definition of this register");
+}
+
 void Register::addUserImpl(Instruction* inst) { ++_users[inst]; }
 
 void Register::removeUserImpl(Instruction* inst) {
@@ -32,18 +50,6 @@ void Register::removeUserImpl(Instruction* inst) {
 }
 
 void SSARegister::addDefImpl(Instruction* inst) {
-    SC_ASSERT(!_def, "SSA register can only be assigned once");
-    _def = inst;
-}
-
-void SSARegister::removeDefImpl(Instruction* inst) {
-    SC_ASSERT(_def == inst, "`inst` was not a definition of this register");
-    _def = nullptr;
-}
-
-void VirtualRegister::addDefImpl(Instruction* inst) { _defs.insert(inst); }
-
-void VirtualRegister::removeDefImpl(Instruction* inst) {
-    size_t removeCount = _defs.erase(inst);
-    SC_ASSERT(removeCount == 1, "`inst` was not a definition of this register");
+    SC_ASSERT(defs().empty(), "SSA register can only be assigned once");
+    Register::addDefImpl(inst);
 }
