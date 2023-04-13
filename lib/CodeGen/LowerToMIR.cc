@@ -4,7 +4,6 @@
 #include <utl/functional.hpp>
 
 #include "IR/CFG.h"
-#include "IR/DataFlow.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "MIR/CFG.h"
@@ -154,8 +153,6 @@ struct CodeGenContext {
                                 size_t width,
                                 mir::BasicBlock::ConstIterator before);
 
-    void copyLivenessInfo(ir::Value const* value, mir::SSARegister* reg);
-
     size_t numWords(ir::Type const* type) const {
         return utl::ceil_divide(type->size(), 8);
     }
@@ -174,10 +171,6 @@ struct CodeGenContext {
 
     mir::Function* currentFunction = nullptr;
     mir::BasicBlock* currentBlock  = nullptr;
-
-    ir::LiveSets const* currentLiveSets = nullptr;
-
-    utl::hashmap<ir::Function const*, ir::LiveSets> liveSets;
 
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
@@ -216,8 +209,6 @@ void CodeGenContext::declareFunction(ir::Function const& function) {
 
 void CodeGenContext::genFunction(ir::Function const& function) {
     currentFunction = resolve(&function);
-    auto& LS = liveSets[&function] = ir::LiveSets::compute(function);
-    currentLiveSets                = &LS;
     for (auto& bb: function) {
         declareBasicBlock(bb);
     }
@@ -225,7 +216,6 @@ void CodeGenContext::genFunction(ir::Function const& function) {
     auto regItr = currentFunction->ssaRegisters().begin();
     for (auto& param: function.parameters()) {
         valueMap.insert({ &param, regItr.to_address() });
-        copyLivenessInfo(&param, regItr.to_address());
         std::advance(regItr, numWords(param.type()));
     }
     for (auto& bb: function) {
@@ -811,9 +801,6 @@ mir::SSARegister* CodeGenContext::nextRegistersFor(size_t numWords,
         auto* r = new mir::SSARegister();
         currentFunction->ssaRegisters().add(r);
     }
-    if (value) {
-        copyLivenessInfo(value, result);
-    }
     return result;
 }
 
@@ -838,27 +825,4 @@ AddNewInstResult CodeGenContext::addNewInst(
     auto* inst = newInst(code, dest, std::move(operands), data, width);
     currentBlock->insert(before, inst);
     return { .reg = dest, .inst = inst };
-}
-
-void CodeGenContext::copyLivenessInfo(ir::Value const* value,
-                                      mir::SSARegister* reg) {
-    size_t const count = numWords(value->type());
-    for (auto& BB: *currentFunction) {
-        auto* liveSet = currentLiveSets->find(BB.irBasicBlock());
-        if (!liveSet) {
-            continue;
-        }
-        if (liveSet->liveIn.contains(value)) {
-            auto* r = reg;
-            for (size_t i = 0; i < count; ++i, r = r->next()) {
-                BB.addLiveIn(r);
-            }
-        }
-        if (liveSet->liveOut.contains(value)) {
-            auto* r = reg;
-            for (size_t i = 0; i < count; ++i, r = r->next()) {
-                BB.addLiveOut(r);
-            }
-        }
-    }
 }

@@ -95,7 +95,7 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
         }
         live.erase(inst.dest());
         for (auto* op: inst.operands()) {
-            if (auto* reg = dyncast<mir::Register*>(op)) {
+            if (auto* reg = op ? dyncast<mir::SSARegister*>(op) : nullptr) {
                 live.insert(reg);
             }
         }
