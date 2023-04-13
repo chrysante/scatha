@@ -43,15 +43,22 @@ void cg::allocateRegisters(mir::Function& F) {
         size_t const color = node->color();
         node->reg()->replaceWith(F.hardwareRegisters().at(color));
     }
-    /// Then we erase self assigning copy instructions.
+    /// Then we try to evict some copy instructions.
     for (auto& BB: F) {
         for (auto inst = BB.begin(); inst != BB.end();) {
             if (inst->instcode() != mir::InstCode::Copy) {
                 ++inst;
                 continue;
             }
-            auto* dest     = inst->dest();
+            auto* dest   = inst->dest();
             auto* source = inst->operandAt(0);
+            if (dest == source) {
+                inst = BB.erase(inst);
+                continue;
+            }
+            /// We replace copies from contant 0 with self-xor's. This decreases
+            /// binary size because two register indices take 2 bytes to encode
+            /// vs 8 bytes for the zero literal.
             if (auto* constant = dyncast<mir::Constant*>(source);
                 constant && constant->value() == 0)
             {
@@ -62,10 +69,6 @@ void cg::allocateRegisters(mir::Function& F) {
                                          mir::ArithmeticOperation::XOr,
                                          8);
                 BB.insert(inst, selfXor);
-                inst = BB.erase(inst);
-                continue;
-            }
-            if (dest == source) {
                 inst = BB.erase(inst);
                 continue;
             }
