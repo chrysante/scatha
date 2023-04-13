@@ -53,9 +53,6 @@ externalincludedirs {
     "external/gmp/build/include", 
     "external/mpfr/build/include",
     "external/termfmt/include",
-    "external/boost/config/include",
-    "external/boost/detail/include",
-    "external/boost/logic/include",
     "external/APMath/include",
     "external/range-v3/include",
 }

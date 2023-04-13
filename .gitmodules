@@ -4,15 +4,6 @@
 [submodule "external/termfmt"]
 	path = external/termfmt
 	url = https://github.com/chrysante/termfmt
-[submodule "external/boost/config"]
-	path = external/boost/config
-	url = https://github.com/boostorg/config
-[submodule "external/boost/detail"]
-	path = external/boost/detail
-	url = https://github.com/boostorg/detail
-[submodule "external/boost/logic"]
-	path = external/boost/logic
-	url = https://github.com/boostorg/logic
 [submodule "external/APMath"]
 	path = external/APMath
 	url = https://github.com/chrysante/APMath
