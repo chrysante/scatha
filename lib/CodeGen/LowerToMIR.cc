@@ -484,49 +484,6 @@ void CodeGenContext::genInst(ir::GetElementPointer const& gep) {
                address.constantData());
 }
 
-void CodeGenContext::genInst(ir::ExtractValue const& extract) {
-    mir::Register* source = resolve<mir::Register>(extract.baseValue());
-    mir::Register* dest   = resolve(&extract);
-    size_t byteOffset     = 0;
-    ir::Type const* type  = extract.baseValue()->type();
-    for (size_t index: extract.memberIndices()) {
-        auto* sType = cast<ir::StructureType const*>(type);
-        byteOffset += sType->memberOffsetAt(index);
-        type = sType->memberAt(index);
-    }
-    while (byteOffset >= 8) {
-        source = source->next();
-        byteOffset -= 8;
-    }
-    if (byteOffset % 8 == 0 && type->size() % 8 == 0) {
-        genCopy(dest, source, type->size());
-        return;
-    }
-    size_t const size   = type->size();
-    size_t const offset = byteOffset % 8;
-    SC_ASSERT(size + offset <= 8, "This will need even more work");
-    uint64_t const mask = [&] {
-        std::array<uint8_t, 8> bytes{};
-        for (size_t i = 0; i < size; ++i) {
-            bytes[i] = 0xFF;
-        }
-        return utl::bit_cast<uint64_t>(bytes);
-    }();
-    addNewInst(mir::InstCode::Copy,
-               dest,
-               { source },
-               /* inst-data = */ 0,
-               /* width = */ 8);
-    addNewInst(mir::InstCode::Arithmetic,
-               dest,
-               { dest, result.constant(8 * offset, 1) },
-               mir::ArithmeticOperation::LShR);
-    addNewInst(mir::InstCode::Arithmetic,
-               dest,
-               { dest, result.constant(mask, 8) },
-               mir::ArithmeticOperation::And);
-}
-
 static std::pair<ir::Type const*, size_t> computeInnerTypeAndByteOffset(
     ir::Type const* type, std::span<uint16_t const> indices) {
     size_t byteOffset = 0;
@@ -546,6 +503,44 @@ static R* advance(R* r, size_t count) {
     return r;
 }
 
+static uint64_t makeWordMask(size_t leadingZeros, size_t ones) {
+    SC_ASSERT(leadingZeros + ones <= 8, "");
+    std::array<uint8_t, 8> mask{};
+    for (size_t i = leadingZeros; i < leadingZeros + ones; ++i) {
+        mask[i] = 0xFF;
+    }
+    return utl::bit_cast<uint64_t>(mask);
+}
+
+void CodeGenContext::genInst(ir::ExtractValue const& extract) {
+    mir::Register* source = resolve<mir::Register>(extract.baseValue());
+    mir::Register* dest   = resolve(&extract);
+    ir::Type const* const outerType = extract.baseValue()->type();
+    auto const [innerType, innerByteBegin] =
+        computeInnerTypeAndByteOffset(outerType, extract.memberIndices());
+    size_t const innerWordBegin  = innerByteBegin / 8;
+    size_t const innerByteOffset = innerByteBegin % 8;
+    size_t const innerSize       = innerType->size();
+    source                       = advance(source, innerWordBegin);
+    if (innerByteOffset == 0) {
+        genCopy(dest, source, innerSize);
+        return;
+    }
+    SC_ASSERT(innerByteOffset + innerSize <= 8,
+              "This will need even more work");
+    auto* sourceShifted = nextRegister();
+    auto* shiftOffset   = result.constant(8 * innerByteOffset, 1);
+    addNewInst(mir::InstCode::Arithmetic,
+               sourceShifted,
+               { source, shiftOffset },
+               mir::ArithmeticOperation::LShR);
+    auto* sourceMask = result.constant(makeWordMask(0, innerSize), 8);
+    addNewInst(mir::InstCode::Arithmetic,
+               dest,
+               { sourceShifted, sourceMask },
+               mir::ArithmeticOperation::And);
+}
+
 void CodeGenContext::genInst(ir::InsertValue const& insert) {
     auto* insertedMember = resolve(insert.insertedValue());
     auto* source         = resolve(insert.baseValue());
@@ -556,7 +551,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
     /// words of the outer value):
     /// ```
     ///        ┌─ innerByteOffset // Distance between `innerWordBegin` and
-    ///        `innerByteBegin`
+    ///        │                  // `innerByteBegin`
     ///        v
     /// [__|__|_x|xx|xx|xx|xx|xx|x_|__|__]
     ///        ^^                 ^ ^
@@ -614,24 +609,41 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
                        dest,
                        { maskedSource, maskedInserted },
                        mir::ArithmeticOperation::Or);
-            dest = dest->next();
+            dest   = dest->next();
+            source = source->next();
         }
     }
     else {
+        /// We only handle the case where we need to take care of only one word.
         SC_ASSERT(innerByteOffset + innerType->size() <= 8,
                   "Everything else is too complex for now");
-        /// TODO: IMPLEMENT THIS!
-        /// Too complicated for now...
-        SC_DEBUGFAIL();
-        /// If the inner type does not begin on a word boundary, things become
-        /// tricky. We make a copy of the inner value
-        size_t const numInnerWords = innerWordEnd - innerWordBegin;
-        auto* shifted              = nextRegister(numInnerWords);
-        auto* offset               = result.constant(8 * innerByteOffset, 8);
+        auto* shiftedInsert = nextRegister();
+        auto* shiftCount    = result.constant(8 * innerByteOffset, 1);
         addNewInst(mir::InstCode::Arithmetic,
-                   shifted,
-                   { insertedMember, offset },
-                   mir::ArithmeticOperation::LShR);
+                   shiftedInsert,
+                   { insertedMember, shiftCount },
+                   mir::ArithmeticOperation::LShL);
+        auto* maskedSource = nextRegister();
+
+        auto* sourceMask =
+            result.constant(makeWordMask(innerByteOffset, innerType->size()),
+                            8);
+        addNewInst(mir::InstCode::Arithmetic,
+                   maskedSource,
+                   { source, sourceMask },
+                   mir::ArithmeticOperation::And);
+        auto* maskedInsert = nextRegister();
+        auto* insertedMask = result.constant(~sourceMask->value(), 8);
+        addNewInst(mir::InstCode::Arithmetic,
+                   maskedInsert,
+                   { shiftedInsert, insertedMask },
+                   mir::ArithmeticOperation::And);
+        addNewInst(mir::InstCode::Arithmetic,
+                   dest,
+                   { maskedSource, maskedInsert },
+                   mir::ArithmeticOperation::Or);
+        dest   = dest->next();
+        source = source->next();
     }
 
     /// Copy the last full words
