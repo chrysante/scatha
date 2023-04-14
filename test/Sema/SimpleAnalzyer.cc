@@ -17,8 +17,9 @@ std::tuple<UniquePtr<ast::AbstractSyntaxTree>,
     auto tokens = lex::lex(text, lexIss);
     issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
+    sema::SymbolTable sym;
     issue::SemaIssueHandler semaIss;
-    auto sym = sema::analyze(*ast, semaIss);
+    sema::analyze(*ast, sym, semaIss);
     return { std::move(ast), std::move(sym), std::move(semaIss) };
 }
 

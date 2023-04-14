@@ -80,8 +80,9 @@ static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
                << parseIss.issues()[0].sourceLocation().line << std::endl;
         return std::nullopt;
     }
+    sema::SymbolTable sym;
     issue::SemaIssueHandler semaIss;
-    auto sym = sema::analyze(*ast, semaIss);
+    sema::analyze(*ast, sym, semaIss);
     if (!semaIss.empty()) {
         errStr << "Semantic issue on line "
                << semaIss.issues()[0].sourceLocation().line << std::endl;

@@ -12,9 +12,10 @@ namespace scatha::sema {
 /// Semantically analyzes and decorates the abstract syntax tree.
 ///
 /// \param root Root of the tree to analyze.
-/// \returns The generated symbol table.
-[[nodiscard]] SCATHA_API SymbolTable analyze(ast::AbstractSyntaxTree& root,
-                                             issue::SemaIssueHandler&);
+/// \param symbolTable Symbol table to populate.
+SCATHA_API void analyze(ast::AbstractSyntaxTree& root,
+                        SymbolTable& symbolTable,
+                        issue::SemaIssueHandler&);
 
 } // namespace scatha::sema
 

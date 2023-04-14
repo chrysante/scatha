@@ -7,16 +7,16 @@
 using namespace scatha;
 using namespace sema;
 
-SymbolTable sema::analyze(ast::AbstractSyntaxTree& root,
-                          issue::SemaIssueHandler& iss) {
-    SymbolTable sym;
+void sema::analyze(ast::AbstractSyntaxTree& root,
+                   SymbolTable& sym,
+                   issue::SemaIssueHandler& iss) {
     auto dependencyGraph = gatherNames(sym, root, iss);
     if (iss.fatal()) {
-        return sym;
+        return;
     }
     instantiateEntities(sym, iss, dependencyGraph);
     if (iss.fatal()) {
-        return sym;
+        return;
     }
     utl::vector<DependencyGraphNode> functions;
     std::copy_if(dependencyGraph.begin(),
@@ -26,5 +26,4 @@ SymbolTable sema::analyze(ast::AbstractSyntaxTree& root,
         return node.category == SymbolCategory::Function;
     });
     analyzeFunctions(sym, iss, functions);
-    return sym;
 }

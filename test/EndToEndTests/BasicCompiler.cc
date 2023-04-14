@@ -46,8 +46,9 @@ static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
     if (!parseIss.empty()) {
         throw std::runtime_error("Compilation failed");
     }
+    sema::SymbolTable sym;
     issue::SemaIssueHandler semaIss;
-    auto sym = sema::analyze(*ast, semaIss);
+    sema::analyze(*ast, sym, semaIss);
     if (!semaIss.empty()) {
         for (auto& issue: semaIss.issues()) {
             std::cout << " at: " << issue.sourceLocation() << std::endl;

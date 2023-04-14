@@ -102,7 +102,8 @@ void playground::compile(std::string text) {
     // Semantic analysis
     header(" Symbol Table ");
     issue::SemaIssueHandler semaIss;
-    auto const sym = sema::analyze(*ast, semaIss);
+    sema::SymbolTable sym;
+    sema::analyze(*ast, sym, semaIss);
     if (semaIss.issues().empty()) {
         std::cout << "No semantic issues.\n";
     }

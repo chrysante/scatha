@@ -22,8 +22,9 @@ ir::Module test::compileToIR(std::string_view text) {
     if (!parseIss.empty()) {
         throw std::runtime_error("Compilation failed");
     }
+    sema::SymbolTable sym;
     issue::SemaIssueHandler semaIss;
-    auto sym = sema::analyze(*ast, semaIss);
+    sema::analyze(*ast, sym, semaIss);
     if (!semaIss.empty()) {
         throw std::runtime_error("Compilation failed");
     }
