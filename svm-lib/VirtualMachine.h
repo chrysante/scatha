@@ -94,6 +94,7 @@ private:
 
     /// End of text section
     u8 const* programBreak = nullptr;
+
     /// Optional address of the `main`/`start` function.
     size_t startAddress = 0;
 

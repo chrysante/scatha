@@ -190,7 +190,7 @@ void playground::compile(std::string text) {
         return;
     }
     vm.execute(mainPos->second, {});
-    u64 const exitCode = vm.getState().registers[0];
+    u64 const exitCode = vm.getRegister(0);
     std::cout << "VM: Program ended with exit code: [\n\ti: "
               << static_cast<i64>(exitCode) << ", \n\tu: " << exitCode
               << ", \n\tf: " << utl::bit_cast<f64>(exitCode) << "\n]"

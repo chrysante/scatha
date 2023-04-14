@@ -17,10 +17,10 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
     std::memcpy(frame.regPtr, arguments.data(), arguments.size() * sizeof(u64));
     /// The main loop of the execution
     while (frame.iptr < programBreak) {
-        OpCode const opCode = OpCode(*frame.iptr);
-        assert(static_cast<u8>(opCode) < static_cast<u8>(OpCode::_count) &&
+        OpCode const opcode = OpCode(*frame.iptr);
+        assert(static_cast<u8>(opcode) < static_cast<u8>(OpCode::_count) &&
                "Invalid op-code");
-        auto const instruction = instructionTable[static_cast<u8>(opCode)];
+        auto const instruction = instructionTable[static_cast<u8>(opcode)];
         u64 const offset = instruction(frame.iptr + 1, frame.regPtr, this);
         frame.iptr += offset;
         ++stats.executedInstructions;

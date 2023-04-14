@@ -1,7 +1,7 @@
 //! Compile with: ./scatha-c -f mandelbrotset.sc
 //! Run with:     ./svm -f mandelbrotset.sbin
 
-fn main() -> int {
+public fn main() -> int {
     let width = 160;
     let height = 60;
     let scale = 1.0;
