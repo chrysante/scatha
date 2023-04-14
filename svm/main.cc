@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
     vm.loadProgram(program.data());
 
     auto const beginTime = std::chrono::high_resolution_clock::now();
-    vm.execute();
+    vm.execute({});
     auto const endTime = std::chrono::high_resolution_clock::now();
     u64 const exitCode = vm.getState().registers[0];
     std::cout << "Program returned with exit code: " << exitCode << std::endl;

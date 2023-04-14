@@ -4,8 +4,8 @@
 fn main() {
     var i = 1;
     print(i);
-    cppCallback();
-    print(i + 1);
+    i = cppCallback(i);
+    print(i);
 }
 
 fn print(n: int) {
@@ -17,6 +17,7 @@ fn fac(n: int) -> int {
     return n <= 1 ? 1 : n * fac(n - 1);
 }
 
-fn callback() {
-    print(fac(5));
+fn callback(n: int) {
+    print(n);
+    print(fac(n));
 }

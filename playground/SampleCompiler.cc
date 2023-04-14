@@ -189,7 +189,7 @@ void playground::compile(std::string text) {
         std::cout << "No main function defined!\n";
         return;
     }
-    vm.execute(mainPos->second);
+    vm.execute(mainPos->second, {});
     u64 const exitCode = vm.getState().registers[0];
     std::cout << "VM: Program ended with exit code: [\n\ti: "
               << static_cast<i64>(exitCode) << ", \n\tu: " << exitCode

@@ -19,7 +19,7 @@ static svm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
     auto [prog, sym] = assemble(str);
     svm::VirtualMachine vm;
     vm.loadProgram(prog.data());
-    vm.execute(0);
+    vm.execute(0, {});
     return vm;
 }
 

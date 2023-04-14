@@ -73,7 +73,7 @@ static uint64_t run(ir::Module const& mod) {
         return p.first.starts_with("main");
     });
     assert(mainPos != sym.end());
-    vm.execute(mainPos->second);
+    vm.execute(mainPos->second, {});
     return vm.getState().registers[0];
 }
 

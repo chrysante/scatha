@@ -74,7 +74,7 @@ static void run(Asm::AssemblyStream const& assembly) {
         std::cout << "No main function defined!\n";
         return;
     }
-    vm.execute(mainPos->second);
+    vm.execute(mainPos->second, {});
     using RetType        = uint64_t;
     using SRetType       = uint64_t;
     RetType const retval = static_cast<RetType>(vm.getState().registers[0]);

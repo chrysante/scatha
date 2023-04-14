@@ -3,6 +3,8 @@
 #ifndef SVM_VIRTUALMACHINE_H_
 #define SVM_VIRTUALMACHINE_H_
 
+#include <span>
+
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
@@ -57,10 +59,10 @@ public:
     void loadProgram(u8 const* data);
 
     /// Start execution at the program's start address.
-    void execute();
+    void execute(std::span<u64 const> arguments);
 
     /// Start execution at \p startAddress
-    void execute(size_t startAddress);
+    void execute(size_t startAddress, std::span<u64 const> arguments);
 
     void addExternalFunction(size_t slot, ExternalFunction);
 

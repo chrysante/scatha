@@ -70,7 +70,7 @@ static auto compile(std::string_view text, sema::SymbolTable& sym) {
 void playground::optTest(std::filesystem::path path) {
     auto text = readFileToString(path);
     sema::SymbolTable semaSym;
-    auto cppCallbackSig = sema::FunctionSignature({}, semaSym.Void());
+    auto cppCallbackSig = sema::FunctionSignature({ semaSym.Int() }, semaSym.Int());
     semaSym.declareExternalFunction("cppCallback",
                                     1,
                                     0,
@@ -93,12 +93,16 @@ void playground::optTest(std::filesystem::path path) {
 
     auto cppCallback = [](u64* regPtr, svm::VirtualMachine*, void* c) {
         auto* ctx = reinterpret_cast<Ctx*>(c);
-        std::cout << "Back in C++ land\n";
-        ctx->vm.execute(ctx->callback);
+        std::cout << "C++ callback\n";
+        uint64_t arg = regPtr[0];
+        std::cout << "Invoking scatha callback\n";
+        ctx->vm.execute(ctx->callback, std::array<uint64_t, 1>{ 6 });
+        std::cout << "Leaving C++ callback\n";
+        regPtr[0] = arg + 1;
     };
 
     ctx.vm.setFunctionTableSlot(1, { { cppCallback, &ctx } });
     ctx.vm.loadProgram(prog.data());
     size_t main = findFn("main");
-    ctx.vm.execute(main);
+    ctx.vm.execute(main, {});
 }

@@ -31,14 +31,15 @@ void VirtualMachine::loadProgram(u8 const* progData) {
                                            .stackPtr  = stack.data() });
 }
 
-void VirtualMachine::execute() { execute(startAddress); }
+void VirtualMachine::execute(std::span<u64 const> arguments) { execute(startAddress, arguments); }
 
-void VirtualMachine::execute(size_t start) {
+void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
     auto const lastCtx = execContexts.top() = ctx;
     ctx = execContexts.push(ExecutionContext{ .regPtr    = lastCtx.regPtr + 256,
                                               .bottomReg = lastCtx.regPtr + 256,
                                               .iptr      = text.data() + start,
                                               .stackPtr  = lastCtx.stackPtr });
+    std::memcpy(ctx.regPtr, arguments.data(), arguments.size() * sizeof(u64));
     while (ctx.iptr < programBreak) {
         OpCode const opCode{ *ctx.iptr };
         assert(static_cast<u8>(opCode) < static_cast<u8>(OpCode::_count) &&
