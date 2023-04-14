@@ -28,17 +28,6 @@
 using namespace playground;
 using namespace scatha;
 
-static std::string readFileToString(std::filesystem::path filepath) {
-    std::fstream file(filepath);
-    if (!file) {
-        std::cerr << "Failed to open file " << filepath << std::endl;
-        std::exit(EXIT_FAILURE);
-    }
-    std::stringstream sstr;
-    sstr << file.rdbuf();
-    return std::move(sstr).str();
-}
-
 static auto compile(std::string_view text, sema::SymbolTable& sym) {
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
@@ -67,8 +56,30 @@ static auto compile(std::string_view text, sema::SymbolTable& sym) {
     return Asm::assemble(assembly);
 }
 
+static const auto text = R"(
+public fn main() {
+    var i = 1;
+    print(i);
+    i = cppCallback(i);
+    print(i);
+}
+
+fn print(n: int) {
+    __builtin_puti64(n);
+    __builtin_putchar(10);
+}
+
+fn fac(n: int) -> int {
+    return n <= 1 ? 1 : n * fac(n - 1);
+}
+
+public fn callback(n: int) {
+    print(n);
+    print(fac(n));
+}
+)";
+
 void playground::optTest(std::filesystem::path path) {
-    auto text = readFileToString(path);
     sema::SymbolTable semaSym;
     auto cppCallbackSig =
         sema::FunctionSignature({ semaSym.Int() }, semaSym.Int());

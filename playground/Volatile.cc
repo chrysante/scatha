@@ -145,7 +145,7 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    bool const optimize = true;
+    bool const optimize = false;
 
     if (optimize) {
         opt::inlineFunctions(ctx, irMod);
