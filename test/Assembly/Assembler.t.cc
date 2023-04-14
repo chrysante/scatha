@@ -15,12 +15,13 @@
 using namespace scatha;
 using namespace scatha::Asm;
 
-static svm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
+static auto assembleAndExecute(AssemblyStream const& str) {
     auto [prog, sym] = assemble(str);
     svm::VirtualMachine vm;
     vm.loadProgram(prog.data());
     vm.execute(0, {});
-    return vm;
+    return std::pair{ utl::vector<u64>(vm.registerData()),
+                      utl::vector<u8>(vm.stackData()) };
 }
 
 [[maybe_unused]] static void assembleAndPrint(AssemblyStream const& str) {
@@ -37,10 +38,9 @@ TEST_CASE("Alloca implementation", "[assembly][vm]") {
         MoveInst(MemoryAddress(1), RegisterIndex(0), 8), // *ptr = a
         TerminateInst()
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(load<i64>(&state.registers[0]) == 128);
-    CHECK(load<i64>(state.stack.data()) == 128);
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(regs[0] == 128);
+    CHECK(stack[0] == 128);
 }
 
 TEST_CASE("Alloca 2", "[assembly][vm]") {
@@ -54,10 +54,9 @@ TEST_CASE("Alloca 2", "[assembly][vm]") {
                  RegisterIndex(0), 1),                  // ptr[offset] = a
         TerminateInst()
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
+    auto const [regs, stack] = assembleAndExecute(a);
     CAPTURE(offset);
-    CHECK(load<i64>(state.stack.data()) == i64(1) << 8 * offset);
+    CHECK(load<i64>(&stack[0]) == i64(1) << 8 * offset);
 }
 
 TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
@@ -86,10 +85,9 @@ TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
         ArithmeticInst(ArithmeticOperation::SRem, RegisterIndex(1), RegisterIndex(2), 8),
         JumpInst(gcd) // Tail call
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
+    auto const [regs, stack] = assembleAndExecute(a);
     // gcd(54, 24) == 6
-    CHECK(state.registers[3] == 6);
+    CHECK(regs[3] == 6);
 }
 
 TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
@@ -123,10 +121,9 @@ TEST_CASE("Euclidean algorithm no tail call", "[assembly][vm]") {
         MoveInst(RegisterIndex(0), RegisterIndex(5), 8), // R[0] = R[5] to move the result to the expected register
         ReturnInst(),
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
+    auto const [regs, stack] = assembleAndExecute(a);
     // gcd(1023534,213588) == 18
-    CHECK(state.registers[3] == 18);
+    CHECK(regs[3] == 18);
 }
 
 static void testArithmeticRR(ArithmeticOperation operation,
@@ -141,9 +138,8 @@ static void testArithmeticRR(ArithmeticOperation operation,
         ArithmeticInst(operation, RegisterIndex(0), RegisterIndex(1), 8),
         TerminateInst(),
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(load<decltype(reference)>(&state.registers[0]) == reference);
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(load<decltype(reference)>(&regs[0]) == reference);
 }
 
 static void testArithmeticRV(ArithmeticOperation operation,
@@ -157,10 +153,8 @@ static void testArithmeticRV(ArithmeticOperation operation,
         ArithmeticInst(operation, RegisterIndex(0), Value64(arg2), 8),
         TerminateInst(),
     })); // clang-format on
-
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(load<decltype(reference)>(&state.registers[0]) == reference);
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(load<decltype(reference)>(&regs[0]) == reference);
 }
 
 static void testArithmeticRM(ArithmeticOperation operation,
@@ -177,9 +171,8 @@ static void testArithmeticRM(ArithmeticOperation operation,
         ArithmeticInst(operation, RegisterIndex(0), MemoryAddress(2), 8),
         TerminateInst(),
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(load<decltype(reference)>(&state.registers[0]) == reference);
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(load<decltype(reference)>(&regs[0]) == reference);
 }
 
 static void testArithmetic(ArithmeticOperation operation,
@@ -246,9 +239,8 @@ TEST_CASE("Unconditional jump", "[assembly][vm]") {
         MoveInst(RegisterIndex(0), Value64(4), 8),
         TerminateInst(),
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(state.registers[0] == value);
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(regs[0] == value);
 }
 
 TEST_CASE("Conditional jump", "[assembly][vm]") {
@@ -280,10 +272,8 @@ TEST_CASE("Conditional jump", "[assembly][vm]") {
         MoveInst(RegisterIndex(1), Value64(4), 8),
         TerminateInst(),
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(load<u64>(&state.registers[1]) ==
-          (arg1 <= arg2 ? value : static_cast<u64>(-1)));
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(load<u64>(&regs[1]) == (arg1 <= arg2 ? value : static_cast<u64>(-1)));
 }
 
 TEST_CASE("itest, set*", "[assembly][vm]") {
@@ -300,14 +290,13 @@ TEST_CASE("itest, set*", "[assembly][vm]") {
         SetInst(RegisterIndex(5), CompareOperation::GreaterEq),
         TerminateInst(),
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(state.registers[0] == 0);
-    CHECK(state.registers[1] == 1);
-    CHECK(state.registers[2] == 1);
-    CHECK(state.registers[3] == 1);
-    CHECK(state.registers[4] == 0);
-    CHECK(state.registers[5] == 0);
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(regs[0] == 0);
+    CHECK(regs[1] == 1);
+    CHECK(regs[2] == 1);
+    CHECK(regs[3] == 1);
+    CHECK(regs[4] == 0);
+    CHECK(regs[5] == 0);
 }
 
 TEST_CASE("callExt", "[assembly][vm]") {
@@ -351,9 +340,8 @@ TEST_CASE("callExt with return value", "[assembly][vm]") {
                     /* index = */ static_cast<size_t>(svm::Builtin::sqrt_f64)),
         TerminateInst(),
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(state.registers[0] == utl::bit_cast<u64>(std::sqrt(2.0)));
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(regs[0] == utl::bit_cast<u64>(std::sqrt(2.0)));
 }
 
 TEST_CASE("Conditional move", "[assembly][vm]") {
@@ -366,9 +354,8 @@ TEST_CASE("Conditional move", "[assembly][vm]") {
         CMoveInst(CompareOperation::Eq, RegisterIndex(0), Value64(42), 8),
         TerminateInst(),
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(state.registers[0] == 42);
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(regs[0] == 42);
 }
 
 TEST_CASE("LEA instruction", "[assembly][vm]") {
@@ -382,7 +369,6 @@ TEST_CASE("LEA instruction", "[assembly][vm]") {
         MoveInst(MemoryAddress(2), RegisterIndex(0), 8),
         TerminateInst(),
     })); // clang-format on
-    auto const vm     = assembleAndExecute(a);
-    auto const& state = vm.getState();
-    CHECK(load<u64>(state.stack.data() + 40) == 42);
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(load<u64>(&stack[40]) == 42);
 }

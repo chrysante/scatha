@@ -74,7 +74,7 @@ static uint64_t run(ir::Module const& mod) {
     });
     assert(mainPos != sym.end());
     vm.execute(mainPos->second, {});
-    return vm.getState().registers[0];
+    return vm.getRegister(0);
 }
 
 static void checkReturnImpl(uint64_t expected,

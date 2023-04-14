@@ -19,32 +19,12 @@ struct VMFlags {
     bool equal : 1;
 };
 
+/// Represents the state of an invocation of the virtual machine.
 struct ExecutionContext {
     u64* regPtr    = nullptr;
     u64* bottomReg = nullptr;
     u8 const* iptr = nullptr;
     u8* stackPtr   = nullptr;
-};
-
-struct VMState {
-    VMState()               = default;
-    VMState(VMState const&) = delete;
-    VMState(VMState&&)      = default;
-
-    VMFlags flags{};
-
-    utl::vector<u64> registers;
-    utl::vector<u8> text;
-    utl::vector<u8> data;
-    utl::vector<u8> stack;
-
-    /// End of text section
-    u8 const* programBreak  = nullptr;
-    size_t startAddress     = 0;
-    size_t instructionCount = 0;
-
-    utl::stack<ExecutionContext> execContexts;
-    ExecutionContext ctx;
 };
 
 struct VMStats {
@@ -53,7 +33,7 @@ struct VMStats {
 
 struct OpCodeImpl;
 
-class VirtualMachine: VMState {
+class VirtualMachine {
 public:
     VirtualMachine();
     void loadProgram(u8 const* data);
@@ -69,11 +49,13 @@ public:
     void setFunctionTableSlot(size_t slot,
                               utl::vector<ExternalFunction> functions);
 
-    VMState const& getState() const {
-        return static_cast<VMState const&>(*this);
-    }
-
     VMStats const& getStats() const { return stats; }
+
+    std::span<u64 const> registerData() const { return registers; }
+
+    u64 getRegister(size_t index) const { return registers[index]; }
+
+    std::span<u8 const> stackData() const { return stack; }
 
     friend struct OpCodeImpl;
 
@@ -93,6 +75,28 @@ private:
 private:
     utl::vector<Instruction> instructionTable;
     utl::vector<utl::vector<ExternalFunction>> extFunctionTable;
+
+    VMFlags flags{};
+
+    utl::vector<u64> registers;
+    utl::vector<u8> text;
+    utl::vector<u8> data;
+    utl::vector<u8> stack;
+
+    /// End of text section
+    u8 const* programBreak = nullptr;
+    /// Optional address of the `main`/`start` function.
+    size_t startAddress = 0;
+
+    /// The VM has a stack of execution contexts instead of a single one to
+    /// allow nested invocations of the same program in the same VM instance via
+    /// host callbacks.
+    utl::stack<ExecutionContext, 4> execContexts;
+
+    /// The currently active execution context
+    ExecutionContext ctx;
+
+    /// Statistics
     VMStats stats;
 };
 

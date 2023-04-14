@@ -20,15 +20,14 @@ void VirtualMachine::loadProgram(u8 const* progData) {
     Program program(progData);
     registers.resize(defaultRegisterCount);
     stack.resize(defaultStackSize);
-    instructionCount = program.instructions.size();
-    text             = std::move(program.instructions);
-    data             = std::move(program.data);
-    startAddress     = program.startAddress;
-    programBreak     = text.data() + text.size();
-    ctx              = execContexts.push({ .regPtr    = registers.data() - 256,
-                                           .bottomReg = registers.data() - 256,
-                                           .iptr      = nullptr,
-                                           .stackPtr  = stack.data() });
+    text         = std::move(program.instructions);
+    data         = std::move(program.data);
+    startAddress = program.startAddress;
+    programBreak = text.data() + text.size();
+    ctx          = execContexts.push({ .regPtr    = registers.data() - 256,
+                                       .bottomReg = registers.data() - 256,
+                                       .iptr      = nullptr,
+                                       .stackPtr  = stack.data() });
 }
 
 void VirtualMachine::execute(std::span<u64 const> arguments) {

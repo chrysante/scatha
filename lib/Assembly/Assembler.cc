@@ -31,7 +31,6 @@ struct Jumpsite {
 struct LabelPlaceholder {};
 
 struct Context {
-
     explicit Context(AssemblyStream const& stream,
                      utl::hashmap<std::string, size_t>& sym):
         stream(stream), sym(sym) {}
