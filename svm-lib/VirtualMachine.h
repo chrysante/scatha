@@ -17,14 +17,18 @@ struct VMFlags {
     bool equal : 1;
 };
 
+struct ExecutionContext {
+    u64* regPtr    = nullptr;
+    u64* bottomReg = nullptr;
+    u8 const* iptr = nullptr;
+    u8* stackPtr   = nullptr;
+};
+
 struct VMState {
     VMState()               = default;
     VMState(VMState const&) = delete;
     VMState(VMState&&)      = default;
 
-    u64* regPtr    = nullptr;
-    u8 const* iptr = nullptr;
-    u8* stackPtr   = nullptr;
     VMFlags flags{};
 
     utl::vector<u64> registers;
@@ -32,9 +36,12 @@ struct VMState {
     utl::vector<u8> data;
     utl::vector<u8> stack;
 
+    /// End of text section
     u8 const* programBreak  = nullptr;
     size_t instructionCount = 0;
-    size_t programStart     = 0;
+
+    utl::stack<ExecutionContext> execContexts;
+    ExecutionContext ctx;
 };
 
 struct VMStats {
@@ -71,8 +78,6 @@ public:
     }
 
 private:
-    void cleanup();
-
     static size_t defaultRegisterCount;
 
     static size_t defaultStackSize;

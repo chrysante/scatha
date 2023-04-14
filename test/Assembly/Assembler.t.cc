@@ -248,7 +248,7 @@ TEST_CASE("Unconditional jump", "[assembly][vm]") {
     })); // clang-format on
     auto const vm     = assembleAndExecute(a);
     auto const& state = vm.getState();
-    CHECK(load<u64>(state.regPtr) == value);
+    CHECK(state.registers[0] == value);
 }
 
 TEST_CASE("Conditional jump", "[assembly][vm]") {

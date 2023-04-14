@@ -56,7 +56,7 @@ struct svm::OpCodeImpl {
         return [](u8 const* i, u64*, VirtualMachine* vm) -> u64 {
             i32 const offset = load<i32>(&i[0]);
             if (decltype(cond)()(vm->flags)) {
-                vm->iptr += offset;
+                vm->ctx.iptr += offset;
                 return 0;
             }
             return codeSize(C);
@@ -247,30 +247,31 @@ struct svm::OpCodeImpl {
         at(call) = [](u8 const* i, u64*, VirtualMachine* vm) -> u64 {
             i32 const offset       = load<i32>(i);
             size_t const regOffset = i[4];
-            vm->regPtr += regOffset;
-            vm->regPtr[-3] = utl::bit_cast<u64>(vm->stackPtr);
-            vm->regPtr[-2] = regOffset;
-            vm->regPtr[-1] = utl::bit_cast<u64>(vm->iptr + codeSize(call));
-            vm->iptr += offset;
+            vm->ctx.regPtr += regOffset;
+            vm->ctx.regPtr[-3] = utl::bit_cast<u64>(vm->ctx.stackPtr);
+            vm->ctx.regPtr[-2] = regOffset;
+            vm->ctx.regPtr[-1] =
+                utl::bit_cast<u64>(vm->ctx.iptr + codeSize(call));
+            vm->ctx.iptr += offset;
             return 0;
         };
 
         at(ret) = [](u8 const*, u64* regPtr, VirtualMachine* vm) -> u64 {
-            if (vm->registers.data() == regPtr) {
+            if (vm->ctx.bottomReg == regPtr) {
                 /// Meaning we are the root of the call tree aka. the main/start
                 /// function, so we set the instruction pointer to the program
                 /// break to terminate execution.
-                vm->iptr = vm->programBreak;
+                vm->ctx.iptr = vm->programBreak;
                 return 0;
             }
-            vm->iptr = utl::bit_cast<u8 const*>(regPtr[-1]);
-            vm->regPtr -= regPtr[-2];
-            vm->stackPtr = utl::bit_cast<u8*>(regPtr[-3]);
+            vm->ctx.iptr = utl::bit_cast<u8 const*>(regPtr[-1]);
+            vm->ctx.regPtr -= regPtr[-2];
+            vm->ctx.stackPtr = utl::bit_cast<u8*>(regPtr[-3]);
             return 0;
         };
 
         at(terminate) = [](u8 const*, u64*, VirtualMachine* vm) -> u64 {
-            vm->iptr = vm->programBreak;
+            vm->ctx.iptr = vm->programBreak;
             return 0;
         };
 
@@ -351,8 +352,8 @@ struct svm::OpCodeImpl {
             size_t const destRegIdx = load<u8>(i);
             size_t const offset     = load<u16>(i + 1);
             SVM_ASSERT(offset % 8 == 0);
-            reg[destRegIdx] = utl::bit_cast<u64>(vm->stackPtr);
-            vm->stackPtr += offset;
+            reg[destRegIdx] = utl::bit_cast<u64>(vm->ctx.stackPtr);
+            vm->ctx.stackPtr += offset;
             return codeSize(lincsp);
         };
 
