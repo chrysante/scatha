@@ -20,7 +20,7 @@ struct VMFlags {
 };
 
 /// Represents the state of an invocation of the virtual machine.
-struct ExecutionContext {
+struct ExecutionFrame {
     u64* regPtr    = nullptr;
     u64* bottomReg = nullptr;
     u8 const* iptr = nullptr;
@@ -36,6 +36,15 @@ struct OpCodeImpl;
 /// Represents a virtual machine that allows execution of Scatha byte code.
 class VirtualMachine {
 public:
+    /// The default number of registers of an instance of `VirtualMachine`.
+    static constexpr size_t DefaultRegisterCount = 1 << 20;
+
+    /// The default stack size of an instance of `VirtualMachine`.
+    static constexpr size_t DefaultStackSize = 1 << 20;
+
+    /// The number of registers available to a single call frame
+    static constexpr size_t MaxCallframeRegisterCount = 256;
+
     /// Create a virtual machine
     VirtualMachine();
 
@@ -91,10 +100,10 @@ private:
     /// The VM has a stack of execution contexts instead of a single one to
     /// allow nested invocations of the same program in the same VM instance via
     /// host callbacks.
-    utl::stack<ExecutionContext, 4> execContexts;
+    utl::stack<ExecutionFrame, 4> execFrames;
 
-    /// The currently active execution context
-    ExecutionContext ctx;
+    /// The currently active execution frame
+    ExecutionFrame frame;
 
     /// Statistics
     VMStats stats;

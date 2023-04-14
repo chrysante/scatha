@@ -1,9 +1,8 @@
 #include <svm/VirtualMachine.h>
 
-#include <iostream>
+#include <svm/OpCode.h> // Delete once instruction table is gone.
 
 #include <svm/Builtin.h>
-#include <svm/OpCode.h>
 #include <utl/math.hpp>
 #include <utl/utility.hpp>
 
@@ -11,12 +10,6 @@
 #include "ProgramInternal.h"
 
 using namespace svm;
-
-/// The default number of registers of an instance of `VirtualMachine`.
-static constexpr size_t DefaultRegisterCount = 1 << 20;
-
-/// The default stack size of an instance of `VirtualMachine`.
-static constexpr size_t DefaultStackSize = 1 << 20;
 
 VirtualMachine::VirtualMachine():
     VirtualMachine(DefaultRegisterCount, DefaultStackSize) {}
@@ -30,40 +23,19 @@ VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize):
 
 void VirtualMachine::loadProgram(u8 const* progData) {
     Program program(progData);
-
     text         = std::move(program.instructions);
     data         = std::move(program.data);
     startAddress = program.startAddress;
     programBreak = text.data() + text.size();
-    ctx          = execContexts.push({ .regPtr    = registers.data() - 256,
-                                       .bottomReg = registers.data() - 256,
-                                       .iptr      = nullptr,
-                                       .stackPtr  = stack.data() });
+    frame        = execFrames.push(
+        { .regPtr    = registers.data() - MaxCallframeRegisterCount,
+                 .bottomReg = registers.data() - MaxCallframeRegisterCount,
+                 .iptr      = nullptr,
+                 .stackPtr  = stack.data() });
 }
 
 void VirtualMachine::execute(std::span<u64 const> arguments) {
     execute(startAddress, arguments);
-}
-
-void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
-    auto const lastCtx = execContexts.top() = ctx;
-    ctx = execContexts.push(ExecutionContext{ .regPtr    = lastCtx.regPtr + 256,
-                                              .bottomReg = lastCtx.regPtr + 256,
-                                              .iptr      = text.data() + start,
-                                              .stackPtr  = lastCtx.stackPtr });
-    std::memcpy(ctx.regPtr, arguments.data(), arguments.size() * sizeof(u64));
-    while (ctx.iptr < programBreak) {
-        OpCode const opCode{ *ctx.iptr };
-        assert(static_cast<u8>(opCode) < static_cast<u8>(OpCode::_count) &&
-               "Invalid op-code");
-        auto const instruction = instructionTable[static_cast<u8>(opCode)];
-        u64 const offset       = instruction(ctx.iptr + 1, ctx.regPtr, this);
-        ctx.iptr += offset;
-        ++stats.executedInstructions;
-    }
-    assert(ctx.iptr == programBreak);
-    execContexts.pop();
-    ctx = lastCtx;
 }
 
 void VirtualMachine::setFunctionTableSlot(
