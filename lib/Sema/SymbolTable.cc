@@ -25,8 +25,8 @@ SymbolTable::SymbolTable():
     /// Declare builtin functions
     _builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
-    declareBuiltinFunction(                                                    \
-        #name,                                                                 \
+    declareExternalFunction(                                                   \
+        "__builtin_" #name,                                                    \
         /* slot = */ svm::builtinFunctionSlot,                                 \
         /* index = */ static_cast<size_t>(svm::Builtin::name),                 \
         FunctionSignature(__VA_ARGS__),                                        \
@@ -171,16 +171,15 @@ Expected<void, SemanticIssue> SymbolTable::setSignature(SymbolID functionID,
     return {};
 }
 
-bool SymbolTable::declareBuiltinFunction(std::string name,
-                                         size_t slot,
-                                         size_t index,
-                                         FunctionSignature signature,
-                                         FunctionAttribute attrs) {
+bool SymbolTable::declareExternalFunction(std::string name,
+                                          size_t slot,
+                                          size_t index,
+                                          FunctionSignature signature,
+                                          FunctionAttribute attrs) {
     utl::scope_guard restoreScope = [this, scope = &currentScope()] {
         makeScopeCurrent(scope);
     };
     makeScopeCurrent(nullptr);
-    name = "__builtin_" + name;
     auto declResult =
         declareFunction(Token{ std::move(name), TokenType::Identifier });
     if (!declResult) {

@@ -95,18 +95,18 @@ public:
     Expected<void, SemanticIssue> setSignature(SymbolID functionID,
                                                FunctionSignature signature);
 
-    /// \brief Declares a builtin function.
+    /// \brief Declares an external function.
     ///
-    /// \details The name will be prefixed with the string `"__builtin_"` and
-    /// will be declared in the global scope, if it hasn't been declared before.
+    /// \details The name will be declared in the global scope, if it hasn't
+    /// been declared before.
 
     /// \returns `true` iff declaration was successfull.
     ///
-    bool declareBuiltinFunction(std::string name,
-                                size_t slot,
-                                size_t index,
-                                FunctionSignature signature,
-                                FunctionAttribute attrs);
+    bool declareExternalFunction(std::string name,
+                                 size_t slot,
+                                 size_t index,
+                                 FunctionSignature signature,
+                                 FunctionAttribute attrs);
 
     /// \brief Declares a variable to the current scope without type.
     ///

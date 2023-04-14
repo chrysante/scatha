@@ -1,11 +1,22 @@
-fn pow(x: float, n: int) -> float {
-    var result = 1.0;
-    for i = 0; i < n; ++i {
-        result *= x;
-    }
-    return result;
+
+
+
+fn main() {
+    var i = 1;
+    print(i);
+    cppCallback();
+    print(i + 1);
 }
-fn main() -> int {
-    let x = pow(1.61, int(5.5));
-    return int(x);
+
+fn print(n: int) {
+    __builtin_puti64(n);
+    __builtin_putchar(10);
+}
+
+fn fac(n: int) -> int {
+    return n <= 1 ? 1 : n * fac(n - 1);
+}
+
+fn callback() {
+    print(fac(5));
 }
