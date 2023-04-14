@@ -129,42 +129,22 @@ int main(int argc, char* argv[]) {
     printSyntaxIssues(synIss);
 
     /// Analyse the AST
+    sema::SymbolTable semaSym;
     issue::SemaIssueHandler semaIss;
-    auto symbolTable = sema::analyze(*ast, semaIss);
-    printSemaIssues(semaIss, symbolTable);
+    sema::analyze(*ast, semaSym, semaIss);
+    printSemaIssues(semaIss, semaSym);
 
     /// Generate IR
     ir::Context context;
-    auto mod = ast::lowerToIR(*ast, symbolTable, context);
+    auto mod = ast::lowerToIR(*ast, semaSym, context);
 
     opt::optimize(context, mod, options.optLevel);
 
     /// Generate assembly
     auto asmStream = cg::codegen(mod);
 
-    /// Find name of main function
-    auto const mainName = [&symbolTable]() -> std::optional<std::string> {
-        auto const id  = symbolTable.lookup("main");
-        auto const* os = symbolTable.tryGetOverloadSet(id);
-        if (!os) {
-            return std::nullopt;
-        }
-        auto const* mainFn = os->find({});
-        if (!mainFn) {
-            return std::nullopt;
-        }
-        std::stringstream sstr;
-        sstr << "main" << std::hex << mainFn->symbolID();
-        return std::move(sstr).str();
-    }();
-    if (!mainName) {
-        std::cout << tfmt::format(tfmt::brightRed,
-                                  "No main function defined!\n");
-        return -1;
-    }
-
     /// Assemble program
-    auto program = Asm::assemble(asmStream, { .startFunction = *mainName });
+    auto [program, symbolTable] = Asm::assemble(asmStream);
 
     if (options.time) {
         auto const compileEndTime = std::chrono::high_resolution_clock::now();

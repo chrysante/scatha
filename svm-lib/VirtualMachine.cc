@@ -23,12 +23,15 @@ void VirtualMachine::loadProgram(u8 const* progData) {
     instructionCount = program.instructions.size();
     text             = std::move(program.instructions);
     data             = std::move(program.data);
+    startAddress     = program.startAddress;
     programBreak     = text.data() + text.size();
     ctx              = execContexts.push({ .regPtr    = registers.data() - 256,
                                            .bottomReg = registers.data() - 256,
                                            .iptr      = nullptr,
                                            .stackPtr  = stack.data() });
 }
+
+void VirtualMachine::execute() { execute(startAddress); }
 
 void VirtualMachine::execute(size_t start) {
     auto const lastCtx = execContexts.top() = ctx;

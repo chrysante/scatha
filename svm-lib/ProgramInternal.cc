@@ -23,6 +23,7 @@ Program::Program(u8 const* prog) {
     size_t const textSize = header.size - header.textOffset;
     instructions.resize(textSize, utl::no_init);
     std::memcpy(instructions.data(), prog + header.textOffset, textSize);
+    startAddress = header.startAddress;
 }
 
 void svm::print(u8 const* program) { svm::print(program, std::cout); }

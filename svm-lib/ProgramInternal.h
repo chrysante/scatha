@@ -16,6 +16,7 @@ public:
 
     utl::vector<u8> instructions;
     utl::vector<u8> data;
+    size_t startAddress = 0;
 };
 
 } // namespace svm

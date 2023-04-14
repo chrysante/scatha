@@ -21,7 +21,7 @@ struct ProgramHeader {
     /// Offset from the end of the header to beginning of text section.
     u64 textOffset;
     /// Position of the start/main function in the text section.
-    u64 start;
+    u64 startAddress;
 };
 
 void print(u8 const* program);

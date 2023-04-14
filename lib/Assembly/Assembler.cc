@@ -94,6 +94,8 @@ struct Context {
     utl::hashmap<u64, size_t> labels;
     /// List of all code position with a jump site
     utl::vector<Jumpsite> jumpsites;
+    /// Address of the `start` or `main` function.
+    size_t startAddress = 0;
 };
 
 } // namespace
@@ -105,9 +107,11 @@ AssemblerResult Asm::assemble(AssemblyStream const& assemblyStream) {
     svm::ProgramHeader const header{
         .versionString = {},
         .size          = sizeof(svm::ProgramHeader) +
-                ctx.instructions.size(), // + data.size()
-        .dataOffset = sizeof(svm::ProgramHeader),
-        .textOffset = sizeof(svm::ProgramHeader)
+                ctx.instructions.size(), // + data.size() // Because we don't
+                                         // have a data section yet.
+        .dataOffset   = sizeof(svm::ProgramHeader),
+        .textOffset   = sizeof(svm::ProgramHeader),
+        .startAddress = ctx.startAddress
     };
     result.program.resize(sizeof(svm::ProgramHeader) + header.size);
     std::memcpy(result.program.data(), &header, sizeof(header));
@@ -121,6 +125,9 @@ void Context::run() {
     for (auto& block: stream) {
         if (block.isPublic()) {
             sym.insert({ std::string(block.name()), currentPosition() });
+            if (block.name().starts_with("main")) {
+                startAddress = currentPosition();
+            }
         }
         labels.insert({ block.id(), currentPosition() });
         for (auto& inst: block) {

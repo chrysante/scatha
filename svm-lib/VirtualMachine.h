@@ -38,6 +38,7 @@ struct VMState {
 
     /// End of text section
     u8 const* programBreak  = nullptr;
+    size_t startAddress     = 0;
     size_t instructionCount = 0;
 
     utl::stack<ExecutionContext> execContexts;
@@ -54,7 +55,12 @@ class VirtualMachine: VMState {
 public:
     VirtualMachine();
     void loadProgram(u8 const* data);
-    void execute(size_t start);
+
+    /// Start execution at the program's start address.
+    void execute();
+
+    /// Start execution at \p startAddress
+    void execute(size_t startAddress);
 
     void addExternalFunction(size_t slot, ExternalFunction);
 
