@@ -1,8 +1,18 @@
 #include <svm/VirtualMachine.h>
 
 #include <svm/OpCode.h>
+#include "Memory.h"
 
 using namespace svm;
+
+namespace {
+
+struct OpcodeOffset {
+    OpCode opcode: 12;
+    u16 offset: 4;
+};
+
+} // namespace
 
 void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
     auto const lastframe = execFrames.top() = frame;
@@ -17,12 +27,11 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
     std::memcpy(frame.regPtr, arguments.data(), arguments.size() * sizeof(u64));
     /// The main loop of the execution
     while (frame.iptr < programBreak) {
-        OpCode const opcode = OpCode(*frame.iptr);
-        assert(static_cast<u8>(opcode) < static_cast<u8>(OpCode::_count) &&
+        auto [opcode, offset] = load<OpcodeOffset>(frame.iptr);
+        assert(utl::to_underlying(opcode) < utl::to_underlying(OpCode::_count) &&
                "Invalid op-code");
-        auto const instruction = instructionTable[static_cast<u8>(opcode)];
-        u64 const offset =
-            instruction(frame.iptr + sizeof(OpCode), frame.regPtr, this);
+        auto const instruction = instructionTable[utl::to_underlying(opcode)];
+        instruction(frame.iptr + sizeof(OpCode), frame.regPtr, this);
         frame.iptr += offset;
         ++stats.executedInstructions;
     }
