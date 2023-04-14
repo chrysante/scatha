@@ -30,10 +30,13 @@ void Module::addGlobal(UniquePtr<Value> value) {
     _globals.push_back(std::move(value));
 }
 
-void Module::eraseFunction(Function* function) { funcs.erase(function); }
+void Module::eraseFunction(Function* function) {
+    eraseFunction(List<Function>::iterator(function));
+}
 
-void Module::eraseFunction(List<Function>::iterator itr) {
-    eraseFunction(itr.to_address());
+List<Function>::iterator Module::eraseFunction(
+    List<Function>::const_iterator itr) {
+    return funcs.erase(itr);
 }
 
 List<Function>::iterator Module::begin() { return funcs.begin(); }

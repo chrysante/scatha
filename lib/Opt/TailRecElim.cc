@@ -5,6 +5,7 @@
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
 
@@ -97,9 +98,12 @@ struct TREContext {
 
 bool opt::tailRecElim(Context& irCtx, Function& function) {
     TREContext ctx(irCtx, function);
-    bool const result = ctx.run();
+    bool const modifiedAny = ctx.run();
+    if (modifiedAny) {
+        function.invalidateCFGInfo();
+    }
     assertInvariants(irCtx, function);
-    return result;
+    return modifiedAny;
 }
 
 bool TREContext::run() {
@@ -288,7 +292,23 @@ std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
     // clang-format off
     return visit(*ret.value(), utl::overload{
         [&](Value const& value) -> std::optional<ViableReturn> {
-            return std::nullopt;
+            if (!isa<VoidType>(value.type())) {
+                return std::nullopt;
+            }
+            if (&ret == ret.parent()->begin().to_address()) {
+                return std::nullopt;
+            }
+            auto* call = dyncast<Call*>(ret.prev());
+            if (!call) {
+                return std::nullopt;
+            }
+            if (call->function() != &function) {
+                return std::nullopt;
+            }
+            return DirectReturn{
+              { .retInst = &ret },
+                .call = call
+            };
         },
         [&](Call& call) -> std::optional<ViableReturn> {
             if (call.function() != &function) {

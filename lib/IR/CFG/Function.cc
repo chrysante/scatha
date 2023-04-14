@@ -147,8 +147,6 @@ void Function::insertCallback(BasicBlock& bb) {
 }
 
 void Function::eraseCallback(BasicBlock const& bb) {
-    SC_ASSERT(bb.users().empty(),
-              "We should not erase this basic block when it's still in use");
     nameFac.erase(bb.name());
     for (auto& inst: bb) {
         const_cast<BasicBlock&>(bb).eraseCallback(inst);

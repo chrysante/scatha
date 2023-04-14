@@ -93,6 +93,7 @@ bool DCEContext::run() {
             function.pushBack(new BasicBlock(irCtx, "entry"));
             function.entry().pushBack(
                 new Return(irCtx, irCtx.undef(function.returnType())));
+            function.invalidateCFGInfo();
             return true;
         }
         else {
