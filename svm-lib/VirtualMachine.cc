@@ -12,14 +12,25 @@
 
 using namespace svm;
 
-VirtualMachine::VirtualMachine(): instructionTable(makeInstructionTable()) {
+/// The default number of registers of an instance of `VirtualMachine`.
+static constexpr size_t DefaultRegisterCount = 1 << 20;
+
+/// The default stack size of an instance of `VirtualMachine`.
+static constexpr size_t DefaultStackSize = 1 << 20;
+
+VirtualMachine::VirtualMachine():
+    VirtualMachine(DefaultRegisterCount, DefaultStackSize) {}
+
+VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize):
+    instructionTable(makeInstructionTable()) {
+    registers.resize(numRegisters, utl::no_init);
+    stack.resize(stackSize, utl::no_init);
     setFunctionTableSlot(builtinFunctionSlot, makeBuiltinTable());
 }
 
 void VirtualMachine::loadProgram(u8 const* progData) {
     Program program(progData);
-    registers.resize(defaultRegisterCount);
-    stack.resize(defaultStackSize);
+
     text         = std::move(program.instructions);
     data         = std::move(program.data);
     startAddress = program.startAddress;
@@ -55,13 +66,6 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
     ctx = lastCtx;
 }
 
-void VirtualMachine::addExternalFunction(size_t slot, ExternalFunction f) {
-    if (slot >= extFunctionTable.size()) {
-        extFunctionTable.resize(slot + 1);
-    }
-    extFunctionTable[slot].push_back(f);
-}
-
 void VirtualMachine::setFunctionTableSlot(
     size_t slot, utl::vector<ExternalFunction> functions) {
     if (slot >= extFunctionTable.size()) {
@@ -69,7 +73,3 @@ void VirtualMachine::setFunctionTableSlot(
     }
     extFunctionTable[slot] = std::move(functions);
 }
-
-size_t VirtualMachine::defaultRegisterCount = 1 << 20;
-
-size_t VirtualMachine::defaultStackSize = 1 << 20;

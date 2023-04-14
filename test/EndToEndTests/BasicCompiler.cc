@@ -67,7 +67,7 @@ static void optimize(ir::Context& ctx, ir::Module& mod) {
 static uint64_t run(ir::Module const& mod) {
     auto assembly    = cg::codegen(mod);
     auto [prog, sym] = Asm::assemble(assembly);
-    svm::VirtualMachine vm;
+    svm::VirtualMachine vm(1024, 1024);
     vm.loadProgram(prog.data());
     auto mainPos = std::find_if(sym.begin(), sym.end(), [](auto& p) {
         return p.first.starts_with("main");

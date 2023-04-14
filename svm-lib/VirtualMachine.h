@@ -33,46 +33,46 @@ struct VMStats {
 
 struct OpCodeImpl;
 
+/// Represents a virtual machine that allows execution of Scatha byte code.
 class VirtualMachine {
 public:
+    /// Create a virtual machine
     VirtualMachine();
+
+    /// Create a virtual machine with \p numRegisters number of registers and
+    /// a stack of size \p stackSize
+    VirtualMachine(size_t numRegisters, size_t stackSize);
+
+    /// Load a program into memory
     void loadProgram(u8 const* data);
 
-    /// Start execution at the program's start address.
+    /// Start execution at the program's start address
     void execute(std::span<u64 const> arguments);
 
     /// Start execution at \p startAddress
     void execute(size_t startAddress, std::span<u64 const> arguments);
 
-    void addExternalFunction(size_t slot, ExternalFunction);
-
+    /// Set a slot of the external function table
+    ///
+    /// Slot 0 and 1 are reserved for builtin functions
     void setFunctionTableSlot(size_t slot,
                               utl::vector<ExternalFunction> functions);
 
+    /// Access statistics
     VMStats const& getStats() const { return stats; }
 
+    /// \Returns A view of the data in the registers of the VM
     std::span<u64 const> registerData() const { return registers; }
 
+    /// \Returns The content of the register at index \p index
     u64 getRegister(size_t index) const { return registers[index]; }
 
+    /// \Returns A view of the data on the stack of the VM
     std::span<u8 const> stackData() const { return stack; }
 
+private:
     friend struct OpCodeImpl;
 
-    static void setDefaultRegisterCount(size_t count) {
-        defaultRegisterCount = count;
-    }
-
-    static void setDefaultStackSize(size_t numBytes) {
-        defaultStackSize = numBytes;
-    }
-
-private:
-    static size_t defaultRegisterCount;
-
-    static size_t defaultStackSize;
-
-private:
     utl::vector<Instruction> instructionTable;
     utl::vector<utl::vector<ExternalFunction>> extFunctionTable;
 

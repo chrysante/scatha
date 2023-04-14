@@ -17,7 +17,7 @@ using namespace scatha::Asm;
 
 static auto assembleAndExecute(AssemblyStream const& str) {
     auto [prog, sym] = assemble(str);
-    svm::VirtualMachine vm;
+    svm::VirtualMachine vm(1024, 1024);
     vm.loadProgram(prog.data());
     vm.execute(0, {});
     return std::pair{ utl::vector<u64>(vm.registerData()),
@@ -44,7 +44,7 @@ TEST_CASE("Alloca implementation", "[assembly][vm]") {
 }
 
 TEST_CASE("Alloca 2", "[assembly][vm]") {
-    int const offset = GENERATE(0, 1, 2, 3, 4, 5, 6, 7);
+    size_t const offset = GENERATE(0u, 1u, 2u, 3u, 4u, 5u, 6u, 7u);
     AssemblyStream a;
     // clang-format off
     a.add(Block(0, "start", {
@@ -56,7 +56,7 @@ TEST_CASE("Alloca 2", "[assembly][vm]") {
     })); // clang-format on
     auto const [regs, stack] = assembleAndExecute(a);
     CAPTURE(offset);
-    CHECK(load<i64>(&stack[0]) == i64(1) << 8 * offset);
+    CHECK(stack[offset] == 1);
 }
 
 TEST_CASE("Euclidean algorithm", "[assembly][vm]") {
