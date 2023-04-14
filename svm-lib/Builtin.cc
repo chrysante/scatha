@@ -12,8 +12,8 @@
 using namespace svm;
 
 template <typename From, typename To>
-static auto cast() {
-    return [](u64* regPtr, VirtualMachine* vm) {
+static ExternalFunction::FuncPtr cast() {
+    return [](u64* regPtr, VirtualMachine* vm, void*) {
         From const value = load<From>(regPtr);
         store(regPtr, static_cast<To>(value));
     };
@@ -23,8 +23,8 @@ template <typename T, size_t N>
 using wrap = T;
 
 template <typename Float, size_t NumArgs>
-static auto math(auto impl) {
-    return [](u64* regPtr, VirtualMachine* vm) {
+static ExternalFunction::FuncPtr math(auto impl) {
+    return [](u64* regPtr, VirtualMachine* vm, void*) {
         [&]<size_t... I>(std::index_sequence<I...>) {
             std::tuple<wrap<Float, I>...> args{ load<Float>(regPtr + I)... };
             store(regPtr, std::apply(decltype(impl){}, args));
@@ -33,8 +33,8 @@ static auto math(auto impl) {
 }
 
 template <typename T>
-static auto printVal() {
-    return [](u64* regPtr, VirtualMachine* vm) {
+static ExternalFunction::FuncPtr printVal() {
+    return [](u64* regPtr, VirtualMachine* vm, void*) {
         T const value = load<T>(regPtr);
         std::cout << value;
     };

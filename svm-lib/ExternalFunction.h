@@ -7,7 +7,17 @@ namespace svm {
 
 class VirtualMachine;
 
-using ExternalFunction = void (*)(u64* regPtr, VirtualMachine*);
+struct ExternalFunction {
+    using FuncPtr = void (*)(u64* regPtr, VirtualMachine* vm, void* context);
+
+    ExternalFunction() = default;
+
+    ExternalFunction(FuncPtr funcPtr, void* context = nullptr):
+        funcPtr(funcPtr), context(context) {}
+
+    FuncPtr funcPtr = nullptr;
+    void* context   = nullptr;
+};
 
 } // namespace svm
 

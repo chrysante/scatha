@@ -67,9 +67,6 @@ static auto compile(std::string_view text, sema::SymbolTable& sym) {
     return Asm::assemble(assembly);
 }
 
-svm::VirtualMachine gVM;
-size_t gCallback;
-
 void playground::optTest(std::filesystem::path path) {
     auto text = readFileToString(path);
     sema::SymbolTable semaSym;
@@ -89,18 +86,19 @@ void playground::optTest(std::filesystem::path path) {
         return itr->second;
     };
 
-    utl::small_vector<svm::ExternalFunction> extFunctions = {
-        [](u64* regPtr, svm::VirtualMachine*) {
+    struct Ctx {
+        svm::VirtualMachine vm;
+        size_t callback;
+    } ctx{ .callback = findFn("callback") };
+
+    auto cppCallback = [](u64* regPtr, svm::VirtualMachine*, void* c) {
+        auto* ctx = reinterpret_cast<Ctx*>(c);
         std::cout << "Back in C++ land\n";
-        gVM.execute(gCallback);
-    } };
-    gVM.setFunctionTableSlot(1, extFunctions);
+        ctx->vm.execute(ctx->callback);
+    };
 
-    gVM.loadProgram(prog.data());
-
+    ctx.vm.setFunctionTableSlot(1, { { cppCallback, &ctx } });
+    ctx.vm.loadProgram(prog.data());
     size_t main = findFn("main");
-
-    gCallback = findFn("callback");
-
-    gVM.execute(main);
+    ctx.vm.execute(main);
 }

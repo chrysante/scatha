@@ -566,8 +566,8 @@ struct svm::OpCodeImpl {
             size_t const regPtrOffset = i[0];
             size_t const tableIdx     = i[1];
             size_t const idxIntoTable = load<u16>(&i[2]);
-            vm->extFunctionTable[tableIdx][idxIntoTable](reg + regPtrOffset,
-                                                         vm);
+            auto etxFunction = vm->extFunctionTable[tableIdx][idxIntoTable];
+            etxFunction.funcPtr(reg + regPtrOffset, vm, etxFunction.context);
             return codeSize(callExt);
         };
 
