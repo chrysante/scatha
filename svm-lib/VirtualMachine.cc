@@ -21,12 +21,12 @@ void VirtualMachine::loadProgram(u8 const* progData) {
     instructionCount = program.instructions.size();
     text             = std::move(program.instructions);
     data             = std::move(program.data);
-    programStart     = program.start;
-    iptr             = text.data() + programStart;
+    iptr             = text.data();
     programBreak     = text.data() + text.size();
 }
 
-void VirtualMachine::execute() {
+void VirtualMachine::execute(size_t start) {
+    iptr = text.data() + start;
     registers.resize(defaultRegisterCount);
     regPtr = registers.data();
     stack.resize(defaultStackSize);
@@ -59,7 +59,7 @@ void VirtualMachine::setFunctionTableSlot(
     extFunctionTable[slot] = std::move(functions);
 }
 
-void VirtualMachine::cleanup() { iptr = text.data() + programStart; }
+void VirtualMachine::cleanup() { iptr = text.data(); }
 
 size_t VirtualMachine::defaultRegisterCount = 1 << 20;
 

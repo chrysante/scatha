@@ -27,6 +27,12 @@ public:
 
     size_t id() const { return _id; }
 
+    /// \Returns `true` iff the address of this block should appear in the
+    /// global symbol table.
+    bool isPublic() const { return _public; }
+
+    void setPublic(bool value = true) { _public = value; }
+
     std::string_view name() const { return _name; }
 
     size_t instructionCount() const { return instructions.size(); }
@@ -51,7 +57,8 @@ public:
     }
 
 private:
-    size_t _id;
+    size_t _id   : 63;
+    bool _public : 1 = false;
     std::string _name;
     utl::vector<Instruction> instructions;
 };

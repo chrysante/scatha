@@ -64,20 +64,15 @@ static void optimize(ir::Context& ctx, ir::Module& mod) {
 }
 
 static uint64_t run(ir::Module const& mod) {
-    /// Start execution with `main` if it exists.
-    std::string mainName;
-    for (auto& f: mod) {
-        if (f.name().starts_with("main")) {
-            mainName = std::string(f.name());
-            break;
-        }
-    }
-    assert(!mainName.empty());
-    auto assembly = cg::codegen(mod);
-    auto prog     = Asm::assemble(assembly, { .startFunction = mainName });
+    auto assembly    = cg::codegen(mod);
+    auto [prog, sym] = Asm::assemble(assembly);
     svm::VirtualMachine vm;
     vm.loadProgram(prog.data());
-    vm.execute();
+    auto mainPos = std::find_if(sym.begin(), sym.end(), [](auto& p) {
+        return p.first.starts_with("main");
+    });
+    assert(mainPos != sym.end());
+    vm.execute(mainPos->second);
     return vm.getState().registers[0];
 }
 

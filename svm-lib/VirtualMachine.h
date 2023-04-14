@@ -47,7 +47,7 @@ class VirtualMachine: VMState {
 public:
     VirtualMachine();
     void loadProgram(u8 const* data);
-    void execute();
+    void execute(size_t start);
 
     void addExternalFunction(size_t slot, ExternalFunction);
 

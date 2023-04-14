@@ -32,8 +32,9 @@ struct LabelPlaceholder {};
 
 struct Context {
 
-    explicit Context(AssemblyStream const& stream, AssemblerOptions options):
-        stream(stream), options(options) {}
+    explicit Context(AssemblyStream const& stream,
+                     utl::hashmap<std::string, size_t>& sym):
+        stream(stream), sym(sym) {}
 
     void run();
 
@@ -86,9 +87,8 @@ struct Context {
     size_t currentPosition() const { return instructions.size(); }
 
     AssemblyStream const& stream;
-    AssemblerOptions options;
+    utl::hashmap<std::string, size_t>& sym;
     utl::vector<u8> instructions;
-    u64 start = 0;
 
     /// Maps Label ID to Code position
     utl::hashmap<u64, size_t> labels;
@@ -98,32 +98,29 @@ struct Context {
 
 } // namespace
 
-utl::vector<u8> Asm::assemble(AssemblyStream const& assemblyStream,
-                              AssemblerOptions options) {
-    Context ctx(assemblyStream, options);
+AssemblerResult Asm::assemble(AssemblyStream const& assemblyStream) {
+    AssemblerResult result;
+    Context ctx(assemblyStream, result.symbolTable);
     ctx.run();
     svm::ProgramHeader const header{
         .versionString = {},
         .size          = sizeof(svm::ProgramHeader) +
                 ctx.instructions.size(), // + data.size()
         .dataOffset = sizeof(svm::ProgramHeader),
-        .textOffset = sizeof(svm::ProgramHeader),
-        .start      = ctx.start
+        .textOffset = sizeof(svm::ProgramHeader)
     };
-    utl::vector<u8> program(sizeof(svm::ProgramHeader) + header.size);
-    std::memcpy(program.data(), &header, sizeof(header));
-    std::memcpy(program.data() + sizeof(header),
+    result.program.resize(sizeof(svm::ProgramHeader) + header.size);
+    std::memcpy(result.program.data(), &header, sizeof(header));
+    std::memcpy(result.program.data() + sizeof(header),
                 ctx.instructions.data(),
                 ctx.instructions.size());
-    return program;
+    return result;
 }
 
 void Context::run() {
     for (auto& block: stream) {
-        if (!options.startFunction.empty() &&
-            block.name() == options.startFunction)
-        {
-            start = currentPosition();
+        if (block.isPublic()) {
+            sym.insert({ std::string(block.name()), currentPosition() });
         }
         labels.insert({ block.id(), currentPosition() });
         for (auto& inst: block) {

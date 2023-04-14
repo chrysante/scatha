@@ -5,6 +5,7 @@
 
 #include <string>
 
+#include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/Basic/Basic.h>
@@ -13,12 +14,13 @@ namespace scatha::Asm {
 
 class AssemblyStream;
 
-struct AssemblerOptions {
-    std::string startFunction;
+struct AssemblerResult {
+    utl::vector<u8> program;
+    utl::hashmap<std::string, size_t> symbolTable;
 };
 
-[[nodiscard]] SCATHA_API utl::vector<u8> assemble(
-    AssemblyStream const& assemblyStream, AssemblerOptions options = {});
+[[nodiscard]] SCATHA_API AssemblerResult
+    assemble(AssemblyStream const& assemblyStream);
 
 } // namespace scatha::Asm
 

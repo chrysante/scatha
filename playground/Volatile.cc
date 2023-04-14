@@ -62,11 +62,19 @@ static void header(std::string_view title = "") {
 using namespace scatha;
 using namespace playground;
 
-static void run(Asm::AssemblyStream const& assembly, std::string mainName) {
-    auto program = Asm::assemble(assembly, { mainName });
+static void run(Asm::AssemblyStream const& assembly) {
+    auto [program, symbolTable] = Asm::assemble(assembly);
     svm::VirtualMachine vm;
     vm.loadProgram(program.data());
-    vm.execute();
+    auto mainPos =
+        std::find_if(symbolTable.begin(), symbolTable.end(), [](auto& p) {
+            return p.first.starts_with("main");
+        });
+    if (mainPos == symbolTable.end()) {
+        std::cout << "No main function defined!\n";
+        return;
+    }
+    vm.execute(mainPos->second);
     using RetType        = uint64_t;
     using SRetType       = uint64_t;
     RetType const retval = static_cast<RetType>(vm.getState().registers[0]);
@@ -85,38 +93,14 @@ static void run(ir::Module const& mod) {
     auto assembly = cg::codegen(mod);
     header(" Assembly ");
     Asm::print(assembly);
-    std::string const mainName = [&] {
-        for (auto& f: mod) {
-            if (f.name().starts_with("main")) {
-                return std::string(f.name());
-            }
-        }
-        return std::string{};
-    }();
-    if (mainName.empty()) {
-        std::cout << "No main function found\n";
-        return;
-    }
-    run(assembly, mainName);
+    run(assembly);
 }
 
 static void run(mir::Module const& mod) {
     auto assembly = cg::lowerToASM(mod);
     header(" Assembly ");
     Asm::print(assembly);
-    std::string const mainName = [&] {
-        for (auto& f: mod) {
-            if (f.name().starts_with("main")) {
-                return std::string(f.name());
-            }
-        }
-        return std::string{};
-    }();
-    if (mainName.empty()) {
-        std::cout << "No main function found\n";
-        return;
-    }
-    run(assembly, mainName);
+    run(assembly);
 }
 
 [[maybe_unused]] static void printIRLiveSets(ir::Function const& F) {

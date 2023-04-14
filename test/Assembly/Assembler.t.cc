@@ -16,16 +16,16 @@ using namespace scatha;
 using namespace scatha::Asm;
 
 static svm::VirtualMachine assembleAndExecute(AssemblyStream const& str) {
-    auto p = assemble(str);
+    auto [prog, sym] = assemble(str);
     svm::VirtualMachine vm;
-    vm.loadProgram(p.data());
-    vm.execute();
+    vm.loadProgram(prog.data());
+    vm.execute(0);
     return vm;
 }
 
 [[maybe_unused]] static void assembleAndPrint(AssemblyStream const& str) {
-    auto p = assemble(str);
-    svm::print(p.data());
+    auto [prog, sym] = assemble(str);
+    svm::print(prog.data());
 }
 
 TEST_CASE("Alloca implementation", "[assembly][vm]") {

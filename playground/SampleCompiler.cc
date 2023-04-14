@@ -173,33 +173,22 @@ void playground::compile(std::string text) {
     print(assembly);
 
     header(" Assembled Program ");
-    /// Start execution with `main` if it exists.
-    auto const mainName = [&sym]() -> std::optional<std::string> {
-        auto const id  = sym.lookup("main");
-        auto const* os = sym.tryGetOverloadSet(id);
-        if (!os) {
-            return std::nullopt;
-        }
-        auto const* mainFn = os->find({});
-        if (!mainFn) {
-            return std::nullopt;
-        }
-        std::stringstream sstr;
-        sstr << "main" << std::hex << mainFn->symbolID();
-        return std::move(sstr).str();
-    }();
-    if (!mainName) {
-        std::cout << "No main function defined!\n";
-        return;
-    }
-    auto const program =
-        Asm::assemble(assembly, { .startFunction = *mainName });
+
+    auto const [program, symbolTable] = Asm::assemble(assembly);
     svm::print(program.data());
     subHeader();
 
     svm::VirtualMachine vm;
     vm.loadProgram(program.data());
-    vm.execute();
+    auto mainPos =
+        std::find_if(symbolTable.begin(), symbolTable.end(), [](auto& p) {
+            return p.first.starts_with("main");
+        });
+    if (mainPos == symbolTable.end()) {
+        std::cout << "No main function defined!\n";
+        return;
+    }
+    vm.execute(mainPos->second);
     u64 const exitCode = vm.getState().registers[0];
     std::cout << "VM: Program ended with exit code: [\n\ti: "
               << static_cast<i64>(exitCode) << ", \n\tu: " << exitCode

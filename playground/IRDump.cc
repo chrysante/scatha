@@ -59,7 +59,7 @@ void playground::irDump(std::string_view text) {
     sectionHeader(" Assembly ");
     Asm::print(asmStream);
 
-    auto program = Asm::assemble(asmStream);
+    auto [program, symbolTable] = Asm::assemble(asmStream);
     sectionHeader(" Assembled program ");
     svm::print(program.data());
 }
