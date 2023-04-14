@@ -21,7 +21,8 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
         assert(static_cast<u8>(opcode) < static_cast<u8>(OpCode::_count) &&
                "Invalid op-code");
         auto const instruction = instructionTable[static_cast<u8>(opcode)];
-        u64 const offset = instruction(frame.iptr + 1, frame.regPtr, this);
+        u64 const offset =
+            instruction(frame.iptr + sizeof(OpCode), frame.regPtr, this);
         frame.iptr += offset;
         ++stats.executedInstructions;
     }

@@ -64,7 +64,13 @@ struct Context {
 
     void put(svm::OpCode o) {
         SC_ASSERT(o != OpCode::_count, "Invalid opcode.");
-        instructions.push_back(utl::to_underlying(o));
+        struct {
+            u16 opcode : 12;
+            u16 size   : 4;
+        } value;
+        value.opcode = utl::to_underlying(o);
+        value.size   = utl::narrow_cast<u8>(svm::execCodeSize(o));
+        put<u16>(utl::bit_cast<u16>(value));
     }
 
     template <typename T>

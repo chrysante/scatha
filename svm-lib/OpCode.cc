@@ -13,6 +13,8 @@
 
 #include "Memory.h"
 
+using namespace svm;
+
 #define SVM_ASSERT(COND) assert(COND)
 #define SVM_WARNING(COND, MSG)                                                 \
     do {                                                                       \
@@ -20,8 +22,6 @@
             std::cout << (MSG);                                                \
         }                                                                      \
     } while (0)
-
-using namespace svm;
 
 std::string_view svm::toString(OpCode c) {
     return std::array{
@@ -56,8 +56,8 @@ struct svm::OpCodeImpl {
         return [](u8 const* i, u64*, VirtualMachine* vm) -> u64 {
             i32 const offset = load<i32>(&i[0]);
             if (decltype(cond)()(vm->flags)) {
-                vm->frame.iptr += offset;
-                return 0;
+                vm->frame.iptr += offset - static_cast<i64>(codeSize(C));
+                return codeSize(C);
             }
             return codeSize(C);
         };
