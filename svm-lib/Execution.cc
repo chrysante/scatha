@@ -183,6 +183,7 @@ static constexpr size_t execCodeSizeImpl(OpCode code) {
     return codeSize(code);
 }
 
+/// Making this a template actually cuts execution time in debug builds in half.
 template <OpCode Code>
 static constexpr size_t ExecCodeSize = execCodeSizeImpl(Code);
 
@@ -205,9 +206,14 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
         static constexpr u64 InvalidCodeOffset = 0xdadadadadadadada;
         size_t codeOffset                      = InvalidCodeOffset;
 
-#define INST_RETURN(inst)                                                      \
-    codeOffset = ExecCodeSize<inst>;                                           \
+#define INST_RETURN(instcode)                                                  \
+    codeOffset = ExecCodeSize<instcode>;                                       \
     break
+
+#define CASE(instcode, ...)                                                    \
+    case instcode:                                                             \
+        __VA_ARGS__;                                                           \
+        INST_RETURN(instcode)
 
         assert(utl::to_underlying(opcode) <
                    utl::to_underlying(OpCode::_count) &&
@@ -271,145 +277,57 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
             INST_RETURN(mov64RV);
         }
 
-        case mov8MR:
-            moveMR<1>(i, regPtr);
-            INST_RETURN(mov8MR);
-        case mov16MR:
-            moveMR<2>(i, regPtr);
-            INST_RETURN(mov16MR);
-        case mov32MR:
-            moveMR<4>(i, regPtr);
-            INST_RETURN(mov32MR);
-        case mov64MR:
-            moveMR<8>(i, regPtr);
-            INST_RETURN(mov64MR);
-        case mov8RM:
-            moveRM<1>(i, regPtr);
-            INST_RETURN(mov8RM);
-        case mov16RM:
-            moveRM<2>(i, regPtr);
-            INST_RETURN(mov16RM);
-        case mov32RM:
-            moveRM<4>(i, regPtr);
-            INST_RETURN(mov32RM);
-        case mov64RM:
-            moveRM<8>(i, regPtr);
-            INST_RETURN(mov64RM);
+            CASE(mov8MR, moveMR<1>(i, regPtr));
+            CASE(mov16MR, moveMR<2>(i, regPtr));
+            CASE(mov32MR, moveMR<4>(i, regPtr));
+            CASE(mov64MR, moveMR<8>(i, regPtr));
+            CASE(mov8RM, moveRM<1>(i, regPtr));
+            CASE(mov16RM, moveRM<2>(i, regPtr));
+            CASE(mov32RM, moveRM<4>(i, regPtr));
+            CASE(mov64RM, moveRM<8>(i, regPtr));
 
             /// ## Conditional moves
-        case cmove64RR:
-            condMove64RR(i, regPtr, equal(flags));
-            INST_RETURN(cmove64RR);
-        case cmove64RV:
-            condMove64RV(i, regPtr, equal(flags));
-            INST_RETURN(cmove64RV);
-        case cmove8RM:
-            condMoveRM<1>(i, regPtr, equal(flags));
-            INST_RETURN(cmove8RM);
-        case cmove16RM:
-            condMoveRM<2>(i, regPtr, equal(flags));
-            INST_RETURN(cmove16RM);
-        case cmove32RM:
-            condMoveRM<4>(i, regPtr, equal(flags));
-            INST_RETURN(cmove32RM);
-        case cmove64RM:
-            condMoveRM<8>(i, regPtr, equal(flags));
-            INST_RETURN(cmove64RM);
+            CASE(cmove64RR, condMove64RR(i, regPtr, equal(flags)));
+            CASE(cmove64RV, condMove64RV(i, regPtr, equal(flags)));
+            CASE(cmove8RM, condMoveRM<1>(i, regPtr, equal(flags)));
+            CASE(cmove16RM, condMoveRM<2>(i, regPtr, equal(flags)));
+            CASE(cmove32RM, condMoveRM<4>(i, regPtr, equal(flags)));
+            CASE(cmove64RM, condMoveRM<8>(i, regPtr, equal(flags)));
 
-        case cmovne64RR:
-            condMove64RR(i, regPtr, notEqual(flags));
-            INST_RETURN(cmovne64RR);
-        case cmovne64RV:
-            condMove64RV(i, regPtr, notEqual(flags));
-            INST_RETURN(cmovne64RV);
-        case cmovne8RM:
-            condMoveRM<1>(i, regPtr, notEqual(flags));
-            INST_RETURN(cmovne8RM);
-        case cmovne16RM:
-            condMoveRM<2>(i, regPtr, notEqual(flags));
-            INST_RETURN(cmovne16RM);
-        case cmovne32RM:
-            condMoveRM<4>(i, regPtr, notEqual(flags));
-            INST_RETURN(cmovne32RM);
-        case cmovne64RM:
-            condMoveRM<8>(i, regPtr, notEqual(flags));
-            INST_RETURN(cmovne64RM);
+            CASE(cmovne64RR, condMove64RR(i, regPtr, notEqual(flags)));
+            CASE(cmovne64RV, condMove64RV(i, regPtr, notEqual(flags)));
+            CASE(cmovne8RM, condMoveRM<1>(i, regPtr, notEqual(flags)));
+            CASE(cmovne16RM, condMoveRM<2>(i, regPtr, notEqual(flags)));
+            CASE(cmovne32RM, condMoveRM<4>(i, regPtr, notEqual(flags)));
+            CASE(cmovne64RM, condMoveRM<8>(i, regPtr, notEqual(flags)));
 
-        case cmovl64RR:
-            condMove64RR(i, regPtr, less(flags));
-            INST_RETURN(cmovl64RR);
-        case cmovl64RV:
-            condMove64RV(i, regPtr, less(flags));
-            INST_RETURN(cmovl64RV);
-        case cmovl8RM:
-            condMoveRM<1>(i, regPtr, less(flags));
-            INST_RETURN(cmovl8RM);
-        case cmovl16RM:
-            condMoveRM<2>(i, regPtr, less(flags));
-            INST_RETURN(cmovl16RM);
-        case cmovl32RM:
-            condMoveRM<4>(i, regPtr, less(flags));
-            INST_RETURN(cmovl32RM);
-        case cmovl64RM:
-            condMoveRM<8>(i, regPtr, less(flags));
-            INST_RETURN(cmovl64RM);
+            CASE(cmovl64RR, condMove64RR(i, regPtr, less(flags)));
+            CASE(cmovl64RV, condMove64RV(i, regPtr, less(flags)));
+            CASE(cmovl8RM, condMoveRM<1>(i, regPtr, less(flags)));
+            CASE(cmovl16RM, condMoveRM<2>(i, regPtr, less(flags)));
+            CASE(cmovl32RM, condMoveRM<4>(i, regPtr, less(flags)));
+            CASE(cmovl64RM, condMoveRM<8>(i, regPtr, less(flags)));
 
-        case cmovle64RR:
-            condMove64RR(i, regPtr, lessEq(flags));
-            INST_RETURN(cmovle64RR);
-        case cmovle64RV:
-            condMove64RV(i, regPtr, lessEq(flags));
-            INST_RETURN(cmovle64RV);
-        case cmovle8RM:
-            condMoveRM<1>(i, regPtr, lessEq(flags));
-            INST_RETURN(cmovle8RM);
-        case cmovle16RM:
-            condMoveRM<2>(i, regPtr, lessEq(flags));
-            INST_RETURN(cmovle16RM);
-        case cmovle32RM:
-            condMoveRM<4>(i, regPtr, lessEq(flags));
-            INST_RETURN(cmovle32RM);
-        case cmovle64RM:
-            condMoveRM<8>(i, regPtr, lessEq(flags));
-            INST_RETURN(cmovle64RM);
+            CASE(cmovle64RR, condMove64RR(i, regPtr, lessEq(flags)));
+            CASE(cmovle64RV, condMove64RV(i, regPtr, lessEq(flags)));
+            CASE(cmovle8RM, condMoveRM<1>(i, regPtr, lessEq(flags)));
+            CASE(cmovle16RM, condMoveRM<2>(i, regPtr, lessEq(flags)));
+            CASE(cmovle32RM, condMoveRM<4>(i, regPtr, lessEq(flags)));
+            CASE(cmovle64RM, condMoveRM<8>(i, regPtr, lessEq(flags)));
 
-        case cmovg64RR:
-            condMove64RR(i, regPtr, greater(flags));
-            INST_RETURN(cmovg64RR);
-        case cmovg64RV:
-            condMove64RV(i, regPtr, greater(flags));
-            INST_RETURN(cmovg64RV);
-        case cmovg8RM:
-            condMoveRM<1>(i, regPtr, greater(flags));
-            INST_RETURN(cmovg8RM);
-        case cmovg16RM:
-            condMoveRM<2>(i, regPtr, greater(flags));
-            INST_RETURN(cmovg16RM);
-        case cmovg32RM:
-            condMoveRM<4>(i, regPtr, greater(flags));
-            INST_RETURN(cmovg32RM);
-        case cmovg64RM:
-            condMoveRM<8>(i, regPtr, greater(flags));
-            INST_RETURN(cmovg64RM);
+            CASE(cmovg64RR, condMove64RR(i, regPtr, greater(flags)));
+            CASE(cmovg64RV, condMove64RV(i, regPtr, greater(flags)));
+            CASE(cmovg8RM, condMoveRM<1>(i, regPtr, greater(flags)));
+            CASE(cmovg16RM, condMoveRM<2>(i, regPtr, greater(flags)));
+            CASE(cmovg32RM, condMoveRM<4>(i, regPtr, greater(flags)));
+            CASE(cmovg64RM, condMoveRM<8>(i, regPtr, greater(flags)));
 
-        case cmovge64RR:
-            condMove64RR(i, regPtr, greaterEq(flags));
-            INST_RETURN(cmovge64RR);
-        case cmovge64RV:
-            condMove64RV(i, regPtr, greaterEq(flags));
-            INST_RETURN(cmovge64RV);
-        case cmovge8RM:
-            condMoveRM<1>(i, regPtr, greaterEq(flags));
-            INST_RETURN(cmovge8RM);
-        case cmovge16RM:
-            condMoveRM<2>(i, regPtr, greaterEq(flags));
-            INST_RETURN(cmovge16RM);
-        case cmovge32RM:
-            condMoveRM<4>(i, regPtr, greaterEq(flags));
-            INST_RETURN(cmovge32RM);
-        case cmovge64RM:
-            condMoveRM<8>(i, regPtr, greaterEq(flags));
-            INST_RETURN(cmovge64RM);
+            CASE(cmovge64RR, condMove64RR(i, regPtr, greaterEq(flags)));
+            CASE(cmovge64RV, condMove64RV(i, regPtr, greaterEq(flags)));
+            CASE(cmovge8RM, condMoveRM<1>(i, regPtr, greaterEq(flags)));
+            CASE(cmovge16RM, condMoveRM<2>(i, regPtr, greaterEq(flags)));
+            CASE(cmovge32RM, condMoveRM<4>(i, regPtr, greaterEq(flags)));
+            CASE(cmovge64RM, condMoveRM<8>(i, regPtr, greaterEq(flags)));
 
             /// ## Stack pointer manipulation
         case lincsp: {
@@ -430,511 +348,209 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
         }
 
             /// ## Jumps
-        case jmp:
-            jump<jmp>(i, frame, true);
-            INST_RETURN(jmp);
-        case je:
-            jump<je>(i, frame, equal(flags));
-            INST_RETURN(je);
-        case jne:
-            jump<jne>(i, frame, notEqual(flags));
-            INST_RETURN(jne);
-        case jl:
-            jump<jl>(i, frame, less(flags));
-            INST_RETURN(jl);
-        case jle:
-            jump<jle>(i, frame, lessEq(flags));
-            INST_RETURN(jle);
-        case jg:
-            jump<jg>(i, frame, greater(flags));
-            INST_RETURN(jg);
-        case jge:
-            jump<jge>(i, frame, greaterEq(flags));
-            INST_RETURN(jge);
+            CASE(jmp, jump<jmp>(i, frame, true));
+            CASE(je, jump<je>(i, frame, equal(flags)));
+            CASE(jne, jump<jne>(i, frame, notEqual(flags)));
+            CASE(jl, jump<jl>(i, frame, less(flags)));
+            CASE(jle, jump<jle>(i, frame, lessEq(flags)));
+            CASE(jg, jump<jg>(i, frame, greater(flags)));
+            CASE(jge, jump<jge>(i, frame, greaterEq(flags)));
 
             /// ## Comparison
-        case ucmp8RR:
-            compareRR<u8>(i, regPtr, flags);
-            INST_RETURN(ucmp8RR);
-        case ucmp16RR:
-            compareRR<u16>(i, regPtr, flags);
-            INST_RETURN(ucmp16RR);
-        case ucmp32RR:
-            compareRR<u32>(i, regPtr, flags);
-            INST_RETURN(ucmp32RR);
-        case ucmp64RR:
-            compareRR<u64>(i, regPtr, flags);
-            INST_RETURN(ucmp64RR);
+            CASE(ucmp8RR, compareRR<u8>(i, regPtr, flags));
+            CASE(ucmp16RR, compareRR<u16>(i, regPtr, flags));
+            CASE(ucmp32RR, compareRR<u32>(i, regPtr, flags));
+            CASE(ucmp64RR, compareRR<u64>(i, regPtr, flags));
 
-        case scmp8RR:
-            compareRR<i8>(i, regPtr, flags);
-            INST_RETURN(scmp8RR);
-        case scmp16RR:
-            compareRR<i16>(i, regPtr, flags);
-            INST_RETURN(scmp16RR);
-        case scmp32RR:
-            compareRR<i32>(i, regPtr, flags);
-            INST_RETURN(scmp32RR);
-        case scmp64RR:
-            compareRR<i64>(i, regPtr, flags);
-            INST_RETURN(scmp64RR);
+            CASE(scmp8RR, compareRR<i8>(i, regPtr, flags));
+            CASE(scmp16RR, compareRR<i16>(i, regPtr, flags));
+            CASE(scmp32RR, compareRR<i32>(i, regPtr, flags));
+            CASE(scmp64RR, compareRR<i64>(i, regPtr, flags));
 
-        case ucmp8RV:
-            compareRV<u8>(i, regPtr, flags);
-            INST_RETURN(ucmp8RV);
-        case ucmp16RV:
-            compareRV<u16>(i, regPtr, flags);
-            INST_RETURN(ucmp16RV);
-        case ucmp32RV:
-            compareRV<u32>(i, regPtr, flags);
-            INST_RETURN(ucmp32RV);
-        case ucmp64RV:
-            compareRV<u64>(i, regPtr, flags);
-            INST_RETURN(ucmp64RV);
+            CASE(ucmp8RV, compareRV<u8>(i, regPtr, flags));
+            CASE(ucmp16RV, compareRV<u16>(i, regPtr, flags));
+            CASE(ucmp32RV, compareRV<u32>(i, regPtr, flags));
+            CASE(ucmp64RV, compareRV<u64>(i, regPtr, flags));
 
-        case scmp8RV:
-            compareRV<i8>(i, regPtr, flags);
-            INST_RETURN(scmp8RV);
-        case scmp16RV:
-            compareRV<i16>(i, regPtr, flags);
-            INST_RETURN(scmp16RV);
-        case scmp32RV:
-            compareRV<i32>(i, regPtr, flags);
-            INST_RETURN(scmp32RV);
-        case scmp64RV:
-            compareRV<i64>(i, regPtr, flags);
-            INST_RETURN(scmp64RV);
+            CASE(scmp8RV, compareRV<i8>(i, regPtr, flags));
+            CASE(scmp16RV, compareRV<i16>(i, regPtr, flags));
+            CASE(scmp32RV, compareRV<i32>(i, regPtr, flags));
+            CASE(scmp64RV, compareRV<i64>(i, regPtr, flags));
 
-        case fcmp32RR:
-            compareRR<f32>(i, regPtr, flags);
-            INST_RETURN(fcmp32RR);
-        case fcmp64RR:
-            compareRR<f64>(i, regPtr, flags);
-            INST_RETURN(fcmp64RR);
-        case fcmp32RV:
-            compareRV<f32>(i, regPtr, flags);
-            INST_RETURN(fcmp32RV);
-        case fcmp64RV:
-            compareRV<f64>(i, regPtr, flags);
-            INST_RETURN(fcmp64RV);
+            CASE(fcmp32RR, compareRR<f32>(i, regPtr, flags));
+            CASE(fcmp64RR, compareRR<f64>(i, regPtr, flags));
+            CASE(fcmp32RV, compareRV<f32>(i, regPtr, flags));
+            CASE(fcmp64RV, compareRV<f64>(i, regPtr, flags));
 
-        case stest8:
-            testR<i8>(i, regPtr, flags);
-            INST_RETURN(stest8);
-        case stest16:
-            testR<i16>(i, regPtr, flags);
-            INST_RETURN(stest16);
-        case stest32:
-            testR<i32>(i, regPtr, flags);
-            INST_RETURN(stest32);
-        case stest64:
-            testR<i64>(i, regPtr, flags);
-            INST_RETURN(stest64);
+            CASE(stest8, testR<i8>(i, regPtr, flags));
+            CASE(stest16, testR<i16>(i, regPtr, flags));
+            CASE(stest32, testR<i32>(i, regPtr, flags));
+            CASE(stest64, testR<i64>(i, regPtr, flags));
 
-        case utest8:
-            testR<u8>(i, regPtr, flags);
-            INST_RETURN(utest8);
-        case utest16:
-            testR<u16>(i, regPtr, flags);
-            INST_RETURN(utest16);
-        case utest32:
-            testR<u32>(i, regPtr, flags);
-            INST_RETURN(utest32);
-        case utest64:
-            testR<u64>(i, regPtr, flags);
-            INST_RETURN(utest64);
+            CASE(utest8, testR<u8>(i, regPtr, flags));
+            CASE(utest16, testR<u16>(i, regPtr, flags));
+            CASE(utest32, testR<u32>(i, regPtr, flags));
+            CASE(utest64, testR<u64>(i, regPtr, flags));
 
             /// ## load comparison results
-        case sete:
-            set(i, regPtr, equal(flags));
-            INST_RETURN(sete);
-        case setne:
-            set(i, regPtr, notEqual(flags));
-            INST_RETURN(setne);
-        case setl:
-            set(i, regPtr, less(flags));
-            INST_RETURN(setl);
-        case setle:
-            set(i, regPtr, lessEq(flags));
-            INST_RETURN(setle);
-        case setg:
-            set(i, regPtr, greater(flags));
-            INST_RETURN(setg);
-        case setge:
-            set(i, regPtr, greaterEq(flags));
-            INST_RETURN(setge);
+            CASE(sete, set(i, regPtr, equal(flags)));
+            CASE(setne, set(i, regPtr, notEqual(flags)));
+            CASE(setl, set(i, regPtr, less(flags)));
+            CASE(setle, set(i, regPtr, lessEq(flags)));
+            CASE(setg, set(i, regPtr, greater(flags)));
+            CASE(setge, set(i, regPtr, greaterEq(flags)));
 
             /// ## Unary operations
-        case lnt:
-            unaryR<u64>(i, regPtr, utl::logical_not);
-            INST_RETURN(lnt);
-        case bnt:
-            unaryR<u64>(i, regPtr, utl::bitwise_not);
-            INST_RETURN(bnt);
+            CASE(lnt, unaryR<u64>(i, regPtr, utl::logical_not));
+            CASE(bnt, unaryR<u64>(i, regPtr, utl::bitwise_not));
 
-            /// ## 64 bit integer arithmetic
-        case add64RR:
-            arithmeticRR<u64>(i, regPtr, utl::plus);
-            INST_RETURN(add64RR);
-        case add64RV:
-            arithmeticRV<u64>(i, regPtr, utl::plus);
-            INST_RETURN(add64RV);
-        case add64RM:
-            arithmeticRM<u64>(i, regPtr, utl::plus);
-            INST_RETURN(add64RM);
-        case sub64RR:
-            arithmeticRR<u64>(i, regPtr, utl::minus);
-            INST_RETURN(sub64RR);
-        case sub64RV:
-            arithmeticRV<u64>(i, regPtr, utl::minus);
-            INST_RETURN(sub64RV);
-        case sub64RM:
-            arithmeticRM<u64>(i, regPtr, utl::minus);
-            INST_RETURN(sub64RM);
-        case mul64RR:
-            arithmeticRR<u64>(i, regPtr, utl::multiplies);
-            INST_RETURN(mul64RR);
-        case mul64RV:
-            arithmeticRV<u64>(i, regPtr, utl::multiplies);
-            INST_RETURN(mul64RV);
-        case mul64RM:
-            arithmeticRM<u64>(i, regPtr, utl::multiplies);
-            INST_RETURN(mul64RM);
-        case udiv64RR:
-            arithmeticRR<u64>(i, regPtr, utl::divides);
-            INST_RETURN(udiv64RR);
-        case udiv64RV:
-            arithmeticRV<u64>(i, regPtr, utl::divides);
-            INST_RETURN(udiv64RV);
-        case udiv64RM:
-            arithmeticRM<u64>(i, regPtr, utl::divides);
-            INST_RETURN(udiv64RM);
-        case sdiv64RR:
-            arithmeticRR<i64>(i, regPtr, utl::divides);
-            INST_RETURN(sdiv64RR);
-        case sdiv64RV:
-            arithmeticRV<i64>(i, regPtr, utl::divides);
-            INST_RETURN(sdiv64RV);
-        case sdiv64RM:
-            arithmeticRM<i64>(i, regPtr, utl::divides);
-            INST_RETURN(sdiv64RM);
-        case urem64RR:
-            arithmeticRR<u64>(i, regPtr, utl::modulo);
-            INST_RETURN(urem64RR);
-        case urem64RV:
-            arithmeticRV<u64>(i, regPtr, utl::modulo);
-            INST_RETURN(urem64RV);
-        case urem64RM:
-            arithmeticRM<u64>(i, regPtr, utl::modulo);
-            INST_RETURN(urem64RM);
-        case srem64RR:
-            arithmeticRR<i64>(i, regPtr, utl::modulo);
-            INST_RETURN(srem64RR);
-        case srem64RV:
-            arithmeticRV<i64>(i, regPtr, utl::modulo);
-            INST_RETURN(srem64RV);
-        case srem64RM:
-            arithmeticRM<i64>(i, regPtr, utl::modulo);
-            INST_RETURN(srem64RM);
+            /// ## 64 bit integral arithmetic
+            CASE(add64RR, arithmeticRR<u64>(i, regPtr, utl::plus));
+            CASE(add64RV, arithmeticRV<u64>(i, regPtr, utl::plus));
+            CASE(add64RM, arithmeticRM<u64>(i, regPtr, utl::plus));
+            CASE(sub64RR, arithmeticRR<u64>(i, regPtr, utl::minus));
+            CASE(sub64RV, arithmeticRV<u64>(i, regPtr, utl::minus));
+            CASE(sub64RM, arithmeticRM<u64>(i, regPtr, utl::minus));
+            CASE(mul64RR, arithmeticRR<u64>(i, regPtr, utl::multiplies));
+            CASE(mul64RV, arithmeticRV<u64>(i, regPtr, utl::multiplies));
+            CASE(mul64RM, arithmeticRM<u64>(i, regPtr, utl::multiplies));
+            CASE(udiv64RR, arithmeticRR<u64>(i, regPtr, utl::divides));
+            CASE(udiv64RV, arithmeticRV<u64>(i, regPtr, utl::divides));
+            CASE(udiv64RM, arithmeticRM<u64>(i, regPtr, utl::divides));
+            CASE(sdiv64RR, arithmeticRR<i64>(i, regPtr, utl::divides));
+            CASE(sdiv64RV, arithmeticRV<i64>(i, regPtr, utl::divides));
+            CASE(sdiv64RM, arithmeticRM<i64>(i, regPtr, utl::divides));
+            CASE(urem64RR, arithmeticRR<u64>(i, regPtr, utl::modulo));
+            CASE(urem64RV, arithmeticRV<u64>(i, regPtr, utl::modulo));
+            CASE(urem64RM, arithmeticRM<u64>(i, regPtr, utl::modulo));
+            CASE(srem64RR, arithmeticRR<i64>(i, regPtr, utl::modulo));
+            CASE(srem64RV, arithmeticRV<i64>(i, regPtr, utl::modulo));
+            CASE(srem64RM, arithmeticRM<i64>(i, regPtr, utl::modulo));
 
-            /// ## 32 bit integer arithmetic
-        case add32RR:
-            arithmeticRR<u32>(i, regPtr, utl::plus);
-            INST_RETURN(add32RR);
-        case add32RV:
-            arithmeticRV<u32>(i, regPtr, utl::plus);
-            INST_RETURN(add32RV);
-        case add32RM:
-            arithmeticRM<u32>(i, regPtr, utl::plus);
-            INST_RETURN(add32RM);
-        case sub32RR:
-            arithmeticRR<u32>(i, regPtr, utl::minus);
-            INST_RETURN(sub32RR);
-        case sub32RV:
-            arithmeticRV<u32>(i, regPtr, utl::minus);
-            INST_RETURN(sub32RV);
-        case sub32RM:
-            arithmeticRM<u32>(i, regPtr, utl::minus);
-            INST_RETURN(sub32RM);
-        case mul32RR:
-            arithmeticRR<u32>(i, regPtr, utl::multiplies);
-            INST_RETURN(mul32RR);
-        case mul32RV:
-            arithmeticRV<u32>(i, regPtr, utl::multiplies);
-            INST_RETURN(mul32RV);
-        case mul32RM:
-            arithmeticRM<u32>(i, regPtr, utl::multiplies);
-            INST_RETURN(mul32RM);
-        case udiv32RR:
-            arithmeticRR<u32>(i, regPtr, utl::divides);
-            INST_RETURN(udiv32RR);
-        case udiv32RV:
-            arithmeticRV<u32>(i, regPtr, utl::divides);
-            INST_RETURN(udiv32RV);
-        case udiv32RM:
-            arithmeticRM<u32>(i, regPtr, utl::divides);
-            INST_RETURN(udiv32RM);
-        case sdiv32RR:
-            arithmeticRR<i32>(i, regPtr, utl::divides);
-            INST_RETURN(sdiv32RR);
-        case sdiv32RV:
-            arithmeticRV<i32>(i, regPtr, utl::divides);
-            INST_RETURN(sdiv32RV);
-        case sdiv32RM:
-            arithmeticRM<i32>(i, regPtr, utl::divides);
-            INST_RETURN(sdiv32RM);
-        case urem32RR:
-            arithmeticRR<u32>(i, regPtr, utl::modulo);
-            INST_RETURN(urem32RR);
-        case urem32RV:
-            arithmeticRV<u32>(i, regPtr, utl::modulo);
-            INST_RETURN(urem32RV);
-        case urem32RM:
-            arithmeticRM<u32>(i, regPtr, utl::modulo);
-            INST_RETURN(urem32RM);
-        case srem32RR:
-            arithmeticRR<i32>(i, regPtr, utl::modulo);
-            INST_RETURN(srem32RR);
-        case srem32RV:
-            arithmeticRV<i32>(i, regPtr, utl::modulo);
-            INST_RETURN(srem32RV);
-        case srem32RM:
-            arithmeticRM<i32>(i, regPtr, utl::modulo);
-            INST_RETURN(srem32RM);
+            /// ## 32 bit integral arithmetic
+            CASE(add32RR, arithmeticRR<u32>(i, regPtr, utl::plus));
+            CASE(add32RV, arithmeticRV<u32>(i, regPtr, utl::plus));
+            CASE(add32RM, arithmeticRM<u32>(i, regPtr, utl::plus));
+            CASE(sub32RR, arithmeticRR<u32>(i, regPtr, utl::minus));
+            CASE(sub32RV, arithmeticRV<u32>(i, regPtr, utl::minus));
+            CASE(sub32RM, arithmeticRM<u32>(i, regPtr, utl::minus));
+            CASE(mul32RR, arithmeticRR<u32>(i, regPtr, utl::multiplies));
+            CASE(mul32RV, arithmeticRV<u32>(i, regPtr, utl::multiplies));
+            CASE(mul32RM, arithmeticRM<u32>(i, regPtr, utl::multiplies));
+            CASE(udiv32RR, arithmeticRR<u32>(i, regPtr, utl::divides));
+            CASE(udiv32RV, arithmeticRV<u32>(i, regPtr, utl::divides));
+            CASE(udiv32RM, arithmeticRM<u32>(i, regPtr, utl::divides));
+            CASE(sdiv32RR, arithmeticRR<i32>(i, regPtr, utl::divides));
+            CASE(sdiv32RV, arithmeticRV<i32>(i, regPtr, utl::divides));
+            CASE(sdiv32RM, arithmeticRM<i32>(i, regPtr, utl::divides));
+            CASE(urem32RR, arithmeticRR<u32>(i, regPtr, utl::modulo));
+            CASE(urem32RV, arithmeticRV<u32>(i, regPtr, utl::modulo));
+            CASE(urem32RM, arithmeticRM<u32>(i, regPtr, utl::modulo));
+            CASE(srem32RR, arithmeticRR<i32>(i, regPtr, utl::modulo));
+            CASE(srem32RV, arithmeticRV<i32>(i, regPtr, utl::modulo));
+            CASE(srem32RM, arithmeticRM<i32>(i, regPtr, utl::modulo));
 
             /// ## 64 bit Floating point arithmetic
-        case fadd64RR:
-            arithmeticRR<f64>(i, regPtr, utl::plus);
-            INST_RETURN(fadd64RR);
-        case fadd64RV:
-            arithmeticRV<f64>(i, regPtr, utl::plus);
-            INST_RETURN(fadd64RV);
-        case fadd64RM:
-            arithmeticRM<f64>(i, regPtr, utl::plus);
-            INST_RETURN(fadd64RM);
-        case fsub64RR:
-            arithmeticRR<f64>(i, regPtr, utl::minus);
-            INST_RETURN(fsub64RR);
-        case fsub64RV:
-            arithmeticRV<f64>(i, regPtr, utl::minus);
-            INST_RETURN(fsub64RV);
-        case fsub64RM:
-            arithmeticRM<f64>(i, regPtr, utl::minus);
-            INST_RETURN(fsub64RM);
-        case fmul64RR:
-            arithmeticRR<f64>(i, regPtr, utl::multiplies);
-            INST_RETURN(fmul64RR);
-        case fmul64RV:
-            arithmeticRV<f64>(i, regPtr, utl::multiplies);
-            INST_RETURN(fmul64RV);
-        case fmul64RM:
-            arithmeticRM<f64>(i, regPtr, utl::multiplies);
-            INST_RETURN(fmul64RM);
-        case fdiv64RR:
-            arithmeticRR<f64>(i, regPtr, utl::divides);
-            INST_RETURN(fdiv64RR);
-        case fdiv64RV:
-            arithmeticRV<f64>(i, regPtr, utl::divides);
-            INST_RETURN(fdiv64RV);
-        case fdiv64RM:
-            arithmeticRM<f64>(i, regPtr, utl::divides);
-            INST_RETURN(fdiv64RM);
+            CASE(fadd64RR, arithmeticRR<f64>(i, regPtr, utl::plus));
+            CASE(fadd64RV, arithmeticRV<f64>(i, regPtr, utl::plus));
+            CASE(fadd64RM, arithmeticRM<f64>(i, regPtr, utl::plus));
+            CASE(fsub64RR, arithmeticRR<f64>(i, regPtr, utl::minus));
+            CASE(fsub64RV, arithmeticRV<f64>(i, regPtr, utl::minus));
+            CASE(fsub64RM, arithmeticRM<f64>(i, regPtr, utl::minus));
+            CASE(fmul64RR, arithmeticRR<f64>(i, regPtr, utl::multiplies));
+            CASE(fmul64RV, arithmeticRV<f64>(i, regPtr, utl::multiplies));
+            CASE(fmul64RM, arithmeticRM<f64>(i, regPtr, utl::multiplies));
+            CASE(fdiv64RR, arithmeticRR<f64>(i, regPtr, utl::divides));
+            CASE(fdiv64RV, arithmeticRV<f64>(i, regPtr, utl::divides));
+            CASE(fdiv64RM, arithmeticRM<f64>(i, regPtr, utl::divides));
 
             /// ## 32 bit Floating point arithmetic
-        case fadd32RR:
-            arithmeticRR<f32>(i, regPtr, utl::plus);
-            INST_RETURN(fadd32RR);
-        case fadd32RV:
-            arithmeticRV<f32>(i, regPtr, utl::plus);
-            INST_RETURN(fadd32RV);
-        case fadd32RM:
-            arithmeticRM<f32>(i, regPtr, utl::plus);
-            INST_RETURN(fadd32RM);
-        case fsub32RR:
-            arithmeticRR<f32>(i, regPtr, utl::minus);
-            INST_RETURN(fsub32RR);
-        case fsub32RV:
-            arithmeticRV<f32>(i, regPtr, utl::minus);
-            INST_RETURN(fsub32RV);
-        case fsub32RM:
-            arithmeticRM<f32>(i, regPtr, utl::minus);
-            INST_RETURN(fsub32RM);
-        case fmul32RR:
-            arithmeticRR<f32>(i, regPtr, utl::multiplies);
-            INST_RETURN(fmul32RR);
-        case fmul32RV:
-            arithmeticRV<f32>(i, regPtr, utl::multiplies);
-            INST_RETURN(fmul32RV);
-        case fmul32RM:
-            arithmeticRM<f32>(i, regPtr, utl::multiplies);
-            INST_RETURN(fmul32RM);
-        case fdiv32RR:
-            arithmeticRR<f32>(i, regPtr, utl::divides);
-            INST_RETURN(fdiv32RR);
-        case fdiv32RV:
-            arithmeticRV<f32>(i, regPtr, utl::divides);
-            INST_RETURN(fdiv32RV);
-        case fdiv32RM:
-            arithmeticRM<f32>(i, regPtr, utl::divides);
-            INST_RETURN(fdiv32RM);
+            CASE(fadd32RR, arithmeticRR<f32>(i, regPtr, utl::plus));
+            CASE(fadd32RV, arithmeticRV<f32>(i, regPtr, utl::plus));
+            CASE(fadd32RM, arithmeticRM<f32>(i, regPtr, utl::plus));
+            CASE(fsub32RR, arithmeticRR<f32>(i, regPtr, utl::minus));
+            CASE(fsub32RV, arithmeticRV<f32>(i, regPtr, utl::minus));
+            CASE(fsub32RM, arithmeticRM<f32>(i, regPtr, utl::minus));
+            CASE(fmul32RR, arithmeticRR<f32>(i, regPtr, utl::multiplies));
+            CASE(fmul32RV, arithmeticRV<f32>(i, regPtr, utl::multiplies));
+            CASE(fmul32RM, arithmeticRM<f32>(i, regPtr, utl::multiplies));
+            CASE(fdiv32RR, arithmeticRR<f32>(i, regPtr, utl::divides));
+            CASE(fdiv32RV, arithmeticRV<f32>(i, regPtr, utl::divides));
+            CASE(fdiv32RM, arithmeticRM<f32>(i, regPtr, utl::divides));
 
             /// ## 64 bit logical shifts
-        case lsl64RR:
-            arithmeticRR<u64>(i, regPtr, utl::leftshift);
-            INST_RETURN(lsl64RR);
-        case lsl64RV:
-            arithmeticRV<u64, u8>(i, regPtr, utl::leftshift);
-            INST_RETURN(lsl64RV);
-        case lsl64RM:
-            arithmeticRM<u64>(i, regPtr, utl::leftshift);
-            INST_RETURN(lsl64RM);
-        case lsr64RR:
-            arithmeticRR<u64>(i, regPtr, utl::rightshift);
-            INST_RETURN(lsr64RR);
-        case lsr64RV:
-            arithmeticRV<u64, u8>(i, regPtr, utl::rightshift);
-            INST_RETURN(lsr64RV);
-        case lsr64RM:
-            arithmeticRV<u64>(i, regPtr, utl::rightshift);
-            INST_RETURN(lsr64RM);
+            CASE(lsl64RR, arithmeticRR<u64>(i, regPtr, utl::leftshift));
+            CASE(lsl64RV, arithmeticRV<u64, u8>(i, regPtr, utl::leftshift));
+            CASE(lsl64RM, arithmeticRM<u64>(i, regPtr, utl::leftshift));
+            CASE(lsr64RR, arithmeticRR<u64>(i, regPtr, utl::rightshift));
+            CASE(lsr64RV, arithmeticRV<u64, u8>(i, regPtr, utl::rightshift));
+            CASE(lsr64RM, arithmeticRV<u64>(i, regPtr, utl::rightshift));
 
             /// ## 32 bit logical shifts
-        case lsl32RR:
-            arithmeticRR<u32>(i, regPtr, utl::leftshift);
-            INST_RETURN(lsl32RR);
-        case lsl32RV:
-            arithmeticRV<u32, u8>(i, regPtr, utl::leftshift);
-            INST_RETURN(lsl32RV);
-        case lsl32RM:
-            arithmeticRM<u32>(i, regPtr, utl::leftshift);
-            INST_RETURN(lsl32RM);
-        case lsr32RR:
-            arithmeticRR<u32>(i, regPtr, utl::rightshift);
-            INST_RETURN(lsr32RR);
-        case lsr32RV:
-            arithmeticRV<u32, u8>(i, regPtr, utl::rightshift);
-            INST_RETURN(lsr32RV);
-        case lsr32RM:
-            arithmeticRV<u32>(i, regPtr, utl::rightshift);
-            INST_RETURN(lsr32RM);
+            CASE(lsl32RR, arithmeticRR<u32>(i, regPtr, utl::leftshift));
+            CASE(lsl32RV, arithmeticRV<u32, u8>(i, regPtr, utl::leftshift));
+            CASE(lsl32RM, arithmeticRM<u32>(i, regPtr, utl::leftshift));
+            CASE(lsr32RR, arithmeticRR<u32>(i, regPtr, utl::rightshift));
+            CASE(lsr32RV, arithmeticRV<u32, u8>(i, regPtr, utl::rightshift));
+            CASE(lsr32RM, arithmeticRV<u32>(i, regPtr, utl::rightshift));
 
             /// ## 64 bit arithmetic shifts
-        case asl64RR:
-            arithmeticRR<u64>(i, regPtr, utl::arithmetic_leftshift);
-            INST_RETURN(asl64RR);
-        case asl64RV:
-            arithmeticRV<u64, u8>(i, regPtr, utl::arithmetic_leftshift);
-            INST_RETURN(asl64RV);
-        case asl64RM:
-            arithmeticRM<u64>(i, regPtr, utl::arithmetic_leftshift);
-            INST_RETURN(asl64RM);
-        case asr64RR:
-            arithmeticRR<u64>(i, regPtr, utl::arithmetic_rightshift);
-            INST_RETURN(asr64RR);
-        case asr64RV:
-            arithmeticRV<u64, u8>(i, regPtr, utl::arithmetic_rightshift);
-            INST_RETURN(asr64RV);
-        case asr64RM:
-            arithmeticRV<u64>(i, regPtr, utl::arithmetic_rightshift);
-            INST_RETURN(asr64RM);
+            CASE(asl64RR,
+                 arithmeticRR<u64>(i, regPtr, utl::arithmetic_leftshift));
+            CASE(asl64RV,
+                 arithmeticRV<u64, u8>(i, regPtr, utl::arithmetic_leftshift));
+            CASE(asl64RM,
+                 arithmeticRM<u64>(i, regPtr, utl::arithmetic_leftshift));
+            CASE(asr64RR,
+                 arithmeticRR<u64>(i, regPtr, utl::arithmetic_rightshift));
+            CASE(asr64RV,
+                 arithmeticRV<u64, u8>(i, regPtr, utl::arithmetic_rightshift));
+            CASE(asr64RM,
+                 arithmeticRV<u64>(i, regPtr, utl::arithmetic_rightshift));
 
             /// ## 32 bit arithmetic shifts
-        case asl32RR:
-            arithmeticRR<u32>(i, regPtr, utl::arithmetic_leftshift);
-            INST_RETURN(asl32RR);
-        case asl32RV:
-            arithmeticRV<u32, u8>(i, regPtr, utl::arithmetic_leftshift);
-            INST_RETURN(asl32RV);
-        case asl32RM:
-            arithmeticRM<u32>(i, regPtr, utl::arithmetic_leftshift);
-            INST_RETURN(asl32RM);
-        case asr32RR:
-            arithmeticRR<u32>(i, regPtr, utl::arithmetic_rightshift);
-            INST_RETURN(asr32RR);
-        case asr32RV:
-            arithmeticRV<u32, u8>(i, regPtr, utl::arithmetic_rightshift);
-            INST_RETURN(asr32RV);
-        case asr32RM:
-            arithmeticRV<u32>(i, regPtr, utl::arithmetic_rightshift);
-            INST_RETURN(asr32RM);
+            CASE(asl32RR,
+                 arithmeticRR<u32>(i, regPtr, utl::arithmetic_leftshift));
+            CASE(asl32RV,
+                 arithmeticRV<u32, u8>(i, regPtr, utl::arithmetic_leftshift));
+            CASE(asl32RM,
+                 arithmeticRM<u32>(i, regPtr, utl::arithmetic_leftshift));
+            CASE(asr32RR,
+                 arithmeticRR<u32>(i, regPtr, utl::arithmetic_rightshift));
+            CASE(asr32RV,
+                 arithmeticRV<u32, u8>(i, regPtr, utl::arithmetic_rightshift));
+            CASE(asr32RM,
+                 arithmeticRV<u32>(i, regPtr, utl::arithmetic_rightshift));
 
             /// ## 64 bit bitwise operations
-        case and64RR:
-            arithmeticRR<u64>(i, regPtr, utl::bitwise_and);
-            INST_RETURN(and64RR);
-        case and64RV:
-            arithmeticRV<u64>(i, regPtr, utl::bitwise_and);
-            INST_RETURN(and64RV);
-        case and64RM:
-            arithmeticRV<u64>(i, regPtr, utl::bitwise_and);
-            INST_RETURN(and64RM);
-        case or64RR:
-            arithmeticRR<u64>(i, regPtr, utl::bitwise_or);
-            INST_RETURN(or64RR);
-        case or64RV:
-            arithmeticRV<u64>(i, regPtr, utl::bitwise_or);
-            INST_RETURN(or64RV);
-        case or64RM:
-            arithmeticRV<u64>(i, regPtr, utl::bitwise_or);
-            INST_RETURN(or64RM);
-        case xor64RR:
-            arithmeticRR<u64>(i, regPtr, utl::bitwise_xor);
-            INST_RETURN(xor64RR);
-        case xor64RV:
-            arithmeticRV<u64>(i, regPtr, utl::bitwise_xor);
-            INST_RETURN(xor64RV);
-        case xor64RM:
-            arithmeticRV<u64>(i, regPtr, utl::bitwise_xor);
-            INST_RETURN(xor64RM);
+            CASE(and64RR, arithmeticRR<u64>(i, regPtr, utl::bitwise_and));
+            CASE(and64RV, arithmeticRV<u64>(i, regPtr, utl::bitwise_and));
+            CASE(and64RM, arithmeticRV<u64>(i, regPtr, utl::bitwise_and));
+            CASE(or64RR, arithmeticRR<u64>(i, regPtr, utl::bitwise_or));
+            CASE(or64RV, arithmeticRV<u64>(i, regPtr, utl::bitwise_or));
+            CASE(or64RM, arithmeticRV<u64>(i, regPtr, utl::bitwise_or));
+            CASE(xor64RR, arithmeticRR<u64>(i, regPtr, utl::bitwise_xor));
+            CASE(xor64RV, arithmeticRV<u64>(i, regPtr, utl::bitwise_xor));
+            CASE(xor64RM, arithmeticRV<u64>(i, regPtr, utl::bitwise_xor));
 
             /// ## 32 bit bitwise operations
-        case and32RR:
-            arithmeticRR<u32>(i, regPtr, utl::bitwise_and);
-            INST_RETURN(and32RR);
-        case and32RV:
-            arithmeticRV<u32>(i, regPtr, utl::bitwise_and);
-            INST_RETURN(and32RV);
-        case and32RM:
-            arithmeticRV<u32>(i, regPtr, utl::bitwise_and);
-            INST_RETURN(and32RM);
-        case or32RR:
-            arithmeticRR<u32>(i, regPtr, utl::bitwise_or);
-            INST_RETURN(or32RR);
-        case or32RV:
-            arithmeticRV<u32>(i, regPtr, utl::bitwise_or);
-            INST_RETURN(or32RV);
-        case or32RM:
-            arithmeticRV<u32>(i, regPtr, utl::bitwise_or);
-            INST_RETURN(or32RM);
-        case xor32RR:
-            arithmeticRR<u32>(i, regPtr, utl::bitwise_xor);
-            INST_RETURN(xor32RR);
-        case xor32RV:
-            arithmeticRV<u32>(i, regPtr, utl::bitwise_xor);
-            INST_RETURN(xor32RV);
-        case xor32RM:
-            arithmeticRV<u32>(i, regPtr, utl::bitwise_xor);
-            INST_RETURN(xor32RM);
+            CASE(and32RR, arithmeticRR<u32>(i, regPtr, utl::bitwise_and));
+            CASE(and32RV, arithmeticRV<u32>(i, regPtr, utl::bitwise_and));
+            CASE(and32RM, arithmeticRV<u32>(i, regPtr, utl::bitwise_and));
+            CASE(or32RR, arithmeticRR<u32>(i, regPtr, utl::bitwise_or));
+            CASE(or32RV, arithmeticRV<u32>(i, regPtr, utl::bitwise_or));
+            CASE(or32RM, arithmeticRV<u32>(i, regPtr, utl::bitwise_or));
+            CASE(xor32RR, arithmeticRR<u32>(i, regPtr, utl::bitwise_xor));
+            CASE(xor32RV, arithmeticRV<u32>(i, regPtr, utl::bitwise_xor));
+            CASE(xor32RM, arithmeticRV<u32>(i, regPtr, utl::bitwise_xor));
 
             /// ## Conversion
-        case sext1:
-            ::sext1(i, regPtr);
-            INST_RETURN(sext1);
-        case sext8:
-            ext<i8, i64>(i, regPtr);
-            INST_RETURN(sext8);
-        case sext16:
-            ext<i16, i64>(i, regPtr);
-            INST_RETURN(sext16);
-        case sext32:
-            ext<i32, i64>(i, regPtr);
-            INST_RETURN(sext32);
-        case fext:
-            ext<f32, f64>(i, regPtr);
-            INST_RETURN(fext);
-        case ftrunc:
-            ext<f64, f32>(i, regPtr);
-            INST_RETURN(ftrunc);
+            CASE(sext1, ::sext1(i, regPtr));
+            CASE(sext8, ext<i8, i64>(i, regPtr));
+            CASE(sext16, ext<i16, i64>(i, regPtr));
+            CASE(sext32, ext<i32, i64>(i, regPtr));
+            CASE(fext, ext<f32, f64>(i, regPtr));
+            CASE(ftrunc, ext<f64, f32>(i, regPtr));
 
         case _count:
             __builtin_unreachable();
