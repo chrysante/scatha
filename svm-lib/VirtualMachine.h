@@ -10,7 +10,6 @@
 
 #include <svm/Common.h>
 #include <svm/ExternalFunction.h>
-#include <svm/Instruction.h>
 
 namespace svm {
 
@@ -80,9 +79,6 @@ public:
     std::span<u8 const> stackData() const { return stack; }
 
 private:
-    friend struct OpCodeImpl;
-
-    utl::vector<Instruction> instructionTable;
     utl::vector<utl::vector<ExternalFunction>> extFunctionTable;
 
     VMFlags flags{};

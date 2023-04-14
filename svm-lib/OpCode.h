@@ -9,7 +9,6 @@
 #include <utl/vector.hpp>
 
 #include <svm/Common.h>
-#include <svm/Instruction.h>
 
 namespace svm {
 
@@ -45,14 +44,11 @@ namespace svm {
 
 /// Opcodes are stored as 12 bit integers. The next 4 bits encode the offset to
 /// the next instruction.
-enum class OpCode : u16 {
+enum class OpCode : u8 {
 #define SVM_INSTRUCTION_DEF(inst, class) inst,
 #include <svm/Lists.def>
     _count
 };
-
-static_assert(static_cast<size_t>(OpCode::_count) < (1 << 12),
-              "Opcodes must not exceed a size of 12 bit");
 
 std::string_view toString(OpCode);
 
@@ -61,7 +57,7 @@ std::ostream& operator<<(std::ostream&, OpCode);
 enum class OpCodeClass { RR, RV64, RV32, RV8, RM, MR, R, Jump, Other, _count };
 
 /// Maps opcodes to their class
-inline OpCodeClass classify(OpCode code) {
+inline constexpr OpCodeClass classify(OpCode code) {
     return std::array{
 #define SVM_INSTRUCTION_DEF(inst, class) OpCodeClass::class,
 #include <svm/Lists.def>
@@ -69,57 +65,39 @@ inline OpCodeClass classify(OpCode code) {
 };
 
 /// \Returns The offset in bytes to the next instruction.
-inline size_t codeSize(OpCode code) {
+inline constexpr size_t codeSize(OpCode code) {
     using enum OpCodeClass;
     auto const opCodeClass = classify(code);
     if (opCodeClass == Other) {
         switch (code) {
         case OpCode::call:
-            return 2 + 4 + 1;
+            return sizeof(OpCode) + 4 + 1;
         case OpCode::ret:
-            return 2;
+            return sizeof(OpCode);
         case OpCode::terminate:
-            return 2;
+            return sizeof(OpCode);
         case OpCode::callExt:
-            return 2 + 1 + 1 + 2;
+            return sizeof(OpCode) + 1 + 1 + 2;
         case OpCode::lincsp:
-            return 2 + 1 + 2;
+            return sizeof(OpCode) + 1 + 2;
         default:
             assert(false);
         }
     }
     // clang-format off
     return UTL_MAP_ENUM(opCodeClass, size_t, {
-        { OpCodeClass::RR,     2 + 1 + 1 },
-        { OpCodeClass::RV64,   2 + 1 + 8 },
-        { OpCodeClass::RV32,   2 + 1 + 4 },
-        { OpCodeClass::RV8,    2 + 1 + 1 },
-        { OpCodeClass::RM,     2 + 1 + 4 },
-        { OpCodeClass::MR,     2 + 4 + 1 },
-        { OpCodeClass::R,      2 + 1 },
-        { OpCodeClass::Jump,   2 + 4 },
+        { OpCodeClass::RR,     sizeof(OpCode) + 1 + 1 },
+        { OpCodeClass::RV64,   sizeof(OpCode) + 1 + 8 },
+        { OpCodeClass::RV32,   sizeof(OpCode) + 1 + 4 },
+        { OpCodeClass::RV8,    sizeof(OpCode) + 1 + 1 },
+        { OpCodeClass::RM,     sizeof(OpCode) + 1 + 4 },
+        { OpCodeClass::MR,     sizeof(OpCode) + 4 + 1 },
+        { OpCodeClass::R,      sizeof(OpCode) + 1 },
+        { OpCodeClass::Jump,   sizeof(OpCode) + 4 },
         { OpCodeClass::Other, static_cast<size_t>(-1) }
     });
     // clang-format on
 }
-
-/// Similar to `CodeSize()` but meant for use by the assembler,
-/// as is takes the offsets applied to the instruction pointer during
-/// calls, returns and other special instructions into account.
-inline size_t execCodeSize(OpCode code) {
-    if (code == OpCode::call) {
-        return 0;
-    }
-    if (code == OpCode::ret) {
-        return 0;
-    }
-    if (code == OpCode::terminate) {
-        return 0;
-    }
-    return codeSize(code);
-}
-
-utl::vector<Instruction> makeInstructionTable();
 
 } // namespace svm
 

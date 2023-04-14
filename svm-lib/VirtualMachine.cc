@@ -14,8 +14,7 @@ using namespace svm;
 VirtualMachine::VirtualMachine():
     VirtualMachine(DefaultRegisterCount, DefaultStackSize) {}
 
-VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize):
-    instructionTable(makeInstructionTable()) {
+VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
     registers.resize(numRegisters, utl::no_init);
     stack.resize(stackSize, utl::no_init);
     setFunctionTableSlot(builtinFunctionSlot, makeBuiltinTable());

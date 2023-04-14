@@ -27,6 +27,9 @@ SVM_INSTRUCTION_DEF(call, Other) // (i32 offset, u8 regOffset)
 /// ```
 SVM_INSTRUCTION_DEF(ret, Other)
 
+// extFunctionTable[tableIdx][idxIntoTable](regPtr + regPtrOffset, this)
+SVM_INSTRUCTION_DEF(callExt, Other) // (u8 regPtrOffset, u8 tableIdx, u16 idxIntoTable)
+
 /// Immediately terminates the program.
 SVM_INSTRUCTION_DEF(terminate, Other)
 
@@ -454,9 +457,5 @@ SVM_INSTRUCTION_DEF(sext32, R) //  (u8 regIdx)
 /// The value is either extended from 32 bits to 64 bits or truncated from 64 bits to 32 bits.
 SVM_INSTRUCTION_DEF(fext, R)   //  (u8 regIdx)
 SVM_INSTRUCTION_DEF(ftrunc, R) //  (u8 regIdx)
-
-/// ## Misc
-// extFunctionTable[tableIdx][idxIntoTable](regPtr + regPtrOffset, this)
-SVM_INSTRUCTION_DEF(callExt, Other) // (u8 regPtrOffset, u8 tableIdx, u16 idxIntoTable)
 
 #undef SVM_INSTRUCTION_DEF
