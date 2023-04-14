@@ -23,6 +23,12 @@ SCCCallGraph SCCCallGraph::compute(Module& mod) {
     return result;
 }
 
+SCCCallGraph SCCCallGraph::computeNoSCCs(Module& mod) {
+    SCCCallGraph result;
+    result.computeCallGraph(mod);
+    return result;
+}
+
 void SCCCallGraph::computeCallGraph(Module& mod) {
     _functions = mod | ranges::views::transform([](Function& function) {
                      return FunctionNode(&function);

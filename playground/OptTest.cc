@@ -56,7 +56,7 @@ static auto compile(std::string_view text, sema::SymbolTable& sym) {
     return Asm::assemble(assembly);
 }
 
-static const auto text = R"(
+static auto const text = R"(
 public fn main() {
     var i = 1;
     print(i);

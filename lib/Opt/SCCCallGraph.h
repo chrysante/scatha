@@ -90,6 +90,9 @@ public:
     /// Compute the `SCCCallGraph` of \p mod
     static SCCCallGraph compute(ir::Module& mod);
 
+    /// Compute the call graph of \p mod without computing the SCCs.
+    static SCCCallGraph computeNoSCCs(ir::Module& mod);
+
     /// \returns the node corresponding to \p function
     FunctionNode const& operator[](ir::Function const* function) const {
         auto itr = _functions.find(function);

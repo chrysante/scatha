@@ -42,7 +42,7 @@ public:
 
     void eraseFunction(Function* function);
 
-    void eraseFunction(List<Function>::iterator itr);
+    List<Function>::iterator eraseFunction(List<Function>::const_iterator itr);
 
     List<Function>::iterator begin();
     List<Function>::const_iterator begin() const;

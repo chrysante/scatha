@@ -36,6 +36,7 @@
 #include "MIR/Print.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
+#include "Opt/DeadFuncElim.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/Inliner.h"
 #include "Opt/InstCombine.h"
@@ -145,10 +146,11 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    bool const optimize = false;
+    bool const optimize = true;
 
     if (optimize) {
         opt::inlineFunctions(ctx, irMod);
+        opt::deadFuncElim(ctx, irMod);
     }
     header(" IR Module ");
     print(irMod);

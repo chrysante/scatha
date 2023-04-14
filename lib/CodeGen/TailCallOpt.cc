@@ -5,6 +5,4 @@
 using namespace scatha;
 using namespace cg;
 
-void cg::tailCallOpt(mir::Function& F) {
-    
-}
+void cg::tailCallOpt(mir::Function& F) {}

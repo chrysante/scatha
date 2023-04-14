@@ -550,7 +550,7 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
         INSTRUCTION(ftrunc, ext<f64, f32>(i, regPtr));
 
             // clang-format on
-            
+
         case _count:
             SVM_UNREACHABLE();
         }
