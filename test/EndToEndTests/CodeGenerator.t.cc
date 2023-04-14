@@ -10,7 +10,7 @@ using namespace scatha;
 
 TEST_CASE("First entire compilation and execution", "[end-to-end]") {
     test::checkReturns(3, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 1;
     let b = 2;
     return a + b;
@@ -19,14 +19,14 @@ fn main() -> int {
 
 TEST_CASE("Simplest non-trivial program", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     return 1;
 })");
 }
 
 TEST_CASE("Addition", "[end-to-end]") {
     test::checkReturns(3, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 1;
     let b = 2;
     return a + b;
@@ -35,7 +35,7 @@ fn main() -> int {
 
 TEST_CASE("Subtraction", "[end-to-end]") {
     test::checkReturns(static_cast<u64>(-1), R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 1;
     let b = 2;
     return a - b;
@@ -44,7 +44,7 @@ fn main() -> int {
 
 TEST_CASE("Multiplication", "[end-to-end]") {
     test::checkReturns(static_cast<u64>(-92), R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 4;
     let b = -23;
     return a * b;
@@ -53,7 +53,7 @@ fn main() -> int {
 
 TEST_CASE("Division", "[end-to-end]") {
     test::checkReturns(25, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 100;
     let b = 4;
     return a / b;
@@ -62,7 +62,7 @@ fn main() -> int {
 
 TEST_CASE("Remainder", "[end-to-end]") {
     test::checkReturns(15, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 100;
     let b = 17;
     return a % b;
@@ -71,7 +71,7 @@ fn main() -> int {
 
 TEST_CASE("Float Addition", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.3 + 2.3), R"(
-fn main() -> float {
+public fn main() -> float {
     let a = 1.3;
     let b = 2.3;
     return a + b;
@@ -80,7 +80,7 @@ fn main() -> float {
 
 TEST_CASE("Float Mutliplication", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.3 * 2.3), R"(
-fn main() -> float {
+public fn main() -> float {
     let a = 1.3;
     let b = 2.3;
     return a * b;
@@ -89,7 +89,7 @@ fn main() -> float {
 
 TEST_CASE("Float Subtraction", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.4 - 2.3), R"(
-fn main() -> float {
+public fn main() -> float {
     let a = 1.4;
     let b = 2.3;
     return a - b;
@@ -98,7 +98,7 @@ fn main() -> float {
 
 TEST_CASE("Float Division", "[end-to-end]") {
     test::checkReturns(utl::bit_cast<u64>(1.4 / 2.3), R"(
-fn main() -> float {
+public fn main() -> float {
     let a = 1.4;
     let b = 2.3;
     return a / b;
@@ -107,7 +107,7 @@ fn main() -> float {
 
 TEST_CASE("More complex expressions", "[end-to-end]") {
     test::checkReturns(10, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 12;
     let b = 2;
     let c = 4;
@@ -117,7 +117,7 @@ fn main() -> int {
 
 TEST_CASE("Even more complex expressions", "[end-to-end]") {
     test::checkReturns(10, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 12;
     var b = 0;
     let c = 4;

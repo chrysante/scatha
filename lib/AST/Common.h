@@ -72,6 +72,17 @@ enum class ValueCategory : u8 { None, LValue, RValue, _count };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, ValueCategory);
 
+/// List of all access specifiers
+enum class AccessSpec {
+#define SC_ACCESS_SPEC_DEF(name, _) name,
+#include <scatha/AST/Lists.def>
+    _count
+};
+
+SCATHA_API std::string_view toString(AccessSpec);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, AccessSpec);
+
 } // namespace scatha::ast
 
 namespace scatha::internal {

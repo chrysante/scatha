@@ -99,3 +99,17 @@ SC_BINARY_OPERATOR_DEF(XOrAssignment,  "^=" )
 SC_BINARY_OPERATOR_DEF(Comma,          ","  )
 
 #undef SC_BINARY_OPERATOR_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of access specifiers -------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_ACCESS_SPEC_DEF
+#   define SC_ACCESS_SPEC_DEF(name, opStr)
+#endif
+
+SC_ACCESS_SPEC_DEF(None,    "none")
+SC_ACCESS_SPEC_DEF(Public,  "public")
+SC_ACCESS_SPEC_DEF(Private, "private")
+
+#undef SC_ACCESS_SPEC_DEF

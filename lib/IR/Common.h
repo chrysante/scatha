@@ -162,6 +162,13 @@ enum class TypeCategory {
     _count
 };
 
+/// List of all visibility kinds.
+enum class Visibility {
+#define SC_VISKIND_DEF(vis) vis,
+#include <scatha/IR/CFG/Lists.def>
+    _count
+};
+
 } // namespace scatha::ir
 
 /// Map enum `NodeType` to actual node types

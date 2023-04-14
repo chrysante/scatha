@@ -17,7 +17,7 @@ fn fact(n: int) -> int {
     }
     return result;
 }
-fn main() -> int {
+public fn main() -> int {
     return fact(4);
 })");
 }
@@ -35,7 +35,7 @@ fn gcd(a: int, b: int) -> int {
     }
     return a;
 }
-fn main() -> int {
+public fn main() -> int {
     let a = 756476;
     let b = 1253;
     return gcd(a, b);
@@ -49,7 +49,7 @@ fn gcd(a: int, b: int) -> int {
     }
     return a;
 }
-fn main() -> int {
+public fn main() -> int {
     let a = 756476;
     let b = 1253;
     return gcd(a, b) + gcd(1, 7);
@@ -71,7 +71,7 @@ fn pow(base: float, exp: int) -> float {
     }
     return result;
 }
-fn main() -> bool {
+public fn main() -> bool {
     var result = true;
     result &= pow( 0.5,  3) == 0.125;
     result &= pow( 1.5,  3) == 1.5 * 2.25;
@@ -92,7 +92,7 @@ fn fact(n: int) -> int {
     }
     return result;
 }
-fn main() -> int {
+public fn main() -> int {
     return fact(4);
 })");
 }
@@ -110,7 +110,7 @@ fn pow(base: float, exp: int) -> float {
     }
     return result;
 }
-fn main() -> bool {
+public fn main() -> bool {
     var result = true;
     result &= pow( 0.5,  3) == 0.125;
     result &= pow( 1.5,  3) == 1.5 * 2.25;
@@ -133,14 +133,14 @@ fn fact(n: int) -> int {
     } while i > 0;
     return result;
 }
-fn main() -> int {
+public fn main() -> int {
     return fact(4);
 })");
 }
 
 TEST_CASE("Nested loops", "[end-to-end]") {
     test::checkReturns(2 * 3, R"(
-fn main() -> int {
+public fn main() -> int {
     var acc = 0;
     for j = 0; j < 2; ++j {
         for i = 0; i < 3; ++i {
@@ -150,7 +150,7 @@ fn main() -> int {
     return acc;
 })");
     test::checkReturns(2 * 3 * 4, R"(
-fn main() -> int {
+public fn main() -> int {
     var acc = 0;
     for k = 0; k < 2; k += 1 {
         for j = 0; j < 3; j += 1 {
@@ -162,7 +162,7 @@ fn main() -> int {
     return acc;
 })");
     test::checkReturns(2 * 3 * 4, R"(
-fn main() -> int {
+public fn main() -> int {
     var acc = 0;
     for k = 0; k < 2; k += 1 {
         for j = 0; j < 3; j += 1 {
@@ -176,7 +176,7 @@ fn main() -> int {
     return acc;
 })");
     test::checkReturns(2 * 3 * 4, R"(
-fn main() -> int {
+public fn main() -> int {
     var acc = 0;
     for k = 0; k < 2; k += 1 {
         for j = 0; j < 3; j += 1 {
@@ -193,7 +193,7 @@ fn main() -> int {
 
 TEST_CASE("Load of indirectly stored struct", "[end-to-end]") {
     test::checkReturns(10, R"(
-fn main() -> int {
+public fn main() -> int {
     var acc = 0;
     for i = 0; i < 5; ++i {
         var z: Complex;
@@ -221,5 +221,5 @@ TEST_CASE("For loop with nested if/else", "[end-to-end]") {
         }
         return result;
     }
-    fn main() -> int { return g(6); })");
+    public fn main() -> int { return g(6); })");
 }

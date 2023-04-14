@@ -10,7 +10,7 @@ struct Y {
     var i: int;
     var x: X;
 }
-fn main() -> int {
+public fn main() -> int {
     var y: Y;
     y.x.aSecondInt = 4;
     return y.x.aSecondInt;
@@ -24,7 +24,7 @@ struct X {
 
 TEST_CASE("Bool member access", "[end-to-end][member-access]") {
     test::checkReturns(2, R"(
-fn main() -> int {
+public fn main() -> int {
     var x: X;
     x.d = true;
     if x.d { return 2; }
@@ -54,7 +54,7 @@ fn makeX() -> X {
     result.d = false;
     return result;
 }
-fn main() -> int {
+public fn main() -> int {
     var x = makeX();
     if x.c { return 2; }
     return 1;
@@ -73,7 +73,7 @@ fn getX_a(x: X) -> int {
     var result = x.a;
     return result;
 }
-fn main() -> int {
+public fn main() -> int {
     var x: X;
     x.a = 5;
     x.b = true;
@@ -87,7 +87,7 @@ fn main() -> int {
 TEST_CASE("Pass and return custom structs and access rvalue",
           "[end-to-end][member-access]") {
     test::checkReturns(5, R"(
-fn main() -> int {
+public fn main() -> int {
     var x: X;
     x.a = 5;
     x.b = true;
@@ -137,7 +137,7 @@ fn makeY() -> Y {
 }
 fn forward(x: X) -> X { return x; }
 fn forward(y: Y) -> Y { return y; }
-fn main() -> int {
+public fn main() -> int {
     if forward(makeX().y).f == 0.5 {
         return 5;
     }
@@ -151,7 +151,7 @@ fn modifyX(x: X) -> X {
     x.a = 1;
     return x;
 }
-fn main() -> int {
+public fn main() -> int {
     var x: X;
     x.a = 0;
     x.b = 0;

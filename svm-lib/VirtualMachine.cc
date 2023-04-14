@@ -31,7 +31,9 @@ void VirtualMachine::loadProgram(u8 const* progData) {
                                            .stackPtr  = stack.data() });
 }
 
-void VirtualMachine::execute(std::span<u64 const> arguments) { execute(startAddress, arguments); }
+void VirtualMachine::execute(std::span<u64 const> arguments) {
+    execute(startAddress, arguments);
+}
 
 void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
     auto const lastCtx = execContexts.top() = ctx;

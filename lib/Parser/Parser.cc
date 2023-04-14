@@ -51,10 +51,25 @@ UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
+    ast::AccessSpec accessSpec = ast::AccessSpec::None;
+    if (Token const token = tokens.peek();
+        token.isKeyword &&
+        token.keywordCategory == KeywordCategory::AccessSpecifiers)
+    {
+        tokens.eat();
+        if (token.id == "public") {
+            accessSpec = ast::AccessSpec::Public;
+        }
+        if (token.id == "private") {
+            accessSpec = ast::AccessSpec::Private;
+        }
+    }
     if (auto funcDef = parseFunctionDefinition()) {
+        funcDef->accessSpec = accessSpec;
         return funcDef;
     }
     if (auto structDef = parseStructDefinition()) {
+        structDef->accessSpec = accessSpec;
         return structDef;
     }
     return nullptr;

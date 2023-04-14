@@ -202,7 +202,10 @@ void CodeGenContext::declareFunction(ir::Function const& function) {
                            ranges::plus{},
                            [&](auto& param) { return numWords(param.type()); });
     size_t const numRetvalRegs = numWords(function.returnType());
-    auto* mirFunc = new mir::Function(&function, numParamRegs, numRetvalRegs);
+    auto* mirFunc              = new mir::Function(&function,
+                                      numParamRegs,
+                                      numRetvalRegs,
+                                      function.visibility());
     result.addFunction(mirFunc);
     valueMap.insert({ &function, mirFunc });
 }

@@ -8,7 +8,7 @@ using namespace scatha;
 
 TEST_CASE("fcmp greater var-lit", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 32.1;
     if a > 12.2 {
         return 1;
@@ -20,7 +20,7 @@ fn main() -> int {
 }
 TEST_CASE("fcmp greater lit-var", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 32.1;
     if 100.0 > a {
         return 1;
@@ -32,7 +32,7 @@ fn main() -> int {
 }
 TEST_CASE("fcmp less var-lit", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 32.1;
     if a < 112.2 {
         return 1;
@@ -44,7 +44,7 @@ fn main() -> int {
 }
 TEST_CASE("fcmp less lit-var", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 32.1;
     if -1002.0 < a {
         return 1;
@@ -56,7 +56,7 @@ fn main() -> int {
 }
 TEST_CASE("fcmp less lit-lit", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 32.1;
     if -1002.0 < 0.0 {
         return 1;
@@ -68,7 +68,7 @@ fn main() -> int {
 }
 TEST_CASE("nested if-else-if", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     let x = 0;
     if -1002.0 > 0.0 {
         return 0;
@@ -86,7 +86,7 @@ fn main() -> int {
 }
 TEST_CASE("more nested if else", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     let x = 0;
     if -1002.0 > 0.0 {
         x = 0;
@@ -107,14 +107,14 @@ fn main() -> int {
 
 TEST_CASE("logical not", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> bool {
+public fn main() -> bool {
     return !false;
 })");
 }
 
 TEST_CASE("Branch based on literals", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     if true {
         return 1;
     }
@@ -126,7 +126,7 @@ fn main() -> int {
 
 TEST_CASE("Branch based on result of function calls", "[end-to-end]") {
     test::checkReturns(2, R"(
-fn main() -> int {
+public fn main() -> int {
     let x = 0;
     let y = 1;
     if greaterZero(x) {
@@ -146,7 +146,7 @@ fn greaterZero(a: int) -> bool {
 
 TEST_CASE("Conditional", "[end-to-end]") {
     test::checkReturns(2, R"(
-fn main() -> int {
+public fn main() -> int {
     let x = 0;
     return greaterZero(x) ? 1 : 2;
 }
@@ -157,7 +157,7 @@ fn greaterZero(a: int) -> bool {
 
 TEST_CASE("Right-nested conditional", "[end-to-end]") {
     test::checkReturns(2, R"(
-fn main() -> int {
+public fn main() -> int {
     let x = 0;
     let y = 1;
     return greaterZero(x) ? 1 : greaterZero(y) ? 2 : 3;
@@ -169,7 +169,7 @@ fn greaterZero(a: int) -> bool {
 
 TEST_CASE("Left-nested conditional", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     let x = 0;
     let y = 1;
     return greaterZero(x + 1) ? greaterZero(y) ? 1 : 2 : 3;
@@ -181,7 +181,7 @@ fn greaterZero(a: int) -> bool {
 
 TEST_CASE("Left-nested conditional with literals", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn main() -> int {
+public fn main() -> int {
     return true ? true ? 1 : 2 : 3;
 })");
 }

@@ -87,6 +87,8 @@ using ir::UnaryArithmeticOperation;
 
 using ir::ArithmeticOperation;
 
+using ir::Visibility;
+
 ///
 ///
 ///

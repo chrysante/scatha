@@ -627,6 +627,15 @@ static ir::FunctionAttribute translateAttrs(sema::FunctionAttribute attr) {
     }
 }
 
+static ir::Visibility accessSpecToVisibility(sema::AccessSpecifier spec) {
+    switch (spec) {
+    case sema::AccessSpecifier::Public:
+        return ir::Visibility::Extern;
+    case sema::AccessSpecifier::Private:
+        return ir::Visibility::Static;
+    }
+}
+
 void CodeGenContext::declareFunctions() {
     for (sema::Function const& function: symTable.functions()) {
         auto paramTypes =
@@ -657,7 +666,9 @@ void CodeGenContext::declareFunctions() {
                                        paramTypes,
                                        mangledName(function.symbolID(),
                                                    function.name()),
-                                       translateAttrs(function.attributes()));
+                                       translateAttrs(function.attributes()),
+                                       accessSpecToVisibility(
+                                           function.accessSpecifier()));
             functionMap[function.symbolID()] = fn.get();
             mod.addFunction(std::move(fn));
         }

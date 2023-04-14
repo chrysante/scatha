@@ -237,7 +237,8 @@ public:
     /// number of virtual registers.
     explicit Function(ir::Function const* irFunc,
                       size_t numArgRegisters,
-                      size_t numReturnRegisters);
+                      size_t numReturnRegisters,
+                      Visibility vis);
 
     /// \Returns The name of this function.
     std::string_view name() const { return _name; }
@@ -346,6 +347,8 @@ public:
         return instrs[index];
     }
 
+    Visibility visibility() const { return vis; }
+
 private:
     friend class CFGList<Function, BasicBlock>;
 
@@ -366,6 +369,7 @@ private:
     ir::Function const* irFunc = nullptr;
     size_t numArgRegs    : 20  = 0;
     size_t numRetvalRegs : 20  = 0;
+    Visibility vis;
 };
 
 } // namespace scatha::mir

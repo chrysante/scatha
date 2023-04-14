@@ -11,7 +11,7 @@ using namespace scatha;
 
 TEST_CASE("Recursive euclidean algorithm", "[end-to-end]") {
     test::checkReturns(7, R"(
-fn main() -> int {
+public fn main() -> int {
     let a = 756476;
     let b = 1253;
     return gcd(a, b);
@@ -26,7 +26,7 @@ fn gcd(a: int, b: int) -> int {
 
 TEST_CASE("Recursive fibonacci", "[end-to-end]") {
     test::checkReturns(55, R"(
-fn main() -> int {
+public fn main() -> int {
     let n = 10;
     return fib(n);
 }
@@ -43,7 +43,7 @@ fn fib(n: int) -> int {
 
 TEST_CASE("Recursive factorial and weird variations", "[end-to-end]") {
     test::checkReturns(3628800, R"(
-fn main() -> int {
+public fn main() -> int {
     return fact(10);
 }
 fn fact(n: int) -> int {
@@ -53,24 +53,24 @@ fn fact(n: int) -> int {
     return n * fact(n - 1);
 })");
     test::checkReturns(9223372036854775807ull, R"(
-fn main() -> int { return fac(6); }
+public fn main() -> int { return fac(6); }
 fn fac(n: int) -> int {
     return n <= 1 ? 1 : n | fac((n << 2) + 1);
 })");
     test::checkReturns(2147483647, R"(
-fn main() -> int { return fac(1459485138); }
+public fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n | fac((n >> 1) + 1);
 }
 fn pass(n: int) -> int { return n; }
 )");
     test::checkReturns(1688818043, R"(
-fn main() -> int { return fac(1459485138); }
+public fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n ^ fac((n >> 1) + 1);
 })");
     test::checkReturns(0, R"(
-fn main() -> int { return fac(1459485138); }
+public fn main() -> int { return fac(1459485138); }
 fn fac(n: int) -> int {
     return n <= 2 ? 1 : n & fac((n >> 1) + 1);
 })");
@@ -105,7 +105,7 @@ func i64 @main() {
 
 TEST_CASE("Recursive pow", "[end-to-end]") {
     test::checkReturns(243, R"(
-fn main() -> int {
+public fn main() -> int {
      return pow(3, 5);
 }
 fn pow(base: int, exponent: int) -> int {

@@ -24,23 +24,27 @@ Callable::Callable(NodeType nodeType,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
                    std::string name,
-                   FunctionAttribute attr):
+                   FunctionAttribute attr,
+                   Visibility vis):
     Callable(nodeType,
              functionType,
              returnType,
              toParameters(parameterTypes, this),
              std::move(name),
-             attr) {}
+             attr,
+             vis) {}
 
 Callable::Callable(NodeType nodeType,
                    FunctionType const* functionType,
                    Type const* returnType,
                    std::span<Parameter* const> parameters,
                    std::string name,
-                   FunctionAttribute attr):
+                   FunctionAttribute attr,
+                   Visibility vis):
     Constant(nodeType, functionType, std::move(name)),
     _returnType(returnType),
-    attrs(attr) {
+    attrs(attr),
+    vis(vis) {
     for (auto [index, param]: parameters | ranges::views::enumerate) {
         param->setIndex(index);
         param->set_parent(this);
@@ -65,13 +69,15 @@ Function::Function(FunctionType const* functionType,
                    Type const* returnType,
                    std::span<Type const* const> parameterTypes,
                    std::string name,
-                   FunctionAttribute attr):
+                   FunctionAttribute attr,
+                   Visibility vis):
     Callable(NodeType::Function,
              functionType,
              returnType,
              parameterTypes,
              std::move(name),
-             attr),
+             attr,
+             vis),
     nameFac(),
     analysisData(std::make_unique<AnalysisData>()) {
     uniqueParams(parameters(), nameFac);
@@ -81,13 +87,15 @@ Function::Function(FunctionType const* functionType,
                    Type const* returnType,
                    std::span<Parameter* const> parameters,
                    std::string name,
-                   FunctionAttribute attr):
+                   FunctionAttribute attr,
+                   Visibility vis):
     Callable(NodeType::Function,
              functionType,
              returnType,
              parameters,
              std::move(name),
-             attr),
+             attr,
+             vis),
     nameFac(),
     analysisData(std::make_unique<AnalysisData>()) {
     uniqueParams(this->parameters(), nameFac);
@@ -159,6 +167,7 @@ ExtFunction::ExtFunction(FunctionType const* functionType,
              returnType,
              parameterTypes,
              std::move(name),
-             attr),
+             attr,
+             Visibility::Static),
     _slot(slot),
     _index(index) {}

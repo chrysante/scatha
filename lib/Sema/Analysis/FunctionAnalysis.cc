@@ -57,6 +57,19 @@ void Context::dispatch(ast::AbstractSyntaxTree& node) {
     visit(node, [this](auto& node) { this->analyze(node); });
 }
 
+sema::AccessSpecifier translateAccessSpec(ast::AccessSpec spec) {
+    switch (spec) {
+    case ast::AccessSpec::None:
+        return sema::AccessSpecifier::Private;
+    case ast::AccessSpec::Public:
+        return sema::AccessSpecifier::Public;
+    case ast::AccessSpec::Private:
+        return sema::AccessSpecifier::Private;
+    case ast::AccessSpec::_count:
+        SC_UNREACHABLE();
+    }
+}
+
 void Context::analyze(ast::FunctionDefinition& fn) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
@@ -77,9 +90,10 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     /// Here the AST node is partially decorated: symbolID() is already set by
     /// gatherNames() phase, now we complete the decoration.
     SymbolID const fnSymID = fn.symbolID();
-    auto const& function   = sym.getFunction(fnSymID);
+    auto& function         = sym.getFunction(fnSymID);
     fn.decorate(fnSymID, function.signature().returnTypeID());
     fn.body->decorate(ScopeKind::Function, function.symbolID());
+    function.setAccessSpecifier(translateAccessSpec(fn.accessSpec));
     currentFunction                    = &fn;
     utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };
     sym.pushScope(fn.symbolID());

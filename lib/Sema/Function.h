@@ -9,6 +9,8 @@
 
 namespace scatha::sema {
 
+enum class AccessSpecifier { Public, Private };
+
 class SCATHA_API Function: public Scope {
 public:
     explicit Function(std::string name,
@@ -45,6 +47,10 @@ public:
     /// \returns Bitfield of function attributes
     FunctionAttribute attributes() const { return attrs; }
 
+    AccessSpecifier accessSpecifier() const { return accessSpec; }
+
+    void setAccessSpecifier(AccessSpecifier spec) { accessSpec = spec; }
+
     /// Set attribute \p attr to `true`.
     void setAttribute(FunctionAttribute attr) { attrs |= attr; }
 
@@ -56,9 +62,10 @@ private:
     FunctionSignature _sig;
     SymbolID _overloadSetID;
     FunctionAttribute attrs;
-    u32 _slot      : 31 = 0;
-    bool _isExtern : 1  = false;
-    u32 _index          = 0;
+    AccessSpecifier accessSpec = AccessSpecifier::Private;
+    u32 _slot      : 31        = 0;
+    bool _isExtern : 1         = false;
+    u32 _index                 = 0;
 };
 
 namespace internal {

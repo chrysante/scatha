@@ -77,25 +77,31 @@ public:
     /// Set attribute `attr` to `false`.
     void removeAttribute(FunctionAttribute attr) { attrs &= ~attr; }
 
+    /// \Returns The visibility of this callable.
+    Visibility visibility() const { return vis; }
+
 protected:
     explicit Callable(NodeType nodeType,
                       FunctionType const* functionType,
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
                       std::string name,
-                      FunctionAttribute attr);
+                      FunctionAttribute attr,
+                      Visibility vis);
 
     explicit Callable(NodeType nodeType,
                       FunctionType const* functionType,
                       Type const* returnType,
                       std::span<Parameter* const>,
                       std::string name,
-                      FunctionAttribute attr);
+                      FunctionAttribute attr,
+                      Visibility vis);
 
 private:
     List<Parameter> params;
     Type const* _returnType;
     FunctionAttribute attrs;
+    Visibility vis;
 };
 
 /// Represents a function. A function is a prototype with a list of basic
@@ -133,14 +139,16 @@ public:
                       Type const* returnType,
                       std::span<Type const* const> parameterTypes,
                       std::string name,
-                      FunctionAttribute attr);
+                      FunctionAttribute attr,
+                      Visibility vis = Visibility::Static);
 
     /// Construct a function with explicit parameters.
     explicit Function(FunctionType const* functionType,
                       Type const* returnType,
                       std::span<Parameter* const> parameters,
                       std::string name,
-                      FunctionAttribute attr);
+                      FunctionAttribute attr,
+                      Visibility vis = Visibility::Static);
 
     ~Function();
 

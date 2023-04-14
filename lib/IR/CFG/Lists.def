@@ -156,3 +156,16 @@ SC_TYPE_CATEGORY_DEF(StructureType)
 SC_TYPE_CATEGORY_DEF(FunctionType)
 
 #undef SC_TYPE_CATEGORY_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of visibility kinds --------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_VISKIND_DEF
+#   define SC_VISKIND_DEF(type)
+#endif
+
+SC_VISKIND_DEF(Extern)
+SC_VISKIND_DEF(Static)
+
+#undef SC_VISKIND_DEF

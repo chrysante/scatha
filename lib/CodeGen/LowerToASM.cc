@@ -96,7 +96,9 @@ void CGContext::run(mir::Module const& mod) {
 
 void CGContext::genFunction(mir::Function const& F) {
     currentBlock = result.add(Asm::Block(getLabelID(F), std::string(F.name())));
-    currentBlock->setPublic();
+    if (F.visibility() == mir::Visibility::Extern) {
+        currentBlock->setPublic();
+    }
     currentFunction = &F;
     for (auto& BB: F) {
         genBlock(BB);

@@ -17,8 +17,8 @@
 ///
 /// ```
 /// <translation-unit>              ::= {<external-declaration>}*
-/// <external-declaration>          ::= <function-definition>
-///                                   | <struct-definition>
+/// <external-declaration>          ::= [<access-spec>] <function-definition>
+///                                   | [<access-spec>] <struct-definition>
 /// <function-definition>           ::= "fn" <identifier> "(" {<parameter-declaration>}* ")" ["->" <type-expression>] <compound-statement>
 /// <parameter-declaration>         ::= <identifier> ":" <type-expression>
 /// <struct-definition>             ::= "struct" <identifier> <compound-statement>
@@ -96,6 +96,7 @@
 ///                                   | <floating-point-literal>
 ///                                   | <string-literal>
 ///                                   | "(" <comma-expression> ")"
+/// <access-spec>                   ::= "public" | "private"
 /// ```
 ///
 /// ## Operator precedence

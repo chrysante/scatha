@@ -342,7 +342,9 @@ UniquePtr<Function> ParseContext::parseFunction() {
                                      returnType,
                                      parameters,
                                      std::string(name.id()),
-                                     FunctionAttribute::None);
+                                     FunctionAttribute::None,
+                                     Visibility::Extern); // FIXME: Parse
+                                                          // function visibility
     registerValue(name, result.get());
     expect(eatToken(), TokenKind::OpenBrace);
     /// Parse the body of the function.

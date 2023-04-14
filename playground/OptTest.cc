@@ -70,7 +70,8 @@ static auto compile(std::string_view text, sema::SymbolTable& sym) {
 void playground::optTest(std::filesystem::path path) {
     auto text = readFileToString(path);
     sema::SymbolTable semaSym;
-    auto cppCallbackSig = sema::FunctionSignature({ semaSym.Int() }, semaSym.Int());
+    auto cppCallbackSig =
+        sema::FunctionSignature({ semaSym.Int() }, semaSym.Int());
     semaSym.declareExternalFunction("cppCallback",
                                     1,
                                     0,

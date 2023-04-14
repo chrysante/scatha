@@ -359,6 +359,9 @@ public:
     /// Identifier expression representing the name of this declaration.
     UniquePtr<Identifier> nameIdentifier;
 
+    /// Access specifier. `None` if none was specified.
+    AccessSpec accessSpec = AccessSpec::None;
+
     /// **Decoration provided by semantic analysis**
 
     /// SymbolID of this declaration in the symbol table

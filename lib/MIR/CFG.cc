@@ -117,7 +117,8 @@ void BasicBlock::removeLiveImpl(utl::hashset<Register*>& set,
 
 Function::Function(ir::Function const* irFunc,
                    size_t numArgRegs,
-                   size_t numRetvalRegs):
+                   size_t numRetvalRegs,
+                   Visibility vis):
     ListNodeOverride<Function, Value>(NodeType::Function),
     _name(std::string(irFunc->name())),
     ssaRegs(this),
@@ -126,7 +127,8 @@ Function::Function(ir::Function const* irFunc,
     hardwareRegs(this),
     irFunc(irFunc),
     numArgRegs(numArgRegs),
-    numRetvalRegs(numRetvalRegs) {
+    numRetvalRegs(numRetvalRegs),
+    vis(vis) {
     for (size_t i = 0; i < numArgRegs; ++i) {
         ssaRegs.add(new SSARegister());
     }
