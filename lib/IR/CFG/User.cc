@@ -46,6 +46,11 @@ void User::updateOperand(Value const* oldOperand, Value* newOperand) {
     SC_ASSERT(leastOne, "Not found");
 }
 
+void User::addOperand(Value* op) {
+    _operands.push_back(op);
+    op->addUserWeak(this);
+}
+
 void User::removeOperand(size_t index) {
     auto const itr = _operands.begin() + index;
     (*itr)->removeUserWeak(this);

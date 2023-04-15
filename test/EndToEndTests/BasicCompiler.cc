@@ -27,6 +27,7 @@
 #include "MIR/Module.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
+#include "Opt/DeadFuncElim.h"
 #include "Opt/Inliner.h"
 #include "Opt/MemToReg.h"
 #include "Parser/Parser.h"
@@ -62,6 +63,7 @@ static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
 
 static void optimize(ir::Context& ctx, ir::Module& mod) {
     opt::inlineFunctions(ctx, mod);
+    opt::deadFuncElim(ctx, mod);
 }
 
 static uint64_t run(ir::Module const& mod) {

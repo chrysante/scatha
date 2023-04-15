@@ -138,10 +138,10 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    bool const optimize = false;
+    bool const optimize = true;
 
     if (optimize) {
-        if (0) {
+        if (1) {
             opt::inlineFunctions(ctx, irMod);
             opt::deadFuncElim(ctx, irMod);
         }
@@ -153,9 +153,6 @@ static void run(mir::Module const& mod) {
     }
     header(" IR Module ");
     print(irMod);
-
-    header(" IR Live sets ");
-    printIRLiveSets(irMod.front());
 
     header(" MIR Module in SSA form ");
     auto mirMod = cg::lowerToMIR(irMod);
@@ -191,6 +188,4 @@ static void run(mir::Module const& mod) {
     print(mod);
 }
 
-void playground::volatilePlayground(std::filesystem::path path) {
-    volPlayground(path);
-}
+void playground::volatilePlayground(std::filesystem::path path) { mirPG(path); }

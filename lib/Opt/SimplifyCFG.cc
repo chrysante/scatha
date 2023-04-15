@@ -25,13 +25,11 @@ struct Ctx {
 
     void removeDeadLink(BasicBlock* origin, BasicBlock* dest);
 
-    bool merge();
+    bool mainPass();
 
     void eraseDeadBasicBlock(BasicBlock* bb);
 
-    /// \returns `nullptr` if \p bb could not be erased or a basic block to
-    /// push into the worklist otherwise.
-    BasicBlock* eraseForwardingBasicBlock(BasicBlock* bb);
+    bool merge(BasicBlock* pred, BasicBlock* via, BasicBlock* succ);
 
     ir::Context& irCtx;
     Function& function;
@@ -46,7 +44,7 @@ bool opt::simplifyCFG(ir::Context& irCtx, Function& function) {
     modifiedAny |= ctx.replaceConstCondBranches(&function.entry());
     modifiedAny |= ctx.eraseUnreachableBlocks();
     ctx.visited.clear();
-    modifiedAny |= ctx.merge();
+    modifiedAny |= ctx.mainPass();
     assertInvariants(irCtx, function);
     if (modifiedAny) {
         function.invalidateCFGInfo();
@@ -121,7 +119,7 @@ void Ctx::removeDeadLink(BasicBlock* origin, BasicBlock* dest) {
     }
 }
 
-bool Ctx::merge() {
+bool Ctx::mainPass() {
     utl::hashset<BasicBlock*> worklist = { &function.entry() };
     utl::hashmap<BasicBlock*, bool> visited;
     auto insertSuccessors = [&](BasicBlock* bb) {
@@ -161,19 +159,41 @@ bool Ctx::merge() {
             continue;
         }
         auto* succ = bb->singleSuccessor();
-        if (auto* bb2 = eraseForwardingBasicBlock(bb)) {
-            /// To visit `pred` again we need to mark it unvisited.
-            visited[bb2] = false;
-            worklist.insert(bb2);
-            modified = true;
-            continue;
+        if (bb->emptyExceptTerminator()) {
+            /// This is a forwarding basic block. We can try to redirect
+            /// predecessors directly to the successor.
+            bool all = true, any = false;
+            for (auto* pred: bb->predecessors()) {
+                if (merge(pred, bb, succ)) {
+                    /// To visit `pred` again we need to mark it unvisited.
+                    visited[pred] = false;
+                    worklist.insert(pred);
+                    modified = true;
+                    any      = true;
+                    continue;
+                }
+                all = false;
+            }
+            if (any && all) {
+                /// `bb` might have been erased as a predecessor of `succ`
+                if (succ->isPredecessor(bb)) {
+                    succ->removePredecessor(bb);
+                }
+                function.erase(bb);
+                continue;
+            }
         }
         if (!succ->hasSinglePredecessor()) {
             insertSuccessors(bb);
             continue;
         }
+        auto* pred = bb->singlePredecessor();
         SC_ASSERT(succ->singlePredecessor() == bb,
                   "BBs are not linked properly");
+        /// Don't want to destroy loops
+        if (succ == pred) {
+            continue;
+        }
         /// Now we have the simple case we are looking for. Here we can merge
         /// the basic blocks.
         bb->erase(bb->terminator());
@@ -203,27 +223,36 @@ void Ctx::eraseDeadBasicBlock(BasicBlock* bb) {
     function.erase(bb);
 }
 
-BasicBlock* Ctx::eraseForwardingBasicBlock(BasicBlock* bb) {
-    /// Erase empty basic block which just 'forward' meaning one incoming
-    /// and one outgoing edge.
-    if (!bb->hasSinglePredecessor() || !bb->hasSingleSuccessor() ||
-        !bb->emptyExceptTerminator())
-    {
-        return nullptr;
-    }
-    /// Simple `Pred -> BB -> Succ` case where `BB` is empty.
-    /// Maybe we can just erase `BB` and branch to `Succ` directly.
-    auto* succ = bb->singleSuccessor();
-    auto* pred = bb->singlePredecessor();
+bool Ctx::merge(BasicBlock* pred, BasicBlock* via, BasicBlock* succ) {
+    SC_ASSERT(via->emptyExceptTerminator(), "");
+    auto doMerge = [&] {
+        auto* predTerm = pred->terminator();
+        pred->terminator()->updateTarget(via, succ);
+        if (auto* branch = dyncast<Branch*>(predTerm);
+            branch && branch->thenTarget() == branch->elseTarget())
+        {
+            auto* target = branch->thenTarget();
+            auto* gt     = new Goto(irCtx, target);
+            pred->insert(branch, gt);
+            pred->erase(branch);
+        }
+        succ->addPredecessor(pred);
+        for (auto& phi: succ->phiNodes()) {
+            phi.addArgument(pred, phi.operandOf(via));
+        }
+    };
     /// If `succ` doesn't have phi nodes we have nothing to worry about.
     if (succ->phiNodes().empty()) {
-        goto doErase;
+        doMerge();
+        return true;
     }
     if (ranges::find(succ->predecessors(), pred) ==
         ranges::end(succ->predecessors()))
     {
-        goto doErase;
+        doMerge();
+        return true;
     }
+    /// ** We are a critical edge **
     /// Our predecessor, which would become `succ`'s predecessor, is already
     /// a predecessor of `succ` and would thus become a duplicate
     /// predecessor of `succ`. Since `succ` has phi nodes, this is a
@@ -237,7 +266,7 @@ BasicBlock* Ctx::eraseForwardingBasicBlock(BasicBlock* bb) {
         auto* branch = cast<Branch*>(pred->terminator());
         utl::small_vector<Select*> selects;
         auto* a = pred;
-        auto* b = bb;
+        auto* b = via;
         if (branch->thenTarget() == b) {
             std::swap(a, b);
         }
@@ -253,12 +282,10 @@ BasicBlock* Ctx::eraseForwardingBasicBlock(BasicBlock* bb) {
         for (auto* select: selects | ranges::views::reverse) {
             succ->pushFront(select);
         }
-        goto doErase;
+        succ->removePredecessor(pred);
+        succ->removePredecessor(via);
+        doMerge();
+        return true;
     }
-    return nullptr;
-doErase:
-    pred->terminator()->updateTarget(bb, succ);
-    succ->updatePredecessor(bb, pred);
-    function.erase(bb);
-    return pred;
+    return false;
 }

@@ -162,6 +162,11 @@ void Phi::setPredecessor(size_t index, BasicBlock* pred) {
     _preds[index] = pred;
 }
 
+void Phi::addArgument(BasicBlock* pred, Value* value) {
+    _preds.push_back(pred);
+    addOperand(value);
+}
+
 Value const* Phi::operandOf(BasicBlock const* pred) const {
     auto itr = ranges::find(_preds, pred);
     SC_ASSERT(itr != ranges::end(_preds),

@@ -49,6 +49,9 @@ protected:
 
     void setOperandCount(size_t count) { _operands.resize(count); }
 
+    /// Append an operand to the end of our operand list.
+    void addOperand(Value* op);
+
     /// Remove operand at \p index
     /// User lists are updated.
     /// \warning Erases the operand, that means higher indices get messed up.

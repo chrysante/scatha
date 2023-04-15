@@ -19,6 +19,8 @@
 #include "MIR/Module.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
+#include "Opt/DeadFuncElim.h"
+#include "Opt/Inliner.h"
 #include "Opt/MemToReg.h"
 #include "Opt/SCCCallGraph.h"
 #include "OptTest.h"
@@ -134,6 +136,12 @@ int main(int argc, char const* const* argv) {
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
                                  "graphviz/gen/cfg-dce.gv");
+
+        scatha::opt::inlineFunctions(ctx, mod);
+        scatha::opt::deadFuncElim(ctx, mod);
+        drawControlFlowGraph(mod,
+                             std::filesystem::path(PROJECT_LOCATION) /
+                                 "graphviz/gen/cfg-inl.gv");
         break;
     }
     case ProgramCase::EmitCallGraph: {

@@ -336,6 +336,10 @@ public:
     /// Assign \p pred to predecessor at \p index
     void setPredecessor(size_t index, BasicBlock* pred);
 
+    /// Append an argument to this phi node. Use this to adjust this phi node
+    /// after adding predecessors to its parent basic block.
+    void addArgument(BasicBlock* pred, Value* value);
+
     /// Number of arguments. Must match the number of predecessors of parent
     /// basic block.
     size_t argumentCount() const { return _preds.size(); }

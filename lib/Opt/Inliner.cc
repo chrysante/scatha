@@ -143,7 +143,7 @@ bool Inliner::visitFunction(FunctionNode const& node) {
             }
         }
     }
-    /// If we did we succeed, we optimize again to catch optimization
+    /// If we succeeded, we optimize again to catch optimization
     /// opportunities emerged from inlining.
     if (modifiedAny) {
         optimize(node.function());
@@ -183,7 +183,6 @@ bool Inliner::optimize(Function& function) const {
         modified |= dce(ctx, function);
         modified |= simplifyCFG(ctx, function);
         modified |= tailRecElim(ctx, function);
-        modified |= makeLoopCanonical(ctx, function);
         if (!modified) {
             break;
         }
