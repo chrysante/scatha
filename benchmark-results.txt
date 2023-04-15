@@ -1,0 +1,13 @@
+Execution times of mandelbrotset: 
+   Before optimizing the VM:
+	No opt: 117 ms
+	Opt:    35 ms
+
+   With 16 byte opcodes:
+	No opt: 120 ms
+	Opt:    38 ms
+  
+   With 8 bit opcodes, removed code insulation: // Same results with with always_inline attribute
+	No opt: 94 ms
+	Opt:    32 ms
+  
