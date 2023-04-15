@@ -83,6 +83,10 @@ static utl::vector<std::string> const keywords = [] {
     // "do" <compound-statement> "while" <cond>
     at(Do) = "do";
 
+    at(Break) = "break";
+
+    at(Continue) = "continue";
+
     // MARK: Boolean literals
     at(False) = "false";
     at(True)  = "true";

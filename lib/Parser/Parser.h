@@ -42,6 +42,8 @@
 /// <while-statement>               ::= "while" <comma-expression> <compound-statement>
 /// <do-while-statement>            ::= "do" <compound-statement> "while" <comma-expression> ";"
 /// <for-statement>                 ::= "for" <short-var-declaration> <comma-expression> ";" <comma-expression> <compound-statement>
+/// <break-statement>               ::= "break;"
+/// <continue-statement>            ::= "continue;"
 ///
 /// <comma-expression>              ::= <assignment-expression>
 ///                                   | <comma-expression> "," <assignment-expression>

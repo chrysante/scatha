@@ -223,3 +223,46 @@ TEST_CASE("For loop with nested if/else", "[end-to-end]") {
     }
     public fn main() -> int { return g(6); })");
 }
+
+TEST_CASE("For loop with break and continue", "[end-to-end]") {
+    test::checkReturns(36, R"(
+public fn main() -> int {
+    return g(20);
+}
+fn g(n: int) -> int {
+    var result = 0;
+    for i = 0; i < n; ++i {
+        if i % 2 == 0 {
+            continue;
+        }
+        result += i;
+        if (i >= 10) {
+            break;
+        }
+    }
+    return result;
+})");
+}
+
+TEST_CASE("While loop with break and continue", "[end-to-end]") {
+    test::checkReturns(36, R"(
+public fn main() -> int {
+    return g(20);
+}
+fn g(n: int) -> int {
+    var result = 0;
+    var j = 0;
+    while j < n {
+        let i = j;
+        ++j;
+        if i % 2 == 0 {
+            continue;
+        }
+        result += i;
+        if (i >= 10) {
+            break;
+        }
+    }
+    return result;
+})");
+}

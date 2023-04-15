@@ -323,6 +323,12 @@ UniquePtr<ast::Statement> Context::parseStatement() {
     if (auto controlFlowStatement = parseControlFlowStatement()) {
         return controlFlowStatement;
     }
+    if (auto breakStatement = parseBreakStatement()) {
+        return breakStatement;
+    }
+    if (auto continueStatement = parseContinueStatement()) {
+        return continueStatement;
+    }
     if (auto block = parseCompoundStatement()) {
         return block;
     }
@@ -529,6 +535,26 @@ UniquePtr<ast::ForStatement> Context::parseForStatement() {
                                        std::move(cond),
                                        std::move(inc),
                                        std::move(block));
+}
+
+UniquePtr<ast::BreakStatement> Context::parseBreakStatement() {
+    Token const token = tokens.peek();
+    if (token.id != "break") {
+        return nullptr;
+    }
+    tokens.eat();
+    expectDelimiter(";");
+    return allocate<ast::BreakStatement>(token);
+}
+
+UniquePtr<ast::ContinueStatement> Context::parseContinueStatement() {
+    Token const token = tokens.peek();
+    if (token.id != "continue") {
+        return nullptr;
+    }
+    tokens.eat();
+    expectDelimiter(";");
+    return allocate<ast::ContinueStatement>(token);
 }
 
 UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {

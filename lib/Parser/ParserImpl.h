@@ -44,6 +44,8 @@ struct Context {
     UniquePtr<ast::WhileStatement> parseWhileStatement();
     UniquePtr<ast::DoWhileStatement> parseDoWhileStatement();
     UniquePtr<ast::ForStatement> parseForStatement();
+    UniquePtr<ast::BreakStatement> parseBreakStatement();
+    UniquePtr<ast::ContinueStatement> parseContinueStatement();
 
     // Expressions
 

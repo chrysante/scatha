@@ -67,25 +67,26 @@ void playground::irDump(std::string_view text) {
 static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
     makeIRModuleFromSC(std::string_view text, std::ostream& errStr) {
     issue::LexicalIssueHandler lexIss;
-    auto tokens = lex::lex(text, lexIss);
+    auto tokens     = lex::lex(text, lexIss);
+    auto printIssue = [&](std::string_view kind, SourceLocation sl) {
+        errStr << kind << " issue: L:" << sl.line << " C:" << sl.column
+               << std::endl;
+    };
     if (!lexIss.empty()) {
-        errStr << "Lexical issue on line "
-               << lexIss.issues()[0].sourceLocation().line << std::endl;
+        printIssue("Lexical", lexIss.issues()[0].sourceLocation());
         return std::nullopt;
     }
     issue::SyntaxIssueHandler parseIss;
     auto ast = parse::parse(tokens, parseIss);
     if (!parseIss.empty()) {
-        errStr << "Syntax issue on line "
-               << parseIss.issues()[0].sourceLocation().line << std::endl;
+        printIssue("Syntax", parseIss.issues()[0].sourceLocation());
         return std::nullopt;
     }
     sema::SymbolTable sym;
     issue::SemaIssueHandler semaIss;
     sema::analyze(*ast, sym, semaIss);
     if (!semaIss.empty()) {
-        errStr << "Semantic issue on line "
-               << semaIss.issues()[0].sourceLocation().line << std::endl;
+        printIssue("Semantic", semaIss.issues()[0].sourceLocation());
         return std::nullopt;
     }
     ir::Context ctx;

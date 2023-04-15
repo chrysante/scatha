@@ -33,6 +33,8 @@ enum class Keyword : u8 {
     For,
     While,
     Do,
+    Break,
+    Continue,
 
     False,
     True,

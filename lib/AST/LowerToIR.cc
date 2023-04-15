@@ -21,6 +21,13 @@ using namespace ast;
 
 namespace {
 
+struct Loop {
+    ir::BasicBlock* header = nullptr;
+    ir::BasicBlock* body   = nullptr;
+    ir::BasicBlock* inc    = nullptr;
+    ir::BasicBlock* end    = nullptr;
+};
+
 struct CodeGenContext {
     explicit CodeGenContext(ir::Context& irCtx,
                             ir::Module& mod,
@@ -43,6 +50,8 @@ struct CodeGenContext {
     void generateImpl(WhileStatement const&);
     void generateImpl(DoWhileStatement const&);
     void generateImpl(ForStatement const&);
+    void generateImpl(BreakStatement const&);
+    void generateImpl(ContinueStatement const&);
 
     ir::Value* getValue(Expression const& expr);
 
@@ -109,6 +118,7 @@ struct CodeGenContext {
     utl::hashmap<sema::SymbolID, ir::Callable*> functionMap;
     utl::hashmap<sema::TypeID, ir::Type const*> typeMap;
     ir::Instruction* allocaInsertItr;
+    Loop currentLoop;
 };
 
 } // namespace
@@ -247,11 +257,13 @@ void CodeGenContext::generateImpl(WhileStatement const& loopDecl) {
     auto* condition = getValue(*loopDecl.condition);
     auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
     currentBB()->pushBack(branch);
+    currentLoop = { .header = loopHeader, .body = loopBody, .end = loopEnd };
     setCurrentBB(loopBody);
     generate(*loopDecl.block);
     auto* gotoLoopHeader2 = new ir::Goto(irCtx, loopHeader);
     currentBB()->pushBack(gotoLoopHeader2);
     setCurrentBB(loopEnd);
+    currentLoop = {};
 }
 
 void CodeGenContext::generateImpl(DoWhileStatement const& loopDecl) {
@@ -263,6 +275,7 @@ void CodeGenContext::generateImpl(DoWhileStatement const& loopDecl) {
     currentFunction->pushBack(loopEnd);
     auto* gotoLoopBody = new ir::Goto(irCtx, loopBody);
     currentBB()->pushBack(gotoLoopBody);
+    currentLoop = { .header = loopFooter, .body = loopBody, .end = loopEnd };
     setCurrentBB(loopBody);
     generate(*loopDecl.block);
     auto* gotoLoopFooter = new ir::Goto(irCtx, loopFooter);
@@ -272,6 +285,7 @@ void CodeGenContext::generateImpl(DoWhileStatement const& loopDecl) {
     auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
     currentBB()->pushBack(branch);
     setCurrentBB(loopEnd);
+    currentLoop = {};
 }
 
 void CodeGenContext::generateImpl(ForStatement const& loopDecl) {
@@ -279,6 +293,8 @@ void CodeGenContext::generateImpl(ForStatement const& loopDecl) {
     currentFunction->pushBack(loopHeader);
     auto* loopBody = new ir::BasicBlock(irCtx, "loop.body");
     currentFunction->pushBack(loopBody);
+    auto* loopInc = new ir::BasicBlock(irCtx, "loop.inc");
+    currentFunction->pushBack(loopInc);
     auto* loopEnd = new ir::BasicBlock(irCtx, "loop.end");
     currentFunction->pushBack(loopEnd);
     generate(*loopDecl.varDecl);
@@ -288,12 +304,31 @@ void CodeGenContext::generateImpl(ForStatement const& loopDecl) {
     auto* condition = getValue(*loopDecl.condition);
     auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
     currentBB()->pushBack(branch);
+    currentLoop = { .header = loopHeader,
+                    .body   = loopBody,
+                    .inc    = loopInc,
+                    .end    = loopEnd };
     setCurrentBB(loopBody);
     generate(*loopDecl.block);
+    auto* gotoLoopInc = new ir::Goto(irCtx, loopInc);
+    currentBB()->pushBack(gotoLoopInc);
+    setCurrentBB(loopInc);
     getValue(*loopDecl.increment);
     auto* gotoLoopHeader2 = new ir::Goto(irCtx, loopHeader);
     currentBB()->pushBack(gotoLoopHeader2);
     setCurrentBB(loopEnd);
+    currentLoop = {};
+}
+
+void CodeGenContext::generateImpl(BreakStatement const&) {
+    auto* gotoEnd = new ir::Goto(irCtx, currentLoop.end);
+    currentBB()->pushBack(gotoEnd);
+}
+
+void CodeGenContext::generateImpl(ContinueStatement const&) {
+    auto* dest    = currentLoop.inc ? currentLoop.inc : currentLoop.header;
+    auto* gotoInc = new ir::Goto(irCtx, dest);
+    currentBB()->pushBack(gotoInc);
 }
 
 ir::Value* CodeGenContext::getValue(Expression const& expr) {

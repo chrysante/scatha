@@ -141,13 +141,14 @@ static void run(mir::Module const& mod) {
     bool const optimize = true;
 
     if (optimize) {
-        if (1) {
+        if (true) {
             opt::inlineFunctions(ctx, irMod);
             opt::deadFuncElim(ctx, irMod);
         }
         else {
             for (auto& F: irMod) {
                 opt::memToReg(ctx, F);
+                opt::propagateConstants(ctx, F);
             }
         }
     }
@@ -182,10 +183,12 @@ static void run(mir::Module const& mod) {
 
     auto& f = mod.front();
     opt::memToReg(ctx, f);
+    opt::propagateConstants(ctx, f);
 
-    opt::makeLoopCanonical(ctx, f);
+    //    opt::makeLoopCanonical(ctx, f);
 
     print(mod);
+    run(mod);
 }
 
 void playground::volatilePlayground(std::filesystem::path path) { mirPG(path); }

@@ -13,6 +13,24 @@
 
 using namespace svm;
 
+static constexpr size_t execCodeSizeImpl(OpCode code) {
+    if (code == OpCode::call) {
+        return 0;
+    }
+    if (code == OpCode::ret) {
+        return 0;
+    }
+    if (code == OpCode::terminate) {
+        return 0;
+    }
+    return codeSize(code);
+}
+
+/// Making this a template actually cuts execution time in debug builds in half
+/// compared to calling `execCodeSizeImpl()` directly.
+template <OpCode Code>
+static constexpr size_t ExecCodeSize = execCodeSizeImpl(Code);
+
 template <typename T>
 ALWAYS_INLINE static void storeReg(u64* dest, T const& t) {
     std::memset(dest, 0, 8);
@@ -81,7 +99,7 @@ template <OpCode C>
 ALWAYS_INLINE static void jump(u8 const* i, ExecutionFrame& frame, bool cond) {
     i32 const offset = load<i32>(&i[0]);
     if (cond) {
-        frame.iptr += offset - static_cast<i64>(codeSize(C));
+        frame.iptr += offset - static_cast<i64>(ExecCodeSize<C>);
     }
 }
 
@@ -171,24 +189,6 @@ ALWAYS_INLINE static bool less(VMFlags f) { return f.less; }
 ALWAYS_INLINE static bool lessEq(VMFlags f) { return f.less || f.equal; }
 ALWAYS_INLINE static bool greater(VMFlags f) { return !f.less && !f.equal; }
 ALWAYS_INLINE static bool greaterEq(VMFlags f) { return !f.less; }
-
-static constexpr size_t execCodeSizeImpl(OpCode code) {
-    if (code == OpCode::call) {
-        return 0;
-    }
-    if (code == OpCode::ret) {
-        return 0;
-    }
-    if (code == OpCode::terminate) {
-        return 0;
-    }
-    return codeSize(code);
-}
-
-/// Making this a template actually cuts execution time in debug builds in half
-/// compared to calling `execCodeSizeImpl()` directly.
-template <OpCode Code>
-static constexpr size_t ExecCodeSize = execCodeSizeImpl(Code);
 
 void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
     auto const lastframe = execFrames.top() = frame;

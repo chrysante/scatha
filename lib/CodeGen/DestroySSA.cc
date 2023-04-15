@@ -65,9 +65,9 @@ static void mapSSAToVirtualRegisters(mir::Function& F) {
     }
 }
 
-mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
-                                         mir::BasicBlock& BB,
-                                         mir::BasicBlock::Iterator itr) {
+static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
+                                                mir::BasicBlock& BB,
+                                                mir::BasicBlock::Iterator itr) {
     auto& call           = *itr;
     auto argBegin        = call.operands().begin();
     size_t numCalleeRegs = call.operands().size();
@@ -114,9 +114,8 @@ mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
     return itr;
 }
 
-mir::BasicBlock::Iterator destroySSATailCall(mir::Function& F,
-                                             mir::BasicBlock& BB,
-                                             mir::BasicBlock::Iterator itr) {
+static mir::BasicBlock::Iterator destroySSATailCall(
+    mir::Function& F, mir::BasicBlock& BB, mir::BasicBlock::Iterator itr) {
     SC_ASSERT(itr->instcode() != mir::InstCode::CallExt,
               "Can't tail call ext functions");
     auto& call           = *itr;
@@ -156,6 +155,62 @@ mir::BasicBlock::Iterator destroySSATailCall(mir::Function& F,
     return itr;
 }
 
+static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
+                                            mir::BasicBlock& BB,
+                                            mir::BasicBlock::Iterator itr) {
+    auto& phi  = *itr;
+    auto* dest = phi.dest();
+    for (auto [pred, arg]:
+         ranges::views::zip(BB.predecessors(), phi.operands()))
+    {
+        auto before = pred->end();
+        while (true) {
+            auto p = std::prev(before);
+            if (!isTerminator(p->instcode())) {
+                break;
+            }
+            before = p;
+        }
+        /// Update live sets to honor inserted copy.
+        pred->insert(before,
+                     new mir::Instruction(mir::InstCode::Copy,
+                                          dest,
+                                          { arg },
+                                          0,
+                                          phi.bytewidth()));
+        auto* argReg = dyncast<mir::Register*>(arg);
+        if (argReg && !BB.isLiveIn(argReg)) {
+            pred->removeLiveOut(argReg);
+        }
+        pred->addLiveOut(dest);
+    }
+    return BB.erase(itr);
+}
+
+static mir::BasicBlock::Iterator destroySelect(mir::Function& F,
+                                               mir::BasicBlock& BB,
+                                               mir::BasicBlock::Iterator itr) {
+    auto& select   = *itr;
+    auto* dest     = select.dest();
+    auto* thenVal  = select.operandAt(0);
+    auto* elseVal  = select.operandAt(1);
+    auto condition = select.instDataAs<mir::CompareOperation>();
+    auto* copy     = new mir::Instruction(mir::InstCode::Copy,
+                                      dest,
+                                          { thenVal },
+                                      0,
+                                      select.bytewidth());
+    auto* cndCopy =
+        new mir::Instruction(mir::InstCode::CondCopy,
+                             dest,
+                             { elseVal },
+                             static_cast<uint64_t>(inverse(condition)),
+                             select.bytewidth());
+    BB.insert(itr, copy);
+    BB.insert(itr, cndCopy);
+    return BB.erase(itr);
+}
+
 void cg::destroySSA(mir::Function& F) {
     mapSSAToVirtualRegisters(F);
     for (auto& BB: F) {
@@ -187,55 +242,11 @@ void cg::destroySSA(mir::Function& F) {
                 break;
             }
             case mir::InstCode::Phi: {
-                auto& phi  = *itr;
-                auto* dest = phi.dest();
-                for (auto [pred, arg]:
-                     ranges::views::zip(BB.predecessors(), phi.operands()))
-                {
-                    auto before = pred->end();
-                    while (true) {
-                        auto p = std::prev(before);
-                        if (!isTerminator(p->instcode())) {
-                            break;
-                        }
-                        before = p;
-                    }
-                    /// Update live sets to honor inserted copy.
-                    pred->insert(before,
-                                 new mir::Instruction(mir::InstCode::Copy,
-                                                      dest,
-                                                      { arg },
-                                                      0,
-                                                      phi.bytewidth()));
-                    auto* argReg = dyncast<mir::Register*>(arg);
-                    if (argReg && !BB.isLiveIn(argReg)) {
-                        pred->removeLiveOut(argReg);
-                    }
-                    pred->addLiveOut(dest);
-                }
-                itr = BB.erase(itr);
+                itr = destroyPhi(F, BB, itr);
                 break;
             }
             case mir::InstCode::Select: {
-                auto& select   = *itr;
-                auto* dest     = select.dest();
-                auto* thenVal  = select.operandAt(0);
-                auto* elseVal  = select.operandAt(1);
-                auto condition = select.instDataAs<mir::CompareOperation>();
-                auto* copy     = new mir::Instruction(mir::InstCode::Copy,
-                                                  dest,
-                                                      { thenVal },
-                                                  0,
-                                                  select.bytewidth());
-                auto* cndCopy  = new mir::Instruction(mir::InstCode::CondCopy,
-                                                     dest,
-                                                      { elseVal },
-                                                     static_cast<uint64_t>(
-                                                         inverse(condition)),
-                                                     select.bytewidth());
-                BB.insert(itr, copy);
-                BB.insert(itr, cndCopy);
-                itr = BB.erase(itr);
+                itr = destroySelect(F, BB, itr);
                 break;
             }
             default:

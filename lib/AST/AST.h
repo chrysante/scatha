@@ -717,6 +717,20 @@ public:
     UniquePtr<CompoundStatement> block;
 };
 
+/// Represents a `break;` statement.
+class SCATHA_API BreakStatement: public ControlFlowStatement {
+public:
+    explicit BreakStatement(Token const& token):
+        ControlFlowStatement(NodeType::BreakStatement, token) {}
+};
+
+/// Represents a `continue;` statement.
+class SCATHA_API ContinueStatement: public ControlFlowStatement {
+public:
+    explicit ContinueStatement(Token const& token):
+        ControlFlowStatement(NodeType::ContinueStatement, token) {}
+};
+
 } // namespace scatha::ast
 
 #endif // SCATHA_AST_AST_H_

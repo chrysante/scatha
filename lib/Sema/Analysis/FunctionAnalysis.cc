@@ -26,6 +26,8 @@ struct Context {
     void analyze(ast::WhileStatement&);
     void analyze(ast::DoWhileStatement&);
     void analyze(ast::ForStatement&);
+    void analyze(ast::BreakStatement&);
+    void analyze(ast::ContinueStatement&);
     void analyze(ast::EmptyStatement&) {}
     void analyze(ast::AbstractSyntaxTree& node) { SC_UNREACHABLE(); }
 
@@ -368,6 +370,15 @@ void Context::analyze(ast::ForStatement& fs) {
     }
     sym.popScope(); /// The block will push its scope again.
     dispatch(*fs.block);
+}
+
+void Context::analyze(ast::BreakStatement& s) {
+    /// Need to check if we are in a loop but unfortunately we don't have parent
+    /// pointers so it's hard to check.
+}
+
+void Context::analyze(ast::ContinueStatement&) {
+    /// Same as above.
 }
 
 ExpressionAnalysisResult Context::dispatchExpression(ast::Expression& expr) {
