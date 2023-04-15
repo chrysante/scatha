@@ -146,11 +146,18 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    bool const optimize = true;
+    bool const optimize = false;
 
     if (optimize) {
-        opt::inlineFunctions(ctx, irMod);
-        opt::deadFuncElim(ctx, irMod);
+        if (0) {
+            opt::inlineFunctions(ctx, irMod);
+            opt::deadFuncElim(ctx, irMod);
+        }
+        else {
+            for (auto& F: irMod) {
+                opt::memToReg(ctx, F);
+            }
+        }
     }
     header(" IR Module ");
     print(irMod);

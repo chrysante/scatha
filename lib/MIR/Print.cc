@@ -200,6 +200,9 @@ struct PrintContext {
         if (inst->instcode() == InstCode::Call ||
             inst->instcode() == InstCode::CallExt)
         {
+            if (!inst->operands().empty()) {
+                str << ", ";
+            }
             auto callData = inst->instDataAs<CallInstData>();
             str << "regoffset=" << callData.regOffset;
             if (inst->instcode() == InstCode::CallExt) {

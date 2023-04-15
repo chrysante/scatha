@@ -22,11 +22,7 @@ struct CGContext {
     void genBlock(mir::BasicBlock const& block);
     void genInst(mir::Instruction const& inst);
 
-    size_t getLabelID(mir::BasicBlock const& bb) { return getLabelIDImpl(bb); }
-
-    size_t getLabelID(mir::Function const& fn) { return getLabelIDImpl(fn); }
-
-    size_t getLabelIDImpl(mir::Value const& value) {
+    size_t getLabelID(mir::Value const& value) {
         auto [itr, success] =
             labelIndices.insert({ &value, labelIndexCounter });
         if (success) {
@@ -262,12 +258,12 @@ void CGContext::genInst(mir::Instruction const& inst) {
         break;
     }
     case mir::InstCode::Jump: {
-        auto* target = cast<mir::BasicBlock const*>(inst.operandAt(0));
+        auto* target = inst.operandAt(0);
         currentBlock->insertBack(JumpInst(getLabelID(*target)));
         break;
     }
     case mir::InstCode::CondJump: {
-        auto* target   = cast<mir::BasicBlock const*>(inst.operandAt(0));
+        auto* target   = inst.operandAt(0);
         auto condition = inst.instDataAs<mir::CompareOperation>();
         currentBlock->insertBack(
             JumpInst(mapCompareOperation(condition), getLabelID(*target)));

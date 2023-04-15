@@ -88,7 +88,8 @@ struct CodeGenContext {
     /// type does not match
     template <typename V = mir::Value>
     V* resolve(ir::Value const* value) {
-        return cast<V*>(resolveImpl(value));
+        auto* result = resolveImpl(value);
+        return result ? cast<V*>(result) : nullptr;
     }
 
     mir::Register* resolve(ir::Instruction const* inst) {
@@ -374,67 +375,44 @@ void CodeGenContext::genInst(ir::Branch const& br) {
 }
 
 void CodeGenContext::genInst(ir::Call const& call) {
-    /// Place the arguments in expected registers
-    size_t numArgRegs =
-        ranges::accumulate(call.arguments(),
-                           size_t(0),
-                           ranges::plus{},
-                           [&](auto* arg) { return numWords(arg->type()); });
-    size_t const numCalleeRegs = ranges::max(numArgRegs, numWords(call.type()));
-    /// Allocate additional callee registers if not enough present.
-    if (size_t const oldSize = currentFunction->calleeRegisters().size();
-        oldSize < numCalleeRegs)
-    {
-        for (size_t i = oldSize; i < numCalleeRegs; ++i) {
-            auto* reg = new mir::CalleeRegister();
-            currentFunction->calleeRegisters().add(reg);
-        }
-    }
-    /// Copy arguments into callee registers.
-    for (auto* dest = currentFunction->calleeRegisters().begin().to_address();
-         auto* arg: call.arguments())
-    {
-        dest = genCopy(dest, resolve(arg), arg->type()->size());
-    }
-    /// Issue the actual `call` or `callExt` instruction
+    utl::small_vector<mir::Value*, 16> args;
+    mir::CallInstData callData{};
     // clang-format off
-    visit(*call.function(), utl::overload{
+    mir::InstCode const instcode = visit(*call.function(), utl::overload{
         [&](ir::Function const& func) {
-            auto* callee = resolve(&func);
-            addNewInst(mir::InstCode::Call, nullptr, { callee }, mir::CallInstData{
-                .regOffset = 0
-            });
+            args.push_back(resolve(&func));
+            return mir::InstCode::Call;
         },
         [&](ir::ExtFunction const& func) {
-            addNewInst(mir::InstCode::CallExt, nullptr, {}, mir::CallInstData{
-                .regOffset = 0,
-                .extFuncAddress = {
-                    .slot = static_cast<uint32_t>(func.slot()),
-                    .index = static_cast<uint32_t>(func.index())
-                }
-            });
+            callData.extFuncAddress = {
+                .slot  = static_cast<uint32_t>(func.slot()),
+                .index = static_cast<uint32_t>(func.index())
+            };
+            return mir::InstCode::CallExt;
         },
     }); // clang-format on
-    /// Copy arguments out of callee registers
-    if (!isa<ir::VoidType>(call.type())) {
-        genCopy(resolve(&call),
-                currentFunction->calleeRegisters().begin().to_address(),
-                call.type()->size());
+    for (auto* arg: call.arguments()) {
+        auto* mirArg          = resolve(arg);
+        size_t const numWords = this->numWords(arg->type());
+        for (size_t i = 0; i < numWords; ++i, mirArg = mirArg->next()) {
+            args.push_back(mirArg);
+        }
     }
+    size_t const numDests = numWords(call.type());
+    auto* dest            = resolve(&call);
+    auto* mirCall = addNewInst(instcode, dest, std::move(args), callData).inst;
+    mirCall->setNumDests(numDests);
 }
 
 void CodeGenContext::genInst(ir::Return const& ret) {
-    if (!isa<ir::VoidType>(ret.value()->type())) {
-        size_t const numBytes = ret.value()->type()->size();
-        size_t const numWords = utl::ceil_divide(numBytes, 8);
-        auto* returnValue     = resolve(ret.value());
-        auto dest = currentFunction->virtualReturnValueRegisters().begin();
-        genCopy(*dest, returnValue, numBytes);
-        for (size_t i = 0; i < numWords; ++i, ++dest) {
-            currentBlock->addLiveOut(*dest);
-        }
+    utl::small_vector<mir::Value*, 16> args;
+    auto* retval = resolve(ret.value());
+    for (size_t i = 0, end = numWords(ret.value()->type()); i < end;
+         ++i, retval       = retval->next())
+    {
+        args.push_back(retval);
     }
-    addNewInst(mir::InstCode::Return, nullptr, {});
+    addNewInst(mir::InstCode::Return, nullptr, std::move(args));
 }
 
 void CodeGenContext::genInst(ir::Phi const& phi) {
@@ -751,8 +729,10 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
     }
     // clang-format off
     return visit(*value, utl::overload{
-        [&](ir::Instruction const& inst) {
-            SC_ASSERT(!isa<ir::VoidType>(inst.type()), "");
+        [&](ir::Instruction const& inst) -> mir::Register* {
+            if (isa<ir::VoidType>(inst.type())) {
+                return nullptr;
+            }
             auto* reg = nextRegistersFor(&inst);
             valueMap.insert({ &inst, reg });
             return reg;

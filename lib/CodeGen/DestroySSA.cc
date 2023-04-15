@@ -8,7 +8,21 @@
 using namespace scatha;
 using namespace cg;
 
-void cg::destroySSA(mir::Function& F) {
+static bool isTailCall(mir::Instruction const& call) {
+    auto& ret = *call.next();
+    if (ret.instcode() != mir::InstCode::Return) {
+        return false;
+    }
+    if (ret.operands().size() != call.numDests()) {
+        return false;
+    }
+    if (!call.dest()) {
+        return true;
+    }
+    return ret.operands().front() == call.dest();
+}
+
+static void mapSSAToVirtualRegisters(mir::Function& F) {
     utl::hashmap<mir::SSARegister*, mir::VirtualRegister*> registerMap;
     /// Create virtual registers for all SSA registers.
     size_t const numRegs =
@@ -49,10 +63,130 @@ void cg::destroySSA(mir::Function& F) {
             BB.removeLiveOut(ssaReg);
         }
     }
-    /// Remove all `phi` and `select` instructions and insert respective copies.
+}
+
+mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
+                                         mir::BasicBlock& BB,
+                                         mir::BasicBlock::Iterator itr) {
+    auto& call           = *itr;
+    auto argBegin        = call.operands().begin();
+    size_t numCalleeRegs = call.operands().size();
+    bool const isExt     = call.instcode() == mir::InstCode::CallExt;
+    mir::Value* callee   = nullptr;
+    if (!isExt) {
+        callee = *argBegin;
+        ++argBegin;
+        --numCalleeRegs;
+    }
+    numCalleeRegs = std::max(numCalleeRegs, call.numDests());
+    /// Allocate additional callee registers if not enough present.
+    for (size_t i = F.calleeRegisters().size(); i < numCalleeRegs; ++i) {
+        auto* reg = new mir::CalleeRegister();
+        F.calleeRegisters().add(reg);
+    }
+    /// Copy arguments into callee registers.
+    for (auto dest = F.calleeRegisters().begin();
+         argBegin != call.operands().end();
+         ++dest, ++argBegin)
+    {
+        auto* copy = new mir::Instruction(mir::InstCode::Copy,
+                                          dest.to_address(),
+                                          { *argBegin });
+        BB.insert(&call, copy);
+    }
+    ++itr;
+    /// Copy arguments out of callee registers
+    if (auto* dest = call.dest()) {
+        auto calleeReg = F.calleeRegisters().begin().to_address();
+        SC_ASSERT(F.calleeRegisters().size() >= call.numDests(), "");
+        for (size_t i = 0; i < call.numDests();
+             ++i, dest = dest->next(), calleeReg = calleeReg->next())
+        {
+            auto* copy =
+                new mir::Instruction(mir::InstCode::Copy, dest, { calleeReg });
+            BB.insert(itr, copy);
+        }
+    }
+    call.clearOperands();
+    if (!isExt) {
+        call.setOperands({ callee });
+    }
+    return itr;
+}
+
+mir::BasicBlock::Iterator destroySSATailCall(mir::Function& F,
+                                             mir::BasicBlock& BB,
+                                             mir::BasicBlock::Iterator itr) {
+    SC_ASSERT(itr->instcode() != mir::InstCode::CallExt,
+              "Can't tail call ext functions");
+    auto& call           = *itr;
+    mir::Value* callee   = call.operandAt(0);
+    auto argBegin        = std::next(call.operands().begin());
+    size_t const numArgs = call.operands().size() - 1;
+    /// We need to copy our arguments to temporary registers before copying them
+    /// into our bottom registers to make sure we don't overwrite anything that
+    /// we still need to copy.
+    utl::small_vector<mir::VirtualRegister*, 8> tmpRegs(numArgs);
+    /// Allocate additional temporary registers.
+    for (size_t i = 0; i < numArgs; ++i, ++argBegin) {
+        auto* tmp = new mir::VirtualRegister();
+        F.virtualRegisters().add(tmp);
+        tmpRegs[i] = tmp;
+        auto* copy =
+            new mir::Instruction(mir::InstCode::Copy, tmp, { *argBegin });
+        BB.insert(&call, copy);
+    }
+    /// Copy arguments into bottom registers.
+    for (auto dest = F.virtualRegisters().begin(); auto* tmp: tmpRegs) {
+        auto* copy = new mir::Instruction(mir::InstCode::Copy,
+                                          dest.to_address(),
+                                          { tmp });
+        BB.insert(&call, copy);
+        dest->setFixed();
+        ++dest;
+    }
+    auto& ret = *call.next();
+    SC_ASSERT(ret.instcode() == mir::InstCode::Return, "We are not a tailcall");
+    std::advance(itr, 2);
+    BB.erase(&call);
+    BB.erase(&ret);
+    auto* jump = new mir::Instruction(mir::InstCode::Jump, nullptr, { callee });
+    BB.insert(itr, jump);
+    SC_ASSERT(itr == BB.end(), "");
+    return itr;
+}
+
+void cg::destroySSA(mir::Function& F) {
+    mapSSAToVirtualRegisters(F);
     for (auto& BB: F) {
         for (auto itr = BB.begin(); itr != BB.end();) {
-            if (itr->instcode() == mir::InstCode::Phi) {
+            switch (itr->instcode()) {
+            case mir::InstCode::Call:
+                if (isTailCall(*itr)) {
+                    itr = destroySSATailCall(F, BB, itr);
+                }
+                else {
+                    itr = destroySSACall(F, BB, itr);
+                }
+                break;
+            case mir::InstCode::CallExt: {
+                itr = destroySSACall(F, BB, itr);
+                break;
+            }
+            case mir::InstCode::Return: {
+                auto& ret = *itr;
+                auto dest = F.virtualReturnValueRegisters().begin();
+                for (auto* arg: ret.operands()) {
+                    auto* copy = new mir::Instruction(mir::InstCode::Copy,
+                                                      *dest++,
+                                                      { arg });
+                    BB.insert(itr, copy);
+                }
+                ret.clearOperands();
+                ++itr;
+                break;
+            }
+            case mir::InstCode::Phi: {
                 auto& phi  = *itr;
                 auto* dest = phi.dest();
                 for (auto [pred, arg]:
@@ -80,9 +214,9 @@ void cg::destroySSA(mir::Function& F) {
                     pred->addLiveOut(dest);
                 }
                 itr = BB.erase(itr);
-                continue;
+                break;
             }
-            if (itr->instcode() == mir::InstCode::Select) {
+            case mir::InstCode::Select: {
                 auto& select   = *itr;
                 auto* dest     = select.dest();
                 auto* thenVal  = select.operandAt(0);
@@ -102,9 +236,12 @@ void cg::destroySSA(mir::Function& F) {
                 BB.insert(itr, copy);
                 BB.insert(itr, cndCopy);
                 itr = BB.erase(itr);
-                continue;
+                break;
             }
-            ++itr;
+            default:
+                ++itr;
+                break;
+            }
         }
     }
 }

@@ -71,6 +71,17 @@ public:
 
     Register const* dest() const { return _dest; }
 
+    /// Only applicable for `call` instructions in SSA form.
+    /// Hopefully we can generalize this in the future to instructions
+    /// which may have multiple (consecutive) dest registers.
+    /// This would also be useful for vector instructions.
+    size_t numDests() const { return _numDests; }
+
+    /// Only applicable for `call` instructions in SSA form.
+    void setNumDests(size_t num) {
+        _numDests = utl::narrow_cast<uint16_t>(num);
+    }
+
     /// \Returns The index of this instruction. Only valid if function has been
     /// linearized.
     size_t index() const { return _index; }
@@ -117,6 +128,7 @@ private:
     Register* _dest;
     utl::small_vector<Value*> ops;
     uint64_t _instData;
+    uint16_t _numDests = 1;
 };
 
 } // namespace scatha::mir
