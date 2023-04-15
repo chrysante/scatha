@@ -5,6 +5,7 @@
 #include "Opt/DCE.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/InstCombine.h"
+#include "Opt/LoopCanonical.h"
 #include "Opt/MemToReg.h"
 #include "Opt/SCCCallGraph.h"
 #include "Opt/SROA.h"
@@ -182,6 +183,7 @@ bool Inliner::optimize(Function& function) const {
         modified |= dce(ctx, function);
         modified |= simplifyCFG(ctx, function);
         modified |= tailRecElim(ctx, function);
+        modified |= makeLoopCanonical(ctx, function);
         if (!modified) {
             break;
         }

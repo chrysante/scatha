@@ -40,6 +40,7 @@
 #include "Opt/InlineCallsite.h"
 #include "Opt/Inliner.h"
 #include "Opt/InstCombine.h"
+#include "Opt/LoopCanonical.h"
 #include "Opt/MemToReg.h"
 #include "Opt/SCCCallGraph.h"
 #include "Opt/SROA.h"
@@ -120,15 +121,6 @@ static void run(mir::Module const& mod) {
     std::cout << "\n";
 }
 
-[[maybe_unused]] static void volPlayground(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
-
-    auto& f = mod.front();
-    opt::memToReg(ctx, f);
-
-    print(mod);
-}
-
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
 
@@ -188,4 +180,17 @@ static void run(mir::Module const& mod) {
     run(mirMod);
 }
 
-void playground::volatilePlayground(std::filesystem::path path) { mirPG(path); }
+[[maybe_unused]] static void volPlayground(std::filesystem::path path) {
+    auto [ctx, mod] = makeIRModuleFromFile(path);
+
+    auto& f = mod.front();
+    opt::memToReg(ctx, f);
+
+    opt::makeLoopCanonical(ctx, f);
+
+    print(mod);
+}
+
+void playground::volatilePlayground(std::filesystem::path path) {
+    volPlayground(path);
+}
