@@ -77,6 +77,8 @@ std::ostream& operator<<(std::ostream& ostream, InstCode code);
 
 bool isTerminator(InstCode code);
 
+bool isJump(InstCode code);
+
 using ir::Conversion;
 
 using ir::CompareMode;

@@ -44,6 +44,9 @@ std::ostream& mir::operator<<(std::ostream& ostream, InstCode code) {
 }
 
 bool mir::isTerminator(InstCode code) {
-    return code == InstCode::Jump || code == InstCode::CondJump ||
-           code == InstCode::Return;
+    return isJump(code) || code == InstCode::Return;
+}
+
+bool mir::isJump(InstCode code) {
+    return code == InstCode::Jump || code == InstCode::CondJump;
 }

@@ -89,7 +89,7 @@ public:
     template <typename V = Value>
     V* operandAt(size_t index) {
         return const_cast<V*>(
-            static_cast<Instruction const*>(this)->operandAt(index));
+            static_cast<Instruction const*>(this)->operandAt<V>(index));
     }
 
     template <typename V = Value>

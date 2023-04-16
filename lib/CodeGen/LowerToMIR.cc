@@ -370,18 +370,11 @@ void CodeGenContext::genInst(ir::Branch const& br) {
     auto condition   = readCondition(br.condition());
     auto* thenTarget = resolve(br.thenTarget());
     auto* elseTarget = resolve(br.elseTarget());
-    auto* BB         = br.parent();
-    if (br.thenTarget() == BB->next()) {
-        addNewInst(mir::InstCode::CondJump,
-                   nullptr,
-                   { elseTarget },
-                   inverse(condition));
-        addNewInst(mir::InstCode::Jump, nullptr, { thenTarget });
-    }
-    else {
-        addNewInst(mir::InstCode::CondJump, nullptr, { thenTarget }, condition);
-        addNewInst(mir::InstCode::Jump, nullptr, { elseTarget });
-    }
+    addNewInst(mir::InstCode::CondJump,
+               nullptr,
+               { elseTarget },
+               inverse(condition));
+    addNewInst(mir::InstCode::Jump, nullptr, { thenTarget });
 }
 
 void CodeGenContext::genInst(ir::Call const& call) {
