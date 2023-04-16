@@ -120,14 +120,13 @@ static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
 }
 
 static mir::BasicBlock::Iterator destroyReturn(mir::Function& F,
-                                                mir::BasicBlock& BB,
-                                                mir::BasicBlock::Iterator itr) {
+                                               mir::BasicBlock& BB,
+                                               mir::BasicBlock::Iterator itr) {
     auto& ret = *itr;
     auto dest = F.virtualReturnValueRegisters().begin();
     for (auto* arg: ret.operands()) {
-        auto* copy = new mir::Instruction(mir::InstCode::Copy,
-                                          *dest++,
-                                          { arg });
+        auto* copy =
+            new mir::Instruction(mir::InstCode::Copy, *dest++, { arg });
         BB.insert(itr, copy);
     }
     ret.clearOperands();
