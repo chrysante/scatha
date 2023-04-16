@@ -155,11 +155,33 @@ static mir::BasicBlock::Iterator destroySSATailCall(
     return itr;
 }
 
+static bool isCriticalEdge(mir::BasicBlock const* from,
+                           mir::BasicBlock const* to) {
+    return from->successors().size() > 1 &&
+           to->predecessors().size() > 1;
+}
+
 static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
                                             mir::BasicBlock& BB,
                                             mir::BasicBlock::Iterator itr) {
+    bool const needTmp = ranges::any_of(BB.predecessors(), [&](auto* pred) {
+        return isCriticalEdge(pred, &BB);
+    });
     auto& phi  = *itr;
     auto* dest = phi.dest();
+    if (needTmp) {
+        auto* tmp = new mir::VirtualRegister();
+        dest = tmp;
+        F.virtualRegisters().add(tmp);
+        BB.insert(&phi,
+                  new mir::Instruction(mir::InstCode::Copy,
+                                       phi.dest(),
+                                       { tmp },
+                                       0,
+                                       phi.bytewidth()));
+        BB.addLiveIn(tmp);
+        BB.removeLiveIn(phi.dest());
+    }
     for (auto [pred, arg]:
          ranges::views::zip(BB.predecessors(), phi.operands()))
     {
@@ -171,16 +193,21 @@ static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
             }
             before = p;
         }
-        /// Update live sets to honor inserted copy.
         pred->insert(before,
                      new mir::Instruction(mir::InstCode::Copy,
                                           dest,
                                           { arg },
                                           0,
                                           phi.bytewidth()));
-        auto* argReg = dyncast<mir::Register*>(arg);
-        if (argReg && !BB.isLiveIn(argReg)) {
-            pred->removeLiveOut(argReg);
+        /// Update live sets to honor inserted copy.
+        if (auto* argReg = dyncast<mir::Register*>(arg)) {
+            bool argDead = !BB.isLiveIn(argReg);
+            for (auto* use: argReg->uses()) {
+                argDead &= use == &phi || use->parent() == pred;
+            }
+            if (argDead) {
+                pred->removeLiveOut(argReg);
+            }
         }
         pred->addLiveOut(dest);
     }
