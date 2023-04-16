@@ -21,9 +21,7 @@ template <typename T>
 concept InstructionData =
     sizeof(T) <= sizeof(uint64_t) && std::is_trivially_copyable_v<T>;
 
-///
-///
-///
+/// Represents an instruction.
 class Instruction:
     public ListNode<Instruction>,
     public ParentedNode<BasicBlock> {
@@ -53,22 +51,38 @@ public:
                          uint64_t instData                  = 0,
                          size_t width                       = 8);
 
+    /// Set the register that this instruction defines to \p dest
     void setDest(Register* dest);
 
+    /// Set the operands this instruction uses
     void setOperands(utl::small_vector<Value*> operands);
 
+    /// Set the operand at index \p index to \p operand
+    /// \pre \p index must be a valid operand index. Internal operand list will
+    /// not be resized.
     void setOperandAt(size_t index, Value* operand);
 
+    /// Remove all operands from this instruction
+    /// Also clears the internal list of operands (does not set operands
+    /// `nullptr`)
     void clearOperands();
 
+    /// Replace all occurences of operand \p old by \p repl
+    void replaceOperand(Value* old, Value* repl);
+
+    /// \Returns The inst code of this instruction
     InstCode instcode() const { return oc; }
 
+    /// \Returns The number of bytes this instruction defines
     size_t bytewidth() const { return _width; }
 
+    /// \Returns The number of bits this instruction defines
     size_t bitwidth() const { return 8 * bytewidth(); }
 
+    /// \Returns The register this instruction defines
     Register* dest() { return _dest; }
 
+    /// \overload
     Register const* dest() const { return _dest; }
 
     /// Only applicable for `call` instructions in SSA form.
@@ -86,31 +100,37 @@ public:
     /// linearized.
     size_t index() const { return _index; }
 
+    /// \Returns The operand at index \p index
+    /// Possibly cast to derived value type `V`
     template <typename V = Value>
     V* operandAt(size_t index) {
         return const_cast<V*>(
             static_cast<Instruction const*>(this)->operandAt<V>(index));
     }
 
+    /// \overload
     template <typename V = Value>
     V const* operandAt(size_t index) const {
         auto* op = ops[index];
         return op ? cast<V const*>(op) : nullptr;
     }
 
+    /// \Returns A view of pointers to the operands of this instruction
     std::span<Value* const> operands() { return ops; }
 
+    /// \overload
     std::span<Value const* const> operands() const { return ops; }
 
+    /// Set the constant instruction data to \p data
     template <InstructionData T>
     void setInstData(T data) {
         std::memcpy(&_instData, &data, sizeof(T));
     }
 
+    /// \Returns The constant instruction data
     uint64_t instData() const { return _instData; }
 
-    void replaceOperand(Value* old, Value* repl);
-
+    /// \Returns The constant instruction data interpreted as type`T`
     template <InstructionData T>
     T instDataAs() const {
         alignas(T) char buffer[sizeof(T)];
@@ -135,18 +155,20 @@ private:
 
 namespace scatha::mir {
 
-///
-///
-///
+/// Represents a constant
+/// Constants are untyped and 64 bit wide (represented as 64 bit uint)
 class Constant: public Value {
 public:
     Constant(uint64_t value, size_t width):
         Value(NodeType::Constant), val(value), _width(width) {}
 
+    /// \Returns the value of this constant
     uint64_t value() const { return val; }
 
+    /// \Returns The size of this constant
     size_t bytewidth() const { return _width; }
 
+    /// \Returns The size of this constant in bits
     size_t bitwidth() const { return 8 * bytewidth(); }
 
 private:
@@ -154,17 +176,13 @@ private:
     size_t _width = 0;
 };
 
-///
-///
-///
+/// Represents an undefined value
 class UndefValue: public Value {
 public:
     UndefValue(): Value(NodeType::UndefValue) {}
 };
 
-///
-///
-///
+/// Represents a basic block
 class BasicBlock:
     public ListNodeOverride<BasicBlock, Value>,
     public ParentedNode<Function>,
@@ -178,42 +196,59 @@ public:
 
     explicit BasicBlock(ir::BasicBlock const* irBB);
 
+    /// \Returns The name of this basic block
     std::string_view name() const { return _name; }
 
+    /// Mark register \p reg as live-in
+    /// If `count > 1` also the `count - 1` registers after \p reg are marked as
+    /// live in
     void addLiveIn(Register* reg, size_t count = 1) {
         addLiveImpl(_liveIn, reg, count);
     }
 
+    /// Unmark register \p reg is live-in
     void removeLiveIn(Register* reg, size_t count = 1) {
         removeLiveImpl(_liveIn, reg, count);
     }
 
+    /// Mark register \p reg as live-out
+    /// See `addLiveIn()` for details
     void addLiveOut(Register* reg, size_t count = 1) {
         addLiveImpl(_liveOut, reg, count);
     }
 
+    /// Unmark register \p reg is live-out
     void removeLiveOut(Register* reg, size_t count = 1) {
         removeLiveImpl(_liveOut, reg, count);
     }
 
+    /// \Returns `true` iff register \p reg is live-in
     bool isLiveIn(Register const* reg) const { return _liveIn.contains(reg); }
 
+    /// \Returns `true` iff register \p reg is live.out
     bool isLiveOut(Register const* reg) const { return _liveOut.contains(reg); }
 
+    /// \Returns The set of live-in registers
     utl::hashset<Register*> const& liveIn() const { return _liveIn; }
 
+    /// Set the live-in registers
     void setLiveIn(utl::hashset<Register*> liveIn) {
         _liveIn = std::move(liveIn);
     }
 
+    /// \Returns The set of live-out registers
     utl::hashset<Register*> const& liveOut() const { return _liveOut; }
 
+    /// Set the live-out registers
     void setLiveOut(utl::hashset<Register*> liveOut) {
         _liveOut = std::move(liveOut);
     }
 
+    /// \Returns `true` iff this is the entry basic block
     bool isEntry() const;
 
+    /// \Returns the corresponding IR basic block this block is derived from, or
+    /// `nullptr` if nonesuch exists.
     ir::BasicBlock const* irBasicBlock() const { return irBB; }
 
 private:
@@ -233,9 +268,7 @@ private:
     ir::BasicBlock const* irBB = nullptr;
 };
 
-///
-///
-///
+/// Represents a function
 class Function:
     public ListNodeOverride<Function, Value>,
     public CFGList<Function, BasicBlock> {
@@ -359,6 +392,7 @@ public:
         return instrs[index];
     }
 
+    /// \Returns The visibility of this function, i.e. `extern` or `static`
     Visibility visibility() const { return vis; }
 
 private:

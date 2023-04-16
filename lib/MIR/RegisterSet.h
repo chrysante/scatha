@@ -10,9 +10,7 @@
 
 namespace scatha::mir {
 
-///
-///
-///
+/// Set of registers used by function to store registers of one kind
 template <std::derived_from<Register> R>
 class RegisterSet {
 public:

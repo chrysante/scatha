@@ -6,11 +6,10 @@
 
 namespace scatha::mir {
 
-///
-///
-///
+/// Abstract base class of all values in the MIR
 class Value: public ListNode<Value, /* AllowSetSiblings = */ true> {
 public:
+    /// \Returns The most derived run time type of this value
     NodeType nodeType() const { return _nodeType; }
 
 protected:

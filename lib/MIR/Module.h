@@ -9,9 +9,8 @@
 
 namespace scatha::mir {
 
-///
-///
-///
+/// Represents one unit of translation
+/// Also acts as a constants pool
 class SCATHA_TESTAPI Module {
     template <typename T>
     static decltype(auto) asDerived(auto&& self) {
@@ -31,6 +30,7 @@ public:
 
     ~Module();
 
+    /// Add a function to this translation unit
     void addFunction(Function* function);
 
     template <typename M = Module>

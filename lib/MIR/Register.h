@@ -58,8 +58,6 @@ class Instruction;
 ///
 
 /// Abstract base class of all register classes.
-///
-///
 class Register:
     public ListNodeOverride<Register, Value>,
     public ParentedNode<Function> {
@@ -134,8 +132,6 @@ private:
 };
 
 /// Represents a register that can only be assigned once.
-///
-///
 class SSARegister: public Register::Override<SSARegister> {
 public:
     SSARegister(): Register::Override<SSARegister>(NodeType::SSARegister) {}
@@ -158,8 +154,6 @@ private:
 };
 
 /// Represents a virtual register used early in the backend
-///
-///
 class VirtualRegister: public Register::Override<VirtualRegister> {
 public:
     explicit VirtualRegister():
@@ -167,8 +161,6 @@ public:
 };
 
 /// Represents a register in a callee's register space.
-///
-///
 class CalleeRegister: public Register::Override<CalleeRegister> {
 public:
     explicit CalleeRegister():
@@ -176,8 +168,6 @@ public:
 };
 
 /// Represents an actual register in the hardware (or the VM)
-///
-///
 class HardwareRegister: public Register::Override<HardwareRegister> {
 public:
     HardwareRegister():
