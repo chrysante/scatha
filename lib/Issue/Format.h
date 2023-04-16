@@ -2,17 +2,16 @@
 #define ISSUE_FORMAT_H_
 
 #include <iosfwd>
+#include <string_view>
 
-#include "Basic/Basic.h"
-#include "Common/StructuredSource.h"
-#include "Common/Token.h"
+#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Token.h>
 
 namespace scatha::issue {
 
-SCATHA_API void highlightToken(StructuredSource const& source,
-                               Token const& token);
+SCATHA_API void highlightToken(std::string_view text, Token const& token);
 
-SCATHA_API void highlightToken(StructuredSource const& source,
+SCATHA_API void highlightToken(std::string_view text,
                                Token const& token,
                                std::ostream& ostream);
 

@@ -12,6 +12,7 @@
 #include <scatha/CodeGen/CodeGen.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
+#include <scatha/Issue/Format.h>
 #include <scatha/Lexer/Lexer.h>
 #include <scatha/Lexer/LexicalIssue.h>
 #include <scatha/Opt/Optimizer.h>
@@ -33,7 +34,8 @@ static void printIssueEncounters(size_t count, std::string_view kind) {
     });
 }
 
-static void printLexicalIssues(issue::LexicalIssueHandler const& iss) {
+static void printLexicalIssues(std::string_view source,
+                               issue::LexicalIssueHandler const& iss) {
     if (iss.empty()) {
         return;
     }
@@ -43,10 +45,13 @@ static void printLexicalIssues(issue::LexicalIssueHandler const& iss) {
             std::cout << iss.token().sourceLocation << " " << iss.token()
                       << " : " << utl::nameof<T> << std::endl;
         });
+        issue::highlightToken(source, issue.token());
+        std::cout << "\n";
     }
 }
 
-static void printSyntaxIssues(issue::SyntaxIssueHandler const& iss) {
+static void printSyntaxIssues(std::string_view source,
+                              issue::SyntaxIssueHandler const& iss) {
     if (iss.empty()) {
         return;
     }
@@ -55,20 +60,25 @@ static void printSyntaxIssues(issue::SyntaxIssueHandler const& iss) {
         auto const loc = issue.token().sourceLocation;
         std::cout << "\tLine " << loc.line << " Col " << loc.column << ": ";
         std::cout << issue.reason() << "\n";
+        issue::highlightToken(source, issue.token());
+        std::cout << "\n";
     }
 }
 
-static void printSemaIssues(issue::SemaIssueHandler const& iss,
+static void printSemaIssues(std::string_view source,
+                            issue::SemaIssueHandler const& iss,
                             sema::SymbolTable const& sym) {
     if (iss.issues().empty()) {
         return;
     }
     printIssueEncounters(iss.issues().size(), "semantic");
     for (auto const& issue: iss.issues()) {
-        issue.visit([](auto const& issue) {
+        issue.visit([&](auto const& issue) {
             auto const loc = issue.token().sourceLocation;
             std::cout << "Line " << loc.line << " Col " << loc.column << ": ";
-            std::cout << utl::nameof<std::decay_t<decltype(issue)>> << "\n\t";
+            std::cout << utl::nameof<std::decay_t<decltype(issue)>> << "\n";
+            issue::highlightToken(source, issue.token());
+            std::cout << "\n\t";
         });
         // clang-format off
         issue.visit(utl::overload{
@@ -117,7 +127,7 @@ int main(int argc, char* argv[]) {
     /// Tokenize the text
     issue::LexicalIssueHandler lexIss;
     auto tokens = lex::lex(text, lexIss);
-    printLexicalIssues(lexIss);
+    printLexicalIssues(text, lexIss);
 
     if (!lexIss.empty()) {
         return -1;
@@ -126,13 +136,13 @@ int main(int argc, char* argv[]) {
     /// Parse the tokens
     issue::SyntaxIssueHandler synIss;
     auto ast = parse::parse(std::move(tokens), synIss);
-    printSyntaxIssues(synIss);
+    printSyntaxIssues(text, synIss);
 
     /// Analyse the AST
     sema::SymbolTable semaSym;
     issue::SemaIssueHandler semaIss;
     sema::analyze(*ast, semaSym, semaIss);
-    printSemaIssues(semaIss, semaSym);
+    printSemaIssues(text, semaIss, semaSym);
 
     /// Generate IR
     ir::Context context;

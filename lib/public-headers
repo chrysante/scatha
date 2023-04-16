@@ -34,6 +34,7 @@ IR/Type.h
 Opt/Optimizer.h
 
 Issue/IssueHandler.h
+Issue/Format.h
 Issue/ProgramIssue.h
 Issue/VariantIssueBase.h
 
