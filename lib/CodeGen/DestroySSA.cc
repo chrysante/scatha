@@ -22,6 +22,11 @@ static bool isTailCall(mir::Instruction const& call) {
     return ret.operands().front() == call.dest();
 }
 
+static bool isCriticalEdge(mir::BasicBlock const* from,
+                           mir::BasicBlock const* to) {
+    return from->successors().size() > 1 && to->predecessors().size() > 1;
+}
+
 static void mapSSAToVirtualRegisters(mir::Function& F) {
     utl::hashmap<mir::SSARegister*, mir::VirtualRegister*> registerMap;
     /// Create virtual registers for all SSA registers.
@@ -114,6 +119,21 @@ static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
     return itr;
 }
 
+static mir::BasicBlock::Iterator destroyReturn(mir::Function& F,
+                                                mir::BasicBlock& BB,
+                                                mir::BasicBlock::Iterator itr) {
+    auto& ret = *itr;
+    auto dest = F.virtualReturnValueRegisters().begin();
+    for (auto* arg: ret.operands()) {
+        auto* copy = new mir::Instruction(mir::InstCode::Copy,
+                                          *dest++,
+                                          { arg });
+        BB.insert(itr, copy);
+    }
+    ret.clearOperands();
+    return ++itr;
+}
+
 static mir::BasicBlock::Iterator destroySSATailCall(
     mir::Function& F, mir::BasicBlock& BB, mir::BasicBlock::Iterator itr) {
     SC_ASSERT(itr->instcode() != mir::InstCode::CallExt,
@@ -153,11 +173,6 @@ static mir::BasicBlock::Iterator destroySSATailCall(
     BB.insert(itr, jump);
     SC_ASSERT(itr == BB.end(), "");
     return itr;
-}
-
-static bool isCriticalEdge(mir::BasicBlock const* from,
-                           mir::BasicBlock const* to) {
-    return from->successors().size() > 1 && to->predecessors().size() > 1;
 }
 
 static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
@@ -255,16 +270,7 @@ void cg::destroySSA(mir::Function& F) {
                 break;
             }
             case mir::InstCode::Return: {
-                auto& ret = *itr;
-                auto dest = F.virtualReturnValueRegisters().begin();
-                for (auto* arg: ret.operands()) {
-                    auto* copy = new mir::Instruction(mir::InstCode::Copy,
-                                                      *dest++,
-                                                      { arg });
-                    BB.insert(itr, copy);
-                }
-                ret.clearOperands();
-                ++itr;
+                itr = destroyReturn(F, BB, itr);
                 break;
             }
             case mir::InstCode::Phi: {
