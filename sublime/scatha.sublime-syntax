@@ -28,10 +28,10 @@ contexts:
     # strings in YAML. When using single quoted strings, only single quotes
     # need to be escaped: this is done by using two single quotes next to each
     # other.
-    - match: \b(if|else|for|while|do|return)\b
+    - match: \b(if|else|for|while|do|return|break|continue)\b
       scope: keyword.control
 
-    - match: \b(fn|var|let|struct)\b
+    - match: \b(fn|var|let|struct|public|private)\b
       scope: punctuation.definition.keyword
 
     - match: \b(void|bool|int|float|string|true|false)\b
