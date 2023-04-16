@@ -1,4 +1,4 @@
-#include "CodeGen/LowerToASM.h"
+#include "CodeGen/Passes.h"
 
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Block.h"

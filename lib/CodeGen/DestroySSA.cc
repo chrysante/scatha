@@ -1,4 +1,4 @@
-#include "CodeGen/DestroySSA.h"
+#include "CodeGen/Passes.h"
 
 #include <utl/hashtable.hpp>
 

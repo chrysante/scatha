@@ -1,4 +1,4 @@
-#include "CodeGen/DeadCodeElim.h"
+#include "CodeGen/Passes.h"
 
 #include <utl/hashtable.hpp>
 

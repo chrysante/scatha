@@ -1,13 +1,7 @@
 #include "CodeGen/CodeGen.h"
 
 #include "Assembly/AssemblyStream.h"
-#include "CodeGen/DataFlow.h"
-#include "CodeGen/DeadCodeElim.h"
-#include "CodeGen/DestroySSA.h"
-#include "CodeGen/JumpElision.h"
-#include "CodeGen/LowerToASM.h"
-#include "CodeGen/LowerToMIR.h"
-#include "CodeGen/RegisterAllocator.h"
+#include "CodeGen/Passes.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
 

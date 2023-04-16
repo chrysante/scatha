@@ -1,4 +1,4 @@
-#include "CodeGen/LowerToMIR.h"
+#include "CodeGen/Passes.h"
 
 #include <range/v3/numeric.hpp>
 #include <utl/functional.hpp>

@@ -1,4 +1,4 @@
-#include "CodeGen/RegisterAllocator.h"
+#include "CodeGen/Passes.h"
 
 #include "CodeGen/InterferenceGraph.h"
 #include "MIR/CFG.h"
