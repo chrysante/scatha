@@ -26,11 +26,11 @@ fn mandelbrotSet(c: Complex) -> float {
     var z: Complex;
     z.x = 0.0;
     z.y = 0.0; 
-    let limit = 200.0;
-    for i = 0.0; i < limit; i += 1.0 {
+    let limit = 200;
+    for i = 0; i < limit; ++i {
         z = next(z, c);
         if length(z) > 2.0 {
-            return i / limit;
+            return float(i) / float(limit);
         }
     }
     return 0.0;
