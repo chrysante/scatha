@@ -245,61 +245,65 @@ void CodeGenContext::generateImpl(IfStatement const& ifStatement) {
 }
 
 void CodeGenContext::generateImpl(WhileStatement const& loopDecl) {
-    auto* loopHeader = new ir::BasicBlock(irCtx, "loop.header");
-    currentFunction->pushBack(loopHeader);
-    auto* loopBody = new ir::BasicBlock(irCtx, "loop.body");
-    currentFunction->pushBack(loopBody);
-    auto* loopEnd = new ir::BasicBlock(irCtx, "loop.end");
-    currentFunction->pushBack(loopEnd);
+    auto* loopHeader     = new ir::BasicBlock(irCtx, "loop.header");
+    auto* loopBody       = new ir::BasicBlock(irCtx, "loop.body");
+    auto* loopEnd        = new ir::BasicBlock(irCtx, "loop.end");
     auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
     currentBB()->pushBack(gotoLoopHeader);
+    /// Header
+    currentFunction->pushBack(loopHeader);
     setCurrentBB(loopHeader);
     auto* condition = getValue(*loopDecl.condition);
     auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
     currentBB()->pushBack(branch);
     currentLoop = { .header = loopHeader, .body = loopBody, .end = loopEnd };
+    /// Body
+    currentFunction->pushBack(loopBody);
     setCurrentBB(loopBody);
     generate(*loopDecl.block);
     auto* gotoLoopHeader2 = new ir::Goto(irCtx, loopHeader);
     currentBB()->pushBack(gotoLoopHeader2);
+    /// End
+    currentFunction->pushBack(loopEnd);
     setCurrentBB(loopEnd);
     currentLoop = {};
 }
 
 void CodeGenContext::generateImpl(DoWhileStatement const& loopDecl) {
-    auto* loopBody = new ir::BasicBlock(irCtx, "loop.body");
-    currentFunction->pushBack(loopBody);
-    auto* loopFooter = new ir::BasicBlock(irCtx, "loop.footer");
-    currentFunction->pushBack(loopFooter);
-    auto* loopEnd = new ir::BasicBlock(irCtx, "loop.end");
-    currentFunction->pushBack(loopEnd);
+    auto* loopBody     = new ir::BasicBlock(irCtx, "loop.body");
+    auto* loopFooter   = new ir::BasicBlock(irCtx, "loop.footer");
+    auto* loopEnd      = new ir::BasicBlock(irCtx, "loop.end");
     auto* gotoLoopBody = new ir::Goto(irCtx, loopBody);
     currentBB()->pushBack(gotoLoopBody);
     currentLoop = { .header = loopFooter, .body = loopBody, .end = loopEnd };
+    /// Body
+    currentFunction->pushBack(loopBody);
     setCurrentBB(loopBody);
     generate(*loopDecl.block);
     auto* gotoLoopFooter = new ir::Goto(irCtx, loopFooter);
     currentBB()->pushBack(gotoLoopFooter);
+    /// Footer
+    currentFunction->pushBack(loopFooter);
     setCurrentBB(loopFooter);
     auto* condition = getValue(*loopDecl.condition);
     auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
     currentBB()->pushBack(branch);
+    /// End
+    currentFunction->pushBack(loopEnd);
     setCurrentBB(loopEnd);
     currentLoop = {};
 }
 
 void CodeGenContext::generateImpl(ForStatement const& loopDecl) {
     auto* loopHeader = new ir::BasicBlock(irCtx, "loop.header");
-    currentFunction->pushBack(loopHeader);
-    auto* loopBody = new ir::BasicBlock(irCtx, "loop.body");
-    currentFunction->pushBack(loopBody);
-    auto* loopInc = new ir::BasicBlock(irCtx, "loop.inc");
-    currentFunction->pushBack(loopInc);
-    auto* loopEnd = new ir::BasicBlock(irCtx, "loop.end");
-    currentFunction->pushBack(loopEnd);
+    auto* loopBody   = new ir::BasicBlock(irCtx, "loop.body");
+    auto* loopInc    = new ir::BasicBlock(irCtx, "loop.inc");
+    auto* loopEnd    = new ir::BasicBlock(irCtx, "loop.end");
     generate(*loopDecl.varDecl);
     auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
     currentBB()->pushBack(gotoLoopHeader);
+    /// Header
+    currentFunction->pushBack(loopHeader);
     setCurrentBB(loopHeader);
     auto* condition = getValue(*loopDecl.condition);
     auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
@@ -308,14 +312,20 @@ void CodeGenContext::generateImpl(ForStatement const& loopDecl) {
                     .body   = loopBody,
                     .inc    = loopInc,
                     .end    = loopEnd };
+    /// Body
+    currentFunction->pushBack(loopBody);
     setCurrentBB(loopBody);
     generate(*loopDecl.block);
     auto* gotoLoopInc = new ir::Goto(irCtx, loopInc);
+    /// Inc
+    currentFunction->pushBack(loopInc);
     currentBB()->pushBack(gotoLoopInc);
     setCurrentBB(loopInc);
     getValue(*loopDecl.increment);
     auto* gotoLoopHeader2 = new ir::Goto(irCtx, loopHeader);
     currentBB()->pushBack(gotoLoopHeader2);
+    /// End
+    currentFunction->pushBack(loopEnd);
     setCurrentBB(loopEnd);
     currentLoop = {};
 }
