@@ -73,7 +73,10 @@ struct ParseContext {
 
     template <typename V = Value, std::derived_from<User> U>
     void addValueLink(U* user, Type const* type, Token token, auto fn) {
-        if (user->name() == token.id()) {
+        if ((token.kind() == TokenKind::LocalIdentifier ||
+             token.kind() == TokenKind::GlobalIdentifier) &&
+            user->name() == token.id())
+        {
             /// We report self references as use of undeclared identifier
             /// because the identifier is not defined before the next
             /// declaration.
