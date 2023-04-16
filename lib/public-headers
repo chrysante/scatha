@@ -11,7 +11,6 @@ AST/LowerToIR.h
 Assembly/Assembler.h
 Assembly/AssemblyStream.h
 
-Common/APFwd.h
 Common/APFloat.h
 Common/APInt.h
 Common/Expected.h
@@ -26,7 +25,6 @@ CodeGen/CodeGen.h
 
 IR/Context.h
 IR/Common.h
-IR/CFG/List.h
 IR/CFG/Lists.def
 IR/Module.h
 IR/Type.h

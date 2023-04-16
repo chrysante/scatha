@@ -64,7 +64,7 @@ buildoptions "-fvisibility=hidden"
 filter {}
 
 prebuildcommands {
-    "${PROJECT_DIR}/scripts/copy-public-headers-unix.sh"
+    "${PROJECT_DIR}/scripts/copy-public-headers.sh"
 }
 
 ------------------------------------------
@@ -90,7 +90,8 @@ project "svm-lib"
 
 kind "StaticLib"
 
-addCppFiles "svm-lib"
+addCppFiles "svm"
+removefiles { "svm/CLIParse.*", "svm/main.cc" }
 
 externalincludedirs {
     "include",
@@ -98,7 +99,7 @@ externalincludedirs {
 }
 
 prebuildcommands {
-    "${PROJECT_DIR}/scripts/copy-public-vm-headers-unix.sh"
+    "${PROJECT_DIR}/scripts/copy-public-headers.sh"
 }
 
 ------------------------------------------
@@ -106,7 +107,7 @@ project "svm"
 
 kind "ConsoleApp"
 
-addCppFiles "svm"
+files { "svm/CLIParse.*", "svm/main.cc" }
 
 externalincludedirs {
     "include",
