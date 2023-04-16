@@ -53,7 +53,10 @@ std::string_view Asm::toCMoveInstName(CompareOperation condition) {
 
 std::string_view Asm::toJumpInstName(CompareOperation condition) {
     return std::array{
-#define SC_ASM_COMPARE_DEF(_0, name) std::string_view("jmp" name),
+#define SC_ASM_COMPARE_DEF(JUMP, name)                                         \
+    CompareOperation::JUMP == CompareOperation::None ?                         \
+        std::string_view("jmp" name) :                                         \
+        std::string_view("j" name),
 #include "Assembly/Lists.def"
     }[static_cast<size_t>(condition)];
 }
