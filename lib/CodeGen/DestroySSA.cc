@@ -157,8 +157,7 @@ static mir::BasicBlock::Iterator destroySSATailCall(
 
 static bool isCriticalEdge(mir::BasicBlock const* from,
                            mir::BasicBlock const* to) {
-    return from->successors().size() > 1 &&
-           to->predecessors().size() > 1;
+    return from->successors().size() > 1 && to->predecessors().size() > 1;
 }
 
 static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
@@ -167,11 +166,11 @@ static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
     bool const needTmp = ranges::any_of(BB.predecessors(), [&](auto* pred) {
         return isCriticalEdge(pred, &BB);
     });
-    auto& phi  = *itr;
-    auto* dest = phi.dest();
+    auto& phi          = *itr;
+    auto* dest         = phi.dest();
     if (needTmp) {
         auto* tmp = new mir::VirtualRegister();
-        dest = tmp;
+        dest      = tmp;
         F.virtualRegisters().add(tmp);
         BB.insert(&phi,
                   new mir::Instruction(mir::InstCode::Copy,
