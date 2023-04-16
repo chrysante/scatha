@@ -17,6 +17,7 @@
 #include "CodeGen/DataFlow.h"
 #include "CodeGen/DeadCodeElim.h"
 #include "CodeGen/DestroySSA.h"
+#include "CodeGen/JumpElision.h"
 #include "CodeGen/LowerToASM.h"
 #include "CodeGen/LowerToMIR.h"
 #include "CodeGen/RegisterAllocator.h"
@@ -169,9 +170,10 @@ static void run(mir::Module const& mod) {
     }
     mir::print(mirMod);
 
-    header(" MIR Module after register allocation ");
+    header(" MIR Module after jump elision ");
     for (auto& F: mirMod) {
         cg::allocateRegisters(F);
+        cg::elideJumps(F);
     }
     mir::print(mirMod);
 

@@ -4,6 +4,7 @@
 #include "CodeGen/DataFlow.h"
 #include "CodeGen/DeadCodeElim.h"
 #include "CodeGen/DestroySSA.h"
+#include "CodeGen/JumpElision.h"
 #include "CodeGen/LowerToASM.h"
 #include "CodeGen/LowerToMIR.h"
 #include "CodeGen/RegisterAllocator.h"
@@ -20,6 +21,7 @@ Asm::AssemblyStream cg::codegen(ir::Module const& irMod) {
         cg::deadCodeElim(F);
         cg::destroySSA(F);
         cg::allocateRegisters(F);
+        cg::elideJumps(F);
     }
     return cg::lowerToASM(mod);
 }
