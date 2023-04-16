@@ -21,6 +21,7 @@
 #include <scatha/Sema/Analyze.h>
 #include <scatha/Sema/SemanticIssue.h>
 #include <termfmt/termfmt.h>
+#include <utl/format_time.hpp>
 #include <utl/typeinfo.hpp>
 
 #include "CLIParse.h"
@@ -158,12 +159,9 @@ int main(int argc, char* argv[]) {
 
     if (options.time) {
         auto const compileEndTime = std::chrono::high_resolution_clock::now();
-        auto const dur            = compileEndTime - compileBeginTime;
         std::cout << "Compilation took "
-                  << std::chrono::duration_cast<std::chrono::nanoseconds>(dur)
-                             .count() /
-                         1'000'000.0
-                  << "ms\n";
+                  << utl::format_duration(compileEndTime - compileBeginTime)
+                  << "\n";
     }
 
     if (options.objpath.empty()) {

@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <svm/VirtualMachine.h>
+#include <utl/format_time.hpp>
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
@@ -35,10 +36,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Program returned with exit code: " << exitCode << std::endl;
 
     if (options.time) {
-        auto const dur = endTime - beginTime;
         std::cout << "Execution took "
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(dur)
-                         .count()
-                  << "ms." << std::endl;
+                  << utl::format_duration(endTime - beginTime) << "\n";
     }
 }
