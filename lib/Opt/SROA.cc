@@ -244,7 +244,7 @@ void VariableContext::cleanUnusedAddresses(Instruction* address) {
 
 static std::string makeName(Value const* original,
                             std::span<std::size_t const> indices) {
-    std::string result = utl::strcat(original->name(), ".slice");
+    std::string result = std::string(original->name());
     for (size_t index: indices) {
         result += utl::strcat("_", index);
     }
@@ -288,13 +288,12 @@ void VariableContext::replaceBySlicesImpl(Instruction* address,
                     auto* newLoad =
                         new Load(leaf->newScalarVar,
                                  leaf->newScalarVar->allocatedType(),
-                                 utl::strcat(load.name(), ".slice"));
+                                 std::string(load.name()));
                     bb->insert(&load, newLoad);
                     aggregate = new InsertValue(aggregate,
                                                 newLoad,
                                                 indices,
-                                                utl::strcat(load.name(),
-                                                            ".slice"));
+                                                std::string(load.name()));
                     bb->insert(&load, cast<Instruction*>(aggregate));
                 });
                 replaceValue(&load, aggregate);
