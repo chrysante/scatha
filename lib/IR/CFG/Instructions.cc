@@ -186,7 +186,7 @@ static Type const* computeAccessedTypeGen(Type const* operandType,
 }
 
 GetElementPointer::GetElementPointer(Context& context,
-                                     Type const* accessedType,
+                                     Type const* inboundsType,
                                      Value* basePointer,
                                      Value* arrayIndex,
                                      std::span<size_t const> memberIndices,
@@ -195,7 +195,7 @@ GetElementPointer::GetElementPointer(Context& context,
                 context.pointerType(),
                 std::move(name),
                 { basePointer, arrayIndex },
-                { accessedType }),
+                { inboundsType }),
     _memberIndices(memberIndices | ranges::to<utl::small_vector<uint16_t>>) {}
 
 Type const* GetElementPointer::accessedType() const {

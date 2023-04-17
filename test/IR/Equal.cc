@@ -133,6 +133,9 @@ EqResult FuncEqContext::compareInstructions() {
 }
 
 bool FuncEqContext::typeEqual(ir::Type const* a, ir::Type const* b) const {
+    if (a == nullptr || b == nullptr) {
+        return a == b;
+    }
     if (a->category() != b->category()) {
         return false;
     }

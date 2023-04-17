@@ -178,13 +178,24 @@ static void run(mir::Module const& mod) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
 
     auto& f = mod.front();
-    opt::memToReg(ctx, f);
-    opt::propagateConstants(ctx, f);
-
-    //    opt::makeLoopCanonical(ctx, f);
 
     print(mod);
+
+    header("After SROA ");
+    opt::sroa(ctx, f);
+    print(mod);
+
+    header("After 2. SROA ");
+    opt::sroa(ctx, f);
+    print(mod);
+
+    header("After mem2reg ");
+    opt::memToReg(ctx, f);
+    print(mod);
+
     run(mod);
 }
 
-void playground::volatilePlayground(std::filesystem::path path) { mirPG(path); }
+void playground::volatilePlayground(std::filesystem::path path) {
+    volPlayground(path);
+}

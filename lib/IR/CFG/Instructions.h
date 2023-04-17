@@ -410,24 +410,25 @@ private:
 class GetElementPointer: public Instruction {
 public:
     explicit GetElementPointer(Context& context,
-                               Type const* accessedType,
+                               Type const* inboundsType,
                                Value* basePointer,
                                Value* arrayIndex,
                                std::initializer_list<size_t> memberIndices,
                                std::string name):
         GetElementPointer(context,
-                          accessedType,
+                          inboundsType,
                           basePointer,
                           arrayIndex,
                           std::span<size_t const>(memberIndices),
                           name) {}
 
-    explicit GetElementPointer(Context& context,
-                               Type const* accessedType,
-                               Value* basePointer,
-                               Value* arrayIndex,
-                               std::span<size_t const> memberIndices,
-                               std::string name);
+    explicit GetElementPointer(
+        Context& context,
+        Type const* inboundsType, // Should probably be called `inboundsType`
+        Value* basePointer,
+        Value* arrayIndex,
+        std::span<size_t const> memberIndices,
+        std::string name);
 
     /// The type of the value that the base pointer points to.
     Type const* inboundsType() const { return typeOperands()[0]; }
