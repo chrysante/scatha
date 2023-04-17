@@ -621,7 +621,9 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
     }
 
     /// Copy the last full words
-    dest = genCopy(dest, source, outerType->size() - 8 * innerWordEnd);
+    dest = genCopy(dest,
+                   source,
+                   utl::round_up(outerType->size(), 8) - 8 * innerWordEnd);
 }
 
 void CodeGenContext::genInst(ir::Select const& select) {
