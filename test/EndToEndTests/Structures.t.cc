@@ -263,3 +263,19 @@ func i32 @sum(ptr %data, i32 %count) {
     return i32 %acc
 })");
 }
+
+TEST_CASE("Nested structure access of small types",
+          "[end-to-end][array-access]") {
+    test::checkIRReturns(7, R"(
+struct @Y { i32 }
+struct @X { @Y, i32 }
+func i32 @main() {
+  %entry:
+    %0 = insert_value @X undef, i32 3, 0, 0
+    %1 = insert_value @X %0, i32 4, 1
+    %2 = extract_value @X %1, 0, 0
+    %3 = extract_value @X %1, 1
+    %4 = add i32 %2, i32 %3
+    return i32 %4
+})");
+}

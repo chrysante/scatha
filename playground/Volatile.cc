@@ -133,17 +133,17 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    bool const optimize = true;
+    bool const optimize = false;
 
     if (optimize) {
-        if (true) {
+        if (false) {
             opt::inlineFunctions(ctx, irMod);
             opt::deadFuncElim(ctx, irMod);
         }
         else {
             for (auto& F: irMod) {
+                opt::sroa(ctx, F);
                 opt::memToReg(ctx, F);
-                opt::propagateConstants(ctx, F);
             }
         }
     }
