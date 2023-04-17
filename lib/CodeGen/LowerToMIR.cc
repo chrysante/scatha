@@ -600,8 +600,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
         auto* maskedSource = nextRegister();
 
         auto* sourceMask =
-            result.constant(makeWordMask(innerByteOffset, innerType->size()),
-                            8);
+            result.constant(makeWordMask(0, 8 - innerType->size()), 8);
         addNewInst(mir::InstCode::Arithmetic,
                    maskedSource,
                    { source, sourceMask },
