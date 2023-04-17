@@ -20,16 +20,22 @@ using namespace opt;
 namespace {
 
 struct AccessTreeNode {
-    AccessTreeNode(size_t index = 0): index(index) {}
+    AccessTreeNode(Type const* type): type(type) {
+        if (auto* sType = type ? dyncast<StructureType const*>(type) : nullptr)
+        {
+            children.resize(sType->members().size());
+        }
+    }
 
     void setChildAt(size_t index, std::unique_ptr<AccessTreeNode> node) {
-        if (index >= children.size()) {
+        if (!parent && children.size() <= index) {
             children.resize(index + 1);
         }
-        SC_ASSERT(children[index] == nullptr, "");
+        SC_ASSERT(children[index] == nullptr, "Already set");
         node->parent    = this;
         node->index     = index;
         children[index] = std::move(node);
+        anyChildSet     = true;
     }
 
     AccessTreeNode* childAt(size_t index) const {
@@ -42,7 +48,8 @@ struct AccessTreeNode {
     Type const* type       = nullptr;
     Alloca* newScalarVar   = nullptr;
     AccessTreeNode* parent = nullptr;
-    size_t index           = 0; // Index in parent
+    size_t index     : 63  = 0; // Index in parent
+    bool anyChildSet : 1   = false;
     utl::small_vector<std::unique_ptr<AccessTreeNode>> children;
 };
 
@@ -125,7 +132,7 @@ struct VariableContext {
     utl::small_vector<Load*, 32> loads;
 
     /// The access trees. This only has as many elements the alloca allocates.
-    AccessTreeNode accessTree;
+    AccessTreeNode accessTree{ nullptr };
 };
 
 } // namespace
@@ -157,9 +164,10 @@ void VariableContext::slice() {
 }
 
 bool VariableContext::buildAccessTree() {
-    auto owner = std::make_unique<AccessTreeNode>();
+    auto owner = std::make_unique<AccessTreeNode>(baseAlloca->allocatedType());
     addressToTreeNodes.insert({ baseAlloca, owner.get() });
     owner->type = baseAlloca->allocatedType();
+    accessTree.children.resize(1);
     accessTree.setChildAt(0, std::move(owner));
     if (!buildAccessTreeImpl(nullptr, baseAlloca)) {
         return false;
@@ -191,20 +199,26 @@ bool VariableContext::buildAccessTreeImpl(AccessTreeNode* parent,
         else if (gep->constantArrayIndex() != 0) {
             return false;
         }
+        auto* type = gep->inboundsType();
         for (size_t i = 0; i < indices.size(); ++i) {
             size_t const index = indices[i];
             node               = parent->childAt(index);
             if (!node) {
-                auto owner = std::make_unique<AccessTreeNode>();
+                auto* memberType = [&] {
+                    if (parent == &accessTree) {
+                        return type;
+                    }
+                    auto* sType = cast<StructureType const*>(type);
+                    return sType->memberAt(index);
+                }();
+                auto owner = std::make_unique<AccessTreeNode>(memberType);
                 node       = owner.get();
                 parent->setChildAt(index, std::move(owner));
+                type = memberType;
             }
             parent = node;
         }
         addressToTreeNodes.insert({ gep, node });
-        if (!node->type) {
-            node->type = gep->accessedType();
-        }
     }
     else {
         SC_ASSERT(isa<Alloca>(address), "");
@@ -245,15 +259,16 @@ void VariableContext::completeAccessTree() {
 }
 
 void VariableContext::completeAccessTreeImpl(AccessTreeNode* node) {
-    if (node->children.empty()) {
+    if (!node->anyChildSet) {
         return;
     }
     SC_ASSERT(node->type, "");
     for (auto&& [index, child]: node->children | ranges::views::enumerate) {
         if (!child) {
-            node->setChildAt(index, std::make_unique<AccessTreeNode>());
             auto* sType = cast<StructureType const*>(node->type);
-            child->type = sType->memberAt(index);
+            node->setChildAt(index,
+                             std::make_unique<AccessTreeNode>(
+                                 sType->memberAt(index)));
         }
         else {
             completeAccessTreeImpl(child.get());
@@ -318,7 +333,7 @@ void VariableContext::replaceBySlicesImpl(Instruction* address,
         // clang-format off
         visit(*user, utl::overload{
             [&](Load& load) {
-                if (node->children.empty()) {
+                if (!node->anyChildSet) {
                     load.setAddress(node->newScalarVar);
                     return;
                 }
@@ -340,7 +355,7 @@ void VariableContext::replaceBySlicesImpl(Instruction* address,
                 bb->erase(&load);
             },
             [&](Store& store) {
-                if (node->children.empty()) {
+                if (!node->anyChildSet) {
                     store.setAddress(node->newScalarVar);
                     return;
                 }
@@ -369,25 +384,28 @@ void VariableContext::accessTreeLeafWalk(
         callback) {
     utl::small_vector<size_t> indices;
     auto impl = [&](auto* node, auto impl) -> void {
-        bool const addIndex = node->parent != nullptr;
-        if (addIndex) {
-            indices.push_back(0);
-        }
-        for (auto& child: node->children) {
-            SC_ASSERT(child || !node->parent,
-                      "completeAccessTree() should have made this non-null if "
-                      "we are not at level zero");
-            if (child) {
-                impl(child.get(), impl);
+        if (node->anyChildSet) {
+            bool const addIndex = node->parent != nullptr;
+            if (addIndex) {
+                indices.push_back(0);
+            }
+            for (auto& child: node->children) {
+                SC_ASSERT(
+                    child || !node->parent,
+                    "completeAccessTree() should have made this non-null if "
+                    "we are not at level zero");
+                if (child) {
+                    impl(child.get(), impl);
+                }
+                if (addIndex) {
+                    ++indices.back();
+                }
             }
             if (addIndex) {
-                ++indices.back();
+                indices.pop_back();
             }
         }
-        if (addIndex) {
-            indices.pop_back();
-        }
-        if (node->children.empty()) {
+        else {
             callback(node, indices);
         }
     };

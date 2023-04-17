@@ -41,16 +41,19 @@ func i64 @main() {
     %a_0.0 = alloca i64, i32 1
     %a_1.0 = alloca i64, i32 1
     %a_0.2 = alloca i64, i32 1
+    %a_1.2 = alloca i64, i32 1
     %x.0 = insert_value @X undef, i64 1, 0
     %x.1 = insert_value @X %x.0, i64 2, 1
     %a_0.4 = extract_value @X %x.1, 0
     store ptr %a_0.0, i64 %a_0.4
-    %a_1.2 = extract_value @X %x.1, 1
-    store ptr %a_1.0, i64 %a_1.2
+    %a_1.4 = extract_value @X %x.1, 1
+    store ptr %a_1.0, i64 %a_1.4
     %x.2 = insert_value @X undef, i64 1, 0
     %x.3 = insert_value @X %x.0, i64 2, 1
     %a_0.6 = extract_value @X %x.3, 0
     store ptr %a_0.2, i64 %a_0.6
+    %a_1.6 = extract_value @X %x.3, 1
+    store ptr %a_1.2, i64 %a_1.6
     %res.0 = load i64, ptr %a_1.0
     %res.1 = load i64, ptr %a_0.2
     %res = add i64 %res.0, i64 %res.1
@@ -220,11 +223,14 @@ func i64 @main(i1 %cond) {
     %array_2.0 = alloca i64, i32 1
     %array_0.2 = alloca i64, i32 1
     %array_1.2 = alloca i64, i32 1
+    %array_2.2 = alloca i64, i32 1
     %x.1.value.1 = load i64, ptr %array_0.2
     %x.1.value.3 = insert_value @X undef, i64 %x.1.value.1, 0
     %x.1.value.5 = load i64, ptr %array_1.2
     %x.1.value.7 = insert_value @X %x.1.value.3, i64 %x.1.value.5, 1
-    call void @takeX, @X %x.1.value.7
+    %x.1.value.9 = load i64, ptr %array_2.2
+    %x.1.value.11 = insert_value @X %x.1.value.7, i64 %x.1.value.9, 2
+    call void @takeX, @X %x.1.value.11
     store ptr %array_1.2, i64 5
     store ptr %array_2.0, i64 3
     goto label %end

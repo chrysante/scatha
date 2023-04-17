@@ -412,6 +412,10 @@ void PrintCtx::name(Value const* value) const { str << formatName(value); }
 void PrintCtx::type(Type const* type) const { str << formatType(type); }
 
 void PrintCtx::typedName(Value const* value) const {
+    if (!value) {
+        str << "<null>";
+        return;
+    }
     if (isa<BasicBlock>(value)) {
         str << label();
     }
