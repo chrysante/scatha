@@ -3,8 +3,7 @@
 #include <range/v3/algorithm.hpp>
 #include <string>
 
-#include "CodeGen/DataFlow.h"
-#include "CodeGen/LowerToMIR.h"
+#include "CodeGen/Passes.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Parser.h"

@@ -8,8 +8,7 @@
 
 #include "APFloatTest.h"
 #include "Assembly.h"
-#include "CodeGen/DestroySSA.h"
-#include "CodeGen/LowerToMIR.h"
+#include "CodeGen/Passes.h"
 #include "DrawGraph.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
