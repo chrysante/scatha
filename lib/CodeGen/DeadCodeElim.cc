@@ -68,7 +68,9 @@ void DCEContext::visitInstruction(mir::Instruction* inst) {
                   ranges::to<utl::small_vector<mir::SSARegister*>>;
     inst->clearOperands();
     for (auto* reg: ssaOps) {
-        visitInstruction(reg->def());
+        if (reg->def()) { /// `reg->def()` could be null if `reg` is a parameter
+            visitInstruction(reg->def());
+        }
     }
 }
 
