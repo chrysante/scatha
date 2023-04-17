@@ -58,7 +58,18 @@ struct VariableContext {
 
     void cleanUnusedAddresses(Instruction* address);
 
+    /// Build the access tree with using all the GEPs that directly or indirectly
+    /// access this alloca.
     bool buildAccessTreeImpl(AccessTreeNode* parent, Instruction* address);
+
+    /// Fill in all the gaps in the access tree that are not directly accessed.
+    /// I.e. when of `struct { x, y, z }` only `y` is directly accessed, the
+    /// nodes corresponding to `x` and `z` will be null. But they need to be
+    /// present otherwise their value, say from another store to the complete
+    /// structure, will be lost.
+    void completeAccessTree();
+
+    void completeAccessTreeImpl(AccessTreeNode* node);
 
     void addAllocasForLeaves();
 
@@ -150,7 +161,11 @@ bool VariableContext::buildAccessTree() {
     addressToTreeNodes.insert({ baseAlloca, owner.get() });
     owner->type = baseAlloca->allocatedType();
     accessTree.setChildAt(0, std::move(owner));
-    return buildAccessTreeImpl(nullptr, baseAlloca);
+    if (!buildAccessTreeImpl(nullptr, baseAlloca)) {
+        return false;
+    }
+    completeAccessTree();
+    return true;
 }
 
 /// First this gets called with the `alloca` instruction and then recursively
@@ -219,6 +234,31 @@ bool VariableContext::buildAccessTreeImpl(AccessTreeNode* parent,
         return false;
     }
     return true;
+}
+
+void VariableContext::completeAccessTree() {
+    for (auto& node: accessTree.children) {
+        if (node) {
+            completeAccessTreeImpl(node.get());
+        }
+    }
+}
+
+void VariableContext::completeAccessTreeImpl(AccessTreeNode* node) {
+    if (node->children.empty()) {
+        return;
+    }
+    SC_ASSERT(node->type, "");
+    for (auto&& [index, child]: node->children | ranges::views::enumerate) {
+        if (!child) {
+            node->setChildAt(index, std::make_unique<AccessTreeNode>());
+            auto* sType = cast<StructureType const*>(node->type);
+            child->type = sType->memberAt(index);
+        }
+        else {
+            completeAccessTreeImpl(child.get());
+        }
+    }
 }
 
 void VariableContext::cleanUnusedLoads() {
@@ -334,6 +374,9 @@ void VariableContext::accessTreeLeafWalk(
             indices.push_back(0);
         }
         for (auto& child: node->children) {
+            SC_ASSERT(child || !node->parent,
+                      "completeAccessTree() should have made this non-null if "
+                      "we are not at level zero");
             if (child) {
                 impl(child.get(), impl);
             }
