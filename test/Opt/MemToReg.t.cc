@@ -1,16 +1,13 @@
 #include <Catch/Catch2.hpp>
 
-#include "IR/CFG.h"
-#include "IR/Context.h"
-#include "IR/Module.h"
-#include "IR/Parser.h"
 #include "Opt/MemToReg.h"
-#include "test/IR/EqualityTestHelper.h"
+#include "test/Opt/PassTest.h"
 
 using namespace scatha;
 
 TEST_CASE("MemToReg - 1", "[opt][mem-to-reg]") {
-    auto const text              = R"(
+    test::passTest(&opt::memToReg,
+                   R"(
 func i64 @f(i64) {
   %entry:
     %i = alloca i64
@@ -65,85 +62,45 @@ func i64 @f(i64) {
     %++.result = add i64 %++.value.1, i64 1
     store ptr %j, i64 %++.result
     goto label %loop.header
-})";
-    auto [ctx, mod]              = ir::parse(text).value();
-    auto& f                      = mod.front();
-    bool const modifiedFirstTime = opt::memToReg(ctx, f);
-    CHECK(modifiedFirstTime);
-    bool const modifiedSecondTime = opt::memToReg(ctx, f);
-    CHECK(!modifiedSecondTime); /// `mem2reg` should be idempotent
-    using namespace test::ir;
-    using enum scatha::ir::NodeType;
-    // clang-format off
-    testModule(&mod).functions({
-        testFunction("f").parameters({ "i64" }).basicBlocks({
-            testBasicBlock("entry").instructions({
-                testInstruction("")
-                    .instType(Goto)
-            }),
-            testBasicBlock("loop.header").instructions({
-                testInstruction("j.0")
-                    .instType(Phi)
-                    .references({ "++.result" }),
-                testInstruction("result.0")
-                    .instType(Phi)
-                    .references({ "result.5" }),
-                testInstruction("cmp.result")
-                    .instType(CompareInst)
-                    .references({ "j.0" }),
-                testInstruction("")
-                    .instType(Branch)
-                    .references({ "cmp.result" })
-            }),
-            testBasicBlock("loop.body").instructions({
-                testInstruction("expr.result")
-                    .instType(ArithmeticInst)
-                    .references({ "result.0" }),
-                testInstruction("cmp.result.1")
-                    .instType(CompareInst)
-                    .references({ "expr.result" }),
-                testInstruction("")
-                    .instType(Branch)
-                    .references({ "cmp.result.1" })
-            }),
-            testBasicBlock("loop.end").instructions({
-                testInstruction("")
-                    .instType(Return)
-                    .references({ "result.0" })
-            }),
-            testBasicBlock("then").instructions({
-                testInstruction("expr.result.1")
-                    .instType(ArithmeticInst)
-                    .references({ "result.0", "j.0" }),
-                testInstruction("")
-                    .instType(Goto)
-            }),
-            testBasicBlock("else").instructions({
-                testInstruction("expr.result.2")
-                    .instType(ArithmeticInst)
-                    .references({ "result.0" }),
-                testInstruction("expr.result.3")
-                    .instType(ArithmeticInst)
-                    .references({ "expr.result.2", "j.0" }),
-                testInstruction("")
-                    .instType(Goto)
-            }),
-            testBasicBlock("if.end").instructions({
-                testInstruction("result.5")
-                    .instType(Phi)
-                    .references({ "expr.result.1", "expr.result.3" }),
-                testInstruction("++.result")
-                    .instType(ArithmeticInst)
-                    .references({ "j.0" }),
-                testInstruction("")
-                    .instType(Goto)
-            })
-        })
-    }); // clang-format on
+})",
+                   R"(
+func i64 @f(i64 %0) {
+  %entry:
+    goto label %loop.header
+
+  %loop.header:               # preds: entry, if.end
+    %j.0 = phi i64 [label %entry : 1], [label %if.end : %++.result]
+    %result.0 = phi i64 [label %entry : 0], [label %if.end : %result.5]
+    %cmp.result = scmp leq i64 %j.0, i64 5
+    branch i1 %cmp.result, label %loop.body, label %loop.end
+
+  %loop.body:                 # preds: loop.header
+    %expr.result = urem i64 %result.0, i64 2
+    %cmp.result.1 = scmp eq i64 %expr.result, i64 0
+    branch i1 %cmp.result.1, label %then, label %else
+
+  %loop.end:                  # preds: loop.header
+    return i64 %result.0
+
+  %then:                      # preds: loop.body
+    %expr.result.1 = add i64 %result.0, i64 %j.0
+    goto label %if.end
+
+  %else:                      # preds: loop.body
+    %expr.result.2 = mul i64 2, i64 %result.0
+    %expr.result.3 = sub i64 %expr.result.2, i64 %j.0
+    goto label %if.end
+
+  %if.end:                    # preds: then, else
+    %result.5 = phi i64 [label %then : %expr.result.1], [label %else : %expr.result.3]
+    %++.result = add i64 %j.0, i64 1
+    goto label %loop.header
+})");
 }
 
 TEST_CASE("MemToReg - 2", "[opt][mem-to-reg]") {
-    auto const text              = R"(
+    test::passTest(&opt::memToReg,
+                   R"(
 func i64 @f(i64) {
   %entry:
     %n = alloca i64
@@ -161,37 +118,18 @@ func i64 @f(i64) {
   %if.end:
     %n.1 = load i64, ptr %n
     return i64 %n.1
-})";
-    auto [ctx, mod]              = ir::parse(text).value();
-    auto& f                      = mod.front();
-    bool const modifiedFirstTime = opt::memToReg(ctx, f);
-    CHECK(modifiedFirstTime);
-    bool const modifiedSecondTime = opt::memToReg(ctx, f);
-    CHECK(!modifiedSecondTime); /// `mem2reg` should be idempotent
-    using namespace test::ir;
-    using enum scatha::ir::NodeType;
-    // clang-format off
-    testModule(&mod).functions({
-        testFunction("f").parameters({ "i64" }).basicBlocks({
-            testBasicBlock("entry").instructions({
-                testInstruction("cmp.result")
-                    .instType(CompareInst)
-                    .references({ "0" }),
-                testInstruction("")
-                    .instType(Branch)
-                    .references({ "cmp.result" }),
-            }),
-            testBasicBlock("then").instructions({
-                testInstruction("")
-                    .instType(Goto)
-            }),
-            testBasicBlock("if.end").instructions({
-                testInstruction("n.0")
-                    .instType(Phi),
-                testInstruction("")
-                    .instType(Return)
-                    .references({ "n.0" })
-            }),
-        })
-    }); // clang-format on
+})",
+                   R"(
+func i64 @f(i64 %0) {
+  %entry:
+    %cmp.result = scmp grt i64 %0, i64 0
+    branch i1 %cmp.result, label %then, label %if.end
+
+  %then:                      # preds: entry
+    goto label %if.end
+
+  %if.end:                    # preds: entry, then
+    %n.0 = phi i64 [label %entry : undef], [label %then : 1]
+    return i64 %n.0
+})");
 }
