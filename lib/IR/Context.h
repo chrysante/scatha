@@ -66,6 +66,10 @@ public:
     /// \returns An opaque value of type void.
     Value* voidValue();
 
+    /// \Returns `true` iff associativity of floating point arithmetic
+    /// operations may be assumed
+    bool commutativeFloatArithmetic() const { return true; /*  For now */ }
+
 private:
     /// ## Constants
     /// ** Bitwidth must appear before the value, because comparison of values

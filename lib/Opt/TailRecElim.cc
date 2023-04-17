@@ -81,7 +81,7 @@ struct TREContext {
 
     bool isInterestingCall(Value const* inst) const;
 
-    static bool isCommutativeAndAssociative(ArithmeticInst const* inst);
+    bool isCommutativeAndAssociative(ArithmeticInst const* inst) const;
 
     Value* identityValue(ArithmeticInst const* inst) const;
 
@@ -397,9 +397,7 @@ bool TREContext::isInterestingCall(Value const* inst) const {
     return call && call->function() == &function;
 }
 
-static constexpr bool FloatsAreCommutativeAndAssociative = true;
-
-bool TREContext::isCommutativeAndAssociative(ArithmeticInst const* inst) {
+bool TREContext::isCommutativeAndAssociative(ArithmeticInst const* inst) const {
     switch (inst->operation()) {
     case ArithmeticOperation::Add:
     case ArithmeticOperation::Mul:
@@ -410,7 +408,7 @@ bool TREContext::isCommutativeAndAssociative(ArithmeticInst const* inst) {
 
     case ArithmeticOperation::FAdd:
     case ArithmeticOperation::FMul:
-        return FloatsAreCommutativeAndAssociative;
+        return irCtx.commutativeFloatArithmetic();
     default:
         return false;
     }

@@ -69,11 +69,13 @@ Value* InstCombineCtx::visitInstruction(Instruction* inst) {
 }
 
 static bool isConstant(Value const* value, int constant) {
-    auto* cval = dyncast<IntegralConstant const*>(value);
-    if (!cval) {
-        return false;
+    if (auto* cval = dyncast<IntegralConstant const*>(value)) {
+        return cval->value() == static_cast<uint64_t>(constant);
     }
-    return cval->value() == static_cast<uint64_t>(constant);
+    if (auto* cval = dyncast<FloatingPointConstant const*>(value)) {
+        return cval->value() == static_cast<double>(constant);
+    }
+    return false;
 }
 
 Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
@@ -95,7 +97,8 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         if (isConstant(rhs, 0)) {
             return lhs;
         }
-        if (lhs == rhs && intType) {
+        if (lhs == rhs) {
+            SC_ASSERT(intType, "");
             return irCtx.integralConstant(0, intType->bitWidth());
         }
         break;
@@ -103,12 +106,22 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         if (isConstant(rhs, 0)) {
             return lhs;
         }
-        if (lhs == rhs && floatType) {
+        if (lhs == rhs) {
+            SC_ASSERT(floatType, "");
             return irCtx.floatConstant(0.0, floatType->bitWidth());
         }
         break;
 
     case ArithmeticOperation::Mul:
+        if (isConstant(lhs, 1)) {
+            return rhs;
+        }
+        if (isConstant(rhs, 1)) {
+            return lhs;
+        }
+        break;
+
+    case ArithmeticOperation::FMul:
         if (isConstant(lhs, 1)) {
             return rhs;
         }
