@@ -57,11 +57,8 @@
 #define _SCATHA_PD_API() __declspec(dllexport)
 #endif
 
-// TODO: Make this conditional based on wether this is actually a test build.
-#define _SCATHA_PD_TESTAPI() _SCATHA_PD_API()
-
 #define SCATHA_API     _SCATHA_PD_API()
-#define SCATHA_TESTAPI _SCATHA_PD_TESTAPI()
+#define SCATHA_TESTAPI /// Can be removed once it's removed from all interfaces
 
 // Disable UBSAN for certain integer shift operations. Maybe rethink this later.
 #if defined(__clang__) && __clang_major__ >= 10

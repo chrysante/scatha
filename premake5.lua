@@ -34,6 +34,7 @@ filter "system:macosx"
         "-Wold-style-cast", 
         "-Wno-sign-compare", 
         "-Wno-unused-parameter",
+        "-Wmissing-field-initializers"
     }
     xcodebuildsettings { 
         ["INSTALL_PATH"]            = "@executable_path",
@@ -59,7 +60,7 @@ externalincludedirs {
 includedirs { "lib" }
 links { "apmath", "termfmt" }
 
-filter "system:macosx"
+filter { "system:macosx", "configurations:Release" }
 buildoptions "-fvisibility=hidden"
 filter {}
 
