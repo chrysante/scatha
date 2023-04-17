@@ -179,17 +179,15 @@ static void run(mir::Module const& mod) {
 
     auto& f = mod.front();
 
+    header(" Before SROA ");
+
     print(mod);
 
-    header("After SROA ");
+    header(" After SROA ");
     opt::sroa(ctx, f);
     print(mod);
 
-    header("After 2. SROA ");
-    opt::sroa(ctx, f);
-    print(mod);
-
-    header("After mem2reg ");
+    header(" After mem2reg ");
     opt::memToReg(ctx, f);
     print(mod);
 

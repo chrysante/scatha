@@ -58,8 +58,8 @@ struct VariableContext {
 
     void cleanUnusedAddresses(Instruction* address);
 
-    /// Build the access tree with using all the GEPs that directly or indirectly
-    /// access this alloca.
+    /// Build the access tree with using all the GEPs that directly or
+    /// indirectly access this alloca.
     bool buildAccessTreeImpl(AccessTreeNode* parent, Instruction* address);
 
     /// Fill in all the gaps in the access tree that are not directly accessed.
