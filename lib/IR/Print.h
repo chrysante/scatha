@@ -23,7 +23,10 @@ SCATHA_API void print(Function const& function, std::ostream& ostream);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     Instruction const& inst);
 
-SCATHA_API std::string toString(Value const& value);
+[[deprecated("Use pointer API")]] SCATHA_API std::string toString(
+    Value const& value);
+
+SCATHA_API std::string toString(Value const* value);
 
 } // namespace scatha::ir
 

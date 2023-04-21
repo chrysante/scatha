@@ -87,10 +87,15 @@ std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
     return ostream;
 }
 
-std::string ir::toString(Value const& value) {
+std::string ir::toString(Value const& value) { return toString(&value); }
+
+std::string ir::toString(Value const* value) {
+    if (!value) {
+        return "<null-value>";
+    }
     // clang-format off
-    return visit(value, utl::overload{
-        [&](Function const& func) { return utl::strcat("@", value.name()); },
+    return visit(*value, utl::overload{
+        [&](Function const& func) { return utl::strcat("@", func.name()); },
         [&](Value const& value) { return utl::strcat("%", value.name()); },
         [&](IntegralConstant const& value) {
             return value.value().toString();
