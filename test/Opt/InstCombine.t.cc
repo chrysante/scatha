@@ -46,6 +46,22 @@ func i32 @main(i32 %0) {
 })");
 }
 
+TEST_CASE("InstCombine - Arithmetic - 3", "[opt][inst-combine]") {
+    test::passTest(&opt::instCombine,
+                   R"(
+func i32 @main(i32 %0) {
+  %entry:
+    %z = sub i32 %0, i32 %0
+    %i = sdiv i32 %0, i32 %z
+    return i32 %i
+})",
+                   R"(
+func i32 @main(i32 %0) {
+  %entry:
+    return i32 undef
+})");
+}
+
 TEST_CASE("InstCombine - InsertValue - 1", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
