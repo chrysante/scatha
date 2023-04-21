@@ -24,7 +24,7 @@ Common/UniquePtr.h
 CodeGen/CodeGen.h
 
 IR/Context.h
-IR/Common.h
+IR/Fwd.h
 IR/CFG/Lists.def
 IR/Module.h
 IR/Type.h

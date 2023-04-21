@@ -3,7 +3,7 @@
 
 #include "Basic/Basic.h"
 #include "Common/UniquePtr.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::ir {
 

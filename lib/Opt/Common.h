@@ -4,7 +4,7 @@
 #include <span>
 
 #include "Basic/Basic.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::opt {
 

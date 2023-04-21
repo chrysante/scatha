@@ -7,7 +7,7 @@
 
 #include "Basic/Basic.h"
 #include "Common/Graph.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::opt {
 

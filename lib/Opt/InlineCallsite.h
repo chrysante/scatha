@@ -1,7 +1,7 @@
 #ifndef SCATHA_OPT_INLINECALLSITE_H_
 #define SCATHA_OPT_INLINECALLSITE_H_
 
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::ir {
 

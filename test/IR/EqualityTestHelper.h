@@ -5,7 +5,7 @@
 
 #include <utl/vector.hpp>
 
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::test::ir {
 

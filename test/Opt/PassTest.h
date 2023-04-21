@@ -4,7 +4,7 @@
 #include <functional>
 #include <string>
 
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::test {
 

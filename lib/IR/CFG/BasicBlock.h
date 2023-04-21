@@ -6,7 +6,7 @@
 #include "IR/CFG/Instruction.h"
 #include "IR/CFG/Iterator.h"
 #include "IR/CFG/Value.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::ir {
 

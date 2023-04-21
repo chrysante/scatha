@@ -9,7 +9,7 @@
 
 #include "Basic/Basic.h"
 #include "Basic/OpaqueRange.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::ir {
 

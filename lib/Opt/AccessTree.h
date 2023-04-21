@@ -9,7 +9,7 @@
 #include <utl/function_view.hpp>
 #include <utl/vector.hpp>
 
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 #include "IR/Type.h"
 
 namespace scatha::internal {

@@ -1,23 +1,7 @@
-// SCATHA-PUBLIC-HEADER
-
-#ifndef SCATHA_IR_COMMON_H_
-#define SCATHA_IR_COMMON_H_
-
-#include <iosfwd>
-#include <string_view>
-
-#include <utl/hash.hpp>
-
-#include <scatha/Basic/Basic.h>
-#include <scatha/Common/Dyncast.h>
-
-namespace scatha::ir {
-
-class Context;
-
-class Module;
-
-/// ## Forward declarations of all GFC node types
+/// This file forward-declares all types in the IR folder and declares some
+/// basic functions on them.
+///
+/// # CFG class hierarchy
 /// ```
 /// Value
 /// ├─ Parameter
@@ -52,17 +36,35 @@ class Module;
 ///       └─ Select
 /// ```
 
+#ifndef SCATHA_IR_FWD_H_
+#define SCATHA_IR_FWD_H_
+
+#include <iosfwd>
+#include <string_view>
+
+#include <utl/hash.hpp>
+
+#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Dyncast.h>
+
+namespace scatha::ir {
+
+class Context;
+
+class Module;
+
+/// Forward declaration of CFG nodes
 #define SC_CGFNODE_DEF(Node, _) class Node;
 #include <scatha/IR/CFG/Lists.def>
 
-/// List of all CFG node type.
+/// List of all CFG node type
 enum class NodeType {
 #define SC_CGFNODE_DEF(Node, _) Node,
 #include <scatha/IR/CFG/Lists.def>
     _count
 };
 
-/// Convert \p nodeType to string.
+/// Convert \p nodeType to string
 SCATHA_API std::string_view toString(NodeType nodeType);
 
 /// Insert \p nodeType into \p ostream.
@@ -75,10 +77,10 @@ enum class Conversion {
     _count
 };
 
-/// Convert \p conv to string.
+/// Convert \p conv to string
 SCATHA_API std::string_view toString(Conversion conv);
 
-/// Insert \p conv into \p ostream.
+/// Insert \p conv into \p ostream
 SCATHA_API std::ostream& operator<<(std::ostream& ostream, Conversion conv);
 
 /// List of compare modes (signed, unsigned, float)
@@ -88,7 +90,7 @@ enum class CompareMode {
     _count
 };
 
-/// Convert \p compareMode to string.
+/// Convert \p compareMode to string
 SCATHA_API std::string_view toString(CompareMode compareMode);
 
 /// Insert \p compareMode into \p ostream.
@@ -102,7 +104,7 @@ enum class CompareOperation {
     _count
 };
 
-/// Convert \p compareOp to string.
+/// Convert \p compareOp to string
 SCATHA_API std::string_view toString(CompareOperation compareOp);
 
 /// Insert \p compareOp into \p ostream.
@@ -126,7 +128,7 @@ enum class UnaryArithmeticOperation {
     _count
 };
 
-/// Convert \p unaryArithmeticOp to string.
+/// Convert \p unaryArithmeticOp to string
 SCATHA_API std::string_view toString(
     UnaryArithmeticOperation unaryArithmeticOp);
 
@@ -134,17 +136,17 @@ SCATHA_API std::string_view toString(
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     UnaryArithmeticOperation unaryArithmeticOp);
 
-/// List of all binary arithmetic operations in the IR module.
+/// List of all binary arithmetic operations in the IR module
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Op, _) Op,
 #include <scatha/IR/CFG/Lists.def>
     _count
 };
 
-/// Convert \p arithmeticOp to string.
+/// Convert \p arithmeticOp to string
 SCATHA_API std::string_view toString(ArithmeticOperation arithmeticOp);
 
-/// Insert \p arithmeticOp into \p ostream.
+/// Insert \p arithmeticOp into \p ostream
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     ArithmeticOperation arithmeticOp);
 
@@ -155,14 +157,14 @@ bool isShift(ArithmeticOperation arithmeticOp);
 #define SC_TYPE_CATEGORY_DEF(TypeCat) class TypeCat;
 #include <scatha/IR/CFG/Lists.def>
 
-/// List of all type categories.
+/// List of all type categories
 enum class TypeCategory {
 #define SC_TYPE_CATEGORY_DEF(TypeCat) TypeCat,
 #include <scatha/IR/CFG/Lists.def>
     _count
 };
 
-/// List of all visibility kinds.
+/// List of all visibility kinds
 enum class Visibility {
 #define SC_VISKIND_DEF(vis) vis,
 #include <scatha/IR/CFG/Lists.def>
@@ -252,4 +254,4 @@ class LoopNestingForest;
 
 } // namespace scatha::ir
 
-#endif // SCATHA_IR_COMMON_H_
+#endif // SCATHA_IR_FWD_H_

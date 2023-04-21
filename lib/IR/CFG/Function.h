@@ -10,7 +10,7 @@
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Constant.h"
 #include "IR/CFG/UniqueName.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::ir {
 

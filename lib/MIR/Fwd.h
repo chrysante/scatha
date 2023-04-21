@@ -6,7 +6,7 @@
 
 #include "Basic/Basic.h"
 #include "Common/Dyncast.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::mir {
 

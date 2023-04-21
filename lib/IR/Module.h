@@ -11,7 +11,7 @@
 #include <scatha/Basic/OpaqueRange.h>
 #include <scatha/Common/List.h>
 #include <scatha/Common/UniquePtr.h>
-#include <scatha/IR/Common.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

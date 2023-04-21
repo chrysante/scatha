@@ -11,7 +11,7 @@
 #include <utl/vector.hpp>
 
 #include <scatha/Basic/Basic.h>
-#include <scatha/IR/Common.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {
 

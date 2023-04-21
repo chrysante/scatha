@@ -1,4 +1,4 @@
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 #include <ostream>
 

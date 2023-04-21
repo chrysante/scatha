@@ -2,7 +2,7 @@
 #define SCATHA_IR_VALIDATE_H_
 
 #include "Basic/Basic.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::ir {
 

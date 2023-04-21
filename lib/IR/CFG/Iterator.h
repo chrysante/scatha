@@ -2,7 +2,7 @@
 #define SCATHA_IR_ITERATOR_H_
 
 #include "Common/List.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::ir::internal {
 

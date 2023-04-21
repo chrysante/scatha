@@ -3,7 +3,7 @@
 
 #include "Basic/Basic.h"
 #include "IR/CFG/User.h"
-#include "IR/Common.h"
+#include "IR/Fwd.h"
 
 namespace scatha::ir {
 
