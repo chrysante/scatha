@@ -15,9 +15,9 @@
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Fwd.h>
+#include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
-#include <scatha/Common/Token.h>
 #include <scatha/Sema/Function.h>
 #include <scatha/Sema/ObjectType.h>
 #include <scatha/Sema/OverloadSet.h>

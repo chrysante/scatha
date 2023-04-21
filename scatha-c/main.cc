@@ -13,9 +13,9 @@
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
 #include <scatha/Issue/Format.h>
-#include <scatha/Lexer/Lexer.h>
-#include <scatha/Lexer/LexicalIssue.h>
 #include <scatha/Opt/Optimizer.h>
+#include <scatha/Parser/Lexer.h>
+#include <scatha/Parser/LexicalIssue.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Parser/SyntaxIssue.h>
 #include <scatha/Sema/Analyze.h>

@@ -1,7 +1,7 @@
 #include <Catch/Catch2.hpp>
 
-#include "Common/Keyword.h"
-#include "Common/Token.h"
+#include "AST/Keyword.h"
+#include "AST/Token.h"
 
 using namespace scatha;
 

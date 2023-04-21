@@ -1,0 +1,130 @@
+// No include guards
+
+// ===----------------------------------------------------------------------===
+// === List of all keyword tokens ------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_KEYWORD_TOKEN_DEF
+#   define SC_KEYWORD_TOKEN_DEF(Token, str)
+#endif
+
+/// ## Types
+
+SC_KEYWORD_TOKEN_DEF(Void,       "void")
+SC_KEYWORD_TOKEN_DEF(Bool,       "bool")
+SC_KEYWORD_TOKEN_DEF(Signed8,    "s8")
+SC_KEYWORD_TOKEN_DEF(Signed16,   "s16")
+SC_KEYWORD_TOKEN_DEF(Signed32,   "s32")
+SC_KEYWORD_TOKEN_DEF(Signed64,   "s64")
+SC_KEYWORD_TOKEN_DEF(Unsigned8,  "u8")
+SC_KEYWORD_TOKEN_DEF(Unsigned16, "u16")
+SC_KEYWORD_TOKEN_DEF(Unsigned32, "u32")
+SC_KEYWORD_TOKEN_DEF(Unsigned64, "u64")
+SC_KEYWORD_TOKEN_DEF(Float32,    "f32")
+SC_KEYWORD_TOKEN_DEF(Float64,    "f64")
+SC_KEYWORD_TOKEN_DEF(Int,        "int")
+SC_KEYWORD_TOKEN_DEF(Float,      "float")
+
+/// ## Directives
+
+SC_KEYWORD_TOKEN_DEF(Import,     "import")
+SC_KEYWORD_TOKEN_DEF(Export,     "export")
+
+/// ## Declarators
+
+SC_KEYWORD_TOKEN_DEF(Module,     "module")
+SC_KEYWORD_TOKEN_DEF(Struct,     "struct")
+SC_KEYWORD_TOKEN_DEF(Function,   "function")
+SC_KEYWORD_TOKEN_DEF(Var,        "var")
+SC_KEYWORD_TOKEN_DEF(Let,        "let")
+
+/// ## Control flow
+
+SC_KEYWORD_TOKEN_DEF(Return,     "return")
+SC_KEYWORD_TOKEN_DEF(If,         "if")
+SC_KEYWORD_TOKEN_DEF(Else,       "else")
+SC_KEYWORD_TOKEN_DEF(For,        "for")
+SC_KEYWORD_TOKEN_DEF(While,      "while")
+SC_KEYWORD_TOKEN_DEF(Do,         "do")
+SC_KEYWORD_TOKEN_DEF(Break,      "break")
+SC_KEYWORD_TOKEN_DEF(Continue,   "continue")
+
+/// ## Constants
+
+SC_KEYWORD_TOKEN_DEF(False,      "false")
+SC_KEYWORD_TOKEN_DEF(True,       "true")
+
+/// ## Specifiers
+
+SC_KEYWORD_TOKEN_DEF(Public,     "public")
+SC_KEYWORD_TOKEN_DEF(Protected,  "protected")
+SC_KEYWORD_TOKEN_DEF(Private,    "private")
+
+#undef SC_KEYWORD_TOKEN_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of all operator tokens -----------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_OPERATOR_TOKEN_DEF
+#   define SC_OPERATOR_TOKEN_DEF(Token, str)
+#endif
+
+SC_OPERATOR_TOKEN_DEF(Plus,              "+")
+SC_OPERATOR_TOKEN_DEF(Minus,             "-")
+SC_OPERATOR_TOKEN_DEF(Multiplies,        "*")
+SC_OPERATOR_TOKEN_DEF(Divides,           "/")
+SC_OPERATOR_TOKEN_DEF(Remainder,         "%")
+SC_OPERATOR_TOKEN_DEF(BitAnd,            "&")
+SC_OPERATOR_TOKEN_DEF(BitOr,             "|")
+SC_OPERATOR_TOKEN_DEF(BitXOr,            "^")
+SC_OPERATOR_TOKEN_DEF(Exclam,            "!")
+SC_OPERATOR_TOKEN_DEF(Tilde,             "~")
+SC_OPERATOR_TOKEN_DEF(Increment,         "++")
+SC_OPERATOR_TOKEN_DEF(Decrement,         "--")
+SC_OPERATOR_TOKEN_DEF(LeftShift,         "<<")
+SC_OPERATOR_TOKEN_DEF(RightShift,        ">>")
+SC_OPERATOR_TOKEN_DEF(LogicalAnd,        "&&")
+SC_OPERATOR_TOKEN_DEF(LogicalOr,         "||")
+SC_OPERATOR_TOKEN_DEF(Assign,            "=")
+SC_OPERATOR_TOKEN_DEF(PlusAssign,        "+=")
+SC_OPERATOR_TOKEN_DEF(MinusAssign,       "-=")
+SC_OPERATOR_TOKEN_DEF(MultipliesAssign,  "*=")
+SC_OPERATOR_TOKEN_DEF(DividesAssign,     "/=")
+SC_OPERATOR_TOKEN_DEF(RemainderAssign,   "%=")
+SC_OPERATOR_TOKEN_DEF(LeftShiftAssign,   "<<=")
+SC_OPERATOR_TOKEN_DEF(RightShiftAssign,  ">>=")
+SC_OPERATOR_TOKEN_DEF(AndAssign,         "&=")
+SC_OPERATOR_TOKEN_DEF(OrAssign,          "|=")
+SC_OPERATOR_TOKEN_DEF(XOrAssign,         "^=")
+SC_OPERATOR_TOKEN_DEF(Equal,             "==")
+SC_OPERATOR_TOKEN_DEF(Unequal,           "!=")
+SC_OPERATOR_TOKEN_DEF(Less,              "<")
+SC_OPERATOR_TOKEN_DEF(LessEqual,         "<=")
+SC_OPERATOR_TOKEN_DEF(Greater,           ">")
+SC_OPERATOR_TOKEN_DEF(GreaterEqual,      ">=")
+SC_OPERATOR_TOKEN_DEF(Dot,               ".")
+SC_OPERATOR_TOKEN_DEF(Arrow,             "->")
+SC_OPERATOR_TOKEN_DEF(Question,          "?")
+
+#ifndef SC_OPERATOR_TOKEN_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of all punctuation tokens --------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_PUNCTUATION_TOKEN_DEF
+#   define SC_PUNCTUATION_TOKEN_DEF(Token, str)
+#endif
+
+SC_OPERATOR_TOKEN_DEF(OpenParan,    "(")
+SC_OPERATOR_TOKEN_DEF(CloseParan,   ")")
+SC_OPERATOR_TOKEN_DEF(OpenBrace,    "{")
+SC_OPERATOR_TOKEN_DEF(CloseBrace,   "}")
+SC_OPERATOR_TOKEN_DEF(OpenBracket,  "[")
+SC_OPERATOR_TOKEN_DEF(CloseBracket, "]")
+SC_OPERATOR_TOKEN_DEF(Comma,        ",")
+SC_OPERATOR_TOKEN_DEF(SemiColon,    ";")
+SC_OPERATOR_TOKEN_DEF(Colon,        ":")
+
+#undef SC_PUNCTUATION_TOKEN_DEF

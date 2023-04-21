@@ -3,7 +3,7 @@
 
 #include <string_view>
 
-#include "Common/Token.h"
+#include "AST/Token.h"
 #include "Sema/ScopeKind.h"
 #include "Sema/SymbolID.h"
 

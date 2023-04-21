@@ -3,6 +3,9 @@ AST/Fwd.h
 AST/Lists.def
 AST/Print.h
 AST/LowerToIR.h
+AST/SourceLocation.h
+AST/Token.h
+AST/Keyword.h
 
 Assembly/Assembler.h
 Assembly/AssemblyStream.h
@@ -12,11 +15,8 @@ Common/APInt.h
 Common/Base.h
 Common/Dyncast.h
 Common/Expected.h
-Common/Keyword.h
 Common/List.h
 Common/OpaqueRange.h
-Common/SourceLocation.h
-Common/Token.h
 Common/UniquePtr.h
 
 CodeGen/CodeGen.h
@@ -34,12 +34,11 @@ Issue/Format.h
 Issue/ProgramIssue.h
 Issue/VariantIssueBase.h
 
-Lexer/Lexer.h
-Lexer/LexicalIssue.h
-
 Parser/Parser.h
 Parser/SyntaxIssue.h
 Parser/Bracket.h
+Parser/Lexer.h
+Parser/LexicalIssue.h
 
 Sema/Analyze.h
 Sema/Attributes.h

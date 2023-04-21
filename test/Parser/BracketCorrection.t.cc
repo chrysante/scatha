@@ -1,7 +1,7 @@
 #include <Catch/Catch2.hpp>
 
-#include "Lexer/Lexer.h"
 #include "Parser/BracketCorrection.h"
+#include "Parser/Lexer.h"
 #include "Parser/SyntaxIssue.h"
 #include "test/IssueHelper.h"
 #include "test/Parser/SimpleParser.h"

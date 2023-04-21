@@ -3,8 +3,8 @@
 #include <iostream>
 
 #include "Common/APFloat.h"
-#include "Lexer/Lexer.h"
-#include "Lexer/LexicalIssue.h"
+#include "Parser/Lexer.h"
+#include "Parser/LexicalIssue.h"
 #include "test/IssueHelper.h"
 
 using namespace scatha;

@@ -3,8 +3,8 @@
 
 #include <string_view>
 
+#include "AST/Token.h"
 #include "Common/Base.h"
-#include "Common/Token.h"
 
 namespace scatha::parse {
 

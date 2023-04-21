@@ -12,9 +12,9 @@
 #include <utl/concepts.hpp>
 
 #include "AST/AST.h"
+#include "AST/Keyword.h"
 #include "Common/Base.h"
 #include "Common/Expected.h"
-#include "Common/Keyword.h"
 #include "Parser/SyntaxIssue.h"
 #include "Parser/TokenStream.h"
 

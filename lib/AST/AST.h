@@ -11,10 +11,10 @@
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Fwd.h>
+#include <scatha/AST/SourceLocation.h>
+#include <scatha/AST/Token.h>
 #include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>
-#include <scatha/Common/SourceLocation.h>
-#include <scatha/Common/Token.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Scope.h>
 #include <scatha/Sema/ScopeKind.h>

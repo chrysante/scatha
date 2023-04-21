@@ -1,6 +1,6 @@
 #include <Catch/Catch2.hpp>
 
-#include "Lexer/LexerUtil.h"
+#include "Parser/LexerUtil.h"
 
 using namespace scatha::lex;
 

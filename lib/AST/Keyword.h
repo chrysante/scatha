@@ -1,7 +1,7 @@
 // SCATHA-PUBLIC-HEADER
 
-#ifndef SCATHA_COMMON_KEYWORD_H_
-#define SCATHA_COMMON_KEYWORD_H_
+#ifndef SCATHA_AST_KEYWORD_H_
+#define SCATHA_AST_KEYWORD_H_
 
 #include <optional>
 #include <string_view>
@@ -68,4 +68,4 @@ SCATHA_API KeywordCategory categorize(Keyword);
 
 } // namespace scatha
 
-#endif // SCATHA_LEXER_COMMON_H_
+#endif // SCATHA_AST_COMMON_H_

@@ -1,16 +1,16 @@
 // SCATHA-PUBLIC-HEADER
 
-#ifndef SCATHA_COMMON_TOKEN_H_
-#define SCATHA_COMMON_TOKEN_H_
+#ifndef SCATHA_AST_TOKEN_H_
+#define SCATHA_AST_TOKEN_H_
 
 #include <iosfwd>
 #include <string>
 
+#include <scatha/AST/Keyword.h>
+#include <scatha/AST/SourceLocation.h>
 #include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>
 #include <scatha/Common/Base.h>
-#include <scatha/Common/Keyword.h>
-#include <scatha/Common/SourceLocation.h>
 
 namespace scatha {
 
@@ -28,8 +28,6 @@ enum class TokenType {
     Other,
     _count
 };
-
-enum class IdentifierCategory : u8 { Type, Variable, Function };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, TokenType);
 
@@ -62,12 +60,8 @@ struct SCATHA_API Token: public TokenData {
     bool isControlFlow : 1 = false;
     bool isPunctuation : 1 = false;
 
-    // Keyword related fields
     Keyword keyword{};
     KeywordCategory keywordCategory{};
-
-    // Identifier related fields
-    IdentifierCategory identifierCategory{};
 
     bool operator==(Token const& rhs) const {
         return static_cast<TokenData const&>(*this) ==
@@ -83,4 +77,4 @@ SCATHA_API std::ostream& operator<<(std::ostream&, Token const&);
 
 } // namespace scatha
 
-#endif // SCATHA_COMMON_TOKEN_H_
+#endif // SCATHA_AST_TOKEN_H_

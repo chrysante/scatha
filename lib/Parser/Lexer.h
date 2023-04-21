@@ -7,8 +7,8 @@
 
 #include <utl/vector.hpp>
 
+#include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
-#include <scatha/Common/Token.h>
 #include <scatha/Issue/IssueHandler.h>
 
 namespace scatha::lex {

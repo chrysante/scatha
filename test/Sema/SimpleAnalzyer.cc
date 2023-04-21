@@ -1,7 +1,7 @@
 #include "SimpleAnalzyer.h"
 
 #include "Common/UniquePtr.h"
-#include "Lexer/Lexer.h"
+#include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"

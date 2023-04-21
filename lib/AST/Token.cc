@@ -1,4 +1,4 @@
-#include "Common/Token.h"
+#include "AST/Token.h"
 
 #include <array>
 #include <ostream>

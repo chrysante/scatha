@@ -5,8 +5,9 @@
 #include <optional>
 #include <string_view>
 
-#include "AST/Base.h"
-#include "Common/Token.h"
+#include "AST/Fwd.h"
+#include "AST/Token.h"
+#include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
 

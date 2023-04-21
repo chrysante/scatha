@@ -1,7 +1,7 @@
 // SCATHA-PUBLIC-HEADER
 
-#ifndef SCATHA_COMMON_SOURCELOCATION_H_
-#define SCATHA_COMMON_SOURCELOCATION_H_
+#ifndef SCATHA_AST_SOURCELOCATION_H_
+#define SCATHA_AST_SOURCELOCATION_H_
 
 #include <compare>
 #include <iosfwd>
@@ -36,4 +36,4 @@ SCATHA_API std::ostream& operator<<(std::ostream&, SourceLocation const&);
 
 } // namespace scatha
 
-#endif // SCATHA_COMMON_SOURCELOCATION_H_
+#endif // SCATHA_AST_SOURCELOCATION_H_

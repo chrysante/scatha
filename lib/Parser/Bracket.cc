@@ -2,7 +2,7 @@
 
 #include <utl/utility.hpp>
 
-#include "Common/Token.h"
+#include "AST/Token.h"
 
 using namespace scatha;
 

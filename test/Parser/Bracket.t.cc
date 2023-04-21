@@ -1,6 +1,6 @@
 #include <Catch/Catch2.hpp>
 
-#include "Common/Token.h"
+#include "AST/Token.h"
 #include "Parser/Bracket.h"
 
 using namespace scatha;

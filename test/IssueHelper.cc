@@ -1,6 +1,6 @@
 #include "test/IssueHelper.h"
 
-#include "Lexer/Lexer.h"
+#include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "test/Sema/SimpleAnalzyer.h"
 

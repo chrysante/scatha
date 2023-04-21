@@ -1,9 +1,9 @@
 #include "Parser/Parser.h"
 
 #include "AST/AST.h"
+#include "AST/Keyword.h"
 #include "Common/Base.h"
 #include "Common/Expected.h"
-#include "Common/Keyword.h"
 #include "Parser/BracketCorrection.h"
 #include "Parser/Panic.h"
 #include "Parser/SyntaxIssue.h"

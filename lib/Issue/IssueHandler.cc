@@ -2,7 +2,7 @@
 
 #include <utl/vector.hpp>
 
-#include "Lexer/LexicalIssue.h"
+#include "Parser/LexicalIssue.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/SemanticIssue.h"
 
