@@ -60,6 +60,12 @@ public:
     /// with value \p value
     Constant* arithmeticConstant(int64_t value, Type const* type);
 
+    /// \returns The integral constant with value \p value
+    Constant* arithmeticConstant(APInt value);
+
+    /// \returns The floating point constant with value \p value
+    Constant* arithmeticConstant(APFloat value);
+
     /// \returns The `undef` constant of type \p type
     UndefValue* undef(Type const* type);
 
@@ -68,7 +74,13 @@ public:
 
     /// \Returns `true` iff associativity of floating point arithmetic
     /// operations may be assumed
-    bool commutativeFloatArithmetic() const { return true; /*  For now */ }
+    bool associativeFloatArithmetic() const { return true; /*  For now */ }
+
+    /// \Returns `true` iff \p operation is commutative
+    bool isCommutative(ArithmeticOperation operation) const;
+
+    /// \Returns `true` iff \p operation is associative
+    bool isAssociative(ArithmeticOperation operation) const;
 
 private:
     /// ## Constants

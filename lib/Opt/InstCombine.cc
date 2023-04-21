@@ -50,9 +50,30 @@ struct InstCombineCtx {
     Value* visitImpl(ExtractValue* inst);
     Value* visitImpl(InsertValue* inst);
 
+    void mergeAdditive(ArithmeticInst* inst);
+    template <ArithmeticOperation AddOp,
+              ArithmeticOperation SubOp,
+              typename ConstantType>
+    void mergeAdditiveImpl(ArithmeticInst* inst,
+                             Constant* rhs,
+                             ArithmeticInst* prevInst,
+                             Constant* prevRHS);
+    
+    void push(Instruction* inst) { worklist.insert(inst); }
+
     void pushIfInst(Value* value) {
         if (auto* inst = dyncast<Instruction*>(value)) {
-            worklist.insert(inst);
+            push(inst);
+        }
+    }
+
+    void pushUsers(Instruction* inst) {
+        worklist.insert(inst->users().begin(), inst->users().end());
+    }
+
+    void pushUsers(Value* value) {
+        for (auto* user: value->users()) {
+            pushIfInst(user);
         }
     }
 
@@ -65,7 +86,7 @@ struct InstCombineCtx {
     Context& irCtx;
     Function& function;
     utl::hashset<Instruction*> worklist;
-
+    bool modifiedAny = false;
     utl::hashmap<Instruction*, std::unique_ptr<AccessTreeNode>> accessTrees;
 };
 
@@ -82,7 +103,6 @@ bool InstCombineCtx::run() {
     worklist = function.instructions() |
                ranges::views::transform([](auto& inst) { return &inst; }) |
                ranges::to<utl::hashset<Instruction*>>;
-    bool modifiedAny = false;
     while (!worklist.empty()) {
         Instruction* inst = *worklist.begin();
         worklist.erase(worklist.begin());
@@ -98,7 +118,7 @@ bool InstCombineCtx::run() {
             continue;
         }
         replaceValue(inst, replacement);
-        worklist.insert(inst->users().begin(), inst->users().end());
+        pushUsers(inst);
         inst->parent()->erase(inst);
         modifiedAny = true;
     }
@@ -120,73 +140,79 @@ static bool isConstant(Value const* value, int constant) {
 }
 
 Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
-    auto* const lhs       = inst->lhs();
-    auto* const rhs       = inst->rhs();
-    auto* const intType   = dyncast<IntegralType const*>(inst->type());
-    auto* const floatType = dyncast<FloatType const*>(inst->type());
+    auto* const lhs = inst->lhs();
+    auto* const rhs = inst->rhs();
+    /// Make constant operand the RHS operand if possible.
+    if (irCtx.isCommutative(inst->operation()) && isa<Constant>(lhs) &&
+        !isa<Constant>(rhs))
+    {
+        inst->swapOperands();
+        pushUsers(inst);
+    }
     switch (inst->operation()) {
+        /// ## Addition
     case ArithmeticOperation::Add:
-        if (isConstant(lhs, 0)) {
-            return rhs;
-        }
+        [[fallthrough]];
+    case ArithmeticOperation::FAdd: {
         if (isConstant(rhs, 0)) {
             return lhs;
         }
+        mergeAdditive(inst);
         break;
+    }
 
+        /// ## Subtraction
     case ArithmeticOperation::Sub:
-        if (isConstant(rhs, 0)) {
-            return lhs;
-        }
-        if (lhs == rhs) {
-            SC_ASSERT(intType, "");
-            return irCtx.integralConstant(0, intType->bitWidth());
-        }
-        break;
+        [[fallthrough]];
     case ArithmeticOperation::FSub:
         if (isConstant(rhs, 0)) {
             return lhs;
         }
         if (lhs == rhs) {
-            SC_ASSERT(floatType, "");
-            return irCtx.floatConstant(0.0, floatType->bitWidth());
+            return irCtx.arithmeticConstant(0, inst->type());
         }
+        mergeAdditive(inst);
         break;
 
+        /// ## Multiplication
     case ArithmeticOperation::Mul:
-        if (isConstant(lhs, 1)) {
-            return rhs;
-        }
-        if (isConstant(rhs, 1)) {
-            return lhs;
-        }
-        break;
-
+        [[fallthrough]];
     case ArithmeticOperation::FMul:
-        if (isConstant(lhs, 1)) {
-            return rhs;
-        }
         if (isConstant(rhs, 1)) {
             return lhs;
         }
         break;
 
+        /// ## Division
     case ArithmeticOperation::SDiv:
         [[fallthrough]];
     case ArithmeticOperation::UDiv:
-        if (isConstant(rhs, 1)) {
-            return lhs;
-        }
-        if (lhs == rhs && intType) {
-            return irCtx.integralConstant(1, intType->bitWidth());
-        }
-        break;
+        [[fallthrough]];
     case ArithmeticOperation::FDiv:
+        if (isConstant(rhs, 0)) {
+            // FIXME: Return inf for floats
+            return irCtx.undef(inst->type());
+        }
         if (isConstant(rhs, 1)) {
             return lhs;
         }
         if (lhs == rhs) {
-            return irCtx.floatConstant(1.0, floatType->bitWidth());
+            return irCtx.arithmeticConstant(1, inst->type());
+        }
+        break;
+
+        /// ## Remainder
+    case ArithmeticOperation::SRem:
+        [[fallthrough]];
+    case ArithmeticOperation::URem:
+        if (isConstant(rhs, 0)) {
+            return irCtx.undef(inst->type());
+        }
+        if (isConstant(rhs, 1)) {
+            return irCtx.arithmeticConstant(0, inst->type());
+        }
+        if (lhs == rhs) {
+            return lhs;
         }
         break;
 
@@ -194,6 +220,96 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         break;
     }
     return nullptr;
+}
+
+void InstCombineCtx::mergeAdditive(ArithmeticInst* inst) {
+    auto* rhs = dyncast<Constant*>(inst->rhs());
+    if (!rhs) {
+        return;
+    }
+    auto* prevInst = dyncast<ArithmeticInst*>(inst->lhs());
+    if (!prevInst) {
+        return;
+    }
+    auto* prevRHS = dyncast<Constant*>(prevInst->rhs());
+    if (!prevRHS) {
+        return;
+    }
+    if (inst->operation() == ArithmeticOperation::Add ||
+        inst->operation() == ArithmeticOperation::Sub)
+    {
+        mergeAdditiveImpl<ArithmeticOperation::Add,
+                            ArithmeticOperation::Sub,
+                            IntegralConstant>(inst, rhs, prevInst, prevRHS);
+    }
+    else if (irCtx.associativeFloatArithmetic() &&
+             (inst->operation() == ArithmeticOperation::FAdd ||
+              inst->operation() == ArithmeticOperation::FSub))
+    {
+        mergeAdditiveImpl<ArithmeticOperation::FAdd,
+                            ArithmeticOperation::FSub,
+                            FloatingPointConstant>(inst,
+                                                   rhs,
+                                                   prevInst,
+                                                   prevRHS);
+    }
+}
+
+template <ArithmeticOperation AddOp,
+          ArithmeticOperation SubOp,
+          typename ConstantType>
+void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst,
+                                         Constant* rhs,
+                                         ArithmeticInst* prevInst,
+                                         Constant* prevRHS) {
+    if (inst->operation() == AddOp) {
+        if (prevInst->operation() == AddOp) {
+            auto a       = cast<ConstantType*>(rhs)->value();
+            auto b       = cast<ConstantType*>(prevRHS)->value();
+            auto* newRHS = irCtx.arithmeticConstant(add(a, b));
+            auto* newLHS = prevInst->lhs();
+            inst->setRHS(newRHS);
+            inst->setLHS(newLHS);
+        }
+        else if (prevInst->operation() == SubOp) {
+            auto a       = cast<ConstantType*>(rhs)->value();
+            auto b       = cast<ConstantType*>(prevRHS)->value();
+            auto* newRHS = irCtx.arithmeticConstant(sub(a, b));
+            auto* newLHS = prevInst->lhs();
+            inst->setRHS(newRHS);
+            inst->setLHS(newLHS);
+        }
+        else {
+            return;
+        }
+    }
+    else if (inst->operation() == SubOp) {
+        if (prevInst->operation() == AddOp) {
+            auto a       = cast<ConstantType*>(rhs)->value();
+            auto b       = cast<ConstantType*>(prevRHS)->value();
+            auto* newRHS = irCtx.arithmeticConstant(sub(b, a));
+            auto* newLHS = prevInst->lhs();
+            inst->setRHS(newRHS);
+            inst->setLHS(newLHS);
+        }
+        else if (prevInst->operation() == SubOp) {
+            auto a       = cast<ConstantType*>(rhs)->value();
+            auto b       = cast<ConstantType*>(prevRHS)->value();
+            auto* newRHS = irCtx.arithmeticConstant(add(a, b));
+            auto* newLHS = prevInst->lhs();
+            inst->setRHS(newRHS);
+            inst->setLHS(newLHS);
+        }
+        else {
+            return;
+        }
+    }
+    else {
+        return;
+    }
+    modifiedAny = true;
+    push(inst);
+    push(prevInst);
 }
 
 Value* InstCombineCtx::visitImpl(Phi* phi) {
@@ -331,7 +447,6 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
             }
         }
         result.push_back(allocate<InsertValue>(baseValue, ins, indices, "iv"));
-
         baseValue = result.back().get();
     }
     return { baseValue, std::move(result) };
@@ -388,7 +503,7 @@ Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
             if (!node->payload()) {
                 auto* ev = new ExtractValue(root->payload(), indices, "ev");
                 insertInst->parent()->insert(insertInst, ev);
-                worklist.insert(ev);
+                push(ev);
                 node->setPayload(ev);
             }
             return;
@@ -407,7 +522,7 @@ Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
         }
     });
     for (auto& insert: inserts) {
-        worklist.insert(insert.get());
+        push(insert.get());
         insertInst->parent()->insert(insertInst, insert.release());
     }
     auto* newValue = root->payload();

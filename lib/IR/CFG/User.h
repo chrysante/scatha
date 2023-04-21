@@ -58,6 +58,7 @@ protected:
     void removeOperand(size_t index);
 
 private:
+    friend class BinaryInstruction;
     utl::small_vector<Value*> _operands;
 };
 

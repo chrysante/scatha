@@ -7,7 +7,46 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-TEST_CASE("InstCombine - InsertValue - 1", "[opt][sroa]") {
+TEST_CASE("InstCombine - Arithmetic - 1", "[opt][inst-combine]") {
+    test::passTest(&opt::instCombine,
+                   R"(
+func i32 @main(i32 %0) {
+  %entry:
+    %1 = add i32 1, i32 %0
+    %2 = add i32 1, i32 %1
+    %3 = add i32 1, i32 %2
+    %4 = sub i32 %3, i32 2
+    %5 = add i32 5, i32 %4
+    return i32 %5
+})",
+                   R"(
+func i32 @main(i32 %0) {
+  %entry:
+    %1 = add i32 %0, i32 6
+    return i32 %1
+})");
+}
+
+TEST_CASE("InstCombine - Arithmetic - 2", "[opt][inst-combine]") {
+    test::passTest(&opt::instCombine,
+                   R"(
+func i32 @main(i32 %0) {
+  %entry:
+    %1 = add i32 1, i32 %0
+    %2 = add i32 1, i32 %1
+    %3 = add i32 1, i32 %2
+    %4 = sub i32 %3, i32 2
+    return i32 %4
+})",
+                   R"(
+func i32 @main(i32 %0) {
+  %entry:
+    %1 = add i32 %0, i32 3
+    return i32 %1
+})");
+}
+
+TEST_CASE("InstCombine - InsertValue - 1", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 struct @Y { i64, f64, i32 }
@@ -38,7 +77,7 @@ func @X @main(@X %xbase, @Y %ybase) {
 })");
 }
 
-TEST_CASE("InstCombine - InsertValue - 2", "[opt][sroa]") {
+TEST_CASE("InstCombine - InsertValue - 2", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 struct @Y {
@@ -81,7 +120,7 @@ func @X @main(@X %0, @X %1, @X %2) {
 })");
 }
 
-TEST_CASE("InstCombine - InsertValue - 3", "[opt][sroa]") {
+TEST_CASE("InstCombine - InsertValue - 3", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(
 struct @Y {

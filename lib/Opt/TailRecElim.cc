@@ -398,20 +398,8 @@ bool TREContext::isInterestingCall(Value const* inst) const {
 }
 
 bool TREContext::isCommutativeAndAssociative(ArithmeticInst const* inst) const {
-    switch (inst->operation()) {
-    case ArithmeticOperation::Add:
-    case ArithmeticOperation::Mul:
-    case ArithmeticOperation::And:
-    case ArithmeticOperation::Or:
-    case ArithmeticOperation::XOr:
-        return true;
-
-    case ArithmeticOperation::FAdd:
-    case ArithmeticOperation::FMul:
-        return irCtx.commutativeFloatArithmetic();
-    default:
-        return false;
-    }
+    return irCtx.isCommutative(inst->operation()) &&
+           irCtx.isAssociative(inst->operation());
 }
 
 Value* TREContext::identityValue(ArithmeticInst const* inst) const {

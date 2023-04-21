@@ -97,6 +97,15 @@ Constant* Context::arithmeticConstant(int64_t value, Type const* type) {
     }); // clang-format on
 }
 
+Constant* Context::arithmeticConstant(APInt value) {
+    return integralConstant(value);
+}
+
+Constant* Context::arithmeticConstant(APFloat value) {
+    size_t const bitwidth = value.precision() == APFloatPrec::Single ? 32 : 64;
+    return floatConstant(value, bitwidth);
+}
+
 UndefValue* Context::undef(Type const* type) {
     auto itr = _undefConstants.find(type);
     if (itr == _undefConstants.end()) {
@@ -109,3 +118,37 @@ UndefValue* Context::undef(Type const* type) {
 }
 
 Value* Context::voidValue() { return undef(voidType()); }
+
+bool Context::isCommutative(ArithmeticOperation operation) const {
+    switch (operation) {
+    case ArithmeticOperation::Add:
+    case ArithmeticOperation::Mul:
+    case ArithmeticOperation::And:
+    case ArithmeticOperation::Or:
+    case ArithmeticOperation::XOr:
+    case ArithmeticOperation::FAdd:
+    case ArithmeticOperation::FMul:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+bool Context::isAssociative(ArithmeticOperation operation) const {
+    switch (operation) {
+    case ArithmeticOperation::Add:
+    case ArithmeticOperation::Mul:
+    case ArithmeticOperation::And:
+    case ArithmeticOperation::Or:
+    case ArithmeticOperation::XOr:
+        return true;
+
+    case ArithmeticOperation::FAdd:
+    case ArithmeticOperation::FMul:
+        return associativeFloatArithmetic();
+
+    default:
+        return false;
+    }
+}

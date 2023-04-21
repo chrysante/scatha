@@ -87,6 +87,9 @@ protected:
         Instruction(nodeType, type, std::move(name), { lhs, rhs }) {}
 
 public:
+    /// Swap `lhs()` and `rhs()` operands of this binary instruction
+    void swapOperands();
+
     /// \returns the LHS operand
     Value* lhs() { return operands()[0]; }
 
