@@ -4,7 +4,7 @@
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
 
-#include "AST/Base.h"
+#include "AST/Fwd.h"
 #include "Common/Base.h"
 #include "Sema/Scope.h"
 #include "Sema/SymbolID.h"

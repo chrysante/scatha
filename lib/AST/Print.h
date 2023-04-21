@@ -5,7 +5,7 @@
 
 #include <iosfwd>
 
-#include <scatha/AST/Base.h>
+#include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 
 namespace scatha::ast {

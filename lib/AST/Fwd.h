@@ -1,7 +1,5 @@
-// SCATHA-PUBLIC-HEADER
-
-#ifndef SCATHA_AST_COMMON_H_
-#define SCATHA_AST_COMMON_H_
+#ifndef SCATHA_AST_FWD_H_
+#define SCATHA_AST_FWD_H_
 
 #include <iosfwd>
 #include <string_view>
@@ -92,4 +90,4 @@ SCATHA_API void privateDelete(ast::AbstractSyntaxTree* astNode);
 
 } // namespace scatha::internal
 
-#endif // SCATHA_AST_COMMON_H_
+#endif // SCATHA_AST_FWD_H_

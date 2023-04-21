@@ -1,6 +1,5 @@
 AST/AST.h
-AST/Base.h
-AST/Common.h
+AST/Fwd.h
 AST/Lists.def
 AST/Print.h
 AST/LowerToIR.h

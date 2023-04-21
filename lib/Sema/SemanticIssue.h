@@ -13,7 +13,7 @@
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
-#include <scatha/AST/Base.h>
+#include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Token.h>
 #include <scatha/Issue/ProgramIssue.h>
@@ -214,8 +214,7 @@ public:
         SymbolID symbolID;
     };
 
-    explicit StrongReferenceCycle(utl::vector<Node> cycle):
-        IssueBase(cycle.front().astNode->token()), _cycle(std::move(cycle)) {}
+    explicit StrongReferenceCycle(utl::vector<Node> cycle);
 
     void setStatement(ast::Statement const&) {}
 

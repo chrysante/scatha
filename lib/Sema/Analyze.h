@@ -3,7 +3,7 @@
 #ifndef SCATHA_SEMA_ANALYZE_H_
 #define SCATHA_SEMA_ANALYZE_H_
 
-#include <scatha/AST/Base.h>
+#include <scatha/AST/Fwd.h>
 #include <scatha/Issue/IssueHandler.h>
 #include <scatha/Sema/SymbolTable.h>
 

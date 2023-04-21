@@ -5,9 +5,10 @@
 
 #include <utl/vector.hpp>
 
-#include <scatha/AST/Base.h>
+#include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Token.h>
+#include <scatha/Common/UniquePtr.h>
 #include <scatha/Issue/IssueHandler.h>
 
 // clang-format off

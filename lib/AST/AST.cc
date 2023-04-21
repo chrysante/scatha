@@ -1,5 +1,3 @@
-#include "AST/Base.h"
-
 #include "AST/AST.h"
 
 using namespace scatha;

@@ -1,4 +1,4 @@
-#include "AST/Common.h"
+#include "AST/Fwd.h"
 
 #include <array>
 #include <ostream>

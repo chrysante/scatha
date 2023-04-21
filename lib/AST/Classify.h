@@ -1,7 +1,7 @@
 #ifndef SCATHA_AST_CLASSIFY_H_
 #define SCATHA_AST_CLASSIFY_H_
 
-#include "AST/Common.h"
+#include "AST/Fwd.h"
 
 namespace scatha::ast {
 

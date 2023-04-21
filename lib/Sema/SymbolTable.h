@@ -14,7 +14,7 @@
 #include <utl/scope_guard.hpp>
 #include <utl/vector.hpp>
 
-#include <scatha/AST/Base.h>
+#include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Common/Token.h>

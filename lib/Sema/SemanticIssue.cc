@@ -69,3 +69,6 @@ std::ostream& sema::operator<<(std::ostream& str,
           "Reserved identifier" },
     }); // clang-format on
 }
+
+StrongReferenceCycle::StrongReferenceCycle(utl::vector<Node> cycle):
+    IssueBase(cycle.front().astNode->token()), _cycle(std::move(cycle)) {}
