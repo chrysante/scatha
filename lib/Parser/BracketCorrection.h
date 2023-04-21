@@ -6,6 +6,7 @@
 #include "AST/Token.h"
 #include "Common/Base.h"
 #include "Issue/IssueHandler.h"
+#include "Issue/IssueHandler2.h"
 
 namespace scatha::parse {
 
@@ -47,6 +48,9 @@ namespace scatha::parse {
 /// scoped matching closing bracket.
 SCATHA_API void bracketCorrection(utl::vector<Token>& tokens,
                                   issue::SyntaxIssueHandler& issueHandler);
+
+SCATHA_API void bracketCorrection(utl::vector<Token>& tokens,
+                                  IssueHandler& issues);
 
 } // namespace scatha::parse
 

@@ -128,3 +128,15 @@ SC_OPERATOR_TOKEN_DEF(SemiColon,    ";")
 SC_OPERATOR_TOKEN_DEF(Colon,        ":")
 
 #undef SC_PUNCTUATION_TOKEN_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of other tokens ------------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_PUNCTUATION_TOKEN_DEF
+#   define SC_PUNCTUATION_TOKEN_DEF(Token, str)
+#endif
+
+SC_OPERATOR_TOKEN_DEF(EndOfFile, "")
+
+#undef SC_PUNCTUATION_TOKEN_DEF

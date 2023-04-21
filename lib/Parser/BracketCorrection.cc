@@ -6,7 +6,7 @@
 #include <utl/stack.hpp>
 
 #include "Parser/Bracket.h"
-#include "Parser/SyntaxIssue.h"
+#include "Parser/SyntaxIssue2.h"
 
 using namespace scatha;
 using namespace parse;
@@ -22,9 +22,8 @@ using namespace parse;
 namespace {
 
 struct Context {
-    explicit Context(utl::vector<Token>& tokens,
-                     issue::SyntaxIssueHandler& iss):
-        tokens(tokens), iss(iss) {}
+    explicit Context(utl::vector<Token>& tokens, IssueHandler& issues):
+        tokens(tokens), issues(issues) {}
 
     void run();
 
@@ -42,7 +41,7 @@ struct Context {
         utl::vector<Token>::const_iterator);
 
     utl::vector<Token>& tokens;
-    issue::SyntaxIssueHandler& iss;
+    IssueHandler& issues;
     utl::stack<Bracket, 16> bracketStack;
 };
 
@@ -50,7 +49,13 @@ struct Context {
 
 void parse::bracketCorrection(utl::vector<Token>& tokens,
                               issue::SyntaxIssueHandler& iss) {
-    Context ctx(tokens, iss);
+    IssueHandler issues;
+    bracketCorrection(tokens, issues);
+}
+
+void parse::bracketCorrection(utl::vector<Token>& tokens,
+                              IssueHandler& issues) {
+    Context ctx(tokens, issues);
     ctx.run();
 }
 
@@ -95,8 +100,7 @@ void Context::run() {
     if (bracketStack.empty()) {
         /// We have a closing bracket with no matching open bracket. Remove it
         /// from the list of tokens.
-        iss.push(
-            SyntaxIssue(token, SyntaxIssue::Reason::UnexpectedClosingBracket));
+        issues.push<UnexpectedClosingBracket>(token);
         tokenItr = erase(tokenItr);
         return tokenItr;
     }
@@ -111,9 +115,7 @@ void Context::run() {
         if (stackReverseItr == stackContainer.rend()) {
             /// If we can't find the matching open bracket, we just erase this
             /// one.
-            iss.push(
-                SyntaxIssue(token,
-                            SyntaxIssue::Reason::UnexpectedClosingBracket));
+            issues.push<UnexpectedClosingBracket>(token);
             tokenItr = erase(tokenItr);
             return tokenItr;
         }
@@ -147,8 +149,7 @@ utl::vector<scatha::Token>::iterator Context::popStackAndInsertMatchingBrackets(
     auto insertRange =
         stackContainer | ranges::views::reverse | ranges::views::take(count) |
         ranges::views::transform([&](Bracket bracket) {
-            iss.push(SyntaxIssue(*tokenItr,
-                                 SyntaxIssue::Reason::ExpectedClosingBracket));
+            issues.push<ExpectedClosingBracket>(*tokenItr);
             Bracket const newBracket = { bracket.type, Bracket::Side::Close };
             return Token(toString(newBracket),
                          TokenType::Punctuation,
