@@ -14,4 +14,3 @@ copyHeaders() {
 }
 
 copyHeaders "lib" "scatha"
-copyHeaders "svm" "svm"

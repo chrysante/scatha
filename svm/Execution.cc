@@ -2,8 +2,8 @@
 
 #include <utl/functional.hpp>
 
-#include "Memory.h"
-#include <svm/OpCode.h>
+#include "svm/Memory.h"
+#include "svm/OpCodeInternal.h"
 
 #define ALWAYS_INLINE __attribute__((always_inline))
 
@@ -257,9 +257,7 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
             size_t const tableIdx     = i[1];
             size_t const idxIntoTable = load<u16>(&i[2]);
             auto const etxFunction = extFunctionTable[tableIdx][idxIntoTable];
-            etxFunction.funcPtr(regPtr + regPtrOffset,
-                                this,
-                                etxFunction.context);
+            etxFunction.invoke(regPtr + regPtrOffset, this);
         });
 
         INSTRUCTION(terminate, { frame.iptr = programBreak; });

@@ -662,7 +662,7 @@ FormalValue SCCPContext::evaluateCall(Callable const* function,
     {
         return Inevaluable{};
     }
-    if (extFn->slot() != svm::builtinFunctionSlot) {
+    if (extFn->slot() != svm::BuiltinFunctionSlot) {
         return Inevaluable{};
     }
     switch (static_cast<svm::Builtin>(extFn->index())) {

@@ -1,6 +1,4 @@
-#include "ProgramInternal.h"
-
-#include <svm/Program.h>
+#include "svm/ProgramInternal.h"
 
 #include <iomanip>
 #include <iostream>
@@ -9,8 +7,8 @@
 
 #include <utl/strcat.hpp>
 
-#include "Memory.h"
-#include <svm/OpCode.h>
+#include "svm/Memory.h"
+#include "svm/OpCodeInternal.h"
 
 using namespace svm;
 

@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     file.read(reinterpret_cast<char*>(program.data()), filesize);
 
     VirtualMachine vm;
-    vm.loadProgram(program.data());
+    vm.loadBinary(program.data());
 
     auto const beginTime = std::chrono::high_resolution_clock::now();
     vm.execute({});

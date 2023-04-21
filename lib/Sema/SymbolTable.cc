@@ -27,7 +27,7 @@ SymbolTable::SymbolTable():
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
     declareExternalFunction(                                                   \
         "__builtin_" #name,                                                    \
-        /* slot = */ svm::builtinFunctionSlot,                                 \
+        /* slot = */ svm::BuiltinFunctionSlot,                                 \
         /* index = */ static_cast<size_t>(svm::Builtin::name),                 \
         FunctionSignature(__VA_ARGS__),                                        \
         attrs);

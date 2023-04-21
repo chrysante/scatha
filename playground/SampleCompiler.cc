@@ -180,7 +180,7 @@ void playground::compile(std::string text) {
     subHeader();
 
     svm::VirtualMachine vm;
-    vm.loadProgram(program.data());
+    vm.loadBinary(program.data());
     auto mainPos =
         std::find_if(symbolTable.begin(), symbolTable.end(), [](auto& p) {
             return p.first.starts_with("main");

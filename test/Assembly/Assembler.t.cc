@@ -18,7 +18,7 @@ using namespace scatha::Asm;
 static auto assembleAndExecute(AssemblyStream const& str) {
     auto [prog, sym] = assemble(str);
     svm::VirtualMachine vm(1024, 1024);
-    vm.loadProgram(prog.data());
+    vm.loadBinary(prog.data());
     vm.execute(0, {});
     return std::pair{ utl::vector<u64>(vm.registerData()),
                       utl::vector<u8>(vm.stackData()) };
@@ -305,23 +305,23 @@ TEST_CASE("callExt", "[assembly][vm]") {
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(-1), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::builtinFunctionSlot,
+                    svm::BuiltinFunctionSlot,
                     /* index = */ static_cast<size_t>(svm::Builtin::puti64)),
         MoveInst(RegisterIndex(0), Value64(' '), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::builtinFunctionSlot,
+                    svm::BuiltinFunctionSlot,
                     /* index = */ static_cast<size_t>(svm::Builtin::putchar)),
         MoveInst(RegisterIndex(0), Value64('X'), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::builtinFunctionSlot,
+                    svm::BuiltinFunctionSlot,
                     /* index = */ static_cast<size_t>(svm::Builtin::putchar)),
         MoveInst(RegisterIndex(0), Value64(' '), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::builtinFunctionSlot,
+                    svm::BuiltinFunctionSlot,
                     /* index = */ static_cast<size_t>(svm::Builtin::putchar)),
         MoveInst(RegisterIndex(0), Value64(0.5), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::builtinFunctionSlot,
+                    svm::BuiltinFunctionSlot,
                     /* index = */ static_cast<size_t>(svm::Builtin::putf64)),
         TerminateInst()
     })); // clang-format on
@@ -336,7 +336,7 @@ TEST_CASE("callExt with return value", "[assembly][vm]") {
     a.add(Block(0, "start", {
         MoveInst(RegisterIndex(0), Value64(2.0), 8),
         CallExtInst(/* regPtrOffset = */ 0,
-                    svm::builtinFunctionSlot,
+                    svm::BuiltinFunctionSlot,
                     /* index = */ static_cast<size_t>(svm::Builtin::sqrt_f64)),
         TerminateInst(),
     })); // clang-format on

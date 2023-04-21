@@ -1,13 +1,8 @@
 #include <svm/VirtualMachine.h>
 
-#include <svm/OpCode.h> // Delete once instruction table is gone.
-
-#include <svm/Builtin.h>
-#include <utl/math.hpp>
-#include <utl/utility.hpp>
-
-#include "Memory.h"
-#include "ProgramInternal.h"
+#include "svm/BuiltinInternal.h"
+#include "svm/Memory.h"
+#include "svm/ProgramInternal.h"
 
 using namespace svm;
 
@@ -17,10 +12,10 @@ VirtualMachine::VirtualMachine():
 VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
     registers.resize(numRegisters, utl::no_init);
     stack.resize(stackSize, utl::no_init);
-    setFunctionTableSlot(builtinFunctionSlot, makeBuiltinTable());
+    setFunctionTableSlot(BuiltinFunctionSlot, makeBuiltinTable());
 }
 
-void VirtualMachine::loadProgram(u8 const* progData) {
+void VirtualMachine::loadBinary(u8 const* progData) {
     Program program(progData);
     text         = std::move(program.instructions);
     data         = std::move(program.data);

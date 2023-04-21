@@ -1,4 +1,4 @@
-#include <svm/Builtin.h>
+#include "svm/BuiltinInternal.h"
 
 #include <cmath>
 #include <iostream>
@@ -7,7 +7,7 @@
 #include <svm/ExternalFunction.h>
 #include <svm/VirtualMachine.h>
 
-#include "Memory.h"
+#include "svm/Memory.h"
 
 using namespace svm;
 

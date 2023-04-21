@@ -1,5 +1,3 @@
-// PUBLIC-HEADER
-
 #ifndef SVM_VIRTUALMACHINE_H_
 #define SVM_VIRTUALMACHINE_H_
 
@@ -52,7 +50,7 @@ public:
     VirtualMachine(size_t numRegisters, size_t stackSize);
 
     /// Load a program into memory
-    void loadProgram(u8 const* data);
+    void loadBinary(u8 const* data);
 
     /// Start execution at the program's start address
     void execute(std::span<u64 const> arguments);

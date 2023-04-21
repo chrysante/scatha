@@ -1,4 +1,4 @@
-#include <svm/OpCode.h>
+#include "svm/OpCodeInternal.h"
 
 #include <array>
 #include <ostream>

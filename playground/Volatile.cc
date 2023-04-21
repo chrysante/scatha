@@ -62,7 +62,7 @@ using namespace playground;
 static void run(Asm::AssemblyStream const& assembly) {
     auto [program, symbolTable] = Asm::assemble(assembly);
     svm::VirtualMachine vm;
-    vm.loadProgram(program.data());
+    vm.loadBinary(program.data());
     auto mainPos =
         std::find_if(symbolTable.begin(), symbolTable.end(), [](auto& p) {
             return p.first.starts_with("main");

@@ -1,9 +1,5 @@
-// PUBLIC-HEADER
-
 #ifndef SVM_BUILTIN_H_
 #define SVM_BUILTIN_H_
-
-#include <utl/vector.hpp>
 
 #include <svm/ExternalFunction.h>
 
@@ -16,9 +12,7 @@ enum class Builtin {
     _count
 };
 
-inline constexpr size_t builtinFunctionSlot = 0;
-
-utl::vector<ExternalFunction> makeBuiltinTable();
+inline constexpr size_t BuiltinFunctionSlot = 0;
 
 } // namespace svm
 

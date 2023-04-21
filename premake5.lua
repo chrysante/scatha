@@ -93,6 +93,9 @@ kind "StaticLib"
 
 addCppFiles "svm"
 removefiles { "svm/CLIParse.*", "svm/main.cc" }
+files "include/svm/**"
+
+includedirs { "." }
 
 externalincludedirs {
     "include",

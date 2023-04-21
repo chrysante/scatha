@@ -114,7 +114,7 @@ void playground::optTest(std::filesystem::path path) {
     };
 
     ctx.vm.setFunctionTableSlot(1, { { cppCallback, &ctx } });
-    ctx.vm.loadProgram(prog.data());
+    ctx.vm.loadBinary(prog.data());
     size_t main = findFn("main");
     ctx.vm.execute(main, {});
 }
