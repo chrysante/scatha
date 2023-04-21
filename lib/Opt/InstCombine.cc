@@ -55,10 +55,10 @@ struct InstCombineCtx {
               ArithmeticOperation SubOp,
               typename ConstantType>
     void mergeAdditiveImpl(ArithmeticInst* inst,
-                             Constant* rhs,
-                             ArithmeticInst* prevInst,
-                             Constant* prevRHS);
-    
+                           Constant* rhs,
+                           ArithmeticInst* prevInst,
+                           Constant* prevRHS);
+
     void push(Instruction* inst) { worklist.insert(inst); }
 
     void pushIfInst(Value* value) {
@@ -239,19 +239,16 @@ void InstCombineCtx::mergeAdditive(ArithmeticInst* inst) {
         inst->operation() == ArithmeticOperation::Sub)
     {
         mergeAdditiveImpl<ArithmeticOperation::Add,
-                            ArithmeticOperation::Sub,
-                            IntegralConstant>(inst, rhs, prevInst, prevRHS);
+                          ArithmeticOperation::Sub,
+                          IntegralConstant>(inst, rhs, prevInst, prevRHS);
     }
     else if (irCtx.associativeFloatArithmetic() &&
              (inst->operation() == ArithmeticOperation::FAdd ||
               inst->operation() == ArithmeticOperation::FSub))
     {
         mergeAdditiveImpl<ArithmeticOperation::FAdd,
-                            ArithmeticOperation::FSub,
-                            FloatingPointConstant>(inst,
-                                                   rhs,
-                                                   prevInst,
-                                                   prevRHS);
+                          ArithmeticOperation::FSub,
+                          FloatingPointConstant>(inst, rhs, prevInst, prevRHS);
     }
 }
 
@@ -259,9 +256,9 @@ template <ArithmeticOperation AddOp,
           ArithmeticOperation SubOp,
           typename ConstantType>
 void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst,
-                                         Constant* rhs,
-                                         ArithmeticInst* prevInst,
-                                         Constant* prevRHS) {
+                                       Constant* rhs,
+                                       ArithmeticInst* prevInst,
+                                       Constant* prevRHS) {
     if (inst->operation() == AddOp) {
         if (prevInst->operation() == AddOp) {
             auto a       = cast<ConstantType*>(rhs)->value();
