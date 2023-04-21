@@ -142,7 +142,7 @@ static bool isConstant(Value const* value, int constant) {
 Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
     auto* const lhs = inst->lhs();
     auto* const rhs = inst->rhs();
-    /// Make constant operand the RHS operand if possible.
+    /// If we have a constant operand put it on the RHS if possible.
     if (irCtx.isCommutative(inst->operation()) && isa<Constant>(lhs) &&
         !isa<Constant>(rhs))
     {
