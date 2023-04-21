@@ -179,10 +179,16 @@ static void run(mir::Module const& mod) {
 
     auto& f = mod.front();
 
+    opt::sroa(ctx, f);
+    opt::memToReg(ctx, f);
+
     print(mod);
-    header(" Running Inst Combine ");
 
     header(" After Inst Combine ");
+    opt::instCombine(ctx, f);
+    print(mod);
+
+    header(" After 2. Inst Combine ");
     opt::instCombine(ctx, f);
     print(mod);
 

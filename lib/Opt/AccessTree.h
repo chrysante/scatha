@@ -127,24 +127,26 @@ public:
     }
 
     /// Invoke \p callback for every leaf of this tree
-    void leafWalk(utl::function_view<void(AccessTree* node)> callback) {
-        if (isLeaf()) {
-            callback(this);
-            return;
-        }
-        for (auto* child: children()) {
-            if (child) {
-                child->leafWalk(callback);
-            }
-        }
-    }
-
-    /// Invoke \p callback for every leaf of this tree
     void leafWalk(
         utl::function_view<void(AccessTree* node,
                                 std::span<size_t const> indices)> callback) {
         utl::small_vector<size_t> indices;
         leafWalkImpl(callback, indices);
+    }
+
+    /// \overload
+    void leafWalk(utl::function_view<void(AccessTree* node)> callback) {
+        leafWalk([&callback](AccessTree* node, std::span<size_t const>) {
+            callback(node);
+        });
+    }
+
+    /// Invoke \p callback for every node of this tree in post-order
+    void postOrderWalk(
+        utl::function_view<void(AccessTree* node,
+                                std::span<size_t const> indices)> callback) {
+        utl::small_vector<size_t> indices;
+        postOrderWalkImpl(callback, indices);
     }
 
     /// Deep copy this tree making copies of the payloads
@@ -199,6 +201,21 @@ private:
             ++indices.back();
         }
         indices.pop_back();
+    }
+
+    void postOrderWalkImpl(
+        utl::function_view<void(AccessTree* node,
+                                std::span<size_t const> indices)> callback,
+        utl::vector<size_t>& indices) {
+        indices.push_back(0);
+        for (auto* child: children()) {
+            if (child) {
+                child->postOrderWalkImpl(callback, indices);
+            }
+            ++indices.back();
+        }
+        indices.pop_back();
+        callback(this, indices);
     }
 
 protected:

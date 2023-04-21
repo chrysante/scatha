@@ -18,6 +18,19 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
+static bool hasSideEffects(Instruction const* inst) {
+    if (isa<Call>(inst)) {
+        return true;
+    }
+    if (isa<Store>(inst)) {
+        return true;
+    }
+    if (isa<TerminatorInst>(inst)) {
+        return true;
+    }
+    return false;
+}
+
 namespace {
 
 using AccessTreeNode = opt::AccessTree<Value*>;
@@ -36,6 +49,12 @@ struct InstCombineCtx {
     Value* visitImpl(Phi* phi);
     Value* visitImpl(ExtractValue* inst);
     Value* visitImpl(InsertValue* inst);
+
+    void pushIfInst(Value* value) {
+        if (auto* inst = dyncast<Instruction*>(value)) {
+            worklist.insert(inst);
+        }
+    }
 
     AccessTreeNode* getAccessTree(ExtractValue* inst);
     AccessTreeNode* getAccessTree(InsertValue* inst);
@@ -67,6 +86,13 @@ bool InstCombineCtx::run() {
     while (!worklist.empty()) {
         Instruction* inst = *worklist.begin();
         worklist.erase(worklist.begin());
+        if (inst->users().empty() && !hasSideEffects(inst)) {
+            for (auto* op: inst->operands()) {
+                pushIfInst(op);
+            }
+            inst->parent()->erase(inst);
+            continue;
+        }
         auto* replacement = visitInstruction(inst);
         if (!replacement) {
             continue;
@@ -190,10 +216,9 @@ static void print(auto* inst, AccessTreeNode const* tree) {
 }
 
 Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
-    auto* tree = getAccessTree(extractInst);
-
-    return nullptr;
-
+    if (auto* undefBase = dyncast<UndefValue*>(extractInst->baseValue())) {
+        return irCtx.undef(extractInst->type());
+    }
     for (auto* insertInst = dyncast<InsertValue*>(extractInst->baseValue());
          insertInst != nullptr;
          insertInst = dyncast<InsertValue*>(insertInst->baseValue()))
@@ -207,76 +232,195 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     return nullptr;
 }
 
+static void gatherMostUsedBase(utl::hashmap<Value*, size_t>& baseCount,
+                               AccessTreeNode* leaf,
+                               std::span<size_t const> leafIndices) {
+    auto* ev = dyncast<ExtractValue*>(leaf->payload());
+    if (!ev) {
+        return;
+    }
+    if (!ranges::equal(ev->memberIndices(), leafIndices)) {
+        return;
+    }
+    ++baseCount[ev->baseValue()];
+}
+
+static Value* maxElement(utl::hashmap<Value*, size_t> const& baseCount) {
+    if (baseCount.empty()) {
+        return nullptr;
+    }
+    return ranges::max_element(baseCount,
+                               ranges::less{},
+                               [](auto& p) { return p.second; })
+        ->first;
+}
+
+static Value* mostUsedChildrenBase(AccessTreeNode* node) {
+    utl::hashmap<Value*, size_t> baseCount;
+    for (auto [index, child]: node->children() | ranges::views::enumerate) {
+        gatherMostUsedBase(baseCount, child, std::array{ index });
+    }
+    return maxElement(baseCount);
+}
+
+static Value* mostUsedLeavesBase(AccessTreeNode* node) {
+    utl::hashmap<Value*, size_t> baseCount;
+    node->leafWalk(
+        [&](AccessTreeNode* leaf, std::span<size_t const> leafIndices) {
+        gatherMostUsedBase(baseCount, leaf, leafIndices);
+    });
+    return maxElement(baseCount);
+}
+
+static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
+    newLeavesInserts(
+        AccessTreeNode* node,
+        ir::Context& irCtx,
+        utl::hashmap<std::pair<Value*, Value*>, InsertValue*> const& ivMap) {
+    utl::small_vector<UniquePtr<InsertValue>> result;
+    auto* maxValue  = mostUsedLeavesBase(node);
+    auto* baseValue = maxValue ? maxValue : irCtx.undef(node->type());
+    node->leafWalk(
+        [&](AccessTreeNode* leaf, std::span<size_t const> leafIndices) {
+        auto* ev = dyncast<ExtractValue*>(leaf->payload());
+        if (ev && ranges::equal(ev->memberIndices(), leafIndices) &&
+            ev->baseValue() == maxValue)
+        {
+            return;
+        }
+        auto* ins = leaf->payload();
+        auto itr  = ivMap.find({ baseValue, ins });
+        if (itr != ivMap.end()) {
+            auto* iv = itr->second;
+            if (ranges::equal(iv->memberIndices(), leafIndices)) {
+                baseValue = iv;
+                return;
+            }
+        }
+        result.push_back(
+            allocate<InsertValue>(baseValue, ins, leafIndices, "iv"));
+        baseValue = result.back().get();
+    });
+    return { baseValue, std::move(result) };
+}
+
+static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
+    newChildrenInserts(
+        AccessTreeNode* node,
+        ir::Context& irCtx,
+        utl::hashmap<std::pair<Value*, Value*>, InsertValue*> const& ivMap) {
+    utl::small_vector<UniquePtr<InsertValue>> result;
+    auto* maxValue  = mostUsedChildrenBase(node);
+    auto* baseValue = maxValue ? maxValue : irCtx.undef(node->type());
+
+    for (size_t index = 0; auto child: node->children()) {
+        std::array const indices{ index++ };
+        auto* ev = dyncast<ExtractValue*>(child->payload());
+        if (ev && ranges::equal(ev->memberIndices(), indices) &&
+            ev->baseValue() == maxValue)
+        {
+            continue;
+        }
+        auto* ins = child->payload();
+        auto itr  = ivMap.find({ baseValue, ins });
+        if (itr != ivMap.end()) {
+            auto* iv = itr->second;
+            if (ranges::equal(iv->memberIndices(), std::array{ index })) {
+                baseValue = iv;
+                continue;
+            }
+        }
+        result.push_back(allocate<InsertValue>(baseValue, ins, indices, "iv"));
+
+        baseValue = result.back().get();
+    }
+    return { baseValue, std::move(result) };
+}
+
+static void mergeInserts(utl::vector<UniquePtr<InsertValue>>& inserts,
+                         std::span<UniquePtr<InsertValue>> chosenInserts,
+                         std::span<UniquePtr<InsertValue> const> otherInserts) {
+    inserts.insert(inserts.end(),
+                   std::move_iterator(chosenInserts.begin()),
+                   std::move_iterator(chosenInserts.end()));
+    for (auto& inst: otherInserts | ranges::views::reverse) {
+        inst->clearOperands();
+    }
+}
+
+static utl::hashmap<std::pair<Value*, Value*>, InsertValue*> gatherIVMap(
+    InsertValue* inst) {
+    utl::hashmap<std::pair<Value*, Value*>, InsertValue*> result;
+    auto search = [&](Value* value, auto& search) {
+        auto* iv = dyncast<InsertValue*>(value);
+        if (!iv) {
+            return;
+        }
+        auto* base = iv->baseValue();
+        auto* ins  = iv->insertedValue();
+        result.insert({ std::pair{ base, ins }, iv });
+        search(base, search);
+        search(ins, search);
+    };
+    search(inst, search);
+    return result;
+}
+
 Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
-    auto* root = getAccessTree(insertInst);
-
-    print(insertInst, root);
-
-    utl::small_vector<size_t> indices;
-    auto walk = [&](AccessTreeNode* node, auto& walk) -> void {
+    if (auto* undefInsValue = dyncast<UndefValue*>(insertInst->insertedValue()))
+    {
+        return insertInst->baseValue();
+    }
+    if (ranges::all_of(insertInst->users(), [](Instruction* user) {
+            return isa<InsertValue>(user) || isa<ExtractValue>(user);
+        }))
+    {
+        return nullptr;
+    }
+    auto* root       = getAccessTree(insertInst);
+    auto const ivMap = gatherIVMap(insertInst);
+    utl::small_vector<UniquePtr<InsertValue>> inserts;
+    root->postOrderWalk(
+        [&](AccessTreeNode* node, std::span<size_t const> indices) {
         if (node->children().empty()) {
+            /// Create `extract_value` instructions for all nodes that have no
+            /// associated value
             if (!node->payload()) {
                 auto* ev = new ExtractValue(root->payload(), indices, "ev");
                 insertInst->parent()->insert(insertInst, ev);
+                worklist.insert(ev);
                 node->setPayload(ev);
             }
             return;
         }
+        auto [leavesBase, leavesInserts] = newLeavesInserts(node, irCtx, ivMap);
+        auto [childrenBase, childrenInserts] =
+            newChildrenInserts(node, irCtx, ivMap);
 
-        indices.push_back(0);
-        for (auto* child: node->children()) {
-            walk(child, walk);
-            ++indices.back();
+        if (childrenInserts.size() < leavesInserts.size()) {
+            mergeInserts(inserts, childrenInserts, leavesInserts);
+            node->setPayload(childrenBase);
         }
-        indices.pop_back();
-
-        utl::hashmap<Value*, size_t> baseCount;
-        for (auto [index, child]: node->children() | ranges::views::enumerate) {
-            auto* ev = dyncast<ExtractValue*>(child->payload());
-            if (!ev || ev->memberIndices().size() != 1 ||
-                ev->memberIndices()[0] != index)
-            {
-                continue;
-            }
-            ++baseCount[ev->baseValue()];
+        else {
+            mergeInserts(inserts, leavesInserts, childrenInserts);
+            node->setPayload(leavesBase);
         }
-
-        auto* maxValue = [&]() -> Value* {
-            if (baseCount.empty()) {
-                return nullptr;
-            }
-            return ranges::max_element(baseCount,
-                                       ranges::less{},
-                                       [](auto& p) { return p.second; })
-                ->first;
-        }();
-        auto* baseValue = maxValue ? maxValue : irCtx.undef(node->type());
-
-        for (auto [index, child]: node->children() | ranges::views::enumerate) {
-            auto* ev = dyncast<ExtractValue*>(child->payload());
-            if (!ev || ev->memberIndices().size() != 1 ||
-                ev->memberIndices()[0] != index || ev->baseValue() != maxValue)
-            {
-                auto* iv = new InsertValue(baseValue,
-                                           child->payload(),
-                                           { index },
-                                           "iv");
-                insertInst->parent()->insert(insertInst, iv);
-                baseValue = iv;
-            }
-            else {
-                child->setPayload(nullptr);
-            }
-        }
-
-        node->setPayload(baseValue);
-    };
-    walk(root, walk);
-
-    if (root->payload() != insertInst) {
-        return root->payload();
+    });
+    for (auto& insert: inserts) {
+        worklist.insert(insert.get());
+        insertInst->parent()->insert(insertInst, insert.release());
     }
-    return nullptr;
+    auto* newValue = root->payload();
+    if (newValue == insertInst) {
+        return nullptr;
+    }
+    pushIfInst(insertInst->baseValue());
+    pushIfInst(insertInst->insertedValue());
+    if (auto* newInsert = dyncast<InsertValue*>(newValue)) {
+        pushIfInst(newInsert->baseValue());
+        pushIfInst(newInsert->insertedValue());
+    }
+    return newValue;
 }
 
 AccessTreeNode* InstCombineCtx::getAccessTree(ExtractValue* inst) {
