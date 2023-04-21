@@ -179,19 +179,16 @@ static void run(mir::Module const& mod) {
 
     auto& f = mod.front();
 
-    header(" Before SROA ");
+    print(mod);
+    header(" Running Inst Combine ");
 
+    header(" After Inst Combine ");
+    opt::instCombine(ctx, f);
     print(mod);
 
-    header(" After SROA ");
-    opt::sroa(ctx, f);
+    header(" After DCE ");
+    opt::dce(ctx, f);
     print(mod);
-
-    header(" After mem2reg ");
-    opt::memToReg(ctx, f);
-    print(mod);
-
-    run(mod);
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {

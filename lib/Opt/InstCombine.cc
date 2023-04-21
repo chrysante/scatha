@@ -1,12 +1,17 @@
 #include "Opt/InstCombine.h"
 
+#include <iostream>
+
 #include <range/v3/algorithm.hpp>
 #include <utl/hashtable.hpp>
+#include <utl/vector.hpp>
 
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Print.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
+#include "Opt/AccessTree.h"
 #include "Opt/Common.h"
 
 using namespace scatha;
@@ -14,6 +19,8 @@ using namespace ir;
 using namespace opt;
 
 namespace {
+
+using AccessTreeNode = opt::AccessTree<Value*>;
 
 struct InstCombineCtx {
     InstCombineCtx(Context& irCtx, Function& function):
@@ -30,9 +37,17 @@ struct InstCombineCtx {
     Value* visitImpl(ExtractValue* inst);
     Value* visitImpl(InsertValue* inst);
 
+    AccessTreeNode* getAccessTree(ExtractValue* inst);
+    AccessTreeNode* getAccessTree(InsertValue* inst);
+
+    template <typename Inst>
+    AccessTreeNode* getAccessTreeCommon(Inst* inst);
+
     Context& irCtx;
     Function& function;
     utl::hashset<Instruction*> worklist;
+
+    utl::hashmap<Instruction*, std::unique_ptr<AccessTreeNode>> accessTrees;
 };
 
 } // namespace
@@ -165,7 +180,20 @@ Value* InstCombineCtx::visitImpl(Phi* phi) {
     return first;
 }
 
+static void print(auto* inst, AccessTreeNode const* tree) {
+    std::cout << *inst << ":\n";
+    tree->print(
+        std::cout,
+        [](auto* v) { return ir::toString(v); },
+        1);
+    std::cout << "\n";
+}
+
 Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
+    auto* tree = getAccessTree(extractInst);
+
+    return nullptr;
+
     for (auto* insertInst = dyncast<InsertValue*>(extractInst->baseValue());
          insertInst != nullptr;
          insertInst = dyncast<InsertValue*>(insertInst->baseValue()))
@@ -180,11 +208,112 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
 }
 
 Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
-#if 0
-    utl::small_vector<InsertValue*> insts;
-    for (; insertInst != nullptr; insertInst = dyncast<InsertValue*>(insertInst->baseValue())) {
-        insts.push_back(insertInst);
+    auto* root = getAccessTree(insertInst);
+
+    print(insertInst, root);
+
+    utl::small_vector<size_t> indices;
+    auto walk = [&](AccessTreeNode* node, auto& walk) -> void {
+        if (node->children().empty()) {
+            if (!node->payload()) {
+                auto* ev = new ExtractValue(root->payload(), indices, "ev");
+                insertInst->parent()->insert(insertInst, ev);
+                node->setPayload(ev);
+            }
+            return;
+        }
+
+        indices.push_back(0);
+        for (auto* child: node->children()) {
+            walk(child, walk);
+            ++indices.back();
+        }
+        indices.pop_back();
+
+        utl::hashmap<Value*, size_t> baseCount;
+        for (auto [index, child]: node->children() | ranges::views::enumerate) {
+            auto* ev = dyncast<ExtractValue*>(child->payload());
+            if (!ev || ev->memberIndices().size() != 1 ||
+                ev->memberIndices()[0] != index)
+            {
+                continue;
+            }
+            ++baseCount[ev->baseValue()];
+        }
+
+        auto* maxValue = [&]() -> Value* {
+            if (baseCount.empty()) {
+                return nullptr;
+            }
+            return ranges::max_element(baseCount,
+                                       ranges::less{},
+                                       [](auto& p) { return p.second; })
+                ->first;
+        }();
+        auto* baseValue = maxValue ? maxValue : irCtx.undef(node->type());
+
+        for (auto [index, child]: node->children() | ranges::views::enumerate) {
+            auto* ev = dyncast<ExtractValue*>(child->payload());
+            if (!ev || ev->memberIndices().size() != 1 ||
+                ev->memberIndices()[0] != index || ev->baseValue() != maxValue)
+            {
+                auto* iv = new InsertValue(baseValue,
+                                           child->payload(),
+                                           { index },
+                                           "iv");
+                insertInst->parent()->insert(insertInst, iv);
+                baseValue = iv;
+            }
+            else {
+                child->setPayload(nullptr);
+            }
+        }
+
+        node->setPayload(baseValue);
+    };
+    walk(root, walk);
+
+    if (root->payload() != insertInst) {
+        return root->payload();
     }
-#endif
     return nullptr;
+}
+
+AccessTreeNode* InstCombineCtx::getAccessTree(ExtractValue* inst) {
+    return getAccessTreeCommon(inst);
+}
+
+AccessTreeNode* InstCombineCtx::getAccessTree(InsertValue* inst) {
+    auto* root = getAccessTreeCommon(inst);
+    auto* node = root;
+    for (size_t index: inst->memberIndices()) {
+        node->fanOut();
+        node = node->childAt(index);
+    }
+    node->setPayload(inst->insertedValue());
+    return root;
+}
+
+template <typename Inst>
+AccessTreeNode* InstCombineCtx::getAccessTreeCommon(Inst* inst) {
+    if (auto itr = accessTrees.find(inst); itr != accessTrees.end()) {
+        return itr->second.get();
+    }
+    // clang-format off
+    auto treeOwner = visit(*inst->baseValue(), utl::overload{
+        [&](ExtractValue& evBase) {
+            return getAccessTree(&evBase)->clone();
+        },
+        [&](InsertValue& ivBase) {
+            return getAccessTree(&ivBase)->clone();
+        },
+        [&](Value& base) {
+            auto tree = std::make_unique<AccessTreeNode>(base.type());
+            tree->setPayload(&base);
+            return tree;
+        }
+    }); // clang-format on
+    auto* root = treeOwner.get();
+    accessTrees.insert({ inst, std::move(treeOwner) });
+    return root;
 }
