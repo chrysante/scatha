@@ -7,9 +7,9 @@
 
 #include <utl/vector.hpp>
 
-#include <scatha/Basic/Basic.h>
-#include <scatha/Basic/OpaqueRange.h>
+#include <scatha/Common/Base.h>
 #include <scatha/Common/List.h>
+#include <scatha/Common/OpaqueRange.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Fwd.h>
 

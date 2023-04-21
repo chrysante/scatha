@@ -8,7 +8,7 @@
 #include <range/v3/algorithm.hpp>
 #include <utl/utility.hpp>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "IR/Parser/Token.h"
 
 using namespace scatha;

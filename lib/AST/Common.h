@@ -6,7 +6,7 @@
 #include <iosfwd>
 #include <string_view>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
 
 namespace scatha::ast {

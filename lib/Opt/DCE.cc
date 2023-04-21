@@ -5,7 +5,7 @@
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"

@@ -9,7 +9,7 @@
 #include <utl/common.hpp>
 #include <utl/expected.hpp>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 namespace scatha {
 

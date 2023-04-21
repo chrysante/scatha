@@ -12,7 +12,7 @@
 #include <utl/concepts.hpp>
 
 #include "AST/AST.h"
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Common/Expected.h"
 #include "Common/Keyword.h"
 #include "Parser/SyntaxIssue.h"

@@ -3,7 +3,7 @@
 #ifndef SCATHA_CODEGEN_CODEGEN_H_
 #define SCATHA_CODEGEN_CODEGEN_H_
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 namespace scatha::ir {
 

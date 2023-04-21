@@ -1,7 +1,7 @@
 #ifndef SCATHA_CODEGEN_PASSES_H_
 #define SCATHA_CODEGEN_PASSES_H_
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "MIR/Fwd.h"
 
 namespace scatha::ir {

@@ -8,7 +8,7 @@
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
-#include "Basic/PrintUtil.h"
+#include "Common/PrintUtil.h"
 #include "IR/CFG.h"
 
 using namespace scatha;

@@ -9,7 +9,7 @@
 #include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
-#include "Basic/Memory.h"
+#include "Common/Memory.h"
 #include "test/CoutRerouter.h"
 
 using namespace scatha;

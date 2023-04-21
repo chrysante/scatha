@@ -1,5 +1,5 @@
-#ifndef SCATHA_BASIC_PRINTUTIL_H_
-#define SCATHA_BASIC_PRINTUTIL_H_
+#ifndef SCATHA_COMMON_PRINTUTIL_H_
+#define SCATHA_COMMON_PRINTUTIL_H_
 
 #include <iosfwd>
 
@@ -51,4 +51,4 @@ struct EndlIndenter: Indenter {
 
 } // namespace scatha
 
-#endif // SCATHA_BASIC_PRINTUTIL_H_
+#endif // SCATHA_COMMON_PRINTUTIL_H_

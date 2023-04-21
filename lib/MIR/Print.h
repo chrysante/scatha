@@ -3,7 +3,7 @@
 
 #include <iosfwd>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "MIR/Fwd.h"
 
 namespace scatha::mir {

@@ -44,7 +44,7 @@
 
 #include <utl/hash.hpp>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
 
 namespace scatha::ir {

@@ -7,7 +7,7 @@
 
 #include <utl/vector.hpp>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 #include <scatha/Common/Token.h>
 #include <scatha/Issue/IssueHandler.h>
 

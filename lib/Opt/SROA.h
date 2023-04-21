@@ -1,7 +1,7 @@
 #ifndef SCATHA_OPT_SROA_H_
 #define SCATHA_OPT_SROA_H_
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 
 namespace scatha::ir {
 

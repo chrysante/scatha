@@ -1,7 +1,7 @@
 #ifndef SCATHA_SEMA_ANALYSIS_TYPEINSTANTIATION_H_
 #define SCATHA_SEMA_ANALYSIS_TYPEINSTANTIATION_H_
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Issue/IssueHandler.h"
 
 namespace scatha::sema {

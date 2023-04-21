@@ -6,7 +6,7 @@
 #include <compare>
 #include <iosfwd>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 namespace scatha {
 

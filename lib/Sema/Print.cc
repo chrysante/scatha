@@ -4,7 +4,7 @@
 
 #include <utl/hashset.hpp>
 
-#include "Basic/PrintUtil.h"
+#include "Common/PrintUtil.h"
 
 namespace scatha::sema {
 

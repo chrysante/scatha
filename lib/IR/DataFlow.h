@@ -4,7 +4,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "IR/Fwd.h"
 
 namespace scatha::ir {

@@ -1,7 +1,7 @@
 #ifndef SCATHA_IR_CFG_CONSTANT_H_
 #define SCATHA_IR_CFG_CONSTANT_H_
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "IR/CFG/User.h"
 #include "IR/Fwd.h"
 

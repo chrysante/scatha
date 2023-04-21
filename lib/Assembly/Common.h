@@ -4,7 +4,7 @@
 #include <iosfwd>
 #include <string_view>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 
 namespace scatha::Asm {
 

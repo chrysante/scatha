@@ -14,7 +14,7 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Map.h"
 #include "Assembly/Value.h"
-#include "Basic/Memory.h"
+#include "Common/Memory.h"
 
 using namespace scatha;
 using namespace Asm;

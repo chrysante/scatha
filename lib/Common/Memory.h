@@ -1,7 +1,5 @@
-#pragma once
-
-#ifndef SCATHA_BASIC_MEMORY_H_
-#define SCATHA_BASIC_MEMORY_H_
+#ifndef SCATHA_COMMON_MEMORY_H_
+#define SCATHA_COMMON_MEMORY_H_
 
 #include <cstring>
 #include <type_traits>
@@ -27,4 +25,4 @@ void store(void* dest, T const& t) {
 
 } // namespace scatha
 
-#endif // SCATHA_BASIC_MEMORY_H_
+#endif // SCATHA_COMMON_MEMORY_H_

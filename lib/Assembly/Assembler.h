@@ -8,7 +8,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 namespace scatha::Asm {
 

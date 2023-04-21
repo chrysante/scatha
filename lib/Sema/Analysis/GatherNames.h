@@ -1,7 +1,7 @@
 #ifndef SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 #define SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/Analysis/DependencyGraph.h"
 

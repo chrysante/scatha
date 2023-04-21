@@ -3,7 +3,7 @@
 #include <utl/scope_guard.hpp>
 
 #include "AST/AST.h"
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/SemanticIssue.h"
 

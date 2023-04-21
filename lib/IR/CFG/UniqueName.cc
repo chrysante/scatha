@@ -4,7 +4,7 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 
 using namespace scatha;
 using namespace ir;

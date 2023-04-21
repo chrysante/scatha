@@ -3,7 +3,7 @@
 #ifndef SCATHA_ISSUE_PROGRAMISSUE_H_
 #define SCATHA_ISSUE_PROGRAMISSUE_H_
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 #include <scatha/Common/Token.h>
 
 namespace scatha::issue::internal {

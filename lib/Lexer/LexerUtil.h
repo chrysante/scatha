@@ -6,7 +6,7 @@
 #include <cctype>
 #include <utl/common.hpp>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 
 namespace scatha::lex {
 

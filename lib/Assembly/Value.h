@@ -6,7 +6,7 @@
 #include <utl/variant.hpp>
 
 #include "Assembly/Common.h"
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 
 namespace scatha::Asm {
 

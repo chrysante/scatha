@@ -1,7 +1,5 @@
-// SCATHA-PUBLIC-HEADER
-
-#ifndef SCATHA_BASIC_COMMON_H_
-#define SCATHA_BASIC_COMMON_H_
+#ifndef SCATHA_COMMON_BASE_H_
+#define SCATHA_COMMON_BASE_H_
 
 #include <array>
 #include <cstddef>
@@ -149,4 +147,4 @@ inline constexpr size_t invalidIndex = static_cast<size_t>(-1);
 
 } // namespace scatha
 
-#endif // SCATHA_BASIC_COMMON_H_
+#endif // SCATHA_COMMON_BASE_H_

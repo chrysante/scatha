@@ -3,7 +3,7 @@
 #ifndef SCATHA_OPT_OPTIMIZER_H_
 #define SCATHA_OPT_OPTIMIZER_H_
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 namespace scatha::ir {
 

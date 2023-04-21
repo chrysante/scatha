@@ -7,8 +7,8 @@
 #include <utl/common.hpp>
 
 #include "AST/AST.h"
-#include "Basic/Basic.h"
-#include "Basic/PrintUtil.h"
+#include "Common/Base.h"
+#include "Common/PrintUtil.h"
 
 using namespace scatha;
 using namespace ast;

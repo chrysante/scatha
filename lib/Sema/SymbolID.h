@@ -9,7 +9,7 @@
 
 #include <utl/common.hpp>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 namespace scatha::sema {
 

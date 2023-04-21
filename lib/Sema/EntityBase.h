@@ -6,7 +6,7 @@
 #include <string>
 #include <string_view>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 #include <scatha/Sema/SymbolID.h>
 
 /// Class hierarchy of `EntityBase`

@@ -3,7 +3,7 @@
 #ifndef SCATHA_AST_LOWERTOIR_H_
 #define SCATHA_AST_LOWERTOIR_H_
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 namespace scatha::sema {
 

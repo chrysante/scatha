@@ -4,7 +4,7 @@
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "IR/CFG/Constant.h"
 #include "IR/Fwd.h"
 

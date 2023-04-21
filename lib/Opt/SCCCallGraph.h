@@ -5,7 +5,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Common/Graph.h"
 #include "IR/Fwd.h"
 

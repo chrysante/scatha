@@ -3,7 +3,7 @@
 
 #include <string_view>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Common/Expected.h"
 #include "IR/Parser/Issue.h"
 #include "IR/Parser/SourceLocation.h"

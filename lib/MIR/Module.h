@@ -3,7 +3,7 @@
 
 #include <utl/hashmap.hpp>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Common/List.h"
 #include "MIR/Fwd.h"
 

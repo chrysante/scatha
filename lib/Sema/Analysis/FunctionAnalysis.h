@@ -3,7 +3,7 @@
 
 #include <span>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/Analysis/DependencyGraph.h"
 

@@ -6,7 +6,7 @@
 #include <optional>
 #include <string_view>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 namespace scatha {
 

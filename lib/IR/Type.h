@@ -10,7 +10,7 @@
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 #include <scatha/IR/Fwd.h>
 
 namespace scatha::ir {

@@ -7,7 +7,7 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
-#include "Basic/PrintUtil.h"
+#include "Common/PrintUtil.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
 

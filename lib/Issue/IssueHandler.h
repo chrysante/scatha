@@ -7,7 +7,7 @@
 #include <memory>
 #include <span>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 namespace scatha::lex {
 class LexicalIssue;

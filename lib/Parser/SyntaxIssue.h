@@ -7,7 +7,7 @@
 #include <string>
 #include <string_view>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 #include <scatha/Issue/ProgramIssue.h>
 #include <scatha/Parser/Bracket.h>
 

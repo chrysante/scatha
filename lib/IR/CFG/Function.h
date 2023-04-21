@@ -5,7 +5,7 @@
 #include <span>
 #include <string>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "IR/Attribute.h"
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Constant.h"

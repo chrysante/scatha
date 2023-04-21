@@ -1,7 +1,7 @@
 #ifndef SCATHA_IR_CLONE_H_
 #define SCATHA_IR_CLONE_H_
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Common/UniquePtr.h"
 #include "IR/Fwd.h"
 

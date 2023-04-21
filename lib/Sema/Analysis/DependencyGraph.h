@@ -5,7 +5,7 @@
 #include <utl/vector.hpp>
 
 #include "AST/Base.h"
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "Sema/Scope.h"
 #include "Sema/SymbolID.h"
 

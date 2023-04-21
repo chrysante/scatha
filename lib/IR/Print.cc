@@ -7,8 +7,8 @@
 #include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
-#include "Basic/Basic.h"
-#include "Basic/PrintUtil.h"
+#include "Common/Base.h"
+#include "Common/PrintUtil.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "IR/Type.h"

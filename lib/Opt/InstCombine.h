@@ -1,7 +1,7 @@
 #ifndef SCATHA_OPT_INSTCOMBINE_H_
 #define SCATHA_OPT_INSTCOMBINE_H_
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "IR/Fwd.h"
 
 namespace scatha::opt {

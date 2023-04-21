@@ -5,7 +5,7 @@
 #include <range/v3/view.hpp>
 #include <utl/graph.hpp>
 
-#include "Basic/PrintUtil.h"
+#include "Common/PrintUtil.h"
 #include "IR/CFG.h"
 #include "IR/Dominance.h"
 

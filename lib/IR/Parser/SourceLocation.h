@@ -1,7 +1,7 @@
 #ifndef SCATHA_IR_PARSER_SOURCELOCATION_H_
 #define SCATHA_IR_PARSER_SOURCELOCATION_H_
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 
 namespace scatha::ir {
 

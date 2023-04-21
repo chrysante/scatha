@@ -7,8 +7,8 @@
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
-#include "Basic/Basic.h"
-#include "Basic/OpaqueRange.h"
+#include "Common/Base.h"
+#include "Common/OpaqueRange.h"
 #include "IR/Fwd.h"
 
 namespace scatha::ir {

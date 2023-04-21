@@ -15,7 +15,7 @@
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Base.h>
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Common/Token.h>
 #include <scatha/Sema/Function.h>

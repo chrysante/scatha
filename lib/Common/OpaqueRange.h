@@ -1,5 +1,5 @@
-#ifndef SCATHA_BASIC_OPAQUERANGE_H_
-#define SCATHA_BASIC_OPAQUERANGE_H_
+#ifndef SCATHA_COMMON_OPAQUERANGE_H_
+#define SCATHA_COMMON_OPAQUERANGE_H_
 
 #include <range/v3/view.hpp>
 
@@ -14,4 +14,4 @@ auto makeOpaqueRange(auto&& r) {
 
 } // namespace scatha
 
-#endif // SCATHA_BASIC_OPAQUERANGE_H_
+#endif // SCATHA_COMMON_OPAQUERANGE_H_

@@ -4,7 +4,7 @@
 #include <iosfwd>
 #include <string_view>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 #include <scatha/Common/Token.h>
 
 namespace scatha::issue {

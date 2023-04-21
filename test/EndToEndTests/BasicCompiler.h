@@ -5,7 +5,7 @@
 
 #include <utl/function_view.hpp>
 
-#include "Basic/Basic.h"
+#include "Common/Base.h"
 #include "IR/Fwd.h"
 
 namespace scatha::test {

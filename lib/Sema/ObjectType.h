@@ -7,7 +7,7 @@
 
 #include <utl/vector.hpp>
 
-#include <scatha/Basic/Basic.h>
+#include <scatha/Common/Base.h>
 
 #include <scatha/Sema/FunctionSignature.h>
 #include <scatha/Sema/Scope.h>
