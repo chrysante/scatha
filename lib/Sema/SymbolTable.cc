@@ -59,15 +59,15 @@ Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(
 }
 
 Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(
-    Token name, bool allowKeywords) {
+    std::string name, bool allowKeywords) {
     using enum InvalidDeclaration::Reason;
-    if (!allowKeywords && isKeyword(name.id())) {
+    if (!allowKeywords && isKeyword(name)) {
         return InvalidDeclaration(nullptr,
                                   ReservedIdentifier,
                                   currentScope(),
                                   SymbolCategory::ObjectType);
     }
-    const SymbolID symbolID = currentScope().findID(name.id());
+    const SymbolID symbolID = currentScope().findID(name);
     if (symbolID != SymbolID::Invalid) {
         return InvalidDeclaration(nullptr,
                                   Redefinition,
@@ -77,17 +77,21 @@ Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(
     }
     auto const newSymbolID = generateID(SymbolCategory::ObjectType);
     auto [itr, success]    = _objectTypes.insert(
-        { newSymbolID, ObjectType(name.id(), newSymbolID, &currentScope()) });
+        { newSymbolID, ObjectType(name, newSymbolID, &currentScope()) });
     SC_ASSERT(success, "");
     currentScope().add(itr->second);
     return itr->second;
 }
 
+Expected<ObjectType&, SemanticIssue> SymbolTable::declareObjectType(
+    Token name, bool allowKeywords) {
+    return declareObjectType(name.id(), allowKeywords);
+}
+
 TypeID SymbolTable::declareBuiltinType(std::string name,
                                        size_t size,
                                        size_t align) {
-    Token token(name, TokenKind::Identifier);
-    auto result = declareObjectType(token, /* allowKeywords = */ true);
+    auto result = declareObjectType(name, /* allowKeywords = */ true);
     SC_ASSERT(result, "How could this fail?");
     result->setSize(size);
     result->setAlign(align);
@@ -105,24 +109,23 @@ Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(
 }
 
 Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(
-    Token name) {
+    std::string name) {
     using enum InvalidDeclaration::Reason;
-    if (isKeyword(name.id())) {
+    if (isKeyword(name)) {
         return InvalidDeclaration(nullptr,
                                   ReservedIdentifier,
                                   currentScope(),
                                   SymbolCategory::Function);
     }
     SymbolID const overloadSetID = [&] {
-        auto const symbolID = currentScope().findID(name.id());
+        auto const symbolID = currentScope().findID(name);
         if (symbolID != SymbolID::Invalid) {
             return symbolID;
         }
         /// Create a new overload set
         auto const newSymbolID = generateID(SymbolCategory::OverloadSet);
         auto [itr, success]    = _overloadSets.insert(
-            { newSymbolID,
-                 OverloadSet(name.id(), newSymbolID, &currentScope()) });
+            { newSymbolID, OverloadSet(name, newSymbolID, &currentScope()) });
         SC_ASSERT(success, "");
         OverloadSet& overloadSet = itr->second;
         currentScope().add(overloadSet);
@@ -141,7 +144,7 @@ Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(
     auto const newSymbolID = generateID(SymbolCategory::Function);
     auto const [itr, success] =
         _functions.insert({ newSymbolID,
-                            Function(name.id(),
+                            Function(name,
                                      /* functionID = */ newSymbolID,
                                      /* overloadSetID = */ overloadSetID,
                                      &currentScope(),
@@ -150,6 +153,11 @@ Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(
     Function& function = itr->second;
     currentScope().add(function);
     return function;
+}
+
+Expected<Function const&, SemanticIssue> SymbolTable::declareFunction(
+    Token name) {
+    return declareFunction(name.id());
 }
 
 Expected<void, SemanticIssue> SymbolTable::setSignature(SymbolID functionID,
@@ -209,15 +217,16 @@ Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(
     return result;
 }
 
-Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(Token name) {
+Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(
+    std::string name) {
     using enum InvalidDeclaration::Reason;
-    if (isKeyword(name.id())) {
+    if (isKeyword(name)) {
         return InvalidDeclaration(nullptr,
                                   ReservedIdentifier,
                                   currentScope(),
                                   SymbolCategory::Variable);
     }
-    const SymbolID symbolID = currentScope().findID(name.id());
+    const SymbolID symbolID = currentScope().findID(name);
     if (symbolID != SymbolID::Invalid) {
         return InvalidDeclaration(nullptr,
                                   Redefinition,
@@ -227,11 +236,15 @@ Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(Token name) {
     }
     auto const newSymbolID = generateID(SymbolCategory::Variable);
     auto [itr, success]    = _variables.insert(
-        { newSymbolID, Variable(name.id(), newSymbolID, &currentScope()) });
+        { newSymbolID, Variable(name, newSymbolID, &currentScope()) });
     SC_ASSERT(success, "");
     Variable& variable = itr->second;
     currentScope().add(variable);
     return variable;
+}
+
+Expected<Variable&, SemanticIssue> SymbolTable::declareVariable(Token name) {
+    return declareVariable(name.id());
 }
 
 Expected<Variable&, SemanticIssue> SymbolTable::addVariable(
@@ -243,7 +256,7 @@ Expected<Variable&, SemanticIssue> SymbolTable::addVariable(
     return result;
 }
 
-Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name,
+Expected<Variable&, SemanticIssue> SymbolTable::addVariable(std::string name,
                                                             TypeID typeID,
                                                             size_t offset) {
     auto declResult = declareVariable(std::move(name));
@@ -254,6 +267,12 @@ Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name,
     var.setTypeID(typeID);
     SC_ASSERT(offset == 0, "Temporary measure. Should remove parameter offset");
     return var;
+}
+
+Expected<Variable&, SemanticIssue> SymbolTable::addVariable(Token name,
+                                                            TypeID typeID,
+                                                            size_t offset) {
+    return addVariable(name.id(), typeID, offset);
 }
 
 Scope const& SymbolTable::addAnonymousScope() {
