@@ -18,12 +18,12 @@
 #include "IR/Print.h"
 #include "IRDump.h"
 #include "Parser/Lexer.h"
-#include "Parser/LexicalIssue2.h"
+#include "Parser/LexicalIssue.h"
 #include "Parser/Parser.h"
-#include "Parser/SyntaxIssue2.h"
+#include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
-#include "Sema/SemaIssue2.h"
+#include "Sema/SemanticIssue.h"
 
 using namespace playground;
 using namespace scatha;

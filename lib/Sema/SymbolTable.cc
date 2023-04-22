@@ -6,7 +6,7 @@
 #include <utl/utility.hpp>
 
 #include "AST/AST.h"
-#include "Sema/SemaIssue2.h"
+#include "Sema/SemanticIssue.h"
 
 using namespace scatha;
 using namespace sema;

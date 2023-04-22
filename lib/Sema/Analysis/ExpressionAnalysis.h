@@ -2,7 +2,7 @@
 #define SCATHA_SEMA_EXPRESSIONANALYSIS_H_
 
 #include "AST/AST.h"
-#include "Issue/IssueHandler2.h"
+#include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::sema {

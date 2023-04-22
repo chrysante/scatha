@@ -32,7 +32,7 @@
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
-#include "Sema/SemaIssue2.h"
+#include "Sema/SemanticIssue.h"
 
 using namespace scatha;
 

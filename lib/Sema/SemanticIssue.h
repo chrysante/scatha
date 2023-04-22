@@ -14,7 +14,7 @@
 #include <scatha/AST/Fwd.h>
 #include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
-#include <scatha/Issue/Issue2.h>
+#include <scatha/Issue/Issue.h>
 #include <scatha/Sema/SymbolID.h>
 
 namespace scatha::sema {

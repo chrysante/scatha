@@ -1,4 +1,4 @@
-#include "Issue/Issue2.h"
+#include "Issue/Issue.h"
 
 #include <iostream>
 

@@ -5,7 +5,6 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "Issue/IssueHandler.h"
-#include "Issue/IssueHandler2.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"

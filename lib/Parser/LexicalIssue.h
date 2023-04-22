@@ -8,7 +8,7 @@
 #include <utl/utility.hpp>
 
 #include <scatha/Common/Base.h>
-#include <scatha/Issue/Issue2.h>
+#include <scatha/Issue/Issue.h>
 
 namespace scatha::parse {
 

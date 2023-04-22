@@ -3,7 +3,7 @@
 
 #include "AST/Fwd.h"
 #include "Common/Base.h"
-#include "Issue/IssueHandler2.h"
+#include "Issue/IssueHandler.h"
 #include "Sema/Analysis/DependencyGraph.h"
 
 namespace scatha::sema {

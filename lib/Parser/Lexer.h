@@ -9,7 +9,7 @@
 
 #include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
-#include <scatha/Issue/IssueHandler2.h>
+#include <scatha/Issue/IssueHandler.h>
 
 namespace scatha::parse {
 

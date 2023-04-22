@@ -4,11 +4,10 @@
 
 #include "Common/APFloat.h"
 #include "Parser/Lexer.h"
-#include "Parser/LexicalIssue2.h"
+#include "Parser/LexicalIssue.h"
 #include "test/IssueHelper.h"
 
 using namespace scatha;
-using namespace lex;
 using namespace parse;
 
 namespace {

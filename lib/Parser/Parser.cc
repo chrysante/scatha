@@ -6,7 +6,7 @@
 #include "Common/Expected.h"
 #include "Parser/BracketCorrection.h"
 #include "Parser/Panic.h"
-#include "Parser/SyntaxIssue2.h"
+#include "Parser/SyntaxIssue.h"
 #include "Parser/TokenStream.h"
 
 #include "Parser/ParserImpl.h"

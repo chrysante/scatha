@@ -15,11 +15,11 @@
 #include <scatha/Issue/Format.h>
 #include <scatha/Opt/Optimizer.h>
 #include <scatha/Parser/Lexer.h>
-#include <scatha/Parser/LexicalIssue2.h>
+#include <scatha/Parser/LexicalIssue.h>
 #include <scatha/Parser/Parser.h>
-#include <scatha/Parser/SyntaxIssue2.h>
+#include <scatha/Parser/SyntaxIssue.h>
 #include <scatha/Sema/Analyze.h>
-#include <scatha/Sema/SemaIssue2.h>
+#include <scatha/Sema/SemanticIssue.h>
 #include <termfmt/termfmt.h>
 #include <utl/format_time.hpp>
 #include <utl/typeinfo.hpp>

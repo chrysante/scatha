@@ -4,7 +4,7 @@
 #define SCATHA_SEMA_ANALYZE_H_
 
 #include <scatha/AST/Fwd.h>
-#include <scatha/Issue/IssueHandler2.h>
+#include <scatha/Issue/IssueHandler.h>
 #include <scatha/Sema/SymbolTable.h>
 
 namespace scatha::sema {

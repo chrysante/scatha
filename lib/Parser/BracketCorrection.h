@@ -5,7 +5,7 @@
 
 #include "AST/Token.h"
 #include "Common/Base.h"
-#include "Issue/IssueHandler2.h"
+#include "Issue/IssueHandler.h"
 
 namespace scatha::parse {
 

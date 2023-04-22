@@ -27,7 +27,7 @@
 #include "IR/Print.h"
 #include "IR/Validate.h"
 #include "IRDump.h"
-#include "Issue/IssueHandler2.h"
+#include "Issue/IssueHandler.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
 #include "MIR/Print.h"
@@ -47,7 +47,7 @@
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
-#include "Sema/SemaIssue2.h"
+#include "Sema/SemanticIssue.h"
 
 static void line(std::string_view m) {
     std::cout << "==============================" << m

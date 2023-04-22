@@ -6,7 +6,7 @@
 
 #include "AST/AST.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
-#include "Sema/SemaIssue2.h"
+#include "Sema/SemanticIssue.h"
 
 using namespace scatha;
 using namespace scatha::sema;

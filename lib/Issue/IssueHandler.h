@@ -11,7 +11,7 @@
 #include <range/v3/view.hpp>
 
 #include <scatha/Common/Base.h>
-#include <scatha/Issue/Issue2.h>
+#include <scatha/Issue/Issue.h>
 
 namespace scatha {
 
@@ -51,8 +51,12 @@ public:
     /// \Returns `true` iff no  issues occurred
     bool empty() const { return _issues.empty(); }
 
+    size_t size() const { return _issues.size(); }
+
     /// \Returns `true` iff a fatal error has occurred
     bool fatal() const { return false; /* For now */ }
+
+    Issue const& operator[](size_t index) const { return *_issues[index]; }
 
 private:
     std::vector<std::unique_ptr<Issue>> _issues;

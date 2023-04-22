@@ -1,4 +1,4 @@
-#include "Parser/LexicalIssue2.h"
+#include "Parser/LexicalIssue.h"
 
 using namespace scatha;
 using namespace parse;

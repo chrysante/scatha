@@ -1,7 +1,7 @@
 #include <Catch/Catch2.hpp>
 
 #include "AST/AST.h"
-#include "Parser/SyntaxIssue2.h"
+#include "Parser/SyntaxIssue.h"
 #include "test/IssueHelper.h"
 
 using namespace scatha;

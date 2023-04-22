@@ -1,4 +1,4 @@
-#include "Sema/SemaIssue2.h"
+#include "Sema/SemanticIssue.h"
 
 #include <ostream>
 

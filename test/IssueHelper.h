@@ -9,7 +9,6 @@
 #include "AST/Token.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
-#include "Issue/IssueHandler2.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::test {

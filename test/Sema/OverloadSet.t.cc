@@ -1,7 +1,7 @@
 #include <Catch/Catch2.hpp>
 
 #include "Sema/OverloadSet.h"
-#include "Sema/SemaIssue2.h"
+#include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;

@@ -4,7 +4,7 @@
 #include <utility>
 
 #include <AST/AST.h>
-#include <Issue/IssueHandler2.h>
+#include <Issue/IssueHandler.h>
 #include <Parser/TokenStream.h>
 
 namespace scatha::test {

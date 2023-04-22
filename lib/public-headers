@@ -31,18 +31,14 @@ IR/Type.h
 Opt/Optimizer.h
 
 Issue/IssueHandler.h
-Issue/IssueHandler2.h
 Issue/Format.h
-Issue/ProgramIssue.h
-Issue/Issue2.h
-Issue/VariantIssueBase.h
+Issue/Issue.h
 
 Parser/Parser.h
 Parser/SyntaxIssue.h
 Parser/Bracket.h
 Parser/Lexer.h
 Parser/LexicalIssue.h
-Parser/LexicalIssue2.h
 
 Sema/Analyze.h
 Sema/Attributes.h
@@ -58,4 +54,4 @@ Sema/Function.h
 Sema/FunctionSignature.h
 Sema/Scope.h
 Sema/ScopeKind.h
-Sema/SemaIssue2.h
+Sema/SemanticIssue.h

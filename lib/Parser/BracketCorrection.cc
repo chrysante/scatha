@@ -6,7 +6,7 @@
 #include <utl/stack.hpp>
 
 #include "Parser/Bracket.h"
-#include "Parser/SyntaxIssue2.h"
+#include "Parser/SyntaxIssue.h"
 
 using namespace scatha;
 using namespace parse;

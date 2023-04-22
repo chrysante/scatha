@@ -5,7 +5,7 @@
 #include "AST/SourceLocation.h"
 #include "Common/Expected.h"
 #include "Parser/LexerUtil.h"
-#include "Parser/LexicalIssue2.h"
+#include "Parser/LexicalIssue.h"
 
 using namespace scatha;
 using namespace parse;

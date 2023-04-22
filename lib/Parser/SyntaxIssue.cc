@@ -1,10 +1,10 @@
-#include "Parser/SyntaxIssue2.h"
+#include "Parser/SyntaxIssue.h"
 
 #include <ostream>
 
 #include <utl/utility.hpp>
 
-#include "Issue/IssueHandler2.h"
+#include "Issue/IssueHandler.h"
 
 using namespace scatha;
 using namespace parse;

@@ -1,6 +1,6 @@
 #include <Catch/Catch2.hpp>
 
-#include "Sema/SemaIssue2.h"
+#include "Sema/SemanticIssue.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
 using namespace scatha;

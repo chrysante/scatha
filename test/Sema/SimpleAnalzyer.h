@@ -6,7 +6,7 @@
 
 #include "AST/Fwd.h"
 #include "Common/UniquePtr.h"
-#include "Issue/IssueHandler2.h"
+#include "Issue/IssueHandler.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::test {
