@@ -6,7 +6,7 @@
 #include "Common/Expected.h"
 #include "Parser/BracketCorrection.h"
 #include "Parser/Panic.h"
-#include "Parser/SyntaxIssue.h"
+#include "Parser/SyntaxIssue2.h"
 #include "Parser/TokenStream.h"
 
 #include "Parser/ParserImpl.h"
@@ -14,15 +14,12 @@
 using namespace scatha;
 using namespace parse;
 
-using enum SyntaxIssue::Reason;
+using enum TokenKind;
 
-UniquePtr<ast::AbstractSyntaxTree> parse::parse(
-    utl::vector<Token> tokens, issue::SyntaxIssueHandler& iss) {
-    bracketCorrection(tokens, iss);
-    if (iss.fatal()) {
-        return nullptr;
-    }
-    Context ctx{ .tokens{ std::move(tokens) }, .iss = iss };
+UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens,
+                                                IssueHandler& issues) {
+    bracketCorrection(tokens, issues);
+    Context ctx{ .tokens{ std::move(tokens) }, .issues = issues };
     return ctx.run();
 }
 
@@ -36,12 +33,12 @@ UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
     UniquePtr<ast::TranslationUnit> result = allocate<ast::TranslationUnit>();
     while (true) {
         Token const token = tokens.peek();
-        if (token.type == TokenType::EndOfFile) {
+        if (token.kind() == EndOfFile) {
             break;
         }
         auto decl = parseExternalDeclaration();
         if (!decl) {
-            iss.push(SyntaxIssue(tokens.peek(), ExpectedDeclarator));
+            issues.push<ExpectedDeclarator>(tokens.peek());
             panic(tokens);
             continue;
         }
@@ -52,15 +49,12 @@ UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
     ast::AccessSpec accessSpec = ast::AccessSpec::None;
-    if (Token const token = tokens.peek();
-        token.isKeyword &&
-        token.keywordCategory == KeywordCategory::AccessSpecifiers)
-    {
-        tokens.eat();
-        if (token.id == "public") {
+    if (isAccessSpec(tokens.peek().kind())) {
+        Token const token = tokens.eat();
+        if (token.kind() == Public) {
             accessSpec = ast::AccessSpec::Public;
         }
-        if (token.id == "private") {
+        if (token.kind() == Private) {
             accessSpec = ast::AccessSpec::Private;
         }
     }
@@ -102,21 +96,21 @@ bool Context::recover(std::pair<Cond, F>... retry) {
 }
 
 template <std::predicate... F>
-bool Context::recover(std::pair<std::string_view, F>... retry) {
-    return recover(
-        std::pair{ [&](Token const& token) { return token.id == retry.first; },
-                   retry.second }...);
+bool Context::recover(std::pair<TokenKind, F>... retry) {
+    return recover(std::pair{
+        [&](Token const& token) { return token.kind() == retry.first; },
+        retry.second }...);
 }
 
 UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     Token const declarator = tokens.peek();
-    if (declarator.keyword != Keyword::Function) {
+    if (declarator.kind() != Function) {
         return nullptr;
     }
     tokens.eat();
     auto identifier = parseIdentifier();
     if (!identifier) {
-        iss.push(SyntaxIssue(tokens.peek(), ExpectedIdentifier));
+        issues.push<ExpectedIdentifier>(tokens.peek());
         bool const recovered = recover(
             std::pair{ [&](Token const&) { return true; },
                        [&] { return bool(identifier = parseIdentifier()); } });
@@ -129,20 +123,23 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     /// Parse parameters
     using ParamListType = decltype(result->parameters);
     auto parseList      = [this] {
-        return this->parseList<ParamListType>("(", ")", ",", [this] {
+        return this->parseList<ParamListType>(OpenParan,
+                                              CloseParan,
+                                              Comma,
+                                              [this] {
             return parseParameterDeclaration();
         });
     };
     auto params = parseList();
     if (!params) {
-        iss.push(SyntaxIssue::expectedID(tokens.peek(), "("));
+        issues.push<UnqualifiedID>(tokens.peek(), OpenParan);
         // clang-format off
-        bool const recovered = recover(std::pair{ std::string_view("{"), [&] {
+        bool const recovered = recover(std::pair{ OpenBrace, [&] {
             /// User forgot to specify parameter list?
             /// Go on with parsing the body.
             params = ParamListType{};
             return true;
-        } }, std::pair{ std::string_view("("), [&] {
+        } }, std::pair{ OpenParan, [&] {
             /// Try parsing parameter list again.
             return bool(params = parseList());
         }});
@@ -152,7 +149,7 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
         }
     }
     result->parameters = std::move(*params);
-    if (Token const arrow = tokens.peek(); arrow.id == "->") {
+    if (Token const arrow = tokens.peek(); arrow.kind() == Arrow) {
         tokens.eat();
         result->returnTypeExpr = parseTypeExpression();
         if (!result->returnTypeExpr) {
@@ -161,12 +158,12 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
     }
     auto body = parseCompoundStatement();
     if (!body) {
-        iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
+        issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
         /// Eat a few tokens and see if we can find a compound statement.
         /// 5 is pretty arbitrary here.
         bool recovered =
-            recover(std::pair(std::string_view(";"), [&] { return true; }),
-                    std::pair(std::string_view("{"), [&] {
+            recover(std::pair(Semicolon, [&] { return true; }),
+                    std::pair(OpenBrace, [&] {
                         return bool(body = parseCompoundStatement());
                     }));
         if (!recovered) {
@@ -181,32 +178,32 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     Token const& idToken = tokens.peek();
     auto identifier      = parseIdentifier();
     if (!identifier) {
-        iss.push(SyntaxIssue(idToken, ExpectedIdentifier));
+        issues.push<ExpectedIdentifier>(idToken);
         /// Custom recovery mechanism
         while (true) {
             Token const& next = tokens.peek();
-            if (next.id == ":") {
+            if (next.kind() == Colon) {
                 break;
             }
-            if (next.id == "," || next.id == ")") {
+            if (next.kind() == Comma || next.kind() == CloseParan) {
                 return nullptr;
             }
-            if (next.type == TokenType::EndOfFile) {
+            if (next.kind() == EndOfFile) {
                 return nullptr;
             }
             tokens.eat();
         }
     }
     Token const colon = tokens.peek();
-    if (colon.id != ":") {
-        iss.push(SyntaxIssue::expectedID(colon, ":"));
+    if (colon.kind() != Colon) {
+        issues.push<UnqualifiedID>(colon, Colon);
         /// Custom recovery mechanism
         while (true) {
             Token const& next = tokens.peek();
-            if (next.id == "," || next.id == ")") {
+            if (next.kind() == Comma || next.kind() == CloseParan) {
                 return nullptr;
             }
-            if (next.type == TokenType::EndOfFile) {
+            if (next.kind() == EndOfFile) {
                 return nullptr;
             }
             tokens.eat();
@@ -221,10 +218,10 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
         /// Custom recovery mechanism
         while (true) {
             Token const& next = tokens.peek();
-            if (next.id == "," || next.id == ")") {
+            if (next.kind() == Comma || next.kind() == CloseParan) {
                 return nullptr;
             }
-            if (next.type == TokenType::EndOfFile) {
+            if (next.kind() == EndOfFile) {
                 return nullptr;
             }
             tokens.eat();
@@ -236,15 +233,15 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
 
 UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
     Token const declarator = tokens.peek();
-    if (declarator.keyword != Keyword::Struct) {
+    if (declarator.kind() != Struct) {
         return nullptr;
     }
     tokens.eat();
     auto identifier = parseIdentifier();
     if (!identifier) {
-        iss.push(SyntaxIssue(tokens.peek(), ExpectedIdentifier));
+        issues.push<ExpectedIdentifier>(tokens.peek());
         bool const recovered =
-            recover(std::pair(std::string_view("{"), [] { return true; }));
+            recover(std::pair(OpenBrace, [] { return true; }));
         if (!recovered) {
             return nullptr;
         }
@@ -262,9 +259,7 @@ UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
 
 UniquePtr<ast::VariableDeclaration> Context::parseVariableDeclaration() {
     Token const declarator = tokens.peek();
-    if (declarator.keyword != Keyword::Var &&
-        declarator.keyword != Keyword::Let)
-    {
+    if (declarator.kind() != Var && declarator.kind() != Let) {
         return nullptr;
     }
     tokens.eat();
@@ -275,37 +270,33 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
     std::optional<Token> declarator) {
     auto identifier = parseIdentifier();
     if (!identifier) {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGFAIL(); // Handle issue
+        issues.push<ExpectedIdentifier>(tokens.current());
+        panic(tokens);
     }
     auto result =
         allocate<ast::VariableDeclaration>(declarator.value_or(Token{}),
                                            std::move(identifier));
-    if (Token const colon = tokens.peek(); colon.id == ":") {
+    if (Token const colon = tokens.peek(); colon.kind() == Colon) {
         tokens.eat();
         auto typeExpr = parseTypeExpression();
         if (!typeExpr) {
-            Token const curr = tokens.current();
-            Token const next = tokens.peek();
-            SC_DEBUGFAIL(); // Handle issue
+            issues.push<ExpectedExpression>(tokens.current());
+            panic(tokens);
         }
         result->typeExpr = std::move(typeExpr);
     }
-    if (Token const assign = tokens.peek(); assign.id == "=") {
+    if (Token const assign = tokens.peek(); assign.kind() == Assign) {
         tokens.eat();
         auto initExpr = parseAssignment();
         if (!initExpr) {
-            Token const curr = tokens.current();
-            Token const next = tokens.peek();
-            SC_DEBUGFAIL(); // Handle issue
+            issues.push<ExpectedExpression>(tokens.current());
+            panic(tokens);
         }
         result->initExpression = std::move(initExpr);
     }
-    if (Token const semicolon = tokens.peek(); semicolon.id != ";") {
-        Token const curr = tokens.current();
-        Token const next = tokens.peek();
-        SC_DEBUGFAIL(); // Handle issue
+    if (Token const semicolon = tokens.peek(); semicolon.kind() != Semicolon) {
+        issues.push<ExpectedDelimiter>(tokens.current());
+        panic(tokens);
     }
     else {
         tokens.eat();
@@ -346,13 +337,13 @@ UniquePtr<ast::ExpressionStatement> Context::parseExpressionStatement() {
     if (!expression) {
         return nullptr;
     }
-    expectDelimiter(";");
+    expectDelimiter(Semicolon);
     return allocate<ast::ExpressionStatement>(std::move(expression));
 }
 
 UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
     Token const openBrace = tokens.peek();
-    if (openBrace.id != "{") {
+    if (openBrace.kind() != OpenBrace) {
         return nullptr;
     }
     tokens.eat();
@@ -362,7 +353,7 @@ UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
         /// tokens. If it hasn't we eat one ourselves and try again.
         auto const lastIndex = tokens.index();
         Token const next     = tokens.peek();
-        if (next.id == "}") {
+        if (next.kind() == CloseBrace) {
             tokens.eat();
             return result;
         }
@@ -372,7 +363,7 @@ UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
         }
         if (tokens.index() == lastIndex) {
             /// If we can't parse a statement, eat one token and try again.
-            iss.push(tokens.eat(), UnqualifiedID);
+            issues.push<UnqualifiedID>(tokens.eat(), CloseBrace);
         }
     }
 }
@@ -398,19 +389,19 @@ UniquePtr<ast::ControlFlowStatement> Context::parseControlFlowStatement() {
 
 UniquePtr<ast::ReturnStatement> Context::parseReturnStatement() {
     Token const returnToken = tokens.peek();
-    if (returnToken.id != "return") {
+    if (returnToken.kind() != Return) {
         return nullptr;
     }
     tokens.eat();
     /// May be null in case of void return statement.
     auto expression = parseComma();
-    expectDelimiter(";");
+    expectDelimiter(Semicolon);
     return allocate<ast::ReturnStatement>(returnToken, std::move(expression));
 }
 
 UniquePtr<ast::IfStatement> Context::parseIfStatement() {
     Token const ifToken = tokens.peek();
-    if (ifToken.id != "if") {
+    if (ifToken.kind() != If) {
         return nullptr;
     }
     tokens.eat();
@@ -420,12 +411,12 @@ UniquePtr<ast::IfStatement> Context::parseIfStatement() {
     }
     auto ifBlock = parseCompoundStatement();
     if (!ifBlock) {
-        iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
+        issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
         SC_DEBUGFAIL();
     }
     auto elseBlock = [&]() -> UniquePtr<ast::Statement> {
         Token const elseToken = tokens.peek();
-        if (elseToken.id != "else") {
+        if (elseToken.kind() != Else) {
             return nullptr;
         }
         tokens.eat();
@@ -448,7 +439,7 @@ UniquePtr<ast::IfStatement> Context::parseIfStatement() {
 
 UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
     Token const whileToken = tokens.peek();
-    if (whileToken.id != "while") {
+    if (whileToken.kind() != While) {
         return nullptr;
     }
     tokens.eat();
@@ -458,7 +449,7 @@ UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
     }
     auto block = parseCompoundStatement();
     if (!block) {
-        iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
+        issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
     }
     return allocate<ast::WhileStatement>(whileToken,
                                          std::move(cond),
@@ -467,18 +458,18 @@ UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
 
 UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
     Token const doToken = tokens.peek();
-    if (doToken.id != "do") {
+    if (doToken.kind() != Do) {
         return nullptr;
     }
     tokens.eat();
     auto block = parseCompoundStatement();
     if (!block) {
         // TODO: Push a better issue here
-        iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
+        issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
     }
     Token const whileToken = tokens.peek();
-    if (whileToken.id != "while") {
-        iss.push(SyntaxIssue::expectedID(whileToken, "while"));
+    if (whileToken.kind() != While) {
+        issues.push<UnqualifiedID>(whileToken, While);
         panic(tokens);
     }
     else {
@@ -489,8 +480,8 @@ UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
         pushExpectedExpression(tokens.peek());
     }
     Token const delimToken = tokens.peek();
-    if (delimToken.id != ";") {
-        iss.push(SyntaxIssue::expectedID(whileToken, ";"));
+    if (delimToken.kind() != Semicolon) {
+        issues.push<UnqualifiedID>(whileToken, Semicolon);
         panic(tokens);
     }
     else {
@@ -503,7 +494,7 @@ UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
 
 UniquePtr<ast::ForStatement> Context::parseForStatement() {
     Token const forToken = tokens.peek();
-    if (forToken.id != "for") {
+    if (forToken.kind() != For) {
         return nullptr;
     }
     tokens.eat();
@@ -517,8 +508,8 @@ UniquePtr<ast::ForStatement> Context::parseForStatement() {
     if (!cond) {
         pushExpectedExpression(tokens.peek());
     }
-    if (tokens.peek().id != ";") {
-        expectDelimiter(";");
+    if (tokens.peek().kind() != Semicolon) {
+        expectDelimiter(Semicolon);
         return nullptr;
     }
     tokens.eat();
@@ -528,7 +519,7 @@ UniquePtr<ast::ForStatement> Context::parseForStatement() {
     }
     auto block = parseCompoundStatement();
     if (!block) {
-        iss.push(SyntaxIssue::expectedID(tokens.peek(), "{"));
+        issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
     }
     return allocate<ast::ForStatement>(forToken,
                                        std::move(varDecl),
@@ -539,27 +530,27 @@ UniquePtr<ast::ForStatement> Context::parseForStatement() {
 
 UniquePtr<ast::BreakStatement> Context::parseBreakStatement() {
     Token const token = tokens.peek();
-    if (token.id != "break") {
+    if (token.kind() != Break) {
         return nullptr;
     }
     tokens.eat();
-    expectDelimiter(";");
+    expectDelimiter(Semicolon);
     return allocate<ast::BreakStatement>(token);
 }
 
 UniquePtr<ast::ContinueStatement> Context::parseContinueStatement() {
     Token const token = tokens.peek();
-    if (token.id != "continue") {
+    if (token.kind() != Continue) {
         return nullptr;
     }
     tokens.eat();
-    expectDelimiter(";");
+    expectDelimiter(Semicolon);
     return allocate<ast::ContinueStatement>(token);
 }
 
 UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
     Token const delim = tokens.peek();
-    if (delim.id != ";") {
+    if (delim.kind() != Semicolon) {
         return nullptr;
     }
     tokens.eat();
@@ -592,7 +583,9 @@ UniquePtr<ast::Expression> Context::parseAssignment() {
 UniquePtr<ast::Expression> Context::parseConditional() {
     Token const& condToken = tokens.peek();
     auto logicalOr         = parseLogicalOr();
-    if (auto const& questionMark = tokens.peek(); questionMark.id == "?") {
+    if (auto const& questionMark = tokens.peek();
+        questionMark.kind() == Question)
+    {
         if (!logicalOr) {
             pushExpectedExpression(condToken);
         }
@@ -602,8 +595,8 @@ UniquePtr<ast::Expression> Context::parseConditional() {
             pushExpectedExpression(tokens.peek());
         }
         Token const& colon = tokens.peek();
-        if (colon.id != ":") {
-            iss.push(SyntaxIssue::expectedID(colon, ":"));
+        if (colon.kind() != Colon) {
+            issues.push<UnqualifiedID>(colon, Colon);
         }
         else {
             tokens.eat();
@@ -693,30 +686,30 @@ UniquePtr<ast::Expression> Context::parseUnary() {
                                                     std::move(unary),
                                                     token);
     };
-    if (token.id == "&") {
+    if (token.kind() == BitAnd) {
         SC_DEBUGFAIL(); // Do we really want to support addressof operator?
     }
-    else if (token.id == "+") {
+    else if (token.kind() == Plus) {
         tokens.eat();
         return makeResult(ast::UnaryPrefixOperator::Promotion);
     }
-    else if (token.id == "-") {
+    else if (token.kind() == Minus) {
         tokens.eat();
         return makeResult(ast::UnaryPrefixOperator::Negation);
     }
-    else if (token.id == "~") {
+    else if (token.kind() == Tilde) {
         tokens.eat();
         return makeResult(ast::UnaryPrefixOperator::BitwiseNot);
     }
-    else if (token.id == "!") {
+    else if (token.kind() == Exclam) {
         tokens.eat();
         return makeResult(ast::UnaryPrefixOperator::LogicalNot);
     }
-    else if (token.id == "++") {
+    else if (token.kind() == Increment) {
         tokens.eat();
         return makeResult(ast::UnaryPrefixOperator::Increment);
     }
-    else if (token.id == "--") {
+    else if (token.kind() == Decrement) {
         tokens.eat();
         return makeResult(ast::UnaryPrefixOperator::Decrement);
     }
@@ -732,13 +725,13 @@ UniquePtr<ast::Expression> Context::parsePostfix() {
     }
     while (true) {
         auto const& token = tokens.peek();
-        if (token.id == "[") {
+        if (token.kind() == OpenBracket) {
             primary = parseSubscript(std::move(primary));
         }
-        else if (token.id == "(") {
+        else if (token.kind() == OpenParan) {
             primary = parseFunctionCall(std::move(primary));
         }
-        else if (token.id == ".") {
+        else if (token.kind() == Dot) {
             primary = parseMemberAccess(std::move(primary));
         }
         else {
@@ -765,14 +758,14 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
         return result;
     }
     auto const& token = tokens.peek();
-    if (token.id == "(") {
+    if (token.kind() == OpenParan) {
         tokens.eat();
         Token const& commaToken          = tokens.peek();
         UniquePtr<ast::Expression> comma = parseComma();
         if (!comma) {
             pushExpectedExpression(commaToken);
         }
-        expectDelimiter(")");
+        expectDelimiter(CloseParan);
         return comma;
     }
     return nullptr;
@@ -780,35 +773,36 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
 
 UniquePtr<ast::Identifier> Context::parseIdentifier() {
     Token const next = tokens.peek();
-    if (next.type != TokenType::Identifier || next.isDeclarator) {
+    if (!isIdentifier(next.kind())) {
         return nullptr;
     }
     return allocate<ast::Identifier>(tokens.eat());
 }
 
 UniquePtr<ast::IntegerLiteral> Context::parseIntegerLiteral() {
-    if (tokens.peek().type != TokenType::IntegerLiteral) {
+    if (tokens.peek().kind() != TokenKind::IntegerLiteral) {
         return nullptr;
     }
     return allocate<ast::IntegerLiteral>(tokens.eat());
 }
 
 UniquePtr<ast::BooleanLiteral> Context::parseBooleanLiteral() {
-    if (tokens.peek().type != TokenType::BooleanLiteral) {
+    Token const token = tokens.peek();
+    if (token.kind() != TokenKind::True && token.kind() != TokenKind::False) {
         return nullptr;
     }
     return allocate<ast::BooleanLiteral>(tokens.eat());
 }
 
 UniquePtr<ast::FloatingPointLiteral> Context::parseFloatingPointLiteral() {
-    if (tokens.peek().type != TokenType::FloatingPointLiteral) {
+    if (tokens.peek().kind() != TokenKind::FloatLiteral) {
         return nullptr;
     }
     return allocate<ast::FloatingPointLiteral>(tokens.eat());
 }
 
 UniquePtr<ast::StringLiteral> Context::parseStringLiteral() {
-    if (tokens.peek().type != TokenType::StringLiteral) {
+    if (tokens.peek().kind() != TokenKind::StringLiteral) {
         return nullptr;
     }
     return allocate<ast::StringLiteral>(tokens.eat());
@@ -816,26 +810,24 @@ UniquePtr<ast::StringLiteral> Context::parseStringLiteral() {
 
 template <typename FunctionCallLike>
 UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(
-    UniquePtr<ast::Expression> primary,
-    std::string_view open,
-    std::string_view close) {
+    UniquePtr<ast::Expression> primary, TokenKind open, TokenKind close) {
     auto const& openToken = tokens.peek();
-    SC_ASSERT(openToken.id == open, "");
+    SC_ASSERT(openToken.kind() == open, "");
     auto result = allocate<FunctionCallLike>(std::move(primary), openToken);
     result->arguments =
-        parseList<decltype(result->arguments)>(open, close, ",", [this] {
+        parseList<decltype(result->arguments)>(open, close, Comma, [this] {
             return parseAssignment();
         }).value(); // handle error
     return result;
 }
 
 template <typename, typename List>
-std::optional<List> Context::parseList(std::string_view open,
-                                       std::string_view close,
-                                       std::string_view delimiter,
+std::optional<List> Context::parseList(TokenKind open,
+                                       TokenKind close,
+                                       TokenKind delimiter,
                                        auto parseCallback) {
     auto const& openToken = tokens.peek();
-    if (openToken.id != open) {
+    if (openToken.kind() != open) {
         return std::nullopt;
     }
     tokens.eat();
@@ -843,7 +835,7 @@ std::optional<List> Context::parseList(std::string_view open,
     bool first = true;
     while (true) {
         Token const next = tokens.peek();
-        if (next.id == close) {
+        if (next.kind() == close) {
             tokens.eat();
             return result;
         }
@@ -858,7 +850,7 @@ std::optional<List> Context::parseList(std::string_view open,
         else {
             /// TODO: Maybe delegate error handling to the parse callback to
             /// avoid duplicate errors in some cases
-            iss.push(SyntaxIssue(tokens.peek(), ExpectedExpression));
+            issues.push<ExpectedExpression>(tokens.peek());
             /// Without eating a token we may get stuck in an infinite loop,
             /// otherwise we may miss delimiters in case of syntax errors
             /// (especcially missing ')').
@@ -870,28 +862,30 @@ std::optional<List> Context::parseList(std::string_view open,
 
 UniquePtr<ast::Subscript> Context::parseSubscript(
     UniquePtr<ast::Expression> primary) {
-    return parseFunctionCallLike<ast::Subscript>(std::move(primary), "[", "]");
+    return parseFunctionCallLike<ast::Subscript>(std::move(primary),
+                                                 OpenBracket,
+                                                 CloseBracket);
 }
 
 UniquePtr<ast::FunctionCall> Context::parseFunctionCall(
     UniquePtr<ast::Expression> primary) {
     return parseFunctionCallLike<ast::FunctionCall>(std::move(primary),
-                                                    "(",
-                                                    ")");
+                                                    OpenParan,
+                                                    CloseParan);
 }
 
 UniquePtr<ast::Expression> Context::parseMemberAccess(
     UniquePtr<ast::Expression> left) {
-    SC_ASSERT(tokens.peek().id == ".", "");
+    SC_ASSERT(tokens.peek().kind() == Dot, "");
     while (true) {
         auto const& token = tokens.peek();
-        if (token.id != ".") {
+        if (token.kind() != Dot) {
             return left;
         }
         tokens.eat();
         UniquePtr<ast::Expression> right = parseIdentifier();
         if (!right) {
-            iss.push(SyntaxIssue(tokens.peek(), ExpectedExpression));
+            issues.push<ExpectedExpression>(tokens.peek());
         }
         left = allocate<ast::MemberAccess>(std::move(left),
                                            std::move(right),
@@ -901,7 +895,74 @@ UniquePtr<ast::Expression> Context::parseMemberAccess(
 }
 
 void Context::pushExpectedExpression(Token const& token) {
-    iss.push(token, ExpectedExpression);
+    issues.push<ExpectedExpression>(token);
+}
+
+static TokenKind toTokenKind(ast::BinaryOperator op) {
+    switch (op) {
+    case ast::BinaryOperator::Multiplication:
+        return Multiplies;
+    case ast::BinaryOperator::Division:
+        return Divides;
+    case ast::BinaryOperator::Remainder:
+        return Remainder;
+    case ast::BinaryOperator::Addition:
+        return Plus;
+    case ast::BinaryOperator::Subtraction:
+        return Minus;
+    case ast::BinaryOperator::LeftShift:
+        return LeftShift;
+    case ast::BinaryOperator::RightShift:
+        return RightShift;
+    case ast::BinaryOperator::Less:
+        return Less;
+    case ast::BinaryOperator::LessEq:
+        return LessEqual;
+    case ast::BinaryOperator::Greater:
+        return Greater;
+    case ast::BinaryOperator::GreaterEq:
+        return GreaterEqual;
+    case ast::BinaryOperator::Equals:
+        return Equal;
+    case ast::BinaryOperator::NotEquals:
+        return Unequal;
+    case ast::BinaryOperator::BitwiseAnd:
+        return BitAnd;
+    case ast::BinaryOperator::BitwiseXOr:
+        return BitXOr;
+    case ast::BinaryOperator::BitwiseOr:
+        return BitOr;
+    case ast::BinaryOperator::LogicalAnd:
+        return LogicalAnd;
+    case ast::BinaryOperator::LogicalOr:
+        return LogicalOr;
+    case ast::BinaryOperator::Assignment:
+        return Assign;
+    case ast::BinaryOperator::AddAssignment:
+        return PlusAssign;
+    case ast::BinaryOperator::SubAssignment:
+        return MinusAssign;
+    case ast::BinaryOperator::MulAssignment:
+        return MultipliesAssign;
+    case ast::BinaryOperator::DivAssignment:
+        return DividesAssign;
+    case ast::BinaryOperator::RemAssignment:
+        return RemainderAssign;
+    case ast::BinaryOperator::LSAssignment:
+        return LeftShiftAssign;
+    case ast::BinaryOperator::RSAssignment:
+        return RightShiftAssign;
+    case ast::BinaryOperator::AndAssignment:
+        return AndAssign;
+    case ast::BinaryOperator::OrAssignment:
+        return OrAssign;
+    case ast::BinaryOperator::XOrAssignment:
+        return XOrAssign;
+    case ast::BinaryOperator::Comma:
+        return Comma;
+    default:
+        SC_UNREACHABLE();
+    }
 }
 
 template <ast::BinaryOperator... Op>
@@ -909,7 +970,7 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorLTR(auto&& operand) {
     Token const& lhsToken           = tokens.peek();
     UniquePtr<ast::Expression> left = operand();
     auto tryParse = [&](Token const token, ast::BinaryOperator op) {
-        if (token.id != toString(op)) {
+        if (token.kind() != toTokenKind(op)) {
             return false;
         }
         tokens.eat();
@@ -940,7 +1001,7 @@ template <ast::BinaryOperator... Op>
 UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(
     auto&& parseOperand) {
     Token const& lhsToken = tokens.peek();
-    SC_ASSERT(lhsToken.type != TokenType::EndOfFile, "");
+    SC_ASSERT(lhsToken.kind() != EndOfFile, "");
     UniquePtr<ast::Expression> left = parseOperand();
     Token const operatorToken       = tokens.peek();
     auto parse                      = [&](ast::BinaryOperator op) {
@@ -960,7 +1021,8 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(
                                                operatorToken);
     };
     if (UniquePtr<ast::Expression> result = nullptr;
-        ((operatorToken.id == toString(Op) && ((result = parse(Op)), true)) ||
+        ((operatorToken.kind() == toTokenKind(Op) &&
+          ((result = parse(Op)), true)) ||
          ...))
     {
         return result;
@@ -968,14 +1030,15 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(
     return left;
 }
 
-void Context::expectDelimiter(std::string_view delimiter) {
-    if (auto next = tokens.peek(); next.id != delimiter) {
+void Context::expectDelimiter(TokenKind delimiter) {
+    if (auto next = tokens.peek(); next.kind() != delimiter) {
         auto const curr = tokens.current();
-        auto location   = curr.sourceLocation;
-        location.index += curr.id.size();  //
-        location.column += curr.id.size(); // Adding to column should be fine
-                                           // because no line wrapping in tokens
-        iss.push(SyntaxIssue(location, ExpectedSeparator));
+        auto location   = curr.sourceLocation();
+        location.index += curr.id().size(); //
+        location.column +=
+            curr.id().size();               // Adding to column should be fine
+                              // because no line wrapping in tokens
+        issues.push<ExpectedDelimiter>(next);
     }
     else {
         tokens.eat();

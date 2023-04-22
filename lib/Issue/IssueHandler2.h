@@ -33,10 +33,10 @@ public:
     template <typename T, typename... Args>
         requires std::derived_from<T, Issue> &&
                  std::constructible_from<T, Args...>
-    void push(Args&&... args) {
+    void push(Args&&... args) {
         push(new T(std::forward<Args>(args)...));
     }
-    
+
     /// \Returns A views over the errors
     auto errors() const {
         return ranges::views::transform(errs, [](auto& p) { return p.get(); });
@@ -48,7 +48,7 @@ public:
     }
 
     /// \Returns `true` iff no  errors occured
-    bool empty() const;
+    bool empty() const { return errs.empty() && warns.empty(); }
 
 private:
     std::vector<std::unique_ptr<Error>> errs;

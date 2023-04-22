@@ -7,15 +7,15 @@
 using namespace scatha;
 
 test::LexicalIssueHelper test::getLexicalIssues(std::string_view text) {
-    issue::LexicalIssueHandler iss;
-    (void)lex::lex(text, iss);
+    IssueHandler iss;
+    (void)parse::lex(text, iss);
     return { std::move(iss) };
 }
 
 test::SyntaxIssueHelper test::getSyntaxIssues(std::string_view text) {
-    issue::LexicalIssueHandler lexIss;
-    auto tokens = lex::lex(text, lexIss);
-    issue::SyntaxIssueHandler synIss;
+    IssueHandler lexIss;
+    auto tokens = parse::lex(text, lexIss);
+    IssueHandler synIss;
     auto ast = parse::parse(std::move(tokens), synIss);
     return { std::move(synIss), std::move(ast) };
 }

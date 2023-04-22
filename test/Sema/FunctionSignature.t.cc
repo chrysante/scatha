@@ -22,13 +22,13 @@ TEST_CASE("Function Type", "[sema]") {
     auto const fSig = sema::FunctionSignature({ sym.Int() }, sym.Int());
     auto const gSig = sema::FunctionSignature({ sym.Int() }, sym.Void());
     CHECK(fSig.argumentHash() == gSig.argumentHash());
-    auto const fnF = sym.declareFunction(Token("f", TokenType::Identifier));
+    auto const fnF = sym.declareFunction(Token("f", TokenKind::Identifier));
     REQUIRE(fnF.hasValue());
     auto const overloadSuccess = sym.setSignature(fnF->symbolID(), fSig);
     REQUIRE(overloadSuccess);
     CHECK(fnF.value().signature().argumentTypeID(0) == sym.Int());
     CHECK(fnF.value().signature().returnTypeID() == sym.Int());
-    auto const fnG = sym.declareFunction(Token("g", TokenType::Identifier));
+    auto const fnG = sym.declareFunction(Token("g", TokenKind::Identifier));
     REQUIRE(fnG.hasValue());
     auto const overloadSuccess2 = sym.setSignature(fnG->symbolID(), gSig);
     REQUIRE(overloadSuccess2);

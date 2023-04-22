@@ -67,36 +67,36 @@ void playground::compile(std::filesystem::path filepath) {
 void playground::compile(std::string text) {
     // Lexical analysis
     header(" Tokens ");
-    issue::LexicalIssueHandler lexIss;
-    auto tokens = lex::lex(text, lexIss);
-    if (lexIss.empty()) {
+    IssueHandler issues;
+    auto tokens = parse::lex(text, issues);
+    if (issues.empty()) {
         std::cout << "No lexical issues.\n";
     }
     else {
         std::cout << "Lexical issues:\n";
-        for (auto& issue: lexIss.issues()) {
-            issue.visit([]<typename T>(T const& iss) {
-                std::cout << iss.token().sourceLocation << " " << iss.token()
-                          << " : " << utl::nameof<T> << std::endl;
-            });
+        for (auto* issue: issues.errors()) {
+            //            issue.visit([]<typename T>(T const& iss) {
+            //                std::cout << iss.token().sourceLocation << " " <<
+            //                iss.token()
+            //                          << " : " << utl::nameof<T> << std::endl;
+            //            });
         }
     }
 
     // Parsing
     header(" AST ");
-    issue::SyntaxIssueHandler parseIss;
-    auto ast = parse::parse(tokens, parseIss);
-    if (parseIss.empty()) {
+    auto ast = parse::parse(tokens, issues);
+    if (issues.empty()) {
         std::cout << "No syntax issues.\n";
     }
     else {
-        std::cout << "\nEncoutered " << parseIss.issues().size()
-                  << " issues:\n";
-        for (SyntaxIssue const& issue: parseIss.issues()) {
-            auto const loc = issue.token().sourceLocation;
-            std::cout << "\tLine " << loc.line << " Col " << loc.column << ": ";
-            std::cout << issue.reason() << "\n";
-        }
+        //        std::cout << "\nEncoutered " << parseIss.issues().size()
+        //                  << " issues:\n";
+        //        for (SyntaxIssue const& issue: parseIss.issues()) {
+        //            auto const loc = issue.token().sourceLocation;
+        //            std::cout << "\tLine " << loc.line << " Col " <<
+        //            loc.column << ": "; std::cout << issue.reason() << "\n";
+        //        }
     }
 
     // Semantic analysis
@@ -112,7 +112,7 @@ void playground::compile(std::string text) {
         subHeader();
         for (auto const& issue: semaIss.issues()) {
             issue.visit([](auto const& issue) {
-                auto const loc = issue.token().sourceLocation;
+                auto const loc = issue.token().sourceLocation();
                 std::cout << "Line " << loc.line << " Col " << loc.column
                           << ": ";
                 std::cout
@@ -151,7 +151,7 @@ void playground::compile(std::string text) {
         }
     }
 
-    if (!lexIss.empty() || !parseIss.empty() || !semaIss.empty()) {
+    if (!issues.empty() || !semaIss.empty()) {
         return;
     }
 

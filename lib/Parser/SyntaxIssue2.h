@@ -7,15 +7,10 @@
 #include <string>
 #include <string_view>
 
+#include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Issue/Issue2.h>
 #include <scatha/Parser/Bracket.h>
-
-namespace scatha::ast {
-
-enum class TokenKind;
-
-}
 
 namespace scatha::parse {
 
@@ -61,13 +56,13 @@ public:
 
 class SCATHA_API UnqualifiedID: public SyntaxError {
 public:
-    explicit UnqualifiedID(Token const& token, ast::TokenKind expected):
+    explicit UnqualifiedID(Token const& token, TokenKind expected):
         SyntaxError(token), exp(expected) {}
 
-    ast::TokenKind expected() const { return exp; }
+    TokenKind expected() const { return exp; }
 
 private:
-    ast::TokenKind exp;
+    TokenKind exp;
 };
 
 } // namespace scatha::parse

@@ -5,7 +5,6 @@
 
 #include "AST/Token.h"
 #include "Common/Base.h"
-#include "Parser/ParanCounter.h"
 
 namespace scatha::parse {
 
@@ -14,7 +13,7 @@ namespace scatha::parse {
 ///
 /// \details
 /// 1. Expects the last token in the stream to be of type EndOfFile.
-class SCATHA_API TokenStream: private ParanCounter {
+class SCATHA_API TokenStream {
 public:
     /// Constructs an empty TokenStream.
     TokenStream() = default;
@@ -63,10 +62,6 @@ public:
     ssize_t index() const { return _index; }
 
     ssize_t size() const { return utl::narrow_cast<ssize_t>(tokens.size()); }
-
-    using ParanCounter::braces;
-    using ParanCounter::brackets;
-    using ParanCounter::parans;
 
 private:
     Token const& eatImpl(ssize_t*);

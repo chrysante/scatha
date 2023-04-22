@@ -12,28 +12,28 @@ using namespace lex;
 
 namespace {
 struct ReferenceToken {
-    TokenType type;
+    TokenKind kind;
     std::string id;
 };
 
 std::ostream& operator<<(std::ostream& str, ReferenceToken const& t) {
-    return str << "{ .type = " << t.type << ", .id = " << t.id << " }";
+    return str << "{ .type = " << /*t.type << */ ", .id = " << t.id << " }";
 }
 
 struct TestCase {
     std::string text;
     std::vector<ReferenceToken> reference;
     void run() const {
-        issue::LexicalIssueHandler iss;
-        auto const tokens = lex::lex(text, iss);
+        IssueHandler iss;
+        auto const tokens = parse::lex(text, iss);
         REQUIRE(iss.empty());
         REQUIRE(tokens.size() == reference.size());
         for (std::size_t i = 0; i < std::min(tokens.size(), reference.size());
              ++i)
         {
-            INFO("LHS: " << reference[i] << "\nRHS: " << tokens[i]);
-            CHECK(reference[i].type == tokens[i].type);
-            CHECK(reference[i].id == tokens[i].id);
+            INFO("LHS: " << reference[i] << "\nRHS: " << tokens[i].id());
+            CHECK(reference[i].kind == tokens[i].kind());
+            CHECK(reference[i].id == tokens[i].id());
         }
     }
 };
@@ -48,36 +48,36 @@ fn mul(a: int, b: int) -> int {
 	result *= b; return result;
 }
 )";
-    test.reference = { { TokenType::Identifier, "fn" },
-                       { TokenType::Identifier, "mul" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Identifier, "a" },
-                       { TokenType::Punctuation, ":" },
-                       { TokenType::Identifier, "int" },
-                       { TokenType::Punctuation, "," },
-                       { TokenType::Identifier, "b" },
-                       { TokenType::Punctuation, ":" },
-                       { TokenType::Identifier, "int" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Operator, "->" },
-                       { TokenType::Identifier, "int" },
-                       { TokenType::Punctuation, "{" },
-                       { TokenType::Identifier, "var" },
-                       { TokenType::Identifier, "result" },
-                       { TokenType::Punctuation, ":" },
-                       { TokenType::Identifier, "int" },
-                       { TokenType::Operator, "=" },
-                       { TokenType::Identifier, "a" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "result" },
-                       { TokenType::Operator, "*=" },
-                       { TokenType::Identifier, "b" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "return" },
-                       { TokenType::Identifier, "result" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Punctuation, "}" },
-                       { TokenType::EndOfFile, "" } };
+    test.reference = { { TokenKind::Function, "fn" },
+                       { TokenKind::Identifier, "mul" },
+                       { TokenKind::OpenParan, "(" },
+                       { TokenKind::Identifier, "a" },
+                       { TokenKind::Colon, ":" },
+                       { TokenKind::Int, "int" },
+                       { TokenKind::Comma, "," },
+                       { TokenKind::Identifier, "b" },
+                       { TokenKind::Colon, ":" },
+                       { TokenKind::Int, "int" },
+                       { TokenKind::CloseParan, ")" },
+                       { TokenKind::Arrow, "->" },
+                       { TokenKind::Int, "int" },
+                       { TokenKind::OpenBrace, "{" },
+                       { TokenKind::Var, "var" },
+                       { TokenKind::Identifier, "result" },
+                       { TokenKind::Colon, ":" },
+                       { TokenKind::Int, "int" },
+                       { TokenKind::Assign, "=" },
+                       { TokenKind::Identifier, "a" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Identifier, "result" },
+                       { TokenKind::MultipliesAssign, "*=" },
+                       { TokenKind::Identifier, "b" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Return, "return" },
+                       { TokenKind::Identifier, "result" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::CloseBrace, "}" },
+                       { TokenKind::EndOfFile, "" } };
     test.run();
 }
 
@@ -92,35 +92,23 @@ fn main() {
 	std.print(text);
 }
 )";
-    test.reference = { { TokenType::Identifier, "import" },
-                       { TokenType::Identifier, "std" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "import" },
-                       { TokenType::Identifier, "myLib" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "fn" },
-                       { TokenType::Identifier, "main" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, "{" },
-                       { TokenType::Identifier, "var" },
-                       { TokenType::Identifier, "text" },
-                       { TokenType::Punctuation, ":" },
-                       { TokenType::Identifier, "string" },
-                       { TokenType::Operator, "=" },
-                       { TokenType::Identifier, "f" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "std" },
-                       { TokenType::Operator, "." },
-                       { TokenType::Identifier, "print" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Identifier, "text" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Punctuation, "}" },
-                       { TokenType::EndOfFile, "" } };
+    test.reference = {
+        { TokenKind::Import, "import" },     { TokenKind::Identifier, "std" },
+        { TokenKind::Semicolon, ";" },       { TokenKind::Import, "import" },
+        { TokenKind::Identifier, "myLib" },  { TokenKind::Semicolon, ";" },
+        { TokenKind::Function, "fn" },       { TokenKind::Identifier, "main" },
+        { TokenKind::OpenParan, "(" },       { TokenKind::CloseParan, ")" },
+        { TokenKind::OpenBrace, "{" },       { TokenKind::Var, "var" },
+        { TokenKind::Identifier, "text" },   { TokenKind::Colon, ":" },
+        { TokenKind::Identifier, "string" }, { TokenKind::Assign, "=" },
+        { TokenKind::Identifier, "f" },      { TokenKind::OpenParan, "(" },
+        { TokenKind::CloseParan, ")" },      { TokenKind::Semicolon, ";" },
+        { TokenKind::Identifier, "std" },    { TokenKind::Dot, "." },
+        { TokenKind::Identifier, "print" },  { TokenKind::OpenParan, "(" },
+        { TokenKind::Identifier, "text" },   { TokenKind::CloseParan, ")" },
+        { TokenKind::Semicolon, ";" },       { TokenKind::CloseBrace, "}" },
+        { TokenKind::EndOfFile, "" }
+    };
     test.run();
 }
 
@@ -132,42 +120,42 @@ while (x >= 0) {
 	x -= x % 3  ? 1 : 2;
 }
 )";
-    test.reference = { { TokenType::Identifier, "a" },
-                       { TokenType::Operator, "*=" },
-                       { TokenType::Identifier, "b" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "x" },
-                       { TokenType::Operator, "+=" },
-                       { TokenType::IntegerLiteral, "1" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "fn" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::BooleanLiteral, "true" },
-                       { TokenType::Operator, "&&" },
-                       { TokenType::BooleanLiteral, "false" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Operator, "+=" },
-                       { TokenType::Identifier, "NULL" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "while" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Identifier, "x" },
-                       { TokenType::Operator, ">=" },
-                       { TokenType::IntegerLiteral, "0" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, "{" },
-                       { TokenType::Identifier, "x" },
-                       { TokenType::Operator, "-=" },
-                       { TokenType::Identifier, "x" },
-                       { TokenType::Operator, "%" },
-                       { TokenType::IntegerLiteral, "3" },
-                       { TokenType::Operator, "?" },
-                       { TokenType::IntegerLiteral, "1" },
-                       { TokenType::Punctuation, ":" },
-                       { TokenType::IntegerLiteral, "2" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Punctuation, "}" },
-                       { TokenType::EndOfFile, "" } };
+    test.reference = { { TokenKind::Identifier, "a" },
+                       { TokenKind::MultipliesAssign, "*=" },
+                       { TokenKind::Identifier, "b" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Identifier, "x" },
+                       { TokenKind::PlusAssign, "+=" },
+                       { TokenKind::IntegerLiteral, "1" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Function, "fn" },
+                       { TokenKind::OpenParan, "(" },
+                       { TokenKind::True, "true" },
+                       { TokenKind::LogicalAnd, "&&" },
+                       { TokenKind::False, "false" },
+                       { TokenKind::CloseParan, ")" },
+                       { TokenKind::PlusAssign, "+=" },
+                       { TokenKind::Identifier, "NULL" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::While, "while" },
+                       { TokenKind::OpenParan, "(" },
+                       { TokenKind::Identifier, "x" },
+                       { TokenKind::GreaterEqual, ">=" },
+                       { TokenKind::IntegerLiteral, "0" },
+                       { TokenKind::CloseParan, ")" },
+                       { TokenKind::OpenBrace, "{" },
+                       { TokenKind::Identifier, "x" },
+                       { TokenKind::MinusAssign, "-=" },
+                       { TokenKind::Identifier, "x" },
+                       { TokenKind::Remainder, "%" },
+                       { TokenKind::IntegerLiteral, "3" },
+                       { TokenKind::Question, "?" },
+                       { TokenKind::IntegerLiteral, "1" },
+                       { TokenKind::Colon, ":" },
+                       { TokenKind::IntegerLiteral, "2" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::CloseBrace, "}" },
+                       { TokenKind::EndOfFile, "" } };
     test.run();
 }
 
@@ -181,46 +169,44 @@ fn main() -> void {
 /*
 an ignored multi line comment
 */
-	var text_: string = "Hello World!";
+	var text_ = "Hello World!";
 	""
 	std.print(--_text);
 	++1.0;
 }
 )";
-    test.reference = { { TokenType::Identifier, "import" },
-                       { TokenType::Identifier, "std" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "import" },
-                       { TokenType::Identifier, "myLib" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "fn" },
-                       { TokenType::Identifier, "main" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Operator, "->" },
-                       { TokenType::Identifier, "void" },
-                       { TokenType::Punctuation, "{" },
-                       { TokenType::Identifier, "var" },
-                       { TokenType::Identifier, "text_" },
-                       { TokenType::Punctuation, ":" },
-                       { TokenType::Identifier, "string" },
-                       { TokenType::Operator, "=" },
-                       { TokenType::StringLiteral, "Hello World!" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::StringLiteral, "" },
-                       { TokenType::Identifier, "std" },
-                       { TokenType::Operator, "." },
-                       { TokenType::Identifier, "print" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::Operator, "--" },
-                       { TokenType::Identifier, "_text" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Operator, "++" },
-                       { TokenType::FloatingPointLiteral, "1.0" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Punctuation, "}" },
-                       { TokenType::EndOfFile, "" } };
+    test.reference = { { TokenKind::Import, "import" },
+                       { TokenKind::Identifier, "std" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Import, "import" },
+                       { TokenKind::Identifier, "myLib" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Function, "fn" },
+                       { TokenKind::Identifier, "main" },
+                       { TokenKind::OpenParan, "(" },
+                       { TokenKind::CloseParan, ")" },
+                       { TokenKind::Arrow, "->" },
+                       { TokenKind::Void, "void" },
+                       { TokenKind::OpenBrace, "{" },
+                       { TokenKind::Var, "var" },
+                       { TokenKind::Identifier, "text_" },
+                       { TokenKind::Assign, "=" },
+                       { TokenKind::StringLiteral, "Hello World!" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::StringLiteral, "" },
+                       { TokenKind::Identifier, "std" },
+                       { TokenKind::Dot, "." },
+                       { TokenKind::Identifier, "print" },
+                       { TokenKind::OpenParan, "(" },
+                       { TokenKind::Decrement, "--" },
+                       { TokenKind::Identifier, "_text" },
+                       { TokenKind::CloseParan, ")" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Increment, "++" },
+                       { TokenKind::FloatLiteral, "1.0" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::CloseBrace, "}" },
+                       { TokenKind::EndOfFile, "" } };
     test.run();
 }
 
@@ -241,44 +227,44 @@ f(true);
 false;
 true
 )";
-    test.reference = { { TokenType::FloatingPointLiteral, "0.0" },
-                       { TokenType::IntegerLiteral, "39" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "x" },
-                       { TokenType::Operator, "=" },
-                       { TokenType::IntegerLiteral, "39" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::IntegerLiteral, "0x39" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "x" },
-                       { TokenType::Operator, "=" },
-                       { TokenType::IntegerLiteral, "0x39" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::IntegerLiteral, "0x39e" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "x" },
-                       { TokenType::Operator, "=" },
-                       { TokenType::IntegerLiteral, "0x39e" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "f" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::IntegerLiteral, "39" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "f" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::FloatingPointLiteral, "39.0" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::Identifier, "f" },
-                       { TokenType::Punctuation, "(" },
-                       { TokenType::BooleanLiteral, "true" },
-                       { TokenType::Punctuation, ")" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::BooleanLiteral, "false" },
-                       { TokenType::Punctuation, ";" },
-                       { TokenType::BooleanLiteral, "true" },
-                       { TokenType::EndOfFile, "" } };
+    test.reference = { { TokenKind::FloatLiteral, "0.0" },
+                       { TokenKind::IntegerLiteral, "39" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Identifier, "x" },
+                       { TokenKind::Assign, "=" },
+                       { TokenKind::IntegerLiteral, "39" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::IntegerLiteral, "0x39" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Identifier, "x" },
+                       { TokenKind::Assign, "=" },
+                       { TokenKind::IntegerLiteral, "0x39" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::IntegerLiteral, "0x39e" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Identifier, "x" },
+                       { TokenKind::Assign, "=" },
+                       { TokenKind::IntegerLiteral, "0x39e" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Identifier, "f" },
+                       { TokenKind::OpenParan, "(" },
+                       { TokenKind::IntegerLiteral, "39" },
+                       { TokenKind::CloseParan, ")" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Identifier, "f" },
+                       { TokenKind::OpenParan, "(" },
+                       { TokenKind::FloatLiteral, "39.0" },
+                       { TokenKind::CloseParan, ")" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::Identifier, "f" },
+                       { TokenKind::OpenParan, "(" },
+                       { TokenKind::True, "true" },
+                       { TokenKind::CloseParan, ")" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::False, "false" },
+                       { TokenKind::Semicolon, ";" },
+                       { TokenKind::True, "true" },
+                       { TokenKind::EndOfFile, "" } };
     test.run();
 }
 
@@ -296,8 +282,8 @@ and end on next, line"
 
 template <typename T>
 static T lexTo(std::string_view text) {
-    issue::LexicalIssueHandler iss;
-    auto tokens = lex::lex(text, iss);
+    IssueHandler iss;
+    auto tokens = parse::lex(text, iss);
     assert(iss.empty());
     if constexpr (std::integral<T>) {
         return tokens.front().toInteger(64).to<u64>();

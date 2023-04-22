@@ -48,12 +48,12 @@ struct Context {
     UniquePtr<ast::ContinueStatement> parseContinueStatement();
 
     // Expressions
-
     UniquePtr<ast::Expression> parseComma();
     UniquePtr<ast::Expression> parseAssignment();
+    // Convenience wrapper
     UniquePtr<ast::Expression> parseTypeExpression() {
         return parseConditional();
-    } // Convenience wrapper
+    }
     UniquePtr<ast::Expression> parseConditional();
     UniquePtr<ast::Expression> parseLogicalOr();
     UniquePtr<ast::Expression> parseLogicalAnd();
@@ -75,27 +75,23 @@ struct Context {
     UniquePtr<ast::StringLiteral> parseStringLiteral();
 
     // Helpers
-    //    void pushExpectedExpressionBefore(SourceLocation);
-    //    void pushExpectedExpressionAfter(SourceLocation);
     void pushExpectedExpression(Token const&);
-    ///
-    //    void panic();
 
     template <utl::invocable_r<bool, Token const&>... Cond, std::predicate... F>
     bool recover(std::pair<Cond, F>... retry);
 
     template <std::predicate... F>
-    bool recover(std::pair<std::string_view, F>... retry);
+    bool recover(std::pair<TokenKind, F>... retry);
 
     template <typename Expr>
     UniquePtr<Expr> parseFunctionCallLike(UniquePtr<ast::Expression> primary,
-                                          std::string_view open,
-                                          std::string_view close);
+                                          TokenKind open,
+                                          TokenKind close);
 
     template <typename List, typename DList = std::decay_t<List>>
-    std::optional<DList> parseList(std::string_view open,
-                                   std::string_view close,
-                                   std::string_view delimiter,
+    std::optional<DList> parseList(TokenKind open,
+                                   TokenKind close,
+                                   TokenKind delimiter,
                                    auto parseCallback);
 
     UniquePtr<ast::Subscript> parseSubscript(
@@ -111,12 +107,11 @@ struct Context {
     template <ast::BinaryOperator...>
     UniquePtr<ast::Expression> parseBinaryOperatorRTL(auto&& parseOperand);
 
-    void expectDelimiter(std::string_view delimiter);
+    void expectDelimiter(TokenKind delimiter);
 
     // Data
-
     TokenStream tokens;
-    issue::SyntaxIssueHandler& iss;
+    IssueHandler& issues;
 };
 
 } // namespace

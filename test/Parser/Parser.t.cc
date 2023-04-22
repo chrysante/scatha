@@ -24,21 +24,21 @@ fn mul(a: int, b: X.Y.Z) -> int {
     CHECK(function->parameters[0]->name() == "a");
     auto const* aTypeExpr =
         cast<Identifier*>(function->parameters[0]->typeExpr.get());
-    CHECK(aTypeExpr->token().id == "int");
+    CHECK(aTypeExpr->token().id() == "int");
     CHECK(function->parameters[1]->name() == "b");
     auto const* bTypeExpr =
         cast<MemberAccess*>(function->parameters[1]->typeExpr.get());
     CHECK(bTypeExpr->object->nodeType() == NodeType::MemberAccess);
     auto const* bTypeExprLhs = cast<MemberAccess*>(bTypeExpr->object.get());
     CHECK(bTypeExprLhs->object->nodeType() == NodeType::Identifier);
-    CHECK(bTypeExprLhs->object->token().id == "X");
+    CHECK(bTypeExprLhs->object->token().id() == "X");
     CHECK(bTypeExprLhs->member->nodeType() == NodeType::Identifier);
-    CHECK(bTypeExprLhs->member->token().id == "Y");
+    CHECK(bTypeExprLhs->member->token().id() == "Y");
     CHECK(bTypeExpr->member->nodeType() == NodeType::Identifier);
-    CHECK(bTypeExpr->member->token().id == "Z");
+    CHECK(bTypeExpr->member->token().id() == "Z");
     auto const* returnTypeExpr =
         cast<Identifier*>(function->returnTypeExpr.get());
-    CHECK(returnTypeExpr->token().id == "int");
+    CHECK(returnTypeExpr->token().id() == "int");
     CompoundStatement* const body = function->body.get();
     REQUIRE(body->statements.size() == 2);
     auto* const resultDecl =
@@ -69,13 +69,13 @@ fn main() -> void {
     auto* const aDecl =
         cast<VariableDeclaration*>(function->body->statements[0].get());
     auto* const intLit = cast<IntegerLiteral*>(aDecl->initExpression.get());
-    CHECK(intLit->token().id == "39");
+    CHECK(intLit->token().id() == "39");
     CHECK(intLit->value() == 39);
     auto* const bDecl =
         cast<VariableDeclaration*>(function->body->statements[1].get());
     auto* const floatLit =
         cast<FloatingPointLiteral*>(bDecl->initExpression.get());
-    CHECK(floatLit->token().id == "1.2");
+    CHECK(floatLit->token().id() == "1.2");
     CHECK(floatLit->value().to<f64>() == 1.2);
 }
 
@@ -92,20 +92,6 @@ TEST_CASE("Parse conditional", "[parse]") {
     auto const [ast, iss] = test::parse("fn main() { true ? 1 : 4; }");
     CHECK(iss.empty());
 }
-
-// TODO: Fix this test case
-
-// TEST_CASE("Parse invalid member access", "[parse][issue]") {
-//     std::string const text = R"(
-// fn main() {
-//     j.;
-// })";
-//     auto issues = test::getSemaIssues(text);
-//     CHECK(issues.findOnLine<>(<#size_t line#>)
-//
-//     CHECK_THROWS_AS(makeAST(text), SyntaxIssue);
-// };
-//
 
 TEST_CASE("Parse while statement", "[parse]") {
     std::string const text = R"(

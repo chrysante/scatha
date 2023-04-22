@@ -6,6 +6,9 @@ using namespace scatha;
 
 void parse::panic(TokenStream& tokens, PanicOptions const options) {
     SC_ASSERT(tokens.index() < tokens.size(), "");
+
+    using enum TokenKind;
+
     if (tokens.index() == tokens.size() - 1) {
         return;
     }
@@ -13,39 +16,39 @@ void parse::panic(TokenStream& tokens, PanicOptions const options) {
          tokens.index() < tokens.size();)
     {
         Token const& next = tokens.peek();
-        if (next.id == "{") {
+        if (next.kind() == OpenBrace) {
             ++numOpenBrace;
         }
-        if (next.id == "}") {
+        if (next.kind() == CloseBrace) {
             --numOpenBrace;
         }
-        if (next.id == "(") {
+        if (next.kind() == OpenParan) {
             ++numOpenParan;
         }
-        if (next.id == ")") {
+        if (next.kind() == CloseParan) {
             --numOpenParan;
         }
-        if (next.id == "[") {
+        if (next.kind() == OpenBracket) {
             ++numOpenBracket;
         }
-        if (next.id == "]") {
+        if (next.kind() == CloseBracket) {
             --numOpenBracket;
         }
         if (numOpenBrace <= 0 && numOpenParan == 0 && numOpenBracket == 0) {
             /// Here we can potentially find a stable point to continue parsing
-            if (next.type == TokenType::EndOfFile) {
+            if (next.kind() == TokenKind::EndOfFile) {
                 return;
             }
-            if (next.id == options.targetDelimiter) {
+            if (next.kind() == options.targetDelimiter) {
                 if (options.eatDelimiter) {
                     tokens.eat();
                 }
                 return;
             }
-            if (next.isDeclarator) {
+            if (isDeclarator(next.kind())) {
                 return;
             }
-            if (next.id == "}" && numOpenBrace == -1) {
+            if (next.kind() == CloseBrace && numOpenBrace == -1) {
                 return;
             }
         }

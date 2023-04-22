@@ -5,17 +5,16 @@
 
 using namespace scatha;
 
-std::pair<UniquePtr<ast::AbstractSyntaxTree>, issue::SyntaxIssueHandler> test::
-    parse(std::string_view text) {
-    issue::LexicalIssueHandler lexIss;
-    auto tokens = lex::lex(text, lexIss);
-    issue::SyntaxIssueHandler syntaxIss;
-    auto ast = ::parse::parse(std::move(tokens), syntaxIss);
-    return { std::move(ast), std::move(syntaxIss) };
+std::pair<UniquePtr<ast::AbstractSyntaxTree>, IssueHandler> test::parse(
+    std::string_view text) {
+    IssueHandler issues;
+    auto tokens = parse::lex(text, issues);
+    auto ast    = ::parse::parse(std::move(tokens), issues);
+    return { std::move(ast), std::move(issues) };
 }
 
 parse::TokenStream test::makeTokenStream(std::string_view text) {
-    issue::LexicalIssueHandler iss;
-    auto tokens = lex::lex(text, iss);
+    IssueHandler issues;
+    auto tokens = parse::lex(text, issues);
     return parse::TokenStream(std::move(tokens));
 }

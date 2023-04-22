@@ -5,20 +5,18 @@ namespace scatha::parse {
 TokenStream::TokenStream(utl::vector<Token> tokens):
     tokens(std::move(tokens)) {}
 
-Token const& TokenStream::eat() {
-    Token const& result = eatImpl(&_index);
-    count(result);
-    return result;
-}
+Token const& TokenStream::eat() { return eatImpl(&_index); }
 
 bool TokenStream::advanceTo(std::string_view id) {
     while (true) {
         Token const& next = peek();
-        if (next.isSeparator) {
+        if (next.kind() == TokenKind::Semicolon ||
+            next.kind() == TokenKind::EndOfFile)
+        {
             eat();
             return false;
         }
-        if (next.id == id) {
+        if (next.id() == id) {
             return true;
         }
         eat();

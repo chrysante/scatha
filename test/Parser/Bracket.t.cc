@@ -9,7 +9,7 @@ using namespace parse;
 namespace {
 
 void checkBracketImpl(std::string str,
-                      TokenType tokenType,
+                      TokenKind tokenType,
                       Bracket::Type type,
                       Bracket::Side side) {
     Token const t(std::move(str), tokenType);
@@ -21,22 +21,22 @@ void checkBracketImpl(std::string str,
 }
 
 void checkBracket(std::string str, Bracket::Type type, Bracket::Side side) {
-    checkBracketImpl(std::move(str), TokenType::Punctuation, type, side);
+    checkBracketImpl(std::move(str), TokenKind::_count, type, side);
 }
 
-void checkNone(std::string str, TokenType type) {
+void checkNone(std::string str, TokenKind type) {
     checkBracketImpl(std::move(str), type, Bracket::Type::None, {});
 }
 
 } // namespace
 
 TEST_CASE("Bracket None", "[parse][preparse]") {
-    checkNone("var", TokenType::Identifier);
-    checkNone("-", TokenType::Operator);
-    checkNone("+", TokenType::Operator);
-    checkNone("123", TokenType::IntegerLiteral);
-    checkNone("?", TokenType::Operator);
-    checkNone("_", TokenType::Identifier);
+    checkNone("var", TokenKind::Identifier);
+    checkNone("-", TokenKind::Minus);
+    checkNone("+", TokenKind::Plus);
+    checkNone("123", TokenKind::IntegerLiteral);
+    checkNone("?", TokenKind::Question);
+    checkNone("_", TokenKind::Identifier);
 }
 
 TEST_CASE("Bracket", "[parse][preparse]") {

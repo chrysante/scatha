@@ -8,46 +8,55 @@
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
 
-namespace scatha {
+using namespace scatha;
 
-std::ostream& operator<<(std::ostream& str, TokenType t) {
-    // clang-format off
-    return str << UTL_SERIALIZE_ENUM(t, {
-        { TokenType::None,                 "None" },
-        { TokenType::Identifier,           "Identifier" },
-        { TokenType::IntegerLiteral,       "IntegerLiteral" },
-        { TokenType::BooleanLiteral,       "BooleanLiteral" },
-        { TokenType::FloatingPointLiteral, "FloatingPointLiteral" },
-        { TokenType::StringLiteral,        "StringLiteral" },
-        { TokenType::Punctuation,          "Punctuation" },
-        { TokenType::Operator,             "Operator" },
-        { TokenType::EndOfFile,            "EndOfFile" },
-        { TokenType::Whitespace,           "Whitespace" },
-        { TokenType::Other,                "Other" },
-    });
-    // clang-format on
-}
-
-std::ostream& operator<<(std::ostream& str, Token const& t) {
-    str << "{ ";
-    str << t.sourceLocation.line << ", " << t.sourceLocation.column;
-    str << ", "
-        << "TokenType::" << t.type;
-    str << ", \"" << t.id << "\"";
-    str << " }";
-    return str;
+bool scatha::isIdentifier(TokenKind kind) {
+    switch (kind) {
+    case TokenKind::Void:
+        [[fallthrough]];
+    case TokenKind::Bool:
+        [[fallthrough]];
+    case TokenKind::Signed8:
+        [[fallthrough]];
+    case TokenKind::Signed16:
+        [[fallthrough]];
+    case TokenKind::Signed32:
+        [[fallthrough]];
+    case TokenKind::Signed64:
+        [[fallthrough]];
+    case TokenKind::Unsigned8:
+        [[fallthrough]];
+    case TokenKind::Unsigned16:
+        [[fallthrough]];
+    case TokenKind::Unsigned32:
+        [[fallthrough]];
+    case TokenKind::Unsigned64:
+        [[fallthrough]];
+    case TokenKind::Float32:
+        [[fallthrough]];
+    case TokenKind::Float64:
+        [[fallthrough]];
+    case TokenKind::Int:
+        [[fallthrough]];
+    case TokenKind::Float:
+        [[fallthrough]];
+    case TokenKind::Identifier:
+        return true;
+    default:
+        return false;
+    }
 }
 
 APInt Token::toInteger(size_t bitWidth) const {
-    SC_ASSERT(type == TokenType::IntegerLiteral,
+    SC_ASSERT(kind() == TokenKind::IntegerLiteral,
               "Token is not an integer literal");
     auto value = [&] {
-        if (id.size() > 2 &&
-            (id.substr(0, 2) == "0x" || id.substr(0, 2) == "0X"))
+        if (_id.size() > 2 &&
+            (_id.substr(0, 2) == "0x" || _id.substr(0, 2) == "0X"))
         {
-            return APInt::parse(id.substr(2, id.size() - 2), 16);
+            return APInt::parse(_id.substr(2, _id.size() - 2), 16);
         }
-        return APInt::parse(id);
+        return APInt::parse(_id);
     }();
     SC_ASSERT(value, "Invalid literal value");
     SC_ASSERT(value->bitwidth() <= bitWidth,
@@ -57,41 +66,19 @@ APInt Token::toInteger(size_t bitWidth) const {
 }
 
 APInt Token::toBool() const {
-    SC_ASSERT(type == TokenType::BooleanLiteral,
-              "Token is not an bool literal");
-    SC_ASSERT(id == "true" || id == "false", "Must be either true or false");
-    return APInt(id == "true" ? 1 : 0, 1);
+    if (kind() == TokenKind::True) {
+        return APInt(1, 1);
+    }
+    else if (kind() == TokenKind::False) {
+        return APInt(0, 1);
+    }
+    SC_UNREACHABLE();
 }
 
 APFloat Token::toFloat(APFloatPrec precision) const {
-    SC_ASSERT(type == TokenType::FloatingPointLiteral,
+    SC_ASSERT(kind() == TokenKind::FloatLiteral,
               "Token is not a floating point literal");
-    auto const value = APFloat::parse(id, precision);
+    auto const value = APFloat::parse(_id, precision);
     SC_ASSERT(value, "Invalid literal value");
     return *value;
 }
-
-void Token::finalize() {
-    if (type == TokenType::Punctuation) {
-        isPunctuation = true;
-        if (id == ";") {
-            isSeparator = true;
-        }
-    }
-    if (type == TokenType::EndOfFile) {
-        isPunctuation = true;
-        isSeparator   = true;
-    }
-    if (std::optional<Keyword> const kw = toKeyword(id)) {
-        isKeyword       = true;
-        keyword         = *kw;
-        keywordCategory = categorize(*kw);
-        isDeclarator    = scatha::isDeclarator(*kw);
-        isControlFlow   = scatha::isControlFlow(*kw);
-    }
-    if (type == TokenType::Identifier) {
-        isIdentifier = true;
-    }
-}
-
-} // namespace scatha

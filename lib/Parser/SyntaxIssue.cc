@@ -29,39 +29,39 @@ SCATHA_API std::ostream& parse::operator<<(std::ostream& str,
     return str << toString(reason);
 }
 
-bool parse::expectIdentifier(issue::SyntaxIssueHandler& iss,
-                             Token const& token) {
-    if (!token.isIdentifier) {
-        iss.push(SyntaxIssue(token, ExpectedIdentifier));
-        return false;
-    }
-    return true;
-}
-
-bool parse::expectDeclarator(issue::SyntaxIssueHandler& iss,
-                             Token const& token) {
-    if (!token.isDeclarator) {
-        iss.push(SyntaxIssue(token, ExpectedDeclarator));
-        return false;
-    }
-    return true;
-}
-
-bool parse::expectSeparator(issue::SyntaxIssueHandler& iss,
-                            Token const& token) {
-    if (!token.isSeparator) {
-        iss.push(SyntaxIssue(token, ExpectedSeparator));
-        return false;
-    }
-    return true;
-}
-
-bool parse::expectID(issue::SyntaxIssueHandler& iss,
-                     Token const& token,
-                     std::string id) {
-    if (token.id != id) {
-        iss.push(SyntaxIssue::expectedID(token, std::move(id)));
-        return false;
-    }
-    return true;
-}
+// bool parse::expectIdentifier(issue::SyntaxIssueHandler& iss,
+//                              Token const& token) {
+//     if (!token.isIdentifier) {
+//         iss.push(SyntaxIssue(token, ExpectedIdentifier));
+//         return false;
+//     }
+//     return true;
+// }
+//
+// bool parse::expectDeclarator(issue::SyntaxIssueHandler& iss,
+//                              Token const& token) {
+//     if (!token.isDeclarator) {
+//         iss.push(SyntaxIssue(token, ExpectedDeclarator));
+//         return false;
+//     }
+//     return true;
+// }
+//
+// bool parse::expectSeparator(issue::SyntaxIssueHandler& iss,
+//                             Token const& token) {
+//     if (!token.isSeparator) {
+//         iss.push(SyntaxIssue(token, ExpectedSeparator));
+//         return false;
+//     }
+//     return true;
+// }
+//
+// bool parse::expectID(issue::SyntaxIssueHandler& iss,
+//                      Token const& token,
+//                      std::string id) {
+//     if (token.id != id) {
+//         iss.push(SyntaxIssue::expectedID(token, std::move(id)));
+//         return false;
+//     }
+//     return true;
+// }

@@ -9,21 +9,21 @@ using namespace scatha;
 TEST_CASE("OverloadSet") {
     sema::SymbolTable sym;
     /// Declare a function \code f: (int) -> int
-    auto f_int = sym.declareFunction(Token("f", TokenType::Identifier));
+    auto f_int = sym.declareFunction(Token("f", TokenKind::Identifier));
     REQUIRE(f_int.hasValue());
     auto const f_int_success =
         sym.setSignature(f_int->symbolID(),
                          sema::FunctionSignature({ sym.Int() }, sym.Int()));
     CHECK(f_int_success);
     /// Declare a function \code f: (float) -> float
-    auto f_float = sym.declareFunction(Token("f", TokenType::Identifier));
+    auto f_float = sym.declareFunction(Token("f", TokenKind::Identifier));
     REQUIRE(f_float.hasValue());
     auto const f_float_success =
         sym.setSignature(f_float->symbolID(),
                          sema::FunctionSignature({ sym.Float() }, sym.Float()));
     CHECK(f_float_success);
     /// Declare a function \code f: (float) -> int
-    auto f_float2 = sym.declareFunction(Token("f", TokenType::Identifier));
+    auto f_float2 = sym.declareFunction(Token("f", TokenKind::Identifier));
     REQUIRE(f_float2.hasValue());
     auto const f_float2_success =
         sym.setSignature(f_float2->symbolID(),
@@ -34,7 +34,7 @@ TEST_CASE("OverloadSet") {
     CHECK(f2error.reason() ==
           sema::InvalidDeclaration::Reason::CantOverloadOnReturnType);
     /// Declare a function \code f: (float) -> float
-    auto f_float3 = sym.declareFunction(Token("f", TokenType::Identifier));
+    auto f_float3 = sym.declareFunction(Token("f", TokenKind::Identifier));
     REQUIRE(f_float3.hasValue());
     auto const f_float3_success =
         sym.setSignature(f_float3->symbolID(),

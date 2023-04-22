@@ -70,7 +70,7 @@ static auto lineNumber(ssize_t index) {
 void issue::highlightToken(std::string_view text,
                            Token const& token,
                            std::ostream& str) {
-    auto const sourceLocation = token.sourceLocation;
+    auto const sourceLocation = token.sourceLocation();
     size_t const index        = utl::narrow_cast<size_t>(sourceLocation.index);
     size_t const column       = utl::narrow_cast<size_t>(sourceLocation.column);
     std::string_view const line = getLine(text, index);
@@ -86,8 +86,8 @@ void issue::highlightToken(std::string_view text,
     str << lineNumber(lineIndex);
     str << line.substr(0, column - 1);
     str << tfmt::format(tfmt::red | tfmt::italic,
-                        line.substr(column - 1, token.id.size()));
-    size_t const endPos = column - 1 + token.id.size();
+                        line.substr(column - 1, token.id().size()));
+    size_t const endPos = column - 1 + token.id().size();
     str << line.substr(endPos, line.size() - endPos);
     str << '\n';
     ++lineIndex;
@@ -97,7 +97,7 @@ void issue::highlightToken(std::string_view text,
         str << ' ';
     }
     tfmt::format(tfmt::red, [&] {
-        for (size_t i = 0; i < std::max(size_t{ 1 }, token.id.size()); ++i) {
+        for (size_t i = 0; i < std::max(size_t{ 1 }, token.id().size()); ++i) {
             str << "˜";
         }
     });

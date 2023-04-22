@@ -57,7 +57,8 @@ public:
     /// \overload
     ///
     /// Only exposed for testing purposes.
-    Expected<ObjectType&, SemanticIssue> declareObjectType(Token name);
+    Expected<ObjectType&, SemanticIssue> declareObjectType(
+        Token name, bool allowKeywords = false);
 
     /// Simpler interface to declare builtins. Internally calls
     /// `declareObjectType()`
@@ -227,19 +228,19 @@ public:
     }
 
     SymbolID lookup(std::string_view name) const;
-    SymbolID lookup(Token const& token) const { return lookup(token.id); }
+    SymbolID lookup(Token const& token) const { return lookup(token.id()); }
 
     OverloadSet const* lookupOverloadSet(std::string_view name) const;
     OverloadSet const* lookupOverloadSet(Token const& token) const {
-        return lookupOverloadSet(token.id);
+        return lookupOverloadSet(token.id());
     }
     Variable const* lookupVariable(std::string_view name) const;
     Variable const* lookupVariable(Token const& token) const {
-        return lookupVariable(token.id);
+        return lookupVariable(token.id());
     }
     ObjectType const* lookupObjectType(std::string_view name) const;
     ObjectType const* lookupObjectType(Token const& token) const {
-        return lookupObjectType(token.id);
+        return lookupObjectType(token.id());
     }
 
     Scope& currentScope() { return *_currentScope; }

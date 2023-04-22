@@ -15,7 +15,7 @@ public:
 
     Token token() const { return tok; }
 
-    SourceLocation sourceLocation() const { return tok.sourceLocation; }
+    SourceLocation sourceLocation() const { return tok.sourceLocation(); }
 
     std::string toString() const { return doToString(); }
 

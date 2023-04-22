@@ -71,7 +71,7 @@ public:
         });
     }
 
-    SourceLocation sourceLocation() const { return token().sourceLocation; }
+    SourceLocation sourceLocation() const { return token().sourceLocation(); }
 
     void setToken(Token token) {
         visit([&](ProgramIssueBase& e) { e.setToken(std::move(token)); });

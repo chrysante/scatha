@@ -5,6 +5,7 @@
 
 #include <string>
 
+#include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
 
 namespace scatha {
@@ -29,6 +30,8 @@ struct Bracket {
 SCATHA_API Bracket toBracket(Token const& token);
 
 std::string toString(Bracket bracket);
+
+TokenKind toTokenKind(Bracket bracket);
 
 } // namespace scatha::parse
 

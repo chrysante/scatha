@@ -19,11 +19,11 @@ class SCATHA_API ProgramIssueBase: public internal::ProgramIssuePrivateBase {
 public:
     explicit ProgramIssueBase(Token token): _token(std::move(token)) {}
     explicit ProgramIssueBase(SourceLocation location) {
-        _token.sourceLocation = location;
+        //        _token.sourceLocation = location;
     }
 
     Token const& token() const { return _token; }
-    SourceLocation sourceLocation() const { return _token.sourceLocation; }
+    SourceLocation sourceLocation() const { return _token.sourceLocation(); }
 
     void setToken(Token token) { _token = std::move(token); }
 

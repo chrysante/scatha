@@ -79,7 +79,7 @@ public:
 
     /// Source location object associated with this node. Same as
     /// `token().sourceLocation`
-    SourceLocation sourceLocation() const { return token().sourceLocation; }
+    SourceLocation sourceLocation() const { return token().sourceLocation(); }
 
 protected:
     explicit AbstractSyntaxTree(NodeType type, Token const& token):
@@ -157,7 +157,7 @@ public:
         Expression(NodeType::Identifier, token) {}
 
     /// Literal string value as declared in the source.
-    std::string_view value() const { return token().id; }
+    std::string_view value() const { return token().id(); }
 
     /// **Decoration provided by semantic analysis**
 
@@ -223,7 +223,7 @@ private:
 class SCATHA_API StringLiteral: public Expression {
 public:
     explicit StringLiteral(Token const& token):
-        Expression(NodeType::StringLiteral, token), _value(token.id) {}
+        Expression(NodeType::StringLiteral, token), _value(token.id()) {}
 
     /// Value as declared in the source code.
     std::string value() const { return _value; }
@@ -407,7 +407,7 @@ class SCATHA_API Declaration: public Statement {
 public:
     /// Name of the declared symbol as written in the source code.
     std::string_view name() const {
-        return nameIdentifier ? std::string_view(nameIdentifier->token().id) :
+        return nameIdentifier ? std::string_view(nameIdentifier->token().id()) :
                                 "";
     }
 

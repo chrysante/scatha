@@ -4,12 +4,12 @@
 #include <utility>
 
 #include <AST/AST.h>
-#include <Issue/IssueHandler.h>
+#include <Issue/IssueHandler2.h>
 #include <Parser/TokenStream.h>
 
 namespace scatha::test {
 
-std::pair<UniquePtr<ast::AbstractSyntaxTree>, issue::SyntaxIssueHandler> parse(
+std::pair<UniquePtr<ast::AbstractSyntaxTree>, IssueHandler> parse(
     std::string_view text);
 
 parse::TokenStream makeTokenStream(std::string_view text);

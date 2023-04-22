@@ -152,8 +152,8 @@ utl::vector<scatha::Token>::iterator Context::popStackAndInsertMatchingBrackets(
             issues.push<ExpectedClosingBracket>(*tokenItr);
             Bracket const newBracket = { bracket.type, Bracket::Side::Close };
             return Token(toString(newBracket),
-                         TokenType::Punctuation,
-                         tokenItr->sourceLocation);
+                         toTokenKind(newBracket),
+                         tokenItr->sourceLocation());
         }) |
         ranges::views::common;
     auto const resultItr = tokens.insert(tokenItr,

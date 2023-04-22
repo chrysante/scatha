@@ -34,7 +34,7 @@ SC_KEYWORD_TOKEN_DEF(Export,     "export")
 
 SC_KEYWORD_TOKEN_DEF(Module,     "module")
 SC_KEYWORD_TOKEN_DEF(Struct,     "struct")
-SC_KEYWORD_TOKEN_DEF(Function,   "function")
+SC_KEYWORD_TOKEN_DEF(Function,   "fn")
 SC_KEYWORD_TOKEN_DEF(Var,        "var")
 SC_KEYWORD_TOKEN_DEF(Let,        "let")
 
@@ -107,7 +107,7 @@ SC_OPERATOR_TOKEN_DEF(Dot,               ".")
 SC_OPERATOR_TOKEN_DEF(Arrow,             "->")
 SC_OPERATOR_TOKEN_DEF(Question,          "?")
 
-#ifndef SC_OPERATOR_TOKEN_DEF
+#undef SC_OPERATOR_TOKEN_DEF
 
 // ===----------------------------------------------------------------------===
 // === List of all punctuation tokens --------------------------------------===
@@ -117,15 +117,15 @@ SC_OPERATOR_TOKEN_DEF(Question,          "?")
 #   define SC_PUNCTUATION_TOKEN_DEF(Token, str)
 #endif
 
-SC_OPERATOR_TOKEN_DEF(OpenParan,    "(")
-SC_OPERATOR_TOKEN_DEF(CloseParan,   ")")
-SC_OPERATOR_TOKEN_DEF(OpenBrace,    "{")
-SC_OPERATOR_TOKEN_DEF(CloseBrace,   "}")
-SC_OPERATOR_TOKEN_DEF(OpenBracket,  "[")
-SC_OPERATOR_TOKEN_DEF(CloseBracket, "]")
-SC_OPERATOR_TOKEN_DEF(Comma,        ",")
-SC_OPERATOR_TOKEN_DEF(SemiColon,    ";")
-SC_OPERATOR_TOKEN_DEF(Colon,        ":")
+SC_PUNCTUATION_TOKEN_DEF(OpenParan,    "(")
+SC_PUNCTUATION_TOKEN_DEF(CloseParan,   ")")
+SC_PUNCTUATION_TOKEN_DEF(OpenBrace,    "{")
+SC_PUNCTUATION_TOKEN_DEF(CloseBrace,   "}")
+SC_PUNCTUATION_TOKEN_DEF(OpenBracket,  "[")
+SC_PUNCTUATION_TOKEN_DEF(CloseBracket, "]")
+SC_PUNCTUATION_TOKEN_DEF(Comma,        ",")
+SC_PUNCTUATION_TOKEN_DEF(Semicolon,    ";")
+SC_PUNCTUATION_TOKEN_DEF(Colon,        ":")
 
 #undef SC_PUNCTUATION_TOKEN_DEF
 
@@ -133,10 +133,14 @@ SC_OPERATOR_TOKEN_DEF(Colon,        ":")
 // === List of other tokens ------------------------------------------------===
 // ===----------------------------------------------------------------------===
 
-#ifndef SC_PUNCTUATION_TOKEN_DEF
-#   define SC_PUNCTUATION_TOKEN_DEF(Token, str)
+#ifndef SC_OTHER_TOKEN_DEF
+#   define SC_OTHER_TOKEN_DEF(Token, str)
 #endif
 
-SC_OPERATOR_TOKEN_DEF(EndOfFile, "")
+SC_OTHER_TOKEN_DEF(Identifier,     "")
+SC_OTHER_TOKEN_DEF(IntegerLiteral, "")
+SC_OTHER_TOKEN_DEF(FloatLiteral,   "")
+SC_OTHER_TOKEN_DEF(StringLiteral,  "")
+SC_OTHER_TOKEN_DEF(EndOfFile,      "")
 
-#undef SC_PUNCTUATION_TOKEN_DEF
+#undef SC_OTHER_TOKEN_DEF

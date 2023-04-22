@@ -4,11 +4,13 @@
 #include <span>
 #include <string_view>
 
+#include <scatha/AST/Token.h>
+
 namespace scatha::parse {
 
 struct PanicOptions {
-    std::string_view targetDelimiter = ";";
-    bool eatDelimiter                = true;
+    TokenKind targetDelimiter = TokenKind::Semicolon;
+    bool eatDelimiter         = true;
 };
 
 void panic(class TokenStream&, PanicOptions = {});

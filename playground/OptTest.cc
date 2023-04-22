@@ -29,18 +29,17 @@ using namespace playground;
 using namespace scatha;
 
 static auto compile(std::string_view text, sema::SymbolTable& sym) {
-    issue::LexicalIssueHandler lexIss;
-    auto tokens = lex::lex(text, lexIss);
-    if (!lexIss.empty()) {
+    IssueHandler issues;
+    auto tokens = parse::lex(text, issues);
+    if (!issues.empty()) {
         std::cout << "Lexical issue on line "
-                  << lexIss.issues()[0].sourceLocation().line << std::endl;
+                  << issues.errors()[0]->sourceLocation().line << std::endl;
         throw;
     }
-    issue::SyntaxIssueHandler parseIss;
-    auto ast = parse::parse(tokens, parseIss);
-    if (!parseIss.empty()) {
+    auto ast = parse::parse(tokens, issues);
+    if (!issues.empty()) {
         std::cout << "Syntax issue on line "
-                  << parseIss.issues()[0].sourceLocation().line << std::endl;
+                  << issues.errors()[0]->sourceLocation().line << std::endl;
         throw;
     }
     issue::SemaIssueHandler semaIss;

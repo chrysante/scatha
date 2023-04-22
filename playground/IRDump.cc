@@ -66,20 +66,19 @@ void playground::irDump(std::string_view text) {
 
 static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
     makeIRModuleFromSC(std::string_view text, std::ostream& errStr) {
-    issue::LexicalIssueHandler lexIss;
-    auto tokens     = lex::lex(text, lexIss);
+    IssueHandler issues;
+    auto tokens     = parse::lex(text, issues);
     auto printIssue = [&](std::string_view kind, SourceLocation sl) {
         errStr << kind << " issue: L:" << sl.line << " C:" << sl.column
                << std::endl;
     };
-    if (!lexIss.empty()) {
-        printIssue("Lexical", lexIss.issues()[0].sourceLocation());
+    if (!issues.empty()) {
+        printIssue("Lexical", issues.errors()[0]->sourceLocation());
         return std::nullopt;
     }
-    issue::SyntaxIssueHandler parseIss;
-    auto ast = parse::parse(tokens, parseIss);
-    if (!parseIss.empty()) {
-        printIssue("Syntax", parseIss.issues()[0].sourceLocation());
+    auto ast = parse::parse(tokens, issues);
+    if (!issues.empty()) {
+        printIssue("Syntax", issues.errors()[0]->sourceLocation());
         return std::nullopt;
     }
     sema::SymbolTable sym;

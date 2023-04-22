@@ -5,6 +5,7 @@ AST/Print.h
 AST/LowerToIR.h
 AST/SourceLocation.h
 AST/Token.h
+AST/Token.def
 AST/Keyword.h
 
 Assembly/Assembler.h

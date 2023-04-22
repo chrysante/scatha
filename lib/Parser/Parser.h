@@ -9,7 +9,7 @@
 #include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/UniquePtr.h>
-#include <scatha/Issue/IssueHandler.h>
+#include <scatha/Issue/IssueHandler2.h>
 
 // clang-format off
 
@@ -143,7 +143,7 @@
 namespace scatha::parse {
 
 [[nodiscard]] SCATHA_API UniquePtr<ast::AbstractSyntaxTree> parse(
-    utl::vector<Token> tokens, issue::SyntaxIssueHandler& issueHandler);
+    utl::vector<Token> tokens, IssueHandler& issueHandler);
 
 } // namespace scatha::parse
 

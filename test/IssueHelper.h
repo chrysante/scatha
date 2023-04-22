@@ -9,6 +9,7 @@
 #include "AST/Token.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
+#include "Issue/IssueHandler2.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::lex {
@@ -31,60 +32,48 @@ class SemaIssue;
 
 namespace scatha::test {
 
-namespace internal {
-
-template <typename IssueBaseType>
-struct ToIssueHandler;
-template <>
-struct ToIssueHandler<lex::LexicalIssue> {
-    using type = issue::LexicalIssueHandler;
-};
-template <>
-struct ToIssueHandler<parse::SyntaxIssue> {
-    using type = issue::SyntaxIssueHandler;
-};
-template <>
-struct ToIssueHandler<sema::SemanticIssue> {
-    using type = issue::SemaIssueHandler;
-};
-
-} // namespace internal
-
-template <typename IssueBaseType>
+template <typename HandlerType>
 struct IssueHelper {
     template <typename T>
-    std::optional<T> findOnLine(ssize_t line, ssize_t col = -1) const {
-        if constexpr (std::is_same_v<IssueBaseType, parse::SyntaxIssue>) {
-            static_assert(std::is_same_v<T, parse::SyntaxIssue>);
-            for (auto&& issue: iss.issues()) {
-                auto const& token = issue.token();
-                if (token.sourceLocation.line == line &&
-                    (token.sourceLocation.column == col || col == (size_t)-1))
+    std::optional<T> findOnLine(ssize_t line, ssize_t col = -1) const
+        requires std::is_same_v<HandlerType, issue::SemaIssueHandler>
+    {
+        for (auto&& issue: iss.issues()) {
+            if (issue.template is<T>()) {
+                T const& t         = issue.template get<T>();
+                Token const& token = t.token();
+                if (token.sourceLocation().line == line &&
+                    (token.sourceLocation().column == col || col == (size_t)-1))
                 {
-                    return issue;
-                }
-            }
-        }
-        else {
-            for (auto&& issue: iss.issues()) {
-                if (issue.template is<T>()) {
-                    T const& t         = issue.template get<T>();
-                    Token const& token = t.token();
-                    if (token.sourceLocation.line == line &&
-                        (token.sourceLocation.column == col ||
-                         col == (size_t)-1))
-                    {
-                        return t;
-                    }
+                    return t;
                 }
             }
         }
         return std::nullopt;
     }
 
+    template <typename T>
+    T const* findOnLine(ssize_t line, ssize_t col = -1) const
+        requires(!std::is_same_v<HandlerType, issue::SemaIssueHandler>)
+    {
+        for (auto* issueBase: iss.errors()) {
+            auto* issue = dynamic_cast<T const*>(issueBase);
+            if (!issue) {
+                continue;
+            }
+            Token const& token = issue->token();
+            if (token.sourceLocation().line == line &&
+                (token.sourceLocation().column == col || col == (size_t)-1))
+            {
+                return issue;
+            }
+        }
+        return nullptr;
+    }
+
     bool noneOnLine(size_t line) const {
         for (auto&& issue: iss.issues()) {
-            if (issue.token().sourceLocation.line == line) {
+            if (issue.token().sourceLocation().line == line) {
                 return false;
             }
         }
@@ -93,15 +82,14 @@ struct IssueHelper {
 
     bool empty() const { return iss.empty(); }
 
-    using HandlerType = typename internal::ToIssueHandler<IssueBaseType>::type;
     HandlerType iss;
     UniquePtr<ast::AbstractSyntaxTree> ast = nullptr;
     sema::SymbolTable sym{};
 };
 
-using LexicalIssueHelper = IssueHelper<lex::LexicalIssue>;
-using SyntaxIssueHelper  = IssueHelper<parse::SyntaxIssue>;
-using SemaIssueHelper    = IssueHelper<sema::SemanticIssue>;
+using LexicalIssueHelper = IssueHelper<IssueHandler>;
+using SyntaxIssueHelper  = IssueHelper<IssueHandler>;
+using SemaIssueHelper    = IssueHelper<issue::SemaIssueHandler>;
 
 LexicalIssueHelper getLexicalIssues(std::string_view text);
 SyntaxIssueHelper getSyntaxIssues(std::string_view text);

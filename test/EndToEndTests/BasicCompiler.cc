@@ -37,14 +37,13 @@
 using namespace scatha;
 
 static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
-    issue::LexicalIssueHandler lexIss;
-    auto tokens = lex::lex(text, lexIss);
-    if (!lexIss.empty()) {
+    IssueHandler issues;
+    auto tokens = parse::lex(text, issues);
+    if (!issues.empty()) {
         throw std::runtime_error("Compilation failed");
     }
-    issue::SyntaxIssueHandler parseIss;
-    auto ast = parse::parse(tokens, parseIss);
-    if (!parseIss.empty()) {
+    auto ast = parse::parse(tokens, issues);
+    if (!issues.empty()) {
         throw std::runtime_error("Compilation failed");
     }
     sema::SymbolTable sym;

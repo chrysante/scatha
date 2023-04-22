@@ -14,66 +14,55 @@
 
 namespace scatha {
 
-enum class TokenType {
-    None,
-    Identifier,
-    IntegerLiteral,
-    BooleanLiteral,
-    FloatingPointLiteral,
-    StringLiteral,
-    Punctuation,
-    Operator,
-    EndOfFile,
-    Whitespace,
-    Other,
+enum class TokenKind {
+#define SC_KEYWORD_TOKEN_DEF(Token, _)     Token,
+#define SC_OPERATOR_TOKEN_DEF(Token, _)    Token,
+#define SC_PUNCTUATION_TOKEN_DEF(Token, _) Token,
+#define SC_OTHER_TOKEN_DEF(Token, _)       Token,
+#include <scatha/AST/Token.def>
     _count
 };
 
-SCATHA_API std::ostream& operator<<(std::ostream&, TokenType);
+inline bool isDeclarator(TokenKind kind) {
+    return static_cast<int>(kind) >= static_cast<int>(TokenKind::Module) &&
+           static_cast<int>(kind) <= static_cast<int>(TokenKind::Let);
+}
 
-struct TokenData {
-    std::string id;
-    TokenType type;
-    SourceLocation sourceLocation;
+inline bool isAccessSpec(TokenKind kind) {
+    return static_cast<int>(kind) >= static_cast<int>(TokenKind::Public) &&
+           static_cast<int>(kind) <= static_cast<int>(TokenKind::Private);
+}
 
-    bool operator==(TokenData const&) const = default;
-};
+bool isIdentifier(TokenKind kind);
 
-struct SCATHA_API Token: public TokenData {
+struct SCATHA_API Token {
     Token() = default;
     explicit Token(std::string id,
-                   TokenType type,
+                   TokenKind kind,
                    SourceLocation sourceLocation = {}):
-        Token({ std::move(id), type, sourceLocation }) {}
-    explicit Token(TokenData data): TokenData(std::move(data)) { finalize(); }
+        _id(std::move(id)), _kind(kind), _sourceLoc(sourceLocation) {}
 
-    bool empty() const { return id.empty(); }
+    bool empty() const { return _id.empty(); }
+
+    std::string const& id() const { return _id; }
+
+    TokenKind kind() const { return _kind; }
+
+    SourceLocation sourceLocation() const { return _sourceLoc; }
 
     APInt toInteger(size_t bitWidth) const;
+
     APInt toBool() const;
+
     APFloat toFloat(APFloatPrec precision = APFloatPrec::Double) const;
 
-    bool isSeparator   : 1 = false;
-    bool isIdentifier  : 1 = false;
-    bool isKeyword     : 1 = false;
-    bool isDeclarator  : 1 = false;
-    bool isControlFlow : 1 = false;
-    bool isPunctuation : 1 = false;
-
-    Keyword keyword{};
-    KeywordCategory keywordCategory{};
-
-    bool operator==(Token const& rhs) const {
-        return static_cast<TokenData const&>(*this) ==
-               static_cast<TokenData const&>(rhs);
-    }
+    bool operator==(Token const& rhs) const = default;
 
 private:
-    /// Populates all the fields after `id` in token structure.
-    void finalize();
+    std::string _id;
+    TokenKind _kind;
+    SourceLocation _sourceLoc;
 };
-
-SCATHA_API std::ostream& operator<<(std::ostream&, Token const&);
 
 } // namespace scatha
 

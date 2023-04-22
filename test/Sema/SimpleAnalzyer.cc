@@ -1,6 +1,7 @@
 #include "SimpleAnalzyer.h"
 
 #include "Common/UniquePtr.h"
+#include "Issue/IssueHandler.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"
@@ -13,10 +14,9 @@ std::tuple<UniquePtr<ast::AbstractSyntaxTree>,
            sema::SymbolTable,
            issue::SemaIssueHandler>
     produceDecoratedASTAndSymTable(std::string_view text) {
-    issue::LexicalIssueHandler lexIss;
-    auto tokens = lex::lex(text, lexIss);
-    issue::SyntaxIssueHandler parseIss;
-    auto ast = parse::parse(tokens, parseIss);
+    IssueHandler issues;
+    auto tokens = parse::lex(text, issues);
+    auto ast    = parse::parse(tokens, issues);
     sema::SymbolTable sym;
     issue::SemaIssueHandler semaIss;
     sema::analyze(*ast, sym, semaIss);

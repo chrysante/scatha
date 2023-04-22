@@ -9,6 +9,7 @@
 #include <svm/VirtualMachine.h>
 #include <utl/stdio.hpp>
 
+#include "AST/Print.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
@@ -26,6 +27,7 @@
 #include "IR/Print.h"
 #include "IR/Validate.h"
 #include "IRDump.h"
+#include "Issue/IssueHandler2.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
 #include "MIR/Print.h"
@@ -42,6 +44,10 @@
 #include "Opt/SimplifyCFG.h"
 #include "Opt/TailRecElim.h"
 #include "Opt/UnifyReturns.h"
+#include "Parser/Lexer.h"
+#include "Parser/Parser.h"
+#include "Sema/Analyze.h"
+#include "Sema/SemanticIssue.h"
 
 static void line(std::string_view m) {
     std::cout << "==============================" << m
@@ -175,26 +181,28 @@ static void run(mir::Module const& mod) {
 }
 
 [[maybe_unused]] static void volPlayground(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
+    std::fstream file(path);
+    std::stringstream sstr;
+    sstr << file.rdbuf();
+    std::string text = sstr.str();
+    IssueHandler issues;
+    auto tokens = parse::lex(text, issues);
+    auto root   = parse::parse(tokens, issues);
 
-    auto& f = mod.front();
+    if (!issues.empty()) {
+        for (auto* err: issues.errors()) {
+            std::cout << typeid(*err).name() << std::endl;
+        }
+        return;
+    }
 
-    opt::sroa(ctx, f);
-    opt::memToReg(ctx, f);
-
-    print(mod);
-
-    header(" After Inst Combine ");
-    opt::instCombine(ctx, f);
-    print(mod);
-
-    header(" After 2. Inst Combine ");
-    opt::instCombine(ctx, f);
-    print(mod);
-
-    header(" After DCE ");
-    opt::dce(ctx, f);
-    print(mod);
+    scatha::issue::SemaIssueHandler semaIss;
+    sema::SymbolTable sym;
+    sema::analyze(*root, sym, semaIss);
+    for (auto& issue: semaIss.issues()) {
+        std::cout << issue.visit([](auto& i) { return i.sourceLocation(); })
+                  << std::endl;
+    }
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
