@@ -47,9 +47,6 @@ namespace scatha::parse {
 /// \post Every opening bracket in the token stream \p tokens has a correctly
 /// scoped matching closing bracket.
 SCATHA_API void bracketCorrection(utl::vector<Token>& tokens,
-                                  issue::SyntaxIssueHandler& issueHandler);
-
-SCATHA_API void bracketCorrection(utl::vector<Token>& tokens,
                                   IssueHandler& issues);
 
 } // namespace scatha::parse

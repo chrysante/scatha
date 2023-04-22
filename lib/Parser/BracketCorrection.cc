@@ -48,12 +48,6 @@ struct Context {
 } // namespace
 
 void parse::bracketCorrection(utl::vector<Token>& tokens,
-                              issue::SyntaxIssueHandler& iss) {
-    IssueHandler issues;
-    bracketCorrection(tokens, issues);
-}
-
-void parse::bracketCorrection(utl::vector<Token>& tokens,
                               IssueHandler& issues) {
     Context ctx(tokens, issues);
     ctx.run();

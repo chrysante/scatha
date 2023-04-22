@@ -15,7 +15,6 @@
 #include "AST/Keyword.h"
 #include "Common/Base.h"
 #include "Common/Expected.h"
-#include "Parser/SyntaxIssue.h"
 #include "Parser/TokenStream.h"
 
 using namespace scatha;

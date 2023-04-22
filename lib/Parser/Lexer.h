@@ -12,13 +12,6 @@
 #include <scatha/Issue/IssueHandler.h>
 #include <scatha/Issue/IssueHandler2.h>
 
-namespace scatha::lex {
-
-[[nodiscard]] SCATHA_API utl::vector<Token> lex(
-    std::string_view text, issue::LexicalIssueHandler& issueHandler);
-
-} // namespace scatha::lex
-
 namespace scatha::parse {
 
 SCATHA_API utl::vector<Token> lex(std::string_view text,

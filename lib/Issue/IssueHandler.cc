@@ -2,8 +2,6 @@
 
 #include <utl/vector.hpp>
 
-#include "Parser/LexicalIssue.h"
-#include "Parser/SyntaxIssue.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;
@@ -73,6 +71,4 @@ void issue::internal::IssueHandlerBase<T>::setFatal() {
     impl->fatal = true;
 }
 
-template class issue::internal::IssueHandlerBase<lex::LexicalIssue>;
-template class issue::internal::IssueHandlerBase<parse::SyntaxIssue>;
 template class issue::internal::IssueHandlerBase<sema::SemanticIssue>;

@@ -18,9 +18,9 @@
 #include "IR/Parser.h"
 #include "IR/Print.h"
 #include "Parser/Lexer.h"
-#include "Parser/LexicalIssue.h"
+#include "Parser/LexicalIssue2.h"
 #include "Parser/Parser.h"
-#include "Parser/SyntaxIssue.h"
+#include "Parser/SyntaxIssue2.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
@@ -73,12 +73,12 @@ static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
                << std::endl;
     };
     if (!issues.empty()) {
-        printIssue("Lexical", issues.errors()[0]->sourceLocation());
+        printIssue("Lexical", issues.issues()[0]->sourceLocation());
         return std::nullopt;
     }
     auto ast = parse::parse(tokens, issues);
     if (!issues.empty()) {
-        printIssue("Syntax", issues.errors()[0]->sourceLocation());
+        printIssue("Syntax", issues.issues()[0]->sourceLocation());
         return std::nullopt;
     }
     sema::SymbolTable sym;

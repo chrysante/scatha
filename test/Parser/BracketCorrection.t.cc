@@ -40,7 +40,7 @@ TEST_CASE("BracketCorrection - Missing closing brackets at end of file",
           "[parse][preparse]") {
     SECTION("1") {
         auto const [tokens, iss] = correctBrackets("(");
-        auto const issues        = iss.iss.errors();
+        auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 1);
         auto const issue = issues[0];
         CHECK(dynamic_cast<ExpectedClosingBracket const*>(issue));
@@ -52,7 +52,7 @@ TEST_CASE("BracketCorrection - Missing closing brackets at end of file",
     }
     SECTION("2") {
         auto const [tokens, iss] = correctBrackets("([{");
-        auto const issues        = iss.iss.errors();
+        auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 3);
         // TODO: Check for right bracket type once we added that information to
         // SyntaxIssue
@@ -84,7 +84,7 @@ TEST_CASE("BracketCorrection - Unexpected closing brackets",
           "[parse][preparse]") {
     SECTION("1") {
         auto const [tokens, iss] = correctBrackets("-)*");
-        auto const issues        = iss.iss.errors();
+        auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 1);
         auto const issue = issues[0];
         CHECK(dynamic_cast<UnexpectedClosingBracket const*>(issue));
@@ -96,7 +96,7 @@ TEST_CASE("BracketCorrection - Unexpected closing brackets",
         auto const [tokens, iss] = correctBrackets("-{(abc)xyz[]-<>} \n"
                                                    // v - This one is the issue
                                                    "  ) *");
-        auto const issues        = iss.iss.errors();
+        auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 1);
         auto const issue = issues[0];
         CHECK(dynamic_cast<UnexpectedClosingBracket const*>(issue));
@@ -105,7 +105,7 @@ TEST_CASE("BracketCorrection - Unexpected closing brackets",
     }
     SECTION("2") {
         auto const [tokens, iss] = correctBrackets("-[xyz*)]abc");
-        auto const issues        = iss.iss.errors();
+        auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 1);
         auto const issue = issues[0];
         CHECK(dynamic_cast<UnexpectedClosingBracket const*>(issue));
@@ -114,7 +114,7 @@ TEST_CASE("BracketCorrection - Unexpected closing brackets",
     }
     SECTION("2.1") {
         auto const [tokens, iss] = correctBrackets("[)})]");
-        auto const issues        = iss.iss.errors();
+        auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 3);
         for (int i = 2; auto* issue: issues) {
             CHECK(dynamic_cast<UnexpectedClosingBracket const*>(issue));
@@ -125,7 +125,7 @@ TEST_CASE("BracketCorrection - Unexpected closing brackets",
     }
     SECTION("3") {
         auto const [tokens, iss] = correctBrackets("({)}");
-        auto const issues        = iss.iss.errors();
+        auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 2);
         {
             auto const missingClosingCurly = issues[0];
@@ -147,7 +147,7 @@ TEST_CASE("BracketCorrection - Unexpected closing brackets",
     }
     SECTION("3.1") {
         auto const [tokens, iss] = correctBrackets("( _ { _ { _ [ _ )");
-        auto const issues        = iss.iss.errors();
+        auto const issues        = iss.iss.issues();
         REQUIRE(issues.size() == 3);
         for (auto* issue: issues) {
             CHECK(dynamic_cast<ExpectedClosingBracket const*>(issue));

@@ -23,15 +23,14 @@
 #include "Opt/DCE.h"
 #include "Opt/MemToReg.h"
 #include "Parser/Lexer.h"
-#include "Parser/LexicalIssue.h"
+#include "Parser/LexicalIssue2.h"
 #include "Parser/Parser.h"
-#include "Parser/SyntaxIssue.h"
+#include "Parser/SyntaxIssue2.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;
-using namespace scatha::lex;
 using namespace scatha::parse;
 
 static void line(std::string_view m) {
@@ -74,7 +73,7 @@ void playground::compile(std::string text) {
     }
     else {
         std::cout << "Lexical issues:\n";
-        for (auto* issue: issues.errors()) {
+        for (auto* issue: issues.issues()) {
             //            issue.visit([]<typename T>(T const& iss) {
             //                std::cout << iss.token().sourceLocation << " " <<
             //                iss.token()

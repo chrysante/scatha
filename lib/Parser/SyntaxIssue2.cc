@@ -9,6 +9,6 @@
 using namespace scatha;
 using namespace parse;
 
-void SyntaxError::doPrint(std::ostream&) const { SC_DEBUGFAIL(); }
+void SyntaxIssue::doPrint(std::ostream&) const { SC_DEBUGFAIL(); }
 
-std::string SyntaxError::doToString() const { SC_DEBUGFAIL(); }
+std::string SyntaxIssue::doToString() const { SC_DEBUGFAIL(); }

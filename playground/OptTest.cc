@@ -18,9 +18,9 @@
 #include "IR/Print.h"
 #include "IRDump.h"
 #include "Parser/Lexer.h"
-#include "Parser/LexicalIssue.h"
+#include "Parser/LexicalIssue2.h"
 #include "Parser/Parser.h"
-#include "Parser/SyntaxIssue.h"
+#include "Parser/SyntaxIssue2.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
@@ -33,13 +33,13 @@ static auto compile(std::string_view text, sema::SymbolTable& sym) {
     auto tokens = parse::lex(text, issues);
     if (!issues.empty()) {
         std::cout << "Lexical issue on line "
-                  << issues.errors()[0]->sourceLocation().line << std::endl;
+                  << issues.issues()[0]->sourceLocation().line << std::endl;
         throw;
     }
     auto ast = parse::parse(tokens, issues);
     if (!issues.empty()) {
         std::cout << "Syntax issue on line "
-                  << issues.errors()[0]->sourceLocation().line << std::endl;
+                  << issues.issues()[0]->sourceLocation().line << std::endl;
         throw;
     }
     issue::SemaIssueHandler semaIss;

@@ -15,49 +15,62 @@
 namespace scatha::parse {
 
 /// Base class of all syntax errors
-class SCATHA_API SyntaxError: public Error {
+class SCATHA_API SyntaxIssue: public Issue {
+public:
+    Token const& token() const { return tok; }
+
 protected:
-    using Error::Error;
+    explicit SyntaxIssue(Token token, IssueSeverity severity):
+        Issue(token.sourceLocation(), severity), tok(std::move(token)) {}
+    using Issue::Issue;
 
 private:
     void doPrint(std::ostream&) const override;
     std::string doToString() const override;
+
+    Token tok;
 };
 
-class SCATHA_API ExpectedIdentifier: public SyntaxError {
+class SCATHA_API ExpectedIdentifier: public SyntaxIssue {
 public:
-    explicit ExpectedIdentifier(Token const& token): SyntaxError(token) {}
+    explicit ExpectedIdentifier(Token token):
+        SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 };
 
-class SCATHA_API ExpectedDeclarator: public SyntaxError {
+class SCATHA_API ExpectedDeclarator: public SyntaxIssue {
 public:
-    explicit ExpectedDeclarator(Token const& token): SyntaxError(token) {}
+    explicit ExpectedDeclarator(Token token):
+        SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 };
 
-class SCATHA_API ExpectedDelimiter: public SyntaxError {
+class SCATHA_API ExpectedDelimiter: public SyntaxIssue {
 public:
-    explicit ExpectedDelimiter(Token const& token): SyntaxError(token) {}
+    explicit ExpectedDelimiter(Token token):
+        SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 };
 
-class SCATHA_API ExpectedExpression: public SyntaxError {
+class SCATHA_API ExpectedExpression: public SyntaxIssue {
 public:
-    explicit ExpectedExpression(Token const& token): SyntaxError(token) {}
+    explicit ExpectedExpression(Token token):
+        SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 };
 
-class SCATHA_API ExpectedClosingBracket: public SyntaxError {
+class SCATHA_API ExpectedClosingBracket: public SyntaxIssue {
 public:
-    explicit ExpectedClosingBracket(Token const& token): SyntaxError(token) {}
+    explicit ExpectedClosingBracket(Token token):
+        SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 };
 
-class SCATHA_API UnexpectedClosingBracket: public SyntaxError {
+class SCATHA_API UnexpectedClosingBracket: public SyntaxIssue {
 public:
-    explicit UnexpectedClosingBracket(Token const& token): SyntaxError(token) {}
+    explicit UnexpectedClosingBracket(Token token):
+        SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 };
 
-class SCATHA_API UnqualifiedID: public SyntaxError {
+class SCATHA_API UnqualifiedID: public SyntaxIssue {
 public:
-    explicit UnqualifiedID(Token const& token, TokenKind expected):
-        SyntaxError(token), exp(expected) {}
+    explicit UnqualifiedID(Token token, TokenKind expected):
+        SyntaxIssue(std::move(token), IssueSeverity::Error), exp(expected) {}
 
     TokenKind expected() const { return exp; }
 

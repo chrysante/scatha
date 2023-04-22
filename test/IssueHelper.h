@@ -56,14 +56,14 @@ struct IssueHelper {
     T const* findOnLine(ssize_t line, ssize_t col = -1) const
         requires(!std::is_same_v<HandlerType, issue::SemaIssueHandler>)
     {
-        for (auto* issueBase: iss.errors()) {
+        for (auto* issueBase: iss.issues()) {
             auto* issue = dynamic_cast<T const*>(issueBase);
             if (!issue) {
                 continue;
             }
-            Token const& token = issue->token();
-            if (token.sourceLocation().line == line &&
-                (token.sourceLocation().column == col || col == (size_t)-1))
+            auto const sourceLoc = issue->sourceLocation();
+            if (sourceLoc.line == line &&
+                (sourceLoc.column == col || col == (size_t)-1))
             {
                 return issue;
             }

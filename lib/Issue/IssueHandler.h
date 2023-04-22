@@ -9,14 +9,6 @@
 
 #include <scatha/Common/Base.h>
 
-namespace scatha::lex {
-class LexicalIssue;
-}
-
-namespace scatha::parse {
-class SyntaxIssue;
-}
-
 namespace scatha::sema {
 class SemanticIssue;
 }
@@ -67,18 +59,6 @@ private:
 };
 
 } // namespace internal
-
-class LexicalIssueHandler:
-    public internal::IssueHandlerBase<lex::LexicalIssue> {
-public:
-    using internal::IssueHandlerBase<lex::LexicalIssue>::IssueHandlerBase;
-};
-
-class SyntaxIssueHandler:
-    public internal::IssueHandlerBase<parse::SyntaxIssue> {
-public:
-    using internal::IssueHandlerBase<parse::SyntaxIssue>::IssueHandlerBase;
-};
 
 class SemaIssueHandler: public internal::IssueHandlerBase<sema::SemanticIssue> {
 public:

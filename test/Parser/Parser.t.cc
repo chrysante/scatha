@@ -1,7 +1,6 @@
 #include <Catch/Catch2.hpp>
 
 #include "AST/AST.h"
-#include "Parser/SyntaxIssue.h"
 #include "test/IssueHelper.h"
 #include "test/Parser/SimpleParser.h"
 

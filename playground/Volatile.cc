@@ -190,7 +190,7 @@ static void run(mir::Module const& mod) {
     auto root   = parse::parse(tokens, issues);
 
     if (!issues.empty()) {
-        for (auto* err: issues.errors()) {
+        for (auto* err: issues.issues()) {
             std::cout << typeid(*err).name() << std::endl;
         }
         return;

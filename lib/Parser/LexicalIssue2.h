@@ -13,10 +13,10 @@
 namespace scatha::parse {
 
 /// Base class of all lexical errors
-class SCATHA_API LexicalError: public Error {
+class SCATHA_API LexicalIssue: public Issue {
 public:
 protected:
-    using Error::Error;
+    using Issue::Issue;
 
 private:
     void doPrint(std::ostream&) const override;
@@ -24,18 +24,19 @@ private:
 };
 
 /// Unexpected character encountered
-class SCATHA_API UnexpectedCharacter: public LexicalError {
+class SCATHA_API UnexpectedCharacter: public LexicalIssue {
 public:
-    explicit UnexpectedCharacter(Token const& token): LexicalError(token) {}
+    explicit UnexpectedCharacter(SourceLocation sourceLoc):
+        LexicalIssue(sourceLoc, IssueSeverity::Error) {}
 };
 
 /// Invalid numeric literal
-class SCATHA_API InvalidNumericLiteral: public LexicalError {
+class SCATHA_API InvalidNumericLiteral: public LexicalIssue {
 public:
     enum class Kind { Integer, FloatingPoint };
 
-    explicit InvalidNumericLiteral(Token const& token, Kind kind):
-        LexicalError(token), _kind(kind) {}
+    explicit InvalidNumericLiteral(SourceLocation sourceLoc, Kind kind):
+        LexicalIssue(sourceLoc, IssueSeverity::Error), _kind(kind) {}
 
     Kind kind() const { return _kind; }
 
@@ -44,17 +45,17 @@ private:
 };
 
 /// Unterminated string literal
-class SCATHA_API UnterminatedStringLiteral: public LexicalError {
+class SCATHA_API UnterminatedStringLiteral: public LexicalIssue {
 public:
-    explicit UnterminatedStringLiteral(Token const& token):
-        LexicalError(token) {}
+    explicit UnterminatedStringLiteral(SourceLocation sourceLoc):
+        LexicalIssue(sourceLoc, IssueSeverity::Error) {}
 };
 
 /// Unterminated comment
-class SCATHA_API UnterminatedMultiLineComment: public LexicalError {
+class SCATHA_API UnterminatedMultiLineComment: public LexicalIssue {
 public:
-    explicit UnterminatedMultiLineComment(Token const& token):
-        LexicalError(token) {}
+    explicit UnterminatedMultiLineComment(SourceLocation sourceLoc):
+        LexicalIssue(sourceLoc, IssueSeverity::Error) {}
 };
 
 } // namespace scatha::parse

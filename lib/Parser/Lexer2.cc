@@ -145,8 +145,7 @@ bool Context::ignoreMultiLineComment() {
     char last = current();
     while (true) {
         if (!advance()) {
-            issues.push<UnterminatedMultiLineComment>(
-                Token({}, TokenKind::_count, currentLocation));
+            issues.push<UnterminatedMultiLineComment>(currentLocation);
             return true;
         }
         if (last == '*' && current() == '/') {
@@ -246,9 +245,7 @@ std::optional<Token> Context::getIntegerLiteral() {
         // We are a float literal
         return std::nullopt;
     }
-    issues.push<InvalidNumericLiteral>(Token(id,
-                                             TokenKind::IntegerLiteral,
-                                             sourceLoc),
+    issues.push<InvalidNumericLiteral>(sourceLoc,
                                        InvalidNumericLiteral::Kind::Integer);
     return std::nullopt;
 }
@@ -268,9 +265,7 @@ std::optional<Token> Context::getIntegerLiteralHex() {
     if (next() && !isLetter(*next())) {
         return Token(id, TokenKind::IntegerLiteral, sourceLoc);
     }
-    issues.push<InvalidNumericLiteral>(Token(id,
-                                             TokenKind::IntegerLiteral,
-                                             sourceLoc),
+    issues.push<InvalidNumericLiteral>(sourceLoc,
                                        InvalidNumericLiteral::Kind::Integer);
     return std::nullopt;
 }
@@ -297,7 +292,7 @@ std::optional<Token> Context::getFloatingPointLiteral() {
         return Token(id, TokenKind::FloatLiteral, sourceLoc);
     }
     issues.push<InvalidNumericLiteral>(
-        Token(id, TokenKind::FloatLiteral, sourceLoc),
+        sourceLoc,
         InvalidNumericLiteral::Kind::FloatingPoint);
     return std::nullopt;
 }
@@ -308,8 +303,7 @@ std::optional<Token> Context::getStringLiteral() {
     }
     auto [id, sourceLoc] = beginToken();
     if (!advance()) {
-        issues.push<UnterminatedStringLiteral>(
-            Token(id, TokenKind::StringLiteral, sourceLoc));
+        issues.push<UnterminatedStringLiteral>(sourceLoc);
         return std::nullopt;
     }
     while (true) {
@@ -319,8 +313,7 @@ std::optional<Token> Context::getStringLiteral() {
         }
         id += current();
         if (!advance() || current() == '\n') {
-            issues.push<UnterminatedStringLiteral>(
-                Token(id, TokenKind::StringLiteral, sourceLoc));
+            issues.push<UnterminatedStringLiteral>(sourceLoc);
             return std::nullopt;
         }
     }
