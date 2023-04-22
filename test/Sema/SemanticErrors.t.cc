@@ -1,6 +1,6 @@
 #include <Catch/Catch2.hpp>
 
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 #include "test/IssueHelper.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
@@ -47,8 +47,8 @@ struct X {
 	fn int() {}
 	struct float {}
 })");
-    CHECK(issues.findOnLine<InvalidDeclaration>(3).has_value());
-    CHECK(issues.findOnLine<InvalidDeclaration>(4).has_value());
+    CHECK(issues.findOnLine<InvalidDeclaration>(3));
+    CHECK(issues.findOnLine<InvalidDeclaration>(4));
 }
 
 TEST_CASE("Bad type conversion", "[sema][issue]") {

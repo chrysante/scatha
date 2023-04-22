@@ -6,14 +6,12 @@
 
 #include "AST/Fwd.h"
 #include "Common/UniquePtr.h"
-#include "Issue/IssueHandler.h"
+#include "Issue/IssueHandler2.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::test {
 
-std::tuple<UniquePtr<ast::AbstractSyntaxTree>,
-           sema::SymbolTable,
-           issue::SemaIssueHandler>
+std::tuple<UniquePtr<ast::AbstractSyntaxTree>, sema::SymbolTable, IssueHandler>
     produceDecoratedASTAndSymTable(std::string_view text);
 
 } // namespace scatha::test

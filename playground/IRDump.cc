@@ -23,7 +23,7 @@
 #include "Parser/SyntaxIssue2.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 
 using namespace scatha;
 
@@ -73,19 +73,18 @@ static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
                << std::endl;
     };
     if (!issues.empty()) {
-        printIssue("Lexical", issues.issues()[0]->sourceLocation());
+        printIssue("Lexical", issues.front().sourceLocation());
         return std::nullopt;
     }
     auto ast = parse::parse(tokens, issues);
     if (!issues.empty()) {
-        printIssue("Syntax", issues.issues()[0]->sourceLocation());
+        printIssue("Syntax", issues.front().sourceLocation());
         return std::nullopt;
     }
     sema::SymbolTable sym;
-    issue::SemaIssueHandler semaIss;
-    sema::analyze(*ast, sym, semaIss);
-    if (!semaIss.empty()) {
-        printIssue("Semantic", semaIss.issues()[0].sourceLocation());
+    sema::analyze(*ast, sym, issues);
+    if (!issues.empty()) {
+        printIssue("Semantic", issues.front().sourceLocation());
         return std::nullopt;
     }
     ir::Context ctx;

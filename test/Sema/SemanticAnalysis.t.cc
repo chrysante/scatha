@@ -3,7 +3,7 @@
 #include <array>
 
 #include "AST/AST.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
 using namespace scatha;

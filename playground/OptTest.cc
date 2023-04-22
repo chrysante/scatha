@@ -23,7 +23,7 @@
 #include "Parser/SyntaxIssue2.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 
 using namespace playground;
 using namespace scatha;
@@ -33,20 +33,19 @@ static auto compile(std::string_view text, sema::SymbolTable& sym) {
     auto tokens = parse::lex(text, issues);
     if (!issues.empty()) {
         std::cout << "Lexical issue on line "
-                  << issues.issues()[0]->sourceLocation().line << std::endl;
+                  << issues.front().sourceLocation().line << std::endl;
         throw;
     }
     auto ast = parse::parse(tokens, issues);
     if (!issues.empty()) {
         std::cout << "Syntax issue on line "
-                  << issues.issues()[0]->sourceLocation().line << std::endl;
+                  << issues.front().sourceLocation().line << std::endl;
         throw;
     }
-    issue::SemaIssueHandler semaIss;
-    sema::analyze(*ast, sym, semaIss);
-    if (!semaIss.empty()) {
+    sema::analyze(*ast, sym, issues);
+    if (!issues.empty()) {
         std::cout << "Semantic issue on line "
-                  << semaIss.issues()[0].sourceLocation().line << std::endl;
+                  << issues.front().sourceLocation().line << std::endl;
         throw;
     }
     ir::Context ctx;

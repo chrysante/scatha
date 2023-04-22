@@ -6,7 +6,7 @@
 
 #include "AST/AST.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 
 using namespace scatha;
 using namespace scatha::sema;
@@ -28,7 +28,7 @@ struct Context {
     size_t gather(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
 
     SymbolTable& sym;
-    issue::SemaIssueHandler& iss;
+    IssueHandler& iss;
     DependencyGraph& dependencyGraph;
 };
 
@@ -36,7 +36,7 @@ struct Context {
 
 DependencyGraph scatha::sema::gatherNames(SymbolTable& sym,
                                           ast::AbstractSyntaxTree& root,
-                                          issue::SemaIssueHandler& iss) {
+                                          IssueHandler& iss) {
     DependencyGraph dependencyGraph;
     Context ctx{ sym, iss, dependencyGraph };
     ctx.dispatch(root);
@@ -61,11 +61,11 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(
+        iss.push<InvalidDeclaration>(
             &funcDef,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope(),
-            SymbolCategory::Function));
+            SymbolCategory::Function);
         return static_cast<size_t>(-1);
     }
     Expected const declResult = sym.declareFunction(funcDef);
@@ -90,11 +90,11 @@ size_t Context::gather(ast::StructDefinition& s) {
     {
         /// Struct defintion is only allowed in the global scope, at namespace
         /// scope and structure scope
-        iss.push(InvalidDeclaration(
+        iss.push<InvalidDeclaration>(
             &s,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope(),
-            SymbolCategory::ObjectType));
+            SymbolCategory::ObjectType);
         return invalidIndex;
     }
     Expected const declResult = sym.declareObjectType(s);
@@ -147,8 +147,8 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
 
 size_t Context::gather(ast::Statement& statement) {
     using enum InvalidStatement::Reason;
-    iss.push(SemanticIssue{ InvalidStatement(&statement,
-                                             InvalidScopeForStatement,
-                                             sym.currentScope()) });
+    iss.push<InvalidStatement>(&statement,
+                               InvalidScopeForStatement,
+                               sym.currentScope());
     return invalidIndex;
 }

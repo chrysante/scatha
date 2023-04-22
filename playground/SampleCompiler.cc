@@ -28,7 +28,7 @@
 #include "Parser/SyntaxIssue2.h"
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 
 using namespace scatha;
 using namespace scatha::parse;
@@ -73,7 +73,7 @@ void playground::compile(std::string text) {
     }
     else {
         std::cout << "Lexical issues:\n";
-        for (auto* issue: issues.issues()) {
+        for (auto* issue: issues) {
             //            issue.visit([]<typename T>(T const& iss) {
             //                std::cout << iss.token().sourceLocation << " " <<
             //                iss.token()
@@ -100,57 +100,60 @@ void playground::compile(std::string text) {
 
     // Semantic analysis
     header(" Symbol Table ");
-    issue::SemaIssueHandler semaIss;
     sema::SymbolTable sym;
-    sema::analyze(*ast, sym, semaIss);
-    if (semaIss.issues().empty()) {
+    sema::analyze(*ast, sym, issues);
+    if (issues.empty()) {
         std::cout << "No semantic issues.\n";
     }
     else {
-        std::cout << "\nEncoutered " << semaIss.issues().size() << " issues\n";
-        subHeader();
-        for (auto const& issue: semaIss.issues()) {
-            issue.visit([](auto const& issue) {
-                auto const loc = issue.token().sourceLocation();
-                std::cout << "Line " << loc.line << " Col " << loc.column
-                          << ": ";
-                std::cout
-                    << utl::nameof<std::decay_t<decltype(issue)>> << "\n\t";
-            });
-            // clang-format off
-            issue.visit(utl::overload{
-                [&](sema::InvalidDeclaration const& e) {
-                    std::cout << "Invalid declaration ("
-                                << e.reason() << "): ";
-                    std::cout << std::endl;
-                },
-                [&](sema::BadTypeConversion const& e) {
-                    std::cout << "Bad type conversion: ";
-                    ast::printExpression(e.expression());
-                    std::cout << std::endl;
-                    std::cout << "\tFrom " << sym.getName(e.from()) << " to "
-                              << sym.getName(e.to()) << "\n";
-                },
-                [&](sema::BadFunctionCall const& e) {
-                    std::cout << "Bad function call: " << e.reason() << ": ";
-                    ast::printExpression(e.expression());
-                    std::cout << std::endl;
-                },
-                [&](sema::UseOfUndeclaredIdentifier const& e) {
-                    std::cout << "Use of undeclared identifier ";
-                    ast::printExpression(e.expression());
-                    std::cout << " in scope: " << e.currentScope().name()
-                              << std::endl;
-                },
-                [](issue::ProgramIssueBase const&) {
-                    std::cout << std::endl;
-                }
-            }); // clang-format on
-            std::cout << std::endl;
-        }
+        //        std::cout << "\nEncoutered " << semaIss.issues().size() << "
+        //        issues\n"; subHeader(); for (auto const& issue:
+        //        semaIss.issues()) {
+        //            issue.visit([](auto const& issue) {
+        //                auto const loc = issue.token().sourceLocation();
+        //                std::cout << "Line " << loc.line << " Col " <<
+        //                loc.column
+        //                          << ": ";
+        //                std::cout
+        //                    << utl::nameof<std::decay_t<decltype(issue)>> <<
+        //                    "\n\t";
+        //            });
+        //            // clang-format off
+        //            issue.visit(utl::overload{
+        //                [&](sema::InvalidDeclaration const& e) {
+        //                    std::cout << "Invalid declaration ("
+        //                                << e.reason() << "): ";
+        //                    std::cout << std::endl;
+        //                },
+        //                [&](sema::BadTypeConversion const& e) {
+        //                    std::cout << "Bad type conversion: ";
+        //                    ast::printExpression(e.expression());
+        //                    std::cout << std::endl;
+        //                    std::cout << "\tFrom " << sym.getName(e.from()) <<
+        //                    " to "
+        //                              << sym.getName(e.to()) << "\n";
+        //                },
+        //                [&](sema::BadFunctionCall const& e) {
+        //                    std::cout << "Bad function call: " << e.reason()
+        //                    << ": "; ast::printExpression(e.expression());
+        //                    std::cout << std::endl;
+        //                },
+        //                [&](sema::UseOfUndeclaredIdentifier const& e) {
+        //                    std::cout << "Use of undeclared identifier ";
+        //                    ast::printExpression(e.expression());
+        //                    std::cout << " in scope: " <<
+        //                    e.currentScope().name()
+        //                              << std::endl;
+        //                },
+        //                [](issue::ProgramIssueBase const&) {
+        //                    std::cout << std::endl;
+        //                }
+        //            }); // clang-format on
+        //            std::cout << std::endl;
+        //        }
     }
 
-    if (!issues.empty() || !semaIss.empty()) {
+    if (!issues.empty()) {
         return;
     }
 

@@ -6,7 +6,7 @@
 #include <svm/Builtin.h>
 
 #include "AST/Fwd.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 
 namespace scatha::sema {
 
@@ -39,7 +39,7 @@ struct Context {
     SymbolID findExplicitCast(TypeID targetType, std::span<TypeID const> from);
 
     SymbolTable& sym;
-    issue::SemaIssueHandler& iss;
+    IssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
     /// unset by Identifier
     bool performRestrictedNameLookup = false;
@@ -49,7 +49,7 @@ struct Context {
 
 ExpressionAnalysisResult analyzeExpression(ast::Expression& expr,
                                            SymbolTable& sym,
-                                           issue::SemaIssueHandler& iss) {
+                                           IssueHandler& iss) {
     Context ctx{ .sym = sym, .iss = iss };
     return ctx.dispatch(expr);
 }
@@ -85,7 +85,7 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
     }
     auto const& operandType = sym.getObjectType(u.operand->typeID());
     auto submitIssue        = [&] {
-        iss.push(BadOperandForUnaryExpression(u, operandType.symbolID()));
+        iss.push<BadOperandForUnaryExpression>(u, operandType.symbolID());
     };
     if (!operandType.isBuiltin() || operandType.symbolID() == sym.String()) {
         submitIssue();
@@ -157,7 +157,7 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
         }
     }();
     if (!symbolID) {
-        iss.push(UseOfUndeclaredIdentifier(id, sym.currentScope()));
+        iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
         return ExpressionAnalysisResult::fail();
     }
     switch (symbolID.category()) {
@@ -200,7 +200,7 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
         performRestrictedNameLookup = true;
     }
     else {
-        iss.push(BadMemberAccess(ma));
+        iss.push<BadMemberAccess>(ma);
         return ExpressionAnalysisResult::fail();
     }
     auto const memRes = dispatch(*ma.member);
@@ -248,21 +248,21 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
         return ExpressionAnalysisResult::fail();
     }
     if (ifRes.category() != ast::EntityCategory::Value) {
-        iss.push(BadSymbolReference(*c.ifExpr,
-                                    ifRes.category(),
-                                    ast::EntityCategory::Value));
+        iss.push<BadSymbolReference>(*c.ifExpr,
+                                     ifRes.category(),
+                                     ast::EntityCategory::Value);
         return ExpressionAnalysisResult::fail();
     }
     if (elseRes.category() != ast::EntityCategory::Value) {
-        iss.push(BadSymbolReference(*c.elseExpr,
-                                    elseRes.category(),
-                                    ast::EntityCategory::Value));
+        iss.push<BadSymbolReference>(*c.elseExpr,
+                                     elseRes.category(),
+                                     ast::EntityCategory::Value);
         return ExpressionAnalysisResult::fail();
     }
     if (ifRes.typeID() != elseRes.typeID()) {
-        iss.push(BadOperandsForBinaryExpression(c,
-                                                ifRes.typeID(),
-                                                elseRes.typeID()));
+        iss.push<BadOperandsForBinaryExpression>(c,
+                                                 ifRes.typeID(),
+                                                 elseRes.typeID());
         return ExpressionAnalysisResult::fail();
     }
     /// Maybe make this a global function
@@ -306,11 +306,11 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
         auto const& overloadSet = sym.getOverloadSet(objRes.symbolID());
         auto const* functionPtr = overloadSet.find(argTypes);
         if (!functionPtr) {
-            iss.push(
-                BadFunctionCall(fc,
-                                objRes.symbolID(),
-                                argTypes,
-                                BadFunctionCall::Reason::NoMatchingFunction));
+            iss.push<BadFunctionCall>(
+                fc,
+                objRes.symbolID(),
+                argTypes,
+                BadFunctionCall::Reason::NoMatchingFunction);
             return ExpressionAnalysisResult::fail();
         }
         auto const& function = *functionPtr;
@@ -325,7 +325,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
         SymbolID const castFn   = findExplicitCast(targetType, argTypes);
         if (!castFn) {
             // TODO: Make better error class here.
-            iss.push(BadTypeConversion(*fc.arguments.front(), targetType));
+            iss.push<BadTypeConversion>(*fc.arguments.front(), targetType);
             return ExpressionAnalysisResult::fail();
         }
         fc.decorate(castFn, targetType, ast::ValueCategory::RValue);
@@ -333,17 +333,17 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     }
 
     default:
-        iss.push(BadFunctionCall(fc,
-                                 SymbolID::Invalid,
-                                 argTypes,
-                                 BadFunctionCall::Reason::ObjectNotCallable));
+        iss.push<BadFunctionCall>(fc,
+                                  SymbolID::Invalid,
+                                  argTypes,
+                                  BadFunctionCall::Reason::ObjectNotCallable);
         return ExpressionAnalysisResult::fail();
     }
 }
 
 bool Context::verifyConversion(ast::Expression const& from, TypeID to) const {
     if (from.typeID() != to) {
-        iss.push(BadTypeConversion(from, to));
+        iss.push<BadTypeConversion>(from, to);
         return false;
     }
     return true;
@@ -351,9 +351,9 @@ bool Context::verifyConversion(ast::Expression const& from, TypeID to) const {
 
 TypeID Context::verifyBinaryOperation(ast::BinaryExpression const& expr) const {
     auto submitIssue = [&] {
-        iss.push(BadOperandsForBinaryExpression(expr,
-                                                expr.lhs->typeID(),
-                                                expr.rhs->typeID()));
+        iss.push<BadOperandsForBinaryExpression>(expr,
+                                                 expr.lhs->typeID(),
+                                                 expr.rhs->typeID());
     };
     auto verifySame = [&] {
         if (expr.lhs->typeID() != expr.rhs->typeID()) {

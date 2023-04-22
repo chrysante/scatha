@@ -1,15 +1,10 @@
 #ifndef SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 #define SCATHA_SEMA_ANALYSIS_GATHERNAMES_H_
 
+#include "AST/Fwd.h"
 #include "Common/Base.h"
-#include "Issue/IssueHandler.h"
+#include "Issue/IssueHandler2.h"
 #include "Sema/Analysis/DependencyGraph.h"
-
-namespace scatha::ast {
-
-class AbstractSyntaxTree;
-
-} // namespace scatha::ast
 
 namespace scatha::sema {
 
@@ -31,7 +26,7 @@ class SymbolTable;
 /// \returns (Incomplete) dependency graph
 SCATHA_API DependencyGraph gatherNames(SymbolTable& sym,
                                        ast::AbstractSyntaxTree& astRoot,
-                                       issue::SemaIssueHandler& issueHandler);
+                                       IssueHandler& issueHandler);
 
 } // namespace scatha::sema
 

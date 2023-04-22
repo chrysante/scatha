@@ -47,7 +47,7 @@
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 
 static void line(std::string_view m) {
     std::cout << "==============================" << m
@@ -190,18 +190,18 @@ static void run(mir::Module const& mod) {
     auto root   = parse::parse(tokens, issues);
 
     if (!issues.empty()) {
-        for (auto* err: issues.issues()) {
+        for (auto* err: issues) {
             std::cout << typeid(*err).name() << std::endl;
         }
         return;
     }
-
-    scatha::issue::SemaIssueHandler semaIss;
     sema::SymbolTable sym;
-    sema::analyze(*root, sym, semaIss);
-    for (auto& issue: semaIss.issues()) {
-        std::cout << issue.visit([](auto& i) { return i.sourceLocation(); })
-                  << std::endl;
+    sema::analyze(*root, sym, issues);
+    for (auto* err: issues) {
+        std::cout << typeid(*err).name() << std::endl;
+        //        std::cout << issue.visit([](auto& i) { return
+        //        i.sourceLocation(); })
+        //                  << std::endl;
     }
 }
 

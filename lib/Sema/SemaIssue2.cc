@@ -1,4 +1,4 @@
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 
 #include <ostream>
 
@@ -9,28 +9,33 @@
 using namespace scatha;
 using namespace sema;
 
-BadExpression::BadExpression(ast::Expression const& expr):
-    IssueBase(expr.token()), _expr(&expr) {}
+BadExpression::BadExpression(ast::Expression const& expr,
+                             IssueSeverity severity):
+    SemanticIssue(expr.token().sourceLocation(), severity), _expr(&expr) {}
 
 BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
                                      TypeID to):
-    BadExpression(expression), _from(expression.typeID()), _to(to) {}
+    BadExpression(expression, IssueSeverity::Error),
+    _from(expression.typeID()),
+    _to(to) {}
 
 BadOperandForUnaryExpression::BadOperandForUnaryExpression(
     ast::Expression const& expression, TypeID operand):
-    BadExpression(expression), _operand(operand) {}
+    BadExpression(expression, IssueSeverity::Error), _operand(operand) {}
 
 InvalidStatement::InvalidStatement(ast::Statement const* statement,
                                    Reason reason,
                                    Scope const& inScope):
-    IssueBase(statement ? statement->token() : Token{}),
+    SemanticIssue(statement ? statement->token().sourceLocation() :
+                              SourceLocation{},
+                  IssueSeverity::Error),
     _statement(statement),
     _reason(reason),
     _scope(&inScope) {}
 
 void InvalidStatement::setStatement(ast::Statement const& statement) {
     _statement = &statement;
-    setToken(statement.token());
+    setSourceLocation(statement.token().sourceLocation());
 }
 
 std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
@@ -71,4 +76,6 @@ std::ostream& sema::operator<<(std::ostream& str,
 }
 
 StrongReferenceCycle::StrongReferenceCycle(utl::vector<Node> cycle):
-    IssueBase(cycle.front().astNode->token()), _cycle(std::move(cycle)) {}
+    SemanticIssue(cycle.front().astNode->token().sourceLocation(),
+                  IssueSeverity::Error),
+    _cycle(std::move(cycle)) {}

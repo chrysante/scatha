@@ -51,16 +51,16 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
-    [[deprecated]] Expected<ObjectType&, SemanticIssue> declareObjectType(
+    [[deprecated]] Expected<ObjectType&, SemanticIssue*> declareObjectType(
         ast::StructDefinition const& structDef);
 
     /// \overload
     ///
     /// Only exposed for testing purposes.
-    Expected<ObjectType&, SemanticIssue> declareObjectType(
+    Expected<ObjectType&, SemanticIssue*> declareObjectType(
         std::string name, bool allowKeywords = false);
 
-    [[deprecated]] Expected<ObjectType&, SemanticIssue> declareObjectType(
+    [[deprecated]] Expected<ObjectType&, SemanticIssue*> declareObjectType(
         Token name, bool allowKeywords = false);
 
     /// Simpler interface to declare builtins. Internally calls
@@ -78,15 +78,15 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already used by another kind of entity in the current scope.
-    [[deprecated]] Expected<Function const&, SemanticIssue> declareFunction(
+    [[deprecated]] Expected<Function const&, SemanticIssue*> declareFunction(
         ast::FunctionDefinition const& functionDef);
 
     /// \overload
     ///
     /// Only exposed for testing purposes.
-    Expected<Function const&, SemanticIssue> declareFunction(std::string name);
+    Expected<Function const&, SemanticIssue*> declareFunction(std::string name);
 
-    [[deprecated]] Expected<Function const&, SemanticIssue> declareFunction(
+    [[deprecated]] Expected<Function const&, SemanticIssue*> declareFunction(
         Token name);
 
     /// \brief Add signature to declared function.
@@ -99,8 +99,8 @@ public:
     /// is not a legal overload, with reason `CantOverloadOnReturnType` if \p
     /// signature has same arguments as another function in the overload set but
     /// different return type.
-    Expected<void, SemanticIssue> setSignature(SymbolID functionID,
-                                               FunctionSignature signature);
+    Expected<void, SemanticIssue*> setSignature(SymbolID functionID,
+                                                FunctionSignature signature);
 
     /// \brief Declares an external function.
     ///
@@ -124,15 +124,15 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
-    [[deprecated]] Expected<Variable&, SemanticIssue> declareVariable(
+    [[deprecated]] Expected<Variable&, SemanticIssue*> declareVariable(
         ast::VariableDeclaration const& varDecl);
 
     /// \overload
     ///
     /// Only exposed for testing purposes but currently not tested.
-    Expected<Variable&, SemanticIssue> declareVariable(std::string name);
+    Expected<Variable&, SemanticIssue*> declareVariable(std::string name);
 
-    [[deprecated]] Expected<Variable&, SemanticIssue> declareVariable(
+    [[deprecated]] Expected<Variable&, SemanticIssue*> declareVariable(
         Token name);
 
     /// \brief Declares a variable to the current scope.
@@ -144,15 +144,15 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if name of \p
     /// varDecl is already in use in the current scope.
-    [[deprecated]] Expected<Variable&, SemanticIssue> addVariable(
+    [[deprecated]] Expected<Variable&, SemanticIssue*> addVariable(
         ast::VariableDeclaration const& varDecl, TypeID, size_t offset = 0);
 
     /// \overload
-    Expected<Variable&, SemanticIssue> addVariable(std::string name,
-                                                   TypeID,
-                                                   size_t offset = 0);
+    Expected<Variable&, SemanticIssue*> addVariable(std::string name,
+                                                    TypeID,
+                                                    size_t offset = 0);
 
-    [[deprecated]] Expected<Variable&, SemanticIssue> addVariable(
+    [[deprecated]] Expected<Variable&, SemanticIssue*> addVariable(
         Token name, TypeID, size_t offset = 0);
 
     /// \brief Declares an anonymous scope within the current scope.

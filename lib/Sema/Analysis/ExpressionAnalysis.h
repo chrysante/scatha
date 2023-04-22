@@ -2,7 +2,7 @@
 #define SCATHA_SEMA_EXPRESSIONANALYSIS_H_
 
 #include "AST/AST.h"
-#include "Issue/IssueHandler.h"
+#include "Issue/IssueHandler2.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
@@ -70,10 +70,9 @@ private:
 /// \param issueHandler The issue handler to submit issues to. May be null.
 /// \returns An `ExpressionAnalysisResult`.
 ///
-ExpressionAnalysisResult analyzeExpression(
-    ast::Expression& expression,
-    SymbolTable& symbolTable,
-    issue::SemaIssueHandler& issueHandler);
+ExpressionAnalysisResult analyzeExpression(ast::Expression& expression,
+                                           SymbolTable& symbolTable,
+                                           IssueHandler& issueHandler);
 
 } // namespace scatha::sema
 

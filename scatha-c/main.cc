@@ -19,7 +19,7 @@
 #include <scatha/Parser/Parser.h>
 #include <scatha/Parser/SyntaxIssue2.h>
 #include <scatha/Sema/Analyze.h>
-#include <scatha/Sema/SemanticIssue.h>
+#include <scatha/Sema/SemaIssue2.h>
 #include <termfmt/termfmt.h>
 #include <utl/format_time.hpp>
 #include <utl/typeinfo.hpp>

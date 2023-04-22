@@ -58,4 +58,4 @@ Sema/Function.h
 Sema/FunctionSignature.h
 Sema/Scope.h
 Sema/ScopeKind.h
-Sema/SemanticIssue.h
+Sema/SemaIssue2.h

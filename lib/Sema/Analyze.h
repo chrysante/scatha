@@ -4,7 +4,7 @@
 #define SCATHA_SEMA_ANALYZE_H_
 
 #include <scatha/AST/Fwd.h>
-#include <scatha/Issue/IssueHandler.h>
+#include <scatha/Issue/IssueHandler2.h>
 #include <scatha/Sema/SymbolTable.h>
 
 namespace scatha::sema {
@@ -15,7 +15,7 @@ namespace scatha::sema {
 /// \param symbolTable Symbol table to populate.
 SCATHA_API void analyze(ast::AbstractSyntaxTree& root,
                         SymbolTable& symbolTable,
-                        issue::SemaIssueHandler&);
+                        IssueHandler&);
 
 } // namespace scatha::sema
 

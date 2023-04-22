@@ -23,9 +23,8 @@ ir::Module test::compileToIR(std::string_view text) {
         throw std::runtime_error("Compilation failed");
     }
     sema::SymbolTable sym;
-    issue::SemaIssueHandler semaIss;
-    sema::analyze(*ast, sym, semaIss);
-    if (!semaIss.empty()) {
+    sema::analyze(*ast, sym, issues);
+    if (!issues.empty()) {
         throw std::runtime_error("Compilation failed");
     }
     ir::Context ctx;

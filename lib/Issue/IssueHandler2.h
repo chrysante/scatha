@@ -18,6 +18,12 @@ namespace scatha {
 /// Utility class to gather issues in the front-end. Several compilation steps
 /// accept an issue handler to submit issues to.
 class SCATHA_API IssueHandler {
+    /// \Returns A views over all issues
+    auto issueView() const {
+        return ranges::views::transform(_issues,
+                                        [](auto& p) { return p.get(); });
+    }
+
 public:
     IssueHandler() = default;
 
@@ -34,14 +40,19 @@ public:
         push(new T(std::forward<Args>(args)...));
     }
 
-    /// \Returns A views over all issues
-    auto issues() const {
-        return ranges::views::transform(_issues,
-                                        [](auto& p) { return p.get(); });
-    }
+    auto begin() const { return issueView().begin(); }
 
-    /// \Returns `true` iff no  issues occured
+    auto end() const { return issueView().end(); }
+
+    Issue const& front() const { return **begin(); }
+
+    Issue const& back() const { return **--end(); }
+
+    /// \Returns `true` iff no  issues occurred
     bool empty() const { return _issues.empty(); }
+
+    /// \Returns `true` iff a fatal error has occurred
+    bool fatal() const { return false; /* For now */ }
 
 private:
     std::vector<std::unique_ptr<Issue>> _issues;

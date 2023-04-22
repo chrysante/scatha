@@ -1,7 +1,5 @@
-// SCATHA-PUBLIC-HEADER
-
-#ifndef SCATHA_SEMA_SEMANTICISSUE_H_
-#define SCATHA_SEMA_SEMANTICISSUE_H_
+#ifndef SCATHA_SEMA_SEMAISSUE2_H_
+#define SCATHA_SEMA_SEMAISSUE2_H_
 
 #include <iosfwd>
 #include <optional>
@@ -16,23 +14,26 @@
 #include <scatha/AST/Fwd.h>
 #include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
-#include <scatha/Issue/ProgramIssue.h>
-#include <scatha/Issue/VariantIssueBase.h>
+#include <scatha/Issue/Issue2.h>
 #include <scatha/Sema/SymbolID.h>
 
 namespace scatha::sema {
 
 class Scope;
 
-class SCATHA_API IssueBase: public issue::ProgramIssueBase {
+class SCATHA_API SemanticIssue: public Issue {
 public:
-    using issue::ProgramIssueBase::ProgramIssueBase;
+    using Issue::Issue;
+
+private:
+    void doPrint(std::ostream&) const { SC_DEBUGFAIL(); }
+    std::string doToString() const { SC_DEBUGFAIL(); }
 };
 
-/// MARK: Expression Issues
-class SCATHA_API BadExpression: public IssueBase {
+/// General expression issue
+class SCATHA_API BadExpression: public SemanticIssue {
 public:
-    explicit BadExpression(ast::Expression const& expr);
+    explicit BadExpression(ast::Expression const& expr, IssueSeverity severity);
 
     ast::Expression const& expression() const { return *_expr; }
 
@@ -40,6 +41,7 @@ private:
     ast::Expression const* _expr;
 };
 
+/// Invalid type conversion issue
 class SCATHA_API BadTypeConversion: public BadExpression {
 public:
     explicit BadTypeConversion(ast::Expression const& expression, TypeID to);
@@ -68,7 +70,7 @@ public:
     explicit BadOperandsForBinaryExpression(ast::Expression const& expression,
                                             TypeID lhs,
                                             TypeID rhs):
-        BadExpression(expression), _lhs(lhs), _rhs(rhs) {}
+        BadExpression(expression, IssueSeverity::Error), _lhs(lhs), _rhs(rhs) {}
 
     TypeID lhs() const { return _lhs; }
     TypeID rhs() const { return _rhs; }
@@ -80,7 +82,8 @@ private:
 
 class SCATHA_API BadMemberAccess: public BadExpression {
 public:
-    using BadExpression::BadExpression;
+    explicit BadMemberAccess(ast::Expression const& expr):
+        BadExpression(expr, IssueSeverity::Error) {}
 };
 
 class SCATHA_API BadFunctionCall: public BadExpression {
@@ -92,7 +95,7 @@ public:
                              SymbolID overloadSetID,
                              utl::small_vector<TypeID> argTypeIDs,
                              Reason reason):
-        BadExpression(expression),
+        BadExpression(expression, IssueSeverity::Error),
         _reason(reason),
         _argTypeIDs(std::move(argTypeIDs)),
         _overloadSetID(overloadSetID) {}
@@ -113,7 +116,7 @@ class SCATHA_API UseOfUndeclaredIdentifier: public BadExpression {
 public:
     explicit UseOfUndeclaredIdentifier(ast::Expression const& expression,
                                        Scope const& inScope):
-        BadExpression(expression), _scope(&inScope) {}
+        BadExpression(expression, IssueSeverity::Error), _scope(&inScope) {}
 
     Scope const& currentScope() const { return *_scope; }
 
@@ -126,7 +129,9 @@ public:
     explicit BadSymbolReference(ast::Expression const& expression,
                                 ast::EntityCategory have,
                                 ast::EntityCategory expected):
-        BadExpression(expression), _have(have), _expected(expected) {}
+        BadExpression(expression, IssueSeverity::Error),
+        _have(have),
+        _expected(expected) {}
 
     ast::EntityCategory have() const { return _have; }
     ast::EntityCategory expected() const { return _expected; }
@@ -137,7 +142,7 @@ private:
 };
 
 /// MARK: Statement Issues
-class SCATHA_API InvalidStatement: public IssueBase {
+class SCATHA_API InvalidStatement: public SemanticIssue {
 public:
     enum class Reason {
         ExpectedDeclaration,
@@ -207,7 +212,7 @@ private:
 SCATHA_API std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
 
 /// MARK: Cycles
-class SCATHA_API StrongReferenceCycle: public IssueBase {
+class SCATHA_API StrongReferenceCycle: public SemanticIssue {
 public:
     struct Node {
         ast::AbstractSyntaxTree const* astNode;
@@ -224,43 +229,6 @@ private:
     utl::vector<Node> _cycle;
 };
 
-/// MARK: Common class SemanticIssue
-namespace internal {
-
-using IssueVariant = std::variant<BadTypeConversion,
-                                  BadOperandForUnaryExpression,
-                                  BadOperandsForBinaryExpression,
-                                  BadMemberAccess,
-                                  BadFunctionCall,
-                                  UseOfUndeclaredIdentifier,
-                                  BadSymbolReference,
-                                  InvalidStatement,
-                                  InvalidDeclaration,
-                                  StrongReferenceCycle>;
-
-} // namespace internal
-
-class SCATHA_API SemanticIssue:
-    public issue::internal::VariantIssueBase<internal::IssueVariant> {
-public:
-    using issue::internal::VariantIssueBase<
-        internal::IssueVariant>::VariantIssueBase;
-
-    /// Weirdly enough this won't compile. We also don't really need the
-    /// function though.
-#if 0
-    ast::Statement const& statement() const {
-        return visit<ast::Statement const&>([&](InvalidStatement const& e) -> auto& {
-            return e.statement();
-        });
-    }
-#endif
-
-    void setStatement(ast::Statement const& statement) {
-        visit([&](InvalidStatement& e) { e.setStatement(statement); });
-    }
-};
-
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_SEMANTICISSUE_H_
+#endif // SCATHA_SEMA_SEMAISSUE2_H_

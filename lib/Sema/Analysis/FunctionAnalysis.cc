@@ -5,7 +5,7 @@
 #include "AST/AST.h"
 #include "Common/Base.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 
 using namespace scatha;
 using namespace sema;
@@ -36,14 +36,14 @@ struct Context {
     void verifyConversion(ast::Expression const& from, TypeID to) const;
 
     SymbolTable& sym;
-    issue::SemaIssueHandler& iss;
+    IssueHandler& iss;
     ast::FunctionDefinition* currentFunction = nullptr;
 };
 
 } // namespace
 
 void sema::analyzeFunctions(SymbolTable& sym,
-                            issue::SemaIssueHandler& iss,
+                            IssueHandler& iss,
                             std::span<DependencyGraphNode const> functions) {
     Context ctx{ sym, iss };
     for (auto const& node: functions) {
@@ -79,11 +79,11 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        iss.push(InvalidDeclaration(
+        iss.push<InvalidDeclaration>(
             &fn,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope(),
-            SymbolCategory::Function));
+            SymbolCategory::Function);
         return;
     }
     SC_ASSERT(fn.symbolID() != SymbolID::Invalid,
@@ -118,11 +118,11 @@ void Context::analyze(ast::StructDefinition& s) {
     {
         /// Function defintion is only allowed in the global scope, at namespace
         /// scope and structure scope.
-        iss.push(InvalidDeclaration(
+        iss.push<InvalidDeclaration>(
             &s,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope(),
-            SymbolCategory::ObjectType));
+            SymbolCategory::ObjectType);
     }
 }
 
@@ -155,10 +155,10 @@ void Context::analyze(ast::VariableDeclaration& var) {
     SC_ASSERT(!var.isDecorated(),
               "We should not have handled local variables in prepass.");
     if (!var.typeExpr && !var.initExpression) {
-        iss.push(InvalidDeclaration(&var,
-                                    InvalidDeclaration::Reason::CantInferType,
-                                    sym.currentScope(),
-                                    SymbolCategory::Variable));
+        iss.push<InvalidDeclaration>(&var,
+                                     InvalidDeclaration::Reason::CantInferType,
+                                     sym.currentScope(),
+                                     SymbolCategory::Variable);
         return;
     }
 
@@ -171,9 +171,9 @@ void Context::analyze(ast::VariableDeclaration& var) {
             return TypeID::Invalid;
         }
         if (varTypeRes.category() != ast::EntityCategory::Type) {
-            iss.push(BadSymbolReference(*var.typeExpr,
-                                        varTypeRes.category(),
-                                        ast::EntityCategory::Type));
+            iss.push<BadSymbolReference>(*var.typeExpr,
+                                         varTypeRes.category(),
+                                         ast::EntityCategory::Type);
             return TypeID::Invalid;
         }
         auto const& objType = sym.getObjectType(varTypeRes.typeID());
@@ -191,9 +191,9 @@ void Context::analyze(ast::VariableDeclaration& var) {
             return TypeID::Invalid;
         }
         if (initExprRes.category() != ast::EntityCategory::Value) {
-            iss.push(BadSymbolReference(*var.initExpression,
-                                        initExprRes.category(),
-                                        ast::EntityCategory::Value));
+            iss.push<BadSymbolReference>(*var.initExpression,
+                                         initExprRes.category(),
+                                         ast::EntityCategory::Value);
             return TypeID::Invalid;
         }
         return var.initExpression->typeID();
@@ -231,9 +231,9 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
             return TypeID::Invalid;
         }
         if (declTypeRes.category() != ast::EntityCategory::Type) {
-            iss.push(BadSymbolReference(*paramDecl.typeExpr,
-                                        declTypeRes.category(),
-                                        ast::EntityCategory::Type));
+            iss.push<BadSymbolReference>(*paramDecl.typeExpr,
+                                         declTypeRes.category(),
+                                         ast::EntityCategory::Type);
             return TypeID::Invalid;
         }
         auto const& objType = sym.getObjectType(declTypeRes.typeID());
@@ -244,7 +244,11 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
     }
     auto paramObj = sym.addVariable(paramDecl.token(), declaredTypeID);
     if (!paramObj) {
-        paramObj.error().setStatement(paramDecl);
+        if (auto* invStatement =
+                dynamic_cast<InvalidStatement*>(paramObj.error()))
+        {
+            invStatement->setStatement(paramDecl);
+        }
         iss.push(paramObj.error());
         return;
     }
@@ -253,10 +257,10 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
 
 void Context::analyze(ast::ExpressionStatement& es) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(
-            InvalidStatement(&es,
-                             InvalidStatement::Reason::InvalidScopeForStatement,
-                             sym.currentScope()));
+        iss.push<InvalidStatement>(
+            &es,
+            InvalidStatement::Reason::InvalidScopeForStatement,
+            sym.currentScope());
         return;
     }
     dispatchExpression(*es.expression);
@@ -265,10 +269,10 @@ void Context::analyze(ast::ExpressionStatement& es) {
 void Context::analyze(ast::ReturnStatement& rs) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         SC_DEBUGFAIL(); // Can this even happen?
-        iss.push(
-            InvalidStatement(&rs,
-                             InvalidStatement::Reason::InvalidScopeForStatement,
-                             sym.currentScope()));
+        iss.push<InvalidStatement>(
+            &rs,
+            InvalidStatement::Reason::InvalidScopeForStatement,
+            sym.currentScope());
         return;
     }
     if (rs.expression == nullptr) {
@@ -279,9 +283,9 @@ void Context::analyze(ast::ReturnStatement& rs) {
         return;
     }
     if (exprRes.category() != ast::EntityCategory::Value) {
-        iss.push(BadSymbolReference(*rs.expression,
-                                    exprRes.category(),
-                                    ast::EntityCategory::Value));
+        iss.push<BadSymbolReference>(*rs.expression,
+                                     exprRes.category(),
+                                     ast::EntityCategory::Value);
         return;
     }
     SC_ASSERT(currentFunction != nullptr,
@@ -291,10 +295,10 @@ void Context::analyze(ast::ReturnStatement& rs) {
 
 void Context::analyze(ast::IfStatement& is) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(
-            InvalidStatement(&is,
-                             InvalidStatement::Reason::InvalidScopeForStatement,
-                             sym.currentScope()));
+        iss.push<InvalidStatement>(
+            &is,
+            InvalidStatement::Reason::InvalidScopeForStatement,
+            sym.currentScope());
         return;
     }
     if (dispatchExpression(*is.condition)) {
@@ -307,7 +311,6 @@ void Context::analyze(ast::IfStatement& is) {
     if (iss.fatal()) {
         return;
     }
-
     if (is.elseBlock != nullptr) {
         dispatch(*is.elseBlock);
     }
@@ -315,10 +318,10 @@ void Context::analyze(ast::IfStatement& is) {
 
 void Context::analyze(ast::WhileStatement& ws) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(
-            InvalidStatement(&ws,
-                             InvalidStatement::Reason::InvalidScopeForStatement,
-                             sym.currentScope()));
+        iss.push<InvalidStatement>(
+            &ws,
+            InvalidStatement::Reason::InvalidScopeForStatement,
+            sym.currentScope());
         return;
     }
     if (dispatchExpression(*ws.condition)) {
@@ -334,10 +337,10 @@ void Context::analyze(ast::DoWhileStatement& ws) {
     // TODO: This implementation is completely analogous to
     // analyze(WhileStatement&). Try to merge them.
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(
-            InvalidStatement(&ws,
-                             InvalidStatement::Reason::InvalidScopeForStatement,
-                             sym.currentScope()));
+        iss.push<InvalidStatement>(
+            &ws,
+            InvalidStatement::Reason::InvalidScopeForStatement,
+            sym.currentScope());
         return;
     }
     if (dispatchExpression(*ws.condition)) {
@@ -351,10 +354,10 @@ void Context::analyze(ast::DoWhileStatement& ws) {
 
 void Context::analyze(ast::ForStatement& fs) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push(
-            InvalidStatement(&fs,
-                             InvalidStatement::Reason::InvalidScopeForStatement,
-                             sym.currentScope()));
+        iss.push<InvalidStatement>(
+            &fs,
+            InvalidStatement::Reason::InvalidScopeForStatement,
+            sym.currentScope());
         return;
     }
     fs.block->decorate(sema::ScopeKind::Anonymous,
@@ -387,6 +390,6 @@ ExpressionAnalysisResult Context::dispatchExpression(ast::Expression& expr) {
 
 void Context::verifyConversion(ast::Expression const& from, TypeID to) const {
     if (from.typeID() != to) {
-        iss.push(BadTypeConversion(from, to));
+        iss.push<BadTypeConversion>(from, to);
     }
 }

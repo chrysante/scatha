@@ -9,7 +9,7 @@ using namespace sema;
 
 void sema::analyze(ast::AbstractSyntaxTree& root,
                    SymbolTable& sym,
-                   issue::SemaIssueHandler& iss) {
+                   IssueHandler& iss) {
     auto dependencyGraph = gatherNames(sym, root, iss);
     if (iss.fatal()) {
         return;

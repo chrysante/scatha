@@ -12,51 +12,12 @@
 #include "Issue/IssueHandler2.h"
 #include "Sema/SymbolTable.h"
 
-namespace scatha::lex {
-
-class LexicalIssue;
-
-} // namespace scatha::lex
-
-namespace scatha::parse {
-
-class SyntaxIssue;
-
-} // namespace scatha::parse
-
-namespace scatha::sema {
-
-class SemaIssue;
-
-} // namespace scatha::sema
-
 namespace scatha::test {
 
-template <typename HandlerType>
 struct IssueHelper {
     template <typename T>
-    std::optional<T> findOnLine(ssize_t line, ssize_t col = -1) const
-        requires std::is_same_v<HandlerType, issue::SemaIssueHandler>
-    {
-        for (auto&& issue: iss.issues()) {
-            if (issue.template is<T>()) {
-                T const& t         = issue.template get<T>();
-                Token const& token = t.token();
-                if (token.sourceLocation().line == line &&
-                    (token.sourceLocation().column == col || col == (size_t)-1))
-                {
-                    return t;
-                }
-            }
-        }
-        return std::nullopt;
-    }
-
-    template <typename T>
-    T const* findOnLine(ssize_t line, ssize_t col = -1) const
-        requires(!std::is_same_v<HandlerType, issue::SemaIssueHandler>)
-    {
-        for (auto* issueBase: iss.issues()) {
+    T const* findOnLine(ssize_t line, ssize_t col = -1) const {
+        for (auto* issueBase: iss) {
             auto* issue = dynamic_cast<T const*>(issueBase);
             if (!issue) {
                 continue;
@@ -72,8 +33,8 @@ struct IssueHelper {
     }
 
     bool noneOnLine(size_t line) const {
-        for (auto&& issue: iss.issues()) {
-            if (issue.token().sourceLocation().line == line) {
+        for (auto* issue: iss) {
+            if (issue->sourceLocation().line == line) {
                 return false;
             }
         }
@@ -82,18 +43,14 @@ struct IssueHelper {
 
     bool empty() const { return iss.empty(); }
 
-    HandlerType iss;
+    IssueHandler iss;
     UniquePtr<ast::AbstractSyntaxTree> ast = nullptr;
     sema::SymbolTable sym{};
 };
 
-using LexicalIssueHelper = IssueHelper<IssueHandler>;
-using SyntaxIssueHelper  = IssueHelper<IssueHandler>;
-using SemaIssueHelper    = IssueHelper<issue::SemaIssueHandler>;
-
-LexicalIssueHelper getLexicalIssues(std::string_view text);
-SyntaxIssueHelper getSyntaxIssues(std::string_view text);
-SemaIssueHelper getSemaIssues(std::string_view text);
+IssueHelper getLexicalIssues(std::string_view text);
+IssueHelper getSyntaxIssues(std::string_view text);
+IssueHelper getSemaIssues(std::string_view text);
 
 } // namespace scatha::test
 

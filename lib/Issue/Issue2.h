@@ -19,6 +19,10 @@ public:
 
     IssueSeverity severity() const { return sev; }
 
+    void setSourceLocation(SourceLocation sourceLocation) {
+        sourceLoc = sourceLocation;
+    }
+
     std::string toString() const { return doToString(); }
 
     void print();

@@ -8,7 +8,7 @@
 #include "AST/AST.h"
 #include "Sema/Analysis/DependencyGraph.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
-#include "Sema/SemanticIssue.h"
+#include "Sema/SemaIssue2.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
@@ -28,7 +28,7 @@ struct Context {
     TypeID analyzeTypeExpression(ast::Expression&) const;
 
     SymbolTable& sym;
-    issue::SemaIssueHandler& iss;
+    IssueHandler& iss;
     DependencyGraph& dependencyGraph;
     DependencyGraphNode const* currentNode = nullptr;
 };
@@ -36,7 +36,7 @@ struct Context {
 } // namespace
 
 void sema::instantiateEntities(SymbolTable& sym,
-                               issue::SemaIssueHandler& iss,
+                               IssueHandler& iss,
                                DependencyGraph& typeDependencies) {
     Context ctx{ .sym = sym, .iss = iss, .dependencyGraph = typeDependencies };
     ctx.run();
@@ -78,7 +78,7 @@ void Context::run() {
                          return Node{ node.astNode, node.symbolID };
                      }) |
                      ranges::to<utl::vector<Node>>;
-        iss.push(SemanticIssue{ StrongReferenceCycle(std::move(nodes)) });
+        iss.push<StrongReferenceCycle>(std::move(nodes));
         return;
     }
     /// Sort dependencies...
@@ -170,7 +170,11 @@ void Context::instantiateFunction(DependencyGraphNode const& node) {
     auto signature                  = analyzeSignature(fnDecl);
     auto result = sym.setSignature(node.symbolID, std::move(signature));
     if (!result) {
-        result.error().setStatement(fnDecl);
+        if (auto* invStatement =
+                dynamic_cast<InvalidStatement*>(result.error()))
+        {
+            invStatement->setStatement(fnDecl);
+        }
         iss.push(result.error());
         return;
     }
@@ -196,9 +200,9 @@ TypeID Context::analyzeTypeExpression(ast::Expression& expr) const {
         return TypeID::Invalid;
     }
     if (typeExprResult.category() != ast::EntityCategory::Type) {
-        iss.push(BadSymbolReference(expr,
-                                    expr.entityCategory(),
-                                    ast::EntityCategory::Type));
+        iss.push<BadSymbolReference>(expr,
+                                     expr.entityCategory(),
+                                     ast::EntityCategory::Type);
         return TypeID::Invalid;
     }
     auto const& type = sym.getObjectType(typeExprResult.typeID());

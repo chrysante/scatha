@@ -4,7 +4,7 @@
 #include <span>
 
 #include "Common/Base.h"
-#include "Issue/IssueHandler.h"
+#include "Issue/IssueHandler2.h"
 #include "Sema/Analysis/DependencyGraph.h"
 
 namespace scatha::sema {
@@ -17,7 +17,7 @@ class SymbolTable;
 /// compile time evaluation of functions.
 SCATHA_API void analyzeFunctions(
     SymbolTable& symbolTable,
-    issue::SemaIssueHandler& issueHandler,
+    IssueHandler& issueHandler,
     std::span<DependencyGraphNode const> functions);
 
 } // namespace scatha::sema
