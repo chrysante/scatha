@@ -15,14 +15,14 @@ BadExpression::BadExpression(ast::Expression const& expr,
     SemanticIssue(expr.sourceLocation(), severity), _expr(&expr) {}
 
 BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
-                                     TypeID to):
+                                     Type const* to):
     BadExpression(expression, IssueSeverity::Error),
-    _from(expression.typeID()),
+    _from(expression.type()),
     _to(to) {}
 
 BadOperandForUnaryExpression::BadOperandForUnaryExpression(
-    ast::Expression const& expression, TypeID operand):
-    BadExpression(expression, IssueSeverity::Error), _operand(operand) {}
+    ast::Expression const& expression, Type const* operandType):
+    BadExpression(expression, IssueSeverity::Error), _opType(operandType) {}
 
 InvalidStatement::InvalidStatement(ast::Statement const* statement,
                                    Reason reason,

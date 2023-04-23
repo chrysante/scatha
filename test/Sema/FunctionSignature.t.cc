@@ -26,12 +26,12 @@ TEST_CASE("Function Type", "[sema]") {
     REQUIRE(fnF.hasValue());
     auto const overloadSuccess = sym.setSignature(fnF->symbolID(), fSig);
     REQUIRE(overloadSuccess);
-    CHECK(fnF.value().signature().argumentTypeID(0) == sym.Int());
-    CHECK(fnF.value().signature().returnTypeID() == sym.Int());
+    CHECK(fnF.value().signature().argumentType(0) == sym.Int());
+    CHECK(fnF.value().signature().returnType() == sym.Int());
     auto const fnG = sym.declareFunction("g");
     REQUIRE(fnG.hasValue());
     auto const overloadSuccess2 = sym.setSignature(fnG->symbolID(), gSig);
     REQUIRE(overloadSuccess2);
-    CHECK(fnG.value().signature().argumentTypeID(0) == sym.Int());
-    CHECK(fnG.value().signature().returnTypeID() == sym.Void());
+    CHECK(fnG.value().signature().argumentType(0) == sym.Int());
+    CHECK(fnG.value().signature().returnType() == sym.Void());
 }

@@ -14,7 +14,7 @@ std::string_view toString(SymbolCategory cat) {
         { SymbolCategory::Namespace,   "Namespace" },
         { SymbolCategory::OverloadSet, "OverloadSet" },
         { SymbolCategory::Function,    "Function" },
-        { SymbolCategory::ObjectType,  "ObjectType" },
+        { SymbolCategory::Type,        "Type" },
         { SymbolCategory::Anonymous,   "Anonymous" }
     });
     // clang-format on

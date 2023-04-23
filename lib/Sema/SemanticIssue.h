@@ -15,6 +15,7 @@
 #include <scatha/Issue/Issue.h>
 #include <scatha/Parser/Token.h>
 #include <scatha/Sema/SymbolID.h>
+#include <scatha/Sema/Type.h>
 
 namespace scatha::sema {
 
@@ -45,46 +46,47 @@ private:
 /// Invalid type conversion issue
 class SCATHA_API BadTypeConversion: public BadExpression {
 public:
-    explicit BadTypeConversion(ast::Expression const& expression, TypeID to);
+    explicit BadTypeConversion(ast::Expression const& expression,
+                               Type const* to);
 
-    TypeID from() const { return _from; }
-    TypeID to() const { return _to; }
+    Type const* from() const { return _from; }
+    Type const* to() const { return _to; }
 
 private:
     std::string message() const override { return "Invalid type conversion"; }
 
-    TypeID _from;
-    TypeID _to;
+    Type const* _from;
+    Type const* _to;
 };
 
 class SCATHA_API BadOperandForUnaryExpression: public BadExpression {
 public:
     explicit BadOperandForUnaryExpression(ast::Expression const& expression,
-                                          TypeID operand);
+                                          Type const* operandType);
 
-    TypeID operand() const { return _operand; }
+    Type const* operandType() const { return _opType; }
 
 private:
-    TypeID _operand;
+    Type const* _opType;
 };
 
 class SCATHA_API BadOperandsForBinaryExpression: public BadExpression {
 public:
     explicit BadOperandsForBinaryExpression(ast::Expression const& expression,
-                                            TypeID lhs,
-                                            TypeID rhs):
+                                            Type const* lhs,
+                                            Type const* rhs):
         BadExpression(expression, IssueSeverity::Error), _lhs(lhs), _rhs(rhs) {}
 
-    TypeID lhs() const { return _lhs; }
-    TypeID rhs() const { return _rhs; }
+    Type const* lhs() const { return _lhs; }
+    Type const* rhs() const { return _rhs; }
 
 private:
     std::string message() const override {
         return "Invalid operands for binary expression";
     }
 
-    TypeID _lhs;
-    TypeID _rhs;
+    Type const* _lhs;
+    Type const* _rhs;
 };
 
 class SCATHA_API BadMemberAccess: public BadExpression {
@@ -100,15 +102,17 @@ public:
 public:
     explicit BadFunctionCall(ast::Expression const& expression,
                              SymbolID overloadSetID,
-                             utl::small_vector<TypeID> argTypeIDs,
+                             utl::small_vector<Type const*> argTypes,
                              Reason reason):
         BadExpression(expression, IssueSeverity::Error),
         _reason(reason),
-        _argTypeIDs(std::move(argTypeIDs)),
+        _argTypes(std::move(argTypes)),
         _overloadSetID(overloadSetID) {}
 
     Reason reason() const { return _reason; }
-    std::span<TypeID const> argumentTypeIDs() const { return _argTypeIDs; }
+
+    std::span<Type const* const> argumentTypes() const { return _argTypes; }
+
     SymbolID overloadSetID() const { return _overloadSetID; }
 
 private:
@@ -117,7 +121,7 @@ private:
     }
 
     Reason _reason;
-    utl::small_vector<TypeID> _argTypeIDs;
+    utl::small_vector<Type const*> _argTypes;
     SymbolID _overloadSetID;
 };
 

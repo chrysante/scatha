@@ -23,45 +23,40 @@ public:
     /// The SymbolID of the expression if it is an lvalue.  Otherwise invalid.
     SymbolID symbolID() const { return _symbolID; }
 
-    /// TypeID of the analyzed expression if it refers to a type. Otherwise the
+    /// Type of the analyzed expression if it refers to a type. Otherwise the
     /// type of the value that expression yields.
-    TypeID typeID() const { return _typeID; }
+    Type const* type() const { return _type; }
 
 private:
     bool _success;
     ast::EntityCategory _category{};
     SymbolID _symbolID;
-    TypeID _typeID;
+    Type const* _type;
 
 public:
     /// TODO: Make these private somehow
-    static ExpressionAnalysisResult lvalue(SymbolID symbolID, TypeID typeID) {
-        return { ast::EntityCategory::Value, symbolID, typeID };
+    static ExpressionAnalysisResult lvalue(SymbolID symbolID,
+                                           Type const* type) {
+        return { ast::EntityCategory::Value, symbolID, type };
     }
-    static ExpressionAnalysisResult rvalue(TypeID typeID) {
-        return { ast::EntityCategory::Value, typeID };
+    static ExpressionAnalysisResult rvalue(Type const* type) {
+        return { ast::EntityCategory::Value, type };
     }
-    static ExpressionAnalysisResult type(TypeID id) {
-        return { ast::EntityCategory::Type, id };
-    }
-    static ExpressionAnalysisResult type(SymbolID id) {
-        return type(TypeID(id));
+    static ExpressionAnalysisResult type(Type const* type) {
+        return { ast::EntityCategory::Type, type };
     }
     static ExpressionAnalysisResult fail() { return { false }; }
 
 private:
     ExpressionAnalysisResult(ast::EntityCategory category,
                              SymbolID symbolID,
-                             TypeID typeID):
-        _success(true),
-        _category(category),
-        _symbolID(symbolID),
-        _typeID(typeID) {}
-    ExpressionAnalysisResult(ast::EntityCategory kind, TypeID typeID):
+                             Type const* type):
+        _success(true), _category(category), _symbolID(symbolID), _type(type) {}
+    ExpressionAnalysisResult(ast::EntityCategory kind, Type const* type):
         ExpressionAnalysisResult(kind,
                                  SymbolID::InvalidWithCategory(
-                                     SymbolCategory::ObjectType),
-                                 typeID) {}
+                                     SymbolCategory::Type),
+                                 type) {}
     ExpressionAnalysisResult(bool success): _success(success) {}
 };
 

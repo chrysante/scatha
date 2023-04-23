@@ -27,7 +27,7 @@ public:
         _overloadSetID(overloadSetID) {}
 
     /// \Returns The type ID of this function.
-    TypeID typeID() const { return signature().typeID(); }
+    Type const* type() const { return signature().type(); }
 
     /// \Returns The overload set ID of this function.
     SymbolID overloadSetID() const { return _overloadSetID; }
@@ -79,7 +79,7 @@ struct FunctionArgumentsHash {
     size_t operator()(Function const* f) const {
         return f->signature().argumentHash();
     }
-    size_t operator()(std::span<TypeID const> const& args) const {
+    size_t operator()(std::span<Type const* const> const& args) const {
         return FunctionSignature::hashArguments(args);
     }
 };
@@ -87,7 +87,7 @@ struct FunctionArgumentsHash {
 struct FunctionArgumentsEqual {
     struct is_transparent;
 
-    using Args = std::span<TypeID const>;
+    using Args = std::span<Type const* const>;
 
     bool operator()(Function const* a, Function const* b) const {
         return a->signature().argumentHash() == b->signature().argumentHash();

@@ -20,9 +20,9 @@ public:
         Entity(EntityType::OverloadSet, std::move(name), id, parentScope) {}
 
     /// Resolve best matching function from this overload set for \p
-    /// argumentTypes Returns NULL if no matching function exists in the
+    /// argumentTypes Returns `nullptr` if no matching function exists in the
     /// overload set.
-    Function const* find(std::span<TypeID const> argumentTypes) const;
+    Function const* find(std::span<Type const* const> argumentTypes) const;
 
     /// \brief Add a function to this overload set.
     /// \returns Pair of \p function and `true` if \p function is a legal
@@ -36,10 +36,11 @@ public:
     auto end() const { return functions.end(); }
 
 private:
+    utl::small_vector<Function*, 8> functions;
     utl::hashset<Function*,
                  internal::FunctionArgumentsHash,
                  internal::FunctionArgumentsEqual>
-        functions;
+        funcSet;
 };
 
 } // namespace scatha::sema

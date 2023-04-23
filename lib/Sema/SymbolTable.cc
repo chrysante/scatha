@@ -59,17 +59,17 @@ Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
         return new InvalidDeclaration(nullptr,
                                       ReservedIdentifier,
                                       currentScope(),
-                                      SymbolCategory::ObjectType);
+                                      SymbolCategory::Type);
     }
     const SymbolID symbolID = currentScope().findID(name);
     if (symbolID != SymbolID::Invalid) {
         return new InvalidDeclaration(nullptr,
                                       Redefinition,
                                       currentScope(),
-                                      SymbolCategory::ObjectType,
+                                      SymbolCategory::Type,
                                       symbolID.category());
     }
-    auto const newSymbolID = generateID(SymbolCategory::ObjectType);
+    auto const newSymbolID = generateID(SymbolCategory::Type);
     auto [itr, success]    = _entities.insert(
         { newSymbolID,
              allocate<ObjectType>(name, newSymbolID, &currentScope()) });
@@ -78,15 +78,15 @@ Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
     return cast<ObjectType&>(*itr->second);
 }
 
-TypeID SymbolTable::declareBuiltinType(std::string name,
-                                       size_t size,
-                                       size_t align) {
+Type const* SymbolTable::declareBuiltinType(std::string name,
+                                            size_t size,
+                                            size_t align) {
     auto result = declareObjectType(name, /* allowKeywords = */ true);
     SC_ASSERT(result, "How could this fail?");
     result->setSize(size);
     result->setAlign(align);
     result->setIsBuiltin(true);
-    return result->symbolID();
+    return &result.value();
 }
 
 Expected<Function const&, SemanticIssue*> SymbolTable::declareFunction(
@@ -147,8 +147,8 @@ Expected<void, SemanticIssue*> SymbolTable::setSignature(
     if (!success) {
         using enum InvalidDeclaration::Reason;
         InvalidDeclaration::Reason const reason =
-            otherFunction->signature().returnTypeID() ==
-                    function.signature().returnTypeID() ?
+            otherFunction->signature().returnType() ==
+                    function.signature().returnType() ?
                 Redefinition :
                 CantOverloadOnReturnType;
         return new InvalidDeclaration(nullptr,
@@ -210,14 +210,14 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
 }
 
 Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(std::string name,
-                                                             TypeID typeID,
+                                                             Type const* type,
                                                              size_t offset) {
     auto declResult = declareVariable(std::move(name));
     if (!declResult) {
         return declResult.error();
     }
     auto& var = *declResult;
-    var.setTypeID(typeID);
+    var.setType(type);
     SC_ASSERT(offset == 0, "Temporary measure. Should remove parameter offset");
     return var;
 }
@@ -233,6 +233,18 @@ Scope const& SymbolTable::addAnonymousScope() {
     Scope& scope = cast<Scope&>(*itr->second);
     currentScope().add(&scope);
     return scope;
+}
+
+ReferenceType const& SymbolTable::referenceType(
+    ObjectType const& referredType) {
+    if (auto itr = _refs.find(&referredType); itr != _refs.end()) {
+        return *itr->second;
+    }
+    auto newSymbolID    = generateID(SymbolCategory::Type);
+    auto [itr, success] = _entities.insert(
+        { newSymbolID, allocate<ReferenceType>(newSymbolID, &referredType) });
+    SC_ASSERT(success, "");
+    return cast<ReferenceType&>(*itr->second);
 }
 
 void SymbolTable::pushScope(SymbolID id) {

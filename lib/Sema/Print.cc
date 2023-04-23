@@ -44,15 +44,13 @@ void internal::ScopePrinter::printScope(Scope const& scope,
                 { name, &sym.get<Variable>(id), id, SymbolCategory::Variable });
             continue;
         }
-        if (id.category() == SymbolCategory::ObjectType) {
+        if (id.category() == SymbolCategory::Type) {
             if (sym.get<ObjectType>(id).isBuiltin()) {
                 printedScopes.insert(id);
                 continue;
             }
-            data.push_back({ name,
-                             &sym.get<ObjectType>(id),
-                             id,
-                             SymbolCategory::ObjectType });
+            data.push_back(
+                { name, &sym.get<ObjectType>(id), id, SymbolCategory::Type });
             continue;
         }
         SC_ASSERT(id.category() == SymbolCategory::OverloadSet, "What else?");
@@ -73,19 +71,17 @@ void internal::ScopePrinter::printScope(Scope const& scope,
         if (cat == SymbolCategory::Function) {
             auto& fn = sym.get<Function>(id);
             str << "(";
-            for (bool first = true; auto id: fn.signature().argumentTypeIDs()) {
+            for (bool first = true; auto* type: fn.signature().argumentTypes())
+            {
                 if (!first) {
                     str << ", ";
                 }
                 first = false;
-                str << (id ? makeQualName(sym.get<ObjectType>(id)) :
-                             "<invalid-type>");
+                str << (id ? makeQualName(*type) : "<invalid-type>");
             }
-            str << ") -> "
-                << makeQualName(
-                       sym.get<ObjectType>(fn.signature().returnTypeID()));
+            str << ") -> " << makeQualName(*fn.signature().returnType());
         }
-        else if (cat == SymbolCategory::ObjectType) {
+        else if (cat == SymbolCategory::Type) {
             auto& type     = sym.get<ObjectType>(id);
             auto printSize = [&str](size_t s) {
                 if (s == invalidSize) {
@@ -104,9 +100,7 @@ void internal::ScopePrinter::printScope(Scope const& scope,
         else if (cat == SymbolCategory::Variable) {
             auto& var = sym.get<Variable>(id);
             str << ": "
-                << (var.typeID() ?
-                        makeQualName(sym.get<ObjectType>(var.typeID())) :
-                        "<invalid-type>");
+                << (var.type() ? makeQualName(*var.type()) : "<invalid-type>");
         }
         str << endl;
         auto const itr = scope._children.find(id);

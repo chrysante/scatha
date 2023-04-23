@@ -57,7 +57,7 @@ public:
     /// `declareObjectType()`
     ///
     /// TODO: Only used internally. Make this private.
-    TypeID declareBuiltinType(std::string name, size_t size, size_t align);
+    Type const* declareBuiltinType(std::string name, size_t size, size_t align);
 
     /// \brief Declares a function to the current scope without signature.
     ///
@@ -117,13 +117,21 @@ public:
     /// \returns `InvalidDeclaration` with reason `Redefinition` if name of \p
     /// varDecl is already in use in the current scope.
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
-                                                    TypeID,
+                                                    Type const* type,
                                                     size_t offset = 0);
 
     /// \brief Declares an anonymous scope within the current scope.
     ///
     /// \returns Reference to the new scope.
     Scope const& addAnonymousScope();
+
+    ///
+    ReferenceType const& referenceType(ObjectType const& referredType);
+
+    /// \overload
+    ReferenceType const& referenceType(TypeID referredType) {
+        return referenceType(get<ObjectType>(referredType));
+    }
 
     /// \brief Makes scope with symbolD \p id the current scope.
     ///
@@ -222,21 +230,23 @@ public:
     Scope const& globalScope() const { return *_globalScope; }
 
     /// Getters for builtin types
-    TypeID Void() const { return _void; }
-    TypeID Bool() const { return _bool; }
-    TypeID Int() const { return _int; }
-    TypeID Float() const { return _float; }
-    TypeID String() const { return _string; }
+    Type const* Void() const { return _void; }
+    Type const* Bool() const { return _bool; }
+    Type const* Int() const { return _int; }
+    Type const* Float() const { return _float; }
+    Type const* String() const { return _string; }
 
     /// Review if we want to keep these:
     void setSortedObjectTypes(utl::vector<TypeID> ids) {
         _sortedObjectTypes = std::move(ids);
     }
 
+    /// View over topologically sorted object types
     std::span<TypeID const> sortedObjectTypes() const {
         return _sortedObjectTypes;
     }
 
+    /// View over all functions
     auto functions() const {
         return _entities | ranges::views::transform([](auto& p) -> auto* {
                    return p.second.get();
@@ -258,12 +268,14 @@ private:
 
     utl::hashmap<SymbolID, UniquePtr<Entity>> _entities;
 
+    utl::hashmap<ObjectType const*, ReferenceType const*> _refs;
+
     utl::vector<TypeID> _sortedObjectTypes;
 
     utl::vector<SymbolID> _builtinFunctions;
 
     /// Builtin types
-    TypeID _void, _bool, _int, _float, _string;
+    Type const *_void, *_bool, *_int, *_float, *_string;
 };
 
 } // namespace scatha::sema

@@ -7,9 +7,9 @@ using namespace scatha;
 sema::Variable::Variable(std::string name,
                          SymbolID symbolID,
                          Scope* parentScope,
-                         TypeID typeID):
+                         Type const* type):
     Entity(EntityType::Variable, std::move(name), symbolID, parentScope),
-    _typeID(typeID) {}
+    _type(type) {}
 
 bool sema::Variable::isLocal() const {
     return parent()->kind() == ScopeKind::Function ||

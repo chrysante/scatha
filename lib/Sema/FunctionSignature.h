@@ -16,39 +16,41 @@ namespace scatha::sema {
 class SCATHA_API FunctionSignature {
 public:
     FunctionSignature() = default;
-    explicit FunctionSignature(utl::vector<TypeID> argumentTypes,
-                               TypeID returnType):
-        _argumentTypeIDs(std::move(argumentTypes)),
-        _returnTypeID(returnType),
-        _argHash(hashArguments(argumentTypeIDs())),
+    explicit FunctionSignature(utl::vector<Type const*> argumentTypes,
+                               Type const* returnType):
+        _argumentTypes(std::move(argumentTypes)),
+        _returnType(returnType),
+        _argHash(hashArguments(this->argumentTypes())),
         _typeHash(computeTypeHash(returnType, _argHash)) {}
 
-    TypeID typeID() const { return TypeID(_typeHash); }
+    Type const* type() const { SC_DEBUGFAIL(); }
 
     /// TypeIDs of the argument types
-    std::span<TypeID const> argumentTypeIDs() const { return _argumentTypeIDs; }
-
-    TypeID argumentTypeID(size_t index) const {
-        return _argumentTypeIDs[index];
+    std::span<Type const* const> argumentTypes() const {
+        return _argumentTypes;
     }
 
-    size_t argumentCount() const { return _argumentTypeIDs.size(); }
+    Type const* argumentType(size_t index) const {
+        return _argumentTypes[index];
+    }
+
+    size_t argumentCount() const { return _argumentTypes.size(); }
 
     /// TypeID of the return type
-    TypeID returnTypeID() const { return _returnTypeID; }
+    Type const* returnType() const { return _returnType; }
 
     /// Hash value is computed from the TypeIDs of the arguments
     u64 argumentHash() const { return _argHash; }
 
     /// Compute hash value from argument types
-    static u64 hashArguments(std::span<TypeID const>);
+    static u64 hashArguments(std::span<Type const* const>);
 
 private:
-    static u64 computeTypeHash(TypeID returnTypeID, u64 argumentHash);
+    static u64 computeTypeHash(Type const* returnType, u64 argumentHash);
 
 private:
-    utl::small_vector<TypeID> _argumentTypeIDs;
-    TypeID _returnTypeID;
+    utl::small_vector<Type const*> _argumentTypes;
+    Type const* _returnType;
     u64 _argHash, _typeHash;
 };
 

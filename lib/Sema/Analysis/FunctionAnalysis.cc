@@ -33,7 +33,7 @@ struct Context {
 
     ExpressionAnalysisResult dispatchExpression(ast::Expression&);
 
-    void verifyConversion(ast::Expression const& from, TypeID to) const;
+    void verifyConversion(ast::Expression const& from, Type const* to) const;
 
     SymbolTable& sym;
     IssueHandler& iss;
@@ -93,7 +93,7 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     /// gatherNames() phase, now we complete the decoration.
     SymbolID const fnSymID = fn.symbolID();
     auto& function         = sym.get<Function>(fnSymID);
-    fn.decorate(fnSymID, function.signature().returnTypeID());
+    fn.decorate(fnSymID, function.signature().returnType());
     fn.body->decorate(ScopeKind::Function, function.symbolID());
     function.setAccessSpecifier(translateAccessSpec(fn.accessSpec));
     currentFunction                    = &fn;
@@ -122,7 +122,7 @@ void Context::analyze(ast::StructDefinition& s) {
             &s,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope(),
-            SymbolCategory::ObjectType);
+            SymbolCategory::Type);
     }
 }
 
@@ -162,58 +162,57 @@ void Context::analyze(ast::VariableDeclaration& var) {
         return;
     }
 
-    TypeID const declaredTypeID = [&] {
-        if (var.typeExpr == nullptr) {
-            return TypeID::Invalid;
+    Type const* declaredType = [&]() -> Type const* {
+        if (!var.typeExpr) {
+            return nullptr;
         }
         auto const varTypeRes = dispatchExpression(*var.typeExpr);
         if (!varTypeRes) {
-            return TypeID::Invalid;
+            return nullptr;
         }
         if (varTypeRes.category() != ast::EntityCategory::Type) {
             iss.push<BadSymbolReference>(*var.typeExpr,
                                          varTypeRes.category(),
                                          ast::EntityCategory::Type);
-            return TypeID::Invalid;
+            return nullptr;
         }
-        auto const& objType = sym.get<ObjectType>(varTypeRes.typeID());
-        return objType.symbolID();
+        return varTypeRes.type();
     }();
     if (iss.fatal()) {
         return;
     }
-    TypeID const deducedTypeID = [&] {
-        if (var.initExpression == nullptr) {
-            return TypeID::Invalid;
+    Type const* deducedType = [&]() -> Type const* {
+        if (!var.initExpression) {
+            return nullptr;
         }
         auto const initExprRes = dispatchExpression(*var.initExpression);
         if (!initExprRes) {
-            return TypeID::Invalid;
+            return nullptr;
         }
         if (initExprRes.category() != ast::EntityCategory::Value) {
             iss.push<BadSymbolReference>(*var.initExpression,
                                          initExprRes.category(),
                                          ast::EntityCategory::Value);
-            return TypeID::Invalid;
+            return nullptr;
         }
-        return var.initExpression->typeID();
+        return var.initExpression->type();
     }();
     if (iss.fatal()) {
         return;
     }
-    if (!declaredTypeID && !deducedTypeID) {
+    if (!declaredType && !deducedType) {
         return;
     }
-    if (declaredTypeID && deducedTypeID) {
-        verifyConversion(*var.initExpression, declaredTypeID);
+    if (declaredType && deducedType) {
+        verifyConversion(*var.initExpression, declaredType);
     }
-    TypeID const finalTypeID = declaredTypeID ? declaredTypeID : deducedTypeID;
-    auto varObj = sym.addVariable(var.nameIdentifier->value(), finalTypeID);
+    Type const* finalType = declaredType ? declaredType : deducedType;
+    auto varObj = sym.addVariable(var.nameIdentifier->value(), finalType);
     if (!varObj) {
         iss.push(varObj.error()->setStatement(var));
         return;
     }
-    var.decorate(varObj->symbolID(), finalTypeID);
+    var.decorate(varObj->symbolID(), finalType);
 }
 
 void Context::analyze(ast::ParameterDeclaration& paramDecl) {
@@ -222,28 +221,27 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
               "parameters.");
     SC_ASSERT(!paramDecl.isDecorated(),
               "We should not have handled parameters in prepass.");
-    TypeID const declaredTypeID = [&] {
-        if (paramDecl.typeExpr == nullptr) {
-            return TypeID::Invalid;
+    Type const* declaredType = [&]() -> Type const* {
+        if (!paramDecl.typeExpr) {
+            return nullptr;
         }
         auto const declTypeRes = dispatchExpression(*paramDecl.typeExpr);
         if (!declTypeRes) {
-            return TypeID::Invalid;
+            return nullptr;
         }
         if (declTypeRes.category() != ast::EntityCategory::Type) {
             iss.push<BadSymbolReference>(*paramDecl.typeExpr,
                                          declTypeRes.category(),
                                          ast::EntityCategory::Type);
-            return TypeID::Invalid;
+            return nullptr;
         }
-        auto const& objType = sym.get<ObjectType>(declTypeRes.typeID());
-        return objType.symbolID();
+        return declTypeRes.type();
     }();
     if (iss.fatal()) {
         return;
     }
     auto paramObj =
-        sym.addVariable(paramDecl.nameIdentifier->value(), declaredTypeID);
+        sym.addVariable(paramDecl.nameIdentifier->value(), declaredType);
     if (!paramObj) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(paramObj.error()))
@@ -253,7 +251,7 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
         iss.push(paramObj.error());
         return;
     }
-    paramDecl.decorate(paramObj->symbolID(), declaredTypeID);
+    paramDecl.decorate(paramObj->symbolID(), declaredType);
 }
 
 void Context::analyze(ast::ExpressionStatement& es) {
@@ -291,7 +289,7 @@ void Context::analyze(ast::ReturnStatement& rs) {
     }
     SC_ASSERT(currentFunction != nullptr,
               "This should have been set by case FunctionDefinition");
-    verifyConversion(*rs.expression, currentFunction->returnTypeID());
+    verifyConversion(*rs.expression, currentFunction->returnType());
 }
 
 void Context::analyze(ast::IfStatement& is) {
@@ -389,8 +387,9 @@ ExpressionAnalysisResult Context::dispatchExpression(ast::Expression& expr) {
     return analyzeExpression(expr, sym, iss);
 }
 
-void Context::verifyConversion(ast::Expression const& from, TypeID to) const {
-    if (from.typeID() != to) {
+void Context::verifyConversion(ast::Expression const& from,
+                               Type const* to) const {
+    if (from.type() != to) {
         iss.push<BadTypeConversion>(from, to);
     }
 }

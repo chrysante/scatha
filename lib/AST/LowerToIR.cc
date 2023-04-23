@@ -99,14 +99,14 @@ struct CodeGenContext {
 
     std::string mangledName(sema::SymbolID) const;
     std::string mangledName(sema::SymbolID, std::string_view name) const;
-    ir::Type const* mapType(sema::TypeID semaTypeID);
+    ir::Type const* mapType(sema::Type const* semaType);
     ir::UnaryArithmeticOperation mapUnaryArithmeticOp(
         ast::UnaryPrefixOperator) const;
-    ir::CompareMode mapCompareMode(sema::TypeID) const;
+    ir::CompareMode mapCompareMode(sema::Type const*) const;
     ir::CompareOperation mapCompareOp(ast::BinaryOperator) const;
-    ir::ArithmeticOperation mapArithmeticOp(sema::TypeID typeID,
+    ir::ArithmeticOperation mapArithmeticOp(sema::Type const* type,
                                             ast::BinaryOperator) const;
-    ir::ArithmeticOperation mapArithmeticAssignOp(sema::TypeID typeID,
+    ir::ArithmeticOperation mapArithmeticAssignOp(sema::Type const* type,
                                                   ast::BinaryOperator) const;
 
     ir::Context& irCtx;
@@ -116,7 +116,7 @@ struct CodeGenContext {
     ir::BasicBlock* _currentBB    = nullptr;
     utl::hashmap<sema::SymbolID, ir::Value*> variableAddressMap;
     utl::hashmap<sema::SymbolID, ir::Callable*> functionMap;
-    utl::hashmap<sema::TypeID, ir::Type const*> typeMap;
+    utl::hashmap<sema::Type const*, ir::Type const*> typeMap;
     ir::Instruction* allocaInsertItr;
     Loop currentLoop;
 };
@@ -154,9 +154,8 @@ void CodeGenContext::generateImpl(CompoundStatement const& cmpStmt) {
 
 void CodeGenContext::generateImpl(FunctionDefinition const& def) {
     auto paramTypes = def.parameters |
-                      ranges::views::transform([&](auto& param) {
-                          return mapType(param->typeID());
-                      }) |
+                      ranges::views::transform(
+                          [&](auto& param) { return mapType(param->type()); }) |
                       ranges::to<utl::small_vector<ir::Type const*>>;
     auto* fn = cast<ir::Function*>(functionMap.find(def.symbolID())->second);
     currentFunction = fn;
@@ -168,7 +167,7 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
          auto& paramDecl: def.parameters)
     {
         auto* paramMemPtr = new ir::Alloca(irCtx,
-                                           mapType(paramDecl->typeID()),
+                                           mapType(paramDecl->type()),
                                            std::string(paramDecl->name()));
         addAlloca(paramMemPtr);
         memorizeVariableAddress(paramDecl->symbolID(), paramMemPtr);
@@ -193,7 +192,7 @@ void CodeGenContext::generateImpl(StructDefinition const& def) {
 
 void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
     auto* varMemPtr = new ir::Alloca(irCtx,
-                                     mapType(varDecl.typeID()),
+                                     mapType(varDecl.type()),
                                      std::string(varDecl.name()));
     addAlloca(varMemPtr);
     memorizeVariableAddress(varDecl.symbolID(), varMemPtr);
@@ -352,7 +351,7 @@ ir::Value* CodeGenContext::getValue(Expression const& expr) {
 }
 
 ir::Value* CodeGenContext::getValueImpl(Identifier const& id) {
-    return loadAddress(getAddressImpl(id), mapType(id.typeID()), id.value());
+    return loadAddress(getAddressImpl(id), mapType(id.type()), id.value());
 }
 
 ir::Value* CodeGenContext::getValueImpl(IntegerLiteral const& intLit) {
@@ -376,7 +375,7 @@ ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
         expr.operation() == ast::UnaryPrefixOperator::Decrement)
     {
         ir::Value* addr      = getAddress(*expr.operand);
-        ir::Type const* type = mapType(expr.operand->typeID());
+        ir::Type const* type = mapType(expr.operand->type());
         ir::Value* value =
             loadAddress(addr, type, utl::strcat(expr.operation(), ".value"));
         auto const operation =
@@ -445,7 +444,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         auto* arithInst =
             new ir::ArithmeticInst(lhs,
                                    rhs,
-                                   mapArithmeticOp(exprDecl.typeID(),
+                                   mapArithmeticOp(exprDecl.type(),
                                                    exprDecl.operation()),
                                    "expr.result");
         currentBB()->pushBack(arithInst);
@@ -494,7 +493,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
             new ir::CompareInst(irCtx,
                                 getValue(*exprDecl.lhs),
                                 getValue(*exprDecl.rhs),
-                                mapCompareMode(exprDecl.lhs->typeID()),
+                                mapCompareMode(exprDecl.lhs->type()),
                                 mapCompareOp(exprDecl.operation()),
                                 "cmp.result");
         currentBB()->pushBack(cmpInst);
@@ -506,7 +505,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     }
     case BinaryOperator::Assignment: {
         ir::Value* lhsAddr      = getAddress(*exprDecl.lhs);
-        ir::Type const* lhsType = mapType(exprDecl.lhs->typeID());
+        ir::Type const* lhsType = mapType(exprDecl.lhs->type());
         ir::Value* rhs          = getValue(*exprDecl.rhs);
         auto* store             = new ir::Store(irCtx, lhsAddr, rhs);
         currentBB()->pushBack(store);
@@ -532,13 +531,13 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         [[fallthrough]];
     case BinaryOperator::XOrAssignment: {
         ir::Value* lhsAddr      = getAddress(*exprDecl.lhs);
-        ir::Type const* lhsType = mapType(exprDecl.lhs->typeID());
+        ir::Type const* lhsType = mapType(exprDecl.lhs->type());
         ir::Value* lhs          = loadAddress(lhsAddr, lhsType, "lhs");
         ir::Value* rhs          = getValue(*exprDecl.rhs);
         auto* result =
             new ir::ArithmeticInst(lhs,
                                    rhs,
-                                   mapArithmeticAssignOp(exprDecl.lhs->typeID(),
+                                   mapArithmeticAssignOp(exprDecl.lhs->type(),
                                                          exprDecl.operation()),
                                    "expr.result");
         currentBB()->pushBack(result);
@@ -553,7 +552,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
 
 ir::Value* CodeGenContext::getValueImpl(MemberAccess const& expr) {
     return loadAddress(getAddressImpl(expr),
-                       mapType(expr.typeID()),
+                       mapType(expr.type()),
                        "member.access");
 }
 
@@ -596,8 +595,8 @@ ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
     auto* call =
         new ir::Call(function,
                      args,
-                     functionCall.typeID() != symTable.Void() ? "call.result" :
-                                                                std::string{});
+                     functionCall.type() != symTable.Void() ? "call.result" :
+                                                              std::string{});
     currentBB()->pushBack(call);
     return call;
 }
@@ -635,7 +634,7 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
         cast<Identifier const&>(*expr.member).symbolID();
     auto& var       = symTable.get<sema::Variable>(accessedElementID);
     auto* const gep = new ir::GetElementPointer(irCtx,
-                                                mapType(expr.object->typeID()),
+                                                mapType(expr.object->type()),
                                                 basePtr,
                                                 irCtx.integralConstant(0, 64),
                                                 { var.index() },
@@ -659,9 +658,9 @@ void CodeGenContext::declareTypes() {
             mangledName(objType.symbolID(), objType.name()));
         for (sema::SymbolID const memberVarID: objType.memberVariables()) {
             auto& varDecl = symTable.get<sema::Variable>(memberVarID);
-            structure->addMember(mapType(varDecl.typeID()));
+            structure->addMember(mapType(varDecl.type()));
         }
-        typeMap[typeID] = structure.get();
+        typeMap[&objType] = structure.get();
         mod.addStructure(std::move(structure));
     }
 }
@@ -690,9 +689,9 @@ static ir::Visibility accessSpecToVisibility(sema::AccessSpecifier spec) {
 void CodeGenContext::declareFunctions() {
     for (sema::Function const* function: symTable.functions()) {
         auto paramTypes =
-            function->signature().argumentTypeIDs() |
-            ranges::views::transform([&](sema::TypeID paramTypeID) {
-                return mapType(paramTypeID);
+            function->signature().argumentTypes() |
+            ranges::views::transform([&](sema::Type const* paramType) {
+                return mapType(paramType);
             }) |
             ranges::to<utl::small_vector<ir::Type const*>>;
         // TODO: Generate proper function type here
@@ -700,7 +699,7 @@ void CodeGenContext::declareFunctions() {
         if (function->isExtern()) {
             auto fn = allocate<ir::ExtFunction>(
                 functionType,
-                mapType(function->signature().returnTypeID()),
+                mapType(function->signature().returnType()),
                 paramTypes,
                 std::string(function->name()),
                 utl::narrow_cast<uint32_t>(function->slot()),
@@ -710,13 +709,16 @@ void CodeGenContext::declareFunctions() {
             mod.addGlobal(std::move(fn));
         }
         else {
-            auto fn = allocate<ir::Function>(
-                functionType,
-                mapType(function->signature().returnTypeID()),
-                paramTypes,
-                mangledName(function->symbolID(), function->name()),
-                translateAttrs(function->attributes()),
-                accessSpecToVisibility(function->accessSpecifier()));
+            auto fn =
+                allocate<ir::Function>(functionType,
+                                       mapType(
+                                           function->signature().returnType()),
+                                       paramTypes,
+                                       mangledName(function->symbolID(),
+                                                   function->name()),
+                                       translateAttrs(function->attributes()),
+                                       accessSpecToVisibility(
+                                           function->accessSpecifier()));
             functionMap[function->symbolID()] = fn.get();
             mod.addFunction(std::move(fn));
         }
@@ -745,20 +747,20 @@ std::string CodeGenContext::mangledName(sema::SymbolID id,
     return std::move(sstr).str();
 }
 
-ir::Type const* CodeGenContext::mapType(sema::TypeID semaTypeID) {
-    if (semaTypeID == symTable.Void()) {
+ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
+    if (semaType == symTable.Void()) {
         return irCtx.voidType();
     }
-    if (semaTypeID == symTable.Int()) {
+    if (semaType == symTable.Int()) {
         return irCtx.integralType(64);
     }
-    if (semaTypeID == symTable.Bool()) {
+    if (semaType == symTable.Bool()) {
         return irCtx.integralType(1);
     }
-    if (semaTypeID == symTable.Float()) {
+    if (semaType == symTable.Float()) {
         return irCtx.floatType(64);
     }
-    if (auto itr = typeMap.find(semaTypeID); itr != typeMap.end()) {
+    if (auto itr = typeMap.find(semaType); itr != typeMap.end()) {
         return itr->second;
     }
     SC_DEBUGFAIL();
@@ -776,14 +778,14 @@ ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
     }
 }
 
-ir::CompareMode CodeGenContext::mapCompareMode(sema::TypeID typeID) const {
-    if (typeID == symTable.Bool()) {
+ir::CompareMode CodeGenContext::mapCompareMode(sema::Type const* type) const {
+    if (type == symTable.Bool()) {
         return ir::CompareMode::Unsigned;
     }
-    if (typeID == symTable.Int()) {
+    if (type == symTable.Int()) {
         return ir::CompareMode::Signed;
     }
-    if (typeID == symTable.Float()) {
+    if (type == symTable.Float()) {
         return ir::CompareMode::Float;
     }
     SC_DEBUGFAIL();
@@ -810,42 +812,42 @@ ir::CompareOperation CodeGenContext::mapCompareOp(
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
-    sema::TypeID typeID, ast::BinaryOperator op) const {
+    sema::Type const* type, ast::BinaryOperator op) const {
     switch (op) {
     case BinaryOperator::Multiplication:
-        if (typeID == symTable.Int()) {
+        if (type == symTable.Int()) {
             return ir::ArithmeticOperation::Mul;
         }
-        if (typeID == symTable.Float()) {
+        if (type == symTable.Float()) {
             return ir::ArithmeticOperation::FMul;
         }
         SC_UNREACHABLE();
     case BinaryOperator::Division:
-        if (typeID == symTable.Int()) {
+        if (type == symTable.Int()) {
             return ir::ArithmeticOperation::SDiv;
         }
-        if (typeID == symTable.Float()) {
+        if (type == symTable.Float()) {
             return ir::ArithmeticOperation::FDiv;
         }
         SC_UNREACHABLE();
     case BinaryOperator::Remainder:
-        if (typeID == symTable.Int()) {
+        if (type == symTable.Int()) {
             return ir::ArithmeticOperation::SRem;
         }
         SC_UNREACHABLE();
     case BinaryOperator::Addition:
-        if (typeID == symTable.Int()) {
+        if (type == symTable.Int()) {
             return ir::ArithmeticOperation::Add;
         }
-        if (typeID == symTable.Float()) {
+        if (type == symTable.Float()) {
             return ir::ArithmeticOperation::FAdd;
         }
         SC_UNREACHABLE();
     case BinaryOperator::Subtraction:
-        if (typeID == symTable.Int()) {
+        if (type == symTable.Int()) {
             return ir::ArithmeticOperation::Sub;
         }
-        if (typeID == symTable.Float()) {
+        if (type == symTable.Float()) {
             return ir::ArithmeticOperation::FSub;
         }
         SC_UNREACHABLE();
@@ -865,7 +867,7 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticAssignOp(
-    sema::TypeID typeID, ast::BinaryOperator op) const {
+    sema::Type const* type, ast::BinaryOperator op) const {
     auto nonAssign = [&] {
         switch (op) {
         case BinaryOperator::AddAssignment:
@@ -892,5 +894,5 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticAssignOp(
             SC_UNREACHABLE("Only handle arithmetic assign operations here.");
         }
     }();
-    return mapArithmeticOp(typeID, nonAssign);
+    return mapArithmeticOp(type, nonAssign);
 }

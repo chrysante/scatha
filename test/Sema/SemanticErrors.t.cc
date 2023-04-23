@@ -86,7 +86,7 @@ fn main(i: int) -> bool {
     CHECK(line4->rhs() == issues.sym.Float());
     auto const line5 = issues.findOnLine<BadOperandForUnaryExpression>(5);
     REQUIRE(line5);
-    CHECK(line5->operand() == issues.sym.Int());
+    CHECK(line5->operandType() == issues.sym.Int());
     CHECK(issues.noneOnLine(6));
 }
 
@@ -173,11 +173,11 @@ struct g{}
     REQUIRE(line3);
     CHECK(line3->reason() == InvalidDeclaration::Reason::Redefinition);
     CHECK(line3->symbolCategory() == SymbolCategory::Function);
-    CHECK(line3->existingSymbolCategory() == SymbolCategory::ObjectType);
+    CHECK(line3->existingSymbolCategory() == SymbolCategory::Type);
     auto const line5 = issues.findOnLine<InvalidDeclaration>(5);
     REQUIRE(line5);
     CHECK(line5->reason() == InvalidDeclaration::Reason::Redefinition);
-    CHECK(line5->symbolCategory() == SymbolCategory::ObjectType);
+    CHECK(line5->symbolCategory() == SymbolCategory::Type);
     CHECK(line5->existingSymbolCategory() == SymbolCategory::OverloadSet);
 }
 
@@ -222,7 +222,7 @@ fn f() {
 	struct X {}
 })");
     SymbolID const fID = issues.sym.lookup<OverloadSet>("f")
-                             ->find(std::array<TypeID, 0>{})
+                             ->find(std::array<Type const*, 0>{})
                              ->symbolID();
     auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);

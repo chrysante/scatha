@@ -19,7 +19,7 @@ enum class SymbolCategory {
     Namespace,
     OverloadSet,
     Function,
-    ObjectType,
+    Type,
     Anonymous,
     _count
 };
@@ -76,9 +76,9 @@ SCATHA_API std::ostream& operator<<(std::ostream&, SymbolID);
 struct TypeID: SymbolID {
     TypeID() = default;
     constexpr explicit TypeID(u64 rawValue):
-        SymbolID(rawValue, SymbolCategory::ObjectType) {}
+        SymbolID(rawValue, SymbolCategory::Type) {}
     constexpr explicit TypeID(SymbolID id): SymbolID(id) {
-        SC_ASSERT(id.category() == SymbolCategory::ObjectType ||
+        SC_ASSERT(id.category() == SymbolCategory::Type ||
                       id.category() == SymbolCategory::Invalid &&
                           id == SymbolID::Invalid,
                   "This symbol id is not a type.");

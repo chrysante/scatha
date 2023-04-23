@@ -25,7 +25,7 @@ struct Context {
 
     FunctionSignature analyzeSignature(ast::FunctionDefinition const&) const;
 
-    TypeID analyzeTypeExpression(ast::Expression&) const;
+    Type const* analyzeTypeExpression(ast::Expression&) const;
 
     SymbolTable& sym;
     IssueHandler& iss;
@@ -50,17 +50,18 @@ void Context::run() {
         if (node.category != SymbolCategory::Variable) {
             continue;
         }
-        auto& var = cast<ast::VariableDeclaration const&>(*node.astNode);
-        auto const typeID = analyzeTypeExpression(*var.typeExpr);
-        if (!typeID) {
+        auto& var       = cast<ast::VariableDeclaration const&>(*node.astNode);
+        auto const type = analyzeTypeExpression(*var.typeExpr);
+        if (!type) {
             continue;
         }
-        auto const& type = sym.get<ObjectType>(typeID);
-        if (type.isBuiltin()) {
+        if (auto* objType = dyncast<ObjectType const*>(type);
+            objType->isBuiltin())
+        {
             continue;
         }
         node.dependencies.push_back(
-            utl::narrow_cast<u16>(dependencyGraph.index(typeID)));
+            utl::narrow_cast<u16>(dependencyGraph.index(type->symbolID())));
     }
     /// Check for cycles
     auto indices = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
@@ -98,7 +99,7 @@ void Context::run() {
         case SymbolCategory::Variable:
             instantiateVariable(node);
             break;
-        case SymbolCategory::ObjectType:
+        case SymbolCategory::Type:
             instantiateObjectType(node);
             sortedObjTypes.push_back(TypeID(node.symbolID));
             break;
@@ -128,22 +129,22 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
         }
         auto& varDecl = cast<ast::VariableDeclaration&>(*statement);
         objectType.addMemberVariable(varDecl.symbolID());
-        if (varDecl.typeID() == TypeID::Invalid) {
+        if (!varDecl.type()) {
             break;
         }
-        auto const& type = sym.get<ObjectType>(varDecl.typeID());
-        SC_ASSERT(type.isComplete(), "Type should be complete at this stage");
-        objectAlign = std::max(objectAlign, type.align());
-        SC_ASSERT(type.size() % type.align() == 0,
+        auto const* type = varDecl.type();
+        SC_ASSERT(type->isComplete(), "Type should be complete at this stage");
+        objectAlign = std::max(objectAlign, type->align());
+        SC_ASSERT(type->size() % type->align() == 0,
                   "size must be a multiple of align");
-        objectSize = utl::round_up_pow_two(objectSize, type.align());
+        objectSize = utl::round_up_pow_two(objectSize, type->align());
         size_t const currentOffset = objectSize;
         varDecl.setOffset(currentOffset);
         varDecl.setIndex(index);
         auto& var = sym.get<Variable>(varDecl.symbolID());
         var.setOffset(currentOffset);
         var.setIndex(index);
-        objectSize += type.size();
+        objectSize += type->size();
     }
     objectType.setSize(objectSize);
     objectType.setAlign(objectAlign);
@@ -154,11 +155,11 @@ void Context::instantiateVariable(DependencyGraphNode const& node) {
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.scope);
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    TypeID const typeID             = analyzeTypeExpression(*varDecl.typeExpr);
-    varDecl.decorate(node.symbolID, typeID);
+    Type const* type                = analyzeTypeExpression(*varDecl.typeExpr);
+    varDecl.decorate(node.symbolID, type);
     /// Here we set the TypeID of the variable in the symbol table.
     auto& var = sym.get<Variable>(varDecl.symbolID());
-    var.setTypeID(typeID);
+    var.setType(type);
 }
 
 void Context::instantiateFunction(DependencyGraphNode const& node) {
@@ -182,29 +183,28 @@ void Context::instantiateFunction(DependencyGraphNode const& node) {
 
 FunctionSignature Context::analyzeSignature(
     ast::FunctionDefinition const& decl) const {
-    utl::small_vector<TypeID> argumentTypes;
+    utl::small_vector<Type const*> argumentTypes;
     for (auto& param: decl.parameters) {
         argumentTypes.push_back(analyzeTypeExpression(*param->typeExpr));
     }
     /// For functions with unspecified return type we assume void until we
     /// implement return type deduction.
-    TypeID const returnTypeID =
-        decl.returnTypeExpr ? analyzeTypeExpression(*decl.returnTypeExpr) :
-                              sym.Void();
-    return FunctionSignature(std::move(argumentTypes), returnTypeID);
+    Type const* returnType = decl.returnTypeExpr ?
+                                 analyzeTypeExpression(*decl.returnTypeExpr) :
+                                 sym.Void();
+    return FunctionSignature(std::move(argumentTypes), returnType);
 }
 
-TypeID Context::analyzeTypeExpression(ast::Expression& expr) const {
+Type const* Context::analyzeTypeExpression(ast::Expression& expr) const {
     auto const typeExprResult = sema::analyzeExpression(expr, sym, iss);
     if (!typeExprResult) {
-        return TypeID::Invalid;
+        return nullptr;
     }
     if (typeExprResult.category() != ast::EntityCategory::Type) {
         iss.push<BadSymbolReference>(expr,
                                      expr.entityCategory(),
                                      ast::EntityCategory::Type);
-        return TypeID::Invalid;
+        return nullptr;
     }
-    auto const& type = sym.get<ObjectType>(typeExprResult.typeID());
-    return type.symbolID();
+    return typeExprResult.type();
 }

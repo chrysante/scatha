@@ -95,7 +95,7 @@ size_t Context::gather(ast::StructDefinition& s) {
             &s,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope(),
-            SymbolCategory::ObjectType);
+            SymbolCategory::Type);
         return invalidIndex;
     }
     Expected const declResult =
@@ -108,11 +108,10 @@ size_t Context::gather(ast::StructDefinition& s) {
     s.decorate(objType.symbolID());
     s.body->decorate(ScopeKind::Object, objType.symbolID());
     SC_ASSERT(s.symbolID() != SymbolID::Invalid, "");
-    size_t const index =
-        dependencyGraph.add({ .symbolID = objType.symbolID(),
-                              .category = SymbolCategory::ObjectType,
-                              .astNode  = &s,
-                              .scope    = &sym.currentScope() });
+    size_t const index = dependencyGraph.add({ .symbolID = objType.symbolID(),
+                                               .category = SymbolCategory::Type,
+                                               .astNode  = &s,
+                                               .scope = &sym.currentScope() });
     /// After we declared this type we gather all its members
     sym.pushScope(objType.symbolID());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };

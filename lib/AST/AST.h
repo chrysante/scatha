@@ -117,10 +117,16 @@ public:
         return _valueCat;
     }
 
-    /// The type of the expression. Only valid if: `kind == ::Value`
-    sema::TypeID typeID() const {
+    /// ID of the resolved symbol (may be `Invalid`)
+    sema::SymbolID symbolID() const {
         expectDecorated();
-        return _typeID;
+        return _symbolID;
+    }
+
+    /// The type of the expression. Only valid if: `kind == ::Value`
+    sema::Type const* type() const {
+        expectDecorated();
+        return _type;
     }
 
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Value`
@@ -130,19 +136,22 @@ public:
     bool isType() const { return entityCategory() == EntityCategory::Type; }
 
     /// Decorate this node.
-    void decorate(sema::TypeID typeID,
+    void decorate(sema::SymbolID symbolID,
+                  sema::Type const* type,
                   ValueCategory valueCat,
                   EntityCategory entityCat = EntityCategory::Value) {
         _entityCat = entityCat;
         _valueCat  = valueCat;
-        _typeID    = typeID;
+        _symbolID  = symbolID;
+        _type      = type;
         markDecorated();
     }
 
 private:
     EntityCategory _entityCat = EntityCategory::Value;
     ValueCategory _valueCat   = ValueCategory::None;
-    sema::TypeID _typeID{};
+    sema::SymbolID _symbolID  = sema::SymbolID::Invalid;
+    sema::Type const* _type{};
 };
 
 /// Concrete node representing an identifier.
@@ -156,24 +165,16 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// ID of the resolved symbol.
-    sema::SymbolID symbolID() const {
-        expectDecorated();
-        return _symbolID;
-    }
-
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID,
-                  sema::TypeID typeID,
+                  sema::Type const* typeID,
                   ValueCategory valueCat,
                   EntityCategory entityCat = EntityCategory::Value) {
-        _symbolID = symbolID;
-        Expression::decorate(typeID, valueCat, entityCat);
+        Expression::decorate(symbolID, typeID, valueCat, entityCat);
     }
 
 private:
     std::string _value;
-    sema::SymbolID _symbolID;
 };
 
 /// Concrete node representing an integer literal.
@@ -298,25 +299,13 @@ public:
     /// The expression to access the object.
     UniquePtr<Expression> member;
 
-    /// **Decoration provided by semantic analysis**
-
-    /// ID of the resolved symbol
-    sema::SymbolID symbolID() const {
-        expectDecorated();
-        return _symbolID;
-    }
-
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID,
-                  sema::TypeID typeID,
+                  sema::Type const* typeID,
                   ValueCategory valueCat,
                   EntityCategory entityCat = EntityCategory::Value) {
-        _symbolID = symbolID;
-        Expression::decorate(typeID, valueCat, entityCat);
+        Expression::decorate(symbolID, typeID, valueCat, entityCat);
     }
-
-private:
-    sema::SymbolID _symbolID;
 };
 
 /// Concrete node representing a reference expression.
@@ -330,25 +319,13 @@ public:
     /// The object being referred to.
     UniquePtr<Expression> referred;
 
-    /// **Decoration provided by semantic analysis**
-
-    /// ID of the resolved symbol
-    sema::SymbolID symbolID() const {
-        expectDecorated();
-        return _symbolID;
-    }
-
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID,
-                  sema::TypeID typeID,
+                  sema::Type const* typeID,
                   ValueCategory valueCat,
                   EntityCategory entityCat = EntityCategory::Value) {
-        _symbolID = symbolID;
-        Expression::decorate(typeID, valueCat, entityCat);
+        Expression::decorate(symbolID, typeID, valueCat, entityCat);
     }
-
-private:
-    sema::SymbolID _symbolID;
 };
 
 /// MARK: Ternary Expressions
@@ -397,22 +374,15 @@ public:
     /// Differs from the SymbolID of the object as this ID is resolved by
     /// overload resolution and refers to an actual function while the latter
     /// refers to an overload set or object.
-    sema::SymbolID functionID() const {
-        expectDecorated();
-        return _functionID;
-    }
+    sema::SymbolID functionID() const { return symbolID(); }
 
     /// Decorate this node.
     void decorate(sema::SymbolID functionID,
-                  sema::TypeID typeID,
+                  sema::Type const* typeID,
                   ValueCategory valueCat,
                   EntityCategory entityCat = EntityCategory::Value) {
-        _functionID = functionID;
-        Expression::decorate(typeID, valueCat, entityCat);
+        Expression::decorate(functionID, typeID, valueCat, entityCat);
     }
-
-private:
-    sema::SymbolID _functionID;
 };
 
 /// Concrete node representing a subscript expression.
@@ -503,9 +473,9 @@ public:
     /// Type of the variable.
     /// Either deduced by the type of initExpression or by declTypename and then
     /// checked against the type of  initExpression
-    sema::TypeID typeID() const {
+    sema::Type const* type() const {
         expectDecorated();
-        return _typeID;
+        return _type;
     }
 
     /// Offset of the variable if this is a struct member. Always zero
@@ -522,8 +492,8 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::TypeID typeID) {
-        _typeID = typeID;
+    void decorate(sema::SymbolID symbolID, sema::Type const* type) {
+        _type = type;
         Declaration::decorate(symbolID);
     }
 
@@ -532,9 +502,9 @@ public:
     void setIndex(size_t index) { _index = index; }
 
 private:
-    sema::TypeID _typeID = sema::TypeID::Invalid;
-    size_t _offset       = 0;
-    size_t _index        = 0;
+    sema::Type const* _type = nullptr;
+    size_t _offset          = 0;
+    size_t _index           = 0;
 };
 
 /// Concrete node representing a parameter declaration.
@@ -557,19 +527,19 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Type of the parameter.
-    sema::TypeID typeID() const {
+    sema::Type const* type() const {
         expectDecorated();
-        return _typeID;
+        return _type;
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::TypeID typeID) {
-        _typeID = typeID;
+    void decorate(sema::SymbolID symbolID, sema::Type const* type) {
+        _type = type;
         Declaration::decorate(symbolID);
     }
 
 private:
-    sema::TypeID _typeID = sema::TypeID::Invalid;
+    sema::Type const* _type = nullptr;
 };
 
 /// Nothing to see here yet...
@@ -644,19 +614,19 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Return type of the function.
-    sema::TypeID returnTypeID() const {
+    sema::Type const* returnType() const {
         expectDecorated();
-        return _returnTypeID;
+        return _returnType;
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::TypeID returnTypeID) {
-        _returnTypeID = returnTypeID;
+    void decorate(sema::SymbolID symbolID, sema::Type const* returnType) {
+        _returnType = returnType;
         Declaration::decorate(symbolID);
     }
 
 private:
-    sema::TypeID _returnTypeID = sema::TypeID::Invalid;
+    sema::Type const* _returnType = nullptr;
 };
 
 /// Concrete node representing the definition of a struct.
