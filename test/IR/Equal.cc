@@ -19,8 +19,8 @@ std::ostream& test::operator<<(std::ostream& str, EqResult const& eqResult) {
     }
     str << eqResult.msg;
     if (eqResult.a && eqResult.b) {
-        str << " with values " << ir::toString(*eqResult.a) << " and "
-            << ir::toString(*eqResult.b);
+        str << " with values " << ir::toString(eqResult.a) << " and "
+            << ir::toString(eqResult.b);
     }
     return str;
 }

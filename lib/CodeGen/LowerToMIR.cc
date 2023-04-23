@@ -545,7 +545,8 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
     auto const [innerType, innerByteBegin] =
         computeInnerTypeAndByteOffset(outerType, insert.memberIndices());
 
-    size_t const innerByteEnd   = innerByteBegin + innerType->size();
+    [[maybe_unused]] size_t const innerByteEnd =
+        innerByteBegin + innerType->size();
     size_t const innerWordBegin = innerByteBegin / 8;
     size_t const innerWordEnd   = innerWordBegin + numWords(innerType);
 

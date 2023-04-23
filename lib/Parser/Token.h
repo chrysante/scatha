@@ -6,7 +6,6 @@
 #include <iosfwd>
 #include <string>
 
-#include <scatha/AST/Keyword.h>
 #include <scatha/AST/SourceLocation.h>
 #include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>

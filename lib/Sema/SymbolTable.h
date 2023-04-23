@@ -14,7 +14,6 @@
 #include <utl/scope_guard.hpp>
 #include <utl/vector.hpp>
 
-#include <scatha/AST/Fwd.h> // Remove?
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Sema/Function.h>

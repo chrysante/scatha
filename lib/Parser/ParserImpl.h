@@ -1,10 +1,4 @@
-/// This header is not meant to expose the internal parser interface but to
-/// separate it from the implementation file. Thus the weird include guard to
-/// prevent multiple include.
-
-#ifdef SCATHA_PARSE_PARSERIMPL_H_
-#error Include this file only once
-#endif // SCATHA_PARSE_PARSERIMPL_H_
+#ifndef SCATHA_PARSE_PARSERIMPL_H_
 #define SCATHA_PARSE_PARSERIMPL_H_
 
 #include <concepts>
@@ -12,7 +6,6 @@
 #include <utl/concepts.hpp>
 
 #include "AST/AST.h"
-#include "AST/Keyword.h"
 #include "Common/Base.h"
 #include "Common/Expected.h"
 #include "Parser/TokenStream.h"
@@ -114,3 +107,5 @@ struct Context {
 };
 
 } // namespace
+
+#endif // SCATHA_PARSE_PARSERIMPL_H_
