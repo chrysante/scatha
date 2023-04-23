@@ -239,19 +239,25 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
     }
     auto const& referred = *ref.referred;
     if (referred.entityCategory() == ast::EntityCategory::Value) {
-        SC_DEBUGFAIL();
-        //        cast<>
-        //        return ExpressionAnalysisResult::lvalue(referred.type());
+        if (referred.valueCategory() != ast::ValueCategory::LValue) {
+            iss.push<BadExpression>(ref, IssueSeverity::Error);
+            return ExpressionAnalysisResult::fail();
+        }
+        auto* refType = sym.qualify(referred.type(), TypeQualifiers::Reference);
+        ref.decorate(referred.symbolID(),
+                     refType,
+                     ast::ValueCategory::LValue,
+                     ast::EntityCategory::Value);
+        return ExpressionAnalysisResult::lvalue(referred.symbolID(), refType);
     }
     else {
-        SC_DEBUGFAIL();
-        //        auto& refType = sym.addQualifiers(referred.type(),
-        //        TypeQualifiers::Reference); ref.decorate(SymbolID::Invalid,
-        //                     &sym.get<Type>(refType.symbolID()),
-        //                     referred.valueCategory(),
-        //                     referred.entityCategory());
-        //        return ExpressionAnalysisResult::type(
-        //            &sym.get<Type>(refType.symbolID()));
+        auto* type    = sym.qualify(&sym.get<ObjectType>(referred.symbolID()));
+        auto* refType = sym.addQualifiers(type, TypeQualifiers::Reference);
+        ref.decorate(refType->symbolID(),
+                     nullptr,
+                     ast::ValueCategory::None,
+                     ast::EntityCategory::Type);
+        return ExpressionAnalysisResult::type(refType);
     }
 }
 

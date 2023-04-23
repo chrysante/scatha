@@ -46,10 +46,7 @@
 /// <break-statement>               ::= "break;"
 /// <continue-statement>            ::= "continue;"
 ///
-/// <type-expression>               ::= <reference-expression> |
-///                                     <postfix-expression>
-///
-/// <reference-expression>          ::= "&" ["mut"] <postfix-expression>
+/// <type-expression>               ::= <reference-expression>
 ///
 /// <comma-expression>              ::= <assignment-expression>
 ///                                   | <comma-expression> "," <assignment-expression>
@@ -85,13 +82,15 @@
 ///                                   | <multiplicative-expression> "*" <unary-expression>
 ///                                   | <multiplicative-expression> "/" <unary-expression>
 ///                                   | <multiplicative-expression> "%" <unary-expression>
-/// <unary-expression>              ::= <postfix-expression>
+/// <unary-expression>              ::= <reference-expression>
 ///                                   | "+" <unary-expression>
 ///                                   | "-" <unary-expression>
 ///                                   | "~" <unary-expression>
 ///                                   | "!" <unary-expression>
 ///                                   | "++" <unary-expression>
 ///                                   | "--" <unary-expression>
+/// <reference-expression>          ::= <postfix-expression> |
+///                                     "&" ["mut"] <postfix-expression>
 /// <postfix-expression>            ::= <primary-expression>
 ///                                   | <postfix-expression> "[" {<assignment-expression>}* "]"
 ///                                   | <postfix-expression> "(" {<assignment-expression>}* ")"

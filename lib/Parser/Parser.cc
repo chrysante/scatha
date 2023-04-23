@@ -565,27 +565,7 @@ UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
 // MARK: - Expressions
 
 UniquePtr<ast::Expression> Context::parseTypeExpression() {
-    if (auto expr = parseReferenceExpression()) {
-        return expr;
-    }
-    return parsePostfix();
-}
-
-UniquePtr<ast::ReferenceExpression> Context::parseReferenceExpression() {
-    Token const refToken = tokens.peek();
-    if (refToken.kind() != BitAnd) {
-        return nullptr;
-    }
-    tokens.eat();
-    Token const mutToken = tokens.peek();
-    bool mut             = false;
-    if (mutToken.kind() == Mutable) {
-        mut = true;
-        tokens.eat();
-    }
-    auto referred = parsePostfix();
-    return allocate<ast::ReferenceExpression>(std::move(referred),
-                                              refToken.sourceLocation());
+    return parseReference();
 }
 
 UniquePtr<ast::Expression> Context::parseComma() {
@@ -701,7 +681,7 @@ UniquePtr<ast::Expression> Context::parseMultiplicative() {
 }
 
 UniquePtr<ast::Expression> Context::parseUnary() {
-    if (auto postfix = parsePostfix()) {
+    if (auto postfix = parseReference()) {
         return postfix;
     }
     Token const token = tokens.peek();
@@ -743,6 +723,26 @@ UniquePtr<ast::Expression> Context::parseUnary() {
     else {
         return nullptr;
     }
+}
+
+UniquePtr<ast::Expression> Context::parseReference() {
+    if (auto postFix = parsePostfix()) {
+        return postFix;
+    }
+    Token const refToken = tokens.peek();
+    if (refToken.kind() != BitAnd) {
+        return nullptr;
+    }
+    tokens.eat();
+    Token const mutToken = tokens.peek();
+    bool mut             = false;
+    if (mutToken.kind() == Mutable) {
+        mut = true;
+        tokens.eat();
+    }
+    auto referred = parsePostfix();
+    return allocate<ast::ReferenceExpression>(std::move(referred),
+                                              refToken.sourceLocation());
 }
 
 UniquePtr<ast::Expression> Context::parsePostfix() {

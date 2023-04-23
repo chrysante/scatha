@@ -41,7 +41,6 @@ struct Context {
 
     // Expressions
     UniquePtr<ast::Expression> parseTypeExpression();
-    UniquePtr<ast::ReferenceExpression> parseReferenceExpression();
     UniquePtr<ast::Expression> parseComma();
     UniquePtr<ast::Expression> parseAssignment();
     UniquePtr<ast::Expression> parseConditional();
@@ -56,6 +55,7 @@ struct Context {
     UniquePtr<ast::Expression> parseAdditive();
     UniquePtr<ast::Expression> parseMultiplicative();
     UniquePtr<ast::Expression> parseUnary();
+    UniquePtr<ast::Expression> parseReference();
     UniquePtr<ast::Expression> parsePostfix();
     UniquePtr<ast::Expression> parsePrimary();
     UniquePtr<ast::Identifier> parseIdentifier();

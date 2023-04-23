@@ -67,6 +67,7 @@ struct CodeGenContext {
     ir::Value* getValueImpl(UnaryPrefixExpression const&);
     ir::Value* getValueImpl(BinaryExpression const&);
     ir::Value* getValueImpl(MemberAccess const&);
+    ir::Value* getValueImpl(ReferenceExpression const&);
     ir::Value* getValueImpl(Conditional const&);
     ir::Value* getValueImpl(FunctionCall const&);
     ir::Value* getValueImpl(Subscript const&);
@@ -79,6 +80,7 @@ struct CodeGenContext {
     ir::Value* getAddressImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
+    ir::Value* getAddressImpl(ReferenceExpression const&);
 
     ir::Value* loadAddress(ir::Value* address,
                            ir::Type const* type,
@@ -531,7 +533,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         [[fallthrough]];
     case BinaryOperator::XOrAssignment: {
         ir::Value* lhsAddr      = getAddress(*exprDecl.lhs);
-        ir::Type const* lhsType = mapType(exprDecl.lhs->type());
+        ir::Type const* lhsType = mapType(exprDecl.lhs->type()->base());
         ir::Value* lhs          = loadAddress(lhsAddr, lhsType, "lhs");
         ir::Value* rhs          = getValue(*exprDecl.rhs);
         auto* result =
@@ -544,7 +546,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         currentBB()->pushBack(result);
         auto* store = new ir::Store(irCtx, lhsAddr, result);
         currentBB()->pushBack(store);
-        return loadAddress(lhsAddr, lhsType, "tmp");
+        return store;
     }
     case BinaryOperator::_count:
         SC_DEBUGFAIL();
@@ -555,6 +557,10 @@ ir::Value* CodeGenContext::getValueImpl(MemberAccess const& expr) {
     return loadAddress(getAddressImpl(expr),
                        mapType(expr.type()),
                        "member.access");
+}
+
+ir::Value* CodeGenContext::getValueImpl(ReferenceExpression const& expr) {
+    return getAddressImpl(expr);
 }
 
 ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
@@ -612,7 +618,10 @@ ir::Value* CodeGenContext::getAddress(Expression const& expr) {
 ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {
     auto itr = variableAddressMap.find(id.symbolID());
     SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
-    return itr->second;
+    if (!id.type()->has(sema::TypeQualifiers::Reference)) {
+        return itr->second;
+    }
+    return loadAddress(itr->second, irCtx.pointerType(), "addr");
 }
 
 ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
@@ -642,6 +651,12 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
                                                 "member.ptr");
     currentBB()->pushBack(gep);
     return gep;
+}
+
+ir::Value* CodeGenContext::getAddressImpl(ReferenceExpression const& expr) {
+    auto itr = variableAddressMap.find(expr.symbolID());
+    SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
+    return itr->second;
 }
 
 ir::Value* CodeGenContext::loadAddress(ir::Value* address,
@@ -751,7 +766,7 @@ std::string CodeGenContext::mangledName(sema::SymbolID id,
 ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
     if (auto* qualType = dyncast<sema::QualType const*>(semaType)) {
         if (qualType->has(sema::TypeQualifiers::Reference)) {
-            SC_DEBUGFAIL();
+            return irCtx.pointerType();
         }
         return mapType(qualType->base());
     }

@@ -136,6 +136,8 @@ public:
     Scope const& currentScope() const { return *_scope; }
 
 private:
+    std::string message() const override;
+
     Scope const* _scope;
 };
 

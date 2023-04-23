@@ -6,6 +6,7 @@
 #include <utl/utility.hpp>
 
 #include "AST/AST.h"
+#include "AST/Print.h"
 
 using namespace scatha;
 using namespace sema;
@@ -23,6 +24,12 @@ BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
 BadOperandForUnaryExpression::BadOperandForUnaryExpression(
     ast::Expression const& expression, QualType const* operandType):
     BadExpression(expression, IssueSeverity::Error), _opType(operandType) {}
+
+std::string UseOfUndeclaredIdentifier::message() const {
+    return utl::strcat("Use of undeclared identifier '",
+                       toString(expression()),
+                       "'");
+}
 
 InvalidStatement::InvalidStatement(ast::Statement const* statement,
                                    Reason reason,

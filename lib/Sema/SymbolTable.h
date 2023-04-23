@@ -132,6 +132,7 @@ public:
 
     QualType const* addQualifiers(QualType const* base,
                                   TypeQualifiers qualifiers) const {
+        SC_ASSERT(base, "");
         return qualify(base, base->qualifiers() | qualifiers);
     }
 
