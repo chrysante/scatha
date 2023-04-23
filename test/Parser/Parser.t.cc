@@ -23,21 +23,21 @@ fn mul(a: int, b: X.Y.Z) -> int {
     CHECK(function->parameters[0]->name() == "a");
     auto const* aTypeExpr =
         cast<Identifier*>(function->parameters[0]->typeExpr.get());
-    CHECK(aTypeExpr->token().id() == "int");
+    CHECK(aTypeExpr->value() == "int");
     CHECK(function->parameters[1]->name() == "b");
     auto const* bTypeExpr =
         cast<MemberAccess*>(function->parameters[1]->typeExpr.get());
     CHECK(bTypeExpr->object->nodeType() == NodeType::MemberAccess);
     auto const* bTypeExprLhs = cast<MemberAccess*>(bTypeExpr->object.get());
     CHECK(bTypeExprLhs->object->nodeType() == NodeType::Identifier);
-    CHECK(bTypeExprLhs->object->token().id() == "X");
+    CHECK(cast<Identifier*>(bTypeExprLhs->object.get())->value() == "X");
     CHECK(bTypeExprLhs->member->nodeType() == NodeType::Identifier);
-    CHECK(bTypeExprLhs->member->token().id() == "Y");
+    CHECK(cast<Identifier*>(bTypeExprLhs->member.get())->value() == "Y");
     CHECK(bTypeExpr->member->nodeType() == NodeType::Identifier);
-    CHECK(bTypeExpr->member->token().id() == "Z");
+    CHECK(cast<Identifier*>(bTypeExpr->member.get())->value() == "Z");
     auto const* returnTypeExpr =
         cast<Identifier*>(function->returnTypeExpr.get());
-    CHECK(returnTypeExpr->token().id() == "int");
+    CHECK(returnTypeExpr->value() == "int");
     CompoundStatement* const body = function->body.get();
     REQUIRE(body->statements.size() == 2);
     auto* const resultDecl =
@@ -68,13 +68,11 @@ fn main() -> void {
     auto* const aDecl =
         cast<VariableDeclaration*>(function->body->statements[0].get());
     auto* const intLit = cast<IntegerLiteral*>(aDecl->initExpression.get());
-    CHECK(intLit->token().id() == "39");
     CHECK(intLit->value() == 39);
     auto* const bDecl =
         cast<VariableDeclaration*>(function->body->statements[1].get());
     auto* const floatLit =
         cast<FloatingPointLiteral*>(bDecl->initExpression.get());
-    CHECK(floatLit->token().id() == "1.2");
     CHECK(floatLit->value().to<f64>() == 1.2);
 }
 

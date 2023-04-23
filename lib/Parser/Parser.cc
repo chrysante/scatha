@@ -118,8 +118,8 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
             return nullptr;
         }
     }
-    auto result =
-        allocate<ast::FunctionDefinition>(declarator, std::move(identifier));
+    auto result = allocate<ast::FunctionDefinition>(declarator.sourceLocation(),
+                                                    std::move(identifier));
     /// Parse parameters
     using ParamListType = decltype(result->parameters);
     auto parseList      = [this] {
@@ -252,7 +252,7 @@ UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
         Token const next = tokens.peek();
         SC_DEBUGFAIL(); // Handle issue
     }
-    return allocate<ast::StructDefinition>(declarator,
+    return allocate<ast::StructDefinition>(declarator.sourceLocation(),
                                            std::move(identifier),
                                            std::move(body));
 }
@@ -274,7 +274,12 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
         panic(tokens);
     }
     auto result =
-        allocate<ast::VariableDeclaration>(declarator.value_or(Token{}),
+        allocate<ast::VariableDeclaration>(declarator ?
+                                               declarator->sourceLocation() :
+                                           identifier ?
+                                               identifier->sourceLocation() :
+                                               tokens.current()
+                                                   .sourceLocation(),
                                            std::move(identifier));
     if (Token const colon = tokens.peek(); colon.kind() == Colon) {
         tokens.eat();
@@ -347,7 +352,7 @@ UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
         return nullptr;
     }
     tokens.eat();
-    auto result = allocate<ast::CompoundStatement>(openBrace);
+    auto result = allocate<ast::CompoundStatement>(openBrace.sourceLocation());
     while (true) {
         /// This mechanism checks wether a failed statement parse has eaten any
         /// tokens. If it hasn't we eat one ourselves and try again.
@@ -396,7 +401,8 @@ UniquePtr<ast::ReturnStatement> Context::parseReturnStatement() {
     /// May be null in case of void return statement.
     auto expression = parseComma();
     expectDelimiter(Semicolon);
-    return allocate<ast::ReturnStatement>(returnToken, std::move(expression));
+    return allocate<ast::ReturnStatement>(returnToken.sourceLocation(),
+                                          std::move(expression));
 }
 
 UniquePtr<ast::IfStatement> Context::parseIfStatement() {
@@ -431,7 +437,7 @@ UniquePtr<ast::IfStatement> Context::parseIfStatement() {
         SC_DEBUGFAIL(); // Handle issue
         return nullptr;
     }();
-    return allocate<ast::IfStatement>(ifToken,
+    return allocate<ast::IfStatement>(ifToken.sourceLocation(),
                                       std::move(cond),
                                       std::move(ifBlock),
                                       std::move(elseBlock));
@@ -451,7 +457,7 @@ UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
     if (!block) {
         issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
     }
-    return allocate<ast::WhileStatement>(whileToken,
+    return allocate<ast::WhileStatement>(whileToken.sourceLocation(),
                                          std::move(cond),
                                          std::move(block));
 }
@@ -487,7 +493,7 @@ UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
     else {
         tokens.eat();
     }
-    return allocate<ast::DoWhileStatement>(doToken,
+    return allocate<ast::DoWhileStatement>(doToken.sourceLocation(),
                                            std::move(cond),
                                            std::move(block));
 }
@@ -521,7 +527,7 @@ UniquePtr<ast::ForStatement> Context::parseForStatement() {
     if (!block) {
         issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
     }
-    return allocate<ast::ForStatement>(forToken,
+    return allocate<ast::ForStatement>(forToken.sourceLocation(),
                                        std::move(varDecl),
                                        std::move(cond),
                                        std::move(inc),
@@ -535,7 +541,7 @@ UniquePtr<ast::BreakStatement> Context::parseBreakStatement() {
     }
     tokens.eat();
     expectDelimiter(Semicolon);
-    return allocate<ast::BreakStatement>(token);
+    return allocate<ast::BreakStatement>(token.sourceLocation());
 }
 
 UniquePtr<ast::ContinueStatement> Context::parseContinueStatement() {
@@ -545,7 +551,7 @@ UniquePtr<ast::ContinueStatement> Context::parseContinueStatement() {
     }
     tokens.eat();
     expectDelimiter(Semicolon);
-    return allocate<ast::ContinueStatement>(token);
+    return allocate<ast::ContinueStatement>(token.sourceLocation());
 }
 
 UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
@@ -554,7 +560,7 @@ UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
         return nullptr;
     }
     tokens.eat();
-    return allocate<ast::EmptyStatement>(delim);
+    return allocate<ast::EmptyStatement>(delim.sourceLocation());
 }
 
 // MARK: - Expressions
@@ -608,7 +614,7 @@ UniquePtr<ast::Expression> Context::parseConditional() {
         return allocate<ast::Conditional>(std::move(logicalOr),
                                           std::move(lhs),
                                           std::move(rhs),
-                                          questionMark);
+                                          questionMark.sourceLocation());
     }
     return logicalOr;
 }
@@ -684,7 +690,7 @@ UniquePtr<ast::Expression> Context::parseUnary() {
         }
         return allocate<ast::UnaryPrefixExpression>(operatorType,
                                                     std::move(unary),
-                                                    token);
+                                                    token.sourceLocation());
     };
     if (token.kind() == BitAnd) {
         SC_DEBUGFAIL(); // Do we really want to support addressof operator?
@@ -772,18 +778,21 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
 }
 
 UniquePtr<ast::Identifier> Context::parseIdentifier() {
-    Token const next = tokens.peek();
-    if (!isIdentifier(next.kind())) {
+    Token const token = tokens.peek();
+    if (!isIdentifier(token.kind())) {
         return nullptr;
     }
-    return allocate<ast::Identifier>(tokens.eat());
+    tokens.eat();
+    return allocate<ast::Identifier>(token.sourceLocation(), token.id());
 }
 
 UniquePtr<ast::IntegerLiteral> Context::parseIntegerLiteral() {
     if (tokens.peek().kind() != TokenKind::IntegerLiteral) {
         return nullptr;
     }
-    return allocate<ast::IntegerLiteral>(tokens.eat());
+    auto token = tokens.eat();
+    return allocate<ast::IntegerLiteral>(token.sourceLocation(),
+                                         token.toInteger(64));
 }
 
 UniquePtr<ast::BooleanLiteral> Context::parseBooleanLiteral() {
@@ -791,21 +800,27 @@ UniquePtr<ast::BooleanLiteral> Context::parseBooleanLiteral() {
     if (token.kind() != TokenKind::True && token.kind() != TokenKind::False) {
         return nullptr;
     }
-    return allocate<ast::BooleanLiteral>(tokens.eat());
+    tokens.eat();
+    return allocate<ast::BooleanLiteral>(token.sourceLocation(),
+                                         token.toBool());
 }
 
 UniquePtr<ast::FloatingPointLiteral> Context::parseFloatingPointLiteral() {
     if (tokens.peek().kind() != TokenKind::FloatLiteral) {
         return nullptr;
     }
-    return allocate<ast::FloatingPointLiteral>(tokens.eat());
+    auto token = tokens.eat();
+    return allocate<ast::FloatingPointLiteral>(token.sourceLocation(),
+                                               token.toFloat(
+                                                   APFloatPrec::Double));
 }
 
 UniquePtr<ast::StringLiteral> Context::parseStringLiteral() {
     if (tokens.peek().kind() != TokenKind::StringLiteral) {
         return nullptr;
     }
-    return allocate<ast::StringLiteral>(tokens.eat());
+    auto token = tokens.eat();
+    return allocate<ast::StringLiteral>(token.sourceLocation(), token.id());
 }
 
 template <typename FunctionCallLike>
@@ -813,7 +828,8 @@ UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(
     UniquePtr<ast::Expression> primary, TokenKind open, TokenKind close) {
     auto const& openToken = tokens.peek();
     SC_ASSERT(openToken.kind() == open, "");
-    auto result = allocate<FunctionCallLike>(std::move(primary), openToken);
+    auto result = allocate<FunctionCallLike>(std::move(primary),
+                                             openToken.sourceLocation());
     result->arguments =
         parseList<decltype(result->arguments)>(open, close, Comma, [this] {
             return parseAssignment();
@@ -889,7 +905,7 @@ UniquePtr<ast::Expression> Context::parseMemberAccess(
         }
         left = allocate<ast::MemberAccess>(std::move(left),
                                            std::move(right),
-                                           token);
+                                           token.sourceLocation());
         continue;
     }
 }
@@ -985,7 +1001,7 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorLTR(auto&& operand) {
         left = allocate<ast::BinaryExpression>(op,
                                                std::move(left),
                                                std::move(right),
-                                               token);
+                                               token.sourceLocation());
         return true;
     };
     while (true) {
@@ -1018,7 +1034,7 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(
         return allocate<ast::BinaryExpression>(op,
                                                std::move(left),
                                                std::move(right),
-                                               operatorToken);
+                                               operatorToken.sourceLocation());
     };
     if (UniquePtr<ast::Expression> result = nullptr;
         ((operatorToken.kind() == toTokenKind(Op) &&

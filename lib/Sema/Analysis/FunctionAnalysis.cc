@@ -242,7 +242,8 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
     if (iss.fatal()) {
         return;
     }
-    auto paramObj = sym.addVariable(paramDecl.token(), declaredTypeID);
+    auto paramObj =
+        sym.addVariable(paramDecl.nameIdentifier->value(), declaredTypeID);
     if (!paramObj) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(paramObj.error()))

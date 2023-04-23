@@ -74,25 +74,21 @@ public:
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }
 
-    /// Token associated with this node
-    Token const& token() const { return _token; }
-
-    /// Source location object associated with this node. Same as
-    /// `token().sourceLocation`
-    SourceLocation sourceLocation() const { return token().sourceLocation(); }
+    /// Source location object associated with this node.
+    SourceLocation sourceLocation() const { return _sourceLoc; }
 
 protected:
-    explicit AbstractSyntaxTree(NodeType type, Token const& token):
-        _type(type), _token(token) {}
+    explicit AbstractSyntaxTree(NodeType type, SourceLocation sourceLoc):
+        _type(type), _sourceLoc(sourceLoc) {}
 
-    void setToken(Token token) { _token = std::move(token); }
+    void setSourceLocation(SourceLocation sourceLoc) { _sourceLoc = sourceLoc; }
 
 private:
     friend void scatha::internal::privateDelete(ast::AbstractSyntaxTree*);
 
 private:
     NodeType _type;
-    Token _token;
+    SourceLocation _sourceLoc;
 };
 
 // For `dyncast` compatibilty
@@ -153,11 +149,11 @@ private:
 /// Concrete node representing an identifier.
 class SCATHA_API Identifier: public Expression {
 public:
-    explicit Identifier(Token const& token):
-        Expression(NodeType::Identifier, token) {}
+    explicit Identifier(SourceLocation sourceLoc, std::string id):
+        Expression(NodeType::Identifier, sourceLoc), _value(id) {}
 
     /// Literal string value as declared in the source.
-    std::string_view value() const { return token().id(); }
+    std::string const& value() const { return _value; }
 
     /// **Decoration provided by semantic analysis**
 
@@ -177,15 +173,16 @@ public:
     }
 
 private:
+    std::string _value;
     sema::SymbolID _symbolID;
 };
 
 /// Concrete node representing an integer literal.
 class SCATHA_API IntegerLiteral: public Expression {
 public:
-    explicit IntegerLiteral(Token const& token):
-        Expression(NodeType::IntegerLiteral, token),
-        _value(token.toInteger(64)) {}
+    explicit IntegerLiteral(SourceLocation sourceLoc, APInt value):
+        Expression(NodeType::IntegerLiteral, sourceLoc),
+        _value(std::move(value)) {}
 
     APInt value() const { return _value; };
 
@@ -196,8 +193,9 @@ private:
 /// Concrete node representing a boolean literal.
 class SCATHA_API BooleanLiteral: public Expression {
 public:
-    explicit BooleanLiteral(Token const& token):
-        Expression(NodeType::BooleanLiteral, token), _value(token.toBool()) {}
+    explicit BooleanLiteral(SourceLocation sourceLoc, APInt value):
+        Expression(NodeType::BooleanLiteral, sourceLoc),
+        _value(std::move(value)) {}
 
     /// Value as declared in the source code.
     APInt value() const { return _value; }
@@ -209,9 +207,9 @@ private:
 /// Concrete node representing a floating point literal.
 class SCATHA_API FloatingPointLiteral: public Expression {
 public:
-    explicit FloatingPointLiteral(Token const& token):
-        Expression(NodeType::FloatingPointLiteral, token),
-        _value(token.toFloat()) {}
+    explicit FloatingPointLiteral(SourceLocation sourceLoc, APFloat value):
+        Expression(NodeType::FloatingPointLiteral, sourceLoc),
+        _value(std::move(value)) {}
 
     APFloat value() const { return _value; }
 
@@ -222,8 +220,9 @@ private:
 /// Concrete node representing a string literal.
 class SCATHA_API StringLiteral: public Expression {
 public:
-    explicit StringLiteral(Token const& token):
-        Expression(NodeType::StringLiteral, token), _value(token.id()) {}
+    explicit StringLiteral(SourceLocation sourceLoc, std::string value):
+        Expression(NodeType::StringLiteral, sourceLoc),
+        _value(std::move(value)) {}
 
     /// Value as declared in the source code.
     std::string value() const { return _value; }
@@ -239,8 +238,8 @@ class SCATHA_API UnaryPrefixExpression: public Expression {
 public:
     explicit UnaryPrefixExpression(UnaryPrefixOperator op,
                                    UniquePtr<Expression> operand,
-                                   Token const& token):
-        Expression(NodeType::UnaryPrefixExpression, token),
+                                   SourceLocation sourceLoc):
+        Expression(NodeType::UnaryPrefixExpression, sourceLoc),
         operand(std::move(operand)),
         op(op) {}
 
@@ -262,8 +261,8 @@ public:
     explicit BinaryExpression(BinaryOperator op,
                               UniquePtr<Expression> lhs,
                               UniquePtr<Expression> rhs,
-                              Token const& token):
-        Expression(NodeType::BinaryExpression, token),
+                              SourceLocation sourceLoc):
+        Expression(NodeType::BinaryExpression, sourceLoc),
         lhs(std::move(lhs)),
         rhs(std::move(rhs)),
         op(op) {}
@@ -289,8 +288,8 @@ class SCATHA_API MemberAccess: public Expression {
 public:
     explicit MemberAccess(UniquePtr<Expression> object,
                           UniquePtr<Expression> member,
-                          Token const& dotToken):
-        Expression(NodeType::MemberAccess, dotToken),
+                          SourceLocation sourceLoc):
+        Expression(NodeType::MemberAccess, sourceLoc),
         object(std::move(object)),
         member(std::move(member)) {}
 
@@ -329,8 +328,8 @@ public:
     explicit Conditional(UniquePtr<Expression> condition,
                          UniquePtr<Expression> ifExpr,
                          UniquePtr<Expression> elseExpr,
-                         Token const& token):
-        Expression(NodeType::Conditional, token),
+                         SourceLocation sourceLoc):
+        Expression(NodeType::Conditional, sourceLoc),
         condition(std::move(condition)),
         ifExpr(std::move(ifExpr)),
         elseExpr(std::move(elseExpr)) {}
@@ -350,8 +349,10 @@ public:
 /// Concrete node representing a function call expression.
 class SCATHA_API FunctionCall: public Expression {
 public:
-    explicit FunctionCall(UniquePtr<Expression> object, Token const& token):
-        Expression(NodeType::FunctionCall, token), object(std::move(object)) {}
+    explicit FunctionCall(UniquePtr<Expression> object,
+                          SourceLocation sourceLoc):
+        Expression(NodeType::FunctionCall, sourceLoc),
+        object(std::move(object)) {}
 
     /// The object (function or rather overload set) being called.
     UniquePtr<Expression> object;
@@ -386,8 +387,8 @@ private:
 /// Concrete node representing a subscript expression.
 class SCATHA_API Subscript: public Expression {
 public:
-    explicit Subscript(UniquePtr<Expression> object, Token const& token):
-        Expression(NodeType::Subscript, token), object(std::move(object)) {}
+    explicit Subscript(UniquePtr<Expression> object, SourceLocation sourceLoc):
+        Expression(NodeType::Subscript, sourceLoc), object(std::move(object)) {}
 
     /// The object being indexed.
     UniquePtr<Expression> object;
@@ -407,8 +408,7 @@ class SCATHA_API Declaration: public Statement {
 public:
     /// Name of the declared symbol as written in the source code.
     std::string_view name() const {
-        return nameIdentifier ? std::string_view(nameIdentifier->token().id()) :
-                                "";
+        return nameIdentifier ? nameIdentifier->value() : std::string_view{};
     }
 
     /// Identifier expression representing the name of this declaration.
@@ -433,9 +433,9 @@ public:
 
 protected:
     explicit Declaration(NodeType type,
-                         Token const& declarator,
+                         SourceLocation sourceLoc,
                          UniquePtr<Identifier> name):
-        Statement(type, declarator), nameIdentifier(std::move(name)) {}
+        Statement(type, sourceLoc), nameIdentifier(std::move(name)) {}
 
 private:
     sema::SymbolID _symbolID;
@@ -444,7 +444,8 @@ private:
 /// Concrete node representing a translation unit.
 class SCATHA_API TranslationUnit: public AbstractSyntaxTree {
 public:
-    TranslationUnit(): AbstractSyntaxTree(NodeType::TranslationUnit, Token{}) {}
+    TranslationUnit():
+        AbstractSyntaxTree(NodeType::TranslationUnit, SourceLocation{}) {}
 
     /// List of declarations in the translation unit.
     utl::small_vector<UniquePtr<Declaration>> declarations;
@@ -453,11 +454,10 @@ public:
 /// Concrete node representing a variable declaration.
 class SCATHA_API VariableDeclaration: public Declaration {
 public:
-    explicit VariableDeclaration(Token const& declarator,
+    explicit VariableDeclaration(SourceLocation sourceLoc,
                                  UniquePtr<Identifier> name):
-        Declaration(NodeType::VariableDeclaration,
-                    declarator,
-                    std::move(name)) {}
+        Declaration(NodeType::VariableDeclaration, sourceLoc, std::move(name)) {
+    }
 
     bool isConstant : 1 = false; // Will be set by the parser
 
@@ -511,10 +511,12 @@ class SCATHA_API ParameterDeclaration: public Declaration {
 public:
     explicit ParameterDeclaration(UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
-        Declaration(NodeType::ParameterDeclaration, Token{}, std::move(name)),
+        Declaration(NodeType::ParameterDeclaration,
+                    SourceLocation{},
+                    std::move(name)),
         typeExpr(std::move(typeExpr)) {
         if (nameIdentifier) {
-            setToken(nameIdentifier->token());
+            setSourceLocation(nameIdentifier->sourceLocation());
         }
     }
 
@@ -549,8 +551,8 @@ public:
 /// anonymous) scope.
 class SCATHA_API CompoundStatement: public Statement {
 public:
-    explicit CompoundStatement(Token const& token):
-        Statement(NodeType::CompoundStatement, token) {}
+    explicit CompoundStatement(SourceLocation sourceLoc):
+        Statement(NodeType::CompoundStatement, sourceLoc) {}
 
     /// List of statements in the compound statement.
     utl::small_vector<UniquePtr<Statement>> statements;
@@ -587,18 +589,16 @@ private:
 /// parsing but can potentially handle them in some way in semantic analysis.
 class SCATHA_API EmptyStatement: public Statement {
 public:
-    explicit EmptyStatement(Token const& token):
-        Statement(NodeType::EmptyStatement, token) {}
+    explicit EmptyStatement(SourceLocation sourceLoc):
+        Statement(NodeType::EmptyStatement, sourceLoc) {}
 };
 
 /// Concrete node representing the definition of a function.
 class SCATHA_API FunctionDefinition: public Declaration {
 public:
-    explicit FunctionDefinition(Token const& declarator,
+    explicit FunctionDefinition(SourceLocation sourceLoc,
                                 UniquePtr<Identifier> name):
-        Declaration(NodeType::FunctionDefinition,
-                    std::move(declarator),
-                    std::move(name)) {}
+        Declaration(NodeType::FunctionDefinition, sourceLoc, std::move(name)) {}
 
     /// Typename of the return type as declared in the source code.
     /// Will be null if no return type was declared.
@@ -631,12 +631,10 @@ private:
 /// Concrete node representing the definition of a struct.
 class SCATHA_API StructDefinition: public Declaration {
 public:
-    explicit StructDefinition(Token const& declarator,
+    explicit StructDefinition(SourceLocation sourceLoc,
                               UniquePtr<Identifier> name,
                               UniquePtr<CompoundStatement> body):
-        Declaration(NodeType::StructDefinition,
-                    std::move(declarator),
-                    std::move(name)),
+        Declaration(NodeType::StructDefinition, sourceLoc, std::move(name)),
         body(std::move(body)) {}
 
     /// Body of the struct.
@@ -654,7 +652,7 @@ class SCATHA_API ExpressionStatement: public Statement {
 public:
     explicit ExpressionStatement(UniquePtr<Expression> expression):
         Statement(NodeType::ExpressionStatement,
-                  expression ? expression->token() : Token{}),
+                  expression ? expression->sourceLocation() : SourceLocation{}),
         expression(std::move(expression)) {}
 
     /// The expression
@@ -671,9 +669,9 @@ protected:
 /// Concrete node representing a return statement.
 class SCATHA_API ReturnStatement: public ControlFlowStatement {
 public:
-    explicit ReturnStatement(Token const& returnToken,
+    explicit ReturnStatement(SourceLocation sourceLoc,
                              UniquePtr<Expression> expression):
-        ControlFlowStatement(NodeType::ReturnStatement, returnToken),
+        ControlFlowStatement(NodeType::ReturnStatement, sourceLoc),
         expression(std::move(expression)) {}
 
     /// The returned expression. May be null in case of a void function.
@@ -683,11 +681,11 @@ public:
 /// Concrete node representing an if/else statement.
 class SCATHA_API IfStatement: public ControlFlowStatement {
 public:
-    explicit IfStatement(Token const& token,
+    explicit IfStatement(SourceLocation sourceLoc,
                          UniquePtr<Expression> condition,
                          UniquePtr<Statement> ifBlock,
                          UniquePtr<Statement> elseBlock):
-        ControlFlowStatement(NodeType::IfStatement, token),
+        ControlFlowStatement(NodeType::IfStatement, sourceLoc),
         condition(std::move(condition)),
         thenBlock(std::move(ifBlock)),
         elseBlock(std::move(elseBlock)) {}
@@ -707,10 +705,10 @@ public:
 /// Concrete node representing a while statement.
 class SCATHA_API WhileStatement: public ControlFlowStatement {
 public:
-    explicit WhileStatement(Token const& token,
+    explicit WhileStatement(SourceLocation sourceLoc,
                             UniquePtr<Expression> condition,
                             UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::WhileStatement, token),
+        ControlFlowStatement(NodeType::WhileStatement, sourceLoc),
         condition(std::move(condition)),
         block(std::move(block)) {}
 
@@ -726,10 +724,10 @@ public:
 /// Concrete node representing a do-while statement.
 class SCATHA_API DoWhileStatement: public ControlFlowStatement {
 public:
-    explicit DoWhileStatement(Token const& token,
+    explicit DoWhileStatement(SourceLocation sourceLoc,
                               UniquePtr<Expression> condition,
                               UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::DoWhileStatement, token),
+        ControlFlowStatement(NodeType::DoWhileStatement, sourceLoc),
         condition(std::move(condition)),
         block(std::move(block)) {}
 
@@ -745,12 +743,12 @@ public:
 /// Concrete node representing a for statement.
 class SCATHA_API ForStatement: public ControlFlowStatement {
 public:
-    explicit ForStatement(Token const& token,
+    explicit ForStatement(SourceLocation sourceLoc,
                           UniquePtr<VariableDeclaration> varDecl,
                           UniquePtr<Expression> condition,
                           UniquePtr<Expression> increment,
                           UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::ForStatement, token),
+        ControlFlowStatement(NodeType::ForStatement, sourceLoc),
         varDecl(std::move(varDecl)),
         condition(std::move(condition)),
         increment(std::move(increment)),
@@ -775,15 +773,15 @@ public:
 /// Represents a `break;` statement.
 class SCATHA_API BreakStatement: public ControlFlowStatement {
 public:
-    explicit BreakStatement(Token const& token):
-        ControlFlowStatement(NodeType::BreakStatement, token) {}
+    explicit BreakStatement(SourceLocation sourceLoc):
+        ControlFlowStatement(NodeType::BreakStatement, sourceLoc) {}
 };
 
 /// Represents a `continue;` statement.
 class SCATHA_API ContinueStatement: public ControlFlowStatement {
 public:
-    explicit ContinueStatement(Token const& token):
-        ControlFlowStatement(NodeType::ContinueStatement, token) {}
+    explicit ContinueStatement(SourceLocation sourceLoc):
+        ControlFlowStatement(NodeType::ContinueStatement, sourceLoc) {}
 };
 
 } // namespace scatha::ast

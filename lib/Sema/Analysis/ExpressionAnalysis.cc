@@ -153,7 +153,7 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
             return sym.currentScope().findID(id.value());
         }
         else {
-            return sym.lookup(id.token());
+            return sym.lookup(id.value());
         }
     }();
     if (!symbolID) {

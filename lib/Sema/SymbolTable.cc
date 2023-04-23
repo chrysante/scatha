@@ -51,7 +51,7 @@ SymbolTable::~SymbolTable() = default;
 
 Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
     ast::StructDefinition const& structDef) {
-    auto result = declareObjectType(structDef.nameIdentifier->token());
+    auto result = declareObjectType(structDef.nameIdentifier->value());
     if (!result) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(result.error()))
@@ -105,7 +105,7 @@ TypeID SymbolTable::declareBuiltinType(std::string name,
 
 Expected<Function const&, SemanticIssue*> SymbolTable::declareFunction(
     ast::FunctionDefinition const& functionDef) {
-    auto result = declareFunction(functionDef.nameIdentifier->token());
+    auto result = declareFunction(functionDef.nameIdentifier->value());
     if (!result) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(result.error()))
@@ -217,7 +217,7 @@ bool SymbolTable::declareExternalFunction(std::string name,
 
 Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
     ast::VariableDeclaration const& varDecl) {
-    auto result = declareVariable(varDecl.nameIdentifier->token());
+    auto result = declareVariable(varDecl.nameIdentifier->value());
     if (!result) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(result.error()))
@@ -260,7 +260,7 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(Token name) {
 
 Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
     ast::VariableDeclaration const& varDecl, TypeID typeID, size_t offset) {
-    auto result = addVariable(varDecl.nameIdentifier->token(), typeID, offset);
+    auto result = addVariable(varDecl.nameIdentifier->value(), typeID, offset);
     if (!result) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(result.error()))

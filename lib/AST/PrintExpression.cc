@@ -55,19 +55,19 @@ void Context::dispatchExpression(Expression const& expr) {
 void Context::printExpression(Identifier const& id) { str << id.value(); }
 
 void Context::printExpression(IntegerLiteral const& l) {
-    str << l.token().id();
+    str << l.value().toString();
 }
 
 void Context::printExpression(BooleanLiteral const& l) {
-    str << l.token().id();
+    str << (l.value() == 1 ? "true" : "false");
 }
 
 void Context::printExpression(FloatingPointLiteral const& l) {
-    str << l.token().id();
+    str << l.value().toString();
 }
 
 void Context::printExpression(StringLiteral const& l) {
-    str << '"' << l.token().id() << '"';
+    str << '"' << l.value() << '"';
 }
 
 void Context::printExpression(UnaryPrefixExpression const& expr) {
