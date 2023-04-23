@@ -17,10 +17,6 @@ class SCATHA_API LexicalIssue: public Issue {
 public:
 protected:
     using Issue::Issue;
-
-private:
-    void doPrint(std::ostream&) const override;
-    std::string doToString() const override;
 };
 
 /// Unexpected character encountered
@@ -28,6 +24,9 @@ class SCATHA_API UnexpectedCharacter: public LexicalIssue {
 public:
     explicit UnexpectedCharacter(SourceLocation sourceLoc):
         LexicalIssue(sourceLoc, IssueSeverity::Error) {}
+
+private:
+    std::string message() const override { return "Unexpected character"; }
 };
 
 /// Invalid numeric literal
@@ -41,6 +40,8 @@ public:
     Kind kind() const { return _kind; }
 
 private:
+    std::string message() const override { return "Invalid numeric literal"; }
+
     Kind _kind;
 };
 
@@ -49,6 +50,11 @@ class SCATHA_API UnterminatedStringLiteral: public LexicalIssue {
 public:
     explicit UnterminatedStringLiteral(SourceLocation sourceLoc):
         LexicalIssue(sourceLoc, IssueSeverity::Error) {}
+
+private:
+    std::string message() const override {
+        return "Unterminated string literal";
+    }
 };
 
 /// Unterminated comment
@@ -56,6 +62,11 @@ class SCATHA_API UnterminatedMultiLineComment: public LexicalIssue {
 public:
     explicit UnterminatedMultiLineComment(SourceLocation sourceLoc):
         LexicalIssue(sourceLoc, IssueSeverity::Error) {}
+
+private:
+    std::string message() const override {
+        return "Unterminated multiline comment";
+    }
 };
 
 } // namespace scatha::parse

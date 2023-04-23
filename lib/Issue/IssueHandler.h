@@ -4,8 +4,8 @@
 #define SCATHA_ISSUE_ISSUEHANDLER2_H_
 
 #include <concepts>
+#include <iosfwd>
 #include <memory>
-#include <span>
 #include <vector>
 
 #include <range/v3/view.hpp>
@@ -40,12 +40,16 @@ public:
         push(new T(std::forward<Args>(args)...));
     }
 
+    /// Begin iterator
     auto begin() const { return issueView().begin(); }
 
+    /// End iterator
     auto end() const { return issueView().end(); }
 
+    /// First issue
     Issue const& front() const { return **begin(); }
 
+    /// Last issue
     Issue const& back() const { return **--end(); }
 
     /// \Returns `true` iff no  issues occurred
@@ -56,7 +60,14 @@ public:
     /// \Returns `true` iff a fatal error has occurred
     bool fatal() const { return false; /* For now */ }
 
+    /// Issue at index \p index
     Issue const& operator[](size_t index) const { return *_issues[index]; }
+
+    /// Print all issues
+    void print(std::string_view source);
+
+    /// Print all issues to \p ostream
+    void print(std::string_view source, std::ostream& ostream);
 
 private:
     std::vector<std::unique_ptr<Issue>> _issues;

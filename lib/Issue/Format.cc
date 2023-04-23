@@ -17,12 +17,20 @@ void scatha::highlightSource(std::string_view text,
 
 static std::string_view getLineImpl(std::string_view text, size_t index) {
     size_t begin = index;
-    while (text[begin] != '\n') {
-        --begin;
+    if (text[begin] != '\n') {
+        while (true) {
+            if (begin == 0) {
+                break;
+            }
+            if (text[begin] == '\n') {
+                ++begin;
+                break;
+            }
+            --begin;
+        }
     }
-    ++begin;
     size_t end = index;
-    while (text[end] != '\n') {
+    while (end < text.size() && text[end] != '\n') {
         ++end;
     }
     return std::string_view(text.data() + begin, end - begin);
@@ -76,6 +84,7 @@ void scatha::highlightSource(std::string_view text,
     size_t const index  = utl::narrow_cast<size_t>(sourceLocation.index);
     size_t const column = utl::narrow_cast<size_t>(sourceLocation.column);
     std::string_view const line = getLine(text, index);
+    numChars                    = std::min(numChars, line.size() - column + 1);
 
     /// Previous lines
     ssize_t lineIndex = std::max(0, sourceLocation.line - 3);

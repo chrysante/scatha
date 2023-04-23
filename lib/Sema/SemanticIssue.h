@@ -1,7 +1,6 @@
 #ifndef SCATHA_SEMA_SEMAISSUE2_H_
 #define SCATHA_SEMA_SEMAISSUE2_H_
 
-#include <iosfwd>
 #include <optional>
 #include <span>
 #include <stdexcept>
@@ -28,10 +27,6 @@ public:
     virtual SemanticIssue* setStatement(ast::Statement const& statement) {
         return this;
     }
-
-private:
-    void doPrint(std::ostream&) const { SC_DEBUGFAIL(); }
-    std::string doToString() const { SC_DEBUGFAIL(); }
 };
 
 /// General expression issue
@@ -42,6 +37,8 @@ public:
     ast::Expression const& expression() const { return *_expr; }
 
 private:
+    std::string message() const override { return "Bad expression"; }
+
     ast::Expression const* _expr;
 };
 
@@ -54,6 +51,8 @@ public:
     TypeID to() const { return _to; }
 
 private:
+    std::string message() const override { return "Invalid type conversion"; }
+
     TypeID _from;
     TypeID _to;
 };
@@ -80,6 +79,10 @@ public:
     TypeID rhs() const { return _rhs; }
 
 private:
+    std::string message() const override {
+        return "Invalid operands for binary expression";
+    }
+
     TypeID _lhs;
     TypeID _rhs;
 };
@@ -109,6 +112,10 @@ public:
     SymbolID overloadSetID() const { return _overloadSetID; }
 
 private:
+    std::string message() const override {
+        return "No matching function to call";
+    }
+
     Reason _reason;
     utl::small_vector<TypeID> _argTypeIDs;
     SymbolID _overloadSetID;
@@ -141,6 +148,8 @@ public:
     ast::EntityCategory expected() const { return _expected; }
 
 private:
+    std::string message() const override { return "Invalid symbol category"; }
+
     ast::EntityCategory _have;
     ast::EntityCategory _expected;
 };
@@ -169,6 +178,8 @@ public:
     Scope const& currentScope() const { return *_scope; }
 
 private:
+    std::string message() const override { return "Invalid statement"; }
+
     ast::Statement const* _statement;
     Reason _reason;
     Scope const* _scope;
@@ -208,6 +219,8 @@ public:
     SymbolCategory existingSymbolCategory() const { return _existingCategory; }
 
 private:
+    std::string message() const override { return "Invalid declaration"; }
+
     Reason _reason;
     SymbolCategory _category;
     SymbolCategory _existingCategory;
@@ -228,6 +241,8 @@ public:
     std::span<Node const> cycle() const { return _cycle; }
 
 private:
+    std::string message() const override { return "Strong reference cycle"; }
+
     utl::vector<Node> _cycle;
 };
 

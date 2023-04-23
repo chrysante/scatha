@@ -23,19 +23,16 @@ public:
         sourceLoc = sourceLocation;
     }
 
-    std::string toString() const { return doToString(); }
+    void print(std::string_view source);
 
-    void print();
-
-    void print(std::ostream& ostream) { doPrint(ostream); }
+    void print(std::string_view source, std::ostream& ostream);
 
 protected:
     explicit Issue(SourceLocation sourceLoc, IssueSeverity severity):
         sourceLoc(sourceLoc), sev(severity) {}
 
 private:
-    virtual void doPrint(std::ostream&) const = 0;
-    virtual std::string doToString() const    = 0;
+    virtual std::string message() const = 0;
 
     SourceLocation sourceLoc;
     IssueSeverity sev;

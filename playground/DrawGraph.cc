@@ -65,8 +65,8 @@ struct Ctx {
     std::stringstream str;
 };
 
-static constexpr auto font     = "SF Pro";
-static constexpr auto monoFont = "SF Mono";
+[[maybe_unused]] static constexpr auto font     = "SF Pro";
+[[maybe_unused]] static constexpr auto monoFont = "SF Mono";
 
 } // namespace
 

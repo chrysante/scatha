@@ -25,9 +25,6 @@ protected:
     using Issue::Issue;
 
 private:
-    void doPrint(std::ostream&) const override;
-    std::string doToString() const override;
-
     Token tok;
 };
 
@@ -35,36 +32,56 @@ class SCATHA_API ExpectedIdentifier: public SyntaxIssue {
 public:
     explicit ExpectedIdentifier(Token token):
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
+
+private:
+    std::string message() const override { return "Expected identifier"; }
 };
 
 class SCATHA_API ExpectedDeclarator: public SyntaxIssue {
 public:
     explicit ExpectedDeclarator(Token token):
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
+
+private:
+    std::string message() const override { return "Expected declarator"; }
 };
 
 class SCATHA_API ExpectedDelimiter: public SyntaxIssue {
 public:
     explicit ExpectedDelimiter(Token token):
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
+
+private:
+    std::string message() const override { return "Expected delimiter"; }
 };
 
 class SCATHA_API ExpectedExpression: public SyntaxIssue {
 public:
     explicit ExpectedExpression(Token token):
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
+
+private:
+    std::string message() const override { return "Expected expression"; }
 };
 
 class SCATHA_API ExpectedClosingBracket: public SyntaxIssue {
 public:
     explicit ExpectedClosingBracket(Token token):
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
+
+private:
+    std::string message() const override { return "Expected closing bracket"; }
 };
 
 class SCATHA_API UnexpectedClosingBracket: public SyntaxIssue {
 public:
     explicit UnexpectedClosingBracket(Token token):
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
+
+private:
+    std::string message() const override {
+        return "Unexpected closing bracket";
+    }
 };
 
 class SCATHA_API UnqualifiedID: public SyntaxIssue {
@@ -75,6 +92,8 @@ public:
     TokenKind expected() const { return exp; }
 
 private:
+    std::string message() const override { return "Unqualified ID"; }
+
     TokenKind exp;
 };
 

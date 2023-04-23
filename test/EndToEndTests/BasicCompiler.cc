@@ -40,19 +40,19 @@ static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
     IssueHandler issues;
     auto tokens = parse::lex(text, issues);
     if (!issues.empty()) {
-        throw std::runtime_error("Compilation failed");
+        issues.print(text);
+        std::exit(1);
     }
     auto ast = parse::parse(tokens, issues);
     if (!issues.empty()) {
-        throw std::runtime_error("Compilation failed");
+        issues.print(text);
+        std::exit(1);
     }
     sema::SymbolTable sym;
     sema::analyze(*ast, sym, issues);
     if (!issues.empty()) {
-        for (auto* issue: issues) {
-            std::cout << " at: " << issue->sourceLocation() << std::endl;
-        }
-        throw std::runtime_error("Compilation failed");
+        issues.print(text);
+        std::exit(1);
     }
     ir::Context ctx;
     auto mod = ast::lowerToIR(*ast, sym, ctx);

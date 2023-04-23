@@ -180,30 +180,7 @@ static void run(mir::Module const& mod) {
     run(mirMod);
 }
 
-[[maybe_unused]] static void volPlayground(std::filesystem::path path) {
-    std::fstream file(path);
-    std::stringstream sstr;
-    sstr << file.rdbuf();
-    std::string text = sstr.str();
-    IssueHandler issues;
-    auto tokens = parse::lex(text, issues);
-    auto root   = parse::parse(tokens, issues);
-
-    if (!issues.empty()) {
-        for (auto* err: issues) {
-            std::cout << typeid(*err).name() << std::endl;
-        }
-        return;
-    }
-    sema::SymbolTable sym;
-    sema::analyze(*root, sym, issues);
-    for (auto* err: issues) {
-        std::cout << typeid(*err).name() << std::endl;
-        //        std::cout << issue.visit([](auto& i) { return
-        //        i.sourceLocation(); })
-        //                  << std::endl;
-    }
-}
+[[maybe_unused]] static void volPlayground(std::filesystem::path path) {}
 
 void playground::volatilePlayground(std::filesystem::path path) {
     volPlayground(path);
