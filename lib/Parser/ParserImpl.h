@@ -40,12 +40,10 @@ struct Context {
     UniquePtr<ast::ContinueStatement> parseContinueStatement();
 
     // Expressions
+    UniquePtr<ast::Expression> parseTypeExpression();
+    UniquePtr<ast::ReferenceExpression> parseReferenceExpression();
     UniquePtr<ast::Expression> parseComma();
     UniquePtr<ast::Expression> parseAssignment();
-    // Convenience wrapper
-    UniquePtr<ast::Expression> parseTypeExpression() {
-        return parseConditional();
-    }
     UniquePtr<ast::Expression> parseConditional();
     UniquePtr<ast::Expression> parseLogicalOr();
     UniquePtr<ast::Expression> parseLogicalAnd();

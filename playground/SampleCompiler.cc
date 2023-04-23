@@ -19,9 +19,7 @@
 #include "IR/Module.h"
 #include "IR/Print.h"
 #include "IR/Validate.h"
-#include "Opt/ConstantPropagation.h"
-#include "Opt/DCE.h"
-#include "Opt/MemToReg.h"
+#include "Opt/Inliner.h"
 #include "Parser/Lexer.h"
 #include "Parser/LexicalIssue.h"
 #include "Parser/Parser.h"
@@ -65,18 +63,17 @@ void playground::compile(std::filesystem::path filepath) {
 
 void playground::compile(std::string text) {
     // Lexical analysis
-    header(" Tokens ");
     IssueHandler issues;
     auto tokens = parse::lex(text, issues);
     issues.print(text);
 
     // Parsing
-    header(" AST ");
     auto ast = parse::parse(tokens, issues);
     issues.print(text);
     if (!issues.empty()) {
         return;
     }
+    printTree(*ast);
 
     // Semantic analysis
     header(" Symbol Table ");
@@ -86,6 +83,7 @@ void playground::compile(std::string text) {
     if (!issues.empty()) {
         return;
     }
+    sema::printSymbolTable(sym);
 
     subHeader();
     header(" Generated IR ");
@@ -94,11 +92,7 @@ void playground::compile(std::string text) {
     ir::print(mod);
 
     header(" Optimized IR ");
-    for (auto& function: mod) {
-        opt::memToReg(irCtx, function);
-        opt::propagateConstants(irCtx, function);
-        opt::dce(irCtx, function);
-    }
+    opt::inlineFunctions(irCtx, mod);
     ir::print(mod);
 
     header(" Assembly generated from IR ");

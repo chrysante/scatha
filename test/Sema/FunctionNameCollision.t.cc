@@ -19,8 +19,8 @@ fn g(x: int) -> int {
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     auto f                     = sym.lookup("f");
     CHECK(f.category() == SymbolCategory::OverloadSet);
-    CHECK(sym.getOverloadSet(f).name() == "f");
+    CHECK(sym.get<OverloadSet>(f).name() == "f");
     auto g = sym.lookup("g");
     CHECK(g.category() == SymbolCategory::OverloadSet);
-    CHECK(sym.getOverloadSet(g).name() == "g");
+    CHECK(sym.get<OverloadSet>(g).name() == "g");
 }

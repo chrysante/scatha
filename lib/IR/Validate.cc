@@ -82,8 +82,9 @@ void AssertContext::assertInvariants(Module const& mod) {
 
 void AssertContext::assertInvariants(Function const& function) {
     currentFunction = &function;
+    CHECK(!function.empty(), "Empty functions are invalid");
     /// Annoying that we have to `const_cast` here, but `DominanceInfo` exposes
-    /// all references as mutable so we have no other choice.
+    /// all references as mutable so we have no choice.
     domMap = DominanceInfo::computeDomSets(const_cast<Function&>(function));
     for (auto& bb: function) {
         CHECK(bb.parent() == &function,

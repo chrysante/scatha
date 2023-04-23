@@ -20,7 +20,7 @@ fn mul(a: int, b: int, c: float) -> int {
     REQUIRE(iss.empty());
     auto const& mulID = sym.lookup("mul");
     CHECK(mulID.category() == SymbolCategory::OverloadSet);
-    auto const& mul = sym.getOverloadSet(mulID);
+    auto const& mul = sym.get<OverloadSet>(mulID);
     auto const* mulFnPtr =
         mul.find(std::array{ sym.Int(), sym.Int(), sym.Float() });
     REQUIRE(mulFnPtr != nullptr);
@@ -32,16 +32,16 @@ fn mul(a: int, b: int, c: float) -> int {
     CHECK(fnType.argumentTypeID(1) == sym.Int());
     CHECK(fnType.argumentTypeID(2) == sym.Float());
     auto const aID = mulFn.findID("a");
-    auto const& a  = sym.getVariable(aID);
+    auto const& a  = sym.get<Variable>(aID);
     CHECK(a.typeID() == sym.Int());
     auto const bID = mulFn.findID("b");
-    auto const& b  = sym.getVariable(bID);
+    auto const& b  = sym.get<Variable>(bID);
     CHECK(b.typeID() == sym.Int());
     auto const cID = mulFn.findID("c");
-    auto const& c  = sym.getVariable(cID);
+    auto const& c  = sym.get<Variable>(cID);
     CHECK(c.typeID() == sym.Float());
     auto const resultID = mulFn.findID("result");
-    auto const& result  = sym.getVariable(resultID);
+    auto const& result  = sym.get<Variable>(resultID);
     CHECK(result.typeID() == sym.Int());
 }
 
@@ -128,7 +128,7 @@ fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
         cast<VariableDeclaration*>(caller->body->statements[0].get());
     CHECK(resultDecl->initExpression->typeID() == sym.Float());
     auto* fnCallExpr = cast<FunctionCall*>(resultDecl->initExpression.get());
-    auto const& calleeOverloadSet = sym.lookupOverloadSet("callee");
+    auto const& calleeOverloadSet = sym.lookup<OverloadSet>("callee");
     REQUIRE(calleeOverloadSet != nullptr);
     auto* calleeFunction = calleeOverloadSet->find(
         std::array{ sym.String(), sym.Int(), sym.Bool() });
@@ -188,14 +188,13 @@ fn f() {
 	let y: X.Y;
 }
 struct X { struct Y {} }
-
 )";
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto const* tu = cast<TranslationUnit*>(ast.get());
     auto const* f  = cast<FunctionDefinition*>(tu->declarations[0].get());
     auto const* y  = cast<VariableDeclaration*>(f->body->statements[0].get());
-    auto const& YType = sym.getObjectType(y->typeID());
+    auto const& YType = sym.get<ObjectType>(y->typeID());
     CHECK(YType.name() == "Y");
     CHECK(YType.parent()->name() == "X");
     {
@@ -303,7 +302,7 @@ struct X {
     auto const xID = sym.lookup("X");
     sym.pushScope(xID);
     auto const fID   = sym.lookup("f");
-    auto const& fOS  = sym.getOverloadSet(fID);
+    auto const& fOS  = sym.get<OverloadSet>(fID);
     auto const x_yID = sym.lookup("Y");
     auto const* fFn  = fOS.find(std::array{ TypeID(x_yID) });
     /// Finding `f` in the overload set with `X.Y` as argument shall succeed.

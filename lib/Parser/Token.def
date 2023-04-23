@@ -38,6 +38,10 @@ SC_KEYWORD_TOKEN_DEF(Function,   "fn")
 SC_KEYWORD_TOKEN_DEF(Var,        "var")
 SC_KEYWORD_TOKEN_DEF(Let,        "let")
 
+/// ## Qualifiers
+
+SC_KEYWORD_TOKEN_DEF(Mutable,    "mut")
+
 /// ## Control flow
 
 SC_KEYWORD_TOKEN_DEF(Return,     "return")

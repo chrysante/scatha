@@ -178,7 +178,7 @@ public:
     Scope const& currentScope() const { return *_scope; }
 
 private:
-    std::string message() const override { return "Invalid statement"; }
+    std::string message() const override;
 
     ast::Statement const* _statement;
     Reason _reason;
@@ -219,7 +219,7 @@ public:
     SymbolCategory existingSymbolCategory() const { return _existingCategory; }
 
 private:
-    std::string message() const override { return "Invalid declaration"; }
+    std::string message() const override;
 
     Reason _reason;
     SymbolCategory _category;

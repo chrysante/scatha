@@ -33,12 +33,12 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
     sym.popScope();
     // End X
     xType.setSize(8);
-    auto const* const overloadSet = sym.lookupOverloadSet("i");
+    auto const* const overloadSet = sym.lookup<sema::OverloadSet>("i");
     REQUIRE(overloadSet != nullptr);
     auto const* fnILookup = overloadSet->find(std::array{ sym.Int() });
     CHECK(&fnI.value() == fnILookup);
     sym.pushScope(xType.symbolID());
-    auto const* const memberVar = sym.lookupVariable("i");
+    auto const* const memberVar = sym.lookup<sema::Variable>("i");
     REQUIRE(memberVar != nullptr);
     CHECK(&memberI.value() == memberVar);
     sym.popScope();

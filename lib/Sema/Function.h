@@ -4,7 +4,7 @@
 #define SCATHA_SEMA_FUNCTION_H_
 
 #include <scatha/Sema/Attributes.h>
-#include <scatha/Sema/EntityBase.h>
+#include <scatha/Sema/Entity.h>
 #include <scatha/Sema/FunctionSignature.h>
 
 namespace scatha::sema {
@@ -18,7 +18,11 @@ public:
                       SymbolID overloadSetID,
                       Scope* parentScope,
                       FunctionAttribute attrs):
-        Scope(ScopeKind::Function, std::move(name), functionID, parentScope),
+        Scope(EntityType::Function,
+              ScopeKind::Function,
+              std::move(name),
+              functionID,
+              parentScope),
         attrs(attrs),
         _overloadSetID(overloadSetID) {}
 

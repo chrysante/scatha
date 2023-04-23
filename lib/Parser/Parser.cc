@@ -564,6 +564,30 @@ UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
 
 // MARK: - Expressions
 
+UniquePtr<ast::Expression> Context::parseTypeExpression() {
+    if (auto expr = parseReferenceExpression()) {
+        return expr;
+    }
+    return parsePostfix();
+}
+
+UniquePtr<ast::ReferenceExpression> Context::parseReferenceExpression() {
+    Token const refToken = tokens.peek();
+    if (refToken.kind() != BitAnd) {
+        return nullptr;
+    }
+    tokens.eat();
+    Token const mutToken = tokens.peek();
+    bool mut             = false;
+    if (mutToken.kind() == Mutable) {
+        mut = true;
+        tokens.eat();
+    }
+    auto referred = parsePostfix();
+    return allocate<ast::ReferenceExpression>(std::move(referred),
+                                              refToken.sourceLocation());
+}
+
 UniquePtr<ast::Expression> Context::parseComma() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::Comma>(
         [this] { return parseAssignment(); });
@@ -682,6 +706,7 @@ UniquePtr<ast::Expression> Context::parseUnary() {
     }
     Token const token = tokens.peek();
     auto makeResult   = [&](ast::UnaryPrefixOperator operatorType) {
+        // FIXME: Why reference to token?
         Token const& unaryToken = tokens.peek();
         auto unary              = parseUnary();
         if (!unary) {
@@ -691,10 +716,7 @@ UniquePtr<ast::Expression> Context::parseUnary() {
                                                     std::move(unary),
                                                     token.sourceLocation());
     };
-    if (token.kind() == BitAnd) {
-        SC_DEBUGFAIL(); // Do we really want to support addressof operator?
-    }
-    else if (token.kind() == Plus) {
+    if (token.kind() == Plus) {
         tokens.eat();
         return makeResult(ast::UnaryPrefixOperator::Promotion);
     }

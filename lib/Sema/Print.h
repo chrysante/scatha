@@ -11,7 +11,7 @@ void SCATHA_API printSymbolTable(SymbolTable const&);
 
 void SCATHA_API printSymbolTable(SymbolTable const&, std::ostream&);
 
-std::string makeQualName(EntityBase const&);
+std::string makeQualName(Entity const&);
 
 } // namespace scatha::sema
 

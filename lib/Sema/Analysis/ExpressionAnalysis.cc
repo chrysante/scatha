@@ -24,6 +24,7 @@ struct Context {
 
     ExpressionAnalysisResult analyze(ast::Identifier&);
     ExpressionAnalysisResult analyze(ast::MemberAccess&);
+    ExpressionAnalysisResult analyze(ast::ReferenceExpression&);
     ExpressionAnalysisResult analyze(ast::Conditional&);
     ExpressionAnalysisResult analyze(ast::FunctionCall&);
     ExpressionAnalysisResult analyze(ast::Subscript&);
@@ -83,7 +84,7 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
     if (!opResult) {
         return ExpressionAnalysisResult::fail();
     }
-    auto const& operandType = sym.getObjectType(u.operand->typeID());
+    auto const& operandType = sym.get<ObjectType>(u.operand->typeID());
     auto submitIssue        = [&] {
         iss.push<BadOperandForUnaryExpression>(u, operandType.symbolID());
     };
@@ -162,7 +163,7 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
     }
     switch (symbolID.category()) {
     case SymbolCategory::Variable: {
-        auto const& var = sym.getVariable(symbolID);
+        auto const& var = sym.get<Variable>(symbolID);
         id.decorate(symbolID, var.typeID(), ast::ValueCategory::LValue);
         return ExpressionAnalysisResult::lvalue(symbolID, var.typeID());
     }
@@ -187,23 +188,21 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
     if (!objRes.success()) {
         return ExpressionAnalysisResult::fail();
     }
-    Scope* const lookupTargetScope = sym.tryGetObjectType(objRes.typeID());
+    Scope* const lookupTargetScope = sym.tryGet<ObjectType>(objRes.typeID());
     if (!lookupTargetScope) {
         return ExpressionAnalysisResult::fail();
     }
     auto* const oldScope = &sym.currentScope();
     sym.makeScopeCurrent(lookupTargetScope);
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(oldScope); };
-    if (ma.member->nodeType() == ast::NodeType::Identifier) {
-        /// When our member is an identifier we restrict name lookup to the
-        /// current scope. This flag will be unset by the identifier case.
-        performRestrictedNameLookup = true;
-    }
-    else {
+    if (!isa<ast::Identifier>(*ma.member)) {
         iss.push<BadMemberAccess>(ma);
         return ExpressionAnalysisResult::fail();
     }
-    auto const memRes = dispatch(*ma.member);
+    /// We restrict name lookup to the
+    /// current scope. This flag will be unset by the identifier case.
+    performRestrictedNameLookup = true;
+    auto const memRes           = dispatch(*ma.member);
     popScope.execute();
     if (!memRes.success()) {
         return ExpressionAnalysisResult::fail();
@@ -211,11 +210,11 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
     if (objRes.category() == ast::EntityCategory::Value &&
         memRes.category() != ast::EntityCategory::Value)
     {
-        SC_DEBUGFAIL(); // can't look in a value an then in a type. probably
-                        // just return failure here
+        SC_DEBUGFAIL(); /// Can't look in a value and then in a type. probably
+                        /// just return failure here
         return ExpressionAnalysisResult::fail();
     }
-    // Right hand side of member access expressions must be identifiers?
+    /// Right hand side of member access expressions must be identifiers?
     auto const& memberIdentifier = cast<ast::Identifier&>(*ma.member);
     ma.decorate(memberIdentifier.symbolID(),
                 memberIdentifier.typeID(),
@@ -225,6 +224,15 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
         SC_ASSERT(ma.typeID() == memRes.typeID(), "");
     }
     return memRes;
+}
+
+ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
+    auto const referredRes = dispatch(*ref.referred);
+    if (!referredRes.success()) {
+        return ExpressionAnalysisResult::fail();
+    }
+#warning
+    SC_DEBUGFAIL();
 }
 
 ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
@@ -303,7 +311,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     }
     switch (objRes.symbolID().category()) {
     case SymbolCategory::OverloadSet: {
-        auto const& overloadSet = sym.getOverloadSet(objRes.symbolID());
+        auto const& overloadSet = sym.get<OverloadSet>(objRes.symbolID());
         auto const* functionPtr = overloadSet.find(argTypes);
         if (!functionPtr) {
             iss.push<BadFunctionCall>(

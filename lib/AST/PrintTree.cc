@@ -9,6 +9,10 @@
 using namespace scatha;
 using namespace ast;
 
+static constexpr char endl = '\n';
+
+static Indenter indent(int level) { return Indenter(level, 2); }
+
 namespace {
 
 struct Context {
@@ -34,10 +38,13 @@ struct Context {
     void print(UnaryPrefixExpression const&, int ind);
     void print(BinaryExpression const&, int ind);
     void print(MemberAccess const&, int ind);
+    void print(ReferenceExpression const&, int ind);
     void print(Conditional const&, int ind);
     void print(FunctionCall const&, int ind);
     void print(Subscript const&, int ind);
-    void print(AbstractSyntaxTree const&, int) { SC_UNREACHABLE(); }
+    void print(AbstractSyntaxTree const&, int ind) {
+        str << indent(ind) << "<unknown>" << endl;
+    }
 
     std::ostream& str;
 };
@@ -52,10 +59,6 @@ void ast::printTree(AbstractSyntaxTree const& root, std::ostream& str) {
     Context ctx{ str };
     ctx.dispatch(&root, 0);
 }
-
-static constexpr char endl = '\n';
-
-static Indenter indent(int level) { return Indenter(level, 2); }
 
 void Context::dispatch(AbstractSyntaxTree const* node, int ind) {
     if (!node) {
@@ -181,6 +184,11 @@ void Context::print(MemberAccess const& memberAccess, int ind) {
     str << indent(ind) << "<member-access> " << endl;
     dispatch(memberAccess.object.get(), ind + 1);
     dispatch(memberAccess.member.get(), ind + 1);
+}
+
+void Context::print(ReferenceExpression const& ref, int ind) {
+    str << indent(ind) << "<reference-expression> " << endl;
+    dispatch(ref.referred.get(), ind + 1);
 }
 
 void Context::print(Conditional const& conditional, int ind) {

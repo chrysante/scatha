@@ -55,7 +55,7 @@ void Context::run() {
         if (!typeID) {
             continue;
         }
-        auto const& type = sym.getObjectType(typeID);
+        auto const& type = sym.get<ObjectType>(typeID);
         if (type.isBuiltin()) {
             continue;
         }
@@ -119,7 +119,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
     size_t objectSize  = 0;
     size_t objectAlign = 0;
-    auto& objectType   = sym.getObjectType(structDef.symbolID());
+    auto& objectType   = sym.get<ObjectType>(structDef.symbolID());
     for (auto&& [index, statement]:
          structDef.body->statements | ranges::views::enumerate)
     {
@@ -131,7 +131,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
         if (varDecl.typeID() == TypeID::Invalid) {
             break;
         }
-        auto const& type = sym.getObjectType(varDecl.typeID());
+        auto const& type = sym.get<ObjectType>(varDecl.typeID());
         SC_ASSERT(type.isComplete(), "Type should be complete at this stage");
         objectAlign = std::max(objectAlign, type.align());
         SC_ASSERT(type.size() % type.align() == 0,
@@ -140,7 +140,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
         size_t const currentOffset = objectSize;
         varDecl.setOffset(currentOffset);
         varDecl.setIndex(index);
-        auto& var = sym.getVariable(varDecl.symbolID());
+        auto& var = sym.get<Variable>(varDecl.symbolID());
         var.setOffset(currentOffset);
         var.setIndex(index);
         objectSize += type.size();
@@ -157,7 +157,7 @@ void Context::instantiateVariable(DependencyGraphNode const& node) {
     TypeID const typeID             = analyzeTypeExpression(*varDecl.typeExpr);
     varDecl.decorate(node.symbolID, typeID);
     /// Here we set the TypeID of the variable in the symbol table.
-    auto& var = sym.getVariable(varDecl.symbolID());
+    auto& var = sym.get<Variable>(varDecl.symbolID());
     var.setTypeID(typeID);
 }
 
@@ -205,6 +205,6 @@ TypeID Context::analyzeTypeExpression(ast::Expression& expr) const {
                                      ast::EntityCategory::Type);
         return TypeID::Invalid;
     }
-    auto const& type = sym.getObjectType(typeExprResult.typeID());
+    auto const& type = sym.get<ObjectType>(typeExprResult.typeID());
     return type.symbolID();
 }

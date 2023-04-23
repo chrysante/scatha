@@ -7,7 +7,7 @@
 
 #include <utl/vector.hpp>
 
-#include <scatha/Sema/EntityBase.h>
+#include <scatha/Sema/Entity.h>
 #include <scatha/Sema/Scope.h>
 #include <scatha/Sema/SymbolID.h>
 

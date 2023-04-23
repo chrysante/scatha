@@ -221,7 +221,7 @@ fn f() {
 	fn g() {}
 	struct X {}
 })");
-    SymbolID const fID = issues.sym.lookupOverloadSet("f")
+    SymbolID const fID = issues.sym.lookup<OverloadSet>("f")
                              ->find(std::array<TypeID, 0>{})
                              ->symbolID();
     auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
@@ -245,7 +245,7 @@ struct X {
 	{}
 	fn f() { {} }
 })");
-    SymbolID const xID = issues.sym.lookupObjectType("X")->symbolID();
+    SymbolID const xID = issues.sym.lookup<ObjectType>("X")->symbolID();
     auto checkLine     = [&](int line) {
         auto const issue = issues.findOnLine<InvalidStatement>(line);
         REQUIRE(issue);

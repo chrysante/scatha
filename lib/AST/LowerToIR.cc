@@ -182,7 +182,13 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
 }
 
 void CodeGenContext::generateImpl(StructDefinition const& def) {
-    /// Nothing to do here, structs are handled separately.
+    for (auto& statement:
+         def.body->statements | ranges::views::filter([](auto& statement) {
+             return isa<FunctionDefinition>(*statement);
+         }))
+    {
+        generate(*statement);
+    }
 }
 
 void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
@@ -627,7 +633,7 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     }();
     sema::SymbolID const accessedElementID =
         cast<Identifier const&>(*expr.member).symbolID();
-    auto& var       = symTable.getVariable(accessedElementID);
+    auto& var       = symTable.get<sema::Variable>(accessedElementID);
     auto* const gep = new ir::GetElementPointer(irCtx,
                                                 mapType(expr.object->typeID()),
                                                 basePtr,
@@ -648,11 +654,11 @@ ir::Value* CodeGenContext::loadAddress(ir::Value* address,
 
 void CodeGenContext::declareTypes() {
     for (sema::TypeID const& typeID: symTable.sortedObjectTypes()) {
-        auto const& objType = symTable.getObjectType(typeID);
+        auto const& objType = symTable.get<sema::ObjectType>(typeID);
         auto structure      = allocate<ir::StructureType>(
             mangledName(objType.symbolID(), objType.name()));
         for (sema::SymbolID const memberVarID: objType.memberVariables()) {
-            auto& varDecl = symTable.getVariable(memberVarID);
+            auto& varDecl = symTable.get<sema::Variable>(memberVarID);
             structure->addMember(mapType(varDecl.typeID()));
         }
         typeMap[typeID] = structure.get();
@@ -682,39 +688,36 @@ static ir::Visibility accessSpecToVisibility(sema::AccessSpecifier spec) {
 }
 
 void CodeGenContext::declareFunctions() {
-    for (sema::Function const& function: symTable.functions()) {
+    for (sema::Function const* function: symTable.functions()) {
         auto paramTypes =
-            function.signature().argumentTypeIDs() |
+            function->signature().argumentTypeIDs() |
             ranges::views::transform([&](sema::TypeID paramTypeID) {
                 return mapType(paramTypeID);
             }) |
             ranges::to<utl::small_vector<ir::Type const*>>;
         // TODO: Generate proper function type here
         ir::FunctionType const* const functionType = nullptr;
-        if (function.isExtern()) {
+        if (function->isExtern()) {
             auto fn = allocate<ir::ExtFunction>(
                 functionType,
-                mapType(function.signature().returnTypeID()),
+                mapType(function->signature().returnTypeID()),
                 paramTypes,
-                std::string(function.name()),
-                utl::narrow_cast<uint32_t>(function.slot()),
-                utl::narrow_cast<uint32_t>(function.index()),
-                translateAttrs(function.attributes()));
-            functionMap[function.symbolID()] = fn.get();
+                std::string(function->name()),
+                utl::narrow_cast<uint32_t>(function->slot()),
+                utl::narrow_cast<uint32_t>(function->index()),
+                translateAttrs(function->attributes()));
+            functionMap[function->symbolID()] = fn.get();
             mod.addGlobal(std::move(fn));
         }
         else {
-            auto fn =
-                allocate<ir::Function>(functionType,
-                                       mapType(
-                                           function.signature().returnTypeID()),
-                                       paramTypes,
-                                       mangledName(function.symbolID(),
-                                                   function.name()),
-                                       translateAttrs(function.attributes()),
-                                       accessSpecToVisibility(
-                                           function.accessSpecifier()));
-            functionMap[function.symbolID()] = fn.get();
+            auto fn = allocate<ir::Function>(
+                functionType,
+                mapType(function->signature().returnTypeID()),
+                paramTypes,
+                mangledName(function->symbolID(), function->name()),
+                translateAttrs(function->attributes()),
+                accessSpecToVisibility(function->accessSpecifier()));
+            functionMap[function->symbolID()] = fn.get();
             mod.addFunction(std::move(fn));
         }
     }
@@ -732,7 +735,7 @@ void CodeGenContext::memorizeVariableAddress(sema::SymbolID symbolID,
 }
 
 std::string CodeGenContext::mangledName(sema::SymbolID id) const {
-    return mangledName(id, symTable.getObjectType(id).name());
+    return mangledName(id, symTable.get<sema::ObjectType>(id).name());
 }
 
 std::string CodeGenContext::mangledName(sema::SymbolID id,

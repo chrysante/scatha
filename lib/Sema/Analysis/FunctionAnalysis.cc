@@ -92,7 +92,7 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     /// Here the AST node is partially decorated: symbolID() is already set by
     /// gatherNames() phase, now we complete the decoration.
     SymbolID const fnSymID = fn.symbolID();
-    auto& function         = sym.getFunction(fnSymID);
+    auto& function         = sym.get<Function>(fnSymID);
     fn.decorate(fnSymID, function.signature().returnTypeID());
     fn.body->decorate(ScopeKind::Function, function.symbolID());
     function.setAccessSpecifier(translateAccessSpec(fn.accessSpec));
@@ -176,7 +176,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
                                          ast::EntityCategory::Type);
             return TypeID::Invalid;
         }
-        auto const& objType = sym.getObjectType(varTypeRes.typeID());
+        auto const& objType = sym.get<ObjectType>(varTypeRes.typeID());
         return objType.symbolID();
     }();
     if (iss.fatal()) {
@@ -236,7 +236,7 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
                                          ast::EntityCategory::Type);
             return TypeID::Invalid;
         }
-        auto const& objType = sym.getObjectType(declTypeRes.typeID());
+        auto const& objType = sym.get<ObjectType>(declTypeRes.typeID());
         return objType.symbolID();
     }();
     if (iss.fatal()) {

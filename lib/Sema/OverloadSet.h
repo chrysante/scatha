@@ -7,17 +7,17 @@
 
 #include <utl/hashset.hpp>
 
-#include <scatha/Sema/EntityBase.h>
+#include <scatha/Sema/Entity.h>
 #include <scatha/Sema/Function.h>
 #include <scatha/Sema/SymbolID.h>
 
 namespace scatha::sema {
 
-class SCATHA_API OverloadSet: public EntityBase {
+class SCATHA_API OverloadSet: public Entity {
 public:
     /// Construct an empty overload set.
     explicit OverloadSet(std::string name, SymbolID id, Scope* parentScope):
-        EntityBase(std::move(name), id, parentScope) {}
+        Entity(EntityType::OverloadSet, std::move(name), id, parentScope) {}
 
     /// Resolve best matching function from this overload set for \p
     /// argumentTypes Returns NULL if no matching function exists in the

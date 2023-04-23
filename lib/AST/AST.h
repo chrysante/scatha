@@ -319,6 +319,38 @@ private:
     sema::SymbolID _symbolID;
 };
 
+/// Concrete node representing a reference expression.
+class SCATHA_API ReferenceExpression: public Expression {
+public:
+    explicit ReferenceExpression(UniquePtr<Expression> referred,
+                                 SourceLocation sourceLoc):
+        Expression(NodeType::ReferenceExpression, sourceLoc),
+        referred(std::move(referred)) {}
+
+    /// The object being referred to.
+    UniquePtr<Expression> referred;
+
+    /// **Decoration provided by semantic analysis**
+
+    /// ID of the resolved symbol
+    sema::SymbolID symbolID() const {
+        expectDecorated();
+        return _symbolID;
+    }
+
+    /// Decorate this node.
+    void decorate(sema::SymbolID symbolID,
+                  sema::TypeID typeID,
+                  ValueCategory valueCat,
+                  EntityCategory entityCat = EntityCategory::Value) {
+        _symbolID = symbolID;
+        Expression::decorate(typeID, valueCat, entityCat);
+    }
+
+private:
+    sema::SymbolID _symbolID;
+};
+
 /// MARK: Ternary Expressions
 
 /// Concrete node representing a conditional expression.

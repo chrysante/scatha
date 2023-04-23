@@ -3,11 +3,11 @@
 #ifndef SCATHA_SEMA_VARIABLE_H_
 #define SCATHA_SEMA_VARIABLE_H_
 
-#include <scatha/Sema/EntityBase.h>
+#include <scatha/Sema/Entity.h>
 
 namespace scatha::sema {
 
-class Variable: public EntityBase {
+class Variable: public Entity {
 public:
     explicit Variable(std::string name,
                       SymbolID symbolID,

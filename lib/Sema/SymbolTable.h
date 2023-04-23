@@ -16,11 +16,12 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
+#include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Function.h>
-#include <scatha/Sema/ObjectType.h>
 #include <scatha/Sema/OverloadSet.h>
 #include <scatha/Sema/Scope.h>
 #include <scatha/Sema/SymbolID.h>
+#include <scatha/Sema/Type.h>
 #include <scatha/Sema/Variable.h>
 
 namespace scatha::sema {
@@ -159,45 +160,49 @@ public:
 
     /// MARK: Queries
 
-    OverloadSet const& getOverloadSet(SymbolID) const;
-    OverloadSet& getOverloadSet(SymbolID id) {
-        return utl::as_mutable(utl::as_const(*this).getOverloadSet(id));
-    }
-    OverloadSet const* tryGetOverloadSet(SymbolID) const;
-    OverloadSet* tryGetOverloadSet(SymbolID id) {
-        return const_cast<OverloadSet*>(
-            utl::as_const(*this).tryGetOverloadSet(id));
+    /// Access the entity corresponding to ID \p id
+    /// Traps if \p id is invalid
+    Entity& get(SymbolID id) {
+        return const_cast<Entity&>(utl::as_const(*this).get(id));
     }
 
-    Function const& getFunction(SymbolID) const;
-    Function& getFunction(SymbolID id) {
-        return utl::as_mutable(utl::as_const(*this).getFunction(id));
-    }
-    Function const* tryGetFunction(SymbolID) const;
-    Function* tryGetFunction(SymbolID id) {
-        return const_cast<Function*>(utl::as_const(*this).tryGetFunction(id));
+    /// \overload
+    Entity const& get(SymbolID id) const;
+
+    /// Access the entity corresponding to ID \p id as entity type `E`
+    template <std::derived_from<Entity> E>
+    E const& get(SymbolID id) const {
+        return cast<E const&>(get(id));
     }
 
-    Variable const& getVariable(SymbolID) const;
-    Variable& getVariable(SymbolID id) {
-        return utl::as_mutable(utl::as_const(*this).getVariable(id));
-    }
-    Variable const* tryGetVariable(SymbolID) const;
-    Variable* tryGetVariable(SymbolID id) {
-        return const_cast<Variable*>(utl::as_const(*this).tryGetVariable(id));
+    /// \overload
+    template <std::derived_from<Entity> E>
+    E& get(SymbolID id) {
+        return cast<E&>(get(id));
     }
 
-    ObjectType const& getObjectType(SymbolID) const;
-    ObjectType& getObjectType(SymbolID id) {
-        return utl::as_mutable(utl::as_const(*this).getObjectType(id));
-    }
-    ObjectType const* tryGetObjectType(SymbolID) const;
-    ObjectType* tryGetObjectType(SymbolID id) {
-        return const_cast<ObjectType*>(
-            utl::as_const(*this).tryGetObjectType(id));
+    /// Access the entity corresponding to ID \p id
+    /// \Returns Pointer to the entity or `nullptr` if \p id is invalid
+    Entity const* tryGet(SymbolID id) const;
+
+    /// \overload
+    Entity* tryGet(SymbolID id) {
+        return const_cast<Entity*>(utl::as_const(*this).tryGet(id));
     }
 
-    std::string getName(SymbolID id) const;
+    /// Access the entity corresponding to ID \p id as entity type `E`
+    /// \Returns Pointer to the entity or `nullptr` if \p id is invalid
+    template <std::derived_from<Entity> E>
+    E const* tryGet(SymbolID id) const {
+        auto* entity = tryGet(id);
+        return entity ? dyncast<E const*>(entity) : nullptr;
+    }
+
+    /// \overload
+    template <std::derived_from<Entity> E>
+    E* tryGet(SymbolID id) {
+        return const_cast<E*>(utl::as_const(*this).tryGet<E>(id));
+    }
 
     SymbolID builtinFunction(size_t index) const {
         return _builtinFunctions[index];
@@ -205,9 +210,10 @@ public:
 
     SymbolID lookup(std::string_view name) const;
 
-    OverloadSet const* lookupOverloadSet(std::string_view name) const;
-    Variable const* lookupVariable(std::string_view name) const;
-    ObjectType const* lookupObjectType(std::string_view name) const;
+    template <std::derived_from<Entity> E>
+    E const* lookup(std::string_view name) const {
+        return tryGet<E>(lookup(name));
+    }
 
     Scope& currentScope() { return *_currentScope; }
     Scope const& currentScope() const { return *_currentScope; }
@@ -226,34 +232,31 @@ public:
     void setSortedObjectTypes(utl::vector<TypeID> ids) {
         _sortedObjectTypes = std::move(ids);
     }
+
     std::span<TypeID const> sortedObjectTypes() const {
         return _sortedObjectTypes;
     }
+
     auto functions() const {
-        return _functions | ranges::views::transform(
-                                [](auto& p) -> auto& { return p.second; });
+        return _entities | ranges::views::transform([](auto& p) -> auto* {
+                   return p.second.get();
+               }) |
+               ranges::views::filter(
+                   [](Entity const* e) { return isa<Function>(e); }) |
+               ranges::views::transform(
+                   [](Entity const* e) { return cast<Function const*>(e); });
     }
 
 private:
     SymbolID generateID(SymbolCategory category);
 
 private:
-    std::unique_ptr<GlobalScope> _globalScope;
-    Scope* _currentScope = nullptr;
+    GlobalScope* _globalScope = nullptr;
+    Scope* _currentScope      = nullptr;
 
     u64 _idCounter = 1;
 
-    /// Must be `node_hashmap`
-    /// References to the elements are stored by the surrounding scopes.
-    template <typename T>
-    using EntityMap = utl::node_hashmap<SymbolID, T>;
-
-    EntityMap<OverloadSet> _overloadSets;
-    EntityMap<Function> _functions;
-    EntityMap<Variable> _variables;
-    EntityMap<ObjectType> _objectTypes;
-    EntityMap<FunctionSignature> _signatures;
-    EntityMap<Scope> _anonymousScopes;
+    utl::hashmap<SymbolID, UniquePtr<Entity>> _entities;
 
     utl::vector<TypeID> _sortedObjectTypes;
 

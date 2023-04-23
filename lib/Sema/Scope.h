@@ -7,7 +7,7 @@
 
 #include <utl/hashmap.hpp>
 
-#include <scatha/Sema/EntityBase.h>
+#include <scatha/Sema/Entity.h>
 #include <scatha/Sema/ScopeKind.h>
 
 namespace scatha::sema {
@@ -16,17 +16,11 @@ namespace internal {
 class ScopePrinter;
 }
 
-class SCATHA_API Scope: public EntityBase {
+/// Represents a scope
+class SCATHA_API Scope: public Entity {
 public:
+    /// The kind of this scope
     ScopeKind kind() const { return _kind; }
-    explicit Scope(ScopeKind, SymbolID symbolID, Scope* parent);
-
-protected:
-public:
-    explicit Scope(ScopeKind,
-                   std::string name,
-                   SymbolID symbolID,
-                   Scope* parent);
 
     // Until we have heterogenous lookup
     SymbolID findID(std::string_view name) const;
@@ -36,23 +30,36 @@ public:
     auto children() const;
     auto symbols() const;
 
+protected:
+    explicit Scope(EntityType entityType,
+                   ScopeKind,
+                   std::string name,
+                   SymbolID symbolID,
+                   Scope* parent);
+
 private:
     friend class internal::ScopePrinter;
     friend class SymbolTable;
-    void add(EntityBase& entity);
-    void add(Scope& scopingEntity);
+    void add(Entity* entity);
 
 private:
-    // Scopes don't own their childscopes. These objects are owned by the symbol
-    // table.
+    /// Scopes don't own their childscopes. These objects are owned by the
+    /// symbol table.
     utl::hashmap<SymbolID, Scope*> _children;
     utl::hashmap<std::string, SymbolID> _symbols;
     ScopeKind _kind;
 };
 
+/// Represents an anonymous scope
+class AnonymousScope: public Scope {
+public:
+    explicit AnonymousScope(SymbolID id, ScopeKind scopeKind, Scope* parent);
+};
+
+/// Represents the global scope
 class GlobalScope: public Scope {
 public:
-    GlobalScope();
+    explicit GlobalScope(SymbolID id);
 };
 
 inline auto Scope::children() const {

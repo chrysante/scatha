@@ -32,7 +32,7 @@ void internal::ScopePrinter::printScope(Scope const& scope,
                                         int ind) {
     struct PrintData {
         std::string_view name;
-        EntityBase const* entity;
+        Entity const* entity;
         SymbolID id;
         SymbolCategory cat;
     };
@@ -41,26 +41,26 @@ void internal::ScopePrinter::printScope(Scope const& scope,
     for (auto&& [name, id]: scope._symbols) {
         if (id.category() == SymbolCategory::Variable) {
             data.push_back(
-                { name, &sym.getVariable(id), id, SymbolCategory::Variable });
+                { name, &sym.get<Variable>(id), id, SymbolCategory::Variable });
             continue;
         }
         if (id.category() == SymbolCategory::ObjectType) {
-            if (sym.getObjectType(id).isBuiltin()) {
+            if (sym.get<ObjectType>(id).isBuiltin()) {
                 printedScopes.insert(id);
                 continue;
             }
             data.push_back({ name,
-                             &sym.getObjectType(id),
+                             &sym.get<ObjectType>(id),
                              id,
                              SymbolCategory::ObjectType });
             continue;
         }
         SC_ASSERT(id.category() == SymbolCategory::OverloadSet, "What else?");
-        for (auto const& function: sym.getOverloadSet(id)) {
+        for (auto const& function: sym.get<OverloadSet>(id)) {
             // clang-format off
             data.push_back({
                 name,
-                &sym.getFunction(function->symbolID()),
+                &sym.get<Function>(function->symbolID()),
                 function->symbolID(),
                 SymbolCategory::Function
             });
@@ -71,22 +71,22 @@ void internal::ScopePrinter::printScope(Scope const& scope,
     for (auto [name, entity, id, cat]: data) {
         str << indent(ind) << cat << " " << makeQualName(*entity);
         if (cat == SymbolCategory::Function) {
-            auto& fn = sym.getFunction(id);
+            auto& fn = sym.get<Function>(id);
             str << "(";
             for (bool first = true; auto id: fn.signature().argumentTypeIDs()) {
                 if (!first) {
                     str << ", ";
                 }
                 first = false;
-                str << (id ? makeQualName(sym.getObjectType(id)) :
+                str << (id ? makeQualName(sym.get<ObjectType>(id)) :
                              "<invalid-type>");
             }
             str << ") -> "
                 << makeQualName(
-                       sym.getObjectType(fn.signature().returnTypeID()));
+                       sym.get<ObjectType>(fn.signature().returnTypeID()));
         }
         else if (cat == SymbolCategory::ObjectType) {
-            auto& type     = sym.getObjectType(id);
+            auto& type     = sym.get<ObjectType>(id);
             auto printSize = [&str](size_t s) {
                 if (s == invalidSize) {
                     str << "invalid";
@@ -102,10 +102,10 @@ void internal::ScopePrinter::printScope(Scope const& scope,
             str << "]";
         }
         else if (cat == SymbolCategory::Variable) {
-            auto& var = sym.getVariable(id);
+            auto& var = sym.get<Variable>(id);
             str << ": "
                 << (var.typeID() ?
-                        makeQualName(sym.getObjectType(var.typeID())) :
+                        makeQualName(sym.get<ObjectType>(var.typeID())) :
                         "<invalid-type>");
         }
         str << endl;
@@ -128,7 +128,7 @@ void internal::ScopePrinter::printScope(Scope const& scope,
     }
 }
 
-std::string makeQualName(EntityBase const& ent) {
+std::string makeQualName(Entity const& ent) {
     std::string result = std::string(ent.name());
     Scope const* s     = ent.parent();
     while (s->kind() != ScopeKind::Global) {
