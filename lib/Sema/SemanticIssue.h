@@ -47,46 +47,46 @@ private:
 class SCATHA_API BadTypeConversion: public BadExpression {
 public:
     explicit BadTypeConversion(ast::Expression const& expression,
-                               Type const* to);
+                               QualType const* to);
 
-    Type const* from() const { return _from; }
-    Type const* to() const { return _to; }
+    QualType const* from() const { return _from; }
+    QualType const* to() const { return _to; }
 
 private:
     std::string message() const override { return "Invalid type conversion"; }
 
-    Type const* _from;
-    Type const* _to;
+    QualType const* _from;
+    QualType const* _to;
 };
 
 class SCATHA_API BadOperandForUnaryExpression: public BadExpression {
 public:
     explicit BadOperandForUnaryExpression(ast::Expression const& expression,
-                                          Type const* operandType);
+                                          QualType const* operandType);
 
-    Type const* operandType() const { return _opType; }
+    QualType const* operandType() const { return _opType; }
 
 private:
-    Type const* _opType;
+    QualType const* _opType;
 };
 
 class SCATHA_API BadOperandsForBinaryExpression: public BadExpression {
 public:
     explicit BadOperandsForBinaryExpression(ast::Expression const& expression,
-                                            Type const* lhs,
-                                            Type const* rhs):
+                                            QualType const* lhs,
+                                            QualType const* rhs):
         BadExpression(expression, IssueSeverity::Error), _lhs(lhs), _rhs(rhs) {}
 
-    Type const* lhs() const { return _lhs; }
-    Type const* rhs() const { return _rhs; }
+    QualType const* lhs() const { return _lhs; }
+    QualType const* rhs() const { return _rhs; }
 
 private:
     std::string message() const override {
         return "Invalid operands for binary expression";
     }
 
-    Type const* _lhs;
-    Type const* _rhs;
+    QualType const* _lhs;
+    QualType const* _rhs;
 };
 
 class SCATHA_API BadMemberAccess: public BadExpression {
@@ -102,7 +102,7 @@ public:
 public:
     explicit BadFunctionCall(ast::Expression const& expression,
                              SymbolID overloadSetID,
-                             utl::small_vector<Type const*> argTypes,
+                             utl::small_vector<QualType const*> argTypes,
                              Reason reason):
         BadExpression(expression, IssueSeverity::Error),
         _reason(reason),
@@ -111,7 +111,7 @@ public:
 
     Reason reason() const { return _reason; }
 
-    std::span<Type const* const> argumentTypes() const { return _argTypes; }
+    std::span<QualType const* const> argumentTypes() const { return _argTypes; }
 
     SymbolID overloadSetID() const { return _overloadSetID; }
 
@@ -121,7 +121,7 @@ private:
     }
 
     Reason _reason;
-    utl::small_vector<Type const*> _argTypes;
+    utl::small_vector<QualType const*> _argTypes;
     SymbolID _overloadSetID;
 };
 

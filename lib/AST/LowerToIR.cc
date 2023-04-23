@@ -102,11 +102,11 @@ struct CodeGenContext {
     ir::Type const* mapType(sema::Type const* semaType);
     ir::UnaryArithmeticOperation mapUnaryArithmeticOp(
         ast::UnaryPrefixOperator) const;
-    ir::CompareMode mapCompareMode(sema::Type const*) const;
+    ir::CompareMode mapCompareMode(sema::ObjectType const*) const;
     ir::CompareOperation mapCompareOp(ast::BinaryOperator) const;
-    ir::ArithmeticOperation mapArithmeticOp(sema::Type const* type,
+    ir::ArithmeticOperation mapArithmeticOp(sema::ObjectType const* type,
                                             ast::BinaryOperator) const;
-    ir::ArithmeticOperation mapArithmeticAssignOp(sema::Type const* type,
+    ir::ArithmeticOperation mapArithmeticAssignOp(sema::ObjectType const* type,
                                                   ast::BinaryOperator) const;
 
     ir::Context& irCtx;
@@ -444,7 +444,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         auto* arithInst =
             new ir::ArithmeticInst(lhs,
                                    rhs,
-                                   mapArithmeticOp(exprDecl.type(),
+                                   mapArithmeticOp(exprDecl.type()->base(),
                                                    exprDecl.operation()),
                                    "expr.result");
         currentBB()->pushBack(arithInst);
@@ -493,7 +493,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
             new ir::CompareInst(irCtx,
                                 getValue(*exprDecl.lhs),
                                 getValue(*exprDecl.rhs),
-                                mapCompareMode(exprDecl.lhs->type()),
+                                mapCompareMode(exprDecl.lhs->type()->base()),
                                 mapCompareOp(exprDecl.operation()),
                                 "cmp.result");
         currentBB()->pushBack(cmpInst);
@@ -537,7 +537,8 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         auto* result =
             new ir::ArithmeticInst(lhs,
                                    rhs,
-                                   mapArithmeticAssignOp(exprDecl.lhs->type(),
+                                   mapArithmeticAssignOp(exprDecl.lhs->type()
+                                                             ->base(),
                                                          exprDecl.operation()),
                                    "expr.result");
         currentBB()->pushBack(result);
@@ -690,7 +691,7 @@ void CodeGenContext::declareFunctions() {
     for (sema::Function const* function: symTable.functions()) {
         auto paramTypes =
             function->signature().argumentTypes() |
-            ranges::views::transform([&](sema::Type const* paramType) {
+            ranges::views::transform([&](sema::QualType const* paramType) {
                 return mapType(paramType);
             }) |
             ranges::to<utl::small_vector<ir::Type const*>>;
@@ -748,20 +749,28 @@ std::string CodeGenContext::mangledName(sema::SymbolID id,
 }
 
 ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
-    if (semaType == symTable.Void()) {
-        return irCtx.voidType();
+    if (auto* qualType = dyncast<sema::QualType const*>(semaType)) {
+        if (qualType->has(sema::TypeQualifiers::Reference)) {
+            SC_DEBUGFAIL();
+        }
+        return mapType(qualType->base());
     }
-    if (semaType == symTable.Int()) {
-        return irCtx.integralType(64);
-    }
-    if (semaType == symTable.Bool()) {
-        return irCtx.integralType(1);
-    }
-    if (semaType == symTable.Float()) {
-        return irCtx.floatType(64);
-    }
-    if (auto itr = typeMap.find(semaType); itr != typeMap.end()) {
-        return itr->second;
+    if (auto* type = dyncast<sema::ObjectType const*>(semaType)) {
+        if (type == symTable.Void()) {
+            return irCtx.voidType();
+        }
+        if (type == symTable.Int()) {
+            return irCtx.integralType(64);
+        }
+        if (type == symTable.Bool()) {
+            return irCtx.integralType(1);
+        }
+        if (type == symTable.Float()) {
+            return irCtx.floatType(64);
+        }
+        if (auto itr = typeMap.find(type); itr != typeMap.end()) {
+            return itr->second;
+        }
     }
     SC_DEBUGFAIL();
 }
@@ -778,7 +787,8 @@ ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
     }
 }
 
-ir::CompareMode CodeGenContext::mapCompareMode(sema::Type const* type) const {
+ir::CompareMode CodeGenContext::mapCompareMode(
+    sema::ObjectType const* type) const {
     if (type == symTable.Bool()) {
         return ir::CompareMode::Unsigned;
     }
@@ -812,7 +822,7 @@ ir::CompareOperation CodeGenContext::mapCompareOp(
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
-    sema::Type const* type, ast::BinaryOperator op) const {
+    sema::ObjectType const* type, ast::BinaryOperator op) const {
     switch (op) {
     case BinaryOperator::Multiplication:
         if (type == symTable.Int()) {
@@ -867,7 +877,7 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticAssignOp(
-    sema::Type const* type, ast::BinaryOperator op) const {
+    sema::ObjectType const* type, ast::BinaryOperator op) const {
     auto nonAssign = [&] {
         switch (op) {
         case BinaryOperator::AddAssignment:

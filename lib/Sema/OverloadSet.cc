@@ -5,7 +5,7 @@
 namespace scatha::sema {
 
 Function const* OverloadSet::find(
-    std::span<Type const* const> argumentTypes) const {
+    std::span<QualType const* const> argumentTypes) const {
     auto matches =
         functions | ranges::views::filter([&](Function* F) {
             return ranges::equal(argumentTypes, F->signature().argumentTypes());

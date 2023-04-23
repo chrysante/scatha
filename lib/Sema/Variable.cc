@@ -7,7 +7,7 @@ using namespace scatha;
 sema::Variable::Variable(std::string name,
                          SymbolID symbolID,
                          Scope* parentScope,
-                         Type const* type):
+                         QualType const* type):
     Entity(EntityType::Variable, std::move(name), symbolID, parentScope),
     _type(type) {}
 

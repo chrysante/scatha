@@ -134,6 +134,7 @@ Expected<Function const&, SemanticIssue*> SymbolTable::declareFunction(
     SC_ASSERT(success, "?");
     Function& function = cast<Function&>(*itr->second);
     currentScope().add(&function);
+    _functions.push_back(&function);
     return function;
 }
 
@@ -209,9 +210,8 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
     return variable;
 }
 
-Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(std::string name,
-                                                             Type const* type,
-                                                             size_t offset) {
+Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
+    std::string name, QualType const* type, size_t offset) {
     auto declResult = declareVariable(std::move(name));
     if (!declResult) {
         return declResult.error();
@@ -235,8 +235,8 @@ Scope const& SymbolTable::addAnonymousScope() {
     return scope;
 }
 
-QualType const* SymbolTable::qualifyType(Type const* base,
-                                         TypeQualifiers qualifiers) {
+QualType const* SymbolTable::qualify(Type const* base,
+                                     TypeQualifiers qualifiers) const {
     ObjectType const* objType = dyncast<ObjectType const*>(base);
     if (!objType) {
         objType = cast<QualType const*>(base)->base();
@@ -245,7 +245,7 @@ QualType const* SymbolTable::qualifyType(Type const* base,
 }
 
 QualType const* SymbolTable::getQualType(ObjectType const* baseType,
-                                      TypeQualifiers qualifiers) {
+                                         TypeQualifiers qualifiers) const {
     if (auto itr = _qualTypes.find({ baseType, qualifiers });
         itr != _qualTypes.end())
     {
@@ -258,7 +258,9 @@ QualType const* SymbolTable::getQualType(ObjectType const* baseType,
                                               const_cast<ObjectType*>(baseType),
                                               qualifiers) });
     SC_ASSERT(success, "");
-    return cast<QualType*>(itr->second.get());
+    auto* qualType = cast<QualType*>(itr->second.get());
+    _qualTypes.insert({ std::pair{ baseType, qualifiers }, qualType });
+    return qualType;
 }
 
 void SymbolTable::pushScope(SymbolID id) {
@@ -299,6 +301,6 @@ SymbolID SymbolTable::lookup(std::string_view name) const {
     return SymbolID::Invalid;
 }
 
-SymbolID SymbolTable::generateID(SymbolCategory cat) {
+SymbolID SymbolTable::generateID(SymbolCategory cat) const {
     return SymbolID(_idCounter++, cat);
 }

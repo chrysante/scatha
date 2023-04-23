@@ -1,14 +1,15 @@
-
-
-
-
-
-fn main() -> int {
-    var i = 3;
-    // f(&i);
-    return i;
+public fn main() -> int {
+    let a = 4;
+    let b = -23;
+    return a * b;
 }
 
-fn foo(x: &mut int)  {
-    x += 1;
-}
+//public fn main() -> int {
+//    var i = 3;
+//    // f(&i);
+//    return i;
+//}
+//
+//fn foo(x: &mut int)  {
+//    x += 1;
+//}

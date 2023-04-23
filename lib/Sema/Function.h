@@ -79,7 +79,7 @@ struct FunctionArgumentsHash {
     size_t operator()(Function const* f) const {
         return f->signature().argumentHash();
     }
-    size_t operator()(std::span<Type const* const> const& args) const {
+    size_t operator()(std::span<QualType const* const> const& args) const {
         return FunctionSignature::hashArguments(args);
     }
 };
@@ -87,7 +87,7 @@ struct FunctionArgumentsHash {
 struct FunctionArgumentsEqual {
     struct is_transparent;
 
-    using Args = std::span<Type const* const>;
+    using Args = std::span<QualType const* const>;
 
     bool operator()(Function const* a, Function const* b) const {
         return a->signature().argumentHash() == b->signature().argumentHash();

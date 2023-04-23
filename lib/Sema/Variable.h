@@ -12,10 +12,10 @@ public:
     explicit Variable(std::string name,
                       SymbolID symbolID,
                       Scope* parentScope,
-                      Type const* type = nullptr);
+                      QualType const* type = nullptr);
 
     /// Set the type of this variable.
-    void setType(Type const* type) { _type = type; }
+    void setType(QualType const* type) { _type = type; }
 
     /// Set the offset of this variable.
     void setOffset(size_t offset) { _offset = offset; }
@@ -24,7 +24,7 @@ public:
     void setIndex(size_t index) { _index = index; }
 
     /// Type of this variable.
-    Type const* type() const { return _type; }
+    QualType const* type() const { return _type; }
 
     /// Offset into the struct this variable is a member of. If this is not a
     /// member variable then offset() == 0.
@@ -41,7 +41,7 @@ public:
     bool isLocal() const;
 
 private:
-    Type const* _type;
+    QualType const* _type;
     size_t _offset = 0;
     size_t _index  = 0;
 };

@@ -25,24 +25,24 @@ public:
 
     /// Type of the analyzed expression if it refers to a type. Otherwise the
     /// type of the value that expression yields.
-    Type const* type() const { return _type; }
+    QualType const* type() const { return _type; }
 
 private:
     bool _success;
     ast::EntityCategory _category{};
     SymbolID _symbolID;
-    Type const* _type;
+    QualType const* _type;
 
 public:
     /// TODO: Make these private somehow
     static ExpressionAnalysisResult lvalue(SymbolID symbolID,
-                                           Type const* type) {
+                                           QualType const* type) {
         return { ast::EntityCategory::Value, symbolID, type };
     }
-    static ExpressionAnalysisResult rvalue(Type const* type) {
+    static ExpressionAnalysisResult rvalue(QualType const* type) {
         return { ast::EntityCategory::Value, type };
     }
-    static ExpressionAnalysisResult type(Type const* type) {
+    static ExpressionAnalysisResult type(QualType const* type) {
         return { ast::EntityCategory::Type, type };
     }
     static ExpressionAnalysisResult fail() { return { false }; }
@@ -50,9 +50,9 @@ public:
 private:
     ExpressionAnalysisResult(ast::EntityCategory category,
                              SymbolID symbolID,
-                             Type const* type):
+                             QualType const* type):
         _success(true), _category(category), _symbolID(symbolID), _type(type) {}
-    ExpressionAnalysisResult(ast::EntityCategory kind, Type const* type):
+    ExpressionAnalysisResult(ast::EntityCategory kind, QualType const* type):
         ExpressionAnalysisResult(kind,
                                  SymbolID::InvalidWithCategory(
                                      SymbolCategory::Type),

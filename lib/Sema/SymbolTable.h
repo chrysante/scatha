@@ -118,7 +118,7 @@ public:
     /// \returns `InvalidDeclaration` with reason `Redefinition` if name of \p
     /// varDecl is already in use in the current scope.
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
-                                                    Type const* type,
+                                                    QualType const* type,
                                                     size_t offset = 0);
 
     /// \brief Declares an anonymous scope within the current scope.
@@ -126,16 +126,18 @@ public:
     /// \returns Reference to the new scope.
     Scope const& addAnonymousScope();
 
-    QualType const* qualifyType(Type const* base, TypeQualifiers qualifiers);
+    QualType const* qualify(
+        Type const* base,
+        TypeQualifiers qualifiers = TypeQualifiers::None) const;
 
     QualType const* addQualifiers(QualType const* base,
-                                  TypeQualifiers qualifiers) {
-        return qualifyType(base, base->qualifiers() | qualifiers);
+                                  TypeQualifiers qualifiers) const {
+        return qualify(base, base->qualifiers() | qualifiers);
     }
 
     QualType const* removeQualifiers(QualType const* base,
-                                     TypeQualifiers qualifiers) {
-        return qualifyType(base, base->qualifiers() & ~qualifiers);
+                                     TypeQualifiers qualifiers) const {
+        return qualify(base, base->qualifiers() & ~qualifiers);
     }
 
     /// \brief Makes scope with symbolD \p id the current scope.
@@ -241,6 +243,27 @@ public:
     Type const* Float() const { return _float; }
     Type const* String() const { return _string; }
 
+    QualType const* qualVoid(
+        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+        return qualify(_void, qualifiers);
+    }
+    QualType const* qualBool(
+        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+        return qualify(_bool, qualifiers);
+    }
+    QualType const* qualInt(
+        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+        return qualify(_int, qualifiers);
+    }
+    QualType const* qualFloat(
+        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+        return qualify(_float, qualifiers);
+    }
+    QualType const* qualString(
+        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+        return qualify(_string, qualifiers);
+    }
+
     /// Review if we want to keep these:
     void setSortedObjectTypes(utl::vector<TypeID> ids) {
         _sortedObjectTypes = std::move(ids);
@@ -252,33 +275,29 @@ public:
     }
 
     /// View over all functions
-    auto functions() const {
-        return _entities | ranges::views::transform([](auto& p) -> auto* {
-                   return p.second.get();
-               }) |
-               ranges::views::filter(
-                   [](Entity const* e) { return isa<Function>(e); }) |
-               ranges::views::transform(
-                   [](Entity const* e) { return cast<Function const*>(e); });
-    }
+    std::span<Function const* const> functions() const { return _functions; }
 
 private:
-    QualType const* getQualType(ObjectType const* base, TypeQualifiers qualifiers);
+    QualType const* getQualType(ObjectType const* base,
+                                TypeQualifiers qualifiers) const;
 
-    SymbolID generateID(SymbolCategory category);
+    SymbolID generateID(SymbolCategory category) const;
 
 private:
     GlobalScope* _globalScope = nullptr;
     Scope* _currentScope      = nullptr;
 
-    u64 _idCounter = 1;
+    mutable u64 _idCounter = 1;
 
-    utl::hashmap<SymbolID, UniquePtr<Entity>> _entities;
+    mutable utl::hashmap<SymbolID, UniquePtr<Entity>> _entities;
 
-    utl::hashmap<std::pair<ObjectType const*, TypeQualifiers>, QualType const*>
+    mutable utl::hashmap<std::pair<ObjectType const*, TypeQualifiers>,
+                         QualType const*>
         _qualTypes;
 
     utl::vector<TypeID> _sortedObjectTypes;
+
+    utl::small_vector<Function*> _functions;
 
     utl::vector<SymbolID> _builtinFunctions;
 

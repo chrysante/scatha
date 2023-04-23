@@ -22,7 +22,7 @@ public:
     /// Resolve best matching function from this overload set for \p
     /// argumentTypes Returns `nullptr` if no matching function exists in the
     /// overload set.
-    Function const* find(std::span<Type const* const> argumentTypes) const;
+    Function const* find(std::span<QualType const* const> argumentTypes) const;
 
     /// \brief Add a function to this overload set.
     /// \returns Pair of \p function and `true` if \p function is a legal

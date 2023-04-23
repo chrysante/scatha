@@ -33,7 +33,17 @@ struct Context {
 
     ExpressionAnalysisResult dispatchExpression(ast::Expression&);
 
-    void verifyConversion(ast::Expression const& from, Type const* to) const;
+    void verifyConversion(ast::Expression const& from,
+                          QualType const* to) const;
+
+    void verifyConversion(ast::Expression const& from, Type const* to) const {
+        if (auto* obj = dyncast<ObjectType const*>(to)) {
+            verifyConversion(from, sym.qualify(obj));
+        }
+        else {
+            verifyConversion(from, cast<QualType const*>(to));
+        }
+    }
 
     SymbolTable& sym;
     IssueHandler& iss;
@@ -162,7 +172,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
         return;
     }
 
-    Type const* declaredType = [&]() -> Type const* {
+    auto* declaredType = [&]() -> QualType const* {
         if (!var.typeExpr) {
             return nullptr;
         }
@@ -181,7 +191,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
     if (iss.fatal()) {
         return;
     }
-    Type const* deducedType = [&]() -> Type const* {
+    auto* deducedType = [&]() -> QualType const* {
         if (!var.initExpression) {
             return nullptr;
         }
@@ -206,8 +216,8 @@ void Context::analyze(ast::VariableDeclaration& var) {
     if (declaredType && deducedType) {
         verifyConversion(*var.initExpression, declaredType);
     }
-    Type const* finalType = declaredType ? declaredType : deducedType;
-    auto varObj = sym.addVariable(var.nameIdentifier->value(), finalType);
+    auto* finalType = declaredType ? declaredType : deducedType;
+    auto varObj     = sym.addVariable(var.nameIdentifier->value(), finalType);
     if (!varObj) {
         iss.push(varObj.error()->setStatement(var));
         return;
@@ -221,7 +231,7 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
               "parameters.");
     SC_ASSERT(!paramDecl.isDecorated(),
               "We should not have handled parameters in prepass.");
-    Type const* declaredType = [&]() -> Type const* {
+    auto* declaredType = [&]() -> QualType const* {
         if (!paramDecl.typeExpr) {
             return nullptr;
         }
@@ -388,7 +398,7 @@ ExpressionAnalysisResult Context::dispatchExpression(ast::Expression& expr) {
 }
 
 void Context::verifyConversion(ast::Expression const& from,
-                               Type const* to) const {
+                               QualType const* to) const {
     if (from.type() != to) {
         iss.push<BadTypeConversion>(from, to);
     }

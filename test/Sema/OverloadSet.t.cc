@@ -13,21 +13,24 @@ TEST_CASE("OverloadSet") {
     REQUIRE(f_int.hasValue());
     auto const f_int_success =
         sym.setSignature(f_int->symbolID(),
-                         sema::FunctionSignature({ sym.Int() }, sym.Int()));
+                         sema::FunctionSignature({ sym.qualInt() },
+                                                 sym.qualInt()));
     CHECK(f_int_success);
     /// Declare a function \code f: (float) -> float
     auto f_float = sym.declareFunction("f");
     REQUIRE(f_float.hasValue());
     auto const f_float_success =
         sym.setSignature(f_float->symbolID(),
-                         sema::FunctionSignature({ sym.Float() }, sym.Float()));
+                         sema::FunctionSignature({ sym.qualFloat() },
+                                                 sym.qualFloat()));
     CHECK(f_float_success);
     /// Declare a function \code f: (float) -> int
     auto f_float2 = sym.declareFunction("f");
     REQUIRE(f_float2.hasValue());
     auto const f_float2_success =
         sym.setSignature(f_float2->symbolID(),
-                         sema::FunctionSignature({ sym.Float() }, sym.Int()));
+                         sema::FunctionSignature({ sym.qualFloat() },
+                                                 sym.qualInt()));
     REQUIRE(!f_float2_success);
     auto* f2error =
         dynamic_cast<sema::InvalidDeclaration*>(f_float2_success.error());
@@ -38,7 +41,8 @@ TEST_CASE("OverloadSet") {
     REQUIRE(f_float3.hasValue());
     auto const f_float3_success =
         sym.setSignature(f_float3->symbolID(),
-                         sema::FunctionSignature({ sym.Float() }, sym.Float()));
+                         sema::FunctionSignature({ sym.qualFloat() },
+                                                 sym.qualFloat()));
     CHECK(!f_float3_success);
     auto* f3error =
         dynamic_cast<sema::InvalidDeclaration*>(f_float3_success.error());

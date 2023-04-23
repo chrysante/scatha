@@ -8,6 +8,7 @@
 namespace scatha::sema {
 
 enum class TypeQualifiers {
+    None      = 0,
     Reference = 1 << 0,
     Mutable   = 1 << 1,
 };

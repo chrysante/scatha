@@ -16,8 +16,8 @@ namespace scatha::sema {
 class SCATHA_API FunctionSignature {
 public:
     FunctionSignature() = default;
-    explicit FunctionSignature(utl::vector<Type const*> argumentTypes,
-                               Type const* returnType):
+    explicit FunctionSignature(utl::vector<QualType const*> argumentTypes,
+                               QualType const* returnType):
         _argumentTypes(std::move(argumentTypes)),
         _returnType(returnType),
         _argHash(hashArguments(this->argumentTypes())),
@@ -26,31 +26,31 @@ public:
     Type const* type() const { SC_DEBUGFAIL(); }
 
     /// TypeIDs of the argument types
-    std::span<Type const* const> argumentTypes() const {
+    std::span<QualType const* const> argumentTypes() const {
         return _argumentTypes;
     }
 
-    Type const* argumentType(size_t index) const {
+    QualType const* argumentType(size_t index) const {
         return _argumentTypes[index];
     }
 
     size_t argumentCount() const { return _argumentTypes.size(); }
 
     /// TypeID of the return type
-    Type const* returnType() const { return _returnType; }
+    QualType const* returnType() const { return _returnType; }
 
     /// Hash value is computed from the TypeIDs of the arguments
     u64 argumentHash() const { return _argHash; }
 
     /// Compute hash value from argument types
-    static u64 hashArguments(std::span<Type const* const>);
+    static u64 hashArguments(std::span<QualType const* const>);
 
 private:
-    static u64 computeTypeHash(Type const* returnType, u64 argumentHash);
+    static u64 computeTypeHash(QualType const* returnType, u64 argumentHash);
 
 private:
-    utl::small_vector<Type const*> _argumentTypes;
-    Type const* _returnType;
+    utl::small_vector<QualType const*> _argumentTypes;
+    QualType const* _returnType;
     u64 _argHash, _typeHash;
 };
 
