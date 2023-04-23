@@ -5,16 +5,12 @@
 
 #include <string>
 
-#include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
-
-namespace scatha {
-
-struct Token;
-
-} // namespace scatha
+#include <scatha/Parser/Token.h>
 
 namespace scatha::parse {
+
+struct Token;
 
 struct Bracket {
     enum class Type { None, Parenthesis, Square, Curly };

@@ -2,7 +2,7 @@
 
 #include <utl/utility.hpp>
 
-#include "AST/Token.h"
+#include "Parser/Token.h"
 
 using namespace scatha;
 using namespace parse;

@@ -3,8 +3,8 @@
 
 #include <utl/vector.hpp>
 
-#include "AST/Token.h"
 #include "Common/Base.h"
+#include "Parser/Token.h"
 
 namespace scatha::parse {
 

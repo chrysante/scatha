@@ -196,7 +196,7 @@ static TokenKind toOperator(std::string_view str) {
     }
 #define SC_OPERATOR_TOKEN_DEF(Token, op)                                       \
     else if (str == op) { return TokenKind::Token; }
-#include "AST/Token.def"
+#include "Parser/Token.def"
     SC_UNREACHABLE();
 }
 
@@ -352,7 +352,7 @@ static TokenKind idToTokenKind(std::string_view id) {
     }
 #define SC_KEYWORD_TOKEN_DEF(Token, str)                                       \
     else if (id == str) { return TokenKind::Token; }
-#include "AST/Token.def"
+#include "Parser/Token.def"
     return TokenKind::Identifier;
 }
 

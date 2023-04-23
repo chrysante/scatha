@@ -4,8 +4,6 @@ AST/Lists.def
 AST/Print.h
 AST/LowerToIR.h
 AST/SourceLocation.h
-AST/Token.h
-AST/Token.def
 AST/Keyword.h
 
 Assembly/Assembler.h
@@ -39,6 +37,8 @@ Parser/SyntaxIssue.h
 Parser/Bracket.h
 Parser/Lexer.h
 Parser/LexicalIssue.h
+Parser/Token.h
+Parser/Token.def
 
 Sema/Analyze.h
 Sema/Attributes.h

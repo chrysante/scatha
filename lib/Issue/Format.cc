@@ -9,8 +9,10 @@
 
 using namespace scatha;
 
-void issue::highlightToken(std::string_view text, Token const& token) {
-    highlightToken(text, token, std::cout);
+void scatha::highlightSource(std::string_view text,
+                             SourceLocation sourceLoc,
+                             size_t numChars) {
+    highlightSource(text, sourceLoc, numChars, std::cout);
 }
 
 static std::string_view getLineImpl(std::string_view text, size_t index) {
@@ -67,12 +69,12 @@ static auto lineNumber(ssize_t index) {
                         utl::strcat(std::setw(4), index, ": "));
 }
 
-void issue::highlightToken(std::string_view text,
-                           Token const& token,
-                           std::ostream& str) {
-    auto const sourceLocation = token.sourceLocation();
-    size_t const index        = utl::narrow_cast<size_t>(sourceLocation.index);
-    size_t const column       = utl::narrow_cast<size_t>(sourceLocation.column);
+void scatha::highlightSource(std::string_view text,
+                             SourceLocation sourceLocation,
+                             size_t numChars,
+                             std::ostream& str) {
+    size_t const index  = utl::narrow_cast<size_t>(sourceLocation.index);
+    size_t const column = utl::narrow_cast<size_t>(sourceLocation.column);
     std::string_view const line = getLine(text, index);
 
     /// Previous lines
@@ -86,8 +88,8 @@ void issue::highlightToken(std::string_view text,
     str << lineNumber(lineIndex);
     str << line.substr(0, column - 1);
     str << tfmt::format(tfmt::red | tfmt::italic,
-                        line.substr(column - 1, token.id().size()));
-    size_t const endPos = column - 1 + token.id().size();
+                        line.substr(column - 1, numChars));
+    size_t const endPos = column - 1 + numChars;
     str << line.substr(endPos, line.size() - endPos);
     str << '\n';
     ++lineIndex;
@@ -97,7 +99,7 @@ void issue::highlightToken(std::string_view text,
         str << ' ';
     }
     tfmt::format(tfmt::red, [&] {
-        for (size_t i = 0; i < std::max(size_t{ 1 }, token.id().size()); ++i) {
+        for (size_t i = 0; i < std::max(size_t{ 1 }, numChars); ++i) {
             str << "˜";
         }
     });

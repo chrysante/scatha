@@ -15,7 +15,6 @@
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Fwd.h>
-#include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Sema/Function.h>
@@ -60,9 +59,6 @@ public:
     Expected<ObjectType&, SemanticIssue*> declareObjectType(
         std::string name, bool allowKeywords = false);
 
-    [[deprecated]] Expected<ObjectType&, SemanticIssue*> declareObjectType(
-        Token name, bool allowKeywords = false);
-
     /// Simpler interface to declare builtins. Internally calls
     /// `declareObjectType()`
     ///
@@ -85,9 +81,6 @@ public:
     ///
     /// Only exposed for testing purposes.
     Expected<Function const&, SemanticIssue*> declareFunction(std::string name);
-
-    [[deprecated]] Expected<Function const&, SemanticIssue*> declareFunction(
-        Token name);
 
     /// \brief Add signature to declared function.
     ///
@@ -132,9 +125,6 @@ public:
     /// Only exposed for testing purposes but currently not tested.
     Expected<Variable&, SemanticIssue*> declareVariable(std::string name);
 
-    [[deprecated]] Expected<Variable&, SemanticIssue*> declareVariable(
-        Token name);
-
     /// \brief Declares a variable to the current scope.
     ///
     /// \details For successful return the name must not have been declared
@@ -151,9 +141,6 @@ public:
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
                                                     TypeID,
                                                     size_t offset = 0);
-
-    [[deprecated]] Expected<Variable&, SemanticIssue*> addVariable(
-        Token name, TypeID, size_t offset = 0);
 
     /// \brief Declares an anonymous scope within the current scope.
     ///
@@ -240,20 +227,10 @@ public:
     }
 
     SymbolID lookup(std::string_view name) const;
-    SymbolID lookup(Token const& token) const { return lookup(token.id()); }
 
     OverloadSet const* lookupOverloadSet(std::string_view name) const;
-    OverloadSet const* lookupOverloadSet(Token const& token) const {
-        return lookupOverloadSet(token.id());
-    }
     Variable const* lookupVariable(std::string_view name) const;
-    Variable const* lookupVariable(Token const& token) const {
-        return lookupVariable(token.id());
-    }
     ObjectType const* lookupObjectType(std::string_view name) const;
-    ObjectType const* lookupObjectType(Token const& token) const {
-        return lookupObjectType(token.id());
-    }
 
     Scope& currentScope() { return *_currentScope; }
     Scope const& currentScope() const { return *_currentScope; }

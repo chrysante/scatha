@@ -7,10 +7,10 @@
 #include <string>
 #include <string_view>
 
-#include <scatha/AST/Token.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Issue/Issue.h>
 #include <scatha/Parser/Bracket.h>
+#include <scatha/Parser/Token.h>
 
 namespace scatha::parse {
 

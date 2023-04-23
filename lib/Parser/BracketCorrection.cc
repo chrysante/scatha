@@ -27,14 +27,14 @@ struct Context {
 
     void run();
 
-    [[nodiscard]] utl::vector<scatha::Token>::iterator
+    [[nodiscard]] utl::vector<Token>::iterator
         popStackAndInsertMatchingBrackets(
-            utl::vector<scatha::Token>::const_iterator tokenItr,
+            utl::vector<Token>::const_iterator tokenItr,
             utl::vector<Bracket>::iterator stackItr);
 
-    [[nodiscard]] utl::vector<scatha::Token>::iterator handleOpeningBracket(
+    [[nodiscard]] utl::vector<Token>::iterator handleOpeningBracket(
         utl::vector<Token>::iterator tokenItr, Bracket bracket);
-    [[nodiscard]] utl::vector<scatha::Token>::iterator handleClosingBracket(
+    [[nodiscard]] utl::vector<Token>::iterator handleClosingBracket(
         utl::vector<Token>::iterator tokenItr, Bracket bracket);
 
     [[nodiscard]] utl::vector<Token>::iterator erase(
@@ -76,18 +76,16 @@ void Context::run() {
     SC_ASSERT(bracketStack.empty(), "Bracket stack must be empty in the end.");
 }
 
-[[nodiscard]] utl::vector<scatha::Token>::iterator Context::
-    handleOpeningBracket(utl::vector<Token>::iterator tokenItr,
-                         Bracket bracket) {
+[[nodiscard]] utl::vector<Token>::iterator Context::handleOpeningBracket(
+    utl::vector<Token>::iterator tokenItr, Bracket bracket) {
     SC_ASSERT(bracket.side == Bracket::Side::Open,
               "Here on we only handle opening brackets.");
     bracketStack.push(bracket);
     return tokenItr;
 }
 
-[[nodiscard]] utl::vector<scatha::Token>::iterator Context::
-    handleClosingBracket(utl::vector<Token>::iterator tokenItr,
-                         Bracket bracket) {
+[[nodiscard]] utl::vector<Token>::iterator Context::handleClosingBracket(
+    utl::vector<Token>::iterator tokenItr, Bracket bracket) {
     SC_ASSERT(bracket.side == Bracket::Side::Close,
               "Here on we only handle closing brackets.");
     Token const token = *tokenItr;
@@ -133,8 +131,8 @@ void Context::run() {
     return tokenItr;
 }
 
-utl::vector<scatha::Token>::iterator Context::popStackAndInsertMatchingBrackets(
-    utl::vector<scatha::Token>::const_iterator tokenItr,
+utl::vector<Token>::iterator Context::popStackAndInsertMatchingBrackets(
+    utl::vector<Token>::const_iterator tokenItr,
     utl::vector<Bracket>::iterator stackItr) {
     auto& stackContainer = bracketStack.container();
     ssize_t const count  = stackContainer.end() - stackItr;

@@ -4,7 +4,7 @@
 #include <iosfwd>
 #include <string>
 
-#include <scatha/AST/Token.h>
+#include <scatha/Parser/Token.h>
 
 namespace scatha {
 

@@ -1,4 +1,4 @@
-#include "AST/Token.h"
+#include "Parser/Token.h"
 
 #include <array>
 #include <ostream>
@@ -9,8 +9,9 @@
 #include "Common/APInt.h"
 
 using namespace scatha;
+using namespace parse;
 
-bool scatha::isIdentifier(TokenKind kind) {
+bool parse::isIdentifier(TokenKind kind) {
     switch (kind) {
     case TokenKind::Void:
         [[fallthrough]];

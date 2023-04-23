@@ -4,7 +4,7 @@
 #include <span>
 #include <string_view>
 
-#include <scatha/AST/Token.h>
+#include <scatha/Parser/Token.h>
 
 namespace scatha::parse {
 

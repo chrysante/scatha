@@ -14,7 +14,7 @@ using namespace sema;
 static bool isKeyword(std::string_view id) {
     static constexpr std::array keywords{
 #define SC_KEYWORD_TOKEN_DEF(Token, str) std::string_view(str),
-#include "AST/Token.def"
+#include "Parser/Token.def"
     };
     return std::find(keywords.begin(), keywords.end(), id) != keywords.end();
 }
@@ -87,11 +87,6 @@ Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
     return itr->second;
 }
 
-Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
-    Token name, bool allowKeywords) {
-    return declareObjectType(name.id(), allowKeywords);
-}
-
 TypeID SymbolTable::declareBuiltinType(std::string name,
                                        size_t size,
                                        size_t align) {
@@ -161,11 +156,6 @@ Expected<Function const&, SemanticIssue*> SymbolTable::declareFunction(
     Function& function = itr->second;
     currentScope().add(function);
     return function;
-}
-
-Expected<Function const&, SemanticIssue*> SymbolTable::declareFunction(
-    Token name) {
-    return declareFunction(name.id());
 }
 
 Expected<void, SemanticIssue*> SymbolTable::setSignature(
@@ -254,10 +244,6 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
     return variable;
 }
 
-Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(Token name) {
-    return declareVariable(name.id());
-}
-
 Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
     ast::VariableDeclaration const& varDecl, TypeID typeID, size_t offset) {
     auto result = addVariable(varDecl.nameIdentifier->value(), typeID, offset);
@@ -282,12 +268,6 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(std::string name,
     var.setTypeID(typeID);
     SC_ASSERT(offset == 0, "Temporary measure. Should remove parameter offset");
     return var;
-}
-
-Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(Token name,
-                                                             TypeID typeID,
-                                                             size_t offset) {
-    return addVariable(name.id(), typeID, offset);
 }
 
 Scope const& SymbolTable::addAnonymousScope() {

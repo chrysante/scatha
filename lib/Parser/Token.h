@@ -12,14 +12,14 @@
 #include <scatha/Common/APInt.h>
 #include <scatha/Common/Base.h>
 
-namespace scatha {
+namespace scatha::parse {
 
 enum class TokenKind {
 #define SC_KEYWORD_TOKEN_DEF(Token, _)     Token,
 #define SC_OPERATOR_TOKEN_DEF(Token, _)    Token,
 #define SC_PUNCTUATION_TOKEN_DEF(Token, _) Token,
 #define SC_OTHER_TOKEN_DEF(Token, _)       Token,
-#include <scatha/AST/Token.def>
+#include <scatha/Parser/Token.def>
     _count
 };
 
@@ -64,6 +64,6 @@ private:
     SourceLocation _sourceLoc;
 };
 
-} // namespace scatha
+} // namespace scatha::parse
 
 #endif // SCATHA_AST_TOKEN_H_

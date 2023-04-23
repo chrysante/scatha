@@ -6,9 +6,9 @@
 #include <string_view>
 
 #include "AST/Fwd.h"
-#include "AST/Token.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
+#include "Parser/Token.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::test {
