@@ -68,9 +68,10 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
             SymbolCategory::Function);
         return static_cast<size_t>(-1);
     }
-    Expected const declResult = sym.declareFunction(funcDef);
+    Expected const declResult =
+        sym.declareFunction(funcDef.nameIdentifier->value());
     if (!declResult.hasValue()) {
-        iss.push(declResult.error());
+        iss.push(declResult.error()->setStatement(funcDef));
         return invalidIndex;
     }
     auto& funcObj = *declResult;
@@ -97,9 +98,10 @@ size_t Context::gather(ast::StructDefinition& s) {
             SymbolCategory::ObjectType);
         return invalidIndex;
     }
-    Expected const declResult = sym.declareObjectType(s);
+    Expected const declResult =
+        sym.declareObjectType(s.nameIdentifier->value());
     if (!declResult) {
-        iss.push(declResult.error());
+        iss.push(declResult.error()->setStatement(s));
         return invalidIndex;
     }
     auto& objType = *declResult;
@@ -133,9 +135,9 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(varDecl.typeExpr,
               "In structs variables need explicit type "
               "specifiers. Make this a program issue.");
-    auto declResult = sym.declareVariable(varDecl);
+    auto declResult = sym.declareVariable(varDecl.nameIdentifier->value());
     if (!declResult) {
-        iss.push(declResult.error());
+        iss.push(declResult.error()->setStatement(varDecl));
         return invalidIndex;
     }
     auto const& var = *declResult;

@@ -25,6 +25,10 @@ class SCATHA_API SemanticIssue: public Issue {
 public:
     using Issue::Issue;
 
+    virtual SemanticIssue* setStatement(ast::Statement const& statement) {
+        return this;
+    }
+
 private:
     void doPrint(std::ostream&) const { SC_DEBUGFAIL(); }
     std::string doToString() const { SC_DEBUGFAIL(); }
@@ -158,7 +162,7 @@ public:
 
     ast::Statement const& statement() const { return *_statement; }
 
-    void setStatement(ast::Statement const& statement);
+    InvalidStatement* setStatement(ast::Statement const& statement) override;
 
     Reason reason() const { return _reason; }
 
@@ -220,8 +224,6 @@ public:
     };
 
     explicit StrongReferenceCycle(utl::vector<Node> cycle);
-
-    void setStatement(ast::Statement const&) {}
 
     std::span<Node const> cycle() const { return _cycle; }
 

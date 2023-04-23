@@ -14,7 +14,7 @@
 #include <utl/scope_guard.hpp>
 #include <utl/vector.hpp>
 
-#include <scatha/AST/Fwd.h>
+#include <scatha/AST/Fwd.h> // Remove?
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Sema/Function.h>
@@ -50,12 +50,6 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
-    [[deprecated]] Expected<ObjectType&, SemanticIssue*> declareObjectType(
-        ast::StructDefinition const& structDef);
-
-    /// \overload
-    ///
-    /// Only exposed for testing purposes.
     Expected<ObjectType&, SemanticIssue*> declareObjectType(
         std::string name, bool allowKeywords = false);
 
@@ -74,12 +68,6 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already used by another kind of entity in the current scope.
-    [[deprecated]] Expected<Function const&, SemanticIssue*> declareFunction(
-        ast::FunctionDefinition const& functionDef);
-
-    /// \overload
-    ///
-    /// Only exposed for testing purposes.
     Expected<Function const&, SemanticIssue*> declareFunction(std::string name);
 
     /// \brief Add signature to declared function.
@@ -117,12 +105,6 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
-    [[deprecated]] Expected<Variable&, SemanticIssue*> declareVariable(
-        ast::VariableDeclaration const& varDecl);
-
-    /// \overload
-    ///
-    /// Only exposed for testing purposes but currently not tested.
     Expected<Variable&, SemanticIssue*> declareVariable(std::string name);
 
     /// \brief Declares a variable to the current scope.
@@ -134,10 +116,6 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if name of \p
     /// varDecl is already in use in the current scope.
-    [[deprecated]] Expected<Variable&, SemanticIssue*> addVariable(
-        ast::VariableDeclaration const& varDecl, TypeID, size_t offset = 0);
-
-    /// \overload
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
                                                     TypeID,
                                                     size_t offset = 0);

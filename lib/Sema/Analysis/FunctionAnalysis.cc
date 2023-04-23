@@ -208,9 +208,9 @@ void Context::analyze(ast::VariableDeclaration& var) {
         verifyConversion(*var.initExpression, declaredTypeID);
     }
     TypeID const finalTypeID = declaredTypeID ? declaredTypeID : deducedTypeID;
-    auto varObj              = sym.addVariable(var, finalTypeID);
+    auto varObj = sym.addVariable(var.nameIdentifier->value(), finalTypeID);
     if (!varObj) {
-        iss.push(varObj.error());
+        iss.push(varObj.error()->setStatement(var));
         return;
     }
     var.decorate(varObj->symbolID(), finalTypeID);

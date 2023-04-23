@@ -5,7 +5,6 @@
 #include <svm/Builtin.h>
 #include <utl/utility.hpp>
 
-#include "AST/AST.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;
@@ -50,19 +49,6 @@ SymbolTable& SymbolTable::operator=(SymbolTable&&) noexcept = default;
 SymbolTable::~SymbolTable() = default;
 
 Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
-    ast::StructDefinition const& structDef) {
-    auto result = declareObjectType(structDef.nameIdentifier->value());
-    if (!result) {
-        if (auto* invStatement =
-                dynamic_cast<InvalidStatement*>(result.error()))
-        {
-            invStatement->setStatement(structDef);
-        }
-    }
-    return result;
-}
-
-Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
     std::string name, bool allowKeywords) {
     using enum InvalidDeclaration::Reason;
     if (!allowKeywords && isKeyword(name)) {
@@ -96,19 +82,6 @@ TypeID SymbolTable::declareBuiltinType(std::string name,
     result->setAlign(align);
     result->setIsBuiltin(true);
     return result->symbolID();
-}
-
-Expected<Function const&, SemanticIssue*> SymbolTable::declareFunction(
-    ast::FunctionDefinition const& functionDef) {
-    auto result = declareFunction(functionDef.nameIdentifier->value());
-    if (!result) {
-        if (auto* invStatement =
-                dynamic_cast<InvalidStatement*>(result.error()))
-        {
-            invStatement->setStatement(functionDef);
-        }
-    }
-    return result;
 }
 
 Expected<Function const&, SemanticIssue*> SymbolTable::declareFunction(
@@ -206,19 +179,6 @@ bool SymbolTable::declareExternalFunction(std::string name,
 }
 
 Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
-    ast::VariableDeclaration const& varDecl) {
-    auto result = declareVariable(varDecl.nameIdentifier->value());
-    if (!result) {
-        if (auto* invStatement =
-                dynamic_cast<InvalidStatement*>(result.error()))
-        {
-            invStatement->setStatement(varDecl);
-        }
-    }
-    return result;
-}
-
-Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
     std::string name) {
     using enum InvalidDeclaration::Reason;
     if (isKeyword(name)) {
@@ -242,19 +202,6 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
     Variable& variable = itr->second;
     currentScope().add(variable);
     return variable;
-}
-
-Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
-    ast::VariableDeclaration const& varDecl, TypeID typeID, size_t offset) {
-    auto result = addVariable(varDecl.nameIdentifier->value(), typeID, offset);
-    if (!result) {
-        if (auto* invStatement =
-                dynamic_cast<InvalidStatement*>(result.error()))
-        {
-            invStatement->setStatement(varDecl);
-        }
-    }
-    return result;
 }
 
 Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(std::string name,

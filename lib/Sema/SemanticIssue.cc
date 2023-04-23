@@ -32,9 +32,11 @@ InvalidStatement::InvalidStatement(ast::Statement const* statement,
     _reason(reason),
     _scope(&inScope) {}
 
-void InvalidStatement::setStatement(ast::Statement const& statement) {
+InvalidStatement* InvalidStatement::setStatement(
+    ast::Statement const& statement) {
     _statement = &statement;
     setSourceLocation(statement.sourceLocation());
+    return this;
 }
 
 std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
