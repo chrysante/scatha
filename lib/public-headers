@@ -45,6 +45,7 @@ Sema/Entity.h
 Sema/SymbolTable.h
 Sema/SymbolID.h
 Sema/Type.h
+Sema/QualType.h
 Sema/OverloadSet.h
 Sema/Scope.h
 Sema/Fwd.h

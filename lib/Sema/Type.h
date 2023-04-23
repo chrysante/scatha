@@ -86,26 +86,6 @@ public:
     utl::small_vector<SymbolID> _memberVars;
 };
 
-/// Concrete class representing the type of a reference
-class ReferenceType: public Type {
-public:
-    explicit ReferenceType(SymbolID typeID, ObjectType const* referred):
-        Type(EntityType::ReferenceType,
-             ScopeKind::Invalid,
-             typeID,
-             std::string{},
-             nullptr,
-             8,
-             8),
-        ref(referred) {}
-
-    /// The type referred to
-    ObjectType const* referred() const { return ref; }
-
-public:
-    ObjectType const* ref;
-};
-
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_TYPE_H_

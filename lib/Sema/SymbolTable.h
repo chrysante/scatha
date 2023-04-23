@@ -19,6 +19,7 @@
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Function.h>
 #include <scatha/Sema/OverloadSet.h>
+#include <scatha/Sema/QualType.h>
 #include <scatha/Sema/Scope.h>
 #include <scatha/Sema/SymbolID.h>
 #include <scatha/Sema/Type.h>
@@ -125,12 +126,16 @@ public:
     /// \returns Reference to the new scope.
     Scope const& addAnonymousScope();
 
-    ///
-    ReferenceType const& referenceType(ObjectType const& referredType);
+    QualType const* qualifyType(Type const* base, TypeQualifiers qualifiers);
 
-    /// \overload
-    ReferenceType const& referenceType(TypeID referredType) {
-        return referenceType(get<ObjectType>(referredType));
+    QualType const* addQualifiers(QualType const* base,
+                                  TypeQualifiers qualifiers) {
+        return qualifyType(base, base->qualifiers() | qualifiers);
+    }
+
+    QualType const* removeQualifiers(QualType const* base,
+                                     TypeQualifiers qualifiers) {
+        return qualifyType(base, base->qualifiers() & ~qualifiers);
     }
 
     /// \brief Makes scope with symbolD \p id the current scope.
@@ -258,6 +263,8 @@ public:
     }
 
 private:
+    QualType const* getQualType(ObjectType const* base, TypeQualifiers qualifiers);
+
     SymbolID generateID(SymbolCategory category);
 
 private:
@@ -268,7 +275,8 @@ private:
 
     utl::hashmap<SymbolID, UniquePtr<Entity>> _entities;
 
-    utl::hashmap<ObjectType const*, ReferenceType const*> _refs;
+    utl::hashmap<std::pair<ObjectType const*, TypeQualifiers>, QualType const*>
+        _qualTypes;
 
     utl::vector<TypeID> _sortedObjectTypes;
 

@@ -235,16 +235,30 @@ Scope const& SymbolTable::addAnonymousScope() {
     return scope;
 }
 
-ReferenceType const& SymbolTable::referenceType(
-    ObjectType const& referredType) {
-    if (auto itr = _refs.find(&referredType); itr != _refs.end()) {
-        return *itr->second;
+QualType const* SymbolTable::qualifyType(Type const* base,
+                                         TypeQualifiers qualifiers) {
+    ObjectType const* objType = dyncast<ObjectType const*>(base);
+    if (!objType) {
+        objType = cast<QualType const*>(base)->base();
     }
-    auto newSymbolID    = generateID(SymbolCategory::Type);
-    auto [itr, success] = _entities.insert(
-        { newSymbolID, allocate<ReferenceType>(newSymbolID, &referredType) });
+    return getQualType(objType, qualifiers);
+}
+
+QualType const* SymbolTable::getQualType(ObjectType const* baseType,
+                                      TypeQualifiers qualifiers) {
+    if (auto itr = _qualTypes.find({ baseType, qualifiers });
+        itr != _qualTypes.end())
+    {
+        return itr->second;
+    }
+    auto newSymbolID = generateID(SymbolCategory::Type);
+    auto [itr, success] =
+        _entities.insert({ newSymbolID,
+                           allocate<QualType>(newSymbolID,
+                                              const_cast<ObjectType*>(baseType),
+                                              qualifiers) });
     SC_ASSERT(success, "");
-    return cast<ReferenceType&>(*itr->second);
+    return cast<QualType*>(itr->second.get());
 }
 
 void SymbolTable::pushScope(SymbolID id) {

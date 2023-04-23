@@ -237,13 +237,14 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
         //        return ExpressionAnalysisResult::lvalue(referred.type());
     }
     else {
-        auto& refType = sym.referenceType(TypeID(referred.symbolID()));
-        ref.decorate(SymbolID::Invalid,
-                     &sym.get<Type>(refType.symbolID()),
-                     referred.valueCategory(),
-                     referred.entityCategory());
-        return ExpressionAnalysisResult::type(
-            &sym.get<Type>(refType.symbolID()));
+        SC_DEBUGFAIL();
+        //        auto& refType = sym.addQualifiers(referred.type(),
+        //        TypeQualifiers::Reference); ref.decorate(SymbolID::Invalid,
+        //                     &sym.get<Type>(refType.symbolID()),
+        //                     referred.valueCategory(),
+        //                     referred.entityCategory());
+        //        return ExpressionAnalysisResult::type(
+        //            &sym.get<Type>(refType.symbolID()));
     }
 }
 
