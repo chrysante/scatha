@@ -145,7 +145,7 @@ utl::vector<Token>::iterator Context::popStackAndInsertMatchingBrackets(
             Bracket const newBracket = { bracket.type, Bracket::Side::Close };
             return Token(toString(newBracket),
                          toTokenKind(newBracket),
-                         tokenItr->sourceLocation());
+                         tokenItr->sourceRange());
         }) |
         ranges::views::common;
     auto const resultItr = tokens.insert(tokenItr,

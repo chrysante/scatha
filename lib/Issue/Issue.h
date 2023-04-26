@@ -15,13 +15,17 @@ class Issue {
 public:
     virtual ~Issue() = default;
 
-    SourceLocation sourceLocation() const { return sourceLoc; }
+    SourceRange sourceRange() const { return sourceRng; }
+
+    SourceLocation sourceLocation() const { return sourceRng.begin(); }
 
     IssueSeverity severity() const { return sev; }
 
     void setSourceLocation(SourceLocation sourceLocation) {
-        sourceLoc = sourceLocation;
+        setSourceRange({ sourceLocation, sourceLocation });
     }
+
+    void setSourceRange(SourceRange sourceRange) { sourceRng = sourceRange; }
 
     void print(std::string_view source);
 
@@ -29,12 +33,15 @@ public:
 
 protected:
     explicit Issue(SourceLocation sourceLoc, IssueSeverity severity):
-        sourceLoc(sourceLoc), sev(severity) {}
+        Issue({ sourceLoc, sourceLoc }, severity) {}
+
+    explicit Issue(SourceRange sourceRange, IssueSeverity severity):
+        sourceRng(sourceRange), sev(severity) {}
 
 private:
     virtual std::string message() const = 0;
 
-    SourceLocation sourceLoc;
+    SourceRange sourceRng;
     IssueSeverity sev;
 };
 

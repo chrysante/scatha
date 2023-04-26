@@ -36,10 +36,8 @@ bool isIdentifier(TokenKind kind);
 
 struct SCATHA_API Token {
     Token() = default;
-    explicit Token(std::string id,
-                   TokenKind kind,
-                   SourceLocation sourceLocation = {}):
-        _id(std::move(id)), _kind(kind), _sourceLoc(sourceLocation) {}
+    explicit Token(std::string id, TokenKind kind, SourceRange sourceRange):
+        _id(std::move(id)), _kind(kind), _sourceRange(sourceRange) {}
 
     bool empty() const { return _id.empty(); }
 
@@ -47,7 +45,9 @@ struct SCATHA_API Token {
 
     TokenKind kind() const { return _kind; }
 
-    SourceLocation sourceLocation() const { return _sourceLoc; }
+    SourceRange sourceRange() const { return _sourceRange; }
+
+    SourceLocation sourceLocation() const { return _sourceRange.begin(); }
 
     APInt toInteger(size_t bitWidth) const;
 
@@ -60,7 +60,7 @@ struct SCATHA_API Token {
 private:
     std::string _id;
     TokenKind _kind;
-    SourceLocation _sourceLoc;
+    SourceRange _sourceRange;
 };
 
 } // namespace scatha::parse

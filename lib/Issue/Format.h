@@ -9,13 +9,10 @@
 
 namespace scatha {
 
-SCATHA_API void highlightSource(std::string_view text,
-                                SourceLocation sourceLoc,
-                                size_t numChars);
+SCATHA_API void highlightSource(std::string_view text, SourceRange sourceRange);
 
 SCATHA_API void highlightSource(std::string_view text,
-                                SourceLocation sourceLoc,
-                                size_t numChars,
+                                SourceRange sourceRange,
                                 std::ostream& ostream);
 
 } // namespace scatha

@@ -10,6 +10,7 @@
 
 namespace scatha {
 
+/// Represents a location in source code
 struct SourceLocation {
     i64 index = 0;
     i32 line = 0, column = 0;
@@ -33,6 +34,27 @@ inline std::strong_ordering operator<=>(SourceLocation const& lhs,
 }
 
 SCATHA_API std::ostream& operator<<(std::ostream&, SourceLocation const&);
+
+/// Represents a range of characters in source code as a begin/end pair of
+/// source locations
+class SourceRange {
+public:
+    SourceRange() = default;
+
+    SourceRange(SourceLocation begin, SourceLocation end):
+        _begin(begin), _end(end) {}
+
+    SourceLocation begin() const { return _begin; }
+
+    SourceLocation end() const { return _end; }
+
+    bool operator==(SourceRange const& rhs) const = default;
+
+private:
+    SourceLocation _begin, _end;
+};
+
+SCATHA_API SourceRange merge(SourceRange lhs, SourceRange rhs);
 
 } // namespace scatha
 

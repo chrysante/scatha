@@ -65,7 +65,8 @@ utl::vector<Token> Context::run() {
         }
     }
     SC_ASSERT(currentLocation.index == textSize(), "How is this possible?");
-    result.push_back(Token({}, TokenKind::EndOfFile, currentLocation));
+    result.push_back(
+        Token({}, TokenKind::EndOfFile, { currentLocation, currentLocation }));
     return result;
 }
 
@@ -140,12 +141,14 @@ bool Context::ignoreMultiLineComment() {
     if (auto const next = this->next(); !next || *next != '*') {
         return false;
     }
+    SourceLocation const beginLoc = currentLocation;
     advance();
     /// Now we are at the next character after `/*`
     char last = current();
     while (true) {
         if (!advance()) {
-            issues.push<UnterminatedMultiLineComment>(currentLocation);
+            issues.push<UnterminatedMultiLineComment>(
+                SourceRange{ beginLoc, currentLocation });
             return true;
         }
         if (last == '*' && current() == '/') {
@@ -160,7 +163,7 @@ std::optional<Token> Context::getPunctuation() {
     if (!isPunctuation(current())) {
         return std::nullopt;
     }
-    auto [id, sourceLoc] = beginToken();
+    auto [id, beginLoc] = beginToken();
     id += current();
     auto punctuation = [&] {
         using enum TokenKind;
@@ -188,7 +191,7 @@ std::optional<Token> Context::getPunctuation() {
         }
     }();
     advance();
-    return Token(id, punctuation, sourceLoc);
+    return Token(id, punctuation, { beginLoc, currentLocation });
 }
 
 static TokenKind toOperator(std::string_view str) {
@@ -201,7 +204,7 @@ static TokenKind toOperator(std::string_view str) {
 }
 
 std::optional<Token> Context::getOperator() {
-    auto [id, sourceLoc] = beginToken();
+    auto [id, beginLoc] = beginToken();
     id += current();
     if (!isOperator(id)) {
         return std::nullopt;
@@ -216,7 +219,7 @@ std::optional<Token> Context::getOperator() {
             break;
         }
     }
-    return Token(id, toOperator(id), sourceLoc);
+    return Token(id, toOperator(id), { beginLoc, currentLocation });
 }
 
 std::optional<Token> Context::getIntegerLiteral() {
@@ -226,7 +229,7 @@ std::optional<Token> Context::getIntegerLiteral() {
     if (current() == '0' && next() && *next() == 'x') {
         return std::nullopt; // We are a hex literal, not our job
     }
-    auto [id, sourceLoc] = beginToken();
+    auto [id, beginLoc] = beginToken();
     id += current();
     ssize_t offset     = 1;
     std::optional next = this->next(offset);
@@ -239,13 +242,15 @@ std::optional<Token> Context::getIntegerLiteral() {
         while (offset-- > 0) {
             advance();
         }
-        return Token(id, TokenKind::IntegerLiteral, sourceLoc);
+        return Token(id,
+                     TokenKind::IntegerLiteral,
+                     { beginLoc, currentLocation });
     }
     if (*next == '.') {
         // We are a float literal
         return std::nullopt;
     }
-    issues.push<InvalidNumericLiteral>(sourceLoc,
+    issues.push<InvalidNumericLiteral>(SourceRange{ beginLoc, currentLocation },
                                        InvalidNumericLiteral::Kind::Integer);
     return std::nullopt;
 }
@@ -254,7 +259,7 @@ std::optional<Token> Context::getIntegerLiteralHex() {
     if (current() != '0' || !next() || *next() != 'x') {
         return std::nullopt;
     }
-    auto [id, sourceLoc] = beginToken();
+    auto [id, beginLoc] = beginToken();
     id += current();
     advance();
     id += current();
@@ -263,9 +268,11 @@ std::optional<Token> Context::getIntegerLiteralHex() {
         id += current();
     }
     if (next() && !isLetter(*next())) {
-        return Token(id, TokenKind::IntegerLiteral, sourceLoc);
+        return Token(id,
+                     TokenKind::IntegerLiteral,
+                     { beginLoc, currentLocation });
     }
-    issues.push<InvalidNumericLiteral>(sourceLoc,
+    issues.push<InvalidNumericLiteral>(SourceRange{ beginLoc, currentLocation },
                                        InvalidNumericLiteral::Kind::Integer);
     return std::nullopt;
 }
@@ -274,7 +281,7 @@ std::optional<Token> Context::getFloatingPointLiteral() {
     if (!isFloatDigitDec(current())) {
         return std::nullopt;
     }
-    auto [id, sourceLoc] = beginToken();
+    auto [id, beginLoc] = beginToken();
     id += current();
     ssize_t offset     = 1;
     std::optional next = this->next(offset);
@@ -289,10 +296,12 @@ std::optional<Token> Context::getFloatingPointLiteral() {
         while (offset-- > 0) {
             advance();
         }
-        return Token(id, TokenKind::FloatLiteral, sourceLoc);
+        return Token(id,
+                     TokenKind::FloatLiteral,
+                     { beginLoc, currentLocation });
     }
     issues.push<InvalidNumericLiteral>(
-        sourceLoc,
+        SourceRange{ beginLoc, currentLocation },
         InvalidNumericLiteral::Kind::FloatingPoint);
     return std::nullopt;
 }
@@ -301,19 +310,23 @@ std::optional<Token> Context::getStringLiteral() {
     if (current() != '"') {
         return std::nullopt;
     }
-    auto [id, sourceLoc] = beginToken();
+    auto [id, beginLoc] = beginToken();
     if (!advance()) {
-        issues.push<UnterminatedStringLiteral>(sourceLoc);
+        issues.push<UnterminatedStringLiteral>(
+            SourceRange{ beginLoc, currentLocation });
         return std::nullopt;
     }
     while (true) {
         if (current() == '"') {
             advance();
-            return Token(id, TokenKind::StringLiteral, sourceLoc);
+            return Token(id,
+                         TokenKind::StringLiteral,
+                         { beginLoc, currentLocation });
         }
         id += current();
         if (!advance() || current() == '\n') {
-            issues.push<UnterminatedStringLiteral>(sourceLoc);
+            issues.push<UnterminatedStringLiteral>(
+                SourceRange{ beginLoc, currentLocation });
             return std::nullopt;
         }
     }
@@ -327,10 +340,10 @@ std::optional<Token> Context::getBooleanLiteral() {
         if (auto const n = next(4); n && isLetterEx(*n)) {
             return std::nullopt;
         }
-        auto [id, sourceLoc] = beginToken();
-        id                   = "true";
+        auto [id, beginLoc] = beginToken();
+        id                  = "true";
         advance(4);
-        return Token(id, TokenKind::True, sourceLoc);
+        return Token(id, TokenKind::True, { beginLoc, currentLocation });
     }
     if (currentLocation.index + 4 < textSize() &&
         text.substr(utl::narrow_cast<size_t>(currentLocation.index), 5) ==
@@ -339,10 +352,10 @@ std::optional<Token> Context::getBooleanLiteral() {
         if (auto const n = next(5); n && isLetterEx(*n)) {
             return std::nullopt;
         }
-        auto [id, sourceLoc] = beginToken();
-        id                   = "false";
+        auto [id, beginLoc] = beginToken();
+        id                  = "false";
         advance(5);
-        return Token(id, TokenKind::False, sourceLoc);
+        return Token(id, TokenKind::False, { beginLoc, currentLocation });
     }
     return std::nullopt;
 }
@@ -360,12 +373,12 @@ std::optional<Token> Context::getIdentifier() {
     if (!isLetter(current())) {
         return std::nullopt;
     }
-    auto [id, sourceLoc] = beginToken();
+    auto [id, beginLoc] = beginToken();
     id += current();
     while (advance() && isLetterEx(current())) {
         id += current();
     }
-    return Token(id, idToTokenKind(id), sourceLoc);
+    return Token(id, idToTokenKind(id), { beginLoc, currentLocation });
 }
 
 bool Context::advance() {

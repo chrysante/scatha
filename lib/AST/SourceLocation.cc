@@ -3,11 +3,16 @@
 #include <iomanip>
 #include <ostream>
 
-namespace scatha {
+using namespace scatha;
 
-std::ostream& operator<<(std::ostream& str, SourceLocation const& sc) {
+std::ostream& scatha::operator<<(std::ostream& str, SourceLocation const& sc) {
     return str << "(" << std::setw(3) << sc.line << ", " << std::setw(3)
                << sc.column << ")";
 }
 
-} // namespace scatha
+SourceRange scatha::merge(SourceRange lhs, SourceRange rhs) {
+    return {
+        lhs.begin() < rhs.begin() ? lhs.begin() : rhs.begin(),
+        lhs.end() > rhs.end() ? lhs.end() : rhs.end(),
+    };
+}

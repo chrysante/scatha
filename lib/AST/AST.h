@@ -73,21 +73,24 @@ public:
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }
 
+    /// Source range object associated with this node.
+    SourceRange sourceRange() const { return _sourceRange; }
+
     /// Source location object associated with this node.
-    SourceLocation sourceLocation() const { return _sourceLoc; }
+    SourceLocation sourceLocation() const { return _sourceRange.begin(); }
 
 protected:
-    explicit AbstractSyntaxTree(NodeType type, SourceLocation sourceLoc):
-        _type(type), _sourceLoc(sourceLoc) {}
+    explicit AbstractSyntaxTree(NodeType type, SourceRange sourceRange):
+        _type(type), _sourceRange(sourceRange) {}
 
-    void setSourceLocation(SourceLocation sourceLoc) { _sourceLoc = sourceLoc; }
+    void setSourceRange(SourceRange sourceRange) { _sourceRange = sourceRange; }
 
 private:
     friend void scatha::internal::privateDelete(ast::AbstractSyntaxTree*);
 
 private:
     NodeType _type;
-    SourceLocation _sourceLoc;
+    SourceRange _sourceRange;
 };
 
 // For `dyncast` compatibilty
@@ -157,8 +160,8 @@ private:
 /// Concrete node representing an identifier.
 class SCATHA_API Identifier: public Expression {
 public:
-    explicit Identifier(SourceLocation sourceLoc, std::string id):
-        Expression(NodeType::Identifier, sourceLoc), _value(id) {}
+    explicit Identifier(SourceRange sourceRange, std::string id):
+        Expression(NodeType::Identifier, sourceRange), _value(id) {}
 
     /// Literal string value as declared in the source.
     std::string const& value() const { return _value; }
@@ -180,8 +183,8 @@ private:
 /// Concrete node representing an integer literal.
 class SCATHA_API IntegerLiteral: public Expression {
 public:
-    explicit IntegerLiteral(SourceLocation sourceLoc, APInt value):
-        Expression(NodeType::IntegerLiteral, sourceLoc),
+    explicit IntegerLiteral(SourceRange sourceRange, APInt value):
+        Expression(NodeType::IntegerLiteral, sourceRange),
         _value(std::move(value)) {}
 
     APInt value() const { return _value; };
@@ -193,8 +196,8 @@ private:
 /// Concrete node representing a boolean literal.
 class SCATHA_API BooleanLiteral: public Expression {
 public:
-    explicit BooleanLiteral(SourceLocation sourceLoc, APInt value):
-        Expression(NodeType::BooleanLiteral, sourceLoc),
+    explicit BooleanLiteral(SourceRange sourceRange, APInt value):
+        Expression(NodeType::BooleanLiteral, sourceRange),
         _value(std::move(value)) {}
 
     /// Value as declared in the source code.
@@ -207,8 +210,8 @@ private:
 /// Concrete node representing a floating point literal.
 class SCATHA_API FloatingPointLiteral: public Expression {
 public:
-    explicit FloatingPointLiteral(SourceLocation sourceLoc, APFloat value):
-        Expression(NodeType::FloatingPointLiteral, sourceLoc),
+    explicit FloatingPointLiteral(SourceRange sourceRange, APFloat value):
+        Expression(NodeType::FloatingPointLiteral, sourceRange),
         _value(std::move(value)) {}
 
     APFloat value() const { return _value; }
@@ -220,8 +223,8 @@ private:
 /// Concrete node representing a string literal.
 class SCATHA_API StringLiteral: public Expression {
 public:
-    explicit StringLiteral(SourceLocation sourceLoc, std::string value):
-        Expression(NodeType::StringLiteral, sourceLoc),
+    explicit StringLiteral(SourceRange sourceRange, std::string value):
+        Expression(NodeType::StringLiteral, sourceRange),
         _value(std::move(value)) {}
 
     /// Value as declared in the source code.
@@ -238,8 +241,8 @@ class SCATHA_API UnaryPrefixExpression: public Expression {
 public:
     explicit UnaryPrefixExpression(UnaryPrefixOperator op,
                                    UniquePtr<Expression> operand,
-                                   SourceLocation sourceLoc):
-        Expression(NodeType::UnaryPrefixExpression, sourceLoc),
+                                   SourceRange sourceRange):
+        Expression(NodeType::UnaryPrefixExpression, sourceRange),
         operand(std::move(operand)),
         op(op) {}
 
@@ -261,8 +264,8 @@ public:
     explicit BinaryExpression(BinaryOperator op,
                               UniquePtr<Expression> lhs,
                               UniquePtr<Expression> rhs,
-                              SourceLocation sourceLoc):
-        Expression(NodeType::BinaryExpression, sourceLoc),
+                              SourceRange sourceRange):
+        Expression(NodeType::BinaryExpression, sourceRange),
         lhs(std::move(lhs)),
         rhs(std::move(rhs)),
         op(op) {}
@@ -288,8 +291,8 @@ class SCATHA_API MemberAccess: public Expression {
 public:
     explicit MemberAccess(UniquePtr<Expression> object,
                           UniquePtr<Expression> member,
-                          SourceLocation sourceLoc):
-        Expression(NodeType::MemberAccess, sourceLoc),
+                          SourceRange sourceRange):
+        Expression(NodeType::MemberAccess, sourceRange),
         object(std::move(object)),
         member(std::move(member)) {}
 
@@ -312,8 +315,8 @@ public:
 class SCATHA_API ReferenceExpression: public Expression {
 public:
     explicit ReferenceExpression(UniquePtr<Expression> referred,
-                                 SourceLocation sourceLoc):
-        Expression(NodeType::ReferenceExpression, sourceLoc),
+                                 SourceRange sourceRange):
+        Expression(NodeType::ReferenceExpression, sourceRange),
         referred(std::move(referred)) {}
 
     /// The object being referred to.
@@ -336,8 +339,8 @@ public:
     explicit Conditional(UniquePtr<Expression> condition,
                          UniquePtr<Expression> ifExpr,
                          UniquePtr<Expression> elseExpr,
-                         SourceLocation sourceLoc):
-        Expression(NodeType::Conditional, sourceLoc),
+                         SourceRange sourceRange):
+        Expression(NodeType::Conditional, sourceRange),
         condition(std::move(condition)),
         ifExpr(std::move(ifExpr)),
         elseExpr(std::move(elseExpr)) {}
@@ -358,8 +361,8 @@ public:
 class SCATHA_API FunctionCall: public Expression {
 public:
     explicit FunctionCall(UniquePtr<Expression> object,
-                          SourceLocation sourceLoc):
-        Expression(NodeType::FunctionCall, sourceLoc),
+                          SourceRange sourceRange):
+        Expression(NodeType::FunctionCall, sourceRange),
         object(std::move(object)) {}
 
     /// The object (function or rather overload set) being called.
@@ -388,8 +391,9 @@ public:
 /// Concrete node representing a subscript expression.
 class SCATHA_API Subscript: public Expression {
 public:
-    explicit Subscript(UniquePtr<Expression> object, SourceLocation sourceLoc):
-        Expression(NodeType::Subscript, sourceLoc), object(std::move(object)) {}
+    explicit Subscript(UniquePtr<Expression> object, SourceRange sourceRange):
+        Expression(NodeType::Subscript, sourceRange),
+        object(std::move(object)) {}
 
     /// The object being indexed.
     UniquePtr<Expression> object;
@@ -434,9 +438,9 @@ public:
 
 protected:
     explicit Declaration(NodeType type,
-                         SourceLocation sourceLoc,
+                         SourceRange sourceRange,
                          UniquePtr<Identifier> name):
-        Statement(type, sourceLoc), nameIdentifier(std::move(name)) {}
+        Statement(type, sourceRange), nameIdentifier(std::move(name)) {}
 
 private:
     sema::SymbolID _symbolID;
@@ -446,7 +450,7 @@ private:
 class SCATHA_API TranslationUnit: public AbstractSyntaxTree {
 public:
     TranslationUnit():
-        AbstractSyntaxTree(NodeType::TranslationUnit, SourceLocation{}) {}
+        AbstractSyntaxTree(NodeType::TranslationUnit, SourceRange{}) {}
 
     /// List of declarations in the translation unit.
     utl::small_vector<UniquePtr<Declaration>> declarations;
@@ -455,10 +459,11 @@ public:
 /// Concrete node representing a variable declaration.
 class SCATHA_API VariableDeclaration: public Declaration {
 public:
-    explicit VariableDeclaration(SourceLocation sourceLoc,
+    explicit VariableDeclaration(SourceRange sourceRange,
                                  UniquePtr<Identifier> name):
-        Declaration(NodeType::VariableDeclaration, sourceLoc, std::move(name)) {
-    }
+        Declaration(NodeType::VariableDeclaration,
+                    sourceRange,
+                    std::move(name)) {}
 
     bool isConstant : 1 = false; // Will be set by the parser
 
@@ -513,11 +518,11 @@ public:
     explicit ParameterDeclaration(UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
         Declaration(NodeType::ParameterDeclaration,
-                    SourceLocation{},
+                    SourceRange{},
                     std::move(name)),
         typeExpr(std::move(typeExpr)) {
         if (nameIdentifier) {
-            setSourceLocation(nameIdentifier->sourceLocation());
+            setSourceRange(nameIdentifier->sourceRange());
         }
     }
 
@@ -552,8 +557,8 @@ public:
 /// anonymous) scope.
 class SCATHA_API CompoundStatement: public Statement {
 public:
-    explicit CompoundStatement(SourceLocation sourceLoc):
-        Statement(NodeType::CompoundStatement, sourceLoc) {}
+    explicit CompoundStatement(SourceRange sourceRange):
+        Statement(NodeType::CompoundStatement, sourceRange) {}
 
     /// List of statements in the compound statement.
     utl::small_vector<UniquePtr<Statement>> statements;
@@ -590,16 +595,18 @@ private:
 /// parsing but can potentially handle them in some way in semantic analysis.
 class SCATHA_API EmptyStatement: public Statement {
 public:
-    explicit EmptyStatement(SourceLocation sourceLoc):
-        Statement(NodeType::EmptyStatement, sourceLoc) {}
+    explicit EmptyStatement(SourceRange sourceRange):
+        Statement(NodeType::EmptyStatement, sourceRange) {}
 };
 
 /// Concrete node representing the definition of a function.
 class SCATHA_API FunctionDefinition: public Declaration {
 public:
-    explicit FunctionDefinition(SourceLocation sourceLoc,
+    explicit FunctionDefinition(SourceRange sourceRange,
                                 UniquePtr<Identifier> name):
-        Declaration(NodeType::FunctionDefinition, sourceLoc, std::move(name)) {}
+        Declaration(NodeType::FunctionDefinition,
+                    sourceRange,
+                    std::move(name)) {}
 
     /// Typename of the return type as declared in the source code.
     /// Will be null if no return type was declared.
@@ -632,10 +639,10 @@ private:
 /// Concrete node representing the definition of a struct.
 class SCATHA_API StructDefinition: public Declaration {
 public:
-    explicit StructDefinition(SourceLocation sourceLoc,
+    explicit StructDefinition(SourceRange sourceRange,
                               UniquePtr<Identifier> name,
                               UniquePtr<CompoundStatement> body):
-        Declaration(NodeType::StructDefinition, sourceLoc, std::move(name)),
+        Declaration(NodeType::StructDefinition, sourceRange, std::move(name)),
         body(std::move(body)) {}
 
     /// Body of the struct.
@@ -653,7 +660,7 @@ class SCATHA_API ExpressionStatement: public Statement {
 public:
     explicit ExpressionStatement(UniquePtr<Expression> expression):
         Statement(NodeType::ExpressionStatement,
-                  expression ? expression->sourceLocation() : SourceLocation{}),
+                  expression ? expression->sourceRange() : SourceRange{}),
         expression(std::move(expression)) {}
 
     /// The expression
@@ -670,9 +677,9 @@ protected:
 /// Concrete node representing a return statement.
 class SCATHA_API ReturnStatement: public ControlFlowStatement {
 public:
-    explicit ReturnStatement(SourceLocation sourceLoc,
+    explicit ReturnStatement(SourceRange sourceRange,
                              UniquePtr<Expression> expression):
-        ControlFlowStatement(NodeType::ReturnStatement, sourceLoc),
+        ControlFlowStatement(NodeType::ReturnStatement, sourceRange),
         expression(std::move(expression)) {}
 
     /// The returned expression. May be null in case of a void function.
@@ -682,11 +689,11 @@ public:
 /// Concrete node representing an if/else statement.
 class SCATHA_API IfStatement: public ControlFlowStatement {
 public:
-    explicit IfStatement(SourceLocation sourceLoc,
+    explicit IfStatement(SourceRange sourceRange,
                          UniquePtr<Expression> condition,
                          UniquePtr<Statement> ifBlock,
                          UniquePtr<Statement> elseBlock):
-        ControlFlowStatement(NodeType::IfStatement, sourceLoc),
+        ControlFlowStatement(NodeType::IfStatement, sourceRange),
         condition(std::move(condition)),
         thenBlock(std::move(ifBlock)),
         elseBlock(std::move(elseBlock)) {}
@@ -706,10 +713,10 @@ public:
 /// Concrete node representing a while statement.
 class SCATHA_API WhileStatement: public ControlFlowStatement {
 public:
-    explicit WhileStatement(SourceLocation sourceLoc,
+    explicit WhileStatement(SourceRange sourceRange,
                             UniquePtr<Expression> condition,
                             UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::WhileStatement, sourceLoc),
+        ControlFlowStatement(NodeType::WhileStatement, sourceRange),
         condition(std::move(condition)),
         block(std::move(block)) {}
 
@@ -725,10 +732,10 @@ public:
 /// Concrete node representing a do-while statement.
 class SCATHA_API DoWhileStatement: public ControlFlowStatement {
 public:
-    explicit DoWhileStatement(SourceLocation sourceLoc,
+    explicit DoWhileStatement(SourceRange sourceRange,
                               UniquePtr<Expression> condition,
                               UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::DoWhileStatement, sourceLoc),
+        ControlFlowStatement(NodeType::DoWhileStatement, sourceRange),
         condition(std::move(condition)),
         block(std::move(block)) {}
 
@@ -744,12 +751,12 @@ public:
 /// Concrete node representing a for statement.
 class SCATHA_API ForStatement: public ControlFlowStatement {
 public:
-    explicit ForStatement(SourceLocation sourceLoc,
+    explicit ForStatement(SourceRange sourceRange,
                           UniquePtr<VariableDeclaration> varDecl,
                           UniquePtr<Expression> condition,
                           UniquePtr<Expression> increment,
                           UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::ForStatement, sourceLoc),
+        ControlFlowStatement(NodeType::ForStatement, sourceRange),
         varDecl(std::move(varDecl)),
         condition(std::move(condition)),
         increment(std::move(increment)),
@@ -774,15 +781,15 @@ public:
 /// Represents a `break;` statement.
 class SCATHA_API BreakStatement: public ControlFlowStatement {
 public:
-    explicit BreakStatement(SourceLocation sourceLoc):
-        ControlFlowStatement(NodeType::BreakStatement, sourceLoc) {}
+    explicit BreakStatement(SourceRange sourceRange):
+        ControlFlowStatement(NodeType::BreakStatement, sourceRange) {}
 };
 
 /// Represents a `continue;` statement.
 class SCATHA_API ContinueStatement: public ControlFlowStatement {
 public:
-    explicit ContinueStatement(SourceLocation sourceLoc):
-        ControlFlowStatement(NodeType::ContinueStatement, sourceLoc) {}
+    explicit ContinueStatement(SourceRange sourceRange):
+        ControlFlowStatement(NodeType::ContinueStatement, sourceRange) {}
 };
 
 } // namespace scatha::ast

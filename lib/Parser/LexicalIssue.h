@@ -22,8 +22,8 @@ protected:
 /// Unexpected character encountered
 class SCATHA_API UnexpectedCharacter: public LexicalIssue {
 public:
-    explicit UnexpectedCharacter(SourceLocation sourceLoc):
-        LexicalIssue(sourceLoc, IssueSeverity::Error) {}
+    explicit UnexpectedCharacter(SourceRange sourceRange):
+        LexicalIssue(sourceRange, IssueSeverity::Error) {}
 
 private:
     std::string message() const override { return "Unexpected character"; }
@@ -34,8 +34,8 @@ class SCATHA_API InvalidNumericLiteral: public LexicalIssue {
 public:
     enum class Kind { Integer, FloatingPoint };
 
-    explicit InvalidNumericLiteral(SourceLocation sourceLoc, Kind kind):
-        LexicalIssue(sourceLoc, IssueSeverity::Error), _kind(kind) {}
+    explicit InvalidNumericLiteral(SourceRange sourceRange, Kind kind):
+        LexicalIssue(sourceRange, IssueSeverity::Error), _kind(kind) {}
 
     Kind kind() const { return _kind; }
 
@@ -48,8 +48,8 @@ private:
 /// Unterminated string literal
 class SCATHA_API UnterminatedStringLiteral: public LexicalIssue {
 public:
-    explicit UnterminatedStringLiteral(SourceLocation sourceLoc):
-        LexicalIssue(sourceLoc, IssueSeverity::Error) {}
+    explicit UnterminatedStringLiteral(SourceRange sourceRange):
+        LexicalIssue(sourceRange, IssueSeverity::Error) {}
 
 private:
     std::string message() const override {
@@ -60,8 +60,8 @@ private:
 /// Unterminated comment
 class SCATHA_API UnterminatedMultiLineComment: public LexicalIssue {
 public:
-    explicit UnterminatedMultiLineComment(SourceLocation sourceLoc):
-        LexicalIssue(sourceLoc, IssueSeverity::Error) {}
+    explicit UnterminatedMultiLineComment(SourceRange sourceRange):
+        LexicalIssue(sourceRange, IssueSeverity::Error) {}
 
 private:
     std::string message() const override {

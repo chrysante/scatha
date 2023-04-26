@@ -9,10 +9,8 @@
 
 using namespace scatha;
 
-void scatha::highlightSource(std::string_view text,
-                             SourceLocation sourceLoc,
-                             size_t numChars) {
-    highlightSource(text, sourceLoc, numChars, std::cout);
+void scatha::highlightSource(std::string_view text, SourceRange sourceRange) {
+    highlightSource(text, sourceRange, std::cout);
 }
 
 static std::string_view getLineImpl(std::string_view text, size_t index) {
@@ -78,19 +76,23 @@ static auto lineNumber(ssize_t index) {
 }
 
 void scatha::highlightSource(std::string_view text,
-                             SourceLocation sourceLocation,
-                             size_t numChars,
+                             SourceRange sourceRange,
                              std::ostream& str) {
-    size_t const index  = utl::narrow_cast<size_t>(sourceLocation.index);
-    size_t const column = utl::narrow_cast<size_t>(sourceLocation.column);
+    size_t const index  = utl::narrow_cast<size_t>(sourceRange.begin().index);
+    size_t const column = utl::narrow_cast<size_t>(sourceRange.begin().column);
     std::string_view const line = getLine(text, index);
-    numChars                    = std::min(numChars, line.size() - column + 1);
+    size_t const numChars =
+        sourceRange.begin().line == sourceRange.end().line ?
+            utl::narrow_cast<size_t>(sourceRange.end().column -
+                                     sourceRange.begin().column) :
+            line.size() - column + 1;
+    SourceLocation const beginLoc = sourceRange.begin();
 
     /// Previous lines
-    ssize_t lineIndex = std::max(0, sourceLocation.line - 3);
-    for (; lineIndex != sourceLocation.line; ++lineIndex) {
+    ssize_t lineIndex = std::max(0, beginLoc.line - 3);
+    for (; lineIndex != beginLoc.line; ++lineIndex) {
         str << lineNumber(lineIndex)
-            << getLine(text, index, lineIndex - sourceLocation.line) << "\n";
+            << getLine(text, index, lineIndex - beginLoc.line) << "\n";
     }
 
     /// Erroneous line
@@ -115,8 +117,8 @@ void scatha::highlightSource(std::string_view text,
     str << "\n";
 
     /// Next lines
-    for (; lineIndex != sourceLocation.line + 3; ++lineIndex) {
+    for (; lineIndex != beginLoc.line + 3; ++lineIndex) {
         str << lineNumber(lineIndex)
-            << getLine(text, index, lineIndex - sourceLocation.line) << "\n";
+            << getLine(text, index, lineIndex - beginLoc.line) << "\n";
     }
 }

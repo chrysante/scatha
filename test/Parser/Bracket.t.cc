@@ -12,7 +12,7 @@ void checkBracketImpl(std::string str,
                       TokenKind tokenType,
                       Bracket::Type type,
                       Bracket::Side side) {
-    Token const t(std::move(str), tokenType);
+    Token const t(std::move(str), tokenType, SourceRange{});
     Bracket const bracket = toBracket(t);
     CHECK(bracket.type == type);
     if (type != Bracket::Type::None) {

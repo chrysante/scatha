@@ -13,7 +13,7 @@ using namespace sema;
 
 BadExpression::BadExpression(ast::Expression const& expr,
                              IssueSeverity severity):
-    SemanticIssue(expr.sourceLocation(), severity), _expr(&expr) {}
+    SemanticIssue(expr.sourceRange(), severity), _expr(&expr) {}
 
 BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
                                      QualType const* to):
@@ -34,7 +34,7 @@ std::string UseOfUndeclaredIdentifier::message() const {
 InvalidStatement::InvalidStatement(ast::Statement const* statement,
                                    Reason reason,
                                    Scope const& inScope):
-    SemanticIssue(statement ? statement->sourceLocation() : SourceLocation{},
+    SemanticIssue(statement ? statement->sourceRange() : SourceRange{},
                   IssueSeverity::Error),
     _statement(statement),
     _reason(reason),
@@ -51,7 +51,7 @@ std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
 InvalidStatement* InvalidStatement::setStatement(
     ast::Statement const& statement) {
     _statement = &statement;
-    setSourceLocation(statement.sourceLocation());
+    setSourceRange(statement.sourceRange());
     return this;
 }
 
@@ -93,6 +93,5 @@ std::ostream& sema::operator<<(std::ostream& str,
 }
 
 StrongReferenceCycle::StrongReferenceCycle(utl::vector<Node> cycle):
-    SemanticIssue(cycle.front().astNode->sourceLocation(),
-                  IssueSeverity::Error),
+    SemanticIssue(cycle.front().astNode->sourceRange(), IssueSeverity::Error),
     _cycle(std::move(cycle)) {}
