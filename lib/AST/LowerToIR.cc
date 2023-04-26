@@ -506,12 +506,11 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         return getValue(*exprDecl.rhs);
     }
     case BinaryOperator::Assignment: {
-        ir::Value* lhsAddr      = getAddress(*exprDecl.lhs);
-        ir::Type const* lhsType = mapType(exprDecl.lhs->type());
-        ir::Value* rhs          = getValue(*exprDecl.rhs);
-        auto* store             = new ir::Store(irCtx, lhsAddr, rhs);
+        ir::Value* lhsAddr = getAddress(*exprDecl.lhs);
+        ir::Value* rhs     = getValue(*exprDecl.rhs);
+        auto* store        = new ir::Store(irCtx, lhsAddr, rhs);
         currentBB()->pushBack(store);
-        return loadAddress(lhsAddr, lhsType, "tmp");
+        return store;
     }
     case BinaryOperator::AddAssignment:
         [[fallthrough]];
