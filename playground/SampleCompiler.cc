@@ -27,28 +27,10 @@
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
+#include "Util.h"
 
 using namespace scatha;
 using namespace scatha::parse;
-
-static void line(std::string_view m) {
-    std::cout << "==============================" << m
-              << "==============================\n";
-};
-
-static void header(std::string_view title = "") {
-    std::cout << "\n";
-    line("");
-    line(title);
-    line("");
-    std::cout << "\n";
-}
-
-static void subHeader(std::string_view title = "") {
-    std::cout << "\n";
-    line(title);
-    std::cout << "\n";
-}
 
 void playground::compile(std::filesystem::path filepath) {
     std::fstream file(filepath);
@@ -76,7 +58,7 @@ void playground::compile(std::string text) {
     printTree(*ast);
 
     // Semantic analysis
-    header(" Symbol Table ");
+    header("Symbol Table");
     sema::SymbolTable sym;
     sema::analyze(*ast, sym, issues);
     issues.print(text);
@@ -86,20 +68,20 @@ void playground::compile(std::string text) {
     sema::printSymbolTable(sym);
 
     subHeader();
-    header(" Generated IR ");
+    header("Generated IR");
     ir::Context irCtx;
     ir::Module mod = ast::lowerToIR(*ast, sym, irCtx);
     ir::print(mod);
 
-    header(" Optimized IR ");
+    header("Optimized IR");
     opt::inlineFunctions(irCtx, mod);
     ir::print(mod);
 
-    header(" Assembly generated from IR ");
+    header("Assembly generated from IR");
     auto const assembly = cg::codegen(mod);
     print(assembly);
 
-    header(" Assembled Program ");
+    header("Assembled Program");
 
     auto const [program, symbolTable] = Asm::assemble(assembly);
     svm::print(program.data());

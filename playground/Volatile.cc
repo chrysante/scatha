@@ -48,19 +48,7 @@
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/SemanticIssue.h"
-
-static void line(std::string_view m) {
-    std::cout << "==============================" << m
-              << "==============================\n";
-};
-
-static void header(std::string_view title = "") {
-    std::cout << "\n";
-    line("");
-    line(title);
-    line("");
-    std::cout << "\n";
-}
+#include "Util.h"
 
 using namespace scatha;
 using namespace playground;
@@ -125,11 +113,11 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void inliner(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
 
-    header(" Before inlining ");
+    header("Before inlining");
     ir::print(mod);
     run(mod);
 
-    header(" After inlining ");
+    header("After inlining");
     opt::inlineFunctions(ctx, mod);
     ir::print(mod);
 
@@ -153,10 +141,10 @@ static void run(mir::Module const& mod) {
             }
         }
     }
-    header(" IR Module ");
+    header("IR Module");
     print(irMod);
 
-    header(" MIR Module in SSA form ");
+    header("MIR Module in SSA form");
     auto mirMod = cg::lowerToMIR(irMod);
     for (auto& F: mirMod) {
         cg::computeLiveSets(F);
@@ -164,13 +152,13 @@ static void run(mir::Module const& mod) {
     }
     mir::print(mirMod);
 
-    header(" MIR Module after SSA destruction ");
+    header("MIR Module after SSA destruction");
     for (auto& F: mirMod) {
         cg::destroySSA(F);
     }
     mir::print(mirMod);
 
-    header(" MIR Module after jump elision ");
+    header("MIR Module after jump elision");
     for (auto& F: mirMod) {
         cg::allocateRegisters(F);
         cg::elideJumps(F);
