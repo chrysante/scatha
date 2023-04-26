@@ -70,9 +70,15 @@ struct MemToRegContext {
 
 static bool isPromotable(Alloca const& allc) {
     for (auto* user: allc.users()) {
-        if (!isa<Load>(user) && !isa<Store>(user)) {
-            return false;
+        if (isa<Load>(user)) {
+            continue;
         }
+        if (auto* store = dyncast<Store const*>(user);
+            store && store->address() == &allc)
+        {
+            continue;
+        }
+        return false;
     }
     return true;
 }
@@ -109,10 +115,13 @@ VariableInfo MemToRegContext::gatherInfo(Alloca* address) {
         // clang-format off
         visit(*user, utl::overload{
             [&](Store& store) {
-                result.stores.push_back(&store);
-                result.definingBlocks.insert(store.parent());
+                if (store.address() == address) {
+                    result.stores.push_back(&store);
+                    result.definingBlocks.insert(store.parent());
+                }
             },
             [&](Load& load) {
+                SC_ASSERT(load.address() == address, "");
                 result.loads.push_back(&load);
                 result.usingBlocks.insert(load.parent());
             },
