@@ -778,18 +778,18 @@ public:
     UniquePtr<CompoundStatement> block;
 };
 
-/// Represents a `break;` statement.
-class SCATHA_API BreakStatement: public ControlFlowStatement {
+/// Represents a `break` or `continue` statement.
+class SCATHA_API JumpStatement: public ControlFlowStatement {
 public:
-    explicit BreakStatement(SourceRange sourceRange):
-        ControlFlowStatement(NodeType::BreakStatement, sourceRange) {}
-};
-
-/// Represents a `continue;` statement.
-class SCATHA_API ContinueStatement: public ControlFlowStatement {
-public:
-    explicit ContinueStatement(SourceRange sourceRange):
-        ControlFlowStatement(NodeType::ContinueStatement, sourceRange) {}
+    enum Kind { Break, Continue };
+    
+    explicit JumpStatement(Kind kind, SourceRange sourceRange):
+        ControlFlowStatement(NodeType::JumpStatement, sourceRange), _kind(kind) {}
+    
+    Kind kind() const { return _kind; }
+    
+private:
+    Kind _kind;
 };
 
 } // namespace scatha::ast

@@ -50,8 +50,7 @@ struct CodeGenContext {
     void generateImpl(WhileStatement const&);
     void generateImpl(DoWhileStatement const&);
     void generateImpl(ForStatement const&);
-    void generateImpl(BreakStatement const&);
-    void generateImpl(ContinueStatement const&);
+    void generateImpl(JumpStatement const&);
 
     ir::Value* getValue(Expression const& expr);
 
@@ -337,15 +336,17 @@ void CodeGenContext::generateImpl(ForStatement const& loopDecl) {
     currentLoop = {};
 }
 
-void CodeGenContext::generateImpl(BreakStatement const&) {
-    auto* gotoEnd = new ir::Goto(irCtx, currentLoop.end);
+void CodeGenContext::generateImpl(JumpStatement const& jump) {
+    auto* dest = [&] {
+        switch (jump.kind()) {
+        case JumpStatement::Break:
+            return currentLoop.end;
+        case JumpStatement::Continue:
+            return currentLoop.inc ? currentLoop.inc : currentLoop.header;
+        }
+    }();
+    auto* gotoEnd = new ir::Goto(irCtx, dest);
     currentBB()->pushBack(gotoEnd);
-}
-
-void CodeGenContext::generateImpl(ContinueStatement const&) {
-    auto* dest    = currentLoop.inc ? currentLoop.inc : currentLoop.header;
-    auto* gotoInc = new ir::Goto(irCtx, dest);
-    currentBB()->pushBack(gotoInc);
 }
 
 ir::Value* CodeGenContext::getValue(Expression const& expr) {

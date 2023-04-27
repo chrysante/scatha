@@ -317,11 +317,8 @@ UniquePtr<ast::Statement> Context::parseStatement() {
     if (auto controlFlowStatement = parseControlFlowStatement()) {
         return controlFlowStatement;
     }
-    if (auto breakStatement = parseBreakStatement()) {
+    if (auto breakStatement = parseJumpStatement()) {
         return breakStatement;
-    }
-    if (auto continueStatement = parseContinueStatement()) {
-        return continueStatement;
     }
     if (auto block = parseCompoundStatement()) {
         return block;
@@ -532,24 +529,23 @@ UniquePtr<ast::ForStatement> Context::parseForStatement() {
                                        std::move(block));
 }
 
-UniquePtr<ast::BreakStatement> Context::parseBreakStatement() {
-    Token const token = tokens.peek();
-    if (token.kind() != Break) {
-        return nullptr;
+static std::optional<ast::JumpStatement::Kind> toJumpKind(Token token) {
+    switch (token.kind()) {
+    case Break: return ast::JumpStatement::Break;
+    case Continue: return ast::JumpStatement::Continue;
+    default: return std::nullopt;
     }
-    tokens.eat();
-    expectDelimiter(Semicolon);
-    return allocate<ast::BreakStatement>(token.sourceRange());
 }
 
-UniquePtr<ast::ContinueStatement> Context::parseContinueStatement() {
+UniquePtr<ast::JumpStatement> Context::parseJumpStatement() {
     Token const token = tokens.peek();
-    if (token.kind() != Continue) {
+    auto const jumpKind = toJumpKind(token);
+    if (!jumpKind) {
         return nullptr;
     }
     tokens.eat();
     expectDelimiter(Semicolon);
-    return allocate<ast::ContinueStatement>(token.sourceRange());
+    return allocate<ast::JumpStatement>(*jumpKind, token.sourceRange());
 }
 
 UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
