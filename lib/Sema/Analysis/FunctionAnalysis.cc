@@ -289,6 +289,24 @@ void Context::analyze(ast::ReturnStatement& rs) {
             sym.currentScope());
         return;
     }
+    if (rs.expression == nullptr &&
+        currentFunction->returnType()->base() != sym.Void())
+    {
+        iss.push<InvalidStatement>(
+            &rs,
+            InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,
+            sym.currentScope());
+        return;
+    }
+    if (rs.expression != nullptr &&
+        currentFunction->returnType()->base() == sym.Void())
+    {
+        iss.push<InvalidStatement>(
+            &rs,
+            InvalidStatement::Reason::VoidFunctionMustNotReturnAValue,
+            sym.currentScope());
+        return;
+    }
     if (rs.expression == nullptr) {
         return;
     }

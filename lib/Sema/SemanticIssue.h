@@ -167,6 +167,8 @@ public:
         ExpectedDeclaration,
         InvalidDeclaration,
         InvalidScopeForStatement,
+        NonVoidFunctionMustReturnAValue,
+        VoidFunctionMustNotReturnAValue,
         _count
     };
 

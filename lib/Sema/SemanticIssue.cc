@@ -68,6 +68,10 @@ std::ostream& sema::operator<<(std::ostream& str, InvalidStatement::Reason r) {
           "Invalid declaration" },
         { InvalidStatement::Reason::InvalidScopeForStatement,
           "Invalid scope for statement" },
+        { InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,
+          "Non-void function must return a value" },
+        { InvalidStatement::Reason::VoidFunctionMustNotReturnAValue,
+          "Void function must not return a value" },
     }); // clang-format on
 }
 

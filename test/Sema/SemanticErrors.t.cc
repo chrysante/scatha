@@ -286,3 +286,23 @@ struct W {
 })");
     CHECK(issues.findOnLine<StrongReferenceCycle>(2));
 }
+
+TEST_CASE("Non void function must return a value", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+fn f() -> int { return; }
+)");
+    auto issue        = issues.findOnLine<InvalidStatement>(2);
+    REQUIRE(issue);
+    CHECK(issue->reason() ==
+          InvalidStatement::Reason::NonVoidFunctionMustReturnAValue);
+}
+
+TEST_CASE("Void function must not return a value", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+fn f() { return 0; }
+)");
+    auto issue        = issues.findOnLine<InvalidStatement>(2);
+    REQUIRE(issue);
+    CHECK(issue->reason() ==
+          InvalidStatement::Reason::VoidFunctionMustNotReturnAValue);
+}
