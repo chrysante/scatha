@@ -21,9 +21,9 @@ TEST_CASE("Rebind reference", "[end-to-end][references]") {
 public fn main() -> int {
     var i = 0;
     var j = 0;
-    var r = &i;
+    var r = &mut i;
     r += 1;
-    r = &j;
+    r = &mut j;
     r += 1;
     return i + j;
 })");
