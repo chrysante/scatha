@@ -42,6 +42,23 @@ fn f(x: &mut int)  -> &mut int {
 })");
 }
 
+TEST_CASE("Reference data member in struct", "[end-to-end][references]") {
+    test::checkReturns(1, R"(
+struct X {
+    var i: &mut int;
+}
+public fn main() -> int {
+    var i = 0;
+    var x: X;
+    x.i = &i;
+    f(x);
+    return i;
+}
+fn f(x: X)  {
+    ++x.i;
+})");
+}
+
 TEST_CASE("First array", "[end-to-end][arrays]") {
     test::checkReturns(2, R"(
 public fn main() -> int {
@@ -65,5 +82,17 @@ TEST_CASE("Use array elements", "[end-to-end][arrays]") {
 public fn main() -> int {
     var arr = [1, 2, 3, 4];
     return (arr[0] + arr[1] + arr[2]) * arr[3];
+})");
+}
+
+TEST_CASE("Sum array with for loop", "[end-to-end][arrays]") {
+    test::checkReturns(45, R"(
+public fn main() -> int {
+    let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    var sum = 0;
+    for i = 0; i < 10; ++i {
+        sum += data[i];
+    }
+    return sum;
 })");
 }
