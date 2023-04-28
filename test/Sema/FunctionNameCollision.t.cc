@@ -1,5 +1,6 @@
 #include <Catch/Catch2.hpp>
 
+#include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "test/Sema/SimpleAnalzyer.h"
 
@@ -14,8 +15,7 @@ fn f(x: int) -> int {
 }
 fn g(x: int) -> int {
 	return 1;
-}
-)";
+})";
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     auto f                     = sym.lookup("f");
     CHECK(f.category() == SymbolCategory::OverloadSet);

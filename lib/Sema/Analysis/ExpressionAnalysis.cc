@@ -7,6 +7,7 @@
 #include <svm/Builtin.h>
 
 #include "AST/Fwd.h"
+#include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;

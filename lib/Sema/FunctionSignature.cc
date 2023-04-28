@@ -4,8 +4,7 @@
 #include <utl/hash.hpp>
 #include <utl/utility.hpp>
 
-#include "Sema/QualType.h"
-#include "Sema/Type.h"
+#include "Sema/Entity.h"
 
 using namespace scatha;
 using namespace sema;

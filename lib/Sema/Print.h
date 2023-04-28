@@ -3,7 +3,7 @@
 
 #include <iosfwd>
 
-#include "Sema/SymbolTable.h"
+#include "Sema/Fwd.h"
 
 namespace scatha::sema {
 

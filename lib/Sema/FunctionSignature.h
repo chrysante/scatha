@@ -7,9 +7,7 @@
 
 #include <utl/vector.hpp>
 
-#include <scatha/Sema/Entity.h>
-#include <scatha/Sema/Scope.h>
-#include <scatha/Sema/SymbolID.h>
+#include <scatha/Sema/Fwd.h>
 
 namespace scatha::sema {
 

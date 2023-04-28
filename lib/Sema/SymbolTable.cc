@@ -5,6 +5,7 @@
 #include <svm/Builtin.h>
 #include <utl/utility.hpp>
 
+#include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;
@@ -256,6 +257,24 @@ QualType const* SymbolTable::qualify(Type const* base,
         objType = cast<QualType const*>(base)->base();
     }
     return getQualType(objType, qualifiers, arraySize);
+}
+
+QualType const* SymbolTable::addQualifiers(QualType const* base,
+                                           TypeQualifiers qualifiers) const {
+    SC_ASSERT(base, "");
+    return qualify(base, base->qualifiers() | qualifiers);
+}
+
+QualType const* SymbolTable::removeQualifiers(QualType const* base,
+                                              TypeQualifiers qualifiers) const {
+    return qualify(base, base->qualifiers() & ~qualifiers);
+}
+
+QualType const* SymbolTable::arrayView(Type const* base,
+                                       TypeQualifiers qualifiers) const {
+    SC_ASSERT(base, "");
+    using enum TypeQualifiers;
+    return qualify(base, Array | ImplicitReference | qualifiers);
 }
 
 QualType const* SymbolTable::getQualType(ObjectType const* baseType,

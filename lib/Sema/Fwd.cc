@@ -13,3 +13,21 @@ std::string_view sema::toString(EntityType t) {
 std::ostream& sema::operator<<(std::ostream& str, EntityType t) {
     return str << toString(t);
 }
+
+std::string_view sema::toString(ScopeKind k) {
+    // clang-format off
+    return UTL_SERIALIZE_ENUM(k, {
+        { ScopeKind::Invalid,   "Invalid" },
+        { ScopeKind::Global,    "Global" },
+        { ScopeKind::Namespace, "Namespace" },
+        { ScopeKind::Variable,  "Variable" },
+        { ScopeKind::Function,  "Function" },
+        { ScopeKind::Object,    "Object" },
+        { ScopeKind::Anonymous, "Anonymous" },
+    });
+    // clang-format on
+}
+
+std::ostream& sema::operator<<(std::ostream& str, ScopeKind k) {
+    return str << toString(k);
+}

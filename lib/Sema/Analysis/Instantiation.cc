@@ -8,6 +8,7 @@
 #include "AST/AST.h"
 #include "Sema/Analysis/DependencyGraph.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
+#include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
 

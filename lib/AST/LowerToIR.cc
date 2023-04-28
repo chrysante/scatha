@@ -14,6 +14,7 @@
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
+#include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;

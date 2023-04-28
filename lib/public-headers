@@ -40,20 +40,11 @@ Parser/Token.h
 Parser/Token.def
 
 Sema/Analyze.h
-Sema/Attributes.h
 Sema/Entity.h
 Sema/SymbolTable.h
 Sema/SymbolID.h
-Sema/Type.h
-Sema/QualType.h
-Sema/OverloadSet.h
-Sema/Scope.h
 Sema/Fwd.h
 Sema/SemanticIssue.h
-Sema/Variable.h
-Sema/Function.h
 Sema/FunctionSignature.h
-Sema/Scope.h
-Sema/ScopeKind.h
 Sema/SemanticIssue.h
 Sema/Lists.def

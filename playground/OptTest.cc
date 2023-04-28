@@ -22,6 +22,7 @@
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
+#include "Sema/Entity.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
 

@@ -8,7 +8,7 @@
 #include "AST/AST.h"
 #include "Common/Base.h"
 #include "Common/PrintUtil.h"
-#include "Sema/QualType.h"
+#include "Sema/Entity.h"
 
 using namespace scatha;
 using namespace ast;

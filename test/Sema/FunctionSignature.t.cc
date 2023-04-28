@@ -1,5 +1,6 @@
 #include <Catch/Catch2.hpp>
 
+#include "Sema/Entity.h"
 #include "Sema/FunctionSignature.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"

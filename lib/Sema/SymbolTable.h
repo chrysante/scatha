@@ -17,16 +17,12 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Common/UniquePtr.h>
-#include <scatha/Sema/Function.h>
-#include <scatha/Sema/OverloadSet.h>
-#include <scatha/Sema/QualType.h>
-#include <scatha/Sema/Scope.h>
+#include <scatha/Sema/Fwd.h>
 #include <scatha/Sema/SymbolID.h>
-#include <scatha/Sema/Type.h>
-#include <scatha/Sema/Variable.h>
 
 namespace scatha::sema {
 
+class FunctionSignature;
 class SemanticIssue;
 
 class SCATHA_API SymbolTable {
@@ -131,25 +127,15 @@ public:
                             size_t arraySize          = 0) const;
 
     QualType const* addQualifiers(QualType const* base,
-                                  TypeQualifiers qualifiers) const {
-        SC_ASSERT(base, "");
-        return qualify(base, base->qualifiers() | qualifiers);
-    }
+                                  TypeQualifiers qualifiers) const;
 
     QualType const* removeQualifiers(QualType const* base,
-                                     TypeQualifiers qualifiers) const {
-        return qualify(base, base->qualifiers() & ~qualifiers);
-    }
+                                     TypeQualifiers qualifiers) const;
 
     /// Make type \p base into an array view of element type \p base
     QualType const* arrayView(
         Type const* base,
-        TypeQualifiers qualifiers = TypeQualifiers::None) const {
-        SC_ASSERT(base, "");
-        return qualify(base,
-                       TypeQualifiers::Array |
-                           TypeQualifiers::ImplicitReference | qualifiers);
-    }
+        TypeQualifiers qualifiers = TypeQualifiers::None) const;
 
     /// \brief Makes scope with symbolD \p id the current scope.
     ///
@@ -244,8 +230,14 @@ public:
     Scope& currentScope() { return *_currentScope; }
     Scope const& currentScope() const { return *_currentScope; }
 
-    Scope& globalScope() { return *_globalScope; }
-    Scope const& globalScope() const { return *_globalScope; }
+    template <typename S = Scope>
+    S& globalScope() {
+        return *_globalScope;
+    }
+    template <typename S = Scope>
+    S const& globalScope() const {
+        return *_globalScope;
+    }
 
     /// Getters for builtin types
     Type const* Void() const { return _void; }

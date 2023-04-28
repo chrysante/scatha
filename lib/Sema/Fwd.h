@@ -11,19 +11,21 @@
 ///
 /// ```
 /// Entity
-/// ├─ Scope
-/// │  ├─ GlobalScope
-/// │  ├─ Function
-/// │  ├─ Type
-/// │  │  ├─ ObjectType
-/// │  │  ├─ ReferenceType
-/// │  │  └─ FunctionType [??, does not exist]
-/// │  └─ AnonymousScope [??, does not exist either]
+/// ├─ Variable
 /// ├─ OverloadSet
-/// └─ Variable
+/// └─ Scope
+///    ├─ GlobalScope
+///    ├─ AnonymousScope
+///    ├─ Function
+///    └─ Type
+///       ├─ ObjectType
+///       ├─ QualType
+///       └─ FunctionType [??, does not exist]
 /// ```
 
 namespace scatha::sema {
+
+class SymbolTable;
 
 ///
 /// # Forward Declaration of all entity types
@@ -51,5 +53,50 @@ SCATHA_API std::ostream& operator<<(std::ostream&, EntityType);
                    ::scatha::sema::EntityType::Type,                           \
                    Abstractness)
 #include <scatha/Sema/Lists.def>
+
+namespace scatha::sema {
+
+///
+enum class ScopeKind {
+    Invalid,
+    Global,
+    Namespace,
+    Variable,
+    Function,
+    Object,
+    Anonymous,
+    _count
+};
+
+SCATHA_API std::string_view toString(ScopeKind);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, ScopeKind);
+
+///
+enum class AccessSpecifier { Public, Private };
+
+///
+enum class TypeQualifiers {
+    None              = 0,
+    Mutable           = 1 << 0,
+    ImplicitReference = 1 << 1,
+    ExplicitReference = 1 << 2,
+    Unique            = 1 << 3,
+    Array             = 1 << 4,
+};
+
+UTL_ENUM_OPERATORS(TypeQualifiers);
+
+///
+enum class FunctionAttribute : unsigned {
+    None  = 0,
+    All   = unsigned(-1),
+    Const = 1 << 0,
+    Pure  = 1 << 1
+};
+
+UTL_BITFIELD_OPERATORS(FunctionAttribute);
+
+} // namespace scatha::sema
 
 #endif // SCATHA_SEMA_FWD_H_

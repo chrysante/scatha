@@ -5,6 +5,8 @@
 #include <utl/hashset.hpp>
 
 #include "Common/PrintUtil.h"
+#include "Sema/Entity.h"
+#include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
 

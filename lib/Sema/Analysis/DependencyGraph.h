@@ -6,7 +6,7 @@
 
 #include "AST/Fwd.h"
 #include "Common/Base.h"
-#include "Sema/Scope.h"
+#include "Sema/Fwd.h"
 #include "Sema/SymbolID.h"
 
 namespace scatha::sema {
