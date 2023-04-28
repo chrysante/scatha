@@ -17,15 +17,18 @@ static std::string_view getLineImpl(std::string_view text, size_t index) {
     size_t begin = index;
     if (text[begin] != '\n') {
         while (true) {
-            if (begin == 0) {
-                break;
-            }
             if (text[begin] == '\n') {
                 ++begin;
                 break;
             }
+            if (begin == 0) {
+                break;
+            }
             --begin;
         }
+    }
+    else {
+        ++begin;
     }
     size_t end = index;
     while (end < text.size() && text[end] != '\n') {
