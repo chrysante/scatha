@@ -46,6 +46,10 @@ struct Context {
     SymbolID findExplicitCast(QualType const* targetType,
                               std::span<QualType const* const> from);
 
+    QualType const* stripQualifiers(QualType const* type) const {
+        return sym.qualify(type->base());
+    }
+
     SymbolTable& sym;
     IssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
@@ -521,7 +525,7 @@ QualType const* Context::binaryOpResult(
         {
             return nullptr;
         }
-        return expr.lhs->type();
+        return stripQualifiers(expr.lhs->type());
 
     case Remainder:
         if (!verifySame()) {
@@ -530,7 +534,7 @@ QualType const* Context::binaryOpResult(
         if (!verifyAnyOf(expr.lhs->type()->base(), { sym.Int() })) {
             return nullptr;
         }
-        return sym.qualify(expr.lhs->type());
+        return stripQualifiers(expr.lhs->type());
 
     case BitwiseAnd:
         [[fallthrough]];
@@ -543,7 +547,7 @@ QualType const* Context::binaryOpResult(
         if (!verifyAnyOf(expr.lhs->type()->base(), { sym.Int() })) {
             return nullptr;
         }
-        return sym.qualify(expr.lhs->type());
+        return stripQualifiers(expr.lhs->type());
 
     case LeftShift:
         [[fallthrough]];
@@ -556,7 +560,7 @@ QualType const* Context::binaryOpResult(
             submitIssue();
             return nullptr;
         }
-        return sym.qualify(expr.lhs->type());
+        return stripQualifiers(expr.lhs->type());
 
     case Less:
         [[fallthrough]];

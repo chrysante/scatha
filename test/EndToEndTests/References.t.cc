@@ -59,3 +59,11 @@ public fn main() -> int {
     return arr[1];
 })");
 }
+
+TEST_CASE("Use array elements", "[end-to-end][arrays]") {
+    test::checkReturns(24, R"(
+public fn main() -> int {
+    var arr = [1, 2, 3, 4];
+    return (arr[0] + arr[1] + arr[2]) * arr[3];
+})");
+}
