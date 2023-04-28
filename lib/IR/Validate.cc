@@ -34,6 +34,8 @@ struct AssertContext {
     void assertSpecialInvariants(Phi const&);
     void assertSpecialInvariants(Call const&);
     void assertSpecialInvariants(Branch const&);
+    void assertSpecialInvariants(Load const&);
+    void assertSpecialInvariants(Store const&);
 
     void uniqueName(Value const& value);
 
@@ -205,6 +207,16 @@ void AssertContext::assertSpecialInvariants(Call const& call) {
 void AssertContext::assertSpecialInvariants(Branch const& branch) {
     CHECK(branch.condition()->type() == ctx.integralType(1),
           "Condition must be type i1");
+}
+
+void AssertContext::assertSpecialInvariants(Load const& load) {
+    CHECK(load.address()->type() == ctx.pointerType(),
+          "Address must be of pointer type");
+}
+
+void AssertContext::assertSpecialInvariants(Store const& store) {
+    CHECK(store.address()->type() == ctx.pointerType(),
+          "Address must be of pointer type");
 }
 
 void AssertContext::uniqueName(Value const& value) {
