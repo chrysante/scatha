@@ -213,6 +213,16 @@ void Context::analyze(ast::VariableDeclaration& var) {
         return;
     }
     if (declaredType && deducedType) {
+        if (declaredType->isReference() &&
+            !deducedType->has(TypeQualifiers::ExplicitReference))
+        {
+            iss.push<InvalidDeclaration>(
+                &var,
+                InvalidDeclaration::Reason::ExpectedReferenceInitializer,
+                sym.currentScope(),
+                SymbolCategory::Variable);
+            return;
+        }
         verifyConversion(*var.initExpression, declaredType);
     }
     auto* finalType = declaredType ? declaredType : deducedType;
@@ -289,9 +299,8 @@ void Context::analyze(ast::ReturnStatement& rs) {
             sym.currentScope());
         return;
     }
-    if (rs.expression == nullptr &&
-        currentFunction->returnType()->base() != sym.Void())
-    {
+    auto* returnType = currentFunction->returnType();
+    if (rs.expression == nullptr && returnType->base() != sym.Void()) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,
@@ -322,6 +331,12 @@ void Context::analyze(ast::ReturnStatement& rs) {
     }
     SC_ASSERT(currentFunction != nullptr,
               "This should have been set by case FunctionDefinition");
+    if (returnType->isReference() &&
+        !rs.expression->type()->has(TypeQualifiers::ExplicitReference))
+    {
+        iss.push<BadExpression>(*rs.expression, IssueSeverity::Error);
+        return;
+    }
     verifyConversion(*rs.expression, currentFunction->returnType());
 }
 
@@ -418,7 +433,7 @@ ExpressionAnalysisResult Context::dispatchExpression(ast::Expression& expr) {
 
 void Context::verifyConversion(ast::Expression const& from,
                                QualType const* to) const {
-    if (from.type() != to) {
+    if (from.type()->base() != to->base()) {
         iss.push<BadTypeConversion>(from, to);
     }
 }

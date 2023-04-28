@@ -91,6 +91,8 @@ std::ostream& sema::operator<<(std::ostream& str,
           "Can't overload on ReturnType" },
         { InvalidDeclaration::Reason::CantInferType,
           "Can't infer type" },
+        { InvalidDeclaration::Reason::ExpectedReferenceInitializer,
+          "Expected reference initializer" },
         { InvalidDeclaration::Reason::ReservedIdentifier,
           "Reserved identifier" },
     }); // clang-format on

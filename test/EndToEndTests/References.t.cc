@@ -28,3 +28,16 @@ public fn main() -> int {
     return i + j;
 })");
 }
+
+TEST_CASE("Pass reference through function", "[end-to-end][references]") {
+    test::checkReturns(1, R"(
+public fn main() -> int {
+    var i = 0;
+    var j: &mut int = &f(&i);
+    j = 1;
+    return i;
+}
+fn f(x: &mut int)  -> &mut int {
+    return &x;
+})");
+}

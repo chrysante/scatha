@@ -76,7 +76,7 @@ struct CodeGenContext {
     ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) {
         SC_UNREACHABLE();
     } // Delete this later
-    ir::Value* getAddressImpl(Expression const& expr) { SC_UNREACHABLE(); }
+    ir::Value* getAddressImpl(Expression const& expr);
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
     ir::Value* getAddressImpl(ReferenceExpression const&);
@@ -530,10 +530,12 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         return getValue(*exprDecl.rhs);
     }
     case BinaryOperator::Assignment: {
-        bool const isExplRef = exprDecl.rhs->type()->has(sema::TypeQualifiers::ExplicitReference);
-        ir::Value* lhsAddr = getAddress(*exprDecl.lhs, /* deref = */ !isExplRef);
-        ir::Value* rhs     = getValue(*exprDecl.rhs);
-        auto* store        = new ir::Store(irCtx, lhsAddr, rhs);
+        bool const isExplRef =
+            exprDecl.rhs->type()->has(sema::TypeQualifiers::ExplicitReference);
+        ir::Value* lhsAddr =
+            getAddress(*exprDecl.lhs, /* deref = */ !isExplRef);
+        ir::Value* rhs = getValue(*exprDecl.rhs);
+        auto* store    = new ir::Store(irCtx, lhsAddr, rhs);
         currentBB()->pushBack(store);
         return store;
     }
@@ -584,6 +586,9 @@ ir::Value* CodeGenContext::getValueImpl(MemberAccess const& expr) {
 }
 
 ir::Value* CodeGenContext::getValueImpl(ReferenceExpression const& expr) {
+    if (expr.referred->type()->isReference()) {
+        return getValue(*expr.referred, false);
+    }
     return getAddress(*expr.referred);
 }
 
@@ -634,15 +639,17 @@ ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
 
 ir::Value* CodeGenContext::getValueImpl(Subscript const&) { SC_DEBUGFAIL(); }
 
+ir::Value* CodeGenContext::getAddressImpl(Expression const& expr) {
+    if (expr.type()->isReference()) {
+        return getValue(expr, false);
+    }
+    SC_DEBUGFAIL();
+}
+
 ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {
     auto itr = variableAddressMap.find(id.symbolID());
     SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
     return itr->second;
-
-    //    if (!id.type()->has(sema::TypeQualifiers::Reference)) {
-    //        return itr->second;
-    //    }
-    //    return loadAddress(itr->second, irCtx.pointerType(), "addr");
 }
 
 ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {

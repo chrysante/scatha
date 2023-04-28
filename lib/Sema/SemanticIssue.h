@@ -202,6 +202,7 @@ public:
         Redefinition,
         CantOverloadOnReturnType,
         CantInferType,
+        ExpectedReferenceInitializer,
         ReservedIdentifier,
         _count
     };

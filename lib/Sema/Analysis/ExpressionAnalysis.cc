@@ -239,7 +239,9 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
     }
     auto const& referred = *ref.referred;
     if (referred.entityCategory() == ast::EntityCategory::Value) {
-        if (referred.valueCategory() != ast::ValueCategory::LValue) {
+        if (referred.valueCategory() != ast::ValueCategory::LValue &&
+            !referred.type()->isReference())
+        {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return ExpressionAnalysisResult::fail();
         }
