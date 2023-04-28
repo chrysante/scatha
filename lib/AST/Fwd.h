@@ -61,7 +61,7 @@ SCATHA_API std::string_view toString(BinaryOperator);
 SCATHA_API std::ostream& operator<<(std::ostream&, BinaryOperator);
 
 /// Categories of entities in the AST module
-enum class EntityCategory : u8 { Value, Type, _count };
+enum class EntityCategory : u8 { Indeterminate, Value, Type, _count };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, EntityCategory);
 

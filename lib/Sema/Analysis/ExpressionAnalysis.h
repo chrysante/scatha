@@ -42,6 +42,11 @@ public:
     static ExpressionAnalysisResult rvalue(QualType const* type) {
         return { ast::EntityCategory::Value, type };
     }
+    static ExpressionAnalysisResult indeterminate() {
+        return { ast::EntityCategory::Indeterminate,
+                 SymbolID::Invalid,
+                 nullptr };
+    }
     static ExpressionAnalysisResult type(QualType const* type) {
         return { ast::EntityCategory::Type, type };
     }

@@ -794,13 +794,36 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
     auto const& token = tokens.peek();
     if (token.kind() == OpenParan) {
         tokens.eat();
-        Token const& commaToken          = tokens.peek();
+        Token const commaToken           = tokens.peek();
         UniquePtr<ast::Expression> comma = parseComma();
         if (!comma) {
             pushExpectedExpression(commaToken);
         }
         expectDelimiter(CloseParan);
         return comma;
+    }
+    if (token.kind() == OpenBracket) {
+        SourceRange sourceRange = token.sourceRange();
+        tokens.eat();
+        bool first = true;
+        utl::small_vector<UniquePtr<ast::Expression>> elems;
+        Token next = tokens.peek();
+        while (next.kind() != CloseBracket) {
+            if (!first) {
+                expectDelimiter(Comma);
+            }
+            first     = false;
+            auto expr = parseConditional();
+            if (!expr) {
+                pushExpectedExpression(next);
+            }
+            elems.push_back(std::move(expr));
+            next = tokens.peek();
+        }
+        tokens.eat();
+        return allocate<ast::ListExpression>(std::move(elems),
+                                             merge(sourceRange,
+                                                   next.sourceRange()));
     }
     return nullptr;
 }

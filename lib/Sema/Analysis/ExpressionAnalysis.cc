@@ -3,12 +3,14 @@
 #include <optional>
 #include <span>
 
+#include <range/v3/algorithm.hpp>
 #include <svm/Builtin.h>
 
 #include "AST/Fwd.h"
 #include "Sema/SemanticIssue.h"
 
-namespace scatha::sema {
+using namespace scatha;
+using namespace sema;
 
 namespace {
 
@@ -28,10 +30,13 @@ struct Context {
     ExpressionAnalysisResult analyze(ast::Conditional&);
     ExpressionAnalysisResult analyze(ast::FunctionCall&);
     ExpressionAnalysisResult analyze(ast::Subscript&);
+    ExpressionAnalysisResult analyze(ast::ListExpression&);
 
     ExpressionAnalysisResult analyze(ast::AbstractSyntaxTree&) {
         SC_DEBUGFAIL();
     }
+
+    bool expectValue(ast::Expression const& expr);
 
     bool verifyConversion(ast::Expression const& from,
                           QualType const* to) const;
@@ -50,9 +55,9 @@ struct Context {
 
 } // namespace
 
-ExpressionAnalysisResult analyzeExpression(ast::Expression& expr,
-                                           SymbolTable& sym,
-                                           IssueHandler& iss) {
+ExpressionAnalysisResult sema::analyzeExpression(ast::Expression& expr,
+                                                 SymbolTable& sym,
+                                                 IssueHandler& iss) {
     Context ctx{ .sym = sym, .iss = iss };
     return ctx.dispatch(expr);
 }
@@ -313,7 +318,35 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
     return ExpressionAnalysisResult::rvalue(ifRes.type());
 }
 
-ExpressionAnalysisResult Context::analyze(ast::Subscript&) { SC_DEBUGFAIL(); }
+ExpressionAnalysisResult Context::analyze(ast::Subscript& expr) {
+    dispatch(*expr.object);
+    if (!expectValue(*expr.object)) {
+        return ExpressionAnalysisResult::fail();
+    }
+    if (!expr.object->type()->isArray()) {
+        iss.push<BadExpression>(expr, IssueSeverity::Error);
+        return ExpressionAnalysisResult::fail();
+    }
+    for (auto& arg: expr.arguments) {
+        dispatch(*arg);
+        if (!expectValue(*arg)) {
+            return ExpressionAnalysisResult::fail();
+        }
+    }
+    if (expr.arguments.size() != 1) {
+        iss.push<BadExpression>(expr, IssueSeverity::Error);
+        return ExpressionAnalysisResult::fail();
+    }
+    auto& arg = *expr.arguments.front();
+    if (arg.type()->base() != sym.Int()) {
+        iss.push<BadExpression>(expr, IssueSeverity::Error);
+        return ExpressionAnalysisResult::fail();
+    }
+    auto* elemType = sym.qualify(expr.object->type()->base(),
+                                 TypeQualifiers::ImplicitReference);
+    expr.decorate(SymbolID::Invalid, elemType, ast::ValueCategory::RValue);
+    return ExpressionAnalysisResult::rvalue(elemType);
+}
 
 ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     bool success = true;
@@ -376,6 +409,61 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
                                   argTypes,
                                   BadFunctionCall::Reason::ObjectNotCallable);
         return ExpressionAnalysisResult::fail();
+    }
+}
+
+ExpressionAnalysisResult Context::analyze(ast::ListExpression& list) {
+    for (auto* expr: list) {
+        dispatch(*expr);
+    }
+    if (list.empty()) {
+        return ExpressionAnalysisResult::indeterminate();
+    }
+    auto* first    = list.front();
+    auto entityCat = first->entityCategory();
+    switch (entityCat) {
+    case ast::EntityCategory::Indeterminate:
+        SC_DEBUGFAIL();
+    case ast::EntityCategory::Value: {
+        bool const allSameCat =
+            ranges::all_of(list, [&](ast::Expression const* expr) {
+                return expr->entityCategory() == entityCat;
+            });
+        if (!allSameCat) {
+            iss.push<BadExpression>(list, IssueSeverity::Error);
+        }
+        // TODO: Check for common type!
+        auto* type = sym.qualify(first->type()->base(),
+                                 sema::TypeQualifiers::Array,
+                                 list.size());
+        list.decorate(SymbolID::Invalid, type, ast::ValueCategory::RValue);
+        return ExpressionAnalysisResult::rvalue(type);
+    }
+    case ast::EntityCategory::Type: {
+        auto* elementType = &sym.get<Type>(first->symbolID());
+        if (list.size() != 1 && list.size() != 2) {
+            iss.push<BadExpression>(list, IssueSeverity::Error);
+            return ExpressionAnalysisResult::fail();
+        }
+        size_t arraySize = QualType::DynamicArraySize;
+        if (list.size() == 2) {
+            auto* countLiteral = dyncast<ast::IntegerLiteral const*>(list[1]);
+            if (!countLiteral) {
+                iss.push<BadExpression>(*list[1], IssueSeverity::Error);
+                return ExpressionAnalysisResult::fail();
+            }
+            arraySize = countLiteral->value().to<size_t>();
+        }
+        auto* arrayType =
+            sym.qualify(elementType, TypeQualifiers::Array, arraySize);
+        list.decorate(arrayType->symbolID(),
+                      nullptr,
+                      ast::ValueCategory::None,
+                      ast::EntityCategory::Type);
+        return ExpressionAnalysisResult::type(arrayType);
+    }
+    default:
+        SC_UNREACHABLE();
     }
 }
 
@@ -562,4 +650,12 @@ SymbolID Context::findExplicitCast(QualType const* to,
     return SymbolID::Invalid;
 }
 
-} // namespace scatha::sema
+bool Context::expectValue(ast::Expression const& expr) {
+    if (expr.entityCategory() != ast::EntityCategory::Value) {
+        iss.push<BadSymbolReference>(expr,
+                                     expr.entityCategory(),
+                                     ast::EntityCategory::Value);
+        return false;
+    }
+    return true;
+}

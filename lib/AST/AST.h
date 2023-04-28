@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include <range/v3/view.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Fwd.h>
@@ -400,6 +401,44 @@ public:
 
     /// List of index arguments.
     utl::small_vector<UniquePtr<Expression>> arguments;
+};
+
+/// Represents a list expression, i.e. `[a, b, c]`
+class SCATHA_API ListExpression: public Expression {
+    static auto impl(auto* self) {
+        return ranges::views::transform(self->elems,
+                                        [](auto& p) { return p.get(); });
+    }
+
+public:
+    ListExpression(utl::small_vector<UniquePtr<Expression>> elems,
+                   SourceRange sourceRange):
+        Expression(NodeType::ListExpression, sourceRange),
+        elems(std::move(elems)) {}
+
+    size_t size() const { return elems.size(); }
+
+    bool empty() const { return elems.empty(); }
+
+    auto begin() { return impl(this).begin(); }
+    auto begin() const { return impl(this).begin(); }
+
+    auto end() { return impl(this).end(); }
+    auto end() const { return impl(this).end(); }
+
+    Expression* front() { return impl(this).front(); }
+    Expression const* front() const { return impl(this).front(); }
+
+    Expression* back() { return impl(this).back(); }
+    Expression const* back() const { return impl(this).back(); }
+
+    Expression* operator[](size_t index) { return elems[index].get(); }
+    Expression const* operator[](size_t index) const {
+        return elems[index].get();
+    }
+
+private:
+    utl::small_vector<UniquePtr<Expression>> elems;
 };
 
 /// Abstract node representing a statement.

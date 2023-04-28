@@ -101,6 +101,7 @@
 ///                                   | <floating-point-literal>
 ///                                   | <string-literal>
 ///                                   | "(" <comma-expression> ")"
+///                                   | "[" {<conditional-expression>}* "]"
 /// <access-spec>                   ::= "public" | "private"
 /// ```
 ///

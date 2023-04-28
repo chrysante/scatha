@@ -41,3 +41,11 @@ fn f(x: &mut int)  -> &mut int {
     return &x;
 })");
 }
+
+TEST_CASE("First array", "[end-to-end][arrays]") {
+    test::checkReturns(2, R"(
+public fn main() -> int {
+    var arr: [int, 4] = [1, 2, 3, 4];
+    return arr[1];
+})");
+}

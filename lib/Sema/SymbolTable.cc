@@ -236,17 +236,19 @@ Scope const& SymbolTable::addAnonymousScope() {
 }
 
 QualType const* SymbolTable::qualify(Type const* base,
-                                     TypeQualifiers qualifiers) const {
+                                     TypeQualifiers qualifiers,
+                                     size_t arraySize) const {
     ObjectType const* objType = dyncast<ObjectType const*>(base);
     if (!objType) {
         objType = cast<QualType const*>(base)->base();
     }
-    return getQualType(objType, qualifiers);
+    return getQualType(objType, qualifiers, arraySize);
 }
 
 QualType const* SymbolTable::getQualType(ObjectType const* baseType,
-                                         TypeQualifiers qualifiers) const {
-    if (auto itr = _qualTypes.find({ baseType, qualifiers });
+                                         TypeQualifiers qualifiers,
+                                         size_t arraySize) const {
+    if (auto itr = _qualTypes.find({ baseType, qualifiers, arraySize });
         itr != _qualTypes.end())
     {
         return itr->second;
@@ -256,10 +258,12 @@ QualType const* SymbolTable::getQualType(ObjectType const* baseType,
         _entities.insert({ newSymbolID,
                            allocate<QualType>(newSymbolID,
                                               const_cast<ObjectType*>(baseType),
-                                              qualifiers) });
+                                              qualifiers,
+                                              arraySize) });
     SC_ASSERT(success, "");
     auto* qualType = cast<QualType*>(itr->second.get());
-    _qualTypes.insert({ std::pair{ baseType, qualifiers }, qualType });
+    _qualTypes.insert(
+        { std::tuple{ baseType, qualifiers, arraySize }, qualType });
     return qualType;
 }
 

@@ -46,6 +46,7 @@ struct Context {
     void print(Conditional const&, int ind);
     void print(FunctionCall const&, int ind);
     void print(Subscript const&, int ind);
+    void print(ListExpression const&, int ind);
     void print(AbstractSyntaxTree const&, int ind) {
         str << indent(ind) << "<unknown>" << endl;
     }
@@ -246,5 +247,13 @@ void Context::print(Subscript const& subscript, int ind) {
     dispatch(subscript.object.get(), ind + 1);
     for (auto& argument: subscript.arguments) {
         dispatch(argument.get(), ind + 1);
+    }
+}
+
+void Context::print(ListExpression const& list, int ind) {
+    str << indent(ind) << nodeType("list") << endl;
+    printType(list, ind + 1);
+    for (auto* elem: list) {
+        dispatch(elem, ind + 1);
     }
 }

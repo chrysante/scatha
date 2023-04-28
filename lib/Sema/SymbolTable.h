@@ -126,9 +126,9 @@ public:
     /// \returns Reference to the new scope.
     Scope const& addAnonymousScope();
 
-    QualType const* qualify(
-        Type const* base,
-        TypeQualifiers qualifiers = TypeQualifiers::None) const;
+    QualType const* qualify(Type const* base,
+                            TypeQualifiers qualifiers = TypeQualifiers::None,
+                            size_t arraySize          = 0) const;
 
     QualType const* addQualifiers(QualType const* base,
                                   TypeQualifiers qualifiers) const {
@@ -280,7 +280,8 @@ public:
 
 private:
     QualType const* getQualType(ObjectType const* base,
-                                TypeQualifiers qualifiers) const;
+                                TypeQualifiers qualifiers,
+                                size_t arraySize) const;
 
     SymbolID generateID(SymbolCategory category) const;
 
@@ -292,7 +293,7 @@ private:
 
     mutable utl::hashmap<SymbolID, UniquePtr<Entity>> _entities;
 
-    mutable utl::hashmap<std::pair<ObjectType const*, TypeQualifiers>,
+    mutable utl::hashmap<std::tuple<ObjectType const*, TypeQualifiers, size_t>,
                          QualType const*>
         _qualTypes;
 

@@ -44,8 +44,9 @@ std::ostream& ast::operator<<(std::ostream& str, BinaryOperator op) {
 std::ostream& ast::operator<<(std::ostream& str, EntityCategory cat) {
     // clang-format off
     return str << UTL_SERIALIZE_ENUM(cat, {
-        { EntityCategory::Value, "Value" },
-        { EntityCategory::Type,  "Type" },
+        { EntityCategory::Indeterminate, "Indeterminate" },
+        { EntityCategory::Value,         "Value" },
+        { EntityCategory::Type,          "Type" },
     });
     // clang-format on
 }

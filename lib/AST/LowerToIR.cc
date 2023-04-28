@@ -72,6 +72,7 @@ struct CodeGenContext {
     ir::Value* getValueImpl(Conditional const&);
     ir::Value* getValueImpl(FunctionCall const&);
     ir::Value* getValueImpl(Subscript const&);
+    ir::Value* getValueImpl(ListExpression const&);
 
     ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) {
         SC_UNREACHABLE();
@@ -79,7 +80,9 @@ struct CodeGenContext {
     ir::Value* getAddressImpl(Expression const& expr);
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
+    ir::Value* getAddressImpl(Subscript const&);
     ir::Value* getAddressImpl(ReferenceExpression const&);
+    ir::Value* getAddressImpl(ListExpression const&);
 
     ir::Value* loadAddress(ir::Value* address,
                            ir::Type const* type,
@@ -88,6 +91,7 @@ struct CodeGenContext {
     void declareTypes();
     void declareFunctions();
 
+    /// To make sure all `alloca` instructions are in the entry basic block
     void addAlloca(ir::Alloca* allc) {
         allocaInsertItr =
             currentFunction->entry().insert(allocaInsertItr, allc)->next();
@@ -192,17 +196,35 @@ void CodeGenContext::generateImpl(StructDefinition const& def) {
 }
 
 void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
-    auto* varMemPtr = new ir::Alloca(irCtx,
-                                     mapType(varDecl.type()),
-                                     std::string(varDecl.name()));
-    addAlloca(varMemPtr);
-    memorizeVariableAddress(varDecl.symbolID(), varMemPtr);
-    if (varDecl.initExpression == nullptr) {
-        return;
+    if (!varDecl.type()->has(sema::TypeQualifiers::Array)) {
+        /// Non-array case
+        auto* address = new ir::Alloca(irCtx,
+                                       mapType(varDecl.type()),
+                                       std::string(varDecl.name()));
+        addAlloca(address);
+        memorizeVariableAddress(varDecl.symbolID(), address);
+        if (varDecl.initExpression == nullptr) {
+            return;
+        }
+        ir::Value* initValue = getValue(*varDecl.initExpression);
+        auto* store          = new ir::Store(irCtx, address, initValue);
+        currentBB()->pushBack(store);
     }
-    ir::Value* initValue = getValue(*varDecl.initExpression);
-    auto* store          = new ir::Store(irCtx, varMemPtr, initValue);
-    currentBB()->pushBack(store);
+    else {
+        /// Array case
+        auto* address = varDecl.initExpression ?
+                            getAddress(*varDecl.initExpression) :
+                            nullptr;
+        if (varDecl.initExpression && varDecl.initExpression->valueCategory() ==
+                                          ast::ValueCategory::RValue)
+        {
+            memorizeVariableAddress(varDecl.symbolID(), address);
+        }
+        else {
+            // TODO: Copy the array
+            SC_DEBUGFAIL();
+        }
+    }
 }
 
 void CodeGenContext::generateImpl(ParameterDeclaration const&) {
@@ -637,7 +659,14 @@ ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
     return call;
 }
 
-ir::Value* CodeGenContext::getValueImpl(Subscript const&) { SC_DEBUGFAIL(); }
+ir::Value* CodeGenContext::getValueImpl(Subscript const& expr) {
+    return getAddress(expr, false);
+}
+
+ir::Value* CodeGenContext::getValueImpl(ListExpression const& list) {
+    /// Use `getAddress()` for arrays
+    return nullptr;
+}
 
 ir::Value* CodeGenContext::getAddressImpl(Expression const& expr) {
     if (expr.type()->isReference()) {
@@ -681,8 +710,41 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     return gep;
 }
 
+ir::Value* CodeGenContext::getAddressImpl(Subscript const& expr) {
+    auto* type  = mapType(expr.object->type()->base());
+    auto* array = getAddress(*expr.object);
+    auto* index = getValue(*expr.arguments.front());
+    auto* gep =
+        new ir::GetElementPointer(irCtx, type, array, index, {}, "elem.ptr");
+    currentBB()->pushBack(gep);
+    return gep;
+}
+
 ir::Value* CodeGenContext::getAddressImpl(ReferenceExpression const& expr) {
     return getAddress(*expr.referred);
+}
+
+ir::Value* CodeGenContext::getAddressImpl(ListExpression const& list) {
+    auto* type  = mapType(list.type());
+    auto* array = new ir::Alloca(irCtx,
+                                 irCtx.integralConstant(APInt(list.size(), 32)),
+                                 type,
+                                 "array");
+    addAlloca(array);
+    for (auto [index, elem]: list | ranges::views::enumerate) {
+        auto* elemValue = getValue(*elem);
+        auto* gep =
+            new ir::GetElementPointer(irCtx,
+                                      type,
+                                      array,
+                                      irCtx.integralConstant(APInt(index, 32)),
+                                      {},
+                                      "elem.ptr");
+        currentBB()->pushBack(gep);
+        auto* store = new ir::Store(irCtx, gep, elemValue);
+        currentBB()->pushBack(store);
+    }
+    return array;
 }
 
 ir::Value* CodeGenContext::loadAddress(ir::Value* address,
