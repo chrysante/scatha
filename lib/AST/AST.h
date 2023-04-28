@@ -782,12 +782,13 @@ public:
 class SCATHA_API JumpStatement: public ControlFlowStatement {
 public:
     enum Kind { Break, Continue };
-    
+
     explicit JumpStatement(Kind kind, SourceRange sourceRange):
-        ControlFlowStatement(NodeType::JumpStatement, sourceRange), _kind(kind) {}
-    
+        ControlFlowStatement(NodeType::JumpStatement, sourceRange),
+        _kind(kind) {}
+
     Kind kind() const { return _kind; }
-    
+
 private:
     Kind _kind;
 };
