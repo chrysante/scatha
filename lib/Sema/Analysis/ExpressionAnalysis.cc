@@ -243,7 +243,8 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return ExpressionAnalysisResult::fail();
         }
-        auto* refType = sym.qualify(referred.type(), TypeQualifiers::Reference);
+        auto* refType =
+            sym.qualify(referred.type(), TypeQualifiers::ExplicitReference);
         ref.decorate(referred.symbolID(),
                      refType,
                      ast::ValueCategory::LValue,
@@ -251,8 +252,9 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
         return ExpressionAnalysisResult::lvalue(referred.symbolID(), refType);
     }
     else {
-        auto* type    = sym.qualify(&sym.get<ObjectType>(referred.symbolID()));
-        auto* refType = sym.addQualifiers(type, TypeQualifiers::Reference);
+        auto* type = sym.qualify(&sym.get<ObjectType>(referred.symbolID()));
+        auto* refType =
+            sym.addQualifiers(type, TypeQualifiers::ImplicitReference);
         ref.decorate(refType->symbolID(),
                      nullptr,
                      ast::ValueCategory::None,
@@ -506,7 +508,12 @@ QualType const* Context::binaryOpResult(
         return sym.qualBool();
 
     case Assignment:
-        [[fallthrough]];
+        if (!verifySame()) {
+            return nullptr;
+        }
+        /// Assignments return `void` to prevent `if a = b { /* ... */ }` kind
+        /// of errors
+        return sym.qualVoid();
     case AddAssignment:
         [[fallthrough]];
     case SubAssignment:
@@ -529,8 +536,6 @@ QualType const* Context::binaryOpResult(
         if (!verifySame()) {
             return nullptr;
         }
-        /// Assignments return `void` to prevent `if a = b { /* ... */ }` kind
-        /// of errors
         return sym.qualVoid();
 
     case Comma:

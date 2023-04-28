@@ -90,7 +90,7 @@
 ///                                   | "++" <unary-expression>
 ///                                   | "--" <unary-expression>
 /// <reference-expression>          ::= <postfix-expression> |
-///                                     "&" ["mut"] <postfix-expression>
+///                                     "&" ["mut"] <conditional-expression>
 /// <postfix-expression>            ::= <primary-expression>
 ///                                   | <postfix-expression> "[" {<assignment-expression>}* "]"
 ///                                   | <postfix-expression> "(" {<assignment-expression>}* ")"
@@ -116,7 +116,7 @@
 /// ├────────────┼──────────────┼──────────────────────────────┼──────────────────┤
 /// │  2         │ +, -         │ Unary plus and minus         │ Right to left <- │
 /// │            │ !, ~         │ Logical and bitwise NOT      │                  │
-/// │            │ &            │ Address of                   │                  │
+/// │            │ &            │ Reference                    │                  │
 /// ├────────────┼──────────────┼──────────────────────────────┼──────────────────┤
 /// │  3         │ *, /, %      │ Multiplication, division     │ Left to right -> │
 /// │            │              │ and remainder                │                  │
@@ -146,6 +146,12 @@ namespace scatha::parse {
 
 [[nodiscard]] SCATHA_API UniquePtr<ast::AbstractSyntaxTree> parse(
     utl::vector<Token> tokens, IssueHandler& issueHandler);
+
+/// Parse source code \p source into an abstract syntax tree
+/// Issues will be submitted to \p issueHandler
+/// \Returns The parsed AST
+SCATHA_API UniquePtr<ast::AbstractSyntaxTree> parse(std::string_view source,
+                                                    IssueHandler& issueHandler);
 
 } // namespace scatha::parse
 

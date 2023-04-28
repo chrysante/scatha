@@ -1,24 +1,23 @@
+//public fn main() -> int {
+//    var i = 3;
+//    f(& &i);
+//    return i;
+//}
+//
+//fn f(x: &mut int)  {
+//    x += 1;
+//}
 
-public fn main() {
-    return some_long_undeclared_id;
+
+public fn main() -> int {
+    var i = 0;
+    var j = 0;
+    var r = &i;
+    r += 1;
+    r = &j;
+    r += 1;
+    return i + j;
 }
-
-
-//    public fn main() -> int {
-//        var x = 0;
-//        var r = &x;
-//        r = 1;
-//        var s = &r;
-//        s += 2;
-//        return x;
-//    }
-
-// public fn main() -> int {
-//     var i = 0;
-//     var j = &i;
-//     j = 1;
-//     return i;
-// }
 
 
 /*

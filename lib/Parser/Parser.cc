@@ -4,6 +4,7 @@
 #include "Common/Base.h"
 #include "Common/Expected.h"
 #include "Parser/BracketCorrection.h"
+#include "Parser/Lexer.h"
 #include "Parser/Panic.h"
 #include "Parser/SyntaxIssue.h"
 #include "Parser/TokenStream.h"
@@ -19,6 +20,14 @@ UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens,
                                                 IssueHandler& issues) {
     bracketCorrection(tokens, issues);
     Context ctx{ .tokens{ std::move(tokens) }, .issues = issues };
+    return ctx.run();
+}
+
+UniquePtr<ast::AbstractSyntaxTree> parse::parse(std::string_view source,
+                                                IssueHandler& issueHandler) {
+    auto tokens = lex(source, issueHandler);
+    bracketCorrection(tokens, issueHandler);
+    Context ctx{ .tokens{ std::move(tokens) }, .issues = issueHandler };
     return ctx.run();
 }
 
@@ -531,14 +540,17 @@ UniquePtr<ast::ForStatement> Context::parseForStatement() {
 
 static std::optional<ast::JumpStatement::Kind> toJumpKind(Token token) {
     switch (token.kind()) {
-    case Break: return ast::JumpStatement::Break;
-    case Continue: return ast::JumpStatement::Continue;
-    default: return std::nullopt;
+    case Break:
+        return ast::JumpStatement::Break;
+    case Continue:
+        return ast::JumpStatement::Continue;
+    default:
+        return std::nullopt;
     }
 }
 
 UniquePtr<ast::JumpStatement> Context::parseJumpStatement() {
-    Token const token = tokens.peek();
+    Token const token   = tokens.peek();
     auto const jumpKind = toJumpKind(token);
     if (!jumpKind) {
         return nullptr;
@@ -735,7 +747,7 @@ UniquePtr<ast::Expression> Context::parseReference() {
         mut = true;
         tokens.eat();
     }
-    auto referred = parsePostfix();
+    auto referred = parseConditional();
     return allocate<ast::ReferenceExpression>(std::move(referred),
                                               refToken.sourceRange());
 }

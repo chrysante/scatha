@@ -216,7 +216,13 @@ void Context::analyze(ast::VariableDeclaration& var) {
         verifyConversion(*var.initExpression, declaredType);
     }
     auto* finalType = declaredType ? declaredType : deducedType;
-    auto varObj     = sym.addVariable(var.nameIdentifier->value(), finalType);
+    if (finalType->has(TypeQualifiers::ExplicitReference)) {
+        finalType =
+            sym.removeQualifiers(finalType, TypeQualifiers::ExplicitReference);
+        finalType =
+            sym.addQualifiers(finalType, TypeQualifiers::ImplicitReference);
+    }
+    auto varObj = sym.addVariable(var.nameIdentifier->value(), finalType);
     if (!varObj) {
         iss.push(varObj.error()->setStatement(var));
         return;

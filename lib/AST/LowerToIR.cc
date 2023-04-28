@@ -52,7 +52,9 @@ struct CodeGenContext {
     void generateImpl(ForStatement const&);
     void generateImpl(JumpStatement const&);
 
-    ir::Value* getValue(Expression const& expr);
+    ir::Value* getValue(Expression const& expr, bool dereference = true);
+
+    ir::Value* getAddress(Expression const& node, bool dereference = true);
 
     ir::Value* getValueImpl(AbstractSyntaxTree const& expr) {
         SC_UNREACHABLE();
@@ -70,8 +72,6 @@ struct CodeGenContext {
     ir::Value* getValueImpl(Conditional const&);
     ir::Value* getValueImpl(FunctionCall const&);
     ir::Value* getValueImpl(Subscript const&);
-
-    ir::Value* getAddress(Expression const& node);
 
     ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) {
         SC_UNREACHABLE();
@@ -349,8 +349,31 @@ void CodeGenContext::generateImpl(JumpStatement const& jump) {
     currentBB()->pushBack(gotoEnd);
 }
 
-ir::Value* CodeGenContext::getValue(Expression const& expr) {
-    return visit(expr, [this](auto const& expr) { return getValueImpl(expr); });
+ir::Value* CodeGenContext::getValue(Expression const& expr, bool dereference) {
+    auto* value =
+        visit(expr, [this](auto const& expr) { return getValueImpl(expr); });
+    auto* semaType = expr.type();
+    if (dereference && semaType->base() != symTable.Void() &&
+        semaType->has(sema::TypeQualifiers::ImplicitReference))
+    {
+        return loadAddress(value,
+                           mapType(semaType->base()),
+                           utl::strcat(value->name(), ".value"));
+    }
+    return value;
+}
+
+ir::Value* CodeGenContext::getAddress(Expression const& expr,
+                                      bool dereference) {
+    auto* address =
+        visit(expr, [this](auto const& expr) { return getAddressImpl(expr); });
+    auto* semaType = expr.type();
+    if (dereference && semaType->has(sema::TypeQualifiers::ImplicitReference)) {
+        return loadAddress(address,
+                           irCtx.pointerType(),
+                           utl::strcat(address->name(), ".value"));
+    }
+    return address;
 }
 
 ir::Value* CodeGenContext::getValueImpl(Identifier const& id) {
@@ -507,7 +530,8 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         return getValue(*exprDecl.rhs);
     }
     case BinaryOperator::Assignment: {
-        ir::Value* lhsAddr = getAddress(*exprDecl.lhs);
+        bool const isExplRef = exprDecl.rhs->type()->has(sema::TypeQualifiers::ExplicitReference);
+        ir::Value* lhsAddr = getAddress(*exprDecl.lhs, /* deref = */ !isExplRef);
         ir::Value* rhs     = getValue(*exprDecl.rhs);
         auto* store        = new ir::Store(irCtx, lhsAddr, rhs);
         currentBB()->pushBack(store);
@@ -560,7 +584,7 @@ ir::Value* CodeGenContext::getValueImpl(MemberAccess const& expr) {
 }
 
 ir::Value* CodeGenContext::getValueImpl(ReferenceExpression const& expr) {
-    return getAddressImpl(expr);
+    return getAddress(*expr.referred);
 }
 
 ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
@@ -610,18 +634,15 @@ ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
 
 ir::Value* CodeGenContext::getValueImpl(Subscript const&) { SC_DEBUGFAIL(); }
 
-ir::Value* CodeGenContext::getAddress(Expression const& expr) {
-    return visit(expr,
-                 [this](auto const& expr) { return getAddressImpl(expr); });
-}
-
 ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {
     auto itr = variableAddressMap.find(id.symbolID());
     SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
-    if (!id.type()->has(sema::TypeQualifiers::Reference)) {
-        return itr->second;
-    }
-    return loadAddress(itr->second, irCtx.pointerType(), "addr");
+    return itr->second;
+
+    //    if (!id.type()->has(sema::TypeQualifiers::Reference)) {
+    //        return itr->second;
+    //    }
+    //    return loadAddress(itr->second, irCtx.pointerType(), "addr");
 }
 
 ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
@@ -654,9 +675,7 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
 }
 
 ir::Value* CodeGenContext::getAddressImpl(ReferenceExpression const& expr) {
-    auto itr = variableAddressMap.find(expr.symbolID());
-    SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
-    return itr->second;
+    return getAddress(*expr.referred);
 }
 
 ir::Value* CodeGenContext::loadAddress(ir::Value* address,
@@ -765,7 +784,9 @@ std::string CodeGenContext::mangledName(sema::SymbolID id,
 
 ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
     if (auto* qualType = dyncast<sema::QualType const*>(semaType)) {
-        if (qualType->has(sema::TypeQualifiers::Reference)) {
+        if (qualType->has(sema::TypeQualifiers::ExplicitReference |
+                          sema::TypeQualifiers::ImplicitReference))
+        {
             return irCtx.pointerType();
         }
         return mapType(qualType->base());

@@ -9,6 +9,7 @@
 #include <svm/VirtualMachine.h>
 #include <utl/stdio.hpp>
 
+#include "AST/LowerToIR.h"
 #include "AST/Print.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
@@ -82,8 +83,8 @@ static void run(Asm::AssemblyStream const& assembly) {
 
 static void run(ir::Module const& mod) {
     auto assembly = cg::codegen(mod);
-    header(" Assembly ");
-    Asm::print(assembly);
+    //    header(" Assembly ");
+    //    Asm::print(assembly);
     run(assembly);
 }
 
@@ -168,7 +169,43 @@ static void run(mir::Module const& mod) {
     run(mirMod);
 }
 
-[[maybe_unused]] static void volPlayground(std::filesystem::path path) {}
+[[maybe_unused]] static void volPlayground(std::filesystem::path path) {
+    std::fstream file(path);
+    if (!file) {
+        throw;
+    }
+    std::stringstream sstr;
+    sstr << file.rdbuf();
+    auto source = sstr.str();
+
+    header("AST");
+    IssueHandler issues;
+    auto root = parse::parse(source, issues);
+    if (!issues.empty()) {
+        issues.print(source);
+    }
+    sema::SymbolTable sym;
+    sema::analyze(*root, sym, issues);
+    ast::printTree(*root);
+
+    if (!issues.empty()) {
+        issues.print(source);
+        return;
+    }
+
+    header("IR Module");
+    ir::Context ctx;
+    auto mod = ast::lowerToIR(*root, sym, ctx);
+    ir::print(mod);
+
+    run(mod);
+
+    header("Opt");
+    opt::inlineFunctions(ctx, mod);
+    ir::print(mod);
+
+    run(mod);
+}
 
 void playground::volatilePlayground(std::filesystem::path path) {
     volPlayground(path);
