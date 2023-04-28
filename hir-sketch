@@ -1,0 +1,99 @@
+
+
+
+Class hierarchies:
+    
+    // Many entities such as module, variable, function etc. define entries in the
+    // symbol table
+    
+    // Scopes are internal objects to the symbol table, and they are associated with entities,
+    // such as structs, functions, compound statements etc.
+    
+    // Should we ever have lambdas they can also be taken apart here into object construction,
+    // member function call and destruction.
+    
+    Entity
+    ├─ Module
+    ├─ Variable
+    ├─ OverloadSet  // Has a list of functions
+    ├─ Function     // Has a list of parameters, a type, and a body (compound statement)
+    ├─ Parameter    // Has a type
+    ├─ Structure    // Has a list of other structures. int and float are also
+    
+    │
+    ├─ Statement
+    │  ├─ VariableDeclaration // Has a pointer to a variable and an initializing expression.
+    │  │                      // If the declared type does not match the type of the expression,
+    │  │                      // we can insert an implicit cast if possible
+    │  │
+    │  ├─ ExpressionStatement // Also has a QualType and also a value category
+    │  │                      // Then `move(x)` or `f()` is an r-value, but `x` is an l-value,
+    │  │                      // regardless of reference type.
+    │  │                      // Then having an r-value of type &X means the reference is an r-value,
+    │  │                      // but we can still assign through it. Also r-values are always mutable,
+    │  │                      // and only lose their mutability when assigned to a const variable
+    │  │
+    │  ├─ ReturnStatement     // Has an expression that is being returned
+    │  │
+    │  ├─ IfStatement
+    │  │
+    │  ├─ CompoundStatement   //
+    │  │
+    │  ├─ Loop                // Represents for, while and do/while loops
+    │  │
+    │  │
+    │  └─ JumpStatement       // `break` or `continue` (and `goto` should we ever want to suppport it)
+    │
+    └─ Expression
+        ├─ EntityReference    // Can be an identifier or a member access expression
+        │                     // Has a pointer to the entity it refers to.
+        │                     // This can also distinguish between `&x` and `x` references
+        │
+        ├─ Literal            // Any literal, numeric, string, array...
+        │
+        ├─ CastExpression     // During semantic analysis these can also be transformed to
+        │  │                  // function calls if necessary
+        │  ├─ ImplicitCast    // Can be widening int -> int or float -> float, or
+        │  │
+        │  └─ ExplicitCast    // `bitcast<...>(...)`, `reinterpret<...>(...)`, type(...)
+        │
+        │
+        ├─ UnaryExpression    // Any unary (arithmetic) expression
+        │
+        ├─ BinaryExpression   // Any binary (arithmetic) expression
+        │
+        ├─ Assignment         // Arithmetic assignments are represented as an arithmetic
+        │                     // expression followed by an assignment, to simplify things.
+        │                     // This way Assignment and EntityReference can handle references
+        │                     // and reassignments of references
+        │
+        ├─ FunctionCall       // In the HIR we can transform all overloaded operators and such
+        │                     // to calls to their respective functions.
+        │                     // We can also insert calls to constructors and destructors.
+        │
+        ├─ Array access       // Seems like this is only responsible for direct array accesses
+        │                     // in slices
+        └─
+    
+    Type
+    ├─ QualType     // Has a pointer to a raw type, like void or a struct type
+    │
+    └─ FunctionType // Has pointers to other types for parameter and return types
+ 
+    
+    
+    
+    
+    
+    
+/// Entity
+/// ├─ Scope
+/// │  ├─ GlobalScope
+/// │  ├─ Function
+/// │  ├─ Type
+/// │  │  ├─ ObjectType
+/// │  │  ├─ ReferenceType
+/// │  │  └─ FunctionType [??, does not exist]
+/// │  └─ AnonymousScope [??, does not exist either]
+/// ├─ OverloadSet
+/// └─ Variable

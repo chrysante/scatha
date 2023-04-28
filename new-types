@@ -1,0 +1,201 @@
+================================================================================
+
+Sample non-trivial class 
+
+struct X {
+    new(&mut this, n: int) {
+        this.i = n;
+    }
+    
+    new(&mut this, rhs: X) {
+        this.i = rhs.i;
+    }
+    
+    delete() {
+        // Clean up
+    }
+    
+    var i: int;
+}
+
+================================================================================
+
+┌───────────────────┬──────────────────────────────────────────────────┬───────────────────────────┐
+│ Type              │ Explanation                                      │ C++ equivalent            │
+├───────────────────┼──────────────────────────────────────────────────┼───────────────────────────┤
+│ X                 │ X                                                │ X const                   │
+│ mut X             │ Mutable X                                        │ X                         │
+├───────────────────┼──────────────────────────────────────────────────┼───────────────────────────┤
+│ &X                │ Reference to X                                   │ X const* const            │
+│ mut &X            │ Mutable reference to X                           │ X const*                  │
+│ &mut X            │ Reference to mutable X                           │ X* const                  │
+│ mut &mut X        │ Mutable reference to mutable X                   │ X*                        │
+├───────────────────┼──────────────────────────────────────────────────┼───────────────────────────┤
+│ unique X          │ Unique reference to X                            │ unique_ptr<X const> const │
+│ mut unique X      │ Mutable unique reference to X                    │ unique_ptr<X const>       │
+│ unique mut X      │ Unique reference to mutable X                    │ unique_ptr<X> const       │
+│ mut unique mut X  │ Mutable unique reference to mutable X            │ unique_ptr<X>             │
+├───────────────────┼──────────────────────────────────────────────────┼───────────────────────────┤
+│ [X, N]            │ Owning fixed size array with N elements          │ array<X, N> const         │ 
+│ mut [X, N]        │ Mutable owning fixed size array with N elements  │ array<X, N>               │ 
+├───────────────────┼──────────────────────────────────────────────────┼───────────────────────────┤
+│ &[X]              │ Slice of X (non-owning array reference)          │ span<X const> const       │
+│ &mut [X]          │ Slice of mutable X                               │ span<X> const             │
+│ mut &[X]          │ Mutable slice of X (can be reassigned)           │ span<X const>             │
+│ mut &mut [X]      │ Mutable slice of mutable X                       │ span<X>                   │
+└───────────────────┴──────────────────────────────────────────────────┴───────────────────────────┘
+
+┌─────────────────────────────────┬───────────────────┬─────────────────────────────────────────────────┐
+│ Expression or statement         │ Type              │Explanation                                      │
+├─────────────────────────────────┴───────────────────┴─────────────────────────────────────────────────┤
+├───────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Values and raw references                                                                             │
+├─────────────────────────────────┬───────────────────┬─────────────────────────────────────────────────┤
+│ let i = 0;                      │ int               │                                                 │
+│ let r = &i;                     │ &int              │ r refers to i                                   │
+├─────────────────────────────────┼───────────────────┼─────────────────────────────────────────────────┤
+│ let i = 0;                      │ int               │                                                 │
+│ var r = &i;                     │ mut &int          │ r refers to i                                   │
+│ let j = 0;                      │ int               │                                                 │
+│ r = &j;                         │ mut &int          │ r now refers to j                               │
+├─────────────────────────────────┼───────────────────┼─────────────────────────────────────────────────┤
+│ var i = 0;                      │ mut int           │                                                 │
+│ let r = &mut i;                 │ &mut int          │ r refers to i                                   │
+│ /* ... */                       │                   │ Mutable references can be reassigned like above │
+├─────────────────────────────────┼───────────────────┼─────────────────────────────────────────────────┤
+│ let i = 0;                      │ int               │                                                 │
+│ var r = &i;                     │ mut &int          │ r refers to i                                   │
+│ let j = 0;                      │ int               │                                                 │
+│ r = &j;                         │ mut &int          │ r now refers to j                               │
+├─────────────────────────────────┴───────────────────┴─────────────────────────────────────────────────┤
+│ Unique references                                                                                     │
+├─────────────────────────────────┬───────────────────┬─────────────────────────────────────────────────┤
+│ let i = unique int(0);          │ unique int        │ i refers to a heap allocated int.               │
+│                                 │                   │ The memory referred to by i will be deallocated │
+│                                 │                   │ when i goes out of scope.                       │
+│ let r = &i;                     │ &int              │ &r == &i holds.                                 │
+│ let j = move(&i);               │ unique int        │ Move &i into &j. &j 'steals' the memory of i.   │
+│                                 │                   │ &i will be set to null.                         │
+│                                 │                   │ r is still valid, &r == &j holds.               │        
+├─────────────────────────────────┼───────────────────┼─────────────────────────────────────────────────┤
+│ let i = unique mut int(0);      │ unique mut int    │ i refers to a heap allocated mutable int with   │
+│                                 │                   │ value 0.                                        │
+│ i = 1;                          │                   │ Assign 1 to i's value.                          │
+│ let r = &i;                     │ &int              │ &r == &i holds.                                 │
+│ let j = mube(&i);               │ unique int        │ Same as above, j 'steals' the memory from i.    │
+│                                 │                   │ However because i is 'stolen' as immutable, the │
+│                                 │                   │ value becomes constant and will not be mutated  │
+│                                 │                   │ again during its lifetime.                      │
+├─────────────────────────────────┼───────────────────┼─────────────────────────────────────────────────┤
+│ let i = 0;                      │                   │                                                 │
+│ let r = move(&i);               │                   │ Ill formed. Can only move unique references.    │
+├─────────────────────────────────┴───────────────────┴─────────────────────────────────────────────────┤
+│ Arrays                                                                                                │
+├─────────────────────────────────┬───────────────────┬─────────────────────────────────────────────────┤
+│ [1, 2, 3]                       │ [int, 3]          │ Array literals are of array type [X, N].        │
+│                                 │                   │ When assigned to a variable with type deduction,│
+│                                 │                   │ the type is always deduces as [X, N].           │
+│ let a = [1, 2, 3];              │ [int, 3]          │                                                 │
+│ var b = &a;                     │ mut &[int]        │ Slice referring to a.                           │
+│ b[1]                            │ int               │ Access second element of b aka a                │
+│ let r = &b[1]                   │ &int              │ Create reference to array element               │
+├─────────────────────────────────┴───────────────────┴─────────────────────────────────────────────────┤
+│ Low level memory manipulation                                                                         │
+├─────────────────────────────────┬───────────────────┬─────────────────────────────────────────────────┤
+│ var s = __builtin_alloc(128);   │ [byte]            │ Allocate 128 bytes.                             │
+│                                 │                   │ __builtin_alloc is very low-level, and might be │
+│                                 │                   │ wrapped by a std function. It does not clean up │
+│                                 │                   │ after itself, and thus returns a slice.         │
+│                                 │                   │ It is required to call __builtin_dealloc to     │
+│                                 │                   │ deallocate the memory.                          │
+│                                 │                   │                                                 │
+│ __builtin_dealloc(&s);          │                   │ Deallocate memory allocated by `__builtin_alloc`│
+│                                 │                   │                                                 │
+│ var t = reinterpret<&[int]>(&s);│ [int]             │ Reinterpret the bytes in s as ints              │
+│                                 │                   │                                                 │
+│ t[a, b]                         │ [int]             │ Create a sub-slice of t corresponding to the    │
+│                                 │                   │ range [a, b).                                   │
+│ let u = &t[a, b];               │ &[int]            │ Store a reference to the sub-slice t[a, b]      │
+│                                 │                   │                                                 │
+│ __builtin_construct(&x, ...)    │                   │ Construct an object in uninitialized memory,    │
+│                                 │                   │ i.e. explicitly call its `new` function.        │
+│                                 │                   │                                                 │
+│ __builtin_destroy(&x)           │                   │ Destroy object x, i.e. explicitly call its      │
+│                                 │                   │ `delete` function.                              │
+│                                 │                   │                                                 │
+│ __builtin_relocate(&x, &y)      │                   │ 'Relocate' y into uninitialized memory referred │
+│                                 │                   │ to by &x, i.e. move y into x and destroy y.     │
+└─────────────────────────────────┴───────────────────┴─────────────────────────────────────────────────┘
+
+================================================================================
+
+fn f(view: &[int], arr: unique [int]) {
+    arr.push(0);
+    print("\(view[0])");
+}
+
+public fn main() {
+    var v = unique [1, 2, 3];
+    f(&v, &unique v);
+}
+
+================================================================================
+
+var u = unique [X](size: 10);       // Array of 10 elements
+var v = unique [X(1), X(2), X(3)];  // Array with 3 elements X(1), ..., X(3)
+var w = unique [X](capacity: 10);   // Array with capacity 10
+
+================================================================================
+
+var i = 0;                // Type of i is mut int
+var r = &mut i;           // r refers to i; Type of r is mut &mut int
+r = 1;                    // i == 1
+var j = 0;
+r = &j;                   // r now refers to j
+
+================================================================================
+
+var x = unique mut X(1);  // Type of x is mut unique &mut X
+var r = &x;               // Type of r is mut &mut X
+                          // r refers to x
+
+var y = &unique mut x;    // Type of y is mut unique &mut X
+                          // y steals object of x
+                          // &x == null
+
+let z = &unique y;        // Type of z is unique &X
+                          // &y becomes null
+                          // The object referred to by z will never be mutated
+                          // again
+
+================================================================================
+
+var y = null;             // Error?
+var y: &X = null;         // Valid!
+
+y = unique X(1);          // Error. y is of type &X and cannot bind to unique &X
+
+var x = X(1);
+y = &x;                   // Valid. &y == &x
+
+y = &mut x;               // Technically correct, but mut is dropped.
+
+================================================================================
+
+var a = [1, 2, 3];        // Stack allocated array of 3 ints
+
+var b = unique [1, 2, 3]; // Heap allocated array of 3 ints
+
+var c = &b;               // Array reference to b (type is &[int])
+
+b.push(4);                // b potentially reallocates
+                          // What happens to c? Is c now dangling?
+                          // One solution would be to only allow raw references
+                          // as function parameters, but that is very
+                          // restrictive. Or just live dangerously...
+
+
+
+
+
+

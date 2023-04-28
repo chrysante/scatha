@@ -198,18 +198,6 @@ static void run(mir::Module const& mod) {
     auto mod = ast::lowerToIR(*root, sym, ctx);
     ir::print(mod);
 
-    header("After SROA");
-    opt::sroa(ctx, mod.front());
-    ir::print(mod);
-
-    header("After M2R");
-    opt::memToReg(ctx, mod.front());
-    ir::print(mod);
-
-    header("MIR Module");
-    auto mirMod = cg::lowerToMIR(mod);
-    mir::print(mirMod);
-
     run(mod);
 
     header("Opt");
