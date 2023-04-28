@@ -2,9 +2,13 @@
 
 #include <iostream>
 
+#include <termfmt/termfmt.h>
+#include <utl/streammanip.hpp>
+
 #include "AST/AST.h"
 #include "Common/Base.h"
 #include "Common/PrintUtil.h"
+#include "Sema/QualType.h"
 
 using namespace scatha;
 using namespace ast;
@@ -46,6 +50,23 @@ struct Context {
         str << indent(ind) << "<unknown>" << endl;
     }
 
+    void printType(Expression const& expr, int ind) {
+        if (expr.isDecorated() && expr.type()) {
+            str << indent(ind) << tfmt::format(tfmt::brightGrey, "Type: ")
+                << expr.type()->name()
+                << tfmt::format(tfmt::brightGrey,
+                                " [",
+                                expr.valueCategory(),
+                                "]")
+                << endl;
+        }
+    }
+
+    static constexpr utl::streammanip nodeType =
+        [](std::ostream& str, auto... args) {
+        str << tfmt::format(tfmt::brightBlue, "<", args..., ">");
+    };
+
     std::ostream& str;
 };
 
@@ -61,29 +82,28 @@ void ast::printTree(AbstractSyntaxTree const& root, std::ostream& str) {
 }
 
 void Context::dispatch(AbstractSyntaxTree const* node, int ind) {
-    if (!node) {
-        str << indent(ind) << "<invalid-node>" << endl;
-        return;
+    if (node) {
+        visit(*node, [&](auto const& node) { return print(node, ind); });
     }
-    visit(*node, [&](auto const& node) { return print(node, ind); });
 }
 
 void Context::print(TranslationUnit const& tu, int ind) {
-    str << indent(ind) << "<translation-unit>" << endl;
+    str << indent(ind) << nodeType("translation-unit") << endl;
     for (auto& decl: tu.declarations) {
         dispatch(decl.get(), ind + 1);
     }
 }
 
 void Context::print(CompoundStatement const& block, int ind) {
-    str << indent(ind) << "<block>" << endl;
+    str << indent(ind) << nodeType("block") << endl;
     for (auto& node: block.statements) {
         dispatch(node.get(), ind + 1);
     }
 }
 
 void Context::print(FunctionDefinition const& fnDef, int ind) {
-    str << indent(ind) << "<function-definition> " << fnDef.name() << endl;
+    str << indent(ind) << nodeType("function-definition") << " " << fnDef.name()
+        << endl;
     dispatch(fnDef.returnTypeExpr.get(), ind + 1);
     for (auto& param: fnDef.parameters) {
         dispatch(param.get(), ind + 1);
@@ -92,114 +112,128 @@ void Context::print(FunctionDefinition const& fnDef, int ind) {
 }
 
 void Context::print(StructDefinition const& structDef, int ind) {
-    str << indent(ind) << "<struct-definition> " << structDef.name();
+    str << indent(ind) << nodeType("struct-definition") << " "
+        << structDef.name();
     str << endl;
     dispatch(structDef.body.get(), ind + 1);
 }
 
 void Context::print(VariableDeclaration const& varDecl, int ind) {
-    str << indent(ind) << "<variable-declaration> " << varDecl.name();
+    str << indent(ind) << nodeType("variable-declaration") << " "
+        << varDecl.name();
     str << " " << endl;
     dispatch(varDecl.typeExpr.get(), ind + 1);
     dispatch(varDecl.initExpression.get(), ind + 1);
 }
 
 void Context::print(ParameterDeclaration const& paramDecl, int ind) {
-    str << indent(ind) << "<parameter-declaration> " << paramDecl.name();
+    str << indent(ind) << nodeType("parameter-declaration") << " "
+        << paramDecl.name();
     str << " " << endl;
     dispatch(paramDecl.typeExpr.get(), ind + 1);
 }
 
 void Context::print(ExpressionStatement const& exprStatement, int ind) {
-    str << indent(ind) << "<expression-statement> " << endl;
+    str << indent(ind) << nodeType("expression-statement") << endl;
     dispatch(exprStatement.expression.get(), ind + 1);
 }
 
 void Context::print(EmptyStatement const&, int ind) {
-    str << indent(ind) << "<empty-statement> " << endl;
+    str << indent(ind) << nodeType("empty-statement") << endl;
 }
 
 void Context::print(ReturnStatement const& returnStatement, int ind) {
-    str << indent(ind) << "<return-statement> " << endl;
+    str << indent(ind) << nodeType("return-statement") << endl;
     dispatch(returnStatement.expression.get(), ind + 1);
 }
 
 void Context::print(IfStatement const& ifStatement, int ind) {
-    str << indent(ind) << "<if-statement> " << endl;
+    str << indent(ind) << nodeType("if-statement") << endl;
     dispatch(ifStatement.condition.get(), ind + 1);
     dispatch(ifStatement.thenBlock.get(), ind + 1);
     dispatch(ifStatement.elseBlock.get(), ind + 1);
 }
 
 void Context::print(WhileStatement const& whileStatement, int ind) {
-    str << indent(ind) << "<while-statement> " << endl;
+    str << indent(ind) << nodeType("while-statement") << endl;
     dispatch(whileStatement.condition.get(), ind + 1);
     dispatch(whileStatement.block.get(), ind + 1);
 }
 
 void Context::print(DoWhileStatement const& doWhileStatement, int ind) {
-    str << indent(ind) << "<do-while-statement> " << endl;
+    str << indent(ind) << nodeType("do-while-statement") << endl;
     dispatch(doWhileStatement.condition.get(), ind + 1);
     dispatch(doWhileStatement.block.get(), ind + 1);
 }
 
 void Context::print(Identifier const& identifier, int ind) {
-    str << indent(ind) << "<identifier> " << identifier.value() << endl;
+    str << indent(ind) << nodeType("identifier") << " " << identifier.value()
+        << endl;
+    printType(identifier, ind + 1);
 }
 
 void Context::print(IntegerLiteral const& intLiteral, int ind) {
-    str << indent(ind) << "<integer-literal> "
-        << intLiteral.value().signedToString() << endl;
+    str << indent(ind) << nodeType("integer-literal") << " "
+        << intLiteral.value().toString() << endl;
+    printType(intLiteral, ind + 1);
 }
 
 void Context::print(BooleanLiteral const& boolLiteral, int ind) {
-    str << indent(ind) << "<boolean-literal> "
+    str << indent(ind) << nodeType("boolean-literal") << " "
         << (boolLiteral.value().to<bool>() ? "true" : "false") << endl;
+    printType(boolLiteral, ind + 1);
 }
 
 void Context::print(FloatingPointLiteral const& floatLiteral, int ind) {
-    str << indent(ind) << "<float-literal> " << floatLiteral.value().toString()
-        << endl;
+    str << indent(ind) << nodeType("float-literal") << " "
+        << floatLiteral.value().toString() << endl;
+    printType(floatLiteral, ind + 1);
 }
 
 void Context::print(StringLiteral const& stringLiteral, int ind) {
-    str << indent(ind) << "<string-literal> " << '"' << stringLiteral.value()
-        << '"' << endl;
+    str << indent(ind) << nodeType("string-literal") << " " << '"'
+        << stringLiteral.value() << '"' << endl;
+    printType(stringLiteral, ind + 1);
 }
 
 void Context::print(UnaryPrefixExpression const& unaryPrefExpr, int ind) {
-    str << indent(ind) << "<unary-prefix-expression> : " << '"'
-        << toString(unaryPrefExpr.operation()) << '"' << endl;
+    str << indent(ind) << nodeType("unary-prefix-expression") << " "
+        << unaryPrefExpr.operation() << endl;
+    printType(unaryPrefExpr, ind + 1);
     dispatch(unaryPrefExpr.operand.get(), ind + 1);
 }
 
 void Context::print(BinaryExpression const& binExpr, int ind) {
-    str << indent(ind) << "<binary-expression> " << '"'
-        << toString(binExpr.operation()) << '"' << endl;
+    str << indent(ind) << nodeType("binary-expression") << " "
+        << binExpr.operation() << endl;
+    printType(binExpr, ind + 1);
     dispatch(binExpr.lhs.get(), ind + 1);
     dispatch(binExpr.rhs.get(), ind + 1);
 }
 
 void Context::print(MemberAccess const& memberAccess, int ind) {
-    str << indent(ind) << "<member-access> " << endl;
+    str << indent(ind) << nodeType("member-access") << endl;
+    printType(memberAccess, ind + 1);
     dispatch(memberAccess.object.get(), ind + 1);
     dispatch(memberAccess.member.get(), ind + 1);
 }
 
 void Context::print(ReferenceExpression const& ref, int ind) {
-    str << indent(ind) << "<reference-expression> " << endl;
+    str << indent(ind) << nodeType("reference-expression") << endl;
+    printType(ref, ind + 1);
     dispatch(ref.referred.get(), ind + 1);
 }
 
 void Context::print(Conditional const& conditional, int ind) {
-    str << indent(ind) << "<conditional> " << endl;
+    str << indent(ind) << nodeType("conditional") << endl;
+    printType(conditional, ind + 1);
     dispatch(conditional.condition.get(), ind + 1);
     dispatch(conditional.ifExpr.get(), ind + 1);
     dispatch(conditional.elseExpr.get(), ind + 1);
 }
 
 void Context::print(FunctionCall const& functionCall, int ind) {
-    str << indent(ind) << "<function-call> " << endl;
+    str << indent(ind) << nodeType("function-call") << endl;
     dispatch(functionCall.object.get(), ind + 1);
     for (auto& argument: functionCall.arguments) {
         dispatch(argument.get(), ind + 1);
@@ -207,7 +241,8 @@ void Context::print(FunctionCall const& functionCall, int ind) {
 }
 
 void Context::print(Subscript const& subscript, int ind) {
-    str << indent(ind) << "<subscript> " << endl;
+    str << indent(ind) << nodeType("subscript") << endl;
+    printType(subscript, ind + 1);
     dispatch(subscript.object.get(), ind + 1);
     for (auto& argument: subscript.arguments) {
         dispatch(argument.get(), ind + 1);
