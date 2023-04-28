@@ -8,9 +8,10 @@
 namespace scatha::sema {
 
 enum class TypeQualifiers {
-    None      = 0,
-    Reference = 1 << 0,
-    Mutable   = 1 << 1,
+    None              = 0,
+    ImplicitReference = 1 << 0,
+    ExplicitReference = 1 << 1,
+    Mutable           = 1 << 2,
 };
 
 UTL_ENUM_OPERATORS(TypeQualifiers);
@@ -41,7 +42,10 @@ public:
 
     bool has(TypeQualifiers qual) const { return test(qualifiers() & qual); }
 
-    bool isReference() const { return has(TypeQualifiers::Reference); }
+    bool isReference() const {
+        return has(TypeQualifiers::ImplicitReference |
+                   TypeQualifiers::ExplicitReference);
+    }
 
 private:
     ObjectType* _base;
