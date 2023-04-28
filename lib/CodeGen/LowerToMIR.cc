@@ -443,8 +443,14 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
 
 void CodeGenContext::genInst(ir::GetElementPointer const& gep) {
     bool const allUsersAreLoadsAndStores =
-        ranges::all_of(gep.users(), [](ir::User const* user) {
-            return isa<ir::Load>(user) || isa<ir::Store>(user);
+        ranges::all_of(gep.users(), [&](ir::User const* user) {
+            if (isa<ir::Load>(user)) {
+                return true;
+            }
+            if (auto* store = dyncast<ir::Store const*>(user)) {
+                return store->value() != &gep;
+            }
+            return false;
         });
     if (allUsersAreLoadsAndStores) {
         /// Loads and stores can compute their addresses themselves, so we don't

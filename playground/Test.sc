@@ -1,22 +1,9 @@
-//public fn main() -> int {
-//    var i = 3;
-//    f(& &i);
-//    return i;
-//}
-//
-//fn f(x: &mut int)  {
-//    x += 1;
-//}
-
 
 public fn main() -> int {
-    var i = 0;
-    var j = 0;
-    var r = &i;
-    r += 1;
-    r = &j;
-    r += 1;
-    return i + j;
+    var arr = [1, 2, 3, 4];
+    var r = &arr[1];
+    r = 5;
+    return arr[1];// + arr[2];
 }
 
 

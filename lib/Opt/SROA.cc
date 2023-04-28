@@ -182,6 +182,11 @@ bool VariableContext::buildAccessTreeVisitUsers(AccessTreeNode* node,
         {
             return false;
         }
+        if (auto* store = dyncast<Store const*>(user);
+            store && store->value() == address)
+        {
+            return false;
+        }
         if (auto* load = dyncast<Load*>(user)) {
             loads.push_back(load);
             continue;

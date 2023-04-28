@@ -83,14 +83,14 @@ static void run(Asm::AssemblyStream const& assembly) {
 
 static void run(ir::Module const& mod) {
     auto assembly = cg::codegen(mod);
-    //    header(" Assembly ");
-    //    Asm::print(assembly);
+    header("Assembly");
+    Asm::print(assembly);
     run(assembly);
 }
 
 static void run(mir::Module const& mod) {
     auto assembly = cg::lowerToASM(mod);
-    header(" Assembly ");
+    header("Assembly");
     Asm::print(assembly);
     run(assembly);
 }
@@ -197,6 +197,18 @@ static void run(mir::Module const& mod) {
     ir::Context ctx;
     auto mod = ast::lowerToIR(*root, sym, ctx);
     ir::print(mod);
+
+    header("After SROA");
+    opt::sroa(ctx, mod.front());
+    ir::print(mod);
+
+    header("After M2R");
+    opt::memToReg(ctx, mod.front());
+    ir::print(mod);
+
+    header("MIR Module");
+    auto mirMod = cg::lowerToMIR(mod);
+    mir::print(mirMod);
 
     run(mod);
 

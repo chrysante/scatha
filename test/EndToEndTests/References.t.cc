@@ -49,3 +49,13 @@ public fn main() -> int {
     return arr[1];
 })");
 }
+
+TEST_CASE("Reference to array element", "[end-to-end][arrays]") {
+    test::checkReturns(5, R"(
+public fn main() -> int {
+    var arr = [1, 2, 3, 4];
+    var r = &arr[1];
+    r = 5;
+    return arr[1];
+})");
+}
