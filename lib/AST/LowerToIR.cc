@@ -401,7 +401,7 @@ ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
         expr.operation() == ast::UnaryPrefixOperator::Decrement)
     {
         ir::Value* addr      = getAddress(*expr.operand);
-        ir::Type const* type = mapType(expr.operand->type());
+        ir::Type const* type = mapType(expr.operand->type()->base());
         ir::Value* value =
             loadAddress(addr, type, utl::strcat(expr.operation(), ".value"));
         auto const operation =
