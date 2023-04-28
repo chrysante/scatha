@@ -89,8 +89,10 @@
 ///                                   | "!" <unary-expression>
 ///                                   | "++" <unary-expression>
 ///                                   | "--" <unary-expression>
-/// <reference-expression>          ::= <postfix-expression> |
-///                                     "&" ["mut"] <conditional-expression>
+/// <reference-expression>          ::= <unique-expression> |
+///                                     "&" ["unique"] ["mut"] <conditional-expression>
+/// <unique-expression>             ::= <postfix-expression>
+///                                   | "unique" ["mut"] <function-call> /* Exposition only */
 /// <postfix-expression>            ::= <primary-expression>
 ///                                   | <postfix-expression> "[" {<assignment-expression>}* "]"
 ///                                   | <postfix-expression> "(" {<assignment-expression>}* ")"
@@ -118,6 +120,7 @@
 /// │  2         │ +, -         │ Unary plus and minus         │ Right to left <- │
 /// │            │ !, ~         │ Logical and bitwise NOT      │                  │
 /// │            │ &            │ Reference                    │                  │
+/// │            │ unique       │ Dynamic memory allocation    │                  │
 /// ├────────────┼──────────────┼──────────────────────────────┼──────────────────┤
 /// │  3         │ *, /, %      │ Multiplication, division     │ Left to right -> │
 /// │            │              │ and remainder                │                  │

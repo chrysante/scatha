@@ -8,11 +8,11 @@
 #   define SVM_BUILTIN_DEF(name, ...)
 #endif
 
-/// ## Conversion functions
+/// ## Conversion Functions
 SVM_BUILTIN_DEF(f64toi64,  Const, { qualFloat() }, qualInt())
 SVM_BUILTIN_DEF(i64tof64,  Const, { qualInt() }, qualFloat())
 
-/// ## Common math functions
+/// ## Common Math Functions
 SVM_BUILTIN_DEF(abs_f64,   Const, { qualFloat() }, qualFloat())
 SVM_BUILTIN_DEF(exp_f64,   Const, { qualFloat() }, qualFloat())
 SVM_BUILTIN_DEF(exp2_f64,  Const, { qualFloat() }, qualFloat())
@@ -31,9 +31,13 @@ SVM_BUILTIN_DEF(asin_f64,  Const, { qualFloat() }, qualFloat())
 SVM_BUILTIN_DEF(acos_f64,  Const, { qualFloat() }, qualFloat())
 SVM_BUILTIN_DEF(atan_f64,  Const, { qualFloat() }, qualFloat())
 
-/// ## Console output
-SVM_BUILTIN_DEF(putchar,   None,  { qualInt() }, qualify(Void()))
-SVM_BUILTIN_DEF(puti64,    None,  { qualInt() }, qualify(Void()))
-SVM_BUILTIN_DEF(putf64,    None,  { qualFloat() }, qualify(Void()))
+/// ## Memory Allocation
+SVM_BUILTIN_DEF(alloc,   None,  { qualInt() }, arrayView(Byte()))
+SVM_BUILTIN_DEF(dealloc, None,  { arrayView(Byte()) }, qualVoid())
+
+/// ## Console Output
+SVM_BUILTIN_DEF(putchar,   None,  { qualInt() }, qualVoid())
+SVM_BUILTIN_DEF(puti64,    None,  { qualInt() }, qualVoid())
+SVM_BUILTIN_DEF(putf64,    None,  { qualFloat() }, qualVoid())
 
 #undef SVM_BUILTIN_DEF

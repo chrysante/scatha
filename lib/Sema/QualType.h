@@ -12,7 +12,8 @@ enum class TypeQualifiers {
     Mutable           = 1 << 0,
     ImplicitReference = 1 << 1,
     ExplicitReference = 1 << 2,
-    Array             = 1 << 3,
+    Unique            = 1 << 3,
+    Array             = 1 << 4,
 };
 
 UTL_ENUM_OPERATORS(TypeQualifiers);
@@ -41,6 +42,8 @@ public:
         }
     }
 
+    /// The base object type that is qualified by this `QualType`
+    /// I.e. if this is `&mut int`, then `base()` is `int`
     ObjectType const* base() const { return _base; }
 
     TypeQualifiers qualifiers() const { return _quals; }
@@ -61,6 +64,9 @@ public:
 
     /// \Return `true` iff this type is an array reference
     bool isArrayReference() const { return isArray() && isReference(); }
+
+    /// \Return `true` iff this type is a unique reference
+    bool isUnique() const { return has(TypeQualifiers::Unique); }
 
 private:
     static std::string makeName(ObjectType* base,

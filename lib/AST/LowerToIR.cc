@@ -69,6 +69,7 @@ struct CodeGenContext {
     ir::Value* getValueImpl(BinaryExpression const&);
     ir::Value* getValueImpl(MemberAccess const&);
     ir::Value* getValueImpl(ReferenceExpression const&);
+    ir::Value* getValueImpl(UniqueExpression const&);
     ir::Value* getValueImpl(Conditional const&);
     ir::Value* getValueImpl(FunctionCall const&);
     ir::Value* getValueImpl(Subscript const&);
@@ -612,6 +613,10 @@ ir::Value* CodeGenContext::getValueImpl(ReferenceExpression const& expr) {
         return getValue(*expr.referred, false);
     }
     return getAddress(*expr.referred);
+}
+
+ir::Value* CodeGenContext::getValueImpl(UniqueExpression const& expr) {
+    SC_DEBUGFAIL();
 }
 
 ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {

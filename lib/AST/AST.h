@@ -325,10 +325,30 @@ public:
 
     /// Decorate this node.
     void decorate(sema::SymbolID symbolID,
-                  sema::QualType const* typeID,
+                  sema::QualType const* type,
                   ValueCategory valueCat,
                   EntityCategory entityCat = EntityCategory::Value) {
-        Expression::decorate(symbolID, typeID, valueCat, entityCat);
+        Expression::decorate(symbolID, type, valueCat, entityCat);
+    }
+};
+
+/// Concrete node representing a `unique` expression.
+class SCATHA_API UniqueExpression: public Expression {
+public:
+    explicit UniqueExpression(UniquePtr<Expression> initExpr,
+                              SourceRange sourceRange):
+        Expression(NodeType::UniqueExpression, sourceRange),
+        initExpr(std::move(initExpr)) {}
+
+    /// The initializing expression
+    UniquePtr<Expression> initExpr;
+
+    /// Decorate this node.
+    void decorate(sema::QualType const* type) {
+        Expression::decorate(sema::SymbolID::Invalid,
+                             type,
+                             ValueCategory::RValue,
+                             EntityCategory::Value);
     }
 };
 

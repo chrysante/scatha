@@ -27,6 +27,7 @@ struct Context {
     ExpressionAnalysisResult analyze(ast::Identifier&);
     ExpressionAnalysisResult analyze(ast::MemberAccess&);
     ExpressionAnalysisResult analyze(ast::ReferenceExpression&);
+    ExpressionAnalysisResult analyze(ast::UniqueExpression&);
     ExpressionAnalysisResult analyze(ast::Conditional&);
     ExpressionAnalysisResult analyze(ast::FunctionCall&);
     ExpressionAnalysisResult analyze(ast::Subscript&);
@@ -272,6 +273,34 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
                      ast::EntityCategory::Type);
         return ExpressionAnalysisResult::type(refType);
     }
+}
+
+ExpressionAnalysisResult Context::analyze(ast::UniqueExpression& expr) {
+    auto* initExpr = dyncast<ast::FunctionCall*>(expr.initExpr.get());
+    if (!initExpr) {
+        iss.push<BadExpression>(*expr.initExpr, IssueSeverity::Error);
+        return ExpressionAnalysisResult::fail();
+    }
+    auto* typeExpr   = initExpr->object.get();
+    auto typeExprRes = dispatch(*typeExpr);
+    if (!typeExprRes || typeExprRes.category() != ast::EntityCategory::Type) {
+        iss.push<BadExpression>(*typeExpr, IssueSeverity::Error);
+        return ExpressionAnalysisResult::fail();
+    }
+    SC_ASSERT(initExpr->arguments.size() == 1, "Implement this properly");
+    auto* argument = initExpr->arguments.front().get();
+    auto argRes    = dispatch(*argument);
+    if (!argRes || argRes.category() != ast::EntityCategory::Value) {
+        iss.push<BadExpression>(*argument, IssueSeverity::Error);
+        return ExpressionAnalysisResult::fail();
+    }
+    TypeID const typeID = TypeID(typeExpr->symbolID());
+    auto* rawType       = &sym.get<Type>(typeID);
+    auto* type =
+        sym.qualify(rawType,
+                    TypeQualifiers::ExplicitReference | TypeQualifiers::Unique);
+    expr.decorate(type);
+    return ExpressionAnalysisResult::rvalue(type);
 }
 
 ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {

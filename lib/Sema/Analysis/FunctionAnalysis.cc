@@ -98,8 +98,8 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     SC_ASSERT(fn.symbolID() != SymbolID::Invalid,
               "Can't analyze the body if wen don't have a symbol to push this "
               "functions scope.");
-    /// Here the AST node is partially decorated: symbolID() is already set by
-    /// gatherNames() phase, now we complete the decoration.
+    /// Here the AST node is partially decorated: `symbolID()` is already set by
+    /// `gatherNames()` phase, now we complete the decoration.
     SymbolID const fnSymID = fn.symbolID();
     auto& function         = sym.get<Function>(fnSymID);
     fn.decorate(fnSymID, function.signature().returnType());

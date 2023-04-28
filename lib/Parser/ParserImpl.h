@@ -55,6 +55,7 @@ struct Context {
     UniquePtr<ast::Expression> parseMultiplicative();
     UniquePtr<ast::Expression> parseUnary();
     UniquePtr<ast::Expression> parseReference();
+    UniquePtr<ast::Expression> parseUnique();
     UniquePtr<ast::Expression> parsePostfix();
     UniquePtr<ast::Expression> parsePrimary();
     UniquePtr<ast::Identifier> parseIdentifier();

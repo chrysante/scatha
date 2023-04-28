@@ -1,7 +1,7 @@
 
 public fn main() -> int {
-    var arr = [1, 2];
-    return arr[0] + arr[1];
+    let i = unique int(1);
+    return i;
 }
 
 

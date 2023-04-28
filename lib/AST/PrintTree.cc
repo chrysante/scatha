@@ -43,6 +43,7 @@ struct Context {
     void print(BinaryExpression const&, int ind);
     void print(MemberAccess const&, int ind);
     void print(ReferenceExpression const&, int ind);
+    void print(UniqueExpression const&, int ind);
     void print(Conditional const&, int ind);
     void print(FunctionCall const&, int ind);
     void print(Subscript const&, int ind);
@@ -220,9 +221,15 @@ void Context::print(MemberAccess const& memberAccess, int ind) {
 }
 
 void Context::print(ReferenceExpression const& ref, int ind) {
-    str << indent(ind) << nodeType("reference-expression") << endl;
+    str << indent(ind) << nodeType("reference") << endl;
     printType(ref, ind + 1);
     dispatch(ref.referred.get(), ind + 1);
+}
+
+void Context::print(UniqueExpression const& ref, int ind) {
+    str << indent(ind) << nodeType("unique") << endl;
+    printType(ref, ind + 1);
+    dispatch(ref.initExpr.get(), ind + 1);
 }
 
 void Context::print(Conditional const& conditional, int ind) {

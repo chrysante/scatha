@@ -6,6 +6,7 @@
 #include <svm/Common.h>
 #include <svm/ExternalFunction.h>
 #include <svm/VirtualMachine.h>
+#include <utl/utility.hpp>
 
 #include "svm/Memory.h"
 
@@ -73,6 +74,18 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
     at(Builtin::asin_f64)  = math<double, 1>(MATH_STD_IMPL(asin));
     at(Builtin::acos_f64)  = math<double, 1>(MATH_STD_IMPL(acos));
     at(Builtin::atan_f64)  = math<double, 1>(MATH_STD_IMPL(atan));
+
+    /// ## Memory allocation
+    at(Builtin::alloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
+        i64 const size = load<i64>(regPtr);
+        auto* addr     = std::malloc(utl::narrow_cast<u64>(size));
+        store(regPtr, addr);
+        store(regPtr + 1, size);
+    };
+    at(Builtin::dealloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
+        void* const addr = load<void*>(regPtr);
+        std::free(addr);
+    };
 
     /// ## Console output
     at(Builtin::putchar) = printVal<char>();

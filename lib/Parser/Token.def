@@ -54,6 +54,9 @@ SC_KEYWORD_TOKEN_DEF(Do,         "do")
 SC_KEYWORD_TOKEN_DEF(Break,      "break")
 SC_KEYWORD_TOKEN_DEF(Continue,   "continue")
 
+/// ## Operators
+SC_KEYWORD_TOKEN_DEF(Unique,     "unique")
+
 /// ## Constants
 
 SC_KEYWORD_TOKEN_DEF(False,      "false")

@@ -733,8 +733,8 @@ UniquePtr<ast::Expression> Context::parseUnary() {
 }
 
 UniquePtr<ast::Expression> Context::parseReference() {
-    if (auto postFix = parsePostfix()) {
-        return postFix;
+    if (auto unique = parseUnique()) {
+        return unique;
     }
     Token const refToken = tokens.peek();
     if (refToken.kind() != BitAnd) {
@@ -750,6 +750,26 @@ UniquePtr<ast::Expression> Context::parseReference() {
     auto referred = parseConditional();
     return allocate<ast::ReferenceExpression>(std::move(referred),
                                               refToken.sourceRange());
+}
+
+UniquePtr<ast::Expression> Context::parseUnique() {
+    if (auto postFix = parsePostfix()) {
+        return postFix;
+    }
+    Token const uniqueToken = tokens.peek();
+    if (uniqueToken.kind() != Unique) {
+        return nullptr;
+    }
+    tokens.eat();
+    Token const mutToken = tokens.peek();
+    bool mut             = false;
+    if (mutToken.kind() == Mutable) {
+        mut = true;
+        tokens.eat();
+    }
+    auto initExpr = parsePostfix();
+    return allocate<ast::UniqueExpression>(std::move(initExpr),
+                                           uniqueToken.sourceRange());
 }
 
 UniquePtr<ast::Expression> Context::parsePostfix() {

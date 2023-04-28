@@ -2,6 +2,7 @@
 #define SVM_EXTERNALFUNCTION_H_
 
 #include <cassert>
+#include <concepts>
 
 #include <svm/Common.h>
 
@@ -18,6 +19,8 @@ struct ExternalFunction {
 
     ExternalFunction(FuncPtr funcPtr, void* context = nullptr):
         funcPtr(funcPtr), ctx(context) {}
+
+    ExternalFunction(std::convertible_to<FuncPtr> auto func): funcPtr(func) {}
 
     /// Invoke function
     void invoke(u64* regPtr, VirtualMachine* vm) const {

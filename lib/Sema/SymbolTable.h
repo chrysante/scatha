@@ -141,6 +141,16 @@ public:
         return qualify(base, base->qualifiers() & ~qualifiers);
     }
 
+    /// Make type \p base into an array view of element type \p base
+    QualType const* arrayView(
+        Type const* base,
+        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+        SC_ASSERT(base, "");
+        return qualify(base,
+                       TypeQualifiers::Array |
+                           TypeQualifiers::ImplicitReference | qualifiers);
+    }
+
     /// \brief Makes scope with symbolD \p id the current scope.
     ///
     /// \details \p id must reference a scope within the current scope.
