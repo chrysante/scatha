@@ -239,6 +239,7 @@ public:
 
     /// Getters for builtin types
     Type const* Void() const { return _void; }
+    Type const* Byte() const { return _byte; }
     Type const* Bool() const { return _bool; }
     Type const* Int() const { return _int; }
     Type const* Float() const { return _float; }
@@ -248,18 +249,27 @@ public:
         TypeQualifiers qualifiers = TypeQualifiers::None) const {
         return qualify(_void, qualifiers);
     }
+
+    QualType const* qualByte(
+        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+        return qualify(_bool, qualifiers);
+    }
+
     QualType const* qualBool(
         TypeQualifiers qualifiers = TypeQualifiers::None) const {
         return qualify(_bool, qualifiers);
     }
+
     QualType const* qualInt(
         TypeQualifiers qualifiers = TypeQualifiers::None) const {
         return qualify(_int, qualifiers);
     }
+
     QualType const* qualFloat(
         TypeQualifiers qualifiers = TypeQualifiers::None) const {
         return qualify(_float, qualifiers);
     }
+
     QualType const* qualString(
         TypeQualifiers qualifiers = TypeQualifiers::None) const {
         return qualify(_string, qualifiers);
@@ -304,7 +314,7 @@ private:
     utl::vector<SymbolID> _builtinFunctions;
 
     /// Builtin types
-    Type const *_void, *_bool, *_int, *_float, *_string;
+    Type const *_void, *_byte, *_bool, *_int, *_float, *_string;
 };
 
 } // namespace scatha::sema

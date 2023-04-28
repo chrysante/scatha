@@ -11,6 +11,7 @@
 /// ## Types
 
 SC_KEYWORD_TOKEN_DEF(Void,       "void")
+SC_KEYWORD_TOKEN_DEF(Byte,       "byte")
 SC_KEYWORD_TOKEN_DEF(Bool,       "bool")
 SC_KEYWORD_TOKEN_DEF(Signed8,    "s8")
 SC_KEYWORD_TOKEN_DEF(Signed16,   "s16")

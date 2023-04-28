@@ -864,11 +864,14 @@ ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
         if (type == symTable.Void()) {
             return irCtx.voidType();
         }
-        if (type == symTable.Int()) {
-            return irCtx.integralType(64);
+        if (type == symTable.Byte()) {
+            return irCtx.integralType(8);
         }
         if (type == symTable.Bool()) {
             return irCtx.integralType(1);
+        }
+        if (type == symTable.Int()) {
+            return irCtx.integralType(64);
         }
         if (type == symTable.Float()) {
             return irCtx.floatType(64);

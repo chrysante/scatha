@@ -15,6 +15,8 @@ bool parse::isIdentifier(TokenKind kind) {
     switch (kind) {
     case TokenKind::Void:
         [[fallthrough]];
+    case TokenKind::Byte:
+        [[fallthrough]];
     case TokenKind::Bool:
         [[fallthrough]];
     case TokenKind::Signed8:

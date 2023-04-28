@@ -26,8 +26,21 @@ SymbolTable::SymbolTable() {
     _currentScope = _globalScope;
 
     /// Declare `void` with `invalidSize` to make it an incomplete type.
-    _void  = declareBuiltinType("void", invalidSize, invalidSize);
-    _bool  = declareBuiltinType("bool", 1, 1);
+    _void = declareBuiltinType("void", invalidSize, invalidSize);
+    _byte = declareBuiltinType("byte", 1, 1);
+    _bool = declareBuiltinType("bool", 1, 1);
+#if 0
+    _s8    = declareBuiltinType("s8",  1, 1);
+    _s16   = declareBuiltinType("s16", 2, 2);
+    _s32   = declareBuiltinType("s32", 4, 4);
+    _s64   = declareBuiltinType("s64", 8, 8);
+    _u8    = declareBuiltinType("u8",  1, 1);
+    _u16   = declareBuiltinType("u16", 2, 2);
+    _u32   = declareBuiltinType("u32", 4, 4);
+    _u64   = declareBuiltinType("u64", 8, 8);
+    _f32   = declareBuiltinType("f32", 4, 4);
+    _f64   = declareBuiltinType("f64", 8, 8);
+#endif
     _int   = declareBuiltinType("int", 8, 8);
     _float = declareBuiltinType("float", 8, 8);
     _string =
