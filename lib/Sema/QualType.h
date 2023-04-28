@@ -24,7 +24,7 @@ public:
         Type(EntityType::QualType,
              ScopeKind::Invalid,
              typeID,
-             std::string{},
+             makeName(base, qualifiers),
              base->parent(),
              base->size(),
              base->align()),
@@ -48,6 +48,8 @@ public:
     }
 
 private:
+    static std::string makeName(ObjectType* base, TypeQualifiers qualifiers);
+
     ObjectType* _base;
     TypeQualifiers _quals;
 };
