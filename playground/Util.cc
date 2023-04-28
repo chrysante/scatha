@@ -2,12 +2,15 @@
 
 #include <iostream>
 
+#include <termfmt/termfmt.h>
+
 using namespace playground;
 
-static size_t const width = 60;
+static size_t const width = 80;
 
 void playground::line(std::string_view m) {
     auto impl = [](size_t width) {
+        tfmt::FormatGuard grey(tfmt::brightGrey);
         for (size_t i = 0; i < width; ++i) {
             std::cout << "=";
         }
@@ -21,10 +24,9 @@ void playground::line(std::string_view m) {
     }
     else {
         size_t outerSpace = width - (m.size() + 2);
-        size_t left = outerSpace / 2, right = left;
-        left += outerSpace % 2;
+        size_t left = outerSpace / 4, right = outerSpace - left;
         impl(left);
-        std::cout << " " << m << " ";
+        std::cout << " " << tfmt::format(tfmt::bold, m) << " ";
         impl(right);
         std::cout << std::endl;
     }
