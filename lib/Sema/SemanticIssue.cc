@@ -48,6 +48,12 @@ std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
     }); // clang-format on
 }
 
+BadSymbolReference::BadSymbolReference(ast::Expression const& expr,
+                                       EntityCategory expected):
+    BadExpression(expr, IssueSeverity::Error),
+    _have(expr.entityCategory()),
+    _expected(expected) {}
+
 InvalidStatement* InvalidStatement::setStatement(
     ast::Statement const& statement) {
     _statement = &statement;

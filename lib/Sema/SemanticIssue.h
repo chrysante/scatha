@@ -143,11 +143,7 @@ private:
 class SCATHA_API BadSymbolReference: public BadExpression {
 public:
     explicit BadSymbolReference(ast::Expression const& expression,
-                                EntityCategory have,
-                                EntityCategory expected):
-        BadExpression(expression, IssueSeverity::Error),
-        _have(have),
-        _expected(expected) {}
+                                EntityCategory expected);
 
     EntityCategory have() const { return _have; }
     EntityCategory expected() const { return _expected; }

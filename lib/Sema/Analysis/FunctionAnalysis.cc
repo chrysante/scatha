@@ -31,7 +31,9 @@ struct Context {
     void analyze(ast::EmptyStatement&) {}
     void analyze(ast::AbstractSyntaxTree& node) { SC_UNREACHABLE(); }
 
-    ExpressionAnalysisResult dispatchExpression(ast::Expression&);
+    ExpressionAnalysisResult dispatchExpression(ast::Expression& expr);
+
+    QualType const* getType(ast::Expression* expr);
 
     void verifyConversion(ast::Expression const& from,
                           QualType const* to) const;
@@ -165,44 +167,18 @@ void Context::analyze(ast::VariableDeclaration& var) {
                                      sym.currentScope());
         return;
     }
-    auto* declaredType = [&]() -> QualType const* {
-        if (!var.typeExpr) {
+    auto* declaredType = getType(var.typeExpr.get());
+    auto* deducedType  = [&]() -> QualType const* {
+        if (!var.initExpression || !dispatchExpression(*var.initExpression)) {
             return nullptr;
         }
-        auto const varTypeRes = dispatchExpression(*var.typeExpr);
-        if (!varTypeRes) {
-            return nullptr;
-        }
-        if (varTypeRes.category() != EntityCategory::Type) {
-            iss.push<BadSymbolReference>(*var.typeExpr,
-                                         varTypeRes.category(),
-                                         EntityCategory::Type);
-            return nullptr;
-        }
-        return cast<QualType*>(varTypeRes.entity());
-    }();
-    if (iss.fatal()) {
-        return;
-    }
-    auto* deducedType = [&]() -> QualType const* {
-        if (!var.initExpression) {
-            return nullptr;
-        }
-        auto const initExprRes = dispatchExpression(*var.initExpression);
-        if (!initExprRes) {
-            return nullptr;
-        }
-        if (initExprRes.category() != EntityCategory::Value) {
+        if (!var.initExpression->isValue()) {
             iss.push<BadSymbolReference>(*var.initExpression,
-                                         initExprRes.category(),
                                          EntityCategory::Value);
             return nullptr;
         }
         return var.initExpression->type();
     }();
-    if (iss.fatal()) {
-        return;
-    }
     if (!declaredType && !deducedType) {
         /// FIXME: Push error here
         /// Or instead declare a poison entity to prevent errors on references
@@ -243,34 +219,11 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
               "parameters.");
     SC_ASSERT(!paramDecl.isDecorated(),
               "We should not have handled parameters in prepass.");
-    auto* declaredType = [&]() -> QualType const* {
-        if (!paramDecl.typeExpr) {
-            return nullptr;
-        }
-        auto const declTypeRes = dispatchExpression(*paramDecl.typeExpr);
-        if (!declTypeRes) {
-            return nullptr;
-        }
-        if (declTypeRes.category() != EntityCategory::Type) {
-            iss.push<BadSymbolReference>(*paramDecl.typeExpr,
-                                         declTypeRes.category(),
-                                         EntityCategory::Type);
-            return nullptr;
-        }
-        return cast<QualType const*>(declTypeRes.entity());
-    }();
-    if (iss.fatal()) {
-        return;
-    }
+    auto* declaredType = getType(paramDecl.typeExpr.get());
     auto paramRes =
         sym.addVariable(paramDecl.nameIdentifier->value(), declaredType);
     if (!paramRes) {
-        if (auto* invStatement =
-                dynamic_cast<InvalidStatement*>(paramRes.error()))
-        {
-            invStatement->setStatement(paramDecl);
-        }
-        iss.push(paramRes.error());
+        iss.push(paramRes.error()->setStatement(paramDecl));
         return;
     }
     auto& param = *paramRes;
@@ -317,14 +270,11 @@ void Context::analyze(ast::ReturnStatement& rs) {
     if (rs.expression == nullptr) {
         return;
     }
-    auto const exprRes = dispatchExpression(*rs.expression);
-    if (!exprRes) {
+    if (!dispatchExpression(*rs.expression)) {
         return;
     }
-    if (exprRes.category() != EntityCategory::Value) {
-        iss.push<BadSymbolReference>(*rs.expression,
-                                     exprRes.category(),
-                                     EntityCategory::Value);
+    if (!rs.expression->isValue()) {
+        iss.push<BadSymbolReference>(*rs.expression, EntityCategory::Value);
         return;
     }
     SC_ASSERT(currentFunction != nullptr,
@@ -338,85 +288,70 @@ void Context::analyze(ast::ReturnStatement& rs) {
     verifyConversion(*rs.expression, currentFunction->returnType());
 }
 
-void Context::analyze(ast::IfStatement& is) {
+void Context::analyze(ast::IfStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
-            &is,
+            &stmt,
             InvalidStatement::Reason::InvalidScopeForStatement,
             sym.currentScope());
         return;
     }
-    if (dispatchExpression(*is.condition)) {
-        verifyConversion(*is.condition, sym.Bool());
+    if (dispatchExpression(*stmt.condition)) {
+        verifyConversion(*stmt.condition, sym.Bool());
     }
-    if (iss.fatal()) {
-        return;
-    }
-    dispatch(*is.thenBlock);
-    if (iss.fatal()) {
-        return;
-    }
-    if (is.elseBlock != nullptr) {
-        dispatch(*is.elseBlock);
+    dispatch(*stmt.thenBlock);
+    if (stmt.elseBlock) {
+        dispatch(*stmt.elseBlock);
     }
 }
 
-void Context::analyze(ast::WhileStatement& ws) {
+void Context::analyze(ast::WhileStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
-            &ws,
+            &stmt,
             InvalidStatement::Reason::InvalidScopeForStatement,
             sym.currentScope());
         return;
     }
-    if (dispatchExpression(*ws.condition)) {
-        verifyConversion(*ws.condition, sym.Bool());
+    if (dispatchExpression(*stmt.condition)) {
+        verifyConversion(*stmt.condition, sym.Bool());
     }
-    if (iss.fatal()) {
-        return;
-    }
-    dispatch(*ws.block);
+    dispatch(*stmt.block);
 }
 
-void Context::analyze(ast::DoWhileStatement& ws) {
+void Context::analyze(ast::DoWhileStatement& stmt) {
     // TODO: This implementation is completely analogous to
     // analyze(WhileStatement&). Try to merge them.
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
-            &ws,
+            &stmt,
             InvalidStatement::Reason::InvalidScopeForStatement,
             sym.currentScope());
         return;
     }
-    if (dispatchExpression(*ws.condition)) {
-        verifyConversion(*ws.condition, sym.Bool());
+    if (dispatchExpression(*stmt.condition)) {
+        verifyConversion(*stmt.condition, sym.Bool());
     }
-    if (iss.fatal()) {
-        return;
-    }
-    dispatch(*ws.block);
+    dispatch(*stmt.block);
 }
 
-void Context::analyze(ast::ForStatement& fs) {
+void Context::analyze(ast::ForStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
-            &fs,
+            &stmt,
             InvalidStatement::Reason::InvalidScopeForStatement,
             sym.currentScope());
         return;
     }
-    fs.block->decorate(&sym.addAnonymousScope());
-    sym.pushScope(fs.block->scope());
-    dispatch(*fs.varDecl);
-    if (dispatchExpression(*fs.condition)) {
-        verifyConversion(*fs.condition, sym.Bool());
+    stmt.block->decorate(&sym.addAnonymousScope());
+    sym.pushScope(stmt.block->scope());
+    dispatch(*stmt.varDecl);
+    if (dispatchExpression(*stmt.condition)) {
+        verifyConversion(*stmt.condition, sym.Bool());
     }
-    dispatchExpression(*fs.increment);
-    if (iss.fatal()) {
-        return;
-    }
+    dispatchExpression(*stmt.increment);
     sym.popScope(); /// The block will push its scope again.
-    dispatch(*fs.block);
+    dispatch(*stmt.block);
 }
 
 void Context::analyze(ast::JumpStatement& s) {
@@ -426,6 +361,17 @@ void Context::analyze(ast::JumpStatement& s) {
 
 ExpressionAnalysisResult Context::dispatchExpression(ast::Expression& expr) {
     return analyzeExpression(expr, sym, iss);
+}
+
+QualType const* Context::getType(ast::Expression* expr) {
+    if (!expr || !dispatchExpression(*expr)) {
+        return nullptr;
+    }
+    if (!expr->isType()) {
+        iss.push<BadSymbolReference>(*expr, EntityCategory::Type);
+        return nullptr;
+    }
+    return cast<QualType*>(expr->entity());
 }
 
 void Context::verifyConversion(ast::Expression const& from,

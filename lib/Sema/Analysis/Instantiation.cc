@@ -192,15 +192,12 @@ FunctionSignature Context::analyzeSignature(
 }
 
 QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {
-    auto const typeExprResult = sema::analyzeExpression(expr, sym, iss);
-    if (!typeExprResult) {
+    if (!sema::analyzeExpression(expr, sym, iss)) {
         return nullptr;
     }
-    if (typeExprResult.category() != EntityCategory::Type) {
-        iss.push<BadSymbolReference>(expr,
-                                     expr.entityCategory(),
-                                     EntityCategory::Type);
+    if (!expr.isType()) {
+        iss.push<BadSymbolReference>(expr, EntityCategory::Type);
         return nullptr;
     }
-    return cast<QualType const*>(typeExprResult.entity());
+    return cast<QualType const*>(expr.entity());
 }

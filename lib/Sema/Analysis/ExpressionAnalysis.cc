@@ -178,10 +178,11 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::Identifier& id) {
             id.decorate(&var, var.type());
             return ExpressionAnalysisResult::lvalue(&var, var.type());
         },
-        [&](Type& type) {
-            id.decorate(&type,
+        [&](ObjectType const& type) {
+            auto* qualType = sym.qualify(&type);
+            id.decorate(const_cast<QualType*>(qualType),
                         nullptr);
-            return ExpressionAnalysisResult::type(sym.qualify(&type));
+            return ExpressionAnalysisResult::type(qualType);
         },
         [&](OverloadSet& overloadSet) {
             id.decorate(&overloadSet);
@@ -197,7 +198,7 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(*ma.object)) {
         return ExpressionAnalysisResult::fail();
     }
-    Scope const* lookupTargetScope = ma.object->typeBaseOrTypeEntity();
+    Scope const* lookupTargetScope = ma.object->typeOrTypeEntity()->base();
     SC_ASSERT(lookupTargetScope, "analyze(ma.object) should have failed");
     auto* oldScope = &sym.currentScope();
     sym.makeScopeCurrent(const_cast<Scope*>(lookupTargetScope));
@@ -279,15 +280,11 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::Conditional& c) {
         return ExpressionAnalysisResult::fail();
     }
     if (!c.ifExpr->isValue()) {
-        iss.push<BadSymbolReference>(*c.ifExpr,
-                                     c.ifExpr->entityCategory(),
-                                     EntityCategory::Value);
+        iss.push<BadSymbolReference>(*c.ifExpr, EntityCategory::Value);
         return ExpressionAnalysisResult::fail();
     }
     if (!c.elseExpr->isValue()) {
-        iss.push<BadSymbolReference>(*c.elseExpr,
-                                     c.elseExpr->entityCategory(),
-                                     EntityCategory::Value);
+        iss.push<BadSymbolReference>(*c.elseExpr, EntityCategory::Value);
         return ExpressionAnalysisResult::fail();
     }
     auto* thenType = c.ifExpr->type();
@@ -363,16 +360,15 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::FunctionCall& fc) {
                         ValueCategory::RValue);
             return ExpressionAnalysisResult::rvalue(fc.type());
         },
-        [&](ObjectType const& type) {
-            auto* qualType = sym.qualify(&type);
-            Function* castFn = findExplicitCast(&type, argTypes);
+        [&](QualType const& type) {
+            Function* castFn = findExplicitCast(type.base(), argTypes);
             if (!castFn) {
                 // TODO: Make better error class here.
-                iss.push<BadTypeConversion>(*fc.arguments.front(), qualType);
+                iss.push<BadTypeConversion>(*fc.arguments.front(), &type);
                 return ExpressionAnalysisResult::fail();
             }
-            fc.decorate(castFn, qualType, ValueCategory::RValue);
-            return ExpressionAnalysisResult::rvalue(qualType);
+            fc.decorate(castFn, &type, ValueCategory::RValue);
+            return ExpressionAnalysisResult::rvalue(&type);
         },
         [&](Entity const& entity) {
             iss.push<BadFunctionCall>(
@@ -624,9 +620,7 @@ Function* Context::findExplicitCast(ObjectType const* to,
 
 bool Context::expectValue(ast::Expression const& expr) {
     if (expr.entityCategory() != EntityCategory::Value) {
-        iss.push<BadSymbolReference>(expr,
-                                     expr.entityCategory(),
-                                     EntityCategory::Value);
+        iss.push<BadSymbolReference>(expr, EntityCategory::Value);
         return false;
     }
     return true;
