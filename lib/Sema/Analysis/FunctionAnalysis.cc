@@ -92,8 +92,7 @@ void Context::analyze(ast::FunctionDefinition& fn) {
         iss.push<InvalidDeclaration>(
             &fn,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
-            sym.currentScope(),
-            SymbolCategory::Function);
+            sym.currentScope());
         return;
     }
     SC_ASSERT(fn.function(),
@@ -130,8 +129,7 @@ void Context::analyze(ast::StructDefinition& s) {
         iss.push<InvalidDeclaration>(
             &s,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
-            sym.currentScope(),
-            SymbolCategory::Type);
+            sym.currentScope());
     }
 }
 
@@ -165,8 +163,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
     if (!var.typeExpr && !var.initExpression) {
         iss.push<InvalidDeclaration>(&var,
                                      InvalidDeclaration::Reason::CantInferType,
-                                     sym.currentScope(),
-                                     SymbolCategory::Variable);
+                                     sym.currentScope());
         return;
     }
     auto* declaredType = [&]() -> QualType const* {
@@ -220,8 +217,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
             iss.push<InvalidDeclaration>(
                 &var,
                 InvalidDeclaration::Reason::ExpectedReferenceInitializer,
-                sym.currentScope(),
-                SymbolCategory::Variable);
+                sym.currentScope());
             return;
         }
         verifyConversion(*var.initExpression, declaredType);

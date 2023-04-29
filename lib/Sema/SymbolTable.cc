@@ -20,8 +20,7 @@ static bool isKeyword(std::string_view id) {
 }
 
 SymbolTable::SymbolTable() {
-    auto globalScopeID = generateID(SymbolCategory::Invalid);
-    _currentScope = _globalScope = addEntity<GlobalScope>(globalScopeID);
+    _currentScope = _globalScope = addEntity<GlobalScope>();
 
     /// Declare `void` with `invalidSize` to make it an incomplete type.
     _void = declareBuiltinType("void", invalidSize, invalidSize);
@@ -69,18 +68,12 @@ Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
     if (!allowKeywords && isKeyword(name)) {
         return new InvalidDeclaration(nullptr,
                                       ReservedIdentifier,
-                                      currentScope(),
-                                      SymbolCategory::Type);
+                                      currentScope());
     }
     if (Entity* entity = currentScope().findEntity(name)) {
-        return new InvalidDeclaration(nullptr,
-                                      Redefinition,
-                                      currentScope(),
-                                      SymbolCategory::Type,
-                                      entity->symbolID().category());
+        return new InvalidDeclaration(nullptr, Redefinition, currentScope());
     }
-    auto const newSymbolID = generateID(SymbolCategory::Type);
-    auto* type = addEntity<ObjectType>(name, newSymbolID, &currentScope());
+    auto* type = addEntity<ObjectType>(name, &currentScope());
     currentScope().add(type);
     return *type;
 }
@@ -102,17 +95,14 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
     if (isKeyword(name)) {
         return new InvalidDeclaration(nullptr,
                                       ReservedIdentifier,
-                                      currentScope(),
-                                      SymbolCategory::Function);
+                                      currentScope());
     }
     OverloadSet* overloadSet = [&] {
         if (auto* entity = currentScope().findEntity(name)) {
             return dyncast<OverloadSet*>(entity);
         }
         /// Create a new overload set
-        auto const newSymbolID = generateID(SymbolCategory::OverloadSet);
-        auto* overloadSet =
-            addEntity<OverloadSet>(name, newSymbolID, &currentScope());
+        auto* overloadSet = addEntity<OverloadSet>(name, &currentScope());
         currentScope().add(overloadSet);
         return overloadSet;
     }();
@@ -120,13 +110,9 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
     if (!overloadSet) {
         return new InvalidDeclaration(nullptr,
                                       InvalidDeclaration::Reason::Redefinition,
-                                      currentScope(),
-                                      SymbolCategory::Function,
-                                      SymbolCategory::Invalid);
+                                      currentScope());
     }
-    auto const newSymbolID = generateID(SymbolCategory::Function);
-    Function* function     = addEntity<Function>(name,
-                                             /* functionID = */ newSymbolID,
+    Function* function = addEntity<Function>(name,
                                              overloadSet,
                                              &currentScope(),
                                              FunctionAttribute::None);
@@ -147,10 +133,7 @@ Expected<void, SemanticIssue*> SymbolTable::setSignature(
                     function->signature().returnType() ?
                 Redefinition :
                 CantOverloadOnReturnType;
-        return new InvalidDeclaration(nullptr,
-                                      reason,
-                                      currentScope(),
-                                      SymbolCategory::Function);
+        return new InvalidDeclaration(nullptr, reason, currentScope());
     }
     return {};
 }
@@ -185,19 +168,12 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
     if (isKeyword(name)) {
         return new InvalidDeclaration(nullptr,
                                       ReservedIdentifier,
-                                      currentScope(),
-                                      SymbolCategory::Variable);
+                                      currentScope());
     }
     if (auto* entity = currentScope().findEntity(name)) {
-        return new InvalidDeclaration(nullptr,
-                                      Redefinition,
-                                      currentScope(),
-                                      SymbolCategory::Variable,
-                                      entity->symbolID().category());
+        return new InvalidDeclaration(nullptr, Redefinition, currentScope());
     }
-    auto const newSymbolID = generateID(SymbolCategory::Variable);
-    auto* variable = addEntity<Variable>(name, newSymbolID, &currentScope());
-    ;
+    auto* variable = addEntity<Variable>(name, &currentScope());
     currentScope().add(variable);
     return *variable;
 }
@@ -215,10 +191,8 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
 }
 
 Scope& SymbolTable::addAnonymousScope() {
-    auto const symbolID = generateID(SymbolCategory::Anonymous);
-    auto* scope         = addEntity<AnonymousScope>(symbolID,
-                                            currentScope().kind(),
-                                            &currentScope());
+    auto* scope =
+        addEntity<AnonymousScope>(currentScope().kind(), &currentScope());
     currentScope().add(scope);
     return *scope;
 }
@@ -259,9 +233,7 @@ QualType const* SymbolTable::getQualType(ObjectType const* baseType,
     {
         return itr->second;
     }
-    auto newSymbolID = generateID(SymbolCategory::Type);
-    auto* qualType   = addEntity<QualType>(newSymbolID,
-                                         const_cast<ObjectType*>(baseType),
+    auto* qualType = addEntity<QualType>(const_cast<ObjectType*>(baseType),
                                          qualifiers,
                                          arraySize);
     _qualTypes.insert(

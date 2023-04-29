@@ -21,36 +21,11 @@ namespace scatha::sema {
 /// Base class for all semantic entities in the language.
 class SCATHA_API Entity {
 public:
-    struct MapHash: std::hash<SymbolID> {
-        struct is_transparent;
-        using std::hash<SymbolID>::operator();
-        size_t operator()(Entity const& e) const {
-            return std::hash<SymbolID>{}(e.symbolID());
-        }
-    };
-
-    struct MapEqual {
-        struct is_transparent;
-        bool operator()(Entity const& a, Entity const& b) const {
-            return a.symbolID() == b.symbolID();
-        }
-        bool operator()(Entity const& a, SymbolID b) const {
-            return a.symbolID() == b;
-        }
-        bool operator()(SymbolID a, Entity const& b) const {
-            return a == b.symbolID();
-        }
-    };
-
-public:
     /// The name of this entity
     std::string_view name() const { return _name; }
 
     /// Mangled name of this entity
     std::string const& mangledName() const;
-
-    /// The SymbolID of this entity
-    SymbolID symbolID() const { return _symbolID; }
 
     /// `true` if this entity is unnamed
     bool isAnonymous() const { return _name.empty(); }
@@ -65,21 +40,14 @@ public:
     EntityType entityType() const { return _entityType; }
 
 protected:
-    explicit Entity(EntityType entityType,
-                    std::string name,
-                    SymbolID symbolID,
-                    Scope* parent):
-        _entityType(entityType),
-        _name(name),
-        _symbolID(symbolID),
-        _parent(parent) {}
+    explicit Entity(EntityType entityType, std::string name, Scope* parent):
+        _entityType(entityType), _parent(parent), _name(name) {}
 
 private:
     EntityType _entityType;
+    Scope* _parent = nullptr;
     std::string _name;
     mutable std::string _mangledName;
-    SymbolID _symbolID;
-    Scope* _parent = nullptr;
 };
 
 EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
@@ -96,7 +64,6 @@ class ScopePrinter;
 class SCATHA_API Variable: public Entity {
 public:
     explicit Variable(std::string name,
-                      SymbolID symbolID,
                       Scope* parentScope,
                       QualType const* type = nullptr);
 
@@ -182,7 +149,6 @@ protected:
     explicit Scope(EntityType entityType,
                    ScopeKind,
                    std::string name,
-                   SymbolID symbolID,
                    Scope* parent);
 
 private:
@@ -201,13 +167,13 @@ private:
 /// Represents an anonymous scope
 class AnonymousScope: public Scope {
 public:
-    explicit AnonymousScope(SymbolID id, ScopeKind scopeKind, Scope* parent);
+    explicit AnonymousScope(ScopeKind scopeKind, Scope* parent);
 };
 
 /// Represents the global scope
 class GlobalScope: public Scope {
 public:
-    explicit GlobalScope(SymbolID id);
+    explicit GlobalScope();
 };
 
 /// # Function
@@ -215,14 +181,12 @@ public:
 class SCATHA_API Function: public Scope {
 public:
     explicit Function(std::string name,
-                      SymbolID functionID,
                       OverloadSet* overloadSet,
                       Scope* parentScope,
                       FunctionAttribute attrs):
         Scope(EntityType::Function,
               ScopeKind::Function,
               std::move(name),
-              functionID,
               parentScope),
         _overloadSet(overloadSet),
         attrs(attrs) {}
@@ -276,39 +240,6 @@ private:
     u32 _index                 = 0;
 };
 
-namespace internal {
-
-struct FunctionArgumentsHash {
-    struct is_transparent;
-    size_t operator()(Function const* f) const {
-        return f->signature().argumentHash();
-    }
-    size_t operator()(std::span<QualType const* const> const& args) const {
-        return FunctionSignature::hashArguments(args);
-    }
-};
-
-struct FunctionArgumentsEqual {
-    struct is_transparent;
-
-    using Args = std::span<QualType const* const>;
-
-    bool operator()(Function const* a, Function const* b) const {
-        return a->signature().argumentHash() == b->signature().argumentHash();
-    }
-    bool operator()(Function const* a, Args b) const {
-        return a->signature().argumentHash() ==
-               FunctionSignature::hashArguments(b);
-    }
-    bool operator()(Args a, Function const* b) const { return (*this)(b, a); }
-    bool operator()(Args a, Args b) const {
-        return FunctionSignature::hashArguments(a) ==
-               FunctionSignature::hashArguments(b);
-    }
-};
-
-} // namespace internal
-
 /// # Types
 
 size_t constexpr invalidSize = static_cast<size_t>(-1);
@@ -316,9 +247,6 @@ size_t constexpr invalidSize = static_cast<size_t>(-1);
 /// Abstract class representing a type
 class Type: public Scope {
 public:
-    /// TypeID of this type
-    TypeID symbolID() const { return TypeID(Entity::symbolID()); }
-
     /// Size of this type
     size_t size() const { return _size; }
 
@@ -334,12 +262,11 @@ public:
 protected:
     explicit Type(EntityType entityType,
                   ScopeKind scopeKind,
-                  SymbolID typeID,
                   std::string name,
                   Scope* parent,
                   size_t size,
                   size_t align):
-        Scope(entityType, scopeKind, std::move(name), typeID, parent),
+        Scope(entityType, scopeKind, std::move(name), parent),
         _size(size),
         _align(align) {}
 
@@ -352,14 +279,12 @@ private:
 class ObjectType: public Type {
 public:
     explicit ObjectType(std::string name,
-                        SymbolID typeID,
                         Scope* parentScope,
                         size_t size    = invalidSize,
                         size_t align   = invalidSize,
                         bool isBuiltin = false):
         Type(EntityType::ObjectType,
              ScopeKind::Object,
-             typeID,
              std::move(name),
              parentScope,
              size,
@@ -389,13 +314,11 @@ class SCATHA_API QualType: public Type {
 public:
     static constexpr size_t DynamicArraySize = ~uint32_t(0);
 
-    explicit QualType(SymbolID typeID,
-                      ObjectType* base,
+    explicit QualType(ObjectType* base,
                       TypeQualifiers qualifiers,
                       size_t arraySize = 0):
         Type(EntityType::QualType,
              ScopeKind::Invalid,
-             typeID,
              makeName(base, qualifiers, arraySize),
              base->parent(),
              base->size(),
@@ -453,8 +376,8 @@ private:
 class SCATHA_API OverloadSet: public Entity {
 public:
     /// Construct an empty overload set.
-    explicit OverloadSet(std::string name, SymbolID id, Scope* parentScope):
-        Entity(EntityType::OverloadSet, std::move(name), id, parentScope) {}
+    explicit OverloadSet(std::string name, Scope* parentScope):
+        Entity(EntityType::OverloadSet, std::move(name), parentScope) {}
 
     /// Resolve best matching function from this overload set for \p
     /// argumentTypes Returns `nullptr` if no matching function exists in the
@@ -479,10 +402,6 @@ public:
 
 private:
     utl::small_vector<Function*, 8> functions;
-    utl::hashset<Function*,
-                 internal::FunctionArgumentsHash,
-                 internal::FunctionArgumentsEqual>
-        funcSet;
 };
 
 } // namespace scatha::sema

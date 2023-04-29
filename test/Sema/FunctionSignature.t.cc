@@ -6,25 +6,13 @@
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
-
-TEST_CASE("FunctionSignature hash", "[sema]") {
-    sema::SymbolTable sym;
-    auto const i_i = sema::FunctionSignature({ sym.qualInt() }, sym.qualInt());
-    auto const f_f_i =
-        sema::FunctionSignature({ sym.qualFloat(), sym.qualFloat() },
-                                sym.qualInt());
-    auto const v_i = sema::FunctionSignature({}, sym.qualInt());
-    CHECK(i_i.argumentHash() != f_f_i.argumentHash());
-    CHECK(i_i.argumentHash() != v_i.argumentHash());
-    CHECK(v_i.argumentHash() != f_f_i.argumentHash());
-}
+using namespace sema;
 
 TEST_CASE("Function Type", "[sema]") {
-    sema::SymbolTable sym;
-    auto const fSig = sema::FunctionSignature({ sym.qualInt() }, sym.qualInt());
-    auto const gSig =
-        sema::FunctionSignature({ sym.qualInt() }, sym.qualVoid());
-    CHECK(fSig.argumentHash() == gSig.argumentHash());
+    SymbolTable sym;
+    auto const fSig = FunctionSignature({ sym.qualInt() }, sym.qualInt());
+    auto const gSig = FunctionSignature({ sym.qualInt() }, sym.qualVoid());
+    CHECK(argumentsEqual(fSig, gSig));
     auto* fnF                  = &sym.declareFunction("f").value();
     auto const overloadSuccess = sym.setSignature(fnF, fSig);
     REQUIRE(overloadSuccess);

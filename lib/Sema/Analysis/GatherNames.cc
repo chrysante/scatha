@@ -65,8 +65,7 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
         iss.push<InvalidDeclaration>(
             &funcDef,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
-            sym.currentScope(),
-            SymbolCategory::Function);
+            sym.currentScope());
         return static_cast<size_t>(-1);
     }
     Expected const declResult =
@@ -95,8 +94,7 @@ size_t Context::gather(ast::StructDefinition& s) {
         iss.push<InvalidDeclaration>(
             &s,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
-            sym.currentScope(),
-            SymbolCategory::Type);
+            sym.currentScope());
         return invalidIndex;
     }
     Expected const declResult =

@@ -2,6 +2,7 @@
 
 #include <sstream>
 
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/hash.hpp>
 #include <utl/utility.hpp>
@@ -22,11 +23,9 @@ std::string const& Entity::mangledName() const {
 /// # Variable
 
 sema::Variable::Variable(std::string name,
-                         SymbolID symbolID,
                          Scope* parentScope,
                          QualType const* type):
-    Entity(EntityType::Variable, std::move(name), symbolID, parentScope),
-    _type(type) {}
+    Entity(EntityType::Variable, std::move(name), parentScope), _type(type) {}
 
 bool sema::Variable::isLocal() const {
     return parent()->kind() == ScopeKind::Function ||
@@ -38,9 +37,8 @@ bool sema::Variable::isLocal() const {
 Scope::Scope(EntityType entityType,
              ScopeKind kind,
              std::string name,
-             SymbolID symbolID,
              Scope* parent):
-    Entity(entityType, std::move(name), symbolID, parent), _kind(kind) {}
+    Entity(entityType, std::move(name), parent), _kind(kind) {}
 
 Entity const* Scope::findEntity(std::string_view name) const {
     auto const itr = _entities.find(name);
@@ -69,14 +67,14 @@ void Scope::add(Entity* entity) {
     }
 }
 
-AnonymousScope::AnonymousScope(SymbolID id, ScopeKind scopeKind, Scope* parent):
-    Scope(EntityType::AnonymousScope, scopeKind, std::string{}, id, parent) {}
+AnonymousScope::AnonymousScope(ScopeKind scopeKind, Scope* parent):
+    Scope(EntityType::AnonymousScope, scopeKind, std::string{}, parent) {}
 
-GlobalScope::GlobalScope(SymbolID id):
+GlobalScope::GlobalScope():
     Scope(EntityType::GlobalScope,
           ScopeKind::Global,
           "__GLOBAL__",
-          id,
+
           nullptr) {}
 
 /// # Types
@@ -160,11 +158,12 @@ Function const* OverloadSet::find(
 }
 
 std::pair<Function const*, bool> OverloadSet::add(Function* F) {
-    SC_ASSERT(F->name() == name(),
-              "Name of function must match name of overload set");
-    auto const [itr, success] = funcSet.insert(F);
-    if (success) {
+    auto itr = ranges::find_if(functions, [&](Function const* G) {
+        return argumentsEqual(F->signature(), G->signature());
+    });
+    if (itr == ranges::end(functions)) {
         functions.push_back(F);
+        return { F, true };
     }
-    return { *itr, success };
+    return { *itr, false };
 }

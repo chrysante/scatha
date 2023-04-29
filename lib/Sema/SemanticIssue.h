@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_SEMAISSUE2_H_
-#define SCATHA_SEMA_SEMAISSUE2_H_
+#ifndef SCATHA_SEMA_SEMAISSUE_H_
+#define SCATHA_SEMA_SEMAISSUE_H_
 
 #include <optional>
 #include <span>
@@ -208,31 +208,20 @@ public:
     };
 
 public:
-    explicit InvalidDeclaration(
-        ast::Statement const* statement,
-        Reason reason,
-        Scope const& currentScope,
-        SymbolCategory symbolCategory,
-        std::optional<SymbolCategory> existingSymbolCategory = std::nullopt):
+    explicit InvalidDeclaration(ast::Statement const* statement,
+                                Reason reason,
+                                Scope const& currentScope):
         InvalidStatement(statement,
                          InvalidStatement::Reason::InvalidDeclaration,
                          currentScope),
-        _reason(reason),
-        _category(symbolCategory),
-        _existingCategory(existingSymbolCategory.value_or(symbolCategory)) {}
+        _reason(reason) {}
 
     Reason reason() const { return _reason; }
-    SymbolCategory symbolCategory() const { return _category; }
-
-    /// Only valid when reason() == Redefinition
-    SymbolCategory existingSymbolCategory() const { return _existingCategory; }
 
 private:
     std::string message() const override;
 
     Reason _reason;
-    SymbolCategory _category;
-    SymbolCategory _existingCategory;
 };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
@@ -257,4 +246,4 @@ private:
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_SEMAISSUE2_H_
+#endif // SCATHA_SEMA_SEMAISSUE_H_
