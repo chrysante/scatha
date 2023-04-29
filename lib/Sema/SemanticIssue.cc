@@ -101,6 +101,8 @@ std::ostream& sema::operator<<(std::ostream& str,
           "Expected reference initializer" },
         { InvalidDeclaration::Reason::ReservedIdentifier,
           "Reserved identifier" },
+        { InvalidDeclaration::Reason::ThisParameter,
+          "Invalid `this` parameter" },
     }); // clang-format on
 }
 

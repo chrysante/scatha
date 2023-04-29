@@ -26,6 +26,9 @@ struct Context {
 
     FunctionSignature analyzeSignature(ast::FunctionDefinition const&) const;
 
+    QualType const* analyzeParameter(ast::ParameterDeclaration const&,
+                                     size_t index) const;
+
     QualType const* analyzeTypeExpression(ast::Expression&) const;
 
     SymbolTable& sym;
@@ -180,8 +183,8 @@ void Context::instantiateFunction(DependencyGraphNode const& node) {
 FunctionSignature Context::analyzeSignature(
     ast::FunctionDefinition const& decl) const {
     utl::small_vector<QualType const*> argumentTypes;
-    for (auto& param: decl.parameters) {
-        argumentTypes.push_back(analyzeTypeExpression(*param->typeExpr));
+    for (auto&& [index, param]: decl.parameters | ranges::views::enumerate) {
+        argumentTypes.push_back(analyzeParameter(*param, index));
     }
     /// For functions with unspecified return type we assume void until we
     /// implement return type deduction.
@@ -189,6 +192,21 @@ FunctionSignature Context::analyzeSignature(
         decl.returnTypeExpr ? analyzeTypeExpression(*decl.returnTypeExpr) :
                               sym.qualify(sym.Void());
     return FunctionSignature(std::move(argumentTypes), returnType);
+}
+
+QualType const* Context::analyzeParameter(
+    ast::ParameterDeclaration const& param, size_t index) const {
+    if (auto* thisParam = dyncast<ast::ThisParameter const*>(&param)) {
+        if (index != 0) {
+            iss.push<InvalidDeclaration>(
+                &param,
+                InvalidDeclaration::Reason::ThisParameter,
+                sym.currentScope());
+            return nullptr;
+        }
+        SC_DEBUGFAIL();
+    }
+    return analyzeTypeExpression(*param.typeExpr);
 }
 
 QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {

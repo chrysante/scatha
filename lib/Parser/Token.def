@@ -9,7 +9,6 @@
 #endif
 
 /// ## Types
-
 SC_KEYWORD_TOKEN_DEF(Void,       "void")
 SC_KEYWORD_TOKEN_DEF(Byte,       "byte")
 SC_KEYWORD_TOKEN_DEF(Bool,       "bool")
@@ -27,12 +26,10 @@ SC_KEYWORD_TOKEN_DEF(Int,        "int")
 SC_KEYWORD_TOKEN_DEF(Float,      "float")
 
 /// ## Directives
-
 SC_KEYWORD_TOKEN_DEF(Import,     "import")
 SC_KEYWORD_TOKEN_DEF(Export,     "export")
 
 /// ## Declarators
-
 SC_KEYWORD_TOKEN_DEF(Module,     "module")
 SC_KEYWORD_TOKEN_DEF(Struct,     "struct")
 SC_KEYWORD_TOKEN_DEF(Function,   "fn")
@@ -40,11 +37,9 @@ SC_KEYWORD_TOKEN_DEF(Var,        "var")
 SC_KEYWORD_TOKEN_DEF(Let,        "let")
 
 /// ## Qualifiers
-
 SC_KEYWORD_TOKEN_DEF(Mutable,    "mut")
 
 /// ## Control flow
-
 SC_KEYWORD_TOKEN_DEF(Return,     "return")
 SC_KEYWORD_TOKEN_DEF(If,         "if")
 SC_KEYWORD_TOKEN_DEF(Else,       "else")
@@ -58,12 +53,11 @@ SC_KEYWORD_TOKEN_DEF(Continue,   "continue")
 SC_KEYWORD_TOKEN_DEF(Unique,     "unique")
 
 /// ## Constants
-
 SC_KEYWORD_TOKEN_DEF(False,      "false")
 SC_KEYWORD_TOKEN_DEF(True,       "true")
+SC_KEYWORD_TOKEN_DEF(This,       "this")
 
 /// ## Specifiers
-
 SC_KEYWORD_TOKEN_DEF(Public,     "public")
 SC_KEYWORD_TOKEN_DEF(Protected,  "protected")
 SC_KEYWORD_TOKEN_DEF(Private,    "private")

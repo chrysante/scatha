@@ -183,8 +183,27 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
 }
 
 UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
-    Token const& idToken = tokens.peek();
-    auto identifier      = parseIdentifier();
+    Token const idToken = tokens.peek();
+    if (idToken.kind() == This) {
+        tokens.eat();
+        return allocate<ast::ThisParameter>(idToken.sourceRange(),
+                                            sema::TypeQualifiers::None);
+    }
+    if (idToken.kind() == BitAnd) {
+        tokens.eat();
+        sema::TypeQualifiers quals = sema::TypeQualifiers::ImplicitReference;
+        if (eatMut()) {
+            quals |= sema::TypeQualifiers::Mutable;
+        }
+        if (tokens.peek().kind() != This) {
+            return nullptr;
+        }
+        auto const thisToken = tokens.eat();
+        auto sourceRange =
+            merge(idToken.sourceRange(), thisToken.sourceRange());
+        return allocate<ast::ThisParameter>(sourceRange, quals);
+    }
+    auto identifier = parseIdentifier();
     if (!identifier) {
         issues.push<ExpectedIdentifier>(idToken);
         /// Custom recovery mechanism
@@ -356,7 +375,7 @@ UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
         return nullptr;
     }
     tokens.eat();
-    auto result = allocate<ast::CompoundStatement>(openBrace.sourceRange());
+    utl::small_vector<UniquePtr<ast::Statement>> statements;
     while (true) {
         /// This mechanism checks wether a failed statement parse has eaten any
         /// tokens. If it hasn't we eat one ourselves and try again.
@@ -364,10 +383,10 @@ UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
         Token const next     = tokens.peek();
         if (next.kind() == CloseBrace) {
             tokens.eat();
-            return result;
+            break;
         }
         if (auto statement = parseStatement()) {
-            result->statements.push_back(std::move(statement));
+            statements.push_back(std::move(statement));
             continue;
         }
         if (tokens.index() == lastIndex) {
@@ -375,6 +394,8 @@ UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
             issues.push<UnqualifiedID>(tokens.eat(), CloseBrace);
         }
     }
+    return allocate<ast::CompoundStatement>(openBrace.sourceRange(),
+                                            std::move(statements));
 }
 
 UniquePtr<ast::ControlFlowStatement> Context::parseControlFlowStatement() {
@@ -748,13 +769,8 @@ UniquePtr<ast::Expression> Context::parseReference() {
         return nullptr;
     }
     tokens.eat();
-    Token const mutToken = tokens.peek();
-    bool mut             = false;
-    if (mutToken.kind() == Mutable) {
-        mut = true;
-        tokens.eat();
-    }
-    auto referred = parseConditional();
+    bool const mut = eatMut();
+    auto referred  = parseConditional();
     return allocate<ast::ReferenceExpression>(std::move(referred),
                                               refToken.sourceRange());
 }
@@ -768,13 +784,8 @@ UniquePtr<ast::Expression> Context::parseUnique() {
         return nullptr;
     }
     tokens.eat();
-    Token const mutToken = tokens.peek();
-    bool mut             = false;
-    if (mutToken.kind() == Mutable) {
-        mut = true;
-        tokens.eat();
-    }
-    auto initExpr = parsePostfix();
+    bool const mut = eatMut();
+    auto initExpr  = parsePostfix();
     return allocate<ast::UniqueExpression>(std::move(initExpr),
                                            uniqueToken.sourceRange());
 }
@@ -905,13 +916,16 @@ UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(
     UniquePtr<ast::Expression> primary, TokenKind open, TokenKind close) {
     auto const& openToken = tokens.peek();
     SC_ASSERT(openToken.kind() == open, "");
-    auto result =
-        allocate<FunctionCallLike>(std::move(primary), openToken.sourceRange());
-    result->arguments =
-        parseList<decltype(result->arguments)>(open, close, Comma, [this] {
-            return parseAssignment();
+    auto args =
+        parseList<utl::small_vector<UniquePtr<ast::Expression>>>(open,
+                                                                 close,
+                                                                 Comma,
+                                                                 [this] {
+        return parseAssignment();
         }).value(); // handle error
-    return result;
+    return allocate<FunctionCallLike>(std::move(primary),
+                                      std::move(args),
+                                      openToken.sourceRange());
 }
 
 template <typename, typename List>
@@ -985,6 +999,14 @@ UniquePtr<ast::Expression> Context::parseMemberAccess(
                                            token.sourceRange());
         continue;
     }
+}
+
+bool Context::eatMut() {
+    if (tokens.peek().kind() == Mutable) {
+        tokens.eat();
+        return true;
+    }
+    return false;
 }
 
 void Context::pushExpectedExpression(Token const& token) {

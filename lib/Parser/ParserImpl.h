@@ -65,6 +65,8 @@ struct Context {
     UniquePtr<ast::StringLiteral> parseStringLiteral();
 
     // Helpers
+    bool eatMut();
+
     void pushExpectedExpression(Token const&);
 
     template <utl::invocable_r<bool, Token const&>... Cond, std::predicate... F>

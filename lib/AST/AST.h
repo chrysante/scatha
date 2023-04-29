@@ -80,11 +80,31 @@ public:
     /// Source location object associated with this node.
     SourceLocation sourceLocation() const { return _sourceRange.begin(); }
 
+    /// The parent of this node
+    AbstractSyntaxTree* parent() { return _parent; }
+
+    /// \overload
+    AbstractSyntaxTree const* parent() const { return _parent; }
+
 protected:
     explicit AbstractSyntaxTree(NodeType type, SourceRange sourceRange):
         _type(type), _sourceRange(sourceRange) {}
 
     void setSourceRange(SourceRange sourceRange) { _sourceRange = sourceRange; }
+
+    void setParent(AbstractSyntaxTree* parent) { _parent = parent; }
+
+    void setChild(auto&& child) {
+        if (child) {
+            child->_parent = this;
+        }
+    }
+
+    void setChildren(auto&& children) {
+        for (auto&& child: children) {
+            setChild(child);
+        }
+    }
 
 private:
     friend void scatha::internal::privateDelete(ast::AbstractSyntaxTree*);
@@ -92,6 +112,7 @@ private:
 private:
     NodeType _type;
     SourceRange _sourceRange;
+    AbstractSyntaxTree* _parent = nullptr;
 };
 
 // For `dyncast` compatibilty
@@ -252,7 +273,9 @@ public:
                                    SourceRange sourceRange):
         Expression(NodeType::UnaryPrefixExpression, sourceRange),
         operand(std::move(operand)),
-        op(op) {}
+        op(op) {
+        setChild(this->operand.get());
+    }
 
     /// The operator of this expression.
     UnaryPrefixOperator operation() const { return op; }
@@ -276,7 +299,10 @@ public:
         Expression(NodeType::BinaryExpression, sourceRange),
         lhs(std::move(lhs)),
         rhs(std::move(rhs)),
-        op(op) {}
+        op(op) {
+        setChild(this->lhs.get());
+        setChild(this->rhs.get());
+    }
 
     /// The operator of this expression.
     BinaryOperator operation() const { return op; }
@@ -302,7 +328,10 @@ public:
                           SourceRange sourceRange):
         Expression(NodeType::MemberAccess, sourceRange),
         object(std::move(object)),
-        member(std::move(member)) {}
+        member(std::move(member)) {
+        setChild(this->object.get());
+        setChild(this->member.get());
+    }
 
     /// The object being accessed.
     UniquePtr<Expression> object;
@@ -352,7 +381,11 @@ public:
         Expression(NodeType::Conditional, sourceRange),
         condition(std::move(condition)),
         ifExpr(std::move(ifExpr)),
-        elseExpr(std::move(elseExpr)) {}
+        elseExpr(std::move(elseExpr)) {
+        setChild(this->condition.get());
+        setChild(this->ifExpr.get());
+        setChild(this->elseExpr.get());
+    }
 
     /// The condition to branch on.
     UniquePtr<Expression> condition;
@@ -370,9 +403,14 @@ public:
 class SCATHA_API FunctionCall: public Expression {
 public:
     explicit FunctionCall(UniquePtr<Expression> object,
+                          utl::small_vector<UniquePtr<Expression>> arguments,
                           SourceRange sourceRange):
         Expression(NodeType::FunctionCall, sourceRange),
-        object(std::move(object)) {}
+        object(std::move(object)),
+        arguments(std::move(arguments)) {
+        setChild(this->object.get());
+        setChildren(this->arguments);
+    }
 
     /// The object (function or rather overload set) being called.
     UniquePtr<Expression> object;
@@ -400,9 +438,15 @@ public:
 /// Concrete node representing a subscript expression.
 class SCATHA_API Subscript: public Expression {
 public:
-    explicit Subscript(UniquePtr<Expression> object, SourceRange sourceRange):
+    explicit Subscript(UniquePtr<Expression> object,
+                       utl::small_vector<UniquePtr<Expression>> arguments,
+                       SourceRange sourceRange):
         Expression(NodeType::Subscript, sourceRange),
-        object(std::move(object)) {}
+        object(std::move(object)),
+        arguments(std::move(arguments)) {
+        setChild(this->object.get());
+        setChildren(this->arguments);
+    }
 
     /// The object being indexed.
     UniquePtr<Expression> object;
@@ -422,7 +466,9 @@ public:
     ListExpression(utl::small_vector<UniquePtr<Expression>> elems,
                    SourceRange sourceRange):
         Expression(NodeType::ListExpression, sourceRange),
-        elems(std::move(elems)) {}
+        elems(std::move(elems)) {
+        setChildren(this->elems);
+    }
 
     size_t size() const { return elems.size(); }
 
@@ -581,14 +627,10 @@ class SCATHA_API ParameterDeclaration: public Declaration {
 public:
     explicit ParameterDeclaration(UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
-        Declaration(NodeType::ParameterDeclaration,
-                    SourceRange{},
-                    std::move(name)),
-        typeExpr(std::move(typeExpr)) {
-        if (nameIdentifier) {
-            setSourceRange(nameIdentifier->sourceRange());
-        }
-    }
+        ParameterDeclaration(NodeType::ParameterDeclaration,
+                             SourceRange{},
+                             std::move(name),
+                             std::move(typeExpr)) {}
 
     /// Typename declared in the source code. Null if no typename was declared.
     UniquePtr<Expression> typeExpr;
@@ -607,8 +649,37 @@ public:
         Declaration::decorate(entity);
     }
 
+protected:
+    explicit ParameterDeclaration(NodeType nodeType,
+                                  SourceRange sourceRange,
+                                  UniquePtr<Identifier> name,
+                                  UniquePtr<Expression> typeExpr):
+        Declaration(nodeType, sourceRange, std::move(name)),
+        typeExpr(std::move(typeExpr)) {
+        setChild(this->typeExpr.get());
+        if (nameIdentifier) {
+            setSourceRange(nameIdentifier->sourceRange());
+        }
+    }
+
 private:
     sema::QualType const* _type = nullptr;
+};
+
+class ThisParameter: public ParameterDeclaration {
+public:
+    explicit ThisParameter(SourceRange sourceRange,
+                           sema::TypeQualifiers qualifiers):
+        ParameterDeclaration(NodeType::ThisParameter,
+                             sourceRange,
+                             nullptr,
+                             nullptr),
+        quals(qualifiers) {}
+
+    sema::TypeQualifiers qualifiers() const { return quals; }
+
+private:
+    sema::TypeQualifiers quals;
 };
 
 /// Nothing to see here yet...
@@ -621,8 +692,13 @@ public:
 /// anonymous) scope.
 class SCATHA_API CompoundStatement: public Statement {
 public:
-    explicit CompoundStatement(SourceRange sourceRange):
-        Statement(NodeType::CompoundStatement, sourceRange) {}
+    explicit CompoundStatement(
+        SourceRange sourceRange,
+        utl::small_vector<UniquePtr<Statement>> statements):
+        Statement(NodeType::CompoundStatement, sourceRange),
+        statements(std::move(statements)) {
+        setChildren(this->statements);
+    }
 
     /// List of statements in the compound statement.
     utl::small_vector<UniquePtr<Statement>> statements;
@@ -715,7 +791,9 @@ public:
                               UniquePtr<Identifier> name,
                               UniquePtr<CompoundStatement> body):
         Declaration(NodeType::StructDefinition, sourceRange, std::move(name)),
-        body(std::move(body)) {}
+        body(std::move(body)) {
+        setChild(this->body.get());
+    }
 
     /// Body of the struct.
     UniquePtr<CompoundStatement> body;
@@ -733,7 +811,9 @@ public:
     explicit ExpressionStatement(UniquePtr<Expression> expression):
         Statement(NodeType::ExpressionStatement,
                   expression ? expression->sourceRange() : SourceRange{}),
-        expression(std::move(expression)) {}
+        expression(std::move(expression)) {
+        setChild(this->expression.get());
+    }
 
     /// The expression
     UniquePtr<Expression> expression;
@@ -752,7 +832,9 @@ public:
     explicit ReturnStatement(SourceRange sourceRange,
                              UniquePtr<Expression> expression):
         ControlFlowStatement(NodeType::ReturnStatement, sourceRange),
-        expression(std::move(expression)) {}
+        expression(std::move(expression)) {
+        setChild(this->expression.get());
+    }
 
     /// The returned expression. May be null in case of a void function.
     UniquePtr<Expression> expression;
@@ -768,7 +850,11 @@ public:
         ControlFlowStatement(NodeType::IfStatement, sourceRange),
         condition(std::move(condition)),
         thenBlock(std::move(ifBlock)),
-        elseBlock(std::move(elseBlock)) {}
+        elseBlock(std::move(elseBlock)) {
+        setChild(this->condition.get());
+        setChild(this->thenBlock.get());
+        setChild(this->elseBlock.get());
+    }
 
     /// Condition to branch on.
     /// Must not be null after parsing and must be of type bool (or maybe later
@@ -796,7 +882,12 @@ public:
         condition(std::move(condition)),
         increment(std::move(increment)),
         block(std::move(block)),
-        _kind(kind) {}
+        _kind(kind) {
+        setChild(this->varDecl.get());
+        setChild(this->condition.get());
+        setChild(this->increment.get());
+        setChild(this->block.get());
+    }
 
     /// Loop variable declared in this statement.
     /// Only non-null if `kind() == For`

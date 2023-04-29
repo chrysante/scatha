@@ -199,6 +199,7 @@ public:
         CantInferType,
         ExpectedReferenceInitializer,
         ReservedIdentifier,
+        ThisParameter,
         _count
     };
 

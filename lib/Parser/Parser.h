@@ -22,6 +22,9 @@
 ///                                   | [<access-spec>] <struct-definition>
 /// <function-definition>           ::= "fn" <identifier> "(" {<parameter-declaration>}* ")" ["->" <type-expression>] <compound-statement>
 /// <parameter-declaration>         ::= <identifier> ":" <type-expression>
+///                                   | "this"
+///                                   | "& this"
+///                                   | "& mut this"
 /// <struct-definition>             ::= "struct" <identifier> <compound-statement>
 /// <variable-declaration>          ::= ("var"|"let") <short-var-declaration>
 /// <short-var-declaration>         ::= <identifier> [":" <type-expression>] ["=" <assignment-expression>] ";"
