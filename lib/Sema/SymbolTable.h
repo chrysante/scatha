@@ -18,7 +18,6 @@
 #include <scatha/Common/Expected.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Fwd.h>
-#include <scatha/Sema/SymbolID.h>
 
 namespace scatha::sema {
 
@@ -252,8 +251,6 @@ private:
     QualType const* getQualType(ObjectType const* base,
                                 TypeQualifiers qualifiers,
                                 size_t arraySize);
-
-    SymbolID generateID(SymbolCategory category);
 
     template <typename E, typename... Args>
     E* addEntity(Args&&... args);

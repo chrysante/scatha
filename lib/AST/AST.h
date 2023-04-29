@@ -18,7 +18,6 @@
 #include <scatha/Common/APInt.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Fwd.h>
-#include <scatha/Sema/SymbolID.h>
 
 // AbstractSyntaxTree
 // ├─ TranslationUnit

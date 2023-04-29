@@ -48,7 +48,7 @@ void Context::run() {
     /// table and we gather the dependencies of variable declarations in
     /// structs. This must be done before sorting the dependency graph.
     for (auto& node: dependencyGraph) {
-        if (node.category != SymbolCategory::Variable) {
+        if (!isa<Variable>(node.entity)) {
             continue;
         }
         auto& var       = cast<ast::VariableDeclaration const&>(*node.astNode);
@@ -94,20 +94,16 @@ void Context::run() {
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {
         auto const& node = dependencyGraph[index];
-        switch (node.category) {
-        case SymbolCategory::Variable:
-            instantiateVariable(node);
-            break;
-        case SymbolCategory::Type:
-            instantiateObjectType(node);
-            sortedObjTypes.push_back(cast<ObjectType*>(node.entity));
-            break;
-        case SymbolCategory::Function:
-            instantiateFunction(node);
-            break;
-        default:
-            break;
-        }
+        // clang-format off
+        visit(*node.entity, utl::overload{
+            [&](Variable const&) { instantiateVariable(node); },
+            [&](ObjectType& type) {
+                instantiateObjectType(node);
+                sortedObjTypes.push_back(&type);
+            },
+            [&](Function const&) { instantiateFunction(node); },
+            [&](Entity const&) { SC_UNREACHABLE(); }
+        }); // clang-format on
     }
     sym.setSortedObjectTypes(std::move(sortedObjTypes));
 }
@@ -162,7 +158,7 @@ void Context::instantiateVariable(DependencyGraphNode const& node) {
 }
 
 void Context::instantiateFunction(DependencyGraphNode const& node) {
-    SC_ASSERT(node.category == SymbolCategory::Function, "Must be a function");
+    SC_ASSERT(isa<Function>(node.entity), "Must be a function");
     ast::FunctionDefinition& fnDecl =
         cast<ast::FunctionDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.scope);

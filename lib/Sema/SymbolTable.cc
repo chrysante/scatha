@@ -264,10 +264,6 @@ Entity const* SymbolTable::lookup(std::string_view name) const {
     return nullptr;
 }
 
-SymbolID SymbolTable::generateID(SymbolCategory cat) {
-    return SymbolID(_idCounter++, cat);
-}
-
 template <typename E, typename... Args>
 E* SymbolTable::addEntity(Args&&... args) {
     auto owner   = allocate<E>(std::forward<Args>(args)...);

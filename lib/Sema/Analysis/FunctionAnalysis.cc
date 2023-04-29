@@ -57,8 +57,7 @@ void sema::analyzeFunctions(SymbolTable& sym,
                             std::span<DependencyGraphNode const> functions) {
     Context ctx{ sym, iss };
     for (auto const& node: functions) {
-        SC_ASSERT(node.category == SymbolCategory::Function,
-                  "We only accept functions here");
+        SC_ASSERT(isa<Function>(node.entity), "We only accept functions here");
         sym.makeScopeCurrent(node.scope);
         ctx.analyze(cast<ast::FunctionDefinition&>(*node.astNode));
         sym.makeScopeCurrent(nullptr);

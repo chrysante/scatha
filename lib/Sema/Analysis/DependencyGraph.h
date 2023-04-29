@@ -7,15 +7,14 @@
 #include "AST/Fwd.h"
 #include "Common/Base.h"
 #include "Sema/Fwd.h"
-#include "Sema/SymbolID.h"
 
 namespace scatha::sema {
 
 struct DependencyGraphNode {
-    Entity* entity = nullptr;
-    SymbolCategory category;
+    Entity* entity                   = nullptr;
     ast::AbstractSyntaxTree* astNode = nullptr;
-    Scope* scope                     = nullptr;
+    Scope* scope = nullptr; // TODO: Check if this is always equal to
+                            // entity->parent() and then remove this
     utl::small_vector<u16> dependencies;
 };
 

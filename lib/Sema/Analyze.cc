@@ -3,6 +3,7 @@
 #include "Sema/Analysis/FunctionAnalysis.h"
 #include "Sema/Analysis/GatherNames.h"
 #include "Sema/Analysis/Instantiation.h"
+#include "Sema/Entity.h"
 
 using namespace scatha;
 using namespace sema;
@@ -23,7 +24,7 @@ void sema::analyze(ast::AbstractSyntaxTree& root,
                  dependencyGraph.end(),
                  std::back_inserter(functions),
                  [](DependencyGraphNode const& node) {
-        return node.category == SymbolCategory::Function;
+        return isa<Function>(node.entity);
     });
     analyzeFunctions(sym, iss, functions);
 }

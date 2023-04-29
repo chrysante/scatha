@@ -12,7 +12,6 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Sema/FunctionSignature.h>
 #include <scatha/Sema/Fwd.h>
-#include <scatha/Sema/SymbolID.h>
 
 namespace scatha::sema {
 
