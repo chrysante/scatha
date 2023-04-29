@@ -71,6 +71,12 @@ SCATHA_API std::string_view toString(AccessSpec);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, AccessSpec);
 
+enum class LoopKind { For, While, DoWhile };
+
+std::string_view toString(LoopKind loopKind);
+
+std::ostream& operator<<(std::ostream& ostream, LoopKind loopKind);
+
 } // namespace scatha::ast
 
 namespace scatha::internal {

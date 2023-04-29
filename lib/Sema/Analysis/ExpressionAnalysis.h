@@ -15,8 +15,8 @@ class ExpressionAnalysisResult;
 /// \returns An `ExpressionAnalysisResult`.
 ///
 bool analyzeExpression(ast::Expression& expression,
-                                           SymbolTable& symbolTable,
-                                           IssueHandler& issueHandler);
+                       SymbolTable& symbolTable,
+                       IssueHandler& issueHandler);
 
 } // namespace scatha::sema
 

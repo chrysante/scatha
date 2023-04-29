@@ -28,8 +28,7 @@ struct Context {
     void print(EmptyStatement const&);
     void print(ReturnStatement const&);
     void print(IfStatement const&);
-    void print(WhileStatement const&);
-    void print(DoWhileStatement const&);
+    void print(LoopStatement const&);
     void print(Identifier const&);
     void print(IntegerLiteral const&);
     void print(BooleanLiteral const&);
@@ -175,19 +174,32 @@ void Context::print(IfStatement const& is) {
     dispatch(*is.elseBlock);
 }
 
-void Context::print(WhileStatement const& ws) {
-    str << "while ";
-    dispatch(*ws.condition);
-    str << " ";
-    dispatch(*ws.block);
-}
-
-void Context::print(DoWhileStatement const& ws) {
-    str << "do ";
-    dispatch(*ws.block);
-    str << " ";
-    dispatch(*ws.condition);
-    str << ";";
+void Context::print(LoopStatement const& loop) {
+    switch (loop.kind()) {
+    case LoopKind::For:
+        str << "for ";
+        dispatch(*loop.varDecl);
+        str << "; ";
+        dispatch(*loop.condition);
+        str << "; ";
+        dispatch(*loop.increment);
+        str << " ";
+        dispatch(*loop.block);
+        break;
+    case LoopKind::While:
+        str << "while ";
+        dispatch(*loop.condition);
+        str << " ";
+        dispatch(*loop.block);
+        break;
+    case LoopKind::DoWhile:
+        str << "do ";
+        dispatch(*loop.block);
+        str << " ";
+        dispatch(*loop.condition);
+        str << ";";
+        break;
+    }
 }
 
 void Context::print(Identifier const& i) { str << i.value(); }

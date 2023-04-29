@@ -34,11 +34,11 @@ struct Context {
     bool analyzeImpl(ast::Subscript&);
     bool analyzeImpl(ast::ListExpression&);
 
-    bool analyzeImpl(ast::AbstractSyntaxTree&) {
-        SC_DEBUGFAIL();
-    }
+    bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
 
     bool expectValue(ast::Expression const& expr);
+
+    bool expectType(ast::Expression const& expr);
 
     bool verifyConversion(ast::Expression const& from,
                           QualType const* to) const;
@@ -62,8 +62,8 @@ struct Context {
 } // namespace
 
 bool sema::analyzeExpression(ast::Expression& expr,
-                                                 SymbolTable& sym,
-                                                 IssueHandler& iss) {
+                             SymbolTable& sym,
+                             IssueHandler& iss) {
     Context ctx{ .sym = sym, .iss = iss };
     return ctx.analyze(expr);
 }
@@ -252,7 +252,7 @@ bool Context::analyzeImpl(ast::UniqueExpression& expr) {
         iss.push<BadExpression>(*expr.initExpr, IssueSeverity::Error);
         return false;
     }
-    auto* typeExpr   = initExpr->object.get();
+    auto* typeExpr = initExpr->object.get();
     if (!analyze(*typeExpr) || !typeExpr->isType()) {
         iss.push<BadExpression>(*typeExpr, IssueSeverity::Error);
         return false;
@@ -272,17 +272,15 @@ bool Context::analyzeImpl(ast::UniqueExpression& expr) {
 }
 
 bool Context::analyzeImpl(ast::Conditional& c) {
-    analyze(*c.condition);
-    verifyConversion(*c.condition, sym.qualify(sym.Bool()));
-    if (!analyze(*c.ifExpr) || !analyze(*c.elseExpr)) {
-        return false;
+    bool success = analyze(*c.condition);
+    if (success) {
+        verifyConversion(*c.condition, sym.qualify(sym.Bool()));
     }
-    if (!c.ifExpr->isValue()) {
-        iss.push<BadSymbolReference>(*c.ifExpr, EntityCategory::Value);
-        return false;
-    }
-    if (!c.elseExpr->isValue()) {
-        iss.push<BadSymbolReference>(*c.elseExpr, EntityCategory::Value);
+    success &= analyze(*c.ifExpr);
+    success &= expectValue(*c.ifExpr);
+    success &= analyze(*c.elseExpr);
+    success &= expectValue(*c.elseExpr);
+    if (!success) {
         return false;
     }
     auto* thenType = c.ifExpr->type();
@@ -298,18 +296,13 @@ bool Context::analyzeImpl(ast::Conditional& c) {
 
 bool Context::analyzeImpl(ast::Subscript& expr) {
     bool success = analyze(*expr.object);
-    if (!expectValue(*expr.object)) {
-        return false;
-    }
+    success &= expectValue(*expr.object);
     if (!expr.object->type()->isArray()) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
-        return false;
     }
     for (auto& arg: expr.arguments) {
         success &= analyze(*arg);
-        if (!expectValue(*arg)) {
-            return false;
-        }
+        success &= expectValue(*arg);
     }
     if (!success) {
         return false;
@@ -388,6 +381,10 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
         return false;
     }
     if (list.empty()) {
+        list.decorate(nullptr,
+                      nullptr,
+                      std::nullopt,
+                      EntityCategory::Indeterminate);
         return true;
     }
     auto* first    = list.front();
@@ -617,8 +614,16 @@ Function* Context::findExplicitCast(ObjectType const* to,
 }
 
 bool Context::expectValue(ast::Expression const& expr) {
-    if (expr.entityCategory() != EntityCategory::Value) {
+    if (!expr.isValue()) {
         iss.push<BadSymbolReference>(expr, EntityCategory::Value);
+        return false;
+    }
+    return true;
+}
+
+bool Context::expectType(ast::Expression const& expr) {
+    if (!expr.isType()) {
+        iss.push<BadSymbolReference>(expr, EntityCategory::Type);
         return false;
     }
     return true;

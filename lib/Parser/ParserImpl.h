@@ -33,9 +33,9 @@ struct Context {
     UniquePtr<ast::ControlFlowStatement> parseControlFlowStatement();
     UniquePtr<ast::ReturnStatement> parseReturnStatement();
     UniquePtr<ast::IfStatement> parseIfStatement();
-    UniquePtr<ast::WhileStatement> parseWhileStatement();
-    UniquePtr<ast::DoWhileStatement> parseDoWhileStatement();
-    UniquePtr<ast::ForStatement> parseForStatement();
+    UniquePtr<ast::LoopStatement> parseWhileStatement();
+    UniquePtr<ast::LoopStatement> parseDoWhileStatement();
+    UniquePtr<ast::LoopStatement> parseForStatement();
     UniquePtr<ast::JumpStatement> parseJumpStatement();
 
     // Expressions

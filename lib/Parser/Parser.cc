@@ -384,14 +384,14 @@ UniquePtr<ast::ControlFlowStatement> Context::parseControlFlowStatement() {
     if (auto ifStatement = parseIfStatement()) {
         return ifStatement;
     }
-    if (auto whileStatement = parseWhileStatement()) {
-        return whileStatement;
+    if (auto loop = parseWhileStatement()) {
+        return loop;
     }
-    if (auto doWhileStatement = parseDoWhileStatement()) {
-        return doWhileStatement;
+    if (auto loop = parseDoWhileStatement()) {
+        return loop;
     }
-    if (auto forStatement = parseForStatement()) {
-        return forStatement;
+    if (auto loop = parseForStatement()) {
+        return loop;
     }
     return nullptr;
 }
@@ -447,7 +447,7 @@ UniquePtr<ast::IfStatement> Context::parseIfStatement() {
                                       std::move(elseBlock));
 }
 
-UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
+UniquePtr<ast::LoopStatement> Context::parseWhileStatement() {
     Token const whileToken = tokens.peek();
     if (whileToken.kind() != While) {
         return nullptr;
@@ -461,12 +461,15 @@ UniquePtr<ast::WhileStatement> Context::parseWhileStatement() {
     if (!block) {
         issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
     }
-    return allocate<ast::WhileStatement>(whileToken.sourceRange(),
-                                         std::move(cond),
-                                         std::move(block));
+    return allocate<ast::LoopStatement>(whileToken.sourceRange(),
+                                        ast::LoopKind::While,
+                                        nullptr,
+                                        std::move(cond),
+                                        nullptr,
+                                        std::move(block));
 }
 
-UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
+UniquePtr<ast::LoopStatement> Context::parseDoWhileStatement() {
     Token const doToken = tokens.peek();
     if (doToken.kind() != Do) {
         return nullptr;
@@ -497,12 +500,15 @@ UniquePtr<ast::DoWhileStatement> Context::parseDoWhileStatement() {
     else {
         tokens.eat();
     }
-    return allocate<ast::DoWhileStatement>(doToken.sourceRange(),
-                                           std::move(cond),
-                                           std::move(block));
+    return allocate<ast::LoopStatement>(doToken.sourceRange(),
+                                        ast::LoopKind::DoWhile,
+                                        nullptr,
+                                        std::move(cond),
+                                        nullptr,
+                                        std::move(block));
 }
 
-UniquePtr<ast::ForStatement> Context::parseForStatement() {
+UniquePtr<ast::LoopStatement> Context::parseForStatement() {
     Token const forToken = tokens.peek();
     if (forToken.kind() != For) {
         return nullptr;
@@ -531,11 +537,12 @@ UniquePtr<ast::ForStatement> Context::parseForStatement() {
     if (!block) {
         issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
     }
-    return allocate<ast::ForStatement>(forToken.sourceRange(),
-                                       std::move(varDecl),
-                                       std::move(cond),
-                                       std::move(inc),
-                                       std::move(block));
+    return allocate<ast::LoopStatement>(forToken.sourceRange(),
+                                        ast::LoopKind::For,
+                                        std::move(varDecl),
+                                        std::move(cond),
+                                        std::move(inc),
+                                        std::move(block));
 }
 
 static std::optional<ast::JumpStatement::Kind> toJumpKind(Token token) {

@@ -172,7 +172,7 @@ private:
     sema::Entity* _entity = nullptr;
     sema::QualType const* _type{};
     sema::ValueCategory _valueCat   = sema::ValueCategory::None;
-    sema::EntityCategory _entityCat = sema::EntityCategory::Value;
+    sema::EntityCategory _entityCat = sema::EntityCategory::Indeterminate;
 };
 
 /// Concrete node representing an identifier.
@@ -782,72 +782,41 @@ public:
     UniquePtr<Statement> elseBlock;
 };
 
-/// Concrete node representing a while statement.
-class SCATHA_API WhileStatement: public ControlFlowStatement {
+/// Represents a `for`, `while` or `do`/`while` loop.
+class SCATHA_API LoopStatement: public ControlFlowStatement {
 public:
-    explicit WhileStatement(SourceRange sourceRange,
-                            UniquePtr<Expression> condition,
-                            UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::WhileStatement, sourceRange),
-        condition(std::move(condition)),
-        block(std::move(block)) {}
-
-    /// Condition to loop on.
-    /// Must not be null after parsing and must be of type bool (or maybe later
-    /// convertible to bool).
-    UniquePtr<Expression> condition;
-
-    /// Statement to execute repeatedly.
-    UniquePtr<CompoundStatement> block;
-};
-
-/// Concrete node representing a do-while statement.
-class SCATHA_API DoWhileStatement: public ControlFlowStatement {
-public:
-    explicit DoWhileStatement(SourceRange sourceRange,
-                              UniquePtr<Expression> condition,
-                              UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::DoWhileStatement, sourceRange),
-        condition(std::move(condition)),
-        block(std::move(block)) {}
-
-    /// Condition to loop on.
-    /// Must not be null after parsing and must be of type bool (or maybe later
-    /// convertible to bool).
-    UniquePtr<Expression> condition;
-
-    /// Statement to execute repeatedly.
-    UniquePtr<CompoundStatement> block;
-};
-
-/// Concrete node representing a for statement.
-class SCATHA_API ForStatement: public ControlFlowStatement {
-public:
-    explicit ForStatement(SourceRange sourceRange,
-                          UniquePtr<VariableDeclaration> varDecl,
-                          UniquePtr<Expression> condition,
-                          UniquePtr<Expression> increment,
-                          UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::ForStatement, sourceRange),
+    explicit LoopStatement(SourceRange sourceRange,
+                           LoopKind kind,
+                           UniquePtr<VariableDeclaration> varDecl,
+                           UniquePtr<Expression> condition,
+                           UniquePtr<Expression> increment,
+                           UniquePtr<CompoundStatement> block):
+        ControlFlowStatement(NodeType::LoopStatement, sourceRange),
         varDecl(std::move(varDecl)),
         condition(std::move(condition)),
         increment(std::move(increment)),
-        block(std::move(block)) {}
+        block(std::move(block)),
+        _kind(kind) {}
 
     /// Loop variable declared in this statement.
+    /// Only non-null if `kind() == For`
     UniquePtr<VariableDeclaration> varDecl;
 
     /// Condition to loop on.
-    /// Must not be null after parsing and must be of type bool (or maybe later
-    /// convertible to bool).
     UniquePtr<Expression> condition;
 
     /// Increment expression
-    /// Will be executed after each loop iteration.
+    /// Only non-null if `kind() == For`
     UniquePtr<Expression> increment;
 
     /// Statement to execute repeatedly.
     UniquePtr<CompoundStatement> block;
+
+    /// Either `while` or `do`/`while`
+    LoopKind kind() const { return _kind; }
+
+private:
+    LoopKind _kind;
 };
 
 /// Represents a `break` or `continue` statement.

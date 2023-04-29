@@ -108,7 +108,7 @@ fn test() {
     REQUIRE(body);
     REQUIRE(body->statements.size() == 1);
     auto* const whileStatement =
-        cast<WhileStatement*>(body->statements[0].get());
+        cast<LoopStatement*>(body->statements[0].get());
     REQUIRE(whileStatement);
     auto* const condition =
         cast<BinaryExpression*>(whileStatement->condition.get());
@@ -146,7 +146,7 @@ fn test() {
     REQUIRE(body);
     REQUIRE(body->statements.size() == 1);
     auto* const doWhileStatement =
-        cast<DoWhileStatement*>(body->statements[0].get());
+        cast<LoopStatement*>(body->statements[0].get());
     REQUIRE(doWhileStatement);
     auto* const condition =
         cast<BinaryExpression*>(doWhileStatement->condition.get());
@@ -183,7 +183,7 @@ fn test() {
     CompoundStatement* const body = function->body.get();
     REQUIRE(body);
     REQUIRE(body->statements.size() == 1);
-    auto* const forStatement = cast<ForStatement*>(body->statements[0].get());
+    auto* const forStatement = cast<LoopStatement*>(body->statements[0].get());
     REQUIRE(forStatement);
     auto* const varDecl =
         cast<VariableDeclaration*>(forStatement->varDecl.get());

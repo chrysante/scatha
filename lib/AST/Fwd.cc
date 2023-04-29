@@ -51,3 +51,18 @@ std::string_view ast::toString(AccessSpec spec) {
 std::ostream& ast::operator<<(std::ostream& str, AccessSpec spec) {
     return str << toString(spec);
 }
+
+std::string_view ast::toString(LoopKind loopKind) {
+    switch (loopKind) {
+    case LoopKind::For:
+        return "For";
+    case LoopKind::While:
+        return "While";
+    case LoopKind::DoWhile:
+        return "Do/While";
+    }
+}
+
+std::ostream& ast::operator<<(std::ostream& ostream, LoopKind loopKind) {
+    return ostream << toString(loopKind);
+}

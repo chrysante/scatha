@@ -24,9 +24,7 @@ struct Context {
     void analyzeImpl(ast::ExpressionStatement&);
     void analyzeImpl(ast::ReturnStatement&);
     void analyzeImpl(ast::IfStatement&);
-    void analyzeImpl(ast::WhileStatement&);
-    void analyzeImpl(ast::DoWhileStatement&);
-    void analyzeImpl(ast::ForStatement&);
+    void analyzeImpl(ast::LoopStatement&);
     void analyzeImpl(ast::JumpStatement&);
     void analyzeImpl(ast::EmptyStatement&) {}
     void analyzeImpl(ast::AbstractSyntaxTree& node) { SC_UNREACHABLE(); }
@@ -307,37 +305,7 @@ void Context::analyzeImpl(ast::IfStatement& stmt) {
     }
 }
 
-void Context::analyzeImpl(ast::WhileStatement& stmt) {
-    if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push<InvalidStatement>(
-            &stmt,
-            InvalidStatement::Reason::InvalidScopeForStatement,
-            sym.currentScope());
-        return;
-    }
-    if (analyzeExpr(*stmt.condition)) {
-        verifyConversion(*stmt.condition, sym.Bool());
-    }
-    analyze(*stmt.block);
-}
-
-void Context::analyzeImpl(ast::DoWhileStatement& stmt) {
-    // TODO: This implementation is completely analogous to
-    // analyzeImpl(WhileStatement&). Try to merge them.
-    if (sym.currentScope().kind() != ScopeKind::Function) {
-        iss.push<InvalidStatement>(
-            &stmt,
-            InvalidStatement::Reason::InvalidScopeForStatement,
-            sym.currentScope());
-        return;
-    }
-    if (analyzeExpr(*stmt.condition)) {
-        verifyConversion(*stmt.condition, sym.Bool());
-    }
-    analyze(*stmt.block);
-}
-
-void Context::analyzeImpl(ast::ForStatement& stmt) {
+void Context::analyzeImpl(ast::LoopStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
             &stmt,
@@ -347,11 +315,15 @@ void Context::analyzeImpl(ast::ForStatement& stmt) {
     }
     stmt.block->decorate(&sym.addAnonymousScope());
     sym.pushScope(stmt.block->scope());
-    analyze(*stmt.varDecl);
+    if (stmt.varDecl) {
+        analyze(*stmt.varDecl);
+    }
     if (analyzeExpr(*stmt.condition)) {
         verifyConversion(*stmt.condition, sym.Bool());
     }
-    analyzeExpr(*stmt.increment);
+    if (stmt.increment) {
+        analyzeExpr(*stmt.increment);
+    }
     sym.popScope(); /// The block will push its scope again.
     analyze(*stmt.block);
 }

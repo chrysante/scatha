@@ -32,8 +32,7 @@ struct Context {
     void print(EmptyStatement const&, int ind);
     void print(ReturnStatement const&, int ind);
     void print(IfStatement const&, int ind);
-    void print(WhileStatement const&, int ind);
-    void print(DoWhileStatement const&, int ind);
+    void print(LoopStatement const&, int ind);
     void print(Identifier const&, int ind);
     void print(IntegerLiteral const&, int ind);
     void print(BooleanLiteral const&, int ind);
@@ -146,15 +145,11 @@ void Context::print(IfStatement const& stmt, int ind) {
     dispatch(stmt.elseBlock.get(), ind + 1);
 }
 
-void Context::print(WhileStatement const& stmt, int ind) {
-    printHeader(stmt, ind);
+void Context::print(LoopStatement const& stmt, int ind) {
+    printHeader(stmt, ind, stmt.kind());
+    dispatch(stmt.varDecl.get(), ind + 1);
     dispatch(stmt.condition.get(), ind + 1);
-    dispatch(stmt.block.get(), ind + 1);
-}
-
-void Context::print(DoWhileStatement const& stmt, int ind) {
-    printHeader(stmt, ind);
-    dispatch(stmt.condition.get(), ind + 1);
+    dispatch(stmt.increment.get(), ind + 1);
     dispatch(stmt.block.get(), ind + 1);
 }
 
