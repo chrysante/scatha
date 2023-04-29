@@ -75,11 +75,11 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
         iss.push(declResult.error()->setStatement(funcDef));
         return invalidIndex;
     }
-    auto& funcObj = *declResult;
-    funcDef.Declaration::decorate(funcObj.symbolID());
-    funcDef.body->decorate(ScopeKind::Function, funcObj.symbolID());
+    auto& func = *declResult;
+    funcDef.Declaration::decorate(&func);
+    funcDef.body->decorate(&func);
     /// Now add this function definition to the dependency graph
-    return dependencyGraph.add({ .symbolID = funcObj.symbolID(),
+    return dependencyGraph.add({ .entity   = &func,
                                  .category = SymbolCategory::Function,
                                  .astNode  = &funcDef,
                                  .scope    = &sym.currentScope() });
@@ -106,10 +106,9 @@ size_t Context::gather(ast::StructDefinition& s) {
         return invalidIndex;
     }
     auto& objType = *declResult;
-    s.decorate(objType.symbolID());
-    s.body->decorate(ScopeKind::Object, objType.symbolID());
-    SC_ASSERT(s.symbolID() != SymbolID::Invalid, "");
-    size_t const index = dependencyGraph.add({ .symbolID = objType.symbolID(),
+    s.decorate(&objType);
+    s.body->decorate(&objType);
+    size_t const index = dependencyGraph.add({ .entity   = &objType,
                                                .category = SymbolCategory::Type,
                                                .astNode  = &s,
                                                .scope = &sym.currentScope() });
@@ -140,8 +139,8 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
         iss.push(declResult.error()->setStatement(varDecl));
         return invalidIndex;
     }
-    auto const& var = *declResult;
-    return dependencyGraph.add({ .symbolID = var.symbolID(),
+    auto& var = *declResult;
+    return dependencyGraph.add({ .entity   = &var,
                                  .category = SymbolCategory::Variable,
                                  .astNode  = &varDecl,
                                  .scope    = &sym.currentScope() });

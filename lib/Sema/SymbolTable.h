@@ -65,7 +65,7 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already used by another kind of entity in the current scope.
-    Expected<Function const&, SemanticIssue*> declareFunction(std::string name);
+    Expected<Function&, SemanticIssue*> declareFunction(std::string name);
 
     /// \brief Add signature to declared function.
     ///
@@ -120,7 +120,7 @@ public:
     /// \brief Declares an anonymous scope within the current scope.
     ///
     /// \returns Reference to the new scope.
-    Scope const& addAnonymousScope();
+    Scope& addAnonymousScope();
 
     QualType const* qualify(Type const* base,
                             TypeQualifiers qualifiers = TypeQualifiers::None,
@@ -216,7 +216,7 @@ public:
         return const_cast<E*>(utl::as_const(*this).tryGet<E>(id));
     }
 
-    SymbolID builtinFunction(size_t index) const {
+    Function* builtinFunction(size_t index) const {
         return _builtinFunctions[index];
     }
 
@@ -278,12 +278,12 @@ public:
     }
 
     /// Review if we want to keep these:
-    void setSortedObjectTypes(utl::vector<TypeID> ids) {
+    void setSortedObjectTypes(utl::vector<ObjectType*> ids) {
         _sortedObjectTypes = std::move(ids);
     }
 
     /// View over topologically sorted object types
-    std::span<TypeID const> sortedObjectTypes() const {
+    std::span<ObjectType const* const> sortedObjectTypes() const {
         return _sortedObjectTypes;
     }
 
@@ -309,11 +309,11 @@ private:
                          QualType const*>
         _qualTypes;
 
-    utl::vector<TypeID> _sortedObjectTypes;
+    utl::vector<ObjectType*> _sortedObjectTypes;
 
     utl::small_vector<Function*> _functions;
 
-    utl::vector<SymbolID> _builtinFunctions;
+    utl::vector<Function*> _builtinFunctions;
 
     /// Builtin types
     Type const *_void, *_byte, *_bool, *_int, *_float, *_string;

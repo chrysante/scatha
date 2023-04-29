@@ -12,7 +12,7 @@
 namespace scatha::sema {
 
 struct DependencyGraphNode {
-    SymbolID symbolID;
+    Entity* entity = nullptr;
     SymbolCategory category;
     ast::AbstractSyntaxTree* astNode = nullptr;
     Scope* scope                     = nullptr;
@@ -23,7 +23,7 @@ class DependencyGraph {
 public:
     size_t add(DependencyGraphNode node) {
         size_t const index = _nodes.size();
-        _indices.insert({ node.symbolID, index });
+        _indices.insert({ node.entity, index });
         _nodes.push_back(std::move(node));
         return index;
     }
@@ -40,15 +40,15 @@ public:
 
     size_t size() const { return _nodes.size(); }
 
-    size_t index(SymbolID symbolID) const {
-        auto const itr = _indices.find(symbolID);
+    size_t index(Entity const* entity) const {
+        auto const itr = _indices.find(entity);
         SC_EXPECT(itr != _indices.end(), "symbolID must be in this graph");
         return itr->second;
     }
 
 private:
     utl::vector<DependencyGraphNode> _nodes;
-    utl::hashmap<SymbolID, std::size_t> _indices;
+    utl::hashmap<Entity*, std::size_t> _indices;
 };
 
 } // namespace scatha::sema

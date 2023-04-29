@@ -102,7 +102,7 @@ struct CodeGenContext {
     ir::BasicBlock* currentBB() { return _currentBB; }
     void setCurrentBB(ir::BasicBlock*);
 
-    void memorizeVariableAddress(sema::SymbolID, ir::Value*);
+    void memorizeVariableAddress(sema::Entity const* variable, ir::Value*);
 
     std::string mangledName(sema::SymbolID) const;
     std::string mangledName(sema::SymbolID, std::string_view name) const;
@@ -121,8 +121,8 @@ struct CodeGenContext {
     sema::SymbolTable const& symTable;
     ir::Function* currentFunction = nullptr;
     ir::BasicBlock* _currentBB    = nullptr;
-    utl::hashmap<sema::SymbolID, ir::Value*> variableAddressMap;
-    utl::hashmap<sema::SymbolID, ir::Callable*> functionMap;
+    utl::hashmap<sema::Entity const*, ir::Value*> variableAddressMap;
+    utl::hashmap<sema::Function const*, ir::Callable*> functionMap;
     utl::hashmap<sema::Type const*, ir::Type const*> typeMap;
     ir::Instruction* allocaInsertItr;
     Loop currentLoop;
@@ -164,7 +164,7 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
                       ranges::views::transform(
                           [&](auto& param) { return mapType(param->type()); }) |
                       ranges::to<utl::small_vector<ir::Type const*>>;
-    auto* fn = cast<ir::Function*>(functionMap.find(def.symbolID())->second);
+    auto* fn = cast<ir::Function*>(functionMap.find(def.function())->second);
     currentFunction = fn;
     auto* entry     = new ir::BasicBlock(irCtx, "entry");
     fn->pushBack(entry);
@@ -177,7 +177,7 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
                                            mapType(paramDecl->type()),
                                            std::string(paramDecl->name()));
         addAlloca(paramMemPtr);
-        memorizeVariableAddress(paramDecl->symbolID(), paramMemPtr);
+        memorizeVariableAddress(paramDecl->entity(), paramMemPtr);
         auto* store =
             new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
         entry->pushBack(store);
@@ -204,7 +204,7 @@ void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
                                        mapType(varDecl.type()),
                                        std::string(varDecl.name()));
         addAlloca(address);
-        memorizeVariableAddress(varDecl.symbolID(), address);
+        memorizeVariableAddress(varDecl.variable(), address);
         if (varDecl.initExpression == nullptr) {
             return;
         }
@@ -220,7 +220,7 @@ void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
         if (varDecl.initExpression && varDecl.initExpression->valueCategory() ==
                                           ast::ValueCategory::RValue)
         {
-            memorizeVariableAddress(varDecl.symbolID(), address);
+            memorizeVariableAddress(varDecl.variable(), address);
         }
         else {
             // TODO: Copy the array
@@ -649,8 +649,7 @@ ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
 }
 
 ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
-    ir::Callable* function =
-        functionMap.find(functionCall.functionID())->second;
+    ir::Callable* function = functionMap.find(functionCall.function())->second;
     auto const args =
         functionCall.arguments |
         ranges::views::transform(
@@ -682,7 +681,7 @@ ir::Value* CodeGenContext::getAddressImpl(Expression const& expr) {
 }
 
 ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {
-    auto itr = variableAddressMap.find(id.symbolID());
+    auto itr = variableAddressMap.find(id.entity());
     SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
     return itr->second;
 }
@@ -703,14 +702,13 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
         currentBB()->pushBack(store);
         return addr;
     }();
-    sema::SymbolID const accessedElementID =
-        cast<Identifier const&>(*expr.member).symbolID();
-    auto& var       = symTable.get<sema::Variable>(accessedElementID);
-    auto* const gep = new ir::GetElementPointer(irCtx,
+    auto* accessedElement = cast<Identifier const&>(*expr.member).entity();
+    auto* var             = cast<sema::Variable const*>(accessedElement);
+    auto* const gep       = new ir::GetElementPointer(irCtx,
                                                 mapType(expr.object->type()),
                                                 basePtr,
                                                 irCtx.integralConstant(0, 64),
-                                                { var.index() },
+                                                      { var->index() },
                                                 "member.ptr");
     currentBB()->pushBack(gep);
     return gep;
@@ -762,15 +760,13 @@ ir::Value* CodeGenContext::loadAddress(ir::Value* address,
 }
 
 void CodeGenContext::declareTypes() {
-    for (sema::TypeID const& typeID: symTable.sortedObjectTypes()) {
-        auto const& objType = symTable.get<sema::ObjectType>(typeID);
-        auto structure      = allocate<ir::StructureType>(
-            mangledName(objType.symbolID(), objType.name()));
-        for (sema::SymbolID const memberVarID: objType.memberVariables()) {
-            auto& varDecl = symTable.get<sema::Variable>(memberVarID);
-            structure->addMember(mapType(varDecl.type()));
+    for (sema::ObjectType const* objType: symTable.sortedObjectTypes()) {
+        auto structure = allocate<ir::StructureType>(
+            mangledName(objType->symbolID(), objType->name()));
+        for (sema::Variable const* member: objType->memberVariables()) {
+            structure->addMember(mapType(member->type()));
         }
-        typeMap[&objType] = structure.get();
+        typeMap[objType] = structure.get();
         mod.addStructure(std::move(structure));
     }
 }
@@ -815,7 +811,7 @@ void CodeGenContext::declareFunctions() {
                 utl::narrow_cast<uint32_t>(function->slot()),
                 utl::narrow_cast<uint32_t>(function->index()),
                 translateAttrs(function->attributes()));
-            functionMap[function->symbolID()] = fn.get();
+            functionMap[function] = fn.get();
             mod.addGlobal(std::move(fn));
         }
         else {
@@ -829,7 +825,7 @@ void CodeGenContext::declareFunctions() {
                                        translateAttrs(function->attributes()),
                                        accessSpecToVisibility(
                                            function->accessSpecifier()));
-            functionMap[function->symbolID()] = fn.get();
+            functionMap[function] = fn.get();
             mod.addFunction(std::move(fn));
         }
     }
@@ -837,10 +833,10 @@ void CodeGenContext::declareFunctions() {
 
 void CodeGenContext::setCurrentBB(ir::BasicBlock* bb) { _currentBB = bb; }
 
-void CodeGenContext::memorizeVariableAddress(sema::SymbolID symbolID,
+void CodeGenContext::memorizeVariableAddress(sema::Entity const* entity,
                                              ir::Value* value) {
     [[maybe_unused]] auto const [_, insertSuccess] =
-        variableAddressMap.insert({ symbolID, value });
+        variableAddressMap.insert({ entity, value });
     SC_ASSERT(insertSuccess,
               "Variable id must not be declared multiple times. This error "
               "must be handled in sema.");

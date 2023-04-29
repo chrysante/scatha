@@ -45,8 +45,8 @@ struct Context {
 
     QualType const* binaryOpResult(ast::BinaryExpression const&) const;
 
-    SymbolID findExplicitCast(QualType const* targetType,
-                              std::span<QualType const* const> from);
+    Function* findExplicitCast(QualType const* targetType,
+                               std::span<QualType const* const> from);
 
     QualType const* stripQualifiers(QualType const* type) const {
         return sym.qualify(type->base());
@@ -74,25 +74,25 @@ ExpressionAnalysisResult Context::dispatch(ast::Expression& expr) {
 
 ExpressionAnalysisResult Context::analyze(ast::IntegerLiteral& l) {
     auto* type = sym.qualInt();
-    l.decorate(SymbolID::Invalid, type, ast::ValueCategory::RValue);
+    l.decorate(nullptr, type, ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
 ExpressionAnalysisResult Context::analyze(ast::BooleanLiteral& l) {
     auto* type = sym.qualBool();
-    l.decorate(SymbolID::Invalid, type, ast::ValueCategory::RValue);
+    l.decorate(nullptr, type, ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
 ExpressionAnalysisResult Context::analyze(ast::FloatingPointLiteral& l) {
     auto* type = sym.qualFloat();
-    l.decorate(SymbolID::Invalid, type, ast::ValueCategory::RValue);
+    l.decorate(nullptr, type, ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
 ExpressionAnalysisResult Context::analyze(ast::StringLiteral& l) {
     auto* type = sym.qualString();
-    l.decorate(SymbolID::Invalid, type, ast::ValueCategory::RValue);
+    l.decorate(nullptr, type, ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
@@ -140,7 +140,7 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
     case ast::UnaryPrefixOperator::_count:
         SC_DEBUGFAIL();
     }
-    u.decorate(SymbolID::Invalid,
+    u.decorate(nullptr,
                sym.qualify(u.operand->type()),
                ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(u.type());
@@ -156,7 +156,7 @@ ExpressionAnalysisResult Context::analyze(ast::BinaryExpression& b) {
     if (!resultType) {
         return ExpressionAnalysisResult::fail();
     }
-    b.decorate(SymbolID::Invalid, resultType, ast::ValueCategory::RValue);
+    b.decorate(nullptr, resultType, ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(b.type());
 }
 
@@ -179,21 +179,22 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
     }
     switch (symbolID.category()) {
     case SymbolCategory::Variable: {
-        auto const& var = sym.get<Variable>(symbolID);
-        id.decorate(symbolID, var.type(), ast::ValueCategory::LValue);
-        return ExpressionAnalysisResult::lvalue(symbolID, var.type());
+        auto& var = sym.get<Variable>(symbolID);
+        id.decorate(&var, var.type(), ast::ValueCategory::LValue);
+        return ExpressionAnalysisResult::lvalue(&var, var.type());
     }
     case SymbolCategory::Type: {
-        id.decorate(symbolID,
+        auto& type = sym.get<Type>(symbolID);
+        id.decorate(&type,
                     nullptr,
                     ast::ValueCategory::None,
                     ast::EntityCategory::Type);
-        return ExpressionAnalysisResult::type(
-            sym.qualify(&sym.get<Type>(symbolID)));
+        return ExpressionAnalysisResult::type(sym.qualify(&type));
     }
     case SymbolCategory::OverloadSet: {
-        id.decorate(symbolID, nullptr, ast::ValueCategory::None);
-        return ExpressionAnalysisResult::lvalue(symbolID, nullptr);
+        auto& os = sym.get<OverloadSet>(symbolID);
+        id.decorate(&os, nullptr, ast::ValueCategory::None);
+        return ExpressionAnalysisResult::lvalue(&os, nullptr);
     }
     default:
         SC_DEBUGFAIL(); // Maybe push an issue here?
@@ -205,7 +206,15 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
     if (!objRes.success()) {
         return ExpressionAnalysisResult::fail();
     }
-    Scope* lookupTargetScope = const_cast<ObjectType*>(objRes.type()->base());
+    Scope* lookupTargetScope = [&] {
+        if (objRes.category() == ast::EntityCategory::Type) {
+            auto* type = cast<QualType*>(objRes.entity())->base();
+            return const_cast<ObjectType*>(type);
+        }
+        else {
+            return const_cast<ObjectType*>(objRes.type()->base());
+        }
+    }();
     if (!lookupTargetScope) {
         return ExpressionAnalysisResult::fail();
     }
@@ -232,8 +241,8 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
         return ExpressionAnalysisResult::fail();
     }
     /// Right hand side of member access expressions must be identifiers?
-    auto const& memberIdentifier = cast<ast::Identifier&>(*ma.member);
-    ma.decorate(memberIdentifier.symbolID(),
+    auto& memberIdentifier = cast<ast::Identifier&>(*ma.member);
+    ma.decorate(memberIdentifier.entity(),
                 memberIdentifier.type(),
                 ma.object->valueCategory(),
                 memRes.category());
@@ -248,7 +257,7 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
     if (!referredRes.success()) {
         return ExpressionAnalysisResult::fail();
     }
-    auto const& referred = *ref.referred;
+    auto& referred = *ref.referred;
     if (referred.entityCategory() == ast::EntityCategory::Value) {
         if (referred.valueCategory() != ast::ValueCategory::LValue &&
             !referred.type()->isReference())
@@ -258,17 +267,17 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
         }
         auto* refType =
             sym.qualify(referred.type(), TypeQualifiers::ExplicitReference);
-        ref.decorate(referred.symbolID(),
+        ref.decorate(referred.entity(),
                      refType,
                      ast::ValueCategory::LValue,
                      ast::EntityCategory::Value);
-        return ExpressionAnalysisResult::lvalue(referred.symbolID(), refType);
+        return ExpressionAnalysisResult::lvalue(referred.entity(), refType);
     }
     else {
-        auto* type = sym.qualify(&sym.get<ObjectType>(referred.symbolID()));
+        auto* type = sym.qualify(cast<Type const*>(referred.entity()));
         auto* refType =
             sym.addQualifiers(type, TypeQualifiers::ImplicitReference);
-        ref.decorate(refType->symbolID(),
+        ref.decorate(const_cast<QualType*>(refType),
                      nullptr,
                      ast::ValueCategory::None,
                      ast::EntityCategory::Type);
@@ -295,8 +304,7 @@ ExpressionAnalysisResult Context::analyze(ast::UniqueExpression& expr) {
         iss.push<BadExpression>(*argument, IssueSeverity::Error);
         return ExpressionAnalysisResult::fail();
     }
-    TypeID const typeID = TypeID(typeExpr->symbolID());
-    auto* rawType       = &sym.get<Type>(typeID);
+    auto* rawType = cast<Type const*>(typeExpr->entity());
     auto* type =
         sym.qualify(rawType,
                     TypeQualifiers::ExplicitReference | TypeQualifiers::Unique);
@@ -346,7 +354,7 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
     auto combine = [](ast::ValueCategory a, ast::ValueCategory b) {
         return a == b ? a : ast::ValueCategory::RValue;
     };
-    c.decorate(SymbolID::Invalid,
+    c.decorate(nullptr,
                ifRes.type(),
                combine(c.ifExpr->valueCategory(), c.elseExpr->valueCategory()));
     return ExpressionAnalysisResult::rvalue(ifRes.type());
@@ -378,7 +386,7 @@ ExpressionAnalysisResult Context::analyze(ast::Subscript& expr) {
     }
     auto* elemType = sym.qualify(expr.object->type()->base(),
                                  TypeQualifiers::ImplicitReference);
-    expr.decorate(SymbolID::Invalid, elemType, ast::ValueCategory::RValue);
+    expr.decorate(nullptr, elemType, ast::ValueCategory::RValue);
     return ExpressionAnalysisResult::rvalue(elemType);
 }
 
@@ -406,44 +414,42 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     if (!objRes) {
         return ExpressionAnalysisResult::fail();
     }
-    switch (objRes.symbolID().category()) {
-    case SymbolCategory::OverloadSet: {
-        auto const& overloadSet = sym.get<OverloadSet>(objRes.symbolID());
-        auto const* functionPtr = overloadSet.find(argTypes);
-        if (!functionPtr) {
+    // clang-format off
+    return visit(*objRes.entity(), utl::overload{
+        [&](OverloadSet& overloadSet) {
+            auto* function = overloadSet.find(argTypes);
+            if (!function) {
+                iss.push<BadFunctionCall>(
+                    fc,
+                    objRes.entity()->symbolID(),
+                    argTypes,
+                    BadFunctionCall::Reason::NoMatchingFunction);
+                return ExpressionAnalysisResult::fail();
+            }
+            fc.decorate(function,
+                        function->signature().returnType(),
+                        ast::ValueCategory::RValue);
+            return ExpressionAnalysisResult::rvalue(fc.type());
+        },
+        [&](QualType& type) {
+            Function* castFn = findExplicitCast(&type, argTypes);
+            if (!castFn) {
+                // TODO: Make better error class here.
+                iss.push<BadTypeConversion>(*fc.arguments.front(), &type);
+                return ExpressionAnalysisResult::fail();
+            }
+            fc.decorate(castFn, &type, ast::ValueCategory::RValue);
+            return ExpressionAnalysisResult::rvalue(&type);
+        },
+        [&](Entity const& entity) {
             iss.push<BadFunctionCall>(
                 fc,
-                objRes.symbolID(),
+                SymbolID::Invalid,
                 argTypes,
-                BadFunctionCall::Reason::NoMatchingFunction);
+                BadFunctionCall::Reason::ObjectNotCallable);
             return ExpressionAnalysisResult::fail();
         }
-        auto const& function = *functionPtr;
-        fc.decorate(function.symbolID(),
-                    /* typeID = */ function.signature().returnType(),
-                    ast::ValueCategory::RValue);
-        return ExpressionAnalysisResult::rvalue(fc.type());
-    }
-
-    case SymbolCategory::Type: {
-        QualType const* targetType = objRes.type();
-        SymbolID const castFn      = findExplicitCast(targetType, argTypes);
-        if (!castFn) {
-            // TODO: Make better error class here.
-            iss.push<BadTypeConversion>(*fc.arguments.front(), targetType);
-            return ExpressionAnalysisResult::fail();
-        }
-        fc.decorate(castFn, targetType, ast::ValueCategory::RValue);
-        return ExpressionAnalysisResult::rvalue(fc.type());
-    }
-
-    default:
-        iss.push<BadFunctionCall>(fc,
-                                  SymbolID::Invalid,
-                                  argTypes,
-                                  BadFunctionCall::Reason::ObjectNotCallable);
-        return ExpressionAnalysisResult::fail();
-    }
+    }); // clang-format on
 }
 
 ExpressionAnalysisResult Context::analyze(ast::ListExpression& list) {
@@ -470,11 +476,11 @@ ExpressionAnalysisResult Context::analyze(ast::ListExpression& list) {
         auto* type = sym.qualify(first->type()->base(),
                                  sema::TypeQualifiers::Array,
                                  list.size());
-        list.decorate(SymbolID::Invalid, type, ast::ValueCategory::RValue);
+        list.decorate(nullptr, type, ast::ValueCategory::RValue);
         return ExpressionAnalysisResult::rvalue(type);
     }
     case ast::EntityCategory::Type: {
-        auto* elementType = &sym.get<Type>(first->symbolID());
+        auto* elementType = cast<Type*>(first->entity());
         if (list.size() != 1 && list.size() != 2) {
             iss.push<BadExpression>(list, IssueSeverity::Error);
             return ExpressionAnalysisResult::fail();
@@ -490,7 +496,7 @@ ExpressionAnalysisResult Context::analyze(ast::ListExpression& list) {
         }
         auto* arrayType =
             sym.qualify(elementType, TypeQualifiers::Array, arraySize);
-        list.decorate(arrayType->symbolID(),
+        list.decorate(const_cast<QualType*>(arrayType),
                       nullptr,
                       ast::ValueCategory::None,
                       ast::EntityCategory::Type);
@@ -670,10 +676,10 @@ QualType const* Context::binaryOpResult(
     }
 }
 
-SymbolID Context::findExplicitCast(QualType const* to,
-                                   std::span<QualType const* const> from) {
+Function* Context::findExplicitCast(QualType const* to,
+                                    std::span<QualType const* const> from) {
     if (from.size() != 1) {
-        return SymbolID::Invalid;
+        return nullptr;
     }
     if (from.front()->base() == sym.Int() && to->base() == sym.Float()) {
         return sym.builtinFunction(static_cast<size_t>(svm::Builtin::i64tof64));
@@ -681,7 +687,7 @@ SymbolID Context::findExplicitCast(QualType const* to,
     if (from.front()->base() == sym.Float() && to->base() == sym.Int()) {
         return sym.builtinFunction(static_cast<size_t>(svm::Builtin::f64toi64));
     }
-    return SymbolID::Invalid;
+    return nullptr;
 }
 
 bool Context::expectValue(ast::Expression const& expr) {

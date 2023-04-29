@@ -33,20 +33,17 @@ static auto compile(std::string_view text, sema::SymbolTable& sym) {
     IssueHandler issues;
     auto tokens = parse::lex(text, issues);
     if (!issues.empty()) {
-        std::cout << "Lexical issue on line "
-                  << issues.front().sourceLocation().line << std::endl;
+        issues.print(text);
         throw;
     }
     auto ast = parse::parse(tokens, issues);
     if (!issues.empty()) {
-        std::cout << "Syntax issue on line "
-                  << issues.front().sourceLocation().line << std::endl;
+        issues.print(text);
         throw;
     }
     sema::analyze(*ast, sym, issues);
     if (!issues.empty()) {
-        std::cout << "Semantic issue on line "
-                  << issues.front().sourceLocation().line << std::endl;
+        issues.print(text);
         throw;
     }
     ir::Context ctx;

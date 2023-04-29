@@ -9,7 +9,34 @@ namespace scatha::sema {
 
 class ExpressionAnalysisResult {
 public:
-    bool isLValue() const { return !!symbolID(); }
+    /// # Construction
+
+    static ExpressionAnalysisResult lvalue(Entity* entity,
+                                           QualType const* type) {
+        return { ast::EntityCategory::Value, entity, type };
+    }
+
+    static ExpressionAnalysisResult rvalue(QualType const* type) {
+        return { ast::EntityCategory::Value, nullptr, type };
+    }
+
+    static ExpressionAnalysisResult indeterminate() {
+        return { ast::EntityCategory::Indeterminate, nullptr, nullptr };
+    }
+
+    template <typename E = Entity>
+    static ExpressionAnalysisResult type(QualType const* type) {
+        return { ast::EntityCategory::Type,
+                 static_cast<E*>(const_cast<QualType*>(type)),
+                 nullptr };
+    }
+
+    static ExpressionAnalysisResult fail() { return { false }; }
+
+    /// # Non static members
+
+    bool isLValue() const { return entity() != nullptr; }
+
     bool isRValue() const { return !isLValue(); }
 
     explicit operator bool() const { return success(); }
@@ -20,48 +47,25 @@ public:
     /// The entity category the analyzed expression falls into.
     ast::EntityCategory category() const { return _category; }
 
-    /// The SymbolID of the expression if it is an lvalue.  Otherwise invalid.
-    SymbolID symbolID() const { return _symbolID; }
+    /// The entity of the expression if it is an lvalue.  Otherwise `nullptr`.
+    Entity* entity() const { return _entity; }
 
     /// Type of the analyzed expression if it refers to a type. Otherwise the
     /// type of the value that expression yields.
     QualType const* type() const { return _type; }
 
 private:
-    bool _success;
+    bool _success = false;
     ast::EntityCategory _category{};
-    SymbolID _symbolID;
-    QualType const* _type;
-
-public:
-    /// TODO: Make these private somehow
-    static ExpressionAnalysisResult lvalue(SymbolID symbolID,
-                                           QualType const* type) {
-        return { ast::EntityCategory::Value, symbolID, type };
-    }
-    static ExpressionAnalysisResult rvalue(QualType const* type) {
-        return { ast::EntityCategory::Value, type };
-    }
-    static ExpressionAnalysisResult indeterminate() {
-        return { ast::EntityCategory::Indeterminate,
-                 SymbolID::Invalid,
-                 nullptr };
-    }
-    static ExpressionAnalysisResult type(QualType const* type) {
-        return { ast::EntityCategory::Type, type };
-    }
-    static ExpressionAnalysisResult fail() { return { false }; }
+    Entity* _entity       = nullptr;
+    QualType const* _type = nullptr;
 
 private:
     ExpressionAnalysisResult(ast::EntityCategory category,
-                             SymbolID symbolID,
+                             Entity* entity,
                              QualType const* type):
-        _success(true), _category(category), _symbolID(symbolID), _type(type) {}
-    ExpressionAnalysisResult(ast::EntityCategory kind, QualType const* type):
-        ExpressionAnalysisResult(kind,
-                                 SymbolID::InvalidWithCategory(
-                                     SymbolCategory::Type),
-                                 type) {}
+        _success(true), _category(category), _entity(entity), _type(type) {}
+
     ExpressionAnalysisResult(bool success): _success(success) {}
 };
 

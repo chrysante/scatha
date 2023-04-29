@@ -7,6 +7,7 @@
 #include <iosfwd>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <range/v3/view.hpp>
 #include <utl/vector.hpp>
@@ -121,9 +122,14 @@ public:
     }
 
     /// ID of the resolved symbol (may be `Invalid`)
-    sema::SymbolID symbolID() const {
+    sema::Entity* entity() {
+        return const_cast<sema::Entity*>(std::as_const(*this).entity());
+    }
+
+    /// \overload
+    sema::Entity const* entity() const {
         expectDecorated();
-        return _symbolID;
+        return _entity;
     }
 
     /// The type of the expression. Only valid if: `kind == ::Value`
@@ -139,13 +145,13 @@ public:
     bool isType() const { return entityCategory() == EntityCategory::Type; }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID,
+    void decorate(sema::Entity* entity,
                   sema::QualType const* type,
                   ValueCategory valueCat,
                   EntityCategory entityCat = EntityCategory::Value) {
         _entityCat = entityCat;
         _valueCat  = valueCat;
-        _symbolID  = symbolID;
+        _entity    = entity;
         _type      = type;
         markDecorated();
     }
@@ -153,7 +159,7 @@ public:
 private:
     EntityCategory _entityCat = EntityCategory::Value;
     ValueCategory _valueCat   = ValueCategory::None;
-    sema::SymbolID _symbolID  = sema::SymbolID::Invalid;
+    sema::Entity* _entity     = nullptr;
     sema::QualType const* _type{};
 };
 
@@ -165,16 +171,6 @@ public:
 
     /// Literal string value as declared in the source.
     std::string const& value() const { return _value; }
-
-    /// **Decoration provided by semantic analysis**
-
-    /// Decorate this node.
-    void decorate(sema::SymbolID symbolID,
-                  sema::QualType const* typeID,
-                  ValueCategory valueCat,
-                  EntityCategory entityCat = EntityCategory::Value) {
-        Expression::decorate(symbolID, typeID, valueCat, entityCat);
-    }
 
 private:
     std::string _value;
@@ -301,14 +297,6 @@ public:
 
     /// The expression to access the object.
     UniquePtr<Expression> member;
-
-    /// Decorate this node.
-    void decorate(sema::SymbolID symbolID,
-                  sema::QualType const* typeID,
-                  ValueCategory valueCat,
-                  EntityCategory entityCat = EntityCategory::Value) {
-        Expression::decorate(symbolID, typeID, valueCat, entityCat);
-    }
 };
 
 /// Concrete node representing a reference expression.
@@ -321,14 +309,6 @@ public:
 
     /// The object being referred to.
     UniquePtr<Expression> referred;
-
-    /// Decorate this node.
-    void decorate(sema::SymbolID symbolID,
-                  sema::QualType const* type,
-                  ValueCategory valueCat,
-                  EntityCategory entityCat = EntityCategory::Value) {
-        Expression::decorate(symbolID, type, valueCat, entityCat);
-    }
 };
 
 /// Concrete node representing a `unique` expression.
@@ -344,7 +324,7 @@ public:
 
     /// Decorate this node.
     void decorate(sema::QualType const* type) {
-        Expression::decorate(sema::SymbolID::Invalid,
+        Expression::decorate(nullptr,
                              type,
                              ValueCategory::RValue,
                              EntityCategory::Value);
@@ -397,14 +377,15 @@ public:
     /// Differs from the SymbolID of the object as this ID is resolved by
     /// overload resolution and refers to an actual function while the latter
     /// refers to an overload set or object.
-    sema::SymbolID functionID() const { return symbolID(); }
+    template <typename F = sema::Function>
+    F* function() {
+        return const_cast<F*>(std::as_const(*this).function());
+    }
 
-    /// Decorate this node.
-    void decorate(sema::SymbolID functionID,
-                  sema::QualType const* typeID,
-                  ValueCategory valueCat,
-                  EntityCategory entityCat = EntityCategory::Value) {
-        Expression::decorate(functionID, typeID, valueCat, entityCat);
+    /// \overload
+    template <typename F = sema::Function>
+    F const* function() const {
+        return cast<F const*>(entity());
     }
 };
 
@@ -482,15 +463,20 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// SymbolID of this declaration in the symbol table
-    sema::SymbolID symbolID() const {
+    /// Entity this declaration corresponds to
+    sema::Entity* entity() {
+        return const_cast<sema::Entity*>(std::as_const(*this).entity());
+    }
+
+    /// \overload
+    sema::Entity const* entity() const {
         expectDecorated();
-        return _symbolID;
+        return _entity;
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID) {
-        _symbolID = symbolID;
+    void decorate(sema::Entity* entity) {
+        _entity = entity;
         markDecorated();
     }
 
@@ -501,7 +487,7 @@ protected:
         Statement(type, sourceRange), nameIdentifier(std::move(name)) {}
 
 private:
-    sema::SymbolID _symbolID;
+    sema::Entity* _entity = nullptr;
 };
 
 /// Concrete node representing a translation unit.
@@ -533,6 +519,18 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
+    /// Declared variable
+    template <typename V = sema::Variable>
+    V* variable() {
+        return const_cast<V*>(std::as_const(*this).variable());
+    }
+
+    /// \overload
+    template <typename V = sema::Variable>
+    V const* variable() const {
+        return cast<V const*>(entity());
+    }
+
     /// Type of the variable.
     /// Either deduced by the type of initExpression or by declTypename and then
     /// checked against the type of  initExpression
@@ -555,9 +553,9 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::QualType const* type) {
+    void decorate(sema::Entity* entity, sema::QualType const* type) {
         _type = type;
-        Declaration::decorate(symbolID);
+        Declaration::decorate(entity);
     }
 
     void setOffset(size_t offset) { _offset = offset; }
@@ -596,9 +594,9 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::QualType const* type) {
+    void decorate(sema::Entity* entity, sema::QualType const* type) {
         _type = type;
-        Declaration::decorate(symbolID);
+        Declaration::decorate(entity);
     }
 
 private:
@@ -623,29 +621,25 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// Kind of this block scope. Default is 'Anonymous', make sure to set this
-    /// to Function or ObjectType in other cases.
-    sema::ScopeKind scopeKind() const {
-        expectDecorated();
-        return _scopeKind;
+    /// SymbolID of this declaration in the symbol table
+    sema::Scope* scope() {
+        return const_cast<sema::Scope*>(std::as_const(*this).scope());
     }
 
-    /// SymbolID of this declaration in the symbol table
-    sema::SymbolID symbolID() const {
+    /// \overload
+    sema::Scope const* scope() const {
         expectDecorated();
-        return _symbolID;
+        return _scope;
     }
 
     /// Decorate this node.
-    void decorate(sema::ScopeKind scopeKind, sema::SymbolID symbolID) {
-        _scopeKind = scopeKind;
-        _symbolID  = symbolID;
+    void decorate(sema::Scope* scope) {
+        _scope = scope;
         markDecorated();
     }
 
 private:
-    sema::ScopeKind _scopeKind = sema::ScopeKind::Anonymous;
-    sema::SymbolID _symbolID;
+    sema::Scope* _scope = nullptr;
 };
 
 /// Concrete node representing an empty statement (";").
@@ -667,7 +661,7 @@ public:
                     std::move(name)) {}
 
     /// Typename of the return type as declared in the source code.
-    /// Will be null if no return type was declared.
+    /// Will be `nullptr` if no return type was declared.
     UniquePtr<Expression> returnTypeExpr;
 
     /// List of parameter declarations.
@@ -678,6 +672,18 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
+    /// The function being defined
+    template <typename F = sema::Function>
+    F* function() {
+        return const_cast<F*>(std::as_const(*this).function());
+    }
+
+    /// \overload
+    template <typename F = sema::Function>
+    F const* function() const {
+        return cast<F const*>(entity());
+    }
+
     /// Return type of the function.
     sema::QualType const* returnType() const {
         expectDecorated();
@@ -685,9 +691,9 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID, sema::QualType const* returnType) {
+    void decorate(sema::Entity* entity, sema::QualType const* returnType) {
         _returnType = returnType;
-        Declaration::decorate(symbolID);
+        Declaration::decorate(entity);
     }
 
 private:
@@ -709,7 +715,7 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Decorate this node.
-    void decorate(sema::SymbolID symbolID) { Declaration::decorate(symbolID); }
+    void decorate(sema::Entity* entity) { Declaration::decorate(entity); }
 };
 
 /// Concrete node representing a statement that consists of a single expression.

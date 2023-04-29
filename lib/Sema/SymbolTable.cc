@@ -103,7 +103,7 @@ Type const* SymbolTable::declareBuiltinType(std::string name,
     return &result.value();
 }
 
-Expected<Function const&, SemanticIssue*> SymbolTable::declareFunction(
+Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
     std::string name) {
     using enum InvalidDeclaration::Reason;
     if (isKeyword(name)) {
@@ -189,11 +189,12 @@ bool SymbolTable::declareExternalFunction(std::string name,
     }
     auto& decl = const_cast<Function&>(*declResult);
     setSignature(decl.symbolID(), std::move(signature));
-    decl._isExtern           = true;
-    decl._slot               = utl::narrow_cast<u32>(slot);
-    decl._index              = utl::narrow_cast<u32>(index);
-    decl.attrs               = attrs;
-    _builtinFunctions[index] = decl.symbolID();
+    decl._isExtern = true;
+    decl._slot     = utl::narrow_cast<u32>(slot);
+    decl._index    = utl::narrow_cast<u32>(index);
+    decl.attrs     = attrs;
+    // FIXME: Make sure only builtin function are added here
+    _builtinFunctions[index] = &decl;
     return true;
 }
 
@@ -236,7 +237,7 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
     return var;
 }
 
-Scope const& SymbolTable::addAnonymousScope() {
+Scope& SymbolTable::addAnonymousScope() {
     auto const symbolID = generateID(SymbolCategory::Anonymous);
     auto [itr, success] =
         _entities.insert({ symbolID,

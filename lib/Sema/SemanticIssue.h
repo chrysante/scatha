@@ -241,8 +241,8 @@ SCATHA_API std::ostream& operator<<(std::ostream&, InvalidDeclaration::Reason);
 class SCATHA_API StrongReferenceCycle: public SemanticIssue {
 public:
     struct Node {
-        ast::AbstractSyntaxTree const* astNode;
-        SymbolID symbolID;
+        ast::AbstractSyntaxTree const* astNode = nullptr;
+        sema::Entity const* entity             = nullptr;
     };
 
     explicit StrongReferenceCycle(utl::vector<Node> cycle);

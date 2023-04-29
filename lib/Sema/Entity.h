@@ -4,6 +4,7 @@
 #include <concepts>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include <utl/hashmap.hpp>
 
@@ -380,17 +381,20 @@ public:
     bool isBuiltin() const { return _isBuiltin; }
 
     /// The member variables of this type in the order of declaration.
-    std::span<SymbolID const> memberVariables() const { return _memberVars; }
+    std::span<Variable* const> memberVariables() { return _memberVars; }
+
+    /// \overload
+    std::span<Variable const* const> memberVariables() const {
+        return _memberVars;
+    }
 
     void setIsBuiltin(bool value) { _isBuiltin = value; }
 
-    void addMemberVariable(SymbolID symbolID) {
-        _memberVars.push_back(symbolID);
-    }
+    void addMemberVariable(Variable* var) { _memberVars.push_back(var); }
 
 public:
     bool _isBuiltin;
-    utl::small_vector<SymbolID> _memberVars;
+    utl::small_vector<Variable*> _memberVars;
 };
 
 class SCATHA_API QualType: public Type {
@@ -464,6 +468,11 @@ public:
     /// Resolve best matching function from this overload set for \p
     /// argumentTypes Returns `nullptr` if no matching function exists in the
     /// overload set.
+    Function* find(std::span<QualType const* const> argumentTypes) {
+        return const_cast<Function*>(std::as_const(*this).find(argumentTypes));
+    }
+
+    /// \overload
     Function const* find(std::span<QualType const* const> argumentTypes) const;
 
     /// \brief Add a function to this overload set.

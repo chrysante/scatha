@@ -59,8 +59,8 @@ void Context::run() {
         if (type->base()->isBuiltin()) {
             continue;
         }
-        node.dependencies.push_back(utl::narrow_cast<u16>(
-            dependencyGraph.index(type->base()->symbolID())));
+        node.dependencies.push_back(
+            utl::narrow_cast<u16>(dependencyGraph.index(type->base())));
     }
     /// Check for cycles
     auto indices = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
@@ -75,7 +75,7 @@ void Context::run() {
         using Node = StrongReferenceCycle::Node;
         auto nodes = cycle | ranges::views::transform([&](size_t index) {
                          auto const& node = dependencyGraph[index];
-                         return Node{ node.astNode, node.symbolID };
+                         return Node{ node.astNode, node.entity };
                      }) |
                      ranges::to<utl::vector<Node>>;
         iss.push<StrongReferenceCycle>(std::move(nodes));
@@ -90,7 +90,7 @@ void Context::run() {
                  [&](size_t index) -> auto const& {
                      return dependencyGraph[index].dependencies;
                  });
-    utl::small_vector<TypeID> sortedObjTypes;
+    utl::small_vector<ObjectType*> sortedObjTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {
         auto const& node = dependencyGraph[index];
@@ -100,7 +100,7 @@ void Context::run() {
             break;
         case SymbolCategory::Type:
             instantiateObjectType(node);
-            sortedObjTypes.push_back(TypeID(node.symbolID));
+            sortedObjTypes.push_back(cast<ObjectType*>(node.entity));
             break;
         case SymbolCategory::Function:
             instantiateFunction(node);
@@ -119,7 +119,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
     size_t objectSize  = 0;
     size_t objectAlign = 0;
-    auto& objectType   = sym.get<ObjectType>(structDef.symbolID());
+    auto& objectType   = cast<ObjectType&>(*structDef.entity());
     for (auto&& [index, statement]:
          structDef.body->statements | ranges::views::enumerate)
     {
@@ -127,7 +127,8 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
             continue;
         }
         auto& varDecl = cast<ast::VariableDeclaration&>(*statement);
-        objectType.addMemberVariable(varDecl.symbolID());
+        auto& var     = *varDecl.variable();
+        objectType.addMemberVariable(&var);
         if (!varDecl.type()) {
             break;
         }
@@ -141,7 +142,6 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
         size_t const currentOffset = objectSize;
         varDecl.setOffset(currentOffset);
         varDecl.setIndex(index);
-        auto& var = sym.get<Variable>(varDecl.symbolID());
         var.setOffset(currentOffset);
         var.setIndex(index);
         objectSize += objType->size();
@@ -156,10 +156,9 @@ void Context::instantiateVariable(DependencyGraphNode const& node) {
     sym.makeScopeCurrent(node.scope);
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     auto* type                      = analyzeTypeExpression(*varDecl.typeExpr);
-    varDecl.decorate(node.symbolID, type);
+    varDecl.decorate(node.entity, type);
     /// Here we set the TypeID of the variable in the symbol table.
-    auto& var = sym.get<Variable>(varDecl.symbolID());
-    var.setType(type);
+    varDecl.variable()->setType(type);
 }
 
 void Context::instantiateFunction(DependencyGraphNode const& node) {
@@ -169,7 +168,8 @@ void Context::instantiateFunction(DependencyGraphNode const& node) {
     sym.makeScopeCurrent(node.scope);
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     auto signature                  = analyzeSignature(fnDecl);
-    auto result = sym.setSignature(node.symbolID, std::move(signature));
+    auto result =
+        sym.setSignature(node.entity->symbolID(), std::move(signature));
     if (!result) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(result.error()))
@@ -206,5 +206,5 @@ QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {
                                      ast::EntityCategory::Type);
         return nullptr;
     }
-    return typeExprResult.type();
+    return cast<QualType const*>(typeExprResult.entity());
 }

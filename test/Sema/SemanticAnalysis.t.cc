@@ -134,7 +134,7 @@ fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
     auto* calleeFunction = calleeOverloadSet->find(
         std::array{ sym.qualString(), sym.qualInt(), sym.qualBool() });
     REQUIRE(calleeFunction != nullptr);
-    CHECK(fnCallExpr->functionID() == calleeFunction->symbolID());
+    CHECK(fnCallExpr->function() == calleeFunction);
     CHECK(fnCallExpr->valueCategory() == ValueCategory::RValue);
 }
 

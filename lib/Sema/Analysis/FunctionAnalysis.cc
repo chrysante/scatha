@@ -96,19 +96,18 @@ void Context::analyze(ast::FunctionDefinition& fn) {
             SymbolCategory::Function);
         return;
     }
-    SC_ASSERT(fn.symbolID() != SymbolID::Invalid,
+    SC_ASSERT(fn.function(),
               "Can't analyze the body if wen don't have a symbol to push this "
               "functions scope.");
     /// Here the AST node is partially decorated: `symbolID()` is already set by
     /// `gatherNames()` phase, now we complete the decoration.
-    SymbolID const fnSymID = fn.symbolID();
-    auto& function         = sym.get<Function>(fnSymID);
-    fn.decorate(fnSymID, function.signature().returnType());
-    fn.body->decorate(ScopeKind::Function, function.symbolID());
-    function.setAccessSpecifier(translateAccessSpec(fn.accessSpec));
+    auto* function = fn.function();
+    fn.decorate(function, function->signature().returnType());
+    fn.body->decorate(function);
+    function->setAccessSpecifier(translateAccessSpec(fn.accessSpec));
     currentFunction                    = &fn;
     utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };
-    sym.pushScope(fn.symbolID());
+    sym.pushScope(function->symbolID());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto& param: fn.parameters) {
         dispatch(*param);
@@ -138,17 +137,16 @@ void Context::analyze(ast::StructDefinition& s) {
 
 void Context::analyze(ast::CompoundStatement& block) {
     if (!block.isDecorated()) {
-        block.decorate(sema::ScopeKind::Anonymous,
-                       sym.addAnonymousScope().symbolID());
+        block.decorate(&sym.addAnonymousScope());
     }
     else {
-        SC_ASSERT(block.scopeKind() != ScopeKind::Anonymous ||
+        SC_ASSERT(block.scope()->kind() != ScopeKind::Anonymous ||
                       currentFunction != nullptr,
                   "If we are analyzing an anonymous scope we must have a "
                   "function pushed, because anonymous scopes "
                   "can only appear in functions.");
     }
-    sym.pushScope(block.symbolID());
+    sym.pushScope(block.scope()->symbolID());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto& statement: block.statements) {
         dispatch(*statement);
@@ -160,7 +158,7 @@ void Context::analyze(ast::CompoundStatement& block) {
 }
 
 void Context::analyze(ast::VariableDeclaration& var) {
-    SC_ASSERT(currentFunction != nullptr,
+    SC_ASSERT(currentFunction,
               "We only handle function local variables in this pass.");
     SC_ASSERT(!var.isDecorated(),
               "We should not have handled local variables in prepass.");
@@ -171,7 +169,6 @@ void Context::analyze(ast::VariableDeclaration& var) {
                                      SymbolCategory::Variable);
         return;
     }
-
     auto* declaredType = [&]() -> QualType const* {
         if (!var.typeExpr) {
             return nullptr;
@@ -186,7 +183,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
                                          ast::EntityCategory::Type);
             return nullptr;
         }
-        return varTypeRes.type();
+        return cast<QualType*>(varTypeRes.entity());
     }();
     if (iss.fatal()) {
         return;
@@ -211,6 +208,9 @@ void Context::analyze(ast::VariableDeclaration& var) {
         return;
     }
     if (!declaredType && !deducedType) {
+        /// FIXME: Push error here
+        /// Or instead declare a poison entity to prevent errors on references
+        /// to this variable
         return;
     }
     if (declaredType && deducedType) {
@@ -233,12 +233,13 @@ void Context::analyze(ast::VariableDeclaration& var) {
         finalType =
             sym.addQualifiers(finalType, TypeQualifiers::ImplicitReference);
     }
-    auto varObj = sym.addVariable(var.nameIdentifier->value(), finalType);
-    if (!varObj) {
-        iss.push(varObj.error()->setStatement(var));
+    auto varRes = sym.addVariable(var.nameIdentifier->value(), finalType);
+    if (!varRes) {
+        iss.push(varRes.error()->setStatement(var));
         return;
     }
-    var.decorate(varObj->symbolID(), finalType);
+    auto& varObj = *varRes;
+    var.decorate(&varObj, finalType);
 }
 
 void Context::analyze(ast::ParameterDeclaration& paramDecl) {
@@ -261,23 +262,24 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
                                          ast::EntityCategory::Type);
             return nullptr;
         }
-        return declTypeRes.type();
+        return cast<QualType const*>(declTypeRes.entity());
     }();
     if (iss.fatal()) {
         return;
     }
-    auto paramObj =
+    auto paramRes =
         sym.addVariable(paramDecl.nameIdentifier->value(), declaredType);
-    if (!paramObj) {
+    if (!paramRes) {
         if (auto* invStatement =
-                dynamic_cast<InvalidStatement*>(paramObj.error()))
+                dynamic_cast<InvalidStatement*>(paramRes.error()))
         {
             invStatement->setStatement(paramDecl);
         }
-        iss.push(paramObj.error());
+        iss.push(paramRes.error());
         return;
     }
-    paramDecl.decorate(paramObj->symbolID(), declaredType);
+    auto& param = *paramRes;
+    paramDecl.decorate(&param, declaredType);
 }
 
 void Context::analyze(ast::ExpressionStatement& es) {
@@ -408,9 +410,8 @@ void Context::analyze(ast::ForStatement& fs) {
             sym.currentScope());
         return;
     }
-    fs.block->decorate(sema::ScopeKind::Anonymous,
-                       sym.addAnonymousScope().symbolID());
-    sym.pushScope(fs.block->symbolID());
+    fs.block->decorate(&sym.addAnonymousScope());
+    sym.pushScope(fs.block->scope()->symbolID());
     dispatch(*fs.varDecl);
     if (dispatchExpression(*fs.condition)) {
         verifyConversion(*fs.condition, sym.Bool());
