@@ -202,18 +202,18 @@ struct Y { var data: int; }
     // let y: x;
     auto const line5 = issues.findOnLine<BadSymbolReference>(5);
     REQUIRE(line5);
-    CHECK(line5->have() == ast::EntityCategory::Value);
-    CHECK(line5->expected() == ast::EntityCategory::Type);
+    CHECK(line5->have() == EntityCategory::Value);
+    CHECK(line5->expected() == EntityCategory::Type);
     // let z = int;
     auto const line6 = issues.findOnLine<BadSymbolReference>(6);
     REQUIRE(line6);
-    CHECK(line6->have() == ast::EntityCategory::Type);
-    CHECK(line6->expected() == ast::EntityCategory::Value);
+    CHECK(line6->have() == EntityCategory::Type);
+    CHECK(line6->expected() == EntityCategory::Value);
     // fn g(y: Y.data) {}
     auto const line8 = issues.findOnLine<BadSymbolReference>(8);
     REQUIRE(line8);
-    CHECK(line8->have() == ast::EntityCategory::Value);
-    CHECK(line8->expected() == ast::EntityCategory::Type);
+    CHECK(line8->have() == EntityCategory::Value);
+    CHECK(line8->expected() == EntityCategory::Type);
 }
 
 TEST_CASE("Invalid declaration", "[sema][issue]") {

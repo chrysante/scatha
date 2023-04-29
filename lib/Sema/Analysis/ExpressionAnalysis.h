@@ -7,26 +7,37 @@
 
 namespace scatha::sema {
 
+class ExpressionAnalysisResult;
+
+/// \param expression The expression to be analyzed.
+/// \param symbolTable The symbol table to be read from and written to.
+/// \param issueHandler The issue handler to submit issues to. May be null.
+/// \returns An `ExpressionAnalysisResult`.
+///
+ExpressionAnalysisResult analyzeExpression(ast::Expression& expression,
+                                           SymbolTable& symbolTable,
+                                           IssueHandler& issueHandler);
+
 class ExpressionAnalysisResult {
 public:
     /// # Construction
 
     static ExpressionAnalysisResult lvalue(Entity* entity,
                                            QualType const* type) {
-        return { ast::EntityCategory::Value, entity, type };
+        return { EntityCategory::Value, entity, type };
     }
 
     static ExpressionAnalysisResult rvalue(QualType const* type) {
-        return { ast::EntityCategory::Value, nullptr, type };
+        return { EntityCategory::Value, nullptr, type };
     }
 
     static ExpressionAnalysisResult indeterminate() {
-        return { ast::EntityCategory::Indeterminate, nullptr, nullptr };
+        return { EntityCategory::Indeterminate, nullptr, nullptr };
     }
 
     template <typename E = Entity>
     static ExpressionAnalysisResult type(QualType const* type) {
-        return { ast::EntityCategory::Type,
+        return { EntityCategory::Type,
                  static_cast<E*>(const_cast<QualType*>(type)),
                  nullptr };
     }
@@ -45,7 +56,7 @@ public:
     bool success() const { return _success; }
 
     /// The entity category the analyzed expression falls into.
-    ast::EntityCategory category() const { return _category; }
+    EntityCategory category() const { return _category; }
 
     /// The entity of the expression if it is an lvalue.  Otherwise `nullptr`.
     Entity* entity() const { return _entity; }
@@ -56,27 +67,18 @@ public:
 
 private:
     bool _success = false;
-    ast::EntityCategory _category{};
+    EntityCategory _category{};
     Entity* _entity       = nullptr;
     QualType const* _type = nullptr;
 
 private:
-    ExpressionAnalysisResult(ast::EntityCategory category,
+    ExpressionAnalysisResult(EntityCategory category,
                              Entity* entity,
                              QualType const* type):
         _success(true), _category(category), _entity(entity), _type(type) {}
 
     ExpressionAnalysisResult(bool success): _success(success) {}
 };
-
-/// \param expression The expression to be analyzed.
-/// \param symbolTable The symbol table to be read from and written to.
-/// \param issueHandler The issue handler to submit issues to. May be null.
-/// \returns An `ExpressionAnalysisResult`.
-///
-ExpressionAnalysisResult analyzeExpression(ast::Expression& expression,
-                                           SymbolTable& symbolTable,
-                                           IssueHandler& issueHandler);
 
 } // namespace scatha::sema
 

@@ -215,9 +215,7 @@ void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
         auto* address = varDecl.initExpression ?
                             getAddress(*varDecl.initExpression) :
                             nullptr;
-        if (varDecl.initExpression && varDecl.initExpression->valueCategory() ==
-                                          ast::ValueCategory::RValue)
-        {
+        if (varDecl.initExpression && varDecl.initExpression->isRValue()) {
             memorizeVariableAddress(varDecl.variable(), address);
         }
         else {
@@ -688,7 +686,7 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     /// Get the value or the address based on wether the base object is an
     /// l-value or r-value
     ir::Value* basePtr = [&]() -> ir::Value* {
-        if (expr.object->valueCategory() == ast::ValueCategory::LValue) {
+        if (expr.object->isLValue()) {
             return getAddress(*expr.object);
         }
         /// If we are an r-value we store the value to memory and return a

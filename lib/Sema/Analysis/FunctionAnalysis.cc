@@ -173,10 +173,10 @@ void Context::analyze(ast::VariableDeclaration& var) {
         if (!varTypeRes) {
             return nullptr;
         }
-        if (varTypeRes.category() != ast::EntityCategory::Type) {
+        if (varTypeRes.category() != EntityCategory::Type) {
             iss.push<BadSymbolReference>(*var.typeExpr,
                                          varTypeRes.category(),
-                                         ast::EntityCategory::Type);
+                                         EntityCategory::Type);
             return nullptr;
         }
         return cast<QualType*>(varTypeRes.entity());
@@ -192,10 +192,10 @@ void Context::analyze(ast::VariableDeclaration& var) {
         if (!initExprRes) {
             return nullptr;
         }
-        if (initExprRes.category() != ast::EntityCategory::Value) {
+        if (initExprRes.category() != EntityCategory::Value) {
             iss.push<BadSymbolReference>(*var.initExpression,
                                          initExprRes.category(),
-                                         ast::EntityCategory::Value);
+                                         EntityCategory::Value);
             return nullptr;
         }
         return var.initExpression->type();
@@ -251,10 +251,10 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
         if (!declTypeRes) {
             return nullptr;
         }
-        if (declTypeRes.category() != ast::EntityCategory::Type) {
+        if (declTypeRes.category() != EntityCategory::Type) {
             iss.push<BadSymbolReference>(*paramDecl.typeExpr,
                                          declTypeRes.category(),
-                                         ast::EntityCategory::Type);
+                                         EntityCategory::Type);
             return nullptr;
         }
         return cast<QualType const*>(declTypeRes.entity());
@@ -321,10 +321,10 @@ void Context::analyze(ast::ReturnStatement& rs) {
     if (!exprRes) {
         return;
     }
-    if (exprRes.category() != ast::EntityCategory::Value) {
+    if (exprRes.category() != EntityCategory::Value) {
         iss.push<BadSymbolReference>(*rs.expression,
                                      exprRes.category(),
-                                     ast::EntityCategory::Value);
+                                     EntityCategory::Value);
         return;
     }
     SC_ASSERT(currentFunction != nullptr,

@@ -41,26 +41,6 @@ std::ostream& ast::operator<<(std::ostream& str, BinaryOperator op) {
     return str << toString(op);
 }
 
-std::ostream& ast::operator<<(std::ostream& str, EntityCategory cat) {
-    // clang-format off
-    return str << UTL_SERIALIZE_ENUM(cat, {
-        { EntityCategory::Indeterminate, "Indeterminate" },
-        { EntityCategory::Value,         "Value" },
-        { EntityCategory::Type,          "Type" },
-    });
-    // clang-format on
-}
-
-std::ostream& ast::operator<<(std::ostream& str, ValueCategory cat) {
-    // clang-format off
-    return str << UTL_SERIALIZE_ENUM(cat, {
-        { ValueCategory::None,   "None" },
-        { ValueCategory::LValue, "LValue" },
-        { ValueCategory::RValue, "RValue" },
-    });
-    // clang-format on
-}
-
 std::string_view ast::toString(AccessSpec spec) {
     return std::array{
 #define SC_ACCESS_SPEC_DEF(spec, str) std::string_view(str),

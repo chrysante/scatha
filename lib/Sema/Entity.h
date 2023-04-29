@@ -38,6 +38,15 @@ public:
     /// The runtime type of this entity class
     EntityType entityType() const { return _entityType; }
 
+    /// Category this entity belongs to
+    EntityCategory category() const { return categorize(entityType()); }
+
+    /// `true` if this entity represents a value
+    bool isValue() const { return category() == EntityCategory::Value; }
+
+    /// `true` if this entity represents a type
+    bool isType() const { return category() == EntityCategory::Type; }
+
 protected:
     explicit Entity(EntityType entityType, std::string name, Scope* parent):
         _entityType(entityType), _parent(parent), _name(name) {}

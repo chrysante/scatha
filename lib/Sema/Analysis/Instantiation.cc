@@ -196,10 +196,10 @@ QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {
     if (!typeExprResult) {
         return nullptr;
     }
-    if (typeExprResult.category() != ast::EntityCategory::Type) {
+    if (typeExprResult.category() != EntityCategory::Type) {
         iss.push<BadSymbolReference>(expr,
                                      expr.entityCategory(),
-                                     ast::EntityCategory::Type);
+                                     EntityCategory::Type);
         return nullptr;
     }
     return cast<QualType const*>(typeExprResult.entity());

@@ -143,20 +143,20 @@ private:
 class SCATHA_API BadSymbolReference: public BadExpression {
 public:
     explicit BadSymbolReference(ast::Expression const& expression,
-                                ast::EntityCategory have,
-                                ast::EntityCategory expected):
+                                EntityCategory have,
+                                EntityCategory expected):
         BadExpression(expression, IssueSeverity::Error),
         _have(have),
         _expected(expected) {}
 
-    ast::EntityCategory have() const { return _have; }
-    ast::EntityCategory expected() const { return _expected; }
+    EntityCategory have() const { return _have; }
+    EntityCategory expected() const { return _expected; }
 
 private:
     std::string message() const override { return "Invalid symbol category"; }
 
-    ast::EntityCategory _have;
-    ast::EntityCategory _expected;
+    EntityCategory _have;
+    EntityCategory _expected;
 };
 
 /// MARK: Statement Issues

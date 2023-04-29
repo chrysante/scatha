@@ -6,6 +6,7 @@
 #include <concepts>
 #include <iosfwd>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -109,13 +110,13 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// Wether the expression refers to a value or a type.
-    EntityCategory entityCategory() const {
+    sema::EntityCategory entityCategory() const {
         expectDecorated();
         return _entityCat;
     }
 
     /// The value category of this expression.
-    ValueCategory valueCategory() const {
+    sema::ValueCategory valueCategory() const {
         expectDecorated();
         return _valueCat;
     }
@@ -138,28 +139,36 @@ public:
     }
 
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Value`
-    bool isValue() const { return entityCategory() == EntityCategory::Value; }
+    bool isValue() const {
+        return entityCategory() == sema::EntityCategory::Value;
+    }
+
+    /// Convenience wrapper
+    bool isLValue() const {
+        return isValue() && valueCategory() == sema::ValueCategory::LValue;
+    }
+
+    /// Convenience wrapper
+    bool isRValue() const {
+        return isValue() && valueCategory() == sema::ValueCategory::RValue;
+    }
 
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Type`
-    bool isType() const { return entityCategory() == EntityCategory::Type; }
+    bool isType() const {
+        return entityCategory() == sema::EntityCategory::Type;
+    }
 
     /// Decorate this node.
     void decorate(sema::Entity* entity,
-                  sema::QualType const* type,
-                  ValueCategory valueCat,
-                  EntityCategory entityCat = EntityCategory::Value) {
-        _entityCat = entityCat;
-        _valueCat  = valueCat;
-        _entity    = entity;
-        _type      = type;
-        markDecorated();
-    }
+                  sema::QualType const* type                    = nullptr,
+                  std::optional<sema::ValueCategory> valueCat   = std::nullopt,
+                  std::optional<sema::EntityCategory> entityCat = std::nullopt);
 
 private:
-    EntityCategory _entityCat = EntityCategory::Value;
-    ValueCategory _valueCat   = ValueCategory::None;
-    sema::Entity* _entity     = nullptr;
+    sema::Entity* _entity = nullptr;
     sema::QualType const* _type{};
+    sema::ValueCategory _valueCat   = sema::ValueCategory::None;
+    sema::EntityCategory _entityCat = sema::EntityCategory::Value;
 };
 
 /// Concrete node representing an identifier.
@@ -323,10 +332,7 @@ public:
 
     /// Decorate this node.
     void decorate(sema::QualType const* type) {
-        Expression::decorate(nullptr,
-                             type,
-                             ValueCategory::RValue,
-                             EntityCategory::Value);
+        Expression::decorate(nullptr, type);
     }
 };
 

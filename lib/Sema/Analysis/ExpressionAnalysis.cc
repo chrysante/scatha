@@ -74,25 +74,25 @@ ExpressionAnalysisResult Context::dispatch(ast::Expression& expr) {
 
 ExpressionAnalysisResult Context::analyze(ast::IntegerLiteral& l) {
     auto* type = sym.qualInt();
-    l.decorate(nullptr, type, ast::ValueCategory::RValue);
+    l.decorate(nullptr, type);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
 ExpressionAnalysisResult Context::analyze(ast::BooleanLiteral& l) {
     auto* type = sym.qualBool();
-    l.decorate(nullptr, type, ast::ValueCategory::RValue);
+    l.decorate(nullptr, type);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
 ExpressionAnalysisResult Context::analyze(ast::FloatingPointLiteral& l) {
     auto* type = sym.qualFloat();
-    l.decorate(nullptr, type, ast::ValueCategory::RValue);
+    l.decorate(nullptr, type);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
 ExpressionAnalysisResult Context::analyze(ast::StringLiteral& l) {
     auto* type = sym.qualString();
-    l.decorate(nullptr, type, ast::ValueCategory::RValue);
+    l.decorate(nullptr, type);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
@@ -140,9 +140,7 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
     case ast::UnaryPrefixOperator::_count:
         SC_DEBUGFAIL();
     }
-    u.decorate(nullptr,
-               sym.qualify(u.operand->type()),
-               ast::ValueCategory::RValue);
+    u.decorate(nullptr, sym.qualify(u.operand->type()));
     return ExpressionAnalysisResult::rvalue(u.type());
 }
 
@@ -156,7 +154,7 @@ ExpressionAnalysisResult Context::analyze(ast::BinaryExpression& b) {
     if (!resultType) {
         return ExpressionAnalysisResult::fail();
     }
-    b.decorate(nullptr, resultType, ast::ValueCategory::RValue);
+    b.decorate(nullptr, resultType);
     return ExpressionAnalysisResult::rvalue(b.type());
 }
 
@@ -180,18 +178,16 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
     // clang-format off
     return visit(*entity, utl::overload{
         [&](Variable& var) {
-            id.decorate(&var, var.type(), ast::ValueCategory::LValue);
+            id.decorate(&var, var.type());
             return ExpressionAnalysisResult::lvalue(&var, var.type());
         },
         [&](Type& type) {
             id.decorate(&type,
-                        nullptr,
-                        ast::ValueCategory::None,
-                        ast::EntityCategory::Type);
+                        nullptr);
             return ExpressionAnalysisResult::type(sym.qualify(&type));
         },
         [&](OverloadSet& overloadSet) {
-            id.decorate(&overloadSet, nullptr, ast::ValueCategory::None);
+            id.decorate(&overloadSet);
             return ExpressionAnalysisResult::lvalue(&overloadSet, nullptr);
         },
         [&](Entity const& entity) -> ExpressionAnalysisResult {
@@ -206,7 +202,7 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
         return ExpressionAnalysisResult::fail();
     }
     Scope* lookupTargetScope = [&] {
-        if (objRes.category() == ast::EntityCategory::Type) {
+        if (objRes.category() == EntityCategory::Type) {
             auto* type = cast<QualType*>(objRes.entity())->base();
             return const_cast<ObjectType*>(type);
         }
@@ -232,8 +228,8 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
     if (!memRes.success()) {
         return ExpressionAnalysisResult::fail();
     }
-    if (objRes.category() == ast::EntityCategory::Value &&
-        memRes.category() != ast::EntityCategory::Value)
+    if (objRes.category() == EntityCategory::Value &&
+        memRes.category() != EntityCategory::Value)
     {
         SC_DEBUGFAIL(); /// Can't look in a value and then in a type. probably
                         /// just return failure here
@@ -245,7 +241,7 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
                 memberIdentifier.type(),
                 ma.object->valueCategory(),
                 memRes.category());
-    if (memRes.category() == ast::EntityCategory::Value) {
+    if (memRes.category() == EntityCategory::Value) {
         SC_ASSERT(ma.type() == memRes.type(), "");
     }
     return memRes;
@@ -257,29 +253,20 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
         return ExpressionAnalysisResult::fail();
     }
     auto& referred = *ref.referred;
-    if (referred.entityCategory() == ast::EntityCategory::Value) {
-        if (referred.valueCategory() != ast::ValueCategory::LValue &&
-            !referred.type()->isReference())
-        {
+    if (referred.isValue()) {
+        if (!referred.isLValue() && !referred.type()->isReference()) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return ExpressionAnalysisResult::fail();
         }
         auto* refType =
             sym.qualify(referred.type(), TypeQualifiers::ExplicitReference);
-        ref.decorate(referred.entity(),
-                     refType,
-                     ast::ValueCategory::LValue,
-                     ast::EntityCategory::Value);
+        ref.decorate(referred.entity(), refType);
         return ExpressionAnalysisResult::lvalue(referred.entity(), refType);
     }
     else {
-        auto* type = sym.qualify(cast<Type const*>(referred.entity()));
-        auto* refType =
-            sym.addQualifiers(type, TypeQualifiers::ImplicitReference);
-        ref.decorate(const_cast<QualType*>(refType),
-                     nullptr,
-                     ast::ValueCategory::None,
-                     ast::EntityCategory::Type);
+        auto* refType = sym.qualify(cast<Type const*>(referred.entity()),
+                                    TypeQualifiers::ImplicitReference);
+        ref.decorate(const_cast<QualType*>(refType));
         return ExpressionAnalysisResult::type(refType);
     }
 }
@@ -292,14 +279,14 @@ ExpressionAnalysisResult Context::analyze(ast::UniqueExpression& expr) {
     }
     auto* typeExpr   = initExpr->object.get();
     auto typeExprRes = dispatch(*typeExpr);
-    if (!typeExprRes || typeExprRes.category() != ast::EntityCategory::Type) {
+    if (!typeExprRes || typeExprRes.category() != EntityCategory::Type) {
         iss.push<BadExpression>(*typeExpr, IssueSeverity::Error);
         return ExpressionAnalysisResult::fail();
     }
     SC_ASSERT(initExpr->arguments.size() == 1, "Implement this properly");
     auto* argument = initExpr->arguments.front().get();
     auto argRes    = dispatch(*argument);
-    if (!argRes || argRes.category() != ast::EntityCategory::Value) {
+    if (!argRes || argRes.category() != EntityCategory::Value) {
         iss.push<BadExpression>(*argument, IssueSeverity::Error);
         return ExpressionAnalysisResult::fail();
     }
@@ -331,16 +318,16 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
     if (!ifRes || !elseRes) {
         return ExpressionAnalysisResult::fail();
     }
-    if (ifRes.category() != ast::EntityCategory::Value) {
+    if (ifRes.category() != EntityCategory::Value) {
         iss.push<BadSymbolReference>(*c.ifExpr,
                                      ifRes.category(),
-                                     ast::EntityCategory::Value);
+                                     EntityCategory::Value);
         return ExpressionAnalysisResult::fail();
     }
-    if (elseRes.category() != ast::EntityCategory::Value) {
+    if (elseRes.category() != EntityCategory::Value) {
         iss.push<BadSymbolReference>(*c.elseExpr,
                                      elseRes.category(),
-                                     ast::EntityCategory::Value);
+                                     EntityCategory::Value);
         return ExpressionAnalysisResult::fail();
     }
     if (ifRes.type() != elseRes.type()) {
@@ -349,13 +336,7 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
                                                  elseRes.type());
         return ExpressionAnalysisResult::fail();
     }
-    /// Maybe make this a global function
-    auto combine = [](ast::ValueCategory a, ast::ValueCategory b) {
-        return a == b ? a : ast::ValueCategory::RValue;
-    };
-    c.decorate(nullptr,
-               ifRes.type(),
-               combine(c.ifExpr->valueCategory(), c.elseExpr->valueCategory()));
+    c.decorate(nullptr, ifRes.type());
     return ExpressionAnalysisResult::rvalue(ifRes.type());
 }
 
@@ -385,7 +366,7 @@ ExpressionAnalysisResult Context::analyze(ast::Subscript& expr) {
     }
     auto* elemType = sym.qualify(expr.object->type()->base(),
                                  TypeQualifiers::ImplicitReference);
-    expr.decorate(nullptr, elemType, ast::ValueCategory::RValue);
+    expr.decorate(nullptr, elemType);
     return ExpressionAnalysisResult::rvalue(elemType);
 }
 
@@ -427,7 +408,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
             }
             fc.decorate(function,
                         function->signature().returnType(),
-                        ast::ValueCategory::RValue);
+                        ValueCategory::RValue);
             return ExpressionAnalysisResult::rvalue(fc.type());
         },
         [&](QualType& type) {
@@ -437,7 +418,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
                 iss.push<BadTypeConversion>(*fc.arguments.front(), &type);
                 return ExpressionAnalysisResult::fail();
             }
-            fc.decorate(castFn, &type, ast::ValueCategory::RValue);
+            fc.decorate(castFn, &type, ValueCategory::RValue);
             return ExpressionAnalysisResult::rvalue(&type);
         },
         [&](Entity const& entity) {
@@ -461,9 +442,9 @@ ExpressionAnalysisResult Context::analyze(ast::ListExpression& list) {
     auto* first    = list.front();
     auto entityCat = first->entityCategory();
     switch (entityCat) {
-    case ast::EntityCategory::Indeterminate:
+    case EntityCategory::Indeterminate:
         SC_DEBUGFAIL();
-    case ast::EntityCategory::Value: {
+    case EntityCategory::Value: {
         bool const allSameCat =
             ranges::all_of(list, [&](ast::Expression const* expr) {
                 return expr->entityCategory() == entityCat;
@@ -473,12 +454,12 @@ ExpressionAnalysisResult Context::analyze(ast::ListExpression& list) {
         }
         // TODO: Check for common type!
         auto* type = sym.qualify(first->type()->base(),
-                                 sema::TypeQualifiers::Array,
+                                 TypeQualifiers::Array,
                                  list.size());
-        list.decorate(nullptr, type, ast::ValueCategory::RValue);
+        list.decorate(nullptr, type);
         return ExpressionAnalysisResult::rvalue(type);
     }
-    case ast::EntityCategory::Type: {
+    case EntityCategory::Type: {
         auto* elementType = cast<Type*>(first->entity());
         if (list.size() != 1 && list.size() != 2) {
             iss.push<BadExpression>(list, IssueSeverity::Error);
@@ -495,10 +476,7 @@ ExpressionAnalysisResult Context::analyze(ast::ListExpression& list) {
         }
         auto* arrayType =
             sym.qualify(elementType, TypeQualifiers::Array, arraySize);
-        list.decorate(const_cast<QualType*>(arrayType),
-                      nullptr,
-                      ast::ValueCategory::None,
-                      ast::EntityCategory::Type);
+        list.decorate(const_cast<QualType*>(arrayType), nullptr);
         return ExpressionAnalysisResult::type(arrayType);
     }
     default:
@@ -690,10 +668,10 @@ Function* Context::findExplicitCast(QualType const* to,
 }
 
 bool Context::expectValue(ast::Expression const& expr) {
-    if (expr.entityCategory() != ast::EntityCategory::Value) {
+    if (expr.entityCategory() != EntityCategory::Value) {
         iss.push<BadSymbolReference>(expr,
                                      expr.entityCategory(),
-                                     ast::EntityCategory::Value);
+                                     EntityCategory::Value);
         return false;
     }
     return true;

@@ -60,16 +60,6 @@ SCATHA_API std::string_view toString(BinaryOperator);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, BinaryOperator);
 
-/// Categories of entities in the AST module
-enum class EntityCategory : u8 { Indeterminate, Value, Type, _count };
-
-SCATHA_API std::ostream& operator<<(std::ostream&, EntityCategory);
-
-/// Value category
-enum class ValueCategory : u8 { None, LValue, RValue, _count };
-
-SCATHA_API std::ostream& operator<<(std::ostream&, ValueCategory);
-
 /// List of all access specifiers
 enum class AccessSpec {
 #define SC_ACCESS_SPEC_DEF(name, _) name,
