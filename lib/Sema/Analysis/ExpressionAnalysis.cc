@@ -16,25 +16,25 @@ using namespace sema;
 namespace {
 
 struct Context {
-    ExpressionAnalysisResult analyze(ast::Expression&);
+    bool analyze(ast::Expression&);
 
-    ExpressionAnalysisResult analyzeImpl(ast::IntegerLiteral&);
-    ExpressionAnalysisResult analyzeImpl(ast::BooleanLiteral&);
-    ExpressionAnalysisResult analyzeImpl(ast::FloatingPointLiteral&);
-    ExpressionAnalysisResult analyzeImpl(ast::StringLiteral&);
-    ExpressionAnalysisResult analyzeImpl(ast::UnaryPrefixExpression&);
-    ExpressionAnalysisResult analyzeImpl(ast::BinaryExpression&);
+    bool analyzeImpl(ast::IntegerLiteral&);
+    bool analyzeImpl(ast::BooleanLiteral&);
+    bool analyzeImpl(ast::FloatingPointLiteral&);
+    bool analyzeImpl(ast::StringLiteral&);
+    bool analyzeImpl(ast::UnaryPrefixExpression&);
+    bool analyzeImpl(ast::BinaryExpression&);
 
-    ExpressionAnalysisResult analyzeImpl(ast::Identifier&);
-    ExpressionAnalysisResult analyzeImpl(ast::MemberAccess&);
-    ExpressionAnalysisResult analyzeImpl(ast::ReferenceExpression&);
-    ExpressionAnalysisResult analyzeImpl(ast::UniqueExpression&);
-    ExpressionAnalysisResult analyzeImpl(ast::Conditional&);
-    ExpressionAnalysisResult analyzeImpl(ast::FunctionCall&);
-    ExpressionAnalysisResult analyzeImpl(ast::Subscript&);
-    ExpressionAnalysisResult analyzeImpl(ast::ListExpression&);
+    bool analyzeImpl(ast::Identifier&);
+    bool analyzeImpl(ast::MemberAccess&);
+    bool analyzeImpl(ast::ReferenceExpression&);
+    bool analyzeImpl(ast::UniqueExpression&);
+    bool analyzeImpl(ast::Conditional&);
+    bool analyzeImpl(ast::FunctionCall&);
+    bool analyzeImpl(ast::Subscript&);
+    bool analyzeImpl(ast::ListExpression&);
 
-    ExpressionAnalysisResult analyzeImpl(ast::AbstractSyntaxTree&) {
+    bool analyzeImpl(ast::AbstractSyntaxTree&) {
         SC_DEBUGFAIL();
     }
 
@@ -61,44 +61,44 @@ struct Context {
 
 } // namespace
 
-ExpressionAnalysisResult sema::analyzeExpression(ast::Expression& expr,
+bool sema::analyzeExpression(ast::Expression& expr,
                                                  SymbolTable& sym,
                                                  IssueHandler& iss) {
     Context ctx{ .sym = sym, .iss = iss };
     return ctx.analyze(expr);
 }
 
-ExpressionAnalysisResult Context::analyze(ast::Expression& expr) {
+bool Context::analyze(ast::Expression& expr) {
     return visit(expr, [this](auto&& e) { return this->analyzeImpl(e); });
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::IntegerLiteral& l) {
+bool Context::analyzeImpl(ast::IntegerLiteral& l) {
     auto* type = sym.qualInt();
     l.decorate(nullptr, type);
-    return ExpressionAnalysisResult::rvalue(type);
+    return true;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::BooleanLiteral& l) {
+bool Context::analyzeImpl(ast::BooleanLiteral& l) {
     auto* type = sym.qualBool();
     l.decorate(nullptr, type);
-    return ExpressionAnalysisResult::rvalue(type);
+    return true;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::FloatingPointLiteral& l) {
+bool Context::analyzeImpl(ast::FloatingPointLiteral& l) {
     auto* type = sym.qualFloat();
     l.decorate(nullptr, type);
-    return ExpressionAnalysisResult::rvalue(type);
+    return true;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::StringLiteral& l) {
+bool Context::analyzeImpl(ast::StringLiteral& l) {
     auto* type = sym.qualString();
     l.decorate(nullptr, type);
-    return ExpressionAnalysisResult::rvalue(type);
+    return true;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
+bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
     if (!analyze(*u.operand)) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     auto const* operandType = u.operand->type();
     auto submitIssue        = [&] {
@@ -112,19 +112,19 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
             operandType->base() != sym.Float())
         {
             submitIssue();
-            return ExpressionAnalysisResult::fail();
+            return false;
         }
         break;
     case ast::UnaryPrefixOperator::BitwiseNot:
         if (operandType->base() != sym.Int()) {
             submitIssue();
-            return ExpressionAnalysisResult::fail();
+            return false;
         }
         break;
     case ast::UnaryPrefixOperator::LogicalNot:
         if (operandType->base() != sym.Bool()) {
             submitIssue();
-            return ExpressionAnalysisResult::fail();
+            return false;
         }
         break;
     case ast::UnaryPrefixOperator::Increment:
@@ -133,29 +133,29 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
         // TODO: Check for mutability
         if (operandType->base() != sym.Int()) {
             submitIssue();
-            return ExpressionAnalysisResult::fail();
+            return false;
         }
         break;
     case ast::UnaryPrefixOperator::_count:
         SC_DEBUGFAIL();
     }
     u.decorate(nullptr, sym.qualify(u.operand->type()));
-    return ExpressionAnalysisResult::rvalue(u.type());
+    return true;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::BinaryExpression& b) {
+bool Context::analyzeImpl(ast::BinaryExpression& b) {
     if (!analyze(*b.lhs) || !analyze(*b.rhs)) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     auto* resultType = binaryOpResult(b);
     if (!resultType) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     b.decorate(nullptr, resultType);
-    return ExpressionAnalysisResult::rvalue(b.type());
+    return true;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::Identifier& id) {
+bool Context::analyzeImpl(ast::Identifier& id) {
     Entity* entity = [&] {
         if (performRestrictedNameLookup) {
             /// When we are on the right hand side of a member access expression
@@ -170,33 +170,33 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::Identifier& id) {
     }();
     if (!entity) {
         iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     // clang-format off
     return visit(*entity, utl::overload{
         [&](Variable& var) {
             id.decorate(&var, var.type());
-            return ExpressionAnalysisResult::lvalue(&var, var.type());
+            return true;
         },
         [&](ObjectType const& type) {
             auto* qualType = sym.qualify(&type);
             id.decorate(const_cast<QualType*>(qualType),
                         nullptr);
-            return ExpressionAnalysisResult::type(qualType);
+            return true;
         },
         [&](OverloadSet& overloadSet) {
             id.decorate(&overloadSet);
-            return ExpressionAnalysisResult::lvalue(&overloadSet, nullptr);
+            return true;
         },
-        [&](Entity const& entity) -> ExpressionAnalysisResult {
+        [&](Entity const& entity) -> bool {
             SC_DEBUGFAIL(); // Maybe push an issue here?
         }
     }); // clang-format on
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::MemberAccess& ma) {
+bool Context::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(*ma.object)) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     Scope const* lookupTargetScope = ma.object->typeOrTypeEntity()->base();
     SC_ASSERT(lookupTargetScope, "analyze(ma.object) should have failed");
@@ -208,13 +208,13 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::MemberAccess& ma) {
     performRestrictedNameLookup = true;
     auto const memRes           = analyze(*ma.member);
     if (!memRes) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     popScope.execute();
     if (ma.object->isValue() && !ma.member->isValue()) {
         SC_DEBUGFAIL(); /// Can't look in a value and then in a type. probably
                         /// just return failure here
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     ma.decorate(ma.member->entity(),
                 ma.member->type(),
@@ -223,125 +223,123 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::MemberAccess& ma) {
     return memRes;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::ReferenceExpression& ref) {
+bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
     if (!analyze(*ref.referred)) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     auto& referred = *ref.referred;
     if (referred.isValue()) {
         if (!referred.isLValue() && !referred.type()->isReference()) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
-            return ExpressionAnalysisResult::fail();
+            return false;
         }
         auto* refType =
             sym.qualify(referred.type(), TypeQualifiers::ExplicitReference);
         ref.decorate(referred.entity(), refType);
-        return ExpressionAnalysisResult::lvalue(referred.entity(), refType);
+        return true;
     }
     else {
         auto* refType = sym.qualify(cast<Type const*>(referred.entity()),
                                     TypeQualifiers::ImplicitReference);
         ref.decorate(const_cast<QualType*>(refType));
-        return ExpressionAnalysisResult::type(refType);
+        return true;
     }
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::UniqueExpression& expr) {
+bool Context::analyzeImpl(ast::UniqueExpression& expr) {
     auto* initExpr = dyncast<ast::FunctionCall*>(expr.initExpr.get());
     if (!initExpr) {
         iss.push<BadExpression>(*expr.initExpr, IssueSeverity::Error);
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     auto* typeExpr   = initExpr->object.get();
-    auto typeExprRes = analyze(*typeExpr);
-    if (!typeExprRes || typeExprRes.category() != EntityCategory::Type) {
+    if (!analyze(*typeExpr) || !typeExpr->isType()) {
         iss.push<BadExpression>(*typeExpr, IssueSeverity::Error);
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     SC_ASSERT(initExpr->arguments.size() == 1, "Implement this properly");
     auto* argument = initExpr->arguments.front().get();
-    auto argRes    = analyze(*argument);
-    if (!argRes || argRes.category() != EntityCategory::Value) {
+    if (!analyze(*argument) || !argument->isValue()) {
         iss.push<BadExpression>(*argument, IssueSeverity::Error);
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     auto* rawType = cast<Type const*>(typeExpr->entity());
     auto* type =
         sym.qualify(rawType,
                     TypeQualifiers::ExplicitReference | TypeQualifiers::Unique);
     expr.decorate(type);
-    return ExpressionAnalysisResult::rvalue(type);
+    return true;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::Conditional& c) {
+bool Context::analyzeImpl(ast::Conditional& c) {
     analyze(*c.condition);
     verifyConversion(*c.condition, sym.qualify(sym.Bool()));
     if (!analyze(*c.ifExpr) || !analyze(*c.elseExpr)) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     if (!c.ifExpr->isValue()) {
         iss.push<BadSymbolReference>(*c.ifExpr, EntityCategory::Value);
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     if (!c.elseExpr->isValue()) {
         iss.push<BadSymbolReference>(*c.elseExpr, EntityCategory::Value);
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     auto* thenType = c.ifExpr->type();
     auto* elseType = c.elseExpr->type();
     if (thenType->base() != elseType->base()) {
         iss.push<BadOperandsForBinaryExpression>(c, thenType, elseType);
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     // TODO: Return a reference here to allow conditional assignment etc.
     c.decorate(nullptr, thenType);
-    return ExpressionAnalysisResult::rvalue(thenType);
+    return true;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::Subscript& expr) {
-    bool success = (bool)analyze(*expr.object);
+bool Context::analyzeImpl(ast::Subscript& expr) {
+    bool success = analyze(*expr.object);
     if (!expectValue(*expr.object)) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     if (!expr.object->type()->isArray()) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     for (auto& arg: expr.arguments) {
-        success &= (bool)analyze(*arg);
+        success &= analyze(*arg);
         if (!expectValue(*arg)) {
-            return ExpressionAnalysisResult::fail();
+            return false;
         }
     }
     if (!success) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     if (expr.arguments.size() != 1) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     auto& arg = *expr.arguments.front();
     if (arg.type()->base() != sym.Int()) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     auto* elemType = sym.qualify(expr.object->type()->base(),
                                  TypeQualifiers::ImplicitReference);
     expr.decorate(nullptr, elemType);
-    return ExpressionAnalysisResult::rvalue(elemType);
+    return true;
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::FunctionCall& fc) {
-    bool success = (bool)analyze(*fc.object);
+bool Context::analyzeImpl(ast::FunctionCall& fc) {
+    bool success = analyze(*fc.object);
     utl::small_vector<QualType const*> argTypes;
     argTypes.reserve(fc.arguments.size());
     for (auto& arg: fc.arguments) {
-        success &= (bool)analyze(*arg);
+        success &= analyze(*arg);
         /// `arg` is undecorated if analysis of `arg` failed.
         argTypes.push_back(arg->isDecorated() ? arg->type() : nullptr);
     }
     if (!success) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     // clang-format off
     return visit(*fc.object->entity(), utl::overload{
@@ -353,22 +351,22 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::FunctionCall& fc) {
                     &overloadSet,
                     argTypes,
                     BadFunctionCall::Reason::NoMatchingFunction);
-                return ExpressionAnalysisResult::fail();
+                return false;
             }
             fc.decorate(function,
                         function->signature().returnType(),
                         ValueCategory::RValue);
-            return ExpressionAnalysisResult::rvalue(fc.type());
+            return true;
         },
         [&](QualType const& type) {
             Function* castFn = findExplicitCast(type.base(), argTypes);
             if (!castFn) {
                 // TODO: Make better error class here.
                 iss.push<BadTypeConversion>(*fc.arguments.front(), &type);
-                return ExpressionAnalysisResult::fail();
+                return false;
             }
             fc.decorate(castFn, &type, ValueCategory::RValue);
-            return ExpressionAnalysisResult::rvalue(&type);
+            return true;
         },
         [&](Entity const& entity) {
             iss.push<BadFunctionCall>(
@@ -376,21 +374,21 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::FunctionCall& fc) {
                 nullptr,
                 argTypes,
                 BadFunctionCall::Reason::ObjectNotCallable);
-            return ExpressionAnalysisResult::fail();
+            return false;
         }
     }); // clang-format on
 }
 
-ExpressionAnalysisResult Context::analyzeImpl(ast::ListExpression& list) {
+bool Context::analyzeImpl(ast::ListExpression& list) {
     bool success = true;
     for (auto* expr: list) {
-        success &= (bool)analyze(*expr);
+        success &= analyze(*expr);
     }
     if (!success) {
-        return ExpressionAnalysisResult::fail();
+        return false;
     }
     if (list.empty()) {
-        return ExpressionAnalysisResult::indeterminate();
+        return true;
     }
     auto* first    = list.front();
     auto entityCat = first->entityCategory();
@@ -408,27 +406,27 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::ListExpression& list) {
                                  TypeQualifiers::Array,
                                  list.size());
         list.decorate(nullptr, type);
-        return ExpressionAnalysisResult::rvalue(type);
+        return true;
     }
     case EntityCategory::Type: {
         auto* elementType = cast<Type*>(first->entity());
         if (list.size() != 1 && list.size() != 2) {
             iss.push<BadExpression>(list, IssueSeverity::Error);
-            return ExpressionAnalysisResult::fail();
+            return false;
         }
         size_t arraySize = QualType::DynamicArraySize;
         if (list.size() == 2) {
             auto* countLiteral = dyncast<ast::IntegerLiteral const*>(list[1]);
             if (!countLiteral) {
                 iss.push<BadExpression>(*list[1], IssueSeverity::Error);
-                return ExpressionAnalysisResult::fail();
+                return false;
             }
             arraySize = countLiteral->value().to<size_t>();
         }
         auto* arrayType =
             sym.qualify(elementType, TypeQualifiers::Array, arraySize);
         list.decorate(const_cast<QualType*>(arrayType), nullptr);
-        return ExpressionAnalysisResult::type(arrayType);
+        return true;
     }
     default:
         SC_UNREACHABLE();

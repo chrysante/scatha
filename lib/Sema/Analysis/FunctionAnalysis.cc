@@ -31,7 +31,9 @@ struct Context {
     void analyzeImpl(ast::EmptyStatement&) {}
     void analyzeImpl(ast::AbstractSyntaxTree& node) { SC_UNREACHABLE(); }
 
-    ExpressionAnalysisResult analyzeExpr(ast::Expression& expr);
+    bool analyzeExpr(ast::Expression& expr) {
+        return sema::analyzeExpression(expr, sym, iss);
+    }
 
     QualType const* getType(ast::Expression* expr);
 
@@ -357,10 +359,6 @@ void Context::analyzeImpl(ast::ForStatement& stmt) {
 void Context::analyzeImpl(ast::JumpStatement& s) {
     /// Need to check if we are in a loop but unfortunately we don't have parent
     /// pointers so it's hard to check.
-}
-
-ExpressionAnalysisResult Context::analyzeExpr(ast::Expression& expr) {
-    return analyzeExpression(expr, sym, iss);
 }
 
 QualType const* Context::getType(ast::Expression* expr) {
