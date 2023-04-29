@@ -197,8 +197,7 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::Identifier& id) {
 }
 
 ExpressionAnalysisResult Context::analyzeImpl(ast::MemberAccess& ma) {
-    auto const objRes = analyze(*ma.object);
-    if (!objRes.success()) {
+    if (!analyze(*ma.object)) {
         return ExpressionAnalysisResult::fail();
     }
     Scope const* lookupTargetScope = ma.object->typeBaseOrTypeEntity();
@@ -206,38 +205,28 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::MemberAccess& ma) {
     auto* oldScope = &sym.currentScope();
     sym.makeScopeCurrent(const_cast<Scope*>(lookupTargetScope));
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(oldScope); };
-    if (!isa<ast::Identifier>(*ma.member)) {
-        iss.push<BadMemberAccess>(ma);
-        return ExpressionAnalysisResult::fail();
-    }
     /// We restrict name lookup to the
     /// current scope. This flag will be unset by the identifier case.
     performRestrictedNameLookup = true;
     auto const memRes           = analyze(*ma.member);
-    popScope.execute();
-    if (!memRes.success()) {
+    if (!memRes) {
         return ExpressionAnalysisResult::fail();
     }
+    popScope.execute();
     if (ma.object->isValue() && !ma.member->isValue()) {
         SC_DEBUGFAIL(); /// Can't look in a value and then in a type. probably
                         /// just return failure here
         return ExpressionAnalysisResult::fail();
     }
-    /// Right hand side of member access expressions must be identifiers
-    auto& memberIdentifier = cast<ast::Identifier&>(*ma.member);
-    ma.decorate(memberIdentifier.entity(),
-                memberIdentifier.type(),
+    ma.decorate(ma.member->entity(),
+                ma.member->type(),
                 ma.object->valueCategory(),
-                memRes.category());
-    if (memRes.category() == EntityCategory::Value) {
-        SC_ASSERT(ma.type() == memRes.type(), "");
-    }
+                ma.member->entityCategory());
     return memRes;
 }
 
 ExpressionAnalysisResult Context::analyzeImpl(ast::ReferenceExpression& ref) {
-    auto const referredRes = analyze(*ref.referred);
-    if (!referredRes.success()) {
+    if (!analyze(*ref.referred)) {
         return ExpressionAnalysisResult::fail();
     }
     auto& referred = *ref.referred;
@@ -288,48 +277,35 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::UniqueExpression& expr) {
 
 ExpressionAnalysisResult Context::analyzeImpl(ast::Conditional& c) {
     analyze(*c.condition);
-    if (iss.fatal()) {
-        return ExpressionAnalysisResult::fail();
-    }
     verifyConversion(*c.condition, sym.qualify(sym.Bool()));
-    if (iss.fatal()) {
+    if (!analyze(*c.ifExpr) || !analyze(*c.elseExpr)) {
         return ExpressionAnalysisResult::fail();
     }
-    auto const ifRes = analyze(*c.ifExpr);
-    if (iss.fatal()) {
-        return ExpressionAnalysisResult::fail();
-    }
-    auto const elseRes = analyze(*c.elseExpr);
-    if (iss.fatal()) {
-        return ExpressionAnalysisResult::fail();
-    }
-    if (!ifRes || !elseRes) {
-        return ExpressionAnalysisResult::fail();
-    }
-    if (ifRes.category() != EntityCategory::Value) {
+    if (!c.ifExpr->isValue()) {
         iss.push<BadSymbolReference>(*c.ifExpr,
-                                     ifRes.category(),
+                                     c.ifExpr->entityCategory(),
                                      EntityCategory::Value);
         return ExpressionAnalysisResult::fail();
     }
-    if (elseRes.category() != EntityCategory::Value) {
+    if (!c.elseExpr->isValue()) {
         iss.push<BadSymbolReference>(*c.elseExpr,
-                                     elseRes.category(),
+                                     c.elseExpr->entityCategory(),
                                      EntityCategory::Value);
         return ExpressionAnalysisResult::fail();
     }
-    if (ifRes.type() != elseRes.type()) {
-        iss.push<BadOperandsForBinaryExpression>(c,
-                                                 ifRes.type(),
-                                                 elseRes.type());
+    auto* thenType = c.ifExpr->type();
+    auto* elseType = c.elseExpr->type();
+    if (thenType->base() != elseType->base()) {
+        iss.push<BadOperandsForBinaryExpression>(c, thenType, elseType);
         return ExpressionAnalysisResult::fail();
     }
-    c.decorate(nullptr, ifRes.type());
-    return ExpressionAnalysisResult::rvalue(ifRes.type());
+    // TODO: Return a reference here to allow conditional assignment etc.
+    c.decorate(nullptr, thenType);
+    return ExpressionAnalysisResult::rvalue(thenType);
 }
 
 ExpressionAnalysisResult Context::analyzeImpl(ast::Subscript& expr) {
-    analyze(*expr.object);
+    bool analysisSuccess = (bool)analyze(*expr.object);
     if (!expectValue(*expr.object)) {
         return ExpressionAnalysisResult::fail();
     }
@@ -338,10 +314,13 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::Subscript& expr) {
         return ExpressionAnalysisResult::fail();
     }
     for (auto& arg: expr.arguments) {
-        analyze(*arg);
+        analysisSuccess |= (bool)analyze(*arg);
         if (!expectValue(*arg)) {
             return ExpressionAnalysisResult::fail();
         }
+    }
+    if (!analysisSuccess) {
+        return ExpressionAnalysisResult::fail();
     }
     if (expr.arguments.size() != 1) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);

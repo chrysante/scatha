@@ -138,9 +138,10 @@ public:
         return _type;
     }
 
-    /// The object base type of the expression, if this is a value. If this is a type, returns that type
+    /// The object base type of the expression, if this is a value. If this is a
+    /// type, returns that type
     sema::ObjectType const* typeBaseOrTypeEntity() const;
-    
+
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Value`
     bool isValue() const {
         return entityCategory() == sema::EntityCategory::Value;
