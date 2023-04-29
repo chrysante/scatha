@@ -104,8 +104,6 @@ struct CodeGenContext {
 
     void memorizeVariableAddress(sema::Entity const* variable, ir::Value*);
 
-    std::string mangledName(sema::SymbolID) const;
-    std::string mangledName(sema::SymbolID, std::string_view name) const;
     ir::Type const* mapType(sema::Type const* semaType);
     ir::UnaryArithmeticOperation mapUnaryArithmeticOp(
         ast::UnaryPrefixOperator) const;
@@ -761,8 +759,7 @@ ir::Value* CodeGenContext::loadAddress(ir::Value* address,
 
 void CodeGenContext::declareTypes() {
     for (sema::ObjectType const* objType: symTable.sortedObjectTypes()) {
-        auto structure = allocate<ir::StructureType>(
-            mangledName(objType->symbolID(), objType->name()));
+        auto structure = allocate<ir::StructureType>(objType->mangledName());
         for (sema::Variable const* member: objType->memberVariables()) {
             structure->addMember(mapType(member->type()));
         }
@@ -820,8 +817,7 @@ void CodeGenContext::declareFunctions() {
                                        mapType(
                                            function->signature().returnType()),
                                        paramTypes,
-                                       mangledName(function->symbolID(),
-                                                   function->name()),
+                                       function->mangledName(),
                                        translateAttrs(function->attributes()),
                                        accessSpecToVisibility(
                                            function->accessSpecifier()));
@@ -840,17 +836,6 @@ void CodeGenContext::memorizeVariableAddress(sema::Entity const* entity,
     SC_ASSERT(insertSuccess,
               "Variable id must not be declared multiple times. This error "
               "must be handled in sema.");
-}
-
-std::string CodeGenContext::mangledName(sema::SymbolID id) const {
-    return mangledName(id, symTable.get<sema::ObjectType>(id).name());
-}
-
-std::string CodeGenContext::mangledName(sema::SymbolID id,
-                                        std::string_view name) const {
-    std::stringstream sstr;
-    sstr << name << std::hex << id.rawValue();
-    return std::move(sstr).str();
 }
 
 ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {

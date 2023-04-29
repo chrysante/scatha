@@ -621,7 +621,7 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// SymbolID of this declaration in the symbol table
+    /// Corresponding scope in symbol table
     sema::Scope* scope() {
         return const_cast<sema::Scope*>(std::as_const(*this).scope());
     }

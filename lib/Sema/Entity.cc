@@ -6,8 +6,18 @@
 #include <utl/hash.hpp>
 #include <utl/utility.hpp>
 
+#include "Sema/NameMangling.h"
+
 using namespace scatha;
 using namespace sema;
+
+std::string const& Entity::mangledName() const {
+    if (!_mangledName.empty()) {
+        return _mangledName;
+    }
+    _mangledName = mangleName(this);
+    return _mangledName;
+}
 
 /// # Variable
 

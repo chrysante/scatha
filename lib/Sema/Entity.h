@@ -45,6 +45,9 @@ public:
     /// The name of this entity
     std::string_view name() const { return _name; }
 
+    /// Mangled name of this entity
+    std::string const& mangledName() const;
+
     /// The SymbolID of this entity
     SymbolID symbolID() const { return _symbolID; }
 
@@ -73,6 +76,7 @@ protected:
 private:
     EntityType _entityType;
     std::string _name;
+    mutable std::string _mangledName;
     SymbolID _symbolID;
     Scope* _parent = nullptr;
 };
@@ -443,6 +447,9 @@ public:
 
     /// \Return `true` iff this type is an array reference
     bool isArrayReference() const { return isArray() && isReference(); }
+
+    /// \Return `true` iff this type is mutable
+    bool isMutable() const { return has(TypeQualifiers::Mutable); }
 
     /// \Return `true` iff this type is a unique reference
     bool isUnique() const { return has(TypeQualifiers::Unique); }
