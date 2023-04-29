@@ -14,24 +14,24 @@ using namespace sema;
 namespace {
 
 struct Context {
-    void dispatch(ast::AbstractSyntaxTree&);
+    void analyze(ast::AbstractSyntaxTree&);
 
-    void analyze(ast::FunctionDefinition&);
-    void analyze(ast::StructDefinition&);
-    void analyze(ast::CompoundStatement&);
-    void analyze(ast::VariableDeclaration&);
-    void analyze(ast::ParameterDeclaration&);
-    void analyze(ast::ExpressionStatement&);
-    void analyze(ast::ReturnStatement&);
-    void analyze(ast::IfStatement&);
-    void analyze(ast::WhileStatement&);
-    void analyze(ast::DoWhileStatement&);
-    void analyze(ast::ForStatement&);
-    void analyze(ast::JumpStatement&);
-    void analyze(ast::EmptyStatement&) {}
-    void analyze(ast::AbstractSyntaxTree& node) { SC_UNREACHABLE(); }
+    void analyzeImpl(ast::FunctionDefinition&);
+    void analyzeImpl(ast::StructDefinition&);
+    void analyzeImpl(ast::CompoundStatement&);
+    void analyzeImpl(ast::VariableDeclaration&);
+    void analyzeImpl(ast::ParameterDeclaration&);
+    void analyzeImpl(ast::ExpressionStatement&);
+    void analyzeImpl(ast::ReturnStatement&);
+    void analyzeImpl(ast::IfStatement&);
+    void analyzeImpl(ast::WhileStatement&);
+    void analyzeImpl(ast::DoWhileStatement&);
+    void analyzeImpl(ast::ForStatement&);
+    void analyzeImpl(ast::JumpStatement&);
+    void analyzeImpl(ast::EmptyStatement&) {}
+    void analyzeImpl(ast::AbstractSyntaxTree& node) { SC_UNREACHABLE(); }
 
-    ExpressionAnalysisResult dispatchExpression(ast::Expression& expr);
+    ExpressionAnalysisResult analyzeExpr(ast::Expression& expr);
 
     QualType const* getType(ast::Expression* expr);
 
@@ -61,13 +61,13 @@ void sema::analyzeFunctions(SymbolTable& sym,
     for (auto const& node: functions) {
         SC_ASSERT(isa<Function>(node.entity), "We only accept functions here");
         sym.makeScopeCurrent(node.scope);
-        ctx.analyze(cast<ast::FunctionDefinition&>(*node.astNode));
+        ctx.analyzeImpl(cast<ast::FunctionDefinition&>(*node.astNode));
         sym.makeScopeCurrent(nullptr);
     }
 }
 
-void Context::dispatch(ast::AbstractSyntaxTree& node) {
-    visit(node, [this](auto& node) { this->analyze(node); });
+void Context::analyze(ast::AbstractSyntaxTree& node) {
+    visit(node, [this](auto& node) { this->analyzeImpl(node); });
 }
 
 sema::AccessSpecifier translateAccessSpec(ast::AccessSpec spec) {
@@ -83,7 +83,7 @@ sema::AccessSpecifier translateAccessSpec(ast::AccessSpec spec) {
     }
 }
 
-void Context::analyze(ast::FunctionDefinition& fn) {
+void Context::analyzeImpl(ast::FunctionDefinition& fn) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
                                                    sk != ScopeKind::Object)
@@ -110,17 +110,17 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     sym.pushScope(function);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto& param: fn.parameters) {
-        dispatch(*param);
+        analyze(*param);
         if (iss.fatal()) {
             return;
         }
     }
     /// The body will push the scope itself again.
     popScope.execute();
-    dispatch(*fn.body);
+    analyze(*fn.body);
 }
 
-void Context::analyze(ast::StructDefinition& s) {
+void Context::analyzeImpl(ast::StructDefinition& s) {
     auto const sk = sym.currentScope().kind();
     if (sk != ScopeKind::Global && sk != ScopeKind::Namespace &&
         sk != ScopeKind::Object)
@@ -134,7 +134,7 @@ void Context::analyze(ast::StructDefinition& s) {
     }
 }
 
-void Context::analyze(ast::CompoundStatement& block) {
+void Context::analyzeImpl(ast::CompoundStatement& block) {
     if (!block.isDecorated()) {
         block.decorate(&sym.addAnonymousScope());
     }
@@ -148,7 +148,7 @@ void Context::analyze(ast::CompoundStatement& block) {
     sym.pushScope(block.scope());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto& statement: block.statements) {
-        dispatch(*statement);
+        analyze(*statement);
         if (iss.fatal()) {
             return;
         }
@@ -156,7 +156,7 @@ void Context::analyze(ast::CompoundStatement& block) {
     popScope.execute();
 }
 
-void Context::analyze(ast::VariableDeclaration& var) {
+void Context::analyzeImpl(ast::VariableDeclaration& var) {
     SC_ASSERT(currentFunction,
               "We only handle function local variables in this pass.");
     SC_ASSERT(!var.isDecorated(),
@@ -169,7 +169,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
     }
     auto* declaredType = getType(var.typeExpr.get());
     auto* deducedType  = [&]() -> QualType const* {
-        if (!var.initExpression || !dispatchExpression(*var.initExpression)) {
+        if (!var.initExpression || !analyzeExpr(*var.initExpression)) {
             return nullptr;
         }
         if (!var.initExpression->isValue()) {
@@ -213,7 +213,7 @@ void Context::analyze(ast::VariableDeclaration& var) {
     var.decorate(&varObj, finalType);
 }
 
-void Context::analyze(ast::ParameterDeclaration& paramDecl) {
+void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     SC_ASSERT(currentFunction != nullptr,
               "We'd better have a function pushed when analyzing function "
               "parameters.");
@@ -230,7 +230,7 @@ void Context::analyze(ast::ParameterDeclaration& paramDecl) {
     paramDecl.decorate(&param, declaredType);
 }
 
-void Context::analyze(ast::ExpressionStatement& es) {
+void Context::analyzeImpl(ast::ExpressionStatement& es) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
             &es,
@@ -238,10 +238,10 @@ void Context::analyze(ast::ExpressionStatement& es) {
             sym.currentScope());
         return;
     }
-    dispatchExpression(*es.expression);
+    analyzeExpr(*es.expression);
 }
 
-void Context::analyze(ast::ReturnStatement& rs) {
+void Context::analyzeImpl(ast::ReturnStatement& rs) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         SC_DEBUGFAIL(); // Can this even happen?
         iss.push<InvalidStatement>(
@@ -270,7 +270,7 @@ void Context::analyze(ast::ReturnStatement& rs) {
     if (rs.expression == nullptr) {
         return;
     }
-    if (!dispatchExpression(*rs.expression)) {
+    if (!analyzeExpr(*rs.expression)) {
         return;
     }
     if (!rs.expression->isValue()) {
@@ -288,7 +288,7 @@ void Context::analyze(ast::ReturnStatement& rs) {
     verifyConversion(*rs.expression, currentFunction->returnType());
 }
 
-void Context::analyze(ast::IfStatement& stmt) {
+void Context::analyzeImpl(ast::IfStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
             &stmt,
@@ -296,16 +296,16 @@ void Context::analyze(ast::IfStatement& stmt) {
             sym.currentScope());
         return;
     }
-    if (dispatchExpression(*stmt.condition)) {
+    if (analyzeExpr(*stmt.condition)) {
         verifyConversion(*stmt.condition, sym.Bool());
     }
-    dispatch(*stmt.thenBlock);
+    analyze(*stmt.thenBlock);
     if (stmt.elseBlock) {
-        dispatch(*stmt.elseBlock);
+        analyze(*stmt.elseBlock);
     }
 }
 
-void Context::analyze(ast::WhileStatement& stmt) {
+void Context::analyzeImpl(ast::WhileStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
             &stmt,
@@ -313,15 +313,15 @@ void Context::analyze(ast::WhileStatement& stmt) {
             sym.currentScope());
         return;
     }
-    if (dispatchExpression(*stmt.condition)) {
+    if (analyzeExpr(*stmt.condition)) {
         verifyConversion(*stmt.condition, sym.Bool());
     }
-    dispatch(*stmt.block);
+    analyze(*stmt.block);
 }
 
-void Context::analyze(ast::DoWhileStatement& stmt) {
+void Context::analyzeImpl(ast::DoWhileStatement& stmt) {
     // TODO: This implementation is completely analogous to
-    // analyze(WhileStatement&). Try to merge them.
+    // analyzeImpl(WhileStatement&). Try to merge them.
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
             &stmt,
@@ -329,13 +329,13 @@ void Context::analyze(ast::DoWhileStatement& stmt) {
             sym.currentScope());
         return;
     }
-    if (dispatchExpression(*stmt.condition)) {
+    if (analyzeExpr(*stmt.condition)) {
         verifyConversion(*stmt.condition, sym.Bool());
     }
-    dispatch(*stmt.block);
+    analyze(*stmt.block);
 }
 
-void Context::analyze(ast::ForStatement& stmt) {
+void Context::analyzeImpl(ast::ForStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
             &stmt,
@@ -345,26 +345,26 @@ void Context::analyze(ast::ForStatement& stmt) {
     }
     stmt.block->decorate(&sym.addAnonymousScope());
     sym.pushScope(stmt.block->scope());
-    dispatch(*stmt.varDecl);
-    if (dispatchExpression(*stmt.condition)) {
+    analyze(*stmt.varDecl);
+    if (analyzeExpr(*stmt.condition)) {
         verifyConversion(*stmt.condition, sym.Bool());
     }
-    dispatchExpression(*stmt.increment);
+    analyzeExpr(*stmt.increment);
     sym.popScope(); /// The block will push its scope again.
-    dispatch(*stmt.block);
+    analyze(*stmt.block);
 }
 
-void Context::analyze(ast::JumpStatement& s) {
+void Context::analyzeImpl(ast::JumpStatement& s) {
     /// Need to check if we are in a loop but unfortunately we don't have parent
     /// pointers so it's hard to check.
 }
 
-ExpressionAnalysisResult Context::dispatchExpression(ast::Expression& expr) {
+ExpressionAnalysisResult Context::analyzeExpr(ast::Expression& expr) {
     return analyzeExpression(expr, sym, iss);
 }
 
 QualType const* Context::getType(ast::Expression* expr) {
-    if (!expr || !dispatchExpression(*expr)) {
+    if (!expr || !analyzeExpr(*expr)) {
         return nullptr;
     }
     if (!expr->isType()) {
