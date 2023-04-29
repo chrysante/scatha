@@ -373,10 +373,9 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// The SymbolID of the resolved function.
-    /// Differs from the SymbolID of the object as this ID is resolved by
-    /// overload resolution and refers to an actual function while the latter
-    /// refers to an overload set or object.
+    /// The  resolved function.
+    /// Differs from object because in that the object refers to  the overload
+    /// set
     template <typename F = sema::Function>
     F* function() {
         return const_cast<F*>(std::as_const(*this).function());

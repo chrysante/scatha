@@ -124,18 +124,17 @@ public:
 
     QualType const* qualify(Type const* base,
                             TypeQualifiers qualifiers = TypeQualifiers::None,
-                            size_t arraySize          = 0) const;
+                            size_t arraySize          = 0);
 
     QualType const* addQualifiers(QualType const* base,
-                                  TypeQualifiers qualifiers) const;
+                                  TypeQualifiers qualifiers);
 
     QualType const* removeQualifiers(QualType const* base,
-                                     TypeQualifiers qualifiers) const;
+                                     TypeQualifiers qualifiers);
 
     /// Make type \p base into an array view of element type \p base
-    QualType const* arrayView(
-        Type const* base,
-        TypeQualifiers qualifiers = TypeQualifiers::None) const;
+    QualType const* arrayView(Type const* base,
+                              TypeQualifiers qualifiers = TypeQualifiers::None);
 
     /// \brief Makes scope \p scope the current scope.
     ///
@@ -171,51 +170,6 @@ public:
     }
 
     /// MARK: Queries
-
-    /// Access the entity corresponding to ID \p id
-    /// Traps if \p id is invalid
-    Entity& get(SymbolID id) {
-        return const_cast<Entity&>(utl::as_const(*this).get(id));
-    }
-
-    /// \overload
-    Entity const& get(SymbolID id) const;
-
-    /// Access the entity corresponding to ID \p id as entity type `E`
-    template <std::derived_from<Entity> E>
-    E const& get(SymbolID id) const {
-        return cast<E const&>(get(id));
-    }
-
-    /// \overload
-    template <std::derived_from<Entity> E>
-    E& get(SymbolID id) {
-        return cast<E&>(get(id));
-    }
-
-    /// Access the entity corresponding to ID \p id
-    /// \Returns Pointer to the entity or `nullptr` if \p id is invalid
-    Entity const* tryGet(SymbolID id) const;
-
-    /// \overload
-    Entity* tryGet(SymbolID id) {
-        return const_cast<Entity*>(utl::as_const(*this).tryGet(id));
-    }
-
-    /// Access the entity corresponding to ID \p id as entity type `E`
-    /// \Returns Pointer to the entity or `nullptr` if \p id is invalid
-    template <std::derived_from<Entity> E>
-    E const* tryGet(SymbolID id) const {
-        auto* entity = tryGet(id);
-        return entity ? dyncast<E const*>(entity) : nullptr;
-    }
-
-    /// \overload
-    template <std::derived_from<Entity> E>
-    E* tryGet(SymbolID id) {
-        return const_cast<E*>(utl::as_const(*this).tryGet<E>(id));
-    }
-
     Function* builtinFunction(size_t index) const {
         return _builtinFunctions[index];
     }
@@ -255,33 +209,29 @@ public:
     Type const* Float() const { return _float; }
     Type const* String() const { return _string; }
 
-    QualType const* qualVoid(
-        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+    QualType const* qualVoid(TypeQualifiers qualifiers = TypeQualifiers::None) {
         return qualify(_void, qualifiers);
     }
 
-    QualType const* qualByte(
-        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+    QualType const* qualByte(TypeQualifiers qualifiers = TypeQualifiers::None) {
         return qualify(_bool, qualifiers);
     }
 
-    QualType const* qualBool(
-        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+    QualType const* qualBool(TypeQualifiers qualifiers = TypeQualifiers::None) {
         return qualify(_bool, qualifiers);
     }
 
-    QualType const* qualInt(
-        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+    QualType const* qualInt(TypeQualifiers qualifiers = TypeQualifiers::None) {
         return qualify(_int, qualifiers);
     }
 
     QualType const* qualFloat(
-        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+        TypeQualifiers qualifiers = TypeQualifiers::None) {
         return qualify(_float, qualifiers);
     }
 
     QualType const* qualString(
-        TypeQualifiers qualifiers = TypeQualifiers::None) const {
+        TypeQualifiers qualifiers = TypeQualifiers::None) {
         return qualify(_string, qualifiers);
     }
 
@@ -301,20 +251,23 @@ public:
 private:
     QualType const* getQualType(ObjectType const* base,
                                 TypeQualifiers qualifiers,
-                                size_t arraySize) const;
+                                size_t arraySize);
 
-    SymbolID generateID(SymbolCategory category) const;
+    SymbolID generateID(SymbolCategory category);
+
+    template <typename E, typename... Args>
+    E* addEntity(Args&&... args);
 
 private:
     GlobalScope* _globalScope = nullptr;
     Scope* _currentScope      = nullptr;
 
-    mutable u64 _idCounter = 1;
+    u64 _idCounter = 1;
 
-    mutable utl::hashmap<SymbolID, UniquePtr<Entity>> _entities;
+    utl::vector<UniquePtr<Entity>> _entities;
 
-    mutable utl::hashmap<std::tuple<ObjectType const*, TypeQualifiers, size_t>,
-                         QualType const*>
+    utl::hashmap<std::tuple<ObjectType const*, TypeQualifiers, size_t>,
+                 QualType const*>
         _qualTypes;
 
     utl::vector<ObjectType*> _sortedObjectTypes;

@@ -20,11 +20,8 @@ static bool isKeyword(std::string_view id) {
 }
 
 SymbolTable::SymbolTable() {
-    auto globalScopeID  = generateID(SymbolCategory::Invalid);
-    auto [itr, success] = _entities.insert(
-        { globalScopeID, allocate<GlobalScope>(globalScopeID) });
-    _globalScope  = cast<GlobalScope*>(itr->second.get());
-    _currentScope = _globalScope;
+    auto globalScopeID = generateID(SymbolCategory::Invalid);
+    _currentScope = _globalScope = addEntity<GlobalScope>(globalScopeID);
 
     /// Declare `void` with `invalidSize` to make it an incomplete type.
     _void = declareBuiltinType("void", invalidSize, invalidSize);
@@ -83,12 +80,9 @@ Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
                                       entity->symbolID().category());
     }
     auto const newSymbolID = generateID(SymbolCategory::Type);
-    auto [itr, success]    = _entities.insert(
-        { newSymbolID,
-             allocate<ObjectType>(name, newSymbolID, &currentScope()) });
-    SC_ASSERT(success, "");
-    currentScope().add(itr->second.get());
-    return cast<ObjectType&>(*itr->second);
+    auto* type = addEntity<ObjectType>(name, newSymbolID, &currentScope());
+    currentScope().add(type);
+    return *type;
 }
 
 Type const* SymbolTable::declareBuiltinType(std::string name,
@@ -117,11 +111,8 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
         }
         /// Create a new overload set
         auto const newSymbolID = generateID(SymbolCategory::OverloadSet);
-        auto [itr, success]    = _entities.insert(
-            { newSymbolID,
-                 allocate<OverloadSet>(name, newSymbolID, &currentScope()) });
-        SC_ASSERT(success, "");
-        OverloadSet* overloadSet = cast<OverloadSet*>(itr->second.get());
+        auto* overloadSet =
+            addEntity<OverloadSet>(name, newSymbolID, &currentScope());
         currentScope().add(overloadSet);
         return overloadSet;
     }();
@@ -134,18 +125,14 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
                                       SymbolCategory::Invalid);
     }
     auto const newSymbolID = generateID(SymbolCategory::Function);
-    auto const [itr, success] =
-        _entities.insert({ newSymbolID,
-                           allocate<Function>(name,
-                                              /* functionID = */ newSymbolID,
-                                              /* overloadSetID = */ overloadSet,
-                                              &currentScope(),
-                                              FunctionAttribute::None) });
-    SC_ASSERT(success, "?");
-    Function& function = cast<Function&>(*itr->second);
-    currentScope().add(&function);
-    _functions.push_back(&function);
-    return function;
+    Function* function     = addEntity<Function>(name,
+                                             /* functionID = */ newSymbolID,
+                                             overloadSet,
+                                             &currentScope(),
+                                             FunctionAttribute::None);
+    currentScope().add(function);
+    _functions.push_back(function);
+    return *function;
 }
 
 Expected<void, SemanticIssue*> SymbolTable::setSignature(
@@ -209,13 +196,10 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
                                       entity->symbolID().category());
     }
     auto const newSymbolID = generateID(SymbolCategory::Variable);
-    auto [itr, success]    = _entities.insert(
-        { newSymbolID,
-             allocate<Variable>(name, newSymbolID, &currentScope()) });
-    SC_ASSERT(success, "");
-    Variable& variable = cast<Variable&>(*itr->second);
-    currentScope().add(&variable);
-    return variable;
+    auto* variable = addEntity<Variable>(name, newSymbolID, &currentScope());
+    ;
+    currentScope().add(variable);
+    return *variable;
 }
 
 Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
@@ -232,20 +216,16 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
 
 Scope& SymbolTable::addAnonymousScope() {
     auto const symbolID = generateID(SymbolCategory::Anonymous);
-    auto [itr, success] =
-        _entities.insert({ symbolID,
-                           allocate<AnonymousScope>(symbolID,
-                                                    currentScope().kind(),
-                                                    &currentScope()) });
-    SC_ASSERT(success, "");
-    Scope& scope = cast<Scope&>(*itr->second);
-    currentScope().add(&scope);
-    return scope;
+    auto* scope         = addEntity<AnonymousScope>(symbolID,
+                                            currentScope().kind(),
+                                            &currentScope());
+    currentScope().add(scope);
+    return *scope;
 }
 
 QualType const* SymbolTable::qualify(Type const* base,
                                      TypeQualifiers qualifiers,
-                                     size_t arraySize) const {
+                                     size_t arraySize) {
     ObjectType const* objType = dyncast<ObjectType const*>(base);
     if (!objType) {
         objType = cast<QualType const*>(base)->base();
@@ -254,18 +234,18 @@ QualType const* SymbolTable::qualify(Type const* base,
 }
 
 QualType const* SymbolTable::addQualifiers(QualType const* base,
-                                           TypeQualifiers qualifiers) const {
+                                           TypeQualifiers qualifiers) {
     SC_ASSERT(base, "");
     return qualify(base, base->qualifiers() | qualifiers);
 }
 
 QualType const* SymbolTable::removeQualifiers(QualType const* base,
-                                              TypeQualifiers qualifiers) const {
+                                              TypeQualifiers qualifiers) {
     return qualify(base, base->qualifiers() & ~qualifiers);
 }
 
 QualType const* SymbolTable::arrayView(Type const* base,
-                                       TypeQualifiers qualifiers) const {
+                                       TypeQualifiers qualifiers) {
     SC_ASSERT(base, "");
     using enum TypeQualifiers;
     return qualify(base, Array | ImplicitReference | qualifiers);
@@ -273,21 +253,17 @@ QualType const* SymbolTable::arrayView(Type const* base,
 
 QualType const* SymbolTable::getQualType(ObjectType const* baseType,
                                          TypeQualifiers qualifiers,
-                                         size_t arraySize) const {
+                                         size_t arraySize) {
     if (auto itr = _qualTypes.find({ baseType, qualifiers, arraySize });
         itr != _qualTypes.end())
     {
         return itr->second;
     }
     auto newSymbolID = generateID(SymbolCategory::Type);
-    auto [itr, success] =
-        _entities.insert({ newSymbolID,
-                           allocate<QualType>(newSymbolID,
-                                              const_cast<ObjectType*>(baseType),
-                                              qualifiers,
-                                              arraySize) });
-    SC_ASSERT(success, "");
-    auto* qualType = cast<QualType*>(itr->second.get());
+    auto* qualType   = addEntity<QualType>(newSymbolID,
+                                         const_cast<ObjectType*>(baseType),
+                                         qualifiers,
+                                         arraySize);
     _qualTypes.insert(
         { std::tuple{ baseType, qualifiers, arraySize }, qualType });
     return qualType;
@@ -305,20 +281,6 @@ void SymbolTable::makeScopeCurrent(Scope* scope) {
     _currentScope = scope ? scope : &globalScope();
 }
 
-Entity const& SymbolTable::get(SymbolID id) const {
-    auto const* result = tryGet(id);
-    SC_ASSERT(result, "ID must be valid");
-    return *result;
-}
-
-Entity const* SymbolTable::tryGet(SymbolID id) const {
-    auto const itr = _entities.find(id);
-    if (itr == _entities.end()) {
-        return nullptr;
-    }
-    return itr->second.get();
-}
-
 Entity const* SymbolTable::lookup(std::string_view name) const {
     Scope const* scope = &currentScope();
     while (scope != nullptr) {
@@ -330,6 +292,14 @@ Entity const* SymbolTable::lookup(std::string_view name) const {
     return nullptr;
 }
 
-SymbolID SymbolTable::generateID(SymbolCategory cat) const {
+SymbolID SymbolTable::generateID(SymbolCategory cat) {
     return SymbolID(_idCounter++, cat);
+}
+
+template <typename E, typename... Args>
+E* SymbolTable::addEntity(Args&&... args) {
+    auto owner   = allocate<E>(std::forward<Args>(args)...);
+    auto* result = owner.get();
+    _entities.push_back(std::move(owner));
+    return result;
 }
