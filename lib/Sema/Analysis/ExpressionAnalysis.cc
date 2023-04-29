@@ -45,7 +45,7 @@ struct Context {
 
     QualType const* binaryOpResult(ast::BinaryExpression const&) const;
 
-    Function* findExplicitCast(QualType const* targetType,
+    Function* findExplicitCast(ObjectType const* targetType,
                                std::span<QualType const* const> from);
 
     QualType const* stripQualifiers(QualType const* type) const {
@@ -97,8 +97,7 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::StringLiteral& l) {
 }
 
 ExpressionAnalysisResult Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
-    auto const opResult = analyze(*u.operand);
-    if (!opResult) {
+    if (!analyze(*u.operand)) {
         return ExpressionAnalysisResult::fail();
     }
     auto const* operandType = u.operand->type();
@@ -145,9 +144,7 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
 }
 
 ExpressionAnalysisResult Context::analyzeImpl(ast::BinaryExpression& b) {
-    auto const lhsRes = analyze(*b.lhs);
-    auto const rhsRes = analyze(*b.rhs);
-    if (!lhsRes || !rhsRes) {
+    if (!analyze(*b.lhs) || !analyze(*b.rhs)) {
         return ExpressionAnalysisResult::fail();
     }
     auto* resultType = binaryOpResult(b);
@@ -305,7 +302,7 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::Conditional& c) {
 }
 
 ExpressionAnalysisResult Context::analyzeImpl(ast::Subscript& expr) {
-    bool analysisSuccess = (bool)analyze(*expr.object);
+    bool success = (bool)analyze(*expr.object);
     if (!expectValue(*expr.object)) {
         return ExpressionAnalysisResult::fail();
     }
@@ -314,12 +311,12 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::Subscript& expr) {
         return ExpressionAnalysisResult::fail();
     }
     for (auto& arg: expr.arguments) {
-        analysisSuccess |= (bool)analyze(*arg);
+        success &= (bool)analyze(*arg);
         if (!expectValue(*arg)) {
             return ExpressionAnalysisResult::fail();
         }
     }
-    if (!analysisSuccess) {
+    if (!success) {
         return ExpressionAnalysisResult::fail();
     }
     if (expr.arguments.size() != 1) {
@@ -338,31 +335,19 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::Subscript& expr) {
 }
 
 ExpressionAnalysisResult Context::analyzeImpl(ast::FunctionCall& fc) {
-    bool success = true;
+    bool success = (bool)analyze(*fc.object);
     utl::small_vector<QualType const*> argTypes;
     argTypes.reserve(fc.arguments.size());
     for (auto& arg: fc.arguments) {
-        auto const argRes = analyze(*arg);
-        if (iss.fatal()) {
-            return ExpressionAnalysisResult::fail();
-        }
-        success &= argRes.success();
+        success &= (bool)analyze(*arg);
         /// `arg` is undecorated if analysis of `arg` failed.
         argTypes.push_back(arg->isDecorated() ? arg->type() : nullptr);
     }
-    auto const objRes = analyze(*fc.object);
-    if (iss.fatal()) {
-        return ExpressionAnalysisResult::fail();
-    }
-    success &= objRes.success();
     if (!success) {
         return ExpressionAnalysisResult::fail();
     }
-    if (!objRes) {
-        return ExpressionAnalysisResult::fail();
-    }
     // clang-format off
-    return visit(*objRes.entity(), utl::overload{
+    return visit(*fc.object->entity(), utl::overload{
         [&](OverloadSet& overloadSet) {
             auto* function = overloadSet.find(argTypes);
             if (!function) {
@@ -378,15 +363,16 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::FunctionCall& fc) {
                         ValueCategory::RValue);
             return ExpressionAnalysisResult::rvalue(fc.type());
         },
-        [&](QualType& type) {
+        [&](ObjectType const& type) {
+            auto* qualType = sym.qualify(&type);
             Function* castFn = findExplicitCast(&type, argTypes);
             if (!castFn) {
                 // TODO: Make better error class here.
-                iss.push<BadTypeConversion>(*fc.arguments.front(), &type);
+                iss.push<BadTypeConversion>(*fc.arguments.front(), qualType);
                 return ExpressionAnalysisResult::fail();
             }
-            fc.decorate(castFn, &type, ValueCategory::RValue);
-            return ExpressionAnalysisResult::rvalue(&type);
+            fc.decorate(castFn, qualType, ValueCategory::RValue);
+            return ExpressionAnalysisResult::rvalue(qualType);
         },
         [&](Entity const& entity) {
             iss.push<BadFunctionCall>(
@@ -400,8 +386,12 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::FunctionCall& fc) {
 }
 
 ExpressionAnalysisResult Context::analyzeImpl(ast::ListExpression& list) {
+    bool success = true;
     for (auto* expr: list) {
-        analyze(*expr);
+        success &= (bool)analyze(*expr);
+    }
+    if (!success) {
+        return ExpressionAnalysisResult::fail();
     }
     if (list.empty()) {
         return ExpressionAnalysisResult::indeterminate();
@@ -409,8 +399,6 @@ ExpressionAnalysisResult Context::analyzeImpl(ast::ListExpression& list) {
     auto* first    = list.front();
     auto entityCat = first->entityCategory();
     switch (entityCat) {
-    case EntityCategory::Indeterminate:
-        SC_DEBUGFAIL();
     case EntityCategory::Value: {
         bool const allSameCat =
             ranges::all_of(list, [&](ast::Expression const* expr) {
@@ -620,15 +608,15 @@ QualType const* Context::binaryOpResult(
     }
 }
 
-Function* Context::findExplicitCast(QualType const* to,
+Function* Context::findExplicitCast(ObjectType const* to,
                                     std::span<QualType const* const> from) {
     if (from.size() != 1) {
         return nullptr;
     }
-    if (from.front()->base() == sym.Int() && to->base() == sym.Float()) {
+    if (from.front()->base() == sym.Int() && to == sym.Float()) {
         return sym.builtinFunction(static_cast<size_t>(svm::Builtin::i64tof64));
     }
-    if (from.front()->base() == sym.Float() && to->base() == sym.Int()) {
+    if (from.front()->base() == sym.Float() && to == sym.Int()) {
         return sym.builtinFunction(static_cast<size_t>(svm::Builtin::f64toi64));
     }
     return nullptr;
