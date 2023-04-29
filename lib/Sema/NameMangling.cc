@@ -43,11 +43,10 @@ static std::string impl(QualType const* type) {
 
 static std::string impl(Function const* func) {
     std::stringstream sstr;
-    sstr << baseImpl(func) << "(";
+    sstr << baseImpl(func);
     for (auto* arg: func->signature().argumentTypes()) {
-        sstr << mangleName(arg);
+        sstr << "-" << mangleName(arg);
     }
-    sstr << ")";
     return std::move(sstr).str();
 }
 
