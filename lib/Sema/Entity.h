@@ -6,6 +6,7 @@
 #include <string_view>
 #include <utility>
 
+#include <range/v3/view.hpp>
 #include <utl/hashmap.hpp>
 
 #include <scatha/Common/Base.h>
@@ -139,13 +140,43 @@ public:
     /// The kind of this scope
     ScopeKind kind() const { return _kind; }
 
-    // Until we have heterogenous lookup
-    SymbolID findID(std::string_view name) const;
+    /// Find entity by name within this scope
+    Entity* findEntity(std::string_view name) {
+        return const_cast<Entity*>(std::as_const(*this).findEntity(name));
+    }
 
-    bool isChildScope(SymbolID id) const { return _children.contains(id); }
+    /// \overload
+    Entity const* findEntity(std::string_view name) const;
 
-    auto children() const;
-    auto symbols() const;
+    /// Find entity by name and `dyncast` to type `E`
+    template <std::derived_from<Entity> E>
+    E* findEntity(std::string_view name) {
+        return const_cast<E*>(std::as_const(*this).findEntity(name));
+    }
+
+    /// \overload
+    template <std::derived_from<Entity> E>
+    E const* findEntity(std::string_view name) const {
+        Entity const* result = findEntity(name);
+        return result ? dyncast<E const*>(result) : nullptr;
+    }
+
+    /// \Returns `true` iff \p scope is a child scope of this
+    bool isChildScope(Scope const* scope) const {
+        return _children.contains(scope);
+    }
+
+    /// \Returns A View over the children of this scope
+    auto children() const {
+        return _children | ranges::views::transform(
+                               [](auto* scope) -> auto* { return scope; });
+    }
+
+    /// \Returns A View over the entities in this scope
+    auto entities() const {
+        return _entities | ranges::views::transform(
+                               [](auto& p) -> auto& { return p.second; });
+    }
 
 protected:
     explicit Scope(EntityType entityType,
@@ -162,8 +193,8 @@ private:
 private:
     /// Scopes don't own their childscopes. These objects are owned by the
     /// symbol table.
-    utl::hashmap<SymbolID, Scope*> _children;
-    utl::hashmap<std::string, SymbolID> _symbols;
+    utl::hashset<Scope*> _children;
+    utl::hashmap<std::string, Entity*> _entities;
     ScopeKind _kind;
 };
 
@@ -179,63 +210,13 @@ public:
     explicit GlobalScope(SymbolID id);
 };
 
-inline auto Scope::children() const {
-    struct Iterator {
-        Iterator begin() const {
-            Iterator result = *this;
-            result._itr     = _map.begin();
-            return result;
-        }
-        Iterator end() const {
-            Iterator result = *this;
-            result._itr     = _map.end();
-            return result;
-        }
-        Scope const& operator*() const { return *_itr->second; }
-        Iterator& operator++() {
-            ++_itr;
-            return *this;
-        }
-        bool operator==(Iterator const& rhs) const { return _itr == rhs._itr; }
-        using Map = utl::hashmap<SymbolID, Scope*>;
-        Map const& _map;
-        Map::const_iterator _itr;
-    };
-    return Iterator{ _children, {} };
-}
-
-inline auto Scope::symbols() const {
-    struct Iterator {
-        Iterator begin() const {
-            Iterator result = *this;
-            result._itr     = _map.begin();
-            return result;
-        }
-        Iterator end() const {
-            Iterator result = *this;
-            result._itr     = _map.end();
-            return result;
-        }
-        SymbolID operator*() const { return _itr->second; }
-        Iterator& operator++() {
-            ++_itr;
-            return *this;
-        }
-        bool operator==(Iterator const& rhs) const { return _itr == rhs._itr; }
-        using Map = utl::hashmap<std::string, SymbolID>;
-        Map const& _map;
-        Map::const_iterator _itr;
-    };
-    return Iterator{ _symbols, {} };
-}
-
 /// # Function
 
 class SCATHA_API Function: public Scope {
 public:
     explicit Function(std::string name,
                       SymbolID functionID,
-                      SymbolID overloadSetID,
+                      OverloadSet* overloadSet,
                       Scope* parentScope,
                       FunctionAttribute attrs):
         Scope(EntityType::Function,
@@ -243,14 +224,17 @@ public:
               std::move(name),
               functionID,
               parentScope),
-        _overloadSetID(overloadSetID),
+        _overloadSet(overloadSet),
         attrs(attrs) {}
 
     /// \Returns The type ID of this function.
     Type const* type() const { return signature().type(); }
 
-    /// \Returns The overload set ID of this function.
-    SymbolID overloadSetID() const { return _overloadSetID; }
+    /// \Returns The overload set of this function.
+    OverloadSet* overloadSet() { return _overloadSet; }
+
+    /// \overload
+    OverloadSet const* overloadSet() const { return _overloadSet; }
 
     /// \Returns The signature of this function.
     FunctionSignature const& signature() const { return _sig; }
@@ -284,7 +268,7 @@ public:
 private:
     friend class SymbolTable; /// To set `_sig` and `_isExtern`
     FunctionSignature _sig;
-    SymbolID _overloadSetID;
+    OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;
     AccessSpecifier accessSpec = AccessSpecifier::Private;
     u32 _slot      : 31        = 0;

@@ -113,7 +113,7 @@ size_t Context::gather(ast::StructDefinition& s) {
                                                .astNode  = &s,
                                                .scope = &sym.currentScope() });
     /// After we declared this type we gather all its members
-    sym.pushScope(objType.symbolID());
+    sym.pushScope(&objType);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto& statement: s.body->statements) {
         size_t const dependency = dispatch(*statement);

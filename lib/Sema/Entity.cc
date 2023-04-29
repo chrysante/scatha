@@ -42,15 +42,15 @@ Scope::Scope(EntityType entityType,
              Scope* parent):
     Entity(entityType, std::move(name), symbolID, parent), _kind(kind) {}
 
-SymbolID Scope::findID(std::string_view name) const {
-    auto const itr = _symbols.find(std::string(name));
-    return itr == _symbols.end() ? SymbolID::Invalid : itr->second;
+Entity const* Scope::findEntity(std::string_view name) const {
+    auto const itr = _entities.find(name);
+    return itr == _entities.end() ? nullptr : itr->second;
 }
 
 void Scope::add(Entity* entity) {
-    auto impl = [this](Entity& entity) {
+    auto impl = [this](Entity* entity) {
         auto const [itr, success] =
-            _symbols.insert({ std::string(entity.name()), entity.symbolID() });
+            _entities.insert({ std::string(entity->name()), entity });
         SC_ASSERT(success, "");
     };
     if (auto* scope = dyncast<Scope*>(entity)) {
@@ -59,14 +59,13 @@ void Scope::add(Entity* entity) {
             /// overloading.
             scope->kind() != ScopeKind::Function)
         {
-            impl(*scope);
+            impl(scope);
         }
-        auto const [itr, success] =
-            _children.insert({ scope->symbolID(), scope });
+        auto const [itr, success] = _children.insert(scope);
         SC_ASSERT(success, "");
     }
     else {
-        impl(*entity);
+        impl(entity);
     }
 }
 

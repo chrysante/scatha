@@ -17,10 +17,10 @@ fn g(x: int) -> int {
 	return 1;
 })";
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
-    auto f                     = sym.lookup("f");
-    CHECK(f.category() == SymbolCategory::OverloadSet);
-    CHECK(sym.get<OverloadSet>(f).name() == "f");
-    auto g = sym.lookup("g");
-    CHECK(g.category() == SymbolCategory::OverloadSet);
-    CHECK(sym.get<OverloadSet>(g).name() == "g");
+    auto* f                    = sym.lookup("f");
+    CHECK(isa<OverloadSet>(f));
+    CHECK(f->name() == "f");
+    auto* g = sym.lookup("g");
+    CHECK(isa<OverloadSet>(g));
+    CHECK(g->name() == "g");
 }

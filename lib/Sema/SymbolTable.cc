@@ -75,13 +75,12 @@ Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
                                       currentScope(),
                                       SymbolCategory::Type);
     }
-    const SymbolID symbolID = currentScope().findID(name);
-    if (symbolID != SymbolID::Invalid) {
+    if (Entity* entity = currentScope().findEntity(name)) {
         return new InvalidDeclaration(nullptr,
                                       Redefinition,
                                       currentScope(),
                                       SymbolCategory::Type,
-                                      symbolID.category());
+                                      entity->symbolID().category());
     }
     auto const newSymbolID = generateID(SymbolCategory::Type);
     auto [itr, success]    = _entities.insert(
@@ -112,10 +111,9 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
                                       currentScope(),
                                       SymbolCategory::Function);
     }
-    SymbolID const overloadSetID = [&] {
-        auto const symbolID = currentScope().findID(name);
-        if (symbolID != SymbolID::Invalid) {
-            return symbolID;
+    OverloadSet* overloadSet = [&] {
+        if (auto* entity = currentScope().findEntity(name)) {
+            return dyncast<OverloadSet*>(entity);
         }
         /// Create a new overload set
         auto const newSymbolID = generateID(SymbolCategory::OverloadSet);
@@ -123,28 +121,26 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
             { newSymbolID,
                  allocate<OverloadSet>(name, newSymbolID, &currentScope()) });
         SC_ASSERT(success, "");
-        OverloadSet& overloadSet = cast<OverloadSet&>(*itr->second);
-        currentScope().add(&overloadSet);
-        return overloadSet.symbolID();
+        OverloadSet* overloadSet = cast<OverloadSet*>(itr->second.get());
+        currentScope().add(overloadSet);
+        return overloadSet;
     }();
-    /// Even if we get a valid ID from the lambda, we don't know yet if it's
-    /// really an overload set.
-    auto* const overloadSetPtr = tryGet<OverloadSet>(overloadSetID);
-    if (!overloadSetPtr) {
+    /// We still don't know if the `dyncast` in the lambda was successful
+    if (!overloadSet) {
         return new InvalidDeclaration(nullptr,
                                       InvalidDeclaration::Reason::Redefinition,
                                       currentScope(),
                                       SymbolCategory::Function,
-                                      overloadSetID.category());
+                                      SymbolCategory::Invalid);
     }
-    auto const newSymbolID    = generateID(SymbolCategory::Function);
-    auto const [itr, success] = _entities.insert(
-        { newSymbolID,
-          allocate<Function>(name,
-                             /* functionID = */ newSymbolID,
-                             /* overloadSetID = */ overloadSetID,
-                             &currentScope(),
-                             FunctionAttribute::None) });
+    auto const newSymbolID = generateID(SymbolCategory::Function);
+    auto const [itr, success] =
+        _entities.insert({ newSymbolID,
+                           allocate<Function>(name,
+                                              /* functionID = */ newSymbolID,
+                                              /* overloadSetID = */ overloadSet,
+                                              &currentScope(),
+                                              FunctionAttribute::None) });
     SC_ASSERT(success, "?");
     Function& function = cast<Function&>(*itr->second);
     currentScope().add(&function);
@@ -153,17 +149,15 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
 }
 
 Expected<void, SemanticIssue*> SymbolTable::setSignature(
-    SymbolID functionID, FunctionSignature sig) {
-    auto& function                      = get<Function>(functionID);
-    auto const overloadSetID            = function.overloadSetID();
-    auto& overloadSet                   = get<OverloadSet>(overloadSetID);
-    function._sig                       = std::move(sig);
-    auto const [otherFunction, success] = overloadSet.add(&function);
+    Function* function, FunctionSignature sig) {
+    auto* overloadSet                   = function->overloadSet();
+    function->_sig                      = std::move(sig);
+    auto const [otherFunction, success] = overloadSet->add(function);
     if (!success) {
         using enum InvalidDeclaration::Reason;
         InvalidDeclaration::Reason const reason =
             otherFunction->signature().returnType() ==
-                    function.signature().returnType() ?
+                    function->signature().returnType() ?
                 Redefinition :
                 CantOverloadOnReturnType;
         return new InvalidDeclaration(nullptr,
@@ -187,14 +181,14 @@ bool SymbolTable::declareExternalFunction(std::string name,
     if (!declResult) {
         return false;
     }
-    auto& decl = const_cast<Function&>(*declResult);
-    setSignature(decl.symbolID(), std::move(signature));
-    decl._isExtern = true;
-    decl._slot     = utl::narrow_cast<u32>(slot);
-    decl._index    = utl::narrow_cast<u32>(index);
-    decl.attrs     = attrs;
+    auto& function = *declResult;
+    setSignature(&function, std::move(signature));
+    function._isExtern = true;
+    function._slot     = utl::narrow_cast<u32>(slot);
+    function._index    = utl::narrow_cast<u32>(index);
+    function.attrs     = attrs;
     // FIXME: Make sure only builtin function are added here
-    _builtinFunctions[index] = &decl;
+    _builtinFunctions[index] = &function;
     return true;
 }
 
@@ -207,13 +201,12 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
                                       currentScope(),
                                       SymbolCategory::Variable);
     }
-    const SymbolID symbolID = currentScope().findID(name);
-    if (symbolID != SymbolID::Invalid) {
+    if (auto* entity = currentScope().findEntity(name)) {
         return new InvalidDeclaration(nullptr,
                                       Redefinition,
                                       currentScope(),
                                       SymbolCategory::Variable,
-                                      symbolID.category());
+                                      entity->symbolID().category());
     }
     auto const newSymbolID = generateID(SymbolCategory::Variable);
     auto [itr, success]    = _entities.insert(
@@ -300,10 +293,10 @@ QualType const* SymbolTable::getQualType(ObjectType const* baseType,
     return qualType;
 }
 
-void SymbolTable::pushScope(SymbolID id) {
-    auto const itr = currentScope()._children.find(id);
-    SC_ASSERT(itr != currentScope()._children.end(), "not found");
-    _currentScope = itr->second;
+void SymbolTable::pushScope(Scope* scope) {
+    SC_ASSERT(currentScope().isChildScope(scope),
+              "Scope must be a child of the current scope");
+    _currentScope = scope;
 }
 
 void SymbolTable::popScope() { _currentScope = currentScope().parent(); }
@@ -326,16 +319,15 @@ Entity const* SymbolTable::tryGet(SymbolID id) const {
     return itr->second.get();
 }
 
-SymbolID SymbolTable::lookup(std::string_view name) const {
+Entity const* SymbolTable::lookup(std::string_view name) const {
     Scope const* scope = &currentScope();
     while (scope != nullptr) {
-        auto const id = scope->findID(name);
-        if (id != SymbolID::Invalid) {
-            return id;
+        if (auto* entity = scope->findEntity(name)) {
+            return entity;
         }
         scope = scope->parent();
     }
-    return SymbolID::Invalid;
+    return nullptr;
 }
 
 SymbolID SymbolTable::generateID(SymbolCategory cat) const {

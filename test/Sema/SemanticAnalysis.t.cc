@@ -19,31 +19,25 @@ fn mul(a: int, b: int, c: float) -> int {
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto const& mulID = sym.lookup("mul");
-    CHECK(mulID.category() == SymbolCategory::OverloadSet);
-    auto const& mul = sym.get<OverloadSet>(mulID);
-    auto const* mulFnPtr =
-        mul.find(std::array{ sym.qualInt(), sym.qualInt(), sym.qualFloat() });
-    REQUIRE(mulFnPtr != nullptr);
-    auto const& mulFn  = *mulFnPtr;
-    auto const& fnType = mulFn.signature();
+    auto* mul = sym.lookup<OverloadSet>("mul");
+    REQUIRE(mul);
+    auto const* mulFn =
+        mul->find(std::array{ sym.qualInt(), sym.qualInt(), sym.qualFloat() });
+    REQUIRE(mulFn);
+    auto const& fnType = mulFn->signature();
     CHECK(fnType.returnType()->base() == sym.Int());
     REQUIRE(fnType.argumentCount() == 3);
     CHECK(fnType.argumentType(0)->base() == sym.Int());
     CHECK(fnType.argumentType(1)->base() == sym.Int());
     CHECK(fnType.argumentType(2)->base() == sym.Float());
-    auto const aID = mulFn.findID("a");
-    auto const& a  = sym.get<Variable>(aID);
-    CHECK(a.type()->base() == sym.Int());
-    auto const bID = mulFn.findID("b");
-    auto const& b  = sym.get<Variable>(bID);
-    CHECK(b.type()->base() == sym.Int());
-    auto const cID = mulFn.findID("c");
-    auto const& c  = sym.get<Variable>(cID);
-    CHECK(c.type()->base() == sym.Float());
-    auto const resultID = mulFn.findID("result");
-    auto const& result  = sym.get<Variable>(resultID);
-    CHECK(result.type()->base() == sym.Int());
+    auto* a = mulFn->findEntity<Variable>("a");
+    CHECK(a->type()->base() == sym.Int());
+    auto* b = mulFn->findEntity<Variable>("b");
+    CHECK(b->type()->base() == sym.Int());
+    auto const c = mulFn->findEntity<Variable>("c");
+    CHECK(c->type()->base() == sym.Float());
+    auto* result = mulFn->findEntity<Variable>("result");
+    CHECK(result->type()->base() == sym.Int());
 }
 
 TEST_CASE("Decoration of the AST") {
@@ -300,17 +294,16 @@ struct X {
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto const xID = sym.lookup("X");
-    sym.pushScope(xID);
-    auto const fID       = sym.lookup("f");
-    auto const& fOS      = sym.get<OverloadSet>(fID);
+    auto* x = sym.lookup<Scope>("X");
+    sym.pushScope(x);
+    auto* fOS            = sym.lookup<OverloadSet>("f");
     auto const* x_y_type = sym.qualify(sym.lookup<Type>("Y"));
-    auto const* fFn      = fOS.find(std::array{ x_y_type });
+    auto const* fFn      = fOS->find(std::array{ x_y_type });
     /// Finding `f` in the overload set with `X.Y` as argument shall succeed.
     CHECK(fFn != nullptr);
     sym.popScope();
     auto const* y_type        = sym.qualify(sym.lookup<Type>("Y"));
-    auto const* undeclaredfFn = fOS.find({ { y_type } });
+    auto const* undeclaredfFn = fOS->find({ { y_type } });
     /// Finding `f` with `Y` (global) as argument shall fail.
     CHECK(undeclaredfFn == nullptr);
 }

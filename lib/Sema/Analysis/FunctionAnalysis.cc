@@ -107,7 +107,7 @@ void Context::analyze(ast::FunctionDefinition& fn) {
     function->setAccessSpecifier(translateAccessSpec(fn.accessSpec));
     currentFunction                    = &fn;
     utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };
-    sym.pushScope(function->symbolID());
+    sym.pushScope(function);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto& param: fn.parameters) {
         dispatch(*param);
@@ -146,7 +146,7 @@ void Context::analyze(ast::CompoundStatement& block) {
                   "function pushed, because anonymous scopes "
                   "can only appear in functions.");
     }
-    sym.pushScope(block.scope()->symbolID());
+    sym.pushScope(block.scope());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto& statement: block.statements) {
         dispatch(*statement);
@@ -411,7 +411,7 @@ void Context::analyze(ast::ForStatement& fs) {
         return;
     }
     fs.block->decorate(&sym.addAnonymousScope());
-    sym.pushScope(fs.block->scope()->symbolID());
+    sym.pushScope(fs.block->scope());
     dispatch(*fs.varDecl);
     if (dispatchExpression(*fs.condition)) {
         verifyConversion(*fs.condition, sym.Bool());

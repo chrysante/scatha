@@ -169,7 +169,7 @@ void Context::instantiateFunction(DependencyGraphNode const& node) {
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     auto signature                  = analyzeSignature(fnDecl);
     auto result =
-        sym.setSignature(node.entity->symbolID(), std::move(signature));
+        sym.setSignature(cast<Function*>(node.entity), std::move(signature));
     if (!result) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(result.error()))

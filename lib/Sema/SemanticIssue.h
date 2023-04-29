@@ -101,19 +101,19 @@ public:
 
 public:
     explicit BadFunctionCall(ast::Expression const& expression,
-                             SymbolID overloadSetID,
+                             OverloadSet const* overloadSet,
                              utl::small_vector<QualType const*> argTypes,
                              Reason reason):
         BadExpression(expression, IssueSeverity::Error),
         _reason(reason),
         _argTypes(std::move(argTypes)),
-        _overloadSetID(overloadSetID) {}
+        _overloadSet(overloadSet) {}
 
     Reason reason() const { return _reason; }
 
     std::span<QualType const* const> argumentTypes() const { return _argTypes; }
 
-    SymbolID overloadSetID() const { return _overloadSetID; }
+    OverloadSet const* overloadSet() const { return _overloadSet; }
 
 private:
     std::string message() const override {
@@ -122,7 +122,7 @@ private:
 
     Reason _reason;
     utl::small_vector<QualType const*> _argTypes;
-    SymbolID _overloadSetID;
+    OverloadSet const* _overloadSet;
 };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, BadFunctionCall::Reason);
@@ -183,7 +183,7 @@ public:
 
     Reason reason() const { return _reason; }
 
-    Scope const& currentScope() const { return *_scope; }
+    Scope const* currentScope() const { return _scope; }
 
 private:
     std::string message() const override;

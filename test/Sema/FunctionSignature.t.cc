@@ -25,16 +25,14 @@ TEST_CASE("Function Type", "[sema]") {
     auto const gSig =
         sema::FunctionSignature({ sym.qualInt() }, sym.qualVoid());
     CHECK(fSig.argumentHash() == gSig.argumentHash());
-    auto const fnF = sym.declareFunction("f");
-    REQUIRE(fnF.hasValue());
-    auto const overloadSuccess = sym.setSignature(fnF->symbolID(), fSig);
+    auto* fnF                  = &sym.declareFunction("f").value();
+    auto const overloadSuccess = sym.setSignature(fnF, fSig);
     REQUIRE(overloadSuccess);
-    CHECK(fnF.value().signature().argumentType(0)->base() == sym.Int());
-    CHECK(fnF.value().signature().returnType()->base() == sym.Int());
-    auto const fnG = sym.declareFunction("g");
-    REQUIRE(fnG.hasValue());
-    auto const overloadSuccess2 = sym.setSignature(fnG->symbolID(), gSig);
+    CHECK(fnF->signature().argumentType(0)->base() == sym.Int());
+    CHECK(fnF->signature().returnType()->base() == sym.Int());
+    auto const fnG              = &sym.declareFunction("g").value();
+    auto const overloadSuccess2 = sym.setSignature(fnG, gSig);
     REQUIRE(overloadSuccess2);
-    CHECK(fnG.value().signature().argumentType(0)->base() == sym.Int());
-    CHECK(fnG.value().signature().returnType()->base() == sym.Void());
+    CHECK(fnG->signature().argumentType(0)->base() == sym.Int());
+    CHECK(fnG->signature().returnType()->base() == sym.Void());
 }

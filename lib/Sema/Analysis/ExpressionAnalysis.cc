@@ -161,44 +161,43 @@ ExpressionAnalysisResult Context::analyze(ast::BinaryExpression& b) {
 }
 
 ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
-    SymbolID const symbolID = [&] {
+    Entity* entity = [&] {
         if (performRestrictedNameLookup) {
             /// When we are on the right hand side of a member access expression
             /// we restrict lookup to the scope of the object of the left hand
             /// side.
             performRestrictedNameLookup = false;
-            return sym.currentScope().findID(id.value());
+            return sym.currentScope().findEntity(id.value());
         }
         else {
             return sym.lookup(id.value());
         }
     }();
-    if (!symbolID) {
+    if (!entity) {
         iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
         return ExpressionAnalysisResult::fail();
     }
-    switch (symbolID.category()) {
-    case SymbolCategory::Variable: {
-        auto& var = sym.get<Variable>(symbolID);
-        id.decorate(&var, var.type(), ast::ValueCategory::LValue);
-        return ExpressionAnalysisResult::lvalue(&var, var.type());
-    }
-    case SymbolCategory::Type: {
-        auto& type = sym.get<Type>(symbolID);
-        id.decorate(&type,
-                    nullptr,
-                    ast::ValueCategory::None,
-                    ast::EntityCategory::Type);
-        return ExpressionAnalysisResult::type(sym.qualify(&type));
-    }
-    case SymbolCategory::OverloadSet: {
-        auto& os = sym.get<OverloadSet>(symbolID);
-        id.decorate(&os, nullptr, ast::ValueCategory::None);
-        return ExpressionAnalysisResult::lvalue(&os, nullptr);
-    }
-    default:
-        SC_DEBUGFAIL(); // Maybe push an issue here?
-    }
+    // clang-format off
+    return visit(*entity, utl::overload{
+        [&](Variable& var) {
+            id.decorate(&var, var.type(), ast::ValueCategory::LValue);
+            return ExpressionAnalysisResult::lvalue(&var, var.type());
+        },
+        [&](Type& type) {
+            id.decorate(&type,
+                        nullptr,
+                        ast::ValueCategory::None,
+                        ast::EntityCategory::Type);
+            return ExpressionAnalysisResult::type(sym.qualify(&type));
+        },
+        [&](OverloadSet& overloadSet) {
+            id.decorate(&overloadSet, nullptr, ast::ValueCategory::None);
+            return ExpressionAnalysisResult::lvalue(&overloadSet, nullptr);
+        },
+        [&](Entity const& entity) -> ExpressionAnalysisResult {
+            SC_DEBUGFAIL(); // Maybe push an issue here?
+        }
+    }); // clang-format on
 }
 
 ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
@@ -421,7 +420,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
             if (!function) {
                 iss.push<BadFunctionCall>(
                     fc,
-                    objRes.entity()->symbolID(),
+                    &overloadSet,
                     argTypes,
                     BadFunctionCall::Reason::NoMatchingFunction);
                 return ExpressionAnalysisResult::fail();
@@ -444,7 +443,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
         [&](Entity const& entity) {
             iss.push<BadFunctionCall>(
                 fc,
-                SymbolID::Invalid,
+                nullptr,
                 argTypes,
                 BadFunctionCall::Reason::ObjectNotCallable);
             return ExpressionAnalysisResult::fail();

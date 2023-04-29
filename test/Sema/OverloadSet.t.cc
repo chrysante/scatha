@@ -9,26 +9,23 @@ using namespace scatha;
 TEST_CASE("OverloadSet") {
     sema::SymbolTable sym;
     /// Declare a function \code f: (int) -> int
-    auto f_int = sym.declareFunction("f");
-    REQUIRE(f_int.hasValue());
+    auto* f_int = &sym.declareFunction("f").value();
     auto const f_int_success =
-        sym.setSignature(f_int->symbolID(),
+        sym.setSignature(f_int,
                          sema::FunctionSignature({ sym.qualInt() },
                                                  sym.qualInt()));
     CHECK(f_int_success);
     /// Declare a function \code f: (float) -> float
-    auto f_float = sym.declareFunction("f");
-    REQUIRE(f_float.hasValue());
+    auto* f_float = &sym.declareFunction("f").value();
     auto const f_float_success =
-        sym.setSignature(f_float->symbolID(),
+        sym.setSignature(f_float,
                          sema::FunctionSignature({ sym.qualFloat() },
                                                  sym.qualFloat()));
     CHECK(f_float_success);
     /// Declare a function \code f: (float) -> int
-    auto f_float2 = sym.declareFunction("f");
-    REQUIRE(f_float2.hasValue());
+    auto* f_float2 = &sym.declareFunction("f").value();
     auto const f_float2_success =
-        sym.setSignature(f_float2->symbolID(),
+        sym.setSignature(f_float2,
                          sema::FunctionSignature({ sym.qualFloat() },
                                                  sym.qualInt()));
     REQUIRE(!f_float2_success);
@@ -37,10 +34,9 @@ TEST_CASE("OverloadSet") {
     CHECK(f2error->reason() ==
           sema::InvalidDeclaration::Reason::CantOverloadOnReturnType);
     /// Declare a function \code f: (float) -> float
-    auto f_float3 = sym.declareFunction("f");
-    REQUIRE(f_float3.hasValue());
+    auto* f_float3 = &sym.declareFunction("f").value();
     auto const f_float3_success =
-        sym.setSignature(f_float3->symbolID(),
+        sym.setSignature(f_float3,
                          sema::FunctionSignature({ sym.qualFloat() },
                                                  sym.qualFloat()));
     CHECK(!f_float3_success);

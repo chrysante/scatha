@@ -77,7 +77,7 @@ public:
     /// is not a legal overload, with reason `CantOverloadOnReturnType` if \p
     /// signature has same arguments as another function in the overload set but
     /// different return type.
-    Expected<void, SemanticIssue*> setSignature(SymbolID functionID,
+    Expected<void, SemanticIssue*> setSignature(Function* function,
                                                 FunctionSignature signature);
 
     /// \brief Declares an external function.
@@ -137,10 +137,10 @@ public:
         Type const* base,
         TypeQualifiers qualifiers = TypeQualifiers::None) const;
 
-    /// \brief Makes scope with symbolD \p id the current scope.
+    /// \brief Makes scope \p scope the current scope.
     ///
-    /// \details \p id must reference a scope within the current scope.
-    void pushScope(SymbolID id);
+    /// \details \p scope must be a child scope of the current scope.
+    void pushScope(Scope* scope);
 
     /// \brief Makes current the parent scope of the current scope.
     ///
@@ -153,10 +153,10 @@ public:
     /// the call.
     void makeScopeCurrent(Scope* scope);
 
-    decltype(auto) withScopePushed(SymbolID scopeID,
+    decltype(auto) withScopePushed(Scope* scope,
                                    std::invocable auto&& f) const {
         utl::scope_guard pop = [this] { utl::as_mutable(*this).popScope(); };
-        utl::as_mutable(*this).pushScope(scopeID);
+        utl::as_mutable(*this).pushScope(scope);
         return f();
     }
 
@@ -220,24 +220,32 @@ public:
         return _builtinFunctions[index];
     }
 
-    SymbolID lookup(std::string_view name) const;
+    /// Find entity by name within the current scope
+    Entity* lookup(std::string_view name) {
+        return const_cast<Entity*>(std::as_const(*this).lookup(name));
+    }
 
+    /// \overload
+    Entity const* lookup(std::string_view name) const;
+
+    /// Lookup entity and `dyncast` to type `E`
+    template <std::derived_from<Entity> E>
+    E* lookup(std::string_view name) {
+        return const_cast<E*>(std::as_const(*this).lookup<E>(name));
+    }
+
+    /// \overload
     template <std::derived_from<Entity> E>
     E const* lookup(std::string_view name) const {
-        return tryGet<E>(lookup(name));
+        Entity const* result = lookup(name);
+        return result ? dyncast<E const*>(result) : nullptr;
     }
 
     Scope& currentScope() { return *_currentScope; }
     Scope const& currentScope() const { return *_currentScope; }
 
-    template <typename S = Scope>
-    S& globalScope() {
-        return *_globalScope;
-    }
-    template <typename S = Scope>
-    S const& globalScope() const {
-        return *_globalScope;
-    }
+    GlobalScope& globalScope() { return *_globalScope; }
+    GlobalScope const& globalScope() const { return *_globalScope; }
 
     /// Getters for builtin types
     Type const* Void() const { return _void; }
