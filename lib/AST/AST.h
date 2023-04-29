@@ -138,6 +138,9 @@ public:
         return _type;
     }
 
+    /// The object base type of the expression, if this is a value. If this is a type, returns that type
+    sema::ObjectType const* typeBaseOrTypeEntity() const;
+    
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Value`
     bool isValue() const {
         return entityCategory() == sema::EntityCategory::Value;
@@ -294,7 +297,7 @@ private:
 class SCATHA_API MemberAccess: public Expression {
 public:
     explicit MemberAccess(UniquePtr<Expression> object,
-                          UniquePtr<Expression> member,
+                          UniquePtr<Identifier> member,
                           SourceRange sourceRange):
         Expression(NodeType::MemberAccess, sourceRange),
         object(std::move(object)),
@@ -304,7 +307,7 @@ public:
     UniquePtr<Expression> object;
 
     /// The expression to access the object.
-    UniquePtr<Expression> member;
+    UniquePtr<Identifier> member;
 };
 
 /// Concrete node representing a reference expression.

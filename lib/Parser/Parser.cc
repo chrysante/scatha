@@ -969,7 +969,7 @@ UniquePtr<ast::Expression> Context::parseMemberAccess(
             return left;
         }
         tokens.eat();
-        UniquePtr<ast::Expression> right = parseIdentifier();
+        auto right = parseIdentifier();
         if (!right) {
             issues.push<ExpectedExpression>(tokens.peek());
         }

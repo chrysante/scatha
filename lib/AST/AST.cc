@@ -35,3 +35,7 @@ void Expression::decorate(Entity* entity,
     }
     markDecorated();
 }
+
+sema::ObjectType const* Expression::typeBaseOrTypeEntity() const {
+    return isValue() ? type()->base() : cast<ObjectType const*>(entity());
+}

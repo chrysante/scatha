@@ -16,25 +16,25 @@ using namespace sema;
 namespace {
 
 struct Context {
-    ExpressionAnalysisResult dispatch(ast::Expression&);
+    ExpressionAnalysisResult analyze(ast::Expression&);
 
-    ExpressionAnalysisResult analyze(ast::IntegerLiteral&);
-    ExpressionAnalysisResult analyze(ast::BooleanLiteral&);
-    ExpressionAnalysisResult analyze(ast::FloatingPointLiteral&);
-    ExpressionAnalysisResult analyze(ast::StringLiteral&);
-    ExpressionAnalysisResult analyze(ast::UnaryPrefixExpression&);
-    ExpressionAnalysisResult analyze(ast::BinaryExpression&);
+    ExpressionAnalysisResult analyzeImpl(ast::IntegerLiteral&);
+    ExpressionAnalysisResult analyzeImpl(ast::BooleanLiteral&);
+    ExpressionAnalysisResult analyzeImpl(ast::FloatingPointLiteral&);
+    ExpressionAnalysisResult analyzeImpl(ast::StringLiteral&);
+    ExpressionAnalysisResult analyzeImpl(ast::UnaryPrefixExpression&);
+    ExpressionAnalysisResult analyzeImpl(ast::BinaryExpression&);
 
-    ExpressionAnalysisResult analyze(ast::Identifier&);
-    ExpressionAnalysisResult analyze(ast::MemberAccess&);
-    ExpressionAnalysisResult analyze(ast::ReferenceExpression&);
-    ExpressionAnalysisResult analyze(ast::UniqueExpression&);
-    ExpressionAnalysisResult analyze(ast::Conditional&);
-    ExpressionAnalysisResult analyze(ast::FunctionCall&);
-    ExpressionAnalysisResult analyze(ast::Subscript&);
-    ExpressionAnalysisResult analyze(ast::ListExpression&);
+    ExpressionAnalysisResult analyzeImpl(ast::Identifier&);
+    ExpressionAnalysisResult analyzeImpl(ast::MemberAccess&);
+    ExpressionAnalysisResult analyzeImpl(ast::ReferenceExpression&);
+    ExpressionAnalysisResult analyzeImpl(ast::UniqueExpression&);
+    ExpressionAnalysisResult analyzeImpl(ast::Conditional&);
+    ExpressionAnalysisResult analyzeImpl(ast::FunctionCall&);
+    ExpressionAnalysisResult analyzeImpl(ast::Subscript&);
+    ExpressionAnalysisResult analyzeImpl(ast::ListExpression&);
 
-    ExpressionAnalysisResult analyze(ast::AbstractSyntaxTree&) {
+    ExpressionAnalysisResult analyzeImpl(ast::AbstractSyntaxTree&) {
         SC_DEBUGFAIL();
     }
 
@@ -65,39 +65,39 @@ ExpressionAnalysisResult sema::analyzeExpression(ast::Expression& expr,
                                                  SymbolTable& sym,
                                                  IssueHandler& iss) {
     Context ctx{ .sym = sym, .iss = iss };
-    return ctx.dispatch(expr);
+    return ctx.analyze(expr);
 }
 
-ExpressionAnalysisResult Context::dispatch(ast::Expression& expr) {
-    return visit(expr, [this](auto&& e) { return this->analyze(e); });
+ExpressionAnalysisResult Context::analyze(ast::Expression& expr) {
+    return visit(expr, [this](auto&& e) { return this->analyzeImpl(e); });
 }
 
-ExpressionAnalysisResult Context::analyze(ast::IntegerLiteral& l) {
+ExpressionAnalysisResult Context::analyzeImpl(ast::IntegerLiteral& l) {
     auto* type = sym.qualInt();
     l.decorate(nullptr, type);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
-ExpressionAnalysisResult Context::analyze(ast::BooleanLiteral& l) {
+ExpressionAnalysisResult Context::analyzeImpl(ast::BooleanLiteral& l) {
     auto* type = sym.qualBool();
     l.decorate(nullptr, type);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
-ExpressionAnalysisResult Context::analyze(ast::FloatingPointLiteral& l) {
+ExpressionAnalysisResult Context::analyzeImpl(ast::FloatingPointLiteral& l) {
     auto* type = sym.qualFloat();
     l.decorate(nullptr, type);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
-ExpressionAnalysisResult Context::analyze(ast::StringLiteral& l) {
+ExpressionAnalysisResult Context::analyzeImpl(ast::StringLiteral& l) {
     auto* type = sym.qualString();
     l.decorate(nullptr, type);
     return ExpressionAnalysisResult::rvalue(type);
 }
 
-ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
-    auto const opResult = dispatch(*u.operand);
+ExpressionAnalysisResult Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
+    auto const opResult = analyze(*u.operand);
     if (!opResult) {
         return ExpressionAnalysisResult::fail();
     }
@@ -144,9 +144,9 @@ ExpressionAnalysisResult Context::analyze(ast::UnaryPrefixExpression& u) {
     return ExpressionAnalysisResult::rvalue(u.type());
 }
 
-ExpressionAnalysisResult Context::analyze(ast::BinaryExpression& b) {
-    auto const lhsRes = dispatch(*b.lhs);
-    auto const rhsRes = dispatch(*b.rhs);
+ExpressionAnalysisResult Context::analyzeImpl(ast::BinaryExpression& b) {
+    auto const lhsRes = analyze(*b.lhs);
+    auto const rhsRes = analyze(*b.rhs);
     if (!lhsRes || !rhsRes) {
         return ExpressionAnalysisResult::fail();
     }
@@ -158,7 +158,7 @@ ExpressionAnalysisResult Context::analyze(ast::BinaryExpression& b) {
     return ExpressionAnalysisResult::rvalue(b.type());
 }
 
-ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
+ExpressionAnalysisResult Context::analyzeImpl(ast::Identifier& id) {
     Entity* entity = [&] {
         if (performRestrictedNameLookup) {
             /// When we are on the right hand side of a member access expression
@@ -196,25 +196,15 @@ ExpressionAnalysisResult Context::analyze(ast::Identifier& id) {
     }); // clang-format on
 }
 
-ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
-    auto const objRes = dispatch(*ma.object);
+ExpressionAnalysisResult Context::analyzeImpl(ast::MemberAccess& ma) {
+    auto const objRes = analyze(*ma.object);
     if (!objRes.success()) {
         return ExpressionAnalysisResult::fail();
     }
-    Scope* lookupTargetScope = [&] {
-        if (objRes.category() == EntityCategory::Type) {
-            auto* type = cast<QualType*>(objRes.entity())->base();
-            return const_cast<ObjectType*>(type);
-        }
-        else {
-            return const_cast<ObjectType*>(objRes.type()->base());
-        }
-    }();
-    if (!lookupTargetScope) {
-        return ExpressionAnalysisResult::fail();
-    }
-    auto* const oldScope = &sym.currentScope();
-    sym.makeScopeCurrent(lookupTargetScope);
+    Scope const* lookupTargetScope = ma.object->typeBaseOrTypeEntity();
+    SC_ASSERT(lookupTargetScope, "analyze(ma.object) should have failed");
+    auto* oldScope = &sym.currentScope();
+    sym.makeScopeCurrent(const_cast<Scope*>(lookupTargetScope));
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(oldScope); };
     if (!isa<ast::Identifier>(*ma.member)) {
         iss.push<BadMemberAccess>(ma);
@@ -223,19 +213,17 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
     /// We restrict name lookup to the
     /// current scope. This flag will be unset by the identifier case.
     performRestrictedNameLookup = true;
-    auto const memRes           = dispatch(*ma.member);
+    auto const memRes           = analyze(*ma.member);
     popScope.execute();
     if (!memRes.success()) {
         return ExpressionAnalysisResult::fail();
     }
-    if (objRes.category() == EntityCategory::Value &&
-        memRes.category() != EntityCategory::Value)
-    {
+    if (ma.object->isValue() && !ma.member->isValue()) {
         SC_DEBUGFAIL(); /// Can't look in a value and then in a type. probably
                         /// just return failure here
         return ExpressionAnalysisResult::fail();
     }
-    /// Right hand side of member access expressions must be identifiers?
+    /// Right hand side of member access expressions must be identifiers
     auto& memberIdentifier = cast<ast::Identifier&>(*ma.member);
     ma.decorate(memberIdentifier.entity(),
                 memberIdentifier.type(),
@@ -247,8 +235,8 @@ ExpressionAnalysisResult Context::analyze(ast::MemberAccess& ma) {
     return memRes;
 }
 
-ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
-    auto const referredRes = dispatch(*ref.referred);
+ExpressionAnalysisResult Context::analyzeImpl(ast::ReferenceExpression& ref) {
+    auto const referredRes = analyze(*ref.referred);
     if (!referredRes.success()) {
         return ExpressionAnalysisResult::fail();
     }
@@ -271,21 +259,21 @@ ExpressionAnalysisResult Context::analyze(ast::ReferenceExpression& ref) {
     }
 }
 
-ExpressionAnalysisResult Context::analyze(ast::UniqueExpression& expr) {
+ExpressionAnalysisResult Context::analyzeImpl(ast::UniqueExpression& expr) {
     auto* initExpr = dyncast<ast::FunctionCall*>(expr.initExpr.get());
     if (!initExpr) {
         iss.push<BadExpression>(*expr.initExpr, IssueSeverity::Error);
         return ExpressionAnalysisResult::fail();
     }
     auto* typeExpr   = initExpr->object.get();
-    auto typeExprRes = dispatch(*typeExpr);
+    auto typeExprRes = analyze(*typeExpr);
     if (!typeExprRes || typeExprRes.category() != EntityCategory::Type) {
         iss.push<BadExpression>(*typeExpr, IssueSeverity::Error);
         return ExpressionAnalysisResult::fail();
     }
     SC_ASSERT(initExpr->arguments.size() == 1, "Implement this properly");
     auto* argument = initExpr->arguments.front().get();
-    auto argRes    = dispatch(*argument);
+    auto argRes    = analyze(*argument);
     if (!argRes || argRes.category() != EntityCategory::Value) {
         iss.push<BadExpression>(*argument, IssueSeverity::Error);
         return ExpressionAnalysisResult::fail();
@@ -298,8 +286,8 @@ ExpressionAnalysisResult Context::analyze(ast::UniqueExpression& expr) {
     return ExpressionAnalysisResult::rvalue(type);
 }
 
-ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
-    dispatch(*c.condition);
+ExpressionAnalysisResult Context::analyzeImpl(ast::Conditional& c) {
+    analyze(*c.condition);
     if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
@@ -307,11 +295,11 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
     if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
-    auto const ifRes = dispatch(*c.ifExpr);
+    auto const ifRes = analyze(*c.ifExpr);
     if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
-    auto const elseRes = dispatch(*c.elseExpr);
+    auto const elseRes = analyze(*c.elseExpr);
     if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
@@ -340,8 +328,8 @@ ExpressionAnalysisResult Context::analyze(ast::Conditional& c) {
     return ExpressionAnalysisResult::rvalue(ifRes.type());
 }
 
-ExpressionAnalysisResult Context::analyze(ast::Subscript& expr) {
-    dispatch(*expr.object);
+ExpressionAnalysisResult Context::analyzeImpl(ast::Subscript& expr) {
+    analyze(*expr.object);
     if (!expectValue(*expr.object)) {
         return ExpressionAnalysisResult::fail();
     }
@@ -350,7 +338,7 @@ ExpressionAnalysisResult Context::analyze(ast::Subscript& expr) {
         return ExpressionAnalysisResult::fail();
     }
     for (auto& arg: expr.arguments) {
-        dispatch(*arg);
+        analyze(*arg);
         if (!expectValue(*arg)) {
             return ExpressionAnalysisResult::fail();
         }
@@ -370,12 +358,12 @@ ExpressionAnalysisResult Context::analyze(ast::Subscript& expr) {
     return ExpressionAnalysisResult::rvalue(elemType);
 }
 
-ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
+ExpressionAnalysisResult Context::analyzeImpl(ast::FunctionCall& fc) {
     bool success = true;
     utl::small_vector<QualType const*> argTypes;
     argTypes.reserve(fc.arguments.size());
     for (auto& arg: fc.arguments) {
-        auto const argRes = dispatch(*arg);
+        auto const argRes = analyze(*arg);
         if (iss.fatal()) {
             return ExpressionAnalysisResult::fail();
         }
@@ -383,7 +371,7 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
         /// `arg` is undecorated if analysis of `arg` failed.
         argTypes.push_back(arg->isDecorated() ? arg->type() : nullptr);
     }
-    auto const objRes = dispatch(*fc.object);
+    auto const objRes = analyze(*fc.object);
     if (iss.fatal()) {
         return ExpressionAnalysisResult::fail();
     }
@@ -432,9 +420,9 @@ ExpressionAnalysisResult Context::analyze(ast::FunctionCall& fc) {
     }); // clang-format on
 }
 
-ExpressionAnalysisResult Context::analyze(ast::ListExpression& list) {
+ExpressionAnalysisResult Context::analyzeImpl(ast::ListExpression& list) {
     for (auto* expr: list) {
-        dispatch(*expr);
+        analyze(*expr);
     }
     if (list.empty()) {
         return ExpressionAnalysisResult::indeterminate();
