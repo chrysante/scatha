@@ -111,8 +111,7 @@ public:
     /// \overload
     template <typename V = Value>
     V const* operandAt(size_t index) const {
-        auto* op = ops[index];
-        return op ? cast<V const*>(op) : nullptr;
+        return cast_or_null<V const*>(ops[index]);
     }
 
     /// \Returns A view of pointers to the operands of this instruction

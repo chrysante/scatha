@@ -113,8 +113,7 @@ void CGContext::genBlock(mir::BasicBlock const& BB) {
 
 static Asm::MemoryAddress getAddressOperand(mir::Instruction const& inst) {
     auto* base   = cast<mir::Register const*>(inst.operandAt(0));
-    auto* op1    = inst.operandAt(1);
-    auto* factor = op1 ? cast<mir::Register const*>(op1) : nullptr;
+    auto* factor = cast_or_null<mir::Register const*>(inst.operandAt(1));
     auto data    = inst.instDataAs<mir::MemoryAddress::ConstantData>();
     return Asm::MemoryAddress(RegisterIndex(base->index()),
                               factor ? RegisterIndex(factor->index()) :

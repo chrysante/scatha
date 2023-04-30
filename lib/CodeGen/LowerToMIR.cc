@@ -88,8 +88,7 @@ struct CodeGenContext {
     /// type does not match
     template <typename V = mir::Value>
     V* resolve(ir::Value const* value) {
-        auto* result = resolveImpl(value);
-        return result ? cast<V*>(result) : nullptr;
+        return cast_or_null<V*>(resolveImpl(value));
     }
 
     mir::Register* resolve(ir::Instruction const* inst) {
