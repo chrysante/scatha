@@ -20,7 +20,7 @@ namespace {
 struct Context {
     void run();
 
-    void instantiateObjectType(DependencyGraphNode&);
+    void instantiateStructureType(DependencyGraphNode&);
     void instantiateVariable(DependencyGraphNode&);
     void instantiateFunction(DependencyGraphNode&);
 
@@ -46,6 +46,11 @@ void sema::instantiateEntities(SymbolTable& sym,
     ctx.run();
 }
 
+static bool isBuiltin(ObjectType const* type) {
+    auto* sType = dyncast<StructureType const*>(type);
+    return sType && sType->isBuiltin();
+}
+
 void Context::run() {
     /// After gather name phase we have the names of all types in the symbol
     /// table and we gather the dependencies of variable declarations in
@@ -59,7 +64,7 @@ void Context::run() {
         if (!type) {
             continue;
         }
-        if (type->base()->isBuiltin()) {
+        if (isBuiltin(type->base())) {
             continue;
         }
         node.dependencies.push_back(
@@ -93,32 +98,32 @@ void Context::run() {
                  [&](size_t index) -> auto const& {
                      return dependencyGraph[index].dependencies;
                  });
-    utl::small_vector<ObjectType*> sortedObjTypes;
+    utl::small_vector<StructureType*> sortedStructTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {
         auto& node = dependencyGraph[index];
         // clang-format off
         visit(*node.entity, utl::overload{
             [&](Variable const&) { instantiateVariable(node); },
-            [&](ObjectType& type) {
-                instantiateObjectType(node);
-                sortedObjTypes.push_back(&type);
+            [&](StructureType& type) {
+                instantiateStructureType(node);
+                sortedStructTypes.push_back(&type);
             },
             [&](Function const&) { instantiateFunction(node); },
             [&](Entity const&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
-    sym.setSortedObjectTypes(std::move(sortedObjTypes));
+    sym.setSortedStructureTypes(std::move(sortedStructTypes));
 }
 
-void Context::instantiateObjectType(DependencyGraphNode& node) {
+void Context::instantiateStructureType(DependencyGraphNode& node) {
     ast::StructDefinition& structDef =
         cast<ast::StructDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.scope);
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
     size_t objectSize  = 0;
     size_t objectAlign = 0;
-    auto& objectType   = cast<ObjectType&>(*structDef.entity());
+    auto& objectType   = cast<StructureType&>(*structDef.entity());
     for (size_t index = 0; auto* statement: structDef.body()->statements()) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
@@ -213,8 +218,8 @@ QualType const* Context::analyzeParameter(ast::ParameterDeclaration& param,
                                      sym.currentScope());
         return nullptr;
     }
-    auto* objType = cast<ObjectType const*>(structure->entity());
-    return sym.qualify(objType, thisParam->qualifiers());
+    auto* structType = cast<StructureType const*>(structure->entity());
+    return sym.qualify(structType, thisParam->qualifiers());
 }
 
 QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {

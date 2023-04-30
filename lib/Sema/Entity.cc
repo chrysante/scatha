@@ -85,36 +85,26 @@ bool Type::isComplete() const {
     return size() != invalidSize;
 }
 
-std::string QualType::makeName(ObjectType* base,
-                               TypeQualifiers qualifiers,
-                               size_t arraySize) {
+std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
+    std::stringstream sstr;
+    sstr << "[" << elemType->name();
+    if (count != DynamicCount) {
+        sstr << "," << count;
+    }
+    sstr << "]";
+    return std::move(sstr).str();
+}
+
+std::string QualType::makeName(ObjectType* base, TypeQualifiers qualifiers) {
     using enum TypeQualifiers;
     std::stringstream sstr;
-    bool const isRef =
-        test(qualifiers & (ExplicitReference | ImplicitReference));
-    if (!test(qualifiers & Array)) {
-        if (isRef) {
-            sstr << "&";
-        }
-        if (test(qualifiers & Mutable)) {
-            sstr << "mut ";
-        }
-        sstr << base->name();
+    if (test(qualifiers & (ExplicitReference | ImplicitReference))) {
+        sstr << "&";
     }
-    else {
-
-        if (isRef) {
-            sstr << "&";
-        }
-        if (test(qualifiers & Mutable)) {
-            sstr << "mut ";
-        }
-        sstr << "[" << base->name();
-        if (!isRef && arraySize != QualType::DynamicArraySize) {
-            sstr << ", " << arraySize;
-        }
-        sstr << "]";
+    if (test(qualifiers & Mutable)) {
+        sstr << "mut ";
     }
+    sstr << base->name();
     return std::move(sstr).str();
 }
 

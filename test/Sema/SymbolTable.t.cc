@@ -25,7 +25,7 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
                          sema::FunctionSignature({ sym.qualInt() },
                                                  sym.qualInt()));
     REQUIRE(overloadSuccessI);
-    auto* xType = &sym.declareObjectType("X").value();
+    auto* xType = &sym.declareStructureType("X").value();
     // Begin X
     sym.pushScope(xType);
     // Add member variable 'i' to

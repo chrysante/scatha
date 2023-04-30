@@ -305,20 +305,26 @@ private:
     size_t _align;
 };
 
-/// Concrete class representing the type of an object
+/// Abstract class representing the type of an object
 class ObjectType: public Type {
 public:
-    explicit ObjectType(std::string name,
-                        Scope* parentScope,
-                        size_t size    = invalidSize,
-                        size_t align   = invalidSize,
-                        bool isBuiltin = false):
-        Type(EntityType::ObjectType,
-             ScopeKind::Object,
-             std::move(name),
-             parentScope,
-             size,
-             align),
+    using Type::Type;
+};
+
+/// Concrete class representing the type of a structure
+class StructureType: public ObjectType {
+public:
+    explicit StructureType(std::string name,
+                           Scope* parentScope,
+                           size_t size    = invalidSize,
+                           size_t align   = invalidSize,
+                           bool isBuiltin = false):
+        ObjectType(EntityType::StructureType,
+                   ScopeKind::Object,
+                   std::move(name),
+                   parentScope,
+                   size,
+                   align),
         _isBuiltin(isBuiltin) {}
 
     bool isBuiltin() const { return _isBuiltin; }
@@ -340,22 +346,50 @@ public:
     utl::small_vector<Variable*> _memberVars;
 };
 
+/// Concrete class representing the type of an array
+class ArrayType: public ObjectType {
+public:
+    static constexpr size_t DynamicCount = ~size_t(0);
+
+    explicit ArrayType(ObjectType const* elementType, size_t count):
+        ObjectType(EntityType::ArrayType,
+                   ScopeKind::Object,
+                   makeName(elementType, count),
+                   nullptr,
+                   count != DynamicCount ? count * elementType->size() :
+                                           invalidSize,
+                   elementType->align()),
+        elemType(elementType),
+        _count(count) {}
+
+    /// Type of the elements in this array
+    ObjectType const* elementType() const { return elemType; }
+
+    /// Number of elements in this array
+    size_t count() const { return _count; }
+
+    /// Shorthand for `count() == DynamicCount`
+    bool isDynamic() const { return count() == DynamicCount; }
+
+private:
+    static std::string makeName(ObjectType const* elemType, size_t size);
+
+    ObjectType const* elemType;
+    size_t _count;
+};
+
+/// Represents a type possibly qualified by reference or mutable qualifiers
 class SCATHA_API QualType: public Type {
 public:
-    static constexpr size_t DynamicArraySize = ~uint32_t(0);
-
-    explicit QualType(ObjectType* base,
-                      TypeQualifiers qualifiers,
-                      size_t arraySize = 0):
+    explicit QualType(ObjectType* base, TypeQualifiers qualifiers):
         Type(EntityType::QualType,
              ScopeKind::Invalid,
-             makeName(base, qualifiers, arraySize),
+             makeName(base, qualifiers),
              base->parent(),
              base->size(),
              base->align()),
         _base(base),
-        _quals(qualifiers),
-        _arraySize(utl::narrow_cast<uint32_t>(arraySize)) {
+        _quals(qualifiers) {
         if (isReference()) {
             setSize(8);
             setAlign(8);
@@ -367,10 +401,6 @@ public:
     ObjectType const* base() const { return _base; }
 
     TypeQualifiers qualifiers() const { return _quals; }
-
-    /// The number of elements in this array. Only applicable is this is an
-    /// array type
-    size_t arraySize() const { return _arraySize; }
 
     bool has(TypeQualifiers qual) const { return test(qualifiers() & qual); }
 
@@ -386,12 +416,6 @@ public:
         return isImplicitReference() || isExplicitReference();
     }
 
-    /// \Return `true` iff this type is an array or an array reference
-    bool isArray() const { return has(TypeQualifiers::Array); }
-
-    /// \Return `true` iff this type is an array reference
-    bool isArrayReference() const { return isArray() && isReference(); }
-
     /// \Return `true` iff this type is mutable
     bool isMutable() const { return has(TypeQualifiers::Mutable); }
 
@@ -399,13 +423,10 @@ public:
     bool isUnique() const { return has(TypeQualifiers::Unique); }
 
 private:
-    static std::string makeName(ObjectType* base,
-                                TypeQualifiers qualifiers,
-                                size_t arraySize);
+    static std::string makeName(ObjectType* base, TypeQualifiers qualifiers);
 
     ObjectType* _base;
     TypeQualifiers _quals;
-    uint32_t _arraySize = 0;
 };
 
 /// # OverloadSet

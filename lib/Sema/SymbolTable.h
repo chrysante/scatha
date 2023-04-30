@@ -26,7 +26,7 @@ class SemanticIssue;
 
 class SCATHA_API SymbolTable {
 public:
-    static constexpr size_t invalidSize = static_cast<size_t>(-1);
+    static constexpr size_t InvalidSize = static_cast<size_t>(-1);
 
 public:
     SymbolTable();
@@ -46,11 +46,11 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
-    Expected<ObjectType&, SemanticIssue*> declareObjectType(
+    Expected<StructureType&, SemanticIssue*> declareStructureType(
         std::string name, bool allowKeywords = false);
 
     /// Simpler interface to declare builtins. Internally calls
-    /// `declareObjectType()`
+    /// `declareStructureType()`
     ///
     /// TODO: Only used internally. Make this private.
     Type const* declareBuiltinType(std::string name, size_t size, size_t align);
@@ -121,13 +121,19 @@ public:
     /// \returns Reference to the new scope.
     Scope& addAnonymousScope();
 
-    QualType const* qualify(Type const* base,
-                            TypeQualifiers qualifiers = TypeQualifiers::None,
-                            size_t arraySize          = 0);
+    ///
+    ///
+    ArrayType const* arrayType(ObjectType const* elementType, size_t size);
 
+    ///
+    QualType const* qualify(Type const* base,
+                            TypeQualifiers qualifiers = TypeQualifiers::None);
+
+    ///
     QualType const* addQualifiers(QualType const* base,
                                   TypeQualifiers qualifiers);
 
+    ///
     QualType const* removeQualifiers(QualType const* base,
                                      TypeQualifiers qualifiers);
 
@@ -168,7 +174,8 @@ public:
         return f();
     }
 
-    /// MARK: Queries
+    /// ## Queries
+
     Function* builtinFunction(size_t index) const {
         return _builtinFunctions[index];
     }
@@ -235,13 +242,13 @@ public:
     }
 
     /// Review if we want to keep these:
-    void setSortedObjectTypes(utl::vector<ObjectType*> ids) {
-        _sortedObjectTypes = std::move(ids);
+    void setSortedStructureTypes(utl::vector<StructureType*> ids) {
+        _sortedStructureTypes = std::move(ids);
     }
 
     /// View over topologically sorted object types
-    std::span<ObjectType const* const> sortedObjectTypes() const {
-        return _sortedObjectTypes;
+    std::span<StructureType const* const> sortedStructureTypes() const {
+        return _sortedStructureTypes;
     }
 
     /// View over all functions
@@ -249,8 +256,7 @@ public:
 
 private:
     QualType const* getQualType(ObjectType const* base,
-                                TypeQualifiers qualifiers,
-                                size_t arraySize);
+                                TypeQualifiers qualifiers);
 
     template <typename E, typename... Args>
     E* addEntity(Args&&... args);
@@ -263,11 +269,13 @@ private:
 
     utl::vector<UniquePtr<Entity>> _entities;
 
-    utl::hashmap<std::tuple<ObjectType const*, TypeQualifiers, size_t>,
-                 QualType const*>
+    utl::hashmap<std::pair<ObjectType const*, TypeQualifiers>, QualType const*>
         _qualTypes;
 
-    utl::vector<ObjectType*> _sortedObjectTypes;
+    utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
+        _arrayTypes;
+
+    utl::vector<StructureType*> _sortedStructureTypes;
 
     utl::small_vector<Function*> _functions;
 

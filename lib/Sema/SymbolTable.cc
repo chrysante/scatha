@@ -22,8 +22,8 @@ static bool isKeyword(std::string_view id) {
 SymbolTable::SymbolTable() {
     _currentScope = _globalScope = addEntity<GlobalScope>();
 
-    /// Declare `void` with `invalidSize` to make it an incomplete type.
-    _void = declareBuiltinType("void", invalidSize, invalidSize);
+    /// Declare `void` with `InvalidSize` to make it an incomplete type.
+    _void = declareBuiltinType("void", InvalidSize, InvalidSize);
     _byte = declareBuiltinType("byte", 1, 1);
     _bool = declareBuiltinType("bool", 1, 1);
 #if 0
@@ -62,7 +62,7 @@ SymbolTable& SymbolTable::operator=(SymbolTable&&) noexcept = default;
 
 SymbolTable::~SymbolTable() = default;
 
-Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
+Expected<StructureType&, SemanticIssue*> SymbolTable::declareStructureType(
     std::string name, bool allowKeywords) {
     using enum InvalidDeclaration::Reason;
     if (!allowKeywords && isKeyword(name)) {
@@ -73,7 +73,7 @@ Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
     if (Entity* entity = currentScope().findEntity(name)) {
         return new InvalidDeclaration(nullptr, Redefinition, currentScope());
     }
-    auto* type = addEntity<ObjectType>(name, &currentScope());
+    auto* type = addEntity<StructureType>(name, &currentScope());
     currentScope().add(type);
     return *type;
 }
@@ -81,7 +81,7 @@ Expected<ObjectType&, SemanticIssue*> SymbolTable::declareObjectType(
 Type const* SymbolTable::declareBuiltinType(std::string name,
                                             size_t size,
                                             size_t align) {
-    auto result = declareObjectType(name, /* allowKeywords = */ true);
+    auto result = declareStructureType(name, /* allowKeywords = */ true);
     SC_ASSERT(result, "How could this fail?");
     result->setSize(size);
     result->setAlign(align);
@@ -197,14 +197,25 @@ Scope& SymbolTable::addAnonymousScope() {
     return *scope;
 }
 
+ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
+                                        size_t size) {
+    std::pair key = { elementType, size };
+    auto itr      = _arrayTypes.find(key);
+    if (itr != _arrayTypes.end()) {
+        return itr->second;
+    }
+    auto* arrayType = addEntity<ArrayType>(elementType, size);
+    _arrayTypes.insert({ key, arrayType });
+    return arrayType;
+}
+
 QualType const* SymbolTable::qualify(Type const* base,
-                                     TypeQualifiers qualifiers,
-                                     size_t arraySize) {
+                                     TypeQualifiers qualifiers) {
     ObjectType const* objType = dyncast<ObjectType const*>(base);
     if (!objType) {
         objType = cast<QualType const*>(base)->base();
     }
-    return getQualType(objType, qualifiers, arraySize);
+    return getQualType(objType, qualifiers);
 }
 
 QualType const* SymbolTable::addQualifiers(QualType const* base,
@@ -226,18 +237,15 @@ QualType const* SymbolTable::arrayView(Type const* base,
 }
 
 QualType const* SymbolTable::getQualType(ObjectType const* baseType,
-                                         TypeQualifiers qualifiers,
-                                         size_t arraySize) {
-    if (auto itr = _qualTypes.find({ baseType, qualifiers, arraySize });
-        itr != _qualTypes.end())
-    {
+                                         TypeQualifiers qualifiers) {
+    std::pair key = { baseType, qualifiers };
+    auto itr      = _qualTypes.find(key);
+    if (itr != _qualTypes.end()) {
         return itr->second;
     }
-    auto* qualType = addEntity<QualType>(const_cast<ObjectType*>(baseType),
-                                         qualifiers,
-                                         arraySize);
-    _qualTypes.insert(
-        { std::tuple{ baseType, qualifiers, arraySize }, qualType });
+    auto* qualType =
+        addEntity<QualType>(const_cast<ObjectType*>(baseType), qualifiers);
+    _qualTypes.insert({ key, qualType });
     return qualType;
 }
 

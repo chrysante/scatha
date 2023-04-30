@@ -32,12 +32,7 @@ static std::string impl(QualType const* type) {
     if (type->isMutable()) {
         sstr << "__mut_";
     }
-    if (type->isArray()) {
-        sstr << "[" << baseName << "]";
-    }
-    else {
-        sstr << baseName;
-    }
+    sstr << baseName;
     return std::move(sstr).str();
 }
 

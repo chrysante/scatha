@@ -374,7 +374,8 @@ bool Context::analyzeImpl(ast::Conditional& c) {
 bool Context::analyzeImpl(ast::Subscript& expr) {
     bool success = analyze(*expr.object());
     success &= expectValue(*expr.object());
-    if (!expr.object()->type()->isArray()) {
+    auto* arrayType = dyncast<ArrayType const*>(expr.object()->type()->base());
+    if (!arrayType) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
     }
     for (auto* arg: expr.arguments()) {
@@ -393,7 +394,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
-    auto* elemType = sym.qualify(expr.object()->type()->base(),
+    auto* elemType = sym.qualify(arrayType->elementType(),
                                  TypeQualifiers::ImplicitReference);
     expr.decorate(nullptr, elemType);
     return true;
@@ -511,19 +512,19 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
             iss.push<BadExpression>(list, IssueSeverity::Error);
         }
         // TODO: Check for common type!
-        auto* type = sym.qualify(first->type()->base(),
-                                 TypeQualifiers::Array,
-                                 list.elements().size());
-        list.decorate(nullptr, type);
+        auto* arrayType =
+            sym.arrayType(first->type()->base(), list.elements().size());
+        auto* qualType = sym.qualify(arrayType);
+        list.decorate(nullptr, qualType);
         return true;
     }
     case EntityCategory::Type: {
-        auto* elementType = cast<Type*>(first->entity());
+        auto* elementType = cast<QualType*>(first->entity())->base();
         if (list.elements().size() != 1 && list.elements().size() != 2) {
             iss.push<BadExpression>(list, IssueSeverity::Error);
             return false;
         }
-        size_t arraySize = QualType::DynamicArraySize;
+        size_t count = ArrayType::DynamicCount;
         if (list.elements().size() == 2) {
             auto* countLiteral =
                 dyncast<ast::Literal const*>(list.elements()[1]);
@@ -534,12 +535,12 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
                                         IssueSeverity::Error);
                 return false;
             }
-            arraySize =
+            count =
                 countLiteral->value<ast::LiteralKind::Integer>().to<size_t>();
         }
-        auto* arrayType =
-            sym.qualify(elementType, TypeQualifiers::Array, arraySize);
-        list.decorate(const_cast<QualType*>(arrayType), nullptr);
+        auto* arrayType = sym.arrayType(elementType, count);
+        auto* qualType  = sym.qualify(arrayType);
+        list.decorate(const_cast<QualType*>(qualType), nullptr);
         return true;
     }
     default:

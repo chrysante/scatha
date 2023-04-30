@@ -110,12 +110,12 @@ struct CodeGenContext {
                            ParameterDeclaration const* paramDecl);
     ir::UnaryArithmeticOperation mapUnaryArithmeticOp(
         ast::UnaryPrefixOperator) const;
-    ir::CompareMode mapCompareMode(sema::ObjectType const*) const;
+    ir::CompareMode mapCompareMode(sema::StructureType const*) const;
     ir::CompareOperation mapCompareOp(ast::BinaryOperator) const;
-    ir::ArithmeticOperation mapArithmeticOp(sema::ObjectType const* type,
+    ir::ArithmeticOperation mapArithmeticOp(sema::StructureType const* type,
                                             ast::BinaryOperator) const;
-    ir::ArithmeticOperation mapArithmeticAssignOp(sema::ObjectType const* type,
-                                                  ast::BinaryOperator) const;
+    ir::ArithmeticOperation mapArithmeticAssignOp(
+        sema::StructureType const* type, ast::BinaryOperator) const;
 
     ir::Context& irCtx;
     ir::Module& mod;
@@ -191,21 +191,9 @@ void CodeGenContext::generateImpl(StructDefinition const& def) {
 }
 
 void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
-    if (!varDecl.type()->has(sema::TypeQualifiers::Array)) {
-        /// Non-array case
-        auto* address = new ir::Alloca(irCtx,
-                                       mapType(varDecl.type()),
-                                       std::string(varDecl.name()));
-        addAlloca(address);
-        memorizeVariableAddress(varDecl.variable(), address);
-        if (!varDecl.initExpression()) {
-            return;
-        }
-        ir::Value* initValue = getValue(*varDecl.initExpression());
-        auto* store          = new ir::Store(irCtx, address, initValue);
-        currentBB()->pushBack(store);
-    }
-    else {
+    if (auto* arrayType =
+            dyncast<sema::ArrayType const*>(varDecl.type()->base()))
+    {
         /// Array case
         auto* address = varDecl.initExpression() ?
                             getAddress(*varDecl.initExpression()) :
@@ -217,7 +205,20 @@ void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
             // TODO: Copy the array
             SC_DEBUGFAIL();
         }
+        return;
     }
+    /// Non-array case
+    auto* address = new ir::Alloca(irCtx,
+                                   mapType(varDecl.type()),
+                                   std::string(varDecl.name()));
+    addAlloca(address);
+    memorizeVariableAddress(varDecl.variable(), address);
+    if (!varDecl.initExpression()) {
+        return;
+    }
+    ir::Value* initValue = getValue(*varDecl.initExpression());
+    auto* store          = new ir::Store(irCtx, address, initValue);
+    currentBB()->pushBack(store);
 }
 
 void CodeGenContext::generateImpl(ParameterDeclaration const&) {
@@ -379,7 +380,7 @@ ir::Value* CodeGenContext::getValue(Expression const& expr, bool dereference) {
         visit(expr, [this](auto const& expr) { return getValueImpl(expr); });
     auto* semaType = expr.type();
     if (dereference && semaType->base() != symTable.Void() &&
-        semaType->has(sema::TypeQualifiers::ImplicitReference))
+        semaType->isImplicitReference() && !semaType->isExplicitReference())
     {
         return loadAddress(value,
                            mapType(semaType->base()),
@@ -491,12 +492,10 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::BitwiseOr: {
         ir::Value* const lhs = getValue(*exprDecl.lhs());
         ir::Value* const rhs = getValue(*exprDecl.rhs());
+        auto* type = cast<sema::StructureType const*>(exprDecl.type()->base());
+        auto operation = mapArithmeticOp(type, exprDecl.operation());
         auto* arithInst =
-            new ir::ArithmeticInst(lhs,
-                                   rhs,
-                                   mapArithmeticOp(exprDecl.type()->base(),
-                                                   exprDecl.operation()),
-                                   "expr.result");
+            new ir::ArithmeticInst(lhs, rhs, operation, "expr.result");
         currentBB()->pushBack(arithInst);
         return arithInst;
     }
@@ -539,13 +538,14 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::Equals:
         [[fallthrough]];
     case BinaryOperator::NotEquals: {
-        auto* cmpInst =
-            new ir::CompareInst(irCtx,
-                                getValue(*exprDecl.lhs()),
-                                getValue(*exprDecl.rhs()),
-                                mapCompareMode(exprDecl.lhs()->type()->base()),
-                                mapCompareOp(exprDecl.operation()),
-                                "cmp.result");
+        auto* type =
+            cast<sema::StructureType const*>(exprDecl.lhs()->type()->base());
+        auto* cmpInst = new ir::CompareInst(irCtx,
+                                            getValue(*exprDecl.lhs()),
+                                            getValue(*exprDecl.rhs()),
+                                            mapCompareMode(type),
+                                            mapCompareOp(exprDecl.operation()),
+                                            "cmp.result");
         currentBB()->pushBack(cmpInst);
         return cmpInst;
     }
@@ -586,12 +586,14 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
         ir::Type const* lhsType = mapType(exprDecl.lhs()->type()->base());
         ir::Value* lhs          = loadAddress(lhsAddr, lhsType, "lhs");
         ir::Value* rhs          = getValue(*exprDecl.rhs());
-        auto* result            = new ir::ArithmeticInst(
-            lhs,
-            rhs,
-            mapArithmeticAssignOp(exprDecl.lhs()->type()->base(),
-                                  exprDecl.operation()),
-            "expr.result");
+        auto* type =
+            cast<sema::StructureType const*>(exprDecl.lhs()->type()->base());
+        auto* result =
+            new ir::ArithmeticInst(lhs,
+                                   rhs,
+                                   mapArithmeticAssignOp(type,
+                                                         exprDecl.operation()),
+                                   "expr.result");
         currentBB()->pushBack(result);
         auto* store = new ir::Store(irCtx, lhsAddr, result);
         currentBB()->pushBack(store);
@@ -775,7 +777,7 @@ ir::Value* CodeGenContext::loadAddress(ir::Value* address,
 }
 
 void CodeGenContext::declareTypes() {
-    for (sema::ObjectType const* objType: symTable.sortedObjectTypes()) {
+    for (sema::StructureType const* objType: symTable.sortedStructureTypes()) {
         auto structure = allocate<ir::StructureType>(objType->mangledName());
         for (sema::Variable const* member: objType->memberVariables()) {
             structure->addMember(mapType(member->type()));
@@ -851,35 +853,40 @@ void CodeGenContext::memorizeVariableAddress(sema::Entity const* entity,
 }
 
 ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
-    if (auto* qualType = dyncast<sema::QualType const*>(semaType)) {
-        if (qualType->has(sema::TypeQualifiers::ExplicitReference |
-                          sema::TypeQualifiers::ImplicitReference))
-        {
-            return irCtx.pointerType();
-        }
-        return mapType(qualType->base());
-    }
-    if (auto* type = dyncast<sema::ObjectType const*>(semaType)) {
-        if (type == symTable.Void()) {
-            return irCtx.voidType();
-        }
-        if (type == symTable.Byte()) {
-            return irCtx.integralType(8);
-        }
-        if (type == symTable.Bool()) {
-            return irCtx.integralType(1);
-        }
-        if (type == symTable.Int()) {
-            return irCtx.integralType(64);
-        }
-        if (type == symTable.Float()) {
-            return irCtx.floatType(64);
-        }
-        if (auto itr = typeMap.find(type); itr != typeMap.end()) {
-            return itr->second;
-        }
-    }
-    SC_DEBUGFAIL();
+    // clang-format off
+    return visit(*semaType, utl::overload{
+        [&](sema::QualType const& qualType) -> ir::Type const* {
+            if (qualType.isReference()) {
+                return irCtx.pointerType();
+            }
+            return mapType(qualType.base());
+        },
+        [&](sema::StructureType const& structType) -> ir::Type const* {
+            if (&structType == symTable.Void()) {
+                return irCtx.voidType();
+            }
+            if (&structType == symTable.Byte()) {
+                return irCtx.integralType(8);
+            }
+            if (&structType == symTable.Bool()) {
+                return irCtx.integralType(1);
+            }
+            if (&structType == symTable.Int()) {
+                return irCtx.integralType(64);
+            }
+            if (&structType == symTable.Float()) {
+                return irCtx.floatType(64);
+            }
+            if (auto itr = typeMap.find(&structType); itr != typeMap.end()) {
+                return itr->second;
+            }
+            SC_DEBUGFAIL();
+        },
+        [&](sema::ArrayType const& arrayType) {
+            /// ???
+            return mapType(arrayType.elementType());
+        },
+    }); // clang-format on
 }
 
 utl::small_vector<ir::Type const*> CodeGenContext::mapParameterTypes(
@@ -888,7 +895,7 @@ utl::small_vector<ir::Type const*> CodeGenContext::mapParameterTypes(
     for (auto* semaType: types) {
         auto* irType = mapType(semaType);
         result.push_back(irType);
-        if (semaType->isArray()) {
+        if (isa<sema::ArrayType>(semaType->base())) {
             result.push_back(irCtx.integralType(64));
         }
     }
@@ -902,17 +909,9 @@ utl::small_vector<ir::Value*> CodeGenContext::mapArguments(
         auto* value = getValue(*expr);
         result.push_back(value);
         auto* type = expr->type();
-        if (type->isArray()) {
-            // TODO: Get array size here
-            auto* arraySize = [&]() -> ir::Value* {
-                if (!type->isReference()) {
-                    return irCtx.integralConstant(APInt(type->arraySize(), 64));
-                }
-                else {
-                    return irCtx.integralConstant(APInt(0, 64));
-                }
-            }();
-            result.push_back(arraySize);
+        if (auto* arrayType = dyncast<sema::ArrayType const*>(type->base())) {
+            auto* count = irCtx.integralConstant(APInt(arrayType->count(), 64));
+            result.push_back(count);
         }
     }
     return result;
@@ -928,7 +927,7 @@ void CodeGenContext::generateParameter(ir::BasicBlock* entry,
     memorizeVariableAddress(paramDecl->entity(), address);
     auto* store = new ir::Store(irCtx, address, paramItr++.to_address());
     entry->pushBack(store);
-    if (semaType->isArray()) {
+    if (auto* arrayType = dyncast<sema::ArrayType const*>(semaType->base())) {
         auto* sizeAddress = new ir::Alloca(irCtx,
                                            irCtx.integralType(64),
                                            utl::strcat(name, "__size"));
@@ -953,7 +952,7 @@ ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
 }
 
 ir::CompareMode CodeGenContext::mapCompareMode(
-    sema::ObjectType const* type) const {
+    sema::StructureType const* type) const {
     if (type == symTable.Bool()) {
         return ir::CompareMode::Unsigned;
     }
@@ -987,7 +986,7 @@ ir::CompareOperation CodeGenContext::mapCompareOp(
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
-    sema::ObjectType const* type, ast::BinaryOperator op) const {
+    sema::StructureType const* type, ast::BinaryOperator op) const {
     switch (op) {
     case BinaryOperator::Multiplication:
         if (type == symTable.Int()) {
@@ -1042,7 +1041,7 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
 }
 
 ir::ArithmeticOperation CodeGenContext::mapArithmeticAssignOp(
-    sema::ObjectType const* type, ast::BinaryOperator op) const {
+    sema::StructureType const* type, ast::BinaryOperator op) const {
     auto nonAssign = [&] {
         switch (op) {
         case BinaryOperator::AddAssignment:

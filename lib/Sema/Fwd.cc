@@ -33,6 +33,8 @@ EntityCategory sema::categorize(EntityType entityType) {
         { EntityType::Function,       EntityCategory::Value },
         { EntityType::Type,           EntityCategory::Type },
         { EntityType::ObjectType,     EntityCategory::Type },
+        { EntityType::StructureType,  EntityCategory::Type },
+        { EntityType::ArrayType,      EntityCategory::Type },
         { EntityType::QualType,       EntityCategory::Type },
         { EntityType::AnonymousScope, EntityCategory::Indeterminate },
         { EntityType::OverloadSet,    EntityCategory::Value },

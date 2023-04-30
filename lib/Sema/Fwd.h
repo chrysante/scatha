@@ -19,6 +19,8 @@
 ///    ├─ Function
 ///    └─ Type
 ///       ├─ ObjectType
+///       │  ├─ StructureType
+///       │  └─ ArrayType
 ///       ├─ QualType
 ///       └─ FunctionType [??, does not exist]
 /// ```
@@ -92,7 +94,6 @@ enum class TypeQualifiers {
     ImplicitReference = 1 << 1,
     ExplicitReference = 1 << 2,
     Unique            = 1 << 3,
-    Array             = 1 << 4,
 };
 
 UTL_ENUM_OPERATORS(TypeQualifiers);

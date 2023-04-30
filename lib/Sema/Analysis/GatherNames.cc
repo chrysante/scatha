@@ -95,7 +95,7 @@ size_t Context::gather(ast::StructDefinition& s) {
             sym.currentScope());
         return invalidIndex;
     }
-    Expected const declResult = sym.declareObjectType(std::string(s.name()));
+    Expected const declResult = sym.declareStructureType(std::string(s.name()));
     if (!declResult) {
         iss.push(declResult.error()->setStatement(s));
         return invalidIndex;
