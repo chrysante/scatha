@@ -126,11 +126,10 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
             return nullptr;
         }
     }
-    auto result = allocate<ast::FunctionDefinition>(declarator.sourceRange(),
-                                                    std::move(identifier));
     /// Parse parameters
-    using ParamListType = decltype(result->parameters);
-    auto parseList      = [this] {
+    using ParamListType =
+        utl::small_vector<UniquePtr<ast::ParameterDeclaration>>;
+    auto parseList = [this] {
         return this->parseList<ParamListType>(OpenParan,
                                               CloseParan,
                                               Comma,
@@ -156,11 +155,11 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
             return nullptr;
         }
     }
-    result->parameters = std::move(*params);
+    UniquePtr<ast::Expression> returnTypeExpr;
     if (Token const arrow = tokens.peek(); arrow.kind() == Arrow) {
         tokens.eat();
-        result->returnTypeExpr = parseTypeExpression();
-        if (!result->returnTypeExpr) {
+        returnTypeExpr = parseTypeExpression();
+        if (!returnTypeExpr) {
             pushExpectedExpression(tokens.peek());
         }
     }
@@ -178,8 +177,11 @@ UniquePtr<ast::FunctionDefinition> Context::parseFunctionDefinition() {
             return nullptr;
         }
     }
-    result->body = std::move(body);
-    return result;
+    return allocate<ast::FunctionDefinition>(declarator.sourceRange(),
+                                             std::move(identifier),
+                                             std::move(*params),
+                                             std::move(returnTypeExpr),
+                                             std::move(body));
 }
 
 UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
@@ -826,6 +828,9 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
     if (auto result = parseFloatingPointLiteral()) {
         return result;
     }
+    if (auto result = parseThisLiteral()) {
+        return result;
+    }
     if (auto result = parseStringLiteral()) {
         return result;
     }
@@ -876,7 +881,7 @@ UniquePtr<ast::Identifier> Context::parseIdentifier() {
 }
 
 UniquePtr<ast::IntegerLiteral> Context::parseIntegerLiteral() {
-    if (tokens.peek().kind() != TokenKind::IntegerLiteral) {
+    if (tokens.peek().kind() != IntegerLiteral) {
         return nullptr;
     }
     auto token = tokens.eat();
@@ -886,7 +891,7 @@ UniquePtr<ast::IntegerLiteral> Context::parseIntegerLiteral() {
 
 UniquePtr<ast::BooleanLiteral> Context::parseBooleanLiteral() {
     Token const token = tokens.peek();
-    if (token.kind() != TokenKind::True && token.kind() != TokenKind::False) {
+    if (token.kind() != True && token.kind() != False) {
         return nullptr;
     }
     tokens.eat();
@@ -894,7 +899,7 @@ UniquePtr<ast::BooleanLiteral> Context::parseBooleanLiteral() {
 }
 
 UniquePtr<ast::FloatingPointLiteral> Context::parseFloatingPointLiteral() {
-    if (tokens.peek().kind() != TokenKind::FloatLiteral) {
+    if (tokens.peek().kind() != FloatLiteral) {
         return nullptr;
     }
     auto token = tokens.eat();
@@ -903,8 +908,16 @@ UniquePtr<ast::FloatingPointLiteral> Context::parseFloatingPointLiteral() {
                                                    APFloatPrec::Double));
 }
 
+UniquePtr<ast::ThisLiteral> Context::parseThisLiteral() {
+    if (tokens.peek().kind() != This) {
+        return nullptr;
+    }
+    auto token = tokens.eat();
+    return allocate<ast::ThisLiteral>(token.sourceRange());
+}
+
 UniquePtr<ast::StringLiteral> Context::parseStringLiteral() {
-    if (tokens.peek().kind() != TokenKind::StringLiteral) {
+    if (tokens.peek().kind() != StringLiteral) {
         return nullptr;
     }
     auto token = tokens.eat();

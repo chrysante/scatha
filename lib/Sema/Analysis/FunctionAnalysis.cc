@@ -21,6 +21,7 @@ struct Context {
     void analyzeImpl(ast::CompoundStatement&);
     void analyzeImpl(ast::VariableDeclaration&);
     void analyzeImpl(ast::ParameterDeclaration&);
+    void analyzeImpl(ast::ThisParameter&);
     void analyzeImpl(ast::ExpressionStatement&);
     void analyzeImpl(ast::ReturnStatement&);
     void analyzeImpl(ast::IfStatement&);
@@ -228,6 +229,28 @@ void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     }
     auto& param = *paramRes;
     paramDecl.decorate(&param, declaredType);
+}
+
+void Context::analyzeImpl(ast::ThisParameter& thisParam) {
+    SC_ASSERT(currentFunction != nullptr,
+              "We'd better have a function pushed when analyzing function "
+              "parameters.");
+    SC_ASSERT(!thisParam.isDecorated(),
+              "We should not have handled parameters in prepass.");
+    auto* function   = cast<Function*>(currentFunction->entity());
+    auto* parentType = dyncast<ObjectType*>(function->parent());
+    if (!parentType) {
+        return;
+    }
+    auto* qualType = sym.qualify(parentType, thisParam.qualifiers());
+    auto paramRes  = sym.addVariable("__this", qualType);
+    if (!paramRes) {
+        iss.push(paramRes.error()->setStatement(thisParam));
+        return;
+    }
+    function->setIsMember();
+    auto& param = *paramRes;
+    thisParam.decorate(&param, qualType);
 }
 
 void Context::analyzeImpl(ast::ExpressionStatement& es) {

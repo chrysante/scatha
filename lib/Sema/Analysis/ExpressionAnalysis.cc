@@ -22,6 +22,7 @@ struct Context {
     bool analyzeImpl(ast::BooleanLiteral&);
     bool analyzeImpl(ast::FloatingPointLiteral&);
     bool analyzeImpl(ast::StringLiteral&);
+    bool analyzeImpl(ast::ThisLiteral&);
     bool analyzeImpl(ast::UnaryPrefixExpression&);
     bool analyzeImpl(ast::BinaryExpression&);
 
@@ -93,6 +94,22 @@ bool Context::analyzeImpl(ast::FloatingPointLiteral& l) {
 bool Context::analyzeImpl(ast::StringLiteral& l) {
     auto* type = sym.qualString();
     l.decorate(nullptr, type);
+    return true;
+}
+
+bool Context::analyzeImpl(ast::ThisLiteral& lit) {
+    auto* scope = &sym.currentScope();
+    while (!isa<Function>(scope)) {
+        scope = scope->parent();
+    }
+    auto* function = cast<Function*>(scope);
+    if (!function->isMember()) {
+        iss.push<BadExpression>(lit, IssueSeverity::Error);
+        return false;
+    }
+    auto* type       = function->signature().argumentTypes().front();
+    auto* thisEntity = function->findEntity<Variable>("__this");
+    lit.decorate(thisEntity, type);
     return true;
 }
 
@@ -333,6 +350,14 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     }
     if (!success) {
         return false;
+    }
+    if (auto* memberAccess = dyncast<ast::MemberAccess*>(fc.object.get());
+        memberAccess && memberAccess->object->isValue())
+    {
+        auto qualType = sym.addQualifiers(memberAccess->object->type(),
+                                          TypeQualifiers::ExplicitReference);
+        argTypes.insert(argTypes.begin(), qualType);
+        fc.isMemberCall = true;
     }
     // clang-format off
     return visit(*fc.object->entity(), utl::overload{

@@ -126,7 +126,7 @@ public:
     /// Find entity by name and `dyncast` to type `E`
     template <std::derived_from<Entity> E>
     E* findEntity(std::string_view name) {
-        return const_cast<E*>(std::as_const(*this).findEntity(name));
+        return const_cast<E*>(std::as_const(*this).findEntity<E>(name));
     }
 
     /// \overload
@@ -211,6 +211,9 @@ public:
     /// \Returns The signature of this function.
     FunctionSignature const& signature() const { return _sig; }
 
+    /// \Returns `true` if this is a member function
+    bool isMember() const { return _isMember; }
+
     /// \Returns `true` iff this function is an external function.
     bool isExtern() const { return _isExtern; }
 
@@ -229,6 +232,8 @@ public:
 
     AccessSpecifier accessSpecifier() const { return accessSpec; }
 
+    void setIsMember(bool value = true) { _isMember = value; }
+
     void setAccessSpecifier(AccessSpecifier spec) { accessSpec = spec; }
 
     /// Set attribute \p attr to `true`.
@@ -243,8 +248,9 @@ private:
     OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;
     AccessSpecifier accessSpec = AccessSpecifier::Private;
-    u32 _slot      : 31        = 0;
+    bool _isMember : 1         = false;
     bool _isExtern : 1         = false;
+    u16 _slot                  = 0;
     u32 _index                 = 0;
 };
 

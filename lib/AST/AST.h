@@ -26,6 +26,7 @@
 // │  ├─ Declaration
 // │  │  ├─ VariableDeclaration
 // │  │  ├─ ParameterDeclaration
+// │  │  │  └─ ThisParameter
 // │  │  ├─ ModuleDeclaration
 // │  │  ├─ FunctionDefinition
 // │  │  └─ StructDefinition
@@ -34,10 +35,13 @@
 // │  └─ ControlFlowStatement
 // │     ├─ ReturnStatement
 // │     ├─ IfStatement
-// │     └─ WhileStatement
+// │     └─ LoopStatement
 // └─ Expression
 //    ├─ Identifier
 //    ├─ IntegerLiteral
+//    ├─ BooleanLiteral
+//    ├─ FloatLiteral
+//    ├─ ThisLiteral
 //    ├─ StringLiteral
 //    ├─ UnaryPrefixExpression
 //    ├─ BinaryExpression
@@ -249,6 +253,13 @@ private:
     APFloat _value;
 };
 
+/// Concrete node representing a `this` literal.
+class SCATHA_API ThisLiteral: public Expression {
+public:
+    explicit ThisLiteral(SourceRange sourceRange):
+        Expression(NodeType::ThisLiteral, sourceRange) {}
+};
+
 /// Concrete node representing a string literal.
 class SCATHA_API StringLiteral: public Expression {
 public:
@@ -433,6 +444,8 @@ public:
     F const* function() const {
         return cast<F const*>(entity());
     }
+
+    bool isMemberCall = false;
 };
 
 /// Concrete node representing a subscript expression.
@@ -738,11 +751,20 @@ public:
 /// Concrete node representing the definition of a function.
 class SCATHA_API FunctionDefinition: public Declaration {
 public:
-    explicit FunctionDefinition(SourceRange sourceRange,
-                                UniquePtr<Identifier> name):
-        Declaration(NodeType::FunctionDefinition,
-                    sourceRange,
-                    std::move(name)) {}
+    explicit FunctionDefinition(
+        SourceRange sourceRange,
+        UniquePtr<Identifier> name,
+        utl::small_vector<UniquePtr<ParameterDeclaration>> parameters,
+        UniquePtr<Expression> returnTypeExpr,
+        UniquePtr<CompoundStatement> body):
+        Declaration(NodeType::FunctionDefinition, sourceRange, std::move(name)),
+        returnTypeExpr(std::move(returnTypeExpr)),
+        parameters(std::move(parameters)),
+        body(std::move(body)) {
+        setChildren(this->parameters);
+        setChild(this->returnTypeExpr);
+        setChild(this->body);
+    }
 
     /// Typename of the return type as declared in the source code.
     /// Will be `nullptr` if no return type was declared.

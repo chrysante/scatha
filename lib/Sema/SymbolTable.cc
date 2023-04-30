@@ -154,7 +154,7 @@ bool SymbolTable::declareExternalFunction(std::string name,
     auto& function = *declResult;
     setSignature(&function, std::move(signature));
     function._isExtern = true;
-    function._slot     = utl::narrow_cast<u32>(slot);
+    function._slot     = utl::narrow_cast<u16>(slot);
     function._index    = utl::narrow_cast<u32>(index);
     function.attrs     = attrs;
     // FIXME: Make sure only builtin function are added here

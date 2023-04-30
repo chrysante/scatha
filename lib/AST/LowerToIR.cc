@@ -64,6 +64,7 @@ struct CodeGenContext {
     ir::Value* getValueImpl(BooleanLiteral const&);
     ir::Value* getValueImpl(FloatingPointLiteral const&);
     ir::Value* getValueImpl(StringLiteral const&);
+    ir::Value* getValueImpl(ThisLiteral const&);
     ir::Value* getValueImpl(UnaryPrefixExpression const&);
     ir::Value* getValueImpl(BinaryExpression const&);
     ir::Value* getValueImpl(MemberAccess const&);
@@ -78,6 +79,7 @@ struct CodeGenContext {
         SC_UNREACHABLE();
     } // Delete this later
     ir::Value* getAddressImpl(Expression const& expr);
+    ir::Value* getAddressImpl(ThisLiteral const& lit);
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
     ir::Value* getAddressImpl(Subscript const&);
@@ -423,6 +425,10 @@ ir::Value* CodeGenContext::getValueImpl(StringLiteral const&) {
     SC_DEBUGFAIL();
 }
 
+ir::Value* CodeGenContext::getValueImpl(ThisLiteral const& lit) {
+    return loadAddress(getAddressImpl(lit), mapType(lit.type()), "this");
+}
+
 ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
     if (expr.operation() == ast::UnaryPrefixOperator::Increment ||
         expr.operation() == ast::UnaryPrefixOperator::Decrement)
@@ -653,11 +659,16 @@ ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
 
 ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
     ir::Callable* function = functionMap.find(functionCall.function())->second;
-    auto const args =
-        functionCall.arguments |
-        ranges::views::transform(
-            [this](auto& expr) -> ir::Value* { return getValue(*expr); }) |
-        ranges::to<utl::small_vector<ir::Value*>>;
+    auto args              = functionCall.arguments |
+                ranges::views::transform([this](auto& expr) -> ir::Value* {
+                    return getValue(*expr);
+                }) |
+                ranges::to<utl::small_vector<ir::Value*>>;
+    if (functionCall.isMemberCall) {
+        auto* object =
+            cast<MemberAccess const*>(functionCall.object.get())->object.get();
+        args.insert(args.begin(), getAddress(*object));
+    }
     auto* call =
         new ir::Call(function,
                      args,
@@ -681,6 +692,12 @@ ir::Value* CodeGenContext::getAddressImpl(Expression const& expr) {
         return getValue(expr, false);
     }
     SC_DEBUGFAIL();
+}
+
+ir::Value* CodeGenContext::getAddressImpl(ThisLiteral const& lit) {
+    auto itr = variableAddressMap.find(lit.entity());
+    SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
+    return itr->second;
 }
 
 ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {
@@ -707,12 +724,13 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     }();
     auto* accessedElement = cast<Identifier const&>(*expr.member).entity();
     auto* var             = cast<sema::Variable const*>(accessedElement);
-    auto* const gep       = new ir::GetElementPointer(irCtx,
-                                                mapType(expr.object->type()),
-                                                basePtr,
-                                                irCtx.integralConstant(0, 64),
-                                                      { var->index() },
-                                                "member.ptr");
+    auto* const gep =
+        new ir::GetElementPointer(irCtx,
+                                  mapType(expr.object->type()->base()),
+                                  basePtr,
+                                  irCtx.integralConstant(0, 64),
+                                  { var->index() },
+                                  "member.ptr");
     currentBB()->pushBack(gep);
     return gep;
 }

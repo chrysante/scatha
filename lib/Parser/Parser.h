@@ -104,6 +104,7 @@
 ///                                   | <integer-literal>
 ///                                   | <boolean-literal>
 ///                                   | <floating-point-literal>
+///                                   | "this"
 ///                                   | <string-literal>
 ///                                   | "(" <comma-expression> ")"
 ///                                   | "[" {<conditional-expression>}* "]"

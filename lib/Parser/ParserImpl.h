@@ -62,6 +62,7 @@ struct Context {
     UniquePtr<ast::IntegerLiteral> parseIntegerLiteral();
     UniquePtr<ast::BooleanLiteral> parseBooleanLiteral();
     UniquePtr<ast::FloatingPointLiteral> parseFloatingPointLiteral();
+    UniquePtr<ast::ThisLiteral> parseThisLiteral();
     UniquePtr<ast::StringLiteral> parseStringLiteral();
 
     // Helpers

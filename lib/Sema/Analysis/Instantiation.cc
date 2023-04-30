@@ -119,9 +119,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
     size_t objectSize  = 0;
     size_t objectAlign = 0;
     auto& objectType   = cast<ObjectType&>(*structDef.entity());
-    for (auto&& [index, statement]:
-         structDef.body->statements | ranges::views::enumerate)
-    {
+    for (size_t index = 0; auto& statement: structDef.body->statements) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }
@@ -144,6 +142,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
         var.setOffset(currentOffset);
         var.setIndex(index);
         objectSize += objType->size();
+        ++index;
     }
     objectType.setSize(objectSize);
     objectType.setAlign(objectAlign);
@@ -196,17 +195,26 @@ FunctionSignature Context::analyzeSignature(
 
 QualType const* Context::analyzeParameter(
     ast::ParameterDeclaration const& param, size_t index) const {
-    if (auto* thisParam = dyncast<ast::ThisParameter const*>(&param)) {
-        if (index != 0) {
-            iss.push<InvalidDeclaration>(
-                &param,
-                InvalidDeclaration::Reason::ThisParameter,
-                sym.currentScope());
-            return nullptr;
-        }
-        SC_DEBUGFAIL();
+    auto* thisParam = dyncast<ast::ThisParameter const*>(&param);
+    if (!thisParam) {
+        return analyzeTypeExpression(*param.typeExpr);
     }
-    return analyzeTypeExpression(*param.typeExpr);
+    if (index != 0) {
+        iss.push<InvalidDeclaration>(&param,
+                                     InvalidDeclaration::Reason::ThisParameter,
+                                     sym.currentScope());
+        return nullptr;
+    }
+    auto* structure = dyncast<ast::StructDefinition const*>(
+        param.parent()->parent()->parent());
+    if (!structure) {
+        iss.push<InvalidDeclaration>(&param,
+                                     InvalidDeclaration::Reason::ThisParameter,
+                                     sym.currentScope());
+        return nullptr;
+    }
+    auto* objType = cast<ObjectType const*>(structure->entity());
+    return sym.qualify(objType, thisParam->qualifiers());
 }
 
 QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {
