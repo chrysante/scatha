@@ -38,7 +38,7 @@ UniquePtr<ast::AbstractSyntaxTree> Context::run() {
 // MARK: -  RDP
 
 UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
-    UniquePtr<ast::TranslationUnit> result = allocate<ast::TranslationUnit>();
+    utl::small_vector<UniquePtr<ast::Declaration>> decls;
     while (true) {
         Token const token = tokens.peek();
         if (token.kind() == EndOfFile) {
@@ -50,9 +50,9 @@ UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
             panic(tokens);
             continue;
         }
-        result->declarations.push_back(std::move(decl));
+        decls.push_back(std::move(decl));
     }
-    return result;
+    return allocate<ast::TranslationUnit>(std::move(decls));
 }
 
 UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
@@ -67,11 +67,11 @@ UniquePtr<ast::Declaration> Context::parseExternalDeclaration() {
         }
     }
     if (auto funcDef = parseFunctionDefinition()) {
-        funcDef->accessSpec = accessSpec;
+        funcDef->setAccessSpec(accessSpec);
         return funcDef;
     }
     if (auto structDef = parseStructDefinition()) {
-        structDef->accessSpec = accessSpec;
+        structDef->setAccessSpec(accessSpec);
         return structDef;
     }
     return nullptr;
@@ -302,30 +302,22 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
         issues.push<ExpectedIdentifier>(tokens.current());
         panic(tokens);
     }
-    auto result =
-        allocate<ast::VariableDeclaration>(declarator ?
-                                               declarator->sourceRange() :
-                                           identifier ?
-                                               identifier->sourceRange() :
-                                               tokens.current().sourceRange(),
-                                           std::move(identifier));
+    UniquePtr<ast::Expression> typeExpr, initExpr;
     if (Token const colon = tokens.peek(); colon.kind() == Colon) {
         tokens.eat();
-        auto typeExpr = parseTypeExpression();
+        typeExpr = parseTypeExpression();
         if (!typeExpr) {
             issues.push<ExpectedExpression>(tokens.current());
             panic(tokens);
         }
-        result->typeExpr = std::move(typeExpr);
     }
     if (Token const assign = tokens.peek(); assign.kind() == Assign) {
         tokens.eat();
-        auto initExpr = parseAssignment();
+        initExpr = parseAssignment();
         if (!initExpr) {
             issues.push<ExpectedExpression>(tokens.current());
             panic(tokens);
         }
-        result->initExpression = std::move(initExpr);
     }
     if (Token const semicolon = tokens.peek(); semicolon.kind() != Semicolon) {
         issues.push<ExpectedDelimiter>(tokens.current());
@@ -334,7 +326,13 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
     else {
         tokens.eat();
     }
-    return result;
+    auto sourceRange = declarator ? declarator->sourceRange() :
+                       identifier ? identifier->sourceRange() :
+                                    tokens.current().sourceRange();
+    return allocate<ast::VariableDeclaration>(sourceRange,
+                                              std::move(identifier),
+                                              std::move(typeExpr),
+                                              std::move(initExpr));
 }
 
 UniquePtr<ast::Statement> Context::parseStatement() {

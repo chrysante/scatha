@@ -85,46 +85,46 @@ void Context::dispatch(AbstractSyntaxTree const* node, int ind) {
 
 void Context::print(TranslationUnit const& tu, int ind) {
     printHeader(tu, ind);
-    for (auto& decl: tu.declarations) {
-        dispatch(decl.get(), ind + 1);
+    for (auto const* decl: tu.declarations()) {
+        dispatch(decl, ind + 1);
     }
 }
 
 void Context::print(CompoundStatement const& stmt, int ind) {
     printHeader(stmt, ind);
-    for (auto& node: stmt.statements) {
-        dispatch(node.get(), ind + 1);
+    for (auto const* node: stmt.statements()) {
+        dispatch(node, ind + 1);
     }
 }
 
 void Context::print(FunctionDefinition const& decl, int ind) {
     printHeader(decl, ind, decl.name());
-    dispatch(decl.returnTypeExpr.get(), ind + 1);
-    for (auto& param: decl.parameters) {
-        dispatch(param.get(), ind + 1);
+    dispatch(decl.returnTypeExpr(), ind + 1);
+    for (auto const* param: decl.parameters()) {
+        dispatch(param, ind + 1);
     }
-    dispatch(decl.body.get(), ind + 1);
+    dispatch(decl.body(), ind + 1);
 }
 
 void Context::print(StructDefinition const& decl, int ind) {
     printHeader(decl, ind, decl.name());
-    dispatch(decl.body.get(), ind + 1);
+    dispatch(decl.body(), ind + 1);
 }
 
 void Context::print(VariableDeclaration const& decl, int ind) {
     printHeader(decl, ind, decl.name());
-    dispatch(decl.typeExpr.get(), ind + 1);
-    dispatch(decl.initExpression.get(), ind + 1);
+    dispatch(decl.typeExpr(), ind + 1);
+    dispatch(decl.initExpression(), ind + 1);
 }
 
 void Context::print(ParameterDeclaration const& decl, int ind) {
     printHeader(decl, ind, decl.name());
-    dispatch(decl.typeExpr.get(), ind + 1);
+    dispatch(decl.typeExpr(), ind + 1);
 }
 
 void Context::print(ExpressionStatement const& stmt, int ind) {
     printHeader(stmt, ind);
-    dispatch(stmt.expression.get(), ind + 1);
+    dispatch(stmt.expression(), ind + 1);
 }
 
 void Context::print(EmptyStatement const& stmt, int ind) {
@@ -133,22 +133,22 @@ void Context::print(EmptyStatement const& stmt, int ind) {
 
 void Context::print(ReturnStatement const& stmt, int ind) {
     printHeader(stmt, ind);
-    dispatch(stmt.expression.get(), ind + 1);
+    dispatch(stmt.expression(), ind + 1);
 }
 
 void Context::print(IfStatement const& stmt, int ind) {
     printHeader(stmt, ind);
-    dispatch(stmt.condition.get(), ind + 1);
-    dispatch(stmt.thenBlock.get(), ind + 1);
-    dispatch(stmt.elseBlock.get(), ind + 1);
+    dispatch(stmt.condition(), ind + 1);
+    dispatch(stmt.thenBlock(), ind + 1);
+    dispatch(stmt.elseBlock(), ind + 1);
 }
 
 void Context::print(LoopStatement const& stmt, int ind) {
     printHeader(stmt, ind, stmt.kind());
-    dispatch(stmt.varDecl.get(), ind + 1);
-    dispatch(stmt.condition.get(), ind + 1);
-    dispatch(stmt.increment.get(), ind + 1);
-    dispatch(stmt.block.get(), ind + 1);
+    dispatch(stmt.varDecl(), ind + 1);
+    dispatch(stmt.condition(), ind + 1);
+    dispatch(stmt.increment(), ind + 1);
+    dispatch(stmt.block(), ind + 1);
 }
 
 void Context::print(Identifier const& expr, int ind) {
@@ -167,56 +167,56 @@ void Context::print(Literal const& expr, int ind) {
 
 void Context::print(UnaryPrefixExpression const& expr, int ind) {
     printHeader(expr, ind, expr.operation());
-    dispatch(expr.operand.get(), ind + 1);
+    dispatch(expr.operand(), ind + 1);
 }
 
 void Context::print(BinaryExpression const& expr, int ind) {
     printHeader(expr, ind, expr.operation());
-    dispatch(expr.lhs.get(), ind + 1);
-    dispatch(expr.rhs.get(), ind + 1);
+    dispatch(expr.lhs(), ind + 1);
+    dispatch(expr.rhs(), ind + 1);
 }
 
 void Context::print(MemberAccess const& expr, int ind) {
     printHeader(expr, ind);
-    dispatch(expr.object.get(), ind + 1);
-    dispatch(expr.member.get(), ind + 1);
+    dispatch(expr.object(), ind + 1);
+    dispatch(expr.member(), ind + 1);
 }
 
 void Context::print(ReferenceExpression const& expr, int ind) {
     printHeader(expr, ind);
-    dispatch(expr.referred.get(), ind + 1);
+    dispatch(expr.referred(), ind + 1);
 }
 
 void Context::print(UniqueExpression const& expr, int ind) {
     printHeader(expr, ind);
-    dispatch(expr.initExpr.get(), ind + 1);
+    dispatch(expr.initExpr(), ind + 1);
 }
 
 void Context::print(Conditional const& expr, int ind) {
     printHeader(expr, ind);
-    dispatch(expr.condition.get(), ind + 1);
-    dispatch(expr.ifExpr.get(), ind + 1);
-    dispatch(expr.elseExpr.get(), ind + 1);
+    dispatch(expr.condition(), ind + 1);
+    dispatch(expr.thenExpr(), ind + 1);
+    dispatch(expr.elseExpr(), ind + 1);
 }
 
 void Context::print(FunctionCall const& expr, int ind) {
     printHeader(expr, ind);
-    for (auto& argument: expr.arguments) {
-        dispatch(argument.get(), ind + 1);
+    for (auto const* argument: expr.arguments()) {
+        dispatch(argument, ind + 1);
     }
 }
 
 void Context::print(Subscript const& expr, int ind) {
     printHeader(expr, ind);
-    dispatch(expr.object.get(), ind + 1);
-    for (auto& argument: expr.arguments) {
-        dispatch(argument.get(), ind + 1);
+    dispatch(expr.object(), ind + 1);
+    for (auto* argument: expr.arguments()) {
+        dispatch(argument, ind + 1);
     }
 }
 
 void Context::print(ListExpression const& expr, int ind) {
     printHeader(expr, ind);
-    for (auto* elem: expr) {
+    for (auto* elem: expr.elements()) {
         dispatch(elem, ind + 1);
     }
 }

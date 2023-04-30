@@ -59,7 +59,7 @@ void Context::dispatch(AbstractSyntaxTree const& node) {
 }
 
 void Context::print(TranslationUnit const& tu) {
-    for (auto& decl: tu.declarations) {
+    for (auto* decl: tu.declarations()) {
         dispatch(*decl);
         str << endl << endl;
     }
@@ -67,16 +67,16 @@ void Context::print(TranslationUnit const& tu) {
 
 void Context::print(CompoundStatement const& block) {
     str << "{";
-    if (block.statements.empty()) {
+    if (block.statements().empty()) {
         str << endl;
     }
-    for (auto [i, s]: ranges::views::enumerate(block.statements)) {
+    for (auto [i, s]: ranges::views::enumerate(block.statements())) {
         if (i == 0) {
             endl.increase();
         }
         str << endl;
         dispatch(*s);
-        if (i == block.statements.size() - 1) {
+        if (i == block.statements().size() - 1) {
             endl.decrease();
         }
     }
@@ -85,52 +85,52 @@ void Context::print(CompoundStatement const& block) {
 
 void Context::print(FunctionDefinition const& fn) {
     str << "fn ";
-    dispatch(*fn.nameIdentifier);
+    dispatch(*fn.nameIdentifier());
     str << "(";
-    for (bool first = true; auto const& param: fn.parameters) {
+    for (bool first = true; auto const* param: fn.parameters()) {
         str << (first ? ((void)(first = false), "") : ", ");
-        dispatch(*param->nameIdentifier);
+        dispatch(*param->nameIdentifier());
         str << ": ";
-        dispatch(*param->typeExpr);
+        dispatch(*param->typeExpr());
     }
     str << ")";
-    if (fn.returnTypeExpr) {
+    if (fn.returnTypeExpr()) {
         str << " -> ";
-        dispatch(*fn.returnTypeExpr);
+        dispatch(*fn.returnTypeExpr());
     }
     str << " ";
-    dispatch(*fn.body);
+    dispatch(*fn.body());
 }
 
 void Context::print(StructDefinition const& s) {
     str << "struct ";
-    dispatch(*s.nameIdentifier);
+    dispatch(*s.nameIdentifier());
     str << " ";
-    dispatch(*s.body);
+    dispatch(*s.body());
 }
 
 void Context::print(VariableDeclaration const& var) {
-    str << (var.isConstant ? "let" : "var");
-    dispatch(*var.nameIdentifier);
+    str << (false /*var.isConstant*/ ? "let" : "var");
+    dispatch(*var.nameIdentifier());
     str << ": ";
-    if (var.typeExpr) {
-        dispatch(*var.typeExpr);
+    if (var.typeExpr()) {
+        dispatch(*var.typeExpr());
     }
     else {
         str << "<deduce-type>";
     }
-    if (var.initExpression) {
+    if (var.initExpression()) {
         str << " = ";
-        dispatch(*var.initExpression);
+        dispatch(*var.initExpression());
     }
     str << ";";
 }
 
 void Context::print(ParameterDeclaration const& param) {
-    dispatch(*param.nameIdentifier);
+    dispatch(*param.nameIdentifier());
     str << ": ";
-    if (param.typeExpr) {
-        dispatch(*param.typeExpr);
+    if (param.typeExpr()) {
+        dispatch(*param.typeExpr());
     }
     else {
         str << "<invalid-type>";
@@ -138,8 +138,8 @@ void Context::print(ParameterDeclaration const& param) {
 }
 
 void Context::print(ExpressionStatement const& es) {
-    if (es.expression) {
-        dispatch(*es.expression);
+    if (es.expression()) {
+        dispatch(*es.expression());
     }
     else {
         str << "<invalid-expression>";
@@ -151,49 +151,49 @@ void Context::print(EmptyStatement const&) { str << ";"; }
 
 void Context::print(ReturnStatement const& rs) {
     str << "return";
-    if (!rs.expression) {
+    if (!rs.expression()) {
         return;
     }
     str << " ";
-    dispatch(*rs.expression);
+    dispatch(*rs.expression());
     str << ";";
 }
 
 void Context::print(IfStatement const& is) {
     str << "if ";
-    dispatch(*is.condition);
+    dispatch(*is.condition());
     str << " ";
-    dispatch(*is.thenBlock);
-    if (!is.elseBlock) {
+    dispatch(*is.thenBlock());
+    if (!is.elseBlock()) {
         return;
     }
     str << endl << "else ";
-    dispatch(*is.elseBlock);
+    dispatch(*is.elseBlock());
 }
 
 void Context::print(LoopStatement const& loop) {
     switch (loop.kind()) {
     case LoopKind::For:
         str << "for ";
-        dispatch(*loop.varDecl);
+        dispatch(*loop.varDecl());
         str << "; ";
-        dispatch(*loop.condition);
+        dispatch(*loop.condition());
         str << "; ";
-        dispatch(*loop.increment);
+        dispatch(*loop.increment());
         str << " ";
-        dispatch(*loop.block);
+        dispatch(*loop.block());
         break;
     case LoopKind::While:
         str << "while ";
-        dispatch(*loop.condition);
+        dispatch(*loop.condition());
         str << " ";
-        dispatch(*loop.block);
+        dispatch(*loop.block());
         break;
     case LoopKind::DoWhile:
         str << "do ";
-        dispatch(*loop.block);
+        dispatch(*loop.block());
         str << " ";
-        dispatch(*loop.condition);
+        dispatch(*loop.condition());
         str << ";";
         break;
     }
@@ -218,38 +218,38 @@ void Context::print(Literal const& lit) {
 
 void Context::print(UnaryPrefixExpression const& u) {
     str << u.operation() << '(';
-    dispatch(*u.operand);
+    dispatch(*u.operand());
     str << ')';
 }
 
 void Context::print(BinaryExpression const& b) {
     str << '(';
-    dispatch(*b.lhs);
+    dispatch(*b.lhs());
     str << ' ' << b.operation() << ' ';
-    dispatch(*b.rhs);
+    dispatch(*b.rhs());
     str << ')';
 }
 
 void Context::print(MemberAccess const& ma) {
-    dispatch(*ma.object);
+    dispatch(*ma.object());
     str << ".";
-    dispatch(*ma.member);
+    dispatch(*ma.member());
 }
 
 void Context::print(Conditional const& c) {
     str << "((";
-    dispatch(*c.condition);
+    dispatch(*c.condition());
     str << ") ? (";
-    dispatch(*c.ifExpr);
+    dispatch(*c.thenExpr());
     str << ") : (";
-    dispatch(*c.elseExpr);
+    dispatch(*c.elseExpr());
     str << "))";
 }
 
 void Context::print(FunctionCall const& f) {
-    dispatch(*f.object);
+    dispatch(*f.object());
     str << "(";
-    for (bool first = true; auto& arg: f.arguments) {
+    for (bool first = true; auto const* arg: f.arguments()) {
         if (!first) {
             str << ", ";
         }
@@ -262,9 +262,9 @@ void Context::print(FunctionCall const& f) {
 }
 
 void Context::print(Subscript const& f) {
-    dispatch(*f.object);
+    dispatch(*f.object());
     str << "(";
-    for (bool first = true; auto& arg: f.arguments) {
+    for (bool first = true; auto const* arg: f.arguments()) {
         if (!first) {
             str << ", ";
         }

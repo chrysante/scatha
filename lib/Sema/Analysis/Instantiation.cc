@@ -20,13 +20,13 @@ namespace {
 struct Context {
     void run();
 
-    void instantiateObjectType(DependencyGraphNode const&);
-    void instantiateVariable(DependencyGraphNode const&);
-    void instantiateFunction(DependencyGraphNode const&);
+    void instantiateObjectType(DependencyGraphNode&);
+    void instantiateVariable(DependencyGraphNode&);
+    void instantiateFunction(DependencyGraphNode&);
 
-    FunctionSignature analyzeSignature(ast::FunctionDefinition const&) const;
+    FunctionSignature analyzeSignature(ast::FunctionDefinition&) const;
 
-    QualType const* analyzeParameter(ast::ParameterDeclaration const&,
+    QualType const* analyzeParameter(ast::ParameterDeclaration&,
                                      size_t index) const;
 
     QualType const* analyzeTypeExpression(ast::Expression&) const;
@@ -54,8 +54,8 @@ void Context::run() {
         if (!isa<Variable>(node.entity)) {
             continue;
         }
-        auto& var       = cast<ast::VariableDeclaration const&>(*node.astNode);
-        auto const type = analyzeTypeExpression(*var.typeExpr);
+        auto& var        = cast<ast::VariableDeclaration&>(*node.astNode);
+        auto const* type = analyzeTypeExpression(*var.typeExpr());
         if (!type) {
             continue;
         }
@@ -96,7 +96,7 @@ void Context::run() {
     utl::small_vector<ObjectType*> sortedObjTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {
-        auto const& node = dependencyGraph[index];
+        auto& node = dependencyGraph[index];
         // clang-format off
         visit(*node.entity, utl::overload{
             [&](Variable const&) { instantiateVariable(node); },
@@ -111,7 +111,7 @@ void Context::run() {
     sym.setSortedObjectTypes(std::move(sortedObjTypes));
 }
 
-void Context::instantiateObjectType(DependencyGraphNode const& node) {
+void Context::instantiateObjectType(DependencyGraphNode& node) {
     ast::StructDefinition& structDef =
         cast<ast::StructDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.scope);
@@ -119,7 +119,7 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
     size_t objectSize  = 0;
     size_t objectAlign = 0;
     auto& objectType   = cast<ObjectType&>(*structDef.entity());
-    for (size_t index = 0; auto& statement: structDef.body->statements) {
+    for (size_t index = 0; auto* statement: structDef.body()->statements()) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }
@@ -148,18 +148,18 @@ void Context::instantiateObjectType(DependencyGraphNode const& node) {
     objectType.setAlign(objectAlign);
 }
 
-void Context::instantiateVariable(DependencyGraphNode const& node) {
+void Context::instantiateVariable(DependencyGraphNode& node) {
     ast::VariableDeclaration& varDecl =
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.scope);
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto* type                      = analyzeTypeExpression(*varDecl.typeExpr);
+    auto* type = analyzeTypeExpression(*varDecl.typeExpr());
     varDecl.decorate(node.entity, type);
     /// Here we set the TypeID of the variable in the symbol table.
     varDecl.variable()->setType(type);
 }
 
-void Context::instantiateFunction(DependencyGraphNode const& node) {
+void Context::instantiateFunction(DependencyGraphNode& node) {
     SC_ASSERT(isa<Function>(node.entity), "Must be a function");
     ast::FunctionDefinition& fnDecl =
         cast<ast::FunctionDefinition&>(*node.astNode);
@@ -180,24 +180,24 @@ void Context::instantiateFunction(DependencyGraphNode const& node) {
 }
 
 FunctionSignature Context::analyzeSignature(
-    ast::FunctionDefinition const& decl) const {
+    ast::FunctionDefinition& decl) const {
     utl::small_vector<QualType const*> argumentTypes;
-    for (auto&& [index, param]: decl.parameters | ranges::views::enumerate) {
+    for (auto [index, param]: decl.parameters() | ranges::views::enumerate) {
         argumentTypes.push_back(analyzeParameter(*param, index));
     }
     /// For functions with unspecified return type we assume void until we
     /// implement return type deduction.
     QualType const* returnType =
-        decl.returnTypeExpr ? analyzeTypeExpression(*decl.returnTypeExpr) :
-                              sym.qualify(sym.Void());
+        decl.returnTypeExpr() ? analyzeTypeExpression(*decl.returnTypeExpr()) :
+                                sym.qualify(sym.Void());
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
 
-QualType const* Context::analyzeParameter(
-    ast::ParameterDeclaration const& param, size_t index) const {
+QualType const* Context::analyzeParameter(ast::ParameterDeclaration& param,
+                                          size_t index) const {
     auto* thisParam = dyncast<ast::ThisParameter const*>(&param);
     if (!thisParam) {
-        return analyzeTypeExpression(*param.typeExpr);
+        return analyzeTypeExpression(*param.typeExpr());
     }
     if (index != 0) {
         iss.push<InvalidDeclaration>(&param,

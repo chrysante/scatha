@@ -142,21 +142,21 @@ void CodeGenContext::generate(AbstractSyntaxTree const& node) {
 }
 
 void CodeGenContext::generateImpl(TranslationUnit const& tu) {
-    for (auto& decl: tu.declarations) {
+    for (auto* decl: tu.declarations()) {
         generate(*decl);
     }
 }
 
 void CodeGenContext::generateImpl(CompoundStatement const& cmpStmt) {
-    for (auto& statement: cmpStmt.statements) {
+    for (auto* statement: cmpStmt.statements()) {
         generate(*statement);
     }
 }
 
 void CodeGenContext::generateImpl(FunctionDefinition const& def) {
-    auto paramTypes = def.parameters |
+    auto paramTypes = def.parameters() |
                       ranges::views::transform(
-                          [&](auto& param) { return mapType(param->type()); }) |
+                          [&](auto* param) { return mapType(param->type()); }) |
                       ranges::to<utl::small_vector<ir::Type const*>>;
     auto* fn = cast<ir::Function*>(functionMap.find(def.function())->second);
     currentFunction = fn;
@@ -165,7 +165,7 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
     setCurrentBB(entry);
     allocaInsertItr = entry->begin().to_address();
     for (auto paramItr = fn->parameters().begin();
-         auto& paramDecl: def.parameters)
+         auto* paramDecl: def.parameters())
     {
         auto* paramMemPtr = new ir::Alloca(irCtx,
                                            mapType(paramDecl->type()),
@@ -176,15 +176,15 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
             new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
         entry->pushBack(store);
     }
-    generate(*def.body);
+    generate(*def.body());
     setCurrentBB(nullptr);
     currentFunction = nullptr;
 }
 
 void CodeGenContext::generateImpl(StructDefinition const& def) {
-    for (auto& statement:
-         def.body->statements | ranges::views::filter([](auto& statement) {
-             return isa<FunctionDefinition>(*statement);
+    for (auto* statement:
+         def.body()->statements() | ranges::views::filter([](auto* statement) {
+             return isa<FunctionDefinition>(statement);
          }))
     {
         generate(*statement);
@@ -199,19 +199,19 @@ void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
                                        std::string(varDecl.name()));
         addAlloca(address);
         memorizeVariableAddress(varDecl.variable(), address);
-        if (varDecl.initExpression == nullptr) {
+        if (!varDecl.initExpression()) {
             return;
         }
-        ir::Value* initValue = getValue(*varDecl.initExpression);
+        ir::Value* initValue = getValue(*varDecl.initExpression());
         auto* store          = new ir::Store(irCtx, address, initValue);
         currentBB()->pushBack(store);
     }
     else {
         /// Array case
-        auto* address = varDecl.initExpression ?
-                            getAddress(*varDecl.initExpression) :
+        auto* address = varDecl.initExpression() ?
+                            getAddress(*varDecl.initExpression()) :
                             nullptr;
-        if (varDecl.initExpression && varDecl.initExpression->isRValue()) {
+        if (varDecl.initExpression() && varDecl.initExpression()->isRValue()) {
             memorizeVariableAddress(varDecl.variable(), address);
         }
         else {
@@ -226,7 +226,7 @@ void CodeGenContext::generateImpl(ParameterDeclaration const&) {
 }
 
 void CodeGenContext::generateImpl(ExpressionStatement const& exprStatement) {
-    (void)getValue(*exprStatement.expression);
+    (void)getValue(*exprStatement.expression());
 }
 
 void CodeGenContext::generateImpl(EmptyStatement const& empty) {
@@ -234,19 +234,20 @@ void CodeGenContext::generateImpl(EmptyStatement const& empty) {
 }
 
 void CodeGenContext::generateImpl(ReturnStatement const& retDecl) {
-    auto* returnValue =
-        retDecl.expression ? getValue(*retDecl.expression) : irCtx.voidValue();
-    auto* ret = new ir::Return(irCtx, returnValue);
+    auto* returnValue = retDecl.expression() ? getValue(*retDecl.expression()) :
+                                               irCtx.voidValue();
+    auto* ret         = new ir::Return(irCtx, returnValue);
     currentBB()->pushBack(ret);
 }
 
 void CodeGenContext::generateImpl(IfStatement const& ifStatement) {
-    auto* condition = getValue(*ifStatement.condition);
+    auto* condition = getValue(*ifStatement.condition());
     auto* thenBlock = new ir::BasicBlock(irCtx, "if.then");
-    auto* elseBlock =
-        ifStatement.elseBlock ? new ir::BasicBlock(irCtx, "if.else") : nullptr;
-    auto* endBlock = new ir::BasicBlock(irCtx, "if.end");
-    auto* branch   = new ir::Branch(irCtx,
+    auto* elseBlock = ifStatement.elseBlock() ?
+                          new ir::BasicBlock(irCtx, "if.else") :
+                          nullptr;
+    auto* endBlock  = new ir::BasicBlock(irCtx, "if.end");
+    auto* branch    = new ir::Branch(irCtx,
                                   condition,
                                   thenBlock,
                                   elseBlock ? elseBlock : endBlock);
@@ -258,9 +259,9 @@ void CodeGenContext::generateImpl(IfStatement const& ifStatement) {
         auto* gotoEnd = new ir::Goto(irCtx, endBlock);
         currentBB()->pushBack(gotoEnd);
     };
-    addBlock(thenBlock, *ifStatement.thenBlock);
-    if (ifStatement.elseBlock) {
-        addBlock(elseBlock, *ifStatement.elseBlock);
+    addBlock(thenBlock, *ifStatement.thenBlock());
+    if (ifStatement.elseBlock()) {
+        addBlock(elseBlock, *ifStatement.elseBlock());
     }
     currentFunction->pushBack(endBlock);
     setCurrentBB(endBlock);
@@ -273,13 +274,13 @@ void CodeGenContext::generateImpl(LoopStatement const& loopStmt) {
         auto* loopBody   = new ir::BasicBlock(irCtx, "loop.body");
         auto* loopInc    = new ir::BasicBlock(irCtx, "loop.inc");
         auto* loopEnd    = new ir::BasicBlock(irCtx, "loop.end");
-        generate(*loopStmt.varDecl);
+        generate(*loopStmt.varDecl());
         auto* gotoLoopHeader = new ir::Goto(irCtx, loopHeader);
         currentBB()->pushBack(gotoLoopHeader);
         /// Header
         currentFunction->pushBack(loopHeader);
         setCurrentBB(loopHeader);
-        auto* condition = getValue(*loopStmt.condition);
+        auto* condition = getValue(*loopStmt.condition());
         auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
         currentBB()->pushBack(branch);
         currentLoop = { .header = loopHeader,
@@ -289,13 +290,13 @@ void CodeGenContext::generateImpl(LoopStatement const& loopStmt) {
         /// Body
         currentFunction->pushBack(loopBody);
         setCurrentBB(loopBody);
-        generate(*loopStmt.block);
+        generate(*loopStmt.block());
         auto* gotoLoopInc = new ir::Goto(irCtx, loopInc);
         /// Inc
         currentFunction->pushBack(loopInc);
         currentBB()->pushBack(gotoLoopInc);
         setCurrentBB(loopInc);
-        getValue(*loopStmt.increment);
+        getValue(*loopStmt.increment());
         auto* gotoLoopHeader2 = new ir::Goto(irCtx, loopHeader);
         currentBB()->pushBack(gotoLoopHeader2);
         /// End
@@ -313,7 +314,7 @@ void CodeGenContext::generateImpl(LoopStatement const& loopStmt) {
         /// Header
         currentFunction->pushBack(loopHeader);
         setCurrentBB(loopHeader);
-        auto* condition = getValue(*loopStmt.condition);
+        auto* condition = getValue(*loopStmt.condition());
         auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
         currentBB()->pushBack(branch);
         currentLoop = { .header = loopHeader,
@@ -322,7 +323,7 @@ void CodeGenContext::generateImpl(LoopStatement const& loopStmt) {
         /// Body
         currentFunction->pushBack(loopBody);
         setCurrentBB(loopBody);
-        generate(*loopStmt.block);
+        generate(*loopStmt.block());
         auto* gotoLoopHeader2 = new ir::Goto(irCtx, loopHeader);
         currentBB()->pushBack(gotoLoopHeader2);
         /// End
@@ -343,13 +344,13 @@ void CodeGenContext::generateImpl(LoopStatement const& loopStmt) {
         /// Body
         currentFunction->pushBack(loopBody);
         setCurrentBB(loopBody);
-        generate(*loopStmt.block);
+        generate(*loopStmt.block());
         auto* gotoLoopFooter = new ir::Goto(irCtx, loopFooter);
         currentBB()->pushBack(gotoLoopFooter);
         /// Footer
         currentFunction->pushBack(loopFooter);
         setCurrentBB(loopFooter);
-        auto* condition = getValue(*loopStmt.condition);
+        auto* condition = getValue(*loopStmt.condition());
         auto* branch    = new ir::Branch(irCtx, condition, loopBody, loopEnd);
         currentBB()->pushBack(branch);
         /// End
@@ -424,8 +425,8 @@ ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
     if (expr.operation() == ast::UnaryPrefixOperator::Increment ||
         expr.operation() == ast::UnaryPrefixOperator::Decrement)
     {
-        ir::Value* addr      = getAddress(*expr.operand);
-        ir::Type const* type = mapType(expr.operand->type()->base());
+        ir::Value* addr      = getAddress(*expr.operand());
+        ir::Type const* type = mapType(expr.operand()->type()->base());
         ir::Value* value =
             loadAddress(addr, type, utl::strcat(expr.operation(), ".value"));
         auto const operation =
@@ -442,7 +443,7 @@ ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
         currentBB()->pushBack(store);
         return arithmetic;
     }
-    ir::Value* const operand = getValue(*expr.operand);
+    ir::Value* const operand = getValue(*expr.operand());
     if (expr.operation() == ast::UnaryPrefixOperator::Promotion) {
         return operand;
     }
@@ -489,8 +490,8 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::BitwiseXOr:
         [[fallthrough]];
     case BinaryOperator::BitwiseOr: {
-        ir::Value* const lhs = getValue(*exprDecl.lhs);
-        ir::Value* const rhs = getValue(*exprDecl.rhs);
+        ir::Value* const lhs = getValue(*exprDecl.lhs());
+        ir::Value* const rhs = getValue(*exprDecl.rhs());
         auto* arithInst =
             new ir::ArithmeticInst(lhs,
                                    rhs,
@@ -503,7 +504,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::LogicalAnd:
         [[fallthrough]];
     case BinaryOperator::LogicalOr: {
-        ir::Value* const lhs = getValue(*exprDecl.lhs);
+        ir::Value* const lhs = getValue(*exprDecl.lhs());
         auto* startBlock     = currentBB();
         auto* rhsBlock       = new ir::BasicBlock(irCtx, "logical.rhs");
         auto* endBlock       = new ir::BasicBlock(irCtx, "logical.end");
@@ -513,7 +514,7 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
                 new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
         currentFunction->pushBack(rhsBlock);
         setCurrentBB(rhsBlock);
-        auto* rhs = getValue(*exprDecl.rhs);
+        auto* rhs = getValue(*exprDecl.rhs());
         currentBB()->pushBack(new ir::Goto(irCtx, endBlock));
         currentFunction->pushBack(endBlock);
         setCurrentBB(endBlock);
@@ -541,24 +542,24 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::NotEquals: {
         auto* cmpInst =
             new ir::CompareInst(irCtx,
-                                getValue(*exprDecl.lhs),
-                                getValue(*exprDecl.rhs),
-                                mapCompareMode(exprDecl.lhs->type()->base()),
+                                getValue(*exprDecl.lhs()),
+                                getValue(*exprDecl.rhs()),
+                                mapCompareMode(exprDecl.lhs()->type()->base()),
                                 mapCompareOp(exprDecl.operation()),
                                 "cmp.result");
         currentBB()->pushBack(cmpInst);
         return cmpInst;
     }
     case BinaryOperator::Comma: {
-        getValue(*exprDecl.lhs);
-        return getValue(*exprDecl.rhs);
+        getValue(*exprDecl.lhs());
+        return getValue(*exprDecl.rhs());
     }
     case BinaryOperator::Assignment: {
-        bool const isExplRef =
-            exprDecl.rhs->type()->has(sema::TypeQualifiers::ExplicitReference);
+        bool const isExplRef = exprDecl.rhs()->type()->has(
+            sema::TypeQualifiers::ExplicitReference);
         ir::Value* lhsAddr =
-            getAddress(*exprDecl.lhs, /* deref = */ !isExplRef);
-        ir::Value* rhs = getValue(*exprDecl.rhs);
+            getAddress(*exprDecl.lhs(), /* deref = */ !isExplRef);
+        ir::Value* rhs = getValue(*exprDecl.rhs());
         auto* store    = new ir::Store(irCtx, lhsAddr, rhs);
         currentBB()->pushBack(store);
         return store;
@@ -582,17 +583,16 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
     case BinaryOperator::OrAssignment:
         [[fallthrough]];
     case BinaryOperator::XOrAssignment: {
-        ir::Value* lhsAddr      = getAddress(*exprDecl.lhs);
-        ir::Type const* lhsType = mapType(exprDecl.lhs->type()->base());
+        ir::Value* lhsAddr      = getAddress(*exprDecl.lhs());
+        ir::Type const* lhsType = mapType(exprDecl.lhs()->type()->base());
         ir::Value* lhs          = loadAddress(lhsAddr, lhsType, "lhs");
-        ir::Value* rhs          = getValue(*exprDecl.rhs);
-        auto* result =
-            new ir::ArithmeticInst(lhs,
-                                   rhs,
-                                   mapArithmeticAssignOp(exprDecl.lhs->type()
-                                                             ->base(),
-                                                         exprDecl.operation()),
-                                   "expr.result");
+        ir::Value* rhs          = getValue(*exprDecl.rhs());
+        auto* result            = new ir::ArithmeticInst(
+            lhs,
+            rhs,
+            mapArithmeticAssignOp(exprDecl.lhs()->type()->base(),
+                                  exprDecl.operation()),
+            "expr.result");
         currentBB()->pushBack(result);
         auto* store = new ir::Store(irCtx, lhsAddr, result);
         currentBB()->pushBack(store);
@@ -610,10 +610,10 @@ ir::Value* CodeGenContext::getValueImpl(MemberAccess const& expr) {
 }
 
 ir::Value* CodeGenContext::getValueImpl(ReferenceExpression const& expr) {
-    if (expr.referred->type()->isReference()) {
-        return getValue(*expr.referred, false);
+    if (expr.referred()->type()->isReference()) {
+        return getValue(*expr.referred(), false);
     }
-    return getAddress(*expr.referred);
+    return getAddress(*expr.referred());
 }
 
 ir::Value* CodeGenContext::getValueImpl(UniqueExpression const& expr) {
@@ -621,7 +621,7 @@ ir::Value* CodeGenContext::getValueImpl(UniqueExpression const& expr) {
 }
 
 ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
-    auto* cond      = getValue(*condExpr.condition);
+    auto* cond      = getValue(*condExpr.condition());
     auto* thenBlock = new ir::BasicBlock(irCtx, "conditional.then");
     auto* elseBlock = new ir::BasicBlock(irCtx, "conditional.else");
     auto* endBlock  = new ir::BasicBlock(irCtx, "conditional.end");
@@ -629,13 +629,13 @@ ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
     currentFunction->pushBack(thenBlock);
     /// Generate then block.
     setCurrentBB(thenBlock);
-    auto* thenVal = getValue(*condExpr.ifExpr);
+    auto* thenVal = getValue(*condExpr.thenExpr());
     thenBlock     = currentBB();
     thenBlock->pushBack(new ir::Goto(irCtx, endBlock));
     currentFunction->pushBack(elseBlock);
     /// Generate else block.
     setCurrentBB(elseBlock);
-    auto* elseVal = getValue(*condExpr.elseExpr);
+    auto* elseVal = getValue(*condExpr.elseExpr());
     elseBlock     = currentBB();
     elseBlock->pushBack(new ir::Goto(irCtx, endBlock));
     currentFunction->pushBack(endBlock);
@@ -650,14 +650,14 @@ ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
 
 ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
     ir::Callable* function = functionMap.find(functionCall.function())->second;
-    auto args              = functionCall.arguments |
-                ranges::views::transform([this](auto& expr) -> ir::Value* {
+    auto args              = functionCall.arguments() |
+                ranges::views::transform([this](auto* expr) -> ir::Value* {
                     return getValue(*expr);
                 }) |
                 ranges::to<utl::small_vector<ir::Value*>>;
     if (functionCall.isMemberCall) {
         auto* object =
-            cast<MemberAccess const*>(functionCall.object.get())->object.get();
+            cast<MemberAccess const*>(functionCall.object())->object();
         args.insert(args.begin(), getAddress(*object));
     }
     auto* call =
@@ -704,23 +704,23 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     /// Get the value or the address based on wether the base object is an
     /// l-value or r-value
     ir::Value* basePtr = [&]() -> ir::Value* {
-        if (expr.object->isLValue()) {
-            return getAddress(*expr.object);
+        if (expr.object()->isLValue()) {
+            return getAddress(*expr.object());
         }
         /// If we are an r-value we store the value to memory and return a
         /// pointer to it.
-        auto* value = getValue(*expr.object);
+        auto* value = getValue(*expr.object());
         auto* addr  = new ir::Alloca(irCtx, value->type(), "tmp");
         addAlloca(addr);
         auto* store = new ir::Store(irCtx, addr, value);
         currentBB()->pushBack(store);
         return addr;
     }();
-    auto* accessedElement = cast<Identifier const&>(*expr.member).entity();
+    auto* accessedElement = cast<Identifier const&>(*expr.member()).entity();
     auto* var             = cast<sema::Variable const*>(accessedElement);
     auto* const gep =
         new ir::GetElementPointer(irCtx,
-                                  mapType(expr.object->type()->base()),
+                                  mapType(expr.object()->type()->base()),
                                   basePtr,
                                   irCtx.integralConstant(0, 64),
                                   { var->index() },
@@ -730,9 +730,9 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
 }
 
 ir::Value* CodeGenContext::getAddressImpl(Subscript const& expr) {
-    auto* type  = mapType(expr.object->type()->base());
-    auto* array = getAddress(*expr.object);
-    auto* index = getValue(*expr.arguments.front());
+    auto* type  = mapType(expr.object()->type()->base());
+    auto* array = getAddress(*expr.object());
+    auto* index = getValue(*expr.arguments().front());
     auto* gep =
         new ir::GetElementPointer(irCtx, type, array, index, {}, "elem.ptr");
     currentBB()->pushBack(gep);
@@ -740,17 +740,18 @@ ir::Value* CodeGenContext::getAddressImpl(Subscript const& expr) {
 }
 
 ir::Value* CodeGenContext::getAddressImpl(ReferenceExpression const& expr) {
-    return getAddress(*expr.referred);
+    return getAddress(*expr.referred());
 }
 
 ir::Value* CodeGenContext::getAddressImpl(ListExpression const& list) {
     auto* type  = mapType(list.type());
     auto* array = new ir::Alloca(irCtx,
-                                 irCtx.integralConstant(APInt(list.size(), 32)),
+                                 irCtx.integralConstant(
+                                     APInt(list.elements().size(), 32)),
                                  type,
                                  "array");
     addAlloca(array);
-    for (auto [index, elem]: list | ranges::views::enumerate) {
+    for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
         auto* elemValue = getValue(*elem);
         auto* gep =
             new ir::GetElementPointer(irCtx,

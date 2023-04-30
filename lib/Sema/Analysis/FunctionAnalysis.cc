@@ -104,21 +104,18 @@ void Context::analyzeImpl(ast::FunctionDefinition& fn) {
     /// `gatherNames()` phase, now we complete the decoration.
     auto* function = fn.function();
     fn.decorate(function, function->signature().returnType());
-    fn.body->decorate(function);
-    function->setAccessSpecifier(translateAccessSpec(fn.accessSpec));
+    fn.body()->decorate(function);
+    function->setAccessSpecifier(translateAccessSpec(fn.accessSpec()));
     currentFunction                    = &fn;
     utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };
     sym.pushScope(function);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto& param: fn.parameters) {
+    for (auto* param: fn.parameters()) {
         analyze(*param);
-        if (iss.fatal()) {
-            return;
-        }
     }
     /// The body will push the scope itself again.
     popScope.execute();
-    analyze(*fn.body);
+    analyze(*fn.body());
 }
 
 void Context::analyzeImpl(ast::StructDefinition& s) {
@@ -148,11 +145,8 @@ void Context::analyzeImpl(ast::CompoundStatement& block) {
     }
     sym.pushScope(block.scope());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto& statement: block.statements) {
+    for (auto* statement: block.statements()) {
         analyze(*statement);
-        if (iss.fatal()) {
-            return;
-        }
     }
     popScope.execute();
 }
@@ -162,23 +156,23 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
               "We only handle function local variables in this pass.");
     SC_ASSERT(!var.isDecorated(),
               "We should not have handled local variables in prepass.");
-    if (!var.typeExpr && !var.initExpression) {
+    if (!var.typeExpr() && !var.initExpression()) {
         iss.push<InvalidDeclaration>(&var,
                                      InvalidDeclaration::Reason::CantInferType,
                                      sym.currentScope());
         return;
     }
-    auto* declaredType = getType(var.typeExpr.get());
+    auto* declaredType = getType(var.typeExpr());
     auto* deducedType  = [&]() -> QualType const* {
-        if (!var.initExpression || !analyzeExpr(*var.initExpression)) {
+        if (!var.initExpression() || !analyzeExpr(*var.initExpression())) {
             return nullptr;
         }
-        if (!var.initExpression->isValue()) {
-            iss.push<BadSymbolReference>(*var.initExpression,
+        if (!var.initExpression()->isValue()) {
+            iss.push<BadSymbolReference>(*var.initExpression(),
                                          EntityCategory::Value);
             return nullptr;
         }
-        return var.initExpression->type();
+        return var.initExpression()->type();
     }();
     if (!declaredType && !deducedType) {
         /// FIXME: Push error here
@@ -196,7 +190,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
                 sym.currentScope());
             return;
         }
-        verifyConversion(*var.initExpression, declaredType);
+        verifyConversion(*var.initExpression(), declaredType);
     }
     auto* finalType = declaredType ? declaredType : deducedType;
     if (finalType->has(TypeQualifiers::ExplicitReference)) {
@@ -205,7 +199,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         finalType =
             sym.addQualifiers(finalType, TypeQualifiers::ImplicitReference);
     }
-    auto varRes = sym.addVariable(var.nameIdentifier->value(), finalType);
+    auto varRes = sym.addVariable(std::string(var.name()), finalType);
     if (!varRes) {
         iss.push(varRes.error()->setStatement(var));
         return;
@@ -220,9 +214,9 @@ void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
               "parameters.");
     SC_ASSERT(!paramDecl.isDecorated(),
               "We should not have handled parameters in prepass.");
-    auto* declaredType = getType(paramDecl.typeExpr.get());
+    auto* declaredType = getType(paramDecl.typeExpr());
     auto paramRes =
-        sym.addVariable(paramDecl.nameIdentifier->value(), declaredType);
+        sym.addVariable(std::string(paramDecl.name()), declaredType);
     if (!paramRes) {
         iss.push(paramRes.error()->setStatement(paramDecl));
         return;
@@ -261,7 +255,7 @@ void Context::analyzeImpl(ast::ExpressionStatement& es) {
             sym.currentScope());
         return;
     }
-    analyzeExpr(*es.expression);
+    analyzeExpr(*es.expression());
 }
 
 void Context::analyzeImpl(ast::ReturnStatement& rs) {
@@ -274,15 +268,14 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
         return;
     }
     auto* returnType = currentFunction->returnType();
-    if (rs.expression == nullptr && returnType->base() != sym.Void()) {
+    if (!rs.expression() && returnType->base() != sym.Void()) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,
             sym.currentScope());
         return;
     }
-    if (rs.expression != nullptr &&
-        currentFunction->returnType()->base() == sym.Void())
+    if (rs.expression() && currentFunction->returnType()->base() == sym.Void())
     {
         iss.push<InvalidStatement>(
             &rs,
@@ -290,25 +283,25 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
             sym.currentScope());
         return;
     }
-    if (rs.expression == nullptr) {
+    if (!rs.expression()) {
         return;
     }
-    if (!analyzeExpr(*rs.expression)) {
+    if (!analyzeExpr(*rs.expression())) {
         return;
     }
-    if (!rs.expression->isValue()) {
-        iss.push<BadSymbolReference>(*rs.expression, EntityCategory::Value);
+    if (!rs.expression()->isValue()) {
+        iss.push<BadSymbolReference>(*rs.expression(), EntityCategory::Value);
         return;
     }
     SC_ASSERT(currentFunction != nullptr,
               "This should have been set by case FunctionDefinition");
     if (returnType->isReference() &&
-        !rs.expression->type()->has(TypeQualifiers::ExplicitReference))
+        !rs.expression()->type()->has(TypeQualifiers::ExplicitReference))
     {
-        iss.push<BadExpression>(*rs.expression, IssueSeverity::Error);
+        iss.push<BadExpression>(*rs.expression(), IssueSeverity::Error);
         return;
     }
-    verifyConversion(*rs.expression, currentFunction->returnType());
+    verifyConversion(*rs.expression(), currentFunction->returnType());
 }
 
 void Context::analyzeImpl(ast::IfStatement& stmt) {
@@ -319,12 +312,12 @@ void Context::analyzeImpl(ast::IfStatement& stmt) {
             sym.currentScope());
         return;
     }
-    if (analyzeExpr(*stmt.condition)) {
-        verifyConversion(*stmt.condition, sym.Bool());
+    if (analyzeExpr(*stmt.condition())) {
+        verifyConversion(*stmt.condition(), sym.Bool());
     }
-    analyze(*stmt.thenBlock);
-    if (stmt.elseBlock) {
-        analyze(*stmt.elseBlock);
+    analyze(*stmt.thenBlock());
+    if (stmt.elseBlock()) {
+        analyze(*stmt.elseBlock());
     }
 }
 
@@ -336,19 +329,19 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
             sym.currentScope());
         return;
     }
-    stmt.block->decorate(&sym.addAnonymousScope());
-    sym.pushScope(stmt.block->scope());
-    if (stmt.varDecl) {
-        analyze(*stmt.varDecl);
+    stmt.block()->decorate(&sym.addAnonymousScope());
+    sym.pushScope(stmt.block()->scope());
+    if (stmt.varDecl()) {
+        analyze(*stmt.varDecl());
     }
-    if (analyzeExpr(*stmt.condition)) {
-        verifyConversion(*stmt.condition, sym.Bool());
+    if (analyzeExpr(*stmt.condition())) {
+        verifyConversion(*stmt.condition(), sym.Bool());
     }
-    if (stmt.increment) {
-        analyzeExpr(*stmt.increment);
+    if (stmt.increment()) {
+        analyzeExpr(*stmt.increment());
     }
     sym.popScope(); /// The block will push its scope again.
-    analyze(*stmt.block);
+    analyze(*stmt.block());
 }
 
 void Context::analyzeImpl(ast::JumpStatement& s) {

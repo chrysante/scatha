@@ -68,33 +68,33 @@ void Context::printExpression(Literal const& lit) {
 
 void Context::printExpression(UnaryPrefixExpression const& expr) {
     str << expr.operation();
-    dispatchExpression(*expr.operand);
+    dispatchExpression(*expr.operand());
 }
 
 void Context::printExpression(BinaryExpression const& expr) {
-    dispatchExpression(*expr.lhs);
+    dispatchExpression(*expr.lhs());
     str << expr.operation();
-    dispatchExpression(*expr.rhs);
+    dispatchExpression(*expr.rhs());
 }
 
 void Context::printExpression(MemberAccess const& memberAccess) {
-    dispatchExpression(*memberAccess.object);
+    dispatchExpression(*memberAccess.object());
     str << ".";
-    dispatchExpression(*memberAccess.member);
+    dispatchExpression(*memberAccess.member());
 }
 
 void Context::printExpression(Conditional const& conditional) {
-    dispatchExpression(*conditional.condition);
+    dispatchExpression(*conditional.condition());
     str << " ? ";
-    dispatchExpression(*conditional.ifExpr);
+    dispatchExpression(*conditional.thenExpr());
     str << " : ";
-    dispatchExpression(*conditional.elseExpr);
+    dispatchExpression(*conditional.elseExpr());
 }
 
 void Context::printExpression(FunctionCall const& functionCall) {
-    dispatchExpression(*functionCall.object);
+    dispatchExpression(*functionCall.object());
     str << "(";
-    for (bool first = true; auto& argument: functionCall.arguments) {
+    for (bool first = true; auto* argument: functionCall.arguments()) {
         if (!first) {
             str << ", ";
         }
@@ -107,9 +107,9 @@ void Context::printExpression(FunctionCall const& functionCall) {
 }
 
 void Context::printExpression(Subscript const& subscript) {
-    dispatchExpression(*subscript.object);
+    dispatchExpression(*subscript.object());
     str << "[";
-    for (bool first = true; auto& argument: subscript.arguments) {
+    for (bool first = true; auto* argument: subscript.arguments()) {
         if (!first) {
             str << ", ";
         }

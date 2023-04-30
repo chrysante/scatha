@@ -8,11 +8,10 @@ using namespace scatha;
 using namespace parse;
 
 static void expectFooParse(ast::AbstractSyntaxTree const& ast) {
-    auto const& tu = cast<ast::TranslationUnit const&>(ast);
-    auto const& fooDecl =
-        cast<ast::FunctionDefinition const&>(*tu.declarations[0]);
+    auto const& tu      = cast<ast::TranslationUnit const&>(ast);
+    auto const& fooDecl = *tu.declaration<ast::FunctionDefinition>(0);
     CHECK(fooDecl.name() == "foo");
-    CHECK(fooDecl.returnTypeExpr == nullptr);
+    CHECK(fooDecl.returnTypeExpr() == nullptr);
 }
 
 TEST_CASE("UnqualifiedID - 1", "[parse][issue]") {

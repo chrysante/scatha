@@ -58,46 +58,44 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* tu     = cast<TranslationUnit*>(ast.get());
-    auto* fnDecl = cast<FunctionDefinition*>(tu->declarations[0].get());
+    auto* fnDecl = tu->declaration<FunctionDefinition>(0);
     CHECK(fnDecl->returnType()->base() == sym.Int());
-    CHECK(fnDecl->parameters[0]->type()->base() == sym.Int());
-    CHECK(fnDecl->parameters[1]->type()->base() == sym.Int());
-    CHECK(fnDecl->parameters[2]->type()->base() == sym.Float());
-    CHECK(fnDecl->parameters[3]->type()->base() == sym.String());
-    auto* fn = cast<FunctionDefinition*>(tu->declarations[0].get());
+    CHECK(fnDecl->parameters()[0]->type()->base() == sym.Int());
+    CHECK(fnDecl->parameters()[1]->type()->base() == sym.Int());
+    CHECK(fnDecl->parameters()[2]->type()->base() == sym.Float());
+    CHECK(fnDecl->parameters()[3]->type()->base() == sym.String());
+    auto* fn = tu->declaration<FunctionDefinition>(0);
     CHECK(fn->returnType()->base() == sym.Int());
-    CHECK(fn->parameters[0]->type()->base() == sym.Int());
-    CHECK(fn->parameters[1]->type()->base() == sym.Int());
-    CHECK(fn->parameters[2]->type()->base() == sym.Float());
-    CHECK(fn->parameters[3]->type()->base() == sym.String());
-    auto* varDecl = cast<VariableDeclaration*>(fn->body->statements[0].get());
+    CHECK(fn->parameter(0)->type()->base() == sym.Int());
+    CHECK(fn->parameter(1)->type()->base() == sym.Int());
+    CHECK(fn->parameter(2)->type()->base() == sym.Float());
+    CHECK(fn->parameter(3)->type()->base() == sym.String());
+    auto* varDecl = fn->body()->statement<VariableDeclaration>(0);
     CHECK(varDecl->type()->base() == sym.Int());
-    auto* varDeclInit = cast<Identifier*>(varDecl->initExpression.get());
+    auto* varDeclInit = cast<Identifier*>(varDecl->initExpression());
     CHECK(varDeclInit->type()->base() == sym.Int());
     CHECK(varDeclInit->valueCategory() == ValueCategory::LValue);
-    auto* nestedScope = cast<CompoundStatement*>(fn->body->statements[1].get());
-    auto* nestedVarDecl =
-        cast<VariableDeclaration*>(nestedScope->statements[0].get());
+    auto* nestedScope   = fn->body()->statement<CompoundStatement>(1);
+    auto* nestedVarDecl = nestedScope->statement<VariableDeclaration>(0);
     CHECK(nestedVarDecl->type()->base() == sym.String());
-    auto* nestedvarDeclInit =
-        cast<Literal*>(nestedVarDecl->initExpression.get());
+    auto* nestedvarDeclInit = cast<Literal*>(nestedVarDecl->initExpression());
     CHECK(nestedvarDeclInit->type()->base() == sym.String());
     CHECK(nestedvarDeclInit->valueCategory() == ValueCategory::RValue);
-    auto* xDecl = cast<VariableDeclaration*>(fn->body->statements[2].get());
+    auto* xDecl = fn->body()->statement<VariableDeclaration>(2);
     CHECK(xDecl->type()->base() == sym.Int());
-    auto* intLit = cast<Literal*>(xDecl->initExpression.get());
+    auto* intLit = cast<Literal*>(xDecl->initExpression());
     CHECK(intLit->value<LiteralKind::Integer>() == 39);
     CHECK(intLit->valueCategory() == ValueCategory::RValue);
-    auto* zDecl = cast<VariableDeclaration*>(fn->body->statements[3].get());
+    auto* zDecl = fn->body()->statement<VariableDeclaration>(3);
     CHECK(zDecl->type()->base() == sym.Int());
-    auto* intHexLit = cast<Literal*>(zDecl->initExpression.get());
+    auto* intHexLit = cast<Literal*>(zDecl->initExpression());
     CHECK(intHexLit->value<LiteralKind::Integer>() == 0x39E);
-    auto* yDecl = cast<VariableDeclaration*>(fn->body->statements[4].get());
+    auto* yDecl = fn->body()->statement<VariableDeclaration>(4);
     CHECK(yDecl->type()->base() == sym.Float());
-    auto* floatLit = cast<Literal*>(yDecl->initExpression.get());
+    auto* floatLit = cast<Literal*>(yDecl->initExpression());
     CHECK(floatLit->value<LiteralKind::FloatingPoint>().to<f64>() == 1.2);
-    auto* ret           = cast<ReturnStatement*>(fn->body->statements[5].get());
-    auto* retIdentifier = cast<Identifier*>(ret->expression.get());
+    auto* ret           = fn->body()->statement<ReturnStatement>(5);
+    auto* retIdentifier = cast<Identifier*>(ret->expression());
     CHECK(retIdentifier->type()->base() == sym.Int());
     CHECK(retIdentifier->valueCategory() == ValueCategory::LValue);
 }
@@ -114,17 +112,16 @@ fn callee(a: string, b: int, c: bool) -> float { return 0.0; }
     REQUIRE(iss.empty());
     auto* tu = cast<TranslationUnit*>(ast.get());
     REQUIRE(tu);
-    auto* calleeDecl = cast<FunctionDefinition*>(tu->declarations[1].get());
+    auto* calleeDecl = tu->declaration<FunctionDefinition>(1);
     REQUIRE(calleeDecl);
     CHECK(calleeDecl->returnType()->base() == sym.Float());
-    CHECK(calleeDecl->parameters[0]->type()->base() == sym.String());
-    CHECK(calleeDecl->parameters[1]->type()->base() == sym.Int());
-    CHECK(calleeDecl->parameters[2]->type()->base() == sym.Bool());
-    auto* caller = cast<FunctionDefinition*>(tu->declarations[0].get());
-    auto* resultDecl =
-        cast<VariableDeclaration*>(caller->body->statements[0].get());
-    CHECK(resultDecl->initExpression->type()->base() == sym.Float());
-    auto* fnCallExpr = cast<FunctionCall*>(resultDecl->initExpression.get());
+    CHECK(calleeDecl->parameter(0)->type()->base() == sym.String());
+    CHECK(calleeDecl->parameter(1)->type()->base() == sym.Int());
+    CHECK(calleeDecl->parameter(2)->type()->base() == sym.Bool());
+    auto* caller     = tu->declaration<FunctionDefinition>(0);
+    auto* resultDecl = caller->body()->statement<VariableDeclaration>(0);
+    CHECK(resultDecl->initExpression()->type()->base() == sym.Float());
+    auto* fnCallExpr = cast<FunctionCall*>(resultDecl->initExpression());
     auto const& calleeOverloadSet = sym.lookup<OverloadSet>("callee");
     REQUIRE(calleeOverloadSet != nullptr);
     auto* calleeFunction = calleeOverloadSet->find(
@@ -146,24 +143,24 @@ struct X {
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
     auto* tu   = cast<TranslationUnit*>(ast.get());
-    auto* xDef = cast<StructDefinition*>(tu->declarations[0].get());
+    auto* xDef = tu->declaration<StructDefinition>(0);
     CHECK(xDef->name() == "X");
-    auto* iDecl = cast<VariableDeclaration*>(xDef->body->statements[0].get());
+    auto* iDecl = xDef->body()->statement<VariableDeclaration>(0);
     CHECK(iDecl->name() == "i");
     CHECK(iDecl->type()->base() == sym.Float());
     CHECK(iDecl->offset() == 0);
     CHECK(iDecl->index() == 0);
-    auto* jDecl = cast<VariableDeclaration*>(xDef->body->statements[1].get());
+    auto* jDecl = xDef->body()->statement<VariableDeclaration>(1);
     CHECK(jDecl->name() == "j");
     CHECK(jDecl->type()->base() == sym.Int());
     CHECK(jDecl->offset() == 8);
     CHECK(jDecl->index() == 1);
-    auto* b2Decl = cast<VariableDeclaration*>(xDef->body->statements[3].get());
+    auto* b2Decl = xDef->body()->statement<VariableDeclaration>(3);
     CHECK(b2Decl->name() == "b2");
     CHECK(b2Decl->type()->base() == sym.Bool());
     CHECK(b2Decl->offset() == 17);
     CHECK(b2Decl->index() == 3);
-    auto* fDef = cast<FunctionDefinition*>(xDef->body->statements[4].get());
+    auto* fDef = xDef->body()->statement<FunctionDefinition>(4);
     CHECK(fDef->name() == "f");
     /// TODO: Test argument types when we properly recognize member functions as
     /// having an implicit 'this' argument
@@ -188,9 +185,9 @@ struct X { struct Y {} }
 )";
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto const* tu = cast<TranslationUnit*>(ast.get());
-    auto const* f  = cast<FunctionDefinition*>(tu->declarations[0].get());
-    auto const* y  = cast<VariableDeclaration*>(f->body->statements[0].get());
+    auto const* tu    = cast<TranslationUnit*>(ast.get());
+    auto const* f     = tu->declaration<FunctionDefinition>(0);
+    auto const* y     = f->body()->statement<VariableDeclaration>(0);
     auto const* YType = y->type();
     CHECK(YType->base()->name() == "Y");
     CHECK(YType->base()->parent()->name() == "X");
@@ -342,15 +339,15 @@ public fn main() {
     x.f();
 })");
         REQUIRE(iss.empty());
-        auto const* tu = cast<TranslationUnit*>(ast.get());
-        auto* mainDecl = ranges::find_if(tu->declarations, [](auto& decl) {
-                             return decl->name() == "main";
-                         })->get();
+        auto* tu       = cast<TranslationUnit*>(ast.get());
+        auto decls     = tu->declarations();
+        auto* mainDecl = *ranges::find_if(decls, [](auto* decl) {
+            return decl->name() == "main";
+        });
         auto* main     = cast<FunctionDefinition*>(mainDecl);
-        auto* stmt =
-            cast<ExpressionStatement*>(main->body->statements[1].get());
-        auto* call = cast<FunctionCall*>(stmt->expression.get());
-        auto* f    = call->object->entity();
+        auto* stmt     = main->body()->statement<ExpressionStatement>(1);
+        auto* call     = cast<FunctionCall*>(stmt->expression());
+        auto* f        = call->object()->entity();
         CHECK(f->name() == "f");
         CHECK(isa<GlobalScope>(f->parent()));
     }
@@ -365,15 +362,15 @@ public fn main() {
     x.f();
 })");
         REQUIRE(iss.empty());
-        auto const* tu = cast<TranslationUnit*>(ast.get());
-        auto* mainDecl = ranges::find_if(tu->declarations, [](auto& decl) {
-                             return decl->name() == "main";
-                         })->get();
+        auto* tu       = cast<TranslationUnit*>(ast.get());
+        auto decls     = tu->declarations();
+        auto* mainDecl = *ranges::find_if(decls, [](auto* decl) {
+            return decl->name() == "main";
+        });
         auto* main     = cast<FunctionDefinition*>(mainDecl);
-        auto* stmt =
-            cast<ExpressionStatement*>(main->body->statements[1].get());
-        auto* call = cast<FunctionCall*>(stmt->expression.get());
-        auto* f    = call->object->entity();
+        auto* stmt     = main->body()->statement<ExpressionStatement>(1);
+        auto* call     = cast<FunctionCall*>(stmt->expression());
+        auto* f        = call->object()->entity();
         CHECK(f->name() == "f");
         CHECK(f->parent()->name() == "X");
     }

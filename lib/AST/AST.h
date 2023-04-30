@@ -70,6 +70,21 @@ private:
 /// Every derived class must specify its runtime type in the constructor via the
 /// `NodeType` enum.
 class SCATHA_API AbstractSyntaxTree: public internal::Decoratable {
+    template <typename AST>
+    static constexpr auto transform = ranges::views::transform(
+        [](auto& p) -> AST* { return cast_or_null<AST*>(p.get()); });
+
+    template <typename AST>
+    auto getChildren() const {
+        return _children | transform<AST>;
+    }
+
+protected:
+    template <typename AST>
+    auto dropChildren(size_t count) const {
+        return _children | ranges::views::drop(count) | transform<AST>;
+    }
+
 public:
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }
@@ -86,33 +101,64 @@ public:
     /// \overload
     AbstractSyntaxTree const* parent() const { return _parent; }
 
+    /// The children of this node
+    template <typename AST = AbstractSyntaxTree>
+    auto children() {
+        return getChildren<AST>();
+    }
+
+    /// \overload
+    template <typename AST = AbstractSyntaxTree>
+    auto children() const {
+        return getChildren<AST const>();
+    }
+
+    /// The child at index \p index
+    template <typename AST = AbstractSyntaxTree>
+    AST* child(size_t index) {
+        return cast_or_null<AST*>(children()[utl::narrow_cast<ssize_t>(index)]);
+    }
+
+    /// \overload
+    template <typename AST = AbstractSyntaxTree>
+    AST const* child(size_t index) const {
+        return cast_or_null<AST const*>(
+            children()[utl::narrow_cast<ssize_t>(index)]);
+    }
+
 protected:
-    explicit AbstractSyntaxTree(NodeType type, SourceRange sourceRange):
-        _type(type), _sourceRange(sourceRange) {}
+    explicit AbstractSyntaxTree(NodeType type,
+                                SourceRange sourceRange,
+                                auto&&... children):
+        _type(type), _sourceRange(sourceRange) {
+        (addChildren(std::move(children)), ...);
+    }
 
     void setSourceRange(SourceRange sourceRange) { _sourceRange = sourceRange; }
 
-    void setParent(AbstractSyntaxTree* parent) { _parent = parent; }
-
-    void setChild(auto&& child) {
-        if (child) {
-            child->_parent = this;
-        }
-    }
-
-    void setChildren(auto&& children) {
-        for (auto&& child: children) {
-            setChild(child);
-        }
-    }
-
 private:
+    template <typename T>
+    void addChildren(T&& child) {
+        if constexpr (ranges::range<T>) {
+            for (auto&& c: child) {
+                addChildren(std::move(c));
+            }
+        }
+        else {
+            if (child) {
+                child->_parent = this;
+            }
+            _children.push_back(std::move(child));
+        }
+    }
+
     friend void scatha::internal::privateDelete(ast::AbstractSyntaxTree*);
 
 private:
     NodeType _type;
     SourceRange _sourceRange;
     AbstractSyntaxTree* _parent = nullptr;
+    utl::small_vector<UniquePtr<AbstractSyntaxTree>> _children;
 };
 
 // For `dyncast` compatibilty
@@ -243,17 +289,19 @@ public:
     explicit UnaryPrefixExpression(UnaryPrefixOperator op,
                                    UniquePtr<Expression> operand,
                                    SourceRange sourceRange):
-        Expression(NodeType::UnaryPrefixExpression, sourceRange),
-        operand(std::move(operand)),
-        op(op) {
-        setChild(this->operand.get());
-    }
+        Expression(NodeType::UnaryPrefixExpression,
+                   sourceRange,
+                   std::move(operand)),
+        op(op) {}
 
     /// The operator of this expression.
     UnaryPrefixOperator operation() const { return op; }
 
     /// The operand of this expression.
-    UniquePtr<Expression> operand;
+    Expression* operand() { return child<Expression>(0); }
+
+    /// \overload
+    Expression const* operand() const { return child<Expression>(0); }
 
 private:
     UnaryPrefixOperator op;
@@ -268,13 +316,11 @@ public:
                               UniquePtr<Expression> lhs,
                               UniquePtr<Expression> rhs,
                               SourceRange sourceRange):
-        Expression(NodeType::BinaryExpression, sourceRange),
-        lhs(std::move(lhs)),
-        rhs(std::move(rhs)),
-        op(op) {
-        setChild(this->lhs.get());
-        setChild(this->rhs.get());
-    }
+        Expression(NodeType::BinaryExpression,
+                   sourceRange,
+                   std::move(lhs),
+                   std::move(rhs)),
+        op(op) {}
 
     /// The operator of this expression.
     BinaryOperator operation() const { return op; }
@@ -282,11 +328,17 @@ public:
     /// Change the operator of this expression.
     void setOperation(BinaryOperator newOp) { op = newOp; }
 
-    /// The left hand side operand of this expression.
-    UniquePtr<Expression> lhs;
+    /// The LHS operand of this expression.
+    Expression* lhs() { return child<Expression>(0); }
 
-    /// The right hand side operand of this expression.
-    UniquePtr<Expression> rhs;
+    /// \overload
+    Expression const* lhs() const { return child<Expression>(0); }
+
+    /// The RHS operand of this expression.
+    Expression* rhs() { return child<Expression>(1); }
+
+    /// \overload
+    Expression const* rhs() const { return child<Expression>(1); }
 
 private:
     BinaryOperator op;
@@ -298,18 +350,22 @@ public:
     explicit MemberAccess(UniquePtr<Expression> object,
                           UniquePtr<Identifier> member,
                           SourceRange sourceRange):
-        Expression(NodeType::MemberAccess, sourceRange),
-        object(std::move(object)),
-        member(std::move(member)) {
-        setChild(this->object.get());
-        setChild(this->member.get());
-    }
+        Expression(NodeType::MemberAccess,
+                   sourceRange,
+                   std::move(object),
+                   std::move(member)) {}
 
-    /// The object being accessed.
-    UniquePtr<Expression> object;
+    /// The object of this expression.
+    Expression* object() { return child<Expression>(0); }
 
-    /// The expression to access the object.
-    UniquePtr<Identifier> member;
+    /// \overload
+    Expression const* object() const { return child<Expression>(0); }
+
+    /// The identifier to access the object.
+    Identifier* member() { return child<Identifier>(1); }
+
+    /// \overload
+    Identifier const* member() const { return child<Identifier>(1); }
 };
 
 /// Concrete node representing a reference expression.
@@ -317,11 +373,15 @@ class SCATHA_API ReferenceExpression: public Expression {
 public:
     explicit ReferenceExpression(UniquePtr<Expression> referred,
                                  SourceRange sourceRange):
-        Expression(NodeType::ReferenceExpression, sourceRange),
-        referred(std::move(referred)) {}
+        Expression(NodeType::ReferenceExpression,
+                   sourceRange,
+                   std::move(referred)) {}
 
     /// The object being referred to.
-    UniquePtr<Expression> referred;
+    Expression* referred() { return child<Expression>(0); }
+
+    /// \overload
+    Expression const* referred() const { return child<Expression>(0); }
 };
 
 /// Concrete node representing a `unique` expression.
@@ -329,11 +389,15 @@ class SCATHA_API UniqueExpression: public Expression {
 public:
     explicit UniqueExpression(UniquePtr<Expression> initExpr,
                               SourceRange sourceRange):
-        Expression(NodeType::UniqueExpression, sourceRange),
-        initExpr(std::move(initExpr)) {}
+        Expression(NodeType::UniqueExpression,
+                   sourceRange,
+                   std::move(initExpr)) {}
 
     /// The initializing expression
-    UniquePtr<Expression> initExpr;
+    Expression* initExpr() { return child<Expression>(0); }
+
+    /// \overload
+    Expression const* initExpr() const { return child<Expression>(0); }
 
     /// Decorate this node.
     void decorate(sema::QualType const* type) {
@@ -350,45 +414,69 @@ public:
                          UniquePtr<Expression> ifExpr,
                          UniquePtr<Expression> elseExpr,
                          SourceRange sourceRange):
-        Expression(NodeType::Conditional, sourceRange),
-        condition(std::move(condition)),
-        ifExpr(std::move(ifExpr)),
-        elseExpr(std::move(elseExpr)) {
-        setChild(this->condition.get());
-        setChild(this->ifExpr.get());
-        setChild(this->elseExpr.get());
-    }
+        Expression(NodeType::Conditional,
+                   sourceRange,
+                   std::move(condition),
+                   std::move(ifExpr),
+                   std::move(elseExpr)) {}
 
     /// The condition to branch on.
-    UniquePtr<Expression> condition;
+    Expression* condition() { return child<Expression>(0); }
+
+    /// \overload
+    Expression const* condition() const { return child<Expression>(0); }
 
     /// Expression to evaluate if condition is true.
-    UniquePtr<Expression> ifExpr;
+    Expression* thenExpr() { return child<Expression>(1); }
+
+    /// \overload
+    Expression const* thenExpr() const { return child<Expression>(1); }
 
     /// Expression to evaluate if condition is false.
-    UniquePtr<Expression> elseExpr;
+    Expression* elseExpr() { return child<Expression>(2); }
+
+    /// \overload
+    Expression const* elseExpr() const { return child<Expression>(2); }
 };
 
 /// MARK: More Complex Expressions
 
 /// Concrete node representing a function call expression.
-class SCATHA_API FunctionCall: public Expression {
+class SCATHA_API CallLike: public Expression {
+public:
+    /// The object (function or rather overload set) being called.
+    Expression* object() { return child<Expression>(0); }
+
+    /// \overload
+    Expression const* object() const { return child<Expression>(0); }
+
+    /// List of arguments.
+    auto arguments() { return dropChildren<Expression>(1); }
+
+    /// \overload
+    auto arguments() const { return dropChildren<Expression const>(1); }
+
+protected:
+    explicit CallLike(NodeType nodeType,
+                      UniquePtr<Expression> object,
+                      utl::small_vector<UniquePtr<Expression>> arguments,
+                      SourceRange sourceRange):
+        Expression(nodeType,
+                   sourceRange,
+                   std::move(object),
+                   std::move(arguments)) {}
+};
+
+/// Concrete node representing a function call expression.
+class SCATHA_API FunctionCall: public CallLike {
 public:
     explicit FunctionCall(UniquePtr<Expression> object,
                           utl::small_vector<UniquePtr<Expression>> arguments,
                           SourceRange sourceRange):
-        Expression(NodeType::FunctionCall, sourceRange),
-        object(std::move(object)),
-        arguments(std::move(arguments)) {
-        setChild(this->object.get());
-        setChildren(this->arguments);
-    }
-
-    /// The object (function or rather overload set) being called.
-    UniquePtr<Expression> object;
-
-    /// List of arguments.
-    utl::small_vector<UniquePtr<Expression>> arguments;
+        CallLike(NodeType::FunctionCall,
+                 std::move(object),
+                 std::move(arguments),
+                 sourceRange) {}
 
     /// **Decoration provided by semantic analysis**
 
@@ -410,23 +498,15 @@ public:
 };
 
 /// Concrete node representing a subscript expression.
-class SCATHA_API Subscript: public Expression {
+class SCATHA_API Subscript: public CallLike {
 public:
     explicit Subscript(UniquePtr<Expression> object,
                        utl::small_vector<UniquePtr<Expression>> arguments,
                        SourceRange sourceRange):
-        Expression(NodeType::Subscript, sourceRange),
-        object(std::move(object)),
-        arguments(std::move(arguments)) {
-        setChild(this->object.get());
-        setChildren(this->arguments);
-    }
-
-    /// The object being indexed.
-    UniquePtr<Expression> object;
-
-    /// List of index arguments.
-    utl::small_vector<UniquePtr<Expression>> arguments;
+        CallLike(NodeType::Subscript,
+                 std::move(object),
+                 std::move(arguments),
+                 sourceRange) {}
 };
 
 /// Represents a list expression, i.e. `[a, b, c]`
@@ -439,34 +519,26 @@ class SCATHA_API ListExpression: public Expression {
 public:
     ListExpression(utl::small_vector<UniquePtr<Expression>> elems,
                    SourceRange sourceRange):
-        Expression(NodeType::ListExpression, sourceRange),
-        elems(std::move(elems)) {
-        setChildren(this->elems);
+        Expression(NodeType::ListExpression, sourceRange, std::move(elems)) {}
+
+    auto elements() { return children<Expression>(); }
+
+    auto elements() const { return children<Expression>(); }
+};
+
+/// Abstract node representing a statement.
+class SCATHA_API ImplicitConversion: public Expression {
+public:
+    explicit ImplicitConversion(UniquePtr<Expression> expr,
+                                SourceRange sourceRange):
+        Expression(NodeType::ImplicitConversion, sourceRange, std::move(expr)) {
     }
 
-    size_t size() const { return elems.size(); }
+    /// The expression being converted
+    Expression* expr() { return child<Expression>(0); }
 
-    bool empty() const { return elems.empty(); }
-
-    auto begin() { return impl(this).begin(); }
-    auto begin() const { return impl(this).begin(); }
-
-    auto end() { return impl(this).end(); }
-    auto end() const { return impl(this).end(); }
-
-    Expression* front() { return impl(this).front(); }
-    Expression const* front() const { return impl(this).front(); }
-
-    Expression* back() { return impl(this).back(); }
-    Expression const* back() const { return impl(this).back(); }
-
-    Expression* operator[](size_t index) { return elems[index].get(); }
-    Expression const* operator[](size_t index) const {
-        return elems[index].get();
-    }
-
-private:
-    utl::small_vector<UniquePtr<Expression>> elems;
+    /// \overload
+    Expression const* expr() const { return child<Expression>(0); }
 };
 
 /// Abstract node representing a statement.
@@ -480,14 +552,20 @@ class SCATHA_API Declaration: public Statement {
 public:
     /// Name of the declared symbol as written in the source code.
     std::string_view name() const {
-        return nameIdentifier ? nameIdentifier->value() : std::string_view{};
+        return nameIdentifier() ? nameIdentifier()->value() :
+                                  std::string_view{};
     }
 
     /// Identifier expression representing the name of this declaration.
-    UniquePtr<Identifier> nameIdentifier;
+    Identifier* nameIdentifier() { return child<Identifier>(0); }
+
+    /// \overload
+    Identifier const* nameIdentifier() const { return child<Identifier>(0); }
 
     /// Access specifier. `None` if none was specified.
-    AccessSpec accessSpec = AccessSpec::None;
+    AccessSpec accessSpec() const { return _accessSpec; }
+
+    void setAccessSpec(AccessSpec spec) { _accessSpec = spec; }
 
     /// **Decoration provided by semantic analysis**
 
@@ -509,41 +587,62 @@ public:
     }
 
 protected:
-    explicit Declaration(NodeType type,
-                         SourceRange sourceRange,
-                         UniquePtr<Identifier> name):
-        Statement(type, sourceRange), nameIdentifier(std::move(name)) {}
+    using Statement::Statement;
 
 private:
-    sema::Entity* _entity = nullptr;
+    AccessSpec _accessSpec = AccessSpec::None;
+    sema::Entity* _entity  = nullptr;
 };
 
 /// Concrete node representing a translation unit.
 class SCATHA_API TranslationUnit: public AbstractSyntaxTree {
 public:
-    TranslationUnit():
-        AbstractSyntaxTree(NodeType::TranslationUnit, SourceRange{}) {}
+    TranslationUnit(utl::small_vector<UniquePtr<Declaration>> declarations):
+        AbstractSyntaxTree(NodeType::TranslationUnit,
+                           SourceRange{},
+                           std::move(declarations)) {}
 
     /// List of declarations in the translation unit.
-    utl::small_vector<UniquePtr<Declaration>> declarations;
+    auto declarations() { return children<Declaration>(); }
+
+    /// \overload
+    auto declarations() const { return children<Declaration>(); }
+
+    template <typename D = Declaration>
+    D* declaration(size_t index) {
+        return child<D>(index);
+    }
+
+    template <typename D = Declaration>
+    D const* declaration(size_t index) const {
+        return child<D>(index);
+    }
 };
 
 /// Concrete node representing a variable declaration.
 class SCATHA_API VariableDeclaration: public Declaration {
 public:
     explicit VariableDeclaration(SourceRange sourceRange,
-                                 UniquePtr<Identifier> name):
+                                 UniquePtr<Identifier> name,
+                                 UniquePtr<Expression> typeExpr,
+                                 UniquePtr<Expression> initExpr):
         Declaration(NodeType::VariableDeclaration,
                     sourceRange,
-                    std::move(name)) {}
-
-    bool isConstant : 1 = false; // Will be set by the parser
+                    std::move(name),
+                    std::move(typeExpr),
+                    std::move(initExpr)) {}
 
     /// Typename declared in the source code. Null if no typename was declared.
-    UniquePtr<Expression> typeExpr;
+    Expression* typeExpr() { return child<Expression>(1); }
+
+    /// \overload
+    Expression const* typeExpr() const { return child<Expression>(1); }
 
     /// Expression to initialize this variable. May be null.
-    UniquePtr<Expression> initExpression;
+    Expression* initExpression() { return child<Expression>(2); }
+
+    /// \overload
+    Expression const* initExpression() const { return child<Expression>(2); }
 
     /// **Decoration provided by semantic analysis**
 
@@ -607,7 +706,10 @@ public:
                              std::move(typeExpr)) {}
 
     /// Typename declared in the source code. Null if no typename was declared.
-    UniquePtr<Expression> typeExpr;
+    Expression* typeExpr() { return child<Expression>(1); }
+
+    /// \overload
+    Expression const* typeExpr() const { return child<Expression>(1); }
 
     /// **Decoration provided by semantic analysis**
 
@@ -628,11 +730,12 @@ protected:
                                   SourceRange sourceRange,
                                   UniquePtr<Identifier> name,
                                   UniquePtr<Expression> typeExpr):
-        Declaration(nodeType, sourceRange, std::move(name)),
-        typeExpr(std::move(typeExpr)) {
-        setChild(this->typeExpr.get());
-        if (nameIdentifier) {
-            setSourceRange(nameIdentifier->sourceRange());
+        Declaration(nodeType,
+                    sourceRange,
+                    std::move(name),
+                    std::move(typeExpr)) {
+        if (nameIdentifier()) {
+            setSourceRange(nameIdentifier()->sourceRange());
         }
     }
 
@@ -669,13 +772,25 @@ public:
     explicit CompoundStatement(
         SourceRange sourceRange,
         utl::small_vector<UniquePtr<Statement>> statements):
-        Statement(NodeType::CompoundStatement, sourceRange),
-        statements(std::move(statements)) {
-        setChildren(this->statements);
-    }
+        Statement(NodeType::CompoundStatement,
+                  sourceRange,
+                  std::move(statements)) {}
 
     /// List of statements in the compound statement.
-    utl::small_vector<UniquePtr<Statement>> statements;
+    auto statements() { return children<Statement>(); }
+
+    /// \overload
+    auto statements() const { return children<Statement>(); }
+
+    template <typename S = Statement>
+    S* statement(size_t index) {
+        return child<S>(index);
+    }
+
+    template <typename S = Statement>
+    S const* statement(size_t index) const {
+        return child<S>(index);
+    }
 
     /// **Decoration provided by semantic analysis**
 
@@ -718,24 +833,45 @@ public:
         utl::small_vector<UniquePtr<ParameterDeclaration>> parameters,
         UniquePtr<Expression> returnTypeExpr,
         UniquePtr<CompoundStatement> body):
-        Declaration(NodeType::FunctionDefinition, sourceRange, std::move(name)),
-        returnTypeExpr(std::move(returnTypeExpr)),
-        parameters(std::move(parameters)),
-        body(std::move(body)) {
-        setChildren(this->parameters);
-        setChild(this->returnTypeExpr);
-        setChild(this->body);
-    }
+        Declaration(NodeType::FunctionDefinition,
+                    sourceRange,
+                    std::move(name),
+                    std::move(returnTypeExpr),
+                    std::move(body),
+                    std::move(parameters)) {}
 
     /// Typename of the return type as declared in the source code.
     /// Will be `nullptr` if no return type was declared.
-    UniquePtr<Expression> returnTypeExpr;
+    Expression* returnTypeExpr() { return child<Expression>(1); }
 
-    /// List of parameter declarations.
-    utl::small_vector<UniquePtr<ParameterDeclaration>> parameters;
+    /// \overload
+    Expression const* returnTypeExpr() const { return child<Expression>(1); }
 
     /// Body of the function.
-    UniquePtr<CompoundStatement> body;
+    CompoundStatement* body() { return child<CompoundStatement>(2); }
+
+    /// \overload
+    CompoundStatement const* body() const {
+        return child<CompoundStatement const>(2);
+    }
+
+    /// List of parameter declarations.
+    auto parameters() { return dropChildren<ParameterDeclaration>(3); }
+
+    /// \overload
+    auto parameters() const {
+        return dropChildren<ParameterDeclaration const>(3);
+    }
+
+    template <typename P = ParameterDeclaration>
+    P* parameter(size_t index) {
+        return child<P>(index + 3);
+    }
+
+    template <typename P = ParameterDeclaration>
+    P const* parameter(size_t index) const {
+        return child<P>(index + 3);
+    }
 
     /// **Decoration provided by semantic analysis**
 
@@ -773,13 +909,18 @@ public:
     explicit StructDefinition(SourceRange sourceRange,
                               UniquePtr<Identifier> name,
                               UniquePtr<CompoundStatement> body):
-        Declaration(NodeType::StructDefinition, sourceRange, std::move(name)),
-        body(std::move(body)) {
-        setChild(this->body.get());
-    }
+        Declaration(NodeType::StructDefinition,
+                    sourceRange,
+                    std::move(name),
+                    std::move(body)) {}
 
     /// Body of the struct.
-    UniquePtr<CompoundStatement> body;
+    CompoundStatement* body() { return child<CompoundStatement>(1); }
+
+    /// \overload
+    CompoundStatement const* body() const {
+        return child<CompoundStatement>(1);
+    }
 
     /// **Decoration provided by semantic analysis**
 
@@ -793,13 +934,14 @@ class SCATHA_API ExpressionStatement: public Statement {
 public:
     explicit ExpressionStatement(UniquePtr<Expression> expression):
         Statement(NodeType::ExpressionStatement,
-                  expression ? expression->sourceRange() : SourceRange{}),
-        expression(std::move(expression)) {
-        setChild(this->expression.get());
-    }
+                  expression ? expression->sourceRange() : SourceRange{},
+                  std::move(expression)) {}
 
     /// The expression
-    UniquePtr<Expression> expression;
+    Expression* expression() { return child<Expression>(0); }
+
+    /// \overload
+    Expression const* expression() const { return child<Expression>(0); }
 };
 
 /// Abstract node representing any control flow statement like if, while, for,
@@ -814,13 +956,15 @@ class SCATHA_API ReturnStatement: public ControlFlowStatement {
 public:
     explicit ReturnStatement(SourceRange sourceRange,
                              UniquePtr<Expression> expression):
-        ControlFlowStatement(NodeType::ReturnStatement, sourceRange),
-        expression(std::move(expression)) {
-        setChild(this->expression.get());
-    }
+        ControlFlowStatement(NodeType::ReturnStatement,
+                             sourceRange,
+                             std::move(expression)) {}
 
     /// The returned expression. May be null in case of a void function.
-    UniquePtr<Expression> expression;
+    Expression* expression() { return child<Expression>(0); }
+
+    /// \overload
+    Expression const* expression() const { return child<Expression>(0); }
 };
 
 /// Concrete node representing an if/else statement.
@@ -830,25 +974,31 @@ public:
                          UniquePtr<Expression> condition,
                          UniquePtr<Statement> ifBlock,
                          UniquePtr<Statement> elseBlock):
-        ControlFlowStatement(NodeType::IfStatement, sourceRange),
-        condition(std::move(condition)),
-        thenBlock(std::move(ifBlock)),
-        elseBlock(std::move(elseBlock)) {
-        setChild(this->condition.get());
-        setChild(this->thenBlock.get());
-        setChild(this->elseBlock.get());
-    }
+        ControlFlowStatement(NodeType::IfStatement,
+                             sourceRange,
+                             std::move(condition),
+                             std::move(ifBlock),
+                             std::move(elseBlock)) {}
 
     /// Condition to branch on.
     /// Must not be null after parsing and must be of type bool (or maybe later
     /// convertible to bool).
-    UniquePtr<Expression> condition;
+    Expression* condition() { return child<Expression>(0); }
+
+    /// \overload
+    Expression const* condition() const { return child<Expression>(0); }
 
     /// Statement to execute if condition is true.
-    UniquePtr<Statement> thenBlock;
+    Statement* thenBlock() { return child<Statement>(1); }
 
-    /// Statement to execute if condition is false.
-    UniquePtr<Statement> elseBlock;
+    /// \overload
+    Statement const* thenBlock() const { return child<Statement>(1); }
+
+    /// Statement to execute if condition is true.
+    Statement* elseBlock() { return child<Statement>(2); }
+
+    /// \overload
+    Statement const* elseBlock() const { return child<Statement>(2); }
 };
 
 /// Represents a `for`, `while` or `do`/`while` loop.
@@ -860,31 +1010,43 @@ public:
                            UniquePtr<Expression> condition,
                            UniquePtr<Expression> increment,
                            UniquePtr<CompoundStatement> block):
-        ControlFlowStatement(NodeType::LoopStatement, sourceRange),
-        varDecl(std::move(varDecl)),
-        condition(std::move(condition)),
-        increment(std::move(increment)),
-        block(std::move(block)),
-        _kind(kind) {
-        setChild(this->varDecl.get());
-        setChild(this->condition.get());
-        setChild(this->increment.get());
-        setChild(this->block.get());
-    }
+        ControlFlowStatement(NodeType::LoopStatement,
+                             sourceRange,
+                             std::move(varDecl),
+                             std::move(condition),
+                             std::move(increment),
+                             std::move(block)),
+        _kind(kind) {}
 
     /// Loop variable declared in this statement.
     /// Only non-null if `kind() == For`
-    UniquePtr<VariableDeclaration> varDecl;
+    VariableDeclaration* varDecl() { return child<VariableDeclaration>(0); }
+
+    /// \overload
+    VariableDeclaration const* varDecl() const {
+        return child<VariableDeclaration>(0);
+    }
 
     /// Condition to loop on.
-    UniquePtr<Expression> condition;
+    Expression* condition() { return child<Expression>(1); }
+
+    /// \overload
+    Expression const* condition() const { return child<Expression>(1); }
 
     /// Increment expression
     /// Only non-null if `kind() == For`
-    UniquePtr<Expression> increment;
+    Expression* increment() { return child<Expression>(2); }
+
+    /// \overload
+    Expression const* increment() const { return child<Expression>(2); }
 
     /// Statement to execute repeatedly.
-    UniquePtr<CompoundStatement> block;
+    CompoundStatement* block() { return child<CompoundStatement>(3); }
+
+    /// \overload
+    CompoundStatement const* block() const {
+        return child<CompoundStatement>(3);
+    }
 
     /// Either `while` or `do`/`while`
     LoopKind kind() const { return _kind; }

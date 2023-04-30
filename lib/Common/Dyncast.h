@@ -12,7 +12,9 @@
 namespace scatha {
 
 using utl::cast;
+using utl::cast_or_null;
 using utl::dyncast;
+using utl::dyncast_or_null;
 using utl::isa;
 using utl::visit;
 

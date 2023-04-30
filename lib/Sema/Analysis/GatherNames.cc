@@ -49,7 +49,7 @@ size_t Context::dispatch(ast::AbstractSyntaxTree& node) {
 }
 
 size_t Context::gather(ast::TranslationUnit& tu) {
-    for (auto& decl: tu.declarations) {
+    for (auto* decl: tu.declarations()) {
         dispatch(*decl);
     }
     return invalidIndex;
@@ -69,14 +69,14 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
         return static_cast<size_t>(-1);
     }
     Expected const declResult =
-        sym.declareFunction(funcDef.nameIdentifier->value());
+        sym.declareFunction(std::string(funcDef.name()));
     if (!declResult.hasValue()) {
         iss.push(declResult.error()->setStatement(funcDef));
         return invalidIndex;
     }
     auto& func = *declResult;
     funcDef.Declaration::decorate(&func);
-    funcDef.body->decorate(&func);
+    funcDef.body()->decorate(&func);
     /// Now add this function definition to the dependency graph
     return dependencyGraph.add(
         { .entity = &func, .astNode = &funcDef, .scope = &sym.currentScope() });
@@ -95,21 +95,20 @@ size_t Context::gather(ast::StructDefinition& s) {
             sym.currentScope());
         return invalidIndex;
     }
-    Expected const declResult =
-        sym.declareObjectType(s.nameIdentifier->value());
+    Expected const declResult = sym.declareObjectType(std::string(s.name()));
     if (!declResult) {
         iss.push(declResult.error()->setStatement(s));
         return invalidIndex;
     }
     auto& objType = *declResult;
     s.decorate(&objType);
-    s.body->decorate(&objType);
+    s.body()->decorate(&objType);
     size_t const index = dependencyGraph.add(
         { .entity = &objType, .astNode = &s, .scope = &sym.currentScope() });
     /// After we declared this type we gather all its members
     sym.pushScope(&objType);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto& statement: s.body->statements) {
+    for (auto* statement: s.body()->statements()) {
         size_t const dependency = dispatch(*statement);
         if (dependency != invalidIndex) {
             dependencyGraph[index].dependencies.push_back(
@@ -125,10 +124,10 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(
         sym.currentScope().kind() == ScopeKind::Object,
         "We only want to prepass struct definitions. What are we doing here?");
-    SC_ASSERT(varDecl.typeExpr,
+    SC_ASSERT(varDecl.typeExpr(),
               "In structs variables need explicit type "
               "specifiers. Make this a program issue.");
-    auto declResult = sym.declareVariable(varDecl.nameIdentifier->value());
+    auto declResult = sym.declareVariable(std::string(varDecl.name()));
     if (!declResult) {
         iss.push(declResult.error()->setStatement(varDecl));
         return invalidIndex;

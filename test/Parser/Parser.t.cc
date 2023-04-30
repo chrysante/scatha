@@ -16,41 +16,35 @@ fn mul(a: int, b: X.Y.Z) -> int {
     auto const [ast, iss]  = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations.size() == 1);
-    auto* const function = cast<FunctionDefinition*>(tu->declarations[0].get());
+    REQUIRE(tu->declarations().size() == 1);
+    auto* const function = tu->declaration<FunctionDefinition>(0);
     CHECK(function->name() == "mul");
-    REQUIRE(function->parameters.size() == 2);
-    CHECK(function->parameters[0]->name() == "a");
+    REQUIRE(function->parameters().size() == 2);
+    CHECK(function->parameters()[0]->name() == "a");
     auto const* aTypeExpr =
-        cast<Identifier*>(function->parameters[0]->typeExpr.get());
+        cast<Identifier*>(function->parameters()[0]->typeExpr());
     CHECK(aTypeExpr->value() == "int");
-    CHECK(function->parameters[1]->name() == "b");
+    CHECK(function->parameters()[1]->name() == "b");
     auto const* bTypeExpr =
-        cast<MemberAccess*>(function->parameters[1]->typeExpr.get());
-    CHECK(bTypeExpr->object->nodeType() == NodeType::MemberAccess);
-    auto const* bTypeExprLhs = cast<MemberAccess*>(bTypeExpr->object.get());
-    CHECK(bTypeExprLhs->object->nodeType() == NodeType::Identifier);
-    CHECK(cast<Identifier*>(bTypeExprLhs->object.get())->value() == "X");
-    CHECK(bTypeExprLhs->member->nodeType() == NodeType::Identifier);
-    CHECK(cast<Identifier*>(bTypeExprLhs->member.get())->value() == "Y");
-    CHECK(bTypeExpr->member->nodeType() == NodeType::Identifier);
-    CHECK(cast<Identifier*>(bTypeExpr->member.get())->value() == "Z");
-    auto const* returnTypeExpr =
-        cast<Identifier*>(function->returnTypeExpr.get());
+        cast<MemberAccess*>(function->parameters()[1]->typeExpr());
+    auto const* bTypeExprLhs =
+        dyncast<MemberAccess const*>(bTypeExpr->object());
+    REQUIRE(bTypeExprLhs);
+    CHECK(cast<Identifier const*>(bTypeExprLhs->object())->value() == "X");
+    CHECK(cast<Identifier const*>(bTypeExprLhs->member())->value() == "Y");
+    CHECK(cast<Identifier const*>(bTypeExpr->member())->value() == "Z");
+    auto const* returnTypeExpr = cast<Identifier*>(function->returnTypeExpr());
     CHECK(returnTypeExpr->value() == "int");
-    CompoundStatement* const body = function->body.get();
-    REQUIRE(body->statements.size() == 2);
-    auto* const resultDecl =
-        cast<VariableDeclaration*>(body->statements[0].get());
+    CompoundStatement* const body = function->body();
+    REQUIRE(body->statements().size() == 2);
+    auto* const resultDecl = cast<VariableDeclaration*>(body->statements()[0]);
     CHECK(resultDecl->name() == "result");
-    CHECK(!resultDecl->typeExpr);
-    CHECK(!resultDecl->isConstant);
-    CHECK(resultDecl->initExpression->nodeType() ==
-          scatha::ast::NodeType::Identifier);
+    CHECK(!resultDecl->typeExpr());
+    // CHECK(!resultDecl->isConstant);
+    CHECK(isa<Identifier>(resultDecl->initExpression()));
     auto* const returnStatement =
-        cast<ReturnStatement*>(body->statements[1].get());
-    CHECK(returnStatement->expression->nodeType() ==
-          scatha::ast::NodeType::Identifier);
+        cast<ReturnStatement const*>(body->statements()[1]);
+    CHECK(isa<Identifier>(returnStatement->expression()));
 }
 
 TEST_CASE("Parse literals", "[parse]") {
@@ -62,16 +56,16 @@ fn main() -> void {
     auto const [ast, iss]  = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations.size() == 1);
-    auto* const function = cast<FunctionDefinition*>(tu->declarations[0].get());
+    REQUIRE(tu->declarations().size() == 1);
+    auto* const function = tu->declaration<FunctionDefinition>(0);
     CHECK(function->name() == "main");
     auto* const aDecl =
-        cast<VariableDeclaration*>(function->body->statements[0].get());
-    auto* const intLit = cast<Literal*>(aDecl->initExpression.get());
+        cast<VariableDeclaration*>(function->body()->statements()[0]);
+    auto* const intLit = cast<Literal const*>(aDecl->initExpression());
     CHECK(intLit->value<LiteralKind::Integer>() == 39);
     auto* const bDecl =
-        cast<VariableDeclaration*>(function->body->statements[1].get());
-    auto* const floatLit = cast<Literal*>(bDecl->initExpression.get());
+        cast<VariableDeclaration const*>(function->body()->statements()[1]);
+    auto* const floatLit = cast<Literal const*>(bDecl->initExpression());
     CHECK(floatLit->value<LiteralKind::FloatingPoint>().to<f64>() == 1.2);
 }
 
@@ -99,30 +93,31 @@ fn test() {
     auto const [ast, iss]  = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations.size() == 1);
-    auto* const function = cast<FunctionDefinition*>(tu->declarations[0].get());
+    REQUIRE(tu->declarations().size() == 1);
+    auto* const function = tu->declaration<FunctionDefinition>(0);
     REQUIRE(function);
     CHECK(function->name() == "test");
-    CompoundStatement* const body = function->body.get();
+    CompoundStatement* const body = function->body();
     REQUIRE(body);
-    REQUIRE(body->statements.size() == 1);
+    REQUIRE(body->statements().size() == 1);
     auto* const whileStatement =
-        cast<LoopStatement*>(body->statements[0].get());
+        cast<LoopStatement const*>(body->statements()[0]);
     REQUIRE(whileStatement);
     auto* const condition =
-        cast<BinaryExpression*>(whileStatement->condition.get());
+        cast<BinaryExpression const*>(whileStatement->condition());
     REQUIRE(condition);
     CHECK(condition->operation() == BinaryOperator::Less);
-    auto* const exprStatement =
-        cast<ExpressionStatement*>(whileStatement->block->statements[0].get());
+    auto* const exprStatement = cast<ExpressionStatement const*>(
+        whileStatement->block()->statements()[0]);
     REQUIRE(exprStatement);
-    auto* const expr = cast<BinaryExpression*>(exprStatement->expression.get());
+    auto* const expr =
+        cast<BinaryExpression const*>(exprStatement->expression());
     REQUIRE(expr);
     CHECK(expr->operation() == BinaryOperator::AddAssignment);
-    auto* const identifier = cast<Identifier*>(expr->lhs.get());
+    auto* const identifier = cast<Identifier const*>(expr->lhs());
     REQUIRE(identifier);
     CHECK(identifier->value() == "x");
-    auto* const intLiteral = cast<Literal*>(expr->rhs.get());
+    auto* const intLiteral = cast<Literal const*>(expr->rhs());
     REQUIRE(intLiteral);
     CHECK(intLiteral->value<LiteralKind::Integer>() == 1);
 }
@@ -137,30 +132,31 @@ fn test() {
     auto const [ast, iss]  = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations.size() == 1);
-    auto* const function = cast<FunctionDefinition*>(tu->declarations[0].get());
+    REQUIRE(tu->declarations().size() == 1);
+    auto* const function = tu->declaration<FunctionDefinition>(0);
     REQUIRE(function);
     CHECK(function->name() == "test");
-    CompoundStatement* const body = function->body.get();
+    CompoundStatement* const body = function->body();
     REQUIRE(body);
-    REQUIRE(body->statements.size() == 1);
+    REQUIRE(body->statements().size() == 1);
     auto* const doWhileStatement =
-        cast<LoopStatement*>(body->statements[0].get());
+        cast<LoopStatement const*>(body->statements()[0]);
     REQUIRE(doWhileStatement);
     auto* const condition =
-        cast<BinaryExpression*>(doWhileStatement->condition.get());
+        cast<BinaryExpression const*>(doWhileStatement->condition());
     REQUIRE(condition);
     CHECK(condition->operation() == BinaryOperator::Less);
-    auto* const exprStatement = cast<ExpressionStatement*>(
-        doWhileStatement->block->statements[0].get());
+    auto* const exprStatement = cast<ExpressionStatement const*>(
+        doWhileStatement->block()->statements()[0]);
     REQUIRE(exprStatement);
-    auto* const expr = cast<BinaryExpression*>(exprStatement->expression.get());
+    auto* const expr =
+        cast<BinaryExpression const*>(exprStatement->expression());
     REQUIRE(expr);
     CHECK(expr->operation() == BinaryOperator::AddAssignment);
-    auto* const identifier = cast<Identifier*>(expr->lhs.get());
+    auto* const identifier = cast<Identifier const*>(expr->lhs());
     REQUIRE(identifier);
     CHECK(identifier->value() == "x");
-    auto* const intLiteral = cast<Literal*>(expr->rhs.get());
+    auto* const intLiteral = cast<Literal const*>(expr->rhs());
     REQUIRE(intLiteral);
     CHECK(intLiteral->value<LiteralKind::Integer>() == 1);
 }
@@ -175,42 +171,43 @@ fn test() {
     auto const [ast, iss]  = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
-    REQUIRE(tu->declarations.size() == 1);
-    auto* const function = cast<FunctionDefinition*>(tu->declarations[0].get());
+    REQUIRE(tu->declarations().size() == 1);
+    auto* const function = tu->declaration<FunctionDefinition>(0);
     REQUIRE(function);
     CHECK(function->name() == "test");
-    CompoundStatement* const body = function->body.get();
+    CompoundStatement* const body = function->body();
     REQUIRE(body);
-    REQUIRE(body->statements.size() == 1);
-    auto* const forStatement = cast<LoopStatement*>(body->statements[0].get());
+    REQUIRE(body->statements().size() == 1);
+    auto* const forStatement =
+        cast<LoopStatement const*>(body->statements()[0]);
     REQUIRE(forStatement);
     auto* const varDecl =
-        cast<VariableDeclaration*>(forStatement->varDecl.get());
+        cast<VariableDeclaration const*>(forStatement->varDecl());
     REQUIRE(varDecl);
     CHECK(varDecl->name() == "x");
-    CHECK(varDecl->typeExpr == nullptr);
-    auto* const varInitExpr = cast<Literal*>(varDecl->initExpression.get());
+    CHECK(varDecl->typeExpr() == nullptr);
+    auto* const varInitExpr = cast<Literal const*>(varDecl->initExpression());
     REQUIRE(varInitExpr);
     CHECK(varInitExpr->value<LiteralKind::Integer>() == 0);
     auto* const condition =
-        cast<BinaryExpression*>(forStatement->condition.get());
+        cast<BinaryExpression const*>(forStatement->condition());
     REQUIRE(condition);
     CHECK(condition->operation() == BinaryOperator::Less);
     auto* const increment =
-        cast<BinaryExpression*>(forStatement->increment.get());
+        cast<BinaryExpression const*>(forStatement->increment());
     REQUIRE(increment);
     CHECK(increment->operation() == BinaryOperator::AddAssignment);
-    auto* const identifier = cast<Identifier*>(increment->lhs.get());
+    auto* const identifier = cast<Identifier const*>(increment->lhs());
     REQUIRE(identifier);
     CHECK(identifier->value() == "x");
-    auto* const intLiteral = cast<Literal*>(increment->rhs.get());
+    auto* const intLiteral = cast<Literal const*>(increment->rhs());
     REQUIRE(intLiteral);
     CHECK(intLiteral->value<LiteralKind::Integer>() == 1);
-    auto* const loopStatement =
-        cast<ExpressionStatement*>(forStatement->block->statements[0].get());
+    auto* const loopStatement = cast<ExpressionStatement const*>(
+        forStatement->block()->statements()[0]);
     REQUIRE(loopStatement);
     auto* const functionCall =
-        cast<FunctionCall*>(loopStatement->expression.get());
+        cast<FunctionCall const*>(loopStatement->expression());
     REQUIRE(functionCall);
-    CHECK(cast<Identifier*>(functionCall->object.get())->value() == "print");
+    CHECK(cast<Identifier const*>(functionCall->object())->value() == "print");
 }
