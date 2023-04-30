@@ -46,6 +46,59 @@
 //    ├─ FunctionCall
 //    └─ Subscript
 
+#define AST_PROPERTY(Index, Type, Name, CapName)                               \
+    template <std::derived_from<Type> TYPE = Type>                             \
+    TYPE* Name() {                                                             \
+        return this->AbstractSyntaxTree::child<TYPE>(Index);                   \
+    }                                                                          \
+                                                                               \
+    template <std::derived_from<Type> TYPE = Type>                             \
+    TYPE const* Name() const {                                                 \
+        return this->AbstractSyntaxTree::child<TYPE>(Index);                   \
+    }                                                                          \
+                                                                               \
+    template <std::derived_from<Type> TYPE = Type>                             \
+    UniquePtr<TYPE> extract##CapName() {                                       \
+        return this->AbstractSyntaxTree::extractChild<TYPE>(Index);            \
+    }                                                                          \
+                                                                               \
+    void set##CapName(UniquePtr<Type> node) {                                  \
+        return this->AbstractSyntaxTree::setChild<Type>(Index,                 \
+                                                        std::move(node));      \
+    }
+
+#define AST_RANGE_PROPERTY(BeginIndex, Type, Name, CapName)                    \
+    template <std::derived_from<Type> TYPE = Type>                             \
+    auto Name##s() {                                                           \
+        return this->AbstractSyntaxTree::dropChildren<TYPE>(BeginIndex);       \
+    }                                                                          \
+                                                                               \
+    template <std::derived_from<Type> TYPE = Type>                             \
+    auto Name##s() const {                                                     \
+        return this->AbstractSyntaxTree::dropChildren<TYPE const>(BeginIndex); \
+    }                                                                          \
+                                                                               \
+    template <std::derived_from<Type> TYPE = Type>                             \
+    TYPE* Name(size_t index) {                                                 \
+        return this->AbstractSyntaxTree::child<TYPE>(BeginIndex + index);      \
+    }                                                                          \
+                                                                               \
+    template <std::derived_from<Type> TYPE = Type>                             \
+    TYPE const* Name(size_t index) const {                                     \
+        return this->AbstractSyntaxTree::child<TYPE>(BeginIndex + index);      \
+    }                                                                          \
+                                                                               \
+    template <std::derived_from<Type> TYPE = Type>                             \
+    UniquePtr<TYPE> extract##CapName(size_t index) {                           \
+        return this->AbstractSyntaxTree::extractChild<TYPE>(BeginIndex +       \
+                                                            index);            \
+    }                                                                          \
+                                                                               \
+    void set##CapName(size_t index, UniquePtr<Type> node) {                    \
+        return this->AbstractSyntaxTree::setChild<Type>(BeginIndex + index,    \
+                                                        std::move(node));      \
+    }
+
 namespace scatha::ast {
 
 namespace internal {
@@ -316,10 +369,7 @@ public:
     UnaryPrefixOperator operation() const { return op; }
 
     /// The operand of this expression.
-    Expression* operand() { return child<Expression>(0); }
-
-    /// \overload
-    Expression const* operand() const { return child<Expression>(0); }
+    AST_PROPERTY(0, Expression, operand, Operand)
 
 private:
     UnaryPrefixOperator op;
@@ -347,16 +397,10 @@ public:
     void setOperation(BinaryOperator newOp) { op = newOp; }
 
     /// The LHS operand of this expression.
-    Expression* lhs() { return child<Expression>(0); }
-
-    /// \overload
-    Expression const* lhs() const { return child<Expression>(0); }
+    AST_PROPERTY(0, Expression, lhs, LHS)
 
     /// The RHS operand of this expression.
-    Expression* rhs() { return child<Expression>(1); }
-
-    /// \overload
-    Expression const* rhs() const { return child<Expression>(1); }
+    AST_PROPERTY(1, Expression, rhs, RHS)
 
 private:
     BinaryOperator op;
@@ -374,32 +418,10 @@ public:
                    std::move(member)) {}
 
     /// The object of this expression.
-    Expression* object() { return child<Expression>(0); }
-
-    /// \overload
-    Expression const* object() const { return child<Expression>(0); }
-
-    UniquePtr<Expression> extractObject() {
-        return extractChild<Expression>(0);
-    }
-
-    void setObject(UniquePtr<Expression> obj) {
-        return setChild<Expression>(0, std::move(obj));
-    }
+    AST_PROPERTY(0, Expression, object, Object)
 
     /// The identifier to access the object.
-    Identifier* member() { return child<Identifier>(1); }
-
-    /// \overload
-    Identifier const* member() const { return child<Identifier>(1); }
-
-    UniquePtr<Identifier> extractMember() {
-        return extractChild<Identifier>(1);
-    }
-
-    void setMember(UniquePtr<Identifier> id) {
-        return setChild<Identifier>(1, std::move(id));
-    }
+    AST_PROPERTY(1, Identifier, member, Member)
 };
 
 /// Concrete node representing a reference expression.
@@ -411,11 +433,7 @@ public:
                    sourceRange,
                    std::move(referred)) {}
 
-    /// The object being referred to.
-    Expression* referred() { return child<Expression>(0); }
-
-    /// \overload
-    Expression const* referred() const { return child<Expression>(0); }
+    AST_PROPERTY(0, Expression, referred, Referred)
 };
 
 /// Concrete node representing a `unique` expression.
@@ -428,10 +446,7 @@ public:
                    std::move(initExpr)) {}
 
     /// The initializing expression
-    Expression* initExpr() { return child<Expression>(0); }
-
-    /// \overload
-    Expression const* initExpr() const { return child<Expression>(0); }
+    AST_PROPERTY(0, Expression, initExpr, InitExpr)
 
     /// Decorate this node.
     void decorate(sema::QualType const* type) {
@@ -454,23 +469,14 @@ public:
                    std::move(ifExpr),
                    std::move(elseExpr)) {}
 
-    /// The condition to branch on.
-    Expression* condition() { return child<Expression>(0); }
+    /// The condition to branch on
+    AST_PROPERTY(0, Expression, condition, Condition)
 
-    /// \overload
-    Expression const* condition() const { return child<Expression>(0); }
+    /// Expression to evaluate if condition is true
+    AST_PROPERTY(1, Expression, thenExpr, ThenExpr)
 
-    /// Expression to evaluate if condition is true.
-    Expression* thenExpr() { return child<Expression>(1); }
-
-    /// \overload
-    Expression const* thenExpr() const { return child<Expression>(1); }
-
-    /// Expression to evaluate if condition is false.
-    Expression* elseExpr() { return child<Expression>(2); }
-
-    /// \overload
-    Expression const* elseExpr() const { return child<Expression>(2); }
+    /// Expression to evaluate if condition is false
+    AST_PROPERTY(2, Expression, elseExpr, ElseExpr)
 };
 
 /// MARK: More Complex Expressions
@@ -479,16 +485,10 @@ public:
 class SCATHA_API CallLike: public Expression {
 public:
     /// The object (function or rather overload set) being called.
-    Expression* object() { return child<Expression>(0); }
-
-    /// \overload
-    Expression const* object() const { return child<Expression>(0); }
+    AST_PROPERTY(0, Expression, object, Object)
 
     /// List of arguments.
-    auto arguments() { return dropChildren<Expression>(1); }
-
-    /// \overload
-    auto arguments() const { return dropChildren<Expression const>(1); }
+    AST_RANGE_PROPERTY(1, Expression, argument, Argument);
 
 protected:
     explicit CallLike(NodeType nodeType,
@@ -555,9 +555,8 @@ public:
                    SourceRange sourceRange):
         Expression(NodeType::ListExpression, sourceRange, std::move(elems)) {}
 
-    auto elements() { return children<Expression>(); }
-
-    auto elements() const { return children<Expression>(); }
+    /// The elements in this list
+    AST_RANGE_PROPERTY(0, Expression, element, Element);
 };
 
 /// Abstract node representing a statement.
@@ -574,19 +573,7 @@ public:
     sema::QualType const* targetType() const { return _targetType; }
 
     /// The expression being converted
-    Expression* expression() { return child<Expression>(0); }
-
-    /// \overload
-    Expression const* expression() const { return child<Expression>(0); }
-
-    template <typename E = Expression>
-    UniquePtr<E> extractExpression() {
-        return extractChild<E>(0);
-    }
-
-    void setExpression(UniquePtr<Expression> expr) {
-        return setChild(0, std::move(expr));
-    }
+    AST_PROPERTY(0, Expression, expression, Expression)
 
 private:
     sema::QualType const* _targetType = nullptr;
@@ -608,10 +595,7 @@ public:
     }
 
     /// Identifier expression representing the name of this declaration.
-    Identifier* nameIdentifier() { return child<Identifier>(0); }
-
-    /// \overload
-    Identifier const* nameIdentifier() const { return child<Identifier>(0); }
+    AST_PROPERTY(0, Identifier, nameIdentifier, NameIdentifier)
 
     /// Access specifier. `None` if none was specified.
     AccessSpec accessSpec() const { return _accessSpec; }
@@ -654,20 +638,7 @@ public:
                            std::move(declarations)) {}
 
     /// List of declarations in the translation unit.
-    auto declarations() { return children<Declaration>(); }
-
-    /// \overload
-    auto declarations() const { return children<Declaration>(); }
-
-    template <typename D = Declaration>
-    D* declaration(size_t index) {
-        return child<D>(index);
-    }
-
-    template <typename D = Declaration>
-    D const* declaration(size_t index) const {
-        return child<D>(index);
-    }
+    AST_RANGE_PROPERTY(0, Declaration, declaration, Declaration)
 };
 
 /// Concrete node representing a variable declaration.
@@ -684,16 +655,10 @@ public:
                     std::move(initExpr)) {}
 
     /// Typename declared in the source code. Null if no typename was declared.
-    Expression* typeExpr() { return child<Expression>(1); }
-
-    /// \overload
-    Expression const* typeExpr() const { return child<Expression>(1); }
+    AST_PROPERTY(1, Expression, typeExpr, TypeExpr)
 
     /// Expression to initialize this variable. May be null.
-    Expression* initExpression() { return child<Expression>(2); }
-
-    /// \overload
-    Expression const* initExpression() const { return child<Expression>(2); }
+    AST_PROPERTY(2, Expression, initExpression, InitExpression)
 
     /// **Decoration provided by semantic analysis**
 
@@ -756,11 +721,7 @@ public:
                              std::move(name),
                              std::move(typeExpr)) {}
 
-    /// Typename declared in the source code. Null if no typename was declared.
-    Expression* typeExpr() { return child<Expression>(1); }
-
-    /// \overload
-    Expression const* typeExpr() const { return child<Expression>(1); }
+    AST_PROPERTY(1, Expression, typeExpr, TypeExpr)
 
     /// **Decoration provided by semantic analysis**
 
@@ -794,6 +755,7 @@ private:
     sema::QualType const* _type = nullptr;
 };
 
+/// Represents the explicit `this` parameter
 class ThisParameter: public ParameterDeclaration {
 public:
     explicit ThisParameter(SourceRange sourceRange,
@@ -804,6 +766,7 @@ public:
                              nullptr),
         quals(qualifiers) {}
 
+    /// The type qualifiers attached to the `this` parameter
     sema::TypeQualifiers qualifiers() const { return quals; }
 
 private:
@@ -828,20 +791,7 @@ public:
                   std::move(statements)) {}
 
     /// List of statements in the compound statement.
-    auto statements() { return children<Statement>(); }
-
-    /// \overload
-    auto statements() const { return children<Statement>(); }
-
-    template <typename S = Statement>
-    S* statement(size_t index) {
-        return child<S>(index);
-    }
-
-    template <typename S = Statement>
-    S const* statement(size_t index) const {
-        return child<S>(index);
-    }
+    AST_RANGE_PROPERTY(0, Statement, statement, Statement)
 
     /// **Decoration provided by semantic analysis**
 
@@ -893,36 +843,13 @@ public:
 
     /// Typename of the return type as declared in the source code.
     /// Will be `nullptr` if no return type was declared.
-    Expression* returnTypeExpr() { return child<Expression>(1); }
-
-    /// \overload
-    Expression const* returnTypeExpr() const { return child<Expression>(1); }
+    AST_PROPERTY(1, Expression, returnTypeExpr, ReturnTypeExpr)
 
     /// Body of the function.
-    CompoundStatement* body() { return child<CompoundStatement>(2); }
-
-    /// \overload
-    CompoundStatement const* body() const {
-        return child<CompoundStatement const>(2);
-    }
+    AST_PROPERTY(2, CompoundStatement, body, Body)
 
     /// List of parameter declarations.
-    auto parameters() { return dropChildren<ParameterDeclaration>(3); }
-
-    /// \overload
-    auto parameters() const {
-        return dropChildren<ParameterDeclaration const>(3);
-    }
-
-    template <typename P = ParameterDeclaration>
-    P* parameter(size_t index) {
-        return child<P>(index + 3);
-    }
-
-    template <typename P = ParameterDeclaration>
-    P const* parameter(size_t index) const {
-        return child<P>(index + 3);
-    }
+    AST_RANGE_PROPERTY(3, ParameterDeclaration, parameter, Parameter)
 
     /// The `this` parameter of this function, or `nullptr` if nonesuch exists
     ThisParameter* thisParameter() {
@@ -979,12 +906,7 @@ public:
                     std::move(body)) {}
 
     /// Body of the struct.
-    CompoundStatement* body() { return child<CompoundStatement>(1); }
-
-    /// \overload
-    CompoundStatement const* body() const {
-        return child<CompoundStatement>(1);
-    }
+    AST_PROPERTY(1, CompoundStatement, body, Body)
 
     /// **Decoration provided by semantic analysis**
 
@@ -1025,18 +947,7 @@ public:
                              std::move(expression)) {}
 
     /// The returned expression. May be null in case of a void function.
-    Expression* expression() { return child<Expression>(0); }
-
-    /// \overload
-    Expression const* expression() const { return child<Expression>(0); }
-
-    UniquePtr<Expression> extractExpression() {
-        return extractChild<Expression>(0);
-    }
-
-    void setExpression(UniquePtr<Expression> expr) {
-        setChild(0, std::move(expr));
-    }
+    AST_PROPERTY(0, Expression, expression, Expression)
 };
 
 /// Concrete node representing an if/else statement.
@@ -1052,25 +963,16 @@ public:
                              std::move(ifBlock),
                              std::move(elseBlock)) {}
 
-    /// Condition to branch on.
+    /// Condition to branch on
     /// Must not be null after parsing and must be of type bool (or maybe later
-    /// convertible to bool).
-    Expression* condition() { return child<Expression>(0); }
+    /// convertible to bool)
+    AST_PROPERTY(0, Expression, condition, Condition)
 
-    /// \overload
-    Expression const* condition() const { return child<Expression>(0); }
+    /// Statement to execute if condition is true
+    AST_PROPERTY(1, Statement, thenBlock, ThenBlock)
 
-    /// Statement to execute if condition is true.
-    Statement* thenBlock() { return child<Statement>(1); }
-
-    /// \overload
-    Statement const* thenBlock() const { return child<Statement>(1); }
-
-    /// Statement to execute if condition is true.
-    Statement* elseBlock() { return child<Statement>(2); }
-
-    /// \overload
-    Statement const* elseBlock() const { return child<Statement>(2); }
+    /// Statement to execute if condition is false
+    AST_PROPERTY(2, Statement, elseBlock, ElseBlock)
 };
 
 /// Represents a `for`, `while` or `do`/`while` loop.
@@ -1092,33 +994,17 @@ public:
 
     /// Loop variable declared in this statement.
     /// Only non-null if `kind() == For`
-    VariableDeclaration* varDecl() { return child<VariableDeclaration>(0); }
-
-    /// \overload
-    VariableDeclaration const* varDecl() const {
-        return child<VariableDeclaration>(0);
-    }
+    AST_PROPERTY(0, VariableDeclaration, varDecl, VarDecl)
 
     /// Condition to loop on.
-    Expression* condition() { return child<Expression>(1); }
-
-    /// \overload
-    Expression const* condition() const { return child<Expression>(1); }
+    AST_PROPERTY(1, Expression, condition, Condition)
 
     /// Increment expression
     /// Only non-null if `kind() == For`
-    Expression* increment() { return child<Expression>(2); }
-
-    /// \overload
-    Expression const* increment() const { return child<Expression>(2); }
+    AST_PROPERTY(2, Expression, increment, Increment)
 
     /// Statement to execute repeatedly.
-    CompoundStatement* block() { return child<CompoundStatement>(3); }
-
-    /// \overload
-    CompoundStatement const* block() const {
-        return child<CompoundStatement>(3);
-    }
+    AST_PROPERTY(3, CompoundStatement, block, Block)
 
     /// Either `while` or `do`/`while`
     LoopKind kind() const { return _kind; }
@@ -1143,5 +1029,8 @@ private:
 };
 
 } // namespace scatha::ast
+
+#undef AST_PROPERTY
+#undef AST_RANGE_PROPERTY
 
 #endif // SCATHA_AST_AST_H_
