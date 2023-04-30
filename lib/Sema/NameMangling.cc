@@ -30,7 +30,7 @@ static std::string impl(QualType const* type) {
         sstr << "&";
     }
     if (type->isMutable()) {
-        sstr << "mut";
+        sstr << "__mut_";
     }
     if (type->isArray()) {
         sstr << "[" << baseName << "]";
