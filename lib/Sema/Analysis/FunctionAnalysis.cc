@@ -369,7 +369,7 @@ QualType const* Context::getType(ast::Expression* expr) {
 
 void Context::verifyConversion(ast::Expression const& from,
                                QualType const* to) const {
-    if (from.type()->base() != to->base()) {
+    if (!from.type() || !to || from.type()->base() != to->base()) {
         iss.push<BadTypeConversion>(from, to);
     }
 }
