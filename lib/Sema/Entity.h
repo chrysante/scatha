@@ -211,6 +211,22 @@ public:
     /// \Returns The signature of this function.
     FunctionSignature const& signature() const { return _sig; }
 
+    /// Return type
+    QualType const* returnType() const { return _sig.returnType(); }
+
+    /// Argument types
+    std::span<QualType const* const> argumentTypes() const {
+        return _sig.argumentTypes();
+    }
+
+    /// Argument type at index \p index
+    QualType const* argumentType(size_t index) const {
+        return _sig.argumentType(index);
+    }
+
+    /// Number of arguments
+    size_t argumentCount() const { return _sig.argumentCount(); }
+
     /// \Returns `true` if this is a member function
     bool isMember() const { return _isMember; }
 

@@ -103,7 +103,7 @@ void Context::analyzeImpl(ast::FunctionDefinition& fn) {
     /// Here the AST node is partially decorated: `symbolID()` is already set by
     /// `gatherNames()` phase, now we complete the decoration.
     auto* function = fn.function();
-    fn.decorate(function, function->signature().returnType());
+    fn.decorate(function, function->returnType());
     fn.body()->decorate(function);
     function->setAccessSpecifier(translateAccessSpec(fn.accessSpec()));
     currentFunction                    = &fn;

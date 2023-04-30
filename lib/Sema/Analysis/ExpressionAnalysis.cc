@@ -96,7 +96,7 @@ bool Context::analyzeImpl(ast::Literal& lit) {
             iss.push<BadExpression>(lit, IssueSeverity::Error);
             return false;
         }
-        auto* type       = function->signature().argumentTypes().front();
+        auto* type       = function->argumentTypes().front();
         auto* thisEntity = function->findEntity<Variable>("__this");
         lit.decorate(thisEntity, type);
         return true;
@@ -290,7 +290,7 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     auto call = allocate<ast::FunctionCall>(ma.extractMember(),
                                             std::move(args),
                                             ma.sourceRange());
-    call->decorate(func, func->signature().returnType(), ValueCategory::RValue);
+    call->decorate(func, func->returnType(), ValueCategory::RValue);
     ma.parent()->replaceChild(&ma, std::move(call));
     return true;
 }
@@ -427,7 +427,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
                 return false;
             }
             fc.decorate(function,
-                        function->signature().returnType(),
+                        function->returnType(),
                         ValueCategory::RValue);
             return true;
         },

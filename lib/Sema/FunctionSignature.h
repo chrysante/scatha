@@ -20,18 +20,20 @@ public:
 
     Type const* type() const { SC_DEBUGFAIL(); }
 
-    /// TypeIDs of the argument types
+    /// Argument types
     std::span<QualType const* const> argumentTypes() const {
         return _argumentTypes;
     }
 
+    /// Argument type at index \p index
     QualType const* argumentType(size_t index) const {
         return _argumentTypes[index];
     }
 
+    /// Number of arguments
     size_t argumentCount() const { return _argumentTypes.size(); }
 
-    /// TypeID of the return type
+    /// Return type
     QualType const* returnType() const { return _returnType; }
 
 private:
