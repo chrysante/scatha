@@ -17,6 +17,6 @@ fn getValue(x: &X) -> int {
 public fn main() -> int {
     var x: X;
     x.setValue(1);
-    return x.getValue();
+    return x.getValue;
 }
 

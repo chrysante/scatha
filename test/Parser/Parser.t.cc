@@ -67,13 +67,12 @@ fn main() -> void {
     CHECK(function->name() == "main");
     auto* const aDecl =
         cast<VariableDeclaration*>(function->body->statements[0].get());
-    auto* const intLit = cast<IntegerLiteral*>(aDecl->initExpression.get());
-    CHECK(intLit->value() == 39);
+    auto* const intLit = cast<Literal*>(aDecl->initExpression.get());
+    CHECK(intLit->value<LiteralKind::Integer>() == 39);
     auto* const bDecl =
         cast<VariableDeclaration*>(function->body->statements[1].get());
-    auto* const floatLit =
-        cast<FloatingPointLiteral*>(bDecl->initExpression.get());
-    CHECK(floatLit->value().to<f64>() == 1.2);
+    auto* const floatLit = cast<Literal*>(bDecl->initExpression.get());
+    CHECK(floatLit->value<LiteralKind::FloatingPoint>().to<f64>() == 1.2);
 }
 
 TEST_CASE("Parse last statement ending with '}'", "[parse]") {
@@ -123,9 +122,9 @@ fn test() {
     auto* const identifier = cast<Identifier*>(expr->lhs.get());
     REQUIRE(identifier);
     CHECK(identifier->value() == "x");
-    auto* const intLiteral = cast<IntegerLiteral*>(expr->rhs.get());
+    auto* const intLiteral = cast<Literal*>(expr->rhs.get());
     REQUIRE(intLiteral);
-    CHECK(intLiteral->value() == 1);
+    CHECK(intLiteral->value<LiteralKind::Integer>() == 1);
 }
 
 TEST_CASE("Parse do-while statement", "[parse]") {
@@ -161,9 +160,9 @@ fn test() {
     auto* const identifier = cast<Identifier*>(expr->lhs.get());
     REQUIRE(identifier);
     CHECK(identifier->value() == "x");
-    auto* const intLiteral = cast<IntegerLiteral*>(expr->rhs.get());
+    auto* const intLiteral = cast<Literal*>(expr->rhs.get());
     REQUIRE(intLiteral);
-    CHECK(intLiteral->value() == 1);
+    CHECK(intLiteral->value<LiteralKind::Integer>() == 1);
 }
 
 TEST_CASE("Parse for statement", "[parse]") {
@@ -190,10 +189,9 @@ fn test() {
     REQUIRE(varDecl);
     CHECK(varDecl->name() == "x");
     CHECK(varDecl->typeExpr == nullptr);
-    auto* const varInitExpr =
-        cast<IntegerLiteral*>(varDecl->initExpression.get());
+    auto* const varInitExpr = cast<Literal*>(varDecl->initExpression.get());
     REQUIRE(varInitExpr);
-    CHECK(varInitExpr->value() == 0);
+    CHECK(varInitExpr->value<LiteralKind::Integer>() == 0);
     auto* const condition =
         cast<BinaryExpression*>(forStatement->condition.get());
     REQUIRE(condition);
@@ -205,9 +203,9 @@ fn test() {
     auto* const identifier = cast<Identifier*>(increment->lhs.get());
     REQUIRE(identifier);
     CHECK(identifier->value() == "x");
-    auto* const intLiteral = cast<IntegerLiteral*>(increment->rhs.get());
+    auto* const intLiteral = cast<Literal*>(increment->rhs.get());
     REQUIRE(intLiteral);
-    CHECK(intLiteral->value() == 1);
+    CHECK(intLiteral->value<LiteralKind::Integer>() == 1);
     auto* const loopStatement =
         cast<ExpressionStatement*>(forStatement->block->statements[0].get());
     REQUIRE(loopStatement);

@@ -16,10 +16,7 @@ struct Context {
     void dispatchExpression(Expression const&);
 
     void printExpression(Identifier const&);
-    void printExpression(IntegerLiteral const&);
-    void printExpression(BooleanLiteral const&);
-    void printExpression(FloatingPointLiteral const&);
-    void printExpression(StringLiteral const&);
+    void printExpression(Literal const&);
     void printExpression(UnaryPrefixExpression const&);
     void printExpression(BinaryExpression const&);
     void printExpression(MemberAccess const&);
@@ -54,20 +51,19 @@ void Context::dispatchExpression(Expression const& expr) {
 
 void Context::printExpression(Identifier const& id) { str << id.value(); }
 
-void Context::printExpression(IntegerLiteral const& l) {
-    str << l.value().toString();
-}
-
-void Context::printExpression(BooleanLiteral const& l) {
-    str << (l.value() == 1 ? "true" : "false");
-}
-
-void Context::printExpression(FloatingPointLiteral const& l) {
-    str << l.value().toString();
-}
-
-void Context::printExpression(StringLiteral const& l) {
-    str << '"' << l.value() << '"';
+void Context::printExpression(Literal const& lit) {
+    switch (lit.kind()) {
+    case LiteralKind::Integer:
+        str << lit.value<LiteralKind::Integer>().toString();
+    case LiteralKind::Boolean:
+        str << (lit.value<LiteralKind::Boolean>() == 1 ? "true" : "false");
+    case LiteralKind::FloatingPoint:
+        str << lit.value<LiteralKind::FloatingPoint>().toString();
+    case LiteralKind::This:
+        str << "this";
+    case LiteralKind::String:
+        str << '"' << lit.value<LiteralKind::String>() << '"';
+    }
 }
 
 void Context::printExpression(UnaryPrefixExpression const& expr) {

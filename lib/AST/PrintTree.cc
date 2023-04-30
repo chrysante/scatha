@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <termfmt/termfmt.h>
+#include <utl/strcat.hpp>
 #include <utl/streammanip.hpp>
 
 #include "AST/AST.h"
@@ -34,10 +35,7 @@ struct Context {
     void print(IfStatement const&, int ind);
     void print(LoopStatement const&, int ind);
     void print(Identifier const&, int ind);
-    void print(IntegerLiteral const&, int ind);
-    void print(BooleanLiteral const&, int ind);
-    void print(FloatingPointLiteral const&, int ind);
-    void print(StringLiteral const&, int ind);
+    void print(Literal const&, int ind);
     void print(UnaryPrefixExpression const&, int ind);
     void print(BinaryExpression const&, int ind);
     void print(MemberAccess const&, int ind);
@@ -157,20 +155,14 @@ void Context::print(Identifier const& expr, int ind) {
     printHeader(expr, ind, expr.value());
 }
 
-void Context::print(IntegerLiteral const& expr, int ind) {
-    printHeader(expr, ind, expr.value().toString());
-}
-
-void Context::print(BooleanLiteral const& expr, int ind) {
-    printHeader(expr, ind, (expr.value().to<bool>() ? "true" : "false"));
-}
-
-void Context::print(FloatingPointLiteral const& expr, int ind) {
-    printHeader(expr, ind, expr.value().toString());
-}
-
-void Context::print(StringLiteral const& expr, int ind) {
-    printHeader(expr, ind, '"', expr.value(), '"');
+void Context::print(Literal const& expr, int ind) {
+    // clang-format off
+    printHeader(expr, ind,  expr.kind(), " ", std::visit(utl::overload{
+        [](APInt value)              { return value.toString(); },
+        [](APFloat value)            { return value.toString(); },
+        [](void*)                    { return std::string("this"); },
+        [](std::string const& value) { return utl::strcat('"', value, '"'); },
+    }, expr.value())); // clang-format on
 }
 
 void Context::print(UnaryPrefixExpression const& expr, int ind) {

@@ -60,11 +60,7 @@ struct CodeGenContext {
     } // Delete this later
     ir::Value* getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getValueImpl(Identifier const&);
-    ir::Value* getValueImpl(IntegerLiteral const&);
-    ir::Value* getValueImpl(BooleanLiteral const&);
-    ir::Value* getValueImpl(FloatingPointLiteral const&);
-    ir::Value* getValueImpl(StringLiteral const&);
-    ir::Value* getValueImpl(ThisLiteral const&);
+    ir::Value* getValueImpl(Literal const&);
     ir::Value* getValueImpl(UnaryPrefixExpression const&);
     ir::Value* getValueImpl(BinaryExpression const&);
     ir::Value* getValueImpl(MemberAccess const&);
@@ -79,7 +75,7 @@ struct CodeGenContext {
         SC_UNREACHABLE();
     } // Delete this later
     ir::Value* getAddressImpl(Expression const& expr);
-    ir::Value* getAddressImpl(ThisLiteral const& lit);
+    ir::Value* getAddressImpl(Literal const& lit);
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
     ir::Value* getAddressImpl(Subscript const&);
@@ -409,24 +405,19 @@ ir::Value* CodeGenContext::getValueImpl(Identifier const& id) {
     return loadAddress(getAddressImpl(id), mapType(id.type()), id.value());
 }
 
-ir::Value* CodeGenContext::getValueImpl(IntegerLiteral const& intLit) {
-    return irCtx.integralConstant(intLit.value());
-}
-
-ir::Value* CodeGenContext::getValueImpl(BooleanLiteral const& boolLit) {
-    return irCtx.integralConstant(boolLit.value());
-}
-
-ir::Value* CodeGenContext::getValueImpl(FloatingPointLiteral const& floatLit) {
-    return irCtx.floatConstant(floatLit.value(), 64);
-}
-
-ir::Value* CodeGenContext::getValueImpl(StringLiteral const&) {
-    SC_DEBUGFAIL();
-}
-
-ir::Value* CodeGenContext::getValueImpl(ThisLiteral const& lit) {
-    return loadAddress(getAddressImpl(lit), mapType(lit.type()), "this");
+ir::Value* CodeGenContext::getValueImpl(Literal const& lit) {
+    switch (lit.kind()) {
+    case LiteralKind::Integer:
+        return irCtx.integralConstant(lit.value<LiteralKind::Integer>());
+    case LiteralKind::Boolean:
+        return irCtx.integralConstant(lit.value<LiteralKind::Boolean>());
+    case LiteralKind::FloatingPoint:
+        return irCtx.floatConstant(lit.value<LiteralKind::FloatingPoint>(), 64);
+    case LiteralKind::This:
+        return loadAddress(getAddressImpl(lit), mapType(lit.type()), "__this");
+    case LiteralKind::String:
+        SC_DEBUGFAIL();
+    }
 }
 
 ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
@@ -694,10 +685,13 @@ ir::Value* CodeGenContext::getAddressImpl(Expression const& expr) {
     SC_DEBUGFAIL();
 }
 
-ir::Value* CodeGenContext::getAddressImpl(ThisLiteral const& lit) {
-    auto itr = variableAddressMap.find(lit.entity());
-    SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
-    return itr->second;
+ir::Value* CodeGenContext::getAddressImpl(Literal const& lit) {
+    if (lit.kind() == LiteralKind::This) {
+        auto itr = variableAddressMap.find(lit.entity());
+        SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
+        return itr->second;
+    }
+    return getAddressImpl(static_cast<Expression const&>(lit));
 }
 
 ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {

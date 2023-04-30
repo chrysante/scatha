@@ -30,10 +30,7 @@ struct Context {
     void print(IfStatement const&);
     void print(LoopStatement const&);
     void print(Identifier const&);
-    void print(IntegerLiteral const&);
-    void print(BooleanLiteral const&);
-    void print(FloatingPointLiteral const&);
-    void print(StringLiteral const&);
+    void print(Literal const&);
     void print(UnaryPrefixExpression const&);
     void print(BinaryExpression const&);
     void print(MemberAccess const&);
@@ -204,20 +201,20 @@ void Context::print(LoopStatement const& loop) {
 
 void Context::print(Identifier const& i) { str << i.value(); }
 
-void Context::print(IntegerLiteral const& l) {
-    str << l.value().signedToString();
+void Context::print(Literal const& lit) {
+    switch (lit.kind()) {
+    case LiteralKind::Integer:
+        str << lit.value<LiteralKind::Integer>().toString();
+    case LiteralKind::Boolean:
+        str << (lit.value<LiteralKind::Boolean>() == 1 ? "true" : "false");
+    case LiteralKind::FloatingPoint:
+        str << lit.value<LiteralKind::FloatingPoint>().toString();
+    case LiteralKind::This:
+        str << "this";
+    case LiteralKind::String:
+        str << '"' << lit.value<LiteralKind::String>() << '"';
+    }
 }
-
-void Context::print(BooleanLiteral const& l) {
-    str << (l.value().to<bool>() ? "true" : "false");
-}
-
-void Context::print(FloatingPointLiteral const& l) {
-    UTL_STORE_STREAM_STATE(str);
-    str << l.value().toString();
-}
-
-void Context::print(StringLiteral const& l) { str << '"' << l.value() << '"'; }
 
 void Context::print(UnaryPrefixExpression const& u) {
     str << u.operation() << '(';

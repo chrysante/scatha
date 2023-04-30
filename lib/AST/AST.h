@@ -38,11 +38,7 @@
 // │     └─ LoopStatement
 // └─ Expression
 //    ├─ Identifier
-//    ├─ IntegerLiteral
-//    ├─ BooleanLiteral
-//    ├─ FloatLiteral
-//    ├─ ThisLiteral
-//    ├─ StringLiteral
+//    ├─ Literal
 //    ├─ UnaryPrefixExpression
 //    ├─ BinaryExpression
 //    ├─ MemberAccess
@@ -213,65 +209,30 @@ private:
     std::string _value;
 };
 
-/// Concrete node representing an integer literal.
-class SCATHA_API IntegerLiteral: public Expression {
+/// Concrete node representing a literal.
+class SCATHA_API Literal: public Expression {
 public:
-    explicit IntegerLiteral(SourceRange sourceRange, APInt value):
-        Expression(NodeType::IntegerLiteral, sourceRange),
+    using ValueType = std::variant<APInt, APInt, APFloat, void*, std::string>;
+
+    explicit Literal(SourceRange sourceRange,
+                     LiteralKind kind,
+                     ValueType value):
+        Expression(NodeType::Literal, sourceRange),
+        _kind(kind),
         _value(std::move(value)) {}
 
-    APInt value() const { return _value; };
+    LiteralKind kind() const { return _kind; }
+
+    ValueType value() const { return _value; };
+
+    template <LiteralKind Kind>
+    auto value() const {
+        return std::get<static_cast<size_t>(Kind)>(_value);
+    };
 
 private:
-    APInt _value;
-};
-
-/// Concrete node representing a boolean literal.
-class SCATHA_API BooleanLiteral: public Expression {
-public:
-    explicit BooleanLiteral(SourceRange sourceRange, APInt value):
-        Expression(NodeType::BooleanLiteral, sourceRange),
-        _value(std::move(value)) {}
-
-    /// Value as declared in the source code.
-    APInt value() const { return _value; }
-
-private:
-    APInt _value;
-};
-
-/// Concrete node representing a floating point literal.
-class SCATHA_API FloatingPointLiteral: public Expression {
-public:
-    explicit FloatingPointLiteral(SourceRange sourceRange, APFloat value):
-        Expression(NodeType::FloatingPointLiteral, sourceRange),
-        _value(std::move(value)) {}
-
-    APFloat value() const { return _value; }
-
-private:
-    APFloat _value;
-};
-
-/// Concrete node representing a `this` literal.
-class SCATHA_API ThisLiteral: public Expression {
-public:
-    explicit ThisLiteral(SourceRange sourceRange):
-        Expression(NodeType::ThisLiteral, sourceRange) {}
-};
-
-/// Concrete node representing a string literal.
-class SCATHA_API StringLiteral: public Expression {
-public:
-    explicit StringLiteral(SourceRange sourceRange, std::string value):
-        Expression(NodeType::StringLiteral, sourceRange),
-        _value(std::move(value)) {}
-
-    /// Value as declared in the source code.
-    std::string value() const { return _value; }
-
-private:
-    std::string _value;
+    LiteralKind _kind;
+    ValueType _value;
 };
 
 /// MARK: Unary Expressions

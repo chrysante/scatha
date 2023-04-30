@@ -50,8 +50,8 @@ TEST_CASE("Parsing expressions", "[parse]") {
         auto const expr = parseExpression("3 * x");
         auto* mul       = cast<BinaryExpression*>(expr.get());
         REQUIRE(mul->operation() == BinaryOperator::Multiplication);
-        auto* lhs = cast<IntegerLiteral*>(mul->lhs.get());
-        CHECK(lhs->value() == 3);
+        auto* lhs = cast<Literal*>(mul->lhs.get());
+        CHECK(lhs->value<LiteralKind::Integer>() == 3);
         auto* rhs = cast<Identifier*>(mul->rhs.get());
         CHECK(rhs->value() == "x");
     }

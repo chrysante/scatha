@@ -26,12 +26,8 @@ SC_ASTNODE_DEF(IfStatement,           CONCRETE)
 SC_ASTNODE_DEF(LoopStatement,         CONCRETE)
 SC_ASTNODE_DEF(JumpStatement,         CONCRETE)
 SC_ASTNODE_DEF(Expression,            ABSTRACT)
+SC_ASTNODE_DEF(Literal,               CONCRETE)
 SC_ASTNODE_DEF(Identifier,            CONCRETE)
-SC_ASTNODE_DEF(IntegerLiteral,        CONCRETE)
-SC_ASTNODE_DEF(BooleanLiteral,        CONCRETE)
-SC_ASTNODE_DEF(FloatingPointLiteral,  CONCRETE)
-SC_ASTNODE_DEF(ThisLiteral,           CONCRETE)
-SC_ASTNODE_DEF(StringLiteral,         CONCRETE)
 SC_ASTNODE_DEF(UnaryPrefixExpression, CONCRETE)
 SC_ASTNODE_DEF(BinaryExpression,      CONCRETE)
 SC_ASTNODE_DEF(MemberAccess,          CONCRETE)
@@ -43,6 +39,22 @@ SC_ASTNODE_DEF(Subscript,             CONCRETE)
 SC_ASTNODE_DEF(ListExpression,        CONCRETE)
 
 #undef SC_ASTNODE_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of literal kinds -----------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_LITERAL_KIND_DEF
+#   define SC_LITERAL_KIND_DEF(Kind, Str)
+#endif
+
+SC_LITERAL_KIND_DEF(Integer,        "integer")
+SC_LITERAL_KIND_DEF(Boolean,        "boolean")
+SC_LITERAL_KIND_DEF(FloatingPoint,  "floating point")
+SC_LITERAL_KIND_DEF(This,           "this")
+SC_LITERAL_KIND_DEF(String,         "string")
+
+#undef SC_LITERAL_KIND_DEF
 
 // ===----------------------------------------------------------------------===
 // === List of unary operators ---------------------------------------------===

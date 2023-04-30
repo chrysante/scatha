@@ -59,11 +59,7 @@ struct Context {
     UniquePtr<ast::Expression> parsePostfix();
     UniquePtr<ast::Expression> parsePrimary();
     UniquePtr<ast::Identifier> parseIdentifier();
-    UniquePtr<ast::IntegerLiteral> parseIntegerLiteral();
-    UniquePtr<ast::BooleanLiteral> parseBooleanLiteral();
-    UniquePtr<ast::FloatingPointLiteral> parseFloatingPointLiteral();
-    UniquePtr<ast::ThisLiteral> parseThisLiteral();
-    UniquePtr<ast::StringLiteral> parseStringLiteral();
+    UniquePtr<ast::Literal> parseLiteral();
 
     // Helpers
     bool eatMut();

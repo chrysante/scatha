@@ -38,6 +38,16 @@ SCATHA_API std::ostream& operator<<(std::ostream&, NodeType);
 
 namespace scatha::ast {
 
+/// List of all kinds of literals
+enum class LiteralKind {
+#define SC_LITERAL_KIND_DEF(kind, _) kind,
+#include <scatha/AST/Lists.def>
+};
+
+SCATHA_API std::string_view toString(LiteralKind);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, LiteralKind);
+
 /// List of all unary operators in prefix notation
 enum class UnaryPrefixOperator {
 #define SC_UNARY_OPERATOR_DEF(name, _) name,

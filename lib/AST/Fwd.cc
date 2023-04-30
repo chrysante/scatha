@@ -19,6 +19,17 @@ std::ostream& ast::operator<<(std::ostream& str, NodeType t) {
     return str << toString(t);
 }
 
+std::string_view ast::toString(LiteralKind kind) {
+    return std::array{
+#define SC_LITERAL_KIND_DEF(kind, str) std::string_view(str),
+#include "AST/Lists.def"
+    }[static_cast<size_t>(kind)];
+}
+
+std::ostream& ast::operator<<(std::ostream& str, LiteralKind kind) {
+    return str << toString(kind);
+}
+
 std::string_view ast::toString(UnaryPrefixOperator op) {
     return std::array{
 #define SC_UNARY_OPERATOR_DEF(name, opStr) std::string_view(opStr),

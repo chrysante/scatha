@@ -18,11 +18,7 @@ namespace {
 struct Context {
     bool analyze(ast::Expression&);
 
-    bool analyzeImpl(ast::IntegerLiteral&);
-    bool analyzeImpl(ast::BooleanLiteral&);
-    bool analyzeImpl(ast::FloatingPointLiteral&);
-    bool analyzeImpl(ast::StringLiteral&);
-    bool analyzeImpl(ast::ThisLiteral&);
+    bool analyzeImpl(ast::Literal&);
     bool analyzeImpl(ast::UnaryPrefixExpression&);
     bool analyzeImpl(ast::BinaryExpression&);
 
@@ -73,44 +69,36 @@ bool Context::analyze(ast::Expression& expr) {
     return visit(expr, [this](auto&& e) { return this->analyzeImpl(e); });
 }
 
-bool Context::analyzeImpl(ast::IntegerLiteral& l) {
-    auto* type = sym.qualInt();
-    l.decorate(nullptr, type);
-    return true;
-}
-
-bool Context::analyzeImpl(ast::BooleanLiteral& l) {
-    auto* type = sym.qualBool();
-    l.decorate(nullptr, type);
-    return true;
-}
-
-bool Context::analyzeImpl(ast::FloatingPointLiteral& l) {
-    auto* type = sym.qualFloat();
-    l.decorate(nullptr, type);
-    return true;
-}
-
-bool Context::analyzeImpl(ast::StringLiteral& l) {
-    auto* type = sym.qualString();
-    l.decorate(nullptr, type);
-    return true;
-}
-
-bool Context::analyzeImpl(ast::ThisLiteral& lit) {
-    auto* scope = &sym.currentScope();
-    while (!isa<Function>(scope)) {
-        scope = scope->parent();
+bool Context::analyzeImpl(ast::Literal& lit) {
+    switch (lit.kind()) {
+    case ast::LiteralKind::Integer:
+        lit.decorate(nullptr, sym.qualInt());
+        return true;
+    case ast::LiteralKind::Boolean:
+        lit.decorate(nullptr, sym.qualBool());
+        return true;
+    case ast::LiteralKind::FloatingPoint:
+        lit.decorate(nullptr, sym.qualFloat());
+        return true;
+    case ast::LiteralKind::This: {
+        auto* scope = &sym.currentScope();
+        while (!isa<Function>(scope)) {
+            scope = scope->parent();
+        }
+        auto* function = cast<Function*>(scope);
+        if (!function->isMember()) {
+            iss.push<BadExpression>(lit, IssueSeverity::Error);
+            return false;
+        }
+        auto* type       = function->signature().argumentTypes().front();
+        auto* thisEntity = function->findEntity<Variable>("__this");
+        lit.decorate(thisEntity, type);
+        return true;
     }
-    auto* function = cast<Function*>(scope);
-    if (!function->isMember()) {
-        iss.push<BadExpression>(lit, IssueSeverity::Error);
-        return false;
+    case ast::LiteralKind::String:
+        lit.decorate(nullptr, sym.qualString());
+        return true;
     }
-    auto* type       = function->signature().argumentTypes().front();
-    auto* thisEntity = function->findEntity<Variable>("__this");
-    lit.decorate(thisEntity, type);
-    return true;
 }
 
 bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
@@ -463,12 +451,15 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
         }
         size_t arraySize = QualType::DynamicArraySize;
         if (list.size() == 2) {
-            auto* countLiteral = dyncast<ast::IntegerLiteral const*>(list[1]);
-            if (!countLiteral) {
+            auto* countLiteral = dyncast<ast::Literal const*>(list[1]);
+            if (!countLiteral ||
+                countLiteral->kind() != ast::LiteralKind::Integer)
+            {
                 iss.push<BadExpression>(*list[1], IssueSeverity::Error);
                 return false;
             }
-            arraySize = countLiteral->value().to<size_t>();
+            arraySize =
+                countLiteral->value<ast::LiteralKind::Integer>().to<size_t>();
         }
         auto* arrayType =
             sym.qualify(elementType, TypeQualifiers::Array, arraySize);

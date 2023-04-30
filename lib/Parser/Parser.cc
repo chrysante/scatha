@@ -819,19 +819,7 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
     if (auto result = parseIdentifier()) {
         return result;
     }
-    if (auto result = parseIntegerLiteral()) {
-        return result;
-    }
-    if (auto result = parseBooleanLiteral()) {
-        return result;
-    }
-    if (auto result = parseFloatingPointLiteral()) {
-        return result;
-    }
-    if (auto result = parseThisLiteral()) {
-        return result;
-    }
-    if (auto result = parseStringLiteral()) {
+    if (auto result = parseLiteral()) {
         return result;
     }
     auto const& token = tokens.peek();
@@ -880,48 +868,45 @@ UniquePtr<ast::Identifier> Context::parseIdentifier() {
     return allocate<ast::Identifier>(token.sourceRange(), token.id());
 }
 
-UniquePtr<ast::IntegerLiteral> Context::parseIntegerLiteral() {
-    if (tokens.peek().kind() != IntegerLiteral) {
-        return nullptr;
-    }
-    auto token = tokens.eat();
-    return allocate<ast::IntegerLiteral>(token.sourceRange(),
-                                         token.toInteger(64));
-}
-
-UniquePtr<ast::BooleanLiteral> Context::parseBooleanLiteral() {
+UniquePtr<ast::Literal> Context::parseLiteral() {
     Token const token = tokens.peek();
-    if (token.kind() != True && token.kind() != False) {
-        return nullptr;
+    if (token.kind() == IntegerLiteral) {
+        tokens.eat();
+        ast::Literal::ValueType value(std::in_place_index<static_cast<size_t>(
+                                          ast::LiteralKind::Integer)>,
+                                      token.toInteger(64));
+        return allocate<ast::Literal>(token.sourceRange(),
+                                      ast::LiteralKind::Integer,
+                                      value);
     }
-    tokens.eat();
-    return allocate<ast::BooleanLiteral>(token.sourceRange(), token.toBool());
-}
-
-UniquePtr<ast::FloatingPointLiteral> Context::parseFloatingPointLiteral() {
-    if (tokens.peek().kind() != FloatLiteral) {
-        return nullptr;
+    if (token.kind() == True || token.kind() == False) {
+        tokens.eat();
+        ast::Literal::ValueType value(std::in_place_index<static_cast<size_t>(
+                                          ast::LiteralKind::Boolean)>,
+                                      token.toBool());
+        return allocate<ast::Literal>(token.sourceRange(),
+                                      ast::LiteralKind::Boolean,
+                                      value);
     }
-    auto token = tokens.eat();
-    return allocate<ast::FloatingPointLiteral>(token.sourceRange(),
-                                               token.toFloat(
-                                                   APFloatPrec::Double));
-}
-
-UniquePtr<ast::ThisLiteral> Context::parseThisLiteral() {
-    if (tokens.peek().kind() != This) {
-        return nullptr;
+    if (token.kind() == FloatLiteral) {
+        tokens.eat();
+        return allocate<ast::Literal>(token.sourceRange(),
+                                      ast::LiteralKind::FloatingPoint,
+                                      token.toFloat(APFloatPrec::Double));
     }
-    auto token = tokens.eat();
-    return allocate<ast::ThisLiteral>(token.sourceRange());
-}
-
-UniquePtr<ast::StringLiteral> Context::parseStringLiteral() {
-    if (tokens.peek().kind() != StringLiteral) {
-        return nullptr;
+    if (token.kind() == This) {
+        tokens.eat();
+        return allocate<ast::Literal>(token.sourceRange(),
+                                      ast::LiteralKind::This,
+                                      nullptr);
     }
-    auto token = tokens.eat();
-    return allocate<ast::StringLiteral>(token.sourceRange(), token.id());
+    if (token.kind() == StringLiteral) {
+        tokens.eat();
+        return allocate<ast::Literal>(token.sourceRange(),
+                                      ast::LiteralKind::String,
+                                      token.id());
+    }
+    return nullptr;
 }
 
 template <typename FunctionCallLike>
