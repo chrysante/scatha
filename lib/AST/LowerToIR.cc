@@ -102,6 +102,12 @@ struct CodeGenContext {
     void memorizeVariableAddress(sema::Entity const* variable, ir::Value*);
 
     ir::Type const* mapType(sema::Type const* semaType);
+    utl::small_vector<ir::Type const*> mapParameterTypes(
+        std::span<sema::QualType const* const> types);
+    utl::small_vector<ir::Value*> mapArguments(ranges::range auto&& args);
+    void generateParameter(ir::BasicBlock* entry,
+                           List<ir::Parameter>::iterator& paramItr,
+                           ParameterDeclaration const* paramDecl);
     ir::UnaryArithmeticOperation mapUnaryArithmeticOp(
         ast::UnaryPrefixOperator) const;
     ir::CompareMode mapCompareMode(sema::ObjectType const*) const;
@@ -165,17 +171,9 @@ void CodeGenContext::generateImpl(FunctionDefinition const& def) {
     fn->pushBack(entry);
     setCurrentBB(entry);
     allocaInsertItr = entry->begin().to_address();
-    for (auto paramItr = fn->parameters().begin();
-         auto* paramDecl: def.parameters())
-    {
-        auto* paramMemPtr = new ir::Alloca(irCtx,
-                                           mapType(paramDecl->type()),
-                                           std::string(paramDecl->name()));
-        addAlloca(paramMemPtr);
-        memorizeVariableAddress(paramDecl->entity(), paramMemPtr);
-        auto* store =
-            new ir::Store(irCtx, paramMemPtr, std::to_address(paramItr++));
-        entry->pushBack(store);
+    auto paramItr   = fn->parameters().begin();
+    for (auto* paramDecl: def.parameters()) {
+        generateParameter(entry, paramItr, paramDecl);
     }
     generate(*def.body());
     setCurrentBB(nullptr);
@@ -651,11 +649,7 @@ ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
 
 ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
     ir::Callable* function = functionMap.find(functionCall.function())->second;
-    auto args              = functionCall.arguments() |
-                ranges::views::transform([this](auto* expr) -> ir::Value* {
-                    return getValue(*expr);
-                }) |
-                ranges::to<utl::small_vector<ir::Value*>>;
+    auto args              = mapArguments(functionCall.arguments());
     if (functionCall.isMemberCall) {
         auto* object =
             cast<MemberAccess const*>(functionCall.object())->object();
@@ -814,12 +808,7 @@ static ir::Visibility accessSpecToVisibility(sema::AccessSpecifier spec) {
 
 void CodeGenContext::declareFunctions() {
     for (sema::Function const* function: symTable.functions()) {
-        auto paramTypes =
-            function->signature().argumentTypes() |
-            ranges::views::transform([&](sema::QualType const* paramType) {
-                return mapType(paramType);
-            }) |
-            ranges::to<utl::small_vector<ir::Type const*>>;
+        auto paramTypes = mapParameterTypes(function->argumentTypes());
         // TODO: Generate proper function type here
         ir::FunctionType const* const functionType = nullptr;
         if (function->isExtern()) {
@@ -891,6 +880,64 @@ ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
         }
     }
     SC_DEBUGFAIL();
+}
+
+utl::small_vector<ir::Type const*> CodeGenContext::mapParameterTypes(
+    std::span<sema::QualType const* const> types) {
+    utl::small_vector<ir::Type const*> result;
+    for (auto* semaType: types) {
+        auto* irType = mapType(semaType);
+        result.push_back(irType);
+        if (semaType->isArray()) {
+            result.push_back(irCtx.integralType(64));
+        }
+    }
+    return result;
+}
+
+utl::small_vector<ir::Value*> CodeGenContext::mapArguments(
+    ranges::range auto&& args) {
+    utl::small_vector<ir::Value*> result;
+    for (auto* expr: args) {
+        auto* value = getValue(*expr);
+        result.push_back(value);
+        auto* type = expr->type();
+        if (type->isArray()) {
+            // TODO: Get array size here
+            auto* arraySize = [&]() -> ir::Value* {
+                if (!type->isReference()) {
+                    return irCtx.integralConstant(APInt(type->arraySize(), 64));
+                }
+                else {
+                    return irCtx.integralConstant(APInt(0, 64));
+                }
+            }();
+            result.push_back(arraySize);
+        }
+    }
+    return result;
+}
+
+void CodeGenContext::generateParameter(ir::BasicBlock* entry,
+                                       List<ir::Parameter>::iterator& paramItr,
+                                       ParameterDeclaration const* paramDecl) {
+    auto const name = paramDecl->name();
+    auto* semaType  = paramDecl->type();
+    auto* address = new ir::Alloca(irCtx, mapType(semaType), std::string(name));
+    addAlloca(address);
+    memorizeVariableAddress(paramDecl->entity(), address);
+    auto* store = new ir::Store(irCtx, address, paramItr++.to_address());
+    entry->pushBack(store);
+    if (semaType->isArray()) {
+        auto* sizeAddress = new ir::Alloca(irCtx,
+                                           irCtx.integralType(64),
+                                           utl::strcat(name, "__size"));
+        addAlloca(sizeAddress);
+        //        memorizeVariableAddress(paramDecl->entity(), address); ???
+        auto* store =
+            new ir::Store(irCtx, sizeAddress, paramItr++.to_address());
+        entry->pushBack(store);
+    }
 }
 
 ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(

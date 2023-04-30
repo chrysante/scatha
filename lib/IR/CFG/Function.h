@@ -46,19 +46,12 @@ private:
 /// Represents a callable.
 /// This is a base common class of `Function` and `ExtFunction`.
 class SCATHA_API Callable: public Constant {
-    static auto getParametersImpl(auto&& self) {
-        /// Trick to return a view over parameters without returning the
-        /// `List<>` itself.
-        return self.params | ranges::views::transform(
-                                 [](auto& param) -> auto& { return param; });
-    }
-
 public:
-    /// \returns a view over the function parameters
-    auto parameters() { return getParametersImpl(*this); }
+    /// \returns The function parameters
+    List<Parameter>& parameters() { return params; }
 
     /// \overload
-    auto parameters() const { return getParametersImpl(*this); }
+    List<Parameter> const& parameters() const { return params; }
 
     /// \returns the return type of this function
     Type const* returnType() const { return _returnType; }

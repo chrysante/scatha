@@ -150,7 +150,7 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
     case ast::UnaryPrefixOperator::_count:
         SC_DEBUGFAIL();
     }
-    u.decorate(nullptr, sym.qualify(u.operand()->type()));
+    u.decorate(nullptr, sym.qualify(u.operand()->type()->base()));
     return true;
 }
 
@@ -300,21 +300,26 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
         return false;
     }
     auto& referred = *ref.referred();
-    if (referred.isValue()) {
+    switch (referred.entityCategory()) {
+    case EntityCategory::Value: {
         if (!referred.isLValue() && !referred.type()->isReference()) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return false;
         }
-        auto* refType =
-            sym.qualify(referred.type(), TypeQualifiers::ExplicitReference);
+        auto* refType = sym.addQualifiers(referred.type(),
+                                          TypeQualifiers::ExplicitReference);
         ref.decorate(referred.entity(), refType);
         return true;
     }
-    else {
-        auto* refType = sym.qualify(cast<Type const*>(referred.entity()),
-                                    TypeQualifiers::ImplicitReference);
+    case EntityCategory::Type: {
+        auto* qualType = cast<QualType const*>(referred.entity());
+        auto* refType =
+            sym.addQualifiers(qualType, TypeQualifiers::ImplicitReference);
         ref.decorate(const_cast<QualType*>(refType));
         return true;
+    }
+    default:
+        SC_DEBUGFAIL();
     }
 }
 
