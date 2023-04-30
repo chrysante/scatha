@@ -23,25 +23,28 @@ SymbolTable::SymbolTable() {
     _currentScope = _globalScope = addEntity<GlobalScope>();
 
     /// Declare `void` with `InvalidSize` to make it an incomplete type.
-    _void = declareBuiltinType("void", InvalidSize, InvalidSize);
-    _byte = declareBuiltinType("byte", 1, 1);
-    _bool = declareBuiltinType("bool", 1, 1);
+    _void = cast<StructureType const*>(
+        declareBuiltinType("void", InvalidSize, InvalidSize));
+    _byte = cast<StructureType const*>(declareBuiltinType("byte", 1, 1));
+    _bool = cast<StructureType const*>(declareBuiltinType("bool", 1, 1));
 #if 0
-    _s8    = declareBuiltinType("s8",  1, 1);
-    _s16   = declareBuiltinType("s16", 2, 2);
-    _s32   = declareBuiltinType("s32", 4, 4);
-    _s64   = declareBuiltinType("s64", 8, 8);
-    _u8    = declareBuiltinType("u8",  1, 1);
-    _u16   = declareBuiltinType("u16", 2, 2);
-    _u32   = declareBuiltinType("u32", 4, 4);
-    _u64   = declareBuiltinType("u64", 8, 8);
-    _f32   = declareBuiltinType("f32", 4, 4);
-    _f64   = declareBuiltinType("f64", 8, 8);
+    _s8    = cast<StructureType const*>(declareBuiltinType("s8",  1, 1));
+    _s16   = cast<StructureType const*>(declareBuiltinType("s16", 2, 2));
+    _s32   = cast<StructureType const*>(declareBuiltinType("s32", 4, 4));
+    _s64   = cast<StructureType const*>(declareBuiltinType("s64", 8, 8));
+    _u8    = cast<StructureType const*>(declareBuiltinType("u8",  1, 1));
+    _u16   = cast<StructureType const*>(declareBuiltinType("u16", 2, 2));
+    _u32   = cast<StructureType const*>(declareBuiltinType("u32", 4, 4));
+    _u64   = cast<StructureType const*>(declareBuiltinType("u64", 8, 8));
+    _f32   = cast<StructureType const*>(declareBuiltinType("f32", 4, 4));
+    _f64   = cast<StructureType const*>(declareBuiltinType("f64", 8, 8));
 #endif
-    _int   = declareBuiltinType("int", 8, 8);
-    _float = declareBuiltinType("float", 8, 8);
+    _int   = cast<StructureType const*>(declareBuiltinType("int", 8, 8));
+    _float = cast<StructureType const*>(declareBuiltinType("float", 8, 8));
     _string =
-        declareBuiltinType("string", sizeof(std::string), alignof(std::string));
+        cast<StructureType const*>(declareBuiltinType("string",
+                                                      sizeof(std::string),
+                                                      alignof(std::string)));
 
     /// Declare builtin functions
     _builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
@@ -229,11 +232,10 @@ QualType const* SymbolTable::removeQualifiers(QualType const* base,
     return qualify(base, base->qualifiers() & ~qualifiers);
 }
 
-QualType const* SymbolTable::arrayView(Type const* base,
+QualType const* SymbolTable::arrayView(ObjectType const* base,
                                        TypeQualifiers qualifiers) {
-    SC_ASSERT(base, "");
-    using enum TypeQualifiers;
-    return qualify(base, Array | ImplicitReference | qualifiers);
+    return qualify(arrayType(base, ArrayType::DynamicCount),
+                   TypeQualifiers::ImplicitReference | qualifiers);
 }
 
 QualType const* SymbolTable::getQualType(ObjectType const* baseType,
@@ -270,6 +272,30 @@ Entity const* SymbolTable::lookup(std::string_view name) const {
         scope = scope->parent();
     }
     return nullptr;
+}
+
+QualType const* SymbolTable::qualVoid(TypeQualifiers qualifiers) {
+    return qualify(_void, qualifiers);
+}
+
+QualType const* SymbolTable::qualByte(TypeQualifiers qualifiers) {
+    return qualify(_bool, qualifiers);
+}
+
+QualType const* SymbolTable::qualBool(TypeQualifiers qualifiers) {
+    return qualify(_bool, qualifiers);
+}
+
+QualType const* SymbolTable::qualInt(TypeQualifiers qualifiers) {
+    return qualify(_int, qualifiers);
+}
+
+QualType const* SymbolTable::qualFloat(TypeQualifiers qualifiers) {
+    return qualify(_float, qualifiers);
+}
+
+QualType const* SymbolTable::qualString(TypeQualifiers qualifiers) {
+    return qualify(_string, qualifiers);
 }
 
 template <typename E, typename... Args>

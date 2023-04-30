@@ -657,11 +657,11 @@ ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
             cast<MemberAccess const*>(functionCall.object())->object();
         args.insert(args.begin(), getAddress(*object));
     }
-    auto* call =
-        new ir::Call(function,
-                     args,
-                     functionCall.type() != symTable.Void() ? "call.result" :
-                                                              std::string{});
+    auto* call = new ir::Call(function,
+                              args,
+                              functionCall.type()->base() != symTable.Void() ?
+                                  "call.result" :
+                                  std::string{});
     currentBB()->pushBack(call);
     return call;
 }

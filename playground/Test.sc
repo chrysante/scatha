@@ -1,24 +1,18 @@
 
 
+
 public fn main() -> int {
-    var arr: [int, 4] = [1, 2, 3, 4];
-    return arr[1];
+    let arr = [1, 2, 3, 4, 5];
+    return sum(&arr, 5);
 }
 
-
-
-// public fn main() -> int {
-//     let arr = [1, 2, 3, 4, 5];
-//     return sum(&arr, 5);
-// }
-//
-// fn sum(data: &[int], size: int) -> int {
-//     var acc = 0;
-//     for i = 0; i < size; ++i {
-//         acc += data[i];
-//     }
-//     return acc;
-// }
+fn sum(data: &[int], size: int) -> int {
+    var acc = 0;
+    for i = 0; i < size; ++i {
+        acc += data[i];
+    }
+    return acc;
+}
 
 
 

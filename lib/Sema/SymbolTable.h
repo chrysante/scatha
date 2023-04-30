@@ -138,7 +138,7 @@ public:
                                      TypeQualifiers qualifiers);
 
     /// Make type \p base into an array view of element type \p base
-    QualType const* arrayView(Type const* base,
+    QualType const* arrayView(ObjectType const* base,
                               TypeQualifiers qualifiers = TypeQualifiers::None);
 
     /// \brief Makes scope \p scope the current scope.
@@ -208,38 +208,25 @@ public:
     GlobalScope const& globalScope() const { return *_globalScope; }
 
     /// Getters for builtin types
-    Type const* Void() const { return _void; }
-    Type const* Byte() const { return _byte; }
-    Type const* Bool() const { return _bool; }
-    Type const* Int() const { return _int; }
-    Type const* Float() const { return _float; }
-    Type const* String() const { return _string; }
+    StructureType const* Void() const { return _void; }
+    StructureType const* Byte() const { return _byte; }
+    StructureType const* Bool() const { return _bool; }
+    StructureType const* Int() const { return _int; }
+    StructureType const* Float() const { return _float; }
+    StructureType const* String() const { return _string; }
 
-    QualType const* qualVoid(TypeQualifiers qualifiers = TypeQualifiers::None) {
-        return qualify(_void, qualifiers);
-    }
+    QualType const* qualVoid(TypeQualifiers qualifiers = TypeQualifiers::None);
 
-    QualType const* qualByte(TypeQualifiers qualifiers = TypeQualifiers::None) {
-        return qualify(_bool, qualifiers);
-    }
+    QualType const* qualByte(TypeQualifiers qualifiers = TypeQualifiers::None);
 
-    QualType const* qualBool(TypeQualifiers qualifiers = TypeQualifiers::None) {
-        return qualify(_bool, qualifiers);
-    }
+    QualType const* qualBool(TypeQualifiers qualifiers = TypeQualifiers::None);
 
-    QualType const* qualInt(TypeQualifiers qualifiers = TypeQualifiers::None) {
-        return qualify(_int, qualifiers);
-    }
+    QualType const* qualInt(TypeQualifiers qualifiers = TypeQualifiers::None);
 
-    QualType const* qualFloat(
-        TypeQualifiers qualifiers = TypeQualifiers::None) {
-        return qualify(_float, qualifiers);
-    }
+    QualType const* qualFloat(TypeQualifiers qualifiers = TypeQualifiers::None);
 
     QualType const* qualString(
-        TypeQualifiers qualifiers = TypeQualifiers::None) {
-        return qualify(_string, qualifiers);
-    }
+        TypeQualifiers qualifiers = TypeQualifiers::None);
 
     /// Review if we want to keep these:
     void setSortedStructureTypes(utl::vector<StructureType*> ids) {
@@ -282,7 +269,7 @@ private:
     utl::vector<Function*> _builtinFunctions;
 
     /// Builtin types
-    Type const *_void, *_byte, *_bool, *_int, *_float, *_string;
+    StructureType const *_void, *_byte, *_bool, *_int, *_float, *_string;
 };
 
 } // namespace scatha::sema
