@@ -173,12 +173,13 @@ bool Context::analyzeImpl(ast::BinaryExpression& b) {
 }
 
 bool Context::analyzeImpl(ast::Identifier& id) {
-    Entity* entity = [&] {
-        if (performRestrictedNameLookup) {
+    bool const restrictedLookup = performRestrictedNameLookup;
+    performRestrictedNameLookup = false;
+    Entity* entity              = [&] {
+        if (restrictedLookup) {
             /// When we are on the right hand side of a member access expression
             /// we restrict lookup to the scope of the object of the left hand
             /// side.
-            performRestrictedNameLookup = false;
             return sym.currentScope().findEntity(id.value());
         }
         else {
@@ -186,7 +187,9 @@ bool Context::analyzeImpl(ast::Identifier& id) {
         }
     }();
     if (!entity) {
-        iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
+        if (!restrictedLookup) {
+            iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
+        }
         return false;
     }
     // clang-format off
@@ -215,19 +218,41 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(*ma.object)) {
         return false;
     }
-    Scope const* lookupTargetScope = ma.object->typeOrTypeEntity()->base();
+    Scope* lookupTargetScope =
+        const_cast<ObjectType*>(ma.object->typeOrTypeEntity()->base());
     SC_ASSERT(lookupTargetScope, "analyze(ma.object) should have failed");
     auto* oldScope = &sym.currentScope();
-    sym.makeScopeCurrent(const_cast<Scope*>(lookupTargetScope));
-    utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(oldScope); };
+    sym.makeScopeCurrent(lookupTargetScope);
     /// We restrict name lookup to the
     /// current scope. This flag will be unset by the identifier case.
     performRestrictedNameLookup = true;
-    auto const memRes           = analyze(*ma.member);
-    if (!memRes) {
-        return false;
+    bool success                = analyze(*ma.member);
+    sym.makeScopeCurrent(oldScope);
+    if (!success) {
+        /// If we don't find a member and our object is a value, we will look
+        /// for a function in the scope of the type of our object
+        if (ma.object->isValue()) {
+            auto* parentScope = lookupTargetScope->parent();
+            sym.makeScopeCurrent(parentScope);
+            success = analyze(*ma.member);
+            sym.makeScopeCurrent(oldScope);
+            if (!success) {
+                return false;
+            }
+            if (!isa<OverloadSet>(ma.member->entity())) {
+                iss.push<UseOfUndeclaredIdentifier>(*ma.member,
+                                                    *lookupTargetScope);
+                return false;
+            }
+            /// Success
+        }
+        else {
+            /// Need to push the error here because the `Identifier` case does
+            /// not push an error in member access lookup
+            iss.push<UseOfUndeclaredIdentifier>(*ma.member, *lookupTargetScope);
+            return false;
+        }
     }
-    popScope.execute();
     if (ma.object->isValue() && !ma.member->isValue()) {
         SC_DEBUGFAIL(); /// Can't look in a value and then in a type. probably
                         /// just return failure here
@@ -237,7 +262,7 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
                 ma.member->type(),
                 ma.object->valueCategory(),
                 ma.member->entityCategory());
-    return memRes;
+    return true;
 }
 
 bool Context::analyzeImpl(ast::ReferenceExpression& ref) {

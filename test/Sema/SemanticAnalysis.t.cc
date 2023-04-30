@@ -2,6 +2,8 @@
 
 #include <array>
 
+#include <range/v3/algorithm.hpp>
+
 #include "AST/AST.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
@@ -326,4 +328,53 @@ fn main(i: int) -> int {
     let a = x, y;
 })");
     REQUIRE(iss.empty());
+}
+
+TEST_CASE("Universal function call syntax", "[sema]") {
+    SECTION("Non-member") {
+        auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+struct X {
+    // fn f(&this)  {}
+}
+fn f(x: &X) {}
+public fn main() {
+    var x: X;
+    x.f();
+})");
+        REQUIRE(iss.empty());
+        auto const* tu = cast<TranslationUnit*>(ast.get());
+        auto* mainDecl = ranges::find_if(tu->declarations, [](auto& decl) {
+                             return decl->name() == "main";
+                         })->get();
+        auto* main     = cast<FunctionDefinition*>(mainDecl);
+        auto* stmt =
+            cast<ExpressionStatement*>(main->body->statements[1].get());
+        auto* call = cast<FunctionCall*>(stmt->expression.get());
+        auto* f    = call->object->entity();
+        CHECK(f->name() == "f");
+        CHECK(isa<GlobalScope>(f->parent()));
+    }
+    SECTION("Member") {
+        auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+struct X {
+    fn f(&this)  {}
+}
+fn f(x: &X) {}
+public fn main() {
+    var x: X;
+    x.f();
+})");
+        REQUIRE(iss.empty());
+        auto const* tu = cast<TranslationUnit*>(ast.get());
+        auto* mainDecl = ranges::find_if(tu->declarations, [](auto& decl) {
+                             return decl->name() == "main";
+                         })->get();
+        auto* main     = cast<FunctionDefinition*>(mainDecl);
+        auto* stmt =
+            cast<ExpressionStatement*>(main->body->statements[1].get());
+        auto* call = cast<FunctionCall*>(stmt->expression.get());
+        auto* f    = call->object->entity();
+        CHECK(f->name() == "f");
+        CHECK(f->parent()->name() == "X");
+    }
 }
