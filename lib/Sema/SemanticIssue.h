@@ -32,7 +32,8 @@ public:
 /// General expression issue
 class SCATHA_API BadExpression: public SemanticIssue {
 public:
-    explicit BadExpression(ast::Expression const& expr, IssueSeverity severity);
+    explicit BadExpression(ast::Expression const& expr,
+                           IssueSeverity severity = IssueSeverity::Error);
 
     ast::Expression const& expression() const { return *_expr; }
 

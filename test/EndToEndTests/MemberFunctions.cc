@@ -22,3 +22,20 @@ public fn main() -> int {
     return x.getValue();
 })");
 }
+
+TEST_CASE("Uniform call syntax and property calls",
+          "[end-to-end][member-functions]") {
+    test::checkReturns(42, R"(
+struct X {
+    var value: int;
+}
+fn getValue(x: &X) -> int {
+     return x.value;
+}
+public fn main() -> int {
+    var x: X;
+    x.value = 42;
+    let result = x.getValue;
+    return result;
+})");
+}

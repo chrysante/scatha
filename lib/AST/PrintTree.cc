@@ -201,6 +201,7 @@ void Context::print(Conditional const& expr, int ind) {
 
 void Context::print(FunctionCall const& expr, int ind) {
     printHeader(expr, ind);
+    dispatch(expr.object(), ind + 1);
     for (auto const* argument: expr.arguments()) {
         dispatch(argument, ind + 1);
     }

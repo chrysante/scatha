@@ -24,11 +24,14 @@ struct Context {
 
     bool analyzeImpl(ast::Identifier&);
     bool analyzeImpl(ast::MemberAccess&);
+    bool uniformFunctionCall(ast::MemberAccess&);
+    bool rewritePropertyCall(ast::MemberAccess&);
     bool analyzeImpl(ast::ReferenceExpression&);
     bool analyzeImpl(ast::UniqueExpression&);
     bool analyzeImpl(ast::Conditional&);
     bool analyzeImpl(ast::FunctionCall&);
     bool analyzeImpl(ast::Subscript&);
+    bool analyzeImpl(ast::ImplicitConversion&);
     bool analyzeImpl(ast::ListExpression&);
 
     bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
@@ -66,6 +69,9 @@ bool sema::analyzeExpression(ast::Expression& expr,
 }
 
 bool Context::analyze(ast::Expression& expr) {
+    if (expr.isDecorated()) {
+        return true;
+    }
     return visit(expr, [this](auto&& e) { return this->analyzeImpl(e); });
 }
 
@@ -209,38 +215,22 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
     Scope* lookupTargetScope =
         const_cast<ObjectType*>(ma.object()->typeOrTypeEntity()->base());
     SC_ASSERT(lookupTargetScope, "analyze(ma.object()) should have failed");
-    auto* oldScope = &sym.currentScope();
-    sym.makeScopeCurrent(lookupTargetScope);
-    /// We restrict name lookup to the
-    /// current scope. This flag will be unset by the identifier case.
-    performRestrictedNameLookup = true;
-    bool success                = analyze(*ma.member());
-    sym.makeScopeCurrent(oldScope);
+    bool success = sym.withScopeCurrent(lookupTargetScope, [&] {
+        /// We restrict name lookup to the
+        /// current scope. This flag will be unset by the identifier case.
+        performRestrictedNameLookup = true;
+        return analyze(*ma.member());
+    });
     if (!success) {
-        /// If we don't find a member and our object is a value, we will look
-        /// for a function in the scope of the type of our object
-        if (ma.object()->isValue()) {
-            auto* parentScope = lookupTargetScope->parent();
-            sym.makeScopeCurrent(parentScope);
-            success = analyze(*ma.member());
-            sym.makeScopeCurrent(oldScope);
-            if (!success) {
-                return false;
-            }
-            if (!isa<OverloadSet>(ma.member()->entity())) {
-                iss.push<UseOfUndeclaredIdentifier>(*ma.member(),
-                                                    *lookupTargetScope);
-                return false;
-            }
-            /// Success
-        }
-        else {
-            /// Need to push the error here because the `Identifier` case does
-            /// not push an error in member access lookup
-            iss.push<UseOfUndeclaredIdentifier>(*ma.member(),
-                                                *lookupTargetScope);
-            return false;
-        }
+        success = uniformFunctionCall(ma);
+    }
+    if (!success) {
+        return false;
+    }
+    if (isa<OverloadSet>(ma.member()->entity()) &&
+        !isa<ast::FunctionCall>(ma.parent()))
+    {
+        return rewritePropertyCall(ma);
     }
     if (ma.object()->isValue() && !ma.member()->isValue()) {
         SC_DEBUGFAIL(); /// Can't look in a value and then in a type. probably
@@ -251,6 +241,57 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
                 ma.member()->type(),
                 ma.object()->valueCategory(),
                 ma.member()->entityCategory());
+    return true;
+}
+
+bool Context::uniformFunctionCall(ast::MemberAccess& ma) {
+    Scope* lookupTargetScope =
+        const_cast<ObjectType*>(ma.object()->typeOrTypeEntity()->base());
+    /// If we don't find a member and our object is a value, we will look
+    /// for a function in the scope of the type of our object
+    if (!ma.object()->isValue()) {
+        /// Need to push the error here because the `Identifier` case does
+        /// not push an error in member access lookup
+        iss.push<UseOfUndeclaredIdentifier>(*ma.member(), *lookupTargetScope);
+        return false;
+    }
+    bool success = sym.withScopeCurrent(lookupTargetScope->parent(),
+                                        [&] { return analyze(*ma.member()); });
+    if (!success) {
+        return false;
+    }
+    auto* overloadSet = dyncast<OverloadSet*>(ma.member()->entity());
+    if (!overloadSet) {
+        iss.push<UseOfUndeclaredIdentifier>(*ma.member(), *lookupTargetScope);
+        return false;
+    }
+    return true;
+}
+
+bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
+    /// We reference an overload set, so if our parent is not a call expression
+    /// we should rewrite this
+    auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
+    auto* argType     = sym.addQualifiers(ma.object()->type(),
+                                      TypeQualifiers::ExplicitReference);
+    auto* func        = overloadSet->find(std::array{ argType });
+    if (!func) {
+        iss.push<BadExpression>(ma);
+        return false;
+    }
+    auto sourceRange = ma.object()->sourceRange();
+    auto refArg =
+        allocate<ast::ReferenceExpression>(ma.extractObject(), sourceRange);
+    if (!analyze(*refArg)) {
+        return false;
+    }
+    utl::small_vector<UniquePtr<ast::Expression>> args;
+    args.push_back(std::move(refArg));
+    auto call = allocate<ast::FunctionCall>(ma.extractMember(),
+                                            std::move(args),
+                                            ma.sourceRange());
+    call->decorate(func, func->signature().returnType(), ValueCategory::RValue);
+    ma.parent()->replaceChild(&ma, std::move(call));
     return true;
 }
 
@@ -409,6 +450,33 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
             return false;
         }
     }); // clang-format on
+}
+
+bool Context::analyzeImpl(ast::ImplicitConversion& conv) {
+    if (!analyze(*conv.expression())) {
+        return false;
+    }
+    if (!expectValue(*conv.expression())) {
+        return false;
+    }
+    auto* source = conv.expression()->type();
+    auto* target = conv.targetType();
+    if (source == target) {
+        conv.decorate(conv.expression()->entity(), conv.targetType());
+        return true;
+    }
+    if (source->base() == target->base()) {
+        if (source->isReference() && !target->isReference()) {
+            conv.decorate(conv.expression()->entity(), target);
+            return true;
+        }
+        if (source->isExplicitReference() && target->isReference()) {
+            conv.decorate(conv.expression()->entity(), source);
+            return true;
+        }
+    }
+    iss.push<BadTypeConversion>(*conv.expression(), target);
+    return false;
 }
 
 bool Context::analyzeImpl(ast::ListExpression& list) {

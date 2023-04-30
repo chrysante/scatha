@@ -69,6 +69,7 @@ struct CodeGenContext {
     ir::Value* getValueImpl(Conditional const&);
     ir::Value* getValueImpl(FunctionCall const&);
     ir::Value* getValueImpl(Subscript const&);
+    ir::Value* getValueImpl(ImplicitConversion const&);
     ir::Value* getValueImpl(ListExpression const&);
 
     ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) {
@@ -741,6 +742,10 @@ ir::Value* CodeGenContext::getAddressImpl(Subscript const& expr) {
 
 ir::Value* CodeGenContext::getAddressImpl(ReferenceExpression const& expr) {
     return getAddress(*expr.referred());
+}
+
+ir::Value* CodeGenContext::getValueImpl(ImplicitConversion const& conv) {
+    return getValue(*conv.expression());
 }
 
 ir::Value* CodeGenContext::getAddressImpl(ListExpression const& list) {

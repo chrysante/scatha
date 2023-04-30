@@ -126,6 +126,24 @@ public:
             children()[utl::narrow_cast<ssize_t>(index)]);
     }
 
+    /// Extract the the child at index \p index
+    template <typename AST = AbstractSyntaxTree>
+    UniquePtr<AST> extractChild(size_t index) {
+        auto* child    = _children[index].release();
+        child->_parent = nullptr;
+        return UniquePtr<AST>(cast_or_null<AST*>(child));
+    }
+
+    /// Set the the child at index \p index to \p child
+    template <typename AST>
+    void setChild(size_t index, UniquePtr<AST> child) {
+        child->_parent   = this;
+        _children[index] = std::move(child);
+    }
+
+    void replaceChild(AbstractSyntaxTree const* old,
+                      UniquePtr<AbstractSyntaxTree> repl);
+
 protected:
     explicit AbstractSyntaxTree(NodeType type,
                                 SourceRange sourceRange,
@@ -361,11 +379,27 @@ public:
     /// \overload
     Expression const* object() const { return child<Expression>(0); }
 
+    UniquePtr<Expression> extractObject() {
+        return extractChild<Expression>(0);
+    }
+
+    void setObject(UniquePtr<Expression> obj) {
+        return setChild<Expression>(0, std::move(obj));
+    }
+
     /// The identifier to access the object.
     Identifier* member() { return child<Identifier>(1); }
 
     /// \overload
     Identifier const* member() const { return child<Identifier>(1); }
+
+    UniquePtr<Identifier> extractMember() {
+        return extractChild<Identifier>(1);
+    }
+
+    void setMember(UniquePtr<Identifier> id) {
+        return setChild<Identifier>(1, std::move(id));
+    }
 };
 
 /// Concrete node representing a reference expression.
@@ -530,15 +564,32 @@ public:
 class SCATHA_API ImplicitConversion: public Expression {
 public:
     explicit ImplicitConversion(UniquePtr<Expression> expr,
-                                SourceRange sourceRange):
-        Expression(NodeType::ImplicitConversion, sourceRange, std::move(expr)) {
-    }
+                                sema::QualType const* targetType):
+        Expression(NodeType::ImplicitConversion,
+                   expr->sourceRange(),
+                   std::move(expr)),
+        _targetType(targetType) {}
+
+    /// The target type of the conversion
+    sema::QualType const* targetType() const { return _targetType; }
 
     /// The expression being converted
-    Expression* expr() { return child<Expression>(0); }
+    Expression* expression() { return child<Expression>(0); }
 
     /// \overload
-    Expression const* expr() const { return child<Expression>(0); }
+    Expression const* expression() const { return child<Expression>(0); }
+
+    template <typename E = Expression>
+    UniquePtr<E> extractExpression() {
+        return extractChild<E>(0);
+    }
+
+    void setExpression(UniquePtr<Expression> expr) {
+        return setChild(0, std::move(expr));
+    }
+
+private:
+    sema::QualType const* _targetType = nullptr;
 };
 
 /// Abstract node representing a statement.
@@ -873,6 +924,19 @@ public:
         return child<P>(index + 3);
     }
 
+    /// The `this` parameter of this function, or `nullptr` if nonesuch exists
+    ThisParameter* thisParameter() {
+        return const_cast<ThisParameter*>(std::as_const(*this).thisParameter());
+    }
+
+    /// \overload
+    ThisParameter const* thisParameter() const {
+        if (parameters().empty()) {
+            return nullptr;
+        }
+        return dyncast<ThisParameter const*>(parameter(0));
+    }
+
     /// **Decoration provided by semantic analysis**
 
     /// The function being defined
@@ -965,6 +1029,14 @@ public:
 
     /// \overload
     Expression const* expression() const { return child<Expression>(0); }
+
+    UniquePtr<Expression> extractExpression() {
+        return extractChild<Expression>(0);
+    }
+
+    void setExpression(UniquePtr<Expression> expr) {
+        setChild(0, std::move(expr));
+    }
 };
 
 /// Concrete node representing an if/else statement.

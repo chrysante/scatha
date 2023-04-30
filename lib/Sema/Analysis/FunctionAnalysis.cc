@@ -275,8 +275,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
             sym.currentScope());
         return;
     }
-    if (rs.expression() && currentFunction->returnType()->base() == sym.Void())
-    {
+    if (rs.expression() && returnType->base() == sym.Void()) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::VoidFunctionMustNotReturnAValue,
@@ -286,6 +285,9 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
     if (!rs.expression()) {
         return;
     }
+    auto expr = rs.extractExpression();
+    rs.setExpression(
+        allocate<ast::ImplicitConversion>(std::move(expr), returnType));
     if (!analyzeExpr(*rs.expression())) {
         return;
     }

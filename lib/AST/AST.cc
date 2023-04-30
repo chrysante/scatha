@@ -1,5 +1,7 @@
 #include "AST/AST.h"
 
+#include <range/v3/algorithm.hpp>
+
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -8,6 +10,14 @@ using namespace sema;
 
 void scatha::internal::privateDelete(AbstractSyntaxTree* node) {
     visit(*node, [](auto& derived) { delete &derived; });
+}
+
+void AbstractSyntaxTree::replaceChild(AbstractSyntaxTree const* old,
+                                      UniquePtr<AbstractSyntaxTree> repl) {
+    auto itr = ranges::find_if(_children,
+                               [&](auto& child) { return child.get() == old; });
+    SC_ASSERT(itr != ranges::end(_children), "`old` is not a child of this");
+    *itr = std::move(repl);
 }
 
 void Expression::decorate(Entity* entity,

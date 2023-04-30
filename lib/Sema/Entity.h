@@ -358,9 +358,16 @@ public:
 
     bool has(TypeQualifiers qual) const { return test(qualifiers() & qual); }
 
+    bool isExplicitReference() const {
+        return has(TypeQualifiers::ExplicitReference);
+    }
+
+    bool isImplicitReference() const {
+        return has(TypeQualifiers::ImplicitReference);
+    }
+
     bool isReference() const {
-        return has(TypeQualifiers::ImplicitReference |
-                   TypeQualifiers::ExplicitReference);
+        return isImplicitReference() || isExplicitReference();
     }
 
     /// \Return `true` iff this type is an array or an array reference
