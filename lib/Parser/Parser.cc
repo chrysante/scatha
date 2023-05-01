@@ -957,7 +957,11 @@ std::optional<List> Context::parseList(TokenKind open,
             /// Without eating a token we may get stuck in an infinite loop,
             /// otherwise we may miss delimiters in case of syntax errors
             /// (especcially missing ')').
-            //          tokens.eat();
+            if (Token const next = tokens.peek();
+                next.kind() != close && next.kind() != delimiter)
+            {
+                tokens.eat();
+            }
         }
     }
     return result;
