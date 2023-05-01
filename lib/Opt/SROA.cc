@@ -177,26 +177,29 @@ bool VariableContext::buildAccessTreeVisitUsers(AccessTreeNode* node,
                                                 Instruction* address) {
     bool haveGEPs = false;
     for (auto* user: address->users()) {
-        if (!isa<Load>(user) && !isa<Store>(user) &&
-            !isa<GetElementPointer>(user))
-        {
-            return false;
-        }
-        if (auto* store = dyncast<Store const*>(user);
-            store && store->value() == address)
-        {
-            return false;
-        }
-        if (auto* load = dyncast<Load*>(user)) {
-            loads.push_back(load);
-            continue;
-        }
-        auto* gep = dyncast<GetElementPointer*>(user);
-        if (!gep) {
-            continue;
-        }
-        haveGEPs = true;
-        if (!buildAccessTreeImpl(node, gep)) {
+        // clang-format off
+        bool flag = visit(*user, utl::overload{
+            [](User const& user) {
+                /// If any user is not a `load`, `store` or `getelementptr`
+                /// instruction, we don't consider this `alloca`
+                return false;
+            },
+            [&](Load& load) {
+                loads.push_back(&load);
+                return true;
+            },
+            [&](Store const& store) {
+                /// For `store`s we also need to check if we are actually the
+                /// address and not the value argument.
+                return store.value() != address;
+            },
+            [&](GetElementPointer& gep) {
+                haveGEPs = true;
+                return buildAccessTreeImpl(node, &gep);
+            }
+            
+        }); // clang-format on
+        if (!flag) {
             return false;
         }
     }
