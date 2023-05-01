@@ -101,6 +101,8 @@ struct CodeGenContext {
 
     void memorizeVariableAddress(sema::Entity const* variable, ir::Value*);
 
+    void memorizeVariableValue(sema::Entity const* variable, ir::Value*);
+
     ir::Type const* mapType(sema::Type const* semaType);
     utl::small_vector<ir::Type const*> mapParameterTypes(
         std::span<sema::QualType const* const> types);
@@ -123,8 +125,10 @@ struct CodeGenContext {
     ir::Function* currentFunction = nullptr;
     ir::BasicBlock* _currentBB    = nullptr;
     utl::hashmap<sema::Entity const*, ir::Value*> variableAddressMap;
+    utl::hashmap<sema::Entity const*, ir::Value*> variableValueMap;
     utl::hashmap<sema::Function const*, ir::Callable*> functionMap;
     utl::hashmap<sema::Type const*, ir::Type const*> typeMap;
+    ir::Type const* arrayViewType = nullptr;
     ir::Instruction* allocaInsertItr;
     Loop currentLoop;
 };
@@ -727,11 +731,34 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
 }
 
 ir::Value* CodeGenContext::getAddressImpl(Subscript const& expr) {
-    auto* type  = mapType(expr.object()->type()->base());
-    auto* array = getAddress(*expr.object());
+    auto* arrayType =
+        cast<sema::ArrayType const*>(expr.object()->type()->base());
+    auto* elemType = mapType(arrayType->elementType());
+    auto* dataPtr  = [&]() -> ir::Value* {
+        auto* array = getAddress(*expr.object(), false);
+        if (!arrayType->isDynamic()) {
+            return array;
+        }
+        auto* dataPtrGep =
+            new ir::GetElementPointer(irCtx,
+                                      arrayViewType,
+                                      array,
+                                      irCtx.integralConstant(0, 32),
+                                       { 0 },
+                                      "data.ptr.addr");
+        currentBB()->pushBack(dataPtrGep);
+        auto* dataPtr =
+            new ir::Load(dataPtrGep, irCtx.pointerType(), "data.ptr");
+        currentBB()->pushBack(dataPtr);
+        return dataPtr;
+    }();
     auto* index = getValue(*expr.arguments().front());
-    auto* gep =
-        new ir::GetElementPointer(irCtx, type, array, index, {}, "elem.ptr");
+    auto* gep   = new ir::GetElementPointer(irCtx,
+                                          elemType,
+                                          dataPtr,
+                                          index,
+                                            {},
+                                          "elem.ptr");
     currentBB()->pushBack(gep);
     return gep;
 }
@@ -745,6 +772,10 @@ ir::Value* CodeGenContext::getValueImpl(ImplicitConversion const& conv) {
 }
 
 ir::Value* CodeGenContext::getAddressImpl(ListExpression const& list) {
+    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
+    memorizeVariableValue(arrayType->countVariable(),
+                          irCtx.integralConstant(
+                              APInt(arrayType->count(), 64)));
     auto* type  = mapType(list.type());
     auto* array = new ir::Alloca(irCtx,
                                  irCtx.integralConstant(
@@ -785,6 +816,12 @@ void CodeGenContext::declareTypes() {
         typeMap[objType] = structure.get();
         mod.addStructure(std::move(structure));
     }
+    /// Declare array view type
+    auto structure = allocate<ir::StructureType>("[]");
+    structure->addMember(irCtx.pointerType());
+    structure->addMember(irCtx.integralType(64));
+    arrayViewType = structure.get();
+    mod.addStructure(std::move(structure));
 }
 
 static ir::FunctionAttribute translateAttrs(sema::FunctionAttribute attr) {
@@ -845,11 +882,18 @@ void CodeGenContext::setCurrentBB(ir::BasicBlock* bb) { _currentBB = bb; }
 
 void CodeGenContext::memorizeVariableAddress(sema::Entity const* entity,
                                              ir::Value* value) {
-    [[maybe_unused]] auto const [_, insertSuccess] =
-        variableAddressMap.insert({ entity, value });
-    SC_ASSERT(insertSuccess,
+    SC_ASSERT(!variableAddressMap.contains(entity),
               "Variable id must not be declared multiple times. This error "
               "must be handled in sema.");
+    variableAddressMap[entity] = value;
+}
+
+void CodeGenContext::memorizeVariableValue(sema::Entity const* entity,
+                                           ir::Value* value) {
+    SC_ASSERT(!variableValueMap.contains(entity),
+              "Variable id must not be declared multiple times. This error "
+              "must be handled in sema.");
+    variableValueMap[entity] = value;
 }
 
 ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
@@ -857,7 +901,11 @@ ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
     return visit(*semaType, utl::overload{
         [&](sema::QualType const& qualType) -> ir::Type const* {
             if (qualType.isReference()) {
-                return irCtx.pointerType();
+                auto* arrayType = dyncast<sema::ArrayType const*>(qualType.base());
+                if (!arrayType || !arrayType->isDynamic()) {
+                    return irCtx.pointerType();
+                }
+                return arrayViewType;
             }
             return mapType(qualType.base());
         },
@@ -883,6 +931,7 @@ ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
             SC_DEBUGFAIL();
         },
         [&](sema::ArrayType const& arrayType) {
+            // SC_DEBUGFAIL();
             /// ???
             return mapType(arrayType.elementType());
         },
@@ -894,10 +943,6 @@ utl::small_vector<ir::Type const*> CodeGenContext::mapParameterTypes(
     utl::small_vector<ir::Type const*> result;
     for (auto* semaType: types) {
         auto* irType = mapType(semaType);
-        result.push_back(irType);
-        if (isa<sema::ArrayType>(semaType->base())) {
-            result.push_back(irCtx.integralType(64));
-        }
     }
     return result;
 }
@@ -908,11 +953,6 @@ utl::small_vector<ir::Value*> CodeGenContext::mapArguments(
     for (auto* expr: args) {
         auto* value = getValue(*expr);
         result.push_back(value);
-        auto* type = expr->type();
-        if (auto* arrayType = dyncast<sema::ArrayType const*>(type->base())) {
-            auto* count = irCtx.integralConstant(APInt(arrayType->count(), 64));
-            result.push_back(count);
-        }
     }
     return result;
 }
@@ -927,16 +967,6 @@ void CodeGenContext::generateParameter(ir::BasicBlock* entry,
     memorizeVariableAddress(paramDecl->entity(), address);
     auto* store = new ir::Store(irCtx, address, paramItr++.to_address());
     entry->pushBack(store);
-    if (auto* arrayType = dyncast<sema::ArrayType const*>(semaType->base())) {
-        auto* sizeAddress = new ir::Alloca(irCtx,
-                                           irCtx.integralType(64),
-                                           utl::strcat(name, "__size"));
-        addAlloca(sizeAddress);
-        //        memorizeVariableAddress(paramDecl->entity(), address); ???
-        auto* store =
-            new ir::Store(irCtx, sizeAddress, paramItr++.to_address());
-        entry->pushBack(store);
-    }
 }
 
 ir::UnaryArithmeticOperation CodeGenContext::mapUnaryArithmeticOp(
