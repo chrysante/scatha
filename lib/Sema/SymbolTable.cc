@@ -23,28 +23,29 @@ SymbolTable::SymbolTable() {
     _currentScope = _globalScope = addEntity<GlobalScope>();
 
     /// Declare `void` with `InvalidSize` to make it an incomplete type.
-    _void = cast<StructureType const*>(
+    _void = cast<StructureType*>(
         declareBuiltinType("void", InvalidSize, InvalidSize));
-    _byte = cast<StructureType const*>(declareBuiltinType("byte", 1, 1));
-    _bool = cast<StructureType const*>(declareBuiltinType("bool", 1, 1));
+    _byte = cast<StructureType*>(declareBuiltinType("byte", 1, 1));
+    _bool = cast<StructureType*>(declareBuiltinType("bool", 1, 1));
 #if 0
-    _s8    = cast<StructureType const*>(declareBuiltinType("s8",  1, 1));
-    _s16   = cast<StructureType const*>(declareBuiltinType("s16", 2, 2));
-    _s32   = cast<StructureType const*>(declareBuiltinType("s32", 4, 4));
-    _s64   = cast<StructureType const*>(declareBuiltinType("s64", 8, 8));
-    _u8    = cast<StructureType const*>(declareBuiltinType("u8",  1, 1));
-    _u16   = cast<StructureType const*>(declareBuiltinType("u16", 2, 2));
-    _u32   = cast<StructureType const*>(declareBuiltinType("u32", 4, 4));
-    _u64   = cast<StructureType const*>(declareBuiltinType("u64", 8, 8));
-    _f32   = cast<StructureType const*>(declareBuiltinType("f32", 4, 4));
-    _f64   = cast<StructureType const*>(declareBuiltinType("f64", 8, 8));
+    _s8    = cast<StructureType*>(declareBuiltinType("s8",  1, 1));
+    _s16   = cast<StructureType*>(declareBuiltinType("s16", 2, 2));
+    _s32   = cast<StructureType*>(declareBuiltinType("s32", 4, 4));
+    _s64   = cast<StructureType*>(declareBuiltinType("s64", 8, 8));
+    _u8    = cast<StructureType*>(declareBuiltinType("u8",  1, 1));
+    _u16   = cast<StructureType*>(declareBuiltinType("u16", 2, 2));
+    _u32   = cast<StructureType*>(declareBuiltinType("u32", 4, 4));
+    _u64   = cast<StructureType*>(declareBuiltinType("u64", 8, 8));
+    _f32   = cast<StructureType*>(declareBuiltinType("f32", 4, 4));
+    _f64   = cast<StructureType*>(declareBuiltinType("f64", 8, 8));
 #endif
-    _s64   = cast<StructureType const*>(declareBuiltinType("int", 8, 8));
-    _float = cast<StructureType const*>(declareBuiltinType("float", 8, 8));
-    _string =
-        cast<StructureType const*>(declareBuiltinType("string",
+    _s64    = cast<StructureType*>(declareBuiltinType("s64", 8, 8));
+    _float  = cast<StructureType*>(declareBuiltinType("float", 8, 8));
+    _string = cast<StructureType*>(declareBuiltinType("string",
                                                       sizeof(std::string),
                                                       alignof(std::string)));
+
+    _s64->addAlternateName("int");
 
     /// Declare builtin functions
     _builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
@@ -82,9 +83,9 @@ Expected<StructureType&, SemanticIssue*> SymbolTable::declareStructureType(
     return *type;
 }
 
-Type const* SymbolTable::declareBuiltinType(std::string name,
-                                            size_t size,
-                                            size_t align) {
+Type* SymbolTable::declareBuiltinType(std::string name,
+                                      size_t size,
+                                      size_t align) {
     auto result = declareStructureType(name, /* allowKeywords = */ true);
     SC_ASSERT(result, "How could this fail?");
     result->setSize(size);

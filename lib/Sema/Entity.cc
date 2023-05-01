@@ -20,6 +20,13 @@ std::string const& Entity::mangledName() const {
     return _mangledName;
 }
 
+void Entity::addAlternateName(std::string name) {
+    _names.push_back(name);
+    if (parent()) {
+        parent()->addAlternateChildName(this, name);
+    }
+}
+
 /// # Variable
 
 sema::Variable::Variable(std::string name,
@@ -49,7 +56,7 @@ void Scope::add(Entity* entity) {
     /// We add all scopes to our list of child scopes
     if (auto* scope = dyncast<Scope*>(entity)) {
         bool const success = _children.insert(scope).second;
-        SC_ASSERT(success, "");
+        SC_ASSERT(success, "Failed to add child");
     }
     /// We add the entity to our own symbol table
     /// We don't add anonymous entities because entities are keyed by their name
@@ -60,8 +67,19 @@ void Scope::add(Entity* entity) {
     }
     for (auto& name: entity->alternateNames()) {
         auto const [itr, success] = _entities.insert({ name, entity });
-        SC_ASSERT(success, "");
+        SC_ASSERT(success, "Failed to add name");
     }
+}
+
+void Scope::addAlternateChildName(Entity* child, std::string name) {
+    if (!_children.contains(child)) {
+        return;
+    }
+    if (child->isAnonymous() || isa<Function>(child)) {
+        return;
+    }
+    auto const [itr, success] = _entities.insert({ name, child });
+    SC_ASSERT(success, "Failed to add new name");
 }
 
 AnonymousScope::AnonymousScope(ScopeKind scopeKind, Scope* parent):

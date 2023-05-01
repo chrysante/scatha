@@ -53,7 +53,7 @@ public:
     /// `declareStructureType()`
     ///
     /// TODO: Only used internally. Make this private.
-    Type const* declareBuiltinType(std::string name, size_t size, size_t align);
+    Type* declareBuiltinType(std::string name, size_t size, size_t align);
 
     /// \brief Declares a function to the current scope without signature.
     ///
@@ -269,7 +269,7 @@ private:
     utl::vector<Function*> _builtinFunctions;
 
     /// Builtin types
-    StructureType const *_void, *_byte, *_bool, *_s64, *_float, *_string;
+    StructureType *_void, *_byte, *_bool, *_s64, *_float, *_string;
 };
 
 } // namespace scatha::sema

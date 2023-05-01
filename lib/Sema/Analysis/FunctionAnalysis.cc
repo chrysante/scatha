@@ -261,6 +261,9 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
         return;
     }
     auto* returnType = currentFunction->returnType();
+    if (!returnType) {
+        return;
+    }
     if (!rs.expression() && returnType->base() != sym.Void()) {
         iss.push<InvalidStatement>(
             &rs,

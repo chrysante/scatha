@@ -51,9 +51,7 @@ public:
     bool isType() const { return category() == EntityCategory::Type; }
 
     /// Add \p name as an alternate name for this entity
-    void addAlternateName(std::string name) {
-        _names.push_back(std::move(name));
-    }
+    void addAlternateName(std::string name);
 
 protected:
     explicit Entity(EntityType entityType, std::string name, Scope* parent):
@@ -170,7 +168,15 @@ protected:
 private:
     friend class internal::ScopePrinter;
     friend class SymbolTable;
+    friend class Entity;
+
+    /// Add \p entity as a child of this scope. This function is called by
+    /// `SymbolTable`, thus it is a friend
     void add(Entity* entity);
+
+    /// Callback for `Entity::addAlternateName()` to register the new name in
+    /// our symbol table Does nothing if \p child is not a child of this scope
+    void addAlternateChildName(Entity* child, std::string name);
 
 private:
     /// Scopes don't own their childscopes. These objects are owned by the
