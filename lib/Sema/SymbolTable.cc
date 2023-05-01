@@ -49,7 +49,8 @@ SymbolTable::SymbolTable() {
     /// Declare builtin functions
     _builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
-    declareExternalFunction(                                                   \
+    declareSpecialFunction(                                                    \
+        FunctionKind::External,                                                \
         "__builtin_" #name,                                                    \
         /* slot = */ svm::BuiltinFunctionSlot,                                 \
         /* index = */ static_cast<size_t>(svm::Builtin::name),                 \
@@ -141,11 +142,12 @@ Expected<void, SemanticIssue*> SymbolTable::setSignature(
     return {};
 }
 
-bool SymbolTable::declareExternalFunction(std::string name,
-                                          size_t slot,
-                                          size_t index,
-                                          FunctionSignature signature,
-                                          FunctionAttribute attrs) {
+bool SymbolTable::declareSpecialFunction(FunctionKind kind,
+                                         std::string name,
+                                         size_t slot,
+                                         size_t index,
+                                         FunctionSignature signature,
+                                         FunctionAttribute attrs) {
     utl::scope_guard restoreScope = [this, scope = &currentScope()] {
         makeScopeCurrent(scope);
     };
@@ -156,12 +158,13 @@ bool SymbolTable::declareExternalFunction(std::string name,
     }
     auto& function = *declResult;
     setSignature(&function, std::move(signature));
-    function._isExtern = true;
-    function._slot     = utl::narrow_cast<u16>(slot);
-    function._index    = utl::narrow_cast<u32>(index);
-    function.attrs     = attrs;
-    // FIXME: Make sure only builtin function are added here
-    _builtinFunctions[index] = &function;
+    function._kind  = kind;
+    function.attrs  = attrs;
+    function._slot  = utl::narrow_cast<u16>(slot);
+    function._index = utl::narrow_cast<u32>(index);
+    if (kind == FunctionKind::External && slot == svm::BuiltinFunctionSlot) {
+        _builtinFunctions[index] = &function;
+    }
     return true;
 }
 
@@ -209,6 +212,10 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     }
     auto* arrayType = addEntity<ArrayType>(elementType, size);
     _arrayTypes.insert({ key, arrayType });
+    withScopeCurrent(arrayType, [&] {
+        auto* countVar = &addVariable("count", qualInt()).value();
+        arrayType->setCountVariable(countVar);
+    });
     return arrayType;
 }
 

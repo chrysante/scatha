@@ -116,7 +116,15 @@ static bool signatureMatch(std::span<QualType const* const> parameterTypes,
         return false;
     }
     for (auto [param, arg]: ranges::views::zip(parameterTypes, argumentTypes)) {
-        if (param->base() != arg->base()) {
+        auto* paramArray = dyncast<ArrayType const*>(param->base());
+        auto* argArray   = dyncast<ArrayType const*>(arg->base());
+        if (paramArray && argArray &&
+            (paramArray->count() == argArray->count() ||
+             paramArray->isDynamic()))
+        {
+            /// Avoid next case, rewrite this if possible
+        }
+        else if (param->base() != arg->base()) {
             return false;
         }
         SC_ASSERT(!param->has(TypeQualifiers::ExplicitReference), "");

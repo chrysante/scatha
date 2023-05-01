@@ -85,6 +85,13 @@ SCATHA_API std::string_view toString(ScopeKind);
 SCATHA_API std::ostream& operator<<(std::ostream&, ScopeKind);
 
 ///
+enum class FunctionKind : u8 { Native, External, Special, _count };
+
+SCATHA_API std::string_view toString(FunctionKind);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, FunctionKind);
+
+///
 enum class AccessSpecifier { Public, Private };
 
 ///

@@ -227,11 +227,14 @@ public:
     /// Number of arguments
     size_t argumentCount() const { return _sig.argumentCount(); }
 
+    /// Kind of this function
+    FunctionKind kind() const { return _kind; }
+
+    /// \Returns `kind() == FunctionKind::External`
+    bool isExtern() const { return kind() == FunctionKind::External; }
+
     /// \Returns `true` if this is a member function
     bool isMember() const { return _isMember; }
-
-    /// \Returns `true` iff this function is an external function.
-    bool isExtern() const { return _isExtern; }
 
     /// \returns Slot of extern function table.
     ///
@@ -248,6 +251,8 @@ public:
 
     AccessSpecifier accessSpecifier() const { return accessSpec; }
 
+    void setKind(FunctionKind kind) { _kind = kind; }
+
     void setIsMember(bool value = true) { _isMember = value; }
 
     void setAccessSpecifier(AccessSpecifier spec) { accessSpec = spec; }
@@ -259,13 +264,13 @@ public:
     void removeAttribute(FunctionAttribute attr) { attrs &= ~attr; }
 
 private:
-    friend class SymbolTable; /// To set `_sig` and `_isExtern`
+    friend class SymbolTable; /// To set `_sig`
     FunctionSignature _sig;
     OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;
     AccessSpecifier accessSpec = AccessSpecifier::Private;
+    FunctionKind _kind         = FunctionKind::Native;
     bool _isMember : 1         = false;
-    bool _isExtern : 1         = false;
     u16 _slot                  = 0;
     u32 _index                 = 0;
 };
@@ -355,7 +360,7 @@ public:
         ObjectType(EntityType::ArrayType,
                    ScopeKind::Object,
                    makeName(elementType, count),
-                   nullptr,
+                   const_cast<Scope*>(elementType->parent()),
                    count != DynamicCount ? count * elementType->size() :
                                            invalidSize,
                    elementType->align()),
@@ -371,10 +376,16 @@ public:
     /// Shorthand for `count() == DynamicCount`
     bool isDynamic() const { return count() == DynamicCount; }
 
+    /// Member variable that stores the count
+    Variable const* countVariable() const { return countVar; }
+
+    void setCountVariable(Variable* var) { countVar = var; }
+
 private:
     static std::string makeName(ObjectType const* elemType, size_t size);
 
     ObjectType const* elemType;
+    Variable* countVar = nullptr;
     size_t _count;
 };
 

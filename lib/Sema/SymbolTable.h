@@ -86,11 +86,12 @@ public:
 
     /// \returns `true` iff declaration was successfull.
     ///
-    bool declareExternalFunction(std::string name,
-                                 size_t slot,
-                                 size_t index,
-                                 FunctionSignature signature,
-                                 FunctionAttribute attrs);
+    bool declareSpecialFunction(FunctionKind kind,
+                                std::string name,
+                                size_t slot,
+                                size_t index,
+                                FunctionSignature signature,
+                                FunctionAttribute attrs);
 
     /// \brief Declares a variable to the current scope without type.
     ///

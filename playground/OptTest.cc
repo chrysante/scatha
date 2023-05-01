@@ -79,11 +79,12 @@ void playground::optTest(std::filesystem::path path) {
     sema::SymbolTable semaSym;
     auto cppCallbackSig =
         sema::FunctionSignature({ semaSym.qualInt() }, semaSym.qualInt());
-    semaSym.declareExternalFunction("cppCallback",
-                                    1,
-                                    0,
-                                    cppCallbackSig,
-                                    sema::FunctionAttribute::None);
+    semaSym.declareSpecialFunction(sema::FunctionKind::External,
+                                   "cppCallback",
+                                   1,
+                                   0,
+                                   cppCallbackSig,
+                                   sema::FunctionAttribute::None);
     auto [prog, sym] = compile(text, semaSym);
 
     auto findFn = [sym = &sym](std::string_view name) {

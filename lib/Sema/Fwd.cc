@@ -68,3 +68,16 @@ std::string_view sema::toString(ScopeKind k) {
 std::ostream& sema::operator<<(std::ostream& str, ScopeKind k) {
     return str << toString(k);
 }
+
+std::string_view sema::toString(FunctionKind k) {
+    // clang-format off
+    return UTL_SERIALIZE_ENUM(k, {
+        { FunctionKind::Native,   "Native" },
+        { FunctionKind::External, "External" },
+        { FunctionKind::Special,  "Special" }
+    }); // clang-format on
+}
+
+std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
+    return str << toString(k);
+}
