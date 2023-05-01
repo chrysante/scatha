@@ -21,13 +21,16 @@ namespace scatha::sema {
 class SCATHA_API Entity {
 public:
     /// The name of this entity
-    std::string_view name() const { return _name; }
+    std::string_view name() const { return _names[0]; }
+
+    /// List of alternate names that refer to this entity
+    std::span<std::string const> alternateNames() const { return _names; }
 
     /// Mangled name of this entity
     std::string const& mangledName() const;
 
     /// `true` if this entity is unnamed
-    bool isAnonymous() const { return _name.empty(); }
+    bool isAnonymous() const { return name().empty(); }
 
     /// The parent scope of this entity
     Scope* parent() { return _parent; }
@@ -47,14 +50,19 @@ public:
     /// `true` if this entity represents a type
     bool isType() const { return category() == EntityCategory::Type; }
 
+    /// Add \p name as an alternate name for this entity
+    void addAlternateName(std::string name) {
+        _names.push_back(std::move(name));
+    }
+
 protected:
     explicit Entity(EntityType entityType, std::string name, Scope* parent):
-        _entityType(entityType), _parent(parent), _name(name) {}
+        _entityType(entityType), _parent(parent), _names({ std::move(name) }) {}
 
 private:
     EntityType _entityType;
     Scope* _parent = nullptr;
-    std::string _name;
+    utl::small_vector<std::string, 1> _names;
     mutable std::string _mangledName;
 };
 

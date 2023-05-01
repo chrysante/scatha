@@ -46,24 +46,21 @@ Entity const* Scope::findEntity(std::string_view name) const {
 }
 
 void Scope::add(Entity* entity) {
-    auto impl = [this](Entity* entity) {
-        auto const [itr, success] =
-            _entities.insert({ std::string(entity->name()), entity });
-        SC_ASSERT(success, "");
-    };
+    /// We add all scopes to our list of child scopes
     if (auto* scope = dyncast<Scope*>(entity)) {
-        if (!scope->isAnonymous() &&
-            /// Can't add functions here because of name collisions due to
-            /// overloading.
-            scope->kind() != ScopeKind::Function)
-        {
-            impl(scope);
-        }
-        auto const [itr, success] = _children.insert(scope);
+        bool const success = _children.insert(scope).second;
         SC_ASSERT(success, "");
     }
-    else {
-        impl(entity);
+    /// We add the entity to our own symbol table
+    /// We don't add anonymous entities because entities are keyed by their name
+    /// We don't add functions because their names collide with their overload
+    /// sets
+    if (entity->isAnonymous() || isa<Function>(entity)) {
+        return;
+    }
+    for (auto& name: entity->alternateNames()) {
+        auto const [itr, success] = _entities.insert({ name, entity });
+        SC_ASSERT(success, "");
     }
 }
 
