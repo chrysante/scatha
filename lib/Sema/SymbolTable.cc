@@ -39,7 +39,7 @@ SymbolTable::SymbolTable() {
     _f32   = cast<StructureType const*>(declareBuiltinType("f32", 4, 4));
     _f64   = cast<StructureType const*>(declareBuiltinType("f64", 8, 8));
 #endif
-    _int   = cast<StructureType const*>(declareBuiltinType("int", 8, 8));
+    _s64   = cast<StructureType const*>(declareBuiltinType("int", 8, 8));
     _float = cast<StructureType const*>(declareBuiltinType("float", 8, 8));
     _string =
         cast<StructureType const*>(declareBuiltinType("string",
@@ -213,7 +213,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     auto* arrayType = addEntity<ArrayType>(elementType, size);
     _arrayTypes.insert({ key, arrayType });
     withScopeCurrent(arrayType, [&] {
-        auto* countVar = &addVariable("count", qualInt()).value();
+        auto* countVar = &addVariable("count", qS64()).value();
         countVar->setIndex(1);
         arrayType->setCountVariable(countVar);
     });
@@ -282,27 +282,27 @@ Entity const* SymbolTable::lookup(std::string_view name) const {
     return nullptr;
 }
 
-QualType const* SymbolTable::qualVoid(TypeQualifiers qualifiers) {
+QualType const* SymbolTable::qVoid(TypeQualifiers qualifiers) {
     return qualify(_void, qualifiers);
 }
 
-QualType const* SymbolTable::qualByte(TypeQualifiers qualifiers) {
+QualType const* SymbolTable::qByte(TypeQualifiers qualifiers) {
     return qualify(_bool, qualifiers);
 }
 
-QualType const* SymbolTable::qualBool(TypeQualifiers qualifiers) {
+QualType const* SymbolTable::qBool(TypeQualifiers qualifiers) {
     return qualify(_bool, qualifiers);
 }
 
-QualType const* SymbolTable::qualInt(TypeQualifiers qualifiers) {
-    return qualify(_int, qualifiers);
+QualType const* SymbolTable::qS64(TypeQualifiers qualifiers) {
+    return qualify(_s64, qualifiers);
 }
 
-QualType const* SymbolTable::qualFloat(TypeQualifiers qualifiers) {
+QualType const* SymbolTable::qFloat(TypeQualifiers qualifiers) {
     return qualify(_float, qualifiers);
 }
 
-QualType const* SymbolTable::qualString(TypeQualifiers qualifiers) {
+QualType const* SymbolTable::qString(TypeQualifiers qualifiers) {
     return qualify(_string, qualifiers);
 }
 

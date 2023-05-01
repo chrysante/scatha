@@ -80,13 +80,13 @@ bool Context::analyze(ast::Expression& expr) {
 bool Context::analyzeImpl(ast::Literal& lit) {
     switch (lit.kind()) {
     case ast::LiteralKind::Integer:
-        lit.decorate(nullptr, sym.qualInt());
+        lit.decorate(nullptr, sym.qS64());
         return true;
     case ast::LiteralKind::Boolean:
-        lit.decorate(nullptr, sym.qualBool());
+        lit.decorate(nullptr, sym.qBool());
         return true;
     case ast::LiteralKind::FloatingPoint:
-        lit.decorate(nullptr, sym.qualFloat());
+        lit.decorate(nullptr, sym.qFloat());
         return true;
     case ast::LiteralKind::This: {
         auto* scope = &sym.currentScope();
@@ -104,7 +104,7 @@ bool Context::analyzeImpl(ast::Literal& lit) {
         return true;
     }
     case ast::LiteralKind::String:
-        lit.decorate(nullptr, sym.qualString());
+        lit.decorate(nullptr, sym.qString());
         return true;
     }
 }
@@ -121,7 +121,7 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
     case ast::UnaryPrefixOperator::Promotion:
         [[fallthrough]];
     case ast::UnaryPrefixOperator::Negation:
-        if (operandType->base() != sym.Int() &&
+        if (operandType->base() != sym.S64() &&
             operandType->base() != sym.Float())
         {
             submitIssue();
@@ -129,7 +129,7 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
         }
         break;
     case ast::UnaryPrefixOperator::BitwiseNot:
-        if (operandType->base() != sym.Int()) {
+        if (operandType->base() != sym.S64()) {
             submitIssue();
             return false;
         }
@@ -144,7 +144,7 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
         [[fallthrough]];
     case ast::UnaryPrefixOperator::Decrement:
         // TODO: Check for mutability
-        if (operandType->base() != sym.Int()) {
+        if (operandType->base() != sym.S64()) {
             submitIssue();
             return false;
         }
@@ -349,7 +349,7 @@ bool Context::analyzeImpl(ast::UniqueExpression& expr) {
 bool Context::analyzeImpl(ast::Conditional& c) {
     bool success = analyze(*c.condition());
     if (success) {
-        convertImplicitly(c.condition(), sym.qualBool(), iss);
+        convertImplicitly(c.condition(), sym.qBool(), iss);
     }
     success &= analyze(*c.thenExpr());
     success &= expectValue(*c.thenExpr());
@@ -389,7 +389,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
         return false;
     }
     auto& arg = *expr.arguments().front();
-    if (arg.type()->base() != sym.Int()) {
+    if (arg.type()->base() != sym.S64()) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
@@ -591,7 +591,7 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     case Addition:
         [[fallthrough]];
     case Subtraction:
-        if (!verifyAnyOf(commonType, { sym.Int(), sym.Float() })) {
+        if (!verifyAnyOf(commonType, { sym.S64(), sym.Float() })) {
             return nullptr;
         }
         if (!convertOperands()) {
@@ -600,7 +600,7 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         return stripQualifiers(commonType);
 
     case Remainder:
-        if (!verifyAnyOf(commonType, { sym.Int() })) {
+        if (!verifyAnyOf(commonType, { sym.S64() })) {
             return nullptr;
         }
         if (!convertOperands()) {
@@ -613,7 +613,7 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     case BitwiseXOr:
         [[fallthrough]];
     case BitwiseOr:
-        if (!verifyAnyOf(commonType, { sym.Byte(), sym.Bool(), sym.Int() })) {
+        if (!verifyAnyOf(commonType, { sym.Byte(), sym.Bool(), sym.S64() })) {
             return nullptr;
         }
         if (!convertOperands()) {
@@ -628,26 +628,26 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     case Greater:
         [[fallthrough]];
     case GreaterEq:
-        if (!verifyAnyOf(commonType, { sym.Byte(), sym.Int(), sym.Float() })) {
+        if (!verifyAnyOf(commonType, { sym.Byte(), sym.S64(), sym.Float() })) {
             return nullptr;
         }
         if (!convertOperands()) {
             return nullptr;
         }
-        return sym.qualBool();
+        return sym.qBool();
 
     case Equals:
         [[fallthrough]];
     case NotEquals:
         if (!verifyAnyOf(commonType,
-                         { sym.Byte(), sym.Bool(), sym.Int(), sym.Float() }))
+                         { sym.Byte(), sym.Bool(), sym.S64(), sym.Float() }))
         {
             return nullptr;
         }
         if (!convertOperands()) {
             return nullptr;
         }
-        return sym.qualBool();
+        return sym.qBool();
 
     case LogicalAnd:
         [[fallthrough]];
@@ -656,12 +656,12 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
             return nullptr;
         }
         convertOperands();
-        return sym.qualBool();
+        return sym.qBool();
 
     case LeftShift:
         [[fallthrough]];
     case RightShift:
-        if (!verifyAnyOf(commonType, { sym.Int() })) {
+        if (!verifyAnyOf(commonType, { sym.S64() })) {
             return nullptr;
         }
         if (!convertOperands()) {
@@ -675,7 +675,7 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
             isImplicitlyConvertible(expr.lhs()->type(), expr.rhs()->type()))
         {
             insertImplicitConversion(expr.rhs(), expr.lhs()->type());
-            return sym.qualVoid();
+            return sym.qVoid();
         }
         [[fallthrough]];
     case AddAssignment:
@@ -705,14 +705,14 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
             return nullptr;
         }
         if (fromType == toType) {
-            return sym.qualVoid();
+            return sym.qVoid();
         }
         if (!isImplicitlyConvertible(toType, fromType)) {
             submitIssue();
             return nullptr;
         }
         insertImplicitConversion(expr.rhs(), toType);
-        return sym.qualVoid();
+        return sym.qVoid();
     }
     case Comma:
         return expr.rhs()->type();
@@ -727,10 +727,10 @@ Function* Context::findExplicitCast(ObjectType const* to,
     if (from.size() != 1) {
         return nullptr;
     }
-    if (from.front()->base() == sym.Int() && to == sym.Float()) {
+    if (from.front()->base() == sym.S64() && to == sym.Float()) {
         return sym.builtinFunction(static_cast<size_t>(svm::Builtin::i64tof64));
     }
-    if (from.front()->base() == sym.Float() && to == sym.Int()) {
+    if (from.front()->base() == sym.Float() && to == sym.S64()) {
         return sym.builtinFunction(static_cast<size_t>(svm::Builtin::f64toi64));
     }
     return nullptr;

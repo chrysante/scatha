@@ -303,7 +303,7 @@ void Context::analyzeImpl(ast::IfStatement& stmt) {
         return;
     }
     if (analyzeExpr(*stmt.condition())) {
-        convertImplicitly(stmt.condition(), sym.qualBool(), iss);
+        convertImplicitly(stmt.condition(), sym.qBool(), iss);
     }
     analyze(*stmt.thenBlock());
     if (stmt.elseBlock()) {
@@ -325,7 +325,7 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
         analyze(*stmt.varDecl());
     }
     if (analyzeExpr(*stmt.condition())) {
-        convertImplicitly(stmt.condition(), sym.qualBool(), iss);
+        convertImplicitly(stmt.condition(), sym.qBool(), iss);
     }
     if (stmt.increment()) {
         analyzeExpr(*stmt.increment());

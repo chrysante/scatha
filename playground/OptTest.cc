@@ -78,7 +78,7 @@ public fn callback(n: int) {
 void playground::optTest(std::filesystem::path path) {
     sema::SymbolTable semaSym;
     auto cppCallbackSig =
-        sema::FunctionSignature({ semaSym.qualInt() }, semaSym.qualInt());
+        sema::FunctionSignature({ semaSym.qS64() }, semaSym.qS64());
     semaSym.declareSpecialFunction(sema::FunctionKind::External,
                                    "cppCallback",
                                    1,

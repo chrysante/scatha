@@ -10,7 +10,7 @@ using namespace scatha;
 
 TEST_CASE("SymbolTable lookup", "[sema]") {
     sema::SymbolTable sym;
-    auto const var = sym.addVariable("x", sym.qualInt());
+    auto const var = sym.addVariable("x", sym.qS64());
     REQUIRE(var.hasValue());
     auto* x = sym.lookup("x");
     CHECK(&var.value() == x);
@@ -22,20 +22,19 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
     auto* fnI = &sym.declareFunction("i").value();
     auto const overloadSuccessI =
         sym.setSignature(fnI,
-                         sema::FunctionSignature({ sym.qualInt() },
-                                                 sym.qualInt()));
+                         sema::FunctionSignature({ sym.qS64() }, sym.qS64()));
     REQUIRE(overloadSuccessI);
     auto* xType = &sym.declareStructureType("X").value();
     // Begin X
     sym.pushScope(xType);
     // Add member variable 'i' to
-    auto* memberI = &sym.addVariable("i", sym.qualInt()).value();
+    auto* memberI = &sym.addVariable("i", sym.qS64()).value();
     sym.popScope();
     // End X
     xType->setSize(8);
     auto const* const overloadSet = sym.lookup<sema::OverloadSet>("i");
     REQUIRE(overloadSet != nullptr);
-    auto const* fnILookup = overloadSet->find(std::array{ sym.qualInt() });
+    auto const* fnILookup = overloadSet->find(std::array{ sym.qS64() });
     CHECK(fnI == fnILookup);
     sym.pushScope(xType);
     auto const* const memberVar = sym.lookup<sema::Variable>("i");

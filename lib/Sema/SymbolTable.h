@@ -212,22 +212,21 @@ public:
     StructureType const* Void() const { return _void; }
     StructureType const* Byte() const { return _byte; }
     StructureType const* Bool() const { return _bool; }
-    StructureType const* Int() const { return _int; }
+    StructureType const* S64() const { return _s64; }
     StructureType const* Float() const { return _float; }
     StructureType const* String() const { return _string; }
 
-    QualType const* qualVoid(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qVoid(TypeQualifiers qualifiers = TypeQualifiers::None);
 
-    QualType const* qualByte(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qByte(TypeQualifiers qualifiers = TypeQualifiers::None);
 
-    QualType const* qualBool(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qBool(TypeQualifiers qualifiers = TypeQualifiers::None);
 
-    QualType const* qualInt(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qS64(TypeQualifiers qualifiers = TypeQualifiers::None);
 
-    QualType const* qualFloat(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qFloat(TypeQualifiers qualifiers = TypeQualifiers::None);
 
-    QualType const* qualString(
-        TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qString(TypeQualifiers qualifiers = TypeQualifiers::None);
 
     /// Review if we want to keep these:
     void setSortedStructureTypes(utl::vector<StructureType*> ids) {
@@ -270,7 +269,7 @@ private:
     utl::vector<Function*> _builtinFunctions;
 
     /// Builtin types
-    StructureType const *_void, *_byte, *_bool, *_int, *_float, *_string;
+    StructureType const *_void, *_byte, *_bool, *_s64, *_float, *_string;
 };
 
 } // namespace scatha::sema

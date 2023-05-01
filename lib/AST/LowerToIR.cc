@@ -1052,7 +1052,7 @@ ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
             if (&structType == symTable.Bool()) {
                 return irCtx.integralType(1);
             }
-            if (&structType == symTable.Int()) {
+            if (&structType == symTable.S64()) {
                 return irCtx.integralType(64);
             }
             if (&structType == symTable.Float()) {
@@ -1117,7 +1117,7 @@ ir::CompareMode CodeGenContext::mapCompareMode(
     if (type == symTable.Bool()) {
         return ir::CompareMode::Unsigned;
     }
-    if (type == symTable.Int()) {
+    if (type == symTable.S64()) {
         return ir::CompareMode::Signed;
     }
     if (type == symTable.Float()) {
@@ -1150,7 +1150,7 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
     sema::StructureType const* type, ast::BinaryOperator op) const {
     switch (op) {
     case BinaryOperator::Multiplication:
-        if (type == symTable.Int()) {
+        if (type == symTable.S64()) {
             return ir::ArithmeticOperation::Mul;
         }
         if (type == symTable.Float()) {
@@ -1158,7 +1158,7 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
         }
         SC_UNREACHABLE();
     case BinaryOperator::Division:
-        if (type == symTable.Int()) {
+        if (type == symTable.S64()) {
             return ir::ArithmeticOperation::SDiv;
         }
         if (type == symTable.Float()) {
@@ -1166,12 +1166,12 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
         }
         SC_UNREACHABLE();
     case BinaryOperator::Remainder:
-        if (type == symTable.Int()) {
+        if (type == symTable.S64()) {
             return ir::ArithmeticOperation::SRem;
         }
         SC_UNREACHABLE();
     case BinaryOperator::Addition:
-        if (type == symTable.Int()) {
+        if (type == symTable.S64()) {
             return ir::ArithmeticOperation::Add;
         }
         if (type == symTable.Float()) {
@@ -1179,7 +1179,7 @@ ir::ArithmeticOperation CodeGenContext::mapArithmeticOp(
         }
         SC_UNREACHABLE();
     case BinaryOperator::Subtraction:
-        if (type == symTable.Int()) {
+        if (type == symTable.S64()) {
             return ir::ArithmeticOperation::Sub;
         }
         if (type == symTable.Float()) {

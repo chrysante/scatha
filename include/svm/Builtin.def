@@ -9,35 +9,35 @@
 #endif
 
 /// ## Conversion Functions
-SVM_BUILTIN_DEF(f64toi64,  Const, { qualFloat() }, qualInt())
-SVM_BUILTIN_DEF(i64tof64,  Const, { qualInt() }, qualFloat())
+SVM_BUILTIN_DEF(f64toi64,  Const, { qFloat() }, qS64())
+SVM_BUILTIN_DEF(i64tof64,  Const, { qS64() }, qFloat())
 
 /// ## Common Math Functions
-SVM_BUILTIN_DEF(abs_f64,   Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(exp_f64,   Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(exp2_f64,  Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(exp10_f64, Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(log_f64,   Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(log2_f64,  Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(log10_f64, Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(pow_f64,   Const, { qualFloat(), qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(sqrt_f64,  Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(cbrt_f64,  Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(hypot_f64, Const, { qualFloat(), qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(sin_f64,   Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(cos_f64,   Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(tan_f64,   Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(asin_f64,  Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(acos_f64,  Const, { qualFloat() }, qualFloat())
-SVM_BUILTIN_DEF(atan_f64,  Const, { qualFloat() }, qualFloat())
+SVM_BUILTIN_DEF(abs_f64,   Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(exp_f64,   Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(exp2_f64,  Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(exp10_f64, Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(log_f64,   Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(log2_f64,  Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(log10_f64, Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(pow_f64,   Const, { qFloat(), qFloat() }, qFloat())
+SVM_BUILTIN_DEF(sqrt_f64,  Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(cbrt_f64,  Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(hypot_f64, Const, { qFloat(), qFloat() }, qFloat())
+SVM_BUILTIN_DEF(sin_f64,   Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(cos_f64,   Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(tan_f64,   Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(asin_f64,  Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(acos_f64,  Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(atan_f64,  Const, { qFloat() }, qFloat())
 
 /// ## Memory Allocation
-SVM_BUILTIN_DEF(alloc,   None,  { qualInt() }, arrayView(Byte()))
-SVM_BUILTIN_DEF(dealloc, None,  { arrayView(Byte()) }, qualVoid())
+SVM_BUILTIN_DEF(alloc,   None,  { qS64() }, arrayView(Byte()))
+SVM_BUILTIN_DEF(dealloc, None,  { arrayView(Byte()) }, qVoid())
 
 /// ## Console Output
-SVM_BUILTIN_DEF(putchar,   None,  { qualInt() }, qualVoid())
-SVM_BUILTIN_DEF(puti64,    None,  { qualInt() }, qualVoid())
-SVM_BUILTIN_DEF(putf64,    None,  { qualFloat() }, qualVoid())
+SVM_BUILTIN_DEF(putchar,   None,  { qS64() }, qVoid())
+SVM_BUILTIN_DEF(puti64,    None,  { qS64() }, qVoid())
+SVM_BUILTIN_DEF(putf64,    None,  { qFloat() }, qVoid())
 
 #undef SVM_BUILTIN_DEF
