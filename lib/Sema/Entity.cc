@@ -98,8 +98,11 @@ std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
 std::string QualType::makeName(ObjectType* base, TypeQualifiers qualifiers) {
     using enum TypeQualifiers;
     std::stringstream sstr;
-    if (test(qualifiers & (ExplicitReference | ImplicitReference))) {
+    if (test(qualifiers & ExplicitReference)) {
         sstr << "&";
+    }
+    else if (test(qualifiers & ImplicitReference)) {
+        sstr << "`";
     }
     if (test(qualifiers & Mutable)) {
         sstr << "mut ";
@@ -128,14 +131,10 @@ static bool signatureMatch(std::span<QualType const* const> parameterTypes,
             return false;
         }
         SC_ASSERT(!param->has(TypeQualifiers::ExplicitReference), "");
-        if (param->has(TypeQualifiers::ImplicitReference) &&
-            !arg->has(TypeQualifiers::ExplicitReference))
-        {
+        if (param->isImplicitReference() && !arg->isExplicitReference()) {
             return false;
         }
-        if (!param->has(TypeQualifiers::ImplicitReference) &&
-            arg->has(TypeQualifiers::ExplicitReference))
-        {
+        if (!param->isImplicitReference() && arg->isExplicitReference()) {
             return false;
         }
     }

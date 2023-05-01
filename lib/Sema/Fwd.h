@@ -100,10 +100,16 @@ enum class TypeQualifiers {
     Mutable           = 1 << 0,
     ImplicitReference = 1 << 1,
     ExplicitReference = 1 << 2,
+    AnyReference      = ImplicitReference | ExplicitReference,
     Unique            = 1 << 3,
 };
 
 UTL_ENUM_OPERATORS(TypeQualifiers);
+
+static constexpr auto Mutable           = TypeQualifiers::Mutable;
+static constexpr auto ImplicitReference = TypeQualifiers::ImplicitReference;
+static constexpr auto ExplicitReference = TypeQualifiers::ExplicitReference;
+static constexpr auto AnyReference      = TypeQualifiers::AnyReference;
 
 ///
 enum class FunctionAttribute : unsigned {

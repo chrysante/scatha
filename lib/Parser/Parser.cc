@@ -193,7 +193,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     }
     if (idToken.kind() == BitAnd) {
         tokens.eat();
-        sema::TypeQualifiers quals = sema::TypeQualifiers::ImplicitReference;
+        sema::TypeQualifiers quals = sema::ImplicitReference;
         if (eatMut()) {
             quals |= sema::TypeQualifiers::Mutable;
         }

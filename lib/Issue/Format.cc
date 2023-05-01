@@ -27,7 +27,7 @@ static std::string_view getLineImpl(std::string_view text, size_t index) {
             --begin;
         }
     }
-    else {
+    else if (begin + 1 < text.size() && text[begin + 1] != '\n') {
         ++begin;
     }
     size_t end = index;
@@ -39,8 +39,8 @@ static std::string_view getLineImpl(std::string_view text, size_t index) {
 
 static std::string_view getLine(std::string_view text,
                                 size_t index,
-                                ssize_t offset = 0) {
-    while (offset < 0) {
+                                ssize_t lineOffset = 0) {
+    while (lineOffset < 0) {
         while (text[index] != '\n') {
             if (index == 0) {
                 return {};
@@ -52,10 +52,10 @@ static std::string_view getLine(std::string_view text,
                 return {};
             }
             --index;
-            ++offset;
-        } while (text[index] == '\n' && offset != 0);
+            ++lineOffset;
+        } while (text[index] == '\n' && lineOffset != 0);
     }
-    while (offset > 0) {
+    while (lineOffset > 0) {
         while (text[index] != '\n') {
             ++index;
             if (index == text.size()) {
@@ -67,8 +67,8 @@ static std::string_view getLine(std::string_view text,
             if (index == text.size()) {
                 return {};
             }
-            --offset;
-        } while (text[index] == '\n' && offset != 0);
+            --lineOffset;
+        } while (text[index] == '\n' && lineOffset != 0);
     }
     return getLineImpl(text, index);
 }

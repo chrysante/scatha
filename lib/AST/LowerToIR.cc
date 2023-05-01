@@ -51,10 +51,20 @@ struct CodeGenContext {
     void generateImpl(LoopStatement const&);
     void generateImpl(JumpStatement const&);
 
-    ir::Value* getValue(Expression const& expr, bool dereference = true);
+    /// **Always** dereferences implicit references
+    /// Only explicit references are returned as pointers
+    ir::Value* getValue(Expression const& expr);
 
-    ir::Value* getAddress(Expression const& node, bool dereference = true);
+    /// Return the logical address, i.e. if expression is an implicit reference,
+    /// it returns the address it refers to, if it is an l-value object then it
+    /// returns the address of that
+    ir::Value* getAddress(Expression const& node);
 
+    /// Returns the address of a reference to reassign it
+    ir::Value* getReferenceAddress(Expression const& node);
+
+    /// `getValueImpl()` returns references as pointers. Thus it is the
+    /// responsibility of `getValue()` to dereference those pointers
     ir::Value* getValueImpl(AbstractSyntaxTree const& expr) {
         SC_UNREACHABLE();
     } // Delete this later
@@ -68,10 +78,21 @@ struct CodeGenContext {
     ir::Value* getValueImpl(UniqueExpression const&);
     ir::Value* getValueImpl(Conditional const&);
     ir::Value* getValueImpl(FunctionCall const&);
+    ir::Value* genCallImpl(FunctionCall const&);
     ir::Value* getValueImpl(Subscript const&);
     ir::Value* getValueImpl(ImplicitConversion const&);
     ir::Value* getValueImpl(ListExpression const&);
 
+    /// Store a temporary value to memory
+    /// \Returns the address
+    ir::Value* storeTmpToMemory(ir::Value* value,
+                                ir::Type const* type = nullptr,
+                                std::string name     = {});
+
+    /// `getAddressImpl()` always returns the addresses of reference variables.
+    /// It is the responsibility of `getAddress()` to dereference the address to
+    /// get the actual address Only when called by `getReferenceAddress()` is
+    /// the address if the reference returned
     ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) {
         SC_UNREACHABLE();
     } // Delete this later
@@ -79,8 +100,10 @@ struct CodeGenContext {
     ir::Value* getAddressImpl(Literal const& lit);
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
+    ir::Value* getAddressImpl(FunctionCall const&);
     ir::Value* getAddressImpl(Subscript const&);
     ir::Value* getAddressImpl(ReferenceExpression const&);
+    ir::Value* getAddressImpl(ImplicitConversion const&);
     ir::Value* getAddressImpl(ListExpression const&);
 
     ir::Value* loadAddress(ir::Value* address,
@@ -212,17 +235,13 @@ void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
         return;
     }
     /// Non-array case
-    auto* address = new ir::Alloca(irCtx,
-                                   mapType(varDecl.type()),
-                                   std::string(varDecl.name()));
-    addAlloca(address);
-    memorizeVariableAddress(varDecl.variable(), address);
-    if (!varDecl.initExpression()) {
-        return;
-    }
-    ir::Value* initValue = getValue(*varDecl.initExpression());
-    auto* store          = new ir::Store(irCtx, address, initValue);
-    currentBB()->pushBack(store);
+    ir::Value* initValue = varDecl.initExpression() ?
+                               getValue(*varDecl.initExpression()) :
+                               nullptr;
+    variableAddressMap[varDecl.variable()] =
+        storeTmpToMemory(initValue,
+                         mapType(varDecl.type()),
+                         std::string(varDecl.name()));
 }
 
 void CodeGenContext::generateImpl(ParameterDeclaration const&) {
@@ -240,8 +259,7 @@ void CodeGenContext::generateImpl(EmptyStatement const& empty) {
 void CodeGenContext::generateImpl(ReturnStatement const& retDecl) {
     auto* returnValue = retDecl.expression() ? getValue(*retDecl.expression()) :
                                                irCtx.voidValue();
-    auto* ret         = new ir::Return(irCtx, returnValue);
-    currentBB()->pushBack(ret);
+    currentBB()->pushBack(new ir::Return(irCtx, returnValue));
 }
 
 void CodeGenContext::generateImpl(IfStatement const& ifStatement) {
@@ -379,35 +397,33 @@ void CodeGenContext::generateImpl(JumpStatement const& jump) {
     currentBB()->pushBack(gotoEnd);
 }
 
-ir::Value* CodeGenContext::getValue(Expression const& expr, bool dereference) {
-    auto* value =
-        visit(expr, [this](auto const& expr) { return getValueImpl(expr); });
-    auto* semaType = expr.type();
-    if (dereference && semaType->base() != symTable.Void() &&
-        semaType->isImplicitReference() && !semaType->isExplicitReference())
-    {
-        return loadAddress(value,
-                           mapType(semaType->base()),
-                           utl::strcat(value->name(), ".value"));
-    }
-    return value;
+ir::Value* CodeGenContext::getValue(Expression const& expr) {
+    return visit(expr, [this](auto const& expr) { return getValueImpl(expr); });
 }
 
-ir::Value* CodeGenContext::getAddress(Expression const& expr,
-                                      bool dereference) {
+ir::Value* CodeGenContext::getAddress(Expression const& expr) {
+    SC_ASSERT(expr.isLValue() || expr.type()->isReference(),
+              "Only l-values and references can have addresses");
     auto* address =
         visit(expr, [this](auto const& expr) { return getAddressImpl(expr); });
-    auto* semaType = expr.type();
-    if (dereference && semaType->has(sema::TypeQualifiers::ImplicitReference)) {
-        return loadAddress(address,
-                           irCtx.pointerType(),
-                           utl::strcat(address->name(), ".value"));
+    if (expr.isLValue() && expr.type()->isReference()) {
+        /// L-value references have addresses themselves. They need to be
+        /// dereferenced
+        return loadAddress(address, irCtx.pointerType(), "addr");
     }
     return address;
 }
 
+ir::Value* CodeGenContext::getReferenceAddress(Expression const& expr) {
+    SC_ASSERT(expr.isLValue() && expr.type()->isReference(),
+              "Only references that are l-values have addresses themselves");
+    return visit(expr,
+                 [this](auto const& expr) { return getAddressImpl(expr); });
+}
+
 ir::Value* CodeGenContext::getValueImpl(Identifier const& id) {
-    return loadAddress(getAddressImpl(id), mapType(id.type()), id.value());
+    auto* address = getAddress(id);
+    return loadAddress(address, mapType(id.type()->base()), id.value());
 }
 
 ir::Value* CodeGenContext::getValueImpl(Literal const& lit) {
@@ -418,51 +434,62 @@ ir::Value* CodeGenContext::getValueImpl(Literal const& lit) {
         return irCtx.integralConstant(lit.value<LiteralKind::Boolean>());
     case LiteralKind::FloatingPoint:
         return irCtx.floatConstant(lit.value<LiteralKind::FloatingPoint>(), 64);
-    case LiteralKind::This:
-        return loadAddress(getAddressImpl(lit), mapType(lit.type()), "__this");
+    case LiteralKind::This: {
+        auto* address = getAddressImpl(lit);
+        return loadAddress(address, mapType(lit.type()->base()), "__this");
+    }
     case LiteralKind::String:
         SC_DEBUGFAIL();
     }
 }
 
 ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
-    if (expr.operation() == ast::UnaryPrefixOperator::Increment ||
-        expr.operation() == ast::UnaryPrefixOperator::Decrement)
-    {
-        ir::Value* addr      = getAddress(*expr.operand());
-        ir::Type const* type = mapType(expr.operand()->type()->base());
-        ir::Value* value =
-            loadAddress(addr, type, utl::strcat(expr.operation(), ".value"));
+    switch (expr.operation()) {
+    case ast::UnaryPrefixOperator::Increment:
+        [[fallthrough]];
+    case ast::UnaryPrefixOperator::Decrement: {
+        ir::Value* const operandAddress = getAddress(*expr.operand());
+        SC_ASSERT(isa<ir::PointerType>(operandAddress->type()),
+                  "We need a pointer to store to");
+        ir::Type const* arithmeticType =
+            mapType(expr.operand()->type()->base());
+        ir::Value* operandValue =
+            loadAddress(operandAddress,
+                        arithmeticType,
+                        utl::strcat(expr.operation(), ".value"));
         auto const operation =
             expr.operation() == ast::UnaryPrefixOperator::Increment ?
                 ir::ArithmeticOperation::Add :
                 ir::ArithmeticOperation::Sub;
-        auto* arithmetic =
-            new ir::ArithmeticInst(value,
+        auto* newValue =
+            new ir::ArithmeticInst(operandValue,
                                    irCtx.integralConstant(APInt(1, 64)),
                                    operation,
                                    utl::strcat(expr.operation(), ".result"));
-        currentBB()->pushBack(arithmetic);
-        auto* store = new ir::Store(irCtx, addr, arithmetic);
+        currentBB()->pushBack(newValue);
+        auto* store = new ir::Store(irCtx, operandAddress, newValue);
         currentBB()->pushBack(store);
-        return arithmetic;
+        return newValue;
     }
-    ir::Value* const operand = getValue(*expr.operand());
-    if (expr.operation() == ast::UnaryPrefixOperator::Promotion) {
-        return operand;
-    }
-    else if (expr.operation() == ast::UnaryPrefixOperator::Negation) {
-        auto* type = operand->type();
-        auto* inst = new ir::ArithmeticInst(irCtx.arithmeticConstant(0, type),
-                                            operand,
-                                            isa<ir::IntegralType>(type) ?
-                                                ir::ArithmeticOperation::Sub :
-                                                ir::ArithmeticOperation::FSub,
-                                            std::string("expr.result"));
+    case ast::UnaryPrefixOperator::Promotion:
+        return getValue(*expr.operand());
+    case ast::UnaryPrefixOperator::Negation: {
+        ir::Value* const operand = getValue(*expr.operand());
+        SC_ASSERT(isa<ir::ArithmeticType>(operand->type()),
+                  "The other unary operators operate on arithmetic values");
+        auto* zero     = irCtx.arithmeticConstant(0, operand->type());
+        auto operation = isa<ir::IntegralType>(operand->type()) ?
+                             ir::ArithmeticOperation::Sub :
+                             ir::ArithmeticOperation::FSub;
+        auto* inst =
+            new ir::ArithmeticInst(zero, operand, operation, "negated");
         currentBB()->pushBack(inst);
         return inst;
     }
-    else {
+    default: {
+        ir::Value* const operand = getValue(*expr.operand());
+        SC_ASSERT(isa<ir::ArithmeticType>(operand->type()),
+                  "The other unary operators operate on arithmetic values");
         auto* inst =
             new ir::UnaryArithmeticInst(irCtx,
                                         operand,
@@ -471,140 +498,178 @@ ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
         currentBB()->pushBack(inst);
         return inst;
     }
+    }
 }
 
-ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& exprDecl) {
-    switch (exprDecl.operation()) {
-    case BinaryOperator::Multiplication:
+static bool isIntType(size_t width, ir::Type const* type) {
+    return cast<ir::IntegralType const*>(type)->bitWidth() == 1;
+}
+
+ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& expr) {
+    auto* structType =
+        cast<sema::StructureType const*>(expr.lhs()->type()->base());
+
+    switch (expr.operation()) {
+        using enum BinaryOperator;
+    case Multiplication:
         [[fallthrough]];
-    case BinaryOperator::Division:
+    case Division:
         [[fallthrough]];
-    case BinaryOperator::Remainder:
+    case Remainder:
         [[fallthrough]];
-    case BinaryOperator::Addition:
+    case Addition:
         [[fallthrough]];
-    case BinaryOperator::Subtraction:
+    case Subtraction:
         [[fallthrough]];
-    case BinaryOperator::LeftShift:
+    case LeftShift:
         [[fallthrough]];
-    case BinaryOperator::RightShift:
+    case RightShift:
         [[fallthrough]];
-    case BinaryOperator::BitwiseAnd:
+    case BitwiseAnd:
         [[fallthrough]];
-    case BinaryOperator::BitwiseXOr:
+    case BitwiseXOr:
         [[fallthrough]];
-    case BinaryOperator::BitwiseOr: {
-        ir::Value* const lhs = getValue(*exprDecl.lhs());
-        ir::Value* const rhs = getValue(*exprDecl.rhs());
-        auto* type = cast<sema::StructureType const*>(exprDecl.type()->base());
-        auto operation = mapArithmeticOp(type, exprDecl.operation());
+    case BitwiseOr: {
+        ir::Value* const lhs = getValue(*expr.lhs());
+        ir::Value* const rhs = getValue(*expr.rhs());
+        auto* type           = lhs->type();
+        if (expr.operation() != LeftShift && expr.operation() != RightShift) {
+            SC_ASSERT(lhs->type() == rhs->type(),
+                      "Need same types to do arithmetic");
+            SC_ASSERT(isa<ir::ArithmeticType>(type),
+                      "Need arithmetic type to do arithmetic");
+        }
+        else {
+            SC_ASSERT(isa<ir::IntegralType>(lhs->type()),
+                      "Need integral type for shift");
+            SC_ASSERT(isa<ir::IntegralType>(rhs->type()),
+                      "Need integral type for shift");
+        }
+        auto operation = mapArithmeticOp(structType, expr.operation());
         auto* arithInst =
             new ir::ArithmeticInst(lhs, rhs, operation, "expr.result");
         currentBB()->pushBack(arithInst);
         return arithInst;
     }
-    case BinaryOperator::LogicalAnd:
+    case LogicalAnd:
         [[fallthrough]];
-    case BinaryOperator::LogicalOr: {
-        ir::Value* const lhs = getValue(*exprDecl.lhs());
-        auto* startBlock     = currentBB();
-        auto* rhsBlock       = new ir::BasicBlock(irCtx, "logical.rhs");
-        auto* endBlock       = new ir::BasicBlock(irCtx, "logical.end");
+    case LogicalOr: {
+        ir::Value* const lhs = getValue(*expr.lhs());
+        SC_ASSERT(isIntType(1, lhs->type()), "Need i1 for logical operation");
+        auto* startBlock = currentBB();
+        auto* rhsBlock   = new ir::BasicBlock(irCtx, "log.rhs");
+        auto* endBlock   = new ir::BasicBlock(irCtx, "log.end");
         currentBB()->pushBack(
-            exprDecl.operation() == BinaryOperator::LogicalAnd ?
+            expr.operation() == LogicalAnd ?
                 new ir::Branch(irCtx, lhs, rhsBlock, endBlock) :
                 new ir::Branch(irCtx, lhs, endBlock, rhsBlock));
         currentFunction->pushBack(rhsBlock);
         setCurrentBB(rhsBlock);
-        auto* rhs = getValue(*exprDecl.rhs());
+        auto* rhs = getValue(*expr.rhs());
+        SC_ASSERT(isIntType(1, rhs->type()), "Need i1 for logical operation");
         currentBB()->pushBack(new ir::Goto(irCtx, endBlock));
         currentFunction->pushBack(endBlock);
         setCurrentBB(endBlock);
         auto* result =
-            exprDecl.operation() == BinaryOperator::LogicalAnd ?
+            expr.operation() == LogicalAnd ?
                 new ir::Phi({ { startBlock, irCtx.integralConstant(0, 1) },
                               { rhsBlock, rhs } },
-                            "logical.and.value") :
+                            "log.and.value") :
                 new ir::Phi({ { startBlock, irCtx.integralConstant(1, 1) },
                               { rhsBlock, rhs } },
-                            "logical.or.value");
+                            "log.or.value");
         currentBB()->pushBack(result);
         return result;
     }
-    case BinaryOperator::Less:
+    case Less:
         [[fallthrough]];
-    case BinaryOperator::LessEq:
+    case LessEq:
         [[fallthrough]];
-    case BinaryOperator::Greater:
+    case Greater:
         [[fallthrough]];
-    case BinaryOperator::GreaterEq:
+    case GreaterEq:
         [[fallthrough]];
-    case BinaryOperator::Equals:
+    case Equals:
         [[fallthrough]];
-    case BinaryOperator::NotEquals: {
-        auto* type =
-            cast<sema::StructureType const*>(exprDecl.lhs()->type()->base());
+    case NotEquals: {
+        auto* lhs = getValue(*expr.lhs());
+        auto* rhs = getValue(*expr.rhs());
+        SC_ASSERT(lhs->type() == rhs->type(), "Need same type for comparison");
         auto* cmpInst = new ir::CompareInst(irCtx,
-                                            getValue(*exprDecl.lhs()),
-                                            getValue(*exprDecl.rhs()),
-                                            mapCompareMode(type),
-                                            mapCompareOp(exprDecl.operation()),
+                                            lhs,
+                                            rhs,
+                                            mapCompareMode(structType),
+                                            mapCompareOp(expr.operation()),
                                             "cmp.result");
         currentBB()->pushBack(cmpInst);
         return cmpInst;
     }
-    case BinaryOperator::Comma: {
-        getValue(*exprDecl.lhs());
-        return getValue(*exprDecl.rhs());
+    case Comma: {
+        getValue(*expr.lhs());
+        return getValue(*expr.rhs());
     }
-    case BinaryOperator::Assignment: {
-        bool const isExplRef = exprDecl.rhs()->type()->has(
-            sema::TypeQualifiers::ExplicitReference);
-        ir::Value* lhsAddr =
-            getAddress(*exprDecl.lhs(), /* deref = */ !isExplRef);
-        ir::Value* rhs = getValue(*exprDecl.rhs());
-        auto* store    = new ir::Store(irCtx, lhsAddr, rhs);
-        currentBB()->pushBack(store);
-        return store;
-    }
-    case BinaryOperator::AddAssignment:
+    case Assignment:
         [[fallthrough]];
-    case BinaryOperator::SubAssignment:
+    case AddAssignment:
         [[fallthrough]];
-    case BinaryOperator::MulAssignment:
+    case SubAssignment:
         [[fallthrough]];
-    case BinaryOperator::DivAssignment:
+    case MulAssignment:
         [[fallthrough]];
-    case BinaryOperator::RemAssignment:
+    case DivAssignment:
         [[fallthrough]];
-    case BinaryOperator::LSAssignment:
+    case RemAssignment:
         [[fallthrough]];
-    case BinaryOperator::RSAssignment:
+    case LSAssignment:
         [[fallthrough]];
-    case BinaryOperator::AndAssignment:
+    case RSAssignment:
         [[fallthrough]];
-    case BinaryOperator::OrAssignment:
+    case AndAssignment:
         [[fallthrough]];
-    case BinaryOperator::XOrAssignment: {
-        ir::Value* lhsAddr      = getAddress(*exprDecl.lhs());
-        ir::Type const* lhsType = mapType(exprDecl.lhs()->type()->base());
-        ir::Value* lhs          = loadAddress(lhsAddr, lhsType, "lhs");
-        ir::Value* rhs          = getValue(*exprDecl.rhs());
-        auto* type =
-            cast<sema::StructureType const*>(exprDecl.lhs()->type()->base());
-        auto* result =
-            new ir::ArithmeticInst(lhs,
-                                   rhs,
-                                   mapArithmeticAssignOp(type,
-                                                         exprDecl.operation()),
-                                   "expr.result");
-        currentBB()->pushBack(result);
-        auto* store = new ir::Store(irCtx, lhsAddr, result);
+    case OrAssignment:
+        [[fallthrough]];
+    case XOrAssignment: {
+        auto* rhs = getValue(*expr.rhs());
+        /// If user assign an implicit reference, sema should have inserted an
+        /// `ImplicitConversion` node that gives us a non-reference type here
+        if (expr.rhs()->type()->isReference()) {
+            /// Here we want to reassign the reference
+            SC_ASSERT(isa<ir::PointerType>(rhs->type()),
+                      "Explicit reference must resolve to pointer");
+            SC_ASSERT(expr.operation() == Assignment,
+                      "Can't do arithmetic with addresses");
+            auto* lhs   = getReferenceAddress(*expr.lhs());
+            auto* store = new ir::Store(irCtx, lhs, rhs);
+            currentBB()->pushBack(store);
+            return store;
+        }
+        SC_ASSERT(!isa<ir::PointerType>(rhs->type()),
+                  "Here rhs shall not be a pointer");
+        auto* lhs = getAddress(*expr.lhs());
+        SC_ASSERT(isa<ir::PointerType>(lhs->type()),
+                  "Need pointer to assign to variable");
+        auto* structType =
+            cast<sema::StructureType const*>(expr.lhs()->type()->base());
+        auto* assignee = [&]() -> ir::Value* {
+            if (expr.operation() == Assignment) {
+                return rhs;
+            }
+            auto* lhsValue = loadAddress(lhs, mapType(structType), "lhs.value");
+            auto* arithmeticResult =
+                new ir::ArithmeticInst(lhsValue,
+                                       rhs,
+                                       mapArithmeticAssignOp(structType,
+                                                             expr.operation()),
+                                       "expr.result");
+            currentBB()->pushBack(arithmeticResult);
+            return arithmeticResult;
+        }();
+        auto* store = new ir::Store(irCtx, lhs, assignee);
         currentBB()->pushBack(store);
         return store;
     }
     case BinaryOperator::_count:
-        SC_DEBUGFAIL();
+        SC_UNREACHABLE();
     }
 }
 
@@ -615,9 +680,9 @@ ir::Value* CodeGenContext::getValueImpl(MemberAccess const& expr) {
 }
 
 ir::Value* CodeGenContext::getValueImpl(ReferenceExpression const& expr) {
-    if (expr.referred()->type()->isReference()) {
-        return getValue(*expr.referred(), false);
-    }
+    SC_ASSERT(expr.referred()->type()->isReference() ||
+                  expr.referred()->isLValue(),
+              "");
     return getAddress(*expr.referred());
 }
 
@@ -653,69 +718,104 @@ ir::Value* CodeGenContext::getValueImpl(Conditional const& condExpr) {
     return result;
 }
 
-ir::Value* CodeGenContext::getValueImpl(FunctionCall const& functionCall) {
-    ir::Callable* function = functionMap.find(functionCall.function())->second;
-    auto args              = mapArguments(functionCall.arguments());
-    if (functionCall.isMemberCall) {
-        auto* object =
-            cast<MemberAccess const*>(functionCall.object())->object();
+ir::Value* CodeGenContext::getValueImpl(FunctionCall const& expr) {
+    auto* call = genCallImpl(expr);
+    if (expr.type()->isReference()) {
+        return loadAddress(call, mapType(expr.type()->base()), "call.value");
+    }
+    return call;
+}
+
+ir::Value* CodeGenContext::genCallImpl(FunctionCall const& expr) {
+    ir::Callable* function = functionMap.find(expr.function())->second;
+    auto args              = mapArguments(expr.arguments());
+    if (expr.isMemberCall) {
+        auto* object = cast<MemberAccess const*>(expr.object())->object();
         args.insert(args.begin(), getAddress(*object));
     }
-    auto* call = new ir::Call(function,
-                              args,
-                              functionCall.type()->base() != symTable.Void() ?
-                                  "call.result" :
-                                  std::string{});
+    auto* call =
+        new ir::Call(function,
+                     args,
+                     expr.type()->base() != symTable.Void() ? "call.result" :
+                                                              std::string{});
     currentBB()->pushBack(call);
     return call;
 }
 
 ir::Value* CodeGenContext::getValueImpl(Subscript const& expr) {
-    return getAddress(expr, false);
+    auto* address = getAddress(expr);
+    return loadAddress(address, mapType(expr.type()->base()), "[].value");
+    //    SC_DEBUGFAIL();
+    //    return getAddress(expr, false);
+}
+
+ir::Value* CodeGenContext::getValueImpl(ImplicitConversion const& conv) {
+    return getValue(*conv.expression());
+    auto* expr = conv.expression();
+    if (conv.type()->isReference()) {
+        return getAddress(*expr);
+    }
+    return getValue(*expr);
 }
 
 ir::Value* CodeGenContext::getValueImpl(ListExpression const& list) {
-    /// Use `getAddress()` for arrays
-    return nullptr;
+    SC_DEBUGFAIL();
+}
+
+ir::Value* CodeGenContext::storeTmpToMemory(ir::Value* value,
+                                            ir::Type const* type,
+                                            std::string name) {
+    SC_ASSERT(value || type, "");
+    if (name.empty() && value) {
+        name = utl::strcat(value->name(), ".addr");
+    }
+    if (value && type) {
+        SC_ASSERT(value->type() == type, "");
+    }
+    if (!type) {
+        type = value->type();
+    }
+    auto* addr = new ir::Alloca(irCtx, type, name);
+    addAlloca(addr);
+    if (!value) {
+        return addr;
+    }
+    auto* store = new ir::Store(irCtx, addr, value);
+    currentBB()->pushBack(store);
+    return addr;
 }
 
 ir::Value* CodeGenContext::getAddressImpl(Expression const& expr) {
-    if (expr.type()->isReference()) {
-        return getValue(expr, false);
-    }
     SC_DEBUGFAIL();
 }
 
 ir::Value* CodeGenContext::getAddressImpl(Literal const& lit) {
-    if (lit.kind() == LiteralKind::This) {
-        auto itr = variableAddressMap.find(lit.entity());
-        SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
-        return itr->second;
-    }
-    return getAddressImpl(static_cast<Expression const&>(lit));
+    SC_ASSERT(lit.kind() == LiteralKind::This, "");
+    auto* result = variableAddressMap[lit.entity()];
+    SC_ASSERT(result, "");
+    return result;
 }
 
 ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {
-    auto itr = variableAddressMap.find(id.entity());
-    SC_ASSERT(itr != variableAddressMap.end(), "Undeclared symbol");
-    return itr->second;
+    auto* address = variableAddressMap[id.entity()];
+    SC_ASSERT(address, "Undeclared identifier?");
+    SC_ASSERT(id.type()->isImplicitReference() || id.isLValue(),
+              "Just to be safe");
+    SC_ASSERT(isa<ir::PointerType>(address->type()), "Just to be safe");
+    return address;
 }
 
 ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     /// Get the value or the address based on wether the base object is an
     /// l-value or r-value
     ir::Value* basePtr = [&]() -> ir::Value* {
-        if (expr.object()->isLValue()) {
+        if (expr.object()->type()->isReference() || expr.object()->isLValue()) {
             return getAddress(*expr.object());
         }
         /// If we are an r-value we store the value to memory and return a
         /// pointer to it.
         auto* value = getValue(*expr.object());
-        auto* addr  = new ir::Alloca(irCtx, value->type(), "tmp");
-        addAlloca(addr);
-        auto* store = new ir::Store(irCtx, addr, value);
-        currentBB()->pushBack(store);
-        return addr;
+        return storeTmpToMemory(value);
     }();
     auto* accessedElement = cast<Identifier const&>(*expr.member()).entity();
     auto* var             = cast<sema::Variable const*>(accessedElement);
@@ -730,12 +830,18 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     return gep;
 }
 
+ir::Value* CodeGenContext::getAddressImpl(FunctionCall const& expr) {
+    SC_ASSERT(expr.type()->isReference(),
+              "Can't be l-value so we expect a reference");
+    return genCallImpl(expr);
+}
+
 ir::Value* CodeGenContext::getAddressImpl(Subscript const& expr) {
     auto* arrayType =
         cast<sema::ArrayType const*>(expr.object()->type()->base());
     auto* elemType = mapType(arrayType->elementType());
     auto* dataPtr  = [&]() -> ir::Value* {
-        auto* array = getAddress(*expr.object(), false);
+        auto* array = getAddress(*expr.object());
         if (!arrayType->isDynamic()) {
             return array;
         }
@@ -767,8 +873,9 @@ ir::Value* CodeGenContext::getAddressImpl(ReferenceExpression const& expr) {
     return getAddress(*expr.referred());
 }
 
-ir::Value* CodeGenContext::getValueImpl(ImplicitConversion const& conv) {
-    return getValue(*conv.expression());
+ir::Value* CodeGenContext::getAddressImpl(ImplicitConversion const& conv) {
+    return visit(*conv.expression(),
+                 [this](auto const& expr) { return getAddressImpl(expr); });
 }
 
 ir::Value* CodeGenContext::getAddressImpl(ListExpression const& list) {
@@ -802,6 +909,8 @@ ir::Value* CodeGenContext::getAddressImpl(ListExpression const& list) {
 ir::Value* CodeGenContext::loadAddress(ir::Value* address,
                                        ir::Type const* type,
                                        std::string_view name) {
+    SC_ASSERT(isa<ir::PointerType>(address->type()),
+              "We need a pointer to load from");
     auto* const load = new ir::Load(address, type, std::string(name));
     currentBB()->pushBack(load);
     return load;
@@ -942,7 +1051,7 @@ utl::small_vector<ir::Type const*> CodeGenContext::mapParameterTypes(
     std::span<sema::QualType const* const> types) {
     utl::small_vector<ir::Type const*> result;
     for (auto* semaType: types) {
-        auto* irType = mapType(semaType);
+        result.push_back(mapType(semaType));
     }
     return result;
 }

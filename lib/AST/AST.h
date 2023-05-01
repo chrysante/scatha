@@ -46,6 +46,12 @@
 //    ├─ FunctionCall
 //    └─ Subscript
 
+#define AST_DERIVED_COMMON(Type)                                               \
+    UniquePtr<Type> extractFromParent() {                                      \
+        auto* node = this->AbstractSyntaxTree::extractFromParent().release();  \
+        return UniquePtr<Type>(cast<Type*>(node));                             \
+    }
+
 #define AST_PROPERTY(Index, Type, Name, CapName)                               \
     template <std::derived_from<Type> TYPE = Type>                             \
     TYPE* Name() {                                                             \
@@ -63,8 +69,7 @@
     }                                                                          \
                                                                                \
     void set##CapName(UniquePtr<Type> node) {                                  \
-        return this->AbstractSyntaxTree::setChild<Type>(Index,                 \
-                                                        std::move(node));      \
+        return this->AbstractSyntaxTree::setChild(Index, std::move(node));     \
     }
 
 #define AST_RANGE_PROPERTY(BeginIndex, Type, Name, CapName)                    \
@@ -95,8 +100,8 @@
     }                                                                          \
                                                                                \
     void set##CapName(size_t index, UniquePtr<Type> node) {                    \
-        return this->AbstractSyntaxTree::setChild<Type>(BeginIndex + index,    \
-                                                        std::move(node));      \
+        return this->AbstractSyntaxTree::setChild(BeginIndex + index,          \
+                                                  std::move(node));            \
     }
 
 namespace scatha::ast {
@@ -188,14 +193,26 @@ public:
     }
 
     /// Set the the child at index \p index to \p child
-    template <typename AST>
-    void setChild(size_t index, UniquePtr<AST> child) {
+    void setChild(size_t index, UniquePtr<AbstractSyntaxTree> child) {
         child->_parent   = this;
         _children[index] = std::move(child);
     }
 
+    /// Extract this node from its parent
+    UniquePtr<AbstractSyntaxTree> extractFromParent();
+
+    /// Replace the child \p old with new node \p repl
+    /// The old child is destroyed
+    /// \pre \p old must be a child of this node
     void replaceChild(AbstractSyntaxTree const* old,
                       UniquePtr<AbstractSyntaxTree> repl);
+
+    /// Get the index of child \p child
+    /// \pre \p child must be a child of this node
+    size_t indexOf(AbstractSyntaxTree const* child) const;
+
+    /// Get the index of this node in its parent
+    size_t indexInParent() const { return parent()->indexOf(this); }
 
 protected:
     explicit AbstractSyntaxTree(NodeType type,
@@ -244,6 +261,8 @@ NodeType dyncast_get_type(
 class SCATHA_API Expression: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
+
+    AST_DERIVED_COMMON(Expression)
 
     /// **Decoration provided by semantic analysis**
 
@@ -319,6 +338,8 @@ public:
     explicit Identifier(SourceRange sourceRange, std::string id):
         Expression(NodeType::Identifier, sourceRange), _value(id) {}
 
+    AST_DERIVED_COMMON(Identifier)
+
     /// Literal string value as declared in the source.
     std::string const& value() const { return _value; }
 
@@ -337,6 +358,8 @@ public:
         Expression(NodeType::Literal, sourceRange),
         _kind(kind),
         _value(std::move(value)) {}
+
+    AST_DERIVED_COMMON(Literal)
 
     LiteralKind kind() const { return _kind; }
 
@@ -365,6 +388,8 @@ public:
                    std::move(operand)),
         op(op) {}
 
+    AST_DERIVED_COMMON(UnaryPrefixExpression)
+
     /// The operator of this expression.
     UnaryPrefixOperator operation() const { return op; }
 
@@ -389,6 +414,8 @@ public:
                    std::move(lhs),
                    std::move(rhs)),
         op(op) {}
+
+    AST_DERIVED_COMMON(BinaryExpression)
 
     /// The operator of this expression.
     BinaryOperator operation() const { return op; }
@@ -416,6 +443,8 @@ public:
                    sourceRange,
                    std::move(object),
                    std::move(member)) {}
+
+    AST_DERIVED_COMMON(MemberAccess)
 
     /// The object of this expression.
     AST_PROPERTY(0, Expression, object, Object)
@@ -445,6 +474,8 @@ public:
                    sourceRange,
                    std::move(initExpr)) {}
 
+    AST_DERIVED_COMMON(UniqueExpression)
+
     /// The initializing expression
     AST_PROPERTY(0, Expression, initExpr, InitExpr)
 
@@ -468,6 +499,8 @@ public:
                    std::move(condition),
                    std::move(ifExpr),
                    std::move(elseExpr)) {}
+
+    AST_DERIVED_COMMON(Conditional)
 
     /// The condition to branch on
     AST_PROPERTY(0, Expression, condition, Condition)
@@ -512,6 +545,8 @@ public:
                  std::move(arguments),
                  sourceRange) {}
 
+    AST_DERIVED_COMMON(FunctionCall)
+
     /// **Decoration provided by semantic analysis**
 
     /// The  resolved function.
@@ -541,6 +576,8 @@ public:
                  std::move(object),
                  std::move(arguments),
                  sourceRange) {}
+
+    AST_DERIVED_COMMON(Subscript)
 };
 
 /// Represents a list expression, i.e. `[a, b, c]`
@@ -569,6 +606,8 @@ public:
                    std::move(expr)),
         _targetType(targetType) {}
 
+    AST_DERIVED_COMMON(ImplicitConversion)
+
     /// The target type of the conversion
     sema::QualType const* targetType() const { return _targetType; }
 
@@ -583,6 +622,8 @@ private:
 class SCATHA_API Statement: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
+
+    AST_DERIVED_COMMON(Statement)
 };
 
 /// Abstract node representing a declaration.
@@ -593,6 +634,8 @@ public:
         return nameIdentifier() ? nameIdentifier()->value() :
                                   std::string_view{};
     }
+
+    AST_DERIVED_COMMON(Declaration)
 
     /// Identifier expression representing the name of this declaration.
     AST_PROPERTY(0, Identifier, nameIdentifier, NameIdentifier)
@@ -637,6 +680,8 @@ public:
                            SourceRange{},
                            std::move(declarations)) {}
 
+    AST_DERIVED_COMMON(TranslationUnit)
+
     /// List of declarations in the translation unit.
     AST_RANGE_PROPERTY(0, Declaration, declaration, Declaration)
 };
@@ -653,6 +698,8 @@ public:
                     std::move(name),
                     std::move(typeExpr),
                     std::move(initExpr)) {}
+
+    AST_DERIVED_COMMON(VariableDeclaration)
 
     /// Typename declared in the source code. Null if no typename was declared.
     AST_PROPERTY(1, Expression, typeExpr, TypeExpr)
@@ -721,6 +768,8 @@ public:
                              std::move(name),
                              std::move(typeExpr)) {}
 
+    AST_DERIVED_COMMON(ParameterDeclaration)
+
     AST_PROPERTY(1, Expression, typeExpr, TypeExpr)
 
     /// **Decoration provided by semantic analysis**
@@ -766,6 +815,8 @@ public:
                              nullptr),
         quals(qualifiers) {}
 
+    AST_DERIVED_COMMON(ThisParameter)
+
     /// The type qualifiers attached to the `this` parameter
     sema::TypeQualifiers qualifiers() const { return quals; }
 
@@ -789,6 +840,8 @@ public:
         Statement(NodeType::CompoundStatement,
                   sourceRange,
                   std::move(statements)) {}
+
+    AST_DERIVED_COMMON(CompoundStatement)
 
     /// List of statements in the compound statement.
     AST_RANGE_PROPERTY(0, Statement, statement, Statement)
@@ -823,6 +876,8 @@ class SCATHA_API EmptyStatement: public Statement {
 public:
     explicit EmptyStatement(SourceRange sourceRange):
         Statement(NodeType::EmptyStatement, sourceRange) {}
+
+    AST_DERIVED_COMMON(EmptyStatement)
 };
 
 /// Concrete node representing the definition of a function.
@@ -840,6 +895,8 @@ public:
                     std::move(returnTypeExpr),
                     std::move(body),
                     std::move(parameters)) {}
+
+    AST_DERIVED_COMMON(FunctionDefinition)
 
     /// Typename of the return type as declared in the source code.
     /// Will be `nullptr` if no return type was declared.
@@ -905,6 +962,8 @@ public:
                     std::move(name),
                     std::move(body)) {}
 
+    AST_DERIVED_COMMON(StructDefinition)
+
     /// Body of the struct.
     AST_PROPERTY(1, CompoundStatement, body, Body)
 
@@ -935,6 +994,8 @@ public:
 class SCATHA_API ControlFlowStatement: public Statement {
 protected:
     using Statement::Statement;
+
+    AST_DERIVED_COMMON(ControlFlowStatement)
 };
 
 /// Concrete node representing a return statement.
@@ -945,6 +1006,8 @@ public:
         ControlFlowStatement(NodeType::ReturnStatement,
                              sourceRange,
                              std::move(expression)) {}
+
+    AST_DERIVED_COMMON(ReturnStatement)
 
     /// The returned expression. May be null in case of a void function.
     AST_PROPERTY(0, Expression, expression, Expression)
@@ -962,6 +1025,8 @@ public:
                              std::move(condition),
                              std::move(ifBlock),
                              std::move(elseBlock)) {}
+
+    AST_DERIVED_COMMON(IfStatement)
 
     /// Condition to branch on
     /// Must not be null after parsing and must be of type bool (or maybe later
@@ -992,6 +1057,8 @@ public:
                              std::move(block)),
         _kind(kind) {}
 
+    AST_DERIVED_COMMON(LoopStatement)
+
     /// Loop variable declared in this statement.
     /// Only non-null if `kind() == For`
     AST_PROPERTY(0, VariableDeclaration, varDecl, VarDecl)
@@ -1021,6 +1088,8 @@ public:
     explicit JumpStatement(Kind kind, SourceRange sourceRange):
         ControlFlowStatement(NodeType::JumpStatement, sourceRange),
         _kind(kind) {}
+
+    AST_DERIVED_COMMON(JumpStatement)
 
     Kind kind() const { return _kind; }
 

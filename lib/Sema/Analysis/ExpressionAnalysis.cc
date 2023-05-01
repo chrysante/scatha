@@ -7,6 +7,7 @@
 #include <svm/Builtin.h>
 
 #include "AST/Fwd.h"
+#include "Sema/Conversion.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 
@@ -36,14 +37,15 @@ struct Context {
 
     bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
 
+    /// \Returns `true` iff \p expr is a value. Otherwise submits an error and
+    /// returns `false`
     bool expectValue(ast::Expression const& expr);
 
+    /// \Returns `true` iff \p expr is a type. Otherwise submits an error and
+    /// returns `false`
     bool expectType(ast::Expression const& expr);
 
-    bool verifyConversion(ast::Expression const& from,
-                          QualType const* to) const;
-
-    QualType const* binaryOpResult(ast::BinaryExpression const&) const;
+    QualType const* analyzeBinaryExpr(ast::BinaryExpression&);
 
     Function* findExplicitCast(ObjectType const* targetType,
                                std::span<QualType const* const> from);
@@ -158,7 +160,7 @@ bool Context::analyzeImpl(ast::BinaryExpression& b) {
     if (!analyze(*b.lhs()) || !analyze(*b.rhs())) {
         return false;
     }
-    auto* resultType = binaryOpResult(b);
+    auto* resultType = analyzeBinaryExpr(b);
     if (!resultType) {
         return false;
     }
@@ -272,9 +274,8 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     /// We reference an overload set, so if our parent is not a call expression
     /// we should rewrite this
     auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
-    auto* argType     = sym.addQualifiers(ma.object()->type(),
-                                      TypeQualifiers::ExplicitReference);
-    auto* func        = overloadSet->find(std::array{ argType });
+    auto* argType = sym.addQualifiers(ma.object()->type(), ExplicitReference);
+    auto* func    = overloadSet->find(std::array{ argType });
     if (!func) {
         iss.push<BadExpression>(ma);
         return false;
@@ -306,15 +307,13 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return false;
         }
-        auto* refType = sym.addQualifiers(referred.type(),
-                                          TypeQualifiers::ExplicitReference);
-        ref.decorate(referred.entity(), refType);
+        auto* refType = sym.addQualifiers(referred.type(), ExplicitReference);
+        ref.decorate(referred.entity(), refType, ValueCategory::RValue);
         return true;
     }
     case EntityCategory::Type: {
         auto* qualType = cast<QualType const*>(referred.entity());
-        auto* refType =
-            sym.addQualifiers(qualType, TypeQualifiers::ImplicitReference);
+        auto* refType  = sym.addQualifiers(qualType, ImplicitReference);
         ref.decorate(const_cast<QualType*>(refType));
         return true;
     }
@@ -342,8 +341,7 @@ bool Context::analyzeImpl(ast::UniqueExpression& expr) {
     }
     auto* rawType = cast<Type const*>(typeExpr->entity());
     auto* type =
-        sym.qualify(rawType,
-                    TypeQualifiers::ExplicitReference | TypeQualifiers::Unique);
+        sym.qualify(rawType, ExplicitReference | TypeQualifiers::Unique);
     expr.decorate(type);
     return true;
 }
@@ -351,7 +349,7 @@ bool Context::analyzeImpl(ast::UniqueExpression& expr) {
 bool Context::analyzeImpl(ast::Conditional& c) {
     bool success = analyze(*c.condition());
     if (success) {
-        verifyConversion(*c.condition(), sym.qualify(sym.Bool()));
+        convertImplicitly(c.condition(), sym.qualBool(), iss);
     }
     success &= analyze(*c.thenExpr());
     success &= expectValue(*c.thenExpr());
@@ -394,8 +392,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
-    auto* elemType = sym.qualify(arrayType->elementType(),
-                                 TypeQualifiers::ImplicitReference);
+    auto* elemType = sym.qualify(arrayType->elementType(), ImplicitReference);
     expr.decorate(nullptr, elemType);
     return true;
 }
@@ -459,6 +456,8 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
 }
 
 bool Context::analyzeImpl(ast::ImplicitConversion& conv) {
+    SC_DEBUGFAIL();
+
     if (!analyze(*conv.expression())) {
         return false;
     }
@@ -548,34 +547,19 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
     }
 }
 
-bool Context::verifyConversion(ast::Expression const& expr,
-                               QualType const* to) const {
-    if (expr.type() != to) {
-        iss.push<BadTypeConversion>(expr, to);
-        return false;
-    }
-    return true;
-}
+QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
+    auto* commonType = sema::commonType(expr.lhs()->type(), expr.rhs()->type());
 
-QualType const* Context::binaryOpResult(
-    ast::BinaryExpression const& expr) const {
     auto submitIssue = [&] {
         iss.push<BadOperandsForBinaryExpression>(expr,
                                                  expr.lhs()->type(),
                                                  expr.rhs()->type());
     };
-    auto verifySame = [&] {
-        if (expr.lhs()->type()->base() != expr.rhs()->type()->base()) {
-            submitIssue();
-            return false;
-        }
-        return true;
-    };
     auto verifyAnyOf =
-        [&](Type const* toCheck, std::initializer_list<Type const*> types) {
+        [&](QualType const* toCheck, std::initializer_list<Type const*> types) {
         bool result = false;
         for (auto type: types) {
-            if (toCheck == type) {
+            if (toCheck->base() == type) {
                 result = true;
             }
         }
@@ -585,6 +569,17 @@ QualType const* Context::binaryOpResult(
         }
         return true;
     };
+    auto convertOperands = [&]() -> bool {
+        bool result = true;
+        result &= convertImplicitly(expr.lhs(), commonType, iss);
+        result &= convertImplicitly(expr.rhs(), commonType, iss);
+        return result;
+    };
+
+    if (!commonType) {
+        submitIssue();
+        return nullptr;
+    }
 
     switch (expr.operation()) {
         using enum ast::BinaryOperator;
@@ -595,50 +590,35 @@ QualType const* Context::binaryOpResult(
     case Addition:
         [[fallthrough]];
     case Subtraction:
-        if (!verifySame()) {
+        if (!verifyAnyOf(commonType, { sym.Int(), sym.Float() })) {
             return nullptr;
         }
-        if (!verifyAnyOf(expr.lhs()->type()->base(),
-                         { sym.Int(), sym.Float() }))
-        {
+        if (!convertOperands()) {
             return nullptr;
         }
-        return stripQualifiers(expr.lhs()->type());
+        return stripQualifiers(commonType);
 
     case Remainder:
-        if (!verifySame()) {
+        if (!verifyAnyOf(commonType, { sym.Int() })) {
             return nullptr;
         }
-        if (!verifyAnyOf(expr.lhs()->type()->base(), { sym.Int() })) {
+        if (!convertOperands()) {
             return nullptr;
         }
-        return stripQualifiers(expr.lhs()->type());
+        return stripQualifiers(commonType);
 
     case BitwiseAnd:
         [[fallthrough]];
     case BitwiseXOr:
         [[fallthrough]];
     case BitwiseOr:
-        if (!verifySame()) {
+        if (!verifyAnyOf(commonType, { sym.Byte(), sym.Bool(), sym.Int() })) {
             return nullptr;
         }
-        if (!verifyAnyOf(expr.lhs()->type()->base(), { sym.Int() })) {
+        if (!convertOperands()) {
             return nullptr;
         }
-        return stripQualifiers(expr.lhs()->type());
-
-    case LeftShift:
-        [[fallthrough]];
-    case RightShift:
-        if (expr.lhs()->type()->base() != sym.Int()) {
-            submitIssue();
-            return nullptr;
-        }
-        if (expr.rhs()->type()->base() != sym.Int()) {
-            submitIssue();
-            return nullptr;
-        }
-        return stripQualifiers(expr.lhs()->type());
+        return stripQualifiers(commonType);
 
     case Less:
         [[fallthrough]];
@@ -647,24 +627,23 @@ QualType const* Context::binaryOpResult(
     case Greater:
         [[fallthrough]];
     case GreaterEq:
-        if (!verifySame()) {
+        if (!verifyAnyOf(commonType, { sym.Byte(), sym.Int(), sym.Float() })) {
             return nullptr;
         }
-        if (!verifyAnyOf(expr.lhs()->type()->base(),
-                         { sym.Int(), sym.Float() }))
-        {
+        if (!convertOperands()) {
             return nullptr;
         }
         return sym.qualBool();
+
     case Equals:
         [[fallthrough]];
     case NotEquals:
-        if (!verifySame()) {
+        if (!verifyAnyOf(commonType,
+                         { sym.Byte(), sym.Bool(), sym.Int(), sym.Float() }))
+        {
             return nullptr;
         }
-        if (!verifyAnyOf(expr.lhs()->type()->base(),
-                         { sym.Int(), sym.Float(), sym.Bool() }))
-        {
+        if (!convertOperands()) {
             return nullptr;
         }
         return sym.qualBool();
@@ -672,21 +651,32 @@ QualType const* Context::binaryOpResult(
     case LogicalAnd:
         [[fallthrough]];
     case LogicalOr:
-        if (!verifySame()) {
+        if (!verifyAnyOf(commonType, { sym.Bool() })) {
             return nullptr;
         }
-        if (!verifyAnyOf(expr.lhs()->type()->base(), { sym.Bool() })) {
-            return nullptr;
-        }
+        convertOperands();
         return sym.qualBool();
 
-    case Assignment:
-        if (!verifySame()) {
+    case LeftShift:
+        [[fallthrough]];
+    case RightShift:
+        if (!verifyAnyOf(commonType, { sym.Int() })) {
             return nullptr;
         }
-        /// Assignments return `void` to prevent `if a = b { /* ... */ }` kind
-        /// of errors
-        return sym.qualVoid();
+        if (!convertOperands()) {
+            return nullptr;
+        }
+        return stripQualifiers(commonType);
+
+    case Assignment:
+        /// Reference reassignment case
+        if (expr.rhs()->type()->isExplicitReference() &&
+            isImplicitlyConvertible(expr.lhs()->type(), expr.rhs()->type()))
+        {
+            insertImplicitConversion(expr.rhs(), expr.lhs()->type());
+            return sym.qualVoid();
+        }
+        [[fallthrough]];
     case AddAssignment:
         [[fallthrough]];
     case SubAssignment:
@@ -705,12 +695,24 @@ QualType const* Context::binaryOpResult(
         [[fallthrough]];
     case OrAssignment:
         [[fallthrough]];
-    case XOrAssignment:
-        if (!verifySame()) {
+    case XOrAssignment: {
+        /// Here we only look at assignment _through_ references, so we strip
+        /// the reference qualifier
+        auto* toType   = sym.qualify(expr.lhs()->type()->base());
+        auto* fromType = expr.rhs()->type();
+        if (!expr.lhs()->isLValue() && !toType->isReference()) {
             return nullptr;
         }
+        if (fromType == toType) {
+            return sym.qualVoid();
+        }
+        if (!isImplicitlyConvertible(toType, fromType)) {
+            submitIssue();
+            return nullptr;
+        }
+        insertImplicitConversion(expr.rhs(), toType);
         return sym.qualVoid();
-
+    }
     case Comma:
         return expr.rhs()->type();
 

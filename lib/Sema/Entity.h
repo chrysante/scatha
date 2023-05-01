@@ -415,20 +415,16 @@ public:
 
     bool has(TypeQualifiers qual) const { return test(qualifiers() & qual); }
 
-    bool isExplicitReference() const {
-        return has(TypeQualifiers::ExplicitReference);
-    }
+    bool isExplicitReference() const { return has(ExplicitReference); }
 
-    bool isImplicitReference() const {
-        return has(TypeQualifiers::ImplicitReference);
-    }
+    bool isImplicitReference() const { return has(ImplicitReference); }
 
     bool isReference() const {
         return isImplicitReference() || isExplicitReference();
     }
 
     /// \Return `true` iff this type is mutable
-    bool isMutable() const { return has(TypeQualifiers::Mutable); }
+    bool isMutable() const { return has(Mutable); }
 
     /// \Return `true` iff this type is a unique reference
     bool isUnique() const { return has(TypeQualifiers::Unique); }

@@ -95,8 +95,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     auto* floatLit = cast<Literal*>(yDecl->initExpression());
     CHECK(floatLit->value<LiteralKind::FloatingPoint>().to<f64>() == 1.2);
     auto* ret           = fn->body()->statement<ReturnStatement>(5);
-    auto* retIdentifier = cast<Identifier*>(
-        cast<ImplicitConversion*>(ret->expression())->expression());
+    auto* retIdentifier = cast<Identifier*>(ret->expression());
     CHECK(retIdentifier->type()->base() == sym.Int());
     CHECK(retIdentifier->valueCategory() == ValueCategory::LValue);
 }

@@ -200,7 +200,19 @@ static void run(mir::Module const& mod) {
 
     run(mod);
 
-    header("Opt");
+    header("After M2R");
+    for (auto& F: mod) {
+        opt::memToReg(ctx, F);
+    }
+    ir::print(mod);
+
+    header("After second M2R");
+    for (auto& F: mod) {
+        opt::memToReg(ctx, F);
+    }
+    ir::print(mod);
+
+    header("After Inliner");
     opt::inlineFunctions(ctx, mod);
     ir::print(mod);
 

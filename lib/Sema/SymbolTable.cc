@@ -242,7 +242,7 @@ QualType const* SymbolTable::removeQualifiers(QualType const* base,
 QualType const* SymbolTable::arrayView(ObjectType const* base,
                                        TypeQualifiers qualifiers) {
     return qualify(arrayType(base, ArrayType::DynamicCount),
-                   TypeQualifiers::ImplicitReference | qualifiers);
+                   ImplicitReference | qualifiers);
 }
 
 QualType const* SymbolTable::getQualType(ObjectType const* baseType,

@@ -5,6 +5,7 @@
 #include "AST/AST.h"
 #include "Common/Base.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
+#include "Sema/Conversion.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 
@@ -34,19 +35,7 @@ struct Context {
         return sema::analyzeExpression(expr, sym, iss);
     }
 
-    QualType const* getType(ast::Expression* expr);
-
-    void verifyConversion(ast::Expression const& from,
-                          QualType const* to) const;
-
-    void verifyConversion(ast::Expression const& from, Type const* to) const {
-        if (auto* obj = dyncast<ObjectType const*>(to)) {
-            verifyConversion(from, sym.qualify(obj));
-        }
-        else {
-            verifyConversion(from, cast<QualType const*>(to));
-        }
-    }
+    QualType const* getDeclaredType(ast::Expression* expr);
 
     SymbolTable& sym;
     IssueHandler& iss;
@@ -162,7 +151,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
                                      sym.currentScope());
         return;
     }
-    auto* declaredType = getType(var.typeExpr());
+    auto* declaredType = getDeclaredType(var.typeExpr());
     auto* deducedType  = [&]() -> QualType const* {
         if (!var.initExpression() || !analyzeExpr(*var.initExpression())) {
             return nullptr;
@@ -181,8 +170,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         return;
     }
     if (declaredType && deducedType) {
-        if (declaredType->isReference() &&
-            !deducedType->has(TypeQualifiers::ExplicitReference))
+        if (declaredType->isReference() && !deducedType->isExplicitReference())
         {
             iss.push<InvalidDeclaration>(
                 &var,
@@ -190,14 +178,17 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
                 sym.currentScope());
             return;
         }
-        verifyConversion(*var.initExpression(), declaredType);
     }
-    auto* finalType = declaredType ? declaredType : deducedType;
-    if (finalType->has(TypeQualifiers::ExplicitReference)) {
-        finalType =
-            sym.removeQualifiers(finalType, TypeQualifiers::ExplicitReference);
-        finalType =
-            sym.addQualifiers(finalType, TypeQualifiers::ImplicitReference);
+    auto* finalType = declaredType ? declaredType :
+                      !deducedType->isExplicitReference() ?
+                                     sym.qualify(deducedType->base()) :
+                                     deducedType;
+    if (var.initExpression()) {
+        convertImplicitly(var.initExpression(), finalType, iss);
+    }
+    if (finalType->isExplicitReference()) {
+        finalType = sym.removeQualifiers(finalType, ExplicitReference);
+        finalType = sym.addQualifiers(finalType, ImplicitReference);
     }
     auto varRes = sym.addVariable(std::string(var.name()), finalType);
     if (!varRes) {
@@ -214,7 +205,7 @@ void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
               "parameters.");
     SC_ASSERT(!paramDecl.isDecorated(),
               "We should not have handled parameters in prepass.");
-    auto* declaredType = getType(paramDecl.typeExpr());
+    auto* declaredType = getDeclaredType(paramDecl.typeExpr());
     auto paramRes =
         sym.addVariable(std::string(paramDecl.name()), declaredType);
     if (!paramRes) {
@@ -259,6 +250,8 @@ void Context::analyzeImpl(ast::ExpressionStatement& es) {
 }
 
 void Context::analyzeImpl(ast::ReturnStatement& rs) {
+    SC_ASSERT(currentFunction,
+              "This should have been set by case FunctionDefinition");
     if (sym.currentScope().kind() != ScopeKind::Function) {
         SC_DEBUGFAIL(); // Can this even happen?
         iss.push<InvalidStatement>(
@@ -282,28 +275,23 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
             sym.currentScope());
         return;
     }
-    if (!rs.expression()) {
-        return;
-    }
-    auto expr = rs.extractExpression();
-    rs.setExpression(
-        allocate<ast::ImplicitConversion>(std::move(expr), returnType));
-    if (!analyzeExpr(*rs.expression())) {
+    if (!rs.expression() || !analyzeExpr(*rs.expression())) {
         return;
     }
     if (!rs.expression()->isValue()) {
         iss.push<BadSymbolReference>(*rs.expression(), EntityCategory::Value);
         return;
     }
-    SC_ASSERT(currentFunction != nullptr,
-              "This should have been set by case FunctionDefinition");
+    /// This is specified to returns.
+    /// If we return a reference we don't want to _assign through_ it but we
+    /// want to return an explicit reference
     if (returnType->isReference() &&
-        !rs.expression()->type()->has(TypeQualifiers::ExplicitReference))
+        !rs.expression()->type()->has(ExplicitReference))
     {
         iss.push<BadExpression>(*rs.expression(), IssueSeverity::Error);
         return;
     }
-    verifyConversion(*rs.expression(), currentFunction->returnType());
+    convertImplicitly(rs.expression(), returnType, iss);
 }
 
 void Context::analyzeImpl(ast::IfStatement& stmt) {
@@ -315,7 +303,7 @@ void Context::analyzeImpl(ast::IfStatement& stmt) {
         return;
     }
     if (analyzeExpr(*stmt.condition())) {
-        verifyConversion(*stmt.condition(), sym.Bool());
+        convertImplicitly(stmt.condition(), sym.qualBool(), iss);
     }
     analyze(*stmt.thenBlock());
     if (stmt.elseBlock()) {
@@ -337,7 +325,7 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
         analyze(*stmt.varDecl());
     }
     if (analyzeExpr(*stmt.condition())) {
-        verifyConversion(*stmt.condition(), sym.Bool());
+        convertImplicitly(stmt.condition(), sym.qualBool(), iss);
     }
     if (stmt.increment()) {
         analyzeExpr(*stmt.increment());
@@ -351,7 +339,7 @@ void Context::analyzeImpl(ast::JumpStatement& s) {
     /// pointers so it's hard to check.
 }
 
-QualType const* Context::getType(ast::Expression* expr) {
+QualType const* Context::getDeclaredType(ast::Expression* expr) {
     if (!expr || !analyzeExpr(*expr)) {
         return nullptr;
     }
@@ -360,11 +348,4 @@ QualType const* Context::getType(ast::Expression* expr) {
         return nullptr;
     }
     return cast<QualType*>(expr->entity());
-}
-
-void Context::verifyConversion(ast::Expression const& from,
-                               QualType const* to) const {
-    if (!from.type() || !to || from.type()->base() != to->base()) {
-        iss.push<BadTypeConversion>(from, to);
-    }
 }
