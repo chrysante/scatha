@@ -212,7 +212,14 @@ public:
     StructureType const* Void() const { return _void; }
     StructureType const* Byte() const { return _byte; }
     StructureType const* Bool() const { return _bool; }
+    StructureType const* S8() const { return _s8; }
+    StructureType const* S16() const { return _s16; }
+    StructureType const* S32() const { return _s32; }
     StructureType const* S64() const { return _s64; }
+    StructureType const* U8() const { return _u8; }
+    StructureType const* U16() const { return _u16; }
+    StructureType const* U32() const { return _u32; }
+    StructureType const* U64() const { return _u64; }
     StructureType const* Float() const { return _float; }
     StructureType const* String() const { return _string; }
 
@@ -222,7 +229,21 @@ public:
 
     QualType const* qBool(TypeQualifiers qualifiers = TypeQualifiers::None);
 
+    QualType const* qS8(TypeQualifiers qualifiers = TypeQualifiers::None);
+
+    QualType const* qS16(TypeQualifiers qualifiers = TypeQualifiers::None);
+
+    QualType const* qS32(TypeQualifiers qualifiers = TypeQualifiers::None);
+
     QualType const* qS64(TypeQualifiers qualifiers = TypeQualifiers::None);
+
+    QualType const* qU8(TypeQualifiers qualifiers = TypeQualifiers::None);
+
+    QualType const* qU16(TypeQualifiers qualifiers = TypeQualifiers::None);
+
+    QualType const* qU32(TypeQualifiers qualifiers = TypeQualifiers::None);
+
+    QualType const* qU64(TypeQualifiers qualifiers = TypeQualifiers::None);
 
     QualType const* qFloat(TypeQualifiers qualifiers = TypeQualifiers::None);
 
@@ -269,7 +290,19 @@ private:
     utl::vector<Function*> _builtinFunctions;
 
     /// Builtin types
-    StructureType *_void, *_byte, *_bool, *_s64, *_float, *_string;
+    StructureType* _void;
+    StructureType* _byte;
+    StructureType* _bool;
+    StructureType* _s8;
+    StructureType* _s16;
+    StructureType* _s32;
+    StructureType* _s64;
+    StructureType* _u8;
+    StructureType* _u16;
+    StructureType* _u32;
+    StructureType* _u64;
+    StructureType* _float;
+    StructureType* _string;
 };
 
 } // namespace scatha::sema

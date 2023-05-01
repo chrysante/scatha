@@ -1052,7 +1052,24 @@ ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
             if (&structType == symTable.Bool()) {
                 return irCtx.integralType(1);
             }
-            if (&structType == symTable.S64()) {
+            if (&structType == symTable.S8() ||
+                &structType == symTable.U8())
+            {
+                return irCtx.integralType(8);
+            }
+            if (&structType == symTable.S16() ||
+                &structType == symTable.U16())
+            {
+                return irCtx.integralType(16);
+            }
+            if (&structType == symTable.S32() ||
+                &structType == symTable.U32())
+            {
+                return irCtx.integralType(32);
+            }
+            if (&structType == symTable.S64() ||
+                &structType == symTable.U64())
+            {
                 return irCtx.integralType(64);
             }
             if (&structType == symTable.Float()) {

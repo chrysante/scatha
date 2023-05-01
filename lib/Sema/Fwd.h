@@ -92,6 +92,13 @@ SCATHA_API std::string_view toString(FunctionKind);
 SCATHA_API std::ostream& operator<<(std::ostream&, FunctionKind);
 
 ///
+enum class ConversionKind : u8 { SignedToUnsigned, UnsignedToSigned, _count };
+
+SCATHA_API std::string_view toString(ConversionKind);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, ConversionKind);
+
+///
 enum class AccessSpecifier { Public, Private };
 
 ///

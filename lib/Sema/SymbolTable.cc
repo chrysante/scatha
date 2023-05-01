@@ -25,21 +25,16 @@ SymbolTable::SymbolTable() {
     /// Declare `void` with `InvalidSize` to make it an incomplete type.
     _void = cast<StructureType*>(
         declareBuiltinType("void", InvalidSize, InvalidSize));
-    _byte = cast<StructureType*>(declareBuiltinType("byte", 1, 1));
-    _bool = cast<StructureType*>(declareBuiltinType("bool", 1, 1));
-#if 0
-    _s8    = cast<StructureType*>(declareBuiltinType("s8",  1, 1));
-    _s16   = cast<StructureType*>(declareBuiltinType("s16", 2, 2));
-    _s32   = cast<StructureType*>(declareBuiltinType("s32", 4, 4));
-    _s64   = cast<StructureType*>(declareBuiltinType("s64", 8, 8));
-    _u8    = cast<StructureType*>(declareBuiltinType("u8",  1, 1));
-    _u16   = cast<StructureType*>(declareBuiltinType("u16", 2, 2));
-    _u32   = cast<StructureType*>(declareBuiltinType("u32", 4, 4));
-    _u64   = cast<StructureType*>(declareBuiltinType("u64", 8, 8));
-    _f32   = cast<StructureType*>(declareBuiltinType("f32", 4, 4));
-    _f64   = cast<StructureType*>(declareBuiltinType("f64", 8, 8));
-#endif
+    _byte   = cast<StructureType*>(declareBuiltinType("byte", 1, 1));
+    _bool   = cast<StructureType*>(declareBuiltinType("bool", 1, 1));
+    _s8     = cast<StructureType*>(declareBuiltinType("s8", 1, 1));
+    _s16    = cast<StructureType*>(declareBuiltinType("s16", 2, 2));
+    _s32    = cast<StructureType*>(declareBuiltinType("s32", 4, 4));
     _s64    = cast<StructureType*>(declareBuiltinType("s64", 8, 8));
+    _u8     = cast<StructureType*>(declareBuiltinType("u8", 1, 1));
+    _u16    = cast<StructureType*>(declareBuiltinType("u16", 2, 2));
+    _u32    = cast<StructureType*>(declareBuiltinType("u32", 4, 4));
+    _u64    = cast<StructureType*>(declareBuiltinType("u64", 8, 8));
     _float  = cast<StructureType*>(declareBuiltinType("float", 8, 8));
     _string = cast<StructureType*>(declareBuiltinType("string",
                                                       sizeof(std::string),
@@ -295,8 +290,36 @@ QualType const* SymbolTable::qBool(TypeQualifiers qualifiers) {
     return qualify(_bool, qualifiers);
 }
 
+QualType const* SymbolTable::qS8(TypeQualifiers qualifiers) {
+    return qualify(_s8, qualifiers);
+}
+
+QualType const* SymbolTable::qS16(TypeQualifiers qualifiers) {
+    return qualify(_s16, qualifiers);
+}
+
+QualType const* SymbolTable::qS32(TypeQualifiers qualifiers) {
+    return qualify(_s32, qualifiers);
+}
+
 QualType const* SymbolTable::qS64(TypeQualifiers qualifiers) {
     return qualify(_s64, qualifiers);
+}
+
+QualType const* SymbolTable::qU8(TypeQualifiers qualifiers) {
+    return qualify(_u8, qualifiers);
+}
+
+QualType const* SymbolTable::qU16(TypeQualifiers qualifiers) {
+    return qualify(_u16, qualifiers);
+}
+
+QualType const* SymbolTable::qU32(TypeQualifiers qualifiers) {
+    return qualify(_u32, qualifiers);
+}
+
+QualType const* SymbolTable::qU64(TypeQualifiers qualifiers) {
+    return qualify(_u64, qualifiers);
 }
 
 QualType const* SymbolTable::qFloat(TypeQualifiers qualifiers) {

@@ -1,7 +1,7 @@
 
 
-public fn main() -> int {
-    let x: s64 = 1;
+public fn main() -> u32 {
+    let x: u32 = 4;
     return x;
 }
 
