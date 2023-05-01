@@ -44,6 +44,7 @@
 //    ├─ MemberAccess
 //    ├─ Conditional
 //    ├─ FunctionCall
+//    ├─ ImplicitConversion
 //    └─ Subscript
 
 #define AST_DERIVED_COMMON(Type)                                               \
@@ -52,13 +53,20 @@
         return UniquePtr<Type>(cast<Type*>(node));                             \
     }
 
+/// Defines a property such as `lhs()` on a `BinaryExpression`. These are very
+/// verbose and repetative so we use a macro here
+///
+/// We define accessor templates also as non-templates for the debugger to
+/// access them
 #define AST_PROPERTY(Index, Type, Name, CapName)                               \
-    template <std::derived_from<Type> TYPE = Type>                             \
+    Type* Name() { return this->Name<Type>(); }                                \
+    template <std::derived_from<Type> TYPE>                                    \
     TYPE* Name() {                                                             \
         return this->AbstractSyntaxTree::child<TYPE>(Index);                   \
     }                                                                          \
                                                                                \
-    template <std::derived_from<Type> TYPE = Type>                             \
+    Type const* Name() const { return this->Name<Type>(); }                    \
+    template <std::derived_from<Type> TYPE>                                    \
     TYPE const* Name() const {                                                 \
         return this->AbstractSyntaxTree::child<TYPE>(Index);                   \
     }                                                                          \
@@ -83,11 +91,13 @@
         return this->AbstractSyntaxTree::dropChildren<TYPE const>(BeginIndex); \
     }                                                                          \
                                                                                \
-    template <std::derived_from<Type> TYPE = Type>                             \
+    Type* Name(size_t index) { return this->Name<Type>(index); }               \
+    template <std::derived_from<Type> TYPE>                                    \
     TYPE* Name(size_t index) {                                                 \
         return this->AbstractSyntaxTree::child<TYPE>(BeginIndex + index);      \
     }                                                                          \
                                                                                \
+    Type const* Name(size_t index) const { return this->Name<Type>(index); }   \
     template <std::derived_from<Type> TYPE = Type>                             \
     TYPE const* Name(size_t index) const {                                     \
         return this->AbstractSyntaxTree::child<TYPE>(BeginIndex + index);      \
