@@ -150,6 +150,22 @@ private:
     utl::small_vector<u16> _memberOffsets;
 };
 
+/// Represents a fixed size array type.
+class SCATHA_TESTAPI ArrayType: public Type {
+public:
+    explicit ArrayType(Type const* elementType, size_t count);
+
+    /// Element type
+    Type const* elementType() const { return _elemType; }
+
+    /// Constant number of element in the array
+    size_t count() const { return _count; }
+
+private:
+    Type const* _elemType = nullptr;
+    size_t _count         = 0;
+};
+
 /// Represents a function type.
 class FunctionType: public Type {
 public:

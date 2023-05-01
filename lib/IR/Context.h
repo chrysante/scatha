@@ -41,6 +41,9 @@ public:
     /// \param bitWidth must be either 32 or 64
     FloatType const* floatType(size_t bitWidth);
 
+    /// \returns The array type of \p elementType with \p count elements
+    ArrayType const* arrayType(Type const* elementType, size_t count);
+
     /// \returns The global integral constant with value \p value
     IntegralConstant* integralConstant(APInt value);
 
@@ -99,6 +102,8 @@ private:
     PointerType const* _ptrType;
     utl::hashmap<uint32_t, IntegralType const*> _intTypes;
     utl::hashmap<uint32_t, FloatType const*> _floatTypes;
+    using ArrayKey = std::pair<Type const*, size_t>;
+    utl::hashmap<ArrayKey, ArrayType const*> _arrayTypes;
 };
 
 } // namespace scatha::ir

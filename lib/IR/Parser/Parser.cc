@@ -53,8 +53,12 @@ struct ParseContext {
 
     Type const* getType(Token const& token);
 
+    Type const* parseType();
+
     template <typename V>
     V* getValue(Type const* type, Token const& token);
+
+    size_t getIntLiteral(Token const& token);
 
     void registerValue(Token const& token, Value* value);
 
@@ -426,8 +430,8 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     switch (peekToken().kind()) {
     case TokenKind::Alloca: {
         eatToken();
-        auto* const type = getType(eatToken());
-        auto result      = allocate<Alloca>(irCtx, type, name());
+        auto* type  = parseType();
+        auto result = allocate<Alloca>(irCtx, type, name());
         if (peekToken().kind() != TokenKind::Comma) {
             return result;
         }
@@ -794,12 +798,7 @@ utl::small_vector<size_t> ParseContext::parseConstantIndices() {
             return result;
         }
         eatToken();
-        auto indexToken = eatToken();
-        if (indexToken.kind() != TokenKind::IntLiteral) {
-            reportSyntaxIssue(indexToken);
-        }
-        size_t index =
-            utl::narrow_cast<size_t>(std::atoll(indexToken.id().data()));
+        size_t const index = getIntLiteral(eatToken());
         result.push_back(index);
     }
 }
@@ -849,6 +848,53 @@ Type const* ParseContext::getType(Token const& token) {
         return irCtx.integralType(token.width());
     case TokenKind::FloatType:
         return irCtx.floatType(token.width());
+    default:
+        return nullptr;
+    }
+}
+
+Type const* ParseContext::parseType() {
+    Token const token = peekToken();
+    switch (token.kind()) {
+    case TokenKind::Void:
+        eatToken();
+        return irCtx.voidType();
+    case TokenKind::Ptr:
+        eatToken();
+        return irCtx.pointerType();
+    case TokenKind::GlobalIdentifier: {
+        eatToken();
+        auto structures = mod.structures();
+        auto itr        = ranges::find_if(structures, [&](auto&& type) {
+            // TODO: Handle '@' and '%' prefixes
+            return type->name() == token.id();
+        });
+        if (itr == ranges::end(structures)) {
+            reportSemaIssue(token, SemanticIssue::UseOfUndeclaredIdentifier);
+        }
+        return itr->get();
+    }
+    case TokenKind::LocalIdentifier:
+        eatToken();
+        reportSemaIssue(token, SemanticIssue::UnexpectedID);
+    case TokenKind::IntType:
+        eatToken();
+        return irCtx.integralType(token.width());
+    case TokenKind::FloatType:
+        eatToken();
+        return irCtx.floatType(token.width());
+    case TokenKind::OpenBracket: {
+        eatToken();
+        Token const typeTok = peekToken();
+        auto* type          = parseType();
+        if (!type) {
+            reportSemaIssue(typeTok, SemanticIssue::UnexpectedID);
+        }
+        expect(eatToken(), TokenKind::Comma);
+        size_t const count = getIntLiteral(eatToken());
+        expect(eatToken(), TokenKind::CloseBracket);
+        return irCtx.arrayType(type, count);
+    }
     default:
         return nullptr;
     }
@@ -921,6 +967,13 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
     default:
         reportSemaIssue(token, SemanticIssue::UnexpectedID);
     }
+}
+
+size_t ParseContext::getIntLiteral(Token const& token) {
+    if (token.kind() != TokenKind::IntLiteral) {
+        reportSyntaxIssue(token);
+    }
+    return utl::narrow_cast<size_t>(std::atoll(token.id().data()));
 }
 
 void ParseContext::registerValue(Token const& token, Value* value) {

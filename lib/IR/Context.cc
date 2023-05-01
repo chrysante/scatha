@@ -45,6 +45,19 @@ FloatType const* Context::floatType(size_t bitWidth) {
     return getArithmeticType<FloatType>(bitWidth, _types, _floatTypes);
 }
 
+/// \returns The array type of \p elementType with \p count elements
+ArrayType const* Context::arrayType(Type const* elementType, size_t count) {
+    ArrayKey key = { elementType, count };
+    auto itr     = _arrayTypes.find(key);
+    if (itr != _arrayTypes.end()) {
+        return itr->second;
+    }
+    auto type = allocate<ArrayType>(elementType, count);
+    itr       = _arrayTypes.insert({ key, type.get() }).first;
+    _types.push_back(std::move(type));
+    return itr->second;
+}
+
 IntegralConstant* Context::integralConstant(APInt value) {
     size_t const bitwidth = value.bitwidth();
     auto itr              = _integralConstants.find({ bitwidth, value });

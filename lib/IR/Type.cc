@@ -38,3 +38,11 @@ void StructureType::computeSizeAndAlign() {
     }
     setSize(size() == 0 ? 0 : utl::round_up(size(), align()));
 }
+
+ArrayType::ArrayType(Type const* elementType, size_t count):
+    Type(utl::strcat("[", elementType->name(), ",", count, "]"),
+         TypeCategory::ArrayType,
+         count * elementType->size(),
+         elementType->align()),
+    _elemType(elementType),
+    _count(count) {}
