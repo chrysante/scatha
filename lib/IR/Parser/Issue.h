@@ -41,6 +41,7 @@ public:
         UseOfUndeclaredIdentifier,
         Redeclaration,
         UnexpectedID,
+        ExpectedType,
         _count
     };
 

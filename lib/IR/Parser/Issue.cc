@@ -30,6 +30,7 @@ void ir::print(ParseIssue const& issue, std::ostream& str) {
                 { SemanticIssue::UseOfUndeclaredIdentifier, "Use of undeclared identifier" },
                 { SemanticIssue::Redeclaration,             "Redeclaration" },
                 { SemanticIssue::UnexpectedID,              "Unexpected ID" },
+                { SemanticIssue::ExpectedType,              "Expected type" },
             });
             auto sl = issue.sourceLocation();
             str << "Semantic issue: " << sl << ": " << reasonStr << "\n";

@@ -51,8 +51,10 @@ struct ParseContext {
 
     void parseTypeDefinition();
 
-    Type const* getType(Token const& token);
+    /// Try to parse a type, return `nullptr` if no type could be parsed
+    Type const* tryParseType();
 
+    /// Parse a type, report issue if no type could be parsed
     Type const* parseType();
 
     template <typename V>
@@ -329,7 +331,7 @@ UniquePtr<Function> ParseContext::parseFunction() {
         return nullptr;
     }
     eatToken();
-    auto* const returnType = getType(eatToken());
+    auto* const returnType = parseType();
     Token const name       = eatToken();
     expect(eatToken(), TokenKind::OpenParan);
     utl::small_vector<Parameter*> parameters;
@@ -368,11 +370,7 @@ UniquePtr<Function> ParseContext::parseFunction() {
 }
 
 UniquePtr<Parameter> ParseContext::parseParamDecl(size_t index) {
-    auto* const type = getType(peekToken());
-    if (!type) {
-        reportSyntaxIssue(peekToken());
-    }
-    eatToken();
+    auto* type = parseType();
     UniquePtr<Parameter> result;
     if (peekToken().kind() == TokenKind::LocalIdentifier) {
         result = allocate<Parameter>(type,
@@ -436,14 +434,14 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
             return result;
         }
         eatToken();
-        auto* countType = getType(eatToken());
+        auto* countType = parseType();
         auto countToken = eatToken();
         addValueLink(result.get(), countType, countToken, &Alloca::setCount);
         return result;
     }
     case TokenKind::Load: {
         eatToken();
-        auto* const type = getType(eatToken());
+        auto* const type = parseType();
         expect(eatToken(), TokenKind::Comma);
         expect(eatToken(), TokenKind::Ptr);
         expectAny(peekToken(),
@@ -462,7 +460,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         expect(eatToken(), TokenKind::Ptr);
         auto const addrName = eatToken();
         expect(eatToken(), TokenKind::Comma);
-        auto* valueType      = getType(eatToken());
+        auto* valueType      = parseType();
         auto const valueName = eatToken();
         auto result          = allocate<Store>(irCtx, nullptr, nullptr);
         addValueLink(result.get(),
@@ -484,10 +482,10 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         [[fallthrough]];
     case TokenKind::Bitcast: {
         auto conv       = toConversion(eatToken());
-        auto* valueType = getType(eatToken());
+        auto* valueType = parseType();
         auto valueName  = eatToken();
         expect(eatToken(), TokenKind::To);
-        auto* targetType = getType(eatToken());
+        auto* targetType = parseType();
         auto result =
             allocate<ConversionInst>(nullptr, targetType, conv, name());
         addValueLink(result.get(),
@@ -510,8 +508,8 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::Branch: {
         eatToken();
-        auto condTypeName = eatToken();
-        auto* condType    = getType(condTypeName);
+        auto condTypeName = peekToken();
+        auto* condType    = parseType();
         if (condType != irCtx.integralType(1)) {
             reportSemaIssue(condTypeName, SemanticIssue::InvalidType);
         }
@@ -538,20 +536,19 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::Return: {
         eatToken();
         auto result     = allocate<Return>(irCtx, nullptr);
-        auto* valueType = getType(peekToken());
+        auto* valueType = tryParseType();
         if (!valueType) {
             result->setValue(irCtx.voidValue());
             return result;
         }
-        eatToken();
         auto valueName = eatToken();
         addValueLink(result.get(), valueType, valueName, &Return::setValue);
         return result;
     }
     case TokenKind::Call: {
         eatToken();
-        auto retTypeName = eatToken();
-        auto* retType    = getType(retTypeName);
+        auto retTypeName = peekToken();
+        auto* retType    = parseType();
         auto funcName    = eatToken();
         using CallArg    = std::pair<Type const*, Token>;
         utl::small_vector<CallArg> args;
@@ -560,7 +557,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
                 break;
             }
             eatToken();
-            auto* argType = getType(eatToken());
+            auto* argType = parseType();
             auto argName  = eatToken();
             args.push_back({ argType, argName });
         }
@@ -588,7 +585,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::Phi: {
         eatToken();
-        auto* type   = getType(eatToken());
+        auto* type   = parseType();
         using PhiArg = std::array<Token, 2>;
         utl::small_vector<PhiArg> args;
         while (true) {
@@ -629,10 +626,10 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::FCmp: {
         auto mode     = toCompareMode(eatToken());
         auto op       = toCompareOp(eatToken());
-        auto* lhsType = getType(eatToken());
+        auto* lhsType = parseType();
         auto lhsName  = eatToken();
         expect(eatToken(), TokenKind::Comma);
-        auto* rhsType = getType(eatToken());
+        auto* rhsType = parseType();
         auto rhsName  = eatToken();
         auto result =
             allocate<CompareInst>(irCtx, nullptr, nullptr, mode, op, name());
@@ -644,7 +641,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         [[fallthrough]];
     case TokenKind::Lnt: {
         auto op         = toUnaryArithmeticOp(eatToken());
-        auto* valueType = getType(eatToken());
+        auto* valueType = parseType();
         auto valueName  = eatToken();
         auto result = allocate<UnaryArithmeticInst>(irCtx, nullptr, op, name());
         addValueLink(result.get(),
@@ -690,10 +687,10 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         [[fallthrough]];
     case TokenKind::XOr: {
         auto op       = toArithmeticOp(eatToken());
-        auto* lhsType = getType(eatToken());
+        auto* lhsType = parseType();
         auto lhsName  = eatToken();
         expect(eatToken(), TokenKind::Comma);
-        auto* rhsType = getType(eatToken());
+        auto* rhsType = parseType();
         auto rhsName  = eatToken();
         auto result   = allocate<ArithmeticInst>(nullptr, nullptr, op, name());
         addValueLink(result.get(), lhsType, lhsName, &ArithmeticInst::setLHS);
@@ -703,11 +700,11 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::GetElementPointer: {
         eatToken();
         expectNext(TokenKind::Inbounds);
-        auto* accessedType = getType(eatToken());
+        auto* accessedType = parseType();
         expectNext(TokenKind::Comma, TokenKind::Ptr);
         auto basePtrName = eatToken();
         expectNext(TokenKind::Comma);
-        auto* indexType = getType(eatToken());
+        auto* indexType = parseType();
         auto indexName  = eatToken();
         auto indices    = parseConstantIndices();
         auto result     = allocate<GetElementPointer>(irCtx,
@@ -728,10 +725,10 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::InsertValue: {
         eatToken();
-        auto* baseType = getType(eatToken());
+        auto* baseType = parseType();
         auto baseName  = eatToken();
         expectNext(TokenKind::Comma);
-        auto* insType = getType(eatToken());
+        auto* insType = parseType();
         auto insName  = eatToken();
         auto indices  = parseConstantIndices();
         if (indices.empty()) {
@@ -750,7 +747,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::ExtractValue: {
         eatToken();
-        auto* baseType = getType(eatToken());
+        auto* baseType = parseType();
         auto baseName  = eatToken();
         auto indices   = parseConstantIndices();
         if (indices.empty()) {
@@ -765,17 +762,17 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::Select: {
         eatToken();
-        auto condTypeName = eatToken();
-        auto* condType    = getType(condTypeName);
+        auto condTypeName = peekToken();
+        auto* condType    = parseType();
         if (condType != irCtx.integralType(1)) {
             reportSemaIssue(condTypeName, SemanticIssue::InvalidType);
         }
         auto condName = eatToken();
         expectNext(TokenKind::Comma);
-        auto* thenType = getType(eatToken());
+        auto* thenType = parseType();
         auto thenName  = eatToken();
         expectNext(TokenKind::Comma);
-        auto* elseType = getType(eatToken());
+        auto* elseType = parseType();
         auto elseName  = eatToken();
         auto result    = allocate<Select>(nullptr, nullptr, nullptr, name());
         addValueLink(result.get(),
@@ -813,7 +810,7 @@ UniquePtr<StructureType> ParseContext::parseStructure() {
     expect(eatToken(), TokenKind::OpenBrace);
     utl::small_vector<Type const*> members;
     while (true) {
-        auto* type = getType(eatToken());
+        auto* type = parseType();
         members.push_back(type);
         if (peekToken().kind() != TokenKind::Comma) {
             break;
@@ -825,35 +822,7 @@ UniquePtr<StructureType> ParseContext::parseStructure() {
     return structure;
 }
 
-Type const* ParseContext::getType(Token const& token) {
-    switch (token.kind()) {
-    case TokenKind::Void:
-        return irCtx.voidType();
-    case TokenKind::Ptr:
-        return irCtx.pointerType();
-    case TokenKind::GlobalIdentifier: {
-        auto structures = mod.structures();
-        auto itr        = ranges::find_if(structures, [&](auto&& type) {
-            // TODO: Handle '@' and '%' prefixes
-            return type->name() == token.id();
-        });
-        if (itr == ranges::end(structures)) {
-            reportSemaIssue(token, SemanticIssue::UseOfUndeclaredIdentifier);
-        }
-        return itr->get();
-    }
-    case TokenKind::LocalIdentifier:
-        reportSemaIssue(token, SemanticIssue::UnexpectedID);
-    case TokenKind::IntType:
-        return irCtx.integralType(token.width());
-    case TokenKind::FloatType:
-        return irCtx.floatType(token.width());
-    default:
-        return nullptr;
-    }
-}
-
-Type const* ParseContext::parseType() {
+Type const* ParseContext::tryParseType() {
     Token const token = peekToken();
     switch (token.kind()) {
     case TokenKind::Void:
@@ -898,6 +867,14 @@ Type const* ParseContext::parseType() {
     default:
         return nullptr;
     }
+}
+
+Type const* ParseContext::parseType() {
+    auto* type = tryParseType();
+    if (type) {
+        return type;
+    }
+    reportSemaIssue(peekToken(), SemanticIssue::ExpectedType);
 }
 
 template <typename V>
