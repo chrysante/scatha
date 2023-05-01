@@ -214,6 +214,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     _arrayTypes.insert({ key, arrayType });
     withScopeCurrent(arrayType, [&] {
         auto* countVar = &addVariable("count", qualInt()).value();
+        countVar->setIndex(1);
         arrayType->setCountVariable(countVar);
     });
     return arrayType;

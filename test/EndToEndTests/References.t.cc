@@ -59,40 +59,102 @@ fn f(x: X)  {
 })");
 }
 
-// TEST_CASE("First array", "[end-to-end][arrays]") {
-//     test::checkReturns(2, R"(
-// public fn main() -> int {
-//     var arr: [int, 4] = [1, 2, 3, 4];
-//     return arr[1];
-// })");
-// }
-//
-// TEST_CASE("Reference to array element", "[end-to-end][arrays]") {
-//     test::checkReturns(5, R"(
-// public fn main() -> int {
-//     var arr = [1, 2, 3, 4];
-//     var r = &arr[1];
-//     r = 5;
-//     return arr[1];
-// })");
-// }
-//
-// TEST_CASE("Use array elements", "[end-to-end][arrays]") {
-//     test::checkReturns(24, R"(
-// public fn main() -> int {
-//     var arr = [1, 2, 3, 4];
-//     return (arr[0] + arr[1] + arr[2]) * arr[3];
-// })");
-// }
-//
-// TEST_CASE("Sum array with for loop", "[end-to-end][arrays]") {
-//     test::checkReturns(45, R"(
-// public fn main() -> int {
-//     let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-//     var sum = 0;
-//     for i = 0; i < 10; ++i {
-//         sum += data[i];
-//     }
-//     return sum;
-// })");
-// }
+TEST_CASE("First array", "[end-to-end][arrays]") {
+    test::checkReturns(2, R"(
+public fn main() -> int {
+    var arr: [int, 4] = [1, 2, 3, 4];
+    return arr[1];
+})");
+}
+
+TEST_CASE("Reference to array element", "[end-to-end][arrays]") {
+    test::checkReturns(5, R"(
+public fn main() -> int {
+    var arr = [1, 2, 3, 4];
+    var r   = &arr[1];
+    r       = 5;
+    return arr[1];
+})");
+}
+
+TEST_CASE("Use array elements", "[end-to-end][arrays]") {
+    test::checkReturns(24, R"(
+public fn main() -> int {
+    var arr = [1, 2, 3, 4];
+    return (arr[0] + arr[1] + arr[2]) * arr[3];
+})");
+}
+
+TEST_CASE("Sum array with for loop", "[end-to-end][arrays]") {
+    test::checkReturns(45, R"(
+public fn main() -> int {
+    let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    var sum  = 0;
+    for i = 0; i < 10; ++i {
+        sum += data[i];
+    }
+    return sum;
+})");
+}
+
+TEST_CASE("Array reference passing", "[end-to-end][arrays][references]") {
+    test::checkReturns(2, R"(
+public fn main() -> int {
+    let x = [0, 1, 2, 3, 4];
+    return getElem(&x);
+}
+fn getElem(x: &[int]) -> int {
+    return x[2];
+})");
+
+    test::checkReturns(2, R"(
+public fn main() -> int {
+    let x = [0, 1, 2, 3, 4];
+    return getElem(&x);
+}
+
+fn getElem(x: &[int]) -> &int {
+    return &x[2];
+})");
+
+    test::checkReturns(2, R"(
+public fn main() -> int {
+    let x = [0, 1, 2, 3, 4];
+    let y = &x;
+    return getElem(&y);
+}
+
+fn getElem(x: &[int]) -> &int {
+    return &x[2];
+})");
+}
+
+TEST_CASE("Array `.count` member", "[end-to-end][arrays]") {
+    test::checkReturns(2, R"(
+public fn main() -> int {
+    let x = [1, 2];
+    return x.count;
+})");
+
+    test::checkReturns(5, R"(
+public fn main() -> int {
+    let x = [0, 1, 2, 3, 4];
+    return getCount(&x);
+}
+fn getCount(x: &[int]) -> int {
+    return x.count;
+})");
+
+    test::checkReturns(7, R"(
+public fn main() -> int {
+    let x = [-3, 1, 2, 3, 4];
+    return sum(&x);
+}
+fn sum(x: &[int]) -> int {
+    var s = 0;
+    for i = 0; i < x.count; ++i {
+        s += x[i];
+    }
+    return s;
+})");
+}

@@ -375,6 +375,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
     auto* arrayType = dyncast<ArrayType const*>(expr.object()->type()->base());
     if (!arrayType) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
+        return false;
     }
     for (auto* arg: expr.arguments()) {
         success &= analyze(*arg);

@@ -20,6 +20,14 @@
 using namespace scatha;
 using namespace ast;
 
+static bool isArray(Expression const* expr) {
+    return expr->type() && isa<sema::ArrayType>(expr->type()->base());
+}
+
+static bool isIntType(size_t width, ir::Type const* type) {
+    return cast<ir::IntegralType const*>(type)->bitWidth() == 1;
+}
+
 namespace {
 
 struct Loop {
@@ -109,6 +117,8 @@ struct CodeGenContext {
     ir::Value* loadAddress(ir::Value* address,
                            ir::Type const* type,
                            std::string_view name);
+
+    ir::Value* makeArrayView(ir::Value* address, ir::Value* count);
 
     void declareTypes();
     void declareFunctions();
@@ -222,16 +232,29 @@ void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
             dyncast<sema::ArrayType const*>(varDecl.type()->base()))
     {
         /// Array case
-        auto* address = varDecl.initExpression() ?
-                            getAddress(*varDecl.initExpression()) :
-                            nullptr;
-        if (varDecl.initExpression() && varDecl.initExpression()->isRValue()) {
-            memorizeVariableAddress(varDecl.variable(), address);
-        }
-        else {
-            // TODO: Copy the array
-            SC_DEBUGFAIL();
-        }
+        auto* address = [&]() -> ir::Value* {
+            if (varDecl.initExpression()) {
+                if (varDecl.initExpression()->isRValue()) {
+                    return getAddress(*varDecl.initExpression());
+                }
+                else {
+                    // TODO: Copy the array
+                    SC_DEBUGFAIL();
+                }
+            }
+            auto* array = new ir::Alloca(irCtx,
+                                         mapType(arrayType->elementType()),
+                                         utl::strcat(varDecl.name(), ".addr"));
+            addAlloca(array);
+            return array;
+        }();
+        /// Stupid hack: We make an array view object with our address and our
+        /// size and store that to memory. Then this array works just like an
+        /// array view
+        auto* count     = irCtx.integralConstant(APInt(arrayType->count(), 64));
+        auto* arrayView = makeArrayView(address, count);
+        auto* viewAddr  = storeTmpToMemory(arrayView);
+        memorizeVariableAddress(varDecl.variable(), viewAddr);
         return;
     }
     /// Non-array case
@@ -402,20 +425,23 @@ ir::Value* CodeGenContext::getValue(Expression const& expr) {
 }
 
 ir::Value* CodeGenContext::getAddress(Expression const& expr) {
-    SC_ASSERT(expr.isLValue() || expr.type()->isReference(),
-              "Only l-values and references can have addresses");
+    SC_ASSERT(expr.isLValue() || expr.type()->isReference() || isArray(&expr),
+              "Only l-values and references can have addresses (and array "
+              "types for now)");
     auto* address =
         visit(expr, [this](auto const& expr) { return getAddressImpl(expr); });
-    if (expr.isLValue() && expr.type()->isReference()) {
+    if (expr.isLValue() && (expr.type()->isReference() || isArray(&expr))) {
         /// L-value references have addresses themselves. They need to be
         /// dereferenced
-        return loadAddress(address, irCtx.pointerType(), "addr");
+        auto* addressType =
+            isArray(&expr) ? arrayViewType : irCtx.pointerType();
+        return loadAddress(address, addressType, "addr");
     }
     return address;
 }
 
 ir::Value* CodeGenContext::getReferenceAddress(Expression const& expr) {
-    SC_ASSERT(expr.isLValue() && expr.type()->isReference(),
+    SC_ASSERT(expr.isLValue() && (expr.type()->isReference() || isArray(&expr)),
               "Only references that are l-values have addresses themselves");
     return visit(expr,
                  [this](auto const& expr) { return getAddressImpl(expr); });
@@ -499,10 +525,6 @@ ir::Value* CodeGenContext::getValueImpl(UnaryPrefixExpression const& expr) {
         return inst;
     }
     }
-}
-
-static bool isIntType(size_t width, ir::Type const* type) {
-    return cast<ir::IntegralType const*>(type)->bitWidth() == 1;
 }
 
 ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& expr) {
@@ -801,7 +823,6 @@ ir::Value* CodeGenContext::getAddressImpl(Identifier const& id) {
     SC_ASSERT(address, "Undeclared identifier?");
     SC_ASSERT(id.type()->isImplicitReference() || id.isLValue(),
               "Just to be safe");
-    SC_ASSERT(isa<ir::PointerType>(address->type()), "Just to be safe");
     return address;
 }
 
@@ -809,6 +830,9 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     /// Get the value or the address based on wether the base object is an
     /// l-value or r-value
     ir::Value* basePtr = [&]() -> ir::Value* {
+        if (isArray(expr.object())) {
+            return getReferenceAddress(*expr.object());
+        }
         if (expr.object()->type()->isReference() || expr.object()->isLValue()) {
             return getAddress(*expr.object());
         }
@@ -819,13 +843,17 @@ ir::Value* CodeGenContext::getAddressImpl(MemberAccess const& expr) {
     }();
     auto* accessedElement = cast<Identifier const&>(*expr.member()).entity();
     auto* var             = cast<sema::Variable const*>(accessedElement);
-    auto* const gep =
-        new ir::GetElementPointer(irCtx,
-                                  mapType(expr.object()->type()->base()),
-                                  basePtr,
-                                  irCtx.integralConstant(0, 64),
-                                  { var->index() },
-                                  "member.ptr");
+    auto* type            = mapType(expr.object()->type()->base());
+    if (isArray(expr.object())) {
+        /// Hack for now to get arrays working
+        type = arrayViewType;
+    }
+    auto* const gep = new ir::GetElementPointer(irCtx,
+                                                type,
+                                                basePtr,
+                                                irCtx.integralConstant(0, 64),
+                                                { var->index() },
+                                                "member.ptr");
     currentBB()->pushBack(gep);
     return gep;
 }
@@ -841,20 +869,8 @@ ir::Value* CodeGenContext::getAddressImpl(Subscript const& expr) {
         cast<sema::ArrayType const*>(expr.object()->type()->base());
     auto* elemType = mapType(arrayType->elementType());
     auto* dataPtr  = [&]() -> ir::Value* {
-        auto* array = getAddress(*expr.object());
-        if (!arrayType->isDynamic()) {
-            return array;
-        }
-        auto* dataPtrGep =
-            new ir::GetElementPointer(irCtx,
-                                      arrayViewType,
-                                      array,
-                                      irCtx.integralConstant(0, 32),
-                                       { 0 },
-                                      "data.ptr.addr");
-        currentBB()->pushBack(dataPtrGep);
-        auto* dataPtr =
-            new ir::Load(dataPtrGep, irCtx.pointerType(), "data.ptr");
+        auto* arrayAddress = getAddress(*expr.object());
+        auto* dataPtr = new ir::ExtractValue(arrayAddress, { 0 }, "array.data");
         currentBB()->pushBack(dataPtr);
         return dataPtr;
     }();
@@ -883,7 +899,7 @@ ir::Value* CodeGenContext::getAddressImpl(ListExpression const& list) {
     memorizeVariableValue(arrayType->countVariable(),
                           irCtx.integralConstant(
                               APInt(arrayType->count(), 64)));
-    auto* type  = mapType(list.type());
+    auto* type  = mapType(arrayType->elementType());
     auto* array = new ir::Alloca(irCtx,
                                  irCtx.integralConstant(
                                      APInt(list.elements().size(), 32)),
@@ -914,6 +930,17 @@ ir::Value* CodeGenContext::loadAddress(ir::Value* address,
     auto* const load = new ir::Load(address, type, std::string(name));
     currentBB()->pushBack(load);
     return load;
+}
+
+ir::Value* CodeGenContext::makeArrayView(ir::Value* address, ir::Value* count) {
+    auto* ins1 = new ir::InsertValue(irCtx.undef(arrayViewType),
+                                     address,
+                                     { 0 },
+                                     "arrayview");
+    auto* ins2 = new ir::InsertValue(ins1, count, { 1 }, "arrayview");
+    currentBB()->pushBack(ins1);
+    currentBB()->pushBack(ins2);
+    return ins2;
 }
 
 void CodeGenContext::declareTypes() {
@@ -1010,11 +1037,10 @@ ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
     return visit(*semaType, utl::overload{
         [&](sema::QualType const& qualType) -> ir::Type const* {
             if (qualType.isReference()) {
-                auto* arrayType = dyncast<sema::ArrayType const*>(qualType.base());
-                if (!arrayType || !arrayType->isDynamic()) {
-                    return irCtx.pointerType();
+                if (isa<sema::ArrayType>(qualType.base())) {
+                    return arrayViewType;
                 }
-                return arrayViewType;
+                return irCtx.pointerType();
             }
             return mapType(qualType.base());
         },
@@ -1040,9 +1066,7 @@ ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
             SC_DEBUGFAIL();
         },
         [&](sema::ArrayType const& arrayType) {
-            // SC_DEBUGFAIL();
-            /// ???
-            return mapType(arrayType.elementType());
+            return arrayViewType;
         },
     }); // clang-format on
 }
