@@ -767,8 +767,6 @@ ir::Value* CodeGenContext::genCallImpl(FunctionCall const& expr) {
 ir::Value* CodeGenContext::getValueImpl(Subscript const& expr) {
     auto* address = getAddress(expr);
     return loadAddress(address, mapType(expr.type()->base()), "[].value");
-    //    SC_DEBUGFAIL();
-    //    return getAddress(expr, false);
 }
 
 ir::Value* CodeGenContext::getValueImpl(ImplicitConversion const& conv) {
