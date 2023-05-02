@@ -549,6 +549,10 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
 }
 
 QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
+    if (expr.operation() == ast::BinaryOperator::Comma) {
+        return expr.rhs()->type();
+    }
+
     auto* commonType = sema::commonType(expr.lhs()->type(), expr.rhs()->type());
 
     auto submitIssue = [&] {
@@ -715,7 +719,7 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         return sym.qVoid();
     }
     case Comma:
-        return expr.rhs()->type();
+        SC_UNREACHABLE("Handled above");
 
     case _count:
         SC_DEBUGFAIL();

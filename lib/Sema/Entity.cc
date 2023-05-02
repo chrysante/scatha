@@ -134,6 +134,9 @@ static bool signatureMatch(std::span<QualType const* const> parameterTypes,
         return false;
     }
     for (auto [param, arg]: ranges::views::zip(parameterTypes, argumentTypes)) {
+        if (!param || !arg) {
+            return false;
+        }
         auto* paramArray = dyncast<ArrayType const*>(param->base());
         auto* argArray   = dyncast<ArrayType const*>(arg->base());
         if (paramArray && argArray &&
