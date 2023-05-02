@@ -169,7 +169,28 @@ static void run(mir::Module const& mod) {
     run(mirMod);
 }
 
-[[maybe_unused]] static void volPlayground(std::filesystem::path path) {
+static void pass(ir::Context& ctx,
+                 ir::Module& mod,
+                 bool (*optFn)(ir::Context&, ir::Function&)) {
+    for (auto& F: mod) {
+        optFn(ctx, F);
+    }
+}
+
+[[maybe_unused]] static void irPlayground(std::filesystem::path path) {
+    auto [ctx, mod] = makeIRModuleFromFile(path);
+
+    header("Parsed program");
+    ir::print(mod);
+
+    header("After SROA");
+    pass(ctx, mod, &opt::sroa);
+    ir::print(mod);
+
+    run(mod);
+}
+
+[[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {
     std::fstream file(path);
     if (!file) {
         throw;
@@ -200,18 +221,6 @@ static void run(mir::Module const& mod) {
 
     run(mod);
 
-    header("After M2R");
-    for (auto& F: mod) {
-        opt::memToReg(ctx, F);
-    }
-    ir::print(mod);
-
-    header("After second M2R");
-    for (auto& F: mod) {
-        opt::memToReg(ctx, F);
-    }
-    ir::print(mod);
-
     header("After Inliner");
     opt::inlineFunctions(ctx, mod);
     ir::print(mod);
@@ -220,5 +229,5 @@ static void run(mir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    volPlayground(path);
+    frontendPlayground(path);
 }

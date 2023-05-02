@@ -18,6 +18,71 @@ void ast::printTree(AbstractSyntaxTree const& root) {
     printTree(root, std::cout);
 }
 
+namespace {
+
+enum class Level : u8 { Free, Occupied, Child, LastChild };
+
+#define FANCY_TREE_SYMBOLS 1
+
+#if FANCY_TREE_SYMBOLS
+
+char const* toString(Level l) {
+    switch (l) {
+    case Level::Free:
+        return "   ";
+    case Level::Occupied:
+        return "│  ";
+    case Level::Child:
+        return "├─ ";
+    case Level::LastChild:
+        return "└─ ";
+    }
+}
+
+#else  //  FANCY_TREE_SYMBOLS
+
+char const* toString(Level l) {
+    switch (l) {
+    case Level::Free:
+        return "   ";
+    case Level::Occupied:
+        return "|  ";
+    case Level::Leaf:
+        return "|- ";
+    case Level::LastLeaf:
+        return "`- ";
+    }
+}
+
+#endif //  FANCY_TREE_SYMBOLS
+
+struct TreeIndenter {
+    void push(Level l) {
+        if (!levels.empty() && levels.back() == Level::Child) {
+            levels.back() = Level::Occupied;
+        }
+        levels.push_back(l);
+    }
+
+    void pop() { levels.pop_back(); }
+
+    auto put() {
+        return utl::streammanip([this](std::ostream& str) {
+            for (auto l: levels) {
+                str << tfmt::format(tfmt::brightGrey, toString(l));
+            }
+            if (!levels.empty() && levels.back() == Level::LastChild) {
+                levels.back() = Level::Free;
+            }
+        });
+    }
+
+private:
+    utl::small_vector<Level> levels;
+};
+
+} // namespace
+
 static sema::QualType const* getType(AbstractSyntaxTree const* node) {
     if (!node->isDecorated()) {
         return nullptr;
@@ -32,31 +97,61 @@ static sema::QualType const* getType(AbstractSyntaxTree const* node) {
 }
 
 static constexpr utl::streammanip typeHelper(
-    [](std::ostream& str, Indenter* indent, AbstractSyntaxTree const* node) {
+    [](std::ostream& str,
+       TreeIndenter* indent,
+       AbstractSyntaxTree const* node) {
     auto* type = getType(node);
     if (!type) {
         return;
     }
-    indent->increase();
+    indent->push(node->children().empty() ? Level::Free : Level::Occupied);
     str << '\n'
-        << *indent << tfmt::format(tfmt::brightGrey, "Type: ") << type->name();
+        << indent->put() << tfmt::format(tfmt::brightGrey, "Type: ")
+        << type->name();
     if (auto* expr = dyncast<Expression const*>(node)) {
         str << tfmt::format(tfmt::brightGrey, " [", expr->valueCategory(), "]");
     }
-    indent->decrease();
+    indent->pop();
+});
+
+static constexpr utl::streammanip nodeType([](std::ostream& str,
+                                              AbstractSyntaxTree const* node) {
+    tfmt::FormatGuard common(tfmt::italic);
+    // clang-format off
+    visit(*node, utl::overload{
+        [&](AbstractSyntaxTree const& node) {
+            str << node.nodeType();
+        },
+        [&](FunctionDefinition const& node) {
+            str << tfmt::format(tfmt::brightBlue | tfmt::bold, node.nodeType());
+        },
+        [&](StructDefinition const& node) {
+            str << tfmt::format(tfmt::brightBlue | tfmt::bold, node.nodeType());
+        },
+    }); // clang-format on
+    str << ": ";
 });
 
 static constexpr utl::streammanip header([](std::ostream& str,
-                                            Indenter* indent,
+                                            TreeIndenter* indent,
                                             AbstractSyntaxTree const* node,
                                             auto... args) {
-    str << *indent << tfmt::format(tfmt::brightBlue, node->nodeType(), ": ");
+    str << indent->put() << nodeType(node);
     ((str << args), ...);
     str << typeHelper(indent, node);
 });
 
+static constexpr utl::streammanip funcDecl([](std::ostream& str,
+                                              sema::Function const* func) {
+    str << func->name() << "(";
+    for (bool first = true; auto* type: func->argumentTypes()) {
+        str << (first ? first = false, "" : ", ") << type->name();
+    }
+    str << ") -> " << func->returnType()->name();
+});
+
 void ast::printTree(AbstractSyntaxTree const& root, std::ostream& str) {
-    Indenter indent(3);
+    TreeIndenter indent;
     auto print = [&](AbstractSyntaxTree const& node, auto& print) -> void {
         // clang-format off
         visit(node, utl::overload{
@@ -83,17 +178,24 @@ void ast::printTree(AbstractSyntaxTree const& root, std::ostream& str) {
             [&](Declaration const& decl) {
                 str << header(&indent, &node, decl.name()) << '\n';
             },
+            [&](FunctionDefinition const& func) {
+                str << header(&indent, &node, funcDecl(func.function())) << '\n';
+            },
             [&](LoopStatement const& loop) {
                 str << header(&indent, &node, loop.kind()) << '\n';
             }
         }); // clang-format on
-        indent.increase();
-        for (auto* child: node.children()) {
-            if (child) {
-                print(*child, print);
-            }
+        auto children =
+            node.children() | ranges::views::filter([](auto* child) {
+                return child != nullptr;
+            }) |
+            ranges::to<utl::small_vector<AbstractSyntaxTree const*>>;
+        for (auto [index, child]: children | ranges::views::enumerate) {
+            indent.push(index != children.size() - 1 ? Level::Child :
+                                                       Level::LastChild);
+            print(*child, print);
+            indent.pop();
         }
-        indent.decrease();
     };
 
     print(root, print);
