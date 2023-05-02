@@ -27,22 +27,22 @@ void mir::print(Function const& F) { mir::print(F, std::cout); }
 
 static constexpr auto keyword =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
-        return str << tfmt::format(tfmt::magenta | tfmt::bold, args...);
+        return str << tfmt::format(tfmt::Magenta | tfmt::Bold, args...);
     });
 
 static constexpr auto literal =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
-        return str << tfmt::format(tfmt::cyan, args...);
+        return str << tfmt::format(tfmt::Cyan, args...);
     });
 
 static constexpr auto globalName =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
-        return str << tfmt::format(tfmt::green | tfmt::italic, "@", args...);
+        return str << tfmt::format(tfmt::Green | tfmt::Italic, "@", args...);
     });
 
 static constexpr auto localName =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
-        return str << tfmt::format(tfmt::italic, "%", args...);
+        return str << tfmt::format(tfmt::Italic, "%", args...);
     });
 
 static constexpr auto regName =
@@ -55,21 +55,21 @@ static constexpr auto regName =
             [](HardwareRegister const&) { return 'H'; },
         }); // clang-format on
         auto name = utl::strcat(prefix, reg->index());
-        auto fmt  = tfmt::brightBlue;
+        auto fmt  = tfmt::BrightBlue;
         if (reg->fixed()) {
-            fmt |= tfmt::bold;
+            fmt |= tfmt::Bold;
         }
         return str << tfmt::format(fmt, name);
     });
 
 static constexpr auto opcode =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
-        return str << tfmt::format(tfmt::red | tfmt::bold, args...);
+        return str << tfmt::format(tfmt::Red | tfmt::Bold, args...);
     });
 
 static constexpr auto light =
     utl::streammanip([](std::ostream& str, auto const&... args) -> auto& {
-        return str << tfmt::format(tfmt::brightGrey | tfmt::italic, args...);
+        return str << tfmt::format(tfmt::BrightGrey | tfmt::Italic, args...);
     });
 
 static std::string formatInstCode(mir::Instruction const& inst) {

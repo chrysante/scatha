@@ -74,7 +74,7 @@ static std::string_view getLine(std::string_view text,
 }
 
 static auto lineNumber(ssize_t index) {
-    return tfmt::format(tfmt::brightGrey,
+    return tfmt::format(tfmt::BrightGrey,
                         utl::strcat(std::setw(4), index, ": "));
 }
 
@@ -101,7 +101,7 @@ void scatha::highlightSource(std::string_view text,
     /// Erroneous line
     str << lineNumber(lineIndex);
     str << line.substr(0, column - 1);
-    str << tfmt::format(tfmt::red | tfmt::italic,
+    str << tfmt::format(tfmt::Red | tfmt::Italic,
                         line.substr(column - 1, numChars));
     size_t const endPos = column - 1 + numChars;
     str << line.substr(endPos, line.size() - endPos);
@@ -112,7 +112,7 @@ void scatha::highlightSource(std::string_view text,
     for (size_t i = 0; i < 6 + column - 1; ++i) {
         str << ' ';
     }
-    tfmt::format(tfmt::red, [&] {
+    tfmt::format(tfmt::Red, [&] {
         for (size_t i = 0; i < std::max(size_t{ 1 }, numChars); ++i) {
             str << "˜";
         }

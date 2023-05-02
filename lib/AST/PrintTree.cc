@@ -69,7 +69,7 @@ struct TreeIndenter {
     auto put() {
         return utl::streammanip([this](std::ostream& str) {
             for (auto l: levels) {
-                str << tfmt::format(tfmt::brightGrey, toString(l));
+                str << tfmt::format(tfmt::BrightGrey, toString(l));
             }
             if (!levels.empty() && levels.back() == Level::LastChild) {
                 levels.back() = Level::Free;
@@ -106,27 +106,27 @@ static constexpr utl::streammanip typeHelper(
     }
     indent->push(node->children().empty() ? Level::Free : Level::Occupied);
     str << '\n'
-        << indent->put() << tfmt::format(tfmt::brightGrey, "Type: ")
+        << indent->put() << tfmt::format(tfmt::BrightGrey, "Type: ")
         << type->name();
     if (auto* expr = dyncast<Expression const*>(node)) {
-        str << tfmt::format(tfmt::brightGrey, " [", expr->valueCategory(), "]");
+        str << tfmt::format(tfmt::BrightGrey, " [", expr->valueCategory(), "]");
     }
     indent->pop();
 });
 
 static constexpr utl::streammanip nodeType([](std::ostream& str,
                                               AbstractSyntaxTree const* node) {
-    tfmt::FormatGuard common(tfmt::italic);
+    tfmt::FormatGuard common(tfmt::Italic);
     // clang-format off
     visit(*node, utl::overload{
         [&](AbstractSyntaxTree const& node) {
             str << node.nodeType();
         },
         [&](FunctionDefinition const& node) {
-            str << tfmt::format(tfmt::brightBlue | tfmt::bold, node.nodeType());
+            str << tfmt::format(tfmt::BrightBlue | tfmt::Bold, node.nodeType());
         },
         [&](StructDefinition const& node) {
-            str << tfmt::format(tfmt::brightBlue | tfmt::bold, node.nodeType());
+            str << tfmt::format(tfmt::BrightBlue | tfmt::Bold, node.nodeType());
         },
     }); // clang-format on
     str << ": ";

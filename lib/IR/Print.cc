@@ -117,49 +117,49 @@ void PrintCtx::dispatch(Value const& value) {
 }
 
 static auto formatKeyword(auto... name) {
-    return tfmt::format(tfmt::magenta | tfmt::bold, name...);
+    return tfmt::format(tfmt::Magenta | tfmt::Bold, name...);
 }
 
 static auto tertiary(auto... name) {
-    return tfmt::format(tfmt::brightGrey, name...);
+    return tfmt::format(tfmt::BrightGrey, name...);
 }
 
 static auto formatInstName(auto... name) { return formatKeyword(name...); }
 
 static tfmt::VObjectWrapper formatType(ir::Type const* type) {
     if (!type) {
-        return tfmt::format(tfmt::brightBlue | tfmt::italic, "null-type");
+        return tfmt::format(tfmt::BrightBlue | tfmt::Italic, "null-type");
     }
     if (type->category() == ir::TypeCategory::StructureType) {
-        return tfmt::format(tfmt::green, "@", type->name());
+        return tfmt::format(tfmt::Green, "@", type->name());
     }
-    return tfmt::format(tfmt::brightBlue, type->name());
+    return tfmt::format(tfmt::BrightBlue, type->name());
 }
 
 static auto formatNumLiteral(auto... value) {
-    return tfmt::format(tfmt::cyan, value...);
+    return tfmt::format(tfmt::Cyan, value...);
 }
 
 static tfmt::VObjectWrapper formatName(Value const* value) {
     if (!value) {
-        return tfmt::format(tfmt::brightWhite | tfmt::bgBrightRed | tfmt::bold,
+        return tfmt::format(tfmt::BrightWhite | tfmt::BGBrightRed | tfmt::Bold,
                             "<NULL>");
     }
     // clang-format off
     return visit(*value, utl::overload{
         [](ir::Callable const& function) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::italic | tfmt::green,
+            return tfmt::format(tfmt::Italic | tfmt::Green,
                                 "@", function.name());
         },
         [](ir::Parameter const& parameter) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::none, "%", parameter.name());
+            return tfmt::format(tfmt::None, "%", parameter.name());
         },
         [](ir::BasicBlock const& basicBlock) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::italic,
+            return tfmt::format(tfmt::Italic,
                                 "%", basicBlock.name());
         },
         [](ir::Instruction const& inst) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::none, "%", inst.name());
+            return tfmt::format(tfmt::None, "%", inst.name());
         },
         [](ir::IntegralConstant const& value) -> tfmt::VObjectWrapper {
             return formatNumLiteral(value.value().toString());
@@ -171,14 +171,14 @@ static tfmt::VObjectWrapper formatName(Value const* value) {
             return formatKeyword("undef");
         },
         [](ir::Value const&) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::bgMagenta, "???");
+            return tfmt::format(tfmt::BGMagenta, "???");
         },
     }); // clang-format on
 }
 
 static auto equals() {
     return utl::streammanip([](std::ostream& str) -> std::ostream& {
-        return str << " " << tfmt::format(tfmt::none, "=") << " ";
+        return str << " " << tfmt::format(tfmt::None, "=") << " ";
     });
 }
 
@@ -221,7 +221,7 @@ void PrintCtx::print(BasicBlock const& bb) {
         for (ssize_t i = 0; i < commentIndent; ++i) {
             str << ' ';
         }
-        tfmt::pushModifier(tfmt::brightGrey, str);
+        tfmt::pushModifier(tfmt::BrightGrey, str);
         str << "# preds: ";
         for (bool first = true; auto* pred: bb.predecessors()) {
             str << (first ? first = false, "" : ", ") << pred->name();

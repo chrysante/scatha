@@ -10,7 +10,7 @@ static size_t const width = 80;
 
 void playground::line(std::string_view m) {
     auto impl = [](size_t width) {
-        tfmt::FormatGuard grey(tfmt::brightGrey);
+        tfmt::FormatGuard grey(tfmt::BrightGrey);
         for (size_t i = 0; i < width; ++i) {
             std::cout << "=";
         }
@@ -26,7 +26,7 @@ void playground::line(std::string_view m) {
         size_t outerSpace = width - (m.size() + 2);
         size_t left = outerSpace / 4, right = outerSpace - left;
         impl(left);
-        std::cout << " " << tfmt::format(tfmt::bold, m) << " ";
+        std::cout << " " << tfmt::format(tfmt::Bold, m) << " ";
         impl(right);
         std::cout << std::endl;
     }

@@ -128,7 +128,7 @@ std::string playground::drawControlFlowGraph(scatha::ir::Module const& mod) {
         auto epilog = [&] { str << "    " << fontEnd << rowEnd << "\n"; };
         str << "  " << tableBegin << "\n";
         prolog();
-        str << tfmt::format(tfmt::italic, "%", bb.name()) << ":\n";
+        str << tfmt::format(tfmt::Italic, "%", bb.name()) << ":\n";
         epilog();
         for (auto& inst: bb) {
             prolog();
