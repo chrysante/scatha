@@ -242,8 +242,11 @@ void CodeGenContext::generateImpl(VariableDeclaration const& varDecl) {
                     SC_DEBUGFAIL();
                 }
             }
+            auto* elemType = mapType(arrayType->elementType());
+            auto* count = irCtx.integralConstant(APInt(arrayType->count(), 32));
             auto* array = new ir::Alloca(irCtx,
-                                         mapType(arrayType->elementType()),
+                                         count,
+                                         elemType,
                                          utl::strcat(varDecl.name(), ".addr"));
             addAlloca(array);
             return array;
