@@ -8,6 +8,19 @@ using namespace scatha;
 using namespace cg;
 using namespace mir;
 
+static bool isCritical(mir::Instruction const* inst) {
+    switch (inst->instcode()) {
+    case InstCode::Store:
+    case InstCode::Call:
+    case InstCode::CallExt:
+    case InstCode::Return:
+    case InstCode::Set:
+        return true;
+    default:
+        return false;
+    }
+}
+
 namespace {
 
 struct DCEContext {
@@ -47,10 +60,13 @@ void DCEContext::mark() {
 }
 
 void DCEContext::visitInstruction(mir::Instruction* inst) {
+    if (isCritical(inst)) {
+        return;
+    }
     if (deadInstructions.contains(inst)) {
         return;
     }
-    auto* dest = inst->dest() ? dyncast<SSARegister*>(inst->dest()) : nullptr;
+    auto* dest = dyncast_or_null<SSARegister*>(inst->dest());
     if (!dest) {
         return;
     }
