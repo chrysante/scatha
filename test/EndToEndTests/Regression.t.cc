@@ -17,3 +17,16 @@ fn modifyWithIgnoredReturnValue(n: &int) -> int {
     return 0;
 })");
 }
+
+TEST_CASE("Assignment error", "[end-to-end][regression]") {
+    test::checkReturns(1, R"(
+fn f(a: &mut [int], b: &[int]) -> void {
+    a[0] = b[0];
+}
+public fn main() -> int {
+    var a = [0, 0];
+    var b = [1, 2];
+    f(&mut a, &b);
+    return a[0];
+})");
+}

@@ -703,19 +703,18 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     case XOrAssignment: {
         /// Here we only look at assignment _through_ references, so we strip
         /// the reference qualifier
-        auto* toType   = sym.qualify(expr.lhs()->type()->base());
-        auto* fromType = expr.rhs()->type();
+        auto* toType         = expr.lhs()->type();
+        auto* toTypeStripped = stripQualifiers(toType);
+        auto* fromType       = expr.rhs()->type();
         if (!expr.lhs()->isLValue() && !toType->isReference()) {
             return nullptr;
         }
-        if (fromType == toType) {
+        if (fromType == toTypeStripped) {
             return sym.qVoid();
         }
-        if (!isImplicitlyConvertible(toType, fromType)) {
-            submitIssue();
+        if (!convertImplicitly(expr.rhs(), toTypeStripped, iss)) {
             return nullptr;
         }
-        insertImplicitConversion(expr.rhs(), toType);
         return sym.qVoid();
     }
     case Comma:

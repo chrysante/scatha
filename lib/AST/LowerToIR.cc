@@ -134,6 +134,8 @@ struct CodeGenContext {
 
     void memorizeVariableAddress(sema::Entity const* variable, ir::Value*);
 
+    bool tryMemorizeVariableValue(sema::Entity const* entity, ir::Value*);
+
     void memorizeVariableValue(sema::Entity const* variable, ir::Value*);
 
     ir::Type const* mapType(sema::Type const* semaType);
@@ -897,25 +899,23 @@ ir::Value* CodeGenContext::getAddressImpl(ImplicitConversion const& conv) {
 
 ir::Value* CodeGenContext::getAddressImpl(ListExpression const& list) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
-    memorizeVariableValue(arrayType->countVariable(),
-                          irCtx.integralConstant(
-                              APInt(arrayType->count(), 64)));
-    auto* type  = mapType(arrayType->elementType());
-    auto* array = new ir::Alloca(irCtx,
-                                 irCtx.integralConstant(
-                                     APInt(list.elements().size(), 32)),
-                                 type,
-                                 "array");
+    tryMemorizeVariableValue(arrayType->countVariable(),
+                             irCtx.integralConstant(arrayType->count(), 64));
+    auto* type = mapType(arrayType->elementType());
+    auto* array =
+        new ir::Alloca(irCtx,
+                       irCtx.integralConstant(list.elements().size(), 32),
+                       type,
+                       "array");
     addAlloca(array);
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
         auto* elemValue = getValue(*elem);
-        auto* gep =
-            new ir::GetElementPointer(irCtx,
-                                      type,
-                                      array,
-                                      irCtx.integralConstant(APInt(index, 32)),
-                                      {},
-                                      "elem.ptr");
+        auto* gep       = new ir::GetElementPointer(irCtx,
+                                              type,
+                                              array,
+                                              irCtx.integralConstant(index, 32),
+                                                    {},
+                                              "elem.ptr");
         currentBB()->pushBack(gep);
         auto* store = new ir::Store(irCtx, gep, elemValue);
         currentBB()->pushBack(store);
@@ -1025,12 +1025,18 @@ void CodeGenContext::memorizeVariableAddress(sema::Entity const* entity,
     variableAddressMap[entity] = value;
 }
 
+bool CodeGenContext::tryMemorizeVariableValue(sema::Entity const* entity,
+                                              ir::Value* value) {
+    auto [itr, success] = variableValueMap.insert({ entity, value });
+    return success;
+}
+
 void CodeGenContext::memorizeVariableValue(sema::Entity const* entity,
                                            ir::Value* value) {
-    SC_ASSERT(!variableValueMap.contains(entity),
+    bool success = tryMemorizeVariableValue(entity, value);
+    SC_ASSERT(success,
               "Variable id must not be declared multiple times. This error "
               "must be handled in sema.");
-    variableValueMap[entity] = value;
 }
 
 ir::Type const* CodeGenContext::mapType(sema::Type const* semaType) {
