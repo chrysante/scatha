@@ -6,6 +6,7 @@
 #include <span>
 
 #include <utl/strcat.hpp>
+#include <utl/streammanip.hpp>
 
 #include "svm/Memory.h"
 #include "svm/OpCodeInternal.h"
@@ -59,75 +60,87 @@ static auto printAs(std::span<u8 const> data, size_t offset) {
     return printAs<T>(readAs<T>(data, offset));
 }
 
+static constexpr utl::streammanip memoryAcccess([](std::ostream& str,
+                                                   std::span<u8 const> text,
+                                                   size_t i) {
+    size_t const baseptrRegisterIndex     = readAs<u8>(text, i);
+    size_t const offsetCountRegisterIndex = readAs<u8>(text, i + 1);
+    u8 const constantOffsetMultiplier     = readAs<u8>(text, i + 2);
+    u8 const constantInnerOffset          = readAs<u8>(text, i + 3);
+    str << "*(ptr)R[" << printAs<u8>(baseptrRegisterIndex) << "]";
+    if (offsetCountRegisterIndex != 0xFF) {
+        str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex) << "] * "
+            << printAs<u8>(constantOffsetMultiplier);
+    }
+    str << " + " << printAs<u8>(constantInnerOffset);
+});
+
 void svm::print(u8 const* progData, std::ostream& str) {
     Program const p(progData);
-    std::span<u8 const> data = p.instructions;
-    auto printMemoryAcccess  = [&](size_t i) {
-        size_t const baseptrRegisterIndex     = readAs<u8>(data, i);
-        size_t const offsetCountRegisterIndex = readAs<u8>(data, i + 1);
-        u8 const constantOffsetMultiplier     = readAs<u8>(data, i + 2);
-        u8 const constantInnerOffset          = readAs<u8>(data, i + 3);
-        str << "*(ptr)R[" << printAs<u8>(baseptrRegisterIndex) << "]";
-        if (offsetCountRegisterIndex != 0xFF) {
-            str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex)
-                << "] * " << printAs<u8>(constantOffsetMultiplier);
-        }
-        str << " + " << printAs<u8>(constantInnerOffset);
-    };
-    for (size_t i = 0; i < data.size();) {
-        OpCode const opcode = static_cast<OpCode>(data[i]);
+
+    str << ".data:\n";
+    std::span<u8 const> data = p.data;
+    for (unsigned b: data) {
+        str << std::hex << b;
+    }
+    str << "\n\n";
+
+    str << ".text:\n";
+    std::span<u8 const> text = p.instructions;
+    for (size_t i = 0; i < text.size();) {
+        OpCode const opcode = static_cast<OpCode>(text[i]);
         str << std::setw(3) << i << ": " << opcode << " ";
 
         auto const opcodeClass = classify(opcode);
         switch (opcodeClass) {
             using enum OpCodeClass;
         case RR:
-            str << "R[" << printAs<u8>(data, i + 1) << "], R["
-                << printAs<u8>(data, i + 2) << "]";
+            str << "R[" << printAs<u8>(text, i + 1) << "], R["
+                << printAs<u8>(text, i + 2) << "]";
             break;
         case RV64:
-            str << "R[" << printAs<u8>(data, i + 1) << "], "
-                << printAs<u64>(data, i + 2);
+            str << "R[" << printAs<u8>(text, i + 1) << "], "
+                << printAs<u64>(text, i + 2);
             break;
         case RV32:
-            str << "R[" << printAs<u8>(data, i + 1) << "], "
-                << printAs<u32>(data, i + 2);
+            str << "R[" << printAs<u8>(text, i + 1) << "], "
+                << printAs<u32>(text, i + 2);
             break;
         case RV8:
-            str << "R[" << printAs<u8>(data, i + 1) << "], "
-                << printAs<u8>(data, i + 2);
+            str << "R[" << printAs<u8>(text, i + 1) << "], "
+                << printAs<u8>(text, i + 2);
             break;
         case RM:
-            str << "R[" << printAs<u8>(data, i + 1) << "], ";
-            printMemoryAcccess(i + 2);
+            str << "R[" << printAs<u8>(text, i + 1) << "], "
+                << memoryAcccess(text, i + 2);
             break;
         case MR:
-            printMemoryAcccess(i + 1);
-            str << ", R[" << printAs<u8>(data, i + 4) << "]";
+            str << memoryAcccess(text, i + 1) << ", R["
+                << printAs<u8>(text, i + 4) << "]";
             break;
         case R:
-            str << "R[" << printAs<u8>(data, i + 1) << "]";
+            str << "R[" << printAs<u8>(text, i + 1) << "]";
             break;
         case Jump:
-            str << printAs<i32>(data, i + 1);
+            str << printAs<i32>(text, i + 1);
             break;
         case Other:
             switch (opcode) {
             case OpCode::lincsp:
-                str << "R[" << printAs<u8>(data, i + 1) << "], "
+                str << "R[" << printAs<u8>(text, i + 1) << "], "
                     << printAs<u16>(i + 2);
             case OpCode::call:
-                str << printAs<i32>(data, i + 1) << ", "
-                    << printAs<u8>(data, i + 5);
+                str << printAs<i32>(text, i + 1) << ", "
+                    << printAs<u8>(text, i + 5);
                 break;
             case OpCode::ret:
                 break;
             case OpCode::terminate:
                 break;
             case OpCode::callExt:
-                str << printAs<u8>(data, i + 1) << ", "
-                    << printAs<u8>(data, i + 2) << ", "
-                    << printAs<u16>(data, i + 3);
+                str << printAs<u8>(text, i + 1) << ", "
+                    << printAs<u8>(text, i + 2) << ", "
+                    << printAs<u16>(text, i + 3);
                 break;
             default:
                 assert(false);

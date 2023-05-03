@@ -38,6 +38,7 @@ SC_MIR_INSTRUCTION_DEF(CondCopy,        "<cond-cpy>") /// (Value source)        
 
 SC_MIR_INSTRUCTION_DEF(LIncSP,          "incsp")      /// (Constant numBytes)
 SC_MIR_INSTRUCTION_DEF(LEA,             "lea")        /// (<Ptr> address)            [Data = const-ptr-data]
+SC_MIR_INSTRUCTION_DEF(LDA,             "lda")        /// (Value offset)             
 SC_MIR_INSTRUCTION_DEF(Compare,         "<compare>")  /// (Value lhs, Value rhs)     [Data = mode]
 SC_MIR_INSTRUCTION_DEF(Test,            "<test>")     /// (Value operand)            [Data = mode]
 SC_MIR_INSTRUCTION_DEF(Set,             "<set-inst>") /// ()                         [Data = condition]

@@ -167,6 +167,21 @@ private:
     MemoryAddress _address;
 };
 
+/// Represents the `lda` instruction.
+class LDAInst: public InstructionBase {
+public:
+    explicit LDAInst(RegisterIndex dest, Value32 offset):
+        _dest(dest), _offset(offset) {}
+
+    RegisterIndex dest() const { return _dest; }
+
+    Value32 offset() const { return _offset; }
+
+private:
+    RegisterIndex _dest;
+    Value32 _offset;
+};
+
 /// Represents a `cmp*` instruction.
 class CompareInst: public InstructionBase {
 public:

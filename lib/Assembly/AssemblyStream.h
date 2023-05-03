@@ -5,6 +5,9 @@
 
 #include <list>
 #include <memory>
+#include <span>
+
+#include <utl/vector.hpp>
 
 #include <scatha/Common/Base.h>
 
@@ -28,8 +31,13 @@ public:
 
     Block* add(Block block);
 
+    std::span<u8 const> dataSection() const { return data; }
+
+    void setDataSection(utl::vector<u8> data) { this->data = std::move(data); }
+
 private:
     std::list<Block> blocks;
+    utl::vector<u8> data;
 };
 
 } // namespace scatha::Asm

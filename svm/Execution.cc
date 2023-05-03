@@ -335,11 +335,18 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
             frame.stackPtr += offset;
         });
 
-        /// ## LEA
+        /// ## Address calculation
         INSTRUCTION(lea, {
             size_t const destRegIdx = load<u8>(i);
             u8* const ptr           = getPointer(regPtr, i + 1);
             regPtr[destRegIdx]      = utl::bit_cast<u64>(ptr);
+        });
+            
+        INSTRUCTION(lda, {
+            size_t const destRegIdx = load<u8>(i);
+            size_t const offset     = load<u32>(&i[1]);
+            u8* const address       = &data[0] + offset;
+            regPtr[destRegIdx]      = utl::bit_cast<u64>(address);
         });
 
         /// ## Jumps

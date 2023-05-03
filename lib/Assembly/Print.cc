@@ -91,6 +91,10 @@ static void printImpl(std::ostream& str, LEAInst const& lea) {
     str << instName("lea") << " " << lea.dest() << ", " << lea.address();
 }
 
+static void printImpl(std::ostream& str, LDAInst const& lda) {
+    str << instName("lda") << " " << lda.dest() << ", " << lda.offset();
+}
+
 static void printImpl(std::ostream& str, CompareInst const& cmp) {
     // clang-format off
     auto name = UTL_MAP_ENUM(cmp.type(), std::string_view, {

@@ -15,11 +15,11 @@ struct ProgramHeader {
     /// header.
     u64 size;
 
-    /// Offset from the end of the header to beginning of data section.
-    /// This should usually be 0.
+    /// Offset of the beginning of the data section.
+    /// This should usually the size of the header.
     u64 dataOffset;
 
-    /// Offset from the end of the header to beginning of text section.
+    /// Offset to the beginning of the text section.
     u64 textOffset;
 
     /// Position of the start/main function in the text section.

@@ -2,6 +2,7 @@
 #define SCATHA_MIR_MODULE_H_
 
 #include <utl/hashmap.hpp>
+#include <utl/vector.hpp>
 
 #include "Common/Base.h"
 #include "Common/List.h"
@@ -77,10 +78,22 @@ public:
 
     UndefValue* undefValue() const { return undef.get(); }
 
+    void setDataSection(utl::vector<uint8_t> data) {
+        this->data = std::move(data);
+    }
+
 private:
+    /// List of all functions in the module
     List<Function> funcs;
+
+    /// Constant pool
     utl::node_hashmap<std::pair<uint64_t, size_t>, Constant> constants;
+
+    /// Undef constant
     std::unique_ptr<UndefValue> undef;
+
+    /// Data section
+    utl::vector<uint8_t> data;
 };
 
 } // namespace scatha::mir
