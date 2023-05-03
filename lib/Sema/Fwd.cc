@@ -1,5 +1,7 @@
 #include "Sema/Fwd.h"
 
+#include <ostream>
+
 using namespace scatha;
 using namespace sema;
 
