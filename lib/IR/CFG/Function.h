@@ -6,7 +6,6 @@
 #include <string>
 
 #include "Common/Base.h"
-#include "IR/Attribute.h"
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Constant.h"
 #include "IR/CFG/UniqueName.h"

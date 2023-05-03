@@ -42,6 +42,7 @@
 #include <iosfwd>
 #include <string_view>
 
+#include <utl/common.hpp>
 #include <utl/hash.hpp>
 
 #include <scatha/Common/Base.h>
@@ -170,6 +171,17 @@ enum class Visibility {
 #include <scatha/IR/CFG/Lists.def>
     _count
 };
+
+/// Bitfield of function attributes
+enum class FunctionAttribute : unsigned {
+    None             = 0,
+    All              = unsigned(-1),
+    Memory_ReadNone  = 1 << 0,
+    Memory_WriteNone = 1 << 1,
+    Memory_None      = Memory_ReadNone | Memory_WriteNone
+};
+
+UTL_BITFIELD_OPERATORS(FunctionAttribute);
 
 } // namespace scatha::ir
 
