@@ -85,6 +85,7 @@ static void run(ir::Module const& mod) {
     auto assembly = cg::codegen(mod);
     header("Assembly");
     Asm::print(assembly);
+    header("Execution");
     run(assembly);
 }
 
@@ -223,6 +224,7 @@ static void pass(ir::Context& ctx,
 
     header("After Inliner");
     opt::inlineFunctions(ctx, mod);
+    opt::deadFuncElim(ctx, mod);
     ir::print(mod);
 
     run(mod);
