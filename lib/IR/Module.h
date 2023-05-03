@@ -24,6 +24,11 @@ public:
     Module& operator=(Module&& rhs) noexcept;
     ~Module();
 
+    auto constants() const {
+        return _constants | ranges::views::transform(
+                                [](auto& p) -> auto const* { return p.get(); });
+    }
+
     auto structures() { return makeOpaqueRange(structs); }
 
     auto structures() const { return makeOpaqueRange(structs); }
@@ -35,6 +40,8 @@ public:
     void addStructure(UniquePtr<StructureType> structure);
 
     void addGlobal(UniquePtr<Value> value);
+
+    void addConstant(UniquePtr<Constant> value);
 
     void addFunction(Function* function);
 
@@ -61,6 +68,7 @@ public:
 private:
     utl::vector<UniquePtr<StructureType>> structs;
     utl::vector<UniquePtr<Value>> _globals;
+    utl::vector<UniquePtr<Constant>> _constants;
     List<Function> funcs;
 };
 

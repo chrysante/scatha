@@ -77,6 +77,11 @@ void ir::assertInvariants(Context& ctx, Function const& function) {
 }
 
 void AssertContext::assertInvariants(Module const& mod) {
+    for (auto* constant: mod.constants()) {
+        CHECK(!isa<VoidType>(constant->type()), "Constants must have a type");
+        CHECK(constant->data().size() == constant->type()->size(),
+              "Constants data must be the same size as its type");
+    }
     for (auto& function: mod) {
         assertInvariants(function);
     }
