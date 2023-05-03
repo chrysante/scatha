@@ -9,58 +9,59 @@
 #endif
 
 /// ## Types
-SC_KEYWORD_TOKEN_DEF(Void,       "void")
-SC_KEYWORD_TOKEN_DEF(Byte,       "byte")
-SC_KEYWORD_TOKEN_DEF(Bool,       "bool")
-SC_KEYWORD_TOKEN_DEF(Signed8,    "s8")
-SC_KEYWORD_TOKEN_DEF(Signed16,   "s16")
-SC_KEYWORD_TOKEN_DEF(Signed32,   "s32")
-SC_KEYWORD_TOKEN_DEF(Signed64,   "s64")
-SC_KEYWORD_TOKEN_DEF(Unsigned8,  "u8")
-SC_KEYWORD_TOKEN_DEF(Unsigned16, "u16")
-SC_KEYWORD_TOKEN_DEF(Unsigned32, "u32")
-SC_KEYWORD_TOKEN_DEF(Unsigned64, "u64")
-SC_KEYWORD_TOKEN_DEF(Float32,    "f32")
-SC_KEYWORD_TOKEN_DEF(Float64,    "f64")
-SC_KEYWORD_TOKEN_DEF(Int,        "int")
-SC_KEYWORD_TOKEN_DEF(Float,      "float")
+SC_KEYWORD_TOKEN_DEF(Void,        "void")
+SC_KEYWORD_TOKEN_DEF(Byte,        "byte")
+SC_KEYWORD_TOKEN_DEF(Bool,        "bool")
+SC_KEYWORD_TOKEN_DEF(Signed8,     "s8")
+SC_KEYWORD_TOKEN_DEF(Signed16,    "s16")
+SC_KEYWORD_TOKEN_DEF(Signed32,    "s32")
+SC_KEYWORD_TOKEN_DEF(Signed64,    "s64")
+SC_KEYWORD_TOKEN_DEF(Unsigned8,   "u8")
+SC_KEYWORD_TOKEN_DEF(Unsigned16,  "u16")
+SC_KEYWORD_TOKEN_DEF(Unsigned32,  "u32")
+SC_KEYWORD_TOKEN_DEF(Unsigned64,  "u64")
+SC_KEYWORD_TOKEN_DEF(Float32,     "f32")
+SC_KEYWORD_TOKEN_DEF(Float64,     "f64")
+SC_KEYWORD_TOKEN_DEF(Int,         "int")
+SC_KEYWORD_TOKEN_DEF(Float,       "float")
 
 /// ## Directives
-SC_KEYWORD_TOKEN_DEF(Import,     "import")
-SC_KEYWORD_TOKEN_DEF(Export,     "export")
+SC_KEYWORD_TOKEN_DEF(Import,      "import")
+SC_KEYWORD_TOKEN_DEF(Export,      "export")
 
 /// ## Declarators
-SC_KEYWORD_TOKEN_DEF(Module,     "module")
-SC_KEYWORD_TOKEN_DEF(Struct,     "struct")
-SC_KEYWORD_TOKEN_DEF(Function,   "fn")
-SC_KEYWORD_TOKEN_DEF(Var,        "var")
-SC_KEYWORD_TOKEN_DEF(Let,        "let")
+SC_KEYWORD_TOKEN_DEF(Module,      "module")
+SC_KEYWORD_TOKEN_DEF(Struct,      "struct")
+SC_KEYWORD_TOKEN_DEF(Function,    "fn")
+SC_KEYWORD_TOKEN_DEF(Var,         "var")
+SC_KEYWORD_TOKEN_DEF(Let,         "let")
 
 /// ## Qualifiers
-SC_KEYWORD_TOKEN_DEF(Mutable,    "mut")
+SC_KEYWORD_TOKEN_DEF(Mutable,     "mut")
 
 /// ## Control flow
-SC_KEYWORD_TOKEN_DEF(Return,     "return")
-SC_KEYWORD_TOKEN_DEF(If,         "if")
-SC_KEYWORD_TOKEN_DEF(Else,       "else")
-SC_KEYWORD_TOKEN_DEF(For,        "for")
-SC_KEYWORD_TOKEN_DEF(While,      "while")
-SC_KEYWORD_TOKEN_DEF(Do,         "do")
-SC_KEYWORD_TOKEN_DEF(Break,      "break")
-SC_KEYWORD_TOKEN_DEF(Continue,   "continue")
+SC_KEYWORD_TOKEN_DEF(Return,      "return")
+SC_KEYWORD_TOKEN_DEF(If,          "if")
+SC_KEYWORD_TOKEN_DEF(Else,        "else")
+SC_KEYWORD_TOKEN_DEF(For,         "for")
+SC_KEYWORD_TOKEN_DEF(While,       "while")
+SC_KEYWORD_TOKEN_DEF(Do,          "do")
+SC_KEYWORD_TOKEN_DEF(Break,       "break")
+SC_KEYWORD_TOKEN_DEF(Continue,    "continue")
 
 /// ## Operators
-SC_KEYWORD_TOKEN_DEF(Unique,     "unique")
+SC_KEYWORD_TOKEN_DEF(Unique,      "unique")
+SC_KEYWORD_TOKEN_DEF(Reinterpret, "reinterpret")
 
 /// ## Constants
-SC_KEYWORD_TOKEN_DEF(False,      "false")
-SC_KEYWORD_TOKEN_DEF(True,       "true")
-SC_KEYWORD_TOKEN_DEF(This,       "this")
+SC_KEYWORD_TOKEN_DEF(False,       "false")
+SC_KEYWORD_TOKEN_DEF(True,        "true")
+SC_KEYWORD_TOKEN_DEF(This,        "this")
 
 /// ## Specifiers
-SC_KEYWORD_TOKEN_DEF(Public,     "public")
-SC_KEYWORD_TOKEN_DEF(Protected,  "protected")
-SC_KEYWORD_TOKEN_DEF(Private,    "private")
+SC_KEYWORD_TOKEN_DEF(Public,      "public")
+SC_KEYWORD_TOKEN_DEF(Protected,   "protected")
+SC_KEYWORD_TOKEN_DEF(Private,     "private")
 
 #undef SC_KEYWORD_TOKEN_DEF
 
