@@ -146,12 +146,13 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
     return [=](std::ostream& str) {
         if (!type) {
             str << tfmt::format(tfmt::BrightBlue | tfmt::Italic, "null-type");
-            return;
         }
-        if (auto* sType = dyncast<StructureType const*>(type)) {
+        else if (auto* sType = dyncast<StructureType const*>(type)) {
             str << formatStructType(sType);
         }
-        str << tfmt::format(tfmt::BrightBlue, type->name());
+        else {
+            str << tfmt::format(tfmt::BrightBlue, type->name());
+        }
     };
 }
 
