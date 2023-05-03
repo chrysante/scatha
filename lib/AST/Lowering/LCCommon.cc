@@ -2,14 +2,31 @@
 
 #include <utl/strcat.hpp>
 
+#include "AST/LowerToIR.h" // Remove later
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Module.h" // Remove later
 #include "IR/Type.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace ast;
+
+[[nodiscard]] SCATHA_API ir::Module ast::lowerToIR2(
+    AbstractSyntaxTree const& root,
+    sema::SymbolTable const& symbolTable,
+    ir::Context& ctx) {
+    ir::Module mod;
+    LoweringContext context(symbolTable, ctx, mod);
+    context.run(root);
+    return mod;
+}
+
+void LoweringContext::run(ast::AbstractSyntaxTree const& root) {
+    makeDeclarations();
+    generate(root);
+}
 
 ir::BasicBlock* LoweringContext::newBlock(std::string name) {
     return new ir::BasicBlock(ctx, std::move(name));

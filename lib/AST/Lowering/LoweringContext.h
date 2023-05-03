@@ -35,6 +35,9 @@ struct LoweringContext {
     utl::small_vector<ir::Alloca*> allocas;
     Loop currentLoop;
 
+    /// # Other data
+    ir::Type const* arrayViewType = nullptr;
+
     /// # -
 
     LoweringContext(sema::SymbolTable const& symbolTable,
@@ -42,9 +45,13 @@ struct LoweringContext {
                     ir::Module& mod):
         symbolTable(symbolTable), ctx(ctx), mod(mod) {}
 
-    /// # Forward declarations
+    void run(ast::AbstractSyntaxTree const& root);
 
-    void declareTypes();
+    /// # Declarations
+
+    void makeDeclarations();
+
+    void declareType(sema::StructureType const* structType);
 
     void declareFunction(sema::Function const* function);
 
@@ -83,17 +90,58 @@ struct LoweringContext {
 
     /// # Expressions
 
-    /// **Always** dereferences implicit references
-    /// Only explicit references are returned as pointers
-    ir::Value* getValue(Expression const* expr) { SC_DEBUGFAIL(); }
+    ///
+    /// Let `X` be the raw `sema::ObjectType` of the expression \p expr
+    /// The return value of this function depends on the `sema::QualType` of \p
+    /// expr in the following way:
+    ///
+    /// ` X -> Value of the expression `
+    /// Regardless of wether `X` is a struct or an array, the value of the
+    /// object will be returned
+    ///
+    /// `'X -> Value of the referred object`
+    /// Same as above
+    ///
+    /// `&X -> Address of the referred object`
+    /// If `X` is a struct type, a value of type `ptr` will be returned
+    /// If `X` is an array type, a value of type `{ ptr, i64 }` will be returned
+    ///
+    ir::Value* getValue(Expression const* expr);
 
-    /// Return the logical address, i.e. if expression is an implicit reference,
-    /// it returns the address it refers to, if it is an l-value object then it
-    /// returns the address of that
-    ir::Value* getAddress(Expression const* expr) { SC_DEBUGFAIL(); }
+    ///
+    /// Let `X` be the raw `sema::ObjectType` of the expression \p expr
+    /// The return value of this function depends on the `sema::QualType` of \p
+    /// expr in the following way: ` X -> -` Traps
+    ///
+    /// `'X -> Address of the referred object`
+    /// If `X` is a struct type, a value of type `ptr` will be returned
+    /// If `X` is an array type, a value of type `{ ptr, i64 }` will be returned
+    ///
+    /// `&X -> Address of the reference`
+    /// If `X` is a struct type, a value of type `ptr`, pointing to another
+    /// `ptr`, will be returned If `X` is an array type, a value of type `ptr`,
+    /// pointing to a value of type `{ ptr, i64 }`, will be returned
+    ///
+    /// ```
+    ir::Value* getAddress(Expression const* expr);
 
-    /// Returns the address of a reference to reassign it
-    ir::Value* getReferenceAddress(Expression const& node);
+    ir::Value* getValueImpl(AbstractSyntaxTree const& expr) {
+        SC_UNREACHABLE();
+    } // Delete later
+    ir::Value* getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
+    ir::Value* getValueImpl(Identifier const&);
+    ir::Value* getValueImpl(Literal const&);
+    ir::Value* getValueImpl(UnaryPrefixExpression const&);
+    ir::Value* getValueImpl(BinaryExpression const&);
+    ir::Value* getValueImpl(MemberAccess const&);
+    ir::Value* getValueImpl(ReferenceExpression const&);
+    ir::Value* getValueImpl(UniqueExpression const&);
+    ir::Value* getValueImpl(Conditional const&);
+    ir::Value* getValueImpl(FunctionCall const&);
+    ir::Value* genCallImpl(FunctionCall const&);
+    ir::Value* getValueImpl(Subscript const&);
+    ir::Value* getValueImpl(ImplicitConversion const&);
+    ir::Value* getValueImpl(ListExpression const&);
 
     /// # Utils
 

@@ -13,6 +13,27 @@
 using namespace scatha;
 using namespace ast;
 
+void LoweringContext::makeDeclarations() {
+    arrayViewType = ctx.anonymousStructure(
+        std::array<ir::Type const*, 2>{ ctx.pointerType(),
+                                        ctx.integralType(64) });
+    for (auto* type: symbolTable.sortedStructureTypes()) {
+        declareType(type);
+    }
+    for (auto* function: symbolTable.functions()) {
+        declareFunction(function);
+    }
+}
+
+void LoweringContext::declareType(sema::StructureType const* structType) {
+    auto structure = allocate<ir::StructureType>(structType->mangledName());
+    for (auto* member: structType->memberVariables()) {
+        structure->addMember(mapType(member->type()));
+    }
+    typeMap[structType] = structure.get();
+    mod.addStructure(std::move(structure));
+}
+
 void LoweringContext::declareFunction(sema::Function const* function) {
     auto paramTypes =
         function->argumentTypes() |
