@@ -14,6 +14,7 @@
 #include <scatha/Common/APInt.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Fwd.h>
+#include <scatha/IR/StructHash.h>
 
 namespace scatha::ir {
 
@@ -40,6 +41,10 @@ public:
     /// \returns The `fN` type where `N` is \p bitWidth
     /// \param bitWidth must be either 32 or 64
     FloatType const* floatType(size_t bitWidth);
+
+    /// \returns The structure type with members \p members
+    StructureType const* anonymousStructure(
+        std::span<Type const* const> members);
 
     /// \returns The array type of \p elementType with \p count elements
     ArrayType const* arrayType(Type const* elementType, size_t count);
@@ -102,6 +107,12 @@ private:
     PointerType const* _ptrType;
     utl::hashmap<uint32_t, IntegralType const*> _intTypes;
     utl::hashmap<uint32_t, FloatType const*> _floatTypes;
+    using StructKey = utl::small_vector<Type const*>;
+    utl::hashmap<StructKey,
+                 StructureType const*,
+                 internal::StructHash,
+                 internal::StructEqual>
+        _anonymousStructs;
     using ArrayKey = std::pair<Type const*, size_t>;
     utl::hashmap<ArrayKey, ArrayType const*> _arrayTypes;
 };

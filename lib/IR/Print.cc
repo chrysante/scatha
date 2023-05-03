@@ -126,55 +126,76 @@ static auto tertiary(auto... name) {
 
 static auto formatInstName(auto... name) { return formatKeyword(name...); }
 
-static tfmt::VObjectWrapper formatType(ir::Type const* type) {
-    if (!type) {
-        return tfmt::format(tfmt::BrightBlue | tfmt::Italic, "null-type");
-    }
-    if (type->category() == ir::TypeCategory::StructureType) {
-        return tfmt::format(tfmt::Green, "@", type->name());
-    }
-    return tfmt::format(tfmt::BrightBlue, type->name());
+static utl::vstreammanip<> formatType(ir::Type const* type);
+
+static utl::vstreammanip<> formatStructType(ir::StructureType const* type) {
+    return [=](std::ostream& str) {
+        if (!type->name().empty()) {
+            str << tfmt::format(tfmt::Green, "@", type->name());
+            return;
+        }
+        str << "{ ";
+        for (bool first = true; auto* member: type->members()) {
+            str << (first ? first = false, "" : ", ") << formatType(member);
+        }
+        str << " }";
+    };
+}
+
+static utl::vstreammanip<> formatType(ir::Type const* type) {
+    return [=](std::ostream& str) {
+        if (!type) {
+            str << tfmt::format(tfmt::BrightBlue | tfmt::Italic, "null-type");
+            return;
+        }
+        if (auto* sType = dyncast<StructureType const*>(type)) {
+            str << formatStructType(sType);
+        }
+        str << tfmt::format(tfmt::BrightBlue, type->name());
+    };
 }
 
 static auto formatNumLiteral(auto... value) {
     return tfmt::format(tfmt::Cyan, value...);
 }
 
-static tfmt::VObjectWrapper formatName(Value const* value) {
+static constexpr utl::streammanip formatName([](std::ostream& str,
+                                                Value const* value) {
     if (!value) {
-        return tfmt::format(tfmt::BrightWhite | tfmt::BGBrightRed | tfmt::Bold,
+        str << tfmt::format(tfmt::BrightWhite | tfmt::BGBrightRed | tfmt::Bold,
                             "<NULL>");
+        return;
     }
     // clang-format off
-    return visit(*value, utl::overload{
-        [](ir::Callable const& function) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::Italic | tfmt::Green,
+    visit(*value, utl::overload{
+        [&](ir::Callable const& function) {
+            str << tfmt::format(tfmt::Italic | tfmt::Green,
                                 "@", function.name());
         },
-        [](ir::Parameter const& parameter) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::None, "%", parameter.name());
+        [&](ir::Parameter const& parameter) {
+            str << tfmt::format(tfmt::None, "%", parameter.name());
         },
-        [](ir::BasicBlock const& basicBlock) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::Italic,
+        [&](ir::BasicBlock const& basicBlock) {
+            str << tfmt::format(tfmt::Italic,
                                 "%", basicBlock.name());
         },
-        [](ir::Instruction const& inst) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::None, "%", inst.name());
+        [&](ir::Instruction const& inst) {
+            str << tfmt::format(tfmt::None, "%", inst.name());
         },
-        [](ir::IntegralConstant const& value) -> tfmt::VObjectWrapper {
-            return formatNumLiteral(value.value().toString());
+        [&](ir::IntegralConstant const& value) {
+            str << formatNumLiteral(value.value().toString());
         },
-        [](ir::FloatingPointConstant const& value) -> tfmt::VObjectWrapper {
-            return formatNumLiteral(value.value().toString());
+        [&](ir::FloatingPointConstant const& value) {
+            str << formatNumLiteral(value.value().toString());
         },
-        [](ir::UndefValue const& value) -> tfmt::VObjectWrapper {
-            return formatKeyword("undef");
+        [&](ir::UndefValue const& value) {
+            str << formatKeyword("undef");
         },
-        [](ir::Value const&) -> tfmt::VObjectWrapper {
-            return tfmt::format(tfmt::BGMagenta, "???");
+        [&](ir::Value const&) {
+            str << tfmt::format(tfmt::BGMagenta, "???");
         },
     }); // clang-format on
-}
+});
 
 static auto equals() {
     return utl::streammanip([](std::ostream& str) -> std::ostream& {

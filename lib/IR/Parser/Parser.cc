@@ -852,6 +852,23 @@ Type const* ParseContext::tryParseType() {
     case TokenKind::FloatType:
         eatToken();
         return irCtx.floatType(token.width());
+    case TokenKind::OpenBrace: {
+        eatToken();
+        utl::small_vector<Type const*> members;
+        while (true) {
+            Token const typeTok = peekToken();
+            auto* type          = parseType();
+            if (!type) {
+                reportSemaIssue(typeTok, SemanticIssue::UnexpectedID);
+            }
+            members.push_back(type);
+            if (peekToken().kind() == TokenKind::CloseBrace) {
+                eatToken();
+                return irCtx.anonymousStructure(members);
+            }
+            expect(eatToken(), TokenKind::Comma);
+        }
+    }
     case TokenKind::OpenBracket: {
         eatToken();
         Token const typeTok = peekToken();

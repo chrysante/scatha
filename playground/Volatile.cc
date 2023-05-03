@@ -231,5 +231,5 @@ static void pass(ir::Context& ctx,
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+    irPlayground(path);
 }

@@ -45,7 +45,22 @@ FloatType const* Context::floatType(size_t bitWidth) {
     return getArithmeticType<FloatType>(bitWidth, _types, _floatTypes);
 }
 
-/// \returns The array type of \p elementType with \p count elements
+StructureType const* Context::anonymousStructure(
+    std::span<Type const* const> members) {
+    auto itr = _anonymousStructs.find(members);
+    if (itr != _anonymousStructs.end()) {
+        return itr->second;
+    }
+    auto type = allocate<StructureType>(std::string{});
+    for (auto* member: members) {
+        type->addMember(member);
+    }
+    auto* result = type.get();
+    _types.push_back(std::move(type));
+    _anonymousStructs.insert({ members | ranges::to<StructKey>, result });
+    return result;
+}
+
 ArrayType const* Context::arrayType(Type const* elementType, size_t count) {
     ArrayKey key = { elementType, count };
     auto itr     = _arrayTypes.find(key);

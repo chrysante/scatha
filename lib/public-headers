@@ -24,6 +24,7 @@ IR/Fwd.h
 IR/CFG/Lists.def
 IR/Module.h
 IR/Type.h
+IR/StructHash.h
 
 Opt/Optimizer.h
 
