@@ -26,6 +26,9 @@ UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens,
 UniquePtr<ast::AbstractSyntaxTree> parse::parse(std::string_view source,
                                                 IssueHandler& issueHandler) {
     auto tokens = lex(source, issueHandler);
+    if (!issueHandler.empty()) {
+        return nullptr;
+    }
     bracketCorrection(tokens, issueHandler);
     Context ctx{ .tokens{ std::move(tokens) }, .issues = issueHandler };
     return ctx.run();
