@@ -79,6 +79,7 @@ struct CGContext {
 
 Asm::AssemblyStream cg::lowerToASM(mir::Module const& mod) {
     Asm::AssemblyStream result;
+    result.setDataSection(mod.dataSection());
     CGContext ctx(result);
     ctx.run(mod);
     return result;

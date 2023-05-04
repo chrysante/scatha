@@ -115,7 +115,10 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     };
     result.program.resize(sizeof(svm::ProgramHeader) + header.size);
     std::memcpy(result.program.data(), &header, sizeof(header));
-    std::memcpy(result.program.data() + sizeof(header),
+    std::memcpy(result.program.data() + header.dataOffset,
+                astr.dataSection().data(),
+                astr.dataSection().size());
+    std::memcpy(result.program.data() + header.textOffset,
                 ctx.instructions.data(),
                 ctx.instructions.size());
     return result;

@@ -78,6 +78,8 @@ public:
 
     UndefValue* undefValue() const { return undef.get(); }
 
+    utl::vector<u8> const& dataSection() const { return data; }
+
     void setDataSection(utl::vector<uint8_t> data) {
         this->data = std::move(data);
     }

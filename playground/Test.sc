@@ -3,6 +3,7 @@
 
 func i32 @main() {
   %entry:
-    %r = load i32, ptr @const_data
+    %p = getelementptr inbounds i32, ptr @const_data, i32 1
+    %r = load i32, ptr %p
     return i32 %r
 }
