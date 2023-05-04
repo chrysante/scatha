@@ -6,6 +6,8 @@
 
 #include "AST/Fwd.h"
 #include "Common/List.h"
+#include "Common/APInt.h"
+#include "Common/APFloat.h"
 #include "IR/Fwd.h"
 #include "Sema/Fwd.h"
 
@@ -141,11 +143,25 @@ struct LoweringContext {
     ir::Value* getValueImpl(UniqueExpression const&);
     ir::Value* getValueImpl(Conditional const&);
     ir::Value* getValueImpl(FunctionCall const&);
-    ir::Value* genCallImpl(FunctionCall const&);
     ir::Value* getValueImpl(Subscript const&);
-    ir::Value* getValueImpl(ImplicitConversion const&);
+    ir::Value* getValueImpl(Conversion const&);
     ir::Value* getValueImpl(ListExpression const&);
 
+    ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) {
+        SC_UNREACHABLE();
+    } // Delete this later
+    ir::Value* getAddressImpl(Literal const& lit);
+    ir::Value* getAddressImpl(Identifier const&);
+    ir::Value* getAddressImpl(MemberAccess const&);
+    ir::Value* getAddressImpl(FunctionCall const&);
+    ir::Value* getAddressImpl(Subscript const&);
+    ir::Value* getAddressImpl(ReferenceExpression const&);
+    ir::Value* getAddressImpl(Conversion const&);
+    ir::Value* getAddressImpl(ListExpression const&);
+    
+    ir::Value* getAddressLocation(Expression const* expr) { SC_DEBUGFAIL(); }
+    
+    
     /// # Utils
 
     ir::BasicBlock* newBlock(std::string name);
@@ -158,20 +174,37 @@ struct LoweringContext {
 
     template <std::derived_from<ir::Instruction> Inst, typename... Args>
         requires std::constructible_from<Inst, Args...>
-    void add(Args&&... args) {
-        add(new Inst(std::forward<Args>(args)...));
+    Inst* add(Args&&... args) {
+        Inst* result = new Inst(std::forward<Args>(args)...);
+        add(result);
+        return result;
     }
 
     template <std::derived_from<ir::Instruction> Inst, typename... Args>
         requires std::constructible_from<Inst, ir::Context&, Args...>
-    void add(Args&&... args) {
-        add(new Inst(ctx, std::forward<Args>(args)...));
+    Inst* add(Args&&... args) {
+        auto* result = new Inst(ctx, std::forward<Args>(args)...);
+        add(result);
+        return result;
     }
+
 
     ir::Value* storeLocal(ir::Value* value, std::string name = {});
 
     ir::Value* makeLocal(ir::Type const* type, std::string name);
 
+    ir::Value* genCall(FunctionCall const*);
+    
+    utl::small_vector<ir::Value*> mapArguments(auto&& args);
+    
+    ir::Value* intConstant(APInt value);
+    
+    ir::Value* intConstant(size_t value, size_t bitwidth);
+    
+    ir::Value* floatConstant(APFloat value);
+    
+    ir::Value* constant(ssize_t value, ir::Type const* type);
+    
     void memorizeVariableAddress(sema::Entity const* entity,
                                  ir::Value* address);
 
