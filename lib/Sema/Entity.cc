@@ -117,7 +117,7 @@ std::string QualType::makeName(ObjectType* base, TypeQualifiers qualifiers) {
         sstr << "&";
     }
     else if (test(qualifiers & ImplicitReference)) {
-        sstr << "`";
+        sstr << "'";
     }
     if (test(qualifiers & Mutable)) {
         sstr << "mut ";
