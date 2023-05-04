@@ -92,8 +92,8 @@ struct LoweringContext {
 
     ///
     /// Let `X` be the raw `sema::ObjectType` of the expression \p expr
-    /// The return value of this function depends on the `sema::QualType` of \p
-    /// expr in the following way:
+    /// The return value of this function depends on the `sema::QualType` of
+    /// \p expr in the following way:
     ///
     /// ` X -> Value of the expression `
     /// Regardless of wether `X` is a struct or an array, the value of the
@@ -110,19 +110,22 @@ struct LoweringContext {
 
     ///
     /// Let `X` be the raw `sema::ObjectType` of the expression \p expr
-    /// The return value of this function depends on the `sema::QualType` of \p
-    /// expr in the following way: ` X -> -` Traps
+    /// The return value of this function depends on the `sema::QualType` of
+    /// \p expr in the following way:
+    ///
+    /// ` X -> -` Traps. Temporaries don't have addresses. We might however
+    /// consider to store the value to memory and return a pointer to it.
     ///
     /// `'X -> Address of the referred object`
-    /// If `X` is a struct type, a value of type `ptr` will be returned
+    /// If `X` is a struct type, a value of type `ptr` will be returned.
     /// If `X` is an array type, a value of type `{ ptr, i64 }` will be returned
     ///
     /// `&X -> Address of the reference`
     /// If `X` is a struct type, a value of type `ptr`, pointing to another
-    /// `ptr`, will be returned If `X` is an array type, a value of type `ptr`,
-    /// pointing to a value of type `{ ptr, i64 }`, will be returned
+    /// `ptr`, will be returned.
+    /// If `X` is an array type, a value of type `ptr`, pointing to a value of
+    /// type `{ ptr, i64 }`, will be returned
     ///
-    /// ```
     ir::Value* getAddress(Expression const* expr);
 
     ir::Value* getValueImpl(AbstractSyntaxTree const& expr) {
