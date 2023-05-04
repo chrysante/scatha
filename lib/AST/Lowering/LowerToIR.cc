@@ -88,7 +88,7 @@ struct CodeGenContext {
     ir::Value* getValueImpl(FunctionCall const&);
     ir::Value* genCallImpl(FunctionCall const&);
     ir::Value* getValueImpl(Subscript const&);
-    ir::Value* getValueImpl(ImplicitConversion const&);
+    ir::Value* getValueImpl(Conversion const&);
     ir::Value* getValueImpl(ListExpression const&);
 
     /// Store a temporary value to memory
@@ -111,7 +111,7 @@ struct CodeGenContext {
     ir::Value* getAddressImpl(FunctionCall const&);
     ir::Value* getAddressImpl(Subscript const&);
     ir::Value* getAddressImpl(ReferenceExpression const&);
-    ir::Value* getAddressImpl(ImplicitConversion const&);
+    ir::Value* getAddressImpl(Conversion const&);
     ir::Value* getAddressImpl(ListExpression const&);
 
     ir::Value* loadAddress(ir::Value* address,
@@ -657,8 +657,8 @@ ir::Value* CodeGenContext::getValueImpl(BinaryExpression const& expr) {
         [[fallthrough]];
     case XOrAssignment: {
         auto* rhs = getValue(*expr.rhs());
-        /// If user assign an implicit reference, sema should have inserted an
-        /// `ImplicitConversion` node that gives us a non-reference type here
+        /// If user assign an implicit reference, sema should have inserted a
+        /// `Conversion` node that gives us a non-reference type here
         if (expr.rhs()->type()->isReference()) {
             /// Here we want to reassign the reference
             SC_ASSERT(isa<ir::PointerType>(rhs->type()),
@@ -774,7 +774,7 @@ ir::Value* CodeGenContext::getValueImpl(Subscript const& expr) {
     return loadAddress(address, mapType(expr.type()->base()), "[].value");
 }
 
-ir::Value* CodeGenContext::getValueImpl(ImplicitConversion const& conv) {
+ir::Value* CodeGenContext::getValueImpl(Conversion const& conv) {
     return getValue(*conv.expression());
     auto* expr = conv.expression();
     if (conv.type()->isReference()) {
@@ -892,7 +892,7 @@ ir::Value* CodeGenContext::getAddressImpl(ReferenceExpression const& expr) {
     return getAddress(*expr.referred());
 }
 
-ir::Value* CodeGenContext::getAddressImpl(ImplicitConversion const& conv) {
+ir::Value* CodeGenContext::getAddressImpl(Conversion const& conv) {
     return visit(*conv.expression(),
                  [this](auto const& expr) { return getAddressImpl(expr); });
 }

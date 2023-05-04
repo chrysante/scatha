@@ -22,13 +22,12 @@ bool sema::isImplicitlyConvertible(QualType const* to, QualType const* from) {
     return from->base() == to->base();
 }
 
-ast::ImplicitConversion* sema::insertImplicitConversion(
+ast::Conversion* sema::insertConversion(
     ast::Expression* expr, sema::QualType const* toType) {
-    SC_ASSERT(isImplicitlyConvertible(toType, expr->type()), "");
     size_t const indexInParent = expr->indexInParent();
     auto* parent               = expr->parent();
     auto owner =
-        allocate<ast::ImplicitConversion>(expr->extractFromParent(), toType);
+        allocate<ast::Conversion>(expr->extractFromParent(), toType);
     auto* conv = owner.get();
     parent->setChild(indexInParent, std::move(owner));
     auto* entity = toType->isReference() ? expr->entity() : nullptr;
@@ -70,7 +69,7 @@ bool sema::convertImplicitly(ast::Expression* expr,
         return true;
     }
     if (expr->type() && isImplicitlyConvertible(to, expr->type())) {
-        insertImplicitConversion(expr, to);
+        insertConversion(expr, to);
         return true;
     }
     issueHandler.push<BadTypeConversion>(*expr, to);

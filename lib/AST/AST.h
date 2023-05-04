@@ -44,7 +44,7 @@
 //    ├─ MemberAccess
 //    ├─ Conditional
 //    ├─ FunctionCall
-//    ├─ ImplicitConversion
+//    ├─ Conversion
 //    └─ Subscript
 
 #define AST_DERIVED_COMMON(Type)                                               \
@@ -607,16 +607,16 @@ public:
 };
 
 /// Abstract node representing a statement.
-class SCATHA_API ImplicitConversion: public Expression {
+class SCATHA_API Conversion: public Expression {
 public:
-    explicit ImplicitConversion(UniquePtr<Expression> expr,
+    explicit Conversion(UniquePtr<Expression> expr,
                                 sema::QualType const* targetType):
-        Expression(NodeType::ImplicitConversion,
+        Expression(NodeType::Conversion,
                    expr->sourceRange(),
                    std::move(expr)),
         _targetType(targetType) {}
 
-    AST_DERIVED_COMMON(ImplicitConversion)
+    AST_DERIVED_COMMON(Conversion)
 
     /// The target type of the conversion
     sema::QualType const* targetType() const { return _targetType; }

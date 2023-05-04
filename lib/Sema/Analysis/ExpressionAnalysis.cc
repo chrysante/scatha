@@ -32,7 +32,7 @@ struct Context {
     bool analyzeImpl(ast::Conditional&);
     bool analyzeImpl(ast::FunctionCall&);
     bool analyzeImpl(ast::Subscript&);
-    bool analyzeImpl(ast::ImplicitConversion&);
+    bool analyzeImpl(ast::Conversion&);
     bool analyzeImpl(ast::ListExpression&);
 
     bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
@@ -456,7 +456,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     }); // clang-format on
 }
 
-bool Context::analyzeImpl(ast::ImplicitConversion& conv) {
+bool Context::analyzeImpl(ast::Conversion& conv) {
     SC_DEBUGFAIL();
 
     if (!analyze(*conv.expression())) {
