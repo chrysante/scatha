@@ -678,7 +678,7 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         if (expr.rhs()->type()->isExplicitReference() &&
             isImplicitlyConvertible(expr.lhs()->type(), expr.rhs()->type()))
         {
-            insertImplicitConversion(expr.rhs(), expr.lhs()->type());
+            insertConversion(expr.rhs(), expr.lhs()->type());
             return sym.qVoid();
         }
         [[fallthrough]];

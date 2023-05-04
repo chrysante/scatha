@@ -34,7 +34,8 @@ filter "system:macosx"
         "-Wold-style-cast", 
         "-Wno-sign-compare", 
         "-Wno-unused-parameter",
-        "-Wmissing-field-initializers"
+        "-Wmissing-field-initializers",
+        "-ftemplate-depth=2048" -- until `dyncast` is refactored
     }
     xcodebuildsettings { 
         ["INSTALL_PATH"]            = "@executable_path",

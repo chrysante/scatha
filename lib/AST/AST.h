@@ -610,10 +610,8 @@ public:
 class SCATHA_API Conversion: public Expression {
 public:
     explicit Conversion(UniquePtr<Expression> expr,
-                                sema::QualType const* targetType):
-        Expression(NodeType::Conversion,
-                   expr->sourceRange(),
-                   std::move(expr)),
+                        sema::QualType const* targetType):
+        Expression(NodeType::Conversion, expr->sourceRange(), std::move(expr)),
         _targetType(targetType) {}
 
     AST_DERIVED_COMMON(Conversion)

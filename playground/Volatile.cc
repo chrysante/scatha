@@ -26,6 +26,7 @@
 #include "IR/Module.h"
 #include "IR/Parser.h"
 #include "IR/Print.h"
+#include "IR/Type.h"
 #include "IR/Validate.h"
 #include "IRDump.h"
 #include "Issue/IssueHandler.h"
@@ -182,10 +183,7 @@ static void pass(ir::Context& ctx,
     auto [ctx, mod] = makeIRModuleFromFile(path);
 
     header("Parsed program");
-    ir::print(mod);
 
-    header("After SROA");
-    pass(ctx, mod, &opt::sroa);
     ir::print(mod);
 
     run(mod);
@@ -231,5 +229,5 @@ static void pass(ir::Context& ctx,
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+    irPlayground(path);
 }

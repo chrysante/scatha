@@ -22,12 +22,11 @@ bool sema::isImplicitlyConvertible(QualType const* to, QualType const* from) {
     return from->base() == to->base();
 }
 
-ast::Conversion* sema::insertConversion(
-    ast::Expression* expr, sema::QualType const* toType) {
+ast::Conversion* sema::insertConversion(ast::Expression* expr,
+                                        sema::QualType const* toType) {
     size_t const indexInParent = expr->indexInParent();
     auto* parent               = expr->parent();
-    auto owner =
-        allocate<ast::Conversion>(expr->extractFromParent(), toType);
+    auto owner = allocate<ast::Conversion>(expr->extractFromParent(), toType);
     auto* conv = owner.get();
     parent->setChild(indexInParent, std::move(owner));
     auto* entity = toType->isReference() ? expr->entity() : nullptr;

@@ -1,14 +1,8 @@
 
-struct X {
-    fn f(&this, n: int) {}
-}
+@const_data = [i32, 3] [i32 1, i32 2, i32 3]
 
-public fn main(n: int, m: int) -> int {
-    let a: int = 1;
-    let b = 2;
-    
-    var r = &a;
-    
-    r = &b;
-    return r;
+func i32 @main() {
+  %entry:
+    %r = load i32, ptr @const_data
+    return i32 %r
 }
