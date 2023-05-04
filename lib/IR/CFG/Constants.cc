@@ -25,3 +25,11 @@ FloatingPointConstant::FloatingPointConstant(Context& context,
 FloatType const* FloatingPointConstant::type() const {
     return cast<FloatType const*>(Value::type());
 }
+
+ConstantData::ConstantData(ir::Context& ctx,
+                           Type const* dataType,
+                           utl::vector<uint8_t> data,
+                           std::string name):
+    Constant(NodeType::ConstantData, ctx.pointerType(), std::move(name)),
+    _dataType(dataType),
+    _data(std::move(data)) {}

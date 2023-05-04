@@ -30,8 +30,8 @@ void Module::addGlobal(UniquePtr<Value> value) {
     _globals.push_back(std::move(value));
 }
 
-void Module::addConstant(UniquePtr<Constant> value) {
-    _constants.push_back(std::move(value));
+void Module::addConstantData(UniquePtr<ConstantData> value) {
+    _constantData.push_back(std::move(value));
 }
 
 void Module::eraseFunction(Function* function) {

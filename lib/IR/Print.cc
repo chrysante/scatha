@@ -46,6 +46,10 @@ struct PrintCtx {
 
     void print(StructureType const& structure);
 
+    void print(ConstantData const& constData);
+
+    void printDataAs(Type const* type, std::span<u8 const> data);
+
     void instDecl(Instruction const*) const;
     void name(Value const*) const;
     void type(Type const*) const;
@@ -62,14 +66,17 @@ struct PrintCtx {
 
 } // namespace
 
-void ir::print(Module const& program) { ir::print(program, std::cout); }
+void ir::print(Module const& mod) { ir::print(mod, std::cout); }
 
-void ir::print(Module const& program, std::ostream& str) {
+void ir::print(Module const& mod, std::ostream& str) {
     PrintCtx ctx(str);
-    for (auto& structure: program.structures()) {
+    for (auto& structure: mod.structures()) {
         ctx.print(*structure);
     }
-    for (auto& function: program) {
+    for (auto* constData: mod.constantData()) {
+        ctx.print(*constData);
+    }
+    for (auto& function: mod) {
         ctx.dispatch(function);
     }
 }
@@ -120,44 +127,44 @@ static auto formatKeyword(auto... name) {
     return tfmt::format(tfmt::Magenta | tfmt::Bold, name...);
 }
 
+static auto formatNumLiteral(auto... value) {
+    return tfmt::format(tfmt::Cyan, value...);
+}
+
 static auto tertiary(auto... name) {
     return tfmt::format(tfmt::BrightGrey, name...);
 }
 
 static auto formatInstName(auto... name) { return formatKeyword(name...); }
 
-static utl::vstreammanip<> formatType(ir::Type const* type);
-
-static utl::vstreammanip<> formatStructType(ir::StructureType const* type) {
-    return [=](std::ostream& str) {
-        if (!type->name().empty()) {
-            str << tfmt::format(tfmt::Green, "@", type->name());
-            return;
-        }
-        str << "{ ";
-        for (bool first = true; auto* member: type->members()) {
-            str << (first ? first = false, "" : ", ") << formatType(member);
-        }
-        str << " }";
-    };
-}
-
 static utl::vstreammanip<> formatType(ir::Type const* type) {
     return [=](std::ostream& str) {
         if (!type) {
             str << tfmt::format(tfmt::BrightBlue | tfmt::Italic, "null-type");
         }
-        else if (auto* sType = dyncast<StructureType const*>(type)) {
-            str << formatStructType(sType);
-        }
-        else {
-            str << tfmt::format(tfmt::BrightBlue, type->name());
-        }
+        // clang-format off
+        visit(*type, utl::overload{
+            [&](StructureType const& type) {
+                if (!type.name().empty()) {
+                    str << tfmt::format(tfmt::Green, "@", type.name());
+                    return;
+                }
+                str << "{ ";
+                for (bool first = true; auto* member: type.members()) {
+                    str << (first ? first = false, "" : ", ")
+                        << formatType(member);
+                }
+                str << " }";
+            },
+            [&](ArrayType const& type) {
+                str << "[" << formatType(type.elementType()) << ", "
+                    << formatNumLiteral(type.count()) << "]";
+            },
+            [&](Type const& type) {
+                str << tfmt::format(tfmt::BrightBlue, type.name());
+            }
+        }); // clang-format on
     };
-}
-
-static auto formatNumLiteral(auto... value) {
-    return tfmt::format(tfmt::Cyan, value...);
 }
 
 static constexpr utl::streammanip formatName([](std::ostream& str,
@@ -169,9 +176,9 @@ static constexpr utl::streammanip formatName([](std::ostream& str,
     }
     // clang-format off
     visit(*value, utl::overload{
-        [&](ir::Callable const& function) {
+        [&](ir::Constant const& constant) {
             str << tfmt::format(tfmt::Italic | tfmt::Green,
-                                "@", function.name());
+                                "@", constant.name());
         },
         [&](ir::Parameter const& parameter) {
             str << tfmt::format(tfmt::None, "%", parameter.name());
@@ -386,6 +393,55 @@ void PrintCtx::print(StructureType const& structure) {
     }
     indent.decrease();
     str << "\n}\n\n";
+}
+
+void PrintCtx::print(ConstantData const& constData) {
+    str << formatName(&constData) << equals();
+    printDataAs(constData.dataType(), constData.data());
+    str << "\n\n";
+}
+
+void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
+    // clang-format off
+    visit(*type, utl::overload{
+        [](Type const& type) { SC_UNREACHABLE(); },
+        [&](IntegralType const& type) {
+            utl::small_vector<APInt::Limb> limbs(
+                type.bitWidth() / sizeof(APInt::Limb));
+            std::memcpy(limbs.data(), data.data(), type.bitWidth() / CHAR_BIT);
+            str << formatType(&type) << " "
+                << formatNumLiteral(APInt(limbs, type.bitWidth()).toString());
+        },
+        [&](FloatType const& type) {
+            SC_ASSERT(type.bitWidth() == 32 || type.bitWidth() == 64, "");
+            str << formatType(&type) << " ";
+            if (type.bitWidth() == 32) {
+                float f;
+                std::memcpy(&f, data.data(), 4);
+                str << formatNumLiteral(f);
+            }
+            else {
+                double d;
+                std::memcpy(&d, data.data(), 8);
+                str << formatNumLiteral(d);
+            }
+        },
+        [&](ArrayType const& type) {
+            str << formatType(&type) << " [";
+            auto* ptr = data.data();
+            auto* elemType = type.elementType();
+            for (size_t i = 0, end = type.count();
+                 i < end;
+                 ++i, ptr += elemType->size())
+            {
+                if (i != 0) {
+                    str << ", ";
+                }
+                printDataAs(elemType, { ptr, elemType->size() });
+            }
+            str << "]";
+        },
+    }); // clang-format on
 }
 
 static std::string_view toStrName(ir::Instruction const* inst) {

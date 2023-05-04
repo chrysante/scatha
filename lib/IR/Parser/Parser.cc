@@ -19,6 +19,30 @@
 using namespace scatha;
 using namespace ir;
 
+static APInt parseInt(Token token, Type const* type) {
+    SC_ASSERT(token.kind() == TokenKind::IntLiteral, "");
+    auto value = APInt::parse(token.id(),
+                              10,
+                              cast<IntegralType const*>(type)->bitWidth());
+    if (!value) {
+        throw SyntaxIssue(token);
+    }
+    return *value;
+}
+
+static APFloat parseFloat(Token token, Type const* type) {
+    SC_ASSERT(token.kind() == TokenKind::FloatLiteral, "");
+    size_t bitwidth = cast<FloatType const*>(type)->bitWidth();
+    SC_ASSERT(bitwidth == 32 || bitwidth == 64, "");
+    auto value = APFloat::parse(token.id(),
+                                bitwidth == 32 ? APFloatPrec::Single :
+                                                 APFloatPrec::Double);
+    if (!value) {
+        throw SyntaxIssue(token);
+    }
+    return *value;
+}
+
 namespace {
 
 struct ParseContext {
@@ -31,6 +55,15 @@ struct ParseContext {
         Token token;
     };
     using PUMap = utl::hashmap<std::string, utl::small_vector<PendingUpdate>>;
+
+    Context& irCtx;
+    Module& mod;
+    Lexer lexer;
+    std::optional<Token> nextToken[2];
+    ValueMap globals;
+    ValueMap locals;
+    PUMap globalPendingUpdates;
+    PUMap localPendingUpdates;
 
     explicit ParseContext(Context& irCtx, Module& mod, std::string_view text):
         irCtx(irCtx),
@@ -48,6 +81,8 @@ struct ParseContext {
     UniquePtr<Instruction> parseArithmeticConversion(std::string name);
     utl::small_vector<size_t> parseConstantIndices();
     UniquePtr<StructureType> parseStructure();
+    UniquePtr<ConstantData> parseConstant();
+    void parseConstantData(Type const* type, utl::vector<u8>& data);
 
     void parseTypeDefinition();
 
@@ -274,15 +309,6 @@ struct ParseContext {
             }
         }
     }
-
-    Context& irCtx;
-    Module& mod;
-    Lexer lexer;
-    std::optional<Token> nextToken[2];
-    ValueMap globals;
-    ValueMap locals;
-    PUMap globalPendingUpdates;
-    PUMap localPendingUpdates;
 };
 
 } // namespace
@@ -311,12 +337,16 @@ Expected<std::pair<Context, Module>, ParseIssue> ir::parse(
 
 void ParseContext::parse() {
     while (peekToken().kind() != TokenKind::EndOfFile) {
-        if (auto fn = parseFunction()) {
-            mod.addFunction(std::move(fn));
-            continue;
-        }
         if (auto s = parseStructure()) {
             mod.addStructure(std::move(s));
+            continue;
+        }
+        if (auto c = parseConstant()) {
+            mod.addConstantData(std::move(c));
+            continue;
+        }
+        if (auto fn = parseFunction()) {
+            mod.addFunction(std::move(fn));
             continue;
         }
         throw SyntaxIssue(peekToken());
@@ -822,6 +852,80 @@ UniquePtr<StructureType> ParseContext::parseStructure() {
     return structure;
 }
 
+UniquePtr<ConstantData> ParseContext::parseConstant() {
+    Token const name = peekToken();
+    if (name.kind() != TokenKind::GlobalIdentifier) {
+        return nullptr;
+    }
+    eatToken();
+    expectNext(TokenKind::Assign);
+    auto* type = parseType();
+    utl::small_vector<u8> data;
+    parseConstantData(type, data);
+    auto result =
+        allocate<ConstantData>(irCtx, type, data, std::string(name.id()));
+    bool success =
+        globals.insert({ std::string(name.id()), result.get() }).second;
+    if (!success) {
+        reportSemaIssue(name, SemanticIssue::Redeclaration);
+    }
+    return result;
+}
+
+void ParseContext::parseConstantData(Type const* type, utl::vector<u8>& data) {
+    using enum SemanticIssue::Reason;
+    // clang-format off
+    visit(*type, utl::overload{
+        [&](StructureType const& type) { SC_DEBUGFAIL(); },
+        [&](ArrayType const& type) {
+            expect(eatToken(), TokenKind::OpenBracket);
+            for (size_t i = 0; i < type.count(); ++i) {
+                if (i != 0) {
+                    expect(eatToken(), TokenKind::Comma);
+                }
+                Token typeTok  = peekToken();
+                auto* elemType = parseType();
+                if (elemType != type.elementType()) {
+                    reportSemaIssue(typeTok, InvalidType);
+                }
+                parseConstantData(elemType, data);
+            }
+            expect(eatToken(), TokenKind::CloseBracket);
+        },
+        [&](IntegralType const& type) {
+            size_t const bitwidth = type.bitWidth();
+            SC_ASSERT(bitwidth % 8 == 0, "");
+            Token const token = eatToken();
+            expect(token, TokenKind::IntLiteral);
+            auto value = parseInt(token, &type);
+            auto* ptr  = reinterpret_cast<u8 const*>(value.limbs().data());
+            for (size_t i = 0; i < bitwidth / 8; ++i, ++ptr) {
+                data.push_back(*ptr);
+            }
+        },
+        [&](FloatType const& type) {
+            Token const token = eatToken();
+            expect(token, TokenKind::FloatLiteral);
+            auto value = parseFloat(token, &type);
+            if (value.precision() == APFloatPrec::Single) {
+                float f    = value.to<float>();
+                auto bytes = std::bit_cast<std::array<u8, 4>>(f);
+                for (u8 b: bytes) {
+                    data.push_back(b);
+                }
+            }
+            else {
+                double d   = value.to<double>();
+                auto bytes = std::bit_cast<std::array<u8, 8>>(d);
+                for (u8 b: bytes) {
+                    data.push_back(b);
+                }
+            }
+        },
+        [&](Type const& type) { reportSemaIssue(peekToken(), UnexpectedID); },
+    }); // clang-format off
+}
+
 Type const* ParseContext::tryParseType() {
     Token const token = peekToken();
     switch (token.kind()) {
@@ -930,11 +1034,8 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
             if (!intType) {
                 reportSemaIssue(token, SemanticIssue::InvalidType);
             }
-            auto value = APInt::parse(token.id(), 10, intType->bitWidth());
-            if (!value) {
-                throw SyntaxIssue(token);
-            }
-            return irCtx.integralConstant(*value);
+            auto value = parseInt(token, intType);
+            return irCtx.integralConstant(value);
         }
         else {
             SC_UNREACHABLE();
@@ -945,14 +1046,8 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
             if (!floatType) {
                 reportSemaIssue(token, SemanticIssue::InvalidType);
             }
-            auto value = APFloat::parse(token.id(),
-                                        floatType->bitWidth() == 32 ?
-                                            APFloatPrec::Single :
-                                            APFloatPrec::Double);
-            if (!value) {
-                throw SyntaxIssue(token);
-            }
-            return irCtx.floatConstant(*value, floatType->bitWidth());
+            auto value = parseFloat(token, floatType);
+            return irCtx.floatConstant(value, floatType->bitWidth());
         }
         else {
             SC_UNREACHABLE();
