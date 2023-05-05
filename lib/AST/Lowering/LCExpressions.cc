@@ -101,7 +101,7 @@ ir::Value* LoweringContext::getValueImpl(UnaryPrefixExpression const& expr) {
 
 ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
     auto* structType =
-        cast<sema::StructureType const*>(expr.lhs()->type()->base());
+        dyncast<sema::StructureType const*>(expr.lhs()->type()->base());
 
     switch (expr.operation()) {
         using enum BinaryOperator;

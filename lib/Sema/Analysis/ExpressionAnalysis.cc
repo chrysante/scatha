@@ -47,6 +47,8 @@ struct Context {
 
     QualType const* analyzeBinaryExpr(ast::BinaryExpression&);
 
+    QualType const* analyzeReferenceAssignment(ast::BinaryExpression&);
+
     Function* findExplicitCast(ObjectType const* targetType,
                                std::span<QualType const* const> from);
 
@@ -552,6 +554,11 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     if (expr.operation() == ast::BinaryOperator::Comma) {
         return expr.rhs()->type();
     }
+    else if (expr.operation() == ast::BinaryOperator::Assignment &&
+             expr.rhs()->type()->isExplicitReference())
+    {
+        return analyzeReferenceAssignment(expr);
+    }
 
     auto* commonType = sema::commonType(expr.lhs()->type(), expr.rhs()->type());
 
@@ -674,17 +681,6 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         return stripQualifiers(commonType);
 
     case Assignment:
-        /// Reference reassignment case
-        if (expr.rhs()->type()->isExplicitReference() &&
-            isImplicitlyConvertible(expr.lhs()->type(), expr.rhs()->type()))
-        {
-            if (!expr.lhs()->type()->isExplicitReference()) {
-                auto* explicitRefType =
-                    sym.qualify(expr.lhs()->type(), ExplicitReference);
-                insertConversion(expr.lhs(), explicitRefType);
-            }
-            return sym.qVoid();
-        }
         [[fallthrough]];
     case AddAssignment:
         [[fallthrough]];
@@ -727,6 +723,20 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     case _count:
         SC_DEBUGFAIL();
     }
+}
+
+QualType const* Context::analyzeReferenceAssignment(
+    ast::BinaryExpression& expr) {
+    if (!isImplicitlyConvertible(expr.lhs()->type(), expr.rhs()->type())) {
+        iss.push<BadTypeConversion>(*expr.rhs(), expr.lhs()->type());
+        return nullptr;
+    }
+    if (!expr.lhs()->type()->isExplicitReference()) {
+        auto* explicitRefType =
+            sym.qualify(expr.lhs()->type(), ExplicitReference);
+        insertConversion(expr.lhs(), explicitRefType);
+    }
+    return sym.qVoid();
 }
 
 Function* Context::findExplicitCast(ObjectType const* to,

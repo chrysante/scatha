@@ -158,3 +158,14 @@ fn sum(x: &[int]) -> int {
     return s;
 })");
 }
+
+TEST_CASE("Reassign array reference", "[end-to-end][arrays][references]") {
+    test::checkReturns(2, R"(
+public fn main() -> int {
+    let a = [1, 2, 3];
+    let b: &[int] = &a;
+    let c = [1, 2];
+    b = &c;
+    return b.count;
+})");
+}
