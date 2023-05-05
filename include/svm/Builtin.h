@@ -27,6 +27,13 @@ inline std::string_view toString(Builtin builtin) {
     }
 }
 
+inline bool isMemory(Builtin builtin) {
+    return static_cast<size_t>(builtin) >=
+               static_cast<size_t>(Builtin::memcpy) &&
+           static_cast<size_t>(builtin) <=
+               static_cast<size_t>(Builtin::dealloc);
+}
+
 inline constexpr size_t BuiltinFunctionSlot = 0;
 
 } // namespace svm
