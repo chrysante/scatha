@@ -31,9 +31,10 @@ SVM_BUILTIN_DEF(asin_f64,  Const, { qFloat() }, qFloat())
 SVM_BUILTIN_DEF(acos_f64,  Const, { qFloat() }, qFloat())
 SVM_BUILTIN_DEF(atan_f64,  Const, { qFloat() }, qFloat())
 
-/// ## Memory Allocation
-SVM_BUILTIN_DEF(alloc,   None,  { qS64() }, arrayView(Byte()))
-SVM_BUILTIN_DEF(dealloc, None,  { arrayView(Byte()) }, qVoid())
+/// ## Memory Management
+SVM_BUILTIN_DEF(memcpy,  None,  { arrayView(Byte()), arrayView(Byte()) }, qVoid())
+SVM_BUILTIN_DEF(alloc,   None,  { qS64(), qS64() }, arrayView(Byte()))
+SVM_BUILTIN_DEF(dealloc, None,  { arrayView(Byte()), qS64() }, qVoid())
 
 /// ## Console Output
 SVM_BUILTIN_DEF(putchar,   None,  { qS64() }, qVoid())

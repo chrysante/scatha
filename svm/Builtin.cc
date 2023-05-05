@@ -76,14 +76,24 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
     at(Builtin::atan_f64)  = math<double, 1>(MATH_STD_IMPL(atan));
 
     /// ## Memory allocation
+    at(Builtin::memcpy) = [](u64* regPtr, VirtualMachine* vm, void*) {
+        void* const dest        = load<void*>(regPtr);
+        size_t const destSize   = load<size_t>(regPtr + 1);
+        void* const source      = load<void*>(regPtr + 2);
+        size_t const sourceSize = load<size_t>(regPtr + 3);
+        assert(destSize == sourceSize);
+        std::memcpy(dest, source, destSize);
+    };
     at(Builtin::alloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
-        i64 const size = load<i64>(regPtr);
-        auto* addr     = std::malloc(utl::narrow_cast<u64>(size));
+        i64 const size                   = load<i64>(regPtr);
+        [[maybe_unused]] i64 const align = load<i64>(regPtr + 1);
+        auto* addr = std::malloc(utl::narrow_cast<u64>(size));
         store(regPtr, addr);
         store(regPtr + 1, size);
     };
     at(Builtin::dealloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
-        void* const addr = load<void*>(regPtr);
+        void* const addr                    = load<void*>(regPtr);
+        [[maybe_unused]] size_t const align = load<size_t>(regPtr + 1);
         std::free(addr);
     };
 
