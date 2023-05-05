@@ -180,12 +180,14 @@ static void pass(ir::Context& ctx,
 }
 
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
-
     header("Parsed program");
-
+    auto [ctx, mod] = makeIRModuleFromFile(path);
     ir::print(mod);
+    run(mod);
 
+    header("Optimized");
+    opt::inlineFunctions(ctx, mod);
+    ir::print(mod);
     run(mod);
 }
 

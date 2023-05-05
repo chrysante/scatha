@@ -174,7 +174,8 @@ struct CodeGenContext {
 
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
-    utl::vector<u8> staticData;
+    utl::hashmap<ir::Value const*, size_t> staticDataOffsets;
+    utl::small_vector<u8> staticData;
 
     ir::CompareInst const* lastEmittedCompare = nullptr;
 };
@@ -774,10 +775,18 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             return result.undefValue();
         },
         [&](ir::ConstantData const& constData) -> mir::Value* {
-            size_t const offset = staticData.size();
-            for (u8 byte: constData.data()) {
-                staticData.push_back(byte);
-            }
+            size_t const offset = [&] {
+                auto itr = staticDataOffsets.find(&constData);
+                if (itr != staticDataOffsets.end()) {
+                    return itr->second;
+                }
+                size_t const offset = staticData.size();
+                for (u8 byte: constData.data()) {
+                    staticData.push_back(byte);
+                }
+                staticDataOffsets[&constData] = offset;
+                return offset;
+            }();
             auto* dest = nextRegister();
             addNewInst(mir::InstCode::LDA,
                        dest,
