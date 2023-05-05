@@ -70,42 +70,39 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
             dyncast<sema::ArrayType const*>(varDecl.type()->base()))
     {
         /// Array case
-        SC_DEBUGFAIL();
-        //        auto* address = [&]() -> ir::Value* {
-        //            if (varDecl.initExpression()) {
-        //                if (varDecl.initExpression()->isRValue()) {
-        //                    return getAddress(*varDecl.initExpression());
-        //                }
-        //                else {
-        //                    // TODO: Copy the array
-        //                    SC_DEBUGFAIL();
-        //                }
-        //            }
-        //            auto* elemType = mapType(arrayType->elementType());
-        //            auto* count =
-        //            ctx.integralConstant(APInt(arrayType->count(), 32)); auto*
-        //            array = new ir::Alloca(ctx,
-        //                                         count,
-        //                                         elemType,
-        //                                         utl::strcat(varDecl.name(),
-        //                                         ".addr"));
-        //            addAlloca(array);
-        //            return array;
-        //        }();
-        //        /// Stupid hack: We make an array view object with our address
-        //        and our
-        //        /// size and store that to memory. Then this array works just
-        //        like an
-        //        /// array view
-        //        auto* count     =
-        //        ctx.integralConstant(APInt(arrayType->count(), 64)); auto*
-        //        arrayView = makeArrayView(address, count); auto* viewAddr  =
-        //        storeTmpToMemory(arrayView);
-        //        memorizeVariableAddress(varDecl.variable(), viewAddr);
-        //        return;
+        if (varDecl.type()->isReference()) {
+            auto* value   = getValue(varDecl.initExpression());
+            auto* address = storeLocal(value, std::string(varDecl.name()));
+            memorizeVariableAddress(varDecl.entity(), address);
+            return;
+        }
+        else {
+            auto* address = [&]() -> ir::Value* {
+                if (varDecl.initExpression()) {
+                    if (varDecl.initExpression()->isRValue()) {
+                        return getAddress(varDecl.initExpression());
+                    }
+                    else {
+                        // TODO: Copy the array
+                        SC_DEBUGFAIL();
+                    }
+                }
+                auto* elemType = mapType(arrayType->elementType());
+                auto* count    = intConstant(arrayType->count(), 32);
+                auto* array =
+                    new ir::Alloca(ctx,
+                                   count,
+                                   elemType,
+                                   utl::strcat(varDecl.name(), ".addr"));
+                allocas.push_back(array);
+                return makeArrayRef(array, intConstant(arrayType->count(), 64));
+            }();
+            memorizeVariableAddress(varDecl.variable(), address);
+            return;
+        }
     }
-    /// Non-array case
 
+    /// Non-array case
     if (varDecl.initExpression()) {
         auto* value   = getValue(varDecl.initExpression());
         auto* address = storeLocal(value, std::string(varDecl.name()));

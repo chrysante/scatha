@@ -130,10 +130,10 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void mirPG(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    bool const optimize = false;
+    bool const optimize = true;
 
     if (optimize) {
-        if (false) {
+        if (true) {
             opt::inlineFunctions(ctx, irMod);
             opt::deadFuncElim(ctx, irMod);
         }
@@ -229,4 +229,6 @@ static void pass(ir::Context& ctx,
     run(mod);
 }
 
-void playground::volatilePlayground(std::filesystem::path path) { mirPG(path); }
+void playground::volatilePlayground(std::filesystem::path path) {
+    frontendPlayground(path);
+}

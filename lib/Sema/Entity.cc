@@ -4,6 +4,7 @@
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <svm/Builtin.h>
 #include <utl/hash.hpp>
 #include <utl/utility.hpp>
 
@@ -157,6 +158,10 @@ static bool signatureMatch(std::span<QualType const* const> parameterTypes,
         }
     }
     return true;
+}
+
+bool Function::isBuiltin() const {
+    return isExtern() && slot() == svm::BuiltinFunctionSlot;
 }
 
 Function const* OverloadSet::find(

@@ -1,8 +1,11 @@
 #include "AST/Lowering/LoweringContext.h"
 
+#include <svm/Builtin.h>
+
 #include "AST/AST.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
+#include "IR/Module.h"
 #include "IR/Type.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
@@ -340,8 +343,11 @@ ir::Value* LoweringContext::getAddressImpl(Identifier const& id) {
     SC_ASSERT(id.type()->isImplicitReference() || id.isLValue(),
               "Just to be safe");
     if (id.type()->isImplicitReference()) {
+        auto* refType = isa<sema::ArrayType>(id.type()->base()) ?
+                            arrayViewType :
+                            ctx.pointerType();
         return add<ir::Load>(address,
-                             ctx.pointerType(),
+                             refType,
                              utl::strcat(id.value(), ".value"));
     }
     return address;
@@ -365,24 +371,17 @@ ir::Value* LoweringContext::getAddressImpl(FunctionCall const& expr) {
 }
 
 ir::Value* LoweringContext::getAddressImpl(Subscript const& expr) {
-    SC_DEBUGFAIL();
-    //    auto* arrayType =
-    //        cast<sema::ArrayType const*>(expr.object()->type()->base());
-    //    auto* elemType = mapType(arrayType->elementType());
-    //    auto* dataPtr  = [&]() -> ir::Value* {
-    //        auto* arrayAddress = getAddress(*expr.object());
-    //        auto* dataPtr = new ir::ExtractValue(arrayAddress, { 0 },
-    //        "array.data"); currentBB()->pushBack(dataPtr); return dataPtr;
-    //    }();
-    //    auto* index = getValue(*expr.arguments().front());
-    //    auto* gep   = new ir::GetElementPointer(irCtx,
-    //                                          elemType,
-    //                                          dataPtr,
-    //                                          index,
-    //                                            {},
-    //                                          "elem.ptr");
-    //    currentBB()->pushBack(gep);
-    //    return gep;
+    auto* arrayType =
+        cast<sema::ArrayType const*>(expr.object()->type()->base());
+    auto* elemType  = mapType(arrayType->elementType());
+    auto* arrayRef  = getAddress(expr.object());
+    auto* arrayData = getArrayAddr(arrayRef);
+    auto* index     = getValue(expr.arguments().front());
+    return add<ir::GetElementPointer>(elemType,
+                                      arrayData,
+                                      index,
+                                      std::initializer_list<size_t>{},
+                                      "elem.ptr");
 }
 
 ir::Value* LoweringContext::getAddressImpl(ReferenceExpression const& expr) {
@@ -397,32 +396,43 @@ ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
 }
 
 ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
-    SC_DEBUGFAIL();
-    //    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
-    //    tryMemorizeVariableValue(arrayType->countVariable(),
-    //                             irCtx.integralConstant(arrayType->count(),
-    //                             64));
-    //    auto* type = mapType(arrayType->elementType());
-    //    auto* array =
-    //        new ir::Alloca(irCtx,
-    //                       irCtx.integralConstant(list.elements().size(), 32),
-    //                       type,
-    //                       "array");
-    //    addAlloca(array);
-    //    for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
-    //        auto* elemValue = getValue(*elem);
-    //        auto* gep       = new ir::GetElementPointer(irCtx,
-    //                                              type,
-    //                                              array,
-    //                                              irCtx.integralConstant(index,
-    //                                              32),
-    //                                                    {},
-    //                                              "elem.ptr");
-    //        currentBB()->pushBack(gep);
-    //        auto* store = new ir::Store(irCtx, gep, elemValue);
-    //        currentBB()->pushBack(store);
-    //    }
-    //    return array;
+    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
+    auto* elemType  = mapType(arrayType->elementType());
+    auto* count     = intConstant(list.elements().size(), 32);
+    auto* array     = new ir::Alloca(ctx, count, elemType, "array");
+    allocas.push_back(array);
+    utl::small_vector<u8> data(arrayType->size());
+    auto* dest = data.data();
+    for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
+        if (auto* lit = dyncast<Literal const*>(elem)) {
+            SC_ASSERT(arrayType->elementType() == lit->type()->base(), "");
+            auto value = std::get<static_cast<size_t>(LiteralKind::Integer)>(
+                lit->value());
+            size_t elemSize = elemType->size();
+            std::memcpy(dest, value.limbs().data(), elemSize);
+            dest += elemSize;
+            continue;
+        }
+        SC_DEBUGFAIL();
+    }
+    auto constData =
+        allocate<ir::ConstantData>(ctx,
+                                   ctx.arrayType(elemType,
+                                                 list.elements().size()),
+                                   std::move(data),
+                                   "array");
+    auto* source = constData.get();
+    mod.addConstantData(std::move(constData));
+    auto* memcpy = getFunction(
+        symbolTable.builtinFunction(static_cast<size_t>(svm::Builtin::memcpy)));
+    add<ir::Call>(memcpy,
+                  std::array<ir::Value*, 3>{
+                      array,
+                      source,
+                      intConstant(list.elements().size() * elemType->size(),
+                                  64) },
+                  std::string{});
+    return makeArrayRef(array, count);
 }
 
 ir::Value* LoweringContext::getAddressLocation(Expression const* expr) {

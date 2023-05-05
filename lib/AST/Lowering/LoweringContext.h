@@ -44,8 +44,7 @@ struct LoweringContext {
 
     LoweringContext(sema::SymbolTable const& symbolTable,
                     ir::Context& ctx,
-                    ir::Module& mod):
-        symbolTable(symbolTable), ctx(ctx), mod(mod) {}
+                    ir::Module& mod);
 
     void run(ast::AbstractSyntaxTree const& root);
 
@@ -115,8 +114,11 @@ struct LoweringContext {
     /// The return value of this function depends on the `sema::QualType` of
     /// \p expr in the following way:
     ///
-    /// ` X -> -` Traps. Temporaries don't have addresses. We might however
-    /// consider to store the value to memory and return a pointer to it.
+    /// ` X -> -`
+    /// Traps if `X` is a struct type. Temporaries don't have addresses. We
+    /// might however consider to store the value to memory and return a pointer
+    /// to it. If `X` is an array type, a value of type `{ ptr, i64 }` will be
+    /// returned
     ///
     /// `'X -> Address of the referred object`
     /// If `X` is a struct type, a value of type `ptr` will be returned.
@@ -196,6 +198,12 @@ struct LoweringContext {
     ir::Value* storeLocal(ir::Value* value, std::string name = {});
 
     ir::Value* makeLocal(ir::Type const* type, std::string name);
+
+    ir::Value* makeArrayRef(ir::Value* addr, ir::Value* count);
+
+    ir::Value* getArrayAddr(ir::Value* arrayRef);
+
+    ir::Value* getArrayCount(ir::Value* arrayRef);
 
     ir::Callable* getFunction(sema::Function const*);
 

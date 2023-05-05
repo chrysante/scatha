@@ -27,6 +27,15 @@ using namespace ast;
     return mod;
 }
 
+LoweringContext::LoweringContext(sema::SymbolTable const& symbolTable,
+                                 ir::Context& ctx,
+                                 ir::Module& mod):
+    symbolTable(symbolTable), ctx(ctx), mod(mod) {
+    arrayViewType = ctx.anonymousStructure(
+        std::array<ir::Type const*, 2>{ ctx.pointerType(),
+                                        ctx.integralType(64) });
+}
+
 void LoweringContext::run(ast::AbstractSyntaxTree const& root) {
     makeDeclarations();
     generate(root);
@@ -64,6 +73,29 @@ ir::Value* LoweringContext::makeLocal(ir::Type const* type, std::string name) {
     auto* addr = new ir::Alloca(ctx, type, std::move(name));
     allocas.push_back(addr);
     return addr;
+}
+
+ir::Value* LoweringContext::makeArrayRef(ir::Value* addr, ir::Value* count) {
+    auto* base = add<ir::InsertValue>(ctx.undef(arrayViewType),
+                                      addr,
+                                      std::initializer_list<size_t>{ 0 },
+                                      "array.ref");
+    return add<ir::InsertValue>(base,
+                                count,
+                                std::initializer_list<size_t>{ 1 },
+                                "array.ref");
+}
+
+ir::Value* LoweringContext::getArrayAddr(ir::Value* arrayRef) {
+    return add<ir::ExtractValue>(arrayRef,
+                                 std::initializer_list<size_t>{ 0 },
+                                 "array.data");
+}
+
+ir::Value* LoweringContext::getArrayCount(ir::Value* arrayRef) {
+    return add<ir::ExtractValue>(arrayRef,
+                                 std::initializer_list<size_t>{ 1 },
+                                 "array.count");
 }
 
 ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
@@ -125,7 +157,8 @@ ir::Value* LoweringContext::constant(ssize_t value, ir::Type const* type) {
 }
 
 bool LoweringContext::hasAddress(ast::Expression const* expr) const {
-    return expr->isLValue() || expr->type()->isReference();
+    return expr->isLValue() || expr->type()->isReference() ||
+           isa<sema::ArrayType>(expr->type()->base());
 }
 
 void LoweringContext::memorizeVariableAddress(sema::Entity const* entity,
@@ -140,8 +173,7 @@ ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
         [&](sema::QualType const& qualType) -> ir::Type const* {
             if (qualType.isReference()) {
                 if (isa<sema::ArrayType>(qualType.base())) {
-                    SC_DEBUGFAIL();
-                    // return arrayViewType;
+                    return arrayViewType;
                 }
                 return ctx.pointerType();
             }

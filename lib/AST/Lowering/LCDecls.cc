@@ -1,6 +1,7 @@
 #include "AST/Lowering/LoweringContext.h"
 
 #include <range/v3/view.hpp>
+#include <svm/Builtin.h>
 
 #include "AST/AST.h"
 #include "IR/CFG.h"
@@ -37,11 +38,23 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
 }
 
 ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
-    auto paramTypes =
-        function->argumentTypes() |
-        ranges::views::transform(
-            [this](sema::QualType const* qType) { return mapType(qType); }) |
-        ranges::to<utl::small_vector<ir::Type const*>>;
+    auto paramTypes = [&] {
+        if (function->isBuiltin()) {
+            /// Some builtins need special care so we do that here
+            if (function->index() == static_cast<size_t>(svm::Builtin::memcpy))
+            {
+                return utl::small_vector<ir::Type const*>{ ctx.pointerType(),
+                                                           ctx.pointerType(),
+                                                           ctx.integralType(
+                                                               64) };
+            }
+        }
+        return function->argumentTypes() |
+               ranges::views::transform([this](sema::QualType const* qType) {
+                   return mapType(qType);
+               }) |
+               ranges::to<utl::small_vector<ir::Type const*>>;
+    }();
 
     // TODO: Generate proper function type here
     ir::FunctionType const* const functionType = nullptr;

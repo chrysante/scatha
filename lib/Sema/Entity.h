@@ -247,6 +247,9 @@ public:
     /// \Returns `kind() == FunctionKind::Native`
     bool isNative() const { return kind() == FunctionKind::Native; }
 
+    /// \Returns `isExtern() && slot() == svm::BuiltinFunctionSlot`
+    bool isBuiltin() const;
+
     /// \Returns `kind() == FunctionKind::External`
     bool isExtern() const { return kind() == FunctionKind::External; }
 
