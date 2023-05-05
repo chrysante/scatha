@@ -21,28 +21,29 @@ namespace {
 struct PrintCtx {
     explicit PrintCtx(std::ostream& str): str(str), indent(2) {}
 
-    void dispatch(Value const&);
+    void print(Value const&);
 
-    void print(Value const&) { SC_UNREACHABLE(); }
-    void print(Function const&);
-    void print(BasicBlock const&);
-    void print(Instruction const&);
-    void print(Alloca const&);
-    void print(Load const&);
-    void print(Store const&);
-    void print(ConversionInst const&);
-    void print(CompareInst const&);
-    void print(UnaryArithmeticInst const&);
-    void print(ArithmeticInst const&);
-    void print(Goto const&);
-    void print(Branch const&);
-    void print(Return const&);
-    void print(Call const&);
-    void print(Phi const&);
-    void print(GetElementPointer const&);
-    void print(ExtractValue const&);
-    void print(InsertValue const&);
-    void print(Select const&);
+    void printImpl(Value const&) { SC_UNREACHABLE(); }
+    void printImpl(Function const&);
+    void printImpl(ExtFunction const&);
+    void printImpl(BasicBlock const&);
+    void printImpl(Instruction const&);
+    void printImpl(Alloca const&);
+    void printImpl(Load const&);
+    void printImpl(Store const&);
+    void printImpl(ConversionInst const&);
+    void printImpl(CompareInst const&);
+    void printImpl(UnaryArithmeticInst const&);
+    void printImpl(ArithmeticInst const&);
+    void printImpl(Goto const&);
+    void printImpl(Branch const&);
+    void printImpl(Return const&);
+    void printImpl(Call const&);
+    void printImpl(Phi const&);
+    void printImpl(GetElementPointer const&);
+    void printImpl(ExtractValue const&);
+    void printImpl(InsertValue const&);
+    void printImpl(Select const&);
 
     void print(StructureType const& structure);
 
@@ -50,6 +51,7 @@ struct PrintCtx {
 
     void printDataAs(Type const* type, std::span<u8 const> data);
 
+    void funcDecl(ir::Callable const*);
     void instDecl(Instruction const*) const;
     void name(Value const*) const;
     void type(Type const*) const;
@@ -76,8 +78,11 @@ void ir::print(Module const& mod, std::ostream& str) {
     for (auto* constData: mod.constantData()) {
         ctx.print(*constData);
     }
+    for (auto* global: mod.globals()) {
+        ctx.print(*global);
+    }
     for (auto& function: mod) {
-        ctx.dispatch(function);
+        ctx.print(function);
     }
 }
 
@@ -85,12 +90,12 @@ void ir::print(Function const& function) { ir::print(function, std::cout); }
 
 void ir::print(Function const& function, std::ostream& str) {
     PrintCtx ctx(str);
-    ctx.dispatch(function);
+    ctx.print(function);
 }
 
 std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
     PrintCtx ctx(ostream);
-    ctx.dispatch(inst);
+    ctx.print(inst);
     return ostream;
 }
 
@@ -116,11 +121,11 @@ std::string ir::toString(Value const* value) {
     }); // clang-format on
 }
 
-void PrintCtx::dispatch(Value const& value) {
+void PrintCtx::print(Value const& value) {
     if (auto* inst = dyncast<Instruction const*>(&value)) {
         instDecl(inst);
     }
-    visit(value, [this](auto const& value) { print(value); });
+    visit(value, [this](auto const& value) { printImpl(value); });
 }
 
 static auto formatKeyword(auto... name) {
@@ -213,20 +218,21 @@ static auto equals() {
 
 static auto label() { return tertiary("label"); }
 
-void PrintCtx::print(Function const& function) {
-    str << formatKeyword("func") << " " << formatType(function.returnType())
-        << " " << formatName(&function) << "(";
-    for (bool first = true; auto& param: function.parameters()) {
-        str << (first ? (void)(first = false), "" : ", ")
-            << formatType(param.type()) << " " << formatName(&param);
-    }
-    str << ") {\n";
+void PrintCtx::printImpl(Function const& function) {
+    funcDecl(&function);
+    str << " {\n";
     indent.increase();
     for (auto& bb: function) {
-        dispatch(bb);
+        print(bb);
     }
     indent.decrease();
     str << "}\n\n";
+}
+
+void PrintCtx::printImpl(ExtFunction const& function) {
+    str << formatKeyword("ext") << " ";
+    funcDecl(&function);
+    str << "\n\n";
 }
 
 static ssize_t length(auto const& fmt) {
@@ -235,7 +241,7 @@ static ssize_t length(auto const& fmt) {
     return utl::narrow_cast<ssize_t>(std::move(sstr).str().size());
 }
 
-void PrintCtx::print(BasicBlock const& bb) {
+void PrintCtx::printImpl(BasicBlock const& bb) {
     str << indent << formatName(&bb) << ":";
     if (!bb.isEntry()) {
         ssize_t commentIndent = 30;
@@ -261,7 +267,7 @@ void PrintCtx::print(BasicBlock const& bb) {
     indent.increase();
     for (auto& inst: bb) {
         str << indent;
-        dispatch(inst);
+        print(inst);
         str << "\n";
     }
     indent.decrease();
@@ -270,35 +276,35 @@ void PrintCtx::print(BasicBlock const& bb) {
     }
 }
 
-void PrintCtx::print(Instruction const& inst) {
+void PrintCtx::printImpl(Instruction const& inst) {
     str << "<" << inst.nodeType() << ">\n";
 }
 
-void PrintCtx::print(Alloca const& alloc) {
+void PrintCtx::printImpl(Alloca const& alloc) {
     type(alloc.allocatedType());
     comma();
     typedName(alloc.count());
 }
 
-void PrintCtx::print(Load const& load) {
+void PrintCtx::printImpl(Load const& load) {
     type(load.type());
     comma();
     typedName(load.address());
 }
 
-void PrintCtx::print(Store const& store) {
+void PrintCtx::printImpl(Store const& store) {
     typedName(store.address());
     comma();
     typedName(store.value());
 }
 
-void PrintCtx::print(ConversionInst const& inst) {
+void PrintCtx::printImpl(ConversionInst const& inst) {
     typedName(inst.operand());
     to();
     type(inst.type());
 }
 
-void PrintCtx::print(CompareInst const& cmp) {
+void PrintCtx::printImpl(CompareInst const& cmp) {
     keyword(cmp.operation());
     space();
     typedName(cmp.lhs());
@@ -306,19 +312,19 @@ void PrintCtx::print(CompareInst const& cmp) {
     typedName(cmp.rhs());
 }
 
-void PrintCtx::print(UnaryArithmeticInst const& inst) {
+void PrintCtx::printImpl(UnaryArithmeticInst const& inst) {
     typedName(inst.operand());
 }
 
-void PrintCtx::print(ArithmeticInst const& inst) {
+void PrintCtx::printImpl(ArithmeticInst const& inst) {
     typedName(inst.lhs());
     comma();
     typedName(inst.rhs());
 }
 
-void PrintCtx::print(Goto const& gt) { typedName(gt.target()); }
+void PrintCtx::printImpl(Goto const& gt) { typedName(gt.target()); }
 
-void PrintCtx::print(Branch const& br) {
+void PrintCtx::printImpl(Branch const& br) {
     typedName(br.condition());
     comma();
     typedName(br.thenTarget());
@@ -326,14 +332,14 @@ void PrintCtx::print(Branch const& br) {
     typedName(br.elseTarget());
 }
 
-void PrintCtx::print(Return const& ret) {
+void PrintCtx::printImpl(Return const& ret) {
     if (isa<VoidType>(ret.value()->type())) {
         return;
     }
     typedName(ret.value());
 }
 
-void PrintCtx::print(Call const& call) {
+void PrintCtx::printImpl(Call const& call) {
     type(call.type());
     space();
     name(call.function());
@@ -343,7 +349,7 @@ void PrintCtx::print(Call const& call) {
     }
 }
 
-void PrintCtx::print(Phi const& phi) {
+void PrintCtx::printImpl(Phi const& phi) {
     type(phi.type());
     space();
     for (bool first = true; auto const [pred, value]: phi.arguments()) {
@@ -353,7 +359,7 @@ void PrintCtx::print(Phi const& phi) {
     }
 }
 
-void PrintCtx::print(GetElementPointer const& gep) {
+void PrintCtx::printImpl(GetElementPointer const& gep) {
     keyword("inbounds");
     space();
     type(gep.inboundsType());
@@ -364,19 +370,19 @@ void PrintCtx::print(GetElementPointer const& gep) {
     indexList(gep.memberIndices());
 }
 
-void PrintCtx::print(ExtractValue const& extract) {
+void PrintCtx::printImpl(ExtractValue const& extract) {
     typedName(extract.baseValue());
     indexList(extract.memberIndices());
 }
 
-void PrintCtx::print(InsertValue const& insert) {
+void PrintCtx::printImpl(InsertValue const& insert) {
     typedName(insert.baseValue());
     comma();
     typedName(insert.insertedValue());
     indexList(insert.memberIndices());
 }
 
-void PrintCtx::print(Select const& select) {
+void PrintCtx::printImpl(Select const& select) {
     typedName(select.condition());
     comma();
     typedName(select.thenValue());
@@ -481,6 +487,16 @@ static std::string_view toStrName(ir::Instruction const* inst) {
     default:
         SC_UNREACHABLE();
     }
+}
+
+void PrintCtx::funcDecl(ir::Callable const* func) {
+    str << formatKeyword("func") << " " << formatType(func->returnType()) << " "
+        << formatName(func) << "(";
+    for (bool first = true; auto& param: func->parameters()) {
+        str << (first ? (void)(first = false), "" : ", ")
+            << formatType(param.type()) << " " << formatName(&param);
+    }
+    str << ")";
 }
 
 void PrintCtx::instDecl(Instruction const* inst) const {

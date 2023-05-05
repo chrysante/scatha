@@ -22,11 +22,23 @@ Module& Module::operator=(Module&& rhs) noexcept = default;
 
 Module::~Module() = default;
 
+ExtFunction* Module::extFunction(size_t slot, size_t index) {
+    auto itr = _extFunctions.find({ slot, index });
+    return itr != _extFunctions.end() ? itr->second : nullptr;
+}
+
+ExtFunction* Module::builtinFunction(svm::Builtin builtin) {
+    return extFunction(svm::BuiltinFunctionSlot, static_cast<size_t>(builtin));
+}
+
 void Module::addStructure(UniquePtr<StructureType> structure) {
     structs.push_back(std::move(structure));
 }
 
 void Module::addGlobal(UniquePtr<Value> value) {
+    if (auto* func = dyncast<ExtFunction*>(value.get())) {
+        _extFunctions[{ func->slot(), func->index() }] = func;
+    }
     _globals.push_back(std::move(value));
 }
 

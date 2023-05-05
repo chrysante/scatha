@@ -202,6 +202,14 @@ public:
                          uint32_t index,
                          FunctionAttribute attr);
 
+    explicit ExtFunction(FunctionType const* functionType,
+                         Type const* returnType,
+                         std::span<Parameter* const> parameters,
+                         std::string name,
+                         uint32_t slot,
+                         uint32_t index,
+                         FunctionAttribute attr);
+
     /// Slot in external function table of VM.
     size_t slot() const { return _slot; }
 

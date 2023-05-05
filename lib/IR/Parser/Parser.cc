@@ -4,6 +4,7 @@
 #include <functional>
 
 #include <range/v3/algorithm.hpp>
+#include <svm/Builtin.h>
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
@@ -73,8 +74,11 @@ struct ParseContext {
 
     void parse();
 
-    UniquePtr<Function> parseFunction();
+    UniquePtr<Callable> parseCallable();
     UniquePtr<Parameter> parseParamDecl(size_t index);
+    UniquePtr<ExtFunction> makeExtFunction(Type const* returnType,
+                                           utl::small_vector<Parameter*> params,
+                                           Token name);
     UniquePtr<BasicBlock> parseBasicBlock();
     UniquePtr<Instruction> parseInstruction();
     template <typename T>
@@ -345,8 +349,15 @@ void ParseContext::parse() {
             mod.addConstantData(std::move(c));
             continue;
         }
-        if (auto fn = parseFunction()) {
-            mod.addFunction(std::move(fn));
+        if (auto fn = parseCallable()) {
+            if (auto* nativeFunc = dyncast<Function*>(fn.get())) {
+                fn.release();
+                mod.addFunction(UniquePtr<Function>(nativeFunc));
+            }
+            else {
+                SC_ASSERT(isa<ExtFunction>(*fn), "");
+                mod.addGlobal(std::move(fn));
+            }
             continue;
         }
         throw SyntaxIssue(peekToken());
@@ -354,9 +365,16 @@ void ParseContext::parse() {
     checkEmpty(globalPendingUpdates);
 }
 
-UniquePtr<Function> ParseContext::parseFunction() {
+UniquePtr<Callable> ParseContext::parseCallable() {
     locals.clear();
+    bool const isExt = peekToken().kind() == TokenKind::Ext;
+    if (isExt) {
+        eatToken();
+    }
     Token const declarator = peekToken();
+    if (isExt) {
+        expect(declarator, TokenKind::Function);
+    }
     if (declarator.kind() != TokenKind::Function) {
         return nullptr;
     }
@@ -377,6 +395,11 @@ UniquePtr<Function> ParseContext::parseFunction() {
         parameters.push_back(parseParamDecl(index++).release());
     }
     expect(eatToken(), TokenKind::CloseParan);
+    if (isExt) {
+        auto result = makeExtFunction(returnType, parameters, name);
+        registerValue(name, result.get());
+        return result;
+    }
     auto result = allocate<Function>(nullptr,
                                      returnType,
                                      parameters,
@@ -413,6 +436,38 @@ UniquePtr<Parameter> ParseContext::parseParamDecl(size_t index) {
     }
     locals[std::string(result->name())] = result.get();
     return result;
+}
+
+static std::optional<uint32_t> builtinIndex(std::string_view name) {
+    SC_ASSERT(name.starts_with("__builtin_"), "");
+    name.remove_prefix(std::string_view("__builtin_").size());
+    for (uint32_t index = 0;
+         index < static_cast<uint32_t>(svm::Builtin::_count);
+         ++index)
+    {
+        svm::Builtin builtin         = static_cast<svm::Builtin>(index);
+        std::string_view builtinName = toString(builtin);
+        if (builtinName == name) {
+            return index;
+        }
+    }
+    return std::nullopt;
+}
+
+UniquePtr<ExtFunction> ParseContext::makeExtFunction(
+    Type const* returnType, utl::small_vector<Parameter*> params, Token name) {
+    if (name.id().starts_with("__builtin_")) {
+        if (auto index = builtinIndex(name.id())) {
+            return allocate<ExtFunction>(nullptr,
+                                         returnType,
+                                         params,
+                                         std::string(name.id()),
+                                         svm::BuiltinFunctionSlot,
+                                         *index,
+                                         FunctionAttribute::None);
+        }
+    }
+    reportSemaIssue(name, SemanticIssue::InvalidEntity);
 }
 
 UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {

@@ -5,6 +5,7 @@
 
 #include <span>
 
+#include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/Common/Base.h>
@@ -12,6 +13,7 @@
 #include <scatha/Common/OpaqueRange.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Fwd.h>
+#include <svm/Builtin.h>
 
 namespace scatha::ir {
 
@@ -24,6 +26,7 @@ public:
     Module& operator=(Module&& rhs) noexcept;
     ~Module();
 
+    /// View over the static constant data objects in this module
     auto constantData() const {
         return _constantData |
                ranges::views::transform(
@@ -34,14 +37,30 @@ public:
 
     auto structures() const { return makeOpaqueRange(structs); }
 
+    /// View over the globals in this module
+    auto globals() const {
+        return _globals | ranges::views::transform(
+                              [](auto& p) -> auto const* { return p.get(); });
+    }
+
     auto& functions() { return funcs; }
 
     auto const& functions() const { return funcs; }
 
+    /// \Returns The `ExtFunction` in slot \p slot at index \p index
+    ExtFunction* extFunction(size_t slot, size_t index);
+
+    /// \Returns The `ExtFunction` in slot `svm::BuiltinFunctionSlot` at index
+    /// \p builtin
+    ExtFunction* builtinFunction(svm::Builtin builtin);
+
+    /// Add a structure type to this module
     void addStructure(UniquePtr<StructureType> structure);
 
+    /// Add a global value to this module
     void addGlobal(UniquePtr<Value> value);
 
+    /// Add static constant data to this module
     void addConstantData(UniquePtr<ConstantData> value);
 
     void addFunction(Function* function);
@@ -70,6 +89,7 @@ private:
     utl::vector<UniquePtr<StructureType>> structs;
     utl::vector<UniquePtr<Value>> _globals;
     utl::vector<UniquePtr<ConstantData>> _constantData;
+    utl::hashmap<std::pair<size_t, size_t>, ExtFunction*> _extFunctions;
     List<Function> funcs;
 };
 

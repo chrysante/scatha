@@ -1,6 +1,9 @@
 #ifndef SVM_BUILTIN_H_
 #define SVM_BUILTIN_H_
 
+#include <cassert>
+#include <string_view>
+
 #include <svm/ExternalFunction.h>
 
 namespace svm {
@@ -11,6 +14,18 @@ enum class Builtin {
 #include <svm/Builtin.def>
     _count
 };
+
+inline std::string_view toString(Builtin builtin) {
+    switch (builtin) {
+        // clang-format off
+#define SVM_BUILTIN_DEF(name, ...) case Builtin::name: return #name;
+#include <svm/Builtin.def>
+        // clang-format on
+    case Builtin::_count:
+        assert(false);
+        return {};
+    }
+}
 
 inline constexpr size_t BuiltinFunctionSlot = 0;
 

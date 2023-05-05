@@ -169,3 +169,20 @@ ExtFunction::ExtFunction(FunctionType const* functionType,
              Visibility::Static),
     _slot(slot),
     _index(index) {}
+
+ExtFunction::ExtFunction(FunctionType const* functionType,
+                         Type const* returnType,
+                         std::span<Parameter* const> parameters,
+                         std::string name,
+                         uint32_t slot,
+                         uint32_t index,
+                         FunctionAttribute attr):
+    Callable(NodeType::ExtFunction,
+             functionType,
+             returnType,
+             parameters,
+             std::move(name),
+             attr,
+             Visibility::Static),
+    _slot(slot),
+    _index(index) {}
