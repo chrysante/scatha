@@ -98,6 +98,17 @@ ir::Value* LoweringContext::getArrayCount(ir::Value* arrayRef) {
                                  "array.count");
 }
 
+ir::Value* LoweringContext::loadIfRef(Expression const* expr,
+                                      ir::Value* value) {
+    if (!expr->type()->isReference()) {
+        return value;
+    }
+    auto* refType = isa<sema::ArrayType>(expr->type()->base()) ?
+                        arrayViewType :
+                        ctx.pointerType();
+    return add<ir::Load>(value, refType, utl::strcat(value->name(), ".value"));
+}
+
 ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
     switch (function->kind()) {
     case sema::FunctionKind::Native:

@@ -95,6 +95,14 @@ GlobalScope::GlobalScope():
 
 /// # Types
 
+size_t Type::size() const {
+    return visit(*this, [](auto& derived) { return derived.sizeImpl(); });
+}
+
+size_t Type::align() const {
+    return visit(*this, [](auto& derived) { return derived.alignImpl(); });
+}
+
 bool Type::isComplete() const {
     SC_ASSERT((size() == invalidSize) == (align() == invalidSize),
               "Either both or neither must be invalid");
@@ -111,6 +119,14 @@ std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     return std::move(sstr).str();
 }
 
+QualType::QualType(ObjectType* base, TypeQualifiers qualifiers):
+    Type(EntityType::QualType,
+         ScopeKind::Invalid,
+         makeName(base, qualifiers),
+         base->parent()),
+    _base(base),
+    _quals(qualifiers) {}
+
 std::string QualType::makeName(ObjectType* base, TypeQualifiers qualifiers) {
     using enum TypeQualifiers;
     std::stringstream sstr;
@@ -125,6 +141,20 @@ std::string QualType::makeName(ObjectType* base, TypeQualifiers qualifiers) {
     }
     sstr << base->name();
     return std::move(sstr).str();
+}
+
+size_t QualType::sizeImpl() const {
+    if (isReference()) {
+        return isa<ArrayType>(base()) ? 16 : 8;
+    }
+    return base()->size();
+}
+
+size_t QualType::alignImpl() const {
+    if (isReference()) {
+        return 8;
+    }
+    return base()->align();
 }
 
 /// # OverloadSet

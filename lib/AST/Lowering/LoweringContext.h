@@ -214,6 +214,8 @@ struct LoweringContext {
 
     ir::Value* getArrayCount(ir::Value* arrayRef);
 
+    ir::Value* loadIfRef(Expression const* expr, ir::Value* value);
+
     ir::Callable* getFunction(sema::Function const*);
 
     ir::Value* genCall(FunctionCall const*);

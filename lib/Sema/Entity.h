@@ -303,37 +303,45 @@ size_t constexpr invalidSize = static_cast<size_t>(-1);
 class Type: public Scope {
 public:
     /// Size of this type
-    size_t size() const { return _size; }
+    size_t size() const;
 
     /// Align of this type
-    size_t align() const { return _align; }
+    size_t align() const;
 
     bool isComplete() const;
-
-    void setSize(size_t value) { _size = value; }
-
-    void setAlign(size_t value) { _align = value; }
 
 protected:
     explicit Type(EntityType entityType,
                   ScopeKind scopeKind,
                   std::string name,
-                  Scope* parent,
-                  size_t size,
-                  size_t align):
-        Scope(entityType, scopeKind, std::move(name), parent),
-        _size(size),
-        _align(align) {}
-
-private:
-    size_t _size;
-    size_t _align;
+                  Scope* parent):
+        Scope(entityType, scopeKind, std::move(name), parent) {}
 };
 
 /// Abstract class representing the type of an object
 class ObjectType: public Type {
 public:
-    using Type::Type;
+    explicit ObjectType(EntityType entityType,
+                        ScopeKind scopeKind,
+                        std::string name,
+                        Scope* parent,
+                        size_t size,
+                        size_t align):
+        Type(entityType, scopeKind, std::move(name), parent),
+        _size(size),
+        _align(align) {}
+
+    void setSize(size_t value) { _size = value; }
+
+    void setAlign(size_t value) { _align = value; }
+
+private:
+    friend class Type;
+    size_t sizeImpl() const { return _size; }
+    size_t alignImpl() const { return _align; }
+
+    size_t _size;
+    size_t _align;
 };
 
 /// Concrete class representing the type of a structure
@@ -412,20 +420,7 @@ private:
 /// Represents a type possibly qualified by reference or mutable qualifiers
 class SCATHA_API QualType: public Type {
 public:
-    explicit QualType(ObjectType* base, TypeQualifiers qualifiers):
-        Type(EntityType::QualType,
-             ScopeKind::Invalid,
-             makeName(base, qualifiers),
-             base->parent(),
-             base->size(),
-             base->align()),
-        _base(base),
-        _quals(qualifiers) {
-        if (isReference()) {
-            setSize(8);
-            setAlign(8);
-        }
-    }
+    explicit QualType(ObjectType* base, TypeQualifiers qualifiers);
 
     /// The base object type that is qualified by this `QualType`
     /// I.e. if this is `&mut int`, then `base()` is `int`
@@ -451,6 +446,10 @@ public:
 
 private:
     static std::string makeName(ObjectType* base, TypeQualifiers qualifiers);
+
+    friend class Type;
+    size_t sizeImpl() const;
+    size_t alignImpl() const;
 
     ObjectType* _base;
     TypeQualifiers _quals;

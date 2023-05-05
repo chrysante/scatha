@@ -47,8 +47,13 @@ void sema::instantiateEntities(SymbolTable& sym,
 }
 
 static bool isBuiltin(ObjectType const* type) {
-    auto* sType = dyncast<StructureType const*>(type);
-    return sType && sType->isBuiltin();
+    if (auto* sType = dyncast<StructureType const*>(type)) {
+        return sType->isBuiltin();
+    }
+    if (auto* aType = dyncast<ArrayType const*>(type)) {
+        return isBuiltin(aType->elementType());
+    }
+    return false;
 }
 
 void Context::run() {
@@ -64,7 +69,7 @@ void Context::run() {
         if (!type) {
             continue;
         }
-        if (isBuiltin(type->base())) {
+        if (type->isReference() || isBuiltin(type->base())) {
             continue;
         }
         node.dependencies.push_back(
@@ -134,19 +139,17 @@ void Context::instantiateStructureType(DependencyGraphNode& node) {
         if (!varDecl.type()) {
             break;
         }
-        auto const* objType = varDecl.type()->base();
-        SC_ASSERT(objType->isComplete(),
-                  "Type should be complete at this stage");
-        objectAlign = std::max(objectAlign, objType->align());
-        SC_ASSERT(objType->size() % objType->align() == 0,
+        auto* varType = varDecl.type();
+        objectAlign   = std::max(objectAlign, varType->align());
+        SC_ASSERT(varType->size() % varType->align() == 0,
                   "size must be a multiple of align");
-        objectSize = utl::round_up_pow_two(objectSize, objType->align());
+        objectSize = utl::round_up_pow_two(objectSize, varType->align());
         size_t const currentOffset = objectSize;
         varDecl.setOffset(currentOffset);
         varDecl.setIndex(index);
         var.setOffset(currentOffset);
         var.setIndex(index);
-        objectSize += objType->size();
+        objectSize += varType->size();
         ++index;
     }
     objectType.setSize(objectSize);

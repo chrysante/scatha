@@ -354,26 +354,12 @@ ir::Value* LoweringContext::getAddressImpl(Identifier const& id) {
     SC_ASSERT(address, "Undeclared identifier");
     SC_ASSERT(id.type()->isImplicitReference() || id.isLValue(),
               "Just to be safe");
-    if (id.type()->isImplicitReference()) {
-        auto* refType = isa<sema::ArrayType>(id.type()->base()) ?
-                            arrayViewType :
-                            ctx.pointerType();
-        return add<ir::Load>(address,
-                             refType,
-                             utl::strcat(id.value(), ".value"));
-    }
-    return address;
+    return loadIfRef(&id, address);
 }
 
 ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
-    auto* gep     = getAddressLocImpl(expr);
-    auto* memType = expr.member()->type();
-    if (!memType->isReference()) {
-        return gep;
-    }
-    return add<ir::Load>(gep,
-                         ctx.pointerType(),
-                         utl::strcat(gep->name(), ".value"));
+    auto* address = getAddressLocImpl(expr);
+    return loadIfRef(expr.member(), address);
 }
 
 ir::Value* LoweringContext::getAddressImpl(FunctionCall const& expr) {
