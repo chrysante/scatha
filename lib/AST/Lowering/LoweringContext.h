@@ -5,9 +5,9 @@
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
-#include "Common/List.h"
-#include "Common/APInt.h"
 #include "Common/APFloat.h"
+#include "Common/APInt.h"
+#include "Common/List.h"
 #include "IR/Fwd.h"
 #include "Sema/Fwd.h"
 
@@ -158,10 +158,15 @@ struct LoweringContext {
     ir::Value* getAddressImpl(ReferenceExpression const&);
     ir::Value* getAddressImpl(Conversion const&);
     ir::Value* getAddressImpl(ListExpression const&);
+
+    ir::Value* getAddressLocation(Expression const* expr);
     
-    ir::Value* getAddressLocation(Expression const* expr) { SC_DEBUGFAIL(); }
-    
-    
+    ir::Value* getAddressLocImpl(AbstractSyntaxTree const& expr) {
+        SC_UNREACHABLE();
+    } // Delete this later
+    ir::Value* getAddressLocImpl(Identifier const& expr);
+    ir::Value* getAddressLocImpl(MemberAccess const& expr);
+
     /// # Utils
 
     ir::BasicBlock* newBlock(std::string name);
@@ -188,23 +193,22 @@ struct LoweringContext {
         return result;
     }
 
-
     ir::Value* storeLocal(ir::Value* value, std::string name = {});
 
     ir::Value* makeLocal(ir::Type const* type, std::string name);
 
     ir::Value* genCall(FunctionCall const*);
-    
+
     utl::small_vector<ir::Value*> mapArguments(auto&& args);
-    
+
     ir::Value* intConstant(APInt value);
-    
+
     ir::Value* intConstant(size_t value, size_t bitwidth);
-    
+
     ir::Value* floatConstant(APFloat value);
-    
+
     ir::Value* constant(ssize_t value, ir::Type const* type);
-    
+
     void memorizeVariableAddress(sema::Entity const* entity,
                                  ir::Value* address);
 

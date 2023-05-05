@@ -217,7 +217,7 @@ static void pass(ir::Context& ctx,
 
     header("IR Module");
     ir::Context ctx;
-    auto mod = ast::lowerToIR(*root, sym, ctx);
+    auto mod = ast::lowerToIR2(*root, sym, ctx);
     ir::print(mod);
 
     run(mod);
@@ -231,5 +231,5 @@ static void pass(ir::Context& ctx,
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    irPlayground(path);
+    frontendPlayground(path);
 }

@@ -2,8 +2,8 @@
 
 #include <utl/strcat.hpp>
 
+#include "AST/AST.h"       // Remove later
 #include "AST/LowerToIR.h" // Remove later
-#include "AST/AST.h" // Remove later
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h" // Remove later
@@ -65,15 +65,16 @@ ir::Value* LoweringContext::makeLocal(ir::Type const* type, std::string name) {
 
 ir::Value* LoweringContext::genCall(FunctionCall const* call) {
     ir::Callable* function = functionMap.find(call->function())->second;
-    auto args = mapArguments(call->arguments());
+    auto args              = mapArguments(call->arguments());
     if (call->isMemberCall) {
         auto* object = cast<MemberAccess const*>(call->object())->object();
         args.insert(args.begin(), getAddress(object));
     }
     return add<ir::Call>(function,
                          args,
-                         call->type()->base() != symbolTable.Void() ? "call.result" :
-                                                              std::string{});
+                         call->type()->base() != symbolTable.Void() ?
+                             "call.result" :
+                             std::string{});
 }
 
 utl::small_vector<ir::Value*> LoweringContext::mapArguments(auto&& args) {
@@ -94,7 +95,8 @@ ir::Value* LoweringContext::intConstant(size_t value, size_t bitwidth) {
 
 ir::Value* LoweringContext::floatConstant(APFloat value) {
     return ctx.floatConstant(value,
-                             value.precision() == APFloatPrec::Single ? 32 : 64);
+                             value.precision() == APFloatPrec::Single ? 32 :
+                                                                        64);
 }
 
 ir::Value* LoweringContext::constant(ssize_t value, ir::Type const* type) {

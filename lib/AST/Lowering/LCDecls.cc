@@ -35,6 +35,10 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
 }
 
 void LoweringContext::declareFunction(sema::Function const* function) {
+    if (function->kind() != sema::FunctionKind::Native) {
+#warning
+        return;
+    }
     auto paramTypes =
         function->argumentTypes() |
         ranges::views::transform(
@@ -55,22 +59,24 @@ void LoweringContext::declareFunction(sema::Function const* function) {
                                              function->accessSpecifier()));
         functionMap[function] = fn.get();
         mod.addFunction(std::move(fn));
+        break;
     }
 
     case sema::FunctionKind::External: {
-        auto fn =
-            allocate<ir::ExtFunction>(functionType,
-                                      mapType(
-                                          function->signature().returnType()),
-                                      paramTypes,
-                                      std::string(function->name()),
-                                      utl::narrow_cast<uint32_t>(
-                                          function->slot()),
-                                      utl::narrow_cast<uint32_t>(
-                                          function->index()),
-                                      mapFuncAttrs(function->attributes()));
-        functionMap[function] = fn.get();
-        mod.addGlobal(std::move(fn));
+//        auto fn =
+//            allocate<ir::ExtFunction>(functionType,
+//                                      mapType(
+//                                          function->signature().returnType()),
+//                                      paramTypes,
+//                                      std::string(function->name()),
+//                                      utl::narrow_cast<uint32_t>(
+//                                          function->slot()),
+//                                      utl::narrow_cast<uint32_t>(
+//                                          function->index()),
+//                                      mapFuncAttrs(function->attributes()));
+//        functionMap[function] = fn.get();
+//        mod.addGlobal(std::move(fn));
+        break;
     }
 
     default:
