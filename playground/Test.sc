@@ -1,15 +1,15 @@
 
 
 
-fn deref(a: &[int]) -> int { return a[0]; }
+fn f(x: &[int]) -> int {
+    return x.count;
+}
 
 
 public fn main() -> int {
     let a = [1, 2, 3];
-    // let b = &a;
-    // return deref(&b);
     
-    
-    /// Still fails!
-    return a.count;
+    let b: &[int] = &a;
+
+    return b.f;
 }

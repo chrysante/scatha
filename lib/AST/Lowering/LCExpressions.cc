@@ -246,6 +246,18 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(MemberAccess const& expr) {
+    if (auto itr = valueMap.find(expr.member()->entity());
+        itr != valueMap.end())
+    {
+        return itr->second;
+    }
+    if (auto* arrayType =
+            dyncast<sema::ArrayType const*>(expr.object()->type()->base()))
+    {
+        SC_ASSERT(expr.member()->value() == "count", "What else?");
+        auto* addr = getAddress(expr.object());
+        return getArrayCount(addr);
+    }
     if (hasAddress(&expr)) {
         return add<ir::Load>(getAddressImpl(expr),
                              mapType(expr.type()),
@@ -395,29 +407,36 @@ ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
     return getAddress(conv.expression());
 }
 
-ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
-    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
-    auto* elemType  = mapType(arrayType->elementType());
-    auto* count     = intConstant(list.elements().size(), 32);
-    auto* array     = new ir::Alloca(ctx, count, elemType, "array");
-    allocas.push_back(array);
-    utl::small_vector<u8> data(arrayType->size());
-    auto* dest = data.data();
-    for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
-        if (auto* lit = dyncast<Literal const*>(elem)) {
-            SC_ASSERT(arrayType->elementType() == lit->type()->base(), "");
-            auto value = std::get<static_cast<size_t>(LiteralKind::Integer)>(
-                lit->value());
-            size_t elemSize = elemType->size();
-            std::memcpy(dest, value.limbs().data(), elemSize);
-            dest += elemSize;
-            continue;
+static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
+    auto* lit = dyncast<Literal const*>(expr);
+    if (!lit) {
+        return false;
+    }
+    auto value =
+        std::get<static_cast<size_t>(LiteralKind::Integer)>(lit->value());
+    size_t const elemSize = lit->type()->size();
+    auto* data            = reinterpret_cast<u8 const*>(value.limbs().data());
+    for (auto* end = data + elemSize; data < end; ++data) {
+        dest.push_back(*data);
+    }
+    return true;
+}
+
+bool LoweringContext::genStaticListData(ListExpression const& list,
+                                        ir::Alloca* dest) {
+    auto* type     = cast<sema::ArrayType const*>(list.type()->base());
+    auto* elemType = type->elementType();
+    utl::small_vector<u8> data;
+    data.reserve(type->size());
+    for (auto* expr: list.elements()) {
+        SC_ASSERT(elemType == expr->type()->base(), "Invalid type");
+        if (!evalConstant(expr, data)) {
+            return false;
         }
-        SC_DEBUGFAIL();
     }
     auto constData =
         allocate<ir::ConstantData>(ctx,
-                                   ctx.arrayType(elemType,
+                                   ctx.arrayType(mapType(elemType),
                                                  list.elements().size()),
                                    std::move(data),
                                    "array");
@@ -427,11 +446,39 @@ ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
         symbolTable.builtinFunction(static_cast<size_t>(svm::Builtin::memcpy)));
     add<ir::Call>(memcpy,
                   std::array<ir::Value*, 3>{
-                      array,
+                      dest,
                       source,
                       intConstant(list.elements().size() * elemType->size(),
                                   64) },
                   std::string{});
+    return true;
+}
+
+void LoweringContext::genListDataSlowPath(ListExpression const& list,
+                                          ir::Alloca* dest) {
+    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
+    auto* elemType  = mapType(arrayType->elementType());
+    for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
+        auto* gep = add<ir::GetElementPointer>(elemType,
+                                               dest,
+                                               intConstant(index, 32),
+                                               std::initializer_list<size_t>{},
+                                               "elem.ptr");
+        add<ir::Store>(gep, getValue(elem));
+    }
+}
+
+ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
+    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
+    auto* elemType  = mapType(arrayType->elementType());
+    auto* count     = intConstant(list.elements().size(), 64);
+    auto* array     = new ir::Alloca(ctx, count, elemType, "array");
+    allocas.push_back(array);
+    valueMap.insert({ arrayType->countVariable(), count });
+    if (genStaticListData(list, array)) {
+        return makeArrayRef(array, count);
+    }
+    genListDataSlowPath(list, array);
     return makeArrayRef(array, count);
 }
 

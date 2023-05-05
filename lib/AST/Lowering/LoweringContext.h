@@ -27,7 +27,10 @@ struct LoweringContext {
 
     /// ## Maps
     utl::hashmap<sema::Type const*, ir::Type const*> typeMap;
+    /// Maps variables to IR values in stack memory
     utl::hashmap<sema::Entity const*, ir::Value*> variableAddressMap;
+    /// Maps variables to SSA values
+    utl::hashmap<sema::Entity const*, ir::Value*> valueMap;
     utl::hashmap<sema::Function const*, ir::Callable*> functionMap;
 
     /// ## Current state
@@ -168,6 +171,12 @@ struct LoweringContext {
     } // Delete this later
     ir::Value* getAddressLocImpl(Identifier const& expr);
     ir::Value* getAddressLocImpl(MemberAccess const& expr);
+
+    /// # Helpers
+
+    bool genStaticListData(ListExpression const& list, ir::Alloca* dest);
+
+    void genListDataSlowPath(ListExpression const& list, ir::Alloca* dest);
 
     /// # Utils
 

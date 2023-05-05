@@ -7,6 +7,29 @@
 using namespace scatha;
 using namespace sema;
 
+bool isObjectTypeConvImpl(StructureType const* to, StructureType const* from) {
+    return from == to;
+}
+
+bool isObjectTypeConvImpl(ArrayType const* to, ArrayType const* from) {
+    if (from == to) {
+        return true;
+    }
+    if (to->elementType() != from->elementType()) {
+        return false;
+    }
+    if (to->isDynamic()) {
+        return true;
+    }
+    return false;
+}
+
+bool isObjectTypeConvertible(ObjectType const* to, ObjectType const* from) {
+    return visit(*to, [=]<typename T>(T const& to) {
+        return isObjectTypeConvImpl(&to, cast<T const*>(from));
+    });
+}
+
 bool sema::isImplicitlyConvertible(QualType const* to, QualType const* from) {
     /// Can't convert non-arrays to arrays and vice versa
     if (from->base()->entityType() != to->base()->entityType()) {
@@ -19,7 +42,7 @@ bool sema::isImplicitlyConvertible(QualType const* to, QualType const* from) {
     if (to->isExplicitReference() && !from->isExplicitReference()) {
         return false;
     }
-    return from->base() == to->base();
+    return isObjectTypeConvertible(to->base(), from->base());
 }
 
 ast::Conversion* sema::insertConversion(ast::Expression* expr,
