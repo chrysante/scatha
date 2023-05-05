@@ -34,6 +34,12 @@ void LoweringContext::generateImpl(FunctionDefinition const& def) {
     for (auto [paramDecl, irParam]:
          ranges::views::zip(def.parameters(), currentFunction->parameters()))
     {
+        if (auto* thisParam = dyncast<ThisParameter const*>(paramDecl);
+            thisParam && thisParam->type()->isReference())
+        {
+            memorizeVariableAddress(thisParam->entity(), &irParam);
+            continue;
+        }
         auto* address = storeLocal(&irParam, std::string(paramDecl->name()));
         memorizeVariableAddress(paramDecl->entity(), address);
     }
@@ -43,10 +49,10 @@ void LoweringContext::generateImpl(FunctionDefinition const& def) {
     currentFunction = nullptr;
 
     /// Add all generated `alloca`s to the entry basic block
-    auto itr = std::next(entry->begin());
-    for (auto* allocaInst: allocas) {
-        entry->insert(itr, allocaInst);
+    for (auto before = entry->begin(); auto* allocaInst: allocas) {
+        entry->insert(before, allocaInst);
     }
+    allocas.clear();
 }
 
 void LoweringContext::generateImpl(StructDefinition const& def) {

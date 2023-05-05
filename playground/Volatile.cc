@@ -161,10 +161,9 @@ static void run(mir::Module const& mod) {
     }
     mir::print(mirMod);
 
-    header("MIR Module after jump elision");
+    header("MIR Module after reg alloc");
     for (auto& F: mirMod) {
         cg::allocateRegisters(F);
-        cg::elideJumps(F);
     }
     mir::print(mirMod);
 
@@ -230,6 +229,4 @@ static void pass(ir::Context& ctx,
     run(mod);
 }
 
-void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
-}
+void playground::volatilePlayground(std::filesystem::path path) { mirPG(path); }

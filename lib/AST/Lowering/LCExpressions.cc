@@ -243,9 +243,17 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(MemberAccess const& expr) {
-    return add<ir::Load>(getAddressImpl(expr),
-                         mapType(expr.type()),
-                         "member.access");
+    if (hasAddress(&expr)) {
+        return add<ir::Load>(getAddressImpl(expr),
+                             mapType(expr.type()),
+                             "member.access");
+    }
+    auto* base       = getValue(expr.object());
+    auto* accessedId = cast<Identifier const*>(expr.member());
+    auto* var        = cast<sema::Variable const*>(accessedId->entity());
+    return add<ir::ExtractValue>(base,
+                                 std::array{ var->index() },
+                                 "member.access");
 }
 
 ir::Value* LoweringContext::getValueImpl(ReferenceExpression const& expr) {
@@ -278,10 +286,10 @@ ir::Value* LoweringContext::getValueImpl(Conditional const& condExpr) {
     add(elseBlock);
     auto* elseVal = getValue(condExpr.elseExpr());
     elseBlock     = currentBlock;
-
-    /// Generate end block.
     add<ir::Goto>(endBlock);
 
+    /// Generate end block.
+    add(endBlock);
     return add<ir::Phi>(std::array<ir::PhiMapping,
                                    2>{ ir::PhiMapping{ thenBlock, thenVal },
                                        ir::PhiMapping{ elseBlock, elseVal } },
@@ -316,6 +324,7 @@ ir::Value* LoweringContext::getValueImpl(ListExpression const& list) {
 /// MARK: getAddress() Implementation
 
 ir::Value* LoweringContext::getAddress(Expression const* expr) {
+    SC_ASSERT(hasAddress(expr), "");
     return visit(*expr,
                  [this](auto const& expr) { return getAddressImpl(expr); });
 }
@@ -331,21 +340,22 @@ ir::Value* LoweringContext::getAddressImpl(Identifier const& id) {
     SC_ASSERT(id.type()->isImplicitReference() || id.isLValue(),
               "Just to be safe");
     if (id.type()->isImplicitReference()) {
-        return add<ir::Load>(address, ctx.pointerType(), utl::strcat(id.value(), ".value"));
+        return add<ir::Load>(address,
+                             ctx.pointerType(),
+                             utl::strcat(id.value(), ".value"));
     }
     return address;
 }
 
 ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
-    auto* base       = getAddress(expr.object());
-    auto* accessedId = cast<Identifier const*>(expr.member());
-    auto* var        = cast<sema::Variable const*>(accessedId->entity());
-    auto* type       = mapType(expr.object()->type()->base());
-    return add<ir::GetElementPointer>(type,
-                                      base,
-                                      intConstant(0, 64),
-                                      std::array{ var->index() },
-                                      "mem.ptr");
+    auto* gep     = getAddressLocImpl(expr);
+    auto* memType = expr.member()->type();
+    if (!memType->isReference()) {
+        return gep;
+    }
+    return add<ir::Load>(gep,
+                         ctx.pointerType(),
+                         utl::strcat(gep->name(), ".value"));
 }
 
 ir::Value* LoweringContext::getAddressImpl(FunctionCall const& expr) {
@@ -428,5 +438,13 @@ ir::Value* LoweringContext::getAddressLocImpl(Identifier const& id) {
 }
 
 ir::Value* LoweringContext::getAddressLocImpl(MemberAccess const& expr) {
-    SC_DEBUGFAIL();
+    auto* base       = getAddress(expr.object());
+    auto* accessedId = cast<Identifier const*>(expr.member());
+    auto* var        = cast<sema::Variable const*>(accessedId->entity());
+    auto* type       = mapType(expr.object()->type()->base());
+    return add<ir::GetElementPointer>(type,
+                                      base,
+                                      intConstant(0, 64),
+                                      std::array{ var->index() },
+                                      "mem.ptr");
 }

@@ -21,7 +21,9 @@ void LoweringContext::makeDeclarations() {
         declareType(type);
     }
     for (auto* function: symbolTable.functions()) {
-        declareFunction(function);
+        if (function->isNative()) {
+            declareFunction(function);
+        }
     }
 }
 
@@ -34,11 +36,7 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
     mod.addStructure(std::move(structure));
 }
 
-void LoweringContext::declareFunction(sema::Function const* function) {
-    if (function->kind() != sema::FunctionKind::Native) {
-#warning
-        return;
-    }
+ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     auto paramTypes =
         function->argumentTypes() |
         ranges::views::transform(
@@ -57,26 +55,28 @@ void LoweringContext::declareFunction(sema::Function const* function) {
                                          mapFuncAttrs(function->attributes()),
                                          accessSpecToVisibility(
                                              function->accessSpecifier()));
-        functionMap[function] = fn.get();
+        auto* result          = fn.get();
+        functionMap[function] = result;
         mod.addFunction(std::move(fn));
-        break;
+        return result;
     }
 
     case sema::FunctionKind::External: {
-//        auto fn =
-//            allocate<ir::ExtFunction>(functionType,
-//                                      mapType(
-//                                          function->signature().returnType()),
-//                                      paramTypes,
-//                                      std::string(function->name()),
-//                                      utl::narrow_cast<uint32_t>(
-//                                          function->slot()),
-//                                      utl::narrow_cast<uint32_t>(
-//                                          function->index()),
-//                                      mapFuncAttrs(function->attributes()));
-//        functionMap[function] = fn.get();
-//        mod.addGlobal(std::move(fn));
-        break;
+        auto fn =
+            allocate<ir::ExtFunction>(functionType,
+                                      mapType(
+                                          function->signature().returnType()),
+                                      paramTypes,
+                                      std::string(function->name()),
+                                      utl::narrow_cast<uint32_t>(
+                                          function->slot()),
+                                      utl::narrow_cast<uint32_t>(
+                                          function->index()),
+                                      mapFuncAttrs(function->attributes()));
+        auto* result          = fn.get();
+        functionMap[function] = result;
+        mod.addGlobal(std::move(fn));
+        return result;
     }
 
     default:

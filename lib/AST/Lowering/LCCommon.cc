@@ -6,8 +6,9 @@
 #include "AST/LowerToIR.h" // Remove later
 #include "IR/CFG.h"
 #include "IR/Context.h"
-#include "IR/Module.h" // Remove later
+#include "IR/Module.h"   // Remove later
 #include "IR/Type.h"
+#include "IR/Validate.h" // Remove later
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -21,6 +22,8 @@ using namespace ast;
     ir::Module mod;
     LoweringContext context(symbolTable, ctx, mod);
     context.run(root);
+    ir::setupInvariants(ctx, mod);
+    ir::assertInvariants(ctx, mod);
     return mod;
 }
 
@@ -63,8 +66,26 @@ ir::Value* LoweringContext::makeLocal(ir::Type const* type, std::string name) {
     return addr;
 }
 
+ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
+    switch (function->kind()) {
+    case sema::FunctionKind::Native:
+        return functionMap.find(function)->second;
+
+    case sema::FunctionKind::External: {
+        auto itr = functionMap.find(function);
+        if (itr != functionMap.end()) {
+            return itr->second;
+        }
+        return declareFunction(function);
+    }
+
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 ir::Value* LoweringContext::genCall(FunctionCall const* call) {
-    ir::Callable* function = functionMap.find(call->function())->second;
+    ir::Callable* function = getFunction(call->function());
     auto args              = mapArguments(call->arguments());
     if (call->isMemberCall) {
         auto* object = cast<MemberAccess const*>(call->object())->object();
@@ -101,6 +122,10 @@ ir::Value* LoweringContext::floatConstant(APFloat value) {
 
 ir::Value* LoweringContext::constant(ssize_t value, ir::Type const* type) {
     return ctx.arithmeticConstant(value, type);
+}
+
+bool LoweringContext::hasAddress(ast::Expression const* expr) const {
+    return expr->isLValue() || expr->type()->isReference();
 }
 
 void LoweringContext::memorizeVariableAddress(sema::Entity const* entity,

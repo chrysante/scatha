@@ -120,7 +120,10 @@ struct ParseContext {
     void addValueLink(U* user, Type const* type, Token token, auto fn) {
         if ((token.kind() == TokenKind::LocalIdentifier ||
              token.kind() == TokenKind::GlobalIdentifier) &&
-            user->name() == token.id())
+            user->name() == token.id() &&
+            !isa<Phi>(user)) /// Hack to avoid errors for phi functions. However
+                             /// to be thorough we would have to test the
+                             /// operand is also a phi node
         {
             /// We report self references as use of undeclared identifier
             /// because the identifier is not defined before the next
@@ -484,7 +487,11 @@ UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {
         if (!instruction) {
             break;
         }
-        registerValue(optInstName, instruction.get());
+        /// Phi instructions register themselves because they may be self
+        /// referential
+        if (!isa<Phi>(instruction.get())) {
+            registerValue(optInstName, instruction.get());
+        }
         result->pushBack(std::move(instruction));
     }
     return result;
@@ -686,6 +693,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
             eatToken();
         }
         auto result = allocate<Phi>(type, args.size(), name());
+        registerValue(_nameTok, result.get());
         for (auto [index, arg]: args | ranges::views::enumerate) {
             auto [predName, valueName] = arg;
             addValueLink<BasicBlock>(result.get(),

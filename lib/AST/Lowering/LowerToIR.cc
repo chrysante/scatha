@@ -173,6 +173,7 @@ struct CodeGenContext {
 ir::Module ast::lowerToIR(AbstractSyntaxTree const& ast,
                           sema::SymbolTable const& symbolTable,
                           ir::Context& irCtx) {
+    return lowerToIR2(ast, symbolTable, irCtx);
     ir::Module mod;
     CodeGenContext ctx(irCtx, mod, symbolTable);
     ctx.declareTypes();

@@ -244,6 +244,9 @@ public:
     /// Kind of this function
     FunctionKind kind() const { return _kind; }
 
+    /// \Returns `kind() == FunctionKind::Native`
+    bool isNative() const { return kind() == FunctionKind::Native; }
+
     /// \Returns `kind() == FunctionKind::External`
     bool isExtern() const { return kind() == FunctionKind::External; }
 

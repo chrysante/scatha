@@ -18,7 +18,7 @@ fn modifyWithIgnoredReturnValue(n: &int) -> int {
 })");
 }
 
-TEST_CASE("Assignment error", "[end-to-end][regression]") {
+TEST_CASE("Assignment error", "[end-to-end][regression][arrays]") {
     test::checkReturns(1, R"(
 fn f(a: &mut [int], b: &[int]) -> void {
     a[0] = b[0];

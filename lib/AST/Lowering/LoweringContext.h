@@ -55,7 +55,7 @@ struct LoweringContext {
 
     void declareType(sema::StructureType const* structType);
 
-    void declareFunction(sema::Function const* function);
+    ir::Callable* declareFunction(sema::Function const* function);
 
     /// # Statements
 
@@ -160,7 +160,7 @@ struct LoweringContext {
     ir::Value* getAddressImpl(ListExpression const&);
 
     ir::Value* getAddressLocation(Expression const* expr);
-    
+
     ir::Value* getAddressLocImpl(AbstractSyntaxTree const& expr) {
         SC_UNREACHABLE();
     } // Delete this later
@@ -197,6 +197,8 @@ struct LoweringContext {
 
     ir::Value* makeLocal(ir::Type const* type, std::string name);
 
+    ir::Callable* getFunction(sema::Function const*);
+
     ir::Value* genCall(FunctionCall const*);
 
     utl::small_vector<ir::Value*> mapArguments(auto&& args);
@@ -208,6 +210,8 @@ struct LoweringContext {
     ir::Value* floatConstant(APFloat value);
 
     ir::Value* constant(ssize_t value, ir::Type const* type);
+
+    bool hasAddress(ast::Expression const* expr) const;
 
     void memorizeVariableAddress(sema::Entity const* entity,
                                  ir::Value* address);
