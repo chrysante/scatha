@@ -70,6 +70,7 @@ void LoweringContext::generateImpl(StructDefinition const& def) {
 }
 
 void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
+    std::string name = utl::strcat(varDecl.name(), ".addr");
     if (auto* arrayType =
             dyncast<sema::ArrayType const*>(varDecl.type()->base()))
     {
@@ -85,6 +86,7 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         /// We can steal the data from an rvalue
         if (varDecl.initExpression() && varDecl.initExpression()->isRValue()) {
             auto* address = getAddress(varDecl.initExpression());
+            address->setName(name);
             memorizeVariableAddress(varDecl.variable(), address);
             return;
         }
@@ -93,7 +95,7 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         auto* array    = new ir::Alloca(ctx,
                                      intConstant(arrayType->count(), 32),
                                      elemType,
-                                     utl::strcat(varDecl.name(), ".addr"));
+                                     name);
         allocas.push_back(array);
         if (varDecl.initExpression()) {
             auto* initAddress = getAddress(varDecl.initExpression());
@@ -115,12 +117,12 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
     /// Non-array case
     if (varDecl.initExpression()) {
         auto* value   = getValue(varDecl.initExpression());
-        auto* address = storeLocal(value, std::string(varDecl.name()));
+        auto* address = storeLocal(value, name);
         memorizeVariableAddress(varDecl.entity(), address);
     }
     else {
         auto* type    = mapType(varDecl.type());
-        auto* address = makeLocal(type, std::string(varDecl.name()));
+        auto* address = makeLocal(type, name);
         memorizeVariableAddress(varDecl.entity(), address);
     }
 }

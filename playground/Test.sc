@@ -5,6 +5,7 @@ fn print(text: &[byte]) {
 }
 
 public fn main() {
+    let a = [1, 2, 3];
     print("Hello World!");
 }
 
