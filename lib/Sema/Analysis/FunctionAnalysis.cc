@@ -223,7 +223,7 @@ void Context::analyzeImpl(ast::ThisParameter& thisParam) {
     if (!parentType) {
         return;
     }
-    auto* qualType = sym.qualify(parentType, thisParam.qualifiers());
+    auto* qualType = sym.qualify(parentType, thisParam.reference());
     auto paramRes  = sym.addVariable("__this", qualType);
     if (!paramRes) {
         iss.push(paramRes.error()->setStatement(thisParam));
@@ -285,7 +285,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
     /// If we return a reference we don't want to _assign through_ it but we
     /// want to return an explicit reference
     if (returnType->isReference() &&
-        !rs.expression()->type()->has(ExplicitReference))
+        !rs.expression()->type()->isExplicitReference())
     {
         iss.push<BadExpression>(*rs.expression(), IssueSeverity::Error);
         return;

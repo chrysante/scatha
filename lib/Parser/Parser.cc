@@ -192,13 +192,13 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     if (idToken.kind() == This) {
         tokens.eat();
         return allocate<ast::ThisParameter>(idToken.sourceRange(),
-                                            sema::TypeQualifiers::None);
+                                            sema::Reference::None);
     }
     if (idToken.kind() == BitAnd) {
         tokens.eat();
-        sema::TypeQualifiers quals = sema::ImplicitReference;
+        sema::Reference refQual = sema::Reference::Implicit;
         if (eatMut()) {
-            quals |= sema::TypeQualifiers::Mutable;
+            // quals |= sema::TypeQualifiers::Mutable;
         }
         if (tokens.peek().kind() != This) {
             return nullptr;
@@ -206,7 +206,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
         auto const thisToken = tokens.eat();
         auto sourceRange =
             merge(idToken.sourceRange(), thisToken.sourceRange());
-        return allocate<ast::ThisParameter>(sourceRange, quals);
+        return allocate<ast::ThisParameter>(sourceRange, refQual);
     }
     auto identifier = parseIdentifier();
     if (!identifier) {

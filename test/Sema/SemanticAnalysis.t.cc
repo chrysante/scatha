@@ -296,12 +296,12 @@ struct X {
     auto* x = sym.lookup<Scope>("X");
     sym.pushScope(x);
     auto* fOS            = sym.lookup<OverloadSet>("f");
-    auto const* x_y_type = sym.qualify(sym.lookup<Type>("Y"));
+    auto const* x_y_type = sym.qualify(sym.lookup<StructureType>("Y"));
     auto const* fFn      = fOS->find(std::array{ x_y_type });
     /// Finding `f` in the overload set with `X.Y` as argument shall succeed.
     CHECK(fFn != nullptr);
     sym.popScope();
-    auto const* y_type        = sym.qualify(sym.lookup<Type>("Y"));
+    auto const* y_type        = sym.qualify(sym.lookup<StructureType>("Y"));
     auto const* undeclaredfFn = fOS->find({ { y_type } });
     /// Finding `f` with `Y` (global) as argument shall fail.
     CHECK(undeclaredfFn == nullptr);

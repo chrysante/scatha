@@ -419,39 +419,39 @@ private:
 /// Represents a type possibly qualified by reference or mutable qualifiers
 class SCATHA_API QualType: public Type {
 public:
-    explicit QualType(ObjectType* base, TypeQualifiers qualifiers);
+    explicit QualType(ObjectType* base, Reference ref);
 
     /// The base object type that is qualified by this `QualType`
     /// I.e. if this is `&mut int`, then `base()` is `int`
     ObjectType const* base() const { return _base; }
 
-    TypeQualifiers qualifiers() const { return _quals; }
+    /// The reference qualifier of this type
+    Reference reference() const { return _ref; }
 
-    bool has(TypeQualifiers qual) const { return test(qualifiers() & qual); }
+    /// \Returns `true` iff this is an explicit reference type
+    bool isExplicitReference() const {
+        return reference() == Reference::Explicit;
+    }
 
-    bool isExplicitReference() const { return has(ExplicitReference); }
+    /// \Returns `true` iff this is an implicit reference type
+    bool isImplicitReference() const {
+        return reference() == Reference::Implicit;
+    }
 
-    bool isImplicitReference() const { return has(ImplicitReference); }
-
+    /// \Returns `true` iff this is any (implicit or explicit) reference type
     bool isReference() const {
         return isImplicitReference() || isExplicitReference();
     }
 
-    /// \Return `true` iff this type is mutable
-    bool isMutable() const { return has(Mutable); }
-
-    /// \Return `true` iff this type is a unique reference
-    bool isUnique() const { return has(TypeQualifiers::Unique); }
-
 private:
-    static std::string makeName(ObjectType* base, TypeQualifiers qualifiers);
+    static std::string makeName(ObjectType* base, Reference ref);
 
     friend class Type;
     size_t sizeImpl() const;
     size_t alignImpl() const;
 
     ObjectType* _base;
-    TypeQualifiers _quals;
+    Reference _ref;
 };
 
 /// # OverloadSet

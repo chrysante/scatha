@@ -827,21 +827,20 @@ private:
 /// Represents the explicit `this` parameter
 class ThisParameter: public ParameterDeclaration {
 public:
-    explicit ThisParameter(SourceRange sourceRange,
-                           sema::TypeQualifiers qualifiers):
+    explicit ThisParameter(SourceRange sourceRange, sema::Reference ref):
         ParameterDeclaration(NodeType::ThisParameter,
                              sourceRange,
                              nullptr,
                              nullptr),
-        quals(qualifiers) {}
+        ref(ref) {}
 
     AST_DERIVED_COMMON(ThisParameter)
 
     /// The type qualifiers attached to the `this` parameter
-    sema::TypeQualifiers qualifiers() const { return quals; }
+    sema::Reference reference() const { return ref; }
 
 private:
-    sema::TypeQualifiers quals;
+    sema::Reference ref;
 };
 
 /// Nothing to see here yet...

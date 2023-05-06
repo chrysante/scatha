@@ -41,9 +41,7 @@ ir::Value* LoweringContext::getValueImpl(Literal const& lit) {
     case LiteralKind::FloatingPoint:
         return floatConstant(lit.value<LiteralKind::FloatingPoint>());
     case LiteralKind::This: {
-        return add<ir::Load>(getAddress(&lit),
-                             mapType(lit.type()->base()),
-                             "this");
+        return variableAddressMap[lit.entity()];
     }
     case LiteralKind::String:
         SC_DEBUGFAIL();
@@ -56,7 +54,7 @@ ir::Value* LoweringContext::getValueImpl(UnaryPrefixExpression const& expr) {
     case Increment:
         [[fallthrough]];
     case Decrement: {
-        ir::Value* const operandAddress = getAddress(expr.operand());
+        ir::Value* const operandAddress = getValue(expr.operand());
         SC_ASSERT(isa<ir::PointerType>(operandAddress->type()),
                   "We need a pointer to store to");
         ir::Type const* arithmeticType =
@@ -256,7 +254,7 @@ ir::Value* LoweringContext::getValueImpl(MemberAccess const& expr) {
         auto* addr = getAddress(expr.object());
         return getArrayCount(addr);
     }
-    
+
     if (hasAddress(&expr)) {
         return add<ir::Load>(getAddressImpl(expr),
                              mapType(expr.type()),
@@ -314,11 +312,7 @@ ir::Value* LoweringContext::getValueImpl(Conditional const& condExpr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(FunctionCall const& expr) {
-    auto* call = genCall(&expr);
-    if (expr.type()->isReference()) {
-        return add<ir::Load>(call, mapType(expr.type()->base()), "call.value");
-    }
-    return call;
+    return genCall(&expr);
 }
 
 ir::Value* LoweringContext::getValueImpl(Subscript const& expr) {
@@ -350,7 +344,9 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
         return getAddress(expr);
     }
     /// Take address of reference
-    if (conv.type()->isExplicitReference()) {
+    if (conv.type()->isExplicitReference() &&
+        expr->type()->isImplicitReference())
+    {
         SC_ASSERT(expr->type()->isReference(), "");
         return getAddress(expr);
     }
@@ -364,14 +360,14 @@ ir::Value* LoweringContext::getValueImpl(ListExpression const& list) {
 /// MARK: getAddress() Implementation
 
 ir::Value* LoweringContext::getAddress(Expression const* expr) {
-    SC_ASSERT(hasAddress(expr), "");
     return visit(*expr,
                  [this](auto const& expr) { return getAddressImpl(expr); });
 }
 
 ir::Value* LoweringContext::getAddressImpl(Literal const& lit) {
-    SC_ASSERT(lit.kind() == LiteralKind::This, "");
-    return variableAddressMap[lit.entity()];
+    /// The `this` parameter does not have an address.
+    /// Call `getValue()` to get the pointer
+    SC_UNREACHABLE();
 }
 
 ir::Value* LoweringContext::getAddressImpl(Identifier const& id) {
@@ -383,12 +379,22 @@ ir::Value* LoweringContext::getAddressImpl(Identifier const& id) {
 }
 
 ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
-    auto* address = getAddressLocImpl(expr);
+    auto* base       = getAddress(expr.object());
+    auto* accessedId = cast<Identifier const*>(expr.member());
+    auto* var        = cast<sema::Variable const*>(accessedId->entity());
+    auto* type       = mapType(expr.object()->type()->base());
+    auto* address    = add<ir::GetElementPointer>(type,
+                                               base,
+                                               intConstant(0, 64),
+                                               std::array{ var->index() },
+                                               "mem.ptr");
+    
     if (auto* arrayType = dyncast<sema::ArrayType const*>(expr.type()->base());
         arrayType && !arrayType->isDynamic() && !expr.type()->isReference())
     {
         return makeArrayRef(address, intConstant(arrayType->count(), 64));
     }
+
     return address;
 }
 
@@ -410,10 +416,10 @@ ir::Value* LoweringContext::getAddressImpl(ReferenceExpression const& expr) {
 }
 
 ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
-    if (conv.type()->isExplicitReference()) {
-        return getAddressLocation(conv.expression());
-    }
-    return getAddress(conv.expression());
+    auto* expr = conv.expression();
+    SC_ASSERT(!conv.type()->isReference() && expr->type()->isImplicitReference(),
+              "Only of a dereferencing conversion can we take the address");
+    return getValue(expr);
 }
 
 static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {

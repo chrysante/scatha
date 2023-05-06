@@ -119,25 +119,25 @@ std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     return std::move(sstr).str();
 }
 
-QualType::QualType(ObjectType* base, TypeQualifiers qualifiers):
+QualType::QualType(ObjectType* base, Reference ref):
     Type(EntityType::QualType,
          ScopeKind::Invalid,
-         makeName(base, qualifiers),
+         makeName(base, ref),
          base->parent()),
     _base(base),
-    _quals(qualifiers) {}
+    _ref(ref) {}
 
-std::string QualType::makeName(ObjectType* base, TypeQualifiers qualifiers) {
-    using enum TypeQualifiers;
+std::string QualType::makeName(ObjectType* base, Reference ref) {
     std::stringstream sstr;
-    if (test(qualifiers & ExplicitReference)) {
+    switch (ref) {
+    case Reference::None:
+        break;
+    case Reference::Explicit:
         sstr << "&";
-    }
-    else if (test(qualifiers & ImplicitReference)) {
+        break;
+    case Reference::Implicit:
         sstr << "'";
-    }
-    if (test(qualifiers & Mutable)) {
-        sstr << "mut ";
+        break;
     }
     sstr << base->name();
     return std::move(sstr).str();
@@ -179,11 +179,11 @@ static bool signatureMatch(std::span<QualType const* const> parameterTypes,
         else if (param->base() != arg->base()) {
             return false;
         }
-        // SC_ASSERT(!param->has(TypeQualifiers::ExplicitReference), "");
-        if (param->isImplicitReference() && !arg->isExplicitReference()) {
+        /// Rewrite this to `param->isReference() == arg->isExplicitReference()`
+        if (param->isReference() && !arg->isExplicitReference()) {
             return false;
         }
-        if (!param->isImplicitReference() && arg->isExplicitReference()) {
+        if (!param->isReference() && arg->isExplicitReference()) {
             return false;
         }
     }

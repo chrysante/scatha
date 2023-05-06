@@ -101,22 +101,11 @@ SCATHA_API std::ostream& operator<<(std::ostream&, ConversionKind);
 ///
 enum class AccessSpecifier { Public, Private };
 
-///
-enum class TypeQualifiers {
-    None              = 0,
-    Mutable           = 1 << 0,
-    ImplicitReference = 1 << 1,
-    ExplicitReference = 1 << 2,
-    AnyReference      = ImplicitReference | ExplicitReference,
-    Unique            = 1 << 3,
-};
+/// Reference qualifiers of `QualType`
+enum class Reference { None, Implicit, Explicit };
 
-UTL_ENUM_OPERATORS(TypeQualifiers);
-
-static constexpr auto Mutable           = TypeQualifiers::Mutable;
-static constexpr auto ImplicitReference = TypeQualifiers::ImplicitReference;
-static constexpr auto ExplicitReference = TypeQualifiers::ExplicitReference;
-static constexpr auto AnyReference      = TypeQualifiers::AnyReference;
+/// Mutability qualifiers of `QualType`
+enum class Mutability { Const, Mutable };
 
 ///
 enum class FunctionAttribute : unsigned {

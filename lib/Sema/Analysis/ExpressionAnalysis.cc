@@ -38,7 +38,7 @@ struct Context {
 
     bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
 
-    Entity* lookup(std::string_view name);
+    Entity* lookup(ast::Identifier& id);
 
     /// \Returns `true` iff \p expr is a value. Otherwise submits an error and
     /// returns `false`
@@ -60,16 +60,17 @@ struct Context {
     }
 
     QualType const* makeRefImplicit(QualType const* type) const {
+        if (!type) {
+            return nullptr;
+        }
         if (!type->isReference()) {
             return type;
         }
-        auto* nonExplRef = sym.removeQualifiers(type, ExplicitReference);
-        return sym.addQualifiers(nonExplRef, ImplicitReference);
+        return sym.setReference(type, Reference::Implicit);
     }
 
-    QualType const* makeRefExplicit(QualType const* type) const {
-        auto* nonExplRef = sym.removeQualifiers(type, ImplicitReference);
-        return sym.addQualifiers(nonExplRef, ExplicitReference);
+    QualType const* removeReference(QualType const* type) const {
+        return sym.setReference(type, Reference::None);
     }
 
     SymbolTable& sym;
@@ -166,6 +167,11 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
             submitIssue();
             return false;
         }
+        if (!operandType->isReference()) {
+            insertConversion(u.operand(),
+                             sym.setReference(operandType,
+                                              Reference::Implicit));
+        }
         break;
     case ast::UnaryPrefixOperator::_count:
         SC_DEBUGFAIL();
@@ -187,9 +193,8 @@ bool Context::analyzeImpl(ast::BinaryExpression& b) {
 }
 
 bool Context::analyzeImpl(ast::Identifier& id) {
-    Entity* entity = lookup(id.value());
+    Entity* entity = lookup(id);
     if (!entity) {
-        iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
         return false;
     }
     // clang-format off
@@ -247,6 +252,10 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
                 ma.member()->type(),
                 ma.object()->valueCategory(),
                 ma.member()->entityCategory());
+    /// Dereference the object if its a reference
+    if (ma.object()->isValue() && ma.object()->type()->isReference()) {
+        insertConversion(ma.object(), removeReference(ma.object()->type()));
+    }
     return true;
 }
 
@@ -278,7 +287,7 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     /// We reference an overload set, so if our parent is not a call expression
     /// we should rewrite this
     auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
-    auto* argType = sym.addQualifiers(ma.object()->type(), ExplicitReference);
+    auto* argType = sym.setReference(ma.object()->type(), Reference::Explicit);
     auto* func    = overloadSet->find(std::array{ argType });
     if (!func) {
         iss.push<BadExpression>(ma);
@@ -311,13 +320,13 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return false;
         }
-        auto* refType = sym.addQualifiers(referred.type(), ExplicitReference);
+        auto* refType = sym.setReference(referred.type(), Reference::Explicit);
         ref.decorate(referred.entity(), refType, ValueCategory::RValue);
         return true;
     }
     case EntityCategory::Type: {
         auto* qualType = cast<QualType const*>(referred.entity());
-        auto* refType  = sym.addQualifiers(qualType, ExplicitReference);
+        auto* refType  = sym.setReference(qualType, Reference::Explicit);
         ref.decorate(const_cast<QualType*>(refType));
         return true;
     }
@@ -327,27 +336,28 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
 }
 
 bool Context::analyzeImpl(ast::UniqueExpression& expr) {
-    auto* initExpr = dyncast<ast::FunctionCall*>(expr.initExpr());
-    if (!initExpr) {
-        iss.push<BadExpression>(*expr.initExpr(), IssueSeverity::Error);
-        return false;
-    }
-    auto* typeExpr = initExpr->object();
-    if (!analyze(*typeExpr) || !typeExpr->isType()) {
-        iss.push<BadExpression>(*typeExpr, IssueSeverity::Error);
-        return false;
-    }
-    SC_ASSERT(initExpr->arguments().size() == 1, "Implement this properly");
-    auto* argument = initExpr->arguments().front();
-    if (!analyze(*argument) || !argument->isValue()) {
-        iss.push<BadExpression>(*argument, IssueSeverity::Error);
-        return false;
-    }
-    auto* rawType = cast<Type const*>(typeExpr->entity());
-    auto* type =
-        sym.qualify(rawType, ExplicitReference | TypeQualifiers::Unique);
-    expr.decorate(type);
-    return true;
+    SC_DEBUGFAIL();
+    // auto* initExpr = dyncast<ast::FunctionCall*>(expr.initExpr());
+    // if (!initExpr) {
+    //     iss.push<BadExpression>(*expr.initExpr(), IssueSeverity::Error);
+    //     return false;
+    // }
+    // auto* typeExpr = initExpr->object();
+    // if (!analyze(*typeExpr) || !typeExpr->isType()) {
+    //     iss.push<BadExpression>(*typeExpr, IssueSeverity::Error);
+    //     return false;
+    // }
+    // SC_ASSERT(initExpr->arguments().size() == 1, "Implement this properly");
+    // auto* argument = initExpr->arguments().front();
+    // if (!analyze(*argument) || !argument->isValue()) {
+    //     iss.push<BadExpression>(*argument, IssueSeverity::Error);
+    //     return false;
+    // }
+    // auto* rawType = cast<Type const*>(typeExpr->entity());
+    // auto* type =
+    //     sym.qualify(rawType, ExplicitReference | TypeQualifiers::Unique);
+    // expr.decorate(type);
+    // return true;
 }
 
 bool Context::analyzeImpl(ast::Conditional& c) {
@@ -397,7 +407,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
-    auto* elemType = sym.qualify(arrayType->elementType(), ImplicitReference);
+    auto* elemType = sym.qualify(arrayType->elementType(), Reference::Implicit);
     expr.decorate(nullptr, elemType);
     return true;
 }
@@ -433,7 +443,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
             auto* function = overloadSet.find(argTypes);
             if (!function && fc.isMemberCall) {
                 /// We try again with our object argument as a reference
-                argTypes.front() = sym.addQualifiers(argTypes.front(), ExplicitReference);
+                argTypes.front() = sym.setReference(argTypes.front(), Reference::Explicit);
                 function = overloadSet.find(argTypes);
             }
             if (!function) {
@@ -752,7 +762,8 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         if (!lhsType->isReference()) {
             if (expr.lhs()->isLValue()) {
                 insertConversion(expr.lhs(),
-                                 sym.addQualifiers(lhsType, ImplicitReference));
+                                 sym.setReference(lhsType,
+                                                  Reference::Implicit));
             }
             else {
                 SC_DEBUGFAIL();
@@ -781,7 +792,8 @@ QualType const* Context::analyzeReferenceAssignment(
         iss.push<BadTypeConversion>(*expr.rhs(), expr.lhs()->type());
         return nullptr;
     }
-    insertConversion(expr.lhs(), makeRefExplicit(expr.lhs()->type()));
+    insertConversion(expr.lhs(),
+                     sym.setReference(expr.lhs()->type(), Reference::Explicit));
     return sym.qVoid();
 }
 
@@ -799,11 +811,18 @@ Function* Context::findExplicitCast(ObjectType const* to,
     return nullptr;
 }
 
-Entity* Context::lookup(std::string_view name) {
+Entity* Context::lookup(ast::Identifier& id) {
     bool const restrictedLookup = performRestrictedNameLookup;
     performRestrictedNameLookup = false;
-    return restrictedLookup ? sym.currentScope().findEntity(name) :
-                              sym.lookup(name);
+    auto* entity                = restrictedLookup ?
+                                      sym.currentScope().findEntity(id.value()) :
+                                      sym.lookup(id.value());
+    if (!entity && !restrictedLookup) {
+        /// We don't emit issues when performing restricted lookup because we
+        /// may continue searching other scopes
+        iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
+    }
+    return entity;
 }
 
 bool Context::expectValue(ast::Expression const& expr) {

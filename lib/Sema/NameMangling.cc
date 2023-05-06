@@ -33,9 +33,9 @@ static std::string impl(QualType const* type) {
     if (type->isReference()) {
         sstr << "&";
     }
-    if (type->isMutable()) {
-        sstr << "__mut_";
-    }
+    // if (type->isMutable()) {
+    //     sstr << "__mut_";
+    // }
     sstr << baseName;
     return std::move(sstr).str();
 }

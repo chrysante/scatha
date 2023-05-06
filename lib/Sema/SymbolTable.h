@@ -126,21 +126,23 @@ public:
     ///
     ArrayType const* arrayType(ObjectType const* elementType, size_t size);
 
-    ///
-    QualType const* qualify(Type const* base,
-                            TypeQualifiers qualifiers = TypeQualifiers::None);
+    /// \Returns The `QualType` with base type \p base and reference qualifier
+    /// \p ref
+    QualType const* qualify(ObjectType const* base,
+                            Reference ref = Reference::None);
 
-    ///
-    QualType const* addQualifiers(QualType const* base,
-                                  TypeQualifiers qualifiers);
+    /// \Returns The `QualType` with same base type as \p type but without any
+    /// qualifications
+    QualType const* stripQualifiers(QualType const* type);
 
-    ///
-    QualType const* removeQualifiers(QualType const* base,
-                                     TypeQualifiers qualifiers);
+    /// \Returns The `QualType` with same base type as \p type but reference
+    /// qualification \p ref
+    QualType const* setReference(QualType const* type, Reference ref);
 
-    /// Make type \p base into an array view of element type \p base
+    /// Make type \p base into a reference to dynamic array of element type \p
+    /// base
     QualType const* arrayView(ObjectType const* base,
-                              TypeQualifiers qualifiers = TypeQualifiers::None);
+                              Reference ref = Reference::Explicit);
 
     /// \brief Makes scope \p scope the current scope.
     ///
@@ -222,31 +224,31 @@ public:
     StructureType const* Float() const { return _float; }
     StructureType const* String() const { return _string; }
 
-    QualType const* qVoid(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qVoid(Reference = Reference::None);
 
-    QualType const* qByte(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qByte(Reference = Reference::None);
 
-    QualType const* qBool(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qBool(Reference = Reference::None);
 
-    QualType const* qS8(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qS8(Reference = Reference::None);
 
-    QualType const* qS16(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qS16(Reference = Reference::None);
 
-    QualType const* qS32(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qS32(Reference = Reference::None);
 
-    QualType const* qS64(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qS64(Reference = Reference::None);
 
-    QualType const* qU8(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qU8(Reference = Reference::None);
 
-    QualType const* qU16(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qU16(Reference = Reference::None);
 
-    QualType const* qU32(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qU32(Reference = Reference::None);
 
-    QualType const* qU64(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qU64(Reference = Reference::None);
 
-    QualType const* qFloat(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qFloat(Reference = Reference::None);
 
-    QualType const* qString(TypeQualifiers qualifiers = TypeQualifiers::None);
+    QualType const* qString(Reference = Reference::None);
 
     /// Review if we want to keep these:
     void setSortedStructureTypes(utl::vector<StructureType*> ids) {
@@ -262,9 +264,6 @@ public:
     std::span<Function const* const> functions() const { return _functions; }
 
 private:
-    QualType const* getQualType(ObjectType const* base,
-                                TypeQualifiers qualifiers);
-
     template <typename E, typename... Args>
     E* addEntity(Args&&... args);
 
@@ -276,7 +275,7 @@ private:
 
     utl::vector<UniquePtr<Entity>> _entities;
 
-    utl::hashmap<std::pair<ObjectType const*, TypeQualifiers>, QualType const*>
+    utl::hashmap<std::pair<ObjectType const*, Reference>, QualType const*>
         _qualTypes;
 
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>

@@ -39,6 +39,8 @@ void LoweringContext::generateImpl(FunctionDefinition const& def) {
         if (auto* thisParam = dyncast<ThisParameter const*>(paramDecl);
             thisParam && thisParam->type()->isReference())
         {
+            /// The `this` parameter is not stored to local memory but is an SSA
+            /// value
             memorizeVariableAddress(thisParam->entity(), &irParam);
             continue;
         }

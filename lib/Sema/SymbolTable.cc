@@ -216,43 +216,27 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     return arrayType;
 }
 
-QualType const* SymbolTable::qualify(Type const* base,
-                                     TypeQualifiers qualifiers) {
-    ObjectType const* objType = dyncast<ObjectType const*>(base);
-    if (!objType) {
-        objType = cast<QualType const*>(base)->base();
-    }
-    return getQualType(objType, qualifiers);
-}
-
-QualType const* SymbolTable::addQualifiers(QualType const* base,
-                                           TypeQualifiers qualifiers) {
-    SC_ASSERT(base, "");
-    return qualify(base, base->qualifiers() | qualifiers);
-}
-
-QualType const* SymbolTable::removeQualifiers(QualType const* base,
-                                              TypeQualifiers qualifiers) {
-    return qualify(base, base->qualifiers() & ~qualifiers);
-}
-
-QualType const* SymbolTable::arrayView(ObjectType const* base,
-                                       TypeQualifiers qualifiers) {
-    return qualify(arrayType(base, ArrayType::DynamicCount),
-                   ImplicitReference | qualifiers);
-}
-
-QualType const* SymbolTable::getQualType(ObjectType const* baseType,
-                                         TypeQualifiers qualifiers) {
-    std::pair key = { baseType, qualifiers };
+QualType const* SymbolTable::qualify(ObjectType const* base, Reference ref) {
+    std::pair key = { base, ref };
     auto itr      = _qualTypes.find(key);
     if (itr != _qualTypes.end()) {
         return itr->second;
     }
-    auto* qualType =
-        addEntity<QualType>(const_cast<ObjectType*>(baseType), qualifiers);
+    auto* qualType = addEntity<QualType>(const_cast<ObjectType*>(base), ref);
     _qualTypes.insert({ key, qualType });
     return qualType;
+}
+
+QualType const* SymbolTable::stripQualifiers(QualType const* type) {
+    return qualify(type->base());
+}
+
+QualType const* SymbolTable::setReference(QualType const* type, Reference ref) {
+    return qualify(type->base(), ref);
+}
+
+QualType const* SymbolTable::arrayView(ObjectType const* base, Reference ref) {
+    return qualify(arrayType(base, ArrayType::DynamicCount), ref);
 }
 
 void SymbolTable::pushScope(Scope* scope) {
@@ -278,56 +262,40 @@ Entity const* SymbolTable::lookup(std::string_view name) const {
     return nullptr;
 }
 
-QualType const* SymbolTable::qVoid(TypeQualifiers qualifiers) {
-    return qualify(_void, qualifiers);
+QualType const* SymbolTable::qVoid(Reference ref) {
+    return qualify(_void, ref);
 }
 
-QualType const* SymbolTable::qByte(TypeQualifiers qualifiers) {
-    return qualify(_bool, qualifiers);
+QualType const* SymbolTable::qByte(Reference ref) {
+    return qualify(_bool, ref);
 }
 
-QualType const* SymbolTable::qBool(TypeQualifiers qualifiers) {
-    return qualify(_bool, qualifiers);
+QualType const* SymbolTable::qBool(Reference ref) {
+    return qualify(_bool, ref);
 }
 
-QualType const* SymbolTable::qS8(TypeQualifiers qualifiers) {
-    return qualify(_s8, qualifiers);
+QualType const* SymbolTable::qS8(Reference ref) { return qualify(_s8, ref); }
+
+QualType const* SymbolTable::qS16(Reference ref) { return qualify(_s16, ref); }
+
+QualType const* SymbolTable::qS32(Reference ref) { return qualify(_s32, ref); }
+
+QualType const* SymbolTable::qS64(Reference ref) { return qualify(_s64, ref); }
+
+QualType const* SymbolTable::qU8(Reference ref) { return qualify(_u8, ref); }
+
+QualType const* SymbolTable::qU16(Reference ref) { return qualify(_u16, ref); }
+
+QualType const* SymbolTable::qU32(Reference ref) { return qualify(_u32, ref); }
+
+QualType const* SymbolTable::qU64(Reference ref) { return qualify(_u64, ref); }
+
+QualType const* SymbolTable::qFloat(Reference ref) {
+    return qualify(_float, ref);
 }
 
-QualType const* SymbolTable::qS16(TypeQualifiers qualifiers) {
-    return qualify(_s16, qualifiers);
-}
-
-QualType const* SymbolTable::qS32(TypeQualifiers qualifiers) {
-    return qualify(_s32, qualifiers);
-}
-
-QualType const* SymbolTable::qS64(TypeQualifiers qualifiers) {
-    return qualify(_s64, qualifiers);
-}
-
-QualType const* SymbolTable::qU8(TypeQualifiers qualifiers) {
-    return qualify(_u8, qualifiers);
-}
-
-QualType const* SymbolTable::qU16(TypeQualifiers qualifiers) {
-    return qualify(_u16, qualifiers);
-}
-
-QualType const* SymbolTable::qU32(TypeQualifiers qualifiers) {
-    return qualify(_u32, qualifiers);
-}
-
-QualType const* SymbolTable::qU64(TypeQualifiers qualifiers) {
-    return qualify(_u64, qualifiers);
-}
-
-QualType const* SymbolTable::qFloat(TypeQualifiers qualifiers) {
-    return qualify(_float, qualifiers);
-}
-
-QualType const* SymbolTable::qString(TypeQualifiers qualifiers) {
-    return qualify(_string, qualifiers);
+QualType const* SymbolTable::qString(Reference ref) {
+    return qualify(_string, ref);
 }
 
 template <typename E, typename... Args>

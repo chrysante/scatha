@@ -222,7 +222,7 @@ QualType const* Context::analyzeParameter(ast::ParameterDeclaration& param,
         return nullptr;
     }
     auto* structType = cast<StructureType const*>(structure->entity());
-    return sym.qualify(structType, thisParam->qualifiers());
+    return sym.qualify(structType, thisParam->reference());
 }
 
 QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {
