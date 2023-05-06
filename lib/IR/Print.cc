@@ -433,6 +433,13 @@ void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
             }
         },
         [&](ArrayType const& type) {
+            if (auto* intType = dyncast<IntegralType const*>(type.elementType());
+                intType && intType->bitWidth() == 8)
+            {
+                std::string_view text(reinterpret_cast<char const*>(data.data()), data.size());
+                str << tfmt::format(tfmt::Red, '"', text, '"');
+                return;
+            }
             str << formatType(&type) << " [";
             auto* ptr = data.data();
             auto* elemType = type.elementType();
