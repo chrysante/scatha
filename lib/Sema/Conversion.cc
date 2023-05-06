@@ -100,3 +100,10 @@ bool sema::convertImplicitly(ast::Expression* expr,
     issueHandler.push<BadTypeConversion>(*expr, to);
     return false;
 }
+
+void sema::convertArtificially(ast::Expression* expr, QualType const* to) {
+    if (expr->type() == to) {
+        return;
+    }
+    insertConversion(expr, to);
+}

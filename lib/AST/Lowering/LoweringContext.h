@@ -217,6 +217,8 @@ struct LoweringContext {
 
     ir::Value* makeArrayRef(ir::Value* addr, ir::Value* count);
 
+    ir::Value* makeArrayRef(ir::Value* addr, size_t count);
+
     ir::Value* getArrayAddr(ir::Value* arrayRef);
 
     ir::Value* getArrayCount(ir::Value* arrayRef);

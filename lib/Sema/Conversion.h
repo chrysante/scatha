@@ -28,6 +28,9 @@ bool convertImplicitly(ast::Expression* expr,
                        QualType const* to,
                        IssueHandler& issueHandler);
 
+/// If necessary it inserts an `Conversion` node into the AST
+void convertArtificially(ast::Expression* expr, QualType const* to);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_CONVERSION_H_

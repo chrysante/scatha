@@ -102,8 +102,7 @@ static utl::vstreammanip<> typeHelper(TreeIndenter* indent,
         auto* type = getType(node);
         indent->push(node->children().empty() ? Level::Free : Level::Occupied);
         if (type) {
-            str << '\n'
-                << indent->put() << tfmt::format(tfmt::BrightGrey, "Type: ")
+            str << " " << tfmt::format(tfmt::BrightGrey, "Type: ")
                 << type->name();
             if (auto* expr = dyncast<Expression const*>(node)) {
                 str << tfmt::format(tfmt::BrightGrey,

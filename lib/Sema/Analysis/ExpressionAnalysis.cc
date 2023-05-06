@@ -407,6 +407,11 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
+    auto* objType = expr.object()->type();
+    if (objType->isReference()) {
+        insertConversion(expr.object(),
+                         sym.setReference(objType, Reference::None));
+    }
     auto* elemType = sym.qualify(arrayType->elementType(), Reference::Implicit);
     expr.decorate(nullptr, elemType);
     return true;
@@ -455,7 +460,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
                 return false;
             }
             fc.decorate(function,
-                        function->returnType(),
+                        makeRefImplicit(function->returnType()),
                         ValueCategory::RValue);
             return true;
         },
@@ -615,13 +620,20 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         return analyzeReferenceAssignment(expr);
     }
 
-    auto* commonType = sema::commonType(expr.lhs()->type(), expr.rhs()->type());
-
     auto submitIssue = [&] {
         iss.push<BadOperandsForBinaryExpression>(expr,
                                                  expr.lhs()->type(),
                                                  expr.rhs()->type());
     };
+
+    auto* const commonQualifiedType =
+        sema::commonType(expr.lhs()->type(), expr.rhs()->type());
+    if (!commonQualifiedType) {
+        submitIssue();
+        return nullptr;
+    }
+    auto* const commonType = sym.stripQualifiers(commonQualifiedType);
+
     auto verifyAnyOf =
         [&](QualType const* toCheck, std::initializer_list<Type const*> types) {
         bool result = false;
@@ -642,11 +654,6 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         result &= convertImplicitly(expr.rhs(), commonType, iss);
         return result;
     };
-
-    if (!commonType) {
-        submitIssue();
-        return nullptr;
-    }
 
     switch (expr.operation()) {
         using enum ast::BinaryOperator;
@@ -792,8 +799,10 @@ QualType const* Context::analyzeReferenceAssignment(
         iss.push<BadTypeConversion>(*expr.rhs(), expr.lhs()->type());
         return nullptr;
     }
-    insertConversion(expr.lhs(),
-                     sym.setReference(expr.lhs()->type(), Reference::Explicit));
+    auto* explicitRefType =
+        sym.setReference(expr.lhs()->type(), Reference::Explicit);
+    convertArtificially(expr.lhs(), explicitRefType);
+    convertArtificially(expr.rhs(), explicitRefType);
     return sym.qVoid();
 }
 

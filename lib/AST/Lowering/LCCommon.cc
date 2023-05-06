@@ -76,6 +76,10 @@ ir::Value* LoweringContext::makeLocal(ir::Type const* type, std::string name) {
 }
 
 ir::Value* LoweringContext::makeArrayRef(ir::Value* addr, ir::Value* count) {
+    SC_ASSERT(isa<ir::PointerType>(addr->type()),
+              "Address needs to be a pointer");
+    SC_ASSERT(cast<ir::IntegralType const*>(count->type())->bitWidth() == 64,
+              "Count needs to be a 64 bit integer");
     auto* base = add<ir::InsertValue>(ctx.undef(arrayViewType),
                                       addr,
                                       std::initializer_list<size_t>{ 0 },
@@ -84,6 +88,10 @@ ir::Value* LoweringContext::makeArrayRef(ir::Value* addr, ir::Value* count) {
                                 count,
                                 std::initializer_list<size_t>{ 1 },
                                 "array.ref");
+}
+
+ir::Value* LoweringContext::makeArrayRef(ir::Value* addr, size_t count) {
+    return makeArrayRef(addr, intConstant(count, 64));
 }
 
 ir::Value* LoweringContext::getArrayAddr(ir::Value* arrayRef) {
@@ -179,7 +187,8 @@ ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
     return visit(*semaType, utl::overload{
         [&](sema::QualType const& qualType) -> ir::Type const* {
             if (qualType.isReference()) {
-                if (isa<sema::ArrayType>(qualType.base())) {
+                auto* arrayType = dyncast<sema::ArrayType const*>(qualType.base());
+                if (arrayType && arrayType->isDynamic()) {
                     return arrayViewType;
                 }
                 return ctx.pointerType();
@@ -228,6 +237,7 @@ ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
             if (!arrayType.isDynamic()) {
                 return ctx.arrayType(mapType(arrayType.elementType()), arrayType.count());
             }
+            /// For now we don't map dynamic array value type, as we might not ever really need it
             SC_DEBUGFAIL();
             // return arrayViewType;
         },

@@ -350,6 +350,19 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
         SC_ASSERT(expr->type()->isReference(), "");
         return getAddress(expr);
     }
+
+    if (auto* originArray =
+            dyncast<sema::ArrayType const*>(expr->type()->base()))
+    {
+        auto* targetArray = cast<sema::ArrayType const*>(conv.type()->base());
+        SC_ASSERT(!originArray->isDynamic() && targetArray->isDynamic(), "");
+        SC_ASSERT(conv.type()->isReference(),
+                  "How shall conversion between array value types work?");
+        SC_ASSERT(expr->type()->isReference(), "");
+        auto* addr = getValue(expr);
+        return makeArrayRef(addr, originArray->count());
+    }
+
     SC_DEBUGFAIL();
 }
 
@@ -388,7 +401,7 @@ ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
                                                intConstant(0, 64),
                                                std::array{ var->index() },
                                                "mem.ptr");
-    
+
     if (auto* arrayType = dyncast<sema::ArrayType const*>(expr.type()->base());
         arrayType && !arrayType->isDynamic() && !expr.type()->isReference())
     {
@@ -417,7 +430,8 @@ ir::Value* LoweringContext::getAddressImpl(ReferenceExpression const& expr) {
 
 ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
     auto* expr = conv.expression();
-    SC_ASSERT(!conv.type()->isReference() && expr->type()->isImplicitReference(),
+    SC_ASSERT(!conv.type()->isReference() &&
+                  expr->type()->isImplicitReference(),
               "Only of a dereferencing conversion can we take the address");
     return getValue(expr);
 }

@@ -169,3 +169,20 @@ public fn main() -> int {
     return b.count;
 })");
 }
+
+TEST_CASE("Array reference struct member", "[end-to-end][arrays][references]") {
+    test::checkReturns(3, R"(
+struct X {
+    fn sum(&this) -> int {
+        return this.r[0] + this.r[1];
+    }
+    var x: int;
+    var r: &[int];
+}
+public fn main() -> int {
+    let a = [1, 2];
+    var x: X;
+    x.r = &a;
+    return x.sum;
+})");
+}
