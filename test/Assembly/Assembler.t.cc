@@ -13,7 +13,7 @@
 #include "test/CoutRerouter.h"
 
 using namespace scatha;
-using namespace scatha::Asm;
+using namespace Asm;
 
 static auto assembleAndExecute(AssemblyStream const& str) {
     auto [prog, sym] = assemble(str);
@@ -325,7 +325,7 @@ TEST_CASE("callExt", "[assembly][vm]") {
                     /* index = */ static_cast<size_t>(svm::Builtin::putf64)),
         TerminateInst()
     })); // clang-format on
-    CoutRerouter cr;
+    test::CoutRerouter cr;
     assembleAndExecute(a);
     CHECK(cr.str() == "-1 X 0.5");
 }

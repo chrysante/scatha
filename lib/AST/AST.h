@@ -380,7 +380,7 @@ public:
 
     LiteralKind kind() const { return _kind; }
 
-    ValueType value() const { return _value; };
+    ValueType const& value() const { return _value; };
 
     template <LiteralKind Kind>
     auto value() const {

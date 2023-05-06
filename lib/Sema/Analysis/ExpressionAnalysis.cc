@@ -122,9 +122,10 @@ bool Context::analyzeImpl(ast::Literal& lit) {
         lit.decorate(thisEntity, type);
         return true;
     }
-    case ast::LiteralKind::String:
-        lit.decorate(nullptr, sym.qString());
+    case ast::LiteralKind::String: {
+        lit.decorate(nullptr, sym.arrayView(sym.Byte()));
         return true;
+    }
     }
 }
 

@@ -41,5 +41,6 @@ SVM_BUILTIN_DEF(dealloc, None,  { arrayView(Byte()), qS64() }, qVoid())
 SVM_BUILTIN_DEF(putchar,   None,  { qS64() }, qVoid())
 SVM_BUILTIN_DEF(puti64,    None,  { qS64() }, qVoid())
 SVM_BUILTIN_DEF(putf64,    None,  { qFloat() }, qVoid())
+SVM_BUILTIN_DEF(putstr,    None,  { arrayView(Byte()) }, qVoid())
 
 #undef SVM_BUILTIN_DEF

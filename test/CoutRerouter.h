@@ -5,6 +5,8 @@
 #include <sstream>
 #include <string>
 
+namespace scatha::test {
+
 class CoutRerouter {
 public:
     CoutRerouter();
@@ -16,5 +18,7 @@ private:
     std::ostringstream sstr;
     std::streambuf* saved = nullptr;
 };
+
+} // namespace scatha::test
 
 #endif // TEST_COUTREROUTER_H_

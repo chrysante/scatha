@@ -88,6 +88,11 @@ static void checkReturnImpl(uint64_t expected,
     CHECK(optResult == expected);
 }
 
+void test::run(std::string_view text) {
+    auto [ctx, mod] = frontEndParse(text);
+    ::run(mod);
+}
+
 void test::checkReturns(u64 value, std::string_view text) {
     auto [ctx, mod] = frontEndParse(text);
     checkReturnImpl(value, ctx, mod, &optimize);

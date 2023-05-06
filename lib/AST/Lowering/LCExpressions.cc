@@ -43,8 +43,17 @@ ir::Value* LoweringContext::getValueImpl(Literal const& lit) {
     case LiteralKind::This: {
         return variableAddressMap[lit.entity()];
     }
-    case LiteralKind::String:
-        SC_DEBUGFAIL();
+    case LiteralKind::String: {
+        auto const& sourceText = std::get<std::string>(lit.value());
+        size_t const size      = sourceText.size();
+        utl::vector<u8> text(sourceText.begin(), sourceText.end());
+        auto* type = ctx.arrayType(ctx.integralType(8), size);
+        auto staticData =
+            allocate<ir::ConstantData>(ctx, type, std::move(text), "stringlit");
+        auto* dataPtr = staticData.get();
+        mod.addConstantData(std::move(staticData));
+        return makeArrayRef(dataPtr, size);
+    }
     }
 }
 
@@ -375,8 +384,6 @@ ir::Value* LoweringContext::getAddress(Expression const* expr) {
 }
 
 ir::Value* LoweringContext::getAddressImpl(Literal const& lit) {
-    /// The `this` parameter does not have an address.
-    /// Call `getValue()` to get the pointer
     SC_UNREACHABLE();
 }
 
@@ -495,11 +502,10 @@ void LoweringContext::genListDataFallback(ListExpression const& list,
 
 ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
-    auto* elemType  = mapType(arrayType->elementType());
-    auto* count     = intConstant(list.elements().size(), 64);
-    auto* array     = new ir::Alloca(ctx, count, elemType, "array");
+    auto* array     = new ir::Alloca(ctx, mapType(arrayType), "list");
     allocas.push_back(array);
-    valueMap.insert({ arrayType->countVariable(), count });
+    valueMap.insert({ arrayType->countVariable(),
+                      intConstant(list.children().size(), 64) });
     if (genStaticListData(list, array)) {
         return array;
     }

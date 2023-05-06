@@ -1,5 +1,6 @@
 #include <Catch/Catch2.hpp>
 
+#include "test/CoutRerouter.h"
 #include "test/EndToEndTests/BasicCompiler.h"
 
 using namespace scatha;
@@ -195,4 +196,17 @@ public fn main() -> int {
     let b = a;
     return b[0];
 })");
+}
+
+TEST_CASE("First string", "[end-to-end][arrays]") {
+    test::CoutRerouter cr;
+    test::run(R"(
+fn print(text: &[byte]) {
+    __builtin_putstr(&text);
+    __builtin_putchar(10);
+}
+public fn main() {
+    print("Hello World!");
+})");
+    CHECK(cr.str() == "Hello World!\n");
 }

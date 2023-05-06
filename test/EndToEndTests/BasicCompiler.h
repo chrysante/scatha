@@ -10,6 +10,8 @@
 
 namespace scatha::test {
 
+void run(std::string_view text);
+
 void checkReturns(u64 value, std::string_view text);
 
 void checkIRReturns(u64 value, std::string_view text);

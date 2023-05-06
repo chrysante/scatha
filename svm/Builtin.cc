@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <string_view>
 
 #include <svm/Common.h>
 #include <svm/ExternalFunction.h>
@@ -99,6 +100,11 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
     at(Builtin::putchar) = printVal<char>();
     at(Builtin::puti64)  = printVal<i64>();
     at(Builtin::putf64)  = printVal<f64>();
+    at(Builtin::putstr)  = [](u64* regPtr, VirtualMachine* vm, void*) {
+        char* const data  = load<char*>(regPtr);
+        size_t const size = load<size_t>(regPtr + 1);
+        std::cout << std::string_view(data, size);
+    };
 
     assert(static_cast<size_t>(Builtin::_count) == k &&
            "Missing builtin functions.");
