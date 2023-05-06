@@ -187,3 +187,12 @@ public fn main() -> int {
     return x.sum;
 })");
 }
+
+TEST_CASE("Copy array", "[end-to-end][arrays]") {
+    test::checkReturns(1, R"(
+public fn main() -> int {
+    let a = [1, 2];
+    let b = a;
+    return b[0];
+})");
+}

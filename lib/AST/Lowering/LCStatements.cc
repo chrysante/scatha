@@ -89,10 +89,9 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
             return;
         }
         /// We need to allocate our own data
-        auto* count    = intConstant(arrayType->count(), 64);
         auto* elemType = mapType(arrayType->elementType());
         auto* array    = new ir::Alloca(ctx,
-                                     count,
+                                     intConstant(arrayType->count(), 32),
                                      elemType,
                                      utl::strcat(varDecl.name(), ".addr"));
         allocas.push_back(array);
@@ -102,9 +101,11 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
             auto* memcpy = getFunction(symbolTable.builtinFunction(
                 static_cast<size_t>(svm::Builtin::memcpy)));
             add<ir::Call>(memcpy,
-                          std::array<ir::Value*, 3>{ array,
-                                                     initAddress,
-                                                     count });
+                          std::array<ir::Value*, 3>{
+                              array,
+                              initAddress,
+                              intConstant(arrayType->count() * elemType->size(),
+                                          64) });
         }
 
         memorizeVariableAddress(varDecl.variable(), array);
