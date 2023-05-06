@@ -273,9 +273,6 @@ ir::Value* LoweringContext::getValueImpl(ReferenceExpression const& expr) {
     if (referred->type()->isReference()) {
         return getValue(referred);
     }
-    SC_ASSERT(referred->isLValue(),
-              "Must be LValue to have an address"); // Also defer to
-                                                    // getAddress()
     return getAddress(referred);
 }
 
@@ -402,9 +399,8 @@ ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
                                                std::array{ var->index() },
                                                "mem.ptr");
 
-    if (auto* arrayType = dyncast<sema::ArrayType const*>(expr.type()->base());
-        arrayType && !arrayType->isDynamic() && !expr.type()->isReference())
-    {
+    auto* arrayType = dyncast<sema::ArrayType const*>(expr.type()->base());
+    if (arrayType && !arrayType->isDynamic() && !expr.type()->isReference()) {
         return makeArrayRef(address, intConstant(arrayType->count(), 64));
     }
 
@@ -425,7 +421,7 @@ ir::Value* LoweringContext::getAddressImpl(Subscript const& expr) {
 }
 
 ir::Value* LoweringContext::getAddressImpl(ReferenceExpression const& expr) {
-    return getAddressLocation(expr.referred());
+    return getAddress(expr.referred());
 }
 
 ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
@@ -509,28 +505,4 @@ ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
     }
     genListDataFallback(list, array);
     return array;
-}
-
-ir::Value* LoweringContext::getAddressLocation(Expression const* expr) {
-    return visit(*expr,
-                 [this](auto const& expr) { return getAddressLocImpl(expr); });
-}
-
-ir::Value* LoweringContext::getAddressLocImpl(Identifier const& id) {
-    SC_ASSERT(id.isLValue() && id.type()->isReference(), "");
-    auto* address = variableAddressMap[id.entity()];
-    SC_ASSERT(address, "Undeclared identifier");
-    return address;
-}
-
-ir::Value* LoweringContext::getAddressLocImpl(MemberAccess const& expr) {
-    auto* base       = getAddress(expr.object());
-    auto* accessedId = cast<Identifier const*>(expr.member());
-    auto* var        = cast<sema::Variable const*>(accessedId->entity());
-    auto* type       = mapType(expr.object()->type()->base());
-    return add<ir::GetElementPointer>(type,
-                                      base,
-                                      intConstant(0, 64),
-                                      std::array{ var->index() },
-                                      "mem.ptr");
 }

@@ -104,17 +104,11 @@ struct LoweringContext {
     /// The return value of this function depends on the `sema::QualType` of
     /// \p expr in the following way:
     ///
-    /// ` X -> Value of the expression `
-    /// Regardless of wether `X` is a struct or an array, the value of the
-    /// object will be returned
+    /// ` X     -> Value of the expression `
     ///
     /// `{',&}X -> Address of the referred object`
     ///
-    ///
-    /// `&X -> Address of the referred object`
-    /// If `X` is a struct or static array type, a value of type `ptr` will be
-    /// returned If `X` is a dynamic array type, a value of type `{ ptr, i64 }`
-    /// will be returned
+    /// `&X     -> Address of the referred object`
     ///
     ir::Value* getValue(Expression const* expr);
 
@@ -124,10 +118,8 @@ struct LoweringContext {
     /// \p expr in the following way:
     ///
     /// ` X -> -`
-    /// Traps if `X` is a struct type. Temporaries don't have addresses. We
-    /// might however consider to store the value to memory and return a pointer
-    /// to it. If `X` is an array type, a value of type `{ ptr, i64 }` will be
-    /// returned ???
+    /// Traps if `X` is a struct type, as temporaries don't have addresses.
+    /// If `X` is an array type, a value of type `ptr` will be returned
     ///
     /// `'X -> Address of the referred object`
     /// If `X` is a struct or static array type, a value of type `ptr` will be
@@ -170,14 +162,6 @@ struct LoweringContext {
     ir::Value* getAddressImpl(ReferenceExpression const&);
     ir::Value* getAddressImpl(Conversion const&);
     ir::Value* getAddressImpl(ListExpression const&);
-
-    ir::Value* getAddressLocation(Expression const* expr);
-
-    ir::Value* getAddressLocImpl(AbstractSyntaxTree const& expr) {
-        SC_UNREACHABLE();
-    } // Delete this later
-    ir::Value* getAddressLocImpl(Identifier const& expr);
-    ir::Value* getAddressLocImpl(MemberAccess const& expr);
 
     /// # Helpers
 
