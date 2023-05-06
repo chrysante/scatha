@@ -27,11 +27,6 @@ class AbstractSyntaxTree;
     sema::SymbolTable const& symbolTable,
     ir::Context& context);
 
-[[nodiscard]] SCATHA_API ir::Module lowerToIR2(
-    AbstractSyntaxTree const& ast,
-    sema::SymbolTable const& symbolTable,
-    ir::Context& context);
-
 } // namespace scatha::ast
 
 #endif // SCATHA_AST_LOWERTOIR_H_
