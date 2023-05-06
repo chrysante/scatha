@@ -85,11 +85,9 @@ void InterferenceGraph::computeImpl(Function& F) {
                 addEdges(dest, live);
             }
             for (auto* op: inst.operands()) {
-                auto* vreg = op ? dyncast<VirtualRegister*>(op) : nullptr;
-                if (!vreg) {
-                    continue;
+                if (auto* vreg = dyncast_or_null<VirtualRegister*>(op)) {
+                    live.insert(vreg);
                 }
-                live.insert(vreg);
             }
             live.erase(dest);
         }

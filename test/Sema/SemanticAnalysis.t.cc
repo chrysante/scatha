@@ -375,3 +375,26 @@ public fn main() {
         CHECK(f->parent()->name() == "X");
     }
 }
+
+TEST_CASE("Sizeof structs with reference and array members", "[sema]") {
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
+struct X {
+    var r: &s8;
+}
+struct Y {
+    var r: &[s8];
+}
+struct Z {
+    var r: [s8, 7];
+})");
+    REQUIRE(iss.empty());
+    auto* x = sym.lookup<StructureType>("X");
+    CHECK(x->size() == 8);
+    CHECK(x->align() == 8);
+    auto* y = sym.lookup<StructureType>("Y");
+    CHECK(y->size() == 16);
+    CHECK(y->align() == 8);
+    auto* z = sym.lookup<StructureType>("Z");
+    CHECK(z->size() == 7);
+    CHECK(z->align() == 1);
+}

@@ -31,11 +31,14 @@ struct Context {
     bool analyzeImpl(ast::UniqueExpression&);
     bool analyzeImpl(ast::Conditional&);
     bool analyzeImpl(ast::FunctionCall&);
+    bool rewriteMemberCall(ast::FunctionCall&);
     bool analyzeImpl(ast::Subscript&);
     bool analyzeImpl(ast::Conversion&);
     bool analyzeImpl(ast::ListExpression&);
 
     bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
+
+    Entity* lookup(std::string_view name);
 
     /// \Returns `true` iff \p expr is a value. Otherwise submits an error and
     /// returns `false`
@@ -54,6 +57,19 @@ struct Context {
 
     QualType const* stripQualifiers(QualType const* type) const {
         return sym.qualify(type->base());
+    }
+
+    QualType const* makeRefImplicit(QualType const* type) const {
+        if (!type->isReference()) {
+            return type;
+        }
+        auto* nonExplRef = sym.removeQualifiers(type, ExplicitReference);
+        return sym.addQualifiers(nonExplRef, ImplicitReference);
+    }
+
+    QualType const* makeRefExplicit(QualType const* type) const {
+        auto* nonExplRef = sym.removeQualifiers(type, ImplicitReference);
+        return sym.addQualifiers(nonExplRef, ExplicitReference);
     }
 
     SymbolTable& sym;
@@ -171,29 +187,15 @@ bool Context::analyzeImpl(ast::BinaryExpression& b) {
 }
 
 bool Context::analyzeImpl(ast::Identifier& id) {
-    bool const restrictedLookup = performRestrictedNameLookup;
-    performRestrictedNameLookup = false;
-    Entity* entity              = [&] {
-        if (restrictedLookup) {
-            /// When we are on the right hand side of a member access expression
-            /// we restrict lookup to the scope of the object of the left hand
-            /// side.
-            return sym.currentScope().findEntity(id.value());
-        }
-        else {
-            return sym.lookup(id.value());
-        }
-    }();
+    Entity* entity = lookup(id.value());
     if (!entity) {
-        if (!restrictedLookup) {
-            iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
-        }
+        iss.push<UseOfUndeclaredIdentifier>(id, sym.currentScope());
         return false;
     }
     // clang-format off
     return visit(*entity, utl::overload{
         [&](Variable& var) {
-            id.decorate(&var, var.type());
+            id.decorate(&var, makeRefImplicit(var.type()));
             return true;
         },
         [&](ObjectType const& type) {
@@ -315,7 +317,7 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
     }
     case EntityCategory::Type: {
         auto* qualType = cast<QualType const*>(referred.entity());
-        auto* refType  = sym.addQualifiers(qualType, ImplicitReference);
+        auto* refType  = sym.addQualifiers(qualType, ExplicitReference);
         ref.decorate(const_cast<QualType*>(refType));
         return true;
     }
@@ -402,28 +404,38 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
 
 bool Context::analyzeImpl(ast::FunctionCall& fc) {
     bool success = analyze(*fc.object());
-    utl::small_vector<QualType const*> argTypes;
-    argTypes.reserve(fc.arguments().size());
-    for (auto* arg: fc.arguments()) {
+
+    /// We gather and analyze all the arguments
+    auto argumentExprs =
+        fc.arguments() | ranges::to<utl::small_vector<ast::Expression*>>;
+    for (auto* arg: argumentExprs) {
         success &= analyze(*arg);
-        /// `arg` is undecorated if analysis of `arg` failed.
-        argTypes.push_back(arg->isDecorated() ? arg->type() : nullptr);
     }
     if (!success) {
         return false;
     }
+    /// If our object is a member access expression, we add that to our argument
+    /// list
     if (auto* memberAccess = dyncast<ast::MemberAccess*>(fc.object());
         memberAccess && memberAccess->object()->isValue())
     {
-        auto qualType = sym.addQualifiers(memberAccess->object()->type(),
-                                          TypeQualifiers::ExplicitReference);
-        argTypes.insert(argTypes.begin(), qualType);
+        argumentExprs.insert(argumentExprs.begin(), memberAccess->object());
         fc.isMemberCall = true;
     }
+    /// Extract the argument types to perform overload resolution
+    auto argTypes = argumentExprs |
+                    ranges::views::transform(
+                        [](ast::Expression* expr) { return expr->type(); }) |
+                    ranges::to<utl::small_vector<QualType const*>>;
     // clang-format off
-    return visit(*fc.object()->entity(), utl::overload{
+    bool const result = visit(*fc.object()->entity(), utl::overload{
         [&](OverloadSet& overloadSet) {
             auto* function = overloadSet.find(argTypes);
+            if (!function && fc.isMemberCall) {
+                /// We try again with our object argument as a reference
+                argTypes.front() = sym.addQualifiers(argTypes.front(), ExplicitReference);
+                function = overloadSet.find(argTypes);
+            }
             if (!function) {
                 iss.push<BadFunctionCall>(
                     fc,
@@ -456,6 +468,39 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
             return false;
         }
     }); // clang-format on
+    if (!result) {
+        return false;
+    }
+
+    if (fc.isMemberCall) {
+        auto object    = fc.extractObject<ast::MemberAccess>();
+        auto memFunc   = object->extractMember();
+        auto objectArg = object->extractObject();
+        fc.insertArgument(0, std::move(objectArg));
+        fc.setObject(std::move(memFunc));
+        /// Member access object `object` goes out of scope and is destroyed
+    }
+
+    /// We issue conversions if necassary
+    auto* calledFunction = fc.function();
+    bool first           = true;
+    for (auto [arg, targetType]:
+         ranges::views::zip(fc.arguments(), calledFunction->argumentTypes()))
+    {
+        if (first && fc.isMemberCall && arg->type() != targetType) {
+            insertConversion(arg, targetType);
+            continue;
+        }
+        first        = false;
+        bool success = convertImplicitly(arg, targetType, iss);
+
+        SC_ASSERT(
+            success,
+            "called function should not have been selected by overload "
+            "resolution if the implicit conversion of the argument fails");
+    }
+
+    return true;
 }
 
 bool Context::analyzeImpl(ast::Conversion& conv) {
@@ -701,18 +746,22 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     case OrAssignment:
         [[fallthrough]];
     case XOrAssignment: {
-        /// Here we only look at assignment _through_ references, so we strip
-        /// the reference qualifier
-        auto* toType         = expr.lhs()->type();
-        auto* toTypeStripped = stripQualifiers(toType);
-        auto* fromType       = expr.rhs()->type();
-        if (!expr.lhs()->isLValue() && !toType->isReference()) {
-            return nullptr;
+        /// Here we only look at assignment _through_ references
+        /// That means LHS shall be an implicit reference
+        auto* lhsType = expr.lhs()->type();
+        if (!lhsType->isReference()) {
+            if (expr.lhs()->isLValue()) {
+                insertConversion(expr.lhs(),
+                                 sym.addQualifiers(lhsType, ImplicitReference));
+            }
+            else {
+                SC_DEBUGFAIL();
+                /// Emit issue: Can't assign to rvalue object
+                return nullptr;
+            }
         }
-        if (fromType == toTypeStripped) {
-            return sym.qVoid();
-        }
-        if (!convertImplicitly(expr.rhs(), toTypeStripped, iss)) {
+        auto* lhsTypeStripped = stripQualifiers(lhsType);
+        if (!convertImplicitly(expr.rhs(), lhsTypeStripped, iss)) {
             return nullptr;
         }
         return sym.qVoid();
@@ -727,15 +776,12 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
 
 QualType const* Context::analyzeReferenceAssignment(
     ast::BinaryExpression& expr) {
+    SC_ASSERT(expr.rhs()->type()->isExplicitReference(), "");
     if (!isImplicitlyConvertible(expr.lhs()->type(), expr.rhs()->type())) {
         iss.push<BadTypeConversion>(*expr.rhs(), expr.lhs()->type());
         return nullptr;
     }
-    if (!expr.lhs()->type()->isExplicitReference()) {
-        auto* explicitRefType =
-            sym.qualify(expr.lhs()->type(), ExplicitReference);
-        insertConversion(expr.lhs(), explicitRefType);
-    }
+    insertConversion(expr.lhs(), makeRefExplicit(expr.lhs()->type()));
     return sym.qVoid();
 }
 
@@ -751,6 +797,13 @@ Function* Context::findExplicitCast(ObjectType const* to,
         return sym.builtinFunction(static_cast<size_t>(svm::Builtin::f64toi64));
     }
     return nullptr;
+}
+
+Entity* Context::lookup(std::string_view name) {
+    bool const restrictedLookup = performRestrictedNameLookup;
+    performRestrictedNameLookup = false;
+    return restrictedLookup ? sym.currentScope().findEntity(name) :
+                              sym.lookup(name);
 }
 
 bool Context::expectValue(ast::Expression const& expr) {

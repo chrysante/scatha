@@ -29,9 +29,7 @@ ir::Value* LoweringContext::getValue(Expression const* expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(Identifier const& id) {
-    return add<ir::Load>(getAddressImpl(id),
-                         mapType(id.type()->base()),
-                         id.value());
+    return add<ir::Load>(getAddressImpl(id), mapType(id.type()), id.value());
 }
 
 ir::Value* LoweringContext::getValueImpl(Literal const& lit) {
@@ -224,7 +222,7 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
     case OrAssignment:
         [[fallthrough]];
     case XOrAssignment: {
-        auto* lhs = getAddress(expr.lhs());
+        auto* lhs = getValue(expr.lhs());
         auto* rhs = getValue(expr.rhs());
         if (expr.operation() != Assignment) {
             auto* structType =
@@ -258,6 +256,7 @@ ir::Value* LoweringContext::getValueImpl(MemberAccess const& expr) {
         auto* addr = getAddress(expr.object());
         return getArrayCount(addr);
     }
+    
     if (hasAddress(&expr)) {
         return add<ir::Load>(getAddressImpl(expr),
                              mapType(expr.type()),
@@ -272,11 +271,14 @@ ir::Value* LoweringContext::getValueImpl(MemberAccess const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(ReferenceExpression const& expr) {
-    SC_ASSERT(expr.referred()->type()->isReference() ||
-                  expr.referred()->isLValue(), // Maybe defer this assertion to
-                                               // getAddress()?
-              "");
-    return getAddress(expr.referred());
+    auto* referred = expr.referred();
+    if (referred->type()->isReference()) {
+        return getValue(referred);
+    }
+    SC_ASSERT(referred->isLValue(),
+              "Must be LValue to have an address"); // Also defer to
+                                                    // getAddress()
+    return getAddress(referred);
 }
 
 ir::Value* LoweringContext::getValueImpl(UniqueExpression const& expr) {
@@ -320,16 +322,39 @@ ir::Value* LoweringContext::getValueImpl(FunctionCall const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(Subscript const& expr) {
-    auto* address = getAddress(&expr);
-    return add<ir::Load>(address, mapType(expr.type()->base()), "[].value");
+    auto* arrayType =
+        cast<sema::ArrayType const*>(expr.object()->type()->base());
+    auto* elemType = mapType(arrayType->elementType());
+    auto* arrayRef = getAddress(expr.object());
+    auto* arrayData =
+        arrayType->isDynamic() ? getArrayAddr(arrayRef) : arrayRef;
+    auto* index = getValue(expr.arguments().front());
+    return add<ir::GetElementPointer>(elemType,
+                                      arrayData,
+                                      index,
+                                      std::initializer_list<size_t>{},
+                                      "elem.ptr");
 }
 
 ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
     auto* expr = conv.expression();
-    if (conv.type()->isExplicitReference()) {
+    /// Dereference
+    if (!conv.type()->isReference() && expr->type()->isImplicitReference()) {
+        auto* address = getValue(expr);
+        return add<ir::Load>(address,
+                             mapType(conv.type()),
+                             utl::strcat(address->name(), ".deref"));
+    }
+    /// Take address
+    if (conv.type()->isImplicitReference() && !expr->type()->isReference()) {
         return getAddress(expr);
     }
-    return getValue(expr);
+    /// Take address of reference
+    if (conv.type()->isExplicitReference()) {
+        SC_ASSERT(expr->type()->isReference(), "");
+        return getAddress(expr);
+    }
+    SC_DEBUGFAIL();
 }
 
 ir::Value* LoweringContext::getValueImpl(ListExpression const& list) {
@@ -354,12 +379,17 @@ ir::Value* LoweringContext::getAddressImpl(Identifier const& id) {
     SC_ASSERT(address, "Undeclared identifier");
     SC_ASSERT(id.type()->isImplicitReference() || id.isLValue(),
               "Just to be safe");
-    return loadIfRef(&id, address);
+    return address;
 }
 
 ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
     auto* address = getAddressLocImpl(expr);
-    return loadIfRef(expr.member(), address);
+    if (auto* arrayType = dyncast<sema::ArrayType const*>(expr.type()->base());
+        arrayType && !arrayType->isDynamic() && !expr.type()->isReference())
+    {
+        return makeArrayRef(address, intConstant(arrayType->count(), 64));
+    }
+    return address;
 }
 
 ir::Value* LoweringContext::getAddressImpl(FunctionCall const& expr) {
@@ -369,17 +399,10 @@ ir::Value* LoweringContext::getAddressImpl(FunctionCall const& expr) {
 }
 
 ir::Value* LoweringContext::getAddressImpl(Subscript const& expr) {
-    auto* arrayType =
-        cast<sema::ArrayType const*>(expr.object()->type()->base());
-    auto* elemType  = mapType(arrayType->elementType());
-    auto* arrayRef  = getAddress(expr.object());
-    auto* arrayData = getArrayAddr(arrayRef);
-    auto* index     = getValue(expr.arguments().front());
-    return add<ir::GetElementPointer>(elemType,
-                                      arrayData,
-                                      index,
-                                      std::initializer_list<size_t>{},
-                                      "elem.ptr");
+    /// Because the subscript espression does not have an address. It is of type
+    /// `'X` and thus a call to `getValue()` resolves to the address of the
+    /// element
+    SC_UNREACHABLE();
 }
 
 ir::Value* LoweringContext::getAddressImpl(ReferenceExpression const& expr) {
@@ -440,7 +463,7 @@ bool LoweringContext::genStaticListData(ListExpression const& list,
     return true;
 }
 
-void LoweringContext::genListDataSlowPath(ListExpression const& list,
+void LoweringContext::genListDataFallback(ListExpression const& list,
                                           ir::Alloca* dest) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
     auto* elemType  = mapType(arrayType->elementType());
@@ -462,10 +485,10 @@ ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
     allocas.push_back(array);
     valueMap.insert({ arrayType->countVariable(), count });
     if (genStaticListData(list, array)) {
-        return makeArrayRef(array, count);
+        return array;
     }
-    genListDataSlowPath(list, array);
-    return makeArrayRef(array, count);
+    genListDataFallback(list, array);
+    return array;
 }
 
 ir::Value* LoweringContext::getAddressLocation(Expression const* expr) {

@@ -42,6 +42,9 @@ bool sema::isImplicitlyConvertible(QualType const* to, QualType const* from) {
     if (to->isExplicitReference() && !from->isExplicitReference()) {
         return false;
     }
+    if (!to->isReference() && from->isExplicitReference()) {
+        return false;
+    }
     return isObjectTypeConvertible(to->base(), from->base());
 }
 

@@ -130,10 +130,6 @@ ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
 ir::Value* LoweringContext::genCall(FunctionCall const* call) {
     ir::Callable* function = getFunction(call->function());
     auto args              = mapArguments(call->arguments());
-    if (call->isMemberCall) {
-        auto* object = cast<MemberAccess const*>(call->object())->object();
-        args.insert(args.begin(), getAddress(object));
-    }
     return add<ir::Call>(function,
                          args,
                          call->type()->base() != symbolTable.Void() ?
@@ -229,6 +225,9 @@ ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
             SC_DEBUGFAIL();
         },
         [&](sema::ArrayType const& arrayType) -> ir::Type const* {
+            if (!arrayType.isDynamic()) {
+                return ctx.arrayType(mapType(arrayType.elementType()), arrayType.count());
+            }
             SC_DEBUGFAIL();
             // return arrayViewType;
         },

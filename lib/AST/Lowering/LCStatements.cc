@@ -1,5 +1,7 @@
 #include "AST/Lowering/LoweringContext.h"
 
+#include <svm/Builtin.h>
+
 #include "AST/AST.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
@@ -76,30 +78,35 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
             memorizeVariableAddress(varDecl.entity(), address);
             return;
         }
-        else {
-            auto* address = [&]() -> ir::Value* {
-                if (varDecl.initExpression()) {
-                    if (varDecl.initExpression()->isRValue()) {
-                        return getAddress(varDecl.initExpression());
-                    }
-                    else {
-                        // TODO: Copy the array
-                        SC_DEBUGFAIL();
-                    }
-                }
-                auto* elemType = mapType(arrayType->elementType());
-                auto* count    = intConstant(arrayType->count(), 32);
-                auto* array =
-                    new ir::Alloca(ctx,
-                                   count,
-                                   elemType,
-                                   utl::strcat(varDecl.name(), ".addr"));
-                allocas.push_back(array);
-                return makeArrayRef(array, intConstant(arrayType->count(), 64));
-            }();
+        SC_ASSERT(!arrayType->isDynamic(),
+                  "Can't locally allocate dynamic array");
+        /// We can steal the data from an rvalue
+        if (varDecl.initExpression() && varDecl.initExpression()->isRValue()) {
+            auto* address = getAddress(varDecl.initExpression());
             memorizeVariableAddress(varDecl.variable(), address);
             return;
         }
+        /// We need to allocate our own data
+        auto* count    = intConstant(arrayType->count(), 64);
+        auto* elemType = mapType(arrayType->elementType());
+        auto* array    = new ir::Alloca(ctx,
+                                     count,
+                                     elemType,
+                                     utl::strcat(varDecl.name(), ".addr"));
+        allocas.push_back(array);
+        if (varDecl.initExpression()) {
+            auto* initAddress = getAddress(varDecl.initExpression());
+            // auto* dataPtr = getArrayAddr(initAddress);
+            auto* memcpy = getFunction(symbolTable.builtinFunction(
+                static_cast<size_t>(svm::Builtin::memcpy)));
+            add<ir::Call>(memcpy,
+                          std::array<ir::Value*, 3>{ array,
+                                                     initAddress,
+                                                     count });
+        }
+
+        memorizeVariableAddress(varDecl.variable(), array);
+        return;
     }
 
     /// Non-array case

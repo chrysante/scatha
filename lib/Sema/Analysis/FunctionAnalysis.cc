@@ -186,10 +186,6 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     if (var.initExpression()) {
         convertImplicitly(var.initExpression(), finalType, iss);
     }
-    if (finalType->isExplicitReference()) {
-        finalType = sym.removeQualifiers(finalType, ExplicitReference);
-        finalType = sym.addQualifiers(finalType, ImplicitReference);
-    }
     auto varRes = sym.addVariable(std::string(var.name()), finalType);
     if (!varRes) {
         iss.push(varRes.error()->setStatement(var));

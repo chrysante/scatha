@@ -94,6 +94,11 @@ struct LoweringContext {
 
     /// # Expressions
 
+    /// ## Reference translation
+    /// `&int -> ptr` Pointer to object
+    /// `&[int, N] -> ptr` Pointer to first element
+    /// `&[int] -> { ptr, i64 }` Pointer to first element and dynamic size
+
     ///
     /// Let `X` be the raw `sema::ObjectType` of the expression \p expr
     /// The return value of this function depends on the `sema::QualType` of
@@ -103,12 +108,13 @@ struct LoweringContext {
     /// Regardless of wether `X` is a struct or an array, the value of the
     /// object will be returned
     ///
-    /// `'X -> Value of the referred object`
-    /// Same as above
+    /// `{',&}X -> Address of the referred object`
+    ///
     ///
     /// `&X -> Address of the referred object`
-    /// If `X` is a struct type, a value of type `ptr` will be returned
-    /// If `X` is an array type, a value of type `{ ptr, i64 }` will be returned
+    /// If `X` is a struct or static array type, a value of type `ptr` will be
+    /// returned If `X` is a dynamic array type, a value of type `{ ptr, i64 }`
+    /// will be returned
     ///
     ir::Value* getValue(Expression const* expr);
 
@@ -121,17 +127,18 @@ struct LoweringContext {
     /// Traps if `X` is a struct type. Temporaries don't have addresses. We
     /// might however consider to store the value to memory and return a pointer
     /// to it. If `X` is an array type, a value of type `{ ptr, i64 }` will be
-    /// returned
+    /// returned ???
     ///
     /// `'X -> Address of the referred object`
-    /// If `X` is a struct type, a value of type `ptr` will be returned.
-    /// If `X` is an array type, a value of type `{ ptr, i64 }` will be returned
+    /// If `X` is a struct or static array type, a value of type `ptr` will be
+    /// returned. If `X` is a dynamic array type, a value of type `{ ptr, i64 }`
+    /// will be returned
     ///
     /// `&X -> Address of the reference`
-    /// If `X` is a struct type, a value of type `ptr`, pointing to another
-    /// `ptr`, will be returned.
-    /// If `X` is an array type, a value of type `ptr`, pointing to a value of
-    /// type `{ ptr, i64 }`, will be returned
+    /// If `X` is a struct or static array type, a value of type `ptr`, pointing
+    /// to another `ptr`, will be returned. If `X` is a dynamic array type, a
+    /// value of type `ptr`, pointing to a value of type `{ ptr, i64 }`, will be
+    /// returned
     ///
     ir::Value* getAddress(Expression const* expr);
 
@@ -176,7 +183,7 @@ struct LoweringContext {
 
     bool genStaticListData(ListExpression const& list, ir::Alloca* dest);
 
-    void genListDataSlowPath(ListExpression const& list, ir::Alloca* dest);
+    void genListDataFallback(ListExpression const& list, ir::Alloca* dest);
 
     /// # Utils
 

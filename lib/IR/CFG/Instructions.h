@@ -274,11 +274,11 @@ public:
 /// starting from index 1.
 class SCATHA_API Call: public Instruction {
 public:
-    explicit Call(Callable* function, std::string name);
+    explicit Call(Callable* function, std::string name = {});
 
     explicit Call(Callable* function,
                   std::span<Value* const> arguments,
-                  std::string name);
+                  std::string name = {});
 
     Callable* function() {
         return const_cast<Callable*>(

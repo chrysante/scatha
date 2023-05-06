@@ -179,7 +179,7 @@ static bool signatureMatch(std::span<QualType const* const> parameterTypes,
         else if (param->base() != arg->base()) {
             return false;
         }
-        SC_ASSERT(!param->has(TypeQualifiers::ExplicitReference), "");
+        // SC_ASSERT(!param->has(TypeQualifiers::ExplicitReference), "");
         if (param->isImplicitReference() && !arg->isExplicitReference()) {
             return false;
         }

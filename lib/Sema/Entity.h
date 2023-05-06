@@ -138,8 +138,7 @@ public:
     /// \overload
     template <std::derived_from<Entity> E>
     E const* findEntity(std::string_view name) const {
-        Entity const* result = findEntity(name);
-        return result ? dyncast<E const*>(result) : nullptr;
+        return dyncast_or_null<E const*>(findEntity(name));
     }
 
     /// \Returns `true` iff \p scope is a child scope of this

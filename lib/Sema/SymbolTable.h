@@ -198,8 +198,7 @@ public:
     /// \overload
     template <std::derived_from<Entity> E>
     E const* lookup(std::string_view name) const {
-        Entity const* result = lookup(name);
-        return result ? dyncast<E const*>(result) : nullptr;
+        return dyncast_or_null<E const*>(lookup(name));
     }
 
     Scope& currentScope() { return *_currentScope; }

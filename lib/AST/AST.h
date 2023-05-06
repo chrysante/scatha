@@ -202,6 +202,13 @@ public:
         return UniquePtr<AST>(cast_or_null<AST*>(child));
     }
 
+    /// Insert node \p child at position \p index
+    /// Children at indices equal to and above \p index will be moved up
+    void insertChild(size_t index, UniquePtr<AbstractSyntaxTree> child) {
+        child->_parent = this;
+        _children.insert(_children.begin() + index, std::move(child));
+    }
+
     /// Set the the child at index \p index to \p child
     void setChild(size_t index, UniquePtr<AbstractSyntaxTree> child) {
         child->_parent   = this;
@@ -532,6 +539,11 @@ public:
 
     /// List of arguments.
     AST_RANGE_PROPERTY(1, Expression, argument, Argument);
+
+    /// Insert node \p arg as an argument of this call
+    void insertArgument(size_t index, UniquePtr<AbstractSyntaxTree> child) {
+        insertChild(index + 1, std::move(child));
+    }
 
 protected:
     explicit CallLike(NodeType nodeType,
