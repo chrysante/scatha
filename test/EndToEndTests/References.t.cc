@@ -171,7 +171,7 @@ public fn main() -> int {
 }
 
 TEST_CASE("Array reference struct member", "[end-to-end][arrays][references]") {
-    test::checkReturns(3, R"(
+    test::checkReturns(4, R"(
 struct X {
     fn sum(&this) -> int {
         return this.r[0] + this.r[1];
@@ -183,6 +183,7 @@ public fn main() -> int {
     let a = [1, 2];
     var x: X;
     x.r = &a;
+    ++x.r[0];
     return x.sum;
 })");
 }
