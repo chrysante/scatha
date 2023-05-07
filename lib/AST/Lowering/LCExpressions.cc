@@ -364,8 +364,8 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
         SC_ASSERT(!originArray->isDynamic() && targetArray->isDynamic(), "");
         SC_ASSERT(conv.type()->isReference(),
                   "How shall conversion between array value types work?");
-        SC_ASSERT(expr->type()->isReference(), "");
-        auto* addr = getValue(expr);
+        auto* addr =
+            expr->type()->isReference() ? getValue(expr) : getAddress(expr);
         return makeArrayRef(addr, originArray->count());
     }
 
