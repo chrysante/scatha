@@ -338,7 +338,7 @@ ir::Value* LoweringContext::getValueImpl(Subscript const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
-    auto* expr = conv.expression();
+    auto* expr   = conv.expression();
     auto* result = [&]() -> ir::Value* {
         switch (conv.conversion()->refConversion()) {
         case sema::RefConversion::None:

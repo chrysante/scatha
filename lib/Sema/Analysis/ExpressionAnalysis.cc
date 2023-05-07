@@ -416,7 +416,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
 }
 
 bool Context::analyzeImpl(ast::FunctionCall& fc) {
-    bool success = analyze(*fc.object());
+    bool success      = analyze(*fc.object());
     bool isMemberCall = false;
     /// We gather and analyze all the arguments
     auto argumentExprs =
