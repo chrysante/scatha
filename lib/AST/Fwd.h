@@ -70,6 +70,17 @@ SCATHA_API std::string_view toString(BinaryOperator);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, BinaryOperator);
 
+/// \Returns `true` iff \p op is an assignment or arithmetic assignment
+/// operation
+bool isAssignment(BinaryOperator op);
+
+/// \Returns `true` iff \p op is an arithmetic assignment operation
+bool isArithmeticAssignment(BinaryOperator op);
+
+/// \Returns The non-assignment version of \p op
+/// \Pre \p op must be an arithmetic assignment operator
+BinaryOperator toNonAssignment(BinaryOperator op);
+
 /// List of all access specifiers
 enum class AccessSpec {
 #define SC_ACCESS_SPEC_DEF(name, _) name,

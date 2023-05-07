@@ -594,52 +594,21 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
     }
 }
 
-QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
-    if (expr.operation() == ast::BinaryOperator::Comma) {
-        return expr.rhs()->type();
-    }
-    else if (expr.operation() == ast::BinaryOperator::Assignment &&
-             expr.rhs()->type()->isExplicitReference())
-    {
-        return analyzeReferenceAssignment(expr);
-    }
+template <typename... Args, typename T>
+static bool isAny(T const* t) {
+    return (isa<Args>(t) || ...);
+}
 
-    auto submitIssue = [&] {
-        iss.push<BadOperandsForBinaryExpression>(expr,
-                                                 expr.lhs()->type(),
-                                                 expr.rhs()->type());
-    };
-
-    auto* const commonQualifiedType =
-        sema::commonType(expr.lhs()->type(), expr.rhs()->type());
-    if (!commonQualifiedType) {
-        submitIssue();
-        return nullptr;
-    }
-    auto* const commonType = sym.stripQualifiers(commonQualifiedType);
-
-    auto verifyAnyOf =
-        [&](QualType const* toCheck, std::initializer_list<Type const*> types) {
-        bool result = false;
-        for (auto type: types) {
-            if (toCheck->base() == type) {
-                result = true;
-            }
+static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
+                                                      ObjectType const* type,
+                                                      ast::BinaryOperator op) {
+    if (ast::isArithmeticAssignment(op)) {
+        if (getResultType(sym, type, ast::toNonAssignment(op)).has_value()) {
+            return sym.Void();
         }
-        if (!result) {
-            submitIssue();
-            return false;
-        }
-        return true;
-    };
-    auto convertOperands = [&]() -> bool {
-        bool result = true;
-        result &= convertImplicitly(expr.lhs(), commonType, iss);
-        result &= convertImplicitly(expr.rhs(), commonType, iss);
-        return result;
-    };
-
-    switch (expr.operation()) {
+        return std::nullopt;
+    }
+    switch (op) {
         using enum ast::BinaryOperator;
     case Multiplication:
         [[fallthrough]];
@@ -648,35 +617,26 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     case Addition:
         [[fallthrough]];
     case Subtraction:
-        if (!verifyAnyOf(commonType, { sym.S64(), sym.Float() })) {
-            return nullptr;
+        if (isAny<IntType, FloatType>(type)) {
+            return type;
         }
-        if (!convertOperands()) {
-            return nullptr;
-        }
-        return stripQualifiers(commonType);
+        return std::nullopt;
 
     case Remainder:
-        if (!verifyAnyOf(commonType, { sym.S64() })) {
-            return nullptr;
+        if (isAny<IntType>(type)) {
+            return type;
         }
-        if (!convertOperands()) {
-            return nullptr;
-        }
-        return stripQualifiers(commonType);
+        return std::nullopt;
 
     case BitwiseAnd:
         [[fallthrough]];
     case BitwiseXOr:
         [[fallthrough]];
     case BitwiseOr:
-        if (!verifyAnyOf(commonType, { sym.Byte(), sym.Bool(), sym.S64() })) {
-            return nullptr;
+        if (isAny<ByteType, BoolType, IntType>(type)) {
+            return type;
         }
-        if (!convertOperands()) {
-            return nullptr;
-        }
-        return stripQualifiers(commonType);
+        return std::nullopt;
 
     case Less:
         [[fallthrough]];
@@ -685,68 +645,76 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     case Greater:
         [[fallthrough]];
     case GreaterEq:
-        if (!verifyAnyOf(commonType, { sym.Byte(), sym.S64(), sym.Float() })) {
-            return nullptr;
+        if (isAny<ByteType, IntType, FloatType>(type)) {
+            return sym.Bool();
         }
-        if (!convertOperands()) {
-            return nullptr;
-        }
-        return sym.qBool();
+        return std::nullopt;
 
     case Equals:
         [[fallthrough]];
     case NotEquals:
-        if (!verifyAnyOf(commonType,
-                         { sym.Byte(), sym.Bool(), sym.S64(), sym.Float() }))
-        {
-            return nullptr;
+        if (isAny<ByteType, BoolType, IntType, FloatType>(type)) {
+            return sym.Bool();
         }
-        if (!convertOperands()) {
-            return nullptr;
-        }
-        return sym.qBool();
+        return std::nullopt;
 
     case LogicalAnd:
         [[fallthrough]];
     case LogicalOr:
-        if (!verifyAnyOf(commonType, { sym.Bool() })) {
-            return nullptr;
+        if (isAny<BoolType>(type)) {
+            return sym.Bool();
         }
-        convertOperands();
-        return sym.qBool();
+        return std::nullopt;
 
     case LeftShift:
         [[fallthrough]];
     case RightShift:
-        if (!verifyAnyOf(commonType, { sym.S64() })) {
-            return nullptr;
+        if (isAny<ByteType, IntType>(type)) {
+            return type;
         }
-        if (!convertOperands()) {
-            return nullptr;
-        }
-        return stripQualifiers(commonType);
+        return std::nullopt;
 
     case Assignment:
-        [[fallthrough]];
-    case AddAssignment:
-        [[fallthrough]];
-    case SubAssignment:
-        [[fallthrough]];
-    case MulAssignment:
-        [[fallthrough]];
-    case DivAssignment:
-        [[fallthrough]];
-    case RemAssignment:
-        [[fallthrough]];
-    case LSAssignment:
-        [[fallthrough]];
-    case RSAssignment:
-        [[fallthrough]];
-    case AndAssignment:
-        [[fallthrough]];
-    case OrAssignment:
-        [[fallthrough]];
-    case XOrAssignment: {
+        return sym.Void();
+
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
+    /// Handle comma operator separately
+    if (expr.operation() == ast::BinaryOperator::Comma) {
+        return expr.rhs()->type();
+    }
+    /// Also reference assignment
+    if (expr.operation() == ast::BinaryOperator::Assignment &&
+        expr.rhs()->type()->isExplicitReference())
+    {
+        return analyzeReferenceAssignment(expr);
+    }
+
+    /// Determine common type
+    auto* const commonQualifiedType =
+        sema::commonType(expr.lhs()->type(), expr.rhs()->type());
+    if (!commonQualifiedType) {
+        iss.push<BadOperandsForBinaryExpression>(expr,
+                                                 expr.lhs()->type(),
+                                                 expr.rhs()->type());
+        return nullptr;
+    }
+    auto* const commonType = sym.stripQualifiers(commonQualifiedType);
+
+    auto resultType = getResultType(sym, commonType->base(), expr.operation());
+    if (!resultType) {
+        iss.push<BadOperandsForBinaryExpression>(expr,
+                                                 expr.lhs()->type(),
+                                                 expr.rhs()->type());
+        return nullptr;
+    }
+
+    /// Handle value assignment seperately
+    if (ast::isAssignment(expr.operation())) {
         auto* lhsType = expr.lhs()->type();
         /// Here we only look at assignment _through_ references
         /// That means LHS shall be an implicit reference
@@ -755,12 +723,15 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         success &= convertImplicitly(expr.rhs(), stripQualifiers(lhsType), iss);
         return success ? sym.qVoid() : nullptr;
     }
-    case Comma:
-        SC_UNREACHABLE("Handled above");
 
-    case _count:
-        SC_DEBUGFAIL();
+    bool successfullConv = true;
+    successfullConv &= convertImplicitly(expr.lhs(), commonType, iss);
+    successfullConv &= convertImplicitly(expr.rhs(), commonType, iss);
+
+    if (successfullConv) {
+        return sym.qualify(*resultType);
     }
+    return nullptr;
 }
 
 QualType const* Context::analyzeReferenceAssignment(

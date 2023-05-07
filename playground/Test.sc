@@ -6,7 +6,7 @@ public fn main() -> s64 {
     
     
     
-    f(u32(1));
+    return u32(1) + u32(1);
 
     
 }

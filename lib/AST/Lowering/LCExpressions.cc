@@ -337,8 +337,8 @@ ir::Value* LoweringContext::getValueImpl(Subscript const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
-    auto* expr   = conv.expression();
-    auto* result = [&]() -> ir::Value* {
+    auto* expr          = conv.expression();
+    auto* refConvResult = [&]() -> ir::Value* {
         switch (conv.conversion()->refConversion()) {
         case sema::RefConversion::None:
             return getValue(expr);
@@ -356,29 +356,34 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
     switch (conv.conversion()->objectConversion()) {
         using enum sema::ObjectTypeConversion;
     case None:
-        return result;
+        return refConvResult;
+
     case Array_FixedToDynamic: {
         auto* arrayType = cast<sema::ArrayType const*>(expr->type()->base());
         SC_ASSERT(!arrayType->isDynamic(), "Invalid conversion");
-        return makeArrayRef(result, arrayType->count());
+        return makeArrayRef(refConvResult, arrayType->count());
     }
     case Int_Trunc:
-        return add<ir::ConversionInst>(getValue(expr),
+        return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Trunc,
                                        "int.trunc");
+
     case Int_Widen:
-        return add<ir::ConversionInst>(getValue(expr),
+        return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Zext,
                                        "int.zext");
+
     case Int_WidenSigned:
-        return add<ir::ConversionInst>(getValue(expr),
+        return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Sext,
                                        "int.sext");
+
     case IntToFloat:
         SC_DEBUGFAIL();
+
     case FloatToInt:
         SC_DEBUGFAIL();
     }

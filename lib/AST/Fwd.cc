@@ -52,6 +52,68 @@ std::ostream& ast::operator<<(std::ostream& str, BinaryOperator op) {
     return str << toString(op);
 }
 
+bool ast::isAssignment(BinaryOperator op) {
+    using enum BinaryOperator;
+    switch (op) {
+    case Assignment:
+        [[fallthrough]];
+    case AddAssignment:
+        [[fallthrough]];
+    case SubAssignment:
+        [[fallthrough]];
+    case MulAssignment:
+        [[fallthrough]];
+    case DivAssignment:
+        [[fallthrough]];
+    case RemAssignment:
+        [[fallthrough]];
+    case LSAssignment:
+        [[fallthrough]];
+    case RSAssignment:
+        [[fallthrough]];
+    case AndAssignment:
+        [[fallthrough]];
+    case OrAssignment:
+        [[fallthrough]];
+    case XOrAssignment:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool ast::isArithmeticAssignment(BinaryOperator op) {
+    return op != BinaryOperator::Assignment && isAssignment(op);
+}
+
+BinaryOperator ast::toNonAssignment(BinaryOperator op) {
+    using enum BinaryOperator;
+    switch (op) {
+    case AddAssignment:
+        return Addition;
+    case SubAssignment:
+        return Subtraction;
+    case MulAssignment:
+        return Multiplication;
+    case DivAssignment:
+        return Division;
+    case RemAssignment:
+        return Remainder;
+    case LSAssignment:
+        return LeftShift;
+    case RSAssignment:
+        return RightShift;
+    case AndAssignment:
+        return BitwiseAnd;
+    case OrAssignment:
+        return BitwiseOr;
+    case XOrAssignment:
+        return BitwiseXOr;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 std::string_view ast::toString(AccessSpec spec) {
     return std::array{
 #define SC_ACCESS_SPEC_DEF(spec, str) std::string_view(str),
