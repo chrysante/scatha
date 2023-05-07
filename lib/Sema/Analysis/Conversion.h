@@ -80,6 +80,14 @@ bool convertExplicitly(ast::Expression* expr,
                        QualType const* to,
                        IssueHandler& issueHandler);
 
+/// \Returns `true` iff an implicit conversion from type \p from to type \p to
+/// exists
+bool isImplicitlyConvertible(QualType const* from, QualType const* to);
+
+/// \Returns `true` iff an explicit conversion from type \p from to type \p to
+/// exists
+bool isExplicitlyConvertible(QualType const* from, QualType const* to);
+
 /// Convert expression \p expr to an implicit reference
 bool convertToImplicitRef(ast::Expression* expr,
                           SymbolTable& sym,

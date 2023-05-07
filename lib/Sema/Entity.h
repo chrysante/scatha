@@ -480,8 +480,13 @@ public:
 
     /// Begin iterator to set of `Function`'s
     auto begin() const { return functions.begin(); }
+
     /// End iterator to set of `Function`'s
     auto end() const { return functions.end(); }
+
+    size_t size() const { return functions.size(); }
+
+    bool empty() const { return functions.empty(); }
 
 private:
     utl::small_vector<Function*, 8> functions;

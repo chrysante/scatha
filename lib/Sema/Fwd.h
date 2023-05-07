@@ -31,6 +31,8 @@ class SymbolTable;
 
 class Conversion;
 
+class SemanticIssue;
+
 ///
 /// # Forward Declaration of all entity types
 ///

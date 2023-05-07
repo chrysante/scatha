@@ -143,6 +143,25 @@ bool isCompatible(ObjectTypeConversion objConv, RefConversion refConv) {
     }
 }
 
+static std::optional<std::pair<RefConversion, ObjectTypeConversion>>
+    checkConversion(ConvKind kind, QualType const* from, QualType const* to) {
+    if (from == to) {
+        return std::pair{ RefConversion::None, ObjectTypeConversion::None };
+    }
+    auto objConv = determineObjConv(kind, from->base(), to->base());
+    if (!objConv) {
+        return std::nullopt;
+    }
+    auto refConv = determineRefConv(kind, from->reference(), to->reference());
+    if (!refConv) {
+        return std::nullopt;
+    }
+    if (!isCompatible(*objConv, *refConv)) {
+        return std::nullopt;
+    }
+    return std::pair{ *refConv, *objConv };
+}
+
 static bool convertImpl(ConvKind kind,
                         ast::Expression* expr,
                         QualType const* to,
@@ -150,30 +169,16 @@ static bool convertImpl(ConvKind kind,
     if (expr->type() == to) {
         return true;
     }
-    auto pushIssue = [&] {
-        if (!iss) {
-            return;
+    auto checkResult = checkConversion(kind, expr->type(), to);
+    if (!checkResult) {
+        if (iss) {
+            iss->push<BadTypeConversion>(*expr, to);
         }
-        iss->push<BadTypeConversion>(*expr, to);
-    };
-
-    auto objConv = determineObjConv(kind, expr->type()->base(), to->base());
-    if (!objConv) {
-        pushIssue();
         return false;
     }
-    auto refConv =
-        determineRefConv(kind, expr->type()->reference(), to->reference());
-    if (!refConv) {
-        pushIssue();
-        return false;
-    }
-    if (!isCompatible(*objConv, *refConv)) {
-        pushIssue();
-        return false;
-    }
+    auto [refConv, objConv] = *checkResult;
     auto conv =
-        std::make_unique<Conversion>(expr->type(), to, *refConv, *objConv);
+        std::make_unique<Conversion>(expr->type(), to, refConv, objConv);
     insertConversion(expr, std::move(conv));
     return true;
 }
@@ -188,6 +193,14 @@ bool sema::convertExplicitly(ast::Expression* expr,
                              QualType const* to,
                              IssueHandler& issueHandler) {
     return convertImpl(ConvKind::Explicit, expr, to, &issueHandler);
+}
+
+bool sema::isImplicitlyConvertible(QualType const* from, QualType const* to) {
+    return checkConversion(ConvKind::Implicit, from, to).has_value();
+}
+
+bool sema::isExplicitlyConvertible(QualType const* from, QualType const* to) {
+    return checkConversion(ConvKind::Explicit, from, to).has_value();
 }
 
 bool sema::convertToExplicitRef(ast::Expression* expr,

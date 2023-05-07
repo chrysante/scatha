@@ -5,30 +5,15 @@
 
 #include <utl/vector.hpp>
 
+#include "Common/Expected.h"
+#include "Sema/Analysis/OverloadResolutionError.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::sema {
 
-/// Result type of overload resolution
-struct OverloadResolutionResult {
-    enum State { Success, NoMatchingFunction, Ambiguous };
-
-    /// The state of the result
-    State state;
-
-    /// The unique resolved function. This is null unless `state == Success`
-    Function* function;
-
-    /// The possible canditates if `state == Ambiguous`
-    utl::small_vector<Function*> ambiguousCandidates;
-
-    /// \Returns `true` iff `state == Success`
-    explicit operator bool() const { return state == Success; }
-};
-
 /// Performs overload resolution
-OverloadResolutionResult performOverloadResolution(
-    OverloadSet* overloadSet, std::span<QualType const*> argumentTypes);
+Expected<Function*, OverloadResolutionError*> performOverloadResolution(
+    OverloadSet* overloadSet, std::span<QualType const* const> argumentTypes);
 
 } // namespace scatha::sema
 
