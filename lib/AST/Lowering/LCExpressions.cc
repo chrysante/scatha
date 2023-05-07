@@ -363,11 +363,20 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
         return makeArrayRef(result, arrayType->count());
     }
     case Int_Trunc:
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(getValue(expr),
+                                       mapType(conv.type()),
+                                       ir::Conversion::Trunc,
+                                       "int.trunc");
     case Int_Widen:
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(getValue(expr),
+                                       mapType(conv.type()),
+                                       ir::Conversion::Zext,
+                                       "int.zext");
     case Int_WidenSigned:
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(getValue(expr),
+                                       mapType(conv.type()),
+                                       ir::Conversion::Sext,
+                                       "int.sext");
     case IntToFloat:
         SC_DEBUGFAIL();
     case FloatToInt:

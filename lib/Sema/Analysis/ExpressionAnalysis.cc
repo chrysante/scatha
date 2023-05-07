@@ -444,10 +444,9 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     /// a conversion node
     if (auto* targetType = dyncast<QualType const*>(fc.object()->entity())) {
         SC_ASSERT(fc.arguments().size() == 1, "For now...");
-        auto arg    = fc.extractArgument(0);
-        bool result = convertExplicitly(arg.get(), targetType, iss);
-        fc.parent()->replaceChild(&fc, std::move(arg));
-        return result;
+        auto* arg = fc.argument(0);
+        fc.parent()->replaceChild(&fc, fc.extractArgument(0));
+        return convertExplicitly(arg, targetType, iss);
     }
 
     /// Extract the argument types to perform overload resolution

@@ -53,8 +53,10 @@ std::ostream& sema::operator<<(std::ostream& ostream, RefConversion conv) {
 }
 
 /// Insert a `Conversion` node between \p expr and it's parent
-static ast::Conversion* insertConversion(ast::Expression* expr,
-                                         std::unique_ptr<Conversion> conv) {
+static ast::Conversion* insertConversion(
+    ast::Expression* expr, std::unique_ptr<sema::Conversion> conv) {
+    SC_ASSERT(expr->parent(),
+              "Can't insert a conversion if node has no parent");
     size_t const indexInParent = expr->indexInParent();
     auto* parent               = expr->parent();
     auto* targetType           = conv->targetType();
@@ -76,31 +78,75 @@ enum class ConvKind {
 
 } // namespace
 
-static std::optional<ObjectTypeConversion> determineObjConv(
-    ConvKind kind, ObjectType const* from, ObjectType const* to) {
-    if (to == from) {
-        return ObjectTypeConversion::None;
+static std::optional<ObjectTypeConversion> implicitIntConversion(
+    IntType const& from, IntType const& to) {
+    using enum ObjectTypeConversion;
+    if (from.isSigned()) {
+        if (to.isSigned()) {
+            /// ** `Signed -> Signed` **
+            if (from.bitwidth() <= to.bitwidth()) {
+                return Int_WidenSigned;
+            }
+            return std::nullopt;
+        }
+        /// ** `Signed -> Unsigned` **
+        return std::nullopt;
     }
-
-    /// ## Integral conversions
-    /// Coming later...
-
-    /// ## Array conversions
-    if (auto* toArray = dyncast<ArrayType const*>(to)) {
-        auto* fromArray = dyncast<ArrayType const*>(from);
-        if (!fromArray) {
-            return std::nullopt;
-        }
-        if (fromArray->elementType() != toArray->elementType()) {
-            return std::nullopt;
-        }
-        if (!fromArray->isDynamic() && toArray->isDynamic()) {
-            return ObjectTypeConversion::Array_FixedToDynamic;
+    if (to.isSigned()) {
+        /// ** `Unsigned -> Signed` **
+        if (from.bitwidth() < to.bitwidth()) {
+            return Int_Widen;
         }
         return std::nullopt;
     }
-
+    /// ** `Unsigned -> Unsigned` **
+    if (from.bitwidth() <= to.bitwidth()) {
+        return Int_Widen;
+    }
     return std::nullopt;
+}
+
+static std::optional<ObjectTypeConversion> explicitIntConversion(
+    IntType const& from, IntType const& to) {
+    using enum ObjectTypeConversion;
+    if (from.bitwidth() <= to.bitwidth()) {
+        if (from.isSigned()) {
+            return Int_WidenSigned;
+        }
+        return Int_Widen;
+    }
+    return Int_Trunc;
+}
+
+static std::optional<ObjectTypeConversion> determineObjConv(
+    ConvKind kind, ObjectType const* from, ObjectType const* to) {
+    using enum ObjectTypeConversion;
+    if (from == to) {
+        return None;
+    }
+    using RetType = std::optional<ObjectTypeConversion>;
+    // clang-format off
+    return visit(*from, *to, utl::overload{
+        [&](IntType const& from, ByteType const& to) -> RetType {
+            return Int_Trunc;
+        },
+        [&](IntType const& from, IntType const& to) -> RetType {
+            return kind == ConvKind::Implicit ?
+                implicitIntConversion(from, to) :
+                explicitIntConversion(from, to);
+        },
+        [&](ArrayType const& from, ArrayType const& to) -> RetType {
+            if (from.elementType() == to.elementType() &&
+                !from.isDynamic() && to.isDynamic())
+            {
+                return Array_FixedToDynamic;
+            }
+            return std::nullopt;
+        },
+        [&](ObjectType const& from, ObjectType const& to) -> RetType {
+            return std::nullopt;
+        }
+    }); // clang-format on
 }
 
 static std::optional<RefConversion> determineRefConv(ConvKind kind,
@@ -218,7 +264,7 @@ static bool convertImpl(ConvKind kind,
     }
     auto [refConv, objConv] = *checkResult;
     auto conv =
-        std::make_unique<Conversion>(expr->type(), to, refConv, objConv);
+        std::make_unique<sema::Conversion>(expr->type(), to, refConv, objConv);
     insertConversion(expr, std::move(conv));
     return true;
 }

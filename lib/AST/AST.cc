@@ -22,7 +22,8 @@ void AbstractSyntaxTree::replaceChild(AbstractSyntaxTree const* old,
     auto itr = ranges::find_if(_children,
                                [&](auto& child) { return child.get() == old; });
     SC_ASSERT(itr != ranges::end(_children), "`old` is not a child of this");
-    *itr = std::move(repl);
+    repl->_parent = this;
+    *itr          = std::move(repl);
 }
 
 size_t AbstractSyntaxTree::indexOf(AbstractSyntaxTree const* child) const {
