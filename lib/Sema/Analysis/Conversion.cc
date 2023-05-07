@@ -143,6 +143,38 @@ bool isCompatible(ObjectTypeConversion objConv, RefConversion refConv) {
     }
 }
 
+static int getRank(RefConversion conv) {
+    switch (conv) {
+        using enum RefConversion;
+    case None:
+        return 0;
+    case Dereference:
+        return 0;
+    case TakeAddress:
+        return 2;
+    }
+}
+
+static int getRank(ObjectTypeConversion conv) {
+    switch (conv) {
+        using enum ObjectTypeConversion;
+    case None:
+        return 0;
+    case Array_FixedToDynamic:
+        return 1;
+    case Int_Trunc:
+        return 2;
+    case Int_Widen:
+        return 1;
+    case Int_WidenSigned:
+        return 1;
+    }
+}
+
+static int getRank(RefConversion refConv, ObjectTypeConversion objConv) {
+    return getRank(refConv) + getRank(objConv);
+}
+
 static std::optional<std::pair<RefConversion, ObjectTypeConversion>>
     checkConversion(ConvKind kind, QualType const* from, QualType const* to) {
     if (from == to) {
@@ -195,12 +227,24 @@ bool sema::convertExplicitly(ast::Expression* expr,
     return convertImpl(ConvKind::Explicit, expr, to, &issueHandler);
 }
 
-bool sema::isImplicitlyConvertible(QualType const* from, QualType const* to) {
-    return checkConversion(ConvKind::Implicit, from, to).has_value();
+static std::optional<int> conversionRankImpl(ConvKind kind,
+                                             QualType const* from,
+                                             QualType const* to) {
+    auto conv = checkConversion(kind, from, to);
+    if (!conv) {
+        return std::nullopt;
+    }
+    return getRank(conv->first, conv->second);
 }
 
-bool sema::isExplicitlyConvertible(QualType const* from, QualType const* to) {
-    return checkConversion(ConvKind::Explicit, from, to).has_value();
+std::optional<int> sema::implicitConversionRank(QualType const* from,
+                                                QualType const* to) {
+    return conversionRankImpl(ConvKind::Implicit, from, to);
+}
+
+std::optional<int> sema::explicitConversionRank(QualType const* from,
+                                                QualType const* to) {
+    return conversionRankImpl(ConvKind::Explicit, from, to);
 }
 
 bool sema::convertToExplicitRef(ast::Expression* expr,

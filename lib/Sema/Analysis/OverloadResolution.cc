@@ -1,5 +1,7 @@
 #include "Sema/Analysis/OverloadResolution.h"
 
+#include <optional>
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 
 #include "Sema/Analysis/Conversion.h"
@@ -8,35 +10,82 @@
 using namespace scatha;
 using namespace sema;
 
-static bool signatureMatch(std::span<QualType const* const> parameterTypes,
-                           std::span<QualType const* const> argumentTypes) {
+///  \returns The maximum conversion rank if all arguments are convertible to
+/// the parameters  `std::nullopt` otherwise
+static std::optional<int> signatureMatch(
+    std::span<QualType const* const> parameterTypes,
+    std::span<QualType const* const> argumentTypes,
+    bool isMemberCall) {
     if (parameterTypes.size() != argumentTypes.size()) {
-        return false;
+        return std::nullopt;
     }
-    for (auto [param, arg]: ranges::views::zip(parameterTypes, argumentTypes)) {
+    int maxRank = 0;
+    for (auto [index, param, arg]: ranges::views::zip(ranges::views::iota(0),
+                                                      parameterTypes,
+                                                      argumentTypes))
+    {
         if (!param || !arg) {
-            return false;
+            return std::nullopt;
         }
-        if (!isImplicitlyConvertible(arg, param)) {
-            return false;
+        auto const rank = isMemberCall && index == 0 ?
+                              explicitConversionRank(arg, param) :
+                              implicitConversionRank(arg, param);
+        if (!rank) {
+            return std::nullopt;
         }
+        maxRank = std::max(maxRank, *rank);
     }
-    return true;
+    return maxRank;
 }
 
+namespace {
+
+struct Match {
+    Function* function;
+    int rank;
+};
+
+} // namespace
+
 Expected<Function*, OverloadResolutionError*> performOverloadResolution(
-    OverloadSet* overloadSet, std::span<QualType const* const> argumentTypes) {
-    auto matches = *overloadSet | ranges::views::filter([&](Function* F) {
-        return signatureMatch(F->argumentTypes(), argumentTypes);
-    }) | ranges::to<utl::small_vector<Function*>>;
+    OverloadSet* overloadSet,
+    std::span<QualType const* const> argumentTypes,
+    bool isMemberCall) {
+    utl::small_vector<Match> matches;
+    for (auto* F: *overloadSet) {
+        if (auto rank =
+                signatureMatch(F->argumentTypes(), argumentTypes, isMemberCall))
+        {
+            matches.push_back({ F, *rank });
+        }
+    }
+    if (matches.empty()) {
+        return new NoMatchingFunction(overloadSet);
+    }
+    if (matches.size() == 1) {
+        return matches.front().function;
+    }
+    ranges::sort(matches, ranges::less{}, [](Match match) {
+        return match.rank;
+    });
+    int const lowestRank = matches.front().rank;
+    auto firstHigherRank = ranges::find_if(matches, [=](Match match) {
+        return match.rank != lowestRank;
+    });
+    matches.erase(firstHigherRank, matches.end());
+
     switch (matches.size()) {
     case 0:
         return new NoMatchingFunction(overloadSet);
-
     case 1:
-        return matches.front();
-
-    default:
-        return new AmbiguousOverloadResolution(overloadSet, std::move(matches));
+        return matches.front().function;
+    default: {
+        auto functions = matches | ranges::views::transform([](Match match) {
+                             return match.function;
+                         }) |
+                         ranges::to<utl::small_vector<Function*>>;
+        return new AmbiguousOverloadResolution(overloadSet,
+                                               std::move(functions));
+    }
     }
 }

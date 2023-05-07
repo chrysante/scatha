@@ -13,7 +13,9 @@ namespace scatha::sema {
 
 /// Performs overload resolution
 Expected<Function*, OverloadResolutionError*> performOverloadResolution(
-    OverloadSet* overloadSet, std::span<QualType const* const> argumentTypes);
+    OverloadSet* overloadSet,
+    std::span<QualType const* const> argumentTypes,
+    bool isMemberCall);
 
 } // namespace scatha::sema
 
