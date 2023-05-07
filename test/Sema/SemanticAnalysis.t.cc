@@ -44,7 +44,7 @@ fn mul(a: int, b: int, c: float) -> int {
 
 TEST_CASE("Decoration of the AST") {
     auto const text      = R"(
-fn mul(a: int, b: int, c: float, d: string) -> int {
+fn mul(a: int, b: int, c: float, d: byte) -> int {
 	let result = a;
 	{ // declaration of variable of the same name in a nested scope
 		var result = "some string";
@@ -69,7 +69,7 @@ fn mul(a: int, b: int, c: float, d: string) -> int {
     CHECK(fn->parameter(0)->type()->base() == sym.S64());
     CHECK(fn->parameter(1)->type()->base() == sym.S64());
     CHECK(fn->parameter(2)->type()->base() == sym.Float());
-    CHECK(fn->parameter(3)->type()->base() == sym.String());
+    CHECK(fn->parameter(3)->type()->base() == sym.Byte());
     auto* varDecl = fn->body()->statement<VariableDeclaration>(0);
     CHECK(varDecl->type()->base() == sym.S64());
     auto* varDeclInit = cast<Identifier*>(varDecl->initExpression());
@@ -138,7 +138,7 @@ struct X {
 	var j: int = 0;
 	var b1: bool = true;
 	var b2: bool = true;
-	fn f(x: int, y: int) -> string {}
+	fn f(x: int, y: int) -> byte {}
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
@@ -162,9 +162,7 @@ struct X {
     CHECK(b2Decl->index() == 3);
     auto* fDef = xDef->body()->statement<FunctionDefinition>(4);
     CHECK(fDef->name() == "f");
-    /// TODO: Test argument types when we properly recognize member functions as
-    /// having an implicit 'this' argument
-    CHECK(fDef->returnType()->base() == sym.String());
+    CHECK(fDef->returnType()->base() == sym.Byte());
 }
 
 TEST_CASE("Member access into undeclared struct", "[sema]") {

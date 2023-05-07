@@ -22,23 +22,18 @@ static bool isKeyword(std::string_view id) {
 SymbolTable::SymbolTable() {
     _currentScope = _globalScope = addEntity<GlobalScope>();
 
-    /// Declare `void` with `InvalidSize` to make it an incomplete type.
-    _void = cast<StructureType*>(
-        declareBuiltinType("void", InvalidSize, InvalidSize));
-    _byte   = cast<StructureType*>(declareBuiltinType("byte", 1, 1));
-    _bool   = cast<StructureType*>(declareBuiltinType("bool", 1, 1));
-    _s8     = cast<StructureType*>(declareBuiltinType("s8", 1, 1));
-    _s16    = cast<StructureType*>(declareBuiltinType("s16", 2, 2));
-    _s32    = cast<StructureType*>(declareBuiltinType("s32", 4, 4));
-    _s64    = cast<StructureType*>(declareBuiltinType("s64", 8, 8));
-    _u8     = cast<StructureType*>(declareBuiltinType("u8", 1, 1));
-    _u16    = cast<StructureType*>(declareBuiltinType("u16", 2, 2));
-    _u32    = cast<StructureType*>(declareBuiltinType("u32", 4, 4));
-    _u64    = cast<StructureType*>(declareBuiltinType("u64", 8, 8));
-    _float  = cast<StructureType*>(declareBuiltinType("float", 8, 8));
-    _string = cast<StructureType*>(declareBuiltinType("string",
-                                                      sizeof(std::string),
-                                                      alignof(std::string)));
+    _void  = declareBuiltinType<VoidType>();
+    _byte  = declareBuiltinType<ByteType>();
+    _bool  = declareBuiltinType<BoolType>();
+    _s8    = declareBuiltinType<IntType>(8, IntType::Signed);
+    _s16   = declareBuiltinType<IntType>(16, IntType::Signed);
+    _s32   = declareBuiltinType<IntType>(32, IntType::Signed);
+    _s64   = declareBuiltinType<IntType>(64, IntType::Signed);
+    _u8    = declareBuiltinType<IntType>(8, IntType::Unsigned);
+    _u16   = declareBuiltinType<IntType>(16, IntType::Unsigned);
+    _u32   = declareBuiltinType<IntType>(32, IntType::Unsigned);
+    _u64   = declareBuiltinType<IntType>(64, IntType::Unsigned);
+    _float = declareBuiltinType<FloatType>(64);
 
     _s64->addAlternateName("int");
 
@@ -78,15 +73,11 @@ Expected<StructureType&, SemanticIssue*> SymbolTable::declareStructureType(
     return *type;
 }
 
-Type* SymbolTable::declareBuiltinType(std::string name,
-                                      size_t size,
-                                      size_t align) {
-    auto result = declareStructureType(name, /* allowKeywords = */ true);
-    SC_ASSERT(result, "How could this fail?");
-    result->setSize(size);
-    result->setAlign(align);
-    result->setIsBuiltin(true);
-    return &result.value();
+template <typename T, typename... Args>
+T* SymbolTable::declareBuiltinType(Args&&... args) {
+    auto* type = addEntity<T>(std::forward<Args>(args)..., &currentScope());
+    currentScope().add(type);
+    return type;
 }
 
 Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
@@ -297,10 +288,6 @@ QualType const* SymbolTable::qU64(Reference ref) { return qualify(_u64, ref); }
 
 QualType const* SymbolTable::qFloat(Reference ref) {
     return qualify(_float, ref);
-}
-
-QualType const* SymbolTable::qString(Reference ref) {
-    return qualify(_string, ref);
 }
 
 template <typename E, typename... Args>

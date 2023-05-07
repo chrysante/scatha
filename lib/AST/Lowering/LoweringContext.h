@@ -236,13 +236,13 @@ struct LoweringContext {
 
     ir::CompareOperation mapCompareOp(ast::BinaryOperator op);
 
-    ir::ArithmeticOperation mapArithmeticOp(sema::StructureType const* type,
+    ir::ArithmeticOperation mapArithmeticOp(sema::BuiltinType const* type,
                                             ast::BinaryOperator op);
 
-    ir::ArithmeticOperation mapArithmeticAssignOp(
-        sema::StructureType const* type, ast::BinaryOperator op);
+    ir::ArithmeticOperation mapArithmeticAssignOp(sema::BuiltinType const* type,
+                                                  ast::BinaryOperator op);
 
-    ir::CompareMode mapCompareMode(sema::StructureType const* type);
+    ir::CompareMode mapCompareMode(sema::BuiltinType const* type);
 
     ir::FunctionAttribute mapFuncAttrs(sema::FunctionAttribute attr);
 

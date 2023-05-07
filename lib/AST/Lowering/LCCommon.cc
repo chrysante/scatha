@@ -157,52 +157,34 @@ ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
     // clang-format off
     return visit(*semaType, utl::overload{
         [&](sema::QualType const& qualType) -> ir::Type const* {
-            if (qualType.isReference()) {
-                auto* arrayType = dyncast<sema::ArrayType const*>(qualType.base());
-                if (arrayType && arrayType->isDynamic()) {
-                    return arrayViewType;
-                }
-                return ctx.pointerType();
+            if (!qualType.isReference()) {
+                return mapType(qualType.base());
             }
-            return mapType(qualType.base());
+            auto* arrayType = dyncast<sema::ArrayType const*>(qualType.base());
+            if (arrayType && arrayType->isDynamic()) {
+                return arrayViewType;
+            }
+            return ctx.pointerType();
+        },
+        [&](sema::VoidType const&) -> ir::Type const* {
+            return ctx.voidType();
+        },
+        [&](sema::BoolType const&) -> ir::Type const* {
+            return ctx.integralType(1);
+        },
+        [&](sema::ByteType const&) -> ir::Type const* {
+            return ctx.integralType(8);
+        },
+        [&](sema::IntType const& intType) -> ir::Type const* {
+            return ctx.integralType(intType.bitwidth());
+        },
+        [&](sema::FloatType const& floatType) -> ir::Type const* {
+            return ctx.floatType(floatType.bitwidth());
         },
         [&](sema::StructureType const& structType) -> ir::Type const* {
-            if (&structType == symbolTable.Void()) {
-                return ctx.voidType();
-            }
-            if (&structType == symbolTable.Byte()) {
-                return ctx.integralType(8);
-            }
-            if (&structType == symbolTable.Bool()) {
-                return ctx.integralType(1);
-            }
-            if (&structType == symbolTable.S8() ||
-                &structType == symbolTable.U8())
-            {
-                return ctx.integralType(8);
-            }
-            if (&structType == symbolTable.S16() ||
-                &structType == symbolTable.U16())
-            {
-                return ctx.integralType(16);
-            }
-            if (&structType == symbolTable.S32() ||
-                &structType == symbolTable.U32())
-            {
-                return ctx.integralType(32);
-            }
-            if (&structType == symbolTable.S64() ||
-                &structType == symbolTable.U64())
-            {
-                return ctx.integralType(64);
-            }
-            if (&structType == symbolTable.Float()) {
-                return ctx.floatType(64);
-            }
-            if (auto itr = typeMap.find(&structType); itr != typeMap.end()) {
-                return itr->second;
-            }
-            SC_DEBUGFAIL();
+            auto itr = typeMap.find(&structType);
+            SC_ASSERT(itr != typeMap.end(), "Type not found");
+            return itr->second;
         },
         [&](sema::ArrayType const& arrayType) -> ir::Type const* {
             if (!arrayType.isDynamic()) {
@@ -247,62 +229,93 @@ ir::CompareOperation LoweringContext::mapCompareOp(ast::BinaryOperator op) {
 }
 
 ir::ArithmeticOperation LoweringContext::mapArithmeticOp(
-    sema::StructureType const* type, ast::BinaryOperator op) {
+    sema::BuiltinType const* type, ast::BinaryOperator op) {
     switch (op) {
     case BinaryOperator::Multiplication:
-        if (type == symbolTable.S64()) {
-            return ir::ArithmeticOperation::Mul;
-        }
-        if (type == symbolTable.Float()) {
-            return ir::ArithmeticOperation::FMul;
-        }
-        SC_UNREACHABLE();
+        // clang-format off
+        return visit(*type, utl::overload{
+            [](sema::IntType const&) {
+                return ir::ArithmeticOperation::Mul;
+            },
+            [](sema::FloatType const&) {
+                return ir::ArithmeticOperation::FMul;
+            },
+            [](sema::BuiltinType const&) -> ir::ArithmeticOperation {
+                SC_UNREACHABLE();
+            },
+        }); // clang-format on
+
     case BinaryOperator::Division:
-        if (type == symbolTable.S64()) {
-            return ir::ArithmeticOperation::SDiv;
-        }
-        if (type == symbolTable.Float()) {
-            return ir::ArithmeticOperation::FDiv;
-        }
-        SC_UNREACHABLE();
+        // clang-format off
+        return visit(*type, utl::overload{
+            [](sema::IntType const& type) {
+                return type.isSigned() ?
+                    ir::ArithmeticOperation::SDiv :
+                    ir::ArithmeticOperation::UDiv;
+            },
+            [](sema::FloatType const&) {
+                return ir::ArithmeticOperation::FDiv;
+            },
+            [](sema::BuiltinType const&) -> ir::ArithmeticOperation {
+                SC_UNREACHABLE();
+            },
+        }); // clang-format on
+
     case BinaryOperator::Remainder:
-        if (type == symbolTable.S64()) {
-            return ir::ArithmeticOperation::SRem;
-        }
-        SC_UNREACHABLE();
+        return cast<sema::IntType const*>(type)->isSigned() ?
+                   ir::ArithmeticOperation::SRem :
+                   ir::ArithmeticOperation::URem;
+
     case BinaryOperator::Addition:
-        if (type == symbolTable.S64()) {
-            return ir::ArithmeticOperation::Add;
-        }
-        if (type == symbolTable.Float()) {
-            return ir::ArithmeticOperation::FAdd;
-        }
-        SC_UNREACHABLE();
+        // clang-format off
+        return visit(*type, utl::overload{
+            [](sema::IntType const&) {
+                return ir::ArithmeticOperation::Add;
+            },
+            [](sema::FloatType const&) {
+                return ir::ArithmeticOperation::FAdd;
+            },
+            [](sema::BuiltinType const&) -> ir::ArithmeticOperation {
+                SC_UNREACHABLE();
+            },
+        }); // clang-format on
+
     case BinaryOperator::Subtraction:
-        if (type == symbolTable.S64()) {
-            return ir::ArithmeticOperation::Sub;
-        }
-        if (type == symbolTable.Float()) {
-            return ir::ArithmeticOperation::FSub;
-        }
-        SC_UNREACHABLE();
+        // clang-format off
+        return visit(*type, utl::overload{
+            [](sema::IntType const&) {
+                return ir::ArithmeticOperation::Sub;
+            },
+            [](sema::FloatType const&) {
+                return ir::ArithmeticOperation::FSub;
+            },
+            [](sema::BuiltinType const&) -> ir::ArithmeticOperation {
+                SC_UNREACHABLE();
+            },
+        }); // clang-format on
+
     case BinaryOperator::LeftShift:
         return ir::ArithmeticOperation::LShL;
+
     case BinaryOperator::RightShift:
         return ir::ArithmeticOperation::LShR;
+
     case BinaryOperator::BitwiseAnd:
         return ir::ArithmeticOperation::And;
+
     case BinaryOperator::BitwiseXOr:
         return ir::ArithmeticOperation::XOr;
+
     case BinaryOperator::BitwiseOr:
         return ir::ArithmeticOperation::Or;
+
     default:
         SC_UNREACHABLE("Only handle arithmetic operations here.");
     }
 }
 
 ir::ArithmeticOperation LoweringContext::mapArithmeticAssignOp(
-    sema::StructureType const* type, ast::BinaryOperator op) {
+    sema::BuiltinType const* type, ast::BinaryOperator op) {
     auto nonAssign = [&] {
         switch (op) {
         case BinaryOperator::AddAssignment:
@@ -332,18 +345,27 @@ ir::ArithmeticOperation LoweringContext::mapArithmeticAssignOp(
     return mapArithmeticOp(type, nonAssign);
 }
 
-ir::CompareMode LoweringContext::mapCompareMode(
-    sema::StructureType const* type) {
-    if (type == symbolTable.Bool()) {
-        return ir::CompareMode::Unsigned;
-    }
-    if (type == symbolTable.S64()) {
-        return ir::CompareMode::Signed;
-    }
-    if (type == symbolTable.Float()) {
-        return ir::CompareMode::Float;
-    }
-    SC_DEBUGFAIL();
+ir::CompareMode LoweringContext::mapCompareMode(sema::BuiltinType const* type) {
+    // clang-format off
+    return visit(*type, utl::overload{
+        [](sema::VoidType const&) -> ir::CompareMode {
+            SC_UNREACHABLE();
+        },
+        [](sema::BoolType const&) {
+            return ir::CompareMode::Unsigned;
+        },
+        [](sema::ByteType const&) {
+            return ir::CompareMode::Unsigned;
+        },
+        [](sema::IntType const& type) {
+            return type.isSigned() ?
+                ir::CompareMode::Signed :
+                ir::CompareMode::Unsigned;
+        },
+        [](sema::FloatType const&) {
+            return ir::CompareMode::Float;
+        },
+    }); // clang-format on
 }
 
 ir::FunctionAttribute LoweringContext::mapFuncAttrs(

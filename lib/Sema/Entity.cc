@@ -6,6 +6,7 @@
 #include <range/v3/view.hpp>
 #include <svm/Builtin.h>
 #include <utl/hash.hpp>
+#include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
 #include "Sema/NameMangling.h"
@@ -104,9 +105,43 @@ size_t Type::align() const {
 }
 
 bool Type::isComplete() const {
-    SC_ASSERT((size() == invalidSize) == (align() == invalidSize),
+    SC_ASSERT((size() == InvalidSize) == (align() == InvalidSize),
               "Either both or neither must be invalid");
-    return size() != invalidSize;
+    return size() != InvalidSize;
+}
+
+VoidType::VoidType(Scope* parentScope):
+    BuiltinType(EntityType::VoidType,
+                "void",
+                parentScope,
+                InvalidSize,
+                InvalidSize) {}
+
+BoolType::BoolType(Scope* parentScope):
+    BuiltinType(EntityType::BoolType, "bool", parentScope, 1, 1) {}
+
+ByteType::ByteType(Scope* parentScope):
+    BuiltinType(EntityType::ByteType, "byte", parentScope, 1, 1) {}
+
+static std::string makeName(size_t bitwidth, IntType::Signedness signedness) {
+    switch (signedness) {
+    case IntType::Signed:
+        return utl::strcat("s", bitwidth);
+    case IntType::Unsigned:
+        return utl::strcat("u", bitwidth);
+    }
+}
+
+IntType::IntType(size_t bitwidth, Signedness signedness, Scope* parentScope):
+    ArithmeticType(EntityType::IntType,
+                   makeName(bitwidth, signedness),
+                   bitwidth,
+                   parentScope),
+    _signed(signedness) {}
+
+FloatType::FloatType(size_t bitwidth, Scope* parentScope):
+    ArithmeticType(EntityType::FloatType, "float", bitwidth, parentScope) {
+    SC_ASSERT(bitwidth == 64, "Invalid width (for now)");
 }
 
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {

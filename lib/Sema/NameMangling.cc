@@ -21,7 +21,7 @@ static std::string baseImpl(Entity const* entity) {
 
 static std::string impl(Entity const* entity) { SC_DEBUGFAIL(); }
 
-static std::string impl(StructureType const* type) { return baseImpl(type); }
+static std::string impl(ObjectType const* type) { return baseImpl(type); }
 
 static std::string impl(ArrayType const* type) {
     return utl::strcat("[", type->elementType()->mangledName(), "]");

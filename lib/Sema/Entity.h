@@ -299,7 +299,7 @@ private:
 
 /// # Types
 
-size_t constexpr invalidSize = static_cast<size_t>(-1);
+size_t constexpr InvalidSize = ~size_t(0);
 
 /// Abstract class representing a type
 class Type: public Scope {
@@ -346,23 +346,97 @@ private:
     size_t _align;
 };
 
+/// Concrete class representing a builtin type
+class BuiltinType: public ObjectType {
+protected:
+    explicit BuiltinType(EntityType entityType,
+                         std::string name,
+                         Scope* parentScope,
+                         size_t size,
+                         size_t align):
+        ObjectType(entityType,
+                   ScopeKind::Object,
+                   std::move(name),
+                   parentScope,
+                   size,
+                   align) {}
+};
+
+/// Concrete class representing type `void`
+class VoidType: public BuiltinType {
+public:
+    explicit VoidType(Scope* parentScope);
+};
+
+/// Concrete class representing type `void`
+class BoolType: public BuiltinType {
+public:
+    explicit BoolType(Scope* parentScope);
+};
+
+/// Concrete class representing type `void`
+class ByteType: public BuiltinType {
+public:
+    explicit ByteType(Scope* parentScope);
+};
+
+/// Abstract class representing an arithmetic type
+class ArithmeticType: public BuiltinType {
+public:
+    /// Number of bits in this type
+    size_t bitwidth() const { return 8 * size(); }
+
+protected:
+    explicit ArithmeticType(EntityType entityType,
+                            std::string name,
+                            size_t bitwidth,
+                            Scope* parentScope):
+        BuiltinType(entityType,
+                    std::move(name),
+                    parentScope,
+                    bitwidth / 8,
+                    bitwidth / 8) {}
+};
+
+/// Concrete class representing an integral type
+class IntType: public ArithmeticType {
+public:
+    enum Signedness { Signed, Unsigned };
+
+    explicit IntType(size_t bitwidth,
+                     Signedness signedness,
+                     Scope* parentScope);
+
+    /// `Signed` or `Unsigned`
+    Signedness signedness() const { return _signed; }
+
+    bool isSigned() const { return signedness() == Signed; }
+
+    bool isUnsigned() const { return signedness() == Unsigned; }
+
+private:
+    Signedness _signed;
+};
+
+/// Concrete class representing a floating point type
+class FloatType: public ArithmeticType {
+public:
+    explicit FloatType(size_t bitwidth, Scope* parentScope);
+};
+
 /// Concrete class representing the type of a structure
 class StructureType: public ObjectType {
 public:
     explicit StructureType(std::string name,
                            Scope* parentScope,
-                           size_t size    = invalidSize,
-                           size_t align   = invalidSize,
-                           bool isBuiltin = false):
+                           size_t size  = InvalidSize,
+                           size_t align = InvalidSize):
         ObjectType(EntityType::StructureType,
                    ScopeKind::Object,
                    std::move(name),
                    parentScope,
                    size,
-                   align),
-        _isBuiltin(isBuiltin) {}
-
-    bool isBuiltin() const { return _isBuiltin; }
+                   align) {}
 
     /// The member variables of this type in the order of declaration.
     std::span<Variable* const> memberVariables() { return _memberVars; }
@@ -372,12 +446,9 @@ public:
         return _memberVars;
     }
 
-    void setIsBuiltin(bool value) { _isBuiltin = value; }
-
     void addMemberVariable(Variable* var) { _memberVars.push_back(var); }
 
 public:
-    bool _isBuiltin;
     utl::small_vector<Variable*> _memberVars;
 };
 
@@ -392,7 +463,7 @@ public:
                    makeName(elementType, count),
                    const_cast<Scope*>(elementType->parent()),
                    count != DynamicCount ? count * elementType->size() :
-                                           invalidSize,
+                                           InvalidSize,
                    elementType->align()),
         elemType(elementType),
         _count(count) {}

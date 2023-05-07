@@ -49,12 +49,6 @@ public:
     Expected<StructureType&, SemanticIssue*> declareStructureType(
         std::string name, bool allowKeywords = false);
 
-    /// Simpler interface to declare builtins. Internally calls
-    /// `declareStructureType()`
-    ///
-    /// TODO: Only used internally. Make this private.
-    Type* declareBuiltinType(std::string name, size_t size, size_t align);
-
     /// \brief Declares a function to the current scope without signature.
     ///
     /// \details For successful return the name must not have been declared
@@ -214,19 +208,18 @@ public:
     GlobalScope const& globalScope() const { return *_globalScope; }
 
     /// Getters for builtin types
-    StructureType const* Void() const { return _void; }
-    StructureType const* Byte() const { return _byte; }
-    StructureType const* Bool() const { return _bool; }
-    StructureType const* S8() const { return _s8; }
-    StructureType const* S16() const { return _s16; }
-    StructureType const* S32() const { return _s32; }
-    StructureType const* S64() const { return _s64; }
-    StructureType const* U8() const { return _u8; }
-    StructureType const* U16() const { return _u16; }
-    StructureType const* U32() const { return _u32; }
-    StructureType const* U64() const { return _u64; }
-    StructureType const* Float() const { return _float; }
-    StructureType const* String() const { return _string; }
+    VoidType const* Void() const { return _void; }
+    ByteType const* Byte() const { return _byte; }
+    BoolType const* Bool() const { return _bool; }
+    IntType const* S8() const { return _s8; }
+    IntType const* S16() const { return _s16; }
+    IntType const* S32() const { return _s32; }
+    IntType const* S64() const { return _s64; }
+    IntType const* U8() const { return _u8; }
+    IntType const* U16() const { return _u16; }
+    IntType const* U32() const { return _u32; }
+    IntType const* U64() const { return _u64; }
+    FloatType const* Float() const { return _float; }
 
     QualType const* qVoid(Reference = Reference::None);
 
@@ -252,8 +245,6 @@ public:
 
     QualType const* qFloat(Reference = Reference::None);
 
-    QualType const* qString(Reference = Reference::None);
-
     /// Review if we want to keep these:
     void setSortedStructureTypes(utl::vector<StructureType*> ids) {
         _sortedStructureTypes = std::move(ids);
@@ -268,6 +259,9 @@ public:
     std::span<Function const* const> functions() const { return _functions; }
 
 private:
+    template <typename T, typename... Args>
+    T* declareBuiltinType(Args&&... args);
+
     template <typename E, typename... Args>
     E* addEntity(Args&&... args);
 
@@ -292,19 +286,18 @@ private:
     utl::vector<Function*> _builtinFunctions;
 
     /// Builtin types
-    StructureType* _void;
-    StructureType* _byte;
-    StructureType* _bool;
-    StructureType* _s8;
-    StructureType* _s16;
-    StructureType* _s32;
-    StructureType* _s64;
-    StructureType* _u8;
-    StructureType* _u16;
-    StructureType* _u32;
-    StructureType* _u64;
-    StructureType* _float;
-    StructureType* _string;
+    VoidType* _void;
+    ByteType* _byte;
+    BoolType* _bool;
+    IntType* _s8;
+    IntType* _s16;
+    IntType* _s32;
+    IntType* _s64;
+    IntType* _u8;
+    IntType* _u16;
+    IntType* _u32;
+    IntType* _u64;
+    FloatType* _float;
 };
 
 } // namespace scatha::sema

@@ -24,6 +24,10 @@ std::string_view sema::toString(ObjectTypeConversion conv) {
         return "Int_Widen";
     case Int_WidenSigned:
         return "Int_WidenSigned";
+    case IntToFloat:
+        return "IntToFloat";
+    case FloatToInt:
+        return "FloatToInt";
     };
 }
 
@@ -168,6 +172,10 @@ static int getRank(ObjectTypeConversion conv) {
         return 1;
     case Int_WidenSigned:
         return 1;
+    case IntToFloat:
+        return 2;
+    case FloatToInt:
+        return 2;
     }
 }
 

@@ -19,6 +19,13 @@
 ///    ├─ Function
 ///    └─ Type
 ///       ├─ ObjectType
+///       │  ├─ BuiltinType
+///       │  │  ├─ VoidType
+///       │  │  ├─ BoolType
+///       │  │  ├─ ByteType
+///       │  │  └─ ArithmeticType
+///       │  │     ├─ IntType
+///       │  │     └─ FloatType
 ///       │  ├─ StructureType
 ///       │  └─ ArrayType
 ///       ├─ QualType

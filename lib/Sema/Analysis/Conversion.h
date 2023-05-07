@@ -19,6 +19,8 @@ enum class ObjectTypeConversion : uint8_t {
     Int_Widen,            ///
     Int_WidenSigned,      ///
 
+    IntToFloat,
+    FloatToInt,
 };
 
 std::string_view toString(ObjectTypeConversion conv);

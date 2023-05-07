@@ -46,14 +46,18 @@ void sema::instantiateEntities(SymbolTable& sym,
     ctx.run();
 }
 
-static bool isBuiltin(ObjectType const* type) {
-    if (auto* sType = dyncast<StructureType const*>(type)) {
-        return sType->isBuiltin();
+static bool isUserDefined(ObjectType const* type) {
+    if (isa<StructureType>(type)) {
+        return true;
     }
-    if (auto* aType = dyncast<ArrayType const*>(type)) {
-        return isBuiltin(aType->elementType());
+    if (auto* arrayType = dyncast<ArrayType const*>(type)) {
+        return isUserDefined(arrayType->elementType());
     }
     return false;
+}
+
+static bool isUserDefined(QualType const* type) {
+    return !type->isReference() && isUserDefined(type->base());
 }
 
 void Context::run() {
@@ -69,7 +73,7 @@ void Context::run() {
         if (!type) {
             continue;
         }
-        if (type->isReference() || isBuiltin(type->base())) {
+        if (!isUserDefined(type)) {
             continue;
         }
         node.dependencies.push_back(

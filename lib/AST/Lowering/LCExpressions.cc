@@ -106,8 +106,8 @@ ir::Value* LoweringContext::getValueImpl(UnaryPrefixExpression const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
-    auto* structType =
-        dyncast<sema::StructureType const*>(expr.lhs()->type()->base());
+    auto* builtinType =
+        dyncast<sema::BuiltinType const*>(expr.lhs()->type()->base());
 
     switch (expr.operation()) {
         using enum BinaryOperator;
@@ -145,7 +145,7 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
             SC_ASSERT(isa<ir::IntegralType>(rhs->type()),
                       "Need integral type for shift");
         }
-        auto operation = mapArithmeticOp(structType, expr.operation());
+        auto operation = mapArithmeticOp(builtinType, expr.operation());
         return add<ir::ArithmeticInst>(lhs, rhs, operation, "expr.result");
     }
 
@@ -201,7 +201,7 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
     case NotEquals: {
         return add<ir::CompareInst>(getValue(expr.lhs()),
                                     getValue(expr.rhs()),
-                                    mapCompareMode(structType),
+                                    mapCompareMode(builtinType),
                                     mapCompareOp(expr.operation()),
                                     "cmp.result");
     }
@@ -233,14 +233,13 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
         auto* lhs = getValue(expr.lhs());
         auto* rhs = getValue(expr.rhs());
         if (expr.operation() != Assignment) {
-            auto* structType =
-                cast<sema::StructureType const*>(expr.lhs()->type()->base());
+            SC_ASSERT(builtinType == expr.rhs()->type()->base(), "");
             auto* lhsValue =
-                add<ir::Load>(lhs, mapType(structType), "lhs.value");
+                add<ir::Load>(lhs, mapType(builtinType), "lhs.value");
             rhs =
                 add<ir::ArithmeticInst>(lhsValue,
                                         rhs,
-                                        mapArithmeticAssignOp(structType,
+                                        mapArithmeticAssignOp(builtinType,
                                                               expr.operation()),
                                         "expr.result");
         }
@@ -368,6 +367,10 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
     case Int_Widen:
         SC_DEBUGFAIL();
     case Int_WidenSigned:
+        SC_DEBUGFAIL();
+    case IntToFloat:
+        SC_DEBUGFAIL();
+    case FloatToInt:
         SC_DEBUGFAIL();
     }
 }
