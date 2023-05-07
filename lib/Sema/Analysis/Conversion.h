@@ -13,14 +13,22 @@ namespace scatha::sema {
 /// Conversion between different object types
 enum class ObjectTypeConversion : uint8_t {
     None,
-    Array_FixedToDynamic, /// Only valid for reference target types
 
-    Int_Trunc,            /// Only valid for value target types
-    Int_Widen,            ///
-    Int_WidenSigned,      ///
+    /// Only valid for reference target types
+    Array_FixedToDynamic,
 
-    IntToFloat,
-    FloatToInt,
+    /// Only valid for value target types
+    Int_Trunc,
+    Signed_Widen,
+    Unsigned_Widen,
+
+    Float_Trunc,
+    Float_Widen,
+
+    SignedToFloat,
+    UnsignedToFloat,
+    FloatToSigned,
+    FloatToUnsigned,
 };
 
 std::string_view toString(ObjectTypeConversion conv);

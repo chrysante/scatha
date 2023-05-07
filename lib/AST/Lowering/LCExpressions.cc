@@ -369,22 +369,36 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
                                        ir::Conversion::Trunc,
                                        "int.trunc");
 
-    case Int_Widen:
+    case Unsigned_Widen:
         return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Zext,
                                        "int.zext");
 
-    case Int_WidenSigned:
+    case Signed_Widen:
         return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Sext,
                                        "int.sext");
 
-    case IntToFloat:
+    case Float_Trunc:
         SC_DEBUGFAIL();
 
-    case FloatToInt:
+    case Float_Widen:
+        SC_DEBUGFAIL();
+
+    case SignedToFloat:
+        SC_DEBUGFAIL();
+
+    case UnsignedToFloat:
+        SC_DEBUGFAIL();
+
+    case FloatToSigned:
+        throw std::runtime_error(
+            "Unimplemented"); // To be able to run the tests
+        SC_DEBUGFAIL();
+
+    case FloatToUnsigned:
         SC_DEBUGFAIL();
     }
 }

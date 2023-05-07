@@ -20,14 +20,22 @@ std::string_view sema::toString(ObjectTypeConversion conv) {
         return "Array_FixedToDynamic";
     case Int_Trunc:
         return "Int_Trunc";
-    case Int_Widen:
-        return "Int_Widen";
-    case Int_WidenSigned:
-        return "Int_WidenSigned";
-    case IntToFloat:
-        return "IntToFloat";
-    case FloatToInt:
-        return "FloatToInt";
+    case Signed_Widen:
+        return "Signed_Widen";
+    case Unsigned_Widen:
+        return "Unsigned_Widen";
+    case Float_Trunc:
+        return "Float_Trunc";
+    case Float_Widen:
+        return "Float_Widen";
+    case SignedToFloat:
+        return "SignedToFloat";
+    case UnsignedToFloat:
+        return "UnsignedToFloat";
+    case FloatToSigned:
+        return "FloatToSigned";
+    case FloatToUnsigned:
+        return "FloatToUnsigned";
     };
 }
 
@@ -85,7 +93,7 @@ static std::optional<ObjectTypeConversion> implicitIntConversion(
         if (to.isSigned()) {
             /// ** `Signed -> Signed` **
             if (from.bitwidth() <= to.bitwidth()) {
-                return Int_WidenSigned;
+                return Signed_Widen;
             }
             return std::nullopt;
         }
@@ -95,13 +103,13 @@ static std::optional<ObjectTypeConversion> implicitIntConversion(
     if (to.isSigned()) {
         /// ** `Unsigned -> Signed` **
         if (from.bitwidth() < to.bitwidth()) {
-            return Int_Widen;
+            return Unsigned_Widen;
         }
         return std::nullopt;
     }
     /// ** `Unsigned -> Unsigned` **
     if (from.bitwidth() <= to.bitwidth()) {
-        return Int_Widen;
+        return Unsigned_Widen;
     }
     return std::nullopt;
 }
@@ -111,9 +119,9 @@ static std::optional<ObjectTypeConversion> explicitIntConversion(
     using enum ObjectTypeConversion;
     if (from.bitwidth() <= to.bitwidth()) {
         if (from.isSigned()) {
-            return Int_WidenSigned;
+            return Signed_Widen;
         }
-        return Int_Widen;
+        return Unsigned_Widen;
     }
     return Int_Trunc;
 }
@@ -134,6 +142,32 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             return kind == ConvKind::Implicit ?
                 implicitIntConversion(from, to) :
                 explicitIntConversion(from, to);
+        },
+        [&](FloatType const& from, FloatType const& to) -> RetType {
+            if (from.bitwidth() <= to.bitwidth()) {
+                return Float_Widen;
+            }
+            return kind == ConvKind::Implicit ?
+                std::nullopt :
+                std::optional(Float_Trunc);
+        },
+        [&](IntType const& from, FloatType const& to) -> RetType {
+            if (kind == ConvKind::Implicit) {
+                return std::nullopt;
+            }
+            if (from.isSigned()) {
+                return SignedToFloat;
+            }
+            return UnsignedToFloat;
+        },
+        [&](FloatType const& from, IntType const& to) -> RetType {
+            if (kind == ConvKind::Implicit) {
+                return std::nullopt;
+            }
+            if (to.isSigned()) {
+                return FloatToSigned;
+            }
+            return FloatToUnsigned;
         },
         [&](ArrayType const& from, ArrayType const& to) -> RetType {
             if (from.elementType() == to.elementType() &&
@@ -214,13 +248,21 @@ static int getRank(ObjectTypeConversion conv) {
         return 1;
     case Int_Trunc:
         return 2;
-    case Int_Widen:
+    case Signed_Widen:
         return 1;
-    case Int_WidenSigned:
+    case Unsigned_Widen:
         return 1;
-    case IntToFloat:
+    case Float_Trunc:
         return 2;
-    case FloatToInt:
+    case Float_Widen:
+        return 1;
+    case SignedToFloat:
+        return 2;
+    case UnsignedToFloat:
+        return 2;
+    case FloatToSigned:
+        return 2;
+    case FloatToUnsigned:
         return 2;
     }
 }
