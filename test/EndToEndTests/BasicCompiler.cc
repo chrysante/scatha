@@ -1,6 +1,7 @@
 #include "BasicCompiler.h"
 
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 
 #include <Catch/Catch2.hpp>
@@ -36,24 +37,26 @@
 
 using namespace scatha;
 
+[[noreturn]] static void throwIssue(std::string_view source,
+                                    Issue const& issue) {
+    std::stringstream sstr;
+    issue.print(source, sstr);
+    throw std::runtime_error(sstr.str());
+}
+
+static void validateEmpty(std::string_view source, IssueHandler const& issues) {
+    if (!issues.empty()) {
+        throwIssue(source, issues.front());
+    }
+}
+
 static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
     IssueHandler issues;
-    auto tokens = parse::lex(text, issues);
-    if (!issues.empty()) {
-        issues.print(text);
-        std::exit(1);
-    }
-    auto ast = parse::parse(tokens, issues);
-    if (!issues.empty()) {
-        issues.print(text);
-        std::exit(1);
-    }
+    auto ast = parse::parse(text, issues);
+    validateEmpty(text, issues);
     sema::SymbolTable sym;
     sema::analyze(*ast, sym, issues);
-    if (!issues.empty()) {
-        issues.print(text);
-        std::exit(1);
-    }
+    validateEmpty(text, issues);
     ir::Context ctx;
     auto mod = ast::lowerToIR(*ast, sym, ctx);
     return { std::move(ctx), std::move(mod) };

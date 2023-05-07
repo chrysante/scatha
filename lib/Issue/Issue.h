@@ -27,9 +27,9 @@ public:
 
     void setSourceRange(SourceRange sourceRange) { sourceRng = sourceRange; }
 
-    void print(std::string_view source);
+    void print(std::string_view source) const;
 
-    void print(std::string_view source, std::ostream& ostream);
+    void print(std::string_view source, std::ostream& ostream) const;
 
 protected:
     explicit Issue(SourceLocation sourceLoc, IssueSeverity severity):

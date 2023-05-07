@@ -8,6 +8,7 @@
 
 #include "AST/Fwd.h"
 #include "Sema/Analysis/Conversion.h"
+#include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 
@@ -418,90 +419,75 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
 bool Context::analyzeImpl(ast::FunctionCall& fc) {
     bool success      = analyze(*fc.object());
     bool isMemberCall = false;
-    /// We gather and analyze all the arguments
-    auto argumentExprs =
-        fc.arguments() | ranges::to<utl::small_vector<ast::Expression*>>;
-    for (auto* arg: argumentExprs) {
+    /// We analyze all the arguments
+    for (auto* arg: fc.arguments()) {
         success &= analyze(*arg);
     }
     if (!success) {
         return false;
     }
-    /// If our object is a member access expression, we add that to our argument
-    /// list
-    if (auto* memberAccess = dyncast<ast::MemberAccess*>(fc.object());
-        memberAccess && memberAccess->object()->isValue())
-    {
-        argumentExprs.insert(argumentExprs.begin(), memberAccess->object());
-        isMemberCall = true;
-    }
-    /// Extract the argument types to perform overload resolution
-    auto argTypes = argumentExprs |
-                    ranges::views::transform(
-                        [](ast::Expression* expr) { return expr->type(); }) |
-                    ranges::to<utl::small_vector<QualType const*>>;
-    // clang-format off
-    bool const result = visit(*fc.object()->entity(), utl::overload{
-        [&](OverloadSet& overloadSet) {
-            auto* function = overloadSet.find(argTypes);
-            if (!function && isMemberCall) {
-                /// We try again with our object argument as a reference
-                argTypes.front() = sym.setReference(argTypes.front(), Reference::Explicit);
-                function = overloadSet.find(argTypes);
-            }
-            if (!function) {
-                iss.push<BadFunctionCall>(
-                    fc,
-                    &overloadSet,
-                    argTypes,
-                    BadFunctionCall::Reason::NoMatchingFunction);
-                return false;
-            }
-            fc.decorate(function,
-                        makeRefImplicit(function->returnType()),
-                        ValueCategory::RValue);
-            return true;
-        },
-        [&](QualType const& type) {
-            Function* castFn = findExplicitCast(type.base(), argTypes);
-            if (!castFn) {
-                // TODO: Make better error class here.
-                iss.push<BadTypeConversion>(*fc.arguments().front(), &type);
-                return false;
-            }
-            fc.decorate(castFn, &type, ValueCategory::RValue);
-            return true;
-        },
-        [&](Entity const& entity) {
-            iss.push<BadFunctionCall>(
-                fc,
-                nullptr,
-                argTypes,
-                BadFunctionCall::Reason::ObjectNotCallable);
-            return false;
-        }
-    }); // clang-format on
-    if (!result) {
-        return false;
-    }
 
-    if (isMemberCall) {
-        auto object    = fc.extractObject<ast::MemberAccess>();
-        auto memFunc   = object->extractMember();
-        auto objectArg = object->extractObject();
+    /// If our object is a member access expression, we rewrite the AST
+    if (auto* ma = dyncast<ast::MemberAccess*>(fc.object());
+        ma && ma->object()->isValue())
+    {
+        auto memberAccess = fc.extractObject<ast::MemberAccess>();
+        auto memFunc      = memberAccess->extractMember();
+        auto objectArg    = memberAccess->extractObject();
         fc.insertArgument(0, std::move(objectArg));
         fc.setObject(std::move(memFunc));
+        isMemberCall = true;
         /// Member access object `object` goes out of scope and is destroyed
     }
 
-    /// We issue conversions if necassary
-    auto* calledFunction = fc.function();
+    /// if our object is a type, then we rewrite the AST so we end up with just
+    /// a conversion node
+    if (auto* targetType = dyncast<QualType const*>(fc.object()->entity())) {
+        SC_ASSERT(fc.arguments().size() == 1, "For now...");
+        auto arg    = fc.extractArgument(0);
+        bool result = convertExplicitly(arg.get(), targetType, iss);
+        fc.parent()->replaceChild(&fc, std::move(arg));
+        return result;
+    }
+
+    /// Extract the argument types to perform overload resolution
+    auto argTypes = fc.arguments() |
+                    ranges::views::transform([](ast::Expression const* expr) {
+                        return expr->type();
+                    }) |
+                    ranges::to<utl::small_vector<QualType const*>>;
+
+    /// Make sure we have an overload set as our called object
+    auto* overloadSet = dyncast_or_null<OverloadSet*>(fc.object()->entity());
+    if (!overloadSet) {
+        iss.push<BadFunctionCall>(fc,
+                                  nullptr,
+                                  argTypes,
+                                  BadFunctionCall::Reason::ObjectNotCallable);
+        return false;
+    }
+
+    /// Perform overload resolution
+    auto result =
+        performOverloadResolution(overloadSet, argTypes, isMemberCall);
+    if (!result) {
+        auto* error = result.error();
+        error->setSourceRange(fc.sourceRange());
+        iss.push(error);
+        return false;
+    }
+    auto* function = result.value();
+    fc.decorate(function,
+                makeRefImplicit(function->returnType()),
+                ValueCategory::RValue);
+
+    /// We issue conversions for our arguments as necessary
     for (auto [index, arg, targetType]:
          ranges::views::zip(ranges::views::iota(0),
                             fc.arguments(),
-                            calledFunction->argumentTypes()))
+                            function->argumentTypes()))
     {
-        bool success = true;
+        [[maybe_unused]] bool success = true;
         if (index == 0 && isMemberCall) {
             success = convertExplicitly(arg, targetType, iss);
         }

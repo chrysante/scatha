@@ -1,5 +1,6 @@
 #include <Catch/Catch2.hpp>
 
+#include "Sema/Analysis/OverloadResolutionError.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "test/IssueHelper.h"
@@ -98,12 +99,10 @@ fn g() { X.callee(0); }
 struct X {
 	fn callee(a: string) {}
 })");
-    auto const line2  = issues.findOnLine<BadFunctionCall>(2);
-    REQUIRE(line2);
-    CHECK(line2->reason() == BadFunctionCall::Reason::NoMatchingFunction);
-    auto const line3 = issues.findOnLine<BadFunctionCall>(3);
-    REQUIRE(line3);
-    CHECK(line3->reason() == BadFunctionCall::Reason::NoMatchingFunction);
+    auto const line2  = issues.findOnLine<NoMatchingFunction>(2);
+    CHECK(line2);
+    auto const line3 = issues.findOnLine<NoMatchingFunction>(3);
+    CHECK(line3);
 }
 
 TEST_CASE("Bad member access expression", "[sema][issue]") {
