@@ -87,6 +87,7 @@ fn contains(table: &[int], n: int) -> bool {
 }
 
 fn print(table: &[int]) {
+    __builtin_putstr("Table contains:");
     newLine();
     for i = 0; i < table.count; ++i {
         if table[i] >= 0 {
