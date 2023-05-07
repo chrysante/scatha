@@ -413,15 +413,15 @@ void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
         [](Type const& type) { SC_UNREACHABLE(); },
         [&](IntegralType const& type) {
             utl::small_vector<APInt::Limb> limbs(
-                type.bitWidth() / sizeof(APInt::Limb));
-            std::memcpy(limbs.data(), data.data(), type.bitWidth() / CHAR_BIT);
+                type.bitwidth() / sizeof(APInt::Limb));
+            std::memcpy(limbs.data(), data.data(), type.bitwidth() / CHAR_BIT);
             str << formatType(&type) << " "
-                << formatNumLiteral(APInt(limbs, type.bitWidth()).toString());
+                << formatNumLiteral(APInt(limbs, type.bitwidth()).toString());
         },
         [&](FloatType const& type) {
-            SC_ASSERT(type.bitWidth() == 32 || type.bitWidth() == 64, "");
+            SC_ASSERT(type.bitwidth() == 32 || type.bitwidth() == 64, "");
             str << formatType(&type) << " ";
-            if (type.bitWidth() == 32) {
+            if (type.bitwidth() == 32) {
                 float f;
                 std::memcpy(&f, data.data(), 4);
                 str << formatNumLiteral(f);
@@ -434,7 +434,7 @@ void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
         },
         [&](ArrayType const& type) {
             if (auto* intType = dyncast<IntegralType const*>(type.elementType());
-                intType && intType->bitWidth() == 8)
+                intType && intType->bitwidth() == 8)
             {
                 std::string_view text(reinterpret_cast<char const*>(data.data()), data.size());
                 str << tfmt::format(tfmt::Red, '"', text, '"');

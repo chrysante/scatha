@@ -24,7 +24,7 @@ static APInt parseInt(Token token, Type const* type) {
     SC_ASSERT(token.kind() == TokenKind::IntLiteral, "");
     auto value = APInt::parse(token.id(),
                               10,
-                              cast<IntegralType const*>(type)->bitWidth());
+                              cast<IntegralType const*>(type)->bitwidth());
     if (!value) {
         throw SyntaxIssue(token);
     }
@@ -33,7 +33,7 @@ static APInt parseInt(Token token, Type const* type) {
 
 static APFloat parseFloat(Token token, Type const* type) {
     SC_ASSERT(token.kind() == TokenKind::FloatLiteral, "");
-    size_t bitwidth = cast<FloatType const*>(type)->bitWidth();
+    size_t bitwidth = cast<FloatType const*>(type)->bitwidth();
     SC_ASSERT(bitwidth == 32 || bitwidth == 64, "");
     auto value = APFloat::parse(token.id(),
                                 bitwidth == 32 ? APFloatPrec::Single :
@@ -956,7 +956,7 @@ void ParseContext::parseConstantData(Type const* type, utl::vector<u8>& data) {
             expect(eatToken(), TokenKind::CloseBracket);
         },
         [&](IntegralType const& type) {
-            size_t const bitwidth = type.bitWidth();
+            size_t const bitwidth = type.bitwidth();
             SC_ASSERT(bitwidth % 8 == 0, "");
             Token const token = eatToken();
             expect(token, TokenKind::IntLiteral);
@@ -1110,7 +1110,7 @@ V* ParseContext::getValue(Type const* type, Token const& token) {
                 reportSemaIssue(token, SemanticIssue::InvalidType);
             }
             auto value = parseFloat(token, floatType);
-            return irCtx.floatConstant(value, floatType->bitWidth());
+            return irCtx.floatConstant(value, floatType->bitwidth());
         }
         else {
             SC_UNREACHABLE();

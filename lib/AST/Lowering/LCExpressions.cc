@@ -18,7 +18,7 @@ static bool isArray(Expression const* expr) {
 }
 
 static bool isIntType(size_t width, ir::Type const* type) {
-    return cast<ir::IntegralType const*>(type)->bitWidth() == 1;
+    return cast<ir::IntegralType const*>(type)->bitwidth() == 1;
 }
 
 /// MARK: getValue() Implementation

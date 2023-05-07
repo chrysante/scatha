@@ -8,8 +8,8 @@ using namespace ir;
 
 IntegralConstant::IntegralConstant(Context& context,
                                    APInt value,
-                                   size_t bitWidth):
-    Constant(NodeType::IntegralConstant, context.integralType(bitWidth)),
+                                   size_t bitwidth):
+    Constant(NodeType::IntegralConstant, context.integralType(bitwidth)),
     _value(value) {}
 
 IntegralType const* IntegralConstant::type() const {
@@ -18,8 +18,8 @@ IntegralType const* IntegralConstant::type() const {
 
 FloatingPointConstant::FloatingPointConstant(Context& context,
                                              APFloat value,
-                                             size_t bitWidth):
-    Constant(NodeType::FloatingPointConstant, context.floatType(bitWidth)),
+                                             size_t bitwidth):
+    Constant(NodeType::FloatingPointConstant, context.floatType(bitwidth)),
     _value(value) {}
 
 FloatType const* FloatingPointConstant::type() const {

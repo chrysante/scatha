@@ -203,15 +203,15 @@ bool SCCPContext::apply() {
             continue;
         }
         SC_ASSERT(isa<Instruction>(value), "We can only replace instructions");
-        size_t const bitWidth =
-            cast<ArithmeticType const*>(value->type())->bitWidth();
+        size_t const bitwidth =
+            cast<ArithmeticType const*>(value->type())->bitwidth();
         // clang-format off
         Value* const newValue = visit(utl::overload{
             [&](APInt const& constant) {
                 return irCtx.integralConstant(constant);
             },
             [&](APFloat const& constant) {
-                return irCtx.floatConstant(constant, bitWidth);
+                return irCtx.floatConstant(constant, bitwidth);
             },
             [](auto const&) -> Value* { SC_UNREACHABLE(); }
         }, latticeElement); // clang-format on
@@ -431,22 +431,22 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
     switch (conv) {
     case Conversion::Zext: {
         APInt value = operand.get<APInt>();
-        return value.zext(targetType->bitWidth());
+        return value.zext(targetType->bitwidth());
     }
     case Conversion::Sext: {
         APInt value = operand.get<APInt>();
-        return value.sext(targetType->bitWidth());
+        return value.sext(targetType->bitwidth());
     }
     case Conversion::Trunc: {
         APInt value = operand.get<APInt>();
         /// `APInt::zext` also handles truncation.
-        return value.zext(targetType->bitWidth());
+        return value.zext(targetType->bitwidth());
     }
     case Conversion::Fext: {
         APFloat value = operand.get<APFloat>();
         SC_ASSERT(value.precision() == APFloatPrec::Single,
                   "Can only extend single precision floats");
-        SC_ASSERT(targetType->bitWidth() == 64,
+        SC_ASSERT(targetType->bitwidth() == 64,
                   "Can only extend to 64 bit floats");
         return APFloat(value.to<float>(), APFloatPrec::Double);
     }
@@ -454,7 +454,7 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
         APFloat value = operand.get<APFloat>();
         SC_ASSERT(value.precision() == APFloatPrec::Double,
                   "Can only truncate double precision floats");
-        SC_ASSERT(targetType->bitWidth() == 32,
+        SC_ASSERT(targetType->bitwidth() == 32,
                   "Can only truncate to 32 bit floats");
         return APFloat(value.to<double>(), APFloatPrec::Single);
     }

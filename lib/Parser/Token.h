@@ -49,7 +49,7 @@ struct SCATHA_API Token {
 
     SourceLocation sourceLocation() const { return _sourceRange.begin(); }
 
-    APInt toInteger(size_t bitWidth) const;
+    APInt toInteger(size_t bitwidth) const;
 
     APInt toBool() const;
 

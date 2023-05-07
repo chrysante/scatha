@@ -13,7 +13,7 @@ namespace scatha::ir {
 /// Represents a global integral constant value.
 class SCATHA_API IntegralConstant: public Constant {
 public:
-    explicit IntegralConstant(Context& context, APInt value, size_t bitWidth);
+    explicit IntegralConstant(Context& context, APInt value, size_t bitwidth);
 
     /// \returns The value of this constant.
     APInt const& value() const { return _value; }
@@ -30,7 +30,7 @@ class SCATHA_API FloatingPointConstant: public Constant {
 public:
     explicit FloatingPointConstant(Context& context,
                                    APFloat value,
-                                   size_t bitWidth);
+                                   size_t bitwidth);
 
     /// \returns The value of this constant.
     APFloat const& value() const { return _value; }

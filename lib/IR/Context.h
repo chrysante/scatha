@@ -35,12 +35,12 @@ public:
     /// \returns The `ptr` type
     PointerType const* pointerType() { return _ptrType; }
 
-    /// \returns The `iN` type where `N` is \p bitWidth
-    IntegralType const* integralType(size_t bitWidth);
+    /// \returns The `iN` type where `N` is \p bitwidth
+    IntegralType const* integralType(size_t bitwidth);
 
-    /// \returns The `fN` type where `N` is \p bitWidth
-    /// \param bitWidth must be either 32 or 64
-    FloatType const* floatType(size_t bitWidth);
+    /// \returns The `fN` type where `N` is \p bitwidth
+    /// \param bitwidth must be either 32 or 64
+    FloatType const* floatType(size_t bitwidth);
 
     /// \returns The structure type with members \p members
     StructureType const* anonymousStructure(
@@ -52,17 +52,17 @@ public:
     /// \returns The global integral constant with value \p value
     IntegralConstant* integralConstant(APInt value);
 
-    /// \returns The global integral constant of \p bitWidth bits with value \p
+    /// \returns The global integral constant of \p bitwidth bits with value \p
     /// value
-    IntegralConstant* integralConstant(u64 value, size_t bitWidth);
+    IntegralConstant* integralConstant(u64 value, size_t bitwidth);
 
-    /// \returns The global floating point constant of \p bitWidth bits with
+    /// \returns The global floating point constant of \p bitwidth bits with
     /// value \p value
-    FloatingPointConstant* floatConstant(APFloat value, size_t bitWidth);
+    FloatingPointConstant* floatConstant(APFloat value, size_t bitwidth);
 
-    /// \returns The global floating point constant of \p bitWidth bits with
+    /// \returns The global floating point constant of \p bitwidth bits with
     /// value \p value
-    FloatingPointConstant* floatConstant(double value, size_t bitWidth);
+    FloatingPointConstant* floatConstant(double value, size_t bitwidth);
 
     /// \returns The global integral or floating point constant of type \p type
     /// with value \p value

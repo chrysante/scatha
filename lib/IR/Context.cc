@@ -25,24 +25,24 @@ Context& Context::operator=(Context&&) noexcept = default;
 Context::~Context() = default;
 
 template <typename A>
-static auto* getArithmeticType(size_t bitWidth, auto& types, auto& map) {
-    auto itr = map.find(bitWidth);
+static auto* getArithmeticType(size_t bitwidth, auto& types, auto& map) {
+    auto itr = map.find(bitwidth);
     if (itr != map.end()) {
         return itr->second;
     }
-    auto type = allocate<A>(bitWidth);
-    itr       = map.insert({ bitWidth, type.get() }).first;
+    auto type = allocate<A>(bitwidth);
+    itr       = map.insert({ bitwidth, type.get() }).first;
     types.push_back(std::move(type));
     return itr->second;
 }
 
-IntegralType const* Context::integralType(size_t bitWidth) {
-    return getArithmeticType<IntegralType>(bitWidth, _types, _intTypes);
+IntegralType const* Context::integralType(size_t bitwidth) {
+    return getArithmeticType<IntegralType>(bitwidth, _types, _intTypes);
 }
 
-FloatType const* Context::floatType(size_t bitWidth) {
-    SC_ASSERT(bitWidth == 32 || bitWidth == 64, "Other sizes not supported");
-    return getArithmeticType<FloatType>(bitWidth, _types, _floatTypes);
+FloatType const* Context::floatType(size_t bitwidth) {
+    SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Other sizes not supported");
+    return getArithmeticType<FloatType>(bitwidth, _types, _floatTypes);
 }
 
 StructureType const* Context::anonymousStructure(
@@ -85,23 +85,23 @@ IntegralConstant* Context::integralConstant(APInt value) {
     return itr->second.get();
 }
 
-IntegralConstant* Context::integralConstant(u64 value, size_t bitWidth) {
-    return integralConstant(APInt(value, bitWidth));
+IntegralConstant* Context::integralConstant(u64 value, size_t bitwidth) {
+    return integralConstant(APInt(value, bitwidth));
 }
 
-FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitWidth) {
-    auto itr = _floatConstants.find({ bitWidth, value });
+FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitwidth) {
+    auto itr = _floatConstants.find({ bitwidth, value });
     if (itr == _floatConstants.end()) {
         std::tie(itr, std::ignore) = _floatConstants.insert(
-            { std::pair{ bitWidth, value },
-              allocate<FloatingPointConstant>(*this, value, bitWidth) });
+            { std::pair{ bitwidth, value },
+              allocate<FloatingPointConstant>(*this, value, bitwidth) });
     }
     SC_ASSERT(itr->second->value() == value, "Value mismatch");
     return itr->second.get();
 }
 
-FloatingPointConstant* Context::floatConstant(double value, size_t bitWidth) {
-    switch (bitWidth) {
+FloatingPointConstant* Context::floatConstant(double value, size_t bitwidth) {
+    switch (bitwidth) {
     case 32:
         return floatConstant(APFloat(value, APFloatPrec::Single), 32);
     case 64:
@@ -116,10 +116,10 @@ Constant* Context::arithmeticConstant(int64_t value, Type const* type) {
     return visit(*type, utl::overload{
         [&](IntegralType const& type) {
             return integralConstant(static_cast<uint64_t>(value),
-                                    type.bitWidth());
+                                    type.bitwidth());
         },
         [&](FloatType const& type) {
-            return floatConstant(value, type.bitWidth());
+            return floatConstant(value, type.bitwidth());
         },
         [&](Type const& type) -> Constant* { SC_UNREACHABLE(); }
     }); // clang-format on

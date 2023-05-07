@@ -82,17 +82,17 @@ public:
 /// Base class of `Integral` and `FloatingPoint` types.
 class ArithmeticType: public Type {
 public:
-    size_t bitWidth() const { return _bitWidth; }
+    size_t bitwidth() const { return _bitWidth; }
 
 protected:
     explicit ArithmeticType(std::string_view typenamePrefix,
                             TypeCategory category,
-                            size_t bitWidth):
-        Type(utl::strcat(typenamePrefix, bitWidth),
+                            size_t bitwidth):
+        Type(utl::strcat(typenamePrefix, bitwidth),
              category,
-             utl::ceil_divide(bitWidth, 8),
-             utl::ceil_divide(bitWidth, 8)),
-        _bitWidth(bitWidth) {}
+             utl::ceil_divide(bitwidth, 8),
+             utl::ceil_divide(bitwidth, 8)),
+        _bitWidth(bitwidth) {}
 
 private:
     size_t _bitWidth;
@@ -101,15 +101,15 @@ private:
 /// Represents an integral type.
 class IntegralType: public ArithmeticType {
 public:
-    explicit IntegralType(size_t bitWidth):
-        ArithmeticType("i", TypeCategory::IntegralType, bitWidth) {}
+    explicit IntegralType(size_t bitwidth):
+        ArithmeticType("i", TypeCategory::IntegralType, bitwidth) {}
 };
 
 /// Represents a floating point type.
 class FloatType: public ArithmeticType {
 public:
-    explicit FloatType(size_t bitWidth):
-        ArithmeticType("f", TypeCategory::FloatType, bitWidth) {}
+    explicit FloatType(size_t bitwidth):
+        ArithmeticType("f", TypeCategory::FloatType, bitwidth) {}
 };
 
 /// Represents a (user defined) structure type.

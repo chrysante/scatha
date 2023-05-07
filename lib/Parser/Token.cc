@@ -50,7 +50,7 @@ bool parse::isIdentifier(TokenKind kind) {
     }
 }
 
-APInt Token::toInteger(size_t bitWidth) const {
+APInt Token::toInteger(size_t bitwidth) const {
     SC_ASSERT(kind() == TokenKind::IntegerLiteral,
               "Token is not an integer literal");
     auto value = [&] {
@@ -62,9 +62,9 @@ APInt Token::toInteger(size_t bitWidth) const {
         return APInt::parse(_id);
     }();
     SC_ASSERT(value, "Invalid literal value");
-    SC_ASSERT(value->bitwidth() <= bitWidth,
+    SC_ASSERT(value->bitwidth() <= bitwidth,
               "Value too large for integral type");
-    value->zext(bitWidth);
+    value->zext(bitwidth);
     return *value;
 }
 

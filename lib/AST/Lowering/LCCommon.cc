@@ -49,7 +49,7 @@ ir::Value* LoweringContext::makeLocal(ir::Type const* type, std::string name) {
 ir::Value* LoweringContext::makeArrayRef(ir::Value* addr, ir::Value* count) {
     SC_ASSERT(isa<ir::PointerType>(addr->type()),
               "Address needs to be a pointer");
-    SC_ASSERT(cast<ir::IntegralType const*>(count->type())->bitWidth() == 64,
+    SC_ASSERT(cast<ir::IntegralType const*>(count->type())->bitwidth() == 64,
               "Count needs to be a 64 bit integer");
     auto* base = add<ir::InsertValue>(ctx.undef(arrayViewType),
                                       addr,

@@ -769,14 +769,14 @@ mir::Value* CodeGenContext::resolveImpl(ir::Value const* value) {
             return reg;
         },
         [&](ir::IntegralConstant const& constant) {
-            SC_ASSERT(constant.type()->bitWidth() <= 64, "");
+            SC_ASSERT(constant.type()->bitwidth() <= 64, "");
             uint64_t value = constant.value().to<uint64_t>();
             auto* mirConst = result.constant(value, constant.type()->size());
             valueMap.insert({ &constant, mirConst });
             return mirConst;
         },
         [&](ir::FloatingPointConstant const& constant) -> mir::Value* {
-            SC_ASSERT(constant.type()->bitWidth() <= 64, "");
+            SC_ASSERT(constant.type()->bitwidth() <= 64, "");
             uint64_t value = 0;
             if (constant.value().precision() == APFloatPrec::Single) {
                 value = utl::bit_cast<uint32_t>(constant.value().to<float>());
