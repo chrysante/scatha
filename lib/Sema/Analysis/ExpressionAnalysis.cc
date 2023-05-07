@@ -417,7 +417,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
 
 bool Context::analyzeImpl(ast::FunctionCall& fc) {
     bool success = analyze(*fc.object());
-
+    bool isMemberCall = false;
     /// We gather and analyze all the arguments
     auto argumentExprs =
         fc.arguments() | ranges::to<utl::small_vector<ast::Expression*>>;
@@ -433,7 +433,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
         memberAccess && memberAccess->object()->isValue())
     {
         argumentExprs.insert(argumentExprs.begin(), memberAccess->object());
-        fc.isMemberCall = true;
+        isMemberCall = true;
     }
     /// Extract the argument types to perform overload resolution
     auto argTypes = argumentExprs |
@@ -444,7 +444,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     bool const result = visit(*fc.object()->entity(), utl::overload{
         [&](OverloadSet& overloadSet) {
             auto* function = overloadSet.find(argTypes);
-            if (!function && fc.isMemberCall) {
+            if (!function && isMemberCall) {
                 /// We try again with our object argument as a reference
                 argTypes.front() = sym.setReference(argTypes.front(), Reference::Explicit);
                 function = overloadSet.find(argTypes);
@@ -485,7 +485,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
         return false;
     }
 
-    if (fc.isMemberCall) {
+    if (isMemberCall) {
         auto object    = fc.extractObject<ast::MemberAccess>();
         auto memFunc   = object->extractMember();
         auto objectArg = object->extractObject();
@@ -502,7 +502,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
                             calledFunction->argumentTypes()))
     {
         bool success = true;
-        if (index == 0 && fc.isMemberCall) {
+        if (index == 0 && isMemberCall) {
             success = convertExplicitly(arg, targetType, iss);
         }
         else {

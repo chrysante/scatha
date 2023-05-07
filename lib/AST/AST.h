@@ -584,8 +584,6 @@ public:
     F const* function() const {
         return cast<F const*>(entity());
     }
-
-    bool isMemberCall = false;
 };
 
 /// Concrete node representing a subscript expression.
