@@ -135,6 +135,10 @@ public:
     /// qualifications
     QualType const* stripQualifiers(QualType const* type);
 
+    /// \Returns The `QualType` with same qualifiers as \p type but with
+    /// \p objType as base
+    QualType const* copyQualifiers(QualType const* from, ObjectType const* to);
+
     /// \Returns The `QualType` with same base type as \p type but reference
     /// qualification \p ref
     QualType const* setReference(QualType const* type, Reference ref);

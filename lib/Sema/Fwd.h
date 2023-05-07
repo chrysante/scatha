@@ -29,6 +29,8 @@ namespace scatha::sema {
 
 class SymbolTable;
 
+class Conversion;
+
 ///
 /// # Forward Declaration of all entity types
 ///
@@ -102,7 +104,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, ConversionKind);
 enum class AccessSpecifier { Public, Private };
 
 /// Reference qualifiers of `QualType`
-enum class Reference { None, Implicit, Explicit };
+enum class Reference { None = 0, Implicit = 1, Explicit = 2 };
 
 /// Mutability qualifiers of `QualType`
 enum class Mutability { Const, Mutable };

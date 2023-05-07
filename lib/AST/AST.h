@@ -622,20 +622,23 @@ public:
 class SCATHA_API Conversion: public Expression {
 public:
     explicit Conversion(UniquePtr<Expression> expr,
-                        sema::QualType const* targetType):
-        Expression(NodeType::Conversion, expr->sourceRange(), std::move(expr)),
-        _targetType(targetType) {}
+                        std::unique_ptr<sema::Conversion> conv);
+
+    ~Conversion();
 
     AST_DERIVED_COMMON(Conversion)
 
     /// The target type of the conversion
-    sema::QualType const* targetType() const { return _targetType; }
+    sema::QualType const* targetType() const;
+
+    /// The conversion
+    sema::Conversion const* conversion() const { return _conv.get(); }
 
     /// The expression being converted
     AST_PROPERTY(0, Expression, expression, Expression)
 
 private:
-    sema::QualType const* _targetType = nullptr;
+    std::unique_ptr<sema::Conversion> _conv;
 };
 
 /// Abstract node representing a statement.

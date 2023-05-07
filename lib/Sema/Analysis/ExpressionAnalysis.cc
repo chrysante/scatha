@@ -168,10 +168,8 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
             submitIssue();
             return false;
         }
-        if (!operandType->isReference()) {
-            insertConversion(u.operand(),
-                             sym.setReference(operandType,
-                                              Reference::Implicit));
+        if (!convertToImplicitRef(u.operand(), sym, iss)) {
+            return false;
         }
         break;
     case ast::UnaryPrefixOperator::_count:
@@ -253,9 +251,9 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
                 ma.member()->type(),
                 ma.object()->valueCategory(),
                 ma.member()->entityCategory());
-    /// Dereference the object if its a reference
-    if (ma.object()->isValue() && ma.object()->type()->isReference()) {
-        insertConversion(ma.object(), removeReference(ma.object()->type()));
+    /// Dereference the object if its a value
+    if (ma.object()->isValue()) {
+        dereference(ma.object(), sym);
     }
     return true;
 }
@@ -285,27 +283,30 @@ bool Context::uniformFunctionCall(ast::MemberAccess& ma) {
 }
 
 bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
-    /// We reference an overload set, so if our parent is not a call expression
-    /// we should rewrite this
+    SC_ASSERT(!isa<ast::FunctionCall>(ma.parent()), "Precondition");
+    /// We reference an overload set, so since our parent is not a call
+    /// expression we rewrite the AST here
     auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
     auto* argType = sym.setReference(ma.object()->type(), Reference::Explicit);
-    auto* func    = overloadSet->find(std::array{ argType });
+
+    auto* func = overloadSet->find(std::array{ argType });
     if (!func) {
         iss.push<BadExpression>(ma);
         return false;
     }
-    auto sourceRange = ma.object()->sourceRange();
-    auto refArg =
-        allocate<ast::ReferenceExpression>(ma.extractObject(), sourceRange);
-    if (!analyze(*refArg)) {
-        return false;
-    }
+    argType = func->argumentType(0);
     utl::small_vector<UniquePtr<ast::Expression>> args;
-    args.push_back(std::move(refArg));
+    args.push_back(ma.extractObject());
     auto call = allocate<ast::FunctionCall>(ma.extractMember(),
                                             std::move(args),
                                             ma.sourceRange());
     call->decorate(func, func->returnType(), ValueCategory::RValue);
+
+    if (!convertExplicitly(call->argument(0), argType, iss)) {
+        return false;
+    }
+
+    /// Now `ma` goes out of scope
     ma.parent()->replaceChild(&ma, std::move(call));
     return true;
 }
@@ -408,11 +409,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
-    auto* objType = expr.object()->type();
-    if (objType->isReference()) {
-        insertConversion(expr.object(),
-                         sym.setReference(objType, Reference::None));
-    }
+    dereference(expr.object(), sym);
     auto* elemType = sym.qualify(arrayType->elementType(), Reference::Implicit);
     expr.decorate(nullptr, elemType);
     return true;
@@ -499,20 +496,21 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
 
     /// We issue conversions if necassary
     auto* calledFunction = fc.function();
-    bool first           = true;
-    for (auto [arg, targetType]:
-         ranges::views::zip(fc.arguments(), calledFunction->argumentTypes()))
+    for (auto [index, arg, targetType]:
+         ranges::views::zip(ranges::views::iota(0),
+                            fc.arguments(),
+                            calledFunction->argumentTypes()))
     {
-        if (first && fc.isMemberCall && arg->type() != targetType) {
-            insertConversion(arg, targetType);
-            continue;
+        bool success = true;
+        if (index == 0 && fc.isMemberCall) {
+            success = convertExplicitly(arg, targetType, iss);
         }
-        first        = false;
-        bool success = convertImplicitly(arg, targetType, iss);
-
+        else {
+            success = convertImplicitly(arg, targetType, iss);
+        }
         SC_ASSERT(
             success,
-            "called function should not have been selected by overload "
+            "Called function should not have been selected by overload "
             "resolution if the implicit conversion of the argument fails");
     }
 
@@ -764,26 +762,13 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     case OrAssignment:
         [[fallthrough]];
     case XOrAssignment: {
+        auto* lhsType = expr.lhs()->type();
         /// Here we only look at assignment _through_ references
         /// That means LHS shall be an implicit reference
-        auto* lhsType = expr.lhs()->type();
-        if (!lhsType->isReference()) {
-            if (expr.lhs()->isLValue()) {
-                insertConversion(expr.lhs(),
-                                 sym.setReference(lhsType,
-                                                  Reference::Implicit));
-            }
-            else {
-                SC_DEBUGFAIL();
-                /// Emit issue: Can't assign to rvalue object
-                return nullptr;
-            }
-        }
-        auto* lhsTypeStripped = stripQualifiers(lhsType);
-        if (!convertImplicitly(expr.rhs(), lhsTypeStripped, iss)) {
-            return nullptr;
-        }
-        return sym.qVoid();
+        bool success = true;
+        success &= convertToImplicitRef(expr.lhs(), sym, iss);
+        success &= convertImplicitly(expr.rhs(), stripQualifiers(lhsType), iss);
+        return success ? sym.qVoid() : nullptr;
     }
     case Comma:
         SC_UNREACHABLE("Handled above");
@@ -796,15 +781,12 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
 QualType const* Context::analyzeReferenceAssignment(
     ast::BinaryExpression& expr) {
     SC_ASSERT(expr.rhs()->type()->isExplicitReference(), "");
-    if (!isImplicitlyConvertible(expr.lhs()->type(), expr.rhs()->type())) {
-        iss.push<BadTypeConversion>(*expr.rhs(), expr.lhs()->type());
-        return nullptr;
-    }
     auto* explicitRefType =
         sym.setReference(expr.lhs()->type(), Reference::Explicit);
-    convertArtificially(expr.lhs(), explicitRefType);
-    convertArtificially(expr.rhs(), explicitRefType);
-    return sym.qVoid();
+    bool success = true;
+    success &= convertExplicitly(expr.lhs(), explicitRefType, iss);
+    success &= convertExplicitly(expr.rhs(), explicitRefType, iss);
+    return success ? sym.qVoid() : nullptr;
 }
 
 Function* Context::findExplicitCast(ObjectType const* to,

@@ -231,6 +231,11 @@ QualType const* SymbolTable::stripQualifiers(QualType const* type) {
     return qualify(type->base());
 }
 
+QualType const* SymbolTable::copyQualifiers(QualType const* from,
+                                            ObjectType const* to) {
+    return qualify(to, from->reference());
+}
+
 QualType const* SymbolTable::setReference(QualType const* type, Reference ref) {
     return qualify(type->base(), ref);
 }

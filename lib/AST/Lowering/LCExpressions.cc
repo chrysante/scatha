@@ -7,6 +7,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
+#include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -338,38 +339,37 @@ ir::Value* LoweringContext::getValueImpl(Subscript const& expr) {
 
 ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
     auto* expr = conv.expression();
-    /// Dereference
-    if (!conv.type()->isReference() && expr->type()->isImplicitReference()) {
-        auto* address = getValue(expr);
-        return add<ir::Load>(address,
-                             mapType(conv.type()),
-                             utl::strcat(address->name(), ".deref"));
-    }
-    /// Take address
-    if (conv.type()->isImplicitReference() && !expr->type()->isReference()) {
-        return getAddress(expr);
-    }
-    /// Take address of reference
-    if (conv.type()->isExplicitReference() &&
-        expr->type()->isImplicitReference())
-    {
-        SC_ASSERT(expr->type()->isReference(), "");
-        return getAddress(expr);
-    }
+    auto* result = [&]() -> ir::Value* {
+        switch (conv.conversion()->refConversion()) {
+        case sema::RefConversion::None:
+            return getValue(expr);
+        case sema::RefConversion::Dereference: {
+            auto* address = getValue(expr);
+            return add<ir::Load>(address,
+                                 mapType(expr->type()->base()),
+                                 utl::strcat(address->name(), ".deref"));
+        }
+        case sema::RefConversion::TakeAddress:
+            return getAddress(expr);
+        }
+    }();
 
-    if (auto* originArray =
-            dyncast<sema::ArrayType const*>(expr->type()->base()))
-    {
-        auto* targetArray = cast<sema::ArrayType const*>(conv.type()->base());
-        SC_ASSERT(!originArray->isDynamic() && targetArray->isDynamic(), "");
-        SC_ASSERT(conv.type()->isReference(),
-                  "How shall conversion between array value types work?");
-        auto* addr =
-            expr->type()->isReference() ? getValue(expr) : getAddress(expr);
-        return makeArrayRef(addr, originArray->count());
+    switch (conv.conversion()->objectConversion()) {
+        using enum sema::ObjectTypeConversion;
+    case None:
+        return result;
+    case Array_FixedToDynamic: {
+        auto* arrayType = cast<sema::ArrayType const*>(expr->type()->base());
+        SC_ASSERT(!arrayType->isDynamic(), "Invalid conversion");
+        return makeArrayRef(result, arrayType->count());
     }
-
-    SC_DEBUGFAIL();
+    case Int_Trunc:
+        SC_DEBUGFAIL();
+    case Int_Widen:
+        SC_DEBUGFAIL();
+    case Int_WidenSigned:
+        SC_DEBUGFAIL();
+    }
 }
 
 ir::Value* LoweringContext::getValueImpl(ListExpression const& list) {

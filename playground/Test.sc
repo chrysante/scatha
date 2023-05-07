@@ -1,12 +1,15 @@
 
-fn print(text: &[byte]) {
-    __builtin_putstr(&text);
-    __builtin_putchar(10);
+struct X {
+    var i: &mut int;
 }
-
-public fn main() {
-    let a = [1, 2, 3];
-    print("Hello World!");
+public fn main() -> int {
+    var i = 0;
+    var x: X;
+    x.i = &i;
+    f(x);
+    return i;
 }
-
+fn f(x: X)  {
+    ++x.i;
+}
 

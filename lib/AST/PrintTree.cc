@@ -9,6 +9,7 @@
 #include "AST/AST.h"
 #include "Common/Base.h"
 #include "Common/PrintUtil.h"
+#include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -195,6 +196,11 @@ struct PrintCtx {
             },
             [&](LoopStatement const& loop) {
                 str << header(&indent, &node, loop.kind()) << '\n';
+            },
+            [&](Conversion const& conv) {
+                str << header(&indent, &node,
+                              conv.conversion()->refConversion(), ", ",
+                              conv.conversion()->objectConversion()) << '\n';
             }
         }); // clang-format on
         visit(node, [&](auto& node) { printChildren(node); });

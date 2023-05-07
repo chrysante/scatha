@@ -3,11 +3,11 @@
 #include <range/v3/algorithm.hpp>
 #include <utl/utility.hpp>
 
+#include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
 using namespace ast;
-using namespace sema;
 
 void scatha::internal::privateDelete(AbstractSyntaxTree* node) {
     visit(*node, [](auto& derived) { delete &derived; });
@@ -32,21 +32,21 @@ size_t AbstractSyntaxTree::indexOf(AbstractSyntaxTree const* child) const {
     return utl::narrow_cast<size_t>(itr - _children.begin());
 }
 
-void Expression::decorate(Entity* entity,
-                          QualType const* type,
-                          std::optional<ValueCategory> valueCat,
-                          std::optional<EntityCategory> entityCat) {
+void Expression::decorate(sema::Entity* entity,
+                          sema::QualType const* type,
+                          std::optional<sema::ValueCategory> valueCat,
+                          std::optional<sema::EntityCategory> entityCat) {
     _entity = entity;
     _type   = type;
     /// Derive defaults
     if (entity) {
-        _valueCat =
-            entity->isValue() ? ValueCategory::LValue : ValueCategory::None;
+        _valueCat  = entity->isValue() ? sema::ValueCategory::LValue :
+                                         sema::ValueCategory::None;
         _entityCat = entity->category();
     }
     else {
-        _valueCat  = ValueCategory::RValue;
-        _entityCat = EntityCategory::Value;
+        _valueCat  = sema::ValueCategory::RValue;
+        _entityCat = sema::EntityCategory::Value;
     }
     /// Override if user specified
     if (valueCat) {
@@ -59,5 +59,16 @@ void Expression::decorate(Entity* entity,
 }
 
 sema::QualType const* Expression::typeOrTypeEntity() const {
-    return isValue() ? type() : cast<QualType const*>(entity());
+    return isValue() ? type() : cast<sema::QualType const*>(entity());
+}
+
+Conversion::Conversion(UniquePtr<Expression> expr,
+                       std::unique_ptr<sema::Conversion> conv):
+    Expression(NodeType::Conversion, expr->sourceRange(), std::move(expr)),
+    _conv(std::move(conv)) {}
+
+Conversion::~Conversion() = default;
+
+sema::QualType const* Conversion::targetType() const {
+    return conversion()->targetType();
 }
