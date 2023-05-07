@@ -1,5 +1,5 @@
-#ifndef SCATHA_SEMA_CONVERSION_H_
-#define SCATHA_SEMA_CONVERSION_H_
+#ifndef SCATHA_SEMA_ANALYSIS_CONVERSION_H_
+#define SCATHA_SEMA_ANALYSIS_CONVERSION_H_
 
 #include "AST/Fwd.h"
 #include "Issue/IssueHandler.h"
@@ -33,4 +33,4 @@ void convertArtificially(ast::Expression* expr, QualType const* to);
 
 } // namespace scatha::sema
 
-#endif // SCATHA_SEMA_CONVERSION_H_
+#endif // SCATHA_SEMA_ANALYSIS_CONVERSION_H_

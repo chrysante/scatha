@@ -7,7 +7,7 @@
 #include <svm/Builtin.h>
 
 #include "AST/Fwd.h"
-#include "Sema/Conversion.h"
+#include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 

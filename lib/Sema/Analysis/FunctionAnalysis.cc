@@ -4,8 +4,8 @@
 
 #include "AST/AST.h"
 #include "Common/Base.h"
+#include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
-#include "Sema/Conversion.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 
