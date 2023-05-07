@@ -221,6 +221,9 @@ public:
     /// \overload
     OverloadSet const* overloadSet() const { return _overloadSet; }
 
+    /// Set the signature of this function
+    void setSignature(FunctionSignature sig) { _sig = std::move(sig); }
+
     /// \Returns The signature of this function.
     FunctionSignature const& signature() const { return _sig; }
 
@@ -283,7 +286,7 @@ public:
     void removeAttribute(FunctionAttribute attr) { attrs &= ~attr; }
 
 private:
-    friend class SymbolTable; /// To set `_sig`
+    friend class SymbolTable;
     FunctionSignature _sig;
     OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;

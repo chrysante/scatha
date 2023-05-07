@@ -47,7 +47,7 @@ struct Match {
 
 } // namespace
 
-Expected<Function*, OverloadResolutionError*> performOverloadResolution(
+Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
     OverloadSet* overloadSet,
     std::span<QualType const* const> argumentTypes,
     bool isMemberCall) {

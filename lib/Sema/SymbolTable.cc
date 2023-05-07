@@ -123,8 +123,8 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
 
 Expected<void, SemanticIssue*> SymbolTable::setSignature(
     Function* function, FunctionSignature sig) {
+    function->setSignature(std::move(sig));
     auto* overloadSet                   = function->overloadSet();
-    function->_sig                      = std::move(sig);
     auto const [otherFunction, success] = overloadSet->add(function);
     if (!success) {
         using enum InvalidDeclaration::Reason;
