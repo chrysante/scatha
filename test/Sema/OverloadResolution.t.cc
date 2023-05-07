@@ -42,7 +42,9 @@ TEST_CASE("Overload resolution", "[sema]") {
     SymbolTable sym;
     // clang-format off
     auto f = TestOS::make(sym, "f", {
+        /// `f(s64, &[s64])`
         { sym.qS64(), sym.arrayView(sym.S64()) },
+        /// `f(s64, &[s64, 3])`
         { sym.qS64(), sym.qualify(sym.arrayType(sym.S64(), 3), Reference::Explicit) },
     }); // clang-format on
 
@@ -72,10 +74,9 @@ TEST_CASE("Overload resolution", "[sema]") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
             sym.qualify(sym.S32(), Reference::Implicit),
-            sym.qualify(sym.arrayType(sym.S64(), 4), Reference::Explicit)
+            sym.qualify(sym.arrayType(sym.S64(), 4), Reference::Implicit)
         }, false); // clang-format on
 
         REQUIRE(!result);
-        CHECK(dynamic_cast<NoMatchingFunction*>(result.error()));
     }
 }

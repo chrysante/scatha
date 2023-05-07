@@ -297,6 +297,19 @@ void CodeGenContext::genInst(ir::Load const& load) {
     }
 }
 
+static APInt getConstantValue(ir::Constant const* constant) {
+    return visit(*constant,
+                 utl::overload{ [](ir::IntegralConstant const& constant) {
+                                   return constant.value();
+                               },
+                                [](ir::FloatingPointConstant const& constant) {
+        return bitcast<APInt>(constant.value());
+                               },
+                                [](ir::Constant const& constant) -> APInt {
+                                    SC_UNREACHABLE();
+                                } });
+}
+
 void CodeGenContext::genInst(ir::ConversionInst const& inst) {
     switch (inst.conversion()) {
     case ir::Conversion::Zext:
@@ -305,7 +318,19 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
         [[fallthrough]];
     case ir::Conversion::Bitcast: {
         /// These are no-ops, we just return the original register.
-        valueMap.insert({ &inst, resolve(inst.operand()) });
+        if (isa<ir::Instruction>(inst.operand())) {
+            valueMap.insert({ &inst, resolve(inst.operand()) });
+        }
+        else {
+            size_t const width =
+                cast<ir::ArithmeticType const*>(inst.type())->bitwidth();
+            APInt value =
+                getConstantValue(cast<ir::Constant const*>(inst.operand()));
+            value.zext(width);
+            valueMap.insert({ &inst,
+                              result.constant(value.to<uint64_t>(),
+                                              utl::ceil_divide(width, 8)) });
+        }
         return;
     }
     case ir::Conversion::Sext:
