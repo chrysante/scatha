@@ -392,11 +392,6 @@ bool Context::analyzeImpl(ast::Conditional& c) {
 bool Context::analyzeImpl(ast::Subscript& expr) {
     bool success = analyze(*expr.object());
     success &= expectValue(*expr.object());
-    auto* arrayType = dyncast<ArrayType const*>(expr.object()->type()->base());
-    if (!arrayType) {
-        iss.push<BadExpression>(expr, IssueSeverity::Error);
-        return false;
-    }
     for (auto* arg: expr.arguments()) {
         success &= analyze(*arg);
         success &= expectValue(*arg);
@@ -404,16 +399,22 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
     if (!success) {
         return false;
     }
+    auto* arrayType = dyncast<ArrayType const*>(expr.object()->type()->base());
+    if (!arrayType) {
+        iss.push<BadExpression>(expr, IssueSeverity::Error);
+        return false;
+    }
     if (expr.arguments().size() != 1) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
     auto& arg = *expr.arguments().front();
-    if (arg.type()->base() != sym.S64()) {
+    if (!isa<IntType>(arg.type()->base())) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
     dereference(expr.object(), sym);
+    dereference(expr.argument(0), sym);
     auto* elemType = sym.qualify(arrayType->elementType(), Reference::Implicit);
     expr.decorate(nullptr, elemType);
     return true;
@@ -772,6 +773,9 @@ Entity* Context::lookup(ast::Identifier& id) {
 }
 
 bool Context::expectValue(ast::Expression const& expr) {
+    if (!expr.isDecorated()) {
+        return false;
+    }
     if (!expr.isValue()) {
         iss.push<BadSymbolReference>(expr, EntityCategory::Value);
         return false;
