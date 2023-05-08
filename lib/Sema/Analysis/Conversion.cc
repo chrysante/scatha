@@ -124,7 +124,10 @@ static std::optional<ObjectTypeConversion> implicitIntConversion(
 static std::optional<ObjectTypeConversion> explicitIntConversion(
     IntType const& from, IntType const& to) {
     using enum ObjectTypeConversion;
-    if (from.bitwidth() <= to.bitwidth()) {
+    if (from.bitwidth() == to.bitwidth()) {
+        return None;
+    }
+    if (from.bitwidth() < to.bitwidth()) {
         if (from.isSigned()) {
             return Signed_Widen;
         }
