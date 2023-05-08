@@ -13,6 +13,7 @@
 /// Entity
 /// ├─ Variable
 /// ├─ OverloadSet
+/// ├─ Generic
 /// └─ Scope
 ///    ├─ GlobalScope
 ///    ├─ AnonymousScope

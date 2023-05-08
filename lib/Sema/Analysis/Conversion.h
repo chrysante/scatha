@@ -17,6 +17,10 @@ enum class ObjectTypeConversion : uint8_t {
     /// Only valid for reference target types
     Array_FixedToDynamic,
 
+    Reinterpret_ArrayRef_ToByte,
+    Reinterpret_ArrayRef_FromByte,
+    Reinterpret_Value,
+
     /// Only valid for value target types
     Int_Trunc,
     Signed_Widen,
@@ -76,7 +80,7 @@ private:
 
 /// Does nothing if `expr->type() == to`
 /// If \p expr is implicitly convertible to type \p to a `Conversion` node is
-/// inserted into the AST Otherwise an error is pushed to \p issueHandler
+/// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` iff implicit conversion succeeded
 bool convertImplicitly(ast::Expression* expr,
                        QualType const* to,
@@ -84,11 +88,19 @@ bool convertImplicitly(ast::Expression* expr,
 
 /// Does nothing if `expr->type() == to`
 /// If \p expr is explicitly convertible to type \p to a `Conversion` node is
-/// inserted into the AST Otherwise an error is pushed to \p issueHandler
+/// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` iff explicit conversion succeeded
 bool convertExplicitly(ast::Expression* expr,
                        QualType const* to,
                        IssueHandler& issueHandler);
+
+/// Does nothing if `expr->type() == to`
+/// If \p expr is interpretable as type \p to a `Conversion` node is
+/// inserted into the AST. Otherwise an error is pushed to \p issueHandler
+/// \Returns `true` iff reinterpret conversion succeeded
+bool convertReinterpret(ast::Expression* expr,
+                        QualType const* to,
+                        IssueHandler& issueHandler);
 
 /// \Returns The rank of the conversion if an implicit conversion from type \p
 /// from to type \p to exists. Otherwise `std::nullopt`

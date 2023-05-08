@@ -773,7 +773,7 @@ UniquePtr<ast::Expression> Context::parseReference() {
     }
     tokens.eat();
     bool const mut = eatMut();
-    auto referred  = parseConditional();
+    auto referred  = parseReference();
     return allocate<ast::ReferenceExpression>(std::move(referred),
                                               refToken.sourceRange());
 }
@@ -794,26 +794,56 @@ UniquePtr<ast::Expression> Context::parseUnique() {
 }
 
 UniquePtr<ast::Expression> Context::parsePostfix() {
-    auto primary = parsePrimary();
-    if (!primary) {
+    auto expr = parseGeneric();
+    if (!expr) {
         return nullptr;
     }
     while (true) {
         auto const& token = tokens.peek();
         if (token.kind() == OpenBracket) {
-            primary = parseSubscript(std::move(primary));
+            expr = parseSubscript(std::move(expr));
         }
         else if (token.kind() == OpenParan) {
-            primary = parseFunctionCall(std::move(primary));
+            expr = parseFunctionCall(std::move(expr));
         }
         else if (token.kind() == Dot) {
-            primary = parseMemberAccess(std::move(primary));
+            expr = parseMemberAccess(std::move(expr));
         }
         else {
             break;
         }
     }
-    return primary;
+    return expr;
+}
+
+static bool isGenericID(ast::Expression const* expr) {
+    // clang-format off
+    return visit(*expr, utl::overload{
+        [](ast::Expression const& expr) { return false; },
+        [](ast::Identifier const& expr) {
+            /// Only generic ID for now
+            return expr.value() == "reinterpret";
+        },
+        [](ast::MemberAccess const& expr) {
+            return isGenericID(expr.member());
+        },
+    }); // clang-format on
+}
+
+UniquePtr<ast::Expression> Context::parseGeneric() {
+    auto expr = parsePrimary();
+    if (!expr) {
+        return nullptr;
+    }
+    if (isGenericID(expr.get()) && tokens.peek().kind() == Less) {
+        return parseFunctionCallLike<ast::GenericExpression>(std::move(expr),
+                                                             Less,
+                                                             Greater,
+                                                             [this] {
+            return parseAdditive();
+        });
+    }
+    return expr;
 }
 
 UniquePtr<ast::Expression> Context::parsePrimary() {
@@ -913,15 +943,28 @@ UniquePtr<ast::Literal> Context::parseLiteral() {
 template <typename FunctionCallLike>
 UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(
     UniquePtr<ast::Expression> primary, TokenKind open, TokenKind close) {
+    return parseFunctionCallLike<FunctionCallLike>(std::move(primary),
+                                                   open,
+                                                   close,
+                                                   [this] {
+        return parseAssignment();
+    });
+}
+
+template <typename FunctionCallLike>
+UniquePtr<FunctionCallLike> Context::parseFunctionCallLike(
+    UniquePtr<ast::Expression> primary,
+    TokenKind open,
+    TokenKind close,
+    auto parseCallback) {
     auto const& openToken = tokens.peek();
     SC_ASSERT(openToken.kind() == open, "");
     auto args =
         parseList<utl::small_vector<UniquePtr<ast::Expression>>>(open,
                                                                  close,
                                                                  Comma,
-                                                                 [this] {
-        return parseAssignment();
-        }).value(); // handle error
+                                                                 parseCallback)
+            .value(); // TODO: Handle error
     return allocate<FunctionCallLike>(std::move(primary),
                                       std::move(args),
                                       openToken.sourceRange());
@@ -945,7 +988,7 @@ std::optional<List> Context::parseList(TokenKind open,
             tokens.eat();
             return result;
         }
-        else if (!first) {
+        if (!first) {
             expectDelimiter(delimiter);
         }
         first     = false;

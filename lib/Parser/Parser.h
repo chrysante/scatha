@@ -93,13 +93,15 @@
 ///                                   | "++" <unary-expression>
 ///                                   | "--" <unary-expression>
 /// <reference-expression>          ::= <unique-expression> |
-///                                     "&" ["unique"] ["mut"] <conditional-expression>
+///                                     "&" ["unique"] ["mut"] <reference-expression>
 /// <unique-expression>             ::= <postfix-expression>
 ///                                   | "unique" ["mut"] <function-call> /* Exposition only */
-/// <postfix-expression>            ::= <primary-expression>
+/// <postfix-expression>            ::= <generic-expression>
 ///                                   | <postfix-expression> "[" {<assignment-expression>}* "]"
 ///                                   | <postfix-expression> "(" {<assignment-expression>}* ")"
 ///                                   | <postfix-expression> "." <identifier>
+/// <generic-expression>            ::= <primary-expression>
+///                                   | <generic-id> "<" {<additive-expression>}* ">"
 /// <primary-expression>            ::= <identifier>
 ///                                   | <integer-literal>
 ///                                   | <boolean-literal>

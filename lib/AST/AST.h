@@ -600,6 +600,21 @@ public:
     AST_DERIVED_COMMON(Subscript)
 };
 
+/// Concrete node representing a generic expression.
+class SCATHA_API GenericExpression: public CallLike {
+public:
+    explicit GenericExpression(
+        UniquePtr<Expression> object,
+        utl::small_vector<UniquePtr<Expression>> arguments,
+        SourceRange sourceRange):
+        CallLike(NodeType::GenericExpression,
+                 std::move(object),
+                 std::move(arguments),
+                 sourceRange) {}
+
+    AST_DERIVED_COMMON(GenericExpression)
+};
+
 /// Represents a list expression, i.e. `[a, b, c]`
 class SCATHA_API ListExpression: public Expression {
     static auto impl(auto* self) {

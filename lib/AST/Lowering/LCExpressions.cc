@@ -362,6 +362,53 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
         SC_ASSERT(!arrayType->isDynamic(), "Invalid conversion");
         return makeArrayRef(refConvResult, arrayType->count());
     }
+    case Reinterpret_ArrayRef_ToByte:
+        [[fallthrough]];
+    case Reinterpret_ArrayRef_FromByte: {
+        SC_ASSERT(expr->type()->isReference(), "");
+        SC_ASSERT(conv.type()->isReference(), "");
+        auto* fromType = cast<sema::ArrayType const*>(expr->type()->base());
+        auto* toType   = cast<sema::ArrayType const*>(conv.type()->base());
+        if (toType->isDynamic()) {
+            if (fromType->isDynamic()) {
+                auto* data  = getArrayAddr(refConvResult);
+                auto* count = getArrayCount(refConvResult);
+                if (conv.conversion()->objectConversion() ==
+                    Reinterpret_ArrayRef_ToByte)
+                {
+                    count =
+                        add<ir::ArithmeticInst>(count,
+                                                intConstant(8, 64),
+                                                ir::ArithmeticOperation::Mul,
+                                                "reinterpret.count");
+                }
+                else {
+                    count =
+                        add<ir::ArithmeticInst>(count,
+                                                intConstant(8, 64),
+                                                ir::ArithmeticOperation::SDiv,
+                                                "reinterpret.count");
+                }
+                return makeArrayRef(data, count);
+            }
+            size_t count = fromType->count();
+            if (conv.conversion()->objectConversion() ==
+                Reinterpret_ArrayRef_ToByte)
+            {
+                count *= 8;
+            }
+            else {
+                count /= 8;
+            }
+            return makeArrayRef(refConvResult, count);
+        }
+        SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
+        return refConvResult;
+    }
+
+    case Reinterpret_Value:
+        SC_DEBUGFAIL();
+
     case Int_Trunc:
         return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),

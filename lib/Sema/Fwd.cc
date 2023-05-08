@@ -47,6 +47,7 @@ EntityCategory sema::categorize(EntityType entityType) {
         { EntityType::QualType,       EntityCategory::Type },
         { EntityType::AnonymousScope, EntityCategory::Indeterminate },
         { EntityType::OverloadSet,    EntityCategory::Value },
+        { EntityType::Generic,        EntityCategory::Indeterminate },
         { EntityType::Variable,       EntityCategory::Value },
     }); // clang-format on
 }

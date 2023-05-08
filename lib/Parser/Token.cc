@@ -43,6 +43,8 @@ bool parse::isIdentifier(TokenKind kind) {
         [[fallthrough]];
     case TokenKind::Float:
         [[fallthrough]];
+    case TokenKind::Reinterpret:
+        [[fallthrough]];
     case TokenKind::Identifier:
         return true;
     default:

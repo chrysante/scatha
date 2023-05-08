@@ -57,6 +57,7 @@ struct Context {
     UniquePtr<ast::Expression> parseReference();
     UniquePtr<ast::Expression> parseUnique();
     UniquePtr<ast::Expression> parsePostfix();
+    UniquePtr<ast::Expression> parseGeneric();
     UniquePtr<ast::Expression> parsePrimary();
     UniquePtr<ast::Identifier> parseIdentifier();
     UniquePtr<ast::Literal> parseLiteral();
@@ -76,6 +77,12 @@ struct Context {
     UniquePtr<Expr> parseFunctionCallLike(UniquePtr<ast::Expression> primary,
                                           TokenKind open,
                                           TokenKind close);
+
+    template <typename Expr>
+    UniquePtr<Expr> parseFunctionCallLike(UniquePtr<ast::Expression> primary,
+                                          TokenKind open,
+                                          TokenKind close,
+                                          auto parseCallback);
 
     template <typename List, typename DList = std::decay_t<List>>
     std::optional<DList> parseList(TokenKind open,

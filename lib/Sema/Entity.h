@@ -591,6 +591,21 @@ public:
     using VecBase::front;
 };
 
+/// # Generic
+
+/// Represents a generic, that is a generic class or generic function that can
+/// be instantiated on type arguments
+class SCATHA_API Generic: public Entity {
+public:
+    explicit Generic(std::string name, size_t numParams, Scope* parentScope):
+        Entity(EntityType::Generic, std::move(name), parentScope) {}
+
+    size_t numParameters() const { return numParams; }
+
+private:
+    size_t numParams;
+};
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ENTITY_H_

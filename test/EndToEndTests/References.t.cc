@@ -43,6 +43,27 @@ fn f(x: &mut int)  -> &mut int {
 })");
 }
 
+TEST_CASE("Pass array reference through function",
+          "[end-to-end][references][arrays]") {
+    test::checkReturns(2, R"(
+fn pass(data: &[int]) -> &[int] { return &data; }
+public fn main() -> int {
+    let data = [1, 2, 3];
+    let result = pass(&data)[1];
+    return result;
+})");
+}
+
+TEST_CASE("Property call with reference", "[end-to-end][references]") {
+    test::checkReturns(1, R"(
+fn pass(data: &int) -> int { return data; }
+public fn main() -> int {
+    let i = 1;
+    let r = &i;
+    return r.pass;
+})");
+}
+
 TEST_CASE("Reference data member in struct", "[end-to-end][references]") {
     test::checkReturns(1, R"(
 struct X {

@@ -34,6 +34,7 @@ struct Context {
     bool analyzeImpl(ast::FunctionCall&);
     bool rewriteMemberCall(ast::FunctionCall&);
     bool analyzeImpl(ast::Subscript&);
+    bool analyzeImpl(ast::GenericExpression&);
     bool analyzeImpl(ast::Conversion&);
     bool analyzeImpl(ast::ListExpression&);
 
@@ -205,12 +206,15 @@ bool Context::analyzeImpl(ast::Identifier& id) {
         },
         [&](ObjectType const& type) {
             auto* qualType = sym.qualify(&type);
-            id.decorate(const_cast<QualType*>(qualType),
-                        nullptr);
+            id.decorate(const_cast<QualType*>(qualType), nullptr);
             return true;
         },
         [&](OverloadSet& overloadSet) {
             id.decorate(&overloadSet);
+            return true;
+        },
+        [&](Generic& generic) {
+            id.decorate(&generic, nullptr);
             return true;
         },
         [&](Entity const& entity) -> bool {
@@ -306,7 +310,8 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
                    makeRefImplicit(func->returnType()),
                    ValueCategory::RValue);
 
-    bool const convSucc = convertExplicitly(call->argument(0), argType, iss);
+    bool const convSucc =
+        convertExplicitly(call->argument(0), makeRefImplicit(argType), iss);
     SC_ASSERT(convSucc,
               "If overload resolution succeeds conversion must not fail");
 
@@ -420,6 +425,22 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
     return true;
 }
 
+bool Context::analyzeImpl(ast::GenericExpression& expr) {
+    bool success = analyze(*expr.object());
+    for (auto* arg: expr.arguments()) {
+        success &= analyze(*arg);
+    }
+    if (!success) {
+        return false;
+    }
+    SC_ASSERT(cast<ast::Identifier*>(expr.object())->value() == "reinterpret",
+              "For now");
+    SC_ASSERT(expr.arguments().size() == 1, "For now");
+    SC_ASSERT(expr.argument(0)->isType(), "For now");
+    expr.decorate(nullptr, cast<QualType const*>(expr.argument(0)->entity()));
+    return true;
+}
+
 bool Context::analyzeImpl(ast::FunctionCall& fc) {
     bool success      = analyze(*fc.object());
     bool isMemberCall = false;
@@ -442,6 +463,18 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
         fc.setObject(std::move(memFunc));
         isMemberCall = true;
         /// Member access object `object` goes out of scope and is destroyed
+    }
+
+    /// If our object is a generic expression, we assert that is a `reinterpret`
+    /// expression and rewrite the AST
+    if (auto* genExpr = dyncast<ast::GenericExpression*>(fc.object())) {
+        SC_ASSERT(genExpr->object()->entity()->name() == "reinterpret", "");
+        SC_ASSERT(fc.arguments().size() == 1, "");
+        auto* targetType =
+            cast<QualType const*>(genExpr->argument(0)->entity());
+        auto* arg = fc.argument(0);
+        fc.parent()->replaceChild(&fc, fc.extractArgument(0));
+        return convertReinterpret(arg, targetType, iss);
     }
 
     /// if our object is a type, then we rewrite the AST so we end up with just
@@ -492,7 +525,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     {
         [[maybe_unused]] bool success = true;
         if (index == 0 && isMemberCall) {
-            success = convertExplicitly(arg, targetType, iss);
+            success = convertExplicitly(arg, makeRefImplicit(targetType), iss);
         }
         else {
             success = convertImplicitly(arg, targetType, iss);

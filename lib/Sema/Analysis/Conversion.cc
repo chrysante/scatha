@@ -18,6 +18,12 @@ std::string_view sema::toString(ObjectTypeConversion conv) {
         return "None";
     case Array_FixedToDynamic:
         return "Array_FixedToDynamic";
+    case Reinterpret_ArrayRef_ToByte:
+        return "Reinterpret_ArrayRef_ToByte";
+    case Reinterpret_ArrayRef_FromByte:
+        return "Reinterpret_ArrayRef_FromByte";
+    case Reinterpret_Value:
+        return "Reinterpret_Value";
     case Int_Trunc:
         return "Int_Trunc";
     case Signed_Widen:
@@ -82,6 +88,7 @@ namespace {
 enum class ConvKind {
     Implicit,
     Explicit,
+    Reinterpret,
 };
 
 } // namespace
@@ -136,46 +143,95 @@ static std::optional<ObjectTypeConversion> determineObjConv(
     // clang-format off
     return visit(*from, *to, utl::overload{
         [&](IntType const& from, ByteType const& to) -> RetType {
-            return Int_Trunc;
+            switch (kind) {
+            case ConvKind::Implicit:
+                return std::nullopt;
+            case ConvKind::Explicit:
+                return Int_Trunc;
+            case ConvKind::Reinterpret:
+                SC_DEBUGFAIL();
+            }
         },
         [&](IntType const& from, IntType const& to) -> RetType {
-            return kind == ConvKind::Implicit ?
-                implicitIntConversion(from, to) :
-                explicitIntConversion(from, to);
+            switch (kind) {
+            case ConvKind::Implicit:
+                return implicitIntConversion(from, to);
+            case ConvKind::Explicit:
+                return explicitIntConversion(from, to);
+            case ConvKind::Reinterpret:
+                SC_DEBUGFAIL();
+            }
         },
         [&](FloatType const& from, FloatType const& to) -> RetType {
-            if (from.bitwidth() <= to.bitwidth()) {
-                return Float_Widen;
+            switch (kind) {
+            case ConvKind::Implicit:
+                if (from.bitwidth() <= to.bitwidth()) {
+                    return Float_Widen;
+                }
+                return std::nullopt;
+            case ConvKind::Explicit:
+                if (from.bitwidth() <= to.bitwidth()) {
+                    return Float_Widen;
+                }
+                return Float_Trunc;
+            case ConvKind::Reinterpret:
+                SC_DEBUGFAIL();
             }
-            return kind == ConvKind::Implicit ?
-                std::nullopt :
-                std::optional(Float_Trunc);
         },
         [&](IntType const& from, FloatType const& to) -> RetType {
-            if (kind == ConvKind::Implicit) {
+            switch (kind) {
+            case ConvKind::Implicit:
                 return std::nullopt;
+            case ConvKind::Explicit:
+                return from.isSigned() ? SignedToFloat : UnsignedToFloat;
+            case ConvKind::Reinterpret:
+                SC_DEBUGFAIL();
             }
-            if (from.isSigned()) {
-                return SignedToFloat;
-            }
-            return UnsignedToFloat;
         },
         [&](FloatType const& from, IntType const& to) -> RetType {
-            if (kind == ConvKind::Implicit) {
+            switch (kind) {
+            case ConvKind::Implicit:
                 return std::nullopt;
+            case ConvKind::Explicit:
+                return to.isSigned() ? FloatToSigned : FloatToUnsigned;
+            case ConvKind::Reinterpret:
+                SC_DEBUGFAIL();
             }
-            if (to.isSigned()) {
-                return FloatToSigned;
-            }
-            return FloatToUnsigned;
         },
         [&](ArrayType const& from, ArrayType const& to) -> RetType {
-            if (from.elementType() == to.elementType() &&
-                !from.isDynamic() && to.isDynamic())
-            {
-                return Array_FixedToDynamic;
+            switch (kind) {
+            case ConvKind::Implicit:
+                [[fallthrough]];
+            case ConvKind::Explicit:
+                if (from.elementType() == to.elementType() &&
+                    !from.isDynamic() && to.isDynamic())
+                {
+                    return Array_FixedToDynamic;
+                }
+                return std::nullopt;
+            case ConvKind::Reinterpret: {
+                if (!to.isDynamic() && from.isDynamic()) {
+                    return std::nullopt;
+                }
+                if (!to.isDynamic() && from.size() != to.size()) {
+                    return std::nullopt;
+                }
+                return visit(*from.elementType(), *to.elementType(), utl::overload{
+                    [](ByteType const&, ByteType const&) -> RetType {
+                        return None;
+                    },
+                    [](ByteType const&, ObjectType const&) -> RetType {
+                        return Reinterpret_ArrayRef_FromByte;
+                    },
+                    [](ObjectType const&, ByteType const&) -> RetType {
+                        return Reinterpret_ArrayRef_ToByte;
+                    },
+                    [](ObjectType const&, ObjectType const&) -> RetType {
+                        return std::nullopt;
+                    }
+                });
             }
-            return std::nullopt;
+            }
         },
         [&](ObjectType const& from, ObjectType const& to) -> RetType {
             return std::nullopt;
@@ -208,6 +264,11 @@ static std::optional<RefConversion> determineRefConv(ConvKind kind,
         }; // clang-format on
         return resultMatrix[static_cast<size_t>(from)][static_cast<size_t>(to)];
     }
+    case ConvKind::Reinterpret:
+        if (from == to) {
+            return None;
+        }
+        return std::nullopt;
     }
 }
 
@@ -246,6 +307,12 @@ static int getRank(ObjectTypeConversion conv) {
         return 0;
     case Array_FixedToDynamic:
         return 1;
+    case Reinterpret_ArrayRef_ToByte:
+        return 2;
+    case Reinterpret_ArrayRef_FromByte:
+        return 2;
+    case Reinterpret_Value:
+        return 2;
     case Int_Trunc:
         return 2;
     case Signed_Widen:
@@ -321,6 +388,12 @@ bool sema::convertExplicitly(ast::Expression* expr,
                              QualType const* to,
                              IssueHandler& issueHandler) {
     return convertImpl(ConvKind::Explicit, expr, to, &issueHandler);
+}
+
+bool sema::convertReinterpret(ast::Expression* expr,
+                              QualType const* to,
+                              IssueHandler& issueHandler) {
+    return convertImpl(ConvKind::Reinterpret, expr, to, &issueHandler);
 }
 
 static std::optional<int> conversionRankImpl(ConvKind kind,

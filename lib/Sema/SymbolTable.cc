@@ -49,6 +49,10 @@ SymbolTable::SymbolTable() {
         attrs);
     using enum FunctionAttribute;
 #include <svm/Builtin.def>
+
+    /// Declare builtin generics
+    auto* reinterpret = addEntity<Generic>("reinterpret", 1, &globalScope());
+    globalScope().add(reinterpret);
 }
 
 SymbolTable::SymbolTable(SymbolTable&&) noexcept = default;
