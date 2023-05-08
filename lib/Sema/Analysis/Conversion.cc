@@ -4,6 +4,7 @@
 #include <ostream>
 
 #include "AST/AST.h"
+#include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
@@ -59,6 +60,11 @@ static ast::Conversion* insertConversion(
     parent->setChild(indexInParent, std::move(owner));
     auto* entity = targetType->isReference() ? expr->entity() : nullptr;
     result->decorate(entity, targetType);
+    if (result->expression()->constantValue()) {
+        result->setConstantValue(
+            evalConversion(result->conversion(),
+                           result->expression()->constantValue()));
+    }
     return result;
 }
 
@@ -349,9 +355,74 @@ static int getRank(RefConversion refConv,
     return getRank(refConv) + getRank(mutConv) + getRank(objConv);
 }
 
+static bool fits(APInt const& value, size_t numDestBits, bool destIsSigned) {
+    if (value.bitwidth() <= numDestBits) {
+        return true;
+    }
+    auto ref = zext(value, numDestBits);
+    if (destIsSigned) {
+        ref.sext(value.bitwidth());
+    }
+    else {
+        ref.zext(value.bitwidth());
+    }
+    return value == ref;
+}
+
+static std::optional<ObjectTypeConversion> tryImplicitConstConv(
+    Value const* value, ObjectType const* from, ObjectType const* to) {
+    using enum ObjectTypeConversion;
+    /// We try an explicit conversion
+    auto result = determineObjConv(ConvKind::Explicit, from, to);
+    if (!result) {
+        return std::nullopt;
+    }
+    /// If the explicit conversion succeeds, we check if we lose precision
+    bool const lossless = [&] {
+        switch (*result) {
+        case Int_Trunc:
+            return fits(cast<IntValue const*>(value)->value(),
+                        cast<IntType const*>(to)->bitwidth(),
+                        cast<IntType const*>(to)->isSigned());
+
+        case Signed_Widen: {
+            auto intVal = cast<IntValue const*>(value)->value();
+            return !intVal.negative();
+        }
+
+        case Unsigned_Widen:
+            SC_DEBUGFAIL();
+
+        case Float_Trunc:
+            SC_DEBUGFAIL();
+
+        case Float_Widen:
+            SC_DEBUGFAIL();
+
+        case SignedToFloat:
+            [[fallthrough]];
+        case UnsignedToFloat:
+            [[fallthrough]];
+        case FloatToSigned:
+            [[fallthrough]];
+        case FloatToUnsigned:
+            return false;
+        default:
+            return false;
+        }
+    }();
+    if (lossless) {
+        return result;
+    }
+    return std::nullopt;
+}
+
 static std::optional<
     std::tuple<RefConversion, MutConversion, ObjectTypeConversion>>
-    checkConversion(ConvKind kind, QualType const* from, QualType const* to) {
+    checkConversion(ConvKind kind,
+                    Value const* value,
+                    QualType const* from,
+                    QualType const* to) {
     if (from == to) {
         return std::tuple{ RefConversion::None,
                            MutConversion::None,
@@ -366,6 +437,13 @@ static std::optional<
         return std::nullopt;
     }
     auto objConv = determineObjConv(kind, from->base(), to->base());
+    /// If we can't find an implicit conversion and we have a constant value,
+    /// we try to find an extended constant implicit conversion
+    if (kind == ConvKind::Implicit && !objConv && value &&
+        *refConv != RefConversion::TakeAddress)
+    {
+        objConv = tryImplicitConstConv(value, from->base(), to->base());
+    }
     if (!objConv) {
         return std::nullopt;
     }
@@ -375,6 +453,7 @@ static std::optional<
     return std::tuple{ *refConv, *mutConv, *objConv };
 }
 
+/// Implementation of the `convert*` functions
 static bool convertImpl(ConvKind kind,
                         ast::Expression* expr,
                         QualType const* to,
@@ -382,7 +461,8 @@ static bool convertImpl(ConvKind kind,
     if (expr->type() == to) {
         return true;
     }
-    auto checkResult = checkConversion(kind, expr->type(), to);
+    auto checkResult =
+        checkConversion(kind, expr->constantValue(), expr->type(), to);
     if (!checkResult) {
         if (iss) {
             iss->push<BadTypeConversion>(*expr, to);
@@ -417,10 +497,11 @@ bool sema::convertReinterpret(ast::Expression* expr,
     return convertImpl(ConvKind::Reinterpret, expr, to, &issueHandler);
 }
 
+/// Implementation of the `*ConversionRank()` functions
 static std::optional<int> conversionRankImpl(ConvKind kind,
                                              QualType const* from,
                                              QualType const* to) {
-    auto conv = checkConversion(kind, from, to);
+    auto conv = checkConversion(kind, nullptr, from, to);
     if (!conv) {
         return std::nullopt;
     }

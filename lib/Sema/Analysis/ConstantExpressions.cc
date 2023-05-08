@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -173,4 +174,65 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op,
             return nullptr;
         },
     }); // clang-format on
+}
+
+static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
+                                         IntValue const* operand) {
+    SC_ASSERT(conv->originType()->base() == operand->type(), "");
+    auto* type       = operand->type();
+    auto* targetType = cast<ArithmeticType const*>(conv->targetType()->base());
+    auto value       = operand->value();
+    using enum ObjectTypeConversion;
+    switch (conv->objectConversion()) {
+    case None:
+        return allocate<IntValue>(zext(value, targetType->bitwidth()),
+                                  cast<IntType const*>(targetType));
+
+    case Reinterpret_Value:
+        return nullptr;
+
+    case Int_Trunc:
+        return allocate<IntValue>(zext(value, targetType->bitwidth()),
+                                  cast<IntType const*>(targetType));
+
+    case Signed_Widen:
+        return allocate<IntValue>(sext(value, targetType->bitwidth()),
+                                  cast<IntType const*>(targetType));
+
+    case Unsigned_Widen:
+        return allocate<IntValue>(zext(value, targetType->bitwidth()),
+                                  cast<IntType const*>(targetType));
+
+    case Float_Trunc:
+        return nullptr;
+
+    case Float_Widen:
+        return nullptr;
+
+    case SignedToFloat:
+        return nullptr;
+
+    case UnsignedToFloat:
+        return nullptr;
+
+    case FloatToSigned:
+        return nullptr;
+
+    case FloatToUnsigned:
+        return nullptr;
+
+    default:
+        return nullptr;
+    }
+}
+
+static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
+                                         FloatValue const* operand) {
+    return nullptr;
+}
+
+UniquePtr<Value> sema::evalConversion(sema::Conversion const* conv,
+                                      Value const* operand) {
+    return visit(*operand,
+                 [&](auto& op) { return doEvalConversion(conv, &op); });
 }

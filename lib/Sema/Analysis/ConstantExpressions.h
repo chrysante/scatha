@@ -65,6 +65,9 @@ UniquePtr<Value> evalBinary(ast::BinaryOperator op,
                             Value const* lhs,
                             Value const* rhs);
 
+UniquePtr<Value> evalConversion(sema::Conversion const* conv,
+                                Value const* operand);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_CONSTANTEXPRESSIONS_H_

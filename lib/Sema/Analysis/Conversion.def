@@ -45,18 +45,33 @@ SC_OBJTYPECONV_DEF(Reinterpret_ArrayRef_ToByte,   2)
 SC_OBJTYPECONV_DEF(Reinterpret_ArrayRef_FromByte, 2)
 SC_OBJTYPECONV_DEF(Reinterpret_Value,             2)
 
-/// Only valid for value target types
-    
+/// ## Only valid for value target types
+
+/// Truncation
 SC_OBJTYPECONV_DEF(Int_Trunc,                     2)
+
+/// Sign extend; Source operand is signed, dest can be signed or unsigned
 SC_OBJTYPECONV_DEF(Signed_Widen,                  1)
+
+/// Sign extend; Source operand is signed, dest can be signed or unsigned
 SC_OBJTYPECONV_DEF(Unsigned_Widen,                1)
 
+/// Zero extend; Source operand is unsigned, dest can be signed or unsigned
 SC_OBJTYPECONV_DEF(Float_Trunc,                   2)
+
+/// Float extend; Source and dest operands are floats
 SC_OBJTYPECONV_DEF(Float_Widen,                   1)
 
+/// Signed int to float conversion
 SC_OBJTYPECONV_DEF(SignedToFloat,                 2)
+
+/// Unsigned int to float conversion
 SC_OBJTYPECONV_DEF(UnsignedToFloat,               2)
+
+/// Float to signed int conversion
 SC_OBJTYPECONV_DEF(FloatToSigned,                 2)
+
+/// Float to unsigned int conversion
 SC_OBJTYPECONV_DEF(FloatToUnsigned,               2)
 
 #undef SC_OBJTYPECONV_DEF
