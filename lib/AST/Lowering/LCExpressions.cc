@@ -413,39 +413,55 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
         return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Trunc,
-                                       "int.trunc");
+                                       "trunc");
 
     case Unsigned_Widen:
         return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Zext,
-                                       "int.zext");
+                                       "zext");
 
     case Signed_Widen:
         return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Sext,
-                                       "int.sext");
+                                       "sext");
 
     case Float_Trunc:
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(refConvResult,
+                                       mapType(conv.type()),
+                                       ir::Conversion::Ftrunc,
+                                       "ftrunc");
 
     case Float_Widen:
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(refConvResult,
+                                       mapType(conv.type()),
+                                       ir::Conversion::Fext,
+                                       "fext");
 
     case SignedToFloat:
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(refConvResult,
+                                       mapType(conv.type()),
+                                       ir::Conversion::StoF,
+                                       "stof");
 
     case UnsignedToFloat:
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(refConvResult,
+                                       mapType(conv.type()),
+                                       ir::Conversion::UtoF,
+                                       "utof");
 
     case FloatToSigned:
-        throw std::runtime_error(
-            "Unimplemented"); // To be able to run the tests
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(refConvResult,
+                                       mapType(conv.type()),
+                                       ir::Conversion::FtoS,
+                                       "ftos");
 
     case FloatToUnsigned:
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(refConvResult,
+                                       mapType(conv.type()),
+                                       ir::Conversion::FtoU,
+                                       "ftou");
     }
 }
 
