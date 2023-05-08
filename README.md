@@ -25,7 +25,7 @@ Take a look at the [grammar](docs/Grammar.md).
 
 ### Language
 - Arithemtic types with explicitly specified width
-    - Signed and unsigned integral types: 
+    - Signed and unsigned integral types: ✅
         
         `s8`, `s16`, `s32`, `s64`
 
@@ -37,17 +37,17 @@ Take a look at the [grammar](docs/Grammar.md).
 
     - Arithmetic vector types?
 
-- `int` defaults to `s64`
+- `int` defaults to `s64` ✅
 - `float` defaults to `f64`
 - Explicit (and maybe some implicit) casts
     - Explicit casts: 
         - Integral to floating point and vice versa. ✅
-        - Narrowing integral and floating point conversion.
+        - Narrowing integral and floating point conversion. ✅
     - Implicit casts:
-        - Widening integral and floating point casts. 
-- Find a good solution for implementing references/pointers in the language that is powerful but not harmful 
-- Member functions (also depend on references in a way)
-    - Uniform function call syntax
+        - Widening integral and floating point casts. ✅
+- Find a good solution for implementing references/pointers in the language that is powerful but not harmful ✅
+- Member functions (also depend on references in a way) ✅
+    - Uniform function call syntax ✅
     - Constructors/destructors
 - Dynamic dispatch
     - Interfaces/Protocols
@@ -68,6 +68,6 @@ Take a look at the [grammar](docs/Grammar.md).
 
 ### Compiler
 
-- Better issue formatting
+- Better issue formatting ✅
 - Parallel compilation
 - Runtime integration mechanisms
