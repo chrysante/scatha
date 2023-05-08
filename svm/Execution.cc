@@ -176,7 +176,7 @@ ALWAYS_INLINE static void sext1(u8 const* i, u64* reg) {
 }
 
 template <typename From, typename To>
-ALWAYS_INLINE static void ext(u8 const* i, u64* reg) {
+ALWAYS_INLINE static void convert(u8 const* i, u64* reg) {
     size_t const regIdx = i[0];
     auto const a        = load<From>(&reg[regIdx]);
     storeReg(&reg[regIdx], static_cast<To>(a));
@@ -548,11 +548,45 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
 
         /// ## Conversion
         INSTRUCTION(sext1, ::sext1(i, regPtr));
-        INSTRUCTION(sext8, ext<i8, i64>(i, regPtr));
-        INSTRUCTION(sext16, ext<i16, i64>(i, regPtr));
-        INSTRUCTION(sext32, ext<i32, i64>(i, regPtr));
-        INSTRUCTION(fext, ext<f32, f64>(i, regPtr));
-        INSTRUCTION(ftrunc, ext<f64, f32>(i, regPtr));
+        INSTRUCTION(sext8,  convert<i8, i64>(i, regPtr));
+        INSTRUCTION(sext16, convert<i16, i64>(i, regPtr));
+        INSTRUCTION(sext32, convert<i32, i64>(i, regPtr));
+        INSTRUCTION(fext,   convert<f32, f64>(i, regPtr));
+        INSTRUCTION(ftrunc, convert<f64, f32>(i, regPtr));
+            
+        INSTRUCTION(s8tof32,  convert<i8, f32>(i, regPtr));
+        INSTRUCTION(s16tof32, convert<i16, f32>(i, regPtr));
+        INSTRUCTION(s32tof32, convert<i32, f32>(i, regPtr));
+        INSTRUCTION(s64tof32, convert<i64, f32>(i, regPtr));
+        INSTRUCTION(u8tof32,  convert<u8, f32>(i, regPtr));
+        INSTRUCTION(u16tof32, convert<u16, f32>(i, regPtr));
+        INSTRUCTION(u32tof32, convert<u32, f32>(i, regPtr));
+        INSTRUCTION(u64tof32, convert<u64, f32>(i, regPtr));
+        INSTRUCTION(s8tof64,  convert<i8, f64>(i, regPtr));
+        INSTRUCTION(s16tof64, convert<i16, f64>(i, regPtr));
+        INSTRUCTION(s32tof64, convert<i32, f64>(i, regPtr));
+        INSTRUCTION(s64tof64, convert<i64, f64>(i, regPtr));
+        INSTRUCTION(u8tof64,  convert<u8, f64>(i, regPtr));
+        INSTRUCTION(u16tof64, convert<u16, f64>(i, regPtr));
+        INSTRUCTION(u32tof64, convert<u32, f64>(i, regPtr));
+        INSTRUCTION(u64tof64, convert<u64, f64>(i, regPtr));
+            
+        INSTRUCTION(f32tos8,  convert<f32, i8>(i, regPtr));
+        INSTRUCTION(f32tos16, convert<f32, i16>(i, regPtr));
+        INSTRUCTION(f32tos32, convert<f32, i32>(i, regPtr));
+        INSTRUCTION(f32tos64, convert<f32, i64>(i, regPtr));
+        INSTRUCTION(f32tou8,  convert<f32, u8>(i, regPtr));
+        INSTRUCTION(f32tou16, convert<f32, u16>(i, regPtr));
+        INSTRUCTION(f32tou32, convert<f32, u32>(i, regPtr));
+        INSTRUCTION(f32tou64, convert<f32, u64>(i, regPtr));
+        INSTRUCTION(f64tos8,  convert<f64, i8>(i, regPtr));
+        INSTRUCTION(f64tos16, convert<f64, i16>(i, regPtr));
+        INSTRUCTION(f64tos32, convert<f64, i32>(i, regPtr));
+        INSTRUCTION(f64tos64, convert<f64, i64>(i, regPtr));
+        INSTRUCTION(f64tou8,  convert<f64, u8>(i, regPtr));
+        INSTRUCTION(f64tou16, convert<f64, u16>(i, regPtr));
+        INSTRUCTION(f64tou32, convert<f64, u32>(i, regPtr));
+        INSTRUCTION(f64tou64, convert<f64, u64>(i, regPtr));
 
             // clang-format on
 

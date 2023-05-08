@@ -57,11 +57,24 @@ SC_CGFNODE_DEF(Select,                CONCRETE)
 #   define SC_CONVERSION_DEF(op, keyword)
 #endif
 
+/// Int conversions
 SC_CONVERSION_DEF(Zext,    zext)
 SC_CONVERSION_DEF(Sext,    sext)
 SC_CONVERSION_DEF(Trunc,   trunc)
+
+/// Float conversions
 SC_CONVERSION_DEF(Fext,    fext)
 SC_CONVERSION_DEF(Ftrunc,  ftrunc)
+
+/// Int to float
+SC_CONVERSION_DEF(UtoF,    utof)
+SC_CONVERSION_DEF(StoF,    stof)
+
+/// Float to int
+SC_CONVERSION_DEF(FtoU,    ftou)
+SC_CONVERSION_DEF(FtoS,    ftos)
+
+/// Bitcast
 SC_CONVERSION_DEF(Bitcast, bitcast)
 
 #undef SC_CONVERSION_DEF

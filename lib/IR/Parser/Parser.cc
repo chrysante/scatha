@@ -203,18 +203,10 @@ struct ParseContext {
 
     Conversion toConversion(Token token) const {
         switch (token.kind()) {
-        case TokenKind::Zext:
-            return Conversion::Zext;
-        case TokenKind::Sext:
-            return Conversion::Sext;
-        case TokenKind::Trunc:
-            return Conversion::Trunc;
-        case TokenKind::Fext:
-            return Conversion::Fext;
-        case TokenKind::Ftrunc:
-            return Conversion::Ftrunc;
-        case TokenKind::Bitcast:
-            return Conversion::Bitcast;
+#define SC_CONVERSION_DEF(Op, Keyword)                                         \
+    case TokenKind::Op:                                                        \
+        return Conversion::Op;
+#include "IR/CFG/Lists.def"
         default:
             reportSyntaxIssue(token);
         }
@@ -571,6 +563,14 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::Fext:
         [[fallthrough]];
     case TokenKind::Ftrunc:
+        [[fallthrough]];
+    case TokenKind::UtoF:
+        [[fallthrough]];
+    case TokenKind::StoF:
+        [[fallthrough]];
+    case TokenKind::FtoU:
+        [[fallthrough]];
+    case TokenKind::FtoS:
         [[fallthrough]];
     case TokenKind::Bitcast: {
         auto conv       = toConversion(eatToken());

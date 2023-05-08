@@ -37,12 +37,10 @@ enum class TokenKind {
     Alloca,
     Load,
     Store,
-    Zext,
-    Sext,
-    Trunc,
-    Fext,
-    Ftrunc,
-    Bitcast,
+
+#define SC_CONVERSION_DEF(Op, Keyword) Op,
+#include "IR/CFG/Lists.def"
+
     Goto,
     Branch,
     Return,

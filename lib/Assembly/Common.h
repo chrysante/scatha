@@ -9,7 +9,7 @@
 namespace scatha::Asm {
 
 /// Value types in asm. There are exactly 3 types: signed, unsigned and float
-enum class Type { Signed, Unsigned, Float, _count };
+enum class Type : u8 { Signed, Unsigned, Float, _count };
 
 /// Forward declare all instructions.
 

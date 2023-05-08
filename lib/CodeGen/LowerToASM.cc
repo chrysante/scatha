@@ -244,23 +244,58 @@ void CGContext::genInst(mir::Instruction const& inst) {
     case mir::InstCode::Conversion: {
         auto dest    = toRegIdx(inst.dest());
         auto operand = toRegIdx(inst.operandAt(0));
-        auto conv    = inst.instDataAs<mir::Conversion>();
-        auto type    = [&] {
-            switch (conv) {
-            case mir::Conversion::Sext:
-                return Asm::Type::Signed;
-            case mir::Conversion::Fext:
-                return Asm::Type::Float;
-            case mir::Conversion::Ftrunc:
-                return Asm::Type::Float;
-            default:
-                SC_UNREACHABLE();
-            }
-        }();
+        struct ConversionData {
+            mir::Conversion conv;
+            u16 fromBits, toBits;
+        };
+        auto [conv, fromBits, toBits] = inst.instDataAs<ConversionData>();
         if (inst.dest() != inst.operandAt(0)) {
             currentBlock->insertBack(MoveInst(dest, operand, inst.bytewidth()));
         }
-        currentBlock->insertBack(ConvInst(dest, type, inst.bitwidth()));
+        switch (conv) {
+        case mir::Conversion::Sext:
+            currentBlock->insertBack(
+                TruncExtInst(dest, Asm::Type::Signed, inst.bitwidth()));
+            break;
+        case mir::Conversion::Fext:
+            currentBlock->insertBack(
+                TruncExtInst(dest, Asm::Type::Float, inst.bitwidth()));
+            break;
+        case mir::Conversion::Ftrunc:
+            currentBlock->insertBack(
+                TruncExtInst(dest, Asm::Type::Float, inst.bitwidth()));
+            break;
+        case mir::Conversion::UtoF:
+            currentBlock->insertBack(ConvertInst(dest,
+                                                 Asm::Type::Unsigned,
+                                                 fromBits,
+                                                 Asm::Type::Float,
+                                                 toBits));
+            break;
+        case mir::Conversion::StoF:
+            currentBlock->insertBack(ConvertInst(dest,
+                                                 Asm::Type::Unsigned,
+                                                 fromBits,
+                                                 Asm::Type::Float,
+                                                 toBits));
+            break;
+        case mir::Conversion::FtoU:
+            currentBlock->insertBack(ConvertInst(dest,
+                                                 Asm::Type::Float,
+                                                 fromBits,
+                                                 Asm::Type::Unsigned,
+                                                 toBits));
+            break;
+        case mir::Conversion::FtoS:
+            currentBlock->insertBack(ConvertInst(dest,
+                                                 Asm::Type::Float,
+                                                 fromBits,
+                                                 Asm::Type::Signed,
+                                                 toBits));
+            break;
+        default:
+            SC_UNREACHABLE();
+        }
         break;
     }
     case mir::InstCode::Jump: {

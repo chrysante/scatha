@@ -337,12 +337,29 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
         [[fallthrough]];
     case ir::Conversion::Fext:
         [[fallthrough]];
-    case ir::Conversion::Ftrunc: {
+    case ir::Conversion::Ftrunc:
+        [[fallthrough]];
+    case ir::Conversion::UtoF:
+        [[fallthrough]];
+    case ir::Conversion::StoF:
+        [[fallthrough]];
+    case ir::Conversion::FtoU:
+        [[fallthrough]];
+    case ir::Conversion::FtoS: {
         mir::Value* operand = resolve(inst.operand());
+        auto fromBits       = utl::narrow_cast<u16>(
+            cast<ir::ArithmeticType const*>(inst.operand()->type())
+                ->bitwidth());
+        auto toBits = utl::narrow_cast<u16>(
+            cast<ir::ArithmeticType const*>(inst.type())->bitwidth());
+        struct ConversionData {
+            mir::Conversion conv;
+            u16 fromBits, toBits;
+        };
         addNewInst(mir::InstCode::Conversion,
                    resolve(&inst),
                    { operand },
-                   inst.conversion(),
+                   ConversionData{ inst.conversion(), fromBits, toBits },
                    inst.operand()->type()->size());
         return;
     }

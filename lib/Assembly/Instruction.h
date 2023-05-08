@@ -290,9 +290,9 @@ private:
 };
 
 /// Represents the `sext*`, `trunc*`, `fext` and `ftrunc`  instructions.
-class ConvInst: public InstructionBase {
+class TruncExtInst: public InstructionBase {
 public:
-    explicit ConvInst(RegisterIndex op, Type type, size_t fromBits):
+    explicit TruncExtInst(RegisterIndex op, Type type, size_t fromBits):
         _op(op), _type(type), _fromBits(fromBits) {
         verify();
     }
@@ -309,6 +309,39 @@ private:
     RegisterIndex _op;
     Type _type;
     size_t _fromBits;
+};
+
+/// Represents the `s*tof*`, `u*tof*`, `f*tos*` and `f*tou*`  instructions.
+class ConvertInst: public InstructionBase {
+public:
+    explicit ConvertInst(
+        RegisterIndex op, Type from, size_t fromBits, Type to, size_t toBits):
+        _op(op),
+        _from(from),
+        _to(to),
+        _fromBits(utl::narrow_cast<u16>(fromBits)),
+        _toBits(utl::narrow_cast<u16>(toBits)) {
+        verify();
+    }
+
+    RegisterIndex operand() const { return _op; }
+
+    Type fromType() const { return _from; }
+
+    size_t fromBits() const { return _fromBits; }
+
+    Type toType() const { return _to; }
+
+    size_t toBits() const { return _toBits; }
+
+private:
+    SCATHA_TESTAPI void verify();
+
+    RegisterIndex _op;
+    Type _from;
+    Type _to;
+    u16 _fromBits;
+    u16 _toBits;
 };
 
 namespace internal {

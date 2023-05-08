@@ -53,7 +53,8 @@ struct Context {
     void translate(SetInst const&);
     void translate(UnaryArithmeticInst const&);
     void translate(ArithmeticInst const&);
-    void translate(ConvInst const&);
+    void translate(TruncExtInst const&);
+    void translate(ConvertInst const&);
 
     void dispatch(Value const& value);
     void translate(RegisterIndex const&);
@@ -258,7 +259,7 @@ void Context::translate(ArithmeticInst const& inst) {
     dispatch(inst.source());
 }
 
-void Context::translate(ConvInst const& inst) {
+void Context::translate(TruncExtInst const& inst) {
     auto const opcode = [&] {
         if (inst.type() == Type::Signed) {
             switch (inst.fromBits()) {
@@ -285,6 +286,53 @@ void Context::translate(ConvInst const& inst) {
                 SC_UNREACHABLE();
             }
         }
+    }();
+    put(opcode);
+    dispatch(inst.operand());
+}
+
+void Context::translate(ConvertInst const& inst) {
+    auto const opcode = [&] {
+#define MAP_CONV(FromType, FromBits, ToType, ToBits)                           \
+    if (inst.fromType() == Type::FromType && inst.fromBits() == FromBits &&    \
+        inst.toType() == Type::ToType && inst.toBits() == ToBits)
+        using enum svm::OpCode;
+        MAP_CONV(Signed, 8, Float, 32) { return s8tof32; }
+        MAP_CONV(Signed, 16, Float, 32) { return s16tof32; }
+        MAP_CONV(Signed, 32, Float, 32) { return s32tof32; }
+        MAP_CONV(Signed, 64, Float, 32) { return s64tof32; }
+        MAP_CONV(Unsigned, 8, Float, 32) { return u8tof32; }
+        MAP_CONV(Unsigned, 16, Float, 32) { return u16tof32; }
+        MAP_CONV(Unsigned, 32, Float, 32) { return u32tof32; }
+        MAP_CONV(Unsigned, 64, Float, 32) { return u64tof32; }
+        MAP_CONV(Signed, 8, Float, 64) { return s8tof64; }
+        MAP_CONV(Signed, 16, Float, 64) { return s16tof64; }
+        MAP_CONV(Signed, 32, Float, 64) { return s32tof64; }
+        MAP_CONV(Signed, 64, Float, 64) { return s64tof64; }
+        MAP_CONV(Unsigned, 8, Float, 64) { return u8tof64; }
+        MAP_CONV(Unsigned, 16, Float, 64) { return u16tof64; }
+        MAP_CONV(Unsigned, 32, Float, 64) { return u32tof64; }
+        MAP_CONV(Unsigned, 64, Float, 64) { return u64tof64; }
+
+        MAP_CONV(Float, 32, Signed, 8) { return f32tos8; }
+        MAP_CONV(Float, 32, Signed, 16) { return f32tos16; }
+        MAP_CONV(Float, 32, Signed, 32) { return f32tos32; }
+        MAP_CONV(Float, 32, Signed, 64) { return f32tos64; }
+        MAP_CONV(Float, 32, Unsigned, 8) { return f32tou8; }
+        MAP_CONV(Float, 32, Unsigned, 16) { return f32tou16; }
+        MAP_CONV(Float, 32, Unsigned, 32) { return f32tou32; }
+        MAP_CONV(Float, 32, Unsigned, 64) { return f32tou64; }
+        MAP_CONV(Float, 64, Signed, 8) { return f64tos8; }
+        MAP_CONV(Float, 64, Signed, 16) { return f64tos16; }
+        MAP_CONV(Float, 64, Signed, 32) { return f64tos32; }
+        MAP_CONV(Float, 64, Signed, 64) { return f64tos64; }
+        MAP_CONV(Float, 64, Unsigned, 8) { return f64tou8; }
+        MAP_CONV(Float, 64, Unsigned, 16) { return f64tou16; }
+        MAP_CONV(Float, 64, Unsigned, 32) { return f64tou32; }
+        MAP_CONV(Float, 64, Unsigned, 64) { return f64tou64; }
+#undef MAP_CONV
+
+        SC_UNREACHABLE();
     }();
     put(opcode);
     dispatch(inst.operand());

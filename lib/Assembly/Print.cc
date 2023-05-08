@@ -115,7 +115,7 @@ static void printImpl(std::ostream& str, SetInst const& set) {
     str << instName(toSetInstName(set.operation())) << " " << set.dest();
 }
 
-static void printImpl(std::ostream& str, ConvInst const& conv) {
+static void printImpl(std::ostream& str, TruncExtInst const& conv) {
     switch (conv.type()) {
     case Type::Signed:
         str << instName("sext", conv.fromBits()) << " " << conv.operand();
@@ -131,6 +131,28 @@ static void printImpl(std::ostream& str, ConvInst const& conv) {
     default:
         SC_UNREACHABLE();
     }
+}
+
+static std::string_view typeToChar(Type type) {
+    switch (type) {
+    case Type::Signed:
+        return "s";
+    case Type::Unsigned:
+        return "u";
+    case Type::Float:
+        return "f";
+    case Type::_count:
+        SC_UNREACHABLE();
+    }
+}
+
+static void printImpl(std::ostream& str, ConvertInst const& conv) {
+    str << instName(typeToChar(conv.fromType()),
+                    conv.fromBits(),
+                    "to",
+                    typeToChar(conv.toType()),
+                    conv.toBits())
+        << " " << conv.operand();
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Instruction const& inst) {

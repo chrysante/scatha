@@ -40,19 +40,26 @@ void ArithmeticInst::verify() const {
     }
 }
 
-void ConvInst::verify() {
-    switch (_type) {
+static void verifyWidth(Type type, size_t bits) {
+    switch (type) {
     case Type::Signed:
-        SC_ASSERT(fromBits() == 1 || fromBits() == 8 || fromBits() == 16 ||
-                      fromBits() == 32 || fromBits() == 64,
-                  "Invalid source operand bit width");
+        [[fallthrough]];
+    case Type::Unsigned:
+        SC_ASSERT(bits == 8 || bits == 16 || bits == 32 || bits == 64,
+                  "Invalid bit width");
         break;
     case Type::Float:
-        SC_ASSERT(fromBits() == 32 || fromBits() == 64,
-                  "Invalid source operand bit width");
+        SC_ASSERT(bits == 32 || bits == 64, "Invalid bit width");
         break;
 
-    default:
-        SC_DEBUGFAIL();
+    case Type::_count:
+        SC_UNREACHABLE();
     }
+};
+
+void TruncExtInst::verify() { verifyWidth(type(), fromBits()); }
+
+void ConvertInst::verify() {
+    verifyWidth(fromType(), fromBits());
+    verifyWidth(toType(), toBits());
 }

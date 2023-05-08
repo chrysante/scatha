@@ -458,6 +458,15 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
                   "Can only truncate to 32 bit floats");
         return APFloat(value.to<double>(), APFloatPrec::Single);
     }
+    case Conversion::UtoF:
+        [[fallthrough]];
+    case Conversion::StoF:
+        [[fallthrough]];
+    case Conversion::FtoU:
+        [[fallthrough]];
+    case Conversion::FtoS:
+        return Inevaluable{};
+
     case Conversion::Bitcast: {
         if (operand.is<APInt>()) {
             return bitcast<APFloat>(operand.get<APInt>());

@@ -55,12 +55,10 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "alloca", TokenKind::Alloca },
         { "load", TokenKind::Load },
         { "store", TokenKind::Store },
-        { "zext", TokenKind::Zext },
-        { "sext", TokenKind::Sext },
-        { "trunc", TokenKind::Trunc },
-        { "fext", TokenKind::Fext },
-        { "ftrunc", TokenKind::Ftrunc },
-        { "bitcast", TokenKind::Bitcast },
+
+#define SC_CONVERSION_DEF(Op, Keyword) { #Keyword, TokenKind::Op },
+#include "IR/CFG/Lists.def"
+
         { "goto", TokenKind::Goto },
         { "branch", TokenKind::Branch },
         { "return", TokenKind::Return },
