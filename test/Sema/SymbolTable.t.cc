@@ -34,8 +34,6 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
     xType->setSize(8);
     auto const* const overloadSet = sym.lookup<sema::OverloadSet>("i");
     REQUIRE(overloadSet != nullptr);
-    auto const* fnILookup = overloadSet->find(std::array{ sym.qS64() });
-    CHECK(fnI == fnILookup);
     sym.pushScope(xType);
     auto const* const memberVar = sym.lookup<sema::Variable>("i");
     REQUIRE(memberVar != nullptr);

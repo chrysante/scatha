@@ -221,9 +221,8 @@ fn f() {
 	fn g() {}
 	struct X {}
 })");
-    Function const* f = issues.sym.lookup<OverloadSet>("f")->find(
-        std::array<QualType const*, 0>{});
-    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
+    Function const* f = issues.sym.lookup<OverloadSet>("f")->front();
+    auto const line3  = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
     CHECK(line3->reason() == InvalidDeclaration::Reason::InvalidInCurrentScope);
     CHECK(line3->currentScope() == f);
@@ -267,6 +266,14 @@ struct X { var y: Y; }
 struct Y { var x: X; }
 )");
     CHECK(issues.findOnLine<StrongReferenceCycle>(2));
+}
+
+TEST_CASE("No cyclic dependency issues with references", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+struct X { var y: &Y; }
+struct Y { var x: &X; }
+)");
+    CHECK(issues.empty());
 }
 
 TEST_CASE("Cyclic dependency in struct definition - 2", "[sema][issue]") {

@@ -8,9 +8,9 @@
 
 #include <range/v3/view.hpp>
 #include <utl/hashmap.hpp>
+#include <utl/vector.hpp>
 
 #include <scatha/Common/Base.h>
-#include <scatha/Sema/FunctionSignature.h>
 #include <scatha/Sema/Fwd.h>
 
 namespace scatha::sema {
@@ -199,6 +199,41 @@ public:
 
 /// # Function
 
+/// Represents the signature, aka parameter types and return type of a function
+class SCATHA_API FunctionSignature {
+public:
+    FunctionSignature() = default;
+    explicit FunctionSignature(utl::vector<QualType const*> argumentTypes,
+                               QualType const* returnType):
+        _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
+
+    Type const* type() const { SC_DEBUGFAIL(); }
+
+    /// Argument types
+    std::span<QualType const* const> argumentTypes() const {
+        return _argumentTypes;
+    }
+
+    /// Argument type at index \p index
+    QualType const* argumentType(size_t index) const {
+        return _argumentTypes[index];
+    }
+
+    /// Number of arguments
+    size_t argumentCount() const { return _argumentTypes.size(); }
+
+    /// Return type
+    QualType const* returnType() const { return _returnType; }
+
+private:
+    utl::small_vector<QualType const*> _argumentTypes;
+    QualType const* _returnType;
+};
+
+/// \Returns `true` iff \p a and \p b have the same argument types
+bool argumentsEqual(FunctionSignature const& a, FunctionSignature const& b);
+
+/// Represents a builtin or user defined function
 class SCATHA_API Function: public Scope {
 public:
     explicit Function(std::string name,
@@ -530,40 +565,30 @@ private:
 
 /// # OverloadSet
 
-class SCATHA_API OverloadSet: public Entity {
+class SCATHA_API OverloadSet:
+    public Entity,
+    private utl::small_vector<Function*, 8> {
+    using VecBase = utl::small_vector<Function*, 8>;
+
 public:
     /// Construct an empty overload set.
     explicit OverloadSet(std::string name, Scope* parentScope):
         Entity(EntityType::OverloadSet, std::move(name), parentScope) {}
 
-    /// Resolve best matching function from this overload set for \p
-    /// argumentTypes Returns `nullptr` if no matching function exists in the
-    /// overload set.
-    Function* find(std::span<QualType const* const> argumentTypes) {
-        return const_cast<Function*>(std::as_const(*this).find(argumentTypes));
-    }
-
-    /// \overload
-    Function const* find(std::span<QualType const* const> argumentTypes) const;
-
-    /// \brief Add a function to this overload set.
+    /// Add a function to this overload set.
     /// \returns Pair of \p function and `true` if \p function is a legal
     /// overload. Pair of pointer to existing function that prevents \p function
     /// from being a legal overload and `false` otherwise.
     std::pair<Function const*, bool> add(Function* function);
 
-    /// Begin iterator to set of `Function`'s
-    auto begin() const { return functions.begin(); }
-
-    /// End iterator to set of `Function`'s
-    auto end() const { return functions.end(); }
-
-    size_t size() const { return functions.size(); }
-
-    bool empty() const { return functions.empty(); }
-
-private:
-    utl::small_vector<Function*, 8> functions;
+    /// Inherit interface from `utl::vector`
+    using VecBase::begin;
+    using VecBase::empty;
+    using VecBase::end;
+    using VecBase::size;
+    using VecBase::operator[];
+    using VecBase::back;
+    using VecBase::front;
 };
 
 } // namespace scatha::sema

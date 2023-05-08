@@ -43,9 +43,6 @@ Parser/Token.def
 Sema/Analyze.h
 Sema/Entity.h
 Sema/SymbolTable.h
-Sema/SymbolID.h
 Sema/Fwd.h
-Sema/SemanticIssue.h
-Sema/FunctionSignature.h
 Sema/SemanticIssue.h
 Sema/Lists.def

@@ -23,8 +23,7 @@ fn mul(a: int, b: int, c: float) -> int {
     REQUIRE(iss.empty());
     auto* mul = sym.lookup<OverloadSet>("mul");
     REQUIRE(mul);
-    auto const* mulFn =
-        mul->find(std::array{ sym.qS64(), sym.qS64(), sym.qFloat() });
+    auto const* mulFn = mul->front();
     REQUIRE(mulFn);
     auto const& fnType = mulFn->signature();
     CHECK(fnType.returnType()->base() == sym.S64());
@@ -124,9 +123,7 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     auto* fnCallExpr = cast<FunctionCall*>(resultDecl->initExpression());
     auto const& calleeOverloadSet = sym.lookup<OverloadSet>("callee");
     REQUIRE(calleeOverloadSet);
-    auto* calleeFunction = calleeOverloadSet->find(
-        std::array{ sym.qFloat(), sym.qS64(), sym.qBool() });
-    REQUIRE(calleeFunction);
+    auto* calleeFunction = calleeOverloadSet->front();
     CHECK(fnCallExpr->function() == calleeFunction);
     CHECK(fnCallExpr->valueCategory() == ValueCategory::RValue);
 }
@@ -293,16 +290,11 @@ struct X {
     REQUIRE(iss.empty());
     auto* x = sym.lookup<Scope>("X");
     sym.pushScope(x);
-    auto* fOS            = sym.lookup<OverloadSet>("f");
-    auto const* x_y_type = sym.qualify(sym.lookup<StructureType>("Y"));
-    auto const* fFn      = fOS->find(std::array{ x_y_type });
+    auto* fOS       = sym.lookup<OverloadSet>("f");
+    auto const* fFn = fOS->front();
     /// Finding `f` in the overload set with `X.Y` as argument shall succeed.
-    CHECK(fFn != nullptr);
+    CHECK(fFn->argumentType(0)->base()->parent()->name() == "X");
     sym.popScope();
-    auto const* y_type        = sym.qualify(sym.lookup<StructureType>("Y"));
-    auto const* undeclaredfFn = fOS->find({ { y_type } });
-    /// Finding `f` with `Y` (global) as argument shall fail.
-    CHECK(undeclaredfFn == nullptr);
 }
 
 TEST_CASE("Conditional operator", "[sema]") {

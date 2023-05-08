@@ -194,60 +194,16 @@ size_t QualType::alignImpl() const {
 
 /// # OverloadSet
 
-static bool signatureMatch(std::span<QualType const* const> parameterTypes,
-                           std::span<QualType const* const> argumentTypes) {
-    if (parameterTypes.size() != argumentTypes.size()) {
-        return false;
-    }
-    for (auto [param, arg]: ranges::views::zip(parameterTypes, argumentTypes)) {
-        if (!param || !arg) {
-            return false;
-        }
-        auto* paramArray = dyncast<ArrayType const*>(param->base());
-        auto* argArray   = dyncast<ArrayType const*>(arg->base());
-        if (paramArray && argArray &&
-            (paramArray->count() == argArray->count() ||
-             paramArray->isDynamic()))
-        {
-            /// Avoid next case, rewrite this if possible
-        }
-        else if (param->base() != arg->base()) {
-            return false;
-        }
-        /// Rewrite this to `param->isReference() == arg->isExplicitReference()`
-        if (param->isReference() && !arg->isExplicitReference()) {
-            return false;
-        }
-        if (!param->isReference() && arg->isExplicitReference()) {
-            return false;
-        }
-    }
-    return true;
-}
-
 bool Function::isBuiltin() const {
     return isExtern() && slot() == svm::BuiltinFunctionSlot;
 }
 
-Function const* OverloadSet::find(
-    std::span<QualType const* const> argumentTypes) const {
-    auto matches = functions | ranges::views::filter([&](Function* F) {
-                       return signatureMatch(F->signature().argumentTypes(),
-                                             argumentTypes);
-                   }) |
-                   ranges::to<utl::small_vector<Function*>>;
-    if (matches.size() == 1) {
-        return matches.front();
-    }
-    return nullptr;
-}
-
 std::pair<Function const*, bool> OverloadSet::add(Function* F) {
-    auto itr = ranges::find_if(functions, [&](Function const* G) {
-        return argumentsEqual(F->signature(), G->signature());
+    auto itr = ranges::find_if(*this, [&](Function const* G) {
+        return ranges::equal(F->argumentTypes(), G->argumentTypes());
     });
-    if (itr == ranges::end(functions)) {
-        functions.push_back(F);
+    if (itr == end()) {
+        push_back(F);
         return { F, true };
     }
     return { *itr, false };

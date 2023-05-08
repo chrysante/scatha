@@ -289,23 +289,26 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     /// expression we rewrite the AST here
     auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
     auto* argType = sym.setReference(ma.object()->type(), Reference::Explicit);
-
-    auto* func = overloadSet->find(std::array{ argType });
-    if (!func) {
-        iss.push<BadExpression>(ma);
+    auto funcRes =
+        performOverloadResolution(overloadSet, std::array{ argType }, true);
+    if (!funcRes) {
+        funcRes.error()->setSourceRange(ma.sourceRange());
+        iss.push(funcRes.error());
         return false;
     }
-    argType = func->argumentType(0);
+    auto* func = *funcRes;
     utl::small_vector<UniquePtr<ast::Expression>> args;
     args.push_back(ma.extractObject());
     auto call = allocate<ast::FunctionCall>(ma.extractMember(),
                                             std::move(args),
                                             ma.sourceRange());
-    call->decorate(func, func->returnType(), ValueCategory::RValue);
+    call->decorate(func,
+                   makeRefImplicit(func->returnType()),
+                   ValueCategory::RValue);
 
-    if (!convertExplicitly(call->argument(0), argType, iss)) {
-        return false;
-    }
+    bool const convSucc = convertExplicitly(call->argument(0), argType, iss);
+    SC_ASSERT(convSucc,
+              "If overload resolution succeeds conversion must not fail");
 
     /// Now `ma` goes out of scope
     ma.parent()->replaceChild(&ma, std::move(call));
