@@ -131,7 +131,10 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             case ConvKind::Explicit:
                 return Int_Trunc;
             case ConvKind::Reinterpret:
-                SC_DEBUGFAIL();
+                if (from.bitwidth() != 8) {
+                    return std::nullopt;
+                }
+                return None;
             }
         },
         [&](IntType const& from, IntType const& to) -> RetType {
@@ -141,7 +144,10 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             case ConvKind::Explicit:
                 return explicitIntConversion(from, to);
             case ConvKind::Reinterpret:
-                SC_DEBUGFAIL();
+                if (from.bitwidth() != to.bitwidth()) {
+                    return std::nullopt;
+                }
+                return None;
             }
         },
         [&](FloatType const& from, FloatType const& to) -> RetType {
@@ -157,7 +163,10 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 }
                 return Float_Trunc;
             case ConvKind::Reinterpret:
-                SC_DEBUGFAIL();
+                if (from.bitwidth() != to.bitwidth()) {
+                    return std::nullopt;
+                }
+                return None;
             }
         },
         [&](IntType const& from, FloatType const& to) -> RetType {
@@ -167,7 +176,10 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             case ConvKind::Explicit:
                 return from.isSigned() ? SignedToFloat : UnsignedToFloat;
             case ConvKind::Reinterpret:
-                SC_DEBUGFAIL();
+                if (from.bitwidth() != to.bitwidth()) {
+                    return std::nullopt;
+                }
+                return Reinterpret_Value;
             }
         },
         [&](FloatType const& from, IntType const& to) -> RetType {
@@ -177,7 +189,10 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             case ConvKind::Explicit:
                 return to.isSigned() ? FloatToSigned : FloatToUnsigned;
             case ConvKind::Reinterpret:
-                SC_DEBUGFAIL();
+                if (from.bitwidth() != to.bitwidth()) {
+                    return std::nullopt;
+                }
+                return Reinterpret_Value;
             }
         },
         [&](ArrayType const& from, ArrayType const& to) -> RetType {

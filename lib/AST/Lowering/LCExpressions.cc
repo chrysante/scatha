@@ -408,7 +408,10 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
     }
 
     case Reinterpret_Value:
-        SC_DEBUGFAIL();
+        return add<ir::ConversionInst>(refConvResult,
+                                       mapType(conv.type()),
+                                       ir::Conversion::Bitcast,
+                                       "reinterpret");
 
     case Int_Trunc:
         return add<ir::ConversionInst>(refConvResult,
