@@ -43,16 +43,16 @@ TEST_CASE("Overload resolution", "[sema]") {
     // clang-format off
     auto f = TestOS::make(sym, "f", {
         /// `f(s64, &[s64])`
-        { sym.qS64(), sym.arrayView(sym.S64()) },
+        { sym.qS64(), sym.qDynArray(sym.S64(), RefConstExpl) },
         /// `f(s64, &[s64, 3])`
-        { sym.qS64(), sym.qualify(sym.arrayType(sym.S64(), 3), Reference::Explicit) },
+        { sym.qS64(), sym.qualify(sym.arrayType(sym.S64(), 3), RefConstExpl) },
     }); // clang-format on
 
     SECTION("1") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            sym.qualify(sym.S64(), Reference::Implicit),
-            sym.qualify(sym.arrayType(sym.S64(), 3), Reference::Explicit)
+            sym.qualify(sym.S64(), RefMutImpl),
+            sym.qualify(sym.arrayType(sym.S64(), 3), RefMutExpl)
         }, false); // clang-format on
 
         REQUIRE(result);
@@ -62,9 +62,8 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("2") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            sym.qualify(sym.S64(), Reference::Implicit),
-            sym.qualify(sym.arrayType(sym.S64(), ArrayType::DynamicCount),
-                        Reference::Explicit)
+            sym.qualify(sym.S64(), RefConstImpl),
+            sym.qDynArray(sym.S64(), RefConstExpl)
         }, false); // clang-format on
         REQUIRE(result);
         CHECK(result.value() == f.functions[0].get());
@@ -73,8 +72,8 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("3") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            sym.qualify(sym.S32(), Reference::Implicit),
-            sym.qualify(sym.arrayType(sym.S64(), 4), Reference::Implicit)
+            sym.qualify(sym.S32(), RefMutImpl),
+            sym.qualify(sym.arrayType(sym.S64(), 4), RefMutImpl)
         }, false); // clang-format on
 
         REQUIRE(!result);

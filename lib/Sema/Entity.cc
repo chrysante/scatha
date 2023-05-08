@@ -154,24 +154,31 @@ std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     return std::move(sstr).str();
 }
 
-QualType::QualType(ObjectType* base, Reference ref):
+QualType::QualType(ObjectType* base, Reference ref, Mutability mut):
     Type(EntityType::QualType,
          ScopeKind::Invalid,
          makeName(base, ref),
          base->parent()),
     _base(base),
-    _ref(ref) {}
+    ref(ref),
+    mut(mut) {}
 
 std::string QualType::makeName(ObjectType* base, Reference ref) {
     std::stringstream sstr;
     switch (ref) {
     case Reference::None:
         break;
-    case Reference::Explicit:
+    case Reference::ConstExplicit:
         sstr << "&";
         break;
-    case Reference::Implicit:
+    case Reference::MutExplicit:
+        sstr << "&mut ";
+        break;
+    case Reference::ConstImplicit:
         sstr << "'";
+        break;
+    case Reference::MutImplicit:
+        sstr << "'mut ";
         break;
     }
     sstr << base->name();

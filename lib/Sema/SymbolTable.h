@@ -123,7 +123,8 @@ public:
     /// \Returns The `QualType` with base type \p base and reference qualifier
     /// \p ref
     QualType const* qualify(ObjectType const* base,
-                            Reference ref = Reference::None);
+                            Reference ref  = Reference::None,
+                            Mutability mut = Mutability::Mutable);
 
     /// \Returns The `QualType` with same base type as \p type but without any
     /// qualifications
@@ -139,8 +140,9 @@ public:
 
     /// Make type \p base into a reference to dynamic array of element type \p
     /// base
-    QualType const* arrayView(ObjectType const* base,
-                              Reference ref = Reference::Explicit);
+    QualType const* qDynArray(ObjectType const* base,
+                              Reference ref,
+                              Mutability mut = Mutability::Mutable);
 
     /// \brief Makes scope \p scope the current scope.
     ///
@@ -273,7 +275,8 @@ private:
 
     utl::vector<UniquePtr<Entity>> _entities;
 
-    utl::hashmap<std::pair<ObjectType const*, Reference>, QualType const*>
+    utl::hashmap<std::tuple<ObjectType const*, Reference, Mutability>,
+                 QualType const*>
         _qualTypes;
 
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>

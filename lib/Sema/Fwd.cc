@@ -2,6 +2,8 @@
 
 #include <ostream>
 
+#include "Sema/Entity.h"
+
 using namespace scatha;
 using namespace sema;
 
@@ -102,4 +104,29 @@ std::string_view sema::toString(ConversionKind k) {
 
 std::ostream& sema::operator<<(std::ostream& str, ConversionKind k) {
     return str << toString(k);
+}
+
+Mutability sema::baseMutability(QualType const* type) {
+    if (type->isMutRef()) {
+        return Mutability::Mutable;
+    }
+    return type->mutability();
+}
+
+Reference sema::toExplicitRef(Mutability mut) {
+    switch (mut) {
+    case Mutability::Mutable:
+        return RefMutExpl;
+    case Mutability::Const:
+        return RefConstExpl;
+    }
+}
+
+Reference sema::toImplicitRef(Mutability mut) {
+    switch (mut) {
+    case Mutability::Mutable:
+        return RefMutImpl;
+    case Mutability::Const:
+        return RefConstImpl;
+    }
 }

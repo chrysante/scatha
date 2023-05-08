@@ -196,10 +196,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     }
     if (idToken.kind() == BitAnd) {
         tokens.eat();
-        sema::Reference refQual = sema::Reference::Implicit;
-        if (eatMut()) {
-            // quals |= sema::TypeQualifiers::Mutable;
-        }
+        auto const refQual = eatMut() ? sema::RefMutImpl : sema::RefConstImpl;
         if (tokens.peek().kind() != This) {
             return nullptr;
         }
@@ -335,7 +332,8 @@ UniquePtr<ast::VariableDeclaration> Context::parseShortVariableDeclaration(
     return allocate<ast::VariableDeclaration>(sourceRange,
                                               std::move(identifier),
                                               std::move(typeExpr),
-                                              std::move(initExpr));
+                                              std::move(initExpr),
+                                              /* isMutable = */ true);
 }
 
 UniquePtr<ast::Statement> Context::parseStatement() {
@@ -772,9 +770,10 @@ UniquePtr<ast::Expression> Context::parseReference() {
         return nullptr;
     }
     tokens.eat();
-    bool const mut = eatMut();
-    auto referred  = parseReference();
+    bool const isMut = eatMut();
+    auto referred    = parseReference();
     return allocate<ast::ReferenceExpression>(std::move(referred),
+                                              isMut,
                                               refToken.sourceRange());
 }
 

@@ -176,10 +176,9 @@ static void pass(ir::Context& ctx,
     ir::print(mod);
     run(mod);
 
-    header("Optimized");
-    opt::inlineFunctions(ctx, mod);
+    header("After M2R");
+    pass(ctx, mod, opt::memToReg);
     ir::print(mod);
-    run(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {

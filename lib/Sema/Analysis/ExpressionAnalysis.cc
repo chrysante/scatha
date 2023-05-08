@@ -35,7 +35,6 @@ struct Context {
     bool rewriteMemberCall(ast::FunctionCall&);
     bool analyzeImpl(ast::Subscript&);
     bool analyzeImpl(ast::GenericExpression&);
-    bool analyzeImpl(ast::Conversion&);
     bool analyzeImpl(ast::ListExpression&);
 
     bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
@@ -65,10 +64,26 @@ struct Context {
         if (!type) {
             return nullptr;
         }
-        if (!type->isReference()) {
-            return type;
+        if (type->isExplicitConstRef()) {
+            return sym.setReference(type, RefConstImpl);
         }
-        return sym.setReference(type, Reference::Implicit);
+        if (type->isExplicitMutRef()) {
+            return sym.setReference(type, RefMutImpl);
+        }
+        return type;
+    }
+
+    QualType const* makeRefExplicit(QualType const* type) const {
+        if (!type) {
+            return nullptr;
+        }
+        if (type->isImplicitConstRef()) {
+            return sym.setReference(type, RefConstExpl);
+        }
+        if (type->isImplicitMutRef()) {
+            return sym.setReference(type, RefMutExpl);
+        }
+        SC_UNREACHABLE();
     }
 
     QualType const* removeReference(QualType const* type) const {
@@ -130,7 +145,7 @@ bool Context::analyzeImpl(ast::Literal& lit) {
         return true;
     }
     case ast::LiteralKind::String: {
-        lit.decorate(nullptr, sym.arrayView(sym.Byte()));
+        lit.decorate(nullptr, sym.qDynArray(sym.Byte(), RefConstExpl));
         return true;
     }
     }
@@ -292,7 +307,7 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     /// We reference an overload set, so since our parent is not a call
     /// expression we rewrite the AST here
     auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
-    auto* argType = sym.setReference(ma.object()->type(), Reference::Explicit);
+    auto* argType     = ma.object()->type();
     auto funcRes =
         performOverloadResolution(overloadSet, std::array{ argType }, true);
     if (!funcRes) {
@@ -311,7 +326,9 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
                    ValueCategory::RValue);
 
     bool const convSucc =
-        convertExplicitly(call->argument(0), makeRefImplicit(argType), iss);
+        convertExplicitly(call->argument(0),
+                          makeRefImplicit(func->argumentType(0)),
+                          iss);
     SC_ASSERT(convSucc,
               "If overload resolution succeeds conversion must not fail");
 
@@ -325,19 +342,21 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
         return false;
     }
     auto& referred = *ref.referred();
+    auto refQual   = ref.isMutable() ? RefMutExpl : RefConstExpl;
+
     switch (referred.entityCategory()) {
     case EntityCategory::Value: {
         if (!referred.isLValue() && !referred.type()->isReference()) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return false;
         }
-        auto* refType = sym.setReference(referred.type(), Reference::Explicit);
+        auto* refType = sym.setReference(referred.type(), refQual);
         ref.decorate(referred.entity(), refType, ValueCategory::RValue);
         return true;
     }
     case EntityCategory::Type: {
         auto* qualType = cast<QualType const*>(referred.entity());
-        auto* refType  = sym.setReference(qualType, Reference::Explicit);
+        auto* refType  = sym.setReference(qualType, refQual);
         ref.decorate(const_cast<QualType*>(refType));
         return true;
     }
@@ -420,7 +439,8 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
     }
     dereference(expr.object(), sym);
     dereference(expr.argument(0), sym);
-    auto* elemType = sym.qualify(arrayType->elementType(), Reference::Implicit);
+    auto refQual   = toImplicitRef(baseMutability(expr.object()->type()));
+    auto* elemType = sym.qualify(arrayType->elementType(), refQual);
     expr.decorate(nullptr, elemType);
     return true;
 }
@@ -537,35 +557,6 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     }
 
     return true;
-}
-
-bool Context::analyzeImpl(ast::Conversion& conv) {
-    SC_DEBUGFAIL();
-
-    if (!analyze(*conv.expression())) {
-        return false;
-    }
-    if (!expectValue(*conv.expression())) {
-        return false;
-    }
-    auto* source = conv.expression()->type();
-    auto* target = conv.targetType();
-    if (source == target) {
-        conv.decorate(conv.expression()->entity(), conv.targetType());
-        return true;
-    }
-    if (source->base() == target->base()) {
-        if (source->isReference() && !target->isReference()) {
-            conv.decorate(conv.expression()->entity(), target);
-            return true;
-        }
-        if (source->isExplicitReference() && target->isReference()) {
-            conv.decorate(conv.expression()->entity(), source);
-            return true;
-        }
-    }
-    iss.push<BadTypeConversion>(*conv.expression(), target);
-    return false;
 }
 
 bool Context::analyzeImpl(ast::ListExpression& list) {
@@ -719,9 +710,9 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     if (expr.operation() == ast::BinaryOperator::Comma) {
         return expr.rhs()->type();
     }
-    /// Also reference assignment
+    /// Also reference assignment is handled separately
     if (expr.operation() == ast::BinaryOperator::Assignment &&
-        expr.rhs()->type()->isExplicitReference())
+        expr.rhs()->type()->isExplicitRef())
     {
         return analyzeReferenceAssignment(expr);
     }
@@ -768,10 +759,13 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
 
 QualType const* Context::analyzeReferenceAssignment(
     ast::BinaryExpression& expr) {
-    SC_ASSERT(expr.rhs()->type()->isExplicitReference(), "");
-    auto* explicitRefType =
-        sym.setReference(expr.lhs()->type(), Reference::Explicit);
-    bool success = true;
+    SC_ASSERT(expr.rhs()->type()->isExplicitRef(), "");
+    if (!expr.lhs()->type()->isMutable()) {
+        iss.push<AssignmentToConst>(expr);
+        return nullptr;
+    }
+    auto* explicitRefType = makeRefExplicit(expr.lhs()->type());
+    bool success          = true;
     success &= convertExplicitly(expr.lhs(), explicitRefType, iss);
     success &= convertExplicitly(expr.rhs(), explicitRefType, iss);
     return success ? sym.qVoid() : nullptr;

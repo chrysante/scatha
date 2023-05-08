@@ -43,6 +43,16 @@ private:
     ast::Expression const* _expr;
 };
 
+class SCATHA_API AssignmentToConst: public BadExpression {
+public:
+    explicit AssignmentToConst(ast::Expression const& expression);
+
+private:
+    std::string message() const override {
+        return "Assignment to immutable value";
+    }
+};
+
 /// Invalid type conversion issue
 class SCATHA_API BadTypeConversion: public BadExpression {
 public:

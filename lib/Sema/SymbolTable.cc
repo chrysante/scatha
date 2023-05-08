@@ -211,13 +211,16 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     return arrayType;
 }
 
-QualType const* SymbolTable::qualify(ObjectType const* base, Reference ref) {
-    std::pair key = { base, ref };
-    auto itr      = _qualTypes.find(key);
+QualType const* SymbolTable::qualify(ObjectType const* base,
+                                     Reference ref,
+                                     Mutability mut) {
+    std::tuple key = { base, ref, mut };
+    auto itr       = _qualTypes.find(key);
     if (itr != _qualTypes.end()) {
         return itr->second;
     }
-    auto* qualType = addEntity<QualType>(const_cast<ObjectType*>(base), ref);
+    auto* qualType =
+        addEntity<QualType>(const_cast<ObjectType*>(base), ref, mut);
     _qualTypes.insert({ key, qualType });
     return qualType;
 }
@@ -235,8 +238,10 @@ QualType const* SymbolTable::setReference(QualType const* type, Reference ref) {
     return qualify(type->base(), ref);
 }
 
-QualType const* SymbolTable::arrayView(ObjectType const* base, Reference ref) {
-    return qualify(arrayType(base, ArrayType::DynamicCount), ref);
+QualType const* SymbolTable::qDynArray(ObjectType const* base,
+                                       Reference ref,
+                                       Mutability mut) {
+    return qualify(arrayType(base, ArrayType::DynamicCount), ref, mut);
 }
 
 void SymbolTable::pushScope(Scope* scope) {

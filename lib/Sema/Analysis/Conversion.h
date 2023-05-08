@@ -42,8 +42,9 @@ std::ostream& operator<<(std::ostream& ostream, ObjectTypeConversion conv);
 /// Conversion between reference qualifications
 enum class RefConversion : uint8_t {
     None        = 0,
-    Dereference = 1,
-    TakeAddress = 2,
+    MutToConst  = 1,
+    Dereference = 2,
+    TakeAddress = 3,
 };
 
 std::string_view toString(RefConversion conv);

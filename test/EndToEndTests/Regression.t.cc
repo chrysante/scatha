@@ -12,7 +12,7 @@ public fn main() -> int {
     modifyWithIgnoredReturnValue(&mut i);
     return i;
 }
-fn modifyWithIgnoredReturnValue(n: &int) -> int {
+fn modifyWithIgnoredReturnValue(n: &mut int) -> int {
     n = 10;
     return 0;
 })");

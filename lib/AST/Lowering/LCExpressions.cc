@@ -340,7 +340,10 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
     auto* refConvResult = [&]() -> ir::Value* {
         switch (conv.conversion()->refConversion()) {
         case sema::RefConversion::None:
+            [[fallthrough]];
+        case sema::RefConversion::MutToConst:
             return getValue(expr);
+
         case sema::RefConversion::Dereference: {
             auto* address = getValue(expr);
             return add<ir::Load>(address,
@@ -483,8 +486,7 @@ ir::Value* LoweringContext::getAddressImpl(Literal const& lit) {
 ir::Value* LoweringContext::getAddressImpl(Identifier const& id) {
     auto* address = variableAddressMap[id.entity()];
     SC_ASSERT(address, "Undeclared identifier");
-    SC_ASSERT(id.type()->isImplicitReference() || id.isLValue(),
-              "Just to be safe");
+    SC_ASSERT(id.type()->isImplicitRef() || id.isLValue(), "Just to be safe");
     return address;
 }
 
@@ -526,8 +528,7 @@ ir::Value* LoweringContext::getAddressImpl(ReferenceExpression const& expr) {
 
 ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
     auto* expr = conv.expression();
-    SC_ASSERT(!conv.type()->isReference() &&
-                  expr->type()->isImplicitReference(),
+    SC_ASSERT(!conv.type()->isReference() && expr->type()->isImplicitRef(),
               "Only of a dereferencing conversion can we take the address");
     return getValue(expr);
 }

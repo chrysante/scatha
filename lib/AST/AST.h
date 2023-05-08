@@ -11,6 +11,7 @@
 #include <utility>
 
 #include <range/v3/view.hpp>
+#include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Fwd.h>
@@ -474,12 +475,20 @@ public:
 class SCATHA_API ReferenceExpression: public Expression {
 public:
     explicit ReferenceExpression(UniquePtr<Expression> referred,
+                                 bool isMut,
                                  SourceRange sourceRange):
         Expression(NodeType::ReferenceExpression,
                    sourceRange,
-                   std::move(referred)) {}
+                   std::move(referred)),
+        isMut(isMut) {}
 
     AST_PROPERTY(0, Expression, referred, Referred)
+
+    /// `true` iff reference to `mut`
+    bool isMutable() const { return isMut; }
+
+private:
+    bool isMut = true;
 };
 
 /// Concrete node representing a `unique` expression.
@@ -728,12 +737,14 @@ public:
     explicit VariableDeclaration(SourceRange sourceRange,
                                  UniquePtr<Identifier> name,
                                  UniquePtr<Expression> typeExpr,
-                                 UniquePtr<Expression> initExpr):
+                                 UniquePtr<Expression> initExpr,
+                                 bool isMut):
         Declaration(NodeType::VariableDeclaration,
                     sourceRange,
                     std::move(name),
                     std::move(typeExpr),
-                    std::move(initExpr)) {}
+                    std::move(initExpr)),
+        isMut(isMut) {}
 
     AST_DERIVED_COMMON(VariableDeclaration)
 
@@ -778,20 +789,27 @@ public:
         return _index;
     }
 
+    /// `true` if this variable was declared with `let`, `false` if declared
+    /// with `var`
+    bool isMutable() const { return isMut; }
+
     /// Decorate this node.
     void decorate(sema::Entity* entity, sema::QualType const* type) {
         _type = type;
         Declaration::decorate(entity);
     }
 
-    void setOffset(size_t offset) { _offset = offset; }
+    void setOffset(size_t offset) {
+        _offset = utl::narrow_cast<uint32_t>(offset);
+    }
 
-    void setIndex(size_t index) { _index = index; }
+    void setIndex(size_t index) { _index = utl::narrow_cast<uint32_t>(index); }
 
 private:
     sema::QualType const* _type = nullptr;
-    size_t _offset              = 0;
-    size_t _index               = 0;
+    uint32_t _offset            = 0;
+    uint32_t _index : 31        = 0;
+    bool isMut      : 1         = true;
 };
 
 /// Concrete node representing a parameter declaration.

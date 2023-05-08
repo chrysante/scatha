@@ -55,6 +55,8 @@ std::string_view sema::toString(RefConversion conv) {
         using enum RefConversion;
     case None:
         return "None";
+    case MutToConst:
+        return "MutToConst";
     case Dereference:
         return "Dereference";
     case TakeAddress:
@@ -249,21 +251,25 @@ static std::optional<RefConversion> determineRefConv(ConvKind kind,
     switch (kind) {
     case ConvKind::Implicit: {
         // clang-format off
-        static constexpr std::optional<RefConversion> resultMatrix[3][3] = {
-            /* From  / To -> None           Implicit      Explicit */
-            /*     None */ { None,          TakeAddress,  std::nullopt   },
-            /* Implicit */ { Dereference,   None,         std::nullopt   },
-            /* Explicit */ { std::nullopt,  std::nullopt, None           }
+        static constexpr std::optional<RefConversion> resultMatrix[5][5] = {
+            /* From  / To     None          ConstImpl     MutImpl       ConstExpl     MutExpl      */
+            /*      None */ { None,         TakeAddress,  TakeAddress,  std::nullopt, std::nullopt },
+            /* ConstImpl */ { Dereference,  None,         std::nullopt, std::nullopt, std::nullopt },
+            /*   MutImpl */ { Dereference,  MutToConst,   None,         std::nullopt, std::nullopt },
+            /* ConstExpl */ { std::nullopt, std::nullopt, std::nullopt, None,         std::nullopt },
+            /*   MutExpl */ { std::nullopt, std::nullopt, std::nullopt, MutToConst,   None         },
         }; // clang-format on
         return resultMatrix[static_cast<size_t>(from)][static_cast<size_t>(to)];
     }
     case ConvKind::Explicit: {
         // clang-format off
-        static constexpr std::optional<RefConversion> resultMatrix[3][3] = {
-            /* From  / To -> None           Implicit      Explicit */
-            /*     None */ { None,          TakeAddress,  TakeAddress    },
-            /* Implicit */ { Dereference,   None,         TakeAddress    },
-            /* Explicit */ { Dereference,   Dereference,  None           }
+        static constexpr std::optional<RefConversion> resultMatrix[5][5] = {
+            /* From  / To     None         ConstImpl    MutImpl       ConstExpl    MutExpl      */
+            /*      None */ { None,        TakeAddress, TakeAddress,  TakeAddress, TakeAddress  },
+            /* ConstImpl */ { Dereference, None,        std::nullopt, TakeAddress, std::nullopt },
+            /*   MutImpl */ { Dereference, MutToConst,  None,         TakeAddress, TakeAddress  },
+            /* ConstExpl */ { Dereference, Dereference, std::nullopt, None,        std::nullopt },
+            /*   MutExpl */ { Dereference, Dereference, Dereference,  MutToConst,  None         },
         }; // clang-format on
         return resultMatrix[static_cast<size_t>(from)][static_cast<size_t>(to)];
     }
@@ -280,11 +286,12 @@ bool isCompatible(ObjectTypeConversion objConv, RefConversion refConv) {
     switch (refConv) {
     case RefConversion::None:
         return true;
-        break;
+
+    case RefConversion::MutToConst:
+        return true;
 
     case RefConversion::Dereference:
         return true;
-        break;
 
     case RefConversion::TakeAddress:
         return objConv == None || objConv == Array_FixedToDynamic;
@@ -296,8 +303,10 @@ static int getRank(RefConversion conv) {
         using enum RefConversion;
     case None:
         return 0;
+    case MutToConst:
+        return 1;
     case Dereference:
-        return 0;
+        return 1;
     case TakeAddress:
         return 2;
     }
@@ -422,18 +431,18 @@ std::optional<int> sema::explicitConversionRank(QualType const* from,
 bool sema::convertToExplicitRef(ast::Expression* expr,
                                 SymbolTable& sym,
                                 IssueHandler& issueHandler) {
+    auto refQual = toExplicitRef(baseMutability(expr->type()));
     return convertExplicitly(expr,
-                             sym.setReference(expr->type(),
-                                              Reference::Explicit),
+                             sym.setReference(expr->type(), refQual),
                              issueHandler);
 }
 
 bool sema::convertToImplicitRef(ast::Expression* expr,
                                 SymbolTable& sym,
                                 IssueHandler& issueHandler) {
+    auto refQual = toImplicitRef(baseMutability(expr->type()));
     return convertImplicitly(expr,
-                             sym.setReference(expr->type(),
-                                              Reference::Implicit),
+                             sym.setReference(expr->type(), refQual),
                              issueHandler);
 }
 
@@ -448,10 +457,11 @@ void sema::dereference(ast::Expression* expr, SymbolTable& sym) {
 static QualType const* commonTypeRefImpl(QualType const* a, QualType const* b) {
     SC_ASSERT(a->base() == b->base(),
               "Here we only deduce common reference qualification");
-    if (a->isExplicitReference()) {
+#warning Handle mutability here
+    if (a->isExplicitRef()) {
         return b;
     }
-    if (a->isImplicitReference()) {
+    if (a->isImplicitRef()) {
         if (b->isReference()) {
             return a;
         }

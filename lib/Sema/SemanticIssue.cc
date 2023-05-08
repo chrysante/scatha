@@ -15,6 +15,9 @@ BadExpression::BadExpression(ast::Expression const& expr,
                              IssueSeverity severity):
     SemanticIssue(expr.sourceRange(), severity), _expr(&expr) {}
 
+AssignmentToConst::AssignmentToConst(ast::Expression const& expression):
+    BadExpression(expression, IssueSeverity::Error) {}
+
 BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
                                      QualType const* to):
     BadExpression(expression, IssueSeverity::Error),

@@ -169,21 +169,21 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         /// to this variable
         return;
     }
-    if (declaredType && deducedType) {
-        if (declaredType->isReference() && !deducedType->isExplicitReference())
-        {
-            iss.push<InvalidDeclaration>(
-                &var,
-                InvalidDeclaration::Reason::ExpectedReferenceInitializer,
-                sym.currentScope());
-            return;
-        }
+    if (declaredType && deducedType && declaredType->isReference() &&
+        !deducedType->isExplicitRef())
+    {
+        iss.push<InvalidDeclaration>(
+            &var,
+            InvalidDeclaration::Reason::ExpectedReferenceInitializer,
+            sym.currentScope());
+        return;
     }
     auto* finalType = declaredType ? declaredType :
-                      !deducedType->isExplicitReference() ?
-                                     sym.qualify(deducedType->base()) :
-                                     deducedType;
-    if (var.initExpression()) {
+                      deducedType->isExplicitRef() ?
+                                     deducedType :
+                                     sym.qualify(deducedType->base());
+
+    if (var.initExpression() && var.initExpression()->isDecorated()) {
         convertImplicitly(var.initExpression(), finalType, iss);
     }
     auto varRes = sym.addVariable(std::string(var.name()), finalType);
@@ -284,8 +284,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
     /// This is specified to returns.
     /// If we return a reference we don't want to _assign through_ it but we
     /// want to return an explicit reference
-    if (returnType->isReference() &&
-        !rs.expression()->type()->isExplicitReference())
+    if (returnType->isReference() && !rs.expression()->type()->isExplicitRef())
     {
         iss.push<BadExpression>(*rs.expression(), IssueSeverity::Error);
         return;

@@ -33,14 +33,14 @@ SVM_BUILTIN_DEF(atan_f64,  Const, { qFloat() }, qFloat())
 
 /// ## Memory Management
 /// IR signature: void(ptr, ptr, i64)
-SVM_BUILTIN_DEF(memcpy,  None,  { arrayView(Byte()), arrayView(Byte()) }, qVoid())
-SVM_BUILTIN_DEF(alloc,   None,  { qS64(), qS64() }, arrayView(Byte()))
-SVM_BUILTIN_DEF(dealloc, None,  { arrayView(Byte()), qS64() }, qVoid())
+SVM_BUILTIN_DEF(memcpy,  None,  { qDynArray(Byte(), RefMutExpl), qDynArray(Byte(), RefConstExpl) }, qVoid())
+SVM_BUILTIN_DEF(alloc,   None,  { qS64(), qS64() }, qDynArray(Byte(), RefMutExpl))
+SVM_BUILTIN_DEF(dealloc, None,  { qDynArray(Byte(), RefMutExpl), qS64() }, qVoid())
 
 /// ## Console Output
 SVM_BUILTIN_DEF(putchar,   None,  { qS64() }, qVoid())
 SVM_BUILTIN_DEF(puti64,    None,  { qS64() }, qVoid())
 SVM_BUILTIN_DEF(putf64,    None,  { qFloat() }, qVoid())
-SVM_BUILTIN_DEF(putstr,    None,  { arrayView(Byte()) }, qVoid())
+SVM_BUILTIN_DEF(putstr,    None,  { qDynArray(Byte(), RefConstExpl) }, qVoid())
 
 #undef SVM_BUILTIN_DEF

@@ -114,10 +114,40 @@ SCATHA_API std::ostream& operator<<(std::ostream&, ConversionKind);
 enum class AccessSpecifier { Public, Private };
 
 /// Reference qualifiers of `QualType`
-enum class Reference { None = 0, Implicit = 1, Explicit = 2 };
+enum class Reference {
+    None          = 0,
+    ConstImplicit = 1,
+    MutImplicit   = 2,
+    ConstExplicit = 3,
+    MutExplicit   = 4,
+};
+
+inline constexpr Reference RefConstImpl = Reference::ConstImplicit;
+
+inline constexpr Reference RefMutImpl   = Reference::MutImplicit;
+
+inline constexpr Reference RefConstExpl = Reference::ConstExplicit;
+
+inline constexpr Reference RefMutExpl   = Reference::MutExplicit;
 
 /// Mutability qualifiers of `QualType`
 enum class Mutability { Const, Mutable };
+
+/// \Returns
+/// - `Const` if `type` is a const reference type
+/// - `Mutable` if `type` is a mutable reference type
+/// - `type->mutability()` if `type` is not a reference type
+Mutability baseMutability(QualType const* type);
+
+/// \Returns
+/// - `RefConstExpl` if `mut == Const`
+/// - `RefMutExpl` if `mut == Mutable`
+Reference toExplicitRef(Mutability mut);
+
+/// \Returns
+/// - `RefConstImpl` if `mut == Const`
+/// - `RefMutImpl` if `mut == Mutable`
+Reference toImplicitRef(Mutability mut);
 
 ///
 enum class FunctionAttribute : unsigned {

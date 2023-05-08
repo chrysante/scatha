@@ -528,29 +528,62 @@ private:
 /// Represents a type possibly qualified by reference or mutable qualifiers
 class SCATHA_API QualType: public Type {
 public:
-    explicit QualType(ObjectType* base, Reference ref);
+    explicit QualType(ObjectType* base, Reference ref, Mutability mut);
 
     /// The base object type that is qualified by this `QualType`
     /// I.e. if this is `&mut int`, then `base()` is `int`
     ObjectType const* base() const { return _base; }
 
     /// The reference qualifier of this type
-    Reference reference() const { return _ref; }
+    Reference reference() const { return ref; }
+
+    /// \Returns `true` iff this is an explicit reference to const type
+    bool isExplicitConstRef() const {
+        return reference() == Reference::ConstExplicit;
+    }
+
+    /// \Returns `true` iff this is an explicit reference to mutable type
+    bool isExplicitMutRef() const {
+        return reference() == Reference::MutExplicit;
+    }
 
     /// \Returns `true` iff this is an explicit reference type
-    bool isExplicitReference() const {
-        return reference() == Reference::Explicit;
+    bool isExplicitRef() const {
+        return isExplicitConstRef() || isExplicitMutRef();
+    }
+
+    /// \Returns `true` iff this is an implicit reference to const type
+    bool isImplicitConstRef() const {
+        return reference() == Reference::ConstImplicit;
+    }
+
+    /// \Returns `true` iff this is an implicit reference to mutable type
+    bool isImplicitMutRef() const {
+        return reference() == Reference::MutImplicit;
     }
 
     /// \Returns `true` iff this is an implicit reference type
-    bool isImplicitReference() const {
-        return reference() == Reference::Implicit;
+    bool isImplicitRef() const {
+        return isImplicitConstRef() || isImplicitMutRef();
+    }
+
+    bool isMutRef() const { return isImplicitMutRef() || isExplicitMutRef(); }
+
+    bool isConstRef() const {
+        return isImplicitConstRef() || isExplicitConstRef();
     }
 
     /// \Returns `true` iff this is any (implicit or explicit) reference type
-    bool isReference() const {
-        return isImplicitReference() || isExplicitReference();
-    }
+    bool isReference() const { return isImplicitRef() || isExplicitRef(); }
+
+    /// The mutability qualifier of this type
+    Mutability mutability() const { return mut; }
+
+    /// \Returns `true` iff `mutability() == Mutable`
+    bool isMutable() const { return mutability() == Mutability::Mutable; }
+
+    /// \Returns `true` iff `mutability() == Const`
+    bool isConst() const { return mutability() == Mutability::Const; }
 
 private:
     static std::string makeName(ObjectType* base, Reference ref);
@@ -560,7 +593,8 @@ private:
     size_t alignImpl() const;
 
     ObjectType* _base;
-    Reference _ref;
+    Reference ref;
+    Mutability mut;
 };
 
 /// # OverloadSet
