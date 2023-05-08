@@ -9,6 +9,7 @@
 #include "AST/AST.h"
 #include "Common/Base.h"
 #include "Common/PrintUtil.h"
+#include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
 
@@ -146,6 +147,24 @@ static constexpr utl::streammanip header([](std::ostream& str,
     str << indent->put() << nodeType(node);
     ((str << args), ...);
     str << typeHelper(indent, node);
+    auto* expr = dyncast<Expression const*>(node);
+    if (!expr || !expr->constantValue()) {
+        return;
+    }
+    indent->push(node->children().empty() ? Level::Free : Level::Occupied);
+    str << "\n" << indent->put() << tfmt::format(tfmt::BrightGrey, "Value: ");
+    // clang-format off
+    visit(*expr->constantValue(), utl::overload{
+        [&](sema::IntValue const& node) {
+            auto value = node.value();
+            str << (node.type()->isSigned() ? value.signedToString() :
+                                              value.toString());
+        },
+        [&](sema::FloatValue const& node) {
+            str << node.value().toString();
+        }
+    }); // clang-format on
+    indent->pop();
 });
 
 static constexpr utl::streammanip funcDecl([](std::ostream& str,

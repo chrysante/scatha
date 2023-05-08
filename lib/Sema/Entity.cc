@@ -14,6 +14,14 @@
 using namespace scatha;
 using namespace sema;
 
+void scatha::internal::privateDelete(sema::Entity* entity) {
+    visit(*entity, [](auto& entity) { delete &entity; });
+}
+
+void scatha::internal::privateDestroy(sema::Entity* entity) {
+    visit(*entity, [](auto& entity) { std::destroy_at(&entity); });
+}
+
 std::string const& Entity::mangledName() const {
     if (!_mangledName.empty()) {
         return _mangledName;
@@ -31,14 +39,18 @@ void Entity::addAlternateName(std::string name) {
 
 /// # Variable
 
-sema::Variable::Variable(std::string name,
-                         Scope* parentScope,
-                         QualType const* type):
+Variable::Variable(std::string name, Scope* parentScope, QualType const* type):
     Entity(EntityType::Variable, std::move(name), parentScope), _type(type) {}
 
-bool sema::Variable::isLocal() const {
+bool Variable::isLocal() const {
     return parent()->kind() == ScopeKind::Function ||
            parent()->kind() == ScopeKind::Anonymous;
+}
+
+void Variable::setConstantValue(UniquePtr<Value> value) {
+    SC_ASSERT(type() && !type()->isReference() && !type()->isMutable(),
+              "Invalid");
+    constVal = std::move(value);
 }
 
 /// # Scopes

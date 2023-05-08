@@ -11,6 +11,7 @@
 #include <utl/vector.hpp>
 
 #include <scatha/Common/Base.h>
+#include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Fwd.h>
 
 namespace scatha::sema {
@@ -107,10 +108,18 @@ public:
     /// visible.
     bool isLocal() const;
 
+    /// \Returns Constant value if this variable is `const` and has a
+    /// const-evaluable initializer `nullptr` otherwise
+    Value const* constantValue() const { return constVal.get(); }
+
+    /// Set the constant value of this variable
+    void setConstantValue(UniquePtr<Value> value);
+
 private:
     QualType const* _type;
     size_t _offset = 0;
     size_t _index  = 0;
+    UniquePtr<Value> constVal;
 };
 
 /// # Scopes

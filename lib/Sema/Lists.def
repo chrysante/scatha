@@ -30,3 +30,17 @@ SC_SEMA_ENTITY_DEF(Generic,        CONCRETE)
 SC_SEMA_ENTITY_DEF(Variable,       CONCRETE)
 
 #undef SC_SEMA_ENTITY_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of all constant kinds ------------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_SEMA_CONSTKIND_DEF
+#   define SC_SEMA_CONSTKIND_DEF(Kind, _)
+#endif
+
+SC_SEMA_CONSTKIND_DEF(Value,      ABSTRACT)
+SC_SEMA_CONSTKIND_DEF(IntValue,   CONCRETE)
+SC_SEMA_CONSTKIND_DEF(FloatValue, CONCRETE)
+
+#undef SC_SEMA_CONSTKIND_DEF

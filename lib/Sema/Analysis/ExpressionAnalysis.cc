@@ -7,6 +7,7 @@
 #include <svm/Builtin.h>
 
 #include "AST/Fwd.h"
+#include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Entity.h"
@@ -119,17 +120,24 @@ bool Context::analyze(ast::Expression& expr) {
 }
 
 bool Context::analyzeImpl(ast::Literal& lit) {
+    using enum ast::LiteralKind;
     switch (lit.kind()) {
-    case ast::LiteralKind::Integer:
+    case Integer:
         lit.decorate(nullptr, sym.qS64());
+        lit.setConstantValue(
+            allocate<IntValue>(lit.value<Integer>(), sym.S64()));
         return true;
-    case ast::LiteralKind::Boolean:
+    case Boolean:
         lit.decorate(nullptr, sym.qBool());
+        // lit.setConstantValue(allocate<IntValue>(lit.value<Boolean>(),
+        // sym.Bool()));
         return true;
-    case ast::LiteralKind::FloatingPoint:
+    case FloatingPoint:
         lit.decorate(nullptr, sym.qFloat());
+        lit.setConstantValue(
+            allocate<FloatValue>(lit.value<FloatingPoint>(), sym.Float()));
         return true;
-    case ast::LiteralKind::This: {
+    case This: {
         auto* scope = &sym.currentScope();
         while (!isa<Function>(scope)) {
             scope = scope->parent();
@@ -144,7 +152,7 @@ bool Context::analyzeImpl(ast::Literal& lit) {
         lit.decorate(thisEntity, type);
         return true;
     }
-    case ast::LiteralKind::String: {
+    case String: {
         lit.decorate(nullptr, sym.qDynArray(sym.Byte(), RefConstExpl));
         return true;
     }
@@ -192,6 +200,10 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
     case ast::UnaryPrefixOperator::_count:
         SC_UNREACHABLE();
     }
+    if (u.operand()->constantValue()) {
+        u.setConstantValue(
+            evalUnary(u.operation(), u.operand()->constantValue()));
+    }
     u.decorate(nullptr, sym.stripQualifiers(operandType));
     return true;
 }
@@ -205,6 +217,11 @@ bool Context::analyzeImpl(ast::BinaryExpression& b) {
         return false;
     }
     b.decorate(nullptr, resultType);
+    if (b.lhs()->constantValue() && b.rhs()->constantValue()) {
+        b.setConstantValue(evalBinary(b.operation(),
+                                      b.lhs()->constantValue(),
+                                      b.rhs()->constantValue()));
+    }
     return true;
 }
 

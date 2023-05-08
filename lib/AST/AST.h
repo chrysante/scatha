@@ -343,11 +343,21 @@ public:
                   std::optional<sema::ValueCategory> valueCat   = std::nullopt,
                   std::optional<sema::EntityCategory> entityCat = std::nullopt);
 
+    /// \Returns Constant value if this expression is constant evaluable
+    /// `nullptr` otherwise
+    sema::Value const* constantValue() const { return constVal.get(); }
+
+    /// Set the constant value of this expression
+    void setConstantValue(UniquePtr<sema::Value> value) {
+        constVal = std::move(value);
+    }
+
 private:
     sema::Entity* _entity = nullptr;
     sema::QualType const* _type{};
     sema::ValueCategory _valueCat   = sema::ValueCategory::None;
     sema::EntityCategory _entityCat = sema::EntityCategory::Indeterminate;
+    UniquePtr<sema::Value> constVal;
 };
 
 /// Concrete node representing an identifier.

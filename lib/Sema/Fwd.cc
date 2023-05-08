@@ -130,3 +130,14 @@ Reference sema::toImplicitRef(Mutability mut) {
         return RefConstImpl;
     }
 }
+
+std::string_view sema::toString(ConstantKind k) {
+    return std::array{
+#define SC_SEMA_CONSTKIND_DEF(Kind, _) std::string_view(#Kind),
+#include "Sema/Lists.def"
+    }[static_cast<size_t>(k)];
+}
+
+std::ostream& sema::operator<<(std::ostream& str, ConstantKind k) {
+    return str << toString(k);
+}

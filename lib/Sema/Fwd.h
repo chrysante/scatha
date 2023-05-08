@@ -48,7 +48,7 @@ class SemanticIssue;
 #define SC_SEMA_ENTITY_DEF(Type, _) class Type;
 #include <scatha/Sema/Lists.def>
 
-/// List of all entity types types.
+/// List of all entity types
 enum class EntityType {
 #define SC_SEMA_ENTITY_DEF(Type, _) Type,
 #include <scatha/Sema/Lists.def>
@@ -61,7 +61,7 @@ SCATHA_API std::ostream& operator<<(std::ostream&, EntityType);
 
 } // namespace scatha::sema
 
-/// Map types to enum values.
+/// Map types to enum values
 #define SC_SEMA_ENTITY_DEF(Type, Abstractness)                                 \
     SC_DYNCAST_MAP(::scatha::sema::Type,                                       \
                    ::scatha::sema::EntityType::Type,                           \
@@ -159,6 +159,45 @@ enum class FunctionAttribute : unsigned {
 
 UTL_BITFIELD_OPERATORS(FunctionAttribute);
 
+/// # Constant Expressions
+
+#define SC_SEMA_CONSTKIND_DEF(Type, _) class Type;
+#include <scatha/Sema/Lists.def>
+
+/// List of all constant value kinds
+enum class ConstantKind {
+#define SC_SEMA_CONSTKIND_DEF(Type, _) Type,
+#include <scatha/Sema/Lists.def>
+    _count
+};
+
+SCATHA_API std::string_view toString(ConstantKind);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, ConstantKind);
+
 } // namespace scatha::sema
+
+/// Map constant kinds to enum values
+#define SC_SEMA_CONSTKIND_DEF(Type, Abstractness)                              \
+    SC_DYNCAST_MAP(::scatha::sema::Type,                                       \
+                   ::scatha::sema::ConstantKind::Type,                         \
+                   Abstractness)
+#include <scatha/Sema/Lists.def>
+
+namespace scatha::internal {
+
+/// Insulated call to `delete` on the most derived base of \p *entity
+SCATHA_API void privateDelete(sema::Entity* entity);
+
+/// Insulated call to destructor on the most derived base of \p *entity
+SCATHA_API void privateDestroy(sema::Entity* entity);
+
+/// Insulated call to `delete` on the most derived base of \p *value
+SCATHA_API void privateDelete(sema::Value* value);
+
+/// Insulated call to destructor on the most derived base of \p *value
+SCATHA_API void privateDestroy(sema::Value* type);
+
+} // namespace scatha::internal
 
 #endif // SCATHA_SEMA_FWD_H_
