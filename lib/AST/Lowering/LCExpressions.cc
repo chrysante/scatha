@@ -340,8 +340,6 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
     auto* refConvResult = [&]() -> ir::Value* {
         switch (conv.conversion()->refConversion()) {
         case sema::RefConversion::None:
-            [[fallthrough]];
-        case sema::RefConversion::MutToConst:
             return getValue(expr);
 
         case sema::RefConversion::Dereference: {
@@ -530,8 +528,6 @@ ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
     auto* expr = conv.expression();
     switch (conv.conversion()->refConversion()) {
     case sema::RefConversion::None:
-        [[fallthrough]];
-    case sema::RefConversion::MutToConst:
         return getAddress(expr);
     case sema::RefConversion::Dereference:
         SC_ASSERT(

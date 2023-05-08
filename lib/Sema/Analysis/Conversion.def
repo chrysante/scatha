@@ -9,11 +9,23 @@
 #endif
 
 SC_REFCONV_DEF(None,         0)
-SC_REFCONV_DEF(MutToConst,   1)
 SC_REFCONV_DEF(Dereference,  1)
 SC_REFCONV_DEF(TakeAddress,  2)
 
 #undef SC_REFCONV_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of mutability conversions --------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_MUTCONV_DEF
+#   define SC_MUTCONV_DEF(Name, Rank)
+#endif
+
+SC_MUTCONV_DEF(None,         0)
+SC_MUTCONV_DEF(MutToConst,   1)
+
+#undef SC_MUTCONV_DEF
 
 // ===----------------------------------------------------------------------===
 // === List of conversions between object types ----------------------------===

@@ -22,6 +22,17 @@ std::ostream& sema::operator<<(std::ostream& ostream, RefConversion conv) {
     return ostream << toString(conv);
 }
 
+std::string_view sema::toString(MutConversion conv) {
+    return std::array{
+#define SC_MUTCONV_DEF(Name, ...) std::string_view(#Name),
+#include "Sema/Analysis/Conversion.def"
+    }[static_cast<size_t>(conv)];
+}
+
+std::ostream& sema::operator<<(std::ostream& ostream, MutConversion conv) {
+    return ostream << toString(conv);
+}
+
 std::string_view sema::toString(ObjectTypeConversion conv) {
     return std::array{
 #define SC_OBJTYPECONV_DEF(Name, ...) std::string_view(#Name),
@@ -210,6 +221,22 @@ static std::optional<ObjectTypeConversion> determineObjConv(
     }); // clang-format on
 }
 
+enum class SlimRef { None, Implicit, Explicit };
+
+static SlimRef toSlim(Reference ref) {
+    switch (ref) {
+        using enum SlimRef;
+    case Reference::None:
+        return None;
+    case Reference::ConstImplicit:
+    case Reference::MutImplicit:
+        return Implicit;
+    case Reference::ConstExplicit:
+    case Reference::MutExplicit:
+        return Explicit;
+    }
+}
+
 static std::optional<RefConversion> determineRefConv(ConvKind kind,
                                                      Reference from,
                                                      Reference to) {
@@ -217,27 +244,25 @@ static std::optional<RefConversion> determineRefConv(ConvKind kind,
     switch (kind) {
     case ConvKind::Implicit: {
         // clang-format off
-        static constexpr std::optional<RefConversion> resultMatrix[5][5] = {
-            /* From  / To     None          ConstImpl     MutImpl       ConstExpl     MutExpl      */
-            /*      None */ { None,         TakeAddress,  TakeAddress,  std::nullopt, std::nullopt },
-            /* ConstImpl */ { Dereference,  None,         std::nullopt, std::nullopt, std::nullopt },
-            /*   MutImpl */ { Dereference,  MutToConst,   None,         std::nullopt, std::nullopt },
-            /* ConstExpl */ { std::nullopt, std::nullopt, std::nullopt, None,         std::nullopt },
-            /*   MutExpl */ { std::nullopt, std::nullopt, std::nullopt, MutToConst,   None         },
+        static constexpr std::optional<RefConversion> resultMatrix[3][3] = {
+            /* From  / To     None          Implicit      Explicit      */
+            /*      None */ { None,         TakeAddress,  std::nullopt, },
+            /*  Implicit */ { Dereference,  None,         std::nullopt, },
+            /*  Explicit */ { std::nullopt, std::nullopt, None,         },
         }; // clang-format on
-        return resultMatrix[static_cast<size_t>(from)][static_cast<size_t>(to)];
+        return resultMatrix[static_cast<size_t>(toSlim(from))]
+                           [static_cast<size_t>(toSlim(to))];
     }
     case ConvKind::Explicit: {
         // clang-format off
         static constexpr std::optional<RefConversion> resultMatrix[5][5] = {
-            /* From  / To     None         ConstImpl    MutImpl       ConstExpl    MutExpl      */
-            /*      None */ { None,        TakeAddress, TakeAddress,  TakeAddress, TakeAddress  },
-            /* ConstImpl */ { Dereference, None,        std::nullopt, TakeAddress, std::nullopt },
-            /*   MutImpl */ { Dereference, MutToConst,  None,         TakeAddress, TakeAddress  },
-            /* ConstExpl */ { Dereference, Dereference, std::nullopt, None,        std::nullopt },
-            /*   MutExpl */ { Dereference, Dereference, Dereference,  MutToConst,  None         },
+            /* From  / To     None         Implicit    Explicit      */
+            /*      None */ { None,        TakeAddress, TakeAddress, },
+            /*  Implicit */ { Dereference, None,        TakeAddress, },
+            /*  Explicit */ { Dereference, Dereference, None,        },
         }; // clang-format on
-        return resultMatrix[static_cast<size_t>(from)][static_cast<size_t>(to)];
+        return resultMatrix[static_cast<size_t>(toSlim(from))]
+                           [static_cast<size_t>(toSlim(to))];
     }
     case ConvKind::Reinterpret:
         if (from == to) {
@@ -247,13 +272,31 @@ static std::optional<RefConversion> determineRefConv(ConvKind kind,
     }
 }
 
-bool isCompatible(ObjectTypeConversion objConv, RefConversion refConv) {
+static std::optional<MutConversion> determineMutConv(ConvKind kind,
+                                                     QualType const* from,
+                                                     QualType const* to) {
+    /// Conversions to values are not concerned with mutability restrictions
+    if (!to->isReference()) {
+        return MutConversion::None;
+    }
+    auto fromBaseMut = baseMutability(from);
+    auto toBaseMut   = baseMutability(to);
+    /// No mutability conversion happens
+    if (fromBaseMut == toBaseMut) {
+        return MutConversion::None;
+    }
+    switch (fromBaseMut) {
+    case Mutability::Mutable: // -> Const
+        return MutConversion::MutToConst;
+    case Mutability::Const:   // -> Mutable
+        return std::nullopt;
+    }
+}
+
+bool isCompatible(RefConversion refConv, ObjectTypeConversion objConv) {
     using enum ObjectTypeConversion;
     switch (refConv) {
     case RefConversion::None:
-        return true;
-
-    case RefConversion::MutToConst:
         return true;
 
     case RefConversion::Dereference:
@@ -271,6 +314,13 @@ static int getRank(RefConversion conv) {
     }[static_cast<size_t>(conv)];
 }
 
+static int getRank(MutConversion conv) {
+    return std::array{
+#define SC_MUTCONV_DEF(Name, Rank) Rank,
+#include "Sema/Analysis/Conversion.def"
+    }[static_cast<size_t>(conv)];
+}
+
 static int getRank(ObjectTypeConversion conv) {
     return std::array{
 #define SC_OBJTYPECONV_DEF(Name, Rank) Rank,
@@ -278,31 +328,36 @@ static int getRank(ObjectTypeConversion conv) {
     }[static_cast<size_t>(conv)];
 }
 
-static int getRank(RefConversion refConv, ObjectTypeConversion objConv) {
-    return getRank(refConv) + getRank(objConv);
+static int getRank(RefConversion refConv,
+                   MutConversion mutConv,
+                   ObjectTypeConversion objConv) {
+    return getRank(refConv) + getRank(mutConv) + getRank(objConv);
 }
 
-static std::optional<std::pair<RefConversion, ObjectTypeConversion>>
+static std::optional<
+    std::tuple<RefConversion, MutConversion, ObjectTypeConversion>>
     checkConversion(ConvKind kind, QualType const* from, QualType const* to) {
     if (from == to) {
-        return std::pair{ RefConversion::None, ObjectTypeConversion::None };
-    }
-    auto objConv = determineObjConv(kind, from->base(), to->base());
-    if (!objConv) {
-        return std::nullopt;
+        return std::tuple{ RefConversion::None,
+                           MutConversion::None,
+                           ObjectTypeConversion::None };
     }
     auto refConv = determineRefConv(kind, from->reference(), to->reference());
     if (!refConv) {
         return std::nullopt;
     }
-    using enum Mutability;
-    if (baseMutability(from) == Const && to->isMutRef()) {
+    auto mutConv = determineMutConv(kind, from, to);
+    if (!mutConv) {
         return std::nullopt;
     }
-    if (!isCompatible(*objConv, *refConv)) {
+    auto objConv = determineObjConv(kind, from->base(), to->base());
+    if (!objConv) {
         return std::nullopt;
     }
-    return std::pair{ *refConv, *objConv };
+    if (!isCompatible(*refConv, *objConv)) {
+        return std::nullopt;
+    }
+    return std::tuple{ *refConv, *mutConv, *objConv };
 }
 
 static bool convertImpl(ConvKind kind,
@@ -319,9 +374,12 @@ static bool convertImpl(ConvKind kind,
         }
         return false;
     }
-    auto [refConv, objConv] = *checkResult;
-    auto conv =
-        std::make_unique<sema::Conversion>(expr->type(), to, refConv, objConv);
+    auto [refConv, mutConv, objConv] = *checkResult;
+    auto conv = std::make_unique<sema::Conversion>(expr->type(),
+                                                   to,
+                                                   refConv,
+                                                   mutConv,
+                                                   objConv);
     insertConversion(expr, std::move(conv));
     return true;
 }
@@ -351,7 +409,7 @@ static std::optional<int> conversionRankImpl(ConvKind kind,
     if (!conv) {
         return std::nullopt;
     }
-    return getRank(conv->first, conv->second);
+    return getRank(std::get<0>(*conv), std::get<1>(*conv), std::get<2>(*conv));
 }
 
 std::optional<int> sema::implicitConversionRank(QualType const* from,

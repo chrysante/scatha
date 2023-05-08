@@ -20,6 +20,16 @@ std::string_view toString(RefConversion conv);
 
 std::ostream& operator<<(std::ostream& ostream, RefConversion conv);
 
+/// Conversion between reference qualifications
+enum class MutConversion : uint8_t {
+#define SC_MUTCONV_DEF(Name, ...) Name,
+#include "Sema/Analysis/Conversion.def"
+};
+
+std::string_view toString(MutConversion conv);
+
+std::ostream& operator<<(std::ostream& ostream, MutConversion conv);
+
 /// Conversion between different object types
 enum class ObjectTypeConversion : uint8_t {
 #define SC_OBJTYPECONV_DEF(Name, ...) Name,
@@ -36,8 +46,13 @@ public:
     Conversion(QualType const* fromType,
                QualType const* toType,
                RefConversion refConv,
+               MutConversion mutConv,
                ObjectTypeConversion objConv):
-        from(fromType), to(toType), refConv(refConv), objConv(objConv) {}
+        from(fromType),
+        to(toType),
+        refConv(refConv),
+        mutConv(mutConv),
+        objConv(objConv) {}
 
     /// The type of the value before the conversion
     QualType const* originType() const { return from; }
@@ -48,6 +63,9 @@ public:
     /// The reference conversion kind
     RefConversion refConversion() const { return refConv; }
 
+    /// The mutability conversion kind
+    MutConversion mutConversion() const { return mutConv; }
+
     /// The object conversion kind
     ObjectTypeConversion objectConversion() const { return objConv; }
 
@@ -55,6 +73,7 @@ private:
     QualType const* from;
     QualType const* to;
     RefConversion refConv;
+    MutConversion mutConv;
     ObjectTypeConversion objConv;
 };
 

@@ -107,8 +107,8 @@ std::ostream& sema::operator<<(std::ostream& str, ConversionKind k) {
 }
 
 Mutability sema::baseMutability(QualType const* type) {
-    if (type->isMutRef()) {
-        return Mutability::Mutable;
+    if (type->isReference()) {
+        return type->isMutRef() ? Mutability::Mutable : Mutability::Const;
     }
     return type->mutability();
 }
