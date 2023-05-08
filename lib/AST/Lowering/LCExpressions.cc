@@ -67,15 +67,14 @@ ir::Value* LoweringContext::getValueImpl(UnaryPrefixExpression const& expr) {
         ir::Value* const operandAddress = getValue(expr.operand());
         SC_ASSERT(isa<ir::PointerType>(operandAddress->type()),
                   "We need a pointer to store to");
-        ir::Type const* arithmeticType =
-            mapType(expr.operand()->type()->base());
+        ir::Type const* operandType = mapType(expr.operand()->type()->base());
         ir::Value* operandValue =
             add<ir::Load>(operandAddress,
-                          arithmeticType,
+                          operandType,
                           utl::strcat(expr.operation(), ".operand"));
         auto* newValue =
             add<ir::ArithmeticInst>(operandValue,
-                                    intConstant(1, 64),
+                                    constant(1, operandType),
                                     expr.operation() == Increment ?
                                         ir::ArithmeticOperation::Add :
                                         ir::ArithmeticOperation::Sub,

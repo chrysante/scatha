@@ -83,6 +83,11 @@ struct Context {
 
 } // namespace
 
+template <typename... Args, typename T>
+static bool isAny(T const* t) {
+    return (isa<Args>(t) || ...);
+}
+
 bool sema::analyzeExpression(ast::Expression& expr,
                              SymbolTable& sym,
                              IssueHandler& iss) {
@@ -135,38 +140,33 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
         return false;
     }
     auto const* operandType = u.operand()->type();
-    auto submitIssue        = [&] {
-        iss.push<BadOperandForUnaryExpression>(u, operandType);
-    };
+    auto* baseType          = operandType->base();
     switch (u.operation()) {
     case ast::UnaryPrefixOperator::Promotion:
         [[fallthrough]];
     case ast::UnaryPrefixOperator::Negation:
-        if (operandType->base() != sym.S64() &&
-            operandType->base() != sym.Float())
-        {
-            submitIssue();
+        if (!isAny<IntType, FloatType>(baseType)) {
+            iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
         break;
     case ast::UnaryPrefixOperator::BitwiseNot:
-        if (operandType->base() != sym.S64()) {
-            submitIssue();
+        if (!isAny<ByteType, IntType>(baseType)) {
+            iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
         break;
     case ast::UnaryPrefixOperator::LogicalNot:
-        if (operandType->base() != sym.Bool()) {
-            submitIssue();
+        if (!isAny<BoolType>(baseType)) {
+            iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
         break;
     case ast::UnaryPrefixOperator::Increment:
         [[fallthrough]];
     case ast::UnaryPrefixOperator::Decrement:
-        // TODO: Check for mutability
-        if (operandType->base() != sym.S64()) {
-            submitIssue();
+        if (!isAny<IntType>(baseType)) {
+            iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
         if (!convertToImplicitRef(u.operand(), sym, iss)) {
@@ -174,9 +174,9 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
         }
         break;
     case ast::UnaryPrefixOperator::_count:
-        SC_DEBUGFAIL();
+        SC_UNREACHABLE();
     }
-    u.decorate(nullptr, sym.qualify(u.operand()->type()->base()));
+    u.decorate(nullptr, sym.stripQualifiers(operandType));
     return true;
 }
 
@@ -595,11 +595,6 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
     default:
         SC_UNREACHABLE();
     }
-}
-
-template <typename... Args, typename T>
-static bool isAny(T const* t) {
-    return (isa<Args>(t) || ...);
 }
 
 static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
