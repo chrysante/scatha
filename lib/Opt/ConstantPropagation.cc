@@ -459,13 +459,18 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
         return APFloat(value.to<double>(), APFloatPrec::Single);
     }
     case Conversion::UtoF:
-        [[fallthrough]];
+        return valuecast<APFloat>(operand.get<APInt>(), targetType->bitwidth());
+
     case Conversion::StoF:
-        [[fallthrough]];
+        return signedValuecast<APFloat>(operand.get<APInt>(),
+                                        targetType->bitwidth());
+
     case Conversion::FtoU:
-        [[fallthrough]];
+        return valuecast<APInt>(operand.get<APFloat>(), targetType->bitwidth());
+
     case Conversion::FtoS:
-        return Inevaluable{};
+        return signedValuecast<APInt>(operand.get<APFloat>(),
+                                      targetType->bitwidth());
 
     case Conversion::Bitcast: {
         if (operand.is<APInt>()) {
