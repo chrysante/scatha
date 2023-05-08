@@ -10,46 +10,25 @@
 
 namespace scatha::sema {
 
-/// Conversion between different object types
-enum class ObjectTypeConversion : uint8_t {
-    None,
-
-    /// Only valid for reference target types
-    Array_FixedToDynamic,
-
-    Reinterpret_ArrayRef_ToByte,
-    Reinterpret_ArrayRef_FromByte,
-    Reinterpret_Value,
-
-    /// Only valid for value target types
-    Int_Trunc,
-    Signed_Widen,
-    Unsigned_Widen,
-
-    Float_Trunc,
-    Float_Widen,
-
-    SignedToFloat,
-    UnsignedToFloat,
-    FloatToSigned,
-    FloatToUnsigned,
-};
-
-std::string_view toString(ObjectTypeConversion conv);
-
-std::ostream& operator<<(std::ostream& ostream, ObjectTypeConversion conv);
-
 /// Conversion between reference qualifications
 enum class RefConversion : uint8_t {
-    None        = 0,
-    MutToConst  = 1,
-    Dereference = 2,
-    TakeAddress = 3,
+#define SC_REFCONV_DEF(Name, ...) Name,
+#include "Sema/Analysis/Conversion.def"
 };
 
 std::string_view toString(RefConversion conv);
 
 std::ostream& operator<<(std::ostream& ostream, RefConversion conv);
+
+/// Conversion between different object types
+enum class ObjectTypeConversion : uint8_t {
+#define SC_OBJTYPECONV_DEF(Name, ...) Name,
+#include "Sema/Analysis/Conversion.def"
+};
+
+std::string_view toString(ObjectTypeConversion conv);
+
+std::ostream& operator<<(std::ostream& ostream, ObjectTypeConversion conv);
 
 /// Represents a conversion of a value from one type to another
 class Conversion {

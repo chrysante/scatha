@@ -11,60 +11,26 @@
 using namespace scatha;
 using namespace sema;
 
+std::string_view sema::toString(RefConversion conv) {
+    return std::array{
+#define SC_REFCONV_DEF(Name, ...) std::string_view(#Name),
+#include "Sema/Analysis/Conversion.def"
+    }[static_cast<size_t>(conv)];
+}
+
+std::ostream& sema::operator<<(std::ostream& ostream, RefConversion conv) {
+    return ostream << toString(conv);
+}
+
 std::string_view sema::toString(ObjectTypeConversion conv) {
-    switch (conv) {
-        using enum ObjectTypeConversion;
-    case None:
-        return "None";
-    case Array_FixedToDynamic:
-        return "Array_FixedToDynamic";
-    case Reinterpret_ArrayRef_ToByte:
-        return "Reinterpret_ArrayRef_ToByte";
-    case Reinterpret_ArrayRef_FromByte:
-        return "Reinterpret_ArrayRef_FromByte";
-    case Reinterpret_Value:
-        return "Reinterpret_Value";
-    case Int_Trunc:
-        return "Int_Trunc";
-    case Signed_Widen:
-        return "Signed_Widen";
-    case Unsigned_Widen:
-        return "Unsigned_Widen";
-    case Float_Trunc:
-        return "Float_Trunc";
-    case Float_Widen:
-        return "Float_Widen";
-    case SignedToFloat:
-        return "SignedToFloat";
-    case UnsignedToFloat:
-        return "UnsignedToFloat";
-    case FloatToSigned:
-        return "FloatToSigned";
-    case FloatToUnsigned:
-        return "FloatToUnsigned";
-    };
+    return std::array{
+#define SC_OBJTYPECONV_DEF(Name, ...) std::string_view(#Name),
+#include "Sema/Analysis/Conversion.def"
+    }[static_cast<size_t>(conv)];
 }
 
 std::ostream& sema::operator<<(std::ostream& ostream,
                                ObjectTypeConversion conv) {
-    return ostream << toString(conv);
-}
-
-std::string_view sema::toString(RefConversion conv) {
-    switch (conv) {
-        using enum RefConversion;
-    case None:
-        return "None";
-    case MutToConst:
-        return "MutToConst";
-    case Dereference:
-        return "Dereference";
-    case TakeAddress:
-        return "TakeAddress";
-    }
-}
-
-std::ostream& sema::operator<<(std::ostream& ostream, RefConversion conv) {
     return ostream << toString(conv);
 }
 
@@ -299,51 +265,17 @@ bool isCompatible(ObjectTypeConversion objConv, RefConversion refConv) {
 }
 
 static int getRank(RefConversion conv) {
-    switch (conv) {
-        using enum RefConversion;
-    case None:
-        return 0;
-    case MutToConst:
-        return 1;
-    case Dereference:
-        return 1;
-    case TakeAddress:
-        return 2;
-    }
+    return std::array{
+#define SC_REFCONV_DEF(Name, Rank) Rank,
+#include "Sema/Analysis/Conversion.def"
+    }[static_cast<size_t>(conv)];
 }
 
 static int getRank(ObjectTypeConversion conv) {
-    switch (conv) {
-        using enum ObjectTypeConversion;
-    case None:
-        return 0;
-    case Array_FixedToDynamic:
-        return 1;
-    case Reinterpret_ArrayRef_ToByte:
-        return 2;
-    case Reinterpret_ArrayRef_FromByte:
-        return 2;
-    case Reinterpret_Value:
-        return 2;
-    case Int_Trunc:
-        return 2;
-    case Signed_Widen:
-        return 1;
-    case Unsigned_Widen:
-        return 1;
-    case Float_Trunc:
-        return 2;
-    case Float_Widen:
-        return 1;
-    case SignedToFloat:
-        return 2;
-    case UnsignedToFloat:
-        return 2;
-    case FloatToSigned:
-        return 2;
-    case FloatToUnsigned:
-        return 2;
-    }
+    return std::array{
+#define SC_OBJTYPECONV_DEF(Name, Rank) Rank,
+#include "Sema/Analysis/Conversion.def"
+    }[static_cast<size_t>(conv)];
 }
 
 static int getRank(RefConversion refConv, ObjectTypeConversion objConv) {

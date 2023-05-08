@@ -1,0 +1,50 @@
+// No include guards
+
+// ===----------------------------------------------------------------------===
+// === List of conversions betweens reference qualifications ---------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_REFCONV_DEF
+#   define SC_REFCONV_DEF(Name, Rank)
+#endif
+
+SC_REFCONV_DEF(None,         0)
+SC_REFCONV_DEF(MutToConst,   1)
+SC_REFCONV_DEF(Dereference,  1)
+SC_REFCONV_DEF(TakeAddress,  2)
+
+#undef SC_REFCONV_DEF
+
+// ===----------------------------------------------------------------------===
+// === List of conversions between object types ----------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_OBJTYPECONV_DEF
+#   define SC_OBJTYPECONV_DEF(Name, Rank)
+#endif
+
+SC_OBJTYPECONV_DEF(None,                          0)
+
+/// Only valid for reference target types
+    
+SC_OBJTYPECONV_DEF(Array_FixedToDynamic,          1)
+
+SC_OBJTYPECONV_DEF(Reinterpret_ArrayRef_ToByte,   2)
+SC_OBJTYPECONV_DEF(Reinterpret_ArrayRef_FromByte, 2)
+SC_OBJTYPECONV_DEF(Reinterpret_Value,             2)
+
+/// Only valid for value target types
+    
+SC_OBJTYPECONV_DEF(Int_Trunc,                     2)
+SC_OBJTYPECONV_DEF(Signed_Widen,                  1)
+SC_OBJTYPECONV_DEF(Unsigned_Widen,                1)
+
+SC_OBJTYPECONV_DEF(Float_Trunc,                   2)
+SC_OBJTYPECONV_DEF(Float_Widen,                   1)
+
+SC_OBJTYPECONV_DEF(SignedToFloat,                 2)
+SC_OBJTYPECONV_DEF(UnsignedToFloat,               2)
+SC_OBJTYPECONV_DEF(FloatToSigned,                 2)
+SC_OBJTYPECONV_DEF(FloatToUnsigned,               2)
+
+#undef SC_OBJTYPECONV_DEF
