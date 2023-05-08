@@ -363,6 +363,10 @@ static std::optional<std::pair<RefConversion, ObjectTypeConversion>>
     if (!refConv) {
         return std::nullopt;
     }
+    using enum Mutability;
+    if (baseMutability(from) == Const && to->isMutRef()) {
+        return std::nullopt;
+    }
     if (!isCompatible(*objConv, *refConv)) {
         return std::nullopt;
     }

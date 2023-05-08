@@ -235,7 +235,11 @@ QualType const* SymbolTable::copyQualifiers(QualType const* from,
 }
 
 QualType const* SymbolTable::setReference(QualType const* type, Reference ref) {
-    return qualify(type->base(), ref);
+    return qualify(type->base(), ref, type->mutability());
+}
+
+QualType const* SymbolTable::setMutable(QualType const* type, Mutability mut) {
+    return qualify(type->base(), type->reference(), mut);
 }
 
 QualType const* SymbolTable::qDynArray(ObjectType const* base,

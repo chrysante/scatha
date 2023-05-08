@@ -528,9 +528,19 @@ ir::Value* LoweringContext::getAddressImpl(ReferenceExpression const& expr) {
 
 ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
     auto* expr = conv.expression();
-    SC_ASSERT(!conv.type()->isReference() && expr->type()->isImplicitRef(),
-              "Only of a dereferencing conversion can we take the address");
-    return getValue(expr);
+    switch (conv.conversion()->refConversion()) {
+    case sema::RefConversion::None:
+        [[fallthrough]];
+    case sema::RefConversion::MutToConst:
+        return getAddress(expr);
+    case sema::RefConversion::Dereference:
+        SC_ASSERT(
+            !conv.type()->isReference() && expr->type()->isImplicitRef(),
+            "--Only of a dereferencing conversion can we take the address--");
+        return getValue(expr);
+    case sema::RefConversion::TakeAddress:
+        SC_UNREACHABLE();
+    }
 }
 
 static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {

@@ -124,11 +124,11 @@ enum class Reference {
 
 inline constexpr Reference RefConstImpl = Reference::ConstImplicit;
 
-inline constexpr Reference RefMutImpl   = Reference::MutImplicit;
+inline constexpr Reference RefMutImpl = Reference::MutImplicit;
 
 inline constexpr Reference RefConstExpl = Reference::ConstExplicit;
 
-inline constexpr Reference RefMutExpl   = Reference::MutExplicit;
+inline constexpr Reference RefMutExpl = Reference::MutExplicit;
 
 /// Mutability qualifiers of `QualType`
 enum class Mutability { Const, Mutable };

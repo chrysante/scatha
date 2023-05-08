@@ -138,6 +138,10 @@ public:
     /// qualification \p ref
     QualType const* setReference(QualType const* type, Reference ref);
 
+    /// \Returns The `QualType` with same base type as \p type but mutability
+    /// qualification \p mut
+    QualType const* setMutable(QualType const* type, Mutability mut);
+
     /// Make type \p base into a reference to dynamic array of element type \p
     /// base
     QualType const* qDynArray(ObjectType const* base,

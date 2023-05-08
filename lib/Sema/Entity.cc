@@ -154,17 +154,15 @@ std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     return std::move(sstr).str();
 }
 
-QualType::QualType(ObjectType* base, Reference ref, Mutability mut):
-    Type(EntityType::QualType,
-         ScopeKind::Invalid,
-         makeName(base, ref),
-         base->parent()),
-    _base(base),
-    ref(ref),
-    mut(mut) {}
-
-std::string QualType::makeName(ObjectType* base, Reference ref) {
+static std::string makeName(ObjectType* base, Mutability mut, Reference ref) {
     std::stringstream sstr;
+    switch (mut) {
+    case Mutability::Const:
+        break;
+    case Mutability::Mutable:
+        sstr << "mut ";
+        break;
+    }
     switch (ref) {
     case Reference::None:
         break;
@@ -184,6 +182,15 @@ std::string QualType::makeName(ObjectType* base, Reference ref) {
     sstr << base->name();
     return std::move(sstr).str();
 }
+
+QualType::QualType(ObjectType* base, Reference ref, Mutability mut):
+    Type(EntityType::QualType,
+         ScopeKind::Invalid,
+         makeName(base, mut, ref),
+         base->parent()),
+    _base(base),
+    ref(ref),
+    mut(mut) {}
 
 size_t QualType::sizeImpl() const {
     if (isReference()) {

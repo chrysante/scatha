@@ -351,6 +351,10 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
             return false;
         }
         auto* refType = sym.setReference(referred.type(), refQual);
+        if (!explicitConversionRank(referred.type(), refType)) {
+            iss.push<BadExpression>(ref, IssueSeverity::Error);
+            return false;
+        }
         ref.decorate(referred.entity(), refType, ValueCategory::RValue);
         return true;
     }

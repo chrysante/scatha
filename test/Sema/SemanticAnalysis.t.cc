@@ -71,7 +71,8 @@ fn mul(a: int, b: int, c: float, d: byte) -> int {
     CHECK(fn->parameter(3)->type()->base() == sym.Byte());
     auto* varDecl = fn->body()->statement<VariableDeclaration>(0);
     CHECK(varDecl->type()->base() == sym.S64());
-    auto* varDeclInit = cast<Identifier*>(varDecl->initExpression());
+    auto* varDeclInit = cast<ast::Conversion*>(varDecl->initExpression())
+                            ->expression<Identifier>();
     CHECK(varDeclInit->type()->base() == sym.S64());
     CHECK(varDeclInit->valueCategory() == ValueCategory::LValue);
     auto* nestedScope   = fn->body()->statement<CompoundStatement>(1);
@@ -82,19 +83,23 @@ fn mul(a: int, b: int, c: float, d: byte) -> int {
     CHECK(nestedvarDeclInit->valueCategory() == ValueCategory::RValue);
     auto* xDecl = fn->body()->statement<VariableDeclaration>(2);
     CHECK(xDecl->type()->base() == sym.S64());
-    auto* intLit = cast<Literal*>(xDecl->initExpression());
+    auto* intLit =
+        cast<ast::Conversion*>(xDecl->initExpression())->expression<Literal>();
     CHECK(intLit->value<LiteralKind::Integer>() == 39);
     CHECK(intLit->valueCategory() == ValueCategory::RValue);
     auto* zDecl = fn->body()->statement<VariableDeclaration>(3);
     CHECK(zDecl->type()->base() == sym.S64());
-    auto* intHexLit = cast<Literal*>(zDecl->initExpression());
+    auto* intHexLit =
+        cast<ast::Conversion*>(zDecl->initExpression())->expression<Literal>();
     CHECK(intHexLit->value<LiteralKind::Integer>() == 0x39E);
     auto* yDecl = fn->body()->statement<VariableDeclaration>(4);
     CHECK(yDecl->type()->base() == sym.Float());
-    auto* floatLit = cast<Literal*>(yDecl->initExpression());
+    auto* floatLit =
+        cast<ast::Conversion*>(yDecl->initExpression())->expression<Literal>();
     CHECK(floatLit->value<LiteralKind::FloatingPoint>().to<f64>() == 1.2);
-    auto* ret           = fn->body()->statement<ReturnStatement>(5);
-    auto* retIdentifier = cast<Identifier*>(ret->expression());
+    auto* ret = fn->body()->statement<ReturnStatement>(5);
+    auto* retIdentifier =
+        cast<ast::Conversion*>(ret->expression())->expression<Identifier>();
     CHECK(retIdentifier->type()->base() == sym.S64());
     CHECK(retIdentifier->valueCategory() == ValueCategory::LValue);
 }
@@ -120,7 +125,8 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     auto* caller     = tu->declaration<FunctionDefinition>(0);
     auto* resultDecl = caller->body()->statement<VariableDeclaration>(0);
     CHECK(resultDecl->initExpression()->type()->base() == sym.Float());
-    auto* fnCallExpr = cast<FunctionCall*>(resultDecl->initExpression());
+    auto* fnCallExpr = cast<ast::Conversion*>(resultDecl->initExpression())
+                           ->expression<FunctionCall>();
     auto const& calleeOverloadSet = sym.lookup<OverloadSet>("callee");
     REQUIRE(calleeOverloadSet);
     auto* calleeFunction = calleeOverloadSet->front();

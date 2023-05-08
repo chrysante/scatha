@@ -586,8 +586,6 @@ public:
     bool isConst() const { return mutability() == Mutability::Const; }
 
 private:
-    static std::string makeName(ObjectType* base, Reference ref);
-
     friend class Type;
     size_t sizeImpl() const;
     size_t alignImpl() const;

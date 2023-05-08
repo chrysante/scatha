@@ -25,7 +25,7 @@ struct Context {
     UniquePtr<ast::StructDefinition> parseStructDefinition();
     UniquePtr<ast::VariableDeclaration> parseVariableDeclaration();
     UniquePtr<ast::VariableDeclaration> parseShortVariableDeclaration(
-        std::optional<Token> declarator = std::nullopt);
+        bool mut, std::optional<Token> declarator = std::nullopt);
     UniquePtr<ast::Statement> parseStatement();
     UniquePtr<ast::ExpressionStatement> parseExpressionStatement();
     UniquePtr<ast::EmptyStatement> parseEmptyStatement();

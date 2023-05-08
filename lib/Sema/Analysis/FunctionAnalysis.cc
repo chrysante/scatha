@@ -182,6 +182,9 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
                       deducedType->isExplicitRef() ?
                                      deducedType :
                                      sym.qualify(deducedType->base());
+    if (!var.isMutable()) {
+        finalType = sym.setMutable(finalType, Mutability::Const);
+    }
 
     if (var.initExpression() && var.initExpression()->isDecorated()) {
         convertImplicitly(var.initExpression(), finalType, iss);
