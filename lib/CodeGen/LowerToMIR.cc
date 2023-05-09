@@ -298,16 +298,21 @@ void CodeGenContext::genInst(ir::Load const& load) {
 }
 
 static APInt getConstantValue(ir::Constant const* constant) {
-    return visit(*constant,
-                 utl::overload{ [](ir::IntegralConstant const& constant) {
-                                   return constant.value();
-                               },
-                                [](ir::FloatingPointConstant const& constant) {
-        return bitcast<APInt>(constant.value());
-                               },
-                                [](ir::Constant const& constant) -> APInt {
-                                    SC_UNREACHABLE();
-                                } });
+    // clang-format off
+    return visit(*constant, utl::overload{
+        [](ir::IntegralConstant const& constant) {
+            return constant.value();
+        },
+        [](ir::FloatingPointConstant const& constant) {
+            return bitcast<APInt>(constant.value());
+        },
+        [&](ir::UndefValue const& undef) {
+            return APInt(0xdeadbeef, 8 * constant->type()->size());
+        },
+        [](ir::Constant const& constant) -> APInt {
+            SC_UNREACHABLE();
+        }
+    }); // clang-format on
 }
 
 void CodeGenContext::genInst(ir::ConversionInst const& inst) {
