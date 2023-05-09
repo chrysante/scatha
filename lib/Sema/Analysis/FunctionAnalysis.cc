@@ -4,6 +4,7 @@
 
 #include "AST/AST.h"
 #include "Common/Base.h"
+#include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Entity.h"
@@ -185,7 +186,6 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     if (!var.isMutable()) {
         finalType = sym.setMutable(finalType, Mutability::Const);
     }
-
     if (var.initExpression() && var.initExpression()->isDecorated()) {
         convertImplicitly(var.initExpression(), finalType, iss);
     }
@@ -196,6 +196,11 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     }
     auto& varObj = *varRes;
     var.decorate(&varObj, finalType);
+    if (!varObj.type()->isMutable() && var.initExpression() &&
+        var.initExpression()->constantValue())
+    {
+        varObj.setConstantValue(clone(var.initExpression()->constantValue()));
+    }
 }
 
 void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {

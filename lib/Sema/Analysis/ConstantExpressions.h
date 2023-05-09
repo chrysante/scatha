@@ -15,17 +15,19 @@ public:
     /// Runtime type of this node
     ConstantKind kind() const { return _kind; }
 
-    /// Type of this value
-    ObjectType const* type() const { return _type; }
+    /// Clone this value
+    UniquePtr<Value> clone() const;
 
 protected:
-    explicit Value(ConstantKind kind, ObjectType const* type):
-        _kind(kind), _type(type) {}
+    explicit Value(ConstantKind kind): _kind(kind) {}
 
 public:
     ConstantKind _kind;
-    ObjectType const* _type;
 };
+
+inline UniquePtr<Value> clone(Value const* value) {
+    return value ? value->clone() : nullptr;
+}
 
 inline ConstantKind dyncast_get_type(Value const& value) {
     return value.kind();
@@ -34,28 +36,39 @@ inline ConstantKind dyncast_get_type(Value const& value) {
 /// Represents an integral constant value
 class IntValue: public Value {
 public:
-    explicit IntValue(APInt value, IntType const* type);
-
-    IntType const* type() const;
+    explicit IntValue(APInt value, bool isSigned):
+        Value(ConstantKind::IntValue),
+        val(std::move(value)),
+        _signed(isSigned) {}
 
     /// The value of this constant expression
     APInt const& value() const { return val; }
 
+    bool isSigned() const { return _signed; }
+
+    bool isBool() const { return value().bitwidth() == 1 && !isSigned(); }
+
 private:
+    friend class Value;
+    UniquePtr<IntValue> doClone() const;
+
     APInt val;
+    bool _signed;
 };
 
 /// Represents a floating point constant value
 class FloatValue: public Value {
 public:
-    explicit FloatValue(APFloat value, FloatType const* type);
-
-    FloatType const* type() const;
+    explicit FloatValue(APFloat value):
+        Value(ConstantKind::FloatValue), val(std::move(value)) {}
 
     /// The value of this constant expression
     APFloat const& value() const { return val; }
 
 private:
+    friend class Value;
+    UniquePtr<FloatValue> doClone() const;
+
     APFloat val;
 };
 
@@ -67,6 +80,10 @@ UniquePtr<Value> evalBinary(ast::BinaryOperator op,
 
 UniquePtr<Value> evalConversion(sema::Conversion const* conv,
                                 Value const* operand);
+
+UniquePtr<Value> evalConditional(Value const* condition,
+                                 Value const* thenValue,
+                                 Value const* elseValue);
 
 } // namespace scatha::sema
 

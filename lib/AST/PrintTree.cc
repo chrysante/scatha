@@ -157,7 +157,7 @@ static constexpr utl::streammanip header([](std::ostream& str,
     visit(*expr->constantValue(), utl::overload{
         [&](sema::IntValue const& node) {
             auto value = node.value();
-            str << (node.type()->isSigned() ? value.signedToString() :
+            str << (node.isSigned() ? value.signedToString() :
                                               value.toString());
         },
         [&](sema::FloatValue const& node) {

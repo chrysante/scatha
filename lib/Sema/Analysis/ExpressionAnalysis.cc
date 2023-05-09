@@ -125,17 +125,16 @@ bool Context::analyzeImpl(ast::Literal& lit) {
     case Integer:
         lit.decorate(nullptr, sym.qS64());
         lit.setConstantValue(
-            allocate<IntValue>(lit.value<Integer>(), sym.S64()));
+            allocate<IntValue>(lit.value<Integer>(), /* signed = */ true));
         return true;
     case Boolean:
         lit.decorate(nullptr, sym.qBool());
-        // lit.setConstantValue(allocate<IntValue>(lit.value<Boolean>(),
-        // sym.Bool()));
+        lit.setConstantValue(
+            allocate<IntValue>(lit.value<Boolean>(), /* signed = */ false));
         return true;
     case FloatingPoint:
         lit.decorate(nullptr, sym.qFloat());
-        lit.setConstantValue(
-            allocate<FloatValue>(lit.value<FloatingPoint>(), sym.Float()));
+        lit.setConstantValue(allocate<FloatValue>(lit.value<FloatingPoint>()));
         return true;
     case This: {
         auto* scope = &sym.currentScope();
@@ -234,6 +233,7 @@ bool Context::analyzeImpl(ast::Identifier& id) {
     return visit(*entity, utl::overload{
         [&](Variable& var) {
             id.decorate(&var, makeRefImplicit(var.type()));
+            id.setConstantValue(clone(var.constantValue()));
             return true;
         },
         [&](ObjectType const& type) {
@@ -431,6 +431,11 @@ bool Context::analyzeImpl(ast::Conditional& c) {
     }
     // TODO: Return a reference here to allow conditional assignment etc.
     c.decorate(nullptr, thenType);
+    if (c.condition()->constantValue()) {
+        c.setConstantValue(evalConditional(c.condition()->constantValue(),
+                                           c.thenExpr()->constantValue(),
+                                           c.elseExpr()->constantValue()));
+    }
     return true;
 }
 

@@ -16,20 +16,18 @@ void scatha::internal::privateDestroy(sema::Value* type) {
     visit(*type, [](auto& type) { std::destroy_at(&type); });
 }
 
-IntValue::IntValue(APInt value, IntType const* type):
-    Value(ConstantKind::IntValue, type), val(value) {
-    SC_ASSERT(value.bitwidth() == type->bitwidth(), "");
+UniquePtr<Value> Value::clone() const {
+    return visit(*this, [](auto& child) -> UniquePtr<Value> {
+        return child.doClone();
+    });
 }
 
-IntType const* IntValue::type() const {
-    return cast<IntType const*>(Value::type());
+UniquePtr<IntValue> IntValue::doClone() const {
+    return allocate<IntValue>(value(), isSigned());
 }
 
-FloatValue::FloatValue(APFloat value, FloatType const* type):
-    Value(ConstantKind::FloatValue, type), val(value) {}
-
-FloatType const* FloatValue::type() const {
-    return cast<FloatType const*>(Value::type());
+UniquePtr<FloatValue> FloatValue::doClone() const {
+    return allocate<FloatValue>(value());
 }
 
 static std::optional<APInt> doEvalUnary(ast::UnaryPrefixOperator op,
@@ -67,77 +65,100 @@ UniquePtr<Value> sema::evalUnary(ast::UnaryPrefixOperator op,
     return visit(*operand, utl::overload{
         [&](IntValue const& value) -> UniquePtr<Value> {
             if (auto result = doEvalUnary(op, value.value())) {
-                return allocate<IntValue>(*result, value.type());
+                return allocate<IntValue>(*result, value.isSigned());
             }
             return nullptr;
         },
         [&](FloatValue const& value) -> UniquePtr<Value> {
             if (auto result = doEvalUnary(op, value.value())) {
-                return allocate<FloatValue>(*result, value.type());
+                return allocate<FloatValue>(*result);
             }
             return nullptr;
         },
     }); // clang-format on
 }
 
-static std::optional<APInt> doEvalBinary(ast::BinaryOperator op,
-                                         bool isSigned,
-                                         APInt lhs,
-                                         APInt rhs) {
+static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
+                                     bool isSigned,
+                                     APInt lhs,
+                                     APInt rhs) {
     using enum ast::BinaryOperator;
+    int const cmpResult = isSigned ? scmp(lhs, rhs) : ucmp(lhs, rhs);
     switch (op) {
     case Multiplication:
-        return mul(lhs, rhs);
+        return allocate<IntValue>(mul(lhs, rhs), isSigned);
     case Division:
-        return isSigned ? sdiv(lhs, rhs) : udiv(lhs, rhs);
+        return allocate<IntValue>(isSigned ? sdiv(lhs, rhs) : udiv(lhs, rhs),
+                                  isSigned);
     case Remainder:
-        return isSigned ? srem(lhs, rhs) : urem(lhs, rhs);
+        return allocate<IntValue>(isSigned ? srem(lhs, rhs) : urem(lhs, rhs),
+                                  isSigned);
     case Addition:
-        return add(lhs, rhs);
+        return allocate<IntValue>(add(lhs, rhs), isSigned);
     case Subtraction:
-        return sub(lhs, rhs);
+        return allocate<IntValue>(sub(lhs, rhs), isSigned);
     case LeftShift:
-        return lshl(lhs, rhs.to<int>());
+        return allocate<IntValue>(lshl(lhs, rhs.to<int>()), false);
     case RightShift:
-        return lshr(lhs, rhs.to<int>());
+        return allocate<IntValue>(lshr(lhs, rhs.to<int>()), false);
     case Less:
-        return std::nullopt;
+        return allocate<IntValue>(APInt(cmpResult < 0, 1), false);
     case LessEq:
-        return std::nullopt;
+        return allocate<IntValue>(APInt(cmpResult <= 0, 1), false);
     case Greater:
-        return std::nullopt;
+        return allocate<IntValue>(APInt(cmpResult > 0, 1), false);
     case GreaterEq:
-        return std::nullopt;
+        return allocate<IntValue>(APInt(cmpResult >= 0, 1), false);
     case Equals:
-        return std::nullopt;
+        return allocate<IntValue>(APInt(cmpResult == 0, 1), false);
     case NotEquals:
-        return std::nullopt;
+        return allocate<IntValue>(APInt(cmpResult != 0, 1), false);
+    case LogicalAnd:
+        SC_ASSERT(!isSigned && lhs.bitwidth() == 1, "Must be bool");
+        [[fallthrough]];
     case BitwiseAnd:
-        return btwand(lhs, rhs);
+        return allocate<IntValue>(btwand(lhs, rhs), isSigned);
     case BitwiseXOr:
-        return btwxor(lhs, rhs);
+        return allocate<IntValue>(btwxor(lhs, rhs), isSigned);
+    case LogicalOr:
+        SC_ASSERT(!isSigned && lhs.bitwidth() == 1, "Must be bool");
+        [[fallthrough]];
     case BitwiseOr:
-        return btwor(lhs, rhs);
+        return allocate<IntValue>(btwor(lhs, rhs), isSigned);
+
     default:
-        return std::nullopt;
+        return nullptr;
     }
 }
 
-static std::optional<APFloat> doEvalBinary(ast::BinaryOperator op,
-                                           APFloat lhs,
-                                           APFloat rhs) {
+static UniquePtr<Value> doEvalBinary(ast::BinaryOperator op,
+                                     APFloat lhs,
+                                     APFloat rhs) {
     using enum ast::BinaryOperator;
+    int const cmpResult = cmp(lhs, rhs);
     switch (op) {
     case Multiplication:
-        return mul(lhs, rhs);
+        return allocate<FloatValue>(mul(lhs, rhs));
     case Division:
-        return div(lhs, rhs);
+        return allocate<FloatValue>(div(lhs, rhs));
     case Addition:
-        return add(lhs, rhs);
+        return allocate<FloatValue>(add(lhs, rhs));
     case Subtraction:
-        return sub(lhs, rhs);
+        return allocate<FloatValue>(sub(lhs, rhs));
+    case Less:
+        return allocate<IntValue>(APInt(cmpResult < 0, 1), false);
+    case LessEq:
+        return allocate<IntValue>(APInt(cmpResult <= 0, 1), false);
+    case Greater:
+        return allocate<IntValue>(APInt(cmpResult > 0, 1), false);
+    case GreaterEq:
+        return allocate<IntValue>(APInt(cmpResult >= 0, 1), false);
+    case Equals:
+        return allocate<IntValue>(APInt(cmpResult == 0, 1), false);
+    case NotEquals:
+        return allocate<IntValue>(APInt(cmpResult != 0, 1), false);
     default:
-        return std::nullopt;
+        return nullptr;
     }
 }
 
@@ -145,9 +166,7 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op,
                                   Value const* lhs,
                                   Value const* rhs) {
     if (op == ast::BinaryOperator::Comma) {
-        return visit(*rhs, []<typename T>(T const& rhs) -> UniquePtr<Value> {
-            return allocate<T>(rhs.value(), rhs.type());
-        });
+        return clone(rhs);
     }
     SC_ASSERT(lhs, "Must not be null");
     SC_ASSERT(rhs, "");
@@ -155,53 +174,59 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op,
     // clang-format off
     return visit(*lhs, utl::overload{
         [&](IntValue const& lhs) -> UniquePtr<Value> {
-            auto result = doEvalBinary(op,
-                                       lhs.type()->isSigned(),
-                                       lhs.value(),
-                                       cast<IntValue const&>(*rhs).value());
-            if (result) {
-                return allocate<IntValue>(*result, lhs.type());
-            }
-            return nullptr;
+            return doEvalBinary(op,
+                                lhs.isSigned(),
+                                lhs.value(),
+                                cast<IntValue const&>(*rhs).value());
         },
         [&](FloatValue const& lhs) -> UniquePtr<Value> {
-            auto result = doEvalBinary(op,
-                                       lhs.value(),
-                                       cast<FloatValue const&>(*rhs).value());
-            if (result) {
-                return allocate<FloatValue>(*result, lhs.type());
-            }
-            return nullptr;
+            return doEvalBinary(op,
+                                lhs.value(),
+                                cast<FloatValue const&>(*rhs).value());
         },
+    }); // clang-format on
+}
+
+static std::pair<size_t, bool> widthAndSign(ObjectType const* type) {
+    using R = std::pair<size_t, bool>;
+    // clang-format off
+    return visit(*type, utl::overload{
+        [](BoolType const& type) -> R {
+            return { 1, false };
+        },
+        [](ByteType const& type) -> R {
+            return { 8, false };
+        },
+        [](IntType const& type) -> R {
+            return { type.bitwidth(), type.isSigned() };
+        },
+        [](FloatType const& type) -> R {
+            return { type.bitwidth(), true };
+        },
+        [](ObjectType const& type) -> R { SC_UNREACHABLE(); },
     }); // clang-format on
 }
 
 static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
                                          IntValue const* operand) {
-    SC_ASSERT(conv->originType()->base() == operand->type(), "");
-    auto* type       = operand->type();
-    auto* targetType = cast<ArithmeticType const*>(conv->targetType()->base());
-    auto value       = operand->value();
+    auto [targetWidth, targetSigned] = widthAndSign(conv->targetType()->base());
+    auto value                       = operand->value();
     using enum ObjectTypeConversion;
     switch (conv->objectConversion()) {
     case None:
-        return allocate<IntValue>(zext(value, targetType->bitwidth()),
-                                  cast<IntType const*>(targetType));
+        return allocate<IntValue>(zext(value, targetWidth), targetSigned);
 
     case Reinterpret_Value:
         return nullptr;
 
     case Int_Trunc:
-        return allocate<IntValue>(zext(value, targetType->bitwidth()),
-                                  cast<IntType const*>(targetType));
+        return allocate<IntValue>(zext(value, targetWidth), targetSigned);
 
     case Signed_Widen:
-        return allocate<IntValue>(sext(value, targetType->bitwidth()),
-                                  cast<IntType const*>(targetType));
+        return allocate<IntValue>(sext(value, targetWidth), targetSigned);
 
     case Unsigned_Widen:
-        return allocate<IntValue>(zext(value, targetType->bitwidth()),
-                                  cast<IntType const*>(targetType));
+        return allocate<IntValue>(zext(value, targetWidth), targetSigned);
 
     case Float_Trunc:
         return nullptr;
@@ -235,4 +260,12 @@ UniquePtr<Value> sema::evalConversion(sema::Conversion const* conv,
                                       Value const* operand) {
     return visit(*operand,
                  [&](auto& op) { return doEvalConversion(conv, &op); });
+}
+
+UniquePtr<Value> sema::evalConditional(Value const* condition,
+                                       Value const* thenValue,
+                                       Value const* elseValue) {
+    auto* intCond = dyncast<IntValue const*>(condition);
+    SC_ASSERT(intCond && intCond->isBool(), "Must be bool");
+    return ucmp(intCond->value(), 0) != 0 ? clone(thenValue) : clone(elseValue);
 }
