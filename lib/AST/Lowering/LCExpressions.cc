@@ -559,13 +559,12 @@ ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
 }
 
 static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
-    auto* lit = dyncast<Literal const*>(expr);
-    if (!lit) {
+    auto* val = dyncast_or_null<sema::IntValue const*>(expr->constantValue());
+    if (!val) {
         return false;
     }
-    auto value =
-        std::get<static_cast<size_t>(LiteralKind::Integer)>(lit->value());
-    size_t const elemSize = lit->type()->size();
+    auto value            = val->value();
+    size_t const elemSize = expr->type()->base()->size();
     auto* data            = reinterpret_cast<u8 const*>(value.limbs().data());
     for (auto* end = data + elemSize; data < end; ++data) {
         dest.push_back(*data);
