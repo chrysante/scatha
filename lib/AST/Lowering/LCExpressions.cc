@@ -7,6 +7,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
+#include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
@@ -25,6 +26,19 @@ static bool isIntType(size_t width, ir::Type const* type) {
 /// MARK: getValue() Implementation
 
 ir::Value* LoweringContext::getValue(Expression const* expr) {
+    if (auto* constVal = expr->constantValue()) {
+        auto* type = cast<sema::ArithmeticType const*>(expr->type()->base());
+        // clang-format off
+        return visit(*constVal, utl::overload{
+            [&](sema::IntValue const& intVal) {
+                SC_ASSERT(type->bitwidth() == intVal.value().bitwidth(), "");
+                return intConstant(intVal.value());
+            },
+            [&](sema::FloatValue const& floatVal) {
+                return ctx.floatConstant(floatVal.value(), type->bitwidth());
+            }
+        }); // clang-format on
+    }
     return visit(*expr,
                  [this](auto const& expr) { return getValueImpl(expr); });
 }
