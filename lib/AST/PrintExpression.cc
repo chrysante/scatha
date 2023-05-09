@@ -54,15 +54,19 @@ void Context::printExpression(Identifier const& id) { str << id.value(); }
 void Context::printExpression(Literal const& lit) {
     switch (lit.kind()) {
     case LiteralKind::Integer:
-        str << lit.value<LiteralKind::Integer>().toString();
+        str << lit.value<APInt>().toString();
     case LiteralKind::Boolean:
-        str << (lit.value<LiteralKind::Boolean>() == 1 ? "true" : "false");
+        str << (lit.value<APInt>().test(1) ? "true" : "false");
+        break;
     case LiteralKind::FloatingPoint:
-        str << lit.value<LiteralKind::FloatingPoint>().toString();
+        str << lit.value<APFloat>().toString();
+        break;
     case LiteralKind::This:
         str << "this";
+        break;
     case LiteralKind::String:
-        str << '"' << lit.value<LiteralKind::String>() << '"';
+        str << '"' << lit.value<std::string>() << '"';
+        break;
     }
 }
 

@@ -904,21 +904,15 @@ UniquePtr<ast::Literal> Context::parseLiteral() {
     Token const token = tokens.peek();
     if (token.kind() == IntegerLiteral) {
         tokens.eat();
-        ast::Literal::ValueType value(std::in_place_index<static_cast<size_t>(
-                                          ast::LiteralKind::Integer)>,
-                                      token.toInteger(64));
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::Integer,
-                                      value);
+                                      token.toInteger(64));
     }
     if (token.kind() == True || token.kind() == False) {
         tokens.eat();
-        ast::Literal::ValueType value(std::in_place_index<static_cast<size_t>(
-                                          ast::LiteralKind::Boolean)>,
-                                      token.toBool());
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::Boolean,
-                                      value);
+                                      token.toBool());
     }
     if (token.kind() == FloatLiteral) {
         tokens.eat();
@@ -930,7 +924,7 @@ UniquePtr<ast::Literal> Context::parseLiteral() {
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::This,
-                                      nullptr);
+                                      APInt());
     }
     if (token.kind() == StringLiteral) {
         tokens.eat();

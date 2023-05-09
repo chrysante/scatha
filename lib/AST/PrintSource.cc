@@ -204,15 +204,15 @@ void Context::print(Identifier const& i) { str << i.value(); }
 void Context::print(Literal const& lit) {
     switch (lit.kind()) {
     case LiteralKind::Integer:
-        str << lit.value<LiteralKind::Integer>().toString();
+        str << lit.value<APInt>().toString();
     case LiteralKind::Boolean:
-        str << (lit.value<LiteralKind::Boolean>() == 1 ? "true" : "false");
+        str << (lit.value<APInt>() == 1 ? "true" : "false");
     case LiteralKind::FloatingPoint:
-        str << lit.value<LiteralKind::FloatingPoint>().toString();
+        str << lit.value<APFloat>().toString();
     case LiteralKind::This:
         str << "this";
     case LiteralKind::String:
-        str << '"' << lit.value<LiteralKind::String>() << '"';
+        str << '"' << lit.value<std::string>() << '"';
     }
 }
 

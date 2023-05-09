@@ -36,11 +36,11 @@ ir::Value* LoweringContext::getValueImpl(Identifier const& id) {
 ir::Value* LoweringContext::getValueImpl(Literal const& lit) {
     switch (lit.kind()) {
     case LiteralKind::Integer:
-        return intConstant(lit.value<LiteralKind::Integer>());
+        return intConstant(lit.value<APInt>());
     case LiteralKind::Boolean:
-        return intConstant(lit.value<LiteralKind::Boolean>());
+        return intConstant(lit.value<APInt>());
     case LiteralKind::FloatingPoint:
-        return floatConstant(lit.value<LiteralKind::FloatingPoint>());
+        return floatConstant(lit.value<APFloat>());
     case LiteralKind::This: {
         return variableAddressMap[lit.entity()];
     }

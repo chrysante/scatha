@@ -62,11 +62,11 @@ fn main() -> void {
     auto* const aDecl =
         cast<VariableDeclaration*>(function->body()->statements()[0]);
     auto* const intLit = cast<Literal const*>(aDecl->initExpression());
-    CHECK(intLit->value<LiteralKind::Integer>() == 39);
+    CHECK(intLit->value<APInt>() == 39);
     auto* const bDecl =
         cast<VariableDeclaration const*>(function->body()->statements()[1]);
     auto* const floatLit = cast<Literal const*>(bDecl->initExpression());
-    CHECK(floatLit->value<LiteralKind::FloatingPoint>().to<f64>() == 1.2);
+    CHECK(floatLit->value<APFloat>().to<f64>() == 1.2);
 }
 
 TEST_CASE("Parse last statement ending with '}'", "[parse]") {
@@ -119,7 +119,7 @@ fn test() {
     CHECK(identifier->value() == "x");
     auto* const intLiteral = cast<Literal const*>(expr->rhs());
     REQUIRE(intLiteral);
-    CHECK(intLiteral->value<LiteralKind::Integer>() == 1);
+    CHECK(intLiteral->value<APInt>() == 1);
 }
 
 TEST_CASE("Parse do-while statement", "[parse]") {
@@ -158,7 +158,7 @@ fn test() {
     CHECK(identifier->value() == "x");
     auto* const intLiteral = cast<Literal const*>(expr->rhs());
     REQUIRE(intLiteral);
-    CHECK(intLiteral->value<LiteralKind::Integer>() == 1);
+    CHECK(intLiteral->value<APInt>() == 1);
 }
 
 TEST_CASE("Parse for statement", "[parse]") {
@@ -188,7 +188,7 @@ fn test() {
     CHECK(varDecl->typeExpr() == nullptr);
     auto* const varInitExpr = cast<Literal const*>(varDecl->initExpression());
     REQUIRE(varInitExpr);
-    CHECK(varInitExpr->value<LiteralKind::Integer>() == 0);
+    CHECK(varInitExpr->value<APInt>() == 0);
     auto* const condition =
         cast<BinaryExpression const*>(forStatement->condition());
     REQUIRE(condition);
@@ -202,7 +202,7 @@ fn test() {
     CHECK(identifier->value() == "x");
     auto* const intLiteral = cast<Literal const*>(increment->rhs());
     REQUIRE(intLiteral);
-    CHECK(intLiteral->value<LiteralKind::Integer>() == 1);
+    CHECK(intLiteral->value<APInt>() == 1);
     auto* const loopStatement = cast<ExpressionStatement const*>(
         forStatement->block()->statements()[0]);
     REQUIRE(loopStatement);

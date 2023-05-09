@@ -188,13 +188,40 @@ struct PrintCtx {
             [&](AbstractSyntaxTree const& node) {
                 str << header(&indent, &node) << '\n';
             },
-            [&](Literal const& expr) {
-                str << header(&indent, &expr, std::visit(utl::overload{
-                    [](APInt const& value)       { return value.toString(); },
-                    [](APFloat const& value)     { return value.toString(); },
-                    [](void*)                    { return std::string("this"); },
-                    [](std::string const& value) { return utl::strcat('"', value, '"'); },
-                }, expr.value())) << '\n';
+            [&](Literal const& lit) {
+                switch (lit.kind()) {
+                case LiteralKind::Integer: {
+                    auto* type =
+                        cast_or_null<sema::IntType const*>(lit.type()->base());
+                    auto value = lit.value<APInt>();
+                    if (!type) {
+                        str << value.toString();
+                        break;
+                    }
+                    if (type->isSigned()) {
+                        str << value.signedToString();
+                        break;
+                    }
+                    if (ucmp(value, APInt(0x10000, value.bitwidth())) >= 0) {
+                        str << value.toString(16);
+                        break;
+                    }
+                    str << value.toString();
+                    break;
+                }
+                case LiteralKind::Boolean:
+                    str << (lit.value<APInt>().test(1) ? "true" : "false");
+                    break;
+                case LiteralKind::FloatingPoint:
+                    str << lit.value<APFloat>().toString();
+                    break;
+                case LiteralKind::This:
+                    str << "this";
+                    break;
+                case LiteralKind::String:
+                    str << '"' << lit.value<std::string>() << '"';
+                    break;
+                }
             },
             [&](Identifier const& id) {
                 auto value = tfmt::format(tfmt::Green | tfmt::Bold, id.value());

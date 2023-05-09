@@ -379,7 +379,7 @@ private:
 /// Concrete node representing a literal.
 class SCATHA_API Literal: public Expression {
 public:
-    using ValueType = std::variant<APInt, APInt, APFloat, void*, std::string>;
+    using ValueType = std::variant<APInt, APFloat, std::string>;
 
     explicit Literal(SourceRange sourceRange,
                      LiteralKind kind,
@@ -394,9 +394,9 @@ public:
 
     ValueType const& value() const { return _value; };
 
-    template <LiteralKind Kind>
+    template <typename T>
     auto value() const {
-        return std::get<static_cast<size_t>(Kind)>(_value);
+        return std::get<T>(_value);
     };
 
 private:

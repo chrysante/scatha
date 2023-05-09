@@ -125,16 +125,16 @@ bool Context::analyzeImpl(ast::Literal& lit) {
     case Integer:
         lit.decorate(nullptr, sym.qS64());
         lit.setConstantValue(
-            allocate<IntValue>(lit.value<Integer>(), /* signed = */ true));
+            allocate<IntValue>(lit.value<APInt>(), /* signed = */ true));
         return true;
     case Boolean:
         lit.decorate(nullptr, sym.qBool());
         lit.setConstantValue(
-            allocate<IntValue>(lit.value<Boolean>(), /* signed = */ false));
+            allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return true;
     case FloatingPoint:
         lit.decorate(nullptr, sym.qFloat());
-        lit.setConstantValue(allocate<FloatValue>(lit.value<FloatingPoint>()));
+        lit.setConstantValue(allocate<FloatValue>(lit.value<APFloat>()));
         return true;
     case This: {
         auto* scope = &sym.currentScope();
@@ -590,17 +590,18 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
         }
         size_t count = ArrayType::DynamicCount;
         if (list.elements().size() == 2) {
-            auto* countLiteral =
-                dyncast<ast::Literal const*>(list.elements()[1]);
-            if (!countLiteral ||
-                countLiteral->kind() != ast::LiteralKind::Integer)
+            auto* countExpr = list.element(1);
+            auto* countType =
+                dyncast<IntType const*>(countExpr->type()->base());
+            auto* value =
+                dyncast_or_null<IntValue const*>(countExpr->constantValue());
+            if (!countType || !value ||
+                (countType->isSigned() && value->value().negative()))
             {
-                iss.push<BadExpression>(*list.elements()[1],
-                                        IssueSeverity::Error);
+                iss.push<BadExpression>(*countExpr, IssueSeverity::Error);
                 return false;
             }
-            count =
-                countLiteral->value<ast::LiteralKind::Integer>().to<size_t>();
+            count = value->value().to<size_t>();
         }
         auto* arrayType = sym.arrayType(elementType, count);
         auto* qualType  = sym.qualify(arrayType);

@@ -85,18 +85,18 @@ fn mul(a: int, b: int, c: float, d: byte) -> int {
     CHECK(xDecl->type()->base() == sym.S64());
     auto* intLit =
         cast<ast::Conversion*>(xDecl->initExpression())->expression<Literal>();
-    CHECK(intLit->value<LiteralKind::Integer>() == 39);
+    CHECK(intLit->value<APInt>() == 39);
     CHECK(intLit->valueCategory() == ValueCategory::RValue);
     auto* zDecl = fn->body()->statement<VariableDeclaration>(3);
     CHECK(zDecl->type()->base() == sym.S64());
     auto* intHexLit =
         cast<ast::Conversion*>(zDecl->initExpression())->expression<Literal>();
-    CHECK(intHexLit->value<LiteralKind::Integer>() == 0x39E);
+    CHECK(intHexLit->value<APInt>() == 0x39E);
     auto* yDecl = fn->body()->statement<VariableDeclaration>(4);
     CHECK(yDecl->type()->base() == sym.Float());
     auto* floatLit =
         cast<ast::Conversion*>(yDecl->initExpression())->expression<Literal>();
-    CHECK(floatLit->value<LiteralKind::FloatingPoint>().to<f64>() == 1.2);
+    CHECK(floatLit->value<APFloat>().to<f64>() == 1.2);
     auto* ret = fn->body()->statement<ReturnStatement>(5);
     auto* retIdentifier =
         cast<ast::Conversion*>(ret->expression())->expression<Identifier>();
