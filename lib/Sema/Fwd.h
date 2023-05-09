@@ -22,9 +22,9 @@
 ///       ├─ ObjectType
 ///       │  ├─ BuiltinType
 ///       │  │  ├─ VoidType
-///       │  │  ├─ BoolType
-///       │  │  ├─ ByteType
 ///       │  │  └─ ArithmeticType
+///       │  │     ├─ BoolType
+///       │  │     ├─ ByteType
 ///       │  │     ├─ IntType
 ///       │  │     └─ FloatType
 ///       │  ├─ StructureType
@@ -112,6 +112,9 @@ SCATHA_API std::ostream& operator<<(std::ostream&, ConversionKind);
 
 ///
 enum class AccessSpecifier { Public, Private };
+
+/// Signedness of arithmetic types
+enum class Signedness { Signed, Unsigned };
 
 /// Reference qualifiers of `QualType`
 enum class Reference {

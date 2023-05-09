@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include <range/v3/view.hpp>
 #include <utl/utility.hpp>

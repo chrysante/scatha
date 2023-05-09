@@ -48,8 +48,11 @@ bool Variable::isLocal() const {
 }
 
 void Variable::setConstantValue(UniquePtr<Value> value) {
-    SC_ASSERT(type() && !type()->isReference() && !type()->isMutable(),
-              "Invalid");
+    if (value) {
+        SC_ASSERT(type(), "Invalid");
+        SC_ASSERT(!type()->isReference(), "Invalid");
+        SC_ASSERT(!type()->isMutable(), "Invalid");
+    }
     constVal = std::move(value);
 }
 
@@ -130,16 +133,24 @@ VoidType::VoidType(Scope* parentScope):
                 InvalidSize) {}
 
 BoolType::BoolType(Scope* parentScope):
-    BuiltinType(EntityType::BoolType, "bool", parentScope, 1, 1) {}
+    ArithmeticType(EntityType::BoolType,
+                   "bool",
+                   1,
+                   Signedness::Unsigned,
+                   parentScope) {}
 
 ByteType::ByteType(Scope* parentScope):
-    BuiltinType(EntityType::ByteType, "byte", parentScope, 1, 1) {}
+    ArithmeticType(EntityType::ByteType,
+                   "byte",
+                   8,
+                   Signedness::Unsigned,
+                   parentScope) {}
 
-static std::string makeName(size_t bitwidth, IntType::Signedness signedness) {
+static std::string makeName(size_t bitwidth, Signedness signedness) {
     switch (signedness) {
-    case IntType::Signed:
+    case Signedness::Signed:
         return utl::strcat("s", bitwidth);
-    case IntType::Unsigned:
+    case Signedness::Unsigned:
         return utl::strcat("u", bitwidth);
     }
 }
@@ -148,11 +159,15 @@ IntType::IntType(size_t bitwidth, Signedness signedness, Scope* parentScope):
     ArithmeticType(EntityType::IntType,
                    makeName(bitwidth, signedness),
                    bitwidth,
-                   parentScope),
-    _signed(signedness) {}
+                   signedness,
+                   parentScope) {}
 
 FloatType::FloatType(size_t bitwidth, Scope* parentScope):
-    ArithmeticType(EntityType::FloatType, "float", bitwidth, parentScope) {
+    ArithmeticType(EntityType::FloatType,
+                   "float",
+                   bitwidth,
+                   Signedness::Signed,
+                   parentScope) {
     SC_ASSERT(bitwidth == 64, "Invalid width (for now)");
 }
 

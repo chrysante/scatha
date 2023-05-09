@@ -22,17 +22,18 @@ static bool isKeyword(std::string_view id) {
 SymbolTable::SymbolTable() {
     _currentScope = _globalScope = addEntity<GlobalScope>();
 
+    using enum Signedness;
     _void  = declareBuiltinType<VoidType>();
     _byte  = declareBuiltinType<ByteType>();
     _bool  = declareBuiltinType<BoolType>();
-    _s8    = declareBuiltinType<IntType>(8, IntType::Signed);
-    _s16   = declareBuiltinType<IntType>(16, IntType::Signed);
-    _s32   = declareBuiltinType<IntType>(32, IntType::Signed);
-    _s64   = declareBuiltinType<IntType>(64, IntType::Signed);
-    _u8    = declareBuiltinType<IntType>(8, IntType::Unsigned);
-    _u16   = declareBuiltinType<IntType>(16, IntType::Unsigned);
-    _u32   = declareBuiltinType<IntType>(32, IntType::Unsigned);
-    _u64   = declareBuiltinType<IntType>(64, IntType::Unsigned);
+    _s8    = declareBuiltinType<IntType>(8, Signed);
+    _s16   = declareBuiltinType<IntType>(16, Signed);
+    _s32   = declareBuiltinType<IntType>(32, Signed);
+    _s64   = declareBuiltinType<IntType>(64, Signed);
+    _u8    = declareBuiltinType<IntType>(8, Unsigned);
+    _u16   = declareBuiltinType<IntType>(16, Unsigned);
+    _u32   = declareBuiltinType<IntType>(32, Unsigned);
+    _u64   = declareBuiltinType<IntType>(64, Unsigned);
     _float = declareBuiltinType<FloatType>(64);
 
     _s64->addAlternateName("int");
@@ -276,7 +277,7 @@ QualType const* SymbolTable::qVoid(Reference ref) {
 }
 
 QualType const* SymbolTable::qByte(Reference ref) {
-    return qualify(_bool, ref);
+    return qualify(_byte, ref);
 }
 
 QualType const* SymbolTable::qBool(Reference ref) {

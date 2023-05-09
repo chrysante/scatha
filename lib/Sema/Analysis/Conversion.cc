@@ -60,11 +60,9 @@ static ast::Conversion* insertConversion(
     parent->setChild(indexInParent, std::move(owner));
     auto* entity = targetType->isReference() ? expr->entity() : nullptr;
     result->decorate(entity, targetType);
-    if (result->expression()->constantValue()) {
-        result->setConstantValue(
-            evalConversion(result->conversion(),
-                           result->expression()->constantValue()));
-    }
+    result->setConstantValue(
+        evalConversion(result->conversion(),
+                       result->expression()->constantValue()));
     return result;
 }
 
@@ -380,10 +378,24 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
     /// If the explicit conversion succeeds, we check if we lose precision
     bool const lossless = [&] {
         switch (*result) {
+        case None: {
+            auto* iFrom = dyncast<IntType const*>(from);
+            auto* iTo   = dyncast<IntType const*>(to);
+            if (iFrom && iTo) {
+                /// If we are changing signedness, make sure the value does not
+                /// change This is equivalent to the high bit being == 0
+                if (iFrom->signedness() != iTo->signedness()) {
+                    return cast<IntValue const*>(value)->value().highbit() == 0;
+                }
+                return true;
+            }
+            /// Float to float conversions come later
+            return false;
+        }
         case Int_Trunc:
             return fits(cast<IntValue const*>(value)->value(),
-                        cast<IntType const*>(to)->bitwidth(),
-                        cast<IntType const*>(to)->isSigned());
+                        cast<ArithmeticType const*>(to)->bitwidth(),
+                        cast<ArithmeticType const*>(to)->isSigned());
 
         case Signed_Widen: {
             auto intVal = cast<IntValue const*>(value)->value();

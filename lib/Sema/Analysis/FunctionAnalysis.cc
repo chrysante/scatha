@@ -196,9 +196,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     }
     auto& varObj = *varRes;
     var.decorate(&varObj, finalType);
-    if (!varObj.type()->isMutable() && var.initExpression() &&
-        var.initExpression()->constantValue())
-    {
+    if (!varObj.type()->isMutable() && var.initExpression()) {
         varObj.setConstantValue(clone(var.initExpression()->constantValue()));
     }
 }

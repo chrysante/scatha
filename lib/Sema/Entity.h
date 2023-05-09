@@ -7,6 +7,7 @@
 #include <utility>
 
 #include <range/v3/view.hpp>
+#include <utl/functional.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/vector.hpp>
 
@@ -412,54 +413,64 @@ public:
     explicit VoidType(Scope* parentScope);
 };
 
-/// Concrete class representing type `void`
-class BoolType: public BuiltinType {
-public:
-    explicit BoolType(Scope* parentScope);
-};
-
-/// Concrete class representing type `void`
-class ByteType: public BuiltinType {
-public:
-    explicit ByteType(Scope* parentScope);
-};
-
 /// Abstract class representing an arithmetic type
+/// Note that for the purposes of semantic analysis, `BoolType` and `ByteType`
+/// are also considered arithmetic types, even though most arithmetic operations
+/// are not defined on them
 class ArithmeticType: public BuiltinType {
 public:
     /// Number of bits in this type
-    size_t bitwidth() const { return 8 * size(); }
+    size_t bitwidth() const { return _bitwidth; }
+
+    /// `Signed` or `Unsigned`
+    /// This is only really meaningful for `IntType`, but very convenient to
+    /// have it in the arithmetic interface `BoolType` and `ByteType` are always
+    /// `Unsigned`, `FloatType` is always `Signed`
+    Signedness signedness() const { return _signed; }
+
+    /// Shorthand for `signedness() == Signed`
+    bool isSigned() const { return signedness() == Signedness::Signed; }
+
+    /// Shorthand for `signedness() == Unsigned`
+    bool isUnsigned() const { return signedness() == Signedness::Unsigned; }
 
 protected:
     explicit ArithmeticType(EntityType entityType,
                             std::string name,
                             size_t bitwidth,
+                            Signedness signedness,
                             Scope* parentScope):
         BuiltinType(entityType,
                     std::move(name),
                     parentScope,
-                    bitwidth / 8,
-                    bitwidth / 8) {}
+                    utl::ceil_divide(bitwidth, 8),
+                    utl::ceil_divide(bitwidth, 8)),
+        _bitwidth(utl::narrow_cast<uint16_t>(bitwidth)),
+        _signed(signedness) {}
+
+private:
+    uint16_t _bitwidth : 15;
+    Signedness _signed : 1;
+};
+
+/// Concrete class representing type `bool`
+class BoolType: public ArithmeticType {
+public:
+    explicit BoolType(Scope* parentScope);
+};
+
+/// Concrete class representing type `byte`
+class ByteType: public ArithmeticType {
+public:
+    explicit ByteType(Scope* parentScope);
 };
 
 /// Concrete class representing an integral type
 class IntType: public ArithmeticType {
 public:
-    enum Signedness { Signed, Unsigned };
-
     explicit IntType(size_t bitwidth,
                      Signedness signedness,
                      Scope* parentScope);
-
-    /// `Signed` or `Unsigned`
-    Signedness signedness() const { return _signed; }
-
-    bool isSigned() const { return signedness() == Signed; }
-
-    bool isUnsigned() const { return signedness() == Unsigned; }
-
-private:
-    Signedness _signed;
 };
 
 /// Concrete class representing a floating point type

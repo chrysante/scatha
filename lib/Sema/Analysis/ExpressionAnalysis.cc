@@ -199,11 +199,8 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
     case ast::UnaryPrefixOperator::_count:
         SC_UNREACHABLE();
     }
-    if (u.operand()->constantValue()) {
-        u.setConstantValue(
-            evalUnary(u.operation(), u.operand()->constantValue()));
-    }
     u.decorate(nullptr, sym.stripQualifiers(operandType));
+    u.setConstantValue(evalUnary(u.operation(), u.operand()->constantValue()));
     return true;
 }
 
@@ -216,11 +213,9 @@ bool Context::analyzeImpl(ast::BinaryExpression& b) {
         return false;
     }
     b.decorate(nullptr, resultType);
-    if (b.lhs()->constantValue() && b.rhs()->constantValue()) {
-        b.setConstantValue(evalBinary(b.operation(),
-                                      b.lhs()->constantValue(),
-                                      b.rhs()->constantValue()));
-    }
+    b.setConstantValue(evalBinary(b.operation(),
+                                  b.lhs()->constantValue(),
+                                  b.rhs()->constantValue()));
     return true;
 }
 
@@ -388,27 +383,6 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
 
 bool Context::analyzeImpl(ast::UniqueExpression& expr) {
     SC_DEBUGFAIL();
-    // auto* initExpr = dyncast<ast::FunctionCall*>(expr.initExpr());
-    // if (!initExpr) {
-    //     iss.push<BadExpression>(*expr.initExpr(), IssueSeverity::Error);
-    //     return false;
-    // }
-    // auto* typeExpr = initExpr->object();
-    // if (!analyze(*typeExpr) || !typeExpr->isType()) {
-    //     iss.push<BadExpression>(*typeExpr, IssueSeverity::Error);
-    //     return false;
-    // }
-    // SC_ASSERT(initExpr->arguments().size() == 1, "Implement this properly");
-    // auto* argument = initExpr->arguments().front();
-    // if (!analyze(*argument) || !argument->isValue()) {
-    //     iss.push<BadExpression>(*argument, IssueSeverity::Error);
-    //     return false;
-    // }
-    // auto* rawType = cast<Type const*>(typeExpr->entity());
-    // auto* type =
-    //     sym.qualify(rawType, ExplicitReference | TypeQualifiers::Unique);
-    // expr.decorate(type);
-    // return true;
 }
 
 bool Context::analyzeImpl(ast::Conditional& c) {
@@ -431,11 +405,9 @@ bool Context::analyzeImpl(ast::Conditional& c) {
     }
     // TODO: Return a reference here to allow conditional assignment etc.
     c.decorate(nullptr, thenType);
-    if (c.condition()->constantValue()) {
-        c.setConstantValue(evalConditional(c.condition()->constantValue(),
-                                           c.thenExpr()->constantValue(),
-                                           c.elseExpr()->constantValue()));
-    }
+    c.setConstantValue(evalConditional(c.condition()->constantValue(),
+                                       c.thenExpr()->constantValue(),
+                                       c.elseExpr()->constantValue()));
     return true;
 }
 
