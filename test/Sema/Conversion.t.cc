@@ -13,11 +13,29 @@ using namespace sema;
 
 TEST_CASE("Implicit conversion rank", "[sema]") {
     sema::SymbolTable sym;
-    CHECK(implicitConversionRank(sym.qU16(), sym.qU16()).value() == 0);
-    CHECK(implicitConversionRank(sym.qS64(), sym.qS64()).value() == 0);
-    CHECK(implicitConversionRank(sym.qU16(), sym.qS32()).value() == 1);
-    CHECK(implicitConversionRank(sym.qU16(), sym.qU32()).value() == 1);
-    CHECK(!implicitConversionRank(sym.qS16(), sym.qU32()));
+    ast::UnaryPrefixExpression expr(ast::UnaryPrefixOperator::Promotion,
+                                    nullptr,
+                                    SourceRange{});
+    SECTION("1") {
+        expr.decorate(nullptr, sym.qU16());
+        CHECK(implicitConversionRank(&expr, sym.qU16()).value() == 0);
+    }
+    SECTION("2") {
+        expr.decorate(nullptr, sym.qS64());
+        CHECK(implicitConversionRank(&expr, sym.qS64()).value() == 0);
+    }
+    SECTION("3") {
+        expr.decorate(nullptr, sym.qU16());
+        CHECK(implicitConversionRank(&expr, sym.qS32()).value() == 1);
+    }
+    SECTION("4") {
+        expr.decorate(nullptr, sym.qU16());
+        CHECK(implicitConversionRank(&expr, sym.qU32()).value() == 1);
+    }
+    SECTION("5") {
+        expr.decorate(nullptr, sym.qS16());
+        CHECK(!implicitConversionRank(&expr, sym.qU32()));
+    }
 }
 
 TEST_CASE("Arithemetic conversions", "[sema]") {

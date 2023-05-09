@@ -46,3 +46,13 @@ func i64 @main() {
     return i64 %r
 })");
 }
+
+TEST_CASE("Narrowing constant conversions in function calls", "[end-to-end]") {
+    test::checkCompiles(R"(
+fn f(b: byte) {}
+fn g(b: u8) {}
+public fn main(n: int) -> byte {
+    f(100);
+    g(100);
+})");
+}

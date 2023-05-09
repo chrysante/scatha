@@ -130,11 +130,11 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void mirPlayground(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
 
-    bool const optimize = false;
+    bool const optimize = true;
 
     if (optimize) {
         opt::inlineFunctions(ctx, irMod);
-        opt::deadFuncElim(ctx, irMod);
+        // opt::deadFuncElim(ctx, irMod);
     }
     header("IR Module");
     print(irMod);

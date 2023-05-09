@@ -103,12 +103,12 @@ bool convertReinterpret(ast::Expression* expr,
 
 /// \Returns The rank of the conversion if an implicit conversion from type \p
 /// from to type \p to exists. Otherwise `std::nullopt`
-std::optional<int> implicitConversionRank(QualType const* from,
+std::optional<int> implicitConversionRank(ast::Expression const* from,
                                           QualType const* to);
 
 /// \Returns The rank of the conversion if an explicit conversion from type \p
 /// from to type \p to exists. Otherwise `std::nullopt`
-std::optional<int> explicitConversionRank(QualType const* from,
+std::optional<int> explicitConversionRank(ast::Expression const* from,
                                           QualType const* to);
 
 /// Convert expression \p expr to an implicit reference

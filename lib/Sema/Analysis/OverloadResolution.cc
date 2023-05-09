@@ -4,6 +4,7 @@
 #include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 
+#include "AST/AST.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
 
@@ -13,16 +14,15 @@ using namespace sema;
 ///  \returns The maximum conversion rank if all arguments are convertible to
 /// the parameters  `std::nullopt` otherwise
 static std::optional<int> signatureMatch(
-    std::span<QualType const* const> parameterTypes,
-    std::span<QualType const* const> argumentTypes,
+    std::span<QualType const* const> parameters,
+    std::span<ast::Expression const* const> arguments,
     bool isMemberCall) {
-    if (parameterTypes.size() != argumentTypes.size()) {
+    if (parameters.size() != arguments.size()) {
         return std::nullopt;
     }
     int maxRank = 0;
-    for (auto [index, param, arg]: ranges::views::zip(ranges::views::iota(0),
-                                                      parameterTypes,
-                                                      argumentTypes))
+    for (auto [index, param, arg]:
+         ranges::views::zip(ranges::views::iota(0), parameters, arguments))
     {
         if (!param || !arg) {
             return std::nullopt;
@@ -49,7 +49,7 @@ struct Match {
 
 Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
     OverloadSet* overloadSet,
-    std::span<QualType const* const> argumentTypes,
+    std::span<ast::Expression const* const> argumentTypes,
     bool isMemberCall) {
     utl::small_vector<Match> matches;
     for (auto* F: *overloadSet) {

@@ -5,6 +5,7 @@
 
 #include <utl/vector.hpp>
 
+#include "AST/Fwd.h"
 #include "Common/Expected.h"
 #include "Sema/Analysis/OverloadResolutionError.h"
 #include "Sema/Fwd.h"
@@ -14,7 +15,7 @@ namespace scatha::sema {
 /// Performs overload resolution
 Expected<Function*, OverloadResolutionError*> performOverloadResolution(
     OverloadSet* overloadSet,
-    std::span<QualType const* const> argumentTypes,
+    std::span<ast::Expression const* const> arguments,
     bool isMemberCall);
 
 } // namespace scatha::sema

@@ -319,9 +319,8 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     /// We reference an overload set, so since our parent is not a call
     /// expression we rewrite the AST here
     auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
-    auto* argType     = ma.object()->type();
     auto funcRes =
-        performOverloadResolution(overloadSet, std::array{ argType }, true);
+        performOverloadResolution(overloadSet, std::array{ ma.object() }, true);
     if (!funcRes) {
         funcRes.error()->setSourceRange(ma.sourceRange());
         iss.push(funcRes.error());
@@ -353,25 +352,25 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
     if (!analyze(*ref.referred())) {
         return false;
     }
-    auto& referred = *ref.referred();
+    auto* referred = ref.referred();
     auto refQual   = ref.isMutable() ? RefMutExpl : RefConstExpl;
 
-    switch (referred.entityCategory()) {
+    switch (referred->entityCategory()) {
     case EntityCategory::Value: {
-        if (!referred.isLValue() && !referred.type()->isReference()) {
+        if (!referred->isLValue() && !referred->type()->isReference()) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return false;
         }
-        auto* refType = sym.setReference(referred.type(), refQual);
-        if (!explicitConversionRank(referred.type(), refType)) {
+        auto* refType = sym.setReference(referred->type(), refQual);
+        if (!explicitConversionRank(referred, refType)) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return false;
         }
-        ref.decorate(referred.entity(), refType, ValueCategory::RValue);
+        ref.decorate(referred->entity(), refType, ValueCategory::RValue);
         return true;
     }
     case EntityCategory::Type: {
-        auto* qualType = cast<QualType const*>(referred.entity());
+        auto* qualType = cast<QualType const*>(referred->entity());
         auto* refType  = sym.setReference(qualType, refQual);
         ref.decorate(const_cast<QualType*>(refType));
         return true;
@@ -381,9 +380,7 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
     }
 }
 
-bool Context::analyzeImpl(ast::UniqueExpression& expr) {
-    SC_DEBUGFAIL();
-}
+bool Context::analyzeImpl(ast::UniqueExpression& expr) { SC_DEBUGFAIL(); }
 
 bool Context::analyzeImpl(ast::Conditional& c) {
     bool success = analyze(*c.condition());
@@ -504,26 +501,21 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
         return convertExplicitly(arg, targetType, iss);
     }
 
-    /// Extract the argument types to perform overload resolution
-    auto argTypes = fc.arguments() |
-                    ranges::views::transform([](ast::Expression const* expr) {
-                        return expr->type();
-                    }) |
-                    ranges::to<utl::small_vector<QualType const*>>;
-
     /// Make sure we have an overload set as our called object
     auto* overloadSet = dyncast_or_null<OverloadSet*>(fc.object()->entity());
     if (!overloadSet) {
         iss.push<BadFunctionCall>(fc,
                                   nullptr,
-                                  argTypes,
+                                  utl::vector<QualType const*>{},
                                   BadFunctionCall::Reason::ObjectNotCallable);
         return false;
     }
 
     /// Perform overload resolution
-    auto result =
-        performOverloadResolution(overloadSet, argTypes, isMemberCall);
+    auto result = performOverloadResolution(
+        overloadSet,
+        fc.arguments() | ranges::to<utl::small_vector<ast::Expression const*>>,
+        isMemberCall);
     if (!result) {
         auto* error = result.error();
         error->setSourceRange(fc.sourceRange());

@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "AST/AST.h"
 #include "Common/UniquePtr.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Entity.h"
@@ -38,6 +39,15 @@ struct TestOS {
 
 } // namespace
 
+static UniquePtr<ast::Expression> makeExpr(QualType const* type) {
+    auto result = allocate<ast::UnaryPrefixExpression>(
+        ast::UnaryPrefixOperator::Promotion,
+        nullptr,
+        SourceRange{});
+    result->decorate(nullptr, type);
+    return result;
+}
+
 TEST_CASE("Overload resolution", "[sema]") {
     SymbolTable sym;
     // clang-format off
@@ -51,8 +61,8 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("1") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            sym.qualify(sym.S64(), RefMutImpl),
-            sym.qualify(sym.arrayType(sym.S64(), 3), RefMutExpl)
+            makeExpr(sym.qualify(sym.S64(), RefMutImpl)).get(),
+            makeExpr(sym.qualify(sym.arrayType(sym.S64(), 3), RefMutExpl)).get()
         }, false); // clang-format on
 
         REQUIRE(result);
@@ -62,8 +72,8 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("2") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            sym.qualify(sym.S64(), RefConstImpl),
-            sym.qDynArray(sym.S64(), RefConstExpl)
+            makeExpr(sym.qualify(sym.S64(), RefConstImpl)).get(),
+            makeExpr(sym.qDynArray(sym.S64(), RefConstExpl)).get()
         }, false); // clang-format on
         REQUIRE(result);
         CHECK(result.value() == f.functions[0].get());
@@ -72,10 +82,9 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("3") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            sym.qualify(sym.S32(), RefMutImpl),
-            sym.qualify(sym.arrayType(sym.S64(), 4), RefMutImpl)
+            makeExpr(sym.qualify(sym.S32(), RefMutImpl)).get(),
+            makeExpr(sym.qualify(sym.arrayType(sym.S64(), 4), RefMutImpl)).get()
         }, false); // clang-format on
-
         REQUIRE(!result);
     }
 }
