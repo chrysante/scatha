@@ -539,12 +539,11 @@ bool sema::convertToExplicitRef(ast::Expression* expr,
                              issueHandler);
 }
 
-bool sema::convertToImplicitRef(ast::Expression* expr,
-                                SymbolTable& sym,
-                                IssueHandler& issueHandler) {
-    auto refQual = toImplicitRef(baseMutability(expr->type()));
+bool sema::convertToImplicitMutRef(ast::Expression* expr,
+                                   SymbolTable& sym,
+                                   IssueHandler& issueHandler) {
     return convertImplicitly(expr,
-                             sym.setReference(expr->type(), refQual),
+                             sym.setReference(expr->type(), RefMutImpl),
                              issueHandler);
 }
 

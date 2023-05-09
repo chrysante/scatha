@@ -87,7 +87,7 @@ public fn main() -> int {
 TEST_CASE("more nested if else", "[end-to-end]") {
     test::checkReturns(1, R"(
 public fn main() -> int {
-    let x = 0;
+    var x = 0;
     if -1002.0 > 0.0 {
         x = 0;
     }

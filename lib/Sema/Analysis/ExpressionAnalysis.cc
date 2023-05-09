@@ -192,7 +192,7 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
-        if (!convertToImplicitRef(u.operand(), sym, iss)) {
+        if (!convertToImplicitMutRef(u.operand(), sym, iss)) {
             return false;
         }
         break;
@@ -733,7 +733,7 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         /// Here we only look at assignment _through_ references
         /// That means LHS shall be an implicit reference
         bool success = true;
-        success &= convertToImplicitRef(expr.lhs(), sym, iss);
+        success &= convertToImplicitMutRef(expr.lhs(), sym, iss);
         success &= convertImplicitly(expr.rhs(), stripQualifiers(lhsType), iss);
         return success ? sym.qVoid() : nullptr;
     }

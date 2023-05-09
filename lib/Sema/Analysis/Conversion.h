@@ -112,9 +112,9 @@ std::optional<int> explicitConversionRank(ast::Expression const* from,
                                           QualType const* to);
 
 /// Convert expression \p expr to an implicit reference
-bool convertToImplicitRef(ast::Expression* expr,
-                          SymbolTable& sym,
-                          IssueHandler& issueHandler);
+bool convertToImplicitMutRef(ast::Expression* expr,
+                             SymbolTable& sym,
+                             IssueHandler& issueHandler);
 
 bool convertToExplicitRef(ast::Expression* expr,
                           SymbolTable& sym,

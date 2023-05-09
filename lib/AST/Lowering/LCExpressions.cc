@@ -26,7 +26,9 @@ static bool isIntType(size_t width, ir::Type const* type) {
 /// MARK: getValue() Implementation
 
 ir::Value* LoweringContext::getValue(Expression const* expr) {
-    if (auto* constVal = expr->constantValue()) {
+    if (auto* constVal = expr->constantValue();
+        constVal && !expr->type()->isReference())
+    {
         auto* type = cast<sema::ArithmeticType const*>(expr->type()->base());
         // clang-format off
         return visit(*constVal, utl::overload{
@@ -35,7 +37,7 @@ ir::Value* LoweringContext::getValue(Expression const* expr) {
                 return intConstant(intVal.value());
             },
             [&](sema::FloatValue const& floatVal) {
-                return ctx.floatConstant(floatVal.value(), type->bitwidth());
+                return floatConstant(floatVal.value());
             }
         }); // clang-format on
     }
