@@ -176,6 +176,42 @@ static constexpr utl::streammanip funcDecl([](std::ostream& str,
     str << ") -> " << func->returnType()->name();
 });
 
+static constexpr utl::streammanip formatLit([](std::ostream& str,
+                                               ast::Literal const* lit) {
+    switch (lit->kind()) {
+    case LiteralKind::Integer: {
+        auto* type = cast_or_null<sema::IntType const*>(lit->type()->base());
+        auto value = lit->value<APInt>();
+        if (!type) {
+            str << value.toString();
+            break;
+        }
+        if (type->isSigned()) {
+            str << value.signedToString();
+            break;
+        }
+        if (ucmp(value, APInt(0x10000, value.bitwidth())) >= 0) {
+            str << value.toString(16);
+            break;
+        }
+        str << value.toString();
+        break;
+    }
+    case LiteralKind::Boolean:
+        str << (lit->value<APInt>().test(1) ? "true" : "false");
+        break;
+    case LiteralKind::FloatingPoint:
+        str << lit->value<APFloat>().toString();
+        break;
+    case LiteralKind::This:
+        str << "this";
+        break;
+    case LiteralKind::String:
+        str << '"' << lit->value<std::string>() << '"';
+        break;
+    }
+});
+
 namespace {
 
 struct PrintCtx {
@@ -189,39 +225,7 @@ struct PrintCtx {
                 str << header(&indent, &node) << '\n';
             },
             [&](Literal const& lit) {
-                switch (lit.kind()) {
-                case LiteralKind::Integer: {
-                    auto* type =
-                        cast_or_null<sema::IntType const*>(lit.type()->base());
-                    auto value = lit.value<APInt>();
-                    if (!type) {
-                        str << value.toString();
-                        break;
-                    }
-                    if (type->isSigned()) {
-                        str << value.signedToString();
-                        break;
-                    }
-                    if (ucmp(value, APInt(0x10000, value.bitwidth())) >= 0) {
-                        str << value.toString(16);
-                        break;
-                    }
-                    str << value.toString();
-                    break;
-                }
-                case LiteralKind::Boolean:
-                    str << (lit.value<APInt>().test(1) ? "true" : "false");
-                    break;
-                case LiteralKind::FloatingPoint:
-                    str << lit.value<APFloat>().toString();
-                    break;
-                case LiteralKind::This:
-                    str << "this";
-                    break;
-                case LiteralKind::String:
-                    str << '"' << lit.value<std::string>() << '"';
-                    break;
-                }
+                str << header(&indent, &node, formatLit(&lit)) << '\n';
             },
             [&](Identifier const& id) {
                 auto value = tfmt::format(tfmt::Green | tfmt::Bold, id.value());
