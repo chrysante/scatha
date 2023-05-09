@@ -372,3 +372,17 @@ TEST_CASE("LEA instruction", "[assembly][vm]") {
     auto const [regs, stack] = assembleAndExecute(a);
     CHECK(load<u64>(&stack[40]) == 42);
 }
+
+TEST_CASE("cmov instruction", "[assembly][vm]") {
+    AssemblyStream a;
+    // clang-format off
+    a.add(Block(0, "start", {
+        MoveInst(RegisterIndex(0), Value64(5), 8),
+        MoveInst(RegisterIndex(1), Value64(7), 8),
+        CompareInst(Type::Signed, RegisterIndex(0), Value64(0), 8),
+        CMoveInst(CompareOperation::Eq, RegisterIndex(0), RegisterIndex(1), 8),
+        TerminateInst(),
+    })); // clang-format on
+    auto const [regs, stack] = assembleAndExecute(a);
+    CHECK(load<u64>(&regs[0]) == 5);
+}

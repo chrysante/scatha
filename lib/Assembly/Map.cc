@@ -61,17 +61,17 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest,
 static OpCode mapCMovRR(CompareOperation cmpOp) {
     switch (cmpOp) {
     case CompareOperation::Less:
-        return OpCode::cmove64RR;
-    case CompareOperation::LessEq:
-        return OpCode::cmovne64RR;
-    case CompareOperation::Greater:
         return OpCode::cmovl64RR;
-    case CompareOperation::GreaterEq:
+    case CompareOperation::LessEq:
         return OpCode::cmovle64RR;
-    case CompareOperation::Eq:
+    case CompareOperation::Greater:
         return OpCode::cmovg64RR;
-    case CompareOperation::NotEq:
+    case CompareOperation::GreaterEq:
         return OpCode::cmovge64RR;
+    case CompareOperation::Eq:
+        return OpCode::cmove64RR;
+    case CompareOperation::NotEq:
+        return OpCode::cmovne64RR;
     default:
         SC_UNREACHABLE();
     }
