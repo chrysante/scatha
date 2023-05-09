@@ -723,40 +723,40 @@ UniquePtr<ast::Expression> Context::parseUnary() {
         return postfix;
     }
     Token const token = tokens.peek();
-    auto makeResult   = [&](ast::UnaryPrefixOperator operatorType) {
+    auto makeResult   = [&](ast::UnaryOperator operatorType) {
         // FIXME: Why reference to token?
         Token const& unaryToken = tokens.peek();
         auto unary              = parseUnary();
         if (!unary) {
             pushExpectedExpression(unaryToken);
         }
-        return allocate<ast::UnaryPrefixExpression>(operatorType,
-                                                    std::move(unary),
-                                                    token.sourceRange());
+        return allocate<ast::UnaryExpression>(operatorType,
+                                              std::move(unary),
+                                              token.sourceRange());
     };
     if (token.kind() == Plus) {
         tokens.eat();
-        return makeResult(ast::UnaryPrefixOperator::Promotion);
+        return makeResult(ast::UnaryOperator::Promotion);
     }
     else if (token.kind() == Minus) {
         tokens.eat();
-        return makeResult(ast::UnaryPrefixOperator::Negation);
+        return makeResult(ast::UnaryOperator::Negation);
     }
     else if (token.kind() == Tilde) {
         tokens.eat();
-        return makeResult(ast::UnaryPrefixOperator::BitwiseNot);
+        return makeResult(ast::UnaryOperator::BitwiseNot);
     }
     else if (token.kind() == Exclam) {
         tokens.eat();
-        return makeResult(ast::UnaryPrefixOperator::LogicalNot);
+        return makeResult(ast::UnaryOperator::LogicalNot);
     }
     else if (token.kind() == Increment) {
         tokens.eat();
-        return makeResult(ast::UnaryPrefixOperator::Increment);
+        return makeResult(ast::UnaryOperator::Increment);
     }
     else if (token.kind() == Decrement) {
         tokens.eat();
-        return makeResult(ast::UnaryPrefixOperator::Decrement);
+        return makeResult(ast::UnaryOperator::Decrement);
     }
     else {
         return nullptr;

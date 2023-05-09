@@ -30,14 +30,14 @@ std::ostream& ast::operator<<(std::ostream& str, LiteralKind kind) {
     return str << toString(kind);
 }
 
-std::string_view ast::toString(UnaryPrefixOperator op) {
+std::string_view ast::toString(UnaryOperator op) {
     return std::array{
 #define SC_UNARY_OPERATOR_DEF(name, opStr) std::string_view(opStr),
 #include "AST/Lists.def"
     }[static_cast<size_t>(op)];
 }
 
-std::ostream& ast::operator<<(std::ostream& str, UnaryPrefixOperator op) {
+std::ostream& ast::operator<<(std::ostream& str, UnaryOperator op) {
     return str << toString(op);
 }
 

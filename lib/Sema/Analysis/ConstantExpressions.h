@@ -72,7 +72,7 @@ private:
     APFloat val;
 };
 
-UniquePtr<Value> evalUnary(ast::UnaryPrefixOperator op, Value const* operand);
+UniquePtr<Value> evalUnary(ast::UnaryOperator op, Value const* operand);
 
 UniquePtr<Value> evalBinary(ast::BinaryOperator op,
                             Value const* lhs,

@@ -227,7 +227,7 @@ struct PrintCtx {
                 auto value = tfmt::format(tfmt::Green | tfmt::Bold, id.value());
                 str << header(&indent, &node, value) << '\n';
             },
-            [&](UnaryPrefixExpression const& expr) {
+            [&](UnaryExpression const& expr) {
                 str << header(&indent, &node, expr.operation()) << '\n';
             },
             [&](BinaryExpression const& expr) {

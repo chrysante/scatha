@@ -198,11 +198,11 @@ ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
 }
 
 ir::UnaryArithmeticOperation LoweringContext::mapUnaryOp(
-    ast::UnaryPrefixOperator op) {
+    ast::UnaryOperator op) {
     switch (op) {
-    case UnaryPrefixOperator::BitwiseNot:
+    case UnaryOperator::BitwiseNot:
         return ir::UnaryArithmeticOperation::BitwiseNot;
-    case UnaryPrefixOperator::LogicalNot:
+    case UnaryOperator::LogicalNot:
         return ir::UnaryArithmeticOperation::LogicalNot;
     default:
         SC_UNREACHABLE();

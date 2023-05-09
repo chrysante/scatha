@@ -30,9 +30,8 @@ UniquePtr<FloatValue> FloatValue::doClone() const {
     return allocate<FloatValue>(value());
 }
 
-static std::optional<APInt> doEvalUnary(ast::UnaryPrefixOperator op,
-                                        APInt operand) {
-    using enum ast::UnaryPrefixOperator;
+static std::optional<APInt> doEvalUnary(ast::UnaryOperator op, APInt operand) {
+    using enum ast::UnaryOperator;
     switch (op) {
     case Promotion:
         return operand;
@@ -45,9 +44,9 @@ static std::optional<APInt> doEvalUnary(ast::UnaryPrefixOperator op,
     }
 }
 
-static std::optional<APFloat> doEvalUnary(ast::UnaryPrefixOperator op,
+static std::optional<APFloat> doEvalUnary(ast::UnaryOperator op,
                                           APFloat operand) {
-    using enum ast::UnaryPrefixOperator;
+    using enum ast::UnaryOperator;
     switch (op) {
     case Promotion:
         return operand;
@@ -58,8 +57,7 @@ static std::optional<APFloat> doEvalUnary(ast::UnaryPrefixOperator op,
     }
 }
 
-UniquePtr<Value> sema::evalUnary(ast::UnaryPrefixOperator op,
-                                 Value const* operand) {
+UniquePtr<Value> sema::evalUnary(ast::UnaryOperator op, Value const* operand) {
     if (!operand) {
         return nullptr;
     }

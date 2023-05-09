@@ -31,7 +31,7 @@ struct Context {
     void print(LoopStatement const&);
     void print(Identifier const&);
     void print(Literal const&);
-    void print(UnaryPrefixExpression const&);
+    void print(UnaryExpression const&);
     void print(BinaryExpression const&);
     void print(MemberAccess const&);
     void print(Conditional const&);
@@ -216,7 +216,7 @@ void Context::print(Literal const& lit) {
     }
 }
 
-void Context::print(UnaryPrefixExpression const& u) {
+void Context::print(UnaryExpression const& u) {
     str << u.operation() << '(';
     dispatch(*u.operand());
     str << ')';

@@ -58,9 +58,9 @@ ir::Value* LoweringContext::getValueImpl(Literal const& lit) {
     }
 }
 
-ir::Value* LoweringContext::getValueImpl(UnaryPrefixExpression const& expr) {
+ir::Value* LoweringContext::getValueImpl(UnaryExpression const& expr) {
     switch (expr.operation()) {
-        using enum UnaryPrefixOperator;
+        using enum UnaryOperator;
     case Increment:
         [[fallthrough]];
     case Decrement: {
@@ -83,10 +83,10 @@ ir::Value* LoweringContext::getValueImpl(UnaryPrefixExpression const& expr) {
         return newValue;
     }
 
-    case ast::UnaryPrefixOperator::Promotion:
+    case ast::UnaryOperator::Promotion:
         return getValue(expr.operand());
 
-    case ast::UnaryPrefixOperator::Negation: {
+    case ast::UnaryOperator::Negation: {
         auto* operand  = getValue(expr.operand());
         auto operation = isa<ir::IntegralType>(operand->type()) ?
                              ir::ArithmeticOperation::Sub :

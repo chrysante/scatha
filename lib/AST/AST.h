@@ -41,7 +41,7 @@
 // └─ Expression
 //    ├─ Identifier
 //    ├─ Literal
-//    ├─ UnaryPrefixExpression
+//    ├─ UnaryExpression
 //    ├─ BinaryExpression
 //    ├─ MemberAccess
 //    ├─ Conditional
@@ -407,26 +407,24 @@ private:
 /// MARK: Unary Expressions
 
 /// Concrete node representing a unary prefix expression.
-class SCATHA_API UnaryPrefixExpression: public Expression {
+class SCATHA_API UnaryExpression: public Expression {
 public:
-    explicit UnaryPrefixExpression(UnaryPrefixOperator op,
-                                   UniquePtr<Expression> operand,
-                                   SourceRange sourceRange):
-        Expression(NodeType::UnaryPrefixExpression,
-                   sourceRange,
-                   std::move(operand)),
+    explicit UnaryExpression(UnaryOperator op,
+                             UniquePtr<Expression> operand,
+                             SourceRange sourceRange):
+        Expression(NodeType::UnaryExpression, sourceRange, std::move(operand)),
         op(op) {}
 
-    AST_DERIVED_COMMON(UnaryPrefixExpression)
+    AST_DERIVED_COMMON(UnaryExpression)
 
     /// The operator of this expression.
-    UnaryPrefixOperator operation() const { return op; }
+    UnaryOperator operation() const { return op; }
 
     /// The operand of this expression.
     AST_PROPERTY(0, Expression, operand, Operand)
 
 private:
-    UnaryPrefixOperator op;
+    UnaryOperator op;
 };
 
 /// MARK: Binary Expressions

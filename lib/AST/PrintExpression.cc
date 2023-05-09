@@ -17,7 +17,7 @@ struct Context {
 
     void printExpression(Identifier const&);
     void printExpression(Literal const&);
-    void printExpression(UnaryPrefixExpression const&);
+    void printExpression(UnaryExpression const&);
     void printExpression(BinaryExpression const&);
     void printExpression(MemberAccess const&);
     void printExpression(Conditional const&);
@@ -70,7 +70,7 @@ void Context::printExpression(Literal const& lit) {
     }
 }
 
-void Context::printExpression(UnaryPrefixExpression const& expr) {
+void Context::printExpression(UnaryExpression const& expr) {
     str << expr.operation();
     dispatchExpression(*expr.operand());
 }

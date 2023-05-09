@@ -13,9 +13,9 @@ using namespace sema;
 
 TEST_CASE("Implicit conversion rank", "[sema]") {
     sema::SymbolTable sym;
-    ast::UnaryPrefixExpression expr(ast::UnaryPrefixOperator::Promotion,
-                                    nullptr,
-                                    SourceRange{});
+    ast::UnaryExpression expr(ast::UnaryOperator::Promotion,
+                              nullptr,
+                              SourceRange{});
     SECTION("1") {
         expr.decorate(nullptr, sym.qU16());
         CHECK(implicitConversionRank(&expr, sym.qU16()).value() == 0);
@@ -41,12 +41,12 @@ TEST_CASE("Implicit conversion rank", "[sema]") {
 TEST_CASE("Arithemetic conversions", "[sema]") {
     sema::SymbolTable sym;
     IssueHandler iss;
-    ast::UnaryPrefixExpression base(ast::UnaryPrefixOperator::Promotion,
-                                    allocate<ast::UnaryPrefixExpression>(
-                                        ast::UnaryPrefixOperator::Promotion,
-                                        nullptr,
-                                        SourceRange{}),
-                                    SourceRange{});
+    ast::UnaryExpression
+        base(ast::UnaryOperator::Promotion,
+             allocate<ast::UnaryExpression>(ast::UnaryOperator::Promotion,
+                                            nullptr,
+                                            SourceRange{}),
+             SourceRange{});
     auto* expr   = base.operand();
     auto setType = [&](QualType const* type) { expr->decorate(nullptr, type); };
     auto set     = [&](QualType const* type, auto value) {

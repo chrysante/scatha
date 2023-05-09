@@ -40,10 +40,9 @@ struct TestOS {
 } // namespace
 
 static UniquePtr<ast::Expression> makeExpr(QualType const* type) {
-    auto result = allocate<ast::UnaryPrefixExpression>(
-        ast::UnaryPrefixOperator::Promotion,
-        nullptr,
-        SourceRange{});
+    auto result = allocate<ast::UnaryExpression>(ast::UnaryOperator::Promotion,
+                                                 nullptr,
+                                                 SourceRange{});
     result->decorate(nullptr, type);
     return result;
 }

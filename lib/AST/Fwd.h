@@ -49,15 +49,15 @@ SCATHA_API std::string_view toString(LiteralKind);
 SCATHA_API std::ostream& operator<<(std::ostream&, LiteralKind);
 
 /// List of all unary operators in prefix notation
-enum class UnaryPrefixOperator {
+enum class UnaryOperator {
 #define SC_UNARY_OPERATOR_DEF(name, _) name,
 #include <scatha/AST/Lists.def>
     _count
 };
 
-SCATHA_API std::string_view toString(UnaryPrefixOperator);
+SCATHA_API std::string_view toString(UnaryOperator);
 
-SCATHA_API std::ostream& operator<<(std::ostream&, UnaryPrefixOperator);
+SCATHA_API std::ostream& operator<<(std::ostream&, UnaryOperator);
 
 /// List of all binary operators in infix notation
 enum class BinaryOperator {

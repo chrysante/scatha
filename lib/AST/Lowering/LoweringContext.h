@@ -140,7 +140,7 @@ struct LoweringContext {
     ir::Value* getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getValueImpl(Identifier const&);
     ir::Value* getValueImpl(Literal const&);
-    ir::Value* getValueImpl(UnaryPrefixExpression const&);
+    ir::Value* getValueImpl(UnaryExpression const&);
     ir::Value* getValueImpl(BinaryExpression const&);
     ir::Value* getValueImpl(MemberAccess const&);
     ir::Value* getValueImpl(ReferenceExpression const&);
@@ -232,7 +232,7 @@ struct LoweringContext {
 
     ir::Type const* mapType(sema::Type const* semaType);
 
-    ir::UnaryArithmeticOperation mapUnaryOp(ast::UnaryPrefixOperator op);
+    ir::UnaryArithmeticOperation mapUnaryOp(ast::UnaryOperator op);
 
     ir::CompareOperation mapCompareOp(ast::BinaryOperator op);
 

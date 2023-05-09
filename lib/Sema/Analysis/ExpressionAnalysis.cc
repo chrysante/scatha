@@ -22,7 +22,7 @@ struct Context {
     bool analyze(ast::Expression&);
 
     bool analyzeImpl(ast::Literal&);
-    bool analyzeImpl(ast::UnaryPrefixExpression&);
+    bool analyzeImpl(ast::UnaryExpression&);
     bool analyzeImpl(ast::BinaryExpression&);
 
     bool analyzeImpl(ast::Identifier&);
@@ -158,36 +158,36 @@ bool Context::analyzeImpl(ast::Literal& lit) {
     }
 }
 
-bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
+bool Context::analyzeImpl(ast::UnaryExpression& u) {
     if (!analyze(*u.operand())) {
         return false;
     }
     auto const* operandType = u.operand()->type();
     auto* baseType          = operandType->base();
     switch (u.operation()) {
-    case ast::UnaryPrefixOperator::Promotion:
+    case ast::UnaryOperator::Promotion:
         [[fallthrough]];
-    case ast::UnaryPrefixOperator::Negation:
+    case ast::UnaryOperator::Negation:
         if (!isAny<IntType, FloatType>(baseType)) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
         break;
-    case ast::UnaryPrefixOperator::BitwiseNot:
+    case ast::UnaryOperator::BitwiseNot:
         if (!isAny<ByteType, IntType>(baseType)) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
         break;
-    case ast::UnaryPrefixOperator::LogicalNot:
+    case ast::UnaryOperator::LogicalNot:
         if (!isAny<BoolType>(baseType)) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
         break;
-    case ast::UnaryPrefixOperator::Increment:
+    case ast::UnaryOperator::Increment:
         [[fallthrough]];
-    case ast::UnaryPrefixOperator::Decrement:
+    case ast::UnaryOperator::Decrement:
         if (!isAny<IntType>(baseType)) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
@@ -196,7 +196,7 @@ bool Context::analyzeImpl(ast::UnaryPrefixExpression& u) {
             return false;
         }
         break;
-    case ast::UnaryPrefixOperator::_count:
+    case ast::UnaryOperator::_count:
         SC_UNREACHABLE();
     }
     u.decorate(nullptr, sym.stripQualifiers(operandType));
