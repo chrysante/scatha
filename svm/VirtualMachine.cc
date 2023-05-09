@@ -1,5 +1,7 @@
 #include <svm/VirtualMachine.h>
 
+#include <iostream>
+
 #include "svm/BuiltinInternal.h"
 #include "svm/Memory.h"
 #include "svm/ProgramInternal.h"
@@ -38,4 +40,11 @@ void VirtualMachine::setFunctionTableSlot(
         extFunctionTable.resize(slot + 1);
     }
     extFunctionTable[slot] = std::move(functions);
+}
+
+void VirtualMachine::printRegisters(size_t n) const {
+    for (size_t i = 0; i < n; ++i) {
+        std::cout << "%" << i << ": " << std::hex << frame.regPtr[i]
+                  << std::endl;
+    }
 }

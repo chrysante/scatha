@@ -77,6 +77,10 @@ public:
     std::span<u8 const> stackData() const { return stack; }
 
 private:
+    /// Print the value in the first \p n registers of the current execution
+    /// frame
+    void printRegisters(size_t n) const;
+
     utl::vector<utl::vector<ExternalFunction>> extFunctionTable;
 
     VMFlags flags{};
