@@ -1,6 +1,11 @@
 
-fn f(b: byte) {}
+fn f(b: &byte) -> int { return int(b); }
 
-public fn main(n: int) -> byte {
-    f(100);
+fn pass(n: &mut int) -> &mut int { return &mut n; }
+
+public fn main() -> int {
+    
+    var i: u32 = 5;
+    var j: s16 = 1;
+    return true ? i : j;
 }

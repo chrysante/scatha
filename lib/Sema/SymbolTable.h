@@ -227,6 +227,8 @@ public:
     IntType const* U64() const { return _u64; }
     FloatType const* Float() const { return _float; }
 
+    IntType const* intType(size_t width, Signedness signedness);
+
     QualType const* qVoid(Reference = Reference::None);
 
     QualType const* qByte(Reference = Reference::None);

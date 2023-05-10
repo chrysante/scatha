@@ -75,6 +75,13 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
         CHECK(iss.empty());
     }
 
+    /// # Explicit widening
+    SECTION("byte(5) to s64") {
+        set(sym.qByte(), 5);
+        CHECK(convertExplicitly(expr, sym.qS64(), iss));
+        CHECK(iss.empty());
+    }
+
     /// # Narrowing
     SECTION("s64(5) to s8") {
         set(sym.qS64(), 5);
@@ -116,4 +123,31 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
         set(sym.qS64(), 256);
         CHECK(!convertImplicitly(expr, sym.qByte(), iss));
     }
+}
+
+TEST_CASE("Common type", "[sema]") {
+    SymbolTable sym;
+    SECTION("s64, s64 -> s64")
+    CHECK(commonType(sym, sym.qS64(), sym.qS64()) == sym.qS64());
+    SECTION("'mut s64, 'mut s64 -> 'mut s64")
+    CHECK(commonType(sym, sym.qS64(RefMutImpl), sym.qS64(RefMutImpl)) ==
+          sym.qS64(RefMutImpl));
+    SECTION("'s64, 'mut s64 -> 's64")
+    CHECK(commonType(sym, sym.qS64(RefConstImpl), sym.qS64(RefMutImpl)) ==
+          sym.qS64(RefConstImpl));
+    SECTION("'s64, s64 -> s64")
+    CHECK(commonType(sym, sym.qS64(RefConstImpl), sym.qS64()) == sym.qS64());
+    SECTION("'s64, 'mut s32 -> s64")
+    CHECK(commonType(sym, sym.qS64(RefConstImpl), sym.qS32(RefMutImpl)) ==
+          sym.qS64());
+    SECTION("'s64, s32 -> s64")
+    CHECK(commonType(sym, sym.qS64(RefConstImpl), sym.qS32()) == sym.qS64());
+    SECTION("&mut s64, 'mut s64 -> None")
+    CHECK(!commonType(sym, sym.qS64(RefMutExpl), sym.qS64(RefMutImpl)));
+    SECTION("s64, byte -> None")
+    CHECK(!commonType(sym, sym.qS64(), sym.qByte()));
+    SECTION("s64, u64 -> None")
+    CHECK(!commonType(sym, sym.qS64(), sym.qU64()));
+    SECTION("s64, u32 -> s64")
+    CHECK(commonType(sym, sym.qS64(), sym.qU32()) == sym.qS64());
 }

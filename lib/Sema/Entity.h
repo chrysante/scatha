@@ -445,12 +445,12 @@ protected:
                     parentScope,
                     utl::ceil_divide(bitwidth, 8),
                     utl::ceil_divide(bitwidth, 8)),
-        _bitwidth(utl::narrow_cast<uint16_t>(bitwidth)),
-        _signed(signedness) {}
+        _signed(signedness),
+        _bitwidth(utl::narrow_cast<uint16_t>(bitwidth)) {}
 
 private:
-    uint16_t _bitwidth : 15;
-    Signedness _signed : 1;
+    Signedness _signed;
+    uint16_t _bitwidth;
 };
 
 /// Concrete class representing type `bool`

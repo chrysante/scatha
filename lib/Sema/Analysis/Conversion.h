@@ -125,7 +125,9 @@ bool convertToExplicitRef(ast::Expression* expr,
 void dereference(ast::Expression* expr, SymbolTable& sym);
 
 /// Find the common type of \p a and \p b
-QualType const* commonType(QualType const* a, QualType const* b);
+QualType const* commonType(SymbolTable& symbolTable,
+                           QualType const* a,
+                           QualType const* b);
 
 } // namespace scatha::sema
 

@@ -394,14 +394,19 @@ bool Context::analyzeImpl(ast::Conditional& c) {
     if (!success) {
         return false;
     }
-    auto* thenType = c.thenExpr()->type();
-    auto* elseType = c.elseExpr()->type();
-    if (thenType->base() != elseType->base()) {
+    auto* thenType   = c.thenExpr()->type();
+    auto* elseType   = c.elseExpr()->type();
+    auto* commonType = sema::commonType(sym, thenType, elseType);
+    if (!commonType) {
         iss.push<BadOperandsForBinaryExpression>(c, thenType, elseType);
         return false;
     }
-    // TODO: Return a reference here to allow conditional assignment etc.
-    c.decorate(nullptr, thenType);
+    success &= convertImplicitly(c.thenExpr(), commonType, iss);
+    success &= convertImplicitly(c.elseExpr(), commonType, iss);
+    SC_ASSERT(success,
+              "Common type should not return a type if not both types are "
+              "convertible to that type");
+    c.decorate(nullptr, commonType);
     c.setConstantValue(evalConditional(c.condition()->constantValue(),
                                        c.thenExpr()->constantValue(),
                                        c.elseExpr()->constantValue()));
@@ -710,7 +715,7 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
 
     /// Determine common type
     auto* const commonQualifiedType =
-        sema::commonType(expr.lhs()->type(), expr.rhs()->type());
+        sema::commonType(sym, expr.lhs()->type(), expr.rhs()->type());
     if (!commonQualifiedType) {
         iss.push<BadOperandsForBinaryExpression>(expr,
                                                  expr.lhs()->type(),

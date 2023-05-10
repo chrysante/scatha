@@ -304,6 +304,22 @@ QualType const* SymbolTable::qFloat(Reference ref) {
     return qualify(_float, ref);
 }
 
+IntType const* SymbolTable::intType(size_t width, Signedness signedness) {
+    bool isSigned = signedness == Signedness::Signed;
+    switch (width) {
+    case 8:
+        return isSigned ? S8() : U8();
+    case 16:
+        return isSigned ? S16() : U16();
+    case 32:
+        return isSigned ? S32() : U32();
+    case 64:
+        return isSigned ? S64() : U64();
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 template <typename E, typename... Args>
 E* SymbolTable::addEntity(Args&&... args) {
     auto owner   = allocate<E>(std::forward<Args>(args)...);

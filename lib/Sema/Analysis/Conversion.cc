@@ -133,9 +133,22 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             case ConvKind::Implicit:
                 return std::nullopt;
             case ConvKind::Explicit:
-                return Int_Trunc;
+                return from.size() == to.size() ? None : Int_Trunc;
             case ConvKind::Reinterpret:
-                if (from.bitwidth() != 8) {
+                if (from.size() != to.size()) {
+                    return std::nullopt;
+                }
+                return None;
+            }
+        },
+        [&](ByteType const& from, IntType const& to) -> RetType {
+            switch (kind) {
+            case ConvKind::Implicit:
+                return std::nullopt;
+            case ConvKind::Explicit:
+                return from.size() == to.size() ? None : Unsigned_Widen;
+            case ConvKind::Reinterpret:
+                if (from.size() != to.size()) {
                     return std::nullopt;
                 }
                 return None;
@@ -555,31 +568,89 @@ void sema::dereference(ast::Expression* expr, SymbolTable& sym) {
     SC_ASSERT(succ, "Expression is not dereferentiable");
 }
 
-static QualType const* commonTypeRefImpl(QualType const* a, QualType const* b) {
-    SC_ASSERT(a->base() == b->base(),
-              "Here we only deduce common reference qualification");
-#warning Handle mutability here
-    if (a->isExplicitRef()) {
-        return b;
+static std::optional<Reference> commonRef(Reference a, Reference b) {
+    using enum Reference;
+    // clang-format off
+    static constexpr std::optional<Reference> resultMatrix[5][5] = {
+/*                    None,         ConstImplicit  MutImplicit    ConstExplicit  MutExplicit   */
+/*          None */ { None,         None,          None,          std::nullopt,  std::nullopt  },
+/* ConstImplicit */ { None,         ConstImplicit, ConstImplicit, std::nullopt,  std::nullopt  },
+/*   MutImplicit */ { None,         ConstImplicit, MutImplicit,   std::nullopt,  std::nullopt  },
+/* ConstExplicit */ { std::nullopt, std::nullopt,  std::nullopt,  ConstExplicit, ConstExplicit },
+/*   MutExplicit */ { std::nullopt, std::nullopt,  std::nullopt,  ConstExplicit, MutExplicit   },
+    }; // clang-format on
+    return resultMatrix[static_cast<size_t>(a)][static_cast<size_t>(b)];
+}
+
+static std::optional<size_t> nextBitwidth(size_t width) {
+    switch (width) {
+    case 8:
+        return 16;
+    case 16:
+        return 32;
+    case 32:
+        return 64;
+    case 64:
+        return std::nullopt;
+    default:
+        SC_UNREACHABLE();
     }
-    if (a->isImplicitRef()) {
-        if (b->isReference()) {
-            return a;
-        }
-        return b;
-    }
-    if (!b->isReference()) {
+}
+
+IntType const* commonTypeSignedUnsigned(SymbolTable& sym,
+                                        IntType const* a,
+                                        IntType const* b) {
+    SC_ASSERT(a->isSigned(), "");
+    SC_ASSERT(b->isUnsigned(), "");
+    if (a->bitwidth() > b->bitwidth()) {
         return a;
+    }
+    if (auto width = nextBitwidth(b->bitwidth())) {
+        return sym.intType(*width, Signedness::Signed);
     }
     return nullptr;
 }
 
-QualType const* sema::commonType(QualType const* a, QualType const* b) {
-    if (a->base() != b->base()) {
+static ObjectType const* commonBase(SymbolTable& sym,
+                                    ObjectType const* a,
+                                    ObjectType const* b,
+                                    int stage = 0) {
+    if (a == b) {
+        return a;
+    }
+    // clang-format off
+    return visit(*a, *b, utl::overload{
+        [&](IntType const& a, IntType const& b) -> ObjectType const* {
+            if (a.isSigned() && b.isUnsigned()) {
+                return commonTypeSignedUnsigned(sym, &a, &b);
+            }
+            if (b.isSigned() && a.isUnsigned()) {
+                return commonTypeSignedUnsigned(sym, &b, &a);
+            }
+            SC_ASSERT(a.signedness() == b.signedness(), "");
+            return sym.intType(std::max(a.bitwidth(), b.bitwidth()),
+                               a.signedness());
+        },
+        [&](ObjectType const& a, ObjectType const& b) -> ObjectType const* {
+            return nullptr;
+        }
+    }); // clang-format on
+}
+
+QualType const* sema::commonType(SymbolTable& sym,
+                                 QualType const* a,
+                                 QualType const* b) {
+    auto* base = commonBase(sym, a->base(), b->base());
+    if (!base) {
         return nullptr;
     }
-    if (auto* result = commonTypeRefImpl(a, b)) {
-        return result;
+    auto ref = commonRef(a->reference(), b->reference());
+    if (!ref) {
+        return nullptr;
     }
-    return commonTypeRefImpl(b, a);
+    /// We only reference-qualify the result if no base type conversion occurs
+    if (a->base() == b->base()) {
+        return sym.qualify(base, *ref);
+    }
+    return sym.qualify(base);
 }
