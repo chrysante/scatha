@@ -17,7 +17,7 @@ public fn main() -> int {
 }
 struct X {
     var anInteger: int;
-    var aFloat: float;
+    var aDouble: double;
     var aSecondInt: int;
 })");
 }
@@ -118,7 +118,7 @@ struct X {
 }
 struct Y {
     var i: int;
-    var f: float;
+    var f: double;
 }
 fn makeX() -> X {
     var x: X;

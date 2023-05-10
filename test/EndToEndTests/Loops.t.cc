@@ -58,8 +58,8 @@ public fn main() -> int {
 
 TEST_CASE("Float pow", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn pow(base: float, exp: int) -> float {
-    var result: float = 1.0;
+fn pow(base: double, exp: int) -> double {
+    var result: double = 1.0;
     var i = 0;
     if (exp < 0) {
         base = 1.0 / base;
@@ -99,8 +99,8 @@ public fn main() -> int {
 
 TEST_CASE("Float pow / for", "[end-to-end]") {
     test::checkReturns(1, R"(
-fn pow(base: float, exp: int) -> float {
-    var result: float = 1.0;
+fn pow(base: double, exp: int) -> double {
+    var result: double = 1.0;
     if (exp < 0) {
         base = 1.0 / base;
         exp = -exp;

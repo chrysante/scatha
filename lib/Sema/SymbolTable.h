@@ -225,7 +225,7 @@ public:
     IntType const* U16() const { return _u16; }
     IntType const* U32() const { return _u32; }
     IntType const* U64() const { return _u64; }
-    FloatType const* Float() const { return _float; }
+    FloatType const* F64() const { return _f64; }
 
     IntType const* intType(size_t width, Signedness signedness);
 
@@ -251,7 +251,7 @@ public:
 
     QualType const* qU64(Reference = Reference::None);
 
-    QualType const* qFloat(Reference = Reference::None);
+    QualType const* qF64(Reference = Reference::None);
 
     /// Review if we want to keep these:
     void setSortedStructureTypes(utl::vector<StructureType*> ids) {
@@ -306,7 +306,7 @@ private:
     IntType* _u16;
     IntType* _u32;
     IntType* _u64;
-    FloatType* _float;
+    FloatType* _f64;
 };
 
 } // namespace scatha::sema

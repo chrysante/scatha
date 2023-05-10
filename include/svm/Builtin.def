@@ -9,27 +9,27 @@
 #endif
 
 /// ## Conversion Functions
-SVM_BUILTIN_DEF(f64toi64,  Const, { qFloat() }, qS64())
-SVM_BUILTIN_DEF(i64tof64,  Const, { qS64() }, qFloat())
+SVM_BUILTIN_DEF(f64toi64,  Const, { qF64() }, qS64())
+SVM_BUILTIN_DEF(i64tof64,  Const, { qS64() }, qF64())
 
 /// ## Common Math Functions
-SVM_BUILTIN_DEF(abs_f64,   Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(exp_f64,   Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(exp2_f64,  Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(exp10_f64, Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(log_f64,   Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(log2_f64,  Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(log10_f64, Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(pow_f64,   Const, { qFloat(), qFloat() }, qFloat())
-SVM_BUILTIN_DEF(sqrt_f64,  Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(cbrt_f64,  Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(hypot_f64, Const, { qFloat(), qFloat() }, qFloat())
-SVM_BUILTIN_DEF(sin_f64,   Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(cos_f64,   Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(tan_f64,   Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(asin_f64,  Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(acos_f64,  Const, { qFloat() }, qFloat())
-SVM_BUILTIN_DEF(atan_f64,  Const, { qFloat() }, qFloat())
+SVM_BUILTIN_DEF(abs_f64,   Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(exp_f64,   Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(exp2_f64,  Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(exp10_f64, Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(log_f64,   Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(log2_f64,  Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(log10_f64, Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(pow_f64,   Const, { qF64(), qF64() }, qF64())
+SVM_BUILTIN_DEF(sqrt_f64,  Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(cbrt_f64,  Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(hypot_f64, Const, { qF64(), qF64() }, qF64())
+SVM_BUILTIN_DEF(sin_f64,   Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(cos_f64,   Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(tan_f64,   Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(asin_f64,  Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(acos_f64,  Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(atan_f64,  Const, { qF64() }, qF64())
 
 /// ## Memory Management
 /// IR signature: void(ptr, ptr, i64)
@@ -40,7 +40,7 @@ SVM_BUILTIN_DEF(dealloc, None,  { qDynArray(Byte(), RefMutExpl), qS64() }, qVoid
 /// ## Console Output
 SVM_BUILTIN_DEF(putchar,   None,  { qS64() }, qVoid())
 SVM_BUILTIN_DEF(puti64,    None,  { qS64() }, qVoid())
-SVM_BUILTIN_DEF(putf64,    None,  { qFloat() }, qVoid())
+SVM_BUILTIN_DEF(putf64,    None,  { qF64() }, qVoid())
 SVM_BUILTIN_DEF(putstr,    None,  { qDynArray(Byte(), RefConstExpl) }, qVoid())
 
 #undef SVM_BUILTIN_DEF

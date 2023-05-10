@@ -23,10 +23,10 @@ fn g(n: int) -> int {
 
 TEST_CASE("External function call", "[end-to-end][inlining]") {
     test::checkReturns(utl::bit_cast<uint64_t>(std::sqrt(2.0)), R"(
-public fn main() -> float {
+public fn main() -> double {
     return sqrt(2.0);
 }
-fn sqrt(x: float) -> float {
+fn sqrt(x: double) -> double {
     return __builtin_sqrt_f64(x);
 })");
 }

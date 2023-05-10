@@ -23,20 +23,21 @@ SymbolTable::SymbolTable() {
     _currentScope = _globalScope = addEntity<GlobalScope>();
 
     using enum Signedness;
-    _void  = declareBuiltinType<VoidType>();
-    _byte  = declareBuiltinType<ByteType>();
-    _bool  = declareBuiltinType<BoolType>();
-    _s8    = declareBuiltinType<IntType>(8, Signed);
-    _s16   = declareBuiltinType<IntType>(16, Signed);
-    _s32   = declareBuiltinType<IntType>(32, Signed);
-    _s64   = declareBuiltinType<IntType>(64, Signed);
-    _u8    = declareBuiltinType<IntType>(8, Unsigned);
-    _u16   = declareBuiltinType<IntType>(16, Unsigned);
-    _u32   = declareBuiltinType<IntType>(32, Unsigned);
-    _u64   = declareBuiltinType<IntType>(64, Unsigned);
-    _float = declareBuiltinType<FloatType>(64);
+    _void = declareBuiltinType<VoidType>();
+    _byte = declareBuiltinType<ByteType>();
+    _bool = declareBuiltinType<BoolType>();
+    _s8   = declareBuiltinType<IntType>(8, Signed);
+    _s16  = declareBuiltinType<IntType>(16, Signed);
+    _s32  = declareBuiltinType<IntType>(32, Signed);
+    _s64  = declareBuiltinType<IntType>(64, Signed);
+    _u8   = declareBuiltinType<IntType>(8, Unsigned);
+    _u16  = declareBuiltinType<IntType>(16, Unsigned);
+    _u32  = declareBuiltinType<IntType>(32, Unsigned);
+    _u64  = declareBuiltinType<IntType>(64, Unsigned);
+    _f64  = declareBuiltinType<FloatType>(64);
 
     _s64->addAlternateName("int");
+    _f64->addAlternateName("double");
 
     /// Declare builtin functions
     _builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
@@ -300,9 +301,7 @@ QualType const* SymbolTable::qU32(Reference ref) { return qualify(_u32, ref); }
 
 QualType const* SymbolTable::qU64(Reference ref) { return qualify(_u64, ref); }
 
-QualType const* SymbolTable::qFloat(Reference ref) {
-    return qualify(_float, ref);
-}
+QualType const* SymbolTable::qF64(Reference ref) { return qualify(_f64, ref); }
 
 IntType const* SymbolTable::intType(size_t width, Signedness signedness) {
     bool isSigned = signedness == Signedness::Signed;

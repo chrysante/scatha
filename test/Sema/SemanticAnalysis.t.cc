@@ -30,13 +30,13 @@ fn mul(a: int, b: int, c: float) -> int {
     REQUIRE(fnType.argumentCount() == 3);
     CHECK(fnType.argumentType(0)->base() == sym.S64());
     CHECK(fnType.argumentType(1)->base() == sym.S64());
-    CHECK(fnType.argumentType(2)->base() == sym.Float());
+    CHECK(fnType.argumentType(2)->base() == sym.F64());
     auto* a = mulFn->findEntity<Variable>("a");
     CHECK(a->type()->base() == sym.S64());
     auto* b = mulFn->findEntity<Variable>("b");
     CHECK(b->type()->base() == sym.S64());
     auto const c = mulFn->findEntity<Variable>("c");
-    CHECK(c->type()->base() == sym.Float());
+    CHECK(c->type()->base() == sym.F64());
     auto* result = mulFn->findEntity<Variable>("result");
     CHECK(result->type()->base() == sym.S64());
 }
@@ -61,13 +61,13 @@ fn mul(a: int, b: int, c: float, d: byte) -> int {
     CHECK(fnDecl->returnType()->base() == sym.S64());
     CHECK(fnDecl->parameter(0)->type()->base() == sym.S64());
     CHECK(fnDecl->parameter(1)->type()->base() == sym.S64());
-    CHECK(fnDecl->parameter(2)->type()->base() == sym.Float());
+    CHECK(fnDecl->parameter(2)->type()->base() == sym.F64());
     // CHECK(fnDecl->parameters()[3]->type()->base() == sym.String());
     auto* fn = tu->declaration<FunctionDefinition>(0);
     CHECK(fn->returnType()->base() == sym.S64());
     CHECK(fn->parameter(0)->type()->base() == sym.S64());
     CHECK(fn->parameter(1)->type()->base() == sym.S64());
-    CHECK(fn->parameter(2)->type()->base() == sym.Float());
+    CHECK(fn->parameter(2)->type()->base() == sym.F64());
     CHECK(fn->parameter(3)->type()->base() == sym.Byte());
     auto* varDecl = fn->body()->statement<VariableDeclaration>(0);
     CHECK(varDecl->type()->base() == sym.S64());
@@ -93,7 +93,7 @@ fn mul(a: int, b: int, c: float, d: byte) -> int {
         cast<ast::Conversion*>(zDecl->initExpression())->expression<Literal>();
     CHECK(intHexLit->value<APInt>() == 0x39E);
     auto* yDecl = fn->body()->statement<VariableDeclaration>(4);
-    CHECK(yDecl->type()->base() == sym.Float());
+    CHECK(yDecl->type()->base() == sym.F64());
     auto* floatLit =
         cast<ast::Conversion*>(yDecl->initExpression())->expression<Literal>();
     CHECK(floatLit->value<APFloat>().to<f64>() == 1.2);
@@ -118,13 +118,13 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     REQUIRE(tu);
     auto* calleeDecl = tu->declaration<FunctionDefinition>(1);
     REQUIRE(calleeDecl);
-    CHECK(calleeDecl->returnType()->base() == sym.Float());
-    CHECK(calleeDecl->parameter(0)->type()->base() == sym.Float());
+    CHECK(calleeDecl->returnType()->base() == sym.F64());
+    CHECK(calleeDecl->parameter(0)->type()->base() == sym.F64());
     CHECK(calleeDecl->parameter(1)->type()->base() == sym.S64());
     CHECK(calleeDecl->parameter(2)->type()->base() == sym.Bool());
     auto* caller     = tu->declaration<FunctionDefinition>(0);
     auto* resultDecl = caller->body()->statement<VariableDeclaration>(0);
-    CHECK(resultDecl->initExpression()->type()->base() == sym.Float());
+    CHECK(resultDecl->initExpression()->type()->base() == sym.F64());
     auto* fnCallExpr = cast<ast::Conversion*>(resultDecl->initExpression())
                            ->expression<FunctionCall>();
     auto const& calleeOverloadSet = sym.lookup<OverloadSet>("callee");
@@ -150,7 +150,7 @@ struct X {
     CHECK(xDef->name() == "X");
     auto* iDecl = xDef->body()->statement<VariableDeclaration>(0);
     CHECK(iDecl->name() == "i");
-    CHECK(iDecl->type()->base() == sym.Float());
+    CHECK(iDecl->type()->base() == sym.F64());
     CHECK(iDecl->offset() == 0);
     CHECK(iDecl->index() == 0);
     auto* jDecl = xDef->body()->statement<VariableDeclaration>(1);

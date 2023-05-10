@@ -54,9 +54,6 @@ struct Context {
 
     QualType const* analyzeReferenceAssignment(ast::BinaryExpression&);
 
-    Function* findExplicitCast(ObjectType const* targetType,
-                               std::span<QualType const* const> from);
-
     QualType const* stripQualifiers(QualType const* type) const {
         return sym.qualify(type->base());
     }
@@ -133,7 +130,7 @@ bool Context::analyzeImpl(ast::Literal& lit) {
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return true;
     case FloatingPoint:
-        lit.decorate(nullptr, sym.qFloat());
+        lit.decorate(nullptr, sym.qF64());
         lit.setConstantValue(allocate<FloatValue>(lit.value<APFloat>()));
         return true;
     case This: {
@@ -765,20 +762,6 @@ QualType const* Context::analyzeReferenceAssignment(
     success &= convertExplicitly(expr.lhs(), explicitRefType, iss);
     success &= convertExplicitly(expr.rhs(), explicitRefType, iss);
     return success ? sym.qVoid() : nullptr;
-}
-
-Function* Context::findExplicitCast(ObjectType const* to,
-                                    std::span<QualType const* const> from) {
-    if (from.size() != 1) {
-        return nullptr;
-    }
-    if (from.front()->base() == sym.S64() && to == sym.Float()) {
-        return sym.builtinFunction(static_cast<size_t>(svm::Builtin::i64tof64));
-    }
-    if (from.front()->base() == sym.Float() && to == sym.S64()) {
-        return sym.builtinFunction(static_cast<size_t>(svm::Builtin::f64toi64));
-    }
-    return nullptr;
 }
 
 Entity* Context::lookup(ast::Identifier& id) {

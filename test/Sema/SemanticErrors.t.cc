@@ -62,7 +62,7 @@ fn f(x: float) -> int { return "a string"; }
     auto const line2  = issues.findOnLine<BadTypeConversion>(2);
     REQUIRE(line2);
     CHECK(line2->from()->base() == issues.sym.S64());
-    CHECK(line2->to()->base() == issues.sym.Float());
+    CHECK(line2->to()->base() == issues.sym.F64());
     CHECK(issues.noneOnLine(3));
     auto const line4 = issues.findOnLine<BadTypeConversion>(4);
     REQUIRE(line4);
@@ -81,11 +81,11 @@ fn main(i: int) -> bool {
     auto const line3  = issues.findOnLine<BadOperandsForBinaryExpression>(3);
     REQUIRE(line3);
     CHECK(line3->lhs()->base() == issues.sym.S64());
-    CHECK(line3->rhs()->base() == issues.sym.Float());
+    CHECK(line3->rhs()->base() == issues.sym.F64());
     auto const line4 = issues.findOnLine<BadOperandsForBinaryExpression>(4);
     REQUIRE(line4);
     CHECK(line4->lhs()->base() == issues.sym.S64());
-    CHECK(line4->rhs()->base() == issues.sym.Float());
+    CHECK(line4->rhs()->base() == issues.sym.F64());
     auto const line5 = issues.findOnLine<BadOperandForUnaryExpression>(5);
     REQUIRE(line5);
     CHECK(line5->operandType()->base() == issues.sym.S64());

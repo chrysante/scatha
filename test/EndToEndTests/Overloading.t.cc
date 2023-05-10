@@ -12,7 +12,7 @@ public fn main() -> int {
 fn add() -> int {
     return 1;
 }
-fn add(f: float) -> int {
+fn add(f: double) -> int {
     return 1;
 }
 fn add(x: int) -> int {
@@ -29,7 +29,7 @@ fn add(x: int, y: int, z: int) -> int {
 TEST_CASE("Overloading 2", "[end-to-end]") {
     test::checkReturns(2, R"(
 fn f(i: int, b: bool) -> int { return 1; }
-fn f(i: float, b: bool) -> int { return 2; }
+fn f(i: double, b: bool) -> int { return 2; }
 fn f(i: bool, b: bool) -> int { return 3; }
 public fn main() -> int {
     return f(0.0, true);

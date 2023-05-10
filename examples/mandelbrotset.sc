@@ -8,8 +8,8 @@ public fn main() -> int {
     for j = 0; j < height; ++j {
         for i = 0; i < width; ++i {
             var z: Complex;
-            z.x = 2.0 / scale * ((float(i) / float(width)) - 0.5) * float(width) / (2.0 * float(height));
-            z.y = 2.0 / scale * ((1.0 - float(j) / float(height)) - 0.5);
+            z.x = 2.0 / scale * ((double(i) / double(width)) - 0.5) * double(width) / (2.0 * double(height));
+            z.y = 2.0 / scale * ((1.0 - double(j) / double(height)) - 0.5);
             printDot(sqrt(mandelbrotSet(z)));
         }    
         printNewLine();
@@ -18,11 +18,11 @@ public fn main() -> int {
 }
 
 struct Complex {
-    var x: float;
-    var y: float;
+    var x: double;
+    var y: double;
 }
 
-fn mandelbrotSet(c: Complex) -> float {
+fn mandelbrotSet(c: Complex) -> double {
     var z: Complex;
     z.x = 0.0;
     z.y = 0.0; 
@@ -30,7 +30,7 @@ fn mandelbrotSet(c: Complex) -> float {
     for i = 0; i < limit; ++i {
         z = next(z, c);
         if length(z) > 2.0 {
-            return float(i) / float(limit);
+            return double(i) / double(limit);
         }
     }
     return 0.0;
@@ -45,15 +45,15 @@ fn next(z: Complex, c: Complex) -> Complex {
     return r;
 }
 
-fn length(z: Complex) -> float {
+fn length(z: Complex) -> double {
     return __builtin_hypot_f64(z.x, z.y);
 }
 
-fn calcDot() -> float {
+fn calcDot() -> double {
     return 0.5;
 }
 
-fn printDot(x: float) {
+fn printDot(x: double) {
          if x < 0.1 { __builtin_putchar(32); }
     else if x < 0.2 { __builtin_putchar(46); }
     else if x < 0.3 { __builtin_putchar(58); }
@@ -75,11 +75,11 @@ fn print(x: int) {
     printNewLine();
 }
 
-fn print(x: float) {
+fn print(x: double) {
     __builtin_putf64(x);
     printNewLine();
 }
 
-fn sqrt(x: float) -> float {
+fn sqrt(x: double) -> double {
     return __builtin_sqrt_f64(x);
 }
