@@ -134,9 +134,6 @@ struct LoweringContext {
     ///
     ir::Value* getAddress(Expression const* expr);
 
-    ir::Value* getValueImpl(AbstractSyntaxTree const& expr) {
-        SC_UNREACHABLE();
-    } // Delete later
     ir::Value* getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getValueImpl(Identifier const&);
     ir::Value* getValueImpl(Literal const&);
@@ -151,9 +148,7 @@ struct LoweringContext {
     ir::Value* getValueImpl(Conversion const&);
     ir::Value* getValueImpl(ListExpression const&);
 
-    ir::Value* getAddressImpl(AbstractSyntaxTree const& expr) {
-        SC_UNREACHABLE();
-    } // Delete this later
+    ir::Value* getAddressImpl(Expression const& expr) { SC_UNREACHABLE(); }
     ir::Value* getAddressImpl(Literal const& lit);
     ir::Value* getAddressImpl(Identifier const&);
     ir::Value* getAddressImpl(MemberAccess const&);
