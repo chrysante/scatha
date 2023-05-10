@@ -53,10 +53,11 @@ public:
     void loadBinary(u8 const* data);
 
     /// Start execution at the program's start address
-    void execute(std::span<u64 const> arguments);
+    u64 const* execute(std::span<u64 const> arguments);
 
     /// Start execution at \p startAddress
-    void execute(size_t startAddress, std::span<u64 const> arguments);
+    /// \Returns Bottom register pointer of the run execution frame
+    u64 const* execute(size_t startAddress, std::span<u64 const> arguments);
 
     /// Set a slot of the external function table
     ///

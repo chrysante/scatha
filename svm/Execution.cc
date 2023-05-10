@@ -190,7 +190,8 @@ ALWAYS_INLINE static bool lessEq(VMFlags f) { return f.less || f.equal; }
 ALWAYS_INLINE static bool greater(VMFlags f) { return !f.less && !f.equal; }
 ALWAYS_INLINE static bool greaterEq(VMFlags f) { return !f.less; }
 
-void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
+u64 const* VirtualMachine::execute(size_t start,
+                                   std::span<u64 const> arguments) {
     auto const lastframe = execFrames.top() = frame;
     /// We add `MaxCallframeRegisterCount` to the register pointer because
     /// we have no way of knowing how many registers the currently running
@@ -600,5 +601,7 @@ void VirtualMachine::execute(size_t start, std::span<u64 const> arguments) {
 
     assert(frame.iptr == programBreak);
     execFrames.pop();
-    frame = lastframe;
+    auto* result = frame.regPtr;
+    frame        = lastframe;
+    return result;
 }

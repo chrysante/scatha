@@ -32,7 +32,7 @@ struct LabelPlaceholder {};
 
 struct Context {
     explicit Context(AssemblyStream const& stream,
-                     utl::hashmap<std::string, size_t>& sym):
+                     std::unordered_map<std::string, size_t>& sym):
         stream(stream), sym(sym) {}
 
     void run();
@@ -88,7 +88,7 @@ struct Context {
     size_t currentPosition() const { return instructions.size(); }
 
     AssemblyStream const& stream;
-    utl::hashmap<std::string, size_t>& sym;
+    std::unordered_map<std::string, size_t>& sym;
     utl::vector<u8> instructions;
 
     /// Maps Label ID to Code position

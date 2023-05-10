@@ -21,15 +21,8 @@ struct X {
 }
 
 public fn main() -> int {
-    var i = 0;
+    var i = 5;
+    var j: u32 = 4;
 
-    var x: X;
-
-    x.setRef(&mut i);
-
-    x.assign(1);
-
-"asdf";
-
-    return i;
+    return i * j;
 }

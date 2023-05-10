@@ -4,9 +4,8 @@
 #define SCATHA_ASSEMBLY_ASSEMBLER_H_
 
 #include <string>
-
-#include <utl/hashtable.hpp>
-#include <utl/vector.hpp>
+#include <unordered_map>
+#include <vector>
 
 #include <scatha/Common/Base.h>
 
@@ -15,8 +14,8 @@ namespace scatha::Asm {
 class AssemblyStream;
 
 struct AssemblerResult {
-    utl::vector<u8> program;
-    utl::hashmap<std::string, size_t> symbolTable;
+    std::vector<uint8_t> program;
+    std::unordered_map<std::string, size_t> symbolTable;
 };
 
 [[nodiscard]] SCATHA_API AssemblerResult

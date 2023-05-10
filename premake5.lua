@@ -140,11 +140,29 @@ addCppFiles "test"
 links { "scatha", "svm-lib", "APMath" } 
 
 ------------------------------------------
+project "runtime"
+
+kind "StaticLib"
+externalincludedirs {
+    "include",
+    "runtime/include",
+    "external/utility/include",
+    "external/termfmt/include",
+    "external/APMath/include",
+    "external/range-v3/include",
+}
+includedirs { ".", "lib" }
+
+files { "runtime/**.h", "runtime/**.cc" }
+links { "scatha", "svm-lib", "termfmt" }
+
+------------------------------------------
 project "playground"
 
 kind "ConsoleApp"
 externalincludedirs {
     "include",
+    "runtime/include",
     "external/utility/include",
     "external/termfmt/include",
     "external/APMath/include",
@@ -154,7 +172,7 @@ includedirs { ".", "lib", "playground", "apmath" }
 
 addCppFiles "playground"
 files "playground/**.sc"
-links { "scatha", "svm-lib", "termfmt" }
+links { "scatha", "svm-lib", "runtime", "termfmt" }
 
 filter { "system:macosx"} 
     defines { "PROJECT_LOCATION=\"${PROJECT_DIR}\"" }

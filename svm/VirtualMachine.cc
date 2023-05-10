@@ -30,8 +30,8 @@ void VirtualMachine::loadBinary(u8 const* progData) {
                  .stackPtr  = stack.data() });
 }
 
-void VirtualMachine::execute(std::span<u64 const> arguments) {
-    execute(startAddress, arguments);
+u64 const* VirtualMachine::execute(std::span<u64 const> arguments) {
+    return execute(startAddress, arguments);
 }
 
 void VirtualMachine::setFunctionTableSlot(
