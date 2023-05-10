@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "AST/SourceLocation.h"
+#include "Common/EscapeSequence.h"
 #include "Common/Expected.h"
 #include "Parser/LexerUtil.h"
 #include "Parser/LexicalIssue.h"
@@ -75,7 +76,7 @@ std::optional<Token> Context::getToken() {
         return std::nullopt;
     }
     if (ignoreSpaces() || ignoreLineComment() || ignoreMultiLineComment()) {
-        if (!issues.empty()) {
+        if (issues.haveErrors()) {
             return std::nullopt;
         }
         return getToken();
@@ -195,8 +196,7 @@ std::optional<Token> Context::getPunctuation() {
 }
 
 static TokenKind toOperator(std::string_view str) {
-    if (false) {
-    }
+    if (false) (void)0; /// To make following chained `if/else` cases work
 #define SC_OPERATOR_TOKEN_DEF(Token, op)                                       \
     else if (str == op) { return TokenKind::Token; }
 #include "Parser/Token.def"
@@ -316,14 +316,31 @@ std::optional<Token> Context::getStringLiteral() {
             SourceRange{ beginLoc, currentLocation });
         return std::nullopt;
     }
+    bool haveEscape = false;
     while (true) {
+        if (haveEscape) {
+            haveEscape = false;
+            if (auto seq = toEscapeSequence(current())) {
+                id += *seq;
+                advance();
+            }
+            else {
+                issues.push<InvalidEscapeSequence>(current(), currentLocation);
+            }
+        }
         if (current() == '"') {
             advance();
             return Token(id,
                          TokenKind::StringLiteral,
                          { beginLoc, currentLocation });
         }
-        id += current();
+        auto c = current();
+        if (c == '\\') {
+            haveEscape = true;
+        }
+        else {
+            id += c;
+        }
         if (!advance() || current() == '\n') {
             issues.push<UnterminatedStringLiteral>(
                 SourceRange{ beginLoc, currentLocation });

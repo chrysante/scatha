@@ -180,7 +180,7 @@ static constexpr utl::streammanip formatLit([](std::ostream& str,
                                                ast::Literal const* lit) {
     switch (lit->kind()) {
     case LiteralKind::Integer: {
-        auto* type = cast_or_null<sema::IntType const*>(lit->type()->base());
+        auto* type = cast<sema::IntType const*>(lit->type()->base());
         auto value = lit->value<APInt>();
         if (!type) {
             str << value.toString();

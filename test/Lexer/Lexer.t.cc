@@ -298,3 +298,50 @@ TEST_CASE("Lexer float literals", "[lex]") {
     CHECK(lexTo<double>("1.3") == 1.3);
     CHECK(lexTo<double>("2.3") == 2.3);
 }
+
+TEST_CASE("Escape sequences", "[lex]") {
+    IssueHandler iss;
+    SECTION("Simple hello world") {
+        auto const text = R"("Hello world!\n")";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(tokens.size() == 2);
+        auto str = tokens.front();
+        CHECK(str.id() == "Hello world!\n");
+        CHECK(iss.empty());
+    }
+    SECTION("Simple hello world 2") {
+        auto const text = R"("Hello\tworld!")";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(tokens.size() == 2);
+        auto str = tokens.front();
+        CHECK(str.id() == "Hello\tworld!");
+        CHECK(iss.empty());
+    }
+    SECTION("Invalid sequence") {
+        auto const text = R"("Hello,\m world!")";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(tokens.size() == 2);
+        CHECK(!iss.empty());
+        CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
+        auto str = tokens.front();
+        CHECK(str.id() == "Hello,m world!");
+    }
+    SECTION("Invalid sequence at begin") {
+        auto const text = R"("\zHello world!")";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(tokens.size() == 2);
+        CHECK(!iss.empty());
+        CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
+        auto str = tokens.front();
+        CHECK(str.id() == "zHello world!");
+    }
+    SECTION("Invalid sequence at end") {
+        auto const text = R"("Hello world!\m")";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(tokens.size() == 2);
+        CHECK(!iss.empty());
+        CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
+        auto str = tokens.front();
+        CHECK(str.id() == "Hello world!m");
+    }
+}

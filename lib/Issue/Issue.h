@@ -15,11 +15,19 @@ class Issue {
 public:
     virtual ~Issue() = default;
 
+    /// Source range in which this issue occurred
     SourceRange sourceRange() const { return sourceRng; }
 
     SourceLocation sourceLocation() const { return sourceRng.begin(); }
 
+    /// Severity of this issue
     IssueSeverity severity() const { return sev; }
+
+    /// Shorthand for `severity() == Error`
+    bool isError() const { return severity() == IssueSeverity::Error; }
+
+    /// Shorthand for `severity() == Warning`
+    bool isWarning() const { return severity() == IssueSeverity::Warning; }
 
     void setSourceLocation(SourceLocation sourceLocation) {
         setSourceRange({ sourceLocation, sourceLocation });

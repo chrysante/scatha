@@ -57,6 +57,17 @@ private:
     }
 };
 
+class InvalidEscapeSequence: public LexicalIssue {
+public:
+    explicit InvalidEscapeSequence(char litValue, SourceLocation sourceLoc):
+        LexicalIssue(sourceLoc, IssueSeverity::Warning), litValue(litValue) {}
+
+private:
+    std::string message() const override;
+
+    char litValue;
+};
+
 /// Unterminated comment
 class SCATHA_API UnterminatedMultiLineComment: public LexicalIssue {
 public:

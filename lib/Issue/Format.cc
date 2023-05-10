@@ -37,7 +37,9 @@ static std::string_view getLineImpl(std::string_view text, size_t index) {
 static std::string_view getLine(std::string_view text,
                                 size_t index,
                                 ssize_t lineOffset = 0) {
-    SC_ASSERT(index < text.size(), "");
+    if (index >= text.size()) {
+        return {};
+    }
     while (lineOffset < 0) {
         while (text[index] != '\n') {
             if (index == 0) {

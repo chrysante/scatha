@@ -8,6 +8,7 @@
 #include <utl/streammanip.hpp>
 
 #include "Common/Base.h"
+#include "Common/EscapeSequence.h"
 #include "Common/PrintUtil.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
@@ -407,6 +408,18 @@ void PrintCtx::print(ConstantData const& constData) {
     str << "\n\n";
 }
 
+static void printStringWithEscapeSeqs(std::ostream& str,
+                                      std::string_view text) {
+    for (char c: text) {
+        if (auto raw = fromEscapeSequence(c)) {
+            str << '\\' << *raw;
+        }
+        else {
+            str << c;
+        }
+    }
+}
+
 void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
     // clang-format off
     visit(*type, utl::overload{
@@ -437,7 +450,11 @@ void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
                 intType && intType->bitwidth() == 8)
             {
                 std::string_view text(reinterpret_cast<char const*>(data.data()), data.size());
-                str << tfmt::format(tfmt::Red, '"', text, '"');
+                tfmt::format(tfmt::Red, [&]{
+                    str << '"';
+                    printStringWithEscapeSeqs(str, text);
+                    str << '"';
+                });
                 return;
             }
             str << formatType(&type) << " [";

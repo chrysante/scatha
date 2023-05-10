@@ -1,4 +1,8 @@
 
+fn print(msg: &[byte]) {
+    __builtin_putstr(&msg);
+}
 
-
-let a = 0;
+public fn main() {
+    print("Hello\t\nwor\\\ld\m\n" );
+}

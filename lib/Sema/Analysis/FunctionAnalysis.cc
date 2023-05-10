@@ -273,14 +273,14 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
             sym.currentScope());
         return;
     }
+    if (!rs.expression() || !analyzeExpr(*rs.expression())) {
+        return;
+    }
     if (rs.expression() && returnType->base() == sym.Void()) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::VoidFunctionMustNotReturnAValue,
             sym.currentScope());
-        return;
-    }
-    if (!rs.expression() || !analyzeExpr(*rs.expression())) {
         return;
     }
     if (!rs.expression()->isValue()) {

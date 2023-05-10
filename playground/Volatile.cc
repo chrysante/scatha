@@ -196,6 +196,9 @@ static void pass(ir::Context& ctx,
     if (!issues.empty()) {
         issues.print(source);
     }
+    if (!root) {
+        return;
+    }
     issues.clear();
     sema::SymbolTable sym;
     sema::analyze(*root, sym, issues);
@@ -219,6 +222,21 @@ static void pass(ir::Context& ctx,
     ir::print(mod);
 
     run(mod);
+}
+
+[[maybe_unused]] static void lexPlayground(std::filesystem::path path) {
+    std::fstream file(path);
+    if (!file) {
+        return;
+    }
+    std::stringstream sstr;
+    sstr << file.rdbuf();
+    auto text = sstr.str();
+    IssueHandler iss;
+    auto tokens = parse::lex(text, iss);
+    for (auto& tok: tokens) {
+        std::cout << tok.id() << std::endl;
+    }
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {

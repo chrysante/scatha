@@ -66,6 +66,9 @@ public:
     /// Issue at index \p index
     Issue const& operator[](size_t index) const { return *_issues[index]; }
 
+    /// \Returns `true` iff any errors have occured
+    bool haveErrors() const;
+
     /// Print all issues
     void print(std::string_view source);
 
