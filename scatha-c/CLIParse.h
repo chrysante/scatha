@@ -2,14 +2,15 @@
 #define SCATHAC_CLIPARSE_H_
 
 #include <filesystem>
+#include <vector>
 
 namespace scathac {
 
 struct Options {
-    std::filesystem::path filepath;
-    std::filesystem::path objpath;
+    std::vector<std::filesystem::path> files;
+    std::filesystem::path bindir;
+    bool optimize;
     bool time;
-    int optLevel;
 };
 
 Options parseCLI(int argc, char* argv[]);

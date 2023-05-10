@@ -1,5 +1,8 @@
 #include "CLIParse.h"
 
+#include <iostream>
+#include <vector>
+
 #include <cstdlib>
 
 #include <CLI/CLI11.hpp>
@@ -7,23 +10,29 @@
 using namespace scathac;
 
 Options scathac::parseCLI(int argc, char* argv[]) {
-    CLI::App app{ "scatha-compiler" };
-    std::filesystem::path filepath, objpath;
-    app.add_option("-f,--file", filepath, "Input filename");
-    app.add_option("--objdir", objpath, "Object filename");
-    int optLevel = 0;
-    app.add_option("-o,--optimize", optLevel, "Optimization level");
-    CLI::Option const& time =
-        *app.add_flag("-t,--time", "Measure duration of compilation");
+    Options result;
+
+    CLI::App app("scatha-compiler");
+    CLI::Option const* opt =
+        app.add_option("-o,--optimize", "Optimize the program");
+
+    CLI::Option const* time =
+        app.add_flag("-t,--time", "Measure compilation time");
+
+    app.add_option("-b,--bindir", result.bindir, "Directory to place binary");
+
+    app.add_option("files", result.files, "Input files")
+        ->check(CLI::ExistingPath);
+
     try {
         app.parse(argc, argv);
-        return { .filepath = filepath,
-                 .objpath  = objpath,
-                 .time     = !!time,
-                 .optLevel = optLevel };
+        result.optimize = !!*opt;
+        result.time     = !!*time;
     }
     catch (CLI::ParseError const& e) {
         int const exitCode = app.exit(e);
         std::exit(exitCode);
     }
+
+    return result;
 }
