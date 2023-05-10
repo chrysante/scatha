@@ -8,6 +8,7 @@
 
 #include "AST/AST.h"
 #include "Common/Base.h"
+#include "Common/EscapeSequence.h"
 #include "Common/PrintUtil.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
@@ -207,7 +208,9 @@ static constexpr utl::streammanip formatLit([](std::ostream& str,
         str << "this";
         break;
     case LiteralKind::String:
-        str << '"' << lit->value<std::string>() << '"';
+        str << '"';
+        printWithEscapeSeqs(str, lit->value<std::string>());
+        str << '"';
         break;
     }
 });

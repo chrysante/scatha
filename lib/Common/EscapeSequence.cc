@@ -1,5 +1,7 @@
 #include "Common/EscapeSequence.h"
 
+#include <ostream>
+
 /// https://en.wikipedia.org/wiki/Escape_sequences_in_C#Table_of_escape_sequences
 
 using namespace scatha;
@@ -55,5 +57,16 @@ std::optional<char> scatha::fromEscapeSequence(char seq) {
         return '"';
     default:
         return std::nullopt;
+    }
+}
+
+void scatha::printWithEscapeSeqs(std::ostream& str, std::string_view text) {
+    for (char c: text) {
+        if (auto raw = fromEscapeSequence(c)) {
+            str << '\\' << *raw;
+        }
+        else {
+            str << c;
+        }
     }
 }

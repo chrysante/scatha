@@ -408,18 +408,6 @@ void PrintCtx::print(ConstantData const& constData) {
     str << "\n\n";
 }
 
-static void printStringWithEscapeSeqs(std::ostream& str,
-                                      std::string_view text) {
-    for (char c: text) {
-        if (auto raw = fromEscapeSequence(c)) {
-            str << '\\' << *raw;
-        }
-        else {
-            str << c;
-        }
-    }
-}
-
 void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
     // clang-format off
     visit(*type, utl::overload{
@@ -452,7 +440,7 @@ void PrintCtx::printDataAs(Type const* type, std::span<u8 const> data) {
                 std::string_view text(reinterpret_cast<char const*>(data.data()), data.size());
                 tfmt::format(tfmt::Red, [&]{
                     str << '"';
-                    printStringWithEscapeSeqs(str, text);
+                    printWithEscapeSeqs(str, text);
                     str << '"';
                 });
                 return;

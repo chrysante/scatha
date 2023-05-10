@@ -59,8 +59,8 @@ private:
 
 class InvalidEscapeSequence: public LexicalIssue {
 public:
-    explicit InvalidEscapeSequence(char litValue, SourceLocation sourceLoc):
-        LexicalIssue(sourceLoc, IssueSeverity::Warning), litValue(litValue) {}
+    explicit InvalidEscapeSequence(char litValue, SourceRange sourceRange):
+        LexicalIssue(sourceRange, IssueSeverity::Warning), litValue(litValue) {}
 
 private:
     std::string message() const override;

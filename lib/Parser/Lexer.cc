@@ -325,7 +325,11 @@ std::optional<Token> Context::getStringLiteral() {
                 advance();
             }
             else {
-                issues.push<InvalidEscapeSequence>(current(), currentLocation);
+                auto begin = currentLocation;
+                auto end   = currentLocation;
+                --begin.index, --begin.column, ++end.index, ++end.column;
+                issues.push<InvalidEscapeSequence>(current(),
+                                                   SourceRange{ begin, end });
             }
         }
         if (current() == '"') {
@@ -378,8 +382,7 @@ std::optional<Token> Context::getBooleanLiteral() {
 }
 
 static TokenKind idToTokenKind(std::string_view id) {
-    if (false) {
-    }
+    if (false) (void)0;
 #define SC_KEYWORD_TOKEN_DEF(Token, str)                                       \
     else if (id == str) { return TokenKind::Token; }
 #include "Parser/Token.def"
