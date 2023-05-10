@@ -162,6 +162,10 @@ public:
     /// Source range object associated with this node.
     SourceRange sourceRange() const { return _sourceRange; }
 
+    /// Extended source range of this node.
+    /// This is the union of the source range of this node and all child nodes
+    SourceRange extSourceRange() const;
+
     /// Source location object associated with this node.
     SourceLocation sourceLocation() const { return _sourceRange.begin(); }
 

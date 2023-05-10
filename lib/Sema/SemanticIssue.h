@@ -63,7 +63,7 @@ public:
     QualType const* to() const { return _to; }
 
 private:
-    std::string message() const override { return "Invalid type conversion"; }
+    std::string message() const override;
 
     QualType const* _from;
     QualType const* _to;

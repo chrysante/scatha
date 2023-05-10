@@ -13,6 +13,22 @@ void scatha::internal::privateDelete(AbstractSyntaxTree* node) {
     visit(*node, [](auto& derived) { delete &derived; });
 }
 
+static void extSourceRangeImpl(SourceRange& result,
+                               AbstractSyntaxTree const* node) {
+    result = merge(result, node->sourceRange());
+    for (auto* child: node->children()) {
+        if (child) {
+            extSourceRangeImpl(result, child);
+        }
+    }
+}
+
+SourceRange AbstractSyntaxTree::extSourceRange() const {
+    SourceRange result;
+    extSourceRangeImpl(result, this);
+    return result;
+}
+
 UniquePtr<AbstractSyntaxTree> AbstractSyntaxTree::extractFromParent() {
     return parent()->extractChild(indexInParent());
 }

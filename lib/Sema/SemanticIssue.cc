@@ -7,13 +7,14 @@
 
 #include "AST/AST.h"
 #include "AST/Print.h"
+#include "Sema/Entity.h"
 
 using namespace scatha;
 using namespace sema;
 
 BadExpression::BadExpression(ast::Expression const& expr,
                              IssueSeverity severity):
-    SemanticIssue(expr.sourceRange(), severity), _expr(&expr) {}
+    SemanticIssue(expr.extSourceRange(), severity), _expr(&expr) {}
 
 AssignmentToConst::AssignmentToConst(ast::Expression const& expression):
     BadExpression(expression, IssueSeverity::Error) {}
@@ -23,6 +24,14 @@ BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
     BadExpression(expression, IssueSeverity::Error),
     _from(expression.type()),
     _to(to) {}
+
+std::string BadTypeConversion::message() const {
+    return utl::strcat("Invalid type conversion from '",
+                       from()->name(),
+                       "' to '",
+                       to()->name(),
+                       "'\n");
+}
 
 BadOperandForUnaryExpression::BadOperandForUnaryExpression(
     ast::Expression const& expression, QualType const* operandType):
@@ -37,7 +46,7 @@ std::string UseOfUndeclaredIdentifier::message() const {
 InvalidStatement::InvalidStatement(ast::Statement const* statement,
                                    Reason reason,
                                    Scope const& inScope):
-    SemanticIssue(statement ? statement->sourceRange() : SourceRange{},
+    SemanticIssue(statement ? statement->extSourceRange() : SourceRange{},
                   IssueSeverity::Error),
     _statement(statement),
     _reason(reason),
@@ -60,7 +69,7 @@ BadSymbolReference::BadSymbolReference(ast::Expression const& expr,
 InvalidStatement* InvalidStatement::setStatement(
     ast::Statement const& statement) {
     _statement = &statement;
-    setSourceRange(statement.sourceRange());
+    setSourceRange(statement.extSourceRange());
     return this;
 }
 
@@ -110,5 +119,6 @@ std::ostream& sema::operator<<(std::ostream& str,
 }
 
 StrongReferenceCycle::StrongReferenceCycle(utl::vector<Node> cycle):
-    SemanticIssue(cycle.front().astNode->sourceRange(), IssueSeverity::Error),
+    SemanticIssue(cycle.front().astNode->extSourceRange(),
+                  IssueSeverity::Error),
     _cycle(std::move(cycle)) {}
