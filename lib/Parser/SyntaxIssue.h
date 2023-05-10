@@ -21,7 +21,7 @@ public:
 
 protected:
     explicit SyntaxIssue(Token token, IssueSeverity severity):
-        Issue(token.sourceLocation(), severity), tok(std::move(token)) {}
+        Issue(token.sourceRange(), severity), tok(std::move(token)) {}
     using Issue::Issue;
 
 private:
@@ -44,6 +44,15 @@ public:
 
 private:
     std::string message() const override { return "Expected declarator"; }
+};
+
+class SCATHA_API UnexpectedDeclarator: public SyntaxIssue {
+public:
+    explicit UnexpectedDeclarator(Token token):
+        SyntaxIssue(std::move(token), IssueSeverity::Error) {}
+
+private:
+    std::string message() const override { return "Unexpected declarator"; }
 };
 
 class SCATHA_API ExpectedDelimiter: public SyntaxIssue {

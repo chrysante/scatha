@@ -16,23 +16,27 @@ void parse::panic(TokenStream& tokens, PanicOptions const options) {
          tokens.index() < tokens.size();)
     {
         Token const& next = tokens.peek();
-        if (next.kind() == OpenBrace) {
+        switch (next.kind()) {
+        case OpenBrace:
             ++numOpenBrace;
-        }
-        if (next.kind() == CloseBrace) {
+            break;
+        case CloseBrace:
             --numOpenBrace;
-        }
-        if (next.kind() == OpenParan) {
+            break;
+        case OpenParan:
             ++numOpenParan;
-        }
-        if (next.kind() == CloseParan) {
+            break;
+        case CloseParan:
             --numOpenParan;
-        }
-        if (next.kind() == OpenBracket) {
+            break;
+        case OpenBracket:
             ++numOpenBracket;
-        }
-        if (next.kind() == CloseBracket) {
+            break;
+        case CloseBracket:
             --numOpenBracket;
+            break;
+        default:
+            break;
         }
         if (numOpenBrace <= 0 && numOpenParan == 0 && numOpenBracket == 0) {
             /// Here we can potentially find a stable point to continue parsing

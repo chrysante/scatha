@@ -49,7 +49,15 @@ UniquePtr<ast::TranslationUnit> Context::parseTranslationUnit() {
         }
         auto decl = parseExternalDeclaration();
         if (!decl) {
-            issues.push<ExpectedDeclarator>(tokens.peek());
+            if (isDeclarator(tokens.peek().kind())) {
+                /// \Note Here we `eat()` a token because `panic()` will not
+                /// advance past the next declarator in this scope, so we would
+                /// be stuck here
+                issues.push<UnexpectedDeclarator>(tokens.eat());
+            }
+            else {
+                issues.push<ExpectedDeclarator>(tokens.peek());
+            }
             panic(tokens);
             continue;
         }

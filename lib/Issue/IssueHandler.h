@@ -40,6 +40,9 @@ public:
         push(new T(std::forward<Args>(args)...));
     }
 
+    /// Erase all issues
+    void clear() { _issues.clear(); }
+
     /// Begin iterator
     auto begin() const { return issueView().begin(); }
 
