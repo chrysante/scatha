@@ -1,21 +1,16 @@
 
 
-
-
-
 fn print(n: int) {
     __builtin_puti64(n);
-    __builtin_putchar(10);
 }
 
 fn print(msg: &[byte]) {
     __builtin_putstr(&msg);
-    __builtin_putchar(10);
 }
 
 struct X {
     fn setRef(&mut this, r: &mut int) {
-        this.ref = &r;
+        this.ref = &mut r;
     }
 
     fn assign(&this, n: int) {
@@ -30,9 +25,11 @@ public fn main() -> int {
 
     var x: X;
 
-    x.setRef(&i);
+    x.setRef(&mut i);
 
     x.assign(1);
+
+"asdf";
 
     return i;
 }

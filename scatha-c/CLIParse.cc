@@ -12,9 +12,9 @@ using namespace scathac;
 Options scathac::parseCLI(int argc, char* argv[]) {
     Options result;
 
-    CLI::App app("scatha-compiler");
+    CLI::App app("Scatha Compiler");
     CLI::Option const* opt =
-        app.add_option("-o,--optimize", "Optimize the program");
+        app.add_flag("-o,--optimize", "Optimize the program");
 
     CLI::Option const* time =
         app.add_flag("-t,--time", "Measure compilation time");
