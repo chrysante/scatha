@@ -287,7 +287,7 @@ UniquePtr<ast::StructDefinition> Context::parseStructDefinition() {
     if (!body) {
         Token const curr = tokens.current();
         Token const next = tokens.peek();
-        SC_DEBUGFAIL(); // Handle issue
+        SC_UNIMPLEMENTED(); // Handle issue
     }
     return allocate<ast::StructDefinition>(declarator.sourceRange(),
                                            std::move(identifier),
@@ -453,7 +453,7 @@ UniquePtr<ast::IfStatement> Context::parseIfStatement() {
     auto ifBlock = parseCompoundStatement();
     if (!ifBlock) {
         issues.push<UnqualifiedID>(tokens.peek(), OpenBrace);
-        SC_DEBUGFAIL();
+        SC_UNIMPLEMENTED();
     }
     auto elseBlock = [&]() -> UniquePtr<ast::Statement> {
         Token const elseToken = tokens.peek();
@@ -469,7 +469,7 @@ UniquePtr<ast::IfStatement> Context::parseIfStatement() {
         }
         Token const curr = tokens.current();
         Token const next = tokens.peek();
-        SC_DEBUGFAIL(); // Handle issue
+        SC_UNIMPLEMENTED(); // Handle issue
         return nullptr;
     }();
     return allocate<ast::IfStatement>(ifToken.sourceRange(),

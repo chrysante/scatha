@@ -369,9 +369,7 @@ void Context::registerJumpSite(size_t offsetValuePos, u64 targetID) {
 void Context::postProcess() {
     for (auto const& [position, targetID]: jumpsites) {
         auto const itr = labels.find(targetID);
-        if (itr == labels.end()) {
-            SC_DEBUGFAIL(); // Use of undeclared label.
-        }
+        SC_ASSERT(itr != labels.end(), "Use of undeclared label");
         size_t const targetPosition = itr->second;
         i32 const offset            = utl::narrow_cast<i32>(
             static_cast<i64>(targetPosition) - static_cast<i64>(position));

@@ -939,7 +939,7 @@ void ParseContext::parseConstantData(Type const* type, utl::vector<u8>& data) {
     using enum SemanticIssue::Reason;
     // clang-format off
     visit(*type, utl::overload{
-        [&](StructureType const& type) { SC_DEBUGFAIL(); },
+        [&](StructureType const& type) { SC_UNIMPLEMENTED(); },
         [&](ArrayType const& type) {
             expect(eatToken(), TokenKind::OpenBracket);
             for (size_t i = 0; i < type.count(); ++i) {

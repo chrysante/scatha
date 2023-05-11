@@ -217,7 +217,10 @@ public:
                                QualType const* returnType):
         _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
 
-    Type const* type() const { SC_DEBUGFAIL(); }
+    Type const* type() const {
+        /// Don't have function types yet. Not we if we even need them though
+        SC_UNIMPLEMENTED();
+    }
 
     /// Argument types
     std::span<QualType const* const> argumentTypes() const {

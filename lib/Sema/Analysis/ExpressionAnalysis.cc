@@ -38,7 +38,7 @@ struct Context {
     bool analyzeImpl(ast::GenericExpression&);
     bool analyzeImpl(ast::ListExpression&);
 
-    bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_DEBUGFAIL(); }
+    bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
 
     Entity* lookup(ast::Identifier& id);
 
@@ -250,7 +250,8 @@ bool Context::analyzeImpl(ast::Identifier& id) {
             return true;
         },
         [&](Entity const& entity) -> bool {
-            SC_DEBUGFAIL(); // Maybe push an issue here?
+            /// Other entities can not be referenced directly
+            SC_UNREACHABLE();
         }
     }); // clang-format on
 }
@@ -280,8 +281,9 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
         return rewritePropertyCall(ma);
     }
     if (ma.object()->isValue() && !ma.member()->isValue()) {
-        SC_DEBUGFAIL(); /// Can't look in a value and then in a type. probably
-                        /// just return failure here
+        SC_UNIMPLEMENTED(); /// Can't look in a value and then in a type.
+                            /// **Solution:** Make an error type
+                            /// `InvalidNameLookup` and push that here
         return false;
     }
     ma.decorate(ma.member()->entity(),
@@ -381,11 +383,12 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
         return true;
     }
     default:
-        SC_DEBUGFAIL();
+        /// Make an error class `InvalidReferenceExpression` and push that here
+        SC_UNIMPLEMENTED();
     }
 }
 
-bool Context::analyzeImpl(ast::UniqueExpression& expr) { SC_DEBUGFAIL(); }
+bool Context::analyzeImpl(ast::UniqueExpression& expr) { SC_UNIMPLEMENTED(); }
 
 bool Context::analyzeImpl(ast::Conditional& c) {
     bool success = analyze(*c.condition());

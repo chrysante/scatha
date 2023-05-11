@@ -191,8 +191,7 @@ ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
                 return ctx.arrayType(mapType(arrayType.elementType()), arrayType.count());
             }
             /// For now we don't map dynamic array value type, as we might not ever really need it
-            SC_DEBUGFAIL();
-            // return arrayViewType;
+            SC_UNIMPLEMENTED();
         },
     }); // clang-format on
 }

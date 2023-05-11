@@ -303,7 +303,7 @@ ir::Value* LoweringContext::getValueImpl(ReferenceExpression const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(UniqueExpression const& expr) {
-    SC_DEBUGFAIL();
+    SC_UNIMPLEMENTED();
 }
 
 ir::Value* LoweringContext::getValueImpl(Conditional const& condExpr) {
@@ -488,7 +488,7 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
 }
 
 ir::Value* LoweringContext::getValueImpl(ListExpression const& list) {
-    SC_DEBUGFAIL();
+    SC_UNIMPLEMENTED();
 }
 
 /// MARK: getAddress() Implementation

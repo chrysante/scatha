@@ -254,14 +254,8 @@ void Context::analyzeImpl(ast::ExpressionStatement& es) {
 void Context::analyzeImpl(ast::ReturnStatement& rs) {
     SC_ASSERT(currentFunction,
               "This should have been set by case FunctionDefinition");
-    if (sym.currentScope().kind() != ScopeKind::Function) {
-        SC_DEBUGFAIL(); // Can this even happen?
-        iss.push<InvalidStatement>(
-            &rs,
-            InvalidStatement::Reason::InvalidScopeForStatement,
-            sym.currentScope());
-        return;
-    }
+    /// Should this assertion not happen in every case?
+    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function, "");
     auto* returnType = currentFunction->returnType();
     if (!returnType) {
         return;

@@ -36,7 +36,8 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest,
         case ValueType::Value64:
             return { OpCode::mov64RV, 8 };
         default:
-            SC_DEBUGFAIL(); // No matching instruction
+            /// No matching instruction
+            SC_UNREACHABLE();
         }
     }
     if (dest == ValueType::MemoryAddress && source == ValueType::RegisterIndex)
@@ -55,7 +56,7 @@ std::pair<OpCode, size_t> Asm::mapMove(ValueType dest,
         }
     }
     /// No matching instruction.
-    SC_DEBUGFAIL();
+    SC_UNREACHABLE();
 }
 
 static OpCode mapCMovRR(CompareOperation cmpOp) {
@@ -202,7 +203,7 @@ std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp,
         return { mapCMovRV(cmpOp), 8 };
     default:
         /// No matching instruction.
-        SC_DEBUGFAIL();
+        SC_UNREACHABLE();
     }
 }
 
@@ -289,7 +290,7 @@ OpCode Asm::mapCompare(Type type, ValueType lhs, ValueType rhs, size_t width) {
         }
     }
     /// No matching instruction.
-    SC_DEBUGFAIL();
+    SC_UNREACHABLE();
 }
 
 OpCode Asm::mapTest(Type type, size_t width) {
@@ -419,7 +420,7 @@ OpCode Asm::mapArithmetic64(ArithmeticOperation operation,
         }); // clang-format on
     }
     /// No matching instruction.
-    SC_DEBUGFAIL();
+    SC_UNREACHABLE();
 }
 
 OpCode Asm::mapArithmetic32(ArithmeticOperation operation,
@@ -501,7 +502,7 @@ OpCode Asm::mapArithmetic32(ArithmeticOperation operation,
         }); // clang-format on
     }
     /// No matching instruction.
-    SC_DEBUGFAIL();
+    SC_UNREACHABLE();
 }
 
 // clang-format on

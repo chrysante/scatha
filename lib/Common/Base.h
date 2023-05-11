@@ -67,14 +67,14 @@
 
 /// MARK: Assertions
 #if defined(__clang__)
-#define SC_DEBUGFAIL()  __builtin_trap()
-#define SC_DEBUGBREAK() __builtin_debugtrap()
+#define SC_UNIMPLEMENTED() __builtin_trap()
+#define SC_DEBUGBREAK()    __builtin_debugtrap()
 #elif defined(__GNUC__)
-#define SC_DEBUGFAIL()  __builtin_trap()
-#define SC_DEBUGBREAK() __builtin_trap()
+#define SC_UNIMPLEMENTED() __builtin_trap()
+#define SC_DEBUGBREAK()    __builtin_trap()
 #elif defined(_MSC_VER)
-#define SC_DEBUGFAIL()  (__debugbreak(), std::terminate())
-#define SC_DEBUGBREAK() __debugbreak()
+#define SC_UNIMPLEMENTED() (__debugbreak(), std::terminate())
+#define SC_DEBUGBREAK()    __debugbreak()
 #else
 #error Unsupported Compiler
 #endif
@@ -87,7 +87,7 @@
 #endif
 
 #if SCATHA(DEBUG)
-#define SC_UNREACHABLE(...) SC_DEBUGFAIL()
+#define SC_UNREACHABLE(...) SC_UNIMPLEMENTED()
 #else
 #define SC_UNREACHABLE(...) _SC_UNREACHABLE_IMPL()
 #endif
@@ -101,7 +101,7 @@
 
 // SC_ASSERT
 #if SCATHA(DEBUG)
-#define SC_ASSERT(COND, MSG) ((COND) ? (void)0 : SC_DEBUGFAIL())
+#define SC_ASSERT(COND, MSG) ((COND) ? (void)0 : SC_UNIMPLEMENTED())
 #else
 #define SC_ASSERT(COND, MSG) SC_ASSUME(COND)
 #endif

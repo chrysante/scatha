@@ -416,13 +416,13 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
         }
 
         case Unsigned_Widen:
-            SC_DEBUGFAIL();
+            return true;
 
         case Float_Trunc:
-            SC_DEBUGFAIL();
+            SC_UNIMPLEMENTED();
 
         case Float_Widen:
-            SC_DEBUGFAIL();
+            return true;
 
         case SignedToFloat:
             [[fallthrough]];
