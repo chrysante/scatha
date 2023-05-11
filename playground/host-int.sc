@@ -1,5 +1,5 @@
 
-fn print(msg: &[byte]) {
+public fn print(msg: &[byte]) {
     __builtin_putstr(&msg);
 }
 

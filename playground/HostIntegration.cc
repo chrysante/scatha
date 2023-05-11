@@ -4,14 +4,15 @@
 #include <iostream>
 #include <sstream>
 
-#include <scatha/Runtime/Compiler.h>
-#include <scatha/Runtime/Function.h>
-#include <scatha/Runtime/Program.h>
-#include <svm/ExternalFunction.h>
-#include <svm/VirtualMachine.h>
+#include <scatha/Runtime.h>
 
 using namespace playground;
 using namespace scatha;
+
+static long cppCallback(long arg) {
+    std::cout << "Hello from C++ land\n";
+    return arg * arg;
+}
 
 void playground::hostIntegration(std::filesystem::path path) {
     std::fstream file(path);
@@ -28,8 +29,12 @@ void playground::hostIntegration(std::filesystem::path path) {
     using enum BaseType;
     using enum Qualifier;
 
-    auto cppCallbackID = compiler.declareFunction("cppCallback", Int, { Int });
-    if (!cppCallbackID) {
+    auto cbID1 = compiler.declareFunction("cppCallback", Int, { Int });
+    if (!cbID1) {
+        std::cout << "Failed to declare cppCallback\n";
+    }
+    auto cbID2 = compiler.declareFunction("cppCallback", Int, { Int });
+    if (!cbID2) {
         std::cout << "Failed to declare cppCallback\n";
     }
 
@@ -41,18 +46,19 @@ void playground::hostIntegration(std::filesystem::path path) {
     }
 
     svm::VirtualMachine vm;
+    setExtFunction(&vm, *cbID1, [](long arg) { return cppCallback(arg); });
 
     vm.loadBinary(prog->binary());
 
     int cppVar = 0;
 
-    auto const callback = [&](long arg) {
-        std::cout << "Hello from C++ land\n";
+    auto const callback2 = [&](long arg) {
+        std::cout << "Hello from C++ land again\n";
         std::cout << "cppVar = " << cppVar++ << std::endl;
         return arg * arg;
     };
 
-    setExtFunction(&vm, *cppCallbackID, callback);
+    setExtFunction(&vm, *cbID2, callback2);
 
     auto mainAddress = prog->findAddress("main", { Int });
     if (!mainAddress) {
@@ -64,11 +70,15 @@ void playground::hostIntegration(std::filesystem::path path) {
 
     auto alloc   = prog->findAddress("allocate", { Int });
     auto dealloc = prog->findAddress("deallocate", { { Byte, MutArrayRef } });
+    auto print   = prog->findAddress("print", { { Byte, ArrayRef } });
 
-    auto data = run<std::span<char>>(&vm, alloc.value(), 40);
+    char const message[] = "My message stored in foreign buffer\n";
 
-    std::strcpy(data.data(), "My message stored in foreign buffer\n");
-    std::cout << data.data();
+    auto data = run<std::span<char>>(&vm, alloc.value(), sizeof message);
+
+    std::strcpy(data.data(), message);
+
+    run(&vm, print.value(), data);
 
     run(&vm, dealloc.value(), data);
 }

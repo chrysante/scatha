@@ -13,6 +13,8 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "Issue/IssueHandler.h"
+#include "Opt/DeadFuncElim.h"
+#include "Opt/Inliner.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/Entity.h"
@@ -54,11 +56,12 @@ std::optional<ExtFunctionID> Compiler::declareFunction(
     return std::nullopt;
 }
 
-std::unique_ptr<Program> Compiler::compile() {
-    return compile(std::cout);
+std::unique_ptr<Program> Compiler::compile(CompilationSettings settings) {
+    return compile(settings, std::cout);
 }
 
-std::unique_ptr<Program> Compiler::compile(IssueHandler& iss) {
+std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
+                                           IssueHandler& iss) {
     if (sources.empty()) {
         return nullptr;
     }
@@ -75,7 +78,11 @@ std::unique_ptr<Program> Compiler::compile(IssueHandler& iss) {
     }
 
     ir::Context ctx;
-    auto mod       = ast::lowerToIR(*astRoot, impl->sym, ctx);
+    auto mod = ast::lowerToIR(*astRoot, impl->sym, ctx);
+    if (settings.optimize) {
+        opt::inlineFunctions(ctx, mod);
+        opt::deadFuncElim(ctx, mod);
+    }
     auto asmStream = cg::codegen(mod);
     auto asmResult = Asm::assemble(asmStream);
 
@@ -83,9 +90,10 @@ std::unique_ptr<Program> Compiler::compile(IssueHandler& iss) {
                                      std::move(asmResult.program));
 }
 
-std::unique_ptr<Program> Compiler::compile(std::ostream& ostream) {
+std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
+                                           std::ostream& ostream) {
     IssueHandler iss;
-    auto result = compile(iss);
+    auto result = compile(settings, iss);
     if (!iss.empty()) {
         iss.print(sources.front());
     }

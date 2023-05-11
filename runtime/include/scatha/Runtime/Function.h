@@ -8,29 +8,41 @@
 #include <svm/VirtualMachine.h>
 #include <utl/type_traits.hpp>
 
-namespace svm {
-
-class VirtualMachine;
-
-} // namespace svm
-
 namespace scatha {
 
-template <typename T>
-inline constexpr bool Trivial =
-    std::is_trivially_copyable_v<T> || std::is_same_v<T, void>;
+/// Bind \p function to the external function position described by \p ID
+/// Arguments will be loaded from and return value will stored to the respective
+/// virtual registers of \p VM
+///
+template <typename Function>
+void setExtFunction(svm::VirtualMachine* VM,
+                    ExtFunctionID ID,
+                    Function&& function);
+
+/// Invoke the function at address \p funcAddress in the virtual machine \p VM
+/// with arguments \p args... Behaviour is undefined, if the function is not
+/// invokable with given arguments
+template <typename R = void, typename... Args>
+    requires scatha::Trivial<R> && (... && scatha::Trivial<Args>)
+R run(svm::VirtualMachine* VM, size_t funcAddress, Args... args);
+
+} // namespace scatha
+
+// ===-----------------------------------------------------------------------===
+// ===- Implementation ------------------------------------------------------===
+// ===-----------------------------------------------------------------------===
 
 template <typename F>
-void setExtFunction(svm::VirtualMachine* vm, ExtFunctionID id, F&& f) {
+void scatha::setExtFunction(svm::VirtualMachine* vm, ExtFunctionID id, F&& f) {
     static_assert(
         std::is_empty_v<F> || std::is_lvalue_reference_v<F>,
-        "If function type is not empty, it must be an l-value reference that "
-        "will be valid until the last call to this function");
-    void* userdata              = std::is_empty_v<F> ?
-                                      nullptr :
-                                      const_cast<void*>(reinterpret_cast<void const*>(&f));
-    svm::ExternalFunction extFn = {
-        [](uint64_t* r, svm::VirtualMachine*, void* userdata) {
+        "If function type is not empty, it must be an l-value reference. It is "
+        "also the users responsibility that that reference will be valid until "
+        "the last call to this function");
+    void* userdata = std::is_empty_v<F> ?
+                         nullptr :
+                         const_cast<void*>(reinterpret_cast<void const*>(&f));
+    auto wrapFn = [](uint64_t* const r, svm::VirtualMachine*, void* userdata) {
         using namespace internal;
         using FT     = utl::function_traits<F>;
         using R      = typename FT::result_type;
@@ -56,25 +68,15 @@ void setExtFunction(svm::VirtualMachine* vm, ExtFunctionID id, F&& f) {
             std::apply(func, args);
         }
         else {
-            R retval = std::apply(func, args);
-            store(r, retval);
+            store(r, std::apply(func, args));
         }
-        },
-        userdata };
-    vm->setFunction(id.slot, id.index, extFn);
+    };
+    vm->setFunction(id.slot, id.index, { wrapFn, userdata });
 }
 
-inline void run(svm::VirtualMachine* vm,
-                size_t function,
-                std::span<uint64_t const> args,
-                std::span<uint8_t> retval) {
-    auto* r = vm->execute(function, args);
-    std::memcpy(retval.data(), r, retval.size());
-}
-
-template <typename R = void, typename... Args>
-    requires Trivial<R> && (... && Trivial<Args>)
-R run(svm::VirtualMachine* vm, size_t function, Args... args) {
+template <typename R, typename... Args>
+    requires scatha::Trivial<R> && (... && scatha::Trivial<Args>)
+R scatha::run(svm::VirtualMachine* vm, size_t function, Args... args) {
     using namespace internal;
     static constexpr size_t argbufsize =
         (!sizeof...(args) + ... + ceildiv(sizeof args, 8));
@@ -84,21 +86,13 @@ R run(svm::VirtualMachine* vm, size_t function, Args... args) {
       index += ceildiv(sizeof args, 8)),
      ...);
     if constexpr (std::is_same_v<R, void>) {
-        run(vm,
-            function,
-            std::span<uint64_t const>(argbuf),
-            std::span<uint8_t>{});
+        vm->execute(function, std::span<uint64_t const>(argbuf));
     }
     else {
         uint8_t retvalbuf[sizeof(R)]{};
-        run(vm,
-            function,
-            std::span<uint64_t const>(argbuf),
-            std::span<uint8_t>(retvalbuf));
-        return reinterpret_cast<R&>(retvalbuf);
+        auto* r = vm->execute(function, std::span<uint64_t const>(argbuf));
+        return *reinterpret_cast<R const*>(r);
     }
 }
-
-} // namespace scatha
 
 #endif // SCATHA_RUNTIME_FUNCTION_H_

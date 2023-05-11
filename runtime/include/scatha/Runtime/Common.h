@@ -5,6 +5,12 @@
 #include <cstring>
 #include <type_traits>
 
+namespace svm {
+
+class VirtualMachine;
+
+} // namespace svm
+
 namespace scatha {
 
 enum class BaseType : uint8_t {
@@ -45,8 +51,12 @@ struct QualType {
 };
 
 struct ExtFunctionID {
-    size_t index, slot;
+    size_t slot, index;
 };
+
+template <typename T>
+inline constexpr bool Trivial =
+    std::is_trivially_copyable_v<T> || std::is_same_v<T, void>;
 
 } // namespace scatha
 

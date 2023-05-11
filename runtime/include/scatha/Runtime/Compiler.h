@@ -2,11 +2,11 @@
 #define SCATHA_RUNTIME_COMPILER_H_
 
 #include <initializer_list>
+#include <iosfwd>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
-#include <iosfwd>
 
 #include <scatha/Runtime/Common.h>
 #include <scatha/Runtime/Program.h>
@@ -15,7 +15,12 @@ namespace scatha {
 
 class IssueHandler;
 
-/// Wraps the internal compilation interface for integration in a host environment
+struct CompilationSettings {
+    bool optimize = true;
+};
+
+/// Wraps the internal compilation interface for integration in a host
+/// environment
 class Compiler {
 public:
     explicit Compiler();
@@ -27,8 +32,9 @@ public:
     ~Compiler();
 
     /// Declare an external function
-    /// If the program calls a non-builtin external function, it must be declared prior to compilation.
-    /// This method wraps a call to the internal symbol table if the semantic analysis phase
+    /// If the program calls a non-builtin external function, it must be
+    /// declared prior to compilation. This method wraps a call to the internal
+    /// symbol table if the semantic analysis phase
     std::optional<ExtFunctionID> declareFunction(
         std::string name,
         QualType returnType,
@@ -48,16 +54,18 @@ public:
     void addSource(std::string source) { sources.push_back(std::move(source)); }
 
     /// \Returns `nullptr` if compilation failed.
-    std::unique_ptr<Program> compile(IssueHandler& issueHandler);
+    std::unique_ptr<Program> compile(CompilationSettings settings,
+                                     IssueHandler& issueHandler);
 
     /// \overload
     /// Issues are printed to \p ostream
-    std::unique_ptr<Program> compile(std::ostream& ostream);
-    
+    std::unique_ptr<Program> compile(CompilationSettings settings,
+                                     std::ostream& ostream);
+
     /// \overload
     /// Issues are printed to `std::cout`
-    std::unique_ptr<Program> compile();
-    
+    std::unique_ptr<Program> compile(CompilationSettings settings = {});
+
 private:
     struct Impl;
 
