@@ -62,8 +62,14 @@ public:
     /// Set a slot of the external function table
     ///
     /// Slot 0 and 1 are reserved for builtin functions
+    /// Note that any entries defined by calls to \p setFunction the the same
+    /// slot are overwritten
     void setFunctionTableSlot(size_t slot,
                               utl::vector<ExternalFunction> functions);
+
+    /// Set the entry at index \p index of the slot \p slot of the external
+    /// function table
+    void setFunction(size_t slot, size_t index, ExternalFunction function);
 
     /// Access statistics
     VMStats const& getStats() const { return stats; }

@@ -42,6 +42,19 @@ void VirtualMachine::setFunctionTableSlot(
     extFunctionTable[slot] = std::move(functions);
 }
 
+void VirtualMachine::setFunction(size_t slot,
+                                 size_t index,
+                                 ExternalFunction function) {
+    if (slot >= extFunctionTable.size()) {
+        extFunctionTable.resize(slot + 1);
+    }
+    auto& slotArray = extFunctionTable[slot];
+    if (index >= slotArray.size()) {
+        slotArray.resize(index + 1);
+    }
+    slotArray[index] = function;
+}
+
 void VirtualMachine::printRegisters(size_t n) const {
     for (size_t i = 0; i < n; ++i) {
         std::cout << "%" << i << ": " << std::hex << frame.regPtr[i]
