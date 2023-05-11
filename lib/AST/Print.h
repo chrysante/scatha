@@ -16,10 +16,6 @@ SCATHA_API void printExpression(Expression const&);
 
 SCATHA_API void printExpression(Expression const&, std::ostream&);
 
-SCATHA_API void printSource(AbstractSyntaxTree const&);
-
-SCATHA_API void printSource(AbstractSyntaxTree const&, std::ostream&);
-
 SCATHA_API void printTree(AbstractSyntaxTree const&);
 
 SCATHA_API void printTree(AbstractSyntaxTree const&, std::ostream&);

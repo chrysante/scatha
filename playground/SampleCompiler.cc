@@ -25,7 +25,6 @@
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
-#include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
 #include "Util.h"
 
@@ -55,7 +54,6 @@ void playground::compile(std::string text) {
     if (!issues.empty()) {
         return;
     }
-    printTree(*ast);
 
     // Semantic analysis
     header("Symbol Table");
@@ -65,7 +63,7 @@ void playground::compile(std::string text) {
     if (!issues.empty()) {
         return;
     }
-    sema::printSymbolTable(sym);
+    printTree(*ast);
 
     subHeader();
     header("Generated IR");

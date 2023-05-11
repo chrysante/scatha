@@ -22,7 +22,6 @@
 #include "Parser/Parser.h"
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
-#include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;
@@ -67,24 +66,15 @@ void playground::irDump(std::string_view text) {
 static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
     makeIRModuleFromSC(std::string_view text, std::ostream& errStr) {
     IssueHandler issues;
-    auto tokens     = parse::lex(text, issues);
-    auto printIssue = [&](std::string_view kind, SourceLocation sl) {
-        errStr << kind << " issue: L:" << sl.line << " C:" << sl.column
-               << std::endl;
-    };
+    auto ast = parse::parse(text, issues);
     if (!issues.empty()) {
-        printIssue("Lexical", issues.front().sourceLocation());
-        return std::nullopt;
-    }
-    auto ast = parse::parse(tokens, issues);
-    if (!issues.empty()) {
-        printIssue("Syntax", issues.front().sourceLocation());
+        issues.print(text);
         return std::nullopt;
     }
     sema::SymbolTable sym;
     sema::analyze(*ast, sym, issues);
     if (!issues.empty()) {
-        printIssue("Semantic", issues.front().sourceLocation());
+        issues.print(text);
         return std::nullopt;
     }
     ir::Context ctx;
