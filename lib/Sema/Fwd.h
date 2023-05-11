@@ -41,6 +41,8 @@ class Conversion;
 
 class SemanticIssue;
 
+class FunctionSignature;
+
 ///
 /// # Forward Declaration of all entity types
 ///
