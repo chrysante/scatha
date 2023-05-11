@@ -13,14 +13,6 @@
 
 using namespace svm;
 
-template <typename From, typename To>
-static ExternalFunction::FuncPtr cast() {
-    return [](u64* regPtr, VirtualMachine* vm, void*) {
-        From const value = load<From>(regPtr);
-        store(regPtr, static_cast<To>(value));
-    };
-}
-
 template <typename T, size_t N>
 using wrap = T;
 
@@ -50,9 +42,6 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
         assert(i == k++ && "Missing builtin function.");
         return result[i];
     };
-    /// ## Conversion functions
-    at(Builtin::f64toi64) = cast<double, int64_t>();
-    at(Builtin::i64tof64) = cast<int64_t, double>();
 
     /// ## Common math functions
 
