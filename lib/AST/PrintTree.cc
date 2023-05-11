@@ -181,6 +181,11 @@ static constexpr utl::streammanip formatLit([](std::ostream& str,
                                                ast::Literal const* lit) {
     switch (lit->kind()) {
     case LiteralKind::Integer: {
+        /// This is a short term fix. Should make this check further up the call
+        /// tree so other nodes are also checked
+        if (!lit->isDecorated()) {
+            return;
+        }
         auto* type = cast<sema::IntType const*>(lit->type()->base());
         auto value = lit->value<APInt>();
         if (!type) {

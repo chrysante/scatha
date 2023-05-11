@@ -1,24 +1,31 @@
 
-fn print(msg: &[byte]) {
-    __builtin_putstr(&msg);
+
+struct X {
+    struct Y  {
+        var i: int;
+    }
+    var k: int;
+
 }
 
-fn print(val: byte) {
-    __builtin_putchar(val);
+
+//public fn main() {
+//    var x: X;
+//    var y: x.Y;
+//}
+
+//public fn main() {
+//    &reinterpret;
+//}
+
+//public fn main()->int { return 0; }
+
+fn clamp(x: double, min: double, max: double) -> double {
+    return x < min ? min : x > max ? max : x;
 }
 
-public fn main() {
-    let s = "123ABC";
-    var data: [byte, 6];
-    
-    data[0] = s[0];
-    data[1] = s[1];
-    data[2] = s[2];
-    data[3] = s[3];
-    data[4] = s[4];
-    data[5] = s[5];
-    
-    data[1] = '7';
-    print(&data);
-    print('\n');
+public fn printDot(x: double) {
+    let data = [' ', '.', ':', '-', '=', '+', '*', '#', '%', '@'];
+    let c = data[int(10.0 * clamp(x, 0.0, 1.0))];
+    __builtin_putchar(c);
 }

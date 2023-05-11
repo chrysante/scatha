@@ -53,21 +53,18 @@ fn calcDot() -> double {
     return 0.5;
 }
 
+fn clamp(x: double, min: double, max: double) -> double {
+    return x < min ? min : x > max ? max : x;
+}
+
 fn printDot(x: double) {
-         if x < 0.1 { __builtin_putchar(32); }
-    else if x < 0.2 { __builtin_putchar(46); }
-    else if x < 0.3 { __builtin_putchar(58); }
-    else if x < 0.4 { __builtin_putchar(45); }
-    else if x < 0.5 { __builtin_putchar(61); }
-    else if x < 0.6 { __builtin_putchar(43); }
-    else if x < 0.7 { __builtin_putchar(42); }
-    else if x < 0.8 { __builtin_putchar(35); }
-    else if x < 0.9 { __builtin_putchar(37); }
-    else            { __builtin_putchar(64); }
+    let data = [' ', '.', ':', '-', '=', '+', '*', '#', '%', '@'];
+    let c = data[int(10.0 * clamp(x, 0.0, 1.0))];
+    __builtin_putchar(c);
 }
 
 fn printNewLine() {
-    __builtin_putchar(10); // 10 == '\n'
+    __builtin_putchar('\n');
 }
 
 fn print(x: int) {
