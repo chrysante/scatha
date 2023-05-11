@@ -10,6 +10,7 @@
 #include "Assembly.h"
 #include "CodeGen/Passes.h"
 #include "DrawGraph.h"
+#include "HostIntegration.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -22,7 +23,6 @@
 #include "Opt/Inliner.h"
 #include "Opt/MemToReg.h"
 #include "Opt/SCCCallGraph.h"
-#include "OptTest.h"
 #include "SampleCompiler.h"
 #include "Volatile.h"
 
@@ -35,7 +35,7 @@ enum class ProgramCase {
     EmitCallGraph,
     EmitUseGraph,
     EmitInterferenceGraph,
-    OptTest,
+    HostIntegration,
     APFloatTest
 };
 
@@ -83,7 +83,7 @@ int main(int argc, char const* const* argv) {
         { "emit-callgraph", ProgramCase::EmitCallGraph },
         { "emit-use-graph", ProgramCase::EmitUseGraph },
         { "emit-interference-graph", ProgramCase::EmitInterferenceGraph },
-        { "opt-test", ProgramCase::OptTest },
+        { "host-int", ProgramCase::HostIntegration },
         { "apfloat-test", ProgramCase::APFloatTest }
     };
     auto const parseResult = parse(argc, argv);
@@ -169,8 +169,9 @@ int main(int argc, char const* const* argv) {
                                   "graphviz/gen/interference-graph.gv");
         break;
     }
-    case ProgramCase::OptTest:
-        optTest(filepath);
+    case ProgramCase::HostIntegration:
+        hostIntegration(std::filesystem::path(PROJECT_LOCATION) /
+                        "playground/host-int.sc");
         break;
     case ProgramCase::APFloatTest:
         apFloatTest();
