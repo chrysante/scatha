@@ -30,12 +30,12 @@ static std::string impl(ArrayType const* type) {
 static std::string impl(QualType const* type) {
     std::string const baseName = type->base()->mangledName();
     std::stringstream sstr;
-    if (type->isReference()) {
+    if (type->isConstRef()) {
         sstr << "&";
     }
-    // if (type->isMutable()) {
-    //     sstr << "__mut_";
-    // }
+    else if (type->isMutRef()) {
+        sstr << "&mut-";
+    }
     sstr << baseName;
     return std::move(sstr).str();
 }
