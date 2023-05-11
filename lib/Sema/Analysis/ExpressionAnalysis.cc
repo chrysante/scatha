@@ -421,9 +421,12 @@ bool Context::analyzeImpl(ast::Conditional& c) {
 bool Context::analyzeImpl(ast::Subscript& expr) {
     bool success = analyze(*expr.object());
     success &= expectValue(*expr.object());
-    for (auto* arg: expr.arguments()) {
-        success &= analyze(*arg);
-        success &= expectValue(*arg);
+    /// This must not be a `for each` loop, because the argument to the call to
+    /// `analyze` may be deallocated and then the call to `expectValue()` would
+    /// use free'd memory without getting the argument again from `expr`
+    for (size_t i = 0, end = expr.arguments().size(); i < end; ++i) {
+        success &= analyze(*expr.argument(i));
+        success &= expectValue(*expr.argument(i));
     }
     if (!success) {
         return false;
