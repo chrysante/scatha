@@ -32,10 +32,12 @@ void playground::hostIntegration(std::filesystem::path path) {
     auto cbID1 = compiler.declareFunction("cppCallback", Int, { Int });
     if (!cbID1) {
         std::cout << "Failed to declare cppCallback\n";
+        return;
     }
     auto cbID2 = compiler.declareFunction("cppCallback", Int, { Int });
     if (!cbID2) {
         std::cout << "Failed to declare cppCallback\n";
+        return;
     }
 
     compiler.addSource(text);
