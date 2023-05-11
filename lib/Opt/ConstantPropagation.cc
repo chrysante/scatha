@@ -714,14 +714,6 @@ FormalValue SCCPContext::evaluateCall(Callable const* function,
         return acos(args[0].get<APFloat>());
     case svm::Builtin::atan_f64:
         return atan(args[0].get<APFloat>());
-    case svm::Builtin::f64toi64: {
-        double const arg = args.front().get<APFloat>().to<double>();
-        return APInt(static_cast<int64_t>(arg), 64);
-    }
-    case svm::Builtin::i64tof64: {
-        int64_t const arg = args.front().get<APInt>().to<int64_t>();
-        return APFloat(static_cast<double>(arg), APFloatPrec::Double);
-    }
 
     default:
         return Inevaluable{};
