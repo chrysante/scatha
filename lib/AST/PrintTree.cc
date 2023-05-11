@@ -212,6 +212,17 @@ static constexpr utl::streammanip formatLit([](std::ostream& str,
         printWithEscapeSeqs(str, lit->value<std::string>());
         str << '"';
         break;
+    case LiteralKind::Char:
+        str << '\'';
+        char charVal = lit->value<APInt>().to<char>();
+        if (auto raw = fromEscapeSequence(charVal)) {
+            str << '\\' << *raw;
+        }
+        else {
+            str << charVal;
+        }
+        str << '\'';
+        break;
     }
 });
 

@@ -71,6 +71,8 @@ ir::Value* LoweringContext::getValueImpl(Literal const& lit) {
         mod.addConstantData(std::move(staticData));
         return makeArrayRef(dataPtr, size);
     }
+    case LiteralKind::Char:
+        return intConstant(lit.value<APInt>());
     }
 }
 

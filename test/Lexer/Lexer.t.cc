@@ -299,6 +299,18 @@ TEST_CASE("Lexer float literals", "[lex]") {
     CHECK(lexTo<double>("2.3") == 2.3);
 }
 
+TEST_CASE("String literals", "[lex]") {
+    IssueHandler iss;
+    SECTION("Simple unterminated") {
+        auto const text = R"(")";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(!iss.empty());
+        auto* issue =
+            dynamic_cast<UnterminatedStringLiteral const*>(&iss.front());
+        CHECK(issue);
+    }
+}
+
 TEST_CASE("Escape sequences", "[lex]") {
     IssueHandler iss;
     SECTION("Simple hello world") {
@@ -343,5 +355,57 @@ TEST_CASE("Escape sequences", "[lex]") {
         CHECK(dynamic_cast<InvalidEscapeSequence const*>(&iss.front()));
         auto str = tokens.front();
         CHECK(str.id() == "Hello world!m");
+    }
+}
+
+TEST_CASE("Char literals", "[lex]") {
+    IssueHandler iss;
+    SECTION("Simple char literal") {
+        auto const text = R"('L')";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(tokens.size() == 2);
+        auto lit = tokens.front();
+        CHECK(lit.kind() == TokenKind::CharLiteral);
+        CHECK(lit.id() == "L");
+        CHECK(iss.empty());
+    }
+    SECTION("Unterminated") {
+        auto const text = R"('L)";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(!iss.empty());
+        auto* issue =
+            dynamic_cast<UnterminatedCharLiteral const*>(&iss.front());
+        CHECK(issue);
+    }
+    SECTION("Unterminated - 2") {
+        auto const text = "\'x\n\'";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(!iss.empty());
+        auto* issue =
+            dynamic_cast<UnterminatedCharLiteral const*>(&iss.front());
+        CHECK(issue);
+    }
+    SECTION("Invalid") {
+        auto const text = R"('hello world')";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(!iss.empty());
+        auto* issue = dynamic_cast<InvalidCharLiteral const*>(&iss.front());
+        CHECK(issue);
+    }
+    SECTION("Escape sequence") {
+        auto const text = R"('\n')";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(tokens.size() == 2);
+        auto lit = tokens.front();
+        CHECK(lit.kind() == TokenKind::CharLiteral);
+        CHECK(lit.id() == "\n");
+        CHECK(iss.empty());
+    }
+    SECTION("Invalid escape sequence") {
+        auto const text = R"('\M')";
+        auto tokens     = parse::lex(text, iss);
+        REQUIRE(!iss.empty());
+        auto* issue = dynamic_cast<InvalidEscapeSequence const*>(&iss.front());
+        CHECK(issue);
     }
 }

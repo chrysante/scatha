@@ -55,6 +55,7 @@ SC_LITERAL_KIND_DEF(Boolean,        "boolean")
 SC_LITERAL_KIND_DEF(FloatingPoint,  "floating point")
 SC_LITERAL_KIND_DEF(This,           "this")
 SC_LITERAL_KIND_DEF(String,         "string")
+SC_LITERAL_KIND_DEF(Char,           "char")
 
 #undef SC_LITERAL_KIND_DEF
 

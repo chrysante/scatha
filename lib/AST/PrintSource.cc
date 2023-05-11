@@ -213,6 +213,8 @@ void Context::print(Literal const& lit) {
         str << "this";
     case LiteralKind::String:
         str << '"' << lit.value<std::string>() << '"';
+    case LiteralKind::Char:
+        SC_DEBUGFAIL();
     }
 }
 

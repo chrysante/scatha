@@ -28,6 +28,7 @@ struct Context {
     std::optional<Token> getIntegerLiteralHex();
     std::optional<Token> getFloatingPointLiteral();
     std::optional<Token> getStringLiteral();
+    std::optional<Token> getCharLiteral();
     std::optional<Token> getBooleanLiteral();
     std::optional<Token> getIdentifier();
 
@@ -98,6 +99,9 @@ std::optional<Token> Context::getToken() {
     }
     if (auto stringLiteral = getStringLiteral()) {
         return *stringLiteral;
+    }
+    if (auto charLiteral = getCharLiteral()) {
+        return *charLiteral;
     }
     if (auto booleanLiteral = getBooleanLiteral()) {
         return *booleanLiteral;
@@ -353,6 +357,63 @@ std::optional<Token> Context::getStringLiteral() {
     }
 }
 
+std::optional<Token> Context::getCharLiteral() {
+    if (current() != '\'') {
+        return std::nullopt;
+    }
+    auto [id, beginLoc] = beginToken();
+    auto advance        = [&, beginLoc = beginLoc] {
+        if (this->advance()) {
+            return true;
+        }
+        issues.push<UnterminatedCharLiteral>(
+            SourceRange{ beginLoc, currentLocation });
+        return false;
+    };
+    if (!advance()) {
+        return std::nullopt;
+    }
+    if (current() == '\\') {
+        if (!advance()) {
+            return std::nullopt;
+        }
+        if (auto seq = toEscapeSequence(current())) {
+            id += *seq;
+        }
+        else {
+            auto begin = currentLocation;
+            auto end   = currentLocation;
+            --begin.index, --begin.column, ++end.index, ++end.column;
+            issues.push<InvalidEscapeSequence>(current(),
+                                               SourceRange{ begin, end });
+            id += current();
+        }
+    }
+    else {
+        id += current();
+    }
+    if (!advance()) {
+        return std::nullopt;
+    }
+    if (current() == '\'') {
+        this->advance();
+        return Token(id, TokenKind::CharLiteral, { beginLoc, currentLocation });
+    }
+    while (true) {
+        if (current() == '\'') {
+            this->advance();
+            issues.push<InvalidCharLiteral>(
+                SourceRange{ beginLoc, currentLocation });
+            return std::nullopt;
+        }
+        if (current() == '\n' || !this->advance()) {
+            issues.push<UnterminatedCharLiteral>(
+                SourceRange{ beginLoc, currentLocation });
+            return std::nullopt;
+        }
+    }
+}
+
 std::optional<Token> Context::getBooleanLiteral() {
     if (currentLocation.index + 3 < textSize() &&
         text.substr(utl::narrow_cast<size_t>(currentLocation.index), 4) ==
@@ -443,8 +504,11 @@ std::pair<std::string, SourceLocation> Context::beginToken() const {
 }
 
 char Context::current() const {
-    SC_ASSERT(currentLocation.index < textSize(), "");
-    return text[utl::narrow_cast<size_t>(currentLocation.index)];
+    auto index = utl::narrow_cast<size_t>(currentLocation.index);
+    if (index >= text.size()) {
+        return '\0';
+    }
+    return text[index];
 }
 
 std::optional<char> Context::next(ssize_t offset) const {

@@ -910,37 +910,45 @@ UniquePtr<ast::Identifier> Context::parseIdentifier() {
 
 UniquePtr<ast::Literal> Context::parseLiteral() {
     Token const token = tokens.peek();
-    if (token.kind() == IntegerLiteral) {
+    switch (token.kind()) {
+    case IntegerLiteral:
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::Integer,
                                       token.toInteger(64));
-    }
-    if (token.kind() == True || token.kind() == False) {
+    case True:
+        [[fallthrough]];
+    case False:
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::Boolean,
                                       token.toBool());
-    }
-    if (token.kind() == FloatLiteral) {
+    case FloatLiteral:
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::FloatingPoint,
                                       token.toFloat(APFloatPrec::Double));
-    }
-    if (token.kind() == This) {
+    case This:
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::This,
                                       APInt());
-    }
-    if (token.kind() == StringLiteral) {
+    case StringLiteral:
         tokens.eat();
         return allocate<ast::Literal>(token.sourceRange(),
                                       ast::LiteralKind::String,
                                       token.id());
+    case CharLiteral:
+        tokens.eat();
+        SC_ASSERT(token.id().size() == 1, "Invalid char literal");
+        return allocate<ast::Literal>(token.sourceRange(),
+                                      ast::LiteralKind::Char,
+                                      APInt(static_cast<uint64_t>(
+                                                token.id()[0]),
+                                            8));
+    default:
+        return nullptr;
     }
-    return nullptr;
 }
 
 template <typename FunctionCallLike>

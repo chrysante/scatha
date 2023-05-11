@@ -57,6 +57,25 @@ private:
     }
 };
 
+/// Unterminated char literal
+class SCATHA_API UnterminatedCharLiteral: public LexicalIssue {
+public:
+    explicit UnterminatedCharLiteral(SourceRange sourceRange):
+        LexicalIssue(sourceRange, IssueSeverity::Error) {}
+
+private:
+    std::string message() const override { return "Unterminated char literal"; }
+};
+
+class SCATHA_API InvalidCharLiteral: public LexicalIssue {
+public:
+    explicit InvalidCharLiteral(SourceRange sourceRange):
+        LexicalIssue(sourceRange, IssueSeverity::Error) {}
+
+private:
+    std::string message() const override { return "Invalid char literal"; }
+};
+
 class InvalidEscapeSequence: public LexicalIssue {
 public:
     explicit InvalidEscapeSequence(char litValue, SourceRange sourceRange):

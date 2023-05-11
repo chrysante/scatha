@@ -145,6 +145,7 @@ SC_OTHER_TOKEN_DEF(Identifier,     "")
 SC_OTHER_TOKEN_DEF(IntegerLiteral, "")
 SC_OTHER_TOKEN_DEF(FloatLiteral,   "")
 SC_OTHER_TOKEN_DEF(StringLiteral,  "")
+SC_OTHER_TOKEN_DEF(CharLiteral,    "")
 SC_OTHER_TOKEN_DEF(EndOfFile,      "")
 
 #undef SC_OTHER_TOKEN_DEF

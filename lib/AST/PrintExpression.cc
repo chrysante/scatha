@@ -67,6 +67,9 @@ void Context::printExpression(Literal const& lit) {
     case LiteralKind::String:
         str << '"' << lit.value<std::string>() << '"';
         break;
+    case LiteralKind::Char:
+        str << lit.value<APInt>().toString(16);
+        break;
     }
 }
 

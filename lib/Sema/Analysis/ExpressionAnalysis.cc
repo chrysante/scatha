@@ -124,15 +124,18 @@ bool Context::analyzeImpl(ast::Literal& lit) {
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ true));
         return true;
+
     case Boolean:
         lit.decorate(nullptr, sym.qBool());
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return true;
+
     case FloatingPoint:
         lit.decorate(nullptr, sym.qF64());
         lit.setConstantValue(allocate<FloatValue>(lit.value<APFloat>()));
         return true;
+
     case This: {
         auto* scope = &sym.currentScope();
         while (!isa<Function>(scope)) {
@@ -148,10 +151,15 @@ bool Context::analyzeImpl(ast::Literal& lit) {
         lit.decorate(thisEntity, type);
         return true;
     }
-    case String: {
+    case String:
         lit.decorate(nullptr, sym.qDynArray(sym.Byte(), RefConstExpl));
         return true;
-    }
+
+    case Char:
+        lit.decorate(nullptr, sym.qByte());
+        lit.setConstantValue(
+            allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
+        return true;
     }
 }
 
