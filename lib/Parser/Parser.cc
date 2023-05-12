@@ -732,9 +732,8 @@ UniquePtr<ast::Expression> Context::parseUnary() {
     }
     Token const token = tokens.peek();
     auto makeResult   = [&](ast::UnaryOperator operatorType) {
-        // FIXME: Why reference to token?
-        Token const& unaryToken = tokens.peek();
-        auto unary              = parseUnary();
+        Token const unaryToken = tokens.peek();
+        auto unary             = parseUnary();
         if (!unary) {
             pushExpectedExpression(unaryToken);
         }
@@ -791,6 +790,9 @@ UniquePtr<ast::Expression> Context::parseUnique() {
     if (auto postFix = parsePostfix()) {
         return postFix;
     }
+    return nullptr;
+    SC_UNIMPLEMENTED();
+#if 0
     Token const uniqueToken = tokens.peek();
     if (uniqueToken.kind() != Unique) {
         return nullptr;
@@ -800,6 +802,7 @@ UniquePtr<ast::Expression> Context::parseUnique() {
     auto initExpr  = parsePostfix();
     return allocate<ast::UniqueExpression>(std::move(initExpr),
                                            uniqueToken.sourceRange());
+#endif
 }
 
 UniquePtr<ast::Expression> Context::parsePostfix() {

@@ -66,6 +66,14 @@ BadSymbolReference::BadSymbolReference(ast::Expression const& expr,
     _have(expr.entityCategory()),
     _expected(expected) {}
 
+std::string BadSymbolReference::message() const {
+    std::stringstream sstr;
+    sstr << "Invalid symbol category: '";
+    printExpression(expression(), sstr);
+    sstr << "' is a " << have() << ", expected a " << expected();
+    return sstr.str();
+}
+
 InvalidStatement* InvalidStatement::setStatement(
     ast::Statement const& statement) {
     _statement = &statement;

@@ -95,6 +95,15 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
         std::cout << std::string_view(data, size);
     };
 
+    /// ##
+    at(Builtin::trap) = [](u64*, VirtualMachine*, void*) {
+#if defined(__GNUC__)
+        __builtin_trap();
+#else
+#error Unsupported compiler
+#endif
+    };
+
     assert(static_cast<size_t>(Builtin::_count) == k &&
            "Missing builtin functions.");
     return result;

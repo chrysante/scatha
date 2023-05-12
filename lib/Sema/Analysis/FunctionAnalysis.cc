@@ -147,6 +147,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     SC_ASSERT(!var.isDecorated(),
               "We should not have handled local variables in prepass.");
     if (!var.typeExpr() && !var.initExpression()) {
+        /// TODO: Declare poison entity
         iss.push<InvalidDeclaration>(&var,
                                      InvalidDeclaration::Reason::CantInferType,
                                      sym.currentScope());
@@ -165,9 +166,13 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         return var.initExpression()->type();
     }();
     if (!declaredType && !deducedType) {
-        /// FIXME: Push error here
-        /// Or instead declare a poison entity to prevent errors on references
+        /// TODO: Declare a poison entity to prevent errors on references
         /// to this variable
+        // SC_UNIMPLEMENTED();
+        /// Also we are missing source erros here in certain cases:
+        /// E.g. when we assign an overload set to a local variable
+        /// (`let i = f;` where `f` is a function), we are not emitting any
+        /// errors but have erroneous code
         return;
     }
     if (declaredType && deducedType && declaredType->isReference() &&
@@ -335,6 +340,7 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
 void Context::analyzeImpl(ast::JumpStatement& s) {
     /// Need to check if we are in a loop but unfortunately we don't have parent
     /// pointers so it's hard to check.
+    /// TODO: We have parent pointers, implement this
 }
 
 QualType const* Context::getDeclaredType(ast::Expression* expr) {

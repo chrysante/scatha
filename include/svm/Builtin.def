@@ -39,4 +39,7 @@ SVM_BUILTIN_DEF(puti64,    None,  { qS64() }, qVoid())
 SVM_BUILTIN_DEF(putf64,    None,  { qF64() }, qVoid())
 SVM_BUILTIN_DEF(putstr,    None,  { qDynArray(Byte(), RefConstExpl) }, qVoid())
 
+/// ##
+SVM_BUILTIN_DEF(trap,    None,  {  }, qVoid())
+
 #undef SVM_BUILTIN_DEF

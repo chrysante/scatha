@@ -160,7 +160,7 @@ public:
     EntityCategory expected() const { return _expected; }
 
 private:
-    std::string message() const override { return "Invalid symbol category"; }
+    std::string message() const override;
 
     EntityCategory _have;
     EntityCategory _expected;

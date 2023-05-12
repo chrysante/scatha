@@ -12,7 +12,7 @@ namespace scatha {
 
 /// Bind \p function to the external function position described by \p ID
 /// Arguments will be loaded from and return value will stored to the respective
-/// virtual registers of \p VM
+/// registers
 ///
 template <typename Function>
 void setExtFunction(svm::VirtualMachine* VM,
