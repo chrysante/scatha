@@ -1,16 +1,9 @@
 
-
-struct X {
-    struct Y{}
-    
+public fn clamp(val: float, min: float, max: float) -> float {
+    return val < min ? min : val > max ? max : val;
 }
 
-public fn main() {
-    var x;
+fn main() -> float {
+    let f: float = 1;
+    // return clamp(123.0, 0, 1);
 }
-
-//public fn main() {
-//    &reinterpret;
-//}
-
-//public fn main()->int { return 0; }

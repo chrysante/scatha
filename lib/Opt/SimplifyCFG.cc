@@ -256,36 +256,36 @@ bool Ctx::merge(BasicBlock* pred, BasicBlock* via, BasicBlock* succ) {
     /// Our predecessor, which would become `succ`'s predecessor, is already
     /// a predecessor of `succ` and would thus become a duplicate
     /// predecessor of `succ`. Since `succ` has phi nodes, this is a
-    /// problem as they become ambigous.
+    /// problem as they become ambiguous.
     SC_ASSERT(succ->numPredecessors() > 1, "Can hardly be 1 or 0");
-    if (succ->numPredecessors() == 2 && pred->numSuccessors() == 2) {
-        /// We got lucky and we can replace the `phi`'s in `succ` by `select`
-        /// instructions.
-        /// `pred`'s terminator  must be a `branch` since `pred` has 2
-        /// successors.
-        auto* branch = cast<Branch*>(pred->terminator());
-        utl::small_vector<Select*> selects;
-        auto* a = pred;
-        auto* b = via;
-        if (branch->thenTarget() == b) {
-            std::swap(a, b);
-        }
-        for (auto& phi: succ->phiNodes()) {
-            auto* select = new Select(branch->condition(),
-                                      phi.operandOf(a),
-                                      phi.operandOf(b),
-                                      utl::strcat("select.", phi.name()));
-            selects.push_back(select);
-            opt::replaceValue(&phi, select);
-        }
-        succ->eraseAllPhiNodes();
-        for (auto* select: selects | ranges::views::reverse) {
-            succ->pushFront(select);
-        }
-        succ->removePredecessor(pred);
-        succ->removePredecessor(via);
-        doMerge();
-        return true;
+    if (succ->numPredecessors() != 2 || pred->numSuccessors() != 2) {
+        return false;
     }
-    return false;
+    /// We got lucky and we can replace the `phi`'s in `succ` by `select`
+    /// instructions.
+    /// `pred`'s terminator  must be a `branch` since `pred` has 2
+    /// successors.
+    auto* branch = cast<Branch*>(pred->terminator());
+    utl::small_vector<Select*> selects;
+    auto* a = pred;
+    auto* b = via;
+    if (branch->thenTarget() == b) {
+        std::swap(a, b);
+    }
+    for (auto& phi: succ->phiNodes()) {
+        auto* select = new Select(branch->condition(),
+                                  phi.operandOf(a),
+                                  phi.operandOf(b),
+                                  utl::strcat("select.", phi.name()));
+        selects.push_back(select);
+        opt::replaceValue(&phi, select);
+    }
+    succ->eraseAllPhiNodes();
+    for (auto* select: selects | ranges::views::reverse) {
+        succ->pushFront(select);
+    }
+    succ->removePredecessor(pred);
+    succ->removePredecessor(via);
+    doMerge();
+    return true;
 }
