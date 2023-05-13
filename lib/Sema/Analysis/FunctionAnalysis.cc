@@ -51,7 +51,7 @@ void sema::analyzeFunctions(SymbolTable& sym,
     Context ctx{ sym, iss };
     for (auto const& node: functions) {
         SC_ASSERT(isa<Function>(node.entity), "We only accept functions here");
-        sym.makeScopeCurrent(node.scope);
+        sym.makeScopeCurrent(node.entity->parent());
         ctx.analyzeImpl(cast<ast::FunctionDefinition&>(*node.astNode));
         sym.makeScopeCurrent(nullptr);
     }

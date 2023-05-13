@@ -128,7 +128,7 @@ void Context::run() {
 void Context::instantiateStructureType(DependencyGraphNode& node) {
     ast::StructDefinition& structDef =
         cast<ast::StructDefinition&>(*node.astNode);
-    sym.makeScopeCurrent(node.scope);
+    sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
     size_t objectSize  = 0;
     size_t objectAlign = 0;
@@ -163,7 +163,7 @@ void Context::instantiateStructureType(DependencyGraphNode& node) {
 void Context::instantiateVariable(DependencyGraphNode& node) {
     ast::VariableDeclaration& varDecl =
         cast<ast::VariableDeclaration&>(*node.astNode);
-    sym.makeScopeCurrent(node.scope);
+    sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     auto* type = analyzeTypeExpression(*varDecl.typeExpr());
     varDecl.decorate(node.entity, type);
@@ -175,7 +175,7 @@ void Context::instantiateFunction(DependencyGraphNode& node) {
     SC_ASSERT(isa<Function>(node.entity), "Must be a function");
     ast::FunctionDefinition& fnDecl =
         cast<ast::FunctionDefinition&>(*node.astNode);
-    sym.makeScopeCurrent(node.scope);
+    sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     auto signature                  = analyzeSignature(fnDecl);
     auto result =

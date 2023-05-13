@@ -13,8 +13,6 @@ namespace scatha::sema {
 struct DependencyGraphNode {
     Entity* entity                   = nullptr;
     ast::AbstractSyntaxTree* astNode = nullptr;
-    Scope* scope = nullptr; // TODO: Check if this is always equal to
-                            // entity->parent() and then remove this
     utl::small_vector<u16> dependencies;
 };
 

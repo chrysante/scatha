@@ -78,8 +78,7 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
     funcDef.Declaration::decorate(&func);
     funcDef.body()->decorate(&func);
     /// Now add this function definition to the dependency graph
-    return dependencyGraph.add(
-        { .entity = &func, .astNode = &funcDef, .scope = &sym.currentScope() });
+    return dependencyGraph.add({ .entity = &func, .astNode = &funcDef });
 }
 
 size_t Context::gather(ast::StructDefinition& s) {
@@ -103,8 +102,8 @@ size_t Context::gather(ast::StructDefinition& s) {
     auto& objType = *declResult;
     s.decorate(&objType);
     s.body()->decorate(&objType);
-    size_t const index = dependencyGraph.add(
-        { .entity = &objType, .astNode = &s, .scope = &sym.currentScope() });
+    size_t const index =
+        dependencyGraph.add({ .entity = &objType, .astNode = &s });
     /// After we declared this type we gather all its members
     sym.pushScope(&objType);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
@@ -133,8 +132,7 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
         return invalidIndex;
     }
     auto& var = *declResult;
-    return dependencyGraph.add(
-        { .entity = &var, .astNode = &varDecl, .scope = &sym.currentScope() });
+    return dependencyGraph.add({ .entity = &var, .astNode = &varDecl });
 }
 
 size_t Context::gather(ast::Statement& statement) {
