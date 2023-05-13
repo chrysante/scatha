@@ -31,14 +31,15 @@ Take a look at the [grammar](docs/Grammar.md).
 
         `u8`, `u16`, `u32`, `u64`
 
-    - Floating point types: 
+    - Floating point types: ✅ 
 
-        `f32`, `f64`
+        `f32`, `f64` 
 
     - Arithmetic vector types?
 
 - `int` defaults to `s64` ✅
-- `float` defaults to `f64`
+- `float` defaults to `f32` ✅
+- `double` defaults to `f64` ✅
 - Explicit (and maybe some implicit) casts
     - Explicit casts: 
         - Integral to floating point and vice versa. ✅
@@ -65,9 +66,10 @@ Take a look at the [grammar](docs/Grammar.md).
     - Dead code elimination ✅
     - Tail recursion elimination ✅
     - Inlining ✅
+    - and more... ✅
 
 ### Compiler
 
 - Better issue formatting ✅
 - Parallel compilation
-- Runtime integration mechanisms
+- Runtime integration mechanisms ✅
