@@ -317,23 +317,12 @@ static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
     case Unsigned_Widen:
         return allocate<IntValue>(zext(value, to->bitwidth()), to->isSigned());
 
-    case Float_Trunc:
-        return nullptr;
-
-    case Float_Widen:
-        return nullptr;
-
     case SignedToFloat:
-        return nullptr;
+        return allocate<FloatValue>(
+            signedValuecast<APFloat>(value, to->bitwidth()));
 
     case UnsignedToFloat:
-        return nullptr;
-
-    case FloatToSigned:
-        return nullptr;
-
-    case FloatToUnsigned:
-        return nullptr;
+        return allocate<FloatValue>(valuecast<APFloat>(value, to->bitwidth()));
 
     default:
         return nullptr;
@@ -342,7 +331,38 @@ static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
 
 static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
                                          FloatValue const* operand) {
-    return nullptr;
+    SC_ASSERT(operand, "");
+    auto* to      = cast<ArithmeticType const*>(conv->targetType()->base());
+    APFloat value = operand->value();
+
+    using enum ObjectTypeConversion;
+    switch (conv->objectConversion()) {
+    case None:
+        return clone(operand);
+
+    case Float_Trunc:
+        SC_ASSERT(isa<FloatType>(to), "");
+        SC_ASSERT(to->bitwidth() == 32, "");
+        return allocate<FloatValue>(
+            APFloat(value.to<float>(), APFloatPrec::Single));
+
+    case Float_Widen:
+        SC_ASSERT(isa<FloatType>(to), "");
+        SC_ASSERT(to->bitwidth() == 64, "");
+        return allocate<FloatValue>(
+            APFloat(value.to<double>(), APFloatPrec::Single));
+
+    case FloatToSigned:
+        return allocate<IntValue>(signedValuecast<APInt>(value, to->bitwidth()),
+                                  to->isSigned());
+
+    case FloatToUnsigned:
+        return allocate<IntValue>(valuecast<APInt>(value, to->bitwidth()),
+                                  to->isSigned());
+
+    default:
+        return nullptr;
+    }
 }
 
 UniquePtr<Value> sema::evalConversion(sema::Conversion const* conv,

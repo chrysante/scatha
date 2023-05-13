@@ -231,6 +231,7 @@ public:
     IntType const* U16() const { return _u16; }
     IntType const* U32() const { return _u32; }
     IntType const* U64() const { return _u64; }
+    FloatType const* F32() const { return _f32; }
     FloatType const* F64() const { return _f64; }
 
     IntType const* intType(size_t width, Signedness signedness);
@@ -256,6 +257,8 @@ public:
     QualType const* qU32(Reference = Reference::None);
 
     QualType const* qU64(Reference = Reference::None);
+
+    QualType const* qF32(Reference = Reference::None);
 
     QualType const* qF64(Reference = Reference::None);
 
@@ -312,6 +315,7 @@ private:
     IntType* _u16;
     IntType* _u32;
     IntType* _u64;
+    FloatType* _f32;
     FloatType* _f64;
 };
 

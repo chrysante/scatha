@@ -59,10 +59,6 @@ fn f() { let x: float = 1; }
 fn f(x: int) { let y: float = 1.; }
 fn f(x: float) -> int { return "a string"; }
 )");
-    auto const line2  = issues.findOnLine<BadTypeConversion>(2);
-    REQUIRE(line2);
-    CHECK(line2->from()->base() == issues.sym.S64());
-    CHECK(line2->to()->base() == issues.sym.F64());
     CHECK(issues.noneOnLine(3));
     auto const line4 = issues.findOnLine<BadTypeConversion>(4);
     REQUIRE(line4);

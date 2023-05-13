@@ -34,9 +34,11 @@ SymbolTable::SymbolTable() {
     _u16  = declareBuiltinType<IntType>(16, Unsigned);
     _u32  = declareBuiltinType<IntType>(32, Unsigned);
     _u64  = declareBuiltinType<IntType>(64, Unsigned);
+    _f32  = declareBuiltinType<FloatType>(32);
     _f64  = declareBuiltinType<FloatType>(64);
 
     _s64->addAlternateName("int");
+    _f32->addAlternateName("float");
     _f64->addAlternateName("double");
 
     /// Declare builtin functions
@@ -315,6 +317,8 @@ QualType const* SymbolTable::qU16(Reference ref) { return qualify(_u16, ref); }
 QualType const* SymbolTable::qU32(Reference ref) { return qualify(_u32, ref); }
 
 QualType const* SymbolTable::qU64(Reference ref) { return qualify(_u64, ref); }
+
+QualType const* SymbolTable::qF32(Reference ref) { return qualify(_f32, ref); }
 
 QualType const* SymbolTable::qF64(Reference ref) { return qualify(_f64, ref); }
 

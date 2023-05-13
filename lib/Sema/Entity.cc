@@ -150,7 +150,7 @@ ByteType::ByteType(Scope* parentScope):
                    Signedness::Unsigned,
                    parentScope) {}
 
-static std::string makeName(size_t bitwidth, Signedness signedness) {
+static std::string makeIntName(size_t bitwidth, Signedness signedness) {
     switch (signedness) {
     case Signedness::Signed:
         return utl::strcat("s", bitwidth);
@@ -161,18 +161,22 @@ static std::string makeName(size_t bitwidth, Signedness signedness) {
 
 IntType::IntType(size_t bitwidth, Signedness signedness, Scope* parentScope):
     ArithmeticType(EntityType::IntType,
-                   makeName(bitwidth, signedness),
+                   makeIntName(bitwidth, signedness),
                    bitwidth,
                    signedness,
                    parentScope) {}
 
+static std::string makeFloatName(size_t bitwidth) {
+    return utl::strcat("f", bitwidth);
+}
+
 FloatType::FloatType(size_t bitwidth, Scope* parentScope):
     ArithmeticType(EntityType::FloatType,
-                   "float",
+                   makeFloatName(bitwidth),
                    bitwidth,
                    Signedness::Signed,
                    parentScope) {
-    SC_ASSERT(bitwidth == 64, "Invalid width (for now)");
+    SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Invalid width (for now)");
 }
 
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {

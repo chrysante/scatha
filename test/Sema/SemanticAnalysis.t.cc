@@ -15,7 +15,7 @@ using namespace ast;
 
 TEST_CASE("Registration in SymbolTable", "[sema]") {
     auto const text      = R"(
-fn mul(a: int, b: int, c: float) -> int {
+fn mul(a: int, b: int, c: double) -> int {
 	let result = a;
 	return result;
 })";
@@ -43,7 +43,7 @@ fn mul(a: int, b: int, c: float) -> int {
 
 TEST_CASE("Decoration of the AST") {
     auto const text      = R"(
-fn mul(a: int, b: int, c: float, d: byte) -> int {
+fn mul(a: int, b: int, c: double, d: byte) -> int {
 	let result = a;
 	{ // declaration of variable of the same name in a nested scope
 		var result = "some string";
@@ -118,13 +118,13 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     REQUIRE(tu);
     auto* calleeDecl = tu->declaration<FunctionDefinition>(1);
     REQUIRE(calleeDecl);
-    CHECK(calleeDecl->returnType()->base() == sym.F64());
-    CHECK(calleeDecl->parameter(0)->type()->base() == sym.F64());
+    CHECK(calleeDecl->returnType()->base() == sym.F32());
+    CHECK(calleeDecl->parameter(0)->type()->base() == sym.F32());
     CHECK(calleeDecl->parameter(1)->type()->base() == sym.S64());
     CHECK(calleeDecl->parameter(2)->type()->base() == sym.Bool());
     auto* caller     = tu->declaration<FunctionDefinition>(0);
     auto* resultDecl = caller->body()->statement<VariableDeclaration>(0);
-    CHECK(resultDecl->initExpression()->type()->base() == sym.F64());
+    CHECK(resultDecl->initExpression()->type()->base() == sym.F32());
     auto* fnCallExpr = cast<ast::Conversion*>(resultDecl->initExpression())
                            ->expression<FunctionCall>();
     auto const& calleeOverloadSet = sym.lookup<OverloadSet>("callee");
@@ -150,7 +150,7 @@ struct X {
     CHECK(xDef->name() == "X");
     auto* iDecl = xDef->body()->statement<VariableDeclaration>(0);
     CHECK(iDecl->name() == "i");
-    CHECK(iDecl->type()->base() == sym.F64());
+    CHECK(iDecl->type()->base() == sym.F32());
     CHECK(iDecl->offset() == 0);
     CHECK(iDecl->index() == 0);
     auto* jDecl = xDef->body()->statement<VariableDeclaration>(1);

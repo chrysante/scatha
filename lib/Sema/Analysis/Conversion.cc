@@ -382,6 +382,24 @@ static bool fits(APInt const& value, size_t numDestBits, bool destIsSigned) {
     return value == ref;
 }
 
+static bool fits(APFloat const& value, size_t bitwidth) {
+    SC_ASSERT(value.precision() == APFloatPrec::Double, "");
+    SC_ASSERT(bitwidth == 32,
+              "64 -> 32 is the only narrowing float conversion we have");
+    if (std::isinf(value.to<float>())) {
+        return false;
+    }
+    return true;
+}
+
+/// Computes the greatest integer representable in a floating point value with
+/// \p bitwidth bits of precision
+static APInt computeIntegralFloatLimit(size_t fromBitwidth, size_t toBitwidth) {
+    auto prec = toBitwidth == 32 ? APFloatPrec::Single : APFloatPrec::Double;
+    return lshl(APInt(1, fromBitwidth),
+                utl::narrow_cast<int>(prec.mantissaWidth + 1));
+}
+
 static std::optional<ObjectTypeConversion> tryImplicitConstConv(
     Value const* value, ObjectType const* from, ObjectType const* to) {
     using enum ObjectTypeConversion;
@@ -421,15 +439,36 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
             return true;
 
         case Float_Trunc:
-            SC_UNIMPLEMENTED();
+            return fits(cast<FloatValue const*>(value)->value(),
+                        cast<FloatType const*>(to)->bitwidth());
 
         case Float_Widen:
             return true;
 
-        case SignedToFloat:
-            [[fallthrough]];
-        case UnsignedToFloat:
-            [[fallthrough]];
+        case SignedToFloat: {
+            auto* fromInt = cast<IntType const*>(from);
+            auto* toFloat = cast<FloatType const*>(to);
+            auto val      = cast<IntValue const*>(value);
+            APInt limit   = computeIntegralFloatLimit(fromInt->bitwidth(),
+                                                    toFloat->bitwidth());
+            if (scmp(val->value(), limit) <= 0) {
+                return true;
+            }
+            if (scmp(val->value(), negate(limit)) >= 0) {
+                return true;
+            }
+            return false;
+        }
+        case UnsignedToFloat: {
+            auto* fromInt = cast<IntType const*>(from);
+            auto* toFloat = cast<FloatType const*>(to);
+            auto val      = cast<IntValue const*>(value);
+            APInt limit   = computeIntegralFloatLimit(fromInt->bitwidth(),
+                                                    toFloat->bitwidth());
+            if (ucmp(val->value(), limit) <= 0) {
+                return true;
+            }
+        }
         case FloatToSigned:
             [[fallthrough]];
         case FloatToUnsigned:

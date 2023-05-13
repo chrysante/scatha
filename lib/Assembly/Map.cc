@@ -189,7 +189,6 @@ std::pair<OpCode, size_t> Asm::mapCMove(CompareOperation cmpOp,
     SC_ASSERT(dest == ValueType::RegisterIndex, "Can only cmov to registers");
     switch (source) {
     case ValueType::RegisterIndex:
-        SC_ASSERT(size == 8, "Registers are 8 bytes");
         return { mapCMovRR(cmpOp), 8 };
     case ValueType::MemoryAddress:
         return { mapCMovRM(cmpOp, size), size };
