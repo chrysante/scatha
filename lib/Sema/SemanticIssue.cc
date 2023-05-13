@@ -2,7 +2,6 @@
 
 #include <ostream>
 
-#include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
 #include "AST/AST.h"
@@ -16,8 +15,14 @@ BadExpression::BadExpression(ast::Expression const& expr,
                              IssueSeverity severity):
     SemanticIssue(expr.extSourceRange(), severity), _expr(&expr) {}
 
+void BadExpression::format(std::ostream& str) const { str << "Bad expression"; }
+
 AssignmentToConst::AssignmentToConst(ast::Expression const& expression):
     BadExpression(expression, IssueSeverity::Error) {}
+
+void AssignmentToConst::format(std::ostream& str) const {
+    str << "Assignment to immutable value";
+}
 
 BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
                                      QualType const* to):
@@ -25,22 +30,21 @@ BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
     _from(expression.type()),
     _to(to) {}
 
-std::string BadTypeConversion::message() const {
-    return utl::strcat("Invalid type conversion from '",
-                       from()->name(),
-                       "' to '",
-                       to()->name(),
-                       "'\n");
+void BadTypeConversion::format(std::ostream& str) const {
+    str << "Invalid type conversion from '" << from()->name() << "' to '"
+        << to()->name() << "'\n";
 }
 
 BadOperandForUnaryExpression::BadOperandForUnaryExpression(
     ast::Expression const& expression, QualType const* operandType):
     BadExpression(expression, IssueSeverity::Error), _opType(operandType) {}
 
-std::string UseOfUndeclaredIdentifier::message() const {
-    return utl::strcat("Use of undeclared identifier '",
-                       toString(expression()),
-                       "'");
+void BadOperandForUnaryExpression::format(std::ostream& str) const {
+    str << "Invalid operand for unary expression";
+}
+
+void BadOperandsForBinaryExpression::format(std::ostream& str) const {
+    str << "Invalid operands for binary expression";
 }
 
 InvalidStatement::InvalidStatement(ast::Statement const* statement,
@@ -52,6 +56,21 @@ InvalidStatement::InvalidStatement(ast::Statement const* statement,
     _reason(reason),
     _scope(&inScope) {}
 
+InvalidStatement* InvalidStatement::setStatement(
+    ast::Statement const& statement) {
+    _statement = &statement;
+    setSourceRange(statement.extSourceRange());
+    return this;
+}
+
+void InvalidStatement::format(std::ostream& str) const {
+    str << "Invalid statement: " << reason();
+}
+
+void BadFunctionCall::format(std::ostream& str) const {
+    str << "No matching function for call to '" << overloadSet()->name() << "'";
+}
+
 std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
     // clang-format off
     return str << UTL_SERIALIZE_ENUM(r, {
@@ -60,29 +79,20 @@ std::ostream& sema::operator<<(std::ostream& str, BadFunctionCall::Reason r) {
     }); // clang-format on
 }
 
+void UseOfUndeclaredIdentifier::format(std::ostream& str) const {
+    str << "Use of undeclared identifier '" << toString(expression()) << "'";
+}
+
 BadSymbolReference::BadSymbolReference(ast::Expression const& expr,
                                        EntityCategory expected):
     BadExpression(expr, IssueSeverity::Error),
     _have(expr.entityCategory()),
     _expected(expected) {}
 
-std::string BadSymbolReference::message() const {
-    std::stringstream sstr;
-    sstr << "Invalid symbol category: '";
-    printExpression(expression(), sstr);
-    sstr << "' is a " << have() << ", expected a " << expected();
-    return sstr.str();
-}
-
-InvalidStatement* InvalidStatement::setStatement(
-    ast::Statement const& statement) {
-    _statement = &statement;
-    setSourceRange(statement.extSourceRange());
-    return this;
-}
-
-std::string InvalidStatement::message() const {
-    return utl::strcat("Invalid statement: ", reason());
+void BadSymbolReference::format(std::ostream& str) const {
+    str << "Invalid symbol category: '";
+    printExpression(expression(), str);
+    str << "' is a " << have() << ", expected a " << expected();
 }
 
 std::ostream& sema::operator<<(std::ostream& str, InvalidStatement::Reason r) {
@@ -101,8 +111,8 @@ std::ostream& sema::operator<<(std::ostream& str, InvalidStatement::Reason r) {
     }); // clang-format on
 }
 
-std::string InvalidDeclaration::message() const {
-    return utl::strcat("Invalid declaration: ", reason());
+void InvalidDeclaration::format(std::ostream& str) const {
+    str << "Invalid declaration: " << reason();
 }
 
 std::ostream& sema::operator<<(std::ostream& str,
@@ -130,3 +140,7 @@ StrongReferenceCycle::StrongReferenceCycle(utl::vector<Node> cycle):
     SemanticIssue(cycle.front().astNode->extSourceRange(),
                   IssueSeverity::Error),
     _cycle(std::move(cycle)) {}
+
+void StrongReferenceCycle::format(std::ostream& str) const {
+    str << "Strong reference cycle";
+}

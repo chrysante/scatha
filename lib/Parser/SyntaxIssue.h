@@ -34,7 +34,7 @@ public:
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 
 private:
-    std::string message() const override { return "Expected identifier"; }
+    void format(std::ostream&) const override;
 };
 
 class SCATHA_API ExpectedDeclarator: public SyntaxIssue {
@@ -43,7 +43,7 @@ public:
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 
 private:
-    std::string message() const override { return "Expected declarator"; }
+    void format(std::ostream&) const override;
 };
 
 class SCATHA_API UnexpectedDeclarator: public SyntaxIssue {
@@ -52,7 +52,7 @@ public:
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 
 private:
-    std::string message() const override { return "Unexpected declarator"; }
+    void format(std::ostream&) const override;
 };
 
 class SCATHA_API ExpectedDelimiter: public SyntaxIssue {
@@ -61,7 +61,7 @@ public:
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 
 private:
-    std::string message() const override { return "Expected delimiter"; }
+    void format(std::ostream&) const override;
 };
 
 class SCATHA_API ExpectedExpression: public SyntaxIssue {
@@ -70,7 +70,7 @@ public:
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 
 private:
-    std::string message() const override { return "Expected expression"; }
+    void format(std::ostream&) const override;
 };
 
 class SCATHA_API ExpectedClosingBracket: public SyntaxIssue {
@@ -79,7 +79,7 @@ public:
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 
 private:
-    std::string message() const override { return "Expected closing bracket"; }
+    void format(std::ostream&) const override;
 };
 
 class SCATHA_API UnexpectedClosingBracket: public SyntaxIssue {
@@ -88,9 +88,7 @@ public:
         SyntaxIssue(std::move(token), IssueSeverity::Error) {}
 
 private:
-    std::string message() const override {
-        return "Unexpected closing bracket";
-    }
+    void format(std::ostream&) const override;
 };
 
 class SCATHA_API UnqualifiedID: public SyntaxIssue {
@@ -101,7 +99,7 @@ public:
     TokenKind expected() const { return exp; }
 
 private:
-    std::string message() const override { return "Unqualified ID"; }
+    void format(std::ostream&) const override;
 
     TokenKind exp;
 };

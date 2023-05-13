@@ -38,7 +38,7 @@ public:
     ast::Expression const& expression() const { return *_expr; }
 
 private:
-    std::string message() const override { return "Bad expression"; }
+    void format(std::ostream&) const override;
 
     ast::Expression const* _expr;
 };
@@ -48,9 +48,7 @@ public:
     explicit AssignmentToConst(ast::Expression const& expression);
 
 private:
-    std::string message() const override {
-        return "Assignment to immutable value";
-    }
+    void format(std::ostream&) const override;
 };
 
 /// Invalid type conversion issue
@@ -63,7 +61,7 @@ public:
     QualType const* to() const { return _to; }
 
 private:
-    std::string message() const override;
+    void format(std::ostream&) const override;
 
     QualType const* _from;
     QualType const* _to;
@@ -77,6 +75,8 @@ public:
     QualType const* operandType() const { return _opType; }
 
 private:
+    void format(std::ostream&) const override;
+
     QualType const* _opType;
 };
 
@@ -91,9 +91,7 @@ public:
     QualType const* rhs() const { return _rhs; }
 
 private:
-    std::string message() const override {
-        return "Invalid operands for binary expression";
-    }
+    void format(std::ostream&) const override;
 
     QualType const* _lhs;
     QualType const* _rhs;
@@ -103,6 +101,8 @@ class SCATHA_API BadMemberAccess: public BadExpression {
 public:
     explicit BadMemberAccess(ast::Expression const& expr):
         BadExpression(expr, IssueSeverity::Error) {}
+
+    /// TODO: Add format() override
 };
 
 class SCATHA_API BadFunctionCall: public BadExpression {
@@ -126,9 +126,7 @@ public:
     OverloadSet const* overloadSet() const { return _overloadSet; }
 
 private:
-    std::string message() const override {
-        return "No matching function to call";
-    }
+    void format(std::ostream&) const override;
 
     Reason _reason;
     utl::small_vector<QualType const*> _argTypes;
@@ -146,7 +144,7 @@ public:
     Scope const& currentScope() const { return *_scope; }
 
 private:
-    std::string message() const override;
+    void format(std::ostream&) const override;
 
     Scope const* _scope;
 };
@@ -160,7 +158,7 @@ public:
     EntityCategory expected() const { return _expected; }
 
 private:
-    std::string message() const override;
+    void format(std::ostream&) const override;
 
     EntityCategory _have;
     EntityCategory _expected;
@@ -192,7 +190,7 @@ public:
     Scope const* currentScope() const { return _scope; }
 
 private:
-    std::string message() const override;
+    void format(std::ostream&) const override;
 
     ast::Statement const* _statement;
     Reason _reason;
@@ -226,7 +224,7 @@ public:
     Reason reason() const { return _reason; }
 
 private:
-    std::string message() const override;
+    void format(std::ostream&) const override;
 
     Reason _reason;
 };
@@ -246,7 +244,7 @@ public:
     std::span<Node const> cycle() const { return _cycle; }
 
 private:
-    std::string message() const override { return "Strong reference cycle"; }
+    void format(std::ostream&) const override;
 
     utl::vector<Node> _cycle;
 };

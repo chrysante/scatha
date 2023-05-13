@@ -1,6 +1,6 @@
 #include "Sema/Analysis/OverloadResolutionError.h"
 
-#include <utl/strcat.hpp>
+#include <ostream>
 
 #include "Sema/Entity.h"
 
@@ -11,12 +11,10 @@ OverloadResolutionError::OverloadResolutionError(
     OverloadSet const* overloadSet):
     SemanticIssue(SourceLocation{}, IssueSeverity::Error), os(overloadSet) {}
 
-std::string NoMatchingFunction::message() const {
-    return utl::strcat("No matching function for call to '",
-                       overloadSet()->name(),
-                       "'");
+void NoMatchingFunction::format(std::ostream& str) const {
+    str << "No matching function for call to '" << overloadSet()->name() << "'";
 }
 
-std::string AmbiguousOverloadResolution::message() const {
-    return utl::strcat("Ambiguous call to '", overloadSet()->name(), "'");
+void AmbiguousOverloadResolution::format(std::ostream& str) const {
+    str << "Ambiguous call to '" << overloadSet()->name() << "'";
 }

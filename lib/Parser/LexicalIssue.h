@@ -26,7 +26,7 @@ public:
         LexicalIssue(sourceRange, IssueSeverity::Error) {}
 
 private:
-    std::string message() const override { return "Unexpected character"; }
+    void format(std::ostream&) const override;
 };
 
 /// Invalid numeric literal
@@ -40,7 +40,7 @@ public:
     Kind kind() const { return _kind; }
 
 private:
-    std::string message() const override { return "Invalid numeric literal"; }
+    void format(std::ostream&) const;
 
     Kind _kind;
 };
@@ -52,9 +52,7 @@ public:
         LexicalIssue(sourceRange, IssueSeverity::Error) {}
 
 private:
-    std::string message() const override {
-        return "Unterminated string literal";
-    }
+    void format(std::ostream&) const override;
 };
 
 /// Unterminated char literal
@@ -64,7 +62,7 @@ public:
         LexicalIssue(sourceRange, IssueSeverity::Error) {}
 
 private:
-    std::string message() const override { return "Unterminated char literal"; }
+    void format(std::ostream&) const override;
 };
 
 class SCATHA_API InvalidCharLiteral: public LexicalIssue {
@@ -73,7 +71,7 @@ public:
         LexicalIssue(sourceRange, IssueSeverity::Error) {}
 
 private:
-    std::string message() const override { return "Invalid char literal"; }
+    void format(std::ostream&) const override;
 };
 
 class InvalidEscapeSequence: public LexicalIssue {
@@ -82,7 +80,7 @@ public:
         LexicalIssue(sourceRange, IssueSeverity::Warning), litValue(litValue) {}
 
 private:
-    std::string message() const override;
+    void format(std::ostream&) const override;
 
     char litValue;
 };
@@ -94,9 +92,7 @@ public:
         LexicalIssue(sourceRange, IssueSeverity::Error) {}
 
 private:
-    std::string message() const override {
-        return "Unterminated multiline comment";
-    }
+    void format(std::ostream&) const override;
 };
 
 } // namespace scatha::parse

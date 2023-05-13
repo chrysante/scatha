@@ -28,7 +28,7 @@ public:
     using OverloadResolutionError::OverloadResolutionError;
 
 private:
-    std::string message() const override;
+    void format(std::ostream&) const override;
 };
 
 /// Error emitted if more than one function matches the arguments
@@ -42,7 +42,7 @@ public:
     std::span<Function const* const> matches() const { return _matches; }
 
 private:
-    std::string message() const override;
+    void format(std::ostream&) const override;
 
     utl::small_vector<Function const*> _matches;
 };

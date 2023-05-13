@@ -2,7 +2,7 @@
 #define SCATHA_ISSUE_ISSUE2_H_
 
 #include <iosfwd>
-#include <string>
+#include <string_view>
 
 #include <scatha/Parser/Token.h>
 
@@ -47,7 +47,7 @@ protected:
         sourceRng(sourceRange), sev(severity) {}
 
 private:
-    virtual std::string message() const = 0;
+    virtual void format(std::ostream&) const = 0;
 
     SourceRange sourceRng;
     IssueSeverity sev;
