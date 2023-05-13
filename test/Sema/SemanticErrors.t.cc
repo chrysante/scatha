@@ -322,3 +322,31 @@ public fn main() { var r: &mut int = 1; }
     CHECK(issue->reason() ==
           InvalidDeclaration::Reason::ExpectedReferenceInitializer);
 }
+
+TEST_CASE("Invalid lists", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+fn main() {
+    let a = [u32(1), 0.0];
+    let b = [u32(1), int];
+    let c = [];
+    let d: [int, 1, int];
+})");
+
+    auto cmnType      = issues.findOnLine<InvalidListExpr>(3);
+    REQUIRE(cmnType);
+    CHECK(cmnType->reason() == InvalidListExpr::NoCommonType);
+
+    auto badSymRef = issues.findOnLine<BadSymbolReference>(4);
+    REQUIRE(badSymRef);
+    CHECK(badSymRef->have() == EntityCategory::Type);
+    CHECK(badSymRef->expected() == EntityCategory::Value);
+
+    auto badSymRef2 = issues.findOnLine<BadSymbolReference>(5);
+    REQUIRE(badSymRef2);
+    CHECK(badSymRef2->have() == EntityCategory::Indeterminate);
+    CHECK(badSymRef2->expected() == EntityCategory::Value);
+
+    auto invCount = issues.findOnLine<InvalidListExpr>(6);
+    REQUIRE(invCount);
+    CHECK(invCount->reason() == InvalidListExpr::InvalidElemCountForArrayType);
+}

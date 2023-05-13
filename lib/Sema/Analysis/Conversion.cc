@@ -670,3 +670,10 @@ QualType const* sema::commonType(SymbolTable& sym,
     }
     return result;
 }
+
+QualType const* sema::commonType(
+    SymbolTable& sym, std::span<ast::Expression const* const> exprs) {
+    return commonType(sym, exprs | ranges::views::transform([](auto* expr) {
+                               return expr->type();
+                           }) | ranges::to<utl::small_vector<QualType const*>>);
+}

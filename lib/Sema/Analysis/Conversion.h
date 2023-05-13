@@ -133,6 +133,10 @@ QualType const* commonType(SymbolTable& symbolTable,
 QualType const* commonType(SymbolTable& symbolTable,
                            std::span<QualType const* const> types);
 
+/// Find the common type of \p expressions
+QualType const* commonType(SymbolTable& symbolTable,
+                           std::span<ast::Expression const* const> expressions);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ANALYSIS_CONVERSION_H_

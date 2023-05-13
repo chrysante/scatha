@@ -2,6 +2,7 @@
 
 #include <ostream>
 
+#include <utl/streammanip.hpp>
 #include <utl/utility.hpp>
 
 #include "AST/AST.h"
@@ -89,10 +90,28 @@ BadSymbolReference::BadSymbolReference(ast::Expression const& expr,
     _have(expr.entityCategory()),
     _expected(expected) {}
 
+static constexpr utl::streammanip printEC([](std::ostream& str,
+                                             EntityCategory cat) {
+    using enum EntityCategory;
+    switch (cat) {
+    case Value:
+        str << "a value";
+        break;
+    case Type:
+        str << "a type";
+        break;
+    case Indeterminate:
+        str << "indeterminate";
+        break;
+    case _count:
+        SC_UNREACHABLE();
+    }
+});
+
 void BadSymbolReference::format(std::ostream& str) const {
     str << "Invalid symbol category: '";
     printExpression(expression(), str);
-    str << "' is a " << have() << ", expected a " << expected();
+    str << "' is " << printEC(have()) << ", expected " << printEC(expected());
 }
 
 std::ostream& sema::operator<<(std::ostream& str, InvalidStatement::Reason r) {
@@ -143,4 +162,24 @@ StrongReferenceCycle::StrongReferenceCycle(utl::vector<Node> cycle):
 
 void StrongReferenceCycle::format(std::ostream& str) const {
     str << "Strong reference cycle";
+}
+
+InvalidListExpr::InvalidListExpr(ast::ListExpression const& expr,
+                                 Reason reason):
+    BadExpression(expr, IssueSeverity::Error), _reason(reason) {}
+
+void InvalidListExpr::format(std::ostream& str) const {
+    str << "Invalid list expression: " << reason();
+}
+
+std::ostream& sema::operator<<(std::ostream& str, InvalidListExpr::Reason r) {
+    // clang-format off
+    return str << UTL_SERIALIZE_ENUM(r, {
+        { InvalidListExpr::Reason::InvalidElemCountForArrayType,
+          "Invalid element count for array type declaration" },
+        { InvalidListExpr::Reason::InvalidArrayCount,
+          "Invalid array count" },
+        { InvalidListExpr::Reason::NoCommonType,
+          "No common type" },
+    }); // clang-format on
 }

@@ -249,6 +249,27 @@ private:
     utl::vector<Node> _cycle;
 };
 
+class InvalidListExpr: public BadExpression {
+public:
+    enum Reason {
+        InvalidElemCountForArrayType,
+        InvalidArrayCount,
+        NoCommonType,
+        _count
+    };
+
+    explicit InvalidListExpr(ast::ListExpression const& expr, Reason reason);
+
+    Reason reason() const { return _reason; }
+
+private:
+    void format(std::ostream&) const override;
+
+    Reason _reason;
+};
+
+std::ostream& operator<<(std::ostream& ostream, InvalidListExpr::Reason reason);
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_SEMAISSUE_H_

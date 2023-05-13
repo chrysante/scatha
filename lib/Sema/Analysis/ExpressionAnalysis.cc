@@ -591,36 +591,27 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
     auto entityCat = first->entityCategory();
     switch (entityCat) {
     case EntityCategory::Value: {
-        bool const allSameCat =
-            ranges::all_of(list.elements(), [&](ast::Expression const* expr) {
-                return expr->entityCategory() == entityCat;
-            });
-        if (!allSameCat) {
-            /// TODO: Make error class `InvalidList`
-            iss.push<BadExpression>(list, IssueSeverity::Error);
+        for (auto* expr: list.elements()) {
+            if (!expr->isValue()) {
+                iss.push<BadSymbolReference>(*expr, EntityCategory::Value);
+                success = false;
+                continue;
+            }
+            if (expr->type()->isExplicitRef()) {
+                /// TODO: Consider wether we allow storing references in arrays
+                iss.push<BadExpression>(list, IssueSeverity::Error);
+                success = false;
+            }
+        }
+        if (!success) {
             return false;
         }
-        bool const allNoExplRef =
-            ranges::none_of(list.elements(), [&](ast::Expression const* expr) {
-                return expr->type()->isExplicitRef();
-            });
-        if (!allNoExplRef) {
-            /// TODO: Make error class `InvalidListElement` with reason `Can
-            /// only store object type in list`
-            iss.push<BadExpression>(list, IssueSeverity::Error);
-            return false;
-        }
-        auto* commonType =
-            sema::commonType(sym,
-                             list.elements() |
-                                 ranges::views::transform(
-                                     [](auto* expr) {
-            return expr->type();
-                                 }) |
-                             ranges::to<utl::small_vector<QualType const*>>);
+        auto* commonType = sema::commonType(
+            sym,
+            list.elements() |
+                ranges::to<utl::small_vector<ast::Expression const*>>);
         if (!commonType) {
-            /// TODO: Make error class `InvalidList` with reason `CantInferType`
-            iss.push<BadExpression>(list, IssueSeverity::Error);
+            iss.push<InvalidListExpr>(list, InvalidListExpr::NoCommonType);
             return false;
         }
         for (auto* expr: list.elements()) {
@@ -637,7 +628,9 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
     case EntityCategory::Type: {
         auto* elementType = cast<QualType*>(first->entity())->base();
         if (list.elements().size() != 1 && list.elements().size() != 2) {
-            iss.push<BadExpression>(list, IssueSeverity::Error);
+            iss.push<InvalidListExpr>(
+                list,
+                InvalidListExpr::InvalidElemCountForArrayType);
             return false;
         }
         size_t count = ArrayType::DynamicCount;
@@ -650,6 +643,7 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
             if (!countType || !value ||
                 (countType->isSigned() && value->value().negative()))
             {
+
                 iss.push<BadExpression>(*countExpr, IssueSeverity::Error);
                 return false;
             }

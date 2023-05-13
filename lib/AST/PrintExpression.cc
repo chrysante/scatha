@@ -13,17 +13,21 @@ using namespace ast;
 namespace {
 
 struct Context {
-    void dispatchExpression(Expression const&);
+    void print(Expression const&);
 
-    void printExpression(Identifier const&);
-    void printExpression(Literal const&);
-    void printExpression(UnaryExpression const&);
-    void printExpression(BinaryExpression const&);
-    void printExpression(MemberAccess const&);
-    void printExpression(Conditional const&);
-    void printExpression(FunctionCall const&);
-    void printExpression(Subscript const&);
-    void printExpression(AbstractSyntaxTree const&) { SC_UNREACHABLE(); }
+    void printImpl(Identifier const&);
+    void printImpl(Literal const&);
+    void printImpl(UnaryExpression const&);
+    void printImpl(BinaryExpression const&);
+    void printImpl(MemberAccess const&);
+    void printImpl(Conditional const&);
+    void printImpl(FunctionCall const&);
+    void printImpl(Subscript const&);
+    void printImpl(UniqueExpression const&);
+    void printImpl(GenericExpression const&);
+    void printImpl(ReferenceExpression const&);
+    void printImpl(Conversion const&);
+    void printImpl(ListExpression const&);
 
     std::ostream& str;
 };
@@ -42,16 +46,16 @@ void ast::printExpression(Expression const& expr) {
 
 void ast::printExpression(Expression const& expr, std::ostream& str) {
     Context ctx{ str };
-    ctx.dispatchExpression(expr);
+    ctx.print(expr);
 }
 
-void Context::dispatchExpression(Expression const& expr) {
-    visit(expr, [&](auto const& expr) { printExpression(expr); });
+void Context::print(Expression const& expr) {
+    visit(expr, [&](auto const& expr) { printImpl(expr); });
 }
 
-void Context::printExpression(Identifier const& id) { str << id.value(); }
+void Context::printImpl(Identifier const& id) { str << id.value(); }
 
-void Context::printExpression(Literal const& lit) {
+void Context::printImpl(Literal const& lit) {
     switch (lit.kind()) {
     case LiteralKind::Integer:
         str << lit.value<APInt>().toString();
@@ -73,33 +77,33 @@ void Context::printExpression(Literal const& lit) {
     }
 }
 
-void Context::printExpression(UnaryExpression const& expr) {
+void Context::printImpl(UnaryExpression const& expr) {
     str << expr.operation();
-    dispatchExpression(*expr.operand());
+    print(*expr.operand());
 }
 
-void Context::printExpression(BinaryExpression const& expr) {
-    dispatchExpression(*expr.lhs());
+void Context::printImpl(BinaryExpression const& expr) {
+    print(*expr.lhs());
     str << expr.operation();
-    dispatchExpression(*expr.rhs());
+    print(*expr.rhs());
 }
 
-void Context::printExpression(MemberAccess const& memberAccess) {
-    dispatchExpression(*memberAccess.object());
+void Context::printImpl(MemberAccess const& memberAccess) {
+    print(*memberAccess.object());
     str << ".";
-    dispatchExpression(*memberAccess.member());
+    print(*memberAccess.member());
 }
 
-void Context::printExpression(Conditional const& conditional) {
-    dispatchExpression(*conditional.condition());
+void Context::printImpl(Conditional const& conditional) {
+    print(*conditional.condition());
     str << " ? ";
-    dispatchExpression(*conditional.thenExpr());
+    print(*conditional.thenExpr());
     str << " : ";
-    dispatchExpression(*conditional.elseExpr());
+    print(*conditional.elseExpr());
 }
 
-void Context::printExpression(FunctionCall const& functionCall) {
-    dispatchExpression(*functionCall.object());
+void Context::printImpl(FunctionCall const& functionCall) {
+    print(*functionCall.object());
     str << "(";
     for (bool first = true; auto* argument: functionCall.arguments()) {
         if (!first) {
@@ -108,22 +112,47 @@ void Context::printExpression(FunctionCall const& functionCall) {
         else {
             first = false;
         }
-        dispatchExpression(*argument);
+        print(*argument);
     }
     str << ")";
 }
 
-void Context::printExpression(Subscript const& subscript) {
-    dispatchExpression(*subscript.object());
+void Context::printImpl(Subscript const& subscript) {
+    print(*subscript.object());
     str << "[";
     for (bool first = true; auto* argument: subscript.arguments()) {
         if (!first) {
             str << ", ";
         }
-        else {
-            first = false;
+        first = false;
+        print(*argument);
+    }
+    str << "]";
+}
+
+void Context::printImpl(UniqueExpression const& expr) { SC_UNIMPLEMENTED(); }
+
+void Context::printImpl(GenericExpression const& expr) { SC_UNIMPLEMENTED(); }
+
+void Context::printImpl(ReferenceExpression const& ref) {
+    str << "&";
+    if (ref.isMutable()) {
+        str << "mut ";
+    }
+    print(*ref.referred());
+}
+
+void Context::printImpl(Conversion const& conv) { print(*conv.expression()); }
+
+void Context::printImpl(ListExpression const& list) {
+    str << "[";
+    bool first = true;
+    for (auto* expr: list.elements()) {
+        if (!first) {
+            str << ", ";
         }
-        dispatchExpression(*argument);
+        first = false;
+        print(*expr);
     }
     str << "]";
 }
