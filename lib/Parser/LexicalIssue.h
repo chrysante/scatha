@@ -5,8 +5,6 @@
 
 #include <variant>
 
-#include <utl/utility.hpp>
-
 #include <scatha/Common/Base.h>
 #include <scatha/Issue/Issue.h>
 

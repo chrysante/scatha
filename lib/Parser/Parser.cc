@@ -16,13 +16,6 @@ using namespace parse;
 
 using enum TokenKind;
 
-UniquePtr<ast::AbstractSyntaxTree> parse::parse(utl::vector<Token> tokens,
-                                                IssueHandler& issues) {
-    bracketCorrection(tokens, issues);
-    Context ctx{ .tokens{ std::move(tokens) }, .issues = issues };
-    return ctx.run();
-}
-
 UniquePtr<ast::AbstractSyntaxTree> parse::parse(std::string_view source,
                                                 IssueHandler& issueHandler) {
     auto tokens = lex(source, issueHandler);

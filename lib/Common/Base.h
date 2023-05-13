@@ -10,8 +10,6 @@
 #include <exception>
 #endif
 
-#include <utl/bit.hpp>
-
 #define SCATHA(Name, ...) _SCATHA_PD_##Name(__VA_ARGS__)
 
 #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
@@ -140,7 +138,9 @@ using ssize_t = std::ptrdiff_t;
 template <typename T>
     requires std::is_standard_layout_v<T>
 std::array<u8, sizeof(T)> decompose(T const& t) {
-    return utl::bit_cast<std::array<u8, sizeof(T)>>(t);
+    std::array<u8, sizeof(T)> result;
+    std::memcpy(result.data(), &t, sizeof t);
+    return result;
 }
 
 inline constexpr size_t invalidIndex = static_cast<size_t>(-1);

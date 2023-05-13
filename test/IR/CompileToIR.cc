@@ -13,11 +13,7 @@ using namespace scatha;
 
 ir::Module test::compileToIR(std::string_view text) {
     IssueHandler issues;
-    auto tokens = parse::lex(text, issues);
-    if (!issues.empty()) {
-        throw std::runtime_error("Compilation failed");
-    }
-    auto ast = parse::parse(tokens, issues);
+    auto ast = parse::parse(text, issues);
     if (!issues.empty()) {
         throw std::runtime_error("Compilation failed");
     }

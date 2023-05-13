@@ -13,11 +13,9 @@ test::IssueHelper test::getLexicalIssues(std::string_view text) {
 }
 
 test::IssueHelper test::getSyntaxIssues(std::string_view text) {
-    IssueHandler lexIss;
-    auto tokens = parse::lex(text, lexIss);
-    IssueHandler synIss;
-    auto ast = parse::parse(std::move(tokens), synIss);
-    return { std::move(synIss), std::move(ast) };
+    IssueHandler iss;
+    auto ast = parse::parse(text, iss);
+    return { std::move(iss), std::move(ast) };
 }
 
 test::IssueHelper test::getSemaIssues(std::string_view text) {

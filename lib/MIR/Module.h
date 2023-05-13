@@ -1,8 +1,9 @@
 #ifndef SCATHA_MIR_MODULE_H_
 #define SCATHA_MIR_MODULE_H_
 
+#include <vector>
+
 #include <utl/hashmap.hpp>
-#include <utl/vector.hpp>
 
 #include "Common/Base.h"
 #include "Common/List.h"
@@ -78,9 +79,9 @@ public:
 
     UndefValue* undefValue() const { return undef.get(); }
 
-    utl::vector<u8> const& dataSection() const { return data; }
+    std::vector<u8> const& dataSection() const { return data; }
 
-    void setDataSection(utl::vector<uint8_t> data) {
+    void setDataSection(std::vector<uint8_t> data) {
         this->data = std::move(data);
     }
 
@@ -95,7 +96,7 @@ private:
     std::unique_ptr<UndefValue> undef;
 
     /// Data section
-    utl::vector<uint8_t> data;
+    std::vector<uint8_t> data;
 };
 
 } // namespace scatha::mir

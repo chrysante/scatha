@@ -8,8 +8,7 @@ using namespace scatha;
 std::pair<UniquePtr<ast::AbstractSyntaxTree>, IssueHandler> test::parse(
     std::string_view text) {
     IssueHandler issues;
-    auto tokens = parse::lex(text, issues);
-    auto ast    = ::parse::parse(std::move(tokens), issues);
+    auto ast = ::parse::parse(text, issues);
     return { std::move(ast), std::move(issues) };
 }
 

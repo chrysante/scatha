@@ -1,12 +1,8 @@
-#pragma once
-
 #ifndef SCATHA_LEXER_LEXERUTIL_H_
 #define SCATHA_LEXER_LEXERUTIL_H_
 
 #include <cctype>
 #include <utl/common.hpp>
-
-#include "Common/Base.h"
 
 namespace scatha::lex {
 
@@ -24,7 +20,7 @@ inline bool isFloatDigitDec(char c) { return isDigitDec(c) || c == '.'; }
 
 inline bool isLetterEx(char c) { return isLetter(c) || isDigitDec(c); }
 
-SCATHA_API bool isPunctuation(char);
+bool isPunctuation(char);
 
 inline bool isNewline(char c) { return c == '\n'; }
 
@@ -32,9 +28,9 @@ inline bool isSpace(char c) { return std::isspace(c) || isNewline(c); }
 
 inline bool isDelimiter(char c) { return isPunctuation(c) || isSpace(c); }
 
-SCATHA_API bool isOperatorLetter(char);
+bool isOperatorLetter(char);
 
-SCATHA_API bool isOperator(std::string_view);
+bool isOperator(std::string_view);
 
 } // namespace scatha::lex
 

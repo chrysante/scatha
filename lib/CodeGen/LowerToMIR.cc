@@ -1,5 +1,7 @@
 #include "CodeGen/Passes.h"
 
+#include <vector>
+
 #include <range/v3/numeric.hpp>
 #include <utl/functional.hpp>
 
@@ -175,7 +177,7 @@ struct CodeGenContext {
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
     utl::hashmap<ir::Value const*, size_t> staticDataOffsets;
-    utl::small_vector<u8> staticData;
+    std::vector<u8> staticData;
 
     ir::CompareInst const* lastEmittedCompare = nullptr;
 };

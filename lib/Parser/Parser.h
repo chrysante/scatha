@@ -3,8 +3,6 @@
 #ifndef SCATHA_PARSER_PARSER_H_
 #define SCATHA_PARSER_PARSER_H_
 
-#include <utl/vector.hpp>
-
 #include <scatha/AST/Fwd.h>
 #include <scatha/Common/Base.h>
 #include <scatha/Common/UniquePtr.h>
@@ -153,9 +151,6 @@
 // clang-format on
 
 namespace scatha::parse {
-
-[[nodiscard]] SCATHA_API UniquePtr<ast::AbstractSyntaxTree> parse(
-    utl::vector<Token> tokens, IssueHandler& issueHandler);
 
 /// Parse source code \p source into an abstract syntax tree
 /// Issues will be submitted to \p issueHandler

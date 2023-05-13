@@ -11,8 +11,7 @@ namespace scatha::test {
 std::tuple<UniquePtr<ast::AbstractSyntaxTree>, sema::SymbolTable, IssueHandler>
     produceDecoratedASTAndSymTable(std::string_view text) {
     IssueHandler issues;
-    auto tokens = parse::lex(text, issues);
-    auto ast    = parse::parse(tokens, issues);
+    auto ast = parse::parse(text, issues);
     sema::SymbolTable sym;
     sema::analyze(*ast, sym, issues);
     return { std::move(ast), std::move(sym), std::move(issues) };
