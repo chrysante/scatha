@@ -1,6 +1,7 @@
 #include "Opt/TailRecElim.h"
 
-#include <utl/variant.hpp>
+#include <variant>
+
 #include <utl/vector.hpp>
 
 #include "IR/CFG.h"
@@ -49,7 +50,7 @@ struct AccumulatedPhiReturn: RetBase {
     Value* otherAccArg;
 };
 
-using ViableReturn = utl::variant<DirectReturn,
+using ViableReturn = std::variant<DirectReturn,
                                   AccumulatedReturn,
                                   DirectPhiReturn,
                                   AccumulatedPhiReturn>;
@@ -66,7 +67,7 @@ struct TREContext {
 
     void rewrite(ViableReturn const& ret) {
         generateLoopHeader();
-        utl::visit([this](auto& ret) { rewriteImpl(ret); }, ret);
+        std::visit([this](auto& ret) { rewriteImpl(ret); }, ret);
     }
 
     void rewriteImpl(DirectReturn info);
@@ -186,13 +187,12 @@ void TREContext::generateLoopHeader() {
     function.pushFront(newEntry);
 
     std::array entryRng = { newEntry };
-    auto preds          = ranges::views::concat(entryRng,
-                                       viableReturns |
-                                           ranges::views::transform(
-                                               [](ViableReturn const& ret) {
-        return ret.as_base<RetBase>().retInst->parent();
-                                           })) |
-        ranges::to<utl::small_vector<BasicBlock*, 16>>;
+    auto retBlocks      = viableReturns | ranges::views::transform(
+                                         [](ViableReturn const& ret) {
+        return std::visit([](auto& ret) { return ret.retInst->parent(); }, ret);
+    });
+    auto preds = ranges::views::concat(entryRng, retBlocks) |
+                 ranges::to<utl::small_vector<BasicBlock*, 16>>;
     loopHeader->setPredecessors(preds);
     /// ## Phis for parameters
     /// For every function parameter, we add a phi node to the loopheader block.
@@ -202,7 +202,10 @@ void TREContext::generateLoopHeader() {
     std::array entryArg = { PhiMapping{ newEntry, nullptr } };
     auto otherArgs      = viableReturns | ranges::views::transform(
                                          [](ViableReturn const& ret) {
-        return PhiMapping{ ret.as_base<RetBase>().retInst->parent(), nullptr };
+        return PhiMapping{
+            std::visit([](auto& ret) { return ret.retInst->parent(); }, ret),
+            nullptr
+        };
     });
     auto phiArgs = ranges::views::concat(entryArg, otherArgs) |
                    ranges::to<utl::small_vector<PhiMapping, 8>>;

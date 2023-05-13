@@ -1,6 +1,7 @@
 #include "Opt/ConstantPropagation.h"
 
 #include <deque>
+#include <variant>
 
 #include <range/v3/algorithm.hpp>
 #include <range/v3/numeric.hpp>
@@ -8,7 +9,6 @@
 #include <svm/Builtin.h>
 #include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
-#include <utl/variant.hpp>
 
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
@@ -55,7 +55,7 @@ enum class Inevaluable {};
 /// Supremum, evaluation
 enum class Unexamined {};
 
-using FormalValue = utl::variant<Unexamined, Inevaluable, APInt, APFloat>;
+using FormalValue = std::variant<Unexamined, Inevaluable, APInt, APFloat>;
 
 bool isUnexamined(FormalValue const& value) { return value.index() == 0; }
 
@@ -206,11 +206,11 @@ bool SCCPContext::apply() {
         size_t const bitwidth =
             cast<ArithmeticType const*>(value->type())->bitwidth();
         // clang-format off
-        Value* const newValue = visit(utl::overload{
-            [&](APInt const& constant) {
+        Value* const newValue = std::visit(utl::overload{
+            [&](APInt const& constant) -> Value* {
                 return irCtx.integralConstant(constant);
             },
-            [&](APFloat const& constant) {
+            [&](APFloat const& constant) -> Value* {
                 return irCtx.floatConstant(constant, bitwidth);
             },
             [](auto const&) -> Value* { SC_UNREACHABLE(); }
@@ -346,7 +346,7 @@ void SCCPContext::notifyUsers(Value& value) {
 void SCCPContext::processTerminator(FormalValue const& value,
                                     TerminatorInst& inst) {
     // clang-format off
-    utl::visit(utl::overload{
+    std::visit(utl::overload{
         [&](Unexamined) {
             SC_UNREACHABLE();
         },
@@ -430,20 +430,20 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
     }
     switch (conv) {
     case Conversion::Zext: {
-        APInt value = operand.get<APInt>();
+        APInt value = std::get<APInt>(operand);
         return value.zext(targetType->bitwidth());
     }
     case Conversion::Sext: {
-        APInt value = operand.get<APInt>();
+        APInt value = std::get<APInt>(operand);
         return value.sext(targetType->bitwidth());
     }
     case Conversion::Trunc: {
-        APInt value = operand.get<APInt>();
+        APInt value = std::get<APInt>(operand);
         /// `APInt::zext` also handles truncation.
         return value.zext(targetType->bitwidth());
     }
     case Conversion::Fext: {
-        APFloat value = operand.get<APFloat>();
+        APFloat value = std::get<APFloat>(operand);
         SC_ASSERT(value.precision() == APFloatPrec::Single,
                   "Can only extend single precision floats");
         SC_ASSERT(targetType->bitwidth() == 64,
@@ -451,7 +451,7 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
         return APFloat(value.to<float>(), APFloatPrec::Double);
     }
     case Conversion::Ftrunc: {
-        APFloat value = operand.get<APFloat>();
+        APFloat value = std::get<APFloat>(operand);
         SC_ASSERT(value.precision() == APFloatPrec::Double,
                   "Can only truncate double precision floats");
         SC_ASSERT(targetType->bitwidth() == 32,
@@ -459,25 +459,27 @@ FormalValue SCCPContext::evaluateConversion(Conversion conv,
         return APFloat(value.to<double>(), APFloatPrec::Single);
     }
     case Conversion::UtoF:
-        return valuecast<APFloat>(operand.get<APInt>(), targetType->bitwidth());
+        return valuecast<APFloat>(std::get<APInt>(operand),
+                                  targetType->bitwidth());
 
     case Conversion::StoF:
-        return signedValuecast<APFloat>(operand.get<APInt>(),
+        return signedValuecast<APFloat>(std::get<APInt>(operand),
                                         targetType->bitwidth());
 
     case Conversion::FtoU:
-        return valuecast<APInt>(operand.get<APFloat>(), targetType->bitwidth());
+        return valuecast<APInt>(std::get<APFloat>(operand),
+                                targetType->bitwidth());
 
     case Conversion::FtoS:
-        return signedValuecast<APInt>(operand.get<APFloat>(),
+        return signedValuecast<APInt>(std::get<APFloat>(operand),
                                       targetType->bitwidth());
 
     case Conversion::Bitcast: {
-        if (operand.is<APInt>()) {
-            return bitcast<APFloat>(operand.get<APInt>());
+        if (std::holds_alternative<APInt>(operand)) {
+            return bitcast<APFloat>(std::get<APInt>(operand));
         }
         else {
-            return bitcast<APInt>(operand.get<APFloat>());
+            return bitcast<APInt>(std::get<APFloat>(operand));
         }
     }
     case Conversion::_count:
@@ -497,7 +499,7 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
         [[fallthrough]];
     case ArithmeticOperation::FSub:
         // clang-format off
-        return utl::visit(utl::overload{
+        return std::visit(utl::overload{
             [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
                 switch (operation) {
                 case ArithmeticOperation::Add: return add(lhs, rhs);
@@ -545,7 +547,7 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
         [[fallthrough]];
     case ArithmeticOperation::XOr:
         // clang-format off
-        return utl::visit(utl::overload{
+        return std::visit(utl::overload{
             [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
                 switch (operation) {
                 case ArithmeticOperation::Mul: return mul(lhs, rhs);
@@ -603,7 +605,7 @@ FormalValue SCCPContext::evaluateArithmetic(ArithmeticOperation operation,
 FormalValue SCCPContext::evaluateUnaryArithmetic(
     UnaryArithmeticOperation operation, FormalValue const& operand) {
     // clang-format off
-    return utl::visit(utl::overload{
+    return std::visit(utl::overload{
         [&](APInt const& operand) -> FormalValue {
             switch (operation) {
             case UnaryArithmeticOperation::BitwiseNot: return btwnot(operand);
@@ -629,7 +631,7 @@ FormalValue SCCPContext::evaluateComparison(CompareOperation operation,
                                             FormalValue const& lhs,
                                             FormalValue const& rhs) {
     // clang-format off
-    return utl::visit(utl::overload{
+    return std::visit(utl::overload{
         [&](APInt const& lhs, APInt const& rhs) -> FormalValue {
             switch (operation) {
             case CompareOperation::Less:
@@ -681,39 +683,39 @@ FormalValue SCCPContext::evaluateCall(Callable const* function,
     }
     switch (static_cast<svm::Builtin>(extFn->index())) {
     case svm::Builtin::abs_f64:
-        return abs(args[0].get<APFloat>());
+        return abs(std::get<APFloat>(args[0]));
     case svm::Builtin::exp_f64:
-        return exp(args[0].get<APFloat>());
+        return exp(std::get<APFloat>(args[0]));
     case svm::Builtin::exp2_f64:
-        return exp2(args[0].get<APFloat>());
+        return exp2(std::get<APFloat>(args[0]));
     case svm::Builtin::exp10_f64:
-        return exp10(args[0].get<APFloat>());
+        return exp10(std::get<APFloat>(args[0]));
     case svm::Builtin::log_f64:
-        return log(args[0].get<APFloat>());
+        return log(std::get<APFloat>(args[0]));
     case svm::Builtin::log2_f64:
-        return log2(args[0].get<APFloat>());
+        return log2(std::get<APFloat>(args[0]));
     case svm::Builtin::log10_f64:
-        return log10(args[0].get<APFloat>());
+        return log10(std::get<APFloat>(args[0]));
     case svm::Builtin::pow_f64:
-        return pow(args[0].get<APFloat>(), args[1].get<APFloat>());
+        return pow(std::get<APFloat>(args[0]), std::get<APFloat>(args[1]));
     case svm::Builtin::sqrt_f64:
-        return sqrt(args[0].get<APFloat>());
+        return sqrt(std::get<APFloat>(args[0]));
     case svm::Builtin::cbrt_f64:
-        return cbrt(args[0].get<APFloat>());
+        return cbrt(std::get<APFloat>(args[0]));
     case svm::Builtin::hypot_f64:
-        return hypot(args[0].get<APFloat>(), args[1].get<APFloat>());
+        return hypot(std::get<APFloat>(args[0]), std::get<APFloat>(args[1]));
     case svm::Builtin::sin_f64:
-        return sin(args[0].get<APFloat>());
+        return sin(std::get<APFloat>(args[0]));
     case svm::Builtin::cos_f64:
-        return cos(args[0].get<APFloat>());
+        return cos(std::get<APFloat>(args[0]));
     case svm::Builtin::tan_f64:
-        return tan(args[0].get<APFloat>());
+        return tan(std::get<APFloat>(args[0]));
     case svm::Builtin::asin_f64:
-        return asin(args[0].get<APFloat>());
+        return asin(std::get<APFloat>(args[0]));
     case svm::Builtin::acos_f64:
-        return acos(args[0].get<APFloat>());
+        return acos(std::get<APFloat>(args[0]));
     case svm::Builtin::atan_f64:
-        return atan(args[0].get<APFloat>());
+        return atan(std::get<APFloat>(args[0]));
 
     default:
         return Inevaluable{};

@@ -2,8 +2,7 @@
 #define SCATHA_IR_PARSER_ISSUE_H_
 
 #include <iosfwd>
-
-#include <utl/variant.hpp>
+#include <variant>
 
 #include "IR/Parser/SourceLocation.h"
 #include "IR/Parser/Token.h"
@@ -59,7 +58,7 @@ private:
     Reason _reason;
 };
 
-using ParseIssue = utl::variant<LexicalIssue, SyntaxIssue, SemanticIssue>;
+using ParseIssue = std::variant<LexicalIssue, SyntaxIssue, SemanticIssue>;
 
 SCATHA_API void print(ParseIssue const& issue, std::ostream& ostream);
 

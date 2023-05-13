@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include <utl/utility.hpp>
+
 using namespace scatha;
 using namespace ir;
 
@@ -13,7 +15,7 @@ static std::ostream& operator<<(std::ostream& str, SourceLocation sl) {
 
 void ir::print(ParseIssue const& issue, std::ostream& str) {
     // clang-format off
-    utl::visit(utl::overload{
+    std::visit(utl::overload{
         [&](LexicalIssue const& issue) {
             auto sl = issue.sourceLocation();
             str << "Lexical issue: " << sl << "\n";
