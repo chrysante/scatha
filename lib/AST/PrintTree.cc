@@ -181,11 +181,6 @@ static constexpr utl::streammanip formatLit([](std::ostream& str,
                                                ast::Literal const* lit) {
     switch (lit->kind()) {
     case LiteralKind::Integer: {
-        /// This is a short term fix. Should make this check further up the call
-        /// tree so other nodes are also checked
-        if (!lit->isDecorated()) {
-            return;
-        }
         auto* type = cast<sema::IntType const*>(lit->type()->base());
         auto value = lit->value<APInt>();
         if (!type) {
@@ -238,6 +233,11 @@ struct PrintCtx {
     TreeIndenter indent{};
 
     void print(AbstractSyntaxTree const& node) {
+        if (!node.isDecorated()) {
+            str << header(&indent, &node) << '\n';
+            goto end;
+        }
+
         // clang-format off
         visit(node, utl::overload{
             [&](AbstractSyntaxTree const& node) {
@@ -272,6 +272,8 @@ struct PrintCtx {
                               conv.conversion()->objectConversion()) << '\n';
             }
         }); // clang-format on
+
+end:
         visit(node, [&](auto& node) { printChildren(node); });
     }
 
