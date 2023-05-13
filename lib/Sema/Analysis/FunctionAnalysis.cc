@@ -85,6 +85,7 @@ void Context::analyzeImpl(ast::FunctionDefinition& fn) {
             &fn,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope());
+        sym.declarePoison(std::string(fn.name()));
         return;
     }
     SC_ASSERT(fn.function(),
@@ -119,6 +120,7 @@ void Context::analyzeImpl(ast::StructDefinition& s) {
             &s,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope());
+        sym.declarePoison(std::string(s.name()));
     }
 }
 
@@ -146,13 +148,6 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
               "We only handle function local variables in this pass.");
     SC_ASSERT(!var.isDecorated(),
               "We should not have handled local variables in prepass.");
-    if (!var.typeExpr() && !var.initExpression()) {
-        /// TODO: Declare poison entity
-        iss.push<InvalidDeclaration>(&var,
-                                     InvalidDeclaration::Reason::CantInferType,
-                                     sym.currentScope());
-        return;
-    }
     auto* declaredType = getDeclaredType(var.typeExpr());
     auto* deducedType  = [&]() -> QualType const* {
         if (!var.initExpression() || !analyzeExpr(*var.initExpression())) {
@@ -166,13 +161,10 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         return var.initExpression()->type();
     }();
     if (!declaredType && !deducedType) {
-        /// TODO: Declare a poison entity to prevent errors on references
-        /// to this variable
-        // SC_UNIMPLEMENTED();
-        /// Also we are missing source erros here in certain cases:
-        /// E.g. when we assign an overload set to a local variable
-        /// (`let i = f;` where `f` is a function), we are not emitting any
-        /// errors but have erroneous code
+        iss.push<InvalidDeclaration>(&var,
+                                     InvalidDeclaration::Reason::CantInferType,
+                                     sym.currentScope());
+        sym.declarePoison(std::string(var.name()));
         return;
     }
     if (declaredType && deducedType && declaredType->isReference() &&

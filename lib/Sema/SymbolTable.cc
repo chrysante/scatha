@@ -185,8 +185,25 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
     }
     auto& var = *declResult;
     var.setType(type);
-    SC_ASSERT(offset == 0, "Temporary measure. Should remove parameter offset");
+    /// TODO: Temporary measure. Should remove parameter `offset`
+    SC_ASSERT(offset == 0, "");
     return var;
+}
+
+Expected<PoisonEntity&, SemanticIssue*> SymbolTable::declarePoison(
+    std::string name) {
+    using enum InvalidDeclaration::Reason;
+    if (isKeyword(name)) {
+        return new InvalidDeclaration(nullptr,
+                                      ReservedIdentifier,
+                                      currentScope());
+    }
+    if (auto* entity = currentScope().findEntity(name)) {
+        return new InvalidDeclaration(nullptr, Redefinition, currentScope());
+    }
+    auto* entity = addEntity<PoisonEntity>(name, &currentScope());
+    currentScope().add(entity);
+    return *entity;
 }
 
 Scope& SymbolTable::addAnonymousScope() {

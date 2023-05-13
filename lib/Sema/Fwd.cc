@@ -51,6 +51,7 @@ EntityCategory sema::categorize(EntityType entityType) {
         { EntityType::OverloadSet,    EntityCategory::Value },
         { EntityType::Generic,        EntityCategory::Indeterminate },
         { EntityType::Variable,       EntityCategory::Value },
+        { EntityType::PoisonEntity,   EntityCategory::Indeterminate },
     }); // clang-format on
 }
 

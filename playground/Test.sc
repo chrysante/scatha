@@ -6,12 +6,13 @@
 //}
 
 public fn main() {
-    let msg = "Hello world\n";
+    fn f() {}
     
-    for i = 0; i < msg.count; ++i {
-        __builtin_putchar(msg[i]);
-    }
+    struct s {}
     
+    let i = f & s;
+    
+    return f + s + i;
 
 }
 

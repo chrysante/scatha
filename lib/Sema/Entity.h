@@ -661,6 +661,16 @@ private:
     size_t numParams;
 };
 
+/// # Poison
+
+/// Represents a poison entity, an invalid entity to help spread redundant error
+/// messages
+class SCATHA_API PoisonEntity: public Entity {
+public:
+    explicit PoisonEntity(std::string name, Scope* parentScope):
+        Entity(EntityType::PoisonEntity, std::move(name), parentScope) {}
+};
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_ENTITY_H_

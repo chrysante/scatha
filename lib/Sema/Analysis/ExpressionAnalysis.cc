@@ -210,7 +210,10 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
 }
 
 bool Context::analyzeImpl(ast::BinaryExpression& b) {
-    if (!analyze(*b.lhs()) || !analyze(*b.rhs())) {
+    bool success = true;
+    success &= analyze(*b.lhs());
+    success &= analyze(*b.rhs());
+    if (!success) {
         return false;
     }
     auto* resultType = analyzeBinaryExpr(b);
@@ -248,6 +251,10 @@ bool Context::analyzeImpl(ast::Identifier& id) {
         [&](Generic& generic) {
             id.decorate(&generic, nullptr);
             return true;
+        },
+        [&](PoisonEntity& poison) {
+            id.decorate(&poison, nullptr);
+            return false;
         },
         [&](Entity const& entity) -> bool {
             /// Other entities can not be referenced directly

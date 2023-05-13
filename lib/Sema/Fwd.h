@@ -14,23 +14,24 @@
 /// ├─ Variable
 /// ├─ OverloadSet
 /// ├─ Generic
-/// └─ Scope
-///    ├─ GlobalScope
-///    ├─ AnonymousScope
-///    ├─ Function
-///    └─ Type
-///       ├─ ObjectType
-///       │  ├─ BuiltinType
-///       │  │  ├─ VoidType
-///       │  │  └─ ArithmeticType
-///       │  │     ├─ BoolType
-///       │  │     ├─ ByteType
-///       │  │     ├─ IntType
-///       │  │     └─ FloatType
-///       │  ├─ StructureType
-///       │  └─ ArrayType
-///       ├─ QualType
-///       └─ FunctionType [??, does not exist]
+/// ├─ Scope
+/// │  ├─ GlobalScope
+/// │  ├─ AnonymousScope
+/// │  ├─ Function
+/// │  └─ Type
+/// │     ├─ ObjectType
+/// │     │  ├─ BuiltinType
+/// │     │  │  ├─ VoidType
+/// │     │  │  └─ ArithmeticType
+/// │     │  │     ├─ BoolType
+/// │     │  │     ├─ ByteType
+/// │     │  │     ├─ IntType
+/// │     │  │     └─ FloatType
+/// │     │  ├─ StructureType
+/// │     │  └─ ArrayType
+/// │     ├─ QualType
+/// │     └─ FunctionType [??, does not exist]
+/// └─ PoisonEntity
 /// ```
 
 namespace scatha::sema {
