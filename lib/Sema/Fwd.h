@@ -77,8 +77,6 @@ enum class EntityCategory { Indeterminate, Value, Type, _count };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, EntityCategory);
 
-EntityCategory categorize(EntityType entityType);
-
 enum class ValueCategory : u8 { None, LValue, RValue, _count };
 
 SCATHA_API std::ostream& operator<<(std::ostream&, ValueCategory);

@@ -3,6 +3,8 @@
 #include <optional>
 #include <ostream>
 
+#include <range/v3/view.hpp>
+
 #include "AST/AST.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Entity.h"
@@ -613,8 +615,7 @@ IntType const* commonTypeSignedUnsigned(SymbolTable& sym,
 
 static ObjectType const* commonBase(SymbolTable& sym,
                                     ObjectType const* a,
-                                    ObjectType const* b,
-                                    int stage = 0) {
+                                    ObjectType const* b) {
     if (a == b) {
         return a;
     }
@@ -653,4 +654,19 @@ QualType const* sema::commonType(SymbolTable& sym,
         return sym.qualify(base, *ref);
     }
     return sym.qualify(base);
+}
+
+QualType const* sema::commonType(SymbolTable& sym,
+                                 std::span<QualType const* const> types) {
+    if (types.empty()) {
+        return sym.qVoid();
+    }
+    auto* result = types[0];
+    for (auto* type: types | ranges::views::drop(1)) {
+        if (!result) {
+            break;
+        }
+        result = commonType(sym, result, type);
+    }
+    return result;
 }

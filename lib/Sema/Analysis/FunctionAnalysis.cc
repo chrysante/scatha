@@ -85,7 +85,7 @@ void Context::analyzeImpl(ast::FunctionDefinition& fn) {
             &fn,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope());
-        sym.declarePoison(std::string(fn.name()));
+        sym.declarePoison(std::string(fn.name()), EntityCategory::Value);
         return;
     }
     SC_ASSERT(fn.function(),
@@ -120,7 +120,7 @@ void Context::analyzeImpl(ast::StructDefinition& s) {
             &s,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope());
-        sym.declarePoison(std::string(s.name()));
+        sym.declarePoison(std::string(s.name()), EntityCategory::Type);
     }
 }
 
@@ -161,10 +161,13 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         return var.initExpression()->type();
     }();
     if (!declaredType && !deducedType) {
-        iss.push<InvalidDeclaration>(&var,
-                                     InvalidDeclaration::Reason::CantInferType,
-                                     sym.currentScope());
-        sym.declarePoison(std::string(var.name()));
+        if (!var.initExpression()) {
+            iss.push<InvalidDeclaration>(
+                &var,
+                InvalidDeclaration::Reason::CantInferType,
+                sym.currentScope());
+        }
+        sym.declarePoison(std::string(var.name()), EntityCategory::Value);
         return;
     }
     if (declaredType && deducedType && declaredType->isReference() &&

@@ -596,11 +596,40 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
                 return expr->entityCategory() == entityCat;
             });
         if (!allSameCat) {
+            /// TODO: Make error class `InvalidList`
             iss.push<BadExpression>(list, IssueSeverity::Error);
+            return false;
         }
-        // TODO: Check for common type!
+        bool const allNoExplRef =
+            ranges::none_of(list.elements(), [&](ast::Expression const* expr) {
+                return expr->type()->isExplicitRef();
+            });
+        if (!allNoExplRef) {
+            /// TODO: Make error class `InvalidListElement` with reason `Can
+            /// only store object type in list`
+            iss.push<BadExpression>(list, IssueSeverity::Error);
+            return false;
+        }
+        auto* commonType =
+            sema::commonType(sym,
+                             list.elements() |
+                                 ranges::views::transform(
+                                     [](auto* expr) {
+            return expr->type();
+                                 }) |
+                             ranges::to<utl::small_vector<QualType const*>>);
+        if (!commonType) {
+            /// TODO: Make error class `InvalidList` with reason `CantInferType`
+            iss.push<BadExpression>(list, IssueSeverity::Error);
+            return false;
+        }
+        for (auto* expr: list.elements()) {
+            bool const succ = convertImplicitly(expr, commonType, iss);
+            SC_ASSERT(succ,
+                      "Conversion shall not fail if we have a common type");
+        }
         auto* arrayType =
-            sym.arrayType(first->type()->base(), list.elements().size());
+            sym.arrayType(commonType->base(), list.elements().size());
         auto* qualType = sym.qualify(arrayType);
         list.decorate(nullptr, qualType);
         return true;

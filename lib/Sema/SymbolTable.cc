@@ -191,7 +191,7 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
 }
 
 Expected<PoisonEntity&, SemanticIssue*> SymbolTable::declarePoison(
-    std::string name) {
+    std::string name, EntityCategory cat) {
     using enum InvalidDeclaration::Reason;
     if (isKeyword(name)) {
         return new InvalidDeclaration(nullptr,
@@ -201,7 +201,7 @@ Expected<PoisonEntity&, SemanticIssue*> SymbolTable::declarePoison(
     if (auto* entity = currentScope().findEntity(name)) {
         return new InvalidDeclaration(nullptr, Redefinition, currentScope());
     }
-    auto* entity = addEntity<PoisonEntity>(name, &currentScope());
+    auto* entity = addEntity<PoisonEntity>(name, cat, &currentScope());
     currentScope().add(entity);
     return *entity;
 }

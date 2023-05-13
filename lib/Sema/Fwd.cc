@@ -28,33 +28,6 @@ std::ostream& sema::operator<<(std::ostream& str, EntityCategory cat) {
     // clang-format on
 }
 
-EntityCategory sema::categorize(EntityType entityType) {
-    // clang-format off
-    return UTL_MAP_ENUM(entityType, EntityCategory, {
-        { EntityType::Entity,         EntityCategory::Indeterminate },
-        { EntityType::Scope,          EntityCategory::Indeterminate },
-        { EntityType::GlobalScope,    EntityCategory::Indeterminate },
-        { EntityType::Function,       EntityCategory::Value },
-        { EntityType::Type,           EntityCategory::Type },
-        { EntityType::ObjectType,     EntityCategory::Type },
-        { EntityType::BuiltinType,    EntityCategory::Type },
-        { EntityType::VoidType,       EntityCategory::Type },
-        { EntityType::ArithmeticType, EntityCategory::Type },
-        { EntityType::BoolType,       EntityCategory::Type },
-        { EntityType::ByteType,       EntityCategory::Type },
-        { EntityType::IntType,        EntityCategory::Type },
-        { EntityType::FloatType,      EntityCategory::Type },
-        { EntityType::StructureType,  EntityCategory::Type },
-        { EntityType::ArrayType,      EntityCategory::Type },
-        { EntityType::QualType,       EntityCategory::Type },
-        { EntityType::AnonymousScope, EntityCategory::Indeterminate },
-        { EntityType::OverloadSet,    EntityCategory::Value },
-        { EntityType::Generic,        EntityCategory::Indeterminate },
-        { EntityType::Variable,       EntityCategory::Value },
-        { EntityType::PoisonEntity,   EntityCategory::Indeterminate },
-    }); // clang-format on
-}
-
 std::ostream& sema::operator<<(std::ostream& str, ValueCategory cat) {
     // clang-format off
     return str << UTL_SERIALIZE_ENUM(cat, {

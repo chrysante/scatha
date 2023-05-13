@@ -120,7 +120,8 @@ public:
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
-    Expected<PoisonEntity&, SemanticIssue*> declarePoison(std::string name);
+    Expected<PoisonEntity&, SemanticIssue*> declarePoison(
+        std::string name, EntityCategory category);
 
     ///
     ///

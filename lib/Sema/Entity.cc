@@ -30,6 +30,10 @@ std::string const& Entity::mangledName() const {
     return _mangledName;
 }
 
+EntityCategory Entity::category() const {
+    return visit(*this, [](auto& derived) { return derived.categoryImpl(); });
+}
+
 void Entity::addAlternateName(std::string name) {
     _names.push_back(name);
     if (parent()) {

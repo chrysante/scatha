@@ -6,14 +6,14 @@
 //}
 
 public fn main() {
-    fn f() {}
-    
-    struct s {}
-    
-    let i = f & s;
-    
-    return f + s + i;
 
+    
+    let a = [u32(1), 0.0];
+    
+    for i = 0; i < a.count; ++i {
+        __builtin_puti64(a[i]);
+        __builtin_putchar('\n');
+    }
 }
 
 

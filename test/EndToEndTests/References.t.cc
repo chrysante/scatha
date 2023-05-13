@@ -219,6 +219,19 @@ public fn main() -> int {
 })");
 }
 
+TEST_CASE("Array of heterogeneous but compatible types",
+          "[end-to-end][arrays]") {
+    test::checkReturns(6, R"(
+public fn main() -> int {
+    let a = [u32(1), 2, s8(3)];
+    var sum = 0;
+    for i = 0; i < a.count; ++i {
+        sum += a[i];
+    }
+    return sum;
+})");
+}
+
 TEST_CASE("First string", "[end-to-end][arrays]") {
     test::CoutRerouter cr;
     test::run(R"(

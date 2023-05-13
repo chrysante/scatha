@@ -44,7 +44,7 @@ public:
     EntityType entityType() const { return _entityType; }
 
     /// Category this entity belongs to
-    EntityCategory category() const { return categorize(entityType()); }
+    EntityCategory category() const;
 
     /// `true` if this entity represents a value
     bool isValue() const { return category() == EntityCategory::Value; }
@@ -60,6 +60,10 @@ protected:
         _entityType(entityType), _parent(parent), _names({ std::move(name) }) {}
 
 private:
+    EntityCategory categoryImpl() const {
+        return EntityCategory::Indeterminate;
+    }
+
     EntityType _entityType;
     Scope* _parent = nullptr;
     utl::small_vector<std::string, 1> _names;
@@ -117,6 +121,9 @@ public:
     void setConstantValue(UniquePtr<Value> value);
 
 private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return EntityCategory::Value; }
+
     QualType const* _type;
     size_t _offset = 0;
     size_t _index  = 0;
@@ -334,6 +341,9 @@ public:
     void removeAttribute(FunctionAttribute attr) { attrs &= ~attr; }
 
 private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return EntityCategory::Value; }
+
     friend class SymbolTable;
     FunctionSignature _sig;
     OverloadSet* _overloadSet = nullptr;
@@ -366,6 +376,10 @@ protected:
                   std::string name,
                   Scope* parent):
         Scope(entityType, scopeKind, std::move(name), parent) {}
+
+private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return EntityCategory::Type; }
 };
 
 /// Abstract class representing the type of an object
@@ -644,6 +658,10 @@ public:
     using VecBase::operator[];
     using VecBase::back;
     using VecBase::front;
+
+private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return EntityCategory::Value; }
 };
 
 /// # Generic
@@ -667,8 +685,17 @@ private:
 /// messages
 class SCATHA_API PoisonEntity: public Entity {
 public:
-    explicit PoisonEntity(std::string name, Scope* parentScope):
-        Entity(EntityType::PoisonEntity, std::move(name), parentScope) {}
+    explicit PoisonEntity(std::string name,
+                          EntityCategory cat,
+                          Scope* parentScope):
+        Entity(EntityType::PoisonEntity, std::move(name), parentScope),
+        cat(cat) {}
+
+private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return cat; }
+
+    EntityCategory cat;
 };
 
 } // namespace scatha::sema
