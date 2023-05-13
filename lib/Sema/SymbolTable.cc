@@ -178,15 +178,13 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
 }
 
 Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
-    std::string name, QualType const* type, size_t offset) {
+    std::string name, QualType const* type) {
     auto declResult = declareVariable(std::move(name));
     if (!declResult) {
         return declResult.error();
     }
     auto& var = *declResult;
     var.setType(type);
-    /// TODO: Temporary measure. Should remove parameter `offset`
-    SC_ASSERT(offset == 0, "");
     return var;
 }
 

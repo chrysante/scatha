@@ -105,11 +105,10 @@ public:
     ///
     /// \returns Reference to declared variable if no error occurs.
     ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if name of \p
-    /// varDecl is already in use in the current scope.
+    /// \returns `InvalidDeclaration` with reason `Redefinition` if name of
+    /// \p varDecl is already in use in the current scope.
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
-                                                    QualType const* type,
-                                                    size_t offset = 0);
+                                                    QualType const* type);
 
     /// \brief Declares an anonymous scope within the current scope.
     ///

@@ -18,19 +18,19 @@ TEST_CASE("SymbolTable lookup", "[sema]") {
 
 TEST_CASE("SymbolTable define custom type", "[sema]") {
     sema::SymbolTable sym;
-    // Define function 'i' in the global scope
+    /// Declare function `i` in the global scope
     auto* fnI = &sym.declareFunction("i").value();
     auto const overloadSuccessI =
         sym.setSignature(fnI,
                          sema::FunctionSignature({ sym.qS64() }, sym.qS64()));
     REQUIRE(overloadSuccessI);
     auto* xType = &sym.declareStructureType("X").value();
-    // Begin X
+    /// Begin `struct X`
     sym.pushScope(xType);
-    // Add member variable 'i' to
+    /// Add member variable `i` to
     auto* memberI = &sym.addVariable("i", sym.qS64()).value();
     sym.popScope();
-    // End X
+    /// End `X`
     xType->setSize(8);
     auto const* const overloadSet = sym.lookup<sema::OverloadSet>("i");
     REQUIRE(overloadSet != nullptr);

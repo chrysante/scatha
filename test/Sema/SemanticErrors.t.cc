@@ -332,7 +332,7 @@ fn main() {
     let d: [int, 1, int];
 })");
 
-    auto cmnType      = issues.findOnLine<InvalidListExpr>(3);
+    auto cmnType = issues.findOnLine<InvalidListExpr>(3);
     REQUIRE(cmnType);
     CHECK(cmnType->reason() == InvalidListExpr::NoCommonType);
 
