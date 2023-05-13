@@ -121,6 +121,7 @@ std::ostream& sema::operator<<(std::ostream& str, InvalidStatement::Reason r) {
           "Expected declaration" },
         { InvalidStatement::Reason::InvalidDeclaration,
           "Invalid declaration" },
+        { InvalidStatement::Reason::InvalidJump, "Invalid location for jump" },
         { InvalidStatement::Reason::InvalidScopeForStatement,
           "Invalid scope for statement" },
         { InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,

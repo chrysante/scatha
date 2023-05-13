@@ -350,3 +350,27 @@ fn main() {
     REQUIRE(invCount);
     CHECK(invCount->reason() == InvalidListExpr::InvalidElemCountForArrayType);
 }
+
+TEST_CASE("Invalid jump", "[sema][issue]") {
+    auto const issues = test::getSemaIssues(R"(
+fn main() {
+    break;
+    if 1 == 0 {
+        continue;
+    }
+    for i = 0; i < 10; ++i {
+        break;
+        continue;
+    }
+    while true {
+        if 1 == 2 {
+            break;
+        }
+    }
+})");
+    CHECK(issues.findOnLine<InvalidStatement>(3));
+    CHECK(issues.findOnLine<InvalidStatement>(5));
+    CHECK(issues.noneOnLine(8));
+    CHECK(issues.noneOnLine(9));
+    CHECK(issues.noneOnLine(13));
+}

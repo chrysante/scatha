@@ -332,10 +332,23 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
     analyze(*stmt.block());
 }
 
-void Context::analyzeImpl(ast::JumpStatement& s) {
-    /// Need to check if we are in a loop but unfortunately we don't have parent
-    /// pointers so it's hard to check.
-    /// TODO: We have parent pointers, implement this
+void Context::analyzeImpl(ast::JumpStatement& stmt) {
+    auto* parent = stmt.parent();
+    while (true) {
+        if (!parent) {
+            break;
+        }
+        if (isa<ast::FunctionDefinition>(parent)) {
+            break;
+        }
+        if (isa<ast::LoopStatement>(parent)) {
+            return;
+        }
+        parent = parent->parent();
+    }
+    iss.push<InvalidStatement>(&stmt,
+                               InvalidStatement::Reason::InvalidJump,
+                               sym.currentScope());
 }
 
 QualType const* Context::getDeclaredType(ast::Expression* expr) {

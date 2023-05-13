@@ -170,6 +170,7 @@ public:
     enum class Reason {
         ExpectedDeclaration,
         InvalidDeclaration,
+        InvalidJump,
         InvalidScopeForStatement,
         NonVoidFunctionMustReturnAValue,
         VoidFunctionMustNotReturnAValue,
