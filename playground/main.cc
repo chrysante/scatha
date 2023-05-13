@@ -6,8 +6,6 @@
 
 #include <utl/vector.hpp>
 
-#include "APFloatTest.h"
-#include "Assembly.h"
 #include "CodeGen/Passes.h"
 #include "DrawGraph.h"
 #include "HostIntegration.h"
@@ -30,13 +28,11 @@ enum class ProgramCase {
     SampleCompiler,
     IRDump,
     Volatile,
-    ASMTest,
     EmitCFG,
     EmitCallGraph,
     EmitUseGraph,
     EmitInterferenceGraph,
     HostIntegration,
-    APFloatTest
 };
 
 struct Option {
@@ -78,13 +74,11 @@ int main(int argc, char const* const* argv) {
         { "sample-compiler", ProgramCase::SampleCompiler },
         { "ir-dump", ProgramCase::IRDump },
         { "volatile", ProgramCase::Volatile },
-        { "test-asm", ProgramCase::ASMTest },
         { "emit-cfg", ProgramCase::EmitCFG },
         { "emit-callgraph", ProgramCase::EmitCallGraph },
         { "emit-use-graph", ProgramCase::EmitUseGraph },
         { "emit-interference-graph", ProgramCase::EmitInterferenceGraph },
         { "host-int", ProgramCase::HostIntegration },
-        { "apfloat-test", ProgramCase::APFloatTest }
     };
     auto const parseResult = parse(argc, argv);
     if (!parseResult) {
@@ -108,9 +102,6 @@ int main(int argc, char const* const* argv) {
         break;
     case ProgramCase::Volatile:
         volatilePlayground(filepath);
-        break;
-    case ProgramCase::ASMTest:
-        testAsmModule();
         break;
     case ProgramCase::EmitCFG: {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);
@@ -172,9 +163,6 @@ int main(int argc, char const* const* argv) {
     case ProgramCase::HostIntegration:
         hostIntegration(std::filesystem::path(PROJECT_LOCATION) /
                         "playground/host-int.sc");
-        break;
-    case ProgramCase::APFloatTest:
-        apFloatTest();
         break;
     default:
         break;
