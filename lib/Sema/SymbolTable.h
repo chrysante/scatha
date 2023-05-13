@@ -3,20 +3,13 @@
 #ifndef SCATHA_SEMA_SYMBOLTABLE_H_
 #define SCATHA_SEMA_SYMBOLTABLE_H_
 
-#include <atomic>
 #include <memory>
+#include <span>
 #include <string>
-
-#include <range/v3/view.hpp>
-#include <utl/common.hpp>
-#include <utl/hashmap.hpp>
-#include <utl/hashset.hpp>
-#include <utl/scope_guard.hpp>
-#include <utl/vector.hpp>
+#include <vector>
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
-#include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Fwd.h>
 
 namespace scatha::sema {
@@ -170,28 +163,26 @@ public:
     /// the call.
     void makeScopeCurrent(Scope* scope);
 
-    decltype(auto) withScopePushed(Scope* scope,
-                                   std::invocable auto&& f) const {
-        utl::scope_guard pop = [this] { utl::as_mutable(*this).popScope(); };
-        utl::as_mutable(*this).pushScope(scope);
-        return f();
-    }
-
+    /// Invoke function \p f with scope \p scope made current
     decltype(auto) withScopeCurrent(Scope* scope,
                                     std::invocable auto&& f) const {
-        SC_ASSERT(scope != nullptr, "");
-        utl::scope_guard pop = [this, old = &utl::as_mutable(currentScope())] {
-            utl::as_mutable(*this).makeScopeCurrent(old);
-        };
-        utl::as_mutable(*this).makeScopeCurrent(scope);
-        return f();
+        static constexpr bool IsVoid =
+            std::is_same_v<std::invoke_result_t<decltype(f)>, void>;
+        auto& mutThis = const_cast<SymbolTable&>(*this);
+        auto* old     = &const_cast<Scope&>(currentScope());
+        mutThis.makeScopeCurrent(scope);
+        if constexpr (IsVoid) {
+            std::invoke(f);
+            mutThis.makeScopeCurrent(old);
+        }
+        else {
+            decltype(auto) result = std::invoke(f);
+            mutThis.makeScopeCurrent(old);
+            return result;
+        }
     }
 
     /// ## Queries
-
-    Function* builtinFunction(size_t index) const {
-        return _builtinFunctions[index];
-    }
 
     /// Find entity by name within the current scope
     Entity* lookup(std::string_view name) {
@@ -213,26 +204,48 @@ public:
         return dyncast_or_null<E const*>(lookup(name));
     }
 
-    Scope& currentScope() { return *_currentScope; }
-    Scope const& currentScope() const { return *_currentScope; }
+    /// \Returns The builtin function at index \p index
+    Function* builtinFunction(size_t index) const;
 
-    GlobalScope& globalScope() { return *_globalScope; }
-    GlobalScope const& globalScope() const { return *_globalScope; }
+    /// \Returns The currently active scope
+    Scope& currentScope();
 
-    /// Getters for builtin types
-    VoidType const* Void() const { return _void; }
-    ByteType const* Byte() const { return _byte; }
-    BoolType const* Bool() const { return _bool; }
-    IntType const* S8() const { return _s8; }
-    IntType const* S16() const { return _s16; }
-    IntType const* S32() const { return _s32; }
-    IntType const* S64() const { return _s64; }
-    IntType const* U8() const { return _u8; }
-    IntType const* U16() const { return _u16; }
-    IntType const* U32() const { return _u32; }
-    IntType const* U64() const { return _u64; }
-    FloatType const* F32() const { return _f32; }
-    FloatType const* F64() const { return _f64; }
+    /// \overload
+    Scope const& currentScope() const;
+
+    /// \Returns The global scope
+    GlobalScope& globalScope();
+
+    /// \overload
+    GlobalScope const& globalScope() const;
+
+    /// ## Getters for builtin types
+
+    VoidType const* Void() const;
+
+    ByteType const* Byte() const;
+
+    BoolType const* Bool() const;
+
+    IntType const* S8() const;
+
+    IntType const* S16() const;
+
+    IntType const* S32() const;
+
+    IntType const* S64() const;
+
+    IntType const* U8() const;
+
+    IntType const* U16() const;
+
+    IntType const* U32() const;
+
+    IntType const* U64() const;
+
+    FloatType const* F32() const;
+
+    FloatType const* F64() const;
 
     IntType const* intType(size_t width, Signedness signedness);
 
@@ -263,60 +276,24 @@ public:
     QualType const* qF64(Reference = Reference::None);
 
     /// Review if we want to keep these:
-    void setSortedStructureTypes(utl::vector<StructureType*> ids) {
-        _sortedStructureTypes = std::move(ids);
-    }
+    void setStructDependencyOrder(std::vector<StructureType*> ids);
 
-    /// View over topologically sorted object types
-    std::span<StructureType const* const> sortedStructureTypes() const {
-        return _sortedStructureTypes;
-    }
+    /// View over topologically sorted struct types
+    std::span<StructureType const* const> structDependencyOrder() const;
 
     /// View over all functions
-    std::span<Function const* const> functions() const { return _functions; }
+    std::span<Function const* const> functions() const;
 
 private:
+    struct Impl;
+
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);
 
     template <typename E, typename... Args>
     E* addEntity(Args&&... args);
 
-private:
-    GlobalScope* _globalScope = nullptr;
-    Scope* _currentScope      = nullptr;
-
-    u64 _idCounter = 1;
-
-    utl::vector<UniquePtr<Entity>> _entities;
-
-    utl::hashmap<std::tuple<ObjectType const*, Reference, Mutability>,
-                 QualType const*>
-        _qualTypes;
-
-    utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
-        _arrayTypes;
-
-    utl::vector<StructureType*> _sortedStructureTypes;
-
-    utl::small_vector<Function*> _functions;
-
-    utl::vector<Function*> _builtinFunctions;
-
-    /// Builtin types
-    VoidType* _void;
-    ByteType* _byte;
-    BoolType* _bool;
-    IntType* _s8;
-    IntType* _s16;
-    IntType* _s32;
-    IntType* _s64;
-    IntType* _u8;
-    IntType* _u16;
-    IntType* _u32;
-    IntType* _u64;
-    FloatType* _f32;
-    FloatType* _f64;
+    std::unique_ptr<Impl> impl;
 };
 
 } // namespace scatha::sema

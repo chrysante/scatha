@@ -107,7 +107,7 @@ void Context::run() {
                  [&](size_t index) -> auto const& {
                      return dependencyGraph[index].dependencies;
                  });
-    utl::small_vector<StructureType*> sortedStructTypes;
+    std::vector<StructureType*> sortedStructTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {
         auto& node = dependencyGraph[index];
@@ -122,7 +122,7 @@ void Context::run() {
             [&](Entity const&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
-    sym.setSortedStructureTypes(std::move(sortedStructTypes));
+    sym.setStructDependencyOrder(std::move(sortedStructTypes));
 }
 
 void Context::instantiateStructureType(DependencyGraphNode& node) {
