@@ -152,6 +152,12 @@ public:
     /// \details \p scope must be a child scope of the current scope.
     void pushScope(Scope* scope);
 
+    /// \brief Makes scope with name \p name the current scope.
+    ///
+    /// \Returns `false` if \p name is not the same of a child scope of the
+    /// current scope, `true` otherwise
+    bool pushScope(std::string_view name);
+
     /// \brief Makes current the parent scope of the current scope.
     ///
     /// \warning Current scope must not be the global scope.
@@ -282,7 +288,13 @@ public:
     std::span<StructureType const* const> structDependencyOrder() const;
 
     /// View over all functions
+    std::span<Function* const> functions();
+
+    /// \overload
     std::span<Function const* const> functions() const;
+
+    /// All entities
+    std::vector<Entity const*> entities() const;
 
 private:
     struct Impl;

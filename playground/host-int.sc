@@ -1,19 +1,24 @@
 
-public fn print(msg: &[byte]) {
-    __builtin_putstr(&msg);
-}
 
-fn print(n: int) {
-    __builtin_puti64(n);
+struct X {
+
+    public fn print(msg: &[byte]) {
+        __builtin_putstr(&msg);
+    }
+    
+    fn print(n: int) {
+        __builtin_puti64(n);
+    }
+
 }
 
 public fn main(n: int) -> int {
-    print("Hello world\n");
+    X.print("Hello world\n");
     let cppVal = cppCallback(7);
     
-    print("Recieved from C++: ");
-    print(cppVal);
-    print("\n");
+    X.print("Recieved from C++: ");
+    X.print(cppVal);
+    X.print("\n");
     
     return 42;
 }
@@ -23,9 +28,9 @@ public fn fac(n: int) -> int {
 }
 
 public fn callback(n: int) {
-    print("Callback\n");
-    print(n);
-    print(fac(n));
+    X.print("Callback\n");
+    X.print(n);
+    X.print(fac(n));
 }
 
 public fn allocate(bytes: int) -> &mut [byte] {

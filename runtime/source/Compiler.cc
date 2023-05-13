@@ -1,6 +1,7 @@
 #include <scatha/Runtime/Compiler.h>
 
 #include <iostream>
+#include <memory>
 
 #include <svm/VirtualMachine.h>
 #include <utl/vector.hpp>
@@ -25,7 +26,9 @@ using namespace scatha;
 struct Compiler::Impl {
     static constexpr size_t FunctionSlot = 2;
 
-    sema::SymbolTable sym;
+    Impl(): sym(std::make_unique<sema::SymbolTable>()) {}
+
+    std::unique_ptr<sema::SymbolTable> sym;
     size_t slotIndex = 0;
 };
 
@@ -41,14 +44,14 @@ std::optional<ExtFunctionID> Compiler::declareFunction(
     std::string name, QualType returnType, std::span<QualType const> argTypes) {
     ExtFunctionID const result{ impl->FunctionSlot, impl->slotIndex };
     bool success =
-        impl->sym.declareSpecialFunction(sema::FunctionKind::External,
-                                         std::move(name),
-                                         result.slot,
-                                         result.index,
-                                         toSemaSig(impl->sym,
-                                                   returnType,
-                                                   argTypes),
-                                         sema::FunctionAttribute::None);
+        impl->sym->declareSpecialFunction(sema::FunctionKind::External,
+                                          std::move(name),
+                                          result.slot,
+                                          result.index,
+                                          toSemaSig(*impl->sym,
+                                                    returnType,
+                                                    argTypes),
+                                          sema::FunctionAttribute::None);
     if (success) {
         ++impl->slotIndex;
         return result;
@@ -72,13 +75,13 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
         return nullptr;
     }
 
-    sema::analyze(*astRoot, impl->sym, iss);
+    sema::analyze(*astRoot, *impl->sym, iss);
     if (iss.haveErrors()) {
         return nullptr;
     }
 
     ir::Context ctx;
-    auto mod = ast::lowerToIR(*astRoot, impl->sym, ctx);
+    auto mod = ast::lowerToIR(*astRoot, *impl->sym, ctx);
     if (settings.optimize) {
         opt::inlineFunctions(ctx, mod);
         opt::deadFuncElim(ctx, mod);
@@ -86,8 +89,23 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
     auto asmStream = cg::codegen(mod);
     auto asmResult = Asm::assemble(asmStream);
 
-    return std::make_unique<Program>(std::move(asmResult.symbolTable),
-                                     std::move(asmResult.program));
+    for (auto* f: impl->sym->functions()) {
+        if (!f->isNative() ||
+            f->accessSpecifier() != sema::AccessSpecifier::Public)
+        {
+            continue;
+        }
+        auto itr = asmResult.symbolTable.find(f->mangledName());
+        SC_ASSERT(
+            itr != asmResult.symbolTable.end(),
+            "Public (externally visible) functions must have a binary address");
+        f->setBinaryAddress(itr->second);
+    }
+
+    auto result = std::make_unique<Program>(std::move(asmResult.program),
+                                            std::move(impl->sym));
+    *this       = Compiler();
+    return result;
 }
 
 std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,

@@ -65,16 +65,16 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->_void = declareBuiltinType<VoidType>();
     impl->_byte = declareBuiltinType<ByteType>();
     impl->_bool = declareBuiltinType<BoolType>();
-    impl->_s8   = declareBuiltinType<IntType>(8, Signed);
-    impl->_s16  = declareBuiltinType<IntType>(16, Signed);
-    impl->_s32  = declareBuiltinType<IntType>(32, Signed);
-    impl->_s64  = declareBuiltinType<IntType>(64, Signed);
-    impl->_u8   = declareBuiltinType<IntType>(8, Unsigned);
-    impl->_u16  = declareBuiltinType<IntType>(16, Unsigned);
-    impl->_u32  = declareBuiltinType<IntType>(32, Unsigned);
-    impl->_u64  = declareBuiltinType<IntType>(64, Unsigned);
-    impl->_f32  = declareBuiltinType<FloatType>(32);
-    impl->_f64  = declareBuiltinType<FloatType>(64);
+    impl->_s8   = declareBuiltinType<IntType>(8u, Signed);
+    impl->_s16  = declareBuiltinType<IntType>(16u, Signed);
+    impl->_s32  = declareBuiltinType<IntType>(32u, Signed);
+    impl->_s64  = declareBuiltinType<IntType>(64u, Signed);
+    impl->_u8   = declareBuiltinType<IntType>(8u, Unsigned);
+    impl->_u16  = declareBuiltinType<IntType>(16u, Unsigned);
+    impl->_u32  = declareBuiltinType<IntType>(32u, Unsigned);
+    impl->_u64  = declareBuiltinType<IntType>(64u, Unsigned);
+    impl->_f32  = declareBuiltinType<FloatType>(32u);
+    impl->_f64  = declareBuiltinType<FloatType>(64u);
 
     impl->_s64->addAlternateName("int");
     impl->_f32->addAlternateName("float");
@@ -182,7 +182,7 @@ bool SymbolTable::declareSpecialFunction(FunctionKind kind,
                                          size_t index,
                                          FunctionSignature signature,
                                          FunctionAttribute attrs) {
-    withScopeCurrent(&globalScope(), [&] {
+    return withScopeCurrent(&globalScope(), [&] {
         auto declResult = declareFunction(std::move(name));
         if (!declResult) {
             return false;
@@ -311,6 +311,15 @@ void SymbolTable::pushScope(Scope* scope) {
     impl->_currentScope = scope;
 }
 
+bool SymbolTable::pushScope(std::string_view name) {
+    auto* scope = currentScope().findEntity<Scope>(name);
+    if (!scope) {
+        return false;
+    }
+    pushScope(scope);
+    return true;
+}
+
 void SymbolTable::popScope() { impl->_currentScope = currentScope().parent(); }
 
 void SymbolTable::makeScopeCurrent(Scope* scope) {
@@ -409,14 +418,22 @@ void SymbolTable::setStructDependencyOrder(
     impl->_structOrder = std::move(structs);
 }
 
-/// View over topologically sorted struct types
 std::span<StructureType const* const> SymbolTable::structDependencyOrder()
     const {
     return impl->_structOrder;
 }
 
+std::span<Function* const> SymbolTable::functions() { return impl->_functions; }
+
 std::span<Function const* const> SymbolTable::functions() const {
     return impl->_functions;
+}
+
+std::vector<Entity const*> SymbolTable::entities() const {
+    return impl->_entities |
+           ranges::views::transform(
+               [](auto& p) -> auto const* { return p.get(); }) |
+           ranges::to<std::vector>;
 }
 
 template <typename E, typename... Args>

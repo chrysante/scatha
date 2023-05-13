@@ -43,13 +43,9 @@ void playground::compile(std::filesystem::path filepath) {
 }
 
 void playground::compile(std::string text) {
-    // Lexical analysis
-    IssueHandler issues;
-    auto tokens = parse::lex(text, issues);
-    issues.print(text);
-
     // Parsing
-    auto ast = parse::parse(tokens, issues);
+    IssueHandler issues;
+    auto ast = parse::parse(text, issues);
     issues.print(text);
     if (!issues.empty()) {
         return;

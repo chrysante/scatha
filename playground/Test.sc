@@ -1,9 +1,12 @@
 
-public fn clamp(val: float, min: float, max: float) -> float {
-    return val < min ? min : val > max ? max : val;
+struct X {
+
+    fn print(n: int) {
+        __builtin_puti64(n);
+    }
+
 }
 
-fn main() -> float {
-    let f: float = 1;
-    // return clamp(123.0, 0, 1);
+public fn main() {
+    X.print("1");
 }

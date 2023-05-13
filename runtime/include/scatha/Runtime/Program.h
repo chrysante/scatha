@@ -10,13 +10,24 @@
 
 #include <scatha/Runtime/Common.h>
 
+namespace scatha::sema {
+
+class SymbolTable;
+
+} // namespace scatha::sema
+
 namespace scatha {
 
 class Program {
 public:
-    explicit Program(std::unordered_map<std::string, size_t> sym,
-                     std::vector<uint8_t> bin):
-        sym(std::move(sym)), bin(std::move(bin)) {}
+    explicit Program(std::vector<uint8_t> bin,
+                     std::unique_ptr<sema::SymbolTable> sym);
+
+    Program(Program&&) noexcept;
+
+    Program& operator=(Program&&) noexcept;
+
+    ~Program();
 
     /// Find address of function \p name with argument types \p argTypes
     std::optional<size_t> findAddress(std::string_view name,
@@ -31,9 +42,12 @@ public:
     /// The binary data representation of the program
     uint8_t const* binary() const { return bin.data(); }
 
+    /// The symbol table
+    sema::SymbolTable const& symbolTable() const { return *sym; }
+
 private:
-    std::unordered_map<std::string, size_t> sym;
     std::vector<uint8_t> bin;
+    std::unique_ptr<sema::SymbolTable> sym;
 };
 
 } // namespace scatha

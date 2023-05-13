@@ -225,7 +225,7 @@ public:
         _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
 
     Type const* type() const {
-        /// Don't have function types yet. Not we if we even need them though
+        /// Don't have function types yet. Not sure we if we even need them though
         SC_UNIMPLEMENTED();
     }
 
@@ -323,6 +323,14 @@ public:
     /// Only applicable if this function is extern.
     size_t index() const { return _index; }
 
+    /// The address of this function in the compiled binary
+    /// Only has a value if this function is declared externally visible and
+    /// program has been compiled
+    std::optional<size_t> binaryAddress() const {
+        return _haveBinaryAddress ? std::optional(_binaryAddress) :
+                                    std::nullopt;
+    }
+
     /// \returns Bitfield of function attributes
     FunctionAttribute attributes() const { return attrs; }
 
@@ -340,6 +348,11 @@ public:
     /// Set attribute \p attr to `false`.
     void removeAttribute(FunctionAttribute attr) { attrs &= ~attr; }
 
+    void setBinaryAddress(size_t addr) {
+        _haveBinaryAddress = true;
+        _binaryAddress     = addr;
+    }
+
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
@@ -348,11 +361,13 @@ private:
     FunctionSignature _sig;
     OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;
-    AccessSpecifier accessSpec = AccessSpecifier::Private;
-    FunctionKind _kind         = FunctionKind::Native;
-    bool _isMember : 1         = false;
-    u16 _slot                  = 0;
-    u32 _index                 = 0;
+    AccessSpecifier accessSpec  = AccessSpecifier::Private;
+    FunctionKind _kind          = FunctionKind::Native;
+    bool _isMember          : 1 = false;
+    bool _haveBinaryAddress : 1 = false;
+    u16 _slot                   = 0;
+    u32 _index                  = 0;
+    size_t _binaryAddress       = 0;
 };
 
 /// # Types

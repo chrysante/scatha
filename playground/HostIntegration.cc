@@ -34,9 +34,9 @@ void playground::hostIntegration(std::filesystem::path path) {
         std::cout << "Failed to declare cppCallback\n";
         return;
     }
-    auto cbID2 = compiler.declareFunction("cppCallback", Int, { Int });
+    auto cbID2 = compiler.declareFunction("cppCallback2", Int, { Int });
     if (!cbID2) {
-        std::cout << "Failed to declare cppCallback\n";
+        std::cout << "Failed to declare cppCallback2\n";
         return;
     }
 
@@ -72,7 +72,7 @@ void playground::hostIntegration(std::filesystem::path path) {
 
     auto alloc   = prog->findAddress("allocate", { Int });
     auto dealloc = prog->findAddress("deallocate", { { Byte, MutArrayRef } });
-    auto print   = prog->findAddress("print", { { Byte, ArrayRef } });
+    auto print   = prog->findAddress("X.print", { { Byte, ArrayRef } });
 
     char const message[] = "My message stored in foreign buffer\n";
 

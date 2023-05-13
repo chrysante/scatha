@@ -31,8 +31,7 @@ template <typename T>
 static constexpr std::string_view typeToStr() {
 #define SVM_TYPETOSTR_CASE(type)                                               \
     else if constexpr (std::is_same_v<T, type>) { return #type; }
-    if constexpr (false)
-        ; /// First case for the macro to work.
+    if constexpr (false) (void)0; /// First case for the macro to work.
     SVM_TYPETOSTR_CASE(u8)
     SVM_TYPETOSTR_CASE(u16)
     SVM_TYPETOSTR_CASE(u32)
@@ -83,7 +82,10 @@ void svm::print(u8 const* progData, std::ostream& str) {
     for (unsigned b: data) {
         str << std::hex << b;
     }
-    str << "\n\n";
+    if (!data.empty()) {
+        str << "\n";
+    }
+    str << "\n";
 
     str << ".text:\n";
     std::span<u8 const> text = p.instructions;
