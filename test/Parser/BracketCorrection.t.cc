@@ -54,8 +54,6 @@ TEST_CASE("BracketCorrection - Missing closing brackets at end of file",
         auto const [tokens, iss] = correctBrackets("([{");
         auto const& issues       = iss.iss;
         REQUIRE(issues.size() == 3);
-        // TODO: Check for right bracket type once we added that information to
-        // SyntaxIssue
         {
             auto const* curlyIssue = &issues[0];
             CHECK(dynamic_cast<ExpectedClosingBracket const*>(curlyIssue));

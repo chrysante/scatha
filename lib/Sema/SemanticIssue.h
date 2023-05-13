@@ -271,6 +271,15 @@ private:
 
 std::ostream& operator<<(std::ostream& ostream, InvalidListExpr::Reason reason);
 
+class InvalidNameLookup: public BadExpression {
+public:
+    explicit InvalidNameLookup(ast::Expression const& expr):
+        BadExpression(expr, IssueSeverity::Error) {}
+
+private:
+    void format(std::ostream&) const override;
+};
+
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_SEMAISSUE_H_

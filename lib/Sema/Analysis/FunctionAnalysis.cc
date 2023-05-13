@@ -158,10 +158,15 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
                                          EntityCategory::Value);
             return nullptr;
         }
+        if (!var.initExpression()->type()) {
+            /// TODO: Make better error class
+            iss.push<BadExpression>(*var.initExpression());
+            return nullptr;
+        }
         return var.initExpression()->type();
     }();
     if (!declaredType && !deducedType) {
-        if (!var.initExpression()) {
+        if (!var.typeExpr() && !var.initExpression()) {
             iss.push<InvalidDeclaration>(
                 &var,
                 InvalidDeclaration::Reason::CantInferType,

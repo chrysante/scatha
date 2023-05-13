@@ -288,9 +288,7 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
         return rewritePropertyCall(ma);
     }
     if (ma.object()->isValue() && !ma.member()->isValue()) {
-        SC_UNIMPLEMENTED(); /// Can't look in a value and then in a type.
-                            /// **Solution:** Make an error type
-                            /// `InvalidNameLookup` and push that here
+        iss.push<InvalidNameLookup>(ma);
         return false;
     }
     ma.decorate(ma.member()->entity(),

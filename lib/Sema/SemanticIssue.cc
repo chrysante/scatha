@@ -184,3 +184,7 @@ std::ostream& sema::operator<<(std::ostream& str, InvalidListExpr::Reason r) {
           "No common type" },
     }); // clang-format on
 }
+
+void InvalidNameLookup::format(std::ostream& str) const {
+    str << "Invalid name lookup";
+}

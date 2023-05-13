@@ -202,10 +202,11 @@ static void pass(ir::Context& ctx,
     issues.clear();
     sema::SymbolTable sym;
     sema::analyze(*root, sym, issues);
-    ast::printTree(*root);
-
     if (!issues.empty()) {
         issues.print(source);
+    }
+    ast::printTree(*root);
+    if (!issues.empty()) {
         return;
     }
 
