@@ -24,6 +24,7 @@ export fn main() {
 ``` 
 
 *Note that this example will not compile because the `print()` function is not defined*
+*Also note that right now for binary visibility the `public` keyword is used, but this will be changed to the more fitting `export`*
 
 ## Statements
 
