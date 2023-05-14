@@ -227,6 +227,8 @@ public:
 
     /// ## Getters for builtin types
 
+    IntType const* rawIntType(size_t width, Signedness signedness);
+
     VoidType const* rawVoid() const;
 
     ByteType const* rawByte() const;
@@ -253,7 +255,7 @@ public:
 
     FloatType const* rawF64() const;
 
-    IntType const* rawIntType(size_t width, Signedness signedness);
+    ArrayType const* rawStr() const;
 
     QualType const* Void(Reference = Reference::None);
 
@@ -280,6 +282,8 @@ public:
     QualType const* F32(Reference = Reference::None);
 
     QualType const* F64(Reference = Reference::None);
+
+    QualType const* Str(Reference = Reference::None);
 
     /// Review if we want to keep these:
     void setStructDependencyOrder(std::vector<StructureType*> ids);

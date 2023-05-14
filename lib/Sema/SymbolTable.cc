@@ -56,6 +56,7 @@ struct SymbolTable::Impl {
     IntType* _u64;
     FloatType* _f32;
     FloatType* _f64;
+    ArrayType* _str;
 };
 
 SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
@@ -75,10 +76,14 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->_u64  = declareBuiltinType<IntType>(64u, Unsigned);
     impl->_f32  = declareBuiltinType<FloatType>(32u);
     impl->_f64  = declareBuiltinType<FloatType>(64u);
+    impl->_str =
+        const_cast<ArrayType*>(arrayType(rawByte(), ArrayType::DynamicCount));
 
     impl->_s64->addAlternateName("int");
     impl->_f32->addAlternateName("float");
     impl->_f64->addAlternateName("double");
+    globalScope().add(impl->_str);
+    impl->_str->addAlternateName("str");
 
     /// Declare builtin functions
     impl->_builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
@@ -377,6 +382,8 @@ FloatType const* SymbolTable::rawF32() const { return impl->_f32; }
 
 FloatType const* SymbolTable::rawF64() const { return impl->_f64; }
 
+ArrayType const* SymbolTable::rawStr() const { return impl->_str; }
+
 QualType const* SymbolTable::Void(Reference ref) {
     return qualify(rawVoid(), ref);
 }
@@ -423,6 +430,10 @@ QualType const* SymbolTable::F32(Reference ref) {
 
 QualType const* SymbolTable::F64(Reference ref) {
     return qualify(rawF64(), ref);
+}
+
+QualType const* SymbolTable::Str(Reference ref) {
+    return qualify(rawStr(), ref);
 }
 
 IntType const* SymbolTable::rawIntType(size_t width, Signedness signedness) {

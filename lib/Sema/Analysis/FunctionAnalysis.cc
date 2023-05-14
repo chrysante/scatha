@@ -41,6 +41,7 @@ struct Context {
     SymbolTable& sym;
     IssueHandler& iss;
     ast::FunctionDefinition* currentFunction = nullptr;
+    size_t paramIndex                        = 0;
 };
 
 } // namespace
@@ -97,8 +98,8 @@ void Context::analyzeImpl(ast::FunctionDefinition& fn) {
     fn.decorate(function, function->returnType());
     fn.body()->decorate(function);
     function->setAccessSpecifier(translateAccessSpec(fn.accessSpec()));
-    currentFunction                    = &fn;
-    utl::armed_scope_guard popFunction = [&] { currentFunction = nullptr; };
+    currentFunction = &fn;
+    paramIndex      = 0;
     sym.pushScope(function);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto* param: fn.parameters()) {
@@ -212,7 +213,7 @@ void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
               "parameters.");
     SC_ASSERT(!paramDecl.isDecorated(),
               "We should not have handled parameters in prepass.");
-    auto* declaredType = getDeclaredType(paramDecl.typeExpr());
+    auto* declaredType = currentFunction->function()->argumentType(paramIndex);
     auto paramRes =
         sym.addVariable(std::string(paramDecl.name()), declaredType);
     if (!paramRes) {
@@ -221,6 +222,7 @@ void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     }
     auto& param = *paramRes;
     paramDecl.decorate(&param, declaredType);
+    ++paramIndex;
 }
 
 void Context::analyzeImpl(ast::ThisParameter& thisParam) {
@@ -243,6 +245,7 @@ void Context::analyzeImpl(ast::ThisParameter& thisParam) {
     function->setIsMember();
     auto& param = *paramRes;
     thisParam.decorate(&param, qualType);
+    ++paramIndex;
 }
 
 void Context::analyzeImpl(ast::ExpressionStatement& es) {

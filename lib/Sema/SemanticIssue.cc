@@ -45,7 +45,8 @@ void BadOperandForUnaryExpression::format(std::ostream& str) const {
 }
 
 void BadOperandsForBinaryExpression::format(std::ostream& str) const {
-    str << "Invalid operands for binary expression";
+    str << "Invalid operands for binary expression: `" << lhs()->name()
+        << "` and `" << rhs()->name() << "`";
 }
 
 InvalidStatement::InvalidStatement(ast::Statement const* statement,

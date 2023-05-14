@@ -57,7 +57,7 @@ using namespace playground;
 
 static void run(Asm::AssemblyStream const& assembly) {
     auto [program, symbolTable] = Asm::assemble(assembly);
-    svm::print(program.data());
+    // svm::print(program.data());
     svm::VirtualMachine vm;
     vm.loadBinary(program.data());
     auto mainPos =
@@ -85,8 +85,8 @@ static void run(Asm::AssemblyStream const& assembly) {
 
 static void run(ir::Module const& mod) {
     auto assembly = cg::codegen(mod);
-    // header("Assembly");
-    // Asm::print(assembly);
+    header("Assembly");
+    Asm::print(assembly);
     header("Execution");
     run(assembly);
 }

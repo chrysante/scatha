@@ -1,12 +1,8 @@
 
-struct X {
-
-    fn print(n: int) {
-        __builtin_puti64(n);
-    }
-
+fn print(msg: &str) {
+    __builtin_putstr(&msg);
 }
 
 public fn main() {
-    X.print("1");
+    print("Hello world!\n");
 }

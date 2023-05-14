@@ -481,8 +481,20 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     bool success      = analyze(*fc.object());
     bool isMemberCall = false;
     /// We analyze all the arguments
-    for (auto* arg: fc.arguments()) {
-        success &= analyze(*arg);
+    for (size_t i = 0; i < fc.arguments().size(); ++i) {
+        if (!analyze(*fc.argument(i))) {
+            success = false;
+            continue;
+        }
+        if (!expectValue(*fc.argument(i))) {
+            success = false;
+            continue;
+        }
+        if (!fc.argument(i)->type()) {
+            iss.push<BadExpression>(*fc.argument(i), IssueSeverity::Error);
+            success = false;
+            continue;
+        }
     }
     if (!success) {
         return false;

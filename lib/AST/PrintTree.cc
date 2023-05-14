@@ -172,7 +172,8 @@ static constexpr utl::streammanip funcDecl([](std::ostream& str,
                                               sema::Function const* func) {
     str << func->name() << "(";
     for (bool first = true; auto* type: func->argumentTypes()) {
-        str << (first ? first = false, "" : ", ") << type->name();
+        str << (first ? first = false, "" : ", ");
+        str << (type ? type->name() : "NULL");
     }
     str << ") -> " << func->returnType()->name();
 });
