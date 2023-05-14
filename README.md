@@ -1,9 +1,13 @@
+# Scatha compiler
 
 Multi paradigm toy language with an optimizing byte code compiler and a virtual register machine.
 The language is compiled and strongly and statically typed. 
 Made for easy integration as an embedded scripting language into other applications. 
 
+Read the [language reference](docs/LanguageRef.md) for details.
+
 ## Examples
+
 ### Simple program to calculate the GCD of 27 and 9 using the euclidean algorithm. 
     fn main() -> int {
         return gcd(27, 9);
