@@ -431,24 +431,31 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
                                        ir::Conversion::Bitcast,
                                        "reinterpret");
 
-    case Int_Trunc:
+    case SS_Trunc:
+        [[fallthrough]];
+    case SU_Trunc:
+        [[fallthrough]];
+    case US_Trunc:
+        [[fallthrough]];
+    case UU_Trunc:
         return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Trunc,
                                        "trunc");
-
-    case Unsigned_Widen:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::Zext,
-                                       "zext");
-
-    case Signed_Widen:
+    case SS_Widen:
+        [[fallthrough]];
+    case SU_Widen:
         return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),
                                        ir::Conversion::Sext,
                                        "sext");
-
+    case US_Widen:
+        [[fallthrough]];
+    case UU_Widen:
+        return add<ir::ConversionInst>(refConvResult,
+                                       mapType(conv.type()),
+                                       ir::Conversion::Zext,
+                                       "zext");
     case Float_Trunc:
         return add<ir::ConversionInst>(refConvResult,
                                        mapType(conv.type()),

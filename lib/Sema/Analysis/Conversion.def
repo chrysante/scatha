@@ -47,14 +47,17 @@ SC_OBJTYPECONV_DEF(Reinterpret_Value,             2)
 
 /// ## Only valid for value target types
 
-/// Truncation
-SC_OBJTYPECONV_DEF(Int_Trunc,                     2)
+/// Truncating int -> int conversions
+SC_OBJTYPECONV_DEF(SS_Trunc,                      2)
+SC_OBJTYPECONV_DEF(SU_Trunc,                      2)
+SC_OBJTYPECONV_DEF(US_Trunc,                      2)
+SC_OBJTYPECONV_DEF(UU_Trunc,                      2)
 
-/// Sign extend; Source operand is signed, dest can be signed or unsigned
-SC_OBJTYPECONV_DEF(Signed_Widen,                  1)
-
-/// Sign extend; Source operand is signed, dest can be signed or unsigned
-SC_OBJTYPECONV_DEF(Unsigned_Widen,                1)
+/// Widening int -> int conversions
+SC_OBJTYPECONV_DEF(SS_Widen,                      1)
+SC_OBJTYPECONV_DEF(SU_Widen,                      1)
+SC_OBJTYPECONV_DEF(US_Widen,                      1)
+SC_OBJTYPECONV_DEF(UU_Widen,                      1)
 
 /// Zero extend; Source operand is unsigned, dest can be signed or unsigned
 SC_OBJTYPECONV_DEF(Float_Trunc,                   2)

@@ -4,25 +4,19 @@ fn print(n: int) {
     __builtin_puti64(n);
 }
 
-fn print(msg: &[byte]) {
+fn print(msg: &str) {
     __builtin_putstr(&msg);
 }
 
-struct X {
-    fn setRef(&mut this, r: &mut int) {
-        this.ref = &mut r;
-    }
 
-    fn assign(&this, n: int) {
-        this.ref = n;
-    }
-
-    var ref: &mut int;
-}
+fn f(n: s64) {}
+fn f(n: u64) {}
 
 public fn main() -> int {
     var i = 5;
     var j: u32 = 4;
+
+    f(0);
 
     return i * j;
 }

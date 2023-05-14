@@ -85,7 +85,7 @@ static std::optional<ObjectTypeConversion> implicitIntConversion(
         if (to.isSigned()) {
             /// ** `Signed -> Signed` **
             if (from.bitwidth() <= to.bitwidth()) {
-                return Signed_Widen;
+                return SS_Widen;
             }
             return std::nullopt;
         }
@@ -95,13 +95,13 @@ static std::optional<ObjectTypeConversion> implicitIntConversion(
     if (to.isSigned()) {
         /// ** `Unsigned -> Signed` **
         if (from.bitwidth() < to.bitwidth()) {
-            return Unsigned_Widen;
+            return US_Widen;
         }
         return std::nullopt;
     }
     /// ** `Unsigned -> Unsigned` **
     if (from.bitwidth() <= to.bitwidth()) {
-        return Unsigned_Widen;
+        return UU_Widen;
     }
     return std::nullopt;
 }
@@ -109,16 +109,32 @@ static std::optional<ObjectTypeConversion> implicitIntConversion(
 static std::optional<ObjectTypeConversion> explicitIntConversion(
     IntType const& from, IntType const& to) {
     using enum ObjectTypeConversion;
-    if (from.bitwidth() == to.bitwidth()) {
-        return None;
-    }
-    if (from.bitwidth() < to.bitwidth()) {
-        if (from.isSigned()) {
-            return Signed_Widen;
+    if (from.isSigned()) {
+        if (to.isSigned()) {
+            /// ** `Signed -> Signed` **
+            if (from.bitwidth() <= to.bitwidth()) {
+                return SS_Widen;
+            }
+            return SS_Trunc;
         }
-        return Unsigned_Widen;
+        /// ** `Signed -> Unsigned` **
+        if (from.bitwidth() <= to.bitwidth()) {
+            return SU_Widen;
+        }
+        return SU_Trunc;
     }
-    return Int_Trunc;
+    if (to.isSigned()) {
+        /// ** `Unsigned -> Signed` **
+        if (from.bitwidth() < to.bitwidth()) {
+            return US_Widen;
+        }
+        return US_Trunc;
+    }
+    /// ** `Unsigned -> Unsigned` **
+    if (from.bitwidth() < to.bitwidth()) {
+        return SU_Widen;
+    }
+    return SU_Trunc;
 }
 
 static std::optional<ObjectTypeConversion> determineObjConv(
@@ -135,10 +151,13 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             case ConvKind::Implicit:
                 return std::nullopt;
             case ConvKind::Explicit:
-                return from.size() == to.size() ? None : Int_Trunc;
+                if (from.isSigned()) {
+                    return from.size() == to.size() ? SU_Widen : SU_Trunc;
+                }
+                return from.size() == to.size() ? UU_Widen : UU_Trunc;
             case ConvKind::Reinterpret:
                 if (from.size() != to.size()) {
-                    return std::nullopt;
+                    return Reinterpret_Value;
                 }
                 return None;
             }
@@ -148,12 +167,15 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             case ConvKind::Implicit:
                 return std::nullopt;
             case ConvKind::Explicit:
-                return from.size() == to.size() ? None : Unsigned_Widen;
+                if (to.isSigned()) {
+                    return US_Widen;
+                }
+                return UU_Widen;
             case ConvKind::Reinterpret:
                 if (from.size() != to.size()) {
                     return std::nullopt;
                 }
-                return None;
+                return Reinterpret_Value;
             }
         },
         [&](IntType const& from, IntType const& to) -> RetType {
@@ -166,7 +188,7 @@ static std::optional<ObjectTypeConversion> determineObjConv(
                 if (from.bitwidth() != to.bitwidth()) {
                     return std::nullopt;
                 }
-                return None;
+                return Reinterpret_Value;
             }
         },
         [&](FloatType const& from, FloatType const& to) -> RetType {
@@ -425,17 +447,25 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
             /// Float to float conversions come later
             return false;
         }
-        case Int_Trunc:
+        case SS_Trunc:
+            [[fallthrough]];
+        case SU_Trunc:
+            [[fallthrough]];
+        case US_Trunc:
+            [[fallthrough]];
+        case UU_Trunc:
             return fits(cast<IntValue const*>(value)->value(),
                         cast<ArithmeticType const*>(to)->bitwidth(),
                         cast<ArithmeticType const*>(to)->isSigned());
-
-        case Signed_Widen: {
+        case SS_Widen:
+            return true;
+        case SU_Widen:
+            [[fallthrough]];
+        case US_Widen: {
             auto intVal = cast<IntValue const*>(value)->value();
             return !intVal.negative();
         }
-
-        case Unsigned_Widen:
+        case UU_Widen:
             return true;
 
         case Float_Trunc:

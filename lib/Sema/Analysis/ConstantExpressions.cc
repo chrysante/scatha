@@ -308,13 +308,22 @@ static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
     case Reinterpret_Value:
         return nullptr;
 
-    case Int_Trunc:
+    case SS_Trunc:
+        [[fallthrough]];
+    case SU_Trunc:
+        [[fallthrough]];
+    case US_Trunc:
+        [[fallthrough]];
+    case UU_Trunc:
         return allocate<IntValue>(zext(value, to->bitwidth()), to->isSigned());
 
-    case Signed_Widen:
+    case SS_Widen:
+        [[fallthrough]];
+    case SU_Widen:
         return allocate<IntValue>(sext(value, to->bitwidth()), to->isSigned());
-
-    case Unsigned_Widen:
+    case US_Widen:
+        [[fallthrough]];
+    case UU_Widen:
         return allocate<IntValue>(zext(value, to->bitwidth()), to->isSigned());
 
     case SignedToFloat:

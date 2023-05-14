@@ -99,7 +99,7 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
 #include <svm/Builtin.def>
 
     /// Declare builtin generics
-    auto* reinterpret = addEntity<Generic>("reinterpret", 1, &globalScope());
+    auto* reinterpret = addEntity<Generic>("reinterpret", 1u, &globalScope());
     globalScope().add(reinterpret);
 }
 
