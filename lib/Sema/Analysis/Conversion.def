@@ -10,6 +10,7 @@
 
 SC_REFCONV_DEF(None,         0)
 SC_REFCONV_DEF(Dereference,  1)
+SC_REFCONV_DEF(DerefExpl,    2)
 SC_REFCONV_DEF(TakeAddress,  2)
 
 #undef SC_REFCONV_DEF

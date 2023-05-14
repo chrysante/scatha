@@ -304,7 +304,7 @@ static std::optional<RefConversion> determineRefConv(ConvKind kind,
             /* From  / To     None          Implicit      Explicit      */
             /*      None */ { None,         TakeAddress,  std::nullopt, },
             /*  Implicit */ { Dereference,  None,         std::nullopt, },
-            /*  Explicit */ { std::nullopt, std::nullopt, None,         },
+            /*  Explicit */ { DerefExpl,    DerefExpl,    None,         },
         }; // clang-format on
         return resultMatrix[static_cast<size_t>(toSlim(from))]
                            [static_cast<size_t>(toSlim(to))];
@@ -356,6 +356,9 @@ bool isCompatible(RefConversion refConv, ObjectTypeConversion objConv) {
         return true;
 
     case RefConversion::Dereference:
+        return true;
+
+    case RefConversion::DerefExpl:
         return true;
 
     case RefConversion::TakeAddress:

@@ -366,6 +366,10 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
                                  mapType(expr->type()->base()),
                                  utl::strcat(address->name(), ".deref"));
         }
+
+        case sema::RefConversion::DerefExpl:
+            SC_UNIMPLEMENTED();
+
         case sema::RefConversion::TakeAddress:
             return getAddress(expr);
         }
@@ -562,6 +566,10 @@ ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
             !conv.type()->isReference() && expr->type()->isImplicitRef(),
             "--Only of a dereferencing conversion can we take the address--");
         return getValue(expr);
+
+    case sema::RefConversion::DerefExpl:
+        return getValue(expr);
+
     case sema::RefConversion::TakeAddress:
         SC_UNREACHABLE();
     }
