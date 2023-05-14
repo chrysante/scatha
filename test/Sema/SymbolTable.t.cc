@@ -10,7 +10,7 @@ using namespace scatha;
 
 TEST_CASE("SymbolTable lookup", "[sema]") {
     sema::SymbolTable sym;
-    auto const var = sym.addVariable("x", sym.qS64());
+    auto const var = sym.addVariable("x", sym.S64());
     REQUIRE(var.hasValue());
     auto* x = sym.lookup("x");
     CHECK(&var.value() == x);
@@ -22,13 +22,13 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
     auto* fnI = &sym.declareFunction("i").value();
     auto const overloadSuccessI =
         sym.setSignature(fnI,
-                         sema::FunctionSignature({ sym.qS64() }, sym.qS64()));
+                         sema::FunctionSignature({ sym.S64() }, sym.S64()));
     REQUIRE(overloadSuccessI);
     auto* xType = &sym.declareStructureType("X").value();
     /// Begin `struct X`
     sym.pushScope(xType);
     /// Add member variable `i` to
-    auto* memberI = &sym.addVariable("i", sym.qS64()).value();
+    auto* memberI = &sym.addVariable("i", sym.S64()).value();
     sym.popScope();
     /// End `X`
     xType->setSize(8);

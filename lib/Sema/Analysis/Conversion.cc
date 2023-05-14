@@ -647,7 +647,7 @@ IntType const* commonTypeSignedUnsigned(SymbolTable& sym,
         return a;
     }
     if (auto width = nextBitwidth(b->bitwidth())) {
-        return sym.intType(*width, Signedness::Signed);
+        return sym.rawIntType(*width, Signedness::Signed);
     }
     return nullptr;
 }
@@ -668,7 +668,7 @@ static ObjectType const* commonBase(SymbolTable& sym,
                 return commonTypeSignedUnsigned(sym, &b, &a);
             }
             SC_ASSERT(a.signedness() == b.signedness(), "");
-            return sym.intType(std::max(a.bitwidth(), b.bitwidth()),
+            return sym.rawIntType(std::max(a.bitwidth(), b.bitwidth()),
                                a.signedness());
         },
         [&](ObjectType const& a, ObjectType const& b) -> ObjectType const* {
@@ -698,7 +698,7 @@ QualType const* sema::commonType(SymbolTable& sym,
 QualType const* sema::commonType(SymbolTable& sym,
                                  std::span<QualType const* const> types) {
     if (types.empty()) {
-        return sym.qVoid();
+        return sym.Void();
     }
     auto* result = types[0];
     for (auto* type: types | ranges::views::drop(1)) {

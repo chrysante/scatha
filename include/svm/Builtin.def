@@ -9,37 +9,37 @@
 #endif
 
 /// ## Common Math Functions
-SVM_BUILTIN_DEF(abs_f64,   Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(exp_f64,   Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(exp2_f64,  Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(exp10_f64, Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(log_f64,   Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(log2_f64,  Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(log10_f64, Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(pow_f64,   Const, { qF64(), qF64() }, qF64())
-SVM_BUILTIN_DEF(sqrt_f64,  Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(cbrt_f64,  Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(hypot_f64, Const, { qF64(), qF64() }, qF64())
-SVM_BUILTIN_DEF(sin_f64,   Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(cos_f64,   Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(tan_f64,   Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(asin_f64,  Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(acos_f64,  Const, { qF64() }, qF64())
-SVM_BUILTIN_DEF(atan_f64,  Const, { qF64() }, qF64())
+SVM_BUILTIN_DEF(abs_f64,   Const, { F64() }, F64())
+SVM_BUILTIN_DEF(exp_f64,   Const, { F64() }, F64())
+SVM_BUILTIN_DEF(exp2_f64,  Const, { F64() }, F64())
+SVM_BUILTIN_DEF(exp10_f64, Const, { F64() }, F64())
+SVM_BUILTIN_DEF(log_f64,   Const, { F64() }, F64())
+SVM_BUILTIN_DEF(log2_f64,  Const, { F64() }, F64())
+SVM_BUILTIN_DEF(log10_f64, Const, { F64() }, F64())
+SVM_BUILTIN_DEF(pow_f64,   Const, { F64(), F64() }, F64())
+SVM_BUILTIN_DEF(sqrt_f64,  Const, { F64() }, F64())
+SVM_BUILTIN_DEF(cbrt_f64,  Const, { F64() }, F64())
+SVM_BUILTIN_DEF(hypot_f64, Const, { F64(), F64() }, F64())
+SVM_BUILTIN_DEF(sin_f64,   Const, { F64() }, F64())
+SVM_BUILTIN_DEF(cos_f64,   Const, { F64() }, F64())
+SVM_BUILTIN_DEF(tan_f64,   Const, { F64() }, F64())
+SVM_BUILTIN_DEF(asin_f64,  Const, { F64() }, F64())
+SVM_BUILTIN_DEF(acos_f64,  Const, { F64() }, F64())
+SVM_BUILTIN_DEF(atan_f64,  Const, { F64() }, F64())
 
 /// ## Memory Management
 /// IR signature: void(ptr, ptr, i64)
-SVM_BUILTIN_DEF(memcpy,  None,  { qDynArray(Byte(), RefMutExpl), qDynArray(Byte(), RefConstExpl) }, qVoid())
-SVM_BUILTIN_DEF(alloc,   None,  { qS64(), qS64() }, qDynArray(Byte(), RefMutExpl))
-SVM_BUILTIN_DEF(dealloc, None,  { qDynArray(Byte(), RefMutExpl), qS64() }, qVoid())
+SVM_BUILTIN_DEF(memcpy,  None,  { qDynArray(rawByte(), RefMutExpl), qDynArray(rawByte(), RefConstExpl) }, Void())
+SVM_BUILTIN_DEF(alloc,   None,  { S64(), S64() }, qDynArray(rawByte(), RefMutExpl))
+SVM_BUILTIN_DEF(dealloc, None,  { qDynArray(rawByte(), RefMutExpl), S64() }, Void())
 
 /// ## Console Output
-SVM_BUILTIN_DEF(putchar,   None,  { qByte() }, qVoid())
-SVM_BUILTIN_DEF(puti64,    None,  { qS64() }, qVoid())
-SVM_BUILTIN_DEF(putf64,    None,  { qF64() }, qVoid())
-SVM_BUILTIN_DEF(putstr,    None,  { qDynArray(Byte(), RefConstExpl) }, qVoid())
+SVM_BUILTIN_DEF(putchar,   None,  { Byte() }, Void())
+SVM_BUILTIN_DEF(puti64,    None,  { S64() }, Void())
+SVM_BUILTIN_DEF(putf64,    None,  { F64() }, Void())
+SVM_BUILTIN_DEF(putstr,    None,  { qDynArray(rawByte(), RefConstExpl) }, Void())
 
 /// ##
-SVM_BUILTIN_DEF(trap,    None,  {  }, qVoid())
+SVM_BUILTIN_DEF(trap,    None,  {  }, Void())
 
 #undef SVM_BUILTIN_DEF

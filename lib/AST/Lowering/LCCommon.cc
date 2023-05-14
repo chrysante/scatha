@@ -111,7 +111,7 @@ ir::Value* LoweringContext::genCall(FunctionCall const* call) {
     auto args              = mapArguments(call->arguments());
     return add<ir::Call>(function,
                          args,
-                         call->type()->base() != symbolTable.Void() ?
+                         call->type()->base() != symbolTable.rawVoid() ?
                              "call.result" :
                              std::string{});
 }

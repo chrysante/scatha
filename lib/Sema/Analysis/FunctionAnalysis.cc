@@ -265,7 +265,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
     if (!returnType) {
         return;
     }
-    if (!rs.expression() && returnType->base() != sym.Void()) {
+    if (!rs.expression() && returnType->base() != sym.rawVoid()) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,
@@ -275,7 +275,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
     if (!rs.expression() || !analyzeExpr(*rs.expression())) {
         return;
     }
-    if (rs.expression() && returnType->base() == sym.Void()) {
+    if (rs.expression() && returnType->base() == sym.rawVoid()) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::VoidFunctionMustNotReturnAValue,
@@ -306,7 +306,7 @@ void Context::analyzeImpl(ast::IfStatement& stmt) {
         return;
     }
     if (analyzeExpr(*stmt.condition())) {
-        convertImplicitly(stmt.condition(), sym.qBool(), iss);
+        convertImplicitly(stmt.condition(), sym.Bool(), iss);
     }
     analyze(*stmt.thenBlock());
     if (stmt.elseBlock()) {
@@ -328,7 +328,7 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
         analyze(*stmt.varDecl());
     }
     if (analyzeExpr(*stmt.condition())) {
-        convertImplicitly(stmt.condition(), sym.qBool(), iss);
+        convertImplicitly(stmt.condition(), sym.Bool(), iss);
     }
     if (stmt.increment()) {
         analyzeExpr(*stmt.increment());

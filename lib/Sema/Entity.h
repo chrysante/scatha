@@ -225,7 +225,8 @@ public:
         _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
 
     Type const* type() const {
-        /// Don't have function types yet. Not sure we if we even need them though
+        /// Don't have function types yet. Not sure we if we even need them
+        /// though
         SC_UNIMPLEMENTED();
     }
 

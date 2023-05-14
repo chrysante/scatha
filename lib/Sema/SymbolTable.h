@@ -227,59 +227,59 @@ public:
 
     /// ## Getters for builtin types
 
-    VoidType const* Void() const;
+    VoidType const* rawVoid() const;
 
-    ByteType const* Byte() const;
+    ByteType const* rawByte() const;
 
-    BoolType const* Bool() const;
+    BoolType const* rawBool() const;
 
-    IntType const* S8() const;
+    IntType const* rawS8() const;
 
-    IntType const* S16() const;
+    IntType const* rawS16() const;
 
-    IntType const* S32() const;
+    IntType const* rawS32() const;
 
-    IntType const* S64() const;
+    IntType const* rawS64() const;
 
-    IntType const* U8() const;
+    IntType const* rawU8() const;
 
-    IntType const* U16() const;
+    IntType const* rawU16() const;
 
-    IntType const* U32() const;
+    IntType const* rawU32() const;
 
-    IntType const* U64() const;
+    IntType const* rawU64() const;
 
-    FloatType const* F32() const;
+    FloatType const* rawF32() const;
 
-    FloatType const* F64() const;
+    FloatType const* rawF64() const;
 
-    IntType const* intType(size_t width, Signedness signedness);
+    IntType const* rawIntType(size_t width, Signedness signedness);
 
-    QualType const* qVoid(Reference = Reference::None);
+    QualType const* Void(Reference = Reference::None);
 
-    QualType const* qByte(Reference = Reference::None);
+    QualType const* Byte(Reference = Reference::None);
 
-    QualType const* qBool(Reference = Reference::None);
+    QualType const* Bool(Reference = Reference::None);
 
-    QualType const* qS8(Reference = Reference::None);
+    QualType const* S8(Reference = Reference::None);
 
-    QualType const* qS16(Reference = Reference::None);
+    QualType const* S16(Reference = Reference::None);
 
-    QualType const* qS32(Reference = Reference::None);
+    QualType const* S32(Reference = Reference::None);
 
-    QualType const* qS64(Reference = Reference::None);
+    QualType const* S64(Reference = Reference::None);
 
-    QualType const* qU8(Reference = Reference::None);
+    QualType const* U8(Reference = Reference::None);
 
-    QualType const* qU16(Reference = Reference::None);
+    QualType const* U16(Reference = Reference::None);
 
-    QualType const* qU32(Reference = Reference::None);
+    QualType const* U32(Reference = Reference::None);
 
-    QualType const* qU64(Reference = Reference::None);
+    QualType const* U64(Reference = Reference::None);
 
-    QualType const* qF32(Reference = Reference::None);
+    QualType const* F32(Reference = Reference::None);
 
-    QualType const* qF64(Reference = Reference::None);
+    QualType const* F64(Reference = Reference::None);
 
     /// Review if we want to keep these:
     void setStructDependencyOrder(std::vector<StructureType*> ids);

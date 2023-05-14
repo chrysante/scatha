@@ -201,7 +201,7 @@ FunctionSignature Context::analyzeSignature(
     /// implement return type deduction.
     QualType const* returnType =
         decl.returnTypeExpr() ? analyzeTypeExpression(*decl.returnTypeExpr()) :
-                                sym.qualify(sym.Void());
+                                sym.Void();
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
 

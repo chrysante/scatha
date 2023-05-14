@@ -63,7 +63,7 @@ fn f(x: float) -> int { return "a string"; }
     auto const line4 = issues.findOnLine<BadTypeConversion>(4);
     REQUIRE(line4);
     // CHECK(line4->from()->base() == issues.sym.String());
-    CHECK(line4->to()->base() == issues.sym.S64());
+    CHECK(line4->to()->base() == issues.sym.rawS64());
 }
 
 TEST_CASE("Bad operands for expression", "[sema][issue]") {
@@ -76,15 +76,15 @@ fn main(i: int) -> bool {
 })");
     auto const line3  = issues.findOnLine<BadOperandsForBinaryExpression>(3);
     REQUIRE(line3);
-    CHECK(line3->lhs()->base() == issues.sym.S64());
-    CHECK(line3->rhs()->base() == issues.sym.F64());
+    CHECK(line3->lhs()->base() == issues.sym.rawS64());
+    CHECK(line3->rhs()->base() == issues.sym.rawF64());
     auto const line4 = issues.findOnLine<BadOperandsForBinaryExpression>(4);
     REQUIRE(line4);
-    CHECK(line4->lhs()->base() == issues.sym.S64());
-    CHECK(line4->rhs()->base() == issues.sym.F64());
+    CHECK(line4->lhs()->base() == issues.sym.rawS64());
+    CHECK(line4->rhs()->base() == issues.sym.rawF64());
     auto const line5 = issues.findOnLine<BadOperandForUnaryExpression>(5);
     REQUIRE(line5);
-    CHECK(line5->operandType()->base() == issues.sym.S64());
+    CHECK(line5->operandType()->base() == issues.sym.rawS64());
     CHECK(issues.noneOnLine(6));
 }
 

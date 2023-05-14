@@ -12,32 +12,31 @@ static sema::ObjectType const* toObjType(sema::SymbolTable& sym,
                                          BaseType type) {
     switch (type) {
     case BaseType::Void:
-        return sym.Void();
+        return sym.rawVoid();
     case BaseType::Bool:
-        return sym.Bool();
+        return sym.rawBool();
     case BaseType::Byte:
-        return sym.Byte();
+        return sym.rawByte();
     case BaseType::S8:
-        return sym.S8();
+        return sym.rawS8();
     case BaseType::S16:
-        return sym.S16();
+        return sym.rawS16();
     case BaseType::S32:
-        return sym.S32();
+        return sym.rawS32();
     case BaseType::S64:
-        return sym.S64();
+        return sym.rawS64();
     case BaseType::U8:
-        return sym.U8();
+        return sym.rawU8();
     case BaseType::U16:
-        return sym.U16();
+        return sym.rawU16();
     case BaseType::U32:
-        return sym.U32();
+        return sym.rawU32();
     case BaseType::U64:
-        return sym.U64();
+        return sym.rawU64();
     case BaseType::F32:
-        assert(false);
-        //        return sym.F32();
+        return sym.rawF32();
     case BaseType::F64:
-        return sym.F64();
+        return sym.rawF64();
     }
 }
 

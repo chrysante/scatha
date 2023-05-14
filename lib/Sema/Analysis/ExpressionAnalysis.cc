@@ -120,19 +120,19 @@ bool Context::analyzeImpl(ast::Literal& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
-        lit.decorate(nullptr, sym.qS64());
+        lit.decorate(nullptr, sym.S64());
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ true));
         return true;
 
     case Boolean:
-        lit.decorate(nullptr, sym.qBool());
+        lit.decorate(nullptr, sym.Bool());
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return true;
 
     case FloatingPoint:
-        lit.decorate(nullptr, sym.qF64());
+        lit.decorate(nullptr, sym.F64());
         lit.setConstantValue(allocate<FloatValue>(lit.value<APFloat>()));
         return true;
 
@@ -152,11 +152,11 @@ bool Context::analyzeImpl(ast::Literal& lit) {
         return true;
     }
     case String:
-        lit.decorate(nullptr, sym.qDynArray(sym.Byte(), RefConstExpl));
+        lit.decorate(nullptr, sym.qDynArray(sym.rawByte(), RefConstExpl));
         return true;
 
     case Char:
-        lit.decorate(nullptr, sym.qByte());
+        lit.decorate(nullptr, sym.Byte());
         lit.setConstantValue(
             allocate<IntValue>(lit.value<APInt>(), /* signed = */ false));
         return true;
@@ -398,7 +398,7 @@ bool Context::analyzeImpl(ast::UniqueExpression& expr) { SC_UNIMPLEMENTED(); }
 bool Context::analyzeImpl(ast::Conditional& c) {
     bool success = analyze(*c.condition());
     if (success) {
-        convertImplicitly(c.condition(), sym.qBool(), iss);
+        convertImplicitly(c.condition(), sym.Bool(), iss);
     }
     success &= analyze(*c.thenExpr());
     success &= expectValue(*c.thenExpr());
@@ -662,7 +662,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
                                                       ast::BinaryOperator op) {
     if (ast::isArithmeticAssignment(op)) {
         if (getResultType(sym, type, ast::toNonAssignment(op)).has_value()) {
-            return sym.Void();
+            return sym.rawVoid();
         }
         return std::nullopt;
     }
@@ -704,7 +704,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         [[fallthrough]];
     case GreaterEq:
         if (isAny<ByteType, IntType, FloatType>(type)) {
-            return sym.Bool();
+            return sym.rawBool();
         }
         return std::nullopt;
 
@@ -712,7 +712,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         [[fallthrough]];
     case NotEquals:
         if (isAny<ByteType, BoolType, IntType, FloatType>(type)) {
-            return sym.Bool();
+            return sym.rawBool();
         }
         return std::nullopt;
 
@@ -720,7 +720,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         [[fallthrough]];
     case LogicalOr:
         if (isAny<BoolType>(type)) {
-            return sym.Bool();
+            return sym.rawBool();
         }
         return std::nullopt;
 
@@ -733,7 +733,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
         return std::nullopt;
 
     case Assignment:
-        return sym.Void();
+        return sym.rawVoid();
 
     default:
         SC_UNREACHABLE();
@@ -779,7 +779,7 @@ QualType const* Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         bool success = true;
         success &= convertToImplicitMutRef(expr.lhs(), sym, iss);
         success &= convertImplicitly(expr.rhs(), stripQualifiers(lhsType), iss);
-        return success ? sym.qVoid() : nullptr;
+        return success ? sym.Void() : nullptr;
     }
 
     bool successfullConv = true;
@@ -803,7 +803,7 @@ QualType const* Context::analyzeReferenceAssignment(
     bool success          = true;
     success &= convertExplicitly(expr.lhs(), explicitRefType, iss);
     success &= convertExplicitly(expr.rhs(), explicitRefType, iss);
-    return success ? sym.qVoid() : nullptr;
+    return success ? sym.Void() : nullptr;
 }
 
 Entity* Context::lookup(ast::Identifier& id) {

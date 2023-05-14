@@ -261,7 +261,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     auto* arrayType = addEntity<ArrayType>(elementType, size);
     impl->_arrayTypes.insert({ key, arrayType });
     withScopeCurrent(arrayType, [&] {
-        auto* countVar = &addVariable("count", qS64()).value();
+        auto* countVar = &addVariable("count", S64()).value();
         countVar->setIndex(1);
         arrayType->setCountVariable(countVar);
     });
@@ -351,63 +351,91 @@ GlobalScope const& SymbolTable::globalScope() const {
     return *impl->_globalScope;
 }
 
-VoidType const* SymbolTable::Void() const { return impl->_void; }
-ByteType const* SymbolTable::Byte() const { return impl->_byte; }
-BoolType const* SymbolTable::Bool() const { return impl->_bool; }
-IntType const* SymbolTable::S8() const { return impl->_s8; }
-IntType const* SymbolTable::S16() const { return impl->_s16; }
-IntType const* SymbolTable::S32() const { return impl->_s32; }
-IntType const* SymbolTable::S64() const { return impl->_s64; }
-IntType const* SymbolTable::U8() const { return impl->_u8; }
-IntType const* SymbolTable::U16() const { return impl->_u16; }
-IntType const* SymbolTable::U32() const { return impl->_u32; }
-IntType const* SymbolTable::U64() const { return impl->_u64; }
-FloatType const* SymbolTable::F32() const { return impl->_f32; }
-FloatType const* SymbolTable::F64() const { return impl->_f64; }
+VoidType const* SymbolTable::rawVoid() const { return impl->_void; }
 
-QualType const* SymbolTable::qVoid(Reference ref) {
-    return qualify(Void(), ref);
+ByteType const* SymbolTable::rawByte() const { return impl->_byte; }
+
+BoolType const* SymbolTable::rawBool() const { return impl->_bool; }
+
+IntType const* SymbolTable::rawS8() const { return impl->_s8; }
+
+IntType const* SymbolTable::rawS16() const { return impl->_s16; }
+
+IntType const* SymbolTable::rawS32() const { return impl->_s32; }
+
+IntType const* SymbolTable::rawS64() const { return impl->_s64; }
+
+IntType const* SymbolTable::rawU8() const { return impl->_u8; }
+
+IntType const* SymbolTable::rawU16() const { return impl->_u16; }
+
+IntType const* SymbolTable::rawU32() const { return impl->_u32; }
+
+IntType const* SymbolTable::rawU64() const { return impl->_u64; }
+
+FloatType const* SymbolTable::rawF32() const { return impl->_f32; }
+
+FloatType const* SymbolTable::rawF64() const { return impl->_f64; }
+
+QualType const* SymbolTable::Void(Reference ref) {
+    return qualify(rawVoid(), ref);
 }
 
-QualType const* SymbolTable::qByte(Reference ref) {
-    return qualify(Byte(), ref);
+QualType const* SymbolTable::Byte(Reference ref) {
+    return qualify(rawByte(), ref);
 }
 
-QualType const* SymbolTable::qBool(Reference ref) {
-    return qualify(Bool(), ref);
+QualType const* SymbolTable::Bool(Reference ref) {
+    return qualify(rawBool(), ref);
 }
 
-QualType const* SymbolTable::qS8(Reference ref) { return qualify(S8(), ref); }
+QualType const* SymbolTable::S8(Reference ref) { return qualify(rawS8(), ref); }
 
-QualType const* SymbolTable::qS16(Reference ref) { return qualify(S16(), ref); }
+QualType const* SymbolTable::S16(Reference ref) {
+    return qualify(rawS16(), ref);
+}
 
-QualType const* SymbolTable::qS32(Reference ref) { return qualify(S32(), ref); }
+QualType const* SymbolTable::S32(Reference ref) {
+    return qualify(rawS32(), ref);
+}
 
-QualType const* SymbolTable::qS64(Reference ref) { return qualify(S64(), ref); }
+QualType const* SymbolTable::S64(Reference ref) {
+    return qualify(rawS64(), ref);
+}
 
-QualType const* SymbolTable::qU8(Reference ref) { return qualify(U8(), ref); }
+QualType const* SymbolTable::U8(Reference ref) { return qualify(rawU8(), ref); }
 
-QualType const* SymbolTable::qU16(Reference ref) { return qualify(U16(), ref); }
+QualType const* SymbolTable::U16(Reference ref) {
+    return qualify(rawU16(), ref);
+}
 
-QualType const* SymbolTable::qU32(Reference ref) { return qualify(U32(), ref); }
+QualType const* SymbolTable::U32(Reference ref) {
+    return qualify(rawU32(), ref);
+}
 
-QualType const* SymbolTable::qU64(Reference ref) { return qualify(U64(), ref); }
+QualType const* SymbolTable::U64(Reference ref) {
+    return qualify(rawU64(), ref);
+}
 
-QualType const* SymbolTable::qF32(Reference ref) { return qualify(F32(), ref); }
+QualType const* SymbolTable::F32(Reference ref) {
+    return qualify(rawF32(), ref);
+}
 
-QualType const* SymbolTable::qF64(Reference ref) { return qualify(F64(), ref); }
+QualType const* SymbolTable::F64(Reference ref) {
+    return qualify(rawF64(), ref);
+}
 
-IntType const* SymbolTable::intType(size_t width, Signedness signedness) {
+IntType const* SymbolTable::rawIntType(size_t width, Signedness signedness) {
     bool isSigned = signedness == Signedness::Signed;
     switch (width) {
     case 8:
-        return isSigned ? S8() : U8();
+        return isSigned ? rawS8() : rawU8();
     case 16:
-        return isSigned ? S16() : U16();
+        return isSigned ? rawS16() : rawU16();
     case 32:
-        return isSigned ? S32() : U32();
+        return isSigned ? rawS32() : rawU32();
     case 64:
-        return isSigned ? S64() : U64();
+        return isSigned ? rawS64() : rawU64();
     default:
         SC_UNREACHABLE();
     }

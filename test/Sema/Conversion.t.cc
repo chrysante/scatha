@@ -17,24 +17,24 @@ TEST_CASE("Implicit conversion rank", "[sema]") {
                               nullptr,
                               SourceRange{});
     SECTION("1") {
-        expr.decorate(nullptr, sym.qU16());
-        CHECK(implicitConversionRank(&expr, sym.qU16()).value() == 0);
+        expr.decorate(nullptr, sym.U16());
+        CHECK(implicitConversionRank(&expr, sym.U16()).value() == 0);
     }
     SECTION("2") {
-        expr.decorate(nullptr, sym.qS64());
-        CHECK(implicitConversionRank(&expr, sym.qS64()).value() == 0);
+        expr.decorate(nullptr, sym.S64());
+        CHECK(implicitConversionRank(&expr, sym.S64()).value() == 0);
     }
     SECTION("3") {
-        expr.decorate(nullptr, sym.qU16());
-        CHECK(implicitConversionRank(&expr, sym.qS32()).value() == 1);
+        expr.decorate(nullptr, sym.U16());
+        CHECK(implicitConversionRank(&expr, sym.S32()).value() == 1);
     }
     SECTION("4") {
-        expr.decorate(nullptr, sym.qU16());
-        CHECK(implicitConversionRank(&expr, sym.qU32()).value() == 1);
+        expr.decorate(nullptr, sym.U16());
+        CHECK(implicitConversionRank(&expr, sym.U32()).value() == 1);
     }
     SECTION("5") {
-        expr.decorate(nullptr, sym.qS16());
-        CHECK(!implicitConversionRank(&expr, sym.qU32()));
+        expr.decorate(nullptr, sym.S16());
+        CHECK(!implicitConversionRank(&expr, sym.U32()));
     }
 }
 
@@ -65,89 +65,89 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
 
     /// # Widening
     SECTION("u32(5) to u64") {
-        set(sym.qU32(), 5);
-        CHECK(convertImplicitly(expr, sym.qU64(), iss));
+        set(sym.U32(), 5);
+        CHECK(convertImplicitly(expr, sym.U64(), iss));
         CHECK(iss.empty());
     }
     SECTION("u64(5) to u64") {
-        set(sym.qU64(), 5);
-        CHECK(convertImplicitly(expr, sym.qU64(), iss));
+        set(sym.U64(), 5);
+        CHECK(convertImplicitly(expr, sym.U64(), iss));
         CHECK(iss.empty());
     }
 
     /// # Explicit widening
     SECTION("byte(5) to s64") {
-        set(sym.qByte(), 5);
-        CHECK(convertExplicitly(expr, sym.qS64(), iss));
+        set(sym.Byte(), 5);
+        CHECK(convertExplicitly(expr, sym.S64(), iss));
         CHECK(iss.empty());
     }
 
     /// # Narrowing
     SECTION("s64(5) to s8") {
-        set(sym.qS64(), 5);
-        CHECK(convertImplicitly(expr, sym.qS8(), iss));
+        set(sym.S64(), 5);
+        CHECK(convertImplicitly(expr, sym.S8(), iss));
         CHECK(iss.empty());
     }
     SECTION("s64(<unknown>) to s8") {
-        setType(sym.qS64());
-        CHECK(!convertImplicitly(expr, sym.qS8(), iss));
-        CHECK(convertExplicitly(expr, sym.qS8(), iss));
+        setType(sym.S64());
+        CHECK(!convertImplicitly(expr, sym.S8(), iss));
+        CHECK(convertExplicitly(expr, sym.S8(), iss));
     }
     SECTION("S64(-1) to u32") {
-        set(sym.qS64(), -1);
-        CHECK(!convertImplicitly(expr, sym.qU32(), iss));
-        CHECK(convertExplicitly(expr, sym.qU32(), iss));
+        set(sym.S64(), -1);
+        CHECK(!convertImplicitly(expr, sym.U32(), iss));
+        CHECK(convertExplicitly(expr, sym.U32(), iss));
         APInt result = getResult();
         CHECK(result.bitwidth() == 32);
         CHECK(ucmp(result, ~0u) == 0);
     }
     SECTION("U32(0x1000000F) to s16") {
-        set(sym.qU32(), 0x1000000F);
-        CHECK(!convertImplicitly(expr, sym.qS16(), iss));
-        CHECK(convertExplicitly(expr, sym.qS16(), iss));
+        set(sym.U32(), 0x1000000F);
+        CHECK(!convertImplicitly(expr, sym.S16(), iss));
+        CHECK(convertExplicitly(expr, sym.S16(), iss));
         APInt result = getResult();
         CHECK(result.bitwidth() == 16);
         CHECK(ucmp(result, 0xF) == 0);
     }
     SECTION("-1 to u64") {
-        set(sym.qS64(), -1);
-        CHECK(!convertImplicitly(expr, sym.qU64(), iss));
-        CHECK(convertExplicitly(expr, sym.qU32(), iss));
+        set(sym.S64(), -1);
+        CHECK(!convertImplicitly(expr, sym.U64(), iss));
+        CHECK(convertExplicitly(expr, sym.U32(), iss));
     }
     SECTION("s64(5) to byte") {
-        set(sym.qS64(), 5);
-        CHECK(convertImplicitly(expr, sym.qByte(), iss));
+        set(sym.S64(), 5);
+        CHECK(convertImplicitly(expr, sym.Byte(), iss));
         CHECK(iss.empty());
     }
     SECTION("s64(256) to byte") {
-        set(sym.qS64(), 256);
-        CHECK(!convertImplicitly(expr, sym.qByte(), iss));
+        set(sym.S64(), 256);
+        CHECK(!convertImplicitly(expr, sym.Byte(), iss));
     }
 }
 
 TEST_CASE("Common type", "[sema]") {
     SymbolTable sym;
     SECTION("s64, s64 -> s64")
-    CHECK(commonType(sym, sym.qS64(), sym.qS64()) == sym.qS64());
+    CHECK(commonType(sym, sym.S64(), sym.S64()) == sym.S64());
     SECTION("'mut s64, 'mut s64 -> 'mut s64")
-    CHECK(commonType(sym, sym.qS64(RefMutImpl), sym.qS64(RefMutImpl)) ==
-          sym.qS64(RefMutImpl));
+    CHECK(commonType(sym, sym.S64(RefMutImpl), sym.S64(RefMutImpl)) ==
+          sym.S64(RefMutImpl));
     SECTION("'s64, 'mut s64 -> 's64")
-    CHECK(commonType(sym, sym.qS64(RefConstImpl), sym.qS64(RefMutImpl)) ==
-          sym.qS64(RefConstImpl));
+    CHECK(commonType(sym, sym.S64(RefConstImpl), sym.S64(RefMutImpl)) ==
+          sym.S64(RefConstImpl));
     SECTION("'s64, s64 -> s64")
-    CHECK(commonType(sym, sym.qS64(RefConstImpl), sym.qS64()) == sym.qS64());
+    CHECK(commonType(sym, sym.S64(RefConstImpl), sym.S64()) == sym.S64());
     SECTION("'s64, 'mut s32 -> s64")
-    CHECK(commonType(sym, sym.qS64(RefConstImpl), sym.qS32(RefMutImpl)) ==
-          sym.qS64());
+    CHECK(commonType(sym, sym.S64(RefConstImpl), sym.S32(RefMutImpl)) ==
+          sym.S64());
     SECTION("'s64, s32 -> s64")
-    CHECK(commonType(sym, sym.qS64(RefConstImpl), sym.qS32()) == sym.qS64());
+    CHECK(commonType(sym, sym.S64(RefConstImpl), sym.S32()) == sym.S64());
     SECTION("&mut s64, 'mut s64 -> None")
-    CHECK(!commonType(sym, sym.qS64(RefMutExpl), sym.qS64(RefMutImpl)));
+    CHECK(!commonType(sym, sym.S64(RefMutExpl), sym.S64(RefMutImpl)));
     SECTION("s64, byte -> None")
-    CHECK(!commonType(sym, sym.qS64(), sym.qByte()));
+    CHECK(!commonType(sym, sym.S64(), sym.Byte()));
     SECTION("s64, u64 -> None")
-    CHECK(!commonType(sym, sym.qS64(), sym.qU64()));
+    CHECK(!commonType(sym, sym.S64(), sym.U64()));
     SECTION("s64, u32 -> s64")
-    CHECK(commonType(sym, sym.qS64(), sym.qU32()) == sym.qS64());
+    CHECK(commonType(sym, sym.S64(), sym.U32()) == sym.S64());
 }
