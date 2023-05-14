@@ -65,19 +65,19 @@
 
 /// MARK: Assertions
 #if defined(__clang__)
-#define SC_UNIMPLEMENTED() __builtin_trap()
-#define SC_DEBUGBREAK()    __builtin_debugtrap()
+#define SC_DEBUGFAIL_IMPL()  __builtin_trap()
+#define SC_DEBUGBREAK_IMPL() __builtin_debugtrap()
 #elif defined(__GNUC__)
-#define SC_UNIMPLEMENTED() __builtin_trap()
-#define SC_DEBUGBREAK()    __builtin_trap()
+#define SC_DEBUGFAIL_IMPL()  __builtin_trap()
+#define SC_DEBUGBREAK_IMPL() __builtin_trap()
 #elif defined(_MSC_VER)
-#define SC_UNIMPLEMENTED() (__debugbreak(), std::terminate())
-#define SC_DEBUGBREAK()    __debugbreak()
+#define SC_DEBUGFAIL_IMPL()  (__debugbreak(), std::terminate())
+#define SC_DEBUGBREAK_IMPL() __debugbreak()
 #else
 #error Unsupported Compiler
 #endif
 
-// SC_UNREACHABLE
+/// # SC_UNREACHABLE
 #if SCATHA(GNU)
 #define _SC_UNREACHABLE_IMPL() __builtin_unreachable()
 #else
@@ -85,33 +85,43 @@
 #endif
 
 #if SCATHA(DEBUG)
-#define SC_UNREACHABLE(...) SC_UNIMPLEMENTED()
+#define SC_UNREACHABLE(...)                                                    \
+    (::scatha::internal::unreachable(__FILE__, __LINE__, __PRETTY_FUNCTION__), \
+     SC_DEBUGFAIL_IMPL())
 #else
 #define SC_UNREACHABLE(...) _SC_UNREACHABLE_IMPL()
 #endif
 
-// SC_ASSUME
+/// # SC_UNIMPLEMENTED
+#define SC_UNIMPLEMENTED()                                                     \
+    (::scatha::internal::unimplemented(__FILE__,                               \
+                                       __LINE__,                               \
+                                       __PRETTY_FUNCTION__),                   \
+     SC_DEBUGFAIL_IMPL())
+
+/// # SC_DEBUGBREAK
+#define SC_DEBUGBREAK() SC_DEBUGBREAK_IMPL()
+
+/// # SC_ASSUME
 #if SCATHA(CLANG)
 #define SC_ASSUME(COND) __builtin_assume(COND)
 #else
 #define SC_ASSUME(COND) ((void)0)
 #endif
 
-// SC_ASSERT
+/// # SC_ASSERT
 #if SCATHA(DEBUG)
-#define SC_ASSERT(COND, MSG) ((COND) ? (void)0 : SC_UNIMPLEMENTED())
+#define SC_ASSERT(COND, MSG)                                                   \
+    ((COND) ? (void)0 :                                                        \
+              (::scatha::internal::assertionFailure(__FILE__,                  \
+                                                    __LINE__,                  \
+                                                    __PRETTY_FUNCTION__,       \
+                                                    #COND,                     \
+                                                    MSG),                      \
+               SC_DEBUGFAIL_IMPL()))
 #else
 #define SC_ASSERT(COND, MSG) SC_ASSUME(COND)
 #endif
-
-// SC_ASSERT_AUDIT
-#define SC_ASSERT_AUDIT(COND, MSG) SC_ASSERT(COND, MSG)
-
-// SC_EXPECT
-#define SC_EXPECT(COND, MSG) SC_ASSERT(COND, MSG)
-
-// SC_EXPECT_AUDIT
-#define SC_EXPECT_AUDIT(COND, MSG) SC_ASSERT(COND, MSG)
 
 namespace scatha {
 
@@ -146,5 +156,19 @@ std::array<u8, sizeof(T)> decompose(T const& t) {
 inline constexpr size_t invalidIndex = static_cast<size_t>(-1);
 
 } // namespace scatha
+
+namespace scatha::internal {
+
+void unimplemented(char const* file, int line, char const* function);
+
+void unreachable(char const* file, int line, char const* function);
+
+void assertionFailure(char const* file,
+                      int line,
+                      char const* function,
+                      char const* expr,
+                      char const* msg);
+
+} // namespace scatha::internal
 
 #endif // SCATHA_COMMON_BASE_H_
