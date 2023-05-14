@@ -28,7 +28,7 @@ fn store(table: &mut [int], n: int) -> bool {
     if n < 0 {
         return false;
     }
-    let h = hash(n);
+    var h = hash(n);
     let end = max(table.count, 256);
     for i = 0; i < end; ++i, ++h {
         h  %= table.count;
@@ -50,11 +50,11 @@ fn erase(table: &mut [int], n: int) -> bool {
     if n < 0 {
         return false;
     }
-    let h = hash(n);
+    var h = hash(n);
     let end = max(table.count, 256);
     for i = 0; i < end; ++i, ++h {
         h  %= table.count;
-        let entry = &table[h];
+        let entry = &mut table[h];
         if entry == n {
             entry = -1;
             return true;
@@ -70,7 +70,7 @@ fn contains(table: &[int], n: int) -> bool {
     if n < 0 {
         return false;
     }
-    let h = hash(n);
+    var h = hash(n);
     for i = 0; true; ++i {
         let entry = table[h];
         if entry == -1 {
