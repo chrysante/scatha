@@ -182,7 +182,7 @@ print(array[1]); // Prints '2'
 Indices into arrays are 0 based.
 
 String literals have the type `&[byte]`, i.e. immutable reference to dynamically sized array of bytes. There is no dedicated `char` type. The type alias `str` is provided by the compiler for `[byte]` (array of bytes), like in Rust. An owning string class will be added through a standard library in the future. 
-**Note:** String literals (and strings in general) are not null-terminated. References to dynamically sized arrays carry the runtime size, so there is no need for such shenanigans. 
+**Note:** String literals (and strings in general) are not null-terminated. References to dynamically sized arrays carry their runtime size, so there is no need for such shenanigans. 
 
 ## Constant expressions
 
