@@ -17,9 +17,7 @@ Made for easy integration as an embedded scripting language into other applicati
         return gcd(b, a % b);
     }
 
-Take a look at the [examples](examples/).
-    
-Take a look at the [grammar](docs/Grammar.md).
+Take a look at some more sophisticated [examples](examples/).
 
 ## Feature roadmap
 
