@@ -27,7 +27,7 @@ TEST_CASE("SymbolTable define custom type", "[sema]") {
     auto* xType = &sym.declareStructureType("X").value();
     /// Begin `struct X`
     sym.pushScope(xType);
-    /// Add member variable `i` to
+    /// Add member variable `i` to `X`
     auto* memberI = &sym.addVariable("i", sym.S64()).value();
     sym.popScope();
     /// End `X`
