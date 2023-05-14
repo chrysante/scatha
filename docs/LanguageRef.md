@@ -10,7 +10,7 @@ Variables and references are immutable be default, mutability needs to be explic
 
 Functions can be declared with the `fn` keyword, followed by the name of the function.
 Then follows a mandatory but possibly empty comma separated list of parameter declarations, enclosed by parantheses. 
-Optionally follows an arrow `->` and the return type. No specified return type is interpreted as `void` return type, but may in the future change to automatically deduced return type.
+An arrow `->` and the return type follow optionally. No specified return type is interpreted as `void` return type, but may in the future change to automatically deduced return type.
 
 **Example**
 ```
