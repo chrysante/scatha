@@ -126,7 +126,7 @@ public:
 
 protected:
     void expectDecorated() const {
-        SC_EXPECT(isDecorated(), "Requested decoration on undecorated node.");
+        SC_ASSERT(isDecorated(), "Requested decoration on undecorated node.");
     }
     void markDecorated() { decorated = true; }
 
