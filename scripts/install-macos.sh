@@ -1,3 +1,5 @@
+premake5 xcode4
+
 xcodebuild -project "$1/scatha-c.xcodeproj" -configuration Release
 xcodebuild -project "$1/svm.xcodeproj" -configuration Release
 
