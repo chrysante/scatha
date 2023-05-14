@@ -19,7 +19,7 @@ fn foo(value: int, message: &str) -> double {
     return double(value) / 3.0;
 }
 export fn main() {
-    let bar = bar(5, "Hello World!\n");
+    let bar = foo(5, "Hello World!\n");
 }
 ``` 
 
