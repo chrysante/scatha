@@ -39,7 +39,7 @@ public:
 
     size_t index(Entity const* entity) const {
         auto const itr = _indices.find(entity);
-        SC_EXPECT(itr != _indices.end(), "Entity must be in this graph");
+        SC_ASSERT(itr != _indices.end(), "Entity must be in this graph");
         return itr->second;
     }
 

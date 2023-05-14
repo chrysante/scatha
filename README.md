@@ -1,4 +1,3 @@
-# Scatha compiler
 
 Multi paradigm toy language with an optimizing byte code compiler and a virtual register machine.
 The language is compiled and strongly and statically typed. 
@@ -48,6 +47,22 @@ Take a look at some more sophisticated [examples](examples/).
 - Member functions (also depend on references in a way) ✅
     - Uniform function call syntax ✅
     - Constructors/destructors
+    
+- `unique`/`shared` references and expression, similar to `std::unique_ptr<>`/`std::make_unique<>` res. `std::shared_ptr<>`/`std::make_shared<>` for simple dynamic memory allocation. This depends on having well defined object lifetimes (constructors/destructors).
+    - Syntax shall look something like this:
+        ```
+        {
+            let i = unique int(1);
+        } // i is deallocatd here
+        {
+            let j: unique int = nil;
+            {
+                let i = unique int(1);
+                j = move i; // Now i == nil
+            }
+        } // j is deallocatd here
+        ```
+    
 - Dynamic dispatch
     - Interfaces/Protocols
     - Multiple dispatch
