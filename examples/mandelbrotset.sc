@@ -1,5 +1,5 @@
-//! Compile with: ./scatha-c -f mandelbrotset.sc
-//! Run with:     ./svm -f mandelbrotset.sbin
+//! Compile with: scatha-c mandelbrotset.sc
+//! Run with:     svm mandelbrotset.sbin
 
 public fn main() -> int {
     let width = 160;
@@ -10,9 +10,10 @@ public fn main() -> int {
             var z: Complex;
             z.x = 2.0 / scale * ((double(i) / double(width)) - 0.5) * double(width) / (2.0 * double(height));
             z.y = 2.0 / scale * ((1.0 - double(j) / double(height)) - 0.5);
-            printDot(sqrt(mandelbrotSet(z)));
+            let shade = toAsciiShade(sqrt(mandelbrotSet(z)));
+            print(shade);
         }    
-        printNewLine();
+        print('\n');
     }
     return 0;
 }
@@ -49,32 +50,17 @@ fn length(z: Complex) -> double {
     return __builtin_hypot_f64(z.x, z.y);
 }
 
-fn calcDot() -> double {
-    return 0.5;
-}
-
 fn clamp(x: double, min: double, max: double) -> double {
     return x < min ? min : x > max ? max : x;
 }
 
-fn printDot(x: double) {
-    let data = [' ', '.', ':', '-', '=', '+', '*', '#', '%', '@'];
-    let c = data[int(10.0 * clamp(x, 0.0, 1.0))];
-    __builtin_putchar(c);
+fn toAsciiShade(x: double) -> byte {
+    let data = " .:-=+*#%@";
+    return data[int(10.0 * clamp(x, 0.0, 1.0))];
 }
 
-fn printNewLine() {
-    __builtin_putchar('\n');
-}
-
-fn print(x: int) {
-    __builtin_puti64(x);
-    printNewLine();
-}
-
-fn print(x: double) {
-    __builtin_putf64(x);
-    printNewLine();
+fn print(b: byte) {
+    __builtin_putchar(b);
 }
 
 fn sqrt(x: double) -> double {

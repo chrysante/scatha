@@ -1,11 +1,15 @@
 
+fn print(n: byte) {
+    __builtin_putchar(n);
+}
+
 fn print(n: int) {
     __builtin_puti64(n);
-    __builtin_putchar(10);
+    print('\n');
 }
 
 fn at(A: &mut [int], i: int, j: int) -> &mut int {
-    return &A[i * 3 + j];
+    return &mut A[i * 3 + j];
 }
 
 fn mul(A: &mut [int], B: &[int]) -> void {
@@ -40,10 +44,10 @@ fn print(A: &[int]) {
     for i = 0; i < 3; ++i {
         for j = 0; j < 3; ++j {
             __builtin_puti64(A.at(i, j));
-            __builtin_putchar(32);
-            __builtin_putchar(32);
+            print(' ');
+            print(' ');
         }
-        __builtin_putchar(10);
+        print('\n');
     }
 }
 
