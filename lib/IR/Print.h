@@ -2,6 +2,7 @@
 #define SCATHA_IR_IRPRINT_H_
 
 #include <iosfwd>
+#include <string>
 
 #include "Common/Base.h"
 

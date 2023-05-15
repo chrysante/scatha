@@ -2,6 +2,7 @@
 #define SCATHA_SEMA_ENTITY_H_
 
 #include <concepts>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -74,15 +75,13 @@ EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
     return entity.entityType();
 }
 
-namespace internal {
-class ScopePrinter;
-}
-
 /// # Variable
 
 /// Represents a variable
 class SCATHA_API Variable: public Entity {
 public:
+    SC_MOVEONLY(Variable);
+
     explicit Variable(std::string name,
                       Scope* parentScope,
                       QualType const* type = nullptr);
@@ -182,7 +181,6 @@ protected:
                    Scope* parent);
 
 private:
-    friend class internal::ScopePrinter;
     friend class SymbolTable;
     friend class Entity;
 
@@ -203,13 +201,13 @@ private:
 };
 
 /// Represents an anonymous scope
-class AnonymousScope: public Scope {
+class SCATHA_API AnonymousScope: public Scope {
 public:
     explicit AnonymousScope(ScopeKind scopeKind, Scope* parent);
 };
 
 /// Represents the global scope
-class GlobalScope: public Scope {
+class SCATHA_API GlobalScope: public Scope {
 public:
     explicit GlobalScope();
 };
@@ -220,7 +218,8 @@ public:
 class SCATHA_API FunctionSignature {
 public:
     FunctionSignature() = default;
-    explicit FunctionSignature(utl::vector<QualType const*> argumentTypes,
+
+    explicit FunctionSignature(utl::small_vector<QualType const*> argumentTypes,
                                QualType const* returnType):
         _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
 
@@ -376,7 +375,7 @@ private:
 size_t constexpr InvalidSize = ~size_t(0);
 
 /// Abstract class representing a type
-class Type: public Scope {
+class SCATHA_API Type: public Scope {
 public:
     /// Size of this type
     size_t size() const;
@@ -399,7 +398,7 @@ private:
 };
 
 /// Abstract class representing the type of an object
-class ObjectType: public Type {
+class SCATHA_API ObjectType: public Type {
 public:
     explicit ObjectType(EntityType entityType,
                         ScopeKind scopeKind,
@@ -425,7 +424,7 @@ private:
 };
 
 /// Concrete class representing a builtin type
-class BuiltinType: public ObjectType {
+class SCATHA_API BuiltinType: public ObjectType {
 protected:
     explicit BuiltinType(EntityType entityType,
                          std::string name,
@@ -441,7 +440,7 @@ protected:
 };
 
 /// Concrete class representing type `void`
-class VoidType: public BuiltinType {
+class SCATHA_API VoidType: public BuiltinType {
 public:
     explicit VoidType(Scope* parentScope);
 };
@@ -450,7 +449,7 @@ public:
 /// Note that for the purposes of semantic analysis, `BoolType` and `ByteType`
 /// are also considered arithmetic types, even though most arithmetic operations
 /// are not defined on them
-class ArithmeticType: public BuiltinType {
+class SCATHA_API ArithmeticType: public BuiltinType {
 public:
     /// Number of bits in this type
     size_t bitwidth() const { return _bitwidth; }
@@ -487,19 +486,19 @@ private:
 };
 
 /// Concrete class representing type `bool`
-class BoolType: public ArithmeticType {
+class SCATHA_API BoolType: public ArithmeticType {
 public:
     explicit BoolType(Scope* parentScope);
 };
 
 /// Concrete class representing type `byte`
-class ByteType: public ArithmeticType {
+class SCATHA_API ByteType: public ArithmeticType {
 public:
     explicit ByteType(Scope* parentScope);
 };
 
 /// Concrete class representing an integral type
-class IntType: public ArithmeticType {
+class SCATHA_API IntType: public ArithmeticType {
 public:
     explicit IntType(size_t bitwidth,
                      Signedness signedness,
@@ -507,13 +506,13 @@ public:
 };
 
 /// Concrete class representing a floating point type
-class FloatType: public ArithmeticType {
+class SCATHA_API FloatType: public ArithmeticType {
 public:
     explicit FloatType(size_t bitwidth, Scope* parentScope);
 };
 
 /// Concrete class representing the type of a structure
-class StructureType: public ObjectType {
+class SCATHA_API StructureType: public ObjectType {
 public:
     explicit StructureType(std::string name,
                            Scope* parentScope,
@@ -541,7 +540,7 @@ public:
 };
 
 /// Concrete class representing the type of an array
-class ArrayType: public ObjectType {
+class SCATHA_API ArrayType: public ObjectType {
 public:
     static constexpr size_t DynamicCount = ~size_t(0);
 
@@ -656,6 +655,8 @@ class SCATHA_API OverloadSet:
     using VecBase = utl::small_vector<Function*, 8>;
 
 public:
+    SC_MOVEONLY(OverloadSet);
+
     /// Construct an empty overload set.
     explicit OverloadSet(std::string name, Scope* parentScope):
         Entity(EntityType::OverloadSet, std::move(name), parentScope) {}

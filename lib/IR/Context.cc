@@ -1,21 +1,53 @@
 #include "IR/Context.h"
 
+#include <utl/hashmap.hpp>
+#include <utl/hashset.hpp>
 #include <utl/strcat.hpp>
+#include <utl/vector.hpp>
 
 #include "IR/CFG.h"
+#include "IR/StructHash.h"
 #include "IR/Type.h"
 
 using namespace scatha;
 
 using namespace ir;
 
-Context::Context() {
-    auto vt   = allocate<VoidType>();
-    _voidType = vt.get();
-    _types.push_back(std::move(vt));
-    auto pt  = allocate<PointerType>();
-    _ptrType = pt.get();
-    _types.push_back(std::move(pt));
+using StructKey = utl::small_vector<Type const*>;
+using ArrayKey  = std::pair<Type const*, size_t>;
+
+struct Context::Impl {
+    /// ## Constants
+    /// ** Bitwidth must appear before the value, because comparison of values
+    /// of different widths may not be possible. **
+    utl::hashmap<std::pair<size_t, APInt>, UniquePtr<IntegralConstant>>
+        _integralConstants;
+    /// We use `std::map` here because floats are not really hashable.
+    utl::hashmap<std::pair<size_t, APFloat>, UniquePtr<FloatingPointConstant>>
+        _floatConstants;
+    utl::hashmap<Type const*, UniquePtr<UndefValue>> _undefConstants;
+
+    /// ## Types
+    utl::vector<UniquePtr<Type>> _types;
+    VoidType const* _voidType;
+    PointerType const* _ptrType;
+    utl::hashmap<uint32_t, IntegralType const*> _intTypes;
+    utl::hashmap<uint32_t, FloatType const*> _floatTypes;
+    utl::hashmap<StructKey,
+                 StructureType const*,
+                 internal::StructHash,
+                 internal::StructEqual>
+        _anonymousStructs;
+    utl::hashmap<ArrayKey, ArrayType const*> _arrayTypes;
+};
+
+Context::Context(): impl(std::make_unique<Impl>()) {
+    auto vt         = allocate<VoidType>();
+    impl->_voidType = vt.get();
+    impl->_types.push_back(std::move(vt));
+    auto pt        = allocate<PointerType>();
+    impl->_ptrType = pt.get();
+    impl->_types.push_back(std::move(pt));
 }
 
 Context::Context(Context&&) noexcept = default;
@@ -23,6 +55,10 @@ Context::Context(Context&&) noexcept = default;
 Context& Context::operator=(Context&&) noexcept = default;
 
 Context::~Context() = default;
+
+VoidType const* Context::voidType() { return impl->_voidType; }
+
+PointerType const* Context::pointerType() { return impl->_ptrType; }
 
 template <typename A>
 static auto* getArithmeticType(size_t bitwidth, auto& types, auto& map) {
@@ -37,18 +73,22 @@ static auto* getArithmeticType(size_t bitwidth, auto& types, auto& map) {
 }
 
 IntegralType const* Context::integralType(size_t bitwidth) {
-    return getArithmeticType<IntegralType>(bitwidth, _types, _intTypes);
+    return getArithmeticType<IntegralType>(bitwidth,
+                                           impl->_types,
+                                           impl->_intTypes);
 }
 
 FloatType const* Context::floatType(size_t bitwidth) {
     SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Other sizes not supported");
-    return getArithmeticType<FloatType>(bitwidth, _types, _floatTypes);
+    return getArithmeticType<FloatType>(bitwidth,
+                                        impl->_types,
+                                        impl->_floatTypes);
 }
 
 StructureType const* Context::anonymousStructure(
     std::span<Type const* const> members) {
-    auto itr = _anonymousStructs.find(members);
-    if (itr != _anonymousStructs.end()) {
+    auto itr = impl->_anonymousStructs.find(members);
+    if (itr != impl->_anonymousStructs.end()) {
         return itr->second;
     }
     auto type = allocate<StructureType>(std::string{});
@@ -56,28 +96,28 @@ StructureType const* Context::anonymousStructure(
         type->addMember(member);
     }
     auto* result = type.get();
-    _types.push_back(std::move(type));
-    _anonymousStructs.insert({ members | ranges::to<StructKey>, result });
+    impl->_types.push_back(std::move(type));
+    impl->_anonymousStructs.insert({ members | ranges::to<StructKey>, result });
     return result;
 }
 
 ArrayType const* Context::arrayType(Type const* elementType, size_t count) {
     ArrayKey key = { elementType, count };
-    auto itr     = _arrayTypes.find(key);
-    if (itr != _arrayTypes.end()) {
+    auto itr     = impl->_arrayTypes.find(key);
+    if (itr != impl->_arrayTypes.end()) {
         return itr->second;
     }
     auto type = allocate<ArrayType>(elementType, count);
-    itr       = _arrayTypes.insert({ key, type.get() }).first;
-    _types.push_back(std::move(type));
+    itr       = impl->_arrayTypes.insert({ key, type.get() }).first;
+    impl->_types.push_back(std::move(type));
     return itr->second;
 }
 
 IntegralConstant* Context::integralConstant(APInt value) {
     size_t const bitwidth = value.bitwidth();
-    auto itr              = _integralConstants.find({ bitwidth, value });
-    if (itr == _integralConstants.end()) {
-        std::tie(itr, std::ignore) = _integralConstants.insert(
+    auto itr              = impl->_integralConstants.find({ bitwidth, value });
+    if (itr == impl->_integralConstants.end()) {
+        std::tie(itr, std::ignore) = impl->_integralConstants.insert(
             { std::pair{ bitwidth, value },
               allocate<IntegralConstant>(*this, value, bitwidth) });
     }
@@ -90,9 +130,9 @@ IntegralConstant* Context::integralConstant(u64 value, size_t bitwidth) {
 }
 
 FloatingPointConstant* Context::floatConstant(APFloat value, size_t bitwidth) {
-    auto itr = _floatConstants.find({ bitwidth, value });
-    if (itr == _floatConstants.end()) {
-        std::tie(itr, std::ignore) = _floatConstants.insert(
+    auto itr = impl->_floatConstants.find({ bitwidth, value });
+    if (itr == impl->_floatConstants.end()) {
+        std::tie(itr, std::ignore) = impl->_floatConstants.insert(
             { std::pair{ bitwidth, value },
               allocate<FloatingPointConstant>(*this, value, bitwidth) });
     }
@@ -135,11 +175,11 @@ Constant* Context::arithmeticConstant(APFloat value) {
 }
 
 UndefValue* Context::undef(Type const* type) {
-    auto itr = _undefConstants.find(type);
-    if (itr == _undefConstants.end()) {
+    auto itr = impl->_undefConstants.find(type);
+    if (itr == impl->_undefConstants.end()) {
         bool success = false;
         std::tie(itr, success) =
-            _undefConstants.insert({ type, allocate<UndefValue>(type) });
+            impl->_undefConstants.insert({ type, allocate<UndefValue>(type) });
         SC_ASSERT(success, "");
     }
     return itr->second.get();

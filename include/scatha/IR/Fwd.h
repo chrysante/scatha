@@ -56,12 +56,12 @@ class Module;
 
 /// Forward declaration of CFG nodes
 #define SC_CGFNODE_DEF(Node, _) class Node;
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
 
 /// List of all CFG node type
 enum class NodeType {
 #define SC_CGFNODE_DEF(Node, _) Node,
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -74,7 +74,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 /// List of conversion operations
 enum class Conversion {
 #define SC_CONVERSION_DEF(Op, _) Op,
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -87,7 +87,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream, Conversion conv);
 /// List of compare modes (signed, unsigned, float)
 enum class CompareMode {
 #define SC_COMPARE_MODE_DEF(Op, _) Op,
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -101,7 +101,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// List of all compare operations
 enum class CompareOperation {
 #define SC_COMPARE_OPERATION_DEF(Op, _) Op,
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -125,7 +125,7 @@ CompareOperation inverse(CompareOperation compareOp);
 /// List of all unary arithmetic operations in the IR module.
 enum class UnaryArithmeticOperation {
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, _) Op,
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -140,7 +140,7 @@ SCATHA_API std::ostream& operator<<(std::ostream& ostream,
 /// List of all binary arithmetic operations in the IR module
 enum class ArithmeticOperation {
 #define SC_ARITHMETIC_OPERATION_DEF(Op, _) Op,
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -156,19 +156,19 @@ bool isShift(ArithmeticOperation arithmeticOp);
 /// ## Forward declarations of type categories
 
 #define SC_TYPE_CATEGORY_DEF(TypeCat) class TypeCat;
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
 
 /// List of all type categories
 enum class TypeCategory {
 #define SC_TYPE_CATEGORY_DEF(TypeCat) TypeCat,
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
     _count
 };
 
 /// List of all visibility kinds
 enum class Visibility {
 #define SC_VISKIND_DEF(vis) vis,
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
     _count
 };
 
@@ -190,14 +190,14 @@ UTL_BITFIELD_OPERATORS(FunctionAttribute);
     SC_DYNCAST_MAP(::scatha::ir::Node,                                         \
                    ::scatha::ir::NodeType::Node,                               \
                    Abstractness)
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
 
 /// Map enum `TypeCategory` to actual type category classes
 #define SC_TYPE_CATEGORY_DEF(TypeCat)                                          \
     SC_DYNCAST_MAP(::scatha::ir::TypeCat,                                      \
                    ::scatha::ir::TypeCategory::TypeCat,                        \
                    CONCRETE);
-#include <scatha/IR/CFG/Lists.def>
+#include <scatha/IR/Lists.def>
 
 namespace scatha::ir::internal {
 
@@ -210,9 +210,8 @@ struct PhiMappingImpl {
 
     PhiMappingImpl(BB* pred, V* value): pred(pred), value(value) {}
 
-    PhiMappingImpl(PhiMappingImpl<false> p)
-        requires IsConst
-        : pred(p.pred), value(p.value) {}
+    template <bool False = false, std::enable_if_t<!False, int> = 0>
+    PhiMappingImpl(PhiMappingImpl<False> p): pred(p.pred), value(p.value) {}
 
     template <typename BBPtr, typename VPtr>
     PhiMappingImpl(std::pair<BBPtr, VPtr> p): pred(p.first), value(p.second) {}

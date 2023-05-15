@@ -250,7 +250,7 @@ private:
     utl::vector<Node> _cycle;
 };
 
-class InvalidListExpr: public BadExpression {
+class SCATHA_API InvalidListExpr: public BadExpression {
 public:
     enum Reason {
         InvalidElemCountForArrayType,
@@ -269,9 +269,10 @@ private:
     Reason _reason;
 };
 
-std::ostream& operator<<(std::ostream& ostream, InvalidListExpr::Reason reason);
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    InvalidListExpr::Reason reason);
 
-class InvalidNameLookup: public BadExpression {
+class SCATHA_API InvalidNameLookup: public BadExpression {
 public:
     explicit InvalidNameLookup(ast::Expression const& expr):
         BadExpression(expr, IssueSeverity::Error) {}

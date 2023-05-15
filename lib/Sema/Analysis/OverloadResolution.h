@@ -13,10 +13,10 @@
 namespace scatha::sema {
 
 /// Performs overload resolution
-Expected<Function*, OverloadResolutionError*> performOverloadResolution(
-    OverloadSet* overloadSet,
-    std::span<ast::Expression const* const> arguments,
-    bool isMemberCall);
+SCATHA_TESTAPI Expected<Function*, OverloadResolutionError*>
+    performOverloadResolution(OverloadSet* overloadSet,
+                              std::span<ast::Expression const* const> arguments,
+                              bool isMemberCall);
 
 } // namespace scatha::sema
 

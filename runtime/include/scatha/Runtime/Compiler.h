@@ -26,9 +26,7 @@ public:
     explicit Compiler();
 
     Compiler(Compiler&&) noexcept;
-
     Compiler& operator=(Compiler&&) noexcept;
-
     ~Compiler();
 
     /// Declare an external function

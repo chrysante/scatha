@@ -180,7 +180,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
         auto dest     = toRegIdx(inst.dest());
         auto numBytes = toValue(inst.operandAt(0));
         currentBlock->insertBack(
-            LIncSPInst(dest, numBytes.get<Asm::Value16>()));
+            LIncSPInst(dest, std::get<Asm::Value16>(numBytes)));
         break;
     }
     case mir::InstCode::LEA: {
@@ -191,7 +191,7 @@ void CGContext::genInst(mir::Instruction const& inst) {
     }
     case mir::InstCode::LDA: {
         auto dest   = toRegIdx(inst.dest());
-        auto offset = toValue(inst.operandAt(0)).get<Asm::Value32>();
+        auto offset = std::get<Asm::Value32>(toValue(inst.operandAt(0)));
         currentBlock->insertBack(LDAInst(dest, offset));
         break;
     }

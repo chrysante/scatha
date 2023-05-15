@@ -4,6 +4,7 @@
 #include <string>
 
 #include "CodeGen/Passes.h"
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Parser.h"

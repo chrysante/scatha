@@ -311,7 +311,7 @@ static std::optional<RefConversion> determineRefConv(ConvKind kind,
     }
     case ConvKind::Explicit: {
         // clang-format off
-        static constexpr std::optional<RefConversion> resultMatrix[5][5] = {
+        static constexpr std::optional<RefConversion> resultMatrix[3][3] = {
             /* From  / To     None         Implicit    Explicit      */
             /*      None */ { None,        TakeAddress, TakeAddress, },
             /*  Implicit */ { Dereference, None,        TakeAddress, },

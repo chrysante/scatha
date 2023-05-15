@@ -4,16 +4,16 @@
 #include <iosfwd>
 #include <string_view>
 
-#include <scatha/AST/SourceLocation.h>
-#include <scatha/Common/Base.h>
+#include "Common/Base.h"
+#include "Common/SourceLocation.h"
 
 namespace scatha {
 
-SCATHA_API void highlightSource(std::string_view text, SourceRange sourceRange);
+void highlightSource(std::string_view text, SourceRange sourceRange);
 
-SCATHA_API void highlightSource(std::string_view text,
-                                SourceRange sourceRange,
-                                std::ostream& ostream);
+void highlightSource(std::string_view text,
+                     SourceRange sourceRange,
+                     std::ostream& ostream);
 
 } // namespace scatha
 

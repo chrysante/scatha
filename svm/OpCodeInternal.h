@@ -1,6 +1,8 @@
 #ifndef SVM_OPCODEINTERNAL_H_
 #define SVM_OPCODEINTERNAL_H_
 
+#include <cassert>
+
 #include <utl/utility.hpp>
 
 #include <svm/OpCode.h>

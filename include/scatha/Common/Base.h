@@ -10,60 +10,52 @@
 #include <exception>
 #endif
 
-#define SCATHA(Name, ...) _SCATHA_PD_##Name(__VA_ARGS__)
+/// We define this unconditionally for now, to have assertions in optimized
+/// builds
+#define SC_DEBUG
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
-// POSIX Platform
-#define _SCATHA_PD_POSIX()   1
-#define _SCATHA_PD_WINDOWS() 0
-#elif defined(MSC_VER)
-// Windows Platform
-#define _SCATHA_PD_POSIX()   0
-#define _SCATHA_PD_WINDOWS() 1
-#endif
-
-#define _SCATHA_PD_DEBUG() 1
+/// MARK: API Export
 
 #if defined(__GNUC__)
-#define _SCATHA_PD_GNU() 1
-#else
-#define _SCATHA_PD_GNU() 0
+
+#define SCATHA_API     __attribute__((visibility("default")))
+#define SCATHA_TESTAPI __attribute__((visibility("default")))
+
+#elif defined(_MSC_VER)
+#if defined(SC_APIEXPORT)
+#define SCATHA_API     __declspec(dllexport)
+#define SCATHA_TESTAPI __declspec(dllexport)
+#elif defined(SC_APIIMPORT)
+#define SCATHA_API     __declspec(dllimport)
+#define SCATHA_TESTAPI __declspec(dllimport)
+#elif
+#error Need either SC_APIEXPORT or SC_APIIMPORT defined
+#endif // APIIMPORT / APIEXPORT
+
+#else  // Compiler specific
+#error Unsupported compiler
 #endif
 
-#if defined(__clang__)
-#define _SCATHA_PD_CLANG() 1
-#else
-#define _SCATHA_PD_CLANG() 0
-#endif
-
-#if SCATHA(GNU)
-#define _SCATHA_PD_PURE()  __attribute__((pure))
-#define _SCATHA_PD_CONST() __attribute__((const))
-#else
-#define _SCATHA_PD_PURE()
-#define _SCATHA_PD_CONST()
-#endif
-
-#define _SCATHA_PD_DEBUG() 1
-
-// API Export
-#if SCATHA(GNU)
-#define _SCATHA_PD_API() __attribute__((visibility("default")))
-#elif SCATHA(WINDOWS)
-#define _SCATHA_PD_API() __declspec(dllexport)
-#endif
-
-#define SCATHA_API     _SCATHA_PD_API()
-#define SCATHA_TESTAPI /// Can be removed once it's removed from all interfaces
-
-// Disable UBSAN for certain integer shift operations. Maybe rethink this later.
+/// Disable UBSAN for certain integer shift operations. Maybe rethink this
+/// later.
 #if defined(__clang__) && __clang_major__ >= 10
-#define _SCATHA_PD_DISABLE_UBSAN() __attribute__((no_sanitize("undefined")))
+#define SC_DISABLE_UBSAN __attribute__((no_sanitize("undefined")))
 #else
-#define _SCATHA_PD_DISABLE_UBSAN()
+#define SC_DISABLE_UBSAN
 #endif
+
+/// Helper macro to declare move operations as defaulted and copy operations as
+/// deleted. This is useful for public interface classes, because for classes
+/// marked `dllexport`, MSVC tries to instantiate copy operations unless they
+/// are explicitly deleted.
+#define SC_MOVEONLY(Type)                                                      \
+    Type(Type const&)                = delete;                                 \
+    Type& operator=(Type const&)     = delete;                                 \
+    Type(Type&&) noexcept            = default;                                \
+    Type& operator=(Type&&) noexcept = default
 
 /// MARK: Assertions
+
 #if defined(__clang__)
 #define SC_DEBUGFAIL_IMPL()  __builtin_trap()
 #define SC_DEBUGBREAK_IMPL() __builtin_debugtrap()
@@ -77,50 +69,63 @@
 #error Unsupported Compiler
 #endif
 
+/// # SC_PRETTY_FUNC
+#if defined(__GNUC__)
+#define SC_PRETTY_FUNC __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#define SC_PRETTY_FUNC __FUNCSIG__
+#else
+#error Unsupported Compiler
+#endif
+
 /// # SC_UNREACHABLE
-#if SCATHA(GNU)
+#if __GNUC__
 #define _SC_UNREACHABLE_IMPL() __builtin_unreachable()
 #else
 #define _SC_UNREACHABLE_IMPL() ((void)0)
 #endif
 
-#if SCATHA(DEBUG)
+#ifdef SC_DEBUG
 #define SC_UNREACHABLE(...)                                                    \
-    (::scatha::internal::unreachable(__FILE__, __LINE__, __PRETTY_FUNCTION__), \
+    (::scatha::internal::unreachable(__FILE__, __LINE__, SC_PRETTY_FUNC),      \
      SC_DEBUGFAIL_IMPL())
-#else
+
+#else  // SC_DEBUG
 #define SC_UNREACHABLE(...) _SC_UNREACHABLE_IMPL()
-#endif
+#endif // SC_DEBUG
 
 /// # SC_UNIMPLEMENTED
 #define SC_UNIMPLEMENTED()                                                     \
-    (::scatha::internal::unimplemented(__FILE__,                               \
-                                       __LINE__,                               \
-                                       __PRETTY_FUNCTION__),                   \
+    (::scatha::internal::unimplemented(__FILE__, __LINE__, SC_PRETTY_FUNC),    \
      SC_DEBUGFAIL_IMPL())
 
 /// # SC_DEBUGBREAK
 #define SC_DEBUGBREAK() SC_DEBUGBREAK_IMPL()
 
 /// # SC_ASSUME
-#if SCATHA(CLANG)
+#if defined(__clang__)
 #define SC_ASSUME(COND) __builtin_assume(COND)
 #else
 #define SC_ASSUME(COND) ((void)0)
 #endif
 
 /// # SC_ASSERT
-#if SCATHA(DEBUG)
+#ifdef SC_DEBUG
 #define SC_ASSERT(COND, MSG)                                                   \
     ((COND) ? (void)0 :                                                        \
               (::scatha::internal::assertionFailure(__FILE__,                  \
                                                     __LINE__,                  \
-                                                    __PRETTY_FUNCTION__,       \
+                                                    SC_PRETTY_FUNC,            \
                                                     #COND,                     \
                                                     MSG),                      \
                SC_DEBUGFAIL_IMPL()))
-#else
+#else  // SC_DEBUG
 #define SC_ASSERT(COND, MSG) SC_ASSUME(COND)
+#endif // SC_DEBUG
+
+/// Unicode symbols in terminal output
+#if defined(__APPLE__) /// MacOS supports unicode symbols in terminal
+#define SC_UNICODE_TERMINAL 1
 #endif
 
 namespace scatha {
@@ -159,15 +164,15 @@ inline constexpr size_t invalidIndex = static_cast<size_t>(-1);
 
 namespace scatha::internal {
 
-void unimplemented(char const* file, int line, char const* function);
+void SCATHA_API unimplemented(char const* file, int line, char const* function);
 
-void unreachable(char const* file, int line, char const* function);
+void SCATHA_API unreachable(char const* file, int line, char const* function);
 
-void assertionFailure(char const* file,
-                      int line,
-                      char const* function,
-                      char const* expr,
-                      char const* msg);
+void SCATHA_API assertionFailure(char const* file,
+                                 int line,
+                                 char const* function,
+                                 char const* expr,
+                                 char const* msg);
 
 } // namespace scatha::internal
 

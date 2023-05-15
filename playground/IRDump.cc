@@ -13,6 +13,7 @@
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
 #include "CodeGen/CodeGen.h"
+#include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Parser.h"

@@ -142,7 +142,7 @@ void Context::run() {
 }
 
 void Context::dispatch(Instruction const& inst) {
-    inst.visit([this](auto& inst) { translate(inst); });
+    std::visit([this](auto& inst) { translate(inst); }, inst);
 }
 
 void Context::translate(MoveInst const& mov) {
@@ -223,7 +223,7 @@ void Context::translate(TestInst const& test) {
     put(opcode);
     SC_ASSERT(test.operand().is<RegisterIndex>(),
               "Can only test values in registers");
-    dispatch(test.operand().get<RegisterIndex>());
+    dispatch(std::get<RegisterIndex>(test.operand()));
 }
 
 void Context::translate(SetInst const& set) {
@@ -339,7 +339,7 @@ void Context::translate(ConvertInst const& inst) {
 }
 
 void Context::dispatch(Value const& value) {
-    value.visit([this](auto& value) { translate(value); });
+    std::visit([this](auto& value) { translate(value); }, value);
 }
 
 void Context::translate(RegisterIndex const& regIdx) {

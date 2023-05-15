@@ -16,9 +16,9 @@
 #include <utl/vector.hpp>
 
 #include <scatha/AST/Fwd.h>
-#include <scatha/AST/SourceLocation.h>
 #include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>
+#include <scatha/Common/SourceLocation.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Fwd.h>
 
@@ -156,6 +156,9 @@ protected:
     }
 
 public:
+    AbstractSyntaxTree() = default;
+    SC_MOVEONLY(AbstractSyntaxTree);
+
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }
 
@@ -284,6 +287,8 @@ NodeType dyncast_get_type(
 class SCATHA_API Expression: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
+
+    SC_MOVEONLY(Expression);
 
     AST_DERIVED_COMMON(Expression)
 

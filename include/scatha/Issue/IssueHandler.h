@@ -1,7 +1,7 @@
 // SCATHA-PUBLIC-HEADER
 
-#ifndef SCATHA_ISSUE_ISSUEHANDLER2_H_
-#define SCATHA_ISSUE_ISSUEHANDLER2_H_
+#ifndef SCATHA_ISSUE_ISSUEHANDLER_H_
+#define SCATHA_ISSUE_ISSUEHANDLER_H_
 
 #include <concepts>
 #include <iosfwd>
@@ -26,6 +26,8 @@ class SCATHA_API IssueHandler {
 
 public:
     IssueHandler() = default;
+
+    SC_MOVEONLY(IssueHandler);
 
     /// Add \p error to this issue handler
     void push(Issue* issue) {

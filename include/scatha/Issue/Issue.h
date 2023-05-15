@@ -1,17 +1,17 @@
-#ifndef SCATHA_ISSUE_ISSUE2_H_
-#define SCATHA_ISSUE_ISSUE2_H_
+#ifndef SCATHA_ISSUE_ISSUE_H_
+#define SCATHA_ISSUE_ISSUE_H_
 
 #include <iosfwd>
 #include <string_view>
 
-#include <scatha/Parser/Token.h>
+#include <scatha/Common/SourceLocation.h>
 
 namespace scatha {
 
 enum class IssueSeverity { Error, Warning };
 
 /// Base class of all compilation issues
-class Issue {
+class SCATHA_API Issue {
 public:
     virtual ~Issue() = default;
 
@@ -55,4 +55,4 @@ private:
 
 } // namespace scatha
 
-#endif // SCATHA_ISSUE_ISSUE2_H_
+#endif // SCATHA_ISSUE_ISSUE_H_

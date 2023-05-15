@@ -25,11 +25,8 @@ namespace {
 
 enum class Level : u8 { Free, Occupied, Child, LastChild };
 
-#define FANCY_TREE_SYMBOLS 1
-
-#if FANCY_TREE_SYMBOLS
-
 char const* toString(Level l) {
+#if SC_UNICODE_TERMINAL
     switch (l) {
     case Level::Free:
         return "   ";
@@ -40,24 +37,19 @@ char const* toString(Level l) {
     case Level::LastChild:
         return "└─ ";
     }
-}
-
 #else  //  FANCY_TREE_SYMBOLS
-
-char const* toString(Level l) {
     switch (l) {
     case Level::Free:
         return "   ";
     case Level::Occupied:
         return "|  ";
-    case Level::Leaf:
+    case Level::Child:
         return "|- ";
-    case Level::LastLeaf:
-        return "`- ";
+    case Level::LastChild:
+        return "+- ";
     }
-}
-
 #endif //  FANCY_TREE_SYMBOLS
+}
 
 struct TreeIndenter {
     void push(Level l) {

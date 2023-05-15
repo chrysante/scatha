@@ -57,7 +57,7 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "store", TokenKind::Store },
 
 #define SC_CONVERSION_DEF(Op, Keyword) { #Keyword, TokenKind::Op },
-#include "IR/CFG/Lists.def"
+#include "IR/Lists.def"
 
         { "goto", TokenKind::Goto },
         { "branch", TokenKind::Branch },

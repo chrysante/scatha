@@ -1,15 +1,33 @@
 #include <svm/VirtualMachine.h>
 
+#include <cassert>
+
 #include <utl/functional.hpp>
 
 #include "svm/Memory.h"
 #include "svm/OpCodeInternal.h"
+
+#if defined(__GNUC__)
 
 #define ALWAYS_INLINE __attribute__((always_inline))
 
 #define SVM_ASSERT(COND) assert(COND)
 
 #define SVM_UNREACHABLE() __builtin_unreachable()
+
+#elif defined(_MSC_VER)
+
+#define ALWAYS_INLINE
+
+#define SVM_ASSERT(COND) assert(COND)
+
+#define SVM_UNREACHABLE() assert(false)
+
+#else
+
+#error Unsupported compiler
+
+#endif
 
 using namespace svm;
 

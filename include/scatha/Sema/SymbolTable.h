@@ -23,6 +23,8 @@ public:
 
 public:
     SymbolTable();
+    SymbolTable(SymbolTable const& rhs)            = delete;
+    SymbolTable& operator=(SymbolTable const& rhs) = delete;
     SymbolTable(SymbolTable&&) noexcept;
     SymbolTable& operator=(SymbolTable&&) noexcept;
     ~SymbolTable();

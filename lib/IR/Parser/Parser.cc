@@ -206,7 +206,7 @@ struct ParseContext {
 #define SC_CONVERSION_DEF(Op, Keyword)                                         \
     case TokenKind::Op:                                                        \
         return Conversion::Op;
-#include "IR/CFG/Lists.def"
+#include "IR/Lists.def"
         default:
             reportSyntaxIssue(token);
         }

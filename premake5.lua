@@ -41,14 +41,21 @@ filter "system:macosx"
         ["INSTALL_PATH"]            = "@executable_path",
         ["LD_RUNPATH_SEARCH_PATHS"] = "@loader_path"
     }
+filter "system:windows"
+    defines "_ITERATOR_DEBUG_LEVEL=0"
 filter {}
 
 ------------------------------------------
 project "scatha"
-
 kind "SharedLib"
+defines "SC_APIEXPORT"
 
 addCppFiles "lib"
+-- Public headers
+files {
+    "include/scatha/**.h", 
+    "include/scatha/**.def" 
+}
 externalincludedirs { 
     "include",
     "external/utility/include", 
@@ -58,22 +65,17 @@ externalincludedirs {
     "external/APMath/include",
     "external/range-v3/include",
 }
-includedirs { "lib" }
+includedirs { "lib", "include/scatha" }
 links { "apmath", "termfmt" }
 
-filter { "system:macosx", "configurations:Release" }
+filter { "system:macosx" }
 buildoptions "-fvisibility=hidden"
 filter {}
 
-prebuildcommands {
-    "${PROJECT_DIR}/scripts/copy-public-headers.sh"
-}
-
 ------------------------------------------
 project "scatha-c"
-
 kind "ConsoleApp"
-
+defines "SC_APIIMPORT"
 addCppFiles "scatha-c"
 
 externalincludedirs {
@@ -89,7 +91,6 @@ links { "scatha", "termfmt", "apmath" }
 
 ------------------------------------------
 project "svm-lib"
-
 kind "StaticLib"
 
 addCppFiles "svm"
@@ -103,15 +104,9 @@ externalincludedirs {
     "external/utility/include",
 }
 
-prebuildcommands {
-    "${PROJECT_DIR}/scripts/copy-public-headers.sh"
-}
-
 ------------------------------------------
 project "svm"
-
 kind "ConsoleApp"
-
 files { "svm/CLIParse.*", "svm/main.cc" }
 
 externalincludedirs {
@@ -124,11 +119,13 @@ links "svm-lib"
 
 ------------------------------------------
 project "scatha-test"
-
 kind "ConsoleApp"
+defines "SC_APIIMPORT"
+
 externalincludedirs { 
     ".", 
     "include", 
+    "include/scatha", 
     "lib",
     "external/utility/include", 
     "external/Catch",
@@ -141,10 +138,12 @@ links { "scatha", "svm-lib", "APMath" }
 
 ------------------------------------------
 project "runtime"
-
 kind "StaticLib"
+defines "SC_APIIMPORT"
+
 externalincludedirs {
     "include",
+    "include/scatha",
     "runtime/include",
     "external/utility/include",
     "external/termfmt/include",
@@ -154,14 +153,16 @@ externalincludedirs {
 includedirs { ".", "lib" }
 
 files { "runtime/**.h", "runtime/**.cc" }
-links { "scatha", "svm-lib", "termfmt" }
+links { "termfmt" }
 
 ------------------------------------------
 project "playground"
-
 kind "ConsoleApp"
+defines "SC_APIIMPORT"
+
 externalincludedirs {
     "include",
+    "include/scatha", 
     "runtime/include",
     "external/utility/include",
     "external/termfmt/include",

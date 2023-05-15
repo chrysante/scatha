@@ -39,7 +39,7 @@ enum class TokenKind {
     Store,
 
 #define SC_CONVERSION_DEF(Op, Keyword) Op,
-#include "IR/CFG/Lists.def"
+#include "IR/Lists.def"
 
     Goto,
     Branch,

@@ -1,4 +1,4 @@
-#include "AST/SourceLocation.h"
+#include "Common/SourceLocation.h"
 
 #include <iomanip>
 #include <ostream>

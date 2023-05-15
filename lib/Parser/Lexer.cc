@@ -2,9 +2,9 @@
 
 #include <optional>
 
-#include "AST/SourceLocation.h"
 #include "Common/EscapeSequence.h"
 #include "Common/Expected.h"
+#include "Common/SourceLocation.h"
 #include "Parser/LexerUtil.h"
 #include "Parser/LexicalIssue.h"
 
