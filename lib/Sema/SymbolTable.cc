@@ -85,8 +85,6 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     globalScope().add(impl->_str);
     impl->_str->addAlternateName("str");
 
-#ifndef _MSC_VER // This section fails to compile with msvc
-
     /// Declare builtin functions
     impl->_builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
 #define SVM_BUILTIN_DEF(name, attrs, ...)                                      \
@@ -99,8 +97,6 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
         attrs);
     using enum FunctionAttribute;
 #include <svm/Builtin.def>
-
-#endif
 
     /// Declare builtin generics
     auto* reinterpret = addEntity<Generic>("reinterpret", 1u, &globalScope());

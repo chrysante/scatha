@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <span>
 
 #include <range/v3/view.hpp>
 #include <utl/functional.hpp>
@@ -79,6 +80,9 @@ EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
 /// Represents a variable
 class SCATHA_API Variable: public Entity {
 public:
+    Variable() = default;
+    SC_MOVEONLY(Variable);
+
     explicit Variable(std::string name,
                       Scope* parentScope,
                       QualType const* type = nullptr);
@@ -652,6 +656,9 @@ class SCATHA_API OverloadSet:
     using VecBase = utl::small_vector<Function*, 8>;
 
 public:
+    OverloadSet() = default;
+    SC_MOVEONLY(OverloadSet);
+
     /// Construct an empty overload set.
     explicit OverloadSet(std::string name, Scope* parentScope):
         Entity(EntityType::OverloadSet, std::move(name), parentScope) {}

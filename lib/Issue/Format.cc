@@ -114,7 +114,11 @@ void scatha::highlightSource(std::string_view text,
     }
     tfmt::format(tfmt::Red, [&] {
         for (size_t i = 0; i < std::max(size_t{ 1 }, numChars); ++i) {
+#if defined(__APPLE__) // Fancy symbols 
             str << "˜";
+#else
+            str << "^";
+#endif
         }
     });
     str << "\n";

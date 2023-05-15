@@ -156,6 +156,9 @@ protected:
     }
 
 public:
+    AbstractSyntaxTree() = default;
+    SC_MOVEONLY(AbstractSyntaxTree);
+
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }
 
@@ -284,6 +287,12 @@ NodeType dyncast_get_type(
 class SCATHA_API Expression: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
+
+    Expression(Expression const&) = delete;
+    Expression& operator=(Expression const&) = delete;
+    Expression(Expression&&) noexcept           = default;
+    Expression& operator=(Expression&&) noexcept = default;
+
 
     AST_DERIVED_COMMON(Expression)
 

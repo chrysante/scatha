@@ -28,6 +28,8 @@
 #elif defined(SC_APIIMPORT)
 #define SCATHA_API     __declspec(dllimport)
 #define SCATHA_TESTAPI __declspec(dllimport)
+#elif
+#error Need either SC_APIEXPORT or SC_APIIMPORT defined
 #endif // APIIMPORT / APIEXPORT
 
 #else  // Compiler specific
@@ -40,6 +42,14 @@
 #else
 #define SC_DISABLE_UBSAN
 #endif
+
+/// 
+
+#define SC_MOVEONLY(Type) \
+Type(Type const&) = delete; \
+Type& operator=(Type const&) = delete; \
+Type(Type&&) noexcept           = default; \
+Type& operator=(Type&&) noexcept = default
 
 /// MARK: Assertions
 

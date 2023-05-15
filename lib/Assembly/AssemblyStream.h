@@ -20,9 +20,9 @@ public:
 
     AssemblyStream(AssemblyStream const&)            = delete;
     AssemblyStream& operator=(AssemblyStream const&) = delete;
-    SCATHA_API AssemblyStream(AssemblyStream&&) noexcept;
-    SCATHA_API AssemblyStream& operator=(AssemblyStream&&) noexcept;
-    SCATHA_API ~AssemblyStream();
+    AssemblyStream(AssemblyStream&&) noexcept;
+    AssemblyStream& operator=(AssemblyStream&&) noexcept;
+    ~AssemblyStream();
 
     std::list<Block>::iterator begin();
     std::list<Block>::const_iterator begin() const;

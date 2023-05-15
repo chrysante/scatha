@@ -22,9 +22,9 @@ class SCATHA_API Context {
 public:
     /// Construct an empty `Context` object
     Context();
-
+    Context(Context const& rhs)          = delete;
+    Context& operator=(Context const& rhs) = delete;
     Context(Context&&) noexcept;
-
     Context& operator=(Context&&) noexcept;
 
     ~Context();

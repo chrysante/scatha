@@ -41,6 +41,8 @@ filter "system:macosx"
         ["INSTALL_PATH"]            = "@executable_path",
         ["LD_RUNPATH_SEARCH_PATHS"] = "@loader_path"
     }
+filter "system:windows"
+    defines "_ITERATOR_DEBUG_LEVEL=0"
 filter {}
 
 ------------------------------------------
@@ -143,6 +145,7 @@ links { "scatha", "svm-lib", "APMath" }
 ------------------------------------------
 project "runtime"
 kind "StaticLib"
+defines "SC_APIIMPORT"
 
 externalincludedirs {
     "include",

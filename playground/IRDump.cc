@@ -17,6 +17,7 @@
 #include "IR/Module.h"
 #include "IR/Parser.h"
 #include "IR/Print.h"
+#include "IR/CFG.h"
 #include "Parser/Lexer.h"
 #include "Parser/LexicalIssue.h"
 #include "Parser/Parser.h"
