@@ -102,9 +102,7 @@
 
 /// # SC_UNIMPLEMENTED
 #define SC_UNIMPLEMENTED()                                                     \
-    (::scatha::internal::unimplemented(__FILE__,                               \
-                                       __LINE__,                               \
-                                       SC_PRETTY_FUNC),                        \
+    (::scatha::internal::unimplemented(__FILE__, __LINE__, SC_PRETTY_FUNC),    \
      SC_DEBUGFAIL_IMPL())
 
 /// # SC_DEBUGBREAK

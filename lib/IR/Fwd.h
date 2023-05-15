@@ -210,9 +210,8 @@ struct PhiMappingImpl {
 
     PhiMappingImpl(BB* pred, V* value): pred(pred), value(value) {}
 
-    template <bool Dummy = false, std::enable_if_t<!Dummy, int> = 0>
-    PhiMappingImpl(PhiMappingImpl<Dummy> p)
-        : pred(p.pred), value(p.value) {}
+    template <bool False = false, std::enable_if_t<!False, int> = 0>
+    PhiMappingImpl(PhiMappingImpl<False> p): pred(p.pred), value(p.value) {}
 
     template <typename BBPtr, typename VPtr>
     PhiMappingImpl(std::pair<BBPtr, VPtr> p): pred(p.first), value(p.second) {}
