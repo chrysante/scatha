@@ -65,9 +65,11 @@ filter { "system:macosx", "configurations:Release" }
 buildoptions "-fvisibility=hidden"
 filter {}
 
+filter "system:macosx"
 prebuildcommands {
-    --"${PROJECT_DIR}/scripts/copy-public-headers.sh"
+    "${PROJECT_DIR}/scripts/copy-public-headers.sh"
 }
+filter {}
 
 ------------------------------------------
 project "scatha-c"

@@ -16,27 +16,30 @@ class Block;
 
 class SCATHA_TESTAPI AssemblyStream {
 public:
-    AssemblyStream() = default;
+    AssemblyStream();
 
+    AssemblyStream(AssemblyStream const&) = delete;
+    AssemblyStream& operator=(AssemblyStream const&) = delete;
     SCATHA_API AssemblyStream(AssemblyStream&&) noexcept;
     SCATHA_API AssemblyStream& operator=(AssemblyStream&&) noexcept;
     SCATHA_API ~AssemblyStream();
 
-    auto begin() { return blocks.begin(); }
-    auto begin() const { return blocks.begin(); }
+    std::list<Block>::iterator begin();
+    std::list<Block>::const_iterator begin() const;
 
-    auto end() { return blocks.end(); }
-    auto end() const { return blocks.end(); }
+    std::list<Block>::iterator end();
+    std::list<Block>::const_iterator end() const;
 
     Block* add(Block block);
 
-    std::span<u8 const> dataSection() const { return data; }
+    std::span<u8 const> dataSection() const;
 
-    void setDataSection(std::vector<u8> data) { this->data = std::move(data); }
+    void setDataSection(std::vector<u8> data);
 
 private:
-    std::list<Block> blocks;
-    std::vector<u8> data;
+    struct Impl;
+
+    std::unique_ptr<Impl> impl;
 };
 
 } // namespace scatha::Asm

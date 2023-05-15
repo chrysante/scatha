@@ -220,7 +220,8 @@ public:
 class SCATHA_API FunctionSignature {
 public:
     FunctionSignature() = default;
-    explicit FunctionSignature(utl::vector<QualType const*> argumentTypes,
+
+    explicit FunctionSignature(utl::small_vector<QualType const*> argumentTypes,
                                QualType const* returnType):
         _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
 
