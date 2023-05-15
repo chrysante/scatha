@@ -16,7 +16,7 @@
 // POSIX Platform
 #define _SCATHA_PD_POSIX()   1
 #define _SCATHA_PD_WINDOWS() 0
-#elif defined(MSC_VER)
+#elif defined(_MSC_VER)
 // Windows Platform
 #define _SCATHA_PD_POSIX()   0
 #define _SCATHA_PD_WINDOWS() 1
@@ -50,7 +50,7 @@
 #if SCATHA(GNU)
 #define _SCATHA_PD_API() __attribute__((visibility("default")))
 #elif SCATHA(WINDOWS)
-#define _SCATHA_PD_API() __declspec(dllexport)
+#define _SCATHA_PD_API() // __declspec(dllexport)
 #endif
 
 #define SCATHA_API     _SCATHA_PD_API()
@@ -77,6 +77,14 @@
 #error Unsupported Compiler
 #endif
 
+#if defined(__GNUC__)
+#define SC_PRETTY_FUNC __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#define SC_PRETTY_FUNC __FUNCSIG__
+#else
+#error Unsupported Compiler
+#endif
+
 /// # SC_UNREACHABLE
 #if SCATHA(GNU)
 #define _SC_UNREACHABLE_IMPL() __builtin_unreachable()
@@ -86,7 +94,7 @@
 
 #if SCATHA(DEBUG)
 #define SC_UNREACHABLE(...)                                                    \
-    (::scatha::internal::unreachable(__FILE__, __LINE__, __PRETTY_FUNCTION__), \
+    (::scatha::internal::unreachable(__FILE__, __LINE__, SC_PRETTY_FUNC),      \
      SC_DEBUGFAIL_IMPL())
 #else
 #define SC_UNREACHABLE(...) _SC_UNREACHABLE_IMPL()
@@ -96,7 +104,7 @@
 #define SC_UNIMPLEMENTED()                                                     \
     (::scatha::internal::unimplemented(__FILE__,                               \
                                        __LINE__,                               \
-                                       __PRETTY_FUNCTION__),                   \
+                                       SC_PRETTY_FUNC),                        \
      SC_DEBUGFAIL_IMPL())
 
 /// # SC_DEBUGBREAK
@@ -115,7 +123,7 @@
     ((COND) ? (void)0 :                                                        \
               (::scatha::internal::assertionFailure(__FILE__,                  \
                                                     __LINE__,                  \
-                                                    __PRETTY_FUNCTION__,       \
+                                                    SC_PRETTY_FUNC,            \
                                                     #COND,                     \
                                                     MSG),                      \
                SC_DEBUGFAIL_IMPL()))

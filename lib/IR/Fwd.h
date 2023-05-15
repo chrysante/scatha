@@ -210,8 +210,8 @@ struct PhiMappingImpl {
 
     PhiMappingImpl(BB* pred, V* value): pred(pred), value(value) {}
 
-    PhiMappingImpl(PhiMappingImpl<false> p)
-        requires IsConst
+    template <bool Dummy = false, std::enable_if_t<!Dummy, int> = 0>
+    PhiMappingImpl(PhiMappingImpl<Dummy> p)
         : pred(p.pred), value(p.value) {}
 
     template <typename BBPtr, typename VPtr>

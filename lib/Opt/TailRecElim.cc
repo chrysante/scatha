@@ -88,7 +88,7 @@ struct TREContext {
 
     Context& irCtx;
     Function& function;
-    utl::small_vector<ViableReturn> viableReturns;
+    utl::small_vector<ViableReturn, 8> viableReturns;
     utl::small_vector<Return*> otherReturns;
     size_t totalReturns    = 0;
     BasicBlock* loopHeader = nullptr;
@@ -309,8 +309,8 @@ std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
                 return std::nullopt;
             }
             return DirectReturn{
-              { .retInst = &ret },
-                .call = call
+                { .retInst = &ret },
+                call
             };
         },
         [&](Call& call) -> std::optional<ViableReturn> {
@@ -318,8 +318,8 @@ std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
                 return std::nullopt;
             }
             return DirectReturn{
-              { .retInst = &ret },
-                .call = &call
+                { .retInst = &ret },
+                &call
             };
         },
         [&](ArithmeticInst& inst) -> std::optional<ViableReturn> {
@@ -334,10 +334,10 @@ std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
                 }
             }
             return AccumulatedReturn{
-              { .retInst      = &ret },
-                .accInst      = &inst,
-                .call         = cast<Call*>(call),
-                .otherAccArg  = other
+                { &ret },
+                &inst,
+                cast<Call*>(call),
+                other
             };
         },
         [&](Phi& phi) -> std::optional<ViableReturn> {
@@ -354,12 +354,12 @@ std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
                         return std::nullopt;
                     }
                     return DirectPhiReturn{
-                      { .retInst      = &ret },
-                        .phi          = &phi,
-                        .constantPred = aPred,
-                        .constant     = constant,
-                        .callPred     = bPred,
-                        .call         = call
+                        { &ret },
+                        &phi,
+                        aPred,
+                        constant,
+                        bPred,
+                        call
                     };
                 }
                 auto* accOp = dyncast<ArithmeticInst*>(b);
@@ -374,14 +374,14 @@ std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
                     }
                 }
                 return AccumulatedPhiReturn{
-                  { .retInst      = &ret },
-                    .phi          = &phi,
-                    .constantPred = aPred,
-                    .constant     = constant,
-                    .accPred      = bPred,
-                    .accInst      = accOp,
-                    .call         = cast<Call*>(call),
-                    .otherAccArg  = other
+                    { &ret },
+                    &phi,
+                    aPred,
+                    constant,
+                    bPred,
+                    accOp,
+                    cast<Call*>(call),
+                    other
                 };
             };
             if (auto res = get(phi.argumentAt(0), phi.argumentAt(1))) {

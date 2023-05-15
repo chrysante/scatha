@@ -66,7 +66,7 @@ buildoptions "-fvisibility=hidden"
 filter {}
 
 prebuildcommands {
-    "${PROJECT_DIR}/scripts/copy-public-headers.sh"
+    --"${PROJECT_DIR}/scripts/copy-public-headers.sh"
 }
 
 ------------------------------------------
