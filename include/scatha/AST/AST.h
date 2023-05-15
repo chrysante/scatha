@@ -157,6 +157,7 @@ protected:
 
 public:
     AbstractSyntaxTree() = default;
+
     SC_MOVEONLY(AbstractSyntaxTree);
 
     /// Runtime type of this node
