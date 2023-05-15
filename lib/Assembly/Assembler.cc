@@ -140,7 +140,7 @@ void Context::run() {
     }
     postProcess();
 }
-#if 0
+
 void Context::dispatch(Instruction const& inst) {
     inst.visit([this](auto& inst) { translate(inst); });
 }
@@ -377,4 +377,3 @@ void Context::postProcess() {
               offset + static_cast<i32>(sizeof(OpCode)));
     }
 }
-#endif
