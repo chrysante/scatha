@@ -144,23 +144,20 @@ bool FuncEqContext::typeEqual(ir::Type const* a, ir::Type const* b) const {
 
 EqResult FuncEqContext::valueEqual(ir::Value const* x,
                                    ir::Value const* y) const {
-    // clang-format off
-    return visit(*x, *y, utl::overload{
-        [&](ir::Constant const& aConst, ir::Constant const& bConst) -> EqResult {
-            if (typeEqual(aConst.type(), bConst.type())) {
-                return EqResult::Success;
-            }
-            return { x, y, "Type mismatch" };
-        },
-        [&](ir::Value const& a, ir::Value const& b) -> EqResult {
-            auto itr = valueMap.find(&a);
-            if (itr == valueMap.end()) {
-                return { x, y, "No matching value in RHS" };
-            }
-            if (itr->second != &b) {
-                return { x, y, "Value mismatch" };
-            }
+    auto* xConst = dyncast<ir::Constant const*>(x);
+    auto* yConst = dyncast<ir::Constant const*>(y);
+    if (xConst && yConst) {
+        if (typeEqual(xConst->type(), yConst->type())) {
             return EqResult::Success;
         }
-    }); // clang-format on
+        return { x, y, "Type mismatch" };
+    }
+    auto itr = valueMap.find(x);
+    if (itr == valueMap.end()) {
+        return { x, y, "No matching value in RHS" };
+    }
+    if (itr->second != y) {
+        return { x, y, "Value mismatch" };
+    }
+    return EqResult::Success;
 }

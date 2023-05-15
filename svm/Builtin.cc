@@ -1,5 +1,6 @@
 #include "svm/BuiltinInternal.h"
 
+#include <cassert>
 #include <cmath>
 #include <iostream>
 #include <string_view>
@@ -99,6 +100,8 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
     at(Builtin::trap) = [](u64*, VirtualMachine*, void*) {
 #if defined(__GNUC__)
         __builtin_trap();
+#elif defined(_MSC_VER)
+        assert(false);
 #else
 #error Unsupported compiler
 #endif

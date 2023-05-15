@@ -7,6 +7,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Parser.h"
+#include "IR/CFG.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
 #include "Opt/Common.h"

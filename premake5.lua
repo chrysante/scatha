@@ -105,9 +105,11 @@ externalincludedirs {
     "external/utility/include",
 }
 
+filter "system:macosx"
 prebuildcommands {
     "${PROJECT_DIR}/scripts/copy-public-headers.sh"
 }
+filter {}
 
 ------------------------------------------
 project "svm"
