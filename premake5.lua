@@ -45,8 +45,8 @@ filter {}
 
 ------------------------------------------
 project "scatha"
-
 kind "SharedLib"
+defines "SC_APIEXPORT"
 
 addCppFiles "lib"
 externalincludedirs { 
@@ -61,7 +61,7 @@ externalincludedirs {
 includedirs { "lib" }
 links { "apmath", "termfmt" }
 
-filter { "system:macosx", "configurations:Release" }
+filter { "system:macosx" }
 buildoptions "-fvisibility=hidden"
 filter {}
 
@@ -73,9 +73,8 @@ filter {}
 
 ------------------------------------------
 project "scatha-c"
-
 kind "ConsoleApp"
-
+defines "SC_APIIMPORT"
 addCppFiles "scatha-c"
 
 externalincludedirs {
@@ -91,7 +90,6 @@ links { "scatha", "termfmt", "apmath" }
 
 ------------------------------------------
 project "svm-lib"
-
 kind "StaticLib"
 
 addCppFiles "svm"
@@ -113,9 +111,7 @@ filter {}
 
 ------------------------------------------
 project "svm"
-
 kind "ConsoleApp"
-
 files { "svm/CLIParse.*", "svm/main.cc" }
 
 externalincludedirs {
@@ -128,8 +124,9 @@ links "svm-lib"
 
 ------------------------------------------
 project "scatha-test"
-
 kind "ConsoleApp"
+defines "SC_APIIMPORT"
+
 externalincludedirs { 
     ".", 
     "include", 
@@ -145,8 +142,8 @@ links { "scatha", "svm-lib", "APMath" }
 
 ------------------------------------------
 project "runtime"
-
 kind "StaticLib"
+
 externalincludedirs {
     "include",
     "runtime/include",
@@ -162,8 +159,9 @@ links { "scatha", "svm-lib", "termfmt" }
 
 ------------------------------------------
 project "playground"
-
 kind "ConsoleApp"
+defines "SC_APIIMPORT"
+
 externalincludedirs {
     "include",
     "runtime/include",

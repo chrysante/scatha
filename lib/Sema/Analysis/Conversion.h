@@ -81,61 +81,62 @@ private:
 /// If \p expr is implicitly convertible to type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` iff implicit conversion succeeded
-bool convertImplicitly(ast::Expression* expr,
-                       QualType const* to,
-                       IssueHandler& issueHandler);
+SCATHA_TESTAPI bool convertImplicitly(ast::Expression* expr,
+                                      QualType const* to,
+                                      IssueHandler& issueHandler);
 
 /// Does nothing if `expr->type() == to`
 /// If \p expr is explicitly convertible to type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` iff explicit conversion succeeded
-bool convertExplicitly(ast::Expression* expr,
-                       QualType const* to,
-                       IssueHandler& issueHandler);
+SCATHA_TESTAPI bool convertExplicitly(ast::Expression* expr,
+                                      QualType const* to,
+                                      IssueHandler& issueHandler);
 
 /// Does nothing if `expr->type() == to`
 /// If \p expr is interpretable as type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` iff reinterpret conversion succeeded
-bool convertReinterpret(ast::Expression* expr,
-                        QualType const* to,
-                        IssueHandler& issueHandler);
+SCATHA_TESTAPI bool convertReinterpret(ast::Expression* expr,
+                                       QualType const* to,
+                                       IssueHandler& issueHandler);
 
 /// \Returns The rank of the conversion if an implicit conversion from type \p
 /// from to type \p to exists. Otherwise `std::nullopt`
-std::optional<int> implicitConversionRank(ast::Expression const* from,
-                                          QualType const* to);
+SCATHA_TESTAPI std::optional<int> implicitConversionRank(
+    ast::Expression const* from, QualType const* to);
 
 /// \Returns The rank of the conversion if an explicit conversion from type \p
 /// from to type \p to exists. Otherwise `std::nullopt`
-std::optional<int> explicitConversionRank(ast::Expression const* from,
-                                          QualType const* to);
+SCATHA_TESTAPI std::optional<int> explicitConversionRank(
+    ast::Expression const* from, QualType const* to);
 
 /// Convert expression \p expr to an implicit reference
-bool convertToImplicitMutRef(ast::Expression* expr,
-                             SymbolTable& sym,
-                             IssueHandler& issueHandler);
+SCATHA_TESTAPI bool convertToImplicitMutRef(ast::Expression* expr,
+                                            SymbolTable& sym,
+                                            IssueHandler& issueHandler);
 
-bool convertToExplicitRef(ast::Expression* expr,
-                          SymbolTable& sym,
-                          IssueHandler& issueHandler);
+SCATHA_TESTAPI bool convertToExplicitRef(ast::Expression* expr,
+                                         SymbolTable& sym,
+                                         IssueHandler& issueHandler);
 
 /// Dereference the expression \p expr to if it is a reference
 /// Otherwise a no-op
-void dereference(ast::Expression* expr, SymbolTable& sym);
+SCATHA_TESTAPI void dereference(ast::Expression* expr, SymbolTable& sym);
 
 /// Find the common type of \p a and \p b
-QualType const* commonType(SymbolTable& symbolTable,
-                           QualType const* a,
-                           QualType const* b);
+SCATHA_TESTAPI QualType const* commonType(SymbolTable& symbolTable,
+                                          QualType const* a,
+                                          QualType const* b);
 
 /// Find the common type of \p types
-QualType const* commonType(SymbolTable& symbolTable,
-                           std::span<QualType const* const> types);
+SCATHA_TESTAPI QualType const* commonType(
+    SymbolTable& symbolTable, std::span<QualType const* const> types);
 
 /// Find the common type of \p expressions
-QualType const* commonType(SymbolTable& symbolTable,
-                           std::span<ast::Expression const* const> expressions);
+SCATHA_TESTAPI QualType const* commonType(
+    SymbolTable& symbolTable,
+    std::span<ast::Expression const* const> expressions);
 
 } // namespace scatha::sema
 

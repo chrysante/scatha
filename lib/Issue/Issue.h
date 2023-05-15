@@ -11,7 +11,7 @@ namespace scatha {
 enum class IssueSeverity { Error, Warning };
 
 /// Base class of all compilation issues
-class Issue {
+class SCATHA_API Issue {
 public:
     virtual ~Issue() = default;
 

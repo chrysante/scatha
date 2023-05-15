@@ -72,7 +72,7 @@ private:
     void format(std::ostream&) const override;
 };
 
-class InvalidEscapeSequence: public LexicalIssue {
+class SCATHA_API InvalidEscapeSequence: public LexicalIssue {
 public:
     explicit InvalidEscapeSequence(char litValue, SourceRange sourceRange):
         LexicalIssue(sourceRange, IssueSeverity::Warning), litValue(litValue) {}

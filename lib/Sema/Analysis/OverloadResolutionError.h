@@ -11,7 +11,7 @@
 namespace scatha::sema {
 
 /// Base class of overload resolution errors
-class OverloadResolutionError: public SemanticIssue {
+class SCATHA_API OverloadResolutionError: public SemanticIssue {
 public:
     OverloadResolutionError(OverloadSet const* overloadSet);
 
@@ -23,7 +23,7 @@ private:
 };
 
 /// Error emitted if no function matches the arguments
-class NoMatchingFunction: public OverloadResolutionError {
+class SCATHA_API NoMatchingFunction: public OverloadResolutionError {
 public:
     using OverloadResolutionError::OverloadResolutionError;
 
@@ -32,7 +32,7 @@ private:
 };
 
 /// Error emitted if more than one function matches the arguments
-class AmbiguousOverloadResolution: public OverloadResolutionError {
+class SCATHA_API AmbiguousOverloadResolution: public OverloadResolutionError {
 public:
     AmbiguousOverloadResolution(OverloadSet const* overloadSet,
                                 utl::small_vector<Function const*> matches):
