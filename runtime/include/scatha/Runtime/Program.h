@@ -1,13 +1,13 @@
 #ifndef SCATHA_RUNTIME_PROGRAM_H_
 #define SCATHA_RUNTIME_PROGRAM_H_
 
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-#include <memory>
 
 #include <scatha/Runtime/Common.h>
 
@@ -25,9 +25,7 @@ public:
                      std::unique_ptr<sema::SymbolTable> sym);
 
     Program(Program&&) noexcept;
-
     Program& operator=(Program&&) noexcept;
-
     ~Program();
 
     /// Find address of function \p name with argument types \p argTypes

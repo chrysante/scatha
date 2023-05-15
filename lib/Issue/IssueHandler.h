@@ -26,8 +26,9 @@ class SCATHA_API IssueHandler {
 
 public:
     IssueHandler() = default;
+
     SC_MOVEONLY(IssueHandler);
-    
+
     /// Add \p error to this issue handler
     void push(Issue* issue) {
         _issues.push_back(std::unique_ptr<Issue>(issue));

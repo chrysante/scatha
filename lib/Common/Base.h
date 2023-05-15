@@ -36,20 +36,19 @@
 #error Unsupported compiler
 #endif
 
-// Disable UBSAN for certain integer shift operations. Maybe rethink this later.
+/// Disable UBSAN for certain integer shift operations. Maybe rethink this later.
 #if defined(__clang__) && __clang_major__ >= 10
 #define SC_DISABLE_UBSAN __attribute__((no_sanitize("undefined")))
 #else
 #define SC_DISABLE_UBSAN
 #endif
 
-/// 
-
-#define SC_MOVEONLY(Type) \
-Type(Type const&) = delete; \
-Type& operator=(Type const&) = delete; \
-Type(Type&&) noexcept           = default; \
-Type& operator=(Type&&) noexcept = default
+/// Helper macro to declare move operations as defaulted and copy operations as deleted. This is useful for public interface classes, because for classes marked `dllexport`, MSVC tries to instantiate copy operations unless they are explicitly deleted.
+#define SC_MOVEONLY(Type)                                                      \
+    Type(Type const&)                = delete;                                 \
+    Type& operator=(Type const&)     = delete;                                 \
+    Type(Type&&) noexcept            = default;                                \
+    Type& operator=(Type&&) noexcept = default
 
 /// MARK: Assertions
 
@@ -119,6 +118,11 @@ Type& operator=(Type&&) noexcept = default
 #else  // SC_DEBUG
 #define SC_ASSERT(COND, MSG) SC_ASSUME(COND)
 #endif // SC_DEBUG
+
+/// Unicode symbols in terminal output
+#if defined(__APPLE__) /// MacOS supports unicode symbols in terminal
+#define SC_UNICODE_TERMINAL 1
+#endif
 
 namespace scatha {
 

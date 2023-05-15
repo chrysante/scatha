@@ -2,10 +2,10 @@
 #define SCATHA_SEMA_ENTITY_H_
 
 #include <concepts>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <span>
 
 #include <range/v3/view.hpp>
 #include <utl/functional.hpp>

@@ -7,6 +7,8 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
+#include "Common/Base.h"
+
 using namespace scatha;
 
 void scatha::highlightSource(std::string_view text, SourceRange sourceRange) {
@@ -114,7 +116,7 @@ void scatha::highlightSource(std::string_view text,
     }
     tfmt::format(tfmt::Red, [&] {
         for (size_t i = 0; i < std::max(size_t{ 1 }, numChars); ++i) {
-#if defined(__APPLE__) // Fancy symbols 
+#if SC_UNICODE_TERMINAL
             str << "˜";
 #else
             str << "^";

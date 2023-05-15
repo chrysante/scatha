@@ -288,11 +288,7 @@ class SCATHA_API Expression: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
 
-    Expression(Expression const&) = delete;
-    Expression& operator=(Expression const&) = delete;
-    Expression(Expression&&) noexcept           = default;
-    Expression& operator=(Expression&&) noexcept = default;
-
+    SC_MOVEONLY(Expression);
 
     AST_DERIVED_COMMON(Expression)
 

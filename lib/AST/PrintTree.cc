@@ -25,12 +25,8 @@ namespace {
 
 enum class Level : u8 { Free, Occupied, Child, LastChild };
 
-#if defined(__APPLE__)
-#define FANCY_TREE_SYMBOLS 1
-#endif
-
 char const* toString(Level l) {
-#if defined(FANCY_TREE_SYMBOLS)
+#if SC_UNICODE_TERMINAL
     switch (l) {
     case Level::Free:
         return "   ";
