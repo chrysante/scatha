@@ -87,7 +87,7 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
         opt::deadFuncElim(ctx, mod);
     }
     auto asmStream = cg::codegen(mod);
-    auto asmResult = Asm::assemble(asmStream);
+    auto asmResult = Asm::assemble(*asmStream);
 
     for (auto* f: impl->sym->functions()) {
         if (!f->isNative() ||

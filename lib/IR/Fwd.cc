@@ -9,7 +9,7 @@ std::string_view ir::toString(NodeType nodeType) {
     switch (nodeType) {
         // clang-format off
 #define SC_CGFNODE_DEF(Node, _) case NodeType::Node: return #Node;
-#include "IR/CFG/Lists.def"
+#include "IR/Lists.def"
         // clang-format on
     case NodeType::_count:
         SC_UNREACHABLE();
@@ -24,7 +24,7 @@ std::string_view ir::toString(Conversion conv) {
     switch (conv) {
         // clang-format off
 #define SC_CONVERSION_DEF(Conv, Keyword) case Conversion::Conv: return #Keyword;
-#include "IR/CFG/Lists.def"
+#include "IR/Lists.def"
         // clang-format on
     case Conversion::_count:
         SC_UNREACHABLE();
@@ -40,7 +40,7 @@ std::string_view ir::toString(CompareMode mode) {
         // clang-format off
 #define SC_COMPARE_MODE_DEF(Mode, name)                                        \
     case CompareMode::Mode: return #name;
-#include "IR/CFG/Lists.def"
+#include "IR/Lists.def"
         // clang-format on
     case CompareMode::_count:
         SC_UNREACHABLE();
@@ -56,7 +56,7 @@ std::string_view ir::toString(CompareOperation op) {
         // clang-format off
 #define SC_COMPARE_OPERATION_DEF(Op, name)                                     \
     case CompareOperation::Op: return #name;
-#include "IR/CFG/Lists.def"
+#include "IR/Lists.def"
         // clang-format on
     case CompareOperation::_count:
         SC_UNREACHABLE();
@@ -84,7 +84,7 @@ std::string_view ir::toString(UnaryArithmeticOperation op) {
         // clang-format off
 #define SC_UNARY_ARITHMETIC_OPERATION_DEF(Op, name)                            \
     case UnaryArithmeticOperation::Op: return #name;
-#include "IR/CFG/Lists.def"
+#include "IR/Lists.def"
         // clang-format on
     case UnaryArithmeticOperation::_count:
         SC_UNREACHABLE();
@@ -101,7 +101,7 @@ std::string_view ir::toString(ArithmeticOperation op) {
         // clang-format off
 #define SC_ARITHMETIC_OPERATION_DEF(Op, name)                                  \
     case ArithmeticOperation::Op: return #name;
-#include "IR/CFG/Lists.def"
+#include "IR/Lists.def"
         // clang-format on
     case ArithmeticOperation::_count:
         SC_UNREACHABLE();

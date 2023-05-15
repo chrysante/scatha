@@ -36,14 +36,18 @@
 #error Unsupported compiler
 #endif
 
-/// Disable UBSAN for certain integer shift operations. Maybe rethink this later.
+/// Disable UBSAN for certain integer shift operations. Maybe rethink this
+/// later.
 #if defined(__clang__) && __clang_major__ >= 10
 #define SC_DISABLE_UBSAN __attribute__((no_sanitize("undefined")))
 #else
 #define SC_DISABLE_UBSAN
 #endif
 
-/// Helper macro to declare move operations as defaulted and copy operations as deleted. This is useful for public interface classes, because for classes marked `dllexport`, MSVC tries to instantiate copy operations unless they are explicitly deleted.
+/// Helper macro to declare move operations as defaulted and copy operations as
+/// deleted. This is useful for public interface classes, because for classes
+/// marked `dllexport`, MSVC tries to instantiate copy operations unless they
+/// are explicitly deleted.
 #define SC_MOVEONLY(Type)                                                      \
     Type(Type const&)                = delete;                                 \
     Type& operator=(Type const&)     = delete;                                 \

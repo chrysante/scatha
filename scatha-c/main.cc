@@ -12,7 +12,6 @@
 #include <scatha/CodeGen/CodeGen.h>
 #include <scatha/IR/Context.h>
 #include <scatha/IR/Module.h>
-#include <scatha/Issue/Format.h>
 #include <scatha/Issue/IssueHandler.h>
 #include <scatha/Opt/Optimizer.h>
 #include <scatha/Parser/Parser.h>

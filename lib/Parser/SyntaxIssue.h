@@ -1,7 +1,7 @@
 // SCATHA-PUBLIC-HEADER
 
-#ifndef SCATHA_PARSER_SYNTAXISSUE2_H_
-#define SCATHA_PARSER_SYNTAXISSUE2_H_
+#ifndef SCATHA_PARSER_SYNTAXISSUE_H_
+#define SCATHA_PARSER_SYNTAXISSUE_H_
 
 #include <iosfwd>
 #include <string>
@@ -9,7 +9,6 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/Issue/Issue.h>
-#include <scatha/Parser/Bracket.h>
 #include <scatha/Parser/Token.h>
 
 namespace scatha::parse {

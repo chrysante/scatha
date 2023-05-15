@@ -80,7 +80,6 @@ EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
 /// Represents a variable
 class SCATHA_API Variable: public Entity {
 public:
-    Variable() = default;
     SC_MOVEONLY(Variable);
 
     explicit Variable(std::string name,
@@ -656,7 +655,6 @@ class SCATHA_API OverloadSet:
     using VecBase = utl::small_vector<Function*, 8>;
 
 public:
-    OverloadSet() = default;
     SC_MOVEONLY(OverloadSet);
 
     /// Construct an empty overload set.

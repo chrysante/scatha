@@ -337,7 +337,9 @@ std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
                 { &ret },
                 &inst,
                 cast<Call*>(call),
-                other
+                other,
+                nullptr,
+                nullptr
             };
         },
         [&](Phi& phi) -> std::optional<ViableReturn> {

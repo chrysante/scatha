@@ -3,18 +3,14 @@
 #ifndef SCATHA_IR_CONTEXT_H_
 #define SCATHA_IR_CONTEXT_H_
 
+#include <memory>
+#include <span>
 #include <string>
-
-#include <utl/hashmap.hpp>
-#include <utl/hashset.hpp>
-#include <utl/strcat.hpp>
-#include <utl/vector.hpp>
 
 #include <scatha/Common/APFloat.h>
 #include <scatha/Common/APInt.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Fwd.h>
-#include <scatha/IR/StructHash.h>
 
 namespace scatha::ir {
 
@@ -30,10 +26,10 @@ public:
     ~Context();
 
     /// \returns The `void` type
-    VoidType const* voidType() { return _voidType; }
+    VoidType const* voidType();
 
     /// \returns The `ptr` type
-    PointerType const* pointerType() { return _ptrType; }
+    PointerType const* pointerType();
 
     /// \returns The `iN` type where `N` is \p bitwidth
     IntegralType const* integralType(size_t bitwidth);
@@ -91,30 +87,9 @@ public:
     bool isAssociative(ArithmeticOperation operation) const;
 
 private:
-    /// ## Constants
-    /// ** Bitwidth must appear before the value, because comparison of values
-    /// of different widths may not be possible. **
-    utl::hashmap<std::pair<size_t, APInt>, UniquePtr<IntegralConstant>>
-        _integralConstants;
-    /// We use `std::map` here because floats are not really hashable.
-    utl::hashmap<std::pair<size_t, APFloat>, UniquePtr<FloatingPointConstant>>
-        _floatConstants;
-    utl::hashmap<Type const*, UniquePtr<UndefValue>> _undefConstants;
+    struct Impl;
 
-    /// ## Types
-    utl::vector<UniquePtr<Type>> _types;
-    VoidType const* _voidType;
-    PointerType const* _ptrType;
-    utl::hashmap<uint32_t, IntegralType const*> _intTypes;
-    utl::hashmap<uint32_t, FloatType const*> _floatTypes;
-    using StructKey = utl::small_vector<Type const*>;
-    utl::hashmap<StructKey,
-                 StructureType const*,
-                 internal::StructHash,
-                 internal::StructEqual>
-        _anonymousStructs;
-    using ArrayKey = std::pair<Type const*, size_t>;
-    utl::hashmap<ArrayKey, ArrayType const*> _arrayTypes;
+    std::unique_ptr<Impl> impl;
 };
 
 } // namespace scatha::ir
