@@ -51,6 +51,11 @@ kind "SharedLib"
 defines "SC_APIEXPORT"
 
 addCppFiles "lib"
+-- Public headers
+files {
+    "include/scatha/**.h", 
+    "include/scatha/**.def" 
+}
 externalincludedirs { 
     "include",
     "external/utility/include", 
@@ -60,17 +65,11 @@ externalincludedirs {
     "external/APMath/include",
     "external/range-v3/include",
 }
-includedirs { "lib" }
+includedirs { "lib", "include/scatha" }
 links { "apmath", "termfmt" }
 
 filter { "system:macosx" }
 buildoptions "-fvisibility=hidden"
-filter {}
-
-filter "system:macosx"
-prebuildcommands {
-    "${PROJECT_DIR}/scripts/copy-public-headers.sh"
-}
 filter {}
 
 ------------------------------------------
@@ -105,12 +104,6 @@ externalincludedirs {
     "external/utility/include",
 }
 
-filter "system:macosx"
-prebuildcommands {
-    "${PROJECT_DIR}/scripts/copy-public-headers.sh"
-}
-filter {}
-
 ------------------------------------------
 project "svm"
 kind "ConsoleApp"
@@ -132,6 +125,7 @@ defines "SC_APIIMPORT"
 externalincludedirs { 
     ".", 
     "include", 
+    "include/scatha", 
     "lib",
     "external/utility/include", 
     "external/Catch",
@@ -149,6 +143,7 @@ defines "SC_APIIMPORT"
 
 externalincludedirs {
     "include",
+    "include/scatha",
     "runtime/include",
     "external/utility/include",
     "external/termfmt/include",
@@ -158,7 +153,7 @@ externalincludedirs {
 includedirs { ".", "lib" }
 
 files { "runtime/**.h", "runtime/**.cc" }
-links { "scatha", "svm-lib", "termfmt" }
+links { "termfmt" }
 
 ------------------------------------------
 project "playground"
@@ -167,6 +162,7 @@ defines "SC_APIIMPORT"
 
 externalincludedirs {
     "include",
+    "include/scatha", 
     "runtime/include",
     "external/utility/include",
     "external/termfmt/include",

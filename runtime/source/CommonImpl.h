@@ -5,8 +5,7 @@
 #include <string>
 
 #include <scatha/Runtime/Common.h>
-
-#include "Sema/Fwd.h"
+#include <scatha/Sema/Fwd.h>
 
 namespace scatha {
 
