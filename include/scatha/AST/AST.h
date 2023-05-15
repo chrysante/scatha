@@ -599,8 +599,8 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
-    /// The  resolved function.
-    /// Differs from object because in that the object refers to  the overload
+    /// The resolved function.
+    /// Differs from object because the object refers to the overload
     /// set
     template <typename F = sema::Function>
     F* function() {
@@ -1061,8 +1061,8 @@ public:
     Expression const* expression() const { return child<Expression>(0); }
 };
 
-/// Abstract node representing any control flow statement like if, while, for,
-/// return etc. May only appear at function scope.
+/// Abstract node representing any control flow statement like `if`, `while`, `for`,
+/// `return` etc. May only appear at function scope.
 class SCATHA_API ControlFlowStatement: public Statement {
 protected:
     using Statement::Statement;
@@ -1101,14 +1101,12 @@ public:
     AST_DERIVED_COMMON(IfStatement)
 
     /// Condition to branch on
-    /// Must not be null after parsing and must be of type bool (or maybe later
-    /// convertible to bool)
     AST_PROPERTY(0, Expression, condition, Condition)
 
-    /// Statement to execute if condition is true
+    /// Statement to execute if condition is satisfied
     AST_PROPERTY(1, Statement, thenBlock, ThenBlock)
 
-    /// Statement to execute if condition is false
+    /// Statement to execute if condition is not satisfied. May be null
     AST_PROPERTY(2, Statement, elseBlock, ElseBlock)
 };
 
