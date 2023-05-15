@@ -17,7 +17,7 @@
 
 #elif defined(_MSC_VER)
 
-#define ALWAYS_INLINE 
+#define ALWAYS_INLINE
 
 #define SVM_ASSERT(COND) assert(COND)
 

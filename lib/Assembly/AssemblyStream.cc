@@ -10,9 +10,7 @@ struct AssemblyStream::Impl {
     std::vector<u8> data;
 };
 
-AssemblyStream::AssemblyStream(): impl(std::make_unique<Impl>()) {
-
-}
+AssemblyStream::AssemblyStream(): impl(std::make_unique<Impl>()) {}
 
 AssemblyStream::AssemblyStream(AssemblyStream&&) noexcept = default;
 
@@ -27,9 +25,7 @@ std::list<Block>::const_iterator AssemblyStream::begin() const {
     return impl->blocks.begin();
 }
 
-std::list<Block>::iterator AssemblyStream::end() {
-    return impl->blocks.end();
-}
+std::list<Block>::iterator AssemblyStream::end() { return impl->blocks.end(); }
 std::list<Block>::const_iterator AssemblyStream::end() const {
     return impl->blocks.end();
 }

@@ -13,7 +13,6 @@
 using namespace scatha;
 using namespace sema;
 
-
 static bool isKeyword(std::string_view id) {
     static constexpr std::array keywords{
 #define SC_KEYWORD_TOKEN_DEF(Token, str) std::string_view(str),
@@ -86,7 +85,7 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     globalScope().add(impl->_str);
     impl->_str->addAlternateName("str");
 
-#ifndef _MSC_VER // This section fails to compile with msvc 
+#ifndef _MSC_VER // This section fails to compile with msvc
 
     /// Declare builtin functions
     impl->_builtinFunctions.resize(static_cast<size_t>(svm::Builtin::_count));
