@@ -1,9 +1,10 @@
 #ifndef SCATHA_ASSEMBLY_VALUES_H_
 #define SCATHA_ASSEMBLY_VALUES_H_
 
+#include <variant>
+
 #include <utl/bit.hpp>
 #include <utl/utility.hpp>
-#include <utl/variant.hpp>
 
 #include "Assembly/Common.h"
 #include "Common/Base.h"
@@ -174,11 +175,11 @@ public:
 
 namespace internal {
 
-using ValueVariantBase = utl::cbvariant<ValueBase,
+using ValueVariantBase = std::variant<
 #define SC_ASM_VALUE_DEF(value) value
 #define SC_ASM_VALUE_SEPARATOR  ,
 #include "Assembly/Lists.def"
-                                        >;
+    >;
 
 } // namespace internal
 
@@ -186,7 +187,21 @@ using ValueVariantBase = utl::cbvariant<ValueBase,
 class Value: public internal::ValueVariantBase {
 public:
     using internal::ValueVariantBase::ValueVariantBase;
+
     ValueType valueType() const { return static_cast<ValueType>(index()); }
+
+    template <typename T>
+    bool is() const {
+        return std::holds_alternative<T>(*this);
+    }
+
+    u64 value() const {
+        return std::visit([](auto& base) { return base.value(); }, *this);
+    }
+
+    Value64 widen() const {
+        return std::visit([](auto& base) { return base.widen(); }, *this);
+    }
 };
 
 Value promote(Value const& value, size_t size);

@@ -156,7 +156,7 @@ static void printImpl(std::ostream& str, ConvertInst const& conv) {
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Instruction const& inst) {
-    inst.visit([&](auto& inst) { printImpl(str, inst); });
+    visit([&](auto& inst) { printImpl(str, inst); }, inst);
     return str;
 }
 
@@ -204,6 +204,6 @@ static void printImpl(std::ostream& str, MemoryAddress const& addr) {
 }
 
 std::ostream& Asm::operator<<(std::ostream& str, Value const& value) {
-    value.visit([&](auto& value) { printImpl(str, value); });
+    std::visit([&](auto& value) { printImpl(str, value); }, value);
     return str;
 }
