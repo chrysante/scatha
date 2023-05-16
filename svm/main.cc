@@ -33,10 +33,9 @@ int main(int argc, char* argv[]) {
     vm.execute({});
     auto const endTime = std::chrono::high_resolution_clock::now();
     u64 const exitCode = vm.getRegister(0);
-    std::cout << "Program returned with exit code: " << exitCode << std::endl;
-
     if (options.time) {
         std::cout << "Execution took "
                   << utl::format_duration(endTime - beginTime) << "\n";
     }
+    return static_cast<int>(exitCode);
 }
