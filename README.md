@@ -6,6 +6,10 @@ Made for easy integration as an embedded scripting language into other applicati
 
 Read the [language reference](docs/LanguageRef.md) for details.
 
+**Anouncement** 
+
+The project compiles and runs well with MSVC under Windows and Clang under MacOS
+
 ## Examples
 
 ### Simple program to calculate the GCD of 27 and 9 using the euclidean algorithm. 
