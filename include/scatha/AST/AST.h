@@ -1061,8 +1061,8 @@ public:
     Expression const* expression() const { return child<Expression>(0); }
 };
 
-/// Abstract node representing any control flow statement like `if`, `while`, `for`,
-/// `return` etc. May only appear at function scope.
+/// Abstract node representing any control flow statement like `if`, `while`,
+/// `for`, `return` etc. May only appear at function scope.
 class SCATHA_API ControlFlowStatement: public Statement {
 protected:
     using Statement::Statement;
