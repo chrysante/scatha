@@ -266,3 +266,16 @@ fn g(n: int) -> int {
     return result;
 })");
 }
+
+TEST_CASE("Fibonacci ('Double recursion')", "[end-to-end]") {
+    test::checkReturns(13, R"(
+fn fib(n: int) -> int {
+    if n < 3 {
+        return 1;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+public fn main() -> int {
+    return fib(7);
+})");
+}

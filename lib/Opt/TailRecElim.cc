@@ -343,7 +343,7 @@ std::optional<ViableReturn> TREContext::getViableReturn(Return& ret) const {
             };
         },
         [&](Phi& phi) -> std::optional<ViableReturn> {
-            if (phi.arguments().size() != 2) {
+            if (phi.arguments().size() != 2 || phi.parent() != ret.parent()) {
                 return std::nullopt;
             }
             auto get = [&](PhiMapping aArg, PhiMapping bArg) -> std::optional<ViableReturn> {
