@@ -364,7 +364,7 @@ u64 const* VirtualMachine::execute(size_t start,
         INSTRUCTION(lda, {
             size_t const destRegIdx = load<u8>(i);
             size_t const offset     = load<u32>(&i[1]);
-            u8* const address       = &data[0] + offset;
+            u8* const address       = data.data() + offset;
             regPtr[destRegIdx]      = utl::bit_cast<u64>(address);
         });
 
