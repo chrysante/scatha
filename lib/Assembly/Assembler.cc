@@ -14,7 +14,6 @@
 #include "Assembly/Instruction.h"
 #include "Assembly/Map.h"
 #include "Assembly/Value.h"
-#include "Common/Memory.h"
 
 using namespace scatha;
 using namespace Asm;
@@ -364,6 +363,11 @@ void Context::translate(Value64 const& value) { put<u64>(value.value()); }
 void Context::registerJumpSite(size_t offsetValuePos, u64 targetID) {
     jumpsites.push_back(
         { .codePosition = offsetValuePos, .targetID = targetID });
+}
+
+template <typename T>
+static void store(void* dest, T const& t) {
+    std::memcpy(dest, &t, sizeof(T));
 }
 
 void Context::postProcess() {

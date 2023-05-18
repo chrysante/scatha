@@ -9,11 +9,17 @@
 #include "Assembly/Block.h"
 #include "Assembly/Instruction.h"
 #include "Assembly/Value.h"
-#include "Common/Memory.h"
 #include "test/CoutRerouter.h"
 
 using namespace scatha;
 using namespace Asm;
+
+template <typename T>
+static T load(void const* ptr) {
+    std::aligned_storage_t<sizeof(T), alignof(T)> storage;
+    std::memcpy(&storage, ptr, sizeof(T));
+    return reinterpret_cast<T const&>(storage);
+}
 
 static auto assembleAndExecute(AssemblyStream const& str) {
     auto [prog, sym] = assemble(str);
