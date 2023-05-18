@@ -163,23 +163,26 @@ static void run(mir::Module const& mod) {
     run(mirMod);
 }
 
-static void pass(ir::Context& ctx,
+static void pass(std::string_view name,
+                 ir::Context& ctx,
                  ir::Module& mod,
                  bool (*optFn)(ir::Context&, ir::Function&)) {
+    header("After " + std::string(name));
     for (auto& F: mod) {
         optFn(ctx, F);
     }
+    ir::print(mod);
 }
 
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
     header("Parsed program");
     auto [ctx, mod] = makeIRModuleFromFile(path);
-    ir::print(mod);
-    run(mod);
 
-    header("After M2R");
-    pass(ctx, mod, opt::memToReg);
-    ir::print(mod);
+    pass("M2R", ctx, mod, opt::memToReg);
+    pass("TRE", ctx, mod, opt::tailRecElim);
+    pass("TRE", ctx, mod, opt::tailRecElim);
+
+    run(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {
@@ -242,5 +245,5 @@ static void pass(ir::Context& ctx,
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+    inliner(path);
 }
