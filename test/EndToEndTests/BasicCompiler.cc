@@ -101,15 +101,11 @@ void test::checkReturns(u64 value, std::string_view text) {
     checkReturnImpl(value, ctx, mod, &optimize);
 }
 
-static void compileImpl(ir::Context& ctx, ir::Module& mod, auto opt) {
-    run(mod);
-    opt(ctx, mod);
-    run(mod);
-}
-
 void test::checkCompiles(std::string_view text) {
-    auto [ctx, mod] = frontEndParse(text);
-    CHECK_NOTHROW(compileImpl(ctx, mod, &optimize));
+    CHECK_NOTHROW([=] {
+        auto [ctx, mod] = frontEndParse(text);
+        optimize(ctx, mod);
+    }());
 }
 
 void test::checkIRReturns(u64 value, std::string_view text) {

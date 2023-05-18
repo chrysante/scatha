@@ -207,6 +207,7 @@ bool Ctx::mainPass() {
             newSucc->updatePredecessor(succ, bb);
         }
         function.erase(succ);
+        worklist.erase(succ);
         /// We process ourself again, because otherwise we miss single
         /// successors of this.
         visited[bb] = false;
