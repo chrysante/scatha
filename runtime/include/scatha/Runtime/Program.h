@@ -21,7 +21,7 @@ namespace scatha {
 
 class Program {
 public:
-    Program() = default;
+    Program();
 
     explicit Program(std::vector<uint8_t> bin,
                      std::unique_ptr<sema::SymbolTable> sym);

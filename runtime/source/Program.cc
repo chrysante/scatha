@@ -11,6 +11,8 @@
 
 using namespace scatha;
 
+Program::Program() = default;
+
 Program::Program(std::vector<uint8_t> bin,
                  std::unique_ptr<sema::SymbolTable> sym):
     bin(std::move(bin)), sym(std::move(sym)) {}
