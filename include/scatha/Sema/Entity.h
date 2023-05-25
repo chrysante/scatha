@@ -53,8 +53,14 @@ public:
     /// `true` if this entity represents a type
     bool isType() const { return category() == EntityCategory::Type; }
 
+    /// `true` iff this entity is a builtin
+    bool isBuiltin() const { return _isBuiltin; }
+
     /// Add \p name as an alternate name for this entity
     void addAlternateName(std::string name);
+
+    /// Mark or unmark this entity as builtin
+    void setBuiltin(bool value = true) { _isBuiltin = value; }
 
 protected:
     explicit Entity(EntityType entityType, std::string name, Scope* parent):
@@ -66,7 +72,8 @@ private:
     }
 
     EntityType _entityType;
-    Scope* _parent = nullptr;
+    bool _isBuiltin = false;
+    Scope* _parent  = nullptr;
     utl::small_vector<std::string, 1> _names;
     mutable std::string _mangledName;
 };
@@ -553,7 +560,9 @@ public:
                                            InvalidSize,
                    elementType->align()),
         elemType(elementType),
-        _count(count) {}
+        _count(count) {
+        setBuiltin(elementType->isBuiltin());
+    }
 
     /// Type of the elements in this array
     ObjectType const* elementType() const { return elemType; }

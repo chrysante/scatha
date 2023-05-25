@@ -49,6 +49,7 @@
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
+#include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
 #include "Util.h"
 
@@ -190,7 +191,6 @@ static void pass(std::string_view name,
     sstr << file.rdbuf();
     auto source = sstr.str();
 
-    header("AST");
     IssueHandler issues;
     auto root = parse::parse(source, issues);
     if (!issues.empty()) {
@@ -205,7 +205,13 @@ static void pass(std::string_view name,
     if (!issues.empty()) {
         issues.print(source);
     }
+    header("AST");
     ast::printTree(*root);
+    header("Symbol Table");
+    sema::print(sym);
+
+    return;
+
     if (!issues.empty()) {
         return;
     }

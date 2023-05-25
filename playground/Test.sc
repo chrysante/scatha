@@ -17,3 +17,18 @@ public fn main() -> int {
         print("\n");
     }
 }
+
+struct X {
+    var i: int;
+    var _f: float;
+    
+    fn f(&this) {}
+    
+    struct Y {
+        var k: u8;
+        fn g(&this) -> int {
+            let i = 3;
+            return i * i - i;
+        }
+    }
+}

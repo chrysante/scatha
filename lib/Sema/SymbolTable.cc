@@ -22,27 +22,36 @@ static bool isKeyword(std::string_view id) {
 }
 
 struct SymbolTable::Impl {
-    GlobalScope* _globalScope = nullptr;
-    Scope* _currentScope      = nullptr;
+    /// The currently active scope
+    Scope* _currentScope = nullptr;
 
-    u64 _idCounter = 1;
-
+    /// Owning list of all entities in this symbol table
     utl::vector<UniquePtr<Entity>> _entities;
 
+    /// Map of instantiated `QualType`'s
     utl::hashmap<std::tuple<ObjectType const*, Reference, Mutability>,
                  QualType const*>
         _qualTypes;
 
+    /// Map of instantiated `ArrayTypes`'s
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
         _arrayTypes;
 
+    /// Topologically sorted dependency order of structure types. I.e. if the
+    /// definition of `X` depends of the definition of `Y`, then `Y` comes
+    /// before `X` in this list.
     std::vector<StructureType*> _structOrder;
 
+    /// List of all functions
     utl::small_vector<Function*> _functions;
 
+    /// List of all builtin functions
     utl::vector<Function*> _builtinFunctions;
 
-    /// Builtin types
+    /// The global scope
+    GlobalScope* _globalScope = nullptr;
+
+    /// Direct accessors to builtin types
     VoidType* _void;
     ByteType* _byte;
     BoolType* _bool;
@@ -100,6 +109,7 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
 
     /// Declare builtin generics
     auto* reinterpret = addEntity<Generic>("reinterpret", 1u, &globalScope());
+    reinterpret->setBuiltin();
     globalScope().add(reinterpret);
 }
 
@@ -129,6 +139,7 @@ template <typename T, typename... Args>
 T* SymbolTable::declareBuiltinType(Args&&... args) {
     auto* type = addEntity<T>(std::forward<Args>(args)..., &currentScope());
     currentScope().add(type);
+    type->setBuiltin();
     return type;
 }
 
@@ -200,6 +211,8 @@ bool SymbolTable::declareSpecialFunction(FunctionKind kind,
         function._index = utl::narrow_cast<u32>(index);
         if (kind == FunctionKind::External && slot == svm::BuiltinFunctionSlot)
         {
+            function.setBuiltin();
+            function.overloadSet()->setBuiltin();
             impl->_builtinFunctions[index] = &function;
         }
         return true;
