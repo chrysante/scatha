@@ -17,7 +17,6 @@
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen/CodeGen.h"
-#include "Common/Memory.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"

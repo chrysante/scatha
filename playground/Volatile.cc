@@ -178,10 +178,6 @@ static void pass(std::string_view name,
     header("Parsed program");
     auto [ctx, mod] = makeIRModuleFromFile(path);
 
-    pass("M2R", ctx, mod, opt::memToReg);
-    pass("TRE", ctx, mod, opt::tailRecElim);
-    pass("TRE", ctx, mod, opt::tailRecElim);
-
     run(mod);
 }
 
@@ -245,5 +241,5 @@ static void pass(std::string_view name,
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    inliner(path);
+    frontendPlayground(path);
 }
