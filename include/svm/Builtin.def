@@ -42,4 +42,7 @@ SVM_BUILTIN_DEF(putstr,    None,  { qDynArray(rawByte(), RefConstExpl) }, Void()
 /// ##
 SVM_BUILTIN_DEF(trap,    None,  {  }, Void())
 
+/// Quick and dirty randon number generation.
+SVM_BUILTIN_DEF(rand_i64, None,  {  }, S64())
+
 #undef SVM_BUILTIN_DEF

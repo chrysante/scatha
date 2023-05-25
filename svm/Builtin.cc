@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <random>
 #include <string_view>
 
 #include <svm/Common.h>
@@ -105,6 +106,13 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
 #else
 #error Unsupported compiler
 #endif
+    };
+
+    /// ## RNG
+    at(Builtin::rand_i64) = [](u64* regPtr, VirtualMachine*, void*) {
+        static thread_local std::mt19937_64 rng(std::random_device{}());
+        u64 randomValue = rng();
+        store(regPtr, randomValue);
     };
 
     assert(static_cast<size_t>(Builtin::_count) == k &&
