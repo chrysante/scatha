@@ -42,7 +42,7 @@ public:
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
     Expected<StructureType&, SemanticIssue*> declareStructureType(
-        std::string name, bool allowKeywords = false);
+        std::string name);
 
     /// \brief Declares a function to the current scope without signature.
     ///

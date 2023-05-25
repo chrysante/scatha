@@ -110,9 +110,9 @@ SymbolTable& SymbolTable::operator=(SymbolTable&&) noexcept = default;
 SymbolTable::~SymbolTable() = default;
 
 Expected<StructureType&, SemanticIssue*> SymbolTable::declareStructureType(
-    std::string name, bool allowKeywords) {
+    std::string name) {
     using enum InvalidDeclaration::Reason;
-    if (!allowKeywords && isKeyword(name)) {
+    if (isKeyword(name)) {
         return new InvalidDeclaration(nullptr,
                                       ReservedIdentifier,
                                       currentScope());
