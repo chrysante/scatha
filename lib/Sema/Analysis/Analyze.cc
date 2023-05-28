@@ -8,17 +8,13 @@
 using namespace scatha;
 using namespace sema;
 
-void sema::analyze(ast::AbstractSyntaxTree& root,
-                   SymbolTable& sym,
-                   IssueHandler& iss) {
+AnalysisResult sema::analyze(ast::AbstractSyntaxTree& root,
+                             SymbolTable& sym,
+                             IssueHandler& iss) {
+    AnalysisResult result;
     auto dependencyGraph = gatherNames(sym, root, iss);
-    if (iss.fatal()) {
-        return;
-    }
-    instantiateEntities(sym, iss, dependencyGraph);
-    if (iss.fatal()) {
-        return;
-    }
+    result.structDependencyOrder =
+        instantiateEntities(sym, iss, dependencyGraph);
     utl::vector<DependencyGraphNode> functions;
     std::copy_if(dependencyGraph.begin(),
                  dependencyGraph.end(),
@@ -27,4 +23,5 @@ void sema::analyze(ast::AbstractSyntaxTree& root,
         return isa<Function>(node.entity);
     });
     analyzeFunctions(sym, iss, functions);
+    return result;
 }

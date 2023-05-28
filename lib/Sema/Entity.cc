@@ -176,7 +176,7 @@ FloatType::FloatType(size_t bitwidth, Scope* parentScope):
                    bitwidth,
                    Signedness::Signed,
                    parentScope) {
-    SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Invalid width (for now)");
+    SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Invalid width");
 }
 
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {

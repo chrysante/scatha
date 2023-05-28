@@ -24,6 +24,7 @@
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 
@@ -73,13 +74,12 @@ static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
         return std::nullopt;
     }
     sema::SymbolTable sym;
-    sema::analyze(*ast, sym, issues);
+    auto analysisResult = sema::analyze(*ast, sym, issues);
     if (!issues.empty()) {
         issues.print(text);
         return std::nullopt;
     }
-    ir::Context ctx;
-    return std::pair{ std::move(ctx), ast::lowerToIR(*ast, sym, ctx) };
+    return ast::lowerToIR(*ast, sym, analysisResult);
 }
 
 static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>

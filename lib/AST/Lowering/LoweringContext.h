@@ -9,6 +9,7 @@
 #include "Common/APInt.h"
 #include "Common/List.h"
 #include "IR/Fwd.h"
+#include "Sema/AnalysisResult.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::ast {
@@ -22,6 +23,7 @@ struct Loop {
 
 struct LoweringContext {
     sema::SymbolTable const& symbolTable;
+    sema::AnalysisResult const& analysisResult;
     ir::Context& ctx;
     ir::Module& mod;
 
@@ -46,6 +48,7 @@ struct LoweringContext {
     /// # -
 
     LoweringContext(sema::SymbolTable const& symbolTable,
+                    sema::AnalysisResult const& analysisResult,
                     ir::Context& ctx,
                     ir::Module& mod);
 

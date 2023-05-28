@@ -16,6 +16,7 @@
 #include <scatha/Opt/Optimizer.h>
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
+#include <scatha/Sema/SymbolTable.h>
 #include <termfmt/termfmt.h>
 #include <utl/format_time.hpp>
 #include <utl/streammanip.hpp>
@@ -65,15 +66,14 @@ int main(int argc, char* argv[]) {
 
     /// Analyse the AST
     sema::SymbolTable semaSym;
-    sema::analyze(*ast, semaSym, issueHandler);
+    auto analysisResult = sema::analyze(*ast, semaSym, issueHandler);
     if (!issueHandler.empty()) {
         issueHandler.print(text);
         return -1;
     }
 
     /// Generate IR
-    ir::Context context;
-    auto mod = ast::lowerToIR(*ast, semaSym, context);
+    auto [context, mod] = ast::lowerToIR(*ast, semaSym, analysisResult);
 
     if (options.optimize) {
         opt::optimize(context, mod, 1);

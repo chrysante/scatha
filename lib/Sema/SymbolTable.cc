@@ -37,11 +37,6 @@ struct SymbolTable::Impl {
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
         _arrayTypes;
 
-    /// Topologically sorted dependency order of structure types. I.e. if the
-    /// definition of `X` depends of the definition of `Y`, then `Y` comes
-    /// before `X` in this list.
-    std::vector<StructureType*> _structOrder;
-
     /// List of all functions
     utl::small_vector<Function*> _functions;
 
@@ -463,16 +458,6 @@ IntType const* SymbolTable::rawIntType(size_t width, Signedness signedness) {
     default:
         SC_UNREACHABLE();
     }
-}
-
-void SymbolTable::setStructDependencyOrder(
-    std::vector<StructureType*> structs) {
-    impl->_structOrder = std::move(structs);
-}
-
-std::span<StructureType const* const> SymbolTable::structDependencyOrder()
-    const {
-    return impl->_structOrder;
 }
 
 std::span<Function* const> SymbolTable::functions() { return impl->_functions; }

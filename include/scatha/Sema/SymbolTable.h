@@ -23,58 +23,60 @@ public:
 
 public:
     SymbolTable();
-    SymbolTable(SymbolTable const& rhs)            = delete;
+
+    SymbolTable(SymbolTable const& rhs) = delete;
+
     SymbolTable& operator=(SymbolTable const& rhs) = delete;
+
     SymbolTable(SymbolTable&&) noexcept;
+
     SymbolTable& operator=(SymbolTable&&) noexcept;
+
     ~SymbolTable();
 
-    /// MARK: Modifiers
+    /// # Modifiers
 
-    /// \brief Declares an object type to the current scope without size and
+    /// Declares an object type to the current scope without size and
     /// alignment.
     ///
-    /// \details For successful return the name must not have been declared
+    /// For successful return the name must not have been declared
     /// before in the current scope.
     ///
-    /// \returns Reference to declared type if no error occurs.
-    ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
+    /// \returns Reference to declared type if no error occurs or
+    /// `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
     Expected<StructureType&, SemanticIssue*> declareStructureType(
         std::string name);
 
-    /// \brief Declares a function to the current scope without signature.
+    /// Declares a function to the current scope without signature.
     ///
-    /// \details For successful return the name must not have been declared
+    /// For successful return the name must not have been declared
     /// before in the current scope as some entity other than `Function`
     ///
-    /// \returns Const reference to declared function if no error occurs.
-    ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
+    /// \returns Const reference to declared function if no error occurs or
+    /// `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already used by another kind of entity in the current scope.
     Expected<Function&, SemanticIssue*> declareFunction(std::string name);
 
-    /// \brief Add signature to declared function.
+    /// Add signature to declared function.
     ///
-    /// \details We need this two step way of addings functions to first scan
+    /// We need this two step way of addings functions to first scan
     /// all declarations to allow for forward references to other entities.
-    /// \returns Nothing if  \p signature is a legal overload.
     ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if \p signature
+    /// \returns Nothing if  \p signature is a legal overload or
+    /// `InvalidDeclaration` with reason `Redefinition` if \p signature
     /// is not a legal overload, with reason `CantOverloadOnReturnType` if \p
     /// signature has same arguments as another function in the overload set but
     /// different return type.
     Expected<void, SemanticIssue*> setSignature(Function* function,
                                                 FunctionSignature signature);
 
-    /// \brief Declares an external function.
+    /// Declares an external function.
     ///
-    /// \details The name will be declared in the global scope, if it hasn't
+    /// The name will be declared in the global scope, if it hasn't
     /// been declared before.
-
-    /// \returns `true` iff declaration was successfull.
     ///
+    /// \returns `true` iff declaration was successfull.
     bool declareSpecialFunction(FunctionKind kind,
                                 std::string name,
                                 size_t slot,
@@ -82,43 +84,84 @@ public:
                                 FunctionSignature signature,
                                 FunctionAttribute attrs);
 
-    /// \brief Declares a variable to the current scope without type.
+    /// Declares a variable to the current scope without type.
     ///
-    /// \details For successful return the name must not have been declared
+    /// For successful return the name must not have been declared
     /// before in the current scope.
     ///
-    /// \returns Reference to declared variable if no error occurs.
-    ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
+    /// \returns Reference to declared variable if no error occurs or
+    /// `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
     Expected<Variable&, SemanticIssue*> declareVariable(std::string name);
 
-    /// \brief Declares a variable to the current scope.
+    /// Declares a variable to the current scope.
     ///
-    /// \details For successful return the name must not have been declared
+    /// For successful return the name must not have been declared
     /// before in the current scope.
     ///
-    /// \returns Reference to declared variable if no error occurs.
-    ///
-    /// \returns `InvalidDeclaration` with reason `Redefinition` if name of
+    /// \returns Reference to declared variable if no error occurs or
+    /// `InvalidDeclaration` with reason `Redefinition` if name of
     /// \p varDecl is already in use in the current scope.
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
                                                     QualType const* type);
 
-    /// \brief Declares an anonymous scope within the current scope.
+    /// Declares an anonymous scope within the current scope.
     ///
     /// \returns Reference to the new scope.
     Scope& addAnonymousScope();
 
-    /// \brief Declares a poison entity to the current scope.
+    /// Declares a poison entity to the current scope.
     ///
     /// \returns `InvalidDeclaration` with reason `Redefinition` if declared
     /// name is already in use in the current scope.
     Expected<PoisonEntity&, SemanticIssue*> declarePoison(
         std::string name, EntityCategory category);
 
+    /// Makes scope \p scope the current scope.
     ///
+    /// \details \p scope must be a child scope of the current scope.
+    void pushScope(Scope* scope);
+
+    /// Makes scope with name \p name the current scope.
     ///
+    /// \Returns `false` if \p name is not the same of a child scope of the
+    /// current scope, `true` otherwise
+    bool pushScope(std::string_view name);
+
+    /// Makes current the parent scope of the current scope.
+    ///
+    /// \warning Current scope must not be the global scope.
+    void popScope();
+
+    /// Makes \p scope the current scope.
+    ///
+    /// If \p scope is `nullptr` the global scope will be current after
+    /// the call.
+    void makeScopeCurrent(Scope* scope);
+
+    /// Invoke function \p f with scope \p scope made current
+    decltype(auto) withScopeCurrent(Scope* scope,
+                                    std::invocable auto&& f) const {
+        static constexpr bool IsVoid =
+            std::is_same_v<std::invoke_result_t<decltype(f)>, void>;
+        auto& mutThis = const_cast<SymbolTable&>(*this);
+        auto* old     = &const_cast<Scope&>(currentScope());
+        mutThis.makeScopeCurrent(scope);
+        if constexpr (IsVoid) {
+            std::invoke(f);
+            mutThis.makeScopeCurrent(old);
+        }
+        else {
+            decltype(auto) result = std::invoke(f);
+            mutThis.makeScopeCurrent(old);
+            return result;
+        }
+    }
+
+    /// # Accessors
+
+    /// \Returns The `ArrayType` with element type \p elementType \ and \p size
+    /// elements
     ArrayType const* arrayType(ObjectType const* elementType, size_t size);
 
     /// \Returns The `QualType` with base type \p base and reference qualifier
@@ -148,47 +191,6 @@ public:
     QualType const* qDynArray(ObjectType const* base,
                               Reference ref,
                               Mutability mut = Mutability::Mutable);
-
-    /// \brief Makes scope \p scope the current scope.
-    ///
-    /// \details \p scope must be a child scope of the current scope.
-    void pushScope(Scope* scope);
-
-    /// \brief Makes scope with name \p name the current scope.
-    ///
-    /// \Returns `false` if \p name is not the same of a child scope of the
-    /// current scope, `true` otherwise
-    bool pushScope(std::string_view name);
-
-    /// \brief Makes current the parent scope of the current scope.
-    ///
-    /// \warning Current scope must not be the global scope.
-    void popScope();
-
-    /// \brief Makes \p scope the current scope.
-    ///
-    /// \details If \p scope is `nullptr` the global scope will be current after
-    /// the call.
-    void makeScopeCurrent(Scope* scope);
-
-    /// Invoke function \p f with scope \p scope made current
-    decltype(auto) withScopeCurrent(Scope* scope,
-                                    std::invocable auto&& f) const {
-        static constexpr bool IsVoid =
-            std::is_same_v<std::invoke_result_t<decltype(f)>, void>;
-        auto& mutThis = const_cast<SymbolTable&>(*this);
-        auto* old     = &const_cast<Scope&>(currentScope());
-        mutThis.makeScopeCurrent(scope);
-        if constexpr (IsVoid) {
-            std::invoke(f);
-            mutThis.makeScopeCurrent(old);
-        }
-        else {
-            decltype(auto) result = std::invoke(f);
-            mutThis.makeScopeCurrent(old);
-            return result;
-        }
-    }
 
     /// ## Queries
 
@@ -286,12 +288,6 @@ public:
     QualType const* F64(Reference = Reference::None);
 
     QualType const* Str(Reference = Reference::None);
-
-    /// Review if we want to keep these:
-    void setStructDependencyOrder(std::vector<StructureType*> ids);
-
-    /// View over topologically sorted struct types
-    std::span<StructureType const* const> structDependencyOrder() const;
 
     /// View over all functions
     std::span<Function* const> functions();

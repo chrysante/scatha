@@ -18,7 +18,7 @@ void LoweringContext::makeDeclarations() {
     arrayViewType = ctx.anonymousStructure(
         std::array<ir::Type const*, 2>{ ctx.pointerType(),
                                         ctx.integralType(64) });
-    for (auto* type: symbolTable.structDependencyOrder()) {
+    for (auto* type: analysisResult.structDependencyOrder) {
         declareType(type);
     }
     for (auto* function: symbolTable.functions()) {

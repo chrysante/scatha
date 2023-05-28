@@ -26,6 +26,7 @@
 #include "Parser/SyntaxIssue.h"
 #include "Sema/Analyze.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SymbolTable.h"
 #include "Util.h"
 
 using namespace scatha;
@@ -54,7 +55,7 @@ void playground::compile(std::string text) {
     // Semantic analysis
     header("Symbol Table");
     sema::SymbolTable sym;
-    sema::analyze(*ast, sym, issues);
+    auto analysisResult = sema::analyze(*ast, sym, issues);
     issues.print(text);
     if (!issues.empty()) {
         return;
@@ -63,12 +64,11 @@ void playground::compile(std::string text) {
 
     subHeader();
     header("Generated IR");
-    ir::Context irCtx;
-    ir::Module mod = ast::lowerToIR(*ast, sym, irCtx);
+    auto [ctx, mod] = ast::lowerToIR(*ast, sym, analysisResult);
     ir::print(mod);
 
     header("Optimized IR");
-    opt::inlineFunctions(irCtx, mod);
+    opt::inlineFunctions(ctx, mod);
     ir::print(mod);
 
     header("Assembly generated from IR");

@@ -7,11 +7,13 @@
 namespace scatha::sema {
 
 class DependencyGraph;
+class StructureType;
 class SymbolTable;
 
-SCATHA_API void instantiateEntities(SymbolTable& symbolTable,
-                                    IssueHandler& issueHandler,
-                                    DependencyGraph& typeDependencies);
+SCATHA_API std::vector<StructureType const*> instantiateEntities(
+    SymbolTable& symbolTable,
+    IssueHandler& issueHandler,
+    DependencyGraph& typeDependencies);
 
 } // namespace scatha::sema
 

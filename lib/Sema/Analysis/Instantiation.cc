@@ -18,7 +18,7 @@ using namespace sema;
 namespace {
 
 struct Context {
-    void run();
+    std::vector<StructureType const*> run();
 
     void instantiateStructureType(DependencyGraphNode&);
     void instantiateVariable(DependencyGraphNode&);
@@ -39,11 +39,10 @@ struct Context {
 
 } // namespace
 
-void sema::instantiateEntities(SymbolTable& sym,
-                               IssueHandler& iss,
-                               DependencyGraph& typeDependencies) {
+std::vector<StructureType const*> sema::instantiateEntities(
+    SymbolTable& sym, IssueHandler& iss, DependencyGraph& typeDependencies) {
     Context ctx{ .sym = sym, .iss = iss, .dependencyGraph = typeDependencies };
-    ctx.run();
+    return ctx.run();
 }
 
 static bool isUserDefined(ObjectType const* type) {
@@ -60,7 +59,7 @@ static bool isUserDefined(QualType const* type) {
     return !type->isReference() && isUserDefined(type->base());
 }
 
-void Context::run() {
+std::vector<StructureType const*> Context::run() {
     /// After gather name phase we have the names of all types in the symbol
     /// table and we gather the dependencies of variable declarations in
     /// structs. This must be done before sorting the dependency graph.
@@ -96,7 +95,7 @@ void Context::run() {
                      }) |
                      ranges::to<utl::vector<Node>>;
         iss.push<StrongReferenceCycle>(std::move(nodes));
-        return;
+        return {};
     }
     /// Sort dependencies...
     auto dependencyTraversalOrder =
@@ -107,7 +106,7 @@ void Context::run() {
                  [&](size_t index) -> auto const& {
                      return dependencyGraph[index].dependencies;
                  });
-    std::vector<StructureType*> sortedStructTypes;
+    std::vector<StructureType const*> sortedStructTypes;
     /// Instantiate all types and member variables.
     for (size_t const index: dependencyTraversalOrder) {
         auto& node = dependencyGraph[index];
@@ -122,7 +121,7 @@ void Context::run() {
             [&](Entity const&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
-    sym.setStructDependencyOrder(std::move(sortedStructTypes));
+    return sortedStructTypes;
 }
 
 void Context::instantiateStructureType(DependencyGraphNode& node) {

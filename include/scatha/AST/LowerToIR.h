@@ -1,12 +1,13 @@
-// SCATHA-PUBLIC-HEADER
-
 #ifndef SCATHA_AST_LOWERTOIR_H_
 #define SCATHA_AST_LOWERTOIR_H_
+
+#include <utility>
 
 #include <scatha/Common/Base.h>
 
 namespace scatha::sema {
 
+struct AnalysisResult;
 class SymbolTable;
 
 } // namespace scatha::sema
@@ -22,10 +23,10 @@ namespace scatha::ast {
 
 class AbstractSyntaxTree;
 
-[[nodiscard]] SCATHA_API ir::Module lowerToIR(
+[[nodiscard]] SCATHA_API std::pair<ir::Context, ir::Module> lowerToIR(
     AbstractSyntaxTree const& ast,
     sema::SymbolTable const& symbolTable,
-    ir::Context& context);
+    sema::AnalysisResult const&);
 
 } // namespace scatha::ast
 

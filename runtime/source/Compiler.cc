@@ -68,27 +68,22 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
     if (sources.empty()) {
         return nullptr;
     }
-    auto text = sources.front();
-
+    auto text    = sources.front();
     auto astRoot = parse::parse(text, iss);
     if (!astRoot) {
         return nullptr;
     }
-
-    sema::analyze(*astRoot, *impl->sym, iss);
+    auto analysisResult = sema::analyze(*astRoot, *impl->sym, iss);
     if (iss.haveErrors()) {
         return nullptr;
     }
-
-    ir::Context ctx;
-    auto mod = ast::lowerToIR(*astRoot, *impl->sym, ctx);
+    auto [ctx, mod] = ast::lowerToIR(*astRoot, *impl->sym, analysisResult);
     if (settings.optimize) {
         opt::inlineFunctions(ctx, mod);
         opt::deadFuncElim(ctx, mod);
     }
     auto asmStream = cg::codegen(mod);
     auto asmResult = Asm::assemble(asmStream);
-
     for (auto* f: impl->sym->functions()) {
         if (!f->isNative() ||
             f->accessSpecifier() != sema::AccessSpecifier::Public)
@@ -101,7 +96,6 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
             "Public (externally visible) functions must have a binary address");
         f->setBinaryAddress(itr->second);
     }
-
     auto result = std::make_unique<Program>(std::move(asmResult.program),
                                             std::move(impl->sym));
     *this       = Compiler();

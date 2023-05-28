@@ -33,6 +33,7 @@
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 
@@ -54,11 +55,9 @@ static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
     auto ast = parse::parse(text, issues);
     validateEmpty(text, issues);
     sema::SymbolTable sym;
-    sema::analyze(*ast, sym, issues);
+    auto analysisResult = sema::analyze(*ast, sym, issues);
     validateEmpty(text, issues);
-    ir::Context ctx;
-    auto mod = ast::lowerToIR(*ast, sym, ctx);
-    return { std::move(ctx), std::move(mod) };
+    return ast::lowerToIR(*ast, sym, analysisResult);
 }
 
 static void optimize(ir::Context& ctx, ir::Module& mod) {

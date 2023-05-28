@@ -8,6 +8,7 @@
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 
@@ -18,10 +19,9 @@ ir::Module test::compileToIR(std::string_view text) {
         throw std::runtime_error("Compilation failed");
     }
     sema::SymbolTable sym;
-    sema::analyze(*ast, sym, issues);
+    auto analysisResult = sema::analyze(*ast, sym, issues);
     if (!issues.empty()) {
         throw std::runtime_error("Compilation failed");
     }
-    ir::Context ctx;
-    return ast::lowerToIR(*ast, sym, ctx);
+    return ast::lowerToIR(*ast, sym, analysisResult).second;
 }

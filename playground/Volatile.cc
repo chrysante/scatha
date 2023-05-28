@@ -51,6 +51,7 @@
 #include "Sema/Analyze.h"
 #include "Sema/Print.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SymbolTable.h"
 #include "Util.h"
 
 using namespace scatha;
@@ -201,7 +202,7 @@ static void pass(std::string_view name,
     }
     issues.clear();
     sema::SymbolTable sym;
-    sema::analyze(*root, sym, issues);
+    auto analysisResult = sema::analyze(*root, sym, issues);
     if (!issues.empty()) {
         issues.print(source);
     }
@@ -217,8 +218,7 @@ static void pass(std::string_view name,
     }
 
     header("IR Module");
-    ir::Context ctx;
-    auto mod = ast::lowerToIR(*root, sym, ctx);
+    auto [ctx, mod] = ast::lowerToIR(*root, sym, analysisResult);
     ir::print(mod);
 
     run(mod);
