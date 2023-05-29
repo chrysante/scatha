@@ -34,7 +34,7 @@ contexts:
     - match: \b(fn|var|let|struct|public|private|mut)\b
       scope: punctuation.definition.keyword
 
-    - match: \b(void|bool|int|float|string|true|false|this)\b
+    - match: \b(void|bool|byte|int|float|str|true|false|this)\b
       scope: punctuation.definition.keyword
 
     - match: '(=|\+=|-=|\*=|\/=|%=|>>=|<<=|&=|\|=|\^=)'
