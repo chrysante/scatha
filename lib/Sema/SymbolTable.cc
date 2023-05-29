@@ -61,10 +61,13 @@ struct SymbolTable::Impl {
     FloatType* _f32;
     FloatType* _f64;
     ArrayType* _str;
+
+    template <typename E, typename... Args>
+    E* addEntity(Args&&... args);
 };
 
 SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
-    impl->_currentScope = impl->_globalScope = addEntity<GlobalScope>();
+    impl->_currentScope = impl->_globalScope = impl->addEntity<GlobalScope>();
 
     using enum Signedness;
     impl->_void = declareBuiltinType<VoidType>();
@@ -103,7 +106,8 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
 #include <svm/Builtin.def>
 
     /// Declare builtin generics
-    auto* reinterpret = addEntity<Generic>("reinterpret", 1u, &globalScope());
+    auto* reinterpret =
+        impl->addEntity<Generic>("reinterpret", 1u, &globalScope());
     reinterpret->setBuiltin();
     globalScope().add(reinterpret);
 }
@@ -125,14 +129,15 @@ Expected<StructureType&, SemanticIssue*> SymbolTable::declareStructureType(
     if (Entity* entity = currentScope().findEntity(name)) {
         return new InvalidDeclaration(nullptr, Redefinition, currentScope());
     }
-    auto* type = addEntity<StructureType>(name, &currentScope());
+    auto* type = impl->addEntity<StructureType>(name, &currentScope());
     currentScope().add(type);
     return *type;
 }
 
 template <typename T, typename... Args>
 T* SymbolTable::declareBuiltinType(Args&&... args) {
-    auto* type = addEntity<T>(std::forward<Args>(args)..., &currentScope());
+    auto* type =
+        impl->addEntity<T>(std::forward<Args>(args)..., &currentScope());
     currentScope().add(type);
     type->setBuiltin();
     return type;
@@ -151,7 +156,7 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
             return dyncast<OverloadSet*>(entity);
         }
         /// Create a new overload set
-        auto* overloadSet = addEntity<OverloadSet>(name, &currentScope());
+        auto* overloadSet = impl->addEntity<OverloadSet>(name, &currentScope());
         currentScope().add(overloadSet);
         return overloadSet;
     }();
@@ -161,10 +166,10 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
                                       InvalidDeclaration::Reason::Redefinition,
                                       currentScope());
     }
-    Function* function = addEntity<Function>(name,
-                                             overloadSet,
-                                             &currentScope(),
-                                             FunctionAttribute::None);
+    Function* function = impl->addEntity<Function>(name,
+                                                   overloadSet,
+                                                   &currentScope(),
+                                                   FunctionAttribute::None);
     currentScope().add(function);
     impl->_functions.push_back(function);
     return *function;
@@ -225,7 +230,7 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
     if (auto* entity = currentScope().findEntity(name)) {
         return new InvalidDeclaration(nullptr, Redefinition, currentScope());
     }
-    auto* variable = addEntity<Variable>(name, &currentScope());
+    auto* variable = impl->addEntity<Variable>(name, &currentScope());
     currentScope().add(variable);
     return *variable;
 }
@@ -252,14 +257,14 @@ Expected<PoisonEntity&, SemanticIssue*> SymbolTable::declarePoison(
     if (auto* entity = currentScope().findEntity(name)) {
         return new InvalidDeclaration(nullptr, Redefinition, currentScope());
     }
-    auto* entity = addEntity<PoisonEntity>(name, cat, &currentScope());
+    auto* entity = impl->addEntity<PoisonEntity>(name, cat, &currentScope());
     currentScope().add(entity);
     return *entity;
 }
 
 Scope& SymbolTable::addAnonymousScope() {
     auto* scope =
-        addEntity<AnonymousScope>(currentScope().kind(), &currentScope());
+        impl->addEntity<AnonymousScope>(currentScope().kind(), &currentScope());
     currentScope().add(scope);
     return *scope;
 }
@@ -271,7 +276,7 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     if (itr != impl->_arrayTypes.end()) {
         return itr->second;
     }
-    auto* arrayType = addEntity<ArrayType>(elementType, size);
+    auto* arrayType = impl->addEntity<ArrayType>(elementType, size);
     impl->_arrayTypes.insert({ key, arrayType });
     withScopeCurrent(arrayType, [&] {
         auto* countVar = &addVariable("count", S64()).value();
@@ -290,7 +295,7 @@ QualType const* SymbolTable::qualify(ObjectType const* base,
         return itr->second;
     }
     auto* qualType =
-        addEntity<QualType>(const_cast<ObjectType*>(base), ref, mut);
+        impl->addEntity<QualType>(const_cast<ObjectType*>(base), ref, mut);
     impl->_qualTypes.insert({ key, qualType });
     return qualType;
 }
@@ -474,9 +479,9 @@ std::vector<Entity const*> SymbolTable::entities() const {
 }
 
 template <typename E, typename... Args>
-E* SymbolTable::addEntity(Args&&... args) {
+E* SymbolTable::Impl::addEntity(Args&&... args) {
     auto owner   = allocate<E>(std::forward<Args>(args)...);
     auto* result = owner.get();
-    impl->_entities.push_back(std::move(owner));
+    _entities.push_back(std::move(owner));
     return result;
 }

@@ -119,7 +119,7 @@ public:
 
     /// Makes scope \p scope the current scope.
     ///
-    /// \details \p scope must be a child scope of the current scope.
+    /// \p scope must be a child scope of the current scope.
     void pushScope(Scope* scope);
 
     /// Makes scope with name \p name the current scope.
@@ -193,6 +193,15 @@ public:
                               Mutability mut = Mutability::Mutable);
 
     /// ## Queries
+
+    /// View over all functions
+    std::span<Function* const> functions();
+
+    /// \overload
+    std::span<Function const* const> functions() const;
+
+    /// All entities
+    std::vector<Entity const*> entities() const;
 
     /// Find entity by name within the current scope
     Entity* lookup(std::string_view name) {
@@ -289,23 +298,11 @@ public:
 
     QualType const* Str(Reference = Reference::None);
 
-    /// View over all functions
-    std::span<Function* const> functions();
-
-    /// \overload
-    std::span<Function const* const> functions() const;
-
-    /// All entities
-    std::vector<Entity const*> entities() const;
-
 private:
     struct Impl;
 
     template <typename T, typename... Args>
     T* declareBuiltinType(Args&&... args);
-
-    template <typename E, typename... Args>
-    E* addEntity(Args&&... args);
 
     std::unique_ptr<Impl> impl;
 };
