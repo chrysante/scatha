@@ -229,8 +229,17 @@ void Ctx::beginModule() {
 void Ctx::endModule() { str << "} // digraph\n"; }
 
 void Ctx::beginFunction(ir::Function const& function) {
+    auto funcName = [](std::string_view name) {
+        std::string result(name);
+        for (auto& c: result) {
+            if (c == '-') {
+                c = '_';
+            }
+        }
+        return result;
+    };
     currentFunction = &function;
-    str << "subgraph cluster_" << function.name() << " {\n";
+    str << "subgraph cluster_" << funcName(function.name()) << " {\n";
     str << "  fontname = \"" << monoFont << "\"\n";
     str << "  label = \"@" << function.name() << "\"\n";
     str << "  rank=same\n";
