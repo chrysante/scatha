@@ -70,13 +70,13 @@ static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
     IssueHandler issues;
     auto ast = parse::parse(text, issues);
     if (!issues.empty()) {
-        issues.print(text);
+        issues.print(text, errStr);
         return std::nullopt;
     }
     sema::SymbolTable sym;
     auto analysisResult = sema::analyze(*ast, sym, issues);
     if (!issues.empty()) {
-        issues.print(text);
+        issues.print(text, errStr);
         return std::nullopt;
     }
     return ast::lowerToIR(*ast, sym, analysisResult);
