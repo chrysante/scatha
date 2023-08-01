@@ -38,6 +38,7 @@ bool opt::unifyReturns(Context& ctx, Function& function) {
     returnBlock->pushBack(retvalPhi);
     returnBlock->pushBack(new Return(ctx, retvalPhi));
     function.pushBack(returnBlock);
+    function.invalidateCFGInfo();
     return true;
 }
 

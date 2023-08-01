@@ -156,6 +156,10 @@ bool DCEContext::run() {
 BasicBlock* DCEContext::nearestUsefulPostdom(BasicBlock* origin) {
     auto& postDomTree = postDomInfo.domTree();
     auto* node        = postDomTree[origin]->parent();
+    SC_ASSERT(node,
+              "origin must always be post dominated, otherwise there can't be "
+              "a branch from origin. We assume that the function has a single "
+              "exit block.");
     do {
         auto* dest = node->basicBlock();
         if (usefulBlocks.contains(dest)) {
