@@ -12,6 +12,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IR/Print.h"
 #include "IRDump.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"

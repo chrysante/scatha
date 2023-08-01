@@ -211,8 +211,6 @@ static void pass(std::string_view name,
     header("Symbol Table");
     sema::print(sym);
 
-    return;
-
     if (!issues.empty()) {
         return;
     }
