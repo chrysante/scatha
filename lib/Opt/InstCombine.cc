@@ -139,6 +139,13 @@ static bool isConstant(Value const* value, int constant) {
     return false;
 }
 
+static bool isConstant(Value const* value, APInt const& constant) {
+    if (auto* cval = dyncast<IntegralConstant const*>(value)) {
+        return cval->value() == constant;
+    }
+    return false;
+}
+
 Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
     auto* const lhs = inst->lhs();
     auto* const rhs = inst->rhs();
@@ -216,12 +223,45 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
         }
         break;
 
+        /// ## Bitwise AND
+    case ArithmeticOperation::And: {
+        // TODO: Replace complex expression by APInt::max(<bitwitdh>)
+        if (isConstant(rhs,
+                       APInt(-1,
+                             cast<IntegralType const*>(rhs->type())
+                                 ->bitwidth())))
+        {
+            return lhs;
+        }
+        // TODO: mergeAdditive(inst);
+        break;
+    }
+
+        /// ## Bitwise OR
+    case ArithmeticOperation::Or: {
+        if (isConstant(rhs, 0)) {
+            return lhs;
+        }
+        // TODO: mergeAdditive(inst);
+        break;
+    }
+
     default:
         break;
     }
     return nullptr;
 }
 
+/// Merge sequential associative instructions where the right hand side is
+/// constant. I.e. merge
+/// ```
+/// b = a + 1
+/// c = b + 1
+/// ```
+/// into
+/// ```
+/// c = a + 2
+/// ```
 void InstCombineCtx::mergeAdditive(ArithmeticInst* inst) {
     auto* rhs = dyncast<Constant*>(inst->rhs());
     if (!rhs) {
