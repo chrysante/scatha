@@ -113,9 +113,9 @@ static std::string formatInstCode(mir::Instruction const& inst) {
 namespace {
 
 struct PrintContext {
-    PrintContext(std::ostream& str): str(str) {}
+    PrintContext(Function const* F, std::ostream& str): F(F), str(str) {}
 
-    void print(Function const* F) {
+    void print() {
         str << keyword("func") << " " << globalName(F->name()) << " {";
         indent.increase();
         for (auto& BB: *F) {
@@ -133,11 +133,18 @@ struct PrintContext {
             str << "\n";
         }
         indent.increase();
-        printLiveList("Live in", BB->liveIn());
+        /// We only print live lists if we haven't yet allocated hardware
+        /// registers, because then live sets are not maintained anymore.
+        bool const hasHardwareRegs = !F->hardwareRegisters().empty();
+        if (!hasHardwareRegs) {
+            printLiveList("Live in", BB->liveIn());
+        }
         for (auto& inst: *BB) {
             print(&inst);
         }
-        printLiveList("Live out", BB->liveOut());
+        if (!hasHardwareRegs) {
+            printLiveList("Live out", BB->liveOut());
+        }
         indent.decrease();
     }
 
@@ -243,6 +250,7 @@ struct PrintContext {
         str << ", of=" << data.offsetFactor << ", ot=" << data.offsetTerm;
     }
 
+    Function const* F;
     std::ostream& str;
     Indenter indent{ 2 };
 };
@@ -250,6 +258,6 @@ struct PrintContext {
 } // namespace
 
 void mir::print(Function const& F, std::ostream& str) {
-    PrintContext ctx(str);
-    ctx.print(&F);
+    PrintContext ctx(&F, str);
+    ctx.print();
 }
