@@ -168,3 +168,38 @@ func i64 @get_value(ptr %0, ptr %1, i1 %2) {
     return i64 %res
 })");
 }
+
+TEST_CASE("Mutual recursion", "[end-to-end]") {
+    test::checkReturns(56, R"(
+fn f(n: int) -> int {
+    return n * 2;
+}
+fn r1(n: int) -> int {
+    if n > 0 {
+        return r2(n);
+    }
+    return f(n);
+}
+fn r2(n: int) -> int {
+    return n + r1(n - 1);
+}
+public fn main(n: int) -> int {
+    return r1(1) + r1(10);
+})");
+}
+
+TEST_CASE("Ackermann function", "[end-to-end]") {
+    test::checkReturns(125, R"(
+fn ack(n: int, m: int) -> int {
+    if n == 0 {
+        return m + 1;
+    }
+    if m == 0 {
+        return ack(n - 1, 1);
+    }
+    return ack(n - 1, ack(n, m - 1));
+}
+public fn main(n: int) -> int {
+    return ack(3, 4);
+})");
+}

@@ -17,14 +17,14 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-using SCC = SCCCallGraph::SCCNode;
-
-using FunctionNode = SCCCallGraph::FunctionNode;
+using SCC                  = SCCCallGraph::SCCNode;
+using FunctionNode         = SCCCallGraph::FunctionNode;
+using RemoveCallEdgeResult = SCCCallGraph::RemoveCallEdgeResult;
 
 static bool shouldInlineCallsite(SCCCallGraph const& callGraph,
                                  Call const* call) {
     SC_ASSERT(isa<Function>(call->function()), "");
-    auto& caller = callGraph[call->parent()->parent()];
+    auto& caller = callGraph[call->parentFunction()];
     auto& callee = callGraph[cast<Function const*>(call->function())];
     /// We can inline direct recursion, not yet at least...
     if (&caller == &callee) {
@@ -33,7 +33,7 @@ static bool shouldInlineCallsite(SCCCallGraph const& callGraph,
     auto const calleeNumInstructions =
         ranges::distance(callee.function().instructions());
     /// Most naive heuristic ever: Inline if we have less than 14 instructions.
-    if (calleeNumInstructions < 14) {
+    if (calleeNumInstructions < 40) {
         return true;
     }
     /// If we have constant arguments, then there are more opportunities for
@@ -54,17 +54,26 @@ static bool shouldInlineCallsite(SCCCallGraph const& callGraph,
 
 namespace {
 
+struct VisitResult: RemoveCallEdgeResult {
+    VisitResult(bool modified): modified(modified) {}
+
+    VisitResult(bool modified, RemoveCallEdgeResult calledgeRemoval):
+        RemoveCallEdgeResult(calledgeRemoval), modified(modified) {}
+
+    bool modified;
+};
+
 struct Inliner {
     explicit Inliner(Context& ctx, Module& mod):
         ctx(ctx), mod(mod), callGraph(SCCCallGraph::compute(mod)) {}
 
     bool run();
 
-    bool visitSCC(SCC const& scc);
+    VisitResult visitSCC(SCC& scc);
 
-    bool visitFunction(FunctionNode const& node);
+    VisitResult visitFunction(FunctionNode const& node);
 
-    utl::small_vector<SCC const*> gatherLeaves() const;
+    utl::small_vector<SCC*> gatherLeaves();
 
     bool allSuccessorsAnalyzed(SCC const& scc) const;
 
@@ -84,7 +93,7 @@ bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
 }
 
 bool Inliner::run() {
-    auto worklist    = gatherLeaves() | ranges::to<utl::hashset<SCC const*>>;
+    auto worklist    = gatherLeaves() | ranges::to<utl::hashset<SCC*>>;
     bool modifiedAny = false;
     while (!worklist.empty()) {
         auto itr = worklist.begin();
@@ -94,9 +103,17 @@ bool Inliner::run() {
                       "We have no component in the worklist that has all "
                       "successors analyzed.");
         }
-        SCC const& scc = **itr;
+        SCC& scc = **itr;
         worklist.erase(itr);
-        modifiedAny |= visitSCC(scc);
+        auto result = visitSCC(scc);
+        if (result.type == RemoveCallEdgeResult::SplitSCC) {
+            worklist.insert({ result.newSCCs[0], result.newSCCs[1] });
+            SC_ASSERT(result.modified,
+                      "How can it not be modified if we split an SCC?");
+            modifiedAny = true;
+            continue;
+        }
+        modifiedAny |= result.modified;
         analyzed.insert(&scc);
         for (auto* pred: scc.predecessors()) {
             worklist.insert(pred);
@@ -105,41 +122,72 @@ bool Inliner::run() {
     return modifiedAny;
 }
 
-bool Inliner::visitSCC(SCC const& scc) {
+VisitResult Inliner::visitSCC(SCC& scc) {
     /// Perform one local optimization pass on every function before traversing
     /// the SCC. Otherwise, because we are in a cyclic component,  there will
     /// always be a function which will not have been optimized before being
     /// considered for inlining.
     for (auto& node: scc.nodes()) {
         optimize(node.function());
+        /// We recompute the call sites after local optimizations because they
+        /// could have been invalidated
+        node.recomputeCallees(callGraph);
     }
     utl::hashset<FunctionNode const*> visited;
     bool modifiedAny = false;
-    auto walk        = [&](FunctionNode const& node, auto& walk) {
+    /// Recursive function to walk the SCC.
+    /// \returns `std::nullopt` on success.
+    /// If an SCC is split during inlining, this function immediately returns a
+    /// `RemoveCallEdgeResult` with `.type == SplitSCC` and the new SCCs
+    auto walk = [&](FunctionNode const& node,
+                    auto& walk) -> std::optional<RemoveCallEdgeResult> {
         if (!visited.insert(&node).second) {
-            return;
+            return std::nullopt;
         }
-        modifiedAny |= visitFunction(node);
+        auto result = visitFunction(node);
+        modifiedAny |= result.modified;
+        if (result.type == RemoveCallEdgeResult::SplitSCC) {
+            return result;
+        }
         for (auto* pred: node.predecessors()) {
             if (&pred->scc() == &scc) {
-                walk(*pred, walk);
+                if (auto result = walk(*pred, walk)) {
+                    return result;
+                }
             }
         }
+        return std::nullopt;
     };
-    walk(scc.nodes().front(), walk);
+    if (auto result = walk(scc.nodes().front(), walk)) {
+        SC_ASSERT(result->type == RemoveCallEdgeResult::SplitSCC,
+                  "We only return a value from `walk` if we split an SCC");
+        SC_ASSERT(modifiedAny, "");
+        return { modifiedAny, *result };
+    }
     return modifiedAny;
 }
 
-bool Inliner::visitFunction(FunctionNode const& node) {
-    /// We have already optimized this function. Now we try to inline callees.
+VisitResult Inliner::visitFunction(FunctionNode const& node) {
+    /// We have already locally optimized this function. Now we try to inline
+    /// callees.
     bool modifiedAny = false;
     for (auto* callee: node.callees()) {
-        auto callsitesOfCallee = node.callsites(*callee);
+        auto& callsitesOfCallee = node.callsites(*callee);
         for (auto* callInst: callsitesOfCallee) {
             bool const shouldInline = shouldInlineCallsite(callGraph, callInst);
-            if (shouldInline) {
-                inlineCallsite(ctx, callInst);
-                modifiedAny = true;
+            if (!shouldInline) {
+                continue;
+            }
+            inlineCallsite(ctx, callInst);
+            modifiedAny       = true;
+            auto removeResult = callGraph.removeCall(&node.function(),
+                                                     &callee->function(),
+                                                     callInst);
+            /// If the SCC has been split, we immediately return.
+            /// Both new SCCs will be pushed to the worklist, so no inlining
+            /// opportunities are missed.
+            if (removeResult.type == RemoveCallEdgeResult::SplitSCC) {
+                return { true, removeResult };
             }
         }
     }
@@ -151,8 +199,8 @@ bool Inliner::visitFunction(FunctionNode const& node) {
     return modifiedAny;
 }
 
-utl::small_vector<SCC const*> Inliner::gatherLeaves() const {
-    utl::small_vector<SCC const*> result;
+utl::small_vector<SCC*> Inliner::gatherLeaves() {
+    utl::small_vector<SCC*> result;
     for (auto& scc: callGraph.sccs()) {
         if (scc.successors().empty()) {
             result.push_back(&scc);
@@ -171,8 +219,7 @@ bool Inliner::allSuccessorsAnalyzed(SCC const& scc) const {
 }
 
 bool Inliner::optimize(Function& function) const {
-    bool modifiedAny = false;
-    modifiedAny |= unifyReturns(ctx, function);
+    bool modifiedAny    = false;
     int const tripLimit = 4;
     for (int i = 0; i < tripLimit; ++i) {
         bool modified = false;

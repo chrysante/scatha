@@ -63,7 +63,8 @@ static void optimize(ir::Context& ctx, ir::Module& mod) {
 static uint64_t run(ir::Module const& mod) {
     auto assembly    = cg::codegen(mod);
     auto [prog, sym] = Asm::assemble(assembly);
-    svm::VirtualMachine vm(1024, 1024);
+    /// We need 2 megabytes of stack size for the ackermann function test to run
+    svm::VirtualMachine vm(1 << 10, 1 << 11);
     vm.loadBinary(prog.data());
     auto mainPos = std::find_if(sym.begin(), sym.end(), [](auto& p) {
         return p.first.starts_with("main");

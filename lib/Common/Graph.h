@@ -140,10 +140,17 @@ public:
 
 private:
     static void addEdgeImpl(utl::small_vector<Self*>& list, Self* other) {
-        if (ranges::find(list, other) != ranges::end(list)) {
+        if (ranges::find(list, other) != list.end()) {
             return;
         }
         list.push_back(other);
+    }
+
+    static void removeEdgeImpl(utl::small_vector<Self*>& list,
+                               Self const* elem) {
+        auto itr = ranges::find(list, elem);
+        SC_ASSERT(itr != list.end(), "No edge present");
+        list.erase(itr);
     }
 
     [[no_unique_address]] PayloadWrapper<Payload> _payload;
@@ -209,6 +216,40 @@ public:
 
     /// Add \p succ as successor if it is not already a successor.
     void addSuccessor(Self* succ) { Base::addEdgeImpl(outgoing, succ); }
+
+    /// Add \p pred as predecessor if it is not already a predecessor.
+    void removePredecessor(Self const* pred) {
+        Base::removeEdgeImpl(incoming, pred);
+    }
+
+    /// Add \p succ as successor if it is not already a successor.
+    void removeSuccessor(Self const* succ) {
+        Base::removeEdgeImpl(outgoing, succ);
+    }
+
+    /// \returns `true` iff \p pred is an immediate predessecor of this node
+    bool isPredecessor(Self const* pred) const {
+        return ranges::contains(incoming, pred);
+    }
+
+    /// \returns `true` iff \p succ is an immediate successor of this node
+    bool isSuccessor(Self const* succ) const {
+        return ranges::contains(outgoing, succ);
+    }
+
+    /// Clears all edges of this node.
+    /// \warning Only removes edges from this node.
+    /// Other nodes that reference this node are not updated.
+    void clearEdges() {
+        clearSuccessors();
+        clearPredecessors();
+    }
+
+    /// \warning See `clearEdges()`
+    void clearSuccessors() { outgoing.clear(); }
+
+    /// \warning See `clearEdges()`
+    void clearPredecessors() { incoming.clear(); }
 
 private:
     utl::small_vector<Self*> incoming;
