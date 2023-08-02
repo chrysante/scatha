@@ -55,7 +55,7 @@ fn clamp(x: double, min: double, max: double) -> double {
 }
 
 fn toAsciiShade(x: double) -> byte {
-    let data = " .:-=+*#%@";
+    let data = " .:-=+*%@#";
     return data[int(10.0 * clamp(x, 0.0, 1.0))];
 }
 
