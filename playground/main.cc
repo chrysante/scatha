@@ -18,9 +18,8 @@
 #include "MIR/Module.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
-#include "Opt/DeadFuncElim.h"
-#include "Opt/Inliner.h"
 #include "Opt/MemToReg.h"
+#include "Opt/Optimizer.h"
 #include "Opt/SCCCallGraph.h"
 #include "SampleCompiler.h"
 #include "Volatile.h"
@@ -128,8 +127,7 @@ int main(int argc, char const* const* argv) {
                              std::filesystem::path(PROJECT_LOCATION) /
                                  "graphviz/gen/cfg-dce.gv");
 
-        scatha::opt::inlineFunctions(ctx, mod);
-        scatha::opt::deadFuncElim(ctx, mod);
+        scatha::opt::optimize(ctx, mod, 1);
         drawControlFlowGraph(mod,
                              std::filesystem::path(PROJECT_LOCATION) /
                                  "graphviz/gen/cfg-inl.gv");
@@ -152,9 +150,11 @@ int main(int argc, char const* const* argv) {
     }
     case ProgramCase::EmitInterferenceGraph: {
         auto [ctx, irMod] = makeIRModuleFromFile(filepath);
-        scatha::opt::memToReg(ctx, irMod.front());
+        scatha::opt::optimize(ctx, irMod, 1);
         auto mirMod = scatha::cg::lowerToMIR(irMod);
         auto& F     = mirMod.front();
+        scatha::cg::computeLiveSets(F);
+        scatha::cg::deadCodeElim(F);
         scatha::cg::destroySSA(F);
         drawInterferenceGraph(F,
                               std::filesystem::path(PROJECT_LOCATION) /

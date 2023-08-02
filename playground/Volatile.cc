@@ -35,17 +35,14 @@
 #include "MIR/Print.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
-#include "Opt/DeadFuncElim.h"
-#include "Opt/InlineCallsite.h"
-#include "Opt/Inliner.h"
 #include "Opt/InstCombine.h"
 #include "Opt/LoopCanonical.h"
 #include "Opt/MemToReg.h"
+#include "Opt/Optimizer.h"
 #include "Opt/SCCCallGraph.h"
 #include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
 #include "Opt/TailRecElim.h"
-#include "Opt/UnifyReturns.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
@@ -116,53 +113,13 @@ static void run(mir::Module const& mod) {
     std::cout << "\n";
 }
 
-[[maybe_unused]] static void inliner(std::filesystem::path path) {
-    auto [ctx, mod] = makeIRModuleFromFile(path);
-
-    header("Before inlining");
-    ir::print(mod);
-    run(mod);
-
-    header("After inlining");
-    opt::inlineFunctions(ctx, mod);
-    ir::print(mod);
-
-    run(mod);
-}
-
 [[maybe_unused]] static void mirPlayground(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
-
-    bool const optimize = true;
-
-    if (optimize) {
-        opt::inlineFunctions(ctx, irMod);
-        // opt::deadFuncElim(ctx, irMod);
-    }
+    opt::optimize(ctx, irMod, /* Level = */ 1);
     header("IR Module");
     print(irMod);
-
-    header("MIR Module in SSA form");
-    auto mirMod = cg::lowerToMIR(irMod);
-    for (auto& F: mirMod) {
-        cg::computeLiveSets(F);
-        cg::deadCodeElim(F);
-    }
-    mir::print(mirMod);
-
-    header("MIR Module after SSA destruction");
-    for (auto& F: mirMod) {
-        cg::destroySSA(F);
-    }
-    mir::print(mirMod);
-
-    header("MIR Module after reg alloc");
-    for (auto& F: mirMod) {
-        cg::allocateRegisters(F);
-    }
-    mir::print(mirMod);
-
-    run(mirMod);
+    auto mod = cg::codegen(irMod, *std::make_unique<cg::DebugLogger>());
+    run(mod);
 }
 
 static void pass(std::string_view name,
@@ -221,9 +178,8 @@ static void pass(std::string_view name,
 
     run(mod);
 
-    header("After Inliner");
-    opt::inlineFunctions(ctx, mod);
-    opt::deadFuncElim(ctx, mod);
+    header("After optimizations");
+    opt::optimize(ctx, mod, 1);
     ir::print(mod);
 
     run(mod);

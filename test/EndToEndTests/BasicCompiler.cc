@@ -24,11 +24,7 @@
 #include "Issue/IssueHandler.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
-#include "Opt/ConstantPropagation.h"
-#include "Opt/DCE.h"
-#include "Opt/DeadFuncElim.h"
-#include "Opt/Inliner.h"
-#include "Opt/MemToReg.h"
+#include "Opt/Optimizer.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
@@ -61,8 +57,7 @@ static std::pair<ir::Context, ir::Module> frontEndParse(std::string_view text) {
 }
 
 static void optimize(ir::Context& ctx, ir::Module& mod) {
-    opt::inlineFunctions(ctx, mod);
-    opt::deadFuncElim(ctx, mod);
+    scatha::opt::optimize(ctx, mod, 1);
 }
 
 static uint64_t run(ir::Module const& mod) {
