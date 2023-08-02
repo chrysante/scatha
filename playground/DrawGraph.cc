@@ -229,17 +229,8 @@ void Ctx::beginModule() {
 void Ctx::endModule() { str << "} // digraph\n"; }
 
 void Ctx::beginFunction(ir::Function const& function) {
-    auto funcName = [](std::string_view name) {
-        std::string result(name);
-        for (auto& c: result) {
-            if (c == '-') {
-                c = '_';
-            }
-        }
-        return result;
-    };
     currentFunction = &function;
-    str << "subgraph cluster_" << funcName(function.name()) << " {\n";
+    str << "subgraph cluster_" << dotName(function) << " {\n";
     str << "  fontname = \"" << monoFont << "\"\n";
     str << "  label = \"@" << function.name() << "\"\n";
     str << "  rank=same\n";
@@ -251,18 +242,23 @@ void Ctx::endFunction() {
 }
 
 static std::string dotName(ir::Value const& value) {
-    ir::Function const* currentFunction = [&] {
-        if (auto* bb = dyncast<ir::BasicBlock const*>(&value)) {
-            return bb->parent();
+    auto result = [&] {
+        if (isa<ir::Function>(value)) {
+            return utl::strcat("_", value.name(), "_", &value);
         }
-        return cast<ir::Instruction const*>(&value)->parent()->parent();
+        ir::Function const* currentFunction = [&] {
+            if (auto* bb = dyncast<ir::BasicBlock const*>(&value)) {
+                return bb->parent();
+            }
+            return cast<ir::Instruction const*>(&value)->parent()->parent();
+        }();
+        return utl::strcat("_",
+                           currentFunction->name(),
+                           "_",
+                           value.name(),
+                           "_",
+                           &value);
     }();
-    auto result = utl::strcat("_",
-                              currentFunction->name(),
-                              "_",
-                              value.name(),
-                              "_",
-                              &value);
     std::replace_if(
         result.begin(),
         result.end(),
@@ -363,13 +359,13 @@ void CallGraphContext::declare(opt::SCCCallGraph::SCCNode const& scc) {
 }
 
 void CallGraphContext::declare(opt::SCCCallGraph::FunctionNode const& node) {
-    str << "    " << node.function().name() << "\n";
+    str << "    " << dotName(node.function()) << "\n";
 }
 
 void CallGraphContext::connect(opt::SCCCallGraph::SCCNode const& scc) {
     for (auto* succ: scc.successors()) {
-        str << "  " << scc.functions().front().name() << " -> "
-            << succ->functions().front().name() << "[ltail=cluster_"
+        str << "  " << dotName(scc.functions().front()) << " -> "
+            << dotName(succ->functions().front()) << "[ltail=cluster_"
             << index(scc) << ", lhead=cluster_" << index(*succ) << "]"
             << "\n";
     }
@@ -380,8 +376,8 @@ void CallGraphContext::connect(opt::SCCCallGraph::SCCNode const& scc) {
 
 void CallGraphContext::connect(opt::SCCCallGraph::FunctionNode const& node) {
     for (auto* succ: node.successors()) {
-        str << "  " << node.function().name() << " -> "
-            << succ->function().name() << "\n";
+        str << "  " << dotName(node.function()) << " -> "
+            << dotName(succ->function()) << "\n";
         if (&node.scc() != &succ->scc()) {
             str << "[style=dashed, color=\"#00000080\", arrowhead=empty]\n";
         }
