@@ -14,7 +14,7 @@ static bool isCritical(mir::Instruction const* inst) {
     case InstCode::Call:
     case InstCode::CallExt:
     case InstCode::Return:
-    case InstCode::Set:
+    case InstCode::Test:
         return true;
     default:
         return false;
