@@ -1,5 +1,7 @@
 #include "Opt/UnifyReturns.h"
 
+#include <algorithm>
+
 #include <utl/vector.hpp>
 
 #include "IR/CFG.h"
@@ -69,6 +71,9 @@ bool opt::splitReturns(Context& ctx, Function& function) {
             pred->erase(pred->terminator());
             removedPreds.push_back(utl::narrow_cast<uint16_t>(index));
         }
+        /// Sort the indices so when we erase an index we don't invalide greater
+        /// indices
+        std::sort(removedPreds.begin(), removedPreds.end(), std::greater<>{});
         for (size_t const index: removedPreds) {
             block->removePredecessor(index);
         }
