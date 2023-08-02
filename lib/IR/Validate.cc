@@ -160,7 +160,7 @@ void AssertContext::assertInvariants(Instruction const& inst) {
         CHECK(std::find(opUsers.begin(), opUsers.end(), &inst) != opUsers.end(),
               "Our operands must have listed us as their user");
         if (auto* opInst = dyncast<Instruction const*>(operand)) {
-            CHECK(opInst->parent()->parent() == inst.parent()->parent(),
+            CHECK(opInst->parent()->parent() == inst.parentFunction(),
                   "If our operand is an instruction it must be in the same "
                   "function");
         }
@@ -175,7 +175,7 @@ void AssertContext::assertInvariants(Instruction const& inst) {
         auto userOps = user->operands();
         CHECK(std::find(userOps.begin(), userOps.end(), &inst) != userOps.end(),
               "Our users must actually use us");
-        CHECK(user->parent()->parent() == inst.parent()->parent(),
+        CHECK(user->parentFunction() == inst.parentFunction(),
               "If our user is an instruction it must be in the same function");
     }
     visit(inst, [this](auto& inst) { assertSpecialInvariants(inst); });
@@ -238,7 +238,7 @@ void AssertContext::uniqueName(Value const& value) {
     }
     // clang-format off
     Callable const* function = visit(value, utl::overload{
-        [](Instruction const& inst) { return inst.parent()->parent(); },
+        [](Instruction const& inst) { return inst.parentFunction(); },
         [](Parameter const& param) { return param.parent(); },
         [](BasicBlock const& bb) { return bb.parent(); },
         [](Value const& value) -> Function const* { SC_UNREACHABLE(); },

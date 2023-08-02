@@ -33,6 +33,8 @@ public:
                });
     }
 
+    /// \returns Pairs of `User*` and `uint16_t`
+    /// The integer specifies how often a user uses this instruction
     auto countedUsers() const {
         return Value::countedUsers() |
                ranges::views::transform(
@@ -47,6 +49,15 @@ public:
 
     /// Set the type operand at \p index to \p type
     void setTypeOperand(size_t index, Type const* type);
+
+    /// The function that owns this instruction
+    Function* parentFunction() {
+        return const_cast<Function*>(
+            static_cast<Instruction const*>(this)->parentFunction());
+    }
+
+    /// \overload
+    Function const* parentFunction() const;
 
 protected:
     using User::User;

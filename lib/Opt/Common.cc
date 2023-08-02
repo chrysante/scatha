@@ -26,7 +26,7 @@ bool opt::isReachable(Instruction const* from, Instruction const* to) {
     SC_ASSERT(
         from != to,
         "from and to are equal. Does that mean they are reachable or not?");
-    SC_ASSERT(from->parent()->parent() == to->parent()->parent(),
+    SC_ASSERT(from->parentFunction() == to->parentFunction(),
               "The instructions must be in the same function for this to be "
               "sensible");
     if (from->parent() == to->parent()) {
@@ -81,7 +81,7 @@ bool opt::compareEqual(ir::Phi const* lhs,
 }
 
 bool opt::compareEqual(ir::Phi const* lhs, ir::Phi const* rhs) {
-    SC_ASSERT(lhs->parent()->parent() == rhs->parent()->parent(),
+    SC_ASSERT(lhs->parentFunction() == rhs->parentFunction(),
               "The phi nodes must be in the same function for this comparison "
               "to be sensible");
     return cmpEqImpl(lhs, rhs->arguments());

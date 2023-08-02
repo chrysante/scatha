@@ -250,7 +250,7 @@ static std::string dotName(ir::Value const& value) {
             if (auto* bb = dyncast<ir::BasicBlock const*>(&value)) {
                 return bb->parent();
             }
-            return cast<ir::Instruction const*>(&value)->parent()->parent();
+            return cast<ir::Instruction const*>(&value)->parentFunction();
         }();
         return utl::strcat("_",
                            currentFunction->name(),
