@@ -563,7 +563,6 @@ static uint64_t makeWordMask(size_t leadingZeros, size_t ones) {
 
 void CodeGenContext::genInst(ir::ExtractValue const& extract) {
     mir::Register* source = resolve<mir::Register>(extract.baseValue());
-    mir::Register* dest   = resolve(&extract);
     ir::Type const* const outerType = extract.baseValue()->type();
     auto const [innerType, innerByteBegin] =
         computeInnerTypeAndByteOffset(outerType, extract.memberIndices());
@@ -571,8 +570,10 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
     size_t const innerByteOffset = innerByteBegin % 8;
     size_t const innerSize       = innerType->size();
     source                       = advance(source, innerWordBegin);
+    /// If `innerByteOffset` is 0 i.e. we don't need any bit shifts or masking,
+    /// we directly associate the source register with the dest register.
     if (innerByteOffset == 0) {
-        genCopy(dest, source, innerSize);
+        valueMap.insert({ &extract, source });
         return;
     }
     SC_ASSERT(innerByteOffset + innerSize <= 8,
@@ -583,7 +584,8 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
                sourceShifted,
                { source, shiftOffset },
                mir::ArithmeticOperation::LShR);
-    auto* sourceMask = result.constant(makeWordMask(0, innerSize), 8);
+    auto* sourceMask    = result.constant(makeWordMask(0, innerSize), 8);
+    mir::Register* dest = resolve(&extract);
     addNewInst(mir::InstCode::Arithmetic,
                dest,
                { sourceShifted, sourceMask },
