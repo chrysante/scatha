@@ -126,16 +126,18 @@ public:
 
     template <typename P = Payload>
         requires HasPayload
-    explicit GraphNodeBase(P const& payload): _payload{ payload } {}
-
-    template <typename P = Payload>
-        requires HasPayload
-    explicit GraphNodeBase(P&& payload): _payload{ std::move(payload) } {}
+    explicit GraphNodeBase(P&& payload): _payload{ std::forward<P>(payload) } {}
 
     PayloadView payload() const
         requires HasPayload
     {
         return _payload.value;
+    }
+
+    template <typename P = Payload>
+        requires HasPayload
+    void setPayload(P&& payload) {
+        _payload.value = std::forward<P>(payload);
     }
 
 private:
