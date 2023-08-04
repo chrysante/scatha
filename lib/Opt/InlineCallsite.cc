@@ -14,13 +14,16 @@ using namespace ir;
 using namespace opt;
 
 void opt::inlineCallsite(ir::Context& ctx, Call* call) {
-    SC_ASSERT(isa<Function>(call->function()),
-              "Call target must be an actual function");
-    auto* callerBB   = call->parent();
-    auto* caller     = callerBB->parent();
-    auto* callee     = cast<Function*>(call->function());
-    auto calleeClone = clone(ctx, callee);
-    auto* newGoto    = new Goto(ctx, &calleeClone->entry());
+    auto* callee = cast<Function*>(call->function());
+    inlineCallsite(ctx, call, ir::clone(ctx, callee));
+}
+
+void opt::inlineCallsite(ir::Context& ctx,
+                         ir::Call* call,
+                         UniquePtr<ir::Function> calleeClone) {
+    auto* callerBB = call->parent();
+    auto* caller   = callerBB->parent();
+    auto* newGoto  = new Goto(ctx, &calleeClone->entry());
     calleeClone->entry().setPredecessors(std::array{ callerBB });
     callerBB->insert(call, newGoto);
     auto* landingpad = new BasicBlock(ctx, "inline.landingpad");
@@ -56,7 +59,7 @@ void opt::inlineCallsite(ir::Context& ctx, Call* call) {
     landingpad->setPredecessors(
         phiArgs | ranges::views::transform([](auto m) { return m.pred; }) |
         ranges::to<utl::small_vector<BasicBlock*>>);
-    if (!isa<VoidType>(callee->returnType())) {
+    if (!isa<VoidType>(calleeClone->returnType())) {
         /// Add a phi node to `landingpad` the merge all returns from
         /// `calleeClone`
         auto* phi = new Phi(call->type(), "inline.phi");
