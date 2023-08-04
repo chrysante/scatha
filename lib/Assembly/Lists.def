@@ -83,6 +83,7 @@ SC_ASM_COMPARE_DEF(NotEq,     "ne")
 
 SC_ASM_UNARY_ARITHMETIC_DEF(BitwiseNot, "bnt")
 SC_ASM_UNARY_ARITHMETIC_DEF(LogicalNot, "lnt")
+SC_ASM_UNARY_ARITHMETIC_DEF(Negate,     "neg")
 
 #undef SC_ASM_UNARY_ARITHMETIC_DEF
 

@@ -424,6 +424,10 @@ u64 const* VirtualMachine::execute(size_t start,
         /// ## Unary operations
         INSTRUCTION(lnt, unaryR<u64>(i, regPtr, utl::logical_not));
         INSTRUCTION(bnt, unaryR<u64>(i, regPtr, utl::bitwise_not));
+        INSTRUCTION(neg8, unaryR<i8>(i, regPtr, utl::negate));
+        INSTRUCTION(neg16, unaryR<i16>(i, regPtr, utl::negate));
+        INSTRUCTION(neg32, unaryR<i32>(i, regPtr, utl::negate));
+        INSTRUCTION(neg64, unaryR<i64>(i, regPtr, utl::negate));
 
         /// ## 64 bit integral arithmetic
         INSTRUCTION(add64RR, arithmeticRR<u64>(i, regPtr, utl::plus));

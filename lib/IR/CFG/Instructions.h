@@ -126,6 +126,8 @@ public:
 
     UnaryArithmeticOperation operation() const { return _op; }
 
+    void setOperand(Context& context, Value* operand);
+
 private:
     UnaryArithmeticOperation _op;
 };
@@ -155,6 +157,8 @@ public:
         }
         BinaryInstruction::setRHS(value);
     }
+
+    void setOperation(ArithmeticOperation op) { _op = op; }
 
     ArithmeticType const* type() const;
 

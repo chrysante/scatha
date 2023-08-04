@@ -224,7 +224,9 @@ void CGContext::genInst(mir::Instruction const& inst) {
             currentBlock->insertBack(MoveInst(dest, operand, inst.bytewidth()));
         }
         currentBlock->insertBack(
-            UnaryArithmeticInst(mapUnaryArithmetic(operation), dest));
+            UnaryArithmeticInst(mapUnaryArithmetic(operation),
+                                dest,
+                                inst.bytewidth()));
         break;
     }
     case mir::InstCode::Arithmetic: {
@@ -323,8 +325,9 @@ static Asm::UnaryArithmeticOperation mapUnaryArithmetic(
     mir::UnaryArithmeticOperation op) {
     // clang-format off
     return UTL_MAP_ENUM(op, Asm::UnaryArithmeticOperation, {
-        { mir::UnaryArithmeticOperation::BitwiseNot,   Asm::UnaryArithmeticOperation::BitwiseNot  },
-        { mir::UnaryArithmeticOperation::LogicalNot,   Asm::UnaryArithmeticOperation::LogicalNot  },
+        { mir::UnaryArithmeticOperation::BitwiseNot,   Asm::UnaryArithmeticOperation::BitwiseNot },
+        { mir::UnaryArithmeticOperation::LogicalNot,   Asm::UnaryArithmeticOperation::LogicalNot },
+        { mir::UnaryArithmeticOperation::Negate,       Asm::UnaryArithmeticOperation::Negate     },
     }); // clang-format on
 }
 

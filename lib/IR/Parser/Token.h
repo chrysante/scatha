@@ -51,6 +51,7 @@ enum class TokenKind {
     FCmp,
     Bnt,
     Lnt,
+    Neg,
     Add,
     Sub,
     Mul,

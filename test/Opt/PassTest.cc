@@ -14,7 +14,7 @@ using namespace test;
 void test::passTest(std::function<bool(ir::Context&, ir::Function&)> pass,
                     ir::Context& fCtx,
                     ir::Function& F,
-                    scatha::ir::Function& ref) {
+                    ir::Function& ref) {
     bool const modifiedFirstTime = pass(fCtx, F);
     CHECK(modifiedFirstTime);
     bool const modifiedSecondTime = pass(fCtx, F);

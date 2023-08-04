@@ -59,6 +59,8 @@ struct InstCombineCtx {
                            ArithmeticInst* prevInst,
                            Constant* prevRHS);
 
+    bool tryMergeNegate(ArithmeticInst* inst);
+
     void push(Instruction* inst) { worklist.insert(inst); }
 
     void pushIfInst(Value* value) {
@@ -159,6 +161,11 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
     switch (inst->operation()) {
         /// ## Addition
     case ArithmeticOperation::Add:
+        if (tryMergeNegate(inst)) {
+            modifiedAny = true;
+            push(inst);
+            return nullptr;
+        }
         [[fallthrough]];
     case ArithmeticOperation::FAdd: {
         if (isConstant(rhs, 0)) {
@@ -170,6 +177,20 @@ Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
 
         /// ## Subtraction
     case ArithmeticOperation::Sub:
+        if (isConstant(lhs, 0)) {
+            auto* neg =
+                new UnaryArithmeticInst(irCtx,
+                                        rhs,
+                                        UnaryArithmeticOperation::Negate,
+                                        "negate");
+            inst->parent()->insert(inst, neg);
+            return neg;
+        }
+        if (tryMergeNegate(inst)) {
+            modifiedAny = true;
+            push(inst);
+            return nullptr;
+        }
         [[fallthrough]];
     case ArithmeticOperation::FSub:
         if (isConstant(rhs, 0)) {
@@ -347,6 +368,46 @@ void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst,
     modifiedAny = true;
     push(inst);
     push(prevInst);
+}
+
+static Value* negatedValue(Value* value) {
+    auto* unary = dyncast<UnaryArithmeticInst*>(value);
+    if (!unary || unary->operation() != UnaryArithmeticOperation::Negate) {
+        return nullptr;
+    }
+    return unary->operand();
+}
+
+/// Try to merge following patterns
+///
+/// `  a  + (-b) => a - b
+/// `(-a) +   b  => b - a`
+/// `  a  - (-b) => a + b
+bool InstCombineCtx::tryMergeNegate(ArithmeticInst* inst) {
+    SC_ASSERT(inst->operation() == ArithmeticOperation::Add ||
+                  inst->operation() == ArithmeticOperation::Sub,
+              "");
+    if (auto* negated = negatedValue(inst->rhs())) {
+        if (inst->operation() == ArithmeticOperation::Add) {
+            inst->setOperation(ArithmeticOperation::Sub);
+            inst->setRHS(negated);
+            return true;
+        }
+        else {
+            inst->setOperation(ArithmeticOperation::Add);
+            inst->setRHS(negated);
+            return true;
+        }
+    }
+    else if (auto* negated = negatedValue(inst->lhs())) {
+        if (inst->operation() == ArithmeticOperation::Add) {
+            inst->setOperation(ArithmeticOperation::Sub);
+            inst->setLHS(inst->rhs());
+            inst->setRHS(negated);
+            return true;
+        }
+    }
+    return false;
 }
 
 Value* InstCombineCtx::visitImpl(Phi* phi) {

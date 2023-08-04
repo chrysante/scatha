@@ -69,6 +69,7 @@ static std::optional<TokenKind> getKeyword(std::string_view id) {
         { "fcmp", TokenKind::FCmp },
         { "bnt", TokenKind::Bnt },
         { "lnt", TokenKind::Lnt },
+        { "neg", TokenKind::Neg },
         { "add", TokenKind::Add },
         { "sub", TokenKind::Sub },
         { "mul", TokenKind::Mul },

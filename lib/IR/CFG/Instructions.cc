@@ -60,17 +60,32 @@ CompareInst::CompareInst(Context& context,
     _mode(mode),
     _op(op) {}
 
+static Type const* computeUAType(Context& context,
+                                 Value* operand,
+                                 UnaryArithmeticOperation op) {
+    if (!operand) {
+        return nullptr;
+    }
+    if (op == UnaryArithmeticOperation::LogicalNot) {
+        return context.integralType(1);
+    }
+    return operand->type();
+}
+
 UnaryArithmeticInst::UnaryArithmeticInst(Context& context,
                                          Value* operand,
                                          UnaryArithmeticOperation op,
                                          std::string name):
     UnaryInstruction(NodeType::UnaryArithmeticInst,
                      operand,
-                     op == UnaryArithmeticOperation::LogicalNot ?
-                         context.integralType(1) :
-                         operand->type(),
+                     computeUAType(context, operand, op),
                      std::move(name)),
     _op(op) {}
+
+void UnaryArithmeticInst::setOperand(Context& context, Value* value) {
+    User::setOperand(0, value);
+    setType(computeUAType(context, value, operation()));
+}
 
 ArithmeticInst::ArithmeticInst(Value* lhs,
                                Value* rhs,

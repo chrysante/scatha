@@ -613,6 +613,8 @@ FormalValue SCCPContext::evaluateUnaryArithmetic(
                 SC_ASSERT(operand == 0 || operand == 1,
                           "Operand must be boolean");
                 return sub(APInt(1, operand.bitwidth()), operand);
+            case UnaryArithmeticOperation::Negate:
+                return negate(operand);
             case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
             }
         },
@@ -620,6 +622,7 @@ FormalValue SCCPContext::evaluateUnaryArithmetic(
             switch (operation) {
             case UnaryArithmeticOperation::BitwiseNot: [[fallthrough]];
             case UnaryArithmeticOperation::LogicalNot: [[fallthrough]];
+            case UnaryArithmeticOperation::Negate: [[fallthrough]];
             case UnaryArithmeticOperation::_count: SC_UNREACHABLE();
             }
         },

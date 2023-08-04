@@ -62,6 +62,75 @@ func i32 @main(i32 %0) {
 })");
 }
 
+TEST_CASE("InstCombine - Arithmetic - 4", "[opt][inst-combine]") {
+    test::passTest(&opt::instCombine,
+                   R"(
+func i64 @main(i64 %0, i64 %1) {
+  %entry:
+    %2 = neg i64 %1
+    %3 = add i64 %0, i64 %2
+    return i64 %3
+})",
+                   R"(
+func i64 @main(i64 %0, i64 %1) {
+  %entry:
+    %3 = sub i64 %0, i64 %1
+    return i64 %3
+})");
+}
+
+TEST_CASE("InstCombine - Arithmetic - 5", "[opt][inst-combine]") {
+    test::passTest(&opt::instCombine,
+                   R"(
+func i64 @main(i64 %0, i64 %1) {
+  %entry:
+    %2 = neg i64 %0
+    %3 = add i64 %2, i64 %1
+    return i64 %3
+})",
+                   R"(
+func i64 @main(i64 %0, i64 %1) {
+  %entry:
+    %3 = sub i64 %1, i64 %0
+    return i64 %3
+})");
+}
+
+TEST_CASE("InstCombine - Arithmetic - 6", "[opt][inst-combine]") {
+    test::passTest(&opt::instCombine,
+                   R"(
+func i64 @main(i64 %0, i64 %1) {
+  %entry:
+    %2 = neg i64 %1
+    %3 = sub i64 %0, i64 %2
+    return i64 %3
+})",
+                   R"(
+func i64 @main(i64 %0, i64 %1) {
+  %entry:
+    %3 = add i64 %0, i64 %1
+    return i64 %3
+})");
+}
+
+TEST_CASE("InstCombine - Arithmetic - 7", "[opt][inst-combine]") {
+    test::passTest(&opt::instCombine,
+                   R"(
+func i64 @main(i64 %0, i64 %1) {
+  %entry:
+    %2 = neg i64 %0
+    %3 = neg i64 %1
+    %4 = sub i64 %2, i64 %3
+    return i64 %4
+})",
+                   R"(
+func i64 @main(i64 %0, i64 %1) {
+  %entry:
+    %4 = sub i64 %1, i64 %0
+    return i64 %4
+})");
+}
+
 TEST_CASE("InstCombine - InsertValue - 1", "[opt][inst-combine]") {
     test::passTest(&opt::instCombine,
                    R"(

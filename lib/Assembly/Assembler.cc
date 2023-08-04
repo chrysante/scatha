@@ -239,7 +239,25 @@ void Context::translate(UnaryArithmeticInst const& inst) {
     case UnaryArithmeticOperation::BitwiseNot:
         put(OpCode::bnt);
         break;
-    default:
+    case UnaryArithmeticOperation::Negate:
+        switch (inst.width()) {
+        case 1:
+            put(OpCode::neg8);
+            break;
+        case 2:
+            put(OpCode::neg16);
+            break;
+        case 4:
+            put(OpCode::neg32);
+            break;
+        case 8:
+            put(OpCode::neg64);
+            break;
+        default:
+            SC_UNREACHABLE();
+        }
+        break;
+    case UnaryArithmeticOperation::_count:
         SC_UNREACHABLE();
     }
     translate(inst.operand());

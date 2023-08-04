@@ -244,16 +244,21 @@ private:
 class UnaryArithmeticInst: public InstructionBase {
 public:
     explicit UnaryArithmeticInst(UnaryArithmeticOperation op,
-                                 RegisterIndex operand):
-        _op(op), _operand(operand) {}
+                                 RegisterIndex operand,
+                                 size_t width):
+        _op(op), _operand(operand), _width(width) {}
 
     UnaryArithmeticOperation operation() const { return _op; }
 
     RegisterIndex operand() const { return _operand; }
 
+    /// Must be either of of 1, 2, 4 or 8.
+    size_t width() const { return _width; }
+
 private:
     UnaryArithmeticOperation _op;
     RegisterIndex _operand;
+    size_t _width;
 };
 
 /// Represents a `add`, `sub`, `mul`, ... etc instruction.

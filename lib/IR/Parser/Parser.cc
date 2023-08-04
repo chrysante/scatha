@@ -250,6 +250,8 @@ struct ParseContext {
             return UnaryArithmeticOperation::BitwiseNot;
         case TokenKind::Lnt:
             return UnaryArithmeticOperation::LogicalNot;
+        case TokenKind::Neg:
+            return UnaryArithmeticOperation::Negate;
         default:
             reportSyntaxIssue(token);
         }
@@ -732,7 +734,9 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::Bnt:
         [[fallthrough]];
-    case TokenKind::Lnt: {
+    case TokenKind::Lnt:
+        [[fallthrough]];
+    case TokenKind::Neg: {
         auto op         = toUnaryArithmeticOp(eatToken());
         auto* valueType = parseType();
         auto valueName  = eatToken();
@@ -740,7 +744,9 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         addValueLink(result.get(),
                      valueType,
                      valueName,
-                     &UnaryArithmeticInst::setOperand);
+                     [&](auto* inst, auto* op) {
+            inst->setOperand(irCtx, op);
+        });
         return result;
     }
 
