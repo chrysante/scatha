@@ -430,9 +430,35 @@ static void print(auto* inst, AccessTreeNode const* tree) {
 }
 
 Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
-    if (auto* undefBase = dyncast<UndefValue*>(extractInst->baseValue())) {
+    /// Extracting from `undef` results in `undef`
+    if (isa<UndefValue>(extractInst->baseValue())) {
         return irCtx.undef(extractInst->type());
     }
+    /// If we extract from a phi node and the phi node has no other users, we
+    /// perform the extract in each of the predecessors and phi them together
+    if (auto* phi = dyncast<Phi*>(extractInst->baseValue())) {
+        if (phi->users().size() > 1) {
+            return nullptr;
+        }
+        utl::small_vector<PhiMapping> newPhiArgs;
+        for (auto [pred, arg]: phi->arguments()) {
+            auto* newExtract = new ExtractValue(arg,
+                                                extractInst->memberIndices(),
+                                                utl::strcat(extractInst->name(),
+                                                            ".",
+                                                            pred->name()));
+            pred->insert(pred->terminator(), newExtract);
+            push(newExtract);
+            newPhiArgs.push_back({ pred, newExtract });
+        }
+        auto* newPhi =
+            new Phi(newPhiArgs, utl::strcat(extractInst->name(), ".phi"));
+        extractInst->parent()->insertPhi(newPhi);
+        return newPhi;
+    }
+    /// If we extract from a structure that has been build up with
+    /// `insert_value` instructions, we check every `insert_value` for a match
+    /// of indices
     for (auto* insertInst = dyncast<InsertValue*>(extractInst->baseValue());
          insertInst != nullptr;
          insertInst = dyncast<InsertValue*>(insertInst->baseValue()))

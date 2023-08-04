@@ -32,6 +32,14 @@ bool BasicBlock::emptyExceptTerminator() const {
     return terminator() == &front();
 }
 
+void BasicBlock::insertPhi(Phi* phiNode) {
+    auto itr = begin();
+    while (isa<Phi>(*itr)) {
+        ++itr;
+    }
+    insert(itr, phiNode);
+}
+
 void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
                                    BasicBlock* newPred) {
     auto itr = ranges::find(preds, oldPred);

@@ -482,6 +482,10 @@ namespace internal {
 class AccessValueBase {
 public:
     explicit AccessValueBase(std::span<size_t const> indices):
+        AccessValueBase(indices, 0) {}
+
+    template <std::integral SizeT>
+    explicit AccessValueBase(std::span<SizeT const> indices, int = 0):
         _indices(indices | ranges::to<utl::small_vector<uint16_t>>) {}
 
     std::span<uint16_t const> memberIndices() const { return _indices; }
@@ -507,16 +511,26 @@ public:
                      std::span<size_t const>(indices),
                      std::move(name)) {}
 
+    template <std::integral SizeT>
+    explicit ExtractValue(Value* baseValue,
+                          std::span<SizeT const> indices,
+                          std::string name,
+                          int = 0):
+        UnaryInstruction(
+            NodeType::ExtractValue,
+            baseValue,
+            baseValue ?
+                computeAccessedType(baseValue->type(),
+                                    indices |
+                                        ranges::to<utl::small_vector<size_t>>) :
+                nullptr,
+            std::move(name)),
+        internal::AccessValueBase(indices) {}
+
     explicit ExtractValue(Value* baseValue,
                           std::span<size_t const> indices,
                           std::string name):
-        UnaryInstruction(NodeType::ExtractValue,
-                         baseValue,
-                         baseValue ?
-                             computeAccessedType(baseValue->type(), indices) :
-                             nullptr,
-                         std::move(name)),
-        internal::AccessValueBase(indices) {}
+        ExtractValue(baseValue, indices, std::move(name), 0) {}
 
     /// The structure or array being accessed. Same as `operand()`
     Value* baseValue() { return operand(); }

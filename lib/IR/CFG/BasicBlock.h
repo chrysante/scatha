@@ -85,6 +85,9 @@ public:
         return { PhiIterator{ begin(), end() }, {} };
     }
 
+    /// Insert a new phi node after the last current phi node
+    void insertPhi(Phi* phiNode);
+
     /// \returns a view over the basic blocks this basic block is directly
     /// reachable from
     std::span<BasicBlock* const> predecessors() { return preds; }
