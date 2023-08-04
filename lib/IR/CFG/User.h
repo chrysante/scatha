@@ -20,6 +20,12 @@ public:
     /// \overload
     std::span<Value const* const> operands() const { return _operands; }
 
+    /// \returns The operand at index \p index
+    Value* operandAt(size_t index) { return _operands[index]; }
+
+    /// \overload
+    Value const* operandAt(size_t index) const { return _operands[index]; }
+
     /// Set the operand at \p index to \p operand
     /// Updates user list of \p operand and removed operand.
     /// \p operand may be `nullptr`.

@@ -290,7 +290,12 @@ public:
     void setFunction(Callable* function);
 
     auto arguments() { return operands() | ranges::views::drop(1); }
+
     auto arguments() const { return operands() | ranges::views::drop(1); }
+
+    Value* argumentAt(size_t index) { return operandAt(index + 1); }
+
+    Value const* argumentAt(size_t index) const { return operandAt(index + 1); }
 
     void setArgument(size_t index, Value* value) {
         setOperand(1 + index, value);
