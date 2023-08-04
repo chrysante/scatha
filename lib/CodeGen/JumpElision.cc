@@ -6,7 +6,7 @@
 
 /// Jump elision tries to reorder the basic blocks in such a way that as many
 /// edges as possible appear adjacent in the internal list of the function. Then
-/// we can erase terminating jumps because control flow just *flows through* to
+/// we can erase terminating jumps because control flow just _flows through_ to
 /// the next basic block.
 ///
 /// This is archieved with a simple depth first search over the function.
@@ -17,6 +17,8 @@ using namespace cg;
 namespace {
 
 struct JumpElimContext {
+    /// The move looks sketchy, but is fine. We move all basic blocks of `F`
+    /// into `L`, and during DFS we gradually move them back into `F`
     JumpElimContext(mir::Function& F): F(F), L(std::move(F)) {}
 
     void run();
