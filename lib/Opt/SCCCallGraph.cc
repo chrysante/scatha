@@ -2,6 +2,7 @@
 
 #include <utl/graph.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 
@@ -28,18 +29,14 @@ static void removeOtherSuccessors(FunctionNode* node) {
 void SCCCallGraph::FunctionNode::recomputeCallees(SCCCallGraph& callgraph) {
     removeOtherSuccessors(this);
     this->clearSuccessors();
-    utl::hashmap<FunctionNode const*, utl::hashset<ir::Call*>> newCallsites;
-    for (auto& inst: function().instructions()) {
-        auto* call = dyncast<Call*>(&inst);
-        if (!call) {
-            continue;
-        }
-        auto* callee = dyncast<Function*>(call->function());
+    utl::hashmap<FunctionNode const*, utl::hashset<Call*>> newCallsites;
+    for (auto& call: function().instructions() | Filter<Call>) {
+        auto* callee = dyncast<Function*>(call.function());
         if (!callee) {
             continue;
         }
         auto* calleeNode = &callgraph.findMut(callee);
-        newCallsites[calleeNode].insert(call);
+        newCallsites[calleeNode].insert(&call);
         addSuccessor(calleeNode);
         calleeNode->addPredecessor(this);
     }
@@ -67,39 +64,43 @@ SCCCallGraph SCCCallGraph::computeNoSCCs(Module& mod) {
 }
 
 void SCCCallGraph::computeCallGraph() {
-    _functions = *mod | ranges::views::transform([](Function& function) {
-        return FunctionNode(&function);
-    }) | ranges::to<FuncNodeSet>;
+    _nodes = *mod | ranges::views::transform([](Function& function) {
+        return std::make_unique<FunctionNode>(&function);
+    }) | ranges::to<utl::vector<std::unique_ptr<FunctionNode>>>;
+    for (auto& node: _nodes) {
+        _funcMap[&node->function()] = node.get();
+    }
     for (auto& function: *mod) {
-        for (auto& inst: function.instructions()) {
-            auto* call = dyncast<Call*>(&inst);
-            if (!call) {
+        for (auto& call: function.instructions() | Filter<Call>) {
+            auto* target = dyncast<Function*>(call.function());
+            if (!target) {
                 continue;
             }
-            auto* target = dyncast<Function*>(call->function());
-            if (!target) {
+            /// We ignore self recursion, because the inliner handles it
+            /// seperately
+            if (target == &function) {
                 continue;
             }
             auto& thisNode = findMut(&function);
             auto& succNode = findMut(target);
             thisNode.addSuccessor(&succNode);
             succNode.addPredecessor(&thisNode);
-            thisNode._callsites[&succNode].insert(call);
+            thisNode._callsites[&succNode].insert(&call);
         }
     }
 }
 
 void SCCCallGraph::computeSCCs() {
     auto vertices =
-        _functions | ranges::views::transform([](auto& v) { return &v; });
+        _nodes | ranges::views::transform([](auto& v) { return v.get(); });
     utl::compute_sccs(
         vertices.begin(),
         vertices.end(),
-        [](FunctionNode const* node) { return node->successors(); },
+        [](FunctionNode* node) { return node->successors(); },
         [&] { _sccs.push_back(std::make_unique<SCCNode>()); },
-        [&](FunctionNode const* node) {
+        [&](FunctionNode* node) {
         auto& scc = *_sccs.back();
-        scc.addNode(const_cast<FunctionNode*>(node));
+        scc.addNode(node);
         });
     /// After we have computed the SCC's, we set up parent pointers of the
     /// function nodes.
@@ -206,19 +207,15 @@ static void removeFromGraph(SCCNode* scc) {
 
 void SCCCallGraph::recomputeForwardEdges(SCCNode* scc) {
     for (auto* callerNode: scc->_nodes) {
-        for (auto& inst: callerNode->function().instructions()) {
-            auto* call = dyncast<Call*>(&inst);
-            if (!call) {
-                continue;
-            }
-            auto* callee = dyncast<Function*>(call->function());
+        for (auto& call: callerNode->function().instructions() | Filter<Call>) {
+            auto* callee = dyncast<Function*>(call.function());
             if (!callee) {
                 continue;
             }
             auto* calleeNode = &findMut(callee);
             callerNode->addSuccessor(calleeNode);
             calleeNode->addPredecessor(callerNode);
-            callerNode->_callsites[calleeNode].insert(call);
+            callerNode->_callsites[calleeNode].insert(&call);
             auto* calleeSCC = &calleeNode->scc();
             if (scc != calleeSCC) {
                 scc->addSuccessor(calleeSCC);
@@ -348,4 +345,14 @@ void SCCCallGraph::validate() const {
             }
         }
     }
+}
+
+void SCCCallGraph::updateFunctionPointer(FunctionNode* node,
+                                         ir::Function* newFunction) {
+    auto* oldFunction = &node->function();
+    node->setPayload(newFunction);
+    auto itr = _funcMap.find(oldFunction);
+    SC_ASSERT(itr != _funcMap.end(), "Not found");
+    _funcMap.erase(itr);
+    _funcMap[newFunction] = node;
 }

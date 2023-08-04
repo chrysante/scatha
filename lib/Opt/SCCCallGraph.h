@@ -145,10 +145,16 @@ public:
     static SCCCallGraph computeNoSCCs(ir::Module& mod);
 
     /// \returns the node corresponding to \p function
+    FunctionNode& operator[](ir::Function const* function) {
+        return const_cast<FunctionNode&>(
+            static_cast<SCCCallGraph const&>(*this)[function]);
+    }
+
+    /// \overload
     FunctionNode const& operator[](ir::Function const* function) const {
-        auto itr = _functions.find(function);
-        SC_ASSERT(itr != _functions.end(), "Not found");
-        return *itr;
+        auto itr = _funcMap.find(function);
+        SC_ASSERT(itr != _funcMap.end(), "Not found");
+        return *itr->second;
     }
 
     /// \returns a view over the SCC's
@@ -174,6 +180,12 @@ public:
     /// module Traps if errors are found
     void validate() const;
 
+    /// Updates the function of the node
+    /// It's neceessary to have this cumbersome interface because the function
+    /// nodes are hashed via their function pointers, so we extract the node and
+    /// insert it again
+    void updateFunctionPointer(FunctionNode* node, ir::Function* newFunction);
+
 private:
     void computeCallGraph();
 
@@ -189,17 +201,14 @@ private:
     }
 
 private:
-    /// We are fine to use a potentially flat hashset here as long as we gather
-    /// all the nodes aka functions first and don't modify this afterwards.
-    using FuncNodeSet = utl::hashset<FunctionNode,
-                                     FunctionNode::PayloadHash,
-                                     FunctionNode::PayloadEqual>;
-
     /// The module whose call graph is represented
     ir::Module* mod = nullptr;
 
-    /// Set of nodes corresponding to the functions in the module
-    FuncNodeSet _functions;
+    /// List of function nodes
+    utl::vector<std::unique_ptr<FunctionNode>> _nodes;
+
+    /// Maps functions to function nodes
+    utl::hashmap<ir::Function const*, FunctionNode*> _funcMap;
 
     /// List of SCCs
     utl::vector<std::unique_ptr<SCCNode>> _sccs;
