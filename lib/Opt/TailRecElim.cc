@@ -4,6 +4,7 @@
 
 #include <utl/vector.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
@@ -61,7 +62,7 @@ struct TREContext {
 
     bool run();
 
-    void gather();
+    bool gather();
 
     void generateLoopHeader();
 
@@ -108,7 +109,9 @@ bool opt::tailRecElim(Context& irCtx, Function& function) {
 }
 
 bool TREContext::run() {
-    gather();
+    if (!gather()) {
+        return false;
+    }
     if (viableReturns.empty()) {
         return false;
     }
@@ -160,11 +163,22 @@ bool TREContext::run() {
     return true;
 }
 
-void TREContext::gather() {
+bool TREContext::gather() {
     /// This gather phase is not smart but rather quick.
     /// It relies on other passes to eliminate dead instructions between the
     /// call and the return.
+    size_t numCallsToSelf = 0;
     for (auto& bb: function) {
+        /// This is a temporary hack. We only inline recursion if there is only
+        /// one recursive call in the function.
+        for (auto& call: bb | Filter<Call>) {
+            if (call.function() == &function) {
+                ++numCallsToSelf;
+            }
+            if (numCallsToSelf > 1) {
+                return false;
+            }
+        }
         auto* ret = dyncast<Return*>(bb.terminator());
         if (!ret) {
             continue;
@@ -177,6 +191,7 @@ void TREContext::gather() {
             otherReturns.push_back(ret);
         }
     }
+    return true;
 }
 
 void TREContext::generateLoopHeader() {
