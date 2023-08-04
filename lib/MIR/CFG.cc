@@ -81,6 +81,10 @@ void Instruction::replaceOperand(Value* old, Value* repl) {
     }
 }
 
+UniquePtr<Instruction> Instruction::clone() {
+    return allocate<Instruction>(*this);
+}
+
 BasicBlock::BasicBlock(ir::BasicBlock const* irBB):
     ListNodeOverride<BasicBlock, Value>(NodeType::BasicBlock),
     _name(std::string(irBB->name())),

@@ -137,6 +137,9 @@ public:
         return reinterpret_cast<T&>(buffer);
     }
 
+    /// Clone this instruction
+    UniquePtr<Instruction> clone();
+
 private:
     friend class Function;
     void setIndex(size_t index) { _index = utl::narrow_cast<uint32_t>(index); }
