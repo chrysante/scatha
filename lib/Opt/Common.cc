@@ -3,6 +3,7 @@
 #include <range/v3/view.hpp>
 #include <utl/hashset.hpp>
 
+#include "Common/Graph.h"
 #include "IR/CFG.h"
 
 using namespace scatha;
@@ -127,4 +128,37 @@ void opt::clearAllUses(Value* value) {
     for (auto* user: value->users()) {
         user->updateOperand(value, nullptr);
     }
+}
+
+bool opt::removeCriticalEdges(Context& ctx, Function& function) {
+    struct DFS {
+        Context& ctx;
+        Function& function;
+        utl::hashset<BasicBlock*> visited = {};
+        bool modified = false;
+
+        void search(BasicBlock* BB) {
+            if (!visited.insert(BB).second) {
+                return;
+            }
+            for (auto [index, succ]:
+                 BB->successors() | ranges::views::enumerate)
+            {
+                if (isCriticalEdge(BB, succ)) {
+                    auto* tmp = new BasicBlock(ctx, "tmp");
+                    function.insert(succ, tmp);
+                    tmp->pushBack(new Goto(ctx, succ));
+                    BB->terminator()->updateTarget(succ, tmp);
+                    succ->removePredecessor(BB);
+                    succ->addPredecessor(tmp);
+                    tmp->addPredecessor(BB);
+                    modified = true;
+                }
+                search(succ);
+            }
+        }
+    };
+    DFS dfs{ ctx, function };
+    dfs.search(&function.entry());
+    return dfs.modified;
 }

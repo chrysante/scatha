@@ -35,6 +35,10 @@ void removePredecessorAndUpdatePhiNodes(ir::BasicBlock* basicBlock,
 /// Remove this value from the operand lists of all its users.
 SCATHA_TESTAPI void clearAllUses(ir::Value* value);
 
+/// Removes critical edges from \p function by inserting empty basic blocks
+SCATHA_TESTAPI bool removeCriticalEdges(ir::Context& ctx,
+                                        ir::Function& function);
+
 } // namespace scatha::opt
 
 #endif // SCATHA_OPT_COMMON_H_

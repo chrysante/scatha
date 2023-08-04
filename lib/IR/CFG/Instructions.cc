@@ -119,6 +119,15 @@ TerminatorInst::TerminatorInst(NodeType nodeType,
     setOperands(std::move(ops));
 }
 
+void TerminatorInst::updateTarget(BasicBlock* oldTarget,
+                                  BasicBlock* newTarget) {
+    updateOperand(oldTarget, newTarget);
+}
+
+void TerminatorInst::setTarget(size_t index, BasicBlock* bb) {
+    setOperand(nonTargetArguments + index, bb);
+}
+
 Return::Return(Context& context): Return(context, context.voidValue()) {}
 
 Call::Call(Callable* function, std::string name):

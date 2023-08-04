@@ -184,13 +184,9 @@ public:
 
     auto targets() const { return targetsImpl<BasicBlock const>(*this); }
 
-    void updateTarget(BasicBlock const* oldTarget, BasicBlock* newTarget) {
-        updateOperand(oldTarget, newTarget);
-    }
+    void updateTarget(BasicBlock* oldTarget, BasicBlock* newTarget);
 
-    void setTarget(size_t index, BasicBlock* bb) {
-        setOperand(nonTargetArguments + index, bb);
-    }
+    void setTarget(size_t index, BasicBlock* bb);
 
 protected:
     explicit TerminatorInst(NodeType nodeType,

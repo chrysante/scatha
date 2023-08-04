@@ -5,6 +5,7 @@
 #include "IR/Type.h"
 #include "Opt/Common.h"
 #include "test/IR/CompileToIR.h"
+#include "test/Opt/PassTest.h"
 
 using namespace scatha;
 using namespace opt;
@@ -31,4 +32,28 @@ TEST_CASE("Phi compareEqual()", "[opt]") {
     Phi p2({ { &bb1, one }, { &bb2, three } }, "phi2");
     p2.set_parent(&bb3);
     CHECK(!compareEqual(&p1, &p2));
+}
+
+TEST_CASE("Remove critical edges", "[opt][common]") {
+    test::passTest(&opt::removeCriticalEdges,
+                   R"(
+func void @main() {
+  %entry:
+    branch i1 undef, label %if, label %end
+  %if:
+    goto label %end
+  %end:
+    return
+})",
+                   R"(
+func void @main() {
+  %entry:
+    branch i1 undef, label %if, label %tmp.0
+  %if:
+    goto label %end
+  %tmp.0:
+    goto label %end
+  %end:
+    return
+})");
 }

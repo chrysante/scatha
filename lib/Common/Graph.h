@@ -289,6 +289,14 @@ private:
 template <typename Payload, typename Derived>
 using TreeNode = GraphNode<Payload, Derived, GraphKind::Tree>;
 
+/// # Simple graph queries
+
+///
+template <typename Node>
+bool isCriticalEdge(Node const* from, Node const* to) {
+    return from->successors().size() > 1 && to->predecessors().size() > 1;
+}
+
 } // namespace scatha
 
 #endif // SCATHA_COMMON_GRAPH_H_
