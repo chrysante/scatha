@@ -26,7 +26,7 @@ bool opt::unifyReturns(Context& ctx, Function& function) {
         return false;
     }
     auto* returnBlock = new BasicBlock(ctx, "return");
-    auto* retvalPhi   = new Phi(function.returnType(), "retval");
+    auto* retvalPhi = new Phi(function.returnType(), "retval");
     utl::small_vector<PhiMapping> args;
     args.reserve(returnBlocks.size());
     for (auto* oldRetBlock: returnBlocks) {
@@ -45,7 +45,7 @@ bool opt::unifyReturns(Context& ctx, Function& function) {
 }
 
 bool opt::splitReturns(Context& ctx, Function& function) {
-    bool modifiedAny  = false;
+    bool modifiedAny = false;
     auto returnBlocks = gatherReturnBlocks(function);
     for (auto* block: returnBlocks) {
         auto* ret = cast<Return*>(block->terminator());

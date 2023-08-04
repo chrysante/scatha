@@ -235,7 +235,7 @@ std::optional<Token> Context::getIntegerLiteral() {
     }
     auto [id, beginLoc] = beginToken();
     id += current();
-    ssize_t offset     = 1;
+    ssize_t offset = 1;
     std::optional next = this->next(offset);
     while (next && isDigitDec(*next)) {
         id += *next;
@@ -287,7 +287,7 @@ std::optional<Token> Context::getFloatingPointLiteral() {
     }
     auto [id, beginLoc] = beginToken();
     id += current();
-    ssize_t offset     = 1;
+    ssize_t offset = 1;
     std::optional next = this->next(offset);
     while (next && isFloatDigitDec(*next)) {
         id += *next;
@@ -330,7 +330,7 @@ std::optional<Token> Context::getStringLiteral() {
             }
             else {
                 auto begin = currentLocation;
-                auto end   = currentLocation;
+                auto end = currentLocation;
                 --begin.index, --begin.column, ++end.index, ++end.column;
                 issues.push<InvalidEscapeSequence>(current(),
                                                    SourceRange{ begin, end });
@@ -362,7 +362,7 @@ std::optional<Token> Context::getCharLiteral() {
         return std::nullopt;
     }
     auto [id, beginLoc] = beginToken();
-    auto advance        = [&, beginLoc = beginLoc] {
+    auto advance = [&, beginLoc = beginLoc] {
         if (this->advance()) {
             return true;
         }
@@ -382,7 +382,7 @@ std::optional<Token> Context::getCharLiteral() {
         }
         else {
             auto begin = currentLocation;
-            auto end   = currentLocation;
+            auto end = currentLocation;
             --begin.index, --begin.column, ++end.index, ++end.column;
             issues.push<InvalidEscapeSequence>(current(),
                                                SourceRange{ begin, end });
@@ -423,7 +423,7 @@ std::optional<Token> Context::getBooleanLiteral() {
             return std::nullopt;
         }
         auto [id, beginLoc] = beginToken();
-        id                  = "true";
+        id = "true";
         advance(4);
         return Token(id, TokenKind::True, { beginLoc, currentLocation });
     }
@@ -435,7 +435,7 @@ std::optional<Token> Context::getBooleanLiteral() {
             return std::nullopt;
         }
         auto [id, beginLoc] = beginToken();
-        id                  = "false";
+        id = "false";
         advance(5);
         return Token(id, TokenKind::False, { beginLoc, currentLocation });
     }

@@ -68,7 +68,7 @@ auto mapType(sema::SymbolTable& sym) {
 sema::FunctionSignature scatha::toSemaSig(sema::SymbolTable& sym,
                                           QualType returnType,
                                           std::span<QualType const> argTypes) {
-    auto map  = mapType(sym);
+    auto map = mapType(sym);
     auto args = argTypes | ranges::views::transform(map) |
                 ranges::to<utl::small_vector<sema::QualType const*>>;
     return sema::FunctionSignature(std::move(args), map(returnType));

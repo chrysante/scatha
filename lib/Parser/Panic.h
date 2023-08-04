@@ -10,7 +10,7 @@ namespace scatha::parse {
 
 struct PanicOptions {
     TokenKind targetDelimiter = TokenKind::Semicolon;
-    bool eatDelimiter         = true;
+    bool eatDelimiter = true;
 };
 
 void panic(class TokenStream&, PanicOptions = {});

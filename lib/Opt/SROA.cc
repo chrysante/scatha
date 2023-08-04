@@ -341,7 +341,7 @@ void VariableContext::accessTreeLeafWalk(
 
 void VariableContext::accessTreePreorderWalk(
     utl::function_view<void(size_t level, AccessTreeNode*)> callback) {
-    size_t l  = 0;
+    size_t l = 0;
     auto impl = [&](auto* node, auto impl) -> void {
         if (!node) {
             return;
@@ -361,7 +361,7 @@ void VariableContext::accessTreePreorderWalk(
 
 void VariableContext::accessTreePostorderWalk(
     utl::function_view<void(size_t level, AccessTreeNode*)> callback) {
-    size_t l  = 0;
+    size_t l = 0;
     auto impl = [&](auto* node, auto impl) -> void {
         if (!node) {
             return;

@@ -35,8 +35,8 @@ private:
 
 private:
     InternalBufferHeader* buffer = nullptr;
-    u8* current                  = nullptr;
-    u8* end                      = nullptr;
+    u8* current = nullptr;
+    u8* end = nullptr;
 };
 
 template <typename T, typename... Args>
@@ -58,7 +58,7 @@ std::span<T> allocateArray(MonotonicBufferAllocator& alloc,
                            Itr begin,
                            Itr end) {
     size_t const count = std::distance(begin, end);
-    T* result          = allocateArrayUninit<T>(alloc, count);
+    T* result = allocateArrayUninit<T>(alloc, count);
     std::uninitialized_copy(begin, end, result);
     return { result, count };
 }

@@ -16,9 +16,9 @@ namespace scatha::ast {
 
 struct Loop {
     ir::BasicBlock* header = nullptr;
-    ir::BasicBlock* body   = nullptr;
-    ir::BasicBlock* inc    = nullptr;
-    ir::BasicBlock* end    = nullptr;
+    ir::BasicBlock* body = nullptr;
+    ir::BasicBlock* inc = nullptr;
+    ir::BasicBlock* end = nullptr;
 };
 
 struct LoweringContext {
@@ -38,7 +38,7 @@ struct LoweringContext {
     /// ## Current state
 
     ir::Function* currentFunction = nullptr;
-    ir::BasicBlock* currentBlock  = nullptr;
+    ir::BasicBlock* currentBlock = nullptr;
     utl::small_vector<ir::Alloca*> allocas;
     Loop currentLoop;
 

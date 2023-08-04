@@ -135,7 +135,7 @@ int main(int argc, char const* const* argv) {
     }
     case ProgramCase::EmitCallGraph: {
         auto [ctx, mod] = makeIRModuleFromFile(filepath);
-        auto callGraph  = scatha::opt::SCCCallGraph::compute(mod);
+        auto callGraph = scatha::opt::SCCCallGraph::compute(mod);
         drawCallGraph(callGraph,
                       std::filesystem::path(PROJECT_LOCATION) /
                           "graphviz/gen/callgraph.gv");
@@ -152,7 +152,7 @@ int main(int argc, char const* const* argv) {
         auto [ctx, irMod] = makeIRModuleFromFile(filepath);
         scatha::opt::optimize(ctx, irMod, 1);
         auto mirMod = scatha::cg::lowerToMIR(irMod);
-        auto& F     = mirMod.front();
+        auto& F = mirMod.front();
         scatha::cg::computeLiveSets(F);
         scatha::cg::deadCodeElim(F);
         scatha::cg::destroySSA(F);

@@ -7,7 +7,7 @@ namespace {
 struct MyError {
     explicit MyError(int i): i(i) {}
     int value() const { return i; }
-    MyError(MyError const&)     = default;
+    MyError(MyError const&) = default;
     MyError(MyError&&) noexcept = default;
     ~MyError() { dtorRun = true; }
 
@@ -65,14 +65,14 @@ TEST_CASE("Expected Reference", "[common]") {
         }
         return MyError(1);
     };
-    int i  = 10;
+    int i = 10;
     auto a = f(true, i);
     CHECK(std::is_same_v<decltype(*a), int&>);
     CHECK(a);
     ++*a;
     CHECK(i == 11);
     {
-        int j  = 1;
+        int j = 1;
         auto b = f(false, j);
         CHECK(!b);
         CHECK(b.error().value() == 1);
@@ -90,14 +90,14 @@ TEST_CASE("Expected Const Reference", "[common]") {
         }
         return MyError(1);
     };
-    int i  = 10;
+    int i = 10;
     auto a = f(true, i); // Deliberately not const
     CHECK(std::is_same_v<decltype(*a), int const&>);
     CHECK(a);
     ++i;
     CHECK(*a == 11);
     {
-        int j  = 1;
+        int j = 1;
         auto b = f(false, j);
         CHECK(!b);
         CHECK(b.error().value() == 1);

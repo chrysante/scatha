@@ -14,7 +14,7 @@
 using namespace scatha;
 
 TEST_CASE("Iterate over instructions in a function", "[ir][opt]") {
-    auto const text                = R"(
+    auto const text = R"(
 func i64 @ff(i64) {
   %entry:
     %n.addr = alloca i64
@@ -35,8 +35,8 @@ func i64 @ff(i64) {
     %k.1 = load i64, ptr %k-ptr
     return i64 %k.1
 })";
-    auto [ctx, mod]                = ir::parse(text).value();
-    auto& function                 = mod.front();
+    auto [ctx, mod] = ir::parse(text).value();
+    auto& function = mod.front();
     ir::NodeType const reference[] = {
         ir::NodeType::Alloca,      ir::NodeType::Store,  ir::NodeType::Alloca,
         ir::NodeType::Load,        ir::NodeType::Store,  ir::NodeType::Load,
@@ -54,7 +54,7 @@ func i64 @ff(i64) {
     }
     SECTION("Erase every second element") {
         auto const instructions = function.instructions();
-        size_t k                = 0;
+        size_t k = 0;
         for (auto itr = instructions.begin(); itr != instructions.end(); ++k) {
             if (k % 2 == 1) {
                 opt::replaceValue(&itr.instruction(),
@@ -87,7 +87,7 @@ func i64 @ff(i64) {
 }
 
 TEST_CASE("Phi iterator", "[ir][opt]") {
-    auto const text     = R"(
+    auto const text = R"(
 func i64 @f() {
   %entry:
     goto label %header
@@ -103,9 +103,9 @@ func i64 @f() {
   %body:
     goto label %header
 })";
-    auto [ctx, mod]     = ir::parse(text).value();
-    auto& f             = mod.front();
-    auto& header        = *f.front().next();
+    auto [ctx, mod] = ir::parse(text).value();
+    auto& f = mod.front();
+    auto& header = *f.front().next();
     auto headerPhiNodes = header.phiNodes();
     for (auto itr = headerPhiNodes.begin(); itr != headerPhiNodes.end();) {
         if (itr->name() == "y") {

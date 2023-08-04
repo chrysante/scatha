@@ -8,14 +8,14 @@ using namespace scatha;
 using namespace parse;
 
 static void expectFooParse(ast::AbstractSyntaxTree const& ast) {
-    auto const& tu      = cast<ast::TranslationUnit const&>(ast);
+    auto const& tu = cast<ast::TranslationUnit const&>(ast);
     auto const& fooDecl = *tu.declaration<ast::FunctionDefinition>(0);
     CHECK(fooDecl.name() == "foo");
     CHECK(fooDecl.returnTypeExpr() == nullptr);
 }
 
 TEST_CASE("UnqualifiedID - 1", "[parse][issue]") {
-    auto iss   = test::getSyntaxIssues(R"(
+    auto iss = test::getSyntaxIssues(R"(
 fn foo . () {}
 )");
     auto issue = iss.findOnLine<UnqualifiedID>(2);
@@ -27,7 +27,7 @@ fn foo . () {}
 }
 
 TEST_CASE("UnqualifiedID - 2", "[parse][issue]") {
-    auto iss   = test::getSyntaxIssues(R"(
+    auto iss = test::getSyntaxIssues(R"(
 fn foo() . {}
 )");
     auto issue = iss.findOnLine<UnqualifiedID>(2);
@@ -39,7 +39,7 @@ fn foo() . {}
 }
 
 TEST_CASE("ExpectedIdentifier - 1", "[parse][issue]") {
-    auto iss   = test::getSyntaxIssues(R"(
+    auto iss = test::getSyntaxIssues(R"(
 fn . foo() {}
 )");
     auto issue = iss.findOnLine<ExpectedIdentifier>(2);
@@ -51,7 +51,7 @@ fn . foo() {}
 }
 
 TEST_CASE("ExpectedDeclarator - 1", "[parse][issue]") {
-    auto iss   = test::getSyntaxIssues("foo");
+    auto iss = test::getSyntaxIssues("foo");
     auto issue = iss.findOnLine<ExpectedDeclarator>(1);
     REQUIRE(issue);
     CHECK(issue->sourceLocation().line == 1);
@@ -59,7 +59,7 @@ TEST_CASE("ExpectedDeclarator - 1", "[parse][issue]") {
 }
 
 TEST_CASE("ExpectedDeclarator - 2", "[parse][issue]") {
-    auto iss   = test::getSyntaxIssues(R"(
+    auto iss = test::getSyntaxIssues(R"(
 fn foo() {} foo;
 )");
     auto issue = iss.findOnLine<ExpectedDeclarator>(2);
@@ -70,7 +70,7 @@ fn foo() {} foo;
 }
 
 TEST_CASE("ExpectedDeclarator - 3", "[parse][issue]") {
-    auto iss   = test::getSyntaxIssues(R"(
+    auto iss = test::getSyntaxIssues(R"(
 lit i = j;
 fn foo() {}
 )");
@@ -150,7 +150,7 @@ true? a : ;
 })");
     for (int i = 0; i < 63; ++i) {
         int const line = i + 3;
-        auto issue     = iss.findOnLine<ExpectedExpression>(line);
+        auto issue = iss.findOnLine<ExpectedExpression>(line);
         REQUIRE(issue);
         CHECK(issue->sourceLocation().line == line);
         CHECK(issue->sourceLocation().column == 11);
@@ -158,7 +158,7 @@ true? a : ;
 }
 
 TEST_CASE("ExpectedExpression - 2", "[parse][issue]") {
-    auto iss   = test::getSyntaxIssues(R"(
+    auto iss = test::getSyntaxIssues(R"(
 fn foo() {
     (;
 })");
@@ -170,7 +170,7 @@ fn foo() {
 }
 
 TEST_CASE("ExpectedExpression - Parameter type", "[parse][issue]") {
-    auto iss   = test::getSyntaxIssues("fn foo(x:) {}");
+    auto iss = test::getSyntaxIssues("fn foo(x:) {}");
     auto issue = iss.findOnLine<ExpectedExpression>(1);
     REQUIRE(issue);
     CHECK(issue->sourceLocation().line == 1);
@@ -179,7 +179,7 @@ TEST_CASE("ExpectedExpression - Parameter type", "[parse][issue]") {
 }
 
 TEST_CASE("Missing parameter name") {
-    auto iss   = test::getSyntaxIssues("fn foo(:x) {}");
+    auto iss = test::getSyntaxIssues("fn foo(:x) {}");
     auto issue = iss.findOnLine<ExpectedIdentifier>(1);
     REQUIRE(issue);
     CHECK(issue->sourceLocation().line == 1);
@@ -187,7 +187,7 @@ TEST_CASE("Missing parameter name") {
 }
 
 TEST_CASE("Missing struct name") {
-    auto iss   = test::getSyntaxIssues("struct {}");
+    auto iss = test::getSyntaxIssues("struct {}");
     auto issue = iss.findOnLine<ExpectedIdentifier>(1);
     REQUIRE(issue);
     CHECK(issue->sourceLocation().line == 1);

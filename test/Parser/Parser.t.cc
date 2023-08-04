@@ -13,7 +13,7 @@ fn mul(a: int, b: X.Y.Z) -> int {
 	var result = a;
 	return result;
 })";
-    auto const [ast, iss]  = test::parse(text);
+    auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
     REQUIRE(tu->declarations().size() == 1);
@@ -53,7 +53,7 @@ fn main() -> void {
 	let a: int = 39;
 	let b = 1.2;
 })";
-    auto const [ast, iss]  = test::parse(text);
+    auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
     REQUIRE(tu->declarations().size() == 1);
@@ -74,7 +74,7 @@ TEST_CASE("Parse last statement ending with '}'", "[parse]") {
 fn main() {
     {}
 })";
-    auto const [ast, iss]  = test::parse(text);
+    auto const [ast, iss] = test::parse(text);
     CHECK(iss.empty());
 }
 
@@ -90,7 +90,7 @@ fn test() {
         x += 1;
     }
 })";
-    auto const [ast, iss]  = test::parse(text);
+    auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
     REQUIRE(tu->declarations().size() == 1);
@@ -129,7 +129,7 @@ fn test() {
         x += 1;
     } while x < 0;
 })";
-    auto const [ast, iss]  = test::parse(text);
+    auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
     REQUIRE(tu->declarations().size() == 1);
@@ -168,7 +168,7 @@ fn test() {
         print(x);
     }
 })";
-    auto const [ast, iss]  = test::parse(text);
+    auto const [ast, iss] = test::parse(text);
     REQUIRE(iss.empty());
     auto* const tu = cast<TranslationUnit*>(ast.get());
     REQUIRE(tu->declarations().size() == 1);

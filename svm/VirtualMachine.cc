@@ -19,15 +19,15 @@ VirtualMachine::VirtualMachine(size_t numRegisters, size_t stackSize) {
 
 void VirtualMachine::loadBinary(u8 const* progData) {
     Program program(progData);
-    text         = std::move(program.instructions);
-    data         = std::move(program.data);
+    text = std::move(program.instructions);
+    data = std::move(program.data);
     startAddress = program.startAddress;
     programBreak = text.data() + text.size();
-    frame        = execFrames.push(
-        { .regPtr    = registers.data() - MaxCallframeRegisterCount,
-                 .bottomReg = registers.data() - MaxCallframeRegisterCount,
-                 .iptr      = nullptr,
-                 .stackPtr  = stack.data() });
+    frame = execFrames.push(
+        { .regPtr = registers.data() - MaxCallframeRegisterCount,
+          .bottomReg = registers.data() - MaxCallframeRegisterCount,
+          .iptr = nullptr,
+          .stackPtr = stack.data() });
 }
 
 u64 const* VirtualMachine::execute(std::span<u64 const> arguments) {

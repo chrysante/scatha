@@ -119,11 +119,11 @@ enum class Signedness { Signed, Unsigned };
 
 /// Reference qualifiers of `QualType`
 enum class Reference {
-    None          = 0,
+    None = 0,
     ConstImplicit = 1,
-    MutImplicit   = 2,
+    MutImplicit = 2,
     ConstExplicit = 3,
-    MutExplicit   = 4,
+    MutExplicit = 4,
 };
 
 inline constexpr Reference RefConstImpl = Reference::ConstImplicit;
@@ -155,10 +155,10 @@ Reference toImplicitRef(Mutability mut);
 
 ///
 enum class FunctionAttribute : unsigned {
-    None  = 0,
-    All   = unsigned(-1),
+    None = 0,
+    All = unsigned(-1),
     Const = 1 << 0,
-    Pure  = 1 << 1
+    Pure = 1 << 1
 };
 
 UTL_BITFIELD_OPERATORS(FunctionAttribute);

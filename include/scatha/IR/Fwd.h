@@ -174,11 +174,11 @@ enum class Visibility {
 
 /// Bitfield of function attributes
 enum class FunctionAttribute : unsigned {
-    None             = 0,
-    All              = unsigned(-1),
-    Memory_ReadNone  = 1 << 0,
+    None = 0,
+    All = unsigned(-1),
+    Memory_ReadNone = 1 << 0,
     Memory_WriteNone = 1 << 1,
-    Memory_None      = Memory_ReadNone | Memory_WriteNone
+    Memory_None = Memory_ReadNone | Memory_WriteNone
 };
 
 UTL_BITFIELD_OPERATORS(FunctionAttribute);
@@ -204,7 +204,7 @@ namespace scatha::ir::internal {
 template <bool IsConst>
 struct PhiMappingImpl {
     using BB = std::conditional_t<IsConst, BasicBlock const, BasicBlock>;
-    using V  = std::conditional_t<IsConst, Value const, Value>;
+    using V = std::conditional_t<IsConst, Value const, Value>;
 
     PhiMappingImpl() = default;
 
@@ -234,7 +234,7 @@ struct std::hash<scatha::ir::internal::PhiMappingImpl<IsConst>> {
 
 namespace scatha::ir {
 
-using PhiMapping      = internal::PhiMappingImpl<false>;
+using PhiMapping = internal::PhiMappingImpl<false>;
 using ConstPhiMapping = internal::PhiMappingImpl<true>;
 
 } // namespace scatha::ir

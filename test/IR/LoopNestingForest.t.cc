@@ -58,9 +58,9 @@ func void @f() {
     return
 })";
         auto [ctx, mod] = ir::parse(text).value();
-        auto& F         = mod.front();
-        auto& LNF       = F.getOrComputeLNF();
-        auto find       = [&](auto&& rng, std::string_view name) {
+        auto& F = mod.front();
+        auto& LNF = F.getOrComputeLNF();
+        auto find = [&](auto&& rng, std::string_view name) {
             return *ranges::find(rng, name, [](auto* n) {
                 return n->basicBlock()->name();
             });
@@ -83,8 +83,8 @@ func void @f() {
     return
 })";
         auto [ctx, mod] = ir::parse(text).value();
-        auto& F         = mod.front();
-        auto& LNF       = F.getOrComputeLNF();
+        auto& F = mod.front();
+        auto& LNF = F.getOrComputeLNF();
         REQUIRE((LNF.roots() | names) == test::Set{ "entry" });
     }
 }

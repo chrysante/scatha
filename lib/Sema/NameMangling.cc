@@ -14,7 +14,7 @@ static std::string baseImpl(Entity const* entity) {
     Scope const* scope = entity->parent();
     while (!isa<GlobalScope>(scope)) {
         result = utl::strcat(scope->name(), ".", result);
-        scope  = scope->parent();
+        scope = scope->parent();
     }
     return result;
 }

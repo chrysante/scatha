@@ -146,7 +146,7 @@ bool Context::analyzeImpl(ast::Literal& lit) {
             iss.push<BadExpression>(lit, IssueSeverity::Error);
             return false;
         }
-        auto* type       = function->argumentTypes().front();
+        auto* type = function->argumentTypes().front();
         auto* thisEntity = function->findEntity<Variable>("__this");
         lit.decorate(thisEntity, type);
         return true;
@@ -168,7 +168,7 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
         return false;
     }
     auto const* operandType = u.operand()->type();
-    auto* baseType          = operandType->base();
+    auto* baseType = operandType->base();
     switch (u.operation()) {
     case ast::UnaryOperator::Promotion:
         [[fallthrough]];
@@ -365,7 +365,7 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
         return false;
     }
     auto* referred = ref.referred();
-    auto refQual   = ref.isMutable() ? RefMutExpl : RefConstExpl;
+    auto refQual = ref.isMutable() ? RefMutExpl : RefConstExpl;
 
     switch (referred->entityCategory()) {
     case EntityCategory::Value: {
@@ -383,7 +383,7 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
     }
     case EntityCategory::Type: {
         auto* qualType = cast<QualType const*>(referred->entity());
-        auto* refType  = sym.setReference(qualType, refQual);
+        auto* refType = sym.setReference(qualType, refQual);
         ref.decorate(const_cast<QualType*>(refType));
         return true;
     }
@@ -407,8 +407,8 @@ bool Context::analyzeImpl(ast::Conditional& c) {
     if (!success) {
         return false;
     }
-    auto* thenType   = c.thenExpr()->type();
-    auto* elseType   = c.elseExpr()->type();
+    auto* thenType = c.thenExpr()->type();
+    auto* elseType = c.elseExpr()->type();
     auto* commonType = sema::commonType(sym, thenType, elseType);
     if (!commonType) {
         iss.push<BadOperandsForBinaryExpression>(c, thenType, elseType);
@@ -455,7 +455,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
     }
     dereference(expr.object(), sym);
     dereference(expr.argument(0), sym);
-    auto refQual   = toImplicitRef(baseMutability(expr.object()->type()));
+    auto refQual = toImplicitRef(baseMutability(expr.object()->type()));
     auto* elemType = sym.qualify(arrayType->elementType(), refQual);
     expr.decorate(nullptr, elemType);
     return true;
@@ -478,7 +478,7 @@ bool Context::analyzeImpl(ast::GenericExpression& expr) {
 }
 
 bool Context::analyzeImpl(ast::FunctionCall& fc) {
-    bool success      = analyze(*fc.object());
+    bool success = analyze(*fc.object());
     bool isMemberCall = false;
     /// We analyze all the arguments
     for (size_t i = 0; i < fc.arguments().size(); ++i) {
@@ -505,8 +505,8 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
         ma && ma->object()->isValue())
     {
         auto memberAccess = fc.extractObject<ast::MemberAccess>();
-        auto memFunc      = memberAccess->extractMember();
-        auto objectArg    = memberAccess->extractObject();
+        auto memFunc = memberAccess->extractMember();
+        auto objectArg = memberAccess->extractObject();
         fc.insertArgument(0, std::move(objectArg));
         fc.setObject(std::move(memFunc));
         isMemberCall = true;
@@ -597,7 +597,7 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
                       EntityCategory::Indeterminate);
         return true;
     }
-    auto* first    = list.elements().front();
+    auto* first = list.elements().front();
     auto entityCat = first->entityCategory();
     switch (entityCat) {
     case EntityCategory::Value: {
@@ -660,7 +660,7 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
             count = value->value().to<size_t>();
         }
         auto* arrayType = sym.arrayType(elementType, count);
-        auto* qualType  = sym.qualify(arrayType);
+        auto* qualType = sym.qualify(arrayType);
         list.decorate(const_cast<QualType*>(qualType), nullptr);
         return true;
     }
@@ -812,7 +812,7 @@ QualType const* Context::analyzeReferenceAssignment(
         return nullptr;
     }
     auto* explicitRefType = makeRefExplicit(expr.lhs()->type());
-    bool success          = true;
+    bool success = true;
     success &= convertExplicitly(expr.lhs(), explicitRefType, iss);
     success &= convertExplicitly(expr.rhs(), explicitRefType, iss);
     return success ? sym.Void() : nullptr;
@@ -821,9 +821,9 @@ QualType const* Context::analyzeReferenceAssignment(
 Entity* Context::lookup(ast::Identifier& id) {
     bool const restrictedLookup = performRestrictedNameLookup;
     performRestrictedNameLookup = false;
-    auto* entity                = restrictedLookup ?
-                                      sym.currentScope().findEntity(id.value()) :
-                                      sym.lookup(id.value());
+    auto* entity = restrictedLookup ?
+                       sym.currentScope().findEntity(id.value()) :
+                       sym.lookup(id.value());
     if (!entity && !restrictedLookup) {
         /// We don't emit issues when performing restricted lookup because we
         /// may continue searching other scopes

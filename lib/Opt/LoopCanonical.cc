@@ -54,7 +54,7 @@ void LCContext::traverseLoops(LoopNestingForest::Node const* node) {
     for (auto* child: node->children()) {
         traverseLoops(child);
     }
-    auto* header    = node->basicBlock();
+    auto* header = node->basicBlock();
     auto loopBlocks = node->children() |
                       ranges::views::transform(
                           [](auto* node) { return node->basicBlock(); }) |
@@ -94,7 +94,7 @@ void LCContext::traverseLoops(LoopNestingForest::Node const* node) {
     }
     for (auto& phi: header->phiNodes()) {
         size_t preheaderIndex = 0;
-        size_t headerIndex    = 1;
+        size_t headerIndex = 1;
         for (auto [pred, value]: phi.arguments()) {
             if (!loopBlocks.contains(pred)) {
                 auto& arg = preheaderPhiArgs[preheaderIndex++];

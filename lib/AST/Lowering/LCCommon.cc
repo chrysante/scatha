@@ -108,7 +108,7 @@ ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
 
 ir::Value* LoweringContext::genCall(FunctionCall const* call) {
     ir::Callable* function = getFunction(call->function());
-    auto args              = mapArguments(call->arguments());
+    auto args = mapArguments(call->arguments());
     return add<ir::Call>(function,
                          args,
                          call->type()->base() != symbolTable.rawVoid() ?

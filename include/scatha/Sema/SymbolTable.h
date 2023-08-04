@@ -145,7 +145,7 @@ public:
         static constexpr bool IsVoid =
             std::is_same_v<std::invoke_result_t<decltype(f)>, void>;
         auto& mutThis = const_cast<SymbolTable&>(*this);
-        auto* old     = &const_cast<Scope&>(currentScope());
+        auto* old = &const_cast<Scope&>(currentScope());
         mutThis.makeScopeCurrent(scope);
         if constexpr (IsVoid) {
             std::invoke(f);
@@ -167,7 +167,7 @@ public:
     /// \Returns The `QualType` with base type \p base and reference qualifier
     /// \p ref
     QualType const* qualify(ObjectType const* base,
-                            Reference ref  = Reference::None,
+                            Reference ref = Reference::None,
                             Mutability mut = Mutability::Mutable);
 
     /// \Returns The `QualType` with same base type as \p type but without any

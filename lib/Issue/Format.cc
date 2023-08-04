@@ -83,7 +83,7 @@ static auto lineNumber(ssize_t index) {
 void scatha::highlightSource(std::string_view text,
                              SourceRange sourceRange,
                              std::ostream& str) {
-    size_t const index  = utl::narrow_cast<size_t>(sourceRange.begin().index);
+    size_t const index = utl::narrow_cast<size_t>(sourceRange.begin().index);
     size_t const column = utl::narrow_cast<size_t>(sourceRange.begin().column);
     std::string_view const line = getLine(text, index);
     size_t const numChars =

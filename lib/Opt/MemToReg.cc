@@ -199,7 +199,7 @@ utl::hashset<BasicBlock*> MemToRegContext::computeLiveBlocks(Alloca* address) {
 
 void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
     SC_ASSERT(isPromotable(*address), "");
-    auto const liveBlocks   = computeLiveBlocks(address);
+    auto const liveBlocks = computeLiveBlocks(address);
     auto appearedOnWorklist = varInfo.definingBlocks;
     auto worklist =
         appearedOnWorklist | ranges::to<utl::small_vector<BasicBlock*>>;
@@ -215,7 +215,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
                 continue;
             }
             auto* undefVal = irCtx.undef(varInfo.type);
-            auto phiArgs   = y->predecessors() |
+            auto phiArgs = y->predecessors() |
                            ranges::views::transform([&](BasicBlock* pred) {
                                return PhiMapping(pred, undefVal);
                            }) |
@@ -235,7 +235,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
 
 void MemToRegContext::genName(Alloca* addr, Value* value) {
     SC_ASSERT(variables.contains(addr), "");
-    auto& info       = variables.find(addr)->second;
+    auto& info = variables.find(addr)->second;
     uint32_t const i = info.counter;
     info.setVersion(i, value);
     info.stack.push(i);
@@ -270,7 +270,7 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
                 continue;
             }
             auto* address = cast<Alloca*>(load->address());
-            auto& info    = variables.find(address)->second;
+            auto& info = variables.find(address)->second;
             /// The stack being empty means we load from uninitialized memory,
             /// so we replace the load with `undef`
             if (!info.stack.empty()) {

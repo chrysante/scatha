@@ -18,7 +18,7 @@ class SCATHA_TESTAPI AssemblyStream {
 public:
     AssemblyStream();
 
-    AssemblyStream(AssemblyStream const&)            = delete;
+    AssemblyStream(AssemblyStream const&) = delete;
     AssemblyStream& operator=(AssemblyStream const&) = delete;
     AssemblyStream(AssemblyStream&&) noexcept;
     AssemblyStream& operator=(AssemblyStream&&) noexcept;

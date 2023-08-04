@@ -17,8 +17,8 @@ class SCATHA_API Instruction:
 public:
     explicit Instruction(NodeType nodeType,
                          Type const* type,
-                         std::string name                            = {},
-                         utl::small_vector<Value*> operands          = {},
+                         std::string name = {},
+                         utl::small_vector<Value*> operands = {},
                          utl::small_vector<Type const*> typeOperands = {});
 
     /// \returns a view of all instructions using this value.

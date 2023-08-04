@@ -122,7 +122,7 @@ using ValueMap = utl::hashmap<Value*, Value*>;
 static BasicBlock* clone(Context& context, BasicBlock* bb, ValueMap& valueMap) {
     auto result = new BasicBlock(context, std::string(bb->name()));
     for (auto& inst: *bb) {
-        auto* cloned    = clone(context, &inst);
+        auto* cloned = clone(context, &inst);
         valueMap[&inst] = cloned;
         result->pushBack(cloned);
     }
@@ -147,7 +147,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
                                      function->attributes());
     ValueMap valueMap;
     for (auto& bb: *function) {
-        auto* cloned  = ::clone(context, &bb, valueMap);
+        auto* cloned = ::clone(context, &bb, valueMap);
         valueMap[&bb] = cloned;
         result->pushBack(cloned);
     }

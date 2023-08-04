@@ -61,14 +61,14 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
 
     switch (function->kind()) {
     case sema::FunctionKind::Native: {
-        auto fn               = allocate<ir::Function>(functionType,
+        auto fn = allocate<ir::Function>(functionType,
                                          mapType(function->returnType()),
                                          paramTypes,
                                          function->mangledName(),
                                          mapFuncAttrs(function->attributes()),
                                          accessSpecToVisibility(
                                              function->accessSpecifier()));
-        auto* result          = fn.get();
+        auto* result = fn.get();
         functionMap[function] = result;
         mod.addFunction(std::move(fn));
         return result;
@@ -86,7 +86,7 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
                                       utl::narrow_cast<uint32_t>(
                                           function->index()),
                                       mapFuncAttrs(function->attributes()));
-        auto* result          = fn.get();
+        auto* result = fn.get();
         functionMap[function] = result;
         mod.addGlobal(std::move(fn));
         return result;

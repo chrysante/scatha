@@ -237,7 +237,7 @@ class SCATHA_API StrongReferenceCycle: public SemanticIssue {
 public:
     struct Node {
         ast::AbstractSyntaxTree const* astNode = nullptr;
-        sema::Entity const* entity             = nullptr;
+        sema::Entity const* entity = nullptr;
     };
 
     explicit StrongReferenceCycle(utl::vector<Node> cycle);

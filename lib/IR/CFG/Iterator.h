@@ -16,12 +16,12 @@ public:
     using value_type = typename std::iterator_traits<InstItr>::value_type;
     using difference_type =
         typename std::iterator_traits<InstItr>::difference_type;
-    using pointer   = typename std::iterator_traits<InstItr>::pointer;
+    using pointer = typename std::iterator_traits<InstItr>::pointer;
     using reference = typename std::iterator_traits<InstItr>::reference;
     using iterator_category =
         typename std::iterator_traits<InstItr>::iterator_category;
 
-    using BasicBlockIterator  = BBItr;
+    using BasicBlockIterator = BBItr;
     using InstructionIterator = InstItr;
 
     InstructionIteratorImpl() = default;
@@ -87,8 +87,8 @@ private:
         while (instItr == bbItr->end()) {
             BBItr const next = std::next(bbItr);
             bool const isEnd = next == bbItr->parent()->end();
-            bbItr            = next;
-            instItr          = isEnd ? InstItr{} : bbItr->begin();
+            bbItr = next;
+            instItr = isEnd ? InstItr{} : bbItr->begin();
         }
     }
 
@@ -106,10 +106,10 @@ struct PhiIteratorImpl {
                                    typename BB::Iterator>;
 
 public:
-    using value_type      = std::conditional_t<IsConst, Phi const, Phi>;
+    using value_type = std::conditional_t<IsConst, Phi const, Phi>;
     using difference_type = typename std::iterator_traits<Itr>::difference_type;
-    using pointer         = value_type*;
-    using reference       = value_type&;
+    using pointer = value_type*;
+    using reference = value_type&;
     using iterator_category =
         typename std::iterator_traits<Itr>::iterator_category;
 

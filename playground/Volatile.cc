@@ -68,9 +68,9 @@ static void run(Asm::AssemblyStream const& assembly) {
         return;
     }
     vm.execute(mainPos->second, {});
-    using RetType               = uint64_t;
-    using SRetType              = uint64_t;
-    RetType const retval        = static_cast<RetType>(vm.getRegister(0));
+    using RetType = uint64_t;
+    using SRetType = uint64_t;
+    RetType const retval = static_cast<RetType>(vm.getRegister(0));
     SRetType const signedRetval = static_cast<SRetType>(retval);
     std::cout << "Program returned: " << retval;
     std::cout << "\n                 (" << std::hex << retval << std::dec
@@ -134,9 +134,13 @@ static void pass(std::string_view name,
 }
 
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
-    header("Parsed program");
     auto [ctx, mod] = makeIRModuleFromFile(path);
-
+    header("Parsed program");
+    print(mod);
+    opt::optimize(ctx, mod, 1);
+    //    opt::instCombine(ctx, mod.front());
+    header("Optimized");
+    print(mod);
     run(mod);
 }
 
@@ -201,5 +205,5 @@ static void pass(std::string_view name,
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    frontendPlayground(path);
+    irPlayground(path);
 }

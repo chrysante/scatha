@@ -36,7 +36,7 @@ static utl::small_vector<std::string_view> split(std::string_view str,
 std::optional<size_t> Program::findAddress(
     std::string_view name, std::span<QualType const> argTypes) const {
     utl::scope_guard restoreScope = [&] { sym->makeScopeCurrent(nullptr); };
-    auto names                    = split(name, '.');
+    auto names = split(name, '.');
     for (auto n: names | ranges::views::drop_last(1)) {
         if (!sym->pushScope(n)) {
             return std::nullopt;

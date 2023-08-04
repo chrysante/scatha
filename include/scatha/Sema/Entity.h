@@ -73,7 +73,7 @@ private:
 
     EntityType _entityType;
     bool _isBuiltin = false;
-    Scope* _parent  = nullptr;
+    Scope* _parent = nullptr;
     utl::small_vector<std::string, 1> _names;
     mutable std::string _mangledName;
 };
@@ -132,7 +132,7 @@ private:
 
     QualType const* _type;
     size_t _offset = 0;
-    size_t _index  = 0;
+    size_t _index = 0;
     UniquePtr<Value> constVal;
 };
 
@@ -357,7 +357,7 @@ public:
 
     void setBinaryAddress(size_t addr) {
         _haveBinaryAddress = true;
-        _binaryAddress     = addr;
+        _binaryAddress = addr;
     }
 
 private:
@@ -368,13 +368,13 @@ private:
     FunctionSignature _sig;
     OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;
-    AccessSpecifier accessSpec  = AccessSpecifier::Private;
-    FunctionKind _kind          = FunctionKind::Native;
+    AccessSpecifier accessSpec = AccessSpecifier::Private;
+    FunctionKind _kind = FunctionKind::Native;
     bool _isMember          : 1 = false;
     bool _haveBinaryAddress : 1 = false;
-    u16 _slot                   = 0;
-    u32 _index                  = 0;
-    size_t _binaryAddress       = 0;
+    u16 _slot = 0;
+    u32 _index = 0;
+    size_t _binaryAddress = 0;
 };
 
 /// # Types
@@ -523,7 +523,7 @@ class SCATHA_API StructureType: public ObjectType {
 public:
     explicit StructureType(std::string name,
                            Scope* parentScope,
-                           size_t size  = InvalidSize,
+                           size_t size = InvalidSize,
                            size_t align = InvalidSize):
         ObjectType(EntityType::StructureType,
                    ScopeKind::Object,

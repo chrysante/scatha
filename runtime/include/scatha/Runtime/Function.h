@@ -44,11 +44,11 @@ void scatha::setExtFunction(svm::VirtualMachine* vm, ExtFunctionID id, F&& f) {
                          const_cast<void*>(reinterpret_cast<void const*>(&f));
     auto wrapFn = [](uint64_t* const r, svm::VirtualMachine*, void* userdata) {
         using namespace internal;
-        using FT     = utl::function_traits<F>;
-        using R      = typename FT::result_type;
+        using FT = utl::function_traits<F>;
+        using R = typename FT::result_type;
         size_t index = 0;
         auto loadArg = [&]<size_t I>() {
-            using T  = typename FT::template argument<I>;
+            using T = typename FT::template argument<I>;
             T result = load<T>(r + index);
             index += ceildiv(sizeof(T), 8);
             return result;

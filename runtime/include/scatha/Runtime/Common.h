@@ -29,8 +29,8 @@ enum class BaseType : uint8_t {
     F64,
 
     /// Aliases
-    Int    = S64,
-    Float  = F32,
+    Int = S64,
+    Float = F32,
     Double = F64,
 };
 

@@ -110,7 +110,7 @@ void LivenessContext::loopTree(LoopNestingForest::Node const* node) {
     if (node->children().empty()) {
         return;
     }
-    auto* header  = node->basicBlock();
+    auto* header = node->basicBlock();
     auto liveLoop = liveSets[header].liveIn;
     for (auto& phi: header->phiNodes()) {
         liveLoop.erase(&phi);

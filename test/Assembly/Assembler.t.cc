@@ -251,8 +251,8 @@ TEST_CASE("Unconditional jump", "[assembly][vm]") {
 
 TEST_CASE("Conditional jump", "[assembly][vm]") {
     u64 const value = GENERATE(1u, 2u, 3u, 4u);
-    i64 const arg1  = GENERATE(-2, 0, 5, 100);
-    i64 const arg2  = GENERATE(-100, -3, 0, 7);
+    i64 const arg1 = GENERATE(-2, 0, 5, 100);
+    i64 const arg2 = GENERATE(-100, -3, 0, 7);
     AssemblyStream a;
     // clang-format off
     a.add(Block(0, "start", {

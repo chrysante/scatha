@@ -30,7 +30,7 @@ func i64 @testfn(i64) {
     CHECK(firstParam.type() == ctx.integralType(64));
     ir::BasicBlock& entry = fn.front();
     CHECK(entry.name() == "entry");
-    ir::Return& ret     = cast<ir::Return&>(entry.front());
+    ir::Return& ret = cast<ir::Return&>(entry.front());
     ir::Value* retValue = ret.value();
     CHECK(retValue == &firstParam);
 }

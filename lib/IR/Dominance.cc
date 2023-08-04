@@ -75,7 +75,7 @@ void ir::print(DomTree const& domTree, std::ostream& str) {
 }
 
 void PrintCtx::print(DomTree::Node const& node) {
-    auto* bb              = node.basicBlock();
+    auto* bb = node.basicBlock();
     std::string_view name = bb ? bb->name() : "<virtual root>";
     str << indent << name << ":\n";
     indent.increase();
@@ -87,16 +87,16 @@ void PrintCtx::print(DomTree::Node const& node) {
 
 DominanceInfo DominanceInfo::compute(Function& function) {
     DominanceInfo result;
-    result._domMap   = computeDomSets(function);
-    result._domTree  = computeDomTree(function, result._domMap);
+    result._domMap = computeDomSets(function);
+    result._domTree = computeDomTree(function, result._domMap);
     result._domFront = computeDomFronts(function, result._domTree);
     return result;
 }
 
 DominanceInfo DominanceInfo::computePost(Function& function) {
     DominanceInfo result;
-    result._domMap   = computePostDomSets(function);
-    result._domTree  = computePostDomTree(function, result._domMap);
+    result._domMap = computePostDomSets(function);
+    result._domTree = computePostDomTree(function, result._domMap);
     result._domFront = computePostDomFronts(function, result._domTree);
     return result;
 }
@@ -201,7 +201,7 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
     }
     else {
         auto& constRoot = *result._nodes.insert(DomTree::Node(nullptr)).first;
-        result._root    = const_cast<DomTree::Node*>(&constRoot);
+        result._root = const_cast<DomTree::Node*>(&constRoot);
         for (auto* exit: exits) {
             result._root->addChild(result.findMut(exit));
         }
@@ -213,7 +213,7 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
         auto const& domSet = domSets.find(start.basicBlock())->second;
         utl::hashset<DomTree::Node*> visited = { const_cast<DomTree::Node*>(
             &start) };
-        auto findParent                      = [&](DomTree::Node* node,
+        auto findParent = [&](DomTree::Node* node,
                               auto& findParent) -> DomTree::Node* {
             if (visited.contains(node)) {
                 return nullptr;
@@ -232,7 +232,7 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
         };
         for (auto* pred: predecessors(start.basicBlock())) {
             auto* predNode = result.findMut(pred);
-            auto* res      = findParent(predNode, findParent);
+            auto* res = findParent(predNode, findParent);
             if (!res) {
                 continue;
             }
@@ -287,7 +287,7 @@ DominanceInfo::DomFrontMap DominanceInfo::computeDomFrontsImpl(
             for (auto* n: uNode->children()) {
                 compute(n);
             }
-            auto* u   = uNode->basicBlock();
+            auto* u = uNode->basicBlock();
             auto& dfU = df[u];
             // DF_local
             for (BasicBlock* v: succ(u)) {

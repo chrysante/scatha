@@ -121,7 +121,7 @@ public:
         if (!child) {
             child = std::make_unique<AccessTree>(sType->memberAt(index));
             child->_parent = this;
-            child->_index  = index;
+            child->_index = index;
         }
         return child.get();
     }
@@ -153,13 +153,13 @@ public:
     std::unique_ptr<AccessTree> clone() {
         auto result = std::make_unique<AccessTree>(type());
         result->_children.resize(_children.size());
-        result->_index   = _index;
+        result->_index = _index;
         result->_payload = _payload;
         for (auto&& [child, resChild]:
              ranges::views::zip(_children, result->_children))
         {
             if (child) {
-                resChild          = child->clone();
+                resChild = child->clone();
                 resChild->_parent = result.get();
             }
         }
@@ -225,7 +225,7 @@ private:
     AccessTree* _parent = nullptr;
     utl::small_vector<std::unique_ptr<AccessTree>> _children;
     ir::Type const* _type = nullptr;
-    size_t _index         = 0;
+    size_t _index = 0;
 };
 
 } // namespace scatha::opt

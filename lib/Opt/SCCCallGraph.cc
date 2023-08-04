@@ -11,7 +11,7 @@ using namespace ir;
 using namespace opt;
 
 using FunctionNode = SCCCallGraph::FunctionNode;
-using SCCNode      = SCCCallGraph::SCCNode;
+using SCCNode = SCCCallGraph::SCCNode;
 
 utl::hashset<ir::Call*> const& SCCCallGraph::FunctionNode::callsites(
     FunctionNode const& callee) const {
@@ -259,7 +259,7 @@ SCCCallGraph::RemoveCallEdgeResult SCCCallGraph::removeCall(
     auto callsitesItr = callerNode._callsites.find(&calleeNode);
     SC_ASSERT(callsitesItr != callerNode._callsites.end(), "");
     auto& callsites = callsitesItr->second;
-    auto callItr    = callsites.find(callInst);
+    auto callItr = callsites.find(callInst);
     SC_ASSERT(callItr != callsites.end(), "");
     callsites.erase(callItr);
     /// If there are still calls to `callee` left, the structure of the call
@@ -324,9 +324,9 @@ void SCCCallGraph::validate() const {
         /// We check that all necessary edges are present in the current
         /// representation of the call graph
         for (auto* call: callInstructions) {
-            auto* callee     = cast<Function const*>(call->function());
+            auto* callee = cast<Function const*>(call->function());
             auto& calleeNode = (*this)[callee];
-            auto callsites   = node.callsites(calleeNode);
+            auto callsites = node.callsites(calleeNode);
             if (ranges::find(callsites, call) == ranges::end(callsites)) {
                 /// This `call` instruction in the function is not represented
                 /// by the call graph

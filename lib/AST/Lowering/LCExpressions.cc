@@ -62,7 +62,7 @@ ir::Value* LoweringContext::getValueImpl(Literal const& lit) {
     }
     case LiteralKind::String: {
         auto const& sourceText = std::get<std::string>(lit.value());
-        size_t const size      = sourceText.size();
+        size_t const size = sourceText.size();
         utl::vector<u8> text(sourceText.begin(), sourceText.end());
         auto* type = ctx.arrayType(ctx.integralType(8), size);
         auto staticData =
@@ -105,7 +105,7 @@ ir::Value* LoweringContext::getValueImpl(UnaryExpression const& expr) {
         return getValue(expr.operand());
 
     case ast::UnaryOperator::Negation: {
-        auto* operand  = getValue(expr.operand());
+        auto* operand = getValue(expr.operand());
         auto operation = isa<ir::IntegralType>(operand->type()) ?
                              ir::ArithmeticOperation::Sub :
                              ir::ArithmeticOperation::FSub;
@@ -149,7 +149,7 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
     case BitwiseOr: {
         ir::Value* const lhs = getValue(expr.lhs());
         ir::Value* const rhs = getValue(expr.rhs());
-        auto* type           = lhs->type();
+        auto* type = lhs->type();
         if (expr.operation() != LeftShift && expr.operation() != RightShift) {
             SC_ASSERT(lhs->type() == rhs->type(),
                       "Need same types to do arithmetic");
@@ -172,8 +172,8 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
         ir::Value* const lhs = getValue(expr.lhs());
         SC_ASSERT(isIntType(1, lhs->type()), "Need i1 for logical operation");
         auto* startBlock = currentBlock;
-        auto* rhsBlock   = newBlock("log.rhs");
-        auto* endBlock   = newBlock("log.end");
+        auto* rhsBlock = newBlock("log.rhs");
+        auto* endBlock = newBlock("log.end");
         if (expr.operation() == LogicalAnd) {
             add<ir::Branch>(lhs, rhsBlock, endBlock);
         }
@@ -286,9 +286,9 @@ ir::Value* LoweringContext::getValueImpl(MemberAccess const& expr) {
                              mapType(expr.type()),
                              "member.access");
     }
-    auto* base       = getValue(expr.object());
+    auto* base = getValue(expr.object());
     auto* accessedId = cast<Identifier const*>(expr.member());
-    auto* var        = cast<sema::Variable const*>(accessedId->entity());
+    auto* var = cast<sema::Variable const*>(accessedId->entity());
     return add<ir::ExtractValue>(base,
                                  std::array{ var->index() },
                                  "member.access");
@@ -307,23 +307,23 @@ ir::Value* LoweringContext::getValueImpl(UniqueExpression const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(Conditional const& condExpr) {
-    auto* cond      = getValue(condExpr.condition());
+    auto* cond = getValue(condExpr.condition());
     auto* thenBlock = newBlock("cond.then");
     auto* elseBlock = newBlock("cond.else");
-    auto* endBlock  = newBlock("cond.end");
+    auto* endBlock = newBlock("cond.end");
     add<ir::Branch>(cond, thenBlock, elseBlock);
 
     /// Generate then block.
     add(thenBlock);
     auto* thenVal = getValue(condExpr.thenExpr());
-    thenBlock     = currentBlock; /// Nested `?:` operands etc. may have changed
-                                  /// `currentBlock`
+    thenBlock = currentBlock; /// Nested `?:` operands etc. may have changed
+                              /// `currentBlock`
     add<ir::Goto>(endBlock);
 
     /// Generate else block.
     add(elseBlock);
     auto* elseVal = getValue(condExpr.elseExpr());
-    elseBlock     = currentBlock;
+    elseBlock = currentBlock;
     add<ir::Goto>(endBlock);
 
     /// Generate end block.
@@ -354,7 +354,7 @@ ir::Value* LoweringContext::getValueImpl(Subscript const& expr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
-    auto* expr          = conv.expression();
+    auto* expr = conv.expression();
     auto* refConvResult = [&]() -> ir::Value* {
         switch (conv.conversion()->refConversion()) {
         case sema::RefConversion::None:
@@ -391,10 +391,10 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
         SC_ASSERT(expr->type()->isReference(), "");
         SC_ASSERT(conv.type()->isReference(), "");
         auto* fromType = cast<sema::ArrayType const*>(expr->type()->base());
-        auto* toType   = cast<sema::ArrayType const*>(conv.type()->base());
+        auto* toType = cast<sema::ArrayType const*>(conv.type()->base());
         if (toType->isDynamic()) {
             if (fromType->isDynamic()) {
-                auto* data  = getArrayAddr(refConvResult);
+                auto* data = getArrayAddr(refConvResult);
                 auto* count = getArrayCount(refConvResult);
                 if (conv.conversion()->objectConversion() ==
                     Reinterpret_ArrayRef_ToByte)
@@ -521,11 +521,11 @@ ir::Value* LoweringContext::getAddressImpl(Identifier const& id) {
 }
 
 ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
-    auto* base       = getAddress(expr.object());
+    auto* base = getAddress(expr.object());
     auto* accessedId = cast<Identifier const*>(expr.member());
-    auto* var        = cast<sema::Variable const*>(accessedId->entity());
-    auto* type       = mapType(expr.object()->type()->base());
-    auto* address    = add<ir::GetElementPointer>(type,
+    auto* var = cast<sema::Variable const*>(accessedId->entity());
+    auto* type = mapType(expr.object()->type()->base());
+    auto* address = add<ir::GetElementPointer>(type,
                                                base,
                                                intConstant(0, 64),
                                                std::array{ var->index() },
@@ -580,9 +580,9 @@ static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
     if (!val) {
         return false;
     }
-    auto value            = val->value();
+    auto value = val->value();
     size_t const elemSize = expr->type()->base()->size();
-    auto* data            = reinterpret_cast<u8 const*>(value.limbs().data());
+    auto* data = reinterpret_cast<u8 const*>(value.limbs().data());
     for (auto* end = data + elemSize; data < end; ++data) {
         dest.push_back(*data);
     }
@@ -591,7 +591,7 @@ static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
 
 bool LoweringContext::genStaticListData(ListExpression const& list,
                                         ir::Alloca* dest) {
-    auto* type     = cast<sema::ArrayType const*>(list.type()->base());
+    auto* type = cast<sema::ArrayType const*>(list.type()->base());
     auto* elemType = type->elementType();
     utl::small_vector<u8> data;
     data.reserve(type->size());
@@ -624,7 +624,7 @@ bool LoweringContext::genStaticListData(ListExpression const& list,
 void LoweringContext::genListDataFallback(ListExpression const& list,
                                           ir::Alloca* dest) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
-    auto* elemType  = mapType(arrayType->elementType());
+    auto* elemType = mapType(arrayType->elementType());
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
         auto* gep = add<ir::GetElementPointer>(elemType,
                                                dest,
@@ -637,7 +637,7 @@ void LoweringContext::genListDataFallback(ListExpression const& list,
 
 ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
-    auto* array     = new ir::Alloca(ctx, mapType(arrayType), "list");
+    auto* array = new ir::Alloca(ctx, mapType(arrayType), "list");
     allocas.push_back(array);
     valueMap.insert({ arrayType->countVariable(),
                       intConstant(list.children().size(), 64) });

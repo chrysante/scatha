@@ -48,8 +48,8 @@ public:
     explicit Instruction(InstCode opcode,
                          Register* dest,
                          utl::small_vector<Value*> operands = {},
-                         uint64_t instData                  = 0,
-                         size_t width                       = 8);
+                         uint64_t instData = 0,
+                         size_t width = 8);
 
     /// Set the register that this instruction defines to \p dest
     void setDest(Register* dest);
@@ -174,7 +174,7 @@ public:
     size_t bitwidth() const { return 8 * bytewidth(); }
 
 private:
-    uint64_t val  = 0;
+    uint64_t val = 0;
     size_t _width = 0;
 };
 
@@ -415,8 +415,8 @@ private:
     utl::vector<Instruction*> instrs;
 
     ir::Function const* irFunc = nullptr;
-    size_t numArgRegs    : 20  = 0;
-    size_t numRetvalRegs : 20  = 0;
+    size_t numArgRegs    : 20 = 0;
+    size_t numRetvalRegs : 20 = 0;
     Visibility vis;
 };
 

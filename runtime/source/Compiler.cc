@@ -68,7 +68,7 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
     if (sources.empty()) {
         return nullptr;
     }
-    auto text    = sources.front();
+    auto text = sources.front();
     auto astRoot = parse::parse(text, iss);
     if (!astRoot) {
         return nullptr;
@@ -98,7 +98,7 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
     }
     auto result = std::make_unique<Program>(std::move(asmResult.program),
                                             std::move(impl->sym));
-    *this       = Compiler();
+    *this = Compiler();
     return result;
 }
 

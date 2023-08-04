@@ -70,9 +70,9 @@ void playground::hostIntegration(std::filesystem::path path) {
     int mainRetval = run<int>(&vm, *mainAddress);
     std::cout << "`main` returned: " << mainRetval << std::endl;
 
-    auto alloc   = prog->findAddress("allocate", { Int });
+    auto alloc = prog->findAddress("allocate", { Int });
     auto dealloc = prog->findAddress("deallocate", { { Byte, MutArrayRef } });
-    auto print   = prog->findAddress("X.print", { { Byte, ArrayRef } });
+    auto print = prog->findAddress("X.print", { { Byte, ArrayRef } });
 
     char const message[] = "My message stored in foreign buffer\n";
 

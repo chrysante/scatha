@@ -19,7 +19,7 @@ namespace scatha::ir {
 
 class SCATHA_API Module {
 public:
-    Module()                  = default;
+    Module() = default;
     Module(Module const& rhs) = delete;
     Module(Module&& rhs) noexcept;
     Module& operator=(Module const& rhs) = delete;

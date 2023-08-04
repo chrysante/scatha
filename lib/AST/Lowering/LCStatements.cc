@@ -49,7 +49,7 @@ void LoweringContext::generateImpl(FunctionDefinition const& def) {
     }
 
     generate(*def.body());
-    currentBlock    = nullptr;
+    currentBlock = nullptr;
     currentFunction = nullptr;
 
     /// Add all generated `alloca`s to the entry basic block
@@ -76,7 +76,7 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
     {
         /// Array case
         if (varDecl.type()->isReference()) {
-            auto* value   = getValue(varDecl.initExpression());
+            auto* value = getValue(varDecl.initExpression());
             auto* address = storeLocal(value, std::string(varDecl.name()));
             memorizeVariableAddress(varDecl.entity(), address);
             return;
@@ -92,7 +92,7 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         }
         /// We need to allocate our own data
         auto* elemType = mapType(arrayType->elementType());
-        auto* array    = new ir::Alloca(ctx,
+        auto* array = new ir::Alloca(ctx,
                                      intConstant(arrayType->count(), 32),
                                      elemType,
                                      name);
@@ -116,12 +116,12 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
 
     /// Non-array case
     if (varDecl.initExpression()) {
-        auto* value   = getValue(varDecl.initExpression());
+        auto* value = getValue(varDecl.initExpression());
         auto* address = storeLocal(value, name);
         memorizeVariableAddress(varDecl.entity(), address);
     }
     else {
-        auto* type    = mapType(varDecl.type());
+        auto* type = mapType(varDecl.type());
         auto* address = makeLocal(type, name);
         memorizeVariableAddress(varDecl.entity(), address);
     }
@@ -145,7 +145,7 @@ void LoweringContext::generateImpl(IfStatement const& stmt) {
     auto* condition = getValue(stmt.condition());
     auto* thenBlock = newBlock("if.then");
     auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
-    auto* endBlock  = newBlock("if.end");
+    auto* endBlock = newBlock("if.end");
     add<ir::Branch>(condition, thenBlock, elseBlock ? elseBlock : endBlock);
     add(thenBlock);
     generate(*stmt.thenBlock());
@@ -162,9 +162,9 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
     switch (loopStmt.kind()) {
     case ast::LoopKind::For: {
         auto* loopHeader = newBlock("loop.header");
-        auto* loopBody   = newBlock("loop.body");
-        auto* loopInc    = newBlock("loop.inc");
-        auto* loopEnd    = newBlock("loop.end");
+        auto* loopBody = newBlock("loop.body");
+        auto* loopInc = newBlock("loop.inc");
+        auto* loopEnd = newBlock("loop.end");
         generate(*loopStmt.varDecl());
         add<ir::Goto>(loopHeader);
 
@@ -173,9 +173,9 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         auto* condition = getValue(loopStmt.condition());
         add<ir::Branch>(condition, loopBody, loopEnd);
         currentLoop = { .header = loopHeader,
-                        .body   = loopBody,
-                        .inc    = loopInc,
-                        .end    = loopEnd };
+                        .body = loopBody,
+                        .inc = loopInc,
+                        .end = loopEnd };
 
         /// Body
         add(loopBody);
@@ -195,8 +195,8 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
 
     case ast::LoopKind::While: {
         auto* loopHeader = newBlock("loop.header");
-        auto* loopBody   = newBlock("loop.body");
-        auto* loopEnd    = newBlock("loop.end");
+        auto* loopBody = newBlock("loop.body");
+        auto* loopEnd = newBlock("loop.end");
         add<ir::Goto>(loopHeader);
 
         /// Header
@@ -204,8 +204,8 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         auto* condition = getValue(loopStmt.condition());
         add<ir::Branch>(condition, loopBody, loopEnd);
         currentLoop = { .header = loopHeader,
-                        .body   = loopBody,
-                        .end    = loopEnd };
+                        .body = loopBody,
+                        .end = loopEnd };
 
         /// Body
         add(loopBody);
@@ -219,13 +219,13 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
     }
 
     case ast::LoopKind::DoWhile: {
-        auto* loopBody   = newBlock("loop.body");
+        auto* loopBody = newBlock("loop.body");
         auto* loopFooter = newBlock("loop.footer");
-        auto* loopEnd    = newBlock("loop.end");
+        auto* loopEnd = newBlock("loop.end");
         add<ir::Goto>(loopBody);
         currentLoop = { .header = loopFooter,
-                        .body   = loopBody,
-                        .end    = loopEnd };
+                        .body = loopBody,
+                        .end = loopEnd };
 
         /// Body
         add(loopBody);

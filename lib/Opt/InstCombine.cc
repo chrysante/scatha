@@ -322,16 +322,16 @@ void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst,
                                        Constant* prevRHS) {
     if (inst->operation() == AddOp) {
         if (prevInst->operation() == AddOp) {
-            auto a       = cast<ConstantType*>(rhs)->value();
-            auto b       = cast<ConstantType*>(prevRHS)->value();
+            auto a = cast<ConstantType*>(rhs)->value();
+            auto b = cast<ConstantType*>(prevRHS)->value();
             auto* newRHS = irCtx.arithmeticConstant(add(a, b));
             auto* newLHS = prevInst->lhs();
             inst->setRHS(newRHS);
             inst->setLHS(newLHS);
         }
         else if (prevInst->operation() == SubOp) {
-            auto a       = cast<ConstantType*>(rhs)->value();
-            auto b       = cast<ConstantType*>(prevRHS)->value();
+            auto a = cast<ConstantType*>(rhs)->value();
+            auto b = cast<ConstantType*>(prevRHS)->value();
             auto* newRHS = irCtx.arithmeticConstant(sub(a, b));
             auto* newLHS = prevInst->lhs();
             inst->setRHS(newRHS);
@@ -343,16 +343,16 @@ void InstCombineCtx::mergeAdditiveImpl(ArithmeticInst* inst,
     }
     else if (inst->operation() == SubOp) {
         if (prevInst->operation() == AddOp) {
-            auto a       = cast<ConstantType*>(rhs)->value();
-            auto b       = cast<ConstantType*>(prevRHS)->value();
+            auto a = cast<ConstantType*>(rhs)->value();
+            auto b = cast<ConstantType*>(prevRHS)->value();
             auto* newRHS = irCtx.arithmeticConstant(sub(b, a));
             auto* newLHS = prevInst->lhs();
             inst->setRHS(newRHS);
             inst->setLHS(newLHS);
         }
         else if (prevInst->operation() == SubOp) {
-            auto a       = cast<ConstantType*>(rhs)->value();
-            auto b       = cast<ConstantType*>(prevRHS)->value();
+            auto a = cast<ConstantType*>(rhs)->value();
+            auto b = cast<ConstantType*>(prevRHS)->value();
             auto* newRHS = irCtx.arithmeticConstant(add(a, b));
             auto* newLHS = prevInst->lhs();
             inst->setRHS(newRHS);
@@ -414,10 +414,10 @@ Value* InstCombineCtx::visitImpl(Phi* phi) {
     Value* const first = phi->operands().front();
     bool const allEqual =
         ranges::all_of(phi->operands(), [&](auto* op) { return op == first; });
-    if (!allEqual) {
-        return nullptr;
+    if (allEqual) {
+        return first;
     }
-    return first;
+    return nullptr;
 }
 
 static void print(auto* inst, AccessTreeNode const* tree) {
@@ -518,7 +518,7 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
         ir::Context& irCtx,
         utl::hashmap<std::pair<Value*, Value*>, InsertValue*> const& ivMap) {
     utl::small_vector<UniquePtr<InsertValue>> result;
-    auto* maxValue  = mostUsedLeavesBase(node);
+    auto* maxValue = mostUsedLeavesBase(node);
     auto* baseValue = maxValue ? maxValue : irCtx.undef(node->type());
     node->leafWalk(
         [&](AccessTreeNode* leaf, std::span<size_t const> leafIndices) {
@@ -529,7 +529,7 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
             return;
         }
         auto* ins = leaf->payload();
-        auto itr  = ivMap.find({ baseValue, ins });
+        auto itr = ivMap.find({ baseValue, ins });
         if (itr != ivMap.end()) {
             auto* iv = itr->second;
             if (ranges::equal(iv->memberIndices(), leafIndices)) {
@@ -550,7 +550,7 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
         ir::Context& irCtx,
         utl::hashmap<std::pair<Value*, Value*>, InsertValue*> const& ivMap) {
     utl::small_vector<UniquePtr<InsertValue>> result;
-    auto* maxValue  = mostUsedChildrenBase(node);
+    auto* maxValue = mostUsedChildrenBase(node);
     auto* baseValue = maxValue ? maxValue : irCtx.undef(node->type());
 
     for (size_t index = 0; auto child: node->children()) {
@@ -562,7 +562,7 @@ static std::pair<Value*, utl::small_vector<UniquePtr<InsertValue>>>
             continue;
         }
         auto* ins = child->payload();
-        auto itr  = ivMap.find({ baseValue, ins });
+        auto itr = ivMap.find({ baseValue, ins });
         if (itr != ivMap.end()) {
             auto* iv = itr->second;
             if (ranges::equal(iv->memberIndices(), std::array{ index })) {
@@ -596,7 +596,7 @@ static utl::hashmap<std::pair<Value*, Value*>, InsertValue*> gatherIVMap(
             return;
         }
         auto* base = iv->baseValue();
-        auto* ins  = iv->insertedValue();
+        auto* ins = iv->insertedValue();
         result.insert({ std::pair{ base, ins }, iv });
         search(base, search);
         search(ins, search);
@@ -616,7 +616,7 @@ Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
     {
         return nullptr;
     }
-    auto* root       = getAccessTree(insertInst);
+    auto* root = getAccessTree(insertInst);
     auto const ivMap = gatherIVMap(insertInst);
     utl::small_vector<UniquePtr<InsertValue>> inserts;
     root->postOrderWalk(

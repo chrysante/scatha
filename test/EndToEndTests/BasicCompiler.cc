@@ -61,7 +61,7 @@ static void optimize(ir::Context& ctx, ir::Module& mod) {
 }
 
 static uint64_t run(ir::Module const& mod) {
-    auto assembly    = cg::codegen(mod);
+    auto assembly = cg::codegen(mod);
     auto [prog, sym] = Asm::assemble(assembly);
     /// We need 2 megabytes of stack size for the ackermann function test to run
     svm::VirtualMachine vm(1 << 10, 1 << 11);

@@ -25,9 +25,9 @@ void test::passTest(std::function<bool(ir::Context&, ir::Function&)> pass,
 void test::passTest(std::function<bool(ir::Context&, ir::Function&)> pass,
                     std::string fSource,
                     std::string refSource) {
-    auto [fCtx, fMod]     = ir::parse(fSource).value();
+    auto [fCtx, fMod] = ir::parse(fSource).value();
     auto [refCtx, refMod] = ir::parse(refSource).value();
-    auto& F               = fMod.front();
-    auto& ref             = refMod.front();
+    auto& F = fMod.front();
+    auto& ref = refMod.front();
     test::passTest(pass, fCtx, F, ref);
 }

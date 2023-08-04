@@ -36,7 +36,7 @@ struct ExternalFunction {
 
 private:
     FuncPtr funcPtr = nullptr;
-    void* ctx       = nullptr;
+    void* ctx = nullptr;
 };
 
 } // namespace svm

@@ -76,7 +76,7 @@ using List = utl::ilist<T, DynAllocator<T>>;
 template <typename Derived, typename ValueType>
 class CFGList {
 public:
-    using Iterator      = typename List<ValueType>::iterator;
+    using Iterator = typename List<ValueType>::iterator;
     using ConstIterator = typename List<ValueType>::const_iterator;
 
     /// Callee takes ownership.

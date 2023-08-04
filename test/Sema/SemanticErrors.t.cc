@@ -74,7 +74,7 @@ fn main(i: int) -> bool {
 	let c = !i;
 	let d = ~i;
 })");
-    auto const line3  = issues.findOnLine<BadOperandsForBinaryExpression>(3);
+    auto const line3 = issues.findOnLine<BadOperandsForBinaryExpression>(3);
     REQUIRE(line3);
     CHECK(line3->lhs()->base() == issues.sym.rawS64());
     CHECK(line3->rhs()->base() == issues.sym.rawF64());
@@ -95,7 +95,7 @@ fn g() { X.callee(0); }
 struct X {
 	fn callee(a: string) {}
 })");
-    auto const line2  = issues.findOnLine<NoMatchingFunction>(2);
+    auto const line2 = issues.findOnLine<NoMatchingFunction>(2);
     CHECK(line2);
     auto const line3 = issues.findOnLine<NoMatchingFunction>(3);
     CHECK(line3);
@@ -126,7 +126,7 @@ fn f() -> int {}
 fn g() {}
 fn g() {}
 )");
-    auto const line3  = issues.findOnLine<InvalidDeclaration>(3);
+    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
     CHECK(line3->reason() ==
           InvalidDeclaration::Reason::CantOverloadOnReturnType);
@@ -165,7 +165,7 @@ fn f(){}
 fn g(){}
 struct g{}
 )");
-    auto const line3  = issues.findOnLine<InvalidDeclaration>(3);
+    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
     CHECK(line3->reason() == InvalidDeclaration::Reason::Redefinition);
     // CHECK(line3->symbolCategory() == SymbolCategory::Function);
@@ -218,7 +218,7 @@ fn f() {
 	struct X {}
 })");
     Function const* f = issues.sym.lookup<OverloadSet>("f")->front();
-    auto const line3  = issues.findOnLine<InvalidDeclaration>(3);
+    auto const line3 = issues.findOnLine<InvalidDeclaration>(3);
     REQUIRE(line3);
     CHECK(line3->reason() == InvalidDeclaration::Reason::InvalidInCurrentScope);
     CHECK(line3->currentScope() == f);
@@ -239,8 +239,8 @@ struct X {
 	{}
 	fn f() { {} }
 })");
-    auto const* x     = issues.sym.lookup<ObjectType>("X");
-    auto checkLine    = [&](int line) {
+    auto const* x = issues.sym.lookup<ObjectType>("X");
+    auto checkLine = [&](int line) {
         auto const issue = issues.findOnLine<InvalidStatement>(line);
         REQUIRE(issue);
         CHECK(issue->reason() ==
@@ -293,7 +293,7 @@ TEST_CASE("Non void function must return a value", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f() -> int { return; }
 )");
-    auto issue        = issues.findOnLine<InvalidStatement>(2);
+    auto issue = issues.findOnLine<InvalidStatement>(2);
     REQUIRE(issue);
     CHECK(issue->reason() ==
           InvalidStatement::Reason::NonVoidFunctionMustReturnAValue);
@@ -303,7 +303,7 @@ TEST_CASE("Void function must not return a value", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 fn f() { return 0; }
 )");
-    auto issue        = issues.findOnLine<InvalidStatement>(2);
+    auto issue = issues.findOnLine<InvalidStatement>(2);
     REQUIRE(issue);
     CHECK(issue->reason() ==
           InvalidStatement::Reason::VoidFunctionMustNotReturnAValue);
@@ -313,7 +313,7 @@ TEST_CASE("Expect reference initializer", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 public fn main() { var r: &mut int = 1; }
 )");
-    auto issue        = issues.findOnLine<InvalidDeclaration>(2);
+    auto issue = issues.findOnLine<InvalidDeclaration>(2);
     REQUIRE(issue);
     CHECK(issue->reason() ==
           InvalidDeclaration::Reason::ExpectedReferenceInitializer);

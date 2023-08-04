@@ -88,7 +88,7 @@ bool Context::recover(std::pair<Cond, F>... retry) {
     int const maxDiscardedTokens = 5;
     for (int i = 0; i < maxDiscardedTokens; ++i) {
         Token const& next = tokens.peek();
-        bool success      = false;
+        bool success = false;
         ([&](auto const& cond, auto const& callback) {
             if (std::invoke(cond, next)) {
                 success = std::invoke(callback);
@@ -383,7 +383,7 @@ UniquePtr<ast::CompoundStatement> Context::parseCompoundStatement() {
         /// This mechanism checks wether a failed statement parse has eaten any
         /// tokens. If it hasn't we eat one ourselves and try again.
         auto const lastIndex = tokens.index();
-        Token const next     = tokens.peek();
+        Token const next = tokens.peek();
         if (next.kind() == CloseBrace) {
             tokens.eat();
             break;
@@ -582,7 +582,7 @@ static std::optional<ast::JumpStatement::Kind> toJumpKind(Token token) {
 }
 
 UniquePtr<ast::JumpStatement> Context::parseJumpStatement() {
-    Token const token   = tokens.peek();
+    Token const token = tokens.peek();
     auto const jumpKind = toJumpKind(token);
     if (!jumpKind) {
         return nullptr;
@@ -630,7 +630,7 @@ UniquePtr<ast::Expression> Context::parseAssignment() {
 
 UniquePtr<ast::Expression> Context::parseConditional() {
     Token const& condToken = tokens.peek();
-    auto logicalOr         = parseLogicalOr();
+    auto logicalOr = parseLogicalOr();
     if (auto const& questionMark = tokens.peek();
         questionMark.kind() == Question)
     {
@@ -724,9 +724,9 @@ UniquePtr<ast::Expression> Context::parseUnary() {
         return postfix;
     }
     Token const token = tokens.peek();
-    auto makeResult   = [&](ast::UnaryOperator operatorType) {
+    auto makeResult = [&](ast::UnaryOperator operatorType) {
         Token const unaryToken = tokens.peek();
-        auto unary             = parseUnary();
+        auto unary = parseUnary();
         if (!unary) {
             pushExpectedExpression(unaryToken);
         }
@@ -773,7 +773,7 @@ UniquePtr<ast::Expression> Context::parseReference() {
     }
     tokens.eat();
     bool const isMut = eatMut();
-    auto referred    = parseReference();
+    auto referred = parseReference();
     return allocate<ast::ReferenceExpression>(std::move(referred),
                                               isMut,
                                               refToken.sourceRange());
@@ -861,7 +861,7 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
     auto const& token = tokens.peek();
     if (token.kind() == OpenParan) {
         tokens.eat();
-        Token const commaToken           = tokens.peek();
+        Token const commaToken = tokens.peek();
         UniquePtr<ast::Expression> comma = parseComma();
         if (!comma) {
             pushExpectedExpression(commaToken);
@@ -879,7 +879,7 @@ UniquePtr<ast::Expression> Context::parsePrimary() {
             if (!first) {
                 expectDelimiter(Comma);
             }
-            first     = false;
+            first = false;
             auto expr = parseConditional();
             if (!expr) {
                 pushExpectedExpression(next);
@@ -998,7 +998,7 @@ std::optional<List> Context::parseList(TokenKind open,
         if (!first) {
             expectDelimiter(delimiter);
         }
-        first     = false;
+        first = false;
         auto elem = parseCallback();
         if (elem) {
             result.push_back(std::move(elem));
@@ -1135,7 +1135,7 @@ static TokenKind toTokenKind(ast::BinaryOperator op) {
 
 template <ast::BinaryOperator... Op>
 UniquePtr<ast::Expression> Context::parseBinaryOperatorLTR(auto&& operand) {
-    Token const& lhsToken           = tokens.peek();
+    Token const& lhsToken = tokens.peek();
     UniquePtr<ast::Expression> left = operand();
     auto tryParse = [&](Token const token, ast::BinaryOperator op) {
         if (token.kind() != toTokenKind(op)) {
@@ -1145,7 +1145,7 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorLTR(auto&& operand) {
         if (!left) {
             pushExpectedExpression(lhsToken);
         }
-        Token const& rhsToken            = tokens.peek();
+        Token const& rhsToken = tokens.peek();
         UniquePtr<ast::Expression> right = operand();
         if (!right) {
             pushExpectedExpression(rhsToken);
@@ -1171,8 +1171,8 @@ UniquePtr<ast::Expression> Context::parseBinaryOperatorRTL(
     Token const& lhsToken = tokens.peek();
     SC_ASSERT(lhsToken.kind() != EndOfFile, "");
     UniquePtr<ast::Expression> left = parseOperand();
-    Token const operatorToken       = tokens.peek();
-    auto parse                      = [&](ast::BinaryOperator op) {
+    Token const operatorToken = tokens.peek();
+    auto parse = [&](ast::BinaryOperator op) {
         if (!left) {
             pushExpectedExpression(lhsToken);
         }

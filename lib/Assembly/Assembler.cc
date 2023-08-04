@@ -107,10 +107,10 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
     std::span<u8 const> dataSection = astr.dataSection();
     svm::ProgramHeader const header{
         .versionString = {},
-        .size          = sizeof(svm::ProgramHeader) + dataSection.size() +
+        .size = sizeof(svm::ProgramHeader) + dataSection.size() +
                 ctx.instructions.size(),
-        .dataOffset   = sizeof(svm::ProgramHeader),
-        .textOffset   = sizeof(svm::ProgramHeader) + dataSection.size(),
+        .dataOffset = sizeof(svm::ProgramHeader),
+        .textOffset = sizeof(svm::ProgramHeader) + dataSection.size(),
         .startAddress = ctx.startAddress
     };
     result.program.resize(sizeof(svm::ProgramHeader) + header.size);
@@ -393,7 +393,7 @@ void Context::postProcess() {
         auto const itr = labels.find(targetID);
         SC_ASSERT(itr != labels.end(), "Use of undeclared label");
         size_t const targetPosition = itr->second;
-        i32 const offset            = utl::narrow_cast<i32>(
+        i32 const offset = utl::narrow_cast<i32>(
             static_cast<i64>(targetPosition) - static_cast<i64>(position));
         store(&instructions[position],
               offset + static_cast<i32>(sizeof(OpCode)));

@@ -19,7 +19,7 @@ void cg::allocateRegisters(mir::Function& F) {
             {
                 continue;
             }
-            auto* dest    = inst.dest();
+            auto* dest = inst.dest();
             auto* operand = inst.operandAt(0);
             SC_ASSERT(dest != operand,
                       "Here we should be still in kind of SSA form");
@@ -50,7 +50,7 @@ void cg::allocateRegisters(mir::Function& F) {
                 ++inst;
                 continue;
             }
-            auto* dest   = inst->dest();
+            auto* dest = inst->dest();
             auto* source = inst->operandAt(0);
             if (dest == source) {
                 inst = BB.erase(inst);
@@ -96,7 +96,7 @@ void cg::allocateRegisters(mir::Function& F) {
             {
                 continue;
             }
-            auto callData      = inst.instDataAs<mir::CallInstData>();
+            auto callData = inst.instDataAs<mir::CallInstData>();
             callData.regOffset = utl::narrow_cast<uint8_t>(
                 numLocalRegs + NumRegsForCallMetadata);
             inst.setInstData(callData);

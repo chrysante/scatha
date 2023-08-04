@@ -135,7 +135,7 @@ utl::vector<Token>::iterator Context::popStackAndInsertMatchingBrackets(
     utl::vector<Token>::const_iterator tokenItr,
     utl::vector<Bracket>::iterator stackItr) {
     auto& stackContainer = bracketStack.container();
-    ssize_t const count  = stackContainer.end() - stackItr;
+    ssize_t const count = stackContainer.end() - stackItr;
     /// Insert all missing closing brackets, i.e. all brackets matchings the
     /// open ones past and push errors.
     auto insertRange =

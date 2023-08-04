@@ -32,31 +32,31 @@ func i64 @f(i64 %0) {
 })";
 
     auto [ctx, mod] = ir::parse(text).value();
-    auto& F         = mod.front();
+    auto& F = mod.front();
 
     auto liveSets = ir::LiveSets::compute(F);
 
-    auto* entry   = &F.front();
-    auto* param   = &F.parameters().front();
-    auto* n       = &entry->front();
+    auto* entry = &F.front();
+    auto* param = &F.parameters().front();
+    auto* n = &entry->front();
     auto* entryLS = liveSets.find(entry);
     REQUIRE(entryLS);
     CHECK(entryLS->liveIn.contains(param));
     CHECK(entryLS->liveOut.contains(n));
 
     auto* thenBlock = entry->next();
-    auto* thenLS    = liveSets.find(thenBlock);
+    auto* thenLS = liveSets.find(thenBlock);
     REQUIRE(thenLS);
     CHECK(thenLS->liveIn.contains(n));
     CHECK(thenLS->liveOut.contains(n));
 
     auto* elseBlock = thenBlock->next();
-    auto* elseLS    = liveSets.find(elseBlock);
+    auto* elseLS = liveSets.find(elseBlock);
     REQUIRE(elseLS);
     CHECK(elseLS->liveIn.contains(n));
     CHECK(elseLS->liveOut.contains(n));
 
-    auto* end   = elseBlock->next();
+    auto* end = elseBlock->next();
     auto* endLS = liveSets.find(end);
     REQUIRE(endLS);
     CHECK(endLS->liveIn.contains(n));

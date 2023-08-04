@@ -74,7 +74,7 @@ struct CodeGenContext {
                size_t numBytes,
                mir::BasicBlock::ConstIterator before,
                mir::InstCode code = mir::InstCode::Copy,
-               uint64_t instData  = 0);
+               uint64_t instData = 0);
 
     ///
     mir::CompareOperation readCondition(ir::Value const* condition);
@@ -130,14 +130,14 @@ struct CodeGenContext {
     mir::Instruction* newInst(mir::InstCode code,
                               mir::Register* dest,
                               utl::small_vector<mir::Value*> operands,
-                              T instData   = {},
+                              T instData = {},
                               size_t width = 8);
 
     template <mir::InstructionData T = uint64_t>
     AddNewInstResult addNewInst(mir::InstCode code,
                                 mir::Register* dest,
                                 utl::small_vector<mir::Value*> operands,
-                                T instData   = {},
+                                T instData = {},
                                 size_t width = 8) {
         return addNewInst(code,
                           dest,
@@ -172,7 +172,7 @@ struct CodeGenContext {
     mir::Module& result;
 
     mir::Function* currentFunction = nullptr;
-    mir::BasicBlock* currentBlock  = nullptr;
+    mir::BasicBlock* currentBlock = nullptr;
 
     utl::hashmap<ir::Value const*, mir::Value*> valueMap;
 
@@ -208,7 +208,7 @@ void CodeGenContext::declareFunction(ir::Function const& function) {
                            ranges::plus{},
                            [&](auto& param) { return numWords(param.type()); });
     size_t const numRetvalRegs = numWords(function.returnType());
-    auto* mirFunc              = new mir::Function(&function,
+    auto* mirFunc = new mir::Function(&function,
                                       numParamRegs,
                                       numRetvalRegs,
                                       function.visibility());
@@ -258,10 +258,10 @@ void CodeGenContext::dispatchInst(ir::Instruction const& inst) {
 void CodeGenContext::genInst(ir::Alloca const& allocaInst) {
     SC_ASSERT(allocaInst.allocatedType()->align() <= 8,
               "We don't support overaligned types just yet.");
-    auto* type          = allocaInst.allocatedType();
+    auto* type = allocaInst.allocatedType();
     auto* countConstant = cast<ir::IntegralConstant const*>(allocaInst.count());
-    size_t count        = countConstant->value().to<size_t>();
-    size_t numBytes     = utl::round_up(type->size() * count, 8);
+    size_t count = countConstant->value().to<size_t>();
+    size_t numBytes = utl::round_up(type->size() * count, 8);
     addNewInst(mir::InstCode::LIncSP,
                resolve(&allocaInst),
                { result.constant(numBytes, 2) });
@@ -269,10 +269,10 @@ void CodeGenContext::genInst(ir::Alloca const& allocaInst) {
 
 void CodeGenContext::genInst(ir::Store const& store) {
     mir::MemoryAddress dest = computeAddress(store.address());
-    mir::Value* src         = resolveToRegister(store.value());
-    size_t numBytes         = store.value()->type()->size();
-    size_t numWords         = utl::ceil_divide(numBytes, 8);
-    auto addrConstData      = dest.constantData();
+    mir::Value* src = resolveToRegister(store.value());
+    size_t numBytes = store.value()->type()->size();
+    size_t numWords = utl::ceil_divide(numBytes, 8);
+    auto addrConstData = dest.constantData();
     for (size_t i = 0; i < numWords; ++i, src = src->next()) {
         addNewInst(mir::InstCode::Store,
                    nullptr,
@@ -285,10 +285,10 @@ void CodeGenContext::genInst(ir::Store const& store) {
 
 void CodeGenContext::genInst(ir::Load const& load) {
     mir::MemoryAddress src = computeAddress(load.address());
-    size_t numBytes        = load.type()->size();
-    size_t numWords        = utl::ceil_divide(numBytes, 8);
-    auto* dest             = resolve(&load);
-    auto addrConstData     = src.constantData();
+    size_t numBytes = load.type()->size();
+    size_t numWords = utl::ceil_divide(numBytes, 8);
+    auto* dest = resolve(&load);
+    auto addrConstData = src.constantData();
     for (size_t i = 0; i < numWords; ++i, dest = dest->next()) {
         addNewInst(mir::InstCode::Load,
                    dest,
@@ -354,7 +354,7 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
         [[fallthrough]];
     case ir::Conversion::FtoS: {
         mir::Value* operand = resolve(inst.operand());
-        auto fromBits       = utl::narrow_cast<u16>(
+        auto fromBits = utl::narrow_cast<u16>(
             cast<ir::ArithmeticType const*>(inst.operand()->type())
                 ->bitwidth());
         auto toBits = utl::narrow_cast<u16>(
@@ -377,8 +377,8 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
 
 void CodeGenContext::genInst(ir::CompareInst const& cmp) {
     lastEmittedCompare = &cmp;
-    auto* lhs          = resolveToRegister(cmp.lhs());
-    auto* rhs          = resolve(cmp.rhs());
+    auto* lhs = resolveToRegister(cmp.lhs());
+    auto* rhs = resolve(cmp.rhs());
     addNewInst(mir::InstCode::Compare, nullptr, { lhs, rhs }, cmp.mode());
     addNewInst(mir::InstCode::Set, resolve(&cmp), {}, cmp.operation());
 }
@@ -419,7 +419,7 @@ void CodeGenContext::genInst(ir::Goto const& gt) {
 }
 
 void CodeGenContext::genInst(ir::Branch const& br) {
-    auto condition   = readCondition(br.condition());
+    auto condition = readCondition(br.condition());
     auto* thenTarget = resolve(br.thenTarget());
     auto* elseTarget = resolve(br.elseTarget());
     addNewInst(mir::InstCode::CondJump,
@@ -447,14 +447,14 @@ void CodeGenContext::genInst(ir::Call const& call) {
         },
     }); // clang-format on
     for (auto* arg: call.arguments()) {
-        auto* mirArg          = resolve(arg);
+        auto* mirArg = resolve(arg);
         size_t const numWords = this->numWords(arg->type());
         for (size_t i = 0; i < numWords; ++i, mirArg = mirArg->next()) {
             args.push_back(mirArg);
         }
     }
     size_t const numDests = numWords(call.type());
-    auto* dest            = resolve(&call);
+    auto* dest = resolve(&call);
     auto* mirCall = addNewInst(instcode, dest, std::move(args), callData).inst;
     mirCall->setNumDests(numDests);
 }
@@ -463,7 +463,7 @@ void CodeGenContext::genInst(ir::Return const& ret) {
     utl::small_vector<mir::Value*, 16> args;
     auto* retval = resolve(ret.value());
     for (size_t i = 0, end = numWords(ret.value()->type()); i < end;
-         ++i, retval       = retval->next())
+         ++i, retval = retval->next())
     {
         args.push_back(retval);
     }
@@ -471,7 +471,7 @@ void CodeGenContext::genInst(ir::Return const& ret) {
 }
 
 void CodeGenContext::genInst(ir::Phi const& phi) {
-    auto* dest     = resolve(&phi);
+    auto* dest = resolve(&phi);
     auto arguments = phi.arguments() |
                      ranges::views::transform([&](ir::ConstPhiMapping arg) {
                          return resolve(arg.value);
@@ -505,7 +505,7 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
                    0,
                    sliceWidth(numBytes, i, numWords),
                    currentBlock->end());
-        dest      = dest->next();
+        dest = dest->next();
         arguments = nextArgs;
     }
 }
@@ -566,10 +566,10 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
     ir::Type const* const outerType = extract.baseValue()->type();
     auto const [innerType, innerByteBegin] =
         computeInnerTypeAndByteOffset(outerType, extract.memberIndices());
-    size_t const innerWordBegin  = innerByteBegin / 8;
+    size_t const innerWordBegin = innerByteBegin / 8;
     size_t const innerByteOffset = innerByteBegin % 8;
-    size_t const innerSize       = innerType->size();
-    source                       = advance(source, innerWordBegin);
+    size_t const innerSize = innerType->size();
+    source = advance(source, innerWordBegin);
     /// If `innerByteOffset` is 0 i.e. we don't need any bit shifts or masking,
     /// we directly associate the source register with the dest register.
     if (innerByteOffset == 0) {
@@ -579,12 +579,12 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
     SC_ASSERT(innerByteOffset + innerSize <= 8,
               "This will need even more work");
     auto* sourceShifted = nextRegister();
-    auto* shiftOffset   = result.constant(8 * innerByteOffset, 1);
+    auto* shiftOffset = result.constant(8 * innerByteOffset, 1);
     addNewInst(mir::InstCode::Arithmetic,
                sourceShifted,
                { source, shiftOffset },
                mir::ArithmeticOperation::LShR);
-    auto* sourceMask    = result.constant(makeWordMask(0, innerSize), 8);
+    auto* sourceMask = result.constant(makeWordMask(0, innerSize), 8);
     mir::Register* dest = resolve(&extract);
     addNewInst(mir::InstCode::Arithmetic,
                dest,
@@ -594,8 +594,8 @@ void CodeGenContext::genInst(ir::ExtractValue const& extract) {
 
 void CodeGenContext::genInst(ir::InsertValue const& insert) {
     auto* insertedMember = resolve(insert.insertedValue());
-    auto* source         = resolve(insert.baseValue());
-    auto* dest           = resolve(&insert);
+    auto* source = resolve(insert.baseValue());
+    auto* dest = resolve(&insert);
 
     /// Slice the outer value like so (`x` marks parts of the inner value, `_`
     /// marks the rest of the outer value, and `outerWordCount` is the number of
@@ -625,10 +625,10 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
     [[maybe_unused]] size_t const innerByteEnd =
         innerByteBegin + innerType->size();
     size_t const innerWordBegin = innerByteBegin / 8;
-    size_t const innerWordEnd   = innerWordBegin + numWords(innerType);
+    size_t const innerWordEnd = innerWordBegin + numWords(innerType);
 
     /// Copy the first full words
-    dest   = genCopy(dest, source, 8 * innerWordBegin);
+    dest = genCopy(dest, source, 8 * innerWordBegin);
     source = advance(source, innerWordBegin);
 
     /// Handle the complex middle part
@@ -637,9 +637,9 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
         /// If we are on a word boundary things are kind of easy.
         /// We emit copies for all full words of the inner value.
         size_t const fullWordsInner = innerType->size() / 8;
-        dest           = genCopy(dest, insertedMember, 8 * fullWordsInner);
+        dest = genCopy(dest, insertedMember, 8 * fullWordsInner);
         insertedMember = advance(insertedMember, fullWordsInner);
-        source         = advance(source, fullWordsInner);
+        source = advance(source, fullWordsInner);
         /// These are the bytes we hang over into the last register of the inner
         /// section.
         size_t const hungOverBytes = innerType->size() % 8;
@@ -652,7 +652,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
                        { source, sourceMask },
                        mir::ArithmeticOperation::And);
             auto* maskedInserted = nextRegister();
-            auto* insertedMask   = result.constant(~sourceMask->value(), 8);
+            auto* insertedMask = result.constant(~sourceMask->value(), 8);
             addNewInst(mir::InstCode::Arithmetic,
                        maskedInserted,
                        { insertedMember, insertedMask },
@@ -661,7 +661,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
                        dest,
                        { maskedSource, maskedInserted },
                        mir::ArithmeticOperation::Or);
-            dest   = dest->next();
+            dest = dest->next();
             source = source->next();
         }
     }
@@ -670,7 +670,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
         SC_ASSERT(innerByteOffset + innerType->size() <= 8,
                   "Everything else is too complex for now");
         auto* shiftedInsert = nextRegister();
-        auto* shiftCount    = result.constant(8 * innerByteOffset, 1);
+        auto* shiftCount = result.constant(8 * innerByteOffset, 1);
         addNewInst(mir::InstCode::Arithmetic,
                    shiftedInsert,
                    { insertedMember, shiftCount },
@@ -693,7 +693,7 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
                    dest,
                    { maskedSource, maskedInsert },
                    mir::ArithmeticOperation::Or);
-        dest   = dest->next();
+        dest = dest->next();
         source = source->next();
     }
 
@@ -704,12 +704,12 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
 }
 
 void CodeGenContext::genInst(ir::Select const& select) {
-    auto condition  = readCondition(select.condition());
-    auto* thenVal   = resolve(select.thenValue());
-    auto* elseVal   = resolve(select.elseValue());
+    auto condition = readCondition(select.condition());
+    auto* thenVal = resolve(select.thenValue());
+    auto* elseVal = resolve(select.elseValue());
     size_t numBytes = select.type()->size();
     size_t numWords = utl::ceil_divide(numBytes, 8);
-    auto* dest      = resolve(&select);
+    auto* dest = resolve(&select);
     for (size_t i = 0; i < numWords; ++i) {
         addNewInst(mir::InstCode::Select,
                    dest,
@@ -717,7 +717,7 @@ void CodeGenContext::genInst(ir::Select const& select) {
                    condition,
                    sliceWidth(numBytes, i, numWords),
                    currentBlock->end());
-        dest    = dest->next();
+        dest = dest->next();
         thenVal = thenVal->next();
         elseVal = elseVal->next();
     }
@@ -748,9 +748,9 @@ mir::MemoryAddress CodeGenContext::computeGep(
         genCopy(result, arrayIndex, 8);
         return result;
     }();
-    auto* accessedType    = gep->inboundsType();
+    auto* accessedType = gep->inboundsType();
     size_t const elemSize = accessedType->size();
-    size_t innerOffset    = 0;
+    size_t innerOffset = 0;
     for (size_t index: gep->memberIndices()) {
         auto* sType = cast<ir::StructureType const*>(accessedType);
         innerOffset += sType->memberOffsetAt(index);

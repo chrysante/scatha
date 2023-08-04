@@ -207,7 +207,7 @@ public:
     /// Extract the the child at index \p index
     template <typename AST = AbstractSyntaxTree>
     UniquePtr<AST> extractChild(size_t index) {
-        auto* child    = _children[index].release();
+        auto* child = _children[index].release();
         child->_parent = nullptr;
         return UniquePtr<AST>(cast_or_null<AST*>(child));
     }
@@ -221,7 +221,7 @@ public:
 
     /// Set the the child at index \p index to \p child
     void setChild(size_t index, UniquePtr<AbstractSyntaxTree> child) {
-        child->_parent   = this;
+        child->_parent = this;
         _children[index] = std::move(child);
     }
 
@@ -350,8 +350,8 @@ public:
 
     /// Decorate this node.
     void decorate(sema::Entity* entity,
-                  sema::QualType const* type                    = nullptr,
-                  std::optional<sema::ValueCategory> valueCat   = std::nullopt,
+                  sema::QualType const* type = nullptr,
+                  std::optional<sema::ValueCategory> valueCat = std::nullopt,
                   std::optional<sema::EntityCategory> entityCat = std::nullopt);
 
     /// \Returns Constant value if this expression is constant evaluable
@@ -366,7 +366,7 @@ public:
 private:
     sema::Entity* _entity = nullptr;
     sema::QualType const* _type{};
-    sema::ValueCategory _valueCat   = sema::ValueCategory::None;
+    sema::ValueCategory _valueCat = sema::ValueCategory::None;
     sema::EntityCategory _entityCat = sema::EntityCategory::Indeterminate;
     UniquePtr<sema::Value> constVal;
 };
@@ -733,7 +733,7 @@ protected:
 
 private:
     AccessSpec _accessSpec = AccessSpec::None;
-    sema::Entity* _entity  = nullptr;
+    sema::Entity* _entity = nullptr;
 };
 
 /// Concrete node representing a translation unit.
@@ -826,9 +826,9 @@ public:
 
 private:
     sema::QualType const* _type = nullptr;
-    uint32_t _offset            = 0;
-    uint32_t _index : 31        = 0;
-    bool isMut      : 1         = true;
+    uint32_t _offset = 0;
+    uint32_t _index : 31 = 0;
+    bool isMut      : 1 = true;
 };
 
 /// Concrete node representing a parameter declaration.

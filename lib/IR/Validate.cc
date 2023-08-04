@@ -60,7 +60,7 @@ struct AssertContext {
 
     ir::Context& ctx;
     Function const* currentFunction = nullptr;
-    BasicBlock const* currentBB     = nullptr;
+    BasicBlock const* currentBB = nullptr;
     utl::hashmap<std::string, std::pair<Callable const*, Value const*>>
         nameValueMap;
     DominanceInfo::DomMap domMap;
@@ -105,7 +105,7 @@ void AssertContext::assertInvariants(Function const& function) {
 }
 
 void AssertContext::assertInvariants(BasicBlock const& bb) {
-    currentBB  = &bb;
+    currentBB = &bb;
     bool entry = true;
     CHECK(!bb.empty(),
           "Empty basic blocks are not well formed as they must end with a "

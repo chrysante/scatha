@@ -52,14 +52,14 @@ void BasicBlock::updatePredecessor(BasicBlock const* oldPred,
 }
 
 void BasicBlock::removePredecessor(BasicBlock const* pred) {
-    auto itr   = ranges::find(preds, pred);
+    auto itr = ranges::find(preds, pred);
     auto index = utl::narrow_cast<size_t>(itr - ranges::begin(preds));
     removePredecessor(index);
 }
 
 void BasicBlock::removePredecessor(size_t index) {
     SC_ASSERT(index < preds.size(), "Invalid index");
-    auto itr   = preds.begin() + index;
+    auto itr = preds.begin() + index;
     auto* pred = *itr;
     preds.erase(itr);
     for (auto& phi: phiNodes()) {

@@ -55,7 +55,7 @@ static constexpr auto regName =
             [](HardwareRegister const&) { return 'H'; },
         }); // clang-format on
         auto name = utl::strcat(prefix, reg->index());
-        auto fmt  = tfmt::BrightBlue;
+        auto fmt = tfmt::BrightBlue;
         if (reg->fixed()) {
             fmt |= tfmt::Bold;
         }

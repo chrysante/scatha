@@ -31,7 +31,7 @@ public:
     using ListBase::ConstIterator;
     using ListBase::Iterator;
 
-    using PhiIterator      = internal::PhiIteratorImpl<false>;
+    using PhiIterator = internal::PhiIteratorImpl<false>;
     using ConstPhiIterator = internal::PhiIteratorImpl<true>;
 
     explicit BasicBlock(Context& context, std::string name);

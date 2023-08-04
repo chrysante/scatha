@@ -163,7 +163,7 @@ public:
 
 private:
     Type const* _elemType = nullptr;
-    size_t _count         = 0;
+    size_t _count = 0;
 };
 
 /// Represents a function type.

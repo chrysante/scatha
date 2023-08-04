@@ -21,8 +21,8 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-using SCC                  = SCCCallGraph::SCCNode;
-using FunctionNode         = SCCCallGraph::FunctionNode;
+using SCC = SCCCallGraph::SCCNode;
+using FunctionNode = SCCCallGraph::FunctionNode;
 using RemoveCallEdgeResult = SCCCallGraph::RemoveCallEdgeResult;
 
 static bool shouldInlineCallsite(SCCCallGraph const& callGraph,
@@ -118,7 +118,7 @@ bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
 }
 
 bool Inliner::run() {
-    auto worklist    = gatherSinks() | ranges::to<utl::hashset<SCC*>>;
+    auto worklist = gatherSinks() | ranges::to<utl::hashset<SCC*>>;
     bool modifiedAny = false;
     while (!worklist.empty()) {
         auto itr = worklist.begin();
@@ -211,7 +211,7 @@ VisitResult Inliner::visitFunction(FunctionNode const& node) {
             if (!doInline(callInst)) {
                 continue;
             }
-            modifiedAny       = true;
+            modifiedAny = true;
             auto removeResult = callGraph.removeCall(&node.function(),
                                                      &callee->function(),
                                                      callInst);
@@ -335,7 +335,7 @@ bool Inliner::inlineSelfRecImpl(ir::Function* clone,
                                 int numLayers) {
     SC_ASSERT(callsFunction(clone, function),
               "Function must be self recursive");
-    size_t numCallsInlined       = 0;
+    size_t numCallsInlined = 0;
     size_t const maxCallsInlined = 30;
     for (int i = 0; i < numLayers; ++i) {
         utl::small_vector<Call*> callsToSelf = gatherCallsTo(clone, function);
@@ -379,7 +379,7 @@ bool Inliner::allSuccessorsAnalyzed(SCC const& scc) const {
 }
 
 bool Inliner::optimize(Function& function) const {
-    bool modifiedAny    = false;
+    bool modifiedAny = false;
     int const tripLimit = 4;
     for (int i = 0; i < tripLimit; ++i) {
         bool modified = false;

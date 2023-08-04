@@ -62,10 +62,10 @@ static auto printAs(std::span<u8 const> data, size_t offset) {
 static constexpr utl::streammanip memoryAcccess([](std::ostream& str,
                                                    std::span<u8 const> text,
                                                    size_t i) {
-    size_t const baseptrRegisterIndex     = readAs<u8>(text, i);
+    size_t const baseptrRegisterIndex = readAs<u8>(text, i);
     size_t const offsetCountRegisterIndex = readAs<u8>(text, i + 1);
-    u8 const constantOffsetMultiplier     = readAs<u8>(text, i + 2);
-    u8 const constantInnerOffset          = readAs<u8>(text, i + 3);
+    u8 const constantOffsetMultiplier = readAs<u8>(text, i + 2);
+    u8 const constantInnerOffset = readAs<u8>(text, i + 3);
     str << "*(ptr)R[" << printAs<u8>(baseptrRegisterIndex) << "]";
     if (offsetCountRegisterIndex != 0xFF) {
         str << " + (i64)R[" << printAs<u8>(offsetCountRegisterIndex) << "] * "

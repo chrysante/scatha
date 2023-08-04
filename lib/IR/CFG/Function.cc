@@ -133,9 +133,9 @@ LoopNestingForest const& Function::getOrComputeLNF() const {
 }
 
 void Function::invalidateCFGInfo() {
-    analysisData->domInfo     = std::nullopt;
+    analysisData->domInfo = std::nullopt;
     analysisData->postDomInfo = std::nullopt;
-    analysisData->LNF         = std::nullopt;
+    analysisData->LNF = std::nullopt;
 }
 
 void Function::insertCallback(BasicBlock& bb) {

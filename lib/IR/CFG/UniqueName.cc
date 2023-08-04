@@ -40,8 +40,8 @@ std::string UniqueNameFactory::makeUnique(std::string name) {
         return appendCounter(std::move(name), 0);
     }
     char const* numBegin = std::to_address(itr);
-    char* numEnd         = nullptr;
-    long const counter   = std::strtol(numBegin, &numEnd, 10);
+    char* numEnd = nullptr;
+    long const counter = std::strtol(numBegin, &numEnd, 10);
     SC_ASSERT(numEnd != numBegin, "Failed to parse counter");
     name.erase(itr - 1, name.end());
     return appendCounter(std::move(name), utl::narrow_cast<size_t>(counter));

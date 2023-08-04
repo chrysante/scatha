@@ -67,7 +67,7 @@ std::vector<StructureType const*> Context::run() {
         if (!isa<Variable>(node.entity)) {
             continue;
         }
-        auto& var        = cast<ast::VariableDeclaration&>(*node.astNode);
+        auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
         auto const* type = analyzeTypeExpression(*var.typeExpr());
         if (!type) {
             continue;
@@ -129,21 +129,21 @@ void Context::instantiateStructureType(DependencyGraphNode& node) {
         cast<ast::StructDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
-    size_t objectSize  = 0;
+    size_t objectSize = 0;
     size_t objectAlign = 0;
-    auto& objectType   = cast<StructureType&>(*structDef.entity());
+    auto& objectType = cast<StructureType&>(*structDef.entity());
     for (size_t index = 0; auto* statement: structDef.body()->statements()) {
         if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
             continue;
         }
         auto& varDecl = cast<ast::VariableDeclaration&>(*statement);
-        auto& var     = *varDecl.variable();
+        auto& var = *varDecl.variable();
         objectType.addMemberVariable(&var);
         if (!varDecl.type()) {
             break;
         }
         auto* varType = varDecl.type();
-        objectAlign   = std::max(objectAlign, varType->align());
+        objectAlign = std::max(objectAlign, varType->align());
         SC_ASSERT(varType->size() % varType->align() == 0,
                   "size must be a multiple of align");
         objectSize = utl::round_up_pow_two(objectSize, varType->align());
@@ -176,7 +176,7 @@ void Context::instantiateFunction(DependencyGraphNode& node) {
         cast<ast::FunctionDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto signature                  = analyzeSignature(fnDecl);
+    auto signature = analyzeSignature(fnDecl);
     auto result =
         sym.setSignature(cast<Function*>(node.entity), std::move(signature));
     if (!result) {

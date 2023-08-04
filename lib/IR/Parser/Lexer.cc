@@ -128,7 +128,7 @@ Expected<Token, LexicalIssue> Lexer::next() {
     // Identifier
     if (*i == '@' || *i == '%') {
         SourceLocation const beginSL = loc;
-        char const* const first      = i;
+        char const* const first = i;
         while (i != end && !std::isspace(*i) && !isPunctuation(*i)) {
             inc();
         }
@@ -139,8 +139,8 @@ Expected<Token, LexicalIssue> Lexer::next() {
     // NumericLiteral
     if (std::isdigit(*i) || *i == '-') {
         SourceLocation const beginSL = loc;
-        char const* const first      = i;
-        size_t numDots               = 0;
+        char const* const first = i;
+        size_t numDots = 0;
         if (*i == '-') {
             inc();
         }
@@ -171,14 +171,14 @@ Expected<Token, LexicalIssue> Lexer::next() {
     // Punctuation
     if (auto kind = getPunctuation(*i)) {
         SourceLocation const beginSL = loc;
-        auto first                   = i;
+        auto first = i;
         inc();
         return Token(first, i, beginSL, *kind);
     }
     // Keyword
     if (std::isalpha(*i) || *i == '_') {
         SourceLocation const beginSL = loc;
-        char const* const first      = i;
+        char const* const first = i;
         do {
             inc();
         } while (i != end && (std::isalnum(*i) || *i == '_'));
@@ -192,7 +192,7 @@ Expected<Token, LexicalIssue> Lexer::next() {
                 return std::isdigit(c);
             }))
         {
-            char* strEnd     = nullptr;
+            char* strEnd = nullptr;
             long const width = std::strtol(first + 1, &strEnd, 10);
             SC_ASSERT(first + 1 != strEnd, "Failed to parse width");
             auto const kind =

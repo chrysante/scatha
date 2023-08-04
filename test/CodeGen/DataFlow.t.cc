@@ -15,7 +15,7 @@
 using namespace scatha;
 
 TEST_CASE("MIR Liveness", "[codegen][MIR]") {
-    auto const text   = R"(
+    auto const text = R"(
 func i64 @f(i64 %0) {
   %entry:
     %n = add i64 %0, i64 1
@@ -33,12 +33,12 @@ func i64 @f(i64 %0) {
     return i64 %m
 })";
     auto [ctx, irMod] = ir::parse(text).value();
-    auto mod          = cg::lowerToMIR(irMod);
-    auto& F           = mod.front();
+    auto mod = cg::lowerToMIR(irMod);
+    auto& F = mod.front();
     cg::computeLiveSets(F);
-    auto* entry  = F.entry();
+    auto* entry = F.entry();
     auto* argReg = F.ssaArgumentRegisters().front();
-    auto* nReg   = entry->front().dest();
+    auto* nReg = entry->front().dest();
     CHECK(entry->isLiveIn(argReg));
     CHECK(entry->isLiveOut(nReg));
     auto* thenBlock = entry->next();

@@ -133,10 +133,10 @@ public:
 
 public:
     explicit SCCCallGraph(ir::Module& mod): mod(&mod) {}
-    SCCCallGraph(SCCCallGraph const&)            = delete;
-    SCCCallGraph(SCCCallGraph&&)                 = default;
+    SCCCallGraph(SCCCallGraph const&) = delete;
+    SCCCallGraph(SCCCallGraph&&) = default;
     SCCCallGraph& operator=(SCCCallGraph const&) = delete;
-    SCCCallGraph& operator=(SCCCallGraph&&)      = default;
+    SCCCallGraph& operator=(SCCCallGraph&&) = default;
 
     /// Compute the `SCCCallGraph` of \p mod
     static SCCCallGraph compute(ir::Module& mod);

@@ -46,7 +46,7 @@ public:
 protected:
     explicit User(NodeType nodeType,
                   Type const* type,
-                  std::string name                   = {},
+                  std::string name = {},
                   utl::small_vector<Value*> operands = {});
 
     /// Clear all operands and replace with new operands.

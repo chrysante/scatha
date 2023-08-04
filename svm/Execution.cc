@@ -56,10 +56,10 @@ ALWAYS_INLINE static void storeReg(u64* dest, T const& t) {
 }
 
 ALWAYS_INLINE static u8* getPointer(u64 const* reg, u8 const* i) {
-    size_t const baseptrRegIdx         = i[0];
-    size_t const offsetCountRegIdx     = i[1];
+    size_t const baseptrRegIdx = i[0];
+    size_t const offsetCountRegIdx = i[1];
     i64 const constantOffsetMultiplier = i[2];
-    i64 const constantInnerOffset      = i[3];
+    i64 const constantInnerOffset = i[3];
     u8* const offsetBaseptr =
         utl::bit_cast<u8*>(reg[baseptrRegIdx]) + constantInnerOffset;
     /// See documentation in "OpCode.h"
@@ -72,7 +72,7 @@ ALWAYS_INLINE static u8* getPointer(u64 const* reg, u8 const* i) {
 
 template <size_t Size>
 ALWAYS_INLINE static void moveMR(u8 const* i, u64* reg) {
-    u8* const ptr             = getPointer(reg, i);
+    u8* const ptr = getPointer(reg, i);
     size_t const sourceRegIdx = i[4];
     SVM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
     std::memcpy(ptr, &reg[sourceRegIdx], Size);
@@ -81,14 +81,14 @@ ALWAYS_INLINE static void moveMR(u8 const* i, u64* reg) {
 template <size_t Size>
 ALWAYS_INLINE static void moveRM(u8 const* i, u64* reg) {
     size_t const destRegIdx = i[0];
-    u8* const ptr           = getPointer(reg, i + 1);
+    u8* const ptr = getPointer(reg, i + 1);
     SVM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
     reg[destRegIdx] = 0;
     std::memcpy(&reg[destRegIdx], ptr, Size);
 }
 
 ALWAYS_INLINE static void condMove64RR(u8 const* i, u64* reg, bool cond) {
-    size_t const destRegIdx   = i[0];
+    size_t const destRegIdx = i[0];
     size_t const sourceRegIdx = i[1];
     if (cond) {
         reg[destRegIdx] = reg[sourceRegIdx];
@@ -105,7 +105,7 @@ ALWAYS_INLINE static void condMove64RV(u8 const* i, u64* reg, bool cond) {
 template <size_t Size>
 ALWAYS_INLINE static void condMoveRM(u8 const* i, u64* reg, bool cond) {
     size_t const destRegIdx = i[0];
-    u8* const ptr           = getPointer(reg, i + 1);
+    u8* const ptr = getPointer(reg, i + 1);
     SVM_ASSERT(reinterpret_cast<size_t>(ptr) % Size == 0);
     if (cond) {
         reg[destRegIdx] = 0;
@@ -125,27 +125,27 @@ template <typename T>
 ALWAYS_INLINE static void compareRR(u8 const* i, u64* reg, VMFlags& flags) {
     size_t const regIdxA = i[0];
     size_t const regIdxB = i[1];
-    T const a            = load<T>(&reg[regIdxA]);
-    T const b            = load<T>(&reg[regIdxB]);
-    flags.less           = a < b;
-    flags.equal          = a == b;
+    T const a = load<T>(&reg[regIdxA]);
+    T const b = load<T>(&reg[regIdxB]);
+    flags.less = a < b;
+    flags.equal = a == b;
 }
 
 template <typename T>
 ALWAYS_INLINE static void compareRV(u8 const* i, u64* reg, VMFlags& flags) {
     size_t const regIdxA = i[0];
-    T const a            = load<T>(&reg[regIdxA]);
-    T const b            = load<T>(i + 1);
-    flags.less           = a < b;
-    flags.equal          = a == b;
+    T const a = load<T>(&reg[regIdxA]);
+    T const b = load<T>(i + 1);
+    flags.less = a < b;
+    flags.equal = a == b;
 }
 
 template <typename T>
 ALWAYS_INLINE static void testR(u8 const* i, u64* reg, VMFlags& flags) {
     size_t const regIdx = i[0];
-    T const a           = load<T>(&reg[regIdx]);
-    flags.less          = a < 0;
-    flags.equal         = a == 0;
+    T const a = load<T>(&reg[regIdx]);
+    flags.less = a < 0;
+    flags.equal = a == 0;
 }
 
 ALWAYS_INLINE static void set(u8 const* i, u64* reg, bool value) {
@@ -156,7 +156,7 @@ ALWAYS_INLINE static void set(u8 const* i, u64* reg, bool value) {
 template <typename T>
 ALWAYS_INLINE static void unaryR(u8 const* i, u64* reg, auto operation) {
     size_t const regIdx = i[0];
-    auto const a        = load<T>(&reg[regIdx]);
+    auto const a = load<T>(&reg[regIdx]);
     storeReg(&reg[regIdx], decltype(operation)()(a));
 }
 
@@ -164,23 +164,23 @@ template <typename T>
 ALWAYS_INLINE static void arithmeticRR(u8 const* i, u64* reg, auto operation) {
     size_t const regIdxA = i[0];
     size_t const regIdxB = i[1];
-    auto const a         = load<T>(&reg[regIdxA]);
-    auto const b         = load<T>(&reg[regIdxB]);
+    auto const a = load<T>(&reg[regIdxA]);
+    auto const b = load<T>(&reg[regIdxB]);
     storeReg(&reg[regIdxA], decltype(operation)()(a, b));
 }
 
 template <typename LhsType, typename RhsType = LhsType>
 ALWAYS_INLINE static void arithmeticRV(u8 const* i, u64* reg, auto operation) {
     size_t const regIdx = i[0];
-    auto const a        = load<LhsType>(&reg[regIdx]);
-    auto const b        = load<RhsType>(i + 1);
+    auto const a = load<LhsType>(&reg[regIdx]);
+    auto const b = load<RhsType>(i + 1);
     storeReg(&reg[regIdx], static_cast<LhsType>(decltype(operation)()(a, b)));
 }
 
 template <typename T>
 ALWAYS_INLINE static void arithmeticRM(u8 const* i, u64* reg, auto operation) {
     size_t const regIdxA = i[0];
-    u8* const ptr        = getPointer(reg, i + 1);
+    u8* const ptr = getPointer(reg, i + 1);
     SVM_ASSERT(reinterpret_cast<size_t>(ptr) % 8 == 0);
     auto const a = load<T>(&reg[regIdxA]);
     auto const b = load<T>(ptr);
@@ -189,14 +189,14 @@ ALWAYS_INLINE static void arithmeticRM(u8 const* i, u64* reg, auto operation) {
 
 ALWAYS_INLINE static void sext1(u8 const* i, u64* reg) {
     size_t const regIdx = i[0];
-    auto const a        = load<int>(&reg[regIdx]);
+    auto const a = load<int>(&reg[regIdx]);
     storeReg(&reg[regIdx], a & 1 ? static_cast<u64>(-1ull) : 0);
 }
 
 template <typename From, typename To>
 ALWAYS_INLINE static void convert(u8 const* i, u64* reg) {
     size_t const regIdx = i[0];
-    auto const a        = load<From>(&reg[regIdx]);
+    auto const a = load<From>(&reg[regIdx]);
     storeReg(&reg[regIdx], static_cast<To>(a));
 }
 
@@ -215,10 +215,10 @@ u64 const* VirtualMachine::execute(size_t start,
     /// we have no way of knowing how many registers the currently running
     /// execution frame uses, so we have to assume the worst.
     frame = execFrames.push(ExecutionFrame{
-        .regPtr    = lastframe.regPtr + MaxCallframeRegisterCount,
+        .regPtr = lastframe.regPtr + MaxCallframeRegisterCount,
         .bottomReg = lastframe.regPtr + MaxCallframeRegisterCount,
-        .iptr      = text.data() + start,
-        .stackPtr  = lastframe.stackPtr });
+        .iptr = text.data() + start,
+        .stackPtr = lastframe.stackPtr });
     std::memcpy(frame.regPtr, arguments.data(), arguments.size() * sizeof(u64));
 
     /// The main loop of the execution
@@ -227,7 +227,7 @@ u64 const* VirtualMachine::execute(size_t start,
         assert(utl::to_underlying(opcode) <
                    utl::to_underlying(OpCode::_count) &&
                "Invalid op-code");
-        auto* const i      = frame.iptr + sizeof(OpCode);
+        auto* const i = frame.iptr + sizeof(OpCode);
         auto* const regPtr = frame.regPtr;
         [[maybe_unused]] static constexpr u64 InvalidCodeOffset =
             0xdadadadadadadada;
@@ -624,6 +624,6 @@ u64 const* VirtualMachine::execute(size_t start,
     assert(frame.iptr == programBreak);
     execFrames.pop();
     auto* result = frame.regPtr;
-    frame        = lastframe;
+    frame = lastframe;
     return result;
 }

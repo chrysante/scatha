@@ -27,7 +27,7 @@ Options scathac::parseCLI(int argc, char* argv[]) {
     try {
         app.parse(argc, argv);
         result.optimize = !!*opt;
-        result.time     = !!*time;
+        result.time = !!*time;
     }
     catch (CLI::ParseError const& e) {
         int const exitCode = app.exit(e);

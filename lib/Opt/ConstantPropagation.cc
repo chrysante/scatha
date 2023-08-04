@@ -727,7 +727,7 @@ FormalValue SCCPContext::evaluateCall(Callable const* function,
 
 FormalValue SCCPContext::formalValue(Value* value) {
     auto const [itr, justAdded] = formalValues.insert({ value, Unexamined{} });
-    auto&& [key, formalValue]   = *itr;
+    auto&& [key, formalValue] = *itr;
     if (!justAdded) {
         return formalValue;
     }

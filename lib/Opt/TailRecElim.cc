@@ -91,7 +91,7 @@ struct TREContext {
     Function& function;
     utl::small_vector<ViableReturn, 8> viableReturns;
     utl::small_vector<Return*> otherReturns;
-    size_t totalReturns    = 0;
+    size_t totalReturns = 0;
     BasicBlock* loopHeader = nullptr;
     utl::small_vector<Phi*> phiParams;
 };
@@ -125,7 +125,7 @@ bool TREContext::run() {
         if (viableReturns.size() > 1) {
             return false;
         }
-        auto ret   = viableReturns.front();
+        auto ret = viableReturns.front();
         auto other = otherReturns.front();
         // clang-format off
         bool const modified = visit(utl::overload{
@@ -196,13 +196,13 @@ bool TREContext::gather() {
 
 void TREContext::generateLoopHeader() {
     auto* newEntry = new BasicBlock(irCtx, "entry");
-    loopHeader     = &function.entry();
+    loopHeader = &function.entry();
     loopHeader->setName("tre.loopheader");
     newEntry->pushBack(new Goto(irCtx, loopHeader));
     function.pushFront(newEntry);
 
     std::array entryRng = { newEntry };
-    auto retBlocks      = viableReturns | ranges::views::transform(
+    auto retBlocks = viableReturns | ranges::views::transform(
                                          [](ViableReturn const& ret) {
         return std::visit([](auto& ret) { return ret.retInst->parent(); }, ret);
     });
@@ -215,7 +215,7 @@ void TREContext::generateLoopHeader() {
     /// The next arguments will be the corresponding argument of the recursive
     /// calls.
     std::array entryArg = { PhiMapping{ newEntry, nullptr } };
-    auto otherArgs      = viableReturns | ranges::views::transform(
+    auto otherArgs = viableReturns | ranges::views::transform(
                                          [](ViableReturn const& ret) {
         return PhiMapping{
             std::visit([](auto& ret) { return ret.retInst->parent(); }, ret),

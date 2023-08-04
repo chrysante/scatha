@@ -47,9 +47,9 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
                                             nullptr,
                                             SourceRange{}),
              SourceRange{});
-    auto* expr   = base.operand();
+    auto* expr = base.operand();
     auto setType = [&](QualType const* type) { expr->decorate(nullptr, type); };
-    auto set     = [&](QualType const* type, auto value) {
+    auto set = [&](QualType const* type, auto value) {
         setType(type);
         auto* arithType = cast<ArithmeticType const*>(type->base());
         APInt apValue(value, arithType->bitwidth());

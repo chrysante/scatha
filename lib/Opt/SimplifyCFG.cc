@@ -169,7 +169,7 @@ bool Ctx::mainPass() {
                     visited[pred] = false;
                     worklist.insert(pred);
                     modified = true;
-                    any      = true;
+                    any = true;
                     continue;
                 }
                 all = false;
@@ -233,7 +233,7 @@ bool Ctx::merge(BasicBlock* pred, BasicBlock* via, BasicBlock* succ) {
             branch && branch->thenTarget() == branch->elseTarget())
         {
             auto* target = branch->thenTarget();
-            auto* gt     = new Goto(irCtx, target);
+            auto* gt = new Goto(irCtx, target);
             pred->insert(branch, gt);
             pred->erase(branch);
         }

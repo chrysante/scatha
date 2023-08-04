@@ -40,7 +40,7 @@ static void mapSSAToVirtualRegisters(mir::Function& F) {
     /// Argument registers:
     for (size_t i = 0, end = F.numArgumentRegisters(); i < end; ++i) {
         auto* ssaReg = F.ssaRegisters().at(i);
-        auto* vReg   = F.virtualRegisters().at(i);
+        auto* vReg = F.virtualRegisters().at(i);
         vReg->setFixed();
         ssaReg->replaceWith(vReg);
         registerMap[ssaReg] = vReg;
@@ -51,7 +51,7 @@ static void mapSSAToVirtualRegisters(mir::Function& F) {
          ++i)
     {
         auto* ssaReg = F.ssaRegisters().at(i);
-        auto* vReg   = F.virtualRegisters().at(i);
+        auto* vReg = F.virtualRegisters().at(i);
         ssaReg->replaceWith(vReg);
         registerMap[ssaReg] = vReg;
     }
@@ -73,11 +73,11 @@ static void mapSSAToVirtualRegisters(mir::Function& F) {
 static mir::BasicBlock::Iterator destroySSACall(mir::Function& F,
                                                 mir::BasicBlock& BB,
                                                 mir::BasicBlock::Iterator itr) {
-    auto& call           = *itr;
-    auto argBegin        = call.operands().begin();
+    auto& call = *itr;
+    auto argBegin = call.operands().begin();
     size_t numCalleeRegs = call.operands().size();
-    bool const isExt     = call.instcode() == mir::InstCode::CallExt;
-    mir::Value* callee   = nullptr;
+    bool const isExt = call.instcode() == mir::InstCode::CallExt;
+    mir::Value* callee = nullptr;
     if (!isExt) {
         callee = *argBegin;
         ++argBegin;
@@ -137,9 +137,9 @@ static mir::BasicBlock::Iterator destroySSATailCall(
     mir::Function& F, mir::BasicBlock& BB, mir::BasicBlock::Iterator itr) {
     SC_ASSERT(itr->instcode() != mir::InstCode::CallExt,
               "Can't tail call ext functions");
-    auto& call           = *itr;
-    mir::Value* callee   = call.operandAt(0);
-    auto argBegin        = std::next(call.operands().begin());
+    auto& call = *itr;
+    mir::Value* callee = call.operandAt(0);
+    auto argBegin = std::next(call.operands().begin());
     size_t const numArgs = call.operands().size() - 1;
     /// We need to copy our arguments to temporary registers before copying them
     /// into our bottom registers to make sure we don't overwrite anything that
@@ -177,7 +177,7 @@ static mir::BasicBlock::Iterator destroySSATailCall(
 static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
                                             mir::BasicBlock& BB,
                                             mir::BasicBlock::Iterator itr) {
-    auto& phi  = *itr;
+    auto& phi = *itr;
     auto* dest = phi.dest();
     bool const needTmp =
         ranges::any_of(BB.predecessors(),
@@ -188,7 +188,7 @@ static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
         });
     if (needTmp) {
         auto* tmp = new mir::VirtualRegister();
-        dest      = tmp;
+        dest = tmp;
         F.virtualRegisters().add(tmp);
         BB.insert(&phi,
                   new mir::Instruction(mir::InstCode::Copy,
@@ -234,14 +234,14 @@ static mir::BasicBlock::Iterator destroyPhi(mir::Function& F,
 static mir::BasicBlock::Iterator destroySelect(mir::Function& F,
                                                mir::BasicBlock& BB,
                                                mir::BasicBlock::Iterator itr) {
-    auto& select   = *itr;
-    auto* dest     = select.dest();
-    auto* thenVal  = select.operandAt(0);
-    auto* elseVal  = select.operandAt(1);
+    auto& select = *itr;
+    auto* dest = select.dest();
+    auto* thenVal = select.operandAt(0);
+    auto* elseVal = select.operandAt(1);
     auto condition = select.instDataAs<mir::CompareOperation>();
-    auto* copy     = new mir::Instruction(mir::InstCode::Copy,
+    auto* copy = new mir::Instruction(mir::InstCode::Copy,
                                       dest,
-                                          { thenVal },
+                                      { thenVal },
                                       0,
                                       select.bytewidth());
     auto* cndCopy =

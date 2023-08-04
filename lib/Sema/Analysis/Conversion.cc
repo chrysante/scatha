@@ -54,8 +54,8 @@ static ast::Conversion* insertConversion(
     SC_ASSERT(expr->parent(),
               "Can't insert a conversion if node has no parent");
     size_t const indexInParent = expr->indexInParent();
-    auto* parent               = expr->parent();
-    auto* targetType           = conv->targetType();
+    auto* parent = expr->parent();
+    auto* targetType = conv->targetType();
     auto owner =
         allocate<ast::Conversion>(expr->extractFromParent(), std::move(conv));
     auto* result = owner.get();
@@ -336,7 +336,7 @@ static std::optional<MutConversion> determineMutConv(ConvKind kind,
         return MutConversion::None;
     }
     auto fromBaseMut = baseMutability(from);
-    auto toBaseMut   = baseMutability(to);
+    auto toBaseMut = baseMutability(to);
     /// No mutability conversion happens
     if (fromBaseMut == toBaseMut) {
         return MutConversion::None;
@@ -438,7 +438,7 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
         switch (*result) {
         case None: {
             auto* iFrom = dyncast<IntType const*>(from);
-            auto* iTo   = dyncast<IntType const*>(to);
+            auto* iTo = dyncast<IntType const*>(to);
             if (iFrom && iTo) {
                 /// If we are changing signedness, make sure the value does not
                 /// change This is equivalent to the high bit being == 0
@@ -481,8 +481,8 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
         case SignedToFloat: {
             auto* fromInt = cast<IntType const*>(from);
             auto* toFloat = cast<FloatType const*>(to);
-            auto val      = cast<IntValue const*>(value);
-            APInt limit   = computeIntegralFloatLimit(fromInt->bitwidth(),
+            auto val = cast<IntValue const*>(value);
+            APInt limit = computeIntegralFloatLimit(fromInt->bitwidth(),
                                                     toFloat->bitwidth());
             if (scmp(val->value(), limit) <= 0) {
                 return true;
@@ -495,8 +495,8 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
         case UnsignedToFloat: {
             auto* fromInt = cast<IntType const*>(from);
             auto* toFloat = cast<FloatType const*>(to);
-            auto val      = cast<IntValue const*>(value);
-            APInt limit   = computeIntegralFloatLimit(fromInt->bitwidth(),
+            auto val = cast<IntValue const*>(value);
+            APInt limit = computeIntegralFloatLimit(fromInt->bitwidth(),
                                                     toFloat->bitwidth());
             if (ucmp(val->value(), limit) <= 0) {
                 return true;
@@ -522,7 +522,7 @@ static std::optional<
                     ast::Expression const* expr,
                     QualType const* to) {
     QualType const* from = expr->type();
-    Value const* value   = expr->constantValue();
+    Value const* value = expr->constantValue();
     if (from == to) {
         return std::tuple{ RefConversion::None,
                            MutConversion::None,

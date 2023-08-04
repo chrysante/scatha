@@ -14,7 +14,7 @@ using namespace scatha;
 using namespace ir;
 
 using StructKey = utl::small_vector<Type const*>;
-using ArrayKey  = std::pair<Type const*, size_t>;
+using ArrayKey = std::pair<Type const*, size_t>;
 
 struct Context::Impl {
     /// ## Constants
@@ -42,10 +42,10 @@ struct Context::Impl {
 };
 
 Context::Context(): impl(std::make_unique<Impl>()) {
-    auto vt         = allocate<VoidType>();
+    auto vt = allocate<VoidType>();
     impl->_voidType = vt.get();
     impl->_types.push_back(std::move(vt));
-    auto pt        = allocate<PointerType>();
+    auto pt = allocate<PointerType>();
     impl->_ptrType = pt.get();
     impl->_types.push_back(std::move(pt));
 }
@@ -67,7 +67,7 @@ static auto* getArithmeticType(size_t bitwidth, auto& types, auto& map) {
         return itr->second;
     }
     auto type = allocate<A>(bitwidth);
-    itr       = map.insert({ bitwidth, type.get() }).first;
+    itr = map.insert({ bitwidth, type.get() }).first;
     types.push_back(std::move(type));
     return itr->second;
 }
@@ -103,19 +103,19 @@ StructureType const* Context::anonymousStructure(
 
 ArrayType const* Context::arrayType(Type const* elementType, size_t count) {
     ArrayKey key = { elementType, count };
-    auto itr     = impl->_arrayTypes.find(key);
+    auto itr = impl->_arrayTypes.find(key);
     if (itr != impl->_arrayTypes.end()) {
         return itr->second;
     }
     auto type = allocate<ArrayType>(elementType, count);
-    itr       = impl->_arrayTypes.insert({ key, type.get() }).first;
+    itr = impl->_arrayTypes.insert({ key, type.get() }).first;
     impl->_types.push_back(std::move(type));
     return itr->second;
 }
 
 IntegralConstant* Context::integralConstant(APInt value) {
     size_t const bitwidth = value.bitwidth();
-    auto itr              = impl->_integralConstants.find({ bitwidth, value });
+    auto itr = impl->_integralConstants.find({ bitwidth, value });
     if (itr == impl->_integralConstants.end()) {
         std::tie(itr, std::ignore) = impl->_integralConstants.insert(
             { std::pair{ bitwidth, value },

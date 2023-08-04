@@ -133,7 +133,7 @@ bool DCEContext::run() {
         if (marked.contains(inst)) {
             continue;
         }
-        modifiedAny    = true;
+        modifiedAny = true;
         BasicBlock* bb = inst->parent();
         if (auto* branch = dyncast<Branch*>(inst)) {
             for (auto* target: branch->targets()) {
@@ -155,7 +155,7 @@ bool DCEContext::run() {
 
 BasicBlock* DCEContext::nearestUsefulPostdom(BasicBlock* origin) {
     auto& postDomTree = postDomInfo.domTree();
-    auto* node        = postDomTree[origin]->parent();
+    auto* node = postDomTree[origin]->parent();
     SC_ASSERT(node,
               "origin must always be post dominated, otherwise there can't be "
               "a branch from origin. We assume that the function has a single "

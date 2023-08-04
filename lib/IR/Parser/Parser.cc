@@ -377,7 +377,7 @@ UniquePtr<Callable> ParseContext::parseCallable() {
     }
     eatToken();
     auto* const returnType = parseType();
-    Token const name       = eatToken();
+    Token const name = eatToken();
     expect(eatToken(), TokenKind::OpenParan);
     utl::small_vector<Parameter*> parameters;
     size_t index = 0;
@@ -442,7 +442,7 @@ static std::optional<uint32_t> builtinIndex(std::string_view name) {
          index < static_cast<uint32_t>(svm::Builtin::_count);
          ++index)
     {
-        svm::Builtin builtin         = static_cast<svm::Builtin>(index);
+        svm::Builtin builtin = static_cast<svm::Builtin>(index);
         std::string_view builtinName = toString(builtin);
         if (builtinName == name) {
             return index;
@@ -493,7 +493,7 @@ UniquePtr<BasicBlock> ParseContext::parseBasicBlock() {
 
 UniquePtr<Instruction> ParseContext::parseInstruction() {
     auto _nameTok = peekToken(0);
-    auto _name    = [&]() -> std::optional<std::string> {
+    auto _name = [&]() -> std::optional<std::string> {
         if (_nameTok.kind() != TokenKind::LocalIdentifier) {
             return std::nullopt;
         }
@@ -514,7 +514,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     switch (peekToken().kind()) {
     case TokenKind::Alloca: {
         eatToken();
-        auto* type  = parseType();
+        auto* type = parseType();
         auto result = allocate<Alloca>(irCtx, type, name());
         if (peekToken().kind() != TokenKind::Comma) {
             return result;
@@ -534,7 +534,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
                   TokenKind::LocalIdentifier,
                   TokenKind::GlobalIdentifier);
         auto const ptrName = eatToken();
-        auto result        = allocate<Load>(nullptr, type, name());
+        auto result = allocate<Load>(nullptr, type, name());
         addValueLink(result.get(),
                      irCtx.pointerType(),
                      ptrName,
@@ -546,9 +546,9 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         expect(eatToken(), TokenKind::Ptr);
         auto const addrName = eatToken();
         expect(eatToken(), TokenKind::Comma);
-        auto* valueType      = parseType();
+        auto* valueType = parseType();
         auto const valueName = eatToken();
-        auto result          = allocate<Store>(irCtx, nullptr, nullptr);
+        auto result = allocate<Store>(irCtx, nullptr, nullptr);
         addValueLink(result.get(),
                      irCtx.pointerType(),
                      addrName,
@@ -575,9 +575,9 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::FtoS:
         [[fallthrough]];
     case TokenKind::Bitcast: {
-        auto conv       = toConversion(eatToken());
+        auto conv = toConversion(eatToken());
         auto* valueType = parseType();
-        auto valueName  = eatToken();
+        auto valueName = eatToken();
         expect(eatToken(), TokenKind::To);
         auto* targetType = parseType();
         auto result =
@@ -603,7 +603,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::Branch: {
         eatToken();
         auto condTypeName = peekToken();
-        auto* condType    = parseType();
+        auto* condType = parseType();
         if (condType != irCtx.integralType(1)) {
             reportSemaIssue(condTypeName, SemanticIssue::InvalidType);
         }
@@ -612,7 +612,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         auto thenName = eatToken();
         expectNext(TokenKind::Comma, TokenKind::Label);
         auto elseName = eatToken();
-        auto result   = allocate<Branch>(irCtx, nullptr, nullptr, nullptr);
+        auto result = allocate<Branch>(irCtx, nullptr, nullptr, nullptr);
         addValueLink(result.get(),
                      irCtx.integralType(1),
                      condName,
@@ -629,7 +629,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::Return: {
         eatToken();
-        auto result     = allocate<Return>(irCtx, nullptr);
+        auto result = allocate<Return>(irCtx, nullptr);
         auto* valueType = tryParseType();
         if (!valueType) {
             result->setValue(irCtx.voidValue());
@@ -642,9 +642,9 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::Call: {
         eatToken();
         auto retTypeName = peekToken();
-        auto* retType    = parseType();
-        auto funcName    = eatToken();
-        using CallArg    = std::pair<Type const*, Token>;
+        auto* retType = parseType();
+        auto funcName = eatToken();
+        using CallArg = std::pair<Type const*, Token>;
         utl::small_vector<CallArg> args;
         while (true) {
             if (peekToken().kind() != TokenKind::Comma) {
@@ -652,7 +652,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
             }
             eatToken();
             auto* argType = parseType();
-            auto argName  = eatToken();
+            auto argName = eatToken();
             args.push_back({ argType, argName });
         }
         utl::small_vector<Value*> nullArgs(args.size());
@@ -679,7 +679,7 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     }
     case TokenKind::Phi: {
         eatToken();
-        auto* type   = parseType();
+        auto* type = parseType();
         using PhiArg = std::array<Token, 2>;
         utl::small_vector<PhiArg> args;
         while (true) {
@@ -719,13 +719,13 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::UCmp:
         [[fallthrough]];
     case TokenKind::FCmp: {
-        auto mode     = toCompareMode(eatToken());
-        auto op       = toCompareOp(eatToken());
+        auto mode = toCompareMode(eatToken());
+        auto op = toCompareOp(eatToken());
         auto* lhsType = parseType();
-        auto lhsName  = eatToken();
+        auto lhsName = eatToken();
         expect(eatToken(), TokenKind::Comma);
         auto* rhsType = parseType();
-        auto rhsName  = eatToken();
+        auto rhsName = eatToken();
         auto result =
             allocate<CompareInst>(irCtx, nullptr, nullptr, mode, op, name());
         addValueLink(result.get(), lhsType, lhsName, &CompareInst::setLHS);
@@ -737,9 +737,9 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::Lnt:
         [[fallthrough]];
     case TokenKind::Neg: {
-        auto op         = toUnaryArithmeticOp(eatToken());
+        auto op = toUnaryArithmeticOp(eatToken());
         auto* valueType = parseType();
-        auto valueName  = eatToken();
+        auto valueName = eatToken();
         auto result = allocate<UnaryArithmeticInst>(irCtx, nullptr, op, name());
         addValueLink(result.get(),
                      valueType,
@@ -785,13 +785,13 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::Or:
         [[fallthrough]];
     case TokenKind::XOr: {
-        auto op       = toArithmeticOp(eatToken());
+        auto op = toArithmeticOp(eatToken());
         auto* lhsType = parseType();
-        auto lhsName  = eatToken();
+        auto lhsName = eatToken();
         expect(eatToken(), TokenKind::Comma);
         auto* rhsType = parseType();
-        auto rhsName  = eatToken();
-        auto result   = allocate<ArithmeticInst>(nullptr, nullptr, op, name());
+        auto rhsName = eatToken();
+        auto result = allocate<ArithmeticInst>(nullptr, nullptr, op, name());
         addValueLink(result.get(), lhsType, lhsName, &ArithmeticInst::setLHS);
         addValueLink(result.get(), rhsType, rhsName, &ArithmeticInst::setRHS);
         return result;
@@ -804,9 +804,9 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
         auto basePtrName = eatToken();
         expectNext(TokenKind::Comma);
         auto* indexType = parseType();
-        auto indexName  = eatToken();
-        auto indices    = parseConstantIndices();
-        auto result     = allocate<GetElementPointer>(irCtx,
+        auto indexName = eatToken();
+        auto indices = parseConstantIndices();
+        auto result = allocate<GetElementPointer>(irCtx,
                                                   accessedType,
                                                   nullptr,
                                                   nullptr,
@@ -825,11 +825,11 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::InsertValue: {
         eatToken();
         auto* baseType = parseType();
-        auto baseName  = eatToken();
+        auto baseName = eatToken();
         expectNext(TokenKind::Comma);
         auto* insType = parseType();
-        auto insName  = eatToken();
-        auto indices  = parseConstantIndices();
+        auto insName = eatToken();
+        auto indices = parseConstantIndices();
         if (indices.empty()) {
             reportSyntaxIssue(peekToken());
         }
@@ -847,8 +847,8 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::ExtractValue: {
         eatToken();
         auto* baseType = parseType();
-        auto baseName  = eatToken();
-        auto indices   = parseConstantIndices();
+        auto baseName = eatToken();
+        auto indices = parseConstantIndices();
         if (indices.empty()) {
             reportSyntaxIssue(peekToken());
         }
@@ -862,18 +862,18 @@ UniquePtr<Instruction> ParseContext::parseInstruction() {
     case TokenKind::Select: {
         eatToken();
         auto condTypeName = peekToken();
-        auto* condType    = parseType();
+        auto* condType = parseType();
         if (condType != irCtx.integralType(1)) {
             reportSemaIssue(condTypeName, SemanticIssue::InvalidType);
         }
         auto condName = eatToken();
         expectNext(TokenKind::Comma);
         auto* thenType = parseType();
-        auto thenName  = eatToken();
+        auto thenName = eatToken();
         expectNext(TokenKind::Comma);
         auto* elseType = parseType();
-        auto elseName  = eatToken();
-        auto result    = allocate<Select>(nullptr, nullptr, nullptr, name());
+        auto elseName = eatToken();
+        auto result = allocate<Select>(nullptr, nullptr, nullptr, name());
         addValueLink(result.get(),
                      irCtx.integralType(1),
                      condName,

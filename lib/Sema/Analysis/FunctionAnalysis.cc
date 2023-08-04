@@ -41,7 +41,7 @@ struct Context {
     SymbolTable& sym;
     IssueHandler& iss;
     ast::FunctionDefinition* currentFunction = nullptr;
-    size_t paramIndex                        = 0;
+    size_t paramIndex = 0;
 };
 
 } // namespace
@@ -99,7 +99,7 @@ void Context::analyzeImpl(ast::FunctionDefinition& fn) {
     fn.body()->decorate(function);
     function->setAccessSpecifier(translateAccessSpec(fn.accessSpec()));
     currentFunction = &fn;
-    paramIndex      = 0;
+    paramIndex = 0;
     sym.pushScope(function);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto* param: fn.parameters()) {
@@ -150,7 +150,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     SC_ASSERT(!var.isDecorated(),
               "We should not have handled local variables in prepass.");
     auto* declaredType = getDeclaredType(var.typeExpr());
-    auto* deducedType  = [&]() -> QualType const* {
+    auto* deducedType = [&]() -> QualType const* {
         if (!var.initExpression() || !analyzeExpr(*var.initExpression())) {
             return nullptr;
         }
@@ -231,13 +231,13 @@ void Context::analyzeImpl(ast::ThisParameter& thisParam) {
               "parameters.");
     SC_ASSERT(!thisParam.isDecorated(),
               "We should not have handled parameters in prepass.");
-    auto* function   = cast<Function*>(currentFunction->entity());
+    auto* function = cast<Function*>(currentFunction->entity());
     auto* parentType = dyncast<ObjectType*>(function->parent());
     if (!parentType) {
         return;
     }
     auto* qualType = sym.qualify(parentType, thisParam.reference());
-    auto paramRes  = sym.addVariable("__this", qualType);
+    auto paramRes = sym.addVariable("__this", qualType);
     if (!paramRes) {
         iss.push(paramRes.error()->setStatement(thisParam));
         return;

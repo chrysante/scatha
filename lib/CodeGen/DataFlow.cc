@@ -118,7 +118,7 @@ void LivenessContext::loopTree(ir::LoopNestingForest::Node const* node) {
         return;
     }
     mir::BasicBlock* header = bbMap[node->basicBlock()];
-    auto liveLoop           = header->liveIn();
+    auto liveLoop = header->liveIn();
     for (auto& phi: *header) {
         if (phi.instcode() != mir::InstCode::Phi) {
             break;

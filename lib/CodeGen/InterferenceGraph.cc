@@ -27,7 +27,7 @@ void InterferenceGraph::colorize() {
     utl::small_vector<Node*> lexOrdering;
     lexOrdering.reserve(size());
     auto neighbours = [](Node* node) { return node->neighbours(); };
-    auto nodeView   = getNodeView<Node>();
+    auto nodeView = getNodeView<Node>();
     utl::find_lex_ordering(nodeView.begin(),
                            nodeView.end(),
                            neighbours,
@@ -43,7 +43,7 @@ void InterferenceGraph::colorize() {
         if (reg->fixed()) {
             uint32_t const col = utl::narrow_cast<uint32_t>(reg->index());
             colors[node] = node->col = col;
-            maxCol                   = std::max(maxCol, col + 1);
+            maxCol = std::max(maxCol, col + 1);
         }
     }
     /// Greedy coloring algorithm:
@@ -59,7 +59,7 @@ void InterferenceGraph::colorize() {
             }
         }
         uint32_t col = firstAvail(used);
-        maxCol       = std::max(maxCol, col + 1);
+        maxCol = std::max(maxCol, col + 1);
         colors.insert({ n, col });
         n->col = col;
     }
@@ -96,7 +96,7 @@ void InterferenceGraph::computeImpl(Function& F) {
 
 void InterferenceGraph::addRegister(Register* reg) {
     auto nodeOwner = std::make_unique<Node>(reg);
-    auto* node     = nodeOwner.get();
+    auto* node = nodeOwner.get();
     nodes.push_back(std::move(nodeOwner));
     regMap.insert({ reg, node });
 }

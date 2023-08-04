@@ -1,42 +1,24 @@
-/*
-struct Expr {
-    var id: int;
-    var lhs: int;
-    var rhs: int;
+
+struct @X {
+    i64, i64
 }
 
-fn eval(expr: Expr) -> int {
-    if expr.id == 0 { // 0 == Literal
-        return expr.lhs;
-    }
-    if expr.id == 1 { // 1 == Add
-        return expr.lhs + expr.rhs;
-    }
-    // 2 == Sub
-    expr.id = 1; // Add
-    expr.rhs = -expr.rhs;
-    return eval(expr);
+func i64 @main(@X %a, @X %b, i1 %cond) {
+  %entry:
+    branch i1 %cond, label %if, label %then
+
+  %if:
+    goto label %end
+
+  %then:
+     %b.1 = insert_value @X %b, i64 3, 1
+     goto label %end
+
+  %end:
+    %0 = phi @X [label %if: %a], [label %then: %b.1]
+    %1 = extract_value @X %0, 0
+    %2 = extract_value @X %0, 1
+    %3 = add i64 %1, i64 %2
+    return i64 %3
 }
 
-public fn main(n: int) -> int {
-    var expr: Expr;
-    expr.id = 2;
-    expr.lhs = 5;
-    expr.rhs = 2;
-    return eval(expr);
-}
-*/
-
-fn ack(n: int, m: int) -> int {
-    if n == 0 {
-        return m + 1;
-    }
-    if m == 0 {
-        return ack(n - 1, 1);
-    }
-    return ack(n - 1, ack(n, m - 1));
-}
-
-public fn main(n: int) -> int {
-    return ack(3, 4);
-}

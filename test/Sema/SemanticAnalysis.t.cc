@@ -14,7 +14,7 @@ using namespace sema;
 using namespace ast;
 
 TEST_CASE("Registration in SymbolTable", "[sema]") {
-    auto const text      = R"(
+    auto const text = R"(
 fn mul(a: int, b: int, c: double) -> int {
 	let result = a;
 	return result;
@@ -42,7 +42,7 @@ fn mul(a: int, b: int, c: double) -> int {
 }
 
 TEST_CASE("Decoration of the AST") {
-    auto const text      = R"(
+    auto const text = R"(
 fn mul(a: int, b: int, c: double, d: byte) -> int {
 	let result = a;
 	{ // declaration of variable of the same name in a nested scope
@@ -56,7 +56,7 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto* tu     = cast<TranslationUnit*>(ast.get());
+    auto* tu = cast<TranslationUnit*>(ast.get());
     auto* fnDecl = tu->declaration<FunctionDefinition>(0);
     CHECK(fnDecl->returnType()->base() == sym.rawS64());
     CHECK(fnDecl->parameter(0)->type()->base() == sym.rawS64());
@@ -75,7 +75,7 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
                             ->expression<Identifier>();
     CHECK(varDeclInit->type()->base() == sym.rawS64());
     CHECK(varDeclInit->valueCategory() == ValueCategory::LValue);
-    auto* nestedScope   = fn->body()->statement<CompoundStatement>(1);
+    auto* nestedScope = fn->body()->statement<CompoundStatement>(1);
     auto* nestedVarDecl = nestedScope->statement<VariableDeclaration>(0);
     // CHECK(nestedVarDecl->type()->base() == sym.String());
     auto* nestedvarDeclInit = cast<Literal*>(nestedVarDecl->initExpression());
@@ -105,7 +105,7 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
 }
 
 TEST_CASE("Decoration of the AST with function call expression", "[sema]") {
-    auto const text      = R"(
+    auto const text = R"(
 fn caller() -> float {
 	let result = callee(1.0, 0, true);
 	return result;
@@ -122,7 +122,7 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     CHECK(calleeDecl->parameter(0)->type()->base() == sym.rawF32());
     CHECK(calleeDecl->parameter(1)->type()->base() == sym.rawS64());
     CHECK(calleeDecl->parameter(2)->type()->base() == sym.rawBool());
-    auto* caller     = tu->declaration<FunctionDefinition>(0);
+    auto* caller = tu->declaration<FunctionDefinition>(0);
     auto* resultDecl = caller->body()->statement<VariableDeclaration>(0);
     CHECK(resultDecl->initExpression()->type()->base() == sym.rawF32());
     auto* fnCallExpr = cast<ast::Conversion*>(resultDecl->initExpression())
@@ -135,7 +135,7 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
 }
 
 TEST_CASE("Decoration of the AST with struct definition", "[sema]") {
-    auto const text      = R"(
+    auto const text = R"(
 struct X {
 	var i: float;
 	var j: int = 0;
@@ -145,7 +145,7 @@ struct X {
 })";
     auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto* tu   = cast<TranslationUnit*>(ast.get());
+    auto* tu = cast<TranslationUnit*>(ast.get());
     auto* xDef = tu->declaration<StructDefinition>(0);
     CHECK(xDef->name() == "X");
     auto* iDecl = xDef->body()->statement<VariableDeclaration>(0);
@@ -169,7 +169,7 @@ struct X {
 }
 
 TEST_CASE("Member access into undeclared struct", "[sema]") {
-    auto const text      = R"(
+    auto const text = R"(
 fn f(x: X) -> int { return x.data; }
 struct X { var data: int; }
 )";
@@ -178,7 +178,7 @@ struct X { var data: int; }
 }
 
 TEST_CASE("Type reference access into undeclared struct", "[sema]") {
-    auto const text            = R"(
+    auto const text = R"(
 fn f() {
 	let y: X.Y;
 }
@@ -186,9 +186,9 @@ struct X { struct Y {} }
 )";
     auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto const* tu    = cast<TranslationUnit*>(ast.get());
-    auto const* f     = tu->declaration<FunctionDefinition>(0);
-    auto const* y     = f->body()->statement<VariableDeclaration>(0);
+    auto const* tu = cast<TranslationUnit*>(ast.get());
+    auto const* f = tu->declaration<FunctionDefinition>(0);
+    auto const* y = f->body()->statement<VariableDeclaration>(0);
     auto const* YType = y->type();
     CHECK(YType->base()->name() == "Y");
     CHECK(YType->base()->parent()->name() == "X");
@@ -286,7 +286,7 @@ fn main() {
 }
 
 TEST_CASE("Possible ambiguity with later declared local struct", "[sema]") {
-    auto const text      = R"(
+    auto const text = R"(
 struct Y {}
 struct X {
 	fn f(y: Y) {}
@@ -296,7 +296,7 @@ struct X {
     REQUIRE(iss.empty());
     auto* x = sym.lookup<Scope>("X");
     sym.pushScope(x);
-    auto* fOS       = sym.lookup<OverloadSet>("f");
+    auto* fOS = sym.lookup<OverloadSet>("f");
     auto const* fFn = fOS->front();
     /// Finding `f` in the overload set with `X.Y` as argument shall succeed.
     CHECK(fFn->argumentType(0)->base()->parent()->name() == "X");
@@ -335,15 +335,15 @@ public fn main() {
     x.f();
 })");
         REQUIRE(iss.empty());
-        auto* tu       = cast<TranslationUnit*>(ast.get());
-        auto decls     = tu->declarations();
+        auto* tu = cast<TranslationUnit*>(ast.get());
+        auto decls = tu->declarations();
         auto* mainDecl = *ranges::find_if(decls, [](auto* decl) {
             return decl->name() == "main";
         });
-        auto* main     = cast<FunctionDefinition*>(mainDecl);
-        auto* stmt     = main->body()->statement<ExpressionStatement>(1);
-        auto* call     = cast<FunctionCall*>(stmt->expression());
-        auto* f        = call->object()->entity();
+        auto* main = cast<FunctionDefinition*>(mainDecl);
+        auto* stmt = main->body()->statement<ExpressionStatement>(1);
+        auto* call = cast<FunctionCall*>(stmt->expression());
+        auto* f = call->object()->entity();
         CHECK(f->name() == "f");
         CHECK(isa<GlobalScope>(f->parent()));
     }
@@ -358,15 +358,15 @@ public fn main() {
     x.f();
 })");
         REQUIRE(iss.empty());
-        auto* tu       = cast<TranslationUnit*>(ast.get());
-        auto decls     = tu->declarations();
+        auto* tu = cast<TranslationUnit*>(ast.get());
+        auto decls = tu->declarations();
         auto* mainDecl = *ranges::find_if(decls, [](auto* decl) {
             return decl->name() == "main";
         });
-        auto* main     = cast<FunctionDefinition*>(mainDecl);
-        auto* stmt     = main->body()->statement<ExpressionStatement>(1);
-        auto* call     = cast<FunctionCall*>(stmt->expression());
-        auto* f        = call->object()->entity();
+        auto* main = cast<FunctionDefinition*>(mainDecl);
+        auto* stmt = main->body()->statement<ExpressionStatement>(1);
+        auto* call = cast<FunctionCall*>(stmt->expression());
+        auto* f = call->object()->entity();
         CHECK(f->name() == "f");
         CHECK(f->parent()->name() == "X");
     }

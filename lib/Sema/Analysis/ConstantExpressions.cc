@@ -297,7 +297,7 @@ UniquePtr<Value> sema::evalBinary(ast::BinaryOperator op,
 static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
                                          IntValue const* operand) {
     SC_ASSERT(operand, "");
-    auto* to    = cast<ArithmeticType const*>(conv->targetType()->base());
+    auto* to = cast<ArithmeticType const*>(conv->targetType()->base());
     APInt value = operand->value();
 
     using enum ObjectTypeConversion;
@@ -341,7 +341,7 @@ static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
 static UniquePtr<Value> doEvalConversion(sema::Conversion const* conv,
                                          FloatValue const* operand) {
     SC_ASSERT(operand, "");
-    auto* to      = cast<ArithmeticType const*>(conv->targetType()->base());
+    auto* to = cast<ArithmeticType const*>(conv->targetType()->base());
     APFloat value = operand->value();
 
     using enum ObjectTypeConversion;

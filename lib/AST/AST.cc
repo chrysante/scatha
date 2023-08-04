@@ -39,7 +39,7 @@ void AbstractSyntaxTree::replaceChild(AbstractSyntaxTree const* old,
                                [&](auto& child) { return child.get() == old; });
     SC_ASSERT(itr != ranges::end(_children), "`old` is not a child of this");
     repl->_parent = this;
-    *itr          = std::move(repl);
+    *itr = std::move(repl);
 }
 
 size_t AbstractSyntaxTree::indexOf(AbstractSyntaxTree const* child) const {
@@ -54,15 +54,15 @@ void Expression::decorate(sema::Entity* entity,
                           std::optional<sema::ValueCategory> valueCat,
                           std::optional<sema::EntityCategory> entityCat) {
     _entity = entity;
-    _type   = type;
+    _type = type;
     /// Derive defaults
     if (entity) {
-        _valueCat  = entity->isValue() ? sema::ValueCategory::LValue :
-                                         sema::ValueCategory::None;
+        _valueCat = entity->isValue() ? sema::ValueCategory::LValue :
+                                        sema::ValueCategory::None;
         _entityCat = entity->category();
     }
     else {
-        _valueCat  = sema::ValueCategory::RValue;
+        _valueCat = sema::ValueCategory::RValue;
         _entityCat = sema::EntityCategory::Value;
     }
     /// Override if user specified

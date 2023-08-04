@@ -18,10 +18,10 @@ struct VMFlags {
 
 /// Represents the state of an invocation of the virtual machine.
 struct ExecutionFrame {
-    u64* regPtr    = nullptr;
+    u64* regPtr = nullptr;
     u64* bottomReg = nullptr;
     u8 const* iptr = nullptr;
-    u8* stackPtr   = nullptr;
+    u8* stackPtr = nullptr;
 };
 
 struct VMStats {

@@ -73,16 +73,16 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->_void = declareBuiltinType<VoidType>();
     impl->_byte = declareBuiltinType<ByteType>();
     impl->_bool = declareBuiltinType<BoolType>();
-    impl->_s8   = declareBuiltinType<IntType>(8u, Signed);
-    impl->_s16  = declareBuiltinType<IntType>(16u, Signed);
-    impl->_s32  = declareBuiltinType<IntType>(32u, Signed);
-    impl->_s64  = declareBuiltinType<IntType>(64u, Signed);
-    impl->_u8   = declareBuiltinType<IntType>(8u, Unsigned);
-    impl->_u16  = declareBuiltinType<IntType>(16u, Unsigned);
-    impl->_u32  = declareBuiltinType<IntType>(32u, Unsigned);
-    impl->_u64  = declareBuiltinType<IntType>(64u, Unsigned);
-    impl->_f32  = declareBuiltinType<FloatType>(32u);
-    impl->_f64  = declareBuiltinType<FloatType>(64u);
+    impl->_s8 = declareBuiltinType<IntType>(8u, Signed);
+    impl->_s16 = declareBuiltinType<IntType>(16u, Signed);
+    impl->_s32 = declareBuiltinType<IntType>(32u, Signed);
+    impl->_s64 = declareBuiltinType<IntType>(64u, Signed);
+    impl->_u8 = declareBuiltinType<IntType>(8u, Unsigned);
+    impl->_u16 = declareBuiltinType<IntType>(16u, Unsigned);
+    impl->_u32 = declareBuiltinType<IntType>(32u, Unsigned);
+    impl->_u64 = declareBuiltinType<IntType>(64u, Unsigned);
+    impl->_f32 = declareBuiltinType<FloatType>(32u);
+    impl->_f64 = declareBuiltinType<FloatType>(64u);
     impl->_str =
         const_cast<ArrayType*>(arrayType(rawByte(), ArrayType::DynamicCount));
 
@@ -178,7 +178,7 @@ Expected<Function&, SemanticIssue*> SymbolTable::declareFunction(
 Expected<void, SemanticIssue*> SymbolTable::setSignature(
     Function* function, FunctionSignature sig) {
     function->setSignature(std::move(sig));
-    auto* overloadSet                   = function->overloadSet();
+    auto* overloadSet = function->overloadSet();
     auto const [otherFunction, success] = overloadSet->add(function);
     if (!success) {
         using enum InvalidDeclaration::Reason;
@@ -205,9 +205,9 @@ bool SymbolTable::declareSpecialFunction(FunctionKind kind,
         }
         auto& function = *declResult;
         setSignature(&function, std::move(signature));
-        function._kind  = kind;
-        function.attrs  = attrs;
-        function._slot  = utl::narrow_cast<u16>(slot);
+        function._kind = kind;
+        function.attrs = attrs;
+        function._slot = utl::narrow_cast<u16>(slot);
         function._index = utl::narrow_cast<u32>(index);
         if (kind == FunctionKind::External && slot == svm::BuiltinFunctionSlot)
         {
@@ -272,7 +272,7 @@ Scope& SymbolTable::addAnonymousScope() {
 ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
                                         size_t size) {
     std::pair key = { elementType, size };
-    auto itr      = impl->_arrayTypes.find(key);
+    auto itr = impl->_arrayTypes.find(key);
     if (itr != impl->_arrayTypes.end()) {
         return itr->second;
     }
@@ -290,7 +290,7 @@ QualType const* SymbolTable::qualify(ObjectType const* base,
                                      Reference ref,
                                      Mutability mut) {
     std::tuple key = { base, ref, mut };
-    auto itr       = impl->_qualTypes.find(key);
+    auto itr = impl->_qualTypes.find(key);
     if (itr != impl->_qualTypes.end()) {
         return itr->second;
     }
@@ -480,7 +480,7 @@ std::vector<Entity const*> SymbolTable::entities() const {
 
 template <typename E, typename... Args>
 E* SymbolTable::Impl::addEntity(Args&&... args) {
-    auto owner   = allocate<E>(std::forward<Args>(args)...);
+    auto owner = allocate<E>(std::forward<Args>(args)...);
     auto* result = owner.get();
     _entities.push_back(std::move(owner));
     return result;

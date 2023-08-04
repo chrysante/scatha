@@ -38,8 +38,8 @@ func i64 @f(i64) {
     return i64 %j
 })";
     auto [ctx, mod] = ir::parse(text).value();
-    auto& f         = mod.front();
-    auto fClone     = ir::clone(ctx, &f);
+    auto& f = mod.front();
+    auto fClone = ir::clone(ctx, &f);
     using namespace test::ir;
     using enum ir::NodeType;
     // clang-format off

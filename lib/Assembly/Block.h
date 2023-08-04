@@ -14,7 +14,7 @@ namespace scatha::Asm {
 
 class Block {
 public:
-    using Iterator      = utl::vector<Instruction>::iterator;
+    using Iterator = utl::vector<Instruction>::iterator;
     using ConstIterator = utl::vector<Instruction>::const_iterator;
 
     explicit Block(size_t id, std::string name):

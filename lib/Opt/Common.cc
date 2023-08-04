@@ -12,7 +12,7 @@ using namespace ir;
 bool opt::preceeds(Instruction const* a, Instruction const* b) {
     SC_ASSERT(a->parent() == b->parent(),
               "a and b must be in the same basic block");
-    auto* bb              = a->parent();
+    auto* bb = a->parent();
     auto const* const end = bb->end().to_address();
     for (; a != end; a = a->next()) {
         if (a == b) {

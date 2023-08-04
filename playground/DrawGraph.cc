@@ -65,7 +65,7 @@ struct Ctx {
     std::stringstream str;
 };
 
-[[maybe_unused]] static constexpr auto font     = "SF Pro";
+[[maybe_unused]] static constexpr auto font = "SF Pro";
 [[maybe_unused]] static constexpr auto monoFont = "SF Mono";
 
 } // namespace
@@ -73,8 +73,8 @@ struct Ctx {
 static std::string dotName(ir::Value const& value);
 
 static constexpr utl::streammanip tableBegin = [](std::ostream& str,
-                                                  int border      = 0,
-                                                  int cellborder  = 0,
+                                                  int border = 0,
+                                                  int cellborder = 0,
                                                   int cellspacing = 0) {
     str << "<table border=\"" << border << "\" cellborder=\"" << cellborder
         << "\" cellspacing=\"" << cellspacing << "\">";
