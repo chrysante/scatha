@@ -2,15 +2,27 @@
 
 #include <iostream>
 
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
+#include <termfmt/termfmt.h>
 #include <utl/graph.hpp>
 
 #include "Common/PrintUtil.h"
+#include "Common/TreeFormatter.h"
 #include "IR/CFG.h"
 #include "IR/Dominance.h"
 
 using namespace scatha;
 using namespace ir;
+
+using LNFNode = LoopNestingForest::Node;
+
+bool LoopNestingForest::Node::isProperLoop() const {
+    if (!children().empty()) {
+        return true;
+    }
+    return ranges::contains(basicBlock()->predecessors(), basicBlock());
+}
 
 LoopNestingForest LoopNestingForest::compute(ir::Function& function,
                                              DomTree const& domtree) {
@@ -46,6 +58,7 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
                 header = dom;
             }
             auto* headerNode = result.findMut(header);
+            headerNode->setParent(root);
             root->addChild(headerNode);
             scc.erase(header);
             impl(impl, headerNode, scc);
@@ -55,17 +68,27 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
     return result;
 }
 
-using LNFNode = LoopNestingForest::Node;
-
 namespace {
 
-struct PrintCtx {
-    PrintCtx(std::ostream& str): str(str) {}
-
-    void print(LNFNode const* node);
-
+struct LNFPrintCtx {
     std::ostream& str;
-    Indenter indent{ 2 };
+    TreeFormatter formatter;
+
+    explicit LNFPrintCtx(std::ostream& str): str(str) {}
+
+    void print(LNFNode const* node, bool lastInParent) {
+        formatter.push(!lastInParent ? Level::Child : Level::LastChild);
+        str << formatter.beginLine();
+        auto* BB = node->basicBlock();
+        bool isNonTrivialLoop = node->children().size() > 0;
+        tfmt::format(isNonTrivialLoop ? tfmt::Bold : tfmt::None, str, [&] {
+            str << (BB ? BB->name() : "NULL") << std::endl;
+        });
+        for (auto [index, child]: node->children() | ranges::views::enumerate) {
+            print(child, index == node->children().size() - 1);
+        }
+        formatter.pop();
+    }
 };
 
 } // namespace
@@ -73,18 +96,8 @@ struct PrintCtx {
 void ir::print(LoopNestingForest const& LNF) { ir::print(LNF, std::cout); }
 
 void ir::print(LoopNestingForest const& LNF, std::ostream& str) {
-    PrintCtx ctx(str);
-    for (auto* root: LNF.roots()) {
-        ctx.print(root);
+    LNFPrintCtx ctx(str);
+    for (auto [index, root]: LNF.roots() | ranges::views::enumerate) {
+        ctx.print(root, index == LNF.roots().size() - 1);
     }
-}
-
-void PrintCtx::print(LNFNode const* node) {
-    auto* bb = node->basicBlock();
-    str << indent << bb->name() << ":\n";
-    indent.increase();
-    for (auto* child: node->children()) {
-        print(child);
-    }
-    indent.decrease();
 }

@@ -26,6 +26,8 @@ public:
         using Base::Base;
 
         BasicBlock* basicBlock() const { return payload(); }
+
+        bool isProperLoop() const;
     };
 
     /// Compute the loop nesting forest of \p function
