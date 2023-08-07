@@ -121,11 +121,10 @@ namespace {
 
 class ValueMap {
     utl::hashmap<Value*, Value*> map;
+
 public:
-    void add(Value* oldValue, Value* newValue) {
-        map[oldValue] = newValue;
-    }
-    
+    void add(Value* oldValue, Value* newValue) { map[oldValue] = newValue; }
+
     template <typename T>
     T* operator()(T* value) const {
         auto itr = map.find(value);
