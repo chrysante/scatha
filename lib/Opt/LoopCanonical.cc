@@ -20,7 +20,7 @@ struct LCContext {
 
     bool run();
 
-    void traverseLoops(LoopNestingForest::Node const* node);
+    void traverseLoops(LNFNode const* node);
 
     Context& ctx;
     Function& F;
@@ -47,7 +47,7 @@ bool LCContext::run() {
     return modified;
 }
 
-void LCContext::traverseLoops(LoopNestingForest::Node const* node) {
+void LCContext::traverseLoops(LNFNode const* node) {
     if (node->children().empty()) {
         return;
     }

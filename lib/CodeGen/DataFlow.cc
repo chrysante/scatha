@@ -25,7 +25,7 @@ struct LivenessContext {
 
     void dag(mir::BasicBlock* BB);
 
-    void loopTree(ir::LoopNestingForest::Node const* node);
+    void loopTree(ir::LNFNode const* node);
 
     utl::hashset<mir::Register*> phiUses(mir::BasicBlock* BB);
     utl::hashset<mir::Register*> phiUses(ranges::range auto&& params);
@@ -111,7 +111,7 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
     visited.erase(BB);
 }
 
-void LivenessContext::loopTree(ir::LoopNestingForest::Node const* node) {
+void LivenessContext::loopTree(ir::LNFNode const* node) {
     /// If this 'loop header' has no children it is a trivial loop aka. not a
     /// loop. Then we don't need to preserve our live-in values.
     if (node->children().empty()) {

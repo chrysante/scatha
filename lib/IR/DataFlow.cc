@@ -26,7 +26,7 @@ struct LivenessContext {
 
     void dag(BasicBlock const* BB);
 
-    void loopTree(LoopNestingForest::Node const* node);
+    void loopTree(LNFNode const* node);
 
     utl::hashset<Value const*> phiUses(BasicBlock const* BB);
     utl::hashset<Value const*> phiUses(ranges::range auto&& params);
@@ -104,7 +104,7 @@ void LivenessContext::dag(BasicBlock const* BB) {
     visited.erase(BB);
 }
 
-void LivenessContext::loopTree(LoopNestingForest::Node const* node) {
+void LivenessContext::loopTree(LNFNode const* node) {
     /// If this 'loop header' has no children it is a trivial loop aka. not a
     /// loop. Then we don't need to preserve our live-in values.
     if (node->children().empty()) {

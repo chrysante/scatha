@@ -15,9 +15,7 @@
 using namespace scatha;
 using namespace ir;
 
-using LNFNode = LoopNestingForest::Node;
-
-bool LoopNestingForest::Node::isProperLoop() const {
+bool LNFNode::isProperLoop() const {
     if (!children().empty()) {
         return true;
     }
@@ -27,6 +25,7 @@ bool LoopNestingForest::Node::isProperLoop() const {
 LoopNestingForest LoopNestingForest::compute(ir::Function& function,
                                              DomTree const& domtree) {
     LoopNestingForest result;
+    result._virtualRoot = std::make_unique<Node>();
     auto bbs = function |
                ranges::views::transform([](auto& bb) { return &bb; }) |
                ranges::to<utl::hashset<BasicBlock*>>;
@@ -64,7 +63,7 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
             impl(impl, headerNode, scc);
         }
     };
-    impl(impl, &result._virtualRoot, bbs);
+    impl(impl, result._virtualRoot.get(), bbs);
     return result;
 }
 

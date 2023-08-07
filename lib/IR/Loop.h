@@ -14,21 +14,23 @@ namespace scatha::ir {
 
 class DomTree;
 
+class LNFNode: public GraphNode<ir::BasicBlock*, LNFNode, GraphKind::Tree> {
+    using Base = GraphNode<ir::BasicBlock*, LNFNode, GraphKind::Tree>;
+
+public:
+    using Base::Base;
+
+    BasicBlock* basicBlock() const { return payload(); }
+
+    bool isProperLoop() const;
+};
+
 /// The loop nesting forest of a function `F` is a forest representing the loops
 /// of `F`. Every node is the header of a loop, where single basic blocks are
 /// considered to be trivial loops.
 class SCATHA_TESTAPI LoopNestingForest {
 public:
-    class Node: public GraphNode<ir::BasicBlock*, Node, GraphKind::Tree> {
-        using Base = GraphNode<ir::BasicBlock*, Node, GraphKind::Tree>;
-
-    public:
-        using Base::Base;
-
-        BasicBlock* basicBlock() const { return payload(); }
-
-        bool isProperLoop() const;
-    };
+    using Node = LNFNode;
 
     /// Compute the loop nesting forest of \p function
     static LoopNestingForest compute(ir::Function& function,
@@ -42,7 +44,7 @@ public:
     }
 
     /// \Returns roots of the forest.
-    auto roots() const { return _virtualRoot.children(); }
+    auto roots() const { return _virtualRoot->children(); }
 
     /// \Returns `true` iff the forest is empty.
     bool empty() const { return _nodes.empty(); }
@@ -55,7 +57,7 @@ private:
 
     using NodeSet = utl::hashset<Node, Node::PayloadHash, Node::PayloadEqual>;
     NodeSet _nodes;
-    Node _virtualRoot;
+    std::unique_ptr<Node> _virtualRoot;
 };
 
 /// Print the loop nesting forest \p LNF to `std::cout`.
