@@ -103,6 +103,9 @@ public:
     static DomFrontMap computeDomFronts(ir::Function& function,
                                         DomTree const& domTree);
 
+    /// Compute the iterated dominance frontiers of \p function
+    static DomFrontMap computeIterDomFronts(DomFrontMap const& domFronts);
+
     /// Compute dominance information of \p function
     /// Computes dominance sets, dominator tree and dominance frontiers.
     static DominanceInfo compute(ir::Function& function);
@@ -142,6 +145,8 @@ public:
     /// basicBlock
     std::span<ir::BasicBlock* const> domFront(
         ir::BasicBlock const* basicBlock) const;
+
+    DomFrontMap const& domFronts() const { return _domFront; }
 
 private:
     friend struct DFContext;

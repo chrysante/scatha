@@ -14,6 +14,8 @@
 using namespace scatha;
 using namespace ir;
 
+using DomFrontMap = DominanceInfo::DomFrontMap;
+
 static void merge(utl::hashset<BasicBlock*>& dest,
                   utl::hashset<BasicBlock*> const& source) {
     for (auto* bb: source) {
@@ -271,8 +273,9 @@ DomTree DominanceInfo::computePostDomTree(Function& function,
                               [](BasicBlock* bb) { return bb->successors(); });
 }
 
-DominanceInfo::DomFrontMap DominanceInfo::computeDomFrontsImpl(
-    ir::Function& function, DomTree const& domTree, auto successors) {
+DomFrontMap DominanceInfo::computeDomFrontsImpl(ir::Function& function,
+                                                DomTree const& domTree,
+                                                auto successors) {
     if (domTree.empty()) {
         return {};
     }
@@ -316,17 +319,56 @@ DominanceInfo::DomFrontMap DominanceInfo::computeDomFrontsImpl(
     return result;
 }
 
-DominanceInfo::DomFrontMap DominanceInfo::computeDomFronts(
-    Function& function, DomTree const& domTree) {
+DomFrontMap DominanceInfo::computeDomFronts(Function& function,
+                                            DomTree const& domTree) {
     return computeDomFrontsImpl(function, domTree, [](BasicBlock* bb) {
         return bb->successors();
     });
 }
 
-DominanceInfo::DomFrontMap DominanceInfo::computePostDomFronts(
-    Function& function, DomTree const& postDomTree) {
+DomFrontMap DominanceInfo::computePostDomFronts(Function& function,
+                                                DomTree const& postDomTree) {
     auto exits = exitNodes(function);
     return computeDomFrontsImpl(function, postDomTree, [&](BasicBlock* bb) {
         return bb ? bb->predecessors() : std::span<BasicBlock* const>(exits);
     });
+}
+
+utl::hashset<BasicBlock*> unionDF(BasicBlock* X,
+                                  utl::hashset<BasicBlock*> const& blocks,
+                                  DomFrontMap const& domFronts) {
+    utl::hashset<BasicBlock*> result;
+    for (auto* BB: blocks) {
+        auto& DF = domFronts.find(BB)->second;
+        for (auto* DF_BB: DF) {
+            result.insert(DF_BB);
+        }
+    }
+    auto& DF = domFronts.find(X)->second;
+    for (auto* DF_BB: DF) {
+        result.insert(DF_BB);
+    }
+    return result;
+}
+
+static utl::hashset<BasicBlock*> iterate(BasicBlock* BB,
+                                         utl::hashset<BasicBlock*> DF,
+                                         DomFrontMap const& domFronts) {
+    while (true) {
+        auto newDF = unionDF(BB, DF, domFronts);
+        if (DF == newDF) {
+            return DF;
+        }
+        DF = std::move(newDF);
+    }
+}
+
+DomFrontMap DominanceInfo::computeIterDomFronts(DomFrontMap const& domFronts) {
+    DomFrontMap result;
+    for (auto& [BB, DF]: domFronts) {
+        result[BB] =
+            iterate(BB, DF | ranges::to<utl::hashset<BasicBlock*>>, domFronts) |
+            ranges::to<utl::small_vector<BasicBlock*>>;
+    }
+    return result;
 }
