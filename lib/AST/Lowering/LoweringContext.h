@@ -2,6 +2,7 @@
 #define SCATHA_AST_LOWERINGCONTEXT_H_
 
 #include <utl/hashmap.hpp>
+#include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
@@ -40,7 +41,7 @@ struct LoweringContext {
     ir::Function* currentFunction = nullptr;
     ir::BasicBlock* currentBlock = nullptr;
     utl::small_vector<ir::Alloca*> allocas;
-    Loop currentLoop;
+    utl::stack<Loop, 4> loopStack;
 
     /// # Other data
     ir::Type const* arrayViewType = nullptr;

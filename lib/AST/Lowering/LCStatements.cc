@@ -172,10 +172,10 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         add(loopHeader);
         auto* condition = getValue(loopStmt.condition());
         add<ir::Branch>(condition, loopBody, loopEnd);
-        currentLoop = { .header = loopHeader,
-                        .body = loopBody,
-                        .inc = loopInc,
-                        .end = loopEnd };
+        loopStack.push({ .header = loopHeader,
+                         .body = loopBody,
+                         .inc = loopInc,
+                         .end = loopEnd });
 
         /// Body
         add(loopBody);
@@ -189,7 +189,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
 
         /// End
         add(loopEnd);
-        currentLoop = {};
+        loopStack.pop();
         break;
     }
 
@@ -203,9 +203,8 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         add(loopHeader);
         auto* condition = getValue(loopStmt.condition());
         add<ir::Branch>(condition, loopBody, loopEnd);
-        currentLoop = { .header = loopHeader,
-                        .body = loopBody,
-                        .end = loopEnd };
+        loopStack.push(
+            { .header = loopHeader, .body = loopBody, .end = loopEnd });
 
         /// Body
         add(loopBody);
@@ -214,7 +213,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
 
         /// End
         add(loopEnd);
-        currentLoop = {};
+        loopStack.pop();
         break;
     }
 
@@ -223,9 +222,8 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         auto* loopFooter = newBlock("loop.footer");
         auto* loopEnd = newBlock("loop.end");
         add<ir::Goto>(loopBody);
-        currentLoop = { .header = loopFooter,
-                        .body = loopBody,
-                        .end = loopEnd };
+        loopStack.push(
+            { .header = loopFooter, .body = loopBody, .end = loopEnd });
 
         /// Body
         add(loopBody);
@@ -239,7 +237,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
 
         /// End
         add(loopEnd);
-        currentLoop = {};
+        loopStack.pop();
         break;
     }
     }
@@ -247,6 +245,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
 
 void LoweringContext::generateImpl(JumpStatement const& jump) {
     auto* dest = [&] {
+        auto& currentLoop = loopStack.top();
         switch (jump.kind()) {
         case JumpStatement::Break:
             return currentLoop.end;
