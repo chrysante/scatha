@@ -182,5 +182,5 @@ filter { "system:windows" }
 filter {}
 
 ------------------------------------------
-include "external/termfmt"
+include "external/termfmt/lib.lua"
 include "external/APMath/lib.lua"
