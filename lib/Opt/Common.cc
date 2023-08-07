@@ -160,5 +160,22 @@ bool opt::removeCriticalEdges(Context& ctx, Function& function) {
     };
     DFS dfs{ ctx, function };
     dfs.search(&function.entry());
+    if (dfs.modified) {
+        function.invalidateCFGInfo();
+    }
     return dfs.modified;
+}
+
+bool opt::hasSideEffects(Instruction const* inst) {
+    if (auto* call = dyncast<Call const*>(inst)) {
+        return !call->function()->hasAttribute(
+            FunctionAttribute::Memory_WriteNone);
+    }
+    if (isa<Store>(inst)) {
+        return true;
+    }
+    if (isa<TerminatorInst>(inst)) {
+        return true;
+    }
+    return false;
 }

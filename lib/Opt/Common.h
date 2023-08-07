@@ -39,6 +39,9 @@ SCATHA_TESTAPI void clearAllUses(ir::Value* value);
 SCATHA_TESTAPI bool removeCriticalEdges(ir::Context& ctx,
                                         ir::Function& function);
 
+/// \returns `true` iff the instruction \p inst has side effects
+SCATHA_TESTAPI bool hasSideEffects(ir::Instruction const* inst);
+
 } // namespace scatha::opt
 
 #endif // SCATHA_OPT_COMMON_H_

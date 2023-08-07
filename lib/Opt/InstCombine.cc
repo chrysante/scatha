@@ -18,19 +18,6 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
-static bool hasSideEffects(Instruction const* inst) {
-    if (isa<Call>(inst)) {
-        return true;
-    }
-    if (isa<Store>(inst)) {
-        return true;
-    }
-    if (isa<TerminatorInst>(inst)) {
-        return true;
-    }
-    return false;
-}
-
 namespace {
 
 using AccessTreeNode = opt::AccessTree<Value*>;
