@@ -113,17 +113,38 @@ static InsertValue* doClone(Context& context, InsertValue* inst) {
                            std::string(inst->name()));
 }
 
-static Instruction* clone(Context& context, Instruction* inst) {
+static Instruction* cloneRaw(Context& context, Instruction* inst) {
     return visit(*inst, [&](auto& inst) { return doClone(context, &inst); });
 }
 
-using ValueMap = utl::hashmap<Value*, Value*>;
+namespace {
 
-static BasicBlock* clone(Context& context, BasicBlock* bb, ValueMap& valueMap) {
-    auto result = new BasicBlock(context, std::string(bb->name()));
+class ValueMap {
+    utl::hashmap<Value*, Value*> map;
+public:
+    void add(Value* oldValue, Value* newValue) {
+        map[oldValue] = newValue;
+    }
+    
+    template <typename T>
+    T* operator()(T* value) const {
+        auto itr = map.find(value);
+        if (itr == map.end()) {
+            return value;
+        }
+        return cast<T*>(itr->second);
+    }
+};
+
+} // namespace
+
+static BasicBlock* cloneRaw(Context& context,
+                            BasicBlock* bb,
+                            ValueMap& valueMap) {
+    auto* result = new BasicBlock(context, std::string(bb->name()));
     for (auto& inst: *bb) {
-        auto* cloned = clone(context, &inst);
-        valueMap[&inst] = cloned;
+        auto* cloned = cloneRaw(context, &inst);
+        valueMap.add(&inst, cloned);
         result->pushBack(cloned);
     }
     /// While this may look sketchy, we will remap these to their counterparts
@@ -131,6 +152,24 @@ static BasicBlock* clone(Context& context, BasicBlock* bb, ValueMap& valueMap) {
     /// remap.
     result->setPredecessors(bb->predecessors());
     return result;
+}
+
+UniquePtr<Instruction> ir::clone(Context& context, Instruction* inst) {
+    return UniquePtr<Instruction>(cloneRaw(context, inst));
+}
+
+UniquePtr<BasicBlock> ir::clone(Context& context, BasicBlock* BB) {
+    ValueMap valueMap;
+    auto* result = cloneRaw(context, BB, valueMap);
+    for (auto& inst: *result) {
+        for (auto* operand: inst.operands()) {
+            auto* newVal = valueMap(operand);
+            if (newVal != operand) {
+                inst.updateOperand(operand, newVal);
+            }
+        }
+    }
+    return UniquePtr<BasicBlock>(result);
 }
 
 UniquePtr<Function> ir::clone(Context& context, Function* function) {
@@ -147,31 +186,24 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
                                      function->attributes());
     ValueMap valueMap;
     for (auto& bb: *function) {
-        auto* cloned = ::clone(context, &bb, valueMap);
-        valueMap[&bb] = cloned;
+        auto* cloned = ::cloneRaw(context, &bb, valueMap);
+        valueMap.add(&bb, cloned);
         result->pushBack(cloned);
     }
     for (auto&& [oldParam, newParam]:
          ranges::views::zip(function->parameters(), result->parameters()))
     {
-        valueMap[&oldParam] = &newParam;
+        valueMap.add(&oldParam, &newParam);
     }
-    auto map = [&]<typename T>(T* value) {
-        auto itr = valueMap.find(value);
-        if (itr == valueMap.end()) {
-            return value;
-        }
-        return cast<T*>(itr->second);
-    };
     for (auto& bb: *result) {
-        auto newPreds = bb.predecessors() | ranges::views::transform(map) |
+        auto newPreds = bb.predecessors() | ranges::views::transform(valueMap) |
                         ranges::to<utl::small_vector<BasicBlock*>>;
         bb.setPredecessors(newPreds);
         for (auto& inst: bb) {
             for (auto&& [index, operand]:
                  inst.operands() | ranges::views::enumerate)
             {
-                inst.setOperand(index, map(operand));
+                inst.setOperand(index, valueMap(operand));
             }
             /// It is quite unfortunate that we have this special case here, but
             /// `phi` is the only instruction that has links invisible to
@@ -180,7 +212,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
                 for (auto&& [index, arg]:
                      phi->arguments() | ranges::views::enumerate)
                 {
-                    phi->setPredecessor(index, map(arg.pred));
+                    phi->setPredecessor(index, valueMap(arg.pred));
                 }
             }
         }
