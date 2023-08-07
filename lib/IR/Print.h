@@ -21,6 +21,10 @@ SCATHA_API void print(Function const& function);
 
 SCATHA_API void print(Function const& function, std::ostream& ostream);
 
+SCATHA_API void print(Instruction const& inst);
+
+SCATHA_API void print(Instruction const& inst, std::ostream& ostream);
+
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     Instruction const& inst);
 

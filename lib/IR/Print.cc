@@ -94,10 +94,16 @@ void ir::print(Function const& function, std::ostream& str) {
     ctx.print(function);
 }
 
-std::ostream& ir::operator<<(std::ostream& ostream, Instruction const& inst) {
-    PrintCtx ctx(ostream);
+void ir::print(Instruction const& inst) { ir::print(inst, std::cout); }
+
+void ir::print(Instruction const& inst, std::ostream& str) {
+    str << inst << std::endl;
+}
+
+std::ostream& ir::operator<<(std::ostream& str, Instruction const& inst) {
+    PrintCtx ctx(str);
     ctx.print(inst);
-    return ostream;
+    return str;
 }
 
 std::string ir::toString(Value const& value) { return toString(&value); }
@@ -147,6 +153,7 @@ static utl::vstreammanip<> formatType(ir::Type const* type) {
     return [=](std::ostream& str) {
         if (!type) {
             str << tfmt::format(tfmt::BrightBlue | tfmt::Italic, "null-type");
+            return;
         }
         // clang-format off
         visit(*type, utl::overload{
