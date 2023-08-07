@@ -281,6 +281,20 @@ public:
         Base::addEdgeImpl(_children, child);
     }
 
+    void traversePreorder(auto&& F) const {
+        std::invoke(F, static_cast<Derived const*>(this));
+        for (auto* child: children()) {
+            child->traversePreorder(F);
+        }
+    }
+
+    void traversePostorder(auto&& F) const {
+        for (auto* child: children()) {
+            child->traversePostorder(F);
+        }
+        std::invoke(F, static_cast<Derived* const>(this));
+    }
+
 private:
     Self* _parent = nullptr;
     utl::small_vector<Self*> _children;
