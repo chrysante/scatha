@@ -22,11 +22,6 @@ static bool isTailCall(mir::Instruction const& call) {
     return ret.operands().front() == call.dest();
 }
 
-static bool isCriticalEdge(mir::BasicBlock const* from,
-                           mir::BasicBlock const* to) {
-    return from->successors().size() > 1 && to->predecessors().size() > 1;
-}
-
 static void mapSSAToVirtualRegisters(mir::Function& F) {
     utl::hashmap<mir::SSARegister*, mir::VirtualRegister*> registerMap;
     /// Create virtual registers for all SSA registers.
