@@ -1,24 +1,70 @@
 
-struct @X {
-    i64, i64
+
+
+
+
+fn print(n: int) {
+    __builtin_puti64(n);
+    __builtin_putchar('\n');
 }
 
-func i64 @main(@X %a, @X %b, i1 %cond) {
-  %entry:
-    branch i1 %cond, label %if, label %then
-
-  %if:
-    goto label %end
-
-  %then:
-     %b.1 = insert_value @X %b, i64 3, 1
-     goto label %end
-
-  %end:
-    %0 = phi @X [label %if: %a], [label %then: %b.1]
-    %1 = extract_value @X %0, 0
-    %2 = extract_value @X %0, 1
-    %3 = add i64 %1, i64 %2
-    return i64 %3
+fn print(n: double) {
+    __builtin_putf64(n);
+    __builtin_putchar('\n');
 }
 
+fn print(s: &str) {
+    __builtin_putstr(&s);
+}
+
+public fn test(n: int) {
+    
+    for i = 0; i < 10; ++i {
+        print(i);
+    }
+}
+
+
+
+/*
+
+public fn test(n: int) {
+    if n == 0 {
+        print(n);
+    }
+    else if n == 1 {
+        print(n);
+    }
+    else {
+        print(n);
+    }
+    var i = 0;
+    do {
+        print(i);
+        ++i;
+    } while i < 10;
+}
+
+*/
+
+/*
+public fn main(cond: bool) {
+    var i = 0;
+    if cond {
+        print("cond\n");
+    }
+    else {
+        print("not cond\n");
+    }
+    while i < 10  {
+        for j = 0; j < 5; ++j {
+            __builtin_putchar(' ');
+        }
+        ++i;
+        if i % 3 != 0 {
+            continue;
+        }
+        print(i);
+    }
+}
+*/

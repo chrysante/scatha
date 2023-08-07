@@ -33,12 +33,15 @@
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
 #include "MIR/Print.h"
+#include "Opt/Common.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
+#include "Opt/GlobalValueNumbering.h"
 #include "Opt/InstCombine.h"
 #include "Opt/LoopCanonical.h"
 #include "Opt/MemToReg.h"
 #include "Opt/Optimizer.h"
+#include "Opt/RedundancyElim.h"
 #include "Opt/SCCCallGraph.h"
 #include "Opt/SROA.h"
 #include "Opt/SimplifyCFG.h"
@@ -135,13 +138,15 @@ static void pass(std::string_view name,
 
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
-    header("Parsed program");
-    print(mod);
-    opt::optimize(ctx, mod, 1);
-    //    opt::instCombine(ctx, mod.front());
+
     header("Optimized");
+    opt::optimize(ctx, mod, 1);
     print(mod);
-    run(mod);
+
+    auto& LNF = mod.front().getOrComputeLNF();
+    print(LNF);
+
+    pass("GVN", ctx, mod, opt::globalValueNumbering);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {
