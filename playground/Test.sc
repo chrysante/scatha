@@ -1,7 +1,19 @@
+fn gcd(a: int, b: int) -> int {
+    while b != 0 && true {
+        let t = b + 0;
+        b = a % b;
+        a = t;
+    }
+    return a;
+}
+public fn main() -> int {
+    let a = 756476;
+    let b = 1253;
+    return gcd(a, b);
+}
 
 
-
-
+/*
 
 fn print(n: int) {
     __builtin_puti64(n);
@@ -24,20 +36,8 @@ public fn test(n: int) {
     }
 }
 
-
-
-/*
-
 public fn test(n: int) {
-    if n == 0 {
-        print(n);
-    }
-    else if n == 1 {
-        print(n);
-    }
-    else {
-        print(n);
-    }
+    
     var i = 0;
     do {
         print(i);
@@ -45,9 +45,6 @@ public fn test(n: int) {
     } while i < 10;
 }
 
-*/
-
-/*
 public fn main(cond: bool) {
     var i = 0;
     if cond {

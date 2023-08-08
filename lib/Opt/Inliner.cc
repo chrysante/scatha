@@ -7,6 +7,7 @@
 #include "Opt/Common.h"
 #include "Opt/ConstantPropagation.h"
 #include "Opt/DCE.h"
+#include "Opt/GlobalValueNumbering.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/InstCombine.h"
 #include "Opt/LoopCanonical.h"
@@ -388,6 +389,7 @@ bool Inliner::optimize(Function& function) const {
         modified |= instCombine(ctx, function);
         modified |= propagateConstants(ctx, function);
         modified |= dce(ctx, function);
+        modified |= globalValueNumbering(ctx, function);
         modified |= simplifyCFG(ctx, function);
         modified |= tailRecElim(ctx, function);
         if (!modified) {

@@ -77,6 +77,7 @@ bool opt::splitReturns(Context& ctx, Function& function) {
         for (size_t const index: removedPreds) {
             block->removePredecessor(index);
         }
+        modifiedAny |= !removedPreds.empty();
         switch (block->numPredecessors()) {
         case 0:
             function.erase(block);
@@ -89,6 +90,9 @@ bool opt::splitReturns(Context& ctx, Function& function) {
         default:
             break;
         }
+    }
+    if (modifiedAny) {
+        function.invalidateCFGInfo();
     }
     return modifiedAny;
 }

@@ -25,39 +25,46 @@ using namespace ir;
 namespace {
 
 struct Expression {
-    Expression(Instruction const* inst) {
-        id[0] = static_cast<uint32_t>(inst->nodeType());
-        // clang-format off
-        id[1] = utl::visit(*inst, utl::overload{
-            [](ArithmeticInst const& inst) {
-                return static_cast<uint32_t>(inst.operation());
+    Expression(Instruction const* inst): inst(inst) {}
+
+    bool operator==(Expression const& RHS) const {
+        if (inst->nodeType() != RHS.inst->nodeType()) {
+            return false;
+        }
+        return utl::visit(
+            *inst,
+            utl::overload{
+                [&](ArithmeticInst const& inst) {
+            return inst.operation() ==
+                   cast<ArithmeticInst const*>(RHS.inst)->operation();
+                },
+                [&](UnaryArithmeticInst const& inst) {
+            return inst.operation() ==
+                   cast<UnaryArithmeticInst const*>(RHS.inst)->operation();
             },
-            [](UnaryArithmeticInst const& inst) {
-                return static_cast<uint32_t>(inst.operation());
+            [&](CompareInst const& inst) {
+            return inst.operation() ==
+                   cast<CompareInst const*>(RHS.inst)->operation();
             },
-            [](CompareInst const& cmp) {
-                return static_cast<uint32_t>(cmp.operation());
-            },
-            [](Instruction const&) {
-                return 0;
-            }
-        }); // clang-format on
+            [&](ExtractValue const& inst) {
+            return ranges::equal(inst.memberIndices(),
+                                 cast<ExtractValue const*>(RHS.inst)
+                                     ->memberIndices());
+        },
+            [&](InsertValue const& inst) {
+            return ranges::equal(inst.memberIndices(),
+                                 cast<InsertValue const*>(RHS.inst)
+                                     ->memberIndices());
+            }, [&](Instruction const& inst) -> bool {
+                SC_UNREACHABLE();
+            } }); // clang-format on
     }
 
-    size_t hashValue() const { return std::bit_cast<size_t>(id); }
-
-    bool operator==(Expression const&) const = default;
-
 private:
-    std::array<uint32_t, 2> id;
+    Instruction const* inst;
 };
 
 } // namespace
-
-template <>
-struct std::hash<Expression> {
-    size_t operator()(Expression const& expr) const { return expr.hashValue(); }
-};
 
 namespace {
 
@@ -141,9 +148,9 @@ bool opt::globalValueNumbering(Context& context, Function& function) {
 bool GVNContext::run() {
     restructureCFG();
     // modifiedCFG |= removeCriticalEdges(ctx, function);
-    assignRanks();
-    buildLCTs();
-    elimLocal();
+    // assignRanks();
+    // buildLCTs();
+    // elimLocal();
     if (modifiedCFG) {
         function.invalidateCFGInfo();
     }
@@ -240,6 +247,19 @@ static void updateRankMapAfterClone(auto& rankMap,
     }
 }
 
+static void eraseSingleValuePhiNodes(BasicBlock* BB) {
+    SC_ASSERT(BB->numPredecessors() == 1, "");
+    while (true) {
+        auto* phi = dyncast<Phi*>(&BB->front());
+        if (!phi) {
+            break;
+        }
+        auto* arg = phi->argumentAt(0).value;
+        replaceValue(phi, arg);
+        BB->erase(phi);
+    }
+}
+
 void GVNContext::addLandingPadToLoop(BasicBlock* header) {
     auto* headerNode = LNF[header];
     SC_ASSERT(headerNode->isProperLoop(), "");
@@ -278,8 +298,7 @@ void GVNContext::addLandingPadToWhileLoop(BasicBlock* header) {
         return { succB, succA };
     }();
     if (loopOutSucc->numPredecessors() == 1) {
-        SC_ASSERT(loopOutSucc->phiNodes().empty(),
-                  "Should not have phi nodes if only one predecessor");
+        eraseSingleValuePhiNodes(loopOutSucc);
         SC_ASSERT(loopOutSucc->singlePredecessor() == header, "");
         auto insertPoint = loopOutSucc->begin();
         for (auto& inst: *header) {
@@ -317,7 +336,7 @@ void GVNContext::addLandingPadToWhileLoop(BasicBlock* header) {
     header->terminator()->updateTarget(body, landingPad);
     landingPad->addPredecessor(header);
     auto bodyInsertPoint = body->phiEnd();
-    CloneValueMap phiMap;
+    CloneValueMap phiMapHeaderToBody, phiMapHeaderCloneToBody;
     for (auto&& [phi, clonePhi]:
          ranges::views::zip(header->phiNodes(), headerClone->phiNodes()))
     {
@@ -325,10 +344,15 @@ void GVNContext::addLandingPadToWhileLoop(BasicBlock* header) {
                                   { headerClone, &clonePhi } },
                                 std::string(phi.name()));
         body->insert(bodyInsertPoint, bodyPhi);
-        phiMap.add(&phi, bodyPhi);
+        phiMapHeaderToBody.add(&phi, bodyPhi);
+        phiMapHeaderCloneToBody.add(&clonePhi, bodyPhi);
+    }
+    for (auto& clonePhi: headerClone->phiNodes()) {
         for (auto [index, arg]: clonePhi.arguments() | ranges::views::enumerate)
         {
-            if (arg.value == &clonePhi) {
+            auto* instArg = dyncast<Instruction*>(arg.value);
+            if (instArg && instArg->parent() == headerClone) {
+                auto* bodyPhi = phiMapHeaderCloneToBody(instArg);
                 clonePhi.setArgument(index, bodyPhi);
             }
         }
@@ -397,26 +421,6 @@ void GVNContext::addLandingPadToWhileLoop(BasicBlock* header) {
     {
         phi.addArgument(loopOut, &loPhi);
     }
-
-    //    auto loPhiInsertPoint = loopOut->phiEnd();
-    //    for (auto&& [inst, clone]: ranges::views::zip(*header, *headerClone))
-    //    {
-    //        auto loopOutUsers = inst.users() |
-    //            ranges::views::filter([&](User* user) {
-    //                auto* inst = dyncast<Instruction*>(user);
-    //                return inst && !isLoopNode(LNF[inst->parent()],
-    //                LNF[header]);
-    //            }) |
-    //            ranges::views::transform([](User* user) { return
-    //            cast<Instruction*>(user); }) |
-    //            ranges::to<utl::small_vector<Instruction*>>;
-    //        if (loopOutUsers.empty()) { continue; }
-    //        auto* loPhi = new Phi({ { header, &inst }, { headerClone, &clone }
-    //        }, "lo.phi"); loopOut->insert(loPhiInsertPoint, loPhi); for (auto*
-    //        user: loopOutUsers) {
-    //            user->updateOperand(&inst, loPhi);
-    //        }
-    //    }
     for (auto* node: LNF[header]->children()) {
         if (node->basicBlock() == headerClone) {
             continue;
@@ -425,7 +429,7 @@ void GVNContext::addLandingPadToWhileLoop(BasicBlock* header) {
             auto* BB = node->basicBlock();
             for (auto& inst: *BB) {
                 for (auto* operand: inst.operands()) {
-                    auto* repl = phiMap(operand);
+                    auto* repl = phiMapHeaderToBody(operand);
                     if (repl != operand) {
                         inst.updateOperand(operand, repl);
                     }
