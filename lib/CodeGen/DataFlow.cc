@@ -2,7 +2,7 @@
 
 #include <range/v3/view.hpp>
 
-#include "IR/CFG/Function.h"
+#include "IR/CFG.h"
 #include "IR/Loop.h"
 #include "MIR/CFG.h"
 
@@ -111,10 +111,18 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
     visited.erase(BB);
 }
 
+static bool isTrivialLoop(ir::LNFNode const* node) {
+    if (!node->children().empty()) {
+        return false;
+    }
+    auto* BB = node->basicBlock();
+    return !ranges::contains(BB->successors(), BB);
+}
+
 void LivenessContext::loopTree(ir::LNFNode const* node) {
-    /// If this 'loop header' has no children it is a trivial loop aka. not a
-    /// loop. Then we don't need to preserve our live-in values.
-    if (node->children().empty()) {
+    /// If this 'loop header' is a trivial loop aka. not a
+    /// loop, we don't need to preserve our live-in values.
+    if (isTrivialLoop(node)) {
         return;
     }
     mir::BasicBlock* header = bbMap[node->basicBlock()];

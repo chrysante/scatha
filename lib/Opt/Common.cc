@@ -149,8 +149,7 @@ bool opt::removeCriticalEdges(Context& ctx, Function& function) {
                     function.insert(succ, tmp);
                     tmp->pushBack(new Goto(ctx, succ));
                     BB->terminator()->updateTarget(succ, tmp);
-                    succ->removePredecessor(BB);
-                    succ->addPredecessor(tmp);
+                    succ->updatePredecessor(BB, tmp);
                     tmp->addPredecessor(BB);
                     modified = true;
                 }

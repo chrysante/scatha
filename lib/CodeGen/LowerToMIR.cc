@@ -480,7 +480,7 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
     size_t const numBytes = phi.type()->size();
     size_t const numWords = utl::ceil_divide(numBytes, 8);
     for (size_t i = 0; i < numWords; ++i) {
-        /// Prevent to generate self referential phi nodes in the MIR
+        /// Prevent generating self referential phi nodes in the MIR
         auto nextArgs =
             arguments |
             ranges::views::transform([](auto* arg) { return arg->next(); }) |
@@ -490,12 +490,16 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
         {
             if (arg == dest) {
                 auto* newArg = nextRegister();
+                auto insertPoint = resolve(pred)->end();
+                while (isTerminator(insertPoint->prev()->instcode())) {
+                    --insertPoint;
+                }
                 addNewInst(mir::InstCode::Copy,
                            newArg,
                            { arg },
                            0,
                            sliceWidth(numBytes, i, numWords),
-                           resolve(pred)->end());
+                           insertPoint);
                 arg = newArg;
             }
         }
