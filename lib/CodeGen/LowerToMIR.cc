@@ -503,12 +503,19 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
                 arg = newArg;
             }
         }
+        auto insertPoint = std::prev(currentBlock->end());
+        while (insertPoint != currentBlock->begin() &&
+               insertPoint->instcode() != mir::InstCode::Phi)
+        {
+            --insertPoint;
+        }
+        ++insertPoint;
         addNewInst(mir::InstCode::Phi,
                    dest,
                    arguments,
                    0,
                    sliceWidth(numBytes, i, numWords),
-                   currentBlock->end());
+                   insertPoint);
         dest = dest->next();
         arguments = nextArgs;
     }
