@@ -123,6 +123,9 @@ struct GVNContext {
     SingleLoopEntryResult makeLoopSingleEntry(BasicBlock* header);
     void addLandingPadToLoop(BasicBlock* header);
     void addLandingPadToWhileLoop(BasicBlock* header);
+    /// Add a node as the loop entry node with only one predecessor. This is
+    /// called when the loop entry node has multiple predecessors.
+    BasicBlock* addDistinctLoopEntry(BasicBlock* header, BasicBlock* entry);
     void addLandingPadToDoWhileLoop(BasicBlock* header);
 
     void assignRanks();
@@ -236,17 +239,6 @@ SingleLoopEntryResult GVNContext::makeLoopSingleEntry(BasicBlock* header) {
     return result;
 }
 
-static void updateRankMapAfterClone(auto& rankMap,
-                                    BasicBlock* existing,
-                                    BasicBlock* clone) {
-    for (auto&& [inst, cloneInst]: ranges::views::zip(*existing, *clone)) {
-        auto itr = rankMap.find(&inst);
-        if (itr != rankMap.end()) {
-            rankMap.insert({ &cloneInst, itr->second });
-        }
-    }
-}
-
 static void eraseSingleValuePhiNodes(BasicBlock* BB) {
     SC_ASSERT(BB->numPredecessors() == 1, "");
     while (true) {
@@ -284,7 +276,6 @@ void GVNContext::addLandingPadToWhileLoop(BasicBlock* header) {
     CloneValueMap cloneMap;
     auto* headerClone = ir::clone(ctx, header, cloneMap).release();
     LNF.addNode(header, headerClone);
-    updateRankMapAfterClone(ranks, header, headerClone);
     headerClone->setName(utl::strcat(header->name(), ".clone"));
     headerClone->removePredecessor(preHeader);
     auto* landingPad = new BasicBlock(ctx, "landingpad");
@@ -323,15 +314,9 @@ void GVNContext::addLandingPadToWhileLoop(BasicBlock* header) {
         }
     }
     if (body->predecessors().size() > 1) {
-        auto* newHeader = new BasicBlock(ctx, "new.header");
-        header->terminator()->updateTarget(body, newHeader);
-        newHeader->addPredecessor(header);
-        newHeader->pushBack(new Goto(ctx, body));
-        body->updatePredecessor(header, newHeader);
-        function.insert(header->next(), newHeader);
-        LNF.addNode(header, newHeader);
-        headerClone->terminator()->updateTarget(body, newHeader);
-        body = newHeader;
+        auto* newEntry = addDistinctLoopEntry(header, body);
+        headerClone->terminator()->updateTarget(body, newEntry);
+        body = newEntry;
     }
     header->terminator()->updateTarget(body, landingPad);
     landingPad->addPredecessor(header);
@@ -441,6 +426,18 @@ void GVNContext::addLandingPadToWhileLoop(BasicBlock* header) {
     function.insert(innerPreds.back()->next(), headerClone);
     function.insert(headerClone->next(), loopOut);
     modifiedCFG = true;
+}
+
+BasicBlock* GVNContext::addDistinctLoopEntry(BasicBlock* header,
+                                             BasicBlock* entry) {
+    auto* newEntry = new BasicBlock(ctx, "loop.entry");
+    header->terminator()->updateTarget(entry, newEntry);
+    newEntry->addPredecessor(header);
+    newEntry->pushBack(new Goto(ctx, entry));
+    entry->updatePredecessor(header, newEntry);
+    function.insert(header->next(), newEntry);
+    LNF.addNode(header, newEntry);
+    return newEntry;
 }
 
 void GVNContext::addLandingPadToDoWhileLoop(BasicBlock* header) {
