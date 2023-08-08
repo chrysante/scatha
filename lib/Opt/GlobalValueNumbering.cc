@@ -31,33 +31,34 @@ struct Expression {
         if (inst->nodeType() != RHS.inst->nodeType()) {
             return false;
         }
-        return utl::visit(
-            *inst,
-            utl::overload{
-                [&](ArithmeticInst const& inst) {
-            return inst.operation() ==
-                   cast<ArithmeticInst const*>(RHS.inst)->operation();
-                },
-                [&](UnaryArithmeticInst const& inst) {
-            return inst.operation() ==
-                   cast<UnaryArithmeticInst const*>(RHS.inst)->operation();
+        // clang-format off
+        return utl::visit(*inst, utl::overload{
+            [&](ArithmeticInst const& inst) {
+                return inst.operation() ==
+                       cast<ArithmeticInst const*>(RHS.inst)->operation();
+            },
+            [&](UnaryArithmeticInst const& inst) {
+                return inst.operation() ==
+                       cast<UnaryArithmeticInst const*>(RHS.inst)->operation();
             },
             [&](CompareInst const& inst) {
-            return inst.operation() ==
-                   cast<CompareInst const*>(RHS.inst)->operation();
+                return inst.operation() ==
+                       cast<CompareInst const*>(RHS.inst)->operation();
             },
             [&](ExtractValue const& inst) {
-            return ranges::equal(inst.memberIndices(),
-                                 cast<ExtractValue const*>(RHS.inst)
-                                     ->memberIndices());
-        },
+                return ranges::equal(
+                           inst.memberIndices(),
+                           cast<ExtractValue const*>(RHS.inst)->memberIndices());
+            },
             [&](InsertValue const& inst) {
-            return ranges::equal(inst.memberIndices(),
-                                 cast<InsertValue const*>(RHS.inst)
-                                     ->memberIndices());
-            }, [&](Instruction const& inst) -> bool {
+                return ranges::equal(
+                           inst.memberIndices(),
+                           cast<InsertValue const*>(RHS.inst)->memberIndices());
+            },
+            [&](Instruction const& inst) -> bool {
                 SC_UNREACHABLE();
-            } }); // clang-format on
+            }
+        }); // clang-format on
     }
 
 private:
