@@ -67,6 +67,15 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
     return result;
 }
 
+void LoopNestingForest::addNode(BasicBlock const* parent, BasicBlock* BB) {
+    auto* parentNode = findMut(parent);
+    auto [itr, success] = _nodes.insert(Node(BB));
+    SC_ASSERT(success, "BB is already in the tree");
+    auto* node = const_cast<Node*>(&*itr);
+    node->setParent(parentNode);
+    parentNode->addChild(node);
+}
+
 namespace {
 
 struct LNFPrintCtx {

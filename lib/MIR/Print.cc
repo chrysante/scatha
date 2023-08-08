@@ -152,7 +152,8 @@ struct PrintContext {
         str << light("preds: ");
         bool first = true;
         for (auto* pred: BB->predecessors()) {
-            str << light(first ? first = false, "" : ", ", pred->name());
+            auto predName = pred ? pred->name() : "NULL";
+            str << light(first ? first = false, "" : ", ", predName);
         }
     }
 

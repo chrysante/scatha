@@ -49,13 +49,18 @@ public:
     /// \Returns `true` iff the forest is empty.
     bool empty() const { return _nodes.empty(); }
 
+    /// Add a new node without children for basic block \p BB as child of node
+    /// \p parent
+    void addNode(BasicBlock const* parent, BasicBlock* BB);
+
 private:
     Node* findMut(ir::BasicBlock const* bb) {
         return const_cast<Node*>(
             static_cast<LoopNestingForest const*>(this)->operator[](bb));
     }
 
-    using NodeSet = utl::hashset<Node, Node::PayloadHash, Node::PayloadEqual>;
+    using NodeSet =
+        utl::node_hashset<Node, Node::PayloadHash, Node::PayloadEqual>;
     NodeSet _nodes;
     std::unique_ptr<Node> _virtualRoot;
 };

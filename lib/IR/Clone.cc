@@ -117,29 +117,9 @@ static Instruction* cloneRaw(Context& context, Instruction* inst) {
     return visit(*inst, [&](auto& inst) { return doClone(context, &inst); });
 }
 
-namespace {
-
-class ValueMap {
-    utl::hashmap<Value*, Value*> map;
-
-public:
-    void add(Value* oldValue, Value* newValue) { map[oldValue] = newValue; }
-
-    template <typename T>
-    T* operator()(T* value) const {
-        auto itr = map.find(value);
-        if (itr == map.end()) {
-            return value;
-        }
-        return cast<T*>(itr->second);
-    }
-};
-
-} // namespace
-
 static BasicBlock* cloneRaw(Context& context,
                             BasicBlock* bb,
-                            ValueMap& valueMap) {
+                            CloneValueMap& valueMap) {
     auto* result = new BasicBlock(context, std::string(bb->name()));
     for (auto& inst: *bb) {
         auto* cloned = cloneRaw(context, &inst);
@@ -158,7 +138,13 @@ UniquePtr<Instruction> ir::clone(Context& context, Instruction* inst) {
 }
 
 UniquePtr<BasicBlock> ir::clone(Context& context, BasicBlock* BB) {
-    ValueMap valueMap;
+    CloneValueMap valueMap;
+    return clone(context, BB, valueMap);
+}
+
+UniquePtr<BasicBlock> ir::clone(Context& context,
+                                BasicBlock* BB,
+                                CloneValueMap& valueMap) {
     auto* result = cloneRaw(context, BB, valueMap);
     for (auto& inst: *result) {
         for (auto* operand: inst.operands()) {
@@ -183,7 +169,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
                                      paramTypes,
                                      std::string(function->name()),
                                      function->attributes());
-    ValueMap valueMap;
+    CloneValueMap valueMap;
     for (auto& bb: *function) {
         auto* cloned = ::cloneRaw(context, &bb, valueMap);
         valueMap.add(&bb, cloned);

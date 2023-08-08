@@ -13,7 +13,9 @@
 
 #include "IR/CFG.h"
 #include "IR/Clone.h"
+#include "IR/Dominance.h"
 #include "IR/Loop.h"
+#include "IR/Validate.h"
 #include "Opt/Common.h"
 
 using namespace scatha;
@@ -89,9 +91,11 @@ struct SingleLoopEntryResult {
 struct GVNContext {
     Context& ctx;
     Function& function;
-    LoopNestingForest const& LNF;
+    LoopNestingForest& LNF;
+    DominanceInfo const& postDomInfo;
 
     bool modified = false;
+    bool modifiedCFG = false;
 
     utl::hashset<BasicBlock*> loopHeaders, landingPads;
     utl::hashset<std::pair<BasicBlock*, BasicBlock*>> backEdges;
@@ -99,7 +103,10 @@ struct GVNContext {
     utl::hashmap<BasicBlock*, LocalComputationTable> LCTs;
 
     GVNContext(Context& context, Function& function):
-        ctx(context), function(function), LNF(function.getOrComputeLNF()) {}
+        ctx(context),
+        function(function),
+        LNF(const_cast<LoopNestingForest&>(function.getOrComputeLNF())),
+        postDomInfo(function.getOrComputePostDomInfo()) {}
 
     bool run();
 
@@ -108,6 +115,8 @@ struct GVNContext {
 
     SingleLoopEntryResult makeLoopSingleEntry(BasicBlock* header);
     void addLandingPadToLoop(BasicBlock* header);
+    void addLandingPadToWhileLoop(BasicBlock* header);
+    void addLandingPadToDoWhileLoop(BasicBlock* header);
 
     void assignRanks();
 
@@ -124,24 +133,28 @@ struct GVNContext {
 
 bool opt::globalValueNumbering(Context& context, Function& function) {
     GVNContext gvnContext(context, function);
-    return gvnContext.run();
+    bool result = gvnContext.run();
+    assertInvariants(context, function);
+    return result;
 }
 
 bool GVNContext::run() {
     restructureCFG();
-    removeCriticalEdges(ctx, function);
+    // modifiedCFG |= removeCriticalEdges(ctx, function);
     assignRanks();
     buildLCTs();
     elimLocal();
-
-    return modified;
+    if (modifiedCFG) {
+        function.invalidateCFGInfo();
+    }
+    return modified || modifiedCFG;
 }
 
 void GVNContext::restructureCFG() {
     utl::hashset<BasicBlock*> visited;
     restructureDFS(visited, &function.entry());
     for (auto* root: LNF.roots()) {
-        root->traversePreorder([&](LoopNestingForest::Node const* node) {
+        root->traversePreorder([&](LNFNode const* node) {
             if (node->isProperLoop()) {
                 addLandingPadToLoop(node->basicBlock());
             }
@@ -162,12 +175,22 @@ void GVNContext::restructureDFS(utl::hashset<BasicBlock*>& visited,
     }
 }
 
+bool isLoopNode(LNFNode const* node, LNFNode const* header) {
+    while (node != nullptr) {
+        if (node == header) {
+            return true;
+        }
+        node = node->parent();
+    }
+    return false;
+}
+
 SingleLoopEntryResult GVNContext::makeLoopSingleEntry(BasicBlock* header) {
-    auto headerParent = LNF[header]->parent();
+    auto headerNode = LNF[header];
     SingleLoopEntryResult result;
     auto& [preHeader, outerPreds, innerPreds] = result;
     for (auto* pred: header->predecessors()) {
-        if (LNF[pred]->parent() != headerParent || pred == header) {
+        if (isLoopNode(LNF[pred], headerNode)) {
             innerPreds.push_back(pred);
         }
         else {
@@ -202,33 +225,113 @@ SingleLoopEntryResult GVNContext::makeLoopSingleEntry(BasicBlock* header) {
     innerPreds.push_back(preHeader);
     header->setPredecessors(innerPreds);
     preHeader->setPredecessors(outerPreds);
+    modifiedCFG = true;
     return result;
 }
 
+static void updateRankMapAfterClone(auto& rankMap,
+                                    BasicBlock* existing,
+                                    BasicBlock* clone) {
+    for (auto&& [inst, cloneInst]: ranges::views::zip(*existing, *clone)) {
+        auto itr = rankMap.find(&inst);
+        if (itr != rankMap.end()) {
+            rankMap.insert({ &cloneInst, itr->second });
+        }
+    }
+}
+
 void GVNContext::addLandingPadToLoop(BasicBlock* header) {
+    auto* headerNode = LNF[header];
+    SC_ASSERT(headerNode->isProperLoop(), "");
+    /// A loop is a do/while loop if it consists of only one node or if all
+    /// paths from the header lead into the loop. Otherwise it is a while loop.
+    bool const isDoWhileLoop =
+        headerNode->children().empty() ||
+        ranges::all_of(header->successors(), [&](BasicBlock const* succ) {
+            return isLoopNode(LNF[succ], headerNode);
+        });
+    if (isDoWhileLoop) {
+        addLandingPadToDoWhileLoop(header);
+    }
+    else {
+        addLandingPadToWhileLoop(header);
+    }
+}
+
+void GVNContext::addLandingPadToWhileLoop(BasicBlock* header) {
     auto [preHeader, outerPreds, innerPreds] = makeLoopSingleEntry(header);
-    auto* headerClone = ir::clone(ctx, header).release();
+    auto* headerNode = LNF[header];
+    CloneValueMap cloneMap;
+    auto* headerClone = ir::clone(ctx, header, cloneMap).release();
+    LNF.addNode(header, headerClone);
+    updateRankMapAfterClone(ranks, header, headerClone);
     headerClone->setName(utl::strcat(header->name(), ".clone"));
     headerClone->removePredecessor(preHeader);
     auto* landingPad = new BasicBlock(ctx, "landingpad");
-    auto* body = [&] {
+    auto [body, loopOutSucc] = [&]() -> std::array<BasicBlock*, 2> {
+        SC_ASSERT(header->successors().size() <= 2, "");
         auto* succA = header->successors()[0];
+        auto* succB = header->successors()[1];
         if (LNF[header]->parent() != LNF[succA]->parent()) {
-            return succA;
+            return { succA, succB };
         }
-        return header->successors()[1];
+        return { succB, succA };
     }();
-    SC_ASSERT(body->predecessors().size() == 1, "");
+    if (loopOutSucc->numPredecessors() == 1) {
+        SC_ASSERT(loopOutSucc->phiNodes().empty(),
+                  "Should not have phi nodes if only one predecessor");
+        SC_ASSERT(loopOutSucc->singlePredecessor() == header, "");
+        auto insertPoint = loopOutSucc->begin();
+        for (auto& inst: *header) {
+            auto loopOutUsers =
+                inst.users() | ranges::views::filter([&](User* user) {
+                    auto* inst = dyncast<Instruction*>(user);
+                    return inst &&
+                           !isLoopNode(LNF[inst->parent()], LNF[header]);
+                }) |
+                ranges::views::transform(
+                    [](User* user) { return cast<Instruction*>(user); }) |
+                ranges::to<utl::small_vector<Instruction*>>;
+            if (loopOutUsers.empty()) {
+                continue;
+            }
+            auto* phi =
+                new Phi({ { header, &inst } }, std::string(inst.name()));
+            loopOutSucc->insert(insertPoint, phi);
+            for (auto* user: loopOutUsers) {
+                user->updateOperand(&inst, phi);
+            }
+        }
+    }
+    if (body->predecessors().size() > 1) {
+        auto* newHeader = new BasicBlock(ctx, "new.header");
+        header->terminator()->updateTarget(body, newHeader);
+        newHeader->addPredecessor(header);
+        newHeader->pushBack(new Goto(ctx, body));
+        body->updatePredecessor(header, newHeader);
+        function.insert(header->next(), newHeader);
+        LNF.addNode(header, newHeader);
+        headerClone->terminator()->updateTarget(body, newHeader);
+        body = newHeader;
+    }
     header->terminator()->updateTarget(body, landingPad);
     landingPad->addPredecessor(header);
     auto bodyInsertPoint = body->phiEnd();
+    CloneValueMap phiMap;
     for (auto&& [phi, clonePhi]:
          ranges::views::zip(header->phiNodes(), headerClone->phiNodes()))
     {
         auto* bodyPhi = new Phi({ { landingPad, phi.operandOf(preHeader) },
                                   { headerClone, &clonePhi } },
-                                utl::strcat("body.", phi.name()));
+                                std::string(phi.name()));
         body->insert(bodyInsertPoint, bodyPhi);
+        phiMap.add(&phi, bodyPhi);
+        for (auto [index, arg]: clonePhi.arguments() | ranges::views::enumerate)
+        {
+            if (arg.value == &clonePhi) {
+                clonePhi.setArgument(index, bodyPhi);
+            }
+        }
     }
     landingPad->pushBack(new Goto(ctx, body));
     body->setPredecessors(std::array{ landingPad, headerClone });
@@ -236,8 +339,108 @@ void GVNContext::addLandingPadToLoop(BasicBlock* header) {
         header->removePredecessor(pred);
         pred->terminator()->updateTarget(header, headerClone);
     }
+    utl::small_vector<BasicBlock*> loopExitNodes = { header };
+    LNF[header]->traversePreorder(
+        [&, loopOutSucc = loopOutSucc](LNFNode const* node) {
+        auto* BB = node->basicBlock();
+        if (BB == header || BB == headerClone) {
+            return;
+        }
+        for (auto* succ: BB->successors()) {
+            if (!isLoopNode(LNF[succ], headerNode)) {
+                SC_ASSERT(postDomInfo.domSet(succ).contains(loopOutSucc),
+                          "If we exit here then loopOutSucc must post dominate "
+                          "this node");
+                if (succ == loopOutSucc) {
+                    loopExitNodes.push_back(BB);
+                    break;
+                }
+            }
+        }
+    });
+    loopExitNodes.push_back(headerClone);
+    auto* loopOut = new BasicBlock(ctx, "loop.out");
+    loopOut->setPredecessors(loopExitNodes);
+    for (auto* exitNode: loopExitNodes) {
+        exitNode->terminator()->updateTarget(loopOutSucc, loopOut);
+    }
+    auto nonLoopPreds = loopOutSucc->predecessors() |
+                        ranges::views::filter([&](BasicBlock* BB) {
+                            return !ranges::contains(loopExitNodes, BB);
+                        }) |
+                        ranges::to<utl::small_vector<BasicBlock*>>;
+    for (auto& phi: loopOutSucc->phiNodes()) {
+        utl::small_vector<PhiMapping> phiArgs;
+        for (auto* exitNode: loopExitNodes) {
+            size_t index = phi.indexOf(exitNode);
+            if (index != phi.argumentCount()) {
+                phiArgs.push_back({ exitNode, phi.argumentAt(index).value });
+            }
+            else {
+                SC_ASSERT(exitNode == headerClone, "");
+                phiArgs.push_back(
+                    { exitNode, cloneMap(phi.operandOf(header)) });
+            }
+        }
+        auto* loPhi = new Phi(phiArgs, std::string(phi.name()));
+        loopOut->pushBack(loPhi);
+    }
+    for (auto* exitNode: loopExitNodes) {
+        if (ranges::contains(loopOutSucc->predecessors(), exitNode)) {
+            loopOutSucc->removePredecessor(exitNode);
+        }
+    }
+    loopOut->pushBack(new Goto(ctx, loopOutSucc));
+    loopOutSucc->addPredecessor(loopOut);
+    for (auto&& [loPhi, phi]:
+         ranges::views::zip(loopOut->phiNodes(), loopOutSucc->phiNodes()))
+    {
+        phi.addArgument(loopOut, &loPhi);
+    }
+
+    //    auto loPhiInsertPoint = loopOut->phiEnd();
+    //    for (auto&& [inst, clone]: ranges::views::zip(*header, *headerClone))
+    //    {
+    //        auto loopOutUsers = inst.users() |
+    //            ranges::views::filter([&](User* user) {
+    //                auto* inst = dyncast<Instruction*>(user);
+    //                return inst && !isLoopNode(LNF[inst->parent()],
+    //                LNF[header]);
+    //            }) |
+    //            ranges::views::transform([](User* user) { return
+    //            cast<Instruction*>(user); }) |
+    //            ranges::to<utl::small_vector<Instruction*>>;
+    //        if (loopOutUsers.empty()) { continue; }
+    //        auto* loPhi = new Phi({ { header, &inst }, { headerClone, &clone }
+    //        }, "lo.phi"); loopOut->insert(loPhiInsertPoint, loPhi); for (auto*
+    //        user: loopOutUsers) {
+    //            user->updateOperand(&inst, loPhi);
+    //        }
+    //    }
+    for (auto* node: LNF[header]->children()) {
+        if (node->basicBlock() == headerClone) {
+            continue;
+        }
+        node->traversePreorder([&](LNFNode const* node) {
+            auto* BB = node->basicBlock();
+            for (auto& inst: *BB) {
+                for (auto* operand: inst.operands()) {
+                    auto* repl = phiMap(operand);
+                    if (repl != operand) {
+                        inst.updateOperand(operand, repl);
+                    }
+                }
+            }
+        });
+    }
     function.insert(header->next(), landingPad);
     function.insert(innerPreds.back()->next(), headerClone);
+    function.insert(headerClone->next(), loopOut);
+    modifiedCFG = true;
+}
+
+void GVNContext::addLandingPadToDoWhileLoop(BasicBlock* header) {
+    makeLoopSingleEntry(header);
 }
 
 void GVNContext::assignRanks() {
