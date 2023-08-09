@@ -135,12 +135,18 @@ static void pass(std::string_view name,
     opt::forEach(ctx, mod, opt::unifyReturns);
     header("As parsed");
     print(mod);
-    run(mod);
+    //    run(mod);
 
-    header("Inlined");
-    opt::optimize(ctx, mod, 1);
+    //    header("Inlined");
+    //    auto lightInliner =
+    //    opt::PassManager::makePipeline("inline(sroa:memtoreg)");
+    //    lightInliner.execute(ctx, mod);
+    //    print(mod);
+    //    run(mod);
+
+    header("After inst combine");
+    opt::PassManager::makePipeline("foreach(instcombine)").execute(ctx, mod);
     print(mod);
-    run(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {

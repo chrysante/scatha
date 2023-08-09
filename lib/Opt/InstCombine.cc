@@ -111,12 +111,6 @@ bool opt::instCombine(Context& irCtx, Function& function) {
     return result;
 }
 
-void printWorklist(utl::hashset<Instruction*> const& worklist) {
-    for (auto* inst: worklist) {
-        std::cout << inst->name() << std::endl;
-    }
-}
-
 bool InstCombineCtx::run() {
     worklist = function.instructions() |
                ranges::views::transform([](auto& inst) { return &inst; }) |
@@ -457,7 +451,6 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     }
     /// If we extract from a phi node and the phi node has no other users, we
     /// perform the extract in each of the predecessors and phi them together
-#if 0 // TODO: Fix this
     if (auto* phi = dyncast<Phi*>(extractInst->baseValue())) {
         if (phi->users().size() > 1) {
             return nullptr;
@@ -475,10 +468,11 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         }
         auto* newPhi =
             new Phi(newPhiArgs, utl::strcat(extractInst->name(), ".phi"));
-        extractInst->parent()->insertPhi(newPhi);
+        /// We add the new phi node to the block of the phi node we extracted
+        /// from
+        phi->parent()->insertPhi(newPhi);
         return newPhi;
     }
-#endif
     /// If we extract from a structure that has been build up with
     /// `insert_value` instructions, we check every `insert_value` for a match
     /// of indices
