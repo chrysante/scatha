@@ -1,10 +1,11 @@
-#include "Opt/DeadFuncElim.h"
+#include "Opt/Passes.h"
 
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include "IR/CFG.h"
 #include "IR/Module.h"
+#include "Opt/PassManager.h"
 #include "Opt/SCCCallGraph.h"
 
 using namespace scatha;
@@ -33,6 +34,12 @@ struct DFEContext {
 
 bool opt::deadFuncElim(Context& ctx, Module& mod) {
     return DFEContext(ctx, mod).run();
+}
+
+SC_REGISTER_GLOBAL_PASS(opt::deadFuncElim, "deadfuncelim");
+
+bool opt::deadFuncElim(Context& ctx, Module& mod, LocalPass) {
+    return deadFuncElim(ctx, mod);
 }
 
 bool DFEContext::run() {

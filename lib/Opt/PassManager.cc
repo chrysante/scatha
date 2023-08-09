@@ -5,6 +5,8 @@
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
 
+#include "Opt/Pipeline/PipelineParser.h"
+
 using namespace scatha;
 using namespace opt;
 
@@ -13,30 +15,37 @@ using PassType = PassManager::PassType;
 namespace {
 
 struct Impl {
-    utl::hashmap<std::string, PassType> passes;
+    utl::hashmap<std::string, LocalPass> localPasses;
 
-    std::function<bool(ir::Context&, ir::Function&)> getPass(
-        std::string_view name) const {
-        auto itr = passes.find(name);
-        if (itr != passes.end()) {
+    utl::hashmap<std::string, GlobalPass> globalPasses;
+
+    auto getPassImpl(auto& map, std::string_view name) const {
+        auto itr = map.find(name);
+        if (itr != map.end()) {
             return itr->second;
         }
-        return nullptr;
+        return decltype(itr->second){};
     }
 
-    std::function<bool(ir::Context&, ir::Module&)> makePipeline(
-        std::string_view passes) const {
-        SC_UNIMPLEMENTED();
+    LocalPass getPass(std::string_view name) const {
+        return getPassImpl(localPasses, name);
     }
 
-    utl::vector<std::string> getPassNames() const {
-        return passes |
-               ranges::views::transform([](auto& p) { return p.first; }) |
-               ranges::to<utl::vector>;
+    GlobalPass getGlobalPass(std::string_view name) const {
+        return getPassImpl(globalPasses, name);
     }
 
-    void registerPass(PassType pass, std::string name) {
-        auto [itr, success] = passes.insert({ name, pass });
+    Pipeline makePipeline(std::string_view text) const {
+        return parsePipeline(text);
+    }
+
+    void registerPass(LocalPass pass) {
+        auto [itr, success] = localPasses.insert({ pass.name(), pass });
+        SC_ASSERT(success, "Failed to register pass");
+    }
+
+    void registerPass(GlobalPass pass) {
+        auto [itr, success] = globalPasses.insert({ pass.name(), pass });
         SC_ASSERT(success, "Failed to register pass");
     }
 };
@@ -48,20 +57,22 @@ static Impl& getImpl() {
     return *impl;
 }
 
-std::function<bool(ir::Context&, ir::Function&)> PassManager::getPass(
-    std::string_view name) {
+LocalPass PassManager::getPass(std::string_view name) {
     return getImpl().getPass(name);
 }
 
-std::function<bool(ir::Context&, ir::Module&)> PassManager::makePipeline(
-    std::string_view passes) {
+GlobalPass PassManager::getGlobalPass(std::string_view name) {
+    return getImpl().getGlobalPass(name);
+}
+
+Pipeline PassManager::makePipeline(std::string_view passes) {
     return getImpl().makePipeline(passes);
 }
 
-utl::vector<std::string> PassManager::passes() {
-    return getImpl().getPassNames();
+void opt::internal::registerPass(LocalPass pass) {
+    getImpl().registerPass(std::move(pass));
 }
 
-void opt::internal::registerPass(PassType pass, std::string name) {
-    getImpl().registerPass(pass, std::move(name));
+void opt::internal::registerPass(GlobalPass pass) {
+    getImpl().registerPass(std::move(pass));
 }

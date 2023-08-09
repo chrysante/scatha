@@ -19,7 +19,7 @@
 #include "IR/Module.h"
 #include "IR/Print.h"
 #include "IR/Validate.h"
-#include "Opt/Inliner.h"
+#include "Opt/Optimizer.h"
 #include "Parser/Lexer.h"
 #include "Parser/LexicalIssue.h"
 #include "Parser/Parser.h"
@@ -68,7 +68,7 @@ void playground::compile(std::string text) {
     ir::print(mod);
 
     header("Optimized IR");
-    opt::inlineFunctions(ctx, mod);
+    opt::optimize(ctx, mod, 1);
     ir::print(mod);
 
     header("Assembly generated from IR");

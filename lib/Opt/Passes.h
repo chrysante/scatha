@@ -1,10 +1,38 @@
 #ifndef SCATHA_OPT_PASSES_H_
 #define SCATHA_OPT_PASSES_H_
 
+#include <functional>
+
 #include "Common/Base.h"
 #include "IR/Fwd.h"
+#include "Opt/Pass.h"
 
 namespace scatha::opt {
+
+/// # Global passes
+
+/// The inliner
+SCATHA_API bool inlineFunctions(ir::Context& ctx, ir::Module& mod);
+
+/// \overload
+SCATHA_API bool inlineFunctions(ir::Context& ctx,
+                                ir::Module& mod,
+                                LocalPass localPass);
+
+/// Eliminate all function that do not get called by any externally visible
+/// function
+SCATHA_API bool deadFuncElim(ir::Context& ctx, ir::Module& mod);
+
+/// \overload
+/// \Note The parameter \p localPass is ignored
+SCATHA_API bool deadFuncElim(ir::Context& ctx,
+                             ir::Module& mod,
+                             LocalPass localPass);
+
+/// Execute \p localPass for each function in the module \p mod
+SCATHA_API bool forEach(ir::Context& ctx, ir::Module& mod, LocalPass localPass);
+
+/// # Local passes
 
 /// Removes critical edges from \p function by inserting empty basic blocks
 SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
@@ -42,7 +70,6 @@ SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
 /// \details
 /// This pass replaces tail recursive calls with `goto`'s to the start of the
 /// function, thus creating loops.
-///
 SCATHA_API bool tailRecElim(ir::Context& context, ir::Function& function);
 
 /// Transform the function to have a single exit block

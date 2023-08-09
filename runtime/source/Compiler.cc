@@ -14,8 +14,7 @@
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "Issue/IssueHandler.h"
-#include "Opt/DeadFuncElim.h"
-#include "Opt/Inliner.h"
+#include "Opt/Optimizer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
 #include "Sema/Entity.h"
@@ -79,8 +78,7 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
     }
     auto [ctx, mod] = ast::lowerToIR(*astRoot, *impl->sym, analysisResult);
     if (settings.optimize) {
-        opt::inlineFunctions(ctx, mod);
-        opt::deadFuncElim(ctx, mod);
+        opt::optimize(ctx, mod, 1);
     }
     auto asmStream = cg::codegen(mod);
     auto asmResult = Asm::assemble(asmStream);

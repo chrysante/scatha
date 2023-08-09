@@ -1,4 +1,4 @@
-#include "Opt/Inliner.h"
+#include "Opt/Passes.h"
 
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
@@ -6,6 +6,7 @@
 #include "IR/Module.h"
 #include "Opt/Common.h"
 #include "Opt/InlineCallsite.h"
+#include "Opt/PassManager.h"
 #include "Opt/Passes.h"
 #include "Opt/SCCCallGraph.h"
 
@@ -60,8 +61,11 @@ struct VisitResult: RemoveCallEdgeResult {
 };
 
 struct Inliner {
-    explicit Inliner(Context& ctx, Module& mod):
-        ctx(ctx), mod(mod), callGraph(SCCCallGraph::compute(mod)) {}
+    explicit Inliner(Context& ctx, Module& mod, LocalPass localPass):
+        ctx(ctx),
+        mod(mod),
+        localPass(std::move(localPass)),
+        callGraph(SCCCallGraph::compute(mod)) {}
 
     bool run();
 
@@ -97,6 +101,7 @@ struct Inliner {
 
     Context& ctx;
     Module& mod;
+    LocalPass localPass;
     SCCCallGraph callGraph;
     utl::hashset<SCC const*> analyzed;
     utl::hashset<Function const*> selfRecursive;
@@ -105,7 +110,29 @@ struct Inliner {
 } // namespace
 
 bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
-    Inliner inl(ctx, mod);
+    return inlineFunctions(ctx,
+                           mod,
+                           LocalPass(
+                               [](ir::Context& ctx, ir::Function& function) {
+        bool modified = false;
+        modified |= sroa(ctx, function);
+        modified |= memToReg(ctx, function);
+        modified |= instCombine(ctx, function);
+        modified |= propagateConstants(ctx, function);
+        modified |= dce(ctx, function);
+        modified |= globalValueNumbering(ctx, function);
+        modified |= simplifyCFG(ctx, function);
+        modified |= tailRecElim(ctx, function);
+        return modified;
+                           }));
+}
+
+SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline");
+
+bool opt::inlineFunctions(ir::Context& ctx,
+                          ir::Module& mod,
+                          LocalPass localPass) {
+    Inliner inl(ctx, mod, std::move(localPass));
     return inl.run();
 }
 
@@ -374,16 +401,7 @@ bool Inliner::optimize(Function& function) const {
     bool modifiedAny = false;
     int const tripLimit = 4;
     for (int i = 0; i < tripLimit; ++i) {
-        bool modified = false;
-        modified |= sroa(ctx, function);
-        modified |= memToReg(ctx, function);
-        modified |= instCombine(ctx, function);
-        modified |= propagateConstants(ctx, function);
-        modified |= dce(ctx, function);
-        modified |= globalValueNumbering(ctx, function);
-        modified |= simplifyCFG(ctx, function);
-        modified |= tailRecElim(ctx, function);
-        if (!modified) {
+        if (!localPass(ctx, function)) {
             break;
         }
         modifiedAny = true;
