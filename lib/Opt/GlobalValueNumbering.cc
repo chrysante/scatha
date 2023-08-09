@@ -72,7 +72,7 @@ namespace {
 
 struct LocalComputationTable {
     static LocalComputationTable build(
-        BasicBlock* BB, utl::hashmap<Value*, size_t> const& ranks);
+        BasicBlock* BB, utl::hashmap<Instruction*, size_t> const& ranks);
 
     auto computations() const {
         return rankMap | ranges::views::transform([](auto& p) -> auto& {
@@ -102,7 +102,12 @@ struct GVNContext {
 
     utl::small_vector<BasicBlock*> topsortOrder;
 
-    utl::hashmap<Value*, size_t> ranks;
+    template <typename T>
+    using RankMap = utl::hashmap<T*, size_t>;
+
+    RankMap<Value> globalRanks;
+
+    utl::hashmap<BasicBlock*, RankMap<Instruction>> localRanks;
 
     utl::hashmap<BasicBlock*, LocalComputationTable> LCTs;
 
@@ -239,7 +244,9 @@ void GVNContext::assignRanks() {
             if (isa<TerminatorInst>(inst)) {
                 continue;
             }
-            ranks[&inst] = computeRank(&inst);
+            size_t rank = computeRank(&inst);
+            globalRanks[&inst] = rank;
+            localRanks[BB][&inst] = rank;
         }
     }
 }
@@ -255,11 +262,12 @@ size_t GVNContext::computeRank(Instruction* inst) {
     return rank;
 }
 
-size_t GVNContext::getAvailRank(Value* value) { return ranks[value]; }
+size_t GVNContext::getAvailRank(Value* value) { return globalRanks[value]; }
 
 void GVNContext::buildLCTs() {
     for (auto& BB: function) {
-        LCTs.insert({ &BB, LocalComputationTable::build(&BB, ranks) });
+        LCTs.insert(
+            { &BB, LocalComputationTable::build(&BB, localRanks[&BB]) });
     }
 }
 
@@ -288,13 +296,9 @@ void GVNContext::elimLocal() {
 }
 
 LocalComputationTable LocalComputationTable::build(
-    BasicBlock* BB, utl::hashmap<Value*, size_t> const& ranks) {
+    BasicBlock* BB, utl::hashmap<Instruction*, size_t> const& ranks) {
     LocalComputationTable result;
-    for (auto [value, rank]: ranks) {
-        auto* inst = dyncast<Instruction*>(value);
-        if (!inst || inst->parent() != BB) {
-            continue;
-        }
+    for (auto [inst, rank]: ranks) {
         result.rankMap[rank].push_back(inst);
         result._maxRank = std::max(result._maxRank, rank);
     }
