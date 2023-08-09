@@ -1,6 +1,6 @@
 #include <Catch/Catch2.hpp>
 
-#include "test/EndToEndTests/BasicCompiler.h"
+#include "test/EndToEndTests/PassTesting.h"
 
 using namespace scatha;
 

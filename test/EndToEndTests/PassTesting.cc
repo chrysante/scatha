@@ -1,4 +1,4 @@
-#include "test/EndToEndTests/BasicCompiler.h"
+#include "test/EndToEndTests/PassTesting.h"
 
 #include <functional>
 #include <iostream>
@@ -32,6 +32,7 @@
 #include "Sema/Analyze.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
+#include "test/Options.h"
 
 using namespace scatha;
 using namespace test;
@@ -122,14 +123,16 @@ struct Impl {
             checkReturns("Default pipeline", mod, expected);
         }
 
-        /// Idempotency of passes
-        testIdempotency(source, parse, opt::Pipeline());
+        if (getOptions().TestIdempotency) {
+            /// Idempotency of passes without prior optimizations
+            testIdempotency(source, parse, opt::Pipeline());
 
-        /// Idempotency of passes after light optimizations
-        testIdempotency(source, parse, light);
+            /// Idempotency of passes after light optimizations
+            testIdempotency(source, parse, light);
 
-        /// Idempotency of passes after light inlining optimizations
-        testIdempotency(source, parse, lightInline);
+            /// Idempotency of passes after light inlining optimizations
+            testIdempotency(source, parse, lightInline);
+        }
     }
 
     void checkReturns(std::string_view msg,

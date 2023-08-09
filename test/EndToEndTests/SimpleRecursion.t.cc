@@ -5,7 +5,7 @@
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "Opt/Passes.h"
-#include "test/EndToEndTests/BasicCompiler.h"
+#include "test/EndToEndTests/PassTesting.h"
 
 using namespace scatha;
 
