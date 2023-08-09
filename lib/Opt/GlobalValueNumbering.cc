@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include <range/v3/algorithm.hpp>
+#include <utl/graph.hpp>
 #include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
 
@@ -97,7 +98,9 @@ struct GVNContext {
 
     bool modified = false;
 
-    utl::hashset<std::pair<BasicBlock*, BasicBlock*>> backEdges;
+    utl::hashset<BasicBlock*> edgeSplitBlocks;
+
+    utl::small_vector<BasicBlock*> topsortOrder;
 
     utl::hashmap<Value*, size_t> ranks;
 
@@ -107,6 +110,12 @@ struct GVNContext {
         ctx(context), function(function) {}
 
     bool run();
+
+    void splitCriticalEdges();
+
+    void joinSplitEdges();
+
+    void computeTopsortOrder();
 
     void assignRanks();
 
@@ -124,7 +133,6 @@ struct GVNContext {
 bool opt::globalValueNumbering(Context& ctx, Function& function) {
     bool result = false;
     result |= rotateWhileLoops(ctx, function);
-    result |= removeCriticalEdges(ctx, function);
     GVNContext gvnContext(ctx, function);
     result |= gvnContext.run();
     assertInvariants(ctx, function);
@@ -132,10 +140,86 @@ bool opt::globalValueNumbering(Context& ctx, Function& function) {
 }
 
 bool GVNContext::run() {
-    // assignRanks();
+    splitCriticalEdges();
+    computeTopsortOrder();
+    assignRanks();
     // buildLCTs();
     // elimLocal();
+    joinSplitEdges();
     return modified;
+}
+
+void GVNContext::splitCriticalEdges() {
+    struct DFS {
+        Context& ctx;
+        utl::hashset<BasicBlock*>& insertedBlocks;
+        utl::hashset<BasicBlock*> visited = {};
+
+        void search(BasicBlock* BB) {
+            if (!visited.insert(BB).second) {
+                return;
+            }
+            for (auto* succ: BB->successors()) {
+                if (isCriticalEdge(BB, succ)) {
+                    insertedBlocks.insert(splitEdge(ctx, BB, succ));
+                }
+                search(succ);
+            }
+        }
+    };
+    DFS{ ctx, edgeSplitBlocks }.search(&function.entry());
+}
+
+static void eraseBlock(BasicBlock* BB) {
+    auto* function = BB->parent();
+    auto* pred = BB->singlePredecessor();
+    auto* succ = BB->singleSuccessor();
+    pred->terminator()->updateTarget(BB, succ);
+    succ->updatePredecessor(BB, pred);
+    function->erase(BB);
+}
+
+void GVNContext::joinSplitEdges() {
+    auto blocks = edgeSplitBlocks | ranges::to<utl::small_vector<BasicBlock*>>;
+    for (auto* BB: blocks) {
+        if (BB->emptyExceptTerminator() && BB->hasSinglePredecessor() &&
+            BB->hasSingleSuccessor())
+        {
+            edgeSplitBlocks.erase(BB);
+            eraseBlock(BB);
+        }
+    }
+    modified |= !edgeSplitBlocks.empty();
+}
+
+void GVNContext::computeTopsortOrder() {
+    struct DFS {
+        utl::hashset<BasicBlock*> visited;
+        utl::hashset<std::pair<BasicBlock*, BasicBlock*>> backEdges;
+
+        void search(BasicBlock* BB) {
+            visited.insert(BB);
+            for (auto* succ: BB->successors()) {
+                if (visited.contains(succ)) {
+                    backEdges.insert({ BB, succ });
+                    continue;
+                }
+                search(succ);
+            }
+        }
+    };
+
+    DFS dfs;
+    dfs.search(&function.entry());
+    topsortOrder = function |
+                   ranges::views::transform([](auto& BB) { return &BB; }) |
+                   ranges::to<utl::small_vector<BasicBlock*>>;
+    utl::topsort(topsortOrder.begin(), topsortOrder.end(), [&](BasicBlock* BB) {
+        return BB->successors() |
+               ranges::views::filter([&dfs, BB](BasicBlock* succ) {
+                   return !dfs.backEdges.contains({ BB, succ });
+               });
+    });
 }
 
 void GVNContext::assignRanks() {
