@@ -1,4 +1,4 @@
-#include "Opt/InstCombine.h"
+#include "Opt/Passes.h"
 
 #include <iostream>
 
@@ -13,6 +13,7 @@
 #include "IR/Validate.h"
 #include "Opt/AccessTree.h"
 #include "Opt/Common.h"
+#include "Opt/PassManager.h"
 
 using namespace scatha;
 using namespace ir;
@@ -80,6 +81,8 @@ struct InstCombineCtx {
 };
 
 } // namespace
+
+SC_REGISTER_PASS(opt::instCombine, "instcombine");
 
 bool opt::instCombine(Context& irCtx, Function& function) {
     InstCombineCtx ctx(irCtx, function);

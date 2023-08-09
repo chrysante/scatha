@@ -1,4 +1,4 @@
-#include "Opt/GlobalValueNumbering.h"
+#include "Opt/Passes.h"
 
 #include <array>
 #include <bit>
@@ -17,7 +17,7 @@
 #include "IR/Loop.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
-#include "Opt/LoopRotate.h"
+#include "Opt/PassManager.h"
 
 using namespace scatha;
 using namespace opt;
@@ -135,9 +135,11 @@ struct GVNContext {
 
 } // namespace
 
+SC_REGISTER_PASS(opt::globalValueNumbering, "gvn");
+
 bool opt::globalValueNumbering(Context& ctx, Function& function) {
     bool result = false;
-    result |= rotateWhileLoops(ctx, function);
+    result |= rotateLoops(ctx, function);
     GVNContext gvnContext(ctx, function);
     result |= gvnContext.run();
     assertInvariants(ctx, function);

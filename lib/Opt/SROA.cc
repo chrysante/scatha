@@ -1,4 +1,4 @@
-#include "Opt/SROA.h"
+#include "Opt/Passes.h"
 
 #include <iostream>
 #include <memory>
@@ -13,6 +13,7 @@
 #include "IR/Type.h"
 #include "Opt/AccessTree.h"
 #include "Opt/Common.h"
+#include "Opt/PassManager.h"
 
 using namespace scatha;
 using namespace ir;
@@ -99,6 +100,8 @@ struct VariableContext {
 };
 
 } // namespace
+
+SC_REGISTER_PASS(opt::sroa, "sroa");
 
 bool opt::sroa(ir::Context& irCtx, ir::Function& function) {
     utl::small_vector<Alloca*> allocas;

@@ -6,7 +6,7 @@
 #include "IR/Module.h"
 #include "Opt/DeadFuncElim.h"
 #include "Opt/Inliner.h"
-#include "Opt/UnifyReturns.h"
+#include "Opt/Passes.h"
 
 using namespace scatha;
 

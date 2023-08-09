@@ -1,4 +1,4 @@
-#include "Opt/MemToReg.h"
+#include "Opt/Passes.h"
 
 #include <string>
 
@@ -10,6 +10,7 @@
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Validate.h"
+#include "Opt/PassManager.h"
 
 using namespace scatha;
 using namespace ir;
@@ -82,6 +83,8 @@ static bool isPromotable(Alloca const& allc) {
     }
     return true;
 }
+
+SC_REGISTER_PASS(opt::memToReg, "memtoreg");
 
 bool opt::memToReg(Context& irCtx, Function& function) {
     MemToRegContext ctx(irCtx, function);

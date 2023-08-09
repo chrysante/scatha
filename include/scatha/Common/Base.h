@@ -128,6 +128,10 @@
 #define SC_UNICODE_TERMINAL 1
 #endif
 
+/// # SC_CONCAT
+#define SC_CONCAT(a, b)      SC_CONCAT_IMPL(a, b)
+#define SC_CONCAT_IMPL(a, b) a##b
+
 namespace scatha {
 
 using i8 = std::int8_t;

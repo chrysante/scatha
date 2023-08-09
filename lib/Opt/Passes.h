@@ -1,0 +1,59 @@
+#ifndef SCATHA_OPT_PASSES_H_
+#define SCATHA_OPT_PASSES_H_
+
+#include "Common/Base.h"
+#include "IR/Fwd.h"
+
+namespace scatha::opt {
+
+/// Removes critical edges from \p function by inserting empty basic blocks
+SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
+
+/// Run sparse conditional constant propagation algorithm over \p function
+/// Folds constants and eliminates dead code.
+/// \returns `true` iff \p function was modified in the pass.
+SCATHA_API bool propagateConstants(ir::Context& context,
+                                   ir::Function& function);
+
+/// Eliminate dead code in \p function
+/// \Returns True iff \p function was modified in the pass.
+SCATHA_API bool dce(ir::Context& context, ir::Function& function);
+
+/// Perform redundancy elimination by global value numbering
+SCATHA_API bool globalValueNumbering(ir::Context& context,
+                                     ir::Function& function);
+
+/// Perform many peephole optimizations
+SCATHA_API bool instCombine(ir::Context& context, ir::Function& function);
+
+/// Perform memory to register promotion on \p function
+/// \Returns True iff \p function was modified in the pass.
+SCATHA_API bool memToReg(ir::Context& context, ir::Function& function);
+
+/// Perform scalar replacement of aggregates on \p function
+/// \Returns True iff \p function was modified in the pass.
+SCATHA_API bool sroa(ir::Context& context, ir::Function& function);
+
+/// Simplify the control flow graph by merging and erasing unneeded blocks
+SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
+
+/// Tail recursion elimination.
+///
+/// \details
+/// This pass replaces tail recursive calls with `goto`'s to the start of the
+/// function, thus creating loops.
+///
+SCATHA_API bool tailRecElim(ir::Context& context, ir::Function& function);
+
+/// Transform the function to have a single exit block
+SCATHA_API bool unifyReturns(ir::Context& context, ir::Function& function);
+
+/// Split the single exit block
+SCATHA_API bool splitReturns(ir::Context& context, ir::Function& function);
+
+/// This pass transform while loops into guarded do/while loops
+SCATHA_API bool rotateLoops(ir::Context& context, ir::Function& function);
+
+} // namespace scatha::opt
+
+#endif // SCATHA_OPT_PASSES_H_

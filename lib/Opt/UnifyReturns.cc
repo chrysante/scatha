@@ -1,10 +1,11 @@
-#include "Opt/UnifyReturns.h"
+#include "Opt/Passes.h"
 
 #include <algorithm>
 
 #include <utl/vector.hpp>
 
 #include "IR/CFG.h"
+#include "Opt/PassManager.h"
 
 using namespace scatha;
 using namespace opt;
@@ -19,6 +20,8 @@ static utl::small_vector<BasicBlock*> gatherReturnBlocks(Function& function) {
     }
     return returnBlocks;
 }
+
+SC_REGISTER_PASS(opt::unifyReturns, "unifyreturns");
 
 bool opt::unifyReturns(Context& ctx, Function& function) {
     auto returnBlocks = gatherReturnBlocks(function);
@@ -43,6 +46,8 @@ bool opt::unifyReturns(Context& ctx, Function& function) {
     function.invalidateCFGInfo();
     return true;
 }
+
+SC_REGISTER_PASS(opt::splitReturns, "splitreturns");
 
 bool opt::splitReturns(Context& ctx, Function& function) {
     bool modifiedAny = false;

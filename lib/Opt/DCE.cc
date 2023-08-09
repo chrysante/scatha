@@ -1,6 +1,4 @@
-#include "Opt/DCE.h"
-
-/// https://yunmingzhang.files.wordpress.com/2013/12/dcereport-2.pdf
+#include "Opt/Passes.h"
 
 #include <range/v3/view.hpp>
 #include <utl/hashtable.hpp>
@@ -11,10 +9,15 @@
 #include "IR/Dominance.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
+#include "Opt/PassManager.h"
+#include "Opt/Passes.h"
 
 using namespace scatha;
 using namespace opt;
 using namespace ir;
+
+/// Implemented with help from this paper
+/// https://yunmingzhang.files.wordpress.com/2013/12/dcereport-2.pdf
 
 namespace {
 
@@ -44,6 +47,8 @@ struct DCEContext {
 };
 
 } // namespace
+
+SC_REGISTER_PASS(opt::dce, "dce");
 
 bool opt::dce(ir::Context& context, ir::Function& function) {
     DCEContext ctx(context, function);

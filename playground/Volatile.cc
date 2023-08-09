@@ -34,19 +34,10 @@
 #include "MIR/Module.h"
 #include "MIR/Print.h"
 #include "Opt/Common.h"
-#include "Opt/ConstantPropagation.h"
-#include "Opt/DCE.h"
-#include "Opt/GlobalValueNumbering.h"
-#include "Opt/InstCombine.h"
-#include "Opt/LoopCanonical.h"
-#include "Opt/LoopRotate.h"
-#include "Opt/MemToReg.h"
 #include "Opt/Optimizer.h"
-#include "Opt/RedundancyElim.h"
+#include "Opt/PassManager.h"
+#include "Opt/Passes.h"
 #include "Opt/SCCCallGraph.h"
-#include "Opt/SROA.h"
-#include "Opt/SimplifyCFG.h"
-#include "Opt/TailRecElim.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
 #include "Sema/Analyze.h"
@@ -208,5 +199,8 @@ static void pass(std::string_view name,
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    irPlayground(path);
+    //    irPlayground(path);
+    for (auto name: opt::PassManager::passes()) {
+        std::cout << name << std::endl;
+    }
 }

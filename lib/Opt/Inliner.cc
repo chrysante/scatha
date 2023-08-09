@@ -5,18 +5,9 @@
 #include "IR/Clone.h"
 #include "IR/Module.h"
 #include "Opt/Common.h"
-#include "Opt/ConstantPropagation.h"
-#include "Opt/DCE.h"
-#include "Opt/GlobalValueNumbering.h"
 #include "Opt/InlineCallsite.h"
-#include "Opt/InstCombine.h"
-#include "Opt/LoopCanonical.h"
-#include "Opt/MemToReg.h"
+#include "Opt/Passes.h"
 #include "Opt/SCCCallGraph.h"
-#include "Opt/SROA.h"
-#include "Opt/SimplifyCFG.h"
-#include "Opt/TailRecElim.h"
-#include "Opt/UnifyReturns.h"
 
 using namespace scatha;
 using namespace ir;

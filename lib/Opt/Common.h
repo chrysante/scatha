@@ -43,8 +43,7 @@ SCATHA_TESTAPI ir::BasicBlock* splitEdge(ir::Context& ctx,
                                          ir::BasicBlock* to);
 
 /// Removes critical edges from \p function by inserting empty basic blocks
-SCATHA_TESTAPI bool splitCriticalEdges(ir::Context& ctx,
-                                       ir::Function& function);
+SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
 
 /// \returns `true` iff the instruction \p inst has side effects
 SCATHA_TESTAPI bool hasSideEffects(ir::Instruction const* inst);

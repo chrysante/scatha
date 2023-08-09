@@ -1,6 +1,6 @@
 #include <Catch/Catch2.hpp>
 
-#include "Opt/InstCombine.h"
+#include "Opt/Passes.h"
 #include "test/Opt/PassTest.h"
 
 using namespace scatha;

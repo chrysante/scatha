@@ -1,4 +1,4 @@
-#include "Opt/ConstantPropagation.h"
+#include "Opt/Passes.h"
 
 #include <deque>
 #include <variant>
@@ -17,13 +17,15 @@
 #include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
-
-/// Implemented with help from:
-/// https://www.cs.utexas.edu/users/lin/cs380c/wegman.pdf
+#include "Opt/PassManager.h"
+#include "Opt/Passes.h"
 
 using namespace scatha;
 using namespace opt;
 using namespace ir;
+
+/// Implemented with help from:
+/// https://www.cs.utexas.edu/users/lin/cs380c/wegman.pdf
 
 namespace {
 
@@ -167,6 +169,8 @@ struct SCCPContext {
 };
 
 } // namespace
+
+SC_REGISTER_PASS(opt::propagateConstants, "propagateconst");
 
 bool opt::propagateConstants(ir::Context& context, ir::Function& function) {
     SCCPContext ctx(context, function);

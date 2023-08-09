@@ -5,6 +5,7 @@
 
 #include "Common/Graph.h"
 #include "IR/CFG.h"
+#include "Opt/PassManager.h"
 
 using namespace scatha;
 using namespace opt;
@@ -143,6 +144,8 @@ BasicBlock* opt::splitEdge(Context& ctx, BasicBlock* from, BasicBlock* to) {
     tmp->addPredecessor(from);
     return tmp;
 }
+
+SC_REGISTER_PASS(opt::splitCriticalEdges, "splitcriticaledges");
 
 bool opt::splitCriticalEdges(Context& ctx, Function& function) {
     struct DFS {

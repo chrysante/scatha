@@ -1,4 +1,4 @@
-#include "Opt/TailRecElim.h"
+#include "Opt/Passes.h"
 
 #include <variant>
 
@@ -10,6 +10,7 @@
 #include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
+#include "Opt/PassManager.h"
 
 using namespace scatha;
 using namespace opt;
@@ -97,6 +98,8 @@ struct TREContext {
 };
 
 } // namespace
+
+SC_REGISTER_PASS(opt::tailRecElim, "tre");
 
 bool opt::tailRecElim(Context& irCtx, Function& function) {
     TREContext ctx(irCtx, function);

@@ -1,4 +1,4 @@
-#include "Opt/LoopRotate.h"
+#include "Opt/Passes.h"
 
 #include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
@@ -10,6 +10,7 @@
 #include "IR/Loop.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
+#include "Opt/PassManager.h"
 
 using namespace scatha;
 using namespace opt;
@@ -48,7 +49,9 @@ struct LRContext {
 
 } // namespace
 
-bool opt::rotateWhileLoops(Context& ctx, Function& function) {
+SC_REGISTER_PASS(opt::rotateLoops, "rotateloops");
+
+bool opt::rotateLoops(Context& ctx, Function& function) {
     LRContext lrContext(ctx, function);
     bool result = lrContext.run();
     assertInvariants(ctx, function);
