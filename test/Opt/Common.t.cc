@@ -35,7 +35,7 @@ TEST_CASE("Phi compareEqual()", "[opt]") {
 }
 
 TEST_CASE("Remove critical edges", "[opt][common]") {
-    test::passTest(&opt::removeCriticalEdges,
+    test::passTest(&opt::splitCriticalEdges,
                    R"(
 func void @main() {
   %entry:

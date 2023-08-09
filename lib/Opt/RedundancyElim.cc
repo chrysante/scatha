@@ -89,7 +89,7 @@ bool opt::redundancyElim(ir::Context& irCtx, ir::Function& function) {
 }
 
 bool PREContext::run() {
-    removeCriticalEdges(ctx, function);
+    splitCriticalEdges(ctx, function);
     gatherExpressions();
     phiInsertion();
     rename();

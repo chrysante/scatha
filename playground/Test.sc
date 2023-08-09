@@ -1,19 +1,3 @@
-fn gcd(a: int, b: int) -> int {
-    while b != 0 && true {
-        let t = b + 0;
-        b = a % b;
-        a = t;
-    }
-    return a;
-}
-public fn main() -> int {
-    let a = 756476;
-    let b = 1253;
-    return gcd(a, b);
-}
-
-
-/*
 
 fn print(n: int) {
     __builtin_puti64(n);
@@ -27,22 +11,6 @@ fn print(n: double) {
 
 fn print(s: &str) {
     __builtin_putstr(&s);
-}
-
-public fn test(n: int) {
-    
-    for i = 0; i < 10; ++i {
-        print(i);
-    }
-}
-
-public fn test(n: int) {
-    
-    var i = 0;
-    do {
-        print(i);
-        ++i;
-    } while i < 10;
 }
 
 public fn main(cond: bool) {
@@ -61,7 +29,6 @@ public fn main(cond: bool) {
         if i % 3 != 0 {
             continue;
         }
-        print(i);
+        print(cond ? 7 : 11);
     }
 }
-*/

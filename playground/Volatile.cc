@@ -39,6 +39,7 @@
 #include "Opt/GlobalValueNumbering.h"
 #include "Opt/InstCombine.h"
 #include "Opt/LoopCanonical.h"
+#include "Opt/LoopRotate.h"
 #include "Opt/MemToReg.h"
 #include "Opt/Optimizer.h"
 #include "Opt/RedundancyElim.h"
@@ -86,7 +87,8 @@ static void run(Asm::AssemblyStream const& assembly) {
 }
 
 static void run(ir::Module const& mod) {
-    auto assembly = cg::codegen(mod); //, *std::make_unique<cg::Logger>());
+    auto assembly =
+        cg::codegen(mod); // , *std::make_unique<cg::DebugLogger>());
     header("Assembly");
     Asm::print(assembly);
     header("Execution");
@@ -143,18 +145,6 @@ static void pass(std::string_view name,
     header("Optimized");
     opt::optimize(ctx, mod, 1);
     print(mod);
-    run(mod);
-
-    auto& LNF = mod.front().getOrComputeLNF();
-    print(LNF);
-
-    pass("GVN", ctx, mod, opt::globalValueNumbering);
-    run(mod);
-
-    header("Optimized");
-    opt::optimize(ctx, mod, 1);
-    print(mod);
-    run(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {
