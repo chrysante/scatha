@@ -35,9 +35,16 @@ void removePredecessorAndUpdatePhiNodes(ir::BasicBlock* basicBlock,
 /// Remove this value from the operand lists of all its users.
 SCATHA_TESTAPI void clearAllUses(ir::Value* value);
 
+/// Split the edge from \p from to \p to by inserting an empty basic block in
+/// between
+/// \returns The newly created basic block
+SCATHA_TESTAPI ir::BasicBlock* splitEdge(ir::Context& ctx,
+                                         ir::BasicBlock* from,
+                                         ir::BasicBlock* to);
+
 /// Removes critical edges from \p function by inserting empty basic blocks
-SCATHA_TESTAPI bool removeCriticalEdges(ir::Context& ctx,
-                                        ir::Function& function);
+SCATHA_TESTAPI bool splitCriticalEdges(ir::Context& ctx,
+                                       ir::Function& function);
 
 /// \returns `true` iff the instruction \p inst has side effects
 SCATHA_TESTAPI bool hasSideEffects(ir::Instruction const* inst);

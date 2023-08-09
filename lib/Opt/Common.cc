@@ -89,6 +89,9 @@ bool opt::compareEqual(ir::Phi const* lhs, ir::Phi const* rhs) {
 }
 
 void opt::replaceValue(ir::Value* oldValue, ir::Value* newValue) {
+    if (oldValue == newValue) {
+        return;
+    }
     /// We need this funny way of traversing the user list of the old value,
     /// because in the loop body the user is erased from the user list and
     /// iterators are invalidated.
@@ -130,10 +133,20 @@ void opt::clearAllUses(Value* value) {
     }
 }
 
-bool opt::removeCriticalEdges(Context& ctx, Function& function) {
+BasicBlock* opt::splitEdge(Context& ctx, BasicBlock* from, BasicBlock* to) {
+    auto* tmp = new BasicBlock(ctx, "tmp");
+    auto* function = from->parent();
+    function->insert(to, tmp);
+    tmp->pushBack(new Goto(ctx, to));
+    from->terminator()->updateTarget(to, tmp);
+    to->updatePredecessor(from, tmp);
+    tmp->addPredecessor(from);
+    return tmp;
+}
+
+bool opt::splitCriticalEdges(Context& ctx, Function& function) {
     struct DFS {
         Context& ctx;
-        Function& function;
         utl::hashset<BasicBlock*> visited = {};
         bool modified = false;
 
@@ -141,23 +154,16 @@ bool opt::removeCriticalEdges(Context& ctx, Function& function) {
             if (!visited.insert(BB).second) {
                 return;
             }
-            for (auto [index, succ]:
-                 BB->successors() | ranges::views::enumerate)
-            {
+            for (auto* succ: BB->successors()) {
                 if (isCriticalEdge(BB, succ)) {
-                    auto* tmp = new BasicBlock(ctx, "tmp");
-                    function.insert(succ, tmp);
-                    tmp->pushBack(new Goto(ctx, succ));
-                    BB->terminator()->updateTarget(succ, tmp);
-                    succ->updatePredecessor(BB, tmp);
-                    tmp->addPredecessor(BB);
+                    splitEdge(ctx, BB, succ);
                     modified = true;
                 }
                 search(succ);
             }
         }
     };
-    DFS dfs{ ctx, function };
+    DFS dfs{ ctx };
     dfs.search(&function.entry());
     if (dfs.modified) {
         function.invalidateCFGInfo();
