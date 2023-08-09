@@ -5,7 +5,9 @@
 
 namespace scatha::opt {
 
-bool rotateWhileLoops(ir::Context& context, ir::Function& function);
+/// This pass transform while loops into guarded do/while loops
+SCATHA_TESTAPI bool rotateWhileLoops(ir::Context& context,
+                                     ir::Function& function);
 
 } // namespace scatha::opt
 
