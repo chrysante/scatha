@@ -6,16 +6,12 @@
 using namespace scatha;
 using namespace test;
 
-namespace scatha::test {
+static Options options{};
 
-Options& getOptionsMut();
-
-} // namespace scatha::test
+Options const& test::getOptions() { return options; }
 
 int main(int argc, char* argv[]) {
     Catch::Session session;
-
-    auto& options = getOptionsMut();
 
     using namespace Catch::clara;
     auto cli = session.cli() |
