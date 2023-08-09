@@ -82,13 +82,6 @@ bool opt::compareEqual(ir::Phi const* lhs,
     return cmpEqImpl(lhs, rhs);
 }
 
-bool opt::compareEqual(ir::Phi const* lhs, ir::Phi const* rhs) {
-    SC_ASSERT(lhs->parentFunction() == rhs->parentFunction(),
-              "The phi nodes must be in the same function for this comparison "
-              "to be sensible");
-    return cmpEqImpl(lhs, rhs->arguments());
-}
-
 void opt::replaceValue(ir::Value* oldValue, ir::Value* newValue) {
     if (oldValue == newValue) {
         return;

@@ -39,6 +39,12 @@ struct Impl {
         return parsePipeline(text);
     }
 
+    utl::vector<LocalPass> getLocalPasses() const {
+        return localPasses |
+               ranges::views::transform([](auto& p) { return p.second; }) |
+               ranges::to<utl::vector>;
+    }
+
     void registerPass(LocalPass pass) {
         auto [itr, success] = localPasses.insert({ pass.name(), pass });
         SC_ASSERT(success, "Failed to register pass");
@@ -67,6 +73,10 @@ GlobalPass PassManager::getGlobalPass(std::string_view name) {
 
 Pipeline PassManager::makePipeline(std::string_view passes) {
     return getImpl().makePipeline(passes);
+}
+
+utl::vector<LocalPass> PassManager::localPasses() {
+    return getImpl().getLocalPasses();
 }
 
 void opt::internal::registerPass(LocalPass pass) {

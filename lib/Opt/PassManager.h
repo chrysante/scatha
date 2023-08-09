@@ -28,6 +28,9 @@ public:
 
     /// Make a pipeline from the pipeline script \p script
     static Pipeline makePipeline(std::string_view script);
+
+    /// \Returns A list of all local passes
+    static utl::vector<LocalPass> localPasses();
 };
 
 } // namespace scatha::opt

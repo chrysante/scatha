@@ -87,9 +87,22 @@ static bool isPromotable(Alloca const& allc) {
 SC_REGISTER_PASS(opt::memToReg, "memtoreg");
 
 bool opt::memToReg(Context& irCtx, Function& function) {
-    MemToRegContext ctx(irCtx, function);
-    bool const result = ctx.run();
-    assertInvariants(irCtx, function);
+    /// We run the algorithm repeatedly until the function is not modified
+    /// anymore. Multiple passes may be needed if addresses of stack allocations
+    /// are stored in other stack allocations. Per loop iteration one level of
+    /// stack memory indirection is peeled off.
+    /// TODO: Make this smarter
+    int const HardLimit = 10;
+    bool result = false;
+    for (int i = 0; i < HardLimit; ++i) {
+        MemToRegContext ctx(irCtx, function);
+        bool intermediateResult = ctx.run();
+        if (!intermediateResult) {
+            break;
+        }
+        assertInvariants(irCtx, function);
+        result = true;
+    }
     return result;
 }
 

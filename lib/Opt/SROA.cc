@@ -11,6 +11,7 @@
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
+#include "IR/Validate.h"
 #include "Opt/AccessTree.h"
 #include "Opt/Common.h"
 #include "Opt/PassManager.h"
@@ -119,6 +120,9 @@ bool opt::sroa(ir::Context& irCtx, ir::Function& function) {
         varInfo.slice();
         varInfo.cleanUnusedAddresses(address);
         modifiedAny = true;
+    }
+    if (modifiedAny) {
+        ir::assertInvariants(irCtx, function);
     }
     return modifiedAny;
 }

@@ -234,7 +234,7 @@ public fn main() -> int {
 
 TEST_CASE("First string", "[end-to-end][arrays]") {
     test::CoutRerouter cr;
-    test::run(R"(
+    test::compileAndRun(R"(
 fn print(text: &[byte]) {
     __builtin_putstr(&text);
     __builtin_putchar(10);

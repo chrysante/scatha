@@ -5,6 +5,8 @@
 using namespace scatha;
 using namespace ir;
 
+User::~User() { clearOperands(); }
+
 User::User(NodeType nodeType,
            Type const* type,
            std::string name,

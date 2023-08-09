@@ -4,6 +4,7 @@
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Module.h"
+#include "IR/Validate.h"
 #include "Opt/Common.h"
 #include "Opt/InlineCallsite.h"
 #include "Opt/PassManager.h"
@@ -124,7 +125,8 @@ bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
         modified |= simplifyCFG(ctx, function);
         modified |= tailRecElim(ctx, function);
         return modified;
-                           }));
+                               },
+                               "default"));
 }
 
 SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline");
@@ -246,6 +248,7 @@ VisitResult Inliner::visitFunction(FunctionNode const& node) {
     /// opportunities emerged from inlining.
     if (modifiedAny) {
         optimize(node.function());
+        ir::assertInvariants(ctx, node.function());
     }
     return modifiedAny;
 }

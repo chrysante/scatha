@@ -18,6 +18,8 @@ SCATHA_API void print(Pipeline const& pipeline, std::ostream& ostream);
 
 class SCATHA_API Pipeline {
 public:
+    Pipeline();
+
     explicit Pipeline(std::unique_ptr<PipelineRoot> root);
 
     Pipeline(Pipeline&&) noexcept;

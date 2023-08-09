@@ -26,6 +26,9 @@ protected:
     void setType(Type const* type) { _type = type; }
 
 public:
+    /// Calls `removeAllUses()`
+    ~Value();
+
     /// The runtime type of this CFG node.
     NodeType nodeType() const { return _nodeType; }
 
@@ -53,6 +56,9 @@ public:
     /// Number of users using this value. Multiple uses by the same user are
     /// counted as one.
     size_t userCount() const { return _users.size(); }
+
+    /// Clear all users from this values user list and update users
+    void removeAllUses();
 
 private:
     friend class User;

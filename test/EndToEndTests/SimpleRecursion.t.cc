@@ -95,12 +95,7 @@ func i64 @main() {
   %entry:
     %call.res = call i64 @f, i64 5
     return i64 %call.res
-})",
-                         [](ir::Context& ctx, ir::Module& mod) {
-        for (auto& f: mod) {
-            opt::tailRecElim(ctx, f);
-        }
-    });
+})");
 }
 
 TEST_CASE("Recursive pow", "[end-to-end]") {

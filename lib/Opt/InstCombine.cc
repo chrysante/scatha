@@ -67,6 +67,25 @@ struct InstCombineCtx {
         }
     }
 
+    bool isUnused(Instruction* inst) const {
+        if (hasSideEffects(inst)) {
+            return false;
+        }
+        for (auto* user: inst->users()) {
+            if (!eraseList.contains(user)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void markForDeletion(Instruction* inst) {
+        for (auto* op: inst->operands()) {
+            pushIfInst(op);
+        }
+        eraseList.insert(inst);
+    }
+
     AccessTreeNode* getAccessTree(ExtractValue* inst);
     AccessTreeNode* getAccessTree(InsertValue* inst);
 
@@ -76,6 +95,7 @@ struct InstCombineCtx {
     Context& irCtx;
     Function& function;
     utl::hashset<Instruction*> worklist;
+    utl::hashset<Instruction*> eraseList;
     bool modifiedAny = false;
     utl::hashmap<Instruction*, std::unique_ptr<AccessTreeNode>> accessTrees;
 };
@@ -91,6 +111,12 @@ bool opt::instCombine(Context& irCtx, Function& function) {
     return result;
 }
 
+void printWorklist(utl::hashset<Instruction*> const& worklist) {
+    for (auto* inst: worklist) {
+        std::cout << inst->name() << std::endl;
+    }
+}
+
 bool InstCombineCtx::run() {
     worklist = function.instructions() |
                ranges::views::transform([](auto& inst) { return &inst; }) |
@@ -98,21 +124,22 @@ bool InstCombineCtx::run() {
     while (!worklist.empty()) {
         Instruction* inst = *worklist.begin();
         worklist.erase(worklist.begin());
-        if (inst->users().empty() && !hasSideEffects(inst)) {
-            for (auto* op: inst->operands()) {
-                pushIfInst(op);
-            }
-            inst->parent()->erase(inst);
+        if (isUnused(inst)) {
+            markForDeletion(inst);
             continue;
         }
         auto* replacement = visitInstruction(inst);
         if (!replacement) {
             continue;
         }
-        replaceValue(inst, replacement);
-        pushUsers(inst);
-        inst->parent()->erase(inst);
         modifiedAny = true;
+        pushUsers(inst);
+        pushIfInst(replacement);
+        replaceValue(inst, replacement);
+        markForDeletion(inst);
+    }
+    for (auto* inst: eraseList) {
+        inst->parent()->erase(inst);
     }
     return modifiedAny;
 }
@@ -139,13 +166,17 @@ static bool isConstant(Value const* value, APInt const& constant) {
 }
 
 Value* InstCombineCtx::visitImpl(ArithmeticInst* inst) {
-    auto* const lhs = inst->lhs();
-    auto* const rhs = inst->rhs();
+    auto* lhs = inst->lhs();
+    auto* rhs = inst->rhs();
     /// If we have a constant operand put it on the RHS if possible.
     if (irCtx.isCommutative(inst->operation()) && isa<Constant>(lhs) &&
         !isa<Constant>(rhs))
     {
         inst->swapOperands();
+        std::swap(rhs, lhs);
+        /// We push the users here because other arithmetic instructions that
+        /// use this check for constant right hand sides of their operands and
+        /// fold if possible
         pushUsers(inst);
     }
     switch (inst->operation()) {
@@ -426,6 +457,7 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     }
     /// If we extract from a phi node and the phi node has no other users, we
     /// perform the extract in each of the predecessors and phi them together
+#if 0 // TODO: Fix this
     if (auto* phi = dyncast<Phi*>(extractInst->baseValue())) {
         if (phi->users().size() > 1) {
             return nullptr;
@@ -446,6 +478,7 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         extractInst->parent()->insertPhi(newPhi);
         return newPhi;
     }
+#endif
     /// If we extract from a structure that has been build up with
     /// `insert_value` instructions, we check every `insert_value` for a match
     /// of indices

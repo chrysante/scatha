@@ -5,6 +5,15 @@
 using namespace scatha;
 using namespace ir;
 
+Value::~Value() { removeAllUses(); }
+
+void Value::removeAllUses() {
+    for (auto [user, count]: _users) {
+        user->updateOperand(this, nullptr);
+    }
+    _users.clear();
+}
+
 void Value::addUserWeak(User* user) {
     auto const [itr, success] = _users.insert({ user, 0 });
     ++itr->second;

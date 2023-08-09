@@ -56,6 +56,8 @@ private:
 /// Represents the root of the pipeline tree
 class PipelineRoot {
 public:
+    PipelineRoot() = default;
+
     PipelineRoot(
         utl::small_vector<std::unique_ptr<PipelineGlobalNode>> children):
         children(std::move(children)) {}

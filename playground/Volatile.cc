@@ -37,6 +37,7 @@
 #include "Opt/Optimizer.h"
 #include "Opt/PassManager.h"
 #include "Opt/Passes.h"
+#include "Opt/Pipeline/PipelineError.h"
 #include "Opt/SCCCallGraph.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
@@ -131,11 +132,15 @@ static void pass(std::string_view name,
 
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
+    opt::forEach(ctx, mod, opt::unifyReturns);
+    header("As parsed");
+    print(mod);
     run(mod);
 
-    header("Optimized");
+    header("Inlined");
     opt::optimize(ctx, mod, 1);
     print(mod);
+    run(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {
@@ -198,9 +203,30 @@ static void pass(std::string_view name,
     }
 }
 
-void playground::volatilePlayground(std::filesystem::path path) {
-    //    irPlayground(path);
-    for (auto name: opt::PassManager::passes()) {
-        std::cout << name << std::endl;
+[[maybe_unused]] static void pipelinePlayground(std::filesystem::path path) {
+    try {
+        auto pipeline = opt::PassManager::makePipeline(R"(
+inline(
+    sroa:
+    memtoreg:
+    instcombine:
+    propagateconst:
+    dce:
+    gvn:
+    simplifycfg
+):
+deadfuncelim
+)");
+        print(pipeline);
+        auto [ctx, mod] = makeIRModuleFromFile(path);
+        pipeline.execute(ctx, mod);
+        print(mod);
     }
+    catch (opt::PipelineError const& e) {
+        std::cout << e.what() << std::endl;
+    }
+}
+
+void playground::volatilePlayground(std::filesystem::path path) {
+    irPlayground(path);
 }

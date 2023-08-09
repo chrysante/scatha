@@ -138,7 +138,6 @@ bool DCEContext::run() {
         if (marked.contains(inst)) {
             continue;
         }
-        modifiedAny = true;
         BasicBlock* bb = inst->parent();
         if (auto* branch = dyncast<Branch*>(inst)) {
             for (auto* target: branch->targets()) {
@@ -148,11 +147,12 @@ bool DCEContext::run() {
             bb->erase(branch);
             bb->pushBack(new Goto(irCtx, target));
             target->addPredecessor(bb);
-            continue;
+            modifiedAny = true;
         }
-        if (!isa<Goto>(inst)) {
+        else if (!isa<Goto>(inst)) {
             clearAllUses(inst);
             bb->erase(inst);
+            modifiedAny = true;
         }
     }
     return modifiedAny;

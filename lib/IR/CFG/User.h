@@ -14,6 +14,9 @@ namespace scatha::ir {
 /// Represents a user of values
 class SCATHA_API User: public Value {
 public:
+    /// Calls `clearOperands()`
+    ~User();
+
     /// \returns a view of all operands
     std::span<Value* const> operands() { return _operands; }
 

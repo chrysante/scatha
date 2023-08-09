@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
 #include "IR/CFG.h"
@@ -11,11 +12,11 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
-static utl::small_vector<BasicBlock*> gatherReturnBlocks(Function& function) {
-    utl::small_vector<BasicBlock*> returnBlocks;
+static utl::hashset<BasicBlock*> gatherReturnBlocks(Function& function) {
+    utl::hashset<BasicBlock*> returnBlocks;
     for (auto& bb: function) {
         if (auto* ret = dyncast<Return*>(bb.terminator())) {
-            returnBlocks.push_back(&bb);
+            returnBlocks.insert(&bb);
         }
     }
     return returnBlocks;
@@ -51,8 +52,10 @@ SC_REGISTER_PASS(opt::splitReturns, "splitreturns");
 
 bool opt::splitReturns(Context& ctx, Function& function) {
     bool modifiedAny = false;
-    auto returnBlocks = gatherReturnBlocks(function);
-    for (auto* block: returnBlocks) {
+    auto worklist = gatherReturnBlocks(function);
+    while (!worklist.empty()) {
+        auto* block = *worklist.begin();
+        worklist.erase(worklist.begin());
         auto* ret = cast<Return*>(block->terminator());
         auto* phi = dyncast<Phi*>(ret->value());
         if (!phi) {
@@ -75,6 +78,7 @@ bool opt::splitReturns(Context& ctx, Function& function) {
             pred->insert(pred->terminator(), newReturn);
             pred->erase(pred->terminator());
             removedPreds.push_back(utl::narrow_cast<uint16_t>(index));
+            worklist.insert(pred);
         }
         /// Sort the indices so when we erase an index we don't invalide greater
         /// indices

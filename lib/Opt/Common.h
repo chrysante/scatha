@@ -14,8 +14,6 @@ bool preceeds(ir::Instruction const* a, ir::Instruction const* b);
 SCATHA_TESTAPI
 bool isReachable(ir::Instruction const* from, ir::Instruction const* to);
 
-SCATHA_TESTAPI bool compareEqual(ir::Phi const* lhs, ir::Phi const* rhs);
-
 SCATHA_TESTAPI
 bool compareEqual(ir::Phi const* lhs, std::span<ir::ConstPhiMapping const> rhs);
 

@@ -7,6 +7,8 @@
 using namespace scatha;
 using namespace opt;
 
+Pipeline::Pipeline(): root(std::make_unique<PipelineRoot>()) {}
+
 Pipeline::Pipeline(std::unique_ptr<PipelineRoot> root): root(std::move(root)) {}
 
 Pipeline::Pipeline(Pipeline&&) noexcept = default;
@@ -16,6 +18,7 @@ Pipeline& Pipeline::operator=(Pipeline&&) noexcept = default;
 Pipeline::~Pipeline() = default;
 
 bool Pipeline::execute(ir::Context& ctx, ir::Module& mod) const {
+    SC_ASSERT(root, "Invalid pipeline");
     return root->execute(ctx, mod);
 }
 

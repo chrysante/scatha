@@ -1,34 +1,26 @@
-
-fn print(n: int) {
-    __builtin_puti64(n);
-    __builtin_putchar('\n');
+struct Expr {
+    var id: int;
+    var lhs: int;
+    var rhs: int;
 }
-
-fn print(n: double) {
-    __builtin_putf64(n);
-    __builtin_putchar('\n');
+fn eval(expr: Expr) -> int {
+    // 0 == Literal
+    if expr.id == 0 {
+        return expr.lhs;
+    }
+    // 1 == Add
+    if expr.id == 1 {
+        return expr.lhs + expr.rhs;
+    }
+    // 2 == Sub
+    expr.id = 1; // Add
+    expr.rhs = -expr.rhs;
+    return eval(expr);
 }
-
-fn print(s: &str) {
-    __builtin_putstr(&s);
-}
-
-public fn main(cond: bool) {
-    var i = 0;
-    if cond {
-        print("cond\n");
-    }
-    else {
-        print("not cond\n");
-    }
-    while i < 10  {
-        for j = 0; j < 5; ++j {
-            __builtin_putchar(' ');
-        }
-        ++i;
-        if i % 3 != 0 {
-            continue;
-        }
-        print(cond ? 7 : 11);
-    }
+public fn main(n: int) -> int {
+    var expr: Expr;
+    expr.id = 2;
+    expr.lhs = 5;
+    expr.rhs = 2;
+    return eval(expr);
 }
