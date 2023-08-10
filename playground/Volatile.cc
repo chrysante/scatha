@@ -147,6 +147,10 @@ static void pass(std::string_view name,
     header("After inst combine");
     opt::PassManager::makePipeline("foreach(instcombine)").execute(ctx, mod);
     print(mod);
+
+    header("After second inst combine");
+    opt::PassManager::makePipeline("foreach(instcombine)").execute(ctx, mod);
+    print(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {

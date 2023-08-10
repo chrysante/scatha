@@ -6,6 +6,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Base.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Print.h"
@@ -49,7 +50,11 @@ struct InstCombineCtx {
 
     bool tryMergeNegate(ArithmeticInst* inst);
 
-    void push(Instruction* inst) { worklist.insert(inst); }
+    void push(Instruction* inst) {
+        if (!eraseList.contains(inst)) {
+            worklist.insert(inst);
+        }
+    }
 
     void pushIfInst(Value* value) {
         if (auto* inst = dyncast<Instruction*>(value)) {
@@ -58,7 +63,9 @@ struct InstCombineCtx {
     }
 
     void pushUsers(Instruction* inst) {
-        worklist.insert(inst->users().begin(), inst->users().end());
+        for (auto* user: inst->users()) {
+            push(user);
+        }
     }
 
     void pushUsers(Value* value) {
@@ -67,16 +74,13 @@ struct InstCombineCtx {
         }
     }
 
-    bool isUnused(Instruction* inst) const {
+    bool isUsed(Instruction* inst) const {
         if (hasSideEffects(inst)) {
-            return false;
+            return true;
         }
-        for (auto* user: inst->users()) {
-            if (!eraseList.contains(user)) {
-                return false;
-            }
-        }
-        return true;
+        return ranges::any_of(inst->users(), [&](auto* user) {
+            return !eraseList.contains(user);
+        });
     }
 
     void markForDeletion(Instruction* inst) {
@@ -84,6 +88,17 @@ struct InstCombineCtx {
             pushIfInst(op);
         }
         eraseList.insert(inst);
+    }
+
+    void clean() {
+        for (auto* inst: eraseList) {
+            inst->parent()->erase(inst);
+        }
+        for (auto* ev: evList) {
+            if (ev->userCount() == 0) {
+                ev->parent()->erase(ev);
+            }
+        }
     }
 
     AccessTreeNode* getAccessTree(ExtractValue* inst);
@@ -96,6 +111,10 @@ struct InstCombineCtx {
     Function& function;
     utl::hashset<Instruction*> worklist;
     utl::hashset<Instruction*> eraseList;
+    /// `ExtractValue` instructions that have been inserted as missing leaves in
+    /// the access trees. Will be traversed after the algorithm has run to check
+    /// if they are used or can be deleted.
+    utl::hashset<ExtractValue*> evList;
     bool modifiedAny = false;
     utl::hashmap<Instruction*, std::unique_ptr<AccessTreeNode>> accessTrees;
 };
@@ -116,9 +135,10 @@ bool InstCombineCtx::run() {
                ranges::views::transform([](auto& inst) { return &inst; }) |
                ranges::to<utl::hashset<Instruction*>>;
     while (!worklist.empty()) {
-        Instruction* inst = *worklist.begin();
-        worklist.erase(worklist.begin());
-        if (isUnused(inst)) {
+        auto itr = worklist.begin();
+        Instruction* inst = *itr;
+        worklist.erase(itr);
+        if (!isUsed(inst)) {
             markForDeletion(inst);
             continue;
         }
@@ -132,9 +152,7 @@ bool InstCombineCtx::run() {
         replaceValue(inst, replacement);
         markForDeletion(inst);
     }
-    for (auto* inst: eraseList) {
-        inst->parent()->erase(inst);
-    }
+    clean();
     return modifiedAny;
 }
 
@@ -457,17 +475,15 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
         }
         utl::small_vector<PhiMapping> newPhiArgs;
         for (auto [pred, arg]: phi->arguments()) {
-            auto* newExtract = new ExtractValue(arg,
-                                                extractInst->memberIndices(),
-                                                utl::strcat(extractInst->name(),
-                                                            ".",
-                                                            pred->name()));
+            auto* newExtract =
+                new ExtractValue(arg,
+                                 extractInst->memberIndices(),
+                                 std::string(extractInst->name()));
             pred->insert(pred->terminator(), newExtract);
             push(newExtract);
             newPhiArgs.push_back({ pred, newExtract });
         }
-        auto* newPhi =
-            new Phi(newPhiArgs, utl::strcat(extractInst->name(), ".phi"));
+        auto* newPhi = new Phi(newPhiArgs, std::string(extractInst->name()));
         /// We add the new phi node to the block of the phi node we extracted
         /// from
         phi->parent()->insertPhi(newPhi);
@@ -476,22 +492,65 @@ Value* InstCombineCtx::visitImpl(ExtractValue* extractInst) {
     /// If we extract from a structure that has been build up with
     /// `insert_value` instructions, we check every `insert_value` for a match
     /// of indices
+    Value* insertBase = nullptr; /// To be used later
     for (auto* insertInst = dyncast<InsertValue*>(extractInst->baseValue());
          insertInst != nullptr;
          insertInst = dyncast<InsertValue*>(insertInst->baseValue()))
     {
+        insertBase = insertInst->baseValue();
         if (ranges::equal(extractInst->memberIndices(),
                           insertInst->memberIndices()))
         {
             return insertInst->insertedValue();
         }
     }
+    if (!isa<InsertValue>(extractInst->baseValue())) {
+        return nullptr;
+    }
+    auto* accessTree = getAccessTree(extractInst);
+    auto indices = extractInst->memberIndices();
+    size_t i = 0;
+    for (; i < indices.size() && accessTree->hasChildren(); ++i) {
+        accessTree = accessTree->childAt(indices[i]);
+    }
+    if (i < indices.size()) {
+        auto* base = accessTree->payload();
+        SC_ASSERT(base, "");
+        auto newIndices = indices | ranges::views::drop(i) |
+                          ranges::to<utl::small_vector<size_t>>;
+        auto* newExtr = new ExtractValue(base,
+                                         newIndices,
+                                         std::string(extractInst->name()));
+        extractInst->parent()->insert(extractInst, newExtr);
+        return newExtr;
+    }
+    if (!accessTree->hasChildren()) {
+        if (auto* base = accessTree->payload()) {
+            return base;
+        }
+        SC_ASSERT(insertBase, "");
+        auto* newExtr = new ExtractValue(insertBase,
+                                         extractInst->memberIndices(),
+                                         std::string(extractInst->name()));
+        extractInst->parent()->insert(extractInst, newExtr);
+        return newExtr;
+    }
+    else {
+        SC_UNIMPLEMENTED();
+    }
     return nullptr;
+}
+
+void printAT(AccessTree<Value*> const* node) {
+    node->print(std::cout, [](Value* value) { return toString(value); });
 }
 
 static void gatherMostUsedBase(utl::hashmap<Value*, size_t>& baseCount,
                                AccessTreeNode* leaf,
                                std::span<size_t const> leafIndices) {
+    if (!leaf->payload()) {
+        return;
+    }
     auto* ev = dyncast<ExtractValue*>(leaf->payload());
     if (!ev) {
         return;
@@ -604,6 +663,8 @@ static void mergeInserts(utl::vector<UniquePtr<InsertValue>>& inserts,
     }
 }
 
+/// The IV map maps pairs of `(baseValue(), insertedValue())` to the
+/// corresponding `insert_value` instruction
 static utl::hashmap<std::pair<Value*, Value*>, InsertValue*> gatherIVMap(
     InsertValue* inst) {
     utl::hashmap<std::pair<Value*, Value*>, InsertValue*> result;
@@ -644,8 +705,8 @@ Value* InstCombineCtx::visitImpl(InsertValue* insertInst) {
             if (!node->payload()) {
                 auto* ev = new ExtractValue(root->payload(), indices, "ev");
                 insertInst->parent()->insert(insertInst, ev);
-                push(ev);
                 node->setPayload(ev);
+                evList.insert(ev);
             }
             return;
         }
