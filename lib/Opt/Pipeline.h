@@ -23,10 +23,18 @@ public:
     explicit Pipeline(std::unique_ptr<PipelineRoot> root);
 
     Pipeline(Pipeline&&) noexcept;
+
     Pipeline& operator=(Pipeline&&) noexcept;
+
     ~Pipeline();
 
+    /// Execute this pipeline on the module \p mod
     bool execute(ir::Context& ctx, ir::Module& mod) const;
+
+    /// Calls `execute()`
+    bool operator()(ir::Context& ctx, ir::Module& mod) const {
+        return execute(ctx, mod);
+    }
 
 private:
     friend void print(Pipeline const& pipeline, std::ostream& ostream);

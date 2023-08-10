@@ -17,6 +17,7 @@
 ///                   | inline-pass
 ///                   | dfe-pass
 /// for-each-pass    => "foreach" "(" local-pass-list ")"
+///                   | local-pass-id
 /// inline-pass      => "inline" [ "(" local-pass-list ")" ]
 /// dfe-pass         => "deadfuncelim"
 /// local-pass-list  => local-pass-id [ ( ":" local-pass-id )* ]

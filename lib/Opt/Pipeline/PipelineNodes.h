@@ -34,6 +34,12 @@ public:
         utl::small_vector<std::unique_ptr<PipelineLocalNode>> children = {}):
         pass(std::move(pass)), children(std::move(children)) {}
 
+    PipelineGlobalNode(GlobalPass pass,
+                       std::unique_ptr<PipelineLocalNode> onlyChild):
+        pass(std::move(pass)) {
+        children.push_back(std::move(onlyChild));
+    }
+
     bool execute(ir::Context& ctx, ir::Module& mod) const {
         return pass(ctx,
                     mod,

@@ -98,8 +98,8 @@ struct Impl {
     opt::Pipeline lightInline;
 
     Impl() {
-        light = opt::PassManager::makePipeline("sroa:memtoreg");
-        lightInline = opt::PassManager::makePipeline("inline(sroa:memtoreg)");
+        light = opt::PassManager::makePipeline("sroa, memtoreg");
+        lightInline = opt::PassManager::makePipeline("inline(sroa, memtoreg)");
     }
 
     static Impl& get() {

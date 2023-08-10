@@ -139,17 +139,17 @@ static void pass(std::string_view name,
 
     //    header("Inlined");
     //    auto lightInliner =
-    //    opt::PassManager::makePipeline("inline(sroa:memtoreg)");
+    //    opt::PassManager::makePipeline("inline(sroa, memtoreg)");
     //    lightInliner.execute(ctx, mod);
     //    print(mod);
     //    run(mod);
 
     header("After inst combine");
-    opt::PassManager::makePipeline("foreach(instcombine)").execute(ctx, mod);
+    opt::PassManager::makePipeline("instcombine").execute(ctx, mod);
     print(mod);
 
     header("After second inst combine");
-    opt::PassManager::makePipeline("foreach(instcombine)").execute(ctx, mod);
+    opt::PassManager::makePipeline("instcombine").execute(ctx, mod);
     print(mod);
 }
 
@@ -214,23 +214,16 @@ static void pass(std::string_view name,
 }
 
 [[maybe_unused]] static void pipelinePlayground(std::filesystem::path path) {
+    std::fstream file(path);
+    if (!file) {
+        return;
+    }
+    std::stringstream sstr;
+    sstr << file.rdbuf();
+    auto text = sstr.str();
     try {
-        auto pipeline = opt::PassManager::makePipeline(R"(
-inline(
-    sroa:
-    memtoreg:
-    instcombine:
-    propagateconst:
-    dce:
-    gvn:
-    simplifycfg
-):
-deadfuncelim
-)");
+        auto pipeline = opt::PassManager::makePipeline(text);
         print(pipeline);
-        auto [ctx, mod] = makeIRModuleFromFile(path);
-        pipeline.execute(ctx, mod);
-        print(mod);
     }
     catch (opt::PipelineError const& e) {
         std::cout << e.what() << std::endl;
@@ -238,5 +231,5 @@ deadfuncelim
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    irPlayground(path);
+    pipelinePlayground(path);
 }
