@@ -156,10 +156,17 @@ public:
             return nullptr;
         }
         eat();
-        expect(Token::OpenParan);
+        auto globalPass = PassManager::getGlobalPass("inline");
+        if (peek().type != Token::OpenParan) {
+            auto localPass = PassManager::getPass("default");
+            auto localNode =
+                std::make_unique<PipelineLocalNode>(std::move(localPass));
+            return std::make_unique<PipelineGlobalNode>(std::move(globalPass),
+                                                        std::move(localNode));
+        }
+        eat();
         auto localList = parseLocalList();
         expect(Token::CloseParan);
-        auto globalPass = PassManager::getGlobalPass("inline");
         return std::make_unique<PipelineGlobalNode>(std::move(globalPass),
                                                     std::move(localList));
     }
