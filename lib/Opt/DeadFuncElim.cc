@@ -24,7 +24,7 @@ struct DFEContext {
 
     bool run();
 
-    void visit(Function* node);
+    void visit(SCCCallGraph::FunctionNode const* node);
 
     Context& ctx;
     Module& mod;
@@ -45,7 +45,7 @@ bool opt::deadFuncElim(Context& ctx, Module& mod, LocalPass) {
 bool DFEContext::run() {
     for (auto& F: mod) {
         if (F.visibility() == Visibility::Extern) {
-            visit(&F);
+            visit(&callgraph[&F]);
         }
     }
     bool modified = false;
@@ -61,13 +61,11 @@ bool DFEContext::run() {
     return modified;
 }
 
-void DFEContext::visit(Function* F) {
-    if (live.contains(F)) {
+void DFEContext::visit(SCCCallGraph::FunctionNode const* node) {
+    if (!live.insert(&node->function()).second) {
         return;
     }
-    live.insert(F);
-    auto& node = callgraph[F];
-    for (auto* calleeNode: node.callees()) {
-        visit(&calleeNode->function());
+    for (auto* succ: node->callees()) {
+        visit(succ);
     }
 }
