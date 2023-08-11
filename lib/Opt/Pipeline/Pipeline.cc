@@ -22,6 +22,8 @@ bool Pipeline::execute(ir::Context& ctx, ir::Module& mod) const {
     return root->execute(ctx, mod);
 }
 
+bool Pipeline::empty() const { return root->empty(); }
+
 SCATHA_API void opt::print(Pipeline const& pipeline) {
     print(pipeline, std::cout);
 }

@@ -40,6 +40,12 @@ public:
         return execute(ctx, mod);
     }
 
+    /// \returns `true` iff this pipeline is not empty
+    bool empty() const;
+
+    /// \returns `!empty()`
+    explicit operator bool() const { return !empty(); }
+
     /// Construct a pipeline from a pipeline root node.
     /// \Note This API is private
     explicit Pipeline(std::unique_ptr<PipelineRoot> root);

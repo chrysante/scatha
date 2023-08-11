@@ -78,6 +78,8 @@ public:
 
     void print(std::ostream&, TreeFormatter&) const;
 
+    bool empty() const { return children.empty(); }
+
 private:
     utl::small_vector<std::unique_ptr<PipelineGlobalNode>> children;
 };
