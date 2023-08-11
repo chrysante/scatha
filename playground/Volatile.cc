@@ -135,14 +135,6 @@ static void pass(std::string_view name,
     opt::forEach(ctx, mod, opt::unifyReturns);
     header("As parsed");
     print(mod);
-    //    run(mod);
-
-    //    header("Inlined");
-    //    auto lightInliner =
-    //    opt::PassManager::makePipeline("inline(sroa, memtoreg)");
-    //    lightInliner.execute(ctx, mod);
-    //    print(mod);
-    //    run(mod);
 
     header("After inst combine");
     opt::PassManager::makePipeline("instcombine").execute(ctx, mod);
@@ -231,5 +223,5 @@ static void pass(std::string_view name,
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    pipelinePlayground(path);
+    irPlayground(path);
 }
