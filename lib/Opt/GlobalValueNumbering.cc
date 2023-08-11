@@ -17,11 +17,13 @@
 #include "IR/Loop.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;
 using namespace ir;
+
+SC_REGISTER_PASS(opt::globalValueNumbering, "gvn");
 
 namespace {
 
@@ -134,8 +136,6 @@ struct GVNContext {
 };
 
 } // namespace
-
-SC_REGISTER_PASS(opt::globalValueNumbering, "gvn");
 
 bool opt::globalValueNumbering(Context& ctx, Function& function) {
     bool result = false;

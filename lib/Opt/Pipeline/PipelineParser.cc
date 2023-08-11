@@ -7,8 +7,8 @@
 #include <utl/strcat.hpp>
 
 #include "Opt/PassManager.h"
-#include "Opt/Pipeline/PipelineError.h"
 #include "Opt/Pipeline/PipelineNodes.h"
+#include "Opt/PipelineError.h"
 
 using namespace scatha;
 using namespace opt;

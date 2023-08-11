@@ -4,23 +4,27 @@
 #include <iosfwd>
 #include <memory>
 
-#include "Common/Base.h"
-#include "IR/Fwd.h"
+#include <scatha/Common/Base.h>
+#include <scatha/IR/Fwd.h>
 
 namespace scatha::opt {
 
 class Pipeline;
 class PipelineRoot;
 
+/// Print \p pipeline to `std::cout`
 SCATHA_API void print(Pipeline const& pipeline);
 
+/// Print \p pipeline to \p ostream
 SCATHA_API void print(Pipeline const& pipeline, std::ostream& ostream);
 
+/// Represents an optimization pipeline, i.e. a sequence of global and nested
+/// local passes.
 class SCATHA_API Pipeline {
 public:
+    /// Construct an empty pipeline. An empty pipeline is a no-op and also
+    /// returns false when executed.
     Pipeline();
-
-    explicit Pipeline(std::unique_ptr<PipelineRoot> root);
 
     Pipeline(Pipeline&&) noexcept;
 
@@ -36,8 +40,13 @@ public:
         return execute(ctx, mod);
     }
 
+    /// Construct a pipeline from a pipeline root node.
+    /// \Note This API is private
+    explicit Pipeline(std::unique_ptr<PipelineRoot> root);
+
 private:
     friend void print(Pipeline const& pipeline, std::ostream& ostream);
+
     std::unique_ptr<PipelineRoot> root;
 };
 

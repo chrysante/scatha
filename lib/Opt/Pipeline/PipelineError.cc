@@ -1,4 +1,4 @@
-#include "Opt/Pipeline/PipelineError.h"
+#include "Opt/PipelineError.h"
 
 #include <utl/strcat.hpp>
 

@@ -14,10 +14,9 @@
 #include <scatha/Parser/Parser.h>
 #include <scatha/Sema/Analyze.h>
 #include <scatha/Sema/SymbolTable.h>
-
-#include "Opt/PassManager.h"
-#include "Opt/Pipeline/PipelineError.h"
-#include "Opt/Pipeline.h"
+#include <scatha/Opt/PassManager.h>
+#include <scatha/Opt/PipelineError.h>
+#include <scatha/Opt/Pipeline.h>
 
 using namespace scatha;
 

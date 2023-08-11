@@ -9,7 +9,7 @@
 #include "IR/Dominance.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 #include "Opt/Passes.h"
 
 using namespace scatha;
@@ -18,6 +18,8 @@ using namespace ir;
 
 /// Implemented with help from this paper
 /// https://yunmingzhang.files.wordpress.com/2013/12/dcereport-2.pdf
+
+SC_REGISTER_PASS(opt::dce, "dce");
 
 namespace {
 
@@ -47,8 +49,6 @@ struct DCEContext {
 };
 
 } // namespace
-
-SC_REGISTER_PASS(opt::dce, "dce");
 
 bool opt::dce(ir::Context& context, ir::Function& function) {
     DCEContext ctx(context, function);

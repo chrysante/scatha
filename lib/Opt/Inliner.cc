@@ -7,13 +7,15 @@
 #include "IR/Validate.h"
 #include "Opt/Common.h"
 #include "Opt/InlineCallsite.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 #include "Opt/Passes.h"
 #include "Opt/SCCCallGraph.h"
 
 using namespace scatha;
 using namespace ir;
 using namespace opt;
+
+SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline");
 
 using SCC = SCCCallGraph::SCCNode;
 using FunctionNode = SCCCallGraph::FunctionNode;
@@ -113,8 +115,6 @@ struct Inliner {
 bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
     return inlineFunctions(ctx, mod, opt::defaultPass);
 }
-
-SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline");
 
 bool opt::inlineFunctions(ir::Context& ctx,
                           ir::Module& mod,

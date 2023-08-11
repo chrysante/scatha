@@ -3,9 +3,9 @@
 
 #include <functional>
 
-#include "Common/Base.h"
-#include "IR/Fwd.h"
-#include "Opt/Pass.h"
+#include <scatha/Common/Base.h>
+#include <scatha/IR/Fwd.h>
+#include <scatha/Opt/Pass.h>
 
 namespace scatha::opt {
 

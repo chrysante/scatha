@@ -1,4 +1,5 @@
 #include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 
 #include <memory>
 
@@ -9,8 +10,6 @@
 
 using namespace scatha;
 using namespace opt;
-
-using PassType = PassManager::PassType;
 
 namespace {
 

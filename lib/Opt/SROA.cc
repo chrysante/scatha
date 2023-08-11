@@ -14,11 +14,13 @@
 #include "IR/Validate.h"
 #include "Opt/AccessTree.h"
 #include "Opt/Common.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace ir;
 using namespace opt;
+
+SC_REGISTER_PASS(opt::sroa, "sroa");
 
 namespace {
 
@@ -101,8 +103,6 @@ struct VariableContext {
 };
 
 } // namespace
-
-SC_REGISTER_PASS(opt::sroa, "sroa");
 
 bool opt::sroa(ir::Context& irCtx, ir::Function& function) {
     utl::small_vector<Alloca*> allocas;

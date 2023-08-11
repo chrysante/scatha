@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-#include "Common/Base.h"
+#include <scatha/Common/Base.h>
 
 namespace scatha::opt {
 
@@ -17,7 +17,7 @@ struct SCATHA_API PipelineError: std::runtime_error {
     size_t line;
 };
 
-/// Lexing error during pipeline parsing
+/// Lexical error during pipeline parsing
 struct SCATHA_API PipelineLexicalError: PipelineError {
     using PipelineError::PipelineError;
 };

@@ -6,11 +6,15 @@
 #include <utl/vector.hpp>
 
 #include "IR/CFG.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;
 using namespace ir;
+
+SC_REGISTER_PASS(opt::unifyReturns, "unifyreturns");
+
+SC_REGISTER_PASS(opt::splitReturns, "splitreturns");
 
 static utl::hashset<BasicBlock*> gatherReturnBlocks(Function& function) {
     utl::hashset<BasicBlock*> returnBlocks;
@@ -21,8 +25,6 @@ static utl::hashset<BasicBlock*> gatherReturnBlocks(Function& function) {
     }
     return returnBlocks;
 }
-
-SC_REGISTER_PASS(opt::unifyReturns, "unifyreturns");
 
 bool opt::unifyReturns(Context& ctx, Function& function) {
     auto returnBlocks = gatherReturnBlocks(function);
@@ -47,8 +49,6 @@ bool opt::unifyReturns(Context& ctx, Function& function) {
     function.invalidateCFGInfo();
     return true;
 }
-
-SC_REGISTER_PASS(opt::splitReturns, "splitreturns");
 
 bool opt::splitReturns(Context& ctx, Function& function) {
     bool modifiedAny = false;

@@ -10,11 +10,13 @@
 #include "IR/Loop.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;
 using namespace ir;
+
+SC_REGISTER_PASS(opt::rotateLoops, "rotateloops");
 
 namespace {
 
@@ -48,8 +50,6 @@ struct LRContext {
 };
 
 } // namespace
-
-SC_REGISTER_PASS(opt::rotateLoops, "rotateloops");
 
 bool opt::rotateLoops(Context& ctx, Function& function) {
     LRContext lrContext(ctx, function);

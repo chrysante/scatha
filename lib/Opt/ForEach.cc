@@ -2,7 +2,7 @@
 
 #include "IR/CFG.h"
 #include "IR/Module.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;

@@ -5,11 +5,13 @@
 
 #include "Common/Graph.h"
 #include "IR/CFG.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;
 using namespace ir;
+
+SC_REGISTER_PASS(opt::splitCriticalEdges, "splitcriticaledges");
 
 bool opt::preceeds(Instruction const* a, Instruction const* b) {
     SC_ASSERT(a->parent() == b->parent(),
@@ -137,8 +139,6 @@ BasicBlock* opt::splitEdge(Context& ctx, BasicBlock* from, BasicBlock* to) {
     tmp->addPredecessor(from);
     return tmp;
 }
-
-SC_REGISTER_PASS(opt::splitCriticalEdges, "splitcriticaledges");
 
 bool opt::splitCriticalEdges(Context& ctx, Function& function) {
     struct DFS {

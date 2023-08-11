@@ -8,11 +8,13 @@
 #include "IR/CFG.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;
 using namespace ir;
+
+SC_REGISTER_PASS(opt::simplifyCFG, "simplifycfg");
 
 namespace {
 
@@ -38,8 +40,6 @@ struct Ctx {
 };
 
 } // namespace
-
-SC_REGISTER_PASS(opt::simplifyCFG, "simplifycfg");
 
 bool opt::simplifyCFG(ir::Context& irCtx, Function& function) {
     Ctx ctx(irCtx, function);

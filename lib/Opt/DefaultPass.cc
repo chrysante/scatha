@@ -1,6 +1,6 @@
 #include "Opt/Passes.h"
 
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 
 using namespace scatha;
 using namespace opt;

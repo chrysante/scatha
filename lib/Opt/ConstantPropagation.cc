@@ -17,7 +17,7 @@
 #include "IR/Type.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
-#include "Opt/PassManager.h"
+#include "Opt/PassRegistry.h"
 #include "Opt/Passes.h"
 
 using namespace scatha;
@@ -26,6 +26,8 @@ using namespace ir;
 
 /// Implemented with help from:
 /// https://www.cs.utexas.edu/users/lin/cs380c/wegman.pdf
+
+SC_REGISTER_PASS(opt::propagateConstants, "propagateconst");
 
 namespace {
 
@@ -78,9 +80,11 @@ FormalValue infimum(FormalValue const& a, FormalValue const& b) {
     }
     /// I guess this is specified by the algorithm but it produces wrong results
     /// with certain loops by mistaking phi functions for constant.
-    //    if (a == b) {
-    //        return a;
-    //    }
+#if 0
+    if (a == b) {
+        return a;
+    }
+#endif
     return Inevaluable{};
 }
 
@@ -169,8 +173,6 @@ struct SCCPContext {
 };
 
 } // namespace
-
-SC_REGISTER_PASS(opt::propagateConstants, "propagateconst");
 
 bool opt::propagateConstants(ir::Context& context, ir::Function& function) {
     SCCPContext ctx(context, function);
