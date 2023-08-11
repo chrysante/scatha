@@ -156,25 +156,6 @@ files { "runtime/**.h", "runtime/**.cc" }
 links { "termfmt" }
 
 ------------------------------------------
-project "passtool"
-kind "ConsoleApp"
-defines "SC_APIIMPORT"
-
-externalincludedirs {
-    "include",
-    "include/scatha",
-    "external/utility/include",
-    "external/termfmt/include",
-    "external/APMath/include",
-    "external/range-v3/include",
-    "external/cli11/include",
-}
-includedirs { ".", "lib" }
-
-files { "passtool/**.h", "passtool/**.cc" }
-links { "termfmt", "scatha" }
-
-------------------------------------------
 project "playground"
 kind "ConsoleApp"
 defines "SC_APIIMPORT"
@@ -201,5 +182,8 @@ filter { "system:windows" }
 filter {}
 
 ------------------------------------------
+
+include "passtool"
+
 include "external/termfmt/lib.lua"
 include "external/APMath/lib.lua"
