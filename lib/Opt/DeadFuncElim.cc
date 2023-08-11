@@ -56,6 +56,7 @@ bool DFEContext::run() {
             continue;
         }
         itr = mod.eraseFunction(itr);
+        modified = true;
     }
     return modified;
 }
