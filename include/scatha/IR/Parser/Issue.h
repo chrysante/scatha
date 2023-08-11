@@ -4,8 +4,8 @@
 #include <iosfwd>
 #include <variant>
 
-#include "IR/Parser/SourceLocation.h"
-#include "IR/Parser/Token.h"
+#include <scatha/IR/Parser/SourceLocation.h>
+#include <scatha/IR/Parser/Token.h>
 
 namespace scatha::ir {
 

@@ -3,8 +3,8 @@
 
 #include <string_view>
 
-#include "Common/Base.h"
-#include "IR/Parser/SourceLocation.h"
+#include <scatha/Common/Base.h>
+#include <scatha/IR/Parser/SourceLocation.h>
 
 namespace scatha::ir {
 
