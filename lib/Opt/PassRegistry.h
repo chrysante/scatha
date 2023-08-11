@@ -1,5 +1,5 @@
-#ifndef SCATHA_OPT_PASSMANAGER_IMPL_H_
-#define SCATHA_OPT_PASSMANAGER_IMPL_H_
+#ifndef SCATHA_OPT_PASSREGISTRY_H_
+#define SCATHA_OPT_PASSREGISTRY_H_
 
 #include "Common/Base.h"
 #include "Opt/Pass.h"
@@ -26,4 +26,4 @@ void registerPass(GlobalPass pass);
 
 } // namespace scatha::opt::internal
 
-#endif // SCATHA_OPT_PASSMANAGER_IMPL_H_
+#endif // SCATHA_OPT_PASSREGISTRY_H_
