@@ -111,9 +111,7 @@ struct Inliner {
 } // namespace
 
 bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
-    return inlineFunctions(ctx,
-                           mod,
-                           opt::defaultPass);
+    return inlineFunctions(ctx, mod, opt::defaultPass);
 }
 
 SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline");
