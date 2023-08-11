@@ -253,7 +253,55 @@ public:
     /// \warning See `clearEdges()`
     void clearPredecessors() { incoming.clear(); }
 
+    /// Traverse the graph from this node in DFS order and invoke callable \p f
+    /// on every node before visiting its successors.
+    template <typename F>
+    void preorderDFS(F&& f) {
+        dfsImpl<true>(this, f);
+    }
+
+    /// \overload
+    template <typename F>
+    void preorderDFS(F&& f) const {
+        dfsImpl<true>(this, f);
+    }
+
+    /// Traverse the graph from this node in DFS order and invoke callable \p f
+    /// on every node after visiting its successors.
+    template <typename F>
+    void postorderDFS(F&& f) {
+        dfsImpl<false>(this, f);
+    }
+
+    /// \overload
+    template <typename F>
+    void postorderDFS(F&& f) const {
+        dfsImpl<false>(this, f);
+    }
+
 private:
+    template <bool Preorder, typename SELF, typename F>
+    static void dfsImpl(SELF* self, F&& f) {
+        utl::hashset<SELF*> visited;
+        dfsSearch<Preorder>(visited, self, f);
+    }
+
+    template <bool Preorder, typename SELF, typename F>
+    static void dfsSearch(utl::hashset<SELF*>& visited, SELF* self, F&& f) {
+        if (!visited.insert(self).second) {
+            return;
+        }
+        if constexpr (Preorder) {
+            std::invoke(f, self);
+        }
+        for (auto* succ: self->successors()) {
+            dfsSearch<Preorder>(visited, succ, f);
+        }
+        if constexpr (!Preorder) {
+            std::invoke(f, self);
+        }
+    }
+
     utl::small_vector<Self*> incoming;
     utl::small_vector<Self*> outgoing;
 };
