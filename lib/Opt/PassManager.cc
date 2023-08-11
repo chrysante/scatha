@@ -42,6 +42,8 @@ struct Impl {
     utl::vector<LocalPass> getLocalPasses() const {
         return localPasses |
                ranges::views::transform([](auto& p) { return p.second; }) |
+               ranges::views::filter(
+                   [](auto const& pass) { return pass.name() != "default"; }) |
                ranges::to<utl::vector>;
     }
 

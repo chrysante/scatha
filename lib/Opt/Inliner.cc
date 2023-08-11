@@ -113,20 +113,7 @@ struct Inliner {
 bool opt::inlineFunctions(ir::Context& ctx, Module& mod) {
     return inlineFunctions(ctx,
                            mod,
-                           LocalPass(
-                               [](ir::Context& ctx, ir::Function& function) {
-        bool modified = false;
-        modified |= sroa(ctx, function);
-        modified |= memToReg(ctx, function);
-        modified |= instCombine(ctx, function);
-        modified |= propagateConstants(ctx, function);
-        modified |= dce(ctx, function);
-        modified |= globalValueNumbering(ctx, function);
-        modified |= simplifyCFG(ctx, function);
-        modified |= tailRecElim(ctx, function);
-        return modified;
-                               },
-                               "default"));
+                           opt::defaultPass);
 }
 
 SC_REGISTER_GLOBAL_PASS(opt::inlineFunctions, "inline");

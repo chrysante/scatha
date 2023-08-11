@@ -34,6 +34,9 @@ SCATHA_API bool forEach(ir::Context& ctx, ir::Module& mod, LocalPass localPass);
 
 /// # Local passes
 
+/// The default set of local passes for good optimization
+SCATHA_API bool defaultPass(ir::Context& ctx, ir::Function& function);
+
 /// Removes critical edges from \p function by inserting empty basic blocks
 SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
 
