@@ -156,6 +156,10 @@ bool GVNContext::run() {
     return modified;
 }
 
+/// We do not use the `splitcriticaledges` pass here. We we need to erase the
+/// inserted basic blocks if we did not move any code into them. Otherwise,
+/// running this pass and `simplyfygfc` repeatedly will result in an infite
+/// modification cycle, because `simplyfygfc` erases the added basic blocks.
 void GVNContext::splitCriticalEdges() {
     struct DFS {
         Context& ctx;
