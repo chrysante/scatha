@@ -2,51 +2,43 @@
 ---
 # See http://www.sublimetext.com/docs/syntax.html
 name:
-  - Scatha
+  - Scatha IR
 file_extensions:
-  - sc
+  - scir
 version:
   - 0
 scope: source.example-c
 variables:
-  ident: '[A-Za-z_][A-Za-z_0-9]*'
+  ident: '[A-Za-z_0-9]*'
 
 contexts:
   main:
-    # Comments begin with a '//' and finish at the end of the line
-    - match: '//'
+    # Comments begin with a '#' and finish at the end of the line
+    - match: '#'
       scope: punctuation.definition.comment.example-c
       push: line_comment
 
     # C-style block comment
-    - match: '\/\*(\*(?!\/)|[^*])*\*\/'
-      scope: punctuation.definition.comment.example-c
-      push: line_comment
+    # - match: '\/\*(\*(?!\/)|[^*])*\*\/'
+    #   scope: punctuation.definition.comment.example-c
+    #   push: line_comment
 
   # Keywords are if, else for and while.
     # Note that blackslashes don't need to be escaped within single quoted
     # strings in YAML. When using single quoted strings, only single quotes
     # need to be escaped: this is done by using two single quotes next to each
     # other.
-    - match: \b(if|else|for|while|do|return|break|continue)\b
+    - match: \b(alloca|store|load|zext|sext|trunc|fext|ftrunc|utof|stof|ftou|ftos|bitcast|bnt|lnt|neg|cmp|ls|leq|grt|geq|eq|neq|add|sub|mul|sdiv|udiv|srem|urem|fadd|fsub|fmul|fdiv|lshl|lshr|ashl|ashr|and|or|xor|goto|branch|return|call|phi|getelementptr|extract_value|insert_value|select)\b
       scope: keyword.control
 
-    - match: \b(fn|var|let|struct|public|private|mut)\b
+    - match: \b(func|ext|label)\b
+      scope: punctuation.definition.keyword
+    
+    - match: \b(void|f32|f64)\b  
       scope: punctuation.definition.keyword
 
-    - match: \b(void|bool|byte|int|float|double|str|true|false|this)\b
-      scope: punctuation.definition.keyword
-
-    - match: '(=|\+=|-=|\*=|\/=|%=|>>=|<<=|&=|\|=|\^=)'
-      scope: keyword.operator.assignment
-    - match: '(\+|-|\*|\/|%)'
-      scope: keyword.operator.arithmetic
-    - match: '(<<|>>|&|\||\^)'
-      scope: keyword.operator.bitwise
-    - match: '(&&|\|\|)'
-      scope: keyword.operator.logical
-    - match: '(==|!=|<|<=|>|>=|\?|:)'
-      scope: keyword.operator
+    - match: \b(i[1-9][0-9]*)\b
+      scope: punctuation.definition.keyword    
 
     # Strings begin and end with quotes, and use backslashes as an escape
     # character
@@ -54,17 +46,21 @@ contexts:
       scope: punctuation.definition.string.begin.example-c
       push: double_quoted_string
     
-    - match: '\b{{ident}}\b'
+    - match: '\b[A-Za-z]+\b'
       scope: variable.other
 
+    - match: '\b@{{ident}}\b'
+      scope: entity.name.function
+
+
     # Numbers
-    - match: '\b(-)?[0-9.]+\b'
+    - match: '\b(-)?[0-9A-Fa-f]+\b'
+      scope: constant.numeric.example-c
+    - match: '\b(-)?[0-9]+\.[0-9]+\b' 
       scope: constant.numeric.example-c
 
   double_quoted_string:
     - meta_scope: string.quoted.double.example-c
-    - match: '\\.'
-      scope: constant.character.escape.example-c
     - match: '"'
       scope: punctuation.definition.string.end.example-c
       pop: true
