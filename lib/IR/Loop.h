@@ -53,6 +53,14 @@ public:
     /// \p parent
     void addNode(BasicBlock const* parent, BasicBlock* BB);
 
+    /// Traverse all trees in preorder
+    template <std::invocable<Node const*> F>
+    void traversePreorder(F&& f) const {
+        for (auto* root: roots()) {
+            root->traversePreorder(f);
+        }
+    }
+
 private:
     Node* findMut(ir::BasicBlock const* bb) {
         return const_cast<Node*>(
