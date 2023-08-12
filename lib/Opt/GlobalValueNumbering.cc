@@ -127,6 +127,11 @@ public:
     static LocalComputationTable build(
         BasicBlock* BB, utl::hashmap<Instruction*, size_t> const& ranks);
 
+    /// Insert a computation into the table
+    void insert(size_t rank, Instruction* inst) {
+        rankMap[rank].push_back(inst);
+    }
+
     /// View over all computations
     auto computations() const {
         return rankMap | ranges::views::transform([](auto& p) -> auto& {
@@ -321,8 +326,13 @@ struct GVNContext {
 
     /// The main algorithm
     void processHeader(size_t rank, BasicBlock* BB);
+    /// \Returns `true` if the computation \p inst can be moved out of a loop
+    /// header
+    bool isHeaderMovable(Instruction* inst);
+
     void processLandingPad(size_t rank, BasicBlock* BB);
     void processOther(size_t rank, BasicBlock* BB);
+    void moveIn(size_t rank, BasicBlock* BB);
 
     Instruction* insertPointForRank(BasicBlock* BB, size_t rank) {
         auto nextRank = LCTs[BB].computations(rank + 1);
@@ -358,6 +368,9 @@ bool opt::globalValueNumbering(Context& ctx, Function& function) {
 bool GVNContext::run() {
     splitCriticalEdges();
     gatherLoops();
+    computeTopsortOrder();
+    assignRanks();
+#if 1
     std::cout << "Virtual edges: \n";
     for (auto& [exit, preds]: virtualPredecessors) {
         for (auto* pred: preds) {
@@ -365,9 +378,12 @@ bool GVNContext::run() {
                       << std::endl;
         }
     }
-    computeTopsortOrder();
-    assignRanks();
-    for (size_t rank = 0; rank < maxRank; ++rank) {
+    std::cout << "Ranks: \n";
+    for (auto [value, rank]: globalRanks) {
+        std::cout << "    " << value->name() << " : " << rank << std::endl;
+    }
+#endif
+    for (size_t rank = 0; rank <= maxRank; ++rank) {
         for (auto* BB: topsortOrder) {
             if (loopHeaders.contains(BB)) {
                 processHeader(rank, BB);
@@ -381,8 +397,6 @@ bool GVNContext::run() {
         }
     }
 
-    // buildLCTs();
-    // elimLocal();
     //    joinSplitEdges();
     /// We invalidate the CFG info unconditionally because we did modify the
     /// CFG, compute CFG info and then potentially undid all changes to the CFG.
@@ -597,14 +611,65 @@ static UniquePtr<Instruction> copyForPred(Context& ctx,
 }
 
 void GVNContext::processHeader(size_t rank, BasicBlock* BB) {
-    SC_UNIMPLEMENTED();
+    moveIn(rank, BB);
 }
+
+bool GVNContext::isHeaderMovable(Instruction* inst) {}
 
 void GVNContext::processLandingPad(size_t rank, BasicBlock* BB) {
     SC_UNIMPLEMENTED();
 }
 
 void GVNContext::processOther(size_t rank, BasicBlock* BB) {
+    moveIn(rank, BB);
+
+    /// Identify candidates for movement to our predecessors
+    auto& LCT = LCTs[BB];
+    auto movable = LCT.computations(rank) | ranges::views::filter(isMoveable) |
+                   ranges::to<utl::small_vector<Instruction*>>;
+    switch (BB->numPredecessors()) {
+    case 0:
+        break;
+    case 1: {
+        auto* realPred = BB->singlePredecessor();
+        auto allPreds = virtualPredecessors[BB];
+        allPreds.push_back(realPred);
+        for (auto* pred: allPreds) {
+            auto& MCT = MCTs[{ pred, BB }];
+            for (auto* inst: movable) {
+                MCT.insert(rank, copyForPred(ctx, inst, realPred), inst);
+            }
+        }
+        break;
+    }
+    default: {
+        /// Here we have multiple predecessors. Since the CFG at this point has
+        /// no critical edges, we can assume that all our predecessors have only
+        /// one successor, i.e. this block. This means it is guaranteed that all
+        /// computations we put into the MCTs here will be moved into the
+        /// predecessors. Therefore we can insert phi nodes here for the copies
+        /// and replace the current value with the phi node.
+        SC_ASSERT(virtualPredecessors[BB].empty(),
+                  "Must be empty according to the paper");
+        for (auto* inst: movable) {
+            utl::small_vector<PhiMapping> phiArgs;
+            for (auto* pred: BB->predecessors()) {
+                auto& MCT = MCTs[{ pred, BB }];
+                auto copyOwner = copyForPred(ctx, inst, pred);
+                auto* copy = copyOwner.get();
+                MCT.insert(rank, std::move(copyOwner), inst);
+                phiArgs.push_back({ pred, copy });
+            }
+            auto* phi = new Phi(phiArgs, std::string(inst->name()));
+            BB->insertPhi(phi);
+            replaceValue(inst, phi);
+        }
+        break;
+    }
+    }
+}
+
+void GVNContext::moveIn(size_t rank, BasicBlock* BB) {
     auto& LCT = LCTs[BB];
     if (rank == 0) {
         LCT = LocalComputationTable::build(BB, localRanks[BB]);
@@ -612,15 +677,11 @@ void GVNContext::processOther(size_t rank, BasicBlock* BB) {
     /// Move computations from successors into this block
     if (BB->numSuccessors() == 1) {
         auto& MCT = MCTs[{ BB, BB->singleSuccessor() }];
-        for (size_t i = 0; i < maxRank; ++i) {
-            auto insertPoint = insertPointForRank(BB, i);
-            for (auto& entry: MCT.entries(i)) {
-                auto* copy = entry.takeCopy();
-                BB->insert(insertPoint, copy);
-                for (auto* original: entry.originals()) {
-                    replaceValue(original, copy);
-                }
-            }
+        auto insertPoint = insertPointForRank(BB, rank);
+        for (auto& entry: MCT.entries(rank)) {
+            auto* copy = entry.takeCopy();
+            BB->insert(insertPoint, copy);
+            LCT.insert(rank, copy);
         }
         MCT.clear();
     }
@@ -662,41 +723,6 @@ void GVNContext::processOther(size_t rank, BasicBlock* BB) {
                 MCT_A.erase(copy, &entry);
             }
         }
-    }
-
-    /// Identify candidates for movement to our predecessors
-    auto movable = LCT.computations(rank) | ranges::views::filter(isMoveable) |
-                   ranges::to<utl::small_vector<Instruction*>>;
-    auto addToMTC = [this](size_t rank,
-                           std::span<Instruction* const> movable,
-                           BasicBlock* BB,
-                           BasicBlock* realPred,
-                           BasicBlock* virtPred) {
-        auto& MCT = MCTs[{ virtPred, BB }];
-        for (auto* inst: movable) {
-            MCT.insert(rank, copyForPred(ctx, inst, realPred), inst);
-        }
-    };
-    if (BB->numPredecessors() == 1) {
-        auto* pred = BB->singlePredecessor();
-        addToMTC(rank, movable, BB, pred, pred);
-        for (auto* virtPred: virtualPredecessors[BB]) {
-            addToMTC(rank, movable, BB, pred, virtPred);
-        }
-    }
-    else {
-        SC_ASSERT(virtualPredecessors[BB].empty(),
-                  "Must be empty according to the paper");
-        for (auto* pred: BB->predecessors()) {
-            addToMTC(rank, movable, BB, pred, pred);
-        }
-    }
-}
-
-void GVNContext::buildLCTs() {
-    for (auto& BB: function) {
-        LCTs.insert(
-            { &BB, LocalComputationTable::build(&BB, localRanks[&BB]) });
     }
 }
 
