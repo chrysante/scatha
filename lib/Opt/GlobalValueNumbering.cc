@@ -164,6 +164,20 @@ struct std::hash<Computation> {
     size_t operator()(Computation expr) const { return expr.hashValue(); }
 };
 
+/// \returns `true` for all instructions ignored by the algorithm
+static bool isIgnored(Instruction const* inst) {
+    // clang-format off
+    return visit(*inst, utl::overload{
+        [](Phi const&)            { return true; },
+        [](TerminatorInst const&) { return true; },
+        [](Alloca const&)         { return true; },
+        [](Load const&)           { return true; },
+        [](Store const&)          { return true; },
+        [](Call const&)           { return true; },
+        [](Instruction const&)    { return false; }
+    }); // clang-format on
+}
+
 namespace {
 
 /// A local computation table exists for every block and holds the computations
@@ -660,19 +674,14 @@ void GVNContext::processGlobally() {
 }
 
 static auto isMoveable = [](Instruction* inst) {
-    /// Here we should probably also check for certain side effects
-    if (isa<Phi>(inst) || isa<TerminatorInst>(inst)) {
+    if (isIgnored(inst)) {
         return false;
     }
-    for (auto* operand: inst->operands()) {
-        auto* instOp = dyncast<Instruction*>(operand);
-        if (!instOp) {
+    for (auto* operand: inst->operands() | Filter<Instruction>) {
+        if (isa<Phi>(operand)) {
             continue;
         }
-        if (isa<Phi>(instOp)) {
-            continue;
-        }
-        if (instOp->parent() == inst->parent()) {
+        if (operand->parent() == inst->parent()) {
             return false;
         }
     }
@@ -712,6 +721,14 @@ void GVNContext::processHeader(size_t rank,
 bool GVNContext::isHeaderMovable(Instruction* inst,
                                  BasicBlock* header,
                                  BasicBlock* landingPad) {
+    if (isIgnored(inst)) {
+        return false;
+    }
+    return ranges::none_of(inst->operands() | Filter<Instruction>,
+                           [&](Instruction* operand) {
+        return operand->parent() == header;
+    });
+#if 0
     struct DFS {
         Instruction* inst;
         BasicBlock* header;
@@ -721,17 +738,21 @@ bool GVNContext::isHeaderMovable(Instruction* inst,
         bool visitedHeader = false;
 
         bool run() {
-            search(inst->parent(), inst->operands());
+            for (auto* pred: header->predecessors()) {
+                if (pred == landingPad) {
+                    continue;
+                }
+                if (!search(pred, phiRename(header, inst->operands(), pred))) {
+                    break;
+                }
+            }
             return redundant;
         }
 
         bool search(BasicBlock* BB, utl::small_vector<Value* const> operands) {
             if (BB == header) {
-                if (visitedHeader) {
-                    redundant = false;
-                    return false;
-                }
-                visitedHeader = true;
+                redundant = false;
+                return false;
             }
             auto [itr, success] = operandMap.insert({ BB, operands });
             if (!success) {
@@ -797,6 +818,7 @@ bool GVNContext::isHeaderMovable(Instruction* inst,
         }
     };
     return DFS{ inst, header, landingPad }.run();
+#endif
 }
 
 void GVNContext::processLandingPad(size_t rank,
