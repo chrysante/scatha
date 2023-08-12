@@ -57,6 +57,9 @@ public:
     /// counted as one.
     size_t userCount() const { return _users.size(); }
 
+    /// \Returns `true` iff this value has any users
+    bool isUsed() const { return userCount() != 0; }
+
     /// Clear all users from this values user list and update users
     void removeAllUses();
 

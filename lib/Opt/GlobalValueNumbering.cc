@@ -7,10 +7,12 @@
 #include <iostream>
 
 #include <range/v3/algorithm.hpp>
+#include <utl/function_view.hpp>
 #include <utl/graph.hpp>
 #include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
 #include <utl/ilist.hpp>
+#include <utl/stack.hpp>
 
 #include "Common/Ranges.h"
 #include "IR/CFG.h"
@@ -30,14 +32,22 @@ SC_REGISTER_PASS(opt::globalValueNumbering, "gvn");
 namespace {
 
 struct Computation {
-    Computation(Instruction const* inst): inst(inst) {}
+    Computation(Instruction* inst): inst(inst) {}
 
+    /// The associated instruction
+    Instruction* instruction() const { return inst; }
+
+    /// \Returns `true` iff  \p *this and \p RHS compute the same value
     bool operator==(Computation const& RHS) const {
         return equal(inst, inst->operands(), RHS.inst, RHS.inst->operands());
     }
 
+    /// A hash value based on the kind of computation and the addresses of the
+    /// operands
     size_t hashValue() const { return hash(inst, inst->operands()); }
 
+    /// Implementation of `operator==`. Exposed here for use in 'question
+    /// propagation' in loop header nodes
     static bool equal(Instruction const* A,
                       std::span<Value const* const> AOps,
                       Instruction const* B,
@@ -116,7 +126,7 @@ struct Computation {
     }
 
 private:
-    Instruction const* inst;
+    Instruction* inst;
 };
 
 } // namespace
@@ -135,36 +145,39 @@ namespace {
 /// - identify all identical computations for a given computation
 class LocalComputationTable {
 public:
-    static LocalComputationTable build(
-        BasicBlock* BB, utl::hashmap<Instruction*, size_t> const& ranks);
-
     /// Insert a computation into the table
-    void insert(size_t rank, Instruction* inst) {
-        rankMap[rank].push_back(inst);
+    /// \Returns `nullptr` on success or otherwise the existing instruction that
+    /// computes the same value.
+    [[nodiscard]] Instruction* insertOrExisting(size_t rank,
+                                                Instruction* inst) {
+        _maxRank = std::max(_maxRank, rank);
+        auto& computations = rankMap[rank];
+        auto [itr, success] = computations.insert(Computation(inst));
+        if (success) {
+            return nullptr;
+        }
+        return itr->instruction();
     }
 
     /// View over all computations
-    auto computations() const {
+    auto instructions() const {
         return rankMap | ranges::views::transform([](auto& p) -> auto& {
                    return p.second;
                }) |
-               ranges::views::join;
+               ranges::views::join | CompToInst;
     }
 
     /// View over all computations of a given rank
-    std::span<Instruction* const> computations(size_t rank) const {
-        auto itr = rankMap.find(rank);
-        if (itr != rankMap.end()) {
-            return itr->second;
-        }
-        return {};
-    }
+    auto instructions(size_t rank) { return rankMap[rank] | CompToInst; }
 
     /// The maximum rank of computations in this LCT
     size_t maxRank() const { return _maxRank; }
 
 private:
-    utl::hashmap<size_t, utl::small_vector<Instruction*>> rankMap;
+    static constexpr auto CompToInst = ranges::views::transform(
+        [](Computation comp) { return comp.instruction(); });
+
+    utl::hashmap<size_t, utl::hashset<Computation>> rankMap;
     size_t _maxRank = 0;
 };
 
@@ -229,12 +242,12 @@ public:
 
     /// \Returns `true` iff this MCT has any computations that are equal to \p
     /// inst
-    bool hasComputationEqualTo(Instruction const* inst) const {
+    bool hasComputationEqualTo(Instruction* inst) const {
         return compMap.contains(Computation(inst));
     }
 
     /// Erase all computations equal to \p inst
-    void eraseComputationEqualTo(Instruction const* inst) {
+    void eraseComputationEqualTo(Instruction* inst) {
         auto itr = compMap.find(Computation(inst));
         if (itr == compMap.end()) {
             return;
@@ -244,7 +257,7 @@ public:
         entry->list->erase(entry);
     }
 
-    auto computationEqualTo(Instruction const* inst) const {
+    auto computationEqualTo(Instruction* inst) const {
         auto itr = compMap.find(Computation(inst));
         SC_ASSERT(itr != compMap.end(), "");
         return itr->second;
@@ -320,6 +333,7 @@ struct GVNContext {
     utl::small_vector<BasicBlock*> topsortOrder;
     size_t maxRank = 0;
     RankMap<Value> globalRanks;
+    utl::hashset<Instruction*> redundant;
     utl::hashmap<BasicBlock*, RankMap<Instruction>> localRanks;
     utl::hashmap<BasicBlock*, LocalComputationTable> LCTs;
     utl::hashmap<Edge, MovableComputationTable> MCTs;
@@ -334,6 +348,8 @@ struct GVNContext {
     void joinSplitEdges();
     void computeTopsortOrder();
     void assignRanks();
+    /// Remove all instructions that have become redundant
+    void clean();
 
     /// The main algorithm
     void processGlobally();
@@ -350,12 +366,12 @@ struct GVNContext {
     void moveInImpl(size_t rank,
                     BasicBlock*,
                     LocalComputationTable&,
-                    auto&& succs,
-                    auto condition);
+                    std::span<BasicBlock* const> succs,
+                    utl::function_view<bool(Instruction const*)> condition);
     void moveOut(size_t rank, BasicBlock*, LocalComputationTable&);
 
     Instruction* insertPointForRank(BasicBlock* BB, size_t rank) {
-        auto nextRank = LCTs[BB].computations(rank + 1);
+        auto nextRank = LCTs[BB].instructions(rank + 1);
         if (!nextRank.empty()) {
             return nextRank.back();
         }
@@ -363,18 +379,12 @@ struct GVNContext {
     }
 
     void buildLCTs();
-    void elimLocal();
     size_t computeRank(Instruction* inst);
     size_t getAvailRank(Value* value);
+    LocalComputationTable buildLCT(BasicBlock* BB);
 };
 
 } // namespace
-
-namespace scatha::opt {
-
-void print(GVNContext const* ctx) { std::cout << "Info\n"; }
-
-} // namespace scatha::opt
 
 bool opt::globalValueNumbering(Context& ctx, Function& function) {
     bool result = false;
@@ -391,6 +401,7 @@ bool GVNContext::run() {
     computeTopsortOrder();
     assignRanks();
     processGlobally();
+    clean();
     joinSplitEdges();
     /// We invalidate the CFG info unconditionally because we did modify the
     /// CFG, compute CFG info and then potentially undid all changes to the CFG.
@@ -517,16 +528,22 @@ void GVNContext::joinSplitEdges() {
 void GVNContext::computeTopsortOrder() {
     struct DFS {
         utl::hashset<BasicBlock*> visited;
+        utl::hashset<BasicBlock*> visitedCurrentDescend;
         utl::hashset<std::pair<BasicBlock*, BasicBlock*>> backEdges;
 
         void search(BasicBlock* BB) {
             visited.insert(BB);
             for (auto* succ: BB->successors()) {
-                if (visited.contains(succ)) {
+                if (visitedCurrentDescend.contains(succ)) {
                     backEdges.insert({ BB, succ });
                     continue;
                 }
+                if (visited.contains(succ)) {
+                    continue;
+                }
+                visitedCurrentDescend.insert(succ);
                 search(succ);
+                visitedCurrentDescend.erase(succ);
             }
         }
     };
@@ -572,12 +589,34 @@ size_t GVNContext::computeRank(Instruction* inst) {
 
 size_t GVNContext::getAvailRank(Value* value) { return globalRanks[value]; }
 
+LocalComputationTable GVNContext::buildLCT(BasicBlock* BB) {
+    auto& ranks = localRanks[BB];
+    LocalComputationTable result;
+    for (auto [inst, rank]: ranks) {
+        if (isa<Phi>(inst)) {
+            continue;
+        }
+        if (auto* existing = result.insertOrExisting(rank, inst)) {
+            replaceValue(inst, existing);
+            redundant.insert(inst);
+        }
+    }
+    return result;
+}
+
+void GVNContext::clean() {
+    for (auto* inst: redundant) {
+        SC_ASSERT(!inst->isUsed(), "");
+        inst->parent()->erase(inst);
+    }
+}
+
 void GVNContext::processGlobally() {
     for (size_t rank = 0; rank <= maxRank; ++rank) {
         for (auto* BB: topsortOrder) {
             auto& LCT = LCTs[BB];
             if (rank == 0) {
-                LCT = LocalComputationTable::build(BB, localRanks[BB]);
+                LCT = buildLCT(BB);
             }
             if (loopHeaders.contains(BB)) {
                 processHeader(rank, BB, LCT);
@@ -631,7 +670,7 @@ void GVNContext::processHeader(size_t rank,
     moveIn(rank, header, LCT);
     /// Identify candidates for movement to our predecessor
     auto* landingPad = loops[header].landingPad;
-    auto movable = LCT.computations(rank) |
+    auto movable = LCT.instructions(rank) |
                    ranges::views::filter([&](auto* inst) {
                        return isHeaderMovable(inst, header, landingPad);
                    }) |
@@ -737,7 +776,11 @@ void GVNContext::processLandingPad(size_t rank,
                                    LocalComputationTable& LCT) {
     auto* header = BB->singleSuccessor();
     auto& loop = loops[header];
-    moveInImpl(rank, BB, LCT, BB->successors(), [&](Instruction* inst) {
+    moveInImpl(rank,
+               BB,
+               LCT,
+               BB->successors() | ranges::to<utl::small_vector<BasicBlock*>>,
+               [&](Instruction const* inst) {
         return ranges::none_of(inst->operands() | Filter<Instruction>,
                                [&](auto* instOp) {
             return loop.loopNodes.contains(instOp->parent());
@@ -756,27 +799,40 @@ void GVNContext::processOther(size_t rank,
 void GVNContext::moveIn(size_t rank,
                         BasicBlock* BB,
                         LocalComputationTable& LCT) {
-    moveInImpl(rank, BB, LCT, BB->successors(), [](Instruction* inst) {
-        return true;
-    });
+    moveInImpl(rank,
+               BB,
+               LCT,
+               BB->successors() | ranges::to<utl::small_vector<BasicBlock*>>,
+               [](Instruction const* inst) { return true; });
 }
 
-void GVNContext::moveInImpl(size_t rank,
-                            BasicBlock* BB,
-                            LocalComputationTable& LCT,
-                            auto&& succs,
-                            auto condition) {
+void GVNContext::moveInImpl(
+    size_t rank,
+    BasicBlock* BB,
+    LocalComputationTable& LCT,
+    std::span<BasicBlock* const> succs,
+    utl::function_view<bool(Instruction const*)> condition) {
+    auto insertIntoLTCAndBB =
+        [&](Instruction* insertPoint, MovableComputationTable::Entry& entry) {
+        Instruction* inst = entry.copy();
+        if (auto* existing = LCT.insertOrExisting(rank, inst)) {
+            inst = existing;
+        }
+        else {
+            BB->insert(insertPoint, entry.takeCopy());
+        }
+        for (auto* original: entry.originals()) {
+            redundant.insert(original);
+            replaceValue(original, inst);
+        }
+        return inst;
+    };
     /// Move computations from successors into this block
     if (succs.size() == 1) {
         auto& MCT = MCTs[{ BB, succs.front() }];
         auto insertPoint = insertPointForRank(BB, rank);
         for (auto& entry: MCT.entries(rank)) {
-            auto* copy = entry.takeCopy();
-            BB->insert(insertPoint, copy);
-            LCT.insert(rank, copy);
-            for (auto* original: entry.originals()) {
-                replaceValue(original, copy);
-            }
+            insertIntoLTCAndBB(insertPoint, entry);
         }
         MCT.clear();
         return;
@@ -785,33 +841,38 @@ void GVNContext::moveInImpl(size_t rank,
     for (auto* succ: succs) {
         auto& MCT_A = MCTs[{ BB, succ }];
         auto&& entries_A = MCT_A.entries(rank);
+        /// We loop other all entries in the MCT of `(BB, succ)`
         for (auto itr = entries_A.begin(); itr != entries_A.end();) {
             auto& entry = *itr;
-            bool allOthersHave = true;
-            for (auto* otherSucc: BB->successors()) {
-                if (otherSucc != succ) {
-                    auto& MCT_B = MCTs[{ BB, otherSucc }];
-                    allOthersHave &= MCT_B.hasComputationEqualTo(entry.copy());
-                }
+            /// The condition is always `true` for normal nodes and for landing
+            /// pads it is all operands must not be defined in loop nodes.
+            if (!condition(entry.copy())) {
+                continue;
             }
-            if (!allOthersHave || !condition(entry.copy())) {
+            bool allOthersHaveSameEntry =
+                ranges::all_of(BB->successors(), [&](BasicBlock* other) {
+                    if (other == succ) {
+                        return true;
+                    }
+                    auto& MCT_B = MCTs[{ BB, other }];
+                    return MCT_B.hasComputationEqualTo(entry.copy());
+                });
+            if (!allOthersHaveSameEntry) {
                 ++itr;
                 continue;
             }
-            auto* copy = entry.takeCopy();
-            BB->insert(insertPoint, copy);
-            for (auto* original: entry.originals()) {
-                replaceValue(original, copy);
-            }
+            auto* copy = insertIntoLTCAndBB(insertPoint, entry);
             for (auto* otherSucc: BB->successors()) {
-                if (otherSucc != succ) {
-                    auto& MCT_B = MCTs[{ BB, otherSucc }];
-                    auto* otherEntry = MCT_B.computationEqualTo(copy);
-                    for (auto* original: otherEntry->originals()) {
-                        replaceValue(original, copy);
-                    }
-                    MCT_B.eraseComputationEqualTo(copy);
+                if (otherSucc == succ) {
+                    continue;
                 }
+                auto& MCT_B = MCTs[{ BB, otherSucc }];
+                auto* otherEntry = MCT_B.computationEqualTo(copy);
+                for (auto* original: otherEntry->originals()) {
+                    redundant.insert(original);
+                    replaceValue(original, copy);
+                }
+                MCT_B.eraseComputationEqualTo(copy);
             }
             ++itr;
             MCT_A.erase(copy, &entry);
@@ -823,7 +884,7 @@ void GVNContext::moveOut(size_t rank,
                          BasicBlock* BB,
                          LocalComputationTable& LCT) {
     /// Identify candidates for movement to our predecessors
-    auto movable = LCT.computations(rank) | ranges::views::filter(isMoveable) |
+    auto movable = LCT.instructions(rank) | ranges::views::filter(isMoveable) |
                    ranges::to<utl::small_vector<Instruction*>>;
     switch (BB->numPredecessors()) {
     case 0:
@@ -864,40 +925,4 @@ void GVNContext::moveOut(size_t rank,
         }
         break;
     }
-}
-
-void GVNContext::elimLocal() {
-#if 0
-    for (auto& BB: function) {
-        auto& LCT = LCTs.find(&BB)->second;
-        for (size_t rank = 0; rank < LCT.maxRank(); ++rank) {
-            auto& comps = LCT.computations(rank);
-            for (auto i = comps.begin(); i != comps.end(); ++i) {
-                for (auto j = i + 1; j != comps.end();) {
-                    bool canErase =
-                        Computation(*i) == Computation(*j) &&
-                        ranges::equal((*i)->operands(), (*j)->operands()) &&
-                        !hasSideEffects(*i);
-                    if (canErase) {
-                        replaceValue(*j, *i);
-                        BB.erase(*j);
-                        j = comps.erase(j);
-                        continue;
-                    }
-                    ++j;
-                }
-            }
-        }
-    }
-#endif
-}
-
-LocalComputationTable LocalComputationTable::build(
-    BasicBlock* BB, utl::hashmap<Instruction*, size_t> const& ranks) {
-    LocalComputationTable result;
-    for (auto [inst, rank]: ranks) {
-        result.rankMap[rank].push_back(inst);
-        result._maxRank = std::max(result._maxRank, rank);
-    }
-    return result;
 }
