@@ -12,6 +12,7 @@
 #include <utl/hashtable.hpp>
 #include <utl/ilist.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Dominance.h"
@@ -32,32 +33,41 @@ struct Computation {
     Computation(Instruction const* inst): inst(inst) {}
 
     bool operator==(Computation const& RHS) const {
-        if (inst->nodeType() != RHS.inst->nodeType()) {
+        return equal(inst, inst->operands(), RHS.inst, RHS.inst->operands());
+    }
+
+    size_t hashValue() const { return hash(inst, inst->operands()); }
+
+    static bool equal(Instruction const* A,
+                      std::span<Value const* const> AOps,
+                      Instruction const* B,
+                      std::span<Value const* const> BOps) {
+        if (A->nodeType() != B->nodeType()) {
             return false;
         }
         // clang-format off
-        bool const compEqual = utl::visit(*inst, utl::overload{
+        bool const compEqual = utl::visit(*A, utl::overload{
             [&](ArithmeticInst const& inst) {
                 return inst.operation() ==
-                       cast<ArithmeticInst const*>(RHS.inst)->operation();
+                       cast<ArithmeticInst const*>(B)->operation();
             },
             [&](UnaryArithmeticInst const& inst) {
                 return inst.operation() ==
-                       cast<UnaryArithmeticInst const*>(RHS.inst)->operation();
+                       cast<UnaryArithmeticInst const*>(B)->operation();
             },
             [&](CompareInst const& inst) {
                 return inst.operation() ==
-                       cast<CompareInst const*>(RHS.inst)->operation();
+                       cast<CompareInst const*>(B)->operation();
             },
             [&](ExtractValue const& inst) {
                 return ranges::equal(
                            inst.memberIndices(),
-                           cast<ExtractValue const*>(RHS.inst)->memberIndices());
+                           cast<ExtractValue const*>(B)->memberIndices());
             },
             [&](InsertValue const& inst) {
                 return ranges::equal(
                            inst.memberIndices(),
-                           cast<InsertValue const*>(RHS.inst)->memberIndices());
+                           cast<InsertValue const*>(B)->memberIndices());
             },
             [&](Instruction const& inst) -> bool {
                 SC_UNREACHABLE();
@@ -66,10 +76,11 @@ struct Computation {
         if (!compEqual) {
             return false;
         }
-        return ranges::equal(inst->operands(), RHS.inst->operands());
+        return ranges::equal(AOps, BOps);
     }
 
-    size_t hashValue() const {
+    static size_t hash(Instruction const* inst,
+                       std::span<Value const* const> ops) {
         size_t seed = 0;
         utl::hash_combine_seed(seed, inst->nodeType());
 
@@ -98,7 +109,7 @@ struct Computation {
                 SC_UNREACHABLE();
             }
         }); // clang-format on
-        for (auto* operand: inst->operands()) {
+        for (auto* operand: ops) {
             utl::hash_combine_seed(seed, operand);
         }
         return seed;
@@ -325,14 +336,23 @@ struct GVNContext {
     void assignRanks();
 
     /// The main algorithm
-    void processHeader(size_t rank, BasicBlock* BB);
+    void processGlobally();
+    void processHeader(size_t rank, BasicBlock* BB, LocalComputationTable&);
     /// \Returns `true` if the computation \p inst can be moved out of a loop
     /// header
-    bool isHeaderMovable(Instruction* inst);
+    bool isHeaderMovable(Instruction* inst,
+                         BasicBlock* header,
+                         BasicBlock* landingPad);
 
-    void processLandingPad(size_t rank, BasicBlock* BB);
-    void processOther(size_t rank, BasicBlock* BB);
-    void moveIn(size_t rank, BasicBlock* BB);
+    void processLandingPad(size_t rank, BasicBlock*, LocalComputationTable&);
+    void processOther(size_t rank, BasicBlock*, LocalComputationTable&);
+    void moveIn(size_t rank, BasicBlock*, LocalComputationTable&);
+    void moveInImpl(size_t rank,
+                    BasicBlock*,
+                    LocalComputationTable&,
+                    auto&& succs,
+                    auto condition);
+    void moveOut(size_t rank, BasicBlock*, LocalComputationTable&);
 
     Instruction* insertPointForRank(BasicBlock* BB, size_t rank) {
         auto nextRank = LCTs[BB].computations(rank + 1);
@@ -370,34 +390,8 @@ bool GVNContext::run() {
     gatherLoops();
     computeTopsortOrder();
     assignRanks();
-#if 1
-    std::cout << "Virtual edges: \n";
-    for (auto& [exit, preds]: virtualPredecessors) {
-        for (auto* pred: preds) {
-            std::cout << "    " << pred->name() << " --> " << exit->name()
-                      << std::endl;
-        }
-    }
-    std::cout << "Ranks: \n";
-    for (auto [value, rank]: globalRanks) {
-        std::cout << "    " << value->name() << " : " << rank << std::endl;
-    }
-#endif
-    for (size_t rank = 0; rank <= maxRank; ++rank) {
-        for (auto* BB: topsortOrder) {
-            if (loopHeaders.contains(BB)) {
-                processHeader(rank, BB);
-            }
-            else if (landingPads.contains(BB)) {
-                processLandingPad(rank, BB);
-            }
-            else {
-                processOther(rank, BB);
-            }
-        }
-    }
-
-    //    joinSplitEdges();
+    processGlobally();
+    joinSplitEdges();
     /// We invalidate the CFG info unconditionally because we did modify the
     /// CFG, compute CFG info and then potentially undid all changes to the CFG.
     /// But because we recomputed the info in between we have to invalidate
@@ -439,7 +433,7 @@ void GVNContext::gatherLoops() {
         }
 
         /// Gather the entire loop
-        auto& loop = loops[header] = Loop{ header, landingPad };
+        auto& loop = loops[header] = Loop{ landingPad, header };
         for (auto* pred: header->predecessors()) {
             auto dfs = [&](auto& dfs, BasicBlock* BB) {
                 if (BB == landingPad) {
@@ -578,6 +572,26 @@ size_t GVNContext::computeRank(Instruction* inst) {
 
 size_t GVNContext::getAvailRank(Value* value) { return globalRanks[value]; }
 
+void GVNContext::processGlobally() {
+    for (size_t rank = 0; rank <= maxRank; ++rank) {
+        for (auto* BB: topsortOrder) {
+            auto& LCT = LCTs[BB];
+            if (rank == 0) {
+                LCT = LocalComputationTable::build(BB, localRanks[BB]);
+            }
+            if (loopHeaders.contains(BB)) {
+                processHeader(rank, BB, LCT);
+            }
+            else if (landingPads.contains(BB)) {
+                processLandingPad(rank, BB, LCT);
+            }
+            else {
+                processOther(rank, BB, LCT);
+            }
+        }
+    }
+}
+
 static auto isMoveable = [](Instruction* inst) {
     /// Here we should probably also check for certain side effects
     if (isa<Phi>(inst) || isa<TerminatorInst>(inst)) {
@@ -598,33 +612,217 @@ static auto isMoveable = [](Instruction* inst) {
     return true;
 };
 
-static UniquePtr<Instruction> copyForPred(Context& ctx,
-                                          Instruction* inst,
-                                          BasicBlock* pred) {
+static UniquePtr<Instruction> copyAndPhiRename(Context& ctx,
+                                               Instruction* inst,
+                                               BasicBlock* pred) {
     auto copy = ir::clone(ctx, inst);
     for (auto [index, operand]: inst->operands() | ranges::views::enumerate) {
-        if (auto* phi = dyncast<Phi*>(operand)) {
+        auto* phi = dyncast<Phi*>(operand);
+        if (phi && phi->parent() == inst->parent()) {
             copy->updateOperand(phi, phi->operandOf(pred));
         }
     }
     return copy;
 }
 
-void GVNContext::processHeader(size_t rank, BasicBlock* BB) {
-    moveIn(rank, BB);
+void GVNContext::processHeader(size_t rank,
+                               BasicBlock* header,
+                               LocalComputationTable& LCT) {
+    moveIn(rank, header, LCT);
+    /// Identify candidates for movement to our predecessor
+    auto* landingPad = loops[header].landingPad;
+    auto movable = LCT.computations(rank) |
+                   ranges::views::filter([&](auto* inst) {
+                       return isHeaderMovable(inst, header, landingPad);
+                   }) |
+                   ranges::to<utl::small_vector<Instruction*>>;
+    auto& MCT = MCTs[{ landingPad, header }];
+    for (auto* inst: movable) {
+        MCT.insert(rank, copyAndPhiRename(ctx, inst, landingPad), inst);
+    }
 }
 
-bool GVNContext::isHeaderMovable(Instruction* inst) {}
+bool GVNContext::isHeaderMovable(Instruction* inst,
+                                 BasicBlock* header,
+                                 BasicBlock* landingPad) {
+    struct DFS {
+        Instruction* inst;
+        BasicBlock* header;
+        BasicBlock* landingPad;
+        utl::hashmap<BasicBlock*, utl::small_vector<Value*>> operandMap = {};
+        bool redundant = true;
+        bool visitedHeader = false;
 
-void GVNContext::processLandingPad(size_t rank, BasicBlock* BB) {
-    SC_UNIMPLEMENTED();
+        bool run() {
+            search(inst->parent(), inst->operands());
+            return redundant;
+        }
+
+        bool search(BasicBlock* BB, utl::small_vector<Value* const> operands) {
+            if (BB == header) {
+                if (visitedHeader) {
+                    redundant = false;
+                    return false;
+                }
+                visitedHeader = true;
+            }
+            auto [itr, success] = operandMap.insert({ BB, operands });
+            if (!success) {
+                if (ranges::equal(itr->second, operands)) {
+                    return true;
+                }
+                else {
+                    redundant = false;
+                    return false;
+                }
+            }
+            auto isLocalInst = [&](Value* value) {
+                auto* inst = dyncast<Instruction*>(value);
+                if (!inst) {
+                    return false;
+                }
+                if (isa<Phi>(inst)) {
+                    return false;
+                }
+                return inst->parent() == BB;
+            };
+            if (ranges::any_of(operands, isLocalInst)) {
+                redundant = false;
+                return false;
+            }
+            /// We should rewrite this at some point to use a constant time
+            /// algorithm instead of looping over the entire BB
+            for (auto& inst: *BB) {
+                if (isa<Phi>(inst) || isa<TerminatorInst>(inst)) {
+                    continue;
+                }
+                if (Computation::equal(&inst,
+                                       inst.operands(),
+                                       this->inst,
+                                       operands))
+                {
+                    return true;
+                }
+            }
+            for (auto* pred: BB->predecessors()) {
+                if (pred == landingPad) {
+                    SC_ASSERT(BB == header, "");
+                    continue;
+                }
+                if (!search(pred, phiRename(BB, operands, pred))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        utl::small_vector<Value*> phiRename(BasicBlock* BB,
+                                            std::span<Value* const> operands,
+                                            BasicBlock* pred) const {
+            return operands | ranges::views::transform([&](Value* operand) {
+                       auto* phi = dyncast<Phi*>(operand);
+                       if (phi && phi->parent() == BB) {
+                           return phi->operandOf(pred);
+                       }
+                       return operand;
+                   }) |
+                   ranges::to<utl::small_vector<Value*>>;
+        }
+    };
+    return DFS{ inst, header, landingPad }.run();
 }
 
-void GVNContext::processOther(size_t rank, BasicBlock* BB) {
-    moveIn(rank, BB);
+void GVNContext::processLandingPad(size_t rank,
+                                   BasicBlock* BB,
+                                   LocalComputationTable& LCT) {
+    auto* header = BB->singleSuccessor();
+    auto& loop = loops[header];
+    moveInImpl(rank, BB, LCT, BB->successors(), [&](Instruction* inst) {
+        return ranges::none_of(inst->operands() | Filter<Instruction>,
+                               [&](auto* instOp) {
+            return loop.loopNodes.contains(instOp->parent());
+        });
+    });
+    moveOut(rank, BB, LCT);
+}
 
+void GVNContext::processOther(size_t rank,
+                              BasicBlock* BB,
+                              LocalComputationTable& LCT) {
+    moveIn(rank, BB, LCT);
+    moveOut(rank, BB, LCT);
+}
+
+void GVNContext::moveIn(size_t rank,
+                        BasicBlock* BB,
+                        LocalComputationTable& LCT) {
+    moveInImpl(rank, BB, LCT, BB->successors(), [](Instruction* inst) {
+        return true;
+    });
+}
+
+void GVNContext::moveInImpl(size_t rank,
+                            BasicBlock* BB,
+                            LocalComputationTable& LCT,
+                            auto&& succs,
+                            auto condition) {
+    /// Move computations from successors into this block
+    if (succs.size() == 1) {
+        auto& MCT = MCTs[{ BB, succs.front() }];
+        auto insertPoint = insertPointForRank(BB, rank);
+        for (auto& entry: MCT.entries(rank)) {
+            auto* copy = entry.takeCopy();
+            BB->insert(insertPoint, copy);
+            LCT.insert(rank, copy);
+            for (auto* original: entry.originals()) {
+                replaceValue(original, copy);
+            }
+        }
+        MCT.clear();
+        return;
+    }
+    auto insertPoint = insertPointForRank(BB, rank);
+    for (auto* succ: succs) {
+        auto& MCT_A = MCTs[{ BB, succ }];
+        auto&& entries_A = MCT_A.entries(rank);
+        for (auto itr = entries_A.begin(); itr != entries_A.end();) {
+            auto& entry = *itr;
+            bool allOthersHave = true;
+            for (auto* otherSucc: BB->successors()) {
+                if (otherSucc != succ) {
+                    auto& MCT_B = MCTs[{ BB, otherSucc }];
+                    allOthersHave &= MCT_B.hasComputationEqualTo(entry.copy());
+                }
+            }
+            if (!allOthersHave || !condition(entry.copy())) {
+                ++itr;
+                continue;
+            }
+            auto* copy = entry.takeCopy();
+            BB->insert(insertPoint, copy);
+            for (auto* original: entry.originals()) {
+                replaceValue(original, copy);
+            }
+            for (auto* otherSucc: BB->successors()) {
+                if (otherSucc != succ) {
+                    auto& MCT_B = MCTs[{ BB, otherSucc }];
+                    auto* otherEntry = MCT_B.computationEqualTo(copy);
+                    for (auto* original: otherEntry->originals()) {
+                        replaceValue(original, copy);
+                    }
+                    MCT_B.eraseComputationEqualTo(copy);
+                }
+            }
+            ++itr;
+            MCT_A.erase(copy, &entry);
+        }
+    }
+}
+
+void GVNContext::moveOut(size_t rank,
+                         BasicBlock* BB,
+                         LocalComputationTable& LCT) {
     /// Identify candidates for movement to our predecessors
-    auto& LCT = LCTs[BB];
     auto movable = LCT.computations(rank) | ranges::views::filter(isMoveable) |
                    ranges::to<utl::small_vector<Instruction*>>;
     switch (BB->numPredecessors()) {
@@ -637,12 +835,12 @@ void GVNContext::processOther(size_t rank, BasicBlock* BB) {
         for (auto* pred: allPreds) {
             auto& MCT = MCTs[{ pred, BB }];
             for (auto* inst: movable) {
-                MCT.insert(rank, copyForPred(ctx, inst, realPred), inst);
+                MCT.insert(rank, copyAndPhiRename(ctx, inst, realPred), inst);
             }
         }
         break;
     }
-    default: {
+    default:
         /// Here we have multiple predecessors. Since the CFG at this point has
         /// no critical edges, we can assume that all our predecessors have only
         /// one successor, i.e. this block. This means it is guaranteed that all
@@ -650,12 +848,12 @@ void GVNContext::processOther(size_t rank, BasicBlock* BB) {
         /// predecessors. Therefore we can insert phi nodes here for the copies
         /// and replace the current value with the phi node.
         SC_ASSERT(virtualPredecessors[BB].empty(),
-                  "Must be empty according to the paper");
+                  "Must be empty because loop exit nodes are branch nodes");
         for (auto* inst: movable) {
             utl::small_vector<PhiMapping> phiArgs;
             for (auto* pred: BB->predecessors()) {
                 auto& MCT = MCTs[{ pred, BB }];
-                auto copyOwner = copyForPred(ctx, inst, pred);
+                auto copyOwner = copyAndPhiRename(ctx, inst, pred);
                 auto* copy = copyOwner.get();
                 MCT.insert(rank, std::move(copyOwner), inst);
                 phiArgs.push_back({ pred, copy });
@@ -665,64 +863,6 @@ void GVNContext::processOther(size_t rank, BasicBlock* BB) {
             replaceValue(inst, phi);
         }
         break;
-    }
-    }
-}
-
-void GVNContext::moveIn(size_t rank, BasicBlock* BB) {
-    auto& LCT = LCTs[BB];
-    if (rank == 0) {
-        LCT = LocalComputationTable::build(BB, localRanks[BB]);
-    }
-    /// Move computations from successors into this block
-    if (BB->numSuccessors() == 1) {
-        auto& MCT = MCTs[{ BB, BB->singleSuccessor() }];
-        auto insertPoint = insertPointForRank(BB, rank);
-        for (auto& entry: MCT.entries(rank)) {
-            auto* copy = entry.takeCopy();
-            BB->insert(insertPoint, copy);
-            LCT.insert(rank, copy);
-        }
-        MCT.clear();
-    }
-    else {
-        auto insertPoint = insertPointForRank(BB, rank);
-        for (auto* succ: BB->successors()) {
-            auto& MCT_A = MCTs[{ BB, succ }];
-            auto&& entries_A = MCT_A.entries(rank);
-            for (auto itr = entries_A.begin(); itr != entries_A.end();) {
-                auto& entry = *itr;
-                bool allOthersHave = true;
-                for (auto* otherSucc: BB->successors()) {
-                    if (otherSucc != succ) {
-                        auto& MCT_B = MCTs[{ BB, otherSucc }];
-                        allOthersHave &=
-                            MCT_B.hasComputationEqualTo(entry.copy());
-                    }
-                }
-                if (!allOthersHave) {
-                    ++itr;
-                    continue;
-                }
-                auto* copy = entry.takeCopy();
-                BB->insert(insertPoint, copy);
-                for (auto* original: entry.originals()) {
-                    replaceValue(original, copy);
-                }
-                for (auto* otherSucc: BB->successors()) {
-                    if (otherSucc != succ) {
-                        auto& MCT_B = MCTs[{ BB, otherSucc }];
-                        auto* otherEntry = MCT_B.computationEqualTo(copy);
-                        for (auto* original: otherEntry->originals()) {
-                            replaceValue(original, copy);
-                        }
-                        MCT_B.eraseComputationEqualTo(copy);
-                    }
-                }
-                ++itr;
-                MCT_A.erase(copy, &entry);
-            }
-        }
     }
 }
 
