@@ -31,6 +31,7 @@ SC_REGISTER_PASS(opt::globalValueNumbering, "gvn");
 
 namespace {
 
+/// Structure used to identify identical computations
 struct Computation {
     Computation(Instruction* inst): inst(inst) {}
 
@@ -59,15 +60,18 @@ struct Computation {
         bool const compEqual = utl::visit(*A, utl::overload{
             [&](ArithmeticInst const& inst) {
                 return inst.operation() ==
-                       cast<ArithmeticInst const*>(B)->operation();
+                           cast<ArithmeticInst const*>(B)->operation();
             },
             [&](UnaryArithmeticInst const& inst) {
                 return inst.operation() ==
-                       cast<UnaryArithmeticInst const*>(B)->operation();
+                           cast<UnaryArithmeticInst const*>(B)->operation();
             },
             [&](CompareInst const& inst) {
                 return inst.operation() ==
-                       cast<CompareInst const*>(B)->operation();
+                           cast<CompareInst const*>(B)->operation();
+            },
+            [&](Call const& inst) -> bool {
+                SC_UNIMPLEMENTED();
             },
             [&](ExtractValue const& inst) {
                 return ranges::equal(
@@ -78,6 +82,18 @@ struct Computation {
                 return ranges::equal(
                            inst.memberIndices(),
                            cast<InsertValue const*>(B)->memberIndices());
+            },
+            [&](GetElementPointer const& inst) {
+                return ranges::equal(
+                           inst.memberIndices(),
+                           cast<InsertValue const*>(B)->memberIndices());
+            },
+            [&](ConversionInst const& inst) {
+                return inst.conversion() ==
+                           cast<ConversionInst const*>(B)->conversion();
+            },
+            [&](Select const& inst) {
+                return true;
             },
             [&](Instruction const& inst) -> bool {
                 SC_UNREACHABLE();
@@ -105,6 +121,9 @@ struct Computation {
             [&](CompareInst const& inst) {
                 utl::hash_combine_seed(seed, inst.operation());
             },
+            [&](Call const& inst) {
+                SC_UNIMPLEMENTED();
+            },
             [&](ExtractValue const& inst) {
                 for (size_t index: inst.memberIndices()) {
                     utl::hash_combine_seed(seed, index);
@@ -115,6 +134,15 @@ struct Computation {
                     utl::hash_combine_seed(seed, index);
                 }
             },
+            [&](GetElementPointer const& inst) {
+                for (size_t index: inst.memberIndices()) {
+                    utl::hash_combine_seed(seed, index);
+                }
+            },
+            [&](ConversionInst const& inst) {
+                utl::hash_combine_seed(seed, inst.conversion());
+            },
+            [&](Select const& inst) {},
             [&](Instruction const& inst) {
                 SC_UNREACHABLE();
             }
