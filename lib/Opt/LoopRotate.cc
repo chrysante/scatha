@@ -119,8 +119,8 @@ SingleLoopEntryResult LRContext::makeLoopSingleEntry(BasicBlock* header) {
     for (auto* pred: outerPreds) {
         pred->terminator()->updateTarget(header, preHeader);
     }
-    innerPreds.push_back(preHeader);
     header->setPredecessors(innerPreds);
+    header->addPredecessor(preHeader);
     preHeader->setPredecessors(outerPreds);
     modified = true;
     return result;
@@ -231,10 +231,6 @@ void LRContext::rotateWhileLoop(BasicBlock* header,
     landingPad->addPredecessor(guard);
     landingPad->pushBack(new Goto(ctx, entry));
     entry->setPredecessors(std::array{ landingPad, footer });
-    for (auto* pred: innerPreds) {
-        guard->removePredecessor(pred);
-        pred->terminator()->updateTarget(guard, footer);
-    }
 
     /// Rewrite phi nodes of guard, entry and footer
     auto bodyInsertPoint = entry->phiEnd();
@@ -260,6 +256,13 @@ void LRContext::rotateWhileLoop(BasicBlock* header,
                 footerPhi.setArgument(index, entryPhi);
             }
         }
+    }
+
+    /// Now after we extracted the operands of the phi nodes of `guard`, we can
+    /// remove its predecessors.
+    for (auto* pred: innerPreds) {
+        guard->removePredecessor(pred);
+        pred->terminator()->updateTarget(guard, footer);
     }
 
     /// Replace uses of phi nodes in the guard block by phi nodes in the entry
