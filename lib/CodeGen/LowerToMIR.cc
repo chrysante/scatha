@@ -325,19 +325,20 @@ void CodeGenContext::genInst(ir::ConversionInst const& inst) {
         [[fallthrough]];
     case ir::Conversion::Bitcast: {
         /// These are no-ops, we just return the original register.
-        if (isa<ir::Instruction>(inst.operand())) {
+        if (isa<ir::Instruction>(inst.operand()) ||
+            isa<ir::Parameter>(inst.operand()))
+        {
             valueMap.insert({ &inst, resolve(inst.operand()) });
+            return;
         }
-        else {
-            size_t const width =
-                cast<ir::ArithmeticType const*>(inst.type())->bitwidth();
-            APInt value =
-                getConstantValue(cast<ir::Constant const*>(inst.operand()));
-            value.zext(width);
-            valueMap.insert({ &inst,
-                              result.constant(value.to<uint64_t>(),
-                                              utl::ceil_divide(width, 8)) });
-        }
+        size_t const width =
+            cast<ir::ArithmeticType const*>(inst.type())->bitwidth();
+        APInt value =
+            getConstantValue(cast<ir::Constant const*>(inst.operand()));
+        value.zext(width);
+        valueMap.insert({ &inst,
+                          result.constant(value.to<uint64_t>(),
+                                          utl::ceil_divide(width, 8)) });
         return;
     }
     case ir::Conversion::Sext:
@@ -563,10 +564,10 @@ static R* advance(R* r, size_t count) {
     return r;
 }
 
-static uint64_t makeWordMask(size_t leadingZeros, size_t ones) {
-    SC_ASSERT(leadingZeros + ones <= 8, "");
+static uint64_t makeWordMask(size_t leadingZeroBytes, size_t oneBytes) {
+    SC_ASSERT(leadingZeroBytes + oneBytes <= 8, "");
     std::array<uint8_t, 8> mask{};
-    for (size_t i = leadingZeros; i < leadingZeros + ones; ++i) {
+    for (size_t i = leadingZeroBytes; i < leadingZeroBytes + oneBytes; ++i) {
         mask[i] = 0xFF;
     }
     return utl::bit_cast<uint64_t>(mask);
@@ -680,22 +681,23 @@ void CodeGenContext::genInst(ir::InsertValue const& insert) {
         /// We only handle the case where we need to take care of only one word.
         SC_ASSERT(innerByteOffset + innerType->size() <= 8,
                   "Everything else is too complex for now");
-        auto* shiftedInsert = nextRegister();
         auto* shiftCount = result.constant(8 * innerByteOffset, 1);
+        auto* insertedMask = result.constant(
+            makeWordMask(/* leadingZeroBytes = */ innerByteOffset,
+                         /* oneBytes         = */ innerType->size()),
+            8);
+        auto* sourceMask = result.constant(~insertedMask->value(), 8);
+        auto* shiftedInsert = nextRegister();
         addNewInst(mir::InstCode::Arithmetic,
                    shiftedInsert,
                    { insertedMember, shiftCount },
                    mir::ArithmeticOperation::LShL);
         auto* maskedSource = nextRegister();
-
-        auto* sourceMask =
-            result.constant(makeWordMask(0, 8 - innerType->size()), 8);
         addNewInst(mir::InstCode::Arithmetic,
                    maskedSource,
                    { source, sourceMask },
                    mir::ArithmeticOperation::And);
         auto* maskedInsert = nextRegister();
-        auto* insertedMask = result.constant(~sourceMask->value(), 8);
         addNewInst(mir::InstCode::Arithmetic,
                    maskedInsert,
                    { shiftedInsert, insertedMask },
