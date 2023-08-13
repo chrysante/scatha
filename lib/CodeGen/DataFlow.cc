@@ -71,24 +71,45 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
         }
         dag(succ);
     }
+    /// _Live out_ are all registers defined in this block that are used by phi
+    /// instructions
     auto live = phiUses(BB);
     if (BB->isEntry()) {
         merge(live, phiUses(F.ssaArgumentRegisters()));
     }
-    for (auto* succ: BB->successors()) {
+    /// Also any registers that are _live in_ in our successors are _live out_
+    /// in this block unless they are defined by phi instructions in the
+    /// successor.
+    /// Also all registers that are used by phi nodes in our successor
+    /// corresponding to this block
+    for (auto succ: BB->successors()) {
         if (backEdges.contains({ BB, succ })) {
             continue;
         }
         auto liveInSucc = succ->liveIn();
+        size_t phiIndex =
+            utl::narrow_cast<size_t>(ranges::find(succ->predecessors(), BB) -
+                                     succ->predecessors().begin());
         for (auto& phi: *succ) {
             if (phi.instcode() != mir::InstCode::Phi) {
                 break;
             }
             liveInSucc.erase(phi.dest());
+            /// TODO: Reevaluate this
+            /// This fixes liveness issues when phi instructions use values defined earlier than in the predecessor block
+            auto* ourOperand = phi.operandAt(phiIndex);
+            if (auto* reg = dyncast<mir::SSARegister*>(ourOperand)) {
+                liveInSucc.insert(reg);
+            }
         }
         merge(live, liveInSucc);
     }
     BB->setLiveOut(live);
+    /// After we set the _live out_ set we remove instructions from the set to
+    /// determine our _live in_ set. We erase all registers that are defined by
+    /// our instructions. We add all registers that are used by our
+    /// instructions. If these are also defined here they will be removed again
+    /// because we traverse the instructions in reverse order.
     for (auto& inst: *BB | ranges::views::reverse) {
         if (inst.instcode() == mir::InstCode::Phi) {
             break;
@@ -100,6 +121,7 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
             }
         }
     }
+    /// Also all registers defined by phi instructions are _live in_
     for (auto& phi: *BB) {
         if (phi.instcode() != mir::InstCode::Phi) {
             break;
@@ -159,6 +181,8 @@ static constexpr auto phiUseFilter =
         });
     });
 
+/// Returns all registers defined by instructions in \p BB that are used by phi
+/// instructions
 utl::hashset<mir::Register*> LivenessContext::phiUses(mir::BasicBlock* BB) {
     return *BB | ranges::views::transform([](mir::Instruction& inst) {
         return inst.dest();
