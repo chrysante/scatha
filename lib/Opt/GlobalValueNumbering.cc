@@ -86,7 +86,7 @@ struct Computation {
             [&](GetElementPointer const& inst) {
                 return ranges::equal(
                            inst.memberIndices(),
-                           cast<InsertValue const*>(B)->memberIndices());
+                           cast<GetElementPointer const*>(B)->memberIndices());
             },
             [&](ConversionInst const& inst) {
                 return inst.conversion() ==
@@ -431,8 +431,9 @@ struct GVNContext {
 bool opt::globalValueNumbering(Context& ctx, Function& function) {
     bool result = false;
     result |= rotateLoops(ctx, function);
-    GVNContext gvnContext(ctx, function);
-    result |= gvnContext.run();
+    /// We limit the scope of the `GVNContext`. It may still hold cloned
+    /// instructions that must be deleted before `assertInvariants` runs.
+    result |= GVNContext(ctx, function).run();
     assertInvariants(ctx, function);
     return result;
 }
@@ -635,7 +636,7 @@ LocalComputationTable GVNContext::buildLCT(BasicBlock* BB) {
     auto& ranks = localRanks[BB];
     LocalComputationTable result;
     for (auto [inst, rank]: ranks) {
-        if (isa<Phi>(inst)) {
+        if (isIgnored(inst)) {
             continue;
         }
         if (auto* existing = result.insertOrExisting(rank, inst)) {
