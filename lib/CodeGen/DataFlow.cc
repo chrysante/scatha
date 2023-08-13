@@ -96,7 +96,8 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
             }
             liveInSucc.erase(phi.dest());
             /// TODO: Reevaluate this
-            /// This fixes liveness issues when phi instructions use values defined earlier than in the predecessor block
+            /// This fixes liveness issues when phi instructions use values
+            /// defined earlier than in the predecessor block
             auto* ourOperand = phi.operandAt(phiIndex);
             if (auto* reg = dyncast<mir::SSARegister*>(ourOperand)) {
                 liveInSucc.insert(reg);
