@@ -723,7 +723,7 @@ static UniquePtr<Instruction> copyAndPhiRename(Context& ctx,
     for (auto [index, operand]: inst->operands() | ranges::views::enumerate) {
         auto* phi = dyncast<Phi*>(operand);
         if (phi && phi->parent() == inst->parent()) {
-            copy->updateOperand(phi, phi->operandOf(pred));
+            copy->setOperand(index, phi->operandOf(pred));
         }
     }
     return copy;
