@@ -11,6 +11,7 @@
 #include <svm/VirtualMachine.h>
 #include <utl/format.hpp>
 #include <utl/functional.hpp>
+#include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
@@ -125,13 +126,13 @@ struct Impl {
 
         if (getOptions().TestIdempotency) {
             /// Idempotency of passes without prior optimizations
-            testIdempotency(source, parse, opt::Pipeline());
+            testIdempotency(source, parse, opt::Pipeline(), expected);
 
             /// Idempotency of passes after light optimizations
-            testIdempotency(source, parse, light);
+            testIdempotency(source, parse, light, expected);
 
             /// Idempotency of passes after light inlining optimizations
-            testIdempotency(source, parse, lightInline);
+            testIdempotency(source, parse, lightInline, expected);
         }
     }
 
@@ -144,24 +145,26 @@ struct Impl {
 
     void testIdempotency(std::string_view source,
                          ParserType parse,
-                         opt::Pipeline const& prePipeline) const {
+                         opt::Pipeline const& prePipeline,
+                         uint64_t expected) const {
         for (auto pass: opt::PassManager::localPasses()) {
             auto [ctx, mod] = parse(source);
             prePipeline.execute(ctx, mod);
             if (pass.name() == "unifyreturns") {
                 opt::forEach(ctx, mod, opt::splitReturns);
             }
-            testIdempotency(ctx, mod, pass);
+            auto message = utl::strcat("Idempotency check for \"",
+                                       pass.name(),
+                                       "\" with pre pipeline \"",
+                                       prePipeline,
+                                       "\"");
+            opt::forEach(ctx, mod, pass);
+            checkReturns(message, mod, expected);
+            bool second = opt::forEach(ctx, mod, pass);
+            INFO(message);
+            CHECK(!second);
+            checkReturns(message, mod, expected);
         }
-    }
-
-    void testIdempotency(ir::Context& ctx,
-                         ir::Module& mod,
-                         opt::LocalPass pass) const {
-        opt::forEach(ctx, mod, pass);
-        bool second = opt::forEach(ctx, mod, pass);
-        INFO("Idempotency check for \"" << pass.name() << "\"");
-        CHECK(!second);
     }
 };
 
