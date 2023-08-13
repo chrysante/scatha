@@ -668,6 +668,7 @@ LocalComputationTable GVNContext::buildLCT(BasicBlock* BB) {
         if (auto* existing = result.insertOrExisting(rank, inst)) {
             replaceValue(inst, existing);
             redundant.insert(inst);
+            modified = true;
         }
     }
     return result;
@@ -898,10 +899,12 @@ void GVNContext::moveInImpl(
         else {
             globalRanks[inst] = rank;
             BB->insert(insertPoint, entry.takeCopy());
+            modified = true;
         }
         for (auto* original: entry.originals()) {
             redundant.insert(original);
             replaceValue(original, inst);
+            modified = true;
         }
         return inst;
     };
@@ -949,6 +952,7 @@ void GVNContext::moveInImpl(
                 for (auto* original: otherEntry->originals()) {
                     redundant.insert(original);
                     replaceValue(original, copy);
+                    modified = true;
                 }
                 MCT_B.eraseComputationEqualTo(copy);
             }
