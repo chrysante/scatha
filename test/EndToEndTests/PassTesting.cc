@@ -92,16 +92,11 @@ using ParserType =
 namespace {
 
 struct Impl {
-    // sroa:memtoreg
-    opt::Pipeline light;
-
-    // inline(sroa:memtoreg)
-    opt::Pipeline lightInline;
-
-    Impl() {
-        light = opt::PassManager::makePipeline("sroa, memtoreg");
-        lightInline = opt::PassManager::makePipeline("inline(sroa, memtoreg)");
-    }
+    opt::Pipeline light = opt::PassManager::makePipeline("sroa, memtoreg");
+    opt::Pipeline lightRotate =
+        opt::PassManager::makePipeline("sroa, memtoreg, rotateloops");
+    opt::Pipeline lightInline =
+        opt::PassManager::makePipeline("inline(sroa, memtoreg)");
 
     static Impl& get() {
         static Impl inst;
@@ -130,6 +125,10 @@ struct Impl {
 
             /// Idempotency of passes after light optimizations
             testIdempotency(source, parse, light, expected);
+
+            /// Idempotency of passes after light optimizations and loop
+            /// rotation
+            testIdempotency(source, parse, lightRotate, expected);
 
             /// Idempotency of passes after light inlining optimizations
             testIdempotency(source, parse, lightInline, expected);
