@@ -78,7 +78,7 @@ struct Inliner {
     /// After analyzing an SCC, this function is called for every function of
     /// the SCC. If it fails to eliminate self recursion,  it adds the function
     /// to the `selfRecursive` set.
-    void inlineSelfRecursion(ir::Function* function);
+    bool inlineSelfRecursion(ir::Function* function);
 
     /// \returns `true` if the self recursion has been eliminated
     bool inlineSelfRecImpl(ir::Function* clone,
@@ -154,18 +154,18 @@ bool Inliner::run() {
 }
 
 VisitResult Inliner::visitSCC(SCC& scc) {
+    bool modifiedAny = false;
     /// Perform one local optimization pass on every function before traversing
     /// the SCC. Otherwise, because we are in a cyclic component,  there will
     /// always be a function which will not have been optimized before being
     /// considered for inlining.
     for (auto& node: scc.nodes()) {
-        optimize(node.function());
+        modifiedAny |= optimize(node.function());
         /// We recompute the call sites after local optimizations because they
         /// could have been invalidated
         node.recomputeCallees(callGraph);
     }
     utl::hashset<FunctionNode const*> visited;
-    bool modifiedAny = false;
     /// Recursive function to walk the SCC.
     /// \returns `std::nullopt` on success.
     /// If an SCC is split during inlining, this function immediately returns a
@@ -198,7 +198,7 @@ VisitResult Inliner::visitSCC(SCC& scc) {
     /// Here we have fully optimized the SCC
     /// We will now try to inline self recursive functions
     for (auto& node: scc.nodes()) {
-        inlineSelfRecursion(&node.function());
+        modifiedAny |= inlineSelfRecursion(&node.function());
     }
     return modifiedAny;
 }
@@ -321,20 +321,21 @@ bool Inliner::doInline(Call* callInst) {
     return true;
 }
 
-void Inliner::inlineSelfRecursion(ir::Function* function) {
+bool Inliner::inlineSelfRecursion(ir::Function* function) {
     if (!callsFunction(function, function)) {
-        return;
+        return false;
     }
     auto clone = ir::clone(ctx, function);
     if (!inlineSelfRecImpl(clone.get(), function, /* numLayers = */ 3)) {
         selfRecursive.insert(function);
-        return;
+        return false;
     }
     replaceValue(function, clone.get());
     auto& node = callGraph[function];
     callGraph.updateFunctionPointer(&node, clone.get());
     mod.eraseFunction(function);
     mod.addFunction(std::move(clone));
+    return true;
 }
 
 bool Inliner::inlineSelfRecImpl(ir::Function* clone,
