@@ -377,6 +377,7 @@ struct GVNContext {
     RankMap<Value> globalRanks;
     utl::hashset<Instruction*> redundant;
     utl::hashmap<BasicBlock*, RankMap<Instruction>> localRanks;
+    utl::hashmap<std::pair<BasicBlock*, size_t>, Instruction*> insertPoints;
     utl::hashmap<BasicBlock*, LocalComputationTable> LCTs;
     utl::hashmap<Edge, MovableComputationTable> MCTs;
 
@@ -413,11 +414,10 @@ struct GVNContext {
     void moveOut(size_t rank, BasicBlock*, LocalComputationTable&);
 
     Instruction* insertPointForRank(BasicBlock* BB, size_t rank) {
-        auto nextRank = LCTs[BB].instructions(rank + 1);
-        if (!nextRank.empty()) {
-            return nextRank.back();
-        }
-        return BB->terminator();
+        auto itr = insertPoints.find({ BB, rank });
+        SC_ASSERT(itr != insertPoints.end(),
+                  "We added insertion points for all ranks and blocks");
+        return itr->second;
     }
 
     void buildLCTs();
@@ -606,15 +606,41 @@ void GVNContext::computeTopsortOrder() {
 }
 
 void GVNContext::assignRanks() {
+    utl::hashmap<Instruction*, size_t> instructionOrder;
     for (auto* BB: topsortOrder | ranges::views::reverse) {
-        for (auto& inst: *BB) {
+        for (auto&& [index, inst]: *BB | ranges::views::enumerate) {
+            instructionOrder[&inst] = index;
             if (isa<TerminatorInst>(inst)) {
                 continue;
             }
             size_t rank = computeRank(&inst);
             globalRanks[&inst] = rank;
             localRanks[BB][&inst] = rank;
+            insertPoints[{ BB, rank }] = inst.next();
             maxRank = std::max(maxRank, rank);
+        }
+    }
+    /// Here we ensure that all blocks and ranks have an insertion point and
+    /// that insertion points of higher rank never precede insertion points of
+    /// lower rank. This may happen if in the original code higher rank
+    /// instructions precede lower rank instructions.
+    for (auto& BB: function) {
+        insertPoints.insert({ { &BB, 0 }, BB.terminator() });
+        for (size_t rank = 1; rank <= maxRank; ++rank) {
+            auto* insertPoint = insertPoints[{ &BB, rank }];
+            auto* prevInsertPoint = insertPoints[{ &BB, rank - 1 }];
+            if (!insertPoint) {
+                insertPoint = insertPoints[{ &BB, rank }] = BB.terminator();
+            }
+            if (!prevInsertPoint) {
+                prevInsertPoint = insertPoints[{ &BB, rank - 1 }] =
+                    BB.terminator();
+            }
+            if (instructionOrder[insertPoint] <
+                instructionOrder[prevInsertPoint])
+            {
+                insertPoints[{ &BB, rank }] = prevInsertPoint;
+            }
         }
     }
 }
@@ -870,6 +896,7 @@ void GVNContext::moveInImpl(
             inst = existing;
         }
         else {
+            globalRanks[inst] = rank;
             BB->insert(insertPoint, entry.takeCopy());
         }
         for (auto* original: entry.originals()) {
