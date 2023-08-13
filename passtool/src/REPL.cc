@@ -16,6 +16,7 @@ using namespace passtool;
 
 REPL::REPL(CLI::App* cli): Command(cli, "repl") {
     app()->add_option("files", paths);
+    app()->add_flag("--ir", ir);
 }
 
 int REPL::run() {
@@ -24,7 +25,7 @@ int REPL::run() {
         return -1;
     }
     auto path = paths.front();
-    auto [ctx, mod] = parseFile(path);
+    auto [ctx, mod] = parseFile(path, ir ? ParseMode::IR : ParseMode::Default);
     header("Parsed program");
     ir::print(mod);
 

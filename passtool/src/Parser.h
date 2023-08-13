@@ -9,7 +9,10 @@
 
 namespace scatha::passtool {
 
-std::pair<ir::Context, ir::Module> parseFile(std::filesystem::path path);
+enum class ParseMode { Default, Scatha, IR };
+
+std::pair<ir::Context, ir::Module> parseFile(
+    std::filesystem::path path, ParseMode mode = ParseMode::Default);
 
 } // namespace scatha::passtool
 

@@ -23,13 +23,23 @@ using namespace scatha;
 using namespace passtool;
 
 std::pair<ir::Context, ir::Module> passtool::parseFile(
-    std::filesystem::path path) {
+    std::filesystem::path path, ParseMode mode) {
     std::fstream file(path, std::ios::in);
     std::stringstream sstr;
     sstr << file.rdbuf();
     std::string const text = std::move(sstr).str();
 
-    if (path.extension() == ".sc") {
+    using enum ParseMode;
+    if (mode == Default) {
+        if (path.extension() == ".sc") {
+            mode = Scatha;
+        }
+        if (path.extension() == ".scir") {
+            mode = IR;
+        }
+    }
+    switch (mode) {
+    case Scatha: {
         IssueHandler issueHandler;
         auto ast = parse::parse(text, issueHandler);
         if (!issueHandler.empty()) {
@@ -49,7 +59,7 @@ std::pair<ir::Context, ir::Module> passtool::parseFile(
         }
         return ast::lowerToIR(*ast, semaSym, analysisResult);
     }
-    else if (path.extension() == ".scir") {
+    case IR: {
         auto result = ir::parse(text);
         if (result) {
             return std::move(result.value());
@@ -58,9 +68,10 @@ std::pair<ir::Context, ir::Module> passtool::parseFile(
         ir::print(result.error());
         std::exit(-1);
     }
-    else {
+    case Default: {
         std::cout << Error << "Unknown file extension: " << path.extension()
                   << std::endl;
         std::exit(-1);
+    }
     }
 }

@@ -18,6 +18,7 @@ public:
 
 private:
     std::vector<std::filesystem::path> paths;
+    bool ir = false;
 };
 
 } // namespace scatha::passtool
