@@ -20,7 +20,9 @@ public:
         return pass(ctx, F);
     }
 
-    void print(std::ostream&, TreeFormatter&) const;
+    void print(std::ostream&) const;
+
+    void printTree(std::ostream&, TreeFormatter&) const;
 
 private:
     LocalPass pass;
@@ -52,7 +54,9 @@ public:
                     }));
     }
 
-    void print(std::ostream&, TreeFormatter&) const;
+    void print(std::ostream&) const;
+
+    void printTree(std::ostream&, TreeFormatter&) const;
 
 private:
     GlobalPass pass;
@@ -76,7 +80,9 @@ public:
         return result;
     }
 
-    void print(std::ostream&, TreeFormatter&) const;
+    void print(std::ostream&) const;
+
+    void printTree(std::ostream&, TreeFormatter&) const;
 
     bool empty() const { return children.empty(); }
 

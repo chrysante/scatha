@@ -24,11 +24,23 @@ bool Pipeline::execute(ir::Context& ctx, ir::Module& mod) const {
 
 bool Pipeline::empty() const { return root->empty(); }
 
-SCATHA_API void opt::print(Pipeline const& pipeline) {
-    print(pipeline, std::cout);
+std::ostream& opt::operator<<(std::ostream& ostream, Pipeline const& pipeline) {
+    pipeline.root->print(ostream);
+    return ostream;
 }
 
-SCATHA_API void opt::print(Pipeline const& pipeline, std::ostream& ostream) {
+void opt::print(Pipeline const& pipeline) { print(pipeline, std::cout); }
+
+void opt::print(Pipeline const& pipeline, std::ostream& ostream) {
+    pipeline.root->print(ostream);
+    ostream << "\n";
+}
+
+void opt::printTree(Pipeline const& pipeline) {
+    printTree(pipeline, std::cout);
+}
+
+void opt::printTree(Pipeline const& pipeline, std::ostream& ostream) {
     TreeFormatter formatter;
-    pipeline.root->print(ostream, formatter);
+    pipeline.root->printTree(ostream, formatter);
 }

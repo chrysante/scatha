@@ -12,11 +12,21 @@ namespace scatha::opt {
 class Pipeline;
 class PipelineRoot;
 
-/// Print \p pipeline to `std::cout`
+///
+SCATHA_API std::ostream& operator<<(std::ostream& ostream,
+                                    Pipeline const& pipeline);
+
+/// Print \p pipeline as a flat list of passes
 SCATHA_API void print(Pipeline const& pipeline);
 
-/// Print \p pipeline to \p ostream
+/// \overload
 SCATHA_API void print(Pipeline const& pipeline, std::ostream& ostream);
+
+/// Print \p pipeline as a tree
+SCATHA_API void printTree(Pipeline const& pipeline);
+
+/// \overload
+SCATHA_API void printTree(Pipeline const& pipeline, std::ostream& ostream);
 
 /// Represents an optimization pipeline, i.e. a sequence of global and nested
 /// local passes.
@@ -51,7 +61,9 @@ public:
     explicit Pipeline(std::unique_ptr<PipelineRoot> root);
 
 private:
-    friend void print(Pipeline const& pipeline, std::ostream& ostream);
+    friend std::ostream& operator<<(std::ostream&, Pipeline const&);
+    friend void print(Pipeline const&, std::ostream&);
+    friend void printTree(Pipeline const&, std::ostream&);
 
     std::unique_ptr<PipelineRoot> root;
 };
