@@ -4,9 +4,11 @@
 #include <string>
 #include <string_view>
 
+#include <range/v3/view.hpp>
 #include <utl/hashmap.hpp>
 
 #include "Common/Base.h"
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
@@ -110,9 +112,24 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
     CHECK(!bb.empty(),
           "Empty basic blocks are not well formed as they must end with a "
           "terminator");
-    for (auto& inst: bb) {
-        CHECK(inst.parent() == &bb, "Parent pointers must be setup correctly");
-        assertInvariants(inst);
+    auto instructions =
+        bb | ranges::views::transform([](auto& inst) { return &inst; }) |
+        ranges::to<utl::small_vector<Instruction const*>>;
+    for (auto itr = instructions.begin(), end = instructions.end(); itr != end;
+         ++itr)
+    {
+        auto* inst = *itr;
+        CHECK(inst->parent() == &bb, "Parent pointers must be setup correctly");
+        assertInvariants(*inst);
+        if (!isa<Phi>(inst)) {
+            for (auto* operand: inst->operands() | Filter<Instruction>) {
+                if (operand->parent() == inst->parent()) {
+                    CHECK(ranges::contains(instructions.begin(), itr, operand),
+                          "Operands that are defined in the same basic block "
+                          "as their user must precede the user");
+                }
+            }
+        }
         if (entry && !isa<Phi>(inst)) {
             entry = false;
         }
@@ -121,7 +138,7 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
                 !isa<Phi>(inst),
                 "Phi nodes may not appear after one non-phi node has appeared");
         }
-        CHECK(!isa<TerminatorInst>(inst) ^ (&inst == &bb.back()),
+        CHECK(!isa<TerminatorInst>(inst) ^ (inst == &bb.back()),
               "The last instruction must be the one and only terminator of a "
               "basic block");
     }
