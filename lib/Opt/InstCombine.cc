@@ -110,6 +110,30 @@ struct InstCombineCtx {
         }
     }
 
+    void replaceInst(Instruction* oldInst, Value* newValue) {
+        if (oldInst == newValue) {
+            return;
+        }
+        auto users =
+            oldInst->users() | ranges::to<utl::small_vector<Instruction*>>;
+        for (auto* user: users) {
+            invalidateAccessTree(user);
+            user->updateOperand(oldInst, newValue);
+        }
+    }
+
+    void invalidateAccessTree(Instruction* inst) {
+        if (!isa<InsertValue>(inst) && !isa<ExtractValue>(inst)) {
+            return;
+        }
+        accessTrees.erase(inst);
+        if (auto* insert = dyncast<InsertValue*>(inst)) {
+            for (auto* user: insert->users()) {
+                invalidateAccessTree(user);
+            }
+        }
+    }
+
     AccessTreeNode* getAccessTree(ExtractValue* inst);
     AccessTreeNode* getAccessTree(InsertValue* inst);
 
@@ -156,7 +180,7 @@ bool InstCombineCtx::run() {
         modifiedAny = true;
         pushUsers(inst);
         pushIfInst(replacement);
-        replaceValue(inst, replacement);
+        replaceInst(inst, replacement);
         markForDeletion(inst);
     }
     clean();
