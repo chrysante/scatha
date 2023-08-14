@@ -1,23 +1,3 @@
-#include "Opt/Passes.h"
-
-#include <queue>
-
-#include <utl/hashtable.hpp>
-#include <utl/strcat.hpp>
-#include <utl/vector.hpp>
-
-#include "IR/CFG.h"
-#include "IR/Clone.h"
-#include "IR/Dominance.h"
-#include "IR/Loop.h"
-#include "IR/Validate.h"
-#include "Opt/Common.h"
-#include "Opt/PassRegistry.h"
-
-using namespace scatha;
-using namespace opt;
-using namespace ir;
-
 /// # Before loop rotation
 ///
 /// `H` is the loop header. If `H` has multiple predecessors that are not loop
@@ -104,9 +84,26 @@ using namespace ir;
 /// - After the rotation `E` is a loop header. If `E` is a while loop we perform
 ///   the preprocessing and transform again on `E`.
 ///
-/// ## Notes
-///
-///
+
+#include "Opt/Passes.h"
+
+#include <queue>
+
+#include <utl/hashtable.hpp>
+#include <utl/strcat.hpp>
+#include <utl/vector.hpp>
+
+#include "IR/CFG.h"
+#include "IR/Clone.h"
+#include "IR/Dominance.h"
+#include "IR/Loop.h"
+#include "IR/Validate.h"
+#include "Opt/Common.h"
+#include "Opt/PassRegistry.h"
+
+using namespace scatha;
+using namespace opt;
+using namespace ir;
 
 SC_REGISTER_CANONICALIZATION(opt::rotateLoops, "rotateloops");
 
@@ -191,8 +188,6 @@ struct LRContext {
     void addSingleValuePhis(BasicBlock* header, BasicBlock* succ);
 
     void augmentSingleValuePhis(BasicBlock* footer, BasicBlock* succ);
-
-    BasicBlock* findFooterInsertPoint(BasicBlock* header) const;
 };
 
 struct TopSorter {
@@ -224,15 +219,11 @@ struct TopSorter {
         return 0;
     }
 
-    void operator()(auto& list, auto proj) const {
-        std::sort(list.begin(), list.end(), [&](auto const& A, auto const& B) {
-            return rank(proj(A)) < rank(proj(B));
-        });
-    }
-
     auto operator()(std::span<LNFNode const* const> nodes) const {
         auto result = nodes | ranges::to<utl::small_vector<LNFNode const*>>;
-        (*this)(result, [](auto* node) { return node->basicBlock(); });
+        std::sort(result.begin(), result.end(), [&](auto* A, auto* B) {
+            return rank(A->basicBlock()) < rank(B->basicBlock());
+        });
         return result;
     }
 };
@@ -242,7 +233,7 @@ struct TopSorter {
 bool opt::rotateLoops(Context& ctx, Function& function) {
     /// We collect all the while loops of `function` in breadth first search
     /// order of the the loop nesting forest
-    utl::small_vector<utl::small_vector<BasicBlock*>, 1> whileHeadersBFS;
+    utl::small_vector<utl::small_vector<BasicBlock*>, 2> whileHeadersBFS;
     auto& LNF = function.getOrComputeLNF();
     auto topsort = TopSorter(function);
     auto DFS = [&](auto& DFS, LNFNode const* header, size_t index) -> void {
@@ -295,7 +286,8 @@ PreprocessResult LRContext::preprocess(BasicBlock* header) {
     }();
 
     if (nonLoopPreds.size() > 1) {
-        nonLoopPreds = { addPreheader(header, nonLoopPreds) };
+        auto* preheader = addPreheader(header, nonLoopPreds);
+        nonLoopPreds = { preheader };
     }
 
     /// We now determine which successor is `E` and which is `S`
@@ -435,10 +427,4 @@ void LRContext::augmentSingleValuePhis(BasicBlock* footer, BasicBlock* succ) {
     for (auto&& [phi, inst]: ranges::views::zip(succ->phiNodes(), *footer)) {
         phi.addArgument(footer, &inst);
     }
-}
-
-BasicBlock* LRContext::findFooterInsertPoint(BasicBlock* header) const {
-    /// For now. Finding the correct insertion point, i.e. after all nodes in
-    /// the loop seems very non trivial.
-    return header->next();
 }
