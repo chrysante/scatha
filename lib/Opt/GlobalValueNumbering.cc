@@ -723,7 +723,9 @@ static UniquePtr<Instruction> copyAndPhiRename(Context& ctx,
     for (auto [index, operand]: inst->operands() | ranges::views::enumerate) {
         auto* phi = dyncast<Phi*>(operand);
         if (phi && phi->parent() == inst->parent()) {
-            copy->setOperand(index, phi->operandOf(pred));
+            auto* newOp = phi->operandOf(pred);
+            SC_ASSERT(newOp, "");
+            copy->setOperand(index, newOp);
         }
     }
     return copy;
@@ -894,6 +896,7 @@ void GVNContext::moveInImpl(
         [&](Instruction* insertPoint, MovableComputationTable::Entry& entry) {
         Instruction* inst = entry.copy();
         if (auto* existing = LCT.insertOrExisting(rank, inst)) {
+            replaceValue(inst, existing);
             inst = existing;
         }
         else {
