@@ -22,6 +22,17 @@ bool LNFNode::isProperLoop() const {
     return ranges::contains(basicBlock()->predecessors(), basicBlock());
 }
 
+bool LNFNode::isLoopNodeOf(LNFNode const* header) const {
+    auto* node = this;
+    while (node != nullptr) {
+        if (node == header) {
+            return true;
+        }
+        node = node->parent();
+    }
+    return false;
+}
+
 LoopNestingForest LoopNestingForest::compute(ir::Function& function,
                                              DomTree const& domtree) {
     LoopNestingForest result;

@@ -20,9 +20,15 @@ class LNFNode: public GraphNode<ir::BasicBlock*, LNFNode, GraphKind::Tree> {
 public:
     using Base::Base;
 
+    /// \Returns the corresponding basic block
     BasicBlock* basicBlock() const { return payload(); }
 
+    /// \Returns `true` if this node is an actual loop, i.e. if it has children
+    /// or if its corresponding basic block has outedges to itself
     bool isProperLoop() const;
+
+    /// \Returns `true` if this node is part of the loop with header \p header
+    bool isLoopNodeOf(LNFNode const* header) const;
 };
 
 /// The loop nesting forest of a function `F` is a forest representing the loops

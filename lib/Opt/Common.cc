@@ -174,6 +174,37 @@ bool opt::splitCriticalEdges(Context& ctx, Function& function) {
     return dfs.modified;
 }
 
+ir::BasicBlock* opt::addJoiningPredecessor(
+    ir::Context& ctx,
+    ir::BasicBlock* header,
+    std::span<ir::BasicBlock* const> preds,
+    std::string name) {
+    // clang-format off
+    SC_ASSERT(ranges::all_of(preds, [&](auto* pred) {
+        return ranges::contains(pred->successors(), header);
+    }), "preds must be predecessors of BB"); // clang-format on
+    auto& function = *header->parent();
+    auto* preheader = new BasicBlock(ctx, name);
+    function.insert(header, preheader);
+    for (auto& phi: header->phiNodes()) {
+        utl::small_vector<PhiMapping> args;
+        for (auto* pred: preds) {
+            args.push_back({ pred, phi.operandOf(pred) });
+        }
+        auto* preheaderPhi = new Phi(args, std::string(phi.name()));
+        preheader->pushBack(preheaderPhi);
+        phi.addArgument(preheader, preheaderPhi);
+    }
+    for (auto* pred: preds) {
+        pred->terminator()->updateTarget(header, preheader);
+        header->removePredecessor(pred);
+    }
+    preheader->setPredecessors(preds);
+    preheader->pushBack(new Goto(ctx, header));
+    header->addPredecessor(preheader);
+    return preheader;
+}
+
 bool opt::hasSideEffects(Instruction const* inst) {
     if (auto* call = dyncast<Call const*>(inst)) {
         return !call->function()->hasAttribute(

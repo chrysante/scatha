@@ -110,17 +110,6 @@ using namespace ir;
 
 SC_REGISTER_CANONICALIZATION(opt::rotateLoops, "rotateloops");
 
-/// \Returns `true` if \p node is part of the loop with header \p header
-static bool isLoopNode(LNFNode const* node, LNFNode const* header) {
-    while (node != nullptr) {
-        if (node == header) {
-            return true;
-        }
-        node = node->parent();
-    }
-    return false;
-}
-
 /// \Returns `true` if \p node is a while loop
 static bool isWhileLoop(LNFNode const* header, LoopNestingForest const& LNF) {
     if (!header->isProperLoop()) {
@@ -131,7 +120,7 @@ static bool isWhileLoop(LNFNode const* header, LoopNestingForest const& LNF) {
     }
     return ranges::any_of(header->basicBlock()->successors(),
                           [&](BasicBlock const* succ) {
-        return !isLoopNode(LNF[succ], header);
+        return !LNF[succ]->isLoopNodeOf(header);
     });
 }
 
@@ -295,7 +284,7 @@ PreprocessResult LRContext::preprocess(BasicBlock* header) {
         std::array<utl::small_vector<BasicBlock*>, 2> result;
         auto& [loopPreds, nonLoopPreds] = result;
         for (auto* pred: header->predecessors()) {
-            if (isLoopNode(LNF[pred], headerNode)) {
+            if (LNF[pred]->isLoopNodeOf(headerNode)) {
                 loopPreds.push_back(pred);
             }
             else {
@@ -317,7 +306,7 @@ PreprocessResult LRContext::preprocess(BasicBlock* header) {
     auto [entry, skip] = [&] {
         auto A = header->successors()[0];
         auto B = header->successors()[1];
-        if (isLoopNode(LNF[A], headerNode)) {
+        if (LNF[A]->isLoopNodeOf(headerNode)) {
             return std::pair{ A, B };
         }
         return std::pair{ B, A };
@@ -347,25 +336,7 @@ PreprocessResult LRContext::preprocess(BasicBlock* header) {
 
 BasicBlock* LRContext::addPreheader(BasicBlock* header,
                                     std::span<BasicBlock* const> nonLoopPreds) {
-    auto* preheader = new BasicBlock(ctx, "preheader");
-    function.insert(header, preheader);
-    for (auto& phi: header->phiNodes()) {
-        utl::small_vector<PhiMapping> args;
-        for (auto* pred: nonLoopPreds) {
-            args.push_back({ pred, phi.operandOf(pred) });
-        }
-        auto* preheaderPhi = new Phi(args, std::string(phi.name()));
-        preheader->pushBack(preheaderPhi);
-        phi.addArgument(preheader, preheaderPhi);
-    }
-    for (auto* pred: nonLoopPreds) {
-        pred->terminator()->updateTarget(header, preheader);
-        header->removePredecessor(pred);
-    }
-    preheader->setPredecessors(nonLoopPreds);
-    preheader->pushBack(new Goto(ctx, header));
-    header->addPredecessor(preheader);
-    return preheader;
+    return addJoiningPredecessor(ctx, header, nonLoopPreds, "preheader");
 }
 
 void LRContext::rotate(BasicBlock* header) {

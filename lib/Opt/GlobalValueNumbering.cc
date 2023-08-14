@@ -192,6 +192,7 @@ public:
     /// computes the same value.
     [[nodiscard]] Instruction* insertOrExisting(size_t rank,
                                                 Instruction* inst) {
+        SC_ASSERT(inst != nullptr, "");
         _maxRank = std::max(_maxRank, rank);
         auto& computations = rankMap[rank];
         auto [itr, success] = computations.insert(Computation(inst));
@@ -387,6 +388,9 @@ struct GVNContext {
     bool run();
 
     void gatherLoops();
+    BasicBlock* addPreheader(BasicBlock* header);
+    BasicBlock* findLandingPad(LNFNode const* headerNode,
+                               LoopNestingForest const& LNF);
     void splitCriticalEdges();
     void joinSplitEdges();
     void computeTopsortOrder();
@@ -430,7 +434,6 @@ struct GVNContext {
 
 bool opt::globalValueNumbering(Context& ctx, Function& function) {
     bool result = false;
-    result |= rotateLoops(ctx, function);
     /// We limit the scope of the `GVNContext`. It may still hold cloned
     /// instructions that must be deleted before `assertInvariants` runs.
     result |= GVNContext(ctx, function).run();
@@ -461,30 +464,7 @@ void GVNContext::gatherLoops() {
             return;
         }
         auto* header = node->basicBlock();
-
-        /// Find a canditate for a landing pad
-        auto isLPCandidate = [&](BasicBlock* pred) {
-            return !ranges::contains(node->children(), LNF[pred]) &&
-                   pred != header;
-        };
-        SC_ASSERT(ranges::count_if(header->predecessors(), isLPCandidate) == 1,
-                  "We can only have one landing pad per loop header");
-        auto* candidate =
-            *ranges::find_if(header->predecessors(), isLPCandidate);
-        auto* landingPad = candidate;
-
-        /// If the candidate has multiple successors it is not a landing pad but
-        /// a loop guard. We insert a landing pad between the guard and the
-        /// header.
-        if (candidate->numSuccessors() > 1) {
-            auto* guard = candidate;
-            landingPad = new BasicBlock(ctx, "loop.landingpad");
-            edgeSplitBlocks.insert(landingPad);
-            function.insert(guard, landingPad);
-            guard->terminator()->updateTarget(header, landingPad);
-            landingPad->pushBack(new Goto(ctx, header));
-            header->updatePredecessor(guard, landingPad);
-        }
+        auto* landingPad = findLandingPad(node, LNF);
 
         /// Gather the entire loop
         auto& loop = loops[header] = Loop{ landingPad, header };
@@ -518,6 +498,47 @@ void GVNContext::gatherLoops() {
     });
 }
 
+BasicBlock* GVNContext::addPreheader(BasicBlock* header) {
+    auto& LNF = function.getOrComputeLNF();
+    auto* headerNode = LNF[header];
+    auto nonLoopPreds = [&] {
+        utl::small_vector<BasicBlock*> result;
+        for (auto* pred: header->predecessors()) {
+            if (!LNF[pred]->isLoopNodeOf(headerNode)) {
+                result.push_back(pred);
+            }
+        }
+        return result;
+    }();
+    return addJoiningPredecessor(ctx, header, nonLoopPreds, "preheader");
+}
+
+BasicBlock* GVNContext::findLandingPad(LNFNode const* headerNode,
+                                       LoopNestingForest const& LNF) {
+    auto* header = headerNode->basicBlock();
+    auto isLPCandidate = [&](BasicBlock* pred) {
+        return !ranges::contains(headerNode->children(), LNF[pred]) &&
+               pred != header;
+    };
+    auto const numCandidates =
+        ranges::count_if(header->predecessors(), isLPCandidate);
+    SC_ASSERT(numCandidates >= 1,
+              "We need at least one potential landing pad per loop header");
+    if (numCandidates > 1) {
+        return addPreheader(header);
+    }
+    auto* candidate = *ranges::find_if(header->predecessors(), isLPCandidate);
+    if (candidate->numSuccessors() == 1) {
+        return candidate;
+    }
+    /// If the candidate has multiple successors it is not a landing pad
+    /// but a loop guard. We insert a landing pad between the guard and
+    /// the header.
+    auto* landingpad = splitEdge("gvn.landingpad", ctx, candidate, header);
+    edgeSplitBlocks.insert(landingpad);
+    return landingpad;
+}
+
 /// We do not use the `splitcriticaledges` pass here. We we need to erase the
 /// inserted basic blocks if we did not move any code into them. Otherwise,
 /// running this pass and `simplyfygfc` repeatedly will result in an infite
@@ -534,7 +555,8 @@ void GVNContext::splitCriticalEdges() {
             }
             for (auto* succ: BB->successors()) {
                 if (isCriticalEdge(BB, succ)) {
-                    insertedBlocks.insert(splitEdge(ctx, BB, succ));
+                    insertedBlocks.insert(
+                        splitEdge("gvn.split", ctx, BB, succ));
                 }
                 search(succ);
             }
