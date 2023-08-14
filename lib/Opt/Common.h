@@ -2,6 +2,7 @@
 #define SCATHA_OPT_COMMON_H_
 
 #include <span>
+#include <string>
 
 #include "Common/Base.h"
 #include "IR/Fwd.h"
@@ -36,6 +37,12 @@ SCATHA_TESTAPI void clearAllUses(ir::Value* value);
 /// Split the edge from \p from to \p to by inserting an empty basic block in
 /// between
 /// \returns The newly created basic block
+SCATHA_TESTAPI ir::BasicBlock* splitEdge(std::string name,
+                                         ir::Context& ctx,
+                                         ir::BasicBlock* from,
+                                         ir::BasicBlock* to);
+
+/// \Overload with default name
 SCATHA_TESTAPI ir::BasicBlock* splitEdge(ir::Context& ctx,
                                          ir::BasicBlock* from,
                                          ir::BasicBlock* to);

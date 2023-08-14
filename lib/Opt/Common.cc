@@ -129,8 +129,11 @@ void opt::clearAllUses(Value* value) {
     }
 }
 
-BasicBlock* opt::splitEdge(Context& ctx, BasicBlock* from, BasicBlock* to) {
-    auto* tmp = new BasicBlock(ctx, "tmp");
+BasicBlock* opt::splitEdge(std::string name,
+                           Context& ctx,
+                           BasicBlock* from,
+                           BasicBlock* to) {
+    auto* tmp = new BasicBlock(ctx, std::move(name));
     auto* function = from->parent();
     function->insert(to, tmp);
     tmp->pushBack(new Goto(ctx, to));
@@ -138,6 +141,10 @@ BasicBlock* opt::splitEdge(Context& ctx, BasicBlock* from, BasicBlock* to) {
     to->updatePredecessor(from, tmp);
     tmp->addPredecessor(from);
     return tmp;
+}
+
+BasicBlock* opt::splitEdge(Context& ctx, BasicBlock* from, BasicBlock* to) {
+    return splitEdge("tmp", ctx, from, to);
 }
 
 bool opt::splitCriticalEdges(Context& ctx, Function& function) {
