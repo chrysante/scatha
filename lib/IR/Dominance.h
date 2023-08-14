@@ -133,8 +133,8 @@ public:
     /// frontiers.
     static DominanceInfo computePost(ir::Function& function);
 
-    /// \returns a reference to the set of basic blocks dominated (or
-    /// post-dominated) by \p basicBlock
+    /// \returns the set of basic blocks that dominate (or
+    /// post-dominate) \p basicBlock
     utl::hashset<ir::BasicBlock*> const& domSet(
         ir::BasicBlock const* basicBlock) const;
 
