@@ -92,9 +92,10 @@ using ParserType =
 namespace {
 
 struct Impl {
-    opt::Pipeline light = opt::PassManager::makePipeline("sroa, memtoreg");
+    opt::Pipeline light =
+        opt::PassManager::makePipeline("unifyreturns, sroa, memtoreg");
     opt::Pipeline lightRotate =
-        opt::PassManager::makePipeline("sroa, memtoreg, rotateloops");
+        opt::PassManager::makePipeline("canonicalize, sroa, memtoreg");
     opt::Pipeline lightInline =
         opt::PassManager::makePipeline("inline(sroa, memtoreg)");
 
@@ -121,7 +122,10 @@ struct Impl {
 
         if (getOptions().TestIdempotency) {
             /// Idempotency of passes without prior optimizations
-            testIdempotency(source, parse, opt::Pipeline(), expected);
+            testIdempotency(source,
+                            parse,
+                            opt::PassManager::makePipeline("unifyreturns"),
+                            expected);
 
             /// Idempotency of passes after light optimizations
             testIdempotency(source, parse, light, expected);
@@ -149,9 +153,6 @@ struct Impl {
         for (auto pass: opt::PassManager::localPasses()) {
             auto [ctx, mod] = parse(source);
             prePipeline.execute(ctx, mod);
-            if (pass.name() == "unifyreturns") {
-                opt::forEach(ctx, mod, opt::splitReturns);
-            }
             auto message = utl::strcat("Idempotency check for \"",
                                        pass.name(),
                                        "\" with pre pipeline \"",
