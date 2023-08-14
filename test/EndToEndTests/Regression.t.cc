@@ -60,7 +60,7 @@ fn print(msg: &str) {
 })");
 }
 
-TEST_CASE("Bug in LoopRotate", "[end-to-end][regression]") {
+TEST_CASE("Bug in LoopRotate - 1", "[end-to-end][regression]") {
     test::checkReturns(3, R"(
 public fn main() -> int {
     var n = 0;
@@ -71,5 +71,18 @@ public fn main() -> int {
         }
     }
     return 0;
+})");
+}
+
+TEST_CASE("Bug in LoopRotate - 2", "[end-to-end][regression]") {
+    test::checkReturns(3, R"(
+public fn main() -> int {
+    var sum = 0;
+    for i = 0; i < 2; ++i {
+        for j = 0; j < 2; ++j {
+            sum += i + j;
+        }
+    }
+    return sum;
 })");
 }

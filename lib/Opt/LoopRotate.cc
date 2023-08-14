@@ -167,11 +167,20 @@ struct LRContext {
     /// Used by `dominates()`
     utl::hashmap<BasicBlock*, BasicBlock*> ESMap;
 
+    BasicBlock* mapES(BasicBlock* BB) const {
+        auto itr = ESMap.find(BB);
+        if (itr != ESMap.end()) {
+            return itr->second;
+        }
+        return BB;
+    }
+
     /// \Returns `true` if \p dom dominates \p sub
     /// Should only be used with `entry` and `skip` blocks
-    bool dominates(BasicBlock* dom, BasicBlock* sub) {
+    bool dominates(BasicBlock* dom, BasicBlock* sub) const {
+        dom = mapES(dom);
+        sub = mapES(sub);
         auto& domSet = domInfo.domSet(sub);
-        dom = ESMap[dom];
         return domSet.contains(dom);
     }
 
@@ -325,21 +334,19 @@ PreprocessResult LRContext::preprocess(BasicBlock* header) {
     /// have no phi nodes
     if (entry->numPredecessors() > 1) {
         auto* newEntry = splitEdge("loop.entry", ctx, header, entry);
-        ESMap[entry] = newEntry;
+        ESMap[newEntry] = entry;
         entry = newEntry;
     }
     else {
         eraseSingleValuePhiNodes(entry);
-        ESMap[entry] = entry;
     }
     if (skip->numPredecessors() > 1) {
         auto* newSkip = splitEdge("loop.end", ctx, header, skip);
-        ESMap[skip] = newSkip;
+        ESMap[newSkip] = skip;
         skip = newSkip;
     }
     else {
         eraseSingleValuePhiNodes(skip);
-        ESMap[skip] = skip;
     }
 
     return { entry, skip, loopPreds, nonLoopPreds };
