@@ -75,7 +75,7 @@ public fn main() -> int {
 }
 
 TEST_CASE("Bug in LoopRotate - 2", "[end-to-end][regression]") {
-    test::checkReturns(3, R"(
+    test::checkReturns(4, R"(
 public fn main() -> int {
     var sum = 0;
     for i = 0; i < 2; ++i {
