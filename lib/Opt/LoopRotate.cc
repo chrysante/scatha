@@ -1,5 +1,7 @@
 #include "Opt/Passes.h"
 
+#include <queue>
+
 #include <utl/hashtable.hpp>
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
@@ -16,62 +18,99 @@ using namespace scatha;
 using namespace opt;
 using namespace ir;
 
+/// # Before loop rotation
+///
+/// `H` is the loop header. If `H` has multiple predecessors that are not loop
+/// nodes, a preheader is inserted so `H` has one edge coming from outside the
+/// loop. `H` is expected to have one edge going into the loop and one edge
+/// leaving the loop. `E` (entry) is the successor of `H` that is a loop node.
+/// If that node has multiple predecessors a new node is inserted to take the
+/// role of `E`. Nodes marked with `X` are loop nodes without any special role.
+/// These could be exiting nodes. Exiting nodes can exit to `S` (skip block, the
+/// other successor of `H`) or to other nodes. If `S` has multiple predecessors,
+/// a new node will be inserted for `S`
+///
+// clang-format off
+/// ```
+///       ┌┴─┴┐           ┌───┐
+///       │   ├──────────>│ S │
+///   ┌──>│ H │<───┐      └───┘
+///   │   └─┬─┘    │
+///   │     ↓      │
+///   │   ┌───┐    │
+///   │   │ E │    │
+///   │   └─┬─┘    │
+///   │    ┌┴┐     │
+///   │    │ │     │
+///   │    │ │     │
+/// ┌─┴─┐  │ │   ┌─┴─┐
+/// │ X │<─┘ └──>│ X │
+/// └─┬─┘        └───┘
+///   │
+///   ↓
+/// ```
+// clang-format on
+
+/// # After loop rotation
+///
+/// `F` (footer) is a copy of `H`. `H` is renamed to `G` (guard). All
+/// predecessors of `H` that are loop nodes now point to `F`. An edge from `F`
+/// to `E` is added. This means now `E` has multiple predecessors and thus
+/// (likely) has phi instructions.
+///
+// clang-format off
+/// ```
+///           ┌─┴─┐
+///           │ G ├────────────┐
+///           └─┬─┘            │
+///             ↓              ↓
+///           ┌───┐          ┌───┐
+///           │ E │<───────┐ │ S │
+///           └─┬─┘        │ └───┘
+///            ┌┴┐         │   ↑
+///            │ │         │   │
+///            │ │         │   │
+/// ┌───┐      │ │   ┌───┐ │   │
+/// │ X │<─────┘ └──>│ X │ │   │
+/// └┬┬─┘      ┌───┐ └─┬─┘ │   │
+///  ││        │   │<──┘   │   │
+///  │└───────>│ F │───────┘   │
+///  ↓         │   │───────────┘
+///            └───┘
+///
+/// ```
+// clang-format on
+///
+/// # Implementation
+///
+/// ## Preprocessing
+/// We add a preheader and a new nodes `E` and `S` if necessary.
+///
+/// ## Rotation
+/// - We add single value phi instructions to `E` and to `S` for every
+///   instruction in `H`. We replace all uses of the instructions in `H` that
+///   are dominated by `E` and `S` with the corresponding phi instruction.
+/// - We clone `H`, name the clone `F` and rename `H` to `G`. `F` now has the
+///   same successors as `G`. This will remain so. We register `F` as a
+///   predecessor of `E` and `S` and set all the phi instructions in these
+///   blocks accordingly. In particular, there is one phi instruction for every
+///   instruction in `G`. If previously there were other single valued phis in
+///   `S` or `E` we replaced them by their argument. Therefore we can simply
+///   add an entry to each phi instruction with the corresponding instruction in
+///   `F`.
+/// - All predecessors of `G` that are loop nodes are rewired to `F`. Since `F`
+///   has a phi instruction for every phi in `G` we can keep these and use them
+///   for the loop predecessors of `G`.
+/// - After the rotation `E` is a loop header. If `E` is a while loop we perform
+///   the preprocessing and transform again on `E`.
+///
+/// ## Notes
+///
+///
+
 SC_REGISTER_PASS(opt::rotateLoops, "rotateloops");
 
-namespace {
-
-struct SingleLoopEntryResult {
-    BasicBlock* preHeader = nullptr;
-    utl::small_vector<BasicBlock*> outerPreds, innerPreds;
-};
-
-struct LRContext {
-    Context& ctx;
-    Function& function;
-    LoopNestingForest& LNF;
-    DominanceInfo const& postDomInfo;
-
-    bool modified = false;
-
-    LRContext(Context& context, Function& function):
-        ctx(context),
-        function(function),
-        LNF(const_cast<LoopNestingForest&>(function.getOrComputeLNF())),
-        postDomInfo(function.getOrComputePostDomInfo()) {}
-
-    bool run();
-
-    SingleLoopEntryResult makeLoopSingleEntry(BasicBlock* header);
-
-    void rotateLoop(BasicBlock* header);
-
-    void rotateWhileLoop(BasicBlock* guard,
-                         SingleLoopEntryResult const& seResult);
-};
-
-} // namespace
-
-bool opt::rotateLoops(Context& ctx, Function& function) {
-    LRContext lrContext(ctx, function);
-    bool result = lrContext.run();
-    assertInvariants(ctx, function);
-    return result;
-}
-
-bool LRContext::run() {
-    for (auto* root: LNF.roots()) {
-        root->traversePreorder([&](LNFNode const* node) {
-            if (node->isProperLoop()) {
-                rotateLoop(node->basicBlock());
-            }
-        });
-    }
-    if (modified) {
-        function.invalidateCFGInfo();
-    }
-    return modified;
-}
-
+/// \Returns `true` if \p node is part of the loop with header \p header
 static bool isLoopNode(LNFNode const* node, LNFNode const* header) {
     while (node != nullptr) {
         if (node == header) {
@@ -82,50 +121,21 @@ static bool isLoopNode(LNFNode const* node, LNFNode const* header) {
     return false;
 }
 
-SingleLoopEntryResult LRContext::makeLoopSingleEntry(BasicBlock* header) {
-    auto headerNode = LNF[header];
-    SingleLoopEntryResult result;
-    auto& [preHeader, outerPreds, innerPreds] = result;
-    for (auto* pred: header->predecessors()) {
-        if (isLoopNode(LNF[pred], headerNode)) {
-            innerPreds.push_back(pred);
-        }
-        else {
-            outerPreds.push_back(pred);
-        }
+/// \Returns `true` if \p node is a while loop
+static bool isWhileLoop(LNFNode const* header, LoopNestingForest const& LNF) {
+    if (!header->isProperLoop()) {
+        return false;
     }
-    if (outerPreds.size() <= 1) {
-        preHeader = outerPreds.front();
-        return result;
+    if (header->children().empty()) {
+        return false;
     }
-    preHeader = new BasicBlock(ctx, "preheader");
-    function.insert(header, preHeader);
-    preHeader->pushBack(new Goto(ctx, header));
-    auto phPhiInsertPoint = std::prev(preHeader->end());
-    for (auto& phi: header->phiNodes()) {
-        utl::small_vector<PhiMapping> newPhiArgs;
-        for (auto* pred: outerPreds) {
-            newPhiArgs.push_back({ pred, phi.operandOf(pred) });
-        }
-        auto* phPhi = new Phi(newPhiArgs, std::string(phi.name()));
-        preHeader->insert(phPhiInsertPoint, phPhi);
-        utl::small_vector<PhiMapping> oldPhiArgs;
-        for (auto* pred: innerPreds) {
-            oldPhiArgs.push_back({ pred, phi.operandOf(pred) });
-        }
-        oldPhiArgs.push_back({ preHeader, phPhi });
-        phi.setArguments(oldPhiArgs);
-    }
-    for (auto* pred: outerPreds) {
-        pred->terminator()->updateTarget(header, preHeader);
-    }
-    header->setPredecessors(innerPreds);
-    header->addPredecessor(preHeader);
-    preHeader->setPredecessors(outerPreds);
-    modified = true;
-    return result;
+    return ranges::any_of(header->basicBlock()->successors(),
+                          [&](BasicBlock const* succ) {
+        return !isLoopNode(LNF[succ], header);
+    });
 }
 
+/// Erases all phi instructions in a basic block with one predecessor
 static void eraseSingleValuePhiNodes(BasicBlock* BB) {
     SC_ASSERT(BB->numPredecessors() == 1, "");
     while (true) {
@@ -139,216 +149,328 @@ static void eraseSingleValuePhiNodes(BasicBlock* BB) {
     }
 }
 
-void LRContext::rotateLoop(BasicBlock* header) {
-    auto* headerNode = LNF[header];
-    SC_ASSERT(headerNode->isProperLoop(), "");
-    auto seResult = makeLoopSingleEntry(header);
-    /// A loop is a do/while loop if it consists of only one node or if all
-    /// paths from the header lead into the loop. Otherwise it is a while loop.
-    bool const isDoWhileLoop =
-        headerNode->children().empty() ||
-        ranges::all_of(header->successors(), [&](BasicBlock const* succ) {
-            return isLoopNode(LNF[succ], headerNode);
+namespace {
+
+struct PreprocessResult {
+    BasicBlock* entry;
+    BasicBlock* skip;
+    utl::small_vector<BasicBlock*> headerLoopPreds;
+    utl::small_vector<BasicBlock*> headerNonLoopPreds;
+};
+
+struct LRContext {
+    Context& ctx;
+    Function& function;
+    LoopNestingForest& LNF;
+    DominanceInfo const& domInfo;
+
+    /// Used by `dominates()`
+    utl::hashmap<BasicBlock*, BasicBlock*> ESMap;
+
+    /// \Returns `true` if \p dom dominates \p sub
+    /// Should only be used with `entry` and `skip` blocks
+    bool dominates(BasicBlock* dom, BasicBlock* sub) {
+        auto& domSet = domInfo.domSet(sub);
+        dom = ESMap[dom];
+        return domSet.contains(dom);
+    }
+
+    utl::small_vector<Phi*> addedPhis;
+
+    LRContext(Context& ctx, Function& function):
+        ctx(ctx),
+        function(function),
+        LNF(function.getOrComputeLNF()),
+        domInfo(function.getOrComputeDomInfo()) {}
+
+    void rotate(BasicBlock* header);
+
+    PreprocessResult preprocess(BasicBlock* header);
+
+    BasicBlock* addPreheader(BasicBlock* header,
+                             std::span<BasicBlock* const> nonLoopPreds);
+
+    void addSingleValuePhis(BasicBlock* header, BasicBlock* succ);
+
+    void augmentSingleValuePhis(BasicBlock* footer, BasicBlock* succ);
+
+    BasicBlock* findFooterInsertPoint(BasicBlock* header) const;
+};
+
+struct TopSorter {
+    Function const& function;
+    utl::hashmap<BasicBlock const*, size_t> order;
+
+    explicit TopSorter(Function const& function): function(function) {
+        std::queue<BasicBlock const*> queue;
+        queue.push(&function.entry());
+        utl::hashset<BasicBlock const*> visited = { &function.entry() };
+        size_t rank = 0;
+        while (!queue.empty()) {
+            auto* BB = queue.front();
+            queue.pop();
+            order[BB] = rank++;
+            for (auto* succ: BB->successors()) {
+                if (visited.insert(succ).second) {
+                    queue.push(succ);
+                }
+            }
+        }
+    }
+
+    size_t rank(BasicBlock const* BB) const {
+        auto itr = order.find(BB);
+        if (itr != order.end()) {
+            return order.find(BB)->second;
+        }
+        return 0;
+    }
+
+    void operator()(auto& list, auto proj) const {
+        std::sort(list.begin(), list.end(), [&](auto const& A, auto const& B) {
+            return rank(proj(A)) < rank(proj(B));
         });
-    if (!isDoWhileLoop) {
-        rotateWhileLoop(header, seResult);
+    }
+
+    auto operator()(std::span<LNFNode const* const> nodes) const {
+        auto result = nodes | ranges::to<utl::small_vector<LNFNode const*>>;
+        (*this)(result, [](auto* node) { return node->basicBlock(); });
+        return result;
+    }
+};
+
+} // namespace
+
+bool opt::rotateLoops(Context& ctx, Function& function) {
+    bool modified = false;
+    while (true) {
+        /// We collect all the while loops of `function` in breadth first search
+        /// order of the the loop nesting forest
+        utl::small_vector<utl::small_vector<BasicBlock*>, 1> whileHeadersBFS;
+        auto& LNF = function.getOrComputeLNF();
+        auto topsort = TopSorter(function);
+        auto DFS = [&](auto& DFS, LNFNode const* header, size_t index) -> void {
+            if (isWhileLoop(header, LNF)) {
+                if (index == whileHeadersBFS.size()) {
+                    whileHeadersBFS.emplace_back();
+                }
+                whileHeadersBFS[index].push_back(header->basicBlock());
+            }
+            for (auto* node: topsort(header->children())) {
+                DFS(DFS, node, index + 1);
+            }
+        };
+        for (auto* root: topsort(LNF.roots())) {
+            DFS(DFS, root, 0);
+        }
+
+        /// We traverse all while loops in rank order (BFS order)
+        for (auto& rankList: whileHeadersBFS) {
+            for (auto* header: rankList) {
+                LRContext(ctx, function).rotate(header);
+
+                /// FIXME: Remove this
+                /// \Warning This is a temporary measure until we traverse the
+                /// loop ranks in topsort order!
+                function.invalidateCFGInfo();
+            }
+            /// After traversing a rank we invalidate because
+            function.invalidateCFGInfo();
+        }
+
+        if (whileHeadersBFS.empty()) {
+            break;
+        }
+        modified = true;
+    }
+    assertInvariants(ctx, function);
+    return modified;
+}
+
+PreprocessResult LRContext::preprocess(BasicBlock* header) {
+    LNFNode const* headerNode = LNF[header];
+
+    /// Partition the predecessors of `header` into loop predecessors and
+    /// non-loop predecessors.
+    auto [loopPreds, nonLoopPreds] = [&] {
+        std::array<utl::small_vector<BasicBlock*>, 2> result;
+        auto& [loopPreds, nonLoopPreds] = result;
+        for (auto* pred: header->predecessors()) {
+            if (isLoopNode(LNF[pred], headerNode)) {
+                loopPreds.push_back(pred);
+            }
+            else {
+                nonLoopPreds.push_back(pred);
+            }
+        }
+        return result;
+    }();
+
+    if (nonLoopPreds.size() > 1) {
+        nonLoopPreds = { addPreheader(header, nonLoopPreds) };
+    }
+
+    /// We now determine which successor is `E` and which is `S`
+    SC_ASSERT(header->numSuccessors() == 2,
+              "If we have one successors this is either not a loop header or "
+              "not a while loop and if we have more than 2 successors this is "
+              "a weird switch based loop that we don't support.");
+    auto [entry, skip] = [&] {
+        auto A = header->successors()[0];
+        auto B = header->successors()[1];
+        if (isLoopNode(LNF[A], headerNode)) {
+            return std::pair{ A, B };
+        }
+        return std::pair{ B, A };
+    }();
+
+    /// We add new nodes for `entry` and `skip` if necessary and make sure they
+    /// have no phi nodes
+    if (entry->numPredecessors() > 1) {
+        auto* newEntry = splitEdge("loop.entry", ctx, header, entry);
+        ESMap[entry] = newEntry;
+        entry = newEntry;
+    }
+    else {
+        eraseSingleValuePhiNodes(entry);
+        ESMap[entry] = entry;
+    }
+    if (skip->numPredecessors() > 1) {
+        auto* newSkip = splitEdge("loop.end", ctx, header, skip);
+        ESMap[skip] = newSkip;
+        skip = newSkip;
+    }
+    else {
+        eraseSingleValuePhiNodes(skip);
+        ESMap[skip] = skip;
+    }
+
+    return { entry, skip, loopPreds, nonLoopPreds };
+}
+
+BasicBlock* LRContext::addPreheader(BasicBlock* header,
+                                    std::span<BasicBlock* const> nonLoopPreds) {
+    auto* preheader = new BasicBlock(ctx, "preheader");
+    function.insert(header, preheader);
+    for (auto& phi: header->phiNodes()) {
+        utl::small_vector<PhiMapping> args;
+        for (auto* pred: nonLoopPreds) {
+            args.push_back({ pred, phi.operandOf(pred) });
+        }
+        auto* preheaderPhi = new Phi(args, std::string(phi.name()));
+        preheader->pushBack(preheaderPhi);
+        phi.addArgument(preheader, preheaderPhi);
+    }
+    for (auto* pred: nonLoopPreds) {
+        pred->terminator()->updateTarget(header, preheader);
+        header->removePredecessor(pred);
+    }
+    preheader->setPredecessors(nonLoopPreds);
+    preheader->pushBack(new Goto(ctx, header));
+    header->addPredecessor(preheader);
+    return preheader;
+}
+
+void LRContext::rotate(BasicBlock* header) {
+    auto [entry, skip, loopPreds, nonLoopPreds] = preprocess(header);
+
+    /// # Step 1
+    /// `addSingleValuePhis()` replaces all uses of the instructions in the
+    /// header that are dominated by either `entry` or `skip` with single value
+    /// phi nodes in the respective block. The set of nodes dominated by
+    /// `entry`, the set of nodes dominated by skip and `header` partition the
+    /// dom set of the header. So all uses of instructions in the header that
+    /// are not in in the header will be replaced by the single value phi nodes.
+    addSingleValuePhis(header, entry);
+    addSingleValuePhis(header, skip);
+
+    /// # Step 2
+    /// We clone the header and rename the nodes
+    auto* footer = ir::clone(ctx, header).release();
+    footer->setName("loop.footer");
+    header->setName("loop.guard");
+    function.insert(findFooterInsertPoint(header), footer);
+    auto* guard = header;
+
+    /// We add arguments for `footer` to the phi instructions of `entry` and
+    /// `skip` and register `footer` as a predecessor
+    entry->addPredecessor(footer);
+    augmentSingleValuePhis(footer, entry);
+    skip->addPredecessor(footer);
+    augmentSingleValuePhis(footer, skip);
+
+    /// # Step 3
+    /// We remove all the loop predecessors of `guard` and point them to
+    /// `footer`. `footer` already has phi instructions for the predecessors
+    /// because `header` also had them
+    for (auto* pred: loopPreds) {
+        pred->terminator()->updateTarget(guard, footer);
+        guard->removePredecessor(pred);
+    }
+    /// We unregister the non-loop predecessors from `footer`
+    for (auto* pred: nonLoopPreds) {
+        footer->removePredecessor(pred);
+    }
+
+    /// We check if `footer` has any self referential phi nodes. For `header` it
+    /// was okay to have self referential phi nodes for blocks it dominated. But
+    /// `footer` does not dominate any of the loop nodes, so we replace self
+    /// referential arguments with the correspoding value in `entry`.
+    utl::hashmap<Instruction*, Instruction*> FtoE;
+    for (auto&& [F, E]: ranges::views::zip(*footer, *entry)) {
+        FtoE[&F] = &E;
+    }
+    for (auto& phi: footer->phiNodes()) {
+        for (auto [index, arg]: phi.operands() | ranges::views::enumerate) {
+            auto* instArg = dyncast<Instruction*>(arg);
+            if (instArg && instArg->parent() == footer) {
+                phi.setOperand(index, FtoE[instArg]);
+            }
+        }
+    }
+
+    /// We remove all the phi nodes that were added for no reason
+    for (auto* phi: addedPhis) {
+        if (!phi->isUsed()) {
+            phi->parent()->erase(phi);
+        }
     }
 }
 
-void LRContext::rotateWhileLoop(BasicBlock* header,
-                                SingleLoopEntryResult const& seResult) {
-    auto& [preHeader, outerPreds, innerPreds] = seResult;
-
-    /// Make footer
-    CloneValueMap phiMapGuardToFooter;
-    auto* footer = ir::clone(ctx, header, phiMapGuardToFooter).release();
-    function.insert(innerPreds.back()->next(), footer);
-    LNF.addNode(header, footer);
-    footer->setName("loop.footer");
-    footer->removePredecessor(preHeader);
-
-    /// Rename header to guard
-    auto* guard = header;
-    guard->setName("loop.guard");
-
-    /// Get entry and skip block
-    auto [entry, skipBlock] = [&] {
-        SC_ASSERT(guard->successors().size() <= 2, "");
-        auto* succA = guard->successors()[0];
-        auto* succB = guard->successors()[1];
-        if (LNF[guard]->parent() != LNF[succA]->parent()) {
-            return std::pair{ succA, succB };
+void LRContext::addSingleValuePhis(BasicBlock* header, BasicBlock* succ) {
+    for (auto& inst: *header) {
+        if (isa<TerminatorInst>(inst)) {
+            break;
         }
-        return std::pair{ succB, succA };
-    }();
-
-    /// If the skip block only has one predecessor, we add explicit phi nodes
-    /// with one argument because later in the function the footer will also
-    /// become a predecessor of the skip block
-    if (skipBlock->numPredecessors() == 1) {
-        eraseSingleValuePhiNodes(skipBlock);
-        SC_ASSERT(skipBlock->singlePredecessor() == guard, "");
-        auto insertPoint = skipBlock->begin();
-        for (auto& inst: *guard) {
-            auto loopOutUsers =
-                inst.users() | ranges::views::filter([&](User* user) {
-                    auto* inst = dyncast<Instruction*>(user);
-                    return inst && !isLoopNode(LNF[inst->parent()], LNF[guard]);
-                }) |
-                ranges::views::transform(
-                    [](User* user) { return cast<Instruction*>(user); }) |
-                ranges::to<utl::small_vector<Instruction*>>;
-            if (loopOutUsers.empty()) {
+        utl::small_vector<Instruction*> dominatedUsers;
+        for (auto* user: inst.users()) {
+            if (!dominates(succ, user->parent())) {
                 continue;
             }
-            auto* phi = new Phi({ { guard, &inst } }, std::string(inst.name()));
-            skipBlock->insert(insertPoint, phi);
-            for (auto* user: loopOutUsers) {
-                user->updateOperand(&inst, phi);
+            if (user->parent() == succ && isa<Phi>(user)) {
+                continue;
             }
+            dominatedUsers.push_back(user);
         }
-    }
-
-    /// If the entry block has multiple predecessors, i.e. it is itself a loop
-    /// header, then we add a seperate entry block that can become the new loop
-    /// header
-    if (entry->predecessors().size() > 1) {
-        auto* newEntry = new BasicBlock(ctx, "loop.entry");
-        guard->terminator()->updateTarget(entry, newEntry);
-        newEntry->addPredecessor(guard);
-        newEntry->pushBack(new Goto(ctx, entry));
-        entry->updatePredecessor(guard, newEntry);
-        function.insert(guard->next(), newEntry);
-        LNF.addNode(guard, newEntry);
-        footer->terminator()->updateTarget(entry, newEntry);
-        entry = newEntry;
-    }
-
-    /// Add landing pad
-    auto* landingPad = new BasicBlock(ctx, "loop.landingpad");
-    function.insert(guard->next(), landingPad);
-    guard->terminator()->updateTarget(entry, landingPad);
-    landingPad->addPredecessor(guard);
-    landingPad->pushBack(new Goto(ctx, entry));
-    entry->setPredecessors(std::array{ landingPad, footer });
-
-    /// Rewrite phi nodes of guard, entry and footer
-    auto bodyInsertPoint = entry->phiEnd();
-    CloneValueMap phiMapGuardToEntry, phiMapFooterToEntry;
-    for (auto&& [guardPhi, footerPhi]:
-         ranges::views::zip(guard->phiNodes(), footer->phiNodes()))
-    {
-        auto* entryPhi =
-            new Phi({ { landingPad, guardPhi.operandOf(preHeader) },
-                      { footer, &footerPhi } },
-                    std::string(guardPhi.name()));
-        entry->insert(bodyInsertPoint, entryPhi);
-        phiMapGuardToEntry.add(&guardPhi, entryPhi);
-        phiMapFooterToEntry.add(&footerPhi, entryPhi);
-    }
-    for (auto& footerPhi: footer->phiNodes()) {
-        for (auto [index, arg]:
-             footerPhi.arguments() | ranges::views::enumerate)
-        {
-            auto* instArg = dyncast<Instruction*>(arg.value);
-            if (instArg && instArg->parent() == footer) {
-                auto* entryPhi = phiMapFooterToEntry(instArg);
-                footerPhi.setArgument(index, entryPhi);
-            }
+        auto* phi = new Phi({ { header, &inst } }, std::string(inst.name()));
+        succ->insertPhi(phi);
+        for (auto* user: dominatedUsers) {
+            user->updateOperand(&inst, phi);
         }
+        addedPhis.push_back(phi);
     }
+}
 
-    /// Now after we extracted the operands of the phi nodes of `guard`, we can
-    /// remove its predecessors.
-    for (auto* pred: innerPreds) {
-        guard->removePredecessor(pred);
-        pred->terminator()->updateTarget(guard, footer);
+void LRContext::augmentSingleValuePhis(BasicBlock* footer, BasicBlock* succ) {
+    /// This way of augmenting the phi nodes works because we have exactly one
+    /// phi node in `succ` for every non-terminator instruction in `footer`
+    for (auto&& [phi, inst]: ranges::views::zip(succ->phiNodes(), *footer)) {
+        phi.addArgument(footer, &inst);
     }
+}
 
-    /// Replace uses of phi nodes in the guard block by phi nodes in the entry
-    /// block
-    for (auto* node: LNF[guard]->children()) {
-        if (node->basicBlock() == footer) {
-            continue;
-        }
-        node->traversePreorder([&](LNFNode const* node) {
-            for (auto& inst: *node->basicBlock()) {
-                for (auto* operand: inst.operands()) {
-                    auto* repl = phiMapGuardToEntry(operand);
-                    if (repl != operand) {
-                        inst.updateOperand(operand, repl);
-                    }
-                }
-            }
-        });
-    }
-
-    /// Gather exiting blocks
-    utl::small_vector<BasicBlock*> exitingBlocks = { guard };
-    auto* headerNode = LNF[header];
-    LNF[guard]->traversePreorder(
-        [&, skipBlock = skipBlock](LNFNode const* node) {
-        auto* BB = node->basicBlock();
-        if (BB == guard || BB == footer) {
-            return;
-        }
-        for (auto* succ: BB->successors()) {
-            if (!isLoopNode(LNF[succ], headerNode)) {
-                SC_ASSERT(postDomInfo.domSet(succ).contains(skipBlock),
-                          "If we exit here then skipBlock must post dominate "
-                          "this node");
-                if (succ == skipBlock) {
-                    exitingBlocks.push_back(BB);
-                    break;
-                }
-            }
-        }
-    });
-    exitingBlocks.push_back(footer);
-
-    /// Add new exit block
-    auto* exitBlock = new BasicBlock(ctx, "loop.exit");
-    function.insert(footer->next(), exitBlock);
-    exitBlock->setPredecessors(exitingBlocks);
-    for (auto* exitingBlock: exitingBlocks) {
-        exitingBlock->terminator()->updateTarget(skipBlock, exitBlock);
-    }
-
-    /// Add phi nodes to exit block
-    for (auto& phi: skipBlock->phiNodes()) {
-        utl::small_vector<PhiMapping> phiArgs;
-        for (auto* exitingBlock: exitingBlocks) {
-            size_t index = phi.indexOf(exitingBlock);
-            if (index != phi.argumentCount()) {
-                phiArgs.push_back(
-                    { exitingBlock, phi.argumentAt(index).value });
-            }
-            else {
-                SC_ASSERT(exitingBlock == footer, "");
-                phiArgs.push_back(
-                    { exitingBlock,
-                      phiMapGuardToFooter(phi.operandOf(guard)) });
-            }
-        }
-        auto* exitPhi = new Phi(phiArgs, std::string(phi.name()));
-        exitBlock->pushBack(exitPhi);
-    }
-
-    /// Rewire CFG wrt exit block
-    for (auto* exitingBlock: exitingBlocks) {
-        if (ranges::contains(skipBlock->predecessors(), exitingBlock)) {
-            skipBlock->removePredecessor(exitingBlock);
-        }
-    }
-    exitBlock->pushBack(new Goto(ctx, skipBlock));
-    skipBlock->addPredecessor(exitBlock);
-
-    /// Update phi nodes of skip block
-    for (auto&& [exitPhi, skipPhi]:
-         ranges::views::zip(exitBlock->phiNodes(), skipBlock->phiNodes()))
-    {
-        skipPhi.addArgument(exitBlock, &exitPhi);
-    }
-
-    modified = true;
+BasicBlock* LRContext::findFooterInsertPoint(BasicBlock* header) const {
+    /// For now. Finding the correct insertion point, i.e. after all nodes in
+    /// the loop seems very non trivial.
+    return header->next();
 }
