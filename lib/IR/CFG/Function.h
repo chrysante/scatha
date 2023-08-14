@@ -161,15 +161,39 @@ public:
     }
 
     /// Access this functions dominator tree.
+    DomTree& getOrComputeDomTree() {
+        return const_cast<DomTree&>(
+            static_cast<Function const*>(this)->getOrComputeDomTree());
+    }
+
+    /// \overload
     DomTree const& getOrComputeDomTree() const;
 
     /// Access this functions dominance information.
+    DominanceInfo& getOrComputeDomInfo() {
+        return const_cast<DominanceInfo&>(
+            static_cast<Function const*>(this)->getOrComputeDomInfo());
+    }
+
+    /// \overload
     DominanceInfo const& getOrComputeDomInfo() const;
 
     /// Access this functions post-dominance information.
+    DominanceInfo& getOrComputePostDomInfo() {
+        return const_cast<DominanceInfo&>(
+            static_cast<Function const*>(this)->getOrComputePostDomInfo());
+    }
+
+    /// \overload
     DominanceInfo const& getOrComputePostDomInfo() const;
 
     /// Access this functions loop nesting forest.
+    LoopNestingForest& getOrComputeLNF() {
+        return const_cast<LoopNestingForest&>(
+            static_cast<Function const*>(this)->getOrComputeLNF());
+    }
+
+    /// \overload
     LoopNestingForest const& getOrComputeLNF() const;
 
     /// Invalidate (post-) dominance and loop information.
