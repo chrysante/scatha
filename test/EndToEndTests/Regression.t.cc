@@ -86,3 +86,14 @@ public fn main() -> int {
     return sum;
 })");
 }
+
+TEST_CASE("Bug in simplifycfg", "[end-to-end][regression]") {
+    test::checkReturns(10, R"(
+public fn main(n: int, cond: bool) -> int {
+    if cond {}
+    else {}
+    n ^= n;
+    n += 10;
+    return n;
+})");
+}

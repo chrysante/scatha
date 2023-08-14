@@ -240,7 +240,9 @@ bool Ctx::merge(BasicBlock* pred, BasicBlock* via, BasicBlock* succ) {
             pred->insert(branch, gt);
             pred->erase(branch);
         }
-        succ->addPredecessor(pred);
+        if (!succ->isPredecessor(pred)) {
+            succ->addPredecessor(pred);
+        }
         for (auto& phi: succ->phiNodes()) {
             phi.addArgument(pred, phi.operandOf(via));
         }
