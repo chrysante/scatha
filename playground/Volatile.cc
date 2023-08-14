@@ -37,7 +37,7 @@
 #include "Opt/Optimizer.h"
 #include "Opt/PassManager.h"
 #include "Opt/Passes.h"
-#include "Opt/Pipeline/PipelineError.h"
+#include "Opt/PipelineError.h"
 #include "Opt/SCCCallGraph.h"
 #include "Parser/Lexer.h"
 #include "Parser/Parser.h"
@@ -112,8 +112,9 @@ static void run(mir::Module const& mod) {
 
 [[maybe_unused]] static void mirPlayground(std::filesystem::path path) {
     auto [ctx, irMod] = makeIRModuleFromFile(path);
-    opt::optimize(ctx, irMod, /* Level = */ 1);
     header("IR Module");
+    opt::PassManager::makePipeline("inline, deadfuncelim, gvn")
+        .execute(ctx, irMod);
     print(irMod);
     auto mod = cg::codegen(irMod, *std::make_unique<cg::DebugLogger>());
     run(mod);
@@ -133,16 +134,16 @@ static void pass(std::string_view name,
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
     opt::forEach(ctx, mod, opt::unifyReturns);
+
     header("As parsed");
+    opt::PassManager::makePipeline("inline, deadfuncelim").execute(ctx, mod);
     print(mod);
+    run(mod);
 
-    header("After inst combine");
-    opt::PassManager::makePipeline("instcombine").execute(ctx, mod);
+    header("GVN");
+    opt::PassManager::makePipeline("gvn").execute(ctx, mod);
     print(mod);
-
-    header("After second inst combine");
-    opt::PassManager::makePipeline("instcombine").execute(ctx, mod);
-    print(mod);
+    run(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {

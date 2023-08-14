@@ -8,19 +8,16 @@ fn print(msg: &str) {
     __builtin_putstr(&msg);
 }
 
-fn A(n: int) {
-    print(n);
-    B(n);
-}
-
-fn B(n: int) {
-    if (n > 0) {
-        A(n - 1);
+public fn main(cond: bool) -> int {
+    var n = 0;
+    if cond {
+        n += 10;
     }
-}
-
-public fn main() -> int {
-    var i = 5;
-    A(i);
+    else {
+        n += 10;
+    } 
+    for i = 0; i < n; ++i {
+        n -= 1;
+    }
     return 0;
 }
