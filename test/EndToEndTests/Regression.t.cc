@@ -59,3 +59,17 @@ fn print(msg: &str) {
     __builtin_putstr(&msg);
 })");
 }
+
+TEST_CASE("Bug in LoopRotate", "[end-to-end][regression]") {
+    test::checkReturns(3, R"(
+public fn main() -> int {
+    var n = 0;
+    for i = 0; i < 10; ++i {
+        n += 2;
+        if n > 10 {
+            return n / 4;
+        }
+    }
+    return 0;
+})");
+}
