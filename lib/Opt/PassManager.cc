@@ -16,6 +16,8 @@ namespace {
 struct Impl {
     utl::hashmap<std::string, LocalPass> localPasses;
 
+    utl::hashmap<std::string, LocalPass> canonicalizationPasses;
+
     utl::hashmap<std::string, GlobalPass> globalPasses;
 
     auto getPassImpl(auto& map, std::string_view name) const {
@@ -27,7 +29,13 @@ struct Impl {
     }
 
     LocalPass getPass(std::string_view name) const {
-        return getPassImpl(localPasses, name);
+        if (auto pass = getPassImpl(localPasses, name)) {
+            return pass;
+        }
+        if (auto pass = getPassImpl(canonicalizationPasses, name)) {
+            return pass;
+        }
+        return {};
     }
 
     GlobalPass getGlobalPass(std::string_view name) const {
@@ -38,20 +46,38 @@ struct Impl {
         return parsePipeline(text);
     }
 
-    utl::vector<LocalPass> getLocalPasses() const {
-        return localPasses |
+    template <typename Pass>
+    utl::vector<Pass> getPassesImpl(utl::hashmap<std::string, Pass> const& map,
+                                    auto filter) const {
+        return map |
                ranges::views::transform([](auto& p) { return p.second; }) |
-               ranges::views::filter(
-                   [](auto const& pass) { return pass.name() != "default"; }) |
-               ranges::to<utl::vector>;
+               ranges::views::filter(filter) | ranges::to<utl::vector>;
     }
 
-    void registerPass(LocalPass pass) {
+    utl::vector<LocalPass> getLocalPasses() const {
+        return getPassesImpl(localPasses, [](auto const& pass) {
+            return pass.name() != "default";
+        });
+    }
+
+    utl::vector<LocalPass> getCanonicalizationPasses() const {
+        return getPassesImpl(localPasses, [](auto const& pass) {
+            return pass.name() != "canonicalize";
+        });
+    }
+
+    void registerLocal(LocalPass pass) {
         auto [itr, success] = localPasses.insert({ pass.name(), pass });
         SC_ASSERT(success, "Failed to register pass");
     }
 
-    void registerPass(GlobalPass pass) {
+    void registerCanonicalization(LocalPass pass) {
+        auto [itr, success] =
+            canonicalizationPasses.insert({ pass.name(), pass });
+        SC_ASSERT(success, "Failed to register pass");
+    }
+
+    void registerGlobal(GlobalPass pass) {
         auto [itr, success] = globalPasses.insert({ pass.name(), pass });
         SC_ASSERT(success, "Failed to register pass");
     }
@@ -80,10 +106,14 @@ utl::vector<LocalPass> PassManager::localPasses() {
     return getImpl().getLocalPasses();
 }
 
-void opt::internal::registerPass(LocalPass pass) {
-    getImpl().registerPass(std::move(pass));
+void opt::internal::registerLocal(LocalPass pass) {
+    getImpl().registerLocal(std::move(pass));
 }
 
-void opt::internal::registerPass(GlobalPass pass) {
-    getImpl().registerPass(std::move(pass));
+void opt::internal::registerCanonicalization(LocalPass pass) {
+    getImpl().registerCanonicalization(std::move(pass));
+}
+
+void opt::internal::registerGlobal(GlobalPass pass) {
+    getImpl().registerGlobal(std::move(pass));
 }

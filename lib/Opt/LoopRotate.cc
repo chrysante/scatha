@@ -108,7 +108,7 @@ using namespace ir;
 ///
 ///
 
-SC_REGISTER_PASS(opt::rotateLoops, "rotateloops");
+SC_REGISTER_CANONICALIZATION(opt::rotateLoops, "rotateloops");
 
 /// \Returns `true` if \p node is part of the loop with header \p header
 static bool isLoopNode(LNFNode const* node, LNFNode const* header) {
@@ -251,46 +251,39 @@ struct TopSorter {
 } // namespace
 
 bool opt::rotateLoops(Context& ctx, Function& function) {
-    bool modified = false;
-    while (true) {
-        /// We collect all the while loops of `function` in breadth first search
-        /// order of the the loop nesting forest
-        utl::small_vector<utl::small_vector<BasicBlock*>, 1> whileHeadersBFS;
-        auto& LNF = function.getOrComputeLNF();
-        auto topsort = TopSorter(function);
-        auto DFS = [&](auto& DFS, LNFNode const* header, size_t index) -> void {
-            if (isWhileLoop(header, LNF)) {
-                if (index == whileHeadersBFS.size()) {
-                    whileHeadersBFS.emplace_back();
-                }
-                whileHeadersBFS[index].push_back(header->basicBlock());
-                ++index;
+    /// We collect all the while loops of `function` in breadth first search
+    /// order of the the loop nesting forest
+    utl::small_vector<utl::small_vector<BasicBlock*>, 1> whileHeadersBFS;
+    auto& LNF = function.getOrComputeLNF();
+    auto topsort = TopSorter(function);
+    auto DFS = [&](auto& DFS, LNFNode const* header, size_t index) -> void {
+        if (isWhileLoop(header, LNF)) {
+            if (index == whileHeadersBFS.size()) {
+                whileHeadersBFS.emplace_back();
             }
-            for (auto* node: topsort(header->children())) {
-                DFS(DFS, node, index);
-            }
-        };
-        for (auto* root: topsort(LNF.roots())) {
-            DFS(DFS, root, 0);
+            whileHeadersBFS[index].push_back(header->basicBlock());
+            ++index;
         }
-
-        /// We traverse all while loops in rank order (BFS order)
-        for (auto& rankList: whileHeadersBFS) {
-            for (auto* header: rankList) {
-                LRContext(ctx, function).rotate(header);
-            }
-            /// After traversing a rank we invalidate because we may have edited
-            /// the CFG in loops the are dominated by the next rank
-            function.invalidateCFGInfo();
+        for (auto* node: topsort(header->children())) {
+            DFS(DFS, node, index);
         }
-
-        if (whileHeadersBFS.empty()) {
-            break;
-        }
-        modified = true;
+    };
+    for (auto* root: topsort(LNF.roots())) {
+        DFS(DFS, root, 0);
     }
+
+    /// We traverse all while loops in rank order (BFS order)
+    for (auto& rankList: whileHeadersBFS) {
+        for (auto* header: rankList) {
+            LRContext(ctx, function).rotate(header);
+        }
+        /// After traversing a rank we invalidate because we may have edited
+        /// the CFG in loops the are dominated by the next rank
+        function.invalidateCFGInfo();
+    }
+
     assertInvariants(ctx, function);
-    return modified;
+    return !whileHeadersBFS.empty();
 }
 
 PreprocessResult LRContext::preprocess(BasicBlock* header) {
@@ -393,7 +386,7 @@ void LRContext::rotate(BasicBlock* header) {
     auto* footer = ir::clone(ctx, header).release();
     footer->setName("loop.footer");
     header->setName("loop.guard");
-    function.insert(findFooterInsertPoint(header), footer);
+    function.insert(skip, footer);
     auto* guard = header;
 
     /// We add arguments for `footer` to the phi instructions of `entry` and

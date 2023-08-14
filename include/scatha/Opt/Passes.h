@@ -32,6 +32,20 @@ SCATHA_API bool deadFuncElim(ir::Context& ctx,
 /// Execute \p localPass for each function in the module \p mod
 SCATHA_API bool forEach(ir::Context& ctx, ir::Module& mod, LocalPass localPass);
 
+/// # Canonicalization passes
+
+/// The default canonicalization passes
+SCATHA_API bool canonicalize(ir::Context& ctx, ir::Function& function);
+
+/// Transform the function to have a single exit block
+SCATHA_API bool unifyReturns(ir::Context& context, ir::Function& function);
+
+/// Split the single exit block
+SCATHA_API bool splitReturns(ir::Context& context, ir::Function& function);
+
+/// This pass transform while loops into guarded do/while loops
+SCATHA_API bool rotateLoops(ir::Context& context, ir::Function& function);
+
 /// # Local passes
 
 /// The default set of local passes for good optimization
@@ -74,15 +88,6 @@ SCATHA_API bool simplifyCFG(ir::Context& ctx, ir::Function& function);
 /// This pass replaces tail recursive calls with `goto`'s to the start of the
 /// function, thus creating loops.
 SCATHA_API bool tailRecElim(ir::Context& context, ir::Function& function);
-
-/// Transform the function to have a single exit block
-SCATHA_API bool unifyReturns(ir::Context& context, ir::Function& function);
-
-/// Split the single exit block
-SCATHA_API bool splitReturns(ir::Context& context, ir::Function& function);
-
-/// This pass transform while loops into guarded do/while loops
-SCATHA_API bool rotateLoops(ir::Context& context, ir::Function& function);
 
 } // namespace scatha::opt
 

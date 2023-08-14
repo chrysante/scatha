@@ -159,7 +159,10 @@ VisitResult Inliner::visitSCC(SCC& scc) {
     /// the SCC. Otherwise, because we are in a cyclic component,  there will
     /// always be a function which will not have been optimized before being
     /// considered for inlining.
+    /// This is the first time any optimization is run on the function so here
+    /// we canonicalize
     for (auto& node: scc.nodes()) {
+        modifiedAny |= canonicalize(ctx, node.function());
         modifiedAny |= optimize(node.function());
         /// We recompute the call sites after local optimizations because they
         /// could have been invalidated

@@ -14,14 +14,9 @@ void opt::optimize(ir::Context& context, ir::Module& mod, int level) {
         return;
 
     case 1:
-        for (auto& function: mod) {
-            opt::unifyReturns(context, function);
-        }
         opt::inlineFunctions(context, mod);
         opt::deadFuncElim(context, mod);
-        for (auto& function: mod) {
-            opt::splitReturns(context, function);
-        }
+        opt::forEach(context, mod, opt::splitReturns);
         return;
 
     default:
