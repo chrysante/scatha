@@ -150,7 +150,6 @@ bool DCEContext::run() {
             modifiedAny = true;
         }
         else if (!isa<Goto>(inst)) {
-            clearAllUses(inst);
             bb->erase(inst);
             modifiedAny = true;
         }

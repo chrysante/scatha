@@ -102,10 +102,6 @@ bool Ctx::eraseUnreachableBlocks() {
                 succ->removePredecessor(bb);
             }
         }
-        for (auto& inst: *bb) {
-            clearAllUses(&inst);
-        }
-        clearAllUses(bb);
         function.erase(bb);
     }
     return !unreachableBlocks.empty();
