@@ -83,9 +83,6 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
     /// Also all registers that are used by phi nodes in our successor
     /// corresponding to this block
     for (auto succ: BB->successors()) {
-        if (backEdges.contains({ BB, succ })) {
-            continue;
-        }
         auto liveInSucc = succ->liveIn();
         size_t phiIndex =
             utl::narrow_cast<size_t>(ranges::find(succ->predecessors(), BB) -
@@ -94,13 +91,20 @@ void LivenessContext::dag(mir::BasicBlock* BB) {
             if (phi.instcode() != mir::InstCode::Phi) {
                 break;
             }
-            liveInSucc.erase(phi.dest());
             /// TODO: Reevaluate this
             /// This fixes liveness issues when phi instructions use values
             /// defined earlier than in the predecessor block
             auto* ourOperand = phi.operandAt(phiIndex);
             if (auto* reg = dyncast<mir::SSARegister*>(ourOperand)) {
                 liveInSucc.insert(reg);
+            }
+        }
+        if (!backEdges.contains({ BB, succ })) {
+            for (auto& phi: *succ) {
+                if (phi.instcode() != mir::InstCode::Phi) {
+                    break;
+                }
+                liveInSucc.erase(phi.dest());
             }
         }
         merge(live, liveInSucc);
