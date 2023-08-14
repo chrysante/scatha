@@ -255,9 +255,10 @@ bool opt::rotateLoops(Context& ctx, Function& function) {
                     whileHeadersBFS.emplace_back();
                 }
                 whileHeadersBFS[index].push_back(header->basicBlock());
+                ++index;
             }
             for (auto* node: topsort(header->children())) {
-                DFS(DFS, node, index + 1);
+                DFS(DFS, node, index);
             }
         };
         for (auto* root: topsort(LNF.roots())) {
@@ -268,13 +269,9 @@ bool opt::rotateLoops(Context& ctx, Function& function) {
         for (auto& rankList: whileHeadersBFS) {
             for (auto* header: rankList) {
                 LRContext(ctx, function).rotate(header);
-
-                /// FIXME: Remove this
-                /// \Warning This is a temporary measure until we traverse the
-                /// loop ranks in topsort order!
-                function.invalidateCFGInfo();
             }
-            /// After traversing a rank we invalidate because
+            /// After traversing a rank we invalidate because we may have edited
+            /// the CFG in loops the are dominated by the next rank
             function.invalidateCFGInfo();
         }
 
