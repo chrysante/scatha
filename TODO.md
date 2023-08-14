@@ -7,3 +7,7 @@
 - Improve SROA for arrays
 
 - Fix TRE for void calls
+
+- Improve inlining decisions
+
+- Create annotations for functions such as no side effects etc.
