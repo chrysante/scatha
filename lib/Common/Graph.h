@@ -319,13 +319,9 @@ public:
 
     std::span<Self const* const> children() const { return _children; }
 
-    void setParent(Self* parent) {
-        SC_ASSERT(parent != this, "Would form an invalid tree");
-        _parent = parent;
-    }
-
     void addChild(Self* child) {
         SC_ASSERT(child != this, "Would form an invalid tree");
+        child->_parent = static_cast<Self*>(this);
         Base::addEdgeImpl(_children, child);
     }
 

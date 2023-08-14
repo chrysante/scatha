@@ -37,6 +37,12 @@ public:
                                      DomTree const& domtree);
 
     /// \Returns The node corresponding to basic block \p BB
+    Node* operator[](ir::BasicBlock const* BB) {
+        return const_cast<Node*>(
+            static_cast<LoopNestingForest const&>(*this)[BB]);
+    }
+
+    ///  \overload
     Node const* operator[](ir::BasicBlock const* BB) const {
         auto itr = _nodes.find(BB);
         SC_ASSERT(itr != _nodes.end(), "Not found");
@@ -51,11 +57,22 @@ public:
 
     /// Add a new node without children for basic block \p BB as child of node
     /// \p parent
+    void addNode(Node const* parent, BasicBlock* BB);
+
+    /// \overload
     void addNode(BasicBlock const* parent, BasicBlock* BB);
 
     /// Traverse all trees in preorder
     template <std::invocable<Node const*> F>
     void traversePreorder(F&& f) const {
+        for (auto* root: roots()) {
+            root->traversePreorder(f);
+        }
+    }
+
+    /// \overload
+    template <std::invocable<Node*> F>
+    void traversePreorder(F&& f) {
         for (auto* root: roots()) {
             root->traversePreorder(f);
         }

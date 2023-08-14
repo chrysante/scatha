@@ -57,7 +57,6 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
                 header = dom;
             }
             auto* headerNode = result.findMut(header);
-            headerNode->setParent(root);
             root->addChild(headerNode);
             scc.erase(header);
             impl(impl, headerNode, scc);
@@ -67,13 +66,15 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
     return result;
 }
 
-void LoopNestingForest::addNode(BasicBlock const* parent, BasicBlock* BB) {
-    auto* parentNode = findMut(parent);
+void LoopNestingForest::addNode(Node const* parent, BasicBlock* BB) {
     auto [itr, success] = _nodes.insert(Node(BB));
     SC_ASSERT(success, "BB is already in the tree");
     auto* node = const_cast<Node*>(&*itr);
-    node->setParent(parentNode);
-    parentNode->addChild(node);
+    const_cast<Node*>(parent)->addChild(node);
+}
+
+void LoopNestingForest::addNode(BasicBlock const* parent, BasicBlock* BB) {
+    addNode((*this)[parent], BB);
 }
 
 namespace {

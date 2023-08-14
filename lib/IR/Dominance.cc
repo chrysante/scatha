@@ -240,7 +240,6 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
             }
             auto* mutStart = const_cast<DomTree::Node*>(&start);
             res->addChild(mutStart);
-            mutStart->setParent(res);
             break;
         }
     }
