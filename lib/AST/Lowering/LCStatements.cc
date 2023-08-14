@@ -70,7 +70,7 @@ void LoweringContext::generateImpl(StructDefinition const& def) {
 }
 
 void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
-    std::string name = utl::strcat(varDecl.name(), ".addr");
+    std::string name = utl::strcat(varDecl.name());
     if (auto* arrayType =
             dyncast<sema::ArrayType const*>(varDecl.type()->base()))
     {

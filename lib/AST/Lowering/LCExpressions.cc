@@ -89,14 +89,14 @@ ir::Value* LoweringContext::getValueImpl(UnaryExpression const& expr) {
         ir::Value* operandValue =
             add<ir::Load>(operandAddress,
                           operandType,
-                          utl::strcat(expr.operation(), ".operand"));
+                          utl::strcat(expr.operation(), ".op"));
         auto* newValue =
             add<ir::ArithmeticInst>(operandValue,
                                     constant(1, operandType),
                                     expr.operation() == Increment ?
                                         ir::ArithmeticOperation::Add :
                                         ir::ArithmeticOperation::Sub,
-                                    utl::strcat(expr.operation(), ".result"));
+                                    utl::strcat(expr.operation(), ".res"));
         add<ir::Store>(operandAddress, newValue);
         return newValue;
     }
@@ -118,7 +118,7 @@ ir::Value* LoweringContext::getValueImpl(UnaryExpression const& expr) {
     default:
         return add<ir::UnaryArithmeticInst>(getValue(expr.operand()),
                                             mapUnaryOp(expr.operation()),
-                                            "expr.result");
+                                            "expr");
     }
 }
 
@@ -163,7 +163,7 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
                       "Need integral type for shift");
         }
         auto operation = mapArithmeticOp(builtinType, expr.operation());
-        return add<ir::ArithmeticInst>(lhs, rhs, operation, "expr.result");
+        return add<ir::ArithmeticInst>(lhs, rhs, operation, "expr");
     }
 
     case LogicalAnd:
@@ -193,14 +193,14 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
                     std::array<ir::PhiMapping, 2>{
                         ir::PhiMapping{ startBlock, intConstant(0, 1) },
                         ir::PhiMapping{ rhsBlock, rhs } },
-                    "log.and.value");
+                    "log.and");
             }
             else {
                 return add<ir::Phi>(
                     std::array<ir::PhiMapping, 2>{
                         ir::PhiMapping{ startBlock, intConstant(1, 1) },
                         ir::PhiMapping{ rhsBlock, rhs } },
-                    "log.or.value");
+                    "log.or");
             }
         }();
     }
@@ -220,7 +220,7 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
                                     getValue(expr.rhs()),
                                     mapCompareMode(builtinType),
                                     mapCompareOp(expr.operation()),
-                                    "cmp.result");
+                                    "cmp.res");
     }
 
     case Comma:
@@ -251,14 +251,13 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
         auto* rhs = getValue(expr.rhs());
         if (expr.operation() != Assignment) {
             SC_ASSERT(builtinType == expr.rhs()->type()->base(), "");
-            auto* lhsValue =
-                add<ir::Load>(lhs, mapType(builtinType), "lhs.value");
+            auto* lhsValue = add<ir::Load>(lhs, mapType(builtinType), "lhs");
             rhs =
                 add<ir::ArithmeticInst>(lhsValue,
                                         rhs,
                                         mapArithmeticAssignOp(builtinType,
                                                               expr.operation()),
-                                        "expr.result");
+                                        "expr");
         }
         return add<ir::Store>(lhs, rhs);
     }
@@ -284,14 +283,12 @@ ir::Value* LoweringContext::getValueImpl(MemberAccess const& expr) {
     if (hasAddress(&expr)) {
         return add<ir::Load>(getAddressImpl(expr),
                              mapType(expr.type()),
-                             "member.access");
+                             "mem.acc");
     }
     auto* base = getValue(expr.object());
     auto* accessedId = cast<Identifier const*>(expr.member());
     auto* var = cast<sema::Variable const*>(accessedId->entity());
-    return add<ir::ExtractValue>(base,
-                                 std::array{ var->index() },
-                                 "member.access");
+    return add<ir::ExtractValue>(base, std::array{ var->index() }, "mem.acc");
 }
 
 ir::Value* LoweringContext::getValueImpl(ReferenceExpression const& expr) {
@@ -331,7 +328,7 @@ ir::Value* LoweringContext::getValueImpl(Conditional const& condExpr) {
     return add<ir::Phi>(std::array<ir::PhiMapping,
                                    2>{ ir::PhiMapping{ thenBlock, thenVal },
                                        ir::PhiMapping{ elseBlock, elseVal } },
-                        "cond.result");
+                        "cond");
 }
 
 ir::Value* LoweringContext::getValueImpl(FunctionCall const& expr) {
@@ -364,7 +361,7 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
             auto* address = getValue(expr);
             return add<ir::Load>(address,
                                  mapType(expr->type()->base()),
-                                 utl::strcat(address->name(), ".deref"));
+                                 utl::strcat(address->name()));
         }
 
         case sema::RefConversion::DerefExpl:
