@@ -136,12 +136,7 @@ static void pass(std::string_view name,
     opt::forEach(ctx, mod, opt::unifyReturns);
 
     header("As parsed");
-    opt::PassManager::makePipeline("inline, deadfuncelim").execute(ctx, mod);
-    print(mod);
-    run(mod);
-
-    header("GVN");
-    opt::PassManager::makePipeline("gvn").execute(ctx, mod);
+    opt::PassManager::makePipeline("dce").execute(ctx, mod);
     print(mod);
     run(mod);
 }
