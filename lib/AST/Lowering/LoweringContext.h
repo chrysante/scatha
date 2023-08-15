@@ -1,11 +1,12 @@
-#ifndef SCATHA_AST_LOWERINGCONTEXT_H_
-#define SCATHA_AST_LOWERINGCONTEXT_H_
+#ifndef SCATHA_AST_LOWERING_LOWERINGCONTEXT_H_
+#define SCATHA_AST_LOWERING_LOWERINGCONTEXT_H_
 
 #include <utl/hashmap.hpp>
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
+#include "AST/Lowering/CallingConvention.h"
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
 #include "Common/List.h"
@@ -35,10 +36,12 @@ struct LoweringContext {
     /// Maps variables to SSA values
     utl::hashmap<sema::Entity const*, ir::Value*> valueMap;
     utl::hashmap<sema::Function const*, ir::Callable*> functionMap;
+    utl::hashmap<sema::Function const*, CallingConvention> CCMap;
 
     /// ## Current state
 
     ir::Function* currentFunction = nullptr;
+    sema::Function const* currentSemaFunction = nullptr;
     ir::BasicBlock* currentBlock = nullptr;
     utl::small_vector<ir::Alloca*> allocas;
     utl::stack<Loop, 4> loopStack;
@@ -210,7 +213,10 @@ struct LoweringContext {
 
     ir::Callable* getFunction(sema::Function const*);
 
-    ir::Value* genCall(FunctionCall const*);
+    /// \Returns the value passing convention of the return value and the return
+    /// value if the passing convention is `Register` or the address of the
+    /// return value if the passing convention is `Stack`
+    std::pair<ir::Value*, PassingConvention::Type> genCall(FunctionCall const*);
 
     utl::small_vector<ir::Value*> mapArguments(auto&& args);
 
@@ -250,4 +256,4 @@ struct LoweringContext {
 
 } // namespace scatha::ast
 
-#endif // SCATHA_AST_LOWERINGCONTEXT_H_
+#endif // SCATHA_AST_LOWERING_LOWERINGCONTEXT_H_

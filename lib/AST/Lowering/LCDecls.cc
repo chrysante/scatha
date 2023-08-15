@@ -37,24 +37,68 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
     mod.addStructure(std::move(structure));
 }
 
+static bool isTrivial(sema::Type const* type) {
+    /// For now all types are trivial since we don't have constructors and
+    /// destructors yet
+    return true;
+}
+
+static const size_t maxRegPassingSize = 16;
+
+static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
+    if (isTrivial(type) && type->size() <= maxRegPassingSize) {
+        return { PassingConvention::Register, isRetval ? 0u : 1u };
+    }
+    /// When we support arrays we need 2 here
+    return { PassingConvention::Stack, 1 };
+}
+
+static PassingConvention computeRetValPC(sema::Type const* type) {
+    return computePCImpl(type, true);
+}
+
+static PassingConvention computeArgPC(sema::Type const* type) {
+    return computePCImpl(type, false);
+}
+
+static CallingConvention computeCC(sema::Function const* function) {
+    auto retval = computeRetValPC(function->returnType());
+    auto args = function->argumentTypes() |
+                ranges::views::transform(computeArgPC) |
+                ranges::to<utl::small_vector<PassingConvention>>;
+    return CallingConvention(retval, args);
+}
+
 ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
-    auto paramTypes = [&] {
-        if (function->isBuiltin()) {
-            /// Some builtins need special care so we do that here
-            if (function->index() == static_cast<size_t>(svm::Builtin::memcpy))
-            {
-                return utl::small_vector<ir::Type const*>{ ctx.pointerType(),
-                                                           ctx.pointerType(),
-                                                           ctx.integralType(
-                                                               64) };
-            }
+    auto CC = computeCC(function);
+    CCMap[function] = CC;
+    ir::Type const* irReturnType = nullptr;
+    utl::small_vector<ir::Type const*> irArgTypes;
+    auto retvalPC = CC.returnValue();
+    using enum PassingConvention::Type;
+    switch (retvalPC.type()) {
+    case Register:
+        irReturnType = mapType(function->returnType());
+        break;
+
+    case Stack:
+        irReturnType = ctx.voidType();
+        irArgTypes.push_back(ctx.pointerType());
+        break;
+    }
+    for (auto [argPC, type]:
+         ranges::views::zip(CC.arguments(), function->argumentTypes()))
+    {
+        switch (argPC.type()) {
+        case Register:
+            irArgTypes.push_back(mapType(type));
+            break;
+
+        case Stack:
+            irArgTypes.push_back(ctx.pointerType());
+            break;
         }
-        return function->argumentTypes() |
-               ranges::views::transform([this](sema::QualType const* qType) {
-                   return mapType(qType);
-               }) |
-               ranges::to<utl::small_vector<ir::Type const*>>;
-    }();
+    }
 
     // TODO: Generate proper function type here
     ir::FunctionType const* const functionType = nullptr;
@@ -62,8 +106,8 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     switch (function->kind()) {
     case sema::FunctionKind::Native: {
         auto fn = allocate<ir::Function>(functionType,
-                                         mapType(function->returnType()),
-                                         paramTypes,
+                                         irReturnType,
+                                         irArgTypes,
                                          function->mangledName(),
                                          mapFuncAttrs(function->attributes()),
                                          accessSpecToVisibility(
@@ -77,9 +121,8 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     case sema::FunctionKind::External: {
         auto fn =
             allocate<ir::ExtFunction>(functionType,
-                                      mapType(
-                                          function->signature().returnType()),
-                                      paramTypes,
+                                      irReturnType,
+                                      irArgTypes,
                                       std::string(function->name()),
                                       utl::narrow_cast<uint32_t>(
                                           function->slot()),

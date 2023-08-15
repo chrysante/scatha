@@ -1,0 +1,68 @@
+#ifndef SCATHA_AST_LOWERING_CALLINGCONVENTION_H_
+#define SCATHA_AST_LOWERING_CALLINGCONVENTION_H_
+
+#include <span>
+
+#include <range/v3/view.hpp>
+#include <utl/utility.hpp>
+#include <utl/vector.hpp>
+
+#include "IR/Fwd.h"
+#include "Sema/Fwd.h"
+
+namespace scatha::ast {
+
+/// Description of how a value is passed to and returned from function calls.
+class PassingConvention {
+public:
+    enum Type : uint16_t { Register, Stack };
+
+    PassingConvention(Type type, size_t numParams):
+        _type(type), _numParams(utl::narrow_cast<uint16_t>(numParams)) {}
+
+    /// The passing type, either `Register` or `Stack`
+    Type type() const { return _type; }
+
+    /// The number of parameters used to pass this value
+    size_t numParams() const { return _numParams; }
+
+private:
+    Type _type;
+    uint16_t _numParams;
+    utl::small_vector<ir::Parameter*, 2> params;
+};
+
+/// Description of how a function expects its arguments and return value to be
+/// passed
+class CallingConvention {
+public:
+    CallingConvention() = default;
+
+    explicit CallingConvention(PassingConvention returnValue,
+                               std::span<PassingConvention const> args):
+        _args(ranges::views::concat(std::span(&returnValue, 1), args) |
+              ranges::to<utl::small_vector<PassingConvention>>) {}
+
+    /// `PassingConvention` of the return value
+    PassingConvention returnValue() const {
+        SC_ASSERT(!_args.empty(), "Invalid CC");
+        return _args[0];
+    }
+
+    /// `PassingConvention`s of the arguments
+    std::span<PassingConvention const> arguments() const {
+        return std::span(_args).subspan(1);
+    }
+
+    /// `PassingConvention` of the argument at index \p index
+    PassingConvention argument(size_t index) const {
+        return arguments()[index];
+    }
+
+private:
+    utl::small_vector<PassingConvention> _args;
+};
+
+} // namespace scatha::ast
+
+#endif // SCATHA_AST_LOWERING_CALLINGCONVENTION_H_

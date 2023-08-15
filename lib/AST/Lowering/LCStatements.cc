@@ -29,28 +29,53 @@ void LoweringContext::generateImpl(CompoundStatement const& cmpStmt) {
 }
 
 void LoweringContext::generateImpl(FunctionDefinition const& def) {
+    currentSemaFunction = def.function();
     currentFunction =
         cast<ir::Function*>(functionMap.find(def.function())->second);
     auto* entry = currentBlock = addNewBlock("entry");
 
-    for (auto [paramDecl, irParam]:
-         ranges::views::zip(def.parameters(), currentFunction->parameters()))
+    auto CC = CCMap[currentSemaFunction];
+    auto irParamItr = currentFunction->parameters().begin();
+    using enum PassingConvention::Type;
+    if (CC.returnValue().type() == Stack) {
+        ++irParamItr;
+    }
+
+    for (auto [paramDecl, argPC]:
+         ranges::views::zip(def.parameters(), CC.arguments()))
     {
         if (auto* thisParam = dyncast<ThisParameter const*>(paramDecl);
             thisParam && thisParam->type()->isReference())
         {
+            SC_ASSERT(argPC.type() == Register, "");
             /// The `this` parameter is not stored to local memory but is an SSA
             /// value
-            memorizeVariableAddress(thisParam->entity(), &irParam);
+            memorizeVariableAddress(thisParam->entity(),
+                                    irParamItr.to_address());
+            ++irParamItr;
             continue;
         }
-        auto* address = storeLocal(&irParam, std::string(paramDecl->name()));
-        memorizeVariableAddress(paramDecl->entity(), address);
+        switch (argPC.type()) {
+        case Register: {
+            auto* address = storeLocal(irParamItr.to_address(),
+                                       std::string(paramDecl->name()));
+            memorizeVariableAddress(paramDecl->entity(), address);
+            break;
+        }
+
+        case Stack: {
+            memorizeVariableAddress(paramDecl->entity(),
+                                    irParamItr.to_address());
+            break;
+        }
+        }
+        ++irParamItr;
     }
 
     generate(*def.body());
     currentBlock = nullptr;
     currentFunction = nullptr;
+    currentSemaFunction = nullptr;
 
     /// Add all generated `alloca`s to the entry basic block
     for (auto before = entry->begin(); auto* allocaInst: allocas) {
@@ -136,9 +161,23 @@ void LoweringContext::generateImpl(ExpressionStatement const& exprStatement) {
 }
 
 void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
-    auto* returnValue =
-        retDecl.expression() ? getValue(retDecl.expression()) : ctx.voidValue();
-    add<ir::Return>(returnValue);
+    auto CC = CCMap[currentSemaFunction];
+    if (!retDecl.expression()) {
+        add<ir::Return>(ctx.voidValue());
+        return;
+    }
+    auto* returnValue = getValue(retDecl.expression());
+    using enum PassingConvention::Type;
+    switch (CC.returnValue().type()) {
+    case Register:
+        add<ir::Return>(returnValue);
+        break;
+
+    case Stack:
+        add<ir::Store>(&currentFunction->parameters().front(), returnValue);
+        add<ir::Return>(ctx.voidValue());
+        break;
+    }
 }
 
 void LoweringContext::generateImpl(IfStatement const& stmt) {

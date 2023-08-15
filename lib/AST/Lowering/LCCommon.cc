@@ -106,14 +106,44 @@ ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
     }
 }
 
-ir::Value* LoweringContext::genCall(FunctionCall const* call) {
+std::pair<ir::Value*, PassingConvention::Type> LoweringContext::genCall(
+    FunctionCall const* call) {
     ir::Callable* function = getFunction(call->function());
-    auto args = mapArguments(call->arguments());
-    return add<ir::Call>(function,
-                         args,
-                         call->type()->base() != symbolTable.rawVoid() ?
-                             "call.result" :
-                             std::string{});
+    auto CC = CCMap[call->function()];
+    utl::small_vector<ir::Value*> arguments;
+    using enum PassingConvention::Type;
+    auto const retvalConv = CC.returnValue().type();
+    if (retvalConv == Stack) {
+        auto* returnType = mapType(call->function()->returnType());
+        arguments.push_back(makeLocal(returnType, "retval"));
+    }
+    for (auto [argPC, arg]:
+         ranges::views::zip(CC.arguments(), call->arguments()))
+    {
+        switch (argPC.type()) {
+        case Register:
+            arguments.push_back(getValue(arg));
+            break;
+
+        case Stack:
+            if (arg->isLValue()) {
+                arguments.push_back(storeLocal(getValue(arg), "arg"));
+            }
+            else {
+                arguments.push_back(getAddress(arg));
+            }
+            break;
+        }
+    }
+    bool callHasName = !isa<ir::VoidType>(function->returnType());
+    std::string name = callHasName ? "call.result" : std::string{};
+    auto* inst = add<ir::Call>(function, arguments, std::move(name));
+    switch (retvalConv) {
+    case Register:
+        return { inst, Register };
+    case Stack:
+        return { arguments.front(), Stack };
+    }
 }
 
 utl::small_vector<ir::Value*> LoweringContext::mapArguments(auto&& args) {

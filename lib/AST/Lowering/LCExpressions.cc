@@ -332,7 +332,16 @@ ir::Value* LoweringContext::getValueImpl(Conditional const& condExpr) {
 }
 
 ir::Value* LoweringContext::getValueImpl(FunctionCall const& expr) {
-    return genCall(&expr);
+    auto [value, conv] = genCall(&expr);
+    using enum PassingConvention::Type;
+    switch (conv) {
+    case Register:
+        return value;
+    case Stack:
+        return add<ir::Load>(value,
+                             mapType(expr.function()->returnType()),
+                             "retval");
+    }
 }
 
 ir::Value* LoweringContext::getValueImpl(Subscript const& expr) {
@@ -537,9 +546,16 @@ ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
 }
 
 ir::Value* LoweringContext::getAddressImpl(FunctionCall const& expr) {
-    SC_ASSERT(expr.type()->isReference(),
-              "Can't be l-value so we expect a reference");
-    return genCall(&expr);
+    auto [value, conv] = genCall(&expr);
+    using enum PassingConvention::Type;
+    switch (conv) {
+    case Register:
+        SC_ASSERT(expr.type()->isReference(),
+                  "Can't be l-value so we expect a reference");
+        return value;
+    case Stack:
+        return value;
+    }
 }
 
 ir::Value* LoweringContext::getAddressImpl(Subscript const& expr) {
