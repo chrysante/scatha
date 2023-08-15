@@ -166,8 +166,8 @@ struct LRContext {
     bool dominates(BasicBlock* dom, BasicBlock* sub) const {
         dom = mapES(dom);
         sub = mapES(sub);
-        auto& domSet = domInfo.domSet(sub);
-        return domSet.contains(dom);
+        auto& dominatorSet = domInfo.dominatorSet(sub);
+        return dominatorSet.contains(dom);
     }
 
     utl::small_vector<Phi*> addedPhis;
@@ -296,8 +296,8 @@ PreprocessResult LRContext::preprocess(BasicBlock* header) {
               "not a while loop and if we have more than 2 successors this is "
               "a weird switch based loop that we don't support.");
     auto [entry, skip] = [&] {
-        auto A = header->successors()[0];
-        auto B = header->successors()[1];
+        auto A = header->successor(0);
+        auto B = header->successor(1);
         if (LNF[A]->isLoopNodeOf(headerNode)) {
             return std::pair{ A, B };
         }

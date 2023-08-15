@@ -89,24 +89,24 @@ void PrintCtx::print(DomTree::Node const& node) {
 
 DominanceInfo DominanceInfo::compute(Function& function) {
     DominanceInfo result;
-    result._domMap = computeDomSets(function);
-    result._domTree = computeDomTree(function, result._domMap);
+    result._dominatorMap = computeDominatorSets(function);
+    result._domTree = computeDomTree(function, result._dominatorMap);
     result._domFront = computeDomFronts(function, result._domTree);
     return result;
 }
 
 DominanceInfo DominanceInfo::computePost(Function& function) {
     DominanceInfo result;
-    result._domMap = computePostDomSets(function);
-    result._domTree = computePostDomTree(function, result._domMap);
+    result._dominatorMap = computePostDomSets(function);
+    result._domTree = computePostDomTree(function, result._dominatorMap);
     result._domFront = computePostDomFronts(function, result._domTree);
     return result;
 }
 
-utl::hashset<BasicBlock*> const& DominanceInfo::domSet(
+utl::hashset<BasicBlock*> const& DominanceInfo::dominatorSet(
     ir::BasicBlock const* basicBlock) const {
-    auto itr = _domMap.find(basicBlock);
-    SC_ASSERT(itr != _domMap.end(), "Basic block not found");
+    auto itr = _dominatorMap.find(basicBlock);
+    SC_ASSERT(itr != _dominatorMap.end(), "Basic block not found");
     return itr->second;
 }
 
@@ -164,7 +164,7 @@ DominanceInfo::DomMap DominanceInfo::computeDomSetsImpl(
     return domSets;
 }
 
-DominanceInfo::DomMap DominanceInfo::computeDomSets(Function& function) {
+DominanceInfo::DomMap DominanceInfo::computeDominatorSets(Function& function) {
     return computeDomSetsImpl(
         function,
         std::array{ &function.entry() },
@@ -173,7 +173,7 @@ DominanceInfo::DomMap DominanceInfo::computeDomSets(Function& function) {
 }
 
 DominanceInfo::DomMap DominanceInfo::computePostDomSets(Function& function) {
-    /// Same as `computeDomSets` but with reversed edges.
+    /// Same as `computeDominatorSets` but with reversed edges.
     auto exits = ::exitNodes(function);
     if (exits.empty()) {
         return {};
@@ -212,7 +212,7 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
         if (!start.basicBlock()) {
             continue;
         }
-        auto const& domSet = domSets.find(start.basicBlock())->second;
+        auto const& dominatorSet = domSets.find(start.basicBlock())->second;
         utl::hashset<DomTree::Node*> visited = { const_cast<DomTree::Node*>(
             &start) };
         auto findParent = [&](DomTree::Node* node,
@@ -221,7 +221,7 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
                 return nullptr;
             }
             visited.insert(node);
-            if (domSet.contains(node->basicBlock())) {
+            if (dominatorSet.contains(node->basicBlock())) {
                 return node;
             }
             for (auto* pred: predecessors(node->basicBlock())) {

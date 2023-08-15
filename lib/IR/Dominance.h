@@ -81,7 +81,7 @@ SCATHA_TESTAPI void print(DomTree const& domTree, std::ostream& ostream);
 
 /// Groups dominance information of a function.
 /// Specifically, once computed, it contains:
-/// - Dominance sets for each basic block
+/// - Dominator sets for each basic block
 /// - A dominator tree
 /// - Dominance frontiers for each basic block
 class SCATHA_TESTAPI DominanceInfo {
@@ -93,7 +93,7 @@ public:
 
     /// Compute the dominator sets of the basic blocks in \p function
     /// I.e. for each basic block `B` the set of basic blocks that dominate `B`.
-    static DomMap computeDomSets(ir::Function& function);
+    static DomMap computeDominatorSets(ir::Function& function);
 
     /// Compute the dominator tree of \p function
     static DomTree computeDomTree(ir::Function& function,
@@ -133,10 +133,10 @@ public:
     /// frontiers.
     static DominanceInfo computePost(ir::Function& function);
 
-    /// \returns the set of basic blocks that dominate (or
-    /// post-dominate) \p basicBlock
-    utl::hashset<ir::BasicBlock*> const& domSet(
-        ir::BasicBlock const* basicBlock) const;
+    /// \returns the dominator set of \p BB i.e. the set of basic blocks that
+    /// dominate (or post-dominate) \p BB
+    utl::hashset<ir::BasicBlock*> const& dominatorSet(
+        ir::BasicBlock const* BB) const;
 
     /// \returns the dominator (or post-dominator) tree.
     DomTree const& domTree() const { return _domTree; }
@@ -170,7 +170,7 @@ private:
                                             auto succs);
 
 private:
-    DomMap _domMap;
+    DomMap _dominatorMap;
     DomTree _domTree;
     DomFrontMap _domFront;
 };
