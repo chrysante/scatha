@@ -60,6 +60,9 @@ SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
 SCATHA_API bool propagateConstants(ir::Context& context,
                                    ir::Function& function);
 
+SCATHA_API bool propagateInvariants(ir::Context& context,
+                                    ir::Function& function);
+
 /// Eliminate dead code in \p function
 /// \Returns True iff \p function was modified in the pass.
 SCATHA_API bool dce(ir::Context& context, ir::Function& function);
