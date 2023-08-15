@@ -2,11 +2,13 @@
 #define SCATHA_AST_LOWERING_LOWERINGCONTEXT_H_
 
 #include <utl/hashmap.hpp>
+#include <utl/ipp.hpp>
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
 #include "AST/Lowering/CallingConvention.h"
+#include "AST/Lowering/Value.h"
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
 #include "Common/List.h"
@@ -31,10 +33,16 @@ struct LoweringContext {
 
     /// ## Maps
     utl::hashmap<sema::Type const*, ir::Type const*> typeMap;
+
     /// Maps variables to IR values in stack memory
-    utl::hashmap<sema::Entity const*, ir::Value*> variableAddressMap;
+    utl::hashmap<sema::Entity const*, Value> variableMap;
+    /// Maps array pointers to their respective sizes
+    utl::hashmap<Value, Value> arraySizeMap;
+
     /// Maps variables to SSA values
-    utl::hashmap<sema::Entity const*, ir::Value*> valueMap;
+    /// Right now this map exists solely to map the `.count` member variable to
+    /// the size of the array
+    utl::hashmap<sema::Entity const*, Value> valueMap;
     utl::hashmap<sema::Function const*, ir::Callable*> functionMap;
     utl::hashmap<sema::Function const*, CallingConvention> CCMap;
 
@@ -117,7 +125,18 @@ struct LoweringContext {
     ///
     /// `&X     -> Address of the referred object`
     ///
-    ir::Value* getValue(Expression const* expr);
+    Value getValue(Expression const* expr);
+
+    template <ValueLocation Loc>
+    ir::Value* getValue(Expression const* expr) {
+        auto value = getValue(expr);
+        switch (Loc) {
+        case ValueLocation::Register:
+            return toRegister(value);
+        case ValueLocation::Memory:
+            return toMemory(value);
+        }
+    }
 
     ///
     /// Let `X` be the raw `sema::ObjectType` of the expression \p expr
@@ -139,31 +158,21 @@ struct LoweringContext {
     /// value of type `ptr`, pointing to a value of type `{ ptr, i64 }`, will be
     /// returned
     ///
-    ir::Value* getAddress(Expression const* expr);
+    //    Value getAddress(Expression const* expr);
 
-    ir::Value* getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
-    ir::Value* getValueImpl(Identifier const&);
-    ir::Value* getValueImpl(Literal const&);
-    ir::Value* getValueImpl(UnaryExpression const&);
-    ir::Value* getValueImpl(BinaryExpression const&);
-    ir::Value* getValueImpl(MemberAccess const&);
-    ir::Value* getValueImpl(ReferenceExpression const&);
-    ir::Value* getValueImpl(UniqueExpression const&);
-    ir::Value* getValueImpl(Conditional const&);
-    ir::Value* getValueImpl(FunctionCall const&);
-    ir::Value* getValueImpl(Subscript const&);
-    ir::Value* getValueImpl(Conversion const&);
-    ir::Value* getValueImpl(ListExpression const&);
-
-    ir::Value* getAddressImpl(Expression const& expr) { SC_UNREACHABLE(); }
-    ir::Value* getAddressImpl(Literal const& lit);
-    ir::Value* getAddressImpl(Identifier const&);
-    ir::Value* getAddressImpl(MemberAccess const&);
-    ir::Value* getAddressImpl(FunctionCall const&);
-    ir::Value* getAddressImpl(Subscript const&);
-    ir::Value* getAddressImpl(ReferenceExpression const&);
-    ir::Value* getAddressImpl(Conversion const&);
-    ir::Value* getAddressImpl(ListExpression const&);
+    Value getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
+    Value getValueImpl(Identifier const&);
+    Value getValueImpl(Literal const&);
+    Value getValueImpl(UnaryExpression const&);
+    Value getValueImpl(BinaryExpression const&);
+    Value getValueImpl(MemberAccess const&);
+    Value getValueImpl(ReferenceExpression const&);
+    Value getValueImpl(UniqueExpression const&);
+    Value getValueImpl(Conditional const&);
+    Value getValueImpl(FunctionCall const&);
+    Value getValueImpl(Subscript const&);
+    Value getValueImpl(Conversion const&);
+    Value getValueImpl(ListExpression const&);
 
     /// # Helpers
 
@@ -173,13 +182,28 @@ struct LoweringContext {
 
     /// # Utils
 
+    /// Allocate a new basic block with name \p name without adding it to the
+    /// current function
     ir::BasicBlock* newBlock(std::string name);
 
-    void add(ir::BasicBlock* basicBlock);
+    /// Add the basic block \p BB to the current function
+    void add(ir::BasicBlock* BB);
 
+    /// Allocate a new basic block with name \p name and add it to the current
+    /// function
     ir::BasicBlock* addNewBlock(std::string name);
 
+    /// Add the instruction \p inst to the current basic block
     void add(ir::Instruction* inst);
+
+    /// If the value \p value is already in a register, returns that.
+    /// Otherwise loads the value from memory and returns the `load` instruction
+    ir::Value* toRegister(Value value);
+
+    /// If the value \p value is in memory, returns the address.
+    /// Otherwise allocates stack memory, stores the value and returns the
+    /// address
+    ir::Value* toMemory(Value value);
 
     template <std::derived_from<ir::Instruction> Inst, typename... Args>
         requires std::constructible_from<Inst, Args...>
@@ -201,14 +225,6 @@ struct LoweringContext {
 
     ir::Value* makeLocal(ir::Type const* type, std::string name);
 
-    ir::Value* makeArrayRef(ir::Value* addr, ir::Value* count);
-
-    ir::Value* makeArrayRef(ir::Value* addr, size_t count);
-
-    ir::Value* getArrayAddr(ir::Value* arrayRef);
-
-    ir::Value* getArrayCount(ir::Value* arrayRef);
-
     ir::Value* loadIfRef(Expression const* expr, ir::Value* value);
 
     ir::Callable* getFunction(sema::Function const*);
@@ -216,7 +232,7 @@ struct LoweringContext {
     /// \Returns the value passing convention of the return value and the return
     /// value if the passing convention is `Register` or the address of the
     /// return value if the passing convention is `Stack`
-    std::pair<ir::Value*, PassingConvention::Type> genCall(FunctionCall const*);
+    Value genCall(FunctionCall const*);
 
     utl::small_vector<ir::Value*> mapArguments(auto&& args);
 
@@ -228,10 +244,18 @@ struct LoweringContext {
 
     ir::Value* constant(ssize_t value, ir::Type const* type);
 
-    bool hasAddress(ast::Expression const* expr) const;
+    /// Associate variables with program values
+    /// Values are stored in `variableMap`
+    void memorizeVariable(sema::Entity const* entity, Value value);
 
-    void memorizeVariableAddress(sema::Entity const* entity,
-                                 ir::Value* address);
+    /// Associate array data pointers with their size
+    void memorizeArraySize(Value data, Value size);
+
+    /// \overload
+    void memorizeArraySize(Value data, size_t size);
+
+    /// Retrieve stored array size
+    Value getArraySize(Value data) const;
 
     /// # Map utils
 

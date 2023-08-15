@@ -177,18 +177,21 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
+        dereference(u.operand(), sym);
         break;
     case ast::UnaryOperator::BitwiseNot:
         if (!isAny<ByteType, IntType>(baseType)) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
+        dereference(u.operand(), sym);
         break;
     case ast::UnaryOperator::LogicalNot:
         if (!isAny<BoolType>(baseType)) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
+        dereference(u.operand(), sym);
         break;
     case ast::UnaryOperator::Increment:
         [[fallthrough]];

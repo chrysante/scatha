@@ -7,6 +7,7 @@
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
+#include "AST/Lowering/Value.h"
 #include "IR/Fwd.h"
 #include "Sema/Fwd.h"
 
@@ -15,21 +16,18 @@ namespace scatha::ast {
 /// Description of how a value is passed to and returned from function calls.
 class PassingConvention {
 public:
-    enum Type : uint16_t { Register, Stack };
+    PassingConvention(ValueLocation loc, size_t numParams):
+        _loc(loc), _numParams(utl::narrow_cast<uint16_t>(numParams)) {}
 
-    PassingConvention(Type type, size_t numParams):
-        _type(type), _numParams(utl::narrow_cast<uint16_t>(numParams)) {}
-
-    /// The passing type, either `Register` or `Stack`
-    Type type() const { return _type; }
+    /// Location type of the argument. Either `Register` or `Stack`
+    ValueLocation location() const { return _loc; }
 
     /// The number of parameters used to pass this value
     size_t numParams() const { return _numParams; }
 
 private:
-    Type _type;
+    ValueLocation _loc;
     uint16_t _numParams;
-    utl::small_vector<ir::Parameter*, 2> params;
 };
 
 /// Description of how a function expects its arguments and return value to be

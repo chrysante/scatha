@@ -12,6 +12,8 @@
 using namespace scatha;
 using namespace ast;
 
+using enum ValueLocation;
+
 ir::BasicBlock* LoweringContext::newBlock(std::string name) {
     return new ir::BasicBlock(ctx, std::move(name));
 }
@@ -31,6 +33,27 @@ void LoweringContext::add(ir::Instruction* inst) {
     currentBlock->pushBack(inst);
 }
 
+ir::Value* LoweringContext::toRegister(Value value) {
+    switch (value.location()) {
+    case Register:
+        return value.get();
+    case Memory:
+        return add<ir::Load>(value.get(),
+                             value.type(),
+                             std::string(value.get()->name()));
+    }
+}
+
+ir::Value* LoweringContext::toMemory(Value value) {
+    switch (value.location()) {
+    case Register:
+        return storeLocal(value.get());
+
+    case Memory:
+        return value.get();
+    }
+}
+
 ir::Value* LoweringContext::storeLocal(ir::Value* value, std::string name) {
     if (name.empty()) {
         name = utl::strcat(value->name(), ".addr");
@@ -44,37 +67,6 @@ ir::Value* LoweringContext::makeLocal(ir::Type const* type, std::string name) {
     auto* addr = new ir::Alloca(ctx, type, std::move(name));
     allocas.push_back(addr);
     return addr;
-}
-
-ir::Value* LoweringContext::makeArrayRef(ir::Value* addr, ir::Value* count) {
-    SC_ASSERT(isa<ir::PointerType>(addr->type()),
-              "Address needs to be a pointer");
-    SC_ASSERT(cast<ir::IntegralType const*>(count->type())->bitwidth() == 64,
-              "Count needs to be a 64 bit integer");
-    auto* base = add<ir::InsertValue>(ctx.undef(arrayViewType),
-                                      addr,
-                                      std::initializer_list<size_t>{ 0 },
-                                      "array.ref");
-    return add<ir::InsertValue>(base,
-                                count,
-                                std::initializer_list<size_t>{ 1 },
-                                "array.ref");
-}
-
-ir::Value* LoweringContext::makeArrayRef(ir::Value* addr, size_t count) {
-    return makeArrayRef(addr, intConstant(count, 64));
-}
-
-ir::Value* LoweringContext::getArrayAddr(ir::Value* arrayRef) {
-    return add<ir::ExtractValue>(arrayRef,
-                                 std::initializer_list<size_t>{ 0 },
-                                 "array.data");
-}
-
-ir::Value* LoweringContext::getArrayCount(ir::Value* arrayRef) {
-    return add<ir::ExtractValue>(arrayRef,
-                                 std::initializer_list<size_t>{ 1 },
-                                 "array.count");
 }
 
 ir::Value* LoweringContext::loadIfRef(Expression const* expr,
@@ -106,46 +98,6 @@ ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
     }
 }
 
-std::pair<ir::Value*, PassingConvention::Type> LoweringContext::genCall(
-    FunctionCall const* call) {
-    ir::Callable* function = getFunction(call->function());
-    auto CC = CCMap[call->function()];
-    utl::small_vector<ir::Value*> arguments;
-    using enum PassingConvention::Type;
-    auto const retvalConv = CC.returnValue().type();
-    if (retvalConv == Stack) {
-        auto* returnType = mapType(call->function()->returnType());
-        arguments.push_back(makeLocal(returnType, "retval"));
-    }
-    for (auto [argPC, arg]:
-         ranges::views::zip(CC.arguments(), call->arguments()))
-    {
-        switch (argPC.type()) {
-        case Register:
-            arguments.push_back(getValue(arg));
-            break;
-
-        case Stack:
-            if (arg->isLValue()) {
-                arguments.push_back(storeLocal(getValue(arg), "arg"));
-            }
-            else {
-                arguments.push_back(getAddress(arg));
-            }
-            break;
-        }
-    }
-    bool callHasName = !isa<ir::VoidType>(function->returnType());
-    std::string name = callHasName ? "call.result" : std::string{};
-    auto* inst = add<ir::Call>(function, arguments, std::move(name));
-    switch (retvalConv) {
-    case Register:
-        return { inst, Register };
-    case Stack:
-        return { arguments.front(), Stack };
-    }
-}
-
 utl::small_vector<ir::Value*> LoweringContext::mapArguments(auto&& args) {
     utl::small_vector<ir::Value*> result;
     for (auto* arg: args) {
@@ -172,15 +124,24 @@ ir::Value* LoweringContext::constant(ssize_t value, ir::Type const* type) {
     return ctx.arithmeticConstant(value, type);
 }
 
-bool LoweringContext::hasAddress(ast::Expression const* expr) const {
-    return expr->isLValue() || expr->type()->isReference() ||
-           isa<sema::ArrayType>(expr->type()->base());
+void LoweringContext::memorizeVariable(sema::Entity const* entity,
+                                       Value value) {
+    bool success = variableMap.insert({ entity, value }).second;
+    SC_ASSERT(success, "Redeclaration");
 }
 
-void LoweringContext::memorizeVariableAddress(sema::Entity const* entity,
-                                              ir::Value* value) {
-    bool success = variableAddressMap.insert({ entity, value }).second;
-    SC_ASSERT(success, "Redeclaration");
+void LoweringContext::memorizeArraySize(Value data, Value size) {
+    arraySizeMap[data] = size;
+}
+
+void LoweringContext::memorizeArraySize(Value data, size_t count) {
+    memorizeArraySize(data, Value(intConstant(count, 64), Register));
+}
+
+Value LoweringContext::getArraySize(Value data) const {
+    auto itr = arraySizeMap.find(data);
+    SC_ASSERT(itr != arraySizeMap.end(), "Not found");
+    return itr->second;
 }
 
 ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {

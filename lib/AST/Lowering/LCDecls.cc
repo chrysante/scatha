@@ -14,6 +14,8 @@
 using namespace scatha;
 using namespace ast;
 
+using enum ValueLocation;
+
 void LoweringContext::makeDeclarations() {
     arrayViewType = ctx.anonymousStructure(
         std::array<ir::Type const*, 2>{ ctx.pointerType(),
@@ -45,19 +47,23 @@ static bool isTrivial(sema::Type const* type) {
 
 static const size_t maxRegPassingSize = 16;
 
-static PassingConvention computePCImpl(sema::Type const* type, bool isRetval) {
+static PassingConvention computePCImpl(sema::QualType const* type,
+                                       bool isRetval) {
     if (isTrivial(type) && type->size() <= maxRegPassingSize) {
-        return { PassingConvention::Register, isRetval ? 0u : 1u };
+        return { Register, isRetval ? 0u : 1u };
     }
     /// When we support arrays we need 2 here
-    return { PassingConvention::Stack, 1 };
+    return { Memory, 1 };
 }
 
-static PassingConvention computeRetValPC(sema::Type const* type) {
+static PassingConvention computeRetValPC(sema::QualType const* type) {
+    if (isa<sema::VoidType>(type->base())) {
+        return { Register, 0 };
+    }
     return computePCImpl(type, true);
 }
 
-static PassingConvention computeArgPC(sema::Type const* type) {
+static PassingConvention computeArgPC(sema::QualType const* type) {
     return computePCImpl(type, false);
 }
 
@@ -75,13 +81,12 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     ir::Type const* irReturnType = nullptr;
     utl::small_vector<ir::Type const*> irArgTypes;
     auto retvalPC = CC.returnValue();
-    using enum PassingConvention::Type;
-    switch (retvalPC.type()) {
+    switch (retvalPC.location()) {
     case Register:
         irReturnType = mapType(function->returnType());
         break;
 
-    case Stack:
+    case Memory:
         irReturnType = ctx.voidType();
         irArgTypes.push_back(ctx.pointerType());
         break;
@@ -89,12 +94,12 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     for (auto [argPC, type]:
          ranges::views::zip(CC.arguments(), function->argumentTypes()))
     {
-        switch (argPC.type()) {
+        switch (argPC.location()) {
         case Register:
             irArgTypes.push_back(mapType(type));
             break;
 
-        case Stack:
+        case Memory:
             irArgTypes.push_back(ctx.pointerType());
             break;
         }

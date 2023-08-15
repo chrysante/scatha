@@ -15,9 +15,7 @@
 using namespace scatha;
 using namespace ast;
 
-static bool isArray(Expression const* expr) {
-    return expr->type() && isa<sema::ArrayType>(expr->type()->base());
-}
+using enum ValueLocation;
 
 static bool isIntType(size_t width, ir::Type const* type) {
     return cast<ir::IntegralType const*>(type)->bitwidth() == 1;
@@ -25,7 +23,7 @@ static bool isIntType(size_t width, ir::Type const* type) {
 
 /// MARK: getValue() Implementation
 
-ir::Value* LoweringContext::getValue(Expression const* expr) {
+Value LoweringContext::getValue(Expression const* expr) {
     if (auto* constVal = expr->constantValue();
         constVal && !expr->type()->isReference())
     {
@@ -34,10 +32,10 @@ ir::Value* LoweringContext::getValue(Expression const* expr) {
         return visit(*constVal, utl::overload{
             [&](sema::IntValue const& intVal) {
                 SC_ASSERT(type->bitwidth() == intVal.value().bitwidth(), "");
-                return intConstant(intVal.value());
+                return Value(intConstant(intVal.value()), Register);
             },
             [&](sema::FloatValue const& floatVal) {
-                return floatConstant(floatVal.value());
+                return Value(floatConstant(floatVal.value()), Register);
             }
         }); // clang-format on
     }
@@ -45,49 +43,50 @@ ir::Value* LoweringContext::getValue(Expression const* expr) {
                  [this](auto const& expr) { return getValueImpl(expr); });
 }
 
-ir::Value* LoweringContext::getValueImpl(Identifier const& id) {
-    return add<ir::Load>(getAddressImpl(id), mapType(id.type()), id.value());
+Value LoweringContext::getValueImpl(Identifier const& id) {
+    Value value = variableMap[id.entity()];
+    SC_ASSERT(value, "Undeclared identifier");
+    return value;
 }
 
-ir::Value* LoweringContext::getValueImpl(Literal const& lit) {
+Value LoweringContext::getValueImpl(Literal const& lit) {
     switch (lit.kind()) {
     case LiteralKind::Integer:
-        return intConstant(lit.value<APInt>());
+        return Value(intConstant(lit.value<APInt>()), Register);
     case LiteralKind::Boolean:
-        return intConstant(lit.value<APInt>());
+        return Value(intConstant(lit.value<APInt>()), Register);
     case LiteralKind::FloatingPoint:
-        return floatConstant(lit.value<APFloat>());
+        return Value(floatConstant(lit.value<APFloat>()), Register);
     case LiteralKind::This: {
-        return variableAddressMap[lit.entity()];
+        return variableMap[lit.entity()];
     }
     case LiteralKind::String: {
-        auto const& sourceText = std::get<std::string>(lit.value());
-        size_t const size = sourceText.size();
+        std::string const& sourceText = lit.value<std::string>();
+        size_t size = sourceText.size();
         utl::vector<u8> text(sourceText.begin(), sourceText.end());
         auto* type = ctx.arrayType(ctx.integralType(8), size);
         auto staticData =
             allocate<ir::ConstantData>(ctx, type, std::move(text), "stringlit");
-        auto* dataPtr = staticData.get();
+        auto data = Value(staticData.get(), type, Memory);
         mod.addConstantData(std::move(staticData));
-        return makeArrayRef(dataPtr, size);
+        memorizeArraySize(data, size);
+        return data;
     }
     case LiteralKind::Char:
-        return intConstant(lit.value<APInt>());
+        return Value(intConstant(lit.value<APInt>()), Register);
     }
 }
 
-ir::Value* LoweringContext::getValueImpl(UnaryExpression const& expr) {
+Value LoweringContext::getValueImpl(UnaryExpression const& expr) {
     switch (expr.operation()) {
         using enum UnaryOperator;
     case Increment:
         [[fallthrough]];
     case Decrement: {
-        ir::Value* const operandAddress = getValue(expr.operand());
-        SC_ASSERT(isa<ir::PointerType>(operandAddress->type()),
-                  "We need a pointer to store to");
+        ir::Value* operand = getValue<Register>(expr.operand());
         ir::Type const* operandType = mapType(expr.operand()->type()->base());
         ir::Value* operandValue =
-            add<ir::Load>(operandAddress,
+            add<ir::Load>(operand,
                           operandType,
                           utl::strcat(expr.operation(), ".op"));
         auto* newValue =
@@ -97,32 +96,36 @@ ir::Value* LoweringContext::getValueImpl(UnaryExpression const& expr) {
                                         ir::ArithmeticOperation::Add :
                                         ir::ArithmeticOperation::Sub,
                                     utl::strcat(expr.operation(), ".res"));
-        add<ir::Store>(operandAddress, newValue);
-        return newValue;
+        add<ir::Store>(operand, newValue);
+        return Value(newValue, Register);
     }
 
     case ast::UnaryOperator::Promotion:
         return getValue(expr.operand());
 
     case ast::UnaryOperator::Negation: {
-        auto* operand = getValue(expr.operand());
-        auto operation = isa<ir::IntegralType>(operand->type()) ?
+        auto* operand = toRegister(getValue(expr.operand()));
+        auto operation = isa<sema::IntType>(expr.operand()->type()) ?
                              ir::ArithmeticOperation::Sub :
                              ir::ArithmeticOperation::FSub;
-        return add<ir::ArithmeticInst>(constant(0, operand->type()),
-                                       operand,
-                                       operation,
-                                       "negated");
+        auto* newValue = add<ir::ArithmeticInst>(constant(0, operand->type()),
+                                                 operand,
+                                                 operation,
+                                                 "negated");
+        return Value(newValue, Register);
     }
 
     default:
-        return add<ir::UnaryArithmeticInst>(getValue(expr.operand()),
-                                            mapUnaryOp(expr.operation()),
-                                            "expr");
+        auto* operand = toRegister(getValue(expr.operand()));
+        auto* newValue =
+            add<ir::UnaryArithmeticInst>(operand,
+                                         mapUnaryOp(expr.operation()),
+                                         "expr");
+        return Value(newValue, Register);
     }
 }
 
-ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
+Value LoweringContext::getValueImpl(BinaryExpression const& expr) {
     auto* builtinType =
         dyncast<sema::BuiltinType const*>(expr.lhs()->type()->base());
 
@@ -147,8 +150,8 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
     case BitwiseXOr:
         [[fallthrough]];
     case BitwiseOr: {
-        ir::Value* const lhs = getValue(expr.lhs());
-        ir::Value* const rhs = getValue(expr.rhs());
+        auto* lhs = getValue<Register>(expr.lhs());
+        auto* rhs = getValue<Register>(expr.rhs());
         auto* type = lhs->type();
         if (expr.operation() != LeftShift && expr.operation() != RightShift) {
             SC_ASSERT(lhs->type() == rhs->type(),
@@ -163,13 +166,14 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
                       "Need integral type for shift");
         }
         auto operation = mapArithmeticOp(builtinType, expr.operation());
-        return add<ir::ArithmeticInst>(lhs, rhs, operation, "expr");
+        auto* result = add<ir::ArithmeticInst>(lhs, rhs, operation, "expr");
+        return Value(result, Register);
     }
 
     case LogicalAnd:
         [[fallthrough]];
     case LogicalOr: {
-        ir::Value* const lhs = getValue(expr.lhs());
+        ir::Value* const lhs = getValue<Register>(expr.lhs());
         SC_ASSERT(isIntType(1, lhs->type()), "Need i1 for logical operation");
         auto* startBlock = currentBlock;
         auto* rhsBlock = newBlock("log.rhs");
@@ -182,12 +186,12 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
         }
 
         add(rhsBlock);
-        auto* rhs = getValue(expr.rhs());
+        auto* rhs = getValue<Register>(expr.rhs());
         SC_ASSERT(isIntType(1, rhs->type()), "Need i1 for logical operation");
         add<ir::Goto>(endBlock);
         add(endBlock);
 
-        return [&] {
+        auto* result = [&] {
             if (expr.operation() == LogicalAnd) {
                 return add<ir::Phi>(
                     std::array<ir::PhiMapping, 2>{
@@ -203,6 +207,7 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
                     "log.or");
             }
         }();
+        return Value(result, Register);
     }
 
     case Less:
@@ -216,15 +221,17 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
     case Equals:
         [[fallthrough]];
     case NotEquals: {
-        return add<ir::CompareInst>(getValue(expr.lhs()),
-                                    getValue(expr.rhs()),
-                                    mapCompareMode(builtinType),
-                                    mapCompareOp(expr.operation()),
-                                    "cmp.res");
+        auto* result = add<ir::CompareInst>(getValue<Register>(expr.lhs()),
+                                            getValue<Register>(expr.rhs()),
+                                            mapCompareMode(builtinType),
+                                            mapCompareOp(expr.operation()),
+                                            "cmp.res");
+        return Value(result, Register);
     }
 
     case Comma:
-        return getValue(expr.lhs()), getValue(expr.rhs());
+        getValue(expr.lhs());
+        return getValue(expr.rhs());
 
     case Assignment:
         [[fallthrough]];
@@ -247,8 +254,8 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
     case OrAssignment:
         [[fallthrough]];
     case XOrAssignment: {
-        auto* lhs = getValue(expr.lhs());
-        auto* rhs = getValue(expr.rhs());
+        auto* lhs = getValue<Register>(expr.lhs());
+        auto* rhs = getValue<Register>(expr.rhs());
         if (expr.operation() != Assignment) {
             SC_ASSERT(builtinType == expr.rhs()->type()->base(), "");
             auto* lhsValue = add<ir::Load>(lhs, mapType(builtinType), "lhs");
@@ -259,14 +266,15 @@ ir::Value* LoweringContext::getValueImpl(BinaryExpression const& expr) {
                                                               expr.operation()),
                                         "expr");
         }
-        return add<ir::Store>(lhs, rhs);
+        add<ir::Store>(lhs, rhs);
+        return Value();
     }
     case BinaryOperator::_count:
         SC_UNREACHABLE();
     }
 }
 
-ir::Value* LoweringContext::getValueImpl(MemberAccess const& expr) {
+Value LoweringContext::getValueImpl(MemberAccess const& expr) {
     if (auto itr = valueMap.find(expr.member()->entity());
         itr != valueMap.end())
     {
@@ -275,36 +283,52 @@ ir::Value* LoweringContext::getValueImpl(MemberAccess const& expr) {
     if (auto* arrayType =
             dyncast<sema::ArrayType const*>(expr.object()->type()->base()))
     {
-        SC_ASSERT(expr.member()->value() == "count", "What else?");
-        auto* addr = getAddress(expr.object());
-        return getArrayCount(addr);
+        SC_UNIMPLEMENTED();
+        //        SC_ASSERT(expr.member()->value() == "count", "What else?");
+        //        auto value = getValue(expr.object());
+        //        return getArraySize(addr);
     }
 
-    if (hasAddress(&expr)) {
-        return add<ir::Load>(getAddressImpl(expr),
-                             mapType(expr.type()),
-                             "mem.acc");
-    }
-    auto* base = getValue(expr.object());
+    Value base = getValue(expr.object());
     auto* accessedId = cast<Identifier const*>(expr.member());
     auto* var = cast<sema::Variable const*>(accessedId->entity());
-    return add<ir::ExtractValue>(base, std::array{ var->index() }, "mem.acc");
-}
-
-ir::Value* LoweringContext::getValueImpl(ReferenceExpression const& expr) {
-    auto* referred = expr.referred();
-    if (referred->type()->isReference()) {
-        return getValue(referred);
+    switch (base.location()) {
+    case Register: {
+        auto* result = add<ir::ExtractValue>(base.get(),
+                                             std::array{ var->index() },
+                                             "mem.acc");
+        return Value(result, Register);
     }
-    return getAddress(referred);
+    case Memory: {
+        auto* baseType = mapType(expr.object()->type()->base());
+        auto* result = add<ir::GetElementPointer>(baseType,
+                                                  base.get(),
+                                                  intConstant(0, 64),
+                                                  std::array{ var->index() },
+                                                  "mem.acc");
+        auto* accessedType = mapType(var->type());
+        return Value(result, accessedType, Memory);
+    }
+    }
 }
 
-ir::Value* LoweringContext::getValueImpl(UniqueExpression const& expr) {
+Value LoweringContext::getValueImpl(ReferenceExpression const& expr) {
+    Value value = getValue(expr.referred());
+    switch (value.location()) {
+    case Register:
+        SC_ASSERT(isa<ir::PointerType>(value.type()), "");
+        return value;
+    case Memory:
+        return Value(value.get(), Register);
+    }
+}
+
+Value LoweringContext::getValueImpl(UniqueExpression const& expr) {
     SC_UNIMPLEMENTED();
 }
 
-ir::Value* LoweringContext::getValueImpl(Conditional const& condExpr) {
-    auto* cond = getValue(condExpr.condition());
+Value LoweringContext::getValueImpl(Conditional const& condExpr) {
+    auto* cond = getValue<Register>(condExpr.condition());
     auto* thenBlock = newBlock("cond.then");
     auto* elseBlock = newBlock("cond.else");
     auto* endBlock = newBlock("cond.end");
@@ -312,72 +336,98 @@ ir::Value* LoweringContext::getValueImpl(Conditional const& condExpr) {
 
     /// Generate then block.
     add(thenBlock);
-    auto* thenVal = getValue(condExpr.thenExpr());
+    auto* thenVal = getValue<Register>(condExpr.thenExpr());
     thenBlock = currentBlock; /// Nested `?:` operands etc. may have changed
                               /// `currentBlock`
     add<ir::Goto>(endBlock);
 
     /// Generate else block.
     add(elseBlock);
-    auto* elseVal = getValue(condExpr.elseExpr());
+    auto* elseVal = getValue<Register>(condExpr.elseExpr());
     elseBlock = currentBlock;
     add<ir::Goto>(endBlock);
 
     /// Generate end block.
     add(endBlock);
-    return add<ir::Phi>(std::array<ir::PhiMapping,
-                                   2>{ ir::PhiMapping{ thenBlock, thenVal },
-                                       ir::PhiMapping{ elseBlock, elseVal } },
-                        "cond");
+    std::array<ir::PhiMapping, 2> phiArgs = { { { thenBlock, thenVal },
+                                                { elseBlock, elseVal } } };
+    auto* result = add<ir::Phi>(phiArgs, "cond");
+    return Value(result, Register);
 }
 
-ir::Value* LoweringContext::getValueImpl(FunctionCall const& expr) {
-    auto [value, conv] = genCall(&expr);
-    using enum PassingConvention::Type;
-    switch (conv) {
+Value LoweringContext::getValueImpl(FunctionCall const& call) {
+    ir::Callable* function = getFunction(call.function());
+    auto CC = CCMap[call.function()];
+    utl::small_vector<ir::Value*> arguments;
+    auto const retvalLocation = CC.returnValue().location();
+    if (retvalLocation == Memory) {
+        auto* returnType = mapType(call.function()->returnType());
+        arguments.push_back(makeLocal(returnType, "retval"));
+    }
+    for (auto [argPC, arg]:
+         ranges::views::zip(CC.arguments(), call.arguments()))
+    {
+        switch (argPC.location()) {
+        case Register:
+            arguments.push_back(toRegister(getValue(arg)));
+            break;
+
+        case Memory:
+            if (arg->isLValue()) {
+                arguments.push_back(storeLocal(getValue<Register>(arg)));
+            }
+            else {
+                arguments.push_back(getValue<Memory>(arg));
+            }
+            break;
+        }
+    }
+    bool callHasName = !isa<ir::VoidType>(function->returnType());
+    std::string name = callHasName ? "call.result" : std::string{};
+    auto* inst = add<ir::Call>(function, arguments, std::move(name));
+    switch (retvalLocation) {
     case Register:
-        return value;
-    case Stack:
-        return add<ir::Load>(value,
-                             mapType(expr.function()->returnType()),
-                             "retval");
+        return Value(inst, Register);
+    case Memory:
+        return Value(arguments.front(),
+                     mapType(call.function()->returnType()),
+                     Memory,
+                     sema::ValueCategory::RValue);
     }
 }
 
-ir::Value* LoweringContext::getValueImpl(Subscript const& expr) {
-    auto* arrayType =
-        cast<sema::ArrayType const*>(expr.object()->type()->base());
-    auto* elemType = mapType(arrayType->elementType());
-    auto* arrayRef = getAddress(expr.object());
-    auto* arrayData =
-        arrayType->isDynamic() ? getArrayAddr(arrayRef) : arrayRef;
-    auto* index = getValue(expr.arguments().front());
-    return add<ir::GetElementPointer>(elemType,
-                                      arrayData,
-                                      index,
-                                      std::initializer_list<size_t>{},
-                                      "elem.ptr");
+Value LoweringContext::getValueImpl(Subscript const& expr) {
+    SC_UNIMPLEMENTED();
+    //    auto* arrayType =
+    //        cast<sema::ArrayType const*>(expr.object()->type()->base());
+    //    auto* elemType = mapType(arrayType->elementType());
+    //    auto* arrayData = getAddress(expr.object());
+    //    auto* arraySize = getArraySize(arrayData);
+    //    auto* index = getValue(expr.arguments().front());
+    //    return add<ir::GetElementPointer>(elemType,
+    //                                      arrayData,
+    //                                      index,
+    //                                      std::initializer_list<size_t>{},
+    //                                      "elem.ptr");
 }
 
-ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
+Value LoweringContext::getValueImpl(Conversion const& conv) {
     auto* expr = conv.expression();
-    auto* refConvResult = [&]() -> ir::Value* {
+    Value refConvResult = [&]() -> Value {
         switch (conv.conversion()->refConversion()) {
         case sema::RefConversion::None:
             return getValue(expr);
 
         case sema::RefConversion::Dereference: {
-            auto* address = getValue(expr);
-            return add<ir::Load>(address,
-                                 mapType(expr->type()->base()),
-                                 utl::strcat(address->name()));
+            auto* address = getValue<Register>(expr);
+            return Value(address, mapType(expr->type()->base()), Memory);
         }
 
         case sema::RefConversion::DerefExpl:
             SC_UNIMPLEMENTED();
 
         case sema::RefConversion::TakeAddress:
-            return getAddress(expr);
+            return Value(getValue<Memory>(expr), Register);
         }
     }();
 
@@ -387,129 +437,149 @@ ir::Value* LoweringContext::getValueImpl(Conversion const& conv) {
         return refConvResult;
 
     case Array_FixedToDynamic: {
-        auto* arrayType = cast<sema::ArrayType const*>(expr->type()->base());
-        SC_ASSERT(!arrayType->isDynamic(), "Invalid conversion");
-        return makeArrayRef(refConvResult, arrayType->count());
+        SC_UNIMPLEMENTED();
+        //        auto* arrayType = cast<sema::ArrayType
+        //        const*>(expr->type()->base());
+        //        SC_ASSERT(!arrayType->isDynamic(), "Invalid conversion");
+        //        memorizeConstantArraySize(refConvResult, arrayType->count());
+        //        return refConvResult;
     }
     case Reinterpret_ArrayRef_ToByte:
         [[fallthrough]];
     case Reinterpret_ArrayRef_FromByte: {
-        SC_ASSERT(expr->type()->isReference(), "");
-        SC_ASSERT(conv.type()->isReference(), "");
-        auto* fromType = cast<sema::ArrayType const*>(expr->type()->base());
-        auto* toType = cast<sema::ArrayType const*>(conv.type()->base());
-        if (toType->isDynamic()) {
-            if (fromType->isDynamic()) {
-                auto* data = getArrayAddr(refConvResult);
-                auto* count = getArrayCount(refConvResult);
-                if (conv.conversion()->objectConversion() ==
-                    Reinterpret_ArrayRef_ToByte)
-                {
-                    count =
-                        add<ir::ArithmeticInst>(count,
-                                                intConstant(8, 64),
-                                                ir::ArithmeticOperation::Mul,
-                                                "reinterpret.count");
-                }
-                else {
-                    count =
-                        add<ir::ArithmeticInst>(count,
-                                                intConstant(8, 64),
-                                                ir::ArithmeticOperation::SDiv,
-                                                "reinterpret.count");
-                }
-                return makeArrayRef(data, count);
-            }
-            size_t count = fromType->count();
-            if (conv.conversion()->objectConversion() ==
-                Reinterpret_ArrayRef_ToByte)
-            {
-                count *= 8;
-            }
-            else {
-                count /= 8;
-            }
-            return makeArrayRef(refConvResult, count);
-        }
-        SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
-        return refConvResult;
+        SC_UNIMPLEMENTED();
+        //        SC_ASSERT(expr->type()->isReference(), "");
+        //        SC_ASSERT(conv.type()->isReference(), "");
+        //        auto* fromType = cast<sema::ArrayType
+        //        const*>(expr->type()->base()); auto* toType =
+        //        cast<sema::ArrayType const*>(conv.type()->base()); auto* data
+        //        = refConvResult; if (toType->isDynamic()) {
+        //            if (fromType->isDynamic()) {
+        //                auto* count = getArraySize(data);
+        //                if (conv.conversion()->objectConversion() ==
+        //                    Reinterpret_ArrayRef_ToByte)
+        //                {
+        //                    count =
+        //                        add<ir::ArithmeticInst>(count,
+        //                                                intConstant(8, 64),
+        //                                                ir::ArithmeticOperation::Mul,
+        //                                                "reinterpret.count");
+        //                }
+        //                else {
+        //                    count =
+        //                        add<ir::ArithmeticInst>(count,
+        //                                                intConstant(8, 64),
+        //                                                ir::ArithmeticOperation::SDiv,
+        //                                                "reinterpret.count");
+        //                }
+        //                memorizeArraySize(data, count);
+        //                return data;
+        //            }
+        //            size_t count = fromType->count();
+        //            if (conv.conversion()->objectConversion() ==
+        //                Reinterpret_ArrayRef_ToByte)
+        //            {
+        //                count *= 8;
+        //            }
+        //            else {
+        //                count /= 8;
+        //            }
+        //            memorizeConstantArraySize(data, count);
+        //            return data;
+        //        }
+        //        SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
+        //        return data;
     }
 
-    case Reinterpret_Value:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::Bitcast,
-                                       "reinterpret");
-
+    case Reinterpret_Value: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::Bitcast,
+                                               "reinterpret");
+        return Value(result, Register);
+    }
     case SS_Trunc:
         [[fallthrough]];
     case SU_Trunc:
         [[fallthrough]];
     case US_Trunc:
         [[fallthrough]];
-    case UU_Trunc:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::Trunc,
-                                       "trunc");
+    case UU_Trunc: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::Trunc,
+                                               "trunc");
+        return Value(result, Register);
+    }
     case SS_Widen:
         [[fallthrough]];
-    case SU_Widen:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::Sext,
-                                       "sext");
+    case SU_Widen: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::Sext,
+                                               "sext");
+        return Value(result, Register);
+    }
     case US_Widen:
         [[fallthrough]];
-    case UU_Widen:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::Zext,
-                                       "zext");
-    case Float_Trunc:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::Ftrunc,
-                                       "ftrunc");
-
-    case Float_Widen:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::Fext,
-                                       "fext");
-
-    case SignedToFloat:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::StoF,
-                                       "stof");
-
-    case UnsignedToFloat:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::UtoF,
-                                       "utof");
-
-    case FloatToSigned:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::FtoS,
-                                       "ftos");
-
-    case FloatToUnsigned:
-        return add<ir::ConversionInst>(refConvResult,
-                                       mapType(conv.type()),
-                                       ir::Conversion::FtoU,
-                                       "ftou");
+    case UU_Widen: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::Zext,
+                                               "zext");
+        return Value(result, Register);
+    }
+    case Float_Trunc: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::Ftrunc,
+                                               "ftrunc");
+        return Value(result, Register);
+    }
+    case Float_Widen: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::Fext,
+                                               "fext");
+        return Value(result, Register);
+    }
+    case SignedToFloat: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::StoF,
+                                               "stof");
+        return Value(result, Register);
+    }
+    case UnsignedToFloat: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::UtoF,
+                                               "utof");
+        return Value(result, Register);
+    }
+    case FloatToSigned: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::FtoS,
+                                               "ftos");
+        return Value(result, Register);
+    }
+    case FloatToUnsigned: {
+        auto* result = add<ir::ConversionInst>(toRegister(refConvResult),
+                                               mapType(conv.type()),
+                                               ir::Conversion::FtoU,
+                                               "ftou");
+        return Value(result, Register);
+    }
     }
 }
 
-ir::Value* LoweringContext::getValueImpl(ListExpression const& list) {
+Value LoweringContext::getValueImpl(ListExpression const& list) {
     SC_UNIMPLEMENTED();
 }
 
 /// MARK: getAddress() Implementation
-
+#if 0
 ir::Value* LoweringContext::getAddress(Expression const* expr) {
     return visit(*expr,
                  [this](auto const& expr) { return getAddressImpl(expr); });
@@ -537,17 +607,17 @@ ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
                                                std::array{ var->index() },
                                                "mem.ptr");
 
-    auto* arrayType = dyncast<sema::ArrayType const*>(expr.type()->base());
-    if (arrayType && !arrayType->isDynamic() && !expr.type()->isReference()) {
-        return makeArrayRef(address, intConstant(arrayType->count(), 64));
-    }
+//    auto* arrayType = dyncast<sema::ArrayType const*>(expr.type()->base());
+//    if (arrayType && !arrayType->isDynamic() && !expr.type()->isReference()) {
+//        return makeArrayRef(address, intConstant(arrayType->count(), 64));
+//    }
 
     return address;
 }
 
 ir::Value* LoweringContext::getAddressImpl(FunctionCall const& expr) {
     auto [value, conv] = genCall(&expr);
-    using enum PassingConvention::Type;
+    using enum ValueLocation::Type;
     switch (conv) {
     case Register:
         SC_ASSERT(expr.type()->isReference(),
@@ -660,3 +730,4 @@ ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
     genListDataFallback(list, array);
     return array;
 }
+#endif

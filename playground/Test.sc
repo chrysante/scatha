@@ -1,23 +1,76 @@
 
-public fn main(n: int) -> int {
-    if n > 0 && n < 0 {
-        return 1;
+struct X {
+    var i: int;
+    var k: int;
+    
+    fn set(this) {
+        this.i = 3;
+        this.k = 7;
     }
-    return 0;
 }
 
 
-//fn print(cond: bool) {
-//    __builtin_putstr(cond ? "true" : "false");
+
+
+
+public fn main() -> int {
+    
+    __builtin_putstr("Hello World!\n");
+    
+    
+    
+    
+}
+
+
+
+
+//public fn main() -> int {
+//    var data = [5, 7, 2, 4];
+//    var data2: &[int] = &data;
+//    return sum(&data);
 //}
 //
-//public fn main(cond: bool) {
-//    if cond {
-//        print(cond);
+//fn sum(data: &[int]) -> int {
+//    var sum = 0;
+//    for i = 0; i < data.count; ++i {
+//        sum += data[i];
 //    }
+//    return sum;
 //}
 
 
+
+
+
+
+
+
+//struct V {
+//    var x: int;
+//    var y: int;
+//    var z: int;
+//}
+//
+//public fn main() -> int {
+//    var v: V;
+//    v.x = 1;
+//    v.y = 2;
+//    v.z = 3;
+//    return f(g(v));
+//}
+//
+//
+//fn f(v: V) -> int {
+//    return v.x + v.y + v.z;
+//}
+//
+//fn g(v: V) -> V {
+//    v.x += 1;
+//    v.y += 1;
+//    v.z += 1;
+//    return v;
+//}
 
 
 

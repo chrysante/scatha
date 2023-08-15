@@ -122,15 +122,16 @@ static void run(mir::Module const& mod) {
 
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
-    opt::forEach(ctx, mod, opt::unifyReturns);
 
     header("As parsed");
-    opt::PassManager::makePipeline("inline, deadfuncelim").execute(ctx, mod);
     print(mod);
+    run(mod);
 
-    header("InvProp");
-    opt::PassManager::makePipeline("invprop").execute(ctx, mod);
+    header("Inlined");
+    opt::PassManager::makePipeline("sroa,memtoreg")(ctx, mod);
+    //    opt::PassManager::makePipeline("inline, deadfuncelim")(ctx, mod);
     print(mod);
+    run(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {
@@ -211,5 +212,5 @@ static void run(mir::Module const& mod) {
 }
 
 void playground::volatilePlayground(std::filesystem::path path) {
-    irPlayground(path);
+    frontendPlayground(path);
 }

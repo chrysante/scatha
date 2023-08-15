@@ -12,6 +12,8 @@
 using namespace scatha;
 using namespace ast;
 
+using enum ValueLocation;
+
 void LoweringContext::generate(AbstractSyntaxTree const& node) {
     visit(node, [this](auto const& node) { return generateImpl(node); });
 }
@@ -36,36 +38,34 @@ void LoweringContext::generateImpl(FunctionDefinition const& def) {
 
     auto CC = CCMap[currentSemaFunction];
     auto irParamItr = currentFunction->parameters().begin();
-    using enum PassingConvention::Type;
-    if (CC.returnValue().type() == Stack) {
+    if (CC.returnValue().location() == Memory) {
         ++irParamItr;
     }
 
     for (auto [paramDecl, argPC]:
          ranges::views::zip(def.parameters(), CC.arguments()))
     {
+        auto* irParam = irParamItr.to_address();
+        auto* semaParam = paramDecl->entity();
+        auto* irType = mapType(paramDecl->type());
+        /// The `this` reference parameter is not stored to memory
         if (auto* thisParam = dyncast<ThisParameter const*>(paramDecl);
             thisParam && thisParam->type()->isReference())
         {
-            SC_ASSERT(argPC.type() == Register, "");
-            /// The `this` parameter is not stored to local memory but is an SSA
-            /// value
-            memorizeVariableAddress(thisParam->entity(),
-                                    irParamItr.to_address());
+            SC_ASSERT(argPC.location() == Register, "");
+            memorizeVariable(semaParam, Value(irParam, Register));
             ++irParamItr;
             continue;
         }
-        switch (argPC.type()) {
+        switch (argPC.location()) {
         case Register: {
-            auto* address = storeLocal(irParamItr.to_address(),
-                                       std::string(paramDecl->name()));
-            memorizeVariableAddress(paramDecl->entity(), address);
+            auto* address = storeLocal(irParam, std::string(paramDecl->name()));
+            memorizeVariable(semaParam, Value(address, irType, Memory));
             break;
         }
 
-        case Stack: {
-            memorizeVariableAddress(paramDecl->entity(),
-                                    irParamItr.to_address());
+        case Memory: {
+            memorizeVariable(semaParam, Value(irParam, irType, Memory));
             break;
         }
         }
@@ -96,59 +96,72 @@ void LoweringContext::generateImpl(StructDefinition const& def) {
 
 void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
     std::string name = utl::strcat(varDecl.name());
+    /// Array case
     if (auto* arrayType =
             dyncast<sema::ArrayType const*>(varDecl.type()->base()))
     {
-        /// Array case
-        if (varDecl.type()->isReference()) {
-            auto* value = getValue(varDecl.initExpression());
-            auto* address = storeLocal(value, std::string(varDecl.name()));
-            memorizeVariableAddress(varDecl.entity(), address);
-            return;
-        }
-        SC_ASSERT(!arrayType->isDynamic(),
-                  "Can't locally allocate dynamic array");
-        /// We can steal the data from an rvalue
-        if (varDecl.initExpression() && varDecl.initExpression()->isRValue()) {
-            auto* address = getAddress(varDecl.initExpression());
-            address->setName(name);
-            memorizeVariableAddress(varDecl.variable(), address);
-            return;
-        }
-        /// We need to allocate our own data
-        auto* elemType = mapType(arrayType->elementType());
-        auto* array = new ir::Alloca(ctx,
-                                     intConstant(arrayType->count(), 32),
-                                     elemType,
-                                     name);
-        allocas.push_back(array);
-        if (varDecl.initExpression()) {
-            auto* initAddress = getAddress(varDecl.initExpression());
-            // auto* dataPtr = getArrayAddr(initAddress);
-            auto* memcpy = getFunction(symbolTable.builtinFunction(
-                static_cast<size_t>(svm::Builtin::memcpy)));
-            add<ir::Call>(memcpy,
-                          std::array<ir::Value*, 3>{
-                              array,
-                              initAddress,
-                              intConstant(arrayType->count() * elemType->size(),
-                                          64) });
-        }
-
-        memorizeVariableAddress(varDecl.variable(), array);
-        return;
+        SC_UNIMPLEMENTED();
+        //        if (varDecl.type()->isReference()) {
+        //            auto* data = getValue(varDecl.initExpression());
+        //            auto* ptrAddress = storeLocal(data,
+        //            std::string(varDecl.name()));
+        //            memorizeVariableAddress(varDecl.entity(), ptrAddress);
+        //            auto* count = getArraySize(data);
+        //            auto* sizeAddress = storeLocal(count,
+        //            utl::strcat(varDecl.name(), ".count"));
+        //            memorizeArraySizeAddress(sizeAddress);
+        //            return;
+        //        }
+        //        SC_ASSERT(!arrayType->isDynamic(),
+        //                  "Can't locally allocate dynamic array");
+        //        /// We can steal the data from an rvalue
+        //        if (varDecl.initExpression() &&
+        //        varDecl.initExpression()->isRValue()) {
+        //            auto* address = getAddress(varDecl.initExpression());
+        //            address->setName(name);
+        //            memorizeVariableAddress(varDecl.variable(), address);
+        //            return;
+        //        }
+        //        /// We need to allocate our own data
+        //        auto* elemType = mapType(arrayType->elementType());
+        //        auto* array = new ir::Alloca(ctx,
+        //                                     intConstant(arrayType->count(),
+        //                                     32), elemType, name);
+        //        allocas.push_back(array);
+        //        if (varDecl.initExpression()) {
+        //            auto* initAddress = getAddress(varDecl.initExpression());
+        //            auto* memcpy = getFunction(symbolTable.builtinFunction(
+        //                static_cast<size_t>(svm::Builtin::memcpy)));
+        //            add<ir::Call>(memcpy,
+        //                          std::array<ir::Value*, 3>{
+        //                              array,
+        //                              initAddress,
+        //                              intConstant(arrayType->count() *
+        //                              elemType->size(),
+        //                                          64) });
+        //        }
+        //
+        //        memorizeVariableAddress(varDecl.variable(), array);
+        //        return;
     }
 
     /// Non-array case
     if (varDecl.initExpression()) {
-        auto* value = getValue(varDecl.initExpression());
-        auto* address = storeLocal(value, name);
-        memorizeVariableAddress(varDecl.entity(), address);
+        auto value = getValue(varDecl.initExpression());
+        if (value.isRValue()) {
+            value.get()->setName(name);
+            memorizeVariable(varDecl.entity(), value.toLValue());
+        }
+        else {
+            auto* address = storeLocal(toRegister(value), name);
+            memorizeVariable(varDecl.entity(),
+                             Value(address, value.type(), Memory));
+        }
     }
     else {
         auto* type = mapType(varDecl.type());
         auto* address = makeLocal(type, name);
-        memorizeVariableAddress(varDecl.entity(), address);
+        memorizeVariable(varDecl.entity(), Value(address, type, Memory));
     }
 }
 
@@ -166,14 +179,13 @@ void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
         add<ir::Return>(ctx.voidValue());
         return;
     }
-    auto* returnValue = getValue(retDecl.expression());
-    using enum PassingConvention::Type;
-    switch (CC.returnValue().type()) {
+    auto* returnValue = getValue<Register>(retDecl.expression());
+    switch (CC.returnValue().location()) {
     case Register:
         add<ir::Return>(returnValue);
         break;
 
-    case Stack:
+    case Memory:
         add<ir::Store>(&currentFunction->parameters().front(), returnValue);
         add<ir::Return>(ctx.voidValue());
         break;
@@ -181,7 +193,7 @@ void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
 }
 
 void LoweringContext::generateImpl(IfStatement const& stmt) {
-    auto* condition = getValue(stmt.condition());
+    auto* condition = getValue<Register>(stmt.condition());
     auto* thenBlock = newBlock("if.then");
     auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
     auto* endBlock = newBlock("if.end");
@@ -209,7 +221,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
 
         /// Header
         add(loopHeader);
-        auto* condition = getValue(loopStmt.condition());
+        auto* condition = getValue<Register>(loopStmt.condition());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push({ .header = loopHeader,
                          .body = loopBody,
@@ -240,7 +252,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
 
         /// Header
         add(loopHeader);
-        auto* condition = getValue(loopStmt.condition());
+        auto* condition = getValue<Register>(loopStmt.condition());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push(
             { .header = loopHeader, .body = loopBody, .end = loopEnd });
@@ -271,7 +283,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
 
         /// Footer
         add(loopFooter);
-        auto* condition = getValue(loopStmt.condition());
+        auto* condition = getValue<Register>(loopStmt.condition());
         add<ir::Branch>(condition, loopBody, loopEnd);
 
         /// End
