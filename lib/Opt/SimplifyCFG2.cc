@@ -38,7 +38,9 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
+#if 0
 SC_REGISTER_PASS(opt::simplifyCFG2, "simplifycfg2");
+#endif
 
 namespace {
 
@@ -54,6 +56,8 @@ struct SCFGContext {
 
 } // namespace
 
-bool opt::simplifyCFG2(ir::Context& ctx, ir::Function& function) { SC_UNIMPLEMENTED(); }
+bool opt::simplifyCFG2(ir::Context& ctx, ir::Function& function) {
+    SC_UNIMPLEMENTED();
+}
 
 bool SCFGContext::run() { SC_UNIMPLEMENTED(); }

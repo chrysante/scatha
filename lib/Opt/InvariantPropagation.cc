@@ -2,10 +2,12 @@
 
 #include <iostream>
 #include <queue>
+#include <span>
 #include <variant>
 
 #include <utl/hash.hpp>
 #include <utl/hashtable.hpp>
+#include <utl/vector.hpp>
 
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
@@ -22,72 +24,215 @@ using namespace scatha;
 using namespace ir;
 using namespace opt;
 
+#if 0
 SC_REGISTER_PASS(opt::propagateInvariants, "invprop");
+#endif
+
+static constexpr auto Signed = CompareMode::Signed;
+static constexpr auto Unsigned = CompareMode::Unsigned;
+static constexpr auto Float = CompareMode::Float;
+
+static constexpr auto Less = CompareOperation::Less;
+static constexpr auto LessEq = CompareOperation::LessEq;
+static constexpr auto Greater = CompareOperation::Greater;
+static constexpr auto GreaterEq = CompareOperation::GreaterEq;
+static constexpr auto Equal = CompareOperation::Equal;
+static constexpr auto NotEqual = CompareOperation::NotEqual;
 
 namespace {
 
-/// Represents an invariant of a value at a certain program point
-class Invariant {
+///
+class InvariantKey {
 public:
-    Invariant(CompareMode mode, CompareOperation relation, Value* value):
-        _mode(mode), _relation(relation), _value(value) {}
+    InvariantKey(CompareMode mode, CompareOperation relation):
+        _mode(mode), _relation(relation) {}
 
     CompareOperation relation() const { return _relation; }
 
     /// The mode of the comparison
     CompareMode mode() const { return _mode; }
 
-    ///
-    Value* value() const { return _value; }
+    bool operator==(InvariantKey const&) const = default;
 
-    bool operator==(Invariant const&) const = default;
-
-    size_t hashValue() const {
-        return utl::hash_combine(_mode, _relation, _value);
-    }
-
-    friend std::ostream& operator<<(std::ostream& str, Invariant const& inv) {
-        return str << "(" << inv.relation() << ", " << toString(inv.value())
-                   << ")";
-    }
+    size_t hashValue() const { return utl::hash_combine(_mode, _relation); }
 
 private:
     CompareMode _mode;
     CompareOperation _relation;
-    Value* _value;
 };
 
 } // namespace
 
 template <>
-struct std::hash<Invariant> {
-    size_t operator()(Invariant const& inv) const { return inv.hashValue(); }
+struct std::hash<InvariantKey> {
+    size_t operator()(InvariantKey const& inv) const { return inv.hashValue(); }
 };
 
+static bool compareSigned(CompareOperation op,
+                          APInt const& lhs,
+                          APInt const& rhs) {
+    switch (op) {
+    case Less:
+        return scmp(lhs, rhs) < 0;
+    case LessEq:
+        return scmp(lhs, rhs) <= 0;
+    case Greater:
+        return scmp(lhs, rhs) > 0;
+    case GreaterEq:
+        return scmp(lhs, rhs) >= 0;
+    case Equal:
+        return scmp(lhs, rhs) == 0;
+    case NotEqual:
+        return scmp(lhs, rhs) != 0;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+static bool compareUnsigned(CompareOperation op,
+                            APInt const& lhs,
+                            APInt const& rhs) {
+    switch (op) {
+    case Less:
+        return ucmp(lhs, rhs) < 0;
+    case LessEq:
+        return ucmp(lhs, rhs) <= 0;
+    case Greater:
+        return ucmp(lhs, rhs) > 0;
+    case GreaterEq:
+        return ucmp(lhs, rhs) >= 0;
+    case Equal:
+        return ucmp(lhs, rhs) == 0;
+    case NotEqual:
+        return ucmp(lhs, rhs) != 0;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+static bool compareFloat(CompareOperation op,
+                         APFloat const& lhs,
+                         APFloat const& rhs) {
+    switch (op) {
+    case Less:
+        return cmp(lhs, rhs) < 0;
+    case LessEq:
+        return cmp(lhs, rhs) <= 0;
+    case Greater:
+        return cmp(lhs, rhs) > 0;
+    case GreaterEq:
+        return cmp(lhs, rhs) >= 0;
+    case Equal:
+        return cmp(lhs, rhs) == 0;
+    case NotEqual:
+        return cmp(lhs, rhs) != 0;
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+static bool compare(CompareMode mode,
+                    CompareOperation op,
+                    Constant const* lhs,
+                    Constant const* rhs) {
+    switch (mode) {
+    case Signed:
+        return compareSigned(op,
+                             cast<IntegralConstant const*>(lhs)->value(),
+                             cast<IntegralConstant const*>(rhs)->value());
+    case Unsigned:
+        return compareUnsigned(op,
+                               cast<IntegralConstant const*>(lhs)->value(),
+                               cast<IntegralConstant const*>(rhs)->value());
+    case Float:
+        return compareFloat(op,
+                            cast<FloatingPointConstant const*>(lhs)->value(),
+                            cast<FloatingPointConstant const*>(rhs)->value());
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
 namespace {
+
+/// Represents a set of invariants with a specifiy relational key of a value at
+/// a certain program point
+class Invariant {
+public:
+    Invariant(InvariantKey key): _key(key) {}
+
+    InvariantKey key() const { return _key; }
+
+    std::span<Value* const> values() const { return _values; }
+
+    void insert(Value* value) {
+#if 0
+        if (_values.empty()) {
+            _values.push_back(value);
+            return;
+        }
+        if (ranges::contains(_values, value)) {
+            return;
+        }
+        switch (key().relation()) {
+        case Less: [[fallthrough]];
+        case LessEq: [[fallthrough]];
+        case Greater: [[fallthrough]];
+        case GreaterEq:
+            if (auto* constant = dyncast<Constant*>(value)) {
+                if (auto* existing = dyncast<Constant*>(_values.front())) {
+                    if (compare(key().mode(), key.relation(), constant, existing)) {
+                        
+                    }
+                    else {
+                        
+                    }
+                }
+                else {
+                    
+                }
+            }
+            else {
+                push_bac
+            }
+        case Equal: [[fallthrough]];
+        case NotEqual:
+            _values.push_back(value);
+        default: SC_UNREACHABLE();
+        }
+#endif
+    }
+
+private:
+    InvariantKey _key;
+    utl::small_vector<Value*> _values;
+};
 
 /// Represent sets of invariants of a values in a basic block
 class InvariantSet {
 public:
-    void insert(Value* value, Invariant inv) { invariants[value].insert(inv); }
+    void insert(Value* value, InvariantKey key, Value* rhs) {
+        invariants[value].insert({ key, rhs });
+    }
 
     void insert(InvariantSet const& rhs) {
         for (auto&& [value, rhsSet]: rhs.invariants) {
             auto& lhsSet = invariants[value];
-            for (auto& rhs: rhsSet) {
-                lhsSet.insert(rhs);
+            for (auto& [key, rhs]: rhsSet) {
+                lhsSet.insert({ key, rhs });
             }
         }
     }
 
-    void insert(std::initializer_list<std::pair<Value*, Invariant>> list) {
-        for (auto& [value, inv]: list) {
-            insert(value, inv);
+    void insert(
+        std::initializer_list<std::tuple<Value*, InvariantKey, Value*>> list) {
+        for (auto& [value, key, rhs]: list) {
+            insert(value, key, rhs);
         }
     }
 
     /// \Returns the invariants of \p value
-    utl::hashset<Invariant> const& operator[](Value* value) {
+    utl::hashmap<InvariantKey, Value*> const& operator[](Value* value) {
         return invariants[value];
     }
 
@@ -96,7 +241,7 @@ public:
     auto const& all() const { return invariants; }
 
 private:
-    utl::hashmap<Value*, utl::hashset<Invariant>> invariants;
+    utl::hashmap<Value*, utl::hashmap<InvariantKey, Value*>> invariants;
 };
 
 struct IPContext {
@@ -117,7 +262,10 @@ struct IPContext {
 
     void propagate(BasicBlock* BB);
 
-    void addInvariant(BasicBlock const*, Value* value, Invariant inv);
+    void addInvariant(BasicBlock const*,
+                      Value* value,
+                      InvariantKey key,
+                      Value*);
 
     bool evaluate(BasicBlock* BB);
 
@@ -129,18 +277,6 @@ struct IPContext {
     void replaceIfDominatedBy(Value* value,
                               Constant* newValue,
                               BasicBlock const* dom) const;
-
-    Invariant True() const {
-        return { CompareMode::Unsigned,
-                 CompareOperation::Equal,
-                 ctx.integralConstant(true, 1) };
-    }
-
-    Invariant False() const {
-        return { CompareMode::Unsigned,
-                 CompareOperation::Equal,
-                 ctx.integralConstant(false, 1) };
-    }
 
     void printInvariants() const;
 };
@@ -182,25 +318,33 @@ void IPContext::propagate(BasicBlock* BB) {
         auto* B = BB->successor(1);
         auto* condition = branch->condition();
         if (A->hasSinglePredecessor()) {
-            addInvariant(A, condition, True());
+            addInvariant(A,
+                         condition,
+                         { Unsigned, Equal },
+                         ctx.integralConstant(true, 1));
         }
         if (B->hasSinglePredecessor()) {
-            addInvariant(B, condition, False());
+            addInvariant(B,
+                         condition,
+                         { Unsigned, Equal },
+                         ctx.integralConstant(false, 1));
         }
         if (auto* cmp = dyncast<CompareInst*>(condition)) {
             auto* a = cmp->operandAt(0);
             auto* b = cmp->operandAt(1);
             if (A->hasSinglePredecessor()) {
-                addInvariant(A, a, { cmp->mode(), cmp->operation(), b });
+                addInvariant(A, a, { cmp->mode(), cmp->operation() }, b);
                 addInvariant(A,
                              b,
-                             { cmp->mode(), inverse(cmp->operation()), a });
+                             { cmp->mode(), inverse(cmp->operation()) },
+                             a);
             }
             if (B->hasSinglePredecessor()) {
-                addInvariant(B, b, { cmp->mode(), cmp->operation(), a });
+                addInvariant(B, b, { cmp->mode(), cmp->operation() }, a);
                 addInvariant(B,
                              a,
-                             { cmp->mode(), inverse(cmp->operation()), b });
+                             { cmp->mode(), inverse(cmp->operation()) },
+                             b);
             }
         }
     }
@@ -217,20 +361,21 @@ void IPContext::propagate(BasicBlock* BB) {
 
 void IPContext::addInvariant(BasicBlock const* BB,
                              Value* value,
-                             Invariant inv) {
+                             InvariantKey key,
+                             Value* rhs) {
     if (isa<Constant>(value)) {
         return;
     }
-    if (value == inv.value()) {
+    if (value == rhs) {
         return;
     }
-    if (auto* constant = dyncast<Constant*>(inv.value());
-        inv.relation() == CompareOperation::Equal && constant)
+    if (auto* constant = dyncast<Constant*>(rhs);
+        key.relation() == CompareOperation::Equal && constant)
     {
         replaceIfDominatedBy(value, constant, BB);
         return;
     }
-    invSets[BB].insert(value, inv);
+    invSets[BB].insert(value, key, rhs);
 }
 
 bool IPContext::evaluate(BasicBlock* BB) {
@@ -279,8 +424,10 @@ void IPContext::printInvariants() const {
             std::cout << formatter.beginLine() << "%" << value->name()
                       << std::endl;
             for (auto&& [index, inv]: invs | ranges::views::enumerate) {
+                auto [key, rhs] = inv;
                 formatter.push(index != invs.size() - 1 ? Child : LastChild);
-                std::cout << formatter.beginLine() << inv << std::endl;
+                std::cout << formatter.beginLine() << key.relation() << " "
+                          << toString(rhs) << std::endl;
                 formatter.pop();
             }
             formatter.pop();
