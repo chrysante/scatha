@@ -1,23 +1,9 @@
-
-fn print(n: int) {
-    __builtin_puti64(n);
-    __builtin_putchar('\n');
+fn print(cond: bool) {
+    __builtin_putstr(cond ? "true" : "false");
 }
 
-fn print(msg: &str) {
-    __builtin_putstr(&msg);
-}
-
-public fn main(cond: bool) -> int {
-    var n = 0;
+public fn main(cond: bool) {
     if cond {
-        n += 10;
+        print(cond);
     }
-    else {
-        n += 10;
-    } 
-    for i = 0; i < n; ++i {
-        n -= 1;
-    }
-    return 0;
 }

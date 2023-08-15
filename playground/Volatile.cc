@@ -120,25 +120,17 @@ static void run(mir::Module const& mod) {
     run(mod);
 }
 
-static void pass(std::string_view name,
-                 ir::Context& ctx,
-                 ir::Module& mod,
-                 bool (*optFn)(ir::Context&, ir::Function&)) {
-    header("After " + std::string(name));
-    for (auto& F: mod) {
-        optFn(ctx, F);
-    }
-    ir::print(mod);
-}
-
 [[maybe_unused]] static void irPlayground(std::filesystem::path path) {
     auto [ctx, mod] = makeIRModuleFromFile(path);
     opt::forEach(ctx, mod, opt::unifyReturns);
 
     header("As parsed");
-    opt::PassManager::makePipeline("dce").execute(ctx, mod);
+    opt::PassManager::makePipeline("inline, deadfuncelim").execute(ctx, mod);
     print(mod);
-    run(mod);
+
+    header("InvProp");
+    opt::PassManager::makePipeline("invprop").execute(ctx, mod);
+    print(mod);
 }
 
 [[maybe_unused]] static void frontendPlayground(std::filesystem::path path) {
