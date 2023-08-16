@@ -19,11 +19,24 @@ public:
     explicit Value(ir::Value* value,
                    ir::Type const* type,
                    ValueLocation location,
-                   sema::ValueCategory valueCat = sema::ValueCategory::LValue):
-        _val(value), _type(type), _loc(location), _cat(valueCat) {}
+                   sema::ValueCategory valueCat = sema::ValueCategory::LValue,
+                   uint64_t userData = 0):
+        _val(value),
+        _type(type),
+        _loc(location),
+        _cat(valueCat),
+        _userData(userData) {}
 
-    explicit Value(ir::Value* value, ValueLocation location):
-        Value(value, value->type(), location) {
+    explicit Value(ir::Value* value,
+                   ir::Type const* type,
+                   ValueLocation location,
+                   uint64_t userData):
+        Value(value, type, location, sema::ValueCategory::LValue, userData) {}
+
+    explicit Value(ir::Value* value,
+                   ValueLocation location,
+                   uint64_t userData = 0):
+        Value(value, value->type(), location, userData) {
         SC_ASSERT(
             location == ValueLocation::Register,
             "If the value is in memory the type must be specified explicitly");
@@ -45,7 +58,7 @@ public:
     bool isRegister() const { return location() == ValueLocation::Register; }
 
     /// \Returns `true` if this value is in memory
-    bool isMemory() const { return location() == ValueLocation::Register; }
+    bool isMemory() const { return location() == ValueLocation::Memory; }
 
     /// The value category of this value. Only meaningful if the value is in
     /// memory Defaults to `LValue` \Note We store this information here,
@@ -67,6 +80,10 @@ public:
         return Value(get(), type(), location(), sema::ValueCategory::LValue);
     }
 
+    uint64_t userData() const { return _userData; }
+
+    void setUserData(uint64_t userData) { _userData = userData; }
+
     /// Test the value pointer for null
     explicit operator bool() const { return !!_val; }
 
@@ -81,6 +98,7 @@ private:
     ir::Type const* _type = nullptr;
     ValueLocation _loc = {};
     sema::ValueCategory _cat = {};
+    size_t _userData = 0;
 };
 
 } // namespace scatha::ast

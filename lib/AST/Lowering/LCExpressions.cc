@@ -24,14 +24,25 @@ static bool isIntType(size_t width, ir::Type const* type) {
 /// MARK: getValue() Implementation
 
 Value LoweringContext::getValue(Expression const* expr) {
+    /// Returning constants here if possible breaks when we take the address of
+    /// a constant. A solution that also solves the array size problem could be
+    /// to add additional optional data to values (other values) that could get
+    /// resovled by the `toRegister` function. I.e. when we call `getValue` on
+    /// an identifier, we get a value that represents the value in memory, but
+    /// is annotated with the constant. Then when we call `toRegister` on the
+    /// value it checks whether the value is annotated with a constant and if so
+    /// returns that. Otherwise it defaults to loading the value.
+#if 0
     if (auto* constVal = expr->constantValue();
         constVal && !expr->type()->isReference())
     {
-        auto* type = cast<sema::ArithmeticType const*>(expr->type()->base());
+        auto* type = cast<sema::ArithmeticType
+        const*>(expr->type()->base());
         // clang-format off
         return visit(*constVal, utl::overload{
             [&](sema::IntValue const& intVal) {
-                SC_ASSERT(type->bitwidth() == intVal.value().bitwidth(), "");
+                SC_ASSERT(type->bitwidth() == intVal.value().bitwidth(),
+                          "");
                 return Value(intConstant(intVal.value()), Register);
             },
             [&](sema::FloatValue const& floatVal) {
@@ -39,6 +50,7 @@ Value LoweringContext::getValue(Expression const* expr) {
             }
         }); // clang-format on
     }
+#endif
     return visit(*expr,
                  [this](auto const& expr) { return getValueImpl(expr); });
 }
@@ -61,15 +73,20 @@ Value LoweringContext::getValueImpl(Literal const& lit) {
         return variableMap[lit.entity()];
     }
     case LiteralKind::String: {
+        uint64_t ID = newArrayID();
         std::string const& sourceText = lit.value<std::string>();
         size_t size = sourceText.size();
         utl::vector<u8> text(sourceText.begin(), sourceText.end());
         auto* type = ctx.arrayType(ctx.integralType(8), size);
         auto staticData =
             allocate<ir::ConstantData>(ctx, type, std::move(text), "stringlit");
-        auto data = Value(staticData.get(), type, Memory);
+        auto data = Value(staticData.get(),
+                          staticData.get()->type(),
+                          Register,
+                          sema::ValueCategory::LValue,
+                          ID);
         mod.addConstantData(std::move(staticData));
-        memorizeArraySize(data, size);
+        memorizeArraySize(ID, size);
         return data;
     }
     case LiteralKind::Char:
@@ -105,7 +122,7 @@ Value LoweringContext::getValueImpl(UnaryExpression const& expr) {
 
     case ast::UnaryOperator::Negation: {
         auto* operand = toRegister(getValue(expr.operand()));
-        auto operation = isa<sema::IntType>(expr.operand()->type()) ?
+        auto operation = isa<sema::IntType>(expr.operand()->type()->base()) ?
                              ir::ArithmeticOperation::Sub :
                              ir::ArithmeticOperation::FSub;
         auto* newValue = add<ir::ArithmeticInst>(constant(0, operand->type()),
@@ -283,10 +300,9 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
     if (auto* arrayType =
             dyncast<sema::ArrayType const*>(expr.object()->type()->base()))
     {
-        SC_UNIMPLEMENTED();
-        //        SC_ASSERT(expr.member()->value() == "count", "What else?");
-        //        auto value = getValue(expr.object());
-        //        return getArraySize(addr);
+        SC_ASSERT(expr.member()->value() == "count", "What else?");
+        auto value = getValue(expr.object());
+        return getArraySize(value.userData());
     }
 
     Value base = getValue(expr.object());
@@ -313,14 +329,13 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
 }
 
 Value LoweringContext::getValueImpl(ReferenceExpression const& expr) {
-    Value value = getValue(expr.referred());
-    switch (value.location()) {
-    case Register:
-        SC_ASSERT(isa<ir::PointerType>(value.type()), "");
+    auto* referred = expr.referred();
+    auto value = getValue(referred);
+    if (referred->type()->isReference()) {
         return value;
-    case Memory:
-        return Value(value.get(), Register);
     }
+    SC_ASSERT(value.isMemory(), "Can only take references to values in memory");
+    return Value(value.get(), Register, value.userData());
 }
 
 Value LoweringContext::getValueImpl(UniqueExpression const& expr) {
@@ -367,19 +382,24 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
     for (auto [argPC, arg]:
          ranges::views::zip(CC.arguments(), call.arguments()))
     {
+        auto value = getValue(arg);
         switch (argPC.location()) {
         case Register:
-            arguments.push_back(toRegister(getValue(arg)));
+            arguments.push_back(toRegister(value));
             break;
 
         case Memory:
             if (arg->isLValue()) {
-                arguments.push_back(storeLocal(getValue<Register>(arg)));
+                auto* reg = toRegister(value);
+                arguments.push_back(storeLocal(reg));
             }
             else {
-                arguments.push_back(getValue<Memory>(arg));
+                arguments.push_back(toMemory(value));
             }
             break;
+        }
+        if (argPC.numParams() == 2) {
+            arguments.push_back(toRegister(getArraySize(value.userData())));
         }
     }
     bool callHasName = !isa<ir::VoidType>(function->returnType());
@@ -397,18 +417,27 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
 }
 
 Value LoweringContext::getValueImpl(Subscript const& expr) {
-    SC_UNIMPLEMENTED();
-    //    auto* arrayType =
-    //        cast<sema::ArrayType const*>(expr.object()->type()->base());
-    //    auto* elemType = mapType(arrayType->elementType());
-    //    auto* arrayData = getAddress(expr.object());
-    //    auto* arraySize = getArraySize(arrayData);
-    //    auto* index = getValue(expr.arguments().front());
-    //    return add<ir::GetElementPointer>(elemType,
-    //                                      arrayData,
-    //                                      index,
-    //                                      std::initializer_list<size_t>{},
-    //                                      "elem.ptr");
+    auto* arrayType =
+        cast<sema::ArrayType const*>(expr.object()->type()->base());
+    auto* elemType = mapType(arrayType->elementType());
+    auto array = getValue(expr.object());
+    /// Right now we don't use the size but here we could at a call to an
+    /// assertion function
+    [[maybe_unused]] auto size = getArraySize(array.userData());
+    auto index = getValue<Register>(expr.arguments().front());
+    switch (array.location()) {
+    case Register:
+        /// Here we should insert `ExtractValue` instruction
+        SC_UNIMPLEMENTED();
+    case Memory: {
+        auto* addr = add<ir::GetElementPointer>(elemType,
+                                                array.get(),
+                                                index,
+                                                std::initializer_list<size_t>{},
+                                                "elem.ptr");
+        return Value(addr, elemType, Register, array.valueCategory());
+    }
+    }
 }
 
 Value LoweringContext::getValueImpl(Conversion const& conv) {
@@ -419,8 +448,11 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
             return getValue(expr);
 
         case sema::RefConversion::Dereference: {
-            auto* address = getValue<Register>(expr);
-            return Value(address, mapType(expr->type()->base()), Memory);
+            auto address = getValue(expr);
+            return Value(toRegister(address),
+                         mapType(expr->type()->base()),
+                         Memory,
+                         address.userData());
         }
 
         case sema::RefConversion::DerefExpl:
@@ -437,58 +469,57 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
         return refConvResult;
 
     case Array_FixedToDynamic: {
-        SC_UNIMPLEMENTED();
-        //        auto* arrayType = cast<sema::ArrayType
-        //        const*>(expr->type()->base());
-        //        SC_ASSERT(!arrayType->isDynamic(), "Invalid conversion");
-        //        memorizeConstantArraySize(refConvResult, arrayType->count());
-        //        return refConvResult;
+        return refConvResult;
     }
     case Reinterpret_ArrayRef_ToByte:
         [[fallthrough]];
     case Reinterpret_ArrayRef_FromByte: {
-        SC_UNIMPLEMENTED();
-        //        SC_ASSERT(expr->type()->isReference(), "");
-        //        SC_ASSERT(conv.type()->isReference(), "");
-        //        auto* fromType = cast<sema::ArrayType
-        //        const*>(expr->type()->base()); auto* toType =
-        //        cast<sema::ArrayType const*>(conv.type()->base()); auto* data
-        //        = refConvResult; if (toType->isDynamic()) {
-        //            if (fromType->isDynamic()) {
-        //                auto* count = getArraySize(data);
-        //                if (conv.conversion()->objectConversion() ==
-        //                    Reinterpret_ArrayRef_ToByte)
-        //                {
-        //                    count =
-        //                        add<ir::ArithmeticInst>(count,
-        //                                                intConstant(8, 64),
-        //                                                ir::ArithmeticOperation::Mul,
-        //                                                "reinterpret.count");
-        //                }
-        //                else {
-        //                    count =
-        //                        add<ir::ArithmeticInst>(count,
-        //                                                intConstant(8, 64),
-        //                                                ir::ArithmeticOperation::SDiv,
-        //                                                "reinterpret.count");
-        //                }
-        //                memorizeArraySize(data, count);
-        //                return data;
-        //            }
-        //            size_t count = fromType->count();
-        //            if (conv.conversion()->objectConversion() ==
-        //                Reinterpret_ArrayRef_ToByte)
-        //            {
-        //                count *= 8;
-        //            }
-        //            else {
-        //                count /= 8;
-        //            }
-        //            memorizeConstantArraySize(data, count);
-        //            return data;
-        //        }
-        //        SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
-        //        return data;
+        SC_ASSERT(expr->type()->isReference(), "");
+        SC_ASSERT(conv.type()->isReference(), "");
+        auto* fromType = cast<sema::ArrayType const*>(expr->type()->base());
+        auto* toType = cast<sema::ArrayType const*>(conv.type()->base());
+        auto data = refConvResult;
+        data.setUserData(newArrayID());
+        if (toType->isDynamic()) {
+            if (fromType->isDynamic()) {
+                auto count = getArraySize(data.userData());
+                if (conv.conversion()->objectConversion() ==
+                    Reinterpret_ArrayRef_ToByte)
+                {
+                    auto* newCount =
+                        add<ir::ArithmeticInst>(toRegister(count),
+                                                intConstant(8, 64),
+                                                ir::ArithmeticOperation::Mul,
+                                                "reinterpret.count");
+                    count = Value(newCount, Register);
+                }
+                else {
+                    auto* newCount =
+                        add<ir::ArithmeticInst>(toRegister(count),
+                                                intConstant(8, 64),
+                                                ir::ArithmeticOperation::SDiv,
+                                                "reinterpret.count");
+                    count = Value(newCount, Register);
+                }
+                memorizeArraySize(data.userData(), count);
+                return data;
+            }
+            size_t count = fromType->count();
+            switch (conv.conversion()->objectConversion()) {
+            case Reinterpret_ArrayRef_ToByte:
+                count *= 8;
+                break;
+            case Reinterpret_ArrayRef_FromByte:
+                count /= 8;
+                break;
+            default:
+                SC_UNREACHABLE();
+            }
+            memorizeArraySize(data.userData(), count);
+            return data;
+        }
+        SC_ASSERT(!fromType->isDynamic(), "Invalid conversion");
+        return data;
     }
 
     case Reinterpret_Value: {
@@ -574,90 +605,6 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
     }
 }
 
-Value LoweringContext::getValueImpl(ListExpression const& list) {
-    SC_UNIMPLEMENTED();
-}
-
-/// MARK: getAddress() Implementation
-#if 0
-ir::Value* LoweringContext::getAddress(Expression const* expr) {
-    return visit(*expr,
-                 [this](auto const& expr) { return getAddressImpl(expr); });
-}
-
-ir::Value* LoweringContext::getAddressImpl(Literal const& lit) {
-    SC_UNREACHABLE();
-}
-
-ir::Value* LoweringContext::getAddressImpl(Identifier const& id) {
-    auto* address = variableAddressMap[id.entity()];
-    SC_ASSERT(address, "Undeclared identifier");
-    SC_ASSERT(id.type()->isImplicitRef() || id.isLValue(), "Just to be safe");
-    return address;
-}
-
-ir::Value* LoweringContext::getAddressImpl(MemberAccess const& expr) {
-    auto* base = getAddress(expr.object());
-    auto* accessedId = cast<Identifier const*>(expr.member());
-    auto* var = cast<sema::Variable const*>(accessedId->entity());
-    auto* type = mapType(expr.object()->type()->base());
-    auto* address = add<ir::GetElementPointer>(type,
-                                               base,
-                                               intConstant(0, 64),
-                                               std::array{ var->index() },
-                                               "mem.ptr");
-
-//    auto* arrayType = dyncast<sema::ArrayType const*>(expr.type()->base());
-//    if (arrayType && !arrayType->isDynamic() && !expr.type()->isReference()) {
-//        return makeArrayRef(address, intConstant(arrayType->count(), 64));
-//    }
-
-    return address;
-}
-
-ir::Value* LoweringContext::getAddressImpl(FunctionCall const& expr) {
-    auto [value, conv] = genCall(&expr);
-    using enum ValueLocation::Type;
-    switch (conv) {
-    case Register:
-        SC_ASSERT(expr.type()->isReference(),
-                  "Can't be l-value so we expect a reference");
-        return value;
-    case Stack:
-        return value;
-    }
-}
-
-ir::Value* LoweringContext::getAddressImpl(Subscript const& expr) {
-    /// Because the subscript espression does not have an address. It is of type
-    /// `'X` and thus a call to `getValue()` resolves to the address of the
-    /// element
-    SC_UNREACHABLE();
-}
-
-ir::Value* LoweringContext::getAddressImpl(ReferenceExpression const& expr) {
-    return getAddress(expr.referred());
-}
-
-ir::Value* LoweringContext::getAddressImpl(Conversion const& conv) {
-    auto* expr = conv.expression();
-    switch (conv.conversion()->refConversion()) {
-    case sema::RefConversion::None:
-        return getAddress(expr);
-    case sema::RefConversion::Dereference:
-        SC_ASSERT(
-            !conv.type()->isReference() && expr->type()->isImplicitRef(),
-            "--Only of a dereferencing conversion can we take the address--");
-        return getValue(expr);
-
-    case sema::RefConversion::DerefExpl:
-        return getValue(expr);
-
-    case sema::RefConversion::TakeAddress:
-        SC_UNREACHABLE();
-    }
-}
-
 static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
     auto* val = dyncast_or_null<sema::IntValue const*>(expr->constantValue());
     if (!val) {
@@ -694,13 +641,9 @@ bool LoweringContext::genStaticListData(ListExpression const& list,
     mod.addConstantData(std::move(constData));
     auto* memcpy = getFunction(
         symbolTable.builtinFunction(static_cast<size_t>(svm::Builtin::memcpy)));
-    add<ir::Call>(memcpy,
-                  std::array<ir::Value*, 3>{
-                      dest,
-                      source,
-                      intConstant(list.elements().size() * elemType->size(),
-                                  64) },
-                  std::string{});
+    auto* size = intConstant(list.elements().size() * elemType->size(), 64);
+    std::array<ir::Value*, 4> args = { dest, size, source, size };
+    add<ir::Call>(memcpy, args, std::string{});
     return true;
 }
 
@@ -714,20 +657,29 @@ void LoweringContext::genListDataFallback(ListExpression const& list,
                                                intConstant(index, 32),
                                                std::initializer_list<size_t>{},
                                                "elem.ptr");
-        add<ir::Store>(gep, getValue(elem));
+        add<ir::Store>(gep, getValue<Register>(elem));
     }
 }
 
-ir::Value* LoweringContext::getAddressImpl(ListExpression const& list) {
+Value LoweringContext::getValueImpl(ListExpression const& list) {
     auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
-    auto* array = new ir::Alloca(ctx, mapType(arrayType), "list");
+    auto* elemType = arrayType->elementType();
+    auto* array = new ir::Alloca(ctx,
+                                 intConstant(arrayType->count(), 32),
+                                 mapType(elemType),
+                                 "list");
     allocas.push_back(array);
-    valueMap.insert({ arrayType->countVariable(),
-                      intConstant(list.children().size(), 64) });
-    if (genStaticListData(list, array)) {
-        return array;
+    Value size(intConstant(list.children().size(), 64), Register);
+    valueMap.insert({ arrayType->countVariable(), size });
+    uint64_t ID = newArrayID();
+    auto value = Value(array,
+                       mapType(arrayType),
+                       Memory,
+                       sema::ValueCategory::RValue,
+                       ID);
+    if (!genStaticListData(list, array)) {
+        genListDataFallback(list, array);
     }
-    genListDataFallback(list, array);
-    return array;
+    memorizeArraySize(ID, size);
+    return value;
 }
-#endif

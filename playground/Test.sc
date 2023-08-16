@@ -1,46 +1,33 @@
-
-struct X {
-    var i: int;
-    var k: int;
-    
-    fn set(this) {
-        this.i = 3;
-        this.k = 7;
-    }
-}
-
-
-
-
-
+fn pass(data: &[int]) -> &[int] { return &data; }
 public fn main() -> int {
-    
-    __builtin_putstr("Hello World!\n");
-    
-    
-    
-    
+    let data = [1, 2, 3];
+    let result = pass(&data)[1];
+    return result;
 }
 
-
-
-
-//public fn main() -> int {
-//    var data = [5, 7, 2, 4];
-//    var data2: &[int] = &data;
-//    return sum(&data);
-//}
-//
-//fn sum(data: &[int]) -> int {
-//    var sum = 0;
-//    for i = 0; i < data.count; ++i {
-//        sum += data[i];
+//fn pow(base: double, exp: int) -> double {
+//    var result: double = 1.0;
+//    var i = 0;
+//    if (exp < 0) {
+//        base = 1.0 / base;
+//        exp = -exp;
 //    }
-//    return sum;
+//    while i < exp {
+//        result *= base;
+//        i += 1;
+//    }
+//    return result;
 //}
-
-
-
+//public fn main() -> bool {
+//    var result = true;
+//    //result &= pow( 0.5,  3) == 0.125;
+//    //result &= pow( 1.5,  3) == 1.5 * 2.25;
+//    //result &= pow( 1.0, 10) == 1.0;
+//    //result &= pow( 2.0, 10) == 1024.0;
+//    result &= pow( 2.0, -3) == 0.125;
+//    //result &= pow(-2.0,  9) == -512.0;
+//    return result;
+//}
 
 
 

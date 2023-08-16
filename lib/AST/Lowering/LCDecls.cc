@@ -49,11 +49,26 @@ static const size_t maxRegPassingSize = 16;
 
 static PassingConvention computePCImpl(sema::QualType const* type,
                                        bool isRetval) {
-    if (isTrivial(type) && type->size() <= maxRegPassingSize) {
-        return { Register, isRetval ? 0u : 1u };
-    }
-    /// When we support arrays we need 2 here
-    return { Memory, 1 };
+    bool const isSmall = type->size() <= maxRegPassingSize;
+    // clang-format off
+    return visit(*type->base(), utl::overload{
+        [&](sema::ObjectType const& baseType) {
+            if (isSmall && isTrivial(type)) {
+                return PassingConvention(Register, isRetval ? 0u : 1u);
+            }
+            return PassingConvention(Memory, 1);
+        },
+        [&](sema::ArrayType const& arrayType) {
+            size_t argCount = arrayType.isDynamic() ? 2 : 1;
+            if (type->isReference()) {
+                return PassingConvention(Register, isRetval ? 0 : argCount);
+            }
+            if (isSmall && isTrivial(type)) {
+                return PassingConvention(Register, isRetval ? 0u : 1u);
+            }
+            return PassingConvention(Memory, argCount);
+        },
+    }); // clang-format on
 }
 
 static PassingConvention computeRetValPC(sema::QualType const* type) {
@@ -99,9 +114,16 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
             irArgTypes.push_back(mapType(type));
             break;
 
-        case Memory:
+        case Memory: {
             irArgTypes.push_back(ctx.pointerType());
             break;
+        }
+        }
+        /// Extremely hacky solution to add the size as a second argument.
+        /// This works because the only case `argPC.numParams() == 2` is the
+        /// dynamic array case.
+        if (argPC.numParams() == 2) {
+            irArgTypes.push_back(ctx.integralType(64));
         }
     }
 

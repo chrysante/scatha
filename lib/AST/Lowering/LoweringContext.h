@@ -36,8 +36,8 @@ struct LoweringContext {
 
     /// Maps variables to IR values in stack memory
     utl::hashmap<sema::Entity const*, Value> variableMap;
-    /// Maps array pointers to their respective sizes
-    utl::hashmap<Value, Value> arraySizeMap;
+    /// Maps array IDs to their respective sizes
+    utl::hashmap<uint64_t, Value> arraySizeMap;
 
     /// Maps variables to SSA values
     /// Right now this map exists solely to map the `.count` member variable to
@@ -45,6 +45,9 @@ struct LoweringContext {
     utl::hashmap<sema::Entity const*, Value> valueMap;
     utl::hashmap<sema::Function const*, ir::Callable*> functionMap;
     utl::hashmap<sema::Function const*, CallingConvention> CCMap;
+
+    uint64_t _arrayID = 0;
+    uint64_t newArrayID() { return ++_arrayID; }
 
     /// ## Current state
 
@@ -86,14 +89,13 @@ struct LoweringContext {
 
     void generateImpl(FunctionDefinition const&);
 
-    void generateParameter(List<ir::Parameter*>::iterator& paramItr,
-                           ParameterDeclaration const* paramDecl);
+    void generateParameter(ParameterDeclaration const* paramDecl,
+                           PassingConvention pc,
+                           List<ir::Parameter>::iterator& paramItr);
 
     void generateImpl(StructDefinition const&);
 
     void generateImpl(VariableDeclaration const&);
-
-    void generateImpl(ParameterDeclaration const&);
 
     void generateImpl(ExpressionStatement const&);
 
@@ -109,22 +111,6 @@ struct LoweringContext {
 
     /// # Expressions
 
-    /// ## Reference translation
-    /// `&int -> ptr` Pointer to object
-    /// `&[int, N] -> ptr` Pointer to first element
-    /// `&[int] -> { ptr, i64 }` Pointer to first element and dynamic size
-
-    ///
-    /// Let `X` be the raw `sema::ObjectType` of the expression \p expr
-    /// The return value of this function depends on the `sema::QualType` of
-    /// \p expr in the following way:
-    ///
-    /// ` X     -> Value of the expression `
-    ///
-    /// `{',&}X -> Address of the referred object`
-    ///
-    /// `&X     -> Address of the referred object`
-    ///
     Value getValue(Expression const* expr);
 
     template <ValueLocation Loc>
@@ -137,28 +123,6 @@ struct LoweringContext {
             return toMemory(value);
         }
     }
-
-    ///
-    /// Let `X` be the raw `sema::ObjectType` of the expression \p expr
-    /// The return value of this function depends on the `sema::QualType` of
-    /// \p expr in the following way:
-    ///
-    /// ` X -> -`
-    /// Traps if `X` is a struct type, as temporaries don't have addresses.
-    /// If `X` is an array type, a value of type `ptr` will be returned
-    ///
-    /// `'X -> Address of the referred object`
-    /// If `X` is a struct or static array type, a value of type `ptr` will be
-    /// returned. If `X` is a dynamic array type, a value of type `{ ptr, i64 }`
-    /// will be returned
-    ///
-    /// `&X -> Address of the reference`
-    /// If `X` is a struct or static array type, a value of type `ptr`, pointing
-    /// to another `ptr`, will be returned. If `X` is a dynamic array type, a
-    /// value of type `ptr`, pointing to a value of type `{ ptr, i64 }`, will be
-    /// returned
-    ///
-    //    Value getAddress(Expression const* expr);
 
     Value getValueImpl(Expression const& expr) { SC_UNREACHABLE(); }
     Value getValueImpl(Identifier const&);
@@ -248,14 +212,14 @@ struct LoweringContext {
     /// Values are stored in `variableMap`
     void memorizeVariable(sema::Entity const* entity, Value value);
 
-    /// Associate array data pointers with their size
-    void memorizeArraySize(Value data, Value size);
+    /// Associate array IDs with their size
+    void memorizeArraySize(uint64_t arrayID, Value size);
 
     /// \overload
-    void memorizeArraySize(Value data, size_t size);
+    void memorizeArraySize(uint64_t arrayID, size_t size);
 
     /// Retrieve stored array size
-    Value getArraySize(Value data) const;
+    Value getArraySize(uint64_t ID) const;
 
     /// # Map utils
 

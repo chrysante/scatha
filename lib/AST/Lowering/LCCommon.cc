@@ -130,16 +130,17 @@ void LoweringContext::memorizeVariable(sema::Entity const* entity,
     SC_ASSERT(success, "Redeclaration");
 }
 
-void LoweringContext::memorizeArraySize(Value data, Value size) {
-    arraySizeMap[data] = size;
+void LoweringContext::memorizeArraySize(uint64_t arrayID, Value size) {
+    bool success = arraySizeMap.insert({ arrayID, size }).second;
+    SC_ASSERT(success, "ID already present");
 }
 
-void LoweringContext::memorizeArraySize(Value data, size_t count) {
-    memorizeArraySize(data, Value(intConstant(count, 64), Register));
+void LoweringContext::memorizeArraySize(uint64_t arrayID, size_t count) {
+    memorizeArraySize(arrayID, Value(intConstant(count, 64), Register));
 }
 
-Value LoweringContext::getArraySize(Value data) const {
-    auto itr = arraySizeMap.find(data);
+Value LoweringContext::getArraySize(uint64_t ID) const {
+    auto itr = arraySizeMap.find(ID);
     SC_ASSERT(itr != arraySizeMap.end(), "Not found");
     return itr->second;
 }
@@ -150,10 +151,6 @@ ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
         [&](sema::QualType const& qualType) -> ir::Type const* {
             if (!qualType.isReference()) {
                 return mapType(qualType.base());
-            }
-            auto* arrayType = dyncast<sema::ArrayType const*>(qualType.base());
-            if (arrayType && arrayType->isDynamic()) {
-                return arrayViewType;
             }
             return ctx.pointerType();
         },
@@ -178,11 +175,7 @@ ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
             return itr->second;
         },
         [&](sema::ArrayType const& arrayType) -> ir::Type const* {
-            if (!arrayType.isDynamic()) {
-                return ctx.arrayType(mapType(arrayType.elementType()), arrayType.count());
-            }
-            /// For now we don't map dynamic array value type, as we might not ever really need it
-            SC_UNIMPLEMENTED();
+            return ctx.arrayType(mapType(arrayType.elementType()), arrayType.count());
         },
     }); // clang-format on
 }

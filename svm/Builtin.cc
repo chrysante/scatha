@@ -70,8 +70,8 @@ utl::vector<ExternalFunction> svm::makeBuiltinTable() {
     /// ## Memory allocation
     at(Builtin::memcpy) = [](u64* regPtr, VirtualMachine* vm, void*) {
         void* const dest = load<void*>(regPtr);
-        void* const source = load<void*>(regPtr + 1);
-        size_t const size = load<size_t>(regPtr + 2);
+        size_t const size = load<size_t>(regPtr + 1);
+        void* const source = load<void*>(regPtr + 2);
         std::memcpy(dest, source, size);
     };
     at(Builtin::alloc) = [](u64* regPtr, VirtualMachine* vm, void*) {
