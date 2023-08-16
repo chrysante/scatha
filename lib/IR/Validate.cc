@@ -38,6 +38,7 @@ struct AssertContext {
     void assertSpecialInvariants(Branch const&);
     void assertSpecialInvariants(Load const&);
     void assertSpecialInvariants(Store const&);
+    void assertSpecialInvariants(GetElementPointer const&);
 
     void uniqueName(Value const& value);
 
@@ -243,6 +244,11 @@ void AssertContext::assertSpecialInvariants(Load const& load) {
 void AssertContext::assertSpecialInvariants(Store const& store) {
     CHECK(store.address()->type() == ctx.pointerType(),
           "Address must be of pointer type");
+}
+
+void AssertContext::assertSpecialInvariants(GetElementPointer const& gep) {
+    CHECK(gep.basePointer()->type() == ctx.pointerType(),
+          "Base pointer must be of pointer type");
 }
 
 void AssertContext::uniqueName(Value const& value) {
