@@ -182,12 +182,9 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         auto data = getValue(varDecl.initExpression());
         auto* memcpy = getFunction(symbolTable.builtinFunction(
             static_cast<size_t>(svm::Builtin::memcpy)));
-        add<ir::Call>(memcpy,
-                      std::array<ir::Value*, 3>{
-                          array,
-                          data.get(),
-                          intConstant(arrayType->count() * elemType->size(),
-                                      64) });
+        auto* size = intConstant(arrayType->count() * elemType->size(), 64);
+        std::array<ir::Value*, 4> args = { array, size, data.get(), size };
+        add<ir::Call>(memcpy, args);
     }
     auto data = Value(array, mapType(arrayType), Memory, newArrayID());
     memorizeVariable(varDecl.variable(), data);
@@ -204,15 +201,43 @@ void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
         add<ir::Return>(ctx.voidValue());
         return;
     }
-    auto* returnValue = getValue<Register>(retDecl.expression());
-    switch (CC.returnValue().location()) {
-    case Register:
-        add<ir::Return>(returnValue);
-        break;
+    auto returnValue = getValue(retDecl.expression());
 
-    case Memory:
-        add<ir::Store>(&currentFunction->parameters().front(), returnValue);
-        add<ir::Return>(ctx.voidValue());
+    switch (retDecl.expression()->type()->base()->entityType()) {
+    case sema::EntityType::ArrayType: {
+        switch (CC.returnValue().location()) {
+        case Register: {
+            auto* data = toRegister(returnValue);
+            auto* size = toRegister(getArraySize(returnValue.userData()));
+            auto* insertData = add<ir::InsertValue>(ctx.undef(arrayViewType),
+                                                    data,
+                                                    std::array{ size_t{ 0 } },
+                                                    "retval");
+            auto* insertSize = add<ir::InsertValue>(insertData,
+                                                    size,
+                                                    std::array{ size_t{ 1 } },
+                                                    "retval");
+            add<ir::Return>(insertSize);
+            break;
+        }
+        case Memory:
+            SC_UNIMPLEMENTED();
+            break;
+        }
+        break;
+    }
+    default:
+        switch (CC.returnValue().location()) {
+        case Register:
+            add<ir::Return>(toRegister(returnValue));
+            break;
+
+        case Memory:
+            add<ir::Store>(&currentFunction->parameters().front(),
+                           toRegister(returnValue));
+            add<ir::Return>(ctx.voidValue());
+            break;
+        }
         break;
     }
 }

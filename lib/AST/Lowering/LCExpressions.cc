@@ -271,19 +271,31 @@ Value LoweringContext::getValueImpl(BinaryExpression const& expr) {
     case OrAssignment:
         [[fallthrough]];
     case XOrAssignment: {
-        auto* lhs = getValue<Register>(expr.lhs());
-        auto* rhs = getValue<Register>(expr.rhs());
+        auto lhs = getValue(expr.lhs());
+        auto rhs = getValue(expr.rhs());
+        auto lhsReg = toRegister(lhs);
+        auto rhsReg = toRegister(rhs);
         if (expr.operation() != Assignment) {
             SC_ASSERT(builtinType == expr.rhs()->type()->base(), "");
-            auto* lhsValue = add<ir::Load>(lhs, mapType(builtinType), "lhs");
-            rhs =
-                add<ir::ArithmeticInst>(lhsValue,
-                                        rhs,
-                                        mapArithmeticAssignOp(builtinType,
-                                                              expr.operation()),
-                                        "expr");
+            auto* lhsValue = add<ir::Load>(lhsReg, mapType(builtinType), "lhs");
+            auto operation =
+                mapArithmeticAssignOp(builtinType, expr.operation());
+            rhsReg =
+                add<ir::ArithmeticInst>(lhsValue, rhsReg, operation, "expr");
         }
-        add<ir::Store>(lhs, rhs);
+        add<ir::Store>(lhsReg, rhsReg);
+        if (auto* arrayType =
+                dyncast<sema::ArrayType const*>(expr.lhs()->type()->base());
+            arrayType && arrayType->isDynamic())
+        {
+            SC_ASSERT(expr.operation() == Assignment, "");
+            SC_ASSERT(expr.lhs()->type()->isReference(), "");
+            auto lhsSize = getArraySize(lhs.userData());
+            SC_ASSERT(lhsSize.location() == Memory,
+                      "Must be in memory to reassign");
+            auto* rhsSizeReg = toRegister(getArraySize(rhs.userData()));
+            add<ir::Store>(lhsSize.get(), rhsSizeReg);
+        }
         return Value();
     }
     case BinaryOperator::_count:
@@ -308,24 +320,59 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
     Value base = getValue(expr.object());
     auto* accessedId = cast<Identifier const*>(expr.member());
     auto* var = cast<sema::Variable const*>(accessedId->entity());
+
+    Value value;
+    size_t const irIndex = structIndexMap[{
+        cast<sema::StructureType const*>(expr.object()->type()->base()),
+        var->index() }];
     switch (base.location()) {
     case Register: {
-        auto* result = add<ir::ExtractValue>(base.get(),
-                                             std::array{ var->index() },
-                                             "mem.acc");
-        return Value(result, Register);
+        auto* result =
+            add<ir::ExtractValue>(base.get(), std::array{ irIndex }, "mem.acc");
+        value = Value(result, Register);
+        break;
     }
     case Memory: {
         auto* baseType = mapType(expr.object()->type()->base());
         auto* result = add<ir::GetElementPointer>(baseType,
                                                   base.get(),
                                                   intConstant(0, 64),
-                                                  std::array{ var->index() },
+                                                  std::array{ irIndex },
                                                   "mem.acc");
         auto* accessedType = mapType(var->type());
-        return Value(result, accessedType, Memory);
+        value = Value(result, accessedType, Memory);
+        break;
     }
     }
+    auto* memType = expr.type();
+    auto* arrayType = dyncast<sema::ArrayType const*>(memType->base());
+    if (!arrayType) {
+        return value;
+    }
+    value.setUserData(newArrayID());
+    Value size;
+    switch (base.location()) {
+    case Register: {
+        auto* result = add<ir::ExtractValue>(base.get(),
+                                             std::array{ irIndex + 1 },
+                                             "mem.acc.size");
+        size = Value(result, Register);
+        break;
+    }
+    case Memory: {
+        auto* baseType = mapType(expr.object()->type()->base());
+        auto* result = add<ir::GetElementPointer>(baseType,
+                                                  base.get(),
+                                                  intConstant(0, 64),
+                                                  std::array{ irIndex + 1 },
+                                                  "mem.acc.size");
+        auto* accessedType = mapType(var->type());
+        size = Value(result, accessedType, Memory);
+        break;
+    }
+    }
+    memorizeArraySize(value.userData(), size);
+    return value;
 }
 
 Value LoweringContext::getValueImpl(ReferenceExpression const& expr) {
@@ -405,14 +452,34 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
     bool callHasName = !isa<ir::VoidType>(function->returnType());
     std::string name = callHasName ? "call.result" : std::string{};
     auto* inst = add<ir::Call>(function, arguments, std::move(name));
-    switch (retvalLocation) {
-    case Register:
-        return Value(inst, Register);
-    case Memory:
-        return Value(arguments.front(),
-                     mapType(call.function()->returnType()),
-                     Memory,
-                     sema::ValueCategory::RValue);
+
+    switch (call.type()->base()->entityType()) {
+    case sema::EntityType::ArrayType: {
+        switch (retvalLocation) {
+        case Register: {
+            auto* data =
+                add<ir::ExtractValue>(inst, std::array{ size_t{ 0 } }, "data");
+            auto* size =
+                add<ir::ExtractValue>(inst, std::array{ size_t{ 1 } }, "size");
+            Value value(data, Register, newArrayID());
+            memorizeArraySize(value.userData(), Value(size, Register));
+            return value;
+        }
+        case Memory:
+            SC_UNIMPLEMENTED();
+        }
+    }
+    default:
+        switch (retvalLocation) {
+        case Register:
+            return Value(inst, Register);
+        case Memory:
+            return Value(arguments.front(),
+                         mapType(call.function()->returnType()),
+                         Memory,
+                         sema::ValueCategory::RValue);
+        }
+        break;
     }
 }
 
@@ -458,8 +525,10 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
         case sema::RefConversion::DerefExpl:
             SC_UNIMPLEMENTED();
 
-        case sema::RefConversion::TakeAddress:
-            return Value(getValue<Memory>(expr), Register);
+        case sema::RefConversion::TakeAddress: {
+            auto value = getValue(expr);
+            return Value(toMemory(value), Register, value.userData());
+        }
         }
     }();
 

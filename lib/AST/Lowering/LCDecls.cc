@@ -32,8 +32,23 @@ void LoweringContext::makeDeclarations() {
 
 void LoweringContext::declareType(sema::StructureType const* structType) {
     auto structure = allocate<ir::StructureType>(structType->mangledName());
-    for (auto* member: structType->memberVariables()) {
-        structure->addMember(mapType(member->type()));
+    size_t irIndex = 0;
+    for (auto [semaIndex, member]:
+         structType->memberVariables() | ranges::views::enumerate)
+    {
+        auto* memType = member->type();
+        structure->addMember(mapType(memType));
+        structIndexMap[{ structType, semaIndex }] = irIndex++;
+        auto* arrayType = dyncast<sema::ArrayType const*>(memType->base());
+        if (!arrayType || !arrayType->isDynamic()) {
+            continue;
+        }
+        SC_ASSERT(memType->isReference(),
+                  "Can't have dynamic arrays in structs");
+        structure->addMember(ctx.integralType(64));
+        /// We simply increment the index without adding anything to the map
+        /// because `getValueImpl(MemberAccess)` will know what to do
+        ++irIndex;
     }
     typeMap[structType] = structure.get();
     mod.addStructure(std::move(structure));
@@ -98,7 +113,15 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     auto retvalPC = CC.returnValue();
     switch (retvalPC.location()) {
     case Register:
-        irReturnType = mapType(function->returnType());
+        switch (function->returnType()->base()->entityType()) {
+        case sema::EntityType::ArrayType: {
+            irReturnType = arrayViewType;
+            break;
+        }
+        default:
+            irReturnType = mapType(function->returnType());
+            break;
+        }
         break;
 
     case Memory:

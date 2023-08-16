@@ -45,6 +45,12 @@ struct LoweringContext {
     utl::hashmap<sema::Entity const*, Value> valueMap;
     utl::hashmap<sema::Function const*, ir::Callable*> functionMap;
     utl::hashmap<sema::Function const*, CallingConvention> CCMap;
+    /// Maps member indices of `sema::StructureType` to indices of
+    /// `ir::StructureType`. These indices are not necessarily the same. Right
+    /// now they only differ if the struct contains array references, because
+    /// these are only value in Sema but two values in IR `(ptr, i64)`.
+    utl::hashmap<std::pair<sema::StructureType const*, size_t>, size_t>
+        structIndexMap;
 
     uint64_t _arrayID = 0;
     uint64_t newArrayID() { return ++_arrayID; }
