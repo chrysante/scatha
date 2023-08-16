@@ -28,14 +28,14 @@ func i32 @main() {
 
 TEST_CASE("Static data - 2", "[end-to-end][static-data]") {
     test::checkIRReturns(6, R"(
-ext func void @__builtin_memcpy(ptr, ptr, i64)
+ext func void @__builtin_memcpy(ptr, i64, ptr, i64)
 
-@data = [i32, 3] [i32 1, i32 2, i32 3]
+@global.data = [i32, 3] [i32 1, i32 2, i32 3]
 
 func i32 @main() {
   %entry:
     %data = alloca i32, i32 3
-    call void @__builtin_memcpy, ptr %data, ptr @data, i64 12
+    call void @__builtin_memcpy, ptr %data, i64 12, ptr @global.data, i64 12
     goto label %header
     
   %header:
