@@ -6,6 +6,7 @@
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Match.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
@@ -276,7 +277,7 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
     }
     for (auto& inst: *basicBlock) {
         // clang-format off
-        visit(inst, utl::overload{
+        SC_MATCH (inst) {
             [&](Load& load) {
                 auto* address = dyncast<Alloca*>(load.address());
                 if (!variables.contains(address)) {
@@ -289,8 +290,9 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
                     value = info.versions[i];
                 }
                 else {
-                    /// The stack being empty means we load from uninitialized
-                    /// memory, so we replace the load with `undef`
+                    /// The stack being empty means we load from
+                    /// uninitialized memory, so we replace the load
+                    /// with `undef`
                     value = irCtx.undef(load.type());
                 }
                 replaceValue(&load, value);
@@ -303,7 +305,7 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
                 genName(address, store.value());
             },
             [&](Instruction&) {}
-        }); // clang-format on
+        }; // clang-format on
     }
     for (auto* succ: basicBlock->successors()) {
         for (auto& phi: succ->phiNodes()) {
