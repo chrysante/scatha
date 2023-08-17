@@ -36,7 +36,9 @@ void StructureType::computeSizeAndAlign() {
         _memberOffsets.push_back(utl::narrow_cast<u16>(currentBaseSize));
         setSize(currentBaseSize + member->size());
     }
-    setSize(size() == 0 ? 0 : utl::round_up(size(), align()));
+    /// Empty types have a size of 1 to give objects address identity (and also
+    /// because it solves many issues)
+    setSize(size() == 0 ? 1 : utl::round_up(size(), align()));
 }
 
 ArrayType::ArrayType(Type const* elementType, size_t count):
