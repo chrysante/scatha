@@ -148,7 +148,7 @@ static void run(mir::Module const& mod) {
     if (!issues.empty()) {
         issues.print(source);
     }
-    if (!root) {
+    if (issues.haveErrors()) {
         return;
     }
     issues.clear();
