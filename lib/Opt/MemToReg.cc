@@ -10,6 +10,7 @@
 #include "IR/Context.h"
 #include "IR/Dominance.h"
 #include "IR/Validate.h"
+#include "Opt/Common.h"
 #include "Opt/PassRegistry.h"
 
 using namespace scatha;
@@ -274,42 +275,35 @@ void MemToRegContext::renameVariables(BasicBlock* basicBlock) {
         genName(itr->second, &phi);
     }
     for (auto& inst: *basicBlock) {
-        for (auto [index, operand]: inst.operands() | ranges::views::enumerate)
-        {
-            auto* load = dyncast<Load*>(operand);
-            if (!load) {
-                continue;
-            }
-            if (auto* allc = static_cast<Alloca*>(load->address());
-                !variables.contains(allc))
-            {
-                continue;
-            }
-            auto* address = cast<Alloca*>(load->address());
-            auto& info = variables.find(address)->second;
-            /// The stack being empty means we load from uninitialized memory,
-            /// so we replace the load with `undef`
-            if (!info.stack.empty()) {
-                size_t i = info.stack.top();
-                inst.setOperand(index, info.versions[i]);
-            }
-            else {
-                auto* opType = inst.operands()[index]->type();
-                inst.setOperand(index, irCtx.undef(opType));
-            }
-        }
-        auto* store = dyncast<Store*>(&inst);
-        if (!store) {
-            continue;
-        }
-        /// We `static_cast` and not `cast` because the address might not be an
-        /// alloca instruction. However it surely is an alloca if it is in
-        /// `variables`
-        auto* address = static_cast<Alloca*>(store->address());
-        if (!variables.contains(address)) {
-            continue;
-        }
-        genName(cast<Alloca*>(store->address()), store->value());
+        // clang-format off
+        visit(inst, utl::overload{
+            [&](Load& load) {
+                auto* address = dyncast<Alloca*>(load.address());
+                if (!variables.contains(address)) {
+                    return;
+                }
+                auto& info = variables.find(address)->second;
+                Value* value = nullptr;
+                if (!info.stack.empty()) {
+                    size_t i = info.stack.top();
+                    value = info.versions[i];
+                }
+                else {
+                    /// The stack being empty means we load from uninitialized
+                    /// memory, so we replace the load with `undef`
+                    value = irCtx.undef(load.type());
+                }
+                replaceValue(&load, value);
+            },
+            [&](Store& store) {
+                auto* address = dyncast<Alloca*>(store.address());
+                if (!variables.contains(address)) {
+                    return;
+                }
+                genName(address, store.value());
+            },
+            [&](Instruction&) {}
+        }); // clang-format on
     }
     for (auto* succ: basicBlock->successors()) {
         for (auto& phi: succ->phiNodes()) {
