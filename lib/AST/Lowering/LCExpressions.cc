@@ -548,10 +548,11 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
         auto* fromType = cast<sema::ArrayType const*>(expr->type()->base());
         auto* toType = cast<sema::ArrayType const*>(conv.type()->base());
         auto data = refConvResult;
-        data.setUserData(newArrayID());
         if (toType->isDynamic()) {
+            uint64_t const oldID = data.userData();
+            data.setUserData(newArrayID());
             if (fromType->isDynamic()) {
-                auto count = getArraySize(data.userData());
+                auto count = getArraySize(oldID);
                 if (conv.conversion()->objectConversion() ==
                     Reinterpret_ArrayRef_ToByte)
                 {
