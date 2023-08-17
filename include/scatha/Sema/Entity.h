@@ -320,6 +320,18 @@ public:
     /// \Returns `true` if this is a member function
     bool isMember() const { return _isMember; }
 
+    /// \Returns `true` if this function is a special member function
+    bool isSpecialMemberFunction() const {
+        return _smfKind != SpecialMemberFunction::COUNT;
+    }
+
+    /// \Returns the kind of special member function if this function is a
+    /// special member function
+    SpecialMemberFunction SMFKind() const { return _smfKind; }
+
+    /// Set the kind of special member function this function is
+    void setSMFKind(SpecialMemberFunction kind) { _smfKind = kind; }
+
     /// \returns Slot of extern function table.
     ///
     /// Only applicable if this function is extern.
@@ -369,6 +381,7 @@ private:
     OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;
     AccessSpecifier accessSpec = AccessSpecifier::Private;
+    SpecialMemberFunction _smfKind = SpecialMemberFunction::COUNT;
     FunctionKind _kind = FunctionKind::Native;
     bool _isMember          : 1 = false;
     bool _haveBinaryAddress : 1 = false;
@@ -421,7 +434,11 @@ public:
 
     void setAlign(size_t value) { _align = value; }
 
+    bool hasTrivialLifetime() const;
+
 private:
+    bool hasTrivialLifetimeImpl() const { return true; }
+
     friend class Type;
     size_t sizeImpl() const { return _size; }
     size_t alignImpl() const { return _align; }
@@ -540,10 +557,36 @@ public:
         return _memberVars;
     }
 
+    /// Adds a variable to the list of member variables of this structure
     void addMemberVariable(Variable* var) { _memberVars.push_back(var); }
 
-public:
+    ///
+    void addSpecialMemberFunction(SpecialMemberFunction kind,
+                                  OverloadSet* overloadSet) {
+        specialMemberFunctions[kind] = overloadSet;
+    }
+
+    ///
+    OverloadSet* specialMemberFunction(SpecialMemberFunction kind) const {
+        auto itr = specialMemberFunctions.find(kind);
+        if (itr != specialMemberFunctions.end()) {
+            return itr->second;
+        }
+        return nullptr;
+    }
+
+private:
+    friend class ObjectType;
+    /// Structure type has trivial lifetime if no user defined copy constructor,
+    /// move constructor or destructor are present and all member types are
+    /// trivial
+    bool hasTrivialLifetimeImpl() const;
+    bool computeTrivialLifetime() const;
+
     utl::small_vector<Variable*> _memberVars;
+    utl::hashmap<SpecialMemberFunction, OverloadSet*> specialMemberFunctions;
+    mutable bool _computedTriviality : 1 = false;
+    mutable bool _hasTrivialLifetime : 1 = false;
 };
 
 /// Concrete class representing the type of an array

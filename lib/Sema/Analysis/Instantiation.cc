@@ -6,6 +6,8 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
+#include "Common/Match.h"
+#include "Common/Ranges.h"
 #include "Sema/Analysis/DependencyGraph.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Entity.h"
@@ -124,6 +126,18 @@ std::vector<StructureType const*> Context::run() {
     return sortedStructTypes;
 }
 
+static SpecialMemberFunction toSMF(ast::FunctionDefinition const& funcDef) {
+    for (uint8_t i = 0; i < utl::to_underlying(SpecialMemberFunction::COUNT);
+         ++i)
+    {
+        SpecialMemberFunction SMF{ i };
+        if (toString(SMF) == funcDef.name()) {
+            return SMF;
+        }
+    }
+    return SpecialMemberFunction::COUNT;
+}
+
 void Context::instantiateStructureType(DependencyGraphNode& node) {
     ast::StructDefinition& structDef =
         cast<ast::StructDefinition&>(*node.astNode);
@@ -131,32 +145,32 @@ void Context::instantiateStructureType(DependencyGraphNode& node) {
     utl::armed_scope_guard popScope([&] { sym.makeScopeCurrent(nullptr); });
     size_t objectSize = 0;
     size_t objectAlign = 0;
-    auto& objectType = cast<StructureType&>(*structDef.entity());
-    for (size_t index = 0; auto* statement: structDef.body()->statements()) {
-        if (statement->nodeType() != ast::NodeType::VariableDeclaration) {
-            continue;
+    auto& structType = cast<StructureType&>(*structDef.entity());
+    /// Here we collect all the variables and special member function of the
+    /// struct
+    for (auto [varIndex, varDecl]: structDef.body()->statements() |
+                                       Filter<ast::VariableDeclaration> |
+                                       ranges::views::enumerate)
+    {
+        auto& var = *varDecl->variable();
+        structType.addMemberVariable(&var);
+        if (!varDecl->type()) {
+            return;
         }
-        auto& varDecl = cast<ast::VariableDeclaration&>(*statement);
-        auto& var = *varDecl.variable();
-        objectType.addMemberVariable(&var);
-        if (!varDecl.type()) {
-            break;
-        }
-        auto* varType = varDecl.type();
+        auto* varType = varDecl->type();
         objectAlign = std::max(objectAlign, varType->align());
         SC_ASSERT(varType->size() % varType->align() == 0,
                   "size must be a multiple of align");
         objectSize = utl::round_up_pow_two(objectSize, varType->align());
         size_t const currentOffset = objectSize;
-        varDecl.setOffset(currentOffset);
-        varDecl.setIndex(index);
+        varDecl->setOffset(currentOffset);
+        varDecl->setIndex(varIndex);
         var.setOffset(currentOffset);
-        var.setIndex(index);
+        var.setIndex(varIndex);
         objectSize += varType->size();
-        ++index;
     }
-    objectType.setSize(objectSize);
-    objectType.setAlign(objectAlign);
+    structType.setSize(objectSize);
+    structType.setAlign(objectAlign);
 }
 
 void Context::instantiateVariable(DependencyGraphNode& node) {
@@ -170,15 +184,20 @@ void Context::instantiateVariable(DependencyGraphNode& node) {
     varDecl.variable()->setType(type);
 }
 
+static bool argIsRefTo(Reference ref,
+                       QualType const* arg,
+                       StructureType const* structType) {
+    return arg->reference() == ref && arg->base() == structType;
+}
+
 void Context::instantiateFunction(DependencyGraphNode& node) {
     SC_ASSERT(isa<Function>(node.entity), "Must be a function");
     ast::FunctionDefinition& fnDecl =
         cast<ast::FunctionDefinition&>(*node.astNode);
-    sym.makeScopeCurrent(node.entity->parent());
+    auto* function = cast<Function*>(node.entity);
+    sym.makeScopeCurrent(function->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto signature = analyzeSignature(fnDecl);
-    auto result =
-        sym.setSignature(cast<Function*>(node.entity), std::move(signature));
+    auto result = sym.setSignature(function, analyzeSignature(fnDecl));
     if (!result) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(result.error()))
@@ -187,6 +206,51 @@ void Context::instantiateFunction(DependencyGraphNode& node) {
         }
         iss.push(result.error());
         return;
+    }
+    auto SMF = toSMF(fnDecl);
+    if (SMF == SpecialMemberFunction::COUNT) {
+        return;
+    }
+    auto pushError = [&] {
+        using enum InvalidDeclaration::Reason;
+        iss.push(new InvalidDeclaration(&fnDecl,
+                                        InvalidSpecialMemberFunction,
+                                        *function->parent()));
+    };
+    auto* structType = dyncast<StructureType*>(function->parent());
+    if (!structType) {
+        pushError();
+        return;
+    }
+    function->setSMFKind(SMF);
+    structType->addSpecialMemberFunction(SMF, function->overloadSet());
+    auto const& sig = function->signature();
+    if (sig.argumentCount() == 0 ||
+        !argIsRefTo(RefMutExpl, sig.argumentType(0), structType))
+    {
+        pushError();
+        return;
+    }
+    using enum SpecialMemberFunction;
+    switch (function->SMFKind()) {
+    case New:
+        break;
+    case Move:
+        if (sig.argumentCount() != 2 ||
+            !argIsRefTo(RefMutExpl, sig.argumentType(1), structType))
+        {
+            pushError();
+            return;
+        }
+        break;
+    case Delete:
+        if (sig.argumentCount() != 1) {
+            pushError();
+            return;
+        }
+        break;
+    case COUNT:
+        SC_UNREACHABLE();
     }
 }
 
@@ -225,7 +289,7 @@ QualType const* Context::analyzeParameter(ast::ParameterDeclaration& param,
         return nullptr;
     }
     auto* structType = cast<StructureType const*>(structure->entity());
-    return sym.qualify(structType, thisParam->reference());
+    return sym.qualify(structType, implToExpl(thisParam->reference()));
 }
 
 QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {

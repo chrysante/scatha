@@ -112,7 +112,7 @@ SCATHA_API std::string_view toString(ConversionKind);
 SCATHA_API std::ostream& operator<<(std::ostream&, ConversionKind);
 
 ///
-enum class AccessSpecifier { Public, Private };
+enum class AccessSpecifier : uint8_t { Public, Private };
 
 /// Signedness of arithmetic types
 enum class Signedness { Signed, Unsigned };
@@ -134,6 +134,11 @@ inline constexpr Reference RefConstExpl = Reference::ConstExplicit;
 
 inline constexpr Reference RefMutExpl = Reference::MutExplicit;
 
+/// Converts the reference type from implicit to explicit
+/// Does not add reference qualification if none is present
+/// Does not alter reference mutability
+Reference implToExpl(Reference);
+
 /// Mutability qualifiers of `QualType`
 enum class Mutability { Const, Mutable };
 
@@ -152,6 +157,17 @@ Reference toExplicitRef(Mutability mut);
 /// - `RefConstImpl` if `mut == Const`
 /// - `RefMutImpl` if `mut == Mutable`
 Reference toImplicitRef(Mutability mut);
+
+/// Special member functions
+enum class SpecialMemberFunction : uint8_t {
+#define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(Name, str) Name,
+#include <scatha/Sema/Lists.def>
+    COUNT
+};
+
+SCATHA_API std::string_view toString(SpecialMemberFunction);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, SpecialMemberFunction);
 
 ///
 enum class FunctionAttribute : unsigned {

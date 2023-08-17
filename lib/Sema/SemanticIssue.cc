@@ -154,6 +154,8 @@ std::ostream& sema::operator<<(std::ostream& str,
           "Reserved identifier" },
         { InvalidDeclaration::Reason::ThisParameter,
           "Invalid `this` parameter" },
+        { InvalidDeclaration::Reason::InvalidSpecialMemberFunction,
+          "Invalid special member function declaration" }
     }); // clang-format on
 }
 

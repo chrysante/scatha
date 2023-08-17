@@ -1,27 +1,37 @@
 
-
-/// Keep this as a test case for array references but reevaluate the reference syntax before
-/*
-public fn main() -> int {
-    var data = &mut allocateInts(10);
-    for i = 0; i < data.count; ++i {
-        data[i] = i;
+struct X {
+    /// Default constructor
+    fn new(&mut this) {
+        print("Created X\n");
     }
-    var sum = 0;
-        for i = 0; i < data.count; ++i {
-        sum += data[i];
+    
+    /// Copy constructor
+    fn new(&mut this, rhs: &X) {
+        print("Copied X\n");
     }
-    deallocateInts(&mut data);
-    return sum;
+    
+    /// Move constructor
+    fn move(&mut this, rhs: &mut X) {
+        print("Moved X\n");
+    }
+    
+    fn delete(&mut this) {
+        print("Deleted X\n");
+    }
 }
 
-fn allocateInts(count: int) -> &mut [int] {
-    var result = &mut __builtin_alloc(count * 8, 8);
-    return reinterpret<&mut [int]>(&mut result);
+fn take(x: X) {
+
 }
 
-fn deallocateInts(data: &mut [int]) {
-    let bytes = reinterpret<&mut [byte]>(&mut data);
-    __builtin_dealloc(&mut bytes, 8);
+public fn main() {
+    var x: X;
+    var y = x;
+    take(x);
 }
-*/
+
+
+fn print(text: &str) {
+    __builtin_putstr(&text);
+}
+

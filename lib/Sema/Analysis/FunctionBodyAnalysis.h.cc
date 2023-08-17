@@ -1,4 +1,4 @@
-#include "Sema/Analysis/FunctionAnalysis.h"
+#include "Sema/Analysis/FunctionBodyAnalysis.h"
 
 #include <utl/scope_guard.hpp>
 
@@ -46,9 +46,10 @@ struct Context {
 
 } // namespace
 
-void sema::analyzeFunctions(SymbolTable& sym,
-                            IssueHandler& iss,
-                            std::span<DependencyGraphNode const> functions) {
+void sema::analyzeFunctionBodies(
+    SymbolTable& sym,
+    IssueHandler& iss,
+    std::span<DependencyGraphNode const> functions) {
     Context ctx{ sym, iss };
     for (auto const& node: functions) {
         SC_ASSERT(isa<Function>(node.entity), "We only accept functions here");

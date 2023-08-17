@@ -1,6 +1,6 @@
 #include "Sema/Analyze.h"
 
-#include "Sema/Analysis/FunctionAnalysis.h"
+#include "Sema/Analysis/FunctionBodyAnalysis.h"
 #include "Sema/Analysis/GatherNames.h"
 #include "Sema/Analysis/Instantiation.h"
 #include "Sema/Entity.h"
@@ -22,6 +22,6 @@ AnalysisResult sema::analyze(ast::AbstractSyntaxTree& root,
                  [](DependencyGraphNode const& node) {
         return isa<Function>(node.entity);
     });
-    analyzeFunctions(sym, iss, functions);
+    analyzeFunctionBodies(sym, iss, functions);
     return result;
 }

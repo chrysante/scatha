@@ -54,10 +54,8 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
     mod.addStructure(std::move(structure));
 }
 
-static bool isTrivial(sema::Type const* type) {
-    /// For now all types are trivial since we don't have constructors and
-    /// destructors yet
-    return true;
+static bool isTrivial(sema::QualType const* type) {
+    return type->isReference() || type->base()->hasTrivialLifetime();
 }
 
 static const size_t maxRegPassingSize = 16;

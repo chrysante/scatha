@@ -210,10 +210,10 @@ public:
         ExpectedReferenceInitializer,
         ReservedIdentifier,
         ThisParameter,
+        InvalidSpecialMemberFunction,
         _count
     };
 
-public:
     explicit InvalidDeclaration(ast::Statement const* statement,
                                 Reason reason,
                                 Scope const& currentScope):

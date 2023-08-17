@@ -36,6 +36,20 @@ SC_SEMA_ENTITY_DEF(PoisonEntity,   CONCRETE)
 // === List of all constant kinds ----------------------------------------=== //
 // ===--------------------------------------------------------------------=== //
 
+#ifndef SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF
+#   define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(Name, str)
+#endif
+
+SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(New,    "new")
+SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(Move,   "move")
+SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(Delete, "delete")
+
+#undef SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of all constant kinds ----------------------------------------=== //
+// ===--------------------------------------------------------------------=== //
+
 #ifndef SC_SEMA_CONSTKIND_DEF
 #   define SC_SEMA_CONSTKIND_DEF(Kind, _)
 #endif

@@ -9,6 +9,7 @@
 #include <utl/strcat.hpp>
 #include <utl/utility.hpp>
 
+#include "Common/Match.h"
 #include "Sema/NameMangling.h"
 
 using namespace scatha;
@@ -129,6 +130,11 @@ bool Type::isComplete() const {
     return size() != InvalidSize;
 }
 
+bool ObjectType::hasTrivialLifetime() const {
+    return visit(*this,
+                 [](auto& self) { return self.hasTrivialLifetimeImpl(); });
+}
+
 VoidType::VoidType(Scope* parentScope):
     BuiltinType(EntityType::VoidType,
                 "void",
@@ -177,6 +183,39 @@ FloatType::FloatType(size_t bitwidth, Scope* parentScope):
                    Signedness::Signed,
                    parentScope) {
     SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Invalid width");
+}
+
+bool StructureType::hasTrivialLifetimeImpl() const {
+    if (!_computedTriviality) {
+        _computedTriviality = true;
+        _hasTrivialLifetime = computeTrivialLifetime();
+    }
+    return _hasTrivialLifetime;
+}
+
+bool StructureType::computeTrivialLifetime() const {
+    using enum SpecialMemberFunction;
+    auto* constructor = specialMemberFunction(New);
+    bool hasCopyCTor =
+        constructor &&
+        constructor->end() != ranges::find_if(*constructor,
+                                              [&](Function const* function) {
+        auto const& sig = function->signature();
+        return sig.argumentCount() == 1 && sig.argumentType(0)->isConstRef() &&
+               sig.argumentType(0)->base() == this;
+        });
+    if (hasCopyCTor) {
+        return false;
+    }
+    if (specialMemberFunction(Move)) {
+        return false;
+    }
+    if (specialMemberFunction(Delete)) {
+        return false;
+    }
+    return ranges::all_of(memberVariables(), [](auto* var) {
+        return var->type()->base()->hasTrivialLifetime();
+    });
 }
 
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {

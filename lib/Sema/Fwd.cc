@@ -80,6 +80,22 @@ std::ostream& sema::operator<<(std::ostream& str, ConversionKind k) {
     return str << toString(k);
 }
 
+Reference sema::implToExpl(Reference ref) {
+    using enum Reference;
+    switch (ref) {
+    case None:
+        return None;
+    case ConstImplicit:
+        return ConstExplicit;
+    case MutImplicit:
+        return MutExplicit;
+    case ConstExplicit:
+        return ConstExplicit;
+    case MutExplicit:
+        return MutExplicit;
+    }
+}
+
 Mutability sema::baseMutability(QualType const* type) {
     if (type->isReference()) {
         return type->isMutRef() ? Mutability::Mutable : Mutability::Const;
@@ -103,6 +119,17 @@ Reference sema::toImplicitRef(Mutability mut) {
     case Mutability::Const:
         return RefConstImpl;
     }
+}
+
+std::string_view sema::toString(SpecialMemberFunction SMF) {
+    return std::array{
+#define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(name, str) std::string_view(str),
+#include "Sema/Lists.def"
+    }[static_cast<size_t>(SMF)];
+}
+
+std::ostream& sema::operator<<(std::ostream& str, SpecialMemberFunction SMF) {
+    return str << toString(SMF);
 }
 
 std::string_view sema::toString(ConstantKind k) {
