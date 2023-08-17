@@ -519,10 +519,9 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
 static std::optional<
     std::tuple<RefConversion, MutConversion, ObjectTypeConversion>>
     checkConversion(ConvKind kind,
-                    ast::Expression const* expr,
+                    sema::QualType const* from,
+                    Value const* constantValue,
                     QualType const* to) {
-    QualType const* from = expr->type();
-    Value const* value = expr->constantValue();
     if (from == to) {
         return std::tuple{ RefConversion::None,
                            MutConversion::None,
@@ -539,10 +538,10 @@ static std::optional<
     auto objConv = determineObjConv(kind, from->base(), to->base());
     /// If we can't find an implicit conversion and we have a constant value,
     /// we try to find an extended constant implicit conversion
-    if (kind == ConvKind::Implicit && !objConv && value &&
+    if (kind == ConvKind::Implicit && !objConv && constantValue &&
         *refConv != RefConversion::TakeAddress)
     {
-        objConv = tryImplicitConstConv(value, from->base(), to->base());
+        objConv = tryImplicitConstConv(constantValue, from->base(), to->base());
     }
     if (!objConv) {
         return std::nullopt;
@@ -561,7 +560,8 @@ static bool convertImpl(ConvKind kind,
     if (expr->type() == to) {
         return true;
     }
-    auto checkResult = checkConversion(kind, expr, to);
+    auto checkResult =
+        checkConversion(kind, expr->type(), expr->constantValue(), to);
     if (!checkResult) {
         if (iss) {
             iss->push<BadTypeConversion>(*expr, to);
@@ -598,23 +598,52 @@ bool sema::convertReinterpret(ast::Expression* expr,
 
 /// Implementation of the `*ConversionRank()` functions
 static std::optional<int> conversionRankImpl(ConvKind kind,
-                                             ast::Expression const* expr,
+                                             QualType const* from,
+                                             Value const* constantValue,
                                              QualType const* to) {
-    auto conv = checkConversion(kind, expr, to);
+    auto conv = checkConversion(kind, from, constantValue, to);
     if (!conv) {
         return std::nullopt;
     }
     return getRank(std::get<0>(*conv), std::get<1>(*conv), std::get<2>(*conv));
 }
 
+std::optional<int> sema::implicitConversionRank(QualType const* from,
+                                                QualType const* to) {
+    return implicitConversionRank(from, nullptr, to);
+}
+
+std::optional<int> sema::implicitConversionRank(QualType const* from,
+                                                Value const* constVal,
+                                                QualType const* to) {
+    return conversionRankImpl(ConvKind::Implicit, from, constVal, to);
+}
+
 std::optional<int> sema::implicitConversionRank(ast::Expression const* expr,
                                                 QualType const* to) {
-    return conversionRankImpl(ConvKind::Implicit, expr, to);
+    return conversionRankImpl(ConvKind::Implicit,
+                              expr->type(),
+                              expr->constantValue(),
+                              to);
+}
+
+std::optional<int> sema::explicitConversionRank(QualType const* from,
+                                                QualType const* to) {
+    return explicitConversionRank(from, nullptr, to);
+}
+
+std::optional<int> sema::explicitConversionRank(QualType const* from,
+                                                Value const* constVal,
+                                                QualType const* to) {
+    return conversionRankImpl(ConvKind::Explicit, from, constVal, to);
 }
 
 std::optional<int> sema::explicitConversionRank(ast::Expression const* expr,
                                                 QualType const* to) {
-    return conversionRankImpl(ConvKind::Explicit, expr, to);
+    return conversionRankImpl(ConvKind::Explicit,
+                              expr->type(),
+                              expr->constantValue(),
+                              to);
 }
 
 bool sema::convertToExplicitRef(ast::Expression* expr,

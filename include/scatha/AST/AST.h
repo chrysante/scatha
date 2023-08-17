@@ -666,29 +666,6 @@ public:
 };
 
 /// Abstract node representing a statement.
-class SCATHA_API Conversion: public Expression {
-public:
-    explicit Conversion(UniquePtr<Expression> expr,
-                        std::unique_ptr<sema::Conversion> conv);
-
-    ~Conversion();
-
-    AST_DERIVED_COMMON(Conversion)
-
-    /// The target type of the conversion
-    sema::QualType const* targetType() const;
-
-    /// The conversion
-    sema::Conversion const* conversion() const { return _conv.get(); }
-
-    /// The expression being converted
-    AST_PROPERTY(0, Expression, expression, Expression)
-
-private:
-    std::unique_ptr<sema::Conversion> _conv;
-};
-
-/// Abstract node representing a statement.
 class SCATHA_API Statement: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
@@ -1171,6 +1148,57 @@ public:
 
 private:
     Kind _kind;
+};
+
+/// # Synthetical nodes inserted by Sema
+
+/// Concrete node representing a type conversion
+class SCATHA_API Conversion: public Expression {
+public:
+    explicit Conversion(UniquePtr<Expression> expr,
+                        std::unique_ptr<sema::Conversion> conv);
+
+    ~Conversion();
+
+    AST_DERIVED_COMMON(Conversion)
+
+    /// The target type of the conversion
+    sema::QualType const* targetType() const;
+
+    /// The conversion
+    sema::Conversion const* conversion() const { return _conv.get(); }
+
+    /// The expression being converted
+    AST_PROPERTY(0, Expression, expression, Expression)
+
+private:
+    std::unique_ptr<sema::Conversion> _conv;
+};
+
+/// Concrete node representing a lifetime function call
+class SCATHA_API LifetimeCall: public Expression {
+public:
+    explicit LifetimeCall(std::span<UniquePtr<Expression>> arguments,
+                          sema::Function* lifetimeFunction,
+                          sema::SpecialMemberFunction kind);
+
+    AST_DERIVED_COMMON(LifetimeCall)
+
+    AST_RANGE_PROPERTY(0, Expression, argument, Argument)
+
+    /// The lifetime function to call
+    sema::Function* function() const { return _function; }
+
+    /// The type being constructed.
+    /// \Returns `cast<ObjectType const*>(function()->parent())`
+    sema::ObjectType const* constructedType() const;
+
+    /// The kind of lifetime function
+    sema::SpecialMemberFunction kind() const { return _kind; }
+
+private:
+    sema::Function* _function;
+    sema::SpecialMemberFunction _kind;
 };
 
 } // namespace scatha::ast

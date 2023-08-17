@@ -432,30 +432,8 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
         auto* returnType = mapType(call.function()->returnType());
         arguments.push_back(makeLocal(returnType, "retval"));
     }
-    for (auto [argPC, arg]:
-         ranges::views::zip(CC.arguments(), call.arguments()))
-    {
-        auto value = getValue(arg);
-        switch (argPC.location()) {
-        case Register:
-            arguments.push_back(toRegister(value));
-            break;
-
-        case Memory:
-            if (arg->isLValue()) {
-                auto* reg = toRegister(value);
-                arguments.push_back(
-                    storeLocal(reg,
-                               utl::strcat(value.get()->name(), ".param")));
-            }
-            else {
-                arguments.push_back(toMemory(value));
-            }
-            break;
-        }
-        if (argPC.numParams() == 2) {
-            arguments.push_back(toRegister(getArraySize(value.ID())));
-        }
+    for (auto [PC, arg]: ranges::views::zip(CC.arguments(), call.arguments())) {
+        generateArgument(PC, getValue(arg), arguments);
     }
     bool callHasName = !isa<ir::VoidType>(function->returnType());
     std::string name = callHasName ? "call.result" : std::string{};
@@ -492,6 +470,30 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
     }
 }
 
+void LoweringContext::generateArgument(PassingConvention const& PC,
+                                       Value value,
+                                       utl::vector<ir::Value*>& arguments) {
+    switch (PC.location()) {
+    case Register:
+        arguments.push_back(toRegister(value));
+        break;
+
+    case Memory:
+        if (value.isLValue()) {
+            auto* reg = toRegister(value);
+            arguments.push_back(
+                storeLocal(reg, utl::strcat(value.get()->name(), ".param")));
+        }
+        else {
+            arguments.push_back(toMemory(value));
+        }
+        break;
+    }
+    if (PC.numParams() == 2) {
+        arguments.push_back(toRegister(getArraySize(value.ID())));
+    }
+}
+
 Value LoweringContext::getValueImpl(Subscript const& expr) {
     auto* arrayType =
         cast<sema::ArrayType const*>(expr.object()->type()->base());
@@ -514,6 +516,84 @@ Value LoweringContext::getValueImpl(Subscript const& expr) {
         return Value(newID(), addr, elemType, Register, array.valueCategory());
     }
     }
+}
+
+static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
+    auto* val = dyncast_or_null<sema::IntValue const*>(expr->constantValue());
+    if (!val) {
+        return false;
+    }
+    auto value = val->value();
+    size_t const elemSize = expr->type()->base()->size();
+    auto* data = reinterpret_cast<u8 const*>(value.limbs().data());
+    for (auto* end = data + elemSize; data < end; ++data) {
+        dest.push_back(*data);
+    }
+    return true;
+}
+
+bool LoweringContext::genStaticListData(ListExpression const& list,
+                                        ir::Alloca* dest) {
+    auto* type = cast<sema::ArrayType const*>(list.type()->base());
+    auto* elemType = type->elementType();
+    utl::small_vector<u8> data;
+    data.reserve(type->size());
+    for (auto* expr: list.elements()) {
+        SC_ASSERT(elemType == expr->type()->base(), "Invalid type");
+        if (!evalConstant(expr, data)) {
+            return false;
+        }
+    }
+    auto constData =
+        allocate<ir::ConstantData>(ctx,
+                                   ctx.arrayType(mapType(elemType),
+                                                 list.elements().size()),
+                                   std::move(data),
+                                   "array");
+    auto* source = constData.get();
+    mod.addConstantData(std::move(constData));
+    auto* memcpy = getFunction(
+        symbolTable.builtinFunction(static_cast<size_t>(svm::Builtin::memcpy)));
+    auto* size = intConstant(list.elements().size() * elemType->size(), 64);
+    std::array<ir::Value*, 4> args = { dest, size, source, size };
+    add<ir::Call>(memcpy, args, std::string{});
+    return true;
+}
+
+void LoweringContext::genListDataFallback(ListExpression const& list,
+                                          ir::Alloca* dest) {
+    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
+    auto* elemType = mapType(arrayType->elementType());
+    for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
+        auto* gep = add<ir::GetElementPointer>(elemType,
+                                               dest,
+                                               intConstant(index, 32),
+                                               std::initializer_list<size_t>{},
+                                               "elem.ptr");
+        add<ir::Store>(gep, getValue<Register>(elem));
+    }
+}
+
+Value LoweringContext::getValueImpl(ListExpression const& list) {
+    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
+    auto* elemType = arrayType->elementType();
+    auto* array = new ir::Alloca(ctx,
+                                 intConstant(arrayType->count(), 32),
+                                 mapType(elemType),
+                                 "list");
+    allocas.push_back(array);
+    Value size(newID(), intConstant(list.children().size(), 64), Register);
+    valueMap.insert({ arrayType->countVariable(), size });
+    auto value = Value(newID(),
+                       array,
+                       mapType(arrayType),
+                       Memory,
+                       sema::ValueCategory::RValue);
+    if (!genStaticListData(list, array)) {
+        genListDataFallback(list, array);
+    }
+    memorizeArraySize(value.ID(), size);
+    return value;
 }
 
 Value LoweringContext::getValueImpl(Conversion const& conv) {
@@ -684,80 +764,34 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
     }
 }
 
-static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
-    auto* val = dyncast_or_null<sema::IntValue const*>(expr->constantValue());
-    if (!val) {
-        return false;
-    }
-    auto value = val->value();
-    size_t const elemSize = expr->type()->base()->size();
-    auto* data = reinterpret_cast<u8 const*>(value.limbs().data());
-    for (auto* end = data + elemSize; data < end; ++data) {
-        dest.push_back(*data);
-    }
-    return true;
-}
-
-bool LoweringContext::genStaticListData(ListExpression const& list,
-                                        ir::Alloca* dest) {
-    auto* type = cast<sema::ArrayType const*>(list.type()->base());
-    auto* elemType = type->elementType();
-    utl::small_vector<u8> data;
-    data.reserve(type->size());
-    for (auto* expr: list.elements()) {
-        SC_ASSERT(elemType == expr->type()->base(), "Invalid type");
-        if (!evalConstant(expr, data)) {
-            return false;
+Value LoweringContext::getValueImpl(LifetimeCall const& call) {
+    using enum sema::SpecialMemberFunction;
+    switch (call.kind()) {
+    case New: {
+        auto* type = mapType(call.constructedType());
+        auto* address = makeLocal(type, "anon");
+        auto* function = getFunction(call.function());
+        auto CC = CCMap[call.function()];
+        /// Lifetime function always must take the object parameter by reference
+        /// so we can just pass the pointer here
+        utl::small_vector<ir::Value*> arguments = { address };
+        for (auto [PC, arg]:
+             ranges::views::zip(CC.arguments(), call.arguments()))
+        {
+            generateArgument(PC, getValue(arg), arguments);
         }
+        add<ir::Call>(function, arguments, std::string{});
+        return Value(newID(),
+                     address,
+                     type,
+                     Memory,
+                     sema::ValueCategory::RValue);
     }
-    auto constData =
-        allocate<ir::ConstantData>(ctx,
-                                   ctx.arrayType(mapType(elemType),
-                                                 list.elements().size()),
-                                   std::move(data),
-                                   "array");
-    auto* source = constData.get();
-    mod.addConstantData(std::move(constData));
-    auto* memcpy = getFunction(
-        symbolTable.builtinFunction(static_cast<size_t>(svm::Builtin::memcpy)));
-    auto* size = intConstant(list.elements().size() * elemType->size(), 64);
-    std::array<ir::Value*, 4> args = { dest, size, source, size };
-    add<ir::Call>(memcpy, args, std::string{});
-    return true;
-}
-
-void LoweringContext::genListDataFallback(ListExpression const& list,
-                                          ir::Alloca* dest) {
-    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
-    auto* elemType = mapType(arrayType->elementType());
-    for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
-        auto* gep = add<ir::GetElementPointer>(elemType,
-                                               dest,
-                                               intConstant(index, 32),
-                                               std::initializer_list<size_t>{},
-                                               "elem.ptr");
-        add<ir::Store>(gep, getValue<Register>(elem));
+    case Move:
+        SC_UNIMPLEMENTED();
+    case Delete:
+        SC_UNIMPLEMENTED();
+    case COUNT:
+        SC_UNREACHABLE();
     }
-}
-
-Value LoweringContext::getValueImpl(ListExpression const& list) {
-    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
-    auto* elemType = arrayType->elementType();
-    auto* array = new ir::Alloca(ctx,
-                                 intConstant(arrayType->count(), 32),
-                                 mapType(elemType),
-                                 "list");
-    allocas.push_back(array);
-    Value size(newID(), intConstant(list.children().size(), 64), Register);
-    valueMap.insert({ arrayType->countVariable(), size });
-    auto value = Value(newID(),
-                       array,
-                       mapType(arrayType),
-                       Memory,
-                       sema::ValueCategory::RValue);
-    if (!genStaticListData(list, array)) {
-        genListDataFallback(list, array);
-    }
-    memorizeArraySize(value.ID(), size);
-    return value;
 }

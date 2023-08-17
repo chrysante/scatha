@@ -14,22 +14,28 @@ using namespace sema;
 ///  \returns The maximum conversion rank if all arguments are convertible to
 /// the parameters  `std::nullopt` otherwise
 static std::optional<int> signatureMatch(
-    std::span<QualType const* const> parameters,
-    std::span<ast::Expression const* const> arguments,
+    std::span<QualType const* const> argTypes,
+    std::span<Value const* const> constantArgs,
+    std::span<QualType const* const> paramTypes,
     bool isMemberCall) {
-    if (parameters.size() != arguments.size()) {
+    if (paramTypes.size() != argTypes.size()) {
         return std::nullopt;
     }
+    SC_ASSERT(argTypes.size() == constantArgs.size(), "");
     int maxRank = 0;
-    for (auto [index, param, arg]:
-         ranges::views::zip(ranges::views::iota(0), parameters, arguments))
+    for (auto [index, argType, constArg, paramType]:
+         ranges::views::zip(ranges::views::iota(0),
+                            argTypes,
+                            constantArgs,
+                            paramTypes))
     {
-        if (!param || !arg) {
+        if (!paramType || !argType) {
             return std::nullopt;
         }
-        auto const rank = isMemberCall && index == 0 ?
-                              explicitConversionRank(arg, param) :
-                              implicitConversionRank(arg, param);
+        auto const rank =
+            isMemberCall && index == 0 ?
+                explicitConversionRank(argType, constArg, paramType) :
+                implicitConversionRank(argType, constArg, paramType);
         if (!rank) {
             return std::nullopt;
         }
@@ -47,15 +53,18 @@ struct Match {
 
 } // namespace
 
-Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
+static Expected<Function*, OverloadResolutionError*> performORImpl(
     OverloadSet* overloadSet,
-    std::span<ast::Expression const* const> argumentTypes,
+    std::span<QualType const* const> argTypes,
+    std::span<Value const* const> constArgs,
     bool isMemberCall) {
     utl::small_vector<Match> matches;
     for (auto* F: *overloadSet) {
-        if (auto rank =
-                signatureMatch(F->argumentTypes(), argumentTypes, isMemberCall))
-        {
+        auto rank = signatureMatch(argTypes,
+                                   constArgs,
+                                   F->argumentTypes(),
+                                   isMemberCall);
+        if (rank) {
             matches.push_back({ F, *rank });
         }
     }
@@ -88,4 +97,30 @@ Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
                                                std::move(functions));
     }
     }
+}
+
+Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
+    OverloadSet* overloadSet,
+    std::span<QualType const* const> argTypes,
+    bool isMemberCall) {
+    return performORImpl(overloadSet,
+                         argTypes,
+                         utl::small_vector<Value const*>(argTypes.size()),
+                         isMemberCall);
+}
+
+/// \overload for expressions
+Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
+    OverloadSet* overloadSet,
+    std::span<ast::Expression const* const> arguments,
+    bool isMemberCall) {
+    utl::small_vector<QualType const*> argTypes;
+    utl::small_vector<Value const*> argValues;
+    argTypes.reserve(arguments.size());
+    argValues.reserve(arguments.size());
+    for (auto* arg: arguments) {
+        argTypes.push_back(arg->type());
+        argValues.push_back(arg->constantValue());
+    }
+    return performORImpl(overloadSet, argTypes, argValues, isMemberCall);
 }

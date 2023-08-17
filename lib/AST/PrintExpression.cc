@@ -26,8 +26,9 @@ struct Context {
     void printImpl(UniqueExpression const&);
     void printImpl(GenericExpression const&);
     void printImpl(ReferenceExpression const&);
-    void printImpl(Conversion const&);
     void printImpl(ListExpression const&);
+    void printImpl(Conversion const&);
+    void printImpl(LifetimeCall const&) {}
 
     std::ostream& str;
 };

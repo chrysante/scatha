@@ -101,15 +101,31 @@ SCATHA_TESTAPI bool convertReinterpret(ast::Expression* expr,
                                        QualType const* to,
                                        IssueHandler& issueHandler);
 
-/// \Returns The rank of the conversion if an implicit conversion from type \p
-/// from to type \p to exists. Otherwise `std::nullopt`
-SCATHA_TESTAPI std::optional<int> implicitConversionRank(
-    ast::Expression const* from, QualType const* to);
+/// \Returns The rank of the conversion if an implicit conversion from type
+/// \p from to type \p to exists. Otherwise `std::nullopt`
+SCATHA_TESTAPI std::optional<int> implicitConversionRank(QualType const* from,
+                                                         QualType const* to);
 
-/// \Returns The rank of the conversion if an explicit conversion from type \p
-/// from to type \p to exists. Otherwise `std::nullopt`
+/// \overload
+SCATHA_TESTAPI std::optional<int> implicitConversionRank(
+    QualType const* from, Value const* fromConstantValue, QualType const* to);
+
+/// \overload
+SCATHA_TESTAPI std::optional<int> implicitConversionRank(
+    ast::Expression const* expr, QualType const* to);
+
+/// \Returns The rank of the conversion if an explicit conversion from type
+/// \p from to type \p to exists. Otherwise `std::nullopt`
+SCATHA_TESTAPI std::optional<int> explicitConversionRank(QualType const* from,
+                                                         QualType const* to);
+
+/// \overload
 SCATHA_TESTAPI std::optional<int> explicitConversionRank(
-    ast::Expression const* from, QualType const* to);
+    QualType const* from, Value const* fromConstantValue, QualType const* to);
+
+/// \overload
+SCATHA_TESTAPI std::optional<int> explicitConversionRank(
+    ast::Expression const* expr, QualType const* to);
 
 /// Convert expression \p expr to an implicit reference
 SCATHA_TESTAPI bool convertToImplicitMutRef(ast::Expression* expr,

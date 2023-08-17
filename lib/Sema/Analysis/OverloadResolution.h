@@ -15,6 +15,12 @@ namespace scatha::sema {
 /// Performs overload resolution
 SCATHA_TESTAPI Expected<Function*, OverloadResolutionError*>
     performOverloadResolution(OverloadSet* overloadSet,
+                              std::span<QualType const* const> argumentTypes,
+                              bool isMemberCall);
+
+/// \overload for expressions
+SCATHA_TESTAPI Expected<Function*, OverloadResolutionError*>
+    performOverloadResolution(OverloadSet* overloadSet,
                               std::span<ast::Expression const* const> arguments,
                               bool isMemberCall);
 

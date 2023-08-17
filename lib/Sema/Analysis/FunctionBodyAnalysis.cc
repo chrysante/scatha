@@ -7,6 +7,7 @@
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
+#include "Sema/Analysis/Lifetime.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 
@@ -139,7 +140,9 @@ void Context::analyzeImpl(ast::CompoundStatement& block) {
     }
     sym.pushScope(block.scope());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    for (auto* statement: block.statements()) {
+    auto statements =
+        block.statements() | ranges::to<utl::small_vector<ast::Statement*>>;
+    for (auto* statement: statements) {
         analyze(*statement);
     }
     popScope.execute();
@@ -194,7 +197,36 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         finalType = sym.setMutable(finalType, Mutability::Const);
     }
     if (var.initExpression() && var.initExpression()->isDecorated()) {
-        convertImplicitly(var.initExpression(), finalType, iss);
+        auto* structType = dyncast<StructureType const*>(finalType->base());
+        if (!structType || finalType->isExplicitRef()) {
+            convertImplicitly(var.initExpression(), finalType, iss);
+        }
+        else if (var.initExpression()->type()->base() != structType ||
+                 !var.initExpression()->isRValue())
+        {
+            convertExplicitly(var.initExpression(),
+                              sym.setReference(finalType, RefConstExpl),
+                              iss);
+            std::array args = { var.extractInitExpression() };
+            auto call = makeConstructorCall(finalType->base(),
+                                            args,
+                                            sym,
+                                            iss,
+                                            var.sourceRange());
+            if (call) {
+                var.setInitExpression(std::move(call));
+            }
+        }
+    }
+    if (!var.initExpression()) {
+        auto call = makeConstructorCall(finalType->base(),
+                                        {},
+                                        sym,
+                                        iss,
+                                        var.sourceRange());
+        if (call) {
+            var.setInitExpression(std::move(call));
+        }
     }
     auto varRes = sym.addVariable(std::string(var.name()), finalType);
     if (!varRes) {

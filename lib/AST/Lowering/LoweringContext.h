@@ -141,10 +141,15 @@ struct LoweringContext {
     Value getValueImpl(Conditional const&);
     Value getValueImpl(FunctionCall const&);
     Value getValueImpl(Subscript const&);
-    Value getValueImpl(Conversion const&);
     Value getValueImpl(ListExpression const&);
+    Value getValueImpl(Conversion const&);
+    Value getValueImpl(LifetimeCall const&);
 
     /// # Helpers
+
+    void generateArgument(PassingConvention const& PC,
+                          Value arg,
+                          utl::vector<ir::Value*>& outArgs);
 
     bool genStaticListData(ListExpression const& list, ir::Alloca* dest);
 

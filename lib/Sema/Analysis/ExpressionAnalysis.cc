@@ -9,6 +9,7 @@
 #include "AST/Fwd.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
+#include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
@@ -547,10 +548,31 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion node
     if (auto* targetType = dyncast<QualType const*>(fc.object()->entity())) {
-        SC_ASSERT(fc.arguments().size() == 1, "For now...");
-        auto* arg = fc.argument(0);
-        fc.parent()->replaceChild(&fc, fc.extractArgument(0));
-        return convertExplicitly(arg, targetType, iss);
+        if (auto* structType =
+                dyncast<StructureType const*>(targetType->base()))
+        {
+            auto args =
+                fc.arguments() | ranges::views::transform([](auto* arg) {
+                    return arg->extractFromParent();
+                }) |
+                ranges::to<utl::small_vector<UniquePtr<ast::Expression>>>;
+            auto ctorCall = makeConstructorCall(structType,
+                                                args,
+                                                sym,
+                                                iss,
+                                                fc.sourceRange());
+            if (!ctorCall) {
+                return false;
+            }
+            fc.parent()->setChild(fc.indexInParent(), std::move(ctorCall));
+            return true;
+        }
+        else {
+            SC_ASSERT(fc.arguments().size() == 1, "For now...");
+            auto* arg = fc.argument(0);
+            fc.parent()->replaceChild(&fc, fc.extractArgument(0));
+            return convertExplicitly(arg, targetType, iss);
+        }
     }
 
     /// Make sure we have an overload set as our called object

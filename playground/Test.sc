@@ -25,9 +25,11 @@ fn take(x: X) {
 }
 
 public fn main() {
-    var x: X;
+    var x = X();
+    
     var y = x;
-    take(x);
+    
+    var z: X;
 }
 
 

@@ -89,3 +89,14 @@ Conversion::~Conversion() = default;
 sema::QualType const* Conversion::targetType() const {
     return conversion()->targetType();
 }
+
+LifetimeCall::LifetimeCall(std::span<UniquePtr<Expression>> arguments,
+                           sema::Function* function,
+                           sema::SpecialMemberFunction kind):
+    Expression(NodeType::LifetimeCall, SourceRange{}, arguments),
+    _function(function),
+    _kind(kind) {}
+
+sema::ObjectType const* LifetimeCall::constructedType() const {
+    return cast<sema::ObjectType const*>(function()->parent());
+}
