@@ -761,19 +761,19 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
 }
 
 UniquePtr<ast::Expression> Context::parseReference() {
-    if (auto unique = parseUnique()) {
-        return unique;
+    Token const token = tokens.peek();
+    switch (token.kind()) {
+    case BitAnd: {
+        tokens.eat();
+        bool const isMut = eatMut();
+        auto referred = parsePrefix();
+        return allocate<ast::ReferenceExpression>(std::move(referred),
+                                                  isMut,
+                                                  token.sourceRange());
     }
-    Token const refToken = tokens.peek();
-    if (refToken.kind() != BitAnd) {
-        return nullptr;
+    default:
+        return parseUnique();
     }
-    tokens.eat();
-    bool const isMut = eatMut();
-    auto referred = parseReference();
-    return allocate<ast::ReferenceExpression>(std::move(referred),
-                                              isMut,
-                                              refToken.sourceRange());
 }
 
 UniquePtr<ast::Expression> Context::parseUnique() {
@@ -802,10 +802,8 @@ UniquePtr<ast::Expression> Context::parsePostfix() {
     }
     while (true) {
         auto const& token = tokens.peek();
-        ast::UnaryOperator unaryOp;
         switch (token.kind()) {
         case Increment:
-            unaryOp = ast::UnaryOperator::Increment;
             expr = parseUnaryPostfix(ast::UnaryOperator::Increment,
                                      std::move(expr));
             break;

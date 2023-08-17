@@ -198,7 +198,7 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
         break;
     case ast::UnaryOperator::Increment:
         [[fallthrough]];
-    case ast::UnaryOperator::Decrement:
+    case ast::UnaryOperator::Decrement: {
         if (!isAny<IntType>(baseType)) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
@@ -207,16 +207,20 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
             return false;
         }
         switch (u.notation()) {
-        case ast::UnaryOperatorNotation::Prefix:
+        case ast::UnaryOperatorNotation::Prefix: {
+            auto* refType = sym.setReference(operandType, RefMutImpl);
+            u.decorate(u.operand()->entity(), refType);
+            break;
+        }
+        case ast::UnaryOperatorNotation::Postfix: {
             u.decorate(nullptr, sym.stripQualifiers(operandType));
             break;
-        case ast::UnaryOperatorNotation::Postfix:
-            u.decorate(nullptr, operandType);
-            break;
+        }
         case ast::UnaryOperatorNotation::_count:
             SC_UNREACHABLE();
         }
         break;
+    }
     case ast::UnaryOperator::_count:
         SC_UNREACHABLE();
     }

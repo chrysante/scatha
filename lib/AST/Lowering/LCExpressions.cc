@@ -100,10 +100,11 @@ Value LoweringContext::getValueImpl(UnaryExpression const& expr) {
     case Increment:
         [[fallthrough]];
     case Decrement: {
-        ir::Value* operand = getValue<Register>(expr.operand());
+        Value operand = getValue(expr.operand());
+        ir::Value* opAddr = toRegister(operand);
         ir::Type const* operandType = mapType(expr.operand()->type()->base());
         ir::Value* operandValue =
-            add<ir::Load>(operand,
+            add<ir::Load>(opAddr,
                           operandType,
                           utl::strcat(expr.operation(), ".op"));
         auto* newValue =
@@ -113,8 +114,15 @@ Value LoweringContext::getValueImpl(UnaryExpression const& expr) {
                                         ir::ArithmeticOperation::Add :
                                         ir::ArithmeticOperation::Sub,
                                     utl::strcat(expr.operation(), ".res"));
-        add<ir::Store>(operand, newValue);
-        return Value(newValue, Register);
+        add<ir::Store>(opAddr, newValue);
+        switch (expr.notation()) {
+        case ast::UnaryOperatorNotation::Prefix:
+            return operand;
+        case ast::UnaryOperatorNotation::Postfix:
+            return Value(operandValue, Register);
+        case ast::UnaryOperatorNotation::_count:
+            SC_UNREACHABLE();
+        }
     }
 
     case ast::UnaryOperator::Promotion:

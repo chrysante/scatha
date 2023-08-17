@@ -125,3 +125,33 @@ public fn main() -> int {
     return 0, (a + b * c) / 2;
 })");
 }
+
+TEST_CASE("Pre-increment/decrement", "[end-to-end]") {
+    test::checkReturns(1, R"(
+public fn main() -> int {
+    var i = 0;
+    var k = ++i;
+    return k;
+})");
+    test::checkReturns(1, R"(
+public fn main() -> int {
+    var i = 0;
+    var k = ++i;
+    return i;
+})");
+}
+
+TEST_CASE("Post-increment/decrement", "[end-to-end]") {
+    test::checkReturns(0, R"(
+public fn main() -> int {
+    var i = 0;
+    var k = i++;
+    return k;
+})");
+    test::checkReturns(1, R"(
+public fn main() -> int {
+    var i = 0;
+    var k = i++;
+    return i;
+})");
+}

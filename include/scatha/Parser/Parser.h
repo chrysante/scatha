@@ -83,15 +83,15 @@
 ///                                   | <multiplicative-expression> "*" <unary-expression>
 ///                                   | <multiplicative-expression> "/" <unary-expression>
 ///                                   | <multiplicative-expression> "%" <unary-expression>
-/// <unary-expression>              ::= <reference-expression>
-///                                   | "+" <unary-expression>
+/// <prefix-expression>              ::= <reference-expression>
+///                                   | "+" <prefix-expression>
 ///                                   | "-" <unary-expression>
 ///                                   | "~" <unary-expression>
 ///                                   | "!" <unary-expression>
 ///                                   | "++" <unary-expression>
 ///                                   | "--" <unary-expression>
 /// <reference-expression>          ::= <unique-expression> |
-///                                     "&" ["unique"] ["mut"] <reference-expression>
+///                                     "&" ["unique"] ["mut"] <unary-expression>
 /// <unique-expression>             ::= <postfix-expression>
 ///                                   | "unique" ["mut"] <function-call> /* Exposition only */
 /// <postfix-expression>            ::= <generic-expression>
