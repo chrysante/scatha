@@ -41,6 +41,18 @@ std::ostream& ast::operator<<(std::ostream& str, UnaryOperator op) {
     return str << toString(op);
 }
 
+std::string_view ast::toString(UnaryOperatorNotation notation) {
+    return std::array{
+#define SC_UNARY_OPERATOR_NOTATION_DEF(name, str) std::string_view(str),
+#include "AST/Lists.def"
+    }[static_cast<size_t>(notation)];
+}
+
+std::ostream& ast::operator<<(std::ostream& str,
+                              UnaryOperatorNotation notation) {
+    return str << toString(notation);
+}
+
 std::string_view ast::toString(BinaryOperator op) {
     return std::array{
 #define SC_BINARY_OPERATOR_DEF(name, opStr) std::string_view(opStr),

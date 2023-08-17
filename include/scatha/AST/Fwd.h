@@ -48,7 +48,7 @@ SCATHA_API std::string_view toString(LiteralKind);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, LiteralKind);
 
-/// List of all unary operators in prefix notation
+/// List of all unary operators
 enum class UnaryOperator {
 #define SC_UNARY_OPERATOR_DEF(name, _) name,
 #include <scatha/AST/Lists.def>
@@ -58,6 +58,17 @@ enum class UnaryOperator {
 SCATHA_API std::string_view toString(UnaryOperator);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, UnaryOperator);
+
+/// List of unary operator notation
+enum class UnaryOperatorNotation {
+#define SC_UNARY_OPERATOR_NOTATION_DEF(name, _) name,
+#include <scatha/AST/Lists.def>
+    _count
+};
+
+SCATHA_API std::string_view toString(UnaryOperatorNotation);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, UnaryOperatorNotation);
 
 /// List of all binary operators in infix notation
 enum class BinaryOperator {

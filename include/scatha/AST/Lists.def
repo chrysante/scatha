@@ -77,6 +77,19 @@ SC_UNARY_OPERATOR_DEF(Decrement,  "--")
 #undef SC_UNARY_OPERATOR_DEF
 
 // ===----------------------------------------------------------------------===
+// === List of unary operator notation -------------------------------------===
+// ===----------------------------------------------------------------------===
+
+#ifndef SC_UNARY_OPERATOR_NOTATION_DEF
+#   define SC_UNARY_OPERATOR_NOTATION_DEF(name, opStr)
+#endif
+
+SC_UNARY_OPERATOR_NOTATION_DEF(Prefix,  "prefix")
+SC_UNARY_OPERATOR_NOTATION_DEF(Postfix, "postfix")
+
+#undef SC_UNARY_OPERATOR_NOTATION_DEF
+
+// ===----------------------------------------------------------------------===
 // === List of binary operators --------------------------------------------===
 // ===----------------------------------------------------------------------===
 

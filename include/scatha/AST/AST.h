@@ -420,21 +420,27 @@ private:
 class SCATHA_API UnaryExpression: public Expression {
 public:
     explicit UnaryExpression(UnaryOperator op,
+                             UnaryOperatorNotation notation,
                              UniquePtr<Expression> operand,
                              SourceRange sourceRange):
         Expression(NodeType::UnaryExpression, sourceRange, std::move(operand)),
-        op(op) {}
+        op(op),
+        no(notation) {}
 
     AST_DERIVED_COMMON(UnaryExpression)
 
     /// The operator of this expression.
     UnaryOperator operation() const { return op; }
 
+    /// The notation of this expression.
+    UnaryOperatorNotation notation() const { return no; }
+
     /// The operand of this expression.
     AST_PROPERTY(0, Expression, operand, Operand)
 
 private:
     UnaryOperator op;
+    UnaryOperatorNotation no;
 };
 
 /// MARK: Binary Expressions

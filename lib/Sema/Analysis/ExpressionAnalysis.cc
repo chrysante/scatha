@@ -178,6 +178,7 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
             return false;
         }
         dereference(u.operand(), sym);
+        u.decorate(nullptr, sym.stripQualifiers(operandType));
         break;
     case ast::UnaryOperator::BitwiseNot:
         if (!isAny<ByteType, IntType>(baseType)) {
@@ -185,6 +186,7 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
             return false;
         }
         dereference(u.operand(), sym);
+        u.decorate(nullptr, sym.stripQualifiers(operandType));
         break;
     case ast::UnaryOperator::LogicalNot:
         if (!isAny<BoolType>(baseType)) {
@@ -192,6 +194,7 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
             return false;
         }
         dereference(u.operand(), sym);
+        u.decorate(nullptr, sym.stripQualifiers(operandType));
         break;
     case ast::UnaryOperator::Increment:
         [[fallthrough]];
@@ -203,11 +206,20 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
         if (!convertToImplicitMutRef(u.operand(), sym, iss)) {
             return false;
         }
+        switch (u.notation()) {
+        case ast::UnaryOperatorNotation::Prefix:
+            u.decorate(nullptr, sym.stripQualifiers(operandType));
+            break;
+        case ast::UnaryOperatorNotation::Postfix:
+            u.decorate(nullptr, operandType);
+            break;
+        case ast::UnaryOperatorNotation::_count:
+            SC_UNREACHABLE();
+        }
         break;
     case ast::UnaryOperator::_count:
         SC_UNREACHABLE();
     }
-    u.decorate(nullptr, sym.stripQualifiers(operandType));
     u.setConstantValue(evalUnary(u.operation(), u.operand()->constantValue()));
     return true;
 }

@@ -716,49 +716,46 @@ UniquePtr<ast::Expression> Context::parseMultiplicative() {
     return parseBinaryOperatorLTR<ast::BinaryOperator::Multiplication,
                                   ast::BinaryOperator::Division,
                                   ast::BinaryOperator::Remainder>(
-        [this] { return parseUnary(); });
+        [this] { return parsePrefix(); });
 }
 
-UniquePtr<ast::Expression> Context::parseUnary() {
+UniquePtr<ast::Expression> Context::parsePrefix() {
     if (auto postfix = parseReference()) {
         return postfix;
     }
     Token const token = tokens.peek();
     auto makeResult = [&](ast::UnaryOperator operatorType) {
         Token const unaryToken = tokens.peek();
-        auto unary = parseUnary();
+        auto unary = parsePrefix();
         if (!unary) {
             pushExpectedExpression(unaryToken);
         }
-        return allocate<ast::UnaryExpression>(operatorType,
-                                              std::move(unary),
-                                              token.sourceRange());
+        return allocate<ast::UnaryExpression>(
+            operatorType,
+            ast::UnaryOperatorNotation::Prefix,
+            std::move(unary),
+            token.sourceRange());
     };
-    if (token.kind() == Plus) {
+    switch (token.kind()) {
+    case Plus:
         tokens.eat();
         return makeResult(ast::UnaryOperator::Promotion);
-    }
-    else if (token.kind() == Minus) {
+    case Minus:
         tokens.eat();
         return makeResult(ast::UnaryOperator::Negation);
-    }
-    else if (token.kind() == Tilde) {
+    case Tilde:
         tokens.eat();
         return makeResult(ast::UnaryOperator::BitwiseNot);
-    }
-    else if (token.kind() == Exclam) {
+    case Exclam:
         tokens.eat();
         return makeResult(ast::UnaryOperator::LogicalNot);
-    }
-    else if (token.kind() == Increment) {
+    case Increment:
         tokens.eat();
         return makeResult(ast::UnaryOperator::Increment);
-    }
-    else if (token.kind() == Decrement) {
+    case Decrement:
         tokens.eat();
         return makeResult(ast::UnaryOperator::Decrement);
-    }
-    else {
+    default:
         return nullptr;
     }
 }
@@ -805,20 +802,30 @@ UniquePtr<ast::Expression> Context::parsePostfix() {
     }
     while (true) {
         auto const& token = tokens.peek();
-        if (token.kind() == OpenBracket) {
-            expr = parseSubscript(std::move(expr));
-        }
-        else if (token.kind() == OpenParan) {
-            expr = parseFunctionCall(std::move(expr));
-        }
-        else if (token.kind() == Dot) {
-            expr = parseMemberAccess(std::move(expr));
-        }
-        else {
+        ast::UnaryOperator unaryOp;
+        switch (token.kind()) {
+        case Increment:
+            unaryOp = ast::UnaryOperator::Increment;
+            expr = parseUnaryPostfix(ast::UnaryOperator::Increment,
+                                     std::move(expr));
             break;
+        case Decrement:
+            expr = parseUnaryPostfix(ast::UnaryOperator::Decrement,
+                                     std::move(expr));
+            break;
+        case OpenBracket:
+            expr = parseSubscript(std::move(expr));
+            break;
+        case OpenParan:
+            expr = parseFunctionCall(std::move(expr));
+            break;
+        case Dot:
+            expr = parseMemberAccess(std::move(expr));
+            break;
+        default:
+            return expr;
         }
     }
-    return expr;
 }
 
 static bool isGenericID(ast::Expression const* expr) {
@@ -1018,6 +1025,16 @@ std::optional<List> Context::parseList(TokenKind open,
         }
     }
     return result;
+}
+
+UniquePtr<ast::UnaryExpression> Context::parseUnaryPostfix(
+    ast::UnaryOperator op, UniquePtr<ast::Expression> primary) {
+    auto token = tokens.eat();
+    SC_ASSERT(token.kind() == Increment || token.kind() == Decrement, "");
+    return allocate<ast::UnaryExpression>(op,
+                                          ast::UnaryOperatorNotation::Postfix,
+                                          std::move(primary),
+                                          token.sourceRange());
 }
 
 UniquePtr<ast::Subscript> Context::parseSubscript(

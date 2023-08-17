@@ -53,7 +53,7 @@ struct Context {
     UniquePtr<ast::Expression> parseShift();
     UniquePtr<ast::Expression> parseAdditive();
     UniquePtr<ast::Expression> parseMultiplicative();
-    UniquePtr<ast::Expression> parseUnary();
+    UniquePtr<ast::Expression> parsePrefix();
     UniquePtr<ast::Expression> parseReference();
     UniquePtr<ast::Expression> parseUnique();
     UniquePtr<ast::Expression> parsePostfix();
@@ -90,6 +90,8 @@ struct Context {
                                    TokenKind delimiter,
                                    auto parseCallback);
 
+    UniquePtr<ast::UnaryExpression> parseUnaryPostfix(
+        ast::UnaryOperator op, UniquePtr<ast::Expression> primary);
     UniquePtr<ast::Subscript> parseSubscript(
         UniquePtr<ast::Expression> primary);
     UniquePtr<ast::FunctionCall> parseFunctionCall(
