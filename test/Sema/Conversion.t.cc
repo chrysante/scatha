@@ -14,6 +14,7 @@ using namespace sema;
 TEST_CASE("Implicit conversion rank", "[sema]") {
     sema::SymbolTable sym;
     ast::UnaryExpression expr(ast::UnaryOperator::Promotion,
+                              ast::UnaryOperatorNotation::Prefix,
                               nullptr,
                               SourceRange{});
     SECTION("1") {
@@ -43,7 +44,9 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
     IssueHandler iss;
     ast::UnaryExpression
         base(ast::UnaryOperator::Promotion,
+             ast::UnaryOperatorNotation::Prefix,
              allocate<ast::UnaryExpression>(ast::UnaryOperator::Promotion,
+                                            ast::UnaryOperatorNotation::Prefix,
                                             nullptr,
                                             SourceRange{}),
              SourceRange{});

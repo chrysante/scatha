@@ -444,7 +444,9 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
         case Memory:
             if (arg->isLValue()) {
                 auto* reg = toRegister(value);
-                arguments.push_back(storeLocal(reg));
+                arguments.push_back(
+                    storeLocal(reg,
+                               utl::strcat(value.get()->name(), ".param")));
             }
             else {
                 arguments.push_back(toMemory(value));
@@ -521,16 +523,15 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
         case sema::RefConversion::None:
             return getValue(expr);
 
-        case sema::RefConversion::Dereference: {
+        case sema::RefConversion::Dereference:
+            [[fallthrough]];
+        case sema::RefConversion::DerefExpl: {
             auto address = getValue(expr);
             return Value(address.ID(),
                          toRegister(address),
                          mapType(expr->type()->base()),
                          Memory);
         }
-
-        case sema::RefConversion::DerefExpl:
-            SC_UNIMPLEMENTED();
 
         case sema::RefConversion::TakeAddress: {
             auto value = getValue(expr);
