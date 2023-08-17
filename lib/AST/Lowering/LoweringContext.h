@@ -37,7 +37,7 @@ struct LoweringContext {
     /// Maps variables to IR values in stack memory
     utl::hashmap<sema::Entity const*, Value> variableMap;
     /// Maps array IDs to their respective sizes
-    utl::hashmap<uint64_t, Value> arraySizeMap;
+    utl::hashmap<uint32_t, Value> arraySizeMap;
 
     /// Maps variables to SSA values
     /// Right now this map exists solely to map the `.count` member variable to
@@ -52,8 +52,8 @@ struct LoweringContext {
     utl::hashmap<std::pair<sema::StructureType const*, size_t>, size_t>
         structIndexMap;
 
-    uint64_t _arrayID = 0;
-    uint64_t newArrayID() { return ++_arrayID; }
+    uint32_t _valueID = 0;
+    uint32_t newID() { return ++_valueID; }
 
     /// ## Current state
 
@@ -219,13 +219,13 @@ struct LoweringContext {
     void memorizeVariable(sema::Entity const* entity, Value value);
 
     /// Associate array IDs with their size
-    void memorizeArraySize(uint64_t arrayID, Value size);
+    void memorizeArraySize(uint32_t ID, Value size);
 
     /// \overload
-    void memorizeArraySize(uint64_t arrayID, size_t size);
+    void memorizeArraySize(uint32_t ID, size_t size);
 
     /// Retrieve stored array size
-    Value getArraySize(uint64_t ID) const;
+    Value getArraySize(uint32_t ID) const;
 
     /// # Map utils
 

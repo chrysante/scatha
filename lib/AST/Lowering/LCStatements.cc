@@ -70,30 +70,29 @@ void LoweringContext::generateParameter(
         thisParam && thisParam->type()->isReference())
     {
         SC_ASSERT(pc.location() == Register, "");
-        memorizeVariable(semaParam, Value(irParam, Register));
+        memorizeVariable(semaParam, Value(newID(), irParam, Register));
         ++irParamItr;
         return;
     }
 
     if (auto* arrayType = dyncast<sema::ArrayType const*>(semaType->base())) {
-        uint64_t ID = newArrayID();
         switch (pc.location()) {
         case Register: {
             auto* dataAddress = storeLocal(irParam, name);
             auto* sizeAddress =
                 storeLocal(irParam->next(), utl::strcat(name, ".size"));
-            Value data(dataAddress, irType, Memory, ID);
-            Value size(sizeAddress, irParam->next()->type(), Memory);
+            Value data(newID(), dataAddress, irType, Memory);
+            Value size(newID(), sizeAddress, irParam->next()->type(), Memory);
             memorizeVariable(semaParam, data);
-            memorizeArraySize(ID, size);
+            memorizeArraySize(data.ID(), size);
             break;
         }
 
         case Memory: {
-            Value data(irParam, irType, Memory, ID);
-            Value size(irParam->next(), Register);
+            Value data(newID(), irParam, irType, Memory);
+            Value size(newID(), irParam->next(), Register);
             memorizeVariable(semaParam, data);
-            memorizeArraySize(ID, size);
+            memorizeArraySize(data.ID(), size);
             break;
         }
         }
@@ -103,12 +102,14 @@ void LoweringContext::generateParameter(
         switch (pc.location()) {
         case Register: {
             auto* address = storeLocal(irParam, name);
-            memorizeVariable(semaParam, Value(address, irType, Memory));
+            memorizeVariable(semaParam,
+                             Value(newID(), address, irType, Memory));
             break;
         }
 
         case Memory: {
-            memorizeVariable(semaParam, Value(irParam, irType, Memory));
+            memorizeVariable(semaParam,
+                             Value(newID(), irParam, irType, Memory));
             break;
         }
         }
@@ -140,12 +141,13 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
             }
             auto* address = storeLocal(toRegister(value), name);
             memorizeVariable(varDecl.entity(),
-                             Value(address, value.type(), Memory));
+                             Value(newID(), address, value.type(), Memory));
             return;
         }
         auto* type = mapType(varDecl.type());
         auto* address = makeLocal(type, name);
-        memorizeVariable(varDecl.entity(), Value(address, type, Memory));
+        memorizeVariable(varDecl.entity(),
+                         Value(newID(), address, type, Memory));
         return;
     }
     /// Array case
@@ -153,13 +155,14 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         auto data = getValue(varDecl.initExpression());
         auto* dataAddress =
             storeLocal(toRegister(data), std::string(varDecl.name()));
-        uint64_t ID = newArrayID();
+        auto const ID = newID();
         memorizeVariable(varDecl.entity(),
-                         Value(dataAddress, data.get()->type(), Memory, ID));
-        auto count = getArraySize(data.userData());
+                         Value(ID, dataAddress, data.get()->type(), Memory));
+        auto count = getArraySize(data.ID());
         auto* sizeAddress =
             storeLocal(toRegister(count), utl::strcat(varDecl.name(), ".size"));
-        memorizeArraySize(ID, Value(sizeAddress, count.type(), Memory));
+        memorizeArraySize(ID,
+                          Value(newID(), sizeAddress, count.type(), Memory));
         return;
     }
     SC_ASSERT(!arrayType->isDynamic(), "Can't locally allocate dynamic array");
@@ -186,9 +189,9 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         std::array<ir::Value*, 4> args = { array, size, data.get(), size };
         add<ir::Call>(memcpy, args);
     }
-    auto data = Value(array, mapType(arrayType), Memory, newArrayID());
+    auto data = Value(newID(), array, mapType(arrayType), Memory);
     memorizeVariable(varDecl.variable(), data);
-    memorizeArraySize(data.userData(), arrayType->count());
+    memorizeArraySize(data.ID(), arrayType->count());
 }
 
 void LoweringContext::generateImpl(ExpressionStatement const& exprStatement) {
@@ -208,7 +211,7 @@ void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
         switch (CC.returnValue().location()) {
         case Register: {
             auto* data = toRegister(returnValue);
-            auto* size = toRegister(getArraySize(returnValue.userData()));
+            auto* size = toRegister(getArraySize(returnValue.ID()));
             auto* insertData = add<ir::InsertValue>(ctx.undef(arrayViewType),
                                                     data,
                                                     std::array{ size_t{ 0 } },

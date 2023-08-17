@@ -130,16 +130,16 @@ void LoweringContext::memorizeVariable(sema::Entity const* entity,
     SC_ASSERT(success, "Redeclaration");
 }
 
-void LoweringContext::memorizeArraySize(uint64_t arrayID, Value size) {
-    bool success = arraySizeMap.insert({ arrayID, size }).second;
+void LoweringContext::memorizeArraySize(uint32_t ID, Value size) {
+    bool success = arraySizeMap.insert({ ID, size }).second;
     SC_ASSERT(success, "ID already present");
 }
 
-void LoweringContext::memorizeArraySize(uint64_t arrayID, size_t count) {
-    memorizeArraySize(arrayID, Value(intConstant(count, 64), Register));
+void LoweringContext::memorizeArraySize(uint32_t ID, size_t count) {
+    memorizeArraySize(ID, Value(newID(), intConstant(count, 64), Register));
 }
 
-Value LoweringContext::getArraySize(uint64_t ID) const {
+Value LoweringContext::getArraySize(uint32_t ID) const {
     auto itr = arraySizeMap.find(ID);
     SC_ASSERT(itr != arraySizeMap.end(), "Not found");
     return itr->second;

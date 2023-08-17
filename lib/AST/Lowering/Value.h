@@ -16,27 +16,16 @@ class Value {
 public:
     Value() = default;
 
-    explicit Value(ir::Value* value,
+    explicit Value(uint32_t id,
+                   ir::Value* value,
                    ir::Type const* type,
                    ValueLocation location,
-                   sema::ValueCategory valueCat = sema::ValueCategory::LValue,
-                   uint64_t userData = 0):
-        _val(value),
-        _type(type),
-        _loc(location),
-        _cat(valueCat),
-        _userData(userData) {}
+                   sema::ValueCategory valueCat = sema::ValueCategory::LValue):
 
-    explicit Value(ir::Value* value,
-                   ir::Type const* type,
-                   ValueLocation location,
-                   uint64_t userData):
-        Value(value, type, location, sema::ValueCategory::LValue, userData) {}
+        _val(value), _type(type), _id(id), _loc(location), _cat(valueCat) {}
 
-    explicit Value(ir::Value* value,
-                   ValueLocation location,
-                   uint64_t userData = 0):
-        Value(value, value->type(), location, userData) {
+    explicit Value(uint32_t id, ir::Value* value, ValueLocation location):
+        Value(id, value, value->type(), location) {
         SC_ASSERT(
             location == ValueLocation::Register,
             "If the value is in memory the type must be specified explicitly");
@@ -77,12 +66,17 @@ public:
 
     /// \Returns the same value but marked as lvalue to prevent further reuse
     Value toLValue() const {
-        return Value(get(), type(), location(), sema::ValueCategory::LValue);
+        return Value(ID(),
+                     get(),
+                     type(),
+                     location(),
+                     sema::ValueCategory::LValue);
     }
 
-    uint64_t userData() const { return _userData; }
+    /// The unique ID of this value
+    uint32_t ID() const { return _id; }
 
-    void setUserData(uint64_t userData) { _userData = userData; }
+    void setID(uint32_t id) { _id = id; }
 
     /// Test the value pointer for null
     explicit operator bool() const { return !!_val; }
@@ -96,9 +90,9 @@ public:
 private:
     ir::Value* _val = nullptr;
     ir::Type const* _type = nullptr;
+    uint32_t _id;
     ValueLocation _loc = {};
     sema::ValueCategory _cat = {};
-    size_t _userData = 0;
 };
 
 } // namespace scatha::ast
