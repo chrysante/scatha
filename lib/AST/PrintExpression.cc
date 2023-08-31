@@ -28,7 +28,7 @@ struct Context {
     void printImpl(ReferenceExpression const&);
     void printImpl(ListExpression const&);
     void printImpl(Conversion const&);
-    void printImpl(LifetimeCall const&) {}
+    void printImpl(ConstructorCall const&) {}
 
     std::ostream& str;
 };

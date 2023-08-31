@@ -3,6 +3,7 @@
 
 #include "AST/AST.h"
 #include "Issue/IssueHandler.h"
+#include "Sema/DTorStack.h"
 #include "Sema/SymbolTable.h"
 
 namespace scatha::sema {
@@ -15,6 +16,7 @@ class ExpressionAnalysisResult;
 /// \returns An `ExpressionAnalysisResult`.
 ///
 bool analyzeExpression(ast::Expression& expression,
+                       DTorStack& dtorStack,
                        SymbolTable& symbolTable,
                        IssueHandler& issueHandler);
 

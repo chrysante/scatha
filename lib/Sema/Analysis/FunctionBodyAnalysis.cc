@@ -9,12 +9,35 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/Lifetime.h"
-#include "Sema/Analysis/ObjectStack.h"
+#include "Sema/DTorStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 
 using namespace scatha;
 using namespace sema;
+
+static void gatherParentDestructorsImpl(ast::Statement& stmt, auto condition) {
+    for (auto* parentScope = cast<ast::Statement*>(stmt.parent());
+         condition(parentScope);
+         parentScope = dyncast<ast::Statement*>(parentScope->parent()))
+    {
+        for (auto dtorCall: parentScope->dtorStack() | ranges::views::reverse) {
+            stmt.dtorStack().push(dtorCall);
+        }
+    }
+}
+
+static void gatherParentDestructors(ast::ReturnStatement& stmt) {
+    gatherParentDestructorsImpl(stmt, [](auto* parent) {
+        return !isa<ast::FunctionDefinition>(parent);
+    });
+}
+
+static void gatherParentDestructors(ast::JumpStatement& stmt) {
+    gatherParentDestructorsImpl(stmt, [](auto* parent) {
+        return !isa<ast::LoopStatement>(parent);
+    });
+}
 
 namespace {
 
@@ -35,8 +58,8 @@ struct Context {
     void analyzeImpl(ast::EmptyStatement&) {}
     void analyzeImpl(ast::AbstractSyntaxTree& node) { SC_UNREACHABLE(); }
 
-    bool analyzeExpr(ast::Expression& expr) {
-        return sema::analyzeExpression(expr, sym, iss);
+    bool analyzeExpr(ast::Expression& expr, DTorStack& dtorStack) {
+        return sema::analyzeExpression(expr, dtorStack, sym, iss);
     }
 
     QualType const* getDeclaredType(ast::Expression* expr);
@@ -45,7 +68,6 @@ struct Context {
     IssueHandler& iss;
     ast::FunctionDefinition* currentFunction = nullptr;
     size_t paramIndex = 0;
-    utl::stack<ObjectStack> objectStacks;
 };
 
 } // namespace
@@ -142,7 +164,6 @@ void Context::analyzeImpl(ast::CompoundStatement& block) {
                   "can only appear in functions.");
     }
     sym.pushScope(block.scope());
-    objectStacks.push(ObjectStack());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     auto statements =
         block.statements() | ranges::to<utl::small_vector<ast::Statement*>>;
@@ -150,8 +171,6 @@ void Context::analyzeImpl(ast::CompoundStatement& block) {
         analyze(*statement);
     }
     popScope.execute();
-    objectStacks.top().callDestructors(&block, block.children().size());
-    objectStacks.pop();
 }
 
 void Context::analyzeImpl(ast::VariableDeclaration& var) {
@@ -161,7 +180,9 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
               "We should not have handled local variables in prepass.");
     auto* declaredType = getDeclaredType(var.typeExpr());
     auto* deducedType = [&]() -> QualType const* {
-        if (!var.initExpression() || !analyzeExpr(*var.initExpression())) {
+        if (!var.initExpression() ||
+            !analyzeExpr(*var.initExpression(), var.dtorStack()))
+        {
             return nullptr;
         }
         if (!var.initExpression()->isValue()) {
@@ -244,7 +265,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     if (!varObj.type()->isMutable() && var.initExpression()) {
         varObj.setConstantValue(clone(var.initExpression()->constantValue()));
     }
-    objectStacks.top().push(&varObj);
+    cast<ast::Statement*>(var.parent())->dtorStack().push(&varObj);
 }
 
 void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
@@ -296,7 +317,7 @@ void Context::analyzeImpl(ast::ExpressionStatement& es) {
             sym.currentScope());
         return;
     }
-    analyzeExpr(*es.expression());
+    analyzeExpr(*es.expression(), es.dtorStack());
 }
 
 void Context::analyzeImpl(ast::ReturnStatement& rs) {
@@ -315,7 +336,8 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
             sym.currentScope());
         return;
     }
-    if (!rs.expression() || !analyzeExpr(*rs.expression())) {
+    gatherParentDestructors(rs);
+    if (!rs.expression() || !analyzeExpr(*rs.expression(), rs.dtorStack())) {
         return;
     }
     if (rs.expression() && returnType->base() == sym.rawVoid()) {
@@ -329,7 +351,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
         iss.push<BadSymbolReference>(*rs.expression(), EntityCategory::Value);
         return;
     }
-    /// This is specified to returns.
+    /// This is specific to returns.
     /// If we return a reference we don't want to _assign through_ it but we
     /// want to return an explicit reference
     if (returnType->isReference() && !rs.expression()->type()->isExplicitRef())
@@ -348,7 +370,7 @@ void Context::analyzeImpl(ast::IfStatement& stmt) {
             sym.currentScope());
         return;
     }
-    if (analyzeExpr(*stmt.condition())) {
+    if (analyzeExpr(*stmt.condition(), stmt.dtorStack())) {
         convertImplicitly(stmt.condition(), sym.Bool(), iss);
     }
     analyze(*stmt.thenBlock());
@@ -369,12 +391,13 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
     sym.pushScope(stmt.block()->scope());
     if (stmt.varDecl()) {
         analyze(*stmt.varDecl());
+        stmt.dtorStack() = stmt.varDecl()->dtorStack();
     }
-    if (analyzeExpr(*stmt.condition())) {
+    if (analyzeExpr(*stmt.condition(), stmt.conditionDtorStack())) {
         convertImplicitly(stmt.condition(), sym.Bool(), iss);
     }
     if (stmt.increment()) {
-        analyzeExpr(*stmt.increment());
+        analyzeExpr(*stmt.increment(), stmt.incrementDtorStack());
     }
     sym.popScope(); /// The block will push its scope again.
     analyze(*stmt.block());
@@ -383,29 +406,29 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
 void Context::analyzeImpl(ast::JumpStatement& stmt) {
     auto* parent = stmt.parent();
     while (true) {
-        if (!parent) {
-            break;
-        }
-        if (isa<ast::FunctionDefinition>(parent)) {
-            break;
+        if (!parent || isa<ast::FunctionDefinition>(parent)) {
+            iss.push<InvalidStatement>(&stmt,
+                                       InvalidStatement::Reason::InvalidJump,
+                                       sym.currentScope());
+            return;
         }
         if (isa<ast::LoopStatement>(parent)) {
-            return;
+            break;
         }
         parent = parent->parent();
     }
-    iss.push<InvalidStatement>(&stmt,
-                               InvalidStatement::Reason::InvalidJump,
-                               sym.currentScope());
+    gatherParentDestructors(stmt);
 }
 
-QualType const* Context::getDeclaredType(ast::Expression* expr) {
-    if (!expr || !analyzeExpr(*expr)) {
+QualType const* Context::getDeclaredType(ast::Expression* typeExpr) {
+    DTorStack dtorStack;
+    if (!typeExpr || !analyzeExpr(*typeExpr, dtorStack)) {
         return nullptr;
     }
-    if (!expr->isType()) {
-        iss.push<BadSymbolReference>(*expr, EntityCategory::Type);
+    SC_ASSERT(dtorStack.empty(), "Type expressions may not create objects");
+    if (!typeExpr->isType()) {
+        iss.push<BadSymbolReference>(*typeExpr, EntityCategory::Type);
         return nullptr;
     }
-    return cast<QualType*>(expr->entity());
+    return cast<QualType*>(typeExpr->entity());
 }

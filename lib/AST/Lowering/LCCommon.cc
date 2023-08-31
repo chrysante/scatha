@@ -14,6 +14,17 @@ using namespace ast;
 
 using enum ValueLocation;
 
+void LoweringContext::emitDestructorCalls(sema::DTorStack const& dtorStack) {
+    for (auto call: dtorStack) {
+        auto* function = getFunction(call.destructor);
+        auto* object = objectMap[call.object].get();
+        SC_ASSERT(object, "");
+        add<ir::Call>(function,
+                      std::array<ir::Value*, 1>{ object },
+                      std::string{});
+    }
+}
+
 ir::BasicBlock* LoweringContext::newBlock(std::string name) {
     return new ir::BasicBlock(ctx, std::move(name));
 }
@@ -124,9 +135,8 @@ ir::Value* LoweringContext::constant(ssize_t value, ir::Type const* type) {
     return ctx.arithmeticConstant(value, type);
 }
 
-void LoweringContext::memorizeVariable(sema::Entity const* entity,
-                                       Value value) {
-    bool success = variableMap.insert({ entity, value }).second;
+void LoweringContext::memorizeObject(sema::Object const* object, Value value) {
+    bool success = objectMap.insert({ object, value }).second;
     SC_ASSERT(success, "Redeclaration");
 }
 

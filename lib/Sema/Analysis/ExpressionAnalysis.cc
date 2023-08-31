@@ -89,6 +89,7 @@ struct Context {
         return sym.setReference(type, Reference::None);
     }
 
+    DTorStack& dtorStack;
     SymbolTable& sym;
     IssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
@@ -104,9 +105,10 @@ static bool isAny(T const* t) {
 }
 
 bool sema::analyzeExpression(ast::Expression& expr,
+                             DTorStack& dtorStack,
                              SymbolTable& sym,
                              IssueHandler& iss) {
-    Context ctx{ .sym = sym, .iss = iss };
+    Context ctx{ .dtorStack = dtorStack, .sym = sym, .iss = iss };
     return ctx.analyze(expr);
 }
 
@@ -564,6 +566,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
             if (!ctorCall) {
                 return false;
             }
+            dtorStack.push(ctorCall->object());
             fc.parent()->setChild(fc.indexInParent(), std::move(ctorCall));
             return true;
         }

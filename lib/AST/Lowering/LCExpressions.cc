@@ -57,7 +57,7 @@ Value LoweringContext::getValue(Expression const* expr) {
 }
 
 Value LoweringContext::getValueImpl(Identifier const& id) {
-    Value value = variableMap[id.entity()];
+    Value value = objectMap[id.object()];
     SC_ASSERT(value, "Undeclared identifier");
     return value;
 }
@@ -71,7 +71,7 @@ Value LoweringContext::getValueImpl(Literal const& lit) {
     case LiteralKind::FloatingPoint:
         return Value(newID(), floatConstant(lit.value<APFloat>()), Register);
     case LiteralKind::This: {
-        return variableMap[lit.entity()];
+        return objectMap[lit.object()];
     }
     case LiteralKind::String: {
         std::string const& sourceText = lit.value<std::string>();
@@ -765,7 +765,7 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
     }
 }
 
-Value LoweringContext::getValueImpl(LifetimeCall const& call) {
+Value LoweringContext::getValueImpl(ConstructorCall const& call) {
     using enum sema::SpecialMemberFunction;
     switch (call.kind()) {
     case New: {
@@ -781,6 +781,7 @@ Value LoweringContext::getValueImpl(LifetimeCall const& call) {
         {
             generateArgument(PC, getValue(arg), arguments);
         }
+        memorizeObject(call.object(), Value(newID(), address, type, Memory));
         add<ir::Call>(function, arguments, std::string{});
         return Value(newID(),
                      address,
@@ -790,15 +791,7 @@ Value LoweringContext::getValueImpl(LifetimeCall const& call) {
     }
     case Move:
         SC_UNIMPLEMENTED();
-    case Delete: {
-        auto* function = getFunction(call.function());
-        auto* object = variableMap[call.object()].get();
-        add<ir::Call>(function,
-                      std::array<ir::Value*, 1>{ object },
-                      std::string{});
-        return Value(newID(), nullptr, nullptr, Register);
-    }
-    case COUNT:
+    default:
         SC_UNREACHABLE();
     }
 }

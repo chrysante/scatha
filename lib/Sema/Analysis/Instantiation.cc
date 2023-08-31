@@ -293,9 +293,11 @@ QualType const* Context::analyzeParameter(ast::ParameterDeclaration& param,
 }
 
 QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {
-    if (!sema::analyzeExpression(expr, sym, iss)) {
+    DTorStack dtorStack;
+    if (!sema::analyzeExpression(expr, dtorStack, sym, iss)) {
         return nullptr;
     }
+    SC_ASSERT(dtorStack.empty(), "");
     if (!expr.isType()) {
         iss.push<BadSymbolReference>(expr, EntityCategory::Type);
         return nullptr;

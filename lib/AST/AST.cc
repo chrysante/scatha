@@ -3,6 +3,7 @@
 #include <range/v3/algorithm.hpp>
 #include <utl/utility.hpp>
 
+#include "Common/Match.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
@@ -64,8 +65,12 @@ void Expression::decorate(sema::Entity* entity,
     _type = type;
     /// Derive defaults
     if (entity) {
-        _valueCat = entity->isValue() ? sema::ValueCategory::LValue :
-                                        sema::ValueCategory::None;
+        // clang-format off
+        _valueCat = SC_MATCH (*entity) {
+            [](sema::Variable&) { return sema::ValueCategory::LValue; },
+            [](sema::Temporary&) { return sema::ValueCategory::RValue; },
+            [](sema::Entity&) { return sema::ValueCategory::None; },
+        }; // clang-format on
         _entityCat = entity->category();
     }
     else {
@@ -97,6 +102,6 @@ sema::QualType const* Conversion::targetType() const {
     return conversion()->targetType();
 }
 
-sema::ObjectType const* LifetimeCall::constructedType() const {
+sema::ObjectType const* ConstructorCall::constructedType() const {
     return cast<sema::ObjectType const*>(function()->parent());
 }

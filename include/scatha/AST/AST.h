@@ -20,6 +20,7 @@
 #include <scatha/Common/APInt.h>
 #include <scatha/Common/SourceLocation.h>
 #include <scatha/Common/UniquePtr.h>
+#include <scatha/Sema/DTorStack.h>
 #include <scatha/Sema/Fwd.h>
 
 // AbstractSyntaxTree
@@ -315,6 +316,19 @@ public:
     sema::Entity const* entity() const {
         expectDecorated();
         return _entity;
+    }
+
+    /// Declared object
+    /// This is equivalent to `cast<ObjType*>(entity())`
+    template <typename ObjType = sema::Object>
+    ObjType* object() {
+        return const_cast<ObjType*>(std::as_const(*this).object<ObjType>());
+    }
+
+    /// \overload
+    template <typename ObjType = sema::Object>
+    ObjType const* object() const {
+        return cast<ObjType const*>(entity());
     }
 
     /// The type of the expression. Only valid if: `kind == ::Value`
@@ -668,6 +682,15 @@ public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
 
     AST_DERIVED_COMMON(Statement)
+
+    /// \Returns the destructor stack associated with this statement
+    sema::DTorStack& dtorStack() { return _dtorStack; }
+
+    /// \overload
+    sema::DTorStack const& dtorStack() const { return _dtorStack; }
+
+private:
+    sema::DTorStack _dtorStack;
 };
 
 /// Abstract node representing a declaration.
@@ -826,6 +849,18 @@ public:
     AST_PROPERTY(1, Expression, typeExpr, TypeExpr)
 
     /// **Decoration provided by semantic analysis**
+
+    /// Declared variable
+    template <typename V = sema::Variable>
+    V* variable() {
+        return const_cast<V*>(std::as_const(*this).variable());
+    }
+
+    /// \overload
+    template <typename V = sema::Variable>
+    V const* variable() const {
+        return cast<V const*>(entity());
+    }
 
     /// Type of the parameter.
     sema::QualType const* type() const {
@@ -1126,8 +1161,22 @@ public:
     /// Either `while` or `do`/`while`
     LoopKind kind() const { return _kind; }
 
+    /// The destructor stack of the loop condition
+    sema::DTorStack& conditionDtorStack() { return _condDtors; }
+
+    /// \overload
+    sema::DTorStack const& conditionDtorStack() const { return _condDtors; }
+
+    /// The destructor stack of the loop increment expression
+    sema::DTorStack& incrementDtorStack() { return _incDtors; }
+
+    /// \overload
+    sema::DTorStack const& incrementDtorStack() const { return _incDtors; }
+
 private:
     LoopKind _kind;
+    sema::DTorStack _condDtors;
+    sema::DTorStack _incDtors;
 };
 
 /// Represents a `break` or `continue` statement.
@@ -1173,31 +1222,18 @@ private:
 };
 
 /// Concrete node representing a lifetime function call
-class SCATHA_API LifetimeCall: public Expression {
+class SCATHA_API ConstructorCall: public Expression {
 public:
-    explicit LifetimeCall(std::span<UniquePtr<Expression>> arguments,
-                          sema::Function* lifetimeFunction,
-                          sema::SpecialMemberFunction kind):
-        Expression(NodeType::LifetimeCall, SourceRange{}, arguments),
-        _object(nullptr),
+    explicit ConstructorCall(std::span<UniquePtr<Expression>> arguments,
+                             sema::Function* lifetimeFunction,
+                             sema::SpecialMemberFunction kind):
+        Expression(NodeType::ConstructorCall, SourceRange{}, arguments),
         _function(lifetimeFunction),
         _kind(kind) {}
 
-    explicit LifetimeCall(sema::Object* object,
-                          sema::Function* lifetimeFunction,
-                          sema::SpecialMemberFunction kind):
-        Expression(NodeType::LifetimeCall, SourceRange{}),
-        _object(object),
-        _function(lifetimeFunction),
-        _kind(kind) {}
-
-    AST_DERIVED_COMMON(LifetimeCall)
+    AST_DERIVED_COMMON(ConstructorCall)
 
     AST_RANGE_PROPERTY(0, Expression, argument, Argument)
-
-    /// The object that is being destroyed, or `nullptr` if this is not a
-    /// destructor call
-    sema::Object* object() const { return _object; }
 
     /// The lifetime function to call
     sema::Function* function() const { return _function; }
@@ -1210,7 +1246,6 @@ public:
     sema::SpecialMemberFunction kind() const { return _kind; }
 
 private:
-    sema::Object* _object;
     sema::Function* _function;
     sema::SpecialMemberFunction _kind;
 };

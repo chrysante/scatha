@@ -1,6 +1,7 @@
 #include "AST/Lowering/LoweringContext.h"
 
 #include <svm/Builtin.h>
+#include <utl/scope_guard.hpp>
 
 #include "AST/AST.h"
 #include "IR/CFG.h"
@@ -28,6 +29,7 @@ void LoweringContext::generateImpl(CompoundStatement const& cmpStmt) {
     for (auto* statement: cmpStmt.statements()) {
         generate(*statement);
     }
+    emitDestructorCalls(cmpStmt.dtorStack());
 }
 
 void LoweringContext::generateImpl(FunctionDefinition const& def) {
@@ -60,7 +62,6 @@ void LoweringContext::generateParameter(
     ParameterDeclaration const* paramDecl,
     PassingConvention pc,
     List<ir::Parameter>::iterator& irParamItr) {
-    auto* semaParam = paramDecl->entity();
     auto* semaType = paramDecl->type();
     auto* irParam = irParamItr.to_address();
     auto* irType = mapType(paramDecl->type());
@@ -70,7 +71,8 @@ void LoweringContext::generateParameter(
         thisParam && thisParam->type()->isReference())
     {
         SC_ASSERT(pc.location() == Register, "");
-        memorizeVariable(semaParam, Value(newID(), irParam, Register));
+        memorizeObject(paramDecl->variable(),
+                       Value(newID(), irParam, Register));
         ++irParamItr;
         return;
     }
@@ -83,7 +85,7 @@ void LoweringContext::generateParameter(
                 storeLocal(irParam->next(), utl::strcat(name, ".size"));
             Value data(newID(), dataAddress, irType, Memory);
             Value size(newID(), sizeAddress, irParam->next()->type(), Memory);
-            memorizeVariable(semaParam, data);
+            memorizeObject(paramDecl->variable(), data);
             memorizeArraySize(data.ID(), size);
             break;
         }
@@ -91,7 +93,7 @@ void LoweringContext::generateParameter(
         case Memory: {
             Value data(newID(), irParam, irType, Memory);
             Value size(newID(), irParam->next(), Register);
-            memorizeVariable(semaParam, data);
+            memorizeObject(paramDecl->variable(), data);
             memorizeArraySize(data.ID(), size);
             break;
         }
@@ -102,14 +104,14 @@ void LoweringContext::generateParameter(
         switch (pc.location()) {
         case Register: {
             auto* address = storeLocal(irParam, name);
-            memorizeVariable(semaParam,
-                             Value(newID(), address, irType, Memory));
+            memorizeObject(paramDecl->variable(),
+                           Value(newID(), address, irType, Memory));
             break;
         }
 
         case Memory: {
-            memorizeVariable(semaParam,
-                             Value(newID(), irParam, irType, Memory));
+            memorizeObject(paramDecl->variable(),
+                           Value(newID(), irParam, irType, Memory));
             break;
         }
         }
@@ -128,6 +130,8 @@ void LoweringContext::generateImpl(StructDefinition const& def) {
 }
 
 void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
+    auto dtorStack = varDecl.dtorStack();
+    utl::scope_guard emitDTors = [&] { emitDestructorCalls(dtorStack); };
     std::string name = utl::strcat(varDecl.name());
     auto* arrayType = dyncast<sema::ArrayType const*>(varDecl.type()->base());
     /// Simple non-array case
@@ -136,18 +140,24 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
             auto value = getValue(varDecl.initExpression());
             if (value.isRValue()) {
                 value.get()->setName(name);
-                memorizeVariable(varDecl.entity(), value.toLValue());
+                memorizeObject(varDecl.variable(), value.toLValue());
+                if (!dtorStack.empty() &&
+                    dtorStack.top().object ==
+                        varDecl.initExpression()->entity())
+                {
+                    dtorStack.pop();
+                }
                 return;
             }
             auto* address = storeLocal(toRegister(value), name);
-            memorizeVariable(varDecl.entity(),
-                             Value(newID(), address, value.type(), Memory));
+            memorizeObject(varDecl.variable(),
+                           Value(newID(), address, value.type(), Memory));
             return;
         }
         auto* type = mapType(varDecl.type());
         auto* address = makeLocal(type, name);
-        memorizeVariable(varDecl.entity(),
-                         Value(newID(), address, type, Memory));
+        memorizeObject(varDecl.variable(),
+                       Value(newID(), address, type, Memory));
         return;
     }
     /// Array case
@@ -156,8 +166,8 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         auto* dataAddress =
             storeLocal(toRegister(data), std::string(varDecl.name()));
         auto const ID = newID();
-        memorizeVariable(varDecl.entity(),
-                         Value(ID, dataAddress, data.get()->type(), Memory));
+        memorizeObject(varDecl.variable(),
+                       Value(ID, dataAddress, data.get()->type(), Memory));
         auto count = getArraySize(data.ID());
         auto* sizeAddress =
             storeLocal(toRegister(count), utl::strcat(varDecl.name(), ".size"));
@@ -171,7 +181,7 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         auto data = getValue(varDecl.initExpression());
         SC_ASSERT(data.isRValue(), "");
         data.get()->setName(name);
-        memorizeVariable(varDecl.variable(), data);
+        memorizeObject(varDecl.variable(), data);
         return;
     }
     /// We need to allocate our own data
@@ -190,12 +200,13 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         add<ir::Call>(memcpy, args);
     }
     auto data = Value(newID(), array, mapType(arrayType), Memory);
-    memorizeVariable(varDecl.variable(), data);
+    memorizeObject(varDecl.variable(), data);
     memorizeArraySize(data.ID(), arrayType->count());
 }
 
 void LoweringContext::generateImpl(ExpressionStatement const& exprStatement) {
     (void)getValue(exprStatement.expression());
+    emitDestructorCalls(exprStatement.dtorStack());
 }
 
 void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
@@ -205,7 +216,7 @@ void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
         return;
     }
     auto returnValue = getValue(retDecl.expression());
-
+    emitDestructorCalls(retDecl.dtorStack());
     switch (retDecl.expression()->type()->base()->entityType()) {
     case sema::EntityType::ArrayType: {
         switch (CC.returnValue().location()) {
@@ -247,6 +258,7 @@ void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
 
 void LoweringContext::generateImpl(IfStatement const& stmt) {
     auto* condition = getValue<Register>(stmt.condition());
+    emitDestructorCalls(stmt.dtorStack());
     auto* thenBlock = newBlock("if.then");
     auto* elseBlock = stmt.elseBlock() ? newBlock("if.else") : nullptr;
     auto* endBlock = newBlock("if.end");
@@ -275,6 +287,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         /// Header
         add(loopHeader);
         auto* condition = getValue<Register>(loopStmt.condition());
+        emitDestructorCalls(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push({ .header = loopHeader,
                          .body = loopBody,
@@ -289,6 +302,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         /// Inc
         add(loopInc);
         getValue(loopStmt.increment());
+        emitDestructorCalls(loopStmt.incrementDtorStack());
         add<ir::Goto>(loopHeader);
 
         /// End
@@ -306,6 +320,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         /// Header
         add(loopHeader);
         auto* condition = getValue<Register>(loopStmt.condition());
+        emitDestructorCalls(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
         loopStack.push(
             { .header = loopHeader, .body = loopBody, .end = loopEnd });
@@ -337,6 +352,7 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         /// Footer
         add(loopFooter);
         auto* condition = getValue<Register>(loopStmt.condition());
+        emitDestructorCalls(loopStmt.conditionDtorStack());
         add<ir::Branch>(condition, loopBody, loopEnd);
 
         /// End
@@ -345,9 +361,11 @@ void LoweringContext::generateImpl(LoopStatement const& loopStmt) {
         break;
     }
     }
+    emitDestructorCalls(loopStmt.dtorStack());
 }
 
 void LoweringContext::generateImpl(JumpStatement const& jump) {
+    emitDestructorCalls(jump.dtorStack());
     auto* dest = [&] {
         auto& currentLoop = loopStack.top();
         switch (jump.kind()) {

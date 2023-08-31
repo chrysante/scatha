@@ -14,6 +14,7 @@
 #include "Common/List.h"
 #include "IR/Fwd.h"
 #include "Sema/AnalysisResult.h"
+#include "Sema/DTorStack.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::ast {
@@ -35,7 +36,7 @@ struct LoweringContext {
     utl::hashmap<sema::Type const*, ir::Type const*> typeMap;
 
     /// Maps variables to IR values in stack memory
-    utl::hashmap<sema::Entity const*, Value> variableMap;
+    utl::hashmap<sema::Object const*, Value> objectMap;
     /// Maps array IDs to their respective sizes
     utl::hashmap<uint32_t, Value> arraySizeMap;
 
@@ -143,7 +144,7 @@ struct LoweringContext {
     Value getValueImpl(Subscript const&);
     Value getValueImpl(ListExpression const&);
     Value getValueImpl(Conversion const&);
-    Value getValueImpl(LifetimeCall const&);
+    Value getValueImpl(ConstructorCall const&);
 
     /// # Helpers
 
@@ -154,6 +155,8 @@ struct LoweringContext {
     bool genStaticListData(ListExpression const& list, ir::Alloca* dest);
 
     void genListDataFallback(ListExpression const& list, ir::Alloca* dest);
+
+    void emitDestructorCalls(sema::DTorStack const& dtorStack);
 
     /// # Utils
 
@@ -219,9 +222,9 @@ struct LoweringContext {
 
     ir::Value* constant(ssize_t value, ir::Type const* type);
 
-    /// Associate variables with program values
-    /// Values are stored in `variableMap`
-    void memorizeVariable(sema::Entity const* entity, Value value);
+    /// Associate object with program values
+    /// Values are stored in `objectMap`
+    void memorizeObject(sema::Object const* object, Value value);
 
     /// Associate array IDs with their size
     void memorizeArraySize(uint32_t ID, Value size);
