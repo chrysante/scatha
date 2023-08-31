@@ -11,7 +11,9 @@
 ///
 /// ```
 /// Entity
-/// ├─ Variable
+/// ├─ Object
+/// │  ├─ Variable
+/// │  └─ Temporary
 /// ├─ OverloadSet
 /// ├─ Generic
 /// ├─ Scope

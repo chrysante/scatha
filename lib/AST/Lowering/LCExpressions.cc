@@ -24,6 +24,7 @@ static bool isIntType(size_t width, ir::Type const* type) {
 /// MARK: getValue() Implementation
 
 Value LoweringContext::getValue(Expression const* expr) {
+    SC_ASSERT(expr, "");
     /// Returning constants here if possible breaks when we take the address of
     /// a constant. A solution that also solves the array size problem could be
     /// to add additional optional data to values (other values) that could get
@@ -789,8 +790,14 @@ Value LoweringContext::getValueImpl(LifetimeCall const& call) {
     }
     case Move:
         SC_UNIMPLEMENTED();
-    case Delete:
-        SC_UNIMPLEMENTED();
+    case Delete: {
+        auto* function = getFunction(call.function());
+        auto* object = variableMap[call.object()].get();
+        add<ir::Call>(function,
+                      std::array<ir::Value*, 1>{ object },
+                      std::string{});
+        return Value(newID(), nullptr, nullptr, Register);
+    }
     case COUNT:
         SC_UNREACHABLE();
     }

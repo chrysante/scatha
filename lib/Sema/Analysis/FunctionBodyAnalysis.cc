@@ -1,6 +1,7 @@
 #include "Sema/Analysis/FunctionBodyAnalysis.h"
 
 #include <utl/scope_guard.hpp>
+#include <utl/stack.hpp>
 
 #include "AST/AST.h"
 #include "Common/Base.h"
@@ -8,6 +9,7 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/Lifetime.h"
+#include "Sema/Analysis/ObjectStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 
@@ -43,6 +45,7 @@ struct Context {
     IssueHandler& iss;
     ast::FunctionDefinition* currentFunction = nullptr;
     size_t paramIndex = 0;
+    utl::stack<ObjectStack> objectStacks;
 };
 
 } // namespace
@@ -139,6 +142,7 @@ void Context::analyzeImpl(ast::CompoundStatement& block) {
                   "can only appear in functions.");
     }
     sym.pushScope(block.scope());
+    objectStacks.push(ObjectStack());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     auto statements =
         block.statements() | ranges::to<utl::small_vector<ast::Statement*>>;
@@ -146,6 +150,8 @@ void Context::analyzeImpl(ast::CompoundStatement& block) {
         analyze(*statement);
     }
     popScope.execute();
+    objectStacks.top().callDestructors(&block, block.children().size());
+    objectStacks.pop();
 }
 
 void Context::analyzeImpl(ast::VariableDeclaration& var) {
@@ -238,6 +244,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     if (!varObj.type()->isMutable() && var.initExpression()) {
         varObj.setConstantValue(clone(var.initExpression()->constantValue()));
     }
+    objectStacks.top().push(&varObj);
 }
 
 void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {

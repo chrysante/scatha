@@ -46,6 +46,9 @@ struct SymbolTable::Impl {
     /// The global scope
     GlobalScope* _globalScope = nullptr;
 
+    /// ID counter for temporaries
+    size_t temporaryID = 0;
+
     /// Direct accessors to builtin types
     VoidType* _void;
     ByteType* _byte;
@@ -244,6 +247,11 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
     auto& var = *declResult;
     var.setType(type);
     return var;
+}
+
+Temporary& SymbolTable::addTemporary(QualType const* type) {
+    auto* temp = impl->addEntity<Temporary>(temporaryID++, &currentScope(), type);
+    return *temp;
 }
 
 Expected<PoisonEntity&, SemanticIssue*> SymbolTable::declarePoison(

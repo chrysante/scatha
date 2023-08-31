@@ -46,3 +46,29 @@ UniquePtr<ast::LifetimeCall> sema::makeConstructorCall(
     result->decorate(nullptr, sym.qualify(structType));
     return result;
 }
+
+UniquePtr<ast::LifetimeCall> sema::makeDestructorCall(sema::Object* object) {
+    auto* type = object->type()->base();
+    auto* structType = dyncast<StructureType const*>(type);
+    if (!structType) {
+        return nullptr;
+    }
+    using enum SpecialMemberFunction;
+    auto* dtorSet = structType->specialMemberFunction(Delete);
+    if (!dtorSet) {
+        return nullptr;
+    }
+    SC_ASSERT(dtorSet->size() == 1, "Destructors cannot be overloaded");
+    auto* function = dtorSet->front();
+    return allocate<ast::LifetimeCall>(object,
+                                       function,
+                                       SpecialMemberFunction::Delete);
+}
+
+UniquePtr<ast::ExpressionStatement> sema::makeDestructorCallStmt(
+    sema::Object* object) {
+    if (auto destructorCall = makeDestructorCall(object)) {
+        return allocate<ast::ExpressionStatement>(std::move(destructorCall));
+    }
+    return nullptr;
+}

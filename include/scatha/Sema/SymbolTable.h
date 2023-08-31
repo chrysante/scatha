@@ -105,9 +105,10 @@ public:
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
                                                     QualType const* type);
 
+    /// Creates a new unique temporary object of type \p type
+    Temporary& addTemporary(QualType const* type);
+
     /// Declares an anonymous scope within the current scope.
-    ///
-    /// \returns Reference to the new scope.
     Scope& addAnonymousScope();
 
     /// Declares a poison entity to the current scope.

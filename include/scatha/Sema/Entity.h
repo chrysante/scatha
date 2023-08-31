@@ -82,10 +82,42 @@ EntityType dyncast_get_type(std::derived_from<Entity> auto const& entity) {
     return entity.entityType();
 }
 
-/// # Variable
+/// Represents an object
+class SCATHA_API Object: public Entity {
+public:
+    SC_MOVEONLY(Object);
+
+    ~Object();
+
+    /// Set the type of this object.
+    void setType(QualType const* type) { _type = type; }
+
+    /// Type of this object.
+    QualType const* type() const { return _type; }
+
+    /// \Returns Constant value if this variable is `const` and has a
+    /// const-evaluable initializer `nullptr` otherwise
+    Value const* constantValue() const { return constVal.get(); }
+
+    /// Set the constant value of this variable
+    void setConstantValue(UniquePtr<Value> value);
+
+protected:
+    explicit Object(EntityType entityType,
+                    std::string name,
+                    Scope* parentScope,
+                    QualType const* type);
+
+private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return EntityCategory::Value; }
+
+    QualType const* _type;
+    UniquePtr<Value> constVal;
+};
 
 /// Represents a variable
-class SCATHA_API Variable: public Entity {
+class SCATHA_API Variable: public Object {
 public:
     SC_MOVEONLY(Variable);
 
@@ -93,17 +125,11 @@ public:
                       Scope* parentScope,
                       QualType const* type = nullptr);
 
-    /// Set the type of this variable.
-    void setType(QualType const* type) { _type = type; }
-
     /// Set the offset of this variable.
     void setOffset(size_t offset) { _offset = offset; }
 
     /// Set the index of this variable.
     void setIndex(size_t index) { _index = index; }
-
-    /// Type of this variable.
-    QualType const* type() const { return _type; }
 
     /// Offset into the struct this variable is a member of. If this is not a
     /// member variable then offset() == 0.
@@ -119,24 +145,34 @@ public:
     /// visible.
     bool isLocal() const;
 
-    /// \Returns Constant value if this variable is `const` and has a
-    /// const-evaluable initializer `nullptr` otherwise
-    Value const* constantValue() const { return constVal.get(); }
+private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
-    /// Set the constant value of this variable
-    void setConstantValue(UniquePtr<Value> value);
+    size_t _offset = 0;
+    size_t _index = 0;
+};
+
+/// Represents a temporary object
+class SCATHA_API Temporary: public Object {
+public:
+    SC_MOVEONLY(Temporary);
+
+    explicit Temporary(size_t id, Scope* parentScope, QualType const* type);
+
+    /// Type of this temporary.
+    QualType const* type() const { return _type; }
+
+    /// The ID of this temporary
+    size_t id() const { return _id; }
 
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
     QualType const* _type;
-    size_t _offset = 0;
-    size_t _index = 0;
-    UniquePtr<Value> constVal;
+    size_t _id;
 };
-
-/// # Scopes
 
 /// Represents a scope
 class SCATHA_API Scope: public Entity {

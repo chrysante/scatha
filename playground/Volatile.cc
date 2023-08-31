@@ -128,8 +128,8 @@ static void run(mir::Module const& mod) {
     run(mod);
 
     header("Inlined");
-    opt::PassManager::makePipeline("sroa,memtoreg")(ctx, mod);
-    //    opt::PassManager::makePipeline("inline, deadfuncelim")(ctx, mod);
+    // opt::PassManager::makePipeline("sroa,memtoreg")(ctx, mod);
+    opt::PassManager::makePipeline("inline, deadfuncelim")(ctx, mod);
     print(mod);
     run(mod);
 }

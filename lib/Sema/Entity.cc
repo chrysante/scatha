@@ -10,6 +10,7 @@
 #include <utl/utility.hpp>
 
 #include "Common/Match.h"
+#include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/NameMangling.h"
 
 using namespace scatha;
@@ -42,17 +43,15 @@ void Entity::addAlternateName(std::string name) {
     }
 }
 
-/// # Variable
+Object::Object(EntityType entityType,
+               std::string name,
+               Scope* parentScope,
+               QualType const* type):
+    Entity(entityType, std::move(name), parentScope), _type(type) {}
 
-Variable::Variable(std::string name, Scope* parentScope, QualType const* type):
-    Entity(EntityType::Variable, std::move(name), parentScope), _type(type) {}
+Object::~Object() = default;
 
-bool Variable::isLocal() const {
-    return parent()->kind() == ScopeKind::Function ||
-           parent()->kind() == ScopeKind::Anonymous;
-}
-
-void Variable::setConstantValue(UniquePtr<Value> value) {
+void Object::setConstantValue(UniquePtr<Value> value) {
     if (value) {
         SC_ASSERT(type(), "Invalid");
         SC_ASSERT(!type()->isReference(), "Invalid");
@@ -61,7 +60,16 @@ void Variable::setConstantValue(UniquePtr<Value> value) {
     constVal = std::move(value);
 }
 
-/// # Scopes
+Variable::Variable(std::string name, Scope* parentScope, QualType const* type):
+    Object(EntityType::Variable, std::move(name), parentScope, type) {}
+
+bool Variable::isLocal() const {
+    return parent()->kind() == ScopeKind::Function ||
+           parent()->kind() == ScopeKind::Anonymous;
+}
+
+Temporary::Temporary(size_t id, Scope* parentScope, QualType const* type):
+    Object(EntityType::Temporary, std::string{}, parentScope, type), _id(id) {}
 
 Scope::Scope(EntityType entityType,
              ScopeKind kind,

@@ -269,7 +269,6 @@ private:
 
     friend void scatha::internal::privateDelete(ast::AbstractSyntaxTree*);
 
-private:
     NodeType _type;
     SourceRange _sourceRange;
     AbstractSyntaxTree* _parent = nullptr;
@@ -289,7 +288,7 @@ class SCATHA_API Expression: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
 
-    SC_MOVEONLY(Expression);
+    ~Expression();
 
     AST_DERIVED_COMMON(Expression)
 
@@ -359,9 +358,7 @@ public:
     sema::Value const* constantValue() const { return constVal.get(); }
 
     /// Set the constant value of this expression
-    void setConstantValue(UniquePtr<sema::Value> value) {
-        constVal = std::move(value);
-    }
+    void setConstantValue(UniquePtr<sema::Value> value);
 
 private:
     sema::Entity* _entity = nullptr;
@@ -1180,11 +1177,27 @@ class SCATHA_API LifetimeCall: public Expression {
 public:
     explicit LifetimeCall(std::span<UniquePtr<Expression>> arguments,
                           sema::Function* lifetimeFunction,
-                          sema::SpecialMemberFunction kind);
+                          sema::SpecialMemberFunction kind):
+        Expression(NodeType::LifetimeCall, SourceRange{}, arguments),
+        _object(nullptr),
+        _function(lifetimeFunction),
+        _kind(kind) {}
+
+    explicit LifetimeCall(sema::Object* object,
+                          sema::Function* lifetimeFunction,
+                          sema::SpecialMemberFunction kind):
+        Expression(NodeType::LifetimeCall, SourceRange{}),
+        _object(object),
+        _function(lifetimeFunction),
+        _kind(kind) {}
 
     AST_DERIVED_COMMON(LifetimeCall)
 
     AST_RANGE_PROPERTY(0, Expression, argument, Argument)
+
+    /// The object that is being destroyed, or `nullptr` if this is not a
+    /// destructor call
+    sema::Object* object() const { return _object; }
 
     /// The lifetime function to call
     sema::Function* function() const { return _function; }
@@ -1197,6 +1210,7 @@ public:
     sema::SpecialMemberFunction kind() const { return _kind; }
 
 private:
+    sema::Object* _object;
     sema::Function* _function;
     sema::SpecialMemberFunction _kind;
 };

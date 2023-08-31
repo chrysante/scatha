@@ -3,6 +3,7 @@
 #include <range/v3/algorithm.hpp>
 #include <utl/utility.hpp>
 
+#include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Entity.h"
 
@@ -49,6 +50,12 @@ size_t AbstractSyntaxTree::indexOf(AbstractSyntaxTree const* child) const {
     return utl::narrow_cast<size_t>(itr - _children.begin());
 }
 
+Expression::~Expression() = default;
+
+sema::QualType const* Expression::typeOrTypeEntity() const {
+    return isValue() ? type() : cast<sema::QualType const*>(entity());
+}
+
 void Expression::decorate(sema::Entity* entity,
                           sema::QualType const* type,
                           std::optional<sema::ValueCategory> valueCat,
@@ -75,8 +82,8 @@ void Expression::decorate(sema::Entity* entity,
     markDecorated();
 }
 
-sema::QualType const* Expression::typeOrTypeEntity() const {
-    return isValue() ? type() : cast<sema::QualType const*>(entity());
+void Expression::setConstantValue(UniquePtr<sema::Value> value) {
+    constVal = std::move(value);
 }
 
 Conversion::Conversion(UniquePtr<Expression> expr,
@@ -89,13 +96,6 @@ Conversion::~Conversion() = default;
 sema::QualType const* Conversion::targetType() const {
     return conversion()->targetType();
 }
-
-LifetimeCall::LifetimeCall(std::span<UniquePtr<Expression>> arguments,
-                           sema::Function* function,
-                           sema::SpecialMemberFunction kind):
-    Expression(NodeType::LifetimeCall, SourceRange{}, arguments),
-    _function(function),
-    _kind(kind) {}
 
 sema::ObjectType const* LifetimeCall::constructedType() const {
     return cast<sema::ObjectType const*>(function()->parent());
