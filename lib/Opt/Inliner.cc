@@ -210,8 +210,13 @@ VisitResult Inliner::visitFunction(FunctionNode const& node) {
     /// We have already locally optimized this function. Now we try to inline
     /// callees.
     bool modifiedAny = false;
-    for (auto* callee: node.callees()) {
-        auto& callsitesOfCallee = node.callsites(*callee);
+    /// We create a copy of the list of callees because after inlining one
+    /// function the corresponding edge may be erased from the call graph,
+    /// invalidating the list.
+    auto callees =
+        node.callees() | ranges::to<utl::small_vector<FunctionNode const*>>;
+    for (auto* callee: callees) {
+        auto callsitesOfCallee = node.callsites(*callee);
         for (auto* callInst: callsitesOfCallee) {
             bool const shouldInline = shouldInlineCallsite(callGraph, callInst);
             if (!shouldInline) {

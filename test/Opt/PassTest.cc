@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace test;
 
-void test::passTest(std::function<bool(ir::Context&, ir::Function&)> pass,
+void test::passTest(opt::LocalPass pass,
                     ir::Context& fCtx,
                     ir::Function& F,
                     ir::Function& ref) {
@@ -22,7 +22,7 @@ void test::passTest(std::function<bool(ir::Context&, ir::Function&)> pass,
     CHECK(test::funcEqual(F, ref));
 }
 
-void test::passTest(std::function<bool(ir::Context&, ir::Function&)> pass,
+void test::passTest(opt::LocalPass pass,
                     std::string fSource,
                     std::string refSource) {
     auto [fCtx, fMod] = ir::parse(fSource).value();
@@ -30,4 +30,27 @@ void test::passTest(std::function<bool(ir::Context&, ir::Function&)> pass,
     auto& F = fMod.front();
     auto& ref = refMod.front();
     test::passTest(pass, fCtx, F, ref);
+}
+
+void test::passTest(opt::GlobalPass pass,
+                    opt::LocalPass local,
+                    ir::Context& mCtx,
+                    ir::Module& M,
+                    ir::Module& ref) {
+    bool const modifiedFirstTime = pass(mCtx, M, local);
+    CHECK(modifiedFirstTime);
+    bool const modifiedSecondTime = pass(mCtx, M, local);
+    CHECK(!modifiedSecondTime);
+    for (auto&& [F, G]: ranges::views::zip(M, ref)) {
+        CHECK(test::funcEqual(F, G));
+    }
+}
+
+void test::passTest(opt::GlobalPass pass,
+                    opt::LocalPass local,
+                    std::string mSource,
+                    std::string refSource) {
+    auto [mCtx, M] = ir::parse(mSource).value();
+    auto [refCtx, ref] = ir::parse(refSource).value();
+    test::passTest(pass, local, mCtx, M, ref);
 }
