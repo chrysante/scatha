@@ -7,28 +7,41 @@
 using namespace scatha;
 using namespace parse;
 
-static constexpr std::string_view brackets[] = { "(", ")", "[", "]", "{", "}" };
-
-parse::Bracket parse::toBracket(Token const& token) {
-    auto const itr =
-        std::find(std::begin(brackets), std::end(brackets), token.id());
-    size_t const index = utl::narrow_cast<size_t>(itr - std::begin(brackets));
-    size_t const shiftedIndex = (index + 2) % 8;
-    return Bracket{ Bracket::Type(shiftedIndex / 2),
-                    Bracket::Side(shiftedIndex % 2) };
+Bracket parse::toBracket(Token const& token) {
+    using enum Bracket::Type;
+    using enum Bracket::Side;
+    switch (token.kind()) {
+    case TokenKind::OpenParan:
+        return { Paranthesis, Open };
+    case TokenKind::CloseParan:
+        return { Paranthesis, Close };
+    case TokenKind::OpenBracket:
+        return { Square, Open };
+    case TokenKind::CloseBracket:
+        return { Square, Close };
+    case TokenKind::OpenBrace:
+        return { Curly, Open };
+    case TokenKind::CloseBrace:
+        return { Curly, Close };
+    default:
+        return { None, Open };
+    }
 }
 
 std::string parse::toString(Bracket bracket) {
-    size_t const index = (static_cast<size_t>(bracket.type) - 1) * 2 +
-                         static_cast<size_t>(bracket.side);
-    SC_ASSERT(index < std::size(brackets), "Out of bounds");
-    return std::string(brackets[index]);
+    static std::string const result[3][2] = {
+        { "(", ")" },
+        { "[", "]" },
+        { "{", "}" },
+    };
+    return result[static_cast<size_t>(bracket.type) - 1]
+                 [static_cast<size_t>(bracket.side)];
 }
 
 TokenKind parse::toTokenKind(Bracket bracket) {
     if (bracket.side == Bracket::Side::Open) {
         switch (bracket.type) {
-        case Bracket::Type::Parenthesis:
+        case Bracket::Type::Paranthesis:
             return TokenKind::OpenParan;
         case Bracket::Type::Square:
             return TokenKind::OpenBracket;
@@ -40,7 +53,7 @@ TokenKind parse::toTokenKind(Bracket bracket) {
     }
     else {
         switch (bracket.type) {
-        case Bracket::Type::Parenthesis:
+        case Bracket::Type::Paranthesis:
             return TokenKind::CloseParan;
         case Bracket::Type::Square:
             return TokenKind::CloseBracket;

@@ -13,7 +13,7 @@ namespace scatha::parse {
 struct Token;
 
 struct Bracket {
-    enum class Type { None, Parenthesis, Square, Curly };
+    enum class Type { None, Paranthesis, Square, Curly };
 
     enum class Side { Open, Close };
 
