@@ -302,7 +302,7 @@ static void insertReturn(Context& ctx, BasicBlock& bb) {
 
 void ir::setupInvariants(Context& ctx, Function& function) {
     for (auto& bb: function) {
-        /// Erase everything after the last terminator.
+        /// Erase everything after the first terminator.
         for (auto itr = bb.begin(); itr != bb.end(); ++itr) {
             if (isa<TerminatorInst>(*itr)) {
                 bb.erase(std::next(itr), bb.end());
