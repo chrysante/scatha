@@ -250,7 +250,8 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
 }
 
 Temporary& SymbolTable::addTemporary(QualType const* type) {
-    auto* temp = impl->addEntity<Temporary>(temporaryID++, &currentScope(), type);
+    auto* temp =
+        impl->addEntity<Temporary>(impl->temporaryID++, &currentScope(), type);
     return *temp;
 }
 

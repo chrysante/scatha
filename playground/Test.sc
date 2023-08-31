@@ -5,7 +5,7 @@ struct X {
         this.value = 1;
         print("Created X\n");
     }
-    
+
     fn new(&mut this, n: int) {
         this.value = n;
         print("Created X\n");
@@ -36,18 +36,18 @@ fn take(x: X) {
 }
 
 public fn main() -> int {
-    //var x: X;
-    //var y = x;
-    //var z = X(3);
-    
-    return X().value;
+    var x: X;
+    var y = x;
+    var z = X();
+
+    //return X().value;
 }
 
 
 fn print(text: &str) {
-    __builtin_putstr(&text);
+    //__builtin_putstr(&text);
 }
 
 fn print(n: int) {
-    __builtin_puti64(n);
+    //__builtin_puti64(n);
 }
