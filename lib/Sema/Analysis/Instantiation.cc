@@ -6,7 +6,6 @@
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
-#include "Common/Match.h"
 #include "Common/Ranges.h"
 #include "Sema/Analysis/DependencyGraph.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"

@@ -9,7 +9,6 @@
 
 #include "Common/Base.h"
 #include "Common/EscapeSequence.h"
-#include "Common/Match.h"
 #include "Common/PrintUtil.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"

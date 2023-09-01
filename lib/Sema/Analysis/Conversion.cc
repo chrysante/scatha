@@ -6,7 +6,6 @@
 #include <range/v3/view.hpp>
 
 #include "AST/AST.h"
-#include "Common/Match.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"

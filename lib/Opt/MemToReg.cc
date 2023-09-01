@@ -6,7 +6,6 @@
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
-#include "Common/Match.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
