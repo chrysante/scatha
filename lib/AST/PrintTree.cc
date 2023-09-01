@@ -22,7 +22,7 @@ void ast::printTree(AbstractSyntaxTree const& root) {
     printTree(root, std::cout);
 }
 
-static sema::QualType const* getType(AbstractSyntaxTree const* node) {
+static sema::QualType getType(AbstractSyntaxTree const* node) {
     if (!node->isDecorated()) {
         return nullptr;
     }
@@ -37,8 +37,7 @@ static sema::QualType const* getType(AbstractSyntaxTree const* node) {
 
 static utl::vstreammanip<> typeHelper(AbstractSyntaxTree const* node) {
     return [=](std::ostream& str) {
-        auto* type = getType(node);
-        if (type) {
+        if (auto type = getType(node)) {
             str << " " << tfmt::format(tfmt::BrightGrey, "Type: ")
                 << type->name();
             if (auto* expr = dyncast<Expression const*>(node)) {
@@ -107,7 +106,7 @@ static constexpr utl::streammanip header([](std::ostream& str,
 static constexpr utl::streammanip funcDecl([](std::ostream& str,
                                               sema::Function const* func) {
     str << func->name() << "(";
-    for (bool first = true; auto* type: func->argumentTypes()) {
+    for (bool first = true; auto type: func->argumentTypes()) {
         str << (first ? first = false, "" : ", ");
         str << (type ? type->name() : "NULL");
     }
@@ -118,7 +117,7 @@ static constexpr utl::streammanip formatLit([](std::ostream& str,
                                                ast::Literal const* lit) {
     switch (lit->kind()) {
     case LiteralKind::Integer: {
-        auto* type = cast<sema::IntType const*>(lit->type()->base());
+        auto* type = cast<sema::IntType const*>(lit->type().get());
         auto value = lit->value<APInt>();
         if (!type) {
             str << value.toString();

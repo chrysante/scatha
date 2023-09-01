@@ -12,6 +12,7 @@
 
 using namespace scatha;
 using namespace ast;
+using sema::QualType;
 
 using enum ValueLocation;
 
@@ -62,13 +63,13 @@ void LoweringContext::generateParameter(
     ParameterDeclaration const* paramDecl,
     PassingConvention pc,
     List<ir::Parameter>::iterator& irParamItr) {
-    auto* semaType = paramDecl->type();
+    QualType semaType = paramDecl->type();
     auto* irParam = irParamItr.to_address();
     auto* irType = mapType(paramDecl->type());
     std::string name(paramDecl->name());
     /// The `this` reference parameter is not stored to memory
     if (auto* thisParam = dyncast<ThisParameter const*>(paramDecl);
-        thisParam && thisParam->type()->isReference())
+        thisParam && sema::isRef(thisParam->type()))
     {
         SC_ASSERT(pc.location() == Register, "");
         memorizeObject(paramDecl->variable(),
@@ -77,7 +78,9 @@ void LoweringContext::generateParameter(
         return;
     }
 
-    if (auto* arrayType = dyncast<sema::ArrayType const*>(semaType->base())) {
+    if (auto* arrayType =
+            dyncast<sema::ArrayType const*>(stripReference(semaType).get()))
+    {
         switch (pc.location()) {
         case Register: {
             auto* dataAddress = storeLocal(irParam, name);
@@ -133,7 +136,8 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
     auto dtorStack = varDecl.dtorStack();
     utl::scope_guard emitDTors = [&] { emitDestructorCalls(dtorStack); };
     std::string name = utl::strcat(varDecl.name());
-    auto* arrayType = dyncast<sema::ArrayType const*>(varDecl.type()->base());
+    auto* arrayType = dyncast<sema::ArrayType const*>(
+        sema::stripReference(varDecl.type()).get());
     /// Simple non-array case
     if (!arrayType) {
         if (varDecl.initExpression()) {
@@ -161,7 +165,7 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
         return;
     }
     /// Array case
-    if (varDecl.type()->isReference()) {
+    if (sema::isRef(varDecl.type())) {
         auto data = getValue(varDecl.initExpression());
         auto* dataAddress =
             storeLocal(toRegister(data), std::string(varDecl.name()));
@@ -217,7 +221,7 @@ void LoweringContext::generateImpl(ReturnStatement const& retDecl) {
     }
     auto returnValue = getValue(retDecl.expression());
     emitDestructorCalls(retDecl.dtorStack());
-    switch (retDecl.expression()->type()->base()->entityType()) {
+    switch (sema::stripReference(retDecl.expression()->type())->entityType()) {
     case sema::EntityType::ArrayType: {
         switch (CC.returnValue().location()) {
         case Register: {

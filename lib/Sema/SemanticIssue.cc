@@ -26,7 +26,7 @@ void AssignmentToConst::format(std::ostream& str) const {
 }
 
 BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
-                                     QualType const* to):
+                                     QualType to):
     BadExpression(expression, IssueSeverity::Error),
     _from(expression.type()),
     _to(to) {}
@@ -37,7 +37,7 @@ void BadTypeConversion::format(std::ostream& str) const {
 }
 
 BadOperandForUnaryExpression::BadOperandForUnaryExpression(
-    ast::Expression const& expression, QualType const* operandType):
+    ast::Expression const& expression, QualType operandType):
     BadExpression(expression, IssueSeverity::Error), _opType(operandType) {}
 
 void BadOperandForUnaryExpression::format(std::ostream& str) const {

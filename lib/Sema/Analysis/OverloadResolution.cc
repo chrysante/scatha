@@ -14,9 +14,9 @@ using namespace sema;
 ///  \returns The maximum conversion rank if all arguments are convertible to
 /// the parameters  `std::nullopt` otherwise
 static std::optional<int> signatureMatch(
-    std::span<QualType const* const> argTypes,
+    std::span<QualType const> argTypes,
     std::span<Value const* const> constantArgs,
-    std::span<QualType const* const> paramTypes,
+    std::span<QualType const> paramTypes,
     bool isMemberCall) {
     if (paramTypes.size() != argTypes.size()) {
         return std::nullopt;
@@ -55,7 +55,7 @@ struct Match {
 
 static Expected<Function*, OverloadResolutionError*> performORImpl(
     OverloadSet* overloadSet,
-    std::span<QualType const* const> argTypes,
+    std::span<QualType const> argTypes,
     std::span<Value const* const> constArgs,
     bool isMemberCall) {
     utl::small_vector<Match> matches;
@@ -101,7 +101,7 @@ static Expected<Function*, OverloadResolutionError*> performORImpl(
 
 Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
     OverloadSet* overloadSet,
-    std::span<QualType const* const> argTypes,
+    std::span<QualType const> argTypes,
     bool isMemberCall) {
     return performORImpl(overloadSet,
                          argTypes,
@@ -114,7 +114,7 @@ Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
     OverloadSet* overloadSet,
     std::span<ast::Expression const* const> arguments,
     bool isMemberCall) {
-    utl::small_vector<QualType const*> argTypes;
+    utl::small_vector<QualType> argTypes;
     utl::small_vector<Value const*> argValues;
     argTypes.reserve(arguments.size());
     argValues.reserve(arguments.size());

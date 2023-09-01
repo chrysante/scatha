@@ -28,10 +28,8 @@ struct SymbolTable::Impl {
     /// Owning list of all entities in this symbol table
     utl::vector<UniquePtr<Entity>> _entities;
 
-    /// Map of instantiated `QualType`'s
-    utl::hashmap<std::tuple<ObjectType const*, Reference, Mutability>,
-                 QualType const*>
-        _qualTypes;
+    /// Map of instantiated `ReferenceType`'s
+    utl::hashmap<std::pair<QualType, Reference>, ReferenceType const*> refTypes;
 
     /// Map of instantiated `ArrayTypes`'s
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
@@ -86,8 +84,7 @@ SymbolTable::SymbolTable(): impl(std::make_unique<Impl>()) {
     impl->_u64 = declareBuiltinType<IntType>(64u, Unsigned);
     impl->_f32 = declareBuiltinType<FloatType>(32u);
     impl->_f64 = declareBuiltinType<FloatType>(64u);
-    impl->_str =
-        const_cast<ArrayType*>(arrayType(rawByte(), ArrayType::DynamicCount));
+    impl->_str = const_cast<ArrayType*>(arrayType(Byte()));
 
     impl->_s64->addAlternateName("int");
     impl->_f32->addAlternateName("float");
@@ -238,8 +235,8 @@ Expected<Variable&, SemanticIssue*> SymbolTable::declareVariable(
     return *variable;
 }
 
-Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
-    std::string name, QualType const* type) {
+Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(std::string name,
+                                                             QualType type) {
     auto declResult = declareVariable(std::move(name));
     if (!declResult) {
         return declResult.error();
@@ -249,7 +246,7 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(
     return var;
 }
 
-Temporary& SymbolTable::addTemporary(QualType const* type) {
+Temporary& SymbolTable::addTemporary(QualType type) {
     auto* temp =
         impl->addEntity<Temporary>(impl->temporaryID++, &currentScope(), type);
     return *temp;
@@ -295,41 +292,38 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     return arrayType;
 }
 
-QualType const* SymbolTable::qualify(ObjectType const* base,
-                                     Reference ref,
-                                     Mutability mut) {
-    std::tuple key = { base, ref, mut };
-    auto itr = impl->_qualTypes.find(key);
-    if (itr != impl->_qualTypes.end()) {
+ArrayType const* SymbolTable::arrayType(ObjectType const* elementType) {
+    return arrayType(elementType, ArrayType::DynamicCount);
+}
+
+IntType const* SymbolTable::intType(size_t width, Signedness signedness) {
+    bool isSigned = signedness == Signedness::Signed;
+    switch (width) {
+    case 8:
+        return isSigned ? S8() : U8();
+    case 16:
+        return isSigned ? S16() : U16();
+    case 32:
+        return isSigned ? S32() : U32();
+    case 64:
+        return isSigned ? S64() : U64();
+    default:
+        SC_UNREACHABLE();
+    }
+}
+
+ReferenceType const* SymbolTable::reference(QualType referred, Reference ref) {
+    if (isRef(referred)) {
+        referred = cast<ReferenceType const&>(*referred).base();
+    }
+    std::pair key = { referred, ref };
+    auto itr = impl->refTypes.find(key);
+    if (itr != impl->refTypes.end()) {
         return itr->second;
     }
-    auto* qualType =
-        impl->addEntity<QualType>(const_cast<ObjectType*>(base), ref, mut);
-    impl->_qualTypes.insert({ key, qualType });
-    return qualType;
-}
-
-QualType const* SymbolTable::stripQualifiers(QualType const* type) {
-    return qualify(type->base());
-}
-
-QualType const* SymbolTable::copyQualifiers(QualType const* from,
-                                            ObjectType const* to) {
-    return qualify(to, from->reference());
-}
-
-QualType const* SymbolTable::setReference(QualType const* type, Reference ref) {
-    return qualify(type->base(), ref, type->mutability());
-}
-
-QualType const* SymbolTable::setMutable(QualType const* type, Mutability mut) {
-    return qualify(type->base(), type->reference(), mut);
-}
-
-QualType const* SymbolTable::qDynArray(ObjectType const* base,
-                                       Reference ref,
-                                       Mutability mut) {
-    return qualify(arrayType(base, ArrayType::DynamicCount), ref, mut);
+    auto* refType = impl->addEntity<ReferenceType>(referred, ref);
+    impl->refTypes.insert({ key, refType });
+    return refType;
 }
 
 void SymbolTable::pushScope(Scope* scope) {
@@ -378,101 +372,33 @@ GlobalScope const& SymbolTable::globalScope() const {
     return *impl->_globalScope;
 }
 
-VoidType const* SymbolTable::rawVoid() const { return impl->_void; }
+VoidType const* SymbolTable::Void() const { return impl->_void; }
 
-ByteType const* SymbolTable::rawByte() const { return impl->_byte; }
+ByteType const* SymbolTable::Byte() const { return impl->_byte; }
 
-BoolType const* SymbolTable::rawBool() const { return impl->_bool; }
+BoolType const* SymbolTable::Bool() const { return impl->_bool; }
 
-IntType const* SymbolTable::rawS8() const { return impl->_s8; }
+IntType const* SymbolTable::S8() const { return impl->_s8; }
 
-IntType const* SymbolTable::rawS16() const { return impl->_s16; }
+IntType const* SymbolTable::S16() const { return impl->_s16; }
 
-IntType const* SymbolTable::rawS32() const { return impl->_s32; }
+IntType const* SymbolTable::S32() const { return impl->_s32; }
 
-IntType const* SymbolTable::rawS64() const { return impl->_s64; }
+IntType const* SymbolTable::S64() const { return impl->_s64; }
 
-IntType const* SymbolTable::rawU8() const { return impl->_u8; }
+IntType const* SymbolTable::U8() const { return impl->_u8; }
 
-IntType const* SymbolTable::rawU16() const { return impl->_u16; }
+IntType const* SymbolTable::U16() const { return impl->_u16; }
 
-IntType const* SymbolTable::rawU32() const { return impl->_u32; }
+IntType const* SymbolTable::U32() const { return impl->_u32; }
 
-IntType const* SymbolTable::rawU64() const { return impl->_u64; }
+IntType const* SymbolTable::U64() const { return impl->_u64; }
 
-FloatType const* SymbolTable::rawF32() const { return impl->_f32; }
+FloatType const* SymbolTable::F32() const { return impl->_f32; }
 
-FloatType const* SymbolTable::rawF64() const { return impl->_f64; }
+FloatType const* SymbolTable::F64() const { return impl->_f64; }
 
-ArrayType const* SymbolTable::rawStr() const { return impl->_str; }
-
-QualType const* SymbolTable::Void(Reference ref) {
-    return qualify(rawVoid(), ref);
-}
-
-QualType const* SymbolTable::Byte(Reference ref) {
-    return qualify(rawByte(), ref);
-}
-
-QualType const* SymbolTable::Bool(Reference ref) {
-    return qualify(rawBool(), ref);
-}
-
-QualType const* SymbolTable::S8(Reference ref) { return qualify(rawS8(), ref); }
-
-QualType const* SymbolTable::S16(Reference ref) {
-    return qualify(rawS16(), ref);
-}
-
-QualType const* SymbolTable::S32(Reference ref) {
-    return qualify(rawS32(), ref);
-}
-
-QualType const* SymbolTable::S64(Reference ref) {
-    return qualify(rawS64(), ref);
-}
-
-QualType const* SymbolTable::U8(Reference ref) { return qualify(rawU8(), ref); }
-
-QualType const* SymbolTable::U16(Reference ref) {
-    return qualify(rawU16(), ref);
-}
-
-QualType const* SymbolTable::U32(Reference ref) {
-    return qualify(rawU32(), ref);
-}
-
-QualType const* SymbolTable::U64(Reference ref) {
-    return qualify(rawU64(), ref);
-}
-
-QualType const* SymbolTable::F32(Reference ref) {
-    return qualify(rawF32(), ref);
-}
-
-QualType const* SymbolTable::F64(Reference ref) {
-    return qualify(rawF64(), ref);
-}
-
-QualType const* SymbolTable::Str(Reference ref) {
-    return qualify(rawStr(), ref);
-}
-
-IntType const* SymbolTable::rawIntType(size_t width, Signedness signedness) {
-    bool isSigned = signedness == Signedness::Signed;
-    switch (width) {
-    case 8:
-        return isSigned ? rawS8() : rawU8();
-    case 16:
-        return isSigned ? rawS16() : rawU16();
-    case 32:
-        return isSigned ? rawS32() : rawU32();
-    case 64:
-        return isSigned ? rawS64() : rawU64();
-    default:
-        SC_UNREACHABLE();
-    }
-}
+ArrayType const* SymbolTable::Str() const { return impl->_str; }
 
 std::span<Function* const> SymbolTable::functions() { return impl->_functions; }
 

@@ -14,6 +14,8 @@
 using namespace scatha;
 using namespace ast;
 
+using sema::QualType;
+
 using enum ValueLocation;
 
 void LoweringContext::makeDeclarations() {
@@ -36,15 +38,15 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
     for (auto [semaIndex, member]:
          structType->memberVariables() | ranges::views::enumerate)
     {
-        auto* memType = member->type();
+        QualType memType = member->type();
         structure->addMember(mapType(memType));
         structIndexMap[{ structType, semaIndex }] = irIndex++;
-        auto* arrayType = dyncast<sema::ArrayType const*>(memType->base());
+        auto* arrayType = dyncast<sema::ArrayType const*>(
+            sema::stripReference(memType).get());
         if (!arrayType || !arrayType->isDynamic()) {
             continue;
         }
-        SC_ASSERT(memType->isReference(),
-                  "Can't have dynamic arrays in structs");
+        SC_ASSERT(sema::isRef(memType), "Can't have dynamic arrays in structs");
         structure->addMember(ctx.integralType(64));
         /// We simply increment the index without adding anything to the map
         /// because `getValueImpl(MemberAccess)` will know what to do
@@ -54,17 +56,16 @@ void LoweringContext::declareType(sema::StructureType const* structType) {
     mod.addStructure(std::move(structure));
 }
 
-static bool isTrivial(sema::QualType const* type) {
-    return type->isReference() || type->base()->hasTrivialLifetime();
+static bool isTrivial(sema::QualType type) {
+    return type->hasTrivialLifetime();
 }
 
 static const size_t maxRegPassingSize = 16;
 
-static PassingConvention computePCImpl(sema::QualType const* type,
-                                       bool isRetval) {
+static PassingConvention computePCImpl(sema::QualType type, bool isRetval) {
     bool const isSmall = type->size() <= maxRegPassingSize;
     // clang-format off
-    return visit(*type->base(), utl::overload{
+    return visit(*sema::stripReference(type), utl::overload{
         [&](sema::ObjectType const& baseType) {
             if (isSmall && isTrivial(type)) {
                 return PassingConvention(Register, isRetval ? 0u : 1u);
@@ -73,7 +74,7 @@ static PassingConvention computePCImpl(sema::QualType const* type,
         },
         [&](sema::ArrayType const& arrayType) {
             size_t argCount = arrayType.isDynamic() ? 2 : 1;
-            if (type->isReference()) {
+            if (sema::isRef(type)) {
                 return PassingConvention(Register, isRetval ? 0 : argCount);
             }
             if (isSmall && isTrivial(type)) {
@@ -84,14 +85,14 @@ static PassingConvention computePCImpl(sema::QualType const* type,
     }); // clang-format on
 }
 
-static PassingConvention computeRetValPC(sema::QualType const* type) {
-    if (isa<sema::VoidType>(type->base())) {
+static PassingConvention computeRetValPC(sema::QualType type) {
+    if (isa<sema::VoidType>(*type)) {
         return { Register, 0 };
     }
     return computePCImpl(type, true);
 }
 
-static PassingConvention computeArgPC(sema::QualType const* type) {
+static PassingConvention computeArgPC(sema::QualType type) {
     return computePCImpl(type, false);
 }
 
@@ -111,7 +112,7 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
     auto retvalPC = CC.returnValue();
     switch (retvalPC.location()) {
     case Register:
-        switch (function->returnType()->base()->entityType()) {
+        switch (sema::stripReference(function->returnType())->entityType()) {
         case sema::EntityType::ArrayType: {
             irReturnType = arrayViewType;
             break;

@@ -203,8 +203,6 @@ struct LoweringContext {
 
     ir::Value* makeLocal(ir::Type const* type, std::string name);
 
-    ir::Value* loadIfRef(Expression const* expr, ir::Value* value);
-
     ir::Callable* getFunction(sema::Function const*);
 
     /// \Returns the value passing convention of the return value and the return
@@ -237,7 +235,7 @@ struct LoweringContext {
 
     /// # Map utils
 
-    ir::Type const* mapType(sema::Type const* semaType);
+    ir::Type const* mapType(sema::QualType semaType);
 
     ir::UnaryArithmeticOperation mapUnaryOp(ast::UnaryOperator op);
 

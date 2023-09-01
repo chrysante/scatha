@@ -14,6 +14,7 @@
 
 using namespace scatha;
 using namespace ast;
+using sema::QualType;
 
 using enum ValueLocation;
 
@@ -102,7 +103,8 @@ Value LoweringContext::getValueImpl(UnaryExpression const& expr) {
     case Decrement: {
         Value operand = getValue(expr.operand());
         ir::Value* opAddr = toRegister(operand);
-        ir::Type const* operandType = mapType(expr.operand()->type()->base());
+        ir::Type const* operandType =
+            mapType(sema::stripReference(expr.operand()->type()));
         ir::Value* operandValue =
             add<ir::Load>(opAddr,
                           operandType,
@@ -130,7 +132,7 @@ Value LoweringContext::getValueImpl(UnaryExpression const& expr) {
 
     case ast::UnaryOperator::Negation: {
         auto* operand = toRegister(getValue(expr.operand()));
-        auto operation = isa<sema::IntType>(expr.operand()->type()->base()) ?
+        auto operation = isa<sema::IntType>(expr.operand()->type().get()) ?
                              ir::ArithmeticOperation::Sub :
                              ir::ArithmeticOperation::FSub;
         auto* newValue = add<ir::ArithmeticInst>(constant(0, operand->type()),
@@ -151,8 +153,8 @@ Value LoweringContext::getValueImpl(UnaryExpression const& expr) {
 }
 
 Value LoweringContext::getValueImpl(BinaryExpression const& expr) {
-    auto* builtinType =
-        dyncast<sema::BuiltinType const*>(expr.lhs()->type()->base());
+    auto* builtinType = dyncast<sema::BuiltinType const*>(
+        sema::stripReference(expr.lhs()->type()).get());
 
     switch (expr.operation()) {
         using enum BinaryOperator;
@@ -284,7 +286,7 @@ Value LoweringContext::getValueImpl(BinaryExpression const& expr) {
         auto lhsReg = toRegister(lhs);
         auto rhsReg = toRegister(rhs);
         if (expr.operation() != Assignment) {
-            SC_ASSERT(builtinType == expr.rhs()->type()->base(), "");
+            SC_ASSERT(builtinType == expr.rhs()->type(), "");
             auto* lhsValue = add<ir::Load>(lhsReg, mapType(builtinType), "lhs");
             auto operation =
                 mapArithmeticAssignOp(builtinType, expr.operation());
@@ -292,12 +294,12 @@ Value LoweringContext::getValueImpl(BinaryExpression const& expr) {
                 add<ir::ArithmeticInst>(lhsValue, rhsReg, operation, "expr");
         }
         add<ir::Store>(lhsReg, rhsReg);
-        if (auto* arrayType =
-                dyncast<sema::ArrayType const*>(expr.lhs()->type()->base());
+        if (auto* arrayType = dyncast<sema::ArrayType const*>(
+                sema::stripReference(expr.lhs()->type()).get());
             arrayType && arrayType->isDynamic())
         {
             SC_ASSERT(expr.operation() == Assignment, "");
-            SC_ASSERT(expr.lhs()->type()->isReference(), "");
+            SC_ASSERT(sema::isRef(expr.lhs()->type()), "");
             auto lhsSize = getArraySize(lhs.ID());
             SC_ASSERT(lhsSize.location() == Memory,
                       "Must be in memory to reassign");
@@ -318,7 +320,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
         return itr->second;
     }
     if (auto* arrayType =
-            dyncast<sema::ArrayType const*>(expr.object()->type()->base()))
+            dyncast<sema::ArrayType const*>(expr.object()->type().get()))
     {
         SC_ASSERT(expr.member()->value() == "count", "What else?");
         auto value = getValue(expr.object());
@@ -331,7 +333,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
 
     Value value;
     size_t const irIndex = structIndexMap[{
-        cast<sema::StructureType const*>(expr.object()->type()->base()),
+        cast<sema::StructureType const*>(expr.object()->type().get()),
         var->index() }];
     switch (base.location()) {
     case Register: {
@@ -341,7 +343,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
         break;
     }
     case Memory: {
-        auto* baseType = mapType(expr.object()->type()->base());
+        auto* baseType = mapType(sema::stripReference(expr.object()->type()));
         auto* result = add<ir::GetElementPointer>(baseType,
                                                   base.get(),
                                                   intConstant(0, 64),
@@ -352,8 +354,9 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
         break;
     }
     }
-    auto* memType = expr.type();
-    auto* arrayType = dyncast<sema::ArrayType const*>(memType->base());
+    QualType memType = expr.type();
+    auto* arrayType =
+        dyncast<sema::ArrayType const*>(stripReference(memType).get());
     if (!arrayType) {
         return value;
     }
@@ -367,7 +370,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
         break;
     }
     case Memory: {
-        auto* baseType = mapType(expr.object()->type()->base());
+        auto* baseType = mapType(sema::stripReference(expr.object()->type()));
         auto* result = add<ir::GetElementPointer>(baseType,
                                                   base.get(),
                                                   intConstant(0, 64),
@@ -385,7 +388,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
 Value LoweringContext::getValueImpl(ReferenceExpression const& expr) {
     auto* referred = expr.referred();
     auto value = getValue(referred);
-    if (referred->type()->isReference()) {
+    if (sema::isRef(referred->type())) {
         return value;
     }
     SC_ASSERT(value.isMemory(), "Can only take references to values in memory");
@@ -440,7 +443,7 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
     std::string name = callHasName ? "call.result" : std::string{};
     auto* inst = add<ir::Call>(function, arguments, std::move(name));
 
-    switch (call.type()->base()->entityType()) {
+    switch (sema::stripReference(call.type())->entityType()) {
     case sema::EntityType::ArrayType: {
         switch (retvalLocation) {
         case Register: {
@@ -496,8 +499,8 @@ void LoweringContext::generateArgument(PassingConvention const& PC,
 }
 
 Value LoweringContext::getValueImpl(Subscript const& expr) {
-    auto* arrayType =
-        cast<sema::ArrayType const*>(expr.object()->type()->base());
+    auto* arrayType = cast<sema::ArrayType const*>(
+        stripReference(expr.object()->type()).get());
     auto* elemType = mapType(arrayType->elementType());
     auto array = getValue(expr.object());
     /// Right now we don't use the size but here we could at a call to an
@@ -525,7 +528,7 @@ static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
         return false;
     }
     auto value = val->value();
-    size_t const elemSize = expr->type()->base()->size();
+    size_t const elemSize = expr->type()->size();
     auto* data = reinterpret_cast<u8 const*>(value.limbs().data());
     for (auto* end = data + elemSize; data < end; ++data) {
         dest.push_back(*data);
@@ -535,12 +538,12 @@ static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
 
 bool LoweringContext::genStaticListData(ListExpression const& list,
                                         ir::Alloca* dest) {
-    auto* type = cast<sema::ArrayType const*>(list.type()->base());
+    auto* type = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = type->elementType();
     utl::small_vector<u8> data;
     data.reserve(type->size());
     for (auto* expr: list.elements()) {
-        SC_ASSERT(elemType == expr->type()->base(), "Invalid type");
+        SC_ASSERT(elemType == expr->type(), "Invalid type");
         if (!evalConstant(expr, data)) {
             return false;
         }
@@ -563,7 +566,7 @@ bool LoweringContext::genStaticListData(ListExpression const& list,
 
 void LoweringContext::genListDataFallback(ListExpression const& list,
                                           ir::Alloca* dest) {
-    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
+    auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = mapType(arrayType->elementType());
     for (auto [index, elem]: list.elements() | ranges::views::enumerate) {
         auto* gep = add<ir::GetElementPointer>(elemType,
@@ -576,7 +579,7 @@ void LoweringContext::genListDataFallback(ListExpression const& list,
 }
 
 Value LoweringContext::getValueImpl(ListExpression const& list) {
-    auto* arrayType = cast<sema::ArrayType const*>(list.type()->base());
+    auto* arrayType = cast<sema::ArrayType const*>(list.type().get());
     auto* elemType = arrayType->elementType();
     auto* array = new ir::Alloca(ctx,
                                  intConstant(arrayType->count(), 32),
@@ -610,7 +613,7 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
             auto address = getValue(expr);
             return Value(address.ID(),
                          toRegister(address),
-                         mapType(expr->type()->base()),
+                         mapType(stripReference(expr->type())),
                          Memory);
         }
 
@@ -633,10 +636,12 @@ Value LoweringContext::getValueImpl(Conversion const& conv) {
     case Reinterpret_ArrayRef_ToByte:
         [[fallthrough]];
     case Reinterpret_ArrayRef_FromByte: {
-        SC_ASSERT(expr->type()->isReference(), "");
-        SC_ASSERT(conv.type()->isReference(), "");
-        auto* fromType = cast<sema::ArrayType const*>(expr->type()->base());
-        auto* toType = cast<sema::ArrayType const*>(conv.type()->base());
+        SC_ASSERT(sema::isRef(expr->type()), "");
+        SC_ASSERT(sema::isRef(conv.type()), "");
+        auto* fromType = cast<sema::ArrayType const*>(
+            sema::stripReference(expr->type()).get());
+        auto* toType = cast<sema::ArrayType const*>(
+            sema::stripReference(conv.type()).get());
         auto data = refConvResult;
         if (toType->isDynamic()) {
             uint32_t const oldID = data.ID();

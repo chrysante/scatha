@@ -31,7 +31,7 @@ contexts:
     - match: \b(if|else|for|while|do|return|break|continue)\b
       scope: keyword.control
 
-    - match: \b(fn|var|let|struct|public|private|mut)\b
+    - match: \b(fn|var|let|struct|public|private|mut|new|delete|move)\b
       scope: punctuation.definition.keyword
 
     - match: \b(void|bool|byte|int|float|double|str|true|false|this)\b

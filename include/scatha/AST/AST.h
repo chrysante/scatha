@@ -22,6 +22,7 @@
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/DTorStack.h>
 #include <scatha/Sema/Fwd.h>
+#include <scatha/Sema/QualType.h>
 
 // AbstractSyntaxTree
 // ├─ TranslationUnit
@@ -332,14 +333,14 @@ public:
     }
 
     /// The type of the expression. Only valid if: `kind == ::Value`
-    sema::QualType const* type() const {
+    sema::QualType type() const {
         expectDecorated();
         return _type;
     }
 
     /// The type of the expression, if this is a value. If this is a
     /// type, returns that type
-    sema::QualType const* typeOrTypeEntity() const;
+    sema::QualType typeOrTypeEntity() const;
 
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Value`
     bool isValue() const {
@@ -363,7 +364,7 @@ public:
 
     /// Decorate this node.
     void decorate(sema::Entity* entity,
-                  sema::QualType const* type = nullptr,
+                  sema::QualType type = nullptr,
                   std::optional<sema::ValueCategory> valueCat = std::nullopt,
                   std::optional<sema::EntityCategory> entityCat = std::nullopt);
 
@@ -376,7 +377,7 @@ public:
 
 private:
     sema::Entity* _entity = nullptr;
-    sema::QualType const* _type{};
+    sema::QualType _type = nullptr;
     sema::ValueCategory _valueCat = sema::ValueCategory::None;
     sema::EntityCategory _entityCat = sema::EntityCategory::Indeterminate;
     UniquePtr<sema::Value> constVal;
@@ -542,9 +543,7 @@ public:
     AST_PROPERTY(0, Expression, initExpr, InitExpr)
 
     /// Decorate this node.
-    void decorate(sema::QualType const* type) {
-        Expression::decorate(nullptr, type);
-    }
+    void decorate(sema::QualType type) { Expression::decorate(nullptr, type); }
 };
 
 /// MARK: Ternary Expressions
@@ -793,7 +792,7 @@ public:
     /// Type of the variable.
     /// Either deduced by the type of initExpression or by declTypename and then
     /// checked against the type of  initExpression
-    sema::QualType const* type() const {
+    sema::QualType type() const {
         expectDecorated();
         return _type;
     }
@@ -816,7 +815,7 @@ public:
     bool isMutable() const { return isMut; }
 
     /// Decorate this node.
-    void decorate(sema::Entity* entity, sema::QualType const* type) {
+    void decorate(sema::Entity* entity, sema::QualType type) {
         _type = type;
         Declaration::decorate(entity);
     }
@@ -828,7 +827,7 @@ public:
     void setIndex(size_t index) { _index = utl::narrow_cast<uint32_t>(index); }
 
 private:
-    sema::QualType const* _type = nullptr;
+    sema::QualType _type = nullptr;
     uint32_t _offset = 0;
     uint32_t _index : 31 = 0;
     bool isMut      : 1 = true;
@@ -863,13 +862,13 @@ public:
     }
 
     /// Type of the parameter.
-    sema::QualType const* type() const {
+    sema::QualType type() const {
         expectDecorated();
         return _type;
     }
 
     /// Decorate this node.
-    void decorate(sema::Entity* entity, sema::QualType const* type) {
+    void decorate(sema::Entity* entity, sema::QualType type) {
         _type = type;
         Declaration::decorate(entity);
     }
@@ -889,26 +888,33 @@ protected:
     }
 
 private:
-    sema::QualType const* _type = nullptr;
+    sema::QualType _type = nullptr;
 };
 
 /// Represents the explicit `this` parameter
 class ThisParameter: public ParameterDeclaration {
 public:
-    explicit ThisParameter(SourceRange sourceRange, sema::Reference ref):
+    explicit ThisParameter(SourceRange sourceRange,
+                           std::optional<sema::Reference> ref,
+                           sema::Mutability mut):
         ParameterDeclaration(NodeType::ThisParameter,
                              sourceRange,
                              nullptr,
                              nullptr),
-        ref(ref) {}
+        ref(ref),
+        mut(mut) {}
 
     AST_DERIVED_COMMON(ThisParameter)
 
-    /// The type qualifiers attached to the `this` parameter
-    sema::Reference reference() const { return ref; }
+    /// The optional reference qualifier attached to the `this` parameter
+    std::optional<sema::Reference> reference() const { return ref; }
+
+    /// The mutability qualifier attached to the `this` parameter
+    sema::Mutability mutability() const { return mut; }
 
 private:
-    sema::Reference ref;
+    std::optional<sema::Reference> ref;
+    sema::Mutability mut;
 };
 
 /// Nothing to see here yet...
@@ -1023,19 +1029,19 @@ public:
     }
 
     /// Return type of the function.
-    sema::QualType const* returnType() const {
+    sema::QualType returnType() const {
         expectDecorated();
         return _returnType;
     }
 
     /// Decorate this node.
-    void decorate(sema::Entity* entity, sema::QualType const* returnType) {
+    void decorate(sema::Entity* entity, sema::QualType returnType) {
         _returnType = returnType;
         Declaration::decorate(entity);
     }
 
 private:
-    sema::QualType const* _returnType = nullptr;
+    sema::QualType _returnType = nullptr;
 };
 
 /// Concrete node representing the definition of a struct.
@@ -1209,7 +1215,7 @@ public:
     AST_DERIVED_COMMON(Conversion)
 
     /// The target type of the conversion
-    sema::QualType const* targetType() const;
+    sema::QualType targetType() const;
 
     /// The conversion
     sema::Conversion const* conversion() const { return _conv.get(); }

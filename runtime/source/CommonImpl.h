@@ -9,7 +9,7 @@
 
 namespace scatha {
 
-sema::QualType const* toSemaType(sema::SymbolTable& sym, QualType type);
+sema::QualType toSemaType(sema::SymbolTable& sym, QualType type);
 
 sema::FunctionSignature toSemaSig(sema::SymbolTable& sym,
                                   QualType returnType,

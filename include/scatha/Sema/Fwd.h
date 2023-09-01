@@ -30,8 +30,8 @@
 /// │     │  │     ├─ IntType
 /// │     │  │     └─ FloatType
 /// │     │  ├─ StructureType
-/// │     │  └─ ArrayType
-/// │     ├─ QualType
+/// │     │  ├─ ArrayType
+/// │     │  └─ ReferenceType
 /// │     └─ FunctionType [??, does not exist]
 /// └─ PoisonEntity
 /// ```
@@ -74,6 +74,10 @@ SCATHA_API std::ostream& operator<<(std::ostream&, EntityType);
 #include <scatha/Sema/Lists.def>
 
 namespace scatha::sema {
+
+/// Forward declaration of `QualType` class
+/// See "Sema/QualType.h" for details.
+class QualType;
 
 enum class EntityCategory { Indeterminate, Value, Type, _count };
 
@@ -120,45 +124,33 @@ enum class AccessSpecifier : uint8_t { Public, Private };
 enum class Signedness { Signed, Unsigned };
 
 /// Reference qualifiers of `QualType`
-enum class Reference {
-    None = 0,
-    ConstImplicit = 1,
-    MutImplicit = 2,
-    ConstExplicit = 3,
-    MutExplicit = 4,
-};
+enum class Reference { Implicit, Explicit };
 
-inline constexpr Reference RefConstImpl = Reference::ConstImplicit;
+inline constexpr Reference RefImpl = Reference::Implicit;
 
-inline constexpr Reference RefMutImpl = Reference::MutImplicit;
+inline constexpr Reference RefExpl = Reference::Explicit;
 
-inline constexpr Reference RefConstExpl = Reference::ConstExplicit;
+/// \Returns `true` if \p type is a `ReferenceType`
+bool isRef(QualType type);
 
-inline constexpr Reference RefMutExpl = Reference::MutExplicit;
+/// \Returns `true` if \p type is a `ReferenceType` and is an implicit reference
+bool isImplRef(QualType type);
 
-/// Converts the reference type from implicit to explicit
-/// Does not add reference qualification if none is present
-/// Does not alter reference mutability
-Reference implToExpl(Reference);
+/// \Returns `true` if \p type is a `ReferenceType` and is an explicit reference
+bool isExplRef(QualType type);
+
+/// \Returns `type->reference()` if \p type is a reference type, otherwise
+/// `std::nullopt`
+std::optional<Reference> refKind(QualType type);
+
+/// \Returns \p type, if it is not a reference type, otherwise `type->base()`
+QualType stripReference(QualType type);
+
+/// \Returns `stripReference(type).toMut()`
+QualType stripQualifiers(QualType type);
 
 /// Mutability qualifiers of `QualType`
 enum class Mutability { Const, Mutable };
-
-/// \Returns
-/// - `Const` if `type` is a const reference type
-/// - `Mutable` if `type` is a mutable reference type
-/// - `type->mutability()` if `type` is not a reference type
-Mutability baseMutability(QualType const* type);
-
-/// \Returns
-/// - `RefConstExpl` if `mut == Const`
-/// - `RefMutExpl` if `mut == Mutable`
-Reference toExplicitRef(Mutability mut);
-
-/// \Returns
-/// - `RefConstImpl` if `mut == Const`
-/// - `RefMutImpl` if `mut == Mutable`
-Reference toImplicitRef(Mutability mut);
 
 /// Special member functions
 enum class SpecialMemberFunction : uint8_t {

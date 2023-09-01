@@ -7,6 +7,7 @@
 #include "AST/Fwd.h"
 #include "Issue/IssueHandler.h"
 #include "Sema/Fwd.h"
+#include "Sema/QualType.h"
 
 namespace scatha::sema {
 
@@ -43,8 +44,8 @@ std::ostream& operator<<(std::ostream& ostream, ObjectTypeConversion conv);
 /// Represents a conversion of a value from one type to another
 class Conversion {
 public:
-    Conversion(QualType const* fromType,
-               QualType const* toType,
+    Conversion(QualType fromType,
+               QualType toType,
                RefConversion refConv,
                MutConversion mutConv,
                ObjectTypeConversion objConv):
@@ -55,10 +56,10 @@ public:
         objConv(objConv) {}
 
     /// The type of the value before the conversion
-    QualType const* originType() const { return from; }
+    QualType originType() const { return from; }
 
     /// The type of the value after the conversion
-    QualType const* targetType() const { return to; }
+    QualType targetType() const { return to; }
 
     /// The reference conversion kind
     RefConversion refConversion() const { return refConv; }
@@ -70,8 +71,8 @@ public:
     ObjectTypeConversion objectConversion() const { return objConv; }
 
 private:
-    QualType const* from;
-    QualType const* to;
+    QualType from;
+    QualType to;
     RefConversion refConv;
     MutConversion mutConv;
     ObjectTypeConversion objConv;
@@ -82,7 +83,7 @@ private:
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` iff implicit conversion succeeded
 SCATHA_TESTAPI bool convertImplicitly(ast::Expression* expr,
-                                      QualType const* to,
+                                      QualType to,
                                       IssueHandler& issueHandler);
 
 /// Does nothing if `expr->type() == to`
@@ -90,7 +91,7 @@ SCATHA_TESTAPI bool convertImplicitly(ast::Expression* expr,
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` iff explicit conversion succeeded
 SCATHA_TESTAPI bool convertExplicitly(ast::Expression* expr,
-                                      QualType const* to,
+                                      QualType to,
                                       IssueHandler& issueHandler);
 
 /// Does nothing if `expr->type() == to`
@@ -98,34 +99,34 @@ SCATHA_TESTAPI bool convertExplicitly(ast::Expression* expr,
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` iff reinterpret conversion succeeded
 SCATHA_TESTAPI bool convertReinterpret(ast::Expression* expr,
-                                       QualType const* to,
+                                       QualType to,
                                        IssueHandler& issueHandler);
 
 /// \Returns The rank of the conversion if an implicit conversion from type
 /// \p from to type \p to exists. Otherwise `std::nullopt`
-SCATHA_TESTAPI std::optional<int> implicitConversionRank(QualType const* from,
-                                                         QualType const* to);
+SCATHA_TESTAPI std::optional<int> implicitConversionRank(QualType from,
+                                                         QualType to);
 
 /// \overload
 SCATHA_TESTAPI std::optional<int> implicitConversionRank(
-    QualType const* from, Value const* fromConstantValue, QualType const* to);
+    QualType from, Value const* fromConstantValue, QualType to);
 
 /// \overload
 SCATHA_TESTAPI std::optional<int> implicitConversionRank(
-    ast::Expression const* expr, QualType const* to);
+    ast::Expression const* expr, QualType to);
 
 /// \Returns The rank of the conversion if an explicit conversion from type
 /// \p from to type \p to exists. Otherwise `std::nullopt`
-SCATHA_TESTAPI std::optional<int> explicitConversionRank(QualType const* from,
-                                                         QualType const* to);
+SCATHA_TESTAPI std::optional<int> explicitConversionRank(QualType from,
+                                                         QualType to);
 
 /// \overload
 SCATHA_TESTAPI std::optional<int> explicitConversionRank(
-    QualType const* from, Value const* fromConstantValue, QualType const* to);
+    QualType from, Value const* fromConstantValue, QualType to);
 
 /// \overload
 SCATHA_TESTAPI std::optional<int> explicitConversionRank(
-    ast::Expression const* expr, QualType const* to);
+    ast::Expression const* expr, QualType to);
 
 /// Convert expression \p expr to an implicit reference
 SCATHA_TESTAPI bool convertToImplicitMutRef(ast::Expression* expr,
@@ -141,18 +142,18 @@ SCATHA_TESTAPI bool convertToExplicitRef(ast::Expression* expr,
 SCATHA_TESTAPI void dereference(ast::Expression* expr, SymbolTable& sym);
 
 /// Find the common type of \p a and \p b
-SCATHA_TESTAPI QualType const* commonType(SymbolTable& symbolTable,
-                                          QualType const* a,
-                                          QualType const* b);
+SCATHA_TESTAPI QualType commonType(SymbolTable& symbolTable,
+                                   QualType a,
+                                   QualType b);
 
 /// Find the common type of \p types
-SCATHA_TESTAPI QualType const* commonType(
-    SymbolTable& symbolTable, std::span<QualType const* const> types);
+SCATHA_TESTAPI QualType commonType(SymbolTable& symbolTable,
+                                   std::span<QualType const> types);
 
 /// Find the common type of \p expressions
-SCATHA_TESTAPI QualType const* commonType(
-    SymbolTable& symbolTable,
-    std::span<ast::Expression const* const> expressions);
+SCATHA_TESTAPI QualType
+    commonType(SymbolTable& symbolTable,
+               std::span<ast::Expression const* const> expressions);
 
 } // namespace scatha::sema
 

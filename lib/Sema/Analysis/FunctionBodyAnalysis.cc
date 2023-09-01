@@ -62,7 +62,7 @@ struct Context {
         return sema::analyzeExpression(expr, dtorStack, sym, iss);
     }
 
-    QualType const* getDeclaredType(ast::Expression* expr);
+    QualType getDeclaredType(ast::Expression* expr);
 
     SymbolTable& sym;
     IssueHandler& iss;
@@ -178,8 +178,8 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
               "We only handle function local variables in this pass.");
     SC_ASSERT(!var.isDecorated(),
               "We should not have handled local variables in prepass.");
-    auto* declaredType = getDeclaredType(var.typeExpr());
-    auto* deducedType = [&]() -> QualType const* {
+    QualType declaredType = getDeclaredType(var.typeExpr());
+    QualType deducedType = [&]() -> QualType {
         if (!var.initExpression() ||
             !analyzeExpr(*var.initExpression(), var.dtorStack()))
         {
@@ -207,8 +207,8 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         sym.declarePoison(std::string(var.name()), EntityCategory::Value);
         return;
     }
-    if (declaredType && deducedType && declaredType->isReference() &&
-        !deducedType->isExplicitRef())
+    if (declaredType && deducedType && isRef(declaredType) &&
+        !isExplRef(deducedType))
     {
         iss.push<InvalidDeclaration>(
             &var,
@@ -216,26 +216,25 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
             sym.currentScope());
         return;
     }
-    auto* finalType = declaredType ? declaredType :
-                      deducedType->isExplicitRef() ?
-                                     deducedType :
-                                     sym.qualify(deducedType->base());
+    QualType finalType = declaredType           ? declaredType :
+                         isExplRef(deducedType) ? deducedType :
+                                                  stripReference(deducedType);
     if (!var.isMutable()) {
-        finalType = sym.setMutable(finalType, Mutability::Const);
+        finalType = finalType.toConst();
     }
     if (var.initExpression() && var.initExpression()->isDecorated()) {
-        auto* structType = dyncast<StructureType const*>(finalType->base());
-        if (!structType || finalType->isExplicitRef()) {
+        auto* structType = dyncast<StructureType const*>(finalType.get());
+        if (!structType || isExplRef(finalType)) {
             convertImplicitly(var.initExpression(), finalType, iss);
         }
-        else if (var.initExpression()->type()->base() != structType ||
+        else if (var.initExpression()->type().get() != structType ||
                  !var.initExpression()->isRValue())
         {
             convertExplicitly(var.initExpression(),
-                              sym.setReference(finalType, RefConstExpl),
+                              sym.reference(finalType.toConst(), RefExpl),
                               iss);
             std::array args = { var.extractInitExpression() };
-            auto call = makeConstructorCall(finalType->base(),
+            auto call = makeConstructorCall(finalType.get(),
                                             args,
                                             sym,
                                             iss,
@@ -246,7 +245,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         }
     }
     if (!var.initExpression()) {
-        auto call = makeConstructorCall(finalType->base(),
+        auto call = makeConstructorCall(finalType.get(),
                                         {},
                                         sym,
                                         iss,
@@ -262,7 +261,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     }
     auto& varObj = *varRes;
     var.decorate(&varObj, finalType);
-    if (!varObj.type()->isMutable() && var.initExpression()) {
+    if (!varObj.type().isMutable() && var.initExpression()) {
         varObj.setConstantValue(clone(var.initExpression()->constantValue()));
     }
     cast<ast::Statement*>(var.parent())->dtorStack().push(&varObj);
@@ -274,7 +273,8 @@ void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
               "parameters.");
     SC_ASSERT(!paramDecl.isDecorated(),
               "We should not have handled parameters in prepass.");
-    auto* declaredType = currentFunction->function()->argumentType(paramIndex);
+    QualType declaredType =
+        currentFunction->function()->argumentType(paramIndex);
     auto paramRes =
         sym.addVariable(std::string(paramDecl.name()), declaredType);
     if (!paramRes) {
@@ -297,15 +297,18 @@ void Context::analyzeImpl(ast::ThisParameter& thisParam) {
     if (!parentType) {
         return;
     }
-    auto* qualType = sym.qualify(parentType, thisParam.reference());
-    auto paramRes = sym.addVariable("__this", qualType);
+    auto type = QualType(parentType, thisParam.mutability());
+    if (auto ref = thisParam.reference()) {
+        type = sym.reference(type, *ref);
+    }
+    auto paramRes = sym.addVariable("__this", type);
     if (!paramRes) {
         iss.push(paramRes.error()->setStatement(thisParam));
         return;
     }
     function->setIsMember();
     auto& param = *paramRes;
-    thisParam.decorate(&param, qualType);
+    thisParam.decorate(&param, type);
     ++paramIndex;
 }
 
@@ -323,13 +326,14 @@ void Context::analyzeImpl(ast::ExpressionStatement& es) {
 void Context::analyzeImpl(ast::ReturnStatement& rs) {
     SC_ASSERT(currentFunction,
               "This should have been set by case FunctionDefinition");
-    /// Should this assertion not happen in every case?
-    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function, "");
-    auto* returnType = currentFunction->returnType();
+    SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function,
+              "Return statements can only occur at function scope. Perhaps "
+              "this should be a soft error");
+    QualType returnType = currentFunction->returnType();
     if (!returnType) {
         return;
     }
-    if (!rs.expression() && returnType->base() != sym.rawVoid()) {
+    if (!rs.expression() && !isa<VoidType>(*returnType)) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::NonVoidFunctionMustReturnAValue,
@@ -340,7 +344,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
     if (!rs.expression() || !analyzeExpr(*rs.expression(), rs.dtorStack())) {
         return;
     }
-    if (rs.expression() && returnType->base() == sym.rawVoid()) {
+    if (rs.expression() && isa<VoidType>(*returnType)) {
         iss.push<InvalidStatement>(
             &rs,
             InvalidStatement::Reason::VoidFunctionMustNotReturnAValue,
@@ -354,8 +358,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
     /// This is specific to returns.
     /// If we return a reference we don't want to _assign through_ it but we
     /// want to return an explicit reference
-    if (returnType->isReference() && !rs.expression()->type()->isExplicitRef())
-    {
+    if (isRef(returnType) && !isExplRef(rs.expression()->type())) {
         iss.push<BadExpression>(*rs.expression(), IssueSeverity::Error);
         return;
     }
@@ -420,7 +423,7 @@ void Context::analyzeImpl(ast::JumpStatement& stmt) {
     gatherParentDestructors(stmt);
 }
 
-QualType const* Context::getDeclaredType(ast::Expression* typeExpr) {
+QualType Context::getDeclaredType(ast::Expression* typeExpr) {
     DTorStack dtorStack;
     if (!typeExpr || !analyzeExpr(*typeExpr, dtorStack)) {
         return nullptr;
@@ -430,5 +433,5 @@ QualType const* Context::getDeclaredType(ast::Expression* typeExpr) {
         iss.push<BadSymbolReference>(*typeExpr, EntityCategory::Type);
         return nullptr;
     }
-    return cast<QualType*>(typeExpr->entity());
+    return cast<ObjectType*>(typeExpr->entity());
 }

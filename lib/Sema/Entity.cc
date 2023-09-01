@@ -46,7 +46,7 @@ void Entity::addAlternateName(std::string name) {
 Object::Object(EntityType entityType,
                std::string name,
                Scope* parentScope,
-               QualType const* type):
+               QualType type):
     Entity(entityType, std::move(name), parentScope), _type(type) {}
 
 Object::~Object() = default;
@@ -54,13 +54,13 @@ Object::~Object() = default;
 void Object::setConstantValue(UniquePtr<Value> value) {
     if (value) {
         SC_ASSERT(type(), "Invalid");
-        SC_ASSERT(!type()->isReference(), "Invalid");
-        SC_ASSERT(!type()->isMutable(), "Invalid");
+        SC_ASSERT(!isa<ReferenceType>(*type()), "Invalid");
+        SC_ASSERT(!type().isMutable(), "Invalid");
     }
     constVal = std::move(value);
 }
 
-Variable::Variable(std::string name, Scope* parentScope, QualType const* type):
+Variable::Variable(std::string name, Scope* parentScope, QualType type):
     Object(EntityType::Variable, std::move(name), parentScope, type) {}
 
 bool Variable::isLocal() const {
@@ -68,7 +68,7 @@ bool Variable::isLocal() const {
            parent()->kind() == ScopeKind::Anonymous;
 }
 
-Temporary::Temporary(size_t id, Scope* parentScope, QualType const* type):
+Temporary::Temporary(size_t id, Scope* parentScope, QualType type):
     Object(EntityType::Temporary, std::string{}, parentScope, type), _id(id) {}
 
 Scope::Scope(EntityType entityType,
@@ -209,8 +209,14 @@ bool StructureType::computeTrivialLifetime() const {
         constructor->end() != ranges::find_if(*constructor,
                                               [&](Function const* function) {
         auto const& sig = function->signature();
-        return sig.argumentCount() == 1 && sig.argumentType(0)->isConstRef() &&
-               sig.argumentType(0)->base() == this;
+        if (sig.argumentCount() != 1) {
+            return false;
+        }
+        auto* refType = cast<ReferenceType const*>(sig.argumentType(0).get());
+        if (!refType || !refType->base().isConst()) {
+            return false;
+        }
+        return refType->base().get() == this;
         });
     if (hasCopyCTor) {
         return false;
@@ -222,7 +228,7 @@ bool StructureType::computeTrivialLifetime() const {
         return false;
     }
     return ranges::all_of(memberVariables(), [](auto* var) {
-        return var->type()->base()->hasTrivialLifetime();
+        return var->type()->hasTrivialLifetime();
     });
 }
 
@@ -236,57 +242,29 @@ std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     return std::move(sstr).str();
 }
 
-static std::string makeName(ObjectType* base, Mutability mut, Reference ref) {
+static std::string makeName(QualType base, Reference ref) {
     std::stringstream sstr;
-    switch (mut) {
-    case Mutability::Const:
-        break;
-    case Mutability::Mutable:
-        sstr << "mut ";
-        break;
-    }
     switch (ref) {
-    case Reference::None:
-        break;
-    case Reference::ConstExplicit:
+    case Reference::Explicit:
         sstr << "&";
         break;
-    case Reference::MutExplicit:
-        sstr << "&mut ";
-        break;
-    case Reference::ConstImplicit:
+    case Reference::Implicit:
         sstr << "'";
         break;
-    case Reference::MutImplicit:
-        sstr << "'mut ";
-        break;
     }
-    sstr << base->name();
+    sstr << base.name();
     return std::move(sstr).str();
 }
 
-QualType::QualType(ObjectType* base, Reference ref, Mutability mut):
-    Type(EntityType::QualType,
-         ScopeKind::Invalid,
-         makeName(base, mut, ref),
-         base->parent()),
+ReferenceType::ReferenceType(QualType base, Reference ref):
+    ObjectType(EntityType::ReferenceType,
+               ScopeKind::Invalid,
+               makeName(base, ref),
+               nullptr,
+               isa<ArrayType>(*base) ? 16 : 8,
+               8),
     _base(base),
-    ref(ref),
-    mut(mut) {}
-
-size_t QualType::sizeImpl() const {
-    if (isReference()) {
-        return isa<ArrayType>(base()) ? 16 : 8;
-    }
-    return base()->size();
-}
-
-size_t QualType::alignImpl() const {
-    if (isReference()) {
-        return 8;
-    }
-    return base()->align();
-}
+    ref(ref) {}
 
 /// # OverloadSet
 

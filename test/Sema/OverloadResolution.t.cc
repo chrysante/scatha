@@ -17,8 +17,7 @@ struct TestOS {
     static TestOS make(
         SymbolTable& sym,
         std::string name,
-        std::initializer_list<std::initializer_list<QualType const*>>
-            paramTypeLists) {
+        std::initializer_list<std::initializer_list<QualType>> paramTypeLists) {
         TestOS result;
         result.overloadSet = allocate<OverloadSet>(name, nullptr);
         for (auto types: paramTypeLists) {
@@ -39,7 +38,7 @@ struct TestOS {
 
 } // namespace
 
-static UniquePtr<ast::Expression> makeExpr(QualType const* type) {
+static UniquePtr<ast::Expression> makeExpr(QualType type) {
     auto result =
         allocate<ast::UnaryExpression>(ast::UnaryOperator::Promotion,
                                        ast::UnaryOperatorNotation::Prefix,
@@ -54,16 +53,16 @@ TEST_CASE("Overload resolution", "[sema]") {
     // clang-format off
     auto f = TestOS::make(sym, "f", {
         /// `f(s64, &[s64])`
-        { sym.S64(), sym.qDynArray(sym.rawS64(), RefConstExpl) },
+        { sym.S64(), sym.explRef(QualType::Const(sym.arrayType(sym.S64()))) },
         /// `f(s64, &[s64, 3])`
-        { sym.S64(), sym.qualify(sym.arrayType(sym.rawS64(), 3), RefConstExpl) },
+        { sym.S64(), sym.explRef(QualType::Const(sym.arrayType(sym.S64(), 3))) },
     }); // clang-format on
 
     SECTION("1") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            makeExpr(sym.qualify(sym.rawS64(), RefMutImpl)).get(),
-            makeExpr(sym.qualify(sym.arrayType(sym.rawS64(), 3), RefMutExpl)).get()
+            makeExpr(sym.implRef(sym.S64())).get(),
+            makeExpr(sym.explRef(sym.arrayType(sym.S64(), 3))).get()
         }, false); // clang-format on
 
         REQUIRE(result);
@@ -73,8 +72,8 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("2") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            makeExpr(sym.qualify(sym.rawS64(), RefConstImpl)).get(),
-            makeExpr(sym.qDynArray(sym.rawS64(), RefConstExpl)).get()
+            makeExpr(sym.implRef(QualType::Const(sym.S64()))).get(),
+            makeExpr(sym.explRef(QualType::Const(sym.arrayType(sym.S64())))).get()
         }, false); // clang-format on
         REQUIRE(result);
         CHECK(result.value() == f.functions[0].get());
@@ -83,9 +82,23 @@ TEST_CASE("Overload resolution", "[sema]") {
     SECTION("3") {
         // clang-format off
         auto result = performOverloadResolution(f.overloadSet.get(), std::array{
-            makeExpr(sym.qualify(sym.rawS32(), RefMutImpl)).get(),
-            makeExpr(sym.qualify(sym.arrayType(sym.rawS64(), 4), RefMutImpl)).get()
+            makeExpr(sym.implRef(sym.S32())).get(),
+            makeExpr(sym.implRef(sym.arrayType(sym.S64(), 4))).get()
         }, false); // clang-format on
         REQUIRE(!result);
+    }
+
+    // clang-format off
+    auto g = TestOS::make(sym, "g", {
+        /// `g(&str)`
+        { sym.explRef(QualType::Const(sym.Str())) },
+    }); // clang-format on
+
+    SECTION("4") {
+        // clang-format off
+        auto result = performOverloadResolution(g.overloadSet.get(), std::array{
+            makeExpr(sym.explRef(sym.Str())).get()
+        }, false); // clang-format on
+        REQUIRE(result);
     }
 }

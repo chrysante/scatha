@@ -53,12 +53,13 @@ size_t AbstractSyntaxTree::indexOf(AbstractSyntaxTree const* child) const {
 
 Expression::~Expression() = default;
 
-sema::QualType const* Expression::typeOrTypeEntity() const {
-    return isValue() ? type() : cast<sema::QualType const*>(entity());
+sema::QualType Expression::typeOrTypeEntity() const {
+    return isValue() ? type() :
+                       cast<sema::ObjectType const*>(entity());
 }
 
 void Expression::decorate(sema::Entity* entity,
-                          sema::QualType const* type,
+                          sema::QualType type,
                           std::optional<sema::ValueCategory> valueCat,
                           std::optional<sema::EntityCategory> entityCat) {
     _entity = entity;
@@ -98,7 +99,7 @@ Conversion::Conversion(UniquePtr<Expression> expr,
 
 Conversion::~Conversion() = default;
 
-sema::QualType const* Conversion::targetType() const {
+sema::QualType Conversion::targetType() const {
     return conversion()->targetType();
 }
 

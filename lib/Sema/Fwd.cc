@@ -80,45 +80,32 @@ std::ostream& sema::operator<<(std::ostream& str, ConversionKind k) {
     return str << toString(k);
 }
 
-Reference sema::implToExpl(Reference ref) {
-    using enum Reference;
-    switch (ref) {
-    case None:
-        return None;
-    case ConstImplicit:
-        return ConstExplicit;
-    case MutImplicit:
-        return MutExplicit;
-    case ConstExplicit:
-        return ConstExplicit;
-    case MutExplicit:
-        return MutExplicit;
-    }
+bool sema::isRef(QualType type) { return isa<ReferenceType>(*type); }
+
+bool sema::isImplRef(QualType type) {
+    return isRef(type) && cast<ReferenceType const&>(*type).isImplicit();
 }
 
-Mutability sema::baseMutability(QualType const* type) {
-    if (type->isReference()) {
-        return type->isMutRef() ? Mutability::Mutable : Mutability::Const;
-    }
-    return type->mutability();
+bool sema::isExplRef(QualType type) {
+    return isRef(type) && cast<ReferenceType const&>(*type).isExplicit();
 }
 
-Reference sema::toExplicitRef(Mutability mut) {
-    switch (mut) {
-    case Mutability::Mutable:
-        return RefMutExpl;
-    case Mutability::Const:
-        return RefConstExpl;
+std::optional<Reference> sema::refKind(QualType type) {
+    if (auto* refType = dyncast<ReferenceType const*>(type.get())) {
+        return refType->reference();
     }
+    return std::nullopt;
 }
 
-Reference sema::toImplicitRef(Mutability mut) {
-    switch (mut) {
-    case Mutability::Mutable:
-        return RefMutImpl;
-    case Mutability::Const:
-        return RefConstImpl;
+QualType sema::stripReference(QualType type) {
+    if (auto* refType = dyncast<ReferenceType const*>(type.get())) {
+        return refType->base();
     }
+    return type;
+}
+
+QualType sema::stripQualifiers(QualType type) {
+    return stripReference(type).toMut();
 }
 
 std::string_view sema::toString(SpecialMemberFunction SMF) {

@@ -11,6 +11,7 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Common/Expected.h>
 #include <scatha/Sema/Fwd.h>
+#include <scatha/Sema/QualType.h>
 
 namespace scatha::sema {
 
@@ -103,10 +104,10 @@ public:
     /// `InvalidDeclaration` with reason `Redefinition` if name of
     /// \p varDecl is already in use in the current scope.
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
-                                                    QualType const* type);
+                                                    QualType type);
 
     /// Creates a new unique temporary object of type \p type
-    Temporary& addTemporary(QualType const* type);
+    Temporary& addTemporary(QualType type);
 
     /// Declares an anonymous scope within the current scope.
     Scope& addAnonymousScope();
@@ -161,37 +162,33 @@ public:
 
     /// # Accessors
 
-    /// \Returns The `ArrayType` with element type \p elementType \ and \p size
+    /// \Returns the `ArrayType` with element type \p elementType \ and \p size
     /// elements
     ArrayType const* arrayType(ObjectType const* elementType, size_t size);
 
-    /// \Returns The `QualType` with base type \p base and reference qualifier
-    /// \p ref
-    QualType const* qualify(ObjectType const* base,
-                            Reference ref = Reference::None,
-                            Mutability mut = Mutability::Mutable);
+    /// \overload
+    /// \Returns the `ArrayType` with element type \p elementType \ and dynamic
+    /// count
+    ArrayType const* arrayType(ObjectType const* elementType);
 
-    /// \Returns The `QualType` with same base type as \p type but without any
-    /// qualifications
-    QualType const* stripQualifiers(QualType const* type);
+    /// \Returns the `IntType` with size \p size and signedness \p signedness
+    IntType const* intType(size_t width, Signedness signedness);
 
-    /// \Returns The `QualType` with same qualifiers as \p type but with
-    /// \p objType as base
-    QualType const* copyQualifiers(QualType const* from, ObjectType const* to);
+    /// \Returns the `ReferenceType` to the referred type \p referred and
+    /// reference qualifier \p ref
+    ReferenceType const* reference(QualType referred, Reference ref);
 
-    /// \Returns The `QualType` with same base type as \p type but reference
-    /// qualification \p ref
-    QualType const* setReference(QualType const* type, Reference ref);
+    /// \Returns the `ReferenceType` to the referred type \p referred and
+    /// reference qualifier `Implicit`
+    ReferenceType const* implRef(QualType referred) {
+        return reference(referred, Reference::Implicit);
+    }
 
-    /// \Returns The `QualType` with same base type as \p type but mutability
-    /// qualification \p mut
-    QualType const* setMutable(QualType const* type, Mutability mut);
-
-    /// Make type \p base into a reference to dynamic array of element type \p
-    /// base
-    QualType const* qDynArray(ObjectType const* base,
-                              Reference ref,
-                              Mutability mut = Mutability::Mutable);
+    /// \Returns the `ReferenceType` to the referred type \p referred and
+    /// reference qualifier `Explicit`
+    ReferenceType const* explRef(QualType referred) {
+        return reference(referred, Reference::Explicit);
+    }
 
     /// ## Queries
 
@@ -241,63 +238,33 @@ public:
 
     /// ## Getters for builtin types
 
-    IntType const* rawIntType(size_t width, Signedness signedness);
+    VoidType const* Void() const;
 
-    VoidType const* rawVoid() const;
+    ByteType const* Byte() const;
 
-    ByteType const* rawByte() const;
+    BoolType const* Bool() const;
 
-    BoolType const* rawBool() const;
+    IntType const* S8() const;
 
-    IntType const* rawS8() const;
+    IntType const* S16() const;
 
-    IntType const* rawS16() const;
+    IntType const* S32() const;
 
-    IntType const* rawS32() const;
+    IntType const* S64() const;
 
-    IntType const* rawS64() const;
+    IntType const* U8() const;
 
-    IntType const* rawU8() const;
+    IntType const* U16() const;
 
-    IntType const* rawU16() const;
+    IntType const* U32() const;
 
-    IntType const* rawU32() const;
+    IntType const* U64() const;
 
-    IntType const* rawU64() const;
+    FloatType const* F32() const;
 
-    FloatType const* rawF32() const;
+    FloatType const* F64() const;
 
-    FloatType const* rawF64() const;
-
-    ArrayType const* rawStr() const;
-
-    QualType const* Void(Reference = Reference::None);
-
-    QualType const* Byte(Reference = Reference::None);
-
-    QualType const* Bool(Reference = Reference::None);
-
-    QualType const* S8(Reference = Reference::None);
-
-    QualType const* S16(Reference = Reference::None);
-
-    QualType const* S32(Reference = Reference::None);
-
-    QualType const* S64(Reference = Reference::None);
-
-    QualType const* U8(Reference = Reference::None);
-
-    QualType const* U16(Reference = Reference::None);
-
-    QualType const* U32(Reference = Reference::None);
-
-    QualType const* U64(Reference = Reference::None);
-
-    QualType const* F32(Reference = Reference::None);
-
-    QualType const* F64(Reference = Reference::None);
-
-    QualType const* Str(Reference = Reference::None);
+    ArrayType const* Str() const;
 
 private:
     struct Impl;

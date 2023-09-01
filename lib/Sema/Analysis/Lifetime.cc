@@ -28,8 +28,7 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     if (!ctorSet) {
         return nullptr;
     }
-    utl::small_vector<QualType const*> argTypes = { sym.qualify(type,
-                                                                RefMutExpl) };
+    utl::small_vector<QualType> argTypes = { sym.explRef(type) };
     argTypes.reserve(1 + arguments.size());
     ranges::transform(arguments, std::back_inserter(argTypes), [](auto& expr) {
         return expr->type();
@@ -43,7 +42,6 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     auto result = allocate<ast::ConstructorCall>(arguments,
                                                  function.value(),
                                                  SpecialMemberFunction::New);
-    auto* qType = sym.qualify(structType);
-    result->decorate(&sym.addTemporary(qType), qType);
+    result->decorate(&sym.addTemporary(structType), structType);
     return result;
 }

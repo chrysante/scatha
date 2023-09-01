@@ -80,17 +80,6 @@ ir::Value* LoweringContext::makeLocal(ir::Type const* type, std::string name) {
     return addr;
 }
 
-ir::Value* LoweringContext::loadIfRef(Expression const* expr,
-                                      ir::Value* value) {
-    if (!expr->type()->isReference()) {
-        return value;
-    }
-    auto* refType = isa<sema::ArrayType>(expr->type()->base()) ?
-                        arrayViewType :
-                        ctx.pointerType();
-    return add<ir::Load>(value, refType, utl::strcat(value->name(), ".value"));
-}
-
 ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
     switch (function->kind()) {
     case sema::FunctionKind::Native:
@@ -155,13 +144,10 @@ Value LoweringContext::getArraySize(uint32_t ID) const {
     return itr->second;
 }
 
-ir::Type const* LoweringContext::mapType(sema::Type const* semaType) {
+ir::Type const* LoweringContext::mapType(sema::QualType semaType) {
     // clang-format off
     return visit(*semaType, utl::overload{
-        [&](sema::QualType const& qualType) -> ir::Type const* {
-            if (!qualType.isReference()) {
-                return mapType(qualType.base());
-            }
+        [&](sema::ReferenceType const& refType) -> ir::Type const* {
             return ctx.pointerType();
         },
         [&](sema::VoidType const&) -> ir::Type const* {

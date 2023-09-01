@@ -49,7 +49,7 @@ std::optional<size_t> Program::findAddress(
     auto args = argTypes | ranges::views::transform([&](auto type) {
                     return toSemaType(*sym, type);
                 }) |
-                ranges::to<utl::small_vector<sema::QualType const*>>;
+                ranges::to<utl::small_vector<sema::QualType>>;
 
     auto itr = ranges::find_if(*os, [&](sema::Function* fn) {
         return ranges::equal(fn->argumentTypes(), args);

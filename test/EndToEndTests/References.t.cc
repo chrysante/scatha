@@ -199,12 +199,12 @@ struct X {
         return this.r[0] + this.r[1];
     }
     var x: int;
-    var r: &[int];
+    var r: &mut [int];
 }
 public fn main() -> int {
-    let a = [1, 2];
+    var a = [1, 2];
     var x: X;
-    x.r = &a;
+    x.r = &mut a;
     ++x.r[0];
     return x.sum;
 })");

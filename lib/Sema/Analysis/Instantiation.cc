@@ -11,6 +11,7 @@
 #include "Sema/Analysis/DependencyGraph.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Entity.h"
+#include "Sema/QualType.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
 
@@ -28,10 +29,9 @@ struct Context {
 
     FunctionSignature analyzeSignature(ast::FunctionDefinition&) const;
 
-    QualType const* analyzeParameter(ast::ParameterDeclaration&,
-                                     size_t index) const;
+    QualType analyzeParameter(ast::ParameterDeclaration&, size_t index) const;
 
-    QualType const* analyzeTypeExpression(ast::Expression&) const;
+    QualType analyzeTypeExpression(ast::Expression&) const;
 
     SymbolTable& sym;
     IssueHandler& iss;
@@ -47,18 +47,19 @@ std::vector<StructureType const*> sema::instantiateEntities(
     return ctx.run();
 }
 
-static bool isUserDefined(ObjectType const* type) {
-    if (isa<StructureType>(type)) {
-        return true;
-    }
-    if (auto* arrayType = dyncast<ArrayType const*>(type)) {
-        return isUserDefined(arrayType->elementType());
-    }
-    return false;
-}
-
-static bool isUserDefined(QualType const* type) {
-    return !type->isReference() && isUserDefined(type->base());
+static bool isUserDefined(QualType type) {
+    // clang-format off
+    return SC_MATCH(*type) {
+        [](StructureType const&) {
+            return true;
+        },
+        [](ArrayType const& arrayType) {
+            return isUserDefined(arrayType.elementType());
+        },
+        [](ObjectType const&) {
+            return false;
+        }
+    }; // clang-format on
 }
 
 std::vector<StructureType const*> Context::run() {
@@ -70,7 +71,7 @@ std::vector<StructureType const*> Context::run() {
             continue;
         }
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
-        auto const* type = analyzeTypeExpression(*var.typeExpr());
+        QualType type = analyzeTypeExpression(*var.typeExpr());
         if (!type) {
             continue;
         }
@@ -78,7 +79,7 @@ std::vector<StructureType const*> Context::run() {
             continue;
         }
         node.dependencies.push_back(
-            utl::narrow_cast<u16>(dependencyGraph.index(type->base())));
+            utl::narrow_cast<u16>(dependencyGraph.index(type.get())));
     }
     /// Check for cycles
     auto indices = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
@@ -157,7 +158,7 @@ void Context::instantiateStructureType(DependencyGraphNode& node) {
         if (!varDecl->type()) {
             return;
         }
-        auto* varType = varDecl->type();
+        QualType varType = varDecl->type();
         objectAlign = std::max(objectAlign, varType->align());
         SC_ASSERT(varType->size() % varType->align() == 0,
                   "size must be a multiple of align");
@@ -178,16 +179,14 @@ void Context::instantiateVariable(DependencyGraphNode& node) {
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto* type = analyzeTypeExpression(*varDecl.typeExpr());
+    QualType type = analyzeTypeExpression(*varDecl.typeExpr());
     varDecl.decorate(node.entity, type);
     /// Here we set the TypeID of the variable in the symbol table.
     varDecl.variable()->setType(type);
 }
 
-static bool argIsRefTo(Reference ref,
-                       QualType const* arg,
-                       StructureType const* structType) {
-    return arg->reference() == ref && arg->base() == structType;
+static bool isExplicitRefTo(QualType argType, QualType referredType) {
+    return isExplRef(argType) && stripReference(argType) == referredType;
 }
 
 void Context::instantiateFunction(DependencyGraphNode& node) {
@@ -226,7 +225,7 @@ void Context::instantiateFunction(DependencyGraphNode& node) {
     structType->addSpecialMemberFunction(SMF, function->overloadSet());
     auto const& sig = function->signature();
     if (sig.argumentCount() == 0 ||
-        !argIsRefTo(RefMutExpl, sig.argumentType(0), structType))
+        !isExplicitRefTo(sig.argumentType(0), structType))
     {
         pushError();
         return;
@@ -237,7 +236,7 @@ void Context::instantiateFunction(DependencyGraphNode& node) {
         break;
     case Move:
         if (sig.argumentCount() != 2 ||
-            !argIsRefTo(RefMutExpl, sig.argumentType(1), structType))
+            !isExplicitRefTo(sig.argumentType(1), structType))
         {
             pushError();
             return;
@@ -256,20 +255,20 @@ void Context::instantiateFunction(DependencyGraphNode& node) {
 
 FunctionSignature Context::analyzeSignature(
     ast::FunctionDefinition& decl) const {
-    utl::small_vector<QualType const*> argumentTypes;
+    utl::small_vector<QualType> argumentTypes;
     for (auto [index, param]: decl.parameters() | ranges::views::enumerate) {
         argumentTypes.push_back(analyzeParameter(*param, index));
     }
     /// For functions with unspecified return type we assume void until we
     /// implement return type deduction.
-    QualType const* returnType =
-        decl.returnTypeExpr() ? analyzeTypeExpression(*decl.returnTypeExpr()) :
-                                sym.Void();
+    QualType returnType = decl.returnTypeExpr() ?
+                              analyzeTypeExpression(*decl.returnTypeExpr()) :
+                              sym.Void();
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
 
-QualType const* Context::analyzeParameter(ast::ParameterDeclaration& param,
-                                          size_t index) const {
+QualType Context::analyzeParameter(ast::ParameterDeclaration& param,
+                                   size_t index) const {
     auto* thisParam = dyncast<ast::ThisParameter const*>(&param);
     if (!thisParam) {
         return analyzeTypeExpression(*param.typeExpr());
@@ -289,10 +288,13 @@ QualType const* Context::analyzeParameter(ast::ParameterDeclaration& param,
         return nullptr;
     }
     auto* structType = cast<StructureType const*>(structure->entity());
-    return sym.qualify(structType, implToExpl(thisParam->reference()));
+    if (auto ref = thisParam->reference()) {
+        return sym.explRef(QualType(structType, thisParam->mutability()));
+    }
+    return structType;
 }
 
-QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {
+QualType Context::analyzeTypeExpression(ast::Expression& expr) const {
     DTorStack dtorStack;
     if (!sema::analyzeExpression(expr, dtorStack, sym, iss)) {
         return nullptr;
@@ -302,5 +304,5 @@ QualType const* Context::analyzeTypeExpression(ast::Expression& expr) const {
         iss.push<BadSymbolReference>(expr, EntityCategory::Type);
         return nullptr;
     }
-    return cast<QualType const*>(expr.entity());
+    return cast<ObjectType*>(expr.entity());
 }

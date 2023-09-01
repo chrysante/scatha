@@ -26,19 +26,19 @@ fn mul(a: int, b: int, c: double) -> int {
     auto const* mulFn = mul->front();
     REQUIRE(mulFn);
     auto const& fnType = mulFn->signature();
-    CHECK(fnType.returnType()->base() == sym.rawS64());
+    CHECK(fnType.returnType().get() == sym.S64());
     REQUIRE(fnType.argumentCount() == 3);
-    CHECK(fnType.argumentType(0)->base() == sym.rawS64());
-    CHECK(fnType.argumentType(1)->base() == sym.rawS64());
-    CHECK(fnType.argumentType(2)->base() == sym.rawF64());
+    CHECK(fnType.argumentType(0).get() == sym.S64());
+    CHECK(fnType.argumentType(1).get() == sym.S64());
+    CHECK(fnType.argumentType(2).get() == sym.F64());
     auto* a = mulFn->findEntity<Variable>("a");
-    CHECK(a->type()->base() == sym.rawS64());
+    CHECK(a->type().get() == sym.S64());
     auto* b = mulFn->findEntity<Variable>("b");
-    CHECK(b->type()->base() == sym.rawS64());
+    CHECK(b->type().get() == sym.S64());
     auto const c = mulFn->findEntity<Variable>("c");
-    CHECK(c->type()->base() == sym.rawF64());
+    CHECK(c->type().get() == sym.F64());
     auto* result = mulFn->findEntity<Variable>("result");
-    CHECK(result->type()->base() == sym.rawS64());
+    CHECK(result->type().get() == sym.S64());
 }
 
 TEST_CASE("Decoration of the AST") {
@@ -58,49 +58,46 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     REQUIRE(iss.empty());
     auto* tu = cast<TranslationUnit*>(ast.get());
     auto* fnDecl = tu->declaration<FunctionDefinition>(0);
-    CHECK(fnDecl->returnType()->base() == sym.rawS64());
-    CHECK(fnDecl->parameter(0)->type()->base() == sym.rawS64());
-    CHECK(fnDecl->parameter(1)->type()->base() == sym.rawS64());
-    CHECK(fnDecl->parameter(2)->type()->base() == sym.rawF64());
-    // CHECK(fnDecl->parameters()[3]->type()->base() == sym.String());
+    CHECK(fnDecl->returnType().get() == sym.S64());
+    CHECK(fnDecl->parameter(0)->type().get() == sym.S64());
+    CHECK(fnDecl->parameter(1)->type().get() == sym.S64());
+    CHECK(fnDecl->parameter(2)->type().get() == sym.F64());
     auto* fn = tu->declaration<FunctionDefinition>(0);
-    CHECK(fn->returnType()->base() == sym.rawS64());
-    CHECK(fn->parameter(0)->type()->base() == sym.rawS64());
-    CHECK(fn->parameter(1)->type()->base() == sym.rawS64());
-    CHECK(fn->parameter(2)->type()->base() == sym.rawF64());
-    CHECK(fn->parameter(3)->type()->base() == sym.rawByte());
+    CHECK(fn->returnType().get() == sym.S64());
+    CHECK(fn->parameter(0)->type().get() == sym.S64());
+    CHECK(fn->parameter(1)->type().get() == sym.S64());
+    CHECK(fn->parameter(2)->type().get() == sym.F64());
+    CHECK(fn->parameter(3)->type().get() == sym.Byte());
     auto* varDecl = fn->body()->statement<VariableDeclaration>(0);
-    CHECK(varDecl->type()->base() == sym.rawS64());
+    CHECK(varDecl->type().get() == sym.S64());
     auto* varDeclInit = cast<ast::Conversion*>(varDecl->initExpression())
                             ->expression<Identifier>();
-    CHECK(varDeclInit->type()->base() == sym.rawS64());
+    CHECK(varDeclInit->type().get() == sym.S64());
     CHECK(varDeclInit->valueCategory() == ValueCategory::LValue);
     auto* nestedScope = fn->body()->statement<CompoundStatement>(1);
     auto* nestedVarDecl = nestedScope->statement<VariableDeclaration>(0);
-    // CHECK(nestedVarDecl->type()->base() == sym.String());
     auto* nestedvarDeclInit = cast<Literal*>(nestedVarDecl->initExpression());
-    // CHECK(nestedvarDeclInit->type()->base() == sym.String());
     CHECK(nestedvarDeclInit->valueCategory() == ValueCategory::RValue);
     auto* xDecl = fn->body()->statement<VariableDeclaration>(2);
-    CHECK(xDecl->type()->base() == sym.rawS64());
+    CHECK(xDecl->type().get() == sym.S64());
     auto* intLit =
         cast<ast::Conversion*>(xDecl->initExpression())->expression<Literal>();
     CHECK(intLit->value<APInt>() == 39);
     CHECK(intLit->valueCategory() == ValueCategory::RValue);
     auto* zDecl = fn->body()->statement<VariableDeclaration>(3);
-    CHECK(zDecl->type()->base() == sym.rawS64());
+    CHECK(zDecl->type().get() == sym.S64());
     auto* intHexLit =
         cast<ast::Conversion*>(zDecl->initExpression())->expression<Literal>();
     CHECK(intHexLit->value<APInt>() == 0x39E);
     auto* yDecl = fn->body()->statement<VariableDeclaration>(4);
-    CHECK(yDecl->type()->base() == sym.rawF64());
+    CHECK(yDecl->type().get() == sym.F64());
     auto* floatLit =
         cast<ast::Conversion*>(yDecl->initExpression())->expression<Literal>();
     CHECK(floatLit->value<APFloat>().to<f64>() == 1.2);
     auto* ret = fn->body()->statement<ReturnStatement>(5);
     auto* retIdentifier =
         cast<ast::Conversion*>(ret->expression())->expression<Identifier>();
-    CHECK(retIdentifier->type()->base() == sym.rawS64());
+    CHECK(retIdentifier->type().get() == sym.S64());
     CHECK(retIdentifier->valueCategory() == ValueCategory::LValue);
 }
 
@@ -118,13 +115,13 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     REQUIRE(tu);
     auto* calleeDecl = tu->declaration<FunctionDefinition>(1);
     REQUIRE(calleeDecl);
-    CHECK(calleeDecl->returnType()->base() == sym.rawF32());
-    CHECK(calleeDecl->parameter(0)->type()->base() == sym.rawF32());
-    CHECK(calleeDecl->parameter(1)->type()->base() == sym.rawS64());
-    CHECK(calleeDecl->parameter(2)->type()->base() == sym.rawBool());
+    CHECK(calleeDecl->returnType().get() == sym.F32());
+    CHECK(calleeDecl->parameter(0)->type().get() == sym.F32());
+    CHECK(calleeDecl->parameter(1)->type().get() == sym.S64());
+    CHECK(calleeDecl->parameter(2)->type().get() == sym.Bool());
     auto* caller = tu->declaration<FunctionDefinition>(0);
     auto* resultDecl = caller->body()->statement<VariableDeclaration>(0);
-    CHECK(resultDecl->initExpression()->type()->base() == sym.rawF32());
+    CHECK(resultDecl->initExpression()->type().get() == sym.F32());
     auto* fnCallExpr = cast<ast::Conversion*>(resultDecl->initExpression())
                            ->expression<FunctionCall>();
     auto const& calleeOverloadSet = sym.lookup<OverloadSet>("callee");
@@ -150,22 +147,22 @@ struct X {
     CHECK(xDef->name() == "X");
     auto* iDecl = xDef->body()->statement<VariableDeclaration>(0);
     CHECK(iDecl->name() == "i");
-    CHECK(iDecl->type()->base() == sym.rawF32());
+    CHECK(iDecl->type().get() == sym.F32());
     CHECK(iDecl->offset() == 0);
     CHECK(iDecl->index() == 0);
     auto* jDecl = xDef->body()->statement<VariableDeclaration>(1);
     CHECK(jDecl->name() == "j");
-    CHECK(jDecl->type()->base() == sym.rawS64());
+    CHECK(jDecl->type().get() == sym.S64());
     CHECK(jDecl->offset() == 8);
     CHECK(jDecl->index() == 1);
     auto* b2Decl = xDef->body()->statement<VariableDeclaration>(3);
     CHECK(b2Decl->name() == "b2");
-    CHECK(b2Decl->type()->base() == sym.rawBool());
+    CHECK(b2Decl->type().get() == sym.Bool());
     CHECK(b2Decl->offset() == 17);
     CHECK(b2Decl->index() == 3);
     auto* fDef = xDef->body()->statement<FunctionDefinition>(4);
     CHECK(fDef->name() == "f");
-    CHECK(fDef->returnType()->base() == sym.rawByte());
+    CHECK(fDef->returnType().get() == sym.Byte());
 }
 
 TEST_CASE("Member access into undeclared struct", "[sema]") {
@@ -184,14 +181,14 @@ fn f() {
 }
 struct X { struct Y {} }
 )";
-    auto const [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
+    auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(text);
     REQUIRE(iss.empty());
-    auto const* tu = cast<TranslationUnit*>(ast.get());
-    auto const* f = tu->declaration<FunctionDefinition>(0);
-    auto const* y = f->body()->statement<VariableDeclaration>(0);
-    auto const* YType = y->type();
-    CHECK(YType->base()->name() == "Y");
-    CHECK(YType->base()->parent()->name() == "X");
+    auto* tu = cast<TranslationUnit*>(ast.get());
+    auto* f = tu->declaration<FunctionDefinition>(0);
+    auto* y = f->body()->statement<VariableDeclaration>(0);
+    auto YType = y->type();
+    CHECK(YType->name() == "Y");
+    CHECK(YType->parent()->name() == "X");
     {
         auto [ast, sym, iss] = test::produceDecoratedASTAndSymTable(R"(
 fn f() -> X.Y {}
@@ -299,7 +296,7 @@ struct X {
     auto* fOS = sym.lookup<OverloadSet>("f");
     auto const* fFn = fOS->front();
     /// Finding `f` in the overload set with `X.Y` as argument shall succeed.
-    CHECK(fFn->argumentType(0)->base()->parent()->name() == "X");
+    CHECK(fFn->argumentType(0)->parent()->name() == "X");
     sym.popScope();
 }
 

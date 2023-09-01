@@ -193,18 +193,22 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     if (idToken.kind() == This) {
         tokens.eat();
         return allocate<ast::ThisParameter>(idToken.sourceRange(),
-                                            sema::Reference::None);
+                                            std::nullopt,
+                                            sema::Mutability::Mutable);
     }
     if (idToken.kind() == BitAnd) {
         tokens.eat();
-        auto const refQual = eatMut() ? sema::RefMutImpl : sema::RefConstImpl;
+        using enum sema::Mutability;
+        auto const mutQual = eatMut() ? Mutable : Const;
         if (tokens.peek().kind() != This) {
             return nullptr;
         }
         auto const thisToken = tokens.eat();
         auto sourceRange =
             merge(idToken.sourceRange(), thisToken.sourceRange());
-        return allocate<ast::ThisParameter>(sourceRange, refQual);
+        return allocate<ast::ThisParameter>(sourceRange,
+                                            sema::RefExpl,
+                                            mutQual);
     }
     auto identifier = parseIdentifier();
     if (!identifier) {

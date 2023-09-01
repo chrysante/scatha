@@ -6,6 +6,7 @@
 #include <range/v3/view.hpp>
 
 #include "AST/AST.h"
+#include "Common/Match.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
@@ -55,12 +56,12 @@ static ast::Conversion* insertConversion(
               "Can't insert a conversion if node has no parent");
     size_t const indexInParent = expr->indexInParent();
     auto* parent = expr->parent();
-    auto* targetType = conv->targetType();
+    auto targetType = conv->targetType();
     auto owner =
         allocate<ast::Conversion>(expr->extractFromParent(), std::move(conv));
     auto* result = owner.get();
     parent->setChild(indexInParent, std::move(owner));
-    auto* entity = targetType->isReference() ? expr->entity() : nullptr;
+    auto* entity = isRef(targetType) ? expr->entity() : nullptr;
     result->decorate(entity, targetType);
     result->setConstantValue(
         evalConversion(result->conversion(),
@@ -277,25 +278,15 @@ static std::optional<ObjectTypeConversion> determineObjConv(
     }); // clang-format on
 }
 
-enum class SlimRef { None, Implicit, Explicit };
-
-static SlimRef toSlim(Reference ref) {
-    switch (ref) {
-        using enum SlimRef;
-    case Reference::None:
-        return None;
-    case Reference::ConstImplicit:
-    case Reference::MutImplicit:
-        return Implicit;
-    case Reference::ConstExplicit:
-    case Reference::MutExplicit:
-        return Explicit;
+static size_t toRefIndex(std::optional<Reference> ref) {
+    if (!ref) {
+        return 0;
     }
+    return *ref == Reference::Implicit ? 1 : 2;
 }
 
-static std::optional<RefConversion> determineRefConv(ConvKind kind,
-                                                     Reference from,
-                                                     Reference to) {
+static std::optional<RefConversion> determineRefConv(
+    ConvKind kind, std::optional<Reference> from, std::optional<Reference> to) {
     using enum RefConversion;
     switch (kind) {
     case ConvKind::Implicit: {
@@ -306,8 +297,7 @@ static std::optional<RefConversion> determineRefConv(ConvKind kind,
             /*  Implicit */ { Dereference,  None,         std::nullopt, },
             /*  Explicit */ { DerefExpl,    DerefExpl,    None,         },
         }; // clang-format on
-        return resultMatrix[static_cast<size_t>(toSlim(from))]
-                           [static_cast<size_t>(toSlim(to))];
+        return resultMatrix[toRefIndex(from)][toRefIndex(to)];
     }
     case ConvKind::Explicit: {
         // clang-format off
@@ -317,8 +307,7 @@ static std::optional<RefConversion> determineRefConv(ConvKind kind,
             /*  Implicit */ { Dereference, None,        TakeAddress, },
             /*  Explicit */ { Dereference, Dereference, None,        },
         }; // clang-format on
-        return resultMatrix[static_cast<size_t>(toSlim(from))]
-                           [static_cast<size_t>(toSlim(to))];
+        return resultMatrix[toRefIndex(from)][toRefIndex(to)];
     }
     case ConvKind::Reinterpret:
         if (from == to) {
@@ -329,22 +318,22 @@ static std::optional<RefConversion> determineRefConv(ConvKind kind,
 }
 
 static std::optional<MutConversion> determineMutConv(ConvKind kind,
-                                                     QualType const* from,
-                                                     QualType const* to) {
+                                                     QualType from,
+                                                     QualType to) {
     /// Conversions to values are not concerned with mutability restrictions
-    if (!to->isReference()) {
+    if (!isRef(to)) {
         return MutConversion::None;
     }
-    auto fromBaseMut = baseMutability(from);
-    auto toBaseMut = baseMutability(to);
+    auto fromBaseMut = stripReference(from).mutability();
+    auto toBaseMut = stripReference(to).mutability();
     /// No mutability conversion happens
     if (fromBaseMut == toBaseMut) {
         return MutConversion::None;
     }
     switch (fromBaseMut) {
-    case Mutability::Mutable: // -> Const
+    case Mutability::Mutable: // Mutable to Const:
         return MutConversion::MutToConst;
-    case Mutability::Const:   // -> Mutable
+    case Mutability::Const:   // Const to Mutable
         return std::nullopt;
     }
 }
@@ -519,15 +508,15 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
 static std::optional<
     std::tuple<RefConversion, MutConversion, ObjectTypeConversion>>
     checkConversion(ConvKind kind,
-                    sema::QualType const* from,
+                    sema::QualType from,
                     Value const* constantValue,
-                    QualType const* to) {
+                    QualType to) {
     if (from == to) {
         return std::tuple{ RefConversion::None,
                            MutConversion::None,
                            ObjectTypeConversion::None };
     }
-    auto refConv = determineRefConv(kind, from->reference(), to->reference());
+    auto refConv = determineRefConv(kind, refKind(from), refKind(to));
     if (!refConv) {
         return std::nullopt;
     }
@@ -535,13 +524,17 @@ static std::optional<
     if (!mutConv) {
         return std::nullopt;
     }
-    auto objConv = determineObjConv(kind, from->base(), to->base());
+    auto objConv = determineObjConv(kind,
+                                    stripReference(from).get(),
+                                    stripReference(to).get());
     /// If we can't find an implicit conversion and we have a constant value,
     /// we try to find an extended constant implicit conversion
     if (kind == ConvKind::Implicit && !objConv && constantValue &&
         *refConv != RefConversion::TakeAddress)
     {
-        objConv = tryImplicitConstConv(constantValue, from->base(), to->base());
+        objConv = tryImplicitConstConv(constantValue,
+                                       stripReference(from).get(),
+                                       stripReference(to).get());
     }
     if (!objConv) {
         return std::nullopt;
@@ -555,7 +548,7 @@ static std::optional<
 /// Implementation of the `convert*` functions
 static bool convertImpl(ConvKind kind,
                         ast::Expression* expr,
-                        QualType const* to,
+                        QualType to,
                         IssueHandler* iss) {
     if (expr->type() == to) {
         return true;
@@ -579,28 +572,28 @@ static bool convertImpl(ConvKind kind,
 }
 
 bool sema::convertImplicitly(ast::Expression* expr,
-                             QualType const* to,
+                             QualType to,
                              IssueHandler& issueHandler) {
     return convertImpl(ConvKind::Implicit, expr, to, &issueHandler);
 }
 
 bool sema::convertExplicitly(ast::Expression* expr,
-                             QualType const* to,
+                             QualType to,
                              IssueHandler& issueHandler) {
     return convertImpl(ConvKind::Explicit, expr, to, &issueHandler);
 }
 
 bool sema::convertReinterpret(ast::Expression* expr,
-                              QualType const* to,
+                              QualType to,
                               IssueHandler& issueHandler) {
     return convertImpl(ConvKind::Reinterpret, expr, to, &issueHandler);
 }
 
 /// Implementation of the `*ConversionRank()` functions
 static std::optional<int> conversionRankImpl(ConvKind kind,
-                                             QualType const* from,
+                                             QualType from,
                                              Value const* constantValue,
-                                             QualType const* to) {
+                                             QualType to) {
     auto conv = checkConversion(kind, from, constantValue, to);
     if (!conv) {
         return std::nullopt;
@@ -608,38 +601,36 @@ static std::optional<int> conversionRankImpl(ConvKind kind,
     return getRank(std::get<0>(*conv), std::get<1>(*conv), std::get<2>(*conv));
 }
 
-std::optional<int> sema::implicitConversionRank(QualType const* from,
-                                                QualType const* to) {
+std::optional<int> sema::implicitConversionRank(QualType from, QualType to) {
     return implicitConversionRank(from, nullptr, to);
 }
 
-std::optional<int> sema::implicitConversionRank(QualType const* from,
+std::optional<int> sema::implicitConversionRank(QualType from,
                                                 Value const* constVal,
-                                                QualType const* to) {
+                                                QualType to) {
     return conversionRankImpl(ConvKind::Implicit, from, constVal, to);
 }
 
 std::optional<int> sema::implicitConversionRank(ast::Expression const* expr,
-                                                QualType const* to) {
+                                                QualType to) {
     return conversionRankImpl(ConvKind::Implicit,
                               expr->type(),
                               expr->constantValue(),
                               to);
 }
 
-std::optional<int> sema::explicitConversionRank(QualType const* from,
-                                                QualType const* to) {
+std::optional<int> sema::explicitConversionRank(QualType from, QualType to) {
     return explicitConversionRank(from, nullptr, to);
 }
 
-std::optional<int> sema::explicitConversionRank(QualType const* from,
+std::optional<int> sema::explicitConversionRank(QualType from,
                                                 Value const* constVal,
-                                                QualType const* to) {
+                                                QualType to) {
     return conversionRankImpl(ConvKind::Explicit, from, constVal, to);
 }
 
 std::optional<int> sema::explicitConversionRank(ast::Expression const* expr,
-                                                QualType const* to) {
+                                                QualType to) {
     return conversionRankImpl(ConvKind::Explicit,
                               expr->type(),
                               expr->constantValue(),
@@ -649,40 +640,51 @@ std::optional<int> sema::explicitConversionRank(ast::Expression const* expr,
 bool sema::convertToExplicitRef(ast::Expression* expr,
                                 SymbolTable& sym,
                                 IssueHandler& issueHandler) {
-    auto refQual = toExplicitRef(baseMutability(expr->type()));
-    return convertExplicitly(expr,
-                             sym.setReference(expr->type(), refQual),
-                             issueHandler);
+    return convertExplicitly(expr, sym.explRef(expr->type()), issueHandler);
 }
 
 bool sema::convertToImplicitMutRef(ast::Expression* expr,
                                    SymbolTable& sym,
                                    IssueHandler& issueHandler) {
     return convertImplicitly(expr,
-                             sym.setReference(expr->type(), RefMutImpl),
+                             sym.implRef(stripReference(expr->type()).toMut()),
                              issueHandler);
 }
 
 void sema::dereference(ast::Expression* expr, SymbolTable& sym) {
     bool succ = convertImpl(ConvKind::Implicit,
                             expr,
-                            sym.setReference(expr->type(), Reference::None),
+                            stripReference(expr->type()),
                             nullptr);
     SC_ASSERT(succ, "Expression is not dereferentiable");
 }
 
-static std::optional<Reference> commonRef(Reference a, Reference b) {
+static QualType commonRef(SymbolTable& sym,
+                          QualType commonObjType,
+                          QualType a,
+                          QualType b) {
     using enum Reference;
-    // clang-format off
-    static constexpr std::optional<Reference> resultMatrix[5][5] = {
-/*                    None,         ConstImplicit  MutImplicit    ConstExplicit  MutExplicit   */
-/*          None */ { None,         None,          None,          std::nullopt,  std::nullopt  },
-/* ConstImplicit */ { None,         ConstImplicit, ConstImplicit, std::nullopt,  std::nullopt  },
-/*   MutImplicit */ { None,         ConstImplicit, MutImplicit,   std::nullopt,  std::nullopt  },
-/* ConstExplicit */ { std::nullopt, std::nullopt,  std::nullopt,  ConstExplicit, ConstExplicit },
-/*   MutExplicit */ { std::nullopt, std::nullopt,  std::nullopt,  ConstExplicit, MutExplicit   },
-    }; // clang-format on
-    return resultMatrix[static_cast<size_t>(a)][static_cast<size_t>(b)];
+    /// If `a` is a reference and `b` is not or vice versa, we return a the
+    /// common base type as mutable
+    if (!isRef(a) != !isRef(b)) {
+        return commonObjType.toMut();
+    }
+    /// If none of `a` and `b` is a reference, we return a the common base type
+    /// as is
+    if (!isRef(a) || !isRef(b)) {
+        return commonObjType;
+    }
+    /// We only reference-qualify the result if no base type conversion occured
+    if (stripReference(a).get() != stripReference(b).get()) {
+        return commonObjType.toMut();
+    }
+    /// Both types are references, they are only compatible if they are of the
+    /// same kind
+    if (*refKind(a) == *refKind(b)) {
+        return sym.reference(commonObjType, *refKind(a));
+    }
+    /// We don't have a common type
+    return nullptr;
 }
 
 static std::optional<size_t> nextBitwidth(size_t width) {
@@ -709,19 +711,22 @@ IntType const* commonTypeSignedUnsigned(SymbolTable& sym,
         return a;
     }
     if (auto width = nextBitwidth(b->bitwidth())) {
-        return sym.rawIntType(*width, Signedness::Signed);
+        return sym.intType(*width, Signedness::Signed);
     }
     return nullptr;
 }
 
-static ObjectType const* commonBase(SymbolTable& sym,
-                                    ObjectType const* a,
-                                    ObjectType const* b) {
-    if (a == b) {
-        return a;
+static Mutability commonMutability(Mutability a, Mutability b) {
+    return a == Mutability::Mutable ? b : a;
+}
+
+static QualType commonBase(SymbolTable& sym, QualType a, QualType b) {
+    auto commonMut = commonMutability(a.mutability(), b.mutability());
+    if (a.get() == b.get()) {
+        return QualType(a.get(), commonMut);
     }
     // clang-format off
-    return visit(*a, *b, utl::overload{
+    auto* commonObjType = SC_MATCH(*a, *b) {
         [&](IntType const& a, IntType const& b) -> ObjectType const* {
             if (a.isSigned() && b.isUnsigned()) {
                 return commonTypeSignedUnsigned(sym, &a, &b);
@@ -730,40 +735,31 @@ static ObjectType const* commonBase(SymbolTable& sym,
                 return commonTypeSignedUnsigned(sym, &b, &a);
             }
             SC_ASSERT(a.signedness() == b.signedness(), "");
-            return sym.rawIntType(std::max(a.bitwidth(), b.bitwidth()),
+            return sym.intType(std::max(a.bitwidth(), b.bitwidth()),
                                a.signedness());
         },
         [&](ObjectType const& a, ObjectType const& b) -> ObjectType const* {
             return nullptr;
         }
-    }); // clang-format on
+    }; // clang-format on
+    return QualType(commonObjType, commonMut);
 }
 
-QualType const* sema::commonType(SymbolTable& sym,
-                                 QualType const* a,
-                                 QualType const* b) {
-    auto* base = commonBase(sym, a->base(), b->base());
-    if (!base) {
+QualType sema::commonType(SymbolTable& sym, QualType a, QualType b) {
+    QualType commonObjType =
+        commonBase(sym, stripReference(a), stripReference(b));
+    if (!commonObjType) {
         return nullptr;
     }
-    auto ref = commonRef(a->reference(), b->reference());
-    if (!ref) {
-        return nullptr;
-    }
-    /// We only reference-qualify the result if no base type conversion occurs
-    if (a->base() == b->base()) {
-        return sym.qualify(base, *ref);
-    }
-    return sym.qualify(base);
+    return commonRef(sym, commonObjType, a, b);
 }
 
-QualType const* sema::commonType(SymbolTable& sym,
-                                 std::span<QualType const* const> types) {
+QualType sema::commonType(SymbolTable& sym, std::span<QualType const> types) {
     if (types.empty()) {
         return sym.Void();
     }
-    auto* result = types[0];
-    for (auto* type: types | ranges::views::drop(1)) {
+    QualType result = types[0];
+    for (QualType type: types | ranges::views::drop(1)) {
         if (!result) {
             break;
         }
@@ -772,9 +768,9 @@ QualType const* sema::commonType(SymbolTable& sym,
     return result;
 }
 
-QualType const* sema::commonType(
-    SymbolTable& sym, std::span<ast::Expression const* const> exprs) {
+QualType sema::commonType(SymbolTable& sym,
+                          std::span<ast::Expression const* const> exprs) {
     return commonType(sym, exprs | ranges::views::transform([](auto* expr) {
                                return expr->type();
-                           }) | ranges::to<utl::small_vector<QualType const*>>);
+                           }) | ranges::to<utl::small_vector<QualType>>);
 }

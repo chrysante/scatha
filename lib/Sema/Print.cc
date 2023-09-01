@@ -7,6 +7,7 @@
 
 #include "Common/TreeFormatter.h"
 #include "Sema/Entity.h"
+#include "Sema/QualType.h"
 #include "Sema/SymbolTable.h"
 
 using namespace scatha;
@@ -32,7 +33,7 @@ struct Context {
     utl::vstreammanip<> nameImpl(Function const* function) {
         return [=](std::ostream& str) {
             str << "(";
-            for (bool first = true; auto* type: function->argumentTypes()) {
+            for (bool first = true; QualType type: function->argumentTypes()) {
                 str << (first ? first = false, "" : ", ") << type->name();
             }
             str << ") -> " << function->returnType()->name();

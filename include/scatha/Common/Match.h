@@ -5,28 +5,35 @@
 
 #include "Common/Dyncast.h"
 
-#define SC_MATCH(arg) ::scatha::internal::Matcher(arg)->*utl::overload
+#define SC_MATCH(...) ::scatha::internal::Matcher(__VA_ARGS__)->*utl::overload
 
 namespace scatha::internal {
 
-template <typename T>
+template <typename... T>
 struct Matcher {
-    explicit Matcher(T& t): t(t) {}
+    template <typename... U>
+    explicit Matcher(U&&... t): t(t...) {}
 
-    T& t;
+    std::tuple<T&...> t;
 };
 
-template <typename T>
-Matcher(T const&) -> Matcher<T const>;
+template <typename... T>
+Matcher(T&&...) -> Matcher<std::remove_reference_t<T>...>;
 
-template <typename T, typename... F>
-auto operator->*(Matcher<T> m, utl::overload<F...> const& f) -> decltype(auto) {
-    return visit(m.t, f);
+template <typename... T, typename... F>
+decltype(auto) operator->*(Matcher<T...> m, utl::overload<F...> const& f) {
+    // clang-format off
+    return std::apply([&](auto&&... t) -> decltype(auto) {
+        return visit(t..., f);
+    }, m.t); // clang-format on
 }
 
-template <typename T, typename... F>
-auto operator->*(Matcher<T> m, utl::overload<F...>&& f) -> decltype(auto) {
-    return visit(m.t, std::move(f));
+template <typename... T, typename... F>
+decltype(auto) operator->*(Matcher<T...> m, utl::overload<F...>&& f) {
+    // clang-format off
+    return std::apply([&](auto&&... t) -> decltype(auto) {
+        return visit(t..., std::move(f));
+    }, m.t); // clang-format on
 }
 
 } // namespace scatha::internal

@@ -15,6 +15,7 @@
 #include <scatha/Common/Base.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Fwd.h>
+#include <scatha/Sema/QualType.h>
 
 namespace scatha::sema {
 
@@ -90,10 +91,10 @@ public:
     ~Object();
 
     /// Set the type of this object.
-    void setType(QualType const* type) { _type = type; }
+    void setType(QualType type) { _type = type; }
 
     /// Type of this object.
-    QualType const* type() const { return _type; }
+    QualType type() const { return _type; }
 
     /// \Returns Constant value if this variable is `const` and has a
     /// const-evaluable initializer `nullptr` otherwise
@@ -106,13 +107,13 @@ protected:
     explicit Object(EntityType entityType,
                     std::string name,
                     Scope* parentScope,
-                    QualType const* type);
+                    QualType type);
 
 private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
-    QualType const* _type;
+    QualType _type;
     UniquePtr<Value> constVal;
 };
 
@@ -123,7 +124,7 @@ public:
 
     explicit Variable(std::string name,
                       Scope* parentScope,
-                      QualType const* type = nullptr);
+                      QualType type = nullptr);
 
     /// Set the offset of this variable.
     void setOffset(size_t offset) { _offset = offset; }
@@ -158,10 +159,7 @@ class SCATHA_API Temporary: public Object {
 public:
     SC_MOVEONLY(Temporary);
 
-    explicit Temporary(size_t id, Scope* parentScope, QualType const* type);
-
-    /// Type of this temporary.
-    QualType const* type() const { return _type; }
+    explicit Temporary(size_t id, Scope* parentScope, QualType type);
 
     /// The ID of this temporary
     size_t id() const { return _id; }
@@ -170,7 +168,6 @@ private:
     friend class Entity;
     EntityCategory categoryImpl() const { return EntityCategory::Value; }
 
-    QualType const* _type;
     size_t _id;
 };
 
@@ -262,8 +259,8 @@ class SCATHA_API FunctionSignature {
 public:
     FunctionSignature() = default;
 
-    explicit FunctionSignature(utl::small_vector<QualType const*> argumentTypes,
-                               QualType const* returnType):
+    explicit FunctionSignature(utl::small_vector<QualType> argumentTypes,
+                               QualType returnType):
         _argumentTypes(std::move(argumentTypes)), _returnType(returnType) {}
 
     Type const* type() const {
@@ -273,24 +270,20 @@ public:
     }
 
     /// Argument types
-    std::span<QualType const* const> argumentTypes() const {
-        return _argumentTypes;
-    }
+    std::span<QualType const> argumentTypes() const { return _argumentTypes; }
 
     /// Argument type at index \p index
-    QualType const* argumentType(size_t index) const {
-        return _argumentTypes[index];
-    }
+    QualType argumentType(size_t index) const { return _argumentTypes[index]; }
 
     /// Number of arguments
     size_t argumentCount() const { return _argumentTypes.size(); }
 
     /// Return type
-    QualType const* returnType() const { return _returnType; }
+    QualType returnType() const { return _returnType; }
 
 private:
-    utl::small_vector<QualType const*> _argumentTypes;
-    QualType const* _returnType;
+    utl::small_vector<QualType> _argumentTypes;
+    QualType _returnType;
 };
 
 /// \Returns `true` iff \p a and \p b have the same argument types
@@ -326,15 +319,15 @@ public:
     FunctionSignature const& signature() const { return _sig; }
 
     /// Return type
-    QualType const* returnType() const { return _sig.returnType(); }
+    QualType returnType() const { return _sig.returnType(); }
 
     /// Argument types
-    std::span<QualType const* const> argumentTypes() const {
+    std::span<QualType const> argumentTypes() const {
         return _sig.argumentTypes();
     }
 
     /// Argument type at index \p index
-    QualType const* argumentType(size_t index) const {
+    QualType argumentType(size_t index) const {
         return _sig.argumentType(index);
     }
 
@@ -665,74 +658,26 @@ private:
     size_t _count;
 };
 
-/// Represents a type possibly qualified by reference or mutable qualifiers
-class SCATHA_API QualType: public Type {
+/// Represents a reference type
+class SCATHA_API ReferenceType: public ObjectType {
 public:
-    explicit QualType(ObjectType* base, Reference ref, Mutability mut);
+    explicit ReferenceType(QualType base, Reference ref);
 
-    /// The base object type that is qualified by this `QualType`
-    /// I.e. if this is `&mut int`, then `base()` is `int`
-    ObjectType const* base() const { return _base; }
+    /// The type that this `ReferenceType` refers to
+    QualType base() const { return _base; }
 
     /// The reference qualifier of this type
     Reference reference() const { return ref; }
 
-    /// \Returns `true` iff this is an explicit reference to const type
-    bool isExplicitConstRef() const {
-        return reference() == Reference::ConstExplicit;
-    }
-
-    /// \Returns `true` iff this is an explicit reference to mutable type
-    bool isExplicitMutRef() const {
-        return reference() == Reference::MutExplicit;
-    }
-
     /// \Returns `true` iff this is an explicit reference type
-    bool isExplicitRef() const {
-        return isExplicitConstRef() || isExplicitMutRef();
-    }
-
-    /// \Returns `true` iff this is an implicit reference to const type
-    bool isImplicitConstRef() const {
-        return reference() == Reference::ConstImplicit;
-    }
-
-    /// \Returns `true` iff this is an implicit reference to mutable type
-    bool isImplicitMutRef() const {
-        return reference() == Reference::MutImplicit;
-    }
+    bool isExplicit() const { return reference() == Reference::Explicit; }
 
     /// \Returns `true` iff this is an implicit reference type
-    bool isImplicitRef() const {
-        return isImplicitConstRef() || isImplicitMutRef();
-    }
-
-    bool isMutRef() const { return isImplicitMutRef() || isExplicitMutRef(); }
-
-    bool isConstRef() const {
-        return isImplicitConstRef() || isExplicitConstRef();
-    }
-
-    /// \Returns `true` iff this is any (implicit or explicit) reference type
-    bool isReference() const { return isImplicitRef() || isExplicitRef(); }
-
-    /// The mutability qualifier of this type
-    Mutability mutability() const { return mut; }
-
-    /// \Returns `true` iff `mutability() == Mutable`
-    bool isMutable() const { return mutability() == Mutability::Mutable; }
-
-    /// \Returns `true` iff `mutability() == Const`
-    bool isConst() const { return mutability() == Mutability::Const; }
+    bool isImplicit() const { return reference() == Reference::Implicit; }
 
 private:
-    friend class Type;
-    size_t sizeImpl() const;
-    size_t alignImpl() const;
-
-    ObjectType* _base;
+    QualType _base;
     Reference ref;
-    Mutability mut;
 };
 
 /// # OverloadSet

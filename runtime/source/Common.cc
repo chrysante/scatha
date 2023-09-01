@@ -12,51 +12,50 @@ static sema::ObjectType const* toObjType(sema::SymbolTable& sym,
                                          BaseType type) {
     switch (type) {
     case BaseType::Void:
-        return sym.rawVoid();
+        return sym.Void();
     case BaseType::Bool:
-        return sym.rawBool();
+        return sym.Bool();
     case BaseType::Byte:
-        return sym.rawByte();
+        return sym.Byte();
     case BaseType::S8:
-        return sym.rawS8();
+        return sym.S8();
     case BaseType::S16:
-        return sym.rawS16();
+        return sym.S16();
     case BaseType::S32:
-        return sym.rawS32();
+        return sym.S32();
     case BaseType::S64:
-        return sym.rawS64();
+        return sym.S64();
     case BaseType::U8:
-        return sym.rawU8();
+        return sym.U8();
     case BaseType::U16:
-        return sym.rawU16();
+        return sym.U16();
     case BaseType::U32:
-        return sym.rawU32();
+        return sym.U32();
     case BaseType::U64:
-        return sym.rawU64();
+        return sym.U64();
     case BaseType::F32:
-        return sym.rawF32();
+        return sym.F32();
     case BaseType::F64:
-        return sym.rawF64();
+        return sym.F64();
     }
 }
 
-sema::QualType const* scatha::toSemaType(sema::SymbolTable& sym,
-                                         QualType type) {
+sema::QualType scatha::toSemaType(sema::SymbolTable& sym, QualType type) {
     sema::ObjectType const* base = toObjType(sym, type.base);
     switch (type.qual) {
     case Qualifier::None:
-        return sym.qualify(base);
+        return base;
     case Qualifier::Ref:
-        return sym.qualify(base, sema::RefConstExpl);
+        return sym.explRef(sema::QualType::Const(base));
     case Qualifier::MutRef:
-        return sym.qualify(base, sema::RefMutExpl);
+        return sym.explRef(sema::QualType::Mut(base));
     case Qualifier::ArrayRef: {
         auto* array = sym.arrayType(base, sema::ArrayType::DynamicCount);
-        return sym.qualify(array, sema::RefConstExpl);
+        return sym.explRef(sema::QualType::Const(array));
     }
     case Qualifier::MutArrayRef: {
         auto* array = sym.arrayType(base, sema::ArrayType::DynamicCount);
-        return sym.qualify(array, sema::RefMutExpl);
+        return sym.explRef(sema::QualType::Mut(array));
     }
     }
 }
@@ -70,7 +69,7 @@ sema::FunctionSignature scatha::toSemaSig(sema::SymbolTable& sym,
                                           std::span<QualType const> argTypes) {
     auto map = mapType(sym);
     auto args = argTypes | ranges::views::transform(map) |
-                ranges::to<utl::small_vector<sema::QualType const*>>;
+                ranges::to<utl::small_vector<sema::QualType>>;
     return sema::FunctionSignature(std::move(args), map(returnType));
 }
 

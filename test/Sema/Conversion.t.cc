@@ -51,10 +51,10 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
                                             SourceRange{}),
              SourceRange{});
     auto* expr = base.operand();
-    auto setType = [&](QualType const* type) { expr->decorate(nullptr, type); };
-    auto set = [&](QualType const* type, auto value) {
+    auto setType = [&](QualType type) { expr->decorate(nullptr, type); };
+    auto set = [&](QualType type, auto value) {
         setType(type);
-        auto* arithType = cast<ArithmeticType const*>(type->base());
+        auto* arithType = cast<ArithmeticType const*>(type.get());
         APInt apValue(value, arithType->bitwidth());
         expr->setConstantValue(
             allocate<IntValue>(apValue, arithType->isSigned()));
@@ -130,27 +130,37 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
 
 TEST_CASE("Common type", "[sema]") {
     SymbolTable sym;
-    SECTION("s64, s64 -> s64")
-    CHECK(commonType(sym, sym.S64(), sym.S64()) == sym.S64());
-    SECTION("'mut s64, 'mut s64 -> 'mut s64")
-    CHECK(commonType(sym, sym.S64(RefMutImpl), sym.S64(RefMutImpl)) ==
-          sym.S64(RefMutImpl));
-    SECTION("'s64, 'mut s64 -> 's64")
-    CHECK(commonType(sym, sym.S64(RefConstImpl), sym.S64(RefMutImpl)) ==
-          sym.S64(RefConstImpl));
-    SECTION("'s64, s64 -> s64")
-    CHECK(commonType(sym, sym.S64(RefConstImpl), sym.S64()) == sym.S64());
-    SECTION("'s64, 'mut s32 -> s64")
-    CHECK(commonType(sym, sym.S64(RefConstImpl), sym.S32(RefMutImpl)) ==
-          sym.S64());
-    SECTION("'s64, s32 -> s64")
-    CHECK(commonType(sym, sym.S64(RefConstImpl), sym.S32()) == sym.S64());
-    SECTION("&mut s64, 'mut s64 -> None")
-    CHECK(!commonType(sym, sym.S64(RefMutExpl), sym.S64(RefMutImpl)));
-    SECTION("s64, byte -> None")
-    CHECK(!commonType(sym, sym.S64(), sym.Byte()));
-    SECTION("s64, u64 -> None")
-    CHECK(!commonType(sym, sym.S64(), sym.U64()));
-    SECTION("s64, u32 -> s64")
-    CHECK(commonType(sym, sym.S64(), sym.U32()) == sym.S64());
+    auto S64 = sym.S64();
+    auto S64MutRef = sym.implRef(QualType::Mut(sym.S64()));
+    auto S64ConstRef = sym.implRef(QualType::Const(sym.S64()));
+    auto S64MutExplRef = sym.explRef(QualType::Mut(sym.S64()));
+
+    auto S32 = sym.S32();
+    auto S32MutRef = sym.implRef(QualType::Mut(sym.S32()));
+    auto Byte = sym.Byte();
+    auto U64 = sym.U64();
+    auto U32 = sym.U32();
+
+    SECTION("s64, s64 -> s64") { CHECK(commonType(sym, S64, S64) == S64); }
+    SECTION("'mut s64, 'mut s64 -> 'mut s64") {
+        CHECK(commonType(sym, S64MutRef, S64MutRef) == S64MutRef);
+    }
+    SECTION("'s64, 'mut s64 -> 's64") {
+        CHECK(commonType(sym, S64ConstRef, S64MutRef) == S64ConstRef);
+    }
+    SECTION("'s64, s64 -> s64") {
+        CHECK(commonType(sym, S64ConstRef, S64) == S64);
+    }
+    SECTION("'s64, 'mut s32 -> s64") {
+        CHECK(commonType(sym, S64ConstRef, S32MutRef) == S64);
+    }
+    SECTION("'s64, s32 -> s64") {
+        CHECK(commonType(sym, S64ConstRef, S32) == S64);
+    }
+    SECTION("&mut s64, 'mut s64 -> None") {
+        CHECK(!commonType(sym, S64MutExplRef, S64MutRef));
+    }
+    SECTION("s64, byte -> None") { CHECK(!commonType(sym, S64, Byte)); }
+    SECTION("s64, u64 -> None") { CHECK(!commonType(sym, S64, U64)); }
+    SECTION("s64, u32 -> s64") { CHECK(commonType(sym, S64, U32) == S64); }
 }

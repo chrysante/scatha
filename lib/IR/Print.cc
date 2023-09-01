@@ -9,6 +9,7 @@
 
 #include "Common/Base.h"
 #include "Common/EscapeSequence.h"
+#include "Common/Match.h"
 #include "Common/PrintUtil.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
@@ -87,11 +88,11 @@ void ir::print(Module const& mod, std::ostream& str) {
     }
 }
 
-void ir::print(Function const& function) { ir::print(function, std::cout); }
+void ir::print(Callable const& callable) { ir::print(callable, std::cout); }
 
-void ir::print(Function const& function, std::ostream& str) {
+void ir::print(Callable const& callable, std::ostream& str) {
     PrintCtx ctx(str);
-    ctx.print(function);
+    visit(callable, [&](auto& function) { ctx.print(function); });
 }
 
 void ir::print(Instruction const& inst) { ir::print(inst, std::cout); }
