@@ -13,14 +13,14 @@
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
-#include <scatha/AST/Fwd.h>
-#include <scatha/Common/APFloat.h>
-#include <scatha/Common/APInt.h>
-#include <scatha/Common/SourceLocation.h>
-#include <scatha/Common/UniquePtr.h>
-#include <scatha/Sema/DTorStack.h>
-#include <scatha/Sema/Fwd.h>
-#include <scatha/Sema/QualType.h>
+#include "AST/Fwd.h"
+#include "Common/APFloat.h"
+#include "Common/APInt.h"
+#include "Common/SourceLocation.h"
+#include "Common/UniquePtr.h"
+#include "Sema/DTorStack.h"
+#include "Sema/Fwd.h"
+#include "Sema/QualType.h"
 
 // ASTNode
 // ├─ TranslationUnit
