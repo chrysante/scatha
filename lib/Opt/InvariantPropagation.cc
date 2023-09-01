@@ -131,6 +131,7 @@ static bool compareFloat(CompareOperation op,
     }
 }
 
+#if 0
 static bool compare(CompareMode mode,
                     CompareOperation op,
                     Constant const* lhs,
@@ -152,6 +153,7 @@ static bool compare(CompareMode mode,
         SC_UNREACHABLE();
     }
 }
+#endif
 
 namespace {
 

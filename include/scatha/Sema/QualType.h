@@ -28,7 +28,8 @@ public:
     /// Construct an empty `QualType`
     QualType(std::nullptr_t = nullptr): _type(nullptr), _mut{} {}
 
-    /// Construct a `QualType` with base type \p type and mutability qualifier \p mut
+    /// Construct a `QualType` with base type \p type and mutability qualifier
+    /// \p mut
     QualType(ObjectType const* type, Mutability mut = Mutability::Mutable):
         _type(type), _mut(mut) {}
 

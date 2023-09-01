@@ -1,7 +1,5 @@
 
-
 struct X {
-
     public fn print(msg: &[byte]) {
         __builtin_putstr(&msg);
     }
@@ -9,7 +7,6 @@ struct X {
     fn print(n: int) {
         __builtin_puti64(n);
     }
-
 }
 
 public fn main(n: int) -> int {

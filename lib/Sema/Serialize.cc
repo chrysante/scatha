@@ -17,6 +17,10 @@ struct SerializeContext {
 
 } // namespace
 
-std::vector<char> sema::serialize(SymbolTable const& symbolTable) {}
+std::vector<char> sema::serialize(SymbolTable const& symbolTable) {
+    SC_UNIMPLEMENTED();
+}
 
-SymbolTable sema::deserialize(std::span<char const> data) {}
+SymbolTable sema::deserialize(std::span<char const> data) {
+    SC_UNIMPLEMENTED();
+}
