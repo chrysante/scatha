@@ -8,7 +8,7 @@
 #   define SC_ASTNODE_DEF(node, _)
 #endif
 
-SC_ASTNODE_DEF(AbstractSyntaxTree,    ABSTRACT)
+SC_ASTNODE_DEF(ASTNode,               ABSTRACT)
 SC_ASTNODE_DEF(TranslationUnit,       CONCRETE)
 SC_ASTNODE_DEF(CompoundStatement,     CONCRETE)
 SC_ASTNODE_DEF(Declaration,           ABSTRACT)

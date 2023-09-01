@@ -8,7 +8,7 @@
 using namespace scatha;
 using namespace sema;
 
-AnalysisResult sema::analyze(ast::AbstractSyntaxTree& root,
+AnalysisResult sema::analyze(ast::ASTNode& root,
                              SymbolTable& sym,
                              IssueHandler& iss) {
     AnalysisResult result;

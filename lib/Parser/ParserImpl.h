@@ -16,7 +16,7 @@ using namespace parse;
 namespace {
 
 struct Context {
-    UniquePtr<ast::AbstractSyntaxTree> run();
+    UniquePtr<ast::ASTNode> run();
 
     UniquePtr<ast::TranslationUnit> parseTranslationUnit();
     UniquePtr<ast::Declaration> parseExternalDeclaration();

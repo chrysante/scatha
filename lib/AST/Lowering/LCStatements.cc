@@ -16,7 +16,7 @@ using sema::QualType;
 
 using enum ValueLocation;
 
-void LoweringContext::generate(AbstractSyntaxTree const& node) {
+void LoweringContext::generate(ASTNode const& node) {
     visit(node, [this](auto const& node) { return generateImpl(node); });
 }
 

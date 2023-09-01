@@ -74,7 +74,7 @@ struct LoweringContext {
                     ir::Context& ctx,
                     ir::Module& mod);
 
-    void run(ast::AbstractSyntaxTree const& root);
+    void run(ast::ASTNode const& root);
 
     /// # Declarations
 
@@ -86,9 +86,9 @@ struct LoweringContext {
 
     /// # Statements
 
-    void generate(AbstractSyntaxTree const& node);
+    void generate(ASTNode const& node);
 
-    void generateImpl(AbstractSyntaxTree const& node) { SC_UNREACHABLE(); }
+    void generateImpl(ASTNode const& node) { SC_UNREACHABLE(); }
 
     void generateImpl(TranslationUnit const&);
 

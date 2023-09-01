@@ -12,7 +12,7 @@ namespace scatha::sema {
 
 struct DependencyGraphNode {
     Entity* entity = nullptr;
-    ast::AbstractSyntaxTree* astNode = nullptr;
+    ast::ASTNode* astNode = nullptr;
     utl::small_vector<u16> dependencies;
 };
 

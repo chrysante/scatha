@@ -12,7 +12,7 @@ using namespace scatha;
 using namespace ast;
 
 [[nodiscard]] SCATHA_API std::pair<ir::Context, ir::Module> ast::lowerToIR(
-    AbstractSyntaxTree const& root,
+    ASTNode const& root,
     sema::SymbolTable const& symbolTable,
     sema::AnalysisResult const& analysisResult) {
     ir::Context ctx;
@@ -37,7 +37,7 @@ LoweringContext::LoweringContext(sema::SymbolTable const& symbolTable,
                                         ctx.integralType(64) });
 }
 
-void LoweringContext::run(ast::AbstractSyntaxTree const& root) {
+void LoweringContext::run(ast::ASTNode const& root) {
     makeDeclarations();
     generate(root);
 }

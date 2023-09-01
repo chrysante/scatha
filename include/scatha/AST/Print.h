@@ -16,9 +16,9 @@ SCATHA_API void printExpression(Expression const&);
 
 SCATHA_API void printExpression(Expression const&, std::ostream&);
 
-SCATHA_API void printTree(AbstractSyntaxTree const&);
+SCATHA_API void printTree(ASTNode const&);
 
-SCATHA_API void printTree(AbstractSyntaxTree const&, std::ostream&);
+SCATHA_API void printTree(ASTNode const&, std::ostream&);
 
 } // namespace scatha::ast
 

@@ -42,7 +42,7 @@ static void gatherParentDestructors(ast::JumpStatement& stmt) {
 namespace {
 
 struct Context {
-    void analyze(ast::AbstractSyntaxTree&);
+    void analyze(ast::ASTNode&);
 
     void analyzeImpl(ast::FunctionDefinition&);
     void analyzeImpl(ast::StructDefinition&);
@@ -56,7 +56,7 @@ struct Context {
     void analyzeImpl(ast::LoopStatement&);
     void analyzeImpl(ast::JumpStatement&);
     void analyzeImpl(ast::EmptyStatement&) {}
-    void analyzeImpl(ast::AbstractSyntaxTree& node) { SC_UNREACHABLE(); }
+    void analyzeImpl(ast::ASTNode& node) { SC_UNREACHABLE(); }
 
     bool analyzeExpr(ast::Expression& expr, DTorStack& dtorStack) {
         return sema::analyzeExpression(expr, dtorStack, sym, iss);
@@ -85,7 +85,7 @@ void sema::analyzeFunctionBodies(
     }
 }
 
-void Context::analyze(ast::AbstractSyntaxTree& node) {
+void Context::analyze(ast::ASTNode& node) {
     visit(node, [this](auto& node) { this->analyzeImpl(node); });
 }
 

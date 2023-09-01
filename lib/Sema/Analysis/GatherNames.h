@@ -25,7 +25,7 @@ class SymbolTable;
 ///
 /// \returns (Incomplete) dependency graph
 SCATHA_API DependencyGraph gatherNames(SymbolTable& sym,
-                                       ast::AbstractSyntaxTree& astRoot,
+                                       ast::ASTNode& astRoot,
                                        IssueHandler& issueHandler);
 
 } // namespace scatha::sema

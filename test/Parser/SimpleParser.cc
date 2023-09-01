@@ -5,7 +5,7 @@
 
 using namespace scatha;
 
-std::pair<UniquePtr<ast::AbstractSyntaxTree>, IssueHandler> test::parse(
+std::pair<UniquePtr<ast::ASTNode>, IssueHandler> test::parse(
     std::string_view text) {
     IssueHandler issues;
     auto ast = ::parse::parse(text, issues);

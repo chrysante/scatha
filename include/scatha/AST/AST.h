@@ -24,7 +24,7 @@
 #include <scatha/Sema/Fwd.h>
 #include <scatha/Sema/QualType.h>
 
-// AbstractSyntaxTree
+// ASTNode
 // ├─ TranslationUnit
 // ├─ Statement
 // │  ├─ Declaration
@@ -53,7 +53,7 @@
 
 #define AST_DERIVED_COMMON(Type)                                               \
     UniquePtr<Type> extractFromParent() {                                      \
-        auto* node = this->AbstractSyntaxTree::extractFromParent().release();  \
+        auto* node = this->ASTNode::extractFromParent().release();             \
         return UniquePtr<Type>(cast<Type*>(node));                             \
     }
 
@@ -66,56 +66,54 @@
     Type* Name() { return this->Name<Type>(); }                                \
     template <std::derived_from<Type> TYPE>                                    \
     TYPE* Name() {                                                             \
-        return this->AbstractSyntaxTree::child<TYPE>(Index);                   \
+        return this->ASTNode::child<TYPE>(Index);                              \
     }                                                                          \
                                                                                \
     Type const* Name() const { return this->Name<Type>(); }                    \
     template <std::derived_from<Type> TYPE>                                    \
     TYPE const* Name() const {                                                 \
-        return this->AbstractSyntaxTree::child<TYPE>(Index);                   \
+        return this->ASTNode::child<TYPE>(Index);                              \
     }                                                                          \
                                                                                \
     template <std::derived_from<Type> TYPE = Type>                             \
     UniquePtr<TYPE> extract##CapName() {                                       \
-        return this->AbstractSyntaxTree::extractChild<TYPE>(Index);            \
+        return this->ASTNode::extractChild<TYPE>(Index);                       \
     }                                                                          \
                                                                                \
     void set##CapName(UniquePtr<Type> node) {                                  \
-        return this->AbstractSyntaxTree::setChild(Index, std::move(node));     \
+        return this->ASTNode::setChild(Index, std::move(node));                \
     }
 
 #define AST_RANGE_PROPERTY(BeginIndex, Type, Name, CapName)                    \
     template <std::derived_from<Type> TYPE = Type>                             \
     auto Name##s() {                                                           \
-        return this->AbstractSyntaxTree::dropChildren<TYPE>(BeginIndex);       \
+        return this->ASTNode::dropChildren<TYPE>(BeginIndex);                  \
     }                                                                          \
                                                                                \
     template <std::derived_from<Type> TYPE = Type>                             \
     auto Name##s() const {                                                     \
-        return this->AbstractSyntaxTree::dropChildren<TYPE const>(BeginIndex); \
+        return this->ASTNode::dropChildren<TYPE const>(BeginIndex);            \
     }                                                                          \
                                                                                \
     Type* Name(size_t index) { return this->Name<Type>(index); }               \
     template <std::derived_from<Type> TYPE>                                    \
     TYPE* Name(size_t index) {                                                 \
-        return this->AbstractSyntaxTree::child<TYPE>(BeginIndex + index);      \
+        return this->ASTNode::child<TYPE>(BeginIndex + index);                 \
     }                                                                          \
                                                                                \
     Type const* Name(size_t index) const { return this->Name<Type>(index); }   \
     template <std::derived_from<Type> TYPE = Type>                             \
     TYPE const* Name(size_t index) const {                                     \
-        return this->AbstractSyntaxTree::child<TYPE>(BeginIndex + index);      \
+        return this->ASTNode::child<TYPE>(BeginIndex + index);                 \
     }                                                                          \
                                                                                \
     template <std::derived_from<Type> TYPE = Type>                             \
     UniquePtr<TYPE> extract##CapName(size_t index) {                           \
-        return this->AbstractSyntaxTree::extractChild<TYPE>(BeginIndex +       \
-                                                            index);            \
+        return this->ASTNode::extractChild<TYPE>(BeginIndex + index);          \
     }                                                                          \
                                                                                \
     void set##CapName(size_t index, UniquePtr<Type> node) {                    \
-        return this->AbstractSyntaxTree::setChild(BeginIndex + index,          \
-                                                  std::move(node));            \
+        return this->ASTNode::setChild(BeginIndex + index, std::move(node));   \
     }
 
 namespace scatha::ast {
@@ -141,7 +139,7 @@ private:
 /// ## Base class for all nodes in the AST
 /// Every derived class must specify its runtime type in the constructor via the
 /// `NodeType` enum.
-class SCATHA_API AbstractSyntaxTree: public internal::Decoratable {
+class SCATHA_API ASTNode: public internal::Decoratable {
     template <typename AST>
     static constexpr auto transform = ranges::views::transform(
         [](auto& p) -> AST* { return cast_or_null<AST*>(p.get()); });
@@ -158,10 +156,10 @@ protected:
     }
 
 public:
-    AbstractSyntaxTree() = default;
+    ASTNode() = default;
 
     /// AST nodes are not value types
-    AbstractSyntaxTree(AbstractSyntaxTree const&) = delete;
+    ASTNode(ASTNode const&) = delete;
 
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }
@@ -177,38 +175,38 @@ public:
     SourceLocation sourceLocation() const { return _sourceRange.begin(); }
 
     /// The parent of this node
-    AbstractSyntaxTree* parent() { return _parent; }
+    ASTNode* parent() { return _parent; }
 
     /// \overload
-    AbstractSyntaxTree const* parent() const { return _parent; }
+    ASTNode const* parent() const { return _parent; }
 
     /// The children of this node
-    template <typename AST = AbstractSyntaxTree>
+    template <typename AST = ASTNode>
     auto children() {
         return getChildren<AST>();
     }
 
     /// \overload
-    template <typename AST = AbstractSyntaxTree>
+    template <typename AST = ASTNode>
     auto children() const {
         return getChildren<AST const>();
     }
 
     /// The child at index \p index
-    template <typename AST = AbstractSyntaxTree>
+    template <typename AST = ASTNode>
     AST* child(size_t index) {
         return cast_or_null<AST*>(children()[utl::narrow_cast<ssize_t>(index)]);
     }
 
     /// \overload
-    template <typename AST = AbstractSyntaxTree>
+    template <typename AST = ASTNode>
     AST const* child(size_t index) const {
         return cast_or_null<AST const*>(
             children()[utl::narrow_cast<ssize_t>(index)]);
     }
 
     /// Extract the the child at index \p index
-    template <typename AST = AbstractSyntaxTree>
+    template <typename AST = ASTNode>
     UniquePtr<AST> extractChild(size_t index) {
         auto* child = _children[index].release();
         child->_parent = nullptr;
@@ -217,37 +215,36 @@ public:
 
     /// Insert node \p child at position \p index
     /// Children at indices equal to and above \p index will be moved up
-    void insertChild(size_t index, UniquePtr<AbstractSyntaxTree> child) {
+    void insertChild(size_t index, UniquePtr<ASTNode> child) {
         child->_parent = this;
         _children.insert(_children.begin() + index, std::move(child));
     }
 
     /// Set the the child at index \p index to \p child
-    void setChild(size_t index, UniquePtr<AbstractSyntaxTree> child) {
+    void setChild(size_t index, UniquePtr<ASTNode> child) {
         child->_parent = this;
         _children[index] = std::move(child);
     }
 
     /// Extract this node from its parent
-    UniquePtr<AbstractSyntaxTree> extractFromParent();
+    UniquePtr<ASTNode> extractFromParent();
 
     /// Replace the child \p old with new node \p repl
     /// The old child is destroyed
     /// \pre \p old must be a child of this node
-    void replaceChild(AbstractSyntaxTree const* old,
-                      UniquePtr<AbstractSyntaxTree> repl);
+    void replaceChild(ASTNode const* old, UniquePtr<ASTNode> repl);
 
     /// Get the index of child \p child
     /// \pre \p child must be a child of this node
-    size_t indexOf(AbstractSyntaxTree const* child) const;
+    size_t indexOf(ASTNode const* child) const;
 
     /// Get the index of this node in its parent
     size_t indexInParent() const { return parent()->indexOf(this); }
 
 protected:
-    explicit AbstractSyntaxTree(NodeType type,
-                                SourceRange sourceRange,
-                                auto&&... children):
+    explicit ASTNode(NodeType type,
+                     SourceRange sourceRange,
+                     auto&&... children):
         _type(type), _sourceRange(sourceRange) {
         (addChildren(std::move(children)), ...);
     }
@@ -270,26 +267,25 @@ private:
         }
     }
 
-    friend void ast::privateDelete(ast::AbstractSyntaxTree*);
+    friend void ast::privateDelete(ast::ASTNode*);
 
     NodeType _type;
     SourceRange _sourceRange;
-    AbstractSyntaxTree* _parent = nullptr;
-    utl::small_vector<UniquePtr<AbstractSyntaxTree>> _children;
+    ASTNode* _parent = nullptr;
+    utl::small_vector<UniquePtr<ASTNode>> _children;
 };
 
 // For `dyncast` compatibilty
-NodeType dyncast_get_type(
-    std::derived_from<AbstractSyntaxTree> auto const& node) {
+NodeType dyncast_get_type(std::derived_from<ASTNode> auto const& node) {
     return node.nodeType();
 }
 
 /// MARK: Expressions
 
 /// Abstract node representing any expression.
-class SCATHA_API Expression: public AbstractSyntaxTree {
+class SCATHA_API Expression: public ASTNode {
 public:
-    using AbstractSyntaxTree::AbstractSyntaxTree;
+    using ASTNode::ASTNode;
 
     AST_DERIVED_COMMON(Expression)
 
@@ -586,7 +582,7 @@ public:
     AST_RANGE_PROPERTY(1, Expression, argument, Argument);
 
     /// Insert node \p arg as an argument of this call
-    void insertArgument(size_t index, UniquePtr<AbstractSyntaxTree> child) {
+    void insertArgument(size_t index, UniquePtr<ASTNode> child) {
         insertChild(index + 1, std::move(child));
     }
 
@@ -677,9 +673,9 @@ public:
 };
 
 /// Abstract node representing a statement.
-class SCATHA_API Statement: public AbstractSyntaxTree {
+class SCATHA_API Statement: public ASTNode {
 public:
-    using AbstractSyntaxTree::AbstractSyntaxTree;
+    using ASTNode::ASTNode;
 
     AST_DERIVED_COMMON(Statement)
 
@@ -740,12 +736,12 @@ private:
 };
 
 /// Concrete node representing a translation unit.
-class SCATHA_API TranslationUnit: public AbstractSyntaxTree {
+class SCATHA_API TranslationUnit: public ASTNode {
 public:
     TranslationUnit(utl::small_vector<UniquePtr<Declaration>> declarations):
-        AbstractSyntaxTree(NodeType::TranslationUnit,
-                           SourceRange{},
-                           std::move(declarations)) {}
+        ASTNode(NodeType::TranslationUnit,
+                SourceRange{},
+                std::move(declarations)) {}
 
     AST_DERIVED_COMMON(TranslationUnit)
 

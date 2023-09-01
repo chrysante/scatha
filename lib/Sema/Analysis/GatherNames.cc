@@ -19,14 +19,14 @@ namespace {
 struct Context {
     /// Dispatches to the appropriate one of the `gather()` overloads below
     /// based on the runtime type of \p node
-    size_t dispatch(ast::AbstractSyntaxTree& node);
+    size_t dispatch(ast::ASTNode& node);
 
     size_t gather(ast::TranslationUnit&);
     size_t gather(ast::FunctionDefinition&);
     size_t gather(ast::StructDefinition&);
     size_t gather(ast::VariableDeclaration&);
     size_t gather(ast::Statement&);
-    size_t gather(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
+    size_t gather(ast::ASTNode&) { SC_UNREACHABLE(); }
 
     SymbolTable& sym;
     IssueHandler& iss;
@@ -36,7 +36,7 @@ struct Context {
 } // namespace
 
 DependencyGraph scatha::sema::gatherNames(SymbolTable& sym,
-                                          ast::AbstractSyntaxTree& root,
+                                          ast::ASTNode& root,
                                           IssueHandler& iss) {
     DependencyGraph dependencyGraph;
     Context ctx{ sym, iss, dependencyGraph };
@@ -44,7 +44,7 @@ DependencyGraph scatha::sema::gatherNames(SymbolTable& sym,
     return dependencyGraph;
 }
 
-size_t Context::dispatch(ast::AbstractSyntaxTree& node) {
+size_t Context::dispatch(ast::ASTNode& node) {
     return visit(node, [this](auto& node) { return this->gather(node); });
 }
 

@@ -16,8 +16,8 @@ using namespace parse;
 
 using enum TokenKind;
 
-UniquePtr<ast::AbstractSyntaxTree> parse::parse(std::string_view source,
-                                                IssueHandler& issueHandler) {
+UniquePtr<ast::ASTNode> parse::parse(std::string_view source,
+                                     IssueHandler& issueHandler) {
     auto tokens = lex(source, issueHandler);
     if (issueHandler.haveErrors()) {
         return nullptr;
@@ -27,9 +27,7 @@ UniquePtr<ast::AbstractSyntaxTree> parse::parse(std::string_view source,
     return ctx.run();
 }
 
-UniquePtr<ast::AbstractSyntaxTree> Context::run() {
-    return parseTranslationUnit();
-}
+UniquePtr<ast::ASTNode> Context::run() { return parseTranslationUnit(); }
 
 // MARK: -  RDP
 

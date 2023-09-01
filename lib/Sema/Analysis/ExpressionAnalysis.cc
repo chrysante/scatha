@@ -39,7 +39,7 @@ struct Context {
     bool analyzeImpl(ast::GenericExpression&);
     bool analyzeImpl(ast::ListExpression&);
 
-    bool analyzeImpl(ast::AbstractSyntaxTree&) { SC_UNREACHABLE(); }
+    bool analyzeImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
     Entity* lookup(ast::Identifier& id);
 

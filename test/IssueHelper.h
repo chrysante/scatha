@@ -43,7 +43,7 @@ struct IssueHelper {
     bool empty() const { return iss.empty(); }
 
     IssueHandler iss;
-    UniquePtr<ast::AbstractSyntaxTree> ast = nullptr;
+    UniquePtr<ast::ASTNode> ast = nullptr;
     sema::SymbolTable sym{};
 };
 

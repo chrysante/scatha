@@ -21,10 +21,10 @@ class Context;
 
 namespace scatha::ast {
 
-class AbstractSyntaxTree;
+class ASTNode;
 
 [[nodiscard]] SCATHA_API std::pair<ir::Context, ir::Module> lowerToIR(
-    AbstractSyntaxTree const& ast,
+    ASTNode const& ast,
     sema::SymbolTable const& symbolTable,
     sema::AnalysisResult const&);
 

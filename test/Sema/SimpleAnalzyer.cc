@@ -8,7 +8,7 @@
 
 namespace scatha::test {
 
-std::tuple<UniquePtr<ast::AbstractSyntaxTree>, sema::SymbolTable, IssueHandler>
+std::tuple<UniquePtr<ast::ASTNode>, sema::SymbolTable, IssueHandler>
     produceDecoratedASTAndSymTable(std::string_view text) {
     IssueHandler issues;
     auto ast = parse::parse(text, issues);

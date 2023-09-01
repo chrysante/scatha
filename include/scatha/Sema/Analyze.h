@@ -12,7 +12,7 @@ namespace scatha::sema {
 ///
 /// \param root Root of the tree to analyze.
 /// \param symbolTable Symbol table to populate.
-SCATHA_API AnalysisResult analyze(ast::AbstractSyntaxTree& root,
+SCATHA_API AnalysisResult analyze(ast::ASTNode& root,
                                   SymbolTable& symbolTable,
                                   IssueHandler&);
 

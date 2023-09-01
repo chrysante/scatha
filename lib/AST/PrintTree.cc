@@ -18,24 +18,22 @@
 using namespace scatha;
 using namespace ast;
 
-void ast::printTree(AbstractSyntaxTree const& root) {
-    printTree(root, std::cout);
-}
+void ast::printTree(ASTNode const& root) { printTree(root, std::cout); }
 
-static sema::QualType getType(AbstractSyntaxTree const* node) {
+static sema::QualType getType(ASTNode const* node) {
     if (!node->isDecorated()) {
         return nullptr;
     }
     // clang-format off
     return visit(*node, utl::overload{
-        [](AbstractSyntaxTree const& node) { return nullptr; },
+        [](ASTNode const& node) { return nullptr; },
         [](Expression const& expr) { return expr.type(); },
         [](VariableDeclaration const& decl) { return decl.type(); },
         [](ParameterDeclaration const& decl) { return decl.type(); },
     }); // clang-format on
 }
 
-static utl::vstreammanip<> typeHelper(AbstractSyntaxTree const* node) {
+static utl::vstreammanip<> typeHelper(ASTNode const* node) {
     return [=](std::ostream& str) {
         if (auto type = getType(node)) {
             str << " " << tfmt::format(tfmt::BrightGrey, "Type: ")
@@ -61,11 +59,11 @@ static utl::vstreammanip<> typeHelper(AbstractSyntaxTree const* node) {
 }
 
 static constexpr utl::streammanip nodeType([](std::ostream& str,
-                                              AbstractSyntaxTree const* node) {
+                                              ASTNode const* node) {
     tfmt::FormatGuard common(tfmt::Italic);
     // clang-format off
     visit(*node, utl::overload{
-        [&](AbstractSyntaxTree const& node) {
+        [&](ASTNode const& node) {
             str << node.nodeType();
         },
         [&](Statement const& node) {
@@ -77,7 +75,7 @@ static constexpr utl::streammanip nodeType([](std::ostream& str,
 
 static constexpr utl::streammanip header([](std::ostream& str,
                                             TreeFormatter* formatter,
-                                            AbstractSyntaxTree const* node,
+                                            ASTNode const* node,
                                             auto... args) {
     str << formatter->beginLine() << nodeType(node);
     ((str << args), ...);
@@ -170,7 +168,7 @@ struct PrintCtx {
 
     explicit PrintCtx(std::ostream& str): str(str) {}
 
-    void print(AbstractSyntaxTree const& node) {
+    void print(ASTNode const& node) {
         if (!node.isDecorated()) {
             str << header(&formatter, &node) << '\n';
             goto end;
@@ -178,7 +176,7 @@ struct PrintCtx {
 
         // clang-format off
         visit(node, utl::overload{
-            [&](AbstractSyntaxTree const& node) {
+            [&](ASTNode const& node) {
                 str << header(&formatter, &node) << '\n';
             },
             [&](Literal const& lit) {
@@ -215,7 +213,7 @@ end:
         visit(node, [&](auto& node) { printChildren(node); });
     }
 
-    void printChildren(AbstractSyntaxTree const& node) {
+    void printChildren(ASTNode const& node) {
         printChildrenImpl(node.children());
     }
 
@@ -237,11 +235,10 @@ end:
     void printChildren(ParameterDeclaration const& node) {}
 
     void printChildrenImpl(auto&& c) {
-        auto children =
-            c | ranges::views::filter([](auto* child) {
-                return child != nullptr;
-            }) |
-            ranges::to<utl::small_vector<AbstractSyntaxTree const*>>;
+        auto children = c | ranges::views::filter([](auto* child) {
+                            return child != nullptr;
+                        }) |
+                        ranges::to<utl::small_vector<ASTNode const*>>;
         for (auto [index, child]: children | ranges::views::enumerate) {
             formatter.push(index != children.size() - 1 ? Level::Child :
                                                           Level::LastChild);
@@ -253,7 +250,7 @@ end:
 
 } // namespace
 
-void ast::printTree(AbstractSyntaxTree const& root, std::ostream& str) {
+void ast::printTree(ASTNode const& root, std::ostream& str) {
     PrintCtx ctx(str);
     ctx.print(root);
 }

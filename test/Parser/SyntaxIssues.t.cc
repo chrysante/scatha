@@ -7,7 +7,7 @@
 using namespace scatha;
 using namespace parse;
 
-static void expectFooParse(ast::AbstractSyntaxTree const& ast) {
+static void expectFooParse(ast::ASTNode const& ast) {
     auto const& tu = cast<ast::TranslationUnit const&>(ast);
     auto const& fooDecl = *tu.declaration<ast::FunctionDefinition>(0);
     CHECK(fooDecl.name() == "foo");

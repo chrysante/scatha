@@ -157,8 +157,8 @@ namespace scatha::parse {
 /// Parse source code \p source into an abstract syntax tree
 /// Issues will be submitted to \p issueHandler
 /// \Returns The parsed AST or `nullptr` if lexical issues were encountered
-SCATHA_API UniquePtr<ast::AbstractSyntaxTree> parse(std::string_view source,
-                                                    IssueHandler& issueHandler);
+SCATHA_API UniquePtr<ast::ASTNode> parse(std::string_view source,
+                                         IssueHandler& issueHandler);
 
 } // namespace scatha::parse
 

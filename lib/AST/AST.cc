@@ -10,12 +10,11 @@
 using namespace scatha;
 using namespace ast;
 
-void ast::privateDelete(AbstractSyntaxTree* node) {
+void ast::privateDelete(ASTNode* node) {
     visit(*node, [](auto& derived) { delete &derived; });
 }
 
-static void extSourceRangeImpl(SourceRange& result,
-                               AbstractSyntaxTree const* node) {
+static void extSourceRangeImpl(SourceRange& result, ASTNode const* node) {
     result = merge(result, node->sourceRange());
     for (auto* child: node->children()) {
         if (child) {
@@ -24,18 +23,17 @@ static void extSourceRangeImpl(SourceRange& result,
     }
 }
 
-SourceRange AbstractSyntaxTree::extSourceRange() const {
+SourceRange ASTNode::extSourceRange() const {
     SourceRange result;
     extSourceRangeImpl(result, this);
     return result;
 }
 
-UniquePtr<AbstractSyntaxTree> AbstractSyntaxTree::extractFromParent() {
+UniquePtr<ASTNode> ASTNode::extractFromParent() {
     return parent()->extractChild(indexInParent());
 }
 
-void AbstractSyntaxTree::replaceChild(AbstractSyntaxTree const* old,
-                                      UniquePtr<AbstractSyntaxTree> repl) {
+void ASTNode::replaceChild(ASTNode const* old, UniquePtr<ASTNode> repl) {
     auto itr = ranges::find_if(_children,
                                [&](auto& child) { return child.get() == old; });
     SC_ASSERT(itr != ranges::end(_children), "`old` is not a child of this");
@@ -43,7 +41,7 @@ void AbstractSyntaxTree::replaceChild(AbstractSyntaxTree const* old,
     *itr = std::move(repl);
 }
 
-size_t AbstractSyntaxTree::indexOf(AbstractSyntaxTree const* child) const {
+size_t ASTNode::indexOf(ASTNode const* child) const {
     auto itr = ranges::find_if(_children, [&](auto& otherChild) {
         return otherChild.get() == child;
     });
