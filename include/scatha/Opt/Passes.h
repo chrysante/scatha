@@ -56,7 +56,7 @@ SCATHA_API bool splitCriticalEdges(ir::Context& ctx, ir::Function& function);
 
 /// Run sparse conditional constant propagation algorithm over \p function
 /// Folds constants and eliminates dead code.
-/// \returns `true` iff \p function was modified in the pass.
+/// \returns `true` if \p function was modified in the pass.
 SCATHA_API bool propagateConstants(ir::Context& context,
                                    ir::Function& function);
 
@@ -64,7 +64,7 @@ SCATHA_API bool propagateInvariants(ir::Context& context,
                                     ir::Function& function);
 
 /// Eliminate dead code in \p function
-/// \Returns True iff \p function was modified in the pass.
+/// \Returns `true` if \p function was modified in the pass.
 SCATHA_API bool dce(ir::Context& context, ir::Function& function);
 
 /// Perform redundancy elimination by global value numbering
@@ -75,11 +75,11 @@ SCATHA_API bool globalValueNumbering(ir::Context& context,
 SCATHA_API bool instCombine(ir::Context& context, ir::Function& function);
 
 /// Perform memory to register promotion on \p function
-/// \Returns True iff \p function was modified in the pass.
+/// \Returns `true` if \p function was modified in the pass.
 SCATHA_API bool memToReg(ir::Context& context, ir::Function& function);
 
 /// Perform scalar replacement of aggregates on \p function
-/// \Returns True iff \p function was modified in the pass.
+/// \Returns `true` if \p function was modified in the pass.
 SCATHA_API bool sroa(ir::Context& context, ir::Function& function);
 
 /// Simplify the control flow graph by merging and erasing unneeded blocks

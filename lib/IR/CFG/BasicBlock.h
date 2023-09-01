@@ -46,10 +46,10 @@ public:
 
     void eraseAllPhiNodes();
 
-    /// \returns `true` iff this basic block is the entry basic block.
+    /// \returns `true` if this basic block is the entry basic block.
     bool isEntry() const;
 
-    /// \returns `true` iff \p inst is an instruction of this basic block.
+    /// \returns `true` if \p inst is an instruction of this basic block.
     /// \warning This is linear in the number of instructions in this basic
     /// block.
     bool contains(Instruction const& inst) const;
@@ -71,7 +71,7 @@ public:
             static_cast<BasicBlock const*>(this)->terminator());
     }
 
-    /// \returns `true` iff the terminator is the only instruction in the basic
+    /// \returns `true` if the terminator is the only instruction in the basic
     /// block.
     bool emptyExceptTerminator() const;
 
@@ -102,7 +102,7 @@ public:
     /// This also updates all the phi nodes in this basic block.
     void updatePredecessor(BasicBlock const* oldPred, BasicBlock* newPred);
 
-    /// \returns `true`iff \p *possiblePred is a predecessor of this basic
+    /// \returns `true` if \p *possiblePred is a predecessor of this basic
     /// block.
     bool isPredecessor(BasicBlock const* possiblePred) const {
         return std::find(preds.begin(), preds.end(), possiblePred) !=
@@ -168,7 +168,7 @@ public:
 
     size_t numPredecessors() const { return predecessors().size(); }
 
-    /// \returns `true` iff this basic block has exactly one predecessor.
+    /// \returns `true` if this basic block has exactly one predecessor.
     bool hasSinglePredecessor() const { return numPredecessors() == 1; }
 
     /// \returns predecessor if this basic block has a single predecessor, else
@@ -183,7 +183,7 @@ public:
         return hasSinglePredecessor() ? preds.front() : nullptr;
     }
 
-    /// \returns `true` iff this basic block has exactly one successor.
+    /// \returns `true` if this basic block has exactly one successor.
     template <typename TermInst = TerminatorInst>
     bool hasSingleSuccessor() const {
         return numSuccessors<TermInst>() == 1;

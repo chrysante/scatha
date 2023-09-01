@@ -76,14 +76,14 @@ public:
     /// \returns An opaque value of type void.
     Value* voidValue();
 
-    /// \Returns `true` iff associativity of floating point arithmetic
+    /// \Returns `true` if associativity of floating point arithmetic
     /// operations may be assumed
     bool associativeFloatArithmetic() const { return true; /*  For now */ }
 
-    /// \Returns `true` iff \p operation is commutative
+    /// \Returns `true` if \p operation is commutative
     bool isCommutative(ArithmeticOperation operation) const;
 
-    /// \Returns `true` iff \p operation is associative
+    /// \Returns `true` if \p operation is associative
     bool isAssociative(ArithmeticOperation operation) const;
 
 private:

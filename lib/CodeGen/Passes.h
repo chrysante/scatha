@@ -29,7 +29,7 @@ SCATHA_TESTAPI void computeLiveSets(mir::Function& F);
 /// Not as powerful as DCE of IR, as it won't catch dead cycles,
 /// but it should suffice here as DCE has already run on the IR
 ///
-/// \Returns `true` iff any changes have been made to \p F
+/// \Returns `true` if any changes have been made to \p F
 ///
 /// \pre Requires \p F to be in SSA form
 SCATHA_TESTAPI bool deadCodeElim(mir::Function& F);

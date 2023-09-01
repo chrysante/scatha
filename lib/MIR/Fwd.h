@@ -88,10 +88,10 @@ std::string_view toString(InstCode code);
 
 std::ostream& operator<<(std::ostream& ostream, InstCode code);
 
-/// \Returns `true` iff \p code is a terminator instruction.
+/// \Returns `true` if \p code is a terminator instruction.
 bool isTerminator(InstCode code);
 
-/// \Returns `true` iff \p code is a jump or conditional jump instruction.
+/// \Returns `true` if \p code is a jump or conditional jump instruction.
 bool isJump(InstCode code);
 
 using ir::ArithmeticOperation;

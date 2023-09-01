@@ -37,7 +37,7 @@ public:
     /// the next separator. After calling this function a call to `current()`
     /// will return the next token with specified id or a  separator token.
     ///
-    /// \returns `true` iff \p id was found before a separator.
+    /// \returns `true` if \p id was found before a separator.
     bool advanceTo(std::string_view id);
 
     /// Look ahead one token into the stream.

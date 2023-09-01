@@ -12,7 +12,7 @@ namespace scatha {
 
 /// Represents a location in source code
 struct SourceLocation {
-    /// \Returns `true` iff this object represents a valid source location
+    /// \Returns `true` if this object represents a valid source location
     bool valid() const { return line != 0 && column != 0; }
 
     i64 index = 0;
@@ -53,7 +53,7 @@ public:
 
     bool operator==(SourceRange const& rhs) const = default;
 
-    /// \Returns `true` iff this object represents a valid source range
+    /// \Returns `true` if this object represents a valid source range
     bool valid() const { return _begin.valid() && _end.valid(); }
 
 private:

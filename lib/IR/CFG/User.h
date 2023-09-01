@@ -43,7 +43,7 @@ public:
     /// User lists are updated.
     void clearOperands();
 
-    /// \returns `true` iff \p value is an operand of this user.
+    /// \returns `true` if \p value is an operand of this user.
     bool directlyUses(Value const* value) const;
 
 protected:

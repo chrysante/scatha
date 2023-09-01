@@ -58,7 +58,7 @@ public:
     /// \Returns roots of the forest.
     auto roots() const { return _virtualRoot->children(); }
 
-    /// \Returns `true` iff the forest is empty.
+    /// \Returns `true` if the forest is empty.
     bool empty() const { return _nodes.empty(); }
 
     /// Add a new node without children for basic block \p BB as child of node

@@ -81,7 +81,7 @@ private:
 /// Does nothing if `expr->type() == to`
 /// If \p expr is implicitly convertible to type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
-/// \Returns `true` iff implicit conversion succeeded
+/// \Returns `true` if implicit conversion succeeded
 SCATHA_TESTAPI bool convertImplicitly(ast::Expression* expr,
                                       QualType to,
                                       IssueHandler& issueHandler);
@@ -89,7 +89,7 @@ SCATHA_TESTAPI bool convertImplicitly(ast::Expression* expr,
 /// Does nothing if `expr->type() == to`
 /// If \p expr is explicitly convertible to type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
-/// \Returns `true` iff explicit conversion succeeded
+/// \Returns `true` if explicit conversion succeeded
 SCATHA_TESTAPI bool convertExplicitly(ast::Expression* expr,
                                       QualType to,
                                       IssueHandler& issueHandler);
@@ -97,7 +97,7 @@ SCATHA_TESTAPI bool convertExplicitly(ast::Expression* expr,
 /// Does nothing if `expr->type() == to`
 /// If \p expr is interpretable as type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
-/// \Returns `true` iff reinterpret conversion succeeded
+/// \Returns `true` if reinterpret conversion succeeded
 SCATHA_TESTAPI bool convertReinterpret(ast::Expression* expr,
                                        QualType to,
                                        IssueHandler& issueHandler);

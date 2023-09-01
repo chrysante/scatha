@@ -224,10 +224,10 @@ public:
         removeLiveImpl(_liveOut, reg, count);
     }
 
-    /// \Returns `true` iff register \p reg is live-in
+    /// \Returns `true` if register \p reg is live-in
     bool isLiveIn(Register const* reg) const { return _liveIn.contains(reg); }
 
-    /// \Returns `true` iff register \p reg is live.out
+    /// \Returns `true` if register \p reg is live.out
     bool isLiveOut(Register const* reg) const { return _liveOut.contains(reg); }
 
     /// \Returns The set of live-in registers
@@ -246,7 +246,7 @@ public:
         _liveOut = std::move(liveOut);
     }
 
-    /// \Returns `true` iff this is the entry basic block
+    /// \Returns `true` if this is the entry basic block
     bool isEntry() const;
 
     /// \Returns the corresponding IR basic block this block is derived from, or

@@ -57,18 +57,18 @@ public:
     /// Last issue
     Issue const& back() const { return **--end(); }
 
-    /// \Returns `true` iff no  issues occurred
+    /// \Returns `true` if no  issues occurred
     bool empty() const { return _issues.empty(); }
 
     size_t size() const { return _issues.size(); }
 
-    /// \Returns `true` iff a fatal error has occurred
+    /// \Returns `true` if a fatal error has occurred
     bool fatal() const { return false; /* For now */ }
 
     /// Issue at index \p index
     Issue const& operator[](size_t index) const { return *_issues[index]; }
 
-    /// \Returns `true` iff any errors have occured
+    /// \Returns `true` if any errors have occured
     bool haveErrors() const;
 
     /// Print all issues

@@ -77,7 +77,7 @@ SCATHA_API std::string_view toString(ArithmeticOperation operation);
 SCATHA_API std::ostream& operator<<(std::ostream& ostream,
                                     ArithmeticOperation operation);
 
-/// \Returns `true` iff operation \p op is a (logical or arithmetic) shift
+/// \Returns `true` if operation \p op is a (logical or arithmetic) shift
 /// operation.
 bool isShift(ArithmeticOperation op);
 

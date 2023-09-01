@@ -27,7 +27,7 @@ public:
 
     size_t id() const { return _id; }
 
-    /// \Returns `true` iff the address of this block should appear in the
+    /// \Returns `true` if the address of this block should appear in the
     /// global symbol table.
     bool isPublic() const { return _public; }
 

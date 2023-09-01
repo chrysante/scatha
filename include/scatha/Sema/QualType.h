@@ -45,10 +45,10 @@ public:
     /// \Returns `get() != nullptr`
     explicit operator bool() const { return get() != nullptr; }
 
-    /// \Returns `true` iff `mutability() == Mutable`
+    /// \Returns `true` if `mutability() == Mutable`
     bool isMutable() const { return mutability() == Mutability::Mutable; }
 
-    /// \Returns `true` iff `mutability() == Const`
+    /// \Returns `true` if `mutability() == Const`
     bool isConst() const { return mutability() == Mutability::Const; }
 
     /// \Returns the mutability qualifier

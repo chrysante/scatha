@@ -77,7 +77,7 @@ public:
     /// The name will be declared in the global scope, if it hasn't
     /// been declared before.
     ///
-    /// \returns `true` iff declaration was successfull.
+    /// \returns `true` if declaration was successfull.
     bool declareSpecialFunction(FunctionKind kind,
                                 std::string name,
                                 size_t slot,

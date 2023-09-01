@@ -38,7 +38,7 @@ struct Computation {
     /// The associated instruction
     Instruction* instruction() const { return inst; }
 
-    /// \Returns `true` iff  \p *this and \p RHS compute the same value
+    /// \Returns `true` if  \p *this and \p RHS compute the same value
     bool operator==(Computation const& RHS) const {
         return equal(inst, inst->operands(), RHS.inst, RHS.inst->operands());
     }
@@ -283,7 +283,7 @@ public:
         compMap.insert({ instCopy, entryPtr });
     }
 
-    /// \Returns `true` iff this MCT has any computations that are equal to \p
+    /// \Returns `true` if this MCT has any computations that are equal to \p
     /// inst
     bool hasComputationEqualTo(Instruction* inst) const {
         return compMap.contains(Computation(inst));

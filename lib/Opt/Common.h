@@ -57,7 +57,7 @@ SCATHA_TESTAPI ir::BasicBlock* addJoiningPredecessor(
     std::span<ir::BasicBlock* const> preds,
     std::string name);
 
-/// \returns `true` iff the instruction \p inst has side effects
+/// \returns `true` if the instruction \p inst has side effects
 SCATHA_TESTAPI bool hasSideEffects(ir::Instruction const* inst);
 
 } // namespace scatha::opt

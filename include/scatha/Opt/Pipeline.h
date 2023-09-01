@@ -50,7 +50,7 @@ public:
         return execute(ctx, mod);
     }
 
-    /// \returns `true` iff this pipeline is not empty
+    /// \returns `true` if this pipeline is not empty
     bool empty() const;
 
     /// \returns `!empty()`

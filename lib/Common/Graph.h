@@ -229,12 +229,12 @@ public:
         Base::removeEdgeImpl(outgoing, succ);
     }
 
-    /// \returns `true` iff \p pred is an immediate predessecor of this node
+    /// \returns `true` if \p pred is an immediate predessecor of this node
     bool isPredecessor(Self const* pred) const {
         return ranges::contains(incoming, pred);
     }
 
-    /// \returns `true` iff \p succ is an immediate successor of this node
+    /// \returns `true` if \p succ is an immediate successor of this node
     bool isSuccessor(Self const* succ) const {
         return ranges::contains(outgoing, succ);
     }

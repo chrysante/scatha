@@ -43,11 +43,11 @@ struct Context {
 
     Entity* lookup(ast::Identifier& id);
 
-    /// \Returns `true` iff \p expr is a value. Otherwise submits an error and
+    /// \Returns `true` if \p expr is a value. Otherwise submits an error and
     /// returns `false`
     bool expectValue(ast::Expression const& expr);
 
-    /// \Returns `true` iff \p expr is a type. Otherwise submits an error and
+    /// \Returns `true` if \p expr is a type. Otherwise submits an error and
     /// returns `false`
     bool expectType(ast::Expression const& expr);
 

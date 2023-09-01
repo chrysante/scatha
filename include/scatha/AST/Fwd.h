@@ -81,11 +81,11 @@ SCATHA_API std::string_view toString(BinaryOperator);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, BinaryOperator);
 
-/// \Returns `true` iff \p op is an assignment or arithmetic assignment
+/// \Returns `true` if \p op is an assignment or arithmetic assignment
 /// operation
 bool isAssignment(BinaryOperator op);
 
-/// \Returns `true` iff \p op is an arithmetic assignment operation
+/// \Returns `true` if \p op is an arithmetic assignment operation
 bool isArithmeticAssignment(BinaryOperator op);
 
 /// \Returns The non-assignment version of \p op

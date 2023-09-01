@@ -54,7 +54,7 @@ public:
     /// `true` if this entity represents a type
     bool isType() const { return category() == EntityCategory::Type; }
 
-    /// `true` iff this entity is a builtin
+    /// `true` if this entity is a builtin
     bool isBuiltin() const { return _isBuiltin; }
 
     /// Add \p name as an alternate name for this entity
@@ -197,7 +197,7 @@ public:
         return dyncast_or_null<E const*>(findEntity(name));
     }
 
-    /// \Returns `true` iff \p scope is a child scope of this
+    /// \Returns `true` if \p scope is a child scope of this
     bool isChildScope(Scope const* scope) const {
         return _children.contains(scope);
     }
@@ -286,7 +286,7 @@ private:
     QualType _returnType;
 };
 
-/// \Returns `true` iff \p a and \p b have the same argument types
+/// \Returns `true` if \p a and \p b have the same argument types
 bool argumentsEqual(FunctionSignature const& a, FunctionSignature const& b);
 
 /// Represents a builtin or user defined function
@@ -669,10 +669,10 @@ public:
     /// The reference qualifier of this type
     Reference reference() const { return ref; }
 
-    /// \Returns `true` iff this is an explicit reference type
+    /// \Returns `true` if this is an explicit reference type
     bool isExplicit() const { return reference() == Reference::Explicit; }
 
-    /// \Returns `true` iff this is an implicit reference type
+    /// \Returns `true` if this is an implicit reference type
     bool isImplicit() const { return reference() == Reference::Implicit; }
 
 private:

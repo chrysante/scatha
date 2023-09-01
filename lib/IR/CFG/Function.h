@@ -58,7 +58,7 @@ public:
     /// \returns The attribute bitfield of this function.
     FunctionAttribute attributes() const { return attrs; }
 
-    /// \returns `true` iff attribute `attr` is set on this function.
+    /// \returns `true` if attribute `attr` is set on this function.
     bool hasAttribute(FunctionAttribute attr) const {
         return test(attrs & attr);
     }

@@ -522,7 +522,7 @@ public:
 
     AST_PROPERTY(0, Expression, referred, Referred)
 
-    /// `true` iff reference to `mut`
+    /// `true` if reference to `mut`
     bool isMutable() const { return isMut; }
 
 private:

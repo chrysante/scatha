@@ -100,7 +100,7 @@ public:
         return _defs | ranges::views::transform([](auto* d) { return d; });
     }
 
-    /// \Returns `true` iff. \p inst uses this register (as an argument).
+    /// \Returns `true` if. \p inst uses this register (as an argument).
     bool isUsedBy(Instruction const* inst) const {
         return _users.contains(inst);
     }
