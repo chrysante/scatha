@@ -28,6 +28,10 @@ void mir::privateDestroy(mir::Value* value) {
     visit(*value, [](auto& value) { std::destroy_at(&value); });
 }
 
+void mir::privateDelete(mir::Instruction* inst) { delete inst; }
+
+void mir::privateDestroy(mir::Instruction* inst) { std::destroy_at(inst); }
+
 std::string_view mir::toString(InstCode code) {
     switch (code) {
 #define SC_MIR_INSTRUCTION_DEF(Inst, Name)                                     \

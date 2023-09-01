@@ -270,7 +270,7 @@ private:
         }
     }
 
-    friend void scatha::internal::privateDelete(ast::AbstractSyntaxTree*);
+    friend void ast::privateDelete(ast::AbstractSyntaxTree*);
 
     NodeType _type;
     SourceRange _sourceRange;

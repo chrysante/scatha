@@ -10,6 +10,7 @@
 
 namespace scatha::mir {
 
+class Instruction;
 class Module;
 
 /// Unlike in the IR, instructions are not values. Instructions operate i.e. use
@@ -58,6 +59,12 @@ SCATHA_TESTAPI void privateDelete(mir::Value* value);
 /// Insulated call to destructor on the most derived base of \p value
 SCATHA_TESTAPI void privateDestroy(mir::Value* value);
 
+/// \overload
+SCATHA_TESTAPI void privateDelete(mir::Instruction* inst);
+
+/// \overload
+SCATHA_TESTAPI void privateDestroy(mir::Instruction* inst);
+
 } // namespace scatha::mir
 
 /// Map enum `NodeType` to actual node types
@@ -87,16 +94,11 @@ bool isTerminator(InstCode code);
 /// \Returns `true` iff \p code is a jump or conditional jump instruction.
 bool isJump(InstCode code);
 
-using ir::Conversion;
-
-using ir::CompareMode;
-
-using ir::CompareOperation;
-
-using ir::UnaryArithmeticOperation;
-
 using ir::ArithmeticOperation;
-
+using ir::CompareMode;
+using ir::CompareOperation;
+using ir::Conversion;
+using ir::UnaryArithmeticOperation;
 using ir::Visibility;
 
 /// Encapsules memory address representation of the VM.

@@ -10,17 +10,6 @@
 
 namespace scatha::internal {
 
-template <typename T>
-void privateDelete(T* ptr) {
-    static_assert(sizeof(T), "T is incomplete");
-    delete ptr;
-}
-
-template <typename T>
-void privateDestroy(T* ptr) {
-    std::destroy_at(ptr);
-}
-
 struct PrivateDeleter {
     void operator()(auto* ptr) const { privateDelete(ptr); }
 };

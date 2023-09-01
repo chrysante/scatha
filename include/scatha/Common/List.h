@@ -62,7 +62,7 @@ private:
 template <typename T>
 class DynAllocator: public std::allocator<T> {
 public:
-    void destroy(T* ptr) { scatha::internal::privateDestroy(ptr); }
+    void destroy(T* ptr) { privateDestroy(ptr); }
 
     void deallocate(T* ptr, size_t count) { ::operator delete(ptr, count); }
 };
