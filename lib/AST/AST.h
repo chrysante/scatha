@@ -1,5 +1,3 @@
-// SCATHA-PUBLIC-HEADER
-
 #ifndef SCATHA_AST_AST_H_
 #define SCATHA_AST_AST_H_
 

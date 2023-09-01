@@ -3,9 +3,10 @@
 
 #include <utility>
 
-#include <AST/AST.h>
-#include <Issue/IssueHandler.h>
-#include <Parser/TokenStream.h>
+#include "AST/Fwd.h"
+#include "Common/UniquePtr.h"
+#include "Issue/IssueHandler.h"
+#include "Parser/TokenStream.h"
 
 namespace scatha::test {
 
