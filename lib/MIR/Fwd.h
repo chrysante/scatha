@@ -50,15 +50,15 @@ std::ostream& operator<<(std::ostream& ostream, NodeType nodeType);
 
 } // namespace scatha::mir
 
-namespace scatha::internal {
+namespace scatha::mir {
 
-/// Insulated call to `delete` on the most derived base of \p *value
+/// Insulated call to `delete` on the most derived base of \p value
 SCATHA_TESTAPI void privateDelete(mir::Value* value);
 
-/// Insulated call to destructor on the most derived base of \p *value
+/// Insulated call to destructor on the most derived base of \p value
 SCATHA_TESTAPI void privateDestroy(mir::Value* value);
 
-} // namespace scatha::internal
+} // namespace scatha::mir
 
 /// Map enum `NodeType` to actual node types
 #define SC_MIR_CFGNODE_DEF(Node, Abstractness)                                 \

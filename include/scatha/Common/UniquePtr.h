@@ -12,10 +12,7 @@ namespace scatha::internal {
 
 template <typename T>
 void privateDelete(T* ptr) {
-    // TODO: Enable this
-#if 0
     static_assert(sizeof(T), "T is incomplete");
-#endif
     delete ptr;
 }
 
@@ -25,7 +22,7 @@ void privateDestroy(T* ptr) {
 }
 
 struct PrivateDeleter {
-    void operator()(auto* ptr) const { ::scatha::internal::privateDelete(ptr); }
+    void operator()(auto* ptr) const { privateDelete(ptr); }
 };
 
 } // namespace scatha::internal

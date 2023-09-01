@@ -5,11 +5,11 @@
 using namespace scatha;
 using namespace ir;
 
-void scatha::internal::privateDelete(ir::Type* type) {
+void ir::privateDelete(ir::Type* type) {
     visit(*type, [](auto& derived) { delete &derived; });
 }
 
-void scatha::internal::privateDestroy(ir::Type* type) {
+void ir::privateDestroy(ir::Type* type) {
     visit(*type, [](auto& derived) { std::destroy_at(&derived); });
 }
 

@@ -8,11 +8,11 @@
 using namespace scatha;
 using namespace sema;
 
-void scatha::internal::privateDelete(sema::Value* value) {
+void sema::privateDelete(sema::Value* value) {
     visit(*value, [](auto& value) { delete &value; });
 }
 
-void scatha::internal::privateDestroy(sema::Value* type) {
+void sema::privateDestroy(sema::Value* type) {
     visit(*type, [](auto& type) { std::destroy_at(&type); });
 }
 

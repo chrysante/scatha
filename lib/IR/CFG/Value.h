@@ -83,10 +83,10 @@ private:
     void uniqueExistingName(Function& func);
 
     /// Customization point for `UniquePtr`
-    friend void scatha::internal::privateDelete(Value* value);
+    friend void ir::privateDelete(Value* value);
 
     /// Customization point for `ir::DynAllocator`
-    friend void scatha::internal::privateDestroy(Value* value);
+    friend void ir::privateDestroy(Value* value);
 
 private:
     NodeType _nodeType;

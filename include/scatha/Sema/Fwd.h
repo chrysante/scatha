@@ -38,13 +38,10 @@
 
 namespace scatha::sema {
 
-class SymbolTable;
-
 class Conversion;
-
-class SemanticIssue;
-
 class FunctionSignature;
+class SemanticIssue;
+class SymbolTable;
 
 ///
 /// # Forward Declaration of all entity types
@@ -173,7 +170,9 @@ enum class FunctionAttribute : unsigned {
 
 UTL_BITFIELD_OPERATORS(FunctionAttribute);
 
+///
 /// # Constant Expressions
+///
 
 #define SC_SEMA_CONSTKIND_DEF(Type, _) class Type;
 #include <scatha/Sema/Lists.def>
@@ -198,20 +197,20 @@ SCATHA_API std::ostream& operator<<(std::ostream&, ConstantKind);
                    Abstractness)
 #include <scatha/Sema/Lists.def>
 
-namespace scatha::internal {
+namespace scatha::sema {
 
-/// Insulated call to `delete` on the most derived base of \p *entity
+/// Insulated call to `delete` on the most derived base of \p entity
 SCATHA_API void privateDelete(sema::Entity* entity);
 
-/// Insulated call to destructor on the most derived base of \p *entity
+/// Insulated call to destructor on the most derived base of \p entity
 SCATHA_API void privateDestroy(sema::Entity* entity);
 
-/// Insulated call to `delete` on the most derived base of \p *value
+/// Insulated call to `delete` on the most derived base of \p value
 SCATHA_API void privateDelete(sema::Value* value);
 
-/// Insulated call to destructor on the most derived base of \p *value
+/// Insulated call to destructor on the most derived base of \p value
 SCATHA_API void privateDestroy(sema::Value* type);
 
-} // namespace scatha::internal
+} // namespace scatha::sema
 
 #endif // SCATHA_SEMA_FWD_H_

@@ -10,7 +10,7 @@
 using namespace scatha;
 using namespace ast;
 
-void scatha::internal::privateDelete(AbstractSyntaxTree* node) {
+void ast::privateDelete(AbstractSyntaxTree* node) {
     visit(*node, [](auto& derived) { delete &derived; });
 }
 
@@ -50,11 +50,8 @@ size_t AbstractSyntaxTree::indexOf(AbstractSyntaxTree const* child) const {
     return utl::narrow_cast<size_t>(itr - _children.begin());
 }
 
-Expression::~Expression() = default;
-
 sema::QualType Expression::typeOrTypeEntity() const {
-    return isValue() ? type() :
-                       cast<sema::ObjectType const*>(entity());
+    return isValue() ? type() : cast<sema::ObjectType const*>(entity());
 }
 
 void Expression::decorate(sema::Entity* entity,
@@ -85,10 +82,6 @@ void Expression::decorate(sema::Entity* entity,
         _entityCat = *entityCat;
     }
     markDecorated();
-}
-
-void Expression::setConstantValue(UniquePtr<sema::Value> value) {
-    constVal = std::move(value);
 }
 
 Conversion::Conversion(UniquePtr<Expression> expr,

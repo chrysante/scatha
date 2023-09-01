@@ -160,7 +160,8 @@ protected:
 public:
     AbstractSyntaxTree() = default;
 
-    SC_MOVEONLY(AbstractSyntaxTree);
+    /// AST nodes are not value types
+    AbstractSyntaxTree(AbstractSyntaxTree const&) = delete;
 
     /// Runtime type of this node
     NodeType nodeType() const { return _type; }
@@ -290,8 +291,6 @@ class SCATHA_API Expression: public AbstractSyntaxTree {
 public:
     using AbstractSyntaxTree::AbstractSyntaxTree;
 
-    ~Expression();
-
     AST_DERIVED_COMMON(Expression)
 
     /// **Decoration provided by semantic analysis**
@@ -373,7 +372,9 @@ public:
     sema::Value const* constantValue() const { return constVal.get(); }
 
     /// Set the constant value of this expression
-    void setConstantValue(UniquePtr<sema::Value> value);
+    void setConstantValue(UniquePtr<sema::Value> value) {
+        constVal = std::move(value);
+    }
 
 private:
     sema::Entity* _entity = nullptr;
@@ -1258,6 +1259,7 @@ private:
 
 } // namespace scatha::ast
 
+#undef AST_DERIVED_COMMON
 #undef AST_PROPERTY
 #undef AST_RANGE_PROPERTY
 

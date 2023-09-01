@@ -45,10 +45,10 @@ protected:
 
 private:
     /// For `UniquePtr<>`
-    friend void scatha::internal::privateDelete(Type* type);
+    friend void ir::privateDelete(Type* type);
 
     /// For `ir::DynAllocator`
-    friend void scatha::internal::privateDestroy(Type* type);
+    friend void ir::privateDestroy(Type* type);
 
 private:
     std::string _name;

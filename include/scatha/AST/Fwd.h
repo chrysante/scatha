@@ -10,7 +10,7 @@
 namespace scatha::ast {
 
 ///
-/// **Forward Declaration of all AST nodes**
+/// # Forward Declaration of all AST nodes
 ///
 
 #define SC_ASTNODE_DEF(node, _) class node;
@@ -109,13 +109,9 @@ std::string_view toString(LoopKind loopKind);
 
 std::ostream& operator<<(std::ostream& ostream, LoopKind loopKind);
 
-} // namespace scatha::ast
-
-namespace scatha::internal {
-
-/// Insulated call to `delete` on the most derived base of \p *astNode
+/// Insulated call to `delete` on the most derived base of \p astNode
 SCATHA_API void privateDelete(ast::AbstractSyntaxTree* astNode);
 
-} // namespace scatha::internal
+} // namespace scatha::ast
 
 #endif // SCATHA_AST_FWD_H_

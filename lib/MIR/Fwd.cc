@@ -20,11 +20,11 @@ std::ostream& mir::operator<<(std::ostream& ostream, NodeType nodeType) {
     return ostream << toString(nodeType);
 }
 
-void internal::privateDelete(mir::Value* value) {
+void mir::privateDelete(mir::Value* value) {
     visit(*value, [](auto& value) { delete &value; });
 }
 
-void internal::privateDestroy(mir::Value* value) {
+void mir::privateDestroy(mir::Value* value) {
     visit(*value, [](auto& value) { std::destroy_at(&value); });
 }
 

@@ -56,10 +56,10 @@ void Value::uniqueExistingName(Function& func) {
     _name = func.nameFac.makeUnique(std::move(_name));
 }
 
-void scatha::internal::privateDelete(Value* value) {
+void ir::privateDelete(Value* value) {
     visit(*value, [](auto& derived) { delete &derived; });
 }
 
-void scatha::internal::privateDestroy(Value* value) {
+void ir::privateDestroy(Value* value) {
     visit(*value, [](auto& derived) { std::destroy_at(&derived); });
 }

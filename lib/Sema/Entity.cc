@@ -15,11 +15,11 @@
 using namespace scatha;
 using namespace sema;
 
-void scatha::internal::privateDelete(sema::Entity* entity) {
+void sema::privateDelete(sema::Entity* entity) {
     visit(*entity, [](auto& entity) { delete &entity; });
 }
 
-void scatha::internal::privateDestroy(sema::Entity* entity) {
+void sema::privateDestroy(sema::Entity* entity) {
     visit(*entity, [](auto& entity) { std::destroy_at(&entity); });
 }
 
