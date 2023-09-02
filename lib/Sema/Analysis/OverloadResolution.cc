@@ -6,6 +6,7 @@
 
 #include "AST/AST.h"
 #include "Sema/Analysis/Conversion.h"
+#include "Sema/Analysis/Lifetime.h"
 #include "Sema/Entity.h"
 
 using namespace scatha;
@@ -135,11 +136,62 @@ OverloadResolutionResult sema::performOverloadResolution(
     return performORImpl(overloadSet, argTypes, argValues, isMemberCall);
 }
 
-void sema::convertArguments(std::span<ast::Expression* const> args,
-                            OverloadResolutionResult const& orResult) {
-    for (auto [arg, conv]: ranges::views::zip(args, orResult.conversions)) {
-        if (!conv.isNoop()) {
-            insertConversion(arg, conv);
+ast::Statement* parentStatement(ast::ASTNode* node) {
+    while (true) {
+        if (!node) {
+            return nullptr;
         }
+        if (auto* stmt = dyncast<ast::Statement*>(node)) {
+            return stmt;
+        }
+        node = node->parent();
     }
+}
+
+bool sema::convertArguments(ast::CallLike& fc,
+                            OverloadResolutionResult const& orResult,
+                            SymbolTable& sym,
+                            IssueHandler& iss) {
+    bool success = true;
+    for (auto [index, _arg, conv]: ranges::views::zip(ranges::views::iota(0),
+                                                      fc.arguments(),
+                                                      orResult.conversions))
+    {
+        auto* arg = _arg;
+        if (!conv.isNoop()) {
+            arg = insertConversion(arg, conv);
+        }
+        auto structType = dyncast<StructureType const*>(arg->type().get());
+        if (!structType) {
+            continue;
+        }
+        /// If our argument is a struct type (and not a reference to one) we
+        /// need to call the copy constructor if there is one
+        using enum SpecialMemberFunction;
+        /// But only if we have constructors. This is a super hacky and
+        /// incorrect solution but should work for now.
+        if (!structType->specialMemberFunction(New)) {
+            continue;
+        }
+        arg = convertToExplicitRef(arg, sym, iss);
+        if (!arg) {
+            success = false;
+            continue;
+        }
+        auto ctorCall =
+            makeConstructorCall(structType,
+                                toSmallVector(arg->extractFromParent()),
+                                sym,
+                                iss,
+                                arg->sourceRange());
+        success &= !!ctorCall;
+        if (!success) {
+            continue;
+        }
+        arg = ctorCall.get();
+        fc.setArgument(utl::narrow_cast<size_t>(index), std::move(ctorCall));
+        auto* parentStmt = parentStatement(&fc);
+        parentStmt->dtorStack().push(arg->object());
+    }
+    return success;
 }

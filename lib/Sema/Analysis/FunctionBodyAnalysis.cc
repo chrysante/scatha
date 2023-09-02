@@ -233,12 +233,12 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
             convertExplicitly(var.initExpression(),
                               sym.reference(finalType.toConst(), RefExpl),
                               iss);
-            std::array args = { var.extractInitExpression() };
-            auto call = makeConstructorCall(finalType.get(),
-                                            args,
-                                            sym,
-                                            iss,
-                                            var.sourceRange());
+            auto call =
+                makeConstructorCall(finalType.get(),
+                                    toSmallVector(var.extractInitExpression()),
+                                    sym,
+                                    iss,
+                                    var.sourceRange());
             if (call) {
                 var.setInitExpression(std::move(call));
             }

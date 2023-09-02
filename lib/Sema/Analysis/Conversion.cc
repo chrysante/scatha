@@ -534,51 +534,51 @@ std::optional<Conversion> sema::computeConversion(ConversionKind kind,
 }
 
 /// Implementation of the `convert*` functions
-static bool convertImpl(ConversionKind kind,
-                        ast::Expression* expr,
-                        QualType to,
-                        IssueHandler* iss) {
+static ast::Expression* convertImpl(ConversionKind kind,
+                                    ast::Expression* expr,
+                                    QualType to,
+                                    IssueHandler* iss) {
     auto conversion =
         computeConversion(kind, expr->type(), expr->constantValue(), to);
     if (!conversion) {
         if (iss) {
             iss->push<BadTypeConversion>(*expr, to);
         }
-        return false;
+        return nullptr;
     }
     if (!conversion->isNoop()) {
-        insertConversion(expr, *conversion);
+        return insertConversion(expr, *conversion);
     }
-    return true;
+    return expr;
 }
 
-bool sema::convertImplicitly(ast::Expression* expr,
-                             QualType to,
-                             IssueHandler& issueHandler) {
+ast::Expression* sema::convertImplicitly(ast::Expression* expr,
+                                         QualType to,
+                                         IssueHandler& issueHandler) {
     return convertImpl(ConversionKind::Implicit, expr, to, &issueHandler);
 }
 
-bool sema::convertExplicitly(ast::Expression* expr,
-                             QualType to,
-                             IssueHandler& issueHandler) {
+ast::Expression* sema::convertExplicitly(ast::Expression* expr,
+                                         QualType to,
+                                         IssueHandler& issueHandler) {
     return convertImpl(ConversionKind::Explicit, expr, to, &issueHandler);
 }
 
-bool sema::convertReinterpret(ast::Expression* expr,
-                              QualType to,
-                              IssueHandler& issueHandler) {
+ast::Expression* sema::convertReinterpret(ast::Expression* expr,
+                                          QualType to,
+                                          IssueHandler& issueHandler) {
     return convertImpl(ConversionKind::Reinterpret, expr, to, &issueHandler);
 }
 
-bool sema::convertToExplicitRef(ast::Expression* expr,
-                                SymbolTable& sym,
-                                IssueHandler& issueHandler) {
+ast::Expression* sema::convertToExplicitRef(ast::Expression* expr,
+                                            SymbolTable& sym,
+                                            IssueHandler& issueHandler) {
     return convertExplicitly(expr, sym.explRef(expr->type()), issueHandler);
 }
 
-bool sema::convertToImplicitMutRef(ast::Expression* expr,
-                                   SymbolTable& sym,
-                                   IssueHandler& issueHandler) {
+ast::Expression* sema::convertToImplicitMutRef(ast::Expression* expr,
+                                               SymbolTable& sym,
+                                               IssueHandler& issueHandler) {
     return convertImplicitly(expr,
                              sym.implRef(stripReference(expr->type()).toMut()),
                              issueHandler);

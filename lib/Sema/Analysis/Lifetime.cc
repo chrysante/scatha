@@ -15,7 +15,7 @@ using namespace sema;
 
 UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     sema::ObjectType const* type,
-    std::span<UniquePtr<ast::Expression>> arguments,
+    utl::small_vector<UniquePtr<ast::Expression>> arguments,
     SymbolTable& sym,
     IssueHandler& iss,
     SourceRange sourceRange) {
@@ -39,12 +39,11 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
         iss.push(std::move(result.error));
         return nullptr;
     }
-    auto ctorCall = allocate<ast::ConstructorCall>(arguments,
+    auto ctorCall = allocate<ast::ConstructorCall>(std::move(arguments),
+                                                   sourceRange,
                                                    result.function,
                                                    SpecialMemberFunction::New);
     ctorCall->decorate(&sym.addTemporary(structType), structType);
-    convertArguments(ctorCall->arguments() |
-                         ranges::to<utl::small_vector<ast::Expression*>>,
-                     result);
+    convertArguments(*ctorCall, result, sym, iss);
     return ctorCall;
 }

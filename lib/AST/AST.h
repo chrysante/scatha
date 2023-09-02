@@ -45,9 +45,11 @@
 //    ├─ BinaryExpression
 //    ├─ MemberAccess
 //    ├─ Conditional
-//    ├─ FunctionCall
-//    ├─ Conversion
-//    └─ Subscript
+//    ├─ CallLike
+//    │  ├─ FunctionCall
+//    │  ├─ ConstructorCall
+//    │  └─ Subscript
+//    └─ Conversion
 
 #define AST_DERIVED_COMMON(Type)                                               \
     UniquePtr<Type> extractFromParent() {                                      \
@@ -313,7 +315,7 @@ public:
     }
 
     /// Declared object
-    /// This is equivalent to `cast<ObjType*>(entity())`
+    /// This is equivalent to `cast<Object*>(entity())`
     template <typename ObjType = sema::Object>
     ObjType* object() {
         return const_cast<ObjType*>(std::as_const(*this).object<ObjType>());
@@ -497,7 +499,7 @@ public:
     AST_DERIVED_COMMON(MemberAccess)
 
     /// The object of this expression.
-    AST_PROPERTY(0, Expression, object, Object)
+    AST_PROPERTY(0, Expression, accessed, Accessed)
 
     /// The identifier to access the object.
     AST_PROPERTY(1, Identifier, member, Member)
@@ -570,11 +572,12 @@ public:
 
 /// MARK: More Complex Expressions
 
-/// Concrete node representing a function call expression.
+/// Abstract node representing a function-call-like expression.
+/// This is the base class of `FunctionCall`, `Subscript` and `ConstructorCall`
 class SCATHA_API CallLike: public Expression {
 public:
     /// The object (function or rather overload set) being called.
-    AST_PROPERTY(0, Expression, object, Object)
+    AST_PROPERTY(0, Expression, callee, Callee)
 
     /// List of arguments.
     AST_RANGE_PROPERTY(1, Expression, argument, Argument);
@@ -586,23 +589,23 @@ public:
 
 protected:
     explicit CallLike(NodeType nodeType,
-                      UniquePtr<Expression> object,
+                      UniquePtr<Expression> callee,
                       utl::small_vector<UniquePtr<Expression>> arguments,
                       SourceRange sourceRange):
         Expression(nodeType,
                    sourceRange,
-                   std::move(object),
+                   std::move(callee),
                    std::move(arguments)) {}
 };
 
 /// Concrete node representing a function call expression.
 class SCATHA_API FunctionCall: public CallLike {
 public:
-    explicit FunctionCall(UniquePtr<Expression> object,
+    explicit FunctionCall(UniquePtr<Expression> callee,
                           utl::small_vector<UniquePtr<Expression>> arguments,
                           SourceRange sourceRange):
         CallLike(NodeType::FunctionCall,
-                 std::move(object),
+                 std::move(callee),
                  std::move(arguments),
                  sourceRange) {}
 
@@ -1223,18 +1226,20 @@ private:
 };
 
 /// Concrete node representing a lifetime function call
-class SCATHA_API ConstructorCall: public Expression {
+class SCATHA_API ConstructorCall: public CallLike {
 public:
-    explicit ConstructorCall(std::span<UniquePtr<Expression>> arguments,
+    explicit ConstructorCall(utl::small_vector<UniquePtr<Expression>> arguments,
+                             SourceRange sourceRange,
                              sema::Function* lifetimeFunction,
                              sema::SpecialMemberFunction kind):
-        Expression(NodeType::ConstructorCall, SourceRange{}, arguments),
+        CallLike(NodeType::ConstructorCall,
+                 nullptr,
+                 std::move(arguments),
+                 sourceRange),
         _function(lifetimeFunction),
         _kind(kind) {}
 
     AST_DERIVED_COMMON(ConstructorCall)
-
-    AST_RANGE_PROPERTY(0, Expression, argument, Argument)
 
     /// The lifetime function to call
     sema::Function* function() const { return _function; }

@@ -1,7 +1,7 @@
 #ifndef SCATHA_SEMA_ANALYSIS_LIFETIME_H_
 #define SCATHA_SEMA_ANALYSIS_LIFETIME_H_
 
-#include <span>
+#include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
 #include "Common/UniquePtr.h"
@@ -15,7 +15,7 @@ namespace scatha::sema {
 /// An error is pushed to \p issueHandler if no matching constructor is found
 UniquePtr<ast::ConstructorCall> makeConstructorCall(
     sema::ObjectType const* type,
-    std::span<UniquePtr<ast::Expression>> arguments,
+    utl::small_vector<UniquePtr<ast::Expression>> arguments,
     SymbolTable& symbolTable,
     IssueHandler& issueHandler,
     SourceRange sourceRange);

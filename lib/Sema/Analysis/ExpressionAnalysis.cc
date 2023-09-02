@@ -282,12 +282,12 @@ static Scope* findLookupTargetScope(ast::Expression& expr) {
 }
 
 bool Context::analyzeImpl(ast::MemberAccess& ma) {
-    if (!analyze(*ma.object())) {
+    if (!analyze(*ma.accessed())) {
         return false;
     }
-    Scope* lookupTargetScope = findLookupTargetScope(*ma.object());
+    Scope* lookupTargetScope = findLookupTargetScope(*ma.accessed());
     SC_ASSERT(lookupTargetScope,
-              "analyze(ma.object()) should have failed if this is null");
+              "analyze(ma.accessed()) should have failed if this is null");
     bool success = sym.withScopeCurrent(lookupTargetScope, [&] {
         /// We restrict name lookup to the
         /// current scope. This flag will be unset by the identifier case.
@@ -305,27 +305,27 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
     {
         return rewritePropertyCall(ma);
     }
-    if (ma.object()->isValue() && !ma.member()->isValue()) {
+    if (ma.accessed()->isValue() && !ma.member()->isValue()) {
         iss.push<InvalidNameLookup>(ma);
         return false;
     }
     ma.decorate(ma.member()->entity(),
                 ma.member()->type(),
-                ma.object()->valueCategory(),
+                ma.accessed()->valueCategory(),
                 ma.member()->entityCategory());
     /// Dereference the object if its a value
-    if (ma.object()->isValue()) {
-        dereference(ma.object(), sym);
+    if (ma.accessed()->isValue()) {
+        dereference(ma.accessed(), sym);
     }
     return true;
 }
 
 bool Context::uniformFunctionCall(ast::MemberAccess& ma) {
     Scope* lookupTargetScope =
-        const_cast<ObjectType*>(ma.object()->typeOrTypeEntity().get());
+        const_cast<ObjectType*>(ma.accessed()->typeOrTypeEntity().get());
     /// If we don't find a member and our object is a value, we will look
     /// for a function in the scope of the type of our object
-    if (!ma.object()->isValue()) {
+    if (!ma.accessed()->isValue()) {
         /// Need to push the error here because the `Identifier` case does
         /// not push an error in member access lookup
         iss.push<UseOfUndeclaredIdentifier>(*ma.member(), *lookupTargetScope);
@@ -349,8 +349,9 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     /// We reference an overload set, so since our parent is not a call
     /// expression we rewrite the AST here
     auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
-    auto funcRes =
-        performOverloadResolution(overloadSet, std::array{ ma.object() }, true);
+    auto funcRes = performOverloadResolution(overloadSet,
+                                             std::array{ ma.accessed() },
+                                             true);
     if (funcRes.error) {
         funcRes.error->setSourceRange(ma.sourceRange());
         iss.push(std::move(funcRes.error));
@@ -358,7 +359,7 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     }
     auto* func = funcRes.function;
     utl::small_vector<UniquePtr<ast::Expression>> args;
-    args.push_back(ma.extractObject());
+    args.push_back(ma.extractAccessed());
     auto call = allocate<ast::FunctionCall>(ma.extractMember(),
                                             std::move(args),
                                             ma.sourceRange());
@@ -433,8 +434,8 @@ bool Context::analyzeImpl(ast::Conditional& c) {
         iss.push<BadOperandsForBinaryExpression>(c, thenType, elseType);
         return false;
     }
-    success &= convertImplicitly(c.thenExpr(), commonType, iss);
-    success &= convertImplicitly(c.elseExpr(), commonType, iss);
+    success &= !!convertImplicitly(c.thenExpr(), commonType, iss);
+    success &= !!convertImplicitly(c.elseExpr(), commonType, iss);
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
               "convertible to that type");
@@ -446,8 +447,8 @@ bool Context::analyzeImpl(ast::Conditional& c) {
 }
 
 bool Context::analyzeImpl(ast::Subscript& expr) {
-    bool success = analyze(*expr.object());
-    success &= expectValue(*expr.object());
+    bool success = analyze(*expr.callee());
+    success &= expectValue(*expr.callee());
     /// This must not be a `for each` loop, because the argument to the call to
     /// `analyze` may be deallocated and then the call to `expectValue()` would
     /// use freed memory without getting the argument again from `expr`
@@ -459,7 +460,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
         return false;
     }
     auto* arrayType =
-        dyncast<ArrayType const*>(stripReference(expr.object()->type()).get());
+        dyncast<ArrayType const*>(stripReference(expr.callee()->type()).get());
     if (!arrayType) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
@@ -473,9 +474,9 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
-    dereference(expr.object(), sym);
+    dereference(expr.callee(), sym);
     dereference(expr.argument(0), sym);
-    auto mutability = stripReference(expr.object()->type()).mutability();
+    auto mutability = stripReference(expr.callee()->type()).mutability();
     QualType elemType =
         sym.implRef(QualType(arrayType->elementType(), mutability));
     expr.decorate(nullptr, elemType);
@@ -483,14 +484,14 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
 }
 
 bool Context::analyzeImpl(ast::GenericExpression& expr) {
-    bool success = analyze(*expr.object());
+    bool success = analyze(*expr.callee());
     for (auto* arg: expr.arguments()) {
         success &= analyze(*arg);
     }
     if (!success) {
         return false;
     }
-    SC_ASSERT(cast<ast::Identifier*>(expr.object())->value() == "reinterpret",
+    SC_ASSERT(cast<ast::Identifier*>(expr.callee())->value() == "reinterpret",
               "For now");
     SC_ASSERT(expr.arguments().size() == 1, "For now");
     SC_ASSERT(expr.argument(0)->isType(), "For now");
@@ -499,7 +500,7 @@ bool Context::analyzeImpl(ast::GenericExpression& expr) {
 }
 
 bool Context::analyzeImpl(ast::FunctionCall& fc) {
-    bool success = analyze(*fc.object());
+    bool success = analyze(*fc.callee());
     bool isMemberCall = false;
     /// We analyze all the arguments
     for (size_t i = 0; i < fc.arguments().size(); ++i) {
@@ -522,22 +523,22 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     }
 
     /// If our object is a member access expression, we rewrite the AST
-    if (auto* ma = dyncast<ast::MemberAccess*>(fc.object());
-        ma && ma->object()->isValue())
+    if (auto* ma = dyncast<ast::MemberAccess*>(fc.callee());
+        ma && ma->accessed()->isValue())
     {
-        auto memberAccess = fc.extractObject<ast::MemberAccess>();
+        auto memberAccess = fc.extractCallee<ast::MemberAccess>();
         auto memFunc = memberAccess->extractMember();
-        auto objectArg = memberAccess->extractObject();
+        auto objectArg = memberAccess->extractAccessed();
         fc.insertArgument(0, std::move(objectArg));
-        fc.setObject(std::move(memFunc));
+        fc.setCallee(std::move(memFunc));
         isMemberCall = true;
         /// Member access object `object` goes out of scope and is destroyed
     }
 
     /// If our object is a generic expression, we assert that is a `reinterpret`
     /// expression and rewrite the AST
-    if (auto* genExpr = dyncast<ast::GenericExpression*>(fc.object())) {
-        SC_ASSERT(genExpr->object()->entity()->name() == "reinterpret", "");
+    if (auto* genExpr = dyncast<ast::GenericExpression*>(fc.callee())) {
+        SC_ASSERT(genExpr->callee()->entity()->name() == "reinterpret", "");
         SC_ASSERT(fc.arguments().size() == 1, "");
         QualType targetType = genExpr->type();
         auto* arg = fc.argument(0);
@@ -547,7 +548,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
 
     /// if our object is a type, then we rewrite the AST so we end up with just
     /// a conversion node
-    if (auto* targetType = dyncast<ObjectType const*>(fc.object()->entity())) {
+    if (auto* targetType = dyncast<ObjectType const*>(fc.callee()->entity())) {
         if (auto* structType = dyncast<StructureType const*>(targetType)) {
             auto args =
                 fc.arguments() | ranges::views::transform([](auto* arg) {
@@ -555,7 +556,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
                 }) |
                 ranges::to<utl::small_vector<UniquePtr<ast::Expression>>>;
             auto ctorCall = makeConstructorCall(structType,
-                                                args,
+                                                std::move(args),
                                                 sym,
                                                 iss,
                                                 fc.sourceRange());
@@ -575,7 +576,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     }
 
     /// Make sure we have an overload set as our called object
-    auto* overloadSet = dyncast_or_null<OverloadSet*>(fc.object()->entity());
+    auto* overloadSet = dyncast_or_null<OverloadSet*>(fc.callee()->entity());
     if (!overloadSet) {
         iss.push<BadFunctionCall>(fc,
                                   nullptr,
@@ -600,9 +601,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
                 ValueCategory::RValue);
 
     /// We issue conversions for our arguments as necessary
-    convertArguments(fc.arguments() |
-                         ranges::to<utl::small_vector<ast::Expression*>>,
-                     result);
+    convertArguments(fc, result, sym, iss);
     return true;
 }
 
@@ -808,14 +807,15 @@ QualType Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         /// Here we only look at assignment _through_ references
         /// That means LHS shall be an implicit reference
         bool success = true;
-        success &= convertToImplicitMutRef(expr.lhs(), sym, iss);
-        success &= convertImplicitly(expr.rhs(), stripQualifiers(lhsType), iss);
+        success &= !!convertToImplicitMutRef(expr.lhs(), sym, iss);
+        success &=
+            !!convertImplicitly(expr.rhs(), stripQualifiers(lhsType), iss);
         return success ? sym.Void() : nullptr;
     }
 
     bool successfullConv = true;
-    successfullConv &= convertImplicitly(expr.lhs(), commonType, iss);
-    successfullConv &= convertImplicitly(expr.rhs(), commonType, iss);
+    successfullConv &= !!convertImplicitly(expr.lhs(), commonType, iss);
+    successfullConv &= !!convertImplicitly(expr.rhs(), commonType, iss);
 
     if (successfullConv) {
         return *resultType;
@@ -831,8 +831,8 @@ QualType Context::analyzeReferenceAssignment(ast::BinaryExpression& expr) {
     }
     QualType explicitRefType = makeRefExplicit(expr.lhs()->type());
     bool success = true;
-    success &= convertExplicitly(expr.lhs(), explicitRefType, iss);
-    success &= convertExplicitly(expr.rhs(), explicitRefType, iss);
+    success &= !!convertExplicitly(expr.lhs(), explicitRefType, iss);
+    success &= !!convertExplicitly(expr.rhs(), explicitRefType, iss);
     return success ? sym.Void() : nullptr;
 }
 

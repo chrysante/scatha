@@ -28,9 +28,9 @@ fn mul(a: int, b: X.Y.Z) -> int {
     auto const* bTypeExpr =
         cast<MemberAccess*>(function->parameters()[1]->typeExpr());
     auto const* bTypeExprLhs =
-        dyncast<MemberAccess const*>(bTypeExpr->object());
+        dyncast<MemberAccess const*>(bTypeExpr->accessed());
     REQUIRE(bTypeExprLhs);
-    CHECK(cast<Identifier const*>(bTypeExprLhs->object())->value() == "X");
+    CHECK(cast<Identifier const*>(bTypeExprLhs->accessed())->value() == "X");
     CHECK(cast<Identifier const*>(bTypeExprLhs->member())->value() == "Y");
     CHECK(cast<Identifier const*>(bTypeExpr->member())->value() == "Z");
     auto const* returnTypeExpr = cast<Identifier*>(function->returnTypeExpr());
@@ -209,5 +209,5 @@ fn test() {
     auto* const functionCall =
         cast<FunctionCall const*>(loopStatement->expression());
     REQUIRE(functionCall);
-    CHECK(cast<Identifier const*>(functionCall->object())->value() == "print");
+    CHECK(cast<Identifier const*>(functionCall->callee())->value() == "print");
 }

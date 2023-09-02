@@ -34,12 +34,13 @@ SC_ASTNODE_DEF(MemberAccess,          CONCRETE)
 SC_ASTNODE_DEF(ReferenceExpression,   CONCRETE)
 SC_ASTNODE_DEF(UniqueExpression,      CONCRETE)
 SC_ASTNODE_DEF(Conditional,           CONCRETE)
+SC_ASTNODE_DEF(CallLike,              ABSTRACT)
 SC_ASTNODE_DEF(FunctionCall,          CONCRETE)
+SC_ASTNODE_DEF(ConstructorCall,       CONCRETE)
 SC_ASTNODE_DEF(Subscript,             CONCRETE)
 SC_ASTNODE_DEF(GenericExpression,     CONCRETE)
 SC_ASTNODE_DEF(ListExpression,        CONCRETE)
 SC_ASTNODE_DEF(Conversion,            CONCRETE)
-SC_ASTNODE_DEF(ConstructorCall,       CONCRETE)
 
 #undef SC_ASTNODE_DEF
 

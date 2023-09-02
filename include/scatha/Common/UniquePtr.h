@@ -6,6 +6,8 @@
 #include <compare>
 #include <memory>
 
+#include <utl/vector.hpp>
+
 #include <scatha/Common/Base.h>
 
 namespace scatha::internal {
@@ -32,6 +34,16 @@ template <typename Derived, typename Base>
 UniquePtr<Derived> uniquePtrCast(UniquePtr<Base>&& p) {
     auto* d = cast<Derived*>(p.release());
     return UniquePtr<Derived>(d);
+}
+
+/// Utility function to convert `UniquePtr` arguments into a
+/// `small_vector<UniquePtr>`
+template <typename... T>
+utl::small_vector<UniquePtr<std::common_type_t<T...>>> toSmallVector(
+    UniquePtr<T>... ptrs) {
+    utl::small_vector<UniquePtr<std::common_type_t<T...>>> result;
+    (result.push_back(std::move(ptrs)), ...);
+    return result;
 }
 
 } // namespace scatha

@@ -15,6 +15,7 @@ namespace {
 struct Context {
     void print(Expression const&);
 
+    void printImpl(Expression const&) { SC_UNREACHABLE(); }
     void printImpl(Identifier const&);
     void printImpl(Literal const&);
     void printImpl(UnaryExpression const&);
@@ -90,7 +91,7 @@ void Context::printImpl(BinaryExpression const& expr) {
 }
 
 void Context::printImpl(MemberAccess const& memberAccess) {
-    print(*memberAccess.object());
+    print(*memberAccess.accessed());
     str << ".";
     print(*memberAccess.member());
 }
@@ -104,7 +105,7 @@ void Context::printImpl(Conditional const& conditional) {
 }
 
 void Context::printImpl(FunctionCall const& functionCall) {
-    print(*functionCall.object());
+    print(*functionCall.callee());
     str << "(";
     for (bool first = true; auto* argument: functionCall.arguments()) {
         if (!first) {
@@ -119,7 +120,7 @@ void Context::printImpl(FunctionCall const& functionCall) {
 }
 
 void Context::printImpl(Subscript const& subscript) {
-    print(*subscript.object());
+    print(*subscript.callee());
     str << "[";
     for (bool first = true; auto* argument: subscript.arguments()) {
         if (!first) {

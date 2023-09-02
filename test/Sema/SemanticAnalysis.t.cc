@@ -334,7 +334,7 @@ public fn main() {
         auto* main = cast<FunctionDefinition*>(mainDecl);
         auto* stmt = main->body()->statement<ExpressionStatement>(1);
         auto* call = cast<FunctionCall*>(stmt->expression());
-        auto* f = call->object()->entity();
+        auto* f = call->callee()->entity();
         CHECK(f->name() == "f");
         CHECK(isa<GlobalScope>(f->parent()));
     }
@@ -357,7 +357,7 @@ public fn main() {
         auto* main = cast<FunctionDefinition*>(mainDecl);
         auto* stmt = main->body()->statement<ExpressionStatement>(1);
         auto* call = cast<FunctionCall*>(stmt->expression());
-        auto* f = call->object()->entity();
+        auto* f = call->callee()->entity();
         CHECK(f->name() == "f");
         CHECK(f->parent()->name() == "X");
     }

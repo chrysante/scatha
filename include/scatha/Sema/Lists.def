@@ -35,8 +35,11 @@ SC_SEMA_ENTITY_DEF(PoisonEntity,   CONCRETE)
 #undef SC_SEMA_ENTITY_DEF
 
 // ===--------------------------------------------------------------------=== //
-// === List of all constant kinds ----------------------------------------=== //
+// === List of all special member functions ------------------------------=== //
 // ===--------------------------------------------------------------------=== //
+
+// Actually special member functions are the default constructor, the copy
+// constructor, the move constructor and the destructor. We will fix this later
 
 #ifndef SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF
 #   define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(Name, str)

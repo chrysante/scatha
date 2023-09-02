@@ -320,20 +320,20 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
         return itr->second;
     }
     if (auto* arrayType =
-            dyncast<sema::ArrayType const*>(expr.object()->type().get()))
+            dyncast<sema::ArrayType const*>(expr.accessed()->type().get()))
     {
         SC_ASSERT(expr.member()->value() == "count", "What else?");
-        auto value = getValue(expr.object());
+        auto value = getValue(expr.accessed());
         return getArraySize(value.ID());
     }
 
-    Value base = getValue(expr.object());
+    Value base = getValue(expr.accessed());
     auto* accessedId = cast<Identifier const*>(expr.member());
     auto* var = cast<sema::Variable const*>(accessedId->entity());
 
     Value value;
     size_t const irIndex = structIndexMap[{
-        cast<sema::StructureType const*>(expr.object()->type().get()),
+        cast<sema::StructureType const*>(expr.accessed()->type().get()),
         var->index() }];
     switch (base.location()) {
     case Register: {
@@ -343,7 +343,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
         break;
     }
     case Memory: {
-        auto* baseType = mapType(sema::stripReference(expr.object()->type()));
+        auto* baseType = mapType(sema::stripReference(expr.accessed()->type()));
         auto* result = add<ir::GetElementPointer>(baseType,
                                                   base.get(),
                                                   intConstant(0, 64),
@@ -370,7 +370,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
         break;
     }
     case Memory: {
-        auto* baseType = mapType(sema::stripReference(expr.object()->type()));
+        auto* baseType = mapType(sema::stripReference(expr.accessed()->type()));
         auto* result = add<ir::GetElementPointer>(baseType,
                                                   base.get(),
                                                   intConstant(0, 64),
@@ -500,9 +500,9 @@ void LoweringContext::generateArgument(PassingConvention const& PC,
 
 Value LoweringContext::getValueImpl(Subscript const& expr) {
     auto* arrayType = cast<sema::ArrayType const*>(
-        stripReference(expr.object()->type()).get());
+        stripReference(expr.callee()->type()).get());
     auto* elemType = mapType(arrayType->elementType());
-    auto array = getValue(expr.object());
+    auto array = getValue(expr.callee());
     /// Right now we don't use the size but here we could at a call to an
     /// assertion function
     [[maybe_unused]] auto size = getArraySize(array.ID());
