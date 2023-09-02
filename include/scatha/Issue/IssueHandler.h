@@ -30,8 +30,12 @@ public:
     SC_MOVEONLY(IssueHandler);
 
     /// Add \p error to this issue handler
-    void push(Issue* issue) {
-        _issues.push_back(std::unique_ptr<Issue>(issue));
+    /// \Warning Expects \p issue to be allocated by `new` and takes ownership
+    void push(Issue* issue) { push(std::unique_ptr<Issue>(issue)); }
+
+    /// \overload
+    void push(std::unique_ptr<Issue> issue) {
+        _issues.push_back(std::move(issue));
     }
 
     /// Construct issue type `T` directly in this issue handler
