@@ -162,12 +162,12 @@ public:
 
     /// # Accessors
 
-    /// \Returns the `ArrayType` with element type \p elementType \ and \p size
+    /// \Returns the `ArrayType` with element type \p elementType and \p size
     /// elements
     ArrayType const* arrayType(ObjectType const* elementType, size_t size);
 
     /// \overload
-    /// \Returns the `ArrayType` with element type \p elementType \ and dynamic
+    /// \Returns the `ArrayType` with element type \p elementType and dynamic
     /// count
     ArrayType const* arrayType(ObjectType const* elementType);
 
