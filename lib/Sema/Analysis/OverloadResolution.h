@@ -41,12 +41,8 @@ SCATHA_TESTAPI OverloadResolutionResult
 
 /// Insert the conversions necessary to make the call to the function selected
 /// by overload resolution
-inline void convertArguments(auto&& args,
-                             OverloadResolutionResult const& orResult) {
-    for (auto [arg, conv]: ranges::views::zip(args, orResult.conversions)) {
-        insertConversion(arg, conv);
-    }
-}
+SCATHA_TESTAPI void convertArguments(std::span<ast::Expression* const> args,
+                                     OverloadResolutionResult const& orResult);
 
 } // namespace scatha::sema
 

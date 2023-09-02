@@ -600,7 +600,9 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
                 ValueCategory::RValue);
 
     /// We issue conversions for our arguments as necessary
-    convertArguments(fc.arguments(), result);
+    convertArguments(fc.arguments() |
+                         ranges::to<utl::small_vector<ast::Expression*>>,
+                     result);
     return true;
 }
 

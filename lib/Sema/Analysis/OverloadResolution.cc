@@ -134,3 +134,10 @@ OverloadResolutionResult sema::performOverloadResolution(
     }
     return performORImpl(overloadSet, argTypes, argValues, isMemberCall);
 }
+
+void sema::convertArguments(std::span<ast::Expression* const> args,
+                            OverloadResolutionResult const& orResult) {
+    for (auto [arg, conv]: ranges::views::zip(args, orResult.conversions)) {
+        insertConversion(arg, conv);
+    }
+}

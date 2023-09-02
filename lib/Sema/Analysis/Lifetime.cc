@@ -43,6 +43,8 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
                                                    result.function,
                                                    SpecialMemberFunction::New);
     ctorCall->decorate(&sym.addTemporary(structType), structType);
-    convertArguments(ctorCall->arguments(), result);
+    convertArguments(ctorCall->arguments() |
+                         ranges::to<utl::small_vector<ast::Expression*>>,
+                     result);
     return ctorCall;
 }
