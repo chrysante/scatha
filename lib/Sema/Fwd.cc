@@ -68,18 +68,6 @@ std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
     return str << toString(k);
 }
 
-std::string_view sema::toString(ConversionKind k) {
-    // clang-format off
-    return UTL_SERIALIZE_ENUM(k, {
-        { ConversionKind::SignedToUnsigned, "SignedToUnsigned" },
-        { ConversionKind::UnsignedToSigned, "UnsignedToSigned" },
-    }); // clang-format on
-}
-
-std::ostream& sema::operator<<(std::ostream& str, ConversionKind k) {
-    return str << toString(k);
-}
-
 bool sema::isRef(QualType type) { return isa<ReferenceType>(*type); }
 
 bool sema::isImplRef(QualType type) {
