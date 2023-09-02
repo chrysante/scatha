@@ -48,36 +48,6 @@ std::ostream& sema::operator<<(std::ostream& ostream,
     return ostream << toString(conv);
 }
 
-/// Insert a `Conversion` node between \p expr and it's parent
-static ast::Conversion* insertConversion(
-    ast::Expression* expr, std::unique_ptr<sema::Conversion> conv) {
-    SC_ASSERT(expr->parent(),
-              "Can't insert a conversion if node has no parent");
-    size_t const indexInParent = expr->indexInParent();
-    auto* parent = expr->parent();
-    auto targetType = conv->targetType();
-    auto owner =
-        allocate<ast::Conversion>(expr->extractFromParent(), std::move(conv));
-    auto* result = owner.get();
-    parent->setChild(indexInParent, std::move(owner));
-    auto* entity = isRef(targetType) ? expr->entity() : nullptr;
-    result->decorate(entity, targetType);
-    result->setConstantValue(
-        evalConversion(result->conversion(),
-                       result->expression()->constantValue()));
-    return result;
-}
-
-namespace {
-
-enum class ConvKind {
-    Implicit,
-    Explicit,
-    Reinterpret,
-};
-
-} // namespace
-
 static std::optional<ObjectTypeConversion> implicitIntConversion(
     IntType const& from, IntType const& to) {
     using enum ObjectTypeConversion;
@@ -138,7 +108,7 @@ static std::optional<ObjectTypeConversion> explicitIntConversion(
 }
 
 static std::optional<ObjectTypeConversion> determineObjConv(
-    ConvKind kind, ObjectType const* from, ObjectType const* to) {
+    ConversionKind kind, ObjectType const* from, ObjectType const* to) {
     using enum ObjectTypeConversion;
     if (from == to) {
         return None;
@@ -148,14 +118,14 @@ static std::optional<ObjectTypeConversion> determineObjConv(
     return visit(*from, *to, utl::overload{
         [&](IntType const& from, ByteType const& to) -> RetType {
             switch (kind) {
-            case ConvKind::Implicit:
+            case ConversionKind::Implicit:
                 return std::nullopt;
-            case ConvKind::Explicit:
+            case ConversionKind::Explicit:
                 if (from.isSigned()) {
                     return from.size() == to.size() ? SU_Widen : SU_Trunc;
                 }
                 return from.size() == to.size() ? UU_Widen : UU_Trunc;
-            case ConvKind::Reinterpret:
+            case ConversionKind::Reinterpret:
                 if (from.size() != to.size()) {
                     return Reinterpret_Value;
                 }
@@ -164,14 +134,14 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         },
         [&](ByteType const& from, IntType const& to) -> RetType {
             switch (kind) {
-            case ConvKind::Implicit:
+            case ConversionKind::Implicit:
                 return std::nullopt;
-            case ConvKind::Explicit:
+            case ConversionKind::Explicit:
                 if (to.isSigned()) {
                     return US_Widen;
                 }
                 return UU_Widen;
-            case ConvKind::Reinterpret:
+            case ConversionKind::Reinterpret:
                 if (from.size() != to.size()) {
                     return std::nullopt;
                 }
@@ -180,11 +150,11 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         },
         [&](IntType const& from, IntType const& to) -> RetType {
             switch (kind) {
-            case ConvKind::Implicit:
+            case ConversionKind::Implicit:
                 return implicitIntConversion(from, to);
-            case ConvKind::Explicit:
+            case ConversionKind::Explicit:
                 return explicitIntConversion(from, to);
-            case ConvKind::Reinterpret:
+            case ConversionKind::Reinterpret:
                 if (from.bitwidth() != to.bitwidth()) {
                     return std::nullopt;
                 }
@@ -193,17 +163,17 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         },
         [&](FloatType const& from, FloatType const& to) -> RetType {
             switch (kind) {
-            case ConvKind::Implicit:
+            case ConversionKind::Implicit:
                 if (from.bitwidth() <= to.bitwidth()) {
                     return Float_Widen;
                 }
                 return std::nullopt;
-            case ConvKind::Explicit:
+            case ConversionKind::Explicit:
                 if (from.bitwidth() <= to.bitwidth()) {
                     return Float_Widen;
                 }
                 return Float_Trunc;
-            case ConvKind::Reinterpret:
+            case ConversionKind::Reinterpret:
                 if (from.bitwidth() != to.bitwidth()) {
                     return std::nullopt;
                 }
@@ -212,11 +182,11 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         },
         [&](IntType const& from, FloatType const& to) -> RetType {
             switch (kind) {
-            case ConvKind::Implicit:
+            case ConversionKind::Implicit:
                 return std::nullopt;
-            case ConvKind::Explicit:
+            case ConversionKind::Explicit:
                 return from.isSigned() ? SignedToFloat : UnsignedToFloat;
-            case ConvKind::Reinterpret:
+            case ConversionKind::Reinterpret:
                 if (from.bitwidth() != to.bitwidth()) {
                     return std::nullopt;
                 }
@@ -225,11 +195,11 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         },
         [&](FloatType const& from, IntType const& to) -> RetType {
             switch (kind) {
-            case ConvKind::Implicit:
+            case ConversionKind::Implicit:
                 return std::nullopt;
-            case ConvKind::Explicit:
+            case ConversionKind::Explicit:
                 return to.isSigned() ? FloatToSigned : FloatToUnsigned;
-            case ConvKind::Reinterpret:
+            case ConversionKind::Reinterpret:
                 if (from.bitwidth() != to.bitwidth()) {
                     return std::nullopt;
                 }
@@ -238,16 +208,16 @@ static std::optional<ObjectTypeConversion> determineObjConv(
         },
         [&](ArrayType const& from, ArrayType const& to) -> RetType {
             switch (kind) {
-            case ConvKind::Implicit:
+            case ConversionKind::Implicit:
                 [[fallthrough]];
-            case ConvKind::Explicit:
+            case ConversionKind::Explicit:
                 if (from.elementType() == to.elementType() &&
                     !from.isDynamic() && to.isDynamic())
                 {
                     return Array_FixedToDynamic;
                 }
                 return std::nullopt;
-            case ConvKind::Reinterpret: {
+            case ConversionKind::Reinterpret: {
                 if (!to.isDynamic() && from.isDynamic()) {
                     return std::nullopt;
                 }
@@ -285,10 +255,12 @@ static size_t toRefIndex(std::optional<Reference> ref) {
 }
 
 static std::optional<RefConversion> determineRefConv(
-    ConvKind kind, std::optional<Reference> from, std::optional<Reference> to) {
+    ConversionKind kind,
+    std::optional<Reference> from,
+    std::optional<Reference> to) {
     using enum RefConversion;
     switch (kind) {
-    case ConvKind::Implicit: {
+    case ConversionKind::Implicit: {
         // clang-format off
         static constexpr std::optional<RefConversion> resultMatrix[3][3] = {
             /* From  / To     None          Implicit      Explicit      */
@@ -298,7 +270,7 @@ static std::optional<RefConversion> determineRefConv(
         }; // clang-format on
         return resultMatrix[toRefIndex(from)][toRefIndex(to)];
     }
-    case ConvKind::Explicit: {
+    case ConversionKind::Explicit: {
         // clang-format off
         static constexpr std::optional<RefConversion> resultMatrix[3][3] = {
             /* From  / To     None         Implicit    Explicit      */
@@ -308,7 +280,7 @@ static std::optional<RefConversion> determineRefConv(
         }; // clang-format on
         return resultMatrix[toRefIndex(from)][toRefIndex(to)];
     }
-    case ConvKind::Reinterpret:
+    case ConversionKind::Reinterpret:
         if (from == to) {
             return None;
         }
@@ -316,7 +288,7 @@ static std::optional<RefConversion> determineRefConv(
     }
 }
 
-static std::optional<MutConversion> determineMutConv(ConvKind kind,
+static std::optional<MutConversion> determineMutConv(ConversionKind kind,
                                                      QualType from,
                                                      QualType to) {
     /// Conversions to values are not concerned with mutability restrictions
@@ -375,10 +347,9 @@ static int getRank(ObjectTypeConversion conv) {
     }[static_cast<size_t>(conv)];
 }
 
-static int getRank(RefConversion refConv,
-                   MutConversion mutConv,
-                   ObjectTypeConversion objConv) {
-    return getRank(refConv) + getRank(mutConv) + getRank(objConv);
+int sema::computeRank(Conversion const& conv) {
+    return getRank(conv.refConversion()) + getRank(conv.mutConversion()) +
+           getRank(conv.objectConversion());
 }
 
 static bool fits(APInt const& value, size_t numDestBits, bool destIsSigned) {
@@ -417,7 +388,7 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
     Value const* value, ObjectType const* from, ObjectType const* to) {
     using enum ObjectTypeConversion;
     /// We try an explicit conversion
-    auto result = determineObjConv(ConvKind::Explicit, from, to);
+    auto result = determineObjConv(ConversionKind::Explicit, from, to);
     if (!result) {
         return std::nullopt;
     }
@@ -504,16 +475,16 @@ static std::optional<ObjectTypeConversion> tryImplicitConstConv(
     return std::nullopt;
 }
 
-static std::optional<
-    std::tuple<RefConversion, MutConversion, ObjectTypeConversion>>
-    checkConversion(ConvKind kind,
-                    sema::QualType from,
-                    Value const* constantValue,
-                    QualType to) {
+std::optional<Conversion> sema::computeConversion(ConversionKind kind,
+                                                  QualType from,
+                                                  Value const* constantValue,
+                                                  QualType to) {
     if (from == to) {
-        return std::tuple{ RefConversion::None,
-                           MutConversion::None,
-                           ObjectTypeConversion::None };
+        return Conversion(from,
+                          to,
+                          RefConversion::None,
+                          MutConversion::None,
+                          ObjectTypeConversion::None);
     }
     auto refConv = determineRefConv(kind, refKind(from), refKind(to));
     if (!refConv) {
@@ -528,7 +499,7 @@ static std::optional<
                                     stripReference(to).get());
     /// If we can't find an implicit conversion and we have a constant value,
     /// we try to find an extended constant implicit conversion
-    if (kind == ConvKind::Implicit && !objConv && constantValue &&
+    if (kind == ConversionKind::Implicit && !objConv && constantValue &&
         *refConv != RefConversion::TakeAddress)
     {
         objConv = tryImplicitConstConv(constantValue,
@@ -541,99 +512,57 @@ static std::optional<
     if (!isCompatible(*refConv, *objConv)) {
         return std::nullopt;
     }
-    return std::tuple{ *refConv, *mutConv, *objConv };
+    return Conversion(from, to, *refConv, *mutConv, *objConv);
+}
+
+std::optional<Conversion> sema::computeConversion(ConversionKind kind,
+                                                  QualType from,
+                                                  QualType to) {
+    return computeConversion(kind, from, nullptr, to);
+}
+
+std::optional<Conversion> sema::computeConversion(ConversionKind kind,
+                                                  ast::Expression* expr,
+                                                  QualType to) {
+    return computeConversion(kind, expr->type(), expr->constantValue(), to);
 }
 
 /// Implementation of the `convert*` functions
-static bool convertImpl(ConvKind kind,
+static bool convertImpl(ConversionKind kind,
                         ast::Expression* expr,
                         QualType to,
                         IssueHandler* iss) {
     if (expr->type() == to) {
         return true;
     }
-    auto checkResult =
-        checkConversion(kind, expr->type(), expr->constantValue(), to);
-    if (!checkResult) {
+    auto conversion =
+        computeConversion(kind, expr->type(), expr->constantValue(), to);
+    if (!conversion) {
         if (iss) {
             iss->push<BadTypeConversion>(*expr, to);
         }
         return false;
     }
-    auto [refConv, mutConv, objConv] = *checkResult;
-    auto conv = std::make_unique<sema::Conversion>(expr->type(),
-                                                   to,
-                                                   refConv,
-                                                   mutConv,
-                                                   objConv);
-    insertConversion(expr, std::move(conv));
+    insertConversion(expr, *conversion);
     return true;
 }
 
 bool sema::convertImplicitly(ast::Expression* expr,
                              QualType to,
                              IssueHandler& issueHandler) {
-    return convertImpl(ConvKind::Implicit, expr, to, &issueHandler);
+    return convertImpl(ConversionKind::Implicit, expr, to, &issueHandler);
 }
 
 bool sema::convertExplicitly(ast::Expression* expr,
                              QualType to,
                              IssueHandler& issueHandler) {
-    return convertImpl(ConvKind::Explicit, expr, to, &issueHandler);
+    return convertImpl(ConversionKind::Explicit, expr, to, &issueHandler);
 }
 
 bool sema::convertReinterpret(ast::Expression* expr,
                               QualType to,
                               IssueHandler& issueHandler) {
-    return convertImpl(ConvKind::Reinterpret, expr, to, &issueHandler);
-}
-
-/// Implementation of the `*ConversionRank()` functions
-static std::optional<int> conversionRankImpl(ConvKind kind,
-                                             QualType from,
-                                             Value const* constantValue,
-                                             QualType to) {
-    auto conv = checkConversion(kind, from, constantValue, to);
-    if (!conv) {
-        return std::nullopt;
-    }
-    return getRank(std::get<0>(*conv), std::get<1>(*conv), std::get<2>(*conv));
-}
-
-std::optional<int> sema::implicitConversionRank(QualType from, QualType to) {
-    return implicitConversionRank(from, nullptr, to);
-}
-
-std::optional<int> sema::implicitConversionRank(QualType from,
-                                                Value const* constVal,
-                                                QualType to) {
-    return conversionRankImpl(ConvKind::Implicit, from, constVal, to);
-}
-
-std::optional<int> sema::implicitConversionRank(ast::Expression const* expr,
-                                                QualType to) {
-    return conversionRankImpl(ConvKind::Implicit,
-                              expr->type(),
-                              expr->constantValue(),
-                              to);
-}
-
-std::optional<int> sema::explicitConversionRank(QualType from, QualType to) {
-    return explicitConversionRank(from, nullptr, to);
-}
-
-std::optional<int> sema::explicitConversionRank(QualType from,
-                                                Value const* constVal,
-                                                QualType to) {
-    return conversionRankImpl(ConvKind::Explicit, from, constVal, to);
-}
-
-std::optional<int> sema::explicitConversionRank(ast::Expression const* expr,
-                                                QualType to) {
-    return conversionRankImpl(ConvKind::Explicit,
-                              expr->type(),
-                              expr->constantValue(),
-                              to);
+    return convertImpl(ConversionKind::Reinterpret, expr, to, &issueHandler);
 }
 
 bool sema::convertToExplicitRef(ast::Expression* expr,
@@ -651,7 +580,7 @@ bool sema::convertToImplicitMutRef(ast::Expression* expr,
 }
 
 void sema::dereference(ast::Expression* expr, SymbolTable& sym) {
-    bool succ = convertImpl(ConvKind::Implicit,
+    bool succ = convertImpl(ConversionKind::Implicit,
                             expr,
                             stripReference(expr->type()),
                             nullptr);
@@ -772,4 +701,23 @@ QualType sema::commonType(SymbolTable& sym,
     return commonType(sym, exprs | ranges::views::transform([](auto* expr) {
                                return expr->type();
                            }) | ranges::to<utl::small_vector<QualType>>);
+}
+
+ast::Conversion* sema::insertConversion(ast::Expression* expr,
+                                        Conversion const& conv) {
+    SC_ASSERT(expr->parent(),
+              "Can't insert a conversion if node has no parent");
+    size_t const indexInParent = expr->indexInParent();
+    auto* parent = expr->parent();
+    auto targetType = conv.targetType();
+    auto owner = allocate<ast::Conversion>(expr->extractFromParent(),
+                                           std::make_unique<Conversion>(conv));
+    auto* result = owner.get();
+    parent->setChild(indexInParent, std::move(owner));
+    auto* entity = isRef(targetType) ? expr->entity() : nullptr;
+    result->decorate(entity, targetType);
+    result->setConstantValue(
+        evalConversion(result->conversion(),
+                       result->expression()->constantValue()));
+    return result;
 }

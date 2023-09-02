@@ -78,6 +78,33 @@ private:
     ObjectTypeConversion objConv;
 };
 
+/// Different kinds of conversion, used to select appropriate conversion
+/// functions
+enum class ConversionKind {
+    Implicit,
+    Explicit,
+    Reinterpret,
+};
+
+/// Computes the conversion from \p from to \p to
+SCATHA_TESTAPI std::optional<Conversion> computeConversion(
+    ConversionKind kind,
+    QualType from,
+    Value const* fromConstantValue,
+    QualType to);
+
+/// \overload with `nullptr` as the default argument for `fromConstantValue`
+SCATHA_TESTAPI std::optional<Conversion> computeConversion(ConversionKind kind,
+                                                           QualType from,
+                                                           QualType to);
+
+/// \overload for expressions
+SCATHA_TESTAPI std::optional<Conversion> computeConversion(
+    ConversionKind kind, ast::Expression* expr, QualType to);
+
+/// Computes the rank of the conversion \p conv
+SCATHA_TESTAPI int computeRank(Conversion const& conv);
+
 /// Does nothing if `expr->type() == to`
 /// If \p expr is implicitly convertible to type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
@@ -101,32 +128,6 @@ SCATHA_TESTAPI bool convertExplicitly(ast::Expression* expr,
 SCATHA_TESTAPI bool convertReinterpret(ast::Expression* expr,
                                        QualType to,
                                        IssueHandler& issueHandler);
-
-/// \Returns The rank of the conversion if an implicit conversion from type
-/// \p from to type \p to exists. Otherwise `std::nullopt`
-SCATHA_TESTAPI std::optional<int> implicitConversionRank(QualType from,
-                                                         QualType to);
-
-/// \overload
-SCATHA_TESTAPI std::optional<int> implicitConversionRank(
-    QualType from, Value const* fromConstantValue, QualType to);
-
-/// \overload
-SCATHA_TESTAPI std::optional<int> implicitConversionRank(
-    ast::Expression const* expr, QualType to);
-
-/// \Returns The rank of the conversion if an explicit conversion from type
-/// \p from to type \p to exists. Otherwise `std::nullopt`
-SCATHA_TESTAPI std::optional<int> explicitConversionRank(QualType from,
-                                                         QualType to);
-
-/// \overload
-SCATHA_TESTAPI std::optional<int> explicitConversionRank(
-    QualType from, Value const* fromConstantValue, QualType to);
-
-/// \overload
-SCATHA_TESTAPI std::optional<int> explicitConversionRank(
-    ast::Expression const* expr, QualType to);
 
 /// Convert expression \p expr to an implicit reference
 SCATHA_TESTAPI bool convertToImplicitMutRef(ast::Expression* expr,
@@ -154,6 +155,12 @@ SCATHA_TESTAPI QualType commonType(SymbolTable& symbolTable,
 SCATHA_TESTAPI QualType
     commonType(SymbolTable& symbolTable,
                std::span<ast::Expression const* const> expressions);
+
+/// Inserts an AST conversion node into the position of \p expr and makes \p
+/// expr a child of the new node. \Returns a pointer to the added conversion
+/// node
+SCATHA_TESTAPI ast::Conversion* insertConversion(ast::Expression* expr,
+                                                 sema::Conversion const& conv);
 
 } // namespace scatha::sema
 

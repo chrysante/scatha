@@ -33,15 +33,16 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     ranges::transform(arguments, std::back_inserter(argTypes), [](auto& expr) {
         return expr->type();
     });
-    auto function = performOverloadResolution(ctorSet, argTypes, true);
-    if (!function) {
-        function.error()->setSourceRange(sourceRange);
-        iss.push(function.error());
+    auto result = performOverloadResolution(ctorSet, argTypes, true);
+    if (result.error) {
+        result.error->setSourceRange(sourceRange);
+        iss.push(std::move(result.error));
         return nullptr;
     }
-    auto result = allocate<ast::ConstructorCall>(arguments,
-                                                 function.value(),
-                                                 SpecialMemberFunction::New);
-    result->decorate(&sym.addTemporary(structType), structType);
-    return result;
+    auto ctorCall = allocate<ast::ConstructorCall>(arguments,
+                                                   result.function,
+                                                   SpecialMemberFunction::New);
+    ctorCall->decorate(&sym.addTemporary(structType), structType);
+    convertArguments(ctorCall->arguments(), result);
+    return ctorCall;
 }

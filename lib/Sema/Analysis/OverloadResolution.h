@@ -3,26 +3,50 @@
 
 #include <span>
 
+#include <range/v3/view.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
 #include "Common/Expected.h"
+#include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/OverloadResolutionError.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::sema {
 
+/// Result structure returned from `performOverloadResolution()`
+struct OverloadResolutionResult {
+    /// The selected function if overload resolution succeeded
+    Function* function;
+
+    /// The conversions required for each argument type to call selected
+    /// function
+    utl::small_vector<Conversion> conversions;
+
+    /// The error if overload resolution failed. `nullptr` otherwise
+    std::unique_ptr<OverloadResolutionError> error;
+};
+
 /// Performs overload resolution
-SCATHA_TESTAPI Expected<Function*, OverloadResolutionError*>
+SCATHA_TESTAPI OverloadResolutionResult
     performOverloadResolution(OverloadSet* overloadSet,
                               std::span<QualType const> argumentTypes,
                               bool isMemberCall);
 
 /// \overload for expressions
-SCATHA_TESTAPI Expected<Function*, OverloadResolutionError*>
+SCATHA_TESTAPI OverloadResolutionResult
     performOverloadResolution(OverloadSet* overloadSet,
                               std::span<ast::Expression const* const> arguments,
                               bool isMemberCall);
+
+/// Insert the conversions necessary to make the call to the function selected
+/// by overload resolution
+inline void convertArguments(auto&& args,
+                             OverloadResolutionResult const& orResult) {
+    for (auto [arg, conv]: ranges::views::zip(args, orResult.conversions)) {
+        insertConversion(arg, conv);
+    }
+}
 
 } // namespace scatha::sema
 

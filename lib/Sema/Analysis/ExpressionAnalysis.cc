@@ -351,12 +351,12 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     auto* overloadSet = cast<OverloadSet*>(ma.member()->entity());
     auto funcRes =
         performOverloadResolution(overloadSet, std::array{ ma.object() }, true);
-    if (!funcRes) {
-        funcRes.error()->setSourceRange(ma.sourceRange());
-        iss.push(funcRes.error());
+    if (funcRes.error) {
+        funcRes.error->setSourceRange(ma.sourceRange());
+        iss.push(std::move(funcRes.error));
         return false;
     }
-    auto* func = *funcRes;
+    auto* func = funcRes.function;
     utl::small_vector<UniquePtr<ast::Expression>> args;
     args.push_back(ma.extractObject());
     auto call = allocate<ast::FunctionCall>(ma.extractMember(),
@@ -393,7 +393,7 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
         }
         auto* refType =
             sym.explRef(stripReference(referred->type()).toMutability(mutQual));
-        if (!explicitConversionRank(referred, refType)) {
+        if (!computeConversion(ConversionKind::Explicit, referred, refType)) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return false;
         }
@@ -589,36 +589,18 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
         overloadSet,
         fc.arguments() | ranges::to<utl::small_vector<ast::Expression const*>>,
         isMemberCall);
-    if (!result) {
-        auto* error = result.error();
-        error->setSourceRange(fc.sourceRange());
-        iss.push(error);
+    if (result.error) {
+        result.error->setSourceRange(fc.sourceRange());
+        iss.push(std::move(result.error));
         return false;
     }
-    auto* function = result.value();
+    auto* function = result.function;
     fc.decorate(function,
                 makeRefImplicit(function->returnType()),
                 ValueCategory::RValue);
 
     /// We issue conversions for our arguments as necessary
-    for (auto [index, arg, targetType]:
-         ranges::views::zip(ranges::views::iota(0),
-                            fc.arguments(),
-                            function->argumentTypes()))
-    {
-        [[maybe_unused]] bool success = true;
-        if (index == 0 && isMemberCall) {
-            success = convertExplicitly(arg, makeRefImplicit(targetType), iss);
-        }
-        else {
-            success = convertImplicitly(arg, targetType, iss);
-        }
-        SC_ASSERT(
-            success,
-            "Called function should not have been selected by overload "
-            "resolution if the implicit conversion of the argument fails");
-    }
-
+    convertArguments(fc.arguments(), result);
     return true;
 }
 

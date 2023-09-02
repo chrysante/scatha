@@ -14,6 +14,7 @@ using namespace sema;
 ///  \returns The maximum conversion rank if all arguments are convertible to
 /// the parameters  `std::nullopt` otherwise
 static std::optional<int> signatureMatch(
+    OverloadResolutionResult& result,
     std::span<QualType const> argTypes,
     std::span<Value const* const> constantArgs,
     std::span<QualType const> paramTypes,
@@ -32,74 +33,83 @@ static std::optional<int> signatureMatch(
         if (!paramType || !argType) {
             return std::nullopt;
         }
-        auto const rank =
-            isMemberCall && index == 0 ?
-                explicitConversionRank(argType, constArg, paramType) :
-                implicitConversionRank(argType, constArg, paramType);
-        if (!rank) {
+        using enum ConversionKind;
+        auto convKind = isMemberCall && index == 0 ? Explicit : Implicit;
+        auto conversion =
+            computeConversion(convKind, argType, constArg, paramType);
+        if (!conversion) {
             return std::nullopt;
         }
-        maxRank = std::max(maxRank, *rank);
+        result.conversions.push_back(*conversion);
+        int rank = computeRank(*conversion);
+        maxRank = std::max(maxRank, rank);
     }
     return maxRank;
 }
 
-namespace {
+template <typename Error, typename... Args>
+static OverloadResolutionResult makeError(Args&&... args) {
+    OverloadResolutionResult result{};
+    result.error = std::make_unique<Error>(std::forward<Args>(args)...);
+    return result;
+}
 
-struct Match {
-    Function* function;
-    int rank;
-};
-
-} // namespace
-
-static Expected<Function*, OverloadResolutionError*> performORImpl(
+static OverloadResolutionResult performORImpl(
     OverloadSet* overloadSet,
     std::span<QualType const> argTypes,
     std::span<Value const* const> constArgs,
     bool isMemberCall) {
-    utl::small_vector<Match> matches;
+    utl::small_vector<OverloadResolutionResult, 4> matches;
+    /// Contains ranks and the index of the matching result structure in
+    /// `matches`
+    struct RankIndexPair {
+        int rank;
+        uint32_t index;
+    };
+    utl::small_vector<RankIndexPair> ranks;
     for (auto* F: *overloadSet) {
-        auto rank = signatureMatch(argTypes,
+        OverloadResolutionResult match{ .function = F };
+        auto rank = signatureMatch(match,
+                                   argTypes,
                                    constArgs,
                                    F->argumentTypes(),
                                    isMemberCall);
         if (rank) {
-            matches.push_back({ F, *rank });
+            ranks.push_back(
+                { *rank, utl::narrow_cast<uint32_t>(matches.size()) });
+            matches.push_back(std::move(match));
         }
     }
     if (matches.empty()) {
-        return new NoMatchingFunction(overloadSet);
+        return makeError<NoMatchingFunction>(overloadSet);
     }
     if (matches.size() == 1) {
-        return matches.front().function;
+        return std::move(matches.front());
     }
-    ranges::sort(matches, ranges::less{}, [](Match match) {
-        return match.rank;
+    ranges::sort(ranks, ranges::less{}, [](auto pair) { return pair.rank; });
+    int const lowestRank = ranks.front().rank;
+    auto firstHigherRank = ranges::find_if(ranks, [=](auto pair) {
+        return pair.rank != lowestRank;
     });
-    int const lowestRank = matches.front().rank;
-    auto firstHigherRank = ranges::find_if(matches, [=](Match match) {
-        return match.rank != lowestRank;
-    });
-    matches.erase(firstHigherRank, matches.end());
+    ranks.erase(firstHigherRank, ranks.end());
 
-    switch (matches.size()) {
+    switch (ranks.size()) {
     case 0:
-        return new NoMatchingFunction(overloadSet);
+        return makeError<NoMatchingFunction>(overloadSet);
     case 1:
-        return matches.front().function;
+        return std::move(matches[ranks.front().index]);
     default: {
-        auto functions = matches | ranges::views::transform([](Match match) {
+        auto functions = matches | ranges::views::transform([](auto& match) {
                              return match.function;
                          }) |
                          ranges::to<utl::small_vector<Function*>>;
-        return new AmbiguousOverloadResolution(overloadSet,
-                                               std::move(functions));
+        return makeError<AmbiguousOverloadResolution>(overloadSet,
+                                                      std::move(functions));
     }
     }
 }
 
-Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
+OverloadResolutionResult sema::performOverloadResolution(
     OverloadSet* overloadSet,
     std::span<QualType const> argTypes,
     bool isMemberCall) {
@@ -110,7 +120,7 @@ Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
 }
 
 /// \overload for expressions
-Expected<Function*, OverloadResolutionError*> sema::performOverloadResolution(
+OverloadResolutionResult sema::performOverloadResolution(
     OverloadSet* overloadSet,
     std::span<ast::Expression const* const> arguments,
     bool isMemberCall) {

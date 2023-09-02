@@ -19,23 +19,33 @@ TEST_CASE("Implicit conversion rank", "[sema]") {
                               SourceRange{});
     SECTION("1") {
         expr.decorate(nullptr, sym.U16());
-        CHECK(implicitConversionRank(&expr, sym.U16()).value() == 0);
+        auto conv =
+            computeConversion(ConversionKind::Implicit, &expr, sym.U16());
+        CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("2") {
         expr.decorate(nullptr, sym.S64());
-        CHECK(implicitConversionRank(&expr, sym.S64()).value() == 0);
+        auto conv =
+            computeConversion(ConversionKind::Implicit, &expr, sym.S64());
+        CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("3") {
         expr.decorate(nullptr, sym.U16());
-        CHECK(implicitConversionRank(&expr, sym.S32()).value() == 1);
+        auto conv =
+            computeConversion(ConversionKind::Implicit, &expr, sym.S32());
+        CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("4") {
         expr.decorate(nullptr, sym.U16());
-        CHECK(implicitConversionRank(&expr, sym.U32()).value() == 1);
+        auto conv =
+            computeConversion(ConversionKind::Implicit, &expr, sym.U32());
+        CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("5") {
         expr.decorate(nullptr, sym.S16());
-        CHECK(!implicitConversionRank(&expr, sym.U32()));
+        auto conv =
+            computeConversion(ConversionKind::Implicit, &expr, sym.U32());
+        CHECK(!conv);
     }
 }
 
