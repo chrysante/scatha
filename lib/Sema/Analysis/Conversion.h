@@ -70,6 +70,9 @@ public:
     /// The object conversion kind
     ObjectTypeConversion objectConversion() const { return objConv; }
 
+    /// \Returns `true` if all of the specified conversions are `None`
+    bool isNoop() const;
+
 private:
     QualType from;
     QualType to;

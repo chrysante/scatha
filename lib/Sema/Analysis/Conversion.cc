@@ -48,6 +48,12 @@ std::ostream& sema::operator<<(std::ostream& ostream,
     return ostream << toString(conv);
 }
 
+bool Conversion::isNoop() const {
+    return refConversion() == RefConversion::None &&
+           mutConversion() == MutConversion::None &&
+           objectConversion() == ObjectTypeConversion::None;
+}
+
 static std::optional<ObjectTypeConversion> implicitIntConversion(
     IntType const& from, IntType const& to) {
     using enum ObjectTypeConversion;
@@ -532,9 +538,6 @@ static bool convertImpl(ConversionKind kind,
                         ast::Expression* expr,
                         QualType to,
                         IssueHandler* iss) {
-    if (expr->type() == to) {
-        return true;
-    }
     auto conversion =
         computeConversion(kind, expr->type(), expr->constantValue(), to);
     if (!conversion) {
@@ -543,7 +546,9 @@ static bool convertImpl(ConversionKind kind,
         }
         return false;
     }
-    insertConversion(expr, *conversion);
+    if (!conversion->isNoop()) {
+        insertConversion(expr, *conversion);
+    }
     return true;
 }
 

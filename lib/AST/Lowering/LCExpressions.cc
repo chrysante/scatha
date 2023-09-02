@@ -286,7 +286,7 @@ Value LoweringContext::getValueImpl(BinaryExpression const& expr) {
         auto lhsReg = toRegister(lhs);
         auto rhsReg = toRegister(rhs);
         if (expr.operation() != Assignment) {
-            SC_ASSERT(builtinType == expr.rhs()->type(), "");
+            SC_ASSERT(builtinType == expr.rhs()->type().get(), "");
             auto* lhsValue = add<ir::Load>(lhsReg, mapType(builtinType), "lhs");
             auto operation =
                 mapArithmeticAssignOp(builtinType, expr.operation());

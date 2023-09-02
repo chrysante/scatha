@@ -138,6 +138,8 @@ OverloadResolutionResult sema::performOverloadResolution(
 void sema::convertArguments(std::span<ast::Expression* const> args,
                             OverloadResolutionResult const& orResult) {
     for (auto [arg, conv]: ranges::views::zip(args, orResult.conversions)) {
-        insertConversion(arg, conv);
+        if (!conv.isNoop()) {
+            insertConversion(arg, conv);
+        }
     }
 }

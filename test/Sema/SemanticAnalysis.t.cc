@@ -41,7 +41,7 @@ fn mul(a: int, b: int, c: double) -> int {
     CHECK(result->type().get() == sym.S64());
 }
 
-TEST_CASE("Decoration of the AST") {
+TEST_CASE("Decoration of the AST", "[sema]") {
     auto const text = R"(
 fn mul(a: int, b: int, c: double, d: byte) -> int {
 	let result = a;
@@ -70,8 +70,7 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     CHECK(fn->parameter(3)->type().get() == sym.Byte());
     auto* varDecl = fn->body()->statement<VariableDeclaration>(0);
     CHECK(varDecl->type().get() == sym.S64());
-    auto* varDeclInit = cast<ast::Conversion*>(varDecl->initExpression())
-                            ->expression<Identifier>();
+    auto* varDeclInit = cast<ast::Identifier*>(varDecl->initExpression());
     CHECK(varDeclInit->type().get() == sym.S64());
     CHECK(varDeclInit->valueCategory() == ValueCategory::LValue);
     auto* nestedScope = fn->body()->statement<CompoundStatement>(1);
@@ -80,23 +79,19 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     CHECK(nestedvarDeclInit->valueCategory() == ValueCategory::RValue);
     auto* xDecl = fn->body()->statement<VariableDeclaration>(2);
     CHECK(xDecl->type().get() == sym.S64());
-    auto* intLit =
-        cast<ast::Conversion*>(xDecl->initExpression())->expression<Literal>();
+    auto* intLit = cast<ast::Literal*>(xDecl->initExpression());
     CHECK(intLit->value<APInt>() == 39);
     CHECK(intLit->valueCategory() == ValueCategory::RValue);
     auto* zDecl = fn->body()->statement<VariableDeclaration>(3);
     CHECK(zDecl->type().get() == sym.S64());
-    auto* intHexLit =
-        cast<ast::Conversion*>(zDecl->initExpression())->expression<Literal>();
+    auto* intHexLit = cast<ast::Literal*>(zDecl->initExpression());
     CHECK(intHexLit->value<APInt>() == 0x39E);
     auto* yDecl = fn->body()->statement<VariableDeclaration>(4);
     CHECK(yDecl->type().get() == sym.F64());
-    auto* floatLit =
-        cast<ast::Conversion*>(yDecl->initExpression())->expression<Literal>();
+    auto* floatLit = cast<ast::Literal*>(yDecl->initExpression());
     CHECK(floatLit->value<APFloat>().to<f64>() == 1.2);
     auto* ret = fn->body()->statement<ReturnStatement>(5);
-    auto* retIdentifier =
-        cast<ast::Conversion*>(ret->expression())->expression<Identifier>();
+    auto* retIdentifier = cast<ast::Identifier*>(ret->expression());
     CHECK(retIdentifier->type().get() == sym.S64());
     CHECK(retIdentifier->valueCategory() == ValueCategory::LValue);
 }
@@ -122,8 +117,7 @@ fn callee(a: float, b: int, c: bool) -> float { return 0.0; }
     auto* caller = tu->declaration<FunctionDefinition>(0);
     auto* resultDecl = caller->body()->statement<VariableDeclaration>(0);
     CHECK(resultDecl->initExpression()->type().get() == sym.F32());
-    auto* fnCallExpr = cast<ast::Conversion*>(resultDecl->initExpression())
-                           ->expression<FunctionCall>();
+    auto* fnCallExpr = cast<ast::FunctionCall*>(resultDecl->initExpression());
     auto const& calleeOverloadSet = sym.lookup<OverloadSet>("callee");
     REQUIRE(calleeOverloadSet);
     auto* calleeFunction = calleeOverloadSet->front();
