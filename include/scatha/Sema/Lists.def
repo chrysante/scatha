@@ -52,6 +52,21 @@ SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(Delete, "delete")
 #undef SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF
 
 // ===--------------------------------------------------------------------=== //
+// === List of all special lifetime functions ----------------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF
+#   define SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(Name)
+#endif
+
+SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(DefaultConstructor)
+SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(CopyConstructor)
+SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(MoveConstructor)
+SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(Destructor)
+
+#undef SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF
+
+// ===--------------------------------------------------------------------=== //
 // === List of all constant kinds ----------------------------------------=== //
 // ===--------------------------------------------------------------------=== //
 

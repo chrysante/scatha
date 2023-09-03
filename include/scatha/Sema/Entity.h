@@ -1,6 +1,7 @@
 #ifndef SCATHA_SEMA_ENTITY_H_
 #define SCATHA_SEMA_ENTITY_H_
 
+#include <array>
 #include <concepts>
 #include <span>
 #include <string>
@@ -16,6 +17,35 @@
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Fwd.h>
 #include <scatha/Sema/QualType.h>
+
+/// Class hierarchy of `Entity`
+///
+/// ```
+/// Entity
+/// ├─ Object
+/// │  ├─ Variable
+/// │  └─ Temporary
+/// ├─ OverloadSet
+/// ├─ Generic
+/// ├─ Scope
+/// │  ├─ GlobalScope
+/// │  ├─ AnonymousScope
+/// │  ├─ Function
+/// │  └─ Type
+/// │     ├─ ObjectType
+/// │     │  ├─ BuiltinType
+/// │     │  │  ├─ VoidType
+/// │     │  │  └─ ArithmeticType
+/// │     │  │     ├─ BoolType
+/// │     │  │     ├─ ByteType
+/// │     │  │     ├─ IntType
+/// │     │  │     └─ FloatType
+/// │     │  ├─ StructureType
+/// │     │  ├─ ArrayType
+/// │     │  └─ ReferenceType
+/// │     └─ FunctionType [??, does not exist]
+/// └─ PoisonEntity
+/// ```
 
 namespace scatha::sema {
 
@@ -604,6 +634,11 @@ public:
         return nullptr;
     }
 
+    ///
+    Function* specialLifetimeFunction(SpecialLifetimeFunction kind) const {
+        return specialLifetimeFunctions[static_cast<size_t>(kind)];
+    }
+
 private:
     friend class ObjectType;
     /// Structure type has trivial lifetime if no user defined copy constructor,
@@ -614,6 +649,8 @@ private:
 
     utl::small_vector<Variable*> _memberVars;
     utl::hashmap<SpecialMemberFunction, OverloadSet*> specialMemberFunctions;
+    std::array<Function*, static_cast<size_t>(SpecialLifetimeFunction::COUNT)>
+        specialLifetimeFunctions = {};
     mutable bool _computedTriviality : 1 = false;
     mutable bool _hasTrivialLifetime : 1 = false;
 };
