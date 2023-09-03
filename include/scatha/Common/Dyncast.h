@@ -17,6 +17,7 @@ using utl::cast_or_null;
 using utl::dyncast;
 using utl::dyncast_or_null;
 using utl::isa;
+using utl::isa_or_null;
 using utl::visit;
 
 } // namespace scatha
