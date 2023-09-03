@@ -1,6 +1,9 @@
 #ifndef SCATHA_AST_LOWERING_VALUELOCATION_H_
 #define SCATHA_AST_LOWERING_VALUELOCATION_H_
 
+#include <iosfwd>
+#include <string_view>
+
 #include <utl/hash.hpp>
 
 #include "Common/Base.h"
@@ -10,6 +13,12 @@
 namespace scatha::ast {
 
 enum class ValueLocation : uint8_t { Register, Memory };
+
+/// Convert to string
+std::string_view toString(ValueLocation);
+
+/// Print to ostream
+std::ostream& operator<<(std::ostream& ostream, ValueLocation);
 
 /// Represents an abstract value that is either in a register or in memory
 class Value {

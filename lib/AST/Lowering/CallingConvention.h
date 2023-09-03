@@ -1,6 +1,7 @@
 #ifndef SCATHA_AST_LOWERING_CALLINGCONVENTION_H_
 #define SCATHA_AST_LOWERING_CALLINGCONVENTION_H_
 
+#include <iosfwd>
 #include <span>
 
 #include <range/v3/view.hpp>
@@ -30,6 +31,9 @@ private:
     ValueLocation _loc;
     uint16_t _numParams;
 };
+
+/// Print \p PC to \p ostream
+std::ostream& operator<<(std::ostream& ostream, PassingConvention PC);
 
 /// Description of how a function expects its arguments and return value to be
 /// passed
@@ -61,6 +65,12 @@ public:
 private:
     utl::small_vector<PassingConvention> _args;
 };
+
+/// Print \p CC to \p str
+void print(CallingConvention const& CC, std::ostream& str);
+
+/// Print \p CC to `std::cout`
+void print(CallingConvention const& CC);
 
 } // namespace scatha::ast
 
