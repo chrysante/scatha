@@ -24,7 +24,7 @@ static void gatherParentDestructorsImpl(ast::Statement& stmt, auto condition) {
          parentScope = dyncast<ast::Statement*>(parentScope->parent()))
     {
         for (auto dtorCall: parentScope->dtorStack() | ranges::views::reverse) {
-            stmt.dtorStack().push(dtorCall);
+            stmt.pushDtor(dtorCall);
         }
     }
 }
@@ -264,7 +264,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     if (!varObj.type().isMutable() && var.initExpression()) {
         varObj.setConstantValue(clone(var.initExpression()->constantValue()));
     }
-    cast<ast::Statement*>(var.parent())->dtorStack().push(&varObj);
+    cast<ast::Statement*>(var.parent())->pushDtor(&varObj);
 }
 
 void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
@@ -397,7 +397,7 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
     sym.pushScope(stmt.block()->scope());
     if (stmt.varDecl()) {
         analyze(*stmt.varDecl());
-        stmt.dtorStack() = stmt.varDecl()->dtorStack();
+        stmt.copyDtorsStack(*stmt.varDecl());
     }
     if (analyzeExpr(*stmt.condition(), stmt.conditionDtorStack())) {
         convertImplicitly(stmt.condition(), sym.Bool(), &iss);

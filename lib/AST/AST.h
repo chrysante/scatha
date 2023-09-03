@@ -680,11 +680,21 @@ public:
 
     AST_DERIVED_COMMON(Statement)
 
-    /// \Returns the destructor stack associated with this statement
-    sema::DTorStack& dtorStack() { return _dtorStack; }
+    /// Push an object to the stack of destructors to execute after this
+    /// statement
+    void pushDtor(sema::Object* object) { _dtorStack.push(object); }
 
     /// \overload
+    void pushDtor(sema::DestructorCall dtorCall) { _dtorStack.push(dtorCall); }
+
+    /// Copy the dtor stack from \p rhs
+    void copyDtorsStack(Statement& rhs) { _dtorStack = rhs.dtorStack(); }
+
+    /// \Returns the destructor stack associated with this statement
     sema::DTorStack const& dtorStack() const { return _dtorStack; }
+
+    /// \overload
+    sema::DTorStack& dtorStack() { return _dtorStack; }
 
 private:
     sema::DTorStack _dtorStack;

@@ -70,7 +70,7 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
     ctorCall->decorate(&sym.addTemporary(structType), structType);
     if (issueDestructorCall) {
         auto* parentStmt = parentStatement(parent);
-        parentStmt->dtorStack().push(ctorCall->object());
+        parentStmt->pushDtor(ctorCall->object());
     }
     auto* result = ctorCall.get();
     parent->setChild(index, std::move(ctorCall));
