@@ -9,8 +9,8 @@
 #include "AST/Fwd.h"
 #include "Common/Expected.h"
 #include "Sema/Analysis/Conversion.h"
-#include "Sema/Analysis/OverloadResolutionError.h"
 #include "Sema/Fwd.h"
+#include "Sema/SemanticIssue.h"
 
 namespace scatha::sema {
 

@@ -191,3 +191,15 @@ std::ostream& sema::operator<<(std::ostream& str, InvalidListExpr::Reason r) {
 void InvalidNameLookup::format(std::ostream& str) const {
     str << "Invalid name lookup";
 }
+
+OverloadResolutionError::OverloadResolutionError(
+    OverloadSet const* overloadSet):
+    SemanticIssue(SourceLocation{}, IssueSeverity::Error), os(overloadSet) {}
+
+void NoMatchingFunction::format(std::ostream& str) const {
+    str << "No matching function for call to '" << overloadSet()->name() << "'";
+}
+
+void AmbiguousOverloadResolution::format(std::ostream& str) const {
+    str << "Ambiguous call to '" << overloadSet()->name() << "'";
+}
