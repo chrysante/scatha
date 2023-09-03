@@ -376,8 +376,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
                                                   intConstant(0, 64),
                                                   std::array{ irIndex + 1 },
                                                   "mem.acc.size");
-        auto* accessedType = mapType(var->type());
-        size = Value(newID(), result, accessedType, Memory);
+        size = Value(newID(), result, ctx.integralType(64), Memory);
         break;
     }
     }
@@ -781,13 +780,16 @@ Value LoweringContext::getValueImpl(ConstructorCall const& call) {
         auto* type = mapType(call.constructedType());
         auto* address = makeLocal(type, "anon");
         auto* function = getFunction(call.function());
-        auto CC = CCMap[call.function()];
+        auto CCItr = CCMap.find(call.function());
+        SC_ASSERT(CCItr != CCMap.end(), "");
+        auto const& CC = CCItr->second;
         /// Lifetime function always must take the object parameter by reference
         /// so we can just pass the pointer here
         utl::small_vector<ir::Value*> arguments = { address };
-        for (auto [PC, arg]:
-             ranges::views::zip(CC.arguments(), call.arguments()))
-        {
+        auto PCsAndArgs =
+            ranges::views::zip(CC.arguments() | ranges::views::drop(1),
+                               call.arguments());
+        for (auto [PC, arg]: PCsAndArgs) {
             generateArgument(PC, getValue(arg), arguments);
         }
         memorizeObject(call.object(), Value(newID(), address, type, Memory));
