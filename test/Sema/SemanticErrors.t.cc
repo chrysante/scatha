@@ -1,6 +1,5 @@
 #include <Catch/Catch2.hpp>
 
-#include "Sema/Analysis/OverloadResolutionError.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "test/IssueHelper.h"

@@ -368,6 +368,7 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     QualType type = makeRefImplicit(func->returnType());
     auto* temp = &sym.addTemporary(type);
     call->decorate(temp, type, func);
+    parentStatement(&ma)->dtorStack().push(temp);
     bool const convSucc =
         convertExplicitly(call->argument(0),
                           makeRefImplicit(func->argumentType(0)),
@@ -377,7 +378,6 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
 
     /// Now `ma` goes out of scope
     ma.parent()->replaceChild(&ma, std::move(call));
-    parentStatement(&ma)->dtorStack().push(temp);
     return true;
 }
 
