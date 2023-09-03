@@ -11,7 +11,7 @@
 using namespace scatha;
 using namespace ast;
 
-[[nodiscard]] SCATHA_API std::pair<ir::Context, ir::Module> ast::lowerToIR(
+[[nodiscard]] std::pair<ir::Context, ir::Module> ast::lowerToIR(
     ASTNode const& root,
     sema::SymbolTable const& symbolTable,
     sema::AnalysisResult const& analysisResult) {

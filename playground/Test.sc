@@ -47,10 +47,21 @@ struct X {
     var value: int;
 }
 
+struct ScopeGuard {
+    fn new(&mut this, text: &str) {
+        this.text = &text;
+    }
+    fn delete(&mut this) {
+        print(&this.text);
+    }
+    var text: &str;
+}
+
 fn take(x: X) -> X {
     print("took X(");
     print(x.value);
     print(")\n");
+    var guard = ScopeGuard("Leaving take()\n");
     return x;
 }
 
@@ -77,9 +88,9 @@ public fn main() -> int {
     //}
     //var z = X(3);
     
-    return take(take(X(1))).value;
+    
+    take(take(X(1)));
 }
-
 
 fn print(text: &str) {
     __builtin_putstr(&text);
@@ -88,3 +99,4 @@ fn print(text: &str) {
 fn print(n: int) {
     __builtin_puti64(n);
 }
+

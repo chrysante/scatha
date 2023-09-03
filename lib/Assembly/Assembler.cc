@@ -113,7 +113,7 @@ AssemblerResult Asm::assemble(AssemblyStream const& astr) {
         .textOffset = sizeof(svm::ProgramHeader) + dataSection.size(),
         .startAddress = ctx.startAddress
     };
-    result.program.resize(sizeof(svm::ProgramHeader) + header.size);
+    result.program.resize(header.size);
     std::memcpy(result.program.data(), &header, sizeof(header));
     std::memcpy(result.program.data() + header.dataOffset,
                 astr.dataSection().data(),
