@@ -162,8 +162,11 @@ bool sema::convertArguments(ast::CallLike& fc,
         if (!conv.isNoop()) {
             arg = insertConversion(arg, conv);
         }
-        /// If our argument is a struct type (and not a reference to one) we
-        /// need to call the copy constructor if there is one
+        /// If our argument is an lvalue of struct type  we need to call the
+        /// copy constructor if there is one
+        if (!arg->isLValue()) {
+            continue;
+        }
         auto structType = dyncast<StructureType const*>(arg->type().get());
         if (!structType) {
             continue;

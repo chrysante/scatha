@@ -5,7 +5,7 @@ fn printVal(x: &X) {
         print("]");
 }
 
-// struct Y { var x: X; }
+struct Y { var x: X; }
 
 struct X {
     /// Default constructor
@@ -47,8 +47,11 @@ struct X {
     var value: int;
 }
 
-fn take(x: X) {
-
+fn take(x: X) -> X {
+    print("took X(");
+    print(x.value);
+    print(")\n");
+    return x;
 }
 
 public fn main() -> int {
@@ -74,8 +77,7 @@ public fn main() -> int {
     //}
     //var z = X(3);
     
-    let x = X(1);
-    take(x);
+    return take(take(X(1))).value;
 }
 
 
