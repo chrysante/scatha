@@ -87,7 +87,7 @@ static void run(ir::Module const& mod) {
     run(assembly);
 }
 
-static void run(mir::Module const& mod) {
+[[maybe_unused]] static void run(mir::Module const& mod) {
     auto assembly = cg::lowerToASM(mod);
     header("Assembly");
     Asm::print(assembly);

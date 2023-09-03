@@ -68,9 +68,9 @@ struct std::hash<InvariantKey> {
     size_t operator()(InvariantKey const& inv) const { return inv.hashValue(); }
 };
 
-static bool compareSigned(CompareOperation op,
-                          APInt const& lhs,
-                          APInt const& rhs) {
+[[maybe_unused]] static bool compareSigned(CompareOperation op,
+                                           APInt const& lhs,
+                                           APInt const& rhs) {
     switch (op) {
     case Less:
         return scmp(lhs, rhs) < 0;
@@ -89,9 +89,9 @@ static bool compareSigned(CompareOperation op,
     }
 }
 
-static bool compareUnsigned(CompareOperation op,
-                            APInt const& lhs,
-                            APInt const& rhs) {
+[[maybe_unused]] static bool compareUnsigned(CompareOperation op,
+                                             APInt const& lhs,
+                                             APInt const& rhs) {
     switch (op) {
     case Less:
         return ucmp(lhs, rhs) < 0;
@@ -110,9 +110,9 @@ static bool compareUnsigned(CompareOperation op,
     }
 }
 
-static bool compareFloat(CompareOperation op,
-                         APFloat const& lhs,
-                         APFloat const& rhs) {
+[[maybe_unused]] static bool compareFloat(CompareOperation op,
+                                          APFloat const& lhs,
+                                          APFloat const& rhs) {
     switch (op) {
     case Less:
         return cmp(lhs, rhs) < 0;
@@ -131,11 +131,10 @@ static bool compareFloat(CompareOperation op,
     }
 }
 
-#if 0
-static bool compare(CompareMode mode,
-                    CompareOperation op,
-                    Constant const* lhs,
-                    Constant const* rhs) {
+[[maybe_unused]] static bool compare(CompareMode mode,
+                                     CompareOperation op,
+                                     Constant const* lhs,
+                                     Constant const* rhs) {
     switch (mode) {
     case Signed:
         return compareSigned(op,
@@ -153,7 +152,6 @@ static bool compare(CompareMode mode,
         SC_UNREACHABLE();
     }
 }
-#endif
 
 namespace {
 
