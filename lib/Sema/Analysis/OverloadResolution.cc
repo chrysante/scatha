@@ -8,6 +8,7 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/Lifetime.h"
 #include "Sema/Entity.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace sema;
@@ -161,37 +162,31 @@ bool sema::convertArguments(ast::CallLike& fc,
         if (!conv.isNoop()) {
             arg = insertConversion(arg, conv);
         }
+        /// If our argument is a struct type (and not a reference to one) we
+        /// need to call the copy constructor if there is one
         auto structType = dyncast<StructureType const*>(arg->type().get());
         if (!structType) {
             continue;
         }
-        /// If our argument is a struct type (and not a reference to one) we
-        /// need to call the copy constructor if there is one
-        using enum SpecialMemberFunction;
-        /// But only if we have constructors. This is a super hacky and
-        /// incorrect solution but should work for now.
-        if (!structType->specialMemberFunction(New)) {
+        using enum SpecialLifetimeFunction;
+        auto* copyCtor = structType->specialLifetimeFunction(CopyConstructor);
+        if (!copyCtor) {
             continue;
         }
-        arg = convertToExplicitRef(arg, sym, iss);
-        if (!arg) {
-            success = false;
-            continue;
-        }
+        arg = convertExplicitly(arg,
+                                sym.explRef(QualType::Const(structType)),
+                                iss);
+        auto sourceRange = arg->sourceRange();
         auto ctorCall =
-            makeConstructorCall(structType,
-                                toSmallVector(arg->extractFromParent()),
-                                sym,
-                                iss,
-                                arg->sourceRange());
-        success &= !!ctorCall;
-        if (!success) {
-            continue;
-        }
-        arg = ctorCall.get();
-        fc.setArgument(utl::narrow_cast<size_t>(index), std::move(ctorCall));
+            allocate<ast::ConstructorCall>(toSmallVector(
+                                               arg->extractFromParent()),
+                                           sourceRange,
+                                           copyCtor,
+                                           SpecialMemberFunction::New);
+        ctorCall->decorate(&sym.addTemporary(structType), structType);
         auto* parentStmt = parentStatement(&fc);
-        parentStmt->dtorStack().push(arg->object());
+        parentStmt->dtorStack().push(ctorCall->object());
+        fc.setArgument(utl::narrow_cast<size_t>(index), std::move(ctorCall));
     }
     return success;
 }

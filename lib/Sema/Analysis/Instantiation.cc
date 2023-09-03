@@ -316,7 +316,7 @@ QualType Context::analyzeParameter(ast::ParameterDeclaration& param,
 
 static bool isRefTo(QualType type, QualType referred) {
     if (auto* refType = dyncast<ReferenceType const*>(type.get())) {
-        return refType->base().get() == referred;
+        return refType->base() == referred;
     }
     return false;
 }

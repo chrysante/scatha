@@ -69,6 +69,14 @@ public:
     /// Test for equality
     bool operator==(QualType const&) const = default;
 
+    /// We explicitly disable comparisons between raw type pointers and
+    /// `QualType`, because they would trigger an implicit conversion of the raw
+    /// pointer to `QualType` and then the comparison fails if the mutability
+    /// does not match. If comparison of mutability is desired, the qual type
+    /// will have to be explicitly constructed, otherwise the raw type pointers
+    /// can be compared with `.get()`
+    bool operator==(ObjectType const*) const = delete;
+
     ///
     size_t hashValue() const { return utl::hash_combine(_type, _mut); }
 

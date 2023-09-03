@@ -5,7 +5,7 @@ fn printVal(x: &X) {
         print("]");
 }
 
-struct Y { var x: X; }
+// struct Y { var x: X; }
 
 struct X {
     /// Default constructor

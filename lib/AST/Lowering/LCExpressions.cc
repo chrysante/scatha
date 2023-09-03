@@ -543,7 +543,7 @@ bool LoweringContext::genStaticListData(ListExpression const& list,
     utl::small_vector<u8> data;
     data.reserve(type->size());
     for (auto* expr: list.elements()) {
-        SC_ASSERT(elemType == expr->type(), "Invalid type");
+        SC_ASSERT(elemType == expr->type().get(), "Invalid type");
         if (!evalConstant(expr, data)) {
             return false;
         }
