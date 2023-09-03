@@ -3,9 +3,10 @@
 
 #include <span>
 
+#include "AST/Fwd.h"
 #include "Common/Base.h"
 #include "Issue/IssueHandler.h"
-#include "Sema/Analysis/DependencyGraph.h"
+#include "Sema/Analysis/StructDependencyGraph.h"
 
 namespace scatha::sema {
 
@@ -18,7 +19,7 @@ class SymbolTable;
 SCATHA_API void analyzeFunctionBodies(
     SymbolTable& symbolTable,
     IssueHandler& issueHandler,
-    std::span<DependencyGraphNode const> functions);
+    std::span<ast::FunctionDefinition* const> functions);
 
 } // namespace scatha::sema
 

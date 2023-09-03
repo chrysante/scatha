@@ -12,6 +12,8 @@
 using namespace scatha;
 using namespace scatha::sema;
 
+static constexpr size_t InvalidIndex = ~size_t{};
+
 namespace {
 
 /// Gathers all declarations and declares them in the symbol table. Also
@@ -30,18 +32,19 @@ struct Context {
 
     SymbolTable& sym;
     IssueHandler& iss;
-    DependencyGraph& dependencyGraph;
+    StructDependencyGraph& dependencyGraph;
+    std::vector<ast::FunctionDefinition*>& functions;
 };
 
 } // namespace
 
-DependencyGraph scatha::sema::gatherNames(SymbolTable& sym,
-                                          ast::ASTNode& root,
-                                          IssueHandler& iss) {
-    DependencyGraph dependencyGraph;
-    Context ctx{ sym, iss, dependencyGraph };
+GatherNamesResult scatha::sema::gatherNames(SymbolTable& sym,
+                                            ast::ASTNode& root,
+                                            IssueHandler& iss) {
+    GatherNamesResult result;
+    Context ctx{ sym, iss, result.structs, result.functions };
     ctx.dispatch(root);
-    return dependencyGraph;
+    return result;
 }
 
 size_t Context::dispatch(ast::ASTNode& node) {
@@ -52,7 +55,7 @@ size_t Context::gather(ast::TranslationUnit& tu) {
     for (auto* decl: tu.declarations()) {
         dispatch(*decl);
     }
-    return invalidIndex;
+    return InvalidIndex;
 }
 
 size_t Context::gather(ast::FunctionDefinition& funcDef) {
@@ -72,13 +75,14 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
         sym.declareFunction(std::string(funcDef.name()));
     if (!declResult.hasValue()) {
         iss.push(declResult.error()->setStatement(funcDef));
-        return invalidIndex;
+        return InvalidIndex;
     }
     auto& func = *declResult;
     funcDef.Declaration::decorate(&func);
     funcDef.body()->decorate(&func);
     /// Now add this function definition to the dependency graph
-    return dependencyGraph.add({ .entity = &func, .astNode = &funcDef });
+    functions.push_back(&funcDef);
+    return ~size_t{};
 }
 
 size_t Context::gather(ast::StructDefinition& s) {
@@ -92,12 +96,12 @@ size_t Context::gather(ast::StructDefinition& s) {
             &s,
             InvalidDeclaration::Reason::InvalidInCurrentScope,
             sym.currentScope());
-        return invalidIndex;
+        return InvalidIndex;
     }
     Expected const declResult = sym.declareStructureType(std::string(s.name()));
     if (!declResult) {
         iss.push(declResult.error()->setStatement(s));
-        return invalidIndex;
+        return InvalidIndex;
     }
     auto& objType = *declResult;
     s.decorate(&objType);
@@ -109,7 +113,7 @@ size_t Context::gather(ast::StructDefinition& s) {
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto* statement: s.body()->statements()) {
         size_t const dependency = dispatch(*statement);
-        if (dependency != invalidIndex) {
+        if (dependency != InvalidIndex) {
             dependencyGraph[index].dependencies.push_back(
                 utl::narrow_cast<u16>(dependency));
         }
@@ -129,7 +133,7 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
     auto declResult = sym.declareVariable(std::string(varDecl.name()));
     if (!declResult) {
         iss.push(declResult.error()->setStatement(varDecl));
-        return invalidIndex;
+        return InvalidIndex;
     }
     auto& var = *declResult;
     return dependencyGraph.add({ .entity = &var, .astNode = &varDecl });
@@ -140,5 +144,5 @@ size_t Context::gather(ast::Statement& statement) {
     iss.push<InvalidStatement>(&statement,
                                InvalidScopeForStatement,
                                sym.currentScope());
-    return invalidIndex;
+    return InvalidIndex;
 }

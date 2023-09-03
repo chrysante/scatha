@@ -11,17 +11,9 @@ using namespace sema;
 AnalysisResult sema::analyze(ast::ASTNode& root,
                              SymbolTable& sym,
                              IssueHandler& iss) {
-    AnalysisResult result;
-    auto dependencyGraph = gatherNames(sym, root, iss);
-    result.structDependencyOrder =
-        instantiateEntities(sym, iss, dependencyGraph);
-    utl::vector<DependencyGraphNode> functions;
-    std::copy_if(dependencyGraph.begin(),
-                 dependencyGraph.end(),
-                 std::back_inserter(functions),
-                 [](DependencyGraphNode const& node) {
-        return isa<Function>(node.entity);
-    });
-    analyzeFunctionBodies(sym, iss, functions);
-    return result;
+    auto names = gatherNames(sym, root, iss);
+    auto structs =
+        instantiateEntities(sym, iss, names.structs, names.functions);
+    analyzeFunctionBodies(sym, iss, names.functions);
+    return AnalysisResult{ std::move(structs) };
 }

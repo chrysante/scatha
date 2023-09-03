@@ -76,12 +76,11 @@ struct Context {
 void sema::analyzeFunctionBodies(
     SymbolTable& sym,
     IssueHandler& iss,
-    std::span<DependencyGraphNode const> functions) {
+    std::span<ast::FunctionDefinition* const> functions) {
     Context ctx{ sym, iss };
-    for (auto const& node: functions) {
-        SC_ASSERT(isa<Function>(node.entity), "We only accept functions here");
-        sym.makeScopeCurrent(node.entity->parent());
-        ctx.analyzeImpl(cast<ast::FunctionDefinition&>(*node.astNode));
+    for (auto* def: functions) {
+        sym.makeScopeCurrent(def->function()->parent());
+        ctx.analyzeImpl(cast<ast::FunctionDefinition&>(*def));
         sym.makeScopeCurrent(nullptr);
     }
 }

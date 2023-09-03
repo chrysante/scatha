@@ -162,8 +162,6 @@ std::array<u8, sizeof(T)> decompose(T const& t) {
     return result;
 }
 
-inline constexpr size_t invalidIndex = static_cast<size_t>(-1);
-
 } // namespace scatha
 
 namespace scatha::internal {

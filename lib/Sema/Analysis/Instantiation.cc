@@ -7,8 +7,8 @@
 
 #include "AST/AST.h"
 #include "Common/Ranges.h"
-#include "Sema/Analysis/DependencyGraph.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
+#include "Sema/Analysis/StructDependencyGraph.h"
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
 #include "Sema/SemanticIssue.h"
@@ -20,11 +20,14 @@ using namespace sema;
 namespace {
 
 struct Context {
-    std::vector<StructureType const*> run();
+    std::vector<StructureType const*> instantiateTypes(
+        StructDependencyGraph& typeDependencies);
 
-    void instantiateStructureType(DependencyGraphNode&);
-    void instantiateVariable(DependencyGraphNode&);
-    void instantiateFunction(DependencyGraphNode&);
+    void instantiateFunctions(std::span<ast::FunctionDefinition*> functions);
+
+    void instantiateStructureType(SDGNode&);
+    void instantiateVariable(SDGNode&);
+    void instantiateFunction(ast::FunctionDefinition&);
 
     FunctionSignature analyzeSignature(ast::FunctionDefinition&) const;
 
@@ -34,16 +37,19 @@ struct Context {
 
     SymbolTable& sym;
     IssueHandler& iss;
-    DependencyGraph& dependencyGraph;
-    DependencyGraphNode const* currentNode = nullptr;
 };
 
 } // namespace
 
 std::vector<StructureType const*> sema::instantiateEntities(
-    SymbolTable& sym, IssueHandler& iss, DependencyGraph& typeDependencies) {
-    Context ctx{ .sym = sym, .iss = iss, .dependencyGraph = typeDependencies };
-    return ctx.run();
+    SymbolTable& sym,
+    IssueHandler& iss,
+    StructDependencyGraph& typeDependencies,
+    std::span<ast::FunctionDefinition*> functions) {
+    Context ctx{ .sym = sym, .iss = iss };
+    auto result = ctx.instantiateTypes(typeDependencies);
+    ctx.instantiateFunctions(functions);
+    return result;
 }
 
 static bool isUserDefined(QualType type) {
@@ -61,24 +67,21 @@ static bool isUserDefined(QualType type) {
     }; // clang-format on
 }
 
-std::vector<StructureType const*> Context::run() {
+std::vector<StructureType const*> Context::instantiateTypes(
+    StructDependencyGraph& dependencyGraph) {
     /// After gather name phase we have the names of all types in the symbol
     /// table and we gather the dependencies of variable declarations in
     /// structs. This must be done before sorting the dependency graph.
-    for (auto& node: dependencyGraph) {
-        if (!isa<Variable>(node.entity)) {
-            continue;
-        }
+    auto dataMembers = dependencyGraph | ranges::views::filter([](auto& node) {
+                           return isa<Variable>(node.entity);
+                       });
+    for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
         QualType type = analyzeTypeExpression(*var.typeExpr());
-        if (!type) {
-            continue;
+        if (type && isUserDefined(type)) {
+            node.dependencies.push_back(
+                utl::narrow_cast<u16>(dependencyGraph.index(type.get())));
         }
-        if (!isUserDefined(type)) {
-            continue;
-        }
-        node.dependencies.push_back(
-            utl::narrow_cast<u16>(dependencyGraph.index(type.get())));
     }
     /// Check for cycles
     auto indices = ranges::views::iota(size_t{ 0 }, dependencyGraph.size()) |
@@ -119,11 +122,17 @@ std::vector<StructureType const*> Context::run() {
                 instantiateStructureType(node);
                 sortedStructTypes.push_back(&type);
             },
-            [&](Function const&) { instantiateFunction(node); },
             [&](Entity const&) { SC_UNREACHABLE(); }
         }); // clang-format on
     }
     return sortedStructTypes;
+}
+
+void Context::instantiateFunctions(
+    std::span<ast::FunctionDefinition*> functions) {
+    for (auto* def: functions) {
+        instantiateFunction(*def);
+    }
 }
 
 static SpecialMemberFunction toSMF(ast::FunctionDefinition const& funcDef) {
@@ -138,7 +147,7 @@ static SpecialMemberFunction toSMF(ast::FunctionDefinition const& funcDef) {
     return SpecialMemberFunction::COUNT;
 }
 
-void Context::instantiateStructureType(DependencyGraphNode& node) {
+void Context::instantiateStructureType(SDGNode& node) {
     ast::StructDefinition& structDef =
         cast<ast::StructDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
@@ -173,7 +182,7 @@ void Context::instantiateStructureType(DependencyGraphNode& node) {
     structType.setAlign(objectAlign);
 }
 
-void Context::instantiateVariable(DependencyGraphNode& node) {
+void Context::instantiateVariable(SDGNode& node) {
     ast::VariableDeclaration& varDecl =
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
@@ -188,30 +197,27 @@ static bool isExplicitRefTo(QualType argType, QualType referredType) {
     return isExplRef(argType) && stripReference(argType) == referredType;
 }
 
-void Context::instantiateFunction(DependencyGraphNode& node) {
-    SC_ASSERT(isa<Function>(node.entity), "Must be a function");
-    ast::FunctionDefinition& fnDecl =
-        cast<ast::FunctionDefinition&>(*node.astNode);
-    auto* function = cast<Function*>(node.entity);
+void Context::instantiateFunction(ast::FunctionDefinition& def) {
+    auto* function = def.function();
     sym.makeScopeCurrent(function->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    auto result = sym.setSignature(function, analyzeSignature(fnDecl));
+    auto result = sym.setSignature(function, analyzeSignature(def));
     if (!result) {
         if (auto* invStatement =
                 dynamic_cast<InvalidStatement*>(result.error()))
         {
-            invStatement->setStatement(fnDecl);
+            invStatement->setStatement(def);
         }
         iss.push(result.error());
         return;
     }
-    auto SMF = toSMF(fnDecl);
+    auto SMF = toSMF(def);
     if (SMF == SpecialMemberFunction::COUNT) {
         return;
     }
     auto pushError = [&] {
         using enum InvalidDeclaration::Reason;
-        iss.push(new InvalidDeclaration(&fnDecl,
+        iss.push(new InvalidDeclaration(&def,
                                         InvalidSpecialMemberFunction,
                                         *function->parent()));
     };
