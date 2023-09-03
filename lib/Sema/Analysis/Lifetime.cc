@@ -7,6 +7,7 @@
 
 #include "AST/AST.h"
 #include "Sema/Analysis/OverloadResolution.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 

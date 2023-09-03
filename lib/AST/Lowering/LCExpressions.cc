@@ -442,36 +442,40 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
     bool callHasName = !isa<ir::VoidType>(function->returnType());
     std::string name = callHasName ? "call.result" : std::string{};
     auto* inst = add<ir::Call>(function, arguments, std::move(name));
-
-    switch (sema::stripReference(call.type())->entityType()) {
-    case sema::EntityType::ArrayType: {
-        switch (retvalLocation) {
-        case Register: {
-            auto* data =
-                add<ir::ExtractValue>(inst, std::array{ size_t{ 0 } }, "data");
-            auto* size =
-                add<ir::ExtractValue>(inst, std::array{ size_t{ 1 } }, "size");
-            Value value(newID(), data, Register);
-            memorizeArraySize(value.ID(), Value(newID(), size, Register));
-            return value;
-        }
-        case Memory:
-            SC_UNIMPLEMENTED();
-        }
-    }
-    default:
-        switch (retvalLocation) {
-        case Register:
-            return Value(newID(), inst, Register);
-        case Memory:
-            return Value(newID(),
-                         arguments.front(),
-                         mapType(call.function()->returnType()),
-                         Memory,
-                         sema::ValueCategory::RValue);
-        }
-        break;
-    }
+    // clang-format off
+    Value value = SC_MATCH(*sema::stripReference(call.type())) {
+        [&](sema::ObjectType const&) {
+            switch (retvalLocation) {
+            case Register:
+                return Value(newID(), inst, Register);
+            case Memory:
+                return Value(newID(),
+                             arguments.front(),
+                             mapType(call.function()->returnType()),
+                             Memory,
+                             sema::ValueCategory::RValue);
+            }
+        },
+        [&](sema::ArrayType const&) {
+            switch (retvalLocation) {
+            case Register: {
+                auto* data =
+                    add<ir::ExtractValue>(inst,
+                                          std::array{ size_t{ 0 } }, "data");
+                auto* size =
+                    add<ir::ExtractValue>(inst,
+                                          std::array{ size_t{ 1 } }, "size");
+                Value value(newID(), data, Register);
+                memorizeArraySize(value.ID(), Value(newID(), size, Register));
+                return value;
+            }
+            case Memory:
+                SC_UNIMPLEMENTED();
+            }
+        },
+    }; // clang-format on
+    memorizeObject(call.object(), value);
+    return value;
 }
 
 void LoweringContext::generateArgument(PassingConvention const& PC,

@@ -617,18 +617,20 @@ public:
     /// **Decoration provided by semantic analysis**
 
     /// The resolved function.
-    /// Differs from object because the object refers to the overload
+    /// Differs from `callee()` because callee refers to the overload
     /// set
-    template <typename F = sema::Function>
-    F* function() {
-        return const_cast<F*>(std::as_const(*this).function());
-    }
+    sema::Function* function() { return _function; }
 
     /// \overload
-    template <typename F = sema::Function>
-    F const* function() const {
-        return cast<F const*>(entity());
-    }
+    sema::Function const* function() const { return _function; }
+
+    /// Decorate this function call
+    void decorate(sema::Object* object,
+                  sema::QualType type,
+                  sema::Function* calledFunction);
+
+private:
+    sema::Function* _function;
 };
 
 /// Concrete node representing a subscript expression.

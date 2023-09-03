@@ -10,6 +10,7 @@
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/Lifetime.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/DTorStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
@@ -224,14 +225,14 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     if (var.initExpression() && var.initExpression()->isDecorated()) {
         auto* structType = dyncast<StructureType const*>(finalType.get());
         if (!structType || isExplRef(finalType)) {
-            convertImplicitly(var.initExpression(), finalType, iss);
+            convertImplicitly(var.initExpression(), finalType, &iss);
         }
         else if (var.initExpression()->type().get() != structType ||
                  !var.initExpression()->isRValue())
         {
             convertExplicitly(var.initExpression(),
                               sym.reference(finalType.toConst(), RefExpl),
-                              iss);
+                              &iss);
             auto call =
                 makeConstructorCall(finalType.get(),
                                     toSmallVector(var.extractInitExpression()),
@@ -339,6 +340,8 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
             sym.currentScope());
         return;
     }
+    /// We gather parent destructors here because `analyzeExpr()` may add more
+    /// constructors and the parent destructors must be lower in the stack
     gatherParentDestructors(rs);
     if (!rs.expression() || !analyzeExpr(*rs.expression(), rs.dtorStack())) {
         return;
@@ -361,7 +364,8 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
         iss.push<BadExpression>(*rs.expression(), IssueSeverity::Error);
         return;
     }
-    convertImplicitly(rs.expression(), returnType, iss);
+    convertImplicitly(rs.expression(), returnType, &iss);
+    copyValue(rs.expression(), sym, /* issue destructor call = */ false);
 }
 
 void Context::analyzeImpl(ast::IfStatement& stmt) {
@@ -373,7 +377,7 @@ void Context::analyzeImpl(ast::IfStatement& stmt) {
         return;
     }
     if (analyzeExpr(*stmt.condition(), stmt.dtorStack())) {
-        convertImplicitly(stmt.condition(), sym.Bool(), iss);
+        convertImplicitly(stmt.condition(), sym.Bool(), &iss);
     }
     analyze(*stmt.thenBlock());
     if (stmt.elseBlock()) {
@@ -396,7 +400,7 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
         stmt.dtorStack() = stmt.varDecl()->dtorStack();
     }
     if (analyzeExpr(*stmt.condition(), stmt.conditionDtorStack())) {
-        convertImplicitly(stmt.condition(), sym.Bool(), iss);
+        convertImplicitly(stmt.condition(), sym.Bool(), &iss);
     }
     if (stmt.increment()) {
         analyzeExpr(*stmt.increment(), stmt.incrementDtorStack());

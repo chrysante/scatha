@@ -39,13 +39,6 @@ SCATHA_TESTAPI OverloadResolutionResult
                               std::span<ast::Expression const* const> arguments,
                               bool isMemberCall);
 
-/// Insert the conversions necessary to make the call to the function selected
-/// by overload resolution
-SCATHA_TESTAPI bool convertArguments(ast::CallLike& fc,
-                                     OverloadResolutionResult const& orResult,
-                                     SymbolTable& sym,
-                                     IssueHandler& issueHandler);
-
 } // namespace scatha::sema
 
 #endif // SCATHA_SEMA_OVERLOADRESOLUTION_H_

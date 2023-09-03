@@ -112,32 +112,38 @@ SCATHA_TESTAPI int computeRank(Conversion const& conv);
 /// If \p expr is implicitly convertible to type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` if implicit conversion succeeded
+/// \Warning \p issueHandler can be null, however in that case if an issue
+/// occurs the function traps
 SCATHA_TESTAPI ast::Expression* convertImplicitly(ast::Expression* expr,
                                                   QualType to,
-                                                  IssueHandler& issueHandler);
+                                                  IssueHandler* issueHandler);
 
 /// Does nothing if `expr->type() == to`
 /// If \p expr is explicitly convertible to type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` if explicit conversion succeeded
+/// \Warning \p issueHandler can be null, however in that case if an issue
+/// occurs the function traps
 SCATHA_TESTAPI ast::Expression* convertExplicitly(ast::Expression* expr,
                                                   QualType to,
-                                                  IssueHandler& issueHandler);
+                                                  IssueHandler* issueHandler);
 
 /// Does nothing if `expr->type() == to`
 /// If \p expr is interpretable as type \p to a `Conversion` node is
 /// inserted into the AST. Otherwise an error is pushed to \p issueHandler
 /// \Returns `true` if reinterpret conversion succeeded
+/// \Warning \p issueHandler can be null, however in that case if an issue
+/// occurs the function traps
 SCATHA_TESTAPI ast::Expression* convertReinterpret(ast::Expression* expr,
                                                    QualType to,
-                                                   IssueHandler& issueHandler);
+                                                   IssueHandler* issueHandler);
 
 /// Convert expression \p expr to an implicit reference
 SCATHA_TESTAPI ast::Expression* convertToImplicitMutRef(
-    ast::Expression* expr, SymbolTable& sym, IssueHandler& issueHandler);
+    ast::Expression* expr, SymbolTable& sym, IssueHandler* issueHandler);
 
 SCATHA_TESTAPI ast::Expression* convertToExplicitRef(
-    ast::Expression* expr, SymbolTable& sym, IssueHandler& issueHandler);
+    ast::Expression* expr, SymbolTable& sym, IssueHandler* issueHandler);
 
 /// Dereference the expression \p expr to if it is a reference
 /// Otherwise a no-op

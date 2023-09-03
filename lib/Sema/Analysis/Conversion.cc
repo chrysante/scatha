@@ -542,9 +542,8 @@ static ast::Expression* convertImpl(ConversionKind kind,
     auto conversion =
         computeConversion(kind, expr->type(), expr->constantValue(), to);
     if (!conversion) {
-        if (iss) {
-            iss->push<BadTypeConversion>(*expr, to);
-        }
+        SC_ASSERT(iss, "Issue occured and we have no issue handler");
+        iss->push<BadTypeConversion>(*expr, to);
         return nullptr;
     }
     if (!conversion->isNoop()) {
@@ -555,42 +554,41 @@ static ast::Expression* convertImpl(ConversionKind kind,
 
 ast::Expression* sema::convertImplicitly(ast::Expression* expr,
                                          QualType to,
-                                         IssueHandler& issueHandler) {
-    return convertImpl(ConversionKind::Implicit, expr, to, &issueHandler);
+                                         IssueHandler* issueHandler) {
+    return convertImpl(ConversionKind::Implicit, expr, to, issueHandler);
 }
 
 ast::Expression* sema::convertExplicitly(ast::Expression* expr,
                                          QualType to,
-                                         IssueHandler& issueHandler) {
-    return convertImpl(ConversionKind::Explicit, expr, to, &issueHandler);
+                                         IssueHandler* issueHandler) {
+    return convertImpl(ConversionKind::Explicit, expr, to, issueHandler);
 }
 
 ast::Expression* sema::convertReinterpret(ast::Expression* expr,
                                           QualType to,
-                                          IssueHandler& issueHandler) {
-    return convertImpl(ConversionKind::Reinterpret, expr, to, &issueHandler);
+                                          IssueHandler* issueHandler) {
+    return convertImpl(ConversionKind::Reinterpret, expr, to, issueHandler);
 }
 
 ast::Expression* sema::convertToExplicitRef(ast::Expression* expr,
                                             SymbolTable& sym,
-                                            IssueHandler& issueHandler) {
+                                            IssueHandler* issueHandler) {
     return convertExplicitly(expr, sym.explRef(expr->type()), issueHandler);
 }
 
 ast::Expression* sema::convertToImplicitMutRef(ast::Expression* expr,
                                                SymbolTable& sym,
-                                               IssueHandler& issueHandler) {
+                                               IssueHandler* issueHandler) {
     return convertImplicitly(expr,
                              sym.implRef(stripReference(expr->type()).toMut()),
                              issueHandler);
 }
 
 void sema::dereference(ast::Expression* expr, SymbolTable& sym) {
-    bool succ = convertImpl(ConversionKind::Implicit,
-                            expr,
-                            stripReference(expr->type()),
-                            nullptr);
-    SC_ASSERT(succ, "Expression is not dereferentiable");
+    convertImpl(ConversionKind::Implicit,
+                expr,
+                stripReference(expr->type()),
+                nullptr);
 }
 
 static QualType commonRef(SymbolTable& sym,

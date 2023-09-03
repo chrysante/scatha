@@ -82,6 +82,13 @@ void Expression::decorate(sema::Entity* entity,
     markDecorated();
 }
 
+void FunctionCall::decorate(sema::Object* object,
+                            sema::QualType type,
+                            sema::Function* calledFunction) {
+    Expression::decorate(object, type, sema::ValueCategory::RValue);
+    _function = calledFunction;
+}
+
 Conversion::Conversion(UniquePtr<Expression> expr,
                        std::unique_ptr<sema::Conversion> conv):
     Expression(NodeType::Conversion, expr->sourceRange(), std::move(expr)),
