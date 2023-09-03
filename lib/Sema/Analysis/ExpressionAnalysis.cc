@@ -631,7 +631,7 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
                 continue;
             }
             if (isExplRef(expr->type())) {
-                /// TODO: Consider wether we allow storing references in arrays
+                /// TODO: Consider whether we allow storing references in arrays
                 iss.push<BadExpression>(list, IssueSeverity::Error);
                 success = false;
             }
