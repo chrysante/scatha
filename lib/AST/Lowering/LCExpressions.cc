@@ -328,8 +328,7 @@ Value LoweringContext::getValueImpl(MemberAccess const& expr) {
     }
 
     Value base = getValue(expr.accessed());
-    auto* accessedId = cast<Identifier const*>(expr.member());
-    auto* var = cast<sema::Variable const*>(accessedId->entity());
+    auto* var = cast<sema::Variable const*>(expr.member()->entity());
 
     Value value;
     size_t const irIndex = structIndexMap[{

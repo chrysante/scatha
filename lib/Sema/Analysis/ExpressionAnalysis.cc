@@ -600,7 +600,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     QualType type = makeRefImplicit(function->returnType());
     fc.decorate(&sym.addTemporary(type), type, function);
     convertArguments(fc, result, sym, iss);
-    parentStatement(&fc)->dtorStack().push(fc.object());
+    parentStatement(&fc)->pushDtor(fc.object());
     return true;
 }
 
