@@ -184,6 +184,10 @@ ir::Callable* LoweringContext::declareFunction(sema::Function const* function) {
         return result;
     }
 
+    case sema::FunctionKind::Generated: {
+        SC_UNIMPLEMENTED();
+    }
+
     default:
         SC_UNREACHABLE();
     }

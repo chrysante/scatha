@@ -56,12 +56,14 @@ std::ostream& sema::operator<<(std::ostream& str, ScopeKind k) {
 }
 
 std::string_view sema::toString(FunctionKind k) {
-    // clang-format off
-    return UTL_SERIALIZE_ENUM(k, {
-        { FunctionKind::Native,   "Native" },
-        { FunctionKind::External, "External" },
-        { FunctionKind::Special,  "Special" }
-    }); // clang-format on
+    switch (k) {
+    case FunctionKind::Native:
+        return "Native";
+    case FunctionKind::External:
+        return "External";
+    case FunctionKind::Generated:
+        return "Generated";
+    }
 }
 
 std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
@@ -105,6 +107,21 @@ std::string_view sema::toString(SpecialMemberFunction SMF) {
 
 std::ostream& sema::operator<<(std::ostream& str, SpecialMemberFunction SMF) {
     return str << toString(SMF);
+}
+
+SpecialMemberFunction sema::toSMF(SpecialLifetimeFunction SLF) {
+    using enum SpecialLifetimeFunction;
+    using enum SpecialMemberFunction;
+    switch (SLF) {
+    case DefaultConstructor:
+        return New;
+    case CopyConstructor:
+        return New;
+    case MoveConstructor:
+        return Move;
+    case Destructor:
+        return Delete;
+    }
 }
 
 std::string_view sema::toString(ConstantKind k) {

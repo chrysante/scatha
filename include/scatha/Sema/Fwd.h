@@ -72,7 +72,7 @@ SCATHA_API std::string_view toString(ScopeKind);
 SCATHA_API std::ostream& operator<<(std::ostream&, ScopeKind);
 
 ///
-enum class FunctionKind : u8 { Native, External, Special, _count };
+enum class FunctionKind : u8 { Native, External, Generated };
 
 SCATHA_API std::string_view toString(FunctionKind);
 
@@ -118,8 +118,13 @@ enum class Mutability { Const, Mutable };
 enum class SpecialMemberFunction : uint8_t {
 #define SC_SEMA_SPECIAL_MEMBER_FUNCTION_DEF(Name, str) Name,
 #include <scatha/Sema/Lists.def>
-    COUNT
 };
+
+} // namespace scatha::sema
+
+SC_ENUM_SIZE_LAST_DEF(scatha::sema::SpecialMemberFunction, Delete);
+
+namespace scatha::sema {
 
 SCATHA_API std::string_view toString(SpecialMemberFunction);
 
@@ -132,8 +137,16 @@ SCATHA_API std::ostream& operator<<(std::ostream&, SpecialMemberFunction);
 enum class SpecialLifetimeFunction : uint8_t {
 #define SC_SEMA_SPECIAL_LIFETIME_FUNCTION_DEF(Name) Name,
 #include <scatha/Sema/Lists.def>
-    COUNT
 };
+
+/// Get the corresponding special member function (`new`, `move` or `delete`)
+SCATHA_API SpecialMemberFunction toSMF(SpecialLifetimeFunction);
+
+} // namespace scatha::sema
+
+SC_ENUM_SIZE_LAST_DEF(scatha::sema::SpecialLifetimeFunction, Destructor);
+
+namespace scatha::sema {
 
 ///
 enum class FunctionAttribute : unsigned {

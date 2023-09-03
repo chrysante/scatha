@@ -162,6 +162,20 @@ std::array<u8, sizeof(T)> decompose(T const& t) {
     return result;
 }
 
+/// Convenient accessor for `static_cast<size_t>(Enum::COUNT)`
+template <typename E>
+    requires std::is_enum_v<E>
+inline constexpr size_t EnumSize = static_cast<size_t>(E::COUNT);
+
+#define SC_ENUM_SIZE_DEF(Enum, Size)                                           \
+    template <>                                                                \
+    inline constexpr size_t scatha::EnumSize<Enum> = Size;
+
+#define SC_ENUM_SIZE_LAST_DEF(Enum, Last)                                      \
+    template <>                                                                \
+    inline constexpr size_t scatha::EnumSize<Enum> =                           \
+        static_cast<size_t>(Enum::Last) + 1;
+
 } // namespace scatha
 
 namespace scatha::internal {

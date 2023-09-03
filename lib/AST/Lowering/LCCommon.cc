@@ -85,16 +85,15 @@ ir::Callable* LoweringContext::getFunction(sema::Function const* function) {
     case sema::FunctionKind::Native:
         return functionMap.find(function)->second;
 
-    case sema::FunctionKind::External: {
+    case sema::FunctionKind::External:
+        [[fallthrough]];
+    case sema::FunctionKind::Generated: {
         auto itr = functionMap.find(function);
         if (itr != functionMap.end()) {
             return itr->second;
         }
         return declareFunction(function);
     }
-
-    default:
-        SC_UNREACHABLE();
     }
 }
 

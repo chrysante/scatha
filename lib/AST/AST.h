@@ -1058,6 +1058,18 @@ public:
 
     /// **Decoration provided by semantic analysis**
 
+    /// The struct being defined
+    template <typename S = sema::StructureType>
+    S* structType() {
+        return const_cast<S*>(std::as_const(*this).structType());
+    }
+
+    /// \overload
+    template <typename S = sema::StructureType>
+    S const* structType() const {
+        return cast<S const*>(entity());
+    }
+
     /// Decorate this node.
     void decorate(sema::Entity* entity) { Declaration::decorate(entity); }
 };

@@ -7,6 +7,7 @@
 #include <utl/type_traits.hpp>
 #include <utl/vector.hpp>
 
+#include <scatha/Common/Base.h>
 #include <scatha/Common/Dyncast.h>
 
 namespace scatha {
@@ -86,6 +87,14 @@ auto operator|(R&& r, ToSmallVectorFn<Size>) {
     else {
         return std::forward<R>(r) | ranges::to<utl::small_vector<T, Size>>;
     }
+}
+
+template <typename E>
+    requires std::is_enum_v<E>
+inline auto EnumRange() {
+    return ranges::views::iota(size_t{ 0 }, EnumSize<E>) |
+           ranges::views::transform(
+               [](size_t value) { return static_cast<E>(value); });
 }
 
 } // namespace scatha

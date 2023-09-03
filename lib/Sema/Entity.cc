@@ -192,45 +192,6 @@ FloatType::FloatType(size_t bitwidth, Scope* parentScope):
     SC_ASSERT(bitwidth == 32 || bitwidth == 64, "Invalid width");
 }
 
-bool StructureType::hasTrivialLifetimeImpl() const {
-    if (!_computedTriviality) {
-        _computedTriviality = true;
-        _hasTrivialLifetime = computeTrivialLifetime();
-    }
-    return _hasTrivialLifetime;
-}
-
-bool StructureType::computeTrivialLifetime() const {
-    using enum SpecialMemberFunction;
-    auto* constructor = specialMemberFunction(New);
-    bool hasCopyCTor =
-        constructor &&
-        constructor->end() != ranges::find_if(*constructor,
-                                              [&](Function const* function) {
-        auto const& sig = function->signature();
-        if (sig.argumentCount() != 1) {
-            return false;
-        }
-        auto* refType = cast<ReferenceType const*>(sig.argumentType(0).get());
-        if (!refType || !refType->base().isConst()) {
-            return false;
-        }
-        return refType->base().get() == this;
-        });
-    if (hasCopyCTor) {
-        return false;
-    }
-    if (specialMemberFunction(Move)) {
-        return false;
-    }
-    if (specialMemberFunction(Delete)) {
-        return false;
-    }
-    return ranges::all_of(memberVariables(), [](auto* var) {
-        return var->type()->hasTrivialLifetime();
-    });
-}
-
 std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     std::stringstream sstr;
     sstr << "[" << elemType->name();

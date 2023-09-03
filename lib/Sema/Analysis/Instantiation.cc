@@ -1,11 +1,15 @@
 #include "Sema/Analysis/Instantiation.h"
 
+#include <array>
+
+#include <range/v3/algorithm.hpp>
 #include <range/v3/view.hpp>
 #include <utl/graph.hpp>
 #include <utl/scope_guard.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/AST.h"
+#include "Common/Base.h"
 #include "Common/Ranges.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/StructDependencyGraph.h"
@@ -26,14 +30,24 @@ struct Context {
     void instantiateFunctions(std::span<ast::FunctionDefinition*> functions);
 
     void instantiateStructureType(SDGNode&);
+
     void instantiateVariable(SDGNode&);
+
     void instantiateFunction(ast::FunctionDefinition&);
 
     FunctionSignature analyzeSignature(ast::FunctionDefinition&) const;
 
     QualType analyzeParameter(ast::ParameterDeclaration&, size_t index) const;
 
+    void generateSpecialLifetimeFunctions(StructureType& type);
+
     QualType analyzeTypeExpression(ast::Expression&) const;
+
+    Function* generateSpecialLifetimeFunction(SpecialLifetimeFunction key,
+                                              StructureType& type) const;
+
+    FunctionSignature makeLifetimeSignature(
+        StructureType& type, SpecialLifetimeFunction function) const;
 
     SymbolTable& sym;
     IssueHandler& iss;
@@ -47,9 +61,17 @@ std::vector<StructureType const*> sema::instantiateEntities(
     StructDependencyGraph& typeDependencies,
     std::span<ast::FunctionDefinition*> functions) {
     Context ctx{ .sym = sym, .iss = iss };
-    auto result = ctx.instantiateTypes(typeDependencies);
-    ctx.instantiateFunctions(functions);
-    return result;
+    auto structs = ctx.instantiateTypes(typeDependencies);
+    for (auto* def: functions) {
+        ctx.instantiateFunction(*def);
+    }
+    /// `structs` is topologically sorted, so each invocation of
+    /// `generateSpecialLifetimeFunctions()` can assume that the types of all
+    /// data members already have been analyzed for lifetime triviality
+    for (auto* type: structs) {
+        ctx.generateSpecialLifetimeFunctions(const_cast<StructureType&>(*type));
+    }
+    return structs;
 }
 
 static bool isUserDefined(QualType type) {
@@ -118,7 +140,7 @@ std::vector<StructureType const*> Context::instantiateTypes(
         // clang-format off
         visit(*node.entity, utl::overload{
             [&](Variable const&) { instantiateVariable(node); },
-            [&](StructureType& type) {
+            [&](StructureType const& type) {
                 instantiateStructureType(node);
                 sortedStructTypes.push_back(&type);
             },
@@ -129,22 +151,17 @@ std::vector<StructureType const*> Context::instantiateTypes(
 }
 
 void Context::instantiateFunctions(
-    std::span<ast::FunctionDefinition*> functions) {
-    for (auto* def: functions) {
-        instantiateFunction(*def);
-    }
-}
+    std::span<ast::FunctionDefinition*> functions) {}
 
-static SpecialMemberFunction toSMF(ast::FunctionDefinition const& funcDef) {
-    for (uint8_t i = 0; i < utl::to_underlying(SpecialMemberFunction::COUNT);
-         ++i)
-    {
+static std::optional<SpecialMemberFunction> toSMF(
+    ast::FunctionDefinition const& funcDef) {
+    for (uint8_t i = 0; i < EnumSize<SpecialMemberFunction>; ++i) {
         SpecialMemberFunction SMF{ i };
         if (toString(SMF) == funcDef.name()) {
             return SMF;
         }
     }
-    return SpecialMemberFunction::COUNT;
+    return std::nullopt;
 }
 
 void Context::instantiateStructureType(SDGNode& node) {
@@ -212,7 +229,7 @@ void Context::instantiateFunction(ast::FunctionDefinition& def) {
         return;
     }
     auto SMF = toSMF(def);
-    if (SMF == SpecialMemberFunction::COUNT) {
+    if (!SMF) {
         return;
     }
     auto pushError = [&] {
@@ -226,8 +243,8 @@ void Context::instantiateFunction(ast::FunctionDefinition& def) {
         pushError();
         return;
     }
-    function->setSMFKind(SMF);
-    structType->addSpecialMemberFunction(SMF, function->overloadSet());
+    function->setSMFKind(*SMF);
+    structType->addSpecialMemberFunction(*SMF, function->overloadSet());
     auto const& sig = function->signature();
     if (sig.argumentCount() == 0 ||
         !isExplicitRefTo(sig.argumentType(0), structType))
@@ -253,8 +270,6 @@ void Context::instantiateFunction(ast::FunctionDefinition& def) {
             return;
         }
         break;
-    case COUNT:
-        SC_UNREACHABLE();
     }
 }
 
@@ -297,6 +312,119 @@ QualType Context::analyzeParameter(ast::ParameterDeclaration& param,
         return sym.explRef(QualType(structType, thisParam->mutability()));
     }
     return structType;
+}
+
+static bool isRefTo(QualType type, QualType referred) {
+    if (auto* refType = dyncast<ReferenceType const*>(type.get())) {
+        return refType->base().get() == referred;
+    }
+    return false;
+}
+
+namespace {
+
+/// Wrapper around `std::array` that can be index by `SpecialLifetimeFunction`
+/// enum values
+struct SLFArray: std::array<Function*, EnumSize<SpecialLifetimeFunction>> {
+    using Base = std::array<Function*, EnumSize<SpecialLifetimeFunction>>;
+    auto& operator[](SpecialLifetimeFunction index) {
+        return Base::operator[](static_cast<size_t>(index));
+    }
+    auto const& operator[](SpecialLifetimeFunction index) const {
+        return Base::operator[](static_cast<size_t>(index));
+    }
+};
+
+} // namespace
+
+static SLFArray getDefinedSLFs(StructureType& type) {
+    using enum SpecialMemberFunction;
+    using enum SpecialLifetimeFunction;
+    SLFArray result{};
+    if (auto* constructor = type.specialMemberFunction(New)) {
+        for (auto* function: *constructor) {
+            auto const& sig = function->signature();
+            switch (sig.argumentCount()) {
+            case 1: {
+                if (isRefTo(sig.argumentType(0), QualType::Mut(&type))) {
+                    result[DefaultConstructor] = function;
+                }
+                break;
+            }
+            case 2: {
+                if (isRefTo(sig.argumentType(0), QualType::Mut(&type)) &&
+                    isRefTo(sig.argumentType(1), QualType::Const(&type)))
+                {
+                    result[CopyConstructor] = function;
+                }
+                break;
+            }
+            default:
+                break;
+            }
+        }
+    }
+    if (auto* move = type.specialMemberFunction(Move)) {
+        SC_ASSERT(move->size() == 1, "Can only have one move constructor");
+        result[MoveConstructor] = move->front();
+    }
+    if (auto* del = type.specialMemberFunction(Delete)) {
+        SC_ASSERT(del->size() == 1, "Can only have one destructor");
+        result[Destructor] = del->front();
+    }
+    return result;
+}
+
+void Context::generateSpecialLifetimeFunctions(StructureType& type) {
+    auto SLF = getDefinedSLFs(type);
+    bool const hasTrivialLifetime =
+        ranges::none_of(SLF, ranges::identity{}) &&
+        ranges::all_of(type.memberVariables(), [](auto* var) {
+            return var->type()->hasTrivialLifetime();
+        });
+    if (hasTrivialLifetime) {
+        type.setHasTrivialLifetime(true);
+        return;
+    }
+    for (auto key: EnumRange<SpecialLifetimeFunction>()) {
+        if (!SLF[key]) {
+            SLF[key] = generateSpecialLifetimeFunction(key, type);
+        }
+    }
+    type.setSpecialLifetimeFunctions(SLF);
+    type.setHasTrivialLifetime(false);
+}
+
+Function* Context::generateSpecialLifetimeFunction(SpecialLifetimeFunction key,
+                                                   StructureType& type) const {
+    auto SMFKind = toSMF(key);
+    Function* function = sym.withScopeCurrent(&type, [&] {
+        return &sym.declareFunction(std::string(toString(SMFKind))).value();
+    });
+    sym.setSignature(function, makeLifetimeSignature(type, key));
+    function->setKind(FunctionKind::Generated);
+    function->setIsMember();
+    function->setSMFKind(SMFKind);
+    type.addSpecialMemberFunction(SMFKind, function->overloadSet());
+    return function;
+}
+
+FunctionSignature Context::makeLifetimeSignature(
+    StructureType& type, SpecialLifetimeFunction function) const {
+    QualType self = sym.explRef(QualType::Mut(&type));
+    QualType rhs = sym.explRef(QualType::Const(&type));
+    QualType ret = sym.Void();
+    using enum SpecialLifetimeFunction;
+    switch (function) {
+    case DefaultConstructor:
+        return FunctionSignature({ self }, ret);
+    case CopyConstructor:
+        return FunctionSignature({ self, rhs }, ret);
+    case MoveConstructor:
+        return FunctionSignature({ self, rhs }, ret);
+    case Destructor:
+        return FunctionSignature({ self }, ret);
+    }
 }
 
 QualType Context::analyzeTypeExpression(ast::Expression& expr) const {

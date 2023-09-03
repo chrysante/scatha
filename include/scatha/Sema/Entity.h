@@ -375,13 +375,11 @@ public:
     bool isMember() const { return _isMember; }
 
     /// \Returns `true` if this function is a special member function
-    bool isSpecialMemberFunction() const {
-        return _smfKind != SpecialMemberFunction::COUNT;
-    }
+    bool isSpecialMemberFunction() const { return _smfKind.has_value(); }
 
     /// \Returns the kind of special member function if this function is a
     /// special member function
-    SpecialMemberFunction SMFKind() const { return _smfKind; }
+    SpecialMemberFunction SMFKind() const { return *_smfKind; }
 
     /// Set the kind of special member function this function is
     void setSMFKind(SpecialMemberFunction kind) { _smfKind = kind; }
@@ -435,7 +433,7 @@ private:
     OverloadSet* _overloadSet = nullptr;
     FunctionAttribute attrs;
     AccessSpecifier accessSpec = AccessSpecifier::Private;
-    SpecialMemberFunction _smfKind = SpecialMemberFunction::COUNT;
+    std::optional<SpecialMemberFunction> _smfKind;
     FunctionKind _kind = FunctionKind::Native;
     bool _isMember          : 1 = false;
     bool _haveBinaryAddress : 1 = false;
@@ -634,19 +632,27 @@ public:
         return specialLifetimeFunctions[static_cast<size_t>(kind)];
     }
 
+    /// This should be only accessible by the implementation of
+    /// `instantiateEntities()` but it's just to cumbersome to make it private
+    void setHasTrivialLifetime(bool value) { _hasTrivialLifetime = value; }
+
+    /// This should be private as well
+    void setSpecialLifetimeFunctions(
+        std::array<Function*, EnumSize<SpecialLifetimeFunction>> SLF) {
+        specialLifetimeFunctions = SLF;
+    }
+
 private:
     friend class ObjectType;
     /// Structure type has trivial lifetime if no user defined copy constructor,
     /// move constructor or destructor are present and all member types are
     /// trivial
-    bool hasTrivialLifetimeImpl() const;
-    bool computeTrivialLifetime() const;
+    bool hasTrivialLifetimeImpl() const { return _hasTrivialLifetime; }
 
     utl::small_vector<Variable*> _memberVars;
     utl::hashmap<SpecialMemberFunction, OverloadSet*> specialMemberFunctions;
-    std::array<Function*, static_cast<size_t>(SpecialLifetimeFunction::COUNT)>
+    std::array<Function*, EnumSize<SpecialLifetimeFunction>>
         specialLifetimeFunctions = {};
-    mutable bool _computedTriviality : 1 = false;
     mutable bool _hasTrivialLifetime : 1 = false;
 };
 
@@ -683,6 +689,10 @@ public:
     void setCountVariable(Variable* var) { countVar = var; }
 
 private:
+    friend class ObjectType;
+    bool hasTrivialLifetimeImpl() const {
+        return elementType()->hasTrivialLifetime();
+    }
     static std::string makeName(ObjectType const* elemType, size_t size);
 
     ObjectType const* elemType;
