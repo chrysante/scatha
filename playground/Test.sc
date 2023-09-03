@@ -5,6 +5,8 @@ fn printVal(x: &X) {
         print("]");
 }
 
+struct Y { var x: X; }
+
 struct X {
     /// Default constructor
     fn new(&mut this) {

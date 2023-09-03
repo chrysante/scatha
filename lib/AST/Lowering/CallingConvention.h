@@ -8,6 +8,7 @@
 #include <utl/vector.hpp>
 
 #include "AST/Lowering/Value.h"
+#include "Common/Ranges.h"
 #include "IR/Fwd.h"
 #include "Sema/Fwd.h"
 
@@ -39,7 +40,7 @@ public:
     explicit CallingConvention(PassingConvention returnValue,
                                std::span<PassingConvention const> args):
         _args(ranges::views::concat(std::span(&returnValue, 1), args) |
-              ranges::to<utl::small_vector<PassingConvention>>) {}
+              ToSmallVector<>) {}
 
     /// `PassingConvention` of the return value
     PassingConvention returnValue() const {

@@ -4,6 +4,7 @@
 #include <svm/Builtin.h>
 
 #include "AST/AST.h"
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
@@ -99,8 +100,7 @@ static PassingConvention computeArgPC(sema::QualType type) {
 static CallingConvention computeCC(sema::Function const* function) {
     auto retval = computeRetValPC(function->returnType());
     auto args = function->argumentTypes() |
-                ranges::views::transform(computeArgPC) |
-                ranges::to<utl::small_vector<PassingConvention>>;
+                ranges::views::transform(computeArgPC) | ToSmallVector<>;
     return CallingConvention(retval, args);
 }
 

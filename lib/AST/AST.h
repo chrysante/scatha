@@ -22,34 +22,37 @@
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
 
-// ASTNode
-// ├─ TranslationUnit
-// ├─ Statement
-// │  ├─ Declaration
-// │  │  ├─ VariableDeclaration
-// │  │  ├─ ParameterDeclaration
-// │  │  │  └─ ThisParameter
-// │  │  ├─ ModuleDeclaration
-// │  │  ├─ FunctionDefinition
-// │  │  └─ StructDefinition
-// │  ├─ CompoundStatement
-// │  ├─ ExpressionStatement
-// │  └─ ControlFlowStatement
-// │     ├─ ReturnStatement
-// │     ├─ IfStatement
-// │     └─ LoopStatement
-// └─ Expression
-//    ├─ Identifier
-//    ├─ Literal
-//    ├─ UnaryExpression
-//    ├─ BinaryExpression
-//    ├─ MemberAccess
-//    ├─ Conditional
-//    ├─ CallLike
-//    │  ├─ FunctionCall
-//    │  ├─ ConstructorCall
-//    │  └─ Subscript
-//    └─ Conversion
+/// # AST class hierarchy
+/// ```
+/// ASTNode
+/// ├─ TranslationUnit
+/// ├─ Statement
+/// │  ├─ Declaration
+/// │  │  ├─ VariableDeclaration
+/// │  │  ├─ ParameterDeclaration
+/// │  │  │  └─ ThisParameter
+/// │  │  ├─ ModuleDeclaration
+/// │  │  ├─ FunctionDefinition
+/// │  │  └─ StructDefinition
+/// │  ├─ CompoundStatement
+/// │  ├─ ExpressionStatement
+/// │  └─ ControlFlowStatement
+/// │     ├─ ReturnStatement
+/// │     ├─ IfStatement
+/// │     └─ LoopStatement
+/// └─ Expression
+///    ├─ Identifier
+///    ├─ Literal
+///    ├─ UnaryExpression
+///    ├─ BinaryExpression
+///    ├─ MemberAccess
+///    ├─ Conditional
+///    ├─ CallLike
+///    │  ├─ FunctionCall
+///    │  ├─ ConstructorCall
+///    │  └─ Subscript
+///    └─ Conversion
+/// ```
 
 #define AST_DERIVED_COMMON(Type)                                               \
     UniquePtr<Type> extractFromParent() {                                      \
@@ -659,11 +662,6 @@ public:
 
 /// Represents a list expression, i.e. `[a, b, c]`
 class SCATHA_API ListExpression: public Expression {
-    static auto impl(auto* self) {
-        return ranges::views::transform(self->elems,
-                                        [](auto& p) { return p.get(); });
-    }
-
 public:
     ListExpression(utl::small_vector<UniquePtr<Expression>> elems,
                    SourceRange sourceRange):

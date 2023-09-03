@@ -5,6 +5,7 @@
 #include <utl/scope_guard.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Ranges.h"
 #include "CommonImpl.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
@@ -30,7 +31,7 @@ static utl::small_vector<std::string_view> split(std::string_view str,
                size_t size = utl::narrow_cast<size_t>(ranges::distance(rng));
                return std::string_view(&rng.front(), size);
            }) |
-           ranges::to<utl::small_vector<std::string_view>>;
+           ToSmallVector<>;
 }
 
 std::optional<size_t> Program::findAddress(
@@ -49,7 +50,7 @@ std::optional<size_t> Program::findAddress(
     auto args = argTypes | ranges::views::transform([&](auto type) {
                     return toSemaType(*sym, type);
                 }) |
-                ranges::to<utl::small_vector<sema::QualType>>;
+                ToSmallVector<>;
 
     auto itr = ranges::find_if(*os, [&](sema::Function* fn) {
         return ranges::equal(fn->argumentTypes(), args);

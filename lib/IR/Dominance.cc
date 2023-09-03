@@ -9,6 +9,7 @@
 #include <utl/hashtable.hpp>
 
 #include "Common/PrintUtil.h"
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 
 using namespace scatha;
@@ -52,8 +53,7 @@ static utl::small_vector<BasicBlock*> exitNodes(Function& function) {
     return function | ranges::views::filter([](auto& bb) {
                return isa<Return>(bb.terminator());
            }) |
-           ranges::views::transform([](auto& bb) { return &bb; }) |
-           ranges::to<utl::small_vector<BasicBlock*>>;
+           TakeAddress | ToSmallVector<>;
 }
 
 namespace {
@@ -192,8 +192,7 @@ DomTree DominanceInfo::computeDomTreeImpl(ir::Function& function,
                                           auto predecessors) {
     DomTree result;
     auto const nodeSet =
-        function | ranges::views::transform([](auto& bb) { return &bb; }) |
-        ranges::to<utl::hashset<BasicBlock*>>;
+        function | TakeAddress | ranges::to<utl::hashset<BasicBlock*>>;
     result._nodes = nodeSet | ranges::views::transform([](BasicBlock* bb) {
                         return DomTree::Node{ bb };
                     }) |
@@ -367,7 +366,7 @@ DomFrontMap DominanceInfo::computeIterDomFronts(DomFrontMap const& domFronts) {
     for (auto& [BB, DF]: domFronts) {
         result[BB] =
             iterate(BB, DF | ranges::to<utl::hashset<BasicBlock*>>, domFronts) |
-            ranges::to<utl::small_vector<BasicBlock*>>;
+            ToSmallVector<>;
     }
     return result;
 }

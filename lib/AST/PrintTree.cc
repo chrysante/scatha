@@ -10,6 +10,7 @@
 #include "Common/Base.h"
 #include "Common/EscapeSequence.h"
 #include "Common/PrintUtil.h"
+#include "Common/Ranges.h"
 #include "Common/TreeFormatter.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
@@ -238,7 +239,7 @@ end:
         auto children = c | ranges::views::filter([](auto* child) {
                             return child != nullptr;
                         }) |
-                        ranges::to<utl::small_vector<ASTNode const*>>;
+                        ToSmallVector<>;
         for (auto [index, child]: children | ranges::views::enumerate) {
             formatter.push(index != children.size() - 1 ? Level::Child :
                                                           Level::LastChild);

@@ -8,6 +8,7 @@
 #include <utl/graph.hpp>
 
 #include "Common/PrintUtil.h"
+#include "Common/Ranges.h"
 #include "Common/TreeFormatter.h"
 #include "IR/CFG.h"
 #include "IR/Dominance.h"
@@ -37,9 +38,7 @@ LoopNestingForest LoopNestingForest::compute(ir::Function& function,
                                              DomTree const& domtree) {
     LoopNestingForest result;
     result._virtualRoot = std::make_unique<Node>();
-    auto bbs = function |
-               ranges::views::transform([](auto& bb) { return &bb; }) |
-               ranges::to<utl::hashset<BasicBlock*>>;
+    auto bbs = function | TakeAddress | ranges::to<utl::hashset<BasicBlock*>>;
     result._nodes =
         bbs | ranges::views::transform([](auto* bb) { return Node(bb); }) |
         ranges::to<NodeSet>;

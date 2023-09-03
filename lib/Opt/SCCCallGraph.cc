@@ -66,7 +66,7 @@ SCCCallGraph SCCCallGraph::computeNoSCCs(Module& mod) {
 void SCCCallGraph::computeCallGraph() {
     _nodes = *mod | ranges::views::transform([](Function& function) {
         return std::make_unique<FunctionNode>(&function);
-    }) | ranges::to<utl::vector<std::unique_ptr<FunctionNode>>>;
+    }) | ToSmallVector<>;
     for (auto& node: _nodes) {
         _funcMap[&node->function()] = node.get();
     }
@@ -91,8 +91,7 @@ void SCCCallGraph::computeCallGraph() {
 }
 
 void SCCCallGraph::computeSCCs() {
-    auto vertices =
-        _nodes | ranges::views::transform([](auto& v) { return v.get(); });
+    auto vertices = _nodes | ToAddress;
     utl::compute_sccs(
         vertices.begin(),
         vertices.end(),
@@ -162,7 +161,7 @@ struct SplitSCC {
         for (auto* succ: function->successors()) {
             computeImpl(succ, result);
         }
-        auto nodes = result | ranges::to<utl::small_vector<FunctionNode*>>;
+        auto nodes = result | ToSmallVector<>;
         return std::make_unique<SCCNode>(std::move(nodes));
     }
 

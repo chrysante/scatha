@@ -323,7 +323,7 @@ void SCCPContext::visitExpression(Instruction& inst) {
                         ranges::views::transform([&](Value* arg) {
                             return formalValue(arg);
                         }) |
-                        ranges::to<utl::small_vector<FormalValue>>;
+            ToSmallVector<>;
             return evaluateCall(call.function(), args);
         },
         [&](Instruction const&) -> FormalValue { return Inevaluable{}; }

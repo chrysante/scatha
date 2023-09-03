@@ -6,6 +6,7 @@
 #include <range/v3/view.hpp>
 
 #include "AST/AST.h"
+#include "Common/Ranges.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
@@ -705,7 +706,7 @@ QualType sema::commonType(SymbolTable& sym,
                           std::span<ast::Expression const* const> exprs) {
     return commonType(sym, exprs | ranges::views::transform([](auto* expr) {
                                return expr->type();
-                           }) | ranges::to<utl::small_vector<QualType>>);
+                           }) | ToSmallVector<>);
 }
 
 ast::Conversion* sema::insertConversion(ast::Expression* expr,

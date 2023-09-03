@@ -2,6 +2,7 @@
 
 #include <utl/vector.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Context.h"
@@ -58,7 +59,7 @@ void opt::inlineCallsite(ir::Context& ctx,
     }
     landingpad->setPredecessors(
         phiArgs | ranges::views::transform([](auto m) { return m.pred; }) |
-        ranges::to<utl::small_vector<BasicBlock*>>);
+        ToSmallVector<>);
     if (!isa<VoidType>(calleeClone->returnType())) {
         /// Add a phi node to `landingpad` the merge all returns from
         /// `calleeClone`

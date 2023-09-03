@@ -5,6 +5,7 @@
 #include <range/v3/numeric.hpp>
 #include <utl/functional.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
@@ -477,7 +478,7 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
                      ranges::views::transform([&](ir::ConstPhiMapping arg) {
                          return resolve(arg.value);
                      }) |
-                     ranges::to<utl::small_vector<mir::Value*>>;
+                     ToSmallVector<>;
     size_t const numBytes = phi.type()->size();
     size_t const numWords = utl::ceil_divide(numBytes, 8);
     for (size_t i = 0; i < numWords; ++i) {
@@ -485,7 +486,7 @@ void CodeGenContext::genInst(ir::Phi const& phi) {
         auto nextArgs =
             arguments |
             ranges::views::transform([](auto* arg) { return arg->next(); }) |
-            ranges::to<utl::small_vector<mir::Value*>>;
+            ToSmallVector<>;
         for (auto&& [arg, pred]:
              ranges::views::zip(arguments, phi.parent()->predecessors()))
         {

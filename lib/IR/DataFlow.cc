@@ -2,6 +2,7 @@
 
 #include <range/v3/view.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Loop.h"
 
@@ -128,20 +129,17 @@ void LivenessContext::loopTree(LNFNode const* node) {
     }
 }
 
-static constexpr auto take_address =
-    ranges::views::transform([](auto& x) { return &x; });
-
-static constexpr auto phiUseFilter = ranges::views::filter(
+static constexpr auto PhiUseFilter = ranges::views::filter(
                                          [](Value const& value) {
     return ranges::any_of(value.users(),
                           [](auto* user) { return isa<Phi>(user); });
-}) | take_address;
+}) | TakeAddress;
 
 utl::hashset<Value const*> LivenessContext::phiUses(BasicBlock const* BB) {
-    return *BB | phiUseFilter | ranges::to<utl::hashset<Value const*>>;
+    return *BB | PhiUseFilter | ranges::to<utl::hashset<Value const*>>;
 }
 
 utl::hashset<Value const*> LivenessContext::phiUses(
     ranges::range auto&& params) {
-    return params | phiUseFilter | ranges::to<utl::hashset<Value const*>>;
+    return params | PhiUseFilter | ranges::to<utl::hashset<Value const*>>;
 }

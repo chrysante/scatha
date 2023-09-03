@@ -8,6 +8,7 @@
 #include <utl/vector.hpp>
 
 #include "Common/Allocator.h"
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
@@ -226,7 +227,7 @@ void VariableContext::cleanUnusedLoads() {
 }
 
 void VariableContext::cleanUnusedAddresses(Instruction* address) {
-    auto users = address->users() | ranges::to<utl::small_vector<Instruction*>>;
+    auto users = address->users() | ToSmallVector<>;
     for (auto* user: users) {
         if (auto* gep = dyncast<GetElementPointer*>(user)) {
             cleanUnusedAddresses(gep);
@@ -273,7 +274,7 @@ void VariableContext::replaceBySlicesImpl(Instruction* address,
                                           AccessTreeNode* node) {
     /// Make a copy of the user list because we edit the user list during
     /// traversal.
-    auto users = address->users() | ranges::to<utl::small_vector<Instruction*>>;
+    auto users = address->users() | ToSmallVector<>;
     for (auto* user: users) {
         auto* bb = user->parent();
         // clang-format off

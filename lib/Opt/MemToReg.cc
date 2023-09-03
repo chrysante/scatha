@@ -6,6 +6,7 @@
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
@@ -153,8 +154,7 @@ VariableInfo MemToRegContext::gatherInfo(Alloca* address) {
 utl::hashset<BasicBlock*> MemToRegContext::computeLiveBlocks(Alloca* address) {
     utl::hashset<BasicBlock*> result;
     auto& info = variables.find(address)->second;
-    auto worklist =
-        info.usingBlocks | ranges::to<utl::small_vector<BasicBlock*>>;
+    auto worklist = info.usingBlocks | ToSmallVector<>;
     for (auto itr = worklist.begin(); itr != worklist.end(); ++itr) {
         auto* bb = *itr;
         if (!info.definingBlocks.contains(bb)) {
@@ -218,8 +218,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
     SC_ASSERT(isPromotable(*address), "");
     auto const liveBlocks = computeLiveBlocks(address);
     auto appearedOnWorklist = varInfo.definingBlocks;
-    auto worklist =
-        appearedOnWorklist | ranges::to<utl::small_vector<BasicBlock*>>;
+    auto worklist = appearedOnWorklist | ToSmallVector<>;
     while (!worklist.empty()) {
         BasicBlock* x = worklist.back();
         worklist.pop_back();
@@ -236,7 +235,7 @@ void MemToRegContext::insertPhis(Alloca* address, VariableInfo& varInfo) {
                            ranges::views::transform([&](BasicBlock* pred) {
                                return PhiMapping(pred, undefVal);
                            }) |
-                           ranges::to<utl::small_vector<PhiMapping>>;
+                           ToSmallVector<>;
             /// Name will be set later in `genName()`
             auto* phi = new Phi(std::move(phiArgs), std::string{});
             phiMap.insert({ phi, address });

@@ -176,7 +176,7 @@ void LivenessContext::loopTree(ir::LNFNode const* node) {
     }
 }
 
-static constexpr auto phiUseFilter =
+static constexpr auto PhiUseFilter =
     ranges::views::filter([](mir::Register const* reg) -> bool {
         if (!reg) {
             return false;
@@ -186,16 +186,17 @@ static constexpr auto phiUseFilter =
         });
     });
 
+static constexpr auto Dests = ranges::views::transform(
+    [](mir::Instruction& inst) { return inst.dest(); });
+
 /// Returns all registers defined by instructions in \p BB that are used by phi
 /// instructions
 utl::hashset<mir::Register*> LivenessContext::phiUses(mir::BasicBlock* BB) {
-    return *BB | ranges::views::transform([](mir::Instruction& inst) {
-        return inst.dest();
-    }) | phiUseFilter |
+    return *BB | Dests | PhiUseFilter |
            ranges::to<utl::hashset<mir::Register*>>;
 }
 
 utl::hashset<mir::Register*> LivenessContext::phiUses(
     ranges::range auto&& params) {
-    return params | phiUseFilter | ranges::to<utl::hashset<mir::Register*>>;
+    return params | PhiUseFilter | ranges::to<utl::hashset<mir::Register*>>;
 }

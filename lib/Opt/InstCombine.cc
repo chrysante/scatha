@@ -7,6 +7,7 @@
 #include <utl/vector.hpp>
 
 #include "Common/Base.h"
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Print.h"
@@ -114,8 +115,7 @@ struct InstCombineCtx {
         if (oldInst == newValue) {
             return;
         }
-        auto users =
-            oldInst->users() | ranges::to<utl::small_vector<Instruction*>>;
+        auto users = oldInst->users() | ToSmallVector<>;
         for (auto* user: users) {
             invalidateAccessTree(user);
             user->updateOperand(oldInst, newValue);
@@ -162,8 +162,7 @@ bool opt::instCombine(Context& irCtx, Function& function) {
 }
 
 bool InstCombineCtx::run() {
-    worklist = function.instructions() |
-               ranges::views::transform([](auto& inst) { return &inst; }) |
+    worklist = function.instructions() | TakeAddress |
                ranges::to<utl::hashset<Instruction*>>;
     while (!worklist.empty()) {
         auto itr = worklist.begin();

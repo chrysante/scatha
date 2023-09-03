@@ -10,7 +10,7 @@
 
 #include <scatha/Common/Base.h>
 #include <scatha/Common/List.h>
-#include <scatha/Common/OpaqueRange.h>
+#include <scatha/Common/Ranges.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/IR/Fwd.h>
 #include <svm/Builtin.h>
@@ -27,21 +27,14 @@ public:
     ~Module();
 
     /// View over the static constant data objects in this module
-    auto constantData() const {
-        return _constantData |
-               ranges::views::transform(
-                   [](auto& p) -> auto const* { return p.get(); });
-    }
+    auto constantData() const { return _constantData | ToConstAddress; }
 
-    auto structures() { return makeOpaqueRange(structs); }
+    auto structures() { return structs | Opaque; }
 
-    auto structures() const { return makeOpaqueRange(structs); }
+    auto structures() const { return structs | Opaque; }
 
     /// View over the globals in this module
-    auto globals() const {
-        return _globals | ranges::views::transform(
-                              [](auto& p) -> auto const* { return p.get(); });
-    }
+    auto globals() const { return _globals | ToConstAddress; }
 
     auto& functions() { return funcs; }
 

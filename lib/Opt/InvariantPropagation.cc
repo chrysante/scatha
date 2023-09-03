@@ -28,16 +28,16 @@ using namespace opt;
 SC_REGISTER_PASS(opt::propagateInvariants, "invprop");
 #endif
 
-static constexpr auto Signed = CompareMode::Signed;
-static constexpr auto Unsigned = CompareMode::Unsigned;
-static constexpr auto Float = CompareMode::Float;
+[[maybe_unused]] static constexpr auto Signed = CompareMode::Signed;
+[[maybe_unused]] static constexpr auto Unsigned = CompareMode::Unsigned;
+[[maybe_unused]] static constexpr auto Float = CompareMode::Float;
 
-static constexpr auto Less = CompareOperation::Less;
-static constexpr auto LessEq = CompareOperation::LessEq;
-static constexpr auto Greater = CompareOperation::Greater;
-static constexpr auto GreaterEq = CompareOperation::GreaterEq;
-static constexpr auto Equal = CompareOperation::Equal;
-static constexpr auto NotEqual = CompareOperation::NotEqual;
+[[maybe_unused]] static constexpr auto Less = CompareOperation::Less;
+[[maybe_unused]] static constexpr auto LessEq = CompareOperation::LessEq;
+[[maybe_unused]] static constexpr auto Greater = CompareOperation::Greater;
+[[maybe_unused]] static constexpr auto GreaterEq = CompareOperation::GreaterEq;
+[[maybe_unused]] static constexpr auto Equal = CompareOperation::Equal;
+[[maybe_unused]] static constexpr auto NotEqual = CompareOperation::NotEqual;
 
 namespace {
 
@@ -400,8 +400,7 @@ Value* IPContext::eval(CompareInst* cmp) { return nullptr; }
 void IPContext::replaceIfDominatedBy(Value* value,
                                      Constant* newValue,
                                      BasicBlock const* dom) const {
-    auto users = value->users() | Filter<Instruction> |
-                 ranges::to<utl::small_vector<Instruction*>>;
+    auto users = value->users() | Filter<Instruction> | ToSmallVector<>;
     for (auto* user: users) {
         if (domInfo.dominatorSet(user->parent()).contains(dom)) {
             user->updateOperand(value, newValue);

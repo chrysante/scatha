@@ -3,6 +3,7 @@
 #include <utl/hashtable.hpp>
 
 #include "Common/Base.h"
+#include "Common/Ranges.h"
 #include "MIR/CFG.h"
 
 /// Jump elision tries to reorder the basic blocks in such a way that as many
@@ -139,8 +140,7 @@ begin:
         }
         SC_ASSERT(&BB == next->predecessors().front(), "");
         BB.splice(BB.end(), next);
-        auto nextSuccessors = next->successors() |
-                              ranges::to<utl::small_vector<mir::BasicBlock*>>;
+        auto nextSuccessors = next->successors() | ToSmallVector<>;
         for (auto* succ: nextSuccessors) {
             succ->removePredecessor(next);
             succ->addPredecessor(&BB);

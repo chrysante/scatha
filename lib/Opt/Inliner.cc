@@ -213,8 +213,7 @@ VisitResult Inliner::visitFunction(FunctionNode const& node) {
     /// We create a copy of the list of callees because after inlining one
     /// function the corresponding edge may be erased from the call graph,
     /// invalidating the list.
-    auto callees =
-        node.callees() | ranges::to<utl::small_vector<FunctionNode const*>>;
+    auto callees = node.callees() | ToSmallVector<>;
     for (auto* callee: callees) {
         auto callsitesOfCallee = node.callsites(*callee);
         for (auto* callInst: callsitesOfCallee) {

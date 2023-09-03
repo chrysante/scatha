@@ -7,6 +7,7 @@
 #include <svm/Builtin.h>
 
 #include "AST/Fwd.h"
+#include "Common/Ranges.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/Lifetime.h"
@@ -550,11 +551,11 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     /// a conversion node
     if (auto* targetType = dyncast<ObjectType const*>(fc.callee()->entity())) {
         if (auto* structType = dyncast<StructureType const*>(targetType)) {
-            auto args =
-                fc.arguments() | ranges::views::transform([](auto* arg) {
-                    return arg->extractFromParent();
-                }) |
-                ranges::to<utl::small_vector<UniquePtr<ast::Expression>>>;
+            auto args = fc.arguments() |
+                        ranges::views::transform([](auto* arg) {
+                            return arg->extractFromParent();
+                        }) |
+                        ToSmallVector<>;
             auto ctorCall = makeConstructorCall(structType,
                                                 std::move(args),
                                                 sym,
@@ -586,10 +587,9 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     }
 
     /// Perform overload resolution
-    auto result = performOverloadResolution(
-        overloadSet,
-        fc.arguments() | ranges::to<utl::small_vector<ast::Expression const*>>,
-        isMemberCall);
+    auto result = performOverloadResolution(overloadSet,
+                                            fc.arguments() | ToSmallVector<>,
+                                            isMemberCall);
     if (result.error) {
         result.error->setSourceRange(fc.sourceRange());
         iss.push(std::move(result.error));
@@ -639,8 +639,7 @@ bool Context::analyzeImpl(ast::ListExpression& list) {
         if (!success) {
             return false;
         }
-        auto elements = list.elements() |
-                        ranges::to<utl::small_vector<ast::Expression const*>>;
+        auto elements = list.elements() | ToSmallVector<>;
         QualType commonType = sema::commonType(sym, elements);
         if (!commonType) {
             iss.push<InvalidListExpr>(list, InvalidListExpr::NoCommonType);

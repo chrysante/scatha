@@ -97,8 +97,7 @@ static void run(mir::Module const& mod) {
 [[maybe_unused]] static void printIRLiveSets(ir::Function const& F) {
     auto liveSets = ir::LiveSets::compute(F);
     for (auto& bb: F) {
-        auto toNames = ranges::views::transform(
-            [](ir::Value const* value) { return value->name(); });
+        auto toNames = ranges::views::transform(&ir::Value::name);
         auto* live = liveSets.find(&bb);
         if (!live) {
             continue;

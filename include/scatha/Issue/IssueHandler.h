@@ -11,6 +11,7 @@
 #include <range/v3/view.hpp>
 
 #include <scatha/Common/Base.h>
+#include <scatha/Common/Ranges.h>
 #include <scatha/Issue/Issue.h>
 
 namespace scatha {
@@ -19,10 +20,7 @@ namespace scatha {
 /// accept an issue handler to submit issues to.
 class SCATHA_API IssueHandler {
     /// \Returns A views over all issues
-    auto issueView() const {
-        return ranges::views::transform(_issues,
-                                        [](auto& p) { return p.get(); });
-    }
+    auto issueView() const { return _issues | ToConstAddress; }
 
 public:
     IssueHandler() = default;

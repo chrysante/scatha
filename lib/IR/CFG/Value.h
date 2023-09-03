@@ -8,7 +8,7 @@
 #include <utl/hashtable.hpp>
 
 #include "Common/Base.h"
-#include "Common/OpaqueRange.h"
+#include "Common/Ranges.h"
 #include "IR/Fwd.h"
 
 namespace scatha::ir {
@@ -45,13 +45,10 @@ public:
     void setName(std::string name);
 
     /// View of all users using this value.
-    auto users() const {
-        return _users |
-               ranges::views::transform([](auto&& p) { return p.first; });
-    }
+    auto users() const { return _users | ranges::views::keys; }
 
     /// View of all users with use counts using this value.
-    auto countedUsers() const { return makeOpaqueRange(_users); }
+    auto countedUsers() const { return _users | Opaque; }
 
     /// Number of users using this value. Multiple uses by the same user are
     /// counted as one.

@@ -114,9 +114,7 @@ void AssertContext::assertInvariants(BasicBlock const& bb) {
     CHECK(!bb.empty(),
           "Empty basic blocks are not well formed as they must end with a "
           "terminator");
-    auto instructions =
-        bb | ranges::views::transform([](auto& inst) { return &inst; }) |
-        ranges::to<utl::small_vector<Instruction const*>>;
+    auto instructions = bb | TakeAddress | ToSmallVector<>;
     for (auto itr = instructions.begin(), end = instructions.end(); itr != end;
          ++itr)
     {

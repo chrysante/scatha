@@ -5,6 +5,7 @@
 
 #include "AST/AST.h"
 #include "Common/Base.h"
+#include "Common/Ranges.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
@@ -165,8 +166,7 @@ void Context::analyzeImpl(ast::CompoundStatement& block) {
     }
     sym.pushScope(block.scope());
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
-    auto statements =
-        block.statements() | ranges::to<utl::small_vector<ast::Statement*>>;
+    auto statements = block.statements() | ToSmallVector<>;
     for (auto* statement: statements) {
         analyze(*statement);
     }

@@ -4,6 +4,7 @@
 #include <utl/hashtable.hpp>
 
 #include "Common/Base.h"
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Dominance.h"
@@ -76,9 +77,7 @@ static bool isCritical(Instruction const& inst) {
 bool DCEContext::run() {
     /// Initialization phase
     auto instructions =
-        function.instructions() |
-        ranges::views::transform([](auto& inst) { return &inst; }) |
-        ranges::to<utl::small_vector<Instruction*, 32>>;
+        function.instructions() | TakeAddress | ToSmallVector<32>;
     auto criticalInstructions =
         instructions |
         ranges::views::filter([](auto* inst) { return isCritical(*inst); });
@@ -112,14 +111,11 @@ bool DCEContext::run() {
     while (!worklist.empty()) {
         auto* inst = *worklist.begin();
         worklist.erase(worklist.begin());
-        auto liveUnmarked =
-            inst->operands() | ranges::views::transform([](Value* op) {
-                return dyncast<Instruction*>(op);
-            }) |
-            ranges::views::filter([&](auto* inst) {
-                return inst != nullptr && !marked.contains(inst);
-            }) |
-            ranges::to<utl::small_vector<Instruction*>>;
+        auto liveUnmarked = inst->operands() | Filter<Instruction> |
+                            ranges::views::filter([&](auto* inst) {
+                                return !marked.contains(inst);
+                            }) |
+                            ToSmallVector<>;
         for (auto* inst: liveUnmarked) {
             mark(inst);
         }

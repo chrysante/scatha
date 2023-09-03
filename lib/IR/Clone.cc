@@ -2,6 +2,7 @@
 
 #include <utl/hashtable.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Type.h"
 
@@ -77,7 +78,7 @@ static Call* doClone(Context& context, Call* inst) {
 }
 
 static Phi* doClone(Context& context, Phi* inst) {
-    auto args = inst->arguments() | ranges::to<utl::small_vector<PhiMapping>>;
+    auto args = inst->arguments() | ToSmallVector<>;
     return new Phi(args, std::string(inst->name()));
 }
 
@@ -163,7 +164,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
     auto paramTypes =
         function->parameters() |
         ranges::views::transform([](Parameter const& p) { return p.type(); }) |
-        ranges::to<utl::small_vector<Type const*>>;
+        ToSmallVector<>;
     auto result = allocate<Function>(nullptr,
                                      function->returnType(),
                                      paramTypes,
@@ -182,7 +183,7 @@ UniquePtr<Function> ir::clone(Context& context, Function* function) {
     }
     for (auto& bb: *result) {
         auto newPreds = bb.predecessors() | ranges::views::transform(valueMap) |
-                        ranges::to<utl::small_vector<BasicBlock*>>;
+                        ToSmallVector<>;
         bb.setPredecessors(newPreds);
         for (auto& inst: bb) {
             for (auto&& [index, operand]:

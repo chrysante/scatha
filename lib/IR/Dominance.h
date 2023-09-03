@@ -9,6 +9,7 @@
 #include <utl/vector.hpp>
 
 #include "Common/Graph.h"
+#include "Common/Ranges.h"
 #include "IR/Fwd.h"
 
 namespace scatha::ir {
@@ -32,10 +33,7 @@ public:
 
 public:
     /// \Returns Flat array of nodes in the dominator tree.
-    auto nodes() const {
-        return _nodes | ranges::views::transform(
-                            [](auto& n) -> Node const& { return n; });
-    }
+    auto nodes() const { return _nodes | Opaque; }
 
     /// \Returns The tree node corresponding to basic block \p BB
     Node const* operator[](ir::BasicBlock const* BB) const {

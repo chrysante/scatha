@@ -9,6 +9,7 @@
 
 #include "Common/Base.h"
 #include "Common/Graph.h"
+#include "Common/Ranges.h"
 #include "IR/Fwd.h"
 
 namespace scatha::opt {
@@ -88,16 +89,10 @@ public:
         explicit SCCNode(utl::small_vector<FunctionNode*> nodes);
 
         /// \returns a view over the function nodes in this SCC
-        auto nodes() {
-            return _nodes | ranges::views::transform(
-                                [](auto* p) -> auto& { return *p; });
-        }
+        auto nodes() { return _nodes | Dereference; }
 
         /// \overload
-        auto nodes() const {
-            return _nodes | ranges::views::transform(
-                                [](auto* p) -> auto const& { return *p; });
-        }
+        auto nodes() const { return _nodes | Dereference; }
 
         /// \returns a view over the functions this SCC
         auto functions() const {
@@ -158,16 +153,10 @@ public:
     }
 
     /// \returns a view over the SCC's
-    auto sccs() {
-        return _sccs |
-               ranges::views::transform([](auto& p) -> auto& { return *p; });
-    }
+    auto sccs() { return _sccs | Dereference; }
 
     /// \overload
-    auto sccs() const {
-        return _sccs | ranges::views::transform(
-                           [](auto& p) -> auto const& { return *p; });
-    }
+    auto sccs() const { return _sccs | Dereference; }
 
     /// Remove the call instruction \p callInst from the call graph
     /// We explicitly pass in the caller and the callee, because the call

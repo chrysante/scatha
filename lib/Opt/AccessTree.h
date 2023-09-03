@@ -9,6 +9,7 @@
 #include <utl/function_view.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/Fwd.h"
 #include "IR/Type.h"
 
@@ -31,10 +32,7 @@ namespace scatha::opt {
 /// Represents accesses to objects of structure type
 template <typename Payload>
 class AccessTree {
-    static auto childrenImpl(auto* self) {
-        return self->_children |
-               ranges::views::transform([](auto& p) { return p.get(); });
-    }
+    static auto childrenImpl(auto* self) { return self->_children | ToAddress; }
 
     using PayloadType = typename internal::VoidToEmpty<Payload>::type;
 

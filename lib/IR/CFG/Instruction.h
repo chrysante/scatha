@@ -2,6 +2,7 @@
 #define SCATHA_IR_CFG_INSTRUCTION_H_
 
 #include "Common/List.h"
+#include "Common/Ranges.h"
 #include "IR/CFG/User.h"
 #include "IR/Fwd.h"
 
@@ -26,12 +27,7 @@ public:
     /// \details This casts the elements in
     /// the range returned by `Value::users()` to instructions, as instructions
     /// are only used by other instructions.
-    auto users() const {
-        return Value::users() |
-               ranges::views::transform([]<typename T>(T* user) {
-                   return cast<utl::copy_cv_t<T, Instruction>*>(user);
-               });
-    }
+    auto users() const { return Value::users() | Cast<Instruction*>; }
 
     /// \returns Pairs of `User*` and `uint16_t`
     /// The integer specifies how often a user uses this instruction

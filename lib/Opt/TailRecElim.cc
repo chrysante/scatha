@@ -209,8 +209,7 @@ void TREContext::generateLoopHeader() {
                                          [](ViableReturn const& ret) {
         return std::visit([](auto& ret) { return ret.retInst->parent(); }, ret);
     });
-    auto preds = ranges::views::concat(entryRng, retBlocks) |
-                 ranges::to<utl::small_vector<BasicBlock*, 16>>;
+    auto preds = ranges::views::concat(entryRng, retBlocks) | ToSmallVector<16>;
     loopHeader->setPredecessors(preds);
     /// ## Phis for parameters
     /// For every function parameter, we add a phi node to the loopheader block.
@@ -225,8 +224,8 @@ void TREContext::generateLoopHeader() {
             nullptr
         };
     });
-    auto phiArgs = ranges::views::concat(entryArg, otherArgs) |
-                   ranges::to<utl::small_vector<PhiMapping, 8>>;
+    auto phiArgs =
+        ranges::views::concat(entryArg, otherArgs) | ToSmallVector<8>;
     auto before = loopHeader->phiEnd();
     for (auto& param: function.parameters()) {
         phiArgs[0].value = &param;

@@ -93,6 +93,7 @@
 #include <utl/strcat.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Clone.h"
 #include "IR/Dominance.h"
@@ -220,7 +221,7 @@ struct TopSorter {
     }
 
     auto operator()(std::span<LNFNode const* const> nodes) const {
-        auto result = nodes | ranges::to<utl::small_vector<LNFNode const*>>;
+        auto result = nodes | ToSmallVector<>;
         std::sort(result.begin(), result.end(), [&](auto* A, auto* B) {
             return rank(A->basicBlock()) < rank(B->basicBlock());
         });

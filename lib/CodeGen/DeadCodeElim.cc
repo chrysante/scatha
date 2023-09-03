@@ -2,6 +2,7 @@
 
 #include <utl/hashtable.hpp>
 
+#include "Common/Ranges.h"
 #include "MIR/CFG.h"
 
 using namespace scatha;
@@ -74,14 +75,7 @@ void DCEContext::visitInstruction(mir::Instruction* inst) {
         return;
     }
     deadInstructions.insert(inst);
-    auto ssaOps = inst->operands() |
-                  ranges::views::filter([](mir::Value const* value) {
-                      return value && isa<mir::SSARegister>(value);
-                  }) |
-                  ranges::views::transform([](mir::Value* value) {
-                      return cast<mir::SSARegister*>(value);
-                  }) |
-                  ranges::to<utl::small_vector<mir::SSARegister*>>;
+    auto ssaOps = inst->operands() | Filter<mir::SSARegister> | ToSmallVector<>;
     inst->clearOperands();
     for (auto* reg: ssaOps) {
         if (reg->def()) { /// `reg->def()` could be null if `reg` is a parameter

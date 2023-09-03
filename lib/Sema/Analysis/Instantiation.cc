@@ -95,7 +95,7 @@ std::vector<StructureType const*> Context::run() {
                          auto const& node = dependencyGraph[index];
                          return Node{ node.astNode, node.entity };
                      }) |
-                     ranges::to<utl::vector<Node>>;
+                     ranges::to<utl::vector>;
         iss.push<StrongReferenceCycle>(std::move(nodes));
         return {};
     }

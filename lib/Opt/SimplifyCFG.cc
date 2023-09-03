@@ -5,6 +5,7 @@
 #include <utl/scope_guard.hpp>
 #include <utl/strcat.hpp>
 
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Validate.h"
 #include "Opt/Common.h"
@@ -90,12 +91,10 @@ bool Ctx::replaceConstCondBranches(BasicBlock* bb) {
 }
 
 bool Ctx::eraseUnreachableBlocks() {
-    auto unreachableBlocks =
-        function | ranges::views::filter([&](auto& bb) {
-            return !visited.contains(&bb);
-        }) |
-        ranges::views::transform([](auto& bb) { return &bb; }) |
-        ranges::to<utl::small_vector<BasicBlock*>>;
+    auto unreachableBlocks = function | ranges::views::filter([&](auto& bb) {
+                                 return !visited.contains(&bb);
+                             }) |
+                             TakeAddress | ToSmallVector<>;
     for (auto* bb: unreachableBlocks) {
         for (auto* succ: bb->successors()) {
             if (succ) {

@@ -49,9 +49,8 @@ struct Impl {
     template <typename Pass>
     utl::vector<Pass> getPassesImpl(utl::hashmap<std::string, Pass> const& map,
                                     auto filter) const {
-        return map |
-               ranges::views::transform([](auto& p) { return p.second; }) |
-               ranges::views::filter(filter) | ranges::to<utl::vector>;
+        return map | ranges::views::values | ranges::views::filter(filter) |
+               ranges::to<utl::vector>;
     }
 
     utl::vector<LocalPass> getLocalPasses() const {

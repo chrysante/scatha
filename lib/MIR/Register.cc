@@ -1,5 +1,6 @@
 #include "MIR/Register.h"
 
+#include "Common/Ranges.h"
 #include "MIR/CFG.h"
 
 using namespace scatha;
@@ -22,11 +23,11 @@ void Register::removeUser(Instruction* inst) {
 }
 
 void Register::replaceWith(Register* repl) {
-    auto defs = this->defs() | ranges::to<utl::small_vector<mir::Instruction*>>;
+    auto defs = this->defs() | ToSmallVector<>;
     for (auto* inst: defs) {
         inst->setDest(repl);
     }
-    auto uses = this->uses() | ranges::to<utl::small_vector<mir::Instruction*>>;
+    auto uses = this->uses() | ToSmallVector<>;
     for (auto* inst: uses) {
         inst->replaceOperand(this, repl);
     }

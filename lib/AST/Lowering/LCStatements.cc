@@ -4,6 +4,7 @@
 #include <utl/scope_guard.hpp>
 
 #include "AST/AST.h"
+#include "Common/Ranges.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Type.h"
@@ -123,12 +124,8 @@ void LoweringContext::generateParameter(
 }
 
 void LoweringContext::generateImpl(StructDefinition const& def) {
-    for (auto* statement:
-         def.body()->statements() | ranges::views::filter([](auto* statement) {
-             return isa<FunctionDefinition>(statement);
-         }))
-    {
-        generate(*statement);
+    for (auto* stmt: def.body()->statements() | Filter<FunctionDefinition>) {
+        generate(*stmt);
     }
 }
 

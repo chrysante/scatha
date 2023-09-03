@@ -14,6 +14,7 @@
 #include <utl/vector.hpp>
 
 #include <scatha/Common/Base.h>
+#include <scatha/Common/Ranges.h>
 #include <scatha/Common/UniquePtr.h>
 #include <scatha/Sema/Fwd.h>
 #include <scatha/Sema/QualType.h>
@@ -233,16 +234,10 @@ public:
     }
 
     /// \Returns A View over the children of this scope
-    auto children() const {
-        return _children | ranges::views::transform(
-                               [](auto* scope) -> auto* { return scope; });
-    }
+    auto children() const { return _children | Opaque; }
 
     /// \Returns A View over the entities in this scope
-    auto entities() const {
-        return _entities | ranges::views::transform(
-                               [](auto& p) -> auto& { return p.second; });
-    }
+    auto entities() const { return _entities | ranges::views::values; }
 
 protected:
     explicit Scope(EntityType entityType,

@@ -6,6 +6,7 @@
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
+#include "Common/Ranges.h"
 #include "Common/UniquePtr.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
@@ -407,10 +408,7 @@ std::span<Function const* const> SymbolTable::functions() const {
 }
 
 std::vector<Entity const*> SymbolTable::entities() const {
-    return impl->_entities |
-           ranges::views::transform(
-               [](auto& p) -> auto const* { return p.get(); }) |
-           ranges::to<std::vector>;
+    return impl->_entities | ToConstAddress | ranges::to<std::vector>;
 }
 
 template <typename E, typename... Args>

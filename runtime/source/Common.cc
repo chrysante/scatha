@@ -2,6 +2,7 @@
 
 #include <sstream>
 
+#include "Common/Ranges.h"
 #include "CommonImpl.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
@@ -68,8 +69,7 @@ sema::FunctionSignature scatha::toSemaSig(sema::SymbolTable& sym,
                                           QualType returnType,
                                           std::span<QualType const> argTypes) {
     auto map = mapType(sym);
-    auto args = argTypes | ranges::views::transform(map) |
-                ranges::to<utl::small_vector<sema::QualType>>;
+    auto args = argTypes | ranges::views::transform(map) | ToSmallVector<>;
     return sema::FunctionSignature(std::move(args), map(returnType));
 }
 

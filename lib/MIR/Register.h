@@ -8,6 +8,7 @@
 #include <utl/vector.hpp>
 
 #include "Common/List.h"
+#include "Common/Ranges.h"
 #include "MIR/Value.h"
 
 namespace scatha::mir {
@@ -79,26 +80,16 @@ public:
     void setFixed(bool value = true) { _fixed = value; }
 
     /// \Returns A view over pointers to instructions reading from this register
-    auto uses() {
-        return _users |
-               ranges::views::transform([](auto& p) { return p.first; });
-    }
+    auto uses() { return _users | ranges::views::keys; }
 
     /// \overload
-    auto uses() const {
-        return _users |
-               ranges::views::transform([](auto& p) { return p.first; });
-    }
+    auto uses() const { return _users | ranges::views::keys; }
 
     /// \Returns A view over pointers to instructions writing to this register
-    auto defs() {
-        return _defs | ranges::views::transform([](auto* d) { return d; });
-    }
+    auto defs() { return _defs | Opaque; }
 
     /// \overload
-    auto defs() const {
-        return _defs | ranges::views::transform([](auto* d) { return d; });
-    }
+    auto defs() const { return _defs | Opaque; }
 
     /// \Returns `true` if. \p inst uses this register (as an argument).
     bool isUsedBy(Instruction const* inst) const {

@@ -60,9 +60,9 @@ static OverloadResolutionResult performORImpl(
     std::span<QualType const> argTypes,
     std::span<Value const* const> constArgs,
     bool isMemberCall) {
-    utl::small_vector<OverloadResolutionResult, 4> matches;
+    utl::small_vector<OverloadResolutionResult, 4> results;
     /// Contains ranks and the index of the matching result structure in
-    /// `matches`
+    /// `results`
     struct RankIndexPair {
         int rank;
         uint32_t index;
@@ -77,15 +77,15 @@ static OverloadResolutionResult performORImpl(
                                    isMemberCall);
         if (rank) {
             ranks.push_back(
-                { *rank, utl::narrow_cast<uint32_t>(matches.size()) });
-            matches.push_back(std::move(match));
+                { *rank, utl::narrow_cast<uint32_t>(results.size()) });
+            results.push_back(std::move(match));
         }
     }
-    if (matches.empty()) {
+    if (results.empty()) {
         return makeError<NoMatchingFunction>(overloadSet);
     }
-    if (matches.size() == 1) {
-        return std::move(matches.front());
+    if (results.size() == 1) {
+        return std::move(results.front());
     }
     ranges::sort(ranks, ranges::less{}, [](auto pair) { return pair.rank; });
     int const lowestRank = ranks.front().rank;
@@ -98,12 +98,12 @@ static OverloadResolutionResult performORImpl(
     case 0:
         return makeError<NoMatchingFunction>(overloadSet);
     case 1:
-        return std::move(matches[ranks.front().index]);
+        return std::move(results[ranks.front().index]);
     default: {
-        auto functions = matches | ranges::views::transform([](auto& match) {
-                             return match.function;
-                         }) |
-                         ranges::to<utl::small_vector<Function*>>;
+        auto functions =
+            results |
+            ranges::views::transform(&OverloadResolutionResult::function) |
+            ToSmallVector<>;
         return makeError<AmbiguousOverloadResolution>(overloadSet,
                                                       std::move(functions));
     }

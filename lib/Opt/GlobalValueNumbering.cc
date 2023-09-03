@@ -204,10 +204,8 @@ public:
 
     /// View over all computations
     auto instructions() const {
-        return rankMap | ranges::views::transform([](auto& p) -> auto& {
-                   return p.second;
-               }) |
-               ranges::views::join | CompToInst;
+        return rankMap | ranges::views::values | ranges::views::join |
+               CompToInst;
     }
 
     /// View over all computations of a given rank
@@ -217,8 +215,8 @@ public:
     size_t maxRank() const { return _maxRank; }
 
 private:
-    static constexpr auto CompToInst = ranges::views::transform(
-        [](Computation comp) { return comp.instruction(); });
+    static constexpr auto CompToInst =
+        ranges::views::transform(&Computation::instruction);
 
     utl::hashmap<size_t, utl::hashset<Computation>> rankMap;
     size_t _maxRank = 0;
@@ -230,10 +228,7 @@ private:
 /// the corresponding computation in the LCT of the successor block.
 class MovableComputationTable {
     auto allEntries() {
-        return _entries | ranges::views::transform([](auto& p) -> auto& {
-                   return p.second;
-               }) |
-               ranges::views::join;
+        return _entries | ranges::views::values | ranges::views::join;
     }
 
 public:
@@ -578,7 +573,7 @@ static void eraseBlock(BasicBlock* BB) {
 }
 
 void GVNContext::joinSplitEdges() {
-    auto blocks = edgeSplitBlocks | ranges::to<utl::small_vector<BasicBlock*>>;
+    auto blocks = edgeSplitBlocks | ToSmallVector<>;
     for (auto* BB: blocks) {
         if (BB->emptyExceptTerminator() && BB->hasSinglePredecessor() &&
             BB->hasSingleSuccessor())
@@ -615,9 +610,7 @@ void GVNContext::computeTopsortOrder() {
 
     DFS dfs;
     dfs.search(&function.entry());
-    topsortOrder = function |
-                   ranges::views::transform([](auto& BB) { return &BB; }) |
-                   ranges::to<utl::small_vector<BasicBlock*>>;
+    topsortOrder = function | TakeAddress | ToSmallVector<>;
     auto forwardEdges = [&](BasicBlock* BB) {
         return BB->successors() |
                ranges::views::filter([&dfs, BB](BasicBlock* succ) {
@@ -763,7 +756,7 @@ void GVNContext::processHeader(size_t rank,
                    ranges::views::filter([&](auto* inst) {
                        return isHeaderMovable(inst, header, landingPad);
                    }) |
-                   ranges::to<utl::small_vector<Instruction*>>;
+                   ToSmallVector<>;
     auto& MCT = MCTs[{ landingPad, header }];
     for (auto* inst: movable) {
         MCT.insert(rank, copyAndPhiRename(ctx, inst, landingPad), inst);
@@ -866,7 +859,7 @@ bool GVNContext::isHeaderMovable(Instruction* inst,
                        }
                        return operand;
                    }) |
-                   ranges::to<utl::small_vector<Value*>>;
+            ToSmallVector<>;
         }
     };
     return DFS{ inst, header, landingPad }.run();
@@ -881,7 +874,7 @@ void GVNContext::processLandingPad(size_t rank,
     moveInImpl(rank,
                BB,
                LCT,
-               BB->successors() | ranges::to<utl::small_vector<BasicBlock*>>,
+               BB->successors() | ToSmallVector<>,
                [&](Instruction const* inst) {
         return ranges::none_of(inst->operands() | Filter<Instruction>,
                                [&](auto* instOp) {
@@ -904,7 +897,7 @@ void GVNContext::moveIn(size_t rank,
     moveInImpl(rank,
                BB,
                LCT,
-               BB->successors() | ranges::to<utl::small_vector<BasicBlock*>>,
+               BB->successors() | ToSmallVector<>,
                [](Instruction const* inst) { return true; });
 }
 
@@ -992,7 +985,7 @@ void GVNContext::moveOut(size_t rank,
                          LocalComputationTable& LCT) {
     /// Identify candidates for movement to our predecessors
     auto movable = LCT.instructions(rank) | ranges::views::filter(isMoveable) |
-                   ranges::to<utl::small_vector<Instruction*>>;
+                   ToSmallVector<>;
     switch (BB->numPredecessors()) {
     case 0:
         break;

@@ -1,6 +1,7 @@
 #ifndef SCATHA_IR_CFG_INSTRUCTIONS_H_
 #define SCATHA_IR_CFG_INSTRUCTIONS_H_
 
+#include "Common/Ranges.h"
 #include "IR/CFG/BasicBlock.h"
 #include "IR/CFG/Instruction.h"
 
@@ -175,8 +176,7 @@ class SCATHA_API TerminatorInst: public Instruction {
     template <typename T>
     static auto targetsImpl(auto& self) {
         return self.operands() | ranges::views::drop(self.nonTargetArguments) |
-               ranges::views::transform(
-                   [](auto* value) { return cast_or_null<T*>(value); });
+               CastOrNull<T*>;
     }
 
 public:
