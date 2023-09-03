@@ -137,6 +137,11 @@ bool Type::isComplete() const {
     return size() != InvalidSize;
 }
 
+bool ObjectType::isDefaultConstructible() const {
+    return visit(*this,
+                 [](auto& self) { return self.isDefaultConstructibleImpl(); });
+}
+
 bool ObjectType::hasTrivialLifetime() const {
     return visit(*this,
                  [](auto& self) { return self.hasTrivialLifetimeImpl(); });

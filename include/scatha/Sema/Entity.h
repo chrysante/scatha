@@ -486,9 +486,12 @@ public:
 
     void setAlign(size_t value) { _align = value; }
 
+    bool isDefaultConstructible() const;
+
     bool hasTrivialLifetime() const;
 
 private:
+    bool isDefaultConstructibleImpl() const { return true; }
     bool hasTrivialLifetimeImpl() const { return true; }
 
     friend class Type;
@@ -632,11 +635,16 @@ public:
         return specialLifetimeFunctions[static_cast<size_t>(kind)];
     }
 
-    /// This should be only accessible by the implementation of
+    /// These functions should be only accessible by the implementation of
     /// `instantiateEntities()` but it's just to cumbersome to make it private
+    void setIsDefaultConstructible(bool value) {
+        _isDefaultConstructible = value;
+    }
+
+    /// See above
     void setHasTrivialLifetime(bool value) { _hasTrivialLifetime = value; }
 
-    /// This should be private as well
+    /// See above
     void setSpecialLifetimeFunctions(
         std::array<Function*, EnumSize<SpecialLifetimeFunction>> SLF) {
         specialLifetimeFunctions = SLF;
@@ -644,6 +652,7 @@ public:
 
 private:
     friend class ObjectType;
+    bool isDefaultConstructible() const { return _isDefaultConstructible; }
     /// Structure type has trivial lifetime if no user defined copy constructor,
     /// move constructor or destructor are present and all member types are
     /// trivial
@@ -653,7 +662,8 @@ private:
     utl::hashmap<SpecialMemberFunction, OverloadSet*> specialMemberFunctions;
     std::array<Function*, EnumSize<SpecialLifetimeFunction>>
         specialLifetimeFunctions = {};
-    mutable bool _hasTrivialLifetime : 1 = false;
+    bool _hasTrivialLifetime     : 1 = false;
+    bool _isDefaultConstructible : 1 = true;
 };
 
 /// Concrete class representing the type of an array
@@ -690,6 +700,9 @@ public:
 
 private:
     friend class ObjectType;
+    bool isDefaultConstructibleImpl() const {
+        return elementType()->isDefaultConstructible();
+    }
     bool hasTrivialLifetimeImpl() const {
         return elementType()->hasTrivialLifetime();
     }

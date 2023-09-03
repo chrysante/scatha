@@ -375,24 +375,67 @@ static SLFArray getDefinedSLFs(StructureType& type) {
     return result;
 }
 
-void Context::generateSpecialLifetimeFunctions(StructureType& type) {
-    auto SLF = getDefinedSLFs(type);
-    bool const hasTrivialLifetime =
-        ranges::none_of(SLF, ranges::identity{}) &&
-        ranges::all_of(type.memberVariables(), [](auto* var) {
-            return var->type()->hasTrivialLifetime();
-        });
-    if (hasTrivialLifetime) {
-        type.setHasTrivialLifetime(true);
-        return;
+static bool computeDefaultConstructible(StructureType& type,
+                                        SLFArray const& SLF) {
+    using enum SpecialLifetimeFunction;
+    using enum SpecialMemberFunction;
+    /// If we have a default constructor we are clearly default constructible
+    if (SLF[DefaultConstructor]) {
+        return true;
     }
-    for (auto key: EnumRange<SpecialLifetimeFunction>()) {
-        if (!SLF[key]) {
-            SLF[key] = generateSpecialLifetimeFunction(key, type);
+    auto* overloadSet = type.specialMemberFunction(New);
+    /// If no constructors are defined or if the only defined constructor is the
+    /// copy constructor, then the type is default constructible iff. all member
+    /// variables are default constructible
+    if (!overloadSet || (overloadSet->size() == 1 && SLF[CopyConstructor])) {
+        return ranges::all_of(type.memberVariables(), [](auto* var) {
+            return var->type()->isDefaultConstructible();
+        });
+    }
+    /// Otherwise we are not default constructible
+    return false;
+}
+
+static bool computeTrivialLifetime(StructureType& type, SLFArray const& SLF) {
+    using enum SpecialLifetimeFunction;
+    return !SLF[CopyConstructor] && !SLF[MoveConstructor] && !SLF[Destructor] &&
+           ranges::all_of(type.memberVariables(), [](auto* var) {
+               return var->type()->hasTrivialLifetime();
+           });
+}
+
+void Context::generateSpecialLifetimeFunctions(StructureType& type) {
+    using enum SpecialLifetimeFunction;
+    auto SLF = getDefinedSLFs(type);
+    bool const isDefaultConstructible = computeDefaultConstructible(type, SLF);
+    bool const hasTrivialLifetime = computeTrivialLifetime(type, SLF);
+    type.setIsDefaultConstructible(isDefaultConstructible);
+    type.setHasTrivialLifetime(hasTrivialLifetime);
+    if (isDefaultConstructible && !SLF[DefaultConstructor]) {
+        bool anyMemberHasDefCtor = ranges::any_of(type.memberVariables(),
+                                                  [](auto* var) {
+            auto* type = dyncast<StructureType const*>(var->type().get());
+            return type && type->specialLifetimeFunction(DefaultConstructor);
+        });
+        if (anyMemberHasDefCtor) {
+            SLF[DefaultConstructor] =
+                generateSpecialLifetimeFunction(DefaultConstructor, type);
+        }
+    }
+    if (!hasTrivialLifetime) {
+        if (!SLF[CopyConstructor]) {
+            SLF[CopyConstructor] =
+                generateSpecialLifetimeFunction(CopyConstructor, type);
+        }
+        if (!SLF[MoveConstructor]) {
+            SLF[MoveConstructor] =
+                generateSpecialLifetimeFunction(MoveConstructor, type);
+        }
+        if (!SLF[Destructor]) {
+            SLF[Destructor] = generateSpecialLifetimeFunction(Destructor, type);
         }
     }
     type.setSpecialLifetimeFunctions(SLF);
-    type.setHasTrivialLifetime(false);
 }
 
 Function* Context::generateSpecialLifetimeFunction(SpecialLifetimeFunction key,
