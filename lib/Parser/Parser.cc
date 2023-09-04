@@ -1037,11 +1037,35 @@ UniquePtr<ast::UnaryExpression> Context::parseUnaryPostfix(
                                           token.sourceRange());
 }
 
-UniquePtr<ast::Subscript> Context::parseSubscript(
+UniquePtr<ast::CallLike> Context::parseSubscript(
     UniquePtr<ast::Expression> primary) {
-    return parseFunctionCallLike<ast::Subscript>(std::move(primary),
-                                                 OpenBracket,
-                                                 CloseBracket);
+    auto openToken = tokens.peek();
+    if (openToken.kind() != TokenKind::OpenBracket) {
+        return nullptr;
+    }
+    tokens.eat();
+    auto first = parseAssignment();
+    auto nextTok = tokens.peek();
+    switch (nextTok.kind()) {
+    case TokenKind::CloseBracket: {
+        tokens.eat();
+        return allocate<ast::Subscript>(std::move(primary),
+                                        toSmallVector(std::move(first)),
+                                        openToken.sourceRange());
+    }
+    case TokenKind::Colon: {
+        tokens.eat();
+        auto second = parseAssignment();
+        expectDelimiter(TokenKind::CloseBracket);
+        return allocate<ast::SubscriptSlice>(std::move(primary),
+                                             std::move(first),
+                                             std::move(second),
+                                             openToken.sourceRange());
+    }
+    default:
+        issues.push<ExpectedDelimiter>(nextTok);
+        return nullptr;
+    }
 }
 
 UniquePtr<ast::FunctionCall> Context::parseFunctionCall(

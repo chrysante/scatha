@@ -97,6 +97,7 @@
 /// <postfix-expression>            ::= <generic-expression>
 ///                                   | <postfix-expression> "++"
 ///                                   | <postfix-expression> "--"
+///                                   | <postfix-expression> "[" {<assignment-expression>} ":" {<assignment-expression>} "]"
 ///                                   | <postfix-expression> "[" {<assignment-expression>}* "]"
 ///                                   | <postfix-expression> "(" {<assignment-expression>}* ")"
 ///                                   | <postfix-expression> "." <identifier>

@@ -92,8 +92,7 @@ struct Context {
 
     UniquePtr<ast::UnaryExpression> parseUnaryPostfix(
         ast::UnaryOperator op, UniquePtr<ast::Expression> primary);
-    UniquePtr<ast::Subscript> parseSubscript(
-        UniquePtr<ast::Expression> primary);
+    UniquePtr<ast::CallLike> parseSubscript(UniquePtr<ast::Expression> primary);
     UniquePtr<ast::FunctionCall> parseFunctionCall(
         UniquePtr<ast::Expression> primary);
     UniquePtr<ast::Expression> parseMemberAccess(

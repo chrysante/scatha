@@ -38,6 +38,8 @@ struct Context {
     bool analyzeImpl(ast::FunctionCall&);
     bool rewriteMemberCall(ast::FunctionCall&);
     bool analyzeImpl(ast::Subscript&);
+    bool analyzeImpl(ast::SubscriptSlice&);
+    ArrayType const* analyzeSubscriptCommon(ast::CallLike&);
     bool analyzeImpl(ast::GenericExpression&);
     bool analyzeImpl(ast::ListExpression&);
 
@@ -457,22 +459,8 @@ bool Context::analyzeImpl(ast::Conditional& c) {
 }
 
 bool Context::analyzeImpl(ast::Subscript& expr) {
-    bool success = analyze(*expr.callee());
-    success &= expectValue(*expr.callee());
-    /// This must not be a `for each` loop, because the argument to the call to
-    /// `analyze` may be deallocated and then the call to `expectValue()` would
-    /// use freed memory without getting the argument again from `expr`
-    for (size_t i = 0, end = expr.arguments().size(); i < end; ++i) {
-        success &= analyze(*expr.argument(i));
-        success &= expectValue(*expr.argument(i));
-    }
-    if (!success) {
-        return false;
-    }
-    auto* arrayType =
-        dyncast<ArrayType const*>(stripReference(expr.callee()->type()).get());
+    auto* arrayType = analyzeSubscriptCommon(expr);
     if (!arrayType) {
-        iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
     if (expr.arguments().size() != 1) {
@@ -491,6 +479,51 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
         sym.implRef(QualType(arrayType->elementType(), mutability));
     expr.decorate(nullptr, elemType);
     return true;
+}
+
+bool Context::analyzeImpl(ast::SubscriptSlice& expr) {
+    auto* arrayType = analyzeSubscriptCommon(expr);
+    if (!arrayType) {
+        return false;
+    }
+    auto& lower = *expr.lower();
+    if (!isa<IntType>(*lower.type())) {
+        iss.push<BadExpression>(expr, IssueSeverity::Error);
+        return false;
+    }
+    auto& upper = *expr.upper();
+    if (!isa<IntType>(*upper.type())) {
+        iss.push<BadExpression>(expr, IssueSeverity::Error);
+        return false;
+    }
+    dereference(&lower, sym);
+    dereference(&upper, sym);
+    auto dynArrayType = sym.arrayType(arrayType->elementType());
+    QualType arrayRefType = sym.implRef(dynArrayType);
+    expr.decorate(nullptr, arrayRefType);
+    return true;
+}
+
+ArrayType const* Context::analyzeSubscriptCommon(ast::CallLike& expr) {
+    bool success = analyze(*expr.callee());
+    success &= expectValue(*expr.callee());
+    /// This must not be a `for each` loop, because the argument to the call to
+    /// `analyze` may be deallocated and then the call to `expectValue()` would
+    /// use freed memory without getting the argument again from `expr`
+    for (size_t i = 0, end = expr.arguments().size(); i < end; ++i) {
+        success &= analyze(*expr.argument(i));
+        success &= expectValue(*expr.argument(i));
+    }
+    if (!success) {
+        return nullptr;
+    }
+    auto* arrayType =
+        dyncast<ArrayType const*>(stripReference(expr.callee()->type()).get());
+    if (!arrayType) {
+        iss.push<BadExpression>(expr, IssueSeverity::Error);
+        return nullptr;
+    }
+    return arrayType;
 }
 
 bool Context::analyzeImpl(ast::GenericExpression& expr) {

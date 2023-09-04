@@ -524,6 +524,28 @@ Value LoweringContext::getValueImpl(Subscript const& expr) {
     }
 }
 
+Value LoweringContext::getValueImpl(SubscriptSlice const& expr) {
+    auto* arrayType = cast<sema::ArrayType const*>(
+        stripReference(expr.callee()->type()).get());
+    auto* elemType = mapType(arrayType->elementType());
+    auto array = getValue(expr.callee());
+    auto lower = getValue<Register>(expr.lower());
+    auto upper = getValue<Register>(expr.upper());
+    SC_ASSERT(array.location() == Memory, "Must be in memory to be sliced");
+    auto* addr = add<ir::GetElementPointer>(elemType,
+                                            array.get(),
+                                            lower,
+                                            std::initializer_list<size_t>{},
+                                            "elem.ptr");
+    Value result(newID(), addr, Register);
+    auto* size = add<ir::ArithmeticInst>(upper,
+                                         lower,
+                                         ir::ArithmeticOperation::Sub,
+                                         "slice.count");
+    memorizeArraySize(result.ID(), Value(newID(), size, Register));
+    return result;
+}
+
 static bool evalConstant(Expression const* expr, utl::vector<u8>& dest) {
     auto* val = dyncast_or_null<sema::IntValue const*>(expr->constantValue());
     if (!val) {

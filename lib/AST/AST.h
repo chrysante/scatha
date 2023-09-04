@@ -658,6 +658,27 @@ public:
     AST_DERIVED_COMMON(Subscript)
 };
 
+/// Concrete node representing a subscript slice expression.
+class SCATHA_API SubscriptSlice: public CallLike {
+public:
+    explicit SubscriptSlice(UniquePtr<Expression> object,
+                            UniquePtr<Expression> lower,
+                            UniquePtr<Expression> upper,
+                            SourceRange sourceRange):
+        CallLike(NodeType::SubscriptSlice,
+                 std::move(object),
+                 toSmallVector(std::move(lower), std::move(upper)),
+                 sourceRange) {}
+
+    AST_DERIVED_COMMON(SubscriptSlice)
+
+    /// The left hand side of ":"
+    AST_PROPERTY(1, Expression, lower, Lower)
+
+    /// The right hand side of ":"
+    AST_PROPERTY(2, Expression, upper, Upper)
+};
+
 /// Concrete node representing a generic expression.
 class SCATHA_API GenericExpression: public CallLike {
 public:

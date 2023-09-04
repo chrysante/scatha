@@ -142,6 +142,7 @@ struct LoweringContext {
     Value getValueImpl(Conditional const&);
     Value getValueImpl(FunctionCall const&);
     Value getValueImpl(Subscript const&);
+    Value getValueImpl(SubscriptSlice const&);
     Value getValueImpl(ListExpression const&);
     Value getValueImpl(Conversion const&);
     Value getValueImpl(ConstructorCall const&);

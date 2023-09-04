@@ -244,3 +244,30 @@ public fn main() {
 })");
     CHECK(cr.str() == "Hello World!\n");
 }
+
+TEST_CASE("Array slicing", "[end-to-end][arrays][references]") {
+    test::checkReturns(3, R"(
+public fn main() -> int {
+    let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    return data[2:5].count;
+})");
+
+    test::checkReturns(2, R"(
+public fn main() -> int {
+    let data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    return data[2:5][0];
+})");
+
+    test::checkReturns(15, R"(
+fn sum(data: &[int]) -> int {
+    var result = 0;
+    for i = 0; i < data.count; ++i {
+        result += data[i];
+    }
+    return result;
+}
+public fn main() -> int {
+    let data = [5, 3, 1, 2, 3, 4, 5, 6, 100, -45213];
+    return sum(&data[2:7]);
+})");
+}
