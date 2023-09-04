@@ -200,9 +200,15 @@ VisitResult Inliner::visitSCC(SCC& scc) {
     }
     /// Here we have fully optimized the SCC
     /// We will now try to inline self recursive functions
+    /// As of right now this can be crazy slow for big recursive functions
+    /// because it does inline unconditionally and thus creates humongous
+    /// functions that are mostly discarded if the self recursion can't be
+    /// eliminated. That's why it's disabled.
+#if 0
     for (auto& node: scc.nodes()) {
         modifiedAny |= inlineSelfRecursion(&node.function());
     }
+#endif
     return modifiedAny;
 }
 
