@@ -228,3 +228,69 @@ public fn main(n: int) -> int {
     return eval(expr);
 })");
 }
+
+TEST_CASE("Sort", "[end-to-end]") {
+    test::checkReturns(1, R"(
+public fn main() -> bool {
+    var data = [
+        15,   50,   82,   57,    7,   42,   86,   23,   60,   51,
+        17,   19,   80,   33,   49,   35,   79,   98,   89,   27,
+        92,   45,   43,    5,   88,    2,   58,   75,   22,   18,
+        30,   41,   70,   40,    3,   84,   63,   39,   56,   97,
+        81,    6,   64,   47,   90,   20,   77,   12,   74,   55,
+        78,    4,   28,   52,   61,   85,   32,   37,   95,   83,
+        87,   54,   76,   72,    9,   65,   11,   31,   10,    1,
+        25,   73,   44,   71,   68,    8,   67,   13,   91,   24,
+        62,   21,   66,   48,   99,   94,   69,   46,  100,   38,
+        16,   53,   96,   34,   59,   14,   29,   93,   36,   26
+    ];
+    sort(&mut data);
+    return isSorted(&data);
+}
+
+fn sort(data: &mut [int]) {
+    if data.count == 0 {
+        return;
+    }
+    let splitIndex = split(&mut data);
+    sort(&mut data[0 : splitIndex]);
+    sort(&mut data[splitIndex + 1 : data.count]);
+}
+
+fn split(data: &mut [int]) -> int {
+    var i = 0;
+    var j = data.count - 2;
+    let pivot = data[data.count - 1];
+    while i < j {
+        while i < j && data[i] <= pivot {
+            ++i;
+        }
+        while j > i && data[j] > pivot {
+            --j;
+        }
+        if data[i] > data[j] {
+            swap(&mut data[i], &mut data[j]);
+        }
+    }
+    if data[i] <= pivot {
+        return data.count - 1; // index of pivot
+    }
+    swap(&mut data[i], &mut data[data.count - 1]);
+    return i;
+}
+
+fn swap(a: &mut int, b: &mut int) {
+    let tmp = a;
+    a = b;
+    b = tmp;
+}
+
+fn isSorted(data: &[int]) -> bool {
+    for i = 0; i < data.count - 1; ++i {
+        if data[i] > data[i + 1] {
+            return false;
+        }
+    }
+    return true;
+})");
+}
