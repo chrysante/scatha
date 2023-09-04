@@ -367,7 +367,7 @@ struct GVNContext {
     /// Virtual back edges are edges from loop exit nodes to their corresponding
     /// landing pads
     utl::hashmap<BasicBlock*, utl::small_vector<BasicBlock*>>
-        virtualPredecessors;
+        virtualPredecessors, virtualSuccessors;
     utl::small_vector<BasicBlock*> topsortOrder;
     size_t maxRank = 0;
     RankMap<Value> globalRanks;
@@ -405,11 +405,14 @@ struct GVNContext {
     void processLandingPad(size_t rank, BasicBlock*, LocalComputationTable&);
     void processOther(size_t rank, BasicBlock*, LocalComputationTable&);
     void moveIn(size_t rank, BasicBlock*, LocalComputationTable&);
-    void moveInImpl(size_t rank,
-                    BasicBlock*,
-                    LocalComputationTable&,
-                    std::span<BasicBlock* const> succs,
-                    utl::function_view<bool(Instruction const*)> condition);
+    void moveInImpl(
+        size_t rank,
+        BasicBlock*,
+        LocalComputationTable&,
+        std::span<BasicBlock* const> succs,
+        utl::function_view<bool(Instruction const*)> condition = [](auto) {
+            return true;
+        });
     void moveOut(size_t rank, BasicBlock*, LocalComputationTable&);
 
     Instruction* insertPointForRank(BasicBlock* BB, size_t rank) {
@@ -484,6 +487,7 @@ void GVNContext::gatherLoops() {
                 if (!loop.loopNodes.contains(succ)) {
                     loop.exitNodes.insert(succ);
                     virtualPredecessors[succ].push_back(landingPad);
+                    virtualSuccessors[landingPad].push_back(succ);
                 }
             }
         }
@@ -871,16 +875,23 @@ void GVNContext::processLandingPad(size_t rank,
                                    LocalComputationTable& LCT) {
     auto* header = BB->singleSuccessor();
     auto& loop = loops[header];
-    moveInImpl(rank,
-               BB,
-               LCT,
-               BB->successors() | ToSmallVector<>,
-               [&](Instruction const* inst) {
+    auto condition = [&](Instruction const* inst) {
         return ranges::none_of(inst->operands() | Filter<Instruction>,
                                [&](auto* instOp) {
             return loop.loopNodes.contains(instOp->parent());
         });
-    });
+    };
+    /// Move in from real successor
+    moveInImpl(rank, BB, LCT, std::array{ BB->singleSuccessor() }, condition);
+    /// Move in from virtual successors
+    SC_ASSERT(
+        ranges::none_of(loop.loopNodes,
+                        [](auto* BB) { return isa<Return>(BB->terminator()); }),
+        "If the loop has early returns we would run the risk of speculatively "
+        "moving in computations that would otherwise not be executed. However "
+        "this should not happen because we expect the function to have one "
+        "unified return block");
+    moveInImpl(rank, BB, LCT, virtualSuccessors[BB], condition);
     moveOut(rank, BB, LCT);
 }
 
@@ -894,11 +905,7 @@ void GVNContext::processOther(size_t rank,
 void GVNContext::moveIn(size_t rank,
                         BasicBlock* BB,
                         LocalComputationTable& LCT) {
-    moveInImpl(rank,
-               BB,
-               LCT,
-               BB->successors() | ToSmallVector<>,
-               [](Instruction const* inst) { return true; });
+    moveInImpl(rank, BB, LCT, BB->successors() | ToSmallVector<>);
 }
 
 void GVNContext::moveInImpl(
@@ -931,7 +938,9 @@ void GVNContext::moveInImpl(
         auto& MCT = MCTs[{ BB, succs.front() }];
         auto insertPoint = insertPointForRank(BB, rank);
         for (auto& entry: MCT.entries(rank)) {
-            insertIntoLTCAndBB(insertPoint, entry);
+            if (condition(entry.copy())) {
+                insertIntoLTCAndBB(insertPoint, entry);
+            }
         }
         MCT.clear();
         return;
@@ -939,10 +948,14 @@ void GVNContext::moveInImpl(
     auto insertPoint = insertPointForRank(BB, rank);
     for (auto* succ: succs) {
         auto& MCT_A = MCTs[{ BB, succ }];
-        auto&& entries_A = MCT_A.entries(rank);
-        /// We loop other all entries in the MCT of `(BB, succ)`
+        auto& entries_A = MCT_A.entries(rank);
+        /// We loop over all entries in the MCT of `(BB, succ)`
         for (auto itr = entries_A.begin(); itr != entries_A.end();) {
-            auto& entry = *itr;
+            /// We have to increment the iterator here because the statement
+            /// `MCT_A.erase(copy, &entry);` deallocates the list node that the
+            /// iterator points to and thus invalidates it. This is also why we
+            /// can't use a range loop
+            auto& entry = *itr++;
             /// The condition is always `true` for normal nodes and for landing
             /// pads it is all operands must not be defined in loop nodes.
             if (!condition(entry.copy())) {
@@ -957,7 +970,6 @@ void GVNContext::moveInImpl(
                     return MCT_B.hasComputationEqualTo(entry.copy());
                 });
             if (!allOthersHaveSameEntry) {
-                ++itr;
                 continue;
             }
             auto* copy = insertIntoLTCAndBB(insertPoint, entry);
@@ -974,7 +986,6 @@ void GVNContext::moveInImpl(
                 }
                 MCT_B.eraseComputationEqualTo(copy);
             }
-            ++itr;
             MCT_A.erase(copy, &entry);
         }
     }
