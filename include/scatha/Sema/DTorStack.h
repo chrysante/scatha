@@ -23,7 +23,7 @@ public:
     void push(Object* obj);
 
     /// Push destructor call \p dtorCall onto the stack.
-    void push(DestructorCall dtorCall) { dtorCalls.push(dtorCall); }
+    void push(DestructorCall dtorCall);
 
     /// Pop the top destructor call off the stack
     void pop() { dtorCalls.pop(); }

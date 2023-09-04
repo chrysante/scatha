@@ -75,7 +75,7 @@ struct Context {
         return sym.explRef(type);
     }
 
-    DTorStack& dtorStack;
+    DTorStack* dtorStack;
     SymbolTable& sym;
     IssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
@@ -94,7 +94,7 @@ bool sema::analyzeExpression(ast::Expression& expr,
                              DTorStack& dtorStack,
                              SymbolTable& sym,
                              IssueHandler& iss) {
-    Context ctx{ .dtorStack = dtorStack, .sym = sym, .iss = iss };
+    Context ctx{ .dtorStack = &dtorStack, .sym = sym, .iss = iss };
     return ctx.analyze(expr);
 }
 
@@ -368,7 +368,7 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     QualType type = makeRefImplicit(func->returnType());
     auto* temp = &sym.addTemporary(type);
     call->decorate(temp, type, func);
-    parentStatement(&ma)->dtorStack().push(temp);
+    dtorStack->push(temp);
     bool const convSucc =
         convertExplicitly(call->argument(0),
                           makeRefImplicit(func->argumentType(0)),
@@ -422,10 +422,17 @@ bool Context::analyzeImpl(ast::Conditional& c) {
     if (success) {
         convertImplicitly(c.condition(), sym.Bool(), &iss);
     }
+    auto* commonDtors = dtorStack;
+    auto* lhsDtors = &c.branchDTorStack(0);
+    auto* rhsDtors = &c.branchDTorStack(1);
+
+    dtorStack = lhsDtors;
     success &= analyze(*c.thenExpr());
     success &= expectValue(*c.thenExpr());
+    dtorStack = rhsDtors;
     success &= analyze(*c.elseExpr());
     success &= expectValue(*c.elseExpr());
+    dtorStack = commonDtors;
     if (!success) {
         return false;
     }
@@ -441,6 +448,7 @@ bool Context::analyzeImpl(ast::Conditional& c) {
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
               "convertible to that type");
+
     c.decorate(nullptr, commonType);
     c.setConstantValue(evalConditional(c.condition()->constantValue(),
                                        c.thenExpr()->constantValue(),
@@ -565,7 +573,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
             if (!ctorCall) {
                 return false;
             }
-            dtorStack.push(ctorCall->object());
+            dtorStack->push(ctorCall->object());
             fc.parent()->setChild(fc.indexInParent(), std::move(ctorCall));
             return true;
         }
@@ -600,7 +608,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     QualType type = makeRefImplicit(function->returnType());
     fc.decorate(&sym.addTemporary(type), type, function);
     convertArguments(fc, result, sym, iss);
-    parentStatement(&fc)->pushDtor(fc.object());
+    dtorStack->push(fc.object());
     return true;
 }
 

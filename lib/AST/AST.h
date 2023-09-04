@@ -571,6 +571,17 @@ public:
 
     /// Expression to evaluate if condition is false
     AST_PROPERTY(2, Expression, elseExpr, ElseExpr)
+
+    sema::DTorStack& branchDTorStack(size_t index) {
+        return branchDtors[index];
+    }
+
+    sema::DTorStack const& branchDTorStack(size_t index) const {
+        return branchDtors[index];
+    }
+
+private:
+    sema::DTorStack branchDtors[2];
 };
 
 /// MARK: More Complex Expressions

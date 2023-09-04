@@ -30,3 +30,5 @@ void DTorStack::push(Object* obj) {
         dtorCalls.push(*dtorCall);
     }
 }
+
+void DTorStack::push(DestructorCall dtorCall) { dtorCalls.push(dtorCall); }
