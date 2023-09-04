@@ -496,6 +496,7 @@ bool Context::analyzeImpl(ast::SubscriptSlice& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
+    dereference(expr.callee(), sym);
     dereference(&lower, sym);
     dereference(&upper, sym);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
