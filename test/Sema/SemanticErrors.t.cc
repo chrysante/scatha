@@ -335,10 +335,9 @@ fn main() {
     CHECK(badSymRef->have() == EntityCategory::Type);
     CHECK(badSymRef->expected() == EntityCategory::Value);
 
-    auto badSymRef2 = issues.findOnLine<BadSymbolReference>(5);
-    REQUIRE(badSymRef2);
-    CHECK(badSymRef2->have() == EntityCategory::Indeterminate);
-    CHECK(badSymRef2->expected() == EntityCategory::Value);
+    auto invalidDecl = issues.findOnLine<InvalidDeclaration>(5);
+    REQUIRE(invalidDecl);
+    CHECK(invalidDecl->reason() == InvalidDeclaration::Reason::CantInferType);
 
     auto invCount = issues.findOnLine<InvalidListExpr>(6);
     REQUIRE(invCount);

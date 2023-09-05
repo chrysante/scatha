@@ -214,12 +214,9 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
         return var.initExpression()->type();
     }();
     if (!declaredType && !deducedType) {
-        if (!var.typeExpr() && !var.initExpression()) {
-            iss.push<InvalidDeclaration>(
-                &var,
-                InvalidDeclaration::Reason::CantInferType,
-                sym.currentScope());
-        }
+        iss.push<InvalidDeclaration>(&var,
+                                     InvalidDeclaration::Reason::CantInferType,
+                                     sym.currentScope());
         sym.declarePoison(std::string(var.name()), EntityCategory::Value);
         return;
     }
