@@ -6,6 +6,7 @@
 #include "AST/Fwd.h"
 #include "Common/UniquePtr.h"
 #include "Issue/IssueHandler.h"
+#include "Sema/Context.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::sema {
@@ -19,8 +20,7 @@ UniquePtr<ast::ConstructorCall> makeConstructorCall(
     sema::ObjectType const* type,
     utl::small_vector<UniquePtr<ast::Expression>> arguments,
     DTorStack& dtors,
-    SymbolTable& symbolTable,
-    IssueHandler& issueHandler,
+    Context& ctx,
     SourceRange sourceRange);
 
 } // namespace scatha::sema

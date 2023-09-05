@@ -118,8 +118,7 @@ SCATHA_TESTAPI int computeRank(Conversion const& conv);
 SCATHA_TESTAPI ast::Expression* convertImplicitly(ast::Expression* expr,
                                                   QualType to,
                                                   DTorStack& dtors,
-                                                  SymbolTable& sym,
-                                                  IssueHandler* issueHandler);
+                                                  Context& ctx);
 
 /// Does nothing if `expr->type() == to`
 /// If \p expr is explicitly convertible to type \p to a `Conversion` node is
@@ -130,8 +129,7 @@ SCATHA_TESTAPI ast::Expression* convertImplicitly(ast::Expression* expr,
 SCATHA_TESTAPI ast::Expression* convertExplicitly(ast::Expression* expr,
                                                   QualType to,
                                                   DTorStack& dtors,
-                                                  SymbolTable& sym,
-                                                  IssueHandler* issueHandler);
+                                                  Context& ctx);
 
 /// Does nothing if `expr->type() == to`
 /// If \p expr is interpretable as type \p to a `Conversion` node is
@@ -141,19 +139,18 @@ SCATHA_TESTAPI ast::Expression* convertExplicitly(ast::Expression* expr,
 /// occurs the function traps
 SCATHA_TESTAPI ast::Expression* convertReinterpret(ast::Expression* expr,
                                                    QualType to,
-                                                   SymbolTable& sym,
-                                                   IssueHandler* issueHandler);
+                                                   Context& ctx);
 
 /// Convert expression \p expr to an implicit reference
-SCATHA_TESTAPI ast::Expression* convertToImplicitMutRef(
-    ast::Expression* expr, SymbolTable& sym, IssueHandler* issueHandler);
+SCATHA_TESTAPI ast::Expression* convertToImplicitMutRef(ast::Expression* expr,
+                                                        Context& ctx);
 
-SCATHA_TESTAPI ast::Expression* convertToExplicitRef(
-    ast::Expression* expr, SymbolTable& sym, IssueHandler* issueHandler);
+SCATHA_TESTAPI ast::Expression* convertToExplicitRef(ast::Expression* expr,
+                                                     Context& ctx);
 
 /// Dereference the expression \p expr to if it is a reference
 /// Otherwise a no-op
-SCATHA_TESTAPI void dereference(ast::Expression* expr, SymbolTable& sym);
+SCATHA_TESTAPI void dereference(ast::Expression* expr, Context& ctx);
 
 /// Find the common type of \p a and \p b
 SCATHA_TESTAPI QualType commonType(SymbolTable& symbolTable,

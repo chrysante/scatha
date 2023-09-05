@@ -175,7 +175,7 @@ bool ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
-        dereference(u.operand(), sym);
+        dereference(u.operand(), ctx);
         u.decorate(nullptr, operandBaseType);
         break;
     case ast::UnaryOperator::BitwiseNot:
@@ -183,7 +183,7 @@ bool ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
-        dereference(u.operand(), sym);
+        dereference(u.operand(), ctx);
         u.decorate(nullptr, operandBaseType);
         break;
     case ast::UnaryOperator::LogicalNot:
@@ -191,7 +191,7 @@ bool ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
-        dereference(u.operand(), sym);
+        dereference(u.operand(), ctx);
         u.decorate(nullptr, operandBaseType);
         break;
     case ast::UnaryOperator::Increment:
@@ -201,7 +201,7 @@ bool ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return false;
         }
-        if (!convertToImplicitMutRef(u.operand(), sym, &iss)) {
+        if (!convertToImplicitMutRef(u.operand(), ctx)) {
             return false;
         }
         switch (u.notation()) {
@@ -326,7 +326,7 @@ bool ExprContext::analyzeImpl(ast::MemberAccess& ma) {
                 ma.member()->entityCategory());
     /// Dereference the object if its a value
     if (ma.accessed()->isValue()) {
-        dereference(ma.accessed(), sym);
+        dereference(ma.accessed(), ctx);
     }
     return true;
 }
@@ -382,8 +382,7 @@ bool ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
         convertExplicitly(call->argument(0),
                           makeRefImplicit(func->argumentType(0)),
                           *dtorStack,
-                          sym,
-                          &iss);
+                          ctx);
     SC_ASSERT(convSucc,
               "If overload resolution succeeds conversion must not fail");
 
@@ -436,7 +435,7 @@ bool ExprContext::analyzeImpl(ast::UniqueExpression& expr) {
 bool ExprContext::analyzeImpl(ast::Conditional& c) {
     bool success = analyze(*c.condition());
     if (success) {
-        convertImplicitly(c.condition(), sym.Bool(), *dtorStack, sym, &iss);
+        convertImplicitly(c.condition(), sym.Bool(), *dtorStack, ctx);
     }
     auto* commonDtors = dtorStack;
     auto* lhsDtors = &c.branchDTorStack(0);
@@ -462,13 +461,11 @@ bool ExprContext::analyzeImpl(ast::Conditional& c) {
     success &= !!convertImplicitly(c.thenExpr(),
                                    commonType,
                                    c.branchDTorStack(0),
-                                   sym,
-                                   &iss);
+                                   ctx);
     success &= !!convertImplicitly(c.elseExpr(),
                                    commonType,
                                    c.branchDTorStack(1),
-                                   sym,
-                                   &iss);
+                                   ctx);
     SC_ASSERT(success,
               "Common type should not return a type if not both types are "
               "convertible to that type");
@@ -494,8 +491,8 @@ bool ExprContext::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
-    dereference(expr.callee(), sym);
-    dereference(expr.argument(0), sym);
+    dereference(expr.callee(), ctx);
+    dereference(expr.argument(0), ctx);
     auto mutability = stripReference(expr.callee()->type()).mutability();
     QualType elemType =
         sym.implRef(QualType(arrayType->elementType(), mutability));
@@ -518,9 +515,9 @@ bool ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return false;
     }
-    dereference(expr.callee(), sym);
-    dereference(&lower, sym);
-    dereference(&upper, sym);
+    dereference(expr.callee(), ctx);
+    dereference(&lower, ctx);
+    dereference(&upper, ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
     QualType arrayRefType = sym.implRef(dynArrayType);
     expr.decorate(nullptr, arrayRefType);
@@ -609,7 +606,7 @@ bool ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         QualType targetType = genExpr->type();
         auto* arg = fc.argument(0);
         fc.parent()->replaceChild(&fc, fc.extractArgument(0));
-        return convertReinterpret(arg, targetType, sym, &iss);
+        return convertReinterpret(arg, targetType, ctx);
     }
 
     /// if our object is a type, then we rewrite the AST so we end up with just
@@ -624,8 +621,7 @@ bool ExprContext::analyzeImpl(ast::FunctionCall& fc) {
             auto ctorCall = makeConstructorCall(structType,
                                                 std::move(args),
                                                 *dtorStack,
-                                                sym,
-                                                iss,
+                                                ctx,
                                                 fc.sourceRange());
             if (!ctorCall) {
                 return false;
@@ -638,7 +634,7 @@ bool ExprContext::analyzeImpl(ast::FunctionCall& fc) {
             SC_ASSERT(fc.arguments().size() == 1, "For now...");
             auto* arg = fc.argument(0);
             fc.parent()->replaceChild(&fc, fc.extractArgument(0));
-            return convertExplicitly(arg, targetType, *dtorStack, sym, &iss);
+            return convertExplicitly(arg, targetType, *dtorStack, ctx);
         }
     }
 
@@ -664,7 +660,7 @@ bool ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     auto* function = result.function;
     QualType type = makeRefImplicit(function->returnType());
     fc.decorate(&sym.addTemporary(type), type, function);
-    convertArguments(fc, result, *dtorStack, sym, iss);
+    convertArguments(fc, result, *dtorStack, ctx);
     dtorStack->push(fc.object());
     return true;
 }
@@ -711,7 +707,7 @@ bool ExprContext::analyzeImpl(ast::ListExpression& list) {
         }
         for (auto* expr: list.elements()) {
             bool const succ =
-                convertImplicitly(expr, commonType, *dtorStack, sym, &iss);
+                convertImplicitly(expr, commonType, *dtorStack, ctx);
             SC_ASSERT(succ,
                       "Conversion shall not fail if we have a common type");
         }
@@ -871,20 +867,19 @@ QualType ExprContext::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         /// Here we only look at assignment _through_ references
         /// That means LHS shall be an implicit reference
         bool success = true;
-        success &= !!convertToImplicitMutRef(expr.lhs(), sym, &iss);
+        success &= !!convertToImplicitMutRef(expr.lhs(), ctx);
         success &= !!convertImplicitly(expr.rhs(),
                                        stripQualifiers(lhsType),
                                        *dtorStack,
-                                       sym,
-                                       &iss);
+                                       ctx);
         return success ? sym.Void() : nullptr;
     }
 
     bool successfullConv = true;
     successfullConv &=
-        !!convertImplicitly(expr.lhs(), commonType, *dtorStack, sym, &iss);
+        !!convertImplicitly(expr.lhs(), commonType, *dtorStack, ctx);
     successfullConv &=
-        !!convertImplicitly(expr.rhs(), commonType, *dtorStack, sym, &iss);
+        !!convertImplicitly(expr.rhs(), commonType, *dtorStack, ctx);
 
     if (successfullConv) {
         return *resultType;
@@ -901,9 +896,9 @@ QualType ExprContext::analyzeReferenceAssignment(ast::BinaryExpression& expr) {
     QualType explicitRefType = makeRefExplicit(expr.lhs()->type());
     bool success = true;
     success &=
-        !!convertExplicitly(expr.lhs(), explicitRefType, *dtorStack, sym, &iss);
+        !!convertExplicitly(expr.lhs(), explicitRefType, *dtorStack, ctx);
     success &=
-        !!convertExplicitly(expr.rhs(), explicitRefType, *dtorStack, sym, &iss);
+        !!convertExplicitly(expr.rhs(), explicitRefType, *dtorStack, ctx);
     return success ? sym.Void() : nullptr;
 }
 

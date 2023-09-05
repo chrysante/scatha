@@ -18,8 +18,7 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     sema::ObjectType const* type,
     utl::small_vector<UniquePtr<ast::Expression>> arguments,
     DTorStack& dtors,
-    SymbolTable& sym,
-    IssueHandler& iss,
+    Context& ctx,
     SourceRange sourceRange) {
     auto* structType = dyncast<StructureType const*>(type);
     if (!structType) {
@@ -30,7 +29,7 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     if (!ctorSet) {
         return nullptr;
     }
-    utl::small_vector<QualType> argTypes = { sym.explRef(type) };
+    utl::small_vector<QualType> argTypes = { ctx.symbolTable().explRef(type) };
     argTypes.reserve(1 + arguments.size());
     ranges::transform(arguments, std::back_inserter(argTypes), [](auto& expr) {
         return expr->type();
@@ -38,14 +37,14 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     auto result = performOverloadResolution(ctorSet, argTypes, true);
     if (result.error) {
         result.error->setSourceRange(sourceRange);
-        iss.push(std::move(result.error));
+        ctx.issueHandler().push(std::move(result.error));
         return nullptr;
     }
     auto ctorCall = allocate<ast::ConstructorCall>(std::move(arguments),
                                                    sourceRange,
                                                    result.function,
                                                    SpecialMemberFunction::New);
-    ctorCall->decorate(&sym.addTemporary(structType), structType);
-    convertArguments(*ctorCall, result, dtors, sym, iss);
+    ctorCall->decorate(&ctx.symbolTable().addTemporary(structType), structType);
+    convertArguments(*ctorCall, result, dtors, ctx);
     return ctorCall;
 }

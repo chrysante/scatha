@@ -5,6 +5,7 @@
 #include "AST/AST.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/OverloadResolution.h"
+#include "Sema/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
 
@@ -26,8 +27,7 @@ ast::Statement* sema::parentStatement(ast::ASTNode* node) {
 void sema::convertArguments(ast::CallLike& fc,
                             OverloadResolutionResult const& orResult,
                             DTorStack& dtors,
-                            SymbolTable& sym,
-                            IssueHandler& iss) {
+                            Context& ctx) {
     for (auto [index, _arg, conv]: ranges::views::zip(ranges::views::iota(0),
                                                       fc.arguments(),
                                                       orResult.conversions))
@@ -41,13 +41,14 @@ void sema::convertArguments(ast::CallLike& fc,
         if (!arg->isLValue()) {
             continue;
         }
-        copyValue(arg, sym, &dtors);
+        copyValue(arg, dtors, ctx);
     }
 }
 
 ast::Expression* sema::copyValue(ast::Expression* expr,
-                                 SymbolTable& sym,
-                                 DTorStack* dtors) {
+                                 DTorStack& dtors,
+                                 Context& ctx) {
+    auto& sym = ctx.symbolTable();
     auto structType = nonTrivialLifetimeType(expr->type().get());
     if (!structType) {
         return expr;
@@ -57,9 +58,8 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
     SC_ASSERT(copyCtor, "Must exists because we are non-trivial lifetime");
     expr = convertExplicitly(expr,
                              sym.explRef(QualType::Const(structType)),
-                             *dtors,
-                             sym,
-                             nullptr);
+                             dtors,
+                             ctx);
     auto sourceRange = expr->sourceRange();
     size_t index = expr->indexInParent();
     auto* parent = expr->parent();
@@ -69,9 +69,7 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
                                        copyCtor,
                                        SpecialMemberFunction::New);
     ctorCall->decorate(&sym.addTemporary(structType), structType);
-    if (dtors) {
-        dtors->push(ctorCall->object());
-    }
+    dtors.push(ctorCall->object());
     auto* result = ctorCall.get();
     parent->setChild(index, std::move(ctorCall));
     return result;

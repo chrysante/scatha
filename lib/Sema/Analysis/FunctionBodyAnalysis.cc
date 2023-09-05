@@ -243,16 +243,14 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
         convertImplicitly(var.initExpression(),
                           finalType,
                           var.dtorStack(),
-                          sym,
-                          &iss);
+                          ctx);
         popTopLevelDtor(var.initExpression(), var.dtorStack());
     }
     if (!var.initExpression()) {
         auto call = makeConstructorCall(finalType.get(),
                                         {},
                                         var.dtorStack(),
-                                        sym,
-                                        iss,
+                                        ctx,
                                         var.sourceRange());
         if (call) {
             var.setInitExpression(std::move(call));
@@ -368,7 +366,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
         iss.push<BadExpression>(*rs.expression(), IssueSeverity::Error);
         return;
     }
-    convertImplicitly(rs.expression(), returnType, rs.dtorStack(), sym, &iss);
+    convertImplicitly(rs.expression(), returnType, rs.dtorStack(), ctx);
     popTopLevelDtor(rs.expression(), rs.dtorStack());
 }
 
@@ -381,11 +379,7 @@ void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
         return;
     }
     if (analyzeExpr(*stmt.condition(), stmt.dtorStack())) {
-        convertImplicitly(stmt.condition(),
-                          sym.Bool(),
-                          stmt.dtorStack(),
-                          sym,
-                          &iss);
+        convertImplicitly(stmt.condition(), sym.Bool(), stmt.dtorStack(), ctx);
     }
     analyze(*stmt.thenBlock());
     if (stmt.elseBlock()) {
@@ -411,8 +405,7 @@ void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
         convertImplicitly(stmt.condition(),
                           sym.Bool(),
                           stmt.conditionDtorStack(),
-                          sym,
-                          &iss);
+                          ctx);
     }
     if (stmt.increment()) {
         analyzeExpr(*stmt.increment(), stmt.incrementDtorStack());

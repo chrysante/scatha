@@ -5,12 +5,6 @@
 #include "Common/Base.h"
 #include "Sema/Fwd.h"
 
-namespace scatha {
-
-class IssueHandler;
-
-} // namespace scatha
-
 namespace scatha::sema {
 
 struct OverloadResolutionResult;
@@ -25,8 +19,7 @@ ast::Statement* parentStatement(ast::ASTNode* node);
 SCATHA_TESTAPI void convertArguments(ast::CallLike& fc,
                                      OverloadResolutionResult const& orResult,
                                      DTorStack& dtors,
-                                     SymbolTable& sym,
-                                     IssueHandler& issueHandler);
+                                     Context& ctx);
 
 /// Makes a copy of the value of \p expr
 /// If the type of \p expr has a copy constructor, the copy constructor is
@@ -35,8 +28,8 @@ SCATHA_TESTAPI void convertArguments(ast::CallLike& fc,
 /// Otherwise the expression is returned as is
 /// \Note \p dtors may be null, in that case no destructor call will be emitted
 SCATHA_TESTAPI ast::Expression* copyValue(ast::Expression* expr,
-                                          SymbolTable& sym,
-                                          DTorStack* dtors);
+                                          DTorStack& dtors,
+                                          Context& ctx);
 
 /// \returns \p type downcast to `StructureType`, if \p type is a struct type
 /// with non-trivial lifetime Otherwise returns `nullptr`

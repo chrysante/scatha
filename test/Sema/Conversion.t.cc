@@ -5,6 +5,7 @@
 #include "AST/AST.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
+#include "Sema/Context.h"
 #include "Sema/DTorStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SymbolTable.h"
@@ -53,6 +54,7 @@ TEST_CASE("Implicit conversion rank", "[sema]") {
 TEST_CASE("Arithemetic conversions", "[sema]") {
     sema::SymbolTable sym;
     IssueHandler iss;
+    sema::Context ctx(sym, iss);
     ast::UnaryExpression
         base(ast::UnaryOperator::Promotion,
              ast::UnaryOperatorNotation::Prefix,
@@ -82,62 +84,62 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
     /// # Widening
     SECTION("u32(5) to u64") {
         set(sym.U32(), 5);
-        CHECK(convertImplicitly(expr, sym.U64(), dtors, sym, &iss));
+        CHECK(convertImplicitly(expr, sym.U64(), dtors, ctx));
         CHECK(iss.empty());
     }
     SECTION("u64(5) to u64") {
         set(sym.U64(), 5);
-        CHECK(convertImplicitly(expr, sym.U64(), dtors, sym, &iss));
+        CHECK(convertImplicitly(expr, sym.U64(), dtors, ctx));
         CHECK(iss.empty());
     }
 
     /// # Explicit widening
     SECTION("byte(5) to s64") {
         set(sym.Byte(), 5);
-        CHECK(convertExplicitly(expr, sym.S64(), dtors, sym, &iss));
+        CHECK(convertExplicitly(expr, sym.S64(), dtors, ctx));
         CHECK(iss.empty());
     }
 
     /// # Narrowing
     SECTION("s64(5) to s8") {
         set(sym.S64(), 5);
-        CHECK(convertImplicitly(expr, sym.S8(), dtors, sym, &iss));
+        CHECK(convertImplicitly(expr, sym.S8(), dtors, ctx));
         CHECK(iss.empty());
     }
     SECTION("s64(<unknown>) to s8") {
         setType(sym.S64());
-        CHECK(!convertImplicitly(expr, sym.S8(), dtors, sym, &iss));
-        CHECK(convertExplicitly(expr, sym.S8(), dtors, sym, &iss));
+        CHECK(!convertImplicitly(expr, sym.S8(), dtors, ctx));
+        CHECK(convertExplicitly(expr, sym.S8(), dtors, ctx));
     }
     SECTION("S64(-1) to u32") {
         set(sym.S64(), -1);
-        CHECK(!convertImplicitly(expr, sym.U32(), dtors, sym, &iss));
-        CHECK(convertExplicitly(expr, sym.U32(), dtors, sym, &iss));
+        CHECK(!convertImplicitly(expr, sym.U32(), dtors, ctx));
+        CHECK(convertExplicitly(expr, sym.U32(), dtors, ctx));
         APInt result = getResult();
         CHECK(result.bitwidth() == 32);
         CHECK(ucmp(result, ~0u) == 0);
     }
     SECTION("U32(0x1000000F) to s16") {
         set(sym.U32(), 0x1000000F);
-        CHECK(!convertImplicitly(expr, sym.S16(), dtors, sym, &iss));
-        CHECK(convertExplicitly(expr, sym.S16(), dtors, sym, &iss));
+        CHECK(!convertImplicitly(expr, sym.S16(), dtors, ctx));
+        CHECK(convertExplicitly(expr, sym.S16(), dtors, ctx));
         APInt result = getResult();
         CHECK(result.bitwidth() == 16);
         CHECK(ucmp(result, 0xF) == 0);
     }
     SECTION("-1 to u64") {
         set(sym.S64(), -1);
-        CHECK(!convertImplicitly(expr, sym.U64(), dtors, sym, &iss));
-        CHECK(convertExplicitly(expr, sym.U32(), dtors, sym, &iss));
+        CHECK(!convertImplicitly(expr, sym.U64(), dtors, ctx));
+        CHECK(convertExplicitly(expr, sym.U32(), dtors, ctx));
     }
     SECTION("s64(5) to byte") {
         set(sym.S64(), 5);
-        CHECK(convertImplicitly(expr, sym.Byte(), dtors, sym, &iss));
+        CHECK(convertImplicitly(expr, sym.Byte(), dtors, ctx));
         CHECK(iss.empty());
     }
     SECTION("s64(256) to byte") {
         set(sym.S64(), 256);
-        CHECK(!convertImplicitly(expr, sym.Byte(), dtors, sym, &iss));
+        CHECK(!convertImplicitly(expr, sym.Byte(), dtors, ctx));
     }
     /// No destructors shall have been emitted since we only convert between
     /// trivial types

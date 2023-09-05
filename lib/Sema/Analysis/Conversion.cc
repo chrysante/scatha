@@ -9,6 +9,7 @@
 #include "Common/Ranges.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Utility.h"
+#include "Sema/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
@@ -540,14 +541,13 @@ static ast::Expression* convertImpl(ConversionKind kind,
                                     ast::Expression* expr,
                                     QualType to,
                                     DTorStack* dtors,
-                                    SymbolTable& sym,
-                                    IssueHandler* iss,
+                                    Context& ctx,
                                     bool invokeCopyCtor = true) {
     auto conversion =
         computeConversion(kind, expr->type(), expr->constantValue(), to);
     if (!conversion) {
-        SC_ASSERT(iss, "Issue occured and we have no issue handler");
-        iss->push<BadTypeConversion>(*expr, to);
+        //        SC_ASSERT(iss, "Issue occured and we have no issue handler");
+        ctx.issueHandler().push<BadTypeConversion>(*expr, to);
         return nullptr;
     }
     if (!conversion->isNoop()) {
@@ -558,7 +558,7 @@ static ast::Expression* convertImpl(ConversionKind kind,
     }
     auto* structType = dyncast<StructureType const*>(to.get());
     if (structType && !expr->isRValue()) {
-        return copyValue(expr, sym, dtors);
+        return copyValue(expr, *dtors, ctx);
     }
     return expr;
 }
@@ -566,70 +566,43 @@ static ast::Expression* convertImpl(ConversionKind kind,
 ast::Expression* sema::convertImplicitly(ast::Expression* expr,
                                          QualType to,
                                          DTorStack& dtors,
-                                         SymbolTable& sym,
-                                         IssueHandler* issueHandler) {
-    return convertImpl(ConversionKind::Implicit,
-                       expr,
-                       to,
-                       &dtors,
-                       sym,
-                       issueHandler);
+                                         Context& ctx) {
+    return convertImpl(ConversionKind::Implicit, expr, to, &dtors, ctx);
 }
 
 ast::Expression* sema::convertExplicitly(ast::Expression* expr,
                                          QualType to,
                                          DTorStack& dtors,
-                                         SymbolTable& sym,
-                                         IssueHandler* issueHandler) {
-    return convertImpl(ConversionKind::Explicit,
-                       expr,
-                       to,
-                       &dtors,
-                       sym,
-                       issueHandler);
+                                         Context& ctx) {
+    return convertImpl(ConversionKind::Explicit, expr, to, &dtors, ctx);
 }
 
 ast::Expression* sema::convertReinterpret(ast::Expression* expr,
                                           QualType to,
-                                          SymbolTable& sym,
-                                          IssueHandler* issueHandler) {
-    return convertImpl(ConversionKind::Reinterpret,
-                       expr,
-                       to,
-                       nullptr,
-                       sym,
-                       issueHandler);
+                                          Context& ctx) {
+    return convertImpl(ConversionKind::Reinterpret, expr, to, nullptr, ctx);
 }
 
 ast::Expression* sema::convertToExplicitRef(ast::Expression* expr,
-                                            SymbolTable& sym,
-                                            IssueHandler* issueHandler) {
-    return convertImpl(ConversionKind::Explicit,
-                       expr,
-                       sym.explRef(stripReference(expr->type()).toMut()),
-                       nullptr,
-                       sym,
-                       issueHandler);
+                                            Context& ctx) {
+    auto& sym = ctx.symbolTable();
+    auto ref = sym.explRef(stripReference(expr->type()).toMut());
+    return convertImpl(ConversionKind::Explicit, expr, ref, nullptr, ctx);
 }
 
 ast::Expression* sema::convertToImplicitMutRef(ast::Expression* expr,
-                                               SymbolTable& sym,
-                                               IssueHandler* issueHandler) {
-    return convertImpl(ConversionKind::Implicit,
-                       expr,
-                       sym.implRef(stripReference(expr->type()).toMut()),
-                       nullptr,
-                       sym,
-                       issueHandler);
+                                               Context& ctx) {
+    auto& sym = ctx.symbolTable();
+    auto ref = sym.implRef(stripReference(expr->type()).toMut());
+    return convertImpl(ConversionKind::Implicit, expr, ref, nullptr, ctx);
 }
 
-void sema::dereference(ast::Expression* expr, SymbolTable& sym) {
+void sema::dereference(ast::Expression* expr, Context& ctx) {
     convertImpl(ConversionKind::Implicit,
                 expr,
                 stripReference(expr->type()),
                 nullptr,
-                sym,
-                nullptr,
+                ctx,
                 /* invokeCopyCtor = */ false);
 }
 
