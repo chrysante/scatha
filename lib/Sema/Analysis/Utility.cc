@@ -25,6 +25,7 @@ ast::Statement* sema::parentStatement(ast::ASTNode* node) {
 
 bool sema::convertArguments(ast::CallLike& fc,
                             OverloadResolutionResult const& orResult,
+                            DTorStack& dtors,
                             SymbolTable& sym,
                             IssueHandler& iss) {
     bool success = true;
@@ -41,14 +42,14 @@ bool sema::convertArguments(ast::CallLike& fc,
         if (!arg->isLValue()) {
             continue;
         }
-        copyValue(arg, sym);
+        copyValue(arg, sym, &dtors);
     }
     return success;
 }
 
 ast::Expression* sema::copyValue(ast::Expression* expr,
                                  SymbolTable& sym,
-                                 bool issueDestructorCall) {
+                                 DTorStack* dtors) {
     auto structType = nonTrivialLifetimeType(expr->type().get());
     if (!structType) {
         return expr;
@@ -68,9 +69,8 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
                                        copyCtor,
                                        SpecialMemberFunction::New);
     ctorCall->decorate(&sym.addTemporary(structType), structType);
-    if (issueDestructorCall) {
-        auto* parentStmt = parentStatement(parent);
-        parentStmt->pushDtor(ctorCall->object());
+    if (dtors) {
+        dtors->push(ctorCall->object());
     }
     auto* result = ctorCall.get();
     parent->setChild(index, std::move(ctorCall));

@@ -17,6 +17,7 @@ using namespace sema;
 UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     sema::ObjectType const* type,
     utl::small_vector<UniquePtr<ast::Expression>> arguments,
+    DTorStack& dtors,
     SymbolTable& sym,
     IssueHandler& iss,
     SourceRange sourceRange) {
@@ -45,6 +46,6 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
                                                    result.function,
                                                    SpecialMemberFunction::New);
     ctorCall->decorate(&sym.addTemporary(structType), structType);
-    convertArguments(*ctorCall, result, sym, iss);
+    convertArguments(*ctorCall, result, dtors, sym, iss);
     return ctorCall;
 }

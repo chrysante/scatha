@@ -142,12 +142,6 @@ void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
             if (value.isRValue()) {
                 value.get()->setName(name);
                 memorizeObject(varDecl.variable(), value.toLValue());
-                if (!dtorStack.empty() &&
-                    dtorStack.top().object ==
-                        varDecl.initExpression()->entity())
-                {
-                    dtorStack.pop();
-                }
                 return;
             }
             auto* address = storeLocal(toRegister(value), name);

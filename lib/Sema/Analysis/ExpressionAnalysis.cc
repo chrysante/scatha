@@ -604,6 +604,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
                         ToSmallVector<>;
             auto ctorCall = makeConstructorCall(structType,
                                                 std::move(args),
+                                                *dtorStack,
                                                 sym,
                                                 iss,
                                                 fc.sourceRange());
@@ -644,7 +645,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     auto* function = result.function;
     QualType type = makeRefImplicit(function->returnType());
     fc.decorate(&sym.addTemporary(type), type, function);
-    convertArguments(fc, result, sym, iss);
+    convertArguments(fc, result, *dtorStack, sym, iss);
     dtorStack->push(fc.object());
     return true;
 }

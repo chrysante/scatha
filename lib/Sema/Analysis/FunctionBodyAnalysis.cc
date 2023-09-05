@@ -223,10 +223,13 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
         finalType = finalType.toConst();
     }
     if (var.initExpression() && var.initExpression()->isDecorated()) {
+        using enum SpecialLifetimeFunction;
         auto* structType = dyncast<StructureType const*>(finalType.get());
         if (!structType || isExplRef(finalType)) {
             convertImplicitly(var.initExpression(), finalType, &iss);
         }
+        /// If we need a conversion or if we don't have an rvalue initializer we
+        /// make a call to the constructor
         else if (var.initExpression()->type().get() != structType ||
                  !var.initExpression()->isRValue())
         {
@@ -236,6 +239,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
             auto call =
                 makeConstructorCall(finalType.get(),
                                     toSmallVector(var.extractInitExpression()),
+                                    var.dtorStack(),
                                     sym,
                                     iss,
                                     var.sourceRange());
@@ -243,10 +247,15 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
                 var.setInitExpression(std::move(call));
             }
         }
+        /// We can directly steal the value from the init expression
+        else if (structType->specialLifetimeFunction(Destructor)) {
+            var.dtorStack().pop();
+        }
     }
     if (!var.initExpression()) {
         auto call = makeConstructorCall(finalType.get(),
                                         {},
+                                        var.dtorStack(),
                                         sym,
                                         iss,
                                         var.sourceRange());
@@ -365,7 +374,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
         return;
     }
     convertImplicitly(rs.expression(), returnType, &iss);
-    copyValue(rs.expression(), sym, /* issue destructor call = */ false);
+    copyValue(rs.expression(), sym, nullptr);
 }
 
 void Context::analyzeImpl(ast::IfStatement& stmt) {
