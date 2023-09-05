@@ -23,12 +23,11 @@ ast::Statement* sema::parentStatement(ast::ASTNode* node) {
     }
 }
 
-bool sema::convertArguments(ast::CallLike& fc,
+void sema::convertArguments(ast::CallLike& fc,
                             OverloadResolutionResult const& orResult,
                             DTorStack& dtors,
                             SymbolTable& sym,
                             IssueHandler& iss) {
-    bool success = true;
     for (auto [index, _arg, conv]: ranges::views::zip(ranges::views::iota(0),
                                                       fc.arguments(),
                                                       orResult.conversions))
@@ -44,7 +43,6 @@ bool sema::convertArguments(ast::CallLike& fc,
         }
         copyValue(arg, sym, &dtors);
     }
-    return success;
 }
 
 ast::Expression* sema::copyValue(ast::Expression* expr,
@@ -59,6 +57,8 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
     SC_ASSERT(copyCtor, "Must exists because we are non-trivial lifetime");
     expr = convertExplicitly(expr,
                              sym.explRef(QualType::Const(structType)),
+                             *dtors,
+                             sym,
                              nullptr);
     auto sourceRange = expr->sourceRange();
     size_t index = expr->indexInParent();

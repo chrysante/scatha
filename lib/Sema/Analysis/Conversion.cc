@@ -8,6 +8,7 @@
 #include "AST/AST.h"
 #include "Common/Ranges.h"
 #include "Sema/Analysis/ConstantExpressions.h"
+#include "Sema/Analysis/Utility.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
@@ -538,7 +539,10 @@ std::optional<Conversion> sema::computeConversion(ConversionKind kind,
 static ast::Expression* convertImpl(ConversionKind kind,
                                     ast::Expression* expr,
                                     QualType to,
-                                    IssueHandler* iss) {
+                                    DTorStack* dtors,
+                                    SymbolTable& sym,
+                                    IssueHandler* iss,
+                                    bool invokeCopyCtor = true) {
     auto conversion =
         computeConversion(kind, expr->type(), expr->constantValue(), to);
     if (!conversion) {
@@ -547,48 +551,86 @@ static ast::Expression* convertImpl(ConversionKind kind,
         return nullptr;
     }
     if (!conversion->isNoop()) {
-        return insertConversion(expr, *conversion);
+        expr = insertConversion(expr, *conversion);
+    }
+    if (!invokeCopyCtor) {
+        return expr;
+    }
+    auto* structType = dyncast<StructureType const*>(to.get());
+    if (structType && !expr->isRValue()) {
+        return copyValue(expr, sym, dtors);
     }
     return expr;
 }
 
 ast::Expression* sema::convertImplicitly(ast::Expression* expr,
                                          QualType to,
+                                         DTorStack& dtors,
+                                         SymbolTable& sym,
                                          IssueHandler* issueHandler) {
-    return convertImpl(ConversionKind::Implicit, expr, to, issueHandler);
+    return convertImpl(ConversionKind::Implicit,
+                       expr,
+                       to,
+                       &dtors,
+                       sym,
+                       issueHandler);
 }
 
 ast::Expression* sema::convertExplicitly(ast::Expression* expr,
                                          QualType to,
+                                         DTorStack& dtors,
+                                         SymbolTable& sym,
                                          IssueHandler* issueHandler) {
-    return convertImpl(ConversionKind::Explicit, expr, to, issueHandler);
+    return convertImpl(ConversionKind::Explicit,
+                       expr,
+                       to,
+                       &dtors,
+                       sym,
+                       issueHandler);
 }
 
 ast::Expression* sema::convertReinterpret(ast::Expression* expr,
                                           QualType to,
+                                          SymbolTable& sym,
                                           IssueHandler* issueHandler) {
-    return convertImpl(ConversionKind::Reinterpret, expr, to, issueHandler);
+    return convertImpl(ConversionKind::Reinterpret,
+                       expr,
+                       to,
+                       nullptr,
+                       sym,
+                       issueHandler);
 }
 
 ast::Expression* sema::convertToExplicitRef(ast::Expression* expr,
                                             SymbolTable& sym,
                                             IssueHandler* issueHandler) {
-    return convertExplicitly(expr, sym.explRef(expr->type()), issueHandler);
+    return convertImpl(ConversionKind::Explicit,
+                       expr,
+                       sym.explRef(stripReference(expr->type()).toMut()),
+                       nullptr,
+                       sym,
+                       issueHandler);
 }
 
 ast::Expression* sema::convertToImplicitMutRef(ast::Expression* expr,
                                                SymbolTable& sym,
                                                IssueHandler* issueHandler) {
-    return convertImplicitly(expr,
-                             sym.implRef(stripReference(expr->type()).toMut()),
-                             issueHandler);
+    return convertImpl(ConversionKind::Implicit,
+                       expr,
+                       sym.implRef(stripReference(expr->type()).toMut()),
+                       nullptr,
+                       sym,
+                       issueHandler);
 }
 
 void sema::dereference(ast::Expression* expr, SymbolTable& sym) {
     convertImpl(ConversionKind::Implicit,
                 expr,
                 stripReference(expr->type()),
-                nullptr);
+                nullptr,
+                sym,
+                nullptr,
+                /* invokeCopyCtor = */ false);
 }
 
 static QualType commonRef(SymbolTable& sym,

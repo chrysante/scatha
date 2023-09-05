@@ -5,6 +5,7 @@
 #include <utl/stack.hpp>
 
 #include "AST/Fwd.h"
+#include "Common/Base.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::sema {
@@ -16,7 +17,7 @@ struct DestructorCall {
 };
 
 /// Stack of destructor calls
-class DTorStack {
+class SCATHA_TESTAPI DTorStack {
 public:
     /// Push destructor call for the object \p obj onto the stack.
     /// The destructor function is derived from the type of \p obj

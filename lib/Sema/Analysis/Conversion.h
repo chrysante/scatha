@@ -6,6 +6,7 @@
 
 #include "AST/Fwd.h"
 #include "Issue/IssueHandler.h"
+#include "Sema/DTorStack.h"
 #include "Sema/Fwd.h"
 #include "Sema/QualType.h"
 
@@ -116,6 +117,8 @@ SCATHA_TESTAPI int computeRank(Conversion const& conv);
 /// occurs the function traps
 SCATHA_TESTAPI ast::Expression* convertImplicitly(ast::Expression* expr,
                                                   QualType to,
+                                                  DTorStack& dtors,
+                                                  SymbolTable& sym,
                                                   IssueHandler* issueHandler);
 
 /// Does nothing if `expr->type() == to`
@@ -126,6 +129,8 @@ SCATHA_TESTAPI ast::Expression* convertImplicitly(ast::Expression* expr,
 /// occurs the function traps
 SCATHA_TESTAPI ast::Expression* convertExplicitly(ast::Expression* expr,
                                                   QualType to,
+                                                  DTorStack& dtors,
+                                                  SymbolTable& sym,
                                                   IssueHandler* issueHandler);
 
 /// Does nothing if `expr->type() == to`
@@ -136,6 +141,7 @@ SCATHA_TESTAPI ast::Expression* convertExplicitly(ast::Expression* expr,
 /// occurs the function traps
 SCATHA_TESTAPI ast::Expression* convertReinterpret(ast::Expression* expr,
                                                    QualType to,
+                                                   SymbolTable& sym,
                                                    IssueHandler* issueHandler);
 
 /// Convert expression \p expr to an implicit reference

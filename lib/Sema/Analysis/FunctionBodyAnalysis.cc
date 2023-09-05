@@ -173,6 +173,17 @@ void Context::analyzeImpl(ast::CompoundStatement& block) {
     popScope.execute();
 }
 
+static void popTopLevelDtor(ast::Expression* expr, DTorStack& dtors) {
+    auto* structType = dyncast<StructureType const*>(expr->type().get());
+    if (!structType) {
+        return;
+    }
+    using enum SpecialLifetimeFunction;
+    if (structType->specialLifetimeFunction(Destructor)) {
+        dtors.pop();
+    }
+}
+
 void Context::analyzeImpl(ast::VariableDeclaration& var) {
     SC_ASSERT(currentFunction,
               "We only handle function local variables in this pass.");
@@ -224,33 +235,12 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     }
     if (var.initExpression() && var.initExpression()->isDecorated()) {
         using enum SpecialLifetimeFunction;
-        auto* structType = dyncast<StructureType const*>(finalType.get());
-        if (!structType || isExplRef(finalType)) {
-            convertImplicitly(var.initExpression(), finalType, &iss);
-        }
-        /// If we need a conversion or if we don't have an rvalue initializer we
-        /// make a call to the constructor
-        else if (var.initExpression()->type().get() != structType ||
-                 !var.initExpression()->isRValue())
-        {
-            convertExplicitly(var.initExpression(),
-                              sym.reference(finalType.toConst(), RefExpl),
-                              &iss);
-            auto call =
-                makeConstructorCall(finalType.get(),
-                                    toSmallVector(var.extractInitExpression()),
-                                    var.dtorStack(),
-                                    sym,
-                                    iss,
-                                    var.sourceRange());
-            if (call) {
-                var.setInitExpression(std::move(call));
-            }
-        }
-        /// We can directly steal the value from the init expression
-        else if (structType->specialLifetimeFunction(Destructor)) {
-            var.dtorStack().pop();
-        }
+        convertImplicitly(var.initExpression(),
+                          finalType,
+                          var.dtorStack(),
+                          sym,
+                          &iss);
+        popTopLevelDtor(var.initExpression(), var.dtorStack());
     }
     if (!var.initExpression()) {
         auto call = makeConstructorCall(finalType.get(),
@@ -373,8 +363,8 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
         iss.push<BadExpression>(*rs.expression(), IssueSeverity::Error);
         return;
     }
-    convertImplicitly(rs.expression(), returnType, &iss);
-    copyValue(rs.expression(), sym, nullptr);
+    convertImplicitly(rs.expression(), returnType, rs.dtorStack(), sym, &iss);
+    popTopLevelDtor(rs.expression(), rs.dtorStack());
 }
 
 void Context::analyzeImpl(ast::IfStatement& stmt) {
@@ -386,7 +376,11 @@ void Context::analyzeImpl(ast::IfStatement& stmt) {
         return;
     }
     if (analyzeExpr(*stmt.condition(), stmt.dtorStack())) {
-        convertImplicitly(stmt.condition(), sym.Bool(), &iss);
+        convertImplicitly(stmt.condition(),
+                          sym.Bool(),
+                          stmt.dtorStack(),
+                          sym,
+                          &iss);
     }
     analyze(*stmt.thenBlock());
     if (stmt.elseBlock()) {
@@ -409,7 +403,11 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
         stmt.copyDtorsStack(*stmt.varDecl());
     }
     if (analyzeExpr(*stmt.condition(), stmt.conditionDtorStack())) {
-        convertImplicitly(stmt.condition(), sym.Bool(), &iss);
+        convertImplicitly(stmt.condition(),
+                          sym.Bool(),
+                          stmt.conditionDtorStack(),
+                          sym,
+                          &iss);
     }
     if (stmt.increment()) {
         analyzeExpr(*stmt.increment(), stmt.incrementDtorStack());
