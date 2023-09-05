@@ -33,6 +33,7 @@
 #include "Sema/Analyze.h"
 #include "Sema/SemanticIssue.h"
 #include "Sema/SymbolTable.h"
+#include "test/CoutRerouter.h"
 #include "test/Options.h"
 
 using namespace scatha;
@@ -188,4 +189,10 @@ void test::checkCompiles(std::string_view text) {
 void test::compileAndRun(std::string_view text) {
     auto [ctx, mod] = parseScatha(text);
     ::run(mod);
+}
+
+void test::checkPrints(std::string_view printed, std::string_view source) {
+    test::CoutRerouter rerouter;
+    compileAndRun(source);
+    CHECK(rerouter.str() == printed);
 }

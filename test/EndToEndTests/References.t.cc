@@ -1,6 +1,5 @@
 #include <Catch/Catch2.hpp>
 
-#include "test/CoutRerouter.h"
 #include "test/EndToEndTests/PassTesting.h"
 
 using namespace scatha;
@@ -233,8 +232,7 @@ public fn main() -> int {
 }
 
 TEST_CASE("First string", "[end-to-end][arrays]") {
-    test::CoutRerouter cr;
-    test::compileAndRun(R"(
+    test::checkPrints("Hello World!\n", R"(
 fn print(text: &[byte]) {
     __builtin_putstr(&text);
     __builtin_putchar(10);
@@ -242,7 +240,6 @@ fn print(text: &[byte]) {
 public fn main() {
     print("Hello World!");
 })");
-    CHECK(cr.str() == "Hello World!\n");
 }
 
 TEST_CASE("Array slicing", "[end-to-end][arrays][references]") {

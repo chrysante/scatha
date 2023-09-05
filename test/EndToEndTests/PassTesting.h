@@ -18,6 +18,8 @@ void checkCompiles(std::string_view text);
 
 void compileAndRun(std::string_view text);
 
+void checkPrints(std::string_view printed, std::string_view source);
+
 } // namespace scatha::test
 
 #endif // SCATHA_TEST_CODEGEN_BASICCOMPILER_H_
