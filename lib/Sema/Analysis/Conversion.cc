@@ -733,8 +733,7 @@ ast::Conversion* sema::insertConversion(ast::Expression* expr,
                                            std::make_unique<Conversion>(conv));
     auto* result = owner.get();
     parent->setChild(indexInParent, std::move(owner));
-    auto* entity = isRef(targetType) ? expr->entity() : nullptr;
-    result->decorate(entity, targetType);
+    result->decorateExpr(expr->entity(), targetType);
     result->setConstantValue(
         evalConversion(result->conversion(),
                        result->expression()->constantValue()));

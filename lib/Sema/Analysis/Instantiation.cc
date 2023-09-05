@@ -209,7 +209,7 @@ void InstContext::instantiateVariable(SDGNode& node) {
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
     QualType type = analyzeTypeExpression(*varDecl.typeExpr());
-    varDecl.decorate(node.entity, type);
+    varDecl.decorateVariable(node.entity, type);
     /// Here we set the TypeID of the variable in the symbol table.
     varDecl.variable()->setType(type);
 }

@@ -20,31 +20,31 @@ TEST_CASE("Implicit conversion rank", "[sema]") {
                               nullptr,
                               SourceRange{});
     SECTION("1") {
-        expr.decorate(nullptr, sym.U16());
+        expr.decorateExpr(nullptr, sym.U16());
         auto conv =
             computeConversion(ConversionKind::Implicit, &expr, sym.U16());
         CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("2") {
-        expr.decorate(nullptr, sym.S64());
+        expr.decorateExpr(nullptr, sym.S64());
         auto conv =
             computeConversion(ConversionKind::Implicit, &expr, sym.S64());
         CHECK(computeRank(conv.value()) == 0);
     }
     SECTION("3") {
-        expr.decorate(nullptr, sym.U16());
+        expr.decorateExpr(nullptr, sym.U16());
         auto conv =
             computeConversion(ConversionKind::Implicit, &expr, sym.S32());
         CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("4") {
-        expr.decorate(nullptr, sym.U16());
+        expr.decorateExpr(nullptr, sym.U16());
         auto conv =
             computeConversion(ConversionKind::Implicit, &expr, sym.U32());
         CHECK(computeRank(conv.value()) == 1);
     }
     SECTION("5") {
-        expr.decorate(nullptr, sym.S16());
+        expr.decorateExpr(nullptr, sym.S16());
         auto conv =
             computeConversion(ConversionKind::Implicit, &expr, sym.U32());
         CHECK(!conv);
@@ -64,7 +64,7 @@ TEST_CASE("Arithemetic conversions", "[sema]") {
                                             SourceRange{}),
              SourceRange{});
     auto* expr = base.operand();
-    auto setType = [&](QualType type) { expr->decorate(nullptr, type); };
+    auto setType = [&](QualType type) { expr->decorateExpr(nullptr, type); };
     auto set = [&](QualType type, auto value) {
         setType(type);
         auto* arithType = cast<ArithmeticType const*>(type.get());

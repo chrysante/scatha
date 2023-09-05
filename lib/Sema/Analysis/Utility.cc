@@ -68,7 +68,7 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
                                        sourceRange,
                                        copyCtor,
                                        SpecialMemberFunction::New);
-    ctorCall->decorate(&sym.addTemporary(structType), structType);
+    ctorCall->decorateExpr(&sym.addTemporary(structType));
     dtors.push(ctorCall->object());
     auto* result = ctorCall.get();
     parent->setChild(index, std::move(ctorCall));

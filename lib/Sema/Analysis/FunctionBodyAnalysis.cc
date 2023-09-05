@@ -128,8 +128,8 @@ void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     /// Here the AST node is partially decorated: `entity()` is already set by
     /// `gatherNames()` phase, now we complete the decoration.
     auto* function = fn.function();
-    fn.decorate(function, function->returnType());
-    fn.body()->decorate(function);
+    fn.decorateFunction(function, function->returnType());
+    fn.body()->decorateScope(function);
     function->setAccessSpecifier(translateAccessSpec(fn.accessSpec()));
     currentFunction = &fn;
     paramIndex = 0;
@@ -160,7 +160,7 @@ void FuncBodyContext::analyzeImpl(ast::StructDefinition& s) {
 
 void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
     if (!block.isDecorated()) {
-        block.decorate(&sym.addAnonymousScope());
+        block.decorateScope(&sym.addAnonymousScope());
     }
     else {
         SC_ASSERT(block.scope()->kind() != ScopeKind::Anonymous ||
@@ -259,7 +259,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
         return;
     }
     auto& varObj = *varRes;
-    var.decorate(&varObj, finalType);
+    var.decorateVariable(&varObj, finalType);
     if (!varObj.type().isMutable() && var.initExpression()) {
         varObj.setConstantValue(clone(var.initExpression()->constantValue()));
     }
@@ -281,7 +281,7 @@ void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
         return;
     }
     auto& param = *paramRes;
-    paramDecl.decorate(&param, declaredType);
+    paramDecl.decorateParameter(&param, declaredType);
     ++paramIndex;
 }
 
@@ -307,7 +307,7 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
     }
     function->setIsMember();
     auto& param = *paramRes;
-    thisParam.decorate(&param, type);
+    thisParam.decorateParameter(&param, type);
     ++paramIndex;
 }
 
@@ -392,7 +392,7 @@ void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
             sym.currentScope());
         return;
     }
-    stmt.block()->decorate(&sym.addAnonymousScope());
+    stmt.block()->decorateScope(&sym.addAnonymousScope());
     sym.pushScope(stmt.block()->scope());
     if (stmt.varDecl()) {
         analyze(*stmt.varDecl());

@@ -83,8 +83,8 @@ size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
         return InvalidIndex;
     }
     auto& func = *declResult;
-    funcDef.Declaration::decorate(&func);
-    funcDef.body()->decorate(&func);
+    funcDef.decorateDecl(&func);
+    funcDef.body()->decorateScope(&func);
     /// Now add this function definition to the dependency graph
     functions.push_back(&funcDef);
     return ~size_t{};
@@ -109,8 +109,8 @@ size_t GatherContext::gatherImpl(ast::StructDefinition& s) {
         return InvalidIndex;
     }
     auto& objType = *declResult;
-    s.decorate(&objType);
-    s.body()->decorate(&objType);
+    s.decorateDecl(&objType);
+    s.body()->decorateScope(&objType);
     size_t const index =
         dependencyGraph.add({ .entity = &objType, .astNode = &s });
     /// After we declared this type we gather all its members

@@ -52,10 +52,10 @@ sema::QualType Expression::typeOrTypeEntity() const {
     return isValue() ? type() : cast<sema::ObjectType const*>(entity());
 }
 
-void Expression::decorate(sema::Entity* entity,
-                          sema::QualType type,
-                          std::optional<sema::ValueCategory> valueCat,
-                          std::optional<sema::EntityCategory> entityCat) {
+void Expression::decorateExpr(sema::Entity* entity,
+                              sema::QualType type,
+                              std::optional<sema::ValueCategory> valueCat,
+                              std::optional<sema::EntityCategory> entityCat) {
     _entity = entity;
     _type = type;
     /// Derive defaults
@@ -72,6 +72,10 @@ void Expression::decorate(sema::Entity* entity,
         _valueCat = sema::ValueCategory::RValue;
         _entityCat = sema::EntityCategory::Value;
     }
+    auto* object = dyncast_or_null<sema::Object*>(entity);
+    if (!type && object) {
+        type = object->type();
+    }
     /// Override if user specified
     if (valueCat) {
         _valueCat = *valueCat;
@@ -82,10 +86,10 @@ void Expression::decorate(sema::Entity* entity,
     markDecorated();
 }
 
-void FunctionCall::decorate(sema::Object* object,
-                            sema::QualType type,
-                            sema::Function* calledFunction) {
-    Expression::decorate(object, type, sema::ValueCategory::RValue);
+void FunctionCall::decorateCall(sema::Object* object,
+                                sema::QualType type,
+                                sema::Function* calledFunction) {
+    decorateExpr(object, type, sema::ValueCategory::RValue);
     _function = calledFunction;
 }
 

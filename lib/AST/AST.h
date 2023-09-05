@@ -361,10 +361,11 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::Entity* entity,
-                  sema::QualType type = nullptr,
-                  std::optional<sema::ValueCategory> valueCat = std::nullopt,
-                  std::optional<sema::EntityCategory> entityCat = std::nullopt);
+    void decorateExpr(
+        sema::Entity* entity,
+        sema::QualType type = nullptr,
+        std::optional<sema::ValueCategory> valueCat = std::nullopt,
+        std::optional<sema::EntityCategory> entityCat = std::nullopt);
 
     /// \Returns Constant value if this expression is constant evaluable
     /// `nullptr` otherwise
@@ -544,9 +545,6 @@ public:
 
     /// The initializing expression
     AST_PROPERTY(0, Expression, initExpr, InitExpr)
-
-    /// Decorate this node.
-    void decorate(sema::QualType type) { Expression::decorate(nullptr, type); }
 };
 
 /// MARK: Ternary Expressions
@@ -639,9 +637,9 @@ public:
     sema::Function const* function() const { return _function; }
 
     /// Decorate this function call
-    void decorate(sema::Object* object,
-                  sema::QualType type,
-                  sema::Function* calledFunction);
+    void decorateCall(sema::Object* object,
+                      sema::QualType type,
+                      sema::Function* calledFunction);
 
 private:
     sema::Function* _function;
@@ -768,7 +766,7 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::Entity* entity) {
+    void decorateDecl(sema::Entity* entity) {
         _entity = entity;
         markDecorated();
     }
@@ -858,9 +856,9 @@ public:
     bool isMutable() const { return isMut; }
 
     /// Decorate this node.
-    void decorate(sema::Entity* entity, sema::QualType type) {
+    void decorateVariable(sema::Entity* entity, sema::QualType type) {
         _type = type;
-        Declaration::decorate(entity);
+        decorateDecl(entity);
     }
 
     void setOffset(size_t offset) {
@@ -911,9 +909,9 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::Entity* entity, sema::QualType type) {
+    void decorateParameter(sema::Entity* entity, sema::QualType type) {
         _type = type;
-        Declaration::decorate(entity);
+        Declaration::decorateDecl(entity);
     }
 
 protected:
@@ -996,7 +994,7 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::Scope* scope) {
+    void decorateScope(sema::Scope* scope) {
         _scope = scope;
         markDecorated();
     }
@@ -1078,9 +1076,9 @@ public:
     }
 
     /// Decorate this node.
-    void decorate(sema::Entity* entity, sema::QualType returnType) {
+    void decorateFunction(sema::Entity* entity, sema::QualType returnType) {
         _returnType = returnType;
-        Declaration::decorate(entity);
+        Declaration::decorateDecl(entity);
     }
 
 private:
@@ -1116,9 +1114,6 @@ public:
     S const* structType() const {
         return cast<S const*>(entity());
     }
-
-    /// Decorate this node.
-    void decorate(sema::Entity* entity) { Declaration::decorate(entity); }
 };
 
 /// Concrete node representing a statement that consists of a single expression.

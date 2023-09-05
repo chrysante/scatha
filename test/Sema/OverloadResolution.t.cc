@@ -44,7 +44,7 @@ static UniquePtr<ast::Expression> makeExpr(QualType type) {
                                        ast::UnaryOperatorNotation::Prefix,
                                        nullptr,
                                        SourceRange{});
-    result->decorate(nullptr, type);
+    result->decorateExpr(nullptr, type);
     return result;
 }
 
