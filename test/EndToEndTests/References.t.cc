@@ -9,7 +9,7 @@ TEST_CASE("First reference parameter", "[end-to-end][references]") {
     test::checkReturns(4, R"(
 public fn main() -> int {
     var i = 3;
-    f(&mut i);
+    f(&i);
     return i;
 }
 fn f(x: &mut int)  {
@@ -22,9 +22,9 @@ TEST_CASE("Rebind reference", "[end-to-end][references]") {
 public fn main() -> int {
     var i = 0;
     var j = 0;
-    var r = &mut i;
+    var r = &i;
     r += 1;
-    r = &mut j;
+    r = &j;
     r += 1;
     return i + j;
 })");
@@ -34,12 +34,12 @@ TEST_CASE("Pass reference through function", "[end-to-end][references]") {
     test::checkReturns(1, R"(
 public fn main() -> int {
     var i = 0;
-    var j: &mut int = &mut f(&mut i);
+    var j: &mut int = &f(&i);
     j = 1;
     return i;
 }
 fn f(x: &mut int)  -> &mut int {
-    return &mut x;
+    return &x;
 })");
 }
 
@@ -72,7 +72,7 @@ struct X {
 public fn main() -> int {
     var i = 0;
     var x: X;
-    x.i = &mut i;
+    x.i = &i;
     f(x);
     return i;
 }
@@ -93,7 +93,7 @@ TEST_CASE("Reference to array element", "[end-to-end][arrays]") {
     test::checkReturns(5, R"(
 public fn main() -> int {
     var arr = [1, 2, 3, 4];
-    var r   = &mut arr[1];
+    var r   = &arr[1];
     r       = 5;
     return arr[1];
 })");
@@ -204,7 +204,7 @@ struct X {
 public fn main() -> int {
     var a = [1, 2];
     var x: X;
-    x.r = &mut a;
+    x.r = &a;
     ++x.r[0];
     return x.sum;
 })");
@@ -269,5 +269,29 @@ fn sum(data: &[int]) -> int {
 public fn main() -> int {
     let data = [5, 3, 1, 2, 3, 4, 5, 6, 100, -45213];
     return sum(&data[2:7]);
+})");
+}
+
+TEST_CASE("Dynamic allocation", "[end-to-end][arrays]") {
+    test::checkReturns(45, R"(
+public fn main() -> int {
+    var data = &allocateInts(10);
+    for i = 0; i < data.count; ++i {
+        data[i] = i;
+    }
+    var sum = 0;
+        for i = 0; i < data.count; ++i {
+        sum += data[i];
+    }
+    deallocateInts(&data);
+    return sum;
+}
+fn allocateInts(count: int) -> &mut [int] {
+    var result = &__builtin_alloc(count * 8, 8);
+    return reinterpret<&mut [int]>(&result);
+}
+fn deallocateInts(data: &mut [int]) {
+    let bytes = reinterpret<&mut [byte]>(&data);
+    __builtin_dealloc(&bytes, 8);
 })");
 }

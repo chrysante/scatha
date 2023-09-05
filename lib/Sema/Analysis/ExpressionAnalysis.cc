@@ -388,16 +388,19 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
         return false;
     }
     auto* referred = ref.referred();
-    auto mutQual = ref.isMutable() ? Mutability::Mutable : Mutability::Const;
-
     switch (referred->entityCategory()) {
     case EntityCategory::Value: {
         if (!referred->isLValue() && !isRef(referred->type())) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return false;
         }
-        auto* refType =
-            sym.explRef(stripReference(referred->type()).toMutability(mutQual));
+        /// We only allow `mut` specifier on reference type declarations.
+        /// For values the mutability is derived from the referred value
+        if (ref.isMutable()) {
+            iss.push<BadExpression>(ref, IssueSeverity::Error);
+            return false;
+        }
+        auto* refType = sym.explRef(stripReference(referred->type()));
         if (!computeConversion(ConversionKind::Explicit, referred, refType)) {
             iss.push<BadExpression>(ref, IssueSeverity::Error);
             return false;
@@ -407,7 +410,7 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
     }
     case EntityCategory::Type: {
         auto* type = cast<ObjectType*>(referred->entity());
-        auto* refType = sym.explRef(QualType(type, mutQual));
+        auto* refType = sym.explRef(QualType(type, ref.mutability()));
         ref.decorate(const_cast<ReferenceType*>(refType));
         return true;
     }

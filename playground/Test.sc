@@ -1,5 +1,4 @@
-
-public fn main() -> int {
+public fn main() -> bool {
     var data = [
         15,   50,   82,   57,    7,   42,   86,   23,   60,   51,
         17,   19,   80,   33,   49,   35,   79,   98,   89,   27,
@@ -12,25 +11,17 @@ public fn main() -> int {
         62,   21,   66,   48,   99,   94,   69,   46,  100,   38,
         16,   53,   96,   34,   59,   14,   29,   93,   36,   26
     ];
-    sort(&mut data);
-    print(&data);
-}
-
-fn print(data: &[int]) {
-    for i = 0; i < data.count; ++i {
-        __builtin_puti64(data[i]);
-        __builtin_putstr(", ");
-    }
-    __builtin_putchar('\n');
+    sort(&data);
+    return isSorted(&data);
 }
 
 fn sort(data: &mut [int]) {
     if data.count == 0 {
         return;
     }
-    let splitIndex = split(&mut data);
-    sort(&mut data[0:splitIndex]);
-    sort(&mut data[splitIndex + 1:data.count]);
+    let splitIndex = split(&data);
+    sort(&data[0 : splitIndex]);
+    sort(&data[splitIndex + 1 : data.count]);
 }
 
 fn split(data: &mut [int]) -> int {
@@ -45,14 +36,13 @@ fn split(data: &mut [int]) -> int {
             --j;
         }
         if data[i] > data[j] {
-            swap(&mut data[i], &mut data[j]);
+            swap(&data[i], &data[j]);
         }
     }
-    if data[i] > pivot {
-        swap(&mut data[i], &mut data[data.count - 1]);
-    } else {
-        i = data.count - 1;
+    if data[i] <= pivot {
+        return data.count - 1; // index of pivot
     }
+    swap(&data[i], &data[data.count - 1]);
     return i;
 }
 
@@ -62,17 +52,14 @@ fn swap(a: &mut int, b: &mut int) {
     b = tmp;
 }
 
-
-
-
-
-
-
-
-
-
-
-
+fn isSorted(data: &[int]) -> bool {
+    for i = 0; i < data.count - 1; ++i {
+        if data[i] > data[i + 1] {
+            return false;
+        }
+    }
+    return true;
+}
 
 /*
 
@@ -171,7 +158,7 @@ public fn main() -> int {
     // let j = cond ? X(1) : X(2);
     var i = 1;
     var j = 2;
-    let k = cond ? &mut i : &mut j;
+    let k = cond ? &i : &j;
     k = 3;
     return i;
 }

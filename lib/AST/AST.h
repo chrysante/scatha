@@ -512,20 +512,23 @@ public:
 class SCATHA_API ReferenceExpression: public Expression {
 public:
     explicit ReferenceExpression(UniquePtr<Expression> referred,
-                                 bool isMut,
+                                 sema::Mutability mutability,
                                  SourceRange sourceRange):
         Expression(NodeType::ReferenceExpression,
                    sourceRange,
                    std::move(referred)),
-        isMut(isMut) {}
+        mut(mutability) {}
 
     AST_PROPERTY(0, Expression, referred, Referred)
 
-    /// `true` if reference to `mut`
-    bool isMutable() const { return isMut; }
+    /// \Returns the mutability qualifier
+    sema::Mutability mutability() const { return mut; }
+
+    /// \Returns `true` if reference to `mut`
+    bool isMutable() const { return mut == sema::Mutability::Mutable; }
 
 private:
-    bool isMut = true;
+    sema::Mutability mut;
 };
 
 /// Concrete node representing a `unique` expression.

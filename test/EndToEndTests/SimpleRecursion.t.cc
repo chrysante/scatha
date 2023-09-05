@@ -244,7 +244,7 @@ public fn main() -> bool {
         62,   21,   66,   48,   99,   94,   69,   46,  100,   38,
         16,   53,   96,   34,   59,   14,   29,   93,   36,   26
     ];
-    sort(&mut data);
+    sort(&data);
     return isSorted(&data);
 }
 
@@ -252,9 +252,9 @@ fn sort(data: &mut [int]) {
     if data.count == 0 {
         return;
     }
-    let splitIndex = split(&mut data);
-    sort(&mut data[0 : splitIndex]);
-    sort(&mut data[splitIndex + 1 : data.count]);
+    let splitIndex = split(&data);
+    sort(&data[0 : splitIndex]);
+    sort(&data[splitIndex + 1 : data.count]);
 }
 
 fn split(data: &mut [int]) -> int {
@@ -269,13 +269,13 @@ fn split(data: &mut [int]) -> int {
             --j;
         }
         if data[i] > data[j] {
-            swap(&mut data[i], &mut data[j]);
+            swap(&data[i], &data[j]);
         }
     }
     if data[i] <= pivot {
         return data.count - 1; // index of pivot
     }
-    swap(&mut data[i], &mut data[data.count - 1]);
+    swap(&data[i], &data[data.count - 1]);
     return i;
 }
 

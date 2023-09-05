@@ -767,10 +767,11 @@ UniquePtr<ast::Expression> Context::parseReference() {
     switch (token.kind()) {
     case BitAnd: {
         tokens.eat();
-        bool const isMut = eatMut();
+        using enum sema::Mutability;
+        auto mut = eatMut() ? Mutable : Const;
         auto referred = parsePrefix();
         return allocate<ast::ReferenceExpression>(std::move(referred),
-                                                  isMut,
+                                                  mut,
                                                   token.sourceRange());
     }
     default:

@@ -31,9 +31,9 @@ public fn callback(n: int) {
 }
 
 public fn allocate(bytes: int) -> &mut [byte] {
-    return &mut __builtin_alloc(bytes, 8);
+    return &__builtin_alloc(bytes, 8);
 }
 
 public fn deallocate(bytes: &mut [byte]) {
-    __builtin_dealloc(&mut bytes, 8);
+    __builtin_dealloc(&bytes, 8);
 }
