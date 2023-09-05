@@ -720,9 +720,6 @@ public:
     /// \overload
     void pushDtor(sema::DestructorCall dtorCall) { _dtorStack.push(dtorCall); }
 
-    /// Copy the dtor stack from \p rhs
-    void copyDtorsStack(Statement& rhs) { _dtorStack = rhs.dtorStack(); }
-
     /// \Returns the destructor stack associated with this statement
     sema::DTorStack const& dtorStack() const { return _dtorStack; }
 

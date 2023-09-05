@@ -74,7 +74,7 @@ void Expression::decorateExpr(sema::Entity* entity,
     }
     auto* object = dyncast_or_null<sema::Object*>(entity);
     if (!type && object) {
-        type = object->type();
+        _type = object->type();
     }
     /// Override if user specified
     if (valueCat) {

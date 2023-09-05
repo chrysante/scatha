@@ -396,7 +396,6 @@ void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
     sym.pushScope(stmt.block()->scope());
     if (stmt.varDecl()) {
         analyze(*stmt.varDecl());
-        stmt.copyDtorsStack(*stmt.varDecl());
     }
     if (analyzeExpr(*stmt.condition(), stmt.conditionDtorStack())) {
         convertImplicitly(stmt.condition(),
