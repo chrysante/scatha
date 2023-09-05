@@ -17,9 +17,7 @@ class SymbolTable;
 /// depend on each other at compile time. This may change if we introduce
 /// compile time evaluation of functions.
 SCATHA_API void analyzeFunctionBodies(
-    SymbolTable& symbolTable,
-    IssueHandler& issueHandler,
-    std::span<ast::FunctionDefinition* const> functions);
+    Context& context, std::span<ast::FunctionDefinition* const> functions);
 
 } // namespace scatha::sema
 

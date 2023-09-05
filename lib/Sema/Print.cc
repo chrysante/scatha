@@ -19,8 +19,9 @@ void sema::print(SymbolTable const& symbolTable) {
 
 namespace {
 
-struct Context {
-    Context(std::ostream& str, SymbolTable const& sym): str(str), sym(sym) {}
+struct PrintContext {
+    PrintContext(std::ostream& str, SymbolTable const& sym):
+        str(str), sym(sym) {}
 
     void print(Entity const& entity);
 
@@ -59,11 +60,11 @@ struct Context {
 } // namespace
 
 void sema::print(SymbolTable const& symbolTable, std::ostream& ostream) {
-    Context ctx(ostream, symbolTable);
+    PrintContext ctx(ostream, symbolTable);
     ctx.print(symbolTable.globalScope());
 }
 
-void Context::print(Entity const& entity) {
+void PrintContext::print(Entity const& entity) {
     str << formatter.beginLine() << name(entity) << " "
         << tfmt::format(tfmt::BrightGrey, "[", entity.entityType(), "]")
         << "\n";
@@ -94,6 +95,6 @@ void Context::print(Entity const& entity) {
     }
 }
 
-utl::vstreammanip<> Context::name(Entity const& entity) {
+utl::vstreammanip<> PrintContext::name(Entity const& entity) {
     return visit(entity, [this](auto& entity) { return nameImpl(&entity); });
 }

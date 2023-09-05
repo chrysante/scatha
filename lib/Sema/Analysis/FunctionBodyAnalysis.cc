@@ -11,9 +11,11 @@
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/Utility.h"
+#include "Sema/Context.h"
 #include "Sema/DTorStack.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace sema;
@@ -43,7 +45,10 @@ static void gatherParentDestructors(ast::JumpStatement& stmt) {
 
 namespace {
 
-struct Context {
+struct FuncBodyContext {
+    FuncBodyContext(sema::Context& ctx):
+        ctx(ctx), sym(ctx.symbolTable()), iss(ctx.issueHandler()) {}
+
     void analyze(ast::ASTNode&);
 
     void analyzeImpl(ast::FunctionDefinition&);
@@ -61,11 +66,12 @@ struct Context {
     void analyzeImpl(ast::ASTNode& node) { SC_UNREACHABLE(); }
 
     bool analyzeExpr(ast::Expression& expr, DTorStack& dtorStack) {
-        return sema::analyzeExpression(expr, dtorStack, sym, iss);
+        return sema::analyzeExpression(expr, dtorStack, ctx);
     }
 
     QualType getDeclaredType(ast::Expression* expr);
 
+    sema::Context& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
     ast::FunctionDefinition* currentFunction = nullptr;
@@ -75,18 +81,17 @@ struct Context {
 } // namespace
 
 void sema::analyzeFunctionBodies(
-    SymbolTable& sym,
-    IssueHandler& iss,
-    std::span<ast::FunctionDefinition* const> functions) {
-    Context ctx{ sym, iss };
+    Context& ctx, std::span<ast::FunctionDefinition* const> functions) {
+    FuncBodyContext funcBodyCtx(ctx);
+    auto& sym = ctx.symbolTable();
     for (auto* def: functions) {
         sym.makeScopeCurrent(def->function()->parent());
-        ctx.analyzeImpl(cast<ast::FunctionDefinition&>(*def));
+        funcBodyCtx.analyzeImpl(cast<ast::FunctionDefinition&>(*def));
         sym.makeScopeCurrent(nullptr);
     }
 }
 
-void Context::analyze(ast::ASTNode& node) {
+void FuncBodyContext::analyze(ast::ASTNode& node) {
     visit(node, [this](auto& node) { this->analyzeImpl(node); });
 }
 
@@ -103,7 +108,7 @@ sema::AccessSpecifier translateAccessSpec(ast::AccessSpec spec) {
     }
 }
 
-void Context::analyzeImpl(ast::FunctionDefinition& fn) {
+void FuncBodyContext::analyzeImpl(ast::FunctionDefinition& fn) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
                                                    sk != ScopeKind::Object)
@@ -138,7 +143,7 @@ void Context::analyzeImpl(ast::FunctionDefinition& fn) {
     analyze(*fn.body());
 }
 
-void Context::analyzeImpl(ast::StructDefinition& s) {
+void FuncBodyContext::analyzeImpl(ast::StructDefinition& s) {
     auto const sk = sym.currentScope().kind();
     if (sk != ScopeKind::Global && sk != ScopeKind::Namespace &&
         sk != ScopeKind::Object)
@@ -153,7 +158,7 @@ void Context::analyzeImpl(ast::StructDefinition& s) {
     }
 }
 
-void Context::analyzeImpl(ast::CompoundStatement& block) {
+void FuncBodyContext::analyzeImpl(ast::CompoundStatement& block) {
     if (!block.isDecorated()) {
         block.decorate(&sym.addAnonymousScope());
     }
@@ -184,7 +189,7 @@ static void popTopLevelDtor(ast::Expression* expr, DTorStack& dtors) {
     }
 }
 
-void Context::analyzeImpl(ast::VariableDeclaration& var) {
+void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
     SC_ASSERT(currentFunction,
               "We only handle function local variables in this pass.");
     SC_ASSERT(!var.isDecorated(),
@@ -266,7 +271,7 @@ void Context::analyzeImpl(ast::VariableDeclaration& var) {
     cast<ast::Statement*>(var.parent())->pushDtor(&varObj);
 }
 
-void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
+void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     SC_ASSERT(currentFunction != nullptr,
               "We'd better have a function pushed when analyzing function "
               "parameters.");
@@ -285,7 +290,7 @@ void Context::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
     ++paramIndex;
 }
 
-void Context::analyzeImpl(ast::ThisParameter& thisParam) {
+void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
     SC_ASSERT(currentFunction != nullptr,
               "We'd better have a function pushed when analyzing function "
               "parameters.");
@@ -311,7 +316,7 @@ void Context::analyzeImpl(ast::ThisParameter& thisParam) {
     ++paramIndex;
 }
 
-void Context::analyzeImpl(ast::ExpressionStatement& es) {
+void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
             &es,
@@ -322,7 +327,7 @@ void Context::analyzeImpl(ast::ExpressionStatement& es) {
     analyzeExpr(*es.expression(), es.dtorStack());
 }
 
-void Context::analyzeImpl(ast::ReturnStatement& rs) {
+void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     SC_ASSERT(currentFunction,
               "This should have been set by case FunctionDefinition");
     SC_ASSERT(sym.currentScope().kind() == ScopeKind::Function,
@@ -367,7 +372,7 @@ void Context::analyzeImpl(ast::ReturnStatement& rs) {
     popTopLevelDtor(rs.expression(), rs.dtorStack());
 }
 
-void Context::analyzeImpl(ast::IfStatement& stmt) {
+void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
             &stmt,
@@ -388,7 +393,7 @@ void Context::analyzeImpl(ast::IfStatement& stmt) {
     }
 }
 
-void Context::analyzeImpl(ast::LoopStatement& stmt) {
+void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
     if (sym.currentScope().kind() != ScopeKind::Function) {
         iss.push<InvalidStatement>(
             &stmt,
@@ -416,7 +421,7 @@ void Context::analyzeImpl(ast::LoopStatement& stmt) {
     analyze(*stmt.block());
 }
 
-void Context::analyzeImpl(ast::JumpStatement& stmt) {
+void FuncBodyContext::analyzeImpl(ast::JumpStatement& stmt) {
     auto* parent = stmt.parent();
     while (true) {
         if (!parent || isa<ast::FunctionDefinition>(parent)) {
@@ -433,7 +438,7 @@ void Context::analyzeImpl(ast::JumpStatement& stmt) {
     gatherParentDestructors(stmt);
 }
 
-QualType Context::getDeclaredType(ast::Expression* typeExpr) {
+QualType FuncBodyContext::getDeclaredType(ast::Expression* typeExpr) {
     DTorStack dtorStack;
     if (!typeExpr || !analyzeExpr(*typeExpr, dtorStack)) {
         return nullptr;

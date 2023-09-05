@@ -6,8 +6,10 @@
 
 #include "AST/AST.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
+#include "Sema/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace scatha::sema;
@@ -18,17 +20,23 @@ namespace {
 
 /// Gathers all declarations and declares them in the symbol table. Also
 /// analyzes the dependencies of structs because they are trivial.
-struct Context {
-    /// Dispatches to the appropriate one of the `gather()` overloads below
-    /// based on the runtime type of \p node
-    size_t dispatch(ast::ASTNode& node);
+struct GatherContext {
+    GatherContext(sema::Context& ctx, GatherNamesResult& result):
+        sym(ctx.symbolTable()),
+        iss(ctx.issueHandler()),
+        dependencyGraph(result.structs),
+        functions(result.functions) {}
 
-    size_t gather(ast::TranslationUnit&);
-    size_t gather(ast::FunctionDefinition&);
-    size_t gather(ast::StructDefinition&);
-    size_t gather(ast::VariableDeclaration&);
-    size_t gather(ast::Statement&);
-    size_t gather(ast::ASTNode&) { SC_UNREACHABLE(); }
+    /// Dispatches to the appropriate one of the `gatherImpl()` overloads below
+    /// based on the runtime type of \p node
+    size_t gather(ast::ASTNode& node);
+
+    size_t gatherImpl(ast::TranslationUnit&);
+    size_t gatherImpl(ast::FunctionDefinition&);
+    size_t gatherImpl(ast::StructDefinition&);
+    size_t gatherImpl(ast::VariableDeclaration&);
+    size_t gatherImpl(ast::Statement&);
+    size_t gatherImpl(ast::ASTNode&) { SC_UNREACHABLE(); }
 
     SymbolTable& sym;
     IssueHandler& iss;
@@ -38,27 +46,24 @@ struct Context {
 
 } // namespace
 
-GatherNamesResult scatha::sema::gatherNames(SymbolTable& sym,
-                                            ast::ASTNode& root,
-                                            IssueHandler& iss) {
+GatherNamesResult scatha::sema::gatherNames(ast::ASTNode& root, Context& ctx) {
     GatherNamesResult result;
-    Context ctx{ sym, iss, result.structs, result.functions };
-    ctx.dispatch(root);
+    GatherContext(ctx, result).gather(root);
     return result;
 }
 
-size_t Context::dispatch(ast::ASTNode& node) {
-    return visit(node, [this](auto& node) { return this->gather(node); });
+size_t GatherContext::gather(ast::ASTNode& node) {
+    return visit(node, [this](auto& node) { return this->gatherImpl(node); });
 }
 
-size_t Context::gather(ast::TranslationUnit& tu) {
+size_t GatherContext::gatherImpl(ast::TranslationUnit& tu) {
     for (auto* decl: tu.declarations()) {
-        dispatch(*decl);
+        gather(*decl);
     }
     return InvalidIndex;
 }
 
-size_t Context::gather(ast::FunctionDefinition& funcDef) {
+size_t GatherContext::gatherImpl(ast::FunctionDefinition& funcDef) {
     if (auto const scopeKind = sym.currentScope().kind();
         scopeKind != ScopeKind::Global && scopeKind != ScopeKind::Namespace &&
         scopeKind != ScopeKind::Object)
@@ -85,7 +90,7 @@ size_t Context::gather(ast::FunctionDefinition& funcDef) {
     return ~size_t{};
 }
 
-size_t Context::gather(ast::StructDefinition& s) {
+size_t GatherContext::gatherImpl(ast::StructDefinition& s) {
     if (auto const sk = sym.currentScope().kind(); sk != ScopeKind::Global &&
                                                    sk != ScopeKind::Namespace &&
                                                    sk != ScopeKind::Object)
@@ -112,7 +117,7 @@ size_t Context::gather(ast::StructDefinition& s) {
     sym.pushScope(&objType);
     utl::armed_scope_guard popScope = [&] { sym.popScope(); };
     for (auto* statement: s.body()->statements()) {
-        size_t const dependency = dispatch(*statement);
+        size_t const dependency = gather(*statement);
         if (dependency != InvalidIndex) {
             dependencyGraph[index].dependencies.push_back(
                 utl::narrow_cast<u16>(dependency));
@@ -123,7 +128,7 @@ size_t Context::gather(ast::StructDefinition& s) {
     return index;
 }
 
-size_t Context::gather(ast::VariableDeclaration& varDecl) {
+size_t GatherContext::gatherImpl(ast::VariableDeclaration& varDecl) {
     SC_ASSERT(
         sym.currentScope().kind() == ScopeKind::Object,
         "We only want to prepass struct definitions. What are we doing here?");
@@ -139,7 +144,7 @@ size_t Context::gather(ast::VariableDeclaration& varDecl) {
     return dependencyGraph.add({ .entity = &var, .astNode = &varDecl });
 }
 
-size_t Context::gather(ast::Statement& statement) {
+size_t GatherContext::gatherImpl(ast::Statement& statement) {
     using enum InvalidStatement::Reason;
     iss.push<InvalidStatement>(&statement,
                                InvalidScopeForStatement,

@@ -13,6 +13,7 @@
 #include "Common/Ranges.h"
 #include "Sema/Analysis/ExpressionAnalysis.h"
 #include "Sema/Analysis/StructDependencyGraph.h"
+#include "Sema/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/QualType.h"
 #include "Sema/SemanticIssue.h"
@@ -23,7 +24,10 @@ using namespace sema;
 
 namespace {
 
-struct Context {
+struct InstContext {
+    InstContext(sema::Context& ctx):
+        ctx(ctx), sym(ctx.symbolTable()), iss(ctx.issueHandler()) {}
+
     std::vector<StructureType const*> instantiateTypes(
         StructDependencyGraph& typeDependencies);
 
@@ -39,16 +43,17 @@ struct Context {
 
     QualType analyzeParameter(ast::ParameterDeclaration&, size_t index) const;
 
-    void generateSpecialLifetimeFunctions(StructureType& type);
+    void generateSLFs(StructureType& type);
 
     QualType analyzeTypeExpression(ast::Expression&) const;
 
-    Function* generateSpecialLifetimeFunction(SpecialLifetimeFunction key,
-                                              StructureType& type) const;
+    Function* generateSLF(SpecialLifetimeFunction key,
+                          StructureType& type) const;
 
     FunctionSignature makeLifetimeSignature(
         StructureType& type, SpecialLifetimeFunction function) const;
 
+    sema::Context& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
 };
@@ -56,20 +61,19 @@ struct Context {
 } // namespace
 
 std::vector<StructureType const*> sema::instantiateEntities(
-    SymbolTable& sym,
-    IssueHandler& iss,
+    Context& ctx,
     StructDependencyGraph& typeDependencies,
     std::span<ast::FunctionDefinition*> functions) {
-    Context ctx{ .sym = sym, .iss = iss };
-    auto structs = ctx.instantiateTypes(typeDependencies);
+    InstContext instCtx(ctx);
+    auto structs = instCtx.instantiateTypes(typeDependencies);
     for (auto* def: functions) {
-        ctx.instantiateFunction(*def);
+        instCtx.instantiateFunction(*def);
     }
     /// `structs` is topologically sorted, so each invocation of
-    /// `generateSpecialLifetimeFunctions()` can assume that the types of all
+    /// `generateSLFs()` can assume that the types of all
     /// data members already have been analyzed for lifetime triviality
     for (auto* type: structs) {
-        ctx.generateSpecialLifetimeFunctions(const_cast<StructureType&>(*type));
+        instCtx.generateSLFs(const_cast<StructureType&>(*type));
     }
     return structs;
 }
@@ -89,7 +93,7 @@ static bool isUserDefined(QualType type) {
     }; // clang-format on
 }
 
-std::vector<StructureType const*> Context::instantiateTypes(
+std::vector<StructureType const*> InstContext::instantiateTypes(
     StructDependencyGraph& dependencyGraph) {
     /// After gather name phase we have the names of all types in the symbol
     /// table and we gather the dependencies of variable declarations in
@@ -150,7 +154,7 @@ std::vector<StructureType const*> Context::instantiateTypes(
     return sortedStructTypes;
 }
 
-void Context::instantiateFunctions(
+void InstContext::instantiateFunctions(
     std::span<ast::FunctionDefinition*> functions) {}
 
 static std::optional<SpecialMemberFunction> toSMF(
@@ -164,7 +168,7 @@ static std::optional<SpecialMemberFunction> toSMF(
     return std::nullopt;
 }
 
-void Context::instantiateStructureType(SDGNode& node) {
+void InstContext::instantiateStructureType(SDGNode& node) {
     ast::StructDefinition& structDef =
         cast<ast::StructDefinition&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
@@ -199,7 +203,7 @@ void Context::instantiateStructureType(SDGNode& node) {
     structType.setAlign(objectAlign);
 }
 
-void Context::instantiateVariable(SDGNode& node) {
+void InstContext::instantiateVariable(SDGNode& node) {
     ast::VariableDeclaration& varDecl =
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
@@ -214,7 +218,7 @@ static bool isExplicitRefTo(QualType argType, QualType referredType) {
     return isExplRef(argType) && stripReference(argType) == referredType;
 }
 
-void Context::instantiateFunction(ast::FunctionDefinition& def) {
+void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     auto* function = def.function();
     sym.makeScopeCurrent(function->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
@@ -273,7 +277,7 @@ void Context::instantiateFunction(ast::FunctionDefinition& def) {
     }
 }
 
-FunctionSignature Context::analyzeSignature(
+FunctionSignature InstContext::analyzeSignature(
     ast::FunctionDefinition& decl) const {
     utl::small_vector<QualType> argumentTypes;
     for (auto [index, param]: decl.parameters() | ranges::views::enumerate) {
@@ -287,8 +291,8 @@ FunctionSignature Context::analyzeSignature(
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
 
-QualType Context::analyzeParameter(ast::ParameterDeclaration& param,
-                                   size_t index) const {
+QualType InstContext::analyzeParameter(ast::ParameterDeclaration& param,
+                                       size_t index) const {
     auto* thisParam = dyncast<ast::ThisParameter const*>(&param);
     if (!thisParam) {
         return analyzeTypeExpression(*param.typeExpr());
@@ -404,7 +408,7 @@ static bool computeTrivialLifetime(StructureType& type, SLFArray const& SLF) {
            });
 }
 
-void Context::generateSpecialLifetimeFunctions(StructureType& type) {
+void InstContext::generateSLFs(StructureType& type) {
     using enum SpecialLifetimeFunction;
     auto SLF = getDefinedSLFs(type);
     bool const isDefaultConstructible = computeDefaultConstructible(type, SLF);
@@ -418,28 +422,25 @@ void Context::generateSpecialLifetimeFunctions(StructureType& type) {
             return type && type->specialLifetimeFunction(DefaultConstructor);
         });
         if (anyMemberHasDefCtor) {
-            SLF[DefaultConstructor] =
-                generateSpecialLifetimeFunction(DefaultConstructor, type);
+            SLF[DefaultConstructor] = generateSLF(DefaultConstructor, type);
         }
     }
     if (!hasTrivialLifetime) {
         if (!SLF[CopyConstructor]) {
-            SLF[CopyConstructor] =
-                generateSpecialLifetimeFunction(CopyConstructor, type);
+            SLF[CopyConstructor] = generateSLF(CopyConstructor, type);
         }
         if (!SLF[MoveConstructor]) {
-            SLF[MoveConstructor] =
-                generateSpecialLifetimeFunction(MoveConstructor, type);
+            SLF[MoveConstructor] = generateSLF(MoveConstructor, type);
         }
         if (!SLF[Destructor]) {
-            SLF[Destructor] = generateSpecialLifetimeFunction(Destructor, type);
+            SLF[Destructor] = generateSLF(Destructor, type);
         }
     }
     type.setSpecialLifetimeFunctions(SLF);
 }
 
-Function* Context::generateSpecialLifetimeFunction(SpecialLifetimeFunction key,
-                                                   StructureType& type) const {
+Function* InstContext::generateSLF(SpecialLifetimeFunction key,
+                                   StructureType& type) const {
     auto SMFKind = toSMF(key);
     Function* function = sym.withScopeCurrent(&type, [&] {
         return &sym.declareFunction(std::string(toString(SMFKind))).value();
@@ -452,7 +453,7 @@ Function* Context::generateSpecialLifetimeFunction(SpecialLifetimeFunction key,
     return function;
 }
 
-FunctionSignature Context::makeLifetimeSignature(
+FunctionSignature InstContext::makeLifetimeSignature(
     StructureType& type, SpecialLifetimeFunction function) const {
     QualType self = sym.explRef(QualType::Mut(&type));
     QualType rhs = sym.explRef(QualType::Const(&type));
@@ -470,9 +471,9 @@ FunctionSignature Context::makeLifetimeSignature(
     }
 }
 
-QualType Context::analyzeTypeExpression(ast::Expression& expr) const {
+QualType InstContext::analyzeTypeExpression(ast::Expression& expr) const {
     DTorStack dtorStack;
-    if (!sema::analyzeExpression(expr, dtorStack, sym, iss)) {
+    if (!sema::analyzeExpression(expr, dtorStack, ctx)) {
         return nullptr;
     }
     SC_ASSERT(dtorStack.empty(), "");

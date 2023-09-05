@@ -6,22 +6,30 @@
 #include <range/v3/algorithm.hpp>
 #include <svm/Builtin.h>
 
-#include "AST/Fwd.h"
+#include "AST/AST.h"
 #include "Common/Ranges.h"
 #include "Sema/Analysis/ConstantExpressions.h"
 #include "Sema/Analysis/Conversion.h"
 #include "Sema/Analysis/Lifetime.h"
 #include "Sema/Analysis/OverloadResolution.h"
 #include "Sema/Analysis/Utility.h"
+#include "Sema/Context.h"
 #include "Sema/Entity.h"
 #include "Sema/SemanticIssue.h"
+#include "Sema/SymbolTable.h"
 
 using namespace scatha;
 using namespace sema;
 
 namespace {
 
-struct Context {
+struct ExprContext {
+    ExprContext(sema::Context& ctx, DTorStack& dtorStack):
+        dtorStack(&dtorStack),
+        ctx(ctx),
+        sym(ctx.symbolTable()),
+        iss(ctx.issueHandler()) {}
+
     bool analyze(ast::Expression&);
 
     bool analyzeImpl(ast::Literal&);
@@ -78,6 +86,7 @@ struct Context {
     }
 
     DTorStack* dtorStack;
+    sema::Context& ctx;
     SymbolTable& sym;
     IssueHandler& iss;
     /// Will be set by MemberAccess when right hand side is an identifier and
@@ -94,20 +103,18 @@ static bool isAny(T const* t) {
 
 bool sema::analyzeExpression(ast::Expression& expr,
                              DTorStack& dtorStack,
-                             SymbolTable& sym,
-                             IssueHandler& iss) {
-    Context ctx{ .dtorStack = &dtorStack, .sym = sym, .iss = iss };
-    return ctx.analyze(expr);
+                             Context& ctx) {
+    return ExprContext(ctx, dtorStack).analyze(expr);
 }
 
-bool Context::analyze(ast::Expression& expr) {
+bool ExprContext::analyze(ast::Expression& expr) {
     if (expr.isDecorated()) {
         return true;
     }
     return visit(expr, [this](auto&& e) { return this->analyzeImpl(e); });
 }
 
-bool Context::analyzeImpl(ast::Literal& lit) {
+bool ExprContext::analyzeImpl(ast::Literal& lit) {
     using enum ast::LiteralKind;
     switch (lit.kind()) {
     case Integer:
@@ -154,7 +161,7 @@ bool Context::analyzeImpl(ast::Literal& lit) {
     }
 }
 
-bool Context::analyzeImpl(ast::UnaryExpression& u) {
+bool ExprContext::analyzeImpl(ast::UnaryExpression& u) {
     if (!analyze(*u.operand())) {
         return false;
     }
@@ -219,7 +226,7 @@ bool Context::analyzeImpl(ast::UnaryExpression& u) {
     return true;
 }
 
-bool Context::analyzeImpl(ast::BinaryExpression& b) {
+bool ExprContext::analyzeImpl(ast::BinaryExpression& b) {
     bool success = true;
     success &= analyze(*b.lhs());
     success &= analyze(*b.rhs());
@@ -237,7 +244,7 @@ bool Context::analyzeImpl(ast::BinaryExpression& b) {
     return true;
 }
 
-bool Context::analyzeImpl(ast::Identifier& id) {
+bool ExprContext::analyzeImpl(ast::Identifier& id) {
     Entity* entity = lookup(id);
     if (!entity) {
         return false;
@@ -285,7 +292,7 @@ static Scope* findLookupTargetScope(ast::Expression& expr) {
     }
 }
 
-bool Context::analyzeImpl(ast::MemberAccess& ma) {
+bool ExprContext::analyzeImpl(ast::MemberAccess& ma) {
     if (!analyze(*ma.accessed())) {
         return false;
     }
@@ -324,7 +331,7 @@ bool Context::analyzeImpl(ast::MemberAccess& ma) {
     return true;
 }
 
-bool Context::uniformFunctionCall(ast::MemberAccess& ma) {
+bool ExprContext::uniformFunctionCall(ast::MemberAccess& ma) {
     Scope* lookupTargetScope =
         const_cast<ObjectType*>(ma.accessed()->typeOrTypeEntity().get());
     /// If we don't find a member and our object is a value, we will look
@@ -348,7 +355,7 @@ bool Context::uniformFunctionCall(ast::MemberAccess& ma) {
     return true;
 }
 
-bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
+bool ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
     SC_ASSERT(!isa<ast::FunctionCall>(ma.parent()), "Precondition");
     /// We reference an overload set, so since our parent is not a call
     /// expression we rewrite the AST here
@@ -385,7 +392,7 @@ bool Context::rewritePropertyCall(ast::MemberAccess& ma) {
     return true;
 }
 
-bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
+bool ExprContext::analyzeImpl(ast::ReferenceExpression& ref) {
     if (!analyze(*ref.referred())) {
         return false;
     }
@@ -422,9 +429,11 @@ bool Context::analyzeImpl(ast::ReferenceExpression& ref) {
     }
 }
 
-bool Context::analyzeImpl(ast::UniqueExpression& expr) { SC_UNIMPLEMENTED(); }
+bool ExprContext::analyzeImpl(ast::UniqueExpression& expr) {
+    SC_UNIMPLEMENTED();
+}
 
-bool Context::analyzeImpl(ast::Conditional& c) {
+bool ExprContext::analyzeImpl(ast::Conditional& c) {
     bool success = analyze(*c.condition());
     if (success) {
         convertImplicitly(c.condition(), sym.Bool(), *dtorStack, sym, &iss);
@@ -471,7 +480,7 @@ bool Context::analyzeImpl(ast::Conditional& c) {
     return true;
 }
 
-bool Context::analyzeImpl(ast::Subscript& expr) {
+bool ExprContext::analyzeImpl(ast::Subscript& expr) {
     auto* arrayType = analyzeSubscriptCommon(expr);
     if (!arrayType) {
         return false;
@@ -494,7 +503,7 @@ bool Context::analyzeImpl(ast::Subscript& expr) {
     return true;
 }
 
-bool Context::analyzeImpl(ast::SubscriptSlice& expr) {
+bool ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
     auto* arrayType = analyzeSubscriptCommon(expr);
     if (!arrayType) {
         return false;
@@ -518,7 +527,7 @@ bool Context::analyzeImpl(ast::SubscriptSlice& expr) {
     return true;
 }
 
-ArrayType const* Context::analyzeSubscriptCommon(ast::CallLike& expr) {
+ArrayType const* ExprContext::analyzeSubscriptCommon(ast::CallLike& expr) {
     bool success = analyze(*expr.callee());
     success &= expectValue(*expr.callee());
     /// This must not be a `for each` loop, because the argument to the call to
@@ -540,7 +549,7 @@ ArrayType const* Context::analyzeSubscriptCommon(ast::CallLike& expr) {
     return arrayType;
 }
 
-bool Context::analyzeImpl(ast::GenericExpression& expr) {
+bool ExprContext::analyzeImpl(ast::GenericExpression& expr) {
     bool success = analyze(*expr.callee());
     for (auto* arg: expr.arguments()) {
         success &= analyze(*arg);
@@ -556,7 +565,7 @@ bool Context::analyzeImpl(ast::GenericExpression& expr) {
     return true;
 }
 
-bool Context::analyzeImpl(ast::FunctionCall& fc) {
+bool ExprContext::analyzeImpl(ast::FunctionCall& fc) {
     bool success = analyze(*fc.callee());
     bool isMemberCall = false;
     /// We analyze all the arguments
@@ -660,7 +669,7 @@ bool Context::analyzeImpl(ast::FunctionCall& fc) {
     return true;
 }
 
-bool Context::analyzeImpl(ast::ListExpression& list) {
+bool ExprContext::analyzeImpl(ast::ListExpression& list) {
     bool success = true;
     for (auto* expr: list.elements()) {
         success &= analyze(*expr);
@@ -825,7 +834,7 @@ static std::optional<ObjectType const*> getResultType(SymbolTable& sym,
     }
 }
 
-QualType Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
+QualType ExprContext::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     /// Handle comma operator separately
     if (expr.operation() == ast::BinaryOperator::Comma) {
         return expr.rhs()->type();
@@ -883,7 +892,7 @@ QualType Context::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     return nullptr;
 }
 
-QualType Context::analyzeReferenceAssignment(ast::BinaryExpression& expr) {
+QualType ExprContext::analyzeReferenceAssignment(ast::BinaryExpression& expr) {
     SC_ASSERT(isExplRef(expr.rhs()->type()), "");
     if (!expr.lhs()->type().isMutable()) {
         iss.push<AssignmentToConst>(expr);
@@ -898,7 +907,7 @@ QualType Context::analyzeReferenceAssignment(ast::BinaryExpression& expr) {
     return success ? sym.Void() : nullptr;
 }
 
-Entity* Context::lookup(ast::Identifier& id) {
+Entity* ExprContext::lookup(ast::Identifier& id) {
     bool const restrictedLookup = performRestrictedNameLookup;
     performRestrictedNameLookup = false;
     auto* entity = restrictedLookup ?
@@ -912,7 +921,7 @@ Entity* Context::lookup(ast::Identifier& id) {
     return entity;
 }
 
-bool Context::expectValue(ast::Expression const& expr) {
+bool ExprContext::expectValue(ast::Expression const& expr) {
     if (!expr.isDecorated()) {
         return false;
     }
@@ -923,7 +932,7 @@ bool Context::expectValue(ast::Expression const& expr) {
     return true;
 }
 
-bool Context::expectType(ast::Expression const& expr) {
+bool ExprContext::expectType(ast::Expression const& expr) {
     if (!expr.isType()) {
         iss.push<BadSymbolReference>(expr, EntityCategory::Type);
         return false;

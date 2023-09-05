@@ -29,16 +29,9 @@ struct GatherNamesResult {
 /// declarations. With that we build an incomplete dependency graph of the
 /// declarations in the program.
 ///
-/// \param sym Symbol table to declare symbols in.
-///
-/// \param astRoot  Root node of the abstract syntax tree.
-///
-/// \param issueHandler Handler to write issues to.
-///
 /// \returns (Incomplete) dependency graph
-SCATHA_API GatherNamesResult gatherNames(SymbolTable& sym,
-                                         ast::ASTNode& astRoot,
-                                         IssueHandler& issueHandler);
+SCATHA_API GatherNamesResult gatherNames(ast::ASTNode& astRoot,
+                                         Context& context);
 
 } // namespace scatha::sema
 

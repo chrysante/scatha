@@ -9,6 +9,7 @@
 
 namespace scatha::sema {
 
+class Context;
 class Conversion;
 class FunctionSignature;
 class SemanticIssue;
