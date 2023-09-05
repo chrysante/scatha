@@ -293,15 +293,10 @@ void ir::setupInvariants(Context& ctx, Module& mod) {
 }
 
 static void link(ir::BasicBlock* a, ir::BasicBlock* b) {
-    if (b->isPredecessor(a)) {
-        return;
+    if (!b->isPredecessor(a)) {
+        b->addPredecessor(a);
     }
-    b->addPredecessor(a);
 };
-
-static void insertReturn(Context& ctx, BasicBlock& bb) {
-    bb.pushBack(new Return(ctx, ctx.undef(bb.parent()->returnType())));
-}
 
 void ir::setupInvariants(Context& ctx, Function& function) {
     for (auto& bb: function) {
@@ -314,12 +309,12 @@ void ir::setupInvariants(Context& ctx, Function& function) {
         }
         /// If we don't have a terminator insert a return.
         if (bb.empty() || !isa<TerminatorInst>(bb.back())) {
-            insertReturn(ctx, bb);
+            bb.pushBack(new Return(ctx, ctx.undef(bb.parent()->returnType())));
             continue;
         }
         auto* terminator = bb.terminator();
         // clang-format off
-        visit(*terminator, utl::overload{
+        SC_MATCH (*terminator) {
             [&](ir::Goto& gt) {
                 link(&bb, gt.target());
             },
@@ -327,8 +322,7 @@ void ir::setupInvariants(Context& ctx, Function& function) {
                 link(&bb, br.thenTarget());
                 link(&bb, br.elseTarget());
             },
-            [&](ir::Return&) {},
-            [&](ir::TerminatorInst&) { SC_UNREACHABLE(); }
-        }); // clang-format on
+            [&](ir::Return&) {}
+        }; // clang-format on
     }
 }
