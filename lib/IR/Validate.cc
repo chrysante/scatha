@@ -23,6 +23,8 @@ using namespace ir;
 
 #define CHECK(cond, msg) doCheck(cond, msg, #cond)
 
+namespace {
+
 struct AssertContext {
     explicit AssertContext(ir::Context& ctx): ctx(ctx) {}
 
@@ -68,6 +70,8 @@ struct AssertContext {
         nameValueMap;
     DominanceInfo::DomMap domMap;
 };
+
+} // namespace
 
 void ir::assertInvariants(Context& ctx, Module const& mod) {
     AssertContext assertCtx(ctx);
