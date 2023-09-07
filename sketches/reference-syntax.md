@@ -1,4 +1,3 @@
-`Y`
 
     fn main() -> int {
         var x: X = { /**/ };
