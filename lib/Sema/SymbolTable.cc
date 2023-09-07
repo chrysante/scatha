@@ -29,6 +29,9 @@ struct SymbolTable::Impl {
     /// Owning list of all entities in this symbol table
     utl::vector<UniquePtr<Entity>> _entities;
 
+    /// Map of instantiated `PointerType`'s
+    utl::hashmap<QualType, PointerType const*> ptrTypes;
+
     /// Map of instantiated `ReferenceType`'s
     utl::hashmap<std::pair<QualType, Reference>, ReferenceType const*> refTypes;
 
@@ -311,6 +314,16 @@ IntType const* SymbolTable::intType(size_t width, Signedness signedness) {
     default:
         SC_UNREACHABLE();
     }
+}
+
+PointerType const* SymbolTable::pointer(QualType pointee) {
+    auto itr = impl->ptrTypes.find(pointee);
+    if (itr != impl->ptrTypes.end()) {
+        return itr->second;
+    }
+    auto* ptrType = impl->addEntity<PointerType>(pointee);
+    impl->ptrTypes.insert({ pointee, ptrType });
+    return ptrType;
 }
 
 ReferenceType const* SymbolTable::reference(QualType referred, Reference ref) {

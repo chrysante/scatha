@@ -40,8 +40,8 @@ struct ExprContext {
     ast::Expression* analyzeImpl(ast::MemberAccess&);
     ast::Expression* uniformFunctionCall(ast::MemberAccess&);
     ast::Expression* rewritePropertyCall(ast::MemberAccess&);
+    ast::Expression* analyzeImpl(ast::DereferenceExpression&);
     ast::Expression* analyzeImpl(ast::ReferenceExpression&);
-    ast::Expression* analyzeImpl(ast::UniqueExpression&);
     ast::Expression* analyzeImpl(ast::Conditional&);
     ast::Expression* analyzeImpl(ast::FunctionCall&);
     ast::Expression* rewriteMemberCall(ast::FunctionCall&);
@@ -394,45 +394,74 @@ ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
     return result;
 }
 
-ast::Expression* ExprContext::analyzeImpl(ast::ReferenceExpression& ref) {
-    if (!analyze(ref.referred())) {
+ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
+    if (!analyze(expr.referred())) {
         return nullptr;
     }
-    auto* referred = ref.referred();
-    switch (referred->entityCategory()) {
+    auto* pointer = expr.referred();
+    switch (pointer->entityCategory()) {
     case EntityCategory::Value: {
-        if (!referred->isLValue() && !isRef(referred->type())) {
-            iss.push<BadExpression>(ref, IssueSeverity::Error);
+        auto* type = stripReference(pointer->type()).get();
+        auto* ptrType = dyncast<PointerType const*>(type);
+        if (!ptrType) {
+            iss.push<BadExpression>(expr, IssueSeverity::Error);
             return nullptr;
         }
-        /// We only allow `mut` specifier on reference type declarations.
-        /// For values the mutability is derived from the referred value
-        if (ref.isMutable()) {
-            iss.push<BadExpression>(ref, IssueSeverity::Error);
-            return nullptr;
-        }
-        auto* refType = sym.explRef(stripReference(referred->type()));
-        if (!computeConversion(ConversionKind::Explicit, referred, refType)) {
-            iss.push<BadExpression>(ref, IssueSeverity::Error);
-            return nullptr;
-        }
-        ref.decorateExpr(referred->entity(), refType, ValueCategory::RValue);
-        return &ref;
+        auto derefType = sym.implRef(ptrType->base());
+        expr.decorateExpr(pointer->entity(), derefType, ValueCategory::RValue);
+        return &expr;
     }
     case EntityCategory::Type: {
+        auto* type = cast<ObjectType*>(pointer->entity());
+        auto* ptrType = sym.pointer(QualType(type, expr.mutability()));
+        expr.decorateExpr(const_cast<PointerType*>(ptrType));
+        return &expr;
+    }
+    default:
+        SC_UNIMPLEMENTED();
+    }
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::ReferenceExpression& expr) {
+    if (!analyze(expr.referred())) {
+        return nullptr;
+    }
+    auto* pointee = expr.referred();
+    switch (pointee->entityCategory()) {
+    case EntityCategory::Value: {
+        /// We only allow the address to be takes from pure lvalues, aka local
+        /// or global variables
+        if (!pointee->isLValue() || isRef(pointee->type())) {
+            iss.push<BadExpression>(expr, IssueSeverity::Error);
+            return nullptr;
+        }
+        auto pointeeType = pointee->type();
+        switch (expr.mutability()) {
+        case Mutability::Mutable:
+            if (!pointeeType.isMutable()) {
+                iss.push<BadExpression>(expr, IssueSeverity::Error);
+                return nullptr;
+            }
+            break;
+        case Mutability::Const:
+            pointeeType = pointeeType.toConst();
+            break;
+        }
+        auto* ptrType = sym.pointer(pointeeType);
+        expr.decorateExpr(pointee->entity(), ptrType, ValueCategory::RValue);
+        return &expr;
+    }
+    case EntityCategory::Type: {
+        auto* referred = pointee;
         auto* type = cast<ObjectType*>(referred->entity());
-        auto* refType = sym.explRef(QualType(type, ref.mutability()));
-        ref.decorateExpr(const_cast<ReferenceType*>(refType));
-        return &ref;
+        auto* refType = sym.explRef(QualType(type, expr.mutability()));
+        expr.decorateExpr(const_cast<ReferenceType*>(refType));
+        return &expr;
     }
     default:
         /// Make an error class `InvalidReferenceExpression` and push that here
         SC_UNIMPLEMENTED();
     }
-}
-
-ast::Expression* ExprContext::analyzeImpl(ast::UniqueExpression& expr) {
-    SC_UNIMPLEMENTED();
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {

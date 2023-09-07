@@ -43,6 +43,7 @@
 /// │     │  │     └─ FloatType
 /// │     │  ├─ StructureType
 /// │     │  ├─ ArrayType
+/// │     │  ├─ PointerType
 /// │     │  └─ ReferenceType
 /// │     └─ FunctionType [??, does not exist]
 /// └─ PoisonEntity
@@ -713,13 +714,29 @@ private:
     size_t _count;
 };
 
+/// Common base class of `PointerType` and `ReferenceType`
+class SCATHA_API RefTypeBase: public ObjectType {
+public:
+    /// The type referred to
+    QualType base() const { return _base; }
+
+protected:
+    explicit RefTypeBase(EntityType type, QualType base, std::string name);
+
+private:
+    QualType _base;
+};
+
+/// Represents a pointer type
+class SCATHA_API PointerType: public RefTypeBase {
+public:
+    explicit PointerType(QualType base);
+};
+
 /// Represents a reference type
-class SCATHA_API ReferenceType: public ObjectType {
+class SCATHA_API ReferenceType: public RefTypeBase {
 public:
     explicit ReferenceType(QualType base, Reference ref);
-
-    /// The type that this `ReferenceType` refers to
-    QualType base() const { return _base; }
 
     /// The reference qualifier of this type
     Reference reference() const { return ref; }
@@ -731,7 +748,6 @@ public:
     bool isImplicit() const { return reference() == Reference::Implicit; }
 
 private:
-    QualType _base;
     Reference ref;
 };
 

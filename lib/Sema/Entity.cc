@@ -207,7 +207,27 @@ std::string ArrayType::makeName(ObjectType const* elemType, size_t count) {
     return std::move(sstr).str();
 }
 
-static std::string makeName(QualType base, Reference ref) {
+static size_t ptrSize(QualType base) { return isa<ArrayType>(*base) ? 16 : 8; }
+
+static size_t ptrAlign() { return 8; }
+
+RefTypeBase::RefTypeBase(EntityType type, QualType base, std::string name):
+    ObjectType(type,
+               ScopeKind::Invalid,
+               std::move(name),
+               nullptr,
+               ptrSize(base),
+               ptrAlign()),
+    _base(base) {}
+
+static std::string makePtrName(QualType base) {
+    return utl::strcat("*", base.name());
+}
+
+PointerType::PointerType(QualType base):
+    RefTypeBase(EntityType::PointerType, base, makePtrName(base)) {}
+
+static std::string makeRefName(QualType base, Reference ref) {
     std::stringstream sstr;
     switch (ref) {
     case Reference::Explicit:
@@ -222,13 +242,7 @@ static std::string makeName(QualType base, Reference ref) {
 }
 
 ReferenceType::ReferenceType(QualType base, Reference ref):
-    ObjectType(EntityType::ReferenceType,
-               ScopeKind::Invalid,
-               makeName(base, ref),
-               nullptr,
-               isa<ArrayType>(*base) ? 16 : 8,
-               8),
-    _base(base),
+    RefTypeBase(EntityType::ReferenceType, base, makeRefName(base, ref)),
     ref(ref) {}
 
 /// # OverloadSet
