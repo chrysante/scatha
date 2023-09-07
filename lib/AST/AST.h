@@ -51,6 +51,8 @@
 ///    │  ├─ FunctionCall
 ///    │  ├─ ConstructorCall
 ///    │  └─ Subscript
+///    ├─ ReferenceExpression
+///    ├─ DereferenceExpression
 ///    └─ Conversion
 /// ```
 
@@ -509,16 +511,13 @@ public:
     AST_PROPERTY(1, Identifier, member, Member)
 };
 
-/// Concrete node representing a reference expression.
-class SCATHA_API ReferenceExpression: public Expression {
+template <NodeType Type>
+class SCATHA_API RefExprBase: public Expression {
 public:
-    explicit ReferenceExpression(UniquePtr<Expression> referred,
-                                 sema::Mutability mutability,
-                                 SourceRange sourceRange):
-        Expression(NodeType::ReferenceExpression,
-                   sourceRange,
-                   std::move(referred)),
-        mut(mutability) {}
+    explicit RefExprBase(UniquePtr<Expression> referred,
+                         sema::Mutability mutability,
+                         SourceRange sourceRange):
+        Expression(Type, sourceRange, std::move(referred)), mut(mutability) {}
 
     AST_PROPERTY(0, Expression, referred, Referred)
 
@@ -532,19 +531,22 @@ private:
     sema::Mutability mut;
 };
 
-/// Concrete node representing a `unique` expression.
-class SCATHA_API UniqueExpression: public Expression {
+/// Concrete node representing a reference expression.
+class SCATHA_API ReferenceExpression:
+    public RefExprBase<NodeType::ReferenceExpression> {
+    using Base = RefExprBase<NodeType::ReferenceExpression>;
+
 public:
-    explicit UniqueExpression(UniquePtr<Expression> initExpr,
-                              SourceRange sourceRange):
-        Expression(NodeType::UniqueExpression,
-                   sourceRange,
-                   std::move(initExpr)) {}
+    using Base::Base;
+};
 
-    AST_DERIVED_COMMON(UniqueExpression)
+/// Concrete node representing a dereference expression.
+class SCATHA_API DereferenceExpression:
+    public RefExprBase<NodeType::DereferenceExpression> {
+    using Base = RefExprBase<NodeType::DereferenceExpression>;
 
-    /// The initializing expression
-    AST_PROPERTY(0, Expression, initExpr, InitExpr)
+public:
+    using Base::Base;
 };
 
 /// MARK: Ternary Expressions

@@ -606,7 +606,7 @@ UniquePtr<ast::EmptyStatement> Context::parseEmptyStatement() {
 // MARK: - Expressions
 
 UniquePtr<ast::Expression> Context::parseTypeExpression() {
-    return parseReference();
+    return parseDereference();
 }
 
 UniquePtr<ast::Expression> Context::parseComma() {
@@ -722,8 +722,8 @@ UniquePtr<ast::Expression> Context::parseMultiplicative() {
 }
 
 UniquePtr<ast::Expression> Context::parsePrefix() {
-    if (auto postfix = parseReference()) {
-        return postfix;
+    if (auto deref = parseDereference()) {
+        return deref;
     }
     Token const token = tokens.peek();
     auto makeResult = [&](ast::UnaryOperator operatorType) {
@@ -762,40 +762,29 @@ UniquePtr<ast::Expression> Context::parsePrefix() {
     }
 }
 
-UniquePtr<ast::Expression> Context::parseReference() {
+template <typename Expr>
+UniquePtr<ast::Expression> Context::parseRefImpl(
+    utl::function_view<UniquePtr<ast::Expression>()> parseBase, TokenKind op) {
     Token const token = tokens.peek();
-    switch (token.kind()) {
-    case BitAnd: {
-        tokens.eat();
-        using enum sema::Mutability;
-        auto mut = eatMut() ? Mutable : Const;
-        auto referred = parsePrefix();
-        return allocate<ast::ReferenceExpression>(std::move(referred),
-                                                  mut,
-                                                  token.sourceRange());
-    }
-    default:
-        return parseUnique();
-    }
-}
-
-UniquePtr<ast::Expression> Context::parseUnique() {
-    if (auto postFix = parsePostfix()) {
-        return postFix;
-    }
-    return nullptr;
-    SC_UNIMPLEMENTED();
-#if 0
-    Token const uniqueToken = tokens.peek();
-    if (uniqueToken.kind() != Unique) {
-        return nullptr;
+    if (token.kind() != op) {
+        return parseBase();
     }
     tokens.eat();
-    bool const mut = eatMut();
-    auto initExpr  = parsePostfix();
-    return allocate<ast::UniqueExpression>(std::move(initExpr),
-                                           uniqueToken.sourceRange());
-#endif
+    using enum sema::Mutability;
+    auto mut = eatMut() ? Mutable : Const;
+    auto ref = parsePrefix();
+    return allocate<Expr>(std::move(ref), mut, token.sourceRange());
+}
+
+UniquePtr<ast::Expression> Context::parseDereference() {
+    return parseRefImpl<ast::DereferenceExpression>(
+        [this] { return parseReference(); },
+        Multiplies);
+}
+
+UniquePtr<ast::Expression> Context::parseReference() {
+    return parseRefImpl<
+        ast::ReferenceExpression>([this] { return parsePostfix(); }, BitAnd);
 }
 
 UniquePtr<ast::Expression> Context::parsePostfix() {

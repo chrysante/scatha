@@ -4,6 +4,7 @@
 #include <concepts>
 
 #include <utl/concepts.hpp>
+#include <utl/function_view.hpp>
 
 #include "AST/AST.h"
 #include "Common/Base.h"
@@ -54,8 +55,11 @@ struct Context {
     UniquePtr<ast::Expression> parseAdditive();
     UniquePtr<ast::Expression> parseMultiplicative();
     UniquePtr<ast::Expression> parsePrefix();
+    template <typename Expr>
+    UniquePtr<ast::Expression> parseRefImpl(
+        utl::function_view<UniquePtr<ast::Expression>()> base, TokenKind op);
+    UniquePtr<ast::Expression> parseDereference();
     UniquePtr<ast::Expression> parseReference();
-    UniquePtr<ast::Expression> parseUnique();
     UniquePtr<ast::Expression> parsePostfix();
     UniquePtr<ast::Expression> parseGeneric();
     UniquePtr<ast::Expression> parsePrimary();

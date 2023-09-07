@@ -24,7 +24,6 @@ struct Context {
     void printImpl(Conditional const&);
     void printImpl(FunctionCall const&);
     void printImpl(Subscript const&);
-    void printImpl(UniqueExpression const&);
     void printImpl(GenericExpression const&);
     void printImpl(ReferenceExpression const&);
     void printImpl(ListExpression const&);
@@ -131,8 +130,6 @@ void Context::printImpl(Subscript const& subscript) {
     }
     str << "]";
 }
-
-void Context::printImpl(UniqueExpression const& expr) { SC_UNIMPLEMENTED(); }
 
 void Context::printImpl(GenericExpression const& expr) { SC_UNIMPLEMENTED(); }
 

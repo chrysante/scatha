@@ -79,21 +79,21 @@
 /// <additive-expression>           ::= <multiplicative-expression>
 ///                                   | <additive-expression> "+" <multiplicative-expression>
 ///                                   | <additive-expression> "-" <multiplicative-expression>
-/// <multiplicative-expression>     ::= <unary-expression>
-///                                   | <multiplicative-expression> "*" <unary-expression>
-///                                   | <multiplicative-expression> "/" <unary-expression>
-///                                   | <multiplicative-expression> "%" <unary-expression>
-/// <prefix-expression>              ::= <reference-expression>
+/// <multiplicative-expression>     ::= <prefix-expression>
+///                                   | <multiplicative-expression> "*" <prefix-expression>
+///                                   | <multiplicative-expression> "/" <prefix-expression>
+///                                   | <multiplicative-expression> "%" <prefix-expression>
+/// <prefix-expression>              ::= <dereference-expression>
 ///                                   | "+" <prefix-expression>
-///                                   | "-" <unary-expression>
-///                                   | "~" <unary-expression>
-///                                   | "!" <unary-expression>
-///                                   | "++" <unary-expression>
-///                                   | "--" <unary-expression>
-/// <reference-expression>          ::= <unique-expression> |
-///                                     "&" ["unique"] ["mut"] <unary-expression>
-/// <unique-expression>             ::= <postfix-expression>
-///                                   | "unique" ["mut"] <function-call> /* Exposition only */
+///                                   | "-" <prefix-expression>
+///                                   | "~" <prefix-expression>
+///                                   | "!" <prefix-expression>
+///                                   | "++" <prefix-expression>
+///                                   | "--" <prefix-expression>
+/// <dereference-expression>        ::= <reference-expression> |
+///                                     "*" ["mut"] <prefix-expression>
+/// <reference-expression>          ::= <postfix-expression> |
+///                                     "&" ["mut"] <prefix-expression>
 /// <postfix-expression>            ::= <generic-expression>
 ///                                   | <postfix-expression> "++"
 ///                                   | <postfix-expression> "--"

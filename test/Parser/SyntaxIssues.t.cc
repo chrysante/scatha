@@ -115,7 +115,6 @@ true? a : ;
      a ^= ;
      a |= ;
       a , ;
-          * a;
           / a;
           % a;
           << a;
@@ -148,7 +147,8 @@ true? a : ;
          ~;
          !;
 })");
-    for (int i = 0; i < 63; ++i) {
+    int const numLines = 62;
+    for (int i = 0; i < numLines; ++i) {
         int const line = i + 3;
         auto issue = iss.findOnLine<ExpectedExpression>(line);
         REQUIRE(issue);
