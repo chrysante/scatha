@@ -478,22 +478,7 @@ Value LoweringContext::getValueImpl(FunctionCall const& call) {
 void LoweringContext::generateArgument(PassingConvention const& PC,
                                        Value value,
                                        utl::vector<ir::Value*>& arguments) {
-    switch (PC.location()) {
-    case Register:
-        arguments.push_back(toRegister(value));
-        break;
-
-    case Memory:
-        if (value.isLValue()) {
-            auto* reg = toRegister(value);
-            arguments.push_back(
-                storeLocal(reg, utl::strcat(value.get()->name(), ".param")));
-        }
-        else {
-            arguments.push_back(toMemory(value));
-        }
-        break;
-    }
+    arguments.push_back(toValueLocation(PC.location(), value));
     if (PC.numParams() == 2) {
         arguments.push_back(toRegister(getArraySize(value.ID())));
     }
@@ -820,4 +805,23 @@ Value LoweringContext::getValueImpl(ConstructorCall const& call) {
     default:
         SC_UNREACHABLE();
     }
+}
+
+Value LoweringContext::getValueImpl(TrivialCopyExpr const& expr) {
+    // clang-format off
+    return SC_MATCH (*expr.type()) {
+        [&](sema::ObjectType const& type) {
+            auto value = getValue(expr.argument());
+            auto* temp = storeLocal(toRegister(value));
+            auto result = Value(newID(), toRegister(value), Register);
+            if (auto arraySize = tryGetArraySize(value.ID())) {
+                auto newSize = Value(newID(), toRegister(*arraySize), Register);
+                memorizeArraySize(result.ID(), newSize);
+            }
+            return result;
+        },
+        [&](sema::ArrayType const& type) -> Value {
+            SC_UNIMPLEMENTED();
+        },
+    }; // clang-format on
 }

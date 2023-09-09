@@ -89,6 +89,15 @@ ir::Value* LoweringContext::toMemory(Value value) {
     }
 }
 
+ir::Value* LoweringContext::toValueLocation(ValueLocation location, Value value) {
+    switch (location) {
+    case Register:
+        return toRegister(value);
+    case Memory:
+        return toMemory(value);
+    }
+}
+
 ir::Value* LoweringContext::storeLocal(ir::Value* value, std::string name) {
     if (name.empty()) {
         name = utl::strcat(value->name(), ".addr");
@@ -162,8 +171,16 @@ void LoweringContext::memorizeArraySize(uint32_t ID, size_t count) {
 }
 
 Value LoweringContext::getArraySize(uint32_t ID) const {
+    auto result = tryGetArraySize(ID);
+    SC_ASSERT(result, "Not found");
+    return *result;
+}
+
+std::optional<Value> LoweringContext::tryGetArraySize(uint32_t ID) const {
     auto itr = arraySizeMap.find(ID);
-    SC_ASSERT(itr != arraySizeMap.end(), "Not found");
+    if (itr == arraySizeMap.end()) {
+        return std::nullopt;
+    }
     return itr->second;
 }
 

@@ -147,6 +147,7 @@ struct LoweringContext {
     Value getValueImpl(ListExpression const&);
     Value getValueImpl(Conversion const&);
     Value getValueImpl(ConstructorCall const&);
+    Value getValueImpl(TrivialCopyExpr const&);
 
     /// # Helpers
 
@@ -205,6 +206,9 @@ struct LoweringContext {
     /// address
     ir::Value* toMemory(Value value);
 
+    ///
+    ir::Value* toValueLocation(ValueLocation location, Value value);
+
     template <std::derived_from<ir::Instruction> Inst, typename... Args>
         requires std::constructible_from<Inst, Args...>
     Inst* add(Args&&... args) {
@@ -254,6 +258,9 @@ struct LoweringContext {
 
     /// Retrieve stored array size
     Value getArraySize(uint32_t ID) const;
+
+    ///
+    std::optional<Value> tryGetArraySize(uint32_t ID) const;
 
     /// # Map utils
 

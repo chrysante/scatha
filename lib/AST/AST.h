@@ -51,6 +51,7 @@
 ///    │  ├─ FunctionCall
 ///    │  ├─ ConstructorCall
 ///    │  └─ Subscript
+///    ├─ TrivialCopyExpr
 ///    ├─ AddressOfExpression
 ///    ├─ DereferenceExpression
 ///    └─ Conversion
@@ -1285,6 +1286,20 @@ public:
 private:
     sema::Function* _function;
     sema::SpecialMemberFunction _kind;
+};
+
+/// Concrete node representing a copy of a trivial value
+class SCATHA_API TrivialCopyExpr: public Expression {
+public:
+    explicit TrivialCopyExpr(UniquePtr<Expression> argument):
+        Expression(NodeType::TrivialCopyExpr,
+                   argument->sourceRange(),
+                   std::move(argument)) {}
+
+    AST_DERIVED_COMMON(TrivialCopyExpr)
+
+    /// The expression being copied
+    AST_PROPERTY(0, Expression, argument, Argument)
 };
 
 } // namespace scatha::ast

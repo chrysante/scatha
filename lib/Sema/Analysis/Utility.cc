@@ -61,10 +61,18 @@ void sema::convertArguments(ast::ConstructorCall& cc,
 ast::Expression* sema::copyValue(ast::Expression* expr,
                                  DTorStack& dtors,
                                  Context& ctx) {
+    SC_ASSERT(!isa<ReferenceType>(*expr->type()), "References are not values");
     auto& sym = ctx.symbolTable();
-    auto structType = nonTrivialLifetimeType(expr->type().get());
+    auto* parent = expr->parent();
+    size_t index = expr->indexInParent();
+    auto type = expr->type();
+    auto structType = nonTrivialLifetimeType(type.get());
     if (!structType) {
-        return expr;
+        auto copy = allocate<ast::TrivialCopyExpr>(expr->extractFromParent());
+        copy->decorateExpr(nullptr, type);
+        auto* result = copy.get();
+        parent->setChild(index, std::move(copy));
+        return result;
     }
     using enum SpecialLifetimeFunction;
     auto* copyCtor = structType->specialLifetimeFunction(CopyConstructor);
@@ -74,8 +82,6 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
                              dtors,
                              ctx);
     auto sourceRange = expr->sourceRange();
-    size_t index = expr->indexInParent();
-    auto* parent = expr->parent();
     auto ctorCall =
         allocate<ast::ConstructorCall>(toSmallVector(expr->extractFromParent()),
                                        sourceRange,
