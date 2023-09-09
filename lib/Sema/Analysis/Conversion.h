@@ -141,16 +141,14 @@ SCATHA_TESTAPI ast::Expression* convertReinterpret(ast::Expression* expr,
                                                    QualType to,
                                                    Context& ctx);
 
-/// Convert expression \p expr to an implicit reference
-SCATHA_TESTAPI ast::Expression* convertToImplicitMutRef(ast::Expression* expr,
-                                                        Context& ctx);
-
-SCATHA_TESTAPI ast::Expression* convertToExplicitRef(ast::Expression* expr,
-                                                     Context& ctx);
+/// Convert expression \p expr to a mutable reference
+SCATHA_TESTAPI ast::Expression* convertToMutRef(ast::Expression* expr,
+                                                Context& ctx);
 
 /// Dereference the expression \p expr to if it is a reference
 /// Otherwise a no-op
-SCATHA_TESTAPI void dereference(ast::Expression* expr, Context& ctx);
+SCATHA_TESTAPI ast::Expression* dereference(ast::Expression* expr,
+                                            Context& ctx);
 
 /// Find the common type of \p a and \p b
 SCATHA_TESTAPI QualType commonType(SymbolTable& symbolTable,

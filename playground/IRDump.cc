@@ -8,7 +8,6 @@
 
 #include <svm/Program.h>
 
-#include "AST/LowerToIR.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "Assembly/Print.h"
@@ -18,6 +17,7 @@
 #include "IR/Module.h"
 #include "IR/Parser.h"
 #include "IR/Print.h"
+#include "IRGen/IRGen.h"
 #include "Parser/Lexer.h"
 #include "Parser/LexicalIssue.h"
 #include "Parser/Parser.h"
@@ -79,7 +79,7 @@ static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>
         issues.print(text, errStr);
         return std::nullopt;
     }
-    return ast::lowerToIR(*ast, sym, analysisResult);
+    return ast::generateIR(*ast, sym, analysisResult);
 }
 
 static std::optional<std::pair<scatha::ir::Context, scatha::ir::Module>>

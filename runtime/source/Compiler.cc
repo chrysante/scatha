@@ -6,13 +6,13 @@
 #include <svm/VirtualMachine.h>
 #include <utl/vector.hpp>
 
-#include "AST/LowerToIR.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
 #include "CodeGen/CodeGen.h"
 #include "CommonImpl.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
+#include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
 #include "Opt/Optimizer.h"
 #include "Parser/Parser.h"
@@ -76,7 +76,7 @@ std::unique_ptr<Program> Compiler::compile(CompilationSettings settings,
     if (iss.haveErrors()) {
         return nullptr;
     }
-    auto [ctx, mod] = ast::lowerToIR(*astRoot, *impl->sym, analysisResult);
+    auto [ctx, mod] = ast::generateIR(*astRoot, *impl->sym, analysisResult);
     if (settings.optimize) {
         opt::optimize(ctx, mod, 1);
     }

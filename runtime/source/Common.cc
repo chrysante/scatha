@@ -47,16 +47,16 @@ sema::QualType scatha::toSemaType(sema::SymbolTable& sym, QualType type) {
     case Qualifier::None:
         return base;
     case Qualifier::Ref:
-        return sym.explRef(sema::QualType::Const(base));
+        return sym.reference(sema::QualType::Const(base));
     case Qualifier::MutRef:
-        return sym.explRef(sema::QualType::Mut(base));
+        return sym.reference(sema::QualType::Mut(base));
     case Qualifier::ArrayRef: {
         auto* array = sym.arrayType(base, sema::ArrayType::DynamicCount);
-        return sym.explRef(sema::QualType::Const(array));
+        return sym.reference(sema::QualType::Const(array));
     }
     case Qualifier::MutArrayRef: {
         auto* array = sym.arrayType(base, sema::ArrayType::DynamicCount);
-        return sym.explRef(sema::QualType::Mut(array));
+        return sym.reference(sema::QualType::Mut(array));
     }
     }
 }

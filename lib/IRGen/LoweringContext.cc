@@ -1,17 +1,17 @@
-#include "AST/Lowering/LoweringContext.h"
+#include "IRGen/LoweringContext.h"
 
 #include "AST/AST.h"
-#include "AST/LowerToIR.h"
 #include "IR/CFG.h"
 #include "IR/Context.h"
 #include "IR/Module.h"
 #include "IR/Type.h"
 #include "IR/Validate.h"
+#include "IRGen/IRGen.h"
 
 using namespace scatha;
 using namespace ast;
 
-[[nodiscard]] std::pair<ir::Context, ir::Module> ast::lowerToIR(
+[[nodiscard]] std::pair<ir::Context, ir::Module> ast::generateIR(
     ASTNode const& root,
     sema::SymbolTable const& symbolTable,
     sema::AnalysisResult const& analysisResult) {

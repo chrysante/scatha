@@ -1,4 +1,4 @@
-#include "AST/Lowering/LoweringContext.h"
+#include "IRGen/LoweringContext.h"
 
 #include <utl/strcat.hpp>
 
@@ -145,10 +145,7 @@ Value LoweringContext::getArraySize(uint32_t ID) const {
 
 ir::Type const* LoweringContext::mapType(sema::QualType semaType) {
     // clang-format off
-    return visit(*semaType, utl::overload{
-        [&](sema::ReferenceType const& refType) -> ir::Type const* {
-            return ctx.pointerType();
-        },
+    return SC_MATCH (*semaType) {
         [&](sema::VoidType const&) -> ir::Type const* {
             return ctx.voidType();
         },
@@ -170,9 +167,16 @@ ir::Type const* LoweringContext::mapType(sema::QualType semaType) {
             return itr->second;
         },
         [&](sema::ArrayType const& arrayType) -> ir::Type const* {
-            return ctx.arrayType(mapType(arrayType.elementType()), arrayType.count());
+            return ctx.arrayType(mapType(arrayType.elementType()),
+                                 arrayType.count());
         },
-    }); // clang-format on
+        [&](sema::PointerType const&) -> ir::Type const* {
+            return ctx.pointerType();
+        },
+        [&](sema::ReferenceType const&) -> ir::Type const* {
+            return ctx.pointerType();
+        },
+    }; // clang-format on
 }
 
 ir::UnaryArithmeticOperation LoweringContext::mapUnaryOp(

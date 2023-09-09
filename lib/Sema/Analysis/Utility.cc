@@ -38,7 +38,7 @@ void sema::convertArguments(ast::CallLike& fc,
         }
         /// If our argument is an lvalue of struct type  we need to call the
         /// copy constructor if there is one
-        if (!arg->isLValue()) {
+        if (!arg->isLValueNEW()) {
             continue;
         }
         copyValue(arg, dtors, ctx);
@@ -57,7 +57,7 @@ ast::Expression* sema::copyValue(ast::Expression* expr,
     auto* copyCtor = structType->specialLifetimeFunction(CopyConstructor);
     SC_ASSERT(copyCtor, "Must exists because we are non-trivial lifetime");
     expr = convertExplicitly(expr,
-                             sym.explRef(QualType::Const(structType)),
+                             sym.reference(QualType::Const(structType)),
                              dtors,
                              ctx);
     auto sourceRange = expr->sourceRange();

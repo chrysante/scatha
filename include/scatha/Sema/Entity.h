@@ -43,8 +43,9 @@
 /// │     │  │     └─ FloatType
 /// │     │  ├─ StructureType
 /// │     │  ├─ ArrayType
-/// │     │  ├─ PointerType
-/// │     │  └─ ReferenceType
+/// │     │  └─ RefTypeBase
+/// │     │     ├─ PointerType
+/// │     │     └─ ReferenceType
 /// │     └─ FunctionType [??, does not exist]
 /// └─ PoisonEntity
 /// ```
@@ -184,6 +185,22 @@ private:
 
     size_t _offset = 0;
     size_t _index = 0;
+};
+
+/// Represents a computed property such as `.count`, `.front` and `.back` member
+/// of arrays
+class SCATHA_API Property: public Object {
+public:
+    explicit Property(PropertyKind kind, Scope* parentScope, QualType type);
+
+    /// The kind of property
+    PropertyKind kind() const { return _kind; }
+
+private:
+    friend class Entity;
+    EntityCategory categoryImpl() const { return EntityCategory::Value; }
+
+    PropertyKind _kind;
 };
 
 /// Represents a temporary object
@@ -695,9 +712,9 @@ public:
     bool isDynamic() const { return count() == DynamicCount; }
 
     /// Member variable that stores the count
-    Variable const* countVariable() const { return countVar; }
+    Property const* countProperty() const { return countProp; }
 
-    void setCountVariable(Variable* var) { countVar = var; }
+    void setCountProperty(Property* prop) { countProp = prop; }
 
 private:
     friend class ObjectType;
@@ -710,11 +727,11 @@ private:
     static std::string makeName(ObjectType const* elemType, size_t size);
 
     ObjectType const* elemType;
-    Variable* countVar = nullptr;
+    Property* countProp = nullptr;
     size_t _count;
 };
 
-/// Common base class of `PointerType` and `ReferenceType`
+/// Abstract base class of `PointerType` and `ReferenceType`
 class SCATHA_API RefTypeBase: public ObjectType {
 public:
     /// The type referred to
@@ -736,19 +753,7 @@ public:
 /// Represents a reference type
 class SCATHA_API ReferenceType: public RefTypeBase {
 public:
-    explicit ReferenceType(QualType base, Reference ref);
-
-    /// The reference qualifier of this type
-    Reference reference() const { return ref; }
-
-    /// \Returns `true` if this is an explicit reference type
-    bool isExplicit() const { return reference() == Reference::Explicit; }
-
-    /// \Returns `true` if this is an implicit reference type
-    bool isImplicit() const { return reference() == Reference::Implicit; }
-
-private:
-    Reference ref;
+    explicit ReferenceType(QualType base);
 };
 
 /// # OverloadSet

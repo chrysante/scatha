@@ -65,11 +65,12 @@ struct FuncBodyContext {
     void analyzeImpl(ast::EmptyStatement&) {}
     void analyzeImpl(ast::ASTNode& node) { SC_UNREACHABLE(); }
 
-    bool analyzeExpr(ast::Expression& expr, DTorStack& dtorStack) {
+    ast::Expression* analyzeExpr(ast::Expression* expr, DTorStack& dtorStack) {
         return sema::analyzeExpression(expr, dtorStack, ctx);
     }
 
-    QualType getDeclaredType(ast::Expression* expr);
+    QualType getDeclaredType(ast::Expression* typeExpr);
+    QualType deduceType(ast::Expression* initExpr, DTorStack& dtorStack);
 
     sema::Context& ctx;
     SymbolTable& sym;
@@ -194,44 +195,17 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
               "We only handle function local variables in this pass.");
     SC_ASSERT(!var.isDecorated(),
               "We should not have handled local variables in prepass.");
-    QualType declaredType = getDeclaredType(var.typeExpr());
-    QualType deducedType = [&]() -> QualType {
-        if (!var.initExpression() ||
-            !analyzeExpr(*var.initExpression(), var.dtorStack()))
-        {
-            return nullptr;
-        }
-        if (!var.initExpression()->isValue()) {
-            iss.push<BadSymbolReference>(*var.initExpression(),
-                                         EntityCategory::Value);
-            return nullptr;
-        }
-        if (!var.initExpression()->type()) {
-            /// TODO: Make better error class
-            iss.push<BadExpression>(*var.initExpression());
-            return nullptr;
-        }
-        return var.initExpression()->type();
-    }();
-    if (!declaredType && !deducedType) {
+    if (!var.typeExpr() && !var.initExpression()) {
         iss.push<InvalidDeclaration>(&var,
                                      InvalidDeclaration::Reason::CantInferType,
                                      sym.currentScope());
         sym.declarePoison(std::string(var.name()), EntityCategory::Value);
         return;
     }
-    if (declaredType && deducedType && isRef(declaredType) &&
-        !isExplRef(deducedType))
-    {
-        iss.push<InvalidDeclaration>(
-            &var,
-            InvalidDeclaration::Reason::ExpectedReferenceInitializer,
-            sym.currentScope());
-        return;
-    }
-    QualType finalType = declaredType           ? declaredType :
-                         isExplRef(deducedType) ? deducedType :
-                                                  stripReference(deducedType);
+    QualType declaredType = getDeclaredType(var.typeExpr());
+    QualType deducedType = deduceType(var.initExpression(), var.dtorStack());
+    QualType finalType =
+        declaredType ? declaredType : stripReference(deducedType);
     if (!var.isMutable()) {
         finalType = finalType.toConst();
     }
@@ -259,7 +233,7 @@ void FuncBodyContext::analyzeImpl(ast::VariableDeclaration& var) {
         return;
     }
     auto& varObj = *varRes;
-    var.decorateVariable(&varObj, finalType);
+    var.decorateVarDecl(&varObj, finalType);
     if (!varObj.type().isMutable() && var.initExpression()) {
         varObj.setConstantValue(clone(var.initExpression()->constantValue()));
     }
@@ -281,7 +255,7 @@ void FuncBodyContext::analyzeImpl(ast::ParameterDeclaration& paramDecl) {
         return;
     }
     auto& param = *paramRes;
-    paramDecl.decorateParameter(&param, declaredType);
+    paramDecl.decorateVarDecl(&param, declaredType);
     ++paramIndex;
 }
 
@@ -297,8 +271,8 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
         return;
     }
     auto type = QualType(parentType, thisParam.mutability());
-    if (auto ref = thisParam.reference()) {
-        type = sym.reference(type, *ref);
+    if (thisParam.isReference()) {
+        type = sym.reference(type);
     }
     auto paramRes = sym.addVariable("__this", type);
     if (!paramRes) {
@@ -307,7 +281,7 @@ void FuncBodyContext::analyzeImpl(ast::ThisParameter& thisParam) {
     }
     function->setIsMember();
     auto& param = *paramRes;
-    thisParam.decorateParameter(&param, type);
+    thisParam.decorateVarDecl(&param, type);
     ++paramIndex;
 }
 
@@ -319,7 +293,7 @@ void FuncBodyContext::analyzeImpl(ast::ExpressionStatement& es) {
             sym.currentScope());
         return;
     }
-    analyzeExpr(*es.expression(), es.dtorStack());
+    analyzeExpr(es.expression(), es.dtorStack());
 }
 
 void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
@@ -342,7 +316,7 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     /// We gather parent destructors here because `analyzeExpr()` may add more
     /// constructors and the parent destructors must be lower in the stack
     gatherParentDestructors(rs);
-    if (!rs.expression() || !analyzeExpr(*rs.expression(), rs.dtorStack())) {
+    if (!rs.expression() || !analyzeExpr(rs.expression(), rs.dtorStack())) {
         return;
     }
     if (rs.expression() && isa<VoidType>(*returnType)) {
@@ -354,13 +328,6 @@ void FuncBodyContext::analyzeImpl(ast::ReturnStatement& rs) {
     }
     if (!rs.expression()->isValue()) {
         iss.push<BadSymbolReference>(*rs.expression(), EntityCategory::Value);
-        return;
-    }
-    /// This is specific to returns.
-    /// If we return a reference we don't want to _assign through_ it but we
-    /// want to return an explicit reference
-    if (isRef(returnType) && !isExplRef(rs.expression()->type())) {
-        iss.push<BadExpression>(*rs.expression(), IssueSeverity::Error);
         return;
     }
     convertImplicitly(rs.expression(), returnType, rs.dtorStack(), ctx);
@@ -375,7 +342,7 @@ void FuncBodyContext::analyzeImpl(ast::IfStatement& stmt) {
             sym.currentScope());
         return;
     }
-    if (analyzeExpr(*stmt.condition(), stmt.dtorStack())) {
+    if (analyzeExpr(stmt.condition(), stmt.dtorStack())) {
         convertImplicitly(stmt.condition(), sym.Bool(), stmt.dtorStack(), ctx);
     }
     analyze(*stmt.thenBlock());
@@ -397,14 +364,14 @@ void FuncBodyContext::analyzeImpl(ast::LoopStatement& stmt) {
     if (stmt.varDecl()) {
         analyze(*stmt.varDecl());
     }
-    if (analyzeExpr(*stmt.condition(), stmt.conditionDtorStack())) {
+    if (analyzeExpr(stmt.condition(), stmt.conditionDtorStack())) {
         convertImplicitly(stmt.condition(),
                           sym.Bool(),
                           stmt.conditionDtorStack(),
                           ctx);
     }
     if (stmt.increment()) {
-        analyzeExpr(*stmt.increment(), stmt.incrementDtorStack());
+        analyzeExpr(stmt.increment(), stmt.incrementDtorStack());
     }
     sym.popScope(); /// The block will push its scope again.
     analyze(*stmt.block());
@@ -429,7 +396,7 @@ void FuncBodyContext::analyzeImpl(ast::JumpStatement& stmt) {
 
 QualType FuncBodyContext::getDeclaredType(ast::Expression* typeExpr) {
     DTorStack dtorStack;
-    if (!typeExpr || !analyzeExpr(*typeExpr, dtorStack)) {
+    if (!typeExpr || !analyzeExpr(typeExpr, dtorStack)) {
         return nullptr;
     }
     SC_ASSERT(dtorStack.empty(), "Type expressions may not create objects");
@@ -438,4 +405,25 @@ QualType FuncBodyContext::getDeclaredType(ast::Expression* typeExpr) {
         return nullptr;
     }
     return cast<ObjectType*>(typeExpr->entity());
+}
+
+QualType FuncBodyContext::deduceType(ast::Expression* initExpr,
+                                     DTorStack& dtorStack) {
+    if (!initExpr) {
+        return nullptr;
+    }
+    initExpr = analyzeExpr(initExpr, dtorStack);
+    if (!initExpr) {
+        return nullptr;
+    }
+    if (!initExpr->isValue()) {
+        iss.push<BadSymbolReference>(*initExpr, EntityCategory::Value);
+        return nullptr;
+    }
+    if (!initExpr->type()) {
+        /// We don't push an error in this case because the expression will have
+        /// pushed errors already
+        return nullptr;
+    }
+    return initExpr->type();
 }

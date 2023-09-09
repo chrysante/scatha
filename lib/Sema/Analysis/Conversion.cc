@@ -250,44 +250,45 @@ static std::optional<ObjectTypeConversion> determineObjConv(
             }
             }
         },
+        [&](PointerType const& from, PointerType const& to) -> RetType {
+            if (from.base().isConst() && to.base().isMutable()) {
+                return std::nullopt;
+            }
+            if (from.base().get() == to.base().get()) {
+                return None;
+            }
+            auto* fromArray = dyncast<ArrayType const*>(from.base().get());
+            auto* toArray = dyncast<ArrayType const*>(to.base().get());
+            if (fromArray && !fromArray->isDynamic() &&
+                toArray && toArray->isDynamic())
+            {
+                return ArrayPtr_FixedToDynamic;
+            }
+            return std::nullopt;
+        },
         [&](ObjectType const& from, ObjectType const& to) -> RetType {
             return std::nullopt;
         }
     }); // clang-format on
 }
 
-static size_t toRefIndex(std::optional<Reference> ref) {
-    if (!ref) {
-        return 0;
-    }
-    return *ref == Reference::Implicit ? 1 : 2;
-}
-
-static std::optional<RefConversion> determineRefConv(
-    ConversionKind kind,
-    std::optional<Reference> from,
-    std::optional<Reference> to) {
+static std::optional<RefConversion> determineRefConv(ConversionKind kind,
+                                                     QualType from,
+                                                     QualType to) {
     using enum RefConversion;
     switch (kind) {
-    case ConversionKind::Implicit: {
-        // clang-format off
-        static constexpr std::optional<RefConversion> resultMatrix[3][3] = {
-            /* From  / To     None          Implicit      Explicit      */
-            /*      None */ { None,         TakeAddress,  std::nullopt, },
-            /*  Implicit */ { Dereference,  None,         std::nullopt, },
-            /*  Explicit */ { DerefExpl,    DerefExpl,    None,         },
-        }; // clang-format on
-        return resultMatrix[toRefIndex(from)][toRefIndex(to)];
-    }
+    case ConversionKind::Implicit:
+        [[fallthrough]];
     case ConversionKind::Explicit: {
+        auto takeAddr =
+            to.isConst() ? std::optional(TakeAddress) : std::nullopt;
         // clang-format off
-        static constexpr std::optional<RefConversion> resultMatrix[3][3] = {
-            /* From  / To     None         Implicit    Explicit      */
-            /*      None */ { None,        TakeAddress, TakeAddress, },
-            /*  Implicit */ { Dereference, None,        TakeAddress, },
-            /*  Explicit */ { Dereference, Dereference, None,        },
+        std::optional<RefConversion> const resultMatrix[2][2] = {
+            /* From  / To     Value          Ref      */
+            /*      Value */ { None,         takeAddr },
+            /*        Ref */ { Dereference,  None        },
         }; // clang-format on
-        return resultMatrix[toRefIndex(from)][toRefIndex(to)];
+        return resultMatrix[isa<ReferenceType>(*from)][isa<ReferenceType>(*to)];
     }
     case ConversionKind::Reinterpret:
         if (from == to) {
@@ -325,9 +326,6 @@ bool isCompatible(RefConversion refConv, ObjectTypeConversion objConv) {
         return true;
 
     case RefConversion::Dereference:
-        return true;
-
-    case RefConversion::DerefExpl:
         return true;
 
     case RefConversion::TakeAddress:
@@ -495,7 +493,7 @@ std::optional<Conversion> sema::computeConversion(ConversionKind kind,
                           MutConversion::None,
                           ObjectTypeConversion::None);
     }
-    auto refConv = determineRefConv(kind, refKind(from), refKind(to));
+    auto refConv = determineRefConv(kind, from, to);
     if (!refConv) {
         return std::nullopt;
     }
@@ -546,7 +544,6 @@ static ast::Expression* convertImpl(ConversionKind kind,
     auto conversion =
         computeConversion(kind, expr->type(), expr->constantValue(), to);
     if (!conversion) {
-        //        SC_ASSERT(iss, "Issue occured and we have no issue handler");
         ctx.issueHandler().push<BadTypeConversion>(*expr, to);
         return nullptr;
     }
@@ -557,7 +554,7 @@ static ast::Expression* convertImpl(ConversionKind kind,
         return expr;
     }
     auto* structType = dyncast<StructureType const*>(to.get());
-    if (structType && !expr->isRValue()) {
+    if (structType && !expr->isRValueNEW()) {
         return copyValue(expr, *dtors, ctx);
     }
     return expr;
@@ -583,34 +580,25 @@ ast::Expression* sema::convertReinterpret(ast::Expression* expr,
     return convertImpl(ConversionKind::Reinterpret, expr, to, nullptr, ctx);
 }
 
-ast::Expression* sema::convertToExplicitRef(ast::Expression* expr,
-                                            Context& ctx) {
+ast::Expression* sema::convertToMutRef(ast::Expression* expr, Context& ctx) {
     auto& sym = ctx.symbolTable();
-    auto ref = sym.explRef(stripReference(expr->type()).toMut());
-    return convertImpl(ConversionKind::Explicit, expr, ref, nullptr, ctx);
-}
-
-ast::Expression* sema::convertToImplicitMutRef(ast::Expression* expr,
-                                               Context& ctx) {
-    auto& sym = ctx.symbolTable();
-    auto ref = sym.implRef(stripReference(expr->type()).toMut());
+    auto ref = sym.reference(stripReference(expr->type()).toMut());
     return convertImpl(ConversionKind::Implicit, expr, ref, nullptr, ctx);
 }
 
-void sema::dereference(ast::Expression* expr, Context& ctx) {
-    convertImpl(ConversionKind::Implicit,
-                expr,
-                stripReference(expr->type()),
-                nullptr,
-                ctx,
-                /* invokeCopyCtor = */ false);
+ast::Expression* sema::dereference(ast::Expression* expr, Context& ctx) {
+    return convertImpl(ConversionKind::Implicit,
+                       expr,
+                       stripReference(expr->type()),
+                       nullptr,
+                       ctx,
+                       /* invokeCopyCtor = */ false);
 }
 
 static QualType commonRef(SymbolTable& sym,
                           QualType commonObjType,
                           QualType a,
                           QualType b) {
-    using enum Reference;
     /// If `a` is a reference and `b` is not or vice versa, we return a the
     /// common base type as mutable
     if (!isRef(a) != !isRef(b)) {
@@ -625,13 +613,8 @@ static QualType commonRef(SymbolTable& sym,
     if (stripReference(a).get() != stripReference(b).get()) {
         return commonObjType.toMut();
     }
-    /// Both types are references, they are only compatible if they are of the
-    /// same kind
-    if (*refKind(a) == *refKind(b)) {
-        return sym.reference(commonObjType, *refKind(a));
-    }
-    /// We don't have a common type
-    return nullptr;
+    /// Both types are references
+    return sym.reference(commonObjType);
 }
 
 static std::optional<size_t> nextBitwidth(size_t width) {

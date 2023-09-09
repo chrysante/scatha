@@ -1,4 +1,4 @@
-#include "AST/Lowering/Value.h"
+#include "IRGen/Value.h"
 
 using namespace scatha;
 using namespace ast;

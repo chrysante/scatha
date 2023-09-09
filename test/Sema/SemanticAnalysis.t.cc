@@ -46,7 +46,7 @@ TEST_CASE("Decoration of the AST", "[sema]") {
 fn mul(a: int, b: int, c: double, d: byte) -> int {
 	let result = a;
 	{ // declaration of variable of the same name in a nested scope
-		var result = "some string";
+		var result: &str = "some string";
 	}
 	// declaration of float variable
 	let y = 39;
@@ -70,7 +70,7 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     CHECK(fn->parameter(3)->type().get() == sym.Byte());
     auto* varDecl = fn->body()->statement<VariableDeclaration>(0);
     CHECK(varDecl->type().get() == sym.S64());
-    auto* varDeclInit = cast<ast::Identifier*>(varDecl->initExpression());
+    auto* varDeclInit = cast<ast::Conversion*>(varDecl->initExpression());
     CHECK(varDeclInit->type().get() == sym.S64());
     CHECK(varDeclInit->valueCategory() == ValueCategory::LValue);
     auto* nestedScope = fn->body()->statement<CompoundStatement>(1);
@@ -91,9 +91,8 @@ fn mul(a: int, b: int, c: double, d: byte) -> int {
     auto* floatLit = cast<ast::Literal*>(yDecl->initExpression());
     CHECK(floatLit->value<APFloat>().to<f64>() == 1.2);
     auto* ret = fn->body()->statement<ReturnStatement>(5);
-    auto* retIdentifier = cast<ast::Identifier*>(ret->expression());
-    CHECK(retIdentifier->type().get() == sym.S64());
-    CHECK(retIdentifier->valueCategory() == ValueCategory::LValue);
+    CHECK(ret->expression()->type().get() == sym.S64());
+    CHECK(ret->expression()->valueCategory() == ValueCategory::LValue);
 }
 
 TEST_CASE("Decoration of the AST with function call expression", "[sema]") {

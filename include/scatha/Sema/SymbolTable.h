@@ -106,6 +106,11 @@ public:
     Expected<Variable&, SemanticIssue*> addVariable(std::string name,
                                                     QualType type);
 
+    ///
+    ///
+    ///
+    Property& addProperty(PropertyKind kind, QualType type);
+
     /// Creates a new unique temporary object of type \p type
     Temporary& addTemporary(QualType type);
 
@@ -180,19 +185,7 @@ public:
 
     /// \Returns the `ReferenceType` to the referred type \p referred and
     /// reference qualifier \p ref
-    ReferenceType const* reference(QualType referred, Reference ref);
-
-    /// \Returns the `ReferenceType` to the referred type \p referred and
-    /// reference qualifier `Implicit`
-    ReferenceType const* implRef(QualType referred) {
-        return reference(referred, Reference::Implicit);
-    }
-
-    /// \Returns the `ReferenceType` to the referred type \p referred and
-    /// reference qualifier `Explicit`
-    ReferenceType const* explRef(QualType referred) {
-        return reference(referred, Reference::Explicit);
-    }
+    ReferenceType const* reference(QualType referred);
 
     /// ## Queries
 

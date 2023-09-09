@@ -1,5 +1,5 @@
-#ifndef SCATHA_AST_LOWERING_VALUELOCATION_H_
-#define SCATHA_AST_LOWERING_VALUELOCATION_H_
+#ifndef SCATHA_IRGEN_VALUE_H_
+#define SCATHA_IRGEN_VALUE_H_
 
 #include <iosfwd>
 #include <string_view>
@@ -113,4 +113,4 @@ struct std::hash<scatha::ast::Value> {
     }
 };
 
-#endif // SCATHA_AST_LOWERING_VALUELOCATION_H_
+#endif // SCATHA_IRGEN_VALUE_H_

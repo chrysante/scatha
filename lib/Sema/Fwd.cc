@@ -55,6 +55,20 @@ std::ostream& sema::operator<<(std::ostream& str, ScopeKind k) {
     return str << toString(k);
 }
 
+std::string_view sema::toString(PropertyKind kind) {
+    using enum PropertyKind;
+    switch (kind) {
+#define SC_SEMA_PROPERTY_KIND(K, SourceName)                                   \
+    case K:                                                                    \
+        return SourceName;
+#include <scatha/Sema/Lists.def>
+    }
+}
+
+std::ostream& sema::operator<<(std::ostream& str, PropertyKind kind) {
+    return str << toString(kind);
+}
+
 std::string_view sema::toString(FunctionKind k) {
     switch (k) {
     case FunctionKind::Native:
@@ -71,21 +85,6 @@ std::ostream& sema::operator<<(std::ostream& str, FunctionKind k) {
 }
 
 bool sema::isRef(QualType type) { return isa<ReferenceType>(*type); }
-
-bool sema::isImplRef(QualType type) {
-    return isRef(type) && cast<ReferenceType const&>(*type).isImplicit();
-}
-
-bool sema::isExplRef(QualType type) {
-    return isRef(type) && cast<ReferenceType const&>(*type).isExplicit();
-}
-
-std::optional<Reference> sema::refKind(QualType type) {
-    if (auto* refType = dyncast<ReferenceType const*>(type.get())) {
-        return refType->reference();
-    }
-    return std::nullopt;
-}
 
 QualType sema::stripReference(QualType type) {
     if (auto* refType = dyncast<ReferenceType const*>(type.get())) {

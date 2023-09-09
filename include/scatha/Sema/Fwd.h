@@ -72,6 +72,16 @@ SCATHA_API std::string_view toString(ScopeKind);
 
 SCATHA_API std::ostream& operator<<(std::ostream&, ScopeKind);
 
+/// Different kinds of property objects
+enum class PropertyKind {
+#define SC_SEMA_PROPERTY_KIND(Kind, _) Kind,
+#include <scatha/Sema/Lists.def>
+};
+
+SCATHA_API std::string_view toString(PropertyKind);
+
+SCATHA_API std::ostream& operator<<(std::ostream&, PropertyKind);
+
 ///
 enum class FunctionKind : u8 { Native, External, Generated };
 
@@ -85,31 +95,14 @@ enum class AccessSpecifier : uint8_t { Public, Private };
 /// Signedness of arithmetic types
 enum class Signedness { Signed, Unsigned };
 
-/// Reference qualifiers of `QualType`
-enum class Reference { Implicit, Explicit };
-
-inline constexpr Reference RefImpl = Reference::Implicit;
-
-inline constexpr Reference RefExpl = Reference::Explicit;
-
 /// \Returns `true` if \p type is a `ReferenceType`
-bool isRef(QualType type);
-
-/// \Returns `true` if \p type is a `ReferenceType` and is an implicit reference
-bool isImplRef(QualType type);
-
-/// \Returns `true` if \p type is a `ReferenceType` and is an explicit reference
-bool isExplRef(QualType type);
-
-/// \Returns `type->reference()` if \p type is a reference type, otherwise
-/// `std::nullopt`
-std::optional<Reference> refKind(QualType type);
+SCATHA_API bool isRef(QualType type);
 
 /// \Returns \p type, if it is not a reference type, otherwise `type->base()`
-QualType stripReference(QualType type);
+SCATHA_API QualType stripReference(QualType type);
 
 /// \Returns `stripReference(type).toMut()`
-QualType stripQualifiers(QualType type);
+SCATHA_API QualType stripQualifiers(QualType type);
 
 /// Mutability qualifiers of `QualType`
 enum class Mutability { Const, Mutable };

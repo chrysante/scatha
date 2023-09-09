@@ -39,12 +39,6 @@ static utl::vstreammanip<> typeHelper(ASTNode const* node) {
         if (auto type = getType(node)) {
             str << " " << tfmt::format(tfmt::BrightGrey, "Type: ")
                 << type->name();
-            if (auto* expr = dyncast<Expression const*>(node)) {
-                str << tfmt::format(tfmt::BrightGrey,
-                                    " [",
-                                    expr->valueCategory(),
-                                    "]");
-            }
             return;
         }
         if (auto* id = dyncast<Identifier const*>(node);

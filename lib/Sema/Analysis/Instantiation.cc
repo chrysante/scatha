@@ -45,7 +45,7 @@ struct InstContext {
 
     void generateSLFs(StructureType& type);
 
-    QualType analyzeTypeExpression(ast::Expression&) const;
+    QualType analyzeTypeExpression(ast::Expression*) const;
 
     Function* generateSLF(SpecialLifetimeFunction key,
                           StructureType& type) const;
@@ -103,7 +103,7 @@ std::vector<StructureType const*> InstContext::instantiateTypes(
                        });
     for (auto& node: dataMembers) {
         auto& var = cast<ast::VariableDeclaration&>(*node.astNode);
-        QualType type = analyzeTypeExpression(*var.typeExpr());
+        QualType type = analyzeTypeExpression(var.typeExpr());
         if (type && isUserDefined(type)) {
             node.dependencies.push_back(
                 utl::narrow_cast<u16>(dependencyGraph.index(type.get())));
@@ -208,14 +208,15 @@ void InstContext::instantiateVariable(SDGNode& node) {
         cast<ast::VariableDeclaration&>(*node.astNode);
     sym.makeScopeCurrent(node.entity->parent());
     utl::armed_scope_guard popScope = [&] { sym.makeScopeCurrent(nullptr); };
-    QualType type = analyzeTypeExpression(*varDecl.typeExpr());
-    varDecl.decorateVariable(node.entity, type);
+    QualType type = analyzeTypeExpression(varDecl.typeExpr());
+    varDecl.decorateVarDecl(node.entity, type);
     /// Here we set the TypeID of the variable in the symbol table.
     varDecl.variable()->setType(type);
 }
 
-static bool isExplicitRefTo(QualType argType, QualType referredType) {
-    return isExplRef(argType) && stripReference(argType) == referredType;
+static bool isRefTo(QualType argType, QualType referredType) {
+    return isa<ReferenceType>(*argType) &&
+           stripReference(argType) == referredType;
 }
 
 void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
@@ -251,7 +252,7 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
     structType->addSpecialMemberFunction(*SMF, function->overloadSet());
     auto const& sig = function->signature();
     if (sig.argumentCount() == 0 ||
-        !isExplicitRefTo(sig.argumentType(0), structType))
+        !isRefTo(sig.argumentType(0), QualType::Mut(structType)))
     {
         pushError();
         return;
@@ -262,7 +263,7 @@ void InstContext::instantiateFunction(ast::FunctionDefinition& def) {
         break;
     case Move:
         if (sig.argumentCount() != 2 ||
-            !isExplicitRefTo(sig.argumentType(1), structType))
+            !isRefTo(sig.argumentType(1), QualType::Mut(structType)))
         {
             pushError();
             return;
@@ -286,7 +287,7 @@ FunctionSignature InstContext::analyzeSignature(
     /// For functions with unspecified return type we assume void until we
     /// implement return type deduction.
     QualType returnType = decl.returnTypeExpr() ?
-                              analyzeTypeExpression(*decl.returnTypeExpr()) :
+                              analyzeTypeExpression(decl.returnTypeExpr()) :
                               sym.Void();
     return FunctionSignature(std::move(argumentTypes), returnType);
 }
@@ -295,7 +296,7 @@ QualType InstContext::analyzeParameter(ast::ParameterDeclaration& param,
                                        size_t index) const {
     auto* thisParam = dyncast<ast::ThisParameter const*>(&param);
     if (!thisParam) {
-        return analyzeTypeExpression(*param.typeExpr());
+        return analyzeTypeExpression(param.typeExpr());
     }
     if (index != 0) {
         iss.push<InvalidDeclaration>(&param,
@@ -312,17 +313,10 @@ QualType InstContext::analyzeParameter(ast::ParameterDeclaration& param,
         return nullptr;
     }
     auto* structType = cast<StructureType const*>(structure->entity());
-    if (auto ref = thisParam->reference()) {
-        return sym.explRef(QualType(structType, thisParam->mutability()));
+    if (thisParam->isReference()) {
+        return sym.reference(QualType(structType, thisParam->mutability()));
     }
     return structType;
-}
-
-static bool isRefTo(QualType type, QualType referred) {
-    if (auto* refType = dyncast<ReferenceType const*>(type.get())) {
-        return refType->base() == referred;
-    }
-    return false;
 }
 
 namespace {
@@ -455,8 +449,8 @@ Function* InstContext::generateSLF(SpecialLifetimeFunction key,
 
 FunctionSignature InstContext::makeLifetimeSignature(
     StructureType& type, SpecialLifetimeFunction function) const {
-    QualType self = sym.explRef(QualType::Mut(&type));
-    QualType rhs = sym.explRef(QualType::Const(&type));
+    QualType self = sym.reference(QualType::Mut(&type));
+    QualType rhs = sym.reference(QualType::Const(&type));
     QualType ret = sym.Void();
     using enum SpecialLifetimeFunction;
     switch (function) {
@@ -471,15 +465,15 @@ FunctionSignature InstContext::makeLifetimeSignature(
     }
 }
 
-QualType InstContext::analyzeTypeExpression(ast::Expression& expr) const {
+QualType InstContext::analyzeTypeExpression(ast::Expression* expr) const {
     DTorStack dtorStack;
     if (!sema::analyzeExpression(expr, dtorStack, ctx)) {
         return nullptr;
     }
     SC_ASSERT(dtorStack.empty(), "");
-    if (!expr.isType()) {
-        iss.push<BadSymbolReference>(expr, EntityCategory::Type);
+    if (!expr->isType()) {
+        iss.push<BadSymbolReference>(*expr, EntityCategory::Type);
         return nullptr;
     }
-    return cast<ObjectType*>(expr.entity());
+    return cast<ObjectType*>(expr->entity());
 }

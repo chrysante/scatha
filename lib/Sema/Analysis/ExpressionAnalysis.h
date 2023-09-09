@@ -13,9 +13,9 @@ class ExpressionAnalysisResult;
 /// Semantically analyses the expression \p expression and decorates all AST
 /// nodes.
 /// Creates entries in the symbol table for defined entities.
-bool analyzeExpression(ast::Expression& expression,
-                       DTorStack& dtorStack,
-                       Context& context);
+ast::Expression* analyzeExpression(ast::Expression* expression,
+                                   DTorStack& dtorStack,
+                                   Context& context);
 
 } // namespace scatha::sema
 

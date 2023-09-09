@@ -8,7 +8,6 @@
 #include <svm/VirtualMachine.h>
 #include <utl/typeinfo.hpp>
 
-#include "AST/LowerToIR.h"
 #include "AST/Print.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
@@ -19,6 +18,7 @@
 #include "IR/Module.h"
 #include "IR/Print.h"
 #include "IR/Validate.h"
+#include "IRGen/IRGen.h"
 #include "Opt/Optimizer.h"
 #include "Parser/Lexer.h"
 #include "Parser/LexicalIssue.h"
@@ -64,7 +64,7 @@ void playground::compile(std::string text) {
 
     subHeader();
     header("Generated IR");
-    auto [ctx, mod] = ast::lowerToIR(*ast, sym, analysisResult);
+    auto [ctx, mod] = ast::generateIR(*ast, sym, analysisResult);
     ir::print(mod);
 
     header("Optimized IR");

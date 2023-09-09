@@ -1,5 +1,5 @@
-#ifndef SCATHA_AST_LOWERING_CALLINGCONVENTION_H_
-#define SCATHA_AST_LOWERING_CALLINGCONVENTION_H_
+#ifndef SCATHA_IRGEN_CALLINGCONVENTION_H_
+#define SCATHA_IRGEN_CALLINGCONVENTION_H_
 
 #include <iosfwd>
 #include <span>
@@ -8,9 +8,9 @@
 #include <utl/utility.hpp>
 #include <utl/vector.hpp>
 
-#include "AST/Lowering/Value.h"
 #include "Common/Ranges.h"
 #include "IR/Fwd.h"
+#include "IRGen/Value.h"
 #include "Sema/Fwd.h"
 
 namespace scatha::ast {
@@ -74,4 +74,4 @@ void print(CallingConvention const& CC);
 
 } // namespace scatha::ast
 
-#endif // SCATHA_AST_LOWERING_CALLINGCONVENTION_H_
+#endif // SCATHA_IRGEN_CALLINGCONVENTION_H_

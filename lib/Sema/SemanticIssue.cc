@@ -32,8 +32,8 @@ BadTypeConversion::BadTypeConversion(ast::Expression const& expression,
     _to(to) {}
 
 void BadTypeConversion::format(std::ostream& str) const {
-    str << "Invalid type conversion from `" << from()->name() << "` to `"
-        << to()->name() << "`\n";
+    str << "Invalid type conversion from `" << from().name() << "` to `"
+        << to().name() << "`\n";
 }
 
 BadOperandForUnaryExpression::BadOperandForUnaryExpression(

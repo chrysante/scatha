@@ -29,7 +29,8 @@ UniquePtr<ast::ConstructorCall> sema::makeConstructorCall(
     if (!ctorSet) {
         return nullptr;
     }
-    utl::small_vector<QualType> argTypes = { ctx.symbolTable().explRef(type) };
+    utl::small_vector<QualType> argTypes = { ctx.symbolTable().reference(
+        type) };
     argTypes.reserve(1 + arguments.size());
     ranges::transform(arguments, std::back_inserter(argTypes), [](auto& expr) {
         return expr->type();

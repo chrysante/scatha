@@ -23,17 +23,31 @@ SC_SEMA_ENTITY_DEF(IntType,        CONCRETE)
 SC_SEMA_ENTITY_DEF(FloatType,      CONCRETE)
 SC_SEMA_ENTITY_DEF(StructureType,  CONCRETE)
 SC_SEMA_ENTITY_DEF(ArrayType,      CONCRETE)
+SC_SEMA_ENTITY_DEF(RefTypeBase,    ABSTRACT)
 SC_SEMA_ENTITY_DEF(PointerType,    CONCRETE)
 SC_SEMA_ENTITY_DEF(ReferenceType,  CONCRETE)
 SC_SEMA_ENTITY_DEF(AnonymousScope, CONCRETE)
 SC_SEMA_ENTITY_DEF(OverloadSet,    CONCRETE)
 SC_SEMA_ENTITY_DEF(Generic,        CONCRETE)
-SC_SEMA_ENTITY_DEF(Object,         CONCRETE)
+SC_SEMA_ENTITY_DEF(Object,         ABSTRACT)
 SC_SEMA_ENTITY_DEF(Variable,       CONCRETE)
+SC_SEMA_ENTITY_DEF(Property,       CONCRETE)
 SC_SEMA_ENTITY_DEF(Temporary,      CONCRETE)
 SC_SEMA_ENTITY_DEF(PoisonEntity,   CONCRETE)
 
 #undef SC_SEMA_ENTITY_DEF
+
+// ===--------------------------------------------------------------------=== //
+// === List of property objects ------------------------------------------=== //
+// ===--------------------------------------------------------------------=== //
+
+#ifndef SC_SEMA_PROPERTY_KIND
+#   define SC_SEMA_PROPERTY_KIND(Name, SourceName)
+#endif
+
+SC_SEMA_PROPERTY_KIND(ArraySize, "count")
+
+#undef SC_SEMA_PROPERTY_KIND
 
 // ===--------------------------------------------------------------------=== //
 // === List of all special member functions ------------------------------=== //

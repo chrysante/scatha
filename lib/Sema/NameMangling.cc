@@ -13,9 +13,11 @@ using namespace sema;
 static std::string baseImpl(Entity const* entity) {
     std::string result = std::string(entity->name());
     Scope const* scope = entity->parent();
+    SC_ASSERT(scope, "");
     while (!isa<GlobalScope>(scope)) {
         result = utl::strcat(scope->name(), ".", result);
         scope = scope->parent();
+        SC_ASSERT(scope, "");
     }
     return result;
 }
@@ -33,6 +35,10 @@ static std::string impl(ObjectType const* type) { return baseImpl(type); }
 
 static std::string impl(ArrayType const* type) {
     return utl::strcat("[", impl(type->elementType()), "]");
+}
+
+static std::string impl(PointerType const* type) {
+    return utl::strcat("*", impl(type->base()));
 }
 
 static std::string impl(ReferenceType const* type) {

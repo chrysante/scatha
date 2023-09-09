@@ -74,15 +74,15 @@ fn main(i: int) -> bool {
 })");
     auto const line3 = issues.findOnLine<BadOperandsForBinaryExpression>(3);
     REQUIRE(line3);
-    CHECK(line3->lhs().get() == issues.sym.S64());
+    CHECK(sema::stripReference(line3->lhs()).get() == issues.sym.S64());
     CHECK(line3->rhs().get() == issues.sym.F64());
     auto const line4 = issues.findOnLine<BadOperandsForBinaryExpression>(4);
     REQUIRE(line4);
-    CHECK(line4->lhs().get() == issues.sym.S64());
+    CHECK(sema::stripReference(line4->lhs()).get() == issues.sym.S64());
     CHECK(line4->rhs().get() == issues.sym.F64());
     auto const line5 = issues.findOnLine<BadOperandForUnaryExpression>(5);
     REQUIRE(line5);
-    CHECK(line5->operandType().get() == issues.sym.S64());
+    CHECK(sema::stripReference(line5->operandType()).get() == issues.sym.S64());
     CHECK(issues.noneOnLine(6));
 }
 
@@ -311,10 +311,8 @@ TEST_CASE("Expect reference initializer", "[sema][issue]") {
     auto const issues = test::getSemaIssues(R"(
 public fn main() { var r: &mut int = 1; }
 )");
-    auto issue = issues.findOnLine<InvalidDeclaration>(2);
-    REQUIRE(issue);
-    CHECK(issue->reason() ==
-          InvalidDeclaration::Reason::ExpectedReferenceInitializer);
+    auto issue = issues.findOnLine<BadTypeConversion>(2);
+    CHECK(issue);
 }
 
 TEST_CASE("Invalid lists", "[sema][issue]") {

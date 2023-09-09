@@ -1,18 +1,19 @@
-#ifndef SCATHA_AST_LOWERING_LOWERINGCONTEXT_H_
-#define SCATHA_AST_LOWERING_LOWERINGCONTEXT_H_
+#ifndef SCATHA_IRGEN_LOWERINGCONTEXT_H_
+#define SCATHA_IRGEN_LOWERINGCONTEXT_H_
 
+#include <utl/function_view.hpp>
 #include <utl/hashmap.hpp>
 #include <utl/ipp.hpp>
 #include <utl/stack.hpp>
 #include <utl/vector.hpp>
 
 #include "AST/Fwd.h"
-#include "AST/Lowering/CallingConvention.h"
-#include "AST/Lowering/Value.h"
 #include "Common/APFloat.h"
 #include "Common/APInt.h"
 #include "Common/List.h"
 #include "IR/Fwd.h"
+#include "IRGen/CallingConvention.h"
+#include "IRGen/Value.h"
 #include "Sema/AnalysisResult.h"
 #include "Sema/DTorStack.h"
 #include "Sema/Fwd.h"
@@ -137,8 +138,8 @@ struct LoweringContext {
     Value getValueImpl(UnaryExpression const&);
     Value getValueImpl(BinaryExpression const&);
     Value getValueImpl(MemberAccess const&);
-    Value getValueImpl(ReferenceExpression const&);
-    Value getValueImpl(UniqueExpression const&);
+    Value getValueImpl(DereferenceExpression const&);
+    Value getValueImpl(AddressOfExpression const&);
     Value getValueImpl(Conditional const&);
     Value getValueImpl(FunctionCall const&);
     Value getValueImpl(Subscript const&);
@@ -158,6 +159,20 @@ struct LoweringContext {
     void genListDataFallback(ListExpression const& list, ir::Alloca* dest);
 
     void emitDestructorCalls(sema::DTorStack const& dtorStack);
+
+    /// Creates array size values and stores them in `objectMap` if declared
+    /// type is array
+    void generateArraySizeImpl(ast::VarDeclBase const* varDecl,
+                               uint32_t varID,
+                               utl::function_view<ir::Value*()> sizeCallback);
+
+    void generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
+                                  uint32_t varID,
+                                  uint32_t initID);
+
+    void generateParamArraySize(ast::VarDeclBase const* varDecl,
+                                uint32_t varID,
+                                ir::Parameter* param);
 
     /// # Utils
 
@@ -257,4 +272,4 @@ struct LoweringContext {
 
 } // namespace scatha::ast
 
-#endif // SCATHA_AST_LOWERING_LOWERINGCONTEXT_H_
+#endif // SCATHA_IRGEN_LOWERINGCONTEXT_H_

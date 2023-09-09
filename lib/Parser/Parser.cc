@@ -191,7 +191,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
     if (idToken.kind() == This) {
         tokens.eat();
         return allocate<ast::ThisParameter>(idToken.sourceRange(),
-                                            std::nullopt,
+                                            /* isRef = */ false,
                                             sema::Mutability::Mutable);
     }
     if (idToken.kind() == BitAnd) {
@@ -205,7 +205,7 @@ UniquePtr<ast::ParameterDeclaration> Context::parseParameterDeclaration() {
         auto sourceRange =
             merge(idToken.sourceRange(), thisToken.sourceRange());
         return allocate<ast::ThisParameter>(sourceRange,
-                                            sema::RefExpl,
+                                            /* isRef = */ true,
                                             mutQual);
     }
     auto identifier = parseIdentifier();
@@ -784,7 +784,7 @@ UniquePtr<ast::Expression> Context::parseDereference() {
 
 UniquePtr<ast::Expression> Context::parseReference() {
     return parseRefImpl<
-        ast::ReferenceExpression>([this] { return parsePostfix(); }, BitAnd);
+        ast::AddressOfExpression>([this] { return parsePostfix(); }, BitAnd);
 }
 
 UniquePtr<ast::Expression> Context::parsePostfix() {

@@ -1,4 +1,4 @@
-#include "AST/Lowering/LoweringContext.h"
+#include "IRGen/LoweringContext.h"
 
 #include <svm/Builtin.h>
 #include <utl/scope_guard.hpp>
@@ -60,6 +60,16 @@ void LoweringContext::generateImpl(FunctionDefinition const& def) {
     allocas.clear();
 }
 
+sema::ObjectType const* stripPtrAndRef(sema::ObjectType const* type) {
+    if (auto* ptrType = dyncast<sema::PointerType const*>(type)) {
+        return ptrType->base().get();
+    }
+    if (auto* refType = dyncast<sema::ReferenceType const*>(type)) {
+        return refType->base().get();
+    }
+    return type;
+}
+
 void LoweringContext::generateParameter(
     ParameterDeclaration const* paramDecl,
     PassingConvention pc,
@@ -68,29 +78,49 @@ void LoweringContext::generateParameter(
     auto* irParam = irParamItr.to_address();
     auto* irType = mapType(paramDecl->type());
     std::string name(paramDecl->name());
-    /// The `this` reference parameter is not stored to memory
-    if (auto* thisParam = dyncast<ThisParameter const*>(paramDecl);
-        thisParam && sema::isRef(thisParam->type()))
-    {
-        SC_ASSERT(pc.location() == Register, "");
-        memorizeObject(paramDecl->variable(),
-                       Value(newID(), irParam, Register));
-        ++irParamItr;
-        return;
-    }
 
-    if (auto* arrayType =
-            dyncast<sema::ArrayType const*>(stripReference(semaType).get()))
-    {
+    auto* arrayType =
+        dyncast<sema::ArrayType const*>(stripPtrAndRef(semaType.get()));
+    if (arrayType) {
         switch (pc.location()) {
         case Register: {
-            auto* dataAddress = storeLocal(irParam, name);
-            auto* sizeAddress =
-                storeLocal(irParam->next(), utl::strcat(name, ".size"));
-            Value data(newID(), dataAddress, irType, Memory);
-            Value size(newID(), sizeAddress, irParam->next()->type(), Memory);
-            memorizeObject(paramDecl->variable(), data);
-            memorizeArraySize(data.ID(), size);
+            if (isa<sema::ReferenceType>(*paramDecl->type())) {
+                Value data(newID(), irParam, Register);
+                memorizeObject(paramDecl->variable(), data);
+                ++irParamItr;
+                if (arrayType->isDynamic()) {
+                    Value size(newID(), irParam->next(), Register);
+                    memorizeArraySize(data.ID(), size);
+                    ++irParamItr;
+                }
+            }
+            else if (isa<sema::PointerType>(*paramDecl->type())) {
+                Value data(newID(),
+                           storeLocal(irParam),
+                           irParam->type(),
+                           Memory);
+                memorizeObject(paramDecl->variable(), data);
+                ++irParamItr;
+                if (arrayType->isDynamic()) {
+                    Value size(newID(),
+                               storeLocal(irParam->next()),
+                               irParam->next()->type(),
+                               Memory);
+                    memorizeArraySize(data.ID(), size);
+                    ++irParamItr;
+                }
+            }
+            else {
+                SC_ASSERT(!arrayType->isDynamic(),
+                          "Can't pass dynamic array by value");
+                auto* dataAddress = storeLocal(irParam, name);
+                auto* sizeValue = ctx.integralConstant(arrayType->count(), 64);
+                Value data(newID(), dataAddress, irType, Memory);
+                Value size(newID(), sizeValue, Register);
+                memorizeObject(paramDecl->variable(), data);
+                memorizeArraySize(data.ID(), size);
+                ++irParamItr;
+            }
             break;
         }
 
@@ -99,17 +129,23 @@ void LoweringContext::generateParameter(
             Value size(newID(), irParam->next(), Register);
             memorizeObject(paramDecl->variable(), data);
             memorizeArraySize(data.ID(), size);
+            std::advance(irParamItr, 2);
             break;
         }
         }
-        std::advance(irParamItr, 2);
     }
     else {
         switch (pc.location()) {
         case Register: {
-            auto* address = storeLocal(irParam, name);
-            memorizeObject(paramDecl->variable(),
-                           Value(newID(), address, irType, Memory));
+            if (isa<sema::ReferenceType>(*paramDecl->type())) {
+                memorizeObject(paramDecl->variable(),
+                               Value(newID(), irParam, Register));
+            }
+            else {
+                auto* address = storeLocal(irParam, name);
+                memorizeObject(paramDecl->variable(),
+                               Value(newID(), address, irType, Memory));
+            }
             break;
         }
 
@@ -129,74 +165,77 @@ void LoweringContext::generateImpl(StructDefinition const& def) {
     }
 }
 
+void LoweringContext::generateArraySizeImpl(
+    ast::VarDeclBase const* varDecl,
+    uint32_t varID,
+    utl::function_view<ir::Value*()> sizeCallback) {
+    auto* type = stripPtrAndRef(varDecl->type().get());
+    auto* arrayType = dyncast<sema::ArrayType const*>(type);
+    if (!arrayType) {
+        return;
+    }
+    if (!arrayType->isDynamic()) {
+        memorizeArraySize(varID, arrayType->count());
+        return;
+    }
+    if (sema::isRef(varDecl->type())) {
+        memorizeArraySize(varID, sizeCallback());
+    }
+    else {
+        auto* sizeVar =
+            storeLocal(sizeCallback(), utl::strcat(varDecl->name(), ".size"));
+        memorizeArraySize(varID, Value(newID(), sizeVar, size.type(), Memory));
+    }
+}
+
+void LoweringContext::generateVarDeclArraySize(ast::VarDeclBase const* varDecl,
+                                               uint32_t varID,
+                                               uint32_t initID) {
+    generateArraySizeImpl(varDecl, varID, [&] {
+        return toRegister(getArraySize(initID));
+    });
+}
+
+void LoweringContext::generateParamArraySize(ast::VarDeclBase const* varDecl,
+                                             uint32_t varID,
+                                             ir::Parameter* param) {
+    generateArraySizeImpl(varDecl, varID, [&] { return param->next(); });
+}
+
 void LoweringContext::generateImpl(VariableDeclaration const& varDecl) {
     auto dtorStack = varDecl.dtorStack();
-    utl::scope_guard emitDTors = [&] { emitDestructorCalls(dtorStack); };
-    std::string name = utl::strcat(varDecl.name());
-    auto* arrayType = dyncast<sema::ArrayType const*>(
-        sema::stripReference(varDecl.type()).get());
-    /// Simple non-array case
-    if (!arrayType) {
-        if (varDecl.initExpression()) {
-            auto value = getValue(varDecl.initExpression());
-            if (value.isRValue()) {
-                value.get()->setName(name);
-                memorizeObject(varDecl.variable(), value.toLValue());
-                return;
-            }
-            auto* address = storeLocal(toRegister(value), name);
-            memorizeObject(varDecl.variable(),
-                           Value(newID(), address, value.type(), Memory));
-            return;
+    std::string name = std::string(varDecl.name());
+    auto* initExpr = varDecl.initExpression();
+    if (sema::isRef(varDecl.type())) {
+        SC_ASSERT(initExpr, "Reference must be initialized");
+        auto value = getValue(initExpr);
+        memorizeObject(varDecl.variable(), value);
+        /// We don't store array size because we just reuse the value from our
+        /// init expression, so the array size is already stored
+    }
+    else if (initExpr) {
+        auto value = getValue(initExpr);
+        ir::Value* address = nullptr;
+        if (value.isMemory() && initExpr->isRValueNEW()) {
+            address = value.get();
+            address->setName(name);
         }
+        else {
+            address = storeLocal(toRegister(value), name);
+        }
+        auto varID = newID();
+        memorizeObject(varDecl.variable(),
+                       Value(varID, address, value.type(), Memory));
+        generateVarDeclArraySize(&varDecl, varID, value.ID());
+    }
+    else {
         auto* type = mapType(varDecl.type());
         auto* address = makeLocal(type, name);
-        memorizeObject(varDecl.variable(),
-                       Value(newID(), address, type, Memory));
-        return;
+        auto varID = newID();
+        memorizeObject(varDecl.variable(), Value(varID, address, type, Memory));
+        generateVarDeclArraySize(&varDecl, varID, uint32_t(-1));
     }
-    /// Array case
-    if (sema::isRef(varDecl.type())) {
-        auto data = getValue(varDecl.initExpression());
-        auto* dataAddress =
-            storeLocal(toRegister(data), std::string(varDecl.name()));
-        auto const ID = newID();
-        memorizeObject(varDecl.variable(),
-                       Value(ID, dataAddress, data.get()->type(), Memory));
-        auto count = getArraySize(data.ID());
-        auto* sizeAddress =
-            storeLocal(toRegister(count), utl::strcat(varDecl.name(), ".size"));
-        memorizeArraySize(ID,
-                          Value(newID(), sizeAddress, count.type(), Memory));
-        return;
-    }
-    SC_ASSERT(!arrayType->isDynamic(), "Can't locally allocate dynamic array");
-    /// We can steal the data from an rvalue
-    if (varDecl.initExpression() && varDecl.initExpression()->isRValue()) {
-        auto data = getValue(varDecl.initExpression());
-        SC_ASSERT(data.isRValue(), "");
-        data.get()->setName(name);
-        memorizeObject(varDecl.variable(), data);
-        return;
-    }
-    /// We need to allocate our own data
-    auto* elemType = mapType(arrayType->elementType());
-    auto* array = new ir::Alloca(ctx,
-                                 intConstant(arrayType->count(), 32),
-                                 elemType,
-                                 name);
-    allocas.push_back(array);
-    if (varDecl.initExpression()) {
-        auto data = getValue(varDecl.initExpression());
-        auto* memcpy = getFunction(symbolTable.builtinFunction(
-            static_cast<size_t>(svm::Builtin::memcpy)));
-        auto* size = intConstant(arrayType->count() * elemType->size(), 64);
-        std::array<ir::Value*, 4> args = { array, size, data.get(), size };
-        add<ir::Call>(memcpy, args);
-    }
-    auto data = Value(newID(), array, mapType(arrayType), Memory);
-    memorizeObject(varDecl.variable(), data);
-    memorizeArraySize(data.ID(), arrayType->count());
+    emitDestructorCalls(dtorStack);
 }
 
 void LoweringContext::generateImpl(ExpressionStatement const& exprStatement) {

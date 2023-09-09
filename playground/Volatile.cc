@@ -9,7 +9,6 @@
 #include <svm/VirtualMachine.h>
 #include <utl/stdio.hpp>
 
-#include "AST/LowerToIR.h"
 #include "AST/Print.h"
 #include "Assembly/Assembler.h"
 #include "Assembly/AssemblyStream.h"
@@ -29,6 +28,7 @@
 #include "IR/Type.h"
 #include "IR/Validate.h"
 #include "IRDump.h"
+#include "IRGen/IRGen.h"
 #include "Issue/IssueHandler.h"
 #include "MIR/CFG.h"
 #include "MIR/Module.h"
@@ -166,7 +166,7 @@ static void run(ir::Module const& mod) {
     }
 
     header("IR Module");
-    auto [ctx, mod] = ast::lowerToIR(*root, sym, analysisResult);
+    auto [ctx, mod] = ast::generateIR(*root, sym, analysisResult);
     ir::print(mod);
 
     run(mod);

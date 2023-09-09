@@ -30,13 +30,13 @@ SVM_BUILTIN_DEF(atan_f64,  Const, { F64() }, F64())
 /// ## Memory Management
 /// IR signature: void(ptr, ptr, i64)
 SVM_BUILTIN_DEF(memcpy,  None,  {
-    explRef(QualType::Mut(arrayType(Byte()))),
-    explRef(QualType::Const(arrayType(Byte())))
+    pointer(QualType::Mut(arrayType(Byte()))),
+    pointer(QualType::Const(arrayType(Byte())))
 }, Void())
 SVM_BUILTIN_DEF(alloc, None, { S64(), S64() },
-                explRef(QualType::Mut(arrayType(Byte()))))
+                pointer(QualType::Mut(arrayType(Byte()))))
 SVM_BUILTIN_DEF(dealloc, None, {
-    explRef(QualType::Mut(arrayType(Byte()))),
+    pointer(QualType::Mut(arrayType(Byte()))),
     S64()
 }, Void())
 
@@ -45,7 +45,7 @@ SVM_BUILTIN_DEF(putchar,   None,  { Byte() }, Void())
 SVM_BUILTIN_DEF(puti64,    None,  { S64() }, Void())
 SVM_BUILTIN_DEF(putf64,    None,  { F64() }, Void())
 SVM_BUILTIN_DEF(putstr,    None,
-                { explRef(QualType::Const(arrayType(Byte()))) }, Void())
+                { reference(QualType::Const(arrayType(Byte()))) }, Void())
 
 /// ##
 SVM_BUILTIN_DEF(trap,    None,  {  }, Void())

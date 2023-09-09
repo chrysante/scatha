@@ -32,6 +32,9 @@ struct ExprContext {
 
     ast::Expression* analyze(ast::Expression*);
 
+    /// Shorthand for `analyze() && expectValue()`
+    ast::Expression* analyzeValue(ast::Expression*);
+
     ast::Expression* analyzeImpl(ast::Literal&);
     ast::Expression* analyzeImpl(ast::UnaryExpression&);
     ast::Expression* analyzeImpl(ast::BinaryExpression&);
@@ -41,7 +44,7 @@ struct ExprContext {
     ast::Expression* uniformFunctionCall(ast::MemberAccess&);
     ast::Expression* rewritePropertyCall(ast::MemberAccess&);
     ast::Expression* analyzeImpl(ast::DereferenceExpression&);
-    ast::Expression* analyzeImpl(ast::ReferenceExpression&);
+    ast::Expression* analyzeImpl(ast::AddressOfExpression&);
     ast::Expression* analyzeImpl(ast::Conditional&);
     ast::Expression* analyzeImpl(ast::FunctionCall&);
     ast::Expression* rewriteMemberCall(ast::FunctionCall&);
@@ -65,26 +68,6 @@ struct ExprContext {
 
     QualType analyzeBinaryExpr(ast::BinaryExpression&);
 
-    QualType analyzeReferenceAssignment(ast::BinaryExpression&);
-
-    QualType makeRefImplicit(QualType type) const {
-        if (!type) {
-            return nullptr;
-        }
-        if (isRef(type)) {
-            return sym.implRef(type);
-        }
-        return type;
-    }
-
-    QualType makeRefExplicit(QualType type) const {
-        if (!type) {
-            return nullptr;
-        }
-        SC_ASSERT(isRef(type), "???");
-        return sym.explRef(type);
-    }
-
     DTorStack* dtorStack;
     sema::Context& ctx;
     SymbolTable& sym;
@@ -101,10 +84,10 @@ static bool isAny(T const* t) {
     return (isa<Args>(t) || ...);
 }
 
-bool sema::analyzeExpression(ast::Expression& expr,
-                             DTorStack& dtorStack,
-                             Context& ctx) {
-    return !!ExprContext(ctx, dtorStack).analyze(&expr);
+ast::Expression* sema::analyzeExpression(ast::Expression* expr,
+                                         DTorStack& dtorStack,
+                                         Context& ctx) {
+    return ExprContext(ctx, dtorStack).analyze(expr);
 }
 
 ast::Expression* ExprContext::analyze(ast::Expression* expr) {
@@ -114,6 +97,14 @@ ast::Expression* ExprContext::analyze(ast::Expression* expr) {
     expr = visit(*expr, [this](auto&& e) { return this->analyzeImpl(e); });
     SC_ASSERT(true, "");
     return expr;
+}
+
+ast::Expression* ExprContext::analyzeValue(ast::Expression* expr) {
+    auto* result = analyze(expr);
+    if (!result || !expectValue(result)) {
+        return nullptr;
+    }
+    return result;
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
@@ -152,7 +143,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::Literal& lit) {
         return &lit;
     }
     case String:
-        lit.decorateExpr(nullptr, sym.explRef(QualType::Const(sym.Str())));
+        lit.decorateExpr(nullptr, sym.reference(QualType::Const(sym.Str())));
         return &lit;
 
     case Char:
@@ -203,12 +194,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::UnaryExpression& u) {
             iss.push<BadOperandForUnaryExpression>(u, operandType);
             return nullptr;
         }
-        if (!convertToImplicitMutRef(u.operand(), ctx)) {
+        if (!convertToMutRef(u.operand(), ctx)) {
             return nullptr;
         }
         switch (u.notation()) {
         case ast::UnaryOperatorNotation::Prefix: {
-            QualType refType = sym.implRef(operandBaseType);
+            QualType refType = sym.reference(operandBaseType);
             u.decorateExpr(u.operand()->entity(), refType);
             break;
         }
@@ -254,8 +245,12 @@ ast::Expression* ExprContext::analyzeImpl(ast::Identifier& id) {
     // clang-format off
     return SC_MATCH (*entity) {
         [&](Variable& var) {
-            id.decorateExpr(&var, makeRefImplicit(var.type()));
+            id.decorateExpr(&var, sym.reference(var.type()));
             id.setConstantValue(clone(var.constantValue()));
+            return &id;
+        },
+        [&](Property& prop) {
+            id.decorateExpr(&prop, prop.type());
             return &id;
         },
         [&](ObjectType& type) {
@@ -322,12 +317,17 @@ ast::Expression* ExprContext::analyzeImpl(ast::MemberAccess& ma) {
         iss.push<InvalidNameLookup>(ma);
         return nullptr;
     }
-    ma.decorateExpr(ma.member()->entity(),
-                    ma.member()->type(),
-                    ma.accessed()->valueCategory(),
-                    ma.member()->entityCategory());
-    /// Dereference the object if its a value
+    auto type = ma.member()->type();
     if (ma.accessed()->isValue()) {
+        if (!isa<ReferenceType>(*ma.accessed()->type())) {
+            type = stripReference(type);
+            auto mut = ma.accessed()->type().mutability();
+            type = QualType(type.get(), mut);
+        }
+    }
+    ma.decorateExpr(ma.member()->entity(), type, ma.member()->entityCategory());
+    /// Dereference the object if its a value
+    if (ma.accessed()->isValue() && !isa<OverloadSet>(ma.member()->entity())) {
         dereference(ma.accessed(), ctx);
     }
     return &ma;
@@ -376,15 +376,14 @@ ast::Expression* ExprContext::rewritePropertyCall(ast::MemberAccess& ma) {
     auto call = allocate<ast::FunctionCall>(ma.extractMember(),
                                             std::move(args),
                                             ma.sourceRange());
-    QualType type = makeRefImplicit(func->returnType());
+    QualType type = func->returnType();
     auto* temp = &sym.addTemporary(type);
     call->decorateCall(temp, type, func);
     dtorStack->push(temp);
-    bool const convSucc =
-        convertExplicitly(call->argument(0),
-                          makeRefImplicit(func->argumentType(0)),
-                          *dtorStack,
-                          ctx);
+    bool const convSucc = convertExplicitly(call->argument(0),
+                                            func->argumentType(0),
+                                            *dtorStack,
+                                            ctx);
     SC_ASSERT(convSucc,
               "If overload resolution succeeds conversion must not fail");
 
@@ -401,14 +400,15 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
     auto* pointer = expr.referred();
     switch (pointer->entityCategory()) {
     case EntityCategory::Value: {
+        pointer = dereference(pointer, ctx);
         auto* type = stripReference(pointer->type()).get();
         auto* ptrType = dyncast<PointerType const*>(type);
         if (!ptrType) {
             iss.push<BadExpression>(expr, IssueSeverity::Error);
             return nullptr;
         }
-        auto derefType = sym.implRef(ptrType->base());
-        expr.decorateExpr(pointer->entity(), derefType, ValueCategory::RValue);
+        auto derefType = sym.reference(ptrType->base());
+        expr.decorateExpr(pointer->entity(), derefType);
         return &expr;
     }
     case EntityCategory::Type: {
@@ -422,39 +422,35 @@ ast::Expression* ExprContext::analyzeImpl(ast::DereferenceExpression& expr) {
     }
 }
 
-ast::Expression* ExprContext::analyzeImpl(ast::ReferenceExpression& expr) {
+static bool isConvertible(Mutability from, Mutability to) {
+    using enum Mutability;
+    return from == Mutable || to == Const;
+}
+
+ast::Expression* ExprContext::analyzeImpl(ast::AddressOfExpression& expr) {
     if (!analyze(expr.referred())) {
         return nullptr;
     }
-    auto* pointee = expr.referred();
-    switch (pointee->entityCategory()) {
+    auto* referred = expr.referred();
+    switch (referred->entityCategory()) {
     case EntityCategory::Value: {
-        /// We only allow the address to be takes from pure lvalues, aka local
-        /// or global variables
-        if (!pointee->isLValue() || isRef(pointee->type())) {
+        if (!referred->isLValueNEW()) {
             iss.push<BadExpression>(expr, IssueSeverity::Error);
             return nullptr;
         }
-        auto pointeeType = pointee->type();
-        switch (expr.mutability()) {
-        case Mutability::Mutable:
-            if (!pointeeType.isMutable()) {
-                iss.push<BadExpression>(expr, IssueSeverity::Error);
-                return nullptr;
-            }
-            break;
-        case Mutability::Const:
-            pointeeType = pointeeType.toConst();
-            break;
+        auto referredType = stripReference(referred->type());
+        if (!isConvertible(referredType.mutability(), expr.mutability())) {
+            iss.push<BadExpression>(expr, IssueSeverity::Error);
+            return nullptr;
         }
-        auto* ptrType = sym.pointer(pointeeType);
-        expr.decorateExpr(pointee->entity(), ptrType, ValueCategory::RValue);
+        referredType = QualType(referredType.get(), expr.mutability());
+        auto* ptrType = sym.pointer(referredType);
+        expr.decorateExpr(referred->entity(), ptrType);
         return &expr;
     }
     case EntityCategory::Type: {
-        auto* referred = pointee;
         auto* type = cast<ObjectType*>(referred->entity());
-        auto* refType = sym.explRef(QualType(type, expr.mutability()));
+        auto* refType = sym.reference(QualType(type, expr.mutability()));
         expr.decorateExpr(const_cast<ReferenceType*>(refType));
         return &expr;
     }
@@ -465,20 +461,18 @@ ast::Expression* ExprContext::analyzeImpl(ast::ReferenceExpression& expr) {
 }
 
 ast::Expression* ExprContext::analyzeImpl(ast::Conditional& c) {
-    bool success = !!analyze(c.condition());
-    if (success) {
+    if (analyzeValue(c.condition())) {
         convertImplicitly(c.condition(), sym.Bool(), *dtorStack, ctx);
     }
     auto* commonDtors = dtorStack;
     auto* lhsDtors = &c.branchDTorStack(0);
     auto* rhsDtors = &c.branchDTorStack(1);
 
+    bool success = true;
     dtorStack = lhsDtors;
-    success &= !!analyze(c.thenExpr());
-    success &= expectValue(c.thenExpr());
+    success &= !!analyzeValue(c.thenExpr());
     dtorStack = rhsDtors;
-    success &= !!analyze(c.elseExpr());
-    success &= expectValue(c.elseExpr());
+    success &= !!analyzeValue(c.elseExpr());
     dtorStack = commonDtors;
     if (!success) {
         return nullptr;
@@ -518,17 +512,16 @@ ast::Expression* ExprContext::analyzeImpl(ast::Subscript& expr) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return nullptr;
     }
-    auto& arg = *expr.arguments().front();
-    if (!isa<IntType>(*arg.type())) {
-        iss.push<BadExpression>(expr, IssueSeverity::Error);
+    auto* arg = expr.argument(0);
+    if (!isa<IntType>(*arg->type())) {
+        iss.push<BadExpression>(*arg, IssueSeverity::Error);
         return nullptr;
     }
     dereference(expr.callee(), ctx);
     dereference(expr.argument(0), ctx);
     auto mutability = stripReference(expr.callee()->type()).mutability();
-    QualType elemType =
-        sym.implRef(QualType(arrayType->elementType(), mutability));
-    expr.decorateExpr(nullptr, elemType);
+    auto elemType = QualType(arrayType->elementType(), mutability);
+    expr.decorateExpr(nullptr, sym.reference(elemType));
     return &expr;
 }
 
@@ -551,26 +544,21 @@ ast::Expression* ExprContext::analyzeImpl(ast::SubscriptSlice& expr) {
     dereference(&lower, ctx);
     dereference(&upper, ctx);
     auto dynArrayType = sym.arrayType(arrayType->elementType());
-    QualType arrayRefType = sym.implRef(dynArrayType);
+    QualType arrayRefType = sym.reference(dynArrayType);
     expr.decorateExpr(nullptr, arrayRefType);
     return &expr;
 }
 
 ArrayType const* ExprContext::analyzeSubscriptCommon(ast::CallLike& expr) {
-    bool success = !!analyze(expr.callee());
-    success &= expectValue(expr.callee());
-    /// This must not be a `for each` loop, because the argument to the call to
-    /// `analyze` may be deallocated and then the call to `expectValue()` would
-    /// use freed memory without getting the argument again from `expr`
-    for (size_t i = 0, end = expr.arguments().size(); i < end; ++i) {
-        success &= !!analyze(expr.argument(i));
-        success &= expectValue(expr.argument(i));
+    bool success = !!analyzeValue(expr.callee());
+    for (auto* arg: expr.arguments()) {
+        success &= !!analyzeValue(arg);
     }
     if (!success) {
         return nullptr;
     }
-    auto* arrayType =
-        dyncast<ArrayType const*>(stripReference(expr.callee()->type()).get());
+    auto* accessedType = stripReference(expr.callee()->type()).get();
+    auto* arrayType = dyncast<ArrayType const*>(accessedType);
     if (!arrayType) {
         iss.push<BadExpression>(expr, IssueSeverity::Error);
         return nullptr;
@@ -691,7 +679,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::FunctionCall& fc) {
         return nullptr;
     }
     auto* function = result.function;
-    QualType type = makeRefImplicit(function->returnType());
+    QualType type = function->returnType();
     fc.decorateCall(&sym.addTemporary(type), type, function);
     convertArguments(fc, result, *dtorStack, ctx);
     dtorStack->push(fc.object());
@@ -707,10 +695,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
         return nullptr;
     }
     if (list.elements().empty()) {
-        list.decorateExpr(nullptr,
-                          nullptr,
-                          std::nullopt,
-                          EntityCategory::Indeterminate);
+        list.decorateExpr(nullptr);
         return nullptr;
     }
     auto* first = list.elements().front();
@@ -718,16 +703,7 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
     switch (entityCat) {
     case EntityCategory::Value: {
         for (auto* expr: list.elements()) {
-            if (!expr->isValue()) {
-                iss.push<BadSymbolReference>(*expr, EntityCategory::Value);
-                success = false;
-                continue;
-            }
-            if (isExplRef(expr->type())) {
-                /// TODO: Consider whether we allow storing references in arrays
-                iss.push<BadExpression>(list, IssueSeverity::Error);
-                success = false;
-            }
+            success &= expectValue(expr);
         }
         if (!success) {
             return nullptr;
@@ -738,11 +714,11 @@ ast::Expression* ExprContext::analyzeImpl(ast::ListExpression& list) {
             iss.push<InvalidListExpr>(list, InvalidListExpr::NoCommonType);
             return nullptr;
         }
+        commonType = stripQualifiers(commonType);
         for (auto* expr: list.elements()) {
             bool const succ =
                 convertImplicitly(expr, commonType, *dtorStack, ctx);
-            SC_ASSERT(succ,
-                      "Conversion shall not fail if we have a common type");
+            SC_ASSERT(succ, "Conversion failed despite common type");
         }
         auto* arrayType =
             sym.arrayType(commonType.get(), list.elements().size());
@@ -868,12 +844,6 @@ QualType ExprContext::analyzeBinaryExpr(ast::BinaryExpression& expr) {
     if (expr.operation() == ast::BinaryOperator::Comma) {
         return expr.rhs()->type();
     }
-    /// Also reference assignment is handled separately
-    if (expr.operation() == ast::BinaryOperator::Assignment &&
-        isExplRef(expr.rhs()->type()))
-    {
-        return analyzeReferenceAssignment(expr);
-    }
 
     /// Determine common type
     QualType commonQualifiedType =
@@ -899,8 +869,14 @@ QualType ExprContext::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         QualType lhsType = expr.lhs()->type();
         /// Here we only look at assignment _through_ references
         /// That means LHS shall be an implicit reference
+        dereference(expr.lhs(), ctx);
+        if (!expr.lhs()->type().isMutable()) {
+            iss.push<BadOperandsForBinaryExpression>(expr,
+                                                     expr.lhs()->type(),
+                                                     expr.rhs()->type());
+            return nullptr;
+        }
         bool success = true;
-        success &= !!convertToImplicitMutRef(expr.lhs(), ctx);
         success &= !!convertImplicitly(expr.rhs(),
                                        stripQualifiers(lhsType),
                                        *dtorStack,
@@ -918,21 +894,6 @@ QualType ExprContext::analyzeBinaryExpr(ast::BinaryExpression& expr) {
         return *resultType;
     }
     return nullptr;
-}
-
-QualType ExprContext::analyzeReferenceAssignment(ast::BinaryExpression& expr) {
-    SC_ASSERT(isExplRef(expr.rhs()->type()), "");
-    if (!expr.lhs()->type().isMutable()) {
-        iss.push<AssignmentToConst>(expr);
-        return nullptr;
-    }
-    QualType explicitRefType = makeRefExplicit(expr.lhs()->type());
-    bool success = true;
-    success &=
-        !!convertExplicitly(expr.lhs(), explicitRefType, *dtorStack, ctx);
-    success &=
-        !!convertExplicitly(expr.rhs(), explicitRefType, *dtorStack, ctx);
-    return success ? sym.Void() : nullptr;
 }
 
 Entity* ExprContext::lookup(ast::Identifier& id) {

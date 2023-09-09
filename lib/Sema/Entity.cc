@@ -67,6 +67,13 @@ bool Variable::isLocal() const {
            parent()->kind() == ScopeKind::Anonymous;
 }
 
+Property::Property(PropertyKind kind, Scope* parentScope, QualType type):
+    Object(EntityType::Property,
+           std::string(toString(kind)),
+           parentScope,
+           type),
+    _kind(kind) {}
+
 Temporary::Temporary(size_t id, Scope* parentScope, QualType type):
     Object(EntityType::Temporary, std::string{}, parentScope, type), _id(id) {}
 
@@ -220,30 +227,15 @@ RefTypeBase::RefTypeBase(EntityType type, QualType base, std::string name):
                ptrAlign()),
     _base(base) {}
 
-static std::string makePtrName(QualType base) {
-    return utl::strcat("*", base.name());
+static std::string makePtrName(QualType base, std::string_view op) {
+    return utl::strcat(op, base.name());
 }
 
 PointerType::PointerType(QualType base):
-    RefTypeBase(EntityType::PointerType, base, makePtrName(base)) {}
+    RefTypeBase(EntityType::PointerType, base, makePtrName(base, "*")) {}
 
-static std::string makeRefName(QualType base, Reference ref) {
-    std::stringstream sstr;
-    switch (ref) {
-    case Reference::Explicit:
-        sstr << "&";
-        break;
-    case Reference::Implicit:
-        sstr << "'";
-        break;
-    }
-    sstr << base.name();
-    return std::move(sstr).str();
-}
-
-ReferenceType::ReferenceType(QualType base, Reference ref):
-    RefTypeBase(EntityType::ReferenceType, base, makeRefName(base, ref)),
-    ref(ref) {}
+ReferenceType::ReferenceType(QualType base):
+    RefTypeBase(EntityType::ReferenceType, base, makePtrName(base, "&")) {}
 
 /// # OverloadSet
 

@@ -52,24 +52,28 @@ sema::QualType Expression::typeOrTypeEntity() const {
     return isValue() ? type() : cast<sema::ObjectType const*>(entity());
 }
 
+/// Convenience wrapper for `isa<sema::ReferenceType>(type());`
+bool Expression::isLValueNEW() const {
+    SC_ASSERT(isValue(), "Must be a value to be an LValue");
+    return isa<sema::ReferenceType>(*type());
+}
+
+/// Convenience wrapper for `!isa<sema::ReferenceType>(type());`
+bool Expression::isRValueNEW() const {
+    SC_ASSERT(isValue(), "Must be a value to be an RValue");
+    return !isa<sema::ReferenceType>(*type());
+}
+
 void Expression::decorateExpr(sema::Entity* entity,
                               sema::QualType type,
-                              std::optional<sema::ValueCategory> valueCat,
                               std::optional<sema::EntityCategory> entityCat) {
     _entity = entity;
     _type = type;
     /// Derive defaults
     if (entity) {
-        // clang-format off
-        _valueCat = SC_MATCH (*entity) {
-            [](sema::Variable&) { return sema::ValueCategory::LValue; },
-            [](sema::Temporary&) { return sema::ValueCategory::RValue; },
-            [](sema::Entity&) { return sema::ValueCategory::None; },
-        }; // clang-format on
         _entityCat = entity->category();
     }
     else {
-        _valueCat = sema::ValueCategory::RValue;
         _entityCat = sema::EntityCategory::Value;
     }
     auto* object = dyncast_or_null<sema::Object*>(entity);
@@ -77,9 +81,6 @@ void Expression::decorateExpr(sema::Entity* entity,
         _type = object->type();
     }
     /// Override if user specified
-    if (valueCat) {
-        _valueCat = *valueCat;
-    }
     if (entityCat) {
         _entityCat = *entityCat;
     }
@@ -89,7 +90,7 @@ void Expression::decorateExpr(sema::Entity* entity,
 void FunctionCall::decorateCall(sema::Object* object,
                                 sema::QualType type,
                                 sema::Function* calledFunction) {
-    decorateExpr(object, type, sema::ValueCategory::RValue);
+    decorateExpr(object, type);
     _function = calledFunction;
 }
 

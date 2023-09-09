@@ -1,4 +1,4 @@
-#include "AST/Lowering/LoweringContext.h"
+#include "IRGen/LoweringContext.h"
 
 #include <range/v3/view.hpp>
 #include <svm/Builtin.h>
@@ -63,27 +63,22 @@ static bool isTrivial(sema::QualType type) {
 
 static const size_t maxRegPassingSize = 16;
 
+static bool isArrayAndDynamic(sema::ObjectType const* type) {
+    auto* arrayType = dyncast<sema::ArrayType const*>(type);
+    return arrayType && arrayType->isDynamic();
+}
+
 static PassingConvention computePCImpl(sema::QualType type, bool isRetval) {
+    if (auto* refType = dyncast<sema::RefTypeBase const*>(type.get())) {
+        size_t argCount = isArrayAndDynamic(refType->base().get()) ? 2 : 1;
+        return PassingConvention(Register, isRetval ? 0 : argCount);
+    }
     bool const isSmall = type->size() <= maxRegPassingSize;
-    // clang-format off
-    return visit(*sema::stripReference(type), utl::overload{
-        [&](sema::ObjectType const& baseType) {
-            if (isSmall && isTrivial(type)) {
-                return PassingConvention(Register, isRetval ? 0u : 1u);
-            }
-            return PassingConvention(Memory, 1);
-        },
-        [&](sema::ArrayType const& arrayType) {
-            size_t argCount = arrayType.isDynamic() ? 2 : 1;
-            if (sema::isRef(type)) {
-                return PassingConvention(Register, isRetval ? 0 : argCount);
-            }
-            if (isSmall && isTrivial(type)) {
-                return PassingConvention(Register, isRetval ? 0u : 1u);
-            }
-            return PassingConvention(Memory, argCount);
-        },
-    }); // clang-format on
+    if (isSmall && isTrivial(type)) {
+        return PassingConvention(Register, isRetval ? 0u : 1u);
+    }
+    size_t argCount = isArrayAndDynamic(type.get()) ? 2 : 1;
+    return PassingConvention(Memory, argCount);
 }
 
 static PassingConvention computeRetValPC(sema::QualType type) {

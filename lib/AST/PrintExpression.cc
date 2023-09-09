@@ -25,7 +25,7 @@ struct Context {
     void printImpl(FunctionCall const&);
     void printImpl(Subscript const&);
     void printImpl(GenericExpression const&);
-    void printImpl(ReferenceExpression const&);
+    void printImpl(AddressOfExpression const&);
     void printImpl(ListExpression const&);
     void printImpl(Conversion const&);
     void printImpl(ConstructorCall const&) {}
@@ -133,7 +133,7 @@ void Context::printImpl(Subscript const& subscript) {
 
 void Context::printImpl(GenericExpression const& expr) { SC_UNIMPLEMENTED(); }
 
-void Context::printImpl(ReferenceExpression const& ref) {
+void Context::printImpl(AddressOfExpression const& ref) {
     str << "&";
     if (ref.isMutable()) {
         str << "mut ";

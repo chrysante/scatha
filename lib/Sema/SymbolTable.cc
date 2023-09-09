@@ -33,7 +33,7 @@ struct SymbolTable::Impl {
     utl::hashmap<QualType, PointerType const*> ptrTypes;
 
     /// Map of instantiated `ReferenceType`'s
-    utl::hashmap<std::pair<QualType, Reference>, ReferenceType const*> refTypes;
+    utl::hashmap<QualType, ReferenceType const*> refTypes;
 
     /// Map of instantiated `ArrayTypes`'s
     utl::hashmap<std::pair<ObjectType const*, size_t>, ArrayType const*>
@@ -250,6 +250,12 @@ Expected<Variable&, SemanticIssue*> SymbolTable::addVariable(std::string name,
     return var;
 }
 
+Property& SymbolTable::addProperty(PropertyKind kind, QualType type) {
+    auto* prop = impl->addEntity<Property>(kind, &currentScope(), type);
+    currentScope().add(prop);
+    return *prop;
+}
+
 Temporary& SymbolTable::addTemporary(QualType type) {
     auto* temp =
         impl->addEntity<Temporary>(impl->temporaryID++, &currentScope(), type);
@@ -289,9 +295,8 @@ ArrayType const* SymbolTable::arrayType(ObjectType const* elementType,
     auto* arrayType = impl->addEntity<ArrayType>(elementType, size);
     impl->_arrayTypes.insert({ key, arrayType });
     withScopeCurrent(arrayType, [&] {
-        auto* countVar = &addVariable("count", S64()).value();
-        countVar->setIndex(1);
-        arrayType->setCountVariable(countVar);
+        auto* arraySize = &addProperty(PropertyKind::ArraySize, S64());
+        arrayType->setCountProperty(arraySize);
     });
     return arrayType;
 }
@@ -326,17 +331,16 @@ PointerType const* SymbolTable::pointer(QualType pointee) {
     return ptrType;
 }
 
-ReferenceType const* SymbolTable::reference(QualType referred, Reference ref) {
-    if (isRef(referred)) {
-        referred = cast<ReferenceType const&>(*referred).base();
+ReferenceType const* SymbolTable::reference(QualType referred) {
+    if (auto* refType = dyncast<ReferenceType const*>(referred.get())) {
+        return refType;
     }
-    std::pair key = { referred, ref };
-    auto itr = impl->refTypes.find(key);
+    auto itr = impl->refTypes.find(referred);
     if (itr != impl->refTypes.end()) {
         return itr->second;
     }
-    auto* refType = impl->addEntity<ReferenceType>(referred, ref);
-    impl->refTypes.insert({ key, refType });
+    auto* refType = impl->addEntity<ReferenceType>(referred);
+    impl->refTypes.insert({ referred, refType });
     return refType;
 }
 

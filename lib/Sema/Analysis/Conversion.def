@@ -10,7 +10,6 @@
 
 SC_REFCONV_DEF(None,         0)
 SC_REFCONV_DEF(Dereference,  1)
-SC_REFCONV_DEF(DerefExpl,    2)
 SC_REFCONV_DEF(TakeAddress,  2)
 
 #undef SC_REFCONV_DEF
@@ -38,13 +37,17 @@ SC_MUTCONV_DEF(MutToConst,   1)
 
 SC_OBJTYPECONV_DEF(None,                          0)
 
-/// Only valid for reference target types
+/// # Only valid for reference target types
     
 SC_OBJTYPECONV_DEF(Array_FixedToDynamic,          1)
 
 SC_OBJTYPECONV_DEF(Reinterpret_ArrayRef_ToByte,   2)
 SC_OBJTYPECONV_DEF(Reinterpret_ArrayRef_FromByte, 2)
 SC_OBJTYPECONV_DEF(Reinterpret_Value,             2)
+
+/// # Only valid for pointer target types
+
+SC_OBJTYPECONV_DEF(ArrayPtr_FixedToDynamic,       1)
 
 /// ## Only valid for value target types
 

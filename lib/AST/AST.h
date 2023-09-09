@@ -51,7 +51,7 @@
 ///    │  ├─ FunctionCall
 ///    │  ├─ ConstructorCall
 ///    │  └─ Subscript
-///    ├─ ReferenceExpression
+///    ├─ AddressOfExpression
 ///    ├─ DereferenceExpression
 ///    └─ Conversion
 /// ```
@@ -302,12 +302,6 @@ public:
         return _entityCat;
     }
 
-    /// The value category of this expression.
-    sema::ValueCategory valueCategory() const {
-        expectDecorated();
-        return _valueCat;
-    }
-
     /// ID of the resolved symbol (may be `Invalid`)
     sema::Entity* entity() {
         return const_cast<sema::Entity*>(std::as_const(*this).entity());
@@ -347,15 +341,11 @@ public:
         return entityCategory() == sema::EntityCategory::Value;
     }
 
-    /// Convenience wrapper
-    bool isLValue() const {
-        return isValue() && valueCategory() == sema::ValueCategory::LValue;
-    }
+    /// Convenience wrapper for `isa<sema::ReferenceType>(type());`
+    bool isLValueNEW() const;
 
-    /// Convenience wrapper
-    bool isRValue() const {
-        return isValue() && valueCategory() == sema::ValueCategory::RValue;
-    }
+    /// Convenience wrapper for `!isa<sema::ReferenceType>(type());`
+    bool isRValueNEW() const;
 
     /// Convenience wrapper for: `entityCategory() == EntityCategory::Type`
     bool isType() const {
@@ -366,7 +356,6 @@ public:
     void decorateExpr(
         sema::Entity* entity,
         sema::QualType type = nullptr,
-        std::optional<sema::ValueCategory> valueCat = std::nullopt,
         std::optional<sema::EntityCategory> entityCat = std::nullopt);
 
     /// \Returns Constant value if this expression is constant evaluable
@@ -381,7 +370,6 @@ public:
 private:
     sema::Entity* _entity = nullptr;
     sema::QualType _type = nullptr;
-    sema::ValueCategory _valueCat = sema::ValueCategory::None;
     sema::EntityCategory _entityCat = sema::EntityCategory::Indeterminate;
     UniquePtr<sema::Value> constVal;
 };
@@ -532,9 +520,9 @@ private:
 };
 
 /// Concrete node representing a reference expression.
-class SCATHA_API ReferenceExpression:
-    public RefExprBase<NodeType::ReferenceExpression> {
-    using Base = RefExprBase<NodeType::ReferenceExpression>;
+class SCATHA_API AddressOfExpression:
+    public RefExprBase<NodeType::AddressOfExpression> {
+    using Base = RefExprBase<NodeType::AddressOfExpression>;
 
 public:
     using Base::Base;
@@ -792,98 +780,10 @@ public:
     AST_RANGE_PROPERTY(0, Declaration, declaration, Declaration)
 };
 
-/// Concrete node representing a variable declaration.
-class SCATHA_API VariableDeclaration: public Declaration {
+/// Abstract base class of `VariableDeclaration` and `ParameterDeclaration`
+class SCATHA_API VarDeclBase: public Declaration {
 public:
-    explicit VariableDeclaration(SourceRange sourceRange,
-                                 UniquePtr<Identifier> name,
-                                 UniquePtr<Expression> typeExpr,
-                                 UniquePtr<Expression> initExpr,
-                                 bool isMut):
-        Declaration(NodeType::VariableDeclaration,
-                    sourceRange,
-                    std::move(name),
-                    std::move(typeExpr),
-                    std::move(initExpr)),
-        isMut(isMut) {}
-
-    AST_DERIVED_COMMON(VariableDeclaration)
-
-    /// Typename declared in the source code. Null if no typename was declared.
-    AST_PROPERTY(1, Expression, typeExpr, TypeExpr)
-
-    /// Expression to initialize this variable. May be null.
-    AST_PROPERTY(2, Expression, initExpression, InitExpression)
-
-    /// **Decoration provided by semantic analysis**
-
-    /// Declared variable
-    template <typename V = sema::Variable>
-    V* variable() {
-        return const_cast<V*>(std::as_const(*this).variable());
-    }
-
-    /// \overload
-    template <typename V = sema::Variable>
-    V const* variable() const {
-        return cast<V const*>(entity());
-    }
-
-    /// Type of the variable.
-    /// Either deduced by the type of initExpression or by declTypename and then
-    /// checked against the type of  initExpression
-    sema::QualType type() const {
-        expectDecorated();
-        return _type;
-    }
-
-    /// Offset of the variable if this is a struct member. Always zero
-    /// otherwise.
-    size_t offset() const {
-        expectDecorated();
-        return _offset;
-    }
-
-    /// Index of the variable if this is a struct member. Always zero otherwise.
-    size_t index() const {
-        expectDecorated();
-        return _index;
-    }
-
-    /// `true` if this variable was declared with `let`, `false` if declared
-    /// with `var`
-    bool isMutable() const { return isMut; }
-
-    /// Decorate this node.
-    void decorateVariable(sema::Entity* entity, sema::QualType type) {
-        _type = type;
-        decorateDecl(entity);
-    }
-
-    void setOffset(size_t offset) {
-        _offset = utl::narrow_cast<uint32_t>(offset);
-    }
-
-    void setIndex(size_t index) { _index = utl::narrow_cast<uint32_t>(index); }
-
-private:
-    sema::QualType _type = nullptr;
-    uint32_t _offset = 0;
-    uint32_t _index : 31 = 0;
-    bool isMut      : 1 = true;
-};
-
-/// Concrete node representing a parameter declaration.
-class SCATHA_API ParameterDeclaration: public Declaration {
-public:
-    explicit ParameterDeclaration(UniquePtr<Identifier> name,
-                                  UniquePtr<Expression> typeExpr):
-        ParameterDeclaration(NodeType::ParameterDeclaration,
-                             SourceRange{},
-                             std::move(name),
-                             std::move(typeExpr)) {}
-
-    AST_DERIVED_COMMON(ParameterDeclaration)
+    AST_DERIVED_COMMON(VarDeclBase)
 
     AST_PROPERTY(1, Expression, typeExpr, TypeExpr)
 
@@ -908,20 +808,21 @@ public:
     }
 
     /// Decorate this node.
-    void decorateParameter(sema::Entity* entity, sema::QualType type) {
+    void decorateVarDecl(sema::Entity* entity, sema::QualType type) {
         _type = type;
         Declaration::decorateDecl(entity);
     }
 
 protected:
-    explicit ParameterDeclaration(NodeType nodeType,
-                                  SourceRange sourceRange,
-                                  UniquePtr<Identifier> name,
-                                  UniquePtr<Expression> typeExpr):
+    template <typename... Children>
+    explicit VarDeclBase(NodeType nodeType,
+                         SourceRange sourceRange,
+                         UniquePtr<Identifier> name,
+                         UniquePtr<Children>... children):
         Declaration(nodeType,
                     sourceRange,
                     std::move(name),
-                    std::move(typeExpr)) {
+                    std::move(children)...) {
         if (nameIdentifier()) {
             setSourceRange(nameIdentifier()->sourceRange());
         }
@@ -931,29 +832,103 @@ private:
     sema::QualType _type = nullptr;
 };
 
+/// Concrete node representing a variable declaration.
+class SCATHA_API VariableDeclaration: public VarDeclBase {
+public:
+    explicit VariableDeclaration(SourceRange sourceRange,
+                                 UniquePtr<Identifier> name,
+                                 UniquePtr<Expression> typeExpr,
+                                 UniquePtr<Expression> initExpr,
+                                 bool isMut):
+        VarDeclBase(NodeType::VariableDeclaration,
+                    sourceRange,
+                    std::move(name),
+                    std::move(typeExpr),
+                    std::move(initExpr)),
+        isMut(isMut) {}
+
+    AST_DERIVED_COMMON(VariableDeclaration)
+
+    /// Expression to initialize this variable. May be null.
+    AST_PROPERTY(2, Expression, initExpression, InitExpression)
+
+    /// **Decoration provided by semantic analysis**
+
+    /// Offset of the variable if this is a struct member. Always zero
+    /// otherwise.
+    size_t offset() const {
+        expectDecorated();
+        return _offset;
+    }
+
+    /// Index of the variable if this is a struct member. Always zero otherwise.
+    size_t index() const {
+        expectDecorated();
+        return _index;
+    }
+
+    /// `true` if this variable was declared with `let`, `false` if declared
+    /// with `var`
+    bool isMutable() const { return isMut; }
+
+    void setOffset(size_t offset) {
+        _offset = utl::narrow_cast<uint32_t>(offset);
+    }
+
+    void setIndex(size_t index) { _index = utl::narrow_cast<uint32_t>(index); }
+
+private:
+    uint32_t _offset = 0;
+    uint32_t _index : 31 = 0;
+    bool isMut      : 1 = true;
+};
+
+/// Concrete node representing a parameter declaration.
+class SCATHA_API ParameterDeclaration: public VarDeclBase {
+public:
+    explicit ParameterDeclaration(UniquePtr<Identifier> name,
+                                  UniquePtr<Expression> typeExpr):
+        ParameterDeclaration(NodeType::ParameterDeclaration,
+                             SourceRange{},
+                             std::move(name),
+                             std::move(typeExpr)) {}
+
+    AST_DERIVED_COMMON(ParameterDeclaration)
+
+protected:
+    explicit ParameterDeclaration(NodeType nodeType,
+                                  SourceRange sourceRange,
+                                  UniquePtr<Identifier> name,
+                                  UniquePtr<Expression> typeExpr):
+        VarDeclBase(nodeType,
+                    sourceRange,
+                    std::move(name),
+                    std::move(typeExpr)) {}
+};
+
 /// Represents the explicit `this` parameter
 class ThisParameter: public ParameterDeclaration {
 public:
     explicit ThisParameter(SourceRange sourceRange,
-                           std::optional<sema::Reference> ref,
+                           bool isRef,
                            sema::Mutability mut):
         ParameterDeclaration(NodeType::ThisParameter,
                              sourceRange,
                              nullptr,
                              nullptr),
-        ref(ref),
+        isRef(isRef),
         mut(mut) {}
 
     AST_DERIVED_COMMON(ThisParameter)
 
     /// The optional reference qualifier attached to the `this` parameter
-    std::optional<sema::Reference> reference() const { return ref; }
+    bool isReference() const { return isRef; }
 
     /// The mutability qualifier attached to the `this` parameter
     sema::Mutability mutability() const { return mut; }
 
 private:
-    std::optional<sema::Reference> ref;
+    bool isRef;
     sema::Mutability mut;
 };
 
